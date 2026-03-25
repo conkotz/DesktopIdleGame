@@ -16,7 +16,7 @@ MonoBehaviour:
   maxStack: 1
   itemId: stone_sword
   displayName: Stone Sword
-  icon: {fileID: -8233395917148957338, guid: 3a5bee715b8e3a040a3f9abb0f109194, type: 3}
+  icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0

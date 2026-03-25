@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b135f695c35f199438922318ab9539c0, type: 3}
-  m_Name: mining
+  m_Name: melee
   m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
-  skillType: 0
-  displayName: Mining
+  skillType: 3
+  displayName: Melee
   description: Gather mining resources used to make weapons and armour
-  icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
-  themeColor: {r: 0.21568629, g: 0.21568629, b: 0.21568629, a: 1}
-  category: 0
+  icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
+  themeColor: {r: 0.7735849, g: 0.03357058, b: 0.043666083, a: 1}
+  category: 1
   unlocks:
   - requiredLevel: 1
-    title: Mine Stone
-    description: Can mine stock deposits
-    icon: {fileID: 21300000, guid: 1a2a5b7fb636e2643a41f61d0ff4f055, type: 3}
-    unlockType: 2
+    title: Melee Combat
+    description: Can use common melee weapons
+    icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
+    unlockType: 0
     ability: {fileID: 0}

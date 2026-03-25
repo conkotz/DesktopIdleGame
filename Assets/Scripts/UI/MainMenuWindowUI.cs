@@ -7,8 +7,7 @@ public class MainMenuWindowUI : MonoBehaviour
 
     [Header("Pages")]
     [SerializeField] private GameObject characterPage;
-    [SerializeField] private GameObject skillsPage;
-    [SerializeField] private GameObject abilitiesPage;
+    [SerializeField] private GameObject skillsAbilitiesPage;
 
     private GameObject currentPage;
 
@@ -28,14 +27,9 @@ public class MainMenuWindowUI : MonoBehaviour
         TogglePage(characterPage);
     }
 
-    public void ToggleSkills()
+    public void ToggleSkillsAbilities()
     {
-        TogglePage(skillsPage);
-    }
-
-    public void ToggleAbilities()
-    {
-        TogglePage(abilitiesPage);
+        TogglePage(skillsAbilitiesPage);
     }
 
     public void OpenCharacter()
@@ -43,14 +37,9 @@ public class MainMenuWindowUI : MonoBehaviour
         OpenPage(characterPage);
     }
 
-    public void OpenSkills()
+    public void OpenSkillsAbilities()
     {
-        OpenPage(skillsPage);
-    }
-
-    public void OpenAbilities()
-    {
-        OpenPage(abilitiesPage);
+        OpenPage(skillsAbilitiesPage);
     }
 
     public void Close()
@@ -91,7 +80,6 @@ public class MainMenuWindowUI : MonoBehaviour
     private void HideAllPages()
     {
         if (characterPage) characterPage.SetActive(false);
-        if (skillsPage) skillsPage.SetActive(false);
-        if (abilitiesPage) abilitiesPage.SetActive(false);
+        if (skillsAbilitiesPage) skillsAbilitiesPage.SetActive(false);
     }
 }
