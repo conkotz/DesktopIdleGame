@@ -16,9 +16,9 @@ MonoBehaviour:
   maxStack: 1
   itemId: stone_platebody
   displayName: Stone Platebody
-  icon: {fileID: 1898632380281428566, guid: 3a5bee715b8e3a040a3f9abb0f109194, type: 3}
+  icon: {fileID: -5215976841785607928, guid: 1662ee03339d17346bb0f89529bb26ff, type: 3}
   heldSprite: {fileID: 0}
-  equippedSprite: {fileID: 1898632380281428566, guid: 3a5bee715b8e3a040a3f9abb0f109194, type: 3}
+  equippedSprite: {fileID: -5215976841785607928, guid: 1662ee03339d17346bb0f89529bb26ff, type: 3}
   useCustomEquippedPose: 0
   equippedLocalOffset: {x: 0, y: 0}
   equippedLocalRotationZ: 0

@@ -15,6 +15,13 @@ public class BodyEquipper : MonoBehaviour
     [Tooltip("Name of the body armor overlay object under the character.")]
     [SerializeField] private string bodyRendererObjectName = "BodyArmor";
 
+    [Header("Base Body (optional)")]
+    [Tooltip("Base body renderer (e.g. 'Body') that should be hidden when BodyArmor is equipped.")]
+    [SerializeField] private SpriteRenderer baseBodyRenderer;
+
+    [Tooltip("Name of base body renderer object under the character.")]
+    [SerializeField] private string baseBodyRendererObjectName = "Body";
+
     private Action _cb;
     private Vector3 _defaultLocalPosition;
 
@@ -25,6 +32,9 @@ public class BodyEquipper : MonoBehaviour
 
         if (!bodyRenderer)
             bodyRenderer = FindRendererByName(bodyRendererObjectName);
+
+        if (!baseBodyRenderer)
+            baseBodyRenderer = FindRendererByName(baseBodyRendererObjectName);
 
         if (bodyRenderer)
             _defaultLocalPosition = bodyRenderer.transform.localPosition;
@@ -72,6 +82,10 @@ public class BodyEquipper : MonoBehaviour
         bodyRenderer.sprite = def.EquippedSprite;
         bodyRenderer.transform.localPosition = _defaultLocalPosition + (Vector3)def.EquippedLocalOffset;
         bodyRenderer.enabled = true;
+
+        // Avoid double visuals by hiding the base body whenever an armor overlay is equipped.
+        if (baseBodyRenderer)
+            baseBodyRenderer.enabled = false;
     }
 
     private void ApplyNone()
@@ -80,6 +94,10 @@ public class BodyEquipper : MonoBehaviour
         bodyRenderer.sprite = null;
         bodyRenderer.transform.localPosition = _defaultLocalPosition;
         bodyRenderer.enabled = false;
+
+        // Restore base body when no armor overlay is equipped.
+        if (baseBodyRenderer)
+            baseBodyRenderer.enabled = true;
     }
 
     private SpriteRenderer FindRendererByName(string childName)

@@ -16,9 +16,9 @@ MonoBehaviour:
   maxStack: 1
   itemId: stone_helmet
   displayName: Stone Helmet
-  icon: {fileID: -7556199866425377712, guid: 3a5bee715b8e3a040a3f9abb0f109194, type: 3}
+  icon: {fileID: -2540250834521133883, guid: 19a400fb2beceb4408f115036d477b43, type: 3}
   heldSprite: {fileID: 0}
-  equippedSprite: {fileID: -7556199866425377712, guid: 3a5bee715b8e3a040a3f9abb0f109194, type: 3}
+  equippedSprite: {fileID: -2540250834521133883, guid: 19a400fb2beceb4408f115036d477b43, type: 3}
   useCustomEquippedPose: 0
   equippedLocalOffset: {x: 0, y: 0}
   equippedLocalRotationZ: 0

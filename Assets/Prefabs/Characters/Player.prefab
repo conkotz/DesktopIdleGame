@@ -5760,6 +5760,8 @@ MonoBehaviour:
   inventory: {fileID: 0}
   bodyRenderer: {fileID: 891282943680693398}
   bodyRendererObjectName: BodyArmor
+  baseBodyRenderer: {fileID: 0}
+  baseBodyRendererObjectName: Body
 --- !u!114 &3282299245861754191
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6207,7 +6209,7 @@ PrefabInstance:
       objectReference: {fileID: 21300194, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
     - target: {fileID: 212000013500962334, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       propertyPath: m_SortingOrder
-      value: 3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 212000013542079236, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       propertyPath: m_SortingOrder
