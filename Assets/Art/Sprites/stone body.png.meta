@@ -1,19 +1,10 @@
 fileFormatVersion: 2
-guid: 3a5bee715b8e3a040a3f9abb0f109194
+guid: 1662ee03339d17346bb0f89529bb26ff
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -7556199866425377712
-    second: Basic stone items tileset_0
-  - first:
-      213: 1898632380281428566
-    second: Basic stone items tileset_1
-  - first:
-      213: 2403332761242691292
-    second: Basic stone items tileset_2
-  - first:
-      213: -8233395917148957338
-    second: Basic stone items tileset_3
+      213: -5215976841785607928
+    second: stone body_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -60,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 360
+  spritePixelsToUnits: 1250
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -109,89 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Basic stone items tileset_0
+      name: stone body_0
       rect:
         serializedVersion: 2
-        x: 180
-        y: 408
-        width: 211
-        height: 241
+        x: 252
+        y: 392
+        width: 548
+        height: 784
       alignment: 9
-      pivot: {x: 0.5270826, y: 0.18288109}
+      pivot: {x: 0.4973383, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 05c7cd5814cf22790800000000000000
-      internalID: -7556199866425377712
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Basic stone items tileset_1
-      rect:
-        serializedVersion: 2
-        x: 473
-        y: 402
-        width: 278
-        height: 257
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 65a9ab9271c495a10800000000000000
-      internalID: 1898632380281428566
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Basic stone items tileset_2
-      rect:
-        serializedVersion: 2
-        x: 824
-        y: 384
-        width: 253
-        height: 271
-      alignment: 9
-      pivot: {x: 0.5453872, y: 0.6430092}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: cd6ede6b96a5a5120800000000000000
-      internalID: 2403332761242691292
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Basic stone items tileset_3
-      rect:
-        serializedVersion: 2
-        x: 1222
-        y: 374
-        width: 138
-        height: 289
-      alignment: 9
-      pivot: {x: 0.5, y: 0.20199753}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 6655f27290a1dbd80800000000000000
-      internalID: -8233395917148957338
+      spriteID: 80974b4a2b02d97b0800000000000000
+      internalID: -5215976841785607928
       vertices: []
       indices: 
       edges: []
@@ -200,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: a9ca0327f8f272249bdc5a9e14649721
+    spriteID: 447b1fffb12d727418f9e35c66e96c7e
     internalID: 0
     vertices: []
     indices: 
@@ -210,10 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Basic stone items tileset_0: -7556199866425377712
-      Basic stone items tileset_1: 1898632380281428566
-      Basic stone items tileset_2: 2403332761242691292
-      Basic stone items tileset_3: -8233395917148957338
+      stone body_0: -5215976841785607928
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

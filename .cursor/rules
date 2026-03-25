@@ -1,0 +1,19 @@
+This is a Unity 6 2D project.
+
+General Rules:
+- Use modern Unity APIs (avoid deprecated methods like FindObjectOfType)
+- Do not rewrite entire systems unless explicitly asked
+- Prefer minimal, safe, drop-in changes
+- Preserve existing architecture and naming conventions
+- Avoid breaking references between scripts
+- Keep UI logic separate from gameplay logic
+
+When modifying systems:
+- Check related scripts before making changes
+- Especially for combat, inventory, equipment, tooltips, and UI systems
+- Do not introduce unnecessary complexity
+
+When responding:
+- Clearly state what files were modified
+- Explain why the change was made
+- Keep solutions simple and maintainable
