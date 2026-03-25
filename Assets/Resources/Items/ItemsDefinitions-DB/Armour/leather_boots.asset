@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
+  m_Name: leather_boots
+  m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
+  itemKind: 3
+  maxStack: 1
+  itemId: leather_boots
+  displayName: Leather Boots
+  icon: {fileID: 768876921360127840, guid: 4f943cabe82a77243a79501022363e70, type: 3}
+  heldSprite: {fileID: 0}
+  description: A tattered pair of leather boots
+  rarity: 1
+  value: 130
+  equipSlot: 5
+  handVisualKey: 0
+  weaponStats:
+    minDamage: 0
+    maxDamage: 0
+    attacksPerSecond: 0
+    critChance: 0
+    critMultiplier: 0
+    handedness: 0
+    attackRange: 0
+    attackSkill: 0
+    canEquipInOffHand: 0
+  toolStats:
+    toolType: 0
+    gatherPower: 0
+    gatherSpeedMultiplier: 0
+  armorStats:
+    armor: 10
+    magicResist: 10
+    physBlockChance: 0
+    bonusHealth: 40
+    bonusEnergy: 10
+  bonusStats:
+    bonusHealth: 0
+    bonusEnergy: 0
+    armor: 0
+    magicResist: 0
+    physBlockChance: 0
+    lifeRegen: 0
+    energyRegen: 0
+    lifeSteal: 0
+    moveSpeedPercent: 0.5
+    abilityPower: 0
+    attackSpeedPercent: 0
+    critChanceBonus: 0
+    critMultiplierBonus: 0
+    attackRangeBonus: 0

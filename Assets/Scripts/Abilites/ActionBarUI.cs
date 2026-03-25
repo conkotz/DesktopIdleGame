@@ -1,0 +1,375 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ActionBarUI : MonoBehaviour, ISaveable
+{
+    [System.Serializable]
+    public class SlotBinding
+    {
+        public ActionBarSlotUI slot;
+        public KeyCode defaultKey = KeyCode.None;
+        [HideInInspector] public KeyCode currentKey = KeyCode.None;
+    }
+
+    [System.Serializable]
+    public class SavedSlotState
+    {
+        public int slotIndex;
+        public int kind;
+        public string id;
+    }
+
+    public IReadOnlyList<SlotBinding> SlotBindings => slotBindings;
+
+    public IEnumerable<ActionBarSlotUI> GetSlots()
+    {
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            if (slotBindings[i] != null && slotBindings[i].slot != null)
+                yield return slotBindings[i].slot;
+        }
+    }
+
+    [Header("Slots")]
+    [SerializeField] private List<SlotBinding> slotBindings = new();
+
+    [Header("Refs")]
+    [SerializeField] private Inventory inventory;
+    [SerializeField] private PlayerConsumableController consumableController;
+
+    [Header("Saved State (backing fields)")]
+    private List<SavedSlotState> savedSlots = new();
+
+    [Header("Debug")]
+    [SerializeField] private bool debugLogs = true;
+    [SerializeField] private bool debugEmptySlots = false;
+
+    private void Awake()
+    {                           
+        if (!inventory)
+            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        if (!consumableController)
+            consumableController = FindFirstObjectByType<PlayerConsumableController>(FindObjectsInactive.Include);
+
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            SlotBinding binding = slotBindings[i];
+            if (binding == null || binding.slot == null)
+                continue;
+
+            binding.currentKey = binding.defaultKey;
+            binding.slot.Initialize(OnSlotTriggered, OnSlotAssignmentChanged);
+            binding.slot.SetHotkeyLabel(GetKeyLabel(binding.currentKey));
+        }
+    } 
+
+    private void Start()
+    {
+        ApplySavedStateToSlots();
+
+        if (SaveManager.Instance != null &&
+            SaveManager.Instance.TryGetLastLoadedData(out SaveData data))
+        {
+            LoadFrom(data);
+        }
+    }
+
+    private void Update()
+    {
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            SlotBinding binding = slotBindings[i];
+            if (binding == null || binding.slot == null)
+                continue;
+
+            if (binding.currentKey != KeyCode.None && Input.GetKeyDown(binding.currentKey))
+                binding.slot.Press();
+
+            RefreshSlotRuntime(binding.slot);
+        }
+    }
+
+    private void OnSlotTriggered(ActionBarSlotUI slot)
+    {
+        if (slot == null)
+            return;
+
+        ActionBarAssignment action = slot.AssignedAction;
+
+        if (action == null || !action.IsAssigned)
+        {
+            if (debugLogs && debugEmptySlots)
+                Debug.Log($"[ActionBar] {slot.SlotType} slot {slot.SlotIndex} is empty.");
+            return;
+        }
+
+        switch (action.kind)
+        {
+            case ActionBarAssignmentKind.Ability:
+                if (debugLogs)
+                    Debug.Log($"[ActionBar] Use ability '{action.displayName}' (ID: {action.id})");
+                break;
+
+            case ActionBarAssignmentKind.Item:
+                if (consumableController == null)
+                {
+                    Debug.LogWarning("[ActionBar] No PlayerConsumableController found.");
+                    return;
+                }
+
+                bool used = consumableController.TryUseItem(action.id);
+
+                if (debugLogs)
+                {
+                    Debug.Log(used
+                        ? $"[ActionBar] Used item '{action.displayName}'"
+                        : $"[ActionBar] Failed to use item '{action.displayName}'");
+                }
+
+                RefreshSlotRuntime(slot);
+                break;
+        }
+    }
+
+    private void OnSlotAssignmentChanged(ActionBarSlotUI slot)
+    {
+        CaptureSlotsToSavedState();
+
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.Save();
+
+        if (debugLogs && slot != null)
+        {
+            string name = slot.AssignedAction != null && slot.AssignedAction.IsAssigned
+                ? slot.AssignedAction.displayName
+                : "Empty";
+        }
+    }
+
+    private void CaptureSlotsToSavedState()
+    {
+        savedSlots.Clear();
+
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            SlotBinding binding = slotBindings[i];
+            if (binding == null || binding.slot == null)
+                continue;
+
+            ActionBarAssignment action = binding.slot.AssignedAction;
+            if (action == null || !action.IsAssigned)
+                continue;
+
+            savedSlots.Add(new SavedSlotState
+            {
+                slotIndex = binding.slot.SlotIndex,
+                kind = (int)action.kind,
+                id = action.id
+            });
+        }
+    }
+
+    private void ApplySavedStateToSlots()
+    {
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            if (slotBindings[i]?.slot != null)
+                slotBindings[i].slot.ClearAssignment(false);
+        }
+
+        for (int i = 0; i < savedSlots.Count; i++)
+        {
+            SavedSlotState saved = savedSlots[i];
+            ActionBarSlotUI slot = GetSlotByIndex(saved.slotIndex);
+            if (slot == null)
+            {
+                if (debugLogs)
+                    Debug.LogWarning($"[ActionBar] No slot found for slotIndex={saved.slotIndex}");
+                continue;
+            }
+
+            ActionBarAssignment assignment = ResolveAssignment(saved.kind, saved.id);
+            if (assignment == null || !assignment.IsAssigned)
+            {
+                if (debugLogs)
+                    Debug.LogWarning($"[ActionBar] Failed to resolve slotIndex={saved.slotIndex} id={saved.id}");
+                continue;
+            }
+
+            slot.Assign(assignment, false);
+        }
+    }
+
+    private ActionBarAssignment ResolveAssignment(int kindInt, string id)
+    {
+        ActionBarAssignmentKind kind = (ActionBarAssignmentKind)kindInt;
+
+        switch (kind)
+        {
+            case ActionBarAssignmentKind.Item:
+                if (inventory == null)
+                    inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+                if (inventory == null || string.IsNullOrWhiteSpace(id))
+                    return null;
+
+                ItemDefinition def = inventory.GetItemDef(id);
+                if (!def)
+                {
+                    if (debugLogs)
+                        Debug.LogWarning($"[ActionBar] Could not find ItemDefinition for '{id}'");
+                    return null;
+                }
+
+                return ActionBarAssignment.CreateItem(def);
+
+            case ActionBarAssignmentKind.Ability:
+                return null;
+        }
+
+        return null;
+    }
+
+    private void RefreshSlotRuntime(ActionBarSlotUI slot)
+    {
+        if (slot == null)
+            return;
+
+        ActionBarAssignment action = slot.AssignedAction;
+        if (action == null || !action.IsAssigned)
+        {
+            slot.SetStackText(0);
+            slot.SetCooldownVisual(0f, 0f);
+            return;
+        }
+
+        if (!action.IsItem || inventory == null)
+        {
+            slot.SetStackText(0);
+            slot.SetCooldownVisual(0f, 0f);
+            return;
+        }
+
+        int count = 0;
+        for (int i = 0; i < inventory.SlotCount; i++)
+        {
+            var invSlot = inventory.GetSlot(i);
+            if (!invSlot.IsEmpty && invSlot.itemId == action.id)
+                count += invSlot.amount;
+        }
+
+        // Only items should be removed when stock hits 0
+        if (action.IsItem && count <= 0)
+        {
+            slot.ClearAssignment();
+            return;
+        }
+
+        slot.SetStackText(count);
+
+        if (consumableController != null)
+        {
+            float remainingNorm = consumableController.GetCooldownNormalized(action.id);
+            consumableController.IsOnCooldown(action.id, out float remainingSecs);
+            slot.SetCooldownVisual(remainingNorm, remainingSecs);
+        }
+        else
+        {
+            slot.SetCooldownVisual(0f, 0f);
+        }
+    }
+
+    public void SaveInto(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        data.actionBarSlotIndexes.Clear();
+        data.actionBarKinds.Clear();
+        data.actionBarIds.Clear();
+
+        for (int i = 0; i < savedSlots.Count; i++)
+        {
+            data.actionBarSlotIndexes.Add(savedSlots[i].slotIndex);
+            data.actionBarKinds.Add(savedSlots[i].kind);
+            data.actionBarIds.Add(savedSlots[i].id);
+        }
+    }
+
+    public void LoadFrom(SaveData data)
+    {
+        savedSlots.Clear();
+
+        if (data == null)
+            return;
+
+        int count = Mathf.Min(
+            data.actionBarSlotIndexes != null ? data.actionBarSlotIndexes.Count : 0,
+            data.actionBarKinds != null ? data.actionBarKinds.Count : 0,
+            data.actionBarIds != null ? data.actionBarIds.Count : 0
+        );
+
+        for (int i = 0; i < count; i++)
+        {
+            savedSlots.Add(new SavedSlotState
+            {
+                slotIndex = data.actionBarSlotIndexes[i],
+                kind = data.actionBarKinds[i],
+                id = data.actionBarIds[i]
+            });
+        }
+
+        ApplySavedStateToSlots();
+    }
+
+    private ActionBarSlotUI GetSlotByIndex(int slotIndex)
+    {
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            SlotBinding binding = slotBindings[i];
+            if (binding != null && binding.slot != null && binding.slot.SlotIndex == slotIndex)
+                return binding.slot;
+        }
+
+        return null;
+    }
+
+    public void RebindKey(ActionBarSlotUI slot, KeyCode newKey)
+    {
+        if (slot == null)
+            return;
+
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            SlotBinding binding = slotBindings[i];
+            if (binding == null || binding.slot != slot)
+                continue;
+
+            binding.currentKey = newKey;
+            binding.slot.SetHotkeyLabel(GetKeyLabel(newKey));
+            return;
+        }
+    }
+
+    private string GetKeyLabel(KeyCode key)
+    {
+        if (key == KeyCode.None)
+            return "";
+
+        return key switch
+        {
+            KeyCode.Alpha1 => "1",
+            KeyCode.Alpha2 => "2",
+            KeyCode.Alpha3 => "3",
+            KeyCode.Alpha4 => "4",
+            KeyCode.Alpha5 => "5",
+            KeyCode.Alpha6 => "6",
+            KeyCode.Alpha7 => "7",
+            KeyCode.Alpha8 => "8",
+            KeyCode.Alpha9 => "9",
+            KeyCode.Alpha0 => "0",
+            _ => key.ToString()
+        };
+    }
+}

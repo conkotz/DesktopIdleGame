@@ -1,0 +1,477 @@
+fileFormatVersion: 2
+guid: de824679648c55b4495281edbedf6c33
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 5443769932220778138
+    second: levelUpParticles_0
+  - first:
+      213: 1256653482042697431
+    second: levelUpParticles_1
+  - first:
+      213: 6638814644732429885
+    second: levelUpParticles_2
+  - first:
+      213: 3620972538553226937
+    second: levelUpParticles_3
+  - first:
+      213: 2731326134205946640
+    second: levelUpParticles_4
+  - first:
+      213: 1167342604873574509
+    second: levelUpParticles_5
+  - first:
+      213: -6298393281434167866
+    second: levelUpParticles_6
+  - first:
+      213: -3972792075838492586
+    second: levelUpParticles_7
+  - first:
+      213: -1974033264155761085
+    second: levelUpParticles_8
+  - first:
+      213: 7484364833466908508
+    second: levelUpParticles_9
+  - first:
+      213: -5852634986292343342
+    second: levelUpParticles_10
+  - first:
+      213: -5618400669037528490
+    second: levelUpParticles_11
+  - first:
+      213: 8839169267286901590
+    second: levelUpParticles_12
+  - first:
+      213: 4218990811519914371
+    second: levelUpParticles_13
+  - first:
+      213: 7246363217454254614
+    second: levelUpParticles_14
+  - first:
+      213: -8658288103928457071
+    second: levelUpParticles_15
+  - first:
+      213: 3770163999062019926
+    second: levelUpParticles_16
+  - first:
+      213: -7818293855137915013
+    second: levelUpParticles_17
+  - first:
+      213: -2695764836707606815
+    second: levelUpParticles_18
+  - first:
+      213: -4780091100449546735
+    second: levelUpParticles_19
+  - first:
+      213: -4849858957872731721
+    second: levelUpParticles_20
+  - first:
+      213: 4573540245896890740
+    second: levelUpParticles_21
+  - first:
+      213: -2376347669340273461
+    second: levelUpParticles_22
+  - first:
+      213: 6281871941825895198
+    second: levelUpParticles_23
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: levelUpParticles_0
+      rect:
+        serializedVersion: 2
+        x: 349
+        y: 751
+        width: 154
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a96c8f839e72c8b40800000000000000
+      internalID: 5443769932220778138
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_2
+      rect:
+        serializedVersion: 2
+        x: 602
+        y: 754
+        width: 106
+        height: 101
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d3600f4debec12c50800000000000000
+      internalID: 6638814644732429885
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_3
+      rect:
+        serializedVersion: 2
+        x: 813
+        y: 737
+        width: 137
+        height: 143
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9b6d8edc657404230800000000000000
+      internalID: 3620972538553226937
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_4
+      rect:
+        serializedVersion: 2
+        x: 1047
+        y: 714
+        width: 193
+        height: 155
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 01b161bd5ae97e520800000000000000
+      internalID: 2731326134205946640
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_14
+      rect:
+        serializedVersion: 2
+        x: 350
+        y: 499
+        width: 121
+        height: 117
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 61a41d114f0409460800000000000000
+      internalID: 7246363217454254614
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_15
+      rect:
+        serializedVersion: 2
+        x: 586
+        y: 479
+        width: 151
+        height: 138
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1989a52d7d497d780800000000000000
+      internalID: -8658288103928457071
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_16
+      rect:
+        serializedVersion: 2
+        x: 833
+        y: 475
+        width: 118
+        height: 107
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 65fce059e20525430800000000000000
+      internalID: 3770163999062019926
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_17
+      rect:
+        serializedVersion: 2
+        x: 1053
+        y: 460
+        width: 168
+        height: 155
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b7f92ee6927df7390800000000000000
+      internalID: -7818293855137915013
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_20
+      rect:
+        serializedVersion: 2
+        x: 350
+        y: 214
+        width: 147
+        height: 131
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7b9ef3539f6d1bcb0800000000000000
+      internalID: -4849858957872731721
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_21
+      rect:
+        serializedVersion: 2
+        x: 594
+        y: 225
+        width: 133
+        height: 115
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 47903aa3f9a787f30800000000000000
+      internalID: 4573540245896890740
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_22
+      rect:
+        serializedVersion: 2
+        x: 801
+        y: 209
+        width: 155
+        height: 144
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc4452a9264850fd0800000000000000
+      internalID: -2376347669340273461
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: levelUpParticles_23
+      rect:
+        serializedVersion: 2
+        x: 1055
+        y: 210
+        width: 165
+        height: 142
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e1b96019f31bd2750800000000000000
+      internalID: 6281871941825895198
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 7bb247b588509c14680bd40fb15893a3
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      levelUpParticles_0: 5443769932220778138
+      levelUpParticles_1: 1256653482042697431
+      levelUpParticles_10: -5852634986292343342
+      levelUpParticles_11: -5618400669037528490
+      levelUpParticles_12: 8839169267286901590
+      levelUpParticles_13: 4218990811519914371
+      levelUpParticles_14: 7246363217454254614
+      levelUpParticles_15: -8658288103928457071
+      levelUpParticles_16: 3770163999062019926
+      levelUpParticles_17: -7818293855137915013
+      levelUpParticles_18: -2695764836707606815
+      levelUpParticles_19: -4780091100449546735
+      levelUpParticles_2: 6638814644732429885
+      levelUpParticles_20: -4849858957872731721
+      levelUpParticles_21: 4573540245896890740
+      levelUpParticles_22: -2376347669340273461
+      levelUpParticles_23: 6281871941825895198
+      levelUpParticles_3: 3620972538553226937
+      levelUpParticles_4: 2731326134205946640
+      levelUpParticles_5: 1167342604873574509
+      levelUpParticles_6: -6298393281434167866
+      levelUpParticles_7: -3972792075838492586
+      levelUpParticles_8: -1974033264155761085
+      levelUpParticles_9: 7484364833466908508
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

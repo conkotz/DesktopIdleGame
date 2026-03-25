@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 225d4c1aca51d1641b49131edf107d33, type: 3}
+  m_Name: stone_deposit_node
+  m_EditorClassIdentifier: Assembly-CSharp::NodeDefinition
+  displayName: Stone Deposit
+  actionType: 0
+  gatherPlayerAction: 2
+  useLevelRequirement: 1
+  requiredLevel: 1
+  xpPerTick: 6
+  yieldItem: {fileID: 11400000, guid: 30b1b02abfbe72445a66a849d7f7783c, type: 2}
+  yieldAmountMin: 1
+  yieldAmountMax: 1
+  ratePerSecond: 5
+  useRandomInterval: 1
+  minInterval: 5
+  maxInterval: 10
+  bonusDrops:
+  - item: {fileID: 11400000, guid: 36038d5dfd5228b4682f03cfcf3151df, type: 2}
+    chance: 0.1
+    amountMin: 1
+    amountMax: 1
+  requiresTool: 1
+  requiredTool: 2
+  missingToolMessage: No pickaxe found in toolbelt
+  requiredGatherPower: 0
+  enforcePowerGate: 0

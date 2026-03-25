@@ -1,0 +1,211 @@
+using System.Collections;
+using TMPro;
+using UnityEngine;
+
+[DisallowMultipleComponent]
+public class FloatingDamageTextUI : MonoBehaviour
+{
+    public enum PopupDamageKind
+    {
+        Physical,
+        Magical,
+        True,
+        Bleed,
+        Poison,
+        Blocked
+    }
+
+    [Header("Refs")]
+    [SerializeField] private TMP_Text text;
+    [SerializeField] private CanvasGroup group;
+    [SerializeField] private RectTransform rect;
+
+    [Header("Motion")]
+    [SerializeField] private float distance = 65f;
+    [SerializeField] private float arcHeight = 25f;
+    [SerializeField] private float maxAngleOffset = 35f;
+
+    [Header("Timing")]
+    [SerializeField] private float fadeInSeconds = 0.08f;
+    [SerializeField] private float visibleSeconds = 0.35f;
+    [SerializeField] private float fadeOutSeconds = 0.25f;
+
+    [Header("Crit")]
+    [SerializeField] private float critSizeMultiplier = 2.5f;
+    [SerializeField] private float critExtraLifetime = 1f;
+    [SerializeField, Range(1f, 2f)] private float critBrightnessMultiplier = 1.2f;
+
+    [Header("DOT")]
+    [SerializeField] private float dotSizeMultiplier = 0.95f;
+
+    [Header("Colors")]
+    [SerializeField] private Color physicalColor = new Color32(220, 40, 40, 255);
+    [SerializeField] private Color magicalColor = new Color32(80, 170, 255, 255);
+    [SerializeField] private Color trueColor = new Color32(255, 230, 120, 255);
+    [SerializeField] private Color bleedColor = new Color32(170, 35, 35, 255);
+    [SerializeField] private Color poisonColor = new Color32(85, 200, 90, 255);
+    [SerializeField] private Color blockColor = new Color32(80, 170, 255, 255);
+
+    private float _baseFontSize;
+    private Coroutine _run;
+
+    private void Awake()
+    {
+        if (!text) text = GetComponentInChildren<TMP_Text>(true);
+        if (!group) group = GetComponent<CanvasGroup>();
+        if (!rect) rect = GetComponent<RectTransform>();
+        if (!group) group = gameObject.AddComponent<CanvasGroup>();
+
+        if (text != null)
+            _baseFontSize = text.fontSize;
+    }
+
+    public void Init(int amount, PopupDamageKind kind, bool isCrit, bool isDot, Vector3 worldDirection)
+    {
+        if (!text) return;
+
+        // DOTs should never crit visually
+        if (isDot)
+            isCrit = false;
+
+        text.text = amount.ToString();
+        text.color = GetDisplayColor(kind, isCrit);
+        text.fontSize = GetDisplayFontSize(isCrit, isDot);
+
+        float totalVisible = visibleSeconds + fadeOutSeconds;
+        if (isCrit)
+            totalVisible += critExtraLifetime;
+
+        Vector2 dir = BuildDirection(worldDirection);
+
+        if (_run != null) StopCoroutine(_run);
+        _run = StartCoroutine(Run(dir, totalVisible));
+    }
+
+    public void InitBlocked(Vector3 worldDirection)
+    {
+        if (!text) return;
+
+        text.text = "Blocked";
+        text.color = blockColor;
+        text.fontSize = _baseFontSize;
+
+        Vector2 dir = BuildDirection(worldDirection);
+
+        if (_run != null) StopCoroutine(_run);
+        _run = StartCoroutine(Run(dir, visibleSeconds + fadeOutSeconds));
+    }
+
+    private Color GetDisplayColor(PopupDamageKind kind, bool isCrit)
+    {
+        Color c = kind switch
+        {
+            PopupDamageKind.Physical => physicalColor,
+            PopupDamageKind.Magical => magicalColor,
+            PopupDamageKind.True => trueColor,
+            PopupDamageKind.Bleed => bleedColor,
+            PopupDamageKind.Poison => poisonColor,
+            PopupDamageKind.Blocked => blockColor,
+            _ => physicalColor
+        };
+
+        if (isCrit)
+            c = Brighten(c, critBrightnessMultiplier);
+
+        return c;
+    }
+
+    private float GetDisplayFontSize(bool isCrit, bool isDot)
+    {
+        float size = _baseFontSize;
+
+        if (isDot)
+            size *= dotSizeMultiplier;
+
+        if (isCrit)
+            size *= critSizeMultiplier;
+
+        return size;
+    }
+
+    private static Color Brighten(Color c, float mult)
+    {
+        return new Color(
+            Mathf.Clamp01(c.r * mult),
+            Mathf.Clamp01(c.g * mult),
+            Mathf.Clamp01(c.b * mult),
+            c.a
+        );
+    }
+
+    private Vector2 BuildDirection(Vector3 worldDirection)
+    {
+        Vector2 dir = new Vector2(worldDirection.x, worldDirection.y).normalized;
+
+        if (dir.sqrMagnitude < 0.0001f)
+            dir = Vector2.up;
+
+        dir.y = Mathf.Abs(dir.y) + 0.5f;
+        dir.Normalize();
+
+        float randomAngle = Random.Range(-maxAngleOffset, maxAngleOffset);
+        dir = Rotate(dir, randomAngle);
+
+        return dir;
+    }
+
+    private IEnumerator Run(Vector2 direction, float lifeTime)
+    {
+        Vector2 start = rect.anchoredPosition;
+        Vector2 end = start + direction * distance;
+
+        group.alpha = 0f;
+
+        float t = 0f;
+        while (t < fadeInSeconds)
+        {
+            t += Time.deltaTime;
+            group.alpha = Mathf.Clamp01(t / Mathf.Max(0.0001f, fadeInSeconds));
+            yield return null;
+        }
+
+        group.alpha = 1f;
+
+        float elapsed = 0f;
+
+        while (elapsed < lifeTime)
+        {
+            elapsed += Time.deltaTime;
+            float p = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, lifeTime));
+
+            Vector2 pos = Vector2.Lerp(start, end, p);
+
+            float arc = Mathf.Sin(p * Mathf.PI) * arcHeight;
+            pos.y += arc;
+
+            rect.anchoredPosition = pos;
+
+            if (elapsed > lifeTime - fadeOutSeconds)
+            {
+                float fadeP = (elapsed - (lifeTime - fadeOutSeconds)) / Mathf.Max(0.0001f, fadeOutSeconds);
+                group.alpha = 1f - fadeP;
+            }
+
+            yield return null;
+        }
+
+        Destroy(gameObject);
+    }
+
+    private Vector2 Rotate(Vector2 v, float degrees)
+    {
+        float rad = degrees * Mathf.Deg2Rad;
+        float cos = Mathf.Cos(rad);
+        float sin = Mathf.Sin(rad);
+
+        return new Vector2(
+            v.x * cos - v.y * sin,
+            v.x * sin + v.y * cos
+        );
+    }
+}

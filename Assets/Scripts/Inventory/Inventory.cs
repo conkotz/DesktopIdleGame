@@ -1,0 +1,560 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Inventory : MonoBehaviour, ISaveable
+{
+    [SerializeField] private ItemDatabase itemDb;
+    [SerializeField] private int defaultMaxStack = 99;
+
+    private void Awake()
+    {
+        if (!itemDb)
+            itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+
+        if (!itemDb)
+            Debug.LogError("[Inventory] ItemDatabase not found. Item defs/values/tooltips will be NULL.");
+    }
+
+
+    private int GetMaxStack(string itemId, int? maxStackOverride = null)
+    {
+        if (maxStackOverride.HasValue)
+            return Mathf.Max(1, maxStackOverride.Value);
+
+        if (string.IsNullOrWhiteSpace(itemId))
+            return Mathf.Max(1, defaultMaxStack);
+
+        if (!itemDb)
+            return Mathf.Max(1, defaultMaxStack);
+
+        var def = itemDb.Get(itemId);
+        if (!def)
+            return Mathf.Max(1, defaultMaxStack);
+
+        return Mathf.Max(1, def.maxStack);
+    }
+
+    public ItemDefinition GetItemDef(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId)) return null;
+
+        if (!itemDb)
+        {
+            Debug.LogError("[Inventory] GetItemDef called but itemDb is NULL.");
+            return null;
+        }
+
+        var def = itemDb.Get(itemId);
+        if (!def)
+            Debug.LogWarning($"[Inventory] ItemDefinition not found for id '{itemId}' in ItemDatabase '{itemDb.name}'.");
+
+        return def;
+    }
+
+    [Serializable]
+    public struct Slot
+    {
+        public string itemId;
+        public int amount;
+
+        public bool IsEmpty => string.IsNullOrEmpty(itemId) || amount <= 0;
+
+        public void Clear()
+        {
+            itemId = null;
+            amount = 0;
+        }
+    }
+
+    private readonly List<Slot> _slots = new List<Slot>(32);
+
+    public event Action OnInventoryChanged;
+    public event Action OnInventoryFull;
+
+    public int SlotCount => _slots.Count;
+
+    public void EnsureSlotCount(int count)
+    {
+        count = Mathf.Max(1, count);
+        while (_slots.Count < count) _slots.Add(new Slot());
+        if (_slots.Count > count) _slots.RemoveRange(count, _slots.Count - count);
+    }
+
+    public Slot GetSlot(int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= _slots.Count) return default;
+        return _slots[slotIndex];
+    }
+
+    public int GetTotalAmount(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId)) return 0;
+
+        int total = 0;
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            if (_slots[i].itemId == itemId)
+                total += _slots[i].amount;
+        }
+        return total;
+    }
+
+    public bool IsFull()
+    {
+        foreach (var slot in _slots)
+        {
+            if (slot.IsEmpty)
+                return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Adds as much as possible. Returns how many were actually added (0..amount).
+    /// Does NOT fire OnInventoryFull (caller decides what to do with overflow).
+    /// </summary>
+    public int AddPartial(string itemId, int amount = 1, int? maxStackOverride = null)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return 0;
+
+        int maxStack = GetMaxStack(itemId, maxStackOverride);
+        int remaining = amount;
+        int addedTotal = 0;
+
+        // 1) Fill existing stacks
+        for (int i = 0; i < _slots.Count && remaining > 0; i++)
+        {
+            var s = _slots[i];
+            if (s.IsEmpty || s.itemId != itemId) continue;
+
+            int space = maxStack - s.amount;
+            if (space <= 0) continue;
+
+            int add = Mathf.Min(space, remaining);
+            s.amount += add;
+            _slots[i] = s;
+
+            remaining -= add;
+            addedTotal += add;
+        }
+
+        // 2) Create new stacks in empty slots
+        for (int i = 0; i < _slots.Count && remaining > 0; i++)
+        {
+            if (!_slots[i].IsEmpty) continue;
+
+            int add = Mathf.Min(maxStack, remaining);
+            _slots[i] = new Slot { itemId = itemId, amount = add };
+
+            remaining -= add;
+            addedTotal += add;
+        }
+
+        if (addedTotal > 0)
+            OnInventoryChanged?.Invoke();
+
+        return addedTotal;
+    }
+
+    public bool Add(string itemId, int amount = 1, int? maxStackOverride = null)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return true;
+
+        int itemValue = GetItemValue(itemId);
+        int totalValue = itemValue * amount;
+        //Debug.Log($"[Inventory] Gained {amount}x {itemId} | Value per item: {itemValue} | Total value: {totalValue}");
+
+        int maxStack = GetMaxStack(itemId, maxStackOverride);
+
+        // 1) Fill existing stacks
+        for (int i = 0; i < _slots.Count && amount > 0; i++)
+        {
+            var s = _slots[i];
+            if (s.IsEmpty || s.itemId != itemId) continue;
+
+            int space = maxStack - s.amount;
+            if (space <= 0) continue;
+
+            int add = Mathf.Min(space, amount);
+            s.amount += add;
+            _slots[i] = s;
+            amount -= add;
+        }
+
+        // 2) Create new stacks in empty slots
+        for (int i = 0; i < _slots.Count && amount > 0; i++)
+        {
+            if (!_slots[i].IsEmpty) continue;
+
+            int add = Mathf.Min(maxStack, amount);
+            _slots[i] = new Slot { itemId = itemId, amount = add };
+            amount -= add;
+        }
+
+        bool overflow = amount > 0;
+
+        OnInventoryChanged?.Invoke();     
+
+        if (overflow)
+            OnInventoryFull?.Invoke();
+
+        //Debug.Log($"[Inventory] Total inventory worth: {GetTotalInventoryValue()}");
+
+        return !overflow;
+    }
+
+    public bool Remove(string itemId, int amount = 1)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return false;
+
+        int available = GetTotalAmount(itemId);
+        if (available < amount) return false;
+
+        for (int i = _slots.Count - 1; i >= 0 && amount > 0; i--)
+        {
+            var s = _slots[i];
+            if (s.IsEmpty || s.itemId != itemId) continue;
+
+            int take = Mathf.Min(s.amount, amount);
+            s.amount -= take;
+            amount -= take;
+
+            if (s.amount <= 0) s.Clear();
+            _slots[i] = s;
+        }
+
+        OnInventoryChanged?.Invoke();
+        return true;
+    }
+
+    public void RemoveStackAtSlot(int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= _slots.Count) return;
+
+        var s = _slots[slotIndex];
+        if (s.IsEmpty) return;
+
+        s.Clear();
+        _slots[slotIndex] = s;
+        OnInventoryChanged?.Invoke();
+    }
+
+    public bool SwapSlots(int slotA, int slotB)
+    {
+        if (slotA == slotB) return false;
+        if (slotA < 0 || slotB < 0) return false;
+        if (slotA >= _slots.Count || slotB >= _slots.Count) return false;
+
+        (_slots[slotA], _slots[slotB]) = (_slots[slotB], _slots[slotA]);
+        OnInventoryChanged?.Invoke();
+        return true;
+    }
+
+    public int GetItemValue(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || !itemDb) return 0;
+
+        var def = itemDb.Get(itemId);
+        if (!def) return 0;
+
+        return Mathf.Max(0, def.value);
+    }
+
+    public int GetSlotValue(int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= _slots.Count) return 0;
+
+        var s = _slots[slotIndex];
+        if (s.IsEmpty) return 0;
+
+        return GetItemValue(s.itemId) * s.amount;
+    }
+
+    public int GetTotalInventoryValue()
+    {
+        int total = 0;
+        for (int i = 0; i < _slots.Count; i++)
+            total += GetSlotValue(i);
+        return total;
+    }
+
+    public int RemoveAmountAtSlot(int slotIndex, int amount)
+    {
+        if (slotIndex < 0 || slotIndex >= _slots.Count) return 0;
+        if (amount <= 0) return 0;
+
+        var s = _slots[slotIndex];
+        if (s.IsEmpty) return 0;
+
+        int removed = Mathf.Min(amount, s.amount);
+        s.amount -= removed;
+
+        if (s.amount <= 0) s.Clear();
+
+        _slots[slotIndex] = s;
+        OnInventoryChanged?.Invoke();
+
+        return removed;
+    }
+
+
+    public int MoveAmount(int fromSlot, int toSlot, int amount, int? maxStackOverride = null)
+    {
+        if (fromSlot < 0 || toSlot < 0) return 0;
+        if (fromSlot >= _slots.Count || toSlot >= _slots.Count) return 0;
+        if (fromSlot == toSlot) return 0;
+        if (amount <= 0) return 0;
+
+        var from = _slots[fromSlot];
+        var to = _slots[toSlot];
+
+        if (from.IsEmpty) return 0;
+
+        int move = Mathf.Min(amount, from.amount);
+        if (move <= 0) return 0;
+
+        if (to.IsEmpty)
+        {
+            to.itemId = from.itemId;
+            to.amount = move;
+            from.amount -= move;
+
+            if (from.amount <= 0) from.Clear();
+
+            _slots[fromSlot] = from;
+            _slots[toSlot] = to;
+
+            OnInventoryChanged?.Invoke();
+            return move;
+        }
+
+        if (to.itemId == from.itemId)
+        {
+            int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+
+            int space = maxStack - to.amount;
+            if (space <= 0) return 0;
+
+            int add = Mathf.Min(space, move);
+            to.amount += add;
+            from.amount -= add;
+
+            if (from.amount <= 0) from.Clear();
+
+            _slots[fromSlot] = from;
+            _slots[toSlot] = to;
+
+            OnInventoryChanged?.Invoke();
+            return add;
+        }
+
+        return 0;
+    }
+
+    public void SaveInto(SaveData data)
+    {
+        if (data == null) return;
+
+        data.inventorySlotCount = _slots.Count;
+
+        if (data.inventorySlots == null)
+            data.inventorySlots = new List<SaveData.InventorySlotData>();
+        else
+            data.inventorySlots.Clear();
+
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            var s = _slots[i];
+            data.inventorySlots.Add(new SaveData.InventorySlotData
+            {
+                itemId = s.IsEmpty ? null : s.itemId,
+                amount = s.IsEmpty ? 0 : s.amount
+            });
+        }
+    }
+
+    public void LoadFrom(SaveData data)
+    {
+        if (data == null) return;
+
+        // Make sure we have the right slot count first
+        int count = Mathf.Max(1, data.inventorySlotCount > 0 ? data.inventorySlotCount : 32);
+        EnsureSlotCount(count);
+
+        // Clear everything
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            var s = _slots[i];
+            s.Clear();
+            _slots[i] = s;
+        }
+
+        // Restore saved slots (clamp to current size)
+        if (data.inventorySlots != null)
+        {
+            int n = Mathf.Min(_slots.Count, data.inventorySlots.Count);
+            for (int i = 0; i < n; i++)
+            {
+                var d = data.inventorySlots[i];
+                if (string.IsNullOrWhiteSpace(d.itemId) || d.amount <= 0) continue;
+
+                string id = RemapLegacyId(d.itemId);
+
+                // if still unknown, skip it (prevents broken slots)
+                if (GetItemDef(id) == null)
+                {
+                    Debug.LogWarning($"[Inventory] Unknown itemId '{d.itemId}' remapped to '{id}' but still not found. Clearing slot {i}.");
+                    continue;
+                }
+
+                _slots[i] = new Slot
+                {
+                    itemId = id,
+                    amount = Mathf.Max(0, d.amount)
+                };
+            }
+        }
+
+        OnInventoryChanged?.Invoke();
+    }
+
+    public bool IsCapacityFull()
+    {
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            var s = _slots[i];
+
+            if (s.IsEmpty)
+                return false;
+
+            int maxStack = GetMaxStack(s.itemId, null);
+            if (s.amount < maxStack)
+                return false;
+        }
+
+        return true;
+    }
+
+    public bool CanAdd(string itemId, int amount = 1)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return false;
+
+        int maxStack = GetMaxStack(itemId, null);
+        int remaining = amount;
+
+        // 1) Check existing stacks
+        for (int i = 0; i < _slots.Count && remaining > 0; i++)
+        {
+            var s = _slots[i];
+            if (s.IsEmpty || s.itemId != itemId) continue;
+
+            int space = maxStack - s.amount;
+            if (space <= 0) continue;
+
+            remaining -= Mathf.Min(space, remaining);
+        }
+
+        // 2) Check empty slots
+        for (int i = 0; i < _slots.Count && remaining > 0; i++)
+        {
+            if (_slots[i].IsEmpty)
+            {
+                remaining -= Mathf.Min(maxStack, remaining);
+            }
+        }
+
+        return remaining <= 0;
+    }
+
+    public bool TryFindMainHandItemByToolKey(ToolKey requiredTool, out string foundItemId)
+    {
+        foundItemId = null;
+        if (requiredTool == ToolKey.None) return false;
+
+        int count = SlotCount; // change this if your inventory uses a different count
+
+        for (int i = 0; i < count; i++)
+        {
+            var slot = GetSlot(i);
+            if (slot.IsEmpty) continue;
+
+            var def = GetItemDef(slot.itemId);
+            if (!def) continue;
+
+            if (def.equipSlot != EquipSlot.MainHand) continue;
+            if (def.handVisualKey != requiredTool) continue;
+
+            foundItemId = slot.itemId;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string RemapLegacyId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return id;
+
+        // normalize first
+        id = id.Trim().ToLowerInvariant().Replace(" ", "_");
+
+        // legacy -> new
+        return id switch
+        {
+            "log" => "wood_log",
+            // add more as you rename things:
+            // "ore" => "iron_ore",
+            // "vamp ring" => "vamp_ring",
+            // "crit ring" => "crit_ring",
+            _ => id
+        };
+    }
+
+    public void SortByDatabaseOrder()
+    {
+        if (itemDb == null)
+        {
+            Debug.LogWarning("[Inventory] Cannot sort - ItemDatabase missing.");
+            return;
+        }
+
+        // 1. Collect all non-empty slots
+        List<Slot> filled = new List<Slot>();
+
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            if (!_slots[i].IsEmpty)
+                filled.Add(_slots[i]);
+        }
+
+        // 2. Sort by database index
+        filled.Sort((a, b) =>
+        {
+            int indexA = itemDb.GetIndex(a.itemId);
+            int indexB = itemDb.GetIndex(b.itemId);
+
+            int result = indexA.CompareTo(indexB);
+            if (result != 0) return result;
+
+            return b.amount.CompareTo(a.amount); // bigger stacks first
+        });
+
+        // 3. Clear all slots
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            var s = _slots[i];
+            s.Clear();
+            _slots[i] = s;
+        }
+
+        // 4. Refill sorted
+        for (int i = 0; i < filled.Count; i++)
+        {
+            _slots[i] = filled[i];
+        }
+
+        OnInventoryChanged?.Invoke();
+    }
+}

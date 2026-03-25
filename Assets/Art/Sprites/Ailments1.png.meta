@@ -1,0 +1,367 @@
+fileFormatVersion: 2
+guid: 40b7955c7c201214aaa90ac2a4aabdfd
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 981876846024125232
+    second: Ailments1_0
+  - first:
+      213: 7468428212851833621
+    second: Ailments1_1
+  - first:
+      213: 710387503765573875
+    second: Ailments1_2
+  - first:
+      213: 2886507610807967423
+    second: Ailments1_3
+  - first:
+      213: -1801511365232279587
+    second: Ailments1_4
+  - first:
+      213: 5558962388877194146
+    second: Ailments1_5
+  - first:
+      213: -9030914993867487001
+    second: Ailments1_6
+  - first:
+      213: 3007436380782998475
+    second: Ailments1_7
+  - first:
+      213: -8921933452076332091
+    second: Ailments1_8
+  - first:
+      213: -8088392421741576743
+    second: Ailments1_9
+  - first:
+      213: -427855172329239467
+    second: Ailments1_10
+  - first:
+      213: -2631263179342125651
+    second: Ailments1_11
+  - first:
+      213: -4210126616797662661
+    second: Ailments1_12
+  - first:
+      213: 2204247637170502065
+    second: Ailments1_13
+  - first:
+      213: -5162256768904292576
+    second: Ailments1_14
+  - first:
+      213: 4237463569790419019
+    second: Ailments1_15
+  - first:
+      213: -686082216836190739
+    second: Ailments1_16
+  - first:
+      213: -8355098259802994479
+    second: Ailments1_17
+  - first:
+      213: 5313578822362132953
+    second: Ailments1_18
+  - first:
+      213: 3034476652138001898
+    second: Ailments1_19
+  - first:
+      213: -3105727890893135811
+    second: Ailments1_20
+  - first:
+      213: 3638385797393055867
+    second: Ailments1_21
+  - first:
+      213: 1925691152052311150
+    second: Ailments1_22
+  - first:
+      213: 8493213249764759633
+    second: Ailments1_23
+  - first:
+      213: 75368244528936569
+    second: Ailments1_24
+  - first:
+      213: 6693284340706857390
+    second: Ailments1_25
+  - first:
+      213: 4242528275636747097
+    second: Ailments1_26
+  - first:
+      213: 766384025993035691
+    second: Ailments1_27
+  - first:
+      213: 2414497493314286272
+    second: Ailments1_28
+  - first:
+      213: 3927754819346322129
+    second: Ailments1_29
+  - first:
+      213: 8012442732373739362
+    second: Ailments1_30
+  - first:
+      213: -7065216945634883261
+    second: Ailments1_31
+  - first:
+      213: -2352885579848803818
+    second: Ailments1_32
+  - first:
+      213: -1722933934935950165
+    second: Ailments1_33
+  - first:
+      213: -4381079134802939315
+    second: Ailments1_34
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 250
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Ailments1_1
+      rect:
+        serializedVersion: 2
+        x: 222
+        y: 452
+        width: 141
+        height: 154
+      alignment: 9
+      pivot: {x: 0.47027636, y: 0.4491231}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 51bf981e3ef25a760800000000000000
+      internalID: 7468428212851833621
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Ailments1_4
+      rect:
+        serializedVersion: 2
+        x: 448
+        y: 448
+        width: 141
+        height: 158
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ddf308845febff6e0800000000000000
+      internalID: -1801511365232279587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Ailments1_9
+      rect:
+        serializedVersion: 2
+        x: 679
+        y: 439
+        width: 140
+        height: 175
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9ddb12252f140cf80800000000000000
+      internalID: -8088392421741576743
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Ailments1_10
+      rect:
+        serializedVersion: 2
+        x: 1174
+        y: 437
+        width: 152
+        height: 178
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 55c8006dcf3ff0af0800000000000000
+      internalID: -427855172329239467
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Ailments1_14
+      rect:
+        serializedVersion: 2
+        x: 933
+        y: 440
+        width: 141
+        height: 171
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0279a1ac1dafb58b0800000000000000
+      internalID: -5162256768904292576
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: a50f9e86bf5d8ff4a9dc207eac584de3
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Ailments1_0: 981876846024125232
+      Ailments1_1: 7468428212851833621
+      Ailments1_10: -427855172329239467
+      Ailments1_11: -2631263179342125651
+      Ailments1_12: -4210126616797662661
+      Ailments1_13: 2204247637170502065
+      Ailments1_14: -5162256768904292576
+      Ailments1_15: 4237463569790419019
+      Ailments1_16: -686082216836190739
+      Ailments1_17: -8355098259802994479
+      Ailments1_18: 5313578822362132953
+      Ailments1_19: 3034476652138001898
+      Ailments1_2: 710387503765573875
+      Ailments1_20: -3105727890893135811
+      Ailments1_21: 3638385797393055867
+      Ailments1_22: 1925691152052311150
+      Ailments1_23: 8493213249764759633
+      Ailments1_24: 75368244528936569
+      Ailments1_25: 6693284340706857390
+      Ailments1_26: 4242528275636747097
+      Ailments1_27: 766384025993035691
+      Ailments1_28: 2414497493314286272
+      Ailments1_29: 3927754819346322129
+      Ailments1_3: 2886507610807967423
+      Ailments1_30: 8012442732373739362
+      Ailments1_31: -7065216945634883261
+      Ailments1_32: -2352885579848803818
+      Ailments1_33: -1722933934935950165
+      Ailments1_34: -4381079134802939315
+      Ailments1_4: -1801511365232279587
+      Ailments1_5: 5558962388877194146
+      Ailments1_6: -9030914993867487001
+      Ailments1_7: 3007436380782998475
+      Ailments1_8: -8921933452076332091
+      Ailments1_9: -8088392421741576743
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

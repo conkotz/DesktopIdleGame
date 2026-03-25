@@ -1,0 +1,90 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6deaf633806e57a4f95e5f954b076992, type: 3}
+  m_Name: full_merchant_test
+  m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
+  items:
+  - itemId: ghorrocks_mace
+    costs: []
+    quantity: 1
+  - itemId: knights_polearm
+    costs: []
+    quantity: 0
+  - itemId: stone_dagger
+    costs: []
+    quantity: 1
+  - itemId: stone_spear
+    costs: []
+    quantity: 1
+  - itemId: stone_sword
+    costs: []
+    quantity: 1
+  - itemId: leather_boots
+    costs: []
+    quantity: 1
+  - itemId: stone_shield
+    costs: []
+    quantity: 1
+  - itemId: crit_ring
+    costs: []
+    quantity: 1
+  - itemId: vamp_ring
+    costs: []
+    quantity: 1
+  - itemId: poison_dagger
+    costs: []
+    quantity: 1
+  - itemId: basic_wand
+    costs: []
+    quantity: 0
+  - itemId: wood_bow
+    costs: []
+    quantity: 1
+  - itemId: wood_arrow
+    costs: []
+    quantity: -1
+  - itemId: basic_focus
+    costs: []
+    quantity: 0
+  - itemId: wooden_rod
+    costs:
+    - type: 1
+      amount: 1
+      itemId: raw_fish
+    - type: 0
+      amount: 1
+      itemId: 
+    quantity: 1
+  - itemId: stone_pickaxe
+    costs:
+    - type: 1
+      amount: 1
+      itemId: stone_chunk
+    - type: 0
+      amount: 1
+      itemId: 
+    quantity: 0
+  - itemId: stone_axe
+    costs:
+    - type: 1
+      amount: 1
+      itemId: wood_log
+    - type: 0
+      amount: 1
+      itemId: 
+    quantity: 0
+  - itemId: stone_platebody
+    costs: []
+    quantity: 1
+  - itemId: stone_helmet
+    costs: []
+    quantity: 1

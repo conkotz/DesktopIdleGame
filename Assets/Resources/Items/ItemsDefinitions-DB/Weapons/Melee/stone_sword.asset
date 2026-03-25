@@ -1,0 +1,108 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
+  m_Name: stone_sword
+  m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
+  itemKind: 1
+  maxStack: 1
+  itemId: stone_sword
+  displayName: Stone Sword
+  icon: {fileID: -8233395917148957338, guid: 3a5bee715b8e3a040a3f9abb0f109194, type: 3}
+  heldSprite: {fileID: 0}
+  equippedSprite: {fileID: 0}
+  useCustomEquippedPose: 0
+  equippedLocalOffset: {x: 0, y: 0}
+  equippedLocalRotationZ: 0
+  equippedFlipX: 0
+  equippedFlipY: 0
+  description: A basic 1h sword made from stone
+  rarity: 1
+  value: 150
+  equipSlot: 1
+  handVisualKey: 1
+  weaponStats:
+    minPhysicalDamage: 8
+    maxPhysicalDamage: 10
+    minMagicDamage: 0
+    maxMagicDamage: 0
+    minTrueDamage: 0
+    maxTrueDamage: 0
+    attacksPerSecond: 0.8
+    critChance: 0.05
+    critMultiplier: 1.5
+    handedness: 0
+    attackRange: 2
+    attackSkill: 0
+    canEquipInOffHand: 0
+    requiresOffhandSupport: 0
+    requiredSupportType: 0
+  combatSupportStats:
+    supportType: 0
+    bonusPhysicalDamage: 0
+    bonusMagicDamage: 0
+    bonusTrueDamage: 0
+    critChanceBonus: 0
+    critMultiplierBonus: 0
+    attackSpeedPercent: 0
+    consumableOnAttack: 0
+    consumeAmountPerAttack: 0
+  toolStats:
+    toolType: 0
+    gatherPower: 0
+    gatherSpeedMultiplier: 0
+  armorStats:
+    armor: 0
+    magicResist: 0
+    physBlockChance: 0
+    bonusHealth: 0
+    bonusEnergy: 0
+  bonusStats:
+    bonusHealth: 0
+    bonusEnergy: 0
+    armor: 0
+    magicResist: 0
+    physBlockChance: 0
+    lifeRegen: 0
+    energyRegen: 0
+    lifeSteal: 0
+    moveSpeedPercent: 0
+    physicalDamage: 0
+    magicDamage: 0
+    trueDamage: 0
+    abilityPower: 0
+    attackSpeedPercent: 0
+    critChanceBonus: 0
+    critMultiplierBonus: 0
+    attackRangeBonus: 0
+    bleedChance: 0
+    bleedMultiplier: 0
+    poisonChance: 0
+    poisonMultiplier: 0
+    poisonDurationBonus: 0
+    poisonMaxStacksBonus: 0
+  consumableStats:
+    consumableType: 0
+    healAmount: 0
+    energyAmount: 0
+    cooldownSeconds: 0
+    consumeOnUse: 0
+    grantedEffect:
+      effectType: 0
+      magnitude: 0
+      duration: 0
+      effectId: 
+  cookableStats:
+    isCookable: 0
+    cookedResultItemId: 
+    cookedResultAmount: 0
+    requiredCookingLevel: 0
+    cookingXp: 0

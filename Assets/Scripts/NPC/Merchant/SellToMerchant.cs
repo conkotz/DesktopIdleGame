@@ -1,0 +1,66 @@
+using UnityEngine;
+using UnityEngine.EventSystems;
+
+public class SellToMerchant : MonoBehaviour, IPointerClickHandler
+{
+    [SerializeField] private int slotIndex;
+    [SerializeField] private Inventory inventory;
+    [SerializeField] private CurrencyWallet wallet;
+
+    [Header("Optional FX")]
+    [SerializeField] private bool showGoldPopup = true;
+
+    private void Awake()
+    {
+        if (!inventory)
+            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        if (!wallet)
+            wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
+    }
+
+    public void SetSlotIndex(int index) => slotIndex = index;
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Left)
+            return;
+
+        if (!MerchantClick.MerchantModeOpen)
+            return;
+
+        bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        if (!ctrl)
+            return;
+
+        if (!inventory || !wallet)
+        {
+            Debug.LogError("[InvSlotSell] Missing inventory or wallet reference.");
+            return;
+        }
+
+        var slot = inventory.GetSlot(slotIndex);
+        if (slot.IsEmpty) return;
+
+        int valuePerItem = inventory.GetItemValue(slot.itemId);
+        if (valuePerItem <= 0) return;
+
+        // Remove exactly 1 from THIS slot
+        int removed = inventory.RemoveAmountAtSlot(slotIndex, 1);
+        if (removed <= 0) return;
+
+        int goldGained = valuePerItem * removed;
+        wallet.AddGold(goldGained);
+
+        if (showGoldPopup)
+        {
+            var spawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
+            if (spawner) spawner.ShowGoldGained(goldGained);
+        }
+
+        Debug.Log($"[InvSlotSell] Sold 1x {slot.itemId} for {goldGained} gold (slot {slotIndex}).");
+
+        // Stops other click logic (drag/tooltip) if needed
+        eventData.Use();
+    }
+}

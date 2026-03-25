@@ -1,0 +1,275 @@
+fileFormatVersion: 2
+guid: c7d0836c44574d64588b40dc576ac3cb
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 6028042546118260199
+    second: CraftingIcons_0
+  - first:
+      213: -4114096481552489177
+    second: CraftingIcons_1
+  - first:
+      213: 8556037078583959698
+    second: CraftingIcons_2
+  - first:
+      213: -5825917476859026551
+    second: CraftingIcons_3
+  - first:
+      213: 7817967665714908599
+    second: CraftingIcons_4
+  - first:
+      213: -9055106998401343247
+    second: CraftingIcons_5
+  - first:
+      213: -7481591036247279133
+    second: CraftingIcons_6
+  - first:
+      213: 172267406707929431
+    second: CraftingIcons_7
+  - first:
+      213: -1572890073386001091
+    second: CraftingIcons_8
+  - first:
+      213: -7612757315576426742
+    second: CraftingIcons_9
+  - first:
+      213: 2352177508630847280
+    second: CraftingIcons_10
+  - first:
+      213: -3446591193140787731
+    second: CraftingIcons_11
+  - first:
+      213: -4170629750980415806
+    second: CraftingIcons_12
+  - first:
+      213: 3609467963400660715
+    second: CraftingIcons_13
+  - first:
+      213: 2223323036793606259
+    second: CraftingIcons_14
+  - first:
+      213: 8473173702717022759
+    second: CraftingIcons_15
+  - first:
+      213: 3095819667485640018
+    second: CraftingIcons_16
+  - first:
+      213: -3319974025020304490
+    second: CraftingIcons_17
+  - first:
+      213: -9107088744948475299
+    second: CraftingIcons_18
+  - first:
+      213: 1881807418912615292
+    second: CraftingIcons_19
+  - first:
+      213: -8860788235552628294
+    second: CraftingIcons_20
+  - first:
+      213: -2258139642963243025
+    second: CraftingIcons_21
+  - first:
+      213: 4549664960273521031
+    second: CraftingIcons_22
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: CraftingIcons_12
+      rect:
+        serializedVersion: 2
+        x: 62
+        y: 323
+        width: 427
+        height: 365
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2cee223a652fe16c0800000000000000
+      internalID: -4170629750980415806
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: CraftingIcons_14
+      rect:
+        serializedVersion: 2
+        x: 1051
+        y: 301
+        width: 432
+        height: 385
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3709605b584dade10800000000000000
+      internalID: 2223323036793606259
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: CraftingIcons_15
+      rect:
+        serializedVersion: 2
+        x: 553
+        y: 313
+        width: 468
+        height: 375
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 72221aef692c69570800000000000000
+      internalID: 8473173702717022759
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: deb4b4358ed59f94db64c7a3f4237288
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      CraftingIcons_0: 6028042546118260199
+      CraftingIcons_1: -4114096481552489177
+      CraftingIcons_10: 2352177508630847280
+      CraftingIcons_11: -3446591193140787731
+      CraftingIcons_12: -4170629750980415806
+      CraftingIcons_13: 3609467963400660715
+      CraftingIcons_14: 2223323036793606259
+      CraftingIcons_15: 8473173702717022759
+      CraftingIcons_16: 3095819667485640018
+      CraftingIcons_17: -3319974025020304490
+      CraftingIcons_18: -9107088744948475299
+      CraftingIcons_19: 1881807418912615292
+      CraftingIcons_2: 8556037078583959698
+      CraftingIcons_20: -8860788235552628294
+      CraftingIcons_21: -2258139642963243025
+      CraftingIcons_22: 4549664960273521031
+      CraftingIcons_3: -5825917476859026551
+      CraftingIcons_4: 7817967665714908599
+      CraftingIcons_5: -9055106998401343247
+      CraftingIcons_6: -7481591036247279133
+      CraftingIcons_7: 172267406707929431
+      CraftingIcons_8: -1572890073386001091
+      CraftingIcons_9: -7612757315576426742
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

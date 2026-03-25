@@ -1,0 +1,437 @@
+fileFormatVersion: 2
+guid: 52b6c58eb1c3e0748918666848a95326
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -5568296838356566211
+    second: PotionTileSet_0
+  - first:
+      213: 4047814088631492772
+    second: PotionTileSet_1
+  - first:
+      213: 3739456629431115882
+    second: PotionTileSet_2
+  - first:
+      213: -8704612517636943511
+    second: PotionTileSet_3
+  - first:
+      213: -1822304944456214620
+    second: PotionTileSet_4
+  - first:
+      213: -3767869918261882204
+    second: PotionTileSet_5
+  - first:
+      213: -7782739067504214922
+    second: PotionTileSet_6
+  - first:
+      213: -4037578676421162425
+    second: PotionTileSet_7
+  - first:
+      213: 1505386286203101786
+    second: PotionTileSet_8
+  - first:
+      213: 6515462467611777082
+    second: PotionTileSet_9
+  - first:
+      213: 1994862110646822465
+    second: PotionTileSet_10
+  - first:
+      213: -627232227580200202
+    second: PotionTileSet_11
+  - first:
+      213: 4484660758664829059
+    second: PotionTileSet_12
+  - first:
+      213: 1075140263072918348
+    second: PotionTileSet_13
+  - first:
+      213: -4940497230621215087
+    second: PotionTileSet_14
+  - first:
+      213: -6641339806724634023
+    second: PotionTileSet_15
+  - first:
+      213: -3630296043525957888
+    second: PotionTileSet_16
+  - first:
+      213: 3656301752378997643
+    second: PotionTileSet_17
+  - first:
+      213: 1166501503050816331
+    second: PotionTileSet_18
+  - first:
+      213: 4467955056011881927
+    second: PotionTileSet_19
+  - first:
+      213: 6595274529072924701
+    second: PotionTileSet_20
+  - first:
+      213: 309609225363364757
+    second: PotionTileSet_21
+  - first:
+      213: 2727240949928203484
+    second: PotionTileSet_22
+  - first:
+      213: -678113424306735032
+    second: PotionTileSet_23
+  - first:
+      213: 4287677264105803289
+    second: PotionTileSet_24
+  - first:
+      213: -3537549550108807424
+    second: PotionTileSet_25
+  - first:
+      213: 1050920534209549329
+    second: PotionTileSet_26
+  - first:
+      213: -1260670049237851872
+    second: PotionTileSet_27
+  - first:
+      213: -4172738815724623391
+    second: PotionTileSet_28
+  - first:
+      213: -5807445811799059494
+    second: PotionTileSet_29
+  - first:
+      213: -9097802767141775706
+    second: PotionTileSet_30
+  - first:
+      213: -1082854616770023875
+    second: PotionTileSet_31
+  - first:
+      213: -5287617009238980090
+    second: PotionTileSet_32
+  - first:
+      213: -7094399590156581709
+    second: PotionTileSet_33
+  - first:
+      213: -8580716053152465908
+    second: PotionTileSet_34
+  - first:
+      213: -1220478547238951300
+    second: PotionTileSet_35
+  - first:
+      213: -6397270384961859497
+    second: PotionTileSet_36
+  - first:
+      213: 1530526185147346594
+    second: PotionTileSet_37
+  - first:
+      213: 1232306324661159354
+    second: PotionTileSet_38
+  - first:
+      213: -3330487267583336233
+    second: PotionTileSet_39
+  - first:
+      213: -6290420200378960740
+    second: PotionTileSet_40
+  - first:
+      213: 2550862537853046782
+    second: PotionTileSet_41
+  - first:
+      213: -3075291261800731832
+    second: PotionTileSet_42
+  - first:
+      213: -3855544515352821309
+    second: PotionTileSet_43
+  - first:
+      213: 3624240037394108600
+    second: PotionTileSet_44
+  - first:
+      213: -2662337710683540426
+    second: PotionTileSet_45
+  - first:
+      213: -6773807262371188801
+    second: PotionTileSet_46
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 450
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: PotionTileSet_0
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 997
+        width: 434
+        height: 421
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d3f73d1178f69b2b0800000000000000
+      internalID: -5568296838356566211
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PotionTileSet_11
+      rect:
+        serializedVersion: 2
+        x: 555
+        y: 1012
+        width: 469
+        height: 400
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6fab76bbc9f9b47f0800000000000000
+      internalID: -627232227580200202
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PotionTileSet_29
+      rect:
+        serializedVersion: 2
+        x: 55
+        y: 509
+        width: 423
+        height: 412
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ad31367adcec76fa0800000000000000
+      internalID: -5807445811799059494
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PotionTileSet_31
+      rect:
+        serializedVersion: 2
+        x: 568
+        y: 510
+        width: 432
+        height: 410
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d3ee708967de8f0f0800000000000000
+      internalID: -1082854616770023875
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PotionTileSet_44
+      rect:
+        serializedVersion: 2
+        x: 62
+        y: 36
+        width: 426
+        height: 411
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8b0df99ac13eb4230800000000000000
+      internalID: 3624240037394108600
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PotionTileSet_46
+      rect:
+        serializedVersion: 2
+        x: 568
+        y: 36
+        width: 418
+        height: 407
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fbf676d1f2a9ef1a0800000000000000
+      internalID: -6773807262371188801
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: e13a7d19147643149b91ca2042da21de
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      PotionTileSet_0: -5568296838356566211
+      PotionTileSet_1: 4047814088631492772
+      PotionTileSet_10: 1994862110646822465
+      PotionTileSet_11: -627232227580200202
+      PotionTileSet_12: 4484660758664829059
+      PotionTileSet_13: 1075140263072918348
+      PotionTileSet_14: -4940497230621215087
+      PotionTileSet_15: -6641339806724634023
+      PotionTileSet_16: -3630296043525957888
+      PotionTileSet_17: 3656301752378997643
+      PotionTileSet_18: 1166501503050816331
+      PotionTileSet_19: 4467955056011881927
+      PotionTileSet_2: 3739456629431115882
+      PotionTileSet_20: 6595274529072924701
+      PotionTileSet_21: 309609225363364757
+      PotionTileSet_22: 2727240949928203484
+      PotionTileSet_23: -678113424306735032
+      PotionTileSet_24: 4287677264105803289
+      PotionTileSet_25: -3537549550108807424
+      PotionTileSet_26: 1050920534209549329
+      PotionTileSet_27: -1260670049237851872
+      PotionTileSet_28: -4172738815724623391
+      PotionTileSet_29: -5807445811799059494
+      PotionTileSet_3: -8704612517636943511
+      PotionTileSet_30: -9097802767141775706
+      PotionTileSet_31: -1082854616770023875
+      PotionTileSet_32: -5287617009238980090
+      PotionTileSet_33: -7094399590156581709
+      PotionTileSet_34: -8580716053152465908
+      PotionTileSet_35: -1220478547238951300
+      PotionTileSet_36: -6397270384961859497
+      PotionTileSet_37: 1530526185147346594
+      PotionTileSet_38: 1232306324661159354
+      PotionTileSet_39: -3330487267583336233
+      PotionTileSet_4: -1822304944456214620
+      PotionTileSet_40: -6290420200378960740
+      PotionTileSet_41: 2550862537853046782
+      PotionTileSet_42: -3075291261800731832
+      PotionTileSet_43: -3855544515352821309
+      PotionTileSet_44: 3624240037394108600
+      PotionTileSet_45: -2662337710683540426
+      PotionTileSet_46: -6773807262371188801
+      PotionTileSet_5: -3767869918261882204
+      PotionTileSet_6: -7782739067504214922
+      PotionTileSet_7: -4037578676421162425
+      PotionTileSet_8: 1505386286203101786
+      PotionTileSet_9: 6515462467611777082
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
