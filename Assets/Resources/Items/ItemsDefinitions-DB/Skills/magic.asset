@@ -10,19 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b135f695c35f199438922318ab9539c0, type: 3}
-  m_Name: melee
+  m_Name: magic
   m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
-  skillType: 3
-  displayName: Melee
-  description: 'Fight enemies using melee combat '
-  icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
-  themeColor: {r: 0.7735849, g: 0.03357058, b: 0.043666083, a: 1}
+  skillType: 4
+  displayName: Ranged
+  description: Fight enemies using ranged combat
+  icon: {fileID: -4003117158439236843, guid: b4d639748b223674fa32f2107cd737d3, type: 3}
+  themeColor: {r: 0.013349866, g: 0.4716981, b: 0.035673983, a: 1}
   category: 1
   listSortOrder: 0
   unlocks:
   - requiredLevel: 1
-    title: Melee Combat
-    description: Can use common melee weapons
-    icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
+    title: Ranged Combat
+    description: Can use common ranged weapons
+    icon: {fileID: -4003117158439236843, guid: b4d639748b223674fa32f2107cd737d3, type: 3}
     unlockType: 0
     ability: {fileID: 0}
