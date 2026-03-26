@@ -2477,6 +2477,7 @@ MonoBehaviour:
   merchantName: Merchant
   stock: {fileID: 11400000, guid: a2ec61ca2386f6c429bf86f73f637678, type: 2}
   ctrlClickSellsAll: 0
+  merchantId: 
   inventory: {fileID: 0}
   wallet: {fileID: 0}
 --- !u!1 &172369518
@@ -5190,7 +5191,7 @@ Transform:
   m_GameObject: {fileID: 412571914}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -6.25, y: -0.63, z: 0}
+  m_LocalPosition: {x: -10.06, y: -0.76, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -18900,6 +18901,7 @@ MonoBehaviour:
   merchantName: Consumable Merchant
   stock: {fileID: 11400000, guid: 075bbf6081fc75b4f97e2beb3462f5d2, type: 2}
   ctrlClickSellsAll: 0
+  merchantId: 
   inventory: {fileID: 0}
   wallet: {fileID: 0}
 --- !u!114 &1346176683
@@ -22255,6 +22257,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1537825375}
   m_CullTransparentMesh: 1
+--- !u!1 &1550592806
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1550592807}
+  m_Layer: 0
+  m_Name: SpawnPoint_Player_Entry
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1550592807
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1550592806}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -17.59, y: -0.69, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1558580852
 GameObject:
   m_ObjectHideFlags: 0
@@ -23431,6 +23464,10 @@ PrefabInstance:
     - target: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
       propertyPath: m_Name
       value: EnemyKnight
+      objectReference: {fileID: 0}
+    - target: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4000011028196368, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
       propertyPath: m_LocalPosition.x
@@ -27868,6 +27905,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EnemyArcher
       objectReference: {fileID: 0}
+    - target: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4000010464396976, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
       propertyPath: m_LocalPosition.x
       value: -53.38
@@ -29377,7 +29418,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: -886.2, y: 106.7}
+  m_AnchoredPosition: {x: -1430, y: 489}
   m_SizeDelta: {x: 395, y: 100}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &2025818111
@@ -31093,3 +31134,4 @@ SceneRoots:
   - {fileID: 852128585}
   - {fileID: 1125193035}
   - {fileID: 412571915}
+  - {fileID: 1550592807}

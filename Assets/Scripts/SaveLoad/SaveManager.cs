@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using UnityEngine;
@@ -8,11 +8,22 @@ public class SaveManager : MonoBehaviour
 {
     public static SaveManager Instance { get; private set; }
 
-    [SerializeField] private string fileName = "save.json";
     [SerializeField] private bool autosave = true;
     [SerializeField] private float autosaveIntervalSeconds = 30f;
 
-    private string FilePath => Path.Combine(Application.persistentDataPath, fileName);
+    private int GetSafeActiveSlot()
+    {
+        int slot = SaveSlotManager.ActiveSlotIndex;
+        if (slot < 0)
+        {
+            Debug.LogWarning("[SaveManager] ActiveSlotIndex < 0. Defaulting to slot 0.");
+            slot = 0;
+        }
+
+        return slot;
+    }
+
+    private string ActiveSavePath => SaveSlotManager.GetSavePath(GetSafeActiveSlot());
     private float _autosaveTimer;
 
     private bool _didInitialLoadOrCreate;
@@ -28,6 +39,7 @@ public class SaveManager : MonoBehaviour
     {
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
+        DontDestroyOnLoad(gameObject);
     }
 
     private void OnEnable()
@@ -54,14 +66,61 @@ public class SaveManager : MonoBehaviour
         // Rebind inventory for the new scene (Inventory likely lives in scene)
         TryBindInventory();
 
-        // Do initial load/create once, after the first gameplay scene is loaded
+        // Only initialize once per app run.
         if (_didInitialLoadOrCreate) return;
+
+        // Bootstrap is intentionally "save-less". We initialize when entering gameplay.
+        if (scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        int slot = GetSafeActiveSlot();
+        var pendingMode = SaveSlotManager.ConsumePendingStartMode();
+
+        // Safe fallback if something loads gameplay without going through the Bootstrap UI buttons.
+        if (pendingMode == SaveSlotManager.SlotStartMode.None)
+            pendingMode = HasSave() ? SaveSlotManager.SlotStartMode.LoadGame : SaveSlotManager.SlotStartMode.NewGame;
+
+        Debug.Log($"[SaveManager] Gameplay init. scene='{scene.name}' slot={slot} startMode={pendingMode} hasSave={HasSave()}");
+
         _didInitialLoadOrCreate = true;
 
-        if (HasSave())
-            Load();
-        else
+        if (pendingMode == SaveSlotManager.SlotStartMode.NewGame)
+        {
+            ResetAllSaveablesToDefaults();
             Save();
+        }
+        else // LoadGame
+        {
+            if (HasSave())
+            {
+                Load();
+            }
+            else
+            {
+                Debug.LogWarning($"[SaveManager] Continue/Load requested but no save exists for slot {slot}. Starting a fresh game instead.");
+                ResetAllSaveablesToDefaults();
+                Save();
+            }
+        }
+
+        var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player == null)
+            Debug.LogWarning("[SaveManager] No PlayerController found after gameplay init. If you start from Bootstrap, ensure a player exists in the gameplay scene or is spawned by a bootstrapper.");
+    }
+
+    private void ResetAllSaveablesToDefaults()
+    {
+        var data = new SaveData
+        {
+            version = 2,
+            savedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+        };
+
+        _lastLoadedData = data;
+
+        var saveables = FindSaveables();
+        foreach (var s in saveables)
+            s.LoadFrom(data);
     }
 
     private void Update()
@@ -83,7 +142,7 @@ public class SaveManager : MonoBehaviour
         Save();
     }
 
-    public bool HasSave() => File.Exists(FilePath);
+    public bool HasSave() => File.Exists(ActiveSavePath);
 
     public void Save()
     {
@@ -100,14 +159,30 @@ public class SaveManager : MonoBehaviour
         _lastLoadedData = data;
 
         var json = JsonUtility.ToJson(data, true);
-        File.WriteAllText(FilePath, json);
+        File.WriteAllText(ActiveSavePath, json);
+
+        // Write a small meta/header file for the slot select UI.
+        int slot = GetSafeActiveSlot();
+        int combatPower = 0;
+        var stats = FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Include);
+        if (stats != null)
+            combatPower = stats.CombatPowerRounded;
+
+        var header = SaveSlotManager.BuildHeaderFromSaveData(
+            slot,
+            data,
+            SceneManager.GetActiveScene().name,
+            DateTime.UtcNow,
+            combatPower
+        );
+        SaveSlotManager.WriteHeader(header);
     }
 
     public void Load()
     {
         if (!HasSave()) return;
 
-        var json = File.ReadAllText(FilePath);
+        var json = File.ReadAllText(ActiveSavePath);
         var data = JsonUtility.FromJson<SaveData>(json);
 
         _lastLoadedData = data;
@@ -165,7 +240,7 @@ public class SaveManager : MonoBehaviour
     public void DeleteSave()
     {
         if (!HasSave()) return;
-        File.Delete(FilePath);
+        File.Delete(ActiveSavePath);
         _didInitialLoadOrCreate = false; // allow re-init on next scene load
     }
     public bool TryGetLastLoadedData(out SaveData data)

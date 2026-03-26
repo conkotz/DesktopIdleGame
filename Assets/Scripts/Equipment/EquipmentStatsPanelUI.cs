@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 
 public class EquipmentStatsPanelUI : MonoBehaviour
@@ -65,10 +65,20 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
     private void Awake()
     {
+        if (!player) player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+
+        // Prefer components from the player object so this panel never binds to enemy/NPC stats.
+        if (player)
+        {
+            if (!stats) stats = player.GetComponent<CharacterStats>();
+            if (!equipment) equipment = player.GetComponent<EquipmentManager>();
+            if (!toolbelt) toolbelt = player.GetComponent<ToolbeltManager>();
+        }
+
+        // Fallbacks (kept for safety in unusual setup scenes).
         if (!stats) stats = FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Include);
         if (!equipment) equipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
         if (!toolbelt) toolbelt = FindFirstObjectByType<ToolbeltManager>(FindObjectsInactive.Include);
-        if (!player) player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
     }
 
     private void OnEnable()

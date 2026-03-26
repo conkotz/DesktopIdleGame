@@ -5,8 +5,20 @@ using UnityEngine;
 [Serializable]
 public class SaveData
 {
+    [Header("Meta")]
+    public int version = 2;
+    public long savedAtUnix;
+
+    [Header("Player")]
+    public int playerLevel = 1;
+    public int xp = 0;
+
+    [Header("Currency")]
+    public int gold = 0;
+
+    [Header("Inventory")]
     public int inventorySlotCount = 32;
-    public List<InventorySlotData> inventorySlots = new List<InventorySlotData>();
+    public List<InventorySlotData> inventorySlots = new();
 
     [Serializable]
     public struct InventorySlotData
@@ -15,32 +27,17 @@ public class SaveData
         public int amount;
     }
 
-    public int version = 2;
-    public long savedAtUnix;
-    public int gold = 0;
+    [Header("Equipment")]
+    public string equippedMainHand1ItemId;
+    public string equippedOffHand1ItemId;
+    public int equippedOffHand1StackAmount;
 
-    // Example player / meta
-    public int playerLevel = 1;
-    public int xp = 0;
+    public string equippedMainHand2ItemId;
+    public string equippedOffHand2ItemId;
+    public int equippedOffHand2StackAmount;
 
-    // Example “resources” (wood/stone/etc)
-    public List<ResourceAmount> resources = new List<ResourceAmount>();
+    public int activeWeaponSetIndex;
 
-    // Example upgrades
-    public List<string> unlockedUpgrades = new List<string>();
-
-    // --- Equipment / Weapon Sets ---
-    public string equippedMainHand1ItemId = null;
-    public string equippedOffHand1ItemId = null;
-    public int equippedOffHand1StackAmount = 0;
-
-    public string equippedMainHand2ItemId = null;
-    public string equippedOffHand2ItemId = null;
-    public int equippedOffHand2StackAmount = 0;
-
-    public int activeWeaponSetIndex = 0;
-
-    // --- Armor / Accessories ---
     public string equippedHelmetItemId;
     public string equippedBodyItemId;
     public string equippedBootsItemId;
@@ -50,32 +47,11 @@ public class SaveData
     public string equippedRing1ItemId;
     public string equippedRing2ItemId;
 
-    // --- Action Bar ---
-    public List<int> actionBarSlotIndexes = new List<int>();
-    public List<int> actionBarKinds = new List<int>();
-    public List<string> actionBarIds = new List<string>();
+    [Header("Toolbelt")]
+    public List<string> toolbeltItemIds = new();
 
-    // --- Toolbelt ---
-    public List<string> toolbeltItemIds = new List<string>() { null, null, null, null };
-
-    // Helper types
-    [Serializable]
-    public struct ResourceAmount
-    {
-        public string id;
-        public int amount;
-    }
-
-    [Serializable]
-    public struct SerializableVector3
-    {
-        public float x, y, z;
-        public SerializableVector3(Vector3 v) { x = v.x; y = v.y; z = v.z; }
-        public Vector3 ToVector3() => new Vector3(x, y, z);
-    }
-
-    // --- Skills ---
-    public List<SkillSave> skills = new List<SkillSave>();
+    [Header("Skills")]
+    public List<SkillSave> skills = new();
     public SkillType lastXpSkill = SkillType.Mining;
     public string lastXpSource = "";
 
@@ -85,5 +61,20 @@ public class SaveData
         public SkillType type;
         public int level;
         public int xp;
+    }
+
+    [Header("Action Bar")]
+    public List<int> actionBarSlotIndexes = new();
+    public List<int> actionBarKinds = new();
+    public List<string> actionBarIds = new();
+
+    [Header("Merchant Stock")]
+    public List<MerchantStockSave> merchantStocks = new();
+
+    [Serializable]
+    public class MerchantStockSave
+    {
+        public string merchantId;
+        public List<int> quantities = new();
     }
 }

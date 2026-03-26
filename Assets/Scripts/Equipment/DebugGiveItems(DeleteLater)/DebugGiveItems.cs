@@ -3,6 +3,10 @@ using UnityEngine;
 public class DebugGiveItems : MonoBehaviour
 {
     [SerializeField] private Inventory inventory;
+    [SerializeField] private CurrencyWallet wallet;
+    [SerializeField] private LevelUpEffect levelUpEffect;
+    [SerializeField] private GoldPopupSpawner popupSpawner;
+    [SerializeField] private Transform popupAnchor;
 
     [Header("Item Definitions to Test")]
     [SerializeField] private ItemDefinition swordDef;
@@ -17,9 +21,18 @@ public class DebugGiveItems : MonoBehaviour
     [SerializeField] private ItemDefinition critRingDef;
     [SerializeField] private ItemDefinition vampRingDef;
     [SerializeField] private ItemDefinition bootsDef;
+    [SerializeField] private ItemDefinition stoneDef;
+    [SerializeField] private ItemDefinition woodDef;
+    [SerializeField] private ItemDefinition fishDef;
 
     [Header("Amount")]
     [SerializeField] private int amount = 1;
+
+    [Header("L Debug Pack")]
+    [SerializeField] private KeyCode grantPackKey = KeyCode.L;
+    [SerializeField] private int grantGold = 50000;
+    [SerializeField] private int grantResourceAmount = 100;
+    [SerializeField] private Vector3 popupWorldOffset = new Vector3(0f, 1.6f, 0f);
 
     private void Awake()
     {
@@ -28,10 +41,28 @@ public class DebugGiveItems : MonoBehaviour
 
         if (!inventory)
             inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        if (!wallet)
+            wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
+
+        if (!popupSpawner)
+            popupSpawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
+
+        if (!popupAnchor)
+        {
+            var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+            popupAnchor = player ? player.transform : transform;
+        }
+
+        if (!levelUpEffect)
+            levelUpEffect = GetComponentInChildren<LevelUpEffect>(true);
     }
 
     private void Update()
     {
+        if (Input.GetKeyDown(grantPackKey))
+            GrantDebugPack();
+
         if (Input.GetKeyDown(KeyCode.Alpha1)) Spawn(axeDef);
         if (Input.GetKeyDown(KeyCode.Alpha1)) Spawn(rodDef);
         if (Input.GetKeyDown(KeyCode.Alpha1)) Spawn(pickaxeDef);
@@ -46,6 +77,30 @@ public class DebugGiveItems : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha4)) Spawn(bootsDef);
 
 
+    }
+
+    private void GrantDebugPack()
+    {
+        if (wallet != null && grantGold > 0)
+            wallet.AddGold(grantGold);
+
+        AddToInventory(stoneDef, grantResourceAmount);
+        AddToInventory(woodDef, grantResourceAmount);
+        AddToInventory(fishDef, grantResourceAmount);
+
+        if (levelUpEffect != null)
+            levelUpEffect.PlayLevelUp();
+
+        if (popupSpawner != null && popupAnchor != null)
+            popupSpawner.ShowMessageAtWorld(popupAnchor.position + popupWorldOffset, "DEBUG LEVEL UP!", Color.yellow);
+
+        Debug.Log($"[DebugGiveItems] Granted pack: +{grantGold} gold, +{grantResourceAmount} stone/wood/fish.");
+    }
+
+    private void AddToInventory(ItemDefinition def, int qty)
+    {
+        if (inventory == null || def == null || qty <= 0) return;
+        inventory.Add(def.itemId, qty);
     }
 
     private void Spawn(ItemDefinition def)

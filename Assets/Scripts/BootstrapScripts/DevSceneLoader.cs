@@ -12,7 +12,6 @@ public class DevSceneLoader : MonoBehaviour
         // Press F1 to load the test scene during Play Mode
         if (Input.GetKeyDown(KeyCode.F1))
         {
-
             SceneManager.LoadScene(sceneOne);
         }
         // Press F2 to load the test scene during Play Mode

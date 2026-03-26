@@ -1,7 +1,8 @@
-﻿using System.Text;
+using System.Text;
+using System.Collections.Generic;
 using UnityEngine;
 
-public class Merchant : MonoBehaviour
+public class Merchant : MonoBehaviour, ISaveable
 {
     [Header("Identity")]
     [SerializeField] private string merchantName = "Merchant";
@@ -10,17 +11,26 @@ public class Merchant : MonoBehaviour
     [Header("Behaviour")]
     [SerializeField] private bool ctrlClickSellsAll = true;
 
+    [Header("Save Identity")]
+    [Tooltip("Unique id for this merchant used in save data. Leave empty to auto-generate from scene path.")]
+    [SerializeField] private string merchantId;
+
     [Header("Refs (optional)")]
     [SerializeField] private Inventory inventory;
     [SerializeField] private CurrencyWallet wallet;
 
     public string MerchantName => merchantName;
     public MerchantStock Stock => stock;
+    public string MerchantId => GetMerchantId();
+
+    // Runtime quantities by stock entry index. We never mutate the ScriptableObject asset directly.
+    private readonly List<int> _runtimeQuantities = new();
 
     private void Awake()
     {
         if (!inventory) inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
         if (!wallet) wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
+        InitializeRuntimeStockFromDefaults();
     }
 
     private void OnMouseDown()
@@ -52,7 +62,8 @@ public class Merchant : MonoBehaviour
             return false;
         }
 
-        if (entry.quantity >= 0 && entry.quantity < amount)
+        int available = GetQuantity(entry);
+        if (available >= 0 && available < amount)
         {
             Debug.Log($"[Merchant] Not enough stock for {itemId}.");
             return false;
@@ -81,8 +92,9 @@ public class Merchant : MonoBehaviour
                 return false;
             }
 
-            if (entry.quantity > 0)
-                entry.quantity--;
+            int current = GetQuantity(entry);
+            if (current > 0)
+                SetQuantity(entry, current - 1);
         }
 
         Debug.Log($"[Merchant] Bought {amount}x {itemId}.");
@@ -220,12 +232,13 @@ public class Merchant : MonoBehaviour
 
         sb.AppendLine();
 
-        if (entry.quantity == 0)
+        int qty = GetQuantity(entry);
+        if (qty == 0)
             sb.Append("Stock: Sold Out");
-        else if (entry.quantity < 0)
+        else if (qty < 0)
             sb.Append("Stock: ∞");
         else
-            sb.Append($"Stock: {entry.quantity}");
+            sb.Append($"Stock: {qty}");
 
         return sb.ToString().TrimEnd();
     }
@@ -281,5 +294,127 @@ public class Merchant : MonoBehaviour
         }
 
         Debug.Log("[Merchant] Nothing sellable to sell.");
+    }
+
+    public int GetQuantity(MerchantStock.Entry entry)
+    {
+        int index = GetEntryIndex(entry);
+        if (index < 0)
+            return entry != null ? entry.quantity : 0;
+
+        if (index >= _runtimeQuantities.Count)
+            return entry.quantity;
+
+        return _runtimeQuantities[index];
+    }
+
+    public void SetQuantity(MerchantStock.Entry entry, int quantity)
+    {
+        int index = GetEntryIndex(entry);
+        if (index < 0) return;
+
+        EnsureRuntimeStockCapacity();
+        _runtimeQuantities[index] = Mathf.Max(-1, quantity);
+    }
+
+    private int GetEntryIndex(MerchantStock.Entry entry)
+    {
+        if (stock == null || entry == null || stock.Items == null) return -1;
+
+        for (int i = 0; i < stock.Items.Count; i++)
+        {
+            if (ReferenceEquals(stock.Items[i], entry))
+                return i;
+        }
+        return -1;
+    }
+
+    private void InitializeRuntimeStockFromDefaults()
+    {
+        _runtimeQuantities.Clear();
+        if (stock == null || stock.Items == null) return;
+
+        for (int i = 0; i < stock.Items.Count; i++)
+        {
+            var e = stock.Items[i];
+            _runtimeQuantities.Add(e != null ? Mathf.Max(-1, e.quantity) : 0);
+        }
+    }
+
+    private void EnsureRuntimeStockCapacity()
+    {
+        if (stock == null || stock.Items == null) return;
+        while (_runtimeQuantities.Count < stock.Items.Count)
+            _runtimeQuantities.Add(0);
+    }
+
+    private string GetMerchantId()
+    {
+        if (!string.IsNullOrWhiteSpace(merchantId))
+            return merchantId;
+
+        // Stable fallback id per scene object path.
+        return $"{gameObject.scene.name}:{BuildPath(transform)}";
+    }
+
+    private static string BuildPath(Transform t)
+    {
+        var sb = new StringBuilder(t.name);
+        var p = t.parent;
+        while (p != null)
+        {
+            sb.Insert(0, '/');
+            sb.Insert(0, p.name);
+            p = p.parent;
+        }
+        return sb.ToString();
+    }
+
+    public void SaveInto(SaveData data)
+    {
+        if (data == null || stock == null || stock.Items == null) return;
+
+        data.merchantStocks ??= new List<SaveData.MerchantStockSave>();
+
+        var save = new SaveData.MerchantStockSave
+        {
+            merchantId = GetMerchantId(),
+            quantities = new List<int>()
+        };
+
+        EnsureRuntimeStockCapacity();
+        for (int i = 0; i < stock.Items.Count; i++)
+            save.quantities.Add(i < _runtimeQuantities.Count ? _runtimeQuantities[i] : 0);
+
+        data.merchantStocks.Add(save);
+    }
+
+    public void LoadFrom(SaveData data)
+    {
+        // New Game path (empty save data) => reset to defaults.
+        InitializeRuntimeStockFromDefaults();
+
+        if (data == null || data.merchantStocks == null || data.merchantStocks.Count == 0 || stock == null || stock.Items == null)
+            return;
+
+        string id = GetMerchantId();
+        SaveData.MerchantStockSave matched = null;
+        for (int i = 0; i < data.merchantStocks.Count; i++)
+        {
+            var s = data.merchantStocks[i];
+            if (s != null && s.merchantId == id)
+            {
+                matched = s;
+                break;
+            }
+        }
+
+        if (matched == null || matched.quantities == null)
+            return;
+
+        EnsureRuntimeStockCapacity();
+        int n = Mathf.Min(_runtimeQuantities.Count, matched.quantities.Count);
+        for (int i = 0; i < n; i++)
+            _runtimeQuantities[i] = Mathf.Max(-1, matched.quantities[i]);
     }
 }

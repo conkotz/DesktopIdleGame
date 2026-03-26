@@ -5,6 +5,7 @@ public class SaveGameHeader
     public bool hasSave;
     public string characterName;
     public int playerLevel;
+    public int combatPower;
     public int gold;
     public string sceneName;
     public string lastSavedUtc;

@@ -18,7 +18,7 @@ MonoBehaviour:
     quantity: 1
   - itemId: knights_polearm
     costs: []
-    quantity: 0
+    quantity: 1
   - itemId: stone_dagger
     costs: []
     quantity: 1
@@ -45,7 +45,7 @@ MonoBehaviour:
     quantity: 1
   - itemId: basic_wand
     costs: []
-    quantity: 0
+    quantity: 1
   - itemId: wood_bow
     costs: []
     quantity: 1
@@ -54,7 +54,7 @@ MonoBehaviour:
     quantity: -1
   - itemId: basic_focus
     costs: []
-    quantity: 0
+    quantity: 1
   - itemId: wooden_rod
     costs:
     - type: 1
@@ -72,7 +72,7 @@ MonoBehaviour:
     - type: 0
       amount: 1
       itemId: 
-    quantity: 0
+    quantity: 1
   - itemId: stone_axe
     costs:
     - type: 1
@@ -81,7 +81,7 @@ MonoBehaviour:
     - type: 0
       amount: 1
       itemId: 
-    quantity: 0
+    quantity: 1
   - itemId: stone_platebody
     costs: []
     quantity: 1

@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -86,12 +86,16 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             if (_entry == null)
                 stockText.text = "";
             else
-                stockText.text = _entry.quantity < 0 ? "∞" : (_entry.quantity == 0 ? "Sold Out" : $"x{_entry.quantity}");
+            {
+                int qty = _merchant != null ? _merchant.GetQuantity(_entry) : _entry.quantity;
+                stockText.text = qty < 0 ? "∞" : (qty == 0 ? "Sold Out" : $"x{qty}");
+            }
         }
 
         if (button)
         {
-            bool inStock = _entry != null && _entry.quantity != 0;
+            int qty = _entry != null ? (_merchant != null ? _merchant.GetQuantity(_entry) : _entry.quantity) : 0;
+            bool inStock = _entry != null && qty != 0;
             button.interactable = def != null && inStock;
 
             button.onClick.RemoveAllListeners();

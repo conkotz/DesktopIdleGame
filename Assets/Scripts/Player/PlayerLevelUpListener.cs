@@ -8,8 +8,6 @@ public class PlayerLevelUpListener : MonoBehaviour
 
     [Header("Popup")]
     [SerializeField] private Vector3 popupWorldOffset = new Vector3(0f, 1.6f, 0f);
-    [SerializeField] private bool testKeyEnabled = false;
-    [SerializeField] private KeyCode testKey = KeyCode.L;
 
     [Header("Popup Colors")]
     [SerializeField] private Color miningColor = new Color(0.8f, 0.8f, 0.8f, 1f);
@@ -40,17 +38,6 @@ public class PlayerLevelUpListener : MonoBehaviour
     {
         if (SkillsManager.Instance != null)
             SkillsManager.Instance.OnLevelUp -= HandleLevelUp;
-    }
-
-    private void Update()
-    {
-        if (!testKeyEnabled) return;
-
-        if (Input.GetKeyDown(testKey))
-        {
-            Debug.Log("Manual Level Up Effect Triggered");
-            ShowLevelUp(SkillType.Melee);
-        }
     }
 
     private void HandleLevelUp(SkillType skill, int newLevel)

@@ -8,10 +8,24 @@ public class PlayerSpawnController : MonoBehaviour
     [Header("Refs")]
     [SerializeField] private Rigidbody2D rb;
     [SerializeField] private Collider2D col;
+    [SerializeField] private PlayerController player;
 
     [Header("Spawn Point")]
     [Tooltip("Name of the spawn point GameObject in each scene.")]
     [SerializeField] private string spawnPointName = "SpawnPoint_Player";
+
+    [Header("Optional Walk-In (New Game)")]
+    [Tooltip("If true, and both points exist, spawns at Entry then auto-walks to Arrival (every scene load).")]
+    [SerializeField] private bool walkInOnSceneLoad = true;
+
+    [Tooltip("Spawn point used for walk-in entry (off-screen).")]
+    [SerializeField] private string walkInEntryPointName = "SpawnPoint_Player_Entry";
+
+    [Tooltip("Arrival point the player walks to (on-screen).")]
+    [SerializeField] private string walkInArrivalPointName = "SpawnPoint_Player";
+
+    [Tooltip("Delay after fade-in before issuing walk command.")]
+    [SerializeField] private float walkInCommandDelaySeconds = 0.05f;
 
     [Tooltip("Extra frames to wait after scene load before moving player (helps setup order).")]
     [SerializeField] private int waitFramesAfterLoad = 1;
@@ -39,6 +53,7 @@ public class PlayerSpawnController : MonoBehaviour
     {
         if (!rb) rb = GetComponent<Rigidbody2D>();
         if (!col) col = GetComponent<Collider2D>();
+        if (!player) player = GetComponent<PlayerController>();
         renderers = GetComponentsInChildren<SpriteRenderer>(true);
     }
 
@@ -60,8 +75,13 @@ public class PlayerSpawnController : MonoBehaviour
 
     private IEnumerator SpawnAfterLoad()
     {
-        // Hide instantly BEFORE waiting
-        SetAlpha(0f);
+        bool doFade = fadeDuration > 0.001f;
+
+        // Hide instantly BEFORE waiting (only if we're actually going to fade)
+        if (doFade)
+            SetAlpha(0f);
+        else
+            SetAlpha(1f);
 
         // Freeze physics so teleport + snap is clean
         if (rb) rb.simulated = false;
@@ -73,12 +93,25 @@ public class PlayerSpawnController : MonoBehaviour
         for (int i = 0; i < waitFramesAfterLoad; i++)
             yield return null;
 
-        // Find spawn
-        var spawn = GameObject.Find(spawnPointName);
+        // Choose spawn location (walk-in entry if configured + present)
+        bool shouldWalkIn = walkInOnSceneLoad;
+
+        GameObject spawn = null;
+        if (shouldWalkIn)
+            spawn = GameObject.Find(walkInEntryPointName);
+
+        // Fallback to the normal spawn point if no entry point exists
+        if (spawn == null)
+            spawn = GameObject.Find(spawnPointName);
+
         if (spawn != null)
+        {
             transform.position = spawn.transform.position;
+        }
         else
-            Debug.LogWarning($"[PlayerSpawnController] Missing '{spawnPointName}' in scene. Player stays where it is.");
+        {
+            Debug.LogWarning($"[PlayerSpawnController] Missing spawn point in scene. Tried '{(shouldWalkIn ? walkInEntryPointName : spawnPointName)}' then '{spawnPointName}'. Player stays where it is.");
+        }
 
         // Let transforms + physics settle
         yield return null;
@@ -95,8 +128,24 @@ public class PlayerSpawnController : MonoBehaviour
             rb.simulated = true;
         }
 
-        // Fade in
-        yield return FadeIn();
+        // Fade in (optional)
+        if (doFade)
+            yield return FadeIn();
+        else
+            SetAlpha(1f);
+
+        // After fade-in, issue walk-to command for the walk-in arrival point
+        if (shouldWalkIn && player != null)
+        {
+            var arrival = GameObject.Find(walkInArrivalPointName);
+            if (arrival != null)
+            {
+                if (walkInCommandDelaySeconds > 0f)
+                    yield return new WaitForSeconds(walkInCommandDelaySeconds);
+
+                player.MoveToPointX(arrival.transform.position.x);
+            }
+        }
 
         _running = null;
     }
