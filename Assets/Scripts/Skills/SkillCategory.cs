@@ -2,5 +2,6 @@ public enum SkillCategory
 {
     Gathering,
     Combat,
-    Utility
+    Crafting,
+    Utility // optional but useful later
 }

@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -31,6 +31,20 @@ public class InventoryGridUI : MonoBehaviour
     [Tooltip("How many frames to retry sizing/layout if rect size isn't ready yet (build safety).")]
     [SerializeField] private int layoutRetryFrames = 3;
 
+    [Header("First-Open Snap Fix")]
+    [Tooltip("Hide the grid visually until layout is stable (prevents 1-frame snapping).")]
+    [SerializeField] private bool hideGridUntilReady = true;
+
+    [Tooltip("Optional visual root to hide/show. Defaults to SlotsGrid GameObject.")]
+    [SerializeField] private GameObject gridVisualRoot;
+
+    [Tooltip("If true, hides via CanvasGroup alpha (keeps layout active). Recommended.")]
+    [SerializeField] private bool hideViaCanvasGroup = true;
+
+    [Tooltip("Optional CanvasGroup used for hiding. If empty and hideViaCanvasGroup is true, one will be created on gridVisualRoot.")]
+    [SerializeField] private CanvasGroup gridCanvasGroup;
+    private bool _warnedNoHideSupport;
+
     private readonly List<InventorySlotUI> _slotPool = new List<InventorySlotUI>(64);
     private GridLayoutGroup _grid;
     private bool _dirty;
@@ -55,6 +69,17 @@ public class InventoryGridUI : MonoBehaviour
         if (!inventoryPanelRect)
             inventoryPanelRect = transform as RectTransform;
 
+        if (!gridVisualRoot && slotsGrid)
+            gridVisualRoot = slotsGrid.gameObject;
+
+        if (hideGridUntilReady && hideViaCanvasGroup && gridVisualRoot)
+        {
+            if (!gridCanvasGroup)
+                gridCanvasGroup = gridVisualRoot.GetComponent<CanvasGroup>();
+            if (!gridCanvasGroup)
+                gridCanvasGroup = gridVisualRoot.AddComponent<CanvasGroup>();
+        }
+
         if (!itemDb)
             itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
 
@@ -66,6 +91,9 @@ public class InventoryGridUI : MonoBehaviour
     {
         if (inventory != null)
             inventory.OnInventoryChanged += MarkDirty;
+
+        if (hideGridUntilReady)
+            SetGridVisible(false);
 
         StartCoroutine(DeferredRefresh());
     }
@@ -111,6 +139,39 @@ public class InventoryGridUI : MonoBehaviour
 
         ApplyGridFit();
         Rebuild();
+
+        // Extra layout settle pass before showing (prevents 1-frame wrong positions).
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        if (slotsGrid)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(slotsGrid);
+        Canvas.ForceUpdateCanvases();
+
+        if (hideGridUntilReady)
+            SetGridVisible(true);
+    }
+
+    private void SetGridVisible(bool visible)
+    {
+        if (!gridVisualRoot) return;
+
+        // Preferred: hide visually but keep layout active.
+        if (hideViaCanvasGroup && gridCanvasGroup)
+        {
+            gridCanvasGroup.alpha = visible ? 1f : 0f;
+            gridCanvasGroup.blocksRaycasts = visible;
+            gridCanvasGroup.interactable = visible;
+            return;
+        }
+
+        // Failsafe: do NOT deactivate the GameObject (can prevent coroutines / layout from running).
+        // If no CanvasGroup is available, keep it visible rather than breaking the UI.
+        if (!_warnedNoHideSupport)
+        {
+            _warnedNoHideSupport = true;
+            Debug.LogWarning("[InventoryGridUI] hideGridUntilReady is enabled, but no CanvasGroup is available. " +
+                             "Grid will remain visible to avoid disabling the object and breaking layout/coroutines.", this);
+        }
     }
 
     private void EnsurePoolSize()

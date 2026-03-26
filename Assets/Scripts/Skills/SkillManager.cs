@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -104,6 +104,24 @@ public class SkillsManager : MonoBehaviour, ISaveable
         int req = XpToNextLevel(p.level);
         if (req <= 0) return 1f;
         return Mathf.Clamp01((float)p.xp / req);
+    }
+
+    /// <summary>True if this skill type has an entry in progression (seeded, loaded, or previously gained XP).</summary>
+    public bool HasSkill(SkillType type) => _skills.ContainsKey(type);
+
+    /// <summary>True when the player's current level for <paramref name="type"/> meets or exceeds <paramref name="requiredLevel"/>.</summary>
+    public bool IsLevelUnlocked(SkillType type, int requiredLevel)
+    {
+        if (requiredLevel <= 0) return true;
+        return GetLevel(type) >= requiredLevel;
+    }
+
+    /// <summary>All skill types currently stored in progression (enum order for stable UI lists).</summary>
+    public IEnumerable<SkillType> GetAllTrackedSkills()
+    {
+        var list = new List<SkillType>(_skills.Keys);
+        list.Sort((a, b) => ((int)a).CompareTo((int)b));
+        return list;
     }
 
     // -------------------------

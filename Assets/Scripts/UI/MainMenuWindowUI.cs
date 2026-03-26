@@ -5,11 +5,17 @@ public class MainMenuWindowUI : MonoBehaviour
     [Header("Root")]
     [SerializeField] private GameObject mainMenuWindow;
 
+    [Header("Optional UI gating")]
+    [Tooltip("If set, we force this CanvasGroup to be interactable when opening pages (prevents first-open issues).")]
+    [SerializeField] private CanvasGroup mainMenuCanvasGroup;
+
     [Header("Pages")]
     [SerializeField] private GameObject characterPage;
     [SerializeField] private GameObject skillsAbilitiesPage;
 
     private GameObject currentPage;
+    private bool _loggedFirstCharacterOpen;
+    private bool _loggedFirstSkillsOpen;
 
     public bool IsOpen => mainMenuWindow != null && mainMenuWindow.activeSelf;
     public GameObject CurrentPage => currentPage;
@@ -19,26 +25,33 @@ public class MainMenuWindowUI : MonoBehaviour
         if (mainMenuWindow)
             mainMenuWindow.SetActive(false);
 
+        if (!mainMenuCanvasGroup && mainMenuWindow)
+            mainMenuCanvasGroup = mainMenuWindow.GetComponent<CanvasGroup>();
+
         HideAllPages();
     }
 
     public void ToggleCharacter()
     {
+        LogFirstOpenAttempt("Character", ref _loggedFirstCharacterOpen);
         TogglePage(characterPage);
     }
 
     public void ToggleSkillsAbilities()
     {
+        LogFirstOpenAttempt("Skills", ref _loggedFirstSkillsOpen);
         TogglePage(skillsAbilitiesPage);
     }
 
     public void OpenCharacter()
     {
+        LogFirstOpenAttempt("Character", ref _loggedFirstCharacterOpen);
         OpenPage(characterPage);
     }
 
     public void OpenSkillsAbilities()
     {
+        LogFirstOpenAttempt("Skills", ref _loggedFirstSkillsOpen);
         OpenPage(skillsAbilitiesPage);
     }
 
@@ -71,15 +84,55 @@ public class MainMenuWindowUI : MonoBehaviour
             return;
 
         mainMenuWindow.SetActive(true);
+        EnsureWindowInteractable();
         HideAllPages();
 
         targetPage.SetActive(true);
         currentPage = targetPage;
+
+        // Safeguard: if something else toggles visibility in the same frame,
+        // force the desired state once more.
+        if (!mainMenuWindow.activeSelf || !targetPage.activeSelf)
+        {
+            mainMenuWindow.SetActive(true);
+            HideAllPages();
+            targetPage.SetActive(true);
+            currentPage = targetPage;
+        }
     }
 
     private void HideAllPages()
     {
         if (characterPage) characterPage.SetActive(false);
         if (skillsAbilitiesPage) skillsAbilitiesPage.SetActive(false);
+    }
+
+    private void LogFirstOpenAttempt(string which, ref bool loggedFlag)
+    {
+        if (loggedFlag) return;
+        loggedFlag = true;
+
+        string windowName = mainMenuWindow ? mainMenuWindow.name : "<null>";
+        string charName = characterPage ? characterPage.name : "<null>";
+        string skillsName = skillsAbilitiesPage ? skillsAbilitiesPage.name : "<null>";
+        string cg = mainMenuCanvasGroup
+            ? $"CanvasGroup(alpha={mainMenuCanvasGroup.alpha:0.###}, blocks={mainMenuCanvasGroup.blocksRaycasts}, interact={mainMenuCanvasGroup.interactable})"
+            : "CanvasGroup(<none>)";
+    }
+
+    private void EnsureWindowInteractable()
+    {
+        if (!mainMenuCanvasGroup) return;
+
+        // If some other script (or a previous prewarm) left this in a non-interactable state,
+        // the first click can appear to "do nothing" even though the page toggled.
+        if (mainMenuCanvasGroup.alpha <= 0.001f)
+            mainMenuCanvasGroup.alpha = 1f;
+
+        if (!mainMenuCanvasGroup.blocksRaycasts)
+            mainMenuCanvasGroup.blocksRaycasts = true;
+
+        if (!mainMenuCanvasGroup.interactable)
+            mainMenuCanvasGroup.interactable = true;
     }
 }
