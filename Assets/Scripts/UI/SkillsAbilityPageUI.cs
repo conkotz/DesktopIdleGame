@@ -17,6 +17,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     [Tooltip("Player progression; auto-resolves to SkillsManager.Instance if unset.")]
     [SerializeField] private SkillsManager skillsManager;
 
+    [Header("Optional gameplay context")]
+    [Tooltip("If assigned, we can detect when an action is occurring and avoid overriding the bottom XP strip while busy.")]
+    [SerializeField] private PlayerController player;
+
     [Header("Left panel — columns")]
     [Tooltip("Parent for Gathering skill rows (e.g. GatheringContent).")]
     [SerializeField] private Transform gatheringContent;
@@ -54,6 +58,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     {
         if (!skillsManager)
             skillsManager = SkillsManager.Instance;
+
+        if (!player)
+            player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
 
         ValidateRefsOnce();
     }
@@ -162,6 +169,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
             int level = skillsManager.GetLevel(entry.Definition.skillType);
             entry.SetLevel(level);
+
+            float p01 = skillsManager.GetProgress01(entry.Definition.skillType);
+            entry.SetProgress(p01);
         }
     }
 
@@ -176,7 +186,26 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void OnSkillEntryClicked(SkillDefinition skill)
     {
+        // When browsing skills in the menu, temporarily drive the bottom XP strip to this skill.
+        // Normal gameplay XP gain (AddXp) will still override ActiveSkill/Source as soon as XP is earned.
+        if (!IsActionOccurring() && skillsManager != null && skill != null)
+        {
+            string src = string.IsNullOrWhiteSpace(skill.displayName) ? skill.skillType.ToString() : skill.displayName;
+            skillsManager.SetActiveXpDisplay(skill.skillType, src);
+        }
+
         SelectSkill(skill);
+    }
+
+    private bool IsActionOccurring()
+    {
+        if (!player) return false;
+
+        var a = player.CurrentAction;
+        return a == PlayerController.PlayerAction.Mining ||
+               a == PlayerController.PlayerAction.Woodcutting ||
+               a == PlayerController.PlayerAction.Fishing ||
+               a == PlayerController.PlayerAction.Fighting;
     }
 
     private void SelectFirstSkillIfNeeded()
@@ -220,8 +249,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         {
             var entry = Instantiate(skillEntryPrefab, parent);
             int level = skillsManager ? skillsManager.GetLevel(skill.skillType) : 1;
+            float progress01 = skillsManager ? skillsManager.GetProgress01(skill.skillType) : 0f;
             bool selected = skill == _selectedSkill;
-            entry.Setup(skill, level, selected, OnSkillEntryClicked);
+            entry.Setup(skill, level, progress01, selected, OnSkillEntryClicked);
         }
     }
 

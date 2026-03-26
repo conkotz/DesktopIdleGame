@@ -12,17 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b135f695c35f199438922318ab9539c0, type: 3}
   m_Name: magic
   m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
-  skillType: 4
-  displayName: Ranged
-  description: Fight enemies using ranged combat
-  icon: {fileID: -4003117158439236843, guid: b4d639748b223674fa32f2107cd737d3, type: 3}
-  themeColor: {r: 0.013349866, g: 0.4716981, b: 0.035673983, a: 1}
+  skillType: 5
+  displayName: Magic
+  description: Fight enemies using magic combat
+  icon: {fileID: -8088392421741576743, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
+  themeColor: {r: 0.13147244, g: 0.122855045, b: 0.5471698, a: 1}
   category: 1
   listSortOrder: 0
   unlocks:
   - requiredLevel: 1
-    title: Ranged Combat
-    description: Can use common ranged weapons
-    icon: {fileID: -4003117158439236843, guid: b4d639748b223674fa32f2107cd737d3, type: 3}
+    title: Magic Combat
+    description: Can use common magic weapons
+    icon: {fileID: 21300170, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
     unlockType: 0
     ability: {fileID: 0}

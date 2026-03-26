@@ -19,6 +19,10 @@ public class SkillListEntryUI : MonoBehaviour
     [Tooltip("Level line (e.g. Lv 12).")]
     [SerializeField] private TMP_Text levelText;
 
+    [Header("XP Bar")]
+    [Tooltip("XP bar fill image (uses Image.fillAmount).")]
+    [SerializeField] private Image xpBarFill;
+
     [Tooltip("Whole-row click target.")]
     [SerializeField] private Button button;
 
@@ -39,6 +43,7 @@ public class SkillListEntryUI : MonoBehaviour
     public void Setup(
         SkillDefinition definition,
         int level,
+        float progress01,
         bool selected,
         Action<SkillDefinition> onClicked)
     {
@@ -60,6 +65,7 @@ public class SkillListEntryUI : MonoBehaviour
                 : _definition.displayName;
 
         SetLevel(level);
+        SetProgress(progress01);
         SetSelected(selected);
 
         if (button)
@@ -73,6 +79,12 @@ public class SkillListEntryUI : MonoBehaviour
     {
         if (levelText)
             levelText.text = $"Lv {Mathf.Max(1, level)}";
+    }
+
+    public void SetProgress(float progress01)
+    {
+        if (!xpBarFill) return;
+        xpBarFill.fillAmount = Mathf.Clamp01(progress01);
     }
 
     public void SetSelected(bool isSelected)
