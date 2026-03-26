@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -280,8 +280,17 @@ public class AilmentController : MonoBehaviour
 
             if (showDotPopups && finalDamage > 0 && DamagePopupSystem.Instance != null)
             {
-                var anchor = GetComponent<DamagePopupAnchor>();
+                // Prefer child anchor so it follows visual flip/offset correctly.
+                var anchor = GetComponentInChildren<DamagePopupAnchor>(true);
                 Vector3 pos = anchor ? anchor.WorldPos : transform.position;
+
+                // DOT source side feels like "impact" side as well.
+                if (source)
+                {
+                    float dirX = Mathf.Sign(source.position.x - transform.position.x); // toward source
+                    if (dirX == 0f) dirX = 1f;
+                    pos.x += dirX * 0.25f;
+                }
 
                 Vector3 dir = source
                     ? (transform.position - source.position).normalized

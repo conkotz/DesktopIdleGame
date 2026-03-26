@@ -1,9 +1,15 @@
 using UnityEngine;
+using TMPro;
 
 public class MainMenuWindowUI : MonoBehaviour
 {
     [Header("Root")]
     [SerializeField] private GameObject mainMenuWindow;
+
+    [Header("Header")]
+    [SerializeField] private TMP_Text headerTitleText;
+    [SerializeField] private string characterTitle = "Character";
+    [SerializeField] private string skillsTitle = "Skills & Abilities";
 
     [Header("Optional UI gating")]
     [Tooltip("If set, we force this CanvasGroup to be interactable when opening pages (prevents first-open issues).")]
@@ -89,6 +95,7 @@ public class MainMenuWindowUI : MonoBehaviour
 
         targetPage.SetActive(true);
         currentPage = targetPage;
+        RefreshHeaderTitle();
 
         // Safeguard: if something else toggles visibility in the same frame,
         // force the desired state once more.
@@ -98,6 +105,7 @@ public class MainMenuWindowUI : MonoBehaviour
             HideAllPages();
             targetPage.SetActive(true);
             currentPage = targetPage;
+            RefreshHeaderTitle();
         }
     }
 
@@ -105,6 +113,18 @@ public class MainMenuWindowUI : MonoBehaviour
     {
         if (characterPage) characterPage.SetActive(false);
         if (skillsAbilitiesPage) skillsAbilitiesPage.SetActive(false);
+    }
+
+    private void RefreshHeaderTitle()
+    {
+        if (!headerTitleText) return;
+
+        if (currentPage == characterPage)
+            headerTitleText.text = characterTitle;
+        else if (currentPage == skillsAbilitiesPage)
+            headerTitleText.text = skillsTitle;
+        else
+            headerTitleText.text = "";
     }
 
     private void LogFirstOpenAttempt(string which, ref bool loggedFlag)

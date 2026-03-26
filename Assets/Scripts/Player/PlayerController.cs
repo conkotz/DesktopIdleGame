@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -1624,8 +1624,18 @@ public class PlayerController : MonoBehaviour
 
         if (DamagePopupSystem.Instance != null)
         {
-            var anchor = GetComponent<DamagePopupAnchor>();
+            // Prefer child anchor so it follows visual flip/offset correctly.
+            var anchor = GetComponentInChildren<DamagePopupAnchor>(true);
             Vector3 pos = anchor ? anchor.WorldPos : transform.position;
+
+            // If we know the attacker, bias the popup to the impact side (attacker side),
+            // so damage appears "in front" even if we're facing away.
+            if (attacker)
+            {
+                float dirX = Mathf.Sign(attacker.position.x - transform.position.x); // toward attacker
+                if (dirX == 0f) dirX = 1f;
+                pos.x += dirX * 0.25f;
+            }
 
             Vector3 dir = attacker
                 ? (transform.position - attacker.position).normalized

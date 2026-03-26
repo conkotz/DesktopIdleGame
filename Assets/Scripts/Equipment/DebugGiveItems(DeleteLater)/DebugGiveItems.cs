@@ -62,7 +62,10 @@ public class DebugGiveItems : MonoBehaviour
     {
         if (Input.GetKeyDown(grantPackKey))
             GrantDebugPack();
-
+        
+        // Disabled for now: number-key spawning.
+        // (We only want the L debug pack to apply.)
+        /*
         if (Input.GetKeyDown(KeyCode.Alpha1)) Spawn(axeDef);
         if (Input.GetKeyDown(KeyCode.Alpha1)) Spawn(rodDef);
         if (Input.GetKeyDown(KeyCode.Alpha1)) Spawn(pickaxeDef);
@@ -75,8 +78,7 @@ public class DebugGiveItems : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha3)) Spawn(critRingDef);
         if (Input.GetKeyDown(KeyCode.Alpha3)) Spawn(vampRingDef);
         if (Input.GetKeyDown(KeyCode.Alpha4)) Spawn(bootsDef);
-
-
+        */
     }
 
     private void GrantDebugPack()

@@ -131,6 +131,7 @@ MonoBehaviour:
   uiRoot: {fileID: 2647035770845584335}
   nameLabel: {fileID: 0}
   hpBar: {fileID: 0}
+  damagePopupAnchor: {fileID: 0}
   drawGizmos: 1
   state: 0
 --- !u!114 &7371688204329105379
@@ -672,6 +673,7 @@ Transform:
   - {fileID: 4000010281675896}
   - {fileID: 4000013509728182}
   - {fileID: 4000012222275596}
+  - {fileID: 3483339425040510546}
   m_Father: {fileID: 4000010464396976}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 7.9340997}
 --- !u!212 &212000012153660448
@@ -1083,7 +1085,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3483339425040510546}
   - {fileID: 4185066976398223060}
   m_Father: {fileID: 4000010464396976}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -1143,9 +1144,9 @@ Transform:
   m_GameObject: {fileID: 6863052633205629225}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.5799998, y: 1.5000002, z: 0}
+  m_LocalPosition: {x: 0.58699805, y: 0.513, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 2647035770845584335}
+  m_Father: {fileID: 4000012882303986}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

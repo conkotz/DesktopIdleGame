@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
@@ -70,6 +70,10 @@ public class EnemyBaseController : MonoBehaviour
     [SerializeField] private Transform nameLabel;
     [SerializeField] private Transform hpBar;
 
+    [Header("Damage Popup Anchor")]
+    [Tooltip("Optional override. If null, we auto-resolve (prefer under visualsRoot, then under this enemy).")]
+    [SerializeField] private DamagePopupAnchor damagePopupAnchor;
+
     [Header("Debug")]
     [SerializeField] private bool drawGizmos = true;
     [SerializeField] private EnemyState state = EnemyState.Idle;
@@ -123,6 +127,16 @@ public class EnemyBaseController : MonoBehaviour
 
     private void Awake()
     {
+        if (!damagePopupAnchor)
+        {
+            // Prefer an anchor under the flipped visuals (Body) so it mirrors correctly when facing changes.
+            if (visualsRoot)
+                damagePopupAnchor = visualsRoot.GetComponentInChildren<DamagePopupAnchor>(true);
+
+            // Fallback: anywhere under this enemy.
+            if (!damagePopupAnchor)
+                damagePopupAnchor = GetComponentInChildren<DamagePopupAnchor>(true);
+        }
         _rb = GetComponent<Rigidbody2D>();
 
         if (!stats)
@@ -430,8 +444,15 @@ public class EnemyBaseController : MonoBehaviour
 
         if (DamagePopupSystem.Instance != null)
         {
-            var anchor = GetComponent<DamagePopupAnchor>();
-            Vector3 pos = anchor ? anchor.WorldPos : transform.position;
+            Vector3 pos = damagePopupAnchor ? damagePopupAnchor.WorldPos : transform.position;
+
+            // Bias popups toward the impact side (attacker side) so they don't feel "behind" when facing flips.
+            if (attacker)
+            {
+                float dirX = Mathf.Sign(attacker.position.x - transform.position.x); // toward attacker
+                if (dirX == 0f) dirX = 1f;
+                pos.x += dirX * 0.25f;
+            }
 
             Vector3 dir = attacker
                 ? (transform.position - attacker.position).normalized
@@ -483,8 +504,14 @@ public class EnemyBaseController : MonoBehaviour
 
         if (showPopup && DamagePopupSystem.Instance != null)
         {
-            var anchor = GetComponent<DamagePopupAnchor>();
-            Vector3 pos = anchor ? anchor.WorldPos : transform.position;
+            Vector3 pos = damagePopupAnchor ? damagePopupAnchor.WorldPos : transform.position;
+
+            if (source)
+            {
+                float dirX = Mathf.Sign(source.position.x - transform.position.x); // toward source
+                if (dirX == 0f) dirX = 1f;
+                pos.x += dirX * 0.25f;
+            }
 
             Vector3 dir = source
                 ? (transform.position - source.position).normalized
@@ -653,7 +680,8 @@ public class EnemyBaseController : MonoBehaviour
         {
             Vector3 us = uiRoot.localScale;
             float abs = Mathf.Abs(us.x);
-            us.x = (visualsScaleX < 0f) ? -abs : abs;
+            // UIRoot should not mirror with the body flip.
+            us.x = abs;
             uiRoot.localScale = us;
             return;
         }
@@ -662,7 +690,7 @@ public class EnemyBaseController : MonoBehaviour
         {
             Vector3 ns = nameLabel.localScale;
             float abs = Mathf.Abs(ns.x);
-            ns.x = (visualsScaleX < 0f) ? -abs : abs;
+            ns.x = abs;
             nameLabel.localScale = ns;
         }
 
@@ -670,7 +698,7 @@ public class EnemyBaseController : MonoBehaviour
         {
             Vector3 hs = hpBar.localScale;
             float abs = Mathf.Abs(hs.x);
-            hs.x = (visualsScaleX < 0f) ? -abs : abs;
+            hs.x = abs;
             hpBar.localScale = hs;
         }
     }

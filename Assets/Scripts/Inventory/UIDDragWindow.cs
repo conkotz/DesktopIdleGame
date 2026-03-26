@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -6,6 +6,7 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
 {
     [SerializeField] private RectTransform window;        // panel to move
    // [SerializeField] private float minVisiblePixels = 24f;
+    [SerializeField] private bool clampOnEnable = true;
 
     private RectTransform _parent;
     private Vector2 _pointerOffsetLocal;
@@ -16,6 +17,12 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
     {
         if (!window) window = transform as RectTransform;
         _parent = window.parent as RectTransform;
+    }
+
+    private void OnEnable()
+    {
+        if (clampOnEnable)
+            ClampNow();
     }
 
     public void OnBeginDrag(PointerEventData eventData)
