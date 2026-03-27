@@ -15,9 +15,20 @@ public class AilmentController : MonoBehaviour
 
     private Coroutine bleedRoutine;
     private Coroutine poisonRoutine;
+    private Coroutine chillRoutine;
+    private Coroutine shockRoutine;
 
     private readonly List<int> bleedTickSchedule = new();
     private readonly List<PoisonStack> poisonStacks = new();
+    private readonly List<float> chillExpireTimes = new();
+    private float chillSlowPerStack = 0.15f;
+    private bool burnActive;
+    private int burnRemainingFireHits;
+    private int burnAdditionalHitsRequired = 4;
+    private float burnAccumulatedDamage;
+    private int burnHitsToExplode = 4;
+    private float shockExpireTime = -1f;
+    private float shockDamageTakenMultiplier = 0f;
 
     public event System.Action OnAilmentsChanged;
 
@@ -27,9 +38,15 @@ public class AilmentController : MonoBehaviour
     public int BleedStacks => HasBleed ? 1 : 0;
     public int PoisonStacks => poisonStacks.Count;
 
-    public bool HasBurn => false;
-    public bool HasChill => false;
-    public bool HasShock => false;
+    public bool HasBurn => burnActive;
+    public bool HasChill => chillExpireTimes.Count > 0 || chillRoutine != null;
+    public bool HasShock => shockDamageTakenMultiplier > 0f && Time.time < shockExpireTime;
+    // Burn is a "charged" debuff: once applied, it needs N additional FIRE hits to explode.
+    // Stacks shown are progress toward the explosion (0..N).
+    public int BurnStacks => burnActive ? Mathf.Clamp(burnAdditionalHitsRequired - burnRemainingFireHits, 0, burnAdditionalHitsRequired) : 0;
+    public int BurnHitsToExplode => Mathf.Max(1, burnAdditionalHitsRequired);
+    public int ChillStacks => chillExpireTimes.Count;
+    public float ChillSlowPercent => Mathf.Clamp01(GetChillSlowMultiplier()) * 100f;
 
     [System.Serializable]
     private class PoisonStack
@@ -68,12 +85,24 @@ public class AilmentController : MonoBehaviour
     {
         if (bleedRoutine != null) StopCoroutine(bleedRoutine);
         if (poisonRoutine != null) StopCoroutine(poisonRoutine);
+        if (chillRoutine != null) StopCoroutine(chillRoutine);
+        if (shockRoutine != null) StopCoroutine(shockRoutine);
 
         bleedRoutine = null;
         poisonRoutine = null;
+        chillRoutine = null;
+        shockRoutine = null;
 
         bleedTickSchedule.Clear();
         poisonStacks.Clear();
+        chillExpireTimes.Clear();
+        burnActive = false;
+        burnRemainingFireHits = 0;
+        burnAdditionalHitsRequired = 4;
+        burnAccumulatedDamage = 0f;
+        burnHitsToExplode = 4;
+        shockExpireTime = -1f;
+        shockDamageTakenMultiplier = 0f;
 
         OnAilmentsChanged?.Invoke();
     }
@@ -263,6 +292,160 @@ public class AilmentController : MonoBehaviour
             Debug.Log($"[Ailments] Poison tick: {damage}", this);
     }
 
+    public void ApplyChillFromHit(ChillPayload payload)
+    {
+        if (IsDead()) return;
+
+        float duration = Mathf.Max(0.1f, payload.duration);
+        int maxStacks = Mathf.Max(1, payload.maxStacks);
+        chillSlowPerStack = Mathf.Clamp01(payload.slowPerStack);
+
+        float now = Time.time;
+        PruneExpiredChillStacks(now);
+
+        if (chillExpireTimes.Count >= maxStacks)
+            chillExpireTimes.RemoveAt(0);
+
+        chillExpireTimes.Add(now + duration);
+
+        // Refresh behavior: when a new chill stack is applied, all active chill stacks
+        // get a fresh full duration window.
+        float refreshedExpire = now + duration;
+        for (int i = 0; i < chillExpireTimes.Count; i++)
+            chillExpireTimes[i] = refreshedExpire;
+
+        if (chillRoutine == null)
+            chillRoutine = StartCoroutine(ChillRoutine());
+
+        OnAilmentsChanged?.Invoke();
+    }
+
+    private IEnumerator ChillRoutine()
+    {
+        while (!IsDead())
+        {
+            PruneExpiredChillStacks(Time.time);
+            if (chillExpireTimes.Count == 0)
+                break;
+
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        chillRoutine = null;
+        OnAilmentsChanged?.Invoke();
+    }
+
+    public void ApplyBurnFromHit(BurnPayload payload)
+    {
+        if (IsDead()) return;
+        if (payload.sourceDamage <= 0f) return;
+
+        // Legacy entry point (older logic). Treat as "start burn" using the payload config.
+        StartBurn(payload.sourceDamage, payload.hitsToExplode, payload.explosionMultiplier);
+        OnAilmentsChanged?.Invoke();
+    }
+
+    public void StartBurnFromFireHit(float fireHitDamage, int additionalFireHitsToExplode, float explosionMultiplier)
+    {
+        if (IsDead()) return;
+        if (fireHitDamage <= 0f) return;
+        StartBurn(fireHitDamage, additionalFireHitsToExplode, explosionMultiplier);
+        OnAilmentsChanged?.Invoke();
+    }
+
+    public void ApplyBurnFollowUpFireHit(float fireHitDamage, float explosionMultiplier, Transform source)
+    {
+        if (IsDead()) return;
+        if (!burnActive) return;
+        if (fireHitDamage <= 0f) return;
+
+        burnAccumulatedDamage += fireHitDamage;
+        burnRemainingFireHits = Mathf.Max(0, burnRemainingFireHits - 1);
+
+        if (burnRemainingFireHits > 0)
+        {
+            OnAilmentsChanged?.Invoke();
+            return;
+        }
+
+        ExplodeBurn(explosionMultiplier, source);
+    }
+
+    public bool ClearBurn()
+    {
+        bool had = burnActive;
+        burnActive = false;
+        burnRemainingFireHits = 0;
+        burnAccumulatedDamage = 0f;
+
+        if (had)
+            OnAilmentsChanged?.Invoke();
+
+        return had;
+    }
+
+    private void StartBurn(float firstFireHitDamage, int additionalFireHitsToExplode, float explosionMultiplier)
+    {
+        burnActive = true;
+        burnAdditionalHitsRequired = Mathf.Max(1, additionalFireHitsToExplode);
+        burnRemainingFireHits = burnAdditionalHitsRequired;
+        burnAccumulatedDamage = firstFireHitDamage;
+        burnHitsToExplode = burnAdditionalHitsRequired;
+    }
+
+    private void ExplodeBurn(float explosionMultiplier, Transform source)
+    {
+        int explosionDamage = Mathf.Max(1, Mathf.RoundToInt(burnAccumulatedDamage * Mathf.Max(0f, explosionMultiplier)));
+
+        burnActive = false;
+        burnRemainingFireHits = 0;
+        burnAccumulatedDamage = 0f;
+
+        ApplyDotDamage(explosionDamage, FloatingDamageTextUI.PopupDamageKind.Magical, source);
+        OnAilmentsChanged?.Invoke();
+    }
+
+    public void ApplyShockFromHit(ShockPayload payload)
+    {
+        if (IsDead()) return;
+
+        float duration = Mathf.Max(0.1f, payload.duration);
+        float incomingDamageBonus = Mathf.Max(0f, payload.damageTakenMultiplier);
+
+        shockDamageTakenMultiplier = incomingDamageBonus;
+        shockExpireTime = Time.time + duration;
+
+        if (shockRoutine == null)
+            shockRoutine = StartCoroutine(ShockRoutine());
+
+        OnAilmentsChanged?.Invoke();
+    }
+
+    private IEnumerator ShockRoutine()
+    {
+        while (!IsDead() && Time.time < shockExpireTime)
+            yield return null;
+
+        shockDamageTakenMultiplier = 0f;
+        shockExpireTime = -1f;
+        shockRoutine = null;
+        OnAilmentsChanged?.Invoke();
+    }
+
+    public float GetIncomingDamageMultiplier()
+    {
+        if (!HasShock)
+            return 1f;
+
+        return 1f + shockDamageTakenMultiplier;
+    }
+
+    public float GetMoveSpeedMultiplier()
+    {
+        float slow = GetChillSlowMultiplier();
+        return Mathf.Max(0.1f, 1f - slow);
+    }
+
     private void ApplyDotDamage(int damage, FloatingDamageTextUI.PopupDamageKind type, Transform source)
     {
         damage = Mathf.Max(1, damage);
@@ -314,6 +497,31 @@ public class AilmentController : MonoBehaviour
         if (enemy != null) return enemy.IsDead;
         if (characterStats != null) return characterStats.IsDead;
         return false;
+    }
+
+    private void PruneExpiredChillStacks(float now)
+    {
+        bool changed = false;
+        for (int i = chillExpireTimes.Count - 1; i >= 0; i--)
+        {
+            if (now >= chillExpireTimes[i])
+            {
+                chillExpireTimes.RemoveAt(i);
+                changed = true;
+            }
+        }
+
+        if (changed)
+            OnAilmentsChanged?.Invoke();
+    }
+
+    private float GetChillSlowMultiplier()
+    {
+        if (chillExpireTimes.Count <= 0)
+            return 0f;
+
+        // 15% slow per stack, capped by stack count constraints from payload.
+        return Mathf.Clamp01(chillExpireTimes.Count * Mathf.Max(0f, chillSlowPerStack));
     }
 }
 

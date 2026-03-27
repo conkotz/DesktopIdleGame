@@ -97,7 +97,7 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (statsText)
         {
-            string stats = def.BuildTooltipStatsText();
+            string stats = BuildTooltipStatsTextWithSupportRequirement(def);
             statsText.text = stats;
             statsText.gameObject.SetActive(!string.IsNullOrWhiteSpace(stats));
         }
@@ -189,7 +189,7 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (statsText)
         {
-            string stats = def.BuildTooltipStatsText();
+            string stats = BuildTooltipStatsTextWithSupportRequirement(def);
             statsText.text = stats;
             statsText.gameObject.SetActive(!string.IsNullOrWhiteSpace(stats));
         }
@@ -384,6 +384,70 @@ public class SharedTooltipUI : MonoBehaviour
             ItemRarity.Legendary => new Color(1f, 0.75f, 0.25f),
             _ => Color.white
         };
+    }
+
+    private string BuildTooltipStatsTextWithSupportRequirement(ItemDefinition def)
+    {
+        if (!def)
+            return "";
+
+        string stats = def.BuildTooltipStatsText() ?? "";
+
+        if (!def.RequiresOffhandSupport || def.RequiredSupportType == CombatSupportType.None)
+            return stats;
+
+        // Remove any legacy "Requires:" line if present (older saves/strings).
+        stats = RemoveLinesStartingWith(stats, "Requires:");
+
+        bool hasRequirementEquipped = HasRequiredSupportEquipped(def.RequiredSupportType);
+
+        string colour = hasRequirementEquipped ? "#55DD55" : "#FF5555";
+        string reqLine = $"<color={colour}>Requires: {def.RequiredSupportType}</color>";
+
+        if (string.IsNullOrWhiteSpace(stats))
+            return reqLine;
+
+        return stats.TrimEnd('\n') + "\n" + reqLine;
+    }
+
+    private static string RemoveLinesStartingWith(string block, string startsWith)
+    {
+        if (string.IsNullOrWhiteSpace(block) || string.IsNullOrWhiteSpace(startsWith))
+            return block ?? "";
+
+        string[] lines = block.Replace("\r\n", "\n").Split('\n');
+        System.Text.StringBuilder sb = new System.Text.StringBuilder(block.Length);
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string line = lines[i] ?? "";
+            if (line.TrimStart().StartsWith(startsWith))
+                continue;
+
+            if (sb.Length > 0)
+                sb.Append('\n');
+
+            sb.Append(line);
+        }
+
+        return sb.ToString();
+    }
+
+    private bool HasRequiredSupportEquipped(CombatSupportType requiredType)
+    {
+        var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (!player)
+            return false;
+
+        var equipment = player.GetComponent<EquipmentManager>();
+        if (!equipment)
+            return false;
+
+        var offDef = equipment.GetOffHandDef();
+        if (!offDef || !offDef.IsCombatSupport)
+            return false;
+
+        return offDef.SupportType == requiredType;
     }
 
     private void RestoreDefaultParent()

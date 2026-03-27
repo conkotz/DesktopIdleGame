@@ -117,6 +117,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private float basePoisonDuration = 5f;
     [SerializeField] private int basePoisonMaxStacks = 3;
 
+    [Header("Base Elemental Ailments")]
+    [SerializeField] private MagicAttackType baseMagicAttackType = MagicAttackType.Lightning;
+    [SerializeField, Range(0f, 1f)] private float baseMagicAilmentApplyChance = 0f;
+    [SerializeField] private float baseChillDuration = 5f;
+    [SerializeField] private int baseChillMaxStacks = 6;
+    [SerializeField, Range(0f, 1f)] private float baseChillSlowPerStack = 0.15f;
+    [SerializeField] private int baseBurnHitsToExplode = 4;
+    [SerializeField] private float baseBurnExplosionMultiplier = 0.5f;
+    [SerializeField] private float baseShockDuration = 5f;
+    [SerializeField, Range(0f, 1f)] private float baseShockDamageTakenMultiplier = 0.15f;
+
     [Header("Combat Tuning")]
     [SerializeField] private float dualWieldApsBonus = 1.15f;
     [SerializeField] private bool trueDamageCanCrit = false;
@@ -236,6 +247,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float BleedChancePercent => BleedChance * 100f;
     public float PoisonChancePercent => PoisonChance * 100f;
+
+    public MagicAttackType CurrentMagicAttackType => GetCurrentMagicAttackType();
+    public float MagicAilmentApplyChance => Mathf.Clamp01(baseMagicAilmentApplyChance + GetEquippedMagicAilmentApplyChance());
+    public float ChillDuration => Mathf.Max(0.1f, baseChillDuration);
+    public int ChillMaxStacks => Mathf.Max(1, baseChillMaxStacks);
+    public float ChillSlowPerStack => Mathf.Clamp01(baseChillSlowPerStack + GetEquippedChillSlowPerStackBonus());
+    public int BurnHitsToExplode => Mathf.Max(2, baseBurnHitsToExplode);
+    public float BurnExplosionMultiplier => Mathf.Max(0f, baseBurnExplosionMultiplier + GetEquippedBurnExplosionMultiplierBonus());
+    public float ShockDuration => Mathf.Max(0.1f, baseShockDuration);
+    public float ShockDamageTakenMultiplier => Mathf.Clamp01(baseShockDamageTakenMultiplier + GetEquippedShockDamageTakenMultiplierBonus());
 
     public float PhysicalReductionFromArmorPercent
     {
@@ -397,7 +418,43 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     public float ExpectedPoisonDPS => PoisonPerStackDPS * ExpectedPoisonStacks;
-    public float ExpectedAilmentDPS => ExpectedBleedDPS + ExpectedPoisonDPS;
+    public float ExpectedBurnDPS => GetExpectedBurnDps();
+    public float ExpectedAilmentDPS => ExpectedBleedDPS + ExpectedPoisonDPS + ExpectedBurnDPS;
+
+    private float GetExpectedBurnDps()
+    {
+        if (CurrentAttackSkill != AttackSkill.Magic)
+            return 0f;
+        if (CurrentMagicAttackType != MagicAttackType.Fire)
+            return 0f;
+        float p = Mathf.Clamp01(MagicAilmentApplyChance);
+        if (p <= 0f)
+            return 0f;
+        if (AttacksPerSecond <= 0f)
+            return 0f;
+        if (ExpectedMagicalHit <= 0f)
+            return 0f;
+
+        // Burn model (current implementation):
+        // - burn has a START chance (p) on a Fire hit
+        // - once started, it consumes the next N Fire hits (no further chance rolls)
+        // - explosion damage = explosionMultiplier * accumulatedDamage
+        // - accumulatedDamage includes the start hit + the N follow-up fire hits
+        //
+        // Expected hits per explosion cycle:
+        // - expected hits until start = 1/p
+        // - plus N follow-up hits to detonate
+        //
+        // Expected explosion damage: (N + 1) * ExpectedMagicalHit * explosionMultiplier
+        // Expected time per hit: 1 / APS
+        // ExpectedBurnDPS =
+        //   explosionDamage / ((1/p + N) / APS)
+        // = APS * explosionDamage / (N + 1/p)
+        int n = Mathf.Max(1, BurnHitsToExplode);
+        float explosionDamage = (n + 1) * ExpectedMagicalHit * BurnExplosionMultiplier;
+        float expectedHitsPerExplosion = n + (1f / p);
+        return AttacksPerSecond * explosionDamage / Mathf.Max(0.0001f, expectedHitsPerExplosion);
+    }
 
     // Tools
     public float AxeSpeedMult => GetToolSpeedMult(ToolType.Axe) * (1f + Mathf.Max(0f, bonusAxeSpeedMult));
@@ -676,6 +733,26 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return mh.weaponStats.attackSkill;
     }
 
+    private MagicAttackType GetCurrentMagicAttackType()
+    {
+        var mh = GetMainHandWeaponDef();
+        if (mh && mh.IsWeapon && mh.weaponStats.attackSkill == AttackSkill.Magic)
+            return mh.weaponStats.magicAttackType;
+
+        return baseMagicAttackType;
+    }
+
+    private float GetEquippedMagicAilmentApplyChance()
+    {
+        // Player path: comes from equipped magic weapon.
+        // Enemy path: usually has no equipment, so this resolves to 0 and base value is used.
+        var mh = GetMainHandWeaponDef();
+        if (mh && mh.IsWeapon && mh.weaponStats.attackSkill == AttackSkill.Magic)
+            return mh.MagicAilmentApplyChance;
+
+        return 0f;
+    }
+
     private DamageType GetLegacyCurrentDamageType()
     {
         var min = MinSplitDamage;
@@ -701,6 +778,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float physicalBuffMult = 1f + (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.PhysicalDamageBoost) : 0f);
         float magicBuffMult = 1f + (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MagicDamageBoost) : 0f);
+        float physicalGearPctMult = 1f + Mathf.Max(0f, GetEquippedPhysicalDamagePercent());
+        float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent());
 
         var mh = GetMainHandWeaponDef();
 
@@ -710,8 +789,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             float mag = BaseMinMagicDamage + GetEquippedMagicDamage();
             float tru = BaseMinTrueDamage + GetEquippedTrueDamage();
 
-            phys *= physicalBuffMult;
-            mag *= magicBuffMult;
+            phys *= (physicalBuffMult * physicalGearPctMult);
+            mag *= (magicBuffMult * magicGearPctMult);
 
             return new SplitDamage(
                 Mathf.Max(0f, phys),
@@ -748,8 +827,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         magMin += BaseMinMagicDamage + GetEquippedMagicDamage();
         trueMin += BaseMinTrueDamage + GetEquippedTrueDamage();
 
-        physMin *= physicalBuffMult;
-        magMin *= magicBuffMult;
+        physMin *= (physicalBuffMult * physicalGearPctMult);
+        magMin *= (magicBuffMult * magicGearPctMult);
 
         return new SplitDamage(
             Mathf.Max(0f, physMin),
@@ -762,6 +841,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float physicalBuffMult = 1f + (buffController ? buffController.PhysicalDamageBoostPercent : 0f);
         float magicBuffMult = 1f + (buffController ? buffController.MagicDamageBoostPercent : 0f);
+        float physicalGearPctMult = 1f + Mathf.Max(0f, GetEquippedPhysicalDamagePercent());
+        float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent());
 
         var mh = GetMainHandWeaponDef();
 
@@ -771,8 +852,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             float mag = BaseMaxMagicDamage + GetEquippedMagicDamage();
             float tru = BaseMaxTrueDamage + GetEquippedTrueDamage();
 
-            phys *= physicalBuffMult;
-            mag *= magicBuffMult;
+            phys *= (physicalBuffMult * physicalGearPctMult);
+            mag *= (magicBuffMult * magicGearPctMult);
 
             return new SplitDamage(
                 Mathf.Max(0f, phys),
@@ -809,8 +890,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         magMax += BaseMaxMagicDamage + GetEquippedMagicDamage();
         trueMax += BaseMaxTrueDamage + GetEquippedTrueDamage();
 
-        physMax *= physicalBuffMult;
-        magMax *= magicBuffMult;
+        physMax *= (physicalBuffMult * physicalGearPctMult);
+        magMax *= (magicBuffMult * magicGearPctMult);
 
         return new SplitDamage(
             Mathf.Max(0f, physMax),
@@ -1077,11 +1158,27 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
+    private float GetEquippedPhysicalDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.PhysicalDamagePercent;
+        return total;
+    }
+
     private float GetEquippedMagicDamage()
     {
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
             total += def.MagicDamage;
+        return total;
+    }
+
+    private float GetEquippedMagicDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.MagicDamagePercent;
         return total;
     }
 
@@ -1159,6 +1256,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
         int total = 0;
         foreach (var def in EnumerateEquippedDefs())
             total += def.PoisonMaxStacksBonus;
+        return total;
+    }
+
+    private float GetEquippedBurnExplosionMultiplierBonus()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.BurnExplosionMultiplierBonus;
+        return total;
+    }
+
+    private float GetEquippedChillSlowPerStackBonus()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.ChillSlowPerStackBonus;
+        return total;
+    }
+
+    private float GetEquippedShockDamageTakenMultiplierBonus()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.ShockDamageTakenMultiplierBonus;
         return total;
     }
 
@@ -1291,7 +1412,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public void ApplyLoadedVitals(float hp, float energy, float mana)
     {
-        currentHP = hp;
+        // Never restore into a dead state on load; dead state blocks resource spending (e.g. mana).
+        currentHP = Mathf.Max(1f, hp);
         currentEnergy = energy;
         currentMana = mana;
         _didInitialFill = true;

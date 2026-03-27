@@ -118,6 +118,11 @@ public struct WeaponStats
     [Tooltip("Mana spent per attack when Attack Skill is Magic.")]
     [Min(0f)] public float manaCostPerAttack;
 
+    [Header("Magic Ailments")]
+    [Range(0f, 1f)]
+    [Tooltip("Chance to apply elemental ailment from magic hits. Uses Magic Type: Ice=Chill, Fire=Burn, Lightning=Shock.")]
+    public float magicAilmentApplyChance;
+
     [Header("Dual Wield")]
     [Tooltip("If true, this weapon may be equipped in the OffHand slot as well.")]
     public bool canEquipInOffHand;
@@ -225,8 +230,14 @@ public struct BonusStats
     [Tooltip("Flat bonus to physical/basic attack damage")]
     public float physicalDamage;
 
+    [Tooltip("0.10 = +10% physical damage (multiplier)")]
+    public float physicalDamagePercent;
+
     [Tooltip("Flat bonus to magic/basic attack damage")]
     public float magicDamage;
+
+    [Tooltip("0.10 = +10% magic damage (multiplier)")]
+    public float magicDamagePercent;
 
     [Tooltip("Flat bonus to true/basic attack damage")]
     public float trueDamage;
@@ -267,6 +278,15 @@ public struct BonusStats
     [Tooltip("Bonus maximum poison stacks")]
     public int poisonMaxStacksBonus;
 
+    [Tooltip("Adds to burn explosion multiplier. 0.10 means +10 percentage points (e.g. 50% -> 60%).")]
+    public float burnExplosionMultiplierBonus;
+
+    [Tooltip("Adds to chill slow per stack. 0.02 means +2 percentage points (e.g. 15% -> 17%).")]
+    public float chillSlowPerStackBonus;
+
+    [Tooltip("Adds to shock damage taken multiplier. 0.05 means +5 percentage points (e.g. 15% -> 20%).")]
+    public float shockDamageTakenMultiplierBonus;
+
     public bool HasAny()
     {
         return bonusHealth != 0 || bonusEnergy != 0 ||
@@ -274,13 +294,18 @@ public struct BonusStats
                armor != 0 || magicResist != 0 || physBlockChance > 0f ||
                lifeRegen != 0f || energyRegen != 0f || manaRegen != 0f || lifeSteal > 0f ||
                moveSpeedPercent != 0f ||
-               physicalDamage != 0f || magicDamage != 0f || trueDamage != 0f || abilityPower != 0f ||
+               physicalDamage != 0f || physicalDamagePercent != 0f ||
+               magicDamage != 0f || magicDamagePercent != 0f ||
+               trueDamage != 0f || abilityPower != 0f ||
                attackSpeedPercent != 0f ||
                critChanceBonus != 0f || critMultiplierBonus != 0f ||
                attackRangeBonus != 0f ||
                bleedChance > 0f || bleedMultiplier != 0f ||
                poisonChance > 0f || poisonMultiplier != 0f ||
-               poisonDurationBonus != 0f || poisonMaxStacksBonus != 0;
+               poisonDurationBonus != 0f || poisonMaxStacksBonus != 0 ||
+               burnExplosionMultiplierBonus != 0f ||
+               chillSlowPerStackBonus != 0f ||
+               shockDamageTakenMultiplierBonus != 0f;
     }
 }
 
@@ -488,6 +513,9 @@ public class ItemDefinition : ScriptableObject
     public float ManaCostPerAttack => (IsWeapon && weaponStats.attackSkill == AttackSkill.Magic)
         ? Mathf.Max(0f, weaponStats.manaCostPerAttack)
         : 0f;
+    public float MagicAilmentApplyChance => (IsWeapon && weaponStats.attackSkill == AttackSkill.Magic)
+        ? Mathf.Clamp01(weaponStats.magicAilmentApplyChance)
+        : 0f;
 
     public bool HasPhysicalWeaponDamage => IsWeapon && (weaponStats.minPhysicalDamage > 0 || weaponStats.maxPhysicalDamage > 0);
     public bool HasMagicWeaponDamage => IsWeapon && (weaponStats.minMagicDamage > 0 || weaponStats.maxMagicDamage > 0);
@@ -528,6 +556,9 @@ public class ItemDefinition : ScriptableObject
     public float TrueDamage => bonusStats.trueDamage;
     public float AbilityPower => bonusStats.abilityPower;
 
+    public float PhysicalDamagePercent => bonusStats.physicalDamagePercent;
+    public float MagicDamagePercent => bonusStats.magicDamagePercent;
+
     public float BleedChance => Mathf.Clamp01(bonusStats.bleedChance);
     public float BleedMultiplier => Mathf.Max(0f, bonusStats.bleedMultiplier);
 
@@ -535,6 +566,9 @@ public class ItemDefinition : ScriptableObject
     public float PoisonMultiplier => Mathf.Max(0f, bonusStats.poisonMultiplier);
     public float PoisonDurationBonus => bonusStats.poisonDurationBonus;
     public int PoisonMaxStacksBonus => Mathf.Max(0, bonusStats.poisonMaxStacksBonus);
+    public float BurnExplosionMultiplierBonus => bonusStats.burnExplosionMultiplierBonus;
+    public float ChillSlowPerStackBonus => bonusStats.chillSlowPerStackBonus;
+    public float ShockDamageTakenMultiplierBonus => bonusStats.shockDamageTakenMultiplierBonus;
 
     public bool IsConsumable => itemKind == ItemKind.Consumable;
 
@@ -650,6 +684,8 @@ public class ItemDefinition : ScriptableObject
             {
                 magicTypeLine = $"\nMagic Type: {weaponStats.magicAttackType}";
                 magicManaLine = $"\nMana Cost: {ManaCostPerAttack:0.##}";
+                if (MagicAilmentApplyChance > 0f)
+                    magicManaLine += $"\nAilment Chance: {MagicAilmentApplyChance * 100f:0.#}%";
             }
 
             float critChancePct = Mathf.Clamp01(weaponStats.critChance + bonusStats.critChanceBonus) * 100f;
@@ -685,9 +721,6 @@ public class ItemDefinition : ScriptableObject
                 magicTypeLine +
                 magicManaLine +
                 dual;
-
-            if (RequiresOffhandSupport)
-                s += $"\nRequires: {RequiredSupportType}";
 
             if (!string.IsNullOrWhiteSpace(extras))
                 s += "\n" + extras;
@@ -847,7 +880,9 @@ public class ItemDefinition : ScriptableObject
         if (bonusStats.manaRegen != 0f) s += $"Mana Regen: {FormatSignedNumber(bonusStats.manaRegen)}/s\n";
         if (bonusStats.moveSpeedPercent != 0f) s += $"Move Speed: {FormatSignedPercent01(bonusStats.moveSpeedPercent)}\n";
         if (bonusStats.physicalDamage != 0f) s += $"Physical Damage: {FormatSignedNumber(bonusStats.physicalDamage)}\n";
+        if (bonusStats.physicalDamagePercent != 0f) s += $"Physical Damage %: {FormatSignedPercent01(bonusStats.physicalDamagePercent)}\n";
         if (bonusStats.magicDamage != 0f) s += $"Magic Damage: {FormatSignedNumber(bonusStats.magicDamage)}\n";
+        if (bonusStats.magicDamagePercent != 0f) s += $"Magic Damage %: {FormatSignedPercent01(bonusStats.magicDamagePercent)}\n";
         if (bonusStats.trueDamage != 0f) s += $"True Damage: {FormatSignedNumber(bonusStats.trueDamage)}\n";
         if (bonusStats.abilityPower != 0f) s += $"Ability Power: {FormatSignedNumber(bonusStats.abilityPower)}\n";
         if (bonusStats.lifeSteal != 0f) s += $"Life Steal: {FormatSignedPercent01(bonusStats.lifeSteal)}\n";
@@ -864,6 +899,9 @@ public class ItemDefinition : ScriptableObject
         if (bonusStats.poisonMultiplier != 0f) s += $"Poison Bonus: {FormatSignedPercent01(bonusStats.poisonMultiplier)}\n";
         if (bonusStats.poisonDurationBonus != 0f) s += $"Poison Duration: {FormatSignedNumber(bonusStats.poisonDurationBonus)}s\n";
         if (bonusStats.poisonMaxStacksBonus != 0) s += $"Poison Max Stacks: {FormatSignedInt(bonusStats.poisonMaxStacksBonus)}\n";
+        if (bonusStats.burnExplosionMultiplierBonus != 0f) s += $"Burn Explosion Bonus: {FormatSignedPercent01(bonusStats.burnExplosionMultiplierBonus)}\n";
+        if (bonusStats.chillSlowPerStackBonus != 0f) s += $"Chill Slow/Stack Bonus: {FormatSignedPercent01(bonusStats.chillSlowPerStackBonus)}\n";
+        if (bonusStats.shockDamageTakenMultiplierBonus != 0f) s += $"Shock Amp Bonus: {FormatSignedPercent01(bonusStats.shockDamageTakenMultiplierBonus)}\n";
 
         return s.TrimEnd('\n');
     }

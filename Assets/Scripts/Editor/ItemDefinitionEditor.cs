@@ -297,6 +297,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty attackSkill = weaponStats.FindPropertyRelative("attackSkill");
         SerializedProperty magicAttackType = weaponStats.FindPropertyRelative("magicAttackType");
         SerializedProperty manaCostPerAttack = weaponStats.FindPropertyRelative("manaCostPerAttack");
+        SerializedProperty magicAilmentApplyChance = weaponStats.FindPropertyRelative("magicAilmentApplyChance");
         SerializedProperty canEquipInOffHand = weaponStats.FindPropertyRelative("canEquipInOffHand");
 
         SerializedProperty requiresOffhandSupport = weaponStats.FindPropertyRelative("requiresOffhandSupport");
@@ -337,6 +338,25 @@ public class ItemDefinitionEditor : Editor
             EditorGUILayout.PropertyField(magicAttackType, new GUIContent("Magic Type"));
             if (manaCostPerAttack != null)
                 EditorGUILayout.PropertyField(manaCostPerAttack, new GUIContent("Mana Cost Per Attack"));
+            if (magicAilmentApplyChance != null)
+                EditorGUILayout.PropertyField(magicAilmentApplyChance, new GUIContent("Magic Ailment Apply Chance"));
+
+            // Convenience: show elemental scaling bonuses here as well (stored in BonusStats).
+            if (bonusStats != null)
+            {
+                SerializedProperty burnExplosionMultiplierBonus = bonusStats.FindPropertyRelative("burnExplosionMultiplierBonus");
+                SerializedProperty chillSlowPerStackBonus = bonusStats.FindPropertyRelative("chillSlowPerStackBonus");
+                SerializedProperty shockDamageTakenMultiplierBonus = bonusStats.FindPropertyRelative("shockDamageTakenMultiplierBonus");
+
+                EditorGUILayout.Space(4);
+                EditorGUILayout.LabelField("Magic Ailment Scaling (Bonus Stats)", EditorStyles.boldLabel);
+                if (burnExplosionMultiplierBonus != null)
+                    EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Explosion Bonus"));
+                if (chillSlowPerStackBonus != null)
+                    EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Slow/Stack Bonus"));
+                if (shockDamageTakenMultiplierBonus != null)
+                    EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Amp Bonus"));
+            }
         }
         EditorGUILayout.PropertyField(canEquipInOffHand);
 
@@ -704,7 +724,9 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty moveSpeedPercent = bonusStats.FindPropertyRelative("moveSpeedPercent");
 
         SerializedProperty physicalDamage = bonusStats.FindPropertyRelative("physicalDamage");
+        SerializedProperty physicalDamagePercent = bonusStats.FindPropertyRelative("physicalDamagePercent");
         SerializedProperty magicDamage = bonusStats.FindPropertyRelative("magicDamage");
+        SerializedProperty magicDamagePercent = bonusStats.FindPropertyRelative("magicDamagePercent");
         SerializedProperty trueDamage = bonusStats.FindPropertyRelative("trueDamage");
         SerializedProperty abilityPower = bonusStats.FindPropertyRelative("abilityPower");
 
@@ -719,6 +741,9 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty poisonMultiplier = bonusStats.FindPropertyRelative("poisonMultiplier");
         SerializedProperty poisonDurationBonus = bonusStats.FindPropertyRelative("poisonDurationBonus");
         SerializedProperty poisonMaxStacksBonus = bonusStats.FindPropertyRelative("poisonMaxStacksBonus");
+        SerializedProperty burnExplosionMultiplierBonus = bonusStats.FindPropertyRelative("burnExplosionMultiplierBonus");
+        SerializedProperty chillSlowPerStackBonus = bonusStats.FindPropertyRelative("chillSlowPerStackBonus");
+        SerializedProperty shockDamageTakenMultiplierBonus = bonusStats.FindPropertyRelative("shockDamageTakenMultiplierBonus");
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Vitals", EditorStyles.boldLabel);
@@ -746,7 +771,9 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Offense", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(physicalDamage);
+        EditorGUILayout.PropertyField(physicalDamagePercent, new GUIContent("Physical Damage %"));
         EditorGUILayout.PropertyField(magicDamage);
+        EditorGUILayout.PropertyField(magicDamagePercent, new GUIContent("Magic Damage %"));
         EditorGUILayout.PropertyField(trueDamage);
         EditorGUILayout.PropertyField(abilityPower);
         EditorGUILayout.PropertyField(attackSpeedPercent);
@@ -762,6 +789,9 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(poisonMultiplier);
         EditorGUILayout.PropertyField(poisonDurationBonus);
         EditorGUILayout.PropertyField(poisonMaxStacksBonus);
+        EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Explosion Bonus"));
+        EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Slow/Stack Bonus"));
+        EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Amp Bonus"));
 
         EditorGUILayout.Space(6);
         EditorGUILayout.HelpBox(
@@ -772,7 +802,8 @@ public class ItemDefinitionEditor : Editor
             "- Ability Power\n" +
             "- Crit / attack speed / range\n" +
             "- Bleed or poison chance and multiplier\n" +
-            "- Poison duration and poison max stacks",
+            "- Poison duration and poison max stacks\n" +
+            "- Burn/Chill/Shock elemental ailment scaling",
             MessageType.None
         );
     }

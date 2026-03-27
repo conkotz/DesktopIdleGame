@@ -43,18 +43,12 @@ MonoBehaviour:
   - itemId: poison_dagger
     costs: []
     quantity: 1
-  - itemId: basic_wand
-    costs: []
-    quantity: 1
   - itemId: wood_bow
     costs: []
     quantity: 1
   - itemId: wood_arrow
     costs: []
     quantity: -1
-  - itemId: basic_focus
-    costs: []
-    quantity: 1
   - itemId: wooden_rod
     costs:
     - type: 1

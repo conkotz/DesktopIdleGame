@@ -585,22 +585,13 @@ public class PlayerCombatController : MonoBehaviour
 
     private EnergyBoltVisual ResolveMagicProjectilePrefab()
     {
-        MagicAttackType type = GetCurrentMagicAttackType();
+        MagicAttackType type = stats != null ? stats.CurrentMagicAttackType : MagicAttackType.Lightning;
         return type switch
         {
             MagicAttackType.Fire => magicFireProjectilePrefab != null ? magicFireProjectilePrefab : magicProjectilePrefab,
             MagicAttackType.Ice => magicIceProjectilePrefab != null ? magicIceProjectilePrefab : magicProjectilePrefab,
             _ => magicLightningProjectilePrefab != null ? magicLightningProjectilePrefab : magicProjectilePrefab
         };
-    }
-
-    private MagicAttackType GetCurrentMagicAttackType()
-    {
-        var weapon = GetMainWeaponDefForPopup();
-        if (weapon != null && weapon.IsWeapon && weapon.weaponStats.attackSkill == AttackSkill.Magic)
-            return weapon.weaponStats.magicAttackType;
-
-        return MagicAttackType.Lightning;
     }
 
     private System.Collections.IEnumerator ResolveAttackHitAfterDelay(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit, float delay)
@@ -622,6 +613,7 @@ public class PlayerCombatController : MonoBehaviour
 
         TryApplyBleed(targetToHit, dealt);
         TryApplyPoison(targetToHit, dealt);
+        TryApplyElementalMagicAilment(targetToHit, dealt);
     }
 
     public void ToggleIdleCombat()
@@ -859,6 +851,70 @@ public class PlayerCombatController : MonoBehaviour
         var ailments = target.GetComponent<AilmentController>();
         if (ailments != null)
             ailments.ApplyPoisonFromHit(payload);
+    }
+
+    private void TryApplyElementalMagicAilment(EnemyBaseController target, DamageResult dealt)
+    {
+        if (target == null) return;
+        if (stats == null) return;
+        var ailments = target.GetComponent<AilmentController>();
+        if (ailments == null) return;
+
+        bool isFireMagicHit =
+            stats.CurrentAttackSkill == AttackSkill.Magic &&
+            stats.CurrentMagicAttackType == MagicAttackType.Fire &&
+            dealt.magical > 0f;
+
+        // If burn is active and we land any non-fire hit, burn disappears.
+        if (ailments.HasBurn && !isFireMagicHit)
+            ailments.ClearBurn();
+
+        // Fire burn special behavior:
+        // - roll chance only to START burn
+        // - once burn is active, next N fire hits charge it (no chance), then explode
+        if (isFireMagicHit)
+        {
+            if (ailments.HasBurn)
+            {
+                ailments.ApplyBurnFollowUpFireHit(dealt.magical, stats.BurnExplosionMultiplier, transform);
+                return;
+            }
+
+            float startChance = stats.MagicAilmentApplyChance;
+            if (startChance > 0f && Random.value <= startChance)
+                ailments.StartBurnFromFireHit(dealt.magical, stats.BurnHitsToExplode, stats.BurnExplosionMultiplier);
+
+            return;
+        }
+
+        // Non-fire elemental ailments use normal apply chance per hit.
+        if (dealt.magical <= 0f) return;
+        if (stats.CurrentAttackSkill != AttackSkill.Magic) return;
+
+        float chance = stats.MagicAilmentApplyChance;
+        if (chance <= 0f) return;
+        if (Random.value > chance) return;
+
+        switch (stats.CurrentMagicAttackType)
+        {
+            case MagicAttackType.Ice:
+                ailments.ApplyChillFromHit(new ChillPayload(
+                    duration: stats.ChillDuration,
+                    maxStacks: stats.ChillMaxStacks,
+                    slowPerStack: stats.ChillSlowPerStack,
+                    source: transform
+                ));
+                break;
+
+            case MagicAttackType.Lightning:
+            default:
+                ailments.ApplyShockFromHit(new ShockPayload(
+                    duration: stats.ShockDuration,
+                    damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
+                    source: transform
+                ));
+                break;
+        }
     }
 
     public void AwardCombatXp(float damageDealt)

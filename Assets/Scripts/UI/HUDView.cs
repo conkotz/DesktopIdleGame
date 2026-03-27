@@ -163,10 +163,22 @@ public class HUDView : MonoBehaviour
             SpawnDebuffIcon(poisonIcon, "Poison", ailments.PoisonStacks, "Poison", $"Taking poison damage over time.\nStacks: {ailments.PoisonStacks}");
 
         if (ailments.HasBurn)
-            SpawnDebuffIcon(burnIcon, "Burn", 1, "Burn", "Taking fire damage over time.");
+            SpawnDebuffIcon(
+                burnIcon,
+                "Burn",
+                ailments.BurnStacks,
+                "Burn",
+                $"Burn charges: {ailments.BurnStacks}/{Mathf.Max(1, ailments.BurnHitsToExplode)}\nExplodes when full."
+            );
 
         if (ailments.HasChill)
-            SpawnDebuffIcon(chillIcon, "Chill", 1, "Chill", "Movement and/or attack speed reduced.");
+            SpawnDebuffIcon(
+                chillIcon,
+                "Chill",
+                ailments.ChillStacks,
+                "Chill",
+                $"Move speed reduced.\nStacks: {ailments.ChillStacks} ({ailments.ChillSlowPercent:0.#}% slow)"
+            );
 
         if (ailments.HasShock)
             SpawnDebuffIcon(shockIcon, "Shock", 1, "Shock", "Electrified and vulnerable to follow-up effects.");

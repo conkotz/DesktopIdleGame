@@ -10,44 +10,44 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: linen_hat
+  m_Name: basic_lightning_wand
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 3
+  itemKind: 1
   maxStack: 1
-  itemId: linen_hat
-  displayName: Linen Robes
-  icon: {fileID: 21300270, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
+  itemId: basic_lightning_wand
+  displayName: Basic Lightning Wand
+  icon: {fileID: 21300170, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
   heldSprite: {fileID: 0}
-  equippedSprite: {fileID: 21300270, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
+  equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
   equippedLocalOffset: {x: 0, y: 0}
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: Basic linen robes
+  description: A basic lightning wand
   rarity: 1
-  value: 250
-  equipSlot: 3
-  handVisualKey: 0
+  value: 150
+  equipSlot: 1
+  handVisualKey: 1
   weaponStats:
     minPhysicalDamage: 0
     maxPhysicalDamage: 0
-    minMagicDamage: 0
-    maxMagicDamage: 0
+    minMagicDamage: 8
+    maxMagicDamage: 10
     minTrueDamage: 0
     maxTrueDamage: 0
-    attacksPerSecond: 0
-    critChance: 0
-    critMultiplier: 0
-    handedness: 0
-    attackRange: 0
-    attackSkill: 0
+    attacksPerSecond: 0.5
+    critChance: 0.05
+    critMultiplier: 1.5
+    handedness: 1
+    attackRange: 8
+    attackSkill: 2
     magicAttackType: 0
-    manaCostPerAttack: 0
-    magicAilmentApplyChance: 0
+    manaCostPerAttack: 15
+    magicAilmentApplyChance: 0.5
     canEquipInOffHand: 0
-    requiresOffhandSupport: 0
-    requiredSupportType: 0
+    requiresOffhandSupport: 1
+    requiredSupportType: 4
   combatSupportStats:
     supportType: 0
     bonusPhysicalDamage: 0
@@ -66,26 +66,26 @@ MonoBehaviour:
     staminaEfficiency: 0
   armorStats:
     armor: 0
-    magicResist: 10
+    magicResist: 0
     physBlockChance: 0
-    bonusHealth: 15
+    bonusHealth: 0
     bonusEnergy: 0
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
-    bonusMana: 25
+    bonusMana: 0
     armor: 0
     magicResist: 0
     physBlockChance: 0
     lifeRegen: 0
     energyRegen: 0
-    manaRegen: 1
+    manaRegen: 0
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
     physicalDamagePercent: 0
     magicDamage: 0
-    magicDamagePercent: 0.02
+    magicDamagePercent: 0
     trueDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0

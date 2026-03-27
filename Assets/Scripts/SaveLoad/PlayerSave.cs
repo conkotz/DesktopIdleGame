@@ -64,7 +64,11 @@ public class PlayerSave : MonoBehaviour, ISaveable
         {
             if (!stats) stats = GetComponent<CharacterStats>();
 
+            // If HP was saved as 0 (e.g. edge-case/death snapshot), recover to a valid alive value on load.
             float hp = data.playerCurrentHP >= 0f ? data.playerCurrentHP : (stats ? stats.HP : 0f);
+            if (hp <= 0f && stats != null)
+                hp = Mathf.Max(1f, stats.MaxHP);
+
             float energy = data.playerCurrentEnergy >= 0f ? data.playerCurrentEnergy : (stats ? stats.Energy : 0f);
             float mana = data.playerCurrentMana >= 0f ? data.playerCurrentMana : (stats ? stats.Mana : 0f);
 

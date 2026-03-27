@@ -44,6 +44,7 @@ MonoBehaviour:
     attackSkill: 0
     magicAttackType: 0
     manaCostPerAttack: 0
+    magicAilmentApplyChance: 0
     canEquipInOffHand: 0
     requiresOffhandSupport: 0
     requiredSupportType: 0
@@ -82,7 +83,9 @@ MonoBehaviour:
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
-    magicDamage: 5
+    physicalDamagePercent: 0
+    magicDamage: 0
+    magicDamagePercent: 0.03
     trueDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
@@ -95,6 +98,9 @@ MonoBehaviour:
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
+    burnExplosionMultiplierBonus: 0
+    chillSlowPerStackBonus: 0
+    shockDamageTakenMultiplierBonus: 0
   consumableStats:
     consumableType: 0
     healAmount: 0

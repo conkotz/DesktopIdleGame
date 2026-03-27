@@ -35,3 +35,52 @@ public struct PoisonPayload
         this.source = source;
     }
 }
+
+[System.Serializable]
+public struct ChillPayload
+{
+    public float duration;
+    public int maxStacks;
+    public float slowPerStack;
+    public Transform source;
+
+    public ChillPayload(float duration, int maxStacks, float slowPerStack, Transform source)
+    {
+        this.duration = duration;
+        this.maxStacks = maxStacks;
+        this.slowPerStack = slowPerStack;
+        this.source = source;
+    }
+}
+
+[System.Serializable]
+public struct BurnPayload
+{
+    public float sourceDamage;
+    public int hitsToExplode;
+    public float explosionMultiplier;
+    public Transform source;
+
+    public BurnPayload(float sourceDamage, int hitsToExplode, float explosionMultiplier, Transform source)
+    {
+        this.sourceDamage = sourceDamage;
+        this.hitsToExplode = hitsToExplode;
+        this.explosionMultiplier = explosionMultiplier;
+        this.source = source;
+    }
+}
+
+[System.Serializable]
+public struct ShockPayload
+{
+    public float duration;
+    public float damageTakenMultiplier;
+    public Transform source;
+
+    public ShockPayload(float duration, float damageTakenMultiplier, Transform source)
+    {
+        this.duration = duration;
+        this.damageTakenMultiplier = damageTakenMultiplier;
+        this.source = source;
+    }
+}

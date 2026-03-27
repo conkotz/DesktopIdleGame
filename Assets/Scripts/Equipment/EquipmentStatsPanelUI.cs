@@ -42,6 +42,9 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [Header("Ailments (Compact)")]
     [SerializeField] private TMP_Text bleedText;
     [SerializeField] private TMP_Text poisonText;
+    [SerializeField] private TMP_Text chillText;
+    [SerializeField] private TMP_Text burnText;
+    [SerializeField] private TMP_Text shockText;
 
     // -------------------------
     // DPS
@@ -176,6 +179,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             bool hasMag = max.magical > 0f;
             bool hasTrue = max.trueDamage > 0f;
 
+            bool hasAnyDamage = stats.MaxDamage > 0 || stats.MinDamage > 0;
+
             int types =
                 (hasPhys ? 1 : 0) +
                 (hasMag ? 1 : 0) +
@@ -183,7 +188,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
             string typeLabel;
 
-            if (types == 1)
+            if (!hasAnyDamage)
+            {
+                typeLabel = "-";
+            }
+            else if (types == 1)
             {
                 if (hasPhys) typeLabel = "Physical";
                 else if (hasMag) typeLabel = "Magical";
@@ -201,7 +210,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             }
 
             // If current attack skill is magic, show selected magic subtype in the type line.
-            if (stats.CurrentAttackSkill == AttackSkill.Magic)
+            if (hasAnyDamage && stats.CurrentAttackSkill == AttackSkill.Magic)
             {
                 string magicTypeLabel = GetCurrentMagicTypeLabel();
                 if (!string.IsNullOrWhiteSpace(magicTypeLabel) && typeLabel.Contains("Magical"))
@@ -225,7 +234,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 split += $"T {Mathf.RoundToInt(min.trueDamage)}-{Mathf.RoundToInt(max.trueDamage)}";
             }
 
-            string colouredTypeLabel = BuildColouredTypeLabel(typeLabel, hasPhys, hasMag, hasTrue);
+            string colouredTypeLabel = hasAnyDamage
+                ? BuildColouredTypeLabel(typeLabel, hasPhys, hasMag, hasTrue)
+                : typeLabel;
+
             damageSplitText.text = $"Type: {colouredTypeLabel}\nSplit: {split}";
         }
 
@@ -262,6 +274,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 : "Poison: None";
         }
 
+        PopulateMagicAilmentTexts();
+
         // -------------------------
         // DPS
         // -------------------------
@@ -276,6 +290,9 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
             if (stats.PoisonChance > 0f)
                 ailmentDps += stats.PoisonMaxDPS;
+
+            if (stats.ExpectedBurnDPS > 0f)
+                ailmentDps += stats.ExpectedBurnDPS;
 
             float totalDps = weaponDps + ailmentDps;
 
@@ -309,17 +326,52 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
     private string GetCurrentMagicTypeLabel()
     {
-        if (equipment == null || inventory == null)
+        if (stats == null)
+            return "";
+        if (stats.CurrentAttackSkill != AttackSkill.Magic)
             return "";
 
-        if (string.IsNullOrWhiteSpace(equipment.MainHandItemId))
-            return "";
+        return stats.CurrentMagicAttackType.ToString();
+    }
 
-        var def = inventory.GetItemDef(equipment.MainHandItemId);
-        if (def == null || !def.IsWeapon || def.weaponStats.attackSkill != AttackSkill.Magic)
-            return "";
+    private void PopulateMagicAilmentTexts()
+    {
+        float chance = GetCurrentMagicAilmentChancePercent();
+        bool hasMagicAilmentChance = chance > 0f;
+        string type = GetCurrentMagicTypeLabel();
 
-        return def.weaponStats.magicAttackType.ToString();
+        if (chillText)
+        {
+            if (hasMagicAilmentChance && type == MagicAttackType.Ice.ToString())
+                chillText.text = $"Chill: {chance:0.#}% | {stats.ChillSlowPerStack * 100f:0.#}% | {stats.ChillDuration:0.#}s | {stats.ChillMaxStacks} stk";
+            else
+                chillText.text = "Chill: None";
+        }
+
+        if (burnText)
+        {
+            if (hasMagicAilmentChance && type == MagicAttackType.Fire.ToString())
+                burnText.text = $"Burn: {chance:0.#}% | {stats.BurnHitsToExplode} hit | {stats.BurnExplosionMultiplier * 100f:0.#}%";
+            else
+                burnText.text = "Burn: None";
+        }
+
+        if (shockText)
+        {
+            if (hasMagicAilmentChance && type == MagicAttackType.Lightning.ToString())
+                shockText.text = $"Shock: {chance:0.#}% | {stats.ShockDamageTakenMultiplier * 100f:0.#}% | {stats.ShockDuration:0.#}s";
+            else
+                shockText.text = "Shock: None";
+        }
+    }
+
+    private float GetCurrentMagicAilmentChancePercent()
+    {
+        if (stats == null)
+            return 0f;
+        if (stats.CurrentAttackSkill != AttackSkill.Magic)
+            return 0f;
+        return stats.MagicAilmentApplyChance * 100f;
     }
 
     private static string BuildColouredTypeLabel(string plainTypeLabel, bool hasPhys, bool hasMag, bool hasTrue)

@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: basic_wand
+  m_Name: basic_ice_wand
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 1
   maxStack: 1
-  itemId: basic_wand
-  displayName: Basic Wand
+  itemId: basic_ice_wand
+  displayName: Basic Ice Wand
   icon: {fileID: 21300170, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
@@ -24,7 +24,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic wand
+  description: A basic Ice wand
   rarity: 1
   value: 150
   equipSlot: 1
@@ -42,8 +42,9 @@ MonoBehaviour:
     handedness: 1
     attackRange: 8
     attackSkill: 2
-    magicAttackType: 0
-    manaCostPerAttack: 2
+    magicAttackType: 2
+    manaCostPerAttack: 15
+    magicAilmentApplyChance: 0.5
     canEquipInOffHand: 0
     requiresOffhandSupport: 1
     requiredSupportType: 4
@@ -82,7 +83,9 @@ MonoBehaviour:
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
+    physicalDamagePercent: 0
     magicDamage: 0
+    magicDamagePercent: 0
     trueDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
@@ -95,6 +98,9 @@ MonoBehaviour:
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
+    burnExplosionMultiplierBonus: 0
+    chillSlowPerStackBonus: 0
+    shockDamageTakenMultiplierBonus: 0
   consumableStats:
     consumableType: 0
     healAmount: 0

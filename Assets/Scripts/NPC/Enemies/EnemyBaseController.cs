@@ -94,6 +94,7 @@ public class EnemyBaseController : MonoBehaviour
 
     private CurrencyWallet _wallet;
     private GoldPopupSpawner _goldPopupSpawner;
+    private AilmentController _ailments;
 
     public bool IsDead => state == EnemyState.Dead;
     public int HP => stats ? Mathf.RoundToInt(stats.HP) : 0;
@@ -138,6 +139,7 @@ public class EnemyBaseController : MonoBehaviour
                 damagePopupAnchor = GetComponentInChildren<DamagePopupAnchor>(true);
         }
         _rb = GetComponent<Rigidbody2D>();
+        _ailments = GetComponent<AilmentController>();
 
         if (!stats)
             stats = GetComponent<CharacterStats>();
@@ -281,9 +283,11 @@ public class EnemyBaseController : MonoBehaviour
         {
             float dx = player.position.x - transform.position.x;
             float dir = Mathf.Sign(dx);
+            float ailmentMoveMult = _ailments != null ? _ailments.GetMoveSpeedMultiplier() : 1f;
+            float currentMoveSpeed = Mathf.Max(0f, moveSpeed * ailmentMoveMult);
 
             float yVel = _rb.linearVelocity.y;
-            _rb.linearVelocity = new Vector2(dir * moveSpeed, xOnly ? yVel : _rb.linearVelocity.y);
+            _rb.linearVelocity = new Vector2(dir * currentMoveSpeed, xOnly ? yVel : _rb.linearVelocity.y);
         }
         else
         {
@@ -375,10 +379,10 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         if (dealtAnyDamage)
-            ApplyAilmentsToPlayer();
+            ApplyAilmentsToPlayer(hit);
     }
 
-    private void ApplyAilmentsToPlayer()
+    private void ApplyAilmentsToPlayer(SplitDamage hit)
     {
         if (player == null || stats == null)
             return;
@@ -422,6 +426,55 @@ public class EnemyBaseController : MonoBehaviour
                 targetAilments.ApplyPoisonFromHit(poison);
             }
         }
+
+        // Elemental magic ailments (shared CharacterStats tuning for both enemies and player).
+        bool isFireMagicHit =
+            stats.CurrentMagicAttackType == MagicAttackType.Fire &&
+            hit.magical > 0f;
+
+        if (targetAilments.HasBurn && !isFireMagicHit)
+            targetAilments.ClearBurn();
+
+        if (isFireMagicHit)
+        {
+            if (targetAilments.HasBurn)
+            {
+                targetAilments.ApplyBurnFollowUpFireHit(hit.magical, stats.BurnExplosionMultiplier, transform);
+                return;
+            }
+
+            if (stats.MagicAilmentApplyChance > 0f && UnityEngine.Random.value <= stats.MagicAilmentApplyChance)
+                targetAilments.StartBurnFromFireHit(hit.magical, stats.BurnHitsToExplode, stats.BurnExplosionMultiplier);
+
+            return;
+        }
+
+        if (hit.magical <= 0f || stats.MagicAilmentApplyChance <= 0f)
+            return;
+
+        if (UnityEngine.Random.value > stats.MagicAilmentApplyChance)
+            return;
+
+        switch (stats.CurrentMagicAttackType)
+        {
+            case MagicAttackType.Ice:
+                targetAilments.ApplyChillFromHit(new ChillPayload(
+                    duration: stats.ChillDuration,
+                    maxStacks: stats.ChillMaxStacks,
+                    slowPerStack: stats.ChillSlowPerStack,
+                    source: transform
+                ));
+                break;
+
+            case MagicAttackType.Lightning:
+            default:
+                targetAilments.ApplyShockFromHit(new ShockPayload(
+                    duration: stats.ShockDuration,
+                    damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
+                    source: transform
+                ));
+                break;
+        }
     }
 
     public int TakeDamage(int amount, DamageType type, bool wasCrit, Transform attacker)
@@ -431,7 +484,9 @@ public class EnemyBaseController : MonoBehaviour
 
         _provoked = true;
 
-        float applied = stats.TakeDamage(amount, type, out bool blocked);
+        float shockMult = _ailments != null ? _ailments.GetIncomingDamageMultiplier() : 1f;
+        float scaledAmount = Mathf.Max(0f, amount * shockMult);
+        float applied = stats.TakeDamage(scaledAmount, type, out bool blocked);
         int finalDamage = Mathf.RoundToInt(applied);      
 
         if (blocked)

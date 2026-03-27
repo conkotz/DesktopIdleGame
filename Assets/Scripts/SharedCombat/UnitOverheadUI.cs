@@ -221,10 +221,10 @@ public class UnitOverheadUI : MonoBehaviour
             SpawnDebuffIcon(poisonIcon, "Poison", ailments.PoisonStacks);
 
         if (ailments.HasBurn)
-            SpawnDebuffIcon(burnIcon, "Burn", 1);
+            SpawnDebuffIcon(burnIcon, "Burn", ailments.BurnStacks);
 
         if (ailments.HasChill)
-            SpawnDebuffIcon(chillIcon, "Chill", 1);
+            SpawnDebuffIcon(chillIcon, "Chill", ailments.ChillStacks);
 
         if (ailments.HasShock)
             SpawnDebuffIcon(shockIcon, "Shock", 1);
