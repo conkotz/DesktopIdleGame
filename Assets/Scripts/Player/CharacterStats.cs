@@ -131,13 +131,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private float unarmedCritMultiplier = 1.5f;
 
     [Header("Gathering Bonuses (from skills later)")]
-    [SerializeField] private int bonusAxePower = 0;
     [SerializeField] private float bonusAxeSpeedMult = 0f;
-
-    [SerializeField] private int bonusPickaxePower = 0;
     [SerializeField] private float bonusPickaxeSpeedMult = 0f;
-
-    [SerializeField] private int bonusRodPower = 0;
     [SerializeField] private float bonusRodSpeedMult = 0f;
 
     [Header("Combat Power")]
@@ -397,14 +392,18 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float ExpectedAilmentDPS => ExpectedBleedDPS + ExpectedPoisonDPS;
 
     // Tools
-    public int AxePower => GetToolPower(ToolType.Axe) + bonusAxePower;
     public float AxeSpeedMult => GetToolSpeedMult(ToolType.Axe) * (1f + Mathf.Max(0f, bonusAxeSpeedMult));
-
-    public int PickaxePower => GetToolPower(ToolType.Pickaxe) + bonusPickaxePower;
     public float PickaxeSpeedMult => GetToolSpeedMult(ToolType.Pickaxe) * (1f + Mathf.Max(0f, bonusPickaxeSpeedMult));
-
-    public int RodPower => GetToolPower(ToolType.FishingRod) + bonusRodPower;
     public float RodSpeedMult => GetToolSpeedMult(ToolType.FishingRod) * (1f + Mathf.Max(0f, bonusRodSpeedMult));
+    public float AxeGrit => GetToolGrit(ToolType.Axe);
+    public float PickaxeGrit => GetToolGrit(ToolType.Pickaxe);
+    public float RodGrit => GetToolGrit(ToolType.FishingRod);
+    public float AxeBonusFindChance => GetToolBonusFindChance(ToolType.Axe);
+    public float PickaxeBonusFindChance => GetToolBonusFindChance(ToolType.Pickaxe);
+    public float RodBonusFindChance => GetToolBonusFindChance(ToolType.FishingRod);
+    public float AxeStaminaEfficiency => GetToolStaminaEfficiency(ToolType.Axe);
+    public float PickaxeStaminaEfficiency => GetToolStaminaEfficiency(ToolType.Pickaxe);
+    public float RodStaminaEfficiency => GetToolStaminaEfficiency(ToolType.FishingRod);
 
 
 
@@ -539,16 +538,28 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return null;
     }
 
-    private int GetToolPower(ToolType type)
-    {
-        var def = GetToolDefFromToolbelt(type);
-        return def ? def.GatherPower : 0;
-    }
-
     private float GetToolSpeedMult(ToolType type)
     {
         var def = GetToolDefFromToolbelt(type);
         return def ? def.GatherSpeedMultiplier : 1f;
+    }
+
+    private float GetToolGrit(ToolType type)
+    {
+        var def = GetToolDefFromToolbelt(type);
+        return def ? def.GatheringGrit : 0f;
+    }
+
+    private float GetToolBonusFindChance(ToolType type)
+    {
+        var def = GetToolDefFromToolbelt(type);
+        return def ? def.BonusResourceFindChance : 0f;
+    }
+
+    private float GetToolStaminaEfficiency(ToolType type)
+    {
+        var def = GetToolDefFromToolbelt(type);
+        return def ? def.StaminaEfficiency : 0f;
     }
 
     // -------------------------

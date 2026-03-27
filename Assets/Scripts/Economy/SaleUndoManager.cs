@@ -33,9 +33,6 @@ public class SaleUndoManager : MonoBehaviour
     [Tooltip("Panel anchoredPosition in the canvas. Example: TopRight anchor with (-20,-20) for 20px inset.")]
     [SerializeField] private Vector2 fixedAnchoredPosition = new Vector2(-20f, -20f);
 
-    [Tooltip("If true, panel stays active even when there are 0 entries (usually false).")]
-    [SerializeField] private bool keepPanelVisibleWhenEmpty = false;
-
     [Header("Behaviour")]
     [SerializeField] private int visibleMax = 4;
     [SerializeField] private int maxEntriesKept = 30;

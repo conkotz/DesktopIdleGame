@@ -35,9 +35,7 @@ public class ResourceNode : MonoBehaviour
     public bool RequiresTool => definition && definition.requiresTool && definition.requiredTool != ToolKey.None;
     public ToolKey RequiredTool => definition ? definition.requiredTool : ToolKey.None;
     public string MissingToolMessage => definition ? definition.missingToolMessage : "Put the required tool in your toolbelt.";
-
-    public int RequiredGatherPower => definition ? definition.requiredGatherPower : 0;
-    public bool EnforcePowerGate => definition && definition.enforcePowerGate;
+    public float EnergyCostPerSwing => definition ? Mathf.Max(0f, definition.energyCostPerSwing) : 0f;
 
     public bool UseLevelRequirement => definition && definition.useLevelRequirement;
 

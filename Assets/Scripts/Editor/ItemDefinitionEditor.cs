@@ -243,7 +243,7 @@ public class ItemDefinitionEditor : Editor
         else if (kind == ItemKind.Tool)
         {
             DrawModuleHeader("Tool Stats");
-            EditorGUILayout.PropertyField(toolStats, includeChildren: true);
+            DrawToolStatsBlock();
             DrawBonusBlockIfPresent("Bonus Stats (optional)", show: true);
         }
         else if (kind == ItemKind.Armor)
@@ -430,6 +430,41 @@ public class ItemDefinitionEditor : Editor
             "- Runes for staffs\n" +
             "- Focus for special magic weapons\n\n" +
             "These can also add bonus damage, crit, or attack speed.",
+            MessageType.None
+        );
+    }
+
+    private void DrawToolStatsBlock()
+    {
+        if (toolStats == null)
+        {
+            EditorGUILayout.HelpBox("toolStats property not found.", MessageType.Error);
+            return;
+        }
+
+        SerializedProperty toolType = toolStats.FindPropertyRelative("toolType");
+        SerializedProperty gatherSpeedMultiplier = toolStats.FindPropertyRelative("gatherSpeedMultiplier");
+        SerializedProperty gatheringGrit = toolStats.FindPropertyRelative("gatheringGrit");
+        SerializedProperty bonusResourceFindChance = toolStats.FindPropertyRelative("bonusResourceFindChance");
+        SerializedProperty staminaEfficiency = toolStats.FindPropertyRelative("staminaEfficiency");
+
+        EditorGUILayout.PropertyField(toolType, new GUIContent("Tool Type"));
+        EditorGUILayout.PropertyField(gatherSpeedMultiplier, new GUIContent("Gather Speed Multiplier"));
+        EditorGUILayout.PropertyField(gatheringGrit, new GUIContent("Gathering Grit"));
+        EditorGUILayout.PropertyField(bonusResourceFindChance, new GUIContent("Bonus Resource Find Chance"));
+        EditorGUILayout.PropertyField(staminaEfficiency, new GUIContent("Stamina Efficiency"));
+
+        if (gatherSpeedMultiplier != null && gatherSpeedMultiplier.floatValue <= 0f)
+            gatherSpeedMultiplier.floatValue = 1f;
+        if (bonusResourceFindChance != null && bonusResourceFindChance.floatValue < 0f)
+            bonusResourceFindChance.floatValue = 0f;
+
+        EditorGUILayout.HelpBox(
+            "Tool gathering model:\n" +
+            "- Gather Speed Multiplier: gather tick speed scaling\n" +
+            "- Gathering Grit: chance to double BASE resource only\n" +
+            "- Bonus Resource Find Chance: multiplier to bonus drop chance\n" +
+            "- Stamina Efficiency: future stamina cost reduction",
             MessageType.None
         );
     }

@@ -152,9 +152,22 @@ public struct ToolStats
     [Header("Tool Type")]
     public ToolType toolType;
 
-    [Header("Gathering")]
-    public int gatherPower;
+    [Header("Gathering Speed")]
     public float gatherSpeedMultiplier;
+
+    [Header("Gathering Grit")]
+    [Range(0f, 1f)]
+    [Tooltip("Chance to double BASE resource quantity only. Does not affect bonus drop rolls.")]
+    public float gatheringGrit;
+
+    [Header("Bonus Resource Find Chance")]
+    [Tooltip("Multiplier for bonus drop chance. 1.0 = +100% bonus chance.")]
+    public float bonusResourceFindChance;
+
+    [Header("Stamina Efficiency")]
+    [Range(0f, 1f)]
+    [Tooltip("Reduces stamina cost: cost * (1 - staminaEfficiency). 0.1 = 10% less cost.")]
+    public float staminaEfficiency;
 }
 
 [System.Serializable]
@@ -591,8 +604,6 @@ public class ItemDefinition : ScriptableObject
         }
     }
 
-    public int GatherPower => IsTool ? toolStats.gatherPower : 0;
-
     public float GatherSpeedMultiplier
     {
         get
@@ -603,6 +614,10 @@ public class ItemDefinition : ScriptableObject
             return toolStats.gatherSpeedMultiplier;
         }
     }
+
+    public float GatheringGrit => IsTool ? Mathf.Clamp01(toolStats.gatheringGrit) : 0f;
+    public float BonusResourceFindChance => IsTool ? Mathf.Max(0f, toolStats.bonusResourceFindChance) : 0f;
+    public float StaminaEfficiency => IsTool ? Mathf.Clamp01(toolStats.staminaEfficiency) : 0f;
 
     public string GetRarityLabel() => rarity.ToString();
 
@@ -685,8 +700,10 @@ public class ItemDefinition : ScriptableObject
 
             string s =
                 $"Tool: {type}\n" +
-                $"Gather Power: {GatherPower}\n" +
-                $"Gather Speed: {GatherSpeedMultiplier:0.##}x";
+                $"Gather Speed: {GatherSpeedMultiplier:0.##}x\n" +
+                $"Gather Grit: {GatheringGrit * 100f:0.#}%\n" +
+                $"Bonus Find: +{BonusResourceFindChance * 100f:0.#}%\n" +
+                $"Stamina Efficiency: +{StaminaEfficiency * 100f:0.#}%";
 
             if (!string.IsNullOrWhiteSpace(extras))
                 s += "\n" + extras;
@@ -851,7 +868,7 @@ public class ItemDefinition : ScriptableObject
         }
 
         if (IsTool)
-            return $"Tool • Power {GatherPower} • Speed {GatherSpeedMultiplier:0.##}x";
+            return $"Tool • Speed {GatherSpeedMultiplier:0.##}x • Grit {GatheringGrit * 100f:0.#}% • Bonus +{BonusResourceFindChance * 100f:0.#}%";
 
         if (IsArmor || IsJewelry)
         {

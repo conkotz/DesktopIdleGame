@@ -216,6 +216,7 @@ public class HUDPresenter : MonoBehaviour
             PlayerController.PlayerAction.Fishing => "Fishing",
             PlayerController.PlayerAction.Fighting when !string.IsNullOrWhiteSpace(enemyName) => $"Fighting {enemyName}",
             PlayerController.PlayerAction.Fighting => "Fighting",
+            PlayerController.PlayerAction.Fatigued => "Fatigued",
             _ => a.ToString()
         };
     }

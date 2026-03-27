@@ -29,5 +29,6 @@ MonoBehaviour:
   requiresTool: 1
   requiredTool: 3
   missingToolMessage: No axe found in toolbelt
+  energyCostPerSwing: 30
   requiredGatherPower: 0
   enforcePowerGate: 0

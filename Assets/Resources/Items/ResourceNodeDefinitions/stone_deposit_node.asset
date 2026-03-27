@@ -33,5 +33,4 @@ MonoBehaviour:
   requiresTool: 1
   requiredTool: 2
   missingToolMessage: No pickaxe found in toolbelt
-  requiredGatherPower: 0
-  enforcePowerGate: 0
+  energyCostPerSwing: 50

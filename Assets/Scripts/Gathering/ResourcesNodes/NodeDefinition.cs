@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -56,13 +56,9 @@ public class NodeDefinition : ScriptableObject
     [Tooltip("Message shown if tool is missing.")]
     public string missingToolMessage = "No tool available in toolbelt.";
 
-    // ✅ NEW (Incremental): Tool Power gating + tool speed scaling
-    [Header("Tool Power (Optional)")]
-    [Tooltip("Minimum gather power required to gather at full speed. If 0, no power gate.")]
-    [Min(0)] public int requiredGatherPower = 0;
-
-    [Tooltip("If true, nodes with requiredGatherPower > 0 will block gathering unless tool power meets requirement.")]
-    public bool enforcePowerGate = false;
+    [Header("Energy Cost")]
+    [Tooltip("Energy drained on each gather swing for this node. 0 disables energy cost.")]
+    [Min(0f)] public float energyCostPerSwing = 30f;
 
     public string YieldItemId => yieldItem ? yieldItem.itemId : string.Empty;
 
@@ -93,6 +89,15 @@ public class NodeDefinition : ScriptableObject
     /// </summary>
     public void PreviewDrops(List<Drop> outDrops)
     {
+        PreviewDrops(outDrops, 0f);
+    }
+
+    /// <summary>
+    /// Rolls drops with a multiplier applied ONLY to bonus drop chances.
+    /// Formula: effectiveChance = baseChance * (1 + bonusFindChanceMultiplier)
+    /// </summary>
+    public void PreviewDrops(List<Drop> outDrops, float bonusFindChanceMultiplier)
+    {
         if (outDrops == null) return;
 
         // Main yield (guaranteed)
@@ -110,7 +115,8 @@ public class NodeDefinition : ScriptableObject
             if (b == null || b.item == null) continue;
             if (string.IsNullOrWhiteSpace(b.item.itemId)) continue;
 
-            if (UnityEngine.Random.value <= b.chance)
+            float effectiveChance = Mathf.Clamp01(b.chance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
+            if (UnityEngine.Random.value <= effectiveChance)
             {
                 int amt = UnityEngine.Random.Range(b.amountMin, b.amountMax + 1);
                 outDrops.Add(new Drop(b.item.itemId, amt));
@@ -122,6 +128,11 @@ public class NodeDefinition : ScriptableObject
     /// Old behaviour (still available if you want it anywhere else).
     /// </summary>
     public void RollDrops(Inventory inventory)
+    {
+        RollDrops(inventory, 0f);
+    }
+
+    public void RollDrops(Inventory inventory, float bonusFindChanceMultiplier)
     {
         if (!inventory) return;
 
@@ -138,7 +149,8 @@ public class NodeDefinition : ScriptableObject
             if (b == null || b.item == null) continue;
             if (string.IsNullOrWhiteSpace(b.item.itemId)) continue;
 
-            if (UnityEngine.Random.value <= b.chance)
+            float effectiveChance = Mathf.Clamp01(b.chance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
+            if (UnityEngine.Random.value <= effectiveChance)
             {
                 int amt = UnityEngine.Random.Range(b.amountMin, b.amountMax + 1);
                 inventory.Add(b.item.itemId, amt);

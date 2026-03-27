@@ -9,7 +9,7 @@ using UnityEngine.SceneManagement;
 public class PlayerController : MonoBehaviour
 {
     public enum State { Idle, MoveToTarget, MoveToPoint, Gather, MoveToPickup }
-    public enum PlayerAction { Idle, Walking, Mining, Woodcutting, Fishing, Fighting }
+    public enum PlayerAction { Idle, Walking, Mining, Woodcutting, Fishing, Fighting, Fatigued }
 
     [Header("Click To Move")]
     [SerializeField] private bool clickToMoveEnabled = true;
@@ -110,6 +110,17 @@ public class PlayerController : MonoBehaviour
     public bool InCombat => combatState && combatState.InCombat;
 
     private float _gatherSpeedMultiplier = 1f;
+    private float _gatherGritChance;
+    private float _gatherBonusFindChance;
+    private float _gatherStaminaEfficiency;
+
+    [Header("Future Stamina Integration")]
+    [Tooltip("Base stamina cost per successful gather tick. Hook to stamina system later.")]
+    [SerializeField] private float baseGatherStaminaCostPerTick = 10f;
+
+    [Header("Gather Energy Cost")]
+    [SerializeField] private string lowEnergyPopupText = "* Fatigued *";
+    [SerializeField, Min(0.1f)] private float fatiguedResumeDelaySeconds = 3f;
 
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private ToolbeltManager toolbelt;
@@ -130,6 +141,8 @@ public class PlayerController : MonoBehaviour
     private Camera _cam;
 
     private string _gatherToolItemId;
+    private Coroutine _fatiguedResumeRoutine;
+    private float _fatiguedUntilTime;
 
     private readonly List<Drop> _drops = new List<Drop>(8);
 
@@ -394,7 +407,10 @@ public class PlayerController : MonoBehaviour
             switch (state)
             {
                 case State.Idle:
-                    SetAction(PlayerAction.Idle);
+                    if (Time.time < _fatiguedUntilTime)
+                        SetAction(PlayerAction.Fatigued);
+                    else
+                        SetAction(PlayerAction.Idle);
                     break;
 
                 case State.MoveToTarget:
@@ -654,11 +670,17 @@ public class PlayerController : MonoBehaviour
         // =========================================================
 
         _gatherSpeedMultiplier = 1f;
+        _gatherGritChance = 0f;
+        _gatherBonusFindChance = 0f;
+        _gatherStaminaEfficiency = 0f;
 
         if (!requireToolForGathering || !node.RequiresTool)
         {
             _gatherToolItemId = null;
             _gatherSpeedMultiplier = 1f;
+            _gatherGritChance = 0f;
+            _gatherBonusFindChance = 0f;
+            _gatherStaminaEfficiency = 0f;
 
             equipment?.ClearMainHandUnarmedOverride();
             equipment?.ClearMainHandVisualOverride();
@@ -684,23 +706,10 @@ public class PlayerController : MonoBehaviour
             _gatherToolItemId = toolItemId;
 
             var toolDef = inventory ? inventory.GetItemDef(toolItemId) : null;
-
-            if (node.EnforcePowerGate && node.RequiredGatherPower > 0)
-            {
-                int power = toolDef ? toolDef.GatherPower : 0;
-                if (power < node.RequiredGatherPower)
-                {
-                    ShowPopup($"Requires {node.RequiredTool} power {node.RequiredGatherPower}.");
-                    OnGatherDebuffChanged?.Invoke(false, 1f);
-
-                    equipment?.ClearMainHandUnarmedOverride();
-                    equipment?.ClearMainHandVisualOverride();
-                    return;
-                }
-            }
-
-            float toolSpeed = toolDef ? toolDef.GatherSpeedMultiplier : 1f;
-            _gatherSpeedMultiplier = toolSpeed;
+            _gatherSpeedMultiplier = toolDef ? toolDef.GatherSpeedMultiplier : 1f;
+            _gatherGritChance = toolDef ? toolDef.GatheringGrit : 0f;
+            _gatherBonusFindChance = toolDef ? toolDef.BonusResourceFindChance : 0f;
+            _gatherStaminaEfficiency = toolDef ? toolDef.StaminaEfficiency : 0f;
 
             bool debuffed = _gatherSpeedMultiplier < 0.999f;
             OnGatherDebuffChanged?.Invoke(debuffed, _gatherSpeedMultiplier);
@@ -717,16 +726,12 @@ public class PlayerController : MonoBehaviour
             ShowPopup(string.IsNullOrWhiteSpace(node.MissingToolMessage)
                 ? "Missing tool in toolbelt."
                 : node.MissingToolMessage);
-
-            if (node.EnforcePowerGate && node.RequiredGatherPower > 0)
-            {
-                equipment?.ClearMainHandUnarmedOverride();
-                equipment?.ClearMainHandVisualOverride();
-                return;
-            }
             if (allowGatherWithoutTool)
             {
                 _gatherSpeedMultiplier = missingToolSpeedMultiplier;
+                _gatherGritChance = 0f;
+                _gatherBonusFindChance = 0f;
+                _gatherStaminaEfficiency = 0f;
                 OnGatherDebuffChanged?.Invoke(true, _gatherSpeedMultiplier);
 
                 _hideHandsForUnarmedGather = true;
@@ -1134,9 +1139,14 @@ public class PlayerController : MonoBehaviour
         if (hasTool)
         {
             _gatherToolItemId = toolItemId;
-            _gatherSpeedMultiplier = 1f;
+            var toolDef = inventory ? inventory.GetItemDef(toolItemId) : null;
+            _gatherSpeedMultiplier = toolDef ? toolDef.GatherSpeedMultiplier : 1f;
+            _gatherGritChance = toolDef ? toolDef.GatheringGrit : 0f;
+            _gatherBonusFindChance = toolDef ? toolDef.BonusResourceFindChance : 0f;
+            _gatherStaminaEfficiency = toolDef ? toolDef.StaminaEfficiency : 0f;
 
-            OnGatherDebuffChanged?.Invoke(false, 1f);
+            bool debuffed = _gatherSpeedMultiplier < 0.999f;
+            OnGatherDebuffChanged?.Invoke(debuffed, _gatherSpeedMultiplier);
 
             _hideHandsForUnarmedGather = false;
             equipment?.ClearHideBothHandsOverride();
@@ -1151,6 +1161,9 @@ public class PlayerController : MonoBehaviour
             if (allowGatherWithoutTool)
             {
                 _gatherSpeedMultiplier = missingToolSpeedMultiplier;
+                _gatherGritChance = 0f;
+                _gatherBonusFindChance = 0f;
+                _gatherStaminaEfficiency = 0f;
 
                 OnGatherDebuffChanged?.Invoke(true, _gatherSpeedMultiplier);
 
@@ -1192,10 +1205,18 @@ public class PlayerController : MonoBehaviour
 
         if (!targetNode) { ReturnToIdle(); return; }
         if (!inventory) { ReturnToIdle(); return; }
+        if (targetNode.Definition == null) return;
 
         // Only “swing” the gather animation once every N seconds while gathering
         if (animator && Time.time >= _nextGatherAnimTime)
         {
+            // Spend gather energy on the same cadence as gather swings for smoother feel.
+            if (!TrySpendGatherEnergyOnSwing(targetNode.Definition))
+            {
+                PauseGatherForLowEnergy();
+                return;
+            }
+
             PlayState(gatherStateName, restart: true);
 
             _nextGatherAnimTime = Time.time + Mathf.Max(0.05f, gatherAnimDelaySeconds);
@@ -1206,8 +1227,6 @@ public class PlayerController : MonoBehaviour
         float maxX = laneBounds ? laneBounds.MaxX : 999f;
         pos.x = Mathf.Clamp(targetNode.workSpot.position.x, minX, maxX);
         transform.position = pos;
-
-        if (targetNode.Definition == null) return;
 
         if (targetNode.UseRandomInterval)
         {
@@ -1246,11 +1265,15 @@ public class PlayerController : MonoBehaviour
         if (targetNode == null || targetNode.Definition == null) return;
 
         var def = targetNode.Definition;
+        _ = GetEffectiveGatherStaminaCostPerTick(); // Reserved for stamina spend integration.
 
         // ---- 1) MAIN yield first (this is the ONLY thing that grants XP) ----
         if (def.HasMainYield)
         {
             int mainAmt = def.RollMainYieldAmount();
+            // Gathering Grit: doubles BASE yield only. Never duplicates bonus drops.
+            if (mainAmt > 0 && UnityEngine.Random.value <= Mathf.Clamp01(_gatherGritChance))
+                mainAmt *= 2;
             if (mainAmt > 0)
             {
                 // Add main item
@@ -1298,7 +1321,10 @@ public class PlayerController : MonoBehaviour
 
         // ---- 2) BONUS drops (NO XP from these) ----
         _drops.Clear();
-        def.PreviewDrops(_drops);
+        // Bonus Resource Find Chance scales ONLY bonus roll chances:
+        // effectiveChance = baseChance * (1 + bonusFindChance)
+        // Base yield amount is intentionally unaffected.
+        def.PreviewDrops(_drops, _gatherBonusFindChance);
 
         // PreviewDrops includes main too, so we must ignore index 0 main OR skip matching itemId
         // Easiest: process ONLY entries that are NOT the main yield itemId
@@ -1340,6 +1366,9 @@ public class PlayerController : MonoBehaviour
     private void ReturnToIdle()
     {
         _gatherSpeedMultiplier = 1f;
+        _gatherGritChance = 0f;
+        _gatherBonusFindChance = 0f;
+        _gatherStaminaEfficiency = 0f;
         OnGatherDebuffChanged?.Invoke(false, 1f);
 
         targetNode = null;
@@ -1357,6 +1386,62 @@ public class PlayerController : MonoBehaviour
         equipment?.ClearMainHandVisualOverride();
 
         SetAction(PlayerAction.Idle, true);
+    }
+
+    private float GetEffectiveGatherStaminaCostPerTick()
+    {
+        // Future stamina hook:
+        // effectiveStaminaCost = baseStaminaCost * (1 - staminaEfficiency)
+        // clamped so cost never drops below zero.
+        float baseCost = Mathf.Max(0f, baseGatherStaminaCostPerTick);
+        return Mathf.Max(0f, baseCost * (1f - Mathf.Clamp01(_gatherStaminaEfficiency)));
+    }
+
+    private bool TrySpendGatherEnergyOnSwing(NodeDefinition def)
+    {
+        if (def == null || characterStats == null) return true;
+
+        // Energy model:
+        // Node defines energy cost directly per gather swing.
+        // Tool stamina efficiency reduces that swing cost.
+        float baseCostPerSwing = Mathf.Max(0f, def.energyCostPerSwing);
+        float spendPerSwing = Mathf.Max(0f, baseCostPerSwing * (1f - Mathf.Clamp01(_gatherStaminaEfficiency)));
+        if (spendPerSwing <= 0f) return true;
+
+        return characterStats.SpendEnergy(spendPerSwing);
+    }
+
+    private void PauseGatherForLowEnergy()
+    {
+        ResourceNode resumeNode = targetNode;
+        ShowPopup(string.IsNullOrWhiteSpace(lowEnergyPopupText) ? "* Fatigued *" : lowEnergyPopupText);
+        // Stop gather immediately and return to full idle state, then retry after delay.
+        _fatiguedUntilTime = Time.time + Mathf.Max(0.1f, fatiguedResumeDelaySeconds);
+        ReturnToIdle();
+        StartFatiguedResume(resumeNode);
+    }
+
+    private void StartFatiguedResume(ResourceNode node)
+    {
+        if (node == null) return;
+        if (_fatiguedResumeRoutine != null)
+            StopCoroutine(_fatiguedResumeRoutine);
+        _fatiguedResumeRoutine = StartCoroutine(FatiguedResumeRoutine(node));
+    }
+
+    private IEnumerator FatiguedResumeRoutine(ResourceNode node)
+    {
+        float wait = Mathf.Max(0.1f, fatiguedResumeDelaySeconds);
+        yield return new WaitForSeconds(wait);
+        _fatiguedResumeRoutine = null;
+
+        if (_isDead) yield break;
+        if (state != State.Idle) yield break;
+        if (!node || !node.gameObject.activeInHierarchy) yield break;
+        if (AnyEnemyOnMap || InCombat) yield break;
+        if (!MeetsNodeLevelRequirement(node)) yield break;
+
+        SelectNode(node);
     }
 
     private PlayerAction GetGatherAction()

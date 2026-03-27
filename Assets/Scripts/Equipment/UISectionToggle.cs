@@ -28,6 +28,7 @@ public class UISectionToggle : MonoBehaviour
     private void Awake()
     {
         if (!headerButton) headerButton = GetComponentInChildren<Button>(true);
+        AutoBindContentsIfNeeded();
 
         _group = GetComponentInParent<UISectionToggleGroup>(true);
 
@@ -38,6 +39,11 @@ public class UISectionToggle : MonoBehaviour
 
         if (headerButton)
             headerButton.onClick.AddListener(OnHeaderClicked);
+    }
+
+    private void OnValidate()
+    {
+        AutoBindContentsIfNeeded();
     }
 
     private void OnHeaderClicked()
@@ -77,5 +83,45 @@ public class UISectionToggle : MonoBehaviour
 
         if (_buttonImage)
             _buttonImage.color = _expanded ? activeColor : inactiveColor;
+    }
+
+    private void AutoBindContentsIfNeeded()
+    {
+        if (contents == null)
+            contents = new List<GameObject>();
+
+        // Clean nulls first.
+        for (int i = contents.Count - 1; i >= 0; i--)
+        {
+            if (!contents[i])
+                contents.RemoveAt(i);
+        }
+
+        // If already configured with multiple blocks, do not override user wiring.
+        if (contents.Count >= 2)
+            return;
+
+        TryAddNamedContent("Content");
+        TryAddNamedContent("ContentLeft");
+        TryAddNamedContent("ContentRight");
+    }
+
+    private void TryAddNamedContent(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        var children = GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < children.Length; i++)
+        {
+            var t = children[i];
+            if (!t || t == transform) continue;
+            if (!string.Equals(t.name, name, System.StringComparison.Ordinal)) continue;
+
+            GameObject go = t.gameObject;
+            if (!contents.Contains(go))
+                contents.Add(go);
+            return;
+        }
     }
 }

@@ -54,16 +54,22 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     // -------------------------
     [Header("Tools (extra panel fields)")]
     [SerializeField] private TMP_Text pickaxeTitleText;
-    [SerializeField] private TMP_Text pickaxePowerText;
     [SerializeField] private TMP_Text pickaxeSpeedText;
+    [SerializeField] private TMP_Text pickaxeGritText;
+    [SerializeField] private TMP_Text pickaxeBonusFindText;
+    [SerializeField] private TMP_Text pickaxeStaminaEfficiencyText;
 
     [SerializeField] private TMP_Text axeTitleText;
-    [SerializeField] private TMP_Text axePowerText;
     [SerializeField] private TMP_Text axeSpeedText;
+    [SerializeField] private TMP_Text axeGritText;
+    [SerializeField] private TMP_Text axeBonusFindText;
+    [SerializeField] private TMP_Text axeStaminaEfficiencyText;
 
     [SerializeField] private TMP_Text rodTitleText;
-    [SerializeField] private TMP_Text rodPowerText;
     [SerializeField] private TMP_Text rodSpeedText;
+    [SerializeField] private TMP_Text rodGritText;
+    [SerializeField] private TMP_Text rodBonusFindText;
+    [SerializeField] private TMP_Text rodStaminaEfficiencyText;
 
     private void Awake()
     {
@@ -283,16 +289,22 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         // Tools
         // -------------------------
         if (pickaxeTitleText) pickaxeTitleText.text = "Pickaxe";
-        if (pickaxePowerText) pickaxePowerText.text = $"Mining Power: {stats.PickaxePower}";
         if (pickaxeSpeedText) pickaxeSpeedText.text = $"Mining Speed: {stats.PickaxeSpeedMult:0.##}x";
+        if (pickaxeGritText) pickaxeGritText.text = $"Mining Grit: {stats.PickaxeGrit * 100f:0.#}%";
+        if (pickaxeBonusFindText) pickaxeBonusFindText.text = $"Bonus Find: +{stats.PickaxeBonusFindChance * 100f:0.#}%";
+        if (pickaxeStaminaEfficiencyText) pickaxeStaminaEfficiencyText.text = $"Stamina Eff: +{stats.PickaxeStaminaEfficiency * 100f:0.#}%";
 
         if (axeTitleText) axeTitleText.text = "Axe";
-        if (axePowerText) axePowerText.text = $"Woodcut Power: {stats.AxePower}";
         if (axeSpeedText) axeSpeedText.text = $"Woodcut Speed: {stats.AxeSpeedMult:0.##}x";
+        if (axeGritText) axeGritText.text = $"Woodcut Grit: {stats.AxeGrit * 100f:0.#}%";
+        if (axeBonusFindText) axeBonusFindText.text = $"Bonus Find: +{stats.AxeBonusFindChance * 100f:0.#}%";
+        if (axeStaminaEfficiencyText) axeStaminaEfficiencyText.text = $"Stamina Eff: +{stats.AxeStaminaEfficiency * 100f:0.#}%";
 
         if (rodTitleText) rodTitleText.text = "Rod";
-        if (rodPowerText) rodPowerText.text = $"Fishing Power: {stats.RodPower}";
         if (rodSpeedText) rodSpeedText.text = $"Fishing Speed: {stats.RodSpeedMult:0.##}x";
+        if (rodGritText) rodGritText.text = $"Fishing Grit: {stats.RodGrit * 100f:0.#}%";
+        if (rodBonusFindText) rodBonusFindText.text = $"Bonus Find: +{stats.RodBonusFindChance * 100f:0.#}%";
+        if (rodStaminaEfficiencyText) rodStaminaEfficiencyText.text = $"Stamina Eff: +{stats.RodStaminaEfficiency * 100f:0.#}%";
     }
 
     private string GetCurrentMagicTypeLabel()
