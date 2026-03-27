@@ -6,6 +6,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [Header("Refs")]
     [SerializeField] private CharacterStats stats;
     [SerializeField] private EquipmentManager equipment;
+    [SerializeField] private Inventory inventory;
     [SerializeField] private ToolbeltManager toolbelt;
     [SerializeField] private PlayerController player;
     [SerializeField] private TMP_Text statsHeaderText;
@@ -73,12 +74,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         {
             if (!stats) stats = player.GetComponent<CharacterStats>();
             if (!equipment) equipment = player.GetComponent<EquipmentManager>();
+            if (!inventory) inventory = player.GetComponent<Inventory>();
             if (!toolbelt) toolbelt = player.GetComponent<ToolbeltManager>();
         }
 
         // Fallbacks (kept for safety in unusual setup scenes).
         if (!stats) stats = FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Include);
         if (!equipment) equipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
+        if (!inventory) inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
         if (!toolbelt) toolbelt = FindFirstObjectByType<ToolbeltManager>(FindObjectsInactive.Include);
     }
 
@@ -191,6 +194,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 typeLabel = "Hybrid";
             }
 
+            // If current attack skill is magic, show selected magic subtype in the type line.
+            if (stats.CurrentAttackSkill == AttackSkill.Magic)
+            {
+                string magicTypeLabel = GetCurrentMagicTypeLabel();
+                if (!string.IsNullOrWhiteSpace(magicTypeLabel) && typeLabel.Contains("Magical"))
+                    typeLabel = typeLabel.Replace("Magical", $"Magical ({magicTypeLabel})");
+            }
+
             string split = "";
 
             if (hasPhys)
@@ -208,7 +219,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 split += $"T {Mathf.RoundToInt(min.trueDamage)}-{Mathf.RoundToInt(max.trueDamage)}";
             }
 
-            damageSplitText.text = $"Type: {typeLabel}\nSplit: {split}";
+            string colouredTypeLabel = BuildColouredTypeLabel(typeLabel, hasPhys, hasMag, hasTrue);
+            damageSplitText.text = $"Type: {colouredTypeLabel}\nSplit: {split}";
         }
 
         if (atkSpeedText) atkSpeedText.text = $"Attack Speed: {stats.AttacksPerSecond:0.00}/s";
@@ -281,5 +293,69 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (rodTitleText) rodTitleText.text = "Rod";
         if (rodPowerText) rodPowerText.text = $"Fishing Power: {stats.RodPower}";
         if (rodSpeedText) rodSpeedText.text = $"Fishing Speed: {stats.RodSpeedMult:0.##}x";
+    }
+
+    private string GetCurrentMagicTypeLabel()
+    {
+        if (equipment == null || inventory == null)
+            return "";
+
+        if (string.IsNullOrWhiteSpace(equipment.MainHandItemId))
+            return "";
+
+        var def = inventory.GetItemDef(equipment.MainHandItemId);
+        if (def == null || !def.IsWeapon || def.weaponStats.attackSkill != AttackSkill.Magic)
+            return "";
+
+        return def.weaponStats.magicAttackType.ToString();
+    }
+
+    private static string BuildColouredTypeLabel(string plainTypeLabel, bool hasPhys, bool hasMag, bool hasTrue)
+    {
+        const string phys = "#FF5C5C";
+        const string mag = "#4DB8FF";
+        const string tru = "#E6E6E6";
+
+        if (hasPhys || hasMag || hasTrue)
+        {
+            string result = "";
+            if (hasPhys)
+                result += $"<color={phys}>Physical</color>";
+
+            if (hasMag)
+            {
+                if (!string.IsNullOrEmpty(result)) result += " + ";
+                result += $"<color={mag}>Magical</color>";
+            }
+
+            if (hasTrue)
+            {
+                if (!string.IsNullOrEmpty(result)) result += " + ";
+                result += $"<color={tru}>True</color>";
+            }
+
+            return result;
+        }
+
+        // Fallback for unexpected/empty cases.
+        return plainTypeLabel;
+    }
+
+    private string GetAttackTypeColourHex(bool hasPhys, bool hasMag, bool hasTrue)
+    {
+        if (hasMag)
+            return "#4DB8FF"; // blue
+
+        if (hasPhys)
+            return "#FF5C5C"; // red
+
+        if (hasTrue)
+            return "#E6E6E6"; // light grey/white
+
+        return stats.CurrentAttackSkill switch
+        {
+            AttackSkill.Magic => "#4DB8FF",
+            _ => "#FF5C5C"
+        };
     }
 }
