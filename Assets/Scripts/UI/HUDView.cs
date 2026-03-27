@@ -356,8 +356,8 @@ public class HUDView : MonoBehaviour
             ConsumableEffectType.EnergyRegen => "Energy Regeneration",
             ConsumableEffectType.MoveSpeed => "Move Speed",
             ConsumableEffectType.AbilityDamageBoost => "Ability Power Boost",
-            ConsumableEffectType.DefenseBoost => "Defense Boost",
-            ConsumableEffectType.ArmorBoost => "Armor Boost",
+            ConsumableEffectType.DefenseBoost => "Defence Boost",
+            ConsumableEffectType.ArmorBoost => "Armour Boost",
             ConsumableEffectType.MagicResistBoost => "Magic Resist Boost",
             ConsumableEffectType.DamageReduction => "Damage Reduction",
             ConsumableEffectType.PoisonImmunity => "Poison Immunity",
@@ -389,10 +389,10 @@ public class HUDView : MonoBehaviour
                 $"+{pct:0.#}% ability damage",
 
             ConsumableEffectType.DefenseBoost =>
-                $"+{pct:0.#}% defense",
+                $"+{pct:0.#}% defence",
 
             ConsumableEffectType.ArmorBoost =>
-                $"+{buff.magnitude:0} armor",
+                $"+{buff.magnitude:0} armour",
 
             ConsumableEffectType.MagicResistBoost =>
                 $"+{buff.magnitude:0} magic resist",

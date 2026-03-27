@@ -101,7 +101,7 @@ public class ShopUI : MonoBehaviour
             return;
         }
 
-        _currentMerchant = merchant;
+        SetCurrentMerchant(merchant);
         // Requirement: each time a shop opens, default back to 1x.
         SetBuyAmountInternal(1);
 
@@ -119,7 +119,7 @@ public class ShopUI : MonoBehaviour
 
     public void Close()
     {
-        _currentMerchant = null;
+        SetCurrentMerchant(null);
         shopTooltip?.Hide();
 
         if (panelRoot)
@@ -197,6 +197,40 @@ public class ShopUI : MonoBehaviour
         }
 
         Rebuild(merchant);
+    }
+
+    private void SetCurrentMerchant(Merchant merchant)
+    {
+        if (_currentMerchant != null)
+            _currentMerchant.StockChanged -= HandleMerchantStockChanged;
+
+        _currentMerchant = merchant;
+
+        if (_currentMerchant != null)
+            _currentMerchant.StockChanged += HandleMerchantStockChanged;
+    }
+
+    private void HandleMerchantStockChanged(Merchant merchant)
+    {
+        if (merchant == null || merchant != _currentMerchant)
+            return;
+
+        if (!panelRoot || !panelRoot.activeInHierarchy)
+            return;
+
+        Rebuild(merchant);
+    }
+
+    private void OnDisable()
+    {
+        if (_currentMerchant != null)
+            _currentMerchant.StockChanged -= HandleMerchantStockChanged;
+    }
+
+    private void OnDestroy()
+    {
+        if (_currentMerchant != null)
+            _currentMerchant.StockChanged -= HandleMerchantStockChanged;
     }
 
     public void SetBuyAmount1x() => SetBuyAmountInternal(1);

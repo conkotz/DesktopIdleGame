@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
@@ -12,7 +12,7 @@ public class UISectionToggle : MonoBehaviour
 
     [SerializeField] private RectTransform arrow; // optional
 
-    [Header("Colors")]
+    [Header("Colours")]
     [SerializeField] private Color activeColor = new Color(0.8f, 0.8f, 0.8f);
     [SerializeField] private Color inactiveColor = Color.white;
 

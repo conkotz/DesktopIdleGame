@@ -9,7 +9,7 @@ public class PlayerLevelUpListener : MonoBehaviour
     [Header("Popup")]
     [SerializeField] private Vector3 popupWorldOffset = new Vector3(0f, 1.6f, 0f);
 
-    [Header("Popup Colors")]
+    [Header("Popup Colours")]
     [SerializeField] private Color miningColor = new Color(0.8f, 0.8f, 0.8f, 1f);
     [SerializeField] private Color woodcuttingColor = new Color(0.2f, 0.8f, 0.2f, 1f);
     [SerializeField] private Color fishingColor = new Color(0.2f, 0.5f, 0.95f, 1f);

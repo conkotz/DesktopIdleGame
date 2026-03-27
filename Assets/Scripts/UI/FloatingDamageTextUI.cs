@@ -38,7 +38,7 @@ public class FloatingDamageTextUI : MonoBehaviour
     [Header("DOT")]
     [SerializeField] private float dotSizeMultiplier = 0.95f;
 
-    [Header("Colors")]
+    [Header("Colours")]
     [SerializeField] private Color physicalColor = new Color32(220, 40, 40, 255);
     [SerializeField] private Color magicalColor = new Color32(80, 170, 255, 255);
     [SerializeField] private Color trueColor = new Color32(255, 230, 120, 255);

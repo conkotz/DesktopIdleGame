@@ -31,7 +31,7 @@ public class SkillListEntryUI : MonoBehaviour
     [Tooltip("Tinted when this row is selected.")]
     [SerializeField] private Image selectionBackground;
 
-    [Header("Selection colors")]
+    [Header("Selection colours")]
     [SerializeField] private Color normalColor = new Color(0f, 0f, 0f, 0.2f);
     [SerializeField] private Color selectedColor = new Color(0.2f, 0.6f, 1f, 0.5f);
 

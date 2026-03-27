@@ -12,11 +12,11 @@ public class BodyEquipper : MonoBehaviour
     [SerializeField] private SpriteRenderer bodyRenderer;
 
     [Header("Auto-find (optional)")]
-    [Tooltip("Name of the body armor overlay object under the character.")]
+    [Tooltip("Name of the body armour overlay object under the character.")]
     [SerializeField] private string bodyRendererObjectName = "BodyArmor";
 
     [Header("Base Body (optional)")]
-    [Tooltip("Base body renderer (e.g. 'Body') that should be hidden when BodyArmor is equipped.")]
+    [Tooltip("Base body renderer (e.g. 'Body') that should be hidden when BodyArmour is equipped.")]
     [SerializeField] private SpriteRenderer baseBodyRenderer;
 
     [Tooltip("Name of base body renderer object under the character.")]
@@ -83,7 +83,7 @@ public class BodyEquipper : MonoBehaviour
         bodyRenderer.transform.localPosition = _defaultLocalPosition + (Vector3)def.EquippedLocalOffset;
         bodyRenderer.enabled = true;
 
-        // Avoid double visuals by hiding the base body whenever an armor overlay is equipped.
+        // Avoid double visuals by hiding the base body whenever an armour overlay is equipped.
         if (baseBodyRenderer)
             baseBodyRenderer.enabled = false;
     }
@@ -95,7 +95,7 @@ public class BodyEquipper : MonoBehaviour
         bodyRenderer.transform.localPosition = _defaultLocalPosition;
         bodyRenderer.enabled = false;
 
-        // Restore base body when no armor overlay is equipped.
+        // Restore base body when no armour overlay is equipped.
         if (baseBodyRenderer)
             baseBodyRenderer.enabled = true;
     }

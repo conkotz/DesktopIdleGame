@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -178,8 +178,8 @@ public class PlayerConsumableController : MonoBehaviour
             ConsumableEffectType.MagicDamageBoost => $"{itemName}: Magic Damage Up{durationText}",
             ConsumableEffectType.AttackSpeed => $"{itemName}: Attack Speed Up{durationText}",
             ConsumableEffectType.MoveSpeed => $"{itemName}: Move Speed Up{durationText}",
-            ConsumableEffectType.DefenseBoost => $"{itemName}: Defense Up{durationText}",
-            ConsumableEffectType.ArmorBoost => $"{itemName}: Armor Up{durationText}",
+            ConsumableEffectType.DefenseBoost => $"{itemName}: Defence Up{durationText}",
+            ConsumableEffectType.ArmorBoost => $"{itemName}: Armour Up{durationText}",
             ConsumableEffectType.MagicResistBoost => $"{itemName}: Magic Resist Up{durationText}",
             ConsumableEffectType.DamageReduction => $"{itemName}: Damage Reduction{durationText}",
             ConsumableEffectType.EnergyRegen => $"{itemName}: Energy Regen Up{durationText}",

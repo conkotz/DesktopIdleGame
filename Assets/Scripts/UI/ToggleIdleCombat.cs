@@ -8,7 +8,7 @@ public class IdleCombatButton : MonoBehaviour
     [SerializeField] private TMP_Text label;
     [SerializeField] private Image buttonImage;
 
-    [Header("Colors")]
+    [Header("Colours")]
     [SerializeField] private Color onColor = new Color(0.2f, 0.8f, 0.2f);      // green
     [SerializeField] private Color offColor = new Color(0.85f, 0.85f, 0.85f);  // light grey
 

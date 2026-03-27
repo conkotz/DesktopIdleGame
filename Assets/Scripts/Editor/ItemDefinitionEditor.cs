@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
 [CustomEditor(typeof(ItemDefinition))]
@@ -248,9 +248,9 @@ public class ItemDefinitionEditor : Editor
         }
         else if (kind == ItemKind.Armor)
         {
-            DrawModuleHeader("Armor Stats");
+            DrawModuleHeader("Armour Stats");
             EditorGUILayout.PropertyField(armorStats, includeChildren: true);
-            DrawBonusBlockIfPresent("Bonus Stats (Armor Extras)", show: true);
+            DrawBonusBlockIfPresent("Bonus Stats (Armour Extras)", show: true);
         }
         else if (kind == ItemKind.Jewelry)
         {
@@ -546,7 +546,7 @@ public class ItemDefinitionEditor : Editor
         else if (kind == ItemKind.Tool)
             msg = "Tools should use Equip Slot: MainHand. (Toolbelt is UI-managed, not an EquipSlot.)";
         else if (kind == ItemKind.Armor)
-            msg = "Armor should use Equip Slot: Helmet / Body / Boots.";
+            msg = "Armour should use Equip Slot: Helmet / Body / Boots.";
         else if (kind == ItemKind.Jewelry)
             msg = "Jewelry should use Equip Slot: Ring / Pendant / Trinket.\nRings can be equipped into Ring1 or Ring2 in UI.";
         else if (kind == ItemKind.Consumable)
@@ -679,7 +679,7 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(bonusEnergy);
 
         EditorGUILayout.Space(4);
-        EditorGUILayout.LabelField("Defense", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Defence", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(armor);
         EditorGUILayout.PropertyField(magicResist);
         EditorGUILayout.PropertyField(physBlockChance);
@@ -717,7 +717,7 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.Space(6);
         EditorGUILayout.HelpBox(
             "Bonus Stats are additive modifiers.\n" +
-            "Use these for Armor, Jewelry, and optionally Weapons/Tools.\n\n" +
+            "Use these for Armour, Jewelry, and optionally Weapons/Tools.\n\n" +
             "Examples:\n" +
             "- Physical / Magic / True Damage\n" +
             "- Ability Power\n" +

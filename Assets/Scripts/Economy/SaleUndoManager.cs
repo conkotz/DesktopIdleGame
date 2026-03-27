@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -15,6 +15,8 @@ public class SaleUndoManager : MonoBehaviour
         public string itemId;
         public int amount;
         public int gold;
+        public string merchantId;
+        public int stockAddedAmount;
         public float expiresAt;
     }
 
@@ -149,7 +151,7 @@ public class SaleUndoManager : MonoBehaviour
             RefreshUI();
     }
 
-    public void RecordSale(string itemId, int amount, int gold)
+    public void RecordSale(string itemId, int amount, int gold, string merchantId = null, int stockAddedAmount = 0)
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0 || gold <= 0) return;
 
@@ -165,6 +167,8 @@ public class SaleUndoManager : MonoBehaviour
             itemId = itemId,
             amount = amount,
             gold = gold,
+            merchantId = merchantId,
+            stockAddedAmount = Mathf.Max(0, stockAddedAmount),
             expiresAt = Time.unscaledTime + undoTimeoutSeconds
         };
 
@@ -237,8 +241,18 @@ public class SaleUndoManager : MonoBehaviour
 
         var e = _entries[idx];
 
+        Merchant merchant = null;
+        if (e.stockAddedAmount > 0)
+        {
+            merchant = FindMerchantById(e.merchantId);
+            if (merchant == null || !merchant.TryRemoveReplenishedStock(e.itemId, e.stockAddedAmount))
+                return;
+        }
+
         if (!wallet.SpendGold(e.gold))
         {
+            if (merchant != null)
+                merchant.TryReplenishStockFromPlayerSale(e.itemId, e.stockAddedAmount, out _);
             _entries.RemoveAt(idx);
             RefreshUI();
             return;
@@ -249,10 +263,28 @@ public class SaleUndoManager : MonoBehaviour
         {
             if (added > 0) inventory.Remove(e.itemId, added);
             wallet.AddGold(e.gold);
+            if (merchant != null)
+                merchant.TryReplenishStockFromPlayerSale(e.itemId, e.stockAddedAmount, out _);
             return;
         }
 
         _entries.RemoveAt(idx);
         RefreshUI();
+    }
+
+    private Merchant FindMerchantById(string merchantId)
+    {
+        if (string.IsNullOrWhiteSpace(merchantId))
+            return null;
+
+        var merchants = FindObjectsByType<Merchant>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < merchants.Length; i++)
+        {
+            var m = merchants[i];
+            if (m != null && m.MerchantId == merchantId)
+                return m;
+        }
+
+        return null;
     }
 }

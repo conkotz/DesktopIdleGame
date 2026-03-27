@@ -13,7 +13,7 @@ public class GoldPopupSpawner : MonoBehaviour
     [SerializeField] private Transform playerWorld;
     [SerializeField] private Vector3 worldOffset = new Vector3(0f, 1.2f, 0f);
 
-    [Header("Colors")]
+    [Header("Colours")]
     [SerializeField] private Color defaultMessageColor = Color.white;
     [SerializeField] private Color levelUpColor = new Color(0.35f, 0.8f, 1f, 1f);
 

@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,7 +15,7 @@ public class XPBarUI : MonoBehaviour
     [Tooltip("Used only if followActiveDisplay = false.")]
     [SerializeField] private SkillType fixedSkill = SkillType.Mining;
 
-    [Header("Skill Colors")]
+    [Header("Skill Colours")]
     [SerializeField] private Color miningColor = new Color(0.8f, 0.8f, 0.8f, 1f);    // light grey
     [SerializeField] private Color woodcuttingColor = new Color(0.2f, 0.8f, 0.2f, 1f); // green
     [SerializeField] private Color fishingColor = new Color(0.2f, 0.5f, 0.95f, 1f);    // blue

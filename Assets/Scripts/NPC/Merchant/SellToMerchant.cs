@@ -52,11 +52,21 @@ public class SellToMerchant : MonoBehaviour, IPointerClickHandler
         int goldGained = valuePerItem * removed;
         wallet.AddGold(goldGained);
 
+        string merchantId = null;
+        int stockAdded = 0;
+        if (MerchantClick.TryGetActiveMerchant(out var activeMerchant))
+        {
+            activeMerchant.TryReplenishStockFromPlayerSale(slot.itemId, removed, out stockAdded);
+            merchantId = activeMerchant.MerchantId;
+        }
+
         if (showGoldPopup)
         {
             var spawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
             if (spawner) spawner.ShowGoldGained(goldGained);
         }
+
+        SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, merchantId, stockAdded);
 
         Debug.Log($"[InvSlotSell] Sold 1x {slot.itemId} for {goldGained} gold (slot {slotIndex}).");
 

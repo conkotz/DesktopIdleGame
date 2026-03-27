@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 
@@ -8,7 +8,7 @@ public class GoldPopup : MonoBehaviour
     [SerializeField] private float floatUpPx = 90f;
     [SerializeField] private float duration = 2f;
 
-    [Header("Default Colors")]
+    [Header("Default Colours")]
     [SerializeField] private Color goldColor = new Color(1f, 0.84f, 0.2f, 1f);
     [SerializeField] private Color messageColor = Color.white;
     [SerializeField] private Color levelUpColor = new Color(0.35f, 0.8f, 1f, 1f);

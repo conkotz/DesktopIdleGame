@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public enum ItemRarity
 {
@@ -149,7 +149,7 @@ public struct ToolStats
 [System.Serializable]
 public struct ArmorStats
 {
-    [Header("Defense")]
+    [Header("Defence")]
     public int armor;
     public int magicResist;
 
@@ -169,7 +169,7 @@ public struct BonusStats
     public int bonusHealth;
     public int bonusEnergy;
 
-    [Header("Defense")]
+    [Header("Defence")]
     public int armor;
     public int magicResist;
     [Range(0f, 1f)] public float physBlockChance;
@@ -399,10 +399,10 @@ public class ItemDefinition : ScriptableObject
     [Header("Tool Stats (Only if ItemKind = Tool)")]
     public ToolStats toolStats;
 
-    [Header("Armor Stats (Only if ItemKind = Armor)")]
+    [Header("Armour Stats (Only if ItemKind = Armor)")]
     public ArmorStats armorStats;
 
-    [Header("Bonus Stats (Equippables: Armor/Jewelry/Weapons optional)")]
+    [Header("Bonus Stats (Equippables: Armour/Jewelry/Weapons optional)")]
     public BonusStats bonusStats;
 
     [Header("Consumable Stats (Only if ItemKind = Consumable)")]
@@ -683,7 +683,7 @@ public class ItemDefinition : ScriptableObject
         {
             string s = "";
 
-            if (ArmorValue != 0) s += $"Armor: {ArmorValue}\n";
+            if (ArmorValue != 0) s += $"Armour: {ArmorValue}\n";
             if (MagicResist != 0) s += $"Magic Res: {MagicResist}\n";
             if (BonusHealth != 0) s += $"Health: +{BonusHealth}\n";
             if (BonusEnergy != 0) s += $"Energy: +{BonusEnergy}\n";
@@ -751,7 +751,7 @@ public class ItemDefinition : ScriptableObject
             ConsumableEffectType.MagicDamageBoost => $"+{magPct} Magic Damage for {dur}",
             ConsumableEffectType.AttackSpeed => $"+{magPct} Attack Speed for {dur}",
             ConsumableEffectType.MoveSpeed => $"+{magPct} Move Speed for {dur}",
-            ConsumableEffectType.DefenseBoost => $"+{magPct} Defense for {dur}",
+            ConsumableEffectType.DefenseBoost => $"+{magPct} Defence for {dur}",
             ConsumableEffectType.EnergyRegen => $"+{effect.magnitude:0.##} Energy Regen for {dur}",
             ConsumableEffectType.EnergyRestore => $"+{effect.magnitude:0.##} Energy",
             ConsumableEffectType.HealOverTime => $"+{effect.magnitude:0.##} HP over {dur}",
@@ -785,7 +785,7 @@ public class ItemDefinition : ScriptableObject
 
         if (includeDefense)
         {
-            if (bonusStats.armor != 0) s += $"Armor: {FormatSignedInt(bonusStats.armor)}\n";
+            if (bonusStats.armor != 0) s += $"Armour: {FormatSignedInt(bonusStats.armor)}\n";
             if (bonusStats.magicResist != 0) s += $"Magic Res: {FormatSignedInt(bonusStats.magicResist)}\n";
             if (bonusStats.physBlockChance != 0f) s += $"Phys Block: {FormatSignedPercent01(bonusStats.physBlockChance)}\n";
         }
@@ -842,7 +842,7 @@ public class ItemDefinition : ScriptableObject
         {
             string s = "";
 
-            if (ArmorValue != 0) s += $"Armor {ArmorValue} • ";
+            if (ArmorValue != 0) s += $"Armour {ArmorValue} • ";
             if (MagicResist != 0) s += $"MRes {MagicResist} • ";
             if (BonusHealth != 0) s += $"HP +{BonusHealth} • ";
             if (BonusEnergy != 0) s += $"Energy +{BonusEnergy} • ";

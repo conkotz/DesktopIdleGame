@@ -8,6 +8,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private ToolbeltManager toolbelt;
     [SerializeField] private PlayerController player;
+    [SerializeField] private TMP_Text statsHeaderText;
 
     // -------------------------
     // Defensive
@@ -139,7 +140,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         // -------------------------
         if (hpText) hpText.text = $"Max HP: {stats.MaxHP}";
         if (energyText) energyText.text = $"Energy: {stats.MaxEnergy}";
-        if (armorText) armorText.text = $"Armor: {stats.Armor} ({stats.PhysicalReductionFromArmorPercent:0.#}% Phys DR)";
+        if (armorText) armorText.text = $"Armour: {stats.Armor} ({stats.PhysicalReductionFromArmorPercent:0.#}% Phys DR)";
         if (mrText) mrText.text = $"Magic Res: {stats.MagicResist} ({stats.MagicalReductionFromMrPercent:0.#}% Mag DR)";
         if (blockText) blockText.text = $"Phys Block: {stats.PhysBlockChancePercent:0.#}%";
 
@@ -149,6 +150,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (lifeRegenText) lifeRegenText.text = $"Life Regen: {stats.LifeRegenPerSecond:0.##}/s";
         if (energyRegenText) energyRegenText.text = $"Energy Regen: {stats.EnergyRegenPerSecond:0.##}/s";
         if (abilityPowerText) abilityPowerText.text = $"Ability Power: {stats.AbilityPower:0.##}";
+        if (statsHeaderText) statsHeaderText.text = $"Stats (CP: {stats.CombatPowerRounded})";
 
         // -------------------------
         // Offensive

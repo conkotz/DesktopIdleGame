@@ -1,4 +1,4 @@
-﻿// ===============================
+// ===============================
 // InventorySlotUI.cs  (FULL)
 // - Double click equips:
 //     * MainHand items -> try toolbelt first (no duplicates), else main hand
@@ -24,7 +24,7 @@ public class InventorySlotUI : MonoBehaviour,
     [SerializeField] private Image icon;
     [SerializeField] private TMP_Text countText;
 
-    [Header("Slot Colors")]
+    [Header("Slot Colours")]
     [SerializeField] private Color idleColor = new Color32(30, 34, 42, 255);
     [SerializeField] private Color hoverColor = new Color32(42, 48, 58, 255);
     [SerializeField] private Color pressedColor = new Color32(58, 66, 80, 255);
@@ -191,10 +191,18 @@ public class InventorySlotUI : MonoBehaviour,
         int goldGained = valuePerItem * removed;
         wallet.AddGold(goldGained);
 
+        string merchantId = null;
+        int stockAdded = 0;
+        if (MerchantClick.TryGetActiveMerchant(out var activeMerchant))
+        {
+            activeMerchant.TryReplenishStockFromPlayerSale(slot.itemId, removed, out stockAdded);
+            merchantId = activeMerchant.MerchantId;
+        }
+
         var spawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
         if (spawner) spawner.ShowGoldGained(goldGained);
 
-        SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained);
+        SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, merchantId, stockAdded);
 
         eventData.Use();
         _tooltip?.Hide();
@@ -262,7 +270,7 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
-        // OFF HAND ITEMS (Armor OR dual-wield weapon)
+        // OFF HAND ITEMS (Armour OR dual-wield weapon)
             if (def.equipSlot == EquipSlot.OffHand ||
        (def.itemKind == ItemKind.Weapon &&
         def.weaponStats.handedness == Handedness.OneHanded &&

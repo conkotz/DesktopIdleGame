@@ -1,9 +1,11 @@
 using System.Text;
 using System.Collections.Generic;
+using System;
 using UnityEngine;
 
 public class Merchant : MonoBehaviour, ISaveable
 {
+    public event Action<Merchant> StockChanged;
     [Header("Identity")]
     [SerializeField] private string merchantName = "Merchant";
     [SerializeField] private MerchantStock stock;
@@ -243,6 +245,53 @@ public class Merchant : MonoBehaviour, ISaveable
         return sb.ToString().TrimEnd();
     }
 
+    public bool TryReplenishStockFromPlayerSale(string itemId, int amount, out int addedToStock)
+    {
+        addedToStock = 0;
+
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0 || stock == null)
+            return false;
+
+        var entry = stock.GetEntry(itemId);
+        if (entry == null)
+            return false;
+
+        int current = GetQuantity(entry);
+        if (current < 0)
+        {
+            // Infinite stock doesn't need quantity mutation.
+            return true;
+        }
+
+        int add = Mathf.Max(1, amount);
+        SetQuantity(entry, current + add);
+        addedToStock = add;
+        return true;
+    }
+
+    public bool TryRemoveReplenishedStock(string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0 || stock == null)
+            return false;
+
+        var entry = stock.GetEntry(itemId);
+        if (entry == null)
+            return false;
+
+        int current = GetQuantity(entry);
+        if (current < 0)
+        {
+            // Infinite stock: nothing to remove.
+            return true;
+        }
+
+        if (current < amount)
+            return false;
+
+        SetQuantity(entry, current - amount);
+        return true;
+    }
+
     // =========================
     // SELLING
     // =========================
@@ -314,7 +363,12 @@ public class Merchant : MonoBehaviour, ISaveable
         if (index < 0) return;
 
         EnsureRuntimeStockCapacity();
-        _runtimeQuantities[index] = Mathf.Max(-1, quantity);
+        int clamped = Mathf.Max(-1, quantity);
+        if (_runtimeQuantities[index] == clamped)
+            return;
+
+        _runtimeQuantities[index] = clamped;
+        StockChanged?.Invoke(this);
     }
 
     private int GetEntryIndex(MerchantStock.Entry entry)

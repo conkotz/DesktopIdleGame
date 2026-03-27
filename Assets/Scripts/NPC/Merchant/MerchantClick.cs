@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 [RequireComponent(typeof(Collider2D))]
 public class MerchantClick : MonoBehaviour
@@ -222,5 +222,11 @@ public class MerchantClick : MonoBehaviour
             _active.CloseOnlyMerchantMode();
             _active = null;
         }
+    }
+
+    public static bool TryGetActiveMerchant(out Merchant merchant)
+    {
+        merchant = _active != null ? _active.merchant : null;
+        return merchant != null;
     }
 }

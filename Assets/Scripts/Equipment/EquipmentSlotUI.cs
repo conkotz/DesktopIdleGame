@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
@@ -19,7 +19,7 @@ public class EquipmentSlotUI : MonoBehaviour,
     [SerializeField] private Image icon;
     [SerializeField] private TMP_Text label;
 
-    [Header("Slot Colors")]
+    [Header("Slot Colours")]
     [SerializeField] private Color idleColor = new Color32(30, 34, 42, 255);
     [SerializeField] private Color hoverColor = new Color32(42, 48, 58, 255);
     [SerializeField] private Color pressedColor = new Color32(58, 66, 80, 255);
