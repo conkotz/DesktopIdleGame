@@ -70,6 +70,13 @@ public enum AttackSkill
     Magic
 }
 
+public enum MagicAttackType
+{
+    Lightning,
+    Fire,
+    Ice
+}
+
 [System.Serializable]
 public struct WeaponStats
 {
@@ -102,6 +109,10 @@ public struct WeaponStats
 
     [Header("Skill Type")]
     public AttackSkill attackSkill;
+
+    [Header("Magic Type")]
+    [Tooltip("Only used when Attack Skill is Magic.")]
+    public MagicAttackType magicAttackType;
 
     [Header("Dual Wield")]
     [Tooltip("If true, this weapon may be equipped in the OffHand slot as well.")]
@@ -604,6 +615,9 @@ public class ItemDefinition : ScriptableObject
 
             string speed = $"{aps:0.##} atk/s";
             string skillType = weaponStats.attackSkill.ToString();
+            string magicTypeLine = "";
+            if (weaponStats.attackSkill == AttackSkill.Magic)
+                magicTypeLine = $"\nMagic Type: {weaponStats.magicAttackType}";
 
             float critChancePct = Mathf.Clamp01(weaponStats.critChance + bonusStats.critChanceBonus) * 100f;
             float critMultPct = Mathf.Max(0f, weaponStats.critMultiplier + bonusStats.critMultiplierBonus) * 100f;
@@ -635,6 +649,7 @@ public class ItemDefinition : ScriptableObject
                 $"Crit Multi: {critMultPct:0.#}%\n" +
                 $"Range: {range}\n" +
                 $"Hands: {hands}" +
+                magicTypeLine +
                 dual;
 
             if (RequiresOffhandSupport)

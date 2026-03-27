@@ -36,6 +36,7 @@ MonoBehaviour:
     handedness: 1
     attackRange: 8
     attackSkill: 2
+    magicAttackType: 0
     canEquipInOffHand: 0
     requiresOffhandSupport: 1
     requiredSupportType: 4

@@ -158,6 +158,14 @@ public class ProjectileVisual : MonoBehaviour
         if (_target.TryGetComponent<Collider2D>(out var col) && col != null)
             return col.bounds.center;
 
+        var childCol = _target.GetComponentInChildren<Collider2D>();
+        if (childCol != null)
+            return childCol.bounds.center;
+
+        var sr = _target.GetComponentInChildren<SpriteRenderer>();
+        if (sr != null)
+            return sr.bounds.center;
+
         return _target.position;
     }
 

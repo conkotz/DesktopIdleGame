@@ -295,6 +295,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty handedness = weaponStats.FindPropertyRelative("handedness");
         SerializedProperty attackRange = weaponStats.FindPropertyRelative("attackRange");
         SerializedProperty attackSkill = weaponStats.FindPropertyRelative("attackSkill");
+        SerializedProperty magicAttackType = weaponStats.FindPropertyRelative("magicAttackType");
         SerializedProperty canEquipInOffHand = weaponStats.FindPropertyRelative("canEquipInOffHand");
 
         SerializedProperty requiresOffhandSupport = weaponStats.FindPropertyRelative("requiresOffhandSupport");
@@ -328,6 +329,12 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(handedness);
         EditorGUILayout.PropertyField(attackRange);
         EditorGUILayout.PropertyField(attackSkill);
+        if (attackSkill != null &&
+            (AttackSkill)attackSkill.enumValueIndex == AttackSkill.Magic &&
+            magicAttackType != null)
+        {
+            EditorGUILayout.PropertyField(magicAttackType, new GUIContent("Magic Type"));
+        }
         EditorGUILayout.PropertyField(canEquipInOffHand);
 
         EditorGUILayout.Space(6);

@@ -45,6 +45,17 @@ public class PlayerCombatController : MonoBehaviour
     [SerializeField, Min(0f)] private float rangedProjectileFireDelay = 0f;
     [SerializeField, Min(0f)] private float rangedDamageDelayOffset = 0f;
 
+    [Header("Magic Projectile Visuals")]
+    [SerializeField] private EnergyBoltVisual magicProjectilePrefab;
+    [SerializeField] private EnergyBoltVisual magicLightningProjectilePrefab;
+    [SerializeField] private EnergyBoltVisual magicFireProjectilePrefab;
+    [SerializeField] private EnergyBoltVisual magicIceProjectilePrefab;
+    [SerializeField] private Transform magicProjectileSpawnPoint;
+    [SerializeField, Min(0.01f)] private float magicProjectileSpeed = 14f;
+    [SerializeField] private float magicProjectileRotationOffset = 0f;
+    [Tooltip("Delay from attack start to magic bolt release (animation sync).")]
+    [SerializeField, Min(0f)] private float magicProjectileFireDelay = 0f;
+
     [Header("Idle Combat (Auto Target)")]
     [SerializeField] private bool idleCombatEnabled = false;
 
@@ -241,6 +252,10 @@ public class PlayerCombatController : MonoBehaviour
         {
             HandleRangedAttack(_target, rolled, wasCrit);
         }
+        else if (IsMagicAttack())
+        {
+            HandleMagicAttack(_target, rolled, wasCrit);
+        }
         else
         {
             ResolveAttackHitNow(_target, rolled, wasCrit);
@@ -396,6 +411,11 @@ public class PlayerCombatController : MonoBehaviour
         return stats != null && stats.CurrentAttackSkill == AttackSkill.Ranged;
     }
 
+    private bool IsMagicAttack()
+    {
+        return stats != null && stats.CurrentAttackSkill == AttackSkill.Magic;
+    }
+
     private void HandleRangedAttack(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit)
     {
         float fireDelay = Mathf.Max(0f, rangedProjectileFireDelay);
@@ -433,6 +453,38 @@ public class PlayerCombatController : MonoBehaviour
         StartCoroutine(ResolveAttackHitAfterDelay(targetAtFireTime, rolled, wasCrit, delay));
     }
 
+    private void HandleMagicAttack(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit)
+    {
+        float fireDelay = Mathf.Max(0f, magicProjectileFireDelay);
+        if (fireDelay <= 0f)
+        {
+            ResolveMagicAttackAtRelease(targetAtFireTime, rolled, wasCrit);
+            return;
+        }
+
+        StartCoroutine(ResolveMagicAttackAfterFireDelay(targetAtFireTime, rolled, wasCrit, fireDelay));
+    }
+
+    private System.Collections.IEnumerator ResolveMagicAttackAfterFireDelay(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit, float fireDelay)
+    {
+        yield return new WaitForSeconds(fireDelay);
+        ResolveMagicAttackAtRelease(targetAtFireTime, rolled, wasCrit);
+    }
+
+    private void ResolveMagicAttackAtRelease(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit)
+    {
+        if (targetAtFireTime == null || targetAtFireTime.IsDead)
+            return;
+
+        if (!TrySpawnMagicProjectile(targetAtFireTime, out EnergyBoltVisual bolt))
+        {
+            ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit);
+            return;
+        }
+
+        bolt.OnImpact += () => ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit);
+    }
+
     private bool TrySpawnRangedProjectile(EnemyBaseController targetAtFireTime, out float travelTime)
     {
         travelTime = 0f;
@@ -465,7 +517,62 @@ public class PlayerCombatController : MonoBehaviour
         if (target.TryGetComponent<Collider2D>(out var col) && col != null)
             return col.bounds.center;
 
+        var childCol = target.GetComponentInChildren<Collider2D>();
+        if (childCol != null)
+            return childCol.bounds.center;
+
+        var sr = target.GetComponentInChildren<SpriteRenderer>();
+        if (sr != null)
+            return sr.bounds.center;
+
         return target.transform.position;
+    }
+
+    private bool TrySpawnMagicProjectile(EnemyBaseController targetAtFireTime, out EnergyBoltVisual bolt)
+    {
+        bolt = null;
+
+        EnergyBoltVisual prefab = ResolveMagicProjectilePrefab();
+        if (prefab == null || targetAtFireTime == null)
+            return false;
+
+        Transform spawn = magicProjectileSpawnPoint != null
+            ? magicProjectileSpawnPoint
+            : (projectileSpawnPoint != null ? projectileSpawnPoint : transform);
+
+        Vector3 start = spawn.position;
+        Vector3 targetCenter = GetTargetCenterMass(targetAtFireTime);
+
+        bolt = Instantiate(prefab, start, Quaternion.identity);
+        bolt.Launch(
+            start,
+            targetAtFireTime.transform,
+            targetCenter,
+            magicProjectileSpeed,
+            magicProjectileRotationOffset
+        );
+
+        return true;
+    }
+
+    private EnergyBoltVisual ResolveMagicProjectilePrefab()
+    {
+        MagicAttackType type = GetCurrentMagicAttackType();
+        return type switch
+        {
+            MagicAttackType.Fire => magicFireProjectilePrefab != null ? magicFireProjectilePrefab : magicProjectilePrefab,
+            MagicAttackType.Ice => magicIceProjectilePrefab != null ? magicIceProjectilePrefab : magicProjectilePrefab,
+            _ => magicLightningProjectilePrefab != null ? magicLightningProjectilePrefab : magicProjectilePrefab
+        };
+    }
+
+    private MagicAttackType GetCurrentMagicAttackType()
+    {
+        var weapon = GetMainWeaponDefForPopup();
+        if (weapon != null && weapon.IsWeapon && weapon.weaponStats.attackSkill == AttackSkill.Magic)
+            return weapon.weaponStats.magicAttackType;
+
+        return MagicAttackType.Lightning;
     }
 
     private System.Collections.IEnumerator ResolveAttackHitAfterDelay(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit, float delay)

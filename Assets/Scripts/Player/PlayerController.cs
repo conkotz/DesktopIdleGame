@@ -62,6 +62,7 @@ public class PlayerController : MonoBehaviour
     [Header("Combat Animation")]
     [SerializeField] private string attackTriggerName = "Attack";
     [SerializeField] private string rangedAttackTriggerName = "RangedAttack";
+    [SerializeField] private string magicAttackTriggerName = "MagicAttack";
 
     private bool _attackLocked;
     private float _attackUnlockTime;
@@ -462,6 +463,7 @@ public class PlayerController : MonoBehaviour
 
         animator.ResetTrigger(attackTriggerName);
         animator.ResetTrigger(rangedAttackTriggerName);
+        animator.ResetTrigger(magicAttackTriggerName);
 
         animator.SetTrigger(triggerToUse);
     }
@@ -471,9 +473,12 @@ public class PlayerController : MonoBehaviour
         if (!characterStats)
             return attackTriggerName;
 
-        return characterStats.CurrentAttackSkill == AttackSkill.Ranged
-            ? rangedAttackTriggerName
-            : attackTriggerName;
+        return characterStats.CurrentAttackSkill switch
+        {
+            AttackSkill.Ranged => rangedAttackTriggerName,
+            AttackSkill.Magic => magicAttackTriggerName,
+            _ => attackTriggerName
+        };
     }
 
     private void TriggerHurtAnim()
@@ -492,6 +497,8 @@ public class PlayerController : MonoBehaviour
             return;
 
         animator.ResetTrigger(attackTriggerName);
+        animator.ResetTrigger(rangedAttackTriggerName);
+        animator.ResetTrigger(magicAttackTriggerName);
         animator.ResetTrigger(hurtTriggerName);
         animator.SetTrigger(hurtTriggerName);
     }
@@ -501,6 +508,7 @@ public class PlayerController : MonoBehaviour
 
         animator.ResetTrigger(attackTriggerName);
         animator.ResetTrigger(rangedAttackTriggerName);
+        animator.ResetTrigger(magicAttackTriggerName);
         animator.ResetTrigger(hurtTriggerName);
 
         animator.SetTrigger(dieTriggerName);

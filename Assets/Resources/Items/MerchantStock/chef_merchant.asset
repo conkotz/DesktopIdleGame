@@ -14,23 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
   items:
   - itemId: cooked_fish
-    costs: []
-    quantity: -1
-  - itemId: basic_phys_damage_potion
-    costs: []
-    quantity: -1
-  - itemId: basic_mag_damage_potion
-    costs: []
-    quantity: -1
-  - itemId: basic_attack_speed_potion
     costs:
     - type: 0
-      amount: 0
+      amount: 10
       itemId: 
-    quantity: -1
-  - itemId: basic_health_regen_potion
-    costs:
-    - type: 0
-      amount: 0
-      itemId: 
+    - type: 1
+      amount: 1
+      itemId: raw_fish
     quantity: -1

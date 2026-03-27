@@ -58,7 +58,7 @@ MonoBehaviour:
   toolStats:
     toolType: 3
     gatherPower: 1
-    gatherSpeedMultiplier: 5
+    gatherSpeedMultiplier: 1
   armorStats:
     armor: 0
     magicResist: 0
@@ -89,3 +89,20 @@ MonoBehaviour:
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
+  consumableStats:
+    consumableType: 0
+    healAmount: 0
+    energyAmount: 0
+    cooldownSeconds: 0
+    consumeOnUse: 0
+    grantedEffect:
+      effectType: 0
+      magnitude: 0
+      duration: 0
+      effectId: 
+  cookableStats:
+    isCookable: 0
+    cookedResultItemId: 
+    cookedResultAmount: 0
+    requiredCookingLevel: 0
+    cookingXp: 0
