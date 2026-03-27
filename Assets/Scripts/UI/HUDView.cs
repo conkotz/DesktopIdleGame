@@ -17,6 +17,10 @@ public class HUDView : MonoBehaviour
     [SerializeField] private Image energyFill;
     [SerializeField] private TMP_Text energyValueText;
 
+    [Header("Attack Delay")]
+    [SerializeField] private Image attackDelayFill;
+    [SerializeField] private TMP_Text attackDelayValueText;
+
     [Header("Gather Debuff")]
     [SerializeField] private GameObject gatherDebuffRoot;
     [SerializeField] private TMP_Text gatherDebuffText;
@@ -94,6 +98,15 @@ public class HUDView : MonoBehaviour
     {
         if (energyFill) energyFill.fillAmount = (max <= 0f) ? 0f : Mathf.Clamp01(current / max);
         if (energyValueText) energyValueText.text = $"{Mathf.RoundToInt(current)}/{Mathf.RoundToInt(max)}";
+    }
+
+    public void SetAttackDelay(float normalizedCycle, float attacksPerSecond)
+    {
+        if (attackDelayFill)
+            attackDelayFill.fillAmount = Mathf.Clamp01(normalizedCycle);
+
+        if (attackDelayValueText)
+            attackDelayValueText.text = attacksPerSecond > 0f ? $"{attacksPerSecond:0.##} APS" : "0 APS";
     }
 
     public void SetGatherDebuff(bool active, float speedMultiplier)

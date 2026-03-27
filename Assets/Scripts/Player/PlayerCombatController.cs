@@ -72,10 +72,28 @@ public class PlayerCombatController : MonoBehaviour
     public EnemyBaseController CurrentTarget => _target;
     public EnemyBaseController Target => _target;
     public bool IdleCombatEnabled => idleCombatEnabled;
+    public float NextAttackTime => _nextAttackTime;
 
     private EnemyBaseController _target;
     private float _nextAttackTime;
     private float _nextIdleScanTime;
+
+    public float GetAttackCooldownSeconds()
+    {
+        if (stats == null) return 0f;
+        return 1f / Mathf.Max(0.01f, stats.AttacksPerSecond);
+    }
+
+    public float GetAttackCycleNormalized()
+    {
+        float cooldown = GetAttackCooldownSeconds();
+        if (cooldown <= 0f)
+            return 0f;
+
+        float remaining = Mathf.Max(0f, _nextAttackTime - Time.time);
+        float readyProgress = 1f - (remaining / cooldown);
+        return Mathf.Clamp01(readyProgress);
+    }
 
     private void Awake()
     {

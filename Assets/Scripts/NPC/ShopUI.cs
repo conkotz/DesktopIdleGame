@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,6 +10,8 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private Transform contentRoot;
     [SerializeField] private ShopSlotUI slotPrefab;
+    [SerializeField] private Button buy1xButton;
+    [SerializeField] private Button buy50xButton;
 
     [Header("Refs")]
     [SerializeField] private Inventory inventory;
@@ -22,10 +24,25 @@ public class ShopUI : MonoBehaviour
 
     private readonly List<ShopSlotUI> _spawned = new();
     private Merchant _currentMerchant;
+    private int _buyAmount = 1;
 
     private void Awake()
     {
         TryResolveRefs();
+
+        if (buy1xButton)
+        {
+            buy1xButton.onClick.RemoveAllListeners();
+            buy1xButton.onClick.AddListener(SetBuyAmount1x);
+        }
+
+        if (buy50xButton)
+        {
+            buy50xButton.onClick.RemoveAllListeners();
+            buy50xButton.onClick.AddListener(SetBuyAmount50x);
+        }
+
+        UpdateBuyToggleVisuals();
 
         if (panelRoot)
             panelRoot.SetActive(false);
@@ -85,6 +102,8 @@ public class ShopUI : MonoBehaviour
         }
 
         _currentMerchant = merchant;
+        // Requirement: each time a shop opens, default back to 1x.
+        SetBuyAmountInternal(1);
 
         if (titleText)
             titleText.text = merchant.MerchantName;
@@ -168,14 +187,31 @@ public class ShopUI : MonoBehaviour
         if (merchant == null || entry == null)
             return;
 
-        bool success = merchant.TryBuy(entry.itemId, 1);
+        int amount = Mathf.Max(1, _buyAmount);
+        bool success = merchant.TryBuy(entry.itemId, amount);
 
         if (!success)
         {
-            Debug.Log("[ShopUI] Purchase failed.");
+            Debug.Log($"[ShopUI] Purchase failed ({amount}x).");
             return;
         }
 
         Rebuild(merchant);
+    }
+
+    public void SetBuyAmount1x() => SetBuyAmountInternal(1);
+    public void SetBuyAmount50x() => SetBuyAmountInternal(50);
+
+    private void SetBuyAmountInternal(int amount)
+    {
+        _buyAmount = Mathf.Max(1, amount);
+        UpdateBuyToggleVisuals();
+    }
+
+    private void UpdateBuyToggleVisuals()
+    {
+        // Make selected option non-interactable to indicate active toggle state.
+        if (buy1xButton) buy1xButton.interactable = _buyAmount != 1;
+        if (buy50xButton) buy50xButton.interactable = _buyAmount != 50;
     }
 }

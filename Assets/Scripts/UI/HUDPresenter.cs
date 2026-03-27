@@ -110,14 +110,21 @@ public class HUDPresenter : MonoBehaviour
 
     private void Update()
     {
-        if (hud == null || buffs == null)
+        if (hud == null)
             return;
 
-        if (Time.time >= _nextBuffRefreshTime)
+        if (buffs != null && Time.time >= _nextBuffRefreshTime)
         {
             _nextBuffRefreshTime = Time.time + Mathf.Max(0.05f, buffRefreshInterval);
             hud.UpdateBuffTimers(buffs);
         }
+
+        float cycle = 0f;
+        float aps = stats ? stats.AttacksPerSecond : 0f;
+        if (combat != null)
+            cycle = combat.GetAttackCycleNormalized();
+
+        hud.SetAttackDelay(cycle, aps);
     }
 
     private void HandleNameChanged(string _)
@@ -157,6 +164,9 @@ public class HUDPresenter : MonoBehaviour
         RefreshNameAndCombatPower();
         hud.SetHP(player.HP, player.MaxHP);
         hud.SetEnergy(player.Energy, player.MaxEnergy);
+        float aps = stats ? stats.AttacksPerSecond : 0f;
+        float cycle = combat != null ? combat.GetAttackCycleNormalized() : 0f;
+        hud.SetAttackDelay(cycle, aps);
         HandleActionChanged(player.CurrentAction);
         hud.SetGatherDebuff(false, 1f);
         hud.RefreshDebuffs(ailments);
