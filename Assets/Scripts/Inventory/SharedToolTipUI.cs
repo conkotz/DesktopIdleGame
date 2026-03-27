@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -81,7 +81,6 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         bool isEquip = def.equipSlot != EquipSlot.None;
-        bool isConsumable = def.IsConsumable;
 
         int each = Mathf.Max(0, valueOverride ?? def.value);
         string valueLabel = string.IsNullOrWhiteSpace(valueLabelOverride) ? "Value" : valueLabelOverride;
@@ -135,21 +134,13 @@ public class SharedTooltipUI : MonoBehaviour
 
             if (valueEachText)
             {
-                if (isConsumable)
-                {
-                    valueEachText.text = "";
-                    valueEachText.gameObject.SetActive(false);
-                }
-                else
-                {
-                    valueEachText.text = $"{valueLabel}: {FormatGold(each)}";
-                    valueEachText.gameObject.SetActive(true);
-                }
+                valueEachText.text = $"{valueLabel}: {FormatGold(each)}";
+                valueEachText.gameObject.SetActive(true);
             }
 
             if (stackValueText)
             {
-                if (!isEquip && !isConsumable)
+                if (!isEquip)
                 {
                     stackAmount = Mathf.Max(0, stackAmount);
                     int stackValue = each * stackAmount;
