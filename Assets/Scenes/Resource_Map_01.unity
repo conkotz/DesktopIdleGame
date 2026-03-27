@@ -291,6 +291,71 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!1001 &37554268
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 158813735}
+    m_Modifications:
+    - target: {fileID: 1000010755293042, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_Name
+      value: TrainingDummy
+      objectReference: {fileID: 0}
+    - target: {fileID: 1000010755293042, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -59.285526
+      objectReference: {fileID: 0}
+    - target: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -28.509407
+      objectReference: {fileID: 0}
+    - target: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3869343188094576196, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      propertyPath: movingBool
+      value: 
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
 --- !u!1 &41238222
 GameObject:
   m_ObjectHideFlags: 0
@@ -909,6 +974,7 @@ GameObject:
   - component: {fileID: 90396014}
   - component: {fileID: 90396016}
   - component: {fileID: 90396015}
+  - component: {fileID: 90396017}
   m_Layer: 5
   m_Name: HpRegenText
   m_TagString: Untagged
@@ -1037,6 +1103,38 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 90396013}
   m_CullTransparentMesh: 1
+--- !u!114 &90396017
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 90396013}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Health Regeneration
+  tooltipText: 'Health restored per second.
+
+    
+
+    Provides steady recovery
+    over time.
+
+    
+
+    Useful for sustaining between fights and during combat.'
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
+--- !u!4 &91240831 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4000011028196368, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+  m_PrefabInstance: {fileID: 37554268}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &103025958
 GameObject:
   m_ObjectHideFlags: 0
@@ -1715,6 +1813,7 @@ Transform:
   - {fileID: 1968437418}
   - {fileID: 774560500}
   - {fileID: 458410868}
+  - {fileID: 91240831}
   - {fileID: 1167472125}
   - {fileID: 538683456}
   - {fileID: 1894593394}
@@ -1912,6 +2011,7 @@ MonoBehaviour:
   equipment: {fileID: 0}
   toolbelt: {fileID: 0}
   player: {fileID: 0}
+  statsHeaderText: {fileID: 1305159995}
   hpText: {fileID: 341048051}
   energyText: {fileID: 323539602}
   armorText: {fileID: 1524067718}
@@ -3552,6 +3652,7 @@ GameObject:
   - component: {fileID: 238191318}
   - component: {fileID: 238191320}
   - component: {fileID: 238191319}
+  - component: {fileID: 238191321}
   m_Layer: 5
   m_Name: DPSText
   m_TagString: Untagged
@@ -3678,6 +3779,27 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 238191317}
   m_CullTransparentMesh: 1
+--- !u!114 &238191321
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 238191317}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: PS (Damage Per Second)
+  tooltipText: "Your total expected damage per second.\r\n\r\nIncludes:\r\n\u2022
+    Attack speed\r\n\u2022 Critical strikes\r\n\u2022 Damage types\r\n\u2022 Expected
+    ailment damage (Bleed, Poison)\r\n\r\nBest indicator of your overall offensive
+    power."
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &249887178
 GameObject:
   m_ObjectHideFlags: 0
@@ -3831,6 +3953,110 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 249887178}
   m_CullTransparentMesh: 1
+--- !u!1 &265314908
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 265314909}
+  - component: {fileID: 265314912}
+  - component: {fileID: 265314911}
+  - component: {fileID: 265314910}
+  m_Layer: 5
+  m_Name: BottomBarOfShop
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &265314909
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 265314908}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1445230347}
+  - {fileID: 1073414348}
+  m_Father: {fileID: 282072119}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 45}
+  m_Pivot: {x: 0.5, y: 0}
+--- !u!114 &265314910
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 265314908}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30649d3a9faa99c48a7b1166b86bf2a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.HorizontalLayoutGroup
+  m_Padding:
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
+  m_ChildAlignment: 3
+  m_Spacing: 4
+  m_ChildForceExpandWidth: 0
+  m_ChildForceExpandHeight: 0
+  m_ChildControlWidth: 0
+  m_ChildControlHeight: 0
+  m_ChildScaleWidth: 0
+  m_ChildScaleHeight: 0
+  m_ReverseArrangement: 0
+--- !u!114 &265314911
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 265314908}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.08627451, g: 0.101960786, b: 0.1254902, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &265314912
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 265314908}
+  m_CullTransparentMesh: 1
 --- !u!1 &269360730
 GameObject:
   m_ObjectHideFlags: 0
@@ -3957,6 +4183,7 @@ RectTransform:
   m_Children:
   - {fileID: 1434520221}
   - {fileID: 2058146448}
+  - {fileID: 265314909}
   - {fileID: 1670696987}
   m_Father: {fileID: 1770614726}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -3981,6 +4208,8 @@ MonoBehaviour:
   titleText: {fileID: 1155484779}
   contentRoot: {fileID: 847542640}
   slotPrefab: {fileID: 6241249888667501833, guid: 730a0c0cb937ba3438fd455364141413, type: 3}
+  buy1xButton: {fileID: 1445230348}
+  buy50xButton: {fileID: 1073414349}
   inventory: {fileID: 0}
   wallet: {fileID: 0}
   shopTooltip: {fileID: 0}
@@ -4674,6 +4903,7 @@ GameObject:
   - component: {fileID: 323539601}
   - component: {fileID: 323539603}
   - component: {fileID: 323539602}
+  - component: {fileID: 323539604}
   m_Layer: 5
   m_Name: 'EnergyText '
   m_TagString: Untagged
@@ -4800,6 +5030,33 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 323539600}
   m_CullTransparentMesh: 1
+--- !u!114 &323539604
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 323539600}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Energy
+  tooltipText: 'Your resource used for abilities and actions.
+
+    
+
+    Certain
+    skills and attacks consume energy.
+
+    
+
+    Regenerates over time.'
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &341048049
 GameObject:
   m_ObjectHideFlags: 0
@@ -4811,6 +5068,7 @@ GameObject:
   - component: {fileID: 341048050}
   - component: {fileID: 341048052}
   - component: {fileID: 341048051}
+  - component: {fileID: 341048053}
   m_Layer: 5
   m_Name: HpText
   m_TagString: Untagged
@@ -4937,6 +5195,33 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 341048049}
   m_CullTransparentMesh: 1
+--- !u!114 &341048053
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 341048049}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Health
+  tooltipText: 'Your total health pool.
+
+    
+
+    When this reaches 0, you die.
+
+    
+
+    Higher
+    health increases your survivability against all damage types.'
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &385890380
 GameObject:
   m_ObjectHideFlags: 0
@@ -5749,6 +6034,7 @@ GameObject:
   - component: {fileID: 479394743}
   - component: {fileID: 479394745}
   - component: {fileID: 479394744}
+  - component: {fileID: 479394746}
   m_Layer: 5
   m_Name: BlockText
   m_TagString: Untagged
@@ -5875,6 +6161,33 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 479394742}
   m_CullTransparentMesh: 1
+--- !u!114 &479394746
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 479394742}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Block Chance
+  tooltipText: 'Chance to completely negate physical damage.
+
+    
+
+    Blocked
+    hits deal 0 damage.
+
+    
+
+    Only applies to physical attacks.'
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &489382072
 GameObject:
   m_ObjectHideFlags: 0
@@ -7156,17 +7469,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
-  tooltipTitle: Beed Info
-  tooltipText: 'Chance: chance to apply Bleed on hit
-
-    Multi: extra Bleed damage
-    scaling
-
-    Duration: how long Bleed lasts
-
-    Stacks: max Bleed stacks active
-
-'
+  tooltipTitle: Beed
+  tooltipText: "Applies a damage over time effect from physical attacks.\n\nChance:
+    chance to apply Bleed on hit  \nMultiplier: increases total Bleed damage  \nDuration:
+    how long Bleed lasts  \nStacks: max Bleed stacks active  \n\nBleed damage is
+    not affected by armor or crits once applied but the initial hit that applies
+    bleed is."
   tooltipPanel: {fileID: 1265542261}
   tooltipAnchor: {fileID: 1369682479}
   tooltipMeasureRect: {fileID: 1751072472}
@@ -7287,6 +7595,7 @@ GameObject:
   - component: {fileID: 556758666}
   - component: {fileID: 556758668}
   - component: {fileID: 556758667}
+  - component: {fileID: 556758669}
   m_Layer: 5
   m_Name: AbilityPowerText
   m_TagString: Untagged
@@ -7413,6 +7722,29 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 556758665}
   m_CullTransparentMesh: 1
+--- !u!114 &556758669
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 556758665}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Ability Power
+  tooltipText: 'Increases the effectiveness of abilities.
+
+    
+
+    Does not affect
+    basic physical or magic attacks.'
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &567512201
 GameObject:
   m_ObjectHideFlags: 0
@@ -7852,6 +8184,7 @@ GameObject:
   - component: {fileID: 589412275}
   - component: {fileID: 589412277}
   - component: {fileID: 589412276}
+  - component: {fileID: 589412278}
   m_Layer: 5
   m_Name: AttackSpdText
   m_TagString: Untagged
@@ -7978,6 +8311,25 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 589412274}
   m_CullTransparentMesh: 1
+--- !u!114 &589412278
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 589412274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Attack Speed
+  tooltipText: "How fast you attack per second.\r\n\r\nHigher attack speed increases:\r\n\u2022
+    Damage per second (DPS)\r\n\u2022 Chance to apply on-hit effects (Bleed, Poison)\r\n"
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &591251585
 GameObject:
   m_ObjectHideFlags: 0
@@ -8375,6 +8727,7 @@ GameObject:
   - component: {fileID: 634058007}
   - component: {fileID: 634058009}
   - component: {fileID: 634058008}
+  - component: {fileID: 634058010}
   m_Layer: 5
   m_Name: CritDMGText
   m_TagString: Untagged
@@ -8503,6 +8856,26 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 634058006}
   m_CullTransparentMesh: 1
+--- !u!114 &634058010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 634058006}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Critical Damage
+  tooltipText: "How much extra damage your critical hits deal.\r\n\r\nExample:\r\n\u2022
+    150% = 1.5x normal damage\r\n\u2022 200% = 2x damage\r\n\r\nWorks together with
+    Crit Chance to increase overall damage."
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &640853967
 GameObject:
   m_ObjectHideFlags: 0
@@ -8956,6 +9329,7 @@ GameObject:
   - component: {fileID: 684154832}
   - component: {fileID: 684154834}
   - component: {fileID: 684154833}
+  - component: {fileID: 684154835}
   m_Layer: 5
   m_Name: MrText
   m_TagString: Untagged
@@ -9082,6 +9456,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 684154831}
   m_CullTransparentMesh: 1
+--- !u!114 &684154835
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 684154831}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Magic Resist
+  tooltipText: 'Reduces incoming magical damage.
+
+    
+
+    Higher values decrease
+    damage taken from spells and magic attacks.
+
+    Damage reduction scales with
+    diminishing returns.
+
+    
+
+    Improves survivability against magic-based
+    enemies.'
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &690193445
 GameObject:
   m_ObjectHideFlags: 0
@@ -11495,6 +11900,63 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
+--- !u!1 &857215943 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+  m_PrefabInstance: {fileID: 4383727106754232642}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &857215944 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1174277405054573469, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+  m_PrefabInstance: {fileID: 4383727106754232642}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 857215943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae267ce04eb93d240b2c46f7bc5b9624, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AilmentController
+--- !u!114 &857215948 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 217292436927114433, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+  m_PrefabInstance: {fileID: 4383727106754232642}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 857215943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca62f303b7a96e54799a617842982a7b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterStats
+--- !u!114 &857215949 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3338760021146893430, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+  m_PrefabInstance: {fileID: 4383727106754232642}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 857215943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bddb989121bb6414f99daebc7bb5415a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyBase
+--- !u!114 &857215952
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 857215943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d4a37e2dc988fd47ad11848e99e2900, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyOverheadUISpawner
+  overheadPrefab: {fileID: 8344640054554863328, guid: 8099321fe44a7d540b9be18f0578e80d, type: 3}
+  overheadAnchor: {fileID: 1067479209}
+  characterStats: {fileID: 857215948}
+  enemy: {fileID: 857215949}
+  ailments: {fileID: 857215944}
+  stripCanvas: {fileID: 300103157}
+  stripCamera: {fileID: 414385169}
 --- !u!1 &858344918
 GameObject:
   m_ObjectHideFlags: 0
@@ -12027,6 +12489,7 @@ GameObject:
   - component: {fileID: 905088179}
   - component: {fileID: 905088181}
   - component: {fileID: 905088180}
+  - component: {fileID: 905088182}
   m_Layer: 5
   m_Name: LifeStealText
   m_TagString: Untagged
@@ -12153,6 +12616,34 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 905088178}
   m_CullTransparentMesh: 1
+--- !u!114 &905088182
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 905088178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Life Steal
+  tooltipText: 'Heals you for a percentage of damage dealt.
+
+    
+
+    Applies
+    to your total damage output.
+
+    
+
+    Higher DPS increases the amount of
+    healing gained per second.'
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &910628395
 GameObject:
   m_ObjectHideFlags: 0
@@ -13760,6 +14251,143 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1009558825}
   m_CullTransparentMesh: 1
+--- !u!1 &1010610720
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1010610721}
+  - component: {fileID: 1010610723}
+  - component: {fileID: 1010610722}
+  m_Layer: 5
+  m_Name: Text (TMP)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1010610721
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1010610720}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1073414348}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1010610722
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1010610720}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: 50x
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4281479730
+  m_fontColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: -1183493901
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 24
+  m_fontSizeBase: 24
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_characterHorizontalScale: 1
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_TextWrappingMode: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 0
+  m_ActiveFontFeatures: 6e72656b
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_EmojiFallbackSupport: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!222 &1010610723
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1010610720}
+  m_CullTransparentMesh: 1
 --- !u!1 &1026631110
 GameObject:
   m_ObjectHideFlags: 0
@@ -14276,6 +14904,7 @@ GameObject:
   - component: {fileID: 1048481723}
   - component: {fileID: 1048481725}
   - component: {fileID: 1048481724}
+  - component: {fileID: 1048481726}
   m_Layer: 5
   m_Name: MovespeedText
   m_TagString: Untagged
@@ -14402,6 +15031,26 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1048481722}
   m_CullTransparentMesh: 1
+--- !u!114 &1048481726
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1048481722}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Movement Speed
+  tooltipText: "How fast your character moves.\r\n\r\nHigher speed allows:\r\n\u2022
+    Faster positioning\r\n\u2022 Quicker engagement and retreat\r\n\r\nAlso contributes
+    slightly to overall combat power."
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &1052863904
 GameObject:
   m_ObjectHideFlags: 0
@@ -14543,6 +15192,11 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1052863904}
   m_CullTransparentMesh: 1
+--- !u!4 &1067479209 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4363182750086468540, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+  m_PrefabInstance: {fileID: 4383727106754232642}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1069601804
 GameObject:
   m_ObjectHideFlags: 0
@@ -14724,6 +15378,127 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &1073414347
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1073414348}
+  - component: {fileID: 1073414351}
+  - component: {fileID: 1073414350}
+  - component: {fileID: 1073414349}
+  m_Layer: 5
+  m_Name: 'Buy50xButton '
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1073414348
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1073414347}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1010610721}
+  m_Father: {fileID: 265314909}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 64, y: -22.5}
+  m_SizeDelta: {x: 60, y: 30}
+  m_Pivot: {x: 0, y: 0.5}
+--- !u!114 &1073414349
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1073414347}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 1073414350}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &1073414350
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1073414347}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1073414351
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1073414347}
+  m_CullTransparentMesh: 1
 --- !u!1 &1085519199
 GameObject:
   m_ObjectHideFlags: 0
@@ -18252,8 +19027,9 @@ GameObject:
   - component: {fileID: 1305159996}
   - component: {fileID: 1305159995}
   - component: {fileID: 1305159997}
+  - component: {fileID: 1305159998}
   m_Layer: 5
-  m_Name: StatsLabel
+  m_Name: StatsLHeaderLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -18398,6 +19174,26 @@ MonoBehaviour:
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1
   m_LayoutPriority: 1
+--- !u!114 &1305159998
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1305159993}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Combat Power
+  tooltipText: "A combined rating of your overall strength.\r\n\r\nBased on:\r\n\u2022
+    Offense (highest impact)\r\n\u2022 Defence\r\n\u2022 Sustain\r\n\u2022 Mobility\r\n\r\nHigher
+    values indicate stronger combat performance."
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &1308806594
 GameObject:
   m_ObjectHideFlags: 0
@@ -19116,6 +19912,7 @@ GameObject:
   - component: {fileID: 1371738813}
   - component: {fileID: 1371738815}
   - component: {fileID: 1371738814}
+  - component: {fileID: 1371738816}
   m_Layer: 5
   m_Name: CritChanceText
   m_TagString: Untagged
@@ -19242,6 +20039,34 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1371738812}
   m_CullTransparentMesh: 1
+--- !u!114 &1371738816
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1371738812}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Critical Chance
+  tooltipText: 'Chance for your attacks to deal critical damage.
+
+    
+
+    Critical
+    hits deal increased damage based on your Crit Multiplier.
+
+    
+
+    Higher
+    values significantly boost DPS over time.'
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &1374499378
 GameObject:
   m_ObjectHideFlags: 0
@@ -20617,6 +21442,127 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1434520220}
   m_CullTransparentMesh: 1
+--- !u!1 &1445230346
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1445230347}
+  - component: {fileID: 1445230350}
+  - component: {fileID: 1445230349}
+  - component: {fileID: 1445230348}
+  m_Layer: 5
+  m_Name: Buy1xButton
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1445230347
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1445230346}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1507249026}
+  m_Father: {fileID: 265314909}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 0, y: -22.5}
+  m_SizeDelta: {x: 60, y: 30}
+  m_Pivot: {x: 0, y: 0.5}
+--- !u!114 &1445230348
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1445230346}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Button
+  m_Navigation:
+    m_Mode: 3
+    m_WrapAround: 0
+    m_SelectOnUp: {fileID: 0}
+    m_SelectOnDown: {fileID: 0}
+    m_SelectOnLeft: {fileID: 0}
+    m_SelectOnRight: {fileID: 0}
+  m_Transition: 1
+  m_Colors:
+    m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
+    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
+    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
+    m_ColorMultiplier: 1
+    m_FadeDuration: 0.1
+  m_SpriteState:
+    m_HighlightedSprite: {fileID: 0}
+    m_PressedSprite: {fileID: 0}
+    m_SelectedSprite: {fileID: 0}
+    m_DisabledSprite: {fileID: 0}
+  m_AnimationTriggers:
+    m_NormalTrigger: Normal
+    m_HighlightedTrigger: Highlighted
+    m_PressedTrigger: Pressed
+    m_SelectedTrigger: Selected
+    m_DisabledTrigger: Disabled
+  m_Interactable: 1
+  m_TargetGraphic: {fileID: 1445230349}
+  m_OnClick:
+    m_PersistentCalls:
+      m_Calls: []
+--- !u!114 &1445230349
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1445230346}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1445230350
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1445230346}
+  m_CullTransparentMesh: 1
 --- !u!1 &1447762141
 GameObject:
   m_ObjectHideFlags: 0
@@ -21516,6 +22462,143 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1502992492}
   m_CullTransparentMesh: 1
+--- !u!1 &1507249025
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1507249026}
+  - component: {fileID: 1507249028}
+  - component: {fileID: 1507249027}
+  m_Layer: 5
+  m_Name: Text (TMP)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1507249026
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1507249025}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1445230347}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1507249027
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1507249025}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_text: 1x
+  m_isRightToLeft: 0
+  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontSharedMaterials: []
+  m_fontMaterial: {fileID: 0}
+  m_fontMaterials: []
+  m_fontColor32:
+    serializedVersion: 2
+    rgba: 4281479730
+  m_fontColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 3
+  m_fontColorGradient:
+    topLeft: {r: 1, g: 1, b: 1, a: 1}
+    topRight: {r: 1, g: 1, b: 1, a: 1}
+    bottomLeft: {r: 1, g: 1, b: 1, a: 1}
+    bottomRight: {r: 1, g: 1, b: 1, a: 1}
+  m_fontColorGradientPreset: {fileID: 0}
+  m_spriteAsset: {fileID: 0}
+  m_tintAllSprites: 0
+  m_StyleSheet: {fileID: 0}
+  m_TextStyleHashCode: -1183493901
+  m_overrideHtmlColors: 0
+  m_faceColor:
+    serializedVersion: 2
+    rgba: 4294967295
+  m_fontSize: 24
+  m_fontSizeBase: 24
+  m_fontWeight: 400
+  m_enableAutoSizing: 0
+  m_fontSizeMin: 18
+  m_fontSizeMax: 72
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
+  m_textAlignment: 65535
+  m_characterSpacing: 0
+  m_characterHorizontalScale: 1
+  m_wordSpacing: 0
+  m_lineSpacing: 0
+  m_lineSpacingMax: 0
+  m_paragraphSpacing: 0
+  m_charWidthMaxAdj: 0
+  m_TextWrappingMode: 1
+  m_wordWrappingRatios: 0.4
+  m_overflowMode: 0
+  m_linkedTextComponent: {fileID: 0}
+  parentLinkedComponent: {fileID: 0}
+  m_enableKerning: 0
+  m_ActiveFontFeatures: 6e72656b
+  m_enableExtraPadding: 0
+  checkPaddingRequired: 0
+  m_isRichText: 1
+  m_EmojiFallbackSupport: 1
+  m_parseCtrlCharacters: 1
+  m_isOrthographic: 1
+  m_isCullingEnabled: 0
+  m_horizontalMapping: 0
+  m_verticalMapping: 0
+  m_uvLineOffset: 0
+  m_geometrySortingOrder: 0
+  m_IsTextObjectScaleStatic: 0
+  m_VertexBufferAutoSizeReduction: 0
+  m_useMaxVisibleDescender: 1
+  m_pageToDisplay: 1
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_isUsingLegacyAnimationComponent: 0
+  m_isVolumetricText: 0
+  m_hasFontAssetChanged: 0
+  m_baseMaterial: {fileID: 0}
+  m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!222 &1507249028
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1507249025}
+  m_CullTransparentMesh: 1
 --- !u!1 &1510589293
 GameObject:
   m_ObjectHideFlags: 0
@@ -21775,6 +22858,7 @@ GameObject:
   - component: {fileID: 1524067717}
   - component: {fileID: 1524067719}
   - component: {fileID: 1524067718}
+  - component: {fileID: 1524067720}
   m_Layer: 5
   m_Name: 'ArmourText  '
   m_TagString: Untagged
@@ -21901,6 +22985,26 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1524067716}
   m_CullTransparentMesh: 1
+--- !u!114 &1524067720
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1524067716}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Armour
+  tooltipText: "Reduces incoming physical damage.\r\n\r\nHigher armour lowers damage
+    taken from physical hits. \nDamage reduction scales with diminishing returns.\r\n\r\nAlso
+    improves your effective health against physical enemies."
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &1537825375
 GameObject:
   m_ObjectHideFlags: 0
@@ -23618,6 +24722,7 @@ GameObject:
   - component: {fileID: 1628048081}
   - component: {fileID: 1628048083}
   - component: {fileID: 1628048082}
+  - component: {fileID: 1628048084}
   m_Layer: 5
   m_Name: DMGSplitText
   m_TagString: Untagged
@@ -23744,6 +24849,27 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1628048080}
   m_CullTransparentMesh: 1
+--- !u!114 &1628048084
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1628048080}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Damage Breakdown
+  tooltipText: "Shows how your damage is split across types:\r\n\r\n\u2022 Physical:
+    reduced by armor, can be blocked\r\n\u2022 Magical: reduced by magic resist\r\n\u2022
+    True: ignores all mitigation\r\n\r\nUseful for understanding how enemies will
+    resist your attacks."
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &1632997899
 GameObject:
   m_ObjectHideFlags: 0
@@ -25579,6 +26705,7 @@ GameObject:
   - component: {fileID: 1747466709}
   - component: {fileID: 1747466711}
   - component: {fileID: 1747466710}
+  - component: {fileID: 1747466712}
   m_Layer: 5
   m_Name: AttackRangeText
   m_TagString: Untagged
@@ -25707,6 +26834,26 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1747466708}
   m_CullTransparentMesh: 1
+--- !u!114 &1747466712
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1747466708}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Attack Range
+  tooltipText: "The distance you can attack enemies from.\r\n\r\nHigher range allows
+    you to:\r\n\u2022 Engage enemies sooner\r\n\u2022 Stay safer from melee threats\r\n\r\nAlso
+    applies to ranged and magic attacks."
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &1750663537
 GameObject:
   m_ObjectHideFlags: 0
@@ -26260,17 +27407,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
-  tooltipTitle: Poison Info
-  tooltipText: 'Chance: chance to apply Poison on hit
-
-    Multi: extra Poison damage
-    scaling
-
-    Duration: how long Poison lasts
-
-    Stacks: max Poison stacks active
-
-'
+  tooltipTitle: Poison
+  tooltipText: "Applies stacking damage over time from true damage.\r\n\r\nChance:
+    chance to apply Poison on hit  \r\nMultiplier: damage per stack  \r\nDuration:
+    how long each stack lasts  \r\nStacks: maximum active stacks  \r\n\r\nPoison
+    stacks deal consistent damage and bypass all mitigation."
   tooltipPanel: {fileID: 1265542261}
   tooltipAnchor: {fileID: 1369682479}
   tooltipMeasureRect: {fileID: 1751072472}
@@ -26286,6 +27427,7 @@ GameObject:
   - component: {fileID: 1764607551}
   - component: {fileID: 1764607553}
   - component: {fileID: 1764607552}
+  - component: {fileID: 1764607554}
   m_Layer: 5
   m_Name: DMGText
   m_TagString: Untagged
@@ -26412,6 +27554,26 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1764607550}
   m_CullTransparentMesh: 1
+--- !u!114 &1764607554
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1764607550}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Damage
+  tooltipText: "Your total damage per hit.\n\nIncludes all damage types:\n\u2022
+    Physical\n\u2022 Magical\n\u2022 True\n\nThis value is used to calculate your
+    overall DPS."
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &1770614725
 GameObject:
   m_ObjectHideFlags: 0
@@ -26933,6 +28095,7 @@ GameObject:
   - component: {fileID: 1802334301}
   - component: {fileID: 1802334303}
   - component: {fileID: 1802334302}
+  - component: {fileID: 1802334304}
   m_Layer: 5
   m_Name: EnergyRegenText
   m_TagString: Untagged
@@ -27061,6 +28224,33 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1802334300}
   m_CullTransparentMesh: 1
+--- !u!114 &1802334304
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1802334300}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
+  tooltipTitle: Energy Regeneration
+  tooltipText: 'Energy restored per second.
+
+    
+
+    Higher regeneration allows
+    more frequent ability usage.
+
+    
+
+    Contributes slightly to overall sustain.'
+  tooltipPanel: {fileID: 1265542261}
+  tooltipAnchor: {fileID: 1369682479}
+  tooltipMeasureRect: {fileID: 1751072472}
+  preferredSide: 1
 --- !u!1 &1815601758
 GameObject:
   m_ObjectHideFlags: 0
@@ -29200,7 +30390,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 100}
+  m_AnchoredPosition: {x: 0, y: 180}
   m_SizeDelta: {x: 395, y: 100}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &2025818111
@@ -30505,6 +31695,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: BasicTree
       objectReference: {fileID: 0}
+    - target: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -30524,6 +31718,10 @@ PrefabInstance:
     - target: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       propertyPath: m_Name
       value: StoneDeposit
+      objectReference: {fileID: 0}
+    - target: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2353321014339349072, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -30576,10 +31774,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 5334493226654047258, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
 --- !u!1001 &4383727106754232642
 PrefabInstance:
@@ -30589,9 +31784,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 158813735}
     m_Modifications:
+    - target: {fileID: 4363182750086468540, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.06
+      objectReference: {fileID: 0}
+    - target: {fileID: 4363182750086468540, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 2.02
+      objectReference: {fileID: 0}
     - target: {fileID: 6538367760463352144, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -57.56
+      value: -53.98
       objectReference: {fileID: 0}
     - target: {fileID: 6538367760463352144, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
       propertyPath: m_LocalPosition.y
@@ -30633,10 +31836,17 @@ PrefabInstance:
       propertyPath: m_Name
       value: EnemyRogue
       objectReference: {fileID: 0}
+    - target: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 857215952}
   m_SourcePrefab: {fileID: 100100000, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
 --- !u!1001 &5510529321893980863
 PrefabInstance:
@@ -30646,6 +31856,30 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2042090762}
     m_Modifications:
+    - target: {fileID: 789741770549466916, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 789741770549466916, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 789741770549466916, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 789741770549466916, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 789741770549466916, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 789741770549466916, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 837524958806274231, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -30671,17 +31905,9 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
-      propertyPath: tooltip
-      value: 
-      objectReference: {fileID: 1265542261}
-    - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: hudTooltip
       value: 
       objectReference: {fileID: 719275860}
-    - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
-      propertyPath: defaultBuffIcon
-      value: 
-      objectReference: {fileID: -5470404764099228983, guid: 27feba00b0fb62d49a14265bc9b37808, type: 3}
     - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: tooltipHeightRect
       value: 
@@ -30690,9 +31916,33 @@ PrefabInstance:
       propertyPath: tooltipMeasureRect
       value: 
       objectReference: {fileID: 300103154}
-    - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
-      propertyPath: physicalDamageBuffIcon
-      value: 
+    - target: {fileID: 2769238353924229594, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2769238353924229594, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2769238353924229594, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2769238353924229594, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2769238353924229594, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2769238353924229594, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3670480608122547245, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_Enabled
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4384165625191784273, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: m_AnchorMax.y
@@ -30798,6 +32048,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6244578042087814642, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_fontSize
+      value: 14
+      objectReference: {fileID: 0}
+    - target: {fileID: 6244578042087814642, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 14
+      objectReference: {fileID: 0}
+    - target: {fileID: 6244578042087814642, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_HorizontalAlignment
+      value: 4
+      objectReference: {fileID: 0}
     - target: {fileID: 7627672852759668595, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -30850,25 +32112,49 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 9101912931911844250, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+    - target: {fileID: 9045818413711986983, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 9101912931911844250, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+    - target: {fileID: 9045818413711986983, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: m_AnchorMin.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 9101912931911844250, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+    - target: {fileID: 9045818413711986983, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: m_SizeDelta.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 9101912931911844250, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+    - target: {fileID: 9045818413711986983, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9045818413711986983, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: m_AnchoredPosition.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 9101912931911844250, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+    - target: {fileID: 9045818413711986983, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9101912931911844250, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 9101912931911844250, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 9101912931911844250, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 200
+      objectReference: {fileID: 0}
+    - target: {fileID: 9101912931911844250, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 9101912931911844250, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 12
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -30953,13 +32239,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: SmallPond
       objectReference: {fileID: 0}
+    - target: {fileID: 6165540910069784205, guid: 3f7498b5e783df94ba16c5b9d0d75259, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 6975759386914617715, guid: 3f7498b5e783df94ba16c5b9d0d75259, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3f7498b5e783df94ba16c5b9d0d75259, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

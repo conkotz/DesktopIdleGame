@@ -1,8 +1,14 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 [DisallowMultipleComponent]
 public class PlayerCombatController : MonoBehaviour
 {
+    private struct DamageSample
+    {
+        public float time;
+        public float amount;
+    }
     [Header("Refs")]
     [SerializeField] private PlayerController player;
     [SerializeField] private CharacterStats stats;
@@ -66,6 +72,9 @@ public class PlayerCombatController : MonoBehaviour
     [Header("Debug")]
     [SerializeField] private bool debugLogs = false;
 
+    [Header("DPS Tracking")]
+    [SerializeField, Min(1f)] private float dpsWindowSeconds = 10f;
+
     public event System.Action<bool> OnIdleCombatChanged;
     public event System.Action OnTargetChanged;
 
@@ -77,6 +86,9 @@ public class PlayerCombatController : MonoBehaviour
     private EnemyBaseController _target;
     private float _nextAttackTime;
     private float _nextIdleScanTime;
+    private readonly Queue<DamageSample> _dpsSamples = new();
+    private float _dpsDamageSum;
+    private float _lastDamageTime = -999f;
 
     public float GetAttackCooldownSeconds()
     {
@@ -93,6 +105,21 @@ public class PlayerCombatController : MonoBehaviour
         float remaining = Mathf.Max(0f, _nextAttackTime - Time.time);
         float readyProgress = 1f - (remaining / cooldown);
         return Mathf.Clamp01(readyProgress);
+    }
+
+    public float GetCurrentDps()
+    {
+        float now = Time.time;
+        float window = Mathf.Max(1f, dpsWindowSeconds);
+
+        if (_lastDamageTime < 0f || now - _lastDamageTime >= window)
+            return 0f;
+
+        PruneOldDpsSamples(now, window);
+        if (_dpsDamageSum <= 0f)
+            return 0f;
+
+        return _dpsDamageSum / window;
     }
 
     private void Awake()
@@ -701,7 +728,12 @@ public class PlayerCombatController : MonoBehaviour
 
     public void AwardCombatXp(float damageDealt)
     {
-        if (damageDealt <= 0f || xpPerDamage <= 0f)
+        if (damageDealt <= 0f)
+            return;
+
+        RecordDamageForDps(damageDealt);
+
+        if (xpPerDamage <= 0f)
             return;
 
         var sm = SkillsManager.Instance;
@@ -710,6 +742,37 @@ public class PlayerCombatController : MonoBehaviour
 
         SkillType skill = sm.GetCombatSkillFromCurrentWeapon(player, stats);
         sm.AddXpFloat(skill, damageDealt * xpPerDamage, combatXpSource);
+    }
+
+    private void RecordDamageForDps(float damageAmount)
+    {
+        if (damageAmount <= 0f)
+            return;
+
+        float now = Time.time;
+        float window = Mathf.Max(1f, dpsWindowSeconds);
+        _lastDamageTime = now;
+
+        _dpsSamples.Enqueue(new DamageSample { time = now, amount = damageAmount });
+        _dpsDamageSum += damageAmount;
+
+        PruneOldDpsSamples(now, window);
+    }
+
+    private void PruneOldDpsSamples(float now, float window)
+    {
+        while (_dpsSamples.Count > 0)
+        {
+            DamageSample sample = _dpsSamples.Peek();
+            if (now - sample.time < window)
+                break;
+
+            _dpsDamageSum -= sample.amount;
+            _dpsSamples.Dequeue();
+        }
+
+        if (_dpsDamageSum < 0f)
+            _dpsDamageSum = 0f;
     }
 
     private void TryResolveAutoConsumeRefs()

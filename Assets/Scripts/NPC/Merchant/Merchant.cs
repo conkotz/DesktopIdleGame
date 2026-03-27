@@ -12,6 +12,9 @@ public class Merchant : MonoBehaviour, ISaveable
 
     [Header("Behaviour")]
     [SerializeField] private bool ctrlClickSellsAll = true;
+    [Tooltip("If enabled, this merchant only buys items that exist in its stock list.")]
+    [SerializeField] private bool onlyBuysStockedItems = false;
+    [SerializeField] private string cannotBuyItemPopupText = "Cannot sell that item to {merchant}.";
 
     [Header("Save Identity")]
     [Tooltip("Unique id for this merchant used in save data. Leave empty to auto-generate from scene path.")]
@@ -269,6 +272,36 @@ public class Merchant : MonoBehaviour, ISaveable
         return true;
     }
 
+    public bool CanBuyItemFromPlayer(string itemId)
+    {
+        if (!onlyBuysStockedItems)
+            return true;
+
+        if (string.IsNullOrWhiteSpace(itemId) || stock == null)
+            return false;
+
+        return stock.GetEntry(itemId) != null;
+    }
+
+    public bool TryRejectUnsellableItemWithPopup(string itemId)
+    {
+        if (CanBuyItemFromPlayer(itemId))
+            return false;
+
+        var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player != null)
+        {
+            string merchantLabel = string.IsNullOrWhiteSpace(merchantName) ? "this merchant" : merchantName;
+            string template = string.IsNullOrWhiteSpace(cannotBuyItemPopupText)
+                ? "Cannot sell that item to {merchant}."
+                : cannotBuyItemPopupText;
+            string msg = template.Replace("{merchant}", merchantLabel);
+            player.ShowPopup(msg);
+        }
+
+        return true;
+    }
+
     public bool TryRemoveReplenishedStock(string itemId, int amount)
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0 || stock == null)
@@ -304,6 +337,7 @@ public class Merchant : MonoBehaviour, ISaveable
         {
             var slot = inventory.GetSlot(i);
             if (slot.IsEmpty) continue;
+            if (!CanBuyItemFromPlayer(slot.itemId)) continue;
 
             int valuePerItem = inventory.GetItemValue(slot.itemId);
             if (valuePerItem <= 0) continue;
@@ -329,6 +363,7 @@ public class Merchant : MonoBehaviour, ISaveable
         {
             var slot = inventory.GetSlot(i);
             if (slot.IsEmpty) continue;
+            if (!CanBuyItemFromPlayer(slot.itemId)) continue;
 
             int valuePerItem = inventory.GetItemValue(slot.itemId);
             if (valuePerItem <= 0) continue;

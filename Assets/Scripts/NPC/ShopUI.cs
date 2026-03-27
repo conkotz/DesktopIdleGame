@@ -12,6 +12,19 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private ShopSlotUI slotPrefab;
     [SerializeField] private Button buy1xButton;
     [SerializeField] private Button buy50xButton;
+    [SerializeField] private Button buybackToggleButton;
+    [Header("Buy Toggle Visuals")]
+    [SerializeField] private bool enableButtonTint = false;
+    [SerializeField] private Image buy1xButtonImage;
+    [SerializeField] private Image buy50xButtonImage;
+    [SerializeField] private TMP_Text buy1xButtonText;
+    [SerializeField] private TMP_Text buy50xButtonText;
+    [SerializeField] private Color buySelectedColor = new Color(0.20f, 0.60f, 0.20f, 1f);
+    [SerializeField] private Color buyUnselectedColor = Color.white;
+    [SerializeField] private Color selectedTextColor = Color.white;
+    [SerializeField] private Color unselectedTextColor = new Color(0.15f, 0.15f, 0.15f, 1f);
+    [SerializeField] private Vector3 selectedScale = new Vector3(1.05f, 1.05f, 1f);
+    [SerializeField] private Vector3 unselectedScale = Vector3.one;
 
     [Header("Refs")]
     [SerializeField] private Inventory inventory;
@@ -41,6 +54,24 @@ public class ShopUI : MonoBehaviour
             buy50xButton.onClick.RemoveAllListeners();
             buy50xButton.onClick.AddListener(SetBuyAmount50x);
         }
+
+        if (buybackToggleButton)
+        {
+            buybackToggleButton.onClick.RemoveAllListeners();
+            buybackToggleButton.onClick.AddListener(ToggleBuybackPanel);
+        }
+
+        if (!buy1xButtonImage && buy1xButton)
+            buy1xButtonImage = buy1xButton.GetComponent<Image>();
+
+        if (!buy50xButtonImage && buy50xButton)
+            buy50xButtonImage = buy50xButton.GetComponent<Image>();
+
+        if (!buy1xButtonText && buy1xButton)
+            buy1xButtonText = buy1xButton.GetComponentInChildren<TMP_Text>(true);
+
+        if (!buy50xButtonText && buy50xButton)
+            buy50xButtonText = buy50xButton.GetComponentInChildren<TMP_Text>(true);
 
         UpdateBuyToggleVisuals();
 
@@ -245,7 +276,36 @@ public class ShopUI : MonoBehaviour
     private void UpdateBuyToggleVisuals()
     {
         // Make selected option non-interactable to indicate active toggle state.
-        if (buy1xButton) buy1xButton.interactable = _buyAmount != 1;
-        if (buy50xButton) buy50xButton.interactable = _buyAmount != 50;
+        bool oneSelected = _buyAmount == 1;
+        bool fiftySelected = _buyAmount == 50;
+
+        if (buy1xButton) buy1xButton.interactable = !oneSelected;
+        if (buy50xButton) buy50xButton.interactable = !fiftySelected;
+
+        if (enableButtonTint && buy1xButtonImage)
+            buy1xButtonImage.color = oneSelected ? buySelectedColor : buyUnselectedColor;
+
+        if (enableButtonTint && buy50xButtonImage)
+            buy50xButtonImage.color = fiftySelected ? buySelectedColor : buyUnselectedColor;
+
+        if (buy1xButtonText)
+            buy1xButtonText.color = oneSelected ? selectedTextColor : unselectedTextColor;
+
+        if (buy50xButtonText)
+            buy50xButtonText.color = fiftySelected ? selectedTextColor : unselectedTextColor;
+
+        if (buy1xButton)
+            buy1xButton.transform.localScale = oneSelected ? selectedScale : unselectedScale;
+
+        if (buy50xButton)
+            buy50xButton.transform.localScale = fiftySelected ? selectedScale : unselectedScale;
+    }
+
+    private void ToggleBuybackPanel()
+    {
+        if (SaleUndoManager.Instance == null)
+            return;
+
+        SaleUndoManager.Instance.ToggleUndoPanelVisibility();
     }
 }

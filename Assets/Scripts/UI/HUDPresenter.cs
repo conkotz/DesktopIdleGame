@@ -125,6 +125,7 @@ public class HUDPresenter : MonoBehaviour
             cycle = combat.GetAttackCycleNormalized();
 
         hud.SetAttackDelay(cycle, aps);
+        hud.SetDps(combat != null ? combat.GetCurrentDps() : 0f);
     }
 
     private void HandleNameChanged(string _)
@@ -167,6 +168,7 @@ public class HUDPresenter : MonoBehaviour
         float aps = stats ? stats.AttacksPerSecond : 0f;
         float cycle = combat != null ? combat.GetAttackCycleNormalized() : 0f;
         hud.SetAttackDelay(cycle, aps);
+        hud.SetDps(combat != null ? combat.GetCurrentDps() : 0f);
         HandleActionChanged(player.CurrentAction);
         hud.SetGatherDebuff(false, 1f);
         hud.RefreshDebuffs(ailments);

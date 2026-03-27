@@ -182,6 +182,15 @@ public class InventorySlotUI : MonoBehaviour,
         var slot = _inventory.GetSlot(_slotIndex);
         if (slot.IsEmpty) return;
 
+        if (MerchantClick.TryGetActiveMerchant(out var activeMerchantRef) &&
+            activeMerchantRef != null &&
+            activeMerchantRef.TryRejectUnsellableItemWithPopup(slot.itemId))
+        {
+            eventData.Use();
+            _tooltip?.Hide();
+            return;
+        }
+
         int valuePerItem = _inventory.GetItemValue(slot.itemId);
         if (valuePerItem <= 0) return;
 

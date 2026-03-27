@@ -1,5 +1,6 @@
 using System.IO;
 using System.Globalization;
+using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -16,6 +17,8 @@ public class SaveSlotMenuUI : MonoBehaviour
     [Tooltip("If not assigned, we'll auto-find Slot1Card/InfoLabel and Slot2Card/InfoLabel.")]
     [SerializeField] private TMP_Text slot0InfoText;
     [SerializeField] private TMP_Text slot1InfoText;
+    [SerializeField] private Button slot0ResumeButton;
+    [SerializeField] private Button slot1ResumeButton;
 
     [Header("Confirm New Game Popup")]
     [SerializeField] private GameObject confirmNewGamePopupRoot;
@@ -25,18 +28,33 @@ public class SaveSlotMenuUI : MonoBehaviour
     [SerializeField] private UnityEngine.UI.Button confirmCancelButton;
     [SerializeField] private UnityEngine.UI.Button confirmConfirmButton;
 
+    [Header("Player Name Select (New Game)")]
+    [SerializeField] private GameObject playerNameSelectRoot;
+    [SerializeField] private TMP_InputField playerNameInputField;
+    [SerializeField] private Button playerNameStartButton;
+    [SerializeField] private Button playerNameCancelButton;
+    [SerializeField] private TMP_Text playerNameErrorText;
+    [SerializeField, Min(3)] private int playerNameMaxLength = 8;
+
     private int _pendingNewGameSlotIndex = -1;
+    private int _pendingNameSlotIndex = -1;
     private bool _confirmPopupBound;
+    private bool _nameUiBound;
 
     private void Awake()
     {
         AutoBindInfoLabelsIfNeeded();
+        AutoBindSlotButtonsIfNeeded();
+        AutoBindNameSelectIfNeeded();
         BindConfirmPopupOnce();
+        BindNameSelectOnce();
     }
 
     private void OnEnable()
     {
+        AutoBindSlotButtonsIfNeeded();
         RefreshSlotInfoUI();
+        RefreshSlotButtonsState();
     }
 
     private void BindConfirmPopupOnce()
@@ -102,11 +120,9 @@ public class SaveSlotMenuUI : MonoBehaviour
         Debug.Log($"[SaveSlotMenuUI] Confirmed New Game. slot={slotIndex}");
 
         SaveSlotManager.DeleteSlot(slotIndex);
-        SaveSlotManager.SetActiveSlot(slotIndex);
-        SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.NewGame);
-
-        if (CanLoadGameplayScene())
-            SceneManager.LoadScene(gameplaySceneName);
+        RefreshSlotInfoUI();
+        RefreshSlotButtonsState();
+        OpenPlayerNameSelect(slotIndex);
     }
 
     private void AutoBindInfoLabelsIfNeeded()
@@ -116,6 +132,60 @@ public class SaveSlotMenuUI : MonoBehaviour
         // These names match the objects in your Bootstrap UI.
         slot0InfoText ??= FindInfoLabelUnder("Slot1Card");
         slot1InfoText ??= FindInfoLabelUnder("Slot2Card");
+    }
+
+    private void AutoBindSlotButtonsIfNeeded()
+    {
+        slot0ResumeButton ??= FindButtonUnder("Slot1Card", "ButtonsRow/ResumeGame");
+        slot1ResumeButton ??= FindButtonUnder("Slot2Card", "ButtonsRow/ResumeGame");
+        slot0ResumeButton ??= FindButtonUnder("Slot1Card", "ButtonsRow/LoadGameButton");
+        slot1ResumeButton ??= FindButtonUnder("Slot2Card", "ButtonsRow/LoadGameButton");
+        if (!slot0ResumeButton)
+        {
+            var slot1Card = GameObject.Find("Slot1Card");
+            if (slot1Card)
+                slot0ResumeButton = FindResumeLikeButtonUnder(slot1Card.transform);
+        }
+
+        if (!slot1ResumeButton)
+        {
+            var slot2Card = GameObject.Find("Slot2Card");
+            if (slot2Card)
+                slot1ResumeButton = FindResumeLikeButtonUnder(slot2Card.transform);
+        }
+
+        if (slot0ResumeButton != null && slot0ResumeButton == slot1ResumeButton)
+            slot1ResumeButton = null;
+    }
+
+    private void AutoBindNameSelectIfNeeded()
+    {
+        if (!playerNameSelectRoot)
+        {
+            var go = GameObject.Find("PlayerNameSelect");
+            if (go) playerNameSelectRoot = go;
+        }
+
+        if (!playerNameSelectRoot)
+            return;
+
+        if (!playerNameInputField)
+        {
+            var t = playerNameSelectRoot.transform.Find("Panel/NameChooseField");
+            if (t) playerNameInputField = t.GetComponent<TMP_InputField>();
+        }
+
+        if (!playerNameStartButton)
+        {
+            var t = playerNameSelectRoot.transform.Find("Panel/ButtonsRow/StartGame");
+            if (t) playerNameStartButton = t.GetComponent<Button>();
+        }
+
+        if (!playerNameCancelButton)
+        {
+            var t = playerNameSelectRoot.transform.Find("Panel/ButtonsRow/ConfirmButton");
+            if (t) playerNameCancelButton = t.GetComponent<Button>();
+        }
     }
 
     private TMP_Text FindInfoLabelUnder(string cardRootName)
@@ -129,10 +199,80 @@ public class SaveSlotMenuUI : MonoBehaviour
         return info.GetComponent<TMP_Text>();
     }
 
+    private Button FindButtonUnder(string cardRootName, string relativePath)
+    {
+        var card = GameObject.Find(cardRootName);
+        if (!card) return null;
+        var node = card.transform.Find(relativePath);
+        return node ? node.GetComponent<Button>() : null;
+    }
+
+    private Button FindResumeLikeButtonUnder(Transform root)
+    {
+        if (root == null)
+            return null;
+
+        var buttons = root.GetComponentsInChildren<Button>(true);
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            var b = buttons[i];
+            if (!b) continue;
+
+            string n = b.name.ToLowerInvariant();
+            if (n.Contains("resume") || n.Contains("loadgame"))
+                return b;
+
+            var tmp = b.GetComponentInChildren<TMP_Text>(true);
+            if (tmp == null) continue;
+
+            string label = (tmp.text ?? "").Trim().ToLowerInvariant();
+            if (label == "resume game" || label == "load game")
+                return b;
+        }
+
+        return null;
+    }
+
+    private void BindNameSelectOnce()
+    {
+        if (_nameUiBound) return;
+        _nameUiBound = true;
+
+        if (playerNameSelectRoot)
+            playerNameSelectRoot.SetActive(false);
+
+        if (playerNameInputField)
+        {
+            playerNameInputField.characterLimit = Mathf.Clamp(playerNameMaxLength, 3, 8);
+            playerNameInputField.onValueChanged.AddListener(_ => RefreshNameStartButtonState());
+        }
+
+        if (playerNameStartButton)
+        {
+            playerNameStartButton.onClick.RemoveAllListeners();
+            playerNameStartButton.onClick.AddListener(OnClickConfirmPlayerNameStartGame);
+        }
+
+        if (playerNameCancelButton)
+        {
+            playerNameCancelButton.onClick.RemoveAllListeners();
+            playerNameCancelButton.onClick.AddListener(ClosePlayerNameSelect);
+        }
+    }
+
     private void RefreshSlotInfoUI()
     {
         SetSlotInfoText(0, slot0InfoText);
         SetSlotInfoText(1, slot1InfoText);
+    }
+
+    private void RefreshSlotButtonsState()
+    {
+        if (slot0ResumeButton)
+            slot0ResumeButton.gameObject.SetActive(SaveSlotManager.HasSave(0));
+
+        if (slot1ResumeButton)
+            slot1ResumeButton.gameObject.SetActive(SaveSlotManager.HasSave(1));
     }
 
     private void SetSlotInfoText(int slotIndex, TMP_Text label)
@@ -145,7 +285,9 @@ public class SaveSlotMenuUI : MonoBehaviour
             string scene = string.IsNullOrWhiteSpace(header.sceneName) ? "Unknown" : header.sceneName;
             string last = FormatSavedTimeForDisplay(header.lastSavedUtc);
             string cpText = header.combatPower > 0 ? $"CP: {header.combatPower}" : "CP: --";
+            string playerName = string.IsNullOrWhiteSpace(header.characterName) ? "Adventurer" : header.characterName;
             label.text =
+                $"{playerName}\n" +
                 $"{cpText}  •  Gold {Mathf.Max(0, header.gold)}\n" +
                 $"{scene}\n" +
                 (string.IsNullOrWhiteSpace(last) ? "" : $"Last saved {last}");
@@ -212,6 +354,9 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     public void OnClickLoadSlot(int slotIndex)
     {
+        if (!SaveSlotManager.HasSave(slotIndex))
+            return;
+
         Debug.Log($"[SaveSlotMenuUI] Continue/Load selected. slot={slotIndex}");
 
         SaveSlotManager.SetActiveSlot(slotIndex);
@@ -222,8 +367,16 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     public void OnClickNewGame(int slotIndex)
     {
-        Debug.Log($"[SaveSlotMenuUI] New Game clicked (show confirm). slot={slotIndex}");
-        OpenConfirmNewGamePopup(slotIndex);
+        bool hasSave = SaveSlotManager.HasSave(slotIndex);
+        Debug.Log($"[SaveSlotMenuUI] New Game clicked. slot={slotIndex} hasSave={hasSave}");
+
+        if (hasSave)
+        {
+            OpenConfirmNewGamePopup(slotIndex);
+            return;
+        }
+
+        OpenPlayerNameSelect(slotIndex);
     }
 
     public void OnClickDeleteSlot(int slotIndex)
@@ -233,5 +386,129 @@ public class SaveSlotMenuUI : MonoBehaviour
         SaveSlotManager.DeleteSlot(slotIndex);
 
         RefreshSlotInfoUI();
+        RefreshSlotButtonsState();
+    }
+
+    private void OpenPlayerNameSelect(int slotIndex)
+    {
+        BindNameSelectOnce();
+        _pendingNameSlotIndex = slotIndex;
+
+        if (playerNameErrorText)
+            playerNameErrorText.text = "";
+
+        if (playerNameInputField)
+        {
+            playerNameInputField.text = "";
+            playerNameInputField.ActivateInputField();
+        }
+
+        RefreshNameStartButtonState();
+
+        if (playerNameSelectRoot)
+            playerNameSelectRoot.SetActive(true);
+    }
+
+    private void ClosePlayerNameSelect()
+    {
+        _pendingNameSlotIndex = -1;
+        if (playerNameSelectRoot)
+            playerNameSelectRoot.SetActive(false);
+    }
+
+    private void RefreshNameStartButtonState()
+    {
+        if (!playerNameStartButton)
+            return;
+
+        string value = playerNameInputField ? playerNameInputField.text : "";
+        string error;
+        playerNameStartButton.interactable = TryValidatePlayerName(value, out _, out error);
+
+        if (playerNameErrorText)
+            playerNameErrorText.text = string.IsNullOrWhiteSpace(error) ? "" : error;
+    }
+
+    public void OnClickConfirmPlayerNameStartGame()
+    {
+        int slotIndex = _pendingNameSlotIndex;
+        if (slotIndex < 0)
+            return;
+
+        string chosenName = playerNameInputField ? playerNameInputField.text : "";
+        if (!TryValidatePlayerName(chosenName, out string sanitizedName, out string error))
+        {
+            if (playerNameErrorText)
+                playerNameErrorText.text = error;
+            RefreshNameStartButtonState();
+            return;
+        }
+
+        SaveSlotManager.DeleteSlot(slotIndex);
+        SaveSlotManager.SetActiveSlot(slotIndex);
+        SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.NewGame);
+        SaveSlotManager.SetPendingNewGamePlayerName(sanitizedName);
+
+        ClosePlayerNameSelect();
+
+        if (CanLoadGameplayScene())
+            SceneManager.LoadScene(gameplaySceneName);
+    }
+
+    private bool TryValidatePlayerName(string rawInput, out string sanitizedName, out string error)
+    {
+        sanitizedName = SanitizePlayerName(rawInput);
+
+        if (string.IsNullOrWhiteSpace(sanitizedName))
+        {
+            error = "Name required. Use letters/numbers/spaces only.";
+            return false;
+        }
+
+        int maxLen = Mathf.Clamp(playerNameMaxLength, 3, 8);
+        if (sanitizedName.Length > maxLen)
+            sanitizedName = sanitizedName.Substring(0, maxLen);
+
+        if (sanitizedName.Length < 3)
+        {
+            error = "Name must be at least 3 characters.";
+            return false;
+        }
+
+        error = "";
+        return true;
+    }
+
+    private static string SanitizePlayerName(string rawInput)
+    {
+        if (string.IsNullOrWhiteSpace(rawInput))
+            return "";
+
+        StringBuilder sb = new StringBuilder(rawInput.Length);
+        bool previousWasSpace = false;
+
+        for (int i = 0; i < rawInput.Length; i++)
+        {
+            char c = rawInput[i];
+            bool isAllowed = char.IsLetterOrDigit(c) || c == ' ' || c == '-' || c == '_';
+            if (!isAllowed)
+                continue;
+
+            if (char.IsWhiteSpace(c))
+            {
+                if (previousWasSpace)
+                    continue;
+
+                sb.Append(' ');
+                previousWasSpace = true;
+            }
+            else
+            {
+                sb.Append(c);
+                previousWasSpace = false;
+            }
+        }
+
+        return sb.ToString().Trim();
     }
 }

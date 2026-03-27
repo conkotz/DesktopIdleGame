@@ -88,6 +88,7 @@ public class SaveManager : MonoBehaviour
         if (pendingMode == SaveSlotManager.SlotStartMode.NewGame)
         {
             ResetAllSaveablesToDefaults();
+            ApplyPendingNewGamePlayerName();
             Save();
         }
         else // LoadGame
@@ -130,6 +131,19 @@ public class SaveManager : MonoBehaviour
         {
             _isApplyingSaveData = false;
         }
+    }
+
+    private void ApplyPendingNewGamePlayerName()
+    {
+        string pendingName = SaveSlotManager.ConsumePendingNewGamePlayerName();
+        if (string.IsNullOrWhiteSpace(pendingName))
+            return;
+
+        var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player == null)
+            return;
+
+        player.SetDisplayName(pendingName.Trim());
     }
 
     private void Update()

@@ -7,6 +7,7 @@ public class HUDView : MonoBehaviour
 {
     [Header("Text")]
     [SerializeField] private TMP_Text nameText;
+    [SerializeField] private TMP_Text dpsText;
     [SerializeField] private TMP_Text actionText;
 
     [Header("HP")]
@@ -86,6 +87,20 @@ public class HUDView : MonoBehaviour
     public void SetAction(string action)
     {
         if (actionText) actionText.text = action ?? "";
+    }
+
+    public void SetDps(float dps)
+    {
+        if (!dpsText)
+            return;
+
+        if (dps <= 0f)
+        {
+            dpsText.text = "0 DPS";
+            return;
+        }
+
+        dpsText.text = $"{dps:0.#} DPS";
     }
 
     public void SetHP(float current, float max)

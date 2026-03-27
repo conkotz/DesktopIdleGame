@@ -42,6 +42,14 @@ public class SellToMerchant : MonoBehaviour, IPointerClickHandler
         var slot = inventory.GetSlot(slotIndex);
         if (slot.IsEmpty) return;
 
+        if (MerchantClick.TryGetActiveMerchant(out var activeMerchantRef) &&
+            activeMerchantRef != null &&
+            activeMerchantRef.TryRejectUnsellableItemWithPopup(slot.itemId))
+        {
+            eventData.Use();
+            return;
+        }
+
         int valuePerItem = inventory.GetItemValue(slot.itemId);
         if (valuePerItem <= 0) return;
 

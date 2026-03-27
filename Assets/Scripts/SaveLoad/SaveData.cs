@@ -10,6 +10,7 @@ public class SaveData
     public long savedAtUnix;
 
     [Header("Player")]
+    public string playerName = "Adventurer";
     public int playerLevel = 1;
     public int xp = 0;
     public float playerCurrentHP = -1f;

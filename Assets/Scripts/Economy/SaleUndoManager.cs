@@ -43,6 +43,8 @@ public class SaleUndoManager : MonoBehaviour
 
     private readonly List<SaleEntry> _entries = new();
     private int _nextId = 1;
+    private bool _isUndoPanelVisible;
+    private float _autoHideAt = -1f;
 
     private RectTransform _panelRect;
 
@@ -126,7 +128,7 @@ public class SaleUndoManager : MonoBehaviour
         if (undoRowPrefab && undoRowPrefab.gameObject.activeSelf)
             undoRowPrefab.gameObject.SetActive(false);
 
-        if (undoPanel) undoPanel.SetActive(keepPanelVisibleWhenEmpty && _entries.Count > 0);
+        if (undoPanel) undoPanel.SetActive(_isUndoPanelVisible && _entries.Count > 0);
 
         RefreshUI();
     }
@@ -136,19 +138,11 @@ public class SaleUndoManager : MonoBehaviour
         if (_entries.Count == 0) return;
 
         float now = Time.unscaledTime;
-        bool changed = false;
-
-        for (int i = _entries.Count - 1; i >= 0; i--)
+        if (_isUndoPanelVisible && undoTimeoutSeconds > 0f && _autoHideAt > 0f && now >= _autoHideAt)
         {
-            if (now >= _entries[i].expiresAt)
-            {
-                _entries.RemoveAt(i);
-                changed = true;
-            }
-        }
-
-        if (changed)
+            _isUndoPanelVisible = false;
             RefreshUI();
+        }
     }
 
     public void RecordSale(string itemId, int amount, int gold, string merchantId = null, int stockAddedAmount = 0)
@@ -177,6 +171,24 @@ public class SaleUndoManager : MonoBehaviour
         if (_entries.Count > maxEntriesKept)
             _entries.RemoveRange(maxEntriesKept, _entries.Count - maxEntriesKept);
 
+        _isUndoPanelVisible = true;
+        _autoHideAt = undoTimeoutSeconds > 0f ? Time.unscaledTime + undoTimeoutSeconds : -1f;
+        RefreshUI();
+    }
+
+    public void ToggleUndoPanelVisibility()
+    {
+        if (_entries.Count <= 0)
+        {
+            _isUndoPanelVisible = false;
+            RefreshUI();
+            return;
+        }
+
+        _isUndoPanelVisible = !_isUndoPanelVisible;
+        if (_isUndoPanelVisible && undoTimeoutSeconds > 0f)
+            _autoHideAt = Time.unscaledTime + undoTimeoutSeconds;
+
         RefreshUI();
     }
 
@@ -194,8 +206,13 @@ public class SaleUndoManager : MonoBehaviour
 
         if (_entries.Count == 0)
         {
-            if (!keepPanelVisibleWhenEmpty)
-                undoPanel.SetActive(false);
+            undoPanel.SetActive(false);
+            return;
+        }
+
+        if (!_isUndoPanelVisible)
+        {
+            undoPanel.SetActive(false);
             return;
         }
 
@@ -269,6 +286,8 @@ public class SaleUndoManager : MonoBehaviour
         }
 
         _entries.RemoveAt(idx);
+        if (_entries.Count == 0)
+            _isUndoPanelVisible = false;
         RefreshUI();
     }
 

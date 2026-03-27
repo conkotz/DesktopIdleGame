@@ -10,6 +10,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
     private bool _hasPendingVitals;
     private float _pendingHp = -1f;
     private float _pendingEnergy = -1f;
+    private string _pendingName;
 
     private void Awake()
     {
@@ -20,13 +21,17 @@ public class PlayerSave : MonoBehaviour, ISaveable
     private void Update()
     {
         if (!_hasPendingVitals)
+        {
+            ApplyPendingName();
             return;
+        }
 
         if (!stats) stats = GetComponent<CharacterStats>();
         if (!stats) return;
 
         stats.ApplyLoadedVitals(_pendingHp, _pendingEnergy);
         _hasPendingVitals = false;
+        ApplyPendingName();
     }
 
     public void SaveInto(SaveData data)
@@ -40,6 +45,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
 
         if (stats != null && player != null)
         {
+            data.playerName = player.displayName;
             data.playerCurrentHP = stats.HP;
             data.playerCurrentEnergy = stats.Energy;
         }
@@ -50,6 +56,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
         if (data == null) return;
         level = data.playerLevel;
         xp = data.xp;
+        _pendingName = data.playerName;
 
         if (data.playerCurrentHP >= 0f || data.playerCurrentEnergy >= 0f)
         {
@@ -62,5 +69,19 @@ public class PlayerSave : MonoBehaviour, ISaveable
             _pendingEnergy = energy;
             _hasPendingVitals = true;
         }
+
+        ApplyPendingName();
+    }
+
+    private void ApplyPendingName()
+    {
+        if (string.IsNullOrWhiteSpace(_pendingName))
+            return;
+
+        if (!player) player = GetComponent<PlayerController>();
+        if (!player) return;
+
+        player.SetDisplayName(_pendingName.Trim());
+        _pendingName = null;
     }
 }

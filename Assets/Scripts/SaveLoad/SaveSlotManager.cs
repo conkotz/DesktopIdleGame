@@ -26,6 +26,7 @@ public static class SaveSlotManager
     /// Useful for scene-entry logic (e.g., spawn walk-in) that should differ for NewGame vs LoadGame.
     /// </summary>
     public static SlotStartMode LastConsumedStartMode { get; private set; } = SlotStartMode.None;
+    public static string PendingNewGamePlayerName { get; private set; }
 
     public static void SetActiveSlot(int slotIndex)
     {
@@ -45,6 +46,18 @@ public static class SaveSlotManager
         PendingStartMode = SlotStartMode.None;
         LastConsumedStartMode = mode;
         return mode;
+    }
+
+    public static void SetPendingNewGamePlayerName(string playerName)
+    {
+        PendingNewGamePlayerName = string.IsNullOrWhiteSpace(playerName) ? null : playerName.Trim();
+    }
+
+    public static string ConsumePendingNewGamePlayerName()
+    {
+        string value = PendingNewGamePlayerName;
+        PendingNewGamePlayerName = null;
+        return value;
     }
 
     public static string GetSavePath(int slotIndex)
@@ -100,7 +113,7 @@ public static class SaveSlotManager
         {
             slotIndex = slotIndex,
             hasSave = true,
-            characterName = "Player",
+            characterName = (data != null && !string.IsNullOrWhiteSpace(data.playerName)) ? data.playerName : "Player",
             playerLevel = Mathf.Max(1, data != null ? data.playerLevel : 1),
             combatPower = Mathf.Max(0, combatPower),
             gold = Mathf.Max(0, data != null ? data.gold : 0),
