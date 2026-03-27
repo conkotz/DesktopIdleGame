@@ -18,6 +18,10 @@ public class HUDView : MonoBehaviour
     [SerializeField] private Image energyFill;
     [SerializeField] private TMP_Text energyValueText;
 
+    [Header("Mana")]
+    [SerializeField] private Image manaFill;
+    [SerializeField] private TMP_Text manaValueText;
+
     [Header("Attack Delay")]
     [SerializeField] private Image attackDelayFill;
     [SerializeField] private TMP_Text attackDelayValueText;
@@ -113,6 +117,12 @@ public class HUDView : MonoBehaviour
     {
         if (energyFill) energyFill.fillAmount = (max <= 0f) ? 0f : Mathf.Clamp01(current / max);
         if (energyValueText) energyValueText.text = $"{Mathf.RoundToInt(current)}/{Mathf.RoundToInt(max)}";
+    }
+
+    public void SetMana(float current, float max)
+    {
+        if (manaFill) manaFill.fillAmount = (max <= 0f) ? 0f : Mathf.Clamp01(current / max);
+        if (manaValueText) manaValueText.text = $"{Mathf.RoundToInt(current)}/{Mathf.RoundToInt(max)}";
     }
 
     public void SetAttackDelay(float normalizedCycle, float attacksPerSecond)

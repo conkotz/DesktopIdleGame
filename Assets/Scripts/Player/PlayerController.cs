@@ -164,9 +164,12 @@ public class PlayerController : MonoBehaviour
     public float MaxHP => characterStats ? characterStats.MaxHP : 0f;
     public float Energy => characterStats ? characterStats.Energy : 0f;
     public float MaxEnergy => characterStats ? characterStats.MaxEnergy : 0f;
+    public float Mana => characterStats ? characterStats.Mana : 0f;
+    public float MaxMana => characterStats ? characterStats.MaxMana : 0f;
 
     public event Action<float, float> OnHPChanged;
     public event Action<float, float> OnEnergyChanged;
+    public event Action<float, float> OnManaChanged;
     public event Action<string> OnNameChanged;
 
     public bool IsDead => _isDead;
@@ -187,6 +190,7 @@ public class PlayerController : MonoBehaviour
         {
             characterStats.OnHPChanged += HandleStatsHpChanged;
             characterStats.OnEnergyChanged += HandleStatsEnergyChanged;
+            characterStats.OnManaChanged += HandleStatsManaChanged;
             characterStats.OnNameChanged += HandleStatsNameChanged;
             characterStats.OnDied += HandleStatsDied;
         }
@@ -238,6 +242,7 @@ public class PlayerController : MonoBehaviour
         {
             characterStats.OnHPChanged -= HandleStatsHpChanged;
             characterStats.OnEnergyChanged -= HandleStatsEnergyChanged;
+            characterStats.OnManaChanged -= HandleStatsManaChanged;
             characterStats.OnNameChanged -= HandleStatsNameChanged;
             characterStats.OnDied -= HandleStatsDied;
         }
@@ -289,6 +294,7 @@ public class PlayerController : MonoBehaviour
             OnNameChanged?.Invoke(characterStats.UnitDisplayName);
             OnHPChanged?.Invoke(characterStats.HP, characterStats.MaxHP);
             OnEnergyChanged?.Invoke(characterStats.Energy, characterStats.MaxEnergy);
+            OnManaChanged?.Invoke(characterStats.Mana, characterStats.MaxMana);
         }
     }
 
@@ -354,6 +360,11 @@ public class PlayerController : MonoBehaviour
     private void HandleStatsEnergyChanged(float current, float max)
     {
         OnEnergyChanged?.Invoke(current, max);
+    }
+
+    private void HandleStatsManaChanged(float current, float max)
+    {
+        OnManaChanged?.Invoke(current, max);
     }
 
     private void HandleStatsNameChanged(string newName)
@@ -1775,6 +1786,18 @@ public class PlayerController : MonoBehaviour
     {
         if (_isDead || !characterStats) return;
         characterStats.AddEnergy(amount);
+    }
+
+    public bool SpendMana(float amount)
+    {
+        if (_isDead || !characterStats) return false;
+        return characterStats.SpendMana(amount);
+    }
+
+    public void AddMana(float amount)
+    {
+        if (_isDead || !characterStats) return;
+        characterStats.AddMana(amount);
     }
 
     public void SetDisplayName(string newName)

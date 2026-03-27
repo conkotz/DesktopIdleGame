@@ -114,6 +114,10 @@ public struct WeaponStats
     [Tooltip("Only used when Attack Skill is Magic.")]
     public MagicAttackType magicAttackType;
 
+    [Header("Resource Cost")]
+    [Tooltip("Mana spent per attack when Attack Skill is Magic.")]
+    [Min(0f)] public float manaCostPerAttack;
+
     [Header("Dual Wield")]
     [Tooltip("If true, this weapon may be equipped in the OffHand slot as well.")]
     public bool canEquipInOffHand;
@@ -192,6 +196,7 @@ public struct BonusStats
     [Header("Vitals")]
     public int bonusHealth;
     public int bonusEnergy;
+    public int bonusMana;
 
     [Header("Defence")]
     public int armor;
@@ -204,6 +209,9 @@ public struct BonusStats
 
     [Tooltip("Energy per second")]
     public float energyRegen;
+
+    [Tooltip("Mana per second")]
+    public float manaRegen;
 
     [Range(0f, 1f)]
     [Tooltip("0.05 = 5%")]
@@ -262,8 +270,9 @@ public struct BonusStats
     public bool HasAny()
     {
         return bonusHealth != 0 || bonusEnergy != 0 ||
+               bonusMana != 0 ||
                armor != 0 || magicResist != 0 || physBlockChance > 0f ||
-               lifeRegen != 0f || energyRegen != 0f || lifeSteal > 0f ||
+               lifeRegen != 0f || energyRegen != 0f || manaRegen != 0f || lifeSteal > 0f ||
                moveSpeedPercent != 0f ||
                physicalDamage != 0f || magicDamage != 0f || trueDamage != 0f || abilityPower != 0f ||
                attackSpeedPercent != 0f ||
@@ -476,6 +485,9 @@ public class ItemDefinition : ScriptableObject
     public bool IsTwoHandedWeapon => IsWeapon && weaponStats.handedness == Handedness.TwoHanded;
     public bool CanDualWieldOffHand => IsWeapon && weaponStats.canEquipInOffHand && weaponStats.handedness == Handedness.OneHanded;
     public bool IsMagicWeapon => IsWeapon && weaponStats.attackSkill == AttackSkill.Magic;
+    public float ManaCostPerAttack => (IsWeapon && weaponStats.attackSkill == AttackSkill.Magic)
+        ? Mathf.Max(0f, weaponStats.manaCostPerAttack)
+        : 0f;
 
     public bool HasPhysicalWeaponDamage => IsWeapon && (weaponStats.minPhysicalDamage > 0 || weaponStats.maxPhysicalDamage > 0);
     public bool HasMagicWeaponDamage => IsWeapon && (weaponStats.minMagicDamage > 0 || weaponStats.maxMagicDamage > 0);
@@ -503,9 +515,11 @@ public class ItemDefinition : ScriptableObject
 
     public int BonusHealth => (IsArmor ? armorStats.bonusHealth : 0) + bonusStats.bonusHealth;
     public int BonusEnergy => (IsArmor ? armorStats.bonusEnergy : 0) + bonusStats.bonusEnergy;
+    public int BonusMana => bonusStats.bonusMana;
 
     public float LifeRegen => bonusStats.lifeRegen;
     public float EnergyRegen => bonusStats.energyRegen;
+    public float ManaRegen => bonusStats.manaRegen;
     public float LifeSteal => Mathf.Clamp01(bonusStats.lifeSteal);
     public float MoveSpeedPercent => bonusStats.moveSpeedPercent;
 
@@ -631,8 +645,12 @@ public class ItemDefinition : ScriptableObject
             string speed = $"{aps:0.##} atk/s";
             string skillType = weaponStats.attackSkill.ToString();
             string magicTypeLine = "";
+            string magicManaLine = "";
             if (weaponStats.attackSkill == AttackSkill.Magic)
+            {
                 magicTypeLine = $"\nMagic Type: {weaponStats.magicAttackType}";
+                magicManaLine = $"\nMana Cost: {ManaCostPerAttack:0.##}";
+            }
 
             float critChancePct = Mathf.Clamp01(weaponStats.critChance + bonusStats.critChanceBonus) * 100f;
             float critMultPct = Mathf.Max(0f, weaponStats.critMultiplier + bonusStats.critMultiplierBonus) * 100f;
@@ -665,6 +683,7 @@ public class ItemDefinition : ScriptableObject
                 $"Range: {range}\n" +
                 $"Hands: {hands}" +
                 magicTypeLine +
+                magicManaLine +
                 dual;
 
             if (RequiresOffhandSupport)
@@ -719,6 +738,7 @@ public class ItemDefinition : ScriptableObject
             if (MagicResist != 0) s += $"Magic Res: {MagicResist}\n";
             if (BonusHealth != 0) s += $"Health: +{BonusHealth}\n";
             if (BonusEnergy != 0) s += $"Energy: +{BonusEnergy}\n";
+            if (BonusMana != 0) s += $"Mana: +{BonusMana}\n";
             if (PhysBlockChance > 0f) s += $"Phys Block: {PhysBlockChance * 100f:0.#}%\n";
 
             string extras = BuildBonusLines(includeDefense: false);
@@ -824,6 +844,7 @@ public class ItemDefinition : ScriptableObject
 
         if (bonusStats.lifeRegen != 0f) s += $"Life Regen: {FormatSignedNumber(bonusStats.lifeRegen)}/s\n";
         if (bonusStats.energyRegen != 0f) s += $"Energy Regen: {FormatSignedNumber(bonusStats.energyRegen)}/s\n";
+        if (bonusStats.manaRegen != 0f) s += $"Mana Regen: {FormatSignedNumber(bonusStats.manaRegen)}/s\n";
         if (bonusStats.moveSpeedPercent != 0f) s += $"Move Speed: {FormatSignedPercent01(bonusStats.moveSpeedPercent)}\n";
         if (bonusStats.physicalDamage != 0f) s += $"Physical Damage: {FormatSignedNumber(bonusStats.physicalDamage)}\n";
         if (bonusStats.magicDamage != 0f) s += $"Magic Damage: {FormatSignedNumber(bonusStats.magicDamage)}\n";
@@ -863,6 +884,8 @@ public class ItemDefinition : ScriptableObject
                 s += $"True {weaponStats.minTrueDamage}-{weaponStats.maxTrueDamage}  ";
 
             s += $"{weaponStats.attackSkill}  {AttackRange:0.#} range";
+            if (weaponStats.attackSkill == AttackSkill.Magic)
+                s += $"  Mana {ManaCostPerAttack:0.##}";
 
             return s.Trim();
         }
@@ -878,6 +901,7 @@ public class ItemDefinition : ScriptableObject
             if (MagicResist != 0) s += $"MRes {MagicResist} • ";
             if (BonusHealth != 0) s += $"HP +{BonusHealth} • ";
             if (BonusEnergy != 0) s += $"Energy +{BonusEnergy} • ";
+            if (BonusMana != 0) s += $"Mana +{BonusMana} • ";
 
             return s.TrimEnd(' ', '•');
         }

@@ -97,6 +97,7 @@ public class PlayerCombatController : MonoBehaviour
     private EnemyBaseController _target;
     private float _nextAttackTime;
     private float _nextIdleScanTime;
+    private float _nextLowManaPopupTime;
     private readonly Queue<DamageSample> _dpsSamples = new();
     private float _dpsDamageSum;
     private float _lastDamageTime = -999f;
@@ -231,6 +232,17 @@ public class PlayerCombatController : MonoBehaviour
         if (Time.time < _nextAttackTime)
         {
             player.ClearActionOverride();
+            return;
+        }
+
+        if (IsMagicAttack() && !TrySpendManaForMagicAttack())
+        {
+            player.ClearActionOverride();
+            if (Time.time >= _nextLowManaPopupTime)
+            {
+                player.ShowPopup("Not enough mana.");
+                _nextLowManaPopupTime = Time.time + 0.4f;
+            }
             return;
         }
 
@@ -414,6 +426,22 @@ public class PlayerCombatController : MonoBehaviour
     private bool IsMagicAttack()
     {
         return stats != null && stats.CurrentAttackSkill == AttackSkill.Magic;
+    }
+
+    private bool TrySpendManaForMagicAttack()
+    {
+        if (player == null)
+            return false;
+
+        float manaCost = 0f;
+        var weapon = GetMainWeaponDefForPopup();
+        if (weapon != null)
+            manaCost = weapon.ManaCostPerAttack;
+
+        if (manaCost <= 0f)
+            return true;
+
+        return player.SpendMana(manaCost);
     }
 
     private void HandleRangedAttack(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit)

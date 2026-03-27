@@ -51,15 +51,18 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private string unitDisplayName = "Adventurer";
     [SerializeField, HideInInspector] private float currentHP = -1f;
     [SerializeField, HideInInspector] private float currentEnergy = -1f;
+    [SerializeField, HideInInspector] private float currentMana = -1f;
 
     private bool _isDead;
     private bool _didInitialFill;
     private bool _hasPendingLoadedVitals;
     private float _pendingLoadedHP = -1f;
     private float _pendingLoadedEnergy = -1f;
+    private float _pendingLoadedMana = -1f;
 
     public event Action<float, float> OnHPChanged;
     public event Action<float, float> OnEnergyChanged;
+    public event Action<float, float> OnManaChanged;
     public event Action<string> OnNameChanged;
     public event Action OnDied;
 
@@ -71,11 +74,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public string UnitDisplayName => unitDisplayName;
     public float HP => currentHP;
     public float Energy => currentEnergy;
+    public float Mana => currentMana;
     public bool IsDead => _isDead;
 
     [Header("Base Stats")]
     [SerializeField] private int baseMaxHP = 100;
     [SerializeField] private int baseMaxEnergy = 100;
+    [SerializeField] private int baseMaxMana = 50;
     [SerializeField] private int baseArmor = 0;
     [SerializeField] private int baseMagicResist = 0;
     [SerializeField, Range(0f, 1f)] private float basePhysBlockChance = 0f;
@@ -87,6 +92,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     [SerializeField] private float baseLifeRegen = 1f;
     [SerializeField] private float baseEnergyRegen = 10f;
+    [SerializeField] private float baseManaRegen = 1f;
 
     [Header("Base Offense")]
     [SerializeField] private float baseMinPhysicalDamage = 0f;
@@ -179,6 +185,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // Defensive
     public int MaxHP => baseMaxHP + GetEquippedBonusHealth();
     public int MaxEnergy => baseMaxEnergy + GetEquippedBonusEnergy();
+    public int MaxMana => Mathf.Max(0, baseMaxMana + GetEquippedBonusMana());
     public int Armor => baseArmor + GetEquippedArmor();
     public int MagicResist => baseMagicResist + GetEquippedMagicResist();
 
@@ -201,6 +208,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float LifeRegenPerSecond => Mathf.Max(0f, baseLifeRegen + GetEquippedLifeRegen());
     public float EnergyRegenPerSecond => Mathf.Max(0f, baseEnergyRegen + GetEquippedEnergyRegen());
+    public float ManaRegenPerSecond => Mathf.Max(0f, baseManaRegen + GetEquippedManaRegen());
     public float LifeSteal => Mathf.Clamp01(baseLifeSteal + GetEquippedLifeSteal());
 
     // Offensive stats
@@ -1013,6 +1021,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
+    private int GetEquippedBonusMana()
+    {
+        int total = 0;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.BonusMana;
+        return total;
+    }
+
     private float GetEquippedPhysBlockChance()
     {
         float total = 0f;
@@ -1042,6 +1058,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
             total += def.EnergyRegen;
+        return total;
+    }
+
+    private float GetEquippedManaRegen()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.ManaRegen;
         return total;
     }
 
@@ -1225,12 +1249,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float newMaxHP = Mathf.Max(1f, MaxHP);
         float newMaxEnergy = Mathf.Max(0f, MaxEnergy);
+        float newMaxMana = Mathf.Max(0f, MaxMana);
 
         // Apply saved vitals lazily so they resolve against the final loaded gear/max stats.
         if (_hasPendingLoadedVitals)
         {
             currentHP = _pendingLoadedHP;
             currentEnergy = _pendingLoadedEnergy;
+            currentMana = _pendingLoadedMana;
             _didInitialFill = true;
             _hasPendingLoadedVitals = false;
         }
@@ -1239,14 +1265,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
         {
             if (currentHP < 0f) currentHP = newMaxHP;
             if (currentEnergy < 0f) currentEnergy = newMaxEnergy;
+            if (currentMana < 0f) currentMana = newMaxMana;
             _didInitialFill = true;
         }
 
         currentHP = Mathf.Clamp(currentHP, 0f, newMaxHP);
         currentEnergy = Mathf.Clamp(currentEnergy, 0f, newMaxEnergy);
+        currentMana = Mathf.Clamp(currentMana, 0f, newMaxMana);
 
         OnHPChanged?.Invoke(currentHP, newMaxHP);
         OnEnergyChanged?.Invoke(currentEnergy, newMaxEnergy);
+        OnManaChanged?.Invoke(currentMana, newMaxMana);
         OnStatsChanged?.Invoke();
     }
 
@@ -1257,8 +1286,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public void ApplyLoadedVitals(float hp, float energy)
     {
+        ApplyLoadedVitals(hp, energy, currentMana >= 0f ? currentMana : MaxMana);
+    }
+
+    public void ApplyLoadedVitals(float hp, float energy, float mana)
+    {
         currentHP = hp;
         currentEnergy = energy;
+        currentMana = mana;
         _didInitialFill = true;
         _hasPendingLoadedVitals = false;
         _isDead = currentHP <= 0f;
@@ -1278,12 +1313,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         float maxHp = Mathf.Max(1f, MaxHP);
         float maxEnergy = Mathf.Max(0f, MaxEnergy);
+        float maxMana = Mathf.Max(0f, MaxMana);
 
         bool hpChanged = false;
         bool energyChanged = false;
+        bool manaChanged = false;
 
         float hpRegen = LifeRegenPerSecond;
         float energyRegen = EnergyRegenPerSecond;
+        float manaRegen = ManaRegenPerSecond;
 
         if (currentHP < maxHp && hpRegen > 0f)
         {
@@ -1305,8 +1343,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
             }
         }
 
+        if (currentMana < maxMana && manaRegen > 0f)
+        {
+            float newMana = Mathf.Min(maxMana, currentMana + manaRegen * dt);
+            if (!Mathf.Approximately(newMana, currentMana))
+            {
+                currentMana = newMana;
+                manaChanged = true;
+            }
+        }
+
         if (hpChanged) OnHPChanged?.Invoke(currentHP, maxHp);
         if (energyChanged) OnEnergyChanged?.Invoke(currentEnergy, maxEnergy);
+        if (manaChanged) OnManaChanged?.Invoke(currentMana, maxMana);
     }
 
     public bool SpendEnergy(float amount)
@@ -1326,6 +1375,25 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         currentEnergy = Mathf.Clamp(currentEnergy + amount, 0f, MaxEnergy);
         OnEnergyChanged?.Invoke(currentEnergy, MaxEnergy);
+    }
+
+    public bool SpendMana(float amount)
+    {
+        if (_isDead) return false;
+        if (amount <= 0f) return true;
+        if (currentMana < amount) return false;
+
+        currentMana = Mathf.Clamp(currentMana - amount, 0f, MaxMana);
+        OnManaChanged?.Invoke(currentMana, MaxMana);
+        return true;
+    }
+
+    public void AddMana(float amount)
+    {
+        if (_isDead || amount <= 0f) return;
+
+        currentMana = Mathf.Clamp(currentMana + amount, 0f, MaxMana);
+        OnManaChanged?.Invoke(currentMana, MaxMana);
     }
 
     public void Heal(float amount)
@@ -1359,8 +1427,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
         _isDead = false;
         currentHP = MaxHP;
         currentEnergy = MaxEnergy;
+        currentMana = MaxMana;
         OnHPChanged?.Invoke(currentHP, MaxHP);
         OnEnergyChanged?.Invoke(currentEnergy, MaxEnergy);
+        OnManaChanged?.Invoke(currentMana, MaxMana);
     }
 
     private float ApplyMitigation(float rawDamage, DamageType type, out bool blocked)

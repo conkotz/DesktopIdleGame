@@ -296,6 +296,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty attackRange = weaponStats.FindPropertyRelative("attackRange");
         SerializedProperty attackSkill = weaponStats.FindPropertyRelative("attackSkill");
         SerializedProperty magicAttackType = weaponStats.FindPropertyRelative("magicAttackType");
+        SerializedProperty manaCostPerAttack = weaponStats.FindPropertyRelative("manaCostPerAttack");
         SerializedProperty canEquipInOffHand = weaponStats.FindPropertyRelative("canEquipInOffHand");
 
         SerializedProperty requiresOffhandSupport = weaponStats.FindPropertyRelative("requiresOffhandSupport");
@@ -334,6 +335,8 @@ public class ItemDefinitionEditor : Editor
             magicAttackType != null)
         {
             EditorGUILayout.PropertyField(magicAttackType, new GUIContent("Magic Type"));
+            if (manaCostPerAttack != null)
+                EditorGUILayout.PropertyField(manaCostPerAttack, new GUIContent("Mana Cost Per Attack"));
         }
         EditorGUILayout.PropertyField(canEquipInOffHand);
 
@@ -687,6 +690,7 @@ public class ItemDefinitionEditor : Editor
 
         SerializedProperty bonusHealth = bonusStats.FindPropertyRelative("bonusHealth");
         SerializedProperty bonusEnergy = bonusStats.FindPropertyRelative("bonusEnergy");
+        SerializedProperty bonusMana = bonusStats.FindPropertyRelative("bonusMana");
 
         SerializedProperty armor = bonusStats.FindPropertyRelative("armor");
         SerializedProperty magicResist = bonusStats.FindPropertyRelative("magicResist");
@@ -694,6 +698,7 @@ public class ItemDefinitionEditor : Editor
 
         SerializedProperty lifeRegen = bonusStats.FindPropertyRelative("lifeRegen");
         SerializedProperty energyRegen = bonusStats.FindPropertyRelative("energyRegen");
+        SerializedProperty manaRegen = bonusStats.FindPropertyRelative("manaRegen");
         SerializedProperty lifeSteal = bonusStats.FindPropertyRelative("lifeSteal");
 
         SerializedProperty moveSpeedPercent = bonusStats.FindPropertyRelative("moveSpeedPercent");
@@ -719,6 +724,7 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.LabelField("Vitals", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(bonusHealth);
         EditorGUILayout.PropertyField(bonusEnergy);
+        EditorGUILayout.PropertyField(bonusMana);
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Defence", EditorStyles.boldLabel);
@@ -730,6 +736,7 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.LabelField("Sustain", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(lifeRegen);
         EditorGUILayout.PropertyField(energyRegen);
+        EditorGUILayout.PropertyField(manaRegen);
         EditorGUILayout.PropertyField(lifeSteal);
 
         EditorGUILayout.Space(4);

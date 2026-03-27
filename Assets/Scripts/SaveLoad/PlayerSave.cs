@@ -10,6 +10,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
     private bool _hasPendingVitals;
     private float _pendingHp = -1f;
     private float _pendingEnergy = -1f;
+    private float _pendingMana = -1f;
     private string _pendingName;
 
     private void Awake()
@@ -29,7 +30,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
         if (!stats) stats = GetComponent<CharacterStats>();
         if (!stats) return;
 
-        stats.ApplyLoadedVitals(_pendingHp, _pendingEnergy);
+        stats.ApplyLoadedVitals(_pendingHp, _pendingEnergy, _pendingMana);
         _hasPendingVitals = false;
         ApplyPendingName();
     }
@@ -48,6 +49,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
             data.playerName = player.displayName;
             data.playerCurrentHP = stats.HP;
             data.playerCurrentEnergy = stats.Energy;
+            data.playerCurrentMana = stats.Mana;
         }
     }
 
@@ -58,15 +60,17 @@ public class PlayerSave : MonoBehaviour, ISaveable
         xp = data.xp;
         _pendingName = data.playerName;
 
-        if (data.playerCurrentHP >= 0f || data.playerCurrentEnergy >= 0f)
+        if (data.playerCurrentHP >= 0f || data.playerCurrentEnergy >= 0f || data.playerCurrentMana >= 0f)
         {
             if (!stats) stats = GetComponent<CharacterStats>();
 
             float hp = data.playerCurrentHP >= 0f ? data.playerCurrentHP : (stats ? stats.HP : 0f);
             float energy = data.playerCurrentEnergy >= 0f ? data.playerCurrentEnergy : (stats ? stats.Energy : 0f);
+            float mana = data.playerCurrentMana >= 0f ? data.playerCurrentMana : (stats ? stats.Mana : 0f);
 
             _pendingHp = hp;
             _pendingEnergy = energy;
+            _pendingMana = mana;
             _hasPendingVitals = true;
         }
 

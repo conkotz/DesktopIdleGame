@@ -59,6 +59,7 @@ public class HUDPresenter : MonoBehaviour
         player.OnNameChanged += HandleNameChanged;
         player.OnHPChanged += hud.SetHP;
         player.OnEnergyChanged += hud.SetEnergy;
+        player.OnManaChanged += hud.SetMana;
         player.OnActionChanged += HandleActionChanged;
         player.OnGatherDebuffChanged += HandleGatherDebuff;
 
@@ -88,6 +89,7 @@ public class HUDPresenter : MonoBehaviour
         player.OnNameChanged -= HandleNameChanged;
         player.OnHPChanged -= hud.SetHP;
         player.OnEnergyChanged -= hud.SetEnergy;
+        player.OnManaChanged -= hud.SetMana;
         player.OnActionChanged -= HandleActionChanged;
         player.OnGatherDebuffChanged -= HandleGatherDebuff;
 
@@ -165,6 +167,7 @@ public class HUDPresenter : MonoBehaviour
         RefreshNameAndCombatPower();
         hud.SetHP(player.HP, player.MaxHP);
         hud.SetEnergy(player.Energy, player.MaxEnergy);
+        hud.SetMana(player.Mana, player.MaxMana);
         float aps = stats ? stats.AttacksPerSecond : 0f;
         float cycle = combat != null ? combat.GetAttackCycleNormalized() : 0f;
         hud.SetAttackDelay(cycle, aps);

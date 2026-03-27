@@ -15,6 +15,7 @@ public class SaveData
     public int xp = 0;
     public float playerCurrentHP = -1f;
     public float playerCurrentEnergy = -1f;
+    public float playerCurrentMana = -1f;
 
     [Header("Currency")]
     public int gold = 0;
