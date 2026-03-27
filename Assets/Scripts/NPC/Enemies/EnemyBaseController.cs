@@ -341,8 +341,7 @@ public class EnemyBaseController : MonoBehaviour
         _hitTime = Time.time + windup;
         _hitQueued = true;
 
-        if (animator)
-            animator.SetTrigger(attackTrigger);
+        SetTriggerSafe(attackTrigger);
 
         _provoked = true;
         SetMoving(false);
@@ -477,8 +476,8 @@ public class EnemyBaseController : MonoBehaviour
             );
         }
 
-        if (finalDamage > 0 && !blocked && animator && !stats.IsDead)
-            animator.SetTrigger(hurtTrigger);
+        if (finalDamage > 0 && !blocked && !stats.IsDead)
+            SetTriggerSafe(hurtTrigger);
 
         if (stats.IsDead && state != EnemyState.Dead)
             Die();
@@ -571,11 +570,14 @@ public class EnemyBaseController : MonoBehaviour
 
         if (animator)
         {
-            animator.ResetTrigger(attackTrigger);
-            animator.ResetTrigger(hurtTrigger);
-            animator.SetTrigger(dieTrigger);
-            animator.Play(dieStateName, 0, 0f);
-            animator.SetBool(movingBool, false);
+            ResetTriggerSafe(attackTrigger);
+            ResetTriggerSafe(hurtTrigger);
+            SetTriggerSafe(dieTrigger);
+
+            if (!string.IsNullOrWhiteSpace(dieStateName))
+                animator.Play(dieStateName, 0, 0f);
+
+            SetBoolSafe(movingBool, false);
         }
         else
         {
@@ -631,8 +633,52 @@ public class EnemyBaseController : MonoBehaviour
 
     private void SetMoving(bool moving)
     {
-        if (animator)
-            animator.SetBool(movingBool, moving);
+        SetBoolSafe(movingBool, moving);
+    }
+
+    private void SetTriggerSafe(string triggerName)
+    {
+        if (!animator || string.IsNullOrWhiteSpace(triggerName))
+            return;
+
+        if (!HasAnimatorParameter(animator, triggerName, AnimatorControllerParameterType.Trigger))
+            return;
+
+        animator.SetTrigger(triggerName);
+    }
+
+    private void ResetTriggerSafe(string triggerName)
+    {
+        if (!animator || string.IsNullOrWhiteSpace(triggerName))
+            return;
+
+        if (!HasAnimatorParameter(animator, triggerName, AnimatorControllerParameterType.Trigger))
+            return;
+
+        animator.ResetTrigger(triggerName);
+    }
+
+    private void SetBoolSafe(string boolName, bool value)
+    {
+        if (!animator || string.IsNullOrWhiteSpace(boolName))
+            return;
+
+        if (!HasAnimatorParameter(animator, boolName, AnimatorControllerParameterType.Bool))
+            return;
+
+        animator.SetBool(boolName, value);
+    }
+
+    private static bool HasAnimatorParameter(Animator a, string paramName, AnimatorControllerParameterType expectedType)
+    {
+        var ps = a.parameters;
+        for (int i = 0; i < ps.Length; i++)
+        {
+            if (ps[i].type == expectedType && ps[i].name == paramName)
+                return true;
+        }
+
+        return false;
     }
 
     private void UpdateEngagement(float distX)

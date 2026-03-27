@@ -65,6 +65,37 @@ Transform:
   - {fileID: 3287728027510253299}
   m_Father: {fileID: 7834525664823452251}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &3166400555546757358
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6405312895476615274}
+  m_Layer: 0
+  m_Name: RangeProjectileSpawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6405312895476615274
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3166400555546757358}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.95, y: 1.81, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3287728027510253299}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3290531565024860218
 GameObject:
   m_ObjectHideFlags: 0
@@ -5679,6 +5710,12 @@ MonoBehaviour:
   allowAttackingWhileGathering: 0
   kiteAtRangeEdge: 0
   faceTargetWhenAttacking: 1
+  rangedProjectilePrefab: {fileID: 458680270855117822, guid: 90009b816ac732742ac14d763d9ff701, type: 3}
+  projectileSpawnPoint: {fileID: 6405312895476615274}
+  rangedProjectileSpeed: 18
+  rangedProjectileRotationOffset: -85
+  rangedProjectileFireDelay: 0.3
+  rangedDamageDelayOffset: 0
   idleCombatEnabled: 0
   idleRescanInterval: 0.25
   actionBar: {fileID: 0}
@@ -5826,7 +5863,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerSpawnController
   rb: {fileID: 528797751873154347}
   col: {fileID: 4092479453765693464}
+  player: {fileID: 0}
   spawnPointName: SpawnPoint_Player
+  walkInOnSceneLoad: 1
+  walkInEntryPointName: SpawnPoint_Player_Entry
+  walkInArrivalPointName: SpawnPoint_Player
+  walkInCommandDelaySeconds: 0.05
   waitFramesAfterLoad: 2
   snapToGround: 1
   groundMask:
@@ -5849,6 +5891,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DebugGiveItems
   inventory: {fileID: 4615812802344899198}
+  wallet: {fileID: 0}
+  levelUpEffect: {fileID: 0}
+  popupSpawner: {fileID: 0}
+  popupAnchor: {fileID: 0}
   swordDef: {fileID: 11400000, guid: b3a17782af5716744a93c10e9418bf17, type: 2}
   shieldDef: {fileID: 11400000, guid: 5c81fc352dab3d64ebc3f41d63015ddd, type: 2}
   axeDef: {fileID: 11400000, guid: db75d88da4098f74f981abe58a3e7c03, type: 2}
@@ -5861,7 +5907,14 @@ MonoBehaviour:
   critRingDef: {fileID: 0}
   vampRingDef: {fileID: 0}
   bootsDef: {fileID: 0}
+  stoneDef: {fileID: 0}
+  woodDef: {fileID: 0}
+  fishDef: {fileID: 0}
   amount: 1
+  grantPackKey: 108
+  grantGold: 50000
+  grantResourceAmount: 100
+  popupWorldOffset: {x: 0, y: 1.6, z: 0}
 --- !u!114 &7897775695737928978
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6043,8 +6096,6 @@ MonoBehaviour:
   levelUpEffect: {fileID: 6855638986129594513}
   popupSpawner: {fileID: 3587197683521536344}
   popupWorldOffset: {x: 0, y: 1.6, z: 0}
-  testKeyEnabled: 1
-  testKey: 108
   miningColor: {r: 0.8, g: 0.8, b: 0.8, a: 1}
   woodcuttingColor: {r: 0.2, g: 0.8, b: 0.2, a: 1}
   fishingColor: {r: 0.2, g: 0.5, b: 0.95, a: 1}
@@ -6231,6 +6282,9 @@ PrefabInstance:
     m_RemovedGameObjects:
     - {fileID: 3274079701113317060, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
     m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 4000013857073264, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 6405312895476615274}
     - targetCorrespondingSourceObject: {fileID: 4000013857073264, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       insertIndex: -1
       addedObject: {fileID: 44207935928407347}

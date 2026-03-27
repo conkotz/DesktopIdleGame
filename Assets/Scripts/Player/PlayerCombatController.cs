@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 [DisallowMultipleComponent]
 public class PlayerCombatController : MonoBehaviour
@@ -29,6 +29,15 @@ public class PlayerCombatController : MonoBehaviour
 
     [Tooltip("If true, face the current target when in range (before swinging).")]
     [SerializeField] private bool faceTargetWhenAttacking = true;
+
+    [Header("Ranged Projectile Visuals")]
+    [SerializeField] private ProjectileVisual rangedProjectilePrefab;
+    [SerializeField] private Transform projectileSpawnPoint;
+    [SerializeField, Min(0.01f)] private float rangedProjectileSpeed = 12f;
+    [SerializeField] private float rangedProjectileRotationOffset = 0f;
+    [Tooltip("Delay from attack start to projectile release (animation sync).")]
+    [SerializeField, Min(0f)] private float rangedProjectileFireDelay = 0f;
+    [SerializeField, Min(0f)] private float rangedDamageDelayOffset = 0f;
 
     [Header("Idle Combat (Auto Target)")]
     [SerializeField] private bool idleCombatEnabled = false;
@@ -181,20 +190,16 @@ public class PlayerCombatController : MonoBehaviour
             return;
         }
 
-        DamageResult dealt = ApplySplitDamageToTarget(_target, rolled, wasCrit);
-
         player.TriggerAttackAnim();
 
-        float totalDealt = dealt.Total;
-
-        if (totalDealt > 0f)
-            player.ApplyLifeSteal(totalDealt);
-
-        if (totalDealt > 0f)
-            TryConsumeOffHandSupportAmmo();
-
-        TryApplyBleed(_target, dealt);
-        TryApplyPoison(_target, dealt);
+        if (IsRangedAttack())
+        {
+            HandleRangedAttack(_target, rolled, wasCrit);
+        }
+        else
+        {
+            ResolveAttackHitNow(_target, rolled, wasCrit);
+        }
     }
 
     private void TickAutoConsumables()
@@ -341,6 +346,104 @@ public class PlayerCombatController : MonoBehaviour
         return inventory.GetItemDef(equipment.MainHandItemId);
     }
 
+    private bool IsRangedAttack()
+    {
+        return stats != null && stats.CurrentAttackSkill == AttackSkill.Ranged;
+    }
+
+    private void HandleRangedAttack(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit)
+    {
+        float fireDelay = Mathf.Max(0f, rangedProjectileFireDelay);
+        if (fireDelay <= 0f)
+        {
+            ResolveRangedAttackAtRelease(targetAtFireTime, rolled, wasCrit);
+            return;
+        }
+
+        StartCoroutine(ResolveRangedAttackAfterFireDelay(targetAtFireTime, rolled, wasCrit, fireDelay));
+    }
+
+    private System.Collections.IEnumerator ResolveRangedAttackAfterFireDelay(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit, float fireDelay)
+    {
+        yield return new WaitForSeconds(fireDelay);
+        ResolveRangedAttackAtRelease(targetAtFireTime, rolled, wasCrit);
+    }
+
+    private void ResolveRangedAttackAtRelease(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit)
+    {
+        if (targetAtFireTime == null || targetAtFireTime.IsDead)
+            return;
+
+        float delay = Mathf.Max(0f, rangedDamageDelayOffset);
+        bool spawnedProjectile = TrySpawnRangedProjectile(targetAtFireTime, out float travelTime);
+        if (spawnedProjectile)
+            delay += travelTime;
+
+        if (delay <= 0f)
+        {
+            ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit);
+            return;
+        }
+
+        StartCoroutine(ResolveAttackHitAfterDelay(targetAtFireTime, rolled, wasCrit, delay));
+    }
+
+    private bool TrySpawnRangedProjectile(EnemyBaseController targetAtFireTime, out float travelTime)
+    {
+        travelTime = 0f;
+
+        if (rangedProjectilePrefab == null || targetAtFireTime == null)
+            return false;
+
+        Transform spawn = projectileSpawnPoint != null ? projectileSpawnPoint : transform;
+        Vector3 start = spawn.position;
+        Vector3 targetCenter = GetTargetCenterMass(targetAtFireTime);
+
+        ProjectileVisual proj = Instantiate(rangedProjectilePrefab, start, Quaternion.identity);
+        proj.Launch(
+            start,
+            targetAtFireTime.transform,
+            targetCenter,
+            rangedProjectileSpeed,
+            rangedProjectileRotationOffset
+        );
+
+        travelTime = Mathf.Max(0f, proj.EstimatedTravelTime);
+        return true;
+    }
+
+    private static Vector3 GetTargetCenterMass(EnemyBaseController target)
+    {
+        if (target == null)
+            return Vector3.zero;
+
+        if (target.TryGetComponent<Collider2D>(out var col) && col != null)
+            return col.bounds.center;
+
+        return target.transform.position;
+    }
+
+    private System.Collections.IEnumerator ResolveAttackHitAfterDelay(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit);
+    }
+
+    private void ResolveAttackHitNow(EnemyBaseController targetToHit, SplitDamage rolled, bool wasCrit)
+    {
+        DamageResult dealt = ApplySplitDamageToTarget(targetToHit, rolled, wasCrit);
+        float totalDealt = dealt.Total;
+
+        if (totalDealt > 0f)
+            player.ApplyLifeSteal(totalDealt);
+
+        if (totalDealt > 0f)
+            TryConsumeOffHandSupportAmmo();
+
+        TryApplyBleed(targetToHit, dealt);
+        TryApplyPoison(targetToHit, dealt);
+    }
+
     public void ToggleIdleCombat()
     {
         SetIdleCombatEnabled(!idleCombatEnabled);
@@ -475,7 +578,7 @@ public class PlayerCombatController : MonoBehaviour
     private DamageResult ApplySplitDamageToTarget(EnemyBaseController target, SplitDamage rolled, bool wasCrit)
     {
         DamageResult result = default;
-        if (target == null) return result;
+        if (target == null || target.IsDead) return result;
 
         if (rolled.physical > 0f)
         {

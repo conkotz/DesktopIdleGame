@@ -40,7 +40,7 @@ MonoBehaviour:
     critChance: 0.05
     critMultiplier: 1.5
     handedness: 1
-    attackRange: 8
+    attackRange: 18
     attackSkill: 1
     canEquipInOffHand: 0
     requiresOffhandSupport: 1
@@ -89,3 +89,20 @@ MonoBehaviour:
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
+  consumableStats:
+    consumableType: 0
+    healAmount: 0
+    energyAmount: 0
+    cooldownSeconds: 0
+    consumeOnUse: 0
+    grantedEffect:
+      effectType: 0
+      magnitude: 0
+      duration: 0
+      effectId: 
+  cookableStats:
+    isCookable: 0
+    cookedResultItemId: 
+    cookedResultAmount: 0
+    requiredCookingLevel: 0
+    cookingXp: 0

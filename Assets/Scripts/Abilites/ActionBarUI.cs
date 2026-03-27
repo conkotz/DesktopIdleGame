@@ -39,6 +39,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     [Header("Saved State (backing fields)")]
     private List<SavedSlotState> savedSlots = new();
+    private bool pendingSavedStateApply;
+    private float nextSavedStateApplyTime;
+    private int savedStateApplyAttempts;
 
     [Header("Debug")]
     [SerializeField] private bool debugLogs = true;
@@ -46,11 +49,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     private void Awake()
     {                           
-        if (!inventory)
-            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-
-        if (!consumableController)
-            consumableController = FindFirstObjectByType<PlayerConsumableController>(FindObjectsInactive.Include);
+        ResolveCoreRefs();
 
         for (int i = 0; i < slotBindings.Count; i++)
         {
@@ -66,7 +65,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     private void Start()
     {
-        ApplySavedStateToSlots();
+        QueueSavedStateApply();
 
         if (SaveManager.Instance != null &&
             SaveManager.Instance.TryGetLastLoadedData(out SaveData data))
@@ -88,6 +87,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
             RefreshSlotRuntime(binding.slot);
         }
+
+        TryApplyPendingSavedState();
     }
 
     private void OnSlotTriggered(ActionBarSlotUI slot)
@@ -170,13 +171,15 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
     }
 
-    private void ApplySavedStateToSlots()
+    private int ApplySavedStateToSlots()
     {
         for (int i = 0; i < slotBindings.Count; i++)
         {
             if (slotBindings[i]?.slot != null)
                 slotBindings[i].slot.ClearAssignment(false);
         }
+
+        int unresolved = 0;
 
         for (int i = 0; i < savedSlots.Count; i++)
         {
@@ -194,11 +197,14 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             {
                 if (debugLogs)
                     Debug.LogWarning($"[ActionBar] Failed to resolve slotIndex={saved.slotIndex} id={saved.id}");
+                unresolved++;
                 continue;
             }
 
             slot.Assign(assignment, false);
         }
+
+        return unresolved;
     }
 
     private ActionBarAssignment ResolveAssignment(int kindInt, string id)
@@ -208,8 +214,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         switch (kind)
         {
             case ActionBarAssignmentKind.Item:
-                if (inventory == null)
-                    inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+                ResolveCoreRefs();
 
                 if (inventory == null || string.IsNullOrWhiteSpace(id))
                     return null;
@@ -257,13 +262,6 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             var invSlot = inventory.GetSlot(i);
             if (!invSlot.IsEmpty && invSlot.itemId == action.id)
                 count += invSlot.amount;
-        }
-
-        // Only items should be removed when stock hits 0
-        if (action.IsItem && count <= 0)
-        {
-            slot.ClearAssignment();
-            return;
         }
 
         slot.SetStackText(count);
@@ -320,7 +318,58 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             });
         }
 
-        ApplySavedStateToSlots();
+        QueueSavedStateApply();
+    }
+
+    private void QueueSavedStateApply()
+    {
+        pendingSavedStateApply = true;
+        nextSavedStateApplyTime = 0f;
+        savedStateApplyAttempts = 0;
+    }
+
+    private void TryApplyPendingSavedState()
+    {
+        if (!pendingSavedStateApply)
+            return;
+
+        if (Time.unscaledTime < nextSavedStateApplyTime)
+            return;
+
+        // Reacquire refs if scene/bootstrap order delayed setup.
+        ResolveCoreRefs();
+
+        int unresolved = ApplySavedStateToSlots();
+        if (unresolved <= 0)
+        {
+            pendingSavedStateApply = false;
+            return;
+        }
+
+        savedStateApplyAttempts++;
+        // Keep retrying quietly; this avoids intermittent load order races.
+        nextSavedStateApplyTime = Time.unscaledTime + 0.2f;
+    }
+
+    private void ResolveCoreRefs()
+    {
+        var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player != null)
+        {
+            var playerInventory = player.GetComponent<Inventory>();
+            if (playerInventory != null)
+                inventory = playerInventory;
+
+            var playerConsumables = player.GetComponent<PlayerConsumableController>();
+            if (playerConsumables != null)
+                consumableController = playerConsumables;
+        }
+
+        if (inventory == null)
+            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        if (consumableController == null)
+            consumableController = FindFirstObjectByType<PlayerConsumableController>(FindObjectsInactive.Include);
     }
 
     private ActionBarSlotUI GetSlotByIndex(int slotIndex)

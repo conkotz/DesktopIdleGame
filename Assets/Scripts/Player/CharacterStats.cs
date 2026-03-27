@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -42,7 +42,7 @@ public struct SplitDamage
 }
 
 [DisallowMultipleComponent]
-public class CharacterStats : MonoBehaviour
+public class CharacterStats : MonoBehaviour, ISaveable
 {
 
     [SerializeField] private PlayerBuffController buffController;
@@ -54,6 +54,9 @@ public class CharacterStats : MonoBehaviour
 
     private bool _isDead;
     private bool _didInitialFill;
+    private bool _hasPendingLoadedVitals;
+    private float _pendingLoadedHP = -1f;
+    private float _pendingLoadedEnergy = -1f;
 
     public event Action<float, float> OnHPChanged;
     public event Action<float, float> OnEnergyChanged;
@@ -61,6 +64,8 @@ public class CharacterStats : MonoBehaviour
     public event Action OnDied;
 
     public event Action OnStatsChanged;
+
+    private PlayerController _ownerPlayer;
 
 
     public string UnitDisplayName => unitDisplayName;
@@ -169,6 +174,7 @@ public class CharacterStats : MonoBehaviour
         if (!inventory && equipment) inventory = equipment.Inventory;
         if (!toolbelt) toolbelt = GetComponent<ToolbeltManager>();
         if (!buffController) buffController = GetComponent<PlayerBuffController>();
+        _ownerPlayer = GetComponent<PlayerController>();
     }
 
     // -------------------------
@@ -1209,6 +1215,15 @@ public class CharacterStats : MonoBehaviour
         float newMaxHP = Mathf.Max(1f, MaxHP);
         float newMaxEnergy = Mathf.Max(0f, MaxEnergy);
 
+        // Apply saved vitals lazily so they resolve against the final loaded gear/max stats.
+        if (_hasPendingLoadedVitals)
+        {
+            currentHP = _pendingLoadedHP;
+            currentEnergy = _pendingLoadedEnergy;
+            _didInitialFill = true;
+            _hasPendingLoadedVitals = false;
+        }
+
         if (!_didInitialFill || fillIfEmpty)
         {
             if (currentHP < 0f) currentHP = newMaxHP;
@@ -1222,6 +1237,21 @@ public class CharacterStats : MonoBehaviour
         OnHPChanged?.Invoke(currentHP, newMaxHP);
         OnEnergyChanged?.Invoke(currentEnergy, newMaxEnergy);
         OnStatsChanged?.Invoke();
+    }
+
+    // Vitals persistence is orchestrated by PlayerSave to avoid load-order races.
+    // Keep ISaveable implementation as no-op here for compatibility.
+    public void SaveInto(SaveData data) { }
+    public void LoadFrom(SaveData data) { }
+
+    public void ApplyLoadedVitals(float hp, float energy)
+    {
+        currentHP = hp;
+        currentEnergy = energy;
+        _didInitialFill = true;
+        _hasPendingLoadedVitals = false;
+        _isDead = currentHP <= 0f;
+        RefreshVitalsFromStats(fillIfEmpty: false);
     }
 
     public void SetDisplayName(string newName)

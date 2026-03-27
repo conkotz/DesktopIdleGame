@@ -34,6 +34,7 @@ public class SaveManager : MonoBehaviour
     private const float MinSaveGap = 1f;
 
     private SaveData _lastLoadedData;
+    private bool _isApplyingSaveData;
 
     private void Awake()
     {
@@ -118,9 +119,17 @@ public class SaveManager : MonoBehaviour
 
         _lastLoadedData = data;
 
-        var saveables = FindSaveables();
-        foreach (var s in saveables)
-            s.LoadFrom(data);
+        _isApplyingSaveData = true;
+        try
+        {
+            var saveables = FindSaveables();
+            foreach (var s in saveables)
+                s.LoadFrom(data);
+        }
+        finally
+        {
+            _isApplyingSaveData = false;
+        }
     }
 
     private void Update()
@@ -146,6 +155,8 @@ public class SaveManager : MonoBehaviour
 
     public void Save()
     {
+        if (_isApplyingSaveData) return;
+
         var data = new SaveData
         {
             version = 2,
@@ -187,14 +198,23 @@ public class SaveManager : MonoBehaviour
 
         _lastLoadedData = data;
 
-        var saveables = FindSaveables();
-        foreach (var s in saveables)
-            s.LoadFrom(data);
+        _isApplyingSaveData = true;
+        try
+        {
+            var saveables = FindSaveables();
+            foreach (var s in saveables)
+                s.LoadFrom(data);
+        }
+        finally
+        {
+            _isApplyingSaveData = false;
+        }
     }
 
     private void HandleInventoryChanged()
     {
         if (!_didInitialLoadOrCreate) return;   // ✅ ADD THIS
+        if (_isApplyingSaveData) return;
 
         if (Time.unscaledTime - _lastImmediateSave < MinSaveGap)
             return;
