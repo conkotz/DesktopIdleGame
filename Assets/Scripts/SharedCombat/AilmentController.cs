@@ -9,6 +9,10 @@ public class AilmentController : MonoBehaviour
     [SerializeField] private bool showDotPopups = true;
     [SerializeField] private bool debugLogs = false;
 
+    [Header("Burn")]
+    [Tooltip("If burn never finishes charging, it clears this many seconds after the last fire hit that applied or advanced burn.")]
+    [SerializeField, Min(0.5f)] private float burnFallbackDurationSeconds = 30f;
+
     private CharacterStats characterStats;
     private EnemyBaseController enemy;
     private PlayerBuffController playerBuffs;
@@ -17,6 +21,7 @@ public class AilmentController : MonoBehaviour
     private Coroutine poisonRoutine;
     private Coroutine chillRoutine;
     private Coroutine shockRoutine;
+    private Coroutine burnRoutine;
 
     private readonly List<int> bleedTickSchedule = new();
     private readonly List<PoisonStack> poisonStacks = new();
@@ -27,6 +32,7 @@ public class AilmentController : MonoBehaviour
     private int burnAdditionalHitsRequired = 4;
     private float burnAccumulatedDamage;
     private int burnHitsToExplode = 4;
+    private float burnExpireTime = -1f;
     private float shockExpireTime = -1f;
     private float shockDamageTakenMultiplier = 0f;
 
@@ -87,11 +93,13 @@ public class AilmentController : MonoBehaviour
         if (poisonRoutine != null) StopCoroutine(poisonRoutine);
         if (chillRoutine != null) StopCoroutine(chillRoutine);
         if (shockRoutine != null) StopCoroutine(shockRoutine);
+        if (burnRoutine != null) StopCoroutine(burnRoutine);
 
         bleedRoutine = null;
         poisonRoutine = null;
         chillRoutine = null;
         shockRoutine = null;
+        burnRoutine = null;
 
         bleedTickSchedule.Clear();
         poisonStacks.Clear();
@@ -101,6 +109,7 @@ public class AilmentController : MonoBehaviour
         burnAdditionalHitsRequired = 4;
         burnAccumulatedDamage = 0f;
         burnHitsToExplode = 4;
+        burnExpireTime = -1f;
         shockExpireTime = -1f;
         shockDamageTakenMultiplier = 0f;
 
@@ -364,6 +373,7 @@ public class AilmentController : MonoBehaviour
 
         if (burnRemainingFireHits > 0)
         {
+            burnExpireTime = Time.time + Mathf.Max(0.5f, burnFallbackDurationSeconds);
             OnAilmentsChanged?.Invoke();
             return;
         }
@@ -373,6 +383,8 @@ public class AilmentController : MonoBehaviour
 
     public bool ClearBurn()
     {
+        StopBurnExpiryRoutineOnly();
+
         bool had = burnActive;
         burnActive = false;
         burnRemainingFireHits = 0;
@@ -384,6 +396,44 @@ public class AilmentController : MonoBehaviour
         return had;
     }
 
+    private void StopBurnExpiryRoutineOnly()
+    {
+        if (burnRoutine != null)
+        {
+            StopCoroutine(burnRoutine);
+            burnRoutine = null;
+        }
+
+        burnExpireTime = -1f;
+    }
+
+    private void RefreshBurnExpiry()
+    {
+        burnExpireTime = Time.time + Mathf.Max(0.5f, burnFallbackDurationSeconds);
+        if (burnRoutine == null)
+            burnRoutine = StartCoroutine(BurnExpiryRoutine());
+    }
+
+    private IEnumerator BurnExpiryRoutine()
+    {
+        var wait = new WaitForSeconds(0.25f);
+
+        while (!IsDead() && burnActive)
+        {
+            yield return wait;
+            if (!burnActive)
+                yield break;
+
+            if (Time.time >= burnExpireTime)
+            {
+                ClearBurn();
+                yield break;
+            }
+        }
+
+        burnRoutine = null;
+    }
+
     private void StartBurn(float firstFireHitDamage, int additionalFireHitsToExplode, float explosionMultiplier)
     {
         burnActive = true;
@@ -391,11 +441,14 @@ public class AilmentController : MonoBehaviour
         burnRemainingFireHits = burnAdditionalHitsRequired;
         burnAccumulatedDamage = firstFireHitDamage;
         burnHitsToExplode = burnAdditionalHitsRequired;
+        RefreshBurnExpiry();
     }
 
     private void ExplodeBurn(float explosionMultiplier, Transform source)
     {
         int explosionDamage = Mathf.Max(1, Mathf.RoundToInt(burnAccumulatedDamage * Mathf.Max(0f, explosionMultiplier)));
+
+        StopBurnExpiryRoutineOnly();
 
         burnActive = false;
         burnRemainingFireHits = 0;

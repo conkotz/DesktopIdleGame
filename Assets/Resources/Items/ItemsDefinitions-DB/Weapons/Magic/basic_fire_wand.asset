@@ -44,7 +44,7 @@ MonoBehaviour:
     attackSkill: 2
     magicAttackType: 1
     manaCostPerAttack: 15
-    magicAilmentApplyChance: 0.5
+    magicAilmentApplyChance: 0.25
     canEquipInOffHand: 0
     requiresOffhandSupport: 1
     requiredSupportType: 4
@@ -98,7 +98,7 @@ MonoBehaviour:
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
-    burnExplosionMultiplierBonus: 0.5
+    burnExplosionMultiplierBonus: 0.25
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
   consumableStats:

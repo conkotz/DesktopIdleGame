@@ -46,10 +46,10 @@ public class PlayerCombatController : MonoBehaviour
     [SerializeField, Min(0f)] private float rangedDamageDelayOffset = 0f;
 
     [Header("Magic Projectile Visuals")]
-    [SerializeField] private EnergyBoltVisual magicProjectilePrefab;
-    [SerializeField] private EnergyBoltVisual magicLightningProjectilePrefab;
-    [SerializeField] private EnergyBoltVisual magicFireProjectilePrefab;
-    [SerializeField] private EnergyBoltVisual magicIceProjectilePrefab;
+    [SerializeField] private MonoBehaviour magicProjectilePrefab;
+    [SerializeField] private MonoBehaviour magicLightningProjectilePrefab;
+    [SerializeField] private MonoBehaviour magicFireProjectilePrefab;
+    [SerializeField] private MonoBehaviour magicIceProjectilePrefab;
     [SerializeField] private Transform magicProjectileSpawnPoint;
     [SerializeField, Min(0.01f)] private float magicProjectileSpeed = 14f;
     [SerializeField] private float magicProjectileRotationOffset = 0f;
@@ -504,7 +504,7 @@ public class PlayerCombatController : MonoBehaviour
         if (targetAtFireTime == null || targetAtFireTime.IsDead)
             return;
 
-        if (!TrySpawnMagicProjectile(targetAtFireTime, out EnergyBoltVisual bolt))
+        if (!TrySpawnMagicProjectile(targetAtFireTime, out IMagicProjectileVisual bolt))
         {
             ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit);
             return;
@@ -556,12 +556,15 @@ public class PlayerCombatController : MonoBehaviour
         return target.transform.position;
     }
 
-    private bool TrySpawnMagicProjectile(EnemyBaseController targetAtFireTime, out EnergyBoltVisual bolt)
+    private bool TrySpawnMagicProjectile(EnemyBaseController targetAtFireTime, out IMagicProjectileVisual bolt)
     {
         bolt = null;
 
-        EnergyBoltVisual prefab = ResolveMagicProjectilePrefab();
+        MonoBehaviour prefab = ResolveMagicProjectilePrefab();
         if (prefab == null || targetAtFireTime == null)
+            return false;
+
+        if (!prefab.TryGetComponent<IMagicProjectileVisual>(out _))
             return false;
 
         Transform spawn = magicProjectileSpawnPoint != null
@@ -571,7 +574,13 @@ public class PlayerCombatController : MonoBehaviour
         Vector3 start = spawn.position;
         Vector3 targetCenter = GetTargetCenterMass(targetAtFireTime);
 
-        bolt = Instantiate(prefab, start, Quaternion.identity);
+        MonoBehaviour instance = Instantiate(prefab, start, Quaternion.identity);
+        if (!instance.TryGetComponent<IMagicProjectileVisual>(out bolt))
+        {
+            Destroy(instance.gameObject);
+            return false;
+        }
+
         bolt.Launch(
             start,
             targetAtFireTime.transform,
@@ -583,7 +592,7 @@ public class PlayerCombatController : MonoBehaviour
         return true;
     }
 
-    private EnergyBoltVisual ResolveMagicProjectilePrefab()
+    private MonoBehaviour ResolveMagicProjectilePrefab()
     {
         MagicAttackType type = stats != null ? stats.CurrentMagicAttackType : MagicAttackType.Lightning;
         return type switch
@@ -593,6 +602,7 @@ public class PlayerCombatController : MonoBehaviour
             _ => magicLightningProjectilePrefab != null ? magicLightningProjectilePrefab : magicProjectilePrefab
         };
     }
+
 
     private System.Collections.IEnumerator ResolveAttackHitAfterDelay(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit, float delay)
     {

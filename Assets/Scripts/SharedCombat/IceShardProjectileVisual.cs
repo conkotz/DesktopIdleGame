@@ -2,8 +2,12 @@ using System;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-public class EnergyBoltVisual : MonoBehaviour, IMagicProjectileVisual
+public class IceShardProjectileVisual : MonoBehaviour, IMagicProjectileVisual
 {
+    [Header("Spawn")]
+    [Tooltip("Added to the enemy center so the shard appears above and offset (e.g. up-left for a ~45° approach).")]
+    [SerializeField] private Vector2 spawnOffsetFromTarget = new(-2.2f, 3.4f);
+
     [Header("Flight")]
     [SerializeField, Min(0.01f)] private float speed = 14f;
     [SerializeField, Min(0.1f)] private float maxLifetime = 4f;
@@ -21,11 +25,14 @@ public class EnergyBoltVisual : MonoBehaviour, IMagicProjectileVisual
     private float _spawnTime;
     private bool _launched;
 
-    public void Launch(Vector3 startPosition, Transform target, Vector3 fallbackTargetPosition, float? speedOverride = null, float? rotationOffsetOverride = null)
+    public void Launch(Vector3 _, Transform target, Vector3 fallbackTargetPosition, float? speedOverride = null, float? rotationOffsetOverride = null)
     {
-        transform.position = startPosition;
         _target = target;
         _fallbackTargetPosition = fallbackTargetPosition;
+
+        Vector3 aimPoint = MagicProjectileTargeting.ResolveDestination(target, fallbackTargetPosition);
+        transform.position = aimPoint + (Vector3)spawnOffsetFromTarget;
+
         _spawnTime = Time.time;
         _launched = true;
 

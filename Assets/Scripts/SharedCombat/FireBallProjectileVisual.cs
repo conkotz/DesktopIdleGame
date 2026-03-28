@@ -2,8 +2,13 @@ using System;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-public class EnergyBoltVisual : MonoBehaviour, IMagicProjectileVisual
+public class FireBallProjectileVisual : MonoBehaviour, IMagicProjectileVisual
 {
+    [Header("Charge")]
+    [SerializeField, Min(0f)] private float chargeDuration = 0.22f;
+    [SerializeField] private Vector3 chargeStartScale = new(0.12f, 0.12f, 1f);
+    [SerializeField] private Vector3 chargeEndScale = new(0.5f, 0.5f, 1f);
+
     [Header("Flight")]
     [SerializeField, Min(0.01f)] private float speed = 14f;
     [SerializeField, Min(0.1f)] private float maxLifetime = 4f;
@@ -18,16 +23,20 @@ public class EnergyBoltVisual : MonoBehaviour, IMagicProjectileVisual
 
     private Transform _target;
     private Vector3 _fallbackTargetPosition;
-    private float _spawnTime;
+    private float _flightSpawnTime;
+    private float _chargingElapsed;
     private bool _launched;
+    private bool _charging;
 
     public void Launch(Vector3 startPosition, Transform target, Vector3 fallbackTargetPosition, float? speedOverride = null, float? rotationOffsetOverride = null)
     {
         transform.position = startPosition;
+        transform.localScale = chargeStartScale;
+        _chargingElapsed = 0f;
         _target = target;
         _fallbackTargetPosition = fallbackTargetPosition;
-        _spawnTime = Time.time;
         _launched = true;
+        _charging = true;
 
         if (speedOverride.HasValue)
             speed = Mathf.Max(0.01f, speedOverride.Value);
@@ -41,7 +50,23 @@ public class EnergyBoltVisual : MonoBehaviour, IMagicProjectileVisual
         if (!_launched)
             return;
 
-        if (Time.time - _spawnTime >= maxLifetime)
+        if (_charging)
+        {
+            float dur = Mathf.Max(0.0001f, chargeDuration);
+            _chargingElapsed += Time.deltaTime;
+            float u = Mathf.Clamp01(_chargingElapsed / dur);
+            transform.localScale = Vector3.Lerp(chargeStartScale, chargeEndScale, u);
+
+            if (u >= 1f)
+            {
+                _charging = false;
+                _flightSpawnTime = Time.time;
+            }
+
+            return;
+        }
+
+        if (Time.time - _flightSpawnTime >= maxLifetime)
         {
             Destroy(gameObject);
             return;

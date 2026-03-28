@@ -524,8 +524,10 @@ MonoBehaviour:
   unitDisplayName: Priest
   currentHP: -1
   currentEnergy: -1
+  currentMana: -1
   baseMaxHP: 100
   baseMaxEnergy: 100
+  baseMaxMana: 50
   baseArmor: 0
   baseMagicResist: 0
   basePhysBlockChance: 0
@@ -533,10 +535,11 @@ MonoBehaviour:
   baseMoveSpeedMult: 1
   baseLifeRegen: 1
   baseEnergyRegen: 10
+  baseManaRegen: 1
   baseMinPhysicalDamage: 0
   baseMaxPhysicalDamage: 0
-  baseMinMagicDamage: 0
-  baseMaxMagicDamage: 0
+  baseMinMagicDamage: 8
+  baseMaxMagicDamage: 12
   baseMinTrueDamage: 0
   baseMaxTrueDamage: 0
   baseAbilityPower: 0
@@ -548,6 +551,15 @@ MonoBehaviour:
   basePoisonMultiplier: 0
   basePoisonDuration: 5
   basePoisonMaxStacks: 3
+  baseMagicAttackType: 1
+  baseMagicAilmentApplyChance: 0.5
+  baseChillDuration: 5
+  baseChillMaxStacks: 6
+  baseChillSlowPerStack: 0.15
+  baseBurnHitsToExplode: 4
+  baseBurnExplosionMultiplier: 0.5
+  baseShockDuration: 5
+  baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
   trueDamageCanCrit: 0
   equipment: {fileID: 0}
@@ -559,11 +571,8 @@ MonoBehaviour:
   unarmedRange: 8
   unarmedCritChance: 0
   unarmedCritMultiplier: 1.5
-  bonusAxePower: 0
   bonusAxeSpeedMult: 0
-  bonusPickaxePower: 0
   bonusPickaxeSpeedMult: 0
-  bonusRodPower: 0
   bonusRodSpeedMult: 0
   combatPowerDefenseScale: 0.1
   combatPowerSustainScale: 3
@@ -671,6 +680,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
+  burnFallbackDurationSeconds: 30
 --- !u!114 &2739365819787256807
 MonoBehaviour:
   m_ObjectHideFlags: 0

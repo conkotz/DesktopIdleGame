@@ -3594,9 +3594,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
   tooltipTitle: Burn
   tooltipText: "Builds up heat from repeated fire hits, then detonates.\r\n\r\nChance:
-    chance to apply Burn on hit  \r\nTrigger: activates on the 4th hit after 3 successful
-    Burn applications  \r\nExplosion: deals x% of accumulated damage as a bonus hit 
-    \r\n\r\nBurn stores damage invisibly and releases it in a powerful burst."
+    chance to apply Burn on hit  \r\nTrigger: activates on the 4th fire damage hit
+    after a successful Burn application \r\nExplosion: deals x% of accumulated damage
+    as a bonus hit  \r\n\r\nBurn stores damage invisibly and releases it in a powerful
+    burst. Only fire damage causes heat build up."
   tooltipPanel: {fileID: 1265542261}
   tooltipAnchor: {fileID: 1369682479}
   tooltipMeasureRect: {fileID: 1751072472}
@@ -31739,7 +31740,7 @@ GameObject:
   - component: {fileID: 1883233546}
   - component: {fileID: 1883233545}
   m_Layer: 7
-  m_Name: Arcanis
+  m_Name: Arcanist
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -35024,6 +35025,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 789741770549466916, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 789741770549466916, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: m_AnchoredPosition.x
       value: 0
       objectReference: {fileID: 0}
@@ -35056,18 +35061,6 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
-      propertyPath: burnIcon
-      value: 
-      objectReference: {fileID: -8088392421741576743, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
-    - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
-      propertyPath: chillIcon
-      value: 
-      objectReference: {fileID: -5162256768904292576, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
-    - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
-      propertyPath: shockIcon
-      value: 
-      objectReference: {fileID: -427855172329239467, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
-    - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: hudTooltip
       value: 
       objectReference: {fileID: 719275860}
@@ -35093,6 +35086,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2769238353924229594, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2769238353924229594, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4384165625191784273, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}

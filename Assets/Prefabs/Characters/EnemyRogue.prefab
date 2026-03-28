@@ -57,7 +57,7 @@ Transform:
   m_GameObject: {fileID: 1670471547977060905}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 4.0742683, y: 2.1876526, z: 0}
+  m_LocalPosition: {x: -0.06, y: 2.02, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -863,13 +863,14 @@ GameObject:
   - component: {fileID: 8776380226470669316}
   - component: {fileID: 1557173303479532617}
   - component: {fileID: 1174277405054573469}
+  - component: {fileID: 549625517635857652}
   m_Layer: 8
   m_Name: EnemyRogue
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &6538367760463352144
 Transform:
   m_ObjectHideFlags: 0
@@ -995,8 +996,10 @@ MonoBehaviour:
   unitDisplayName: Rogue
   currentHP: -1
   currentEnergy: -1
+  currentMana: -1
   baseMaxHP: 45
   baseMaxEnergy: 0
+  baseMaxMana: 50
   baseArmor: 0
   baseMagicResist: 0
   basePhysBlockChance: 0
@@ -1004,6 +1007,7 @@ MonoBehaviour:
   baseMoveSpeedMult: 0
   baseLifeRegen: 0
   baseEnergyRegen: 0
+  baseManaRegen: 1
   baseMinPhysicalDamage: 4
   baseMaxPhysicalDamage: 7
   baseMinMagicDamage: 0
@@ -1019,6 +1023,15 @@ MonoBehaviour:
   basePoisonMultiplier: 0.2
   basePoisonDuration: 5
   basePoisonMaxStacks: 3
+  baseMagicAttackType: 0
+  baseMagicAilmentApplyChance: 0
+  baseChillDuration: 5
+  baseChillMaxStacks: 6
+  baseChillSlowPerStack: 0.15
+  baseBurnHitsToExplode: 4
+  baseBurnExplosionMultiplier: 0.5
+  baseShockDuration: 5
+  baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
   trueDamageCanCrit: 0
   equipment: {fileID: 0}
@@ -1030,11 +1043,8 @@ MonoBehaviour:
   unarmedRange: 1
   unarmedCritChance: 0
   unarmedCritMultiplier: 1.5
-  bonusAxePower: 0
   bonusAxeSpeedMult: 0
-  bonusPickaxePower: 0
   bonusPickaxeSpeedMult: 0
-  bonusRodPower: 0
   bonusRodSpeedMult: 0
   combatPowerDefenseScale: 0.1
   combatPowerSustainScale: 3
@@ -1099,6 +1109,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
+  burnFallbackDurationSeconds: 30
+--- !u!114 &549625517635857652
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7067837762391281150}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d4a37e2dc988fd47ad11848e99e2900, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyOverheadUISpawner
+  overheadPrefab: {fileID: 8344640054554863328, guid: 8099321fe44a7d540b9be18f0578e80d, type: 3}
+  overheadAnchor: {fileID: 4363182750086468540}
+  characterStats: {fileID: 217292436927114433}
+  enemy: {fileID: 3338760021146893430}
+  ailments: {fileID: 1174277405054573469}
+  stripCanvas: {fileID: 0}
+  stripCamera: {fileID: 0}
 --- !u!1 &7487605686070336555
 GameObject:
   m_ObjectHideFlags: 0

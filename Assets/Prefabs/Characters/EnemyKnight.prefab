@@ -24,7 +24,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &4000011028196368
 Transform:
   m_ObjectHideFlags: 0
@@ -150,8 +150,10 @@ MonoBehaviour:
   unitDisplayName: Knight
   currentHP: -1
   currentEnergy: -1
-  baseMaxHP: 100
+  currentMana: -1
+  baseMaxHP: 300
   baseMaxEnergy: 0
+  baseMaxMana: 50
   baseArmor: 50
   baseMagicResist: 0
   basePhysBlockChance: 0.25
@@ -159,6 +161,7 @@ MonoBehaviour:
   baseMoveSpeedMult: 0
   baseLifeRegen: 2
   baseEnergyRegen: 0
+  baseManaRegen: 1
   baseMinPhysicalDamage: 12
   baseMaxPhysicalDamage: 16
   baseMinMagicDamage: 0
@@ -174,6 +177,15 @@ MonoBehaviour:
   basePoisonMultiplier: 0
   basePoisonDuration: 5
   basePoisonMaxStacks: 3
+  baseMagicAttackType: 0
+  baseMagicAilmentApplyChance: 0
+  baseChillDuration: 5
+  baseChillMaxStacks: 6
+  baseChillSlowPerStack: 0.15
+  baseBurnHitsToExplode: 4
+  baseBurnExplosionMultiplier: 0.5
+  baseShockDuration: 5
+  baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
   trueDamageCanCrit: 0
   equipment: {fileID: 0}
@@ -185,11 +197,8 @@ MonoBehaviour:
   unarmedRange: 1.5
   unarmedCritChance: 0.1
   unarmedCritMultiplier: 1.5
-  bonusAxePower: 0
   bonusAxeSpeedMult: 0
-  bonusPickaxePower: 0
   bonusPickaxeSpeedMult: 0
-  bonusRodPower: 0
   bonusRodSpeedMult: 0
   combatPowerDefenseScale: 0.1
   combatPowerSustainScale: 3
@@ -254,6 +263,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
+  burnFallbackDurationSeconds: 30
 --- !u!114 &101716477094515511
 MonoBehaviour:
   m_ObjectHideFlags: 0
