@@ -31,13 +31,11 @@ public static class SaveSlotManager
     public static void SetActiveSlot(int slotIndex)
     {
         ActiveSlotIndex = Mathf.Clamp(slotIndex, 0, MaxSlots - 1);
-        Debug.Log($"[SaveSlotManager] Active slot set to {ActiveSlotIndex}");
     }
 
     public static void SetPendingStartMode(SlotStartMode mode)
     {
         PendingStartMode = mode;
-        Debug.Log($"[SaveSlotManager] PendingStartMode set to {PendingStartMode}");
     }
 
     public static SlotStartMode ConsumePendingStartMode()
@@ -138,7 +136,5 @@ public static class SaveSlotManager
 
         if (File.Exists(metaPath))
             File.Delete(metaPath);
-
-        Debug.Log($"[SaveSlotManager] Deleted slot {slotIndex}");
     }
 }

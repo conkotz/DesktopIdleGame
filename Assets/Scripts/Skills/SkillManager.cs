@@ -54,7 +54,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
     {
         if (Instance && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        DontDestroyOnLoad(transform.root.gameObject);
 
         BuildDefaultsIfEmpty();
     }

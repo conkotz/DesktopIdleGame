@@ -117,8 +117,6 @@ public class SaveSlotMenuUI : MonoBehaviour
         if (slotIndex < 0)
             return;
 
-        Debug.Log($"[SaveSlotMenuUI] Confirmed New Game. slot={slotIndex}");
-
         SaveSlotManager.DeleteSlot(slotIndex);
         RefreshSlotInfoUI();
         RefreshSlotButtonsState();
@@ -357,8 +355,6 @@ public class SaveSlotMenuUI : MonoBehaviour
         if (!SaveSlotManager.HasSave(slotIndex))
             return;
 
-        Debug.Log($"[SaveSlotMenuUI] Continue/Load selected. slot={slotIndex}");
-
         SaveSlotManager.SetActiveSlot(slotIndex);
         SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.LoadGame);
         if (CanLoadGameplayScene())
@@ -368,7 +364,6 @@ public class SaveSlotMenuUI : MonoBehaviour
     public void OnClickNewGame(int slotIndex)
     {
         bool hasSave = SaveSlotManager.HasSave(slotIndex);
-        Debug.Log($"[SaveSlotMenuUI] New Game clicked. slot={slotIndex} hasSave={hasSave}");
 
         if (hasSave)
         {
@@ -381,8 +376,6 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     public void OnClickDeleteSlot(int slotIndex)
     {
-        Debug.Log($"Delete slot {slotIndex}");
-
         SaveSlotManager.DeleteSlot(slotIndex);
 
         RefreshSlotInfoUI();

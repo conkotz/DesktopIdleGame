@@ -40,7 +40,8 @@ public class SaveManager : MonoBehaviour
     {
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        // Must target a scene root; SaveManager may live under a child (e.g. _GameSystems on Bootstrap).
+        DontDestroyOnLoad(transform.root.gameObject);
     }
 
     private void OnEnable()
@@ -80,8 +81,6 @@ public class SaveManager : MonoBehaviour
         // Safe fallback if something loads gameplay without going through the Bootstrap UI buttons.
         if (pendingMode == SaveSlotManager.SlotStartMode.None)
             pendingMode = HasSave() ? SaveSlotManager.SlotStartMode.LoadGame : SaveSlotManager.SlotStartMode.NewGame;
-
-        Debug.Log($"[SaveManager] Gameplay init. scene='{scene.name}' slot={slot} startMode={pendingMode} hasSave={HasSave()}");
 
         _didInitialLoadOrCreate = true;
 

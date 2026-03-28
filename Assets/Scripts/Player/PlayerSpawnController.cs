@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -70,10 +71,13 @@ public class PlayerSpawnController : MonoBehaviour
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (_running != null) StopCoroutine(_running);
-        _running = StartCoroutine(SpawnAfterLoad());
+        _running = StartCoroutine(SpawnAfterLoad(scene));
     }
 
-    private IEnumerator SpawnAfterLoad()
+    private static bool IsBootstrapScene(Scene scene) =>
+        scene.IsValid() && scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase);
+
+    private IEnumerator SpawnAfterLoad(Scene loadedScene)
     {
         bool doFade = fadeDuration > 0.001f;
 
@@ -108,7 +112,7 @@ public class PlayerSpawnController : MonoBehaviour
         {
             transform.position = spawn.transform.position;
         }
-        else
+        else if (!IsBootstrapScene(loadedScene))
         {
             Debug.LogWarning($"[PlayerSpawnController] Missing spawn point in scene. Tried '{(shouldWalkIn ? walkInEntryPointName : spawnPointName)}' then '{spawnPointName}'. Player stays where it is.");
         }
@@ -119,7 +123,7 @@ public class PlayerSpawnController : MonoBehaviour
         yield return new WaitForFixedUpdate();
 
         if (snapToGround)
-            SnapToGround_ColliderCast();
+            SnapToGround_ColliderCast(!IsBootstrapScene(loadedScene));
 
         // Clear motion + re-enable physics
         if (rb)
@@ -155,7 +159,7 @@ public class PlayerSpawnController : MonoBehaviour
     /// the player so the collider bottom rests on the ground.
     /// Works with pivot offsets and thin/edge colliders better than a single Raycast.
     /// </summary>
-    private void SnapToGround_ColliderCast()
+    private void SnapToGround_ColliderCast(bool logFailureWarning)
     {
         if (!col)
         {
@@ -212,7 +216,8 @@ public class PlayerSpawnController : MonoBehaviour
 
         if (!wasEnabled) col.enabled = false;
 
-        Debug.LogWarning("[PlayerSpawnController] SnapToGround failed (no ground hit). Check groundMask + colliders.");
+        if (logFailureWarning)
+            Debug.LogWarning("[PlayerSpawnController] SnapToGround failed (no ground hit). Check groundMask + colliders.");
     }
 
     private IEnumerator FadeIn()
