@@ -9,20 +9,8 @@ EditorBuildSettings:
     path: Assets/Scenes/Bootstrap.unity
     guid: 765b61b61f8124448b9fe4a0bcc06af0
   - enabled: 1
-    path: Assets/Scenes/TownHub.unity
-    guid: d79ab1a3728a1504f9d2d71aa4351b98
-  - enabled: 1
-    path: Assets/Scenes/Resource_Map_01.unity
+    path: Assets/Scenes/GamePlay.unity
     guid: 1d3fb79676ed83e4398da0444d6968c5
-  - enabled: 1
-    path: Assets/Scenes/Combat_Map_01.unity
-    guid: 2763570dcdb29a34e90947af0b75f820
-  - enabled: 0
-    path: Assets/Scenes/BootMenu.unity
-    guid: 25ae30e1b7cc5bb45829f14094bbca02
-  - enabled: 0
-    path: Assets/Scenes/Resource_Map_02.unity
-    guid: deead49b1ce64c44882b09a2fb892319
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   m_UseUCBPForAssetBundles: 0

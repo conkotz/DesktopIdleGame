@@ -2346,7 +2346,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: afa98c509d5d59b45879f7a606d39172, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SaveSlotMenuUI
-  gameplaySceneName: Resource_Map_01
+  gameplaySceneName: GamePlay
   slot0InfoText: {fileID: 0}
   slot1InfoText: {fileID: 0}
   slot0ResumeButton: {fileID: 0}

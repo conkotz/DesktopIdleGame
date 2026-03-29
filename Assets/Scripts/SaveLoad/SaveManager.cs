@@ -180,6 +180,8 @@ public class SaveManager : MonoBehaviour
         foreach (var s in saveables)
             s.SaveInto(data);
 
+        ApplyActiveMapToSaveData(data);
+
         _lastLoadedData = data;
 
         var json = JsonUtility.ToJson(data, true);
@@ -202,6 +204,40 @@ public class SaveManager : MonoBehaviour
         SaveSlotManager.WriteHeader(header);
     }
 
+    private static void ApplyActiveMapToSaveData(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        MapNodeDefinition def = null;
+        if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
+            def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
+        else if (ActiveLevelContext.Current != null)
+            def = ActiveLevelContext.Current;
+
+        if (def == null)
+            return;
+
+        data.activeMapNodeId = def.nodeId ?? "";
+        data.activeMapDisplayName = def.displayName ?? "";
+    }
+
+    private static void RestoreActiveMapFromSaveData(SaveData data)
+    {
+        if (data == null || string.IsNullOrWhiteSpace(data.activeMapNodeId))
+            return;
+
+        WorldMapProgressManager progress = WorldMapProgressManager.Instance;
+        if (progress == null || progress.WorldMap == null)
+            return;
+
+        MapNodeDefinition node = progress.WorldMap.FindNodeById(data.activeMapNodeId.Trim());
+        if (node == null)
+            return;
+
+        ActiveLevelContext.SetPendingLevel(node, logToConsole: false);
+    }
+
     public void Load()
     {
         if (!HasSave()) return;
@@ -217,6 +253,8 @@ public class SaveManager : MonoBehaviour
             var saveables = FindSaveables();
             foreach (var s in saveables)
                 s.LoadFrom(data);
+
+            RestoreActiveMapFromSaveData(data);
         }
         finally
         {

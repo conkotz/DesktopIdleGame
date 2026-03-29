@@ -107,6 +107,16 @@ public static class SaveSlotManager
 
     public static SaveGameHeader BuildHeaderFromSaveData(int slotIndex, SaveData data, string sceneName, DateTime utcNow, int combatPower)
     {
+        string mapLabel = "";
+        string mapId = "";
+        if (data != null)
+        {
+            if (!string.IsNullOrWhiteSpace(data.activeMapDisplayName))
+                mapLabel = data.activeMapDisplayName.Trim();
+            if (!string.IsNullOrWhiteSpace(data.activeMapNodeId))
+                mapId = data.activeMapNodeId.Trim();
+        }
+
         return new SaveGameHeader
         {
             slotIndex = slotIndex,
@@ -116,6 +126,8 @@ public static class SaveSlotManager
             combatPower = Mathf.Max(0, combatPower),
             gold = Mathf.Max(0, data != null ? data.gold : 0),
             sceneName = string.IsNullOrWhiteSpace(sceneName) ? "" : sceneName,
+            activeMapDisplayName = mapLabel,
+            activeMapNodeId = mapId,
             lastSavedUtc = utcNow.ToString("u"),
             playTimeSeconds = 0f
         };

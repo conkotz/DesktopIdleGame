@@ -9,6 +9,13 @@ public class SaveData
     public int version = 2;
     public long savedAtUnix;
 
+    [Header("World / Map")]
+    [Tooltip("MapNodeDefinition.nodeId for the last played area (restored on load).")]
+    public string activeMapNodeId = "";
+
+    [Tooltip("Cached display label for save slot UI (denormalized).")]
+    public string activeMapDisplayName = "";
+
     [Header("Player")]
     public string playerName = "Adventurer";
     public int playerLevel = 1;

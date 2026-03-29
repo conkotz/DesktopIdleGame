@@ -15,7 +15,7 @@ public class WorldMapProgressManager : MonoBehaviour
     [SerializeField] private WorldMapDefinition worldMap;
 
     [Header("Debug / Test Seeds")]
-    [Tooltip("Extra node ids unlocked when progress initializes (e.g. pine_grove for Greenlands test).")]
+    [Tooltip("Extra node ids unlocked at init (besides startingNodeId). Level select 'Map locked' means the id is not in this set / story unlocks yet — skill requirements are separate.")]
     [SerializeField] private List<string> additionalUnlockedNodeIds = new();
 
     private readonly HashSet<string> _unlocked = new(StringComparer.Ordinal);
@@ -74,7 +74,7 @@ public class WorldMapProgressManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Locked → not unlocked. Unlocked (not completed) → Unlocked. Completed → Completed.
+    /// Map progression only (not skills). Prefer <see cref="MapNodeDefinition.GetUiStateLabel"/> for the level-select UI.
     /// </summary>
     public string GetStateLabel(string nodeId)
     {

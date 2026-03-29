@@ -3,12 +3,17 @@ using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class LevelSelectPageUI : MonoBehaviour
 {
     [Header("Data")]
     [SerializeField] private WorldMapDefinition worldMap;
+
+    [Header("Loading")]
+    [Tooltip("Single gameplay scene; level content comes from MapNodeDefinition via ActiveLevelContext.")]
+    [SerializeField] private string gameplaySceneName = "GamePlay";
 
     [Header("Left — Regions")]
     [SerializeField] private Transform regionListParent;
@@ -28,7 +33,7 @@ public class LevelSelectPageUI : MonoBehaviour
     [SerializeField] private TMP_Text selectedNodeType;
     [SerializeField] private TMP_Text selectedNodeState;
     [FormerlySerializedAs("detailRecommendedLevelText")]
-    [Tooltip("Shows recommended CP from the node definition (maps from recommendedLevel until a dedicated CP field exists).")]
+    [Tooltip("Shows Recommended CP from MapNodeDefinition.recommendedCombatPower.")]
     [SerializeField] private TMP_Text selectedNodeRecommendedCp;
     [FormerlySerializedAs("detailRepeatableText")]
     [SerializeField] private TMP_Text selectedNodeRepeatable;
@@ -46,8 +51,16 @@ public class LevelSelectPageUI : MonoBehaviour
     private MapNodeDefinition _selectedNode;
     private bool _selectionInitialized;
 
+    /// <summary>
+    /// While the level-select page is active, HUD can read this to show the highlighted node
+    /// (before the player presses Enter).
+    /// </summary>
+    public static MapNodeDefinition HudPreviewSelection { get; private set; }
+
     /// <summary>Non-serialized: UI may load before Bootstrap; we re-resolve until found.</summary>
     private WorldMapProgressManager _progressEventsTarget;
+
+    private SkillsManager _skillsLevelEventsTarget;
 
     private void Awake()
     {
@@ -64,12 +77,21 @@ public class LevelSelectPageUI : MonoBehaviour
     private void OnEnable()
     {
         TrySubscribeProgressChanged();
+        TrySubscribeSkillsLevelEvents();
 
         ResolveDefaults();
-        if (!_selectionInitialized && worldMap)
+        if (worldMap)
         {
-            ApplyDefaultSelection();
-            _selectionInitialized = true;
+            // Prefer the map we're actually playing (bootstrap / ActiveLevelContext) so the grey
+            // selection matches the current area — not only startingNodeId / first row.
+            bool syncedToActive = TrySelectActiveMapNode();
+            if (!syncedToActive && !_selectionInitialized)
+            {
+                ApplyDefaultSelection();
+                _selectionInitialized = true;
+            }
+            else if (syncedToActive)
+                _selectionInitialized = true;
         }
 
         RebuildRegionList();
@@ -80,15 +102,28 @@ public class LevelSelectPageUI : MonoBehaviour
     private void OnDisable()
     {
         UnsubscribeProgressChanged();
+        UnsubscribeSkillsLevelEvents();
+        HudPreviewSelection = null;
     }
 
     private void Update()
     {
-        if (_progressEventsTarget != null)
-            return;
+        bool subscribed = false;
+        if (_progressEventsTarget == null)
+        {
+            TrySubscribeProgressChanged();
+            if (_progressEventsTarget != null)
+                subscribed = true;
+        }
 
-        TrySubscribeProgressChanged();
-        if (_progressEventsTarget != null)
+        if (_skillsLevelEventsTarget == null)
+        {
+            TrySubscribeSkillsLevelEvents();
+            if (_skillsLevelEventsTarget != null)
+                subscribed = true;
+        }
+
+        if (subscribed)
         {
             RebuildNodeList();
             RefreshDetails();
@@ -123,6 +158,34 @@ public class LevelSelectPageUI : MonoBehaviour
         }
     }
 
+    private void TrySubscribeSkillsLevelEvents()
+    {
+        SkillsManager s = FindSkillsManager();
+        if (!s || s == _skillsLevelEventsTarget)
+            return;
+
+        UnsubscribeSkillsLevelEvents();
+        _skillsLevelEventsTarget = s;
+        _skillsLevelEventsTarget.OnLevelUp += OnPlayerSkillLevelChanged;
+    }
+
+    private void UnsubscribeSkillsLevelEvents()
+    {
+        if (_skillsLevelEventsTarget != null)
+        {
+            _skillsLevelEventsTarget.OnLevelUp -= OnPlayerSkillLevelChanged;
+            _skillsLevelEventsTarget = null;
+        }
+    }
+
+    private void OnPlayerSkillLevelChanged(SkillType _, int __)
+    {
+        if (!isActiveAndEnabled)
+            return;
+
+        RefreshDetails();
+    }
+
     private void ResolveDefaults()
     {
         if (!worldMap)
@@ -137,6 +200,36 @@ public class LevelSelectPageUI : MonoBehaviour
     {
         RebuildNodeList();
         RefreshDetails();
+    }
+
+    /// <summary>
+    /// Select region + node for the level currently loaded in GamePlay (if any).
+    /// </summary>
+    private bool TrySelectActiveMapNode()
+    {
+        if (!worldMap || worldMap.regions == null || worldMap.regions.Count == 0)
+            return false;
+
+        MapNodeDefinition active = null;
+        if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
+            active = GameplayLevelBootstrapper.Instance.ActiveDefinition;
+        else if (ActiveLevelContext.Current != null)
+            active = ActiveLevelContext.Current;
+
+        if (active == null || string.IsNullOrEmpty(active.nodeId))
+            return false;
+
+        RegionDefinition region = worldMap.FindRegionContainingNode(active.nodeId);
+        if (!region)
+            return false;
+
+        MapNodeDefinition nodeInList = region.FindNodeById(active.nodeId);
+        if (!nodeInList)
+            return false;
+
+        _selectedRegion = region;
+        _selectedNode = nodeInList;
+        return true;
     }
 
     private void ApplyDefaultSelection()
@@ -237,6 +330,7 @@ public class LevelSelectPageUI : MonoBehaviour
             return;
 
         WorldMapProgressManager progress = FindProgressManager();
+        SkillsManager skills = FindSkillsManager();
 
         for (int i = 0; i < _selectedRegion.nodes.Count; i++)
         {
@@ -247,7 +341,7 @@ public class LevelSelectPageUI : MonoBehaviour
             _nodeButtons.Add(row);
 
             string state = progress
-                ? progress.GetStateLabel(node.nodeId)
+                ? node.GetUiStateLabel(progress, skills)
                 : "Unlocked";
 
             bool sel = _selectedNode && _selectedNode == node;
@@ -273,6 +367,17 @@ public class LevelSelectPageUI : MonoBehaviour
         RefreshDetails();
     }
 
+    private void PublishHudPreview()
+    {
+        if (!isActiveAndEnabled)
+        {
+            HudPreviewSelection = null;
+            return;
+        }
+
+        HudPreviewSelection = _selectedNode;
+    }
+
     private void RefreshDetails()
     {
         MapNodeDefinition n = _selectedNode;
@@ -294,10 +399,12 @@ public class LevelSelectPageUI : MonoBehaviour
         if (selectedNodeType)
             selectedNodeType.text = n ? n.nodeType.ToString() : "";
 
+        SkillsManager skills = FindSkillsManager();
+
         if (selectedNodeState)
         {
             if (n && progress)
-                selectedNodeState.text = progress.GetStateLabel(n.nodeId);
+                selectedNodeState.text = n.GetUiStateLabel(progress, skills);
             else if (n)
                 selectedNodeState.text = "Unlocked";
             else
@@ -305,7 +412,7 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         if (selectedNodeRecommendedCp)
-            selectedNodeRecommendedCp.text = n ? $"Recommended CP: {n.recommendedLevel}" : "";
+            selectedNodeRecommendedCp.text = n ? $"Recommended CP: {n.recommendedCombatPower}" : "";
 
         if (selectedNodeRepeatable)
             selectedNodeRepeatable.text = n ? (n.isRepeatable ? "Repeatable: Yes" : "Repeatable: No") : "";
@@ -315,9 +422,19 @@ public class LevelSelectPageUI : MonoBehaviour
 
         RefreshRequirementsBlock(n);
 
-        bool canEnter = n && progress && progress.IsNodeUnlocked(n.nodeId);
+        bool canEnter = n && n.CanEnter(progress, skills);
         if (enterNodeButton)
             enterNodeButton.interactable = canEnter;
+
+        PublishHudPreview();
+    }
+
+    private static SkillsManager FindSkillsManager()
+    {
+        if (SkillsManager.Instance != null)
+            return SkillsManager.Instance;
+
+        return FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
     }
 
     private void RefreshRequirementsBlock(MapNodeDefinition n)
@@ -335,13 +452,24 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         var sb = new StringBuilder();
-        if (n.requiredPlayerLevelPlaceholder > 0)
-            sb.AppendLine($"Requires player level: {n.requiredPlayerLevelPlaceholder}");
+        sb.Append(n.BuildRequirementsDisplayText());
 
-        if (!string.IsNullOrWhiteSpace(n.unlockRequirementNotes))
+        WorldMapProgressManager progress = FindProgressManager();
+        if (n.requiresMapUnlock && progress != null && !progress.IsNodeUnlocked(n.nodeId))
         {
-            if (sb.Length > 0) sb.AppendLine();
-            sb.Append(n.unlockRequirementNotes.Trim());
+            if (sb.Length > 0)
+                sb.AppendLine();
+            sb.Append(
+                "Map: Locked — not unlocked in WorldMapProgressManager yet. Add this node id to unlocks, or turn off Requires Map Unlock on the asset if skills alone should open it.");
+        }
+
+        SkillsManager skills = FindSkillsManager();
+        if (skills != null && n.HasSkillGates())
+        {
+            if (sb.Length > 0)
+                sb.AppendLine();
+            bool met = n.MeetsSkillRequirements(skills);
+            sb.Append(met ? "Status: Skill requirements met." : "Status: Skill requirements not met.");
         }
 
         string combined = sb.ToString().Trim();
@@ -363,12 +491,22 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         WorldMapProgressManager progress = FindProgressManager();
-        if (progress && !progress.IsNodeUnlocked(_selectedNode.nodeId))
+        SkillsManager skills = FindSkillsManager();
+        if (!_selectedNode.CanEnter(progress, skills))
         {
-            Debug.LogWarning($"[LevelSelectPageUI] Enter blocked (locked): {_selectedNode.nodeId}");
+            Debug.LogWarning($"[LevelSelectPageUI] Enter blocked (map and/or skills): {_selectedNode.nodeId}");
             return;
         }
 
-        Debug.Log($"[LevelSelectPageUI] Enter node: {_selectedNode.nodeId}");
+        ActiveLevelContext.SetPendingLevel(_selectedNode);
+
+        if (string.IsNullOrWhiteSpace(gameplaySceneName))
+        {
+            Debug.LogError("[LevelSelectPageUI] Gameplay scene name is not set.");
+            return;
+        }
+
+        Debug.Log($"[LevelSelectPageUI] Loading '{gameplaySceneName}' for node: {_selectedNode.nodeId}");
+        SceneManager.LoadScene(gameplaySceneName);
     }
 }

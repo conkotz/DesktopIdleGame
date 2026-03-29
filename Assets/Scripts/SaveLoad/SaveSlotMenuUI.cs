@@ -9,9 +9,9 @@ using UnityEngine.UI;
 public class SaveSlotMenuUI : MonoBehaviour
 {
     [Tooltip("Gameplay scene to enter after selecting/creating a slot.")]
-    [SerializeField] private string gameplaySceneName = "Resource_Map_01";
+    [SerializeField] private string gameplaySceneName = "GamePlay";
 
-    private const string FallbackGameplaySceneName = "Resource_Map_01";
+    private const string FallbackGameplaySceneName = "GamePlay";
 
     [Header("Slot Info Labels (optional)")]
     [Tooltip("If not assigned, we'll auto-find Slot1Card/InfoLabel and Slot2Card/InfoLabel.")]
@@ -280,14 +280,16 @@ public class SaveSlotMenuUI : MonoBehaviour
         // Prefer meta header if present.
         if (SaveSlotManager.TryReadHeader(slotIndex, out SaveGameHeader header) && header != null && header.hasSave)
         {
-            string scene = string.IsNullOrWhiteSpace(header.sceneName) ? "Unknown" : header.sceneName;
+            string location = !string.IsNullOrWhiteSpace(header.activeMapDisplayName)
+                ? header.activeMapDisplayName.Trim()
+                : (string.IsNullOrWhiteSpace(header.sceneName) ? "Unknown" : header.sceneName);
             string last = FormatSavedTimeForDisplay(header.lastSavedUtc);
             string cpText = header.combatPower > 0 ? $"CP: {header.combatPower}" : "CP: --";
             string playerName = string.IsNullOrWhiteSpace(header.characterName) ? "Adventurer" : header.characterName;
             label.text =
                 $"{playerName}\n" +
                 $"{cpText}  •  Gold {Mathf.Max(0, header.gold)}\n" +
-                $"{scene}\n" +
+                $"{location}\n" +
                 (string.IsNullOrWhiteSpace(last) ? "" : $"Last saved {last}");
             return;
         }

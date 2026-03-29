@@ -10,18 +10,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
-  m_Name: MapNode_green_fields
+  m_Name: MapNode_pine_grove
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
-  nodeId: green_fields
-  displayName: Test Node
-  description: test level
-  nodeType: 0
-  recommendedLevel: 1
+  nodeId: pine_grove
+  displayName: Test Node2
+  description: test level2
+  nodeType: 1
+  recommendedCombatPower: 1
   isRepeatable: 1
+  requiresMapUnlock: 0
   icon: {fileID: 0}
-  unlockRequirementNotes: 
-  requiredPlayerLevelPlaceholder: 0
+  requiredSkillLevels: []
+  combatSkillGateMode: 0
+  combatSingleSkill: 0
+  combatRequiredLevel: 1
+  unlockRequirementNotes: must have tools
   connectedNodeIds: []
   nextNodeIds: []
+  biome: 0
+  prefabGroups: []
+  contentDesignerNotes: 
   sceneNamePlaceholder: 
   encounterIdPlaceholder: 
