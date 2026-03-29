@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7dcdd249539c7f4c9560c93ad5bd3da, type: 3}
+  m_Name: Region_Greenlands
+  m_EditorClassIdentifier: Assembly-CSharp::RegionDefinition
+  regionId: greenlands
+  displayName: Test Region
+  description: Test
+  nodes:
+  - {fileID: 11400000, guid: 268f98c476273384a896390c96aa7917, type: 2}
+  - {fileID: 11400000, guid: bd9148f386fcb4644a8c0b41179c8e24, type: 2}
+  backgroundSprite: {fileID: 0}

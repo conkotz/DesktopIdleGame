@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using TMPro;
 
 public class MainMenuWindowUI : MonoBehaviour
@@ -10,6 +11,8 @@ public class MainMenuWindowUI : MonoBehaviour
     [SerializeField] private TMP_Text headerTitleText;
     [SerializeField] private string characterTitle = "Character";
     [SerializeField] private string skillsTitle = "Skills & Abilities";
+    [FormerlySerializedAs("worldMapTitle")]
+    [SerializeField] private string levelSelectTitle = "Level select";
 
     [Header("Optional UI gating")]
     [Tooltip("If set, we force this CanvasGroup to be interactable when opening pages (prevents first-open issues).")]
@@ -18,10 +21,13 @@ public class MainMenuWindowUI : MonoBehaviour
     [Header("Pages")]
     [SerializeField] private GameObject characterPage;
     [SerializeField] private GameObject skillsAbilitiesPage;
+    [FormerlySerializedAs("worldMapPage")]
+    [SerializeField] private GameObject levelSelectPage;
 
     private GameObject currentPage;
     private bool _loggedFirstCharacterOpen;
     private bool _loggedFirstSkillsOpen;
+    private bool _loggedFirstLevelSelectOpen;
 
     public bool IsOpen => mainMenuWindow != null && mainMenuWindow.activeSelf;
     public GameObject CurrentPage => currentPage;
@@ -59,6 +65,18 @@ public class MainMenuWindowUI : MonoBehaviour
     {
         LogFirstOpenAttempt("Skills", ref _loggedFirstSkillsOpen);
         OpenPage(skillsAbilitiesPage);
+    }
+
+    public void ToggleLevelSelect()
+    {
+        LogFirstOpenAttempt("LevelSelect", ref _loggedFirstLevelSelectOpen);
+        TogglePage(levelSelectPage);
+    }
+
+    public void OpenLevelSelect()
+    {
+        LogFirstOpenAttempt("LevelSelect", ref _loggedFirstLevelSelectOpen);
+        OpenPage(levelSelectPage);
     }
 
     public void Close()
@@ -113,6 +131,7 @@ public class MainMenuWindowUI : MonoBehaviour
     {
         if (characterPage) characterPage.SetActive(false);
         if (skillsAbilitiesPage) skillsAbilitiesPage.SetActive(false);
+        if (levelSelectPage) levelSelectPage.SetActive(false);
     }
 
     private void RefreshHeaderTitle()
@@ -123,6 +142,8 @@ public class MainMenuWindowUI : MonoBehaviour
             headerTitleText.text = characterTitle;
         else if (currentPage == skillsAbilitiesPage)
             headerTitleText.text = skillsTitle;
+        else if (currentPage == levelSelectPage)
+            headerTitleText.text = levelSelectTitle;
         else
             headerTitleText.text = "";
     }
