@@ -18,11 +18,25 @@ public class EquipmentSlotUI : MonoBehaviour,
     [SerializeField] private Image background;
     [SerializeField] private Image icon;
     [SerializeField] private TMP_Text label;
+    [SerializeField] private Outline rarityOutline;
 
     [Header("Slot Colours")]
     [SerializeField] private Color idleColor = new Color32(30, 34, 42, 255);
     [SerializeField] private Color hoverColor = new Color32(42, 48, 58, 255);
     [SerializeField] private Color pressedColor = new Color32(58, 66, 80, 255);
+
+    [Header("Rarity Border")]
+    [Tooltip("If false, no rarity border is shown.")]
+    [SerializeField] private bool showRarityBorder = true;
+
+    [SerializeField] private Color commonBorder = new Color32(140, 140, 140, 255);
+    [SerializeField] private Color uncommonBorder = new Color32(80, 200, 120, 255);
+    [SerializeField] private Color rareBorder = new Color32(80, 150, 255, 255);
+    [SerializeField] private Color epicBorder = new Color32(190, 90, 255, 255);
+    [SerializeField] private Color legendaryBorder = new Color32(255, 170, 40, 255);
+
+    [Tooltip("Outline thickness in UI space (bigger = thicker).")]
+    [SerializeField] private Vector2 rarityBorderThickness = new Vector2(4f, 4f);
 
     [Header("Refs (auto-find if empty)")]
     [SerializeField] private EquipmentManager equipment;
@@ -120,6 +134,17 @@ public class EquipmentSlotUI : MonoBehaviour,
         {
             background.raycastTarget = true;
             background.color = idleColor;
+        }
+
+        if (!rarityOutline && background)
+            rarityOutline = background.GetComponent<Outline>();
+        if (!rarityOutline && background)
+            rarityOutline = background.gameObject.AddComponent<Outline>();
+        if (rarityOutline)
+        {
+            rarityOutline.enabled = false;
+            rarityOutline.useGraphicAlpha = false;
+            rarityOutline.effectDistance = rarityBorderThickness;
         }
 
         if (icon) icon.raycastTarget = false;
@@ -270,6 +295,8 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         if (label)
             label.text = GetDisplayLabel();
+
+        RefreshRarityBorder(_def);
     }
 
     private void SetEmptyVisual()
@@ -285,6 +312,36 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         if (label)
             label.text = GetTitle();
+
+        RefreshRarityBorder(null);
+    }
+
+    private void RefreshRarityBorder(ItemDefinition def)
+    {
+        if (!showRarityBorder || !rarityOutline)
+        {
+            if (rarityOutline) rarityOutline.enabled = false;
+            return;
+        }
+
+        if (def == null)
+        {
+            rarityOutline.enabled = false;
+            return;
+        }
+
+        rarityOutline.enabled = true;
+        rarityOutline.useGraphicAlpha = false;
+        rarityOutline.effectDistance = rarityBorderThickness;
+        rarityOutline.effectColor = def.rarity switch
+        {
+            ItemRarity.Common => commonBorder,
+            ItemRarity.Uncommon => uncommonBorder,
+            ItemRarity.Rare => rareBorder,
+            ItemRarity.Epic => epicBorder,
+            ItemRarity.Legendary => legendaryBorder,
+            _ => commonBorder
+        };
     }
 
     private string GetItemIdForThisSlot()

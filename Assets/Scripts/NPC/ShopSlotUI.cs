@@ -10,6 +10,21 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     [SerializeField] private TMP_Text priceText;
     [SerializeField] private TMP_Text stockText;
     [SerializeField] private Button button;
+    [SerializeField] private Image background;
+    [SerializeField] private Outline rarityOutline;
+
+    [Header("Rarity Border")]
+    [Tooltip("If false, no rarity border is shown.")]
+    [SerializeField] private bool showRarityBorder = true;
+
+    [SerializeField] private Color commonBorder = new Color32(140, 140, 140, 255);
+    [SerializeField] private Color uncommonBorder = new Color32(80, 200, 120, 255);
+    [SerializeField] private Color rareBorder = new Color32(80, 150, 255, 255);
+    [SerializeField] private Color epicBorder = new Color32(190, 90, 255, 255);
+    [SerializeField] private Color legendaryBorder = new Color32(255, 170, 40, 255);
+
+    [Tooltip("Outline thickness in UI space (bigger = thicker).")]
+    [SerializeField] private Vector2 rarityBorderThickness = new Vector2(4f, 4f);
 
     [Header("Tooltip (shared)")]
     [SerializeField] private SharedTooltipUI tooltip;
@@ -29,6 +44,19 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
     private void Awake()
     {
+        if (!background) background = GetComponent<Image>();
+
+        if (!rarityOutline && background)
+            rarityOutline = background.GetComponent<Outline>();
+        if (!rarityOutline && background)
+            rarityOutline = background.gameObject.AddComponent<Outline>();
+        if (rarityOutline)
+        {
+            rarityOutline.enabled = false;
+            rarityOutline.useGraphicAlpha = false;
+            rarityOutline.effectDistance = rarityBorderThickness;
+        }
+
         if (icon) icon.raycastTarget = false;
         if (priceText) priceText.raycastTarget = false;
         if (stockText) stockText.raycastTarget = false;
@@ -71,6 +99,8 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             icon.preserveAspect = true;
         }
 
+        RefreshRarityBorder(def);
+
         if (priceText)
         {
             priceText.text = GetCompactPriceText();
@@ -109,6 +139,34 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         }
 
         RefreshHoveredTooltip();
+    }
+
+    private void RefreshRarityBorder(ItemDefinition def)
+    {
+        if (!showRarityBorder || !rarityOutline)
+        {
+            if (rarityOutline) rarityOutline.enabled = false;
+            return;
+        }
+
+        if (def == null)
+        {
+            rarityOutline.enabled = false;
+            return;
+        }
+
+        rarityOutline.enabled = true;
+        rarityOutline.useGraphicAlpha = false;
+        rarityOutline.effectDistance = rarityBorderThickness;
+        rarityOutline.effectColor = def.rarity switch
+        {
+            ItemRarity.Common => commonBorder,
+            ItemRarity.Uncommon => uncommonBorder,
+            ItemRarity.Rare => rareBorder,
+            ItemRarity.Epic => epicBorder,
+            ItemRarity.Legendary => legendaryBorder,
+            _ => commonBorder
+        };
     }
 
     private string GetCompactPriceText()
