@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
-  m_Name: MapNode_town
+  m_Name: MapNode_town_duskwood
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: town
-  displayName: Test Town Node
-  description: test town level
+  displayName: Duskwood
+  description: First town
   nodeType: 5
   recommendedCombatPower: 1
   isRepeatable: 1

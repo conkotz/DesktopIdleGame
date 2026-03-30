@@ -193,6 +193,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: BasicPond
       objectReference: {fileID: 0}
+    - target: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 2839839119162134015, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       propertyPath: m_Size.x
       value: 6

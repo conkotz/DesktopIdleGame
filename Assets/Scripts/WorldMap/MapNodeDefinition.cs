@@ -42,6 +42,32 @@ public class EncounterPrefabGroup
     public List<GameObject> prefabs = new();
 }
 
+/// <summary>Prefab + count for a spawn plan.</summary>
+[Serializable]
+public class SpawnPrefabCount
+{
+    public GameObject prefab;
+
+    [Min(1)]
+    public int count = 1;
+}
+
+/// <summary>
+/// Spawn plan that targets a scene's <c>SpawnPointGroup.groupId</c> (e.g. TownMerchants, CombatEnemies, Resources).
+/// </summary>
+[Serializable]
+public class LevelSpawnGroupPlan
+{
+    [Tooltip("Must match a SpawnPointGroup.groupId in the scene.")]
+    public string groupId = "Default";
+
+    [Tooltip("What to spawn and how many.")]
+    public List<SpawnPrefabCount> spawns = new();
+
+    [Tooltip("If true, points are shuffled before spawning.")]
+    public bool shuffleSpawnPoints = true;
+}
+
 /// <summary>
 /// How combat skill levels gate entry for bosses/dungeons etc.
 /// </summary>
@@ -135,6 +161,9 @@ public class MapNodeDefinition : ScriptableObject
 
     [Tooltip("Grouped prefabs for spawners (enemies, gathering nodes, town props, etc.).")]
     public List<EncounterPrefabGroup> prefabGroups = new();
+
+    [Tooltip("Concrete spawn plan: which prefabs to instantiate and how many, mapped to SpawnPointGroup ids in the scene.")]
+    public List<LevelSpawnGroupPlan> spawnGroupPlans = new();
 
     [TextArea(2, 6)]
     [Tooltip("Designer notes for this level's spawn/setup.")]
