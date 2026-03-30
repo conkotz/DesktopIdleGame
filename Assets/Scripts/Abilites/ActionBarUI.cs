@@ -36,6 +36,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     [Header("Refs")]
     [SerializeField] private Inventory inventory;
     [SerializeField] private PlayerConsumableController consumableController;
+    [SerializeField] private PlayerAbilityController abilityController;
 
     [Header("Saved State (backing fields)")]
     private List<SavedSlotState> savedSlots = new();
@@ -108,8 +109,21 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         switch (action.kind)
         {
             case ActionBarAssignmentKind.Ability:
+                ResolveCoreRefs();
+                if (abilityController == null)
+                {
+                    Debug.LogWarning("[ActionBar] No PlayerAbilityController found.");
+                    return;
+                }
+
+                bool usedAbility = abilityController.TryUseAbility(action.id);
+
                 if (debugLogs)
-                    Debug.Log($"[ActionBar] Use ability '{action.displayName}' (ID: {action.id})");
+                    Debug.Log(usedAbility
+                        ? $"[ActionBar] Used ability '{action.displayName}'"
+                        : $"[ActionBar] Failed to use ability '{action.displayName}'");
+
+                RefreshSlotRuntime(slot);
                 break;
 
             case ActionBarAssignmentKind.Item:
@@ -230,7 +244,23 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 return ActionBarAssignment.CreateItem(def);
 
             case ActionBarAssignmentKind.Ability:
-                return null;
+                if (string.IsNullOrWhiteSpace(id))
+                    return null;
+
+                AbilityDefinition ability = AbilityLibrary.Get(id);
+                if (!ability)
+                {
+                    if (debugLogs)
+                        Debug.LogWarning($"[ActionBar] Could not find AbilityDefinition for '{id}'");
+                    return null;
+                }
+
+                return ActionBarAssignment.CreateAbility(
+                    ability.abilityId,
+                    ability.displayName,
+                    ability.icon,
+                    ability.description
+                );
         }
 
         return null;
@@ -252,6 +282,32 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (!action.IsItem || inventory == null)
         {
             slot.SetStackText(0);
+
+            if (action.IsAbility)
+            {
+                ResolveCoreRefs();
+                if (abilityController != null)
+                {
+                    float abilityNorm = abilityController.GetCooldownNormalized(action.id);
+                    abilityController.IsOnCooldown(action.id, out float abilitySecs);
+
+                    float gcdNorm = abilityController.GetGlobalCooldownNormalized();
+                    abilityController.IsOnGlobalCooldown(out float gcdSecs);
+
+                    // Show whichever lockout is currently stronger/longer.
+                    if (abilityNorm >= gcdNorm)
+                        slot.SetCooldownVisual(abilityNorm, abilitySecs);
+                    else
+                        slot.SetCooldownVisual(gcdNorm, gcdSecs);
+                }
+                else
+                {
+                    slot.SetCooldownVisual(0f, 0f);
+                }
+
+                return;
+            }
+
             slot.SetCooldownVisual(0f, 0f);
             return;
         }
@@ -363,6 +419,12 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             var playerConsumables = player.GetComponent<PlayerConsumableController>();
             if (playerConsumables != null)
                 consumableController = playerConsumables;
+
+            var playerAbilities = player.GetComponent<PlayerAbilityController>();
+            if (playerAbilities == null)
+                playerAbilities = player.gameObject.AddComponent<PlayerAbilityController>();
+            if (playerAbilities != null)
+                abilityController = playerAbilities;
         }
 
         if (inventory == null)
@@ -370,6 +432,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         if (consumableController == null)
             consumableController = FindFirstObjectByType<PlayerConsumableController>(FindObjectsInactive.Include);
+
+        if (abilityController == null)
+            abilityController = FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
     }
 
     private ActionBarSlotUI GetSlotByIndex(int slotIndex)

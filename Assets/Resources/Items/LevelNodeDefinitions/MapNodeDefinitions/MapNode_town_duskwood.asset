@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
   m_Name: MapNode_town_duskwood
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
-  nodeId: town
+  nodeId: duskwood
   displayName: Duskwood
   description: First town
   nodeType: 5
@@ -28,7 +28,21 @@ MonoBehaviour:
   connectedNodeIds: []
   nextNodeIds: []
   biome: 0
-  prefabGroups: []
+  prefabGroups:
+  - groupId: 
+    prefabs: []
+  spawnGroupPlans:
+  - groupId: TownMerchants
+    spawns:
+    - prefab: {fileID: 2240485527361661371, guid: 6e93381c288e6ae488bc8daf3fc70d29, type: 3}
+      count: 1
+    - prefab: {fileID: 4973683916600228948, guid: 4f6f9e8217f875c49a5b9fc9421d1191, type: 3}
+      count: 1
+    - prefab: {fileID: 5214886831892509811, guid: eafb4a3050e169e43a98e83150bb1a94, type: 3}
+      count: 1
+    - prefab: {fileID: 4920183082709471436, guid: 24ff604100c61b34fb70516a67da032c, type: 3}
+      count: 1
+    shuffleSpawnPoints: 0
   contentDesignerNotes: 
   sceneNamePlaceholder: 
   encounterIdPlaceholder: 

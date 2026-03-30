@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: MapNode_pine_grove
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: pine_grove
-  displayName: Test Node2
-  description: test level2
+  displayName: Pine Grove
+  description: Basic resources
   nodeType: 1
   recommendedCombatPower: 1
   isRepeatable: 1
@@ -24,11 +24,24 @@ MonoBehaviour:
   combatSkillGateMode: 0
   combatSingleSkill: 0
   combatRequiredLevel: 1
-  unlockRequirementNotes: must have tools
+  unlockRequirementNotes: Reccomended to have tools (axe)
   connectedNodeIds: []
-  nextNodeIds: []
+  nextNodeIds:
+  - 
   biome: 0
-  prefabGroups: []
+  prefabGroups:
+  - groupId: Resources
+    prefabs:
+    - {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+    - {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
+  spawnGroupPlans:
+  - groupId: Resources
+    spawns:
+    - prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      count: 3
+    - prefab: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
+      count: 2
+    shuffleSpawnPoints: 1
   contentDesignerNotes: 
   sceneNamePlaceholder: 
   encounterIdPlaceholder: 

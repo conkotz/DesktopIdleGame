@@ -15,4 +15,4 @@ MonoBehaviour:
   regions:
   - {fileID: 11400000, guid: 12da32a0c0018a4499b129b26a57b67c, type: 2}
   startingRegionId: greenlands
-  startingNodeId: green_fields
+  startingNodeId: duskwood

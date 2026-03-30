@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: MapNode_green_fields
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: green_fields
-  displayName: Test Node
-  description: test level
+  displayName: 'Green Fields '
+  description: 'Combat level '
   nodeType: 0
-  recommendedCombatPower: 1
+  recommendedCombatPower: 40
   isRepeatable: 1
   requiresMapUnlock: 0
   icon: {fileID: 0}
@@ -29,6 +29,16 @@ MonoBehaviour:
   nextNodeIds: []
   biome: 0
   prefabGroups: []
+  spawnGroupPlans:
+  - groupId: CombatEnemies
+    spawns:
+    - prefab: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
+      count: 1
+    - prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+      count: 1
+    - prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
+      count: 1
+    shuffleSpawnPoints: 0
   contentDesignerNotes: 
   sceneNamePlaceholder: 
   encounterIdPlaceholder: 

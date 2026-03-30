@@ -1,4 +1,4 @@
-﻿using TMPro;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -193,6 +193,38 @@ public class ActionBarSlotUI : MonoBehaviour,
 
     public void OnDrop(PointerEventData eventData)
     {
+        if (AbilityDragState.HasDrag)
+        {
+            string abilityId = AbilityDragState.AbilityId;
+            if (string.IsNullOrWhiteSpace(abilityId))
+                return;
+
+            AbilityDefinition abilityDef = AbilityLibrary.Get(abilityId);
+            if (!abilityDef)
+            {
+                Debug.LogWarning($"[ActionBar] Could not resolve AbilityDefinition for '{abilityId}'");
+                return;
+            }
+
+            ActionBarAssignment abilityAssignment = ActionBarAssignment.CreateAbility(
+                abilityDef.abilityId,
+                abilityDef.displayName,
+                abilityDef.icon,
+                abilityDef.description
+            );
+
+            if (!CanAccept(abilityAssignment))
+            {
+                Debug.Log("[ActionBar] Ability not valid for this slot");
+                return;
+            }
+
+            Assign(abilityAssignment);
+            AbilityDragState.EndDrag();
+            Debug.Log($"[ActionBar] Assigned ability {abilityDef.displayName} to slot {SlotIndex}");
+            return;
+        }
+
         if (!InventoryDragState.HasDrag)
             return;
 
@@ -203,28 +235,28 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (!inventory)
             return;
 
-        ItemDefinition def = inventory.GetItemDef(itemId);
-        if (!def)
+        ItemDefinition itemDef = inventory.GetItemDef(itemId);
+        if (!itemDef)
             return;
 
-        if (!def.IsConsumable)
+        if (!itemDef.IsConsumable)
         {
             Debug.Log("[ActionBar] Only consumables allowed");
             return;
         }
 
-        ActionBarAssignment assignment = ActionBarAssignment.CreateItem(def);
+        ActionBarAssignment itemAssignment = ActionBarAssignment.CreateItem(itemDef);
 
-        if (!CanAccept(assignment, def))
+        if (!CanAccept(itemAssignment, itemDef))
         {
             Debug.Log("[ActionBar] Item not valid for this slot");
             return;
         }
 
-        Assign(assignment);
+        Assign(itemAssignment);
         InventoryDragState.EndDrag();
 
-        Debug.Log($"[ActionBar] Assigned {def.displayName} to slot {SlotIndex}");
+        Debug.Log($"[ActionBar] Assigned {itemDef.displayName} to slot {SlotIndex}");
     }
 
     public void OnPointerClick(PointerEventData eventData)

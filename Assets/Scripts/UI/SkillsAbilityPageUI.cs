@@ -50,6 +50,13 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     [Tooltip("Abilities section (placeholder until drag/drop).")]
     [SerializeField] private TMP_Text rightAbilitiesText;
 
+    [Header("Right panel — abilities list (optional)")]
+    [Tooltip("If set, abilities are shown as draggable entries. If empty, the placeholder TMP text is used.")]
+    [SerializeField] private Transform rightAbilitiesListParent;
+
+    [Tooltip("Optional prefab for one ability row. If empty, a simple row is created at runtime.")]
+    [SerializeField] private AbilityEntryUI abilityEntryPrefab;
+
     private SkillDefinition _selectedSkill;
     private Coroutine _deferredRefreshRoutine;
     private bool _loggedMissingRefs;
@@ -329,8 +336,151 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (rightUnlocksText)
             rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level);
 
+        RefreshAbilitiesPanel(_selectedSkill, level);
+    }
+
+    private void RefreshAbilitiesPanel(SkillDefinition skill, int level)
+    {
+        if (skill == null)
+        {
+            if (rightAbilitiesText) rightAbilitiesText.text = "";
+            ClearAbilityRows();
+            return;
+        }
+
+        // If no list parent is assigned, create a simple one under the abilities text's parent.
+        if (!rightAbilitiesListParent)
+            rightAbilitiesListParent = EnsureRuntimeAbilitiesListParent();
+
+        if (!rightAbilitiesListParent)
+        {
+            if (rightAbilitiesText)
+                rightAbilitiesText.text = "Abilities\n(placeholder — drag/drop not implemented yet)";
+            return;
+        }
+
         if (rightAbilitiesText)
-            rightAbilitiesText.text = "Abilities\n(placeholder — drag/drop not implemented yet)";
+            rightAbilitiesText.text = "Abilities";
+
+        ClearAbilityRows();
+
+        var abilities = AbilityLibrary.GetBySkill(skill.skillType);
+        if (abilities.Count == 0)
+            return;
+
+        var tooltip = FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
+        var canvas = GetComponentInParent<Canvas>();
+        RectTransform abilityPanelRect = rightAbilitiesText ? rightAbilitiesText.transform.parent as RectTransform : null;
+
+        foreach (var a in abilities)
+        {
+            if (!a) continue;
+            bool unlocked = level >= Mathf.Max(1, a.unlockLevel);
+            var row = CreateAbilityRow(rightAbilitiesListParent);
+            row.Bind(a, unlocked, tooltip, canvas);
+            row.SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Left);
+        }
+    }
+
+    private Transform EnsureRuntimeAbilitiesListParent()
+    {
+        if (rightAbilitiesText == null)
+            return null;
+
+        Transform parent = rightAbilitiesText.transform.parent;
+        if (!parent)
+            return null;
+
+        Transform existing = parent.Find("AbilitiesList");
+        if (existing)
+            return existing;
+
+        var go = new GameObject("AbilitiesList", typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 0f);
+        rt.anchorMax = new Vector2(1f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, 8f);
+        rt.sizeDelta = new Vector2(0f, 140f);
+
+        var v = go.AddComponent<UnityEngine.UI.VerticalLayoutGroup>();
+        v.childAlignment = TextAnchor.UpperLeft;
+        v.spacing = 6f;
+        v.padding = new RectOffset(0, 0, 0, 0);
+        v.childForceExpandHeight = false;
+        v.childForceExpandWidth = true;
+
+        go.AddComponent<UnityEngine.UI.ContentSizeFitter>().verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+
+        return go.transform;
+    }
+
+    private AbilityEntryUI CreateAbilityRow(Transform parent)
+    {
+        if (abilityEntryPrefab)
+            return Instantiate(abilityEntryPrefab, parent);
+
+        // Build a minimal row at runtime (Icon + Name).
+        var go = new GameObject("AbilityEntry", typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var rowBg = go.AddComponent<UnityEngine.UI.Image>();
+        rowBg.color = new Color(1f, 1f, 1f, 0.02f); // transparent but raycastable
+
+        var h = go.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
+        h.childAlignment = TextAnchor.MiddleLeft;
+        h.spacing = 8f;
+        h.childForceExpandHeight = false;
+        h.childForceExpandWidth = true;
+
+        var iconGO = new GameObject("Icon", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+        iconGO.transform.SetParent(go.transform, false);
+        var icon = iconGO.GetComponent<UnityEngine.UI.Image>();
+        var iconRT = iconGO.GetComponent<RectTransform>();
+        iconRT.sizeDelta = new Vector2(32f, 32f);
+
+        var nameGO = new GameObject("Name", typeof(RectTransform), typeof(TextMeshProUGUI));
+        nameGO.transform.SetParent(go.transform, false);
+        var nameText = nameGO.GetComponent<TextMeshProUGUI>();
+        nameText.fontSize = 18;
+        nameText.alignment = TextAlignmentOptions.MidlineLeft;
+
+        var reqGO = new GameObject("Req", typeof(RectTransform), typeof(TextMeshProUGUI));
+        reqGO.transform.SetParent(go.transform, false);
+        var reqText = reqGO.GetComponent<TextMeshProUGUI>();
+        reqText.fontSize = 16;
+        reqText.alignment = TextAlignmentOptions.MidlineRight;
+
+        var entry = go.AddComponent<AbilityEntryUI>();
+
+        // Wire serialized fields via reflection-free GetComponent by name:
+        // AbilityEntryUI uses [SerializeField] fields; set via inspector normally, so here we rely on Unity's
+        // default to keep them null-safe. We'll manually assign through local components using SendMessage.
+        // To avoid SendMessage, just set them via public method by adding a small internal hook.
+        // Minimal: rely on AbilityEntryUI null checks for icon/name/req and just use its drag logic.
+        // But we DO want the icon and name to render, so assign by setting the components on the created object:
+        var cg = go.AddComponent<UnityEngine.CanvasGroup>();
+
+        // Use UnityEngine.Object.FindObjectOfType is slow; we're already here; just set private fields via helper.
+        // We'll add a tiny internal setup method by using components added on same GO.
+        // (AbilityEntryUI's Awake isn't used; fields can be assigned with GetComponents in Bind if null.)
+
+        // Hack-free approach: add same components as serialized references exist on this GO and children,
+        // then AbilityEntryUI will still work even if fields are null (it won't show icon/name).
+        // Instead, we'll set them via a small internal setter added below (see file).
+        entry.SendMessage("EditorAutoWire", new object[] { icon, nameText, reqText, cg }, SendMessageOptions.DontRequireReceiver);
+
+        return entry;
+    }
+
+    private void ClearAbilityRows()
+    {
+        if (!rightAbilitiesListParent)
+            return;
+
+        for (int i = rightAbilitiesListParent.childCount - 1; i >= 0; i--)
+            Destroy(rightAbilitiesListParent.GetChild(i).gameObject);
     }
 
     private static string BuildUnlocksDisplay(SkillDefinition skill, int currentLevel)
