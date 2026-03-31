@@ -6,4 +6,5 @@ public enum SkillType
     Melee,
     Ranged,
     Magic,
+    Endurance,
 }

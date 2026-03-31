@@ -62,6 +62,8 @@ public class PlayerCombatController : MonoBehaviour
 
     [Tooltip("How often to rescan for closest enemy (seconds).")]
     [SerializeField] private float idleRescanInterval = 0.25f;
+    [Header("Retaliation")]
+    [SerializeField] private bool retaliationEnabled = false;
 
     [Header("Auto Consumables")]
     [SerializeField] private ActionBarUI actionBar;
@@ -92,11 +94,13 @@ public class PlayerCombatController : MonoBehaviour
     [SerializeField, Min(1f)] private float dpsWindowSeconds = 10f;
 
     public event System.Action<bool> OnIdleCombatChanged;
+    public event System.Action<bool> OnRetaliationChanged;
     public event System.Action OnTargetChanged;
 
     public EnemyBaseController CurrentTarget => _target;
     public EnemyBaseController Target => _target;
     public bool IdleCombatEnabled => idleCombatEnabled;
+    public bool RetaliationEnabled => retaliationEnabled;
     public float NextAttackTime => _nextAttackTime;
 
     private EnemyBaseController _target;
@@ -680,6 +684,17 @@ public class PlayerCombatController : MonoBehaviour
         SetIdleCombatEnabled(!idleCombatEnabled);
     }
 
+    public void ToggleRetaliation()
+    {
+        SetRetaliationEnabled(!retaliationEnabled);
+    }
+
+    public void SetRetaliationEnabled(bool enabled)
+    {
+        retaliationEnabled = enabled;
+        OnRetaliationChanged?.Invoke(retaliationEnabled);
+    }
+
     public void SetIdleCombatEnabled(bool enabled)
     {
         idleCombatEnabled = enabled;
@@ -750,6 +765,25 @@ public class PlayerCombatController : MonoBehaviour
         }
 
         return best;
+    }
+
+    public bool TryRetaliateFromAttacker(Transform attackerTransform)
+    {
+        if (!retaliationEnabled)
+            return false;
+        if (attackerTransform == null)
+            return false;
+
+        // Keep the current engaged target. Never override it.
+        if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
+            return false;
+
+        EnemyBaseController attacker = attackerTransform.GetComponentInParent<EnemyBaseController>();
+        if (attacker == null || attacker.IsDead || !attacker.gameObject.activeInHierarchy)
+            return false;
+
+        SetTargetInternal(attacker);
+        return true;
     }
 
     public void SetTarget(EnemyBaseController enemy)

@@ -23,6 +23,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
         new SkillSeed(SkillType.Melee, 1, 0),
         new SkillSeed(SkillType.Ranged, 1, 0),
         new SkillSeed(SkillType.Magic, 1, 0),
+        new SkillSeed(SkillType.Endurance, 1, 0),
     };
 
     [Serializable]

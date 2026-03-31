@@ -122,6 +122,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private string lowEnergyPopupText = "* Fatigued *";
     [SerializeField, Min(0.1f)] private float fatiguedResumeDelaySeconds = 3f;
 
+    [Header("Endurance XP (Defence)")]
+    [Tooltip("Pre-mitigation damage per 1 Endurance XP. Example: 10 means 10 damage = 1 XP.")]
+    [SerializeField, Min(0.01f)] private float enduranceDamagePerXp = 10f;
+
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private ToolbeltManager toolbelt;
 
@@ -1720,8 +1724,14 @@ public class PlayerController : MonoBehaviour
     {
         if (_isDead || !characterStats) return;
 
+        if (combat != null && attacker != null)
+            combat.TryRetaliateFromAttacker(attacker);
+
+        float preMitigatedDamage = Mathf.Max(0f, amount);
         bool blocked;
         float finalDamage = characterStats.TakeDamage(amount, type, out blocked);
+
+        AwardEnduranceXpFromIncomingDamage(preMitigatedDamage);
 
         if (blocked)
             wasCrit = false;
@@ -1900,6 +1910,23 @@ public class PlayerController : MonoBehaviour
         // 100/(100+rating) diminishing returns
         float multiplier = 100f / (100f + rating);
         return damage * multiplier;
+    }
+
+    private void AwardEnduranceXpFromIncomingDamage(float preMitigatedDamage)
+    {
+        if (preMitigatedDamage <= 0f)
+            return;
+
+        SkillsManager sm = SkillsManager.Instance;
+        if (!sm)
+            return;
+
+        float perXp = Mathf.Max(0.01f, enduranceDamagePerXp);
+        float xp = preMitigatedDamage / perXp;
+        if (xp <= 0f)
+            return;
+
+        sm.AddXpFloat(SkillType.Endurance, xp, "Defence");
     }
 
 

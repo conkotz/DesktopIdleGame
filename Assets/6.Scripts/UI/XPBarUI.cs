@@ -21,7 +21,8 @@ public class XPBarUI : MonoBehaviour
     [SerializeField] private Color fishingColor = new Color(0.2f, 0.5f, 0.95f, 1f);    // blue
     [SerializeField] private Color meleeColor = new Color(0.95f, 0.2f, 0.2f, 1f);      // red
     [SerializeField] private Color rangedColor = new Color(0.2f, 0.6f, 0.2f);
-    [SerializeField] private Color magicColor = new Color(0.4f, 0.4f, 1f);    
+    [SerializeField] private Color magicColor = new Color(0.4f, 0.4f, 1f);
+    [SerializeField] private Color enduranceColor = new Color(0.9f, 0.6f, 0.2f);
     private SkillType _currentSkill;
     private string _currentSource;
 
@@ -69,6 +70,7 @@ public class XPBarUI : MonoBehaviour
     private void HandleActiveDisplayChanged(SkillType skill, string source)
     {
         if (!followActiveDisplay) return;
+        if (skill == SkillType.Endurance) return;
 
         _currentSkill = skill;
         _currentSource = source ?? "";
@@ -86,6 +88,9 @@ public class XPBarUI : MonoBehaviour
         }
         else
         {
+            if (skill == SkillType.Endurance)
+                return;
+
             _currentSkill = skill;
             _currentSource = source ?? "";
         }
@@ -150,6 +155,7 @@ public class XPBarUI : MonoBehaviour
             SkillType.Melee => meleeColor,
             SkillType.Ranged => rangedColor,
             SkillType.Magic => magicColor,
+            SkillType.Endurance => enduranceColor,
             _ => miningColor
         };
     }
