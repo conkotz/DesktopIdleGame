@@ -178,15 +178,22 @@ public class AbilityEntryUI : MonoBehaviour,
     {
         if (!def) return "";
 
-        string desc = string.IsNullOrWhiteSpace(def.description) ? "No description." : def.description.Trim();
-        string scaling =
-            $"Damage Scaling: Physical {(def.physicalDamageMultiplier * 100f):0.#}% + AP {(def.abilityPowerMultiplier * 100f):0.#}%";
+        string desc = BuildAbilityDescription(def);
 
         return
             $"{desc}\n\n" +
-            $"{scaling}\n" +
             $"Energy Cost: {def.energyCost:0.#}\n" +
             $"Cooldown: {def.cooldown:0.#}s";
+    }
+
+    private static string BuildAbilityDescription(AbilityDefinition def)
+    {
+        if (!def) return "No description.";
+
+        if (string.Equals(def.abilityId, "power_slash", System.StringComparison.OrdinalIgnoreCase))
+            return "A powerful slash that readies your next attack. The bonus is consumed on your next successful hit.";
+
+        return string.IsNullOrWhiteSpace(def.description) ? "No description." : def.description.Trim();
     }
 }
 

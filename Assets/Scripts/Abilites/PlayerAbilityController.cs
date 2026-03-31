@@ -35,6 +35,10 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField] private float powerSlashSecondSwipeAngleOffset = 18f;
 
     private readonly Dictionary<string, float> _cooldownEndsById = new(StringComparer.OrdinalIgnoreCase);
+    private const string PowerSlashId = "power_slash";
+    private bool _powerSlashQueued;
+    private float _queuedPowerSlashPhysicalMultiplier = 1f;
+    private float _queuedPowerSlashAbilityPowerMultiplier;
 
     private void Awake()
     {
@@ -106,12 +110,20 @@ public class PlayerAbilityController : MonoBehaviour
             return false;
         }
 
+        if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_powerSlashQueued)
+                return false;
+
+            _powerSlashQueued = true;
+            _queuedPowerSlashPhysicalMultiplier = Mathf.Max(0f, def.physicalDamageMultiplier);
+            _queuedPowerSlashAbilityPowerMultiplier = Mathf.Max(0f, def.abilityPowerMultiplier);
+            return true;
+        }
+
         EnemyBaseController target = combat != null ? combat.CurrentTarget : null;
         if (target == null || target.IsDead)
-        {
-            player.ShowPopup("No target.");
             return false;
-        }
 
         // Instant-cast damage model:
         // - base physical = average weapon physical hit (already includes buffs/gear via Min/Max split damage)
@@ -137,27 +149,48 @@ public class PlayerAbilityController : MonoBehaviour
         if (final > 0)
             dealt = target.TakeDamage(final, DamageType.Physical, wasCrit, transform);
 
-        if (string.Equals(def.abilityId, "power_slash", StringComparison.OrdinalIgnoreCase))
-        {
-            SpawnPowerSlashTrail();
-            player.ShowPopup("power slash used");
-            float totalBonus = Mathf.Max(0f, physicalBonus + apBonus);
-            Debug.Log(
-                $"[Ability] Power Slash instant cast. " +
-                $"BaseHit={basePhysical:0.##}, " +
-                $"PhysicalBonus={physicalBonus:0.##}, " +
-                $"ApBonus={apBonus:0.##}, " +
-                $"TotalAbilityBonus={totalBonus:0.##}, " +
-                $"FinalHitPreMitigation={raw:0.##}, " +
-                $"Dealt={dealt}, crit={wasCrit}");
-        }
-
         // Fire the attack anim as feedback, but do not modify basic attack cooldown timing.
         player.TriggerAttackAnim();
         StartCooldown(def);
         if (globalCooldownSeconds > 0f)
             _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
         return true;
+    }
+
+    public bool TryConsumeQueuedAttackModifier(ref SplitDamage rolled)
+    {
+        if (!_powerSlashQueued || rolled.IsEmpty)
+            return false;
+
+        _powerSlashQueued = false;
+
+        float physicalScaleBonus = Mathf.Max(0f, _queuedPowerSlashPhysicalMultiplier - 1f);
+        float physicalBonus = Mathf.Max(0f, rolled.physical * physicalScaleBonus);
+        float apBonus = Mathf.Max(0f, stats != null ? stats.AbilityPower * _queuedPowerSlashAbilityPowerMultiplier : 0f);
+        float totalBonus = physicalBonus + apBonus;
+
+        if (totalBonus > 0f)
+            rolled.physical += totalBonus;
+
+        AbilityDefinition def = AbilityLibrary.Get(PowerSlashId);
+        if (def)
+            StartCooldown(def);
+        if (globalCooldownSeconds > 0f)
+            _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+
+        SpawnPowerSlashTrail();
+        return true;
+    }
+
+    public bool IsAbilityPrimed(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return false;
+
+        if (string.Equals(abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
+            return _powerSlashQueued;
+
+        return false;
     }
 
     private void StartCooldown(AbilityDefinition def)

@@ -7,6 +7,7 @@ public class ShopUI : MonoBehaviour
 {
     [Header("UI")]
     [SerializeField] private GameObject panelRoot;
+    [SerializeField] private Image panelRootImage;
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private Transform contentRoot;
     [SerializeField] private ShopSlotUI slotPrefab;
@@ -38,10 +39,19 @@ public class ShopUI : MonoBehaviour
     private readonly List<ShopSlotUI> _spawned = new();
     private Merchant _currentMerchant;
     private int _buyAmount = 1;
+    public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
 
     private void Awake()
     {
         TryResolveRefs();
+
+        if (!panelRootImage && panelRoot)
+            panelRootImage = panelRoot.GetComponent<Image>();
+
+        // Prevent the root panel background from blocking unrelated UI clicks.
+        // Child controls (buttons/slots) still receive raycasts normally.
+        if (panelRootImage)
+            panelRootImage.raycastTarget = false;
 
         if (buy1xButton)
         {
@@ -83,6 +93,8 @@ public class ShopUI : MonoBehaviour
 
         if (!shopTooltip)
             shopTooltip = FindShopTooltip();
+
+        RefreshShopRaycastTargets();
     }
 
     private void TryResolveRefs()
@@ -146,6 +158,7 @@ public class ShopUI : MonoBehaviour
         }
 
         Rebuild(merchant);
+        RefreshShopRaycastTargets();
     }
 
     public void Close()
@@ -195,6 +208,25 @@ public class ShopUI : MonoBehaviour
         }
 
         ForceLayoutRefresh();
+        RefreshShopRaycastTargets();
+    }
+
+    private void RefreshShopRaycastTargets()
+    {
+        if (!panelRoot)
+            return;
+
+        Graphic[] graphics = panelRoot.GetComponentsInChildren<Graphic>(true);
+        for (int i = 0; i < graphics.Length; i++)
+        {
+            Graphic g = graphics[i];
+            if (!g)
+                continue;
+
+            // Keep raycasts only on real interactive controls.
+            bool isInteractive = g.GetComponentInParent<Selectable>(true) != null;
+            g.raycastTarget = isInteractive;
+        }
     }
 
     private void ForceLayoutRefresh()

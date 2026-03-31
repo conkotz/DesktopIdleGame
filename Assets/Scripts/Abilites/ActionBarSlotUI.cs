@@ -35,6 +35,10 @@ public class ActionBarSlotUI : MonoBehaviour,
 
     [Header("Display")]
     [SerializeField] private string emptyLabel = "Empty";
+    [SerializeField] private Image primedBackgroundImage;
+    [SerializeField] private Color primedBackgroundColor = new Color(1f, 0.94f, 0.45f, 0.35f);
+    [SerializeField] private bool autoCreatePrimedBackground = true;
+    [SerializeField] private Image noStockBackgroundImage;
 
     [Header("Tooltip")]
     [SerializeField] private SharedTooltipUI tooltip;
@@ -257,6 +261,26 @@ public class ActionBarSlotUI : MonoBehaviour,
         : "";
     }
 
+    public void SetPrimedVisual(bool primed)
+    {
+        EnsurePrimedBackgroundExists();
+        if (primedBackgroundImage == null)
+            return;
+
+        primedBackgroundImage.color = primedBackgroundColor;
+        primedBackgroundImage.enabled = primed;
+        primedBackgroundImage.gameObject.SetActive(primed);
+    }
+
+    public void SetNoStockVisual(bool noStock)
+    {
+        if (noStockBackgroundImage == null)
+            return;
+
+        noStockBackgroundImage.enabled = noStock;
+        noStockBackgroundImage.gameObject.SetActive(noStock);
+    }
+
     public void OnDrop(PointerEventData eventData)
     {
         if (AbilityDragState.HasDrag)
@@ -427,6 +451,39 @@ public class ActionBarSlotUI : MonoBehaviour,
 
         if (autoBattleBorderGraphic != null)
             autoBattleBorderGraphic.enabled = visible;
+    }
+
+    private void EnsurePrimedBackgroundExists()
+    {
+        if (primedBackgroundImage != null || !autoCreatePrimedBackground || iconImage == null)
+            return;
+
+        Transform existing = transform.Find("PrimedBackground");
+        if (existing != null)
+            primedBackgroundImage = existing.GetComponent<Image>();
+
+        if (primedBackgroundImage == null)
+        {
+            GameObject go = new GameObject("PrimedBackground", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(iconImage.transform.parent != null ? iconImage.transform.parent : transform, false);
+            go.transform.SetSiblingIndex(Mathf.Max(0, iconImage.transform.GetSiblingIndex()));
+
+            RectTransform rt = go.GetComponent<RectTransform>();
+            RectTransform iconRt = iconImage.rectTransform;
+            rt.anchorMin = iconRt.anchorMin;
+            rt.anchorMax = iconRt.anchorMax;
+            rt.pivot = iconRt.pivot;
+            rt.anchoredPosition = iconRt.anchoredPosition;
+            rt.sizeDelta = iconRt.sizeDelta;
+            rt.localScale = Vector3.one;
+
+            primedBackgroundImage = go.GetComponent<Image>();
+            primedBackgroundImage.raycastTarget = false;
+            primedBackgroundImage.sprite = null;
+            primedBackgroundImage.color = primedBackgroundColor;
+            primedBackgroundImage.enabled = false;
+            primedBackgroundImage.gameObject.SetActive(false);
+        }
     }
 
     private void HandleAbilityDropWithUniqueSwap(ActionBarAssignment newAbilityAssignment)

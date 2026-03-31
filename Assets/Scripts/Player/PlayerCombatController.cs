@@ -258,6 +258,9 @@ public class PlayerCombatController : MonoBehaviour
 
         SplitDamage rolled = stats.RollSplitAttackDamage(out bool wasCrit);
 
+        if (abilityController != null)
+            abilityController.TryConsumeQueuedAttackModifier(ref rolled);
+
         if (rolled.IsEmpty)
         {
             player.ClearActionOverride();

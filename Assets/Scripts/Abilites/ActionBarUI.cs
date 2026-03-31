@@ -276,6 +276,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         {
             slot.SetStackText(0);
             slot.SetCooldownVisual(0f, 0f);
+            slot.SetPrimedVisual(false);
+            slot.SetNoStockVisual(false);
             return;
         }
 
@@ -299,16 +301,23 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                         slot.SetCooldownVisual(abilityNorm, abilitySecs);
                     else
                         slot.SetCooldownVisual(gcdNorm, gcdSecs);
+
+                    slot.SetPrimedVisual(abilityController.IsAbilityPrimed(action.id));
+                    slot.SetNoStockVisual(false);
                 }
                 else
                 {
                     slot.SetCooldownVisual(0f, 0f);
+                    slot.SetPrimedVisual(false);
+                    slot.SetNoStockVisual(false);
                 }
 
                 return;
             }
 
             slot.SetCooldownVisual(0f, 0f);
+            slot.SetPrimedVisual(false);
+            slot.SetNoStockVisual(false);
             return;
         }
 
@@ -321,16 +330,21 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
 
         slot.SetStackText(count);
+        bool noStock = count <= 0 &&
+                       (slot.SlotType == ActionBarSlotType.Food || slot.SlotType == ActionBarSlotType.Potion);
+        slot.SetNoStockVisual(noStock);
 
         if (consumableController != null)
         {
             float remainingNorm = consumableController.GetCooldownNormalized(action.id);
             consumableController.IsOnCooldown(action.id, out float remainingSecs);
             slot.SetCooldownVisual(remainingNorm, remainingSecs);
+            slot.SetPrimedVisual(false);
         }
         else
         {
             slot.SetCooldownVisual(0f, 0f);
+            slot.SetPrimedVisual(false);
         }
     }
 

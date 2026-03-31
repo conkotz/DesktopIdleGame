@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(Collider2D))]
 public class MerchantClick : MonoBehaviour
@@ -19,6 +20,7 @@ public class MerchantClick : MonoBehaviour
     [SerializeField] private Vector2 screenOffset = new Vector2(0f, 20f);
 
     public static bool MerchantModeOpen { get; private set; }
+    public static bool IsShopOpen => _active != null && _active.shopUI != null && _active.shopUI.IsOpen;
 
     // Tracks which merchant is currently "active" so we can toggle-close on re-click.
     private static MerchantClick _active;
@@ -26,6 +28,7 @@ public class MerchantClick : MonoBehaviour
     private void Awake()
     {
         CacheRefs();
+        ApplyBannerInteractionState(false);
 
         if (!GetComponent<Collider2D>())
             Debug.LogError("[MerchantClick] Missing Collider2D.");
@@ -35,6 +38,9 @@ public class MerchantClick : MonoBehaviour
     {
         if (!mainMenuWindowUI)
             mainMenuWindowUI = FindFirstObjectByType<MainMenuWindowUI>(FindObjectsInactive.Include);
+
+        if (!merchantModeBanner)
+            merchantModeBanner = FindSceneObjectByName("MerchantModeBanner");
 
         if (!shopUI)
             shopUI = FindFirstObjectByType<ShopUI>(FindObjectsInactive.Include);
@@ -75,6 +81,45 @@ public class MerchantClick : MonoBehaviour
         }
     }
 
+    private static GameObject FindSceneObjectByName(string objectName)
+    {
+        if (string.IsNullOrWhiteSpace(objectName))
+            return null;
+
+        Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
+        for (int i = 0; i < all.Length; i++)
+        {
+            Transform t = all[i];
+            if (t == null || t.hideFlags != HideFlags.None)
+                continue;
+            if (!t.gameObject.scene.IsValid())
+                continue;
+
+            if (string.Equals(t.name, objectName, System.StringComparison.OrdinalIgnoreCase))
+                return t.gameObject;
+        }
+
+        return null;
+    }
+
+    private void ApplyBannerInteractionState(bool enabled)
+    {
+        if (!merchantModeBanner)
+            return;
+
+        CanvasGroup cg = merchantModeBanner.GetComponent<CanvasGroup>();
+        if (!cg)
+            cg = merchantModeBanner.AddComponent<CanvasGroup>();
+
+        // Banner is visual-only. Never let it consume input.
+        cg.interactable = false;
+        cg.blocksRaycasts = false;
+
+        Graphic[] graphics = merchantModeBanner.GetComponentsInChildren<Graphic>(true);
+        for (int i = 0; i < graphics.Length; i++)
+            graphics[i].raycastTarget = false;
+    }
+
     /// <summary>
     /// Called by WorldInputRouter when this merchant is clicked.
     /// Toggle behavior: clicking same merchant again closes shop + merchant mode (NOT main menu).
@@ -102,10 +147,6 @@ public class MerchantClick : MonoBehaviour
             return;
         }
 
-        // Switch/open merchant mode
-        MerchantModeOpen = true;
-        _active = this;
-
         // Open the new Character page (inventory + equipment inside MainMenuWindow)
         if (mainMenuWindowUI)
             mainMenuWindowUI.OpenCharacter();
@@ -114,13 +155,33 @@ public class MerchantClick : MonoBehaviour
 
         // Show banner
         if (merchantModeBanner)
+        {
             merchantModeBanner.SetActive(true);
+            ApplyBannerInteractionState(true);
+        }
 
         // Ensure shop shows immediately on first click
         if (!shopUI.gameObject.activeSelf)
             shopUI.gameObject.SetActive(true);
 
         shopUI.Open(merchant);
+        if (!shopUI.IsOpen)
+        {
+            MerchantModeOpen = false;
+            if (_active == this)
+                _active = null;
+
+            if (merchantModeBanner)
+            {
+                merchantModeBanner.SetActive(false);
+                ApplyBannerInteractionState(false);
+            }
+            return;
+        }
+
+        // Switch/open merchant mode only after shop successfully opened.
+        MerchantModeOpen = true;
+        _active = this;
 
         // Position shop after opening so layout has a valid size
         PositionShopUI();
@@ -200,7 +261,10 @@ public class MerchantClick : MonoBehaviour
             _active = null;
 
         if (merchantModeBanner)
+        {
             merchantModeBanner.SetActive(false);
+            ApplyBannerInteractionState(false);
+        }
 
         if (shopUI)
         {
