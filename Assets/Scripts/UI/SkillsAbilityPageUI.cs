@@ -4,6 +4,7 @@ using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 /// <summary>
 /// Skills &amp; Abilities page: two-column left list (Gathering / Combat), center + right detail.
@@ -57,6 +58,14 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     [Tooltip("Optional prefab for one ability row. If empty, a simple row is created at runtime.")]
     [SerializeField] private AbilityEntryUI abilityEntryPrefab;
 
+    [Header("Right panel — layout auto-fix")]
+    [Tooltip("Auto-configures runtime abilities list to stretch/fill properly in right panel layouts.")]
+    [SerializeField] private bool autoFixRightPanelLayout = true;
+    [Tooltip("Spacing between ability rows in the right panel.")]
+    [SerializeField] private float abilityRowSpacing = 6f;
+    [Tooltip("Padding inside right abilities list content.")]
+    [SerializeField] private RectOffset abilityListPadding;
+
     private SkillDefinition _selectedSkill;
     private Coroutine _deferredRefreshRoutine;
     private bool _loggedMissingRefs;
@@ -69,7 +78,11 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (!player)
             player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
 
+        if (abilityListPadding == null)
+            abilityListPadding = new RectOffset(0, 0, 0, 0);
+
         ValidateRefsOnce();
+        EnsureRightPanelLayoutConfigured();
     }
 
     private void OnEnable()
@@ -78,6 +91,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             skillsManager = SkillsManager.Instance;
 
         SelectFirstSkillIfNeeded();
+        EnsureRightPanelLayoutConfigured();
         RebuildSkillList();
         RefreshView();
         TrySubscribeSkillsEvents();
@@ -359,16 +373,29 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             return;
         }
 
+        var abilities = AbilityLibrary.GetBySkill(skill.skillType);
+        if (abilities.Count == 0)
+        {
+            if (rightAbilitiesText)
+                rightAbilitiesText.text = "No abilities yet";
+            ClearAbilityRows();
+            return;
+        }
+
+        int unlockedCount = 0;
+        for (int i = 0; i < abilities.Count; i++)
+        {
+            var ability = abilities[i];
+            if (ability != null && level >= Mathf.Max(1, ability.unlockLevel))
+                unlockedCount++;
+        }
+
         if (rightAbilitiesText)
-            rightAbilitiesText.text = "Abilities";
+            rightAbilitiesText.text = $"Abilities unlocked: {unlockedCount}/{abilities.Count}";
 
         ClearAbilityRows();
 
-        var abilities = AbilityLibrary.GetBySkill(skill.skillType);
-        if (abilities.Count == 0)
-            return;
-
-        var tooltip = FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
+        var tooltip = FindBestSharedTooltip();
         var canvas = GetComponentInParent<Canvas>();
         RectTransform abilityPanelRect = rightAbilitiesText ? rightAbilitiesText.transform.parent as RectTransform : null;
 
@@ -393,26 +420,16 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         Transform existing = parent.Find("AbilitiesList");
         if (existing)
+        {
+            ConfigureAbilitiesListLayout(existing as RectTransform);
             return existing;
+        }
 
         var go = new GameObject("AbilitiesList", typeof(RectTransform));
         go.transform.SetParent(parent, false);
 
         var rt = go.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0f, 0f);
-        rt.anchorMax = new Vector2(1f, 0f);
-        rt.pivot = new Vector2(0.5f, 0f);
-        rt.anchoredPosition = new Vector2(0f, 8f);
-        rt.sizeDelta = new Vector2(0f, 140f);
-
-        var v = go.AddComponent<UnityEngine.UI.VerticalLayoutGroup>();
-        v.childAlignment = TextAnchor.UpperLeft;
-        v.spacing = 6f;
-        v.padding = new RectOffset(0, 0, 0, 0);
-        v.childForceExpandHeight = false;
-        v.childForceExpandWidth = true;
-
-        go.AddComponent<UnityEngine.UI.ContentSizeFitter>().verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
+        ConfigureAbilitiesListLayout(rt);
 
         return go.transform;
     }
@@ -433,6 +450,13 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         h.spacing = 8f;
         h.childForceExpandHeight = false;
         h.childForceExpandWidth = true;
+        h.childControlHeight = true;
+        h.childControlWidth = false;
+
+        var rowLayout = go.AddComponent<LayoutElement>();
+        rowLayout.minHeight = 44f;
+        rowLayout.preferredHeight = 50f;
+        rowLayout.flexibleWidth = 1f;
 
         var iconGO = new GameObject("Icon", typeof(RectTransform), typeof(UnityEngine.UI.Image));
         iconGO.transform.SetParent(go.transform, false);
@@ -472,6 +496,74 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         entry.SendMessage("EditorAutoWire", new object[] { icon, nameText, reqText, cg }, SendMessageOptions.DontRequireReceiver);
 
         return entry;
+    }
+
+    private SharedTooltipUI FindBestSharedTooltip()
+    {
+        SharedTooltipUI[] allTooltips =
+            FindObjectsByType<SharedTooltipUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+        foreach (var t in allTooltips)
+        {
+            if (t != null && t.name == "SharedToolTipInfoPanel")
+                return t;
+        }
+
+        foreach (var t in allTooltips)
+        {
+            if (t != null && t.name != "HUDToolInfoPanel")
+                return t;
+        }
+
+        return allTooltips != null && allTooltips.Length > 0 ? allTooltips[0] : null;
+    }
+
+    private void EnsureRightPanelLayoutConfigured()
+    {
+        if (!autoFixRightPanelLayout)
+            return;
+
+        if (rightAbilitiesListParent is RectTransform rt)
+            ConfigureAbilitiesListLayout(rt);
+        else if (rightAbilitiesListParent == null)
+            rightAbilitiesListParent = EnsureRuntimeAbilitiesListParent();
+    }
+
+    private void ConfigureAbilitiesListLayout(RectTransform rt)
+    {
+        if (rt == null)
+            return;
+
+        // Stretch to parent so right panel/scroll viewport controls available height.
+        rt.anchorMin = new Vector2(0f, 0f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        VerticalLayoutGroup v = rt.GetComponent<VerticalLayoutGroup>();
+        if (v == null)
+            v = rt.gameObject.AddComponent<VerticalLayoutGroup>();
+        v.childAlignment = TextAnchor.UpperLeft;
+        v.spacing = abilityRowSpacing;
+        v.padding = abilityListPadding;
+        v.childForceExpandHeight = false;
+        v.childForceExpandWidth = true;
+        v.childControlHeight = true;
+        v.childControlWidth = true;
+
+        ContentSizeFitter fitter = rt.GetComponent<ContentSizeFitter>();
+        if (fitter == null)
+            fitter = rt.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        LayoutElement listLayout = rt.GetComponent<LayoutElement>();
+        if (listLayout == null)
+            listLayout = rt.gameObject.AddComponent<LayoutElement>();
+        listLayout.flexibleHeight = 1f;
+        listLayout.flexibleWidth = 1f;
     }
 
     private void ClearAbilityRows()

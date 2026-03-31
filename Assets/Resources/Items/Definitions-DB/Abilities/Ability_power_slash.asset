@@ -15,10 +15,10 @@ MonoBehaviour:
   abilityId: power_slash
   displayName: Power Slash
   description: A heavy strike that scales with Physical Damage and Ability Power.
-  icon: {fileID: 0}
+  icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
   cooldown: 5
   energyCost: 60
-  physicalDamageMultiplier: 1.25
+  physicalDamageMultiplier: 1.5
   abilityPowerMultiplier: 0.25
   sourceSkill: 3
-  unlockLevel: 5
+  unlockLevel: 3

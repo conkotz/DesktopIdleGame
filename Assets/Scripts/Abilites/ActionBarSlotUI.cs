@@ -1,7 +1,9 @@
 using TMPro;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using System.Collections.Generic;
 
 public enum ActionBarSlotType
 {
@@ -39,6 +41,19 @@ public class ActionBarSlotUI : MonoBehaviour,
     [SerializeField] private RectTransform tooltipHeightRect;
     [SerializeField] private FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Left;
 
+    [Header("Auto Battle Border")]
+    [SerializeField] private RectTransform autoBattleBorder;
+    [SerializeField] private Graphic autoBattleBorderGraphic;
+    [SerializeField, Min(0f)] private float autoBattleDashScrollSpeed = 1.5f;
+    [SerializeField] private bool showBorderWhenEmpty = false;
+    [SerializeField] private bool autoCreateBorderIfMissing = true;
+    [SerializeField] private Color autoBattleBorderColor = new Color(1f, 0.86f, 0.15f, 1f);
+    [SerializeField, Min(1)] private int runtimeBorderThicknessPx = 4;
+    [SerializeField, Min(1)] private int runtimeDashLengthPx = 14;
+    [SerializeField, Min(1)] private int runtimeDashGapPx = 10;
+    [SerializeField] private float borderInset = 4f;
+    [SerializeField] private PlayerCombatController combatController;
+
     [Header("Runtime")]
     [SerializeField] private ActionBarAssignment assignedAction;
 
@@ -52,6 +67,13 @@ public class ActionBarSlotUI : MonoBehaviour,
     private System.Action<ActionBarSlotUI> onPressed;
     private System.Action<ActionBarSlotUI> onAssignmentChanged;
     private Vector3 originalScale;
+    private bool isAutoBattleActive;
+    private float autoBattleDashPhase;
+    private RawImage topEdge;
+    private RawImage rightEdge;
+    private RawImage bottomEdge;
+    private RawImage leftEdge;
+    private static readonly Dictionary<string, Texture2D> RuntimeDashTextureCache = new();
 
     private void Awake()
     {
@@ -61,6 +83,47 @@ public class ActionBarSlotUI : MonoBehaviour,
 
         if (!tooltip)
             tooltip = FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
+
+        if (combatController == null)
+            combatController = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
+
+        EnsureAutoBattleBorderExists();
+
+        if (autoBattleBorderGraphic == null && autoBattleBorder != null)
+            autoBattleBorderGraphic = autoBattleBorder.GetComponent<Graphic>();
+
+        SetAutoBattleBorderVisible(false);
+    }
+
+    private void OnEnable()
+    {
+        if (combatController == null)
+            combatController = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
+
+        EnsureAutoBattleBorderExists();
+
+        if (combatController != null)
+            combatController.OnIdleCombatChanged += HandleIdleCombatChanged;
+
+        HandleIdleCombatChanged(combatController != null && combatController.IdleCombatEnabled);
+    }
+
+    private void OnDisable()
+    {
+        if (combatController != null)
+            combatController.OnIdleCombatChanged -= HandleIdleCombatChanged;
+
+        isAutoBattleActive = false;
+        SetAutoBattleBorderVisible(false);
+    }
+
+    private void Update()
+    {
+        if (autoBattleBorder == null || !autoBattleBorder.gameObject.activeSelf || autoBattleDashScrollSpeed <= 0f)
+            return;
+
+        autoBattleDashPhase += autoBattleDashScrollSpeed * Time.unscaledDeltaTime;
+        RefreshDashUv();
     }
 
     public void Initialize(
@@ -166,7 +229,10 @@ public class ActionBarSlotUI : MonoBehaviour,
         {
             iconImage.enabled = hasAssigned && assignedAction.icon != null;
             iconImage.sprite = hasAssigned ? assignedAction.icon : null;
+            iconImage.preserveAspect = true;
         }
+
+        RefreshAutoBattleBorder();
     }
 
     public void SetStackText(int amount)
@@ -206,11 +272,19 @@ public class ActionBarSlotUI : MonoBehaviour,
                 return;
             }
 
+            Sprite incomingIcon = AbilityDragState.AbilityIcon ? AbilityDragState.AbilityIcon : abilityDef.icon;
+            string incomingName = string.IsNullOrWhiteSpace(AbilityDragState.AbilityDisplayName)
+                ? abilityDef.displayName
+                : AbilityDragState.AbilityDisplayName;
+            string incomingDescription = string.IsNullOrWhiteSpace(AbilityDragState.AbilityDescription)
+                ? abilityDef.description
+                : AbilityDragState.AbilityDescription;
+
             ActionBarAssignment abilityAssignment = ActionBarAssignment.CreateAbility(
                 abilityDef.abilityId,
-                abilityDef.displayName,
-                abilityDef.icon,
-                abilityDef.description
+                incomingName,
+                incomingIcon,
+                incomingDescription
             );
 
             if (!CanAccept(abilityAssignment))
@@ -219,7 +293,7 @@ public class ActionBarSlotUI : MonoBehaviour,
                 return;
             }
 
-            Assign(abilityAssignment);
+            HandleAbilityDropWithUniqueSwap(abilityAssignment);
             AbilityDragState.EndDrag();
             Debug.Log($"[ActionBar] Assigned ability {abilityDef.displayName} to slot {SlotIndex}");
             return;
@@ -324,5 +398,256 @@ public class ActionBarSlotUI : MonoBehaviour,
         transform.localScale = originalScale * 0.9f;
         yield return new WaitForSeconds(0.08f);
         transform.localScale = originalScale;
+    }
+
+    private void HandleIdleCombatChanged(bool enabled)
+    {
+        isAutoBattleActive = enabled;
+        RefreshAutoBattleBorder();
+    }
+
+    private void RefreshAutoBattleBorder()
+    {
+        bool hasAssigned = assignedAction != null && assignedAction.IsAssigned;
+        bool shouldShow = isAutoBattleActive && IsAutoUseSlotType() && (showBorderWhenEmpty || hasAssigned);
+        SetAutoBattleBorderVisible(shouldShow);
+    }
+
+    private bool IsAutoUseSlotType()
+    {
+        return slotType == ActionBarSlotType.Ability ||
+               slotType == ActionBarSlotType.Food ||
+               slotType == ActionBarSlotType.Potion;
+    }
+
+    private void SetAutoBattleBorderVisible(bool visible)
+    {
+        if (autoBattleBorder != null)
+            autoBattleBorder.gameObject.SetActive(visible);
+
+        if (autoBattleBorderGraphic != null)
+            autoBattleBorderGraphic.enabled = visible;
+    }
+
+    private void HandleAbilityDropWithUniqueSwap(ActionBarAssignment newAbilityAssignment)
+    {
+        if (newAbilityAssignment == null || !newAbilityAssignment.IsAbility)
+        {
+            Assign(newAbilityAssignment);
+            return;
+        }
+
+        ActionBarSlotUI existingAbilitySlot = FindSlotWithAbilityId(newAbilityAssignment.id);
+        if (existingAbilitySlot == null || existingAbilitySlot == this)
+        {
+            Assign(newAbilityAssignment);
+            return;
+        }
+
+        ActionBarAssignment targetOldAssignment = assignedAction;
+        bool canSwapBack = existingAbilitySlot.CanAccept(targetOldAssignment, ResolveItemDefForAssignment(targetOldAssignment));
+
+        if (canSwapBack)
+        {
+            existingAbilitySlot.Assign(targetOldAssignment);
+        }
+        else
+        {
+            existingAbilitySlot.ClearAssignment();
+        }
+
+        Assign(newAbilityAssignment);
+    }
+
+    private ActionBarSlotUI FindSlotWithAbilityId(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return null;
+
+        ActionBarUI actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (actionBar == null)
+            return null;
+
+        foreach (ActionBarSlotUI slot in actionBar.GetSlots())
+        {
+            if (slot == null)
+                continue;
+
+            ActionBarAssignment action = slot.AssignedAction;
+            if (action == null || !action.IsAbility)
+                continue;
+
+            if (string.Equals(action.id, abilityId, StringComparison.OrdinalIgnoreCase))
+                return slot;
+        }
+
+        return null;
+    }
+
+    private ItemDefinition ResolveItemDefForAssignment(ActionBarAssignment action)
+    {
+        if (action == null || !action.IsItem || string.IsNullOrWhiteSpace(action.id))
+            return null;
+
+        if (!inventory)
+            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        return inventory ? inventory.GetItemDef(action.id) : null;
+    }
+
+    private void EnsureAutoBattleBorderExists()
+    {
+        if (autoBattleBorder == null)
+        {
+            if (!autoCreateBorderIfMissing)
+                return;
+
+            GameObject borderGO = new GameObject("AutoBattleBorder", typeof(RectTransform));
+            borderGO.transform.SetParent(transform, false);
+            borderGO.transform.SetAsLastSibling();
+
+            RectTransform rt = borderGO.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.offsetMin = new Vector2(borderInset, borderInset);
+            rt.offsetMax = new Vector2(-borderInset, -borderInset);
+            autoBattleBorder = rt;
+        }
+
+        if (topEdge == null) topEdge = EnsureEdge("TopEdge");
+        if (rightEdge == null) rightEdge = EnsureEdge("RightEdge");
+        if (bottomEdge == null) bottomEdge = EnsureEdge("BottomEdge");
+        if (leftEdge == null) leftEdge = EnsureEdge("LeftEdge");
+
+        LayoutEdges();
+        ApplyDashVisuals();
+    }
+
+    private RawImage EnsureEdge(string edgeName)
+    {
+        if (autoBattleBorder == null)
+            return null;
+
+        Transform t = autoBattleBorder.Find(edgeName);
+        RawImage edge = t ? t.GetComponent<RawImage>() : null;
+        if (edge == null)
+        {
+            GameObject go = new GameObject(edgeName, typeof(RectTransform), typeof(RawImage));
+            go.transform.SetParent(autoBattleBorder, false);
+            edge = go.GetComponent<RawImage>();
+            edge.raycastTarget = false;
+        }
+
+        return edge;
+    }
+
+    private void LayoutEdges()
+    {
+        int thickness = Mathf.Max(1, runtimeBorderThicknessPx);
+        SetupTopBottom(topEdge, true, thickness);
+        SetupTopBottom(bottomEdge, false, thickness);
+        SetupLeftRight(leftEdge, false, thickness);
+        SetupLeftRight(rightEdge, true, thickness);
+    }
+
+    private static void SetupTopBottom(RawImage edge, bool top, int thickness)
+    {
+        if (edge == null) return;
+        RectTransform rt = edge.rectTransform;
+        rt.anchorMin = top ? new Vector2(0f, 1f) : Vector2.zero;
+        rt.anchorMax = top ? Vector2.one : new Vector2(1f, 0f);
+        rt.pivot = top ? new Vector2(0.5f, 1f) : new Vector2(0.5f, 0f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = new Vector2(0f, thickness);
+    }
+
+    private static void SetupLeftRight(RawImage edge, bool right, int thickness)
+    {
+        if (edge == null) return;
+        RectTransform rt = edge.rectTransform;
+        rt.anchorMin = right ? new Vector2(1f, 0f) : Vector2.zero;
+        rt.anchorMax = right ? Vector2.one : new Vector2(0f, 1f);
+        rt.pivot = right ? new Vector2(1f, 0.5f) : new Vector2(0f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = new Vector2(thickness, 0f);
+    }
+
+    private void ApplyDashVisuals()
+    {
+        Texture2D horizontalDash = GetOrCreateDashTexture(false);
+        Texture2D verticalDash = GetOrCreateDashTexture(true);
+
+        ApplyEdgeTexture(topEdge, horizontalDash);
+        ApplyEdgeTexture(bottomEdge, horizontalDash);
+        ApplyEdgeTexture(leftEdge, verticalDash);
+        ApplyEdgeTexture(rightEdge, verticalDash);
+
+        RefreshDashUv();
+    }
+
+    private void ApplyEdgeTexture(RawImage edge, Texture2D texture)
+    {
+        if (edge == null || texture == null)
+            return;
+
+        edge.texture = texture;
+        edge.color = autoBattleBorderColor;
+    }
+
+    private Texture2D GetOrCreateDashTexture(bool vertical)
+    {
+        int thickness = Mathf.Max(1, runtimeBorderThicknessPx);
+        int dash = Mathf.Max(1, runtimeDashLengthPx);
+        int gap = Mathf.Max(1, runtimeDashGapPx);
+        int pattern = dash + gap;
+        string key = $"{(vertical ? "v" : "h")}_{thickness}_{dash}_{gap}";
+
+        if (RuntimeDashTextureCache.TryGetValue(key, out Texture2D cached) && cached != null)
+            return cached;
+
+        int width = vertical ? thickness : pattern;
+        int height = vertical ? pattern : thickness;
+        Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        tex.name = $"AutoBattleDash_{key}";
+        tex.wrapMode = TextureWrapMode.Repeat;
+        tex.filterMode = FilterMode.Point;
+
+        Color32[] pixels = new Color32[width * height];
+        Color32 clear = new Color32(0, 0, 0, 0);
+        Color32 white = new Color32(255, 255, 255, 255);
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int patternPos = vertical ? y : x;
+                bool filled = patternPos < dash;
+                pixels[y * width + x] = filled ? white : clear;
+            }
+        }
+
+        tex.SetPixels32(pixels);
+        tex.Apply(false, false);
+        RuntimeDashTextureCache[key] = tex;
+        return tex;
+    }
+
+    private void RefreshDashUv()
+    {
+        if (autoBattleBorder == null)
+            return;
+
+        float width = Mathf.Max(1f, autoBattleBorder.rect.width);
+        float height = Mathf.Max(1f, autoBattleBorder.rect.height);
+        float pattern = Mathf.Max(1f, runtimeDashLengthPx + runtimeDashGapPx);
+        float repeatX = width / pattern;
+        float repeatY = height / pattern;
+        float phase = autoBattleDashPhase;
+
+        if (topEdge != null) topEdge.uvRect = new Rect(phase, 0f, repeatX, 1f);
+        if (rightEdge != null) rightEdge.uvRect = new Rect(0f, -phase, 1f, repeatY);
+        if (bottomEdge != null) bottomEdge.uvRect = new Rect(-phase, 0f, repeatX, 1f);
+        if (leftEdge != null) leftEdge.uvRect = new Rect(0f, phase, 1f, repeatY);
     }
 }

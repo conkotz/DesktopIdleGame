@@ -156,7 +156,7 @@ MonoBehaviour:
   baseMaxMana: 50
   baseArmor: 50
   baseMagicResist: 0
-  basePhysBlockChance: 0.25
+  basePhysBlockChance: 0.1
   baseMoveSpeed: 0
   baseMoveSpeedMult: 0
   baseLifeRegen: 2

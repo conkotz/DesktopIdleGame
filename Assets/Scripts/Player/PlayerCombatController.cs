@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 
 [DisallowMultipleComponent]
 public class PlayerCombatController : MonoBehaviour
@@ -65,13 +66,17 @@ public class PlayerCombatController : MonoBehaviour
     [Header("Auto Consumables")]
     [SerializeField] private ActionBarUI actionBar;
     [SerializeField] private PlayerConsumableController consumableController;
+    [SerializeField] private PlayerAbilityController abilityController;
     [SerializeField] private Inventory inventory;
 
     [SerializeField] private float autoConsumeInterval = 0.2f;
     [SerializeField] private bool autoUseFood = true;
     [SerializeField] private bool autoUsePotions = true;
+    [SerializeField] private float autoAbilityInterval = 0.1f;
+    [SerializeField] private bool autoUseAbilities = true;
 
     private float _nextAutoConsumeTime;
+    private float _nextAutoAbilityTime;
 
     [Header("Combat XP")]
     [SerializeField, Range(0f, 5f)]
@@ -147,6 +152,7 @@ public class PlayerCombatController : MonoBehaviour
         if (idleCombatEnabled)
         {
             TickAutoConsumables();
+            TickAutoAbilities();
             TickIdleCombatTargeting();
         }
 
@@ -379,6 +385,46 @@ public class PlayerCombatController : MonoBehaviour
     {
 
         return player != null && !player.IsDead;
+    }
+
+    private void TickAutoAbilities()
+    {
+        TryResolveAutoConsumeRefs();
+
+        if (Time.time < _nextAutoAbilityTime)
+            return;
+
+        _nextAutoAbilityTime = Time.time + Mathf.Max(0.05f, autoAbilityInterval);
+
+        if (!idleCombatEnabled || !autoUseAbilities)
+            return;
+
+        if (!IsPlayerAlive())
+            return;
+
+        if (actionBar == null || abilityController == null)
+            return;
+
+        if (_target == null || _target.IsDead)
+            return;
+
+        var orderedSlots = actionBar
+            .GetSlots()
+            .Where(slot => slot != null)
+            .OrderBy(slot => slot.SlotIndex);
+
+        foreach (var slot in orderedSlots)
+        {
+            var action = slot.AssignedAction;
+            if (action == null || !action.IsAssigned || !action.IsAbility)
+                continue;
+
+            if (!slot.CanAccept(action))
+                continue;
+
+            if (abilityController.TryUseAbility(action.id))
+                break;
+        }
     }
 
     private float GetCurrentHP()
@@ -641,7 +687,9 @@ public class PlayerCombatController : MonoBehaviour
             player?.SetMovementLocked(true);
             _nextIdleScanTime = 0f;
             _nextAutoConsumeTime = 0f;
+            _nextAutoAbilityTime = 0f;
             TickAutoConsumables();
+            TickAutoAbilities();
             TickIdleCombatTargeting();
         }
         else
@@ -982,6 +1030,7 @@ public class PlayerCombatController : MonoBehaviour
         if (!stats) stats = GetComponent<CharacterStats>();
         if (!inventory) inventory = GetComponent<Inventory>();
         if (!consumableController) consumableController = GetComponent<PlayerConsumableController>();
+        if (!abilityController) abilityController = GetComponent<PlayerAbilityController>();
 
         if (!actionBar)
             actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);

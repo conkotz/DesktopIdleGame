@@ -87,8 +87,9 @@ public class AbilityEntryUI : MonoBehaviour,
 
         string body = BuildLeagueStyleTooltip(_def);
         RectTransform measure = _tooltipBoundsRect ? _tooltipBoundsRect : transform.root as RectTransform;
+        Transform anchor = icon != null ? icon.transform : transform;
         _tooltip.ShowTextAt(
-            transform,
+            anchor,
             _def.displayName,
             body,
             measureRect: measure,
@@ -116,7 +117,7 @@ public class AbilityEntryUI : MonoBehaviour,
         if (_rootCanvas == null)
             return;
 
-        AbilityDragState.BeginDrag(_def.abilityId);
+        AbilityDragState.BeginDrag(_def.abilityId, _def.icon, _def.displayName, _def.description);
         CreateDragIcon();
         UpdateDragIconPosition(eventData);
         if (canvasGroup) canvasGroup.blocksRaycasts = false;

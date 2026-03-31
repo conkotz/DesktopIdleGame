@@ -5145,6 +5145,37 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!1 &4897132551910634964
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7149526798742480501}
+  m_Layer: 10
+  m_Name: TrailingAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7149526798742480501
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4897132551910634964}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.67, y: -1.24, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3287728025272347807}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5286985708663891203
 GameObject:
   m_ObjectHideFlags: 0
@@ -5458,6 +5489,7 @@ GameObject:
   m_Component:
   - component: {fileID: 753017158846464440}
   - component: {fileID: 1771682296187552649}
+  - component: {fileID: 7966594728544107448}
   - component: {fileID: 7462036414647869483}
   - component: {fileID: 4199332309700179123}
   - component: {fileID: 343137512557904079}
@@ -5565,6 +5597,38 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &7966594728544107448
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cea89dfc33cc3b6439c7e5d7f95d2bf9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAbilityController
+  player: {fileID: 7462036414647869483}
+  stats: {fileID: 4199332309700179123}
+  combat: {fileID: 343137512557904079}
+  globalCooldownSeconds: 0.15
+  powerSlashTrailAnchor: {fileID: 7149526798742480501}
+  powerSlashAnchorNameCandidates:
+  - Weapon
+  - MainHandItem
+  - MainHand
+  powerSlashTrailColor: {r: 1, g: 0.86, b: 0.2, a: 0.95}
+  powerSlashTrailTime: 0.14
+  powerSlashSwingDuration: 0.12
+  powerSlashTrailWidth: 0.24
+  powerSlashAngleRange: {x: 130, y: -30}
+  powerSlashLocalOffset: {x: 0, y: -0.05, z: 0}
+  powerSlashTipLocalOffset: {x: 0.52, y: 0.06}
+  powerSlashEdgeFollowSmoothing: 0.06
+  powerSlashUseDoubleSwipe: 1
+  powerSlashSecondSwipeDelay: 0.035
+  powerSlashSecondSwipeAngleOffset: 18
 --- !u!114 &7462036414647869483
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5741,10 +5805,13 @@ MonoBehaviour:
   idleRescanInterval: 0.25
   actionBar: {fileID: 0}
   consumableController: {fileID: 0}
+  abilityController: {fileID: 0}
   inventory: {fileID: 0}
   autoConsumeInterval: 0.2
   autoUseFood: 1
   autoUsePotions: 1
+  autoAbilityInterval: 0.1
+  autoUseAbilities: 1
   xpPerDamage: 0.1
   combatXpSource: Combat
   debugLogs: 1
@@ -6353,6 +6420,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4000011635417628, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4391638869495719299}
+    - targetCorrespondingSourceObject: {fileID: 4000011635417628, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7149526798742480501}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
 --- !u!212 &891282943680693398 stripped
