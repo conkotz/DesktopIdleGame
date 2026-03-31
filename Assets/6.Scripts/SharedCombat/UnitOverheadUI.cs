@@ -9,6 +9,8 @@ public class UnitOverheadUI : MonoBehaviour
     [Header("UI Refs")]
     [SerializeField] private RectTransform root;
     [SerializeField] private TMP_Text nameText;
+    [Tooltip("Optional. Shows combat profile label (e.g. Glass Cannon, Deadly); color is set from the profile. Assign in the Inspector.")]
+    [SerializeField] private TMP_Text combatProfileText;
     [SerializeField] private Image hpFill;
     [SerializeField] private TMP_Text hpValueText;
     [SerializeField] private Transform debuffContainer;
@@ -90,6 +92,7 @@ public class UnitOverheadUI : MonoBehaviour
         {
             characterStats.OnNameChanged += HandleNameChanged;
             characterStats.OnHPChanged += HandleCharacterHpChanged;
+            characterStats.OnStatsChanged += HandleStatsChanged;
         }
 
         if (enemy != null)
@@ -110,6 +113,7 @@ public class UnitOverheadUI : MonoBehaviour
         {
             characterStats.OnNameChanged -= HandleNameChanged;
             characterStats.OnHPChanged -= HandleCharacterHpChanged;
+            characterStats.OnStatsChanged -= HandleStatsChanged;
         }
 
         if (enemy != null)
@@ -166,13 +170,17 @@ public class UnitOverheadUI : MonoBehaviour
         root.localScale = Vector3.one;
     }
 
-    private void HandleNameChanged(string _)
+    private void HandleStatsChanged()
     {
-        if (nameText != null)
-            nameText.text = GetDisplayNameWithCombatPower();
+        HandleNameChanged(string.Empty);
     }
 
-    private string GetDisplayNameWithCombatPower()
+    private void HandleNameChanged(string _)
+    {
+        RefreshNameCombatPowerAndProfile();
+    }
+
+    private void RefreshNameCombatPowerAndProfile()
     {
         string baseName = "Unit";
 
@@ -181,8 +189,32 @@ public class UnitOverheadUI : MonoBehaviour
         else if (characterStats != null)
             baseName = characterStats.UnitDisplayName;
 
-        int cp = characterStats != null ? Mathf.RoundToInt(characterStats.CombatPower) : 0;
-        return $"{baseName} <size=75%><color=#AAAAAA>CP{cp}</color></size>";
+        if (nameText != null)
+        {
+            if (characterStats == null)
+                nameText.text = baseName;
+            else
+            {
+                int cp = Mathf.RoundToInt(characterStats.GetCombatPowerBreakdown().TotalCombatPower);
+                nameText.text = $"{baseName} <size=75%><color=#AAAAAA>CP {cp}</color></size>";
+            }
+        }
+
+        if (combatProfileText != null)
+        {
+            if (characterStats == null)
+            {
+                combatProfileText.text = string.Empty;
+                combatProfileText.color = Color.white;
+            }
+            else
+            {
+                CombatPowerBreakdown breakdown = characterStats.GetCombatPowerBreakdown();
+                string profileLabel = CombatProfileClassifier.Classify(breakdown);
+                combatProfileText.text = profileLabel;
+                combatProfileText.color = CombatProfileClassifier.GetColorForLabel(profileLabel);
+            }
+        }
     }
 
     private void HandleCharacterHpChanged(float current, float max)

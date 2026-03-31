@@ -35,13 +35,16 @@ MonoBehaviour:
     minMagicDamage: 0
     maxMagicDamage: 0
     minTrueDamage: 3
-    maxTrueDamage: 4
+    maxTrueDamage: 6
     attacksPerSecond: 1
     critChance: 0
     critMultiplier: 1
     handedness: 0
     attackRange: 1.2
     attackSkill: 0
+    magicAttackType: 0
+    manaCostPerAttack: 0
+    magicAilmentApplyChance: 0
     canEquipInOffHand: 1
     requiresOffhandSupport: 0
     requiredSupportType: 0
@@ -57,8 +60,10 @@ MonoBehaviour:
     consumeAmountPerAttack: 0
   toolStats:
     toolType: 0
-    gatherPower: 0
     gatherSpeedMultiplier: 0
+    gatheringGrit: 0
+    bonusResourceFindChance: 0
+    staminaEfficiency: 0
   armorStats:
     armor: 0
     magicResist: 0
@@ -68,15 +73,19 @@ MonoBehaviour:
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
+    bonusMana: 0
     armor: 0
     magicResist: 0
     physBlockChance: 0
     lifeRegen: 0
     energyRegen: 0
+    manaRegen: 0
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
+    physicalDamagePercent: 0
     magicDamage: 0
+    magicDamagePercent: 0
     trueDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
@@ -85,7 +94,27 @@ MonoBehaviour:
     attackRangeBonus: 0
     bleedChance: 0
     bleedMultiplier: 0
-    poisonChance: 0.5
+    poisonChance: 1
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
+    burnExplosionMultiplierBonus: 0
+    chillSlowPerStackBonus: 0
+    shockDamageTakenMultiplierBonus: 0
+  consumableStats:
+    consumableType: 0
+    healAmount: 0
+    energyAmount: 0
+    cooldownSeconds: 0
+    consumeOnUse: 0
+    grantedEffect:
+      effectType: 0
+      magnitude: 0
+      duration: 0
+      effectId: 
+  cookableStats:
+    isCookable: 0
+    cookedResultItemId: 
+    cookedResultAmount: 0
+    requiredCookingLevel: 0
+    cookingXp: 0

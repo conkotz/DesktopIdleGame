@@ -215,6 +215,10 @@ public class EnemyBaseController : MonoBehaviour
         if (state == EnemyState.Dead)
             return;
 
+        // Same vitals regen as the player (life/energy/mana); base stats apply to enemies too.
+        if (stats)
+            stats.TickRegen(Time.deltaTime);
+
         if (!IsPlayerValidAlive())
         {
             _hitQueued = false;

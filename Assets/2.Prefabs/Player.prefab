@@ -5742,7 +5742,6 @@ MonoBehaviour:
   baseShockDuration: 5
   baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
-  trueDamageCanCrit: 0
   equipment: {fileID: 0}
   inventory: {fileID: 4615812802344899198}
   toolbelt: {fileID: 0}

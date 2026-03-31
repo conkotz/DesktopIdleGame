@@ -57,7 +57,7 @@ Transform:
   m_GameObject: {fileID: 1670471547977060905}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.06, y: 2.02, z: 0}
+  m_LocalPosition: {x: -0.12, y: 2.1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1019,7 +1019,7 @@ MonoBehaviour:
   baseBleedChance: 0
   baseBleedMultiplier: 0
   baseBleedDuration: 5
-  basePoisonChance: 1
+  basePoisonChance: 0.282
   basePoisonMultiplier: 0.2
   basePoisonDuration: 5
   basePoisonMaxStacks: 3
@@ -1033,7 +1033,6 @@ MonoBehaviour:
   baseShockDuration: 5
   baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
-  trueDamageCanCrit: 0
   equipment: {fileID: 0}
   inventory: {fileID: 0}
   toolbelt: {fileID: 0}
@@ -1046,18 +1045,6 @@ MonoBehaviour:
   bonusAxeSpeedMult: 0
   bonusPickaxeSpeedMult: 0
   bonusRodSpeedMult: 0
-  combatPowerDefenseScale: 0.1
-  combatPowerSustainScale: 3
-  combatPowerMoveSpeedScale: 1.5
-  combatPowerPhysicalWeight: 0.4
-  combatPowerMagicalWeight: 0.4
-  combatPowerTrueWeight: 0.2
-  combatPowerPhysicalOffenseWeight: 1
-  combatPowerMagicalOffenseWeight: 1.05
-  combatPowerTrueOffenseWeight: 1.3
-  combatPowerBleedWeight: 1
-  combatPowerPoisonWeight: 0.2
-  combatPowerBurnWeight: 1
 --- !u!114 &2944910628672340933
 MonoBehaviour:
   m_ObjectHideFlags: 0

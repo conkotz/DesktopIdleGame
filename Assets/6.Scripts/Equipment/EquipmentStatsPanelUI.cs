@@ -243,11 +243,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         if (atkSpeedText) atkSpeedText.text = $"Attack Speed: {stats.AttacksPerSecond:0.00}/s";
         if (rangeText) rangeText.text = $"Range: {stats.Range:0.##}";
-        if (critChanceText) critChanceText.text = $"Crit: {stats.CritChancePercent:0.#}%";
+        if (critChanceText) critChanceText.text = $"Crit: {stats.StatsPanelCritChancePercent:0.#}%";
 
         if (critDamageText)
         {
-            float critBonusPct = (stats.CritMultiplier - 1f) * 100f;
+            float critBonusPct = stats.HasCrittableDirectDamage ? (stats.CritMultiplier - 1f) * 100f : 0f;
             critDamageText.text = $"Crit Damage: {critBonusPct:+0.#;-0.#;0}%";
         }
 

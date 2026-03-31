@@ -34,6 +34,8 @@ MonoBehaviour:
   spawnGroupPlans:
   - groupId: TownMerchants
     spawns:
+    - prefab: {fileID: 1000010755293042, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+      count: 1
     - prefab: {fileID: 2240485527361661371, guid: 6e93381c288e6ae488bc8daf3fc70d29, type: 3}
       count: 1
     - prefab: {fileID: 4973683916600228948, guid: 4f6f9e8217f875c49a5b9fc9421d1191, type: 3}

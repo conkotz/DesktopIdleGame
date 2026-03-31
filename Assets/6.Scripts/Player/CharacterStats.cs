@@ -130,7 +130,6 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     [Header("Combat Tuning")]
     [SerializeField] private float dualWieldApsBonus = 1.15f;
-    [SerializeField] private bool trueDamageCanCrit = false;
 
     [Header("Refs")]
     [SerializeField] private EquipmentManager equipment;
@@ -154,21 +153,22 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     // Global combat-power tuning (shared across all characters and enemies).
     // Non-serialized by design to avoid per-instance drift in the inspector.
+    private const float combatPowerOffenseScale = 3.0f;
+    /// <summary>CP only: scales expected ailment DPS down vs direct hits (UI DPS / ailment math unchanged).</summary>
+    private const float combatPowerAilmentContributionFactor = 0.65f;
+
     private const float combatPowerDefenseScale = 0.10f;
-    private const float combatPowerSustainScale = 3.0f;
-    private const float combatPowerMoveSpeedScale = 1.5f;
+    /// <summary>Multiplier on <see cref="ExpectedSustainPerSecond"/> (regen + expected LS/s + small energy term).</summary>
+    private const float combatPowerSustainScale = 4.35f;
+    /// <summary>Cap on expected life steal / s as a fraction of <see cref="MaxHP"/> (CP sustain model).</summary>
+    private const float combatPowerLifeStealMaxHpFractionPerSecond = 0.20f;
 
-    private const float combatPowerPhysicalWeight = 0.4f;
-    private const float combatPowerMagicalWeight = 0.4f;
+    private const float combatPowerMobilityExponent = 1.25f;
+    private const float combatPowerMobilityScale = 2.0f;
+
+    private const float combatPowerPhysicalWeight = 0.5f;
+    private const float combatPowerMagicalWeight = 0.3f;
     private const float combatPowerTrueWeight = 0.2f;
-
-    private const float combatPowerPhysicalOffenseWeight = 1.0f;
-    private const float combatPowerMagicalOffenseWeight = 1.05f;
-    private const float combatPowerTrueOffenseWeight = 1.3f;
-
-    private const float combatPowerBleedWeight = 1.0f;
-    private const float combatPowerPoisonWeight = 1.25f;
-    private const float combatPowerBurnWeight = 1.0f;
 
     private void Start()
     {
@@ -296,13 +296,24 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float CritChancePercent => CritChance * 100f;
     public float CritMultiplierPercent => CritMultiplier * 100f;
 
+    /// <summary>True when the attack has physical or magical damage; true-only hits cannot crit.</summary>
+    public bool HasCrittableDirectDamage =>
+        MaxSplitDamage.physical > 0f || MaxSplitDamage.magical > 0f;
+
+    /// <summary>Crit % for stats UI: 0 when damage is true-only (gear crit still applies only to crittable types).</summary>
+    public float StatsPanelCritChancePercent =>
+        HasCrittableDirectDamage ? CritChancePercent : 0f;
+
     public AttackSkill CurrentAttackSkill => GetCurrentAttackSkill();
     public DamageType CurrentDamageType => GetLegacyCurrentDamageType();
 
     public float BaseDPS => GetBaseDps();
-    public float DPS => GetTrueDps();
-    public float WeaponDpsComponent => GetCombatModelDirectDps();
-    public float AilmentDpsComponent => GetCombatModelAilmentDps();
+
+    /// <summary>Expected total DPS (direct + full ailment DPS). <see cref="CombatPower"/> applies a separate ailment factor to offense only.</summary>
+    public float DPS => GetStatsSheetDirectDps() + GetStatsSheetAilmentDps();
+
+    public float WeaponDpsComponent => GetStatsSheetDirectDps();
+    public float AilmentDpsComponent => GetStatsSheetAilmentDps();
 
     public bool CanUseEquippedWeapon
     {
@@ -332,9 +343,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float ExpectedPhysicalHit => AveragePhysicalHit * ExpectedCritFactor;
     public float ExpectedMagicalHit => AverageMagicalHit * ExpectedCritFactor;
-    public float ExpectedTrueHit => trueDamageCanCrit
-        ? AverageTrueHit * ExpectedCritFactor
-        : AverageTrueHit;
+
+    /// <summary>True damage never benefits from crit (combat rolls and DPS models assume this).</summary>
+    public float ExpectedTrueHit => AverageTrueHit;
 
     // ---------- Bleed ----------
     public float BleedBaseTotalDamage => ExpectedPhysicalHit * (1f + BleedMultiplier);
@@ -532,9 +543,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            // Assumes LifeSteal is a % of dealt damage returned as healing.
-            // Since your DPS already includes expected ailment DPS, this gives a clean sustain estimate.
-            return DPS * Mathf.Clamp01(LifeSteal);
+            float raw = GetStatsSheetDirectDps() * Mathf.Clamp01(LifeSteal);
+            return Mathf.Min(raw, MaxHP * combatPowerLifeStealMaxHpFractionPerSecond);
         }
     }
 
@@ -549,23 +559,43 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    public float CombatPower
-    {
-        get
-        {
-            float offense = GetCombatPowerOffenseFromCombatModel();
+    /// <summary>Bucket values for combat power; same math as <see cref="CombatPower"/>.</summary>
+    public CombatPowerBreakdown GetCombatPowerBreakdown() => BuildCombatPowerBreakdown();
 
-            float defense = WeightedEffectiveHP * combatPowerDefenseScale;
-
-            float sustain = ExpectedSustainPerSecond * combatPowerSustainScale;
-
-            float mobility = FinalMoveSpeed * combatPowerMoveSpeedScale;
-
-            return offense + defense + sustain + mobility;
-        }
-    }
+    public float CombatPower => GetCombatPowerBreakdown().TotalCombatPower;
 
     public int CombatPowerRounded => Mathf.RoundToInt(CombatPower);
+
+    public string GetCombatProfileLabel() => CombatProfileClassifier.Classify(GetCombatPowerBreakdown());
+
+    public Color GetCombatProfileColor()
+    {
+        CombatPowerBreakdown b = GetCombatPowerBreakdown();
+        return CombatProfileClassifier.GetColorForLabel(CombatProfileClassifier.Classify(b));
+    }
+
+    public string GetCombatProfileDebugSummary()
+    {
+        CombatPowerBreakdown b = GetCombatPowerBreakdown();
+        string label = CombatProfileClassifier.Classify(b);
+        return CombatProfileClassifier.BuildDebugSummary(b, label);
+    }
+
+    private CombatPowerBreakdown BuildCombatPowerBreakdown()
+    {
+        float directDps = GetStatsSheetDirectDps();
+        float ailmentDps = GetStatsSheetAilmentDps();
+        float offenseRaw = directDps + ailmentDps * combatPowerAilmentContributionFactor;
+        float offense = offenseRaw * combatPowerOffenseScale;
+
+        float defense = WeightedEffectiveHP * combatPowerDefenseScale;
+
+        float sustain = ExpectedSustainPerSecond * combatPowerSustainScale;
+
+        float mobility = Mathf.Pow(FinalMoveSpeed, combatPowerMobilityExponent) * combatPowerMobilityScale;
+
+        return new CombatPowerBreakdown(offense, defense, sustain, mobility);
+    }
 
     // -------------------------
     // Equipped item iteration
@@ -978,24 +1008,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return avgTotal * AttacksPerSecond;
     }
 
-    private float GetTrueDps()
-    {
-        return GetOffenseFromCombatModel();
-    }
-
-    private float GetCombatPowerOffenseFromCombatModel()
-    {
-        // Keep CP offense independent from the DPS property accessor while
-        // using the same underlying combat model math.
-        return GetOffenseFromCombatModel();
-    }
-
-    private float GetOffenseFromCombatModel()
-    {
-        return GetCombatModelDirectDps() + GetCombatModelAilmentDps();
-    }
-
-    private float GetCombatModelDirectDps()
+    /// <summary>Direct hit DPS for character sheet: expected damage with crit on phys/mag only; true never crits.</summary>
+    private float GetStatsSheetDirectDps()
     {
         float aps = AttacksPerSecond;
         if (aps <= 0f) return 0f;
@@ -1008,23 +1022,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float avgMag = (MinSplitDamage.magical + MaxSplitDamage.magical) * 0.5f;
         float avgTrue = (MinSplitDamage.trueDamage + MaxSplitDamage.trueDamage) * 0.5f;
 
-        float directPhysDps = avgPhys * aps * critFactor;
-        float directMagDps = avgMag * aps * critFactor;
-        float directTrueDps = avgTrue * aps * (trueDamageCanCrit ? critFactor : 1f);
-
-        float weightedDirectDps =
-            (directPhysDps * combatPowerPhysicalOffenseWeight) +
-            (directMagDps * combatPowerMagicalOffenseWeight) +
-            (directTrueDps * combatPowerTrueOffenseWeight);
-        return weightedDirectDps;
+        return ((avgPhys + avgMag) * critFactor + avgTrue) * aps;
     }
 
-    private float GetCombatModelAilmentDps()
+    /// <summary>Ailment DPS for character sheet without CP tuning weights.</summary>
+    private float GetStatsSheetAilmentDps()
     {
-        return
-            (ExpectedBleedDPS * combatPowerBleedWeight) +
-            (ExpectedPoisonDPS * combatPowerPoisonWeight) +
-            (ExpectedBurnDPS * combatPowerBurnWeight);
+        return ExpectedBleedDPS + ExpectedPoisonDPS + ExpectedBurnDPS;
     }
 
     private float GetCritChance()
@@ -1342,14 +1346,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         if (UnityEngine.Random.value < CritChance)
         {
-            wasCrit = true;
             float crit = Mathf.Max(1f, CritMultiplier);
 
-            phys *= crit;
-            mag *= crit;
-
-            if (trueDamageCanCrit)
-                tru *= crit;
+            // True damage never benefits from crit; only flag crit if phys/mag scaled.
+            if (phys > 0f || mag > 0f)
+            {
+                wasCrit = true;
+                phys *= crit;
+                mag *= crit;
+            }
         }
 
         return new SplitDamage(

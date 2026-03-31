@@ -561,7 +561,6 @@ MonoBehaviour:
   baseShockDuration: 5
   baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
-  trueDamageCanCrit: 0
   equipment: {fileID: 0}
   inventory: {fileID: 0}
   toolbelt: {fileID: 0}
@@ -574,17 +573,6 @@ MonoBehaviour:
   bonusAxeSpeedMult: 0
   bonusPickaxeSpeedMult: 0
   bonusRodSpeedMult: 0
-  combatPowerDefenseScale: 0.1
-  combatPowerSustainScale: 3
-  combatPowerMoveSpeedScale: 1.5
-  combatPowerPhysicalWeight: 0.4
-  combatPowerMagicalWeight: 0.4
-  combatPowerTrueWeight: 0.2
-  combatPowerPhysicalOffenseWeight: 1
-  combatPowerMagicalOffenseWeight: 1.05
-  combatPowerTrueOffenseWeight: 1.3
-  combatPowerBleedWeight: 1
-  combatPowerPoisonWeight: 1.25
 --- !u!114 &-2765904712510076592
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1062,7 +1050,7 @@ Transform:
   m_GameObject: {fileID: 6321974452609227633}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.01, y: 2.2, z: 0}
+  m_LocalPosition: {x: -0.12, y: 2.1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
