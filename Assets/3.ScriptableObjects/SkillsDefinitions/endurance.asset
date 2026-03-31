@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b135f695c35f199438922318ab9539c0, type: 3}
+  m_Name: endurance
+  m_EditorClassIdentifier: Assembly-CSharp::SkillDefinition
+  skillType: 3
+  displayName: Melee
+  description: 'Fight enemies using melee combat '
+  icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
+  themeColor: {r: 0.7735849, g: 0.03357058, b: 0.043666083, a: 1}
+  category: 1
+  listSortOrder: 0
+  unlocks:
+  - requiredLevel: 1
+    title: Melee Combat
+    description: Can use common melee weapons
+    icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
+    unlockType: 0
+    ability: {fileID: 0}
