@@ -103,7 +103,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bddb989121bb6414f99daebc7bb5415a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyBaseController
-  displayName: Knight
+  displayName: Dummy Knight
   stats: {fileID: 0}
   player: {fileID: 0}
   playerTag: Player
@@ -147,13 +147,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterStats
   buffController: {fileID: 0}
-  unitDisplayName: Knight
+  unitDisplayName: Dummy Knight
   currentHP: -1
   currentEnergy: -1
   currentMana: -1
   baseMaxHP: 9999
   baseMaxEnergy: 0
-  baseMaxMana: 50
+  baseMaxMana: 0
   baseArmor: 0
   baseMagicResist: 0
   basePhysBlockChance: 0
@@ -162,8 +162,8 @@ MonoBehaviour:
   baseLifeRegen: 10
   baseEnergyRegen: 0
   baseManaRegen: 1
-  baseMinPhysicalDamage: 12
-  baseMaxPhysicalDamage: 16
+  baseMinPhysicalDamage: 1
+  baseMaxPhysicalDamage: 2
   baseMinMagicDamage: 0
   baseMaxMagicDamage: 0
   baseMinTrueDamage: 0
@@ -200,17 +200,6 @@ MonoBehaviour:
   bonusAxeSpeedMult: 0
   bonusPickaxeSpeedMult: 0
   bonusRodSpeedMult: 0
-  combatPowerDefenseScale: 0.1
-  combatPowerSustainScale: 3
-  combatPowerMoveSpeedScale: 1.5
-  combatPowerPhysicalWeight: 0.4
-  combatPowerMagicalWeight: 0.4
-  combatPowerTrueWeight: 0.2
-  combatPowerPhysicalOffenseWeight: 1
-  combatPowerMagicalOffenseWeight: 1.05
-  combatPowerTrueOffenseWeight: 1.3
-  combatPowerBleedWeight: 1
-  combatPowerPoisonWeight: 1.25
 --- !u!114 &6916494899203147554
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -190,9 +190,10 @@ public class SaveManager : MonoBehaviour
         // Write a small meta/header file for the slot select UI.
         int slot = GetSafeActiveSlot();
         int combatPower = 0;
-        var stats = FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Include);
-        if (stats != null)
-            combatPower = stats.CombatPowerRounded;
+        PlayerController playerForHeader = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        CharacterStats playerStats = playerForHeader ? playerForHeader.GetComponent<CharacterStats>() : null;
+        if (playerStats != null)
+            combatPower = playerStats.CombatPowerRounded;
 
         var header = SaveSlotManager.BuildHeaderFromSaveData(
             slot,

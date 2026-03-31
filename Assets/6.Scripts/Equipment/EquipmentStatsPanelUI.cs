@@ -281,25 +281,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         // -------------------------
         if (dpsText)
         {
-            float weaponDps = stats.DPS;
-
-            float ailmentDps = 0f;
-
-            if (stats.BleedChance > 0f)
-                ailmentDps += stats.BleedDPS;
-
-            if (stats.PoisonChance > 0f)
-                ailmentDps += stats.PoisonMaxDPS;
-
-            if (stats.ExpectedBurnDPS > 0f)
-                ailmentDps += stats.ExpectedBurnDPS;
-
-            float totalDps = weaponDps + ailmentDps;
+            float sheetDps = stats.DPS;
+            float weaponDps = stats.WeaponDpsComponent;
+            float ailmentDps = stats.AilmentDpsComponent;
 
             if (ailmentDps > 0.01f)
-                dpsText.text = $"DPS: {totalDps:0.#} (wep:{weaponDps:0.#}, ailment:{ailmentDps:0.#})";
+                dpsText.text = $"DPS: {sheetDps:0.#} ({weaponDps:0.#} weapon, {ailmentDps:0.#} ailment)";
             else
-                dpsText.text = $"DPS: {totalDps:0.##} (wep:{weaponDps:0.##})";
+                dpsText.text = $"DPS: {sheetDps:0.##} ({weaponDps:0.##} weapon)";
         }
 
         // -------------------------

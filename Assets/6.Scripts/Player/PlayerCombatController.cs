@@ -91,7 +91,7 @@ public class PlayerCombatController : MonoBehaviour
     [SerializeField] private bool debugLogs = false;
 
     [Header("DPS Tracking")]
-    [SerializeField, Min(1f)] private float dpsWindowSeconds = 10f;
+    [SerializeField, Min(0.1f)] private float dpsResetOutOfCombatSeconds = 5f;
 
     public event System.Action<bool> OnIdleCombatChanged;
     public event System.Action<bool> OnRetaliationChanged;
@@ -107,9 +107,10 @@ public class PlayerCombatController : MonoBehaviour
     private float _nextAttackTime;
     private float _nextIdleScanTime;
     private float _nextLowManaPopupTime;
-    private readonly Queue<DamageSample> _dpsSamples = new();
-    private float _dpsDamageSum;
+    private float _combatSessionStartTime = -1f;
+    private float _combatSessionDamageSum;
     private float _lastDamageTime = -999f;
+    private float _lastCombatActivityTime = -999f;
 
     public float GetAttackCooldownSeconds()
     {
@@ -131,16 +132,17 @@ public class PlayerCombatController : MonoBehaviour
     public float GetCurrentDps()
     {
         float now = Time.time;
-        float window = Mathf.Max(1f, dpsWindowSeconds);
-
-        if (_lastDamageTime < 0f || now - _lastDamageTime >= window)
+        if (!IsCombatEngaged() && now - _lastCombatActivityTime >= Mathf.Max(0.1f, dpsResetOutOfCombatSeconds))
             return 0f;
 
-        PruneOldDpsSamples(now, window);
-        if (_dpsDamageSum <= 0f)
+        if (_combatSessionStartTime < 0f || _combatSessionDamageSum <= 0f)
             return 0f;
 
-        return _dpsDamageSum / window;
+        float duration = Mathf.Max(0.001f, now - _combatSessionStartTime);
+        if (duration <= 0f)
+            return 0f;
+
+        return _combatSessionDamageSum / duration;
     }
 
     private void Awake()
@@ -152,6 +154,17 @@ public class PlayerCombatController : MonoBehaviour
     private void Update()
     {
         if (!player || !stats) return;
+
+        if (IsCombatEngaged())
+        {
+            _lastCombatActivityTime = Time.time;
+            if (_combatSessionStartTime < 0f)
+                _combatSessionStartTime = Time.time;
+        }
+        else if (Time.time - _lastCombatActivityTime >= Mathf.Max(0.1f, dpsResetOutOfCombatSeconds))
+        {
+            ResetDpsSession();
+        }
 
         if (idleCombatEnabled)
         {
@@ -285,6 +298,13 @@ public class PlayerCombatController : MonoBehaviour
         {
             ResolveAttackHitNow(_target, rolled, wasCrit);
         }
+    }
+
+    private bool IsCombatEngaged()
+    {
+        bool hasLiveTarget = _target != null && !_target.IsDead && _target.gameObject.activeInHierarchy;
+        bool playerInCombat = player != null && player.InCombat;
+        return hasLiveTarget || playerInCombat;
     }
 
     private void TickAutoConsumables()
@@ -1036,29 +1056,17 @@ public class PlayerCombatController : MonoBehaviour
             return;
 
         float now = Time.time;
-        float window = Mathf.Max(1f, dpsWindowSeconds);
         _lastDamageTime = now;
-
-        _dpsSamples.Enqueue(new DamageSample { time = now, amount = damageAmount });
-        _dpsDamageSum += damageAmount;
-
-        PruneOldDpsSamples(now, window);
+        if (_combatSessionStartTime < 0f)
+            _combatSessionStartTime = now;
+        _combatSessionDamageSum += damageAmount;
     }
 
-    private void PruneOldDpsSamples(float now, float window)
+    private void ResetDpsSession()
     {
-        while (_dpsSamples.Count > 0)
-        {
-            DamageSample sample = _dpsSamples.Peek();
-            if (now - sample.time < window)
-                break;
-
-            _dpsDamageSum -= sample.amount;
-            _dpsSamples.Dequeue();
-        }
-
-        if (_dpsDamageSum < 0f)
-            _dpsDamageSum = 0f;
+        _combatSessionStartTime = -1f;
+        _combatSessionDamageSum = 0f;
+        _lastDamageTime = -999f;
     }
 
     private void TryResolveAutoConsumeRefs()

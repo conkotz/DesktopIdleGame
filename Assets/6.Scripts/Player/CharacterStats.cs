@@ -152,21 +152,23 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private float bonusPickaxeSpeedMult = 0f;
     [SerializeField] private float bonusRodSpeedMult = 0f;
 
-    [Header("Combat Power")]
-    [SerializeField] private float combatPowerDefenseScale = 0.10f;
-    [SerializeField] private float combatPowerSustainScale = 3.0f;
-    [SerializeField] private float combatPowerMoveSpeedScale = 1.5f;
+    // Global combat-power tuning (shared across all characters and enemies).
+    // Non-serialized by design to avoid per-instance drift in the inspector.
+    private const float combatPowerDefenseScale = 0.10f;
+    private const float combatPowerSustainScale = 3.0f;
+    private const float combatPowerMoveSpeedScale = 1.5f;
 
-    [SerializeField, Range(0f, 1f)] private float combatPowerPhysicalWeight = 0.4f;
-    [SerializeField, Range(0f, 1f)] private float combatPowerMagicalWeight = 0.4f;
-    [SerializeField, Range(0f, 1f)] private float combatPowerTrueWeight = 0.2f;
+    private const float combatPowerPhysicalWeight = 0.4f;
+    private const float combatPowerMagicalWeight = 0.4f;
+    private const float combatPowerTrueWeight = 0.2f;
 
-    [SerializeField] private float combatPowerPhysicalOffenseWeight = 1.0f;
-    [SerializeField] private float combatPowerMagicalOffenseWeight = 1.05f;
-    [SerializeField] private float combatPowerTrueOffenseWeight = 1.3f;
+    private const float combatPowerPhysicalOffenseWeight = 1.0f;
+    private const float combatPowerMagicalOffenseWeight = 1.05f;
+    private const float combatPowerTrueOffenseWeight = 1.3f;
 
-    [SerializeField] private float combatPowerBleedWeight = 1.0f;
-    [SerializeField] private float combatPowerPoisonWeight = 1.25f;
+    private const float combatPowerBleedWeight = 1.0f;
+    private const float combatPowerPoisonWeight = 1.25f;
+    private const float combatPowerBurnWeight = 1.0f;
 
     private void Start()
     {
@@ -299,6 +301,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float BaseDPS => GetBaseDps();
     public float DPS => GetTrueDps();
+    public float WeaponDpsComponent => GetCombatModelDirectDps();
+    public float AilmentDpsComponent => GetCombatModelAilmentDps();
 
     public bool CanUseEquippedWeapon
     {
@@ -389,8 +393,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            if (PoisonTicks <= 0) return 0f;
-            return PoisonPerStackTotalDamage / PoisonTicks;
+            if (PoisonPerStackTotalDamage <= 0f) return 0f;
+            int ticks = Mathf.Max(1, PoisonTicks);
+            // Match runtime poison application:
+            // tickDamage = max(1, ceil(totalDamage / ticks))
+            return Mathf.Max(1f, Mathf.Ceil(PoisonPerStackTotalDamage / ticks));
         }
     }
 
@@ -398,8 +405,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            if (PoisonDuration <= 0f) return 0f;
-            return PoisonPerStackTotalDamage / PoisonDuration;
+            // Runtime poison ticks once per second, so DPS is tick damage.
+            return PoisonPerStackTickDamage;
         }
     }
 
@@ -409,10 +416,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            if (PoisonChance <= 0f || AttacksPerSecond <= 0f || PoisonDuration <= 0f)
+            if (PoisonChance <= 0f || AttacksPerSecond <= 0f || PoisonTicks <= 0)
                 return 0f;
 
-            float expectedApplicationsInWindow = AttacksPerSecond * PoisonChance * PoisonDuration;
+            // Runtime stack life is `PoisonTicks` seconds (one tick per second).
+            float expectedApplicationsInWindow = AttacksPerSecond * PoisonChance * PoisonTicks;
             return Mathf.Clamp(expectedApplicationsInWindow, 0f, PoisonMaxStacks);
         }
     }
@@ -545,7 +553,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            float offense = DPS;
+            float offense = GetCombatPowerOffenseFromCombatModel();
 
             float defense = WeightedEffectiveHP * combatPowerDefenseScale;
 
@@ -972,6 +980,23 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private float GetTrueDps()
     {
+        return GetOffenseFromCombatModel();
+    }
+
+    private float GetCombatPowerOffenseFromCombatModel()
+    {
+        // Keep CP offense independent from the DPS property accessor while
+        // using the same underlying combat model math.
+        return GetOffenseFromCombatModel();
+    }
+
+    private float GetOffenseFromCombatModel()
+    {
+        return GetCombatModelDirectDps() + GetCombatModelAilmentDps();
+    }
+
+    private float GetCombatModelDirectDps()
+    {
         float aps = AttacksPerSecond;
         if (aps <= 0f) return 0f;
 
@@ -991,12 +1016,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
             (directPhysDps * combatPowerPhysicalOffenseWeight) +
             (directMagDps * combatPowerMagicalOffenseWeight) +
             (directTrueDps * combatPowerTrueOffenseWeight);
+        return weightedDirectDps;
+    }
 
-        float weightedAilmentDps =
+    private float GetCombatModelAilmentDps()
+    {
+        return
             (ExpectedBleedDPS * combatPowerBleedWeight) +
-            (ExpectedPoisonDPS * combatPowerPoisonWeight);
-
-        return weightedDirectDps + weightedAilmentDps;
+            (ExpectedPoisonDPS * combatPowerPoisonWeight) +
+            (ExpectedBurnDPS * combatPowerBurnWeight);
     }
 
     private float GetCritChance()
