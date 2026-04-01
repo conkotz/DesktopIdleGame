@@ -68,6 +68,15 @@ public class LevelSpawnDirector : MonoBehaviour
         if (!def)
             return;
 
+        if (def.nodeType == MapNodeType.EnduranceTrial)
+        {
+            _hasSpawnedForCurrentLevel = true;
+            _reservedSpawnCells.Clear();
+            if (logSpawns)
+                Debug.Log("[LevelSpawnDirector] EnduranceTrial — one-shot spawn is skipped; waves are driven by EnduranceTrialDirector.", this);
+            return;
+        }
+
         if (def.spawnGroupPlans == null || def.spawnGroupPlans.Count == 0)
         {
             if (logSpawns)
@@ -84,18 +93,76 @@ public class LevelSpawnDirector : MonoBehaviour
         for (int i = 0; i < def.spawnGroupPlans.Count; i++)
         {
             LevelSpawnGroupPlan plan = def.spawnGroupPlans[i];
-            if (plan == null || string.IsNullOrWhiteSpace(plan.groupId))
+            if (plan == null || plan.spawns == null || plan.spawns.Count == 0)
                 continue;
 
-            if (!groups.TryGetValue(plan.groupId, out SpawnPointGroup pointGroup) || pointGroup == null)
+            if (!SpawnPlanHasGroupSource(plan))
             {
                 if (logSpawns)
-                    Debug.LogWarning($"[LevelSpawnDirector] Missing SpawnPointGroup for groupId='{plan.groupId}'", this);
+                    Debug.LogWarning("[LevelSpawnDirector] Spawn plan has no Group Id and no per-row Spawn Point Group Id — skipped.", this);
                 continue;
             }
 
-            SpawnGroup(plan, pointGroup, parent);
+            SpawnGroup(plan, groups, parent, null);
         }
+    }
+
+    private static bool SpawnPlanHasGroupSource(LevelSpawnGroupPlan plan)
+    {
+        if (!string.IsNullOrWhiteSpace(plan.groupId))
+            return true;
+        if (plan.spawns == null)
+            return false;
+        for (int i = 0; i < plan.spawns.Count; i++)
+        {
+            SpawnPrefabCount e = plan.spawns[i];
+            if (e != null && !string.IsNullOrWhiteSpace(e.spawnPointGroupId))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Spawns one endurance wave: clears overlap reservation so later waves can reuse the same points.
+    /// Returns spawned enemies (roots that have <see cref="EnemyBaseController"/>).
+    /// </summary>
+    public List<EnemyBaseController> SpawnWavePlans(IReadOnlyList<LevelSpawnGroupPlan> plans)
+    {
+        var enemies = new List<EnemyBaseController>();
+        if (plans == null || plans.Count == 0)
+            return enemies;
+
+        _reservedSpawnCells.Clear();
+
+        var groups = FindAllSpawnPointGroups();
+        Transform parent = ResolveSpawnParent();
+        var spawnedRoots = new List<GameObject>();
+
+        for (int i = 0; i < plans.Count; i++)
+        {
+            LevelSpawnGroupPlan plan = plans[i];
+            if (plan == null || plan.spawns == null || plan.spawns.Count == 0)
+                continue;
+
+            if (!SpawnPlanHasGroupSource(plan))
+                continue;
+
+            SpawnGroup(plan, groups, parent, spawnedRoots);
+        }
+
+        for (int i = 0; i < spawnedRoots.Count; i++)
+        {
+            GameObject go = spawnedRoots[i];
+            if (!go)
+                continue;
+            EnemyBaseController ec = go.GetComponent<EnemyBaseController>() ??
+                                     go.GetComponentInChildren<EnemyBaseController>(true);
+            if (ec)
+                enemies.Add(ec);
+        }
+
+        return enemies;
     }
 
     private Transform ResolveSpawnParent()
@@ -124,52 +191,56 @@ public class LevelSpawnDirector : MonoBehaviour
         return dict;
     }
 
-    private void SpawnGroup(LevelSpawnGroupPlan plan, SpawnPointGroup points, Transform parent)
+    private void SpawnGroup(LevelSpawnGroupPlan plan, Dictionary<string, SpawnPointGroup> groupsById, Transform parent, List<GameObject> collectRoots)
     {
-        IReadOnlyList<Transform> rawPoints = points.Points;
-        if (rawPoints == null || rawPoints.Count == 0)
-        {
-            if (logSpawns)
-                Debug.LogWarning($"[LevelSpawnDirector] SpawnPointGroup '{plan.groupId}' has no points.", points);
-            return;
-        }
-
-        var pointList = new List<Transform>(rawPoints.Count);
-        for (int i = 0; i < rawPoints.Count; i++)
-        {
-            if (rawPoints[i])
-                pointList.Add(rawPoints[i]);
-        }
-
-        if (pointList.Count == 0)
-            return;
-
-        if (plan.shuffleSpawnPoints)
-            Shuffle(pointList);
-
-        int pointIndex = 0;
-        int totalSpawned = 0;
-
         if (plan.spawns == null)
             return;
+
+        var cursors = new Dictionary<string, GroupSpawnCursor>(StringComparer.OrdinalIgnoreCase);
+        int totalSpawned = 0;
 
         foreach (SpawnPrefabCount entry in plan.spawns)
         {
             if (entry == null || !entry.prefab || entry.count <= 0)
                 continue;
 
+            string gid = ResolveSpawnGroupId(plan, entry);
+            if (string.IsNullOrWhiteSpace(gid))
+            {
+                if (logSpawns)
+                    Debug.LogWarning("[LevelSpawnDirector] Spawn row has no Group Id (set plan default or Spawn Point Group Id on the row).", entry.prefab);
+                continue;
+            }
+
+            if (!groupsById.TryGetValue(gid, out SpawnPointGroup pointGroup) || pointGroup == null)
+            {
+                if (logSpawns)
+                    Debug.LogWarning($"[LevelSpawnDirector] Missing SpawnPointGroup for groupId='{gid}'", this);
+                continue;
+            }
+
+            GroupSpawnCursor cursor = GetOrCreateGroupCursor(cursors, gid, pointGroup, plan.shuffleSpawnPoints);
+            if (cursor.PointList.Count == 0)
+            {
+                if (logSpawns)
+                    Debug.LogWarning($"[LevelSpawnDirector] SpawnPointGroup '{gid}' has no points.", pointGroup);
+                continue;
+            }
+
             if (!entry.prefab.activeSelf && logSpawns)
                 Debug.LogWarning($"[LevelSpawnDirector] Prefab '{entry.prefab.name}' is inactive in the Project. Instances would be invisible unless activated.", entry.prefab);
 
             for (int c = 0; c < entry.count; c++)
             {
-                Transform p = PickNextAvailablePoint(pointList, ref pointIndex, out bool hadToReuse);
+                Transform p = PickNextAvailablePoint(cursor.PointList, ref cursor.Cursor, out bool hadToReuse);
                 if (!p)
                     return;
 
                 GameObject inst = Instantiate(entry.prefab, p.position, p.rotation, parent);
                 if (!inst.activeSelf)
                     inst.SetActive(true);
+
+                collectRoots?.Add(inst);
 
                 if (alignSpawnPointToColliderBottom)
                     AlignBottomOfColliderToPoint(inst.transform, p.position);
@@ -182,14 +253,54 @@ public class LevelSpawnDirector : MonoBehaviour
                 if (logSpawns)
                 {
                     if (hadToReuse)
-                        Debug.LogWarning($"[LevelSpawnDirector] Group '{plan.groupId}' ran out of free spawn points; reusing a location. Add more points to avoid overlaps.", points);
-                    Debug.Log($"[LevelSpawnDirector] Spawned group='{plan.groupId}' prefab='{entry.prefab.name}' -> '{inst.name}' at '{p.name}'", inst);
+                        Debug.LogWarning($"[LevelSpawnDirector] Group '{gid}' ran out of free spawn points; reusing a location. Add more points to avoid overlaps.", pointGroup);
+                    Debug.Log($"[LevelSpawnDirector] Spawned group='{gid}' prefab='{entry.prefab.name}' -> '{inst.name}' at '{p.name}'", inst);
                 }
             }
         }
 
         if (logSpawns)
-            Debug.Log($"[LevelSpawnDirector] Group '{plan.groupId}' spawned {totalSpawned} instance(s).", this);
+            Debug.Log($"[LevelSpawnDirector] Plan spawned {totalSpawned} instance(s).", this);
+    }
+
+    private static string ResolveSpawnGroupId(LevelSpawnGroupPlan plan, SpawnPrefabCount entry)
+    {
+        if (entry != null && !string.IsNullOrWhiteSpace(entry.spawnPointGroupId))
+            return entry.spawnPointGroupId.Trim();
+        return plan.groupId != null ? plan.groupId.Trim() : string.Empty;
+    }
+
+    private GroupSpawnCursor GetOrCreateGroupCursor(
+        Dictionary<string, GroupSpawnCursor> byId,
+        string gid,
+        SpawnPointGroup pointGroup,
+        bool shuffle)
+    {
+        if (byId.TryGetValue(gid, out GroupSpawnCursor cur))
+            return cur;
+
+        cur = new GroupSpawnCursor();
+        IReadOnlyList<Transform> rawPoints = pointGroup.Points;
+        if (rawPoints != null)
+        {
+            for (int i = 0; i < rawPoints.Count; i++)
+            {
+                if (rawPoints[i])
+                    cur.PointList.Add(rawPoints[i]);
+            }
+        }
+
+        if (shuffle && cur.PointList.Count > 0)
+            Shuffle(cur.PointList);
+
+        byId[gid] = cur;
+        return cur;
+    }
+
+    private sealed class GroupSpawnCursor
+    {
+        public readonly List<Transform> PointList = new();
+        public int Cursor;
     }
 
     private static void Shuffle<T>(IList<T> list)

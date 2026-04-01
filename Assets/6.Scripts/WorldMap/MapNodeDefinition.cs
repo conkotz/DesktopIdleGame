@@ -11,7 +11,9 @@ public enum MapNodeType
     Dungeon,
     Boss,
     Special,
-    Town
+    Town,
+    /// <summary>Wave-based combat: use <see cref="enduranceWaves"/>; <see cref="spawnGroupPlans"/> is ignored.</summary>
+    EnduranceTrial
 }
 
 /// <summary>High-level environment for music, lighting, skybox, ambient VFX, etc.</summary>
@@ -46,6 +48,9 @@ public class EncounterPrefabGroup
 [Serializable]
 public class SpawnPrefabCount
 {
+    [Tooltip("SpawnPointGroup.groupId in the scene. Leave empty to use the wave default (endurance) or the parent plan Group Id (combat spawn plans).")]
+    public string spawnPointGroupId = "";
+
     public GameObject prefab;
 
     [Min(1)]
@@ -58,7 +63,7 @@ public class SpawnPrefabCount
 [Serializable]
 public class LevelSpawnGroupPlan
 {
-    [Tooltip("Must match a SpawnPointGroup.groupId in the scene.")]
+    [Tooltip("Default SpawnPointGroup.groupId for rows that leave Spawn Point Group Id empty. Can be empty if every row sets its own.")]
     public string groupId = "Default";
 
     [Tooltip("What to spawn and how many.")]
@@ -66,6 +71,112 @@ public class LevelSpawnGroupPlan
 
     [Tooltip("If true, points are shuffled before spawning.")]
     public bool shuffleSpawnPoints = true;
+}
+
+/// <summary>One wave in an EnduranceTrial map: a flat list of spawns (no nested group plans).</summary>
+[Serializable]
+public class EnduranceWavePlan : ISerializationCallbackReceiver
+{
+    [Tooltip("SpawnPointGroup.groupId used when a spawn row leaves Spawn Point Group Id empty.")]
+    public string defaultSpawnGroupId = "";
+
+    [Tooltip("Enemies for this wave. Set Spawn Point Group Id on each row to pick a scene group, or leave empty to use Default Spawn Group Id.")]
+    public List<SpawnPrefabCount> spawns = new();
+
+    [Tooltip("If true, shuffles spawn points within each group before placing.")]
+    public bool shuffleSpawnPoints = true;
+
+    [FormerlySerializedAs("groupPlans")]
+    [SerializeField, HideInInspector]
+    private List<LevelSpawnGroupPlan> _legacyGroupPlans;
+
+    public void OnBeforeSerialize()
+    {
+    }
+
+    public void OnAfterDeserialize()
+    {
+        MigrateLegacyIfNeeded();
+    }
+
+    /// <summary>Call before spawning if the asset might not have gone through Unity deserialization yet.</summary>
+    public void EnsureReady()
+    {
+        MigrateLegacyIfNeeded();
+    }
+
+    /// <summary>Builds the single plan <see cref="LevelSpawnDirector"/> expects for one wave.</summary>
+    public LevelSpawnGroupPlan ToSyntheticGroupPlan()
+    {
+        EnsureReady();
+        return new LevelSpawnGroupPlan
+        {
+            groupId = defaultSpawnGroupId ?? "",
+            spawns = spawns ?? new List<SpawnPrefabCount>(),
+            shuffleSpawnPoints = shuffleSpawnPoints
+        };
+    }
+
+    private void MigrateLegacyIfNeeded()
+    {
+        if (_legacyGroupPlans == null || _legacyGroupPlans.Count == 0)
+            return;
+
+        if (spawns == null)
+            spawns = new List<SpawnPrefabCount>();
+
+        if (spawns.Count > 0)
+        {
+            _legacyGroupPlans = null;
+            return;
+        }
+
+        bool setDefault = string.IsNullOrWhiteSpace(defaultSpawnGroupId);
+        bool shuffleFromFirstPlan = true;
+
+        for (int i = 0; i < _legacyGroupPlans.Count; i++)
+        {
+            LevelSpawnGroupPlan gp = _legacyGroupPlans[i];
+            if (gp == null)
+                continue;
+
+            if (shuffleFromFirstPlan)
+            {
+                shuffleSpawnPoints = gp.shuffleSpawnPoints;
+                shuffleFromFirstPlan = false;
+            }
+
+            string planGid = gp.groupId != null ? gp.groupId.Trim() : string.Empty;
+            if (setDefault && !string.IsNullOrWhiteSpace(planGid))
+            {
+                defaultSpawnGroupId = planGid;
+                setDefault = false;
+            }
+
+            if (gp.spawns == null)
+                continue;
+
+            for (int j = 0; j < gp.spawns.Count; j++)
+            {
+                SpawnPrefabCount s = gp.spawns[j];
+                if (s == null || !s.prefab || s.count <= 0)
+                    continue;
+
+                string rowGid = !string.IsNullOrWhiteSpace(s.spawnPointGroupId)
+                    ? s.spawnPointGroupId.Trim()
+                    : planGid;
+
+                spawns.Add(new SpawnPrefabCount
+                {
+                    spawnPointGroupId = rowGid,
+                    prefab = s.prefab,
+                    count = s.count
+                });
+            }
+        }
+
+        _legacyGroupPlans = null;
+    }
 }
 
 /// <summary>
@@ -164,6 +275,10 @@ public class MapNodeDefinition : ScriptableObject
 
     [Tooltip("Concrete spawn plan: which prefabs to instantiate and how many, mapped to SpawnPointGroup ids in the scene.")]
     public List<LevelSpawnGroupPlan> spawnGroupPlans = new();
+
+    [Header("Endurance trial (wave mode)")]
+    [Tooltip("When nodeType is EnduranceTrial, each entry is one wave: set Default Spawn Group Id (optional), then Spawns (prefab, count, Spawn Point Group Id per row). No nested Group Plans.")]
+    public List<EnduranceWavePlan> enduranceWaves = new();
 
     [TextArea(2, 6)]
     [Tooltip("Designer notes for this level's spawn/setup.")]
