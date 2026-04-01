@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 [DisallowMultipleComponent]
-public class PlayerCombatController : MonoBehaviour
+public class PlayerCombatController : MonoBehaviour, ISaveable
 {
     private struct DamageSample
     {
@@ -713,6 +713,18 @@ public class PlayerCombatController : MonoBehaviour
     {
         retaliationEnabled = enabled;
         OnRetaliationChanged?.Invoke(retaliationEnabled);
+    }
+
+    public void SaveInto(SaveData data)
+    {
+        if (data == null) return;
+        data.retaliationEnabled = retaliationEnabled;
+    }
+
+    public void LoadFrom(SaveData data)
+    {
+        if (data == null) return;
+        SetRetaliationEnabled(data.retaliationEnabled);
     }
 
     public void SetIdleCombatEnabled(bool enabled)

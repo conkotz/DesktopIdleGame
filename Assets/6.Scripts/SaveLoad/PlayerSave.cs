@@ -9,8 +9,6 @@ public class PlayerSave : MonoBehaviour, ISaveable
 
     private bool _hasPendingVitals;
     private float _pendingHp = -1f;
-    private float _pendingEnergy = -1f;
-    private float _pendingMana = -1f;
     private string _pendingName;
 
     private void Awake()
@@ -30,7 +28,8 @@ public class PlayerSave : MonoBehaviour, ISaveable
         if (!stats) stats = GetComponent<CharacterStats>();
         if (!stats) return;
 
-        stats.ApplyLoadedVitals(_pendingHp, _pendingEnergy, _pendingMana);
+        // Energy/mana always start full after load (saved values were only used for HP).
+        stats.ApplyLoadedVitals(_pendingHp, stats.MaxEnergy, stats.MaxMana);
         _hasPendingVitals = false;
         ApplyPendingName();
     }
@@ -48,8 +47,9 @@ public class PlayerSave : MonoBehaviour, ISaveable
         {
             data.playerName = player.displayName;
             data.playerCurrentHP = stats.HP;
-            data.playerCurrentEnergy = stats.Energy;
-            data.playerCurrentMana = stats.Mana;
+            // Energy/mana not persisted — always full on load (see LoadFrom / ApplyLoadedVitals).
+            data.playerCurrentEnergy = -1f;
+            data.playerCurrentMana = -1f;
         }
     }
 
@@ -69,12 +69,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
             if (hp <= 0f && stats != null)
                 hp = Mathf.Max(1f, stats.MaxHP);
 
-            float energy = data.playerCurrentEnergy >= 0f ? data.playerCurrentEnergy : (stats ? stats.Energy : 0f);
-            float mana = data.playerCurrentMana >= 0f ? data.playerCurrentMana : (stats ? stats.Mana : 0f);
-
             _pendingHp = hp;
-            _pendingEnergy = energy;
-            _pendingMana = mana;
             _hasPendingVitals = true;
         }
 

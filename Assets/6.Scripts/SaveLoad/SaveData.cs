@@ -17,11 +17,16 @@ public class SaveData
     public string activeMapDisplayName = "";
 
     [Header("Player")]
+    [Tooltip("Auto-retaliate when struck (PlayerCombatController).")]
+    public bool retaliationEnabled;
+
     public string playerName = "Adventurer";
     public int playerLevel = 1;
     public int xp = 0;
     public float playerCurrentHP = -1f;
+    [Tooltip("Legacy; not restored on load. Energy refills to max when loading.")]
     public float playerCurrentEnergy = -1f;
+    [Tooltip("Legacy; not restored on load. Mana refills to max when loading.")]
     public float playerCurrentMana = -1f;
 
     [Header("Currency")]
