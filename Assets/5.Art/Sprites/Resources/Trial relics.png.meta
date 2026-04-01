@@ -1,0 +1,831 @@
+fileFormatVersion: 2
+guid: 4f5f2bff5b42ffb40a0d33c5ffe6d207
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -5892359274385721273
+    second: Trial relics_0
+  - first:
+      213: 8060268907127661919
+    second: Trial relics_1
+  - first:
+      213: -6482369949350541601
+    second: Trial relics_2
+  - first:
+      213: -3908220747709310237
+    second: Trial relics_3
+  - first:
+      213: 8925025526077000375
+    second: Trial relics_4
+  - first:
+      213: -2903145679543243028
+    second: Trial relics_5
+  - first:
+      213: 2519894574042150272
+    second: Trial relics_6
+  - first:
+      213: 7815183591728750188
+    second: Trial relics_7
+  - first:
+      213: -7163573068479520957
+    second: Trial relics_8
+  - first:
+      213: 7780694800076207302
+    second: Trial relics_9
+  - first:
+      213: -6277452631286033842
+    second: Trial relics_10
+  - first:
+      213: 269949615372091283
+    second: Trial relics_11
+  - first:
+      213: 773564570615914975
+    second: Trial relics_12
+  - first:
+      213: 4186755637647629723
+    second: Trial relics_13
+  - first:
+      213: 7512565658707713678
+    second: Trial relics_14
+  - first:
+      213: 2194484172558276442
+    second: Trial relics_15
+  - first:
+      213: 2706784163555483905
+    second: Trial relics_16
+  - first:
+      213: 1891046313867326261
+    second: Trial relics_17
+  - first:
+      213: -7541421392593124762
+    second: Trial relics_18
+  - first:
+      213: 1488363240778662231
+    second: Trial relics_19
+  - first:
+      213: -2721994452936690762
+    second: Trial relics_20
+  - first:
+      213: -388257738618309414
+    second: Trial relics_21
+  - first:
+      213: -8907254590786683129
+    second: Trial relics_22
+  - first:
+      213: 337814286207668839
+    second: Trial relics_23
+  - first:
+      213: -8622105594851396842
+    second: Trial relics_24
+  - first:
+      213: -5747445898030824544
+    second: Trial relics_25
+  - first:
+      213: 1486634339659156879
+    second: Trial relics_26
+  - first:
+      213: 7565308852247847637
+    second: Trial relics_27
+  - first:
+      213: -4934630959927172796
+    second: Trial relics_28
+  - first:
+      213: 1902420921241503625
+    second: Trial relics_29
+  - first:
+      213: -3042995069832434783
+    second: Trial relics_30
+  - first:
+      213: -4192962825704267152
+    second: Trial relics_31
+  - first:
+      213: -4969956389461726710
+    second: Trial relics_32
+  - first:
+      213: -2772303442491144987
+    second: Trial relics_33
+  - first:
+      213: 5550832215489754409
+    second: Trial relics_34
+  - first:
+      213: 3895800594397763194
+    second: Trial relics_35
+  - first:
+      213: -7183619987774775459
+    second: Trial relics_36
+  - first:
+      213: 4667897568191185991
+    second: Trial relics_37
+  - first:
+      213: 8918937552754293947
+    second: Trial relics_38
+  - first:
+      213: -7212088963261148017
+    second: Trial relics_39
+  - first:
+      213: 8101889416019393817
+    second: Trial relics_40
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 150
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Trial relics_0
+      rect:
+        serializedVersion: 2
+        x: 457
+        y: 1277
+        width: 119
+        height: 83
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 748b24185722a3ea0800000000000000
+      internalID: -5892359274385721273
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_1
+      rect:
+        serializedVersion: 2
+        x: 606
+        y: 1262
+        width: 95
+        height: 114
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f55687badd3dbdf60800000000000000
+      internalID: 8060268907127661919
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_2
+      rect:
+        serializedVersion: 2
+        x: 764
+        y: 1267
+        width: 106
+        height: 105
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fd64b4a40eef906a0800000000000000
+      internalID: -6482369949350541601
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_3
+      rect:
+        serializedVersion: 2
+        x: 184
+        y: 1273
+        width: 95
+        height: 80
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 3}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3ea99f4cfe533c9c0800000000000000
+      internalID: -3908220747709310237
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_4
+      rect:
+        serializedVersion: 2
+        x: 327
+        y: 1264
+        width: 92
+        height: 109
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 3, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7ba0d1ddd6f0cdb70800000000000000
+      internalID: 8925025526077000375
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_5
+      rect:
+        serializedVersion: 2
+        x: 799
+        y: 529
+        width: 147
+        height: 159
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cee6d9fc264f5b7d0800000000000000
+      internalID: -2903145679543243028
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_6
+      rect:
+        serializedVersion: 2
+        x: 438
+        y: 543
+        width: 172
+        height: 148
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 085773d93c678f220800000000000000
+      internalID: 2519894574042150272
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_7
+      rect:
+        serializedVersion: 2
+        x: 295
+        y: 540
+        width: 133
+        height: 149
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c6e147fe11c157c60800000000000000
+      internalID: 7815183591728750188
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_11
+      rect:
+        serializedVersion: 2
+        x: 179
+        y: 1106
+        width: 98
+        height: 111
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39fb183bebd0fb300800000000000000
+      internalID: 269949615372091283
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_12
+      rect:
+        serializedVersion: 2
+        x: 311
+        y: 1098
+        width: 126
+        height: 118
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fd1a362e0e04cba00800000000000000
+      internalID: 773564570615914975
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_13
+      rect:
+        serializedVersion: 2
+        x: 449
+        y: 1112
+        width: 128
+        height: 91
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b9dd95fe1185a1a30800000000000000
+      internalID: 4186755637647629723
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_14
+      rect:
+        serializedVersion: 2
+        x: 602
+        y: 1113
+        width: 124
+        height: 103
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e8e521fc9aef14860800000000000000
+      internalID: 7512565658707713678
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_15
+      rect:
+        serializedVersion: 2
+        x: 759
+        y: 1112
+        width: 104
+        height: 81
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a579d826abf547e10800000000000000
+      internalID: 2194484172558276442
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_18
+      rect:
+        serializedVersion: 2
+        x: 179
+        y: 935
+        width: 93
+        height: 106
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 66284f8133d775790800000000000000
+      internalID: -7541421392593124762
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_19
+      rect:
+        serializedVersion: 2
+        x: 294
+        y: 920
+        width: 134
+        height: 115
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7518c575b7ab7a410800000000000000
+      internalID: 1488363240778662231
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_20
+      rect:
+        serializedVersion: 2
+        x: 454
+        y: 924
+        width: 139
+        height: 117
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6b3ff108778893ad0800000000000000
+      internalID: -2721994452936690762
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_21
+      rect:
+        serializedVersion: 2
+        x: 619
+        y: 927
+        width: 102
+        height: 114
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ad4fb50d4a1ac9af0800000000000000
+      internalID: -388257738618309414
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_22
+      rect:
+        serializedVersion: 2
+        x: 735
+        y: 929
+        width: 146
+        height: 109
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 70f31307423136480800000000000000
+      internalID: -8907254590786683129
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_27
+      rect:
+        serializedVersion: 2
+        x: 167
+        y: 735
+        width: 86
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5d2e95281506df860800000000000000
+      internalID: 7565308852247847637
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_28
+      rect:
+        serializedVersion: 2
+        x: 297
+        y: 727
+        width: 97
+        height: 127
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 44165e7694ba48bb0800000000000000
+      internalID: -4934630959927172796
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_29
+      rect:
+        serializedVersion: 2
+        x: 439
+        y: 726
+        width: 130
+        height: 140
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9870fd79fb1c66a10800000000000000
+      internalID: 1902420921241503625
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_30
+      rect:
+        serializedVersion: 2
+        x: 582
+        y: 743
+        width: 164
+        height: 101
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1ab6f514b1c15c5d0800000000000000
+      internalID: -3042995069832434783
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_31
+      rect:
+        serializedVersion: 2
+        x: 768
+        y: 728
+        width: 163
+        height: 138
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 072aa79768a9fc5c0800000000000000
+      internalID: -4192962825704267152
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_36
+      rect:
+        serializedVersion: 2
+        x: 156
+        y: 543
+        width: 121
+        height: 144
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d5fd94b7ea7ae4c90800000000000000
+      internalID: -7183619987774775459
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Trial relics_40
+      rect:
+        serializedVersion: 2
+        x: 623
+        y: 543
+        width: 146
+        height: 138
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 91d355b8f71bf6070800000000000000
+      internalID: 8101889416019393817
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: df6953f4825cfc0408336772c95c2e85
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Trial relics_0: -5892359274385721273
+      Trial relics_1: 8060268907127661919
+      Trial relics_10: -6277452631286033842
+      Trial relics_11: 269949615372091283
+      Trial relics_12: 773564570615914975
+      Trial relics_13: 4186755637647629723
+      Trial relics_14: 7512565658707713678
+      Trial relics_15: 2194484172558276442
+      Trial relics_16: 2706784163555483905
+      Trial relics_17: 1891046313867326261
+      Trial relics_18: -7541421392593124762
+      Trial relics_19: 1488363240778662231
+      Trial relics_2: -6482369949350541601
+      Trial relics_20: -2721994452936690762
+      Trial relics_21: -388257738618309414
+      Trial relics_22: -8907254590786683129
+      Trial relics_23: 337814286207668839
+      Trial relics_24: -8622105594851396842
+      Trial relics_25: -5747445898030824544
+      Trial relics_26: 1486634339659156879
+      Trial relics_27: 7565308852247847637
+      Trial relics_28: -4934630959927172796
+      Trial relics_29: 1902420921241503625
+      Trial relics_3: -3908220747709310237
+      Trial relics_30: -3042995069832434783
+      Trial relics_31: -4192962825704267152
+      Trial relics_32: -4969956389461726710
+      Trial relics_33: -2772303442491144987
+      Trial relics_34: 5550832215489754409
+      Trial relics_35: 3895800594397763194
+      Trial relics_36: -7183619987774775459
+      Trial relics_37: 4667897568191185991
+      Trial relics_38: 8918937552754293947
+      Trial relics_39: -7212088963261148017
+      Trial relics_4: 8925025526077000375
+      Trial relics_40: 8101889416019393817
+      Trial relics_5: -2903145679543243028
+      Trial relics_6: 2519894574042150272
+      Trial relics_7: 7815183591728750188
+      Trial relics_8: -7163573068479520957
+      Trial relics_9: 7780694800076207302
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

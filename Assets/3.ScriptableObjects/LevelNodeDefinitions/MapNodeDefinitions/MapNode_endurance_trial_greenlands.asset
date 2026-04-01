@@ -32,19 +32,66 @@ MonoBehaviour:
   prefabGroups: []
   spawnGroupPlans: []
   enduranceWaves:
-  - groupPlans:
-    - groupId: CombatEnemies
-      spawns:
-      - prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
-        count: 2
-      shuffleSpawnPoints: 1
-    - groupId: CombatEnemies
-      spawns:
-      - prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
-        count: 2
-      - prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
-        count: 1
-      shuffleSpawnPoints: 1
+  - defaultSpawnGroupId: EnduranceTrialAll
+    spawns:
+    - spawnPointGroupId: EnduranceTrialLeftOnly
+      prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+      count: 1
+    shuffleSpawnPoints: 1
+    _legacyGroupPlans: []
+  - defaultSpawnGroupId: EnduranceTrialAll
+    spawns:
+    - spawnPointGroupId: EnduranceTrialRightOnly
+      prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+      count: 2
+    shuffleSpawnPoints: 1
+    _legacyGroupPlans: []
+  - defaultSpawnGroupId: EnduranceTrialAll
+    spawns:
+    - spawnPointGroupId: EnduranceTrialLeftOnly
+      prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+      count: 3
+    shuffleSpawnPoints: 1
+    _legacyGroupPlans: []
+  - defaultSpawnGroupId: EnduranceTrialAll
+    spawns:
+    - spawnPointGroupId: EnduranceTrialAll
+      prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+      count: 2
+    - spawnPointGroupId: EnduranceTrialRightOnly
+      prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
+      count: 1
+    shuffleSpawnPoints: 1
+    _legacyGroupPlans: []
+  - defaultSpawnGroupId: EnduranceTrialAll
+    spawns:
+    - spawnPointGroupId: EnduranceTrialAll
+      prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
+      count: 3
+    shuffleSpawnPoints: 1
+    _legacyGroupPlans: []
+  - defaultSpawnGroupId: EnduranceTrialAll
+    spawns:
+    - spawnPointGroupId: EnduranceTrialLeftOnly
+      prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
+      count: 2
+    - spawnPointGroupId: EnduranceTrialLeftOnly
+      prefab: {fileID: 1000013034572668, guid: 6814905bb3c3d7440b3306c02b2b222c, type: 3}
+      count: 1
+    shuffleSpawnPoints: 1
+    _legacyGroupPlans: []
+  - defaultSpawnGroupId: EnduranceTrialAll
+    spawns:
+    - spawnPointGroupId: EnduranceTrialBoss
+      prefab: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
+      count: 1
+    shuffleSpawnPoints: 1
+    _legacyGroupPlans: []
+  enduranceCompletionLoot:
+  - item: {fileID: 0}
+    amount: 0
+    dropChance: 0
+  enduranceCompletionLootInterval: 0.5
   contentDesignerNotes: 
   sceneNamePlaceholder: 
   encounterIdPlaceholder: 

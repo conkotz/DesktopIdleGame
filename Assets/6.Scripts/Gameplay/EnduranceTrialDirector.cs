@@ -34,6 +34,7 @@ public class EnduranceTrialDirector : MonoBehaviour
     private bool _started;
     private bool _trialComplete;
     private Coroutine _betweenWavesRoutine;
+    private Coroutine _completionLootRoutine;
 
     /// <summary>Whole seconds shown for "Next wave in: n" (0 = hide / not between waves).</summary>
     public int NextWaveCountdownSeconds { get; private set; }
@@ -42,7 +43,14 @@ public class EnduranceTrialDirector : MonoBehaviour
 
     public int TotalWaves => _def != null && _def.enduranceWaves != null ? _def.enduranceWaves.Count : 0;
 
+    /// <summary>True during waves (trial not finished yet).</summary>
     public bool IsActive => _started && _def && _def.nodeType == MapNodeType.EnduranceTrial && !_trialComplete;
+
+    /// <summary>True after the last wave is cleared.</summary>
+    public bool TrialCompleted => _trialComplete;
+
+    /// <summary>Show endurance HUD during the trial and after completion (e.g. &quot;Trials complete&quot;).</summary>
+    public bool ShowEnduranceHud => _started && _def && _def.nodeType == MapNodeType.EnduranceTrial;
 
     private void OnEnable()
     {
@@ -56,6 +64,7 @@ public class EnduranceTrialDirector : MonoBehaviour
             GameplayLevelBootstrapper.Instance.OnLevelStarted -= OnLevelStarted;
 
         StopBetweenWavesRoutine();
+        StopCompletionLootRoutine();
 
         if (Instance == this)
             Instance = null;
@@ -111,6 +120,7 @@ public class EnduranceTrialDirector : MonoBehaviour
         _waveIndex = 0;
 
         StopBetweenWavesRoutine();
+        StopCompletionLootRoutine();
         SetNextWaveCountdown(0);
         BeginWave();
     }
@@ -236,7 +246,78 @@ public class EnduranceTrialDirector : MonoBehaviour
         if (_def != null && _def.enduranceWaves != null)
             OnWaveChanged?.Invoke(_def.enduranceWaves.Count, _def.enduranceWaves.Count);
         OnAllWavesCompleted?.Invoke();
-        if (Instance == this)
-            Instance = null;
+
+        if (_def != null && _def.enduranceCompletionLoot != null && _def.enduranceCompletionLoot.Count > 0)
+            _completionLootRoutine = StartCoroutine(SpawnCompletionLootRoutine());
+    }
+
+    private IEnumerator SpawnCompletionLootRoutine()
+    {
+        MapNodeDefinition def = _def;
+        if (def == null || def.enduranceCompletionLoot == null)
+        {
+            _completionLootRoutine = null;
+            yield break;
+        }
+
+        DropManager dm = DropManager.Instance != null
+            ? DropManager.Instance
+            : FindFirstObjectByType<DropManager>(FindObjectsInactive.Include);
+        ItemDatabase db = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+
+        if (!dm)
+        {
+            Debug.LogWarning("[EnduranceTrialDirector] No DropManager in scene — completion loot skipped.", this);
+            _completionLootRoutine = null;
+            yield break;
+        }
+
+        var pending = new List<(string itemId, int amount, Sprite icon)>();
+        for (int i = 0; i < def.enduranceCompletionLoot.Count; i++)
+        {
+            EnduranceTrialLootEntry entry = def.enduranceCompletionLoot[i];
+            if (entry == null || !entry.item)
+                continue;
+            if (entry.dropChance <= 0f)
+                continue;
+            if (entry.dropChance < 1f && UnityEngine.Random.value > entry.dropChance)
+                continue;
+
+            string id = entry.item.itemId;
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+
+            int amt = Mathf.Max(1, entry.amount);
+            Sprite icon = entry.item.icon;
+            if (!icon && db)
+            {
+                ItemDefinition resolved = db.Get(id);
+                if (resolved)
+                    icon = resolved.icon;
+            }
+
+            pending.Add((id, amt, icon));
+        }
+
+        float interval = def.enduranceCompletionLootInterval > 0f ? def.enduranceCompletionLootInterval : 0.5f;
+
+        for (int i = 0; i < pending.Count; i++)
+        {
+            if (i > 0)
+                yield return new WaitForSeconds(interval);
+
+            var p = pending[i];
+            dm.Spawn(p.itemId, p.amount, p.icon);
+        }
+
+        _completionLootRoutine = null;
+    }
+
+    private void StopCompletionLootRoutine()
+    {
+        if (_completionLootRoutine == null)
+            return;
+        StopCoroutine(_completionLootRoutine);
+        _completionLootRoutine = null;
     }
 }

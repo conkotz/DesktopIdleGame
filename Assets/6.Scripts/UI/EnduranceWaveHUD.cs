@@ -17,10 +17,13 @@ public class EnduranceWaveHUD : MonoBehaviour
     [Tooltip("String.Format with {0} = whole seconds, e.g. \"Next wave in: {0}\"")]
     [SerializeField] private string nextWaveCountdownFormat = "Next wave in: {0}";
 
+    [Tooltip("Shown on Wave text when all waves are cleared.")]
+    [SerializeField] private string trialsCompleteLabel = "Trials complete";
+
     private void Update()
     {
         EnduranceTrialDirector d = EnduranceTrialDirector.Instance;
-        bool show = d != null && d.IsActive;
+        bool show = d != null && d.ShowEnduranceHud;
 
         GameObject r = panelRoot != null ? panelRoot : gameObject;
         r.SetActive(show);
@@ -34,17 +37,24 @@ public class EnduranceWaveHUD : MonoBehaviour
 
         if (waveText)
         {
-            int total = d.TotalWaves;
-            if (total > 0)
-                waveText.text = $"Wave: {d.CurrentWaveDisplay}/{total}";
+            if (d.TrialCompleted)
+            {
+                waveText.text = string.IsNullOrEmpty(trialsCompleteLabel) ? "Trials complete" : trialsCompleteLabel;
+            }
             else
-                waveText.text = $"Wave: {d.CurrentWaveDisplay}";
+            {
+                int total = d.TotalWaves;
+                if (total > 0)
+                    waveText.text = $"Wave: {d.CurrentWaveDisplay}/{total}";
+                else
+                    waveText.text = $"Wave: {d.CurrentWaveDisplay}";
+            }
         }
 
         if (nextWaveCountdownText)
         {
             int cd = d.NextWaveCountdownSeconds;
-            bool showCd = cd > 0;
+            bool showCd = cd > 0 && !d.TrialCompleted;
             nextWaveCountdownText.gameObject.SetActive(showCd);
             if (showCd)
             {

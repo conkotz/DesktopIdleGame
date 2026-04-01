@@ -179,6 +179,21 @@ public class EnduranceWavePlan : ISerializationCallbackReceiver
     }
 }
 
+/// <summary>One possible reward when an endurance trial is completed. Rolled independently; drops spawn in list order.</summary>
+[Serializable]
+public class EnduranceTrialLootEntry
+{
+    [Tooltip("Item to drop if the roll succeeds.")]
+    public ItemDefinition item;
+
+    [Min(1)]
+    public int amount = 1;
+
+    [Range(0f, 1f)]
+    [Tooltip("Independent chance this entry is included (0 = never, 1 = always).")]
+    public float dropChance = 1f;
+}
+
 /// <summary>
 /// How combat skill levels gate entry for bosses/dungeons etc.
 /// </summary>
@@ -279,6 +294,14 @@ public class MapNodeDefinition : ScriptableObject
     [Header("Endurance trial (wave mode)")]
     [Tooltip("When nodeType is EnduranceTrial, each entry is one wave: set Default Spawn Group Id (optional), then Spawns (prefab, count, Spawn Point Group Id per row). No nested Group Plans.")]
     public List<EnduranceWavePlan> enduranceWaves = new();
+
+    [Header("Endurance trial — completion loot")]
+    [Tooltip("Only used when nodeType is EnduranceTrial. When the last wave is cleared, each entry rolls Drop Chance; successful drops spawn via DropManager in list order with Endurance Completion Loot Interval between each.")]
+    public List<EnduranceTrialLootEntry> enduranceCompletionLoot = new();
+
+    [Min(0f)]
+    [Tooltip("Seconds between each spawned drop (no delay before the first).")]
+    public float enduranceCompletionLootInterval = 0.5f;
 
     [TextArea(2, 6)]
     [Tooltip("Designer notes for this level's spawn/setup.")]

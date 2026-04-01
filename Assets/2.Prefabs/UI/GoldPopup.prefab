@@ -93,13 +93,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 18
-  m_fontSizeBase: 18
+  m_fontSize: 24
+  m_fontSizeBase: 24
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 1
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
@@ -153,3 +153,8 @@ MonoBehaviour:
   label: {fileID: 3095145006131258376}
   floatUpPx: 90
   duration: 2
+  goldColor: {r: 0.72, g: 0.52, b: 0.06, a: 1}
+  messageColor: {r: 1, g: 1, b: 1, a: 1}
+  levelUpColor: {r: 0.35, g: 0.8, b: 1, a: 1}
+  goldOutlineWidth: 0.28
+  goldOutlineColor: {r: 0.12, g: 0.08, b: 0.02, a: 1}
