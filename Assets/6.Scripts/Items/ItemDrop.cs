@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+using TMPro;
+using UnityEngine;
 using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(Collider2D))]
@@ -6,6 +7,10 @@ public class ItemDrop : MonoBehaviour
 {
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private float lifetimeSeconds = 30f;
+
+    [Header("Stack label")]
+    [Tooltip("Optional. Shown only when Amount > 1. Assign a child TMP (world or UI); if empty, uses first TMP_Text under this object.")]
+    [SerializeField] private TMP_Text stackAmountText;
 
     [Header("Click priority")]
     [Tooltip("Layers that compete for clicks (Pickup + Resource + NPC). Must include this object's layer.")]
@@ -34,8 +39,37 @@ public class ItemDrop : MonoBehaviour
         if (!spriteRenderer) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         if (spriteRenderer && icon) spriteRenderer.sprite = icon;
 
+        ResolveStackLabel();
+        RefreshStackLabel();
+
         if (lifetimeSeconds > 0f)
             Destroy(gameObject, lifetimeSeconds);
+    }
+
+    private void ResolveStackLabel()
+    {
+        if (stackAmountText)
+            return;
+        Transform named = transform.Find("StackAmount");
+        if (named)
+            stackAmountText = named.GetComponent<TMP_Text>();
+        if (!stackAmountText)
+            stackAmountText = GetComponentInChildren<TMP_Text>(true);
+    }
+
+    private void RefreshStackLabel()
+    {
+        if (!stackAmountText)
+            return;
+
+        if (Amount <= 1)
+        {
+            stackAmountText.gameObject.SetActive(false);
+            return;
+        }
+
+        stackAmountText.gameObject.SetActive(true);
+        stackAmountText.text = Amount.ToString();
     }
 
 
@@ -54,6 +88,7 @@ public class ItemDrop : MonoBehaviour
         }
 
         Amount = left;
+        RefreshStackLabel();
         return false;
     }
 }

@@ -179,19 +179,35 @@ public class EnduranceWavePlan : ISerializationCallbackReceiver
     }
 }
 
-/// <summary>One possible reward when an endurance trial is completed. Rolled independently; drops spawn in list order.</summary>
+/// <summary>One possible reward when an endurance trial is completed. Rolled independently; drops spawn in list order. Same item can appear multiple times with different ranges/chances.</summary>
 [Serializable]
-public class EnduranceTrialLootEntry
+public class EnduranceTrialLootEntry : ISerializationCallbackReceiver
 {
     [Tooltip("Item to drop if the roll succeeds.")]
     public ItemDefinition item;
 
+    [FormerlySerializedAs("amount")]
     [Min(1)]
-    public int amount = 1;
+    [Tooltip("Minimum stack size when this entry succeeds.")]
+    public int amountMin = 1;
+
+    [Min(1)]
+    [Tooltip("Maximum stack size (inclusive). Must be >= Amount Min.")]
+    public int amountMax = 1;
 
     [Range(0f, 1f)]
-    [Tooltip("Independent chance this entry is included (0 = never, 1 = always).")]
+    [Tooltip("Independent chance this entry is rolled (0 = never, 1 = always). Each row is a separate roll.")]
     public float dropChance = 1f;
+
+    public void OnBeforeSerialize()
+    {
+    }
+
+    public void OnAfterDeserialize()
+    {
+        if (amountMax < amountMin)
+            amountMax = amountMin;
+    }
 }
 
 /// <summary>
@@ -296,7 +312,7 @@ public class MapNodeDefinition : ScriptableObject
     public List<EnduranceWavePlan> enduranceWaves = new();
 
     [Header("Endurance trial — completion loot")]
-    [Tooltip("Only used when nodeType is EnduranceTrial. When the last wave is cleared, each entry rolls Drop Chance; successful drops spawn via DropManager in list order with Endurance Completion Loot Interval between each.")]
+    [Tooltip("Only used when nodeType is EnduranceTrial. Each entry rolls Drop Chance independently; amount is a random integer from Amount Min–Max (inclusive). Duplicate items allowed (e.g. two rows for bonus rolls).")]
     public List<EnduranceTrialLootEntry> enduranceCompletionLoot = new();
 
     [Min(0f)]

@@ -36,6 +36,10 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private RectTransform shopWindowRect;
     [SerializeField] private FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Left;
 
+    [Header("Pointer blocking")]
+    [Tooltip("When set, these graphics always receive raycasts while the shop is open (blocks clicks to the game). Panel Root Image is included automatically. Use for extra backdrop/underlay Images.")]
+    [SerializeField] private Graphic[] additionalPointerBlockingGraphics;
+
     private readonly List<ShopSlotUI> _spawned = new();
     private Merchant _currentMerchant;
     private int _buyAmount = 1;
@@ -48,10 +52,9 @@ public class ShopUI : MonoBehaviour
         if (!panelRootImage && panelRoot)
             panelRootImage = panelRoot.GetComponent<Image>();
 
-        // Prevent the root panel background from blocking unrelated UI clicks.
-        // Child controls (buttons/slots) still receive raycasts normally.
+        // Root panel image should block clicks from reaching the world (EventSystem). Stripping this was causing click-through.
         if (panelRootImage)
-            panelRootImage.raycastTarget = false;
+            panelRootImage.raycastTarget = true;
 
         if (buy1xButton)
         {
@@ -223,10 +226,27 @@ public class ShopUI : MonoBehaviour
             if (!g)
                 continue;
 
-            // Keep raycasts only on real interactive controls.
+            // Interactive controls (buttons, slots) + explicit backdrop blockers must receive raycasts.
             bool isInteractive = g.GetComponentInParent<Selectable>(true) != null;
-            g.raycastTarget = isInteractive;
+            g.raycastTarget = isInteractive || IsPointerBlockingGraphic(g);
         }
+    }
+
+    private bool IsPointerBlockingGraphic(Graphic g)
+    {
+        if (panelRootImage && g == panelRootImage)
+            return true;
+
+        if (additionalPointerBlockingGraphics == null)
+            return false;
+
+        for (int i = 0; i < additionalPointerBlockingGraphics.Length; i++)
+        {
+            if (additionalPointerBlockingGraphics[i] == g)
+                return true;
+        }
+
+        return false;
     }
 
     private void ForceLayoutRefresh()

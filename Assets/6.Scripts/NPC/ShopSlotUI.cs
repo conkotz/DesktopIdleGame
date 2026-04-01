@@ -26,6 +26,7 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     [Tooltip("Outline thickness in UI space (bigger = thicker).")]
     [SerializeField] private Vector2 rarityBorderThickness = new Vector2(4f, 4f);
 
+
     [Header("Tooltip (shared)")]
     [SerializeField] private SharedTooltipUI tooltip;
 
@@ -160,12 +161,12 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         rarityOutline.effectDistance = rarityBorderThickness;
         rarityOutline.effectColor = def.rarity switch
         {
-            ItemRarity.Common => commonBorder,
+            ItemRarity.Common => Color.white,
             ItemRarity.Uncommon => uncommonBorder,
             ItemRarity.Rare => rareBorder,
             ItemRarity.Epic => epicBorder,
             ItemRarity.Legendary => legendaryBorder,
-            _ => commonBorder
+            _ => Color.white
         };
     }
 

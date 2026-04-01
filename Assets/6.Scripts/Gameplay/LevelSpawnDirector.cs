@@ -72,15 +72,11 @@ public class LevelSpawnDirector : MonoBehaviour
         {
             _hasSpawnedForCurrentLevel = true;
             _reservedSpawnCells.Clear();
-            if (logSpawns)
-                Debug.Log("[LevelSpawnDirector] EnduranceTrial — one-shot spawn is skipped; waves are driven by EnduranceTrialDirector.", this);
             return;
         }
 
         if (def.spawnGroupPlans == null || def.spawnGroupPlans.Count == 0)
         {
-            if (logSpawns)
-                Debug.Log("[LevelSpawnDirector] No spawnGroupPlans on MapNodeDefinition (nothing to spawn).", this);
             return;
         }
 
@@ -254,13 +250,10 @@ public class LevelSpawnDirector : MonoBehaviour
                 {
                     if (hadToReuse)
                         Debug.LogWarning($"[LevelSpawnDirector] Group '{gid}' ran out of free spawn points; reusing a location. Add more points to avoid overlaps.", pointGroup);
-                    Debug.Log($"[LevelSpawnDirector] Spawned group='{gid}' prefab='{entry.prefab.name}' -> '{inst.name}' at '{p.name}'", inst);
+                    // per-instance info logs intentionally suppressed (too noisy during gameplay).
                 }
             }
         }
-
-        if (logSpawns)
-            Debug.Log($"[LevelSpawnDirector] Plan spawned {totalSpawned} instance(s).", this);
     }
 
     private static string ResolveSpawnGroupId(LevelSpawnGroupPlan plan, SpawnPrefabCount entry)

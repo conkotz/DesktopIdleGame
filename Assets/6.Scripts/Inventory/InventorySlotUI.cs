@@ -19,6 +19,8 @@ public class InventorySlotUI : MonoBehaviour,
     IBeginDragHandler, IDragHandler, IEndDragHandler,
     IDropHandler
 {
+    private const float InventoryBorderThicknessMul = 0.65f;
+
     [Header("UI")]
     [SerializeField] private Image background;
     [SerializeField] private Image icon;
@@ -26,9 +28,9 @@ public class InventorySlotUI : MonoBehaviour,
     [SerializeField] private Outline rarityOutline;
 
     [Header("Slot Colours")]
-    [SerializeField] private Color idleColor = new Color32(30, 34, 42, 255);
-    [SerializeField] private Color hoverColor = new Color32(42, 48, 58, 255);
-    [SerializeField] private Color pressedColor = new Color32(58, 66, 80, 255);
+    [SerializeField] private Color idleColor = new Color32(32, 34, 37, 255);      // #202225
+    [SerializeField] private Color hoverColor = new Color32(198, 184, 158, 255);  // #C6B89E
+    [SerializeField] private Color pressedColor = new Color32(217, 164, 65, 255); // #D9A441
 
     [Header("Rarity Border")]
     [Tooltip("If false, no rarity border is shown.")]
@@ -42,6 +44,7 @@ public class InventorySlotUI : MonoBehaviour,
 
     [Tooltip("Outline thickness in UI space (bigger = thicker).")]
     [SerializeField] private Vector2 rarityBorderThickness = new Vector2(4f, 4f);
+
 
     [Header("Selling")]
     [Tooltip("If empty, it will auto-find at runtime.")]
@@ -190,15 +193,16 @@ public class InventorySlotUI : MonoBehaviour,
         }
 
         rarityOutline.enabled = true;
-        rarityOutline.effectDistance = rarityBorderThickness;
+        float mul = Mathf.Clamp(InventoryBorderThicknessMul, 0.1f, 1f);
+        rarityOutline.effectDistance = rarityBorderThickness * mul;
         rarityOutline.effectColor = def.rarity switch
         {
-            ItemRarity.Common => commonBorder,
+            ItemRarity.Common => Color.white,
             ItemRarity.Uncommon => uncommonBorder,
             ItemRarity.Rare => rareBorder,
             ItemRarity.Epic => epicBorder,
             ItemRarity.Legendary => legendaryBorder,
-            _ => commonBorder
+            _ => Color.white
         };
     }
 

@@ -11,6 +11,11 @@ public class EquipmentSlotUI : MonoBehaviour,
     IDropHandler,
     IBeginDragHandler, IDragHandler, IEndDragHandler
 {
+    // Shared equipment slot colors (not per-slot serialized overrides).
+    private static readonly Color SlotIdleColor = new Color32(37, 40, 47, 255);      // #25282F
+    private static readonly Color SlotHoverColor = new Color32(155, 131, 85, 255);   // #9B8355
+    private static readonly Color SlotPressedColor = new Color32(224, 220, 211, 255); // #E0DCD3
+
     [Header("Slot Type")]
     [SerializeField] private EquipmentUISlotType slotType;
 
@@ -19,11 +24,6 @@ public class EquipmentSlotUI : MonoBehaviour,
     [SerializeField] private Image icon;
     [SerializeField] private TMP_Text label;
     [SerializeField] private Outline rarityOutline;
-
-    [Header("Slot Colours")]
-    [SerializeField] private Color idleColor = new Color32(30, 34, 42, 255);
-    [SerializeField] private Color hoverColor = new Color32(42, 48, 58, 255);
-    [SerializeField] private Color pressedColor = new Color32(58, 66, 80, 255);
 
     [Header("Rarity Border")]
     [Tooltip("If false, no rarity border is shown.")]
@@ -37,6 +37,7 @@ public class EquipmentSlotUI : MonoBehaviour,
 
     [Tooltip("Outline thickness in UI space (bigger = thicker).")]
     [SerializeField] private Vector2 rarityBorderThickness = new Vector2(4f, 4f);
+
 
     [Header("Refs (auto-find if empty)")]
     [SerializeField] private EquipmentManager equipment;
@@ -133,7 +134,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         if (background)
         {
             background.raycastTarget = true;
-            background.color = idleColor;
+            background.color = SlotIdleColor;
         }
 
         if (!rarityOutline && background)
@@ -335,12 +336,12 @@ public class EquipmentSlotUI : MonoBehaviour,
         rarityOutline.effectDistance = rarityBorderThickness;
         rarityOutline.effectColor = def.rarity switch
         {
-            ItemRarity.Common => commonBorder,
+            ItemRarity.Common => Color.white,
             ItemRarity.Uncommon => uncommonBorder,
             ItemRarity.Rare => rareBorder,
             ItemRarity.Epic => epicBorder,
             ItemRarity.Legendary => legendaryBorder,
-            _ => commonBorder
+            _ => Color.white
         };
     }
 
@@ -444,7 +445,7 @@ public class EquipmentSlotUI : MonoBehaviour,
     public void OnPointerEnter(PointerEventData eventData)
     {
         _isPointerOver = true;
-        if (background) background.color = hoverColor;
+        if (background) background.color = SlotHoverColor;
         ShowTooltip();
     }
 
@@ -482,7 +483,7 @@ public class EquipmentSlotUI : MonoBehaviour,
     public void OnPointerExit(PointerEventData eventData)
     {
         _isPointerOver = false;
-        if (background) background.color = idleColor;
+        if (background) background.color = SlotIdleColor;
         tooltip?.Hide();
     }
 
@@ -714,12 +715,12 @@ public class EquipmentSlotUI : MonoBehaviour,
         int amount = GetEquippedAmountForThisSlot();
         EquipDragState.Begin(slotType, id, amount);
 
-        if (background) background.color = pressedColor;
+        if (background) background.color = SlotPressedColor;
 
         CreateDragIcon(def.icon);
         UpdateDragIconPosition(eventData);
 
-        if (background) background.color = _isPointerOver ? hoverColor : idleColor;
+        if (background) background.color = _isPointerOver ? SlotHoverColor : SlotIdleColor;
         tooltip?.Hide();
     }
 

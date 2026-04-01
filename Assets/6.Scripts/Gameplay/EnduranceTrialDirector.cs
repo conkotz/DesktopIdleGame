@@ -287,7 +287,9 @@ public class EnduranceTrialDirector : MonoBehaviour
             if (string.IsNullOrWhiteSpace(id))
                 continue;
 
-            int amt = Mathf.Max(1, entry.amount);
+            int minAmt = Mathf.Max(1, entry.amountMin);
+            int maxAmt = Mathf.Max(minAmt, entry.amountMax);
+            int amt = UnityEngine.Random.Range(minAmt, maxAmt + 1);
             Sprite icon = entry.item.icon;
             if (!icon && db)
             {

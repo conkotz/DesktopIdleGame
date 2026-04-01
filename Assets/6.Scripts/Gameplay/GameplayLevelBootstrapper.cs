@@ -23,10 +23,6 @@ public class GameplayLevelBootstrapper : MonoBehaviour
     [Tooltip("If no ActiveLevelContext (e.g. Play Mode on GamePlay scene directly), use this for quick tests.")]
     [SerializeField] private MapNodeDefinition devFallbackNode;
 
-    [Header("Level content — logging")]
-    [Tooltip("Print each prefab group and prefab names from MapNodeDefinition (Console).")]
-    [SerializeField] private bool logPrefabSpawnPlan = true;
-
     [Header("Level content — dev spawn test")]
     [Tooltip("Instantiate prefabs from prefabGroups under ContentRoot to verify references (layout test only).")]
     [SerializeField] private bool devInstantiatePrefabGroups;
@@ -78,13 +74,7 @@ public class GameplayLevelBootstrapper : MonoBehaviour
         ActiveDefinition = node;
         ActiveLevelContext.SetPendingLevel(node, logToConsole: false);
 
-        Debug.Log(
-            $"[GameplayLevelBootstrapper] Root='{gameObject.name}' contentRoot='{ContentRoot.name}' " +
-            $"node '{node.displayName}' ({node.nodeId}) nodeType={node.nodeType} biome={node.biome} " +
-            $"encounterId='{node.ResolveEncounterId()}' scene='{node.sceneNamePlaceholder}' prefabGroups={node.prefabGroups?.Count ?? 0}");
-
-        if (logPrefabSpawnPlan)
-            LogPrefabSpawnPlan(node);
+        // Suppress startup spam logs during normal gameplay.
 
         if (devInstantiatePrefabGroups)
             DevInstantiatePrefabGroups(node);

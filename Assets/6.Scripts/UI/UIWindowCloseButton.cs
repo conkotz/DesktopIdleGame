@@ -36,6 +36,25 @@ public class UIWindowCloseButton : MonoBehaviour
             return;
         }
 
+        if (disableInsteadOfHide)
+        {
+            CanvasGroup cg = targetWindow.GetComponent<CanvasGroup>();
+            if (cg != null)
+            {
+                cg.alpha = 0f;
+                cg.interactable = false;
+                cg.blocksRaycasts = false;
+                return;
+            }
+
+            Canvas c = targetWindow.GetComponent<Canvas>();
+            if (c != null)
+            {
+                c.enabled = false;
+                return;
+            }
+        }
+
         targetWindow.SetActive(false);
     }
 }
