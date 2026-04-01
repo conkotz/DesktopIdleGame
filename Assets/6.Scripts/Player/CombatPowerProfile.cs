@@ -36,19 +36,49 @@ public readonly struct CombatPowerBreakdown
     }
 }
 
+/// <summary>Mitigation / pool stats used to split defense profiles (Armoured vs Warded vs Tank).</summary>
+public readonly struct CombatProfileDefenseHints
+{
+    public float EffectiveHpVsPhysical { get; }
+    public float EffectiveHpVsMagical { get; }
+    public float EffectiveHpVsTrue { get; }
+    public int Armor { get; }
+    public int MagicResist { get; }
+    public int MaxHP { get; }
+
+    public CombatProfileDefenseHints(
+        float effectiveHpVsPhysical,
+        float effectiveHpVsMagical,
+        float effectiveHpVsTrue,
+        int armor,
+        int magicResist,
+        int maxHp)
+    {
+        EffectiveHpVsPhysical = effectiveHpVsPhysical;
+        EffectiveHpVsMagical = effectiveHpVsMagical;
+        EffectiveHpVsTrue = effectiveHpVsTrue;
+        Armor = armor;
+        MagicResist = magicResist;
+        MaxHP = maxHp;
+    }
+}
+
 /// <summary>Display strings for combat profile labels (HUD / tooltips).</summary>
 public static class CombatProfileLabel
 {
     public const string GlassCannon = "Glass Cannon";
     public const string Deadly = "Deadly";
+    public const string Relentless = "Relentless";
     public const string Armoured = "Armoured";
+    public const string Warded = "Warded";
+    public const string Tank = "Tank";
     public const string Sustaining = "Sustaining";
     public const string Nimble = "Nimble";
     public const string Bruiser = "Bruiser";
     public const string Balanced = "Balanced";
 }
 
-/// <summary>Tunable thresholds for <see cref="CombatProfileClassifier.Classify"/> (ratio of CP, 0–1).</summary>
+/// <summary>Tunable thresholds for <see cref="CombatProfileClassifier.Classify"/>.</summary>
 public static class CombatProfileThresholds
 {
     public const float GlassCannonOffenseMin = 0.48f;
@@ -58,7 +88,21 @@ public static class CombatProfileThresholds
     public const float DeadlyOffenseMin = 0.36f;
     public const float DeadlyDefenseMax = 0.33f;
 
-    public const float ArmouredDefenseMin = 0.36f;
+    public const float RelentlessOffenseMin = 0.30f;
+    public const float RelentlessMobilityMin = 0.20f;
+    public const float RelentlessOffenseMobilitySumMin = 0.52f;
+
+    /// <summary>Minimum defense CP share before we classify into Armoured / Warded / Tank.</summary>
+    public const float DefenseProfileMin = 0.26f;
+
+    public const int ArmouredMinArmor = 10;
+    public const float ArmouredPhysEhpOverTrueMin = 1.12f;
+
+    public const int WardedMinMagicResist = 10;
+    public const float WardedMagEhpOverTrueMin = 1.12f;
+
+    public const int TankMinMaxHp = 35;
+    public const float TankMitigationEhpOverTrueMax = 1.10f;
 
     public const float SustainingMin = 0.32f;
 
@@ -70,11 +114,12 @@ public static class CombatProfileThresholds
 }
 
 /// <summary>
-/// Classifies a unit by how CP is distributed. Evaluates rules in priority order (Glass Cannon → … → Balanced).
+/// Classifies a unit by CP distribution and defensive identity. Priority: Glass Cannon → Deadly → Relentless →
+/// Armoured → Warded → Tank → Sustaining → Nimble → Bruiser → Balanced.
 /// </summary>
 public static class CombatProfileClassifier
 {
-    public static string Classify(CombatPowerBreakdown b)
+    public static string Classify(CombatPowerBreakdown b, CombatProfileDefenseHints d)
     {
         float t = b.TotalCombatPower;
         if (t <= 1e-4f)
@@ -83,7 +128,11 @@ public static class CombatProfileClassifier
         float pO = b.Offense / t;
         float pD = b.Defense / t;
         float pS = b.Sustain / t;
-        float pM = b.Mobility / t;
+        float pMob = b.Mobility / t;
+
+        float eTrue = Mathf.Max(1f, d.EffectiveHpVsTrue);
+        float physOverTrue = d.EffectiveHpVsPhysical / eTrue;
+        float magOverTrue = d.EffectiveHpVsMagical / eTrue;
 
         // 1 Glass Cannon — high offense, low defense & sustain
         if (pO >= CombatProfileThresholds.GlassCannonOffenseMin
@@ -97,25 +146,49 @@ public static class CombatProfileClassifier
             && pO > pD)
             return CombatProfileLabel.Deadly;
 
-        // 3 Armoured — defense is the largest share and above floor
-        if (pD >= CombatProfileThresholds.ArmouredDefenseMin && pD >= pO && pD >= pS && pD >= pM)
-            return CombatProfileLabel.Armoured;
+        // 3 Relentless — high damage output and high mobility (both meaningful CP shares)
+        if (pO >= CombatProfileThresholds.RelentlessOffenseMin
+            && pMob >= CombatProfileThresholds.RelentlessMobilityMin
+            && (pO + pMob) >= CombatProfileThresholds.RelentlessOffenseMobilitySumMin)
+            return CombatProfileLabel.Relentless;
 
-        // 4 Sustaining
-        if (pS >= CombatProfileThresholds.SustainingMin && pS >= pO && pS >= pD && pS >= pM)
+        // 4–6 Defense identities (defense must matter in CP)
+        if (pD >= CombatProfileThresholds.DefenseProfileMin)
+        {
+            // 4 Armoured — armour rating / physical mitigation drives durability
+            bool armourDriven = d.Armor >= CombatProfileThresholds.ArmouredMinArmor
+                              || physOverTrue >= CombatProfileThresholds.ArmouredPhysEhpOverTrueMin;
+            if (armourDriven && physOverTrue >= magOverTrue - 0.02f)
+                return CombatProfileLabel.Armoured;
+
+            // 5 Warded — magic resist drives durability
+            bool wardDriven = d.MagicResist >= CombatProfileThresholds.WardedMinMagicResist
+                              || magOverTrue >= CombatProfileThresholds.WardedMagEhpOverTrueMin;
+            if (wardDriven && magOverTrue >= physOverTrue - 0.02f)
+                return CombatProfileLabel.Warded;
+
+            // 6 Tank — large HP pool; mitigation from armour/MR is not the main story
+            bool lowMitigation = physOverTrue <= CombatProfileThresholds.TankMitigationEhpOverTrueMax
+                                 && magOverTrue <= CombatProfileThresholds.TankMitigationEhpOverTrueMax;
+            if (lowMitigation && d.MaxHP >= CombatProfileThresholds.TankMinMaxHp)
+                return CombatProfileLabel.Tank;
+        }
+
+        // 7 Sustaining
+        if (pS >= CombatProfileThresholds.SustainingMin && pS >= pO && pS >= pD && pS >= pMob)
             return CombatProfileLabel.Sustaining;
 
-        // 5 Nimble
-        if (pM >= CombatProfileThresholds.NimbleMin && pM >= pO && pM >= pD && pM >= pS)
+        // 8 Nimble
+        if (pMob >= CombatProfileThresholds.NimbleMin && pMob >= pO && pMob >= pD && pMob >= pS)
             return CombatProfileLabel.Nimble;
 
-        // 6 Bruiser — both offense and defense substantial
+        // 9 Bruiser — both offense and defense substantial
         if (pO >= CombatProfileThresholds.BruiserOffenseMin
             && pD >= CombatProfileThresholds.BruiserDefenseMin
             && (pO + pD) >= CombatProfileThresholds.BruiserCombinedMin)
             return CombatProfileLabel.Bruiser;
 
-        // 7 Balanced
+        // 10 Balanced
         return CombatProfileLabel.Balanced;
     }
 
@@ -127,8 +200,17 @@ public static class CombatProfileClassifier
         if (label == CombatProfileLabel.GlassCannon)
             return new Color(1f, 0.38f, 0.18f);
 
+        if (label == CombatProfileLabel.Relentless)
+            return new Color(0.92f, 0.28f, 0.55f);
+
         if (label == CombatProfileLabel.Armoured)
             return new Color(0.58f, 0.58f, 0.62f);
+
+        if (label == CombatProfileLabel.Warded)
+            return new Color(0.55f, 0.45f, 0.85f);
+
+        if (label == CombatProfileLabel.Tank)
+            return new Color(0.45f, 0.72f, 0.48f);
 
         if (label == CombatProfileLabel.Sustaining)
             return new Color(0.38f, 0.82f, 0.42f);
@@ -142,15 +224,18 @@ public static class CombatProfileClassifier
         return Color.white;
     }
 
-    public static string BuildDebugSummary(CombatPowerBreakdown b, string label)
+    public static string BuildDebugSummary(CombatPowerBreakdown b, string label, CombatProfileDefenseHints d)
     {
-        b.GetPercentages(out float pO, out float pD, out float pS, out float pM);
+        b.GetPercentages(out float pO, out float pD, out float pS, out float pMob);
+        float eTrue = Mathf.Max(1f, d.EffectiveHpVsTrue);
         return
             $"Combat profile: {label}\n" +
             $"Total CP: {b.TotalCombatPower:0.##}\n" +
             $"Offense: {b.Offense:0.##} ({pO * 100f:0.#}%)\n" +
             $"Defense: {b.Defense:0.##} ({pD * 100f:0.#}%)\n" +
             $"Sustain: {b.Sustain:0.##} ({pS * 100f:0.#}%)\n" +
-            $"Mobility: {b.Mobility:0.##} ({pM * 100f:0.#}%)";
+            $"Mobility: {b.Mobility:0.##} ({pMob * 100f:0.#}%)\n" +
+            $"Armor: {d.Armor} | MR: {d.MagicResist} | MaxHP: {d.MaxHP}\n" +
+            $"EHP phys/true: {d.EffectiveHpVsPhysical / eTrue:0.##} | mag/true: {d.EffectiveHpVsMagical / eTrue:0.##}";
     }
 }

@@ -151,7 +151,7 @@ MonoBehaviour:
   currentHP: -1
   currentEnergy: -1
   currentMana: -1
-  baseMaxHP: 9999
+  baseMaxHP: 999
   baseMaxEnergy: 0
   baseMaxMana: 0
   baseArmor: 0
@@ -159,9 +159,9 @@ MonoBehaviour:
   basePhysBlockChance: 0
   baseMoveSpeed: 0
   baseMoveSpeedMult: 0
-  baseLifeRegen: 10
+  baseLifeRegen: 5
   baseEnergyRegen: 0
-  baseManaRegen: 1
+  baseManaRegen: 0
   baseMinPhysicalDamage: 1
   baseMaxPhysicalDamage: 2
   baseMinMagicDamage: 0

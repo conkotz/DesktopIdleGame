@@ -210,7 +210,8 @@ public class UnitOverheadUI : MonoBehaviour
             else
             {
                 CombatPowerBreakdown breakdown = characterStats.GetCombatPowerBreakdown();
-                string profileLabel = CombatProfileClassifier.Classify(breakdown);
+                CombatProfileDefenseHints defenseHints = characterStats.GetCombatProfileDefenseHints();
+                string profileLabel = CombatProfileClassifier.Classify(breakdown, defenseHints);
                 combatProfileText.text = profileLabel;
                 combatProfileText.color = CombatProfileClassifier.GetColorForLabel(profileLabel);
             }

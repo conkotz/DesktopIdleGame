@@ -566,19 +566,36 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public int CombatPowerRounded => Mathf.RoundToInt(CombatPower);
 
-    public string GetCombatProfileLabel() => CombatProfileClassifier.Classify(GetCombatPowerBreakdown());
+    public CombatProfileDefenseHints GetCombatProfileDefenseHints()
+    {
+        return new CombatProfileDefenseHints(
+            EffectiveHPVsPhysical,
+            EffectiveHPVsMagical,
+            EffectiveHPVsTrue,
+            Armor,
+            MagicResist,
+            MaxHP);
+    }
+
+    public string GetCombatProfileLabel()
+    {
+        CombatPowerBreakdown b = GetCombatPowerBreakdown();
+        return CombatProfileClassifier.Classify(b, GetCombatProfileDefenseHints());
+    }
 
     public Color GetCombatProfileColor()
     {
         CombatPowerBreakdown b = GetCombatPowerBreakdown();
-        return CombatProfileClassifier.GetColorForLabel(CombatProfileClassifier.Classify(b));
+        CombatProfileDefenseHints hints = GetCombatProfileDefenseHints();
+        return CombatProfileClassifier.GetColorForLabel(CombatProfileClassifier.Classify(b, hints));
     }
 
     public string GetCombatProfileDebugSummary()
     {
         CombatPowerBreakdown b = GetCombatPowerBreakdown();
-        string label = CombatProfileClassifier.Classify(b);
-        return CombatProfileClassifier.BuildDebugSummary(b, label);
+        CombatProfileDefenseHints hints = GetCombatProfileDefenseHints();
+        string label = CombatProfileClassifier.Classify(b, hints);
+        return CombatProfileClassifier.BuildDebugSummary(b, label, hints);
     }
 
     private CombatPowerBreakdown BuildCombatPowerBreakdown()
