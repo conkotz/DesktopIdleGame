@@ -8,6 +8,14 @@ using UnityEngine.UI;
 
 public class LevelSelectPageUI : MonoBehaviour
 {
+    [Header("Theme — Region Buttons")]
+    [SerializeField] private Color regionUnlockedColor = new Color32(104, 111, 122, 255);
+    [SerializeField] private Color regionLockedColor = new Color32(132, 68, 68, 255);
+    [SerializeField] private Color regionHoverColor = new Color32(126, 133, 146, 255);
+    [SerializeField] private Color regionSelectedColor = new Color(1f, 1f, 1f, 0.35f); // almost-white transparent tint
+    [SerializeField] private Color regionPressedColor = new Color32(92, 99, 113, 255);
+    [SerializeField] private Color regionTextColor = Color.white;
+
     [Header("Data")]
     [SerializeField] private WorldMapDefinition worldMap;
 
@@ -240,8 +248,27 @@ public class LevelSelectPageUI : MonoBehaviour
         if (!worldMap || worldMap.regions == null || worldMap.regions.Count == 0)
             return;
 
+        WorldMapProgressManager progress = FindProgressManager();
+
         if (!string.IsNullOrEmpty(worldMap.startingRegionId))
-            _selectedRegion = worldMap.FindRegionById(worldMap.startingRegionId);
+        {
+            RegionDefinition preferred = worldMap.FindRegionById(worldMap.startingRegionId);
+            if (preferred && IsRegionAvailable(preferred, progress))
+                _selectedRegion = preferred;
+        }
+
+        if (!_selectedRegion)
+        {
+            for (int i = 0; i < worldMap.regions.Count; i++)
+            {
+                RegionDefinition r = worldMap.regions[i];
+                if (r && IsRegionAvailable(r, progress))
+                {
+                    _selectedRegion = r;
+                    break;
+                }
+            }
+        }
 
         if (!_selectedRegion)
             _selectedRegion = worldMap.regions[0];
@@ -264,6 +291,8 @@ public class LevelSelectPageUI : MonoBehaviour
         if (!regionListParent || !regionRowPrefab || !worldMap || worldMap.regions == null)
             return;
 
+        WorldMapProgressManager progress = FindProgressManager();
+
         for (int i = 0; i < worldMap.regions.Count; i++)
         {
             RegionDefinition region = worldMap.regions[i];
@@ -275,14 +304,18 @@ public class LevelSelectPageUI : MonoBehaviour
 
             Button b = row.GetComponentInChildren<Button>(true);
             TMP_Text label = row.GetComponentInChildren<TMP_Text>(true);
+            bool unlocked = IsRegionAvailable(region, progress);
             if (label)
-                label.text = region.displayName;
+                label.text = unlocked ? region.displayName : $"{region.displayName} (Locked)";
 
             RegionDefinition captured = region;
             if (b)
+            {
+                b.interactable = unlocked;
                 b.onClick.AddListener(() => OnRegionClicked(captured));
+            }
 
-            SetRegionRowSelected(row, region == _selectedRegion);
+            SetRegionRowSelected(row, unlocked, unlocked && region == _selectedRegion);
         }
     }
 
@@ -298,17 +331,78 @@ public class LevelSelectPageUI : MonoBehaviour
         _regionRowRegions.Clear();
     }
 
-    private void SetRegionRowSelected(GameObject row, bool selected)
+    private void SetRegionRowSelected(GameObject row, bool unlocked, bool selected)
     {
-        if (!row || string.IsNullOrEmpty(regionSelectedChildName)) return;
+        if (!row) return;
 
-        Transform t = row.transform.Find(regionSelectedChildName);
-        if (t)
-            t.gameObject.SetActive(selected);
+        Button b = row.GetComponentInChildren<Button>(true);
+        ApplyRegionButtonTheme(b, unlocked, selected);
+
+        if (!string.IsNullOrEmpty(regionSelectedChildName))
+        {
+            Transform t = row.transform.Find(regionSelectedChildName);
+            if (t)
+                t.gameObject.SetActive(selected);
+        }
+    }
+
+    private void ApplyRegionButtonTheme(Button button, bool unlocked, bool selected)
+    {
+        if (!button)
+            return;
+
+        Color themeBase = unlocked ? regionUnlockedColor : regionLockedColor;
+        Color baseCol = selected ? Blend(themeBase, regionSelectedColor) : themeBase;
+        Color hoverCol = selected ? Lift(baseCol, 0.06f) : regionHoverColor;
+        Color pressedCol = selected ? Lift(baseCol, 0.1f) : regionPressedColor;
+
+        ColorBlock cb = button.colors;
+        cb.normalColor = baseCol;
+        cb.highlightedColor = hoverCol;
+        cb.selectedColor = hoverCol;
+        cb.pressedColor = pressedCol;
+        cb.colorMultiplier = 1f;
+        cb.fadeDuration = 0.08f;
+        button.colors = cb;
+
+        if (button.targetGraphic)
+            button.targetGraphic.color = baseCol;
+
+        TMP_Text txt = button.GetComponentInChildren<TMP_Text>(true);
+        if (txt)
+            txt.color = regionTextColor;
+    }
+
+    private static Color Lift(Color c, float amount)
+    {
+        amount = Mathf.Clamp01(amount);
+        return new Color(
+            Mathf.Clamp01(c.r + (1f - c.r) * amount),
+            Mathf.Clamp01(c.g + (1f - c.g) * amount),
+            Mathf.Clamp01(c.b + (1f - c.b) * amount),
+            c.a);
+    }
+
+    private static Color Blend(Color baseCol, Color tint)
+    {
+        float t = Mathf.Clamp01(tint.a);
+        return new Color(
+            Mathf.Lerp(baseCol.r, tint.r, t),
+            Mathf.Lerp(baseCol.g, tint.g, t),
+            Mathf.Lerp(baseCol.b, tint.b, t),
+            baseCol.a);
     }
 
     private void OnRegionClicked(RegionDefinition region)
     {
+        WorldMapProgressManager progress = FindProgressManager();
+        if (!IsRegionAvailable(region, progress))
+            return;
+
+        // Prevent flicker: if user clicks the already-selected region, keep current rows/selection as-is.
+        if (_selectedRegion == region)
+            return;
+
         _selectedRegion = region;
         _selectedNode = null;
 
@@ -316,7 +410,11 @@ public class LevelSelectPageUI : MonoBehaviour
             _selectedNode = _selectedRegion.nodes[0];
 
         for (int i = 0; i < _regionRows.Count && i < _regionRowRegions.Count; i++)
-            SetRegionRowSelected(_regionRows[i], _regionRowRegions[i] == _selectedRegion);
+        {
+            bool unlocked = IsRegionAvailable(_regionRowRegions[i], progress);
+            bool selected = unlocked && _regionRowRegions[i] == _selectedRegion;
+            SetRegionRowSelected(_regionRows[i], unlocked, selected);
+        }
 
         RebuildNodeList();
         RefreshDetails();
@@ -326,10 +424,10 @@ public class LevelSelectPageUI : MonoBehaviour
     {
         ClearNodeButtons();
 
-        if (!nodeListParent || !nodeButtonPrefab || !_selectedRegion || _selectedRegion.nodes == null)
-            return;
-
         WorldMapProgressManager progress = FindProgressManager();
+        if (!nodeListParent || !nodeButtonPrefab || !_selectedRegion || _selectedRegion.nodes == null ||
+            !IsRegionAvailable(_selectedRegion, progress))
+            return;
         SkillsManager skills = FindSkillsManager();
 
         for (int i = 0; i < _selectedRegion.nodes.Count; i++)
@@ -363,8 +461,18 @@ public class LevelSelectPageUI : MonoBehaviour
     private void OnNodeSelected(MapNodeDefinition node)
     {
         _selectedNode = node;
-        RebuildNodeList();
+        RefreshNodeSelectionVisuals();
         RefreshDetails();
+    }
+
+    private void RefreshNodeSelectionVisuals()
+    {
+        for (int i = 0; i < _nodeButtons.Count; i++)
+        {
+            WorldMapNodeButtonUI row = _nodeButtons[i];
+            if (!row) continue;
+            row.SetSelected(row.Node == _selectedNode);
+        }
     }
 
     private void PublishHudPreview()
@@ -382,6 +490,10 @@ public class LevelSelectPageUI : MonoBehaviour
     {
         MapNodeDefinition n = _selectedNode;
         WorldMapProgressManager progress = FindProgressManager();
+        bool regionUnlocked = _selectedRegion == null || IsRegionAvailable(_selectedRegion, progress);
+
+        if (!regionUnlocked)
+            n = null;
 
         if (selectedNodeName)
             selectedNodeName.text = n ? n.displayName : "—";
@@ -403,7 +515,9 @@ public class LevelSelectPageUI : MonoBehaviour
 
         if (selectedNodeState)
         {
-            if (n && progress)
+            if (!regionUnlocked)
+                selectedNodeState.text = "Region locked";
+            else if (n && progress)
                 selectedNodeState.text = n.GetUiStateLabel(progress, skills);
             else if (n)
                 selectedNodeState.text = "Unlocked";
@@ -484,13 +598,19 @@ public class LevelSelectPageUI : MonoBehaviour
 
     private void OnEnterNodeClicked()
     {
+        WorldMapProgressManager progress = FindProgressManager();
+        if (_selectedRegion != null && !IsRegionAvailable(_selectedRegion, progress))
+        {
+            Debug.LogWarning($"[LevelSelectPageUI] Enter blocked: region '{_selectedRegion.regionId}' is locked.");
+            return;
+        }
+
         if (!_selectedNode)
         {
             Debug.LogWarning("[LevelSelectPageUI] Enter: no node selected.");
             return;
         }
 
-        WorldMapProgressManager progress = FindProgressManager();
         SkillsManager skills = FindSkillsManager();
         if (!_selectedNode.CanEnter(progress, skills))
         {
@@ -508,5 +628,12 @@ public class LevelSelectPageUI : MonoBehaviour
 
         Debug.Log($"[LevelSelectPageUI] Loading '{gameplaySceneName}' for node: {_selectedNode.nodeId}");
         SceneManager.LoadScene(gameplaySceneName);
+    }
+
+    private static bool IsRegionAvailable(RegionDefinition region, WorldMapProgressManager progress)
+    {
+        if (!region)
+            return false;
+        return region.IsRegionUnlocked(progress);
     }
 }

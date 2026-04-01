@@ -88,9 +88,34 @@ MonoBehaviour:
     shuffleSpawnPoints: 1
     _legacyGroupPlans: []
   enduranceCompletionLoot:
-  - item: {fileID: 0}
-    amount: 0
-    dropChance: 0
+  - item: {fileID: 11400000, guid: 8f0d610943ec7f442bb6202f9ce4f113, type: 2}
+    amountMin: 1
+    amountMax: 3
+    dropChance: 0.75
+  - item: {fileID: 11400000, guid: 1a27f17f5001c884baf422568a7c4bd5, type: 2}
+    amountMin: 1
+    amountMax: 2
+    dropChance: 0.5
+  - item: {fileID: 11400000, guid: 1070cd98277003542b0ac161a0568720, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.25
+  - item: {fileID: 11400000, guid: fcaa1229f2df3654c8103bc89009f840, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.1
+  - item: {fileID: 11400000, guid: 36038d5dfd5228b4682f03cfcf3151df, type: 2}
+    amountMin: 1
+    amountMax: 5
+    dropChance: 0.5
+  - item: {fileID: 11400000, guid: 30b1b02abfbe72445a66a849d7f7783c, type: 2}
+    amountMin: 15
+    amountMax: 25
+    dropChance: 0.3
+  - item: {fileID: 11400000, guid: 30b1b02abfbe72445a66a849d7f7783c, type: 2}
+    amountMin: 15
+    amountMax: 25
+    dropChance: 0.3
   enduranceCompletionLootInterval: 0.5
   contentDesignerNotes: 
   sceneNamePlaceholder: 

@@ -22,6 +22,16 @@ public class RegionDefinition : ScriptableObject
     [Tooltip("Optional backdrop when this region is selected (future polish).")]
     public Sprite backgroundSprite;
 
+    [Header("Unlock (optional)")]
+    [Tooltip("If false, this region is always available. If true, completion prerequisites below are evaluated.")]
+    public bool useRegionLock;
+
+    [Tooltip("Node ids that must be completed before this region unlocks. These can be nodes from any region (e.g. dungeon/boss in another region).")]
+    public List<string> prerequisiteCompletedNodeIds = new();
+
+    [Tooltip("If true, ALL prerequisite node ids must be completed. If false, ANY one completed node unlocks the region.")]
+    public bool requireAllPrerequisites = true;
+
     public MapNodeDefinition FindNodeById(string nodeId)
     {
         if (string.IsNullOrEmpty(nodeId) || nodes == null) return null;
@@ -32,5 +42,43 @@ public class RegionDefinition : ScriptableObject
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Region availability gate (separate from per-node skill/map unlock checks).
+    /// </summary>
+    public bool IsRegionUnlocked(WorldMapProgressManager progress)
+    {
+        if (!useRegionLock)
+            return true;
+
+        if (prerequisiteCompletedNodeIds == null || prerequisiteCompletedNodeIds.Count == 0)
+            return false;
+
+        if (progress == null)
+            return false;
+
+        bool anyConfigured = false;
+        bool anyMet = false;
+
+        for (int i = 0; i < prerequisiteCompletedNodeIds.Count; i++)
+        {
+            string id = prerequisiteCompletedNodeIds[i];
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+
+            anyConfigured = true;
+            bool met = progress.IsNodeCompleted(id.Trim());
+
+            if (requireAllPrerequisites && !met)
+                return false;
+            if (!requireAllPrerequisites && met)
+                anyMet = true;
+        }
+
+        if (!anyConfigured)
+            return false;
+
+        return requireAllPrerequisites || anyMet;
     }
 }

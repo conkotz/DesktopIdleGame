@@ -10,14 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a7dcdd249539c7f4c9560c93ad5bd3da, type: 3}
-  m_Name: Region_greenlands
+  m_Name: Region_emberhollow
   m_EditorClassIdentifier: Assembly-CSharp::RegionDefinition
-  regionId: greenlands
-  displayName: Greenlands
-  description: 'Lush greenland '
-  nodes:
-  - {fileID: 11400000, guid: 268f98c476273384a896390c96aa7917, type: 2}
-  - {fileID: 11400000, guid: cfc0b92c2808e6e41bbfcc7de180cc2a, type: 2}
-  - {fileID: 11400000, guid: bd9148f386fcb4644a8c0b41179c8e24, type: 2}
-  - {fileID: 11400000, guid: b83eca7b83cd6da489882cf699b56269, type: 2}
+  regionId: emberhollow
+  displayName: Ember Hollow
+  description: Flame torn wasteland
+  nodes: []
   backgroundSprite: {fileID: 0}

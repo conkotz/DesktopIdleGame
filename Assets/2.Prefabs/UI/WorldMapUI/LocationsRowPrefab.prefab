@@ -227,7 +227,7 @@ GameObject:
   - component: {fileID: 8428549890479222724}
   - component: {fileID: 4080139322238129453}
   m_Layer: 5
-  m_Name: NodeButton
+  m_Name: LocationsRowPrefab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -250,11 +250,11 @@ RectTransform:
   - {fileID: 2016931846800061994}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 150, y: 72}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_SizeDelta: {x: 250, y: 72}
+  m_Pivot: {x: 0, y: 1}
 --- !u!222 &1831543453831763335
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -276,7 +276,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.10980392, g: 0.101960786, b: 0.101960786, a: 1}
+  m_Color: {r: 0.14509805, g: 0.15686275, b: 0.18431373, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -335,9 +335,9 @@ MonoBehaviour:
   m_Transition: 1
   m_Colors:
     m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
-    m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_HighlightedColor: {r: 0.5169811, g: 0.49064434, b: 0.49064434, a: 1}
     m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
-    m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
+    m_SelectedColor: {r: 1, g: 0.91132075, b: 0.91132075, a: 1}
     m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
     m_ColorMultiplier: 1
     m_FadeDuration: 0.1
@@ -374,6 +374,16 @@ MonoBehaviour:
   typeText: {fileID: 5164290417990167664}
   stateText: {fileID: 1519307949908627189}
   selectedHighlight: {fileID: 4966439691987314174}
+  townColor: {r: 0.76862746, g: 0.67058825, b: 0.5019608, a: 1}
+  combatColor: {r: 0.4862745, g: 0.25882354, b: 0.25882354, a: 1}
+  gatheringColor: {r: 0.6313726, g: 0.74509805, b: 0.65882355, a: 1}
+  enduranceTrialColor: {r: 0.3764706, g: 0.30588236, b: 0.54901963, a: 1}
+  specialColor: {r: 0.69411767, g: 0.56078434, b: 0.24705882, a: 1}
+  dungeonColor: {r: 0.34509805, g: 0.41568628, b: 0.47843137, a: 1}
+  bossColor: {r: 0.4627451, g: 0.23529412, b: 0.3529412, a: 1}
+  fallbackColor: {r: 0.2901961, g: 0.31764707, b: 0.37254903, a: 1}
+  textColor: {r: 1, g: 1, b: 1, a: 1}
+  selectedTint: {r: 1, g: 1, b: 1, a: 0.35}
 --- !u!1 &4966439691987314174
 GameObject:
   m_ObjectHideFlags: 0
@@ -432,7 +442,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.45882353, g: 0.45882353, b: 0.45882353, a: 0.63529414}
+  m_Color: {r: 0.066037714, g: 0.060742237, b: 0.060742237, a: 0.05882353}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
