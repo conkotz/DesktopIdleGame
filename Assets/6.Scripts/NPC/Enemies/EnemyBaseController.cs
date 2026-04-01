@@ -23,6 +23,7 @@ public class EnemyBaseController : MonoBehaviour
     [SerializeField] private float aggroRange = 5f;
 
     [Header("Movement")]
+    [Tooltip("Chase speed. Also used for this enemy's combat power mobility + Relentless profile (via CharacterStats).")]
     [SerializeField] private float moveSpeed = 2.5f;
     [Tooltip("Move on X only (recommended).")]
     [SerializeField] private bool xOnly = true;
@@ -108,6 +109,9 @@ public class EnemyBaseController : MonoBehaviour
 
     public float AttackRange => stats ? stats.Range : 0f;
     public float AttacksPerSecond => stats ? stats.AttacksPerSecond : 0f;
+
+    /// <summary>Inspector Move Speed — fed into <see cref="CharacterStats"/> CP mobility / combat profile for this enemy.</summary>
+    public float MoveSpeed => moveSpeed;
 
     public float CombatPower => stats ? stats.CombatPower : 0f;
     public int CombatPowerRounded => Mathf.RoundToInt(CombatPower);

@@ -45,6 +45,8 @@ public readonly struct CombatProfileDefenseHints
     public int Armor { get; }
     public int MagicResist { get; }
     public int MaxHP { get; }
+    /// <summary>Same value as CP mobility input (<see cref="CharacterStats.GetMoveSpeedForCombatPower"/>).</summary>
+    public float FinalMoveSpeed { get; }
 
     public CombatProfileDefenseHints(
         float effectiveHpVsPhysical,
@@ -52,7 +54,8 @@ public readonly struct CombatProfileDefenseHints
         float effectiveHpVsTrue,
         int armor,
         int magicResist,
-        int maxHp)
+        int maxHp,
+        float finalMoveSpeed)
     {
         EffectiveHpVsPhysical = effectiveHpVsPhysical;
         EffectiveHpVsMagical = effectiveHpVsMagical;
@@ -60,6 +63,7 @@ public readonly struct CombatProfileDefenseHints
         Armor = armor;
         MagicResist = magicResist;
         MaxHP = maxHp;
+        FinalMoveSpeed = finalMoveSpeed;
     }
 }
 
@@ -89,8 +93,13 @@ public static class CombatProfileThresholds
     public const float DeadlyDefenseMax = 0.33f;
 
     public const float RelentlessOffenseMin = 0.30f;
-    public const float RelentlessMobilityMin = 0.20f;
-    public const float RelentlessOffenseMobilitySumMin = 0.52f;
+    public const float RelentlessMobilityMin = 0.14f;
+    public const float RelentlessOffenseMobilitySumMin = 0.48f;
+
+    /// <summary>Required move speed (enemy <see cref="EnemyBaseController.MoveSpeed"/> or player <see cref="CharacterStats.FinalMoveSpeed"/>) for any Relentless result.</summary>
+    public const float RelentlessMinFinalMoveSpeed = 3f;
+    /// <summary>When <see cref="RelentlessMinFinalMoveSpeed"/> is met, allow slightly lower offense CP %.</summary>
+    public const float RelentlessOffenseMinWhenFast = 0.26f;
 
     /// <summary>Minimum defense CP share before we classify into Armoured / Warded / Tank.</summary>
     public const float DefenseProfileMin = 0.26f;
@@ -114,7 +123,7 @@ public static class CombatProfileThresholds
 }
 
 /// <summary>
-/// Classifies a unit by CP distribution and defensive identity. Priority: Glass Cannon → Deadly → Relentless →
+/// Classifies a unit by CP distribution and defensive identity. Priority: Relentless → Glass Cannon → Deadly →
 /// Armoured → Warded → Tank → Sustaining → Nimble → Bruiser → Balanced.
 /// </summary>
 public static class CombatProfileClassifier
@@ -134,23 +143,30 @@ public static class CombatProfileClassifier
         float physOverTrue = d.EffectiveHpVsPhysical / eTrue;
         float magOverTrue = d.EffectiveHpVsMagical / eTrue;
 
-        // 1 Glass Cannon — high offense, low defense & sustain
+        // 1 Relentless — must meet min move speed (enemy inspector / player FinalMoveSpeed), then either
+        //    strong offense+mobility CP split OR fast+decent offense. Checked before Glass Cannon so fast strikers
+        //    are not labelled Glass Cannon solely from high offense share.
+        bool relentlessSpeedOk = d.FinalMoveSpeed >= CombatProfileThresholds.RelentlessMinFinalMoveSpeed;
+        bool relentlessByCpShares = relentlessSpeedOk
+                                    && pO >= CombatProfileThresholds.RelentlessOffenseMin
+                                    && pMob >= CombatProfileThresholds.RelentlessMobilityMin
+                                    && (pO + pMob) >= CombatProfileThresholds.RelentlessOffenseMobilitySumMin;
+        bool relentlessBySpeed = relentlessSpeedOk
+                                 && pO >= CombatProfileThresholds.RelentlessOffenseMinWhenFast;
+        if (relentlessByCpShares || relentlessBySpeed)
+            return CombatProfileLabel.Relentless;
+
+        // 2 Glass Cannon — high offense, low defense & sustain (slower units only reach here if not Relentless)
         if (pO >= CombatProfileThresholds.GlassCannonOffenseMin
             && pD <= CombatProfileThresholds.GlassCannonDefenseMax
             && pS <= CombatProfileThresholds.GlassCannonSustainMax)
             return CombatProfileLabel.GlassCannon;
 
-        // 2 Deadly — offense-led, defense still relatively low
+        // 3 Deadly — offense-led, defense still relatively low
         if (pO >= CombatProfileThresholds.DeadlyOffenseMin
             && pD <= CombatProfileThresholds.DeadlyDefenseMax
             && pO > pD)
             return CombatProfileLabel.Deadly;
-
-        // 3 Relentless — high damage output and high mobility (both meaningful CP shares)
-        if (pO >= CombatProfileThresholds.RelentlessOffenseMin
-            && pMob >= CombatProfileThresholds.RelentlessMobilityMin
-            && (pO + pMob) >= CombatProfileThresholds.RelentlessOffenseMobilitySumMin)
-            return CombatProfileLabel.Relentless;
 
         // 4–6 Defense identities (defense must matter in CP)
         if (pD >= CombatProfileThresholds.DefenseProfileMin)
@@ -235,7 +251,7 @@ public static class CombatProfileClassifier
             $"Defense: {b.Defense:0.##} ({pD * 100f:0.#}%)\n" +
             $"Sustain: {b.Sustain:0.##} ({pS * 100f:0.#}%)\n" +
             $"Mobility: {b.Mobility:0.##} ({pMob * 100f:0.#}%)\n" +
-            $"Armor: {d.Armor} | MR: {d.MagicResist} | MaxHP: {d.MaxHP}\n" +
+            $"Armor: {d.Armor} | MR: {d.MagicResist} | MaxHP: {d.MaxHP} | Move: {d.FinalMoveSpeed:0.##}\n" +
             $"EHP phys/true: {d.EffectiveHpVsPhysical / eTrue:0.##} | mag/true: {d.EffectiveHpVsMagical / eTrue:0.##}";
     }
 }

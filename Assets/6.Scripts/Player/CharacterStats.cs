@@ -69,6 +69,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public event Action OnStatsChanged;
 
     private PlayerController _ownerPlayer;
+    private EnemyBaseController _ownerEnemy;
 
 
     public string UnitDisplayName => unitDisplayName;
@@ -189,6 +190,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!toolbelt) toolbelt = GetComponent<ToolbeltManager>();
         if (!buffController) buffController = GetComponent<PlayerBuffController>();
         _ownerPlayer = GetComponent<PlayerController>();
+        _ownerEnemy = GetComponent<EnemyBaseController>();
     }
 
     // -------------------------
@@ -215,6 +217,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float MoveSpeedMultiplier => Mathf.Max(0.1f, baseMoveSpeedMult * (1f + TotalMoveSpeedPercent));
     public float FinalMoveSpeed => BaseMoveSpeed * MoveSpeedMultiplier;
+
+    /// <summary>
+    /// Move speed for combat power mobility and Relentless checks. Enemies use
+    /// <see cref="EnemyBaseController.MoveSpeed"/>; player and others use <see cref="FinalMoveSpeed"/>.
+    /// </summary>
+    public float GetMoveSpeedForCombatPower()
+    {
+        if (!_ownerEnemy)
+            _ownerEnemy = GetComponent<EnemyBaseController>();
+
+        if (_ownerEnemy)
+            return Mathf.Max(0.01f, _ownerEnemy.MoveSpeed);
+
+        return Mathf.Max(0.01f, FinalMoveSpeed);
+    }
 
     // Displayed bonus/penalty relative to normal base speed
     public float MoveSpeedBonusPercent => MoveSpeedMultiplier - 1f;
@@ -574,7 +591,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             EffectiveHPVsTrue,
             Armor,
             MagicResist,
-            MaxHP);
+            MaxHP,
+            GetMoveSpeedForCombatPower());
     }
 
     public string GetCombatProfileLabel()
@@ -609,7 +627,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         float sustain = ExpectedSustainPerSecond * combatPowerSustainScale;
 
-        float mobility = Mathf.Pow(FinalMoveSpeed, combatPowerMobilityExponent) * combatPowerMobilityScale;
+        float mobility =
+            Mathf.Pow(GetMoveSpeedForCombatPower(), combatPowerMobilityExponent) * combatPowerMobilityScale;
 
         return new CombatPowerBreakdown(offense, defense, sustain, mobility);
     }
