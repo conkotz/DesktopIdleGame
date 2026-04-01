@@ -2221,6 +2221,7 @@ GameObject:
   - component: {fileID: 945330860}
   - component: {fileID: 945330861}
   - component: {fileID: 945330862}
+  - component: {fileID: 945330863}
   m_Layer: 0
   m_Name: _GameSystems
   m_TagString: Untagged
@@ -2377,6 +2378,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldMapProgressManager
   worldMap: {fileID: 11400000, guid: 21a2c8e6c4923ee49bf54bec6276079f, type: 2}
   additionalUnlockedNodeIds: []
+--- !u!114 &945330863
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 945330853}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f15f4511b21e02d43be8ad5184d067e2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HotkeyBindingManager
+  dontDestroyOnLoad: 0
 --- !u!1 &950795108
 GameObject:
   m_ObjectHideFlags: 0

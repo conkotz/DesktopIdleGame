@@ -1,39 +1,72 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class WindowToggleUI : MonoBehaviour
 {
     [SerializeField] private MainMenuWindowUI mainMenuWindowUI;
+    private Button _toolbarButton;
 
     private void Awake()
     {
-        if (!mainMenuWindowUI)
-            Debug.LogWarning("[WindowToggleUI] MainMenuWindowUI not assigned.");
+        EnsureMenuRef();
+        if (!GetMenu())
+            Debug.LogWarning("[WindowToggleUI] MainMenuWindowUI not assigned and not found in scene.", this);
     }
 
-    public bool IsOpen => mainMenuWindowUI != null && mainMenuWindowUI.IsOpen;
+    private MainMenuWindowUI GetMenu()
+    {
+        if (mainMenuWindowUI != null)
+            return mainMenuWindowUI;
+
+        return MainMenuWindowUI.Resolve();
+    }
+
+    private void EnsureMenuRef()
+    {
+        if (mainMenuWindowUI == null)
+            mainMenuWindowUI = MainMenuWindowUI.Resolve();
+
+        _toolbarButton = GetComponent<Button>();
+    }
+
+    public bool IsOpen
+    {
+        get
+        {
+            MainMenuWindowUI menu = GetMenu();
+            return menu != null && menu.IsOpen;
+        }
+    }
 
     public void Toggle()
     {
-        if (!mainMenuWindowUI)
+        MainMenuWindowUI menu = GetMenu();
+        if (menu == null)
         {
-            Debug.LogWarning("[WindowToggleUI] MainMenuWindowUI is not assigned.");
+            Debug.LogWarning("[WindowToggleUI] MainMenuWindowUI not assigned and not found in scene.", this);
             return;
         }
 
-        mainMenuWindowUI.ToggleCharacter();
+        bool wasOpen = menu.IsOpen;
+        menu.ToggleCharacter();
+
+        if (_toolbarButton != null && wasOpen && !menu.IsOpen)
+            _toolbarButton.Select();
     }
 
     public void Open()
     {
-        if (!mainMenuWindowUI) return;
-        mainMenuWindowUI.OpenCharacter();
+        MainMenuWindowUI menu = GetMenu();
+        if (menu == null) return;
+        menu.OpenCharacter();
     }
 
     public void Close()
     {
-        if (!mainMenuWindowUI) return;
-        if (!mainMenuWindowUI.IsOpen) return;
+        MainMenuWindowUI menu = GetMenu();
+        if (menu == null) return;
+        if (!menu.IsOpen) return;
 
-        mainMenuWindowUI.Close();
+        menu.Close();
     }
 }

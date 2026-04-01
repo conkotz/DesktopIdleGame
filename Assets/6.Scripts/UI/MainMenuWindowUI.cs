@@ -1,10 +1,25 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 using TMPro;
 
 public class MainMenuWindowUI : MonoBehaviour
 {
+    private static MainMenuWindowUI s_instance;
+
+    /// <summary>
+    /// Returns the in-scene menu (cached). Use from toolbar buttons when serialized references are missing or stale.
+    /// </summary>
+    public static MainMenuWindowUI Resolve()
+    {
+        if (s_instance != null)
+            return s_instance;
+
+        s_instance = FindFirstObjectByType<MainMenuWindowUI>(FindObjectsInactive.Include);
+        return s_instance;
+    }
+
     [Header("Root")]
     [SerializeField] private GameObject mainMenuWindow;
 
@@ -14,16 +29,22 @@ public class MainMenuWindowUI : MonoBehaviour
     [SerializeField] private string skillsTitle = "Skills & Abilities";
     [FormerlySerializedAs("worldMapTitle")]
     [SerializeField] private string levelSelectTitle = "Level select";
+    [SerializeField] private string settingsTitle = "Settings";
 
     [Header("Optional UI gating")]
     [Tooltip("If set, we force this CanvasGroup to be interactable when opening pages (prevents first-open issues).")]
     [SerializeField] private CanvasGroup mainMenuCanvasGroup;
+
+    [Header("Keyboard")]
+    [Tooltip("e.g. Character toolbar Button. After the menu closes, keyboard Submit returns here so Enter/Space work on the bar again.")]
+    [SerializeField] private Selectable keyboardToolbarFocusAfterClose;
 
     [Header("Pages")]
     [SerializeField] private GameObject characterPage;
     [SerializeField] private GameObject skillsAbilitiesPage;
     [FormerlySerializedAs("worldMapPage")]
     [SerializeField] private GameObject levelSelectPage;
+    [SerializeField] private GameObject settingsPage;
 
     private GameObject currentPage;
     private Image _windowRootImage;
@@ -50,6 +71,11 @@ public class MainMenuWindowUI : MonoBehaviour
 
     private void Awake()
     {
+        if (s_instance != null && s_instance != this)
+            Debug.LogWarning("[MainMenuWindowUI] Multiple MainMenuWindowUI components in loaded scenes; the last Awake wins for Resolve().", this);
+
+        s_instance = this;
+
         if (!mainMenuWindow)
             return;
 
@@ -111,6 +137,16 @@ public class MainMenuWindowUI : MonoBehaviour
         OpenPage(levelSelectPage);
     }
 
+    public void ToggleSettings()
+    {
+        TogglePage(settingsPage);
+    }
+
+    public void OpenSettings()
+    {
+        OpenPage(settingsPage);
+    }
+
     public void Close()
     {
         if (mainMenuWindow)
@@ -123,6 +159,57 @@ public class MainMenuWindowUI : MonoBehaviour
 
         HideAllPages();
         currentPage = null;
+
+        HotkeySettingsRowUI.EnsureUiInputModulesEnabled();
+        RestoreToolbarKeyboardFocus();
+    }
+
+    private void LateUpdate()
+    {
+        if (IsOpen)
+            return;
+
+        SanitizeKeyboardSelectionWhenMenuClosed();
+    }
+
+    /// <summary>
+    /// EventSystem can keep a selected control under the (now inactive) settings page; Submit then does nothing. Fix when menu is closed.
+    /// </summary>
+    private void SanitizeKeyboardSelectionWhenMenuClosed()
+    {
+        if (EventSystem.current == null)
+            return;
+
+        GameObject sel = EventSystem.current.currentSelectedGameObject;
+        if (sel == null)
+            return;
+
+        if (!sel.activeInHierarchy)
+        {
+            RestoreToolbarKeyboardFocus();
+            return;
+        }
+
+        if (sel.TryGetComponent(out Selectable s) && !s.IsInteractable())
+            RestoreToolbarKeyboardFocus();
+    }
+
+    private void RestoreToolbarKeyboardFocus()
+    {
+        if (EventSystem.current == null)
+            return;
+
+        if (keyboardToolbarFocusAfterClose != null &&
+            keyboardToolbarFocusAfterClose.gameObject.activeInHierarchy &&
+            keyboardToolbarFocusAfterClose.IsInteractable())
+        {
+            keyboardToolbarFocusAfterClose.Select();
+        }
+        else
+        {
+            // Drop stale selection (e.g. hidden settings row) so Tab / navigation can recover.
+            EventSystem.current.SetSelectedGameObject(null);
+        }
     }
 
     private void TogglePage(GameObject targetPage)
@@ -154,6 +241,9 @@ public class MainMenuWindowUI : MonoBehaviour
 
     private void OpenPage(GameObject targetPage)
     {
+        // Rebind flow can leave InputSystemUIInputModule disabled; bottom bar stops receiving keyboard Submit.
+        HotkeySettingsRowUI.EnsureUiInputModulesEnabled();
+
         // Ensure merchant mode never blocks opening pages.
         MerchantClick.ForceCloseMerchantMode();
 
@@ -169,8 +259,9 @@ public class MainMenuWindowUI : MonoBehaviour
             return;
         }
 
-        if (!_hideWindowWithCanvasGroup)
-            mainMenuWindow.SetActive(true);
+        // Always activate the window root. UIWindowCloseButton (and similar) may SetActive(false) on this
+        // GameObject; in canvas-group hide mode we previously skipped SetActive(true) and the menu could never reopen.
+        mainMenuWindow.SetActive(true);
 
         EnsureWindowInteractable();
         HideAllPages();
@@ -195,6 +286,7 @@ public class MainMenuWindowUI : MonoBehaviour
         if (characterPage) characterPage.SetActive(false);
         if (skillsAbilitiesPage) skillsAbilitiesPage.SetActive(false);
         if (levelSelectPage) levelSelectPage.SetActive(false);
+        if (settingsPage) settingsPage.SetActive(false);
     }
 
     private void RefreshHeaderTitle()
@@ -207,6 +299,8 @@ public class MainMenuWindowUI : MonoBehaviour
             headerTitleText.text = skillsTitle;
         else if (currentPage == levelSelectPage)
             headerTitleText.text = levelSelectTitle;
+        else if (currentPage == settingsPage)
+            headerTitleText.text = settingsTitle;
         else
             headerTitleText.text = "";
     }
@@ -237,11 +331,18 @@ public class MainMenuWindowUI : MonoBehaviour
         if (!mainMenuCanvasGroup) return;
 
         mainMenuCanvasGroup.alpha = 0f;
-        mainMenuCanvasGroup.interactable = false;
+        // Do not set interactable = false: it disables every Selectable under this root (including in-window tab rows
+        // until the next open). Visibility/input blocking uses alpha + blocksRaycasts instead.
         mainMenuCanvasGroup.blocksRaycasts = false;
 
         if (_windowRootImage)
             _windowRootImage.raycastTarget = false;
+    }
+
+    private void OnDestroy()
+    {
+        if (s_instance == this)
+            s_instance = null;
     }
 }
 

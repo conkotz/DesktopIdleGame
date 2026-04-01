@@ -1,0 +1,94 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// Gathers <see cref="HotkeySettingsRowUI"/> rows for the hotkeys settings area. Drag section roots (e.g.
+/// <c>CategoryAbilities</c>, <c>CategoryConsumables</c>) into <see cref="sectionRoots"/> so you do not have to
+/// assign each row manually. Optional <see cref="explicitRows"/> overrides discovery.
+/// </summary>
+public class HotkeySettingsPanelUI : MonoBehaviour
+{
+    [Header("Row discovery")]
+    [Tooltip("Drag one or more section parents here (e.g. CategoryAbilities, CategoryConsumables). All HotkeySettingsRowUI under them are collected in hierarchy order.")]
+    [SerializeField] private RectTransform[] sectionRoots;
+
+    [Tooltip("If set (size > 0), only these rows are used — section roots are ignored.")]
+    [SerializeField] private HotkeySettingsRowUI[] explicitRows;
+
+    [Tooltip("When true, rows under inactive section objects are still found.")]
+    [SerializeField] private bool includeInactive = true;
+
+    private HotkeySettingsRowUI[] _cachedRows;
+
+    private void Awake()
+    {
+        RebuildRowCache();
+    }
+
+    private void OnEnable()
+    {
+        RebuildRowCache();
+        RefreshAll();
+    }
+
+    /// <summary>Call if you add/remove row objects at runtime.</summary>
+    public void RebuildRowCache()
+    {
+        _cachedRows = ResolveRows();
+    }
+
+    private HotkeySettingsRowUI[] ResolveRows()
+    {
+        if (explicitRows != null && explicitRows.Length > 0)
+        {
+            var list = new List<HotkeySettingsRowUI>();
+            for (int i = 0; i < explicitRows.Length; i++)
+            {
+                if (explicitRows[i] != null)
+                    list.Add(explicitRows[i]);
+            }
+
+            return list.ToArray();
+        }
+
+        if (sectionRoots != null && sectionRoots.Length > 0)
+        {
+            var list = new List<HotkeySettingsRowUI>();
+            for (int s = 0; s < sectionRoots.Length; s++)
+            {
+                RectTransform root = sectionRoots[s];
+                if (root == null)
+                    continue;
+
+                HotkeySettingsRowUI[] found = root.GetComponentsInChildren<HotkeySettingsRowUI>(includeInactive);
+                for (int i = 0; i < found.Length; i++)
+                {
+                    if (found[i] != null)
+                        list.Add(found[i]);
+                }
+            }
+
+            return list.ToArray();
+        }
+
+        return GetComponentsInChildren<HotkeySettingsRowUI>(includeInactive);
+    }
+
+    public void RefreshAll()
+    {
+        if (_cachedRows == null || _cachedRows.Length == 0)
+            RebuildRowCache();
+
+        if (_cachedRows == null)
+            return;
+
+        for (int i = 0; i < _cachedRows.Length; i++)
+        {
+            if (_cachedRows[i] != null)
+                _cachedRows[i].RefreshDisplay();
+        }
+    }
+
+    /// <summary>Resolved rows after last <see cref="RebuildRowCache"/>.</summary>
+    public HotkeySettingsRowUI[] CachedRows => _cachedRows;
+}

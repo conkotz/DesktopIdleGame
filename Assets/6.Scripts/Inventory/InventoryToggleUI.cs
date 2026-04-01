@@ -1,17 +1,26 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class InventoryToggleUI : MonoBehaviour
 {
     [SerializeField] private MainMenuWindowUI mainMenuWindowUI;
     [SerializeField] private ShopUI shopUI;
+    private Button _toolbarButton;
 
     [Header("Merchant Mode")]
     [SerializeField] private GameObject merchantModeBanner;
 
+    private MainMenuWindowUI GetMenu()
+    {
+        if (mainMenuWindowUI != null)
+            return mainMenuWindowUI;
+        return MainMenuWindowUI.Resolve();
+    }
+
     private void Awake()
     {
         if (!mainMenuWindowUI)
-            mainMenuWindowUI = FindFirstObjectByType<MainMenuWindowUI>(FindObjectsInactive.Include);
+            mainMenuWindowUI = MainMenuWindowUI.Resolve();
         if (!shopUI)
             shopUI = FindFirstObjectByType<ShopUI>(FindObjectsInactive.Include);
         if (!merchantModeBanner)
@@ -19,18 +28,26 @@ public class InventoryToggleUI : MonoBehaviour
 
         if (merchantModeBanner)
             merchantModeBanner.SetActive(false);
+
+        _toolbarButton = GetComponent<Button>();
     }
 
-    public bool IsOpen => mainMenuWindowUI != null && mainMenuWindowUI.IsOpen;
+    public bool IsOpen
+    {
+        get
+        {
+            MainMenuWindowUI menu = GetMenu();
+            return menu != null && menu.IsOpen;
+        }
+    }
 
     private void Update()
     {
         if (!merchantModeBanner)
             merchantModeBanner = FindSceneObjectByName("MerchantModeBanner");
-        if (!mainMenuWindowUI)
-            mainMenuWindowUI = FindFirstObjectByType<MainMenuWindowUI>(FindObjectsInactive.Include);
 
-        if (!merchantModeBanner || !mainMenuWindowUI)
+        MainMenuWindowUI menu = GetMenu();
+        if (!merchantModeBanner || menu == null)
             return;
 
         if (!shopUI)
@@ -40,7 +57,7 @@ public class InventoryToggleUI : MonoBehaviour
             MerchantClick.ForceCloseMerchantMode();
 
         bool shopOpen = shopUI != null && shopUI.IsOpen;
-        bool shouldShow = MerchantClick.MerchantModeOpen && shopOpen && mainMenuWindowUI.IsOpen;
+        bool shouldShow = MerchantClick.MerchantModeOpen && shopOpen && menu.IsOpen;
         if (merchantModeBanner.activeSelf != shouldShow)
             merchantModeBanner.SetActive(shouldShow);
     }
@@ -68,15 +85,20 @@ public class InventoryToggleUI : MonoBehaviour
 
     public void Toggle()
     {
-        if (!mainMenuWindowUI)
+        MainMenuWindowUI menu = GetMenu();
+        if (menu == null)
         {
-            Debug.LogWarning("[InventoryToggleUI] MainMenuWindowUI is not assigned.");
+            Debug.LogWarning("[InventoryToggleUI] MainMenuWindowUI not assigned and not found in scene.", this);
             return;
         }
 
-        mainMenuWindowUI.ToggleCharacter();
+        bool wasOpen = menu.IsOpen;
+        menu.ToggleCharacter();
 
-        bool isNowOpen = mainMenuWindowUI.IsOpen;
+        if (_toolbarButton != null && wasOpen && !menu.IsOpen)
+            _toolbarButton.Select();
+
+        bool isNowOpen = menu.IsOpen;
 
         if (!isNowOpen)
         {
@@ -92,9 +114,10 @@ public class InventoryToggleUI : MonoBehaviour
 
     public void Open()
     {
-        if (!mainMenuWindowUI) return;
+        MainMenuWindowUI menu = GetMenu();
+        if (menu == null) return;
 
-        mainMenuWindowUI.OpenCharacter();
+        menu.OpenCharacter();
 
         if (merchantModeBanner && !MerchantClick.MerchantModeOpen)
             merchantModeBanner.SetActive(false);
@@ -102,10 +125,11 @@ public class InventoryToggleUI : MonoBehaviour
 
     public void Close()
     {
-        if (!mainMenuWindowUI) return;
-        if (!mainMenuWindowUI.IsOpen) return;
+        MainMenuWindowUI menu = GetMenu();
+        if (menu == null) return;
+        if (!menu.IsOpen) return;
 
-        mainMenuWindowUI.Close();
+        menu.Close();
 
         MerchantClick.ForceCloseMerchantMode();
         if (merchantModeBanner) merchantModeBanner.SetActive(false);

@@ -27,9 +27,15 @@ public class UIWindowCloseButton : MonoBehaviour
             return;
         }
 
-        if (disableInsteadOfHide)
-            targetWindow.SetActive(false);
-        else
-            targetWindow.SetActive(false);
+        // Main menu uses CanvasGroup hide on the same GameObject; SetActive(false) disables MainMenuWindowUI and
+        // OpenPage could not reactivate the root (canvas-group path skipped SetActive). Prefer proper Close().
+        MainMenuWindowUI menuUi = targetWindow.GetComponent<MainMenuWindowUI>();
+        if (menuUi != null)
+        {
+            menuUi.Close();
+            return;
+        }
+
+        targetWindow.SetActive(false);
     }
 }

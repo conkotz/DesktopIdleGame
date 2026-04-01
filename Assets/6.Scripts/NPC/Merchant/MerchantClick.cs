@@ -37,7 +37,7 @@ public class MerchantClick : MonoBehaviour
     private void CacheRefs()
     {
         if (!mainMenuWindowUI)
-            mainMenuWindowUI = FindFirstObjectByType<MainMenuWindowUI>(FindObjectsInactive.Include);
+            mainMenuWindowUI = MainMenuWindowUI.Resolve();
 
         if (!merchantModeBanner)
             merchantModeBanner = FindSceneObjectByName("MerchantModeBanner");
@@ -148,10 +148,11 @@ public class MerchantClick : MonoBehaviour
         }
 
         // Open the new Character page (inventory + equipment inside MainMenuWindow)
-        if (mainMenuWindowUI)
-            mainMenuWindowUI.OpenCharacter();
+        MainMenuWindowUI menu = mainMenuWindowUI != null ? mainMenuWindowUI : MainMenuWindowUI.Resolve();
+        if (menu != null)
+            menu.OpenCharacter();
         else
-            Debug.LogWarning("[MerchantClick] MainMenuWindowUI not assigned/found.");
+            Debug.LogWarning("[MerchantClick] MainMenuWindowUI not assigned/found.", this);
 
         // Show banner
         if (merchantModeBanner)

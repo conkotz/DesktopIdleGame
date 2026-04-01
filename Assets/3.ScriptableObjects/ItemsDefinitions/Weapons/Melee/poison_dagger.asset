@@ -30,12 +30,12 @@ MonoBehaviour:
   equipSlot: 1
   handVisualKey: 1
   weaponStats:
-    minPhysicalDamage: 1
-    maxPhysicalDamage: 2
+    minPhysicalDamage: 0
+    maxPhysicalDamage: 0
     minMagicDamage: 0
     maxMagicDamage: 0
-    minTrueDamage: 3
-    maxTrueDamage: 6
+    minTrueDamage: 4
+    maxTrueDamage: 7
     attacksPerSecond: 1
     critChance: 0
     critMultiplier: 1

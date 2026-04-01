@@ -1,6 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// First <see cref="HotkeyBindIds.ActionBarSlotCount"/> slots use <see cref="HotkeyBindingManager"/> (list order =
+/// ActionBar1…7). Extra slots use <see cref="SlotBinding.defaultKey"/> only.
+/// </summary>
+
 public class ActionBarUI : MonoBehaviour, ISaveable
 {
     [System.Serializable]
@@ -20,6 +25,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     }
 
     public IReadOnlyList<SlotBinding> SlotBindings => slotBindings;
+
+    public string GetHotkeyDisplayString(KeyCode key) => HotkeyBindingManager.GetDisplayString(key);
 
     public IEnumerable<ActionBarSlotUI> GetSlots()
     {
@@ -50,7 +57,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     [SerializeField] private bool debugEmptySlots = false;
 
     private void Awake()
-    {                           
+    {
         ResolveCoreRefs();
 
         for (int i = 0; i < slotBindings.Count; i++)
@@ -59,11 +66,23 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             if (binding == null || binding.slot == null)
                 continue;
 
-            binding.currentKey = binding.defaultKey;
             binding.slot.Initialize(OnSlotTriggered, OnSlotAssignmentChanged);
-            binding.slot.SetHotkeyLabel(GetKeyLabel(binding.currentKey));
         }
-    } 
+
+        SyncHotkeysFromManager();
+    }
+
+    private void OnEnable()
+    {
+        if (HotkeyBindingManager.Instance != null)
+            HotkeyBindingManager.Instance.OnBindingsChanged += SyncHotkeysFromManager;
+    }
+
+    private void OnDisable()
+    {
+        if (HotkeyBindingManager.Instance != null)
+            HotkeyBindingManager.Instance.OnBindingsChanged -= SyncHotkeysFromManager;
+    }
 
     private void Start()
     {
@@ -74,18 +93,59 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         {
             LoadFrom(data);
         }
+
+        SyncHotkeysFromManager();
     }
 
-    private void Update()
+    private void SyncHotkeysFromManager()
     {
+        HotkeyBindingManager mgr = HotkeyBindingManager.Instance;
+
         for (int i = 0; i < slotBindings.Count; i++)
         {
             SlotBinding binding = slotBindings[i];
             if (binding == null || binding.slot == null)
                 continue;
 
-            if (binding.currentKey != KeyCode.None && Input.GetKeyDown(binding.currentKey))
+            KeyCode k;
+            if (i < HotkeyBindIds.ActionBarSlotCount)
+            {
+                k = mgr != null
+                    ? mgr.GetBinding(HotkeyBindIds.FromActionBarOrder(i))
+                    : HotkeyBindingManager.GetDefaultKey(HotkeyBindIds.FromActionBarOrder(i));
+            }
+            else
+            {
+                k = binding.defaultKey;
+            }
+
+            binding.currentKey = k;
+            binding.slot.SetHotkeyLabel(HotkeyBindingManager.GetDisplayString(k));
+        }
+    }
+
+    private void Update()
+    {
+        MainMenuWindowUI menuUi = MainMenuWindowUI.Resolve();
+        bool mainMenuOpen = menuUi != null && menuUi.IsOpen;
+
+        // While any main menu page is open, don't steal keys from UI keyboard navigation / rebinding.
+        bool blockHotkeyPoll = mainMenuOpen ||
+                               HotkeySettingsRowUI.IsRebinding ||
+                               Time.frameCount == HotkeySettingsRowUI.SuppressActionBarHotkeyPollFrame;
+
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            SlotBinding binding = slotBindings[i];
+            if (binding == null || binding.slot == null)
+                continue;
+
+            if (!blockHotkeyPoll &&
+                binding.currentKey != KeyCode.None &&
+                Input.GetKeyDown(binding.currentKey))
+            {
                 binding.slot.Press();
+            }
 
             RefreshSlotRuntime(binding.slot);
         }
@@ -481,41 +541,24 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         return null;
     }
 
+    /// <summary>Legacy API: rebinds by <b>slot list order</b> (same as <see cref="HotkeyBindId"/> for indices 0–6).</summary>
     public void RebindKey(ActionBarSlotUI slot, KeyCode newKey)
     {
-        if (slot == null)
+        int order = GetSlotOrderIndex(slot);
+        if (order < 0 || order >= HotkeyBindIds.ActionBarSlotCount)
             return;
 
-        for (int i = 0; i < slotBindings.Count; i++)
-        {
-            SlotBinding binding = slotBindings[i];
-            if (binding == null || binding.slot != slot)
-                continue;
-
-            binding.currentKey = newKey;
-            binding.slot.SetHotkeyLabel(GetKeyLabel(newKey));
-            return;
-        }
+        HotkeyBindingManager.Instance?.TrySetBinding(HotkeyBindIds.FromActionBarOrder(order), newKey);
     }
 
-    private string GetKeyLabel(KeyCode key)
+    private int GetSlotOrderIndex(ActionBarSlotUI slot)
     {
-        if (key == KeyCode.None)
-            return "";
-
-        return key switch
+        for (int i = 0; i < slotBindings.Count; i++)
         {
-            KeyCode.Alpha1 => "1",
-            KeyCode.Alpha2 => "2",
-            KeyCode.Alpha3 => "3",
-            KeyCode.Alpha4 => "4",
-            KeyCode.Alpha5 => "5",
-            KeyCode.Alpha6 => "6",
-            KeyCode.Alpha7 => "7",
-            KeyCode.Alpha8 => "8",
-            KeyCode.Alpha9 => "9",
-            KeyCode.Alpha0 => "0",
-            _ => key.ToString()
-        };
+            if (slotBindings[i]?.slot == slot)
+                return i;
+        }
+
+        return -1;
     }
 }
