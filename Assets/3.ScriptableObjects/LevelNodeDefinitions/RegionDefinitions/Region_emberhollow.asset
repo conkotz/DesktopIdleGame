@@ -17,3 +17,6 @@ MonoBehaviour:
   description: Flame torn wasteland
   nodes: []
   backgroundSprite: {fileID: 0}
+  useRegionLock: 1
+  prerequisiteCompletedNodeIds: []
+  requireAllPrerequisites: 1

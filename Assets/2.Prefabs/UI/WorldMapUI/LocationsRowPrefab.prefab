@@ -276,7 +276,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.14509805, g: 0.15686275, b: 0.18431373, a: 1}
+  m_Color: {r: 0.14509805, g: 0.15686275, b: 0.18431373, a: 0.14901961}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -375,15 +375,15 @@ MonoBehaviour:
   stateText: {fileID: 1519307949908627189}
   selectedHighlight: {fileID: 4966439691987314174}
   townColor: {r: 0.76862746, g: 0.67058825, b: 0.5019608, a: 1}
-  combatColor: {r: 0.4862745, g: 0.25882354, b: 0.25882354, a: 1}
+  combatColor: {r: 0.81886786, g: 0.5703968, b: 0.35072264, a: 1}
   gatheringColor: {r: 0.6313726, g: 0.74509805, b: 0.65882355, a: 1}
   enduranceTrialColor: {r: 0.3764706, g: 0.30588236, b: 0.54901963, a: 1}
   specialColor: {r: 0.69411767, g: 0.56078434, b: 0.24705882, a: 1}
   dungeonColor: {r: 0.34509805, g: 0.41568628, b: 0.47843137, a: 1}
   bossColor: {r: 0.4627451, g: 0.23529412, b: 0.3529412, a: 1}
   fallbackColor: {r: 0.2901961, g: 0.31764707, b: 0.37254903, a: 1}
-  textColor: {r: 1, g: 1, b: 1, a: 1}
-  selectedTint: {r: 1, g: 1, b: 1, a: 0.35}
+  textColor: {r: 0.16862746, g: 0.12941177, b: 0.09411765, a: 1}
+  selectedTint: {r: 0.3283019, g: 0.3283019, b: 0.3283019, a: 0.35}
 --- !u!1 &4966439691987314174
 GameObject:
   m_ObjectHideFlags: 0

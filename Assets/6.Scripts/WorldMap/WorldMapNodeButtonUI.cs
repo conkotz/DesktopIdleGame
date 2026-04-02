@@ -110,8 +110,16 @@ public class WorldMapNodeButtonUI : MonoBehaviour
     {
         if (!node)
             return fallbackColor;
+        return GetThemeColorForNodeType(node.nodeType);
+    }
 
-        return node.nodeType switch
+    /// <summary>Same palette as row buttons — use for panels (details, etc.) via <see cref="LevelSelectPageUI"/>.</summary>
+    public Color GetThemeColorForNode(MapNodeDefinition node) => ResolveNodeTypeColor(node);
+
+    /// <summary>Theme color for a node type (matches the serialized fields above).</summary>
+    public Color GetThemeColorForNodeType(MapNodeType type)
+    {
+        return type switch
         {
             MapNodeType.Town => townColor,
             MapNodeType.Combat => combatColor,

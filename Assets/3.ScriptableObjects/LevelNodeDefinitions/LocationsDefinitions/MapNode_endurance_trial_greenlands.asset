@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: endurance_trial_greenlands
   displayName: 'Greenlands Endurance Trial '
-  description: Can you survive the continuous waves of enemies?
+  description: "Can you survive the continuous waves of enemies?\nTest Spacing \nTest
+    Spacing\nTest Spacing\nTest Spacing\nTest Spacing "
   nodeType: 6
   recommendedCombatPower: 100
   isRepeatable: 1

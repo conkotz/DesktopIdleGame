@@ -51,6 +51,12 @@ public class LevelSelectPageUI : MonoBehaviour
     [SerializeField] private TMP_Text selectedNodeRequirementsText;
     [SerializeField] private Button enterNodeButton;
 
+    [Header("Right — Panel backgrounds (node type theme)")]
+    [Tooltip("Assign the Image that paints the Details panel (e.g. DetailsScrollView or its background child). Colors come from the same palette as WorldMapNodeButtonUI on Node Button Prefab.")]
+    [SerializeField] private Image detailsPanelBackgroundImage;
+    [Tooltip("Optional. Tint the center Locations list panel to match the selected node type.")]
+    [SerializeField] private Image locationsPanelBackgroundImage;
+
     private readonly List<GameObject> _regionRows = new();
     private readonly List<RegionDefinition> _regionRowRegions = new();
     private readonly List<WorldMapNodeButtonUI> _nodeButtons = new();
@@ -540,7 +546,25 @@ public class LevelSelectPageUI : MonoBehaviour
         if (enterNodeButton)
             enterNodeButton.interactable = canEnter;
 
+        ApplyPanelThemeColors(n);
         PublishHudPreview();
+    }
+
+    private void ApplyPanelThemeColors(MapNodeDefinition n)
+    {
+        if (!nodeButtonPrefab)
+            return;
+        Color c = nodeButtonPrefab.GetThemeColorForNode(n);
+        SetImageColorPreserveAlpha(detailsPanelBackgroundImage, c);
+        SetImageColorPreserveAlpha(locationsPanelBackgroundImage, c);
+    }
+
+    private static void SetImageColorPreserveAlpha(Image img, Color rgb)
+    {
+        if (!img)
+            return;
+        Color a = img.color;
+        img.color = new Color(rgb.r, rgb.g, rgb.b, a.a);
     }
 
     private static SkillsManager FindSkillsManager()
