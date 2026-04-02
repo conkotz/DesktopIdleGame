@@ -556,13 +556,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (rt == null)
             return;
 
-        // Stretch to parent so right panel/scroll viewport controls available height.
-        rt.anchorMin = new Vector2(0f, 0f);
-        rt.anchorMax = new Vector2(1f, 1f);
-        rt.pivot = new Vector2(0.5f, 1f);
-        rt.anchoredPosition = Vector2.zero;
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
+        // Do NOT force anchors/offsets here.
+        // This list typically lives under a right-panel layout that also contains header text
+        // (e.g. "Abilities unlocked: 1/1"). Stretching to full parent makes the list overlap the header.
+        // Let the prefab/scene control RectTransform placement; we only ensure layout components exist.
 
         VerticalLayoutGroup v = rt.GetComponent<VerticalLayoutGroup>();
         if (v == null)

@@ -17,6 +17,7 @@ public class SaveSlotMenuUI : MonoBehaviour
     [Tooltip("If not assigned, we'll auto-find Slot1Card/InfoLabel and Slot2Card/InfoLabel.")]
     [SerializeField] private TMP_Text slot0InfoText;
     [SerializeField] private TMP_Text slot1InfoText;
+    [Tooltip("Per-slot Resume / LoadGameButton. Leave empty to auto-find Slot1Card/Slot2Card → ButtonsRow/LoadGameButton.")]
     [SerializeField] private Button slot0ResumeButton;
     [SerializeField] private Button slot1ResumeButton;
 
@@ -45,6 +46,7 @@ public class SaveSlotMenuUI : MonoBehaviour
     {
         AutoBindInfoLabelsIfNeeded();
         AutoBindSlotButtonsIfNeeded();
+        EnsureDoubleClickResumeOnSlotCards();
         AutoBindNameSelectIfNeeded();
         BindConfirmPopupOnce();
         BindNameSelectOnce();
@@ -140,20 +142,64 @@ public class SaveSlotMenuUI : MonoBehaviour
         slot1ResumeButton ??= FindButtonUnder("Slot2Card", "ButtonsRow/LoadGameButton");
         if (!slot0ResumeButton)
         {
-            var slot1Card = GameObject.Find("Slot1Card");
-            if (slot1Card)
-                slot0ResumeButton = FindResumeLikeButtonUnder(slot1Card.transform);
+            Transform c = FindCardTransformIncludingInactive("Slot1Card");
+            if (c)
+                slot0ResumeButton = FindResumeLikeButtonUnder(c);
         }
 
         if (!slot1ResumeButton)
         {
-            var slot2Card = GameObject.Find("Slot2Card");
-            if (slot2Card)
-                slot1ResumeButton = FindResumeLikeButtonUnder(slot2Card.transform);
+            Transform c = FindCardTransformIncludingInactive("Slot2Card");
+            if (c)
+                slot1ResumeButton = FindResumeLikeButtonUnder(c);
         }
 
         if (slot0ResumeButton != null && slot0ResumeButton == slot1ResumeButton)
             slot1ResumeButton = null;
+    }
+
+    /// <summary>
+    /// <see cref="GameObject.Find"/> skips inactive objects; slot cards are often disabled in the scene asset.
+    /// </summary>
+    private void EnsureDoubleClickResumeOnSlotCards()
+    {
+        EnsureDoubleClickOnCard("Slot1Card", 0);
+        EnsureDoubleClickOnCard("Slot2Card", 1);
+    }
+
+    private void EnsureDoubleClickOnCard(string cardName, int slotIndex)
+    {
+        Transform t = FindCardTransformIncludingInactive(cardName);
+        if (!t)
+            return;
+
+        var dc = t.GetComponent<SaveSlotCardDoubleClickUI>();
+        if (!dc)
+            dc = t.gameObject.AddComponent<SaveSlotCardDoubleClickUI>();
+        dc.menu = this;
+        dc.slotIndex = slotIndex;
+    }
+
+    private static Transform FindCardTransformIncludingInactive(string cardName)
+    {
+        GameObject active = GameObject.Find(cardName);
+        if (active)
+            return active.transform;
+
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int c = 0; c < canvases.Length; c++)
+        {
+            if (!canvases[c])
+                continue;
+            Transform[] all = canvases[c].transform.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i].name == cardName)
+                    return all[i];
+            }
+        }
+
+        return null;
     }
 
     private void AutoBindNameSelectIfNeeded()
@@ -188,20 +234,18 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     private TMP_Text FindInfoLabelUnder(string cardRootName)
     {
-        var card = GameObject.Find(cardRootName);
+        Transform card = FindCardTransformIncludingInactive(cardRootName);
         if (!card) return null;
 
-        var info = card.transform.Find("InfoLabel");
-        if (!info) return null;
-
-        return info.GetComponent<TMP_Text>();
+        Transform info = card.Find("InfoLabel");
+        return info ? info.GetComponent<TMP_Text>() : null;
     }
 
     private Button FindButtonUnder(string cardRootName, string relativePath)
     {
-        var card = GameObject.Find(cardRootName);
+        Transform card = FindCardTransformIncludingInactive(cardRootName);
         if (!card) return null;
-        var node = card.transform.Find(relativePath);
+        Transform node = card.Find(relativePath);
         return node ? node.GetComponent<Button>() : null;
     }
 
@@ -266,6 +310,7 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     private void RefreshSlotButtonsState()
     {
+        // Hide Resume when that slot has no save file (per-slot Load buttons).
         if (slot0ResumeButton)
             slot0ResumeButton.gameObject.SetActive(SaveSlotManager.HasSave(0));
 

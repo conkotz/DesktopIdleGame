@@ -28,17 +28,36 @@ public class SkillListEntryUI : MonoBehaviour
 
     [Header("Selection")]
     [FormerlySerializedAs("background")]
-    [Tooltip("Tinted when this row is selected.")]
+    [Tooltip("Row highlight tint; script sets color from the fields below.")]
     [SerializeField] private Image selectionBackground;
 
     [Header("Selection colours")]
-    [SerializeField] private Color normalColor = new Color(0f, 0f, 0f, 0.2f);
-    [SerializeField] private Color selectedColor = new Color(0.2f, 0.6f, 1f, 0.5f);
+    [SerializeField] private Color normalColor = new Color(0.02f, 0.02f, 0.04f, 0.52f);
+    [SerializeField] private Color selectedColor = new Color(0.07f, 0.09f, 0.13f, 0.58f);
 
     private SkillDefinition _definition;
     private Action<SkillDefinition> _onClicked;
 
     public SkillDefinition Definition => _definition;
+
+    private void Awake()
+    {
+        if (!button)
+            button = GetComponent<Button>();
+
+        // Keep Button clicks/hover/press, but stop EventSystem "selected" focus from tinting only one row
+        // (Selected Color on a list of Buttons). Selection visuals use selectionBackground + SetSelected instead.
+        if (button)
+        {
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+            if (button.transition == Selectable.Transition.ColorTint)
+            {
+                ColorBlock cb = button.colors;
+                cb.selectedColor = cb.normalColor;
+                button.colors = cb;
+            }
+        }
+    }
 
     public void Setup(
         SkillDefinition definition,
@@ -89,8 +108,10 @@ public class SkillListEntryUI : MonoBehaviour
 
     public void SetSelected(bool isSelected)
     {
-        if (selectionBackground)
-            selectionBackground.color = isSelected ? selectedColor : normalColor;
+        if (!selectionBackground)
+            return;
+        selectionBackground.gameObject.SetActive(true);
+        selectionBackground.color = isSelected ? selectedColor : normalColor;
     }
 
     private void HandleClicked()

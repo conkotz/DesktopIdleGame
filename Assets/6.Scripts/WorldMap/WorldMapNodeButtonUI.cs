@@ -20,7 +20,6 @@ public class WorldMapNodeButtonUI : MonoBehaviour
     [SerializeField] private Color dungeonColor = new Color32(88, 106, 122, 255);
     [SerializeField] private Color bossColor = new Color32(118, 60, 90, 255);
     [SerializeField] private Color fallbackColor = new Color32(74, 81, 95, 255);
-    [SerializeField] private Color textColor = Color.white;
     [SerializeField] private Color selectedTint = new Color(1f, 1f, 1f, 0.35f);          // fallback when Selected image has no Image component
 
     private MapNodeDefinition _node;
@@ -100,10 +99,6 @@ public class WorldMapNodeButtonUI : MonoBehaviour
 
         if (button.targetGraphic)
             button.targetGraphic.color = baseCol;
-
-        if (nameText) nameText.color = textColor;
-        if (typeText) typeText.color = textColor;
-        if (stateText) stateText.color = textColor;
     }
 
     private Color ResolveNodeTypeColor(MapNodeDefinition node)

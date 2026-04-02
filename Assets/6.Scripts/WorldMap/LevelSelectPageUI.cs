@@ -14,7 +14,6 @@ public class LevelSelectPageUI : MonoBehaviour
     [SerializeField] private Color regionHoverColor = new Color32(126, 133, 146, 255);
     [SerializeField] private Color regionSelectedColor = new Color(1f, 1f, 1f, 0.35f); // almost-white transparent tint
     [SerializeField] private Color regionPressedColor = new Color32(92, 99, 113, 255);
-    [SerializeField] private Color regionTextColor = Color.white;
 
     [Header("Data")]
     [SerializeField] private WorldMapDefinition worldMap;
@@ -373,10 +372,6 @@ public class LevelSelectPageUI : MonoBehaviour
 
         if (button.targetGraphic)
             button.targetGraphic.color = baseCol;
-
-        TMP_Text txt = button.GetComponentInChildren<TMP_Text>(true);
-        if (txt)
-            txt.color = regionTextColor;
     }
 
     private static Color Lift(Color c, float amount)

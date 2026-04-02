@@ -92,8 +92,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 18
-  m_fontSizeBase: 18
+  m_fontSize: 24
+  m_fontSizeBase: 24
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -382,7 +382,6 @@ MonoBehaviour:
   dungeonColor: {r: 0.34509805, g: 0.41568628, b: 0.47843137, a: 1}
   bossColor: {r: 0.4627451, g: 0.23529412, b: 0.3529412, a: 1}
   fallbackColor: {r: 0.2901961, g: 0.31764707, b: 0.37254903, a: 1}
-  textColor: {r: 0.16862746, g: 0.12941177, b: 0.09411765, a: 1}
   selectedTint: {r: 0.3283019, g: 0.3283019, b: 0.3283019, a: 0.35}
 --- !u!1 &4966439691987314174
 GameObject:
@@ -553,8 +552,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 18
-  m_fontSizeBase: 18
+  m_fontSize: 24
+  m_fontSizeBase: 24
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -701,7 +700,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Region
+  m_text: Name
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -710,8 +709,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4290699767
+  m_fontColor: {r: 0.96981126, g: 0.8825055, b: 0.74474186, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
