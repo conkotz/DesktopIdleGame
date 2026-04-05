@@ -33,6 +33,19 @@ public class EnemyBaseController : MonoBehaviour
     [Tooltip("Move on X only (recommended).")]
     [SerializeField] private bool xOnly = true;
 
+    [Tooltip("Set from EnemyDefinition.idleWander* when a definition is applied.")]
+    [SerializeField] private bool idleWanderEnabled;
+    [SerializeField] private float idleWanderSpeed = 0.8f;
+    [SerializeField] private float idleWanderMoveMinSec = 1f;
+    [SerializeField] private float idleWanderMoveMaxSec = 3f;
+    [SerializeField] private float idleWanderIdleMinSec = 2f;
+    [SerializeField] private float idleWanderIdleMaxSec = 8f;
+
+    private bool _idleWanderInMovePhase = true;
+    private float _idleWanderPhaseEndTime;
+    private float _idleWanderDirSign = 1f;
+    private int _idleWanderPhaseTickFrame = -1;
+
     [Header("Attack (from CharacterStats)")]
     [Tooltip("Delay before damage is applied (for animation timing).")]
     [SerializeField] private float enemyAttackWindup = 0.10f;
@@ -177,6 +190,14 @@ public class EnemyBaseController : MonoBehaviour
 
         moveSpeed = Mathf.Max(0f, def.moveSpeed);
 
+        idleWanderEnabled = def.idleWanderEnabled;
+        idleWanderSpeed = Mathf.Max(0f, def.idleWanderSpeed);
+        idleWanderMoveMinSec = Mathf.Max(0.05f, def.idleWanderMoveMinSec);
+        idleWanderMoveMaxSec = Mathf.Max(idleWanderMoveMinSec, def.idleWanderMoveMaxSec);
+        idleWanderIdleMinSec = Mathf.Max(0.05f, def.idleWanderIdleMinSec);
+        idleWanderIdleMaxSec = Mathf.Max(idleWanderIdleMinSec, def.idleWanderIdleMaxSec);
+        ResetIdleWanderCycle();
+
         stats.RefreshVitalsFromStats(fillIfEmpty: true);
         OnHealthChanged?.Invoke(HP, MaxHP);
     }
@@ -264,6 +285,64 @@ public class EnemyBaseController : MonoBehaviour
 
         OnHealthChanged?.Invoke(HP, MaxHP);
         SetMoving(false);
+        ResetIdleWanderCycle();
+    }
+
+    private void ResetIdleWanderCycle()
+    {
+        if (!idleWanderEnabled || idleWanderSpeed <= 0f)
+            return;
+
+        // Start in the idle (stand still) phase so the first move burst happens after a pause.
+        _idleWanderInMovePhase = false;
+        _idleWanderPhaseEndTime = Time.time +
+            UnityEngine.Random.Range(idleWanderIdleMinSec, idleWanderIdleMaxSec);
+        _idleWanderDirSign = UnityEngine.Random.value < 0.5f ? -1f : 1f;
+    }
+
+    private void TickIdleWanderPhaseIfNeeded()
+    {
+        if (_idleWanderPhaseTickFrame == Time.frameCount)
+            return;
+
+        if (!idleWanderEnabled || idleWanderSpeed <= 0f)
+            return;
+        if (!IsPlayerValidAlive())
+            return;
+        if (EnemyWanderBounds.Instance == null ||
+            !EnemyWanderBounds.Instance.TryGetWorldXBounds(out _, out _))
+            return;
+
+        _idleWanderPhaseTickFrame = Time.frameCount;
+
+        while (Time.time >= _idleWanderPhaseEndTime)
+        {
+            if (_idleWanderInMovePhase)
+            {
+                _idleWanderInMovePhase = false;
+                _idleWanderPhaseEndTime = Time.time +
+                    UnityEngine.Random.Range(idleWanderIdleMinSec, idleWanderIdleMaxSec);
+            }
+            else
+            {
+                _idleWanderInMovePhase = true;
+                _idleWanderPhaseEndTime = Time.time +
+                    UnityEngine.Random.Range(idleWanderMoveMinSec, idleWanderMoveMaxSec);
+                _idleWanderDirSign = UnityEngine.Random.value < 0.5f ? -1f : 1f;
+            }
+        }
+    }
+
+    private bool ShouldShowIdleWanderMoving()
+    {
+        if (!idleWanderEnabled || idleWanderSpeed <= 0f)
+            return false;
+        if (!IsPlayerValidAlive())
+            return false;
+        if (EnemyWanderBounds.Instance == null ||
+            !EnemyWanderBounds.Instance.TryGetWorldXBounds(out _, out _))
+            return false;
+        return _idleWanderInMovePhase;
     }
 
     private void Update()
@@ -296,7 +375,8 @@ public class EnemyBaseController : MonoBehaviour
             _hitQueued = false;
             ClearEngagement();
             state = EnemyState.Idle;
-            SetMoving(false);
+            TickIdleWanderPhaseIfNeeded();
+            SetMoving(ShouldShowIdleWanderMoving());
             return;
         }
 
@@ -353,10 +433,43 @@ public class EnemyBaseController : MonoBehaviour
             float yVel = _rb.linearVelocity.y;
             _rb.linearVelocity = new Vector2(dir * currentMoveSpeed, xOnly ? yVel : _rb.linearVelocity.y);
         }
+        else if (!shouldAggro && TryApplyIdleWanderMovement())
+        {
+            // Wander velocity applied in TryApplyIdleWanderMovement.
+        }
         else
         {
             StopHorizontal();
         }
+    }
+
+    private bool TryApplyIdleWanderMovement()
+    {
+        TickIdleWanderPhaseIfNeeded();
+
+        if (!idleWanderEnabled || idleWanderSpeed <= 0f)
+            return false;
+
+        EnemyWanderBounds wb = EnemyWanderBounds.Instance;
+        if (wb == null || !wb.TryGetWorldXBounds(out float minX, out float maxX))
+            return false;
+
+        if (!_idleWanderInMovePhase)
+            return false;
+
+        float x = transform.position.x;
+        if (x <= minX)
+            _idleWanderDirSign = 1f;
+        else if (x >= maxX)
+            _idleWanderDirSign = -1f;
+
+        FaceTargetX(transform.position.x + _idleWanderDirSign * 100f);
+
+        float ailmentMoveMult = _ailments != null ? _ailments.GetMoveSpeedMultiplier() : 1f;
+        float spd = Mathf.Max(0f, idleWanderSpeed * ailmentMoveMult);
+        float yVel = _rb.linearVelocity.y;
+        _rb.linearVelocity = new Vector2(_idleWanderDirSign * spd, xOnly ? yVel : _rb.linearVelocity.y);
+        return true;
     }
 
     private void StopHorizontal()

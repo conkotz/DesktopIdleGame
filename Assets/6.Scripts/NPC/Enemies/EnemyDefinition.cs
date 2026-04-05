@@ -177,6 +177,28 @@ public class EnemyDefinition : ScriptableObject
     [Tooltip("Maps to CharacterStats baseShockDamageTakenMultiplier.")]
     public float shockDamageTakenMultiplier = 0.15f;
 
+    [Header("Idle wander (optional)")]
+    [Tooltip("When not aggroed, pace horizontally within EnemyWanderBounds (scene) if assigned.")]
+    public bool idleWanderEnabled = false;
+
+    [Tooltip("Horizontal speed during each wander move burst (independent of chase moveSpeed). Use 0 to disable even if enabled above.")]
+    [Min(0f)]
+    public float idleWanderSpeed = 0.8f;
+
+    [Tooltip("Duration of each horizontal move burst while idle (seconds).")]
+    [Min(0.05f)]
+    public float idleWanderMoveMinSec = 1f;
+
+    [Min(0.05f)]
+    public float idleWanderMoveMaxSec = 3f;
+
+    [Tooltip("Duration standing still between move bursts (seconds).")]
+    [Min(0.05f)]
+    public float idleWanderIdleMinSec = 2f;
+
+    [Min(0.05f)]
+    public float idleWanderIdleMaxSec = 8f;
+
     [Header("Notes")]
     [TextArea(2, 8)]
     [Tooltip("Internal notes for designers; not shown in gameplay.")]
