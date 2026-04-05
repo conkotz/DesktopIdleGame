@@ -10,7 +10,7 @@ public class PlayerConsumableController : MonoBehaviour
     [SerializeField] private PlayerController player;
 
     [Header("Debug")]
-    [SerializeField] private bool debugLogs = true;
+    [SerializeField] private bool debugLogs = false;
 
     [SerializeField] private ActionBarUI actionBar;
 

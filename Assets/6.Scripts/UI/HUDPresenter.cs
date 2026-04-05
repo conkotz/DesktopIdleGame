@@ -79,6 +79,9 @@ public class HUDPresenter : MonoBehaviour
         if (buffs != null)
             buffs.OnBuffsChanged += HandleBuffsChanged;
 
+        if (stats != null)
+            stats.OnStatsChanged += HandleStatsChangedForCombatPower;
+
         RefreshAll();
     }
 
@@ -108,6 +111,9 @@ public class HUDPresenter : MonoBehaviour
 
         if (buffs != null)
             buffs.OnBuffsChanged -= HandleBuffsChanged;
+
+        if (stats != null)
+            stats.OnStatsChanged -= HandleStatsChangedForCombatPower;
     }
 
     private void Update()
@@ -131,6 +137,15 @@ public class HUDPresenter : MonoBehaviour
     }
 
     private void HandleNameChanged(string _)
+    {
+        RefreshNameAndCombatPower();
+    }
+
+    /// <summary>
+    /// Combat power is derived (abilities, buffs, gear). The HUD must refresh when stats notify —
+    /// e.g. action bar assignment changes do not touch equipment events.
+    /// </summary>
+    private void HandleStatsChangedForCombatPower()
     {
         RefreshNameAndCombatPower();
     }

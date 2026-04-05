@@ -18,10 +18,10 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
     [SerializeField] private GameObject popupRoot;
 
     [SerializeField] private Button beginButton;
-    [Tooltip("Optional TMP on the Begin button. Pre-trial: Begin; completion: Continue.")]
+    [Tooltip("Optional TMP on the Begin button. Pre-trial: Begin; completion: Finish.")]
     [SerializeField] private TMP_Text beginButtonLabel;
     [SerializeField] private string beginButtonTextPreTrial = "Begin";
-    [SerializeField] private string beginButtonTextAfterTrial = "Continue";
+    [SerializeField] private string beginButtonTextAfterTrial = "Finish";
 
     [Header("Content (TMP)")]
     [Tooltip("Large title (e.g. HeaderText). Set from the active map node's display name.")]

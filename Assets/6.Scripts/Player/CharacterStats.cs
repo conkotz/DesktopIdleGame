@@ -152,6 +152,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private float bonusPickaxeSpeedMult = 0f;
     [SerializeField] private float bonusRodSpeedMult = 0f;
 
+    [Header("Debug")]
+    [SerializeField, Tooltip("Logs ability → combat power (action bar, DB, per-slot DPS). Can be verbose if CP UI refreshes every frame.")]
+    private bool debugAbilityCombatPower;
+
     // Global combat-power tuning (shared across all characters and enemies).
     // Non-serialized by design to avoid per-instance drift in the inspector.
     private const float combatPowerOffenseScale = 3.0f;
@@ -189,7 +193,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!inventory && equipment) inventory = equipment.Inventory;
         if (!toolbelt) toolbelt = GetComponent<ToolbeltManager>();
         if (!buffController) buffController = GetComponent<PlayerBuffController>();
-        _ownerPlayer = GetComponent<PlayerController>();
+        _ownerPlayer = GetComponent<PlayerController>() ?? GetComponentInParent<PlayerController>();
         ResolveOwnerEnemy();
     }
 
@@ -628,7 +632,26 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float directDps = GetStatsSheetDirectDps();
         float ailmentDps = GetStatsSheetAilmentDps();
-        float offenseRaw = directDps + ailmentDps * combatPowerAilmentContributionFactor;
+        float abilityDps = 0f;
+        if (!_ownerPlayer)
+        {
+            if (debugAbilityCombatPower)
+                Debug.LogWarning(
+                    "[CharacterStats] CP: ability DPS skipped — no PlayerController on this hierarchy (GetComponent/GetComponentInParent).",
+                    this);
+        }
+        else
+        {
+            abilityDps = AbilityCombatPower.EstimateTotalSlottedAbilityDps(this, debugAbilityCombatPower);
+            if (debugAbilityCombatPower)
+                Debug.Log(
+                    $"[CharacterStats] CP buckets: directDps={directDps:F4} ailmentDps={ailmentDps:F4} " +
+                    $"× ailmentFactor={combatPowerAilmentContributionFactor:F2} abilityDps={abilityDps:F4} " +
+                    $"offenseRaw={directDps + ailmentDps * combatPowerAilmentContributionFactor + abilityDps:F4}",
+                    this);
+        }
+
+        float offenseRaw = directDps + ailmentDps * combatPowerAilmentContributionFactor + abilityDps;
         float offense = offenseRaw * combatPowerOffenseScale;
 
         float defense = WeightedEffectiveHP * combatPowerDefenseScale;

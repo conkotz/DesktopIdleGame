@@ -17,8 +17,8 @@ using UnityEngine;
 /// </summary>
 public static class RecommendedCombatPower
 {
-    /// <summary>Set false to silence <see cref="DiagLog"/> output. Default true so you can see why CP stayed at fallback while debugging.</summary>
-    public static bool DiagnosticsEnabled = true;
+    /// <summary>Set true to print verbose recommended-CP traces to the Console. Off by default.</summary>
+    public static bool DiagnosticsEnabled = false;
 
     /// <summary>Tuning for endurance trials and combat spawn-plan estimates.</summary>
     public readonly struct Options

@@ -5612,6 +5612,9 @@ MonoBehaviour:
   player: {fileID: 7462036414647869483}
   stats: {fileID: 4199332309700179123}
   combat: {fileID: 343137512557904079}
+  abilityDatabase: {fileID: 0}
+  equipment: {fileID: 0}
+  inventory: {fileID: 0}
   globalCooldownSeconds: 0.15
   powerSlashTrailAnchor: {fileID: 7149526798742480501}
   powerSlashAnchorNameCandidates:
@@ -5686,6 +5689,7 @@ MonoBehaviour:
   baseGatherStaminaCostPerTick: 10
   lowEnergyPopupText: '* Fatigued *'
   fatiguedResumeDelaySeconds: 3
+  enduranceDamagePerXp: 10
   equipment: {fileID: 0}
   toolbelt: {fileID: 0}
   reassertCooldown: 0.08
@@ -5754,17 +5758,7 @@ MonoBehaviour:
   bonusAxeSpeedMult: 0
   bonusPickaxeSpeedMult: 0
   bonusRodSpeedMult: 0
-  combatPowerDefenseScale: 0.1
-  combatPowerSustainScale: 3
-  combatPowerMoveSpeedScale: 1.5
-  combatPowerPhysicalWeight: 0.4
-  combatPowerMagicalWeight: 0.4
-  combatPowerTrueWeight: 0.2
-  combatPowerPhysicalOffenseWeight: 1
-  combatPowerMagicalOffenseWeight: 1.05
-  combatPowerTrueOffenseWeight: 1.3
-  combatPowerBleedWeight: 1
-  combatPowerPoisonWeight: 1.25
+  debugAbilityCombatPower: 0
 --- !u!114 &343137512557904079
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5802,6 +5796,7 @@ MonoBehaviour:
   magicProjectileFireDelay: 0
   idleCombatEnabled: 0
   idleRescanInterval: 0.25
+  retaliationEnabled: 0
   actionBar: {fileID: 0}
   consumableController: {fileID: 0}
   abilityController: {fileID: 0}
@@ -5814,7 +5809,7 @@ MonoBehaviour:
   xpPerDamage: 0.1
   combatXpSource: Combat
   debugLogs: 1
-  dpsWindowSeconds: 10
+  dpsResetOutOfCombatSeconds: 5
 --- !u!114 &4615812802344899198
 MonoBehaviour:
   m_ObjectHideFlags: 0

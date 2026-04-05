@@ -41,6 +41,7 @@ public class PlayerAbilityController : MonoBehaviour
     private const string PowerSlashId = "power_slash";
     private bool _powerSlashQueued;
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
+    private float _queuedPowerSlashMagicalMultiplier = 1f;
     private float _queuedPowerSlashAbilityPowerMultiplier;
 
     private void Awake()
@@ -135,6 +136,7 @@ public class PlayerAbilityController : MonoBehaviour
 
             _powerSlashQueued = true;
             _queuedPowerSlashPhysicalMultiplier = Mathf.Max(0f, def.physicalDamageMultiplier);
+            _queuedPowerSlashMagicalMultiplier = Mathf.Max(0f, def.magicalDamageMultiplier);
             _queuedPowerSlashAbilityPowerMultiplier = Mathf.Max(0f, def.abilityPowerMultiplier);
             return true;
         }
@@ -143,29 +145,36 @@ public class PlayerAbilityController : MonoBehaviour
         if (target == null || target.IsDead)
             return false;
 
-        // Instant-cast damage model:
-        // - base physical = average weapon physical hit (already includes buffs/gear via Min/Max split damage)
-        // - apply physical multiplier to that base hit
-        // - add ability power scaling on top
+        // Instant-cast damage model: physical + magical weapon averages, optional element lines, AP, small ailment hook.
         float basePhysical =
             (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
+        float baseMagical =
+            (Mathf.Max(0f, stats.MinSplitDamage.magical) + Mathf.Max(0f, stats.MaxSplitDamage.magical)) * 0.5f;
 
         float scaledPhysical = basePhysical * Mathf.Max(0f, def.physicalDamageMultiplier);
-        float physicalBonus = Mathf.Max(0f, scaledPhysical - basePhysical);
+        float scaledMagical = baseMagical * Mathf.Max(0f, def.magicalDamageMultiplier);
+        float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float apBonus = Mathf.Max(0f, stats.AbilityPower * Mathf.Max(0f, def.abilityPowerMultiplier));
-        float raw = Mathf.Max(0f, scaledPhysical + apBonus);
+        float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
+        float physPart = scaledPhysical + apBonus;
+        float magPart = scaledMagical + elementBonus + ailmentBonus;
+        float raw = Mathf.Max(0f, physPart + magPart);
 
         bool wasCrit = false;
+        float critMult = 1f;
         if (raw > 0f && UnityEngine.Random.value < Mathf.Clamp01(stats.CritChance))
         {
             wasCrit = true;
-            raw *= Mathf.Max(1f, stats.CritMultiplier);
+            critMult = Mathf.Max(1f, stats.CritMultiplier);
         }
 
-        int final = Mathf.Max(0, Mathf.RoundToInt(raw));
+        int phys = Mathf.Max(0, Mathf.RoundToInt(physPart * critMult));
+        int mag = Mathf.Max(0, Mathf.RoundToInt(magPart * critMult));
         int dealt = 0;
-        if (final > 0)
-            dealt = target.TakeDamage(final, DamageType.Physical, wasCrit, transform);
+        if (phys > 0)
+            dealt += target.TakeDamage(phys, DamageType.Physical, wasCrit, transform);
+        if (mag > 0)
+            dealt += target.TakeDamage(mag, DamageType.Magical, wasCrit, transform);
 
         // Fire the attack anim as feedback, but do not modify basic attack cooldown timing.
         player.TriggerAttackAnim();
@@ -184,11 +193,19 @@ public class PlayerAbilityController : MonoBehaviour
 
         float physicalScaleBonus = Mathf.Max(0f, _queuedPowerSlashPhysicalMultiplier - 1f);
         float physicalBonus = Mathf.Max(0f, rolled.physical * physicalScaleBonus);
+        float magScaleBonus = Mathf.Max(0f, _queuedPowerSlashMagicalMultiplier - 1f);
+        float magicalBonus = Mathf.Max(0f, rolled.magical * magScaleBonus);
         float apBonus = Mathf.Max(0f, stats != null ? stats.AbilityPower * _queuedPowerSlashAbilityPowerMultiplier : 0f);
-        float totalBonus = physicalBonus + apBonus;
+        AbilityDefinition slashDef = GetAbilityDefinition(PowerSlashId);
+        float elementBonus = slashDef != null && stats != null ? AbilityElementScaling.GetElementDamageBonus(slashDef, stats) : 0f;
+        float ailmentBonus = slashDef != null && stats != null ? AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(slashDef, stats) : 0f;
+        float totalBonus = physicalBonus + magicalBonus + apBonus + elementBonus + ailmentBonus;
 
         if (totalBonus > 0f)
-            rolled.physical += totalBonus;
+        {
+            rolled.physical += physicalBonus + apBonus + ailmentBonus;
+            rolled.magical += magicalBonus + elementBonus;
+        }
 
         AbilityDefinition def = GetAbilityDefinition(PowerSlashId);
         if (def)
@@ -399,11 +416,18 @@ public class PlayerAbilityController : MonoBehaviour
         return null;
     }
 
-    private AbilityDefinition GetAbilityDefinition(string abilityId)
+    /// <summary>Resolves the assigned database or Resources default (same as runtime ability lookup).</summary>
+    public AbilityDatabase GetDatabaseOrDefault()
     {
         if (!abilityDatabase)
             abilityDatabase = AbilityDatabase.LoadDefault();
-        return abilityDatabase ? abilityDatabase.Get(abilityId) : null;
+        return abilityDatabase;
+    }
+
+    private AbilityDefinition GetAbilityDefinition(string abilityId)
+    {
+        AbilityDatabase db = GetDatabaseOrDefault();
+        return db ? db.Get(abilityId) : null;
     }
 
     private bool CanUseWithEquippedWeapon(AbilityDefinition def)

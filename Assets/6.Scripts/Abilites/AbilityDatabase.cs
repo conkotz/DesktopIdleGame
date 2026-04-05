@@ -82,6 +82,48 @@ public class AbilityDatabase : ScriptableObject
         return null;
     }
 
+    /// <summary>
+    /// Looks up an ability in <b>every</b> <see cref="AbilityDatabase"/> under Resources (then editor project in Edit mode).
+    /// Use when <see cref="LoadDefault"/> picked a different DB (it chooses the largest list) than the one that contains a slotted ability.
+    /// </summary>
+    public static AbilityDefinition FindDefinitionById(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return null;
+
+        AbilityDatabase[] dbs = Resources.LoadAll<AbilityDatabase>(string.Empty);
+        if (dbs != null)
+        {
+            for (int i = 0; i < dbs.Length; i++)
+            {
+                if (!dbs[i])
+                    continue;
+                AbilityDefinition def = dbs[i].Get(abilityId);
+                if (def)
+                    return def;
+            }
+        }
+
+#if UNITY_EDITOR
+        string[] guids = AssetDatabase.FindAssets("t:AbilityDatabase");
+        if (guids != null)
+        {
+            for (int i = 0; i < guids.Length; i++)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                AbilityDatabase db = AssetDatabase.LoadAssetAtPath<AbilityDatabase>(path);
+                if (!db)
+                    continue;
+                AbilityDefinition def = db.Get(abilityId);
+                if (def)
+                    return def;
+            }
+        }
+#endif
+
+        return null;
+    }
+
     private void OnEnable()
     {
         _byId = null;

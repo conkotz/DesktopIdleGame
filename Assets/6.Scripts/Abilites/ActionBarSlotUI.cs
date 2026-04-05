@@ -327,14 +327,10 @@ public class ActionBarSlotUI : MonoBehaviour,
             );
 
             if (!CanAccept(abilityAssignment))
-            {
-                Debug.Log("[ActionBar] Ability not valid for this slot");
                 return;
-            }
 
             HandleAbilityDropWithUniqueSwap(abilityAssignment);
             AbilityDragState.EndDrag();
-            Debug.Log($"[ActionBar] Assigned ability {abilityDef.displayName} to slot {SlotIndex}");
             return;
         }
 
@@ -353,23 +349,15 @@ public class ActionBarSlotUI : MonoBehaviour,
             return;
 
         if (!itemDef.IsConsumable)
-        {
-            Debug.Log("[ActionBar] Only consumables allowed");
             return;
-        }
 
         ActionBarAssignment itemAssignment = ActionBarAssignment.CreateItem(itemDef);
 
         if (!CanAccept(itemAssignment, itemDef))
-        {
-            Debug.Log("[ActionBar] Item not valid for this slot");
             return;
-        }
 
         Assign(itemAssignment);
         InventoryDragState.EndDrag();
-
-        Debug.Log($"[ActionBar] Assigned {itemDef.displayName} to slot {SlotIndex}");
     }
 
     public void OnPointerClick(PointerEventData eventData)

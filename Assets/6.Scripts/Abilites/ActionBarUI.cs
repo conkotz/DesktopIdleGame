@@ -37,6 +37,14 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>Inspector or runtime default — same DB used to resolve saved bar slots and tooltips.</summary>
+    public AbilityDatabase GetAbilityDatabaseOrDefault()
+    {
+        if (abilityDatabase == null)
+            abilityDatabase = AbilityDatabase.LoadDefault();
+        return abilityDatabase;
+    }
+
     [Header("Slots")]
     [SerializeField] private List<SlotBinding> slotBindings = new();
 
@@ -53,7 +61,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     private int savedStateApplyAttempts;
 
     [Header("Debug")]
-    [SerializeField] private bool debugLogs = true;
+    [SerializeField] private bool debugLogs = false;
     [SerializeField] private bool debugEmptySlots = false;
 
     private void Awake()
@@ -214,6 +222,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         if (SaveManager.Instance != null)
             SaveManager.Instance.Save();
+
+        NotifyPlayerStatsCombatPowerRelevantChange();
 
         if (debugLogs && slot != null)
         {
@@ -479,12 +489,28 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (unresolved <= 0)
         {
             pendingSavedStateApply = false;
+            NotifyPlayerStatsCombatPowerRelevantChange();
             return;
         }
 
         savedStateApplyAttempts++;
         // Keep retrying quietly; this avoids intermittent load order races.
         nextSavedStateApplyTime = Time.unscaledTime + 0.2f;
+    }
+
+    /// <summary>
+    /// Slotted abilities affect <see cref="CharacterStats"/> combat power but not vitals; listeners (HUD, stats panel)
+    /// only refresh when <see cref="CharacterStats.NotifyStatsChanged"/> runs.
+    /// </summary>
+    private void NotifyPlayerStatsCombatPowerRelevantChange()
+    {
+        ResolveCoreRefs();
+        PlayerController pc = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (pc == null)
+            return;
+        CharacterStats s = pc.GetComponent<CharacterStats>();
+        if (s != null)
+            s.NotifyStatsChanged();
     }
 
     private void ResolveCoreRefs()
