@@ -950,6 +950,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyBase
   displayName: Rogue
+  definition: {fileID: 0}
   stats: {fileID: 0}
   player: {fileID: 0}
   playerTag: Player
@@ -997,9 +998,9 @@ MonoBehaviour:
   currentHP: -1
   currentEnergy: -1
   currentMana: -1
-  baseMaxHP: 45
+  baseMaxHP: 1
   baseMaxEnergy: 0
-  baseMaxMana: 50
+  baseMaxMana: 1
   baseArmor: 0
   baseMagicResist: 0
   basePhysBlockChance: 0
@@ -1007,20 +1008,20 @@ MonoBehaviour:
   baseMoveSpeedMult: 0
   baseLifeRegen: 0
   baseEnergyRegen: 0
-  baseManaRegen: 1
-  baseMinPhysicalDamage: 4
-  baseMaxPhysicalDamage: 7
+  baseManaRegen: 0
+  baseMinPhysicalDamage: 1
+  baseMaxPhysicalDamage: 2
   baseMinMagicDamage: 0
   baseMaxMagicDamage: 0
-  baseMinTrueDamage: 1
-  baseMaxTrueDamage: 3
+  baseMinTrueDamage: 0
+  baseMaxTrueDamage: 0
   baseAbilityPower: 0
   baseLifeSteal: 0
   baseBleedChance: 0
   baseBleedMultiplier: 0
   baseBleedDuration: 5
-  basePoisonChance: 0.282
-  basePoisonMultiplier: 0.2
+  basePoisonChance: 0
+  basePoisonMultiplier: 0
   basePoisonDuration: 5
   basePoisonMaxStacks: 3
   baseMagicAttackType: 0
@@ -1038,7 +1039,7 @@ MonoBehaviour:
   toolbelt: {fileID: 0}
   unarmedMinPhysicalDamage: 0
   unarmedMaxPhysicalDamage: 0
-  unarmedAttacksPerSecond: 1.1
+  unarmedAttacksPerSecond: 0
   unarmedRange: 1
   unarmedCritChance: 0
   unarmedCritMultiplier: 1.5

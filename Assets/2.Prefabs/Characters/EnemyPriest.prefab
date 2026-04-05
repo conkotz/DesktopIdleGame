@@ -428,8 +428,8 @@ GameObject:
   - component: {fileID: 4000013296727282}
   - component: {fileID: 95000010463452298}
   - component: {fileID: 816223889505920290}
-  - component: {fileID: -1068267804871366292}
   - component: {fileID: -2765904712510076592}
+  - component: {fileID: -1068267804871366292}
   - component: {fileID: 8671245396359910078}
   - component: {fileID: -3358630862535001157}
   - component: {fileID: -4049598128116528223}
@@ -508,71 +508,6 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 4
---- !u!114 &-1068267804871366292
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1000013034572668}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ca62f303b7a96e54799a617842982a7b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CharacterStats
-  buffController: {fileID: 0}
-  unitDisplayName: Priest
-  currentHP: -1
-  currentEnergy: -1
-  currentMana: -1
-  baseMaxHP: 100
-  baseMaxEnergy: 100
-  baseMaxMana: 50
-  baseArmor: 0
-  baseMagicResist: 0
-  basePhysBlockChance: 0
-  baseMoveSpeed: 3
-  baseMoveSpeedMult: 1
-  baseLifeRegen: 1
-  baseEnergyRegen: 10
-  baseManaRegen: 1
-  baseMinPhysicalDamage: 0
-  baseMaxPhysicalDamage: 0
-  baseMinMagicDamage: 8
-  baseMaxMagicDamage: 12
-  baseMinTrueDamage: 0
-  baseMaxTrueDamage: 0
-  baseAbilityPower: 0
-  baseLifeSteal: 0
-  baseBleedChance: 0
-  baseBleedMultiplier: 0
-  baseBleedDuration: 5
-  basePoisonChance: 0
-  basePoisonMultiplier: 0
-  basePoisonDuration: 5
-  basePoisonMaxStacks: 3
-  baseMagicAttackType: 1
-  baseMagicAilmentApplyChance: 0.5
-  baseChillDuration: 5
-  baseChillMaxStacks: 6
-  baseChillSlowPerStack: 0.15
-  baseBurnHitsToExplode: 4
-  baseBurnExplosionMultiplier: 0.5
-  baseShockDuration: 5
-  baseShockDamageTakenMultiplier: 0.15
-  dualWieldApsBonus: 1.15
-  equipment: {fileID: 0}
-  inventory: {fileID: 0}
-  toolbelt: {fileID: 0}
-  unarmedMinPhysicalDamage: 1
-  unarmedMaxPhysicalDamage: 2
-  unarmedAttacksPerSecond: 1
-  unarmedRange: 8
-  unarmedCritChance: 0
-  unarmedCritMultiplier: 1.5
-  bonusAxeSpeedMult: 0
-  bonusPickaxeSpeedMult: 0
-  bonusRodSpeedMult: 0
 --- !u!114 &-2765904712510076592
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -586,6 +521,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyBaseController
   displayName: Priest
+  definition: {fileID: 0}
   stats: {fileID: 0}
   player: {fileID: 0}
   playerTag: Player
@@ -608,14 +544,79 @@ MonoBehaviour:
   goldMax: 300
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
-  visualsRoot: {fileID: 4000011028196368, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
+  visualsRoot: {fileID: 4000013296727282}
   invertFlip: 1
-  uiRoot: {fileID: 1366391345936473447, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
+  uiRoot: {fileID: 7973775663334555478}
   nameLabel: {fileID: 0}
   hpBar: {fileID: 0}
   damagePopupAnchor: {fileID: 0}
   drawGizmos: 1
   state: 0
+--- !u!114 &-1068267804871366292
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000013034572668}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca62f303b7a96e54799a617842982a7b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterStats
+  buffController: {fileID: 0}
+  unitDisplayName: Adventurer
+  currentHP: -1
+  currentEnergy: -1
+  currentMana: -1
+  baseMaxHP: 100
+  baseMaxEnergy: 100
+  baseMaxMana: 50
+  baseArmor: 0
+  baseMagicResist: 0
+  basePhysBlockChance: 0
+  baseMoveSpeed: 3
+  baseMoveSpeedMult: 1
+  baseLifeRegen: 1
+  baseEnergyRegen: 10
+  baseManaRegen: 1
+  baseMinPhysicalDamage: 0
+  baseMaxPhysicalDamage: 0
+  baseMinMagicDamage: 0
+  baseMaxMagicDamage: 0
+  baseMinTrueDamage: 0
+  baseMaxTrueDamage: 0
+  baseAbilityPower: 0
+  baseLifeSteal: 0
+  baseBleedChance: 0
+  baseBleedMultiplier: 0
+  baseBleedDuration: 5
+  basePoisonChance: 0
+  basePoisonMultiplier: 0
+  basePoisonDuration: 5
+  basePoisonMaxStacks: 3
+  baseMagicAttackType: 0
+  baseMagicAilmentApplyChance: 0
+  baseChillDuration: 5
+  baseChillMaxStacks: 6
+  baseChillSlowPerStack: 0.15
+  baseBurnHitsToExplode: 4
+  baseBurnExplosionMultiplier: 0.5
+  baseShockDuration: 5
+  baseShockDamageTakenMultiplier: 0.15
+  dualWieldApsBonus: 1.15
+  equipment: {fileID: 0}
+  inventory: {fileID: 0}
+  toolbelt: {fileID: 0}
+  unarmedMinPhysicalDamage: 1
+  unarmedMaxPhysicalDamage: 2
+  unarmedAttacksPerSecond: 1
+  unarmedRange: 1
+  unarmedCritChance: 0
+  unarmedCritMultiplier: 1.5
+  bonusAxeSpeedMult: 0
+  bonusPickaxeSpeedMult: 0
+  bonusRodSpeedMult: 0
 --- !u!114 &8671245396359910078
 MonoBehaviour:
   m_ObjectHideFlags: 0

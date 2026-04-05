@@ -104,6 +104,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyBaseController
   displayName: Dummy Knight
+  definition: {fileID: 0}
   stats: {fileID: 0}
   player: {fileID: 0}
   playerTag: Player
@@ -147,23 +148,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterStats
   buffController: {fileID: 0}
-  unitDisplayName: Dummy Knight
+  unitDisplayName: Adventurer
   currentHP: -1
   currentEnergy: -1
   currentMana: -1
-  baseMaxHP: 150
-  baseMaxEnergy: 0
-  baseMaxMana: 0
+  baseMaxHP: 100
+  baseMaxEnergy: 100
+  baseMaxMana: 50
   baseArmor: 0
-  baseMagicResist: 50
+  baseMagicResist: 0
   basePhysBlockChance: 0
-  baseMoveSpeed: 0
-  baseMoveSpeedMult: 0
-  baseLifeRegen: 5
-  baseEnergyRegen: 0
-  baseManaRegen: 0
-  baseMinPhysicalDamage: 1
-  baseMaxPhysicalDamage: 2
+  baseMoveSpeed: 3
+  baseMoveSpeedMult: 1
+  baseLifeRegen: 1
+  baseEnergyRegen: 10
+  baseManaRegen: 1
+  baseMinPhysicalDamage: 0
+  baseMaxPhysicalDamage: 0
   baseMinMagicDamage: 0
   baseMaxMagicDamage: 0
   baseMinTrueDamage: 0
@@ -190,11 +191,11 @@ MonoBehaviour:
   equipment: {fileID: 0}
   inventory: {fileID: 0}
   toolbelt: {fileID: 0}
-  unarmedMinPhysicalDamage: 0
-  unarmedMaxPhysicalDamage: 0
-  unarmedAttacksPerSecond: 0.6
-  unarmedRange: 1.5
-  unarmedCritChance: 0.1
+  unarmedMinPhysicalDamage: 1
+  unarmedMaxPhysicalDamage: 2
+  unarmedAttacksPerSecond: 1
+  unarmedRange: 1
+  unarmedCritChance: 0
   unarmedCritMultiplier: 1.5
   bonusAxeSpeedMult: 0
   bonusPickaxeSpeedMult: 0

@@ -35,7 +35,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: -1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4000010376655498}
@@ -104,6 +104,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyBaseController
   displayName: Knight
+  definition: {fileID: 0}
   stats: {fileID: 0}
   player: {fileID: 0}
   playerTag: Player
@@ -147,23 +148,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterStats
   buffController: {fileID: 0}
-  unitDisplayName: Knight
+  unitDisplayName: Adventurer
   currentHP: -1
   currentEnergy: -1
   currentMana: -1
-  baseMaxHP: 300
-  baseMaxEnergy: 0
+  baseMaxHP: 100
+  baseMaxEnergy: 100
   baseMaxMana: 50
-  baseArmor: 50
+  baseArmor: 0
   baseMagicResist: 0
-  basePhysBlockChance: 0.1
-  baseMoveSpeed: 0
-  baseMoveSpeedMult: 0
-  baseLifeRegen: 2
-  baseEnergyRegen: 0
+  basePhysBlockChance: 0
+  baseMoveSpeed: 3
+  baseMoveSpeedMult: 1
+  baseLifeRegen: 1
+  baseEnergyRegen: 10
   baseManaRegen: 1
-  baseMinPhysicalDamage: 12
-  baseMaxPhysicalDamage: 16
+  baseMinPhysicalDamage: 0
+  baseMaxPhysicalDamage: 0
   baseMinMagicDamage: 0
   baseMaxMagicDamage: 0
   baseMinTrueDamage: 0
@@ -190,11 +191,11 @@ MonoBehaviour:
   equipment: {fileID: 0}
   inventory: {fileID: 0}
   toolbelt: {fileID: 0}
-  unarmedMinPhysicalDamage: 0
-  unarmedMaxPhysicalDamage: 0
-  unarmedAttacksPerSecond: 0.6
-  unarmedRange: 1.5
-  unarmedCritChance: 0.1
+  unarmedMinPhysicalDamage: 1
+  unarmedMaxPhysicalDamage: 2
+  unarmedAttacksPerSecond: 1
+  unarmedRange: 1
+  unarmedCritChance: 0
   unarmedCritMultiplier: 1.5
   bonusAxeSpeedMult: 0
   bonusPickaxeSpeedMult: 0

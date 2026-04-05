@@ -197,14 +197,17 @@ public class LevelSpawnDirector : MonoBehaviour
 
         foreach (SpawnPrefabCount entry in plan.spawns)
         {
-            if (entry == null || !entry.prefab || entry.count <= 0)
+            if (entry == null || entry.count <= 0)
+                continue;
+
+            if (!entry.TryResolveSpawnPrefab(out GameObject prefabAsset, out EnemyDefinition defForInit, this, logSpawns))
                 continue;
 
             string gid = ResolveSpawnGroupId(plan, entry);
             if (string.IsNullOrWhiteSpace(gid))
             {
                 if (logSpawns)
-                    Debug.LogWarning("[LevelSpawnDirector] Spawn row has no Group Id (set plan default or Spawn Point Group Id on the row).", entry.prefab);
+                    Debug.LogWarning("[LevelSpawnDirector] Spawn row has no Group Id (set plan default or Spawn Point Group Id on the row).", this);
                 continue;
             }
 
@@ -223,8 +226,8 @@ public class LevelSpawnDirector : MonoBehaviour
                 continue;
             }
 
-            if (!entry.prefab.activeSelf && logSpawns)
-                Debug.LogWarning($"[LevelSpawnDirector] Prefab '{entry.prefab.name}' is inactive in the Project. Instances would be invisible unless activated.", entry.prefab);
+            if (!prefabAsset.activeSelf && logSpawns)
+                Debug.LogWarning($"[LevelSpawnDirector] Prefab '{prefabAsset.name}' is inactive in the Project. Instances would be invisible unless activated.", prefabAsset);
 
             for (int c = 0; c < entry.count; c++)
             {
@@ -232,9 +235,12 @@ public class LevelSpawnDirector : MonoBehaviour
                 if (!p)
                     return;
 
-                GameObject inst = Instantiate(entry.prefab, p.position, p.rotation, parent);
+                GameObject inst = Instantiate(prefabAsset, p.position, p.rotation, parent);
                 if (!inst.activeSelf)
                     inst.SetActive(true);
+
+                if (defForInit != null)
+                    ApplyEnemyDefinitionAfterSpawn(inst, defForInit);
 
                 collectRoots?.Add(inst);
 
@@ -250,9 +256,29 @@ public class LevelSpawnDirector : MonoBehaviour
                 {
                     if (hadToReuse)
                         Debug.LogWarning($"[LevelSpawnDirector] Group '{gid}' ran out of free spawn points; reusing a location. Add more points to avoid overlaps.", pointGroup);
-                    // per-instance info logs intentionally suppressed (too noisy during gameplay).
                 }
             }
+        }
+    }
+
+    private void ApplyEnemyDefinitionAfterSpawn(GameObject instance, EnemyDefinition def)
+    {
+        if (!def || !instance)
+            return;
+
+        EnemyBaseController ec = instance.GetComponent<EnemyBaseController>() ??
+                                  instance.GetComponentInChildren<EnemyBaseController>(true);
+        if (ec != null)
+        {
+            ec.InitializeFromDefinition(def);
+            return;
+        }
+
+        if (logSpawns)
+        {
+            Debug.LogWarning(
+                $"[LevelSpawnDirector] EnemyDefinition '{def.name}' was used but instance '{instance.name}' has no EnemyBaseController (root or children).",
+                instance);
         }
     }
 

@@ -51,10 +51,69 @@ public class SpawnPrefabCount
     [Tooltip("SpawnPointGroup.groupId in the scene. Leave empty to use the wave default (endurance) or the parent plan Group Id (combat spawn plans).")]
     public string spawnPointGroupId = "";
 
+    [Header("Content (EnemyDefinition preferred)")]
+    [Tooltip("Preferred reference. Runtime resolves prefab via this asset and calls EnemyBaseController.InitializeFromDefinition when spawning enemies.")]
+    public EnemyDefinition enemyDefinition;
+
+    [Tooltip("Legacy / fallback prefab. Used when Enemy Definition is empty, or when the definition has no prefab but this field is set.")]
     public GameObject prefab;
 
     [Min(1)]
     public int count = 1;
+
+    /// <summary>
+    /// Resolves which prefab to instantiate: <see cref="enemyDefinition"/> first, then <see cref="prefab"/>.
+    /// When the definition has no prefab, falls back to <see cref="prefab"/> if set.
+    /// </summary>
+    /// <param name="usedDefinitionForInit">Non-null when <see cref="enemyDefinition"/> was assigned and should be passed to <see cref="EnemyBaseController.InitializeFromDefinition"/>.</param>
+    public bool TryResolveSpawnPrefab(out GameObject resolvedPrefab, out EnemyDefinition usedDefinitionForInit, UnityEngine.Object logContext, bool logWarnings)
+    {
+        resolvedPrefab = null;
+        usedDefinitionForInit = null;
+
+        if (enemyDefinition != null)
+        {
+            usedDefinitionForInit = enemyDefinition;
+            resolvedPrefab = enemyDefinition.ResolveSpawnPrefab();
+
+            if (resolvedPrefab == null && prefab != null)
+            {
+                resolvedPrefab = prefab;
+                if (logWarnings)
+                {
+                    Debug.LogWarning(
+                        $"[Spawn] EnemyDefinition '{enemyDefinition.name}' has no prefab assigned; using the spawn row's fallback prefab (Spawn Point Group Id: '{spawnPointGroupId}').",
+                        enemyDefinition);
+                }
+            }
+            else if (resolvedPrefab == null)
+            {
+                if (logWarnings)
+                {
+                    Debug.LogWarning(
+                        $"[Spawn] EnemyDefinition '{enemyDefinition.name}' has no prefab and this row has no fallback prefab — skipped.",
+                        enemyDefinition);
+                }
+
+                usedDefinitionForInit = null;
+                return false;
+            }
+
+            return true;
+        }
+
+        if (prefab != null)
+        {
+            resolvedPrefab = prefab;
+            usedDefinitionForInit = null;
+            return true;
+        }
+
+        if (logWarnings)
+            Debug.LogWarning("[Spawn] Spawn row has no EnemyDefinition and no prefab — skipped.", logContext);
+
+        return false;
+    }
 }
 
 /// <summary>
@@ -159,7 +218,9 @@ public class EnduranceWavePlan : ISerializationCallbackReceiver
             for (int j = 0; j < gp.spawns.Count; j++)
             {
                 SpawnPrefabCount s = gp.spawns[j];
-                if (s == null || !s.prefab || s.count <= 0)
+                if (s == null || s.count <= 0)
+                    continue;
+                if (!s.prefab && s.enemyDefinition == null)
                     continue;
 
                 string rowGid = !string.IsNullOrWhiteSpace(s.spawnPointGroupId)
@@ -169,6 +230,7 @@ public class EnduranceWavePlan : ISerializationCallbackReceiver
                 spawns.Add(new SpawnPrefabCount
                 {
                     spawnPointGroupId = rowGid,
+                    enemyDefinition = s.enemyDefinition,
                     prefab = s.prefab,
                     count = s.count
                 });

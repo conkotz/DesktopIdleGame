@@ -111,7 +111,12 @@ public static class CombatProfileThresholds
     public const float WardedMagEhpOverTrueMin = 1.12f;
 
     public const int TankMinMaxHp = 35;
-    public const float TankMitigationEhpOverTrueMax = 1.10f;
+
+    /// <summary>
+    /// Max ratio of physical (or magical) effective HP vs true EHP for "low mitigation" Tank identity.
+    /// ~10% phys block alone yields ~1.11; keep above that so block-only dummies still qualify as Tank.
+    /// </summary>
+    public const float TankMitigationEhpOverTrueMax = 1.15f;
 
     public const float SustainingMin = 0.32f;
 
@@ -124,7 +129,7 @@ public static class CombatProfileThresholds
 
 /// <summary>
 /// Classifies a unit by CP distribution and defensive identity. Priority: Relentless → Glass Cannon → Deadly →
-/// Armoured → Warded → Tank → Sustaining → Nimble → Bruiser → Balanced.
+/// Tank (HP-forward) → Armoured → Warded → Tank → Sustaining → Nimble → Bruiser → Balanced.
 /// </summary>
 public static class CombatProfileClassifier
 {
@@ -167,6 +172,19 @@ public static class CombatProfileClassifier
             && pD <= CombatProfileThresholds.DeadlyDefenseMax
             && pO > pD)
             return CombatProfileLabel.Deadly;
+
+        // 3b Tank (HP pool) — large MaxHP with flat mitigation when offense CP dominates (pD below defense threshold).
+        // Without this, high-HP training dummies / punch bags read as Balanced because defense share looks small vs DPS CP.
+        if (pD < CombatProfileThresholds.DefenseProfileMin)
+        {
+            bool lowMitigation = physOverTrue <= CombatProfileThresholds.TankMitigationEhpOverTrueMax
+                                 && magOverTrue <= CombatProfileThresholds.TankMitigationEhpOverTrueMax;
+            if (lowMitigation
+                && d.MaxHP >= CombatProfileThresholds.TankMinMaxHp
+                && d.Armor < CombatProfileThresholds.ArmouredMinArmor
+                && d.MagicResist < CombatProfileThresholds.WardedMinMagicResist)
+                return CombatProfileLabel.Tank;
+        }
 
         // 4–6 Defense identities (defense must matter in CP)
         if (pD >= CombatProfileThresholds.DefenseProfileMin)

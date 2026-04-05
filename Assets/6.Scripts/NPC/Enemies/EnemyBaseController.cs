@@ -12,6 +12,10 @@ public class EnemyBaseController : MonoBehaviour
 
     [SerializeField] private string displayName = "Enemy";
 
+    [Header("Data (source of truth)")]
+    [Tooltip("When assigned, base stats and display name are applied from this asset at runtime. Leave empty to keep prefab CharacterStats values.")]
+    [SerializeField] private EnemyDefinition definition;
+
     [Header("Shared Stats")]
     [SerializeField] private CharacterStats stats;
 
@@ -23,7 +27,8 @@ public class EnemyBaseController : MonoBehaviour
     [SerializeField] private float aggroRange = 5f;
 
     [Header("Movement")]
-    [Tooltip("Chase speed. Also used for this enemy's combat power mobility + Relentless profile (via CharacterStats).")]
+    [Tooltip("Chase speed. 0 = stationary (e.g. target dummy, fixed boss). Also feeds combat power mobility (via CharacterStats).")]
+    [Min(0f)]
     [SerializeField] private float moveSpeed = 2.5f;
     [Tooltip("Move on X only (recommended).")]
     [SerializeField] private bool xOnly = true;
@@ -118,6 +123,18 @@ public class EnemyBaseController : MonoBehaviour
 
     public string DisplayName => displayName;
 
+    /// <summary>Active data asset; set in the inspector or via <see cref="InitializeFromDefinition"/>.</summary>
+    public EnemyDefinition Definition => definition;
+
+    public string EnemyId => definition ? definition.enemyId : "";
+
+    public string EnemyDescription => definition ? definition.description : "";
+
+    public Sprite EnemyIcon => definition ? definition.icon : null;
+
+    /// <summary>Combat profile label derived from stats (same as <see cref="CharacterStats.GetCombatProfileLabel"/>).</summary>
+    public string CombatProfileLabel => stats ? stats.GetCombatProfileLabel() : "";
+
     public event Action<int, int> OnHealthChanged;
     public event Action OnDeath;
     public event Action<int, bool> OnDamaged;
@@ -128,6 +145,40 @@ public class EnemyBaseController : MonoBehaviour
         if (string.IsNullOrWhiteSpace(newName)) return;
         displayName = newName;
         OnNameChanged?.Invoke(displayName);
+    }
+
+    /// <summary>
+    /// Applies identity and combat values from <paramref name="def"/>; behaviour and visuals stay on the prefab.
+    /// Call immediately after spawning if you assign the definition from code (after Awake has run without a definition).
+    /// </summary>
+    public void InitializeFromDefinition(EnemyDefinition def)
+    {
+        if (def == null)
+        {
+            Debug.LogWarning($"[Enemy] InitializeFromDefinition(null) on '{name}' — keeping prefab stats.", this);
+            return;
+        }
+
+        definition = def;
+
+        if (!stats)
+            stats = GetComponent<CharacterStats>();
+
+        if (!stats)
+        {
+            Debug.LogError($"[Enemy] {name} is missing CharacterStats.", this);
+            return;
+        }
+
+        stats.ApplyEnemyDefinition(def);
+
+        string dn = string.IsNullOrWhiteSpace(def.displayName) ? "Enemy" : def.displayName.Trim();
+        SetDisplayName(dn);
+
+        moveSpeed = Mathf.Max(0f, def.moveSpeed);
+
+        stats.RefreshVitalsFromStats(fillIfEmpty: true);
+        OnHealthChanged?.Invoke(HP, MaxHP);
     }
 
     private void Awake()
@@ -167,6 +218,9 @@ public class EnemyBaseController : MonoBehaviour
             if (!t) t = transform.Find("UI");
             if (t) uiRoot = t;
         }
+
+        if (definition != null)
+            InitializeFromDefinition(definition);
     }
 
     private void OnEnable()

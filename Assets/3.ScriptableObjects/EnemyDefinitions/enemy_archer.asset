@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4de60bca8597d954ea0c7c5a377a09cf, type: 3}
+  m_Name: enemy_archer
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
+  enemyId: enemy_archer
+  displayName: Archer
+  description: 
+  icon: {fileID: 0}
+  prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
+  maxHealth: 40
+  maxEnergy: 0
+  maxMana: 0
+  armor: 0
+  magicResist: 0
+  physBlockChance: 0
+  minPhysicalDamage: 28
+  maxPhysicalDamage: 35
+  minMagicDamage: 0
+  maxMagicDamage: 0
+  minTrueDamage: 0
+  maxTrueDamage: 0
+  attackSpeed: 0.3
+  moveSpeed: 2
+  attackRange: 8
+  critChance: 0
+  critMultiplier: 1.5
+  lifeRegenPerSecond: 0
+  energyRegenPerSecond: 0
+  manaRegenPerSecond: 1
+  abilityPower: 0
+  lifeSteal: 0
+  bleedChance: 0.5
+  bleedMultiplier: 0
+  bleedDuration: 5
+  poisonChance: 0
+  poisonMultiplier: 0
+  poisonDuration: 5
+  poisonMaxStacks: 3
+  magicAttackType: 0
+  burnChance: 0
+  chillChance: 0
+  shockChance: 0
+  chillDuration: 5
+  chillMaxStacks: 6
+  chillSlowPerStack: 0.15
+  burnHitsToExplode: 4
+  burnExplosionMultiplier: 0.5
+  shockDuration: 5
+  shockDamageTakenMultiplier: 0.15
+  designerNotes: 

@@ -228,7 +228,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             _ownerEnemy = GetComponent<EnemyBaseController>();
 
         if (_ownerEnemy)
-            return Mathf.Max(0.01f, _ownerEnemy.MoveSpeed);
+            return Mathf.Max(0f, _ownerEnemy.MoveSpeed);
 
         return Mathf.Max(0.01f, FinalMoveSpeed);
     }
@@ -1495,6 +1495,78 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         if (string.IsNullOrWhiteSpace(newName)) return;
         unitDisplayName = newName;
+        OnNameChanged?.Invoke(unitDisplayName);
+    }
+
+    /// <summary>
+    /// Applies base combat numbers from an <see cref="EnemyDefinition"/>.
+    /// Enemies use the unarmed attack path (no weapon); physical damage maps to unarmed min/max.
+    /// </summary>
+    public void ApplyEnemyDefinition(EnemyDefinition def)
+    {
+        if (def == null) return;
+
+        if (!GetComponent<EnemyBaseController>())
+        {
+            Debug.LogWarning("[CharacterStats] ApplyEnemyDefinition is only valid on enemies with EnemyBaseController.", this);
+            return;
+        }
+
+        unitDisplayName = string.IsNullOrWhiteSpace(def.displayName) ? "Enemy" : def.displayName.Trim();
+
+        baseMaxHP = Mathf.Max(1, def.maxHealth);
+        baseMaxEnergy = Mathf.Max(0, def.maxEnergy);
+        baseMaxMana = Mathf.Max(0, def.maxMana);
+        baseArmor = Mathf.Max(0, def.armor);
+        baseMagicResist = Mathf.Max(0, def.magicResist);
+        basePhysBlockChance = Mathf.Clamp01(def.physBlockChance);
+
+        baseMinPhysicalDamage = 0f;
+        baseMaxPhysicalDamage = 0f;
+
+        unarmedMinPhysicalDamage = Mathf.Max(0, def.minPhysicalDamage);
+        unarmedMaxPhysicalDamage = Mathf.Max(unarmedMinPhysicalDamage, def.maxPhysicalDamage);
+
+        baseMinMagicDamage = Mathf.Max(0f, def.minMagicDamage);
+        baseMaxMagicDamage = Mathf.Max(baseMinMagicDamage, def.maxMagicDamage);
+        baseMinTrueDamage = Mathf.Max(0f, def.minTrueDamage);
+        baseMaxTrueDamage = Mathf.Max(baseMinTrueDamage, def.maxTrueDamage);
+
+        baseAbilityPower = Mathf.Max(0f, def.abilityPower);
+        baseLifeSteal = Mathf.Clamp01(def.lifeSteal);
+
+        unarmedAttacksPerSecond = Mathf.Max(0.01f, def.attackSpeed);
+        baseMoveSpeed = Mathf.Max(0f, def.moveSpeed);
+        baseMoveSpeedMult = 1f;
+        unarmedRange = Mathf.Max(0.1f, def.attackRange);
+
+        unarmedCritChance = Mathf.Clamp01(def.critChance);
+        unarmedCritMultiplier = Mathf.Max(1f, def.critMultiplier);
+
+        baseLifeRegen = Mathf.Max(0f, def.lifeRegenPerSecond);
+        baseEnergyRegen = Mathf.Max(0f, def.energyRegenPerSecond);
+        baseManaRegen = Mathf.Max(0f, def.manaRegenPerSecond);
+
+        baseBleedChance = Mathf.Clamp01(def.bleedChance);
+        baseBleedMultiplier = Mathf.Max(0f, def.bleedMultiplier);
+        baseBleedDuration = Mathf.Max(0.1f, def.bleedDuration);
+
+        basePoisonChance = Mathf.Clamp01(def.poisonChance);
+        basePoisonMultiplier = Mathf.Max(0f, def.poisonMultiplier);
+        basePoisonDuration = Mathf.Max(0.1f, def.poisonDuration);
+        basePoisonMaxStacks = Mathf.Max(1, def.poisonMaxStacks);
+
+        baseMagicAttackType = def.magicAttackType;
+        baseMagicAilmentApplyChance = def.ResolveMagicAilmentApplyChance();
+        baseChillDuration = Mathf.Max(0.1f, def.chillDuration);
+        baseChillMaxStacks = Mathf.Max(1, def.chillMaxStacks);
+        baseChillSlowPerStack = Mathf.Clamp01(def.chillSlowPerStack);
+        baseBurnHitsToExplode = Mathf.Max(2, def.burnHitsToExplode);
+        baseBurnExplosionMultiplier = Mathf.Max(0f, def.burnExplosionMultiplier);
+        baseShockDuration = Mathf.Max(0.1f, def.shockDuration);
+        baseShockDamageTakenMultiplier = Mathf.Clamp01(def.shockDamageTakenMultiplier);
+
+        OnStatsChanged?.Invoke();
         OnNameChanged?.Invoke(unitDisplayName);
     }
 
