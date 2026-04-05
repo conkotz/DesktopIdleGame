@@ -27,8 +27,8 @@ MonoBehaviour:
   maxPhysicalDamage: 16
   minMagicDamage: 0
   maxMagicDamage: 0
-  minTrueDamage: 3
-  maxTrueDamage: 5
+  minTrueDamage: 0
+  maxTrueDamage: 0
   attackSpeed: 0.5
   moveSpeed: 2
   attackRange: 2
@@ -42,7 +42,7 @@ MonoBehaviour:
   bleedChance: 0
   bleedMultiplier: 0
   bleedDuration: 5
-  poisonChance: 0.25
+  poisonChance: 0
   poisonMultiplier: 0
   poisonDuration: 5
   poisonMaxStacks: 3
@@ -57,4 +57,10 @@ MonoBehaviour:
   burnExplosionMultiplier: 0.5
   shockDuration: 5
   shockDamageTakenMultiplier: 0.15
+  idleWanderEnabled: 0
+  idleWanderSpeed: 0.8
+  idleWanderMoveMinSec: 1
+  idleWanderMoveMaxSec: 3
+  idleWanderIdleMinSec: 2
+  idleWanderIdleMaxSec: 8
   designerNotes: 

@@ -113,7 +113,7 @@ public class SaveManager : MonoBehaviour
     {
         var data = new SaveData
         {
-            version = 2,
+            version = 3,
             savedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
 
@@ -172,7 +172,7 @@ public class SaveManager : MonoBehaviour
 
         var data = new SaveData
         {
-            version = 2,
+            version = 3,
             savedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
 

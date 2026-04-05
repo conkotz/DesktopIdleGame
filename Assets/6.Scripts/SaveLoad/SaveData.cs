@@ -6,7 +6,7 @@ using UnityEngine;
 public class SaveData
 {
     [Header("Meta")]
-    public int version = 2;
+    public int version = 3;
     public long savedAtUnix;
 
     [Header("World / Map")]
@@ -15,6 +15,12 @@ public class SaveData
 
     [Tooltip("Cached display label for save slot UI (denormalized).")]
     public string activeMapDisplayName = "";
+
+    [Header("Endurance trials")]
+    [Tooltip("Parallel lists: MapNodeDefinition.nodeId → max selectable tier (1–5) for that trial.")]
+    public List<string> enduranceTrialNodeIds = new();
+
+    public List<int> enduranceTrialMaxSelectableTier = new();
 
     [Header("Player")]
     [Tooltip("Auto-retaliate when struck (PlayerCombatController).")]

@@ -17,7 +17,7 @@ MonoBehaviour:
   description: "Can you survive the continuous waves of enemies?\nTest Spacing \nTest
     Spacing\nTest Spacing\nTest Spacing\nTest Spacing "
   nodeType: 6
-  recommendedCombatPower: 100
+  fallbackRecommendedCombatPower: 100
   isRepeatable: 1
   requiresMapUnlock: 0
   icon: {fileID: 0}
@@ -60,11 +60,11 @@ MonoBehaviour:
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
     - spawnPointGroupId: EnduranceTrialAll
-      enemyDefinition: {fileID: 0}
+      enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
       count: 2
     - spawnPointGroupId: EnduranceTrialRightOnly
-      enemyDefinition: {fileID: 0}
+      enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
       count: 1
     shuffleSpawnPoints: 1
@@ -72,7 +72,7 @@ MonoBehaviour:
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
     - spawnPointGroupId: EnduranceTrialAll
-      enemyDefinition: {fileID: 0}
+      enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
       count: 3
     shuffleSpawnPoints: 1
@@ -80,11 +80,11 @@ MonoBehaviour:
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
     - spawnPointGroupId: EnduranceTrialLeftOnly
-      enemyDefinition: {fileID: 0}
+      enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
       count: 2
     - spawnPointGroupId: EnduranceTrialLeftOnly
-      enemyDefinition: {fileID: 0}
+      enemyDefinition: {fileID: 11400000, guid: 887a5292c260b2843b8e76ae0621615c, type: 2}
       prefab: {fileID: 1000013034572668, guid: 6814905bb3c3d7440b3306c02b2b222c, type: 3}
       count: 1
     shuffleSpawnPoints: 1
@@ -92,7 +92,7 @@ MonoBehaviour:
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
     - spawnPointGroupId: EnduranceTrialBoss
-      enemyDefinition: {fileID: 0}
+      enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
       prefab: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
       count: 1
     shuffleSpawnPoints: 1

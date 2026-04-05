@@ -40,7 +40,7 @@ public class LevelSelectPageUI : MonoBehaviour
     [SerializeField] private TMP_Text selectedNodeType;
     [SerializeField] private TMP_Text selectedNodeState;
     [FormerlySerializedAs("detailRecommendedLevelText")]
-    [Tooltip("Shows Recommended CP from MapNodeDefinition.recommendedCombatPower.")]
+    [Tooltip("Recommended CP: Endurance Trial nodes use endurance waves + wave stress; other nodes use spawn group plans (single-encounter stress). Else fallbackRecommendedCombatPower.")]
     [SerializeField] private TMP_Text selectedNodeRecommendedCp;
     [FormerlySerializedAs("detailRepeatableText")]
     [SerializeField] private TMP_Text selectedNodeRepeatable;
@@ -527,7 +527,7 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         if (selectedNodeRecommendedCp)
-            selectedNodeRecommendedCp.text = n ? $"Recommended CP: {n.recommendedCombatPower}" : "";
+            selectedNodeRecommendedCp.text = n ? $"Recommended CP: {RecommendedCombatPower.GetRecommendedCombatPowerForDisplay(n)}" : "";
 
         if (selectedNodeRepeatable)
             selectedNodeRepeatable.text = n ? (n.isRepeatable ? "Repeatable: Yes" : "Repeatable: No") : "";

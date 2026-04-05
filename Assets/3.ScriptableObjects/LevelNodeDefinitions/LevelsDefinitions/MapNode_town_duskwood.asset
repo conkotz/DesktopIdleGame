@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Duskwood
   description: First town
   nodeType: 5
-  recommendedCombatPower: 1
+  fallbackRecommendedCombatPower: 1
   isRepeatable: 1
   requiresMapUnlock: 0
   icon: {fileID: 0}

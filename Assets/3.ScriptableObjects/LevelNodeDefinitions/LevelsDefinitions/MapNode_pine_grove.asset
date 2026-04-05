@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Pine Grove
   description: Basic resources
   nodeType: 1
-  recommendedCombatPower: 1
+  fallbackRecommendedCombatPower: 1
   isRepeatable: 1
   requiresMapUnlock: 0
   icon: {fileID: 0}

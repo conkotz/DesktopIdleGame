@@ -325,11 +325,14 @@ public class MapNodeDefinition : ScriptableObject
     public string description;
 
     [Header("Gameplay")]
-    [Tooltip("Category for map UI and GamePlay (combat, gathering, town, dungeon, etc.).")]
+    [Tooltip("Category for map UI and GamePlay. Use Endurance Trial when this node uses endurance waves (wave director + UI). Recommended CP can still be computed from waves even if this is wrong, but gameplay expects Endurance Trial.")]
     public MapNodeType nodeType = MapNodeType.Combat;
 
     [Tooltip("Aggressive: proximity aggro as usual. Calm: enemies ignore the player until damaged (retaliation only).")]
     public LevelEnemyAggroMode enemyAggroMode = LevelEnemyAggroMode.Aggressive;
+
+    [Tooltip("When true, spawned enemies ignore aggro range and always chase/attack the player (no distance gate). Use for endurance trials / waves so every enemy commits immediately.")]
+    public bool ignoreAggroRange;
 
     [Header("Enemy respawn (spawn group plans)")]
     [Tooltip("When true, enemies spawned from spawn group plans respawn after enemyRespawnDelaySeconds. Ignored for endurance waves.")]
@@ -339,10 +342,10 @@ public class MapNodeDefinition : ScriptableObject
     [Tooltip("Delay before a defeated enemy respawns (only when Enemy Respawn Enabled is on).")]
     public float enemyRespawnDelaySeconds = 30f;
 
-    [FormerlySerializedAs("recommendedLevel")]
+    [FormerlySerializedAs("recommendedCombatPower")]
     [Min(1)]
-    [Tooltip("Suggested combat power for this area (shown as Recommended CP in level select).")]
-    public int recommendedCombatPower = 1;
+    [Tooltip("Manual fallback when RecommendedCombatPower cannot score spawn rows (e.g. missing Enemy Definition). Display CP is computed from spawns in code: endurance trials use wave stress; combat zones use spawn group plans only (no wave multiplier).")]
+    public int fallbackRecommendedCombatPower = 1;
 
     [Tooltip("If false, node may be hidden or disabled after first clear (future use).")]
     public bool isRepeatable = true;

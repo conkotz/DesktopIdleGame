@@ -16,7 +16,10 @@ MonoBehaviour:
   displayName: 'Green Fields '
   description: 'Combat level '
   nodeType: 0
-  recommendedCombatPower: 40
+  enemyAggroMode: 0
+  enemyRespawnEnabled: 0
+  enemyRespawnDelaySeconds: 30
+  fallbackRecommendedCombatPower: 40
   isRepeatable: 1
   requiresMapUnlock: 0
   icon: {fileID: 0}

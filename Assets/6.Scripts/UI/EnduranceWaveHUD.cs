@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// Shows "Wave: n/total" only while an <see cref="MapNodeType.EnduranceTrial"/> level is active and not finished.
+/// Shows wave progress, optional next-wave countdown, and current trial tier while an <see cref="MapNodeType.EnduranceTrial"/> is active.
 /// </summary>
 [AddComponentMenu("Desktop Idle Game/UI/Endurance Wave HUD")]
 public class EnduranceWaveHUD : MonoBehaviour
@@ -14,6 +14,10 @@ public class EnduranceWaveHUD : MonoBehaviour
     [Tooltip("Object toggled on/off for endurance trials (e.g. panel). If unset, this component's GameObject is toggled.")]
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private TMP_Text waveText;
+
+    [Tooltip("Current trial difficulty (e.g. EnduranceWaveDifficulty). {0} = Roman numeral I–V.")]
+    [SerializeField] private TMP_Text trialTierText;
+    [SerializeField] private string trialTierFormat = "Tier {0}";
 
     [Header("Optional")]
     [SerializeField] private TMP_Text nextWaveCountdownText;
@@ -39,6 +43,17 @@ public class EnduranceWaveHUD : MonoBehaviour
             if (nextWaveCountdownText)
                 nextWaveCountdownText.gameObject.SetActive(false);
             return;
+        }
+
+        if (trialTierText)
+        {
+            int tier = d.IsWaitingForPlayerBegin
+                ? Mathf.Clamp(EnduranceTrialPendingTier.Tier, EnduranceTrialTier.MinTier, EnduranceTrialTier.MaxTier)
+                : d.CurrentTrialTier;
+            string roman = EnduranceTrialTier.ToRomanNumeral(tier);
+            trialTierText.text = string.IsNullOrEmpty(trialTierFormat)
+                ? $"Tier {roman}"
+                : string.Format(trialTierFormat, roman);
         }
 
         if (waveText)

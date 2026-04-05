@@ -190,7 +190,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!toolbelt) toolbelt = GetComponent<ToolbeltManager>();
         if (!buffController) buffController = GetComponent<PlayerBuffController>();
         _ownerPlayer = GetComponent<PlayerController>();
+        ResolveOwnerEnemy();
+    }
+
+    private void ResolveOwnerEnemy()
+    {
+        if (_ownerEnemy)
+            return;
         _ownerEnemy = GetComponent<EnemyBaseController>();
+        if (!_ownerEnemy)
+            _ownerEnemy = GetComponentInParent<EnemyBaseController>();
     }
 
     // -------------------------
@@ -224,8 +233,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// </summary>
     public float GetMoveSpeedForCombatPower()
     {
-        if (!_ownerEnemy)
-            _ownerEnemy = GetComponent<EnemyBaseController>();
+        ResolveOwnerEnemy();
 
         if (_ownerEnemy)
             return Mathf.Max(0f, _ownerEnemy.MoveSpeed);
@@ -1568,6 +1576,44 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         OnStatsChanged?.Invoke();
         OnNameChanged?.Invoke(unitDisplayName);
+    }
+
+    /// <summary>
+    /// After <see cref="ApplyEnemyDefinition"/>, scales bases for endurance trial Tier II–V (enemies only).
+    /// </summary>
+    public void ApplyEnduranceTrialDifficultyScaling(float healthMult, float outgoingDamageMult, float armorMrMult)
+    {
+        ResolveOwnerEnemy();
+        if (!_ownerEnemy)
+            return;
+
+        healthMult = Mathf.Max(0.01f, healthMult);
+        outgoingDamageMult = Mathf.Max(0.01f, outgoingDamageMult);
+        armorMrMult = Mathf.Max(0.01f, armorMrMult);
+
+        baseMaxHP = Mathf.Max(1, Mathf.RoundToInt(baseMaxHP * healthMult));
+        baseArmor = Mathf.Max(0, Mathf.RoundToInt(baseArmor * armorMrMult));
+        baseMagicResist = Mathf.Max(0, Mathf.RoundToInt(baseMagicResist * armorMrMult));
+
+        unarmedMinPhysicalDamage = Mathf.Max(0, Mathf.RoundToInt(unarmedMinPhysicalDamage * outgoingDamageMult));
+        unarmedMaxPhysicalDamage = Mathf.Max(
+            unarmedMinPhysicalDamage,
+            Mathf.RoundToInt(unarmedMaxPhysicalDamage * outgoingDamageMult));
+
+        baseMinPhysicalDamage *= outgoingDamageMult;
+        baseMaxPhysicalDamage = Mathf.Max(baseMinPhysicalDamage, baseMaxPhysicalDamage * outgoingDamageMult);
+
+        baseMinMagicDamage *= outgoingDamageMult;
+        baseMaxMagicDamage = Mathf.Max(baseMinMagicDamage, baseMaxMagicDamage * outgoingDamageMult);
+        baseMinTrueDamage *= outgoingDamageMult;
+        baseMaxTrueDamage = Mathf.Max(baseMinTrueDamage, baseMaxTrueDamage * outgoingDamageMult);
+
+        baseAbilityPower *= outgoingDamageMult;
+
+        // InitializeFromDefinition already set currentHP to Tier-I max; fillIfEmpty only replaces HP when currentHP < 0.
+        // Re-fill to the new scaled max so UI shows correct current/max (e.g. 150/150 not 100/150).
+        currentHP = MaxHP;
+        RefreshVitalsFromStats(fillIfEmpty: false);
     }
 
     public void TickRegen(float dt)

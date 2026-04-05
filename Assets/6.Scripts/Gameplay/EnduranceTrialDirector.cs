@@ -34,12 +34,15 @@ public class EnduranceTrialDirector : MonoBehaviour
 
     private MapNodeDefinition _def;
     private LevelSpawnDirector _spawnDirector;
+    private int _trialTier = 1;
     private int _waveIndex;
     private bool _started;
     private bool _trialComplete;
     private bool _waitingForPlayerBegin;
     private Coroutine _betweenWavesRoutine;
     private Coroutine _completionLootRoutine;
+
+    private readonly List<EnduranceTrialUIHelpers.EnduranceTrialLootGrant> _lastCompletionLoot = new();
 
     /// <summary>Whole seconds shown for "Next wave in: n" (0 = hide / not between waves).</summary>
     public int NextWaveCountdownSeconds { get; private set; }
@@ -59,6 +62,21 @@ public class EnduranceTrialDirector : MonoBehaviour
 
     /// <summary>True after the endurance map loads until <see cref="ConfirmBeginTrial"/> runs (first wave not spawned yet).</summary>
     public bool IsWaitingForPlayerBegin => _waitingForPlayerBegin;
+
+    /// <summary>Difficulty tier for this run (1–5). Set when the player confirms Begin; use <see cref="EnduranceTrialPendingTier"/> while <see cref="IsWaitingForPlayerBegin"/>.</summary>
+    public int CurrentTrialTier => _trialTier;
+
+    /// <summary>Loot rolled at the end of the last completed trial (same list passed to <see cref="DropManager"/>).</summary>
+    public IReadOnlyList<EnduranceTrialUIHelpers.EnduranceTrialLootGrant> LastCompletionLootGrants => _lastCompletionLoot;
+
+    /// <summary>Tier the player cleared on the last completed run (1–5).</summary>
+    public int LastCompletedRunTier { get; private set; }
+
+    /// <summary>True if the last completion increased max selectable tier for this node.</summary>
+    public bool LastRunUnlockedNextTier { get; private set; }
+
+    /// <summary>After a successful unlock, the new max selectable tier (roman display via <see cref="EnduranceTrialTier.ToRomanNumeral"/>). 0 if <see cref="LastRunUnlockedNextTier"/> is false.</summary>
+    public int LastUnlockedTier { get; private set; }
 
     private void OnEnable()
     {
@@ -132,6 +150,11 @@ public class EnduranceTrialDirector : MonoBehaviour
         Instance = this;
         _waveIndex = 0;
 
+        _lastCompletionLoot.Clear();
+        LastCompletedRunTier = 0;
+        LastRunUnlockedNextTier = false;
+        LastUnlockedTier = 0;
+
         StopBetweenWavesRoutine();
         StopCompletionLootRoutine();
         SetNextWaveCountdown(0);
@@ -154,6 +177,7 @@ public class EnduranceTrialDirector : MonoBehaviour
         if (!_waitingForPlayerBegin)
             return;
 
+        _trialTier = Mathf.Clamp(EnduranceTrialPendingTier.Tier, EnduranceTrialTier.MinTier, EnduranceTrialTier.MaxTier);
         _waitingForPlayerBegin = false;
         BeginWave();
     }
@@ -190,6 +214,12 @@ public class EnduranceTrialDirector : MonoBehaviour
         {
             Debug.LogError($"[EnduranceTrialDirector] Wave {_waveIndex + 1} spawned zero enemies (check prefabs / SpawnPointGroup ids).", this);
             return;
+        }
+
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            if (enemies[i])
+                enemies[i].ApplyEnduranceTrialTier(_trialTier);
         }
 
         OnWaveChanged?.Invoke(_waveIndex + 1, _def.enduranceWaves.Count);
@@ -280,69 +310,69 @@ public class EnduranceTrialDirector : MonoBehaviour
             OnWaveChanged?.Invoke(_def.enduranceWaves.Count, _def.enduranceWaves.Count);
         OnAllWavesCompleted?.Invoke();
 
-        if (_def != null && _def.enduranceCompletionLoot != null && _def.enduranceCompletionLoot.Count > 0)
+        ItemDatabase db = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        _lastCompletionLoot.Clear();
+        if (_def != null)
+            _lastCompletionLoot.AddRange(EnduranceTrialUIHelpers.RollEnduranceCompletionLoot(_def, db));
+
+        LastCompletedRunTier = _trialTier;
+        LastRunUnlockedNextTier = false;
+        LastUnlockedTier = 0;
+
+        if (_def != null)
+        {
+            WorldMapProgressManager progress = WorldMapProgressManager.Instance != null
+                ? WorldMapProgressManager.Instance
+                : FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+            if (progress != null)
+            {
+                LastRunUnlockedNextTier = progress.NotifyEnduranceTrialTierCleared(_def.nodeId, _trialTier);
+                if (LastRunUnlockedNextTier)
+                    LastUnlockedTier = progress.GetEnduranceMaxSelectableTier(_def.nodeId);
+            }
+        }
+
+        if (_lastCompletionLoot.Count > 0)
             _completionLootRoutine = StartCoroutine(SpawnCompletionLootRoutine());
+
+        // Completion UI must open here: EnduranceTrialsBeginPopup.LateUpdate does not run while popupRoot is inactive (hidden during waves).
+        NotifyEnduranceTrialCompletionPopups();
+    }
+
+    private static void NotifyEnduranceTrialCompletionPopups()
+    {
+        EnduranceTrialsBeginPopup[] popups = FindObjectsByType<EnduranceTrialsBeginPopup>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < popups.Length; i++)
+        {
+            if (popups[i] != null)
+                popups[i].NotifyTrialCompletedFromDirector();
+        }
     }
 
     private IEnumerator SpawnCompletionLootRoutine()
     {
         MapNodeDefinition def = _def;
-        if (def == null || def.enduranceCompletionLoot == null)
-        {
-            _completionLootRoutine = null;
-            yield break;
-        }
-
         DropManager dm = DropManager.Instance != null
             ? DropManager.Instance
             : FindFirstObjectByType<DropManager>(FindObjectsInactive.Include);
-        ItemDatabase db = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
 
         if (!dm)
         {
-            Debug.LogWarning("[EnduranceTrialDirector] No DropManager in scene — completion loot skipped.", this);
+            if (_lastCompletionLoot.Count > 0)
+                Debug.LogWarning("[EnduranceTrialDirector] No DropManager in scene — completion loot skipped.", this);
             _completionLootRoutine = null;
             yield break;
         }
 
-        var pending = new List<(string itemId, int amount, Sprite icon)>();
-        for (int i = 0; i < def.enduranceCompletionLoot.Count; i++)
-        {
-            EnduranceTrialLootEntry entry = def.enduranceCompletionLoot[i];
-            if (entry == null || !entry.item)
-                continue;
-            if (entry.dropChance <= 0f)
-                continue;
-            if (entry.dropChance < 1f && UnityEngine.Random.value > entry.dropChance)
-                continue;
+        float interval = def != null && def.enduranceCompletionLootInterval > 0f ? def.enduranceCompletionLootInterval : 0.5f;
 
-            string id = entry.item.itemId;
-            if (string.IsNullOrWhiteSpace(id))
-                continue;
-
-            int minAmt = Mathf.Max(1, entry.amountMin);
-            int maxAmt = Mathf.Max(minAmt, entry.amountMax);
-            int amt = UnityEngine.Random.Range(minAmt, maxAmt + 1);
-            Sprite icon = entry.item.icon;
-            if (!icon && db)
-            {
-                ItemDefinition resolved = db.Get(id);
-                if (resolved)
-                    icon = resolved.icon;
-            }
-
-            pending.Add((id, amt, icon));
-        }
-
-        float interval = def.enduranceCompletionLootInterval > 0f ? def.enduranceCompletionLootInterval : 0.5f;
-
-        for (int i = 0; i < pending.Count; i++)
+        for (int i = 0; i < _lastCompletionLoot.Count; i++)
         {
             if (i > 0)
                 yield return new WaitForSeconds(interval);
 
-            var p = pending[i];
-            dm.Spawn(p.itemId, p.amount, p.icon);
+            EnduranceTrialUIHelpers.EnduranceTrialLootGrant g = _lastCompletionLoot[i];
+            dm.Spawn(g.itemId, g.amount, g.icon);
         }
 
         _completionLootRoutine = null;

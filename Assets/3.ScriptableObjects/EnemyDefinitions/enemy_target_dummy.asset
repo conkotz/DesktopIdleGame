@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Target Dummy
   description: 
   icon: {fileID: 0}
-  prefab: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
+  prefab: {fileID: 1000010755293042, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
   maxHealth: 5000
   maxEnergy: 0
   maxMana: 0
@@ -30,19 +30,19 @@ MonoBehaviour:
   minTrueDamage: 0
   maxTrueDamage: 0
   attackSpeed: 0.5
-  moveSpeed: 2
-  attackRange: 2
-  critChance: 0.1
+  moveSpeed: 0
+  attackRange: 1
+  critChance: 0
   critMultiplier: 1.5
-  lifeRegenPerSecond: 1
+  lifeRegenPerSecond: 5
   energyRegenPerSecond: 0
-  manaRegenPerSecond: 1
+  manaRegenPerSecond: 0
   abilityPower: 0
   lifeSteal: 0
   bleedChance: 0
   bleedMultiplier: 0
   bleedDuration: 5
-  poisonChance: 0.25
+  poisonChance: 0
   poisonMultiplier: 0
   poisonDuration: 5
   poisonMaxStacks: 3
@@ -57,4 +57,10 @@ MonoBehaviour:
   burnExplosionMultiplier: 0.5
   shockDuration: 5
   shockDamageTakenMultiplier: 0.15
+  idleWanderEnabled: 0
+  idleWanderSpeed: 0.8
+  idleWanderMoveMinSec: 1
+  idleWanderMoveMaxSec: 3
+  idleWanderIdleMinSec: 2
+  idleWanderIdleMaxSec: 8
   designerNotes: 

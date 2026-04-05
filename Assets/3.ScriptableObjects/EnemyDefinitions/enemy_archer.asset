@@ -39,7 +39,7 @@ MonoBehaviour:
   manaRegenPerSecond: 1
   abilityPower: 0
   lifeSteal: 0
-  bleedChance: 0.5
+  bleedChance: 0.25
   bleedMultiplier: 0
   bleedDuration: 5
   poisonChance: 0
@@ -57,4 +57,10 @@ MonoBehaviour:
   burnExplosionMultiplier: 0.5
   shockDuration: 5
   shockDamageTakenMultiplier: 0.15
+  idleWanderEnabled: 0
+  idleWanderSpeed: 0.8
+  idleWanderMoveMinSec: 1
+  idleWanderMoveMaxSec: 3
+  idleWanderIdleMinSec: 2
+  idleWanderIdleMaxSec: 8
   designerNotes: 

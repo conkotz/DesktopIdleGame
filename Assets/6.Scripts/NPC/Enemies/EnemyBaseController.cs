@@ -202,6 +202,21 @@ public class EnemyBaseController : MonoBehaviour
         OnHealthChanged?.Invoke(HP, MaxHP);
     }
 
+    /// <summary>After <see cref="InitializeFromDefinition"/>, applies Tier II–V scaling from <see cref="EnduranceTrialTier"/>.</summary>
+    public void ApplyEnduranceTrialTier(int tier1Based)
+    {
+        if (!stats)
+            stats = GetComponent<CharacterStats>();
+        if (!stats)
+            return;
+
+        float h = EnduranceTrialTier.GetHealthMultiplier(tier1Based);
+        float d = EnduranceTrialTier.GetDamageMultiplier(tier1Based);
+        float a = EnduranceTrialTier.GetArmorAndResistMultiplier(tier1Based);
+        stats.ApplyEnduranceTrialDifficultyScaling(h, d, a);
+        OnHealthChanged?.Invoke(HP, MaxHP);
+    }
+
     private void Awake()
     {
         if (!damagePopupAnchor)
@@ -368,7 +383,7 @@ public class EnemyBaseController : MonoBehaviour
 
         float dist = DistanceToPlayerX();
         bool useDistanceAggro = LevelUsesDistanceAggro();
-        bool shouldAggro = _provoked || (useDistanceAggro && dist <= aggroRange);
+        bool shouldAggro = LevelIgnoresAggroRange() || _provoked || (useDistanceAggro && dist <= aggroRange);
 
         if (!shouldAggro)
         {
@@ -421,7 +436,7 @@ public class EnemyBaseController : MonoBehaviour
 
         float dist = DistanceToPlayerX();
         bool useDistanceAggro = LevelUsesDistanceAggro();
-        bool shouldAggro = _provoked || (useDistanceAggro && dist <= aggroRange);
+        bool shouldAggro = LevelIgnoresAggroRange() || _provoked || (useDistanceAggro && dist <= aggroRange);
 
         if (shouldAggro && dist > AttackRange)
         {
@@ -488,6 +503,18 @@ public class EnemyBaseController : MonoBehaviour
         if (def == null)
             return true;
         return def.enemyAggroMode == LevelEnemyAggroMode.Aggressive;
+    }
+
+    /// <summary>
+    /// When the active <see cref="MapNodeDefinition"/> sets <see cref="MapNodeDefinition.ignoreAggroRange"/>,
+    /// enemies always engage the player (skips proximity check). Overrides Calm for that level.
+    /// </summary>
+    private static bool LevelIgnoresAggroRange()
+    {
+        MapNodeDefinition def = ActiveLevelContext.Current;
+        if (def == null && GameplayLevelBootstrapper.Instance != null)
+            def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
+        return def != null && def.ignoreAggroRange;
     }
 
     private void ResolvePlayer()
