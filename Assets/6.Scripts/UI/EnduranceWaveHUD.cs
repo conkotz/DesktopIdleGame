@@ -7,6 +7,10 @@ using UnityEngine;
 [AddComponentMenu("Desktop Idle Game/UI/Endurance Wave HUD")]
 public class EnduranceWaveHUD : MonoBehaviour
 {
+    [Header("Which trial (optional)")]
+    [Tooltip("When set, this HUD only shows for this map node (matched by nodeId). Leave empty for a single-trial scene.")]
+    [SerializeField] private MapNodeDefinition trialMap;
+
     [Tooltip("Object toggled on/off for endurance trials (e.g. panel). If unset, this component's GameObject is toggled.")]
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private TMP_Text waveText;
@@ -23,7 +27,9 @@ public class EnduranceWaveHUD : MonoBehaviour
     private void Update()
     {
         EnduranceTrialDirector d = EnduranceTrialDirector.Instance;
-        bool show = d != null && d.ShowEnduranceHud;
+        MapNodeDefinition active = EnduranceTrialUIHelpers.TryGetActiveEnduranceMapNode();
+        bool match = EnduranceTrialUIHelpers.MatchesAssignedTrial(trialMap, active);
+        bool show = d != null && d.ShowEnduranceHud && match;
 
         GameObject r = panelRoot != null ? panelRoot : gameObject;
         r.SetActive(show);
@@ -37,7 +43,11 @@ public class EnduranceWaveHUD : MonoBehaviour
 
         if (waveText)
         {
-            if (d.TrialCompleted)
+            if (d.IsWaitingForPlayerBegin)
+            {
+                waveText.text = string.Empty;
+            }
+            else if (d.TrialCompleted)
             {
                 waveText.text = string.IsNullOrEmpty(trialsCompleteLabel) ? "Trials complete" : trialsCompleteLabel;
             }

@@ -28,11 +28,16 @@ public class EnduranceTrialDirector : MonoBehaviour
     [Tooltip("Seconds to wait after a wave is cleared before the next wave spawns.")]
     private float waveCooldownSeconds = 3f;
 
+    [SerializeField]
+    [Tooltip("Optional UI container (e.g. EnduranceTrials under Canvas). Leave inactive in the prefab; it is enabled when an endurance trial loads.")]
+    private GameObject enduranceTrialsUI;
+
     private MapNodeDefinition _def;
     private LevelSpawnDirector _spawnDirector;
     private int _waveIndex;
     private bool _started;
     private bool _trialComplete;
+    private bool _waitingForPlayerBegin;
     private Coroutine _betweenWavesRoutine;
     private Coroutine _completionLootRoutine;
 
@@ -51,6 +56,9 @@ public class EnduranceTrialDirector : MonoBehaviour
 
     /// <summary>Show endurance HUD during the trial and after completion (e.g. &quot;Trials complete&quot;).</summary>
     public bool ShowEnduranceHud => _started && _def && _def.nodeType == MapNodeType.EnduranceTrial;
+
+    /// <summary>True after the endurance map loads until <see cref="ConfirmBeginTrial"/> runs (first wave not spawned yet).</summary>
+    public bool IsWaitingForPlayerBegin => _waitingForPlayerBegin;
 
     private void OnEnable()
     {
@@ -92,8 +100,10 @@ public class EnduranceTrialDirector : MonoBehaviour
                 Instance = null;
             _started = false;
             _trialComplete = false;
+            _waitingForPlayerBegin = false;
             _def = null;
             SetNextWaveCountdown(0);
+            SetEnduranceTrialsUiActive(false);
             return;
         }
 
@@ -104,24 +114,47 @@ public class EnduranceTrialDirector : MonoBehaviour
         if (_spawnDirector == null)
         {
             Debug.LogError("[EnduranceTrialDirector] No LevelSpawnDirector in scene.", this);
+            SetEnduranceTrialsUiActive(false);
             return;
         }
 
         if (def.enduranceWaves == null || def.enduranceWaves.Count == 0)
         {
             Debug.LogError("[EnduranceTrialDirector] EnduranceTrial map has no enduranceWaves configured.", def);
+            SetEnduranceTrialsUiActive(false);
             return;
         }
 
         _def = def;
         _started = true;
         _trialComplete = false;
+        _waitingForPlayerBegin = true;
         Instance = this;
         _waveIndex = 0;
 
         StopBetweenWavesRoutine();
         StopCompletionLootRoutine();
         SetNextWaveCountdown(0);
+        SetEnduranceTrialsUiActive(true);
+    }
+
+    private void SetEnduranceTrialsUiActive(bool active)
+    {
+        if (enduranceTrialsUI && enduranceTrialsUI.activeSelf != active)
+            enduranceTrialsUI.SetActive(active);
+    }
+
+    /// <summary>
+    /// Call from the pre-trial UI (e.g. Begin button). Spawns wave 1 and hides the intro popup.
+    /// </summary>
+    public void ConfirmBeginTrial()
+    {
+        if (!_started || _def == null || _def.nodeType != MapNodeType.EnduranceTrial || _trialComplete)
+            return;
+        if (!_waitingForPlayerBegin)
+            return;
+
+        _waitingForPlayerBegin = false;
         BeginWave();
     }
 
