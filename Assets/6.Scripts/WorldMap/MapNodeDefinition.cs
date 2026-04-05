@@ -284,6 +284,23 @@ public class EnduranceTrialLootEntry : ISerializationCallbackReceiver
 }
 
 /// <summary>
+/// Completion loot for one endurance trial difficulty tier (I–V). Matched by <see cref="tier"/>.
+/// </summary>
+[Serializable]
+public class EnduranceTrialLootByTier
+{
+    [Tooltip("Difficulty tier (1 = Tier I … 5 = Tier V). Must match the tier the player selects.")]
+    [Range(1, 5)]
+    public int tier = 1;
+
+    [Tooltip("If true, these rows are added after the base list and after every lower tier that also uses Append (Tier III gets base + Tier I append + Tier II append + Tier III append). If false, only this tier's rows are used for that tier (no base, no stacking).")]
+    public bool appendToBaseLoot;
+
+    [Tooltip("Loot rows for this tier (same rules as base completion loot).")]
+    public List<EnduranceTrialLootEntry> entries = new();
+}
+
+/// <summary>
 /// How combat skill levels gate entry for bosses/dungeons etc.
 /// </summary>
 public enum CombatSkillGateMode
@@ -399,8 +416,11 @@ public class MapNodeDefinition : ScriptableObject
     public List<EnduranceWavePlan> enduranceWaves = new();
 
     [Header("Endurance trial — completion loot")]
-    [Tooltip("Only used when nodeType is EnduranceTrial. Each entry rolls Drop Chance independently; amount is a random integer from Amount Min–Max (inclusive). Duplicate items allowed (e.g. two rows for bonus rolls).")]
+    [Tooltip("Default loot when no per-tier row matches, or when a tier row is empty (unless that tier uses Append To Base). Each entry rolls Drop Chance independently.")]
     public List<EnduranceTrialLootEntry> enduranceCompletionLoot = new();
+
+    [Tooltip("Per-tier loot. Append: stacks with base and lower tiers' append rows. Replace: only that tier's rows. First duplicate tier index wins.")]
+    public List<EnduranceTrialLootByTier> enduranceCompletionLootByTier = new();
 
     [Min(0f)]
     [Tooltip("Seconds between each spawned drop (no delay before the first).")]

@@ -313,7 +313,7 @@ public class EnduranceTrialDirector : MonoBehaviour
         ItemDatabase db = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
         _lastCompletionLoot.Clear();
         if (_def != null)
-            _lastCompletionLoot.AddRange(EnduranceTrialUIHelpers.RollEnduranceCompletionLoot(_def, db));
+            _lastCompletionLoot.AddRange(EnduranceTrialUIHelpers.RollEnduranceCompletionLoot(_def, db, _trialTier));
 
         LastCompletedRunTier = _trialTier;
         LastRunUnlockedNextTier = false;

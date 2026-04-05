@@ -81,16 +81,70 @@ public static class EnduranceTrialUIHelpers
         return cp;
     }
 
-    /// <summary>Human-readable lines for completion loot (for UI).</summary>
-    public static string BuildEnduranceCompletionLootSummary(MapNodeDefinition def)
+    /// <summary>
+    /// Loot table for a trial completion at <paramref name="tier1Based"/>.
+    /// Replace rows (Append off): only that tier's entries. Append rows stack: base + each lower tier's append + this tier's append.
+    /// </summary>
+    public static IReadOnlyList<EnduranceTrialLootEntry> GetResolvedEnduranceCompletionLoot(MapNodeDefinition def, int tier1Based)
     {
-        if (def?.enduranceCompletionLoot == null || def.enduranceCompletionLoot.Count == 0)
+        int tier = Mathf.Clamp(tier1Based, EnduranceTrialTier.MinTier, EnduranceTrialTier.MaxTier);
+        if (def == null)
+            return Array.Empty<EnduranceTrialLootEntry>();
+
+        List<EnduranceTrialLootEntry> baseList = def.enduranceCompletionLoot;
+        EnduranceTrialLootByTier rowSelected = FindEnduranceLootTierRow(def, tier);
+
+        // Replace mode: this tier's list is the entire reward (no base, no cumulative appends from lower tiers).
+        if (rowSelected != null && rowSelected.entries != null && rowSelected.entries.Count > 0 && !rowSelected.appendToBaseLoot)
+            return rowSelected.entries;
+
+        // Cumulative append: base + every tier from I..selected that has Append on and non-empty entries.
+        var combined = new List<EnduranceTrialLootEntry>();
+        if (baseList != null)
+            combined.AddRange(baseList);
+
+        for (int t = EnduranceTrialTier.MinTier; t <= tier; t++)
+        {
+            EnduranceTrialLootByTier row = FindEnduranceLootTierRow(def, t);
+            if (row == null || row.entries == null || row.entries.Count == 0)
+                continue;
+            if (!row.appendToBaseLoot)
+                continue;
+            combined.AddRange(row.entries);
+        }
+
+        if (combined.Count == 0)
+            return Array.Empty<EnduranceTrialLootEntry>();
+
+        return combined;
+    }
+
+    private static EnduranceTrialLootByTier FindEnduranceLootTierRow(MapNodeDefinition def, int tier1Based)
+    {
+        if (def?.enduranceCompletionLootByTier == null)
+            return null;
+
+        for (int i = 0; i < def.enduranceCompletionLootByTier.Count; i++)
+        {
+            EnduranceTrialLootByTier row = def.enduranceCompletionLootByTier[i];
+            if (row != null && row.tier == tier1Based)
+                return row;
+        }
+
+        return null;
+    }
+
+    /// <summary>Human-readable lines for completion loot (for UI). Uses tier-specific loot when configured.</summary>
+    public static string BuildEnduranceCompletionLootSummary(MapNodeDefinition def, int tier1Based = 1)
+    {
+        IReadOnlyList<EnduranceTrialLootEntry> loot = GetResolvedEnduranceCompletionLoot(def, tier1Based);
+        if (loot == null || loot.Count == 0)
             return "—";
 
         var sb = new StringBuilder();
-        for (int i = 0; i < def.enduranceCompletionLoot.Count; i++)
+        for (int i = 0; i < loot.Count; i++)
         {
-            EnduranceTrialLootEntry entry = def.enduranceCompletionLoot[i];
+            EnduranceTrialLootEntry entry = loot[i];
             if (entry == null || entry.item == null)
                 continue;
 
@@ -127,15 +181,16 @@ public static class EnduranceTrialUIHelpers
     }
 
     /// <summary>Same roll logic as <see cref="EnduranceTrialDirector"/> completion drops — call once and reuse for UI + spawning.</summary>
-    public static List<EnduranceTrialLootGrant> RollEnduranceCompletionLoot(MapNodeDefinition def, ItemDatabase db)
+    public static List<EnduranceTrialLootGrant> RollEnduranceCompletionLoot(MapNodeDefinition def, ItemDatabase db, int tier1Based)
     {
         var list = new List<EnduranceTrialLootGrant>();
-        if (def?.enduranceCompletionLoot == null || def.enduranceCompletionLoot.Count == 0)
+        IReadOnlyList<EnduranceTrialLootEntry> entries = GetResolvedEnduranceCompletionLoot(def, tier1Based);
+        if (entries == null || entries.Count == 0)
             return list;
 
-        for (int i = 0; i < def.enduranceCompletionLoot.Count; i++)
+        for (int i = 0; i < entries.Count; i++)
         {
-            EnduranceTrialLootEntry entry = def.enduranceCompletionLoot[i];
+            EnduranceTrialLootEntry entry = entries[i];
             if (entry == null || !entry.item)
                 continue;
             if (entry.dropChance <= 0f)

@@ -93,10 +93,44 @@ public class DebugGiveItems : MonoBehaviour
         if (levelUpEffect != null)
             levelUpEffect.PlayLevelUp();
 
+        GrantAllSkillsPlusOneLevel();
+
         if (popupSpawner != null && popupAnchor != null)
             popupSpawner.ShowMessageAtWorld(popupAnchor.position + popupWorldOffset, "DEBUG LEVEL UP!", Color.yellow);
 
-        Debug.Log($"[DebugGiveItems] Granted pack: +{grantGold} gold, +{grantResourceAmount} stone/wood/fish.");
+        Debug.Log($"[DebugGiveItems] Granted pack: +{grantGold} gold, +{grantResourceAmount} stone/wood/fish, +1 level all skills.");
+    }
+
+    /// <summary>Grants exactly one level per skill via XP (same rules as normal progression).</summary>
+    private void GrantAllSkillsPlusOneLevel()
+    {
+        SkillsManager sm = ResolveSkillsManager();
+        if (sm == null)
+        {
+            Debug.LogWarning("[DebugGiveItems] No SkillsManager — skill levels unchanged.");
+            return;
+        }
+
+        foreach (SkillType t in System.Enum.GetValues(typeof(SkillType)))
+        {
+            int rem = sm.GetXpRemainingThisLevel(t);
+            int need = rem > 0 ? rem : sm.XpToNextLevel(sm.GetLevel(t));
+            if (need <= 0)
+                continue;
+            sm.AddXp(t, need, "debug_l");
+        }
+    }
+
+    /// <summary>
+    /// No inspector wire-up — bootstrap lives on a different object than the player / skills singleton.
+    /// Resolved when L is pressed so <see cref="SkillsManager"/> exists after gameplay loads.
+    /// </summary>
+    private static SkillsManager ResolveSkillsManager()
+    {
+        if (SkillsManager.Instance != null)
+            return SkillsManager.Instance;
+
+        return FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
     }
 
     private void AddToInventory(ItemDefinition def, int qty)

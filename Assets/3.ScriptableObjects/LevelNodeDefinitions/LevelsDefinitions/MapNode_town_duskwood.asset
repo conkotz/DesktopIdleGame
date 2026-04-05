@@ -16,6 +16,10 @@ MonoBehaviour:
   displayName: Duskwood
   description: First town
   nodeType: 5
+  enemyAggroMode: 0
+  ignoreAggroRange: 0
+  enemyRespawnEnabled: 0
+  enemyRespawnDelaySeconds: 30
   fallbackRecommendedCombatPower: 1
   isRepeatable: 1
   requiresMapUnlock: 0
@@ -34,17 +38,31 @@ MonoBehaviour:
   spawnGroupPlans:
   - groupId: TownMerchants
     spawns:
-    - prefab: {fileID: 1000010755293042, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+    - spawnPointGroupId: 
+      enemyDefinition: {fileID: 11400000, guid: 018988b4e6f49f843a83603a5d29913b, type: 2}
+      prefab: {fileID: 0}
       count: 1
-    - prefab: {fileID: 2240485527361661371, guid: 6e93381c288e6ae488bc8daf3fc70d29, type: 3}
+    - spawnPointGroupId: 
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 2240485527361661371, guid: 6e93381c288e6ae488bc8daf3fc70d29, type: 3}
       count: 1
-    - prefab: {fileID: 4973683916600228948, guid: 4f6f9e8217f875c49a5b9fc9421d1191, type: 3}
+    - spawnPointGroupId: 
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 4973683916600228948, guid: 4f6f9e8217f875c49a5b9fc9421d1191, type: 3}
       count: 1
-    - prefab: {fileID: 5214886831892509811, guid: eafb4a3050e169e43a98e83150bb1a94, type: 3}
+    - spawnPointGroupId: 
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: eafb4a3050e169e43a98e83150bb1a94, type: 3}
       count: 1
-    - prefab: {fileID: 4920183082709471436, guid: 24ff604100c61b34fb70516a67da032c, type: 3}
+    - spawnPointGroupId: 
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 4920183082709471436, guid: 24ff604100c61b34fb70516a67da032c, type: 3}
       count: 1
     shuffleSpawnPoints: 0
+  enduranceWaves: []
+  enduranceCompletionLoot: []
+  enduranceCompletionLootByTier: []
+  enduranceCompletionLootInterval: 0.5
   contentDesignerNotes: 
   sceneNamePlaceholder: 
   encounterIdPlaceholder: 

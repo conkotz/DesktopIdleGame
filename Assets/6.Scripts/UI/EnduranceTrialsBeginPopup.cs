@@ -273,9 +273,6 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
 
         RefreshTierRow(def);
 
-        if (lootText)
-            lootText.text = EnduranceTrialUIHelpers.BuildEnduranceCompletionLootSummary(def);
-
         if (beginButtonLabel)
             beginButtonLabel.text = beginButtonTextPreTrial;
 
@@ -494,6 +491,13 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
         EnduranceTrialPendingTier.Tier = _selectedTier;
         RefreshRecommendedCp(def);
         RefreshFinalEnemy(def);
+        RefreshLootSummary(def);
+    }
+
+    private void RefreshLootSummary(MapNodeDefinition def)
+    {
+        if (lootText)
+            lootText.text = EnduranceTrialUIHelpers.BuildEnduranceCompletionLootSummary(def, _selectedTier);
     }
 
     private void OnTierPrevClicked()

@@ -17,6 +17,10 @@ MonoBehaviour:
   description: "Can you survive the continuous waves of enemies?\nTest Spacing \nTest
     Spacing\nTest Spacing\nTest Spacing\nTest Spacing "
   nodeType: 6
+  enemyAggroMode: 0
+  ignoreAggroRange: 1
+  enemyRespawnEnabled: 0
+  enemyRespawnDelaySeconds: 30
   fallbackRecommendedCombatPower: 100
   isRepeatable: 1
   requiresMapUnlock: 0
@@ -26,7 +30,7 @@ MonoBehaviour:
   combatSingleSkill: 3
   combatRequiredLevel: 10
   unlockRequirementNotes: 'A minimum combat skill of 10 is required and an endurance
-    skill level of 10 is recommended '
+    skill level of 10 is recommended. Potions and food are also highly recommended. '
   connectedNodeIds: []
   nextNodeIds: []
   biome: 0
@@ -98,22 +102,6 @@ MonoBehaviour:
     shuffleSpawnPoints: 1
     _legacyGroupPlans: []
   enduranceCompletionLoot:
-  - item: {fileID: 11400000, guid: 8f0d610943ec7f442bb6202f9ce4f113, type: 2}
-    amountMin: 1
-    amountMax: 3
-    dropChance: 0.75
-  - item: {fileID: 11400000, guid: 1a27f17f5001c884baf422568a7c4bd5, type: 2}
-    amountMin: 1
-    amountMax: 2
-    dropChance: 0.5
-  - item: {fileID: 11400000, guid: 1070cd98277003542b0ac161a0568720, type: 2}
-    amountMin: 1
-    amountMax: 1
-    dropChance: 0.25
-  - item: {fileID: 11400000, guid: fcaa1229f2df3654c8103bc89009f840, type: 2}
-    amountMin: 1
-    amountMax: 1
-    dropChance: 0.1
   - item: {fileID: 11400000, guid: 36038d5dfd5228b4682f03cfcf3151df, type: 2}
     amountMin: 1
     amountMax: 5
@@ -122,10 +110,46 @@ MonoBehaviour:
     amountMin: 15
     amountMax: 25
     dropChance: 0.3
-  - item: {fileID: 11400000, guid: 30b1b02abfbe72445a66a849d7f7783c, type: 2}
+  - item: {fileID: 11400000, guid: 60a88e1e810c3ee46a36fb6b840a76b3, type: 2}
     amountMin: 15
     amountMax: 25
     dropChance: 0.3
+  enduranceCompletionLootByTier:
+  - tier: 1
+    appendToBaseLoot: 1
+    entries:
+    - item: {fileID: 11400000, guid: 8f0d610943ec7f442bb6202f9ce4f113, type: 2}
+      amountMin: 1
+      amountMax: 3
+      dropChance: 0.5
+  - tier: 2
+    appendToBaseLoot: 1
+    entries:
+    - item: {fileID: 11400000, guid: 1a27f17f5001c884baf422568a7c4bd5, type: 2}
+      amountMin: 1
+      amountMax: 3
+      dropChance: 0.5
+  - tier: 3
+    appendToBaseLoot: 1
+    entries:
+    - item: {fileID: 11400000, guid: 1070cd98277003542b0ac161a0568720, type: 2}
+      amountMin: 1
+      amountMax: 2
+      dropChance: 0.5
+  - tier: 4
+    appendToBaseLoot: 1
+    entries:
+    - item: {fileID: 11400000, guid: fcaa1229f2df3654c8103bc89009f840, type: 2}
+      amountMin: 1
+      amountMax: 2
+      dropChance: 0.5
+  - tier: 4
+    appendToBaseLoot: 1
+    entries:
+    - item: {fileID: 11400000, guid: fcaa1229f2df3654c8103bc89009f840, type: 2}
+      amountMin: 1
+      amountMax: 2
+      dropChance: 1
   enduranceCompletionLootInterval: 0.5
   contentDesignerNotes: 
   sceneNamePlaceholder: 

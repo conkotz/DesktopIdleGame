@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: ghorrocks_mace
+  m_Name: trial_relic_tier5
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 1
-  maxStack: 1
-  itemId: ghorrocks_mace
-  displayName: Ghorrocks mace
-  icon: {fileID: 21300168, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
+  itemKind: 0
+  maxStack: 5
+  itemId: trial_relic_tier4
+  displayName: Relic (Tier 4)
+  icon: {fileID: 8101889416019393817, guid: 4f5f2bff5b42ffb40a0d33c5ffe6d207, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -24,23 +24,23 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A Legendary mace from lord Ghorrock
-  rarity: 4
+  description: 'An ancient relic obtained from completing an endurance trial '
+  rarity: 3
   value: 5000
-  equipSlot: 1
-  handVisualKey: 1
+  equipSlot: 0
+  handVisualKey: 0
   weaponStats:
-    minPhysicalDamage: 200
-    maxPhysicalDamage: 200
+    minPhysicalDamage: 0
+    maxPhysicalDamage: 0
     minMagicDamage: 0
     maxMagicDamage: 0
-    minTrueDamage: 2
-    maxTrueDamage: 4
-    attacksPerSecond: 0.6
-    critChance: 0.1
-    critMultiplier: 1.5
+    minTrueDamage: 0
+    maxTrueDamage: 0
+    attacksPerSecond: 0
+    critChance: 0
+    critMultiplier: 0
     handedness: 0
-    attackRange: 2
+    attackRange: 0
     attackSkill: 0
     magicAttackType: 0
     manaCostPerAttack: 0
