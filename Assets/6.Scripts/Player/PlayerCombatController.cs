@@ -62,6 +62,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     [Tooltip("How often to rescan for closest enemy (seconds).")]
     [SerializeField] private float idleRescanInterval = 0.25f;
+
+    [Tooltip("While idle combat is on, every N seconds all dropped items on the scene are picked up (no walking).")]
+    [SerializeField, Min(0.5f)] private float idleAutoPickupIntervalSeconds = 5f;
+    private float _nextIdleAutoPickupTime;
     [Header("Retaliation")]
     [SerializeField] private bool retaliationEnabled = false;
 
@@ -149,6 +153,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         if (!playerCol) playerCol = GetComponent<Collider2D>();
         TryResolveAutoConsumeRefs();
+        if (idleCombatEnabled)
+            _nextIdleAutoPickupTime = Time.time + Mathf.Max(0.5f, idleAutoPickupIntervalSeconds);
     }
 
     private void Update()
@@ -171,6 +177,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             TickAutoConsumables();
             TickAutoAbilities();
             TickIdleCombatTargeting();
+            TickIdleAutoPickup();
         }
 
         if (_target == null) return;
@@ -738,6 +745,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             _nextIdleScanTime = 0f;
             _nextAutoConsumeTime = 0f;
             _nextAutoAbilityTime = 0f;
+            _nextIdleAutoPickupTime = Time.time + Mathf.Max(0.5f, idleAutoPickupIntervalSeconds);
             TickAutoConsumables();
             TickAutoAbilities();
             TickIdleCombatTargeting();
@@ -746,6 +754,21 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         {
             player?.SetMovementLocked(false);
             ClearTarget();
+        }
+    }
+
+    private void TickIdleAutoPickup()
+    {
+        if (!inventory) return;
+        if (Time.time < _nextIdleAutoPickupTime) return;
+        _nextIdleAutoPickupTime = Time.time + Mathf.Max(0.5f, idleAutoPickupIntervalSeconds);
+
+        var drops = FindObjectsByType<ItemDrop>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < drops.Length; i++)
+        {
+            var d = drops[i];
+            if (d != null)
+                d.TryPickup(inventory);
         }
     }
 
