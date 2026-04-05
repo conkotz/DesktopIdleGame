@@ -60,6 +60,11 @@ public class AbilityDatabase : ScriptableObject
         if (best != null)
             return best;
 
+        // Build player: Resources.LoadAll can miss edge cases; explicit path matches Assets/Resources/Databases/AbilityDatabase.asset
+        best = Resources.Load<AbilityDatabase>("Databases/AbilityDatabase");
+        if (best != null)
+            return best;
+
 #if UNITY_EDITOR
         string[] guids = AssetDatabase.FindAssets("t:AbilityDatabase");
         if (guids != null && guids.Length > 0)

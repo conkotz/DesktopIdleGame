@@ -29,7 +29,7 @@ public class EnduranceTrialDirector : MonoBehaviour
     private float waveCooldownSeconds = 3f;
 
     [SerializeField]
-    [Tooltip("Optional UI container (e.g. EnduranceTrials under Canvas). Leave inactive in the prefab; it is enabled when an endurance trial loads.")]
+    [Tooltip("Root to enable when an endurance map loads (must contain or be the EnduranceTrialsBeginPopup panel). Leave empty to auto-bind to that popup in the scene. If you moved the panel, clear this so it does not still point at an old HUD shell.")]
     private GameObject enduranceTrialsUI;
 
     private MapNodeDefinition _def;
@@ -158,7 +158,47 @@ public class EnduranceTrialDirector : MonoBehaviour
         StopBetweenWavesRoutine();
         StopCompletionLootRoutine();
         SetNextWaveCountdown(0);
+        ResolveEnduranceTrialsUiReference();
         SetEnduranceTrialsUiActive(true);
+    }
+
+    /// <summary>
+    /// Binds <see cref="enduranceTrialsUI"/> to the real <see cref="EnduranceTrialsBeginPopup"/> when unset, or when
+    /// the serialized reference is stale (e.g. old object under Strip HUD after moving the panel to FullWindowCanvas).
+    /// </summary>
+    private void ResolveEnduranceTrialsUiReference()
+    {
+        EnduranceTrialsBeginPopup popup = FindFirstObjectByType<EnduranceTrialsBeginPopup>(FindObjectsInactive.Include);
+        if (popup == null)
+            return;
+
+        Transform popupTr = popup.transform;
+
+        if (enduranceTrialsUI == null)
+        {
+            enduranceTrialsUI = popup.gameObject;
+            return;
+        }
+
+        Transform root = enduranceTrialsUI.transform;
+        if (IsTransformDescendantOf(popupTr, root))
+            return;
+
+        enduranceTrialsUI = popup.gameObject;
+    }
+
+    private static bool IsTransformDescendantOf(Transform node, Transform ancestor)
+    {
+        if (node == null || ancestor == null)
+            return false;
+
+        for (Transform t = node; t != null; t = t.parent)
+        {
+            if (t == ancestor)
+                return true;
+        }
+
+        return false;
     }
 
     private void SetEnduranceTrialsUiActive(bool active)

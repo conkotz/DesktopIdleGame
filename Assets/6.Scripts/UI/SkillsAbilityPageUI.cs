@@ -130,6 +130,11 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         if (skillsManager == null)
             Debug.LogWarning("[SkillsAbilitiesPageUI] skillsManager not found (SkillsManager.Instance is null). Progression UI may show defaults.", this);
+
+        if (abilityDatabase == null)
+            Debug.LogWarning(
+                "[SkillsAbilitiesPageUI] abilityDatabase could not be loaded. Assign it in the Inspector or place AbilityDatabase.asset under a folder named Resources (e.g. Assets/Resources/Databases/). Player builds cannot use Editor-only asset lookup.",
+                this);
     }
 
     private void TrySubscribeSkillsEvents()

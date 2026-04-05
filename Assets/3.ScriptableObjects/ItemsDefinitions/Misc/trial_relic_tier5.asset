@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 0
   maxStack: 5
-  itemId: trial_relic_tier4
-  displayName: Relic (Tier 4)
-  icon: {fileID: 8101889416019393817, guid: 4f5f2bff5b42ffb40a0d33c5ffe6d207, type: 3}
+  itemId: trial_relic_tier5
+  displayName: Relic (Tier 5)
+  icon: {fileID: -3042995069832434783, guid: 4f5f2bff5b42ffb40a0d33c5ffe6d207, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,8 +25,8 @@ MonoBehaviour:
   equippedFlipX: 0
   equippedFlipY: 0
   description: 'An ancient relic obtained from completing an endurance trial '
-  rarity: 3
-  value: 5000
+  rarity: 4
+  value: 20000
   equipSlot: 0
   handVisualKey: 0
   weaponStats:
