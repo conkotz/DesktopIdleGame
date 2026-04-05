@@ -5796,6 +5796,7 @@ MonoBehaviour:
   magicProjectileFireDelay: 0
   idleCombatEnabled: 0
   idleRescanInterval: 0.25
+  idleAutoPickupIntervalSeconds: 5
   retaliationEnabled: 0
   actionBar: {fileID: 0}
   consumableController: {fileID: 0}
@@ -5977,7 +5978,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DebugGiveItems
   inventory: {fileID: 4615812802344899198}
   wallet: {fileID: 0}
-  skillsManager: {fileID: 0}
   levelUpEffect: {fileID: 0}
   popupSpawner: {fileID: 0}
   popupAnchor: {fileID: 0}
