@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -25,22 +26,53 @@ public class LevelSpawnDirector : MonoBehaviour
     [Min(0.001f)]
     [SerializeField] private float overlapGridSize = 0.05f;
 
+    [Tooltip("Radius (world units) used to detect if another living enemy already occupies a spawn point.")]
+    [Min(0.01f)]
+    [SerializeField] private float enemySpawnOccupancyRadius = 0.4f;
+
+    [Tooltip("When a respawn cannot find a free spawn point, retry after this many seconds until one opens.")]
+    [Min(0.02f)]
+    [SerializeField] private float respawnQueueRetryIntervalSec = 0.25f;
+
     [Header("Logging")]
     [SerializeField] private bool logSpawns = true;
 
     private bool _hasSpawnedForCurrentLevel;
     private readonly HashSet<Vector2Int> _reservedSpawnCells = new();
+    private readonly List<PendingRespawn> _pendingRespawns = new();
+    private Coroutine _respawnQueueCoroutine;
+
+    private struct PendingRespawn
+    {
+        public string NodeId;
+        public string SpawnPointGroupId;
+        public bool ShuffleSpawnPointsFromPlan;
+        public GameObject PrefabAsset;
+        public EnemyDefinition EnemyDefinition;
+    }
+
+    private enum RespawnAttemptOutcome
+    {
+        Spawned,
+        NoFreePoint,
+        AbortedInvalidContext,
+    }
 
     private void OnEnable()
     {
         if (GameplayLevelBootstrapper.Instance != null)
             GameplayLevelBootstrapper.Instance.OnLevelStarted += OnLevelStarted;
+
+        if (_pendingRespawns.Count > 0 && _respawnQueueCoroutine == null)
+            _respawnQueueCoroutine = StartCoroutine(CoProcessRespawnQueue());
     }
 
     private void OnDisable()
     {
         if (GameplayLevelBootstrapper.Instance != null)
             GameplayLevelBootstrapper.Instance.OnLevelStarted -= OnLevelStarted;
+
+        StopRespawnQueueCoroutineOnly();
     }
 
     private void Start()
@@ -72,6 +104,7 @@ public class LevelSpawnDirector : MonoBehaviour
         {
             _hasSpawnedForCurrentLevel = true;
             _reservedSpawnCells.Clear();
+            ClearPendingRespawnsForNewLevel();
             return;
         }
 
@@ -82,6 +115,7 @@ public class LevelSpawnDirector : MonoBehaviour
 
         _hasSpawnedForCurrentLevel = true;
         _reservedSpawnCells.Clear();
+        ClearPendingRespawnsForNewLevel();
 
         var groups = FindAllSpawnPointGroups();
         Transform parent = ResolveSpawnParent();
@@ -99,7 +133,7 @@ public class LevelSpawnDirector : MonoBehaviour
                 continue;
             }
 
-            SpawnGroup(plan, groups, parent, null);
+            SpawnGroup(plan, groups, parent, null, def);
         }
     }
 
@@ -144,7 +178,7 @@ public class LevelSpawnDirector : MonoBehaviour
             if (!SpawnPlanHasGroupSource(plan))
                 continue;
 
-            SpawnGroup(plan, groups, parent, spawnedRoots);
+            SpawnGroup(plan, groups, parent, spawnedRoots, null);
         }
 
         for (int i = 0; i < spawnedRoots.Count; i++)
@@ -187,7 +221,7 @@ public class LevelSpawnDirector : MonoBehaviour
         return dict;
     }
 
-    private void SpawnGroup(LevelSpawnGroupPlan plan, Dictionary<string, SpawnPointGroup> groupsById, Transform parent, List<GameObject> collectRoots)
+    private void SpawnGroup(LevelSpawnGroupPlan plan, Dictionary<string, SpawnPointGroup> groupsById, Transform parent, List<GameObject> collectRoots, MapNodeDefinition levelDefForRespawn)
     {
         if (plan.spawns == null)
             return;
@@ -231,16 +265,18 @@ public class LevelSpawnDirector : MonoBehaviour
 
             for (int c = 0; c < entry.count; c++)
             {
-                Transform p = PickNextAvailablePoint(cursor.PointList, ref cursor.Cursor, out bool hadToReuse);
+                Transform p = PickNextAvailablePoint(
+                    cursor.PointList,
+                    ref cursor.Cursor,
+                    out bool hadToReuse,
+                    gid,
+                    pointGroup);
                 if (!p)
-                    return;
+                    continue;
 
-                GameObject inst = Instantiate(prefabAsset, p.position, p.rotation, parent);
-                if (!inst.activeSelf)
-                    inst.SetActive(true);
-
-                if (defForInit != null)
-                    ApplyEnemyDefinitionAfterSpawn(inst, defForInit);
+                GameObject inst = SpawnEnemyInstanceAt(p, prefabAsset, defForInit, parent);
+                if (!inst)
+                    continue;
 
                 collectRoots?.Add(inst);
 
@@ -252,6 +288,19 @@ public class LevelSpawnDirector : MonoBehaviour
 
                 totalSpawned++;
 
+                if (levelDefForRespawn != null
+                    && levelDefForRespawn.enemyRespawnEnabled
+                    && levelDefForRespawn.enemyRespawnDelaySeconds >= 0.01f)
+                {
+                    EnemyBaseController ec = inst.GetComponent<EnemyBaseController>() ??
+                                             inst.GetComponentInChildren<EnemyBaseController>(true);
+                    if (ec != null)
+                    {
+                        var src = inst.AddComponent<EnemySpawnSource>();
+                        src.Bind(this, levelDefForRespawn, gid, plan.shuffleSpawnPoints, prefabAsset, defForInit);
+                    }
+                }
+
                 if (logSpawns)
                 {
                     if (hadToReuse)
@@ -259,6 +308,230 @@ public class LevelSpawnDirector : MonoBehaviour
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Called by <see cref="EnemySpawnSource"/> when respawn is enabled on the active <see cref="MapNodeDefinition"/>.
+    /// </summary>
+    public void QueueEnemyRespawn(
+        MapNodeDefinition mapNode,
+        string spawnPointGroupId,
+        bool shuffleSpawnPointsFromPlan,
+        GameObject prefabAsset,
+        EnemyDefinition enemyDefinition)
+    {
+        if (!mapNode || !mapNode.enemyRespawnEnabled || mapNode.enemyRespawnDelaySeconds < 0.01f)
+            return;
+        if (!prefabAsset)
+            return;
+
+        StartCoroutine(CoRespawnAfterDelay(mapNode, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition));
+    }
+
+    private void ClearPendingRespawnsForNewLevel()
+    {
+        _pendingRespawns.Clear();
+        StopRespawnQueueCoroutineOnly();
+    }
+
+    private void StopRespawnQueueCoroutineOnly()
+    {
+        if (_respawnQueueCoroutine != null)
+        {
+            StopCoroutine(_respawnQueueCoroutine);
+            _respawnQueueCoroutine = null;
+        }
+    }
+
+    private void EnqueuePendingRespawn(
+        string nodeId,
+        string spawnPointGroupId,
+        bool shuffleSpawnPointsFromPlan,
+        GameObject prefabAsset,
+        EnemyDefinition enemyDefinition)
+    {
+        _pendingRespawns.Add(new PendingRespawn
+        {
+            NodeId = nodeId,
+            SpawnPointGroupId = spawnPointGroupId,
+            ShuffleSpawnPointsFromPlan = shuffleSpawnPointsFromPlan,
+            PrefabAsset = prefabAsset,
+            EnemyDefinition = enemyDefinition,
+        });
+
+        if (_respawnQueueCoroutine == null && isActiveAndEnabled)
+            _respawnQueueCoroutine = StartCoroutine(CoProcessRespawnQueue());
+    }
+
+    private IEnumerator CoProcessRespawnQueue()
+    {
+        try
+        {
+            while (_pendingRespawns.Count > 0)
+            {
+                bool spawnedAny = false;
+                for (int i = 0; i < _pendingRespawns.Count;)
+                {
+                    PendingRespawn pr = _pendingRespawns[i];
+                    RespawnAttemptOutcome outcome = TrySpawnRespawnAfterDelay(
+                        pr.NodeId,
+                        pr.SpawnPointGroupId,
+                        pr.ShuffleSpawnPointsFromPlan,
+                        pr.PrefabAsset,
+                        pr.EnemyDefinition,
+                        logWhenNoFreePoint: false);
+
+                    if (outcome == RespawnAttemptOutcome.Spawned)
+                    {
+                        _pendingRespawns.RemoveAt(i);
+                        spawnedAny = true;
+                    }
+                    else if (outcome == RespawnAttemptOutcome.NoFreePoint)
+                    {
+                        i++;
+                    }
+                    else
+                    {
+                        _pendingRespawns.RemoveAt(i);
+                    }
+                }
+
+                if (_pendingRespawns.Count == 0)
+                    yield break;
+
+                if (!spawnedAny)
+                    yield return new WaitForSeconds(respawnQueueRetryIntervalSec);
+            }
+        }
+        finally
+        {
+            _respawnQueueCoroutine = null;
+        }
+    }
+
+    private RespawnAttemptOutcome TrySpawnRespawnAfterDelay(
+        string expectedNodeId,
+        string spawnPointGroupId,
+        bool shuffleSpawnPointsFromPlan,
+        GameObject prefabAsset,
+        EnemyDefinition enemyDefinition,
+        bool logWhenNoFreePoint)
+    {
+        MapNodeDefinition active = GameplayLevelBootstrapper.Instance != null
+            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+            : ActiveLevelContext.Current;
+
+        if (active == null || active.nodeId != expectedNodeId || !active.enemyRespawnEnabled)
+            return RespawnAttemptOutcome.AbortedInvalidContext;
+
+        if (!prefabAsset)
+            return RespawnAttemptOutcome.AbortedInvalidContext;
+
+        var groupsById = FindAllSpawnPointGroups();
+        if (!groupsById.TryGetValue(spawnPointGroupId, out SpawnPointGroup pointGroup) || pointGroup == null)
+            return RespawnAttemptOutcome.AbortedInvalidContext;
+
+        Transform p = PickSpawnPointForRespawn(pointGroup, shuffleSpawnPointsFromPlan);
+        if (!p)
+        {
+            if (logWhenNoFreePoint && logSpawns)
+            {
+                Debug.LogWarning(
+                    $"[LevelSpawnDirector] No free spawn point for respawn; all points in group '{pointGroup.groupId}' are occupied by enemies. Queued for retry.",
+                    pointGroup);
+            }
+
+            return RespawnAttemptOutcome.NoFreePoint;
+        }
+
+        Transform parent = ResolveSpawnParent();
+        GameObject inst = SpawnEnemyInstanceAt(p, prefabAsset, enemyDefinition, parent);
+        if (!inst)
+            return RespawnAttemptOutcome.AbortedInvalidContext;
+
+        if (alignSpawnPointToColliderBottom)
+            AlignBottomOfColliderToPoint(inst.transform, p.position);
+
+        if (preventOverlappingSpawns)
+            ReservePoint(p.position);
+
+        EnemyBaseController ec = inst.GetComponent<EnemyBaseController>() ??
+                                 inst.GetComponentInChildren<EnemyBaseController>(true);
+        if (ec != null && active.enemyRespawnEnabled && active.enemyRespawnDelaySeconds >= 0.01f)
+        {
+            var src = inst.AddComponent<EnemySpawnSource>();
+            src.Bind(this, active, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition);
+        }
+
+        return RespawnAttemptOutcome.Spawned;
+    }
+
+    private IEnumerator CoRespawnAfterDelay(
+        MapNodeDefinition mapNode,
+        string spawnPointGroupId,
+        bool shuffleSpawnPointsFromPlan,
+        GameObject prefabAsset,
+        EnemyDefinition enemyDefinition)
+    {
+        string nodeId = mapNode.nodeId;
+        float delay = mapNode.enemyRespawnDelaySeconds;
+        yield return new WaitForSeconds(delay);
+
+        if (!this)
+            yield break;
+
+        RespawnAttemptOutcome outcome = TrySpawnRespawnAfterDelay(
+            nodeId,
+            spawnPointGroupId,
+            shuffleSpawnPointsFromPlan,
+            prefabAsset,
+            enemyDefinition,
+            logWhenNoFreePoint: true);
+
+        if (outcome == RespawnAttemptOutcome.NoFreePoint)
+        {
+            EnqueuePendingRespawn(nodeId, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition);
+        }
+    }
+
+    private Transform PickSpawnPointForRespawn(SpawnPointGroup group, bool shuffleSpawnPointsFromPlan)
+    {
+        IReadOnlyList<Transform> raw = group.Points;
+        var list = new List<Transform>();
+        for (int i = 0; i < raw.Count; i++)
+        {
+            if (raw[i])
+                list.Add(raw[i]);
+        }
+
+        if (list.Count == 0)
+            return null;
+
+        if (shuffleSpawnPointsFromPlan)
+            Shuffle(list);
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            Transform p = list[i];
+            if (!p)
+                continue;
+            if (!IsSpawnPointOccupiedByEnemy(p.position))
+                return p;
+        }
+
+        return null;
+    }
+
+    private GameObject SpawnEnemyInstanceAt(Transform spawnPoint, GameObject prefabAsset, EnemyDefinition defForInit, Transform parent)
+    {
+        GameObject inst = Instantiate(prefabAsset, spawnPoint.position, spawnPoint.rotation, parent);
+        if (!inst.activeSelf)
+            inst.SetActive(true);
+
+        if (defForInit != null)
+            ApplyEnemyDefinitionAfterSpawn(inst, defForInit);
+
+        return inst;
     }
 
     private void ApplyEnemyDefinitionAfterSpawn(GameObject instance, EnemyDefinition def)
@@ -331,34 +604,80 @@ public class LevelSpawnDirector : MonoBehaviour
         }
     }
 
-    private Transform PickNextAvailablePoint(List<Transform> points, ref int cursor, out bool hadToReuse)
+    private Transform PickNextAvailablePoint(
+        List<Transform> points,
+        ref int cursor,
+        out bool hadToReuse,
+        string groupIdForLog,
+        SpawnPointGroup pointGroupForLog)
     {
         hadToReuse = false;
         if (points == null || points.Count == 0)
             return null;
 
-        if (!preventOverlappingSpawns)
+        int start = cursor;
+
+        bool PointIsStrictlyFree(Transform p)
         {
-            Transform p = points[cursor % points.Count];
-            cursor++;
-            return p;
+            if (!p)
+                return false;
+            if (IsSpawnPointOccupiedByEnemy(p.position))
+                return false;
+            if (preventOverlappingSpawns && IsReserved(p.position))
+                return false;
+            return true;
         }
 
-        int start = cursor;
         for (int tries = 0; tries < points.Count; tries++)
         {
             Transform p = points[cursor % points.Count];
             cursor++;
-            if (!p) continue;
-
-            if (!IsReserved(p.position))
+            if (PointIsStrictlyFree(p))
                 return p;
         }
 
-        // All points appear reserved; fall back to deterministic reuse so we still spawn.
-        cursor = start + 1;
-        hadToReuse = true;
-        return points[start % points.Count];
+        if (preventOverlappingSpawns)
+        {
+            cursor = start;
+            for (int tries = 0; tries < points.Count; tries++)
+            {
+                Transform p = points[cursor % points.Count];
+                cursor++;
+                if (!p)
+                    continue;
+                if (IsSpawnPointOccupiedByEnemy(p.position))
+                    continue;
+                hadToReuse = true;
+                return p;
+            }
+        }
+
+        if (logSpawns)
+        {
+            Debug.LogWarning(
+                $"[LevelSpawnDirector] No free spawn point for group '{groupIdForLog}'; all points are occupied by enemies.",
+                pointGroupForLog);
+        }
+
+        return null;
+    }
+
+    private bool IsSpawnPointOccupiedByEnemy(Vector3 worldPos)
+    {
+        float r = Mathf.Max(0.01f, enemySpawnOccupancyRadius);
+        Collider2D[] hits = Physics2D.OverlapCircleAll(worldPos, r);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider2D col = hits[i];
+            if (!col || !col.enabled)
+                continue;
+
+            EnemyBaseController ec = col.GetComponentInParent<EnemyBaseController>();
+            if (ec != null && !ec.IsDead)
+                return true;
+        }
+
+        return false;
     }
 
     private bool IsReserved(Vector3 worldPos)

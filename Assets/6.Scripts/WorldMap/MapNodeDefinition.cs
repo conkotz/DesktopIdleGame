@@ -16,6 +16,17 @@ public enum MapNodeType
     EnduranceTrial
 }
 
+/// <summary>
+/// How enemies react to the player on a map (<see cref="MapNodeDefinition.enemyAggroMode"/>).
+/// </summary>
+public enum LevelEnemyAggroMode
+{
+    [Tooltip("Enemies chase and attack when the player enters each enemy's aggro range (default).")]
+    Aggressive,
+    [Tooltip("No proximity aggro; enemies ignore the player until they take damage, then retaliate.")]
+    Calm
+}
+
 /// <summary>High-level environment for music, lighting, skybox, ambient VFX, etc.</summary>
 public enum LevelBiome
 {
@@ -316,6 +327,17 @@ public class MapNodeDefinition : ScriptableObject
     [Header("Gameplay")]
     [Tooltip("Category for map UI and GamePlay (combat, gathering, town, dungeon, etc.).")]
     public MapNodeType nodeType = MapNodeType.Combat;
+
+    [Tooltip("Aggressive: proximity aggro as usual. Calm: enemies ignore the player until damaged (retaliation only).")]
+    public LevelEnemyAggroMode enemyAggroMode = LevelEnemyAggroMode.Aggressive;
+
+    [Header("Enemy respawn (spawn group plans)")]
+    [Tooltip("When true, enemies spawned from spawn group plans respawn after enemyRespawnDelaySeconds. Ignored for endurance waves.")]
+    public bool enemyRespawnEnabled;
+
+    [Min(0.01f)]
+    [Tooltip("Delay before a defeated enemy respawns (only when Enemy Respawn Enabled is on).")]
+    public float enemyRespawnDelaySeconds = 30f;
 
     [FormerlySerializedAs("recommendedLevel")]
     [Min(1)]

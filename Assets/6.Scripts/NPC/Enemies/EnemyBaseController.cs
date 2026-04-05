@@ -288,12 +288,8 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         float dist = DistanceToPlayerX();
-        bool shouldAggro = _provoked || dist <= aggroRange;
-
-        UpdateEngagement(dist);
-
-        if (state != EnemyState.Dead)
-            FaceTargetX(player.position.x);
+        bool useDistanceAggro = LevelUsesDistanceAggro();
+        bool shouldAggro = _provoked || (useDistanceAggro && dist <= aggroRange);
 
         if (!shouldAggro)
         {
@@ -303,6 +299,11 @@ public class EnemyBaseController : MonoBehaviour
             SetMoving(false);
             return;
         }
+
+        UpdateEngagement(dist);
+
+        if (state != EnemyState.Dead)
+            FaceTargetX(player.position.x);
 
         if (dist <= AttackRange)
         {
@@ -339,7 +340,8 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         float dist = DistanceToPlayerX();
-        bool shouldAggro = _provoked || dist <= aggroRange;
+        bool useDistanceAggro = LevelUsesDistanceAggro();
+        bool shouldAggro = _provoked || (useDistanceAggro && dist <= aggroRange);
 
         if (shouldAggro && dist > AttackRange)
         {
@@ -360,6 +362,19 @@ public class EnemyBaseController : MonoBehaviour
     private void StopHorizontal()
     {
         _rb.linearVelocity = new Vector2(0f, _rb.linearVelocity.y);
+    }
+
+    /// <summary>
+    /// When false (calm level), proximity does not trigger aggro — only <see cref="_provoked"/> (e.g. after taking damage).
+    /// </summary>
+    private static bool LevelUsesDistanceAggro()
+    {
+        MapNodeDefinition def = ActiveLevelContext.Current;
+        if (def == null && GameplayLevelBootstrapper.Instance != null)
+            def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
+        if (def == null)
+            return true;
+        return def.enemyAggroMode == LevelEnemyAggroMode.Aggressive;
     }
 
     private void ResolvePlayer()
@@ -608,6 +623,8 @@ public class EnemyBaseController : MonoBehaviour
             return;
 
         finalDamage = Mathf.Max(1, finalDamage);
+
+        _provoked = true;
 
         // DOT damage passed here is already the final resolved amount,
         // so apply it as True damage to bypass extra mitigation.
