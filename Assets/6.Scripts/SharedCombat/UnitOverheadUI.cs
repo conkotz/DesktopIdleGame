@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -34,8 +35,24 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private Canvas parentCanvas;
     [SerializeField] private Camera targetCamera;
 
+    [Header("Overlap stack (enemy overhead only)")]
+    [Tooltip("When multiple enemy overheads project to nearby X positions on the strip canvas, stack them vertically.")]
+    [SerializeField] private bool enableOverlappingStack = true;
+    [SerializeField] private float stackOverlapThresholdPx = 64f;
+    [SerializeField] private float stackVerticalSpacingPx = 56f;
+
     private RectTransform canvasRect;
     private readonly List<GameObject> spawnedDebuffIcons = new();
+
+    private Vector2 _stackBaseAnchored;
+    private float _stackYOffset;
+
+    private static readonly List<UnitOverheadUI> s_instances = new();
+    private static bool s_canvasCallbackSubscribed;
+    private static int s_lastStackResolveFrame = -1;
+
+    private PlayerCombatController _playerCombatCache;
+    private Image _clickBackingImage;
 
     private void Awake()
     {
@@ -45,22 +62,33 @@ public class UnitOverheadUI : MonoBehaviour
         if (!characterStats) characterStats = GetComponentInParent<CharacterStats>();
         if (!enemy) enemy = GetComponentInParent<EnemyBaseController>();
         if (!ailments) ailments = GetComponentInParent<AilmentController>();
+
+        EnsureClickableBacking();
     }
 
     private void OnEnable()
     {
+        if (!s_instances.Contains(this))
+            s_instances.Add(this);
+        EnsureCanvasStackCallback();
         Subscribe();
         RefreshAll();
     }
 
     private void OnDisable()
     {
+        s_instances.Remove(this);
         Unsubscribe();
     }
 
     private void LateUpdate()
     {
-        UpdateScreenPosition();
+        ComputeBaseAnchoredAndVisibility();
+
+        if (!enableOverlappingStack || enemy == null)
+            ApplyDirectPosition();
+        else
+            ApplyStackedPosition();
     }
 
     public void Bind(
@@ -83,7 +111,98 @@ public class UnitOverheadUI : MonoBehaviour
 
         Subscribe();
         RefreshAll();
-        UpdateScreenPosition();
+        EnsureClickableBacking();
+        ComputeBaseAnchoredAndVisibility();
+        if (!enableOverlappingStack || enemy == null)
+            ApplyDirectPosition();
+        else
+            ApplyStackedPosition();
+    }
+
+    private static void EnsureCanvasStackCallback()
+    {
+        if (s_canvasCallbackSubscribed)
+            return;
+        s_canvasCallbackSubscribed = true;
+        Canvas.willRenderCanvases += OnCanvasWillRenderResolveStack;
+    }
+
+    private static void OnCanvasWillRenderResolveStack()
+    {
+        int fc = Time.frameCount;
+        if (fc == s_lastStackResolveFrame)
+            return;
+        s_lastStackResolveFrame = fc;
+        ResolveEnemyOverheadStacking();
+    }
+
+    private static void ResolveEnemyOverheadStacking()
+    {
+        var byCanvas = new Dictionary<int, List<UnitOverheadUI>>();
+
+        for (int i = 0; i < s_instances.Count; i++)
+        {
+            UnitOverheadUI ui = s_instances[i];
+            if (ui == null || !ui.isActiveAndEnabled || !ui.gameObject.activeInHierarchy)
+                continue;
+            if (!ui.enableOverlappingStack || ui.enemy == null)
+                continue;
+
+            int canvasKey = ui.parentCanvas != null ? ui.parentCanvas.GetInstanceID() : 0;
+            if (!byCanvas.TryGetValue(canvasKey, out List<UnitOverheadUI> list))
+            {
+                list = new List<UnitOverheadUI>();
+                byCanvas[canvasKey] = list;
+            }
+
+            list.Add(ui);
+        }
+
+        foreach (KeyValuePair<int, List<UnitOverheadUI>> kv in byCanvas)
+            ResolveStackingForCanvasGroup(kv.Value);
+    }
+
+    private static void ResolveStackingForCanvasGroup(List<UnitOverheadUI> candidates)
+    {
+        for (int i = 0; i < candidates.Count; i++)
+            candidates[i]._stackYOffset = 0f;
+
+        if (candidates.Count <= 1)
+        {
+            for (int i = 0; i < candidates.Count; i++)
+                candidates[i].ApplyStackedPosition();
+            return;
+        }
+
+        float threshold = Mathf.Max(1f, candidates[0].stackOverlapThresholdPx);
+        float spacing = Mathf.Max(1f, candidates[0].stackVerticalSpacingPx);
+
+        candidates.Sort((a, b) => a._stackBaseAnchored.x.CompareTo(b._stackBaseAnchored.x));
+
+        int start = 0;
+        while (start < candidates.Count)
+        {
+            int end = start;
+            while (end + 1 < candidates.Count &&
+                   candidates[end + 1]._stackBaseAnchored.x - candidates[end]._stackBaseAnchored.x <= threshold)
+            {
+                end++;
+            }
+
+            var cluster = new List<UnitOverheadUI>();
+            for (int j = start; j <= end; j++)
+                cluster.Add(candidates[j]);
+
+            cluster.Sort((a, b) => a.GetInstanceID().CompareTo(b.GetInstanceID()));
+
+            for (int k = 0; k < cluster.Count; k++)
+                cluster[k]._stackYOffset = k * spacing;
+
+            start = end + 1;
+        }
+
+        for (int i = 0; i < candidates.Count; i++)
+            candidates[i].ApplyStackedPosition();
     }
 
     private void Subscribe()
@@ -141,7 +260,7 @@ public class UnitOverheadUI : MonoBehaviour
         RefreshDebuffIcons();
     }
 
-    private void UpdateScreenPosition()
+    private void ComputeBaseAnchoredAndVisibility()
     {
         if (root == null || followTarget == null || parentCanvas == null || targetCamera == null)
             return;
@@ -163,10 +282,25 @@ public class UnitOverheadUI : MonoBehaviour
             canvasRect,
             screenPos,
             parentCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : targetCamera,
-            out Vector2 localPoint
+            out _stackBaseAnchored
         );
+    }
 
-        root.anchoredPosition = localPoint;
+    private void ApplyDirectPosition()
+    {
+        if (root == null || !gameObject.activeSelf)
+            return;
+
+        root.anchoredPosition = _stackBaseAnchored;
+        root.localScale = Vector3.one;
+    }
+
+    private void ApplyStackedPosition()
+    {
+        if (root == null || !gameObject.activeSelf)
+            return;
+
+        root.anchoredPosition = _stackBaseAnchored + new Vector2(0f, _stackYOffset);
         root.localScale = Vector3.one;
     }
 
@@ -286,6 +420,49 @@ public class UnitOverheadUI : MonoBehaviour
         }
 
         spawnedDebuffIcons.Add(icon);
+
+        foreach (Graphic g in icon.GetComponentsInChildren<Graphic>(true))
+            g.raycastTarget = false;
+    }
+
+    private void EnsureClickableBacking()
+    {
+        if (root == null)
+            return;
+
+        foreach (Graphic g in root.GetComponentsInChildren<Graphic>(true))
+            g.raycastTarget = false;
+
+        _clickBackingImage = root.GetComponent<Image>();
+        if (_clickBackingImage == null)
+        {
+            _clickBackingImage = root.gameObject.AddComponent<Image>();
+            _clickBackingImage.color = new Color(1f, 1f, 1f, 0f);
+        }
+
+        _clickBackingImage.raycastTarget = true;
+
+        OverheadClickRelay relay = root.GetComponent<OverheadClickRelay>();
+        if (relay == null)
+            relay = root.gameObject.AddComponent<OverheadClickRelay>();
+        relay.Initialize(this);
+    }
+
+    internal void NotifyOverheadClicked(PointerEventData eventData)
+    {
+        if (eventData != null && eventData.button != PointerEventData.InputButton.Left)
+            return;
+
+        if (enemy == null || enemy.IsDead)
+            return;
+
+        if (_playerCombatCache == null)
+            _playerCombatCache = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Exclude);
+
+        if (_playerCombatCache == null)
+            return;
+
+        _playerCombatCache.SetTarget(enemy);
     }
 
     private void ClearDebuffIcons()
@@ -297,5 +474,20 @@ public class UnitOverheadUI : MonoBehaviour
         }
 
         spawnedDebuffIcons.Clear();
+    }
+
+    private sealed class OverheadClickRelay : MonoBehaviour, IPointerClickHandler
+    {
+        private UnitOverheadUI _owner;
+
+        public void Initialize(UnitOverheadUI owner)
+        {
+            _owner = owner;
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            _owner?.NotifyOverheadClicked(eventData);
+        }
     }
 }
