@@ -8,7 +8,21 @@ public class StorageUI : MonoBehaviour
     [SerializeField] private GameObject panelRoot;
     [SerializeField] private StorageGridUI grid;
 
-    public static bool IsOpen { get; private set; }
+    private static StorageUI _instance;
+
+    /// <summary>
+    /// True when the storage panel is actually shown in the hierarchy (not just a stale flag).
+    /// Parent pages or the main menu can hide this without calling <see cref="Close"/>; <c>activeInHierarchy</c> stays in sync.
+    /// </summary>
+    public static bool IsOpen
+    {
+        get
+        {
+            var ui = _instance != null ? _instance : FindFirstObjectByType<StorageUI>(FindObjectsInactive.Include);
+            if (ui == null) return false;
+            return ui.panelRoot != null && ui.panelRoot.activeInHierarchy;
+        }
+    }
 
     /// <summary>Open() moves this panel to the top sibling, which blocks drops onto the inventory underneath.
     /// While dragging <i>from</i> storage, we temporarily send the panel to the back so inventory slots receive the drop.</summary>
@@ -16,18 +30,23 @@ public class StorageUI : MonoBehaviour
 
     private void Awake()
     {
+        _instance = this;
+
         if (panelRoot)
             panelRoot.SetActive(false);
-        IsOpen = false;
 
         if (!grid)
             grid = GetComponentInChildren<StorageGridUI>(true);
     }
 
+    private void OnDestroy()
+    {
+        if (_instance == this)
+            _instance = null;
+    }
+
     public void Open()
     {
-        IsOpen = true;
-
         if (panelRoot)
         {
             panelRoot.SetActive(true);
@@ -41,8 +60,6 @@ public class StorageUI : MonoBehaviour
 
     public void Close()
     {
-        IsOpen = false;
-
         if (panelRoot)
             panelRoot.SetActive(false);
     }

@@ -534,9 +534,20 @@ public class EquipmentSlotUI : MonoBehaviour,
         int fromSlot = InventoryDragState.FromSlotIndex;
         if (fromSlot < 0) return;
 
+        bool fromStorage = InventoryDragState.Source == InventoryDragState.SourceKind.Storage;
+        PlayerStorage playerStorage = fromStorage
+            ? (InventoryDragState.StorageSource != null
+                ? InventoryDragState.StorageSource
+                : FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include))
+            : null;
+        if (fromStorage && playerStorage == null) return;
+
         int draggedAmount = InventoryDragState.IsSplit
             ? Mathf.Max(1, InventoryDragState.CarriedAmount)
-            : Mathf.Max(1, inventory.GetSlot(fromSlot).amount);
+            : Mathf.Max(1,
+                fromStorage
+                    ? playerStorage.GetSlot(fromSlot).amount
+                    : inventory.GetSlot(fromSlot).amount);
 
         bool accept = false;
 
@@ -582,7 +593,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         // MAIN HAND
         if (slotType == EquipmentUISlotType.MainHand)
         {
-            if (inventory.RemoveAmountAtSlot(fromSlot, 1) != 1)
+            if (!TryRemoveDraggedFromSource(1, fromStorage, playerStorage, fromSlot))
                 return;
 
             string prev = equipment.MainHandItemId;
@@ -591,6 +602,7 @@ public class EquipmentSlotUI : MonoBehaviour,
             if (!string.IsNullOrWhiteSpace(prev) && prev != draggedId)
                 ReturnOrDrop(prev, 1);
 
+            InventoryDragState.EndDrag();
             eventData.Use();
             return;
         }
@@ -605,11 +617,12 @@ public class EquipmentSlotUI : MonoBehaviour,
                 !string.IsNullOrWhiteSpace(equipment.OffHandItemId) &&
                 equipment.OffHandItemId == draggedId)
             {
-                if (inventory.RemoveAmountAtSlot(fromSlot, draggedAmount) != draggedAmount)
+                if (!TryRemoveDraggedFromSource(draggedAmount, fromStorage, playerStorage, fromSlot))
                     return;
 
                 equipment.EquipOffHand(draggedId, draggedAmount);
 
+                InventoryDragState.EndDrag();
                 eventData.Use();
                 return;
             }
@@ -626,7 +639,7 @@ public class EquipmentSlotUI : MonoBehaviour,
                     prevAmount = Mathf.Max(1, equipment.OffHandStackAmount);
             }
 
-            if (inventory.RemoveAmountAtSlot(fromSlot, equipAmount) != equipAmount)
+            if (!TryRemoveDraggedFromSource(equipAmount, fromStorage, playerStorage, fromSlot))
                 return;
 
             equipment.EquipOffHand(draggedId, equipAmount);
@@ -634,6 +647,7 @@ public class EquipmentSlotUI : MonoBehaviour,
             if (!string.IsNullOrWhiteSpace(prev) && prev != draggedId)
                 ReturnOrDrop(prev, prevAmount);
 
+            InventoryDragState.EndDrag();
             eventData.Use();
             return;
         }
@@ -642,7 +656,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         int idx = GetToolbeltIndex();
         if (idx >= 0 && toolbelt != null)
         {
-            if (inventory.RemoveAmountAtSlot(fromSlot, 1) != 1)
+            if (!TryRemoveDraggedFromSource(1, fromStorage, playerStorage, fromSlot))
                 return;
 
             string prev = toolbelt.GetToolItemId(idx);
@@ -651,6 +665,7 @@ public class EquipmentSlotUI : MonoBehaviour,
             if (!string.IsNullOrWhiteSpace(prev) && prev != draggedId)
                 ReturnOrDrop(prev, 1);
 
+            InventoryDragState.EndDrag();
             eventData.Use();
             return;
         }
@@ -658,7 +673,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         // RING1 / RING2
         if (slotType == EquipmentUISlotType.Ring1 || slotType == EquipmentUISlotType.Ring2)
         {
-            if (inventory.RemoveAmountAtSlot(fromSlot, 1) != 1)
+            if (!TryRemoveDraggedFromSource(1, fromStorage, playerStorage, fromSlot))
                 return;
 
             int ringIndex = (slotType == EquipmentUISlotType.Ring1) ? 0 : 1;
@@ -669,6 +684,7 @@ public class EquipmentSlotUI : MonoBehaviour,
             if (!string.IsNullOrWhiteSpace(prev) && prev != draggedId)
                 ReturnOrDrop(prev, 1);
 
+            InventoryDragState.EndDrag();
             eventData.Use();
             return;
         }
@@ -687,7 +703,7 @@ public class EquipmentSlotUI : MonoBehaviour,
 
             if (gearSlot != EquipSlot.None)
             {
-                if (inventory.RemoveAmountAtSlot(fromSlot, 1) != 1)
+                if (!TryRemoveDraggedFromSource(1, fromStorage, playerStorage, fromSlot))
                     return;
 
                 string prev = equipment.GetEquippedItemId(gearSlot);
@@ -696,10 +712,23 @@ public class EquipmentSlotUI : MonoBehaviour,
                 if (!string.IsNullOrWhiteSpace(prev) && prev != draggedId)
                     ReturnOrDrop(prev, 1);
 
+                InventoryDragState.EndDrag();
                 eventData.Use();
                 return;
             }
         }
+    }
+
+    private bool TryRemoveDraggedFromSource(int amount, bool fromStorage, PlayerStorage playerStorage, int fromSlot)
+    {
+        if (amount <= 0) return false;
+        if (fromStorage)
+        {
+            if (playerStorage == null) return false;
+            return playerStorage.RemoveAmountAtSlot(fromSlot, amount) == amount;
+        }
+
+        return inventory.RemoveAmountAtSlot(fromSlot, amount) == amount;
     }
 
     public void OnBeginDrag(PointerEventData eventData)
@@ -751,6 +780,12 @@ public class EquipmentSlotUI : MonoBehaviour,
     }
 
     private void ClearThisSlot()
+    {
+        UnequipDragSource(slotType, equipment, toolbelt);
+    }
+
+    /// <summary>Used when moving equipped items to inventory or storage (e.g. <see cref="StorageSlotUI"/>).</summary>
+    public static void UnequipDragSource(EquipmentUISlotType slotType, EquipmentManager equipment, ToolbeltManager toolbelt)
     {
         switch (slotType)
         {

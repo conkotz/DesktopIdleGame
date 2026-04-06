@@ -228,7 +228,10 @@ public class ShopUI : MonoBehaviour
 
             // Interactive controls (buttons, slots) + explicit backdrop blockers must receive raycasts.
             bool isInteractive = g.GetComponentInParent<Selectable>(true) != null;
-            g.raycastTarget = isInteractive || IsPointerBlockingGraphic(g);
+            // UIDragWindow lives on a header Image that is NOT a Selectable; without this, raycastTarget
+            // stays false and the bar is click-through — drag never starts (see RefreshShopRaycastTargets).
+            bool isDragHandle = g.GetComponentInParent<UIDragWindow>(true) != null;
+            g.raycastTarget = isInteractive || isDragHandle || IsPointerBlockingGraphic(g);
         }
     }
 

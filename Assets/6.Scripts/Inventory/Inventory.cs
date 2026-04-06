@@ -476,6 +476,76 @@ public class Inventory : MonoBehaviour, ISaveable
         return remaining <= 0;
     }
 
+    /// <summary>
+    /// Places items not from an existing inventory slot (e.g. unequipped gear) into <paramref name="slotIndex"/>.
+    /// Empty/same-item: fills or merges that slot first; overflow uses normal <see cref="AddPartial"/> rules.
+    /// Different item: swaps with that slot and stacks the displaced items elsewhere (fails if they cannot fit).
+    /// </summary>
+    public bool TryPlaceExternalAtSlot(string itemId, int amount, int slotIndex, int? maxStackOverride = null)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return false;
+        if (slotIndex < 0 || slotIndex >= _slots.Count) return false;
+
+        int maxStack = GetMaxStack(itemId, maxStackOverride);
+        var to = _slots[slotIndex];
+
+        if (to.IsEmpty)
+        {
+            if (!CanAdd(itemId, amount)) return false;
+
+            int chunk = Mathf.Min(amount, maxStack);
+            ReplaceSlot(slotIndex, new Slot { itemId = itemId, amount = chunk });
+            int remainder = amount - chunk;
+            if (remainder > 0)
+            {
+                int added = AddPartial(itemId, remainder, maxStackOverride);
+                if (added != remainder)
+                {
+                    Debug.LogError("[Inventory] TryPlaceExternalAtSlot: overflow after CanAdd — state may be inconsistent.");
+                }
+            }
+
+            return true;
+        }
+
+        if (to.itemId == itemId)
+        {
+            if (!CanAdd(itemId, amount)) return false;
+
+            int space = maxStack - to.amount;
+            int add = Mathf.Min(space, amount);
+            if (add <= 0) return false;
+
+            var merged = to;
+            merged.amount += add;
+            ReplaceSlot(slotIndex, merged);
+            int remainder = amount - add;
+            if (remainder > 0)
+            {
+                int added = AddPartial(itemId, remainder, maxStackOverride);
+                if (added != remainder)
+                {
+                    Debug.LogError("[Inventory] TryPlaceExternalAtSlot: overflow after merge — state may be inconsistent.");
+                }
+            }
+
+            return true;
+        }
+
+        var displaced = to;
+        ReplaceSlot(slotIndex, new Slot { itemId = itemId, amount = amount });
+        int placedDisplaced = AddPartial(displaced.itemId, displaced.amount);
+        if (placedDisplaced < displaced.amount)
+        {
+            if (placedDisplaced > 0)
+                Remove(displaced.itemId, placedDisplaced);
+            ReplaceSlot(slotIndex, displaced);
+            return false;
+        }
+
+        return true;
+    }
+
     public bool TryFindMainHandItemByToolKey(ToolKey requiredTool, out string foundItemId)
     {
         foundItemId = null;

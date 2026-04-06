@@ -285,6 +285,32 @@ public class StorageSlotUI : MonoBehaviour,
         if (!_inventory)
             _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
 
+        if (EquipmentSlotUI.TryConsumeEquipDrag(out var fromSlotType, out var equipItemId, out var equipAmount))
+        {
+            if (_inventory == null) return;
+            if (string.IsNullOrWhiteSpace(equipItemId)) return;
+
+            var equipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
+            var toolbelt = FindFirstObjectByType<ToolbeltManager>(FindObjectsInactive.Include);
+            if (equipment == null) return;
+
+            int dep = _storage.TryDepositAmountFromExternal(equipItemId, equipAmount);
+            int remainder = equipAmount - dep;
+            if (remainder > 0)
+            {
+                if (!_inventory.Add(equipItemId, remainder))
+                {
+                    if (dep > 0)
+                        _storage.RemoveItemAmountAcrossSlots(equipItemId, dep);
+                    return;
+                }
+            }
+
+            EquipmentSlotUI.UnequipDragSource(fromSlotType, equipment, toolbelt);
+            _tooltip?.Hide();
+            return;
+        }
+
         if (InventoryDragState.HasDrag && InventoryDragState.Source == InventoryDragState.SourceKind.Inventory)
         {
             if (_inventory == null)

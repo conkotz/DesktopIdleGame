@@ -296,9 +296,11 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
         if (to.IsEmpty)
         {
-            inv.ReplaceSlot(toInvSlot, new Inventory.Slot { itemId = from.itemId, amount = amount });
-            RemoveAmountAtSlot(fromStorageSlot, amount);
-            return amount;
+            int maxStack = GetMaxStack(from.itemId, maxStackOverride);
+            int move = Mathf.Min(amount, maxStack);
+            inv.ReplaceSlot(toInvSlot, new Inventory.Slot { itemId = from.itemId, amount = move });
+            RemoveAmountAtSlot(fromStorageSlot, move);
+            return move;
         }
 
         if (to.itemId == from.itemId)
@@ -338,6 +340,92 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         };
         OnStorageChanged?.Invoke();
         return true;
+    }
+
+    /// <summary>
+    /// Places items not coming from an inventory slot (e.g. unequipped gear) into storage,
+    /// merging into matching stacks then filling empty slots up to max stack.
+    /// </summary>
+    public int TryDepositAmountFromExternal(string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return 0;
+
+        int movedTotal = 0;
+        int remaining = amount;
+
+        while (remaining > 0)
+        {
+            bool progressed = false;
+
+            for (int i = 0; i < _slots.Count && remaining > 0; i++)
+            {
+                var s = _slots[i];
+                if (s.IsEmpty || s.itemId != itemId) continue;
+
+                int maxStack = GetMaxStack(itemId);
+                int space = maxStack - s.amount;
+                if (space <= 0) continue;
+
+                int add = Mathf.Min(space, remaining);
+                s.amount += add;
+                remaining -= add;
+                movedTotal += add;
+                _slots[i] = s;
+                progressed = true;
+            }
+
+            if (remaining <= 0) break;
+
+            for (int i = 0; i < _slots.Count && remaining > 0; i++)
+            {
+                if (!_slots[i].IsEmpty) continue;
+
+                int maxStack = GetMaxStack(itemId);
+                int chunk = Mathf.Min(remaining, maxStack);
+                _slots[i] = new Slot { itemId = itemId, amount = chunk };
+                remaining -= chunk;
+                movedTotal += chunk;
+                progressed = true;
+                break;
+            }
+
+            if (!progressed) break;
+        }
+
+        if (movedTotal > 0)
+            OnStorageChanged?.Invoke();
+
+        return movedTotal;
+    }
+
+    /// <summary>Removes up to <paramref name="amount"/> of <paramref name="itemId"/> across slots (for rollback after partial external deposit).</summary>
+    public int RemoveItemAmountAcrossSlots(string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return 0;
+
+        int removedTotal = 0;
+        int toRemove = amount;
+
+        while (toRemove > 0)
+        {
+            int progressed = 0;
+            for (int i = 0; i < _slots.Count && toRemove > 0; i++)
+            {
+                var s = _slots[i];
+                if (s.IsEmpty || s.itemId != itemId) continue;
+
+                int r = RemoveAmountAtSlot(i, Mathf.Min(toRemove, s.amount));
+                if (r <= 0) continue;
+
+                toRemove -= r;
+                removedTotal += r;
+                progressed += r;
+            }
+
+            if (progressed == 0) break;
+        }
+
+        return removedTotal;
     }
 
     /// <summary>Deposit as much as possible from one inventory slot (double-click from inventory).</summary>

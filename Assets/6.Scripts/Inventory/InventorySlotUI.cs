@@ -670,10 +670,10 @@ public class InventorySlotUI : MonoBehaviour,
             if (_inventory == null) return;
             if (string.IsNullOrWhiteSpace(equipItemId)) return;
 
-            bool ok = _inventory.Add(equipItemId, equipAmount);
+            bool ok = _inventory.TryPlaceExternalAtSlot(equipItemId, equipAmount, _slotIndex);
             if (!ok)
             {
-                // Inventory full -> keep equipped (we consumed the drag state, so just do nothing)
+                // No room / can't place on this slot -> keep equipped (drag state already consumed)
                 return;
             }
 
