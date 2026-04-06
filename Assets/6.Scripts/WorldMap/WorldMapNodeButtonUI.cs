@@ -10,17 +10,30 @@ public class WorldMapNodeButtonUI : MonoBehaviour
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text typeText;
     [SerializeField] private TMP_Text stateText;
+    [Tooltip("Optional overlay when this row is the selected node. Leave empty if you only use the Button for selection.")]
     [SerializeField] private GameObject selectedHighlight;
+
+    [Header("Theme strip")]
+    [Tooltip("Top strip Image — node-type palette applies here only, not the full row.")]
+    [SerializeField] private Image colourIcon;
+
+    [Header("Row background")]
+    [Tooltip("If empty, uses the Button's target graphic (usually the root row Image).")]
+    [SerializeField] private Image rowBackgroundImage;
+    [Tooltip("Solid fill for the row. Node-type theme colors go on Colour Icon only.")]
+    [SerializeField] private Color rowBackgroundColor = new Color(0.29f, 0.32f, 0.37f, 1f);
+
     [Header("Theme — Node Type Colors")]
-    [SerializeField] private Color townColor = new Color32(196, 171, 128, 255);          // beige
-    [SerializeField] private Color combatColor = new Color32(154, 82, 82, 255);          // lighter red
-    [SerializeField] private Color gatheringColor = new Color32(161, 190, 168, 255);     // light/soft green
-    [SerializeField] private Color enduranceTrialColor = new Color32(130, 88, 60, 255);  // reddy-brown
-    [SerializeField] private Color specialColor = new Color32(177, 143, 63, 255);         // gold-ish
+    [SerializeField] private Color townColor = new Color32(196, 171, 128, 255);
+    [SerializeField] private Color combatColor = new Color32(154, 82, 82, 255);
+    [SerializeField] private Color gatheringColor = new Color32(161, 190, 168, 255);
+    [SerializeField] private Color enduranceTrialColor = new Color32(130, 88, 60, 255);
+    [SerializeField] private Color specialColor = new Color32(177, 143, 63, 255);
     [SerializeField] private Color dungeonColor = new Color32(88, 106, 122, 255);
     [SerializeField] private Color bossColor = new Color32(118, 60, 90, 255);
     [SerializeField] private Color fallbackColor = new Color32(74, 81, 95, 255);
-    [SerializeField] private Color selectedTint = new Color(1f, 1f, 1f, 0.35f);          // fallback when Selected image has no Image component
+    [Tooltip("When this row is selected, blends toward this color on the Colour Icon only (alpha = strength). Default alpha 0 = strip stays pure node-type color; selection is via the Button only.")]
+    [SerializeField] private Color selectedTint = new Color(1f, 1f, 1f, 0f);
 
     private MapNodeDefinition _node;
     private Action<MapNodeDefinition> _onSelected;
@@ -34,6 +47,17 @@ public class WorldMapNodeButtonUI : MonoBehaviour
         if (button)
             button.onClick.AddListener(OnClick);
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (!colourIcon)
+            return;
+        Image row = GetRowBackgroundImage();
+        if (row)
+            row.color = rowBackgroundColor;
+    }
+#endif
 
     private void OnDestroy()
     {
@@ -81,24 +105,38 @@ public class WorldMapNodeButtonUI : MonoBehaviour
         if (!button)
             return;
 
-        Color baseCol = ResolveNodeTypeColor(node);
-        if (selected)
-            baseCol = Blend(baseCol, ResolveSelectedTint());
+        Color themeForIcon = ResolveNodeTypeColor(node);
+        if (selected && selectedTint.a > 0f)
+            themeForIcon = Blend(themeForIcon, selectedTint);
 
-        Color hoverCol = Lift(baseCol, 0.10f);
-        Color pressedCol = Lift(baseCol, 0.18f);
+        if (colourIcon)
+        {
+            colourIcon.color = themeForIcon;
 
-        ColorBlock cb = button.colors;
-        cb.normalColor = baseCol;
-        cb.highlightedColor = hoverCol;
-        cb.selectedColor = hoverCol;
-        cb.pressedColor = pressedCol;
-        cb.colorMultiplier = 1f;
-        cb.fadeDuration = 0.08f;
-        button.colors = cb;
+            Image rowBg = GetRowBackgroundImage();
+            if (rowBg)
+                rowBg.color = rowBackgroundColor;
+
+            button.transition = Selectable.Transition.None;
+            return;
+        }
+
+        button.transition = Selectable.Transition.ColorTint;
+
+        Color hoverColLegacy = Lift(themeForIcon, 0.10f);
+        Color pressedColLegacy = Lift(themeForIcon, 0.18f);
+
+        ColorBlock cbLegacy = button.colors;
+        cbLegacy.normalColor = themeForIcon;
+        cbLegacy.highlightedColor = hoverColLegacy;
+        cbLegacy.selectedColor = hoverColLegacy;
+        cbLegacy.pressedColor = pressedColLegacy;
+        cbLegacy.colorMultiplier = 1f;
+        cbLegacy.fadeDuration = 0.08f;
+        button.colors = cbLegacy;
 
         if (button.targetGraphic)
-            button.targetGraphic.color = baseCol;
+            button.targetGraphic.color = themeForIcon;
     }
 
     private Color ResolveNodeTypeColor(MapNodeDefinition node)
@@ -147,15 +185,12 @@ public class WorldMapNodeButtonUI : MonoBehaviour
             baseCol.a);
     }
 
-    private Color ResolveSelectedTint()
+    private Image GetRowBackgroundImage()
     {
-        if (selectedHighlight)
-        {
-            Image img = selectedHighlight.GetComponent<Image>();
-            if (img != null)
-                return img.color;
-        }
-
-        return selectedTint;
+        if (rowBackgroundImage)
+            return rowBackgroundImage;
+        if (button && button.targetGraphic is Image img)
+            return img;
+        return null;
     }
 }

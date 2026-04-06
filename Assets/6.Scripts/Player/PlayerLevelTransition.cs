@@ -26,6 +26,7 @@ public class PlayerLevelTransition : MonoBehaviour
     private float _startUniform;
     private float _endScale;
     private string _pendingScene;
+    private float _teleportLockWorldX;
 
     private Animator[] _animators;
     private bool[] _animatorWasEnabled;
@@ -87,7 +88,13 @@ public class PlayerLevelTransition : MonoBehaviour
 
         var rb = GetComponent<Rigidbody2D>();
         if (rb)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
             rb.simulated = false;
+        }
+
+        _teleportLockWorldX = transform.position.x;
 
         Vector3 sv = _savedRootScale;
         _startUniform = (sv.x + sv.y + sv.z) / 3f;
@@ -123,6 +130,10 @@ public class PlayerLevelTransition : MonoBehaviour
         float u2 = u * u * (3f - 2f * u);
         float s = Mathf.Lerp(_startUniform, _endScale, u2);
         transform.localScale = new Vector3(s, s, s);
+
+        Vector3 p = transform.position;
+        p.x = _teleportLockWorldX;
+        transform.position = p;
     }
 
     private void OnDisable()
