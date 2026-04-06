@@ -352,11 +352,11 @@ public class MapNodeDefinition : ScriptableObject
     public bool ignoreAggroRange;
 
     [Header("Enemy respawn (spawn group plans)")]
-    [Tooltip("When true, enemies spawned from spawn group plans respawn after enemyRespawnDelaySeconds. Ignored for endurance waves.")]
+    [Tooltip("When true, enemies spawned from spawn group plans can respawn after death. Actual delay is set on LevelSpawnDirector (Respawn Delay Seconds). Ignored for endurance waves.")]
     public bool enemyRespawnEnabled;
 
     [Min(0.01f)]
-    [Tooltip("Delay before a defeated enemy respawns (only when Enemy Respawn Enabled is on).")]
+    [Tooltip("Legacy / reference only — respawn wait time is driven by LevelSpawnDirector.RespawnDelaySeconds in the gameplay scene.")]
     public float enemyRespawnDelaySeconds = 30f;
 
     [FormerlySerializedAs("recommendedCombatPower")]

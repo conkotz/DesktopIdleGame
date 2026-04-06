@@ -34,8 +34,24 @@ public class LevelSpawnDirector : MonoBehaviour
     [Min(0.02f)]
     [SerializeField] private float respawnQueueRetryIntervalSec = 0.25f;
 
+    [Header("Respawn timing")]
+    [Tooltip(
+        "Seconds after an enemy dies before a respawn is attempted. Map node must have Enemy Respawn enabled. " +
+        "Items or buffs can change this at runtime via the RespawnDelaySeconds property.")]
+    [SerializeField] private float respawnDelaySeconds = 30f;
+
     [Header("Logging")]
-    [SerializeField] private bool logSpawns = true;
+    [Tooltip("When enabled, logs successful spawns/respawns and existing warnings for missing groups, etc.")]
+    [SerializeField] private bool logSpawns;
+
+    /// <summary>
+    /// Delay before respawning enemies (after death). Serialized on the director; safe to tweak from items or systems at runtime.
+    /// </summary>
+    public float RespawnDelaySeconds
+    {
+        get => respawnDelaySeconds;
+        set => respawnDelaySeconds = Mathf.Max(0f, value);
+    }
 
     private bool _hasSpawnedForCurrentLevel;
     private readonly HashSet<Vector2Int> _reservedSpawnCells = new();
@@ -119,6 +135,9 @@ public class LevelSpawnDirector : MonoBehaviour
 
         var groups = FindAllSpawnPointGroups();
         Transform parent = ResolveSpawnParent();
+
+        if (logSpawns)
+            Debug.Log($"[LevelSpawnDirector] Spawning level '{def.nodeId}' ({def.displayName}): {def.spawnGroupPlans.Count} spawn plan(s).", this);
 
         for (int i = 0; i < def.spawnGroupPlans.Count; i++)
         {
@@ -290,7 +309,7 @@ public class LevelSpawnDirector : MonoBehaviour
 
                 if (levelDefForRespawn != null
                     && levelDefForRespawn.enemyRespawnEnabled
-                    && levelDefForRespawn.enemyRespawnDelaySeconds >= 0.01f)
+                    && RespawnDelaySeconds >= 0.01f)
                 {
                     EnemyBaseController ec = inst.GetComponent<EnemyBaseController>() ??
                                              inst.GetComponentInChildren<EnemyBaseController>(true);
@@ -303,6 +322,9 @@ public class LevelSpawnDirector : MonoBehaviour
 
                 if (logSpawns)
                 {
+                    Debug.Log(
+                        $"[LevelSpawnDirector] Spawned '{prefabAsset.name}' -> '{inst.name}' at group '{gid}' point '{p.name}' pos={p.position}",
+                        inst);
                     if (hadToReuse)
                         Debug.LogWarning($"[LevelSpawnDirector] Group '{gid}' ran out of free spawn points; reusing a location. Add more points to avoid overlaps.", pointGroup);
                 }
@@ -320,7 +342,7 @@ public class LevelSpawnDirector : MonoBehaviour
         GameObject prefabAsset,
         EnemyDefinition enemyDefinition)
     {
-        if (!mapNode || !mapNode.enemyRespawnEnabled || mapNode.enemyRespawnDelaySeconds < 0.01f)
+        if (!mapNode || !mapNode.enemyRespawnEnabled || RespawnDelaySeconds < 0.01f)
             return;
         if (!prefabAsset)
             return;
@@ -457,11 +479,16 @@ public class LevelSpawnDirector : MonoBehaviour
 
         EnemyBaseController ec = inst.GetComponent<EnemyBaseController>() ??
                                  inst.GetComponentInChildren<EnemyBaseController>(true);
-        if (ec != null && active.enemyRespawnEnabled && active.enemyRespawnDelaySeconds >= 0.01f)
+        if (ec != null && active.enemyRespawnEnabled && RespawnDelaySeconds >= 0.01f)
         {
             var src = inst.AddComponent<EnemySpawnSource>();
             src.Bind(this, active, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition);
         }
+
+        if (logSpawns)
+            Debug.Log(
+                $"[LevelSpawnDirector] Respawned '{prefabAsset.name}' -> '{inst.name}' at group '{spawnPointGroupId}' point '{p.name}' pos={p.position}",
+                inst);
 
         return RespawnAttemptOutcome.Spawned;
     }
@@ -474,7 +501,7 @@ public class LevelSpawnDirector : MonoBehaviour
         EnemyDefinition enemyDefinition)
     {
         string nodeId = mapNode.nodeId;
-        float delay = mapNode.enemyRespawnDelaySeconds;
+        float delay = Mathf.Max(0.01f, RespawnDelaySeconds);
         yield return new WaitForSeconds(delay);
 
         if (!this)
