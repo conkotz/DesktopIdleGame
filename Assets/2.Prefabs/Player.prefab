@@ -5514,6 +5514,7 @@ GameObject:
   - component: {fileID: 2176292730521575066}
   - component: {fileID: 6203984249307556777}
   - component: {fileID: 2976291199266507660}
+  - component: {fileID: 2755516244557776269}
   m_Layer: 10
   m_Name: Player
   m_TagString: Player
@@ -6217,6 +6218,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b510dd70259af1948bc5a927cac71ae1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerBuffController
+--- !u!114 &2755516244557776269
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fed23c1b59b963341ac3f96ea93c7917, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerLevelTransition
+  shrinkDurationSeconds: 2
+  shrinkToScale: 0.01
 --- !u!1 &7830489794965648568
 GameObject:
   m_ObjectHideFlags: 0

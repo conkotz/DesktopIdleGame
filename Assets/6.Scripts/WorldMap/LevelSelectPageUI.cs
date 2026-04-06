@@ -646,7 +646,7 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         Debug.Log($"[LevelSelectPageUI] Loading '{gameplaySceneName}' for node: {_selectedNode.nodeId}");
-        SceneManager.LoadScene(gameplaySceneName);
+        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(gameplaySceneName);
     }
 
     private static bool IsRegionAvailable(RegionDefinition region, WorldMapProgressManager progress)

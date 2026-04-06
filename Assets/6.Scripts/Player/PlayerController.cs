@@ -90,6 +90,11 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float flipDeadzone = 0.0005f;
     private float _lastX;
 
+    private bool _suppressSpriteFlipForTeleport;
+
+    /// <summary>Lets <see cref="PlayerLevelTransition"/> own visuals scale during a level change.</summary>
+    public void SetTeleportOutVisualsActive(bool active) => _suppressSpriteFlipForTeleport = active;
+
     [Header("Popup (World Tooltip)")]
     [SerializeField] private GameObject actionPopup;          // one popup object
     [SerializeField] private float actionPopupSeconds = 1.5f; // default duration
@@ -1609,6 +1614,9 @@ public class PlayerController : MonoBehaviour
 
     private void UpdateSpriteFlip()
     {
+        if (_suppressSpriteFlipForTeleport)
+            return;
+
         float currentX = transform.position.x;
         // ✅ Combat facing override
         if (combat != null)

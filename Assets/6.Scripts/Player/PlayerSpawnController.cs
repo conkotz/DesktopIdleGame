@@ -79,10 +79,17 @@ public class PlayerSpawnController : MonoBehaviour
 
     private IEnumerator SpawnAfterLoad(Scene loadedScene)
     {
+        var combat = GetComponent<PlayerCombatController>();
+        if (combat != null)
+            combat.SetIdleCombatEnabled(false);
+
+        var levelTransition = GetComponent<PlayerLevelTransition>();
+        bool hideUntilScaleRestore = levelTransition != null && levelTransition.PendingScaleRestore;
+
         bool doFade = fadeDuration > 0.001f;
 
-        // Hide instantly BEFORE waiting (only if we're actually going to fade)
-        if (doFade)
+        // Hide until fade-in, or until teleport scale is restored (avoids a visible tiny player when fade is off).
+        if (doFade || hideUntilScaleRestore)
             SetAlpha(0f);
         else
             SetAlpha(1f);
@@ -121,6 +128,11 @@ public class PlayerSpawnController : MonoBehaviour
         yield return null;
         yield return new WaitForEndOfFrame();
         yield return new WaitForFixedUpdate();
+
+        // Restore full scale BEFORE ground snap. Snapping at teleport scale (~0.01) uses wrong collider bounds
+        // and places the root incorrectly relative to the ground.
+        GetComponent<PlayerLevelTransition>()?.RestoreScaleAfterLevelChange();
+        Physics2D.SyncTransforms();
 
         if (snapToGround)
             SnapToGround_ColliderCast(!IsBootstrapScene(loadedScene));
