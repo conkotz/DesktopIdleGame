@@ -16,6 +16,10 @@ MonoBehaviour:
   displayName: Pine Grove
   description: Basic resources
   nodeType: 1
+  enemyAggroMode: 0
+  ignoreAggroRange: 0
+  enemyRespawnEnabled: 0
+  enemyRespawnDelaySeconds: 30
   fallbackRecommendedCombatPower: 1
   isRepeatable: 1
   requiresMapUnlock: 0
@@ -37,11 +41,19 @@ MonoBehaviour:
   spawnGroupPlans:
   - groupId: Resources
     spawns:
-    - prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+    - spawnPointGroupId: 
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       count: 3
-    - prefab: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
+    - spawnPointGroupId: 
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       count: 2
-    shuffleSpawnPoints: 1
+    shuffleSpawnPoints: 0
+  enduranceWaves: []
+  enduranceCompletionLoot: []
+  enduranceCompletionLootByTier: []
+  enduranceCompletionLootInterval: 0.5
   contentDesignerNotes: 
   sceneNamePlaceholder: 
   encounterIdPlaceholder: 
