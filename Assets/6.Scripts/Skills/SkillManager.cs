@@ -46,6 +46,8 @@ public class SkillsManager : MonoBehaviour, ISaveable
     public event Action<SkillType, string> OnActiveXpDisplayChanged;
     public SkillType ActiveSkill { get; private set; } = SkillType.Mining;
     public string ActiveSource { get; private set; } = "";
+    /// <summary>XP per gain from the current source (e.g. node xpPerTick). -1 when unknown or N/A.</summary>
+    public int ActiveSourceXpPerGain { get; private set; } = -1;
 
     // Hook this to your XP bar
     public event Action<SkillType, int, string> OnXpGained; // (skill, amount, source)
@@ -133,8 +135,8 @@ public class SkillsManager : MonoBehaviour, ISaveable
     {
         if (amount <= 0) return;
 
-        // ✅ "most recently gained" should become the active display
-        SetActiveXpDisplay(type, source);
+        // ✅ "most recently gained" should become the active display (amount drives the bar hint after ticks)
+        SetActiveXpDisplay(type, source, amount);
 
         var p = Get(type);
         p.xp += amount;
@@ -182,10 +184,14 @@ public class SkillsManager : MonoBehaviour, ISaveable
         return created;
     }
 
-    public void SetActiveXpDisplay(SkillType skill, string source)
+    public void SetActiveXpDisplay(SkillType skill, string source, int sourceXpPerGain = -1)
     {
         ActiveSkill = skill;
         ActiveSource = source ?? "";
+        if (string.IsNullOrWhiteSpace(ActiveSource))
+            ActiveSourceXpPerGain = -1;
+        else
+            ActiveSourceXpPerGain = sourceXpPerGain;
         OnActiveXpDisplayChanged?.Invoke(ActiveSkill, ActiveSource);
     }
 
@@ -258,9 +264,10 @@ public class SkillsManager : MonoBehaviour, ISaveable
             }
         }
 
-        // ✅ Restore last XP display (default to Mining if missing)
+        // Restore which skill the bar tracks; omit source on load (no meaningful context until a node/menu sets it).
         ActiveSkill = data.lastXpSkill;
-        ActiveSource = data.lastXpSource ?? "";
+        ActiveSource = "";
+        ActiveSourceXpPerGain = -1;
 
         // ✅ Push UI refresh immediately after load
         OnActiveXpDisplayChanged?.Invoke(ActiveSkill, ActiveSource);

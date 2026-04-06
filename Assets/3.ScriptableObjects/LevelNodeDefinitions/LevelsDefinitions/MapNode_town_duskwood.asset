@@ -36,7 +36,7 @@ MonoBehaviour:
   - groupId: 
     prefabs: []
   spawnGroupPlans:
-  - groupId: TownMerchants
+  - groupId: TownSpawns
     spawns:
     - spawnPointGroupId: 
       enemyDefinition: {fileID: 11400000, guid: 018988b4e6f49f843a83603a5d29913b, type: 2}
@@ -57,6 +57,10 @@ MonoBehaviour:
     - spawnPointGroupId: 
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 4920183082709471436, guid: 24ff604100c61b34fb70516a67da032c, type: 3}
+      count: 1
+    - spawnPointGroupId: 
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 6284140584376777183, guid: 3c57c2ed11c6eca46913488254667548, type: 3}
       count: 1
     shuffleSpawnPoints: 0
   enduranceWaves: []

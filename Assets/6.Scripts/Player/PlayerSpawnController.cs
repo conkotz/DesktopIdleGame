@@ -137,6 +137,10 @@ public class PlayerSpawnController : MonoBehaviour
         if (snapToGround)
             SnapToGround_ColliderCast(!IsBootstrapScene(loadedScene));
 
+        if (rb)
+            rb.position = transform.position;
+        Physics2D.SyncTransforms();
+
         // Clear motion + re-enable physics
         if (rb)
         {
@@ -203,16 +207,19 @@ public class PlayerSpawnController : MonoBehaviour
                     if (_castHits[i].distance < best.distance)
                         best = _castHits[i];
 
-                float moveDown = Mathf.Max(0f, best.distance - groundSkin);
+                // Unity reports free space along the cast until contact. We want the collider to end up
+                // `groundSkin` above the surface. Single form: deltaY = groundSkin - distance.
+                // Important: when distance is 0 (already touching), older logic used Max(0, -groundSkin)=0,
+                // so groundSkin had no effect — nudging it in the inspector did nothing.
+                float deltaY = groundSkin - best.distance;
 
                 if (debugSnap)
                 {
                     Debug.Log($"[Snap] Hit '{best.collider.name}' layer={LayerMask.LayerToName(best.collider.gameObject.layer)} " +
-                              $"dist={best.distance:F4} moveDown={moveDown:F4} pointY={best.point.y:F3}");
+                              $"dist={best.distance:F4} deltaY={deltaY:F4} pointY={best.point.y:F3}");
                 }
 
-                // Move down by the cast distance so collider rests on ground
-                transform.position += new Vector3(0f, -moveDown, 0f);
+                transform.position += new Vector3(0f, deltaY, 0f);
 
                 // restore enabled state if needed
                 if (!wasEnabled) col.enabled = false;

@@ -1,3 +1,4 @@
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -24,7 +25,6 @@ public class XPBarUI : MonoBehaviour
     [SerializeField] private Color magicColor = new Color(0.4f, 0.4f, 1f);
     [SerializeField] private Color enduranceColor = new Color(0.9f, 0.6f, 0.2f);
     private SkillType _currentSkill;
-    private string _currentSource;
 
     private void Awake()
     {
@@ -32,7 +32,6 @@ public class XPBarUI : MonoBehaviour
         if (!label) label = transform.Find("SourceText")?.GetComponent<TMP_Text>();
 
         _currentSkill = fixedSkill;
-        _currentSource = "";
     }
 
     private void OnEnable()
@@ -45,10 +44,7 @@ public class XPBarUI : MonoBehaviour
             sm.OnActiveXpDisplayChanged += HandleActiveDisplayChanged;
 
             if (followActiveDisplay)
-            {
                 _currentSkill = sm.ActiveSkill;
-                _currentSource = sm.ActiveSource;
-            }
         }
 
         RefreshAll();
@@ -73,7 +69,6 @@ public class XPBarUI : MonoBehaviour
         if (skill == SkillType.Endurance) return;
 
         _currentSkill = skill;
-        _currentSource = source ?? "";
 
         RefreshAll();
     }
@@ -92,7 +87,6 @@ public class XPBarUI : MonoBehaviour
                 return;
 
             _currentSkill = skill;
-            _currentSource = source ?? "";
         }
 
         RefreshAll();
@@ -129,20 +123,44 @@ public class XPBarUI : MonoBehaviour
         fill.fillAmount = sm.GetProgress01(skill);
         fill.color = GetColorForSkill(skill);
 
-        // Label:
-        // "woodcutting level: 1 (Tree) 10/100 exp (+90)"
+        // Label: "Mining level: 9 80/489 (Stone deposit - 2xp)" — source after cur/req; omit when no context.
         if (label != null)
         {
             string skillName = SkillLabel(skill);
-            string src = string.IsNullOrWhiteSpace(_currentSource) ? "" : $" ({_currentSource})";
-            label.text = $"{skillName} level: {lvl}{src} {cur}/{req}";
+            string tail = BuildActiveSourceTail(FormatXpSourceDisplay(sm.ActiveSource), sm.ActiveSourceXpPerGain);
+            label.text = $"{skillName} level: {lvl} {cur}/{req}{tail}";
         }
     }
 
     private static string SkillLabel(SkillType s)
     {
-        // matches your screenshots style (lowercase)
-        return s.ToString().ToLowerInvariant();
+        if (s == SkillType.Endurance)
+            return "Combat";
+        return s.ToString();
+    }
+
+    private static string BuildActiveSourceTail(string sourceLabel, int xpPerGain)
+    {
+        if (string.IsNullOrEmpty(sourceLabel))
+            return "";
+
+        if (xpPerGain > 0)
+            return $" ({sourceLabel} - {xpPerGain}xp)";
+
+        return $" ({sourceLabel})";
+    }
+
+    /// <summary>Empty = hide. Maps legacy "Endurance" source label to "Combat".</summary>
+    private static string FormatXpSourceDisplay(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return "";
+
+        raw = raw.Trim();
+        if (raw.Equals("Endurance", StringComparison.OrdinalIgnoreCase))
+            return "Combat";
+
+        return raw;
     }
 
     private Color GetColorForSkill(SkillType s)

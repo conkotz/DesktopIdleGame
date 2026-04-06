@@ -221,10 +221,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         // When browsing skills in the menu, temporarily drive the bottom XP strip to this skill.
         // Normal gameplay XP gain (AddXp) will still override ActiveSkill/Source as soon as XP is earned.
         if (!IsActionOccurring() && skillsManager != null && skill != null)
-        {
-            string src = string.IsNullOrWhiteSpace(skill.displayName) ? skill.skillType.ToString() : skill.displayName;
-            skillsManager.SetActiveXpDisplay(skill.skillType, src);
-        }
+            skillsManager.SetActiveXpDisplay(skill.skillType, "");
 
         SelectSkill(skill);
     }

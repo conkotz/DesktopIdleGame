@@ -153,6 +153,13 @@ public class PlayerController : MonoBehaviour
     private Coroutine _fatiguedResumeRoutine;
     private float _fatiguedUntilTime;
 
+    /// <summary>When fatigued mid-gather, we keep random-interval / rate progress so resume does not reset the ore timer.</summary>
+    private bool _fatigueGatherProgressPending;
+    private ResourceNode _fatigueGatherSavedNode;
+    private float _fatigueGatherSavedTimer;
+    private float _fatigueGatherSavedInterval;
+    private float _fatigueGatherSavedAccum;
+
     private readonly List<Drop> _drops = new List<Drop>(8);
 
     public ResourceNode CurrentTarget => targetNode;
@@ -629,6 +636,7 @@ public class PlayerController : MonoBehaviour
 
         if (locked)
         {
+            ClearFatigueGatherProgress();
             // Cancel manual intentions immediately
             // (combat will drive movement)
             // Don't clear combat target here.
@@ -658,6 +666,9 @@ public class PlayerController : MonoBehaviour
 
         if (!node || !node.workSpot) return;
 
+        if (_fatigueGatherProgressPending && node != _fatigueGatherSavedNode)
+            ClearFatigueGatherProgress();
+
         if (!MeetsNodeLevelRequirement(node))
         {
             ShowPopup($"Requires level {node.RequiredLevel}.");
@@ -682,7 +693,11 @@ public class PlayerController : MonoBehaviour
                 ? node.DisplayName
                 : node.name;
 
-            sm.SetActiveXpDisplay(sk, src);
+            int xpHint = -1;
+            if (node.Definition != null && node.Definition.xpPerTick > 0)
+                xpHint = node.Definition.xpPerTick;
+
+            sm.SetActiveXpDisplay(sk, src, xpHint);
         }
 
         // =========================================================
@@ -889,6 +904,8 @@ public class PlayerController : MonoBehaviour
 
     public void CancelAction()
     {
+        ClearFatigueGatherProgress();
+
         _gatherSpeedMultiplier = 1f;
         OnGatherDebuffChanged?.Invoke(false, 1f);
 
@@ -1068,9 +1085,22 @@ public class PlayerController : MonoBehaviour
 
             _nextGatherAnimTime = 0f;
 
-            _accumItems = 0f;
-            _gatherTimer = 0f;
-            _nextGatherInterval = targetNode.GetNextInterval();
+            if (_fatigueGatherProgressPending && targetNode == _fatigueGatherSavedNode && _fatigueGatherSavedNode != null)
+            {
+                _accumItems = _fatigueGatherSavedAccum;
+                _gatherTimer = _fatigueGatherSavedTimer;
+                if (targetNode.UseRandomInterval && _fatigueGatherSavedInterval <= 0f)
+                    _nextGatherInterval = targetNode.GetNextInterval();
+                else
+                    _nextGatherInterval = _fatigueGatherSavedInterval;
+                ClearFatigueGatherProgress();
+            }
+            else
+            {
+                _accumItems = 0f;
+                _gatherTimer = 0f;
+                _nextGatherInterval = targetNode.GetNextInterval();
+            }
 
             ApplyGatherHandVisuals();
 
@@ -1383,8 +1413,11 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void ReturnToIdle()
+    private void ReturnToIdle(bool keepFatigueGatherProgress = false)
     {
+        if (!keepFatigueGatherProgress)
+            ClearFatigueGatherProgress();
+
         _gatherSpeedMultiplier = 1f;
         _gatherGritChance = 0f;
         _gatherBonusFindChance = 0f;
@@ -1431,13 +1464,41 @@ public class PlayerController : MonoBehaviour
         return characterStats.SpendEnergy(spendPerSwing);
     }
 
+    private void ClearFatigueGatherProgress()
+    {
+        _fatigueGatherProgressPending = false;
+        _fatigueGatherSavedNode = null;
+        _fatigueGatherSavedTimer = 0f;
+        _fatigueGatherSavedInterval = 0f;
+        _fatigueGatherSavedAccum = 0f;
+    }
+
     private void PauseGatherForLowEnergy()
     {
         ResourceNode resumeNode = targetNode;
         ShowPopup(string.IsNullOrWhiteSpace(lowEnergyPopupText) ? "* Fatigued *" : lowEnergyPopupText);
         // Stop gather immediately and return to full idle state, then retry after delay.
         _fatiguedUntilTime = Time.time + Mathf.Max(0.1f, fatiguedResumeDelaySeconds);
-        ReturnToIdle();
+
+        bool savedGatherProgress = resumeNode != null && state == State.Gather;
+        if (savedGatherProgress)
+        {
+            _fatigueGatherProgressPending = true;
+            _fatigueGatherSavedNode = resumeNode;
+            _fatigueGatherSavedTimer = _gatherTimer;
+            _fatigueGatherSavedInterval = _nextGatherInterval;
+            _fatigueGatherSavedAccum = _accumItems;
+        }
+
+        // ReturnToIdle clears hand visuals; keep pickaxe/tool (or unarmed gather rules) while fatigued.
+        bool hideHands = _hideHandsForUnarmedGather;
+        ReturnToIdle(savedGatherProgress);
+        if (resumeNode != null)
+        {
+            _hideHandsForUnarmedGather = hideHands;
+            ApplyGatherHandVisuals();
+        }
+
         StartFatiguedResume(resumeNode);
     }
 
