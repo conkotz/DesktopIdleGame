@@ -327,7 +327,7 @@ public class SkillLevelRequirement
     public int requiredLevel = 1;
 }
 
-[CreateAssetMenu(menuName = "DesktopIdleGame/World Map/Map Node Definition", fileName = "MapNode_")]
+[CreateAssetMenu(menuName = "Desktop Idle Game/World Map/Map Node Definition", fileName = "MapNode_")]
 public class MapNodeDefinition : ScriptableObject
 {
     [Header("Identity")]

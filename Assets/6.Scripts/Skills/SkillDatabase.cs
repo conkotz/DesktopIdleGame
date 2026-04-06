@@ -5,7 +5,7 @@ using UnityEngine;
 /// Authoring-time registry of <see cref="SkillDefinition"/> assets for UI and lookups.
 /// Does not store player progression; use <see cref="SkillsManager"/> for levels/XP.
 /// </summary>
-[CreateAssetMenu(fileName = "SkillDatabase", menuName = "Game/Skills/Skill Database")]
+[CreateAssetMenu(fileName = "SkillDatabase", menuName = "Desktop Idle Game/Skills/Skill Database")]
 public class SkillDatabase : ScriptableObject
 {
     [Header("Skills")]

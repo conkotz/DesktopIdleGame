@@ -9,7 +9,7 @@ using UnityEditor;
 /// Registry + lookup for ability definition assets.
 /// Keep this asset in any Resources folder so runtime can load it.
 /// </summary>
-[CreateAssetMenu(fileName = "AbilityDatabase", menuName = "Game/Abilities/Ability Database")]
+[CreateAssetMenu(fileName = "AbilityDatabase", menuName = "Desktop Idle Game/Abilities/Ability Database")]
 public class AbilityDatabase : ScriptableObject
 {
     [Header("Abilities")]

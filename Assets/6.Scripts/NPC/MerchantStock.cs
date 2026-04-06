@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "DesktopIdleGame/Merchant Stock", fileName = "MerchantStock")]
+[CreateAssetMenu(menuName = "Desktop Idle Game/Merchant Stock", fileName = "MerchantStock")]
 public class MerchantStock : ScriptableObject
 {
     public const int MaxCapacity = 21;

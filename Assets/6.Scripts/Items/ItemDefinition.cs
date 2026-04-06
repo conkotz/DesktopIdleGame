@@ -409,7 +409,7 @@ public struct CookableStats
     public int cookingXp;
 }
 
-[CreateAssetMenu(menuName = "DesktopIdleGame/Item Definition", fileName = "NewItem")]
+[CreateAssetMenu(menuName = "Desktop Idle Game/Item Definition", fileName = "NewItem")]
 public class ItemDefinition : ScriptableObject
 {
     [Header("Classification")]

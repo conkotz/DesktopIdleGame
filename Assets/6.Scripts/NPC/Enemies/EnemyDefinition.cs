@@ -4,7 +4,7 @@ using UnityEngine;
 /// Data-only enemy template: identity, base combat values, and prefab reference.
 /// Visuals and behaviour live on the prefab; this asset is the source of truth for tunable stats.
 /// </summary>
-[CreateAssetMenu(fileName = "EnemyDefinition", menuName = "Game/Enemy Definition", order = 50)]
+[CreateAssetMenu(fileName = "EnemyDefinition", menuName = "Desktop Idle Game/Enemy Definition", order = 50)]
 public class EnemyDefinition : ScriptableObject
 {
     [Header("Identity")]

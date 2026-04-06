@@ -8,7 +8,7 @@ public enum AbilityWeaponRequirement
     Magic
 }
 
-[CreateAssetMenu(fileName = "Ability_", menuName = "Game/Skills/Ability Definition")]
+[CreateAssetMenu(fileName = "Ability_", menuName = "Desktop Idle Game/Skills/Ability Definition")]
 public class AbilityDefinition : ScriptableObject
 {
     public string abilityId;

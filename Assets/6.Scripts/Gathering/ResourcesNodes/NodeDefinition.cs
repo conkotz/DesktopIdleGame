@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "DesktopIdleGame/Node Definition", fileName = "NewNode")]
+[CreateAssetMenu(menuName = "Desktop Idle Game/Resource Node Definition", fileName = "NewNode")]
 public class NodeDefinition : ScriptableObject
 {
     [Header("UI")]

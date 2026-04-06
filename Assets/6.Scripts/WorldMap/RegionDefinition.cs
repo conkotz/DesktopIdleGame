@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "DesktopIdleGame/World Map/Region Definition", fileName = "Region_")]
+[CreateAssetMenu(menuName = "Desktop Idle Game/World Map/Region Definition", fileName = "Region_")]
 public class RegionDefinition : ScriptableObject
 {
     [Header("Identity")]

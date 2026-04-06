@@ -6422,6 +6422,14 @@ PrefabInstance:
       propertyPath: m_WasSpriteAssigned
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 1541645750442524315, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
+      propertyPath: m_Size.y
+      value: 1.8485732
+      objectReference: {fileID: 0}
+    - target: {fileID: 1541645750442524315, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
+      propertyPath: m_Offset.y
+      value: -0.021580607
+      objectReference: {fileID: 0}
     - target: {fileID: 2445480816099707413, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       propertyPath: m_SortingOrder
       value: 3

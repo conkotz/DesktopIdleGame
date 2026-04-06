@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "SkillDefinition_", menuName = "Game/Skills/Skill Definition")]
+[CreateAssetMenu(fileName = "SkillDefinition_", menuName = "Desktop Idle Game/Skills/Skill Definition")]
 public class SkillDefinition : ScriptableObject
 {
     [Header("Identity")]
