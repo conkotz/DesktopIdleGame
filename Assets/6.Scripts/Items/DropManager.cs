@@ -17,6 +17,16 @@ public class DropManager : MonoBehaviour
 
     [SerializeField] private float scatterRadius = 0.15f;
 
+    [Header("Spawn clamp (optional)")]
+    [Tooltip("If set, drop positions are clamped in screen space so they stay inside this RectTransform (e.g. gameplay / inventory window frame).")]
+    [SerializeField] private RectTransform dropFrameBounds;
+
+    [Tooltip("Keeps spawns slightly inside the frame border (screen pixels).")]
+    [SerializeField] private float dropFrameInsetPixels = 1f;
+
+    [Tooltip("Used for screen-space clamping. Leave empty to use Camera.main.")]
+    [SerializeField] private Camera dropClampCamera;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -80,6 +90,54 @@ public class DropManager : MonoBehaviour
         return null;
     }
 
+    private void ClampSpawnToDropFrame(ref Vector3 worldPos)
+    {
+        if (dropFrameBounds == null) return;
+
+        Camera cam = dropClampCamera != null ? dropClampCamera : Camera.main;
+        if (cam == null) return;
+
+        if (!TryGetScreenRectScreenBounds(dropFrameBounds, cam, out float minX, out float maxX, out float minY, out float maxY))
+            return;
+
+        float inset = Mathf.Max(0f, dropFrameInsetPixels);
+        minX += inset;
+        maxX -= inset;
+        minY += inset;
+        maxY -= inset;
+        if (minX > maxX || minY > maxY) return;
+
+        Vector3 screen = cam.WorldToScreenPoint(worldPos);
+        screen.x = Mathf.Clamp(screen.x, minX, maxX);
+        screen.y = Mathf.Clamp(screen.y, minY, maxY);
+
+        float zWorld = worldPos.z;
+        worldPos = cam.ScreenToWorldPoint(screen);
+        worldPos.z = zWorld;
+    }
+
+    private static bool TryGetScreenRectScreenBounds(RectTransform rect, Camera cam, out float minX, out float maxX, out float minY, out float maxY)
+    {
+        minX = maxX = minY = maxY = 0f;
+        if (rect == null || cam == null) return false;
+
+        Vector3[] corners = new Vector3[4];
+        rect.GetWorldCorners(corners);
+
+        minX = minY = float.MaxValue;
+        maxX = maxY = float.MinValue;
+        for (int i = 0; i < 4; i++)
+        {
+            Vector3 sp = cam.WorldToScreenPoint(corners[i]);
+            minX = Mathf.Min(minX, sp.x);
+            maxX = Mathf.Max(maxX, sp.x);
+            minY = Mathf.Min(minY, sp.y);
+            maxY = Mathf.Max(maxY, sp.y);
+        }
+
+        return true;
+    }
+
     public void Spawn(string itemId, int amount, Sprite icon)
     {
         if (!dropAnchor) ResolveAnchor();
@@ -90,6 +148,7 @@ public class DropManager : MonoBehaviour
 
         float scatterX = UnityEngine.Random.Range(-scatterRadius, scatterRadius);
         Vector3 spawnPos = dropAnchor.position + new Vector3(scatterX, 0f, 0f);
+        ClampSpawnToDropFrame(ref spawnPos);
 
         var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
         drop.Init(itemId, amount, icon);

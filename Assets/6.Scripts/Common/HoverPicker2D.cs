@@ -1,82 +1,80 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
+/// <summary>
+/// Optional standalone hover highlighter. If a <see cref="WorldInputRouter2D"/> is present with hover enabled,
+/// this component does nothing so hover and clicks always use the same <see cref="WorldClickPicker2D"/> winner.
+/// </summary>
 public class HoverPicker2D : MonoBehaviour
 {
     [SerializeField] private LayerMask pickMask = ~0;
 
-    private SimpleHoverHighlight2D _currentHovered;
+    [Tooltip("Leave empty to use Camera.main — should match WorldInputRouter2D's camera for consistent picks.")]
+    [SerializeField] private Camera cam;
 
-    private static readonly Collider2D[] _hits = new Collider2D[32];
+    private SimpleHoverHighlight2D _currentHovered;
+    private WorldInputRouter2D _router;
+
+    private void Awake()
+    {
+        if (!cam) cam = Camera.main;
+        _router = FindFirstObjectByType<WorldInputRouter2D>(FindObjectsInactive.Include);
+    }
 
     private void Update()
     {
-        var winner = PickTopmostUnderMouse();
+        if (ShouldDeferToRouter())
+            return;
 
-        if (_currentHovered != winner)
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        {
+            ClearHover();
+            return;
+        }
+
+        if (!cam) cam = Camera.main;
+        if (!cam) return;
+
+        Vector3 w3 = cam.ScreenToWorldPoint(Input.mousePosition);
+        Vector2 wp = new Vector2(w3.x, w3.y);
+
+        Collider2D winner = WorldClickPicker2D.PickTopmostAtPoint(wp, pickMask);
+        var highlight = winner ? winner.GetComponentInParent<SimpleHoverHighlight2D>() : null;
+
+        if (_currentHovered != highlight)
         {
             if (_currentHovered) _currentHovered.SetHovered(false);
-            _currentHovered = winner;
+            _currentHovered = highlight;
             if (_currentHovered) _currentHovered.SetHovered(true);
         }
     }
 
+    private bool ShouldDeferToRouter()
+    {
+        if (_router == null)
+            _router = FindFirstObjectByType<WorldInputRouter2D>(FindObjectsInactive.Include);
+        return _router != null && _router.isActiveAndEnabled && _router.HoverHighlightEnabled;
+    }
+
+    private void ClearHover()
+    {
+        if (_currentHovered)
+        {
+            _currentHovered.SetHovered(false);
+            _currentHovered = null;
+        }
+    }
+
+    /// <summary>Same winner as <see cref="WorldClickPicker2D"/>; kept for any external callers.</summary>
     public SimpleHoverHighlight2D PickTopmostUnderMouse()
     {
-        var cam = Camera.main;
+        if (!cam) cam = Camera.main;
         if (!cam) return null;
 
-        Vector3 wp3 = cam.ScreenToWorldPoint(Input.mousePosition);
-        Vector2 wp = new Vector2(wp3.x, wp3.y);
+        Vector3 w3 = cam.ScreenToWorldPoint(Input.mousePosition);
+        Vector2 wp = new Vector2(w3.x, w3.y);
 
-        ContactFilter2D filter = new ContactFilter2D
-        {
-            useLayerMask = true,
-            layerMask = pickMask,
-            useTriggers = true
-        };
-
-        int count = Physics2D.OverlapPoint(wp, filter, _hits);
-        if (count <= 0) return null;
-
-        SimpleHoverHighlight2D best = null;
-
-        int bestLayerValue = int.MinValue;
-        int bestOrder = int.MinValue;
-        float bestZ = float.NegativeInfinity;
-        int bestId = int.MinValue;
-
-        for (int i = 0; i < count; i++)
-        {
-            var c = _hits[i];
-            if (!c) continue;
-
-            var h = c.GetComponentInParent<SimpleHoverHighlight2D>();
-            if (!h) continue;
-
-            var sr = h.GetComponent<SpriteRenderer>();
-            if (!sr) continue;
-
-            int layerValue = SortingLayer.GetLayerValueFromID(sr.sortingLayerID);
-            int order = sr.sortingOrder;
-            float z = sr.transform.position.z;
-            int id = sr.GetInstanceID();
-
-            bool better =
-                (layerValue > bestLayerValue) ||
-                (layerValue == bestLayerValue && order > bestOrder) ||
-                (layerValue == bestLayerValue && order == bestOrder && z > bestZ) ||
-                (layerValue == bestLayerValue && order == bestOrder && Mathf.Approximately(z, bestZ) && id > bestId);
-
-            if (better)
-            {
-                bestLayerValue = layerValue;
-                bestOrder = order;
-                bestZ = z;
-                bestId = id;
-                best = h;
-            }
-        }
-
-        return best;
+        Collider2D winner = WorldClickPicker2D.PickTopmostAtPoint(wp, pickMask);
+        return winner ? winner.GetComponentInParent<SimpleHoverHighlight2D>() : null;
     }
 }

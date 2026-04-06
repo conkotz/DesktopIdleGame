@@ -19,6 +19,9 @@ public class WorldInputRouter2D : MonoBehaviour
 
     private SimpleHoverHighlight2D _currentHover; // or EdgeHighlight2D if you swap later
 
+    /// <summary>True when this router drives hover highlights (used to avoid duplicate HoverPicker2D).</summary>
+    public bool HoverHighlightEnabled => enableHoverHighlight;
+
     private void Awake()
     {
         if (!cam) cam = Camera.main;
@@ -27,13 +30,6 @@ public class WorldInputRouter2D : MonoBehaviour
 
     private void Update()
     {
-
-        if (restrictClicksToStrip && stripCamera && Input.GetMouseButtonDown(0))
-        {
-            if (!stripCamera.pixelRect.Contains(Input.mousePosition))
-                return; // ignore clicks outside strip entirely
-        }
-
         if (!cam) cam = Camera.main;
         if (!cam) return;
 
@@ -51,6 +47,10 @@ public class WorldInputRouter2D : MonoBehaviour
         // ----- Click -----
         if (!Input.GetMouseButtonDown(0)) return;
         if (overUI) return;
+
+        if (restrictClicksToStrip && stripCamera &&
+            !stripCamera.pixelRect.Contains(Input.mousePosition))
+            return;
 
         if (winnerCol != null)
         {
