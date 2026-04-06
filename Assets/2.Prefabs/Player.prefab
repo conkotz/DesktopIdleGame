@@ -5494,6 +5494,7 @@ GameObject:
   - component: {fileID: 4199332309700179123}
   - component: {fileID: 343137512557904079}
   - component: {fileID: 4615812802344899198}
+  - component: {fileID: 7722334455667788990}
   - component: {fileID: 6141012235002887267}
   - component: {fileID: 2507674986285415628}
   - component: {fileID: 3938461048522173475}
@@ -5824,6 +5825,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9c8085b6603abff4c8abb19cfe53873b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Inventory
+  itemDb: {fileID: 11400000, guid: 44935afdef73eaf49a6beae8b4c71810, type: 2}
+  defaultMaxStack: 99
+--- !u!114 &7722334455667788990
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3e2d1c0b9a847665544332211009988, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStorage
   itemDb: {fileID: 11400000, guid: 44935afdef73eaf49a6beae8b4c71810, type: 2}
   defaultMaxStack: 99
 --- !u!114 &6141012235002887267

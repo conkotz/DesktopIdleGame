@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
@@ -29,8 +31,10 @@ public class SaveManager : MonoBehaviour
     private bool _didInitialLoadOrCreate;
 
     private Inventory _inventory;
+    private PlayerStorage _playerStorage;
 
-    private float _lastImmediateSave;
+    private float _lastInventoryImmediateSave;
+    private float _lastStorageImmediateSave;
     private const float MinSaveGap = 1f;
 
     private SaveData _lastLoadedData;
@@ -48,12 +52,14 @@ public class SaveManager : MonoBehaviour
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
         TryBindInventory();
+        TryBindPlayerStorage();
     }
 
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
         UnbindInventory();
+        UnbindPlayerStorage();
     }
 
     // ✅ Key change: do NOT Load/Save in Start() anymore (Bootstrap has no saveables yet)
@@ -67,6 +73,7 @@ public class SaveManager : MonoBehaviour
     {
         // Rebind inventory for the new scene (Inventory likely lives in scene)
         TryBindInventory();
+        TryBindPlayerStorage();
 
         // Only initialize once per app run.
         if (_didInitialLoadOrCreate) return;
@@ -125,11 +132,31 @@ public class SaveManager : MonoBehaviour
             var saveables = FindSaveables();
             foreach (var s in saveables)
                 s.LoadFrom(data);
+
+            EnsurePlayerStorageLoadedFromData(data);
         }
         finally
         {
             _isApplyingSaveData = false;
         }
+    }
+
+    private static void EnsurePlayerStorageInSaveData(SaveData data)
+    {
+        if (data == null) return;
+
+        var ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (ps != null)
+            ps.SaveInto(data);
+    }
+
+    private static void EnsurePlayerStorageLoadedFromData(SaveData data)
+    {
+        if (data == null) return;
+
+        var ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (ps != null)
+            ps.LoadFrom(data);
     }
 
     private void ApplyPendingNewGamePlayerName()
@@ -179,6 +206,8 @@ public class SaveManager : MonoBehaviour
         var saveables = FindSaveables();
         foreach (var s in saveables)
             s.SaveInto(data);
+
+        EnsurePlayerStorageInSaveData(data);
 
         ApplyActiveMapToSaveData(data);
 
@@ -246,6 +275,8 @@ public class SaveManager : MonoBehaviour
         var json = File.ReadAllText(ActiveSavePath);
         var data = JsonUtility.FromJson<SaveData>(json);
 
+        NormalizeSaveDataLists(data);
+
         _lastLoadedData = data;
 
         _isApplyingSaveData = true;
@@ -255,7 +286,41 @@ public class SaveManager : MonoBehaviour
             foreach (var s in saveables)
                 s.LoadFrom(data);
 
+            EnsurePlayerStorageLoadedFromData(data);
+
             RestoreActiveMapFromSaveData(data);
+        }
+        finally
+        {
+            _isApplyingSaveData = false;
+        }
+
+        // Player / ItemDatabase can be a frame behind scene setup; re-apply chest so load never misses.
+        StartCoroutine(DeferredApplyPlayerStorageLoad());
+    }
+
+    private static void NormalizeSaveDataLists(SaveData data)
+    {
+        if (data == null) return;
+
+        if (data.inventorySlots == null)
+            data.inventorySlots = new List<SaveData.InventorySlotData>();
+        if (data.storageSlots == null)
+            data.storageSlots = new List<SaveData.InventorySlotData>();
+    }
+
+    private IEnumerator DeferredApplyPlayerStorageLoad()
+    {
+        yield return null;
+        if (_lastLoadedData == null) yield break;
+
+        var ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (ps == null) yield break;
+
+        _isApplyingSaveData = true;
+        try
+        {
+            ps.LoadFrom(_lastLoadedData);
         }
         finally
         {
@@ -268,10 +333,10 @@ public class SaveManager : MonoBehaviour
         if (!_didInitialLoadOrCreate) return;   // ✅ ADD THIS
         if (_isApplyingSaveData) return;
 
-        if (Time.unscaledTime - _lastImmediateSave < MinSaveGap)
+        if (Time.unscaledTime - _lastInventoryImmediateSave < MinSaveGap)
             return;
 
-        _lastImmediateSave = Time.unscaledTime;
+        _lastInventoryImmediateSave = Time.unscaledTime;
         Save();
     }
 
@@ -297,6 +362,39 @@ public class SaveManager : MonoBehaviour
             _inventory.OnInventoryChanged -= HandleInventoryChanged;
 
         _inventory = null;
+    }
+
+    private void TryBindPlayerStorage()
+    {
+        var st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (st == _playerStorage) return;
+
+        UnbindPlayerStorage();
+        _playerStorage = st;
+
+        if (_playerStorage != null)
+            _playerStorage.OnStorageChanged += HandleStorageChanged;
+    }
+
+    private void UnbindPlayerStorage()
+    {
+        if (_playerStorage != null)
+            _playerStorage.OnStorageChanged -= HandleStorageChanged;
+
+        _playerStorage = null;
+    }
+
+    private void HandleStorageChanged()
+    {
+        if (!_didInitialLoadOrCreate) return;
+        if (_isApplyingSaveData) return;
+
+        // Separate debounce from inventory so a recent inv save cannot block persisting storage.
+        if (Time.unscaledTime - _lastStorageImmediateSave < MinSaveGap)
+            return;
+
+        _lastStorageImmediateSave = Time.unscaledTime;
+        Save();
     }
 
     private ISaveable[] FindSaveables()

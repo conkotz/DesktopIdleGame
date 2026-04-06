@@ -87,6 +87,14 @@ public class Inventory : MonoBehaviour, ISaveable
         return _slots[slotIndex];
     }
 
+    /// <summary>Used by storage drag-drop to write an exact slot after validation (e.g. cross-container swap).</summary>
+    public void ReplaceSlot(int slotIndex, Slot newSlot)
+    {
+        if (slotIndex < 0 || slotIndex >= _slots.Count) return;
+        _slots[slotIndex] = newSlot;
+        OnInventoryChanged?.Invoke();
+    }
+
     public int GetTotalAmount(string itemId)
     {
         if (string.IsNullOrWhiteSpace(itemId)) return 0;
@@ -399,7 +407,7 @@ public class Inventory : MonoBehaviour, ISaveable
                 var d = data.inventorySlots[i];
                 if (string.IsNullOrWhiteSpace(d.itemId) || d.amount <= 0) continue;
 
-                string id = RemapLegacyId(d.itemId);
+                string id = RemapLegacyItemId(d.itemId);
 
                 // if still unknown, skip it (prevents broken slots)
                 if (GetItemDef(id) == null)
@@ -493,7 +501,8 @@ public class Inventory : MonoBehaviour, ISaveable
         return false;
     }
 
-    private static string RemapLegacyId(string id)
+    /// <summary>Shared by <see cref="Inventory"/> and <see cref="PlayerStorage"/> when restoring saves.</summary>
+    public static string RemapLegacyItemId(string id)
     {
         if (string.IsNullOrWhiteSpace(id)) return id;
 
@@ -520,8 +529,7 @@ public class Inventory : MonoBehaviour, ISaveable
             return;
         }
 
-        // 1. Collect all non-empty slots
-        List<Slot> filled = new List<Slot>();
+        var filled = new List<Slot>();
 
         for (int i = 0; i < _slots.Count; i++)
         {
@@ -529,8 +537,35 @@ public class Inventory : MonoBehaviour, ISaveable
                 filled.Add(_slots[i]);
         }
 
-        // 2. Sort by database index
-        filled.Sort((a, b) =>
+        // 1) Sum amounts per item (combine stacks)
+        var totals = new Dictionary<string, int>();
+        foreach (var s in filled)
+        {
+            if (!totals.ContainsKey(s.itemId))
+                totals[s.itemId] = 0;
+            totals[s.itemId] += s.amount;
+        }
+
+        // 2) Split totals into legal stacks (maxStack each), in database order
+        var merged = new List<Slot>();
+        var itemIds = new List<string>(totals.Keys);
+        itemIds.Sort((a, b) => itemDb.GetIndex(a).CompareTo(itemDb.GetIndex(b)));
+
+        foreach (var itemId in itemIds)
+        {
+            int total = totals[itemId];
+            int maxStack = GetMaxStack(itemId);
+            int remaining = total;
+            while (remaining > 0)
+            {
+                int chunk = Mathf.Min(maxStack, remaining);
+                merged.Add(new Slot { itemId = itemId, amount = chunk });
+                remaining -= chunk;
+            }
+        }
+
+        // 3) Order: database index, then larger stacks first (same item type)
+        merged.Sort((a, b) =>
         {
             int indexA = itemDb.GetIndex(a.itemId);
             int indexB = itemDb.GetIndex(b.itemId);
@@ -538,10 +573,9 @@ public class Inventory : MonoBehaviour, ISaveable
             int result = indexA.CompareTo(indexB);
             if (result != 0) return result;
 
-            return b.amount.CompareTo(a.amount); // bigger stacks first
+            return b.amount.CompareTo(a.amount);
         });
 
-        // 3. Clear all slots
         for (int i = 0; i < _slots.Count; i++)
         {
             var s = _slots[i];
@@ -549,11 +583,12 @@ public class Inventory : MonoBehaviour, ISaveable
             _slots[i] = s;
         }
 
-        // 4. Refill sorted
-        for (int i = 0; i < filled.Count; i++)
-        {
-            _slots[i] = filled[i];
-        }
+        int limit = Mathf.Min(merged.Count, _slots.Count);
+        for (int i = 0; i < limit; i++)
+            _slots[i] = merged[i];
+
+        if (merged.Count > _slots.Count)
+            Debug.LogError($"[Inventory] After sort/merge need {merged.Count} slots but only {_slots.Count} exist — save data may be invalid (overflowing stacks).");
 
         OnInventoryChanged?.Invoke();
     }

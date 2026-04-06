@@ -42,6 +42,10 @@ public class SaveData
     public int inventorySlotCount = 32;
     public List<InventorySlotData> inventorySlots = new();
 
+    [Header("Town storage chest")]
+    public int storageSlotCount = 28;
+    public List<InventorySlotData> storageSlots = new();
+
     [Serializable]
     public struct InventorySlotData
     {

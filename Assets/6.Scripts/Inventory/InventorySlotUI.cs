@@ -8,6 +8,7 @@
 // - Still supports merchant ctrl-sell logic (kept from your version)
 // ===============================
 
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -222,6 +223,14 @@ public class InventorySlotUI : MonoBehaviour,
 
         if (doubleClick)
         {
+            if (StorageUI.IsOpen)
+            {
+                TryDoubleClickDepositToStorage();
+                // Never fall through to equip while storage is open (deposit can fail if full).
+                eventData.Use();
+                return;
+            }
+
             TryDoubleClickEquipFromThisSlot();
             eventData.Use();
             return;
@@ -273,6 +282,20 @@ public class InventorySlotUI : MonoBehaviour,
 
         eventData.Use();
         _tooltip?.Hide();
+    }
+
+    private bool TryDoubleClickDepositToStorage()
+    {
+        if (_inventory == null) return false;
+
+        var slot = _inventory.GetSlot(_slotIndex);
+        if (slot.IsEmpty) return false;
+
+        PlayerStorage storage = ResolvePlayerStorageForChest();
+        if (storage == null) return false;
+
+        int moved = storage.TryDepositAllFromInventorySlot(_inventory, _slotIndex);
+        return moved > 0;
     }
 
     private void TryDoubleClickEquipFromThisSlot()
@@ -528,7 +551,7 @@ public class InventorySlotUI : MonoBehaviour,
             if (carriedAmount <= 0) split = false;
         }
 
-        InventoryDragState.BeginDrag(_slotIndex, _itemId, carriedAmount, split);
+        InventoryDragState.BeginDrag(_slotIndex, _itemId, carriedAmount, split, InventoryDragState.SourceKind.Inventory);
 
         CreateDragIcon();
         UpdateDragIconPosition(eventData);
@@ -548,9 +571,11 @@ public class InventorySlotUI : MonoBehaviour,
         if (_dragIconGO) Destroy(_dragIconGO);
 
         // If we dropped onto ANY UI element, do NOT drop to world.
+        // Defer clearing drag state: OnDrop on the target may run after EndDrag on the source; clearing
+        // here first breaks cross-panel drops (e.g. inventory -> storage).
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
         {
-            InventoryDragState.EndDrag();
+            StartCoroutine(DeferredEndInventoryDragOverUi());
             return;
         }
 
@@ -591,8 +616,54 @@ public class InventorySlotUI : MonoBehaviour,
         InventoryDragState.EndDrag();
     }
 
+    private IEnumerator DeferredEndInventoryDragOverUi()
+    {
+        yield return null;
+        if (InventoryDragState.HasDrag && InventoryDragState.Source == InventoryDragState.SourceKind.Inventory)
+            InventoryDragState.EndDrag();
+    }
+
     public void OnDrop(PointerEventData eventData)
     {
+        // Storage chest slot -> inventory slot
+        if (InventoryDragState.HasDrag && InventoryDragState.Source == InventoryDragState.SourceKind.Storage)
+        {
+            PlayerStorage storage = InventoryDragState.StorageSource != null
+                ? InventoryDragState.StorageSource
+                : FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+            if (storage != null && _inventory != null)
+            {
+                int fromStorage = InventoryDragState.FromSlotIndex;
+                int amount = InventoryDragState.IsSplit
+                    ? InventoryDragState.CarriedAmount
+                    : storage.GetSlot(fromStorage).amount;
+
+                if (amount > 0)
+                {
+                    int moved = storage.TryMoveFromStorageToInventory(_inventory, fromStorage, _slotIndex, amount, null);
+                    if (moved > 0)
+                    {
+                        InventoryDragState.EndDrag();
+                        _tooltip?.Hide();
+                        return;
+                    }
+                }
+
+                var sFrom = storage.GetSlot(fromStorage);
+                var sTo = _inventory.GetSlot(_slotIndex);
+                if (!sFrom.IsEmpty && !sTo.IsEmpty && sFrom.itemId != sTo.itemId)
+                {
+                    storage.SwapInventorySlotWithStorage(_inventory, _slotIndex, fromStorage);
+                    InventoryDragState.EndDrag();
+                    _tooltip?.Hide();
+                    return;
+                }
+            }
+
+            InventoryDragState.EndDrag();
+            return;
+        }
+
         // ✅ Dropping from Equipment/Toolbelt -> Inventory (consumes drag state from EquipmentSlotUI)
         if (EquipmentSlotUI.TryConsumeEquipDrag(out var fromSlotType, out var equipItemId, out var equipAmount))
         {
@@ -771,34 +842,55 @@ public class InventorySlotUI : MonoBehaviour,
 
         _dragIconRT.anchoredPosition = localPoint;
     }
+
+    /// <summary>Use the same PlayerStorage instance as <see cref="StorageGridUI"/> when available so slot indices match the UI.</summary>
+    private static PlayerStorage ResolvePlayerStorageForChest()
+    {
+        var grid = FindFirstObjectByType<StorageGridUI>(FindObjectsInactive.Include);
+        if (grid != null && grid.PlayerStorage != null)
+            return grid.PlayerStorage;
+
+        return FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+    }
     
 }
 
 public static class InventoryDragState
 {
+    public enum SourceKind { None, Inventory, Storage }
+
     public static bool HasDrag { get; private set; }
+
+    public static SourceKind Source { get; private set; }
 
     public static int FromSlotIndex { get; private set; } = -1;
     public static string ItemId { get; private set; }
     public static int CarriedAmount { get; private set; }
     public static bool IsSplit { get; private set; }
 
-    public static void BeginDrag(int fromSlotIndex, string itemId, int carriedAmount, bool isSplit)
+    /// <summary>Set when <see cref="Source"/> is <see cref="SourceKind.Storage"/> so drops use the same backing store as the grid.</summary>
+    public static PlayerStorage StorageSource { get; private set; }
+
+    public static void BeginDrag(int fromSlotIndex, string itemId, int carriedAmount, bool isSplit, SourceKind source = SourceKind.Inventory, PlayerStorage storageSource = null)
     {
         FromSlotIndex = fromSlotIndex;
         ItemId = itemId;
         CarriedAmount = carriedAmount;
         IsSplit = isSplit;
+        Source = source;
+        StorageSource = source == SourceKind.Storage ? storageSource : null;
         HasDrag = fromSlotIndex >= 0 && !string.IsNullOrEmpty(itemId) && carriedAmount > 0;
     }
 
     public static void EndDrag()
     {
         HasDrag = false;
+        Source = SourceKind.None;
         FromSlotIndex = -1;
         ItemId = null;
         CarriedAmount = 0;
         IsSplit = false;
+        StorageSource = null;
     }
 
     private static EquipSlot MapUiToEquipSlot(EquipmentUISlotType uiSlot)

@@ -160,6 +160,9 @@ public class MainMenuWindowUI : MonoBehaviour
         HideAllPages();
         currentPage = null;
 
+        MerchantClick.ForceCloseMerchantMode();
+        StorageClick.ForceCloseStorageMode();
+
         HotkeySettingsRowUI.EnsureUiInputModulesEnabled();
         RestoreToolbarKeyboardFocus();
     }
@@ -217,6 +220,7 @@ public class MainMenuWindowUI : MonoBehaviour
         // Merchant/shop mode can leave stale UI state that blocks normal menu interactions.
         // Always clear it when user explicitly toggles a main menu tab.
         MerchantClick.ForceCloseMerchantMode();
+        StorageClick.ForceCloseStorageMode();
 
         if (!mainMenuWindow)
         {
@@ -246,6 +250,7 @@ public class MainMenuWindowUI : MonoBehaviour
 
         // Ensure merchant mode never blocks opening pages.
         MerchantClick.ForceCloseMerchantMode();
+        StorageClick.ForceCloseStorageMode();
 
         if (!mainMenuWindow)
         {

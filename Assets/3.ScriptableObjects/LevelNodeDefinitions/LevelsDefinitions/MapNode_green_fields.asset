@@ -19,7 +19,7 @@ MonoBehaviour:
   enemyAggroMode: 1
   ignoreAggroRange: 0
   enemyRespawnEnabled: 1
-  enemyRespawnDelaySeconds: 30
+  enemyRespawnDelaySeconds: 10
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
   requiresMapUnlock: 0

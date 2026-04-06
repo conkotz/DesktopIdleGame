@@ -79,6 +79,14 @@ public class WorldInputRouter2D : MonoBehaviour
                 return;
             }
 
+            // 3b) Town storage chest
+            var storage = winnerCol.GetComponentInParent<StorageClick>();
+            if (storage != null)
+            {
+                storage.Open();
+                return;
+            }
+
             // 4) Enemy later (example)
             // var enemy = winnerCol.GetComponentInParent<Enemy>();
             // if (enemy != null) { player.Attack(enemy); return; }

@@ -40,6 +40,9 @@ MonoBehaviour:
   - itemId: vamp_ring
     costs: []
     quantity: 1
+  - itemId: sapphire_trinket
+    costs: []
+    quantity: 1
   - itemId: poison_dagger
     costs: []
     quantity: 1
