@@ -686,6 +686,22 @@ public class CharacterStats : MonoBehaviour, ISaveable
         d = GetDef(equipment.GetEquippedItemId(EquipSlot.Ring, 1)); if (d) yield return d;
     }
 
+    /// <summary>
+    /// Total seconds subtracted from <see cref="MapNodeDefinition.enemyRespawnDelaySeconds"/> (via
+    /// <see cref="LevelSpawnDirector"/>) from equipped items' <see cref="ItemMiscEffects.enemyRespawnTimeReductionSeconds"/>.
+    /// </summary>
+    public float GetTotalEquippedEnemyRespawnTimeReductionSeconds()
+    {
+        float sum = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def != null)
+                sum += def.EnemyRespawnTimeReductionSeconds;
+        }
+
+        return sum;
+    }
+
     // -------------------------
     // Toolbelt lookup
     // -------------------------

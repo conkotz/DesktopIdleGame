@@ -57,10 +57,10 @@ MonoBehaviour:
   burnExplosionMultiplier: 0.5
   shockDuration: 5
   shockDamageTakenMultiplier: 0.15
-  idleWanderEnabled: 0
-  idleWanderSpeed: 0.8
+  idleWanderEnabled: 1
+  idleWanderSpeed: 1.5
   idleWanderMoveMinSec: 1
-  idleWanderMoveMaxSec: 3
+  idleWanderMoveMaxSec: 2
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
   designerNotes: 

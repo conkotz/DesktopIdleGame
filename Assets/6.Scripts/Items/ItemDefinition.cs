@@ -309,6 +309,23 @@ public struct BonusStats
     }
 }
 
+/// <summary>
+/// Optional per-item effects that do not fit core combat stats (expand over time).
+/// </summary>
+[System.Serializable]
+public struct ItemMiscEffects
+{
+    [Header("World / Spawns")]
+    [Tooltip("While equipped, subtracts this many seconds from the active map's Enemy Respawn Delay (MapNodeDefinition), after LevelSpawnDirector applies it (stacks across equipped items).")]
+    [Min(0f)]
+    public float enemyRespawnTimeReductionSeconds;
+
+    public bool HasAny()
+    {
+        return enemyRespawnTimeReductionSeconds > 0f;
+    }
+}
+
 public enum ConsumableType
 {
     None,
@@ -463,6 +480,10 @@ public class ItemDefinition : ScriptableObject
     [Header("Bonus Stats (Equippables: Armour/Jewelry/Weapons optional)")]
     public BonusStats bonusStats;
 
+    [Header("Misc (unique effects)")]
+    [Tooltip("Per-item hooks not covered by bonus stats (respawn modifiers, future procs, etc.).")]
+    public ItemMiscEffects miscEffects;
+
     [Header("Consumable Stats (Only if ItemKind = Consumable)")]
     public ConsumableStats consumableStats;
 
@@ -611,6 +632,9 @@ public class ItemDefinition : ScriptableObject
     public int CookingXp =>
         IsCookable ? Mathf.Max(0, cookableStats.cookingXp) : 0;
 
+    /// <summary>Seconds subtracted from enemy respawn delay while this item is equipped (see <see cref="ItemMiscEffects"/>).</summary>
+    public float EnemyRespawnTimeReductionSeconds => Mathf.Max(0f, miscEffects.enemyRespawnTimeReductionSeconds);
+
     public int RollPhysicalDamage()
     {
         if (!IsWeapon) return 0;
@@ -725,6 +749,10 @@ public class ItemDefinition : ScriptableObject
             if (!string.IsNullOrWhiteSpace(extras))
                 s += "\n" + extras;
 
+            string misc = BuildMiscTooltipLines();
+            if (!string.IsNullOrWhiteSpace(misc))
+                s += "\n" + misc;
+
             return s;
         }
 
@@ -741,6 +769,10 @@ public class ItemDefinition : ScriptableObject
 
             if (SupportConsumableOnAttack)
                 s += $"\nConsumes: {Mathf.Max(1, SupportConsumeAmountPerAttack)} per attack";
+
+            string miscCs = BuildMiscTooltipLines();
+            if (!string.IsNullOrWhiteSpace(miscCs))
+                s += "\n" + miscCs;
 
             return s;
         }
@@ -760,6 +792,10 @@ public class ItemDefinition : ScriptableObject
             if (!string.IsNullOrWhiteSpace(extras))
                 s += "\n" + extras;
 
+            string miscT = BuildMiscTooltipLines();
+            if (!string.IsNullOrWhiteSpace(miscT))
+                s += "\n" + miscT;
+
             return s;
         }
 
@@ -778,6 +814,10 @@ public class ItemDefinition : ScriptableObject
 
             if (!string.IsNullOrWhiteSpace(extras))
                 s += extras + "\n";
+
+            string miscAj = BuildMiscTooltipLines();
+            if (!string.IsNullOrWhiteSpace(miscAj))
+                s += miscAj;
 
             return s.TrimEnd('\n');
         }
@@ -904,6 +944,13 @@ public class ItemDefinition : ScriptableObject
         if (bonusStats.shockDamageTakenMultiplierBonus != 0f) s += $"Shock Amp Bonus: {FormatSignedPercent01(bonusStats.shockDamageTakenMultiplierBonus)}\n";
 
         return s.TrimEnd('\n');
+    }
+
+    private string BuildMiscTooltipLines()
+    {
+        if (EnemyRespawnTimeReductionSeconds <= 0f)
+            return string.Empty;
+        return $"Enemy respawn: -{EnemyRespawnTimeReductionSeconds:0.#}s";
     }
 
     public string BuildTooltipStatsOneLine()

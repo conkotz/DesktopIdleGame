@@ -16,8 +16,9 @@ MonoBehaviour:
   displayName: 'Green Fields '
   description: 'Combat level '
   nodeType: 0
-  enemyAggroMode: 0
-  enemyRespawnEnabled: 0
+  enemyAggroMode: 1
+  ignoreAggroRange: 0
+  enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 30
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
@@ -36,12 +37,17 @@ MonoBehaviour:
   - groupId: CombatEnemies
     spawns:
     - spawnPointGroupId: 
-      enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
+      enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
+      prefab: {fileID: 0}
+      count: 2
+    - spawnPointGroupId: 
+      enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 0}
       count: 2
     shuffleSpawnPoints: 1
   enduranceWaves: []
   enduranceCompletionLoot: []
+  enduranceCompletionLootByTier: []
   enduranceCompletionLootInterval: 0.5
   contentDesignerNotes: 
   sceneNamePlaceholder: 

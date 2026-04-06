@@ -28,6 +28,7 @@ public class ItemDefinitionEditor : Editor
 
     // Bonuses
     private SerializedProperty bonusStats;
+    private SerializedProperty miscEffects;
 
     private void OnEnable()
     {
@@ -60,6 +61,7 @@ public class ItemDefinitionEditor : Editor
         cookableStats = serializedObject.FindProperty("cookableStats");
 
         bonusStats = serializedObject.FindProperty("bonusStats");
+        miscEffects = serializedObject.FindProperty("miscEffects");
     }
 
     public override void OnInspectorGUI()
@@ -235,26 +237,31 @@ public class ItemDefinitionEditor : Editor
         {
             DrawWeaponStatsBlock();
             DrawBonusBlockIfPresent("Bonus Stats (optional)", show: true);
+            DrawMiscEffectsBlockIfPresent(show: true);
         }
         else if (kind == ItemKind.CombatSupport)
         {
             DrawCombatSupportStatsBlock();
+            DrawMiscEffectsBlockIfPresent(show: true);
         }
         else if (kind == ItemKind.Tool)
         {
             DrawModuleHeader("Tool Stats");
             DrawToolStatsBlock();
             DrawBonusBlockIfPresent("Bonus Stats (optional)", show: true);
+            DrawMiscEffectsBlockIfPresent(show: true);
         }
         else if (kind == ItemKind.Armor)
         {
             DrawModuleHeader("Armour Stats");
             EditorGUILayout.PropertyField(armorStats, includeChildren: true);
             DrawBonusBlockIfPresent("Bonus Stats (Armour Extras)", show: true);
+            DrawMiscEffectsBlockIfPresent(show: true);
         }
         else if (kind == ItemKind.Jewelry)
         {
             DrawBonusBlockIfPresent("Bonus Stats (Jewelry)", show: true);
+            DrawMiscEffectsBlockIfPresent(show: true);
         }
         else if (kind == ItemKind.Consumable)
         {
@@ -804,6 +811,21 @@ public class ItemDefinitionEditor : Editor
             "- Bleed or poison chance and multiplier\n" +
             "- Poison duration and poison max stacks\n" +
             "- Burn/Chill/Shock elemental ailment scaling",
+            MessageType.None
+        );
+    }
+
+    private void DrawMiscEffectsBlockIfPresent(bool show)
+    {
+        if (miscEffects == null || !show)
+            return;
+
+        EditorGUILayout.Space(8);
+        DrawModuleHeader("Misc (unique effects)");
+        EditorGUILayout.PropertyField(miscEffects, includeChildren: true);
+        EditorGUILayout.HelpBox(
+            "Expand this section for effects that are not standard bonus stats (e.g. spawn / world modifiers). " +
+            "Enemy respawn reduction stacks across all equipped items and subtracts from the map node's Enemy Respawn Delay (MapNodeDefinition).",
             MessageType.None
         );
     }
