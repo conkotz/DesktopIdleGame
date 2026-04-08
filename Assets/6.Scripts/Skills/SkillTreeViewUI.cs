@@ -11,260 +11,355 @@ public class SkillTreeViewUI : MonoBehaviour
     [SerializeField] private TMP_Text levelRowLabelPrefab;
     [SerializeField] private SkillTreeNodeUI nodePrefab;
     [SerializeField] private SkillTreeConnectorUI connectorPrefab;
+    [SerializeField] private SharedTooltipUI sharedTooltip;
+    [SerializeField] private RectTransform tooltipBoundsRect;
 
-    [Header("Layout (placeholder scaffold)")]
+    [Header("Data")]
+    [SerializeField] private SkillDefinition selectedSkill;
+    [SerializeField] private SkillsManager skillsManager;
+    [Tooltip("When true, stop rendering rows after the first invalid/missing unlock row.")]
+    [SerializeField] private bool stopAfterFirstMissingUnlock = true;
+
+    [Header("Layout")]
     [SerializeField] private float startY = -48f;
-    [Tooltip("Minimum clear space between adjacent spine node edges.")]
     [SerializeField] private float rowGap = 20f;
-    [Tooltip("Optional extra separation before level 50 capstone row.")]
-    [SerializeField] private float extraGapBeforeCapstone = 10f;
-    [Tooltip("Horizontal offset of choice nodes from spine (most rows).")]
     [SerializeField] private float choiceOffsetX = 210f;
-    [Tooltip("Horizontal offset of choice nodes from spine on the capstone row.")]
+    [SerializeField] private float choiceYOffset = -80f;
     [SerializeField] private float capstoneChoiceOffsetX = 210f;
-    [Tooltip("Vertical offset for choice branches on single center-node rows (Ability/Major). Negative moves choices downward.")]
-    [SerializeField] private float singleNodeChoiceYOffset = -80f;
-    [Tooltip("Horizontal offset for side unlock nodes on Lv20/Lv40.")]
-    [SerializeField] private float sideUnlockOffsetX = 120f;
-    [Tooltip("If true, show Lv labels for every level (including minor filler rows).")]
+    [SerializeField] private float capstoneChoiceYOffset = 0f;
+    [Tooltip("Extra Y offset for choices that use an explicit requiredLevel (eg. Lv8). 0 keeps them exactly on that row.")]
+    [SerializeField] private float explicitChoiceRowYOffset = 0f;
     [SerializeField] private bool showAllLevelLabels = true;
 
     private readonly List<SkillTreeNodeUI> spawnedNodes = new();
     private readonly List<SkillTreeConnectorUI> spawnedConnectors = new();
     private readonly List<TMP_Text> spawnedLevelLabels = new();
     private readonly Dictionary<string, SkillTreeNodeUI> nodeLookup = new();
-    private readonly Dictionary<int, float> spineRowCenterY = new();
+    private readonly Dictionary<int, float> rowYByLevel = new();
+    private readonly Dictionary<string, string> tooltipTitleByNodeId = new();
+    private readonly Dictionary<string, string> tooltipBodyByNodeId = new();
+    private readonly Dictionary<string, int> nodeLevelById = new();
+    private readonly Dictionary<int, RowDef> rowByLevel = new();
+    private readonly Dictionary<string, ChoiceNodeMeta> choiceMetaByNodeId = new();
 
     private SkillTreeNodeUI selectedNode;
 
+    private readonly struct ChoiceNodeMeta
+    {
+        public readonly int sourceLevel;
+        public readonly int choiceIndex;
+        public readonly int unlockLevel;
+
+        public ChoiceNodeMeta(int sourceLevel, int choiceIndex, int unlockLevel)
+        {
+            this.sourceLevel = sourceLevel;
+            this.choiceIndex = choiceIndex;
+            this.unlockLevel = unlockLevel;
+        }
+    }
+
+    private readonly struct RowDef
+    {
+        public readonly int level;
+        public readonly SkillUnlockDefinition unlock;
+        public readonly SkillTreeNodeVisualType type;
+        public readonly int choiceCount;
+
+        public RowDef(int level, SkillUnlockDefinition unlock, SkillTreeNodeVisualType type, int choiceCount)
+        {
+            this.level = level;
+            this.unlock = unlock;
+            this.type = type;
+            this.choiceCount = Mathf.Max(0, choiceCount);
+        }
+    }
+
     private void Start()
     {
-        // TEMPORARY: placeholder scaffold only — replace with data-driven build from skill definitions.
-        BuildPlaceholderScaffold();
+        BuildForSelectedSkill();
     }
 
-    /// <summary>
-    /// TEMPORARY: visual-only placeholder for one skill tree spine (levels 1–50) plus choice nodes.
-    /// Replace later with: load nodes + edges from ScriptableObject / JSON / DB per skill.
-    /// </summary>
-    public void BuildPlaceholderScaffold()
+    public void SetSkill(SkillDefinition skill)
+    {
+        selectedSkill = skill;
+        BuildForSelectedSkill();
+    }
+
+    public void BuildForSelectedSkill()
     {
         ClearTree();
-        BuildPlaceholderSpineRowLayout();
+        if (selectedSkill == null || selectedSkill.unlocks == null || selectedSkill.unlocks.Count == 0)
+            return;
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
 
-        // TEMPORARY: left-side level column (labels only; node labels are disabled for tooltips later).
-        SpawnLevelColumnLabels();
+        int currentSkillLevel = skillsManager ? skillsManager.GetLevel(selectedSkill.skillType) : 1;
 
-        // --- Spawn nodes by level row (some rows contain multiple nodes) ---
-        for (int level = 1; level <= 50; level++)
-        {
-            float y = GetSpineRowY(level);
-            foreach (var def in GetRowNodeDefs(level, y))
-                SpawnNode(def.id, def.pos, def.type);
-        }
+        List<RowDef> rows = BuildRows(selectedSkill.unlocks);
+        if (rows.Count == 0)
+            return;
 
-        // --- Connectors: spine chain ---
-        for (int level = 2; level <= 50; level++)
-            SpawnConnector(SpineId(level - 1), SpineId(level));
-
-        // --- For every Ability/MajorPassive center node, attach a choice branch ---
-        for (int level = 1; level <= 50; level++)
-            SpawnChoiceConnectorsForSource(level);
+        BuildRowY(rows);
+        SpawnLevelColumnLabels(rows);
+        SpawnRows(rows, currentSkillLevel);
+        SpawnConnectors(rows);
     }
 
-    private void SpawnChoiceConnectorsForSource(int sourceLevel)
+    private List<RowDef> BuildRows(List<SkillUnlockDefinition> unlocks)
     {
-        string left = ChoiceId(sourceLevel, sourceLevel, 0);
-        string right = ChoiceId(sourceLevel, sourceLevel, 1);
-        if (!nodeLookup.ContainsKey(left) || !nodeLookup.ContainsKey(right))
-            return;
+        var sorted = new List<SkillUnlockDefinition>();
+        for (int i = 0; i < unlocks.Count; i++)
+            if (unlocks[i] != null)
+                sorted.Add(unlocks[i]);
 
-        SpawnConnector(SpineId(sourceLevel), left);
-        SpawnConnector(SpineId(sourceLevel), right);
-    }
+        sorted.Sort((a, b) => a.requiredLevel.CompareTo(b.requiredLevel));
 
-    private readonly struct NodeDef
-    {
-        public readonly string id;
-        public readonly Vector2 pos;
-        public readonly SkillTreeNodeVisualType type;
+        var rows = new List<RowDef>(sorted.Count);
+        var seen = new HashSet<int>();
 
-        public NodeDef(string id, Vector2 pos, SkillTreeNodeVisualType type)
+        for (int i = 0; i < sorted.Count; i++)
         {
-            this.id = id;
-            this.pos = pos;
-            this.type = type;
-        }
-    }
-
-    /// <summary>
-    /// TEMPORARY scaffold row contents for the new progression structure.
-    /// Rows may contain multiple nodes (eg. Major + Unlock side-by-side).
-    /// </summary>
-    private IEnumerable<NodeDef> GetRowNodeDefs(int level, float y)
-    {
-        // Simplified rows: keep only center node + downward choices (no extra unlock side nodes).
-        if (level == 20 || level == 40)
-        {
-            yield return new NodeDef(SpineId(level), new Vector2(0f, y), SkillTreeNodeVisualType.MajorPassive);
-            yield return new NodeDef(SideUnlockId(level), new Vector2(sideUnlockOffsetX, y), SkillTreeNodeVisualType.Unlock);
-            yield return new NodeDef(ChoiceId(level, level, 0), new Vector2(-choiceOffsetX, y + singleNodeChoiceYOffset), SkillTreeNodeVisualType.Choice);
-            yield return new NodeDef(ChoiceId(level, level, 1), new Vector2(choiceOffsetX, y + singleNodeChoiceYOffset), SkillTreeNodeVisualType.Choice);
-            yield break;
-        }
-
-        // Ability rows with choice branches.
-        if (level is 15 or 25 or 35 or 45)
-        {
-            yield return new NodeDef(SpineId(level), new Vector2(0f, y), SkillTreeNodeVisualType.Ability);
-            yield return new NodeDef(ChoiceId(level, level, 0), new Vector2(-choiceOffsetX, y + singleNodeChoiceYOffset), SkillTreeNodeVisualType.Choice);
-            yield return new NodeDef(ChoiceId(level, level, 1), new Vector2(choiceOffsetX, y + singleNodeChoiceYOffset), SkillTreeNodeVisualType.Choice);
-            yield break;
-        }
-
-        // Lv5 starting ability with choice branch.
-        if (level == 5)
-        {
-            yield return new NodeDef(SpineId(level), new Vector2(0f, y), SkillTreeNodeVisualType.Ability);
-            yield return new NodeDef(ChoiceId(level, level, 0), new Vector2(-choiceOffsetX, y + singleNodeChoiceYOffset), SkillTreeNodeVisualType.Choice);
-            yield return new NodeDef(ChoiceId(level, level, 1), new Vector2(choiceOffsetX, y + singleNodeChoiceYOffset), SkillTreeNodeVisualType.Choice);
-            yield break;
-        }
-
-        // Capstone row with immediate capstone choices.
-        if (level == 50)
-        {
-            yield return new NodeDef(SpineId(level), new Vector2(0f, y), SkillTreeNodeVisualType.CapstonePassive);
-            yield return new NodeDef(ChoiceId(level, 50, 0), new Vector2(-capstoneChoiceOffsetX, y), SkillTreeNodeVisualType.Choice);
-            yield return new NodeDef(ChoiceId(level, 50, 1), new Vector2(capstoneChoiceOffsetX, y), SkillTreeNodeVisualType.Choice);
-            yield break;
-        }
-
-        // Major passive rows with own choice branches.
-        if (level is 10 or 30)
-        {
-            yield return new NodeDef(SpineId(level), new Vector2(0f, y), SkillTreeNodeVisualType.MajorPassive);
-            yield return new NodeDef(ChoiceId(level, level, 0), new Vector2(-choiceOffsetX, y + singleNodeChoiceYOffset), SkillTreeNodeVisualType.Choice);
-            yield return new NodeDef(ChoiceId(level, level, 1), new Vector2(choiceOffsetX, y + singleNodeChoiceYOffset), SkillTreeNodeVisualType.Choice);
-            yield break;
-        }
-
-        // Single spine node rows.
-        GetSpineNodePresentation(level, out SkillTreeNodeVisualType visual, out string typeDisplay);
-        yield return new NodeDef(SpineId(level), new Vector2(0f, y), visual);
-    }
-
-    /// <summary>
-    /// Placeholder mapping: which visual type and TypeText each spine level uses for this scaffold pattern.
-    /// Real data: each skill tree may define its own level → node entries.
-    /// </summary>
-    private static void GetSpineNodePresentation(int level, out SkillTreeNodeVisualType visual, out string typeDisplay)
-    {
-        // New scaffold mapping (single-node rows only; multi-node rows handled in GetRowNodeDefs).
-        if (level == 1)
-        {
-            visual = SkillTreeNodeVisualType.Unlock;
-            typeDisplay = string.Empty;
-            return;
-        }
-
-        if (level is 5)
-        {
-            visual = SkillTreeNodeVisualType.Ability;
-            typeDisplay = string.Empty;
-            return;
-        }
-
-        if (level is 10 or 30)
-        {
-            visual = SkillTreeNodeVisualType.MajorPassive;
-            typeDisplay = string.Empty;
-            return;
-        }
-
-        if (level is 20 or 40)
-        {
-            // Special row handled in GetRowNodeDefs, but center node is still MajorPassive.
-            visual = SkillTreeNodeVisualType.MajorPassive;
-            typeDisplay = string.Empty;
-            return;
-        }
-
-        if (level is 15 or 25 or 35 or 45)
-        {
-            // Ability + choices row handled elsewhere.
-            visual = SkillTreeNodeVisualType.Ability;
-            typeDisplay = string.Empty;
-            return;
-        }
-
-        if (level == 50)
-        {
-            visual = SkillTreeNodeVisualType.CapstonePassive;
-            typeDisplay = string.Empty;
-            return;
-        }
-
-        // Everything else: minor filler.
-        visual = SkillTreeNodeVisualType.MinorPassive;
-        typeDisplay = string.Empty;
-    }
-
-    private static string SpineId(int level) => $"Lv{level}";
-    private static string SideUnlockId(int level) => $"Lv{level}_SideUnlock";
-    private static string ChoiceId(int unlockLevel, int sourceMilestoneLevel, int index) =>
-        $"Lv{unlockLevel}_ChoiceFrom{sourceMilestoneLevel}_{index}";
-    private static string LevelLabel(int level) => $"Lv{level}";
-
-    /// <summary>
-    /// TEMPORARY scaffold layout pass.
-    /// Computes center Y for each level using node heights + minimum row gap.
-    /// This keeps mixed-size rows visually consistent and is easy to swap for real data later.
-    /// </summary>
-    private void BuildPlaceholderSpineRowLayout()
-    {
-        spineRowCenterY.Clear();
-
-        for (int level = 1; level <= 50; level++)
-        {
-            float currentHalf = GetRowVisualHalfHeight(level);
-
-            if (level == 1)
+            SkillUnlockDefinition u = sorted[i];
+            if (u == null || u.requiredLevel <= 0)
             {
-                spineRowCenterY[level] = startY;
+                if (stopAfterFirstMissingUnlock) break;
                 continue;
             }
 
-            int prevLevel = level - 1;
-            float prevHalf = GetRowVisualHalfHeight(prevLevel);
+            if (seen.Contains(u.requiredLevel))
+            {
+                // Keep only first unlock per level for now (simple spine).
+                continue;
+            }
 
-            float gap = Mathf.Max(0f, rowGap);
-            if (level == 50)
-                gap += Mathf.Max(0f, extraGapBeforeCapstone);
-
-            spineRowCenterY[level] = spineRowCenterY[prevLevel] - prevHalf - gap - currentHalf;
+            SkillTreeNodeVisualType visual = MapUnlockToNodeType(u);
+            int choices = GetChoiceCount(u);
+            rows.Add(new RowDef(u.requiredLevel, u, visual, choices));
+            seen.Add(u.requiredLevel);
         }
+
+        return rows;
     }
 
-    private float GetRowVisualHalfHeight(int level)
+    private static SkillTreeNodeVisualType MapUnlockToNodeType(SkillUnlockDefinition u)
     {
-        float maxH = 0f;
-
-        foreach (var def in GetRowNodeDefs(level, 0f))
+        return u.unlockType switch
         {
-            float h = SkillTreeNodeUI.GetVisualBoxSize(def.type).y;
-            if (h > maxH) maxH = h;
-        }
-
-        return maxH * 0.5f;
+            SkillUnlockType.MinorPassive => SkillTreeNodeVisualType.MinorPassive,
+            SkillUnlockType.MajorPassive => SkillTreeNodeVisualType.MajorPassive,
+            SkillUnlockType.Unlock => SkillTreeNodeVisualType.Unlock,
+            SkillUnlockType.Ability => SkillTreeNodeVisualType.Ability,
+            SkillUnlockType.CapstonePassive => SkillTreeNodeVisualType.CapstonePassive,
+            _ => SkillTreeNodeVisualType.MinorPassive
+        };
     }
 
-    private float GetSpineRowY(int level)
+    private static int GetChoiceCount(SkillUnlockDefinition unlock)
     {
-        if (spineRowCenterY.TryGetValue(level, out float y))
-            return y;
+        if (unlock == null || unlock.choices == null)
+            return 0;
 
-        return startY;
+        int count = 0;
+        for (int i = 0; i < unlock.choices.Count; i++)
+            if (unlock.choices[i] != null)
+                count++;
+        return count;
+    }
+
+    private void BuildRowY(List<RowDef> rows)
+    {
+        rowYByLevel.Clear();
+        rowByLevel.Clear();
+        for (int i = 0; i < rows.Count; i++)
+        {
+            RowDef row = rows[i];
+            rowByLevel[row.level] = row;
+            float currentHalf = SkillTreeNodeUI.GetVisualBoxSize(row.type).y * 0.5f;
+
+            if (i == 0)
+            {
+                rowYByLevel[row.level] = startY;
+                continue;
+            }
+
+            RowDef prev = rows[i - 1];
+            float prevHalf = SkillTreeNodeUI.GetVisualBoxSize(prev.type).y * 0.5f;
+            rowYByLevel[row.level] = rowYByLevel[prev.level] - prevHalf - Mathf.Max(0f, rowGap) - currentHalf;
+        }
+    }
+
+    private void SpawnLevelColumnLabels(List<RowDef> rows)
+    {
+        if (levelsRoot == null || levelRowLabelPrefab == null)
+            return;
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var row = rows[i];
+            if (!showAllLevelLabels && row.type == SkillTreeNodeVisualType.MinorPassive)
+                continue;
+
+            var t = Instantiate(levelRowLabelPrefab, levelsRoot);
+            t.text = $"Lv{row.level}";
+            t.alignment = TextAlignmentOptions.MidlineRight;
+
+            RectTransform rt = t.rectTransform;
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(1f, 0.5f);
+            rt.anchoredPosition = new Vector2(0f, rowYByLevel[row.level]);
+            spawnedLevelLabels.Add(t);
+        }
+    }
+
+    private void SpawnRows(List<RowDef> rows, int currentSkillLevel)
+    {
+        // Spawn main spine nodes first.
+        for (int i = 0; i < rows.Count; i++)
+        {
+            RowDef row = rows[i];
+            float y = rowYByLevel[row.level];
+
+            string spineId = SpineId(row.level);
+            bool unlocked = row.level <= currentSkillLevel;
+            BuildTooltipCopy(row.level, row.type, row.unlock, unlocked, out string mainTitle, out string mainBody);
+            SpawnNode(spineId, new Vector2(0f, y), row.type, mainTitle, mainBody, unlocked);
+        }
+
+        // Spawn choices using per-choice unlock levels.
+        for (int i = 0; i < rows.Count; i++)
+        {
+            RowDef row = rows[i];
+            List<SkillChoiceDefinition> choices = GetNonNullChoices(row.unlock);
+            if (choices.Count <= 0)
+                continue;
+
+            float center = (choices.Count - 1) * 0.5f;
+            for (int choiceIndex = 0; choiceIndex < choices.Count; choiceIndex++)
+            {
+                SkillChoiceDefinition choice = choices[choiceIndex];
+                int choiceUnlockLevel = ResolveChoiceUnlockLevel(row.level, row.type);
+                if (!rowYByLevel.TryGetValue(choiceUnlockLevel, out float targetY))
+                    continue; // no authored row at that level yet
+
+                float xStep = row.type == SkillTreeNodeVisualType.CapstonePassive ? capstoneChoiceOffsetX : choiceOffsetX;
+                float yOffset;
+                if (choiceUnlockLevel != row.level)
+                {
+                    // Choice rows that unlock later than their source can use a dedicated offset.
+                    yOffset = explicitChoiceRowYOffset;
+                }
+                else
+                {
+                    yOffset = row.type == SkillTreeNodeVisualType.CapstonePassive ? capstoneChoiceYOffset : choiceYOffset;
+                }
+                float x = (choiceIndex - center) * xStep;
+                bool unlocked = row.level <= currentSkillLevel && choiceUnlockLevel <= currentSkillLevel;
+                BuildChoiceTooltipCopy(choiceUnlockLevel, choice, row.unlock, unlocked, out string cTitle, out string cBody);
+                SpawnNode(
+                    ChoiceId(row.level, choiceUnlockLevel, choiceIndex),
+                    new Vector2(x, targetY + yOffset),
+                    SkillTreeNodeVisualType.Choice,
+                    cTitle,
+                    cBody,
+                    unlocked
+                );
+                choiceMetaByNodeId[ChoiceId(row.level, choiceUnlockLevel, choiceIndex)] =
+                    new ChoiceNodeMeta(row.level, choiceIndex, choiceUnlockLevel);
+            }
+        }
+
+        RefreshChoiceSelectionVisuals();
+    }
+
+    private void SpawnConnectors(List<RowDef> rows)
+    {
+        // Spine
+        for (int i = 1; i < rows.Count; i++)
+            SpawnConnector(SpineId(rows[i - 1].level), SpineId(rows[i].level));
+
+        // Choices
+        for (int i = 0; i < rows.Count; i++)
+        {
+            RowDef row = rows[i];
+            List<SkillChoiceDefinition> choices = GetNonNullChoices(row.unlock);
+            if (choices.Count <= 0) continue;
+
+            string source = SpineId(row.level);
+            for (int choiceIndex = 0; choiceIndex < choices.Count; choiceIndex++)
+            {
+                SkillChoiceDefinition choice = choices[choiceIndex];
+                int choiceUnlockLevel = ResolveChoiceUnlockLevel(row.level, row.type);
+                SpawnConnector(source, ChoiceId(row.level, choiceUnlockLevel, choiceIndex));
+            }
+        }
+    }
+
+    private static int ResolveChoiceUnlockLevel(int sourceLevel, SkillTreeNodeVisualType sourceType)
+    {
+        if (sourceType == SkillTreeNodeVisualType.CapstonePassive)
+            return 50;
+        return sourceLevel + 3;
+    }
+
+    private static string SpineId(int level) => $"Lv{level}";
+    private static string ChoiceId(int sourceLevel, int unlockLevel, int index) =>
+        $"Lv{sourceLevel}_ChoiceLv{unlockLevel}_{index}";
+
+    private static void BuildTooltipCopy(int level, SkillTreeNodeVisualType type, SkillUnlockDefinition unlock, bool isUnlocked, out string title, out string body)
+    {
+        string typeLabel = TypeLabel(type);
+        string unlockTitle = unlock != null && !string.IsNullOrWhiteSpace(unlock.title) ? unlock.title.Trim() : "Untitled";
+        string desc = unlock != null && !string.IsNullOrWhiteSpace(unlock.description) ? unlock.description.Trim() : "No description yet.";
+        title = $"{typeLabel} - {unlockTitle}";
+        body = $"{BuildStatusLine(isUnlocked)}\nUnlocks at Lv{level}\n\n{desc}";
+    }
+
+    private static void BuildChoiceTooltipCopy(int unlockLevel, SkillChoiceDefinition choice, SkillUnlockDefinition parentUnlock, bool isUnlocked, out string title, out string body)
+    {
+        string unlockTitle = choice != null && !string.IsNullOrWhiteSpace(choice.title)
+            ? choice.title.Trim()
+            : (parentUnlock != null && !string.IsNullOrWhiteSpace(parentUnlock.title) ? parentUnlock.title.Trim() : "Untitled");
+        string desc = choice != null && !string.IsNullOrWhiteSpace(choice.description)
+            ? choice.description.Trim()
+            : "No description yet.";
+        title = $"Choice - {unlockTitle}";
+        body = $"{BuildStatusLine(isUnlocked)}\nUnlocks at Lv{unlockLevel}\n\n{desc}";
+    }
+
+    private static string BuildStatusLine(bool isUnlocked)
+    {
+        return isUnlocked
+            ? "<color=#33CC66>Node Unlocked</color>"
+            : "<color=#FF4D4D>Node Locked</color>";
+    }
+
+    private static List<SkillChoiceDefinition> GetNonNullChoices(SkillUnlockDefinition unlock)
+    {
+        var list = new List<SkillChoiceDefinition>();
+        if (unlock == null || unlock.choices == null)
+            return list;
+
+        for (int i = 0; i < unlock.choices.Count; i++)
+        {
+            SkillChoiceDefinition c = unlock.choices[i];
+            if (c != null) list.Add(c);
+        }
+        return list;
+    }
+
+    private static string TypeLabel(SkillTreeNodeVisualType type)
+    {
+        return type switch
+        {
+            SkillTreeNodeVisualType.MinorPassive => "Minor Passive",
+            SkillTreeNodeVisualType.MajorPassive => "Major Passive",
+            SkillTreeNodeVisualType.Unlock => "Unlock",
+            SkillTreeNodeVisualType.Ability => "Ability",
+            SkillTreeNodeVisualType.Choice => "Choice",
+            SkillTreeNodeVisualType.CapstonePassive => "Capstone",
+            _ => "Node"
+        };
     }
 
     public void ClearTree()
@@ -282,54 +377,37 @@ public class SkillTreeViewUI : MonoBehaviour
         spawnedConnectors.Clear();
         spawnedLevelLabels.Clear();
         nodeLookup.Clear();
-        spineRowCenterY.Clear();
+        rowYByLevel.Clear();
+        rowByLevel.Clear();
+        tooltipTitleByNodeId.Clear();
+        tooltipBodyByNodeId.Clear();
+        nodeLevelById.Clear();
+        choiceMetaByNodeId.Clear();
         selectedNode = null;
+        sharedTooltip?.Hide();
     }
 
-    private void SpawnLevelColumnLabels()
-    {
-        if (levelsRoot == null || levelRowLabelPrefab == null)
-            return;
-
-        for (int level = 1; level <= 50; level++)
-        {
-            if (!showAllLevelLabels)
-            {
-                // Show labels only for non-minor rows unless explicitly enabled.
-                bool isSpecialRow = level is 1 or 5 or 10 or 15 or 20 or 25 or 30 or 35 or 40 or 45 or 50;
-                if (!isSpecialRow)
-                    continue;
-            }
-
-            var t = Instantiate(levelRowLabelPrefab, levelsRoot);
-            t.text = $"Lv{level}";
-            t.alignment = TextAlignmentOptions.MidlineRight;
-
-            RectTransform rt = t.rectTransform;
-            // LevelsRoot defines the whole column placement. Labels position locally within it.
-            rt.anchorMin = new Vector2(0f, 1f);
-            rt.anchorMax = new Vector2(0f, 1f);
-            rt.pivot = new Vector2(1f, 0.5f);
-            rt.anchoredPosition = new Vector2(0f, GetSpineRowY(level));
-
-            spawnedLevelLabels.Add(t);
-        }
-    }
-
-    private void SpawnNode(string nodeId, Vector2 pos, SkillTreeNodeVisualType type)
+    private void SpawnNode(string nodeId, Vector2 pos, SkillTreeNodeVisualType type, string tooltipTitle, string tooltipBody, bool unlocked)
     {
         if (nodePrefab == null || nodesRoot == null) return;
 
         var node = Instantiate(nodePrefab, nodesRoot);
         node.RectTransform.anchoredPosition = pos;
-
         node.ApplyVisualType(type);
-        node.SetLocked(false);
+        node.SetLocked(!unlocked);
         node.SetSelected(false);
-        node.SetClick(() => OnNodeClicked(node));
+        node.SetClick(() => OnNodeClicked(nodeId, node));
+        node.SetHover(
+            () => ShowTooltip(nodeId, node.transform),
+            HideTooltip
+        );
 
         spawnedNodes.Add(node);
         nodeLookup[nodeId] = node;
+        if (TryGetNodeLevel(nodeId, out int nodeLevel))
+            nodeLevelById[nodeId] = nodeLevel;
+        tooltipTitleByNodeId[nodeId] = string.IsNullOrWhiteSpace(tooltipTitle) ? "Node" : tooltipTitle;
+        tooltipBodyByNodeId[nodeId] = tooltipBody ?? string.Empty;
     }
 
     private void SpawnConnector(string from, string to)
@@ -339,18 +417,112 @@ public class SkillTreeViewUI : MonoBehaviour
 
         var conn = Instantiate(connectorPrefab, connectorsRoot);
         conn.SetPositions(a, b);
-
         spawnedConnectors.Add(conn);
     }
 
-    private void OnNodeClicked(SkillTreeNodeUI node)
+    private void OnNodeClicked(string nodeId, SkillTreeNodeUI node)
     {
         if (node == null || node.IsLocked()) return;
+
+        if (choiceMetaByNodeId.TryGetValue(nodeId, out ChoiceNodeMeta choiceMeta))
+        {
+            if (!selectedSkill || !skillsManager)
+                return;
+
+            skillsManager.SetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.sourceLevel, choiceMeta.choiceIndex);
+            RefreshChoiceSelectionVisuals();
+            ShowTooltip(nodeId, node.transform);
+            return;
+        }
 
         if (selectedNode != null)
             selectedNode.SetSelected(false);
 
         selectedNode = node;
         selectedNode.SetSelected(true);
+
+        ShowTooltip(nodeId, node.transform);
+    }
+
+    private void ShowTooltip(string nodeId, Transform anchor)
+    {
+        if (sharedTooltip == null)
+            return;
+
+        tooltipTitleByNodeId.TryGetValue(nodeId, out string title);
+        tooltipBodyByNodeId.TryGetValue(nodeId, out string body);
+        if (!string.IsNullOrWhiteSpace(nodeId) && nodeLevelById.TryGetValue(nodeId, out int level) && rowByLevel.TryGetValue(level, out RowDef row))
+            body = AppendChoiceTooltipState(row, body);
+        sharedTooltip.ShowTextAt(
+            anchor,
+            string.IsNullOrWhiteSpace(title) ? "Node" : title,
+            string.IsNullOrWhiteSpace(body) ? "No node data yet." : body,
+            measureRect: tooltipBoundsRect != null ? tooltipBoundsRect : nodesRoot,
+            heightRect: tooltipBoundsRect != null ? tooltipBoundsRect : nodesRoot,
+            preferredSide: FlipInsideBounds.PreferredSide.Right
+        );
+    }
+
+    private void HideTooltip()
+    {
+        sharedTooltip?.Hide();
+    }
+
+    private static bool TryGetNodeLevel(string nodeId, out int level)
+    {
+        level = 0;
+        if (string.IsNullOrWhiteSpace(nodeId) || !nodeId.StartsWith("Lv"))
+            return false;
+
+        int end = nodeId.IndexOf('_');
+        string numberPart = end > 2 ? nodeId.Substring(2, end - 2) : nodeId.Substring(2);
+        return int.TryParse(numberPart, out level);
+    }
+
+    private string AppendChoiceTooltipState(RowDef row, string body)
+    {
+        List<SkillChoiceDefinition> choices = GetNonNullChoices(row.unlock);
+        if (choices.Count <= 0 || !selectedSkill || !skillsManager)
+            return body;
+
+        int selectedChoice = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, row.level, -1);
+        var sb = new System.Text.StringBuilder();
+        if (!string.IsNullOrWhiteSpace(body))
+            sb.Append(body.Trim());
+        if (selectedChoice >= 0 && selectedChoice < choices.Count)
+        {
+            sb.Append("\n\nActive Choice: ");
+            sb.Append("<color=#33CC66>");
+            sb.Append(!string.IsNullOrWhiteSpace(choices[selectedChoice].title) ? choices[selectedChoice].title.Trim() : $"Option {selectedChoice + 1}");
+            sb.Append("</color>");
+        }
+        sb.Append("\n\nChoices:");
+        for (int i = 0; i < choices.Count; i++)
+        {
+            string choiceName = !string.IsNullOrWhiteSpace(choices[i].title) ? choices[i].title.Trim() : $"Option {i + 1}";
+            bool isSelected = i == selectedChoice;
+            sb.Append("\n");
+            sb.Append(isSelected ? "<color=#33CC66>• [Selected] " : "• ");
+            sb.Append(choiceName);
+            if (isSelected) sb.Append("</color>");
+        }
+
+        return sb.ToString();
+    }
+
+    private void RefreshChoiceSelectionVisuals()
+    {
+        if (!selectedSkill || !skillsManager)
+            return;
+
+        foreach (var kv in choiceMetaByNodeId)
+        {
+            if (!nodeLookup.TryGetValue(kv.Key, out SkillTreeNodeUI node) || node == null)
+                continue;
+
+            ChoiceNodeMeta meta = kv.Value;
+            int selectedChoice = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.sourceLevel, -1);
+            node.SetSelected(selectedChoice == meta.choiceIndex);
+        }
     }
 }

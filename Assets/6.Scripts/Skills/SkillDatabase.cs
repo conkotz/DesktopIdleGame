@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
 /// Authoring-time registry of <see cref="SkillDefinition"/> assets for UI and lookups.
@@ -24,6 +27,39 @@ public class SkillDatabase : ScriptableObject
         return _lookupByType != null && _lookupByType.TryGetValue(type, out var def) ? def : null;
     }
 
+    public static SkillDatabase LoadDefault()
+    {
+        SkillDatabase[] dbs = Resources.LoadAll<SkillDatabase>(string.Empty);
+        SkillDatabase best = PickBestDatabase(dbs);
+        if (best != null)
+            return best;
+
+        best = Resources.Load<SkillDatabase>("Databases/SkillDatabase");
+        if (best != null)
+            return best;
+
+#if UNITY_EDITOR
+        string[] guids = AssetDatabase.FindAssets("t:SkillDatabase");
+        if (guids != null && guids.Length > 0)
+        {
+            List<SkillDatabase> found = new List<SkillDatabase>(guids.Length);
+            for (int i = 0; i < guids.Length; i++)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                SkillDatabase db = AssetDatabase.LoadAssetAtPath<SkillDatabase>(path);
+                if (db != null)
+                    found.Add(db);
+            }
+
+            best = PickBestDatabase(found);
+            if (best != null)
+                return best;
+        }
+#endif
+
+        return null;
+    }
+
     private void EnsureLookupBuilt()
     {
         if (_lookupByType != null) return;
@@ -34,6 +70,27 @@ public class SkillDatabase : ScriptableObject
             if (skill == null) continue;
             _lookupByType[skill.skillType] = skill;
         }
+    }
+
+    private static SkillDatabase PickBestDatabase(IEnumerable<SkillDatabase> candidates)
+    {
+        if (candidates == null)
+            return null;
+
+        SkillDatabase best = null;
+        int bestCount = -1;
+        foreach (SkillDatabase db in candidates)
+        {
+            if (!db) continue;
+            int count = db.skills != null ? db.skills.Count : 0;
+            if (count > bestCount)
+            {
+                best = db;
+                bestCount = count;
+            }
+        }
+
+        return best;
     }
 
 #if UNITY_EDITOR

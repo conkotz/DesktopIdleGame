@@ -1,9 +1,10 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class SkillTreeNodeUI : MonoBehaviour
+public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
     /// <summary>Minimum gap between node edge and the inner edge of the side labels (pixels).</summary>
     private const float SideLabelPadding = 2f;
@@ -23,6 +24,9 @@ public class SkillTreeNodeUI : MonoBehaviour
     [SerializeField] private GameObject lockedOverlay;
     [SerializeField] private GameObject selectedGlow;
     [SerializeField] private Button button;
+    [SerializeField] private Color selectedOutlineColor = new Color(1f, 0.84f, 0.2f, 1f);
+    [SerializeField] private float selectedBorderThickness = 4f;
+    [SerializeField] private float selectedGlowPaddingCompensation = 4f;
 
     [Header("Colors")]
     [FormerlySerializedAs("minorColor")]
@@ -49,6 +53,10 @@ public class SkillTreeNodeUI : MonoBehaviour
     private bool isLocked;
     private bool isSelected;
     private SkillTreeNodeVisualType appliedVisualType;
+    private System.Action onClickAction;
+    private System.Action onHoverEnter;
+    private System.Action onHoverExit;
+    private Vector2 _baseOuterRingSize;
 
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
 
@@ -105,6 +113,8 @@ public class SkillTreeNodeUI : MonoBehaviour
 
     public void SetClick(System.Action onClick)
     {
+        onClickAction = onClick;
+
         if (button == null)
             return;
 
@@ -116,6 +126,33 @@ public class SkillTreeNodeUI : MonoBehaviour
         }
     }
 
+    public void SetHover(System.Action enter, System.Action exit)
+    {
+        onHoverEnter = enter;
+        onHoverExit = exit;
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        onHoverEnter?.Invoke();
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        onHoverExit?.Invoke();
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData != null && eventData.button != PointerEventData.InputButton.Left)
+            return;
+        if (isLocked)
+            return;
+
+        // Fallback click path when Button reference is missing or misconfigured.
+        onClickAction?.Invoke();
+    }
+
     public void SetSelected(bool selected)
     {
         isSelected = selected;
@@ -124,6 +161,8 @@ public class SkillTreeNodeUI : MonoBehaviour
         {
             selectedGlow.SetActive(selected);
         }
+
+        ApplySelectedOutlineFallback();
     }
 
     public void SetLocked(bool locked)
@@ -207,6 +246,7 @@ public class SkillTreeNodeUI : MonoBehaviour
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = rootSize;
+            _baseOuterRingSize = rt.sizeDelta;
         }
 
         if (fillImage != null)
@@ -223,10 +263,18 @@ public class SkillTreeNodeUI : MonoBehaviour
             iconImage.gameObject.SetActive(showIcon && iconImage.sprite != null);
 
         if (lockedOverlay != null)
-            lockedOverlay.GetComponent<RectTransform>().sizeDelta = rootSize;
+        {
+            RectTransform rt = lockedOverlay.GetComponent<RectTransform>();
+            if (rt != null)
+            {
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.pivot = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = Vector2.zero;
+                rt.sizeDelta = fillImage != null ? fillImage.rectTransform.sizeDelta : (rootSize * 0.75f);
+            }
+        }
 
-        if (selectedGlow != null)
-            selectedGlow.GetComponent<RectTransform>().sizeDelta = rootSize + new Vector2(2f, 2f);
+        UpdateSelectedGlowBorder();
 
         if (levelText != null)
         {
@@ -241,6 +289,7 @@ public class SkillTreeNodeUI : MonoBehaviour
         }
 
         // Side labels disabled for now (tooltips later).
+        ApplySelectedOutlineFallback();
     }
 
     private void LayoutSideLabels(Vector2 rootSize, bool showSideLabels)
@@ -278,5 +327,70 @@ public class SkillTreeNodeUI : MonoBehaviour
             typeText.overflowMode = TextOverflowModes.Overflow;
             rt.anchoredPosition = new Vector2(halfW + pad, yOffset);
         }
+    }
+
+    private void ApplySelectedOutlineFallback()
+    {
+        if (selectedGlow != null)
+        {
+            UpdateSelectedGlowBorder();
+            return;
+        }
+
+        if (outerRingImage != null)
+        {
+            RectTransform rt = outerRingImage.rectTransform;
+            if (isSelected)
+            {
+                float extra = Mathf.Max(0f, selectedBorderThickness * 2f);
+                rt.sizeDelta = _baseOuterRingSize + new Vector2(extra, extra);
+            }
+            else
+            {
+                rt.sizeDelta = _baseOuterRingSize;
+            }
+        }
+    }
+
+    private void UpdateSelectedGlowBorder()
+    {
+        if (selectedGlow == null)
+            return;
+
+        bool showChoiceSelection = isSelected && appliedVisualType == SkillTreeNodeVisualType.Choice;
+
+        RectTransform glowRt = selectedGlow.GetComponent<RectTransform>();
+        if (glowRt != null)
+        {
+            glowRt.anchorMin = glowRt.anchorMax = new Vector2(0.5f, 0.5f);
+            glowRt.pivot = new Vector2(0.5f, 0.5f);
+            glowRt.anchoredPosition = Vector2.zero;
+
+            // Match the *visible* node box:
+            // - prefer outer ring when present
+            // - otherwise use fill (common current prefab setup)
+            Vector2 baseSize;
+            if (outerRingImage != null)
+                baseSize = outerRingImage.rectTransform.sizeDelta;
+            else if (fillImage != null)
+                baseSize = fillImage.rectTransform.sizeDelta;
+            else
+                baseSize = RectTransform.sizeDelta;
+            // Some border sprites have internal inset/padding; compensate so border wraps outside the node.
+            float perSide = Mathf.Max(0f, selectedBorderThickness) + Mathf.Max(0f, selectedGlowPaddingCompensation);
+            float extra = perSide * 2f;
+            glowRt.sizeDelta = baseSize + new Vector2(extra, extra);
+        }
+
+        Image glowImage = selectedGlow.GetComponent<Image>();
+        if (glowImage != null)
+        {
+            glowImage.color = selectedOutlineColor;
+            glowImage.raycastTarget = false;
+            if (glowImage.type == Image.Type.Simple)
+                glowImage.type = Image.Type.Sliced;
+        }
+
+        selectedGlow.SetActive(showChoiceSelection);
     }
 }

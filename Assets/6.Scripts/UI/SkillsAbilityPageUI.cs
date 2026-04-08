@@ -43,6 +43,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     [FormerlySerializedAs("centerDetailPlaceholderText")]
     [Tooltip("Skill tree / center body placeholder until real UI exists.")]
     [SerializeField] private TMP_Text centerSkillTreePlaceholderText;
+    [Tooltip("Center skill tree renderer (data-driven from selected SkillDefinition).")]
+    [SerializeField] private SkillTreeViewUI centerSkillTreeView;
 
     [Header("Right panel")]
     [FormerlySerializedAs("unlocksText")]
@@ -86,6 +88,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             abilityDatabase = AbilityDatabase.LoadDefault();
 
         ValidateRefsOnce();
+        EnsureCenterTreeReference();
         EnsureRightPanelLayoutConfigured();
     }
 
@@ -95,6 +98,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             skillsManager = SkillsManager.Instance;
         if (!abilityDatabase)
             abilityDatabase = AbilityDatabase.LoadDefault();
+        EnsureCenterTreeReference();
 
         SelectFirstSkillIfNeeded();
         EnsureRightPanelLayoutConfigured();
@@ -143,20 +147,20 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             skillsManager = SkillsManager.Instance;
         if (!skillsManager) return;
 
-        skillsManager.OnXpGained += HandleSkillsXpGained;
+        skillsManager.OnLevelUp += HandleSkillsLevelUp;
     }
 
     private void TryUnsubscribeSkillsEvents()
     {
         if (!skillsManager) return;
-        skillsManager.OnXpGained -= HandleSkillsXpGained;
+        skillsManager.OnLevelUp -= HandleSkillsLevelUp;
     }
 
     /// <summary>
-    /// Invoked during AddXp before the level-up loop; defer one frame so GetLevel reflects final state.
-    /// Covers both XP-only gains and multi-level ups in one call.
+    /// Refresh skills UI only when a level changes.
+    /// This avoids rebuilding the tree every combat XP tick (which hides hover tooltips).
     /// </summary>
-    private void HandleSkillsXpGained(SkillType type, int amount, string source)
+    private void HandleSkillsLevelUp(SkillType type, int newLevel)
     {
         ScheduleDeferredProgressRefresh();
     }
@@ -212,8 +216,20 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (skill == null) return;
 
         _selectedSkill = skill;
+        EnsureCenterTreeReference();
+        if (centerSkillTreeView) centerSkillTreeView.SetSkill(_selectedSkill);
         RefreshView();
         RefreshListSelection();
+    }
+
+    private void EnsureCenterTreeReference()
+    {
+        if (centerSkillTreeView) return;
+
+        // Auto-resolve from this UI panel first, then anywhere in scene as fallback.
+        centerSkillTreeView = GetComponentInChildren<SkillTreeViewUI>(true);
+        if (!centerSkillTreeView)
+            centerSkillTreeView = FindFirstObjectByType<SkillTreeViewUI>(FindObjectsInactive.Include);
     }
 
     private void OnSkillEntryClicked(SkillDefinition skill)
@@ -355,6 +371,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         {
             if (centerTitleText) centerTitleText.text = "No Skill Selected";
             if (centerSkillTreePlaceholderText) centerSkillTreePlaceholderText.text = "";
+            if (centerSkillTreeView) centerSkillTreeView.SetSkill(null);
             if (rightUnlocksText) rightUnlocksText.text = "";
             if (rightAbilitiesText) rightAbilitiesText.text = "";
             return;
@@ -369,7 +386,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             centerTitleText.text = $"{displayName} (lv {level})";
 
         if (centerSkillTreePlaceholderText)
-            centerSkillTreePlaceholderText.text = "Skill tree\n(placeholder — layout only)";
+            centerSkillTreePlaceholderText.text = "";
+
+        if (centerSkillTreeView)
+            centerSkillTreeView.SetSkill(_selectedSkill);
 
         if (rightUnlocksText)
             rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level);
@@ -601,24 +621,100 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0)
             return "No unlocks yet.";
 
-        var sb = new StringBuilder();
+        float minMeleeDamage = 0f;
+        float maxMeleeDamage = 0f;
+        float meleeAttackSpeed = 0f;
+        float meleeDamage = 0f;
+        float meleeCritChance = 0f;
+        float meleeCritDamage = 0f;
+        float meleeMoveSpeed = 0f;
+        float bleedChance = 0f;
+        float bleedDamage = 0f;
+        float poisonChance = 0f;
+        float poisonDuration = 0f;
+        float ailmentDamage = 0f;
+        float shockChance = 0f;
+        float lifeSteal = 0f;
+        float vsBleeding = 0f;
+        float vsPoisoned = 0f;
+        float vsShocked = 0f;
+        float vsLowHp = 0f;
+
         foreach (var unlock in skill.unlocks)
         {
             if (unlock == null) continue;
 
-            bool unlocked = currentLevel >= unlock.requiredLevel;
-            sb.Append(unlocked ? "• " : "🔒 ");
-            sb.Append($"Lv {unlock.requiredLevel} - {unlock.title}");
+            if (currentLevel < unlock.requiredLevel)
+                continue; // Hide future unlocks in the right-side unlocks content.
+            if (unlock.unlockType != SkillUnlockType.MinorPassive)
+                continue;
 
-            if (!string.IsNullOrWhiteSpace(unlock.description))
+            switch (unlock.meleeMinorStatOption)
             {
-                sb.Append(": ");
-                sb.Append(unlock.description);
+                case MeleeMinorNodeStatOption.MinMeleeDamageFlat2: minMeleeDamage += 2f; break;
+                case MeleeMinorNodeStatOption.MaxMeleeDamageFlat2: maxMeleeDamage += 2f; break;
+                case MeleeMinorNodeStatOption.MeleeAttackSpeedPercent3: meleeAttackSpeed += 0.03f; break;
+                case MeleeMinorNodeStatOption.MeleeDamagePercent3: meleeDamage += 0.03f; break;
+                case MeleeMinorNodeStatOption.MeleeCritChancePercent2: meleeCritChance += 0.02f; break;
+                case MeleeMinorNodeStatOption.MeleeDamageVsLowHpPercent10: vsLowHp += 0.10f; break;
+                case MeleeMinorNodeStatOption.MeleeBleedChancePercent5: bleedChance += 0.05f; break;
+                case MeleeMinorNodeStatOption.MeleeBleedDamagePercent10: bleedDamage += 0.10f; break;
+                case MeleeMinorNodeStatOption.MeleeMoveSpeedPercent2: meleeMoveSpeed += 0.02f; break;
+                case MeleeMinorNodeStatOption.MeleeCritDamagePercent8: meleeCritDamage += 0.08f; break;
+                case MeleeMinorNodeStatOption.MeleePoisonChancePercent5: poisonChance += 0.05f; break;
+                case MeleeMinorNodeStatOption.MeleePoisonDurationPercent10: poisonDuration += 0.10f; break;
+                case MeleeMinorNodeStatOption.MeleeAilmentDamagePercent4: ailmentDamage += 0.04f; break;
+                case MeleeMinorNodeStatOption.MeleeDamageVsPoisonedPercent10: vsPoisoned += 0.10f; break;
+                case MeleeMinorNodeStatOption.MeleeShockChancePercent5: shockChance += 0.05f; break;
+                case MeleeMinorNodeStatOption.MeleeDamageVsShockedPercent10: vsShocked += 0.10f; break;
+                case MeleeMinorNodeStatOption.MeleeLifeStealPercent1: lifeSteal += 0.01f; break;
+                case MeleeMinorNodeStatOption.MeleeDamageVsBleedingPercent10: vsBleeding += 0.10f; break;
             }
-
-            sb.AppendLine();
         }
 
+        var sb = new StringBuilder();
+        AppendFlat(sb, minMeleeDamage, "Min Melee Damage");
+        AppendFlat(sb, maxMeleeDamage, "Max Melee Damage");
+        AppendPct(sb, meleeDamage, "Melee Damage");
+        AppendPct(sb, meleeAttackSpeed, "Melee Attack Speed");
+        AppendPct(sb, meleeMoveSpeed, "Melee Move Speed");
+        AppendPct(sb, meleeCritChance, "Melee Crit Chance");
+        AppendPct(sb, meleeCritDamage, "Melee Crit Damage");
+        AppendPct(sb, bleedChance, "Bleed Chance (Melee Only)");
+        AppendPct(sb, bleedDamage, "Bleed Damage");
+        AppendPct(sb, poisonChance, "Poison Chance (Melee Only)");
+        AppendPct(sb, poisonDuration, "Poison Duration");
+        AppendPct(sb, ailmentDamage, "Ailment Damage (Melee Hits Only)");
+        AppendPct(sb, shockChance, "Shock Chance (Melee Only)");
+        AppendPct(sb, vsBleeding, "Damage to Bleeding Enemies (Melee)");
+        AppendPct(sb, vsPoisoned, "Damage to Poisoned Enemies (Melee)");
+        AppendPct(sb, vsShocked, "Damage to Shocked Enemies (Melee)");
+        AppendPct(sb, vsLowHp, "Damage to Low HP Enemies (Melee)");
+        AppendPct(sb, lifeSteal, "Melee Lifesteal");
+
+        if (sb.Length == 0)
+            return "No unlocks yet.";
+
         return sb.ToString();
+    }
+
+    private static void AppendFlat(StringBuilder sb, float value, string label)
+    {
+        if (value <= 0f) return;
+        sb.Append("• +");
+        sb.Append(Mathf.RoundToInt(value));
+        sb.Append(' ');
+        sb.Append(label);
+        sb.AppendLine();
+    }
+
+    private static void AppendPct(StringBuilder sb, float value, string label)
+    {
+        if (value <= 0f) return;
+        sb.Append("• +");
+        sb.Append(Mathf.RoundToInt(value * 100f));
+        sb.Append("% ");
+        sb.Append(label);
+        sb.AppendLine();
     }
 }

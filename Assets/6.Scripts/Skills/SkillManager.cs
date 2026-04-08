@@ -41,6 +41,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
 
     private readonly Dictionary<SkillType, SkillProgress> _skills = new();
     private readonly Dictionary<SkillType, float> _xpRemainder = new();
+    private readonly Dictionary<string, int> _skillChoiceSelections = new();
 
     // ✅ Active XP display (drives XP bar label + color)
     public event Action<SkillType, string> OnActiveXpDisplayChanged;
@@ -125,6 +126,23 @@ public class SkillsManager : MonoBehaviour, ISaveable
         var list = new List<SkillType>(_skills.Keys);
         list.Sort((a, b) => ((int)a).CompareTo((int)b));
         return list;
+    }
+
+    private static string BuildChoiceKey(SkillType skillType, int sourceLevel)
+    {
+        return $"{skillType}:{Mathf.Max(1, sourceLevel)}";
+    }
+
+    public void SetSkillChoiceSelection(SkillType skillType, int sourceLevel, int choiceIndex)
+    {
+        string key = BuildChoiceKey(skillType, sourceLevel);
+        _skillChoiceSelections[key] = Mathf.Max(0, choiceIndex);
+    }
+
+    public int GetSkillChoiceSelection(SkillType skillType, int sourceLevel, int defaultValue = -1)
+    {
+        string key = BuildChoiceKey(skillType, sourceLevel);
+        return _skillChoiceSelections.TryGetValue(key, out int value) ? value : defaultValue;
     }
 
     // -------------------------
@@ -241,6 +259,14 @@ public class SkillsManager : MonoBehaviour, ISaveable
         // ✅ Save last XP display
         data.lastXpSkill = ActiveSkill;
         data.lastXpSource = ActiveSource;
+
+        data.skillChoiceSelectionKeys.Clear();
+        data.skillChoiceSelectionValues.Clear();
+        foreach (var kv in _skillChoiceSelections)
+        {
+            data.skillChoiceSelectionKeys.Add(kv.Key);
+            data.skillChoiceSelectionValues.Add(kv.Value);
+        }
     }
 
     public void LoadFrom(SaveData data)
@@ -268,6 +294,19 @@ public class SkillsManager : MonoBehaviour, ISaveable
         ActiveSkill = data.lastXpSkill;
         ActiveSource = "";
         ActiveSourceXpPerGain = -1;
+
+        _skillChoiceSelections.Clear();
+        if (data.skillChoiceSelectionKeys != null && data.skillChoiceSelectionValues != null)
+        {
+            int count = Mathf.Min(data.skillChoiceSelectionKeys.Count, data.skillChoiceSelectionValues.Count);
+            for (int i = 0; i < count; i++)
+            {
+                string key = data.skillChoiceSelectionKeys[i];
+                if (string.IsNullOrWhiteSpace(key))
+                    continue;
+                _skillChoiceSelections[key] = Mathf.Max(0, data.skillChoiceSelectionValues[i]);
+            }
+        }
 
         // ✅ Push UI refresh immediately after load
         OnActiveXpDisplayChanged?.Invoke(ActiveSkill, ActiveSource);

@@ -195,12 +195,13 @@ public static class AbilityCombatPower
         if (!def || !stats)
             return 0f;
 
+        float physMult = Mathf.Max(0f, def.physicalDamageMultiplier);
         float cd = Mathf.Max(0.01f, def.cooldown);
+        ApplyPowerSlashChoiceAdjustments(def, ref physMult, ref cd);
         float critFactor = GetCritFactor(stats);
 
         float avgPhys = (stats.MinSplitDamage.physical + stats.MaxSplitDamage.physical) * 0.5f;
         float avgMag = (stats.MinSplitDamage.magical + stats.MaxSplitDamage.magical) * 0.5f;
-        float physMult = Mathf.Max(0f, def.physicalDamageMultiplier);
         float magMult = Mathf.Max(0f, def.magicalDamageMultiplier);
         float apMult = Mathf.Max(0f, def.abilityPowerMultiplier);
         float ap = stats.AbilityPower;
@@ -236,5 +237,25 @@ public static class AbilityCombatPower
         float cc = Mathf.Clamp01(stats.CritChance);
         float cm = Mathf.Max(1f, stats.CritMultiplier);
         return 1f + cc * (cm - 1f);
+    }
+
+    private static void ApplyPowerSlashChoiceAdjustments(AbilityDefinition def, ref float physicalMultiplier, ref float cooldownSeconds)
+    {
+        if (!def || !string.Equals(def.abilityId, PowerSlashAbilityId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return;
+
+        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+        if (selected == 0)
+        {
+            physicalMultiplier += 0.25f; // Brutal Cut
+        }
+        else if (selected == 1)
+        {
+            cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 5f); // Relentless Flow
+        }
     }
 }

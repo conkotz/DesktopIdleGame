@@ -15,6 +15,7 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField] private CharacterStats stats;
     [SerializeField] private PlayerCombatController combat;
     [SerializeField] private AbilityDatabase abilityDatabase;
+    [SerializeField] private SkillsManager skillsManager;
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private Inventory inventory;
 
@@ -52,6 +53,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!equipment) equipment = GetComponent<EquipmentManager>();
         if (!inventory) inventory = GetComponent<Inventory>();
         if (!abilityDatabase) abilityDatabase = AbilityDatabase.LoadDefault();
+        if (!skillsManager) skillsManager = SkillsManager.Instance;
     }
 
     public bool IsOnCooldown(string abilityId, out float remainingSeconds)
@@ -135,7 +137,8 @@ public class PlayerAbilityController : MonoBehaviour
                 return false;
 
             _powerSlashQueued = true;
-            _queuedPowerSlashPhysicalMultiplier = Mathf.Max(0f, def.physicalDamageMultiplier);
+            float powerSlashPhysicalBonus = GetPowerSlashPhysicalMultiplierBonus();
+            _queuedPowerSlashPhysicalMultiplier = Mathf.Max(0f, def.physicalDamageMultiplier + powerSlashPhysicalBonus);
             _queuedPowerSlashMagicalMultiplier = Mathf.Max(0f, def.magicalDamageMultiplier);
             _queuedPowerSlashAbilityPowerMultiplier = Mathf.Max(0f, def.abilityPowerMultiplier);
             return true;
@@ -239,9 +242,31 @@ public class PlayerAbilityController : MonoBehaviour
     private void StartCooldown(AbilityDefinition def)
     {
         if (!def) return;
-        float cd = Mathf.Max(0f, def.cooldown);
+        float cd = Mathf.Max(0f, def.cooldown - GetPowerSlashCooldownReduction(def));
         if (cd <= 0f) return;
         _cooldownEndsById[def.abilityId] = Time.time + cd;
+    }
+
+    private float GetPowerSlashPhysicalMultiplierBonus()
+    {
+        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return 0f;
+
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+        return selected == 0 ? 0.25f : 0f;
+    }
+
+    private float GetPowerSlashCooldownReduction(AbilityDefinition def)
+    {
+        if (def == null || !string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
+            return 0f;
+        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return 0f;
+
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+        return selected == 1 ? 5f : 0f;
     }
 
     private void SpawnPowerSlashTrail()

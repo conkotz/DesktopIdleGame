@@ -704,6 +704,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         TryApplyBleed(targetToHit, dealt);
         TryApplyPoison(targetToHit, dealt);
         TryApplyElementalMagicAilment(targetToHit, dealt);
+        TryApplyMeleeShock(targetToHit, dealt);
     }
 
     public void ToggleIdleCombat()
@@ -901,11 +902,12 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         DamageResult result = default;
         if (target == null || target.IsDead) return result;
+        float conditionalDamageMult = GetConditionalMeleeDamageMultiplier(target);
 
         if (rolled.physical > 0f)
         {
             int dealt = target.TakeDamage(
-                Mathf.RoundToInt(rolled.physical),
+                Mathf.RoundToInt(rolled.physical * conditionalDamageMult),
                 DamageType.Physical,
                 wasCrit,
                 player.transform
@@ -917,7 +919,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (rolled.magical > 0f)
         {
             int dealt = target.TakeDamage(
-                Mathf.RoundToInt(rolled.magical),
+                Mathf.RoundToInt(rolled.magical * conditionalDamageMult),
                 DamageType.Magical,
                 wasCrit,
                 player.transform
@@ -929,7 +931,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (rolled.trueDamage > 0f)
         {
             int dealt = target.TakeDamage(
-                Mathf.RoundToInt(rolled.trueDamage),
+                Mathf.RoundToInt(rolled.trueDamage * conditionalDamageMult),
                 DamageType.True,
                 wasCrit,
                 player.transform
@@ -939,6 +941,31 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         return result;
+    }
+
+    private float GetConditionalMeleeDamageMultiplier(EnemyBaseController target)
+    {
+        if (stats == null || target == null)
+            return 1f;
+
+        float bonus = 0f;
+        AilmentController ailments = target.GetComponent<AilmentController>();
+        if (ailments != null)
+        {
+            if (ailments.HasBleed) bonus += stats.MeleeDamageVsBleeding;
+            if (ailments.HasPoison) bonus += stats.MeleeDamageVsPoisoned;
+            if (ailments.HasShock) bonus += stats.MeleeDamageVsShocked;
+        }
+
+        CharacterStats targetStats = target.GetComponent<CharacterStats>();
+        if (targetStats != null && targetStats.MaxHP > 0f)
+        {
+            float hp01 = targetStats.HP / Mathf.Max(1f, targetStats.MaxHP);
+            if (hp01 <= stats.MeleeLowHpThreshold01)
+                bonus += stats.MeleeDamageVsLowHp;
+        }
+
+        return 1f + Mathf.Max(0f, bonus);
     }
 
     private void TryApplyBleed(EnemyBaseController target, DamageResult dealt)
@@ -1065,6 +1092,28 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 ));
                 break;
         }
+    }
+
+    private void TryApplyMeleeShock(EnemyBaseController target, DamageResult dealt)
+    {
+        if (target == null || stats == null)
+            return;
+        if (dealt.Total <= 0f)
+            return;
+
+        float chance = stats.MeleeShockChance;
+        if (chance <= 0f || Random.value > chance)
+            return;
+
+        AilmentController ailments = target.GetComponent<AilmentController>();
+        if (ailments == null)
+            return;
+
+        ailments.ApplyShockFromHit(new ShockPayload(
+            duration: stats.ShockDuration,
+            damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
+            source: transform
+        ));
     }
 
     public void AwardCombatXp(float damageDealt)

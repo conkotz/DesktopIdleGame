@@ -22,13 +22,501 @@ MonoBehaviour:
   unlocks:
   - requiredLevel: 1
     title: Melee Combat
-    description: Can use common melee weapons
+    description: Can use common melee weapons and basic attacks.
     icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
-    unlockType: 0
+    unlockType: 2
+    meleeMinorStatOption: 0
     ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 2
+    title: Tempered Strikes I
+    description: +2 Min Melee Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 1
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 3
+    title: Tempered Strikes II
+    description: +2 Max Melee Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 2
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 4
+    title: Quick Hands I
+    description: +3% Melee Attack Speed
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
   - requiredLevel: 5
     title: Power Slash
     description: A heavy strike that scales with Physical Damage and Ability Power.
     icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
     unlockType: 1
+    meleeMinorStatOption: 0
     ability: {fileID: 11400000, guid: cef0107d3357c9b4e86a08e4b6e8a0a7, type: 2}
+    choices:
+    - requiredLevel: 8
+      title: Power Slash - Brutal Cut
+      description: +25% extra physical damage on Power Slash.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 8
+      title: Power Slash - Relentless Flow
+      description: -5 seconds Power Slash cooldown.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 6
+    title: Brutal Momentum I
+    description: +3% Melee Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 4
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 7
+    title: Precision I
+    description: +2% Melee Crit Chance
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 5
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 8
+    title: Quick Hands II
+    description: +3% Melee Attack Speed
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 9
+    title: Finisher Instinct I
+    description: +10% Damage to Low HP Enemies (Melee)
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 6
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 10
+    title: Major Passive I
+    description: Placeholder major passive milestone.
+    icon: {fileID: 0}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 15
+      title: Major Passive I Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 15
+      title: Major Passive I Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 11
+    title: Tempered Strikes III
+    description: +2 Min Melee Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 1
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 12
+    title: Tempered Strikes IV
+    description: +2 Max Melee Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 2
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 13
+    title: Quick Hands III
+    description: +3% Melee Attack Speed
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 14
+    title: Brutal Momentum II
+    description: +3% Melee Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 4
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 15
+    title: Ability Milestone II
+    description: Placeholder ability milestone.
+    icon: {fileID: 0}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 20
+      title: Ability II Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 20
+      title: Ability II Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 16
+    title: Bloodletting I
+    description: +5% Bleed Chance (Melee Only)
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 7
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 17
+    title: Bloodletting II
+    description: +10% Bleed Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 8
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 18
+    title: Precision II
+    description: +2% Melee Crit Chance
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 5
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 19
+    title: Predator's Focus I
+    description: +10% Damage to Bleeding Enemies (Melee)
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 18
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 20
+    title: Major Passive II
+    description: Placeholder major passive milestone.
+    icon: {fileID: 0}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 25
+      title: Major Passive II Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 25
+      title: Major Passive II Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 21
+    title: Brutal Momentum III
+    description: +3% Melee Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 4
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 22
+    title: Quick Hands IV
+    description: +3% Melee Attack Speed
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 23
+    title: Footwork I
+    description: +2% Melee Move Speed
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 9
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 24
+    title: Lethal Precision I
+    description: +8% Melee Crit Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 10
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 25
+    title: Ability Milestone III
+    description: Placeholder ability milestone.
+    icon: {fileID: 0}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 30
+      title: Ability III Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 30
+      title: Ability III Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 26
+    title: Venom Edge I
+    description: +5% Poison Chance (Melee Only)
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 11
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 27
+    title: Venom Edge II
+    description: +10% Poison Duration
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 12
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 28
+    title: Toxic Synergy I
+    description: +4% Ailment Damage (Melee Hits Only)
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 13
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 29
+    title: Predator's Focus II
+    description: +10% Damage to Poisoned Enemies (Melee)
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 14
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 30
+    title: Major Passive III
+    description: Placeholder major passive milestone.
+    icon: {fileID: 0}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 35
+      title: Major Passive III Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 35
+      title: Major Passive III Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 31
+    title: Brutal Momentum IV
+    description: +3% Melee Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 4
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 32
+    title: Quick Hands V
+    description: +3% Melee Attack Speed
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 33
+    title: Precision III
+    description: +2% Melee Crit Chance
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 5
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 34
+    title: Lethal Precision II
+    description: +8% Melee Crit Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 10
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 35
+    title: Ability Milestone IV
+    description: Placeholder ability milestone.
+    icon: {fileID: 0}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 40
+      title: Ability IV Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 40
+      title: Ability IV Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 36
+    title: Storm Edge I
+    description: +5% Shock Chance (Melee Only)
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 15
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 37
+    title: Predator's Focus III
+    description: +10% Damage to Shocked Enemies (Melee)
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 16
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 38
+    title: Battle Sustain I
+    description: +1% Melee Lifesteal
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 17
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 39
+    title: Footwork II
+    description: +2% Melee Move Speed
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 9
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 40
+    title: Major Passive IV
+    description: Placeholder major passive milestone.
+    icon: {fileID: 0}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 45
+      title: Major Passive IV Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 45
+      title: Major Passive IV Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 41
+    title: Brutal Momentum V
+    description: +3% Melee Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 4
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 42
+    title: Quick Hands VI
+    description: +3% Melee Attack Speed
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 43
+    title: Precision IV
+    description: +2% Melee Crit Chance
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 5
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 44
+    title: Lethal Precision III
+    description: +8% Melee Crit Damage
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 10
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 45
+    title: Ability Milestone V
+    description: Placeholder ability milestone.
+    icon: {fileID: 0}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 50
+      title: Ability V Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 50
+      title: Ability V Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 46
+    title: Toxic Synergy II
+    description: +4% Ailment Damage (Melee Hits Only)
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 13
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 47
+    title: Battle Sustain II
+    description: +1% Melee Lifesteal
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 17
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 48
+    title: Quick Hands VII
+    description: +3% Melee Attack Speed
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 49
+    title: Finisher Instinct II
+    description: +10% Damage to Low HP Enemies (Melee)
+    icon: {fileID: 0}
+    unlockType: 0
+    meleeMinorStatOption: 6
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 50
+    title: Capstone Passive
+    description: Placeholder capstone milestone.
+    icon: {fileID: 0}
+    unlockType: 4
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 50
+      title: Capstone Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 50
+      title: Capstone Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}

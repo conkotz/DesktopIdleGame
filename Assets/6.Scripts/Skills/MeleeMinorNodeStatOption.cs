@@ -1,0 +1,32 @@
+public enum MeleeMinorNodeStatOption
+{
+    None = 0,
+    MinMeleeDamageFlat2 = 1,
+    MaxMeleeDamageFlat2 = 2,
+    MeleeAttackSpeedPercent3 = 3,
+    MeleeDamagePercent3 = 4,
+    MeleeCritChancePercent2 = 5,
+    MeleeDamageVsLowHpPercent10 = 6,
+    MeleeBleedChancePercent5 = 7,
+    MeleeBleedDamagePercent10 = 8,
+    MeleeMoveSpeedPercent2 = 9,
+    MeleeCritDamagePercent8 = 10,
+    MeleePoisonChancePercent5 = 11,
+    MeleePoisonDurationPercent10 = 12,
+    MeleeAilmentDamagePercent4 = 13,
+    MeleeDamageVsPoisonedPercent10 = 14,
+    MeleeShockChancePercent5 = 15,
+    MeleeDamageVsShockedPercent10 = 16,
+    MeleeLifeStealPercent1 = 17,
+    MeleeDamageVsBleedingPercent10 = 18,
+    // Legacy grouped presets kept for backwards compatibility with any existing authored nodes:
+    CoreMeleeOffense = 101,
+    MeleeSpeed = 102,
+    MeleeCrit = 103,
+    MeleeBleedPhysicalPath = 104,
+    MeleeElementalHybrid = 105,
+    MeleePoisonTrueHybrid = 106,
+    ConditionalMeleeOnly = 107,
+    SustainMeleeScaled = 108,
+    DefensiveMeleeBuild = 109
+}

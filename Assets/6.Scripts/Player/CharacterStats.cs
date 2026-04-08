@@ -136,6 +136,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private Inventory inventory;
     [SerializeField] private ToolbeltManager toolbelt;
+    [SerializeField] private SkillsManager skillsManager;
+    [SerializeField] private SkillDatabase skillDatabase;
 
     [Header("Attack Profile (Unarmed / Enemy)")]
     [SerializeField] private int unarmedMinPhysicalDamage = 1;
@@ -175,6 +177,36 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private const float combatPowerMagicalWeight = 0.3f;
     private const float combatPowerTrueWeight = 0.2f;
 
+    private const float LowHealthThreshold01 = 0.35f;
+
+    private struct MeleeMinorNodeBonuses
+    {
+        public float meleeDamagePercent;
+        public float flatMinMeleeDamage;
+        public float flatMaxMeleeDamage;
+        public float meleeAttackSpeedPercent;
+        public float meleeMoveSpeedPercent;
+        public float meleeCritChance;
+        public float meleeCritDamage;
+        public float meleeBleedChance;
+        public float meleeBleedDamage;
+        public float meleeMagicDamagePercent;
+        public float meleeShockChance;
+        public float meleePoisonChance;
+        public float meleePoisonDuration;
+        public float meleeAilmentDamage;
+        public float meleeLifeSteal;
+        public float meleeLifeRegen;
+        public float meleeEnergyRegen;
+        public float meleeArmor;
+        public float meleeMagicResist;
+        public float meleeDamageReduction;
+        public float damageVsBleeding;
+        public float damageVsPoisoned;
+        public float damageVsShocked;
+        public float damageVsLowHp;
+    }
+
     private void Start()
     {
         InitializeVitals();
@@ -193,6 +225,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!inventory && equipment) inventory = equipment.Inventory;
         if (!toolbelt) toolbelt = GetComponent<ToolbeltManager>();
         if (!buffController) buffController = GetComponent<PlayerBuffController>();
+        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         _ownerPlayer = GetComponent<PlayerController>() ?? GetComponentInParent<PlayerController>();
         ResolveOwnerEnemy();
     }
@@ -214,8 +248,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public int MaxHP => baseMaxHP + GetEquippedBonusHealth();
     public int MaxEnergy => baseMaxEnergy + GetEquippedBonusEnergy();
     public int MaxMana => Mathf.Max(0, baseMaxMana + GetEquippedBonusMana());
-    public int Armor => baseArmor + GetEquippedArmor();
-    public int MagicResist => baseMagicResist + GetEquippedMagicResist();
+    public int Armor => baseArmor + GetEquippedArmor() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeArmor);
+    public int MagicResist => baseMagicResist + GetEquippedMagicResist() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeMagicResist);
 
     public float PhysBlockChance => Mathf.Clamp01(basePhysBlockChance + GetEquippedPhysBlockChance());
     public float PhysBlockChancePercent => PhysBlockChance * 100f;
@@ -226,7 +260,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // Future-ready: temporary slows / buffs from ailments, skills, etc.
     public float TemporaryMoveSpeedPercent => 0f;
 
-    public float TotalMoveSpeedPercent => GearMoveSpeedPercent + TemporaryMoveSpeedPercent;
+    public float TotalMoveSpeedPercent => GearMoveSpeedPercent + TemporaryMoveSpeedPercent + GetActiveMeleeMinorBonuses().meleeMoveSpeedPercent;
 
     public float MoveSpeedMultiplier => Mathf.Max(0.1f, baseMoveSpeedMult * (1f + TotalMoveSpeedPercent));
     public float FinalMoveSpeed => BaseMoveSpeed * MoveSpeedMultiplier;
@@ -248,10 +282,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // Displayed bonus/penalty relative to normal base speed
     public float MoveSpeedBonusPercent => MoveSpeedMultiplier - 1f;
 
-    public float LifeRegenPerSecond => Mathf.Max(0f, baseLifeRegen + GetEquippedLifeRegen());
-    public float EnergyRegenPerSecond => Mathf.Max(0f, baseEnergyRegen + GetEquippedEnergyRegen());
+    public float LifeRegenPerSecond => Mathf.Max(0f, baseLifeRegen + GetEquippedLifeRegen() + GetActiveMeleeMinorBonuses().meleeLifeRegen);
+    public float EnergyRegenPerSecond => Mathf.Max(0f, baseEnergyRegen + GetEquippedEnergyRegen() + GetActiveMeleeMinorBonuses().meleeEnergyRegen);
     public float ManaRegenPerSecond => Mathf.Max(0f, baseManaRegen + GetEquippedManaRegen());
-    public float LifeSteal => Mathf.Clamp01(baseLifeSteal + GetEquippedLifeSteal());
+    public float LifeSteal => Mathf.Clamp01(baseLifeSteal + GetEquippedLifeSteal() + GetActiveMeleeMinorBonuses().meleeLifeSteal);
 
     // Offensive stats
     public float BaseMinPhysicalDamage => Mathf.Max(0f, baseMinPhysicalDamage);
@@ -265,15 +299,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float AbilityPower => Mathf.Max(0f, baseAbilityPower + GetEquippedAbilityPower());
 
     // Ailments
-    public float BleedChance => Mathf.Clamp01(baseBleedChance + GetEquippedBleedChance());
-    public float BleedMultiplier => Mathf.Max(0f, baseBleedMultiplier + GetEquippedBleedMultiplier());
+    public float BleedChance => Mathf.Clamp01(baseBleedChance + GetEquippedBleedChance() + GetActiveMeleeMinorBonuses().meleeBleedChance);
+    public float BleedMultiplier => Mathf.Max(0f, baseBleedMultiplier + GetEquippedBleedMultiplier() + GetActiveMeleeMinorBonuses().meleeBleedDamage + GetActiveMeleeMinorBonuses().meleeAilmentDamage);
 
     public float BleedBaseDuration => Mathf.Max(1f, baseBleedDuration);
     public float BleedDuration => Mathf.Max(1f, baseBleedDuration + GetEquippedBleedDurationBonus());
 
-    public float PoisonChance => Mathf.Clamp01(basePoisonChance + GetEquippedPoisonChance());
-    public float PoisonMultiplier => Mathf.Max(0f, basePoisonMultiplier + GetEquippedPoisonMultiplier());
-    public float PoisonDuration => Mathf.Max(0.1f, basePoisonDuration + GetEquippedPoisonDurationBonus());
+    public float PoisonChance => Mathf.Clamp01(basePoisonChance + GetEquippedPoisonChance() + GetActiveMeleeMinorBonuses().meleePoisonChance);
+    public float PoisonMultiplier => Mathf.Max(0f, basePoisonMultiplier + GetEquippedPoisonMultiplier() + GetActiveMeleeMinorBonuses().meleeAilmentDamage);
+    public float PoisonDuration => Mathf.Max(0.1f, basePoisonDuration + GetEquippedPoisonDurationBonus() + GetActiveMeleeMinorBonuses().meleePoisonDuration);
     public int PoisonMaxStacks => Mathf.Max(1, basePoisonMaxStacks + GetEquippedPoisonMaxStacksBonus());
 
     public float BleedChancePercent => BleedChance * 100f;
@@ -288,6 +322,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float BurnExplosionMultiplier => Mathf.Max(0f, baseBurnExplosionMultiplier + GetEquippedBurnExplosionMultiplierBonus());
     public float ShockDuration => Mathf.Max(0.1f, baseShockDuration);
     public float ShockDamageTakenMultiplier => Mathf.Clamp01(baseShockDamageTakenMultiplier + GetEquippedShockDamageTakenMultiplierBonus());
+    public float MeleeShockChance => Mathf.Clamp01(GetActiveMeleeMinorBonuses().meleeShockChance);
+    public float MeleeDamageVsBleeding => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsBleeding);
+    public float MeleeDamageVsPoisoned => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsPoisoned);
+    public float MeleeDamageVsShocked => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsShocked);
+    public float MeleeDamageVsLowHp => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsLowHp);
+    public float MeleeLowHpThreshold01 => LowHealthThreshold01;
 
     public float PhysicalReductionFromArmorPercent
     {
@@ -897,16 +937,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // -------------------------
     private SplitDamage GetMinSplitDamage()
     {
+        MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
         float physicalBuffMult = 1f + (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.PhysicalDamageBoost) : 0f);
         float magicBuffMult = 1f + (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MagicDamageBoost) : 0f);
-        float physicalGearPctMult = 1f + Mathf.Max(0f, GetEquippedPhysicalDamagePercent());
-        float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent());
+        float physicalGearPctMult = 1f + Mathf.Max(0f, GetEquippedPhysicalDamagePercent() + meleeBonuses.meleeDamagePercent);
+        float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent);
 
         var mh = GetMainHandWeaponDef();
 
         if (!mh)
         {
-            float phys = unarmedMinPhysicalDamage + BaseMinPhysicalDamage + GetEquippedPhysicalDamage();
+            float phys = unarmedMinPhysicalDamage + BaseMinPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMinMeleeDamage;
             float mag = BaseMinMagicDamage + GetEquippedMagicDamage();
             float tru = BaseMinTrueDamage + GetEquippedTrueDamage();
 
@@ -944,7 +985,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             trueMin += support.SupportBonusTrueDamage;
         }
 
-        physMin += BaseMinPhysicalDamage + GetEquippedPhysicalDamage();
+        physMin += BaseMinPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMinMeleeDamage;
         magMin += BaseMinMagicDamage + GetEquippedMagicDamage();
         trueMin += BaseMinTrueDamage + GetEquippedTrueDamage();
 
@@ -960,16 +1001,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private SplitDamage GetMaxSplitDamage()
     {
+        MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
         float physicalBuffMult = 1f + (buffController ? buffController.PhysicalDamageBoostPercent : 0f);
         float magicBuffMult = 1f + (buffController ? buffController.MagicDamageBoostPercent : 0f);
-        float physicalGearPctMult = 1f + Mathf.Max(0f, GetEquippedPhysicalDamagePercent());
-        float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent());
+        float physicalGearPctMult = 1f + Mathf.Max(0f, GetEquippedPhysicalDamagePercent() + meleeBonuses.meleeDamagePercent);
+        float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent);
 
         var mh = GetMainHandWeaponDef();
 
         if (!mh)
         {
-            float phys = unarmedMaxPhysicalDamage + BaseMaxPhysicalDamage + GetEquippedPhysicalDamage();
+            float phys = unarmedMaxPhysicalDamage + BaseMaxPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMaxMeleeDamage;
             float mag = BaseMaxMagicDamage + GetEquippedMagicDamage();
             float tru = BaseMaxTrueDamage + GetEquippedTrueDamage();
 
@@ -1007,7 +1049,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             trueMax += support.SupportBonusTrueDamage;
         }
 
-        physMax += BaseMaxPhysicalDamage + GetEquippedPhysicalDamage();
+        physMax += BaseMaxPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMaxMeleeDamage;
         magMax += BaseMaxMagicDamage + GetEquippedMagicDamage();
         trueMax += BaseMaxTrueDamage + GetEquippedTrueDamage();
 
@@ -1040,6 +1082,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private float GetAttacksPerSecond()
     {
+        MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
         var mh = GetMainHandWeaponDef();
         float aps;
 
@@ -1067,7 +1110,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             }
         }
 
-        float gearAtkSpeedPct = GetEquippedAttackSpeedPercent();
+        float gearAtkSpeedPct = GetEquippedAttackSpeedPercent() + meleeBonuses.meleeAttackSpeedPercent;
 
         if (buffController)
             gearAtkSpeedPct += buffController.GetTotalMagnitude(ConsumableEffectType.AttackSpeed);
@@ -1116,6 +1159,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private float GetCritChance()
     {
+        MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
         float baseCrit;
         var mh = GetMainHandWeaponDef();
 
@@ -1145,11 +1189,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (support)
             gearBonus += support.SupportCritChanceBonus;
 
-        return Mathf.Clamp01(baseCrit + gearBonus);
+        return Mathf.Clamp01(baseCrit + gearBonus + meleeBonuses.meleeCritChance);
     }
 
     private float GetCritMultiplier()
     {
+        MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
         float baseMult;
         var mh = GetMainHandWeaponDef();
 
@@ -1179,7 +1224,147 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (support)
             gearBonus += support.SupportCritMultiplierBonus;
 
-        return Mathf.Max(1f, baseMult + gearBonus);
+        return Mathf.Max(1f, baseMult + gearBonus + meleeBonuses.meleeCritDamage);
+    }
+
+    private MeleeMinorNodeBonuses GetActiveMeleeMinorBonuses()
+    {
+        if (GetCurrentAttackSkill() != AttackSkill.Melee)
+            return default;
+
+        return GetUnlockedMeleeMinorBonuses();
+    }
+
+    private MeleeMinorNodeBonuses GetUnlockedMeleeMinorBonuses()
+    {
+        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
+        if (!skillsManager || !skillDatabase)
+            return default;
+
+        SkillDefinition meleeDef = skillDatabase.Get(SkillType.Melee);
+        if (meleeDef == null || meleeDef.unlocks == null || meleeDef.unlocks.Count == 0)
+            return default;
+
+        int meleeLevel = skillsManager.GetLevel(SkillType.Melee);
+        MeleeMinorNodeBonuses total = default;
+        for (int i = 0; i < meleeDef.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = meleeDef.unlocks[i];
+            if (unlock == null)
+                continue;
+            if (unlock.unlockType != SkillUnlockType.MinorPassive)
+                continue;
+            if (unlock.requiredLevel > meleeLevel)
+                continue;
+
+            ApplyMeleeMinorOption(unlock.meleeMinorStatOption, ref total);
+        }
+
+        return total;
+    }
+
+    private static void ApplyMeleeMinorOption(MeleeMinorNodeStatOption option, ref MeleeMinorNodeBonuses total)
+    {
+        switch (option)
+        {
+            case MeleeMinorNodeStatOption.MinMeleeDamageFlat2:
+                total.flatMinMeleeDamage += 2f;
+                break;
+            case MeleeMinorNodeStatOption.MaxMeleeDamageFlat2:
+                total.flatMaxMeleeDamage += 2f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeAttackSpeedPercent3:
+                total.meleeAttackSpeedPercent += 0.03f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeDamagePercent3:
+                total.meleeDamagePercent += 0.03f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeCritChancePercent2:
+                total.meleeCritChance += 0.02f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeDamageVsLowHpPercent10:
+                total.damageVsLowHp += 0.10f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeBleedChancePercent5:
+                total.meleeBleedChance += 0.05f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeBleedDamagePercent10:
+                total.meleeBleedDamage += 0.10f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeMoveSpeedPercent2:
+                total.meleeMoveSpeedPercent += 0.02f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeCritDamagePercent8:
+                total.meleeCritDamage += 0.08f;
+                break;
+            case MeleeMinorNodeStatOption.MeleePoisonChancePercent5:
+                total.meleePoisonChance += 0.05f;
+                break;
+            case MeleeMinorNodeStatOption.MeleePoisonDurationPercent10:
+                total.meleePoisonDuration += 0.10f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeAilmentDamagePercent4:
+                total.meleeAilmentDamage += 0.04f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeDamageVsPoisonedPercent10:
+                total.damageVsPoisoned += 0.10f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeShockChancePercent5:
+                total.meleeShockChance += 0.05f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeDamageVsShockedPercent10:
+                total.damageVsShocked += 0.10f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeLifeStealPercent1:
+                total.meleeLifeSteal += 0.01f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeDamageVsBleedingPercent10:
+                total.damageVsBleeding += 0.10f;
+                break;
+            case MeleeMinorNodeStatOption.CoreMeleeOffense:
+                total.meleeDamagePercent += 0.03f;
+                total.flatMinMeleeDamage += 2f;
+                total.flatMaxMeleeDamage += 2f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeSpeed:
+                total.meleeAttackSpeedPercent += 0.03f;
+                total.meleeMoveSpeedPercent += 0.02f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeCrit:
+                total.meleeCritChance += 0.02f;
+                total.meleeCritDamage += 0.08f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeBleedPhysicalPath:
+                total.meleeBleedChance += 0.05f;
+                total.meleeBleedDamage += 0.10f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeElementalHybrid:
+                total.meleeMagicDamagePercent += 0.03f;
+                total.meleeShockChance += 0.05f;
+                break;
+            case MeleeMinorNodeStatOption.MeleePoisonTrueHybrid:
+                total.meleePoisonChance += 0.05f;
+                total.meleePoisonDuration += 0.10f;
+                total.meleeAilmentDamage += 0.04f;
+                break;
+            case MeleeMinorNodeStatOption.ConditionalMeleeOnly:
+                total.damageVsBleeding += 0.10f;
+                total.damageVsPoisoned += 0.10f;
+                total.damageVsShocked += 0.10f;
+                total.damageVsLowHp += 0.10f;
+                break;
+            case MeleeMinorNodeStatOption.SustainMeleeScaled:
+                total.meleeLifeSteal += 0.01f;
+                total.meleeLifeRegen += 2f;
+                total.meleeEnergyRegen += 2f;
+                break;
+            case MeleeMinorNodeStatOption.DefensiveMeleeBuild:
+                total.meleeArmor += 10f;
+                total.meleeMagicResist += 10f;
+                total.meleeDamageReduction += 0.02f;
+                break;
+        }
     }
 
     // -------------------------
@@ -1791,7 +1976,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         switch (type)
         {
             case DamageType.True:
-                return rawDamage;
+                return ApplyMeleeDamageReduction(rawDamage);
 
             case DamageType.Physical:
                 {
@@ -1803,15 +1988,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
                         return 0f;
                     }
 
-                    return dmg;
+                    return ApplyMeleeDamageReduction(dmg);
                 }
 
             case DamageType.Magical:
-                return MitigateByRating(rawDamage, MagicResist);
+                return ApplyMeleeDamageReduction(MitigateByRating(rawDamage, MagicResist));
 
             default:
-                return rawDamage;
+                return ApplyMeleeDamageReduction(rawDamage);
         }
+    }
+
+    private float ApplyMeleeDamageReduction(float incomingDamage)
+    {
+        float reduction = Mathf.Clamp01(GetActiveMeleeMinorBonuses().meleeDamageReduction);
+        return incomingDamage * (1f - reduction);
     }
 
     private static float MitigateByRating(float damage, float rating)

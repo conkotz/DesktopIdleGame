@@ -85,7 +85,7 @@ public class AbilityEntryUI : MonoBehaviour,
     {
         if (_tooltip == null || _def == null) return;
 
-        string body = BuildLeagueStyleTooltip(_def);
+        string body = BuildLeagueStyleTooltip(_def, SkillsManager.Instance);
         RectTransform measure = _tooltipBoundsRect ? _tooltipBoundsRect : transform.root as RectTransform;
         Transform anchor = icon != null ? icon.transform : transform;
         _tooltip.ShowTextAt(
@@ -174,12 +174,31 @@ public class AbilityEntryUI : MonoBehaviour,
         _dragIconImage = null;
     }
 
-    private static string BuildLeagueStyleTooltip(AbilityDefinition def)
+    private static string BuildLeagueStyleTooltip(AbilityDefinition def, SkillsManager skillsManager)
     {
         if (!def) return "";
 
         string desc = BuildAbilityDescription(def);
-        float physPct = Mathf.Max(0f, def.physicalDamageMultiplier) * 100f;
+        float physMult = Mathf.Max(0f, def.physicalDamageMultiplier);
+        float cooldown = Mathf.Max(0f, def.cooldown);
+        string choiceLine = string.Empty;
+
+        if (string.Equals(def.abilityId, "power_slash", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+            if (selected == 0)
+            {
+                physMult += 0.25f;
+                choiceLine = "\nActive Choice: <color=#33CC66>Brutal Cut (+25% Physical)</color>";
+            }
+            else if (selected == 1)
+            {
+                cooldown = Mathf.Max(0f, cooldown - 5f);
+                choiceLine = "\nActive Choice: <color=#33CC66>Relentless Flow (-5s Cooldown)</color>";
+            }
+        }
+
+        float physPct = physMult * 100f;
         float apPct = Mathf.Max(0f, def.abilityPowerMultiplier) * 100f;
 
         return
@@ -188,7 +207,8 @@ public class AbilityEntryUI : MonoBehaviour,
             $"Ability Power Multiplier: {apPct:0.#}%\n" +
             $"Source Skill: {def.sourceSkill}\n" +
             $"Energy Cost: {def.energyCost:0.#}\n" +
-            $"Cooldown: {def.cooldown:0.#}s";
+            $"Cooldown: {cooldown:0.#}s" +
+            choiceLine;
     }
 
     private static string BuildAbilityDescription(AbilityDefinition def)

@@ -80,6 +80,10 @@ public class SaveData
     public List<SkillSave> skills = new();
     public SkillType lastXpSkill = SkillType.Mining;
     public string lastXpSource = "";
+    [Tooltip("Choice selection keys in format 'SkillType:SourceLevel' (e.g. 'Melee:5').")]
+    public List<string> skillChoiceSelectionKeys = new();
+    [Tooltip("Selected choice index per key; 0/1 for two-choice rows.")]
+    public List<int> skillChoiceSelectionValues = new();
 
     [Serializable]
     public struct SkillSave

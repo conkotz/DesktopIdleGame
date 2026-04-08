@@ -485,7 +485,29 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (def == null)
             return desc;
 
-        float physPct = Mathf.Max(0f, def.physicalDamageMultiplier) * 100f;
+        float physMult = Mathf.Max(0f, def.physicalDamageMultiplier);
+        float cooldown = Mathf.Max(0f, def.cooldown);
+        string choiceLine = string.Empty;
+        if (string.Equals(def.abilityId, "power_slash", StringComparison.OrdinalIgnoreCase))
+        {
+            SkillsManager sm = SkillsManager.Instance;
+            if (sm != null)
+            {
+                int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+                if (selected == 0)
+                {
+                    physMult += 0.25f;
+                    choiceLine = "\n<color=#33CC66>Active Choice: Brutal Cut (+25% Physical)</color>";
+                }
+                else if (selected == 1)
+                {
+                    cooldown = Mathf.Max(0f, cooldown - 5f);
+                    choiceLine = "\n<color=#33CC66>Active Choice: Relentless Flow (-5s Cooldown)</color>";
+                }
+            }
+        }
+
+        float physPct = physMult * 100f;
         float apPct = Mathf.Max(0f, def.abilityPowerMultiplier) * 100f;
 
         return
@@ -494,7 +516,8 @@ public class ActionBarSlotUI : MonoBehaviour,
             $"<color=#FFB347>Ability Power Multiplier: {apPct:0.#}%</color>\n" +
             $"<color=#FFB347>Source Skill: {def.sourceSkill}</color>\n" +
             $"<color=#FFB347>Energy Cost: {def.energyCost:0.#}</color>\n" +
-            $"<color=#FFB347>Cooldown: {def.cooldown:0.#}s</color>";
+            $"<color=#FFB347>Cooldown: {cooldown:0.#}s</color>" +
+            choiceLine;
     }
 
     private System.Collections.IEnumerator ClickFeedback()
