@@ -95,18 +95,12 @@ public class SkillTreeNodeUI : MonoBehaviour
 
     public void SetLevelText(string text)
     {
-        if (appliedVisualType is SkillTreeNodeVisualType.MinorPassive or SkillTreeNodeVisualType.Choice)
-            return;
-        if (levelText != null)
-            levelText.text = text;
+        // Level labels are now displayed in a separate left-side column (not on each node).
     }
 
     public void SetTypeText(string text)
     {
-        if (appliedVisualType is SkillTreeNodeVisualType.MinorPassive or SkillTreeNodeVisualType.Choice)
-            return;
-        if (typeText != null)
-            typeText.text = text;
+        // Labels disabled for now (tooltips later).
     }
 
     public void SetClick(System.Action onClick)
@@ -234,22 +228,19 @@ public class SkillTreeNodeUI : MonoBehaviour
         if (selectedGlow != null)
             selectedGlow.GetComponent<RectTransform>().sizeDelta = rootSize + new Vector2(2f, 2f);
 
-        bool showSideLabels = type is not (SkillTreeNodeVisualType.MinorPassive or SkillTreeNodeVisualType.Choice);
         if (levelText != null)
         {
-            levelText.gameObject.SetActive(showSideLabels);
-            if (!showSideLabels)
-                levelText.text = string.Empty;
+            levelText.gameObject.SetActive(false);
+            levelText.text = string.Empty;
         }
 
         if (typeText != null)
         {
-            typeText.gameObject.SetActive(showSideLabels);
-            if (!showSideLabels)
-                typeText.text = string.Empty;
+            typeText.gameObject.SetActive(false);
+            typeText.text = string.Empty;
         }
 
-        LayoutSideLabels(rootSize, showSideLabels);
+        // Side labels disabled for now (tooltips later).
     }
 
     private void LayoutSideLabels(Vector2 rootSize, bool showSideLabels)
