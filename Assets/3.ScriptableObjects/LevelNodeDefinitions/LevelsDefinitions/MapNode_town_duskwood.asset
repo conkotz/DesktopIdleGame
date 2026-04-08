@@ -16,10 +16,10 @@ MonoBehaviour:
   displayName: Duskwood
   description: First town
   nodeType: 5
-  enemyAggroMode: 0
+  enemyAggroMode: 1
   ignoreAggroRange: 0
-  enemyRespawnEnabled: 0
-  enemyRespawnDelaySeconds: 30
+  enemyRespawnEnabled: 1
+  enemyRespawnDelaySeconds: 5
   fallbackRecommendedCombatPower: 1
   isRepeatable: 1
   requiresMapUnlock: 0

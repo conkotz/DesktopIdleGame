@@ -38,8 +38,24 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField, Min(0f)] private float powerSlashSecondSwipeDelay = 0.035f;
     [SerializeField] private float powerSlashSecondSwipeAngleOffset = 18f;
 
+    [Header("Whirling Blade VFX")]
+    [SerializeField] private Color whirlingBladeColor = new Color(1f, 0.88f, 0.22f, 0.95f);
+    [SerializeField, Min(0.01f)] private float whirlingBladeDuration = 0.22f;
+    [SerializeField, Min(90f)] private float whirlingBladeSpinDegrees = 720f;
+    [SerializeField, Min(0.01f)] private float whirlingBladeLineWidth = 0.14f;
+    [SerializeField] private Vector3 whirlingBladeCenterOffset = new Vector3(0f, 0.65f, 0f);
+    [SerializeField, Min(0f)] private float whirlingBladeUpwardDrift = 0.14f;
+    [SerializeField, Min(0f)] private float whirlingBladeVerticalWave = 0.06f;
+
     private readonly Dictionary<string, float> _cooldownEndsById = new(StringComparer.OrdinalIgnoreCase);
     private const string PowerSlashId = "power_slash";
+    private const string WhirlingBladeId = "whirling_blade";
+    private const int WhirlingBladeChoiceSourceLevel = 15;
+    private const float WhirlingBladeBaseRadius = 2.5f;
+    private const float WhirlingBladeDamageMultiplier = 1.2f;
+    private const float WhirlingBladeSecondHitMultiplier = 0.2f;
+    private const float WhirlingBladeTwinCycloneSecondHitDelay = 0.5f;
+    private const float WhirlingBladeRadiusBonus = 3f;
     private bool _powerSlashQueued;
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
     private float _queuedPowerSlashMagicalMultiplier = 1f;
@@ -141,6 +157,20 @@ public class PlayerAbilityController : MonoBehaviour
             _queuedPowerSlashPhysicalMultiplier = Mathf.Max(0f, def.physicalDamageMultiplier + powerSlashPhysicalBonus);
             _queuedPowerSlashMagicalMultiplier = Mathf.Max(0f, def.magicalDamageMultiplier);
             _queuedPowerSlashAbilityPowerMultiplier = Mathf.Max(0f, def.abilityPowerMultiplier);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
+        }
+
+        if (string.Equals(def.abilityId, WhirlingBladeId, StringComparison.OrdinalIgnoreCase))
+        {
+            bool usedWhirl = TryUseWhirlingBlade(def);
+            if (!usedWhirl)
+                return false;
+
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
         }
 
@@ -185,6 +215,368 @@ public class PlayerAbilityController : MonoBehaviour
         if (globalCooldownSeconds > 0f)
             _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
         return true;
+    }
+
+    private struct DealtHit
+    {
+        public float physical;
+        public float magical;
+        public float trueDamage;
+        public float Total => physical + magical + trueDamage;
+    }
+
+    private bool TryUseWhirlingBlade(AbilityDefinition def)
+    {
+        if (stats == null)
+            return false;
+
+        int selectedChoice = GetWhirlingBladeSelectedChoice();
+        // First unlock acts as default branch until player explicitly chooses the other option.
+        bool twinCyclone = selectedChoice == 0 || selectedChoice < 0;
+        bool expansiveWhirl = selectedChoice == 1;
+
+        float baseWeaponRange = GetWhirlingBaseRange();
+        float radius = baseWeaponRange + (expansiveWhirl ? WhirlingBladeRadiusBonus : 0f);
+
+        EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        List<EnemyBaseController> targets = new List<EnemyBaseController>(allEnemies.Length);
+        float ownerX = transform.position.x;
+        float ownerHalf = GetOwnerHalfWidthX();
+        for (int i = 0; i < allEnemies.Length; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+            bool inRange = IsEnemyWithinWhirlRange(enemy, radius, ownerX, ownerHalf, out _);
+            if (inRange)
+                targets.Add(enemy);
+        }
+
+        player?.TriggerAttackAnimVisualOnly();
+        SpawnWhirlingBladeVfx(radius);
+
+        if (targets.Count <= 0)
+            return true; // ability cast still consumes resources/cooldown.
+
+        SplitDamage rolled = stats.RollSplitAttackDamage(out bool wasCrit);
+        SplitDamage rolledNonCrit = rolled;
+        if (wasCrit)
+        {
+            float critMult = Mathf.Max(1f, stats.CritMultiplier);
+            if (critMult > 1f)
+            {
+                rolledNonCrit.physical /= critMult;
+                rolledNonCrit.magical /= critMult;
+            }
+        }
+
+        SplitDamage firstHit = rolled * WhirlingBladeDamageMultiplier;
+        SplitDamage secondHitBase = rolledNonCrit * WhirlingBladeDamageMultiplier * WhirlingBladeSecondHitMultiplier;
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            EnemyBaseController target = targets[i];
+            if (!target || target.IsDead)
+                continue;
+
+            DealtHit dealt = ApplySplitDamageToEnemy(target, firstHit, wasCrit);
+            ApplyOnHitEffects(target, dealt);
+        }
+
+        if (twinCyclone)
+            StartCoroutine(ApplyTwinCycloneSecondWave(new List<EnemyBaseController>(targets), secondHitBase, radius));
+
+        return true;
+    }
+
+    private IEnumerator ApplyTwinCycloneSecondWave(List<EnemyBaseController> targets, SplitDamage secondHitBase, float radius)
+    {
+        yield return new WaitForSeconds(WhirlingBladeTwinCycloneSecondHitDelay);
+
+        // Replay only the Whirling VFX; do not retrigger the attack animation on second wave.
+        SpawnWhirlingBladeVfx(radius);
+
+        if (targets == null || targets.Count == 0)
+            yield break;
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            EnemyBaseController target = targets[i];
+            if (!target || target.IsDead)
+                continue;
+
+            SplitDamage secondHit = secondHitBase;
+            bool secondWasCrit = TryRollIndependentCrit(ref secondHit);
+            DealtHit dealtSecond = ApplySplitDamageToEnemy(target, secondHit, secondWasCrit);
+            ApplyOnHitEffects(target, dealtSecond); // Re-triggers on-hit effects.
+        }
+    }
+
+    private float GetOwnerHalfWidthX()
+    {
+        Collider2D c = player != null ? player.GetComponent<Collider2D>() : GetComponent<Collider2D>();
+        if (c == null)
+            c = GetComponentInChildren<Collider2D>();
+        return c != null ? Mathf.Max(0f, c.bounds.extents.x) : 0f;
+    }
+
+    private float GetWhirlingBaseRange()
+    {
+        float best = stats != null ? Mathf.Max(0f, stats.Range) : 0f;
+
+        if (equipment == null)
+            equipment = GetComponent<EquipmentManager>();
+        if (inventory == null)
+            inventory = GetComponent<Inventory>();
+
+        if (equipment != null && inventory != null && !string.IsNullOrWhiteSpace(equipment.MainHandItemId))
+        {
+            ItemDefinition main = inventory.GetItemDef(equipment.MainHandItemId);
+            if (main != null && main.IsWeapon)
+                best = Mathf.Max(best, Mathf.Max(0f, main.AttackRange));
+        }
+
+        // If no valid range could be resolved, keep a minimal sane fallback.
+        return Mathf.Max(0.1f, best);
+    }
+
+    private int GetWhirlingBladeSelectedChoice()
+    {
+        if (skillsManager == null)
+            skillsManager = SkillsManager.Instance;
+        if (skillsManager == null)
+            return -1;
+
+        // Primary key: source unlock level (Lv15).
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, WhirlingBladeChoiceSourceLevel, -1);
+        if (selected >= 0)
+            return selected;
+
+        // Compatibility fallback: some earlier data/UI setups may key by choice unlock row (Lv18).
+        selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, WhirlingBladeChoiceSourceLevel + 3, -1);
+        return selected;
+    }
+
+    private static bool IsEnemyWithinWhirlRange(EnemyBaseController enemy, float radius, float ownerX, float ownerHalf, out float edgeGapX)
+    {
+        edgeGapX = float.PositiveInfinity;
+        if (enemy == null)
+            return false;
+
+        Collider2D enemyCol = enemy.GetComponent<Collider2D>();
+        if (enemyCol == null)
+            enemyCol = enemy.GetComponentInChildren<Collider2D>();
+        float enemyHalf = enemyCol != null ? Mathf.Max(0f, enemyCol.bounds.extents.x) : 0f;
+        float centerDistX = Mathf.Abs(enemy.transform.position.x - ownerX);
+        edgeGapX = centerDistX - (ownerHalf + enemyHalf);
+        return edgeGapX <= Mathf.Max(0f, radius);
+    }
+
+    private DealtHit ApplySplitDamageToEnemy(EnemyBaseController target, SplitDamage hit, bool wasCrit)
+    {
+        DealtHit result = default;
+        if (target == null || target.IsDead)
+            return result;
+
+        float cond = GetConditionalMeleeDamageMultiplier(target);
+        float phys = Mathf.Max(0f, hit.physical * cond);
+        float mag = Mathf.Max(0f, hit.magical * cond);
+        float tru = Mathf.Max(0f, hit.trueDamage * cond);
+
+        if (phys > 0f)
+            result.physical = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(phys), DamageType.Physical, wasCrit, transform));
+        if (mag > 0f)
+            result.magical = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(mag), DamageType.Magical, wasCrit, transform));
+        if (tru > 0f)
+            result.trueDamage = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(tru), DamageType.True, wasCrit, transform));
+
+        return result;
+    }
+
+    private float GetConditionalMeleeDamageMultiplier(EnemyBaseController target)
+    {
+        if (stats == null || target == null)
+            return 1f;
+
+        float bonus = 0f;
+        AilmentController ailments = target.GetComponent<AilmentController>();
+        if (ailments != null)
+        {
+            if (ailments.HasBleed) bonus += stats.MeleeDamageVsBleeding;
+            if (ailments.HasPoison) bonus += stats.MeleeDamageVsPoisoned;
+            if (ailments.HasShock) bonus += stats.MeleeDamageVsShocked;
+        }
+
+        CharacterStats targetStats = target.GetComponent<CharacterStats>();
+        if (targetStats != null && targetStats.MaxHP > 0f)
+        {
+            float hp01 = targetStats.HP / Mathf.Max(1f, targetStats.MaxHP);
+            if (hp01 <= stats.MeleeLowHpThreshold01)
+                bonus += stats.MeleeDamageVsLowHp;
+        }
+
+        return 1f + Mathf.Max(0f, bonus);
+    }
+
+    private bool TryRollIndependentCrit(ref SplitDamage hit)
+    {
+        if (stats == null)
+            return false;
+        if (hit.physical <= 0f && hit.magical <= 0f)
+            return false;
+
+        float critChance = Mathf.Clamp01(stats.CritChance);
+        if (UnityEngine.Random.value > critChance)
+            return false;
+
+        float critMult = Mathf.Max(1f, stats.CritMultiplier);
+        hit.physical *= critMult;
+        hit.magical *= critMult;
+        return true;
+    }
+
+    private void ApplyOnHitEffects(EnemyBaseController target, DealtHit dealt)
+    {
+        if (target == null || stats == null)
+            return;
+
+        AilmentController ailments = target.GetComponent<AilmentController>();
+        if (ailments == null)
+            return;
+
+        if (dealt.physical > 0f && stats.BleedChance > 0f && UnityEngine.Random.value <= stats.BleedChance)
+        {
+            float duration = Mathf.Max(1f, stats.BleedDuration);
+            int ticks = Mathf.Max(1, Mathf.RoundToInt(duration));
+            float baseDuration = Mathf.Max(1f, stats.BleedBaseDuration);
+            float bleedTickDamage = dealt.physical * (1f + stats.BleedMultiplier) / baseDuration;
+            if (bleedTickDamage > 0f)
+            {
+                float totalBleedDamage = bleedTickDamage * ticks;
+                ailments.ApplyBleedFromHit(new BleedPayload(totalBleedDamage, duration, ticks, transform));
+            }
+        }
+
+        if (dealt.trueDamage > 0f && stats.PoisonChance > 0f && stats.PoisonMultiplier >= 0f && UnityEngine.Random.value <= stats.PoisonChance)
+        {
+            float totalPoisonDamage = dealt.trueDamage * (1f + stats.PoisonMultiplier);
+            if (totalPoisonDamage > 0f)
+            {
+                float duration = Mathf.Max(0.1f, stats.PoisonDuration);
+                int ticks = Mathf.Max(1, Mathf.RoundToInt(duration));
+                int maxStacks = Mathf.Max(1, stats.PoisonMaxStacks);
+                ailments.ApplyPoisonFromHit(new PoisonPayload(totalPoisonDamage, duration, ticks, maxStacks, transform));
+            }
+        }
+
+        if (dealt.Total > 0f && stats.MeleeShockChance > 0f && UnityEngine.Random.value <= stats.MeleeShockChance)
+        {
+            ailments.ApplyShockFromHit(new ShockPayload(
+                duration: stats.ShockDuration,
+                damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
+                source: transform));
+        }
+    }
+
+    private void SpawnWhirlingBladeVfx(float radius)
+    {
+        Transform anchor = ResolvePowerSlashAnchor();
+        Transform center = player != null ? player.transform : transform;
+        if (center == null)
+            return;
+
+        if (anchor == null)
+            anchor = center;
+
+        GameObject orbitGO = new GameObject("WhirlingBladeTrailEmitter");
+        orbitGO.transform.position = center.position + whirlingBladeCenterOffset;
+
+        TrailRenderer trail = orbitGO.AddComponent<TrailRenderer>();
+        trail.time = Mathf.Max(0.06f, whirlingBladeDuration * 0.75f);
+        trail.minVertexDistance = 0.003f;
+        trail.widthMultiplier = Mathf.Max(0.01f, whirlingBladeLineWidth);
+        trail.numCornerVertices = 4;
+        trail.numCapVertices = 4;
+        trail.alignment = LineAlignment.TransformZ;
+        trail.textureMode = LineTextureMode.Stretch;
+        trail.material = new Material(Shader.Find("Sprites/Default"));
+        trail.sortingOrder = 20;
+        trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        trail.receiveShadows = false;
+        trail.emitting = true;
+
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(whirlingBladeColor, 0f),
+                new GradientColorKey(Color.Lerp(whirlingBladeColor, Color.white, 0.25f), 0.45f),
+                new GradientColorKey(whirlingBladeColor, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(whirlingBladeColor.a, 0f),
+                new GradientAlphaKey(Mathf.Clamp01(whirlingBladeColor.a * 0.85f), 0.4f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+        trail.colorGradient = gradient;
+
+        Vector2 startDir = ((Vector2)anchor.position - (Vector2)center.position).normalized;
+        if (startDir.sqrMagnitude <= 0.0001f)
+            startDir = Vector2.right * ((player != null && player.transform.localScale.x < 0f) ? -1f : 1f);
+
+        StartCoroutine(AnimateWhirlingBladeTrail(orbitGO.transform, trail, center, radius, startDir));
+    }
+
+    private IEnumerator AnimateWhirlingBladeTrail(Transform emitter, TrailRenderer trail, Transform center, float radius, Vector2 startDir)
+    {
+        if (emitter == null || center == null)
+            yield break;
+
+        float duration = Mathf.Max(0.06f, whirlingBladeDuration);
+        float elapsed = 0f;
+
+        // Use effective attack range as the orbit size (includes +3 when Expansive is active).
+        // Keep the OUTER edge aligned to that range.
+        float width = Mathf.Max(0.01f, trail != null ? trail.widthMultiplier : whirlingBladeLineWidth);
+        // Use exact effective skill range for the trail orbit.
+        float visualRadius = Mathf.Max(0.05f, radius - (width * 0.5f));
+        float spinScale = Mathf.Clamp(Mathf.Abs(whirlingBladeSpinDegrees) / 720f, 0.25f, 2.5f);
+        while (elapsed < duration && emitter != null && center != null)
+        {
+            float t = elapsed / duration;
+            float x;
+            float y;
+            if (t < 0.5f)
+            {
+                // Pass 1: +X -> -X while dipping slightly down.
+                float p = t / 0.5f;
+                x = Mathf.Lerp(visualRadius, -visualRadius, p);
+                y = Mathf.Lerp(0f, -whirlingBladeUpwardDrift, p);
+                y += Mathf.Sin(p * Mathf.PI) * whirlingBladeVerticalWave * spinScale; // arc
+            }
+            else
+            {
+                // Pass 2: -X -> near +X while rising slightly up.
+                float p = (t - 0.5f) / 0.5f;
+                x = Mathf.Lerp(-visualRadius, visualRadius * 0.92f, p);
+                y = Mathf.Lerp(-whirlingBladeUpwardDrift, whirlingBladeUpwardDrift * 0.35f, p);
+                y += Mathf.Sin(p * Mathf.PI) * (whirlingBladeVerticalWave * 0.65f) * spinScale; // softer return arc
+            }
+
+            // Respect initial facing from anchor direction.
+            x *= Mathf.Sign(startDir.x == 0f ? 1f : startDir.x);
+            emitter.position = center.position + whirlingBladeCenterOffset + new Vector3(x, y, 0f);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (trail != null)
+            trail.emitting = false;
+        if (emitter != null)
+            Destroy(emitter.gameObject, Mathf.Max(0.04f, whirlingBladeDuration * 0.6f));
     }
 
     public bool TryConsumeQueuedAttackModifier(ref SplitDamage rolled)

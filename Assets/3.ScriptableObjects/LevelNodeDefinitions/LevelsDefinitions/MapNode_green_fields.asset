@@ -37,13 +37,9 @@ MonoBehaviour:
   - groupId: CombatEnemies
     spawns:
     - spawnPointGroupId: 
-      enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
+      enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
       prefab: {fileID: 0}
-      count: 2
-    - spawnPointGroupId: 
-      enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
-      prefab: {fileID: 0}
-      count: 2
+      count: 5
     shuffleSpawnPoints: 1
   enduranceWaves: []
   enduranceCompletionLoot: []

@@ -284,8 +284,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             float sheetDps = stats.DPS;
             float weaponDps = stats.WeaponDpsComponent;
             float ailmentDps = stats.AilmentDpsComponent;
+            float abilityDps = AbilityCombatPower.EstimateTotalSlottedAbilityDps(stats);
+            float totalWithAbilities = sheetDps + Mathf.Max(0f, abilityDps);
 
-            if (ailmentDps > 0.01f)
+            if (abilityDps > 0.01f && ailmentDps > 0.01f)
+                dpsText.text = $"DPS: {totalWithAbilities:0.#} ({weaponDps:0.#} weapon, {ailmentDps:0.#} ailment, {abilityDps:0.#} ability)";
+            else if (abilityDps > 0.01f)
+                dpsText.text = $"DPS: {totalWithAbilities:0.#} ({weaponDps:0.#} weapon, {abilityDps:0.#} ability)";
+            else if (ailmentDps > 0.01f)
                 dpsText.text = $"DPS: {sheetDps:0.#} ({weaponDps:0.#} weapon, {ailmentDps:0.#} ailment)";
             else
                 dpsText.text = $"DPS: {sheetDps:0.##} ({weaponDps:0.##} weapon)";

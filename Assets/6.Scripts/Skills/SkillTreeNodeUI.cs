@@ -57,6 +57,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     private System.Action onHoverEnter;
     private System.Action onHoverExit;
     private Vector2 _baseOuterRingSize;
+    private Outline _fillOutline;
 
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
 
@@ -202,6 +203,8 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     public void ApplyVisualType(SkillTreeNodeVisualType type)
     {
         appliedVisualType = type;
+        if (_fillOutline == null && fillImage != null)
+            _fillOutline = fillImage.GetComponent<Outline>();
 
         Color color = minorPassiveColor;
         Vector2 rootSize = GetVisualSize(type);
@@ -392,5 +395,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
 
         selectedGlow.SetActive(showChoiceSelection);
+        if (_fillOutline != null)
+            _fillOutline.enabled = !showChoiceSelection;
     }
 }

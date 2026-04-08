@@ -197,6 +197,18 @@ public class AbilityEntryUI : MonoBehaviour,
                 choiceLine = "\nActive Choice: <color=#33CC66>Relentless Flow (-5s Cooldown)</color>";
             }
         }
+        else if (string.Equals(def.abilityId, "whirling_blade", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+            if (selected == 0)
+            {
+                choiceLine = "\nActive Choice: <color=#33CC66>Twin Cyclone (Second hit at 50%)</color>";
+            }
+            else if (selected == 1)
+            {
+                choiceLine = "\nActive Choice: <color=#33CC66>Expansive Whirl (+3 radius)</color>";
+            }
+        }
 
         float physPct = physMult * 100f;
         float apPct = Mathf.Max(0f, def.abilityPowerMultiplier) * 100f;

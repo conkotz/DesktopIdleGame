@@ -190,6 +190,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float meleeCritDamage;
         public float meleeBleedChance;
         public float meleeBleedDamage;
+        public float meleeBleedDuration;
         public float meleeMagicDamagePercent;
         public float meleeShockChance;
         public float meleePoisonChance;
@@ -303,7 +304,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float BleedMultiplier => Mathf.Max(0f, baseBleedMultiplier + GetEquippedBleedMultiplier() + GetActiveMeleeMinorBonuses().meleeBleedDamage + GetActiveMeleeMinorBonuses().meleeAilmentDamage);
 
     public float BleedBaseDuration => Mathf.Max(1f, baseBleedDuration);
-    public float BleedDuration => Mathf.Max(1f, baseBleedDuration + GetEquippedBleedDurationBonus());
+    public float BleedDuration => Mathf.Max(1f, baseBleedDuration + GetEquippedBleedDurationBonus() + GetActiveMeleeMinorBonuses().meleeBleedDuration);
 
     public float PoisonChance => Mathf.Clamp01(basePoisonChance + GetEquippedPoisonChance() + GetActiveMeleeMinorBonuses().meleePoisonChance);
     public float PoisonMultiplier => Mathf.Max(0f, basePoisonMultiplier + GetEquippedPoisonMultiplier() + GetActiveMeleeMinorBonuses().meleeAilmentDamage);
@@ -1261,7 +1262,40 @@ public class CharacterStats : MonoBehaviour, ISaveable
             ApplyMeleeMinorOption(unlock.meleeMinorStatOption, ref total);
         }
 
+        ApplyLevel10BloodlettingBranch(meleeLevel, ref total);
+
         return total;
+    }
+
+    private void ApplyLevel10BloodlettingBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
+    {
+        if (meleeLevel < 10)
+            return;
+
+        // Lv10 Melee major passive branch:
+        // default Bloodletting unless a conversion choice is selected.
+        int selected = skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(SkillType.Melee, 10, -1)
+            : -1;
+
+        if (selected == 0)
+        {
+            // Venom Edge: replace Bloodletting bleed package.
+            total.meleePoisonChance += 0.10f;
+            total.damageVsPoisoned += 0.10f;
+        }
+        else if (selected == 1)
+        {
+            // Hemorrhage: replace Bloodletting bleed package.
+            total.meleeBleedDamage += 0.10f;
+            total.meleeBleedDuration += 1f;
+        }
+        else
+        {
+            // Bloodletting default.
+            total.meleeBleedChance += 0.10f;
+            total.damageVsBleeding += 0.10f;
+        }
     }
 
     private static void ApplyMeleeMinorOption(MeleeMinorNodeStatOption option, ref MeleeMinorNodeBonuses total)

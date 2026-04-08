@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
+  m_Name: Ability_whirling_blade
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
+  abilityId: whirling_blade
+  displayName: Whirling Blade
+  description: Spin in a wide arc, striking all nearby enemies once.
+  icon: {fileID: 1188567411443277773, guid: c3135ae013758b04caf9adc7364ae04c, type: 3}
+  cooldown: 10
+  energyCost: 35
+  physicalDamageMultiplier: 0.5
+  magicalDamageMultiplier: 0
+  abilityPowerMultiplier: 0.5
+  fireDamageMultiplier: 0
+  iceDamageMultiplier: 0
+  lightningDamageMultiplier: 0
+  poisonDamageMultiplier: 0
+  bleedDamageMultiplier: 0
+  requiredWeaponType: 1
+  sourceSkill: 3
+  unlockLevel: 15

@@ -5615,9 +5615,10 @@ MonoBehaviour:
   stats: {fileID: 4199332309700179123}
   combat: {fileID: 343137512557904079}
   abilityDatabase: {fileID: 0}
+  skillsManager: {fileID: 0}
   equipment: {fileID: 0}
   inventory: {fileID: 0}
-  globalCooldownSeconds: 0.15
+  globalCooldownSeconds: 1
   powerSlashTrailAnchor: {fileID: 7149526798742480501}
   powerSlashAnchorNameCandidates:
   - Weapon
@@ -5634,6 +5635,13 @@ MonoBehaviour:
   powerSlashUseDoubleSwipe: 1
   powerSlashSecondSwipeDelay: 0.035
   powerSlashSecondSwipeAngleOffset: 18
+  whirlingBladeColor: {r: 0.9169811, g: 0.48521498, b: 0.08131714, a: 1}
+  whirlingBladeDuration: 0.22
+  whirlingBladeSpinDegrees: 720
+  whirlingBladeLineWidth: 0.14
+  whirlingBladeCenterOffset: {x: 0, y: 0.65, z: 0}
+  whirlingBladeUpwardDrift: 0.14
+  whirlingBladeVerticalWave: 0.06
 --- !u!114 &7462036414647869483
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5751,6 +5759,8 @@ MonoBehaviour:
   equipment: {fileID: 0}
   inventory: {fileID: 4615812802344899198}
   toolbelt: {fileID: 0}
+  skillsManager: {fileID: 0}
+  skillDatabase: {fileID: 0}
   unarmedMinPhysicalDamage: 1
   unarmedMaxPhysicalDamage: 2
   unarmedAttacksPerSecond: 1

@@ -53,6 +53,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
     // Hook this to your XP bar
     public event Action<SkillType, int, string> OnXpGained; // (skill, amount, source)
     public event Action<SkillType, int> OnLevelUp;          // (skill, newLevel)
+    public event Action<SkillType, int, int> OnSkillChoiceSelectionChanged; // (skill, sourceLevel, choiceIndex)
 
     private void Awake()
     {
@@ -136,7 +137,12 @@ public class SkillsManager : MonoBehaviour, ISaveable
     public void SetSkillChoiceSelection(SkillType skillType, int sourceLevel, int choiceIndex)
     {
         string key = BuildChoiceKey(skillType, sourceLevel);
-        _skillChoiceSelections[key] = Mathf.Max(0, choiceIndex);
+        int clamped = Mathf.Max(0, choiceIndex);
+        if (_skillChoiceSelections.TryGetValue(key, out int existing) && existing == clamped)
+            return;
+
+        _skillChoiceSelections[key] = clamped;
+        OnSkillChoiceSelectionChanged?.Invoke(skillType, Mathf.Max(1, sourceLevel), clamped);
     }
 
     public int GetSkillChoiceSelection(SkillType skillType, int sourceLevel, int defaultValue = -1)

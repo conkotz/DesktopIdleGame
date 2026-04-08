@@ -12,6 +12,7 @@ public static class AbilityCombatPower
 {
     /// <summary>Matches <see cref="PlayerAbilityController"/> Power Slash id — attack-queued bonus, not raw / cooldown.</summary>
     public const string PowerSlashAbilityId = "power_slash";
+    public const string WhirlingBladeAbilityId = "whirling_blade";
 
     /// <summary>Expected sustained DPS from all uniquely slotted abilities (0 if not the player or no bar).</summary>
     public static float EstimateTotalSlottedAbilityDps(CharacterStats stats, bool logDiagnostics = false)
@@ -198,6 +199,8 @@ public static class AbilityCombatPower
         float physMult = Mathf.Max(0f, def.physicalDamageMultiplier);
         float cd = Mathf.Max(0.01f, def.cooldown);
         ApplyPowerSlashChoiceAdjustments(def, ref physMult, ref cd);
+        float extraHitFactor = 1f;
+        ApplyWhirlingBladeChoiceAdjustments(def, ref cd, ref extraHitFactor);
         float critFactor = GetCritFactor(stats);
 
         float avgPhys = (stats.MinSplitDamage.physical + stats.MaxSplitDamage.physical) * 0.5f;
@@ -228,7 +231,7 @@ public static class AbilityCombatPower
         float ailmentBonusInstant = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float apBonusInstant = ap * apMult;
         float raw = Mathf.Max(0f, scaledPhys + scaledMag + elementBonusInstant + apBonusInstant + ailmentBonusInstant);
-        float perCast = raw * critFactor;
+        float perCast = raw * critFactor * Mathf.Max(1f, extraHitFactor);
         return perCast / cd;
     }
 
@@ -256,6 +259,27 @@ public static class AbilityCombatPower
         else if (selected == 1)
         {
             cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 5f); // Relentless Flow
+        }
+    }
+
+    private static void ApplyWhirlingBladeChoiceAdjustments(AbilityDefinition def, ref float cooldownSeconds, ref float extraHitFactor)
+    {
+        if (!def || !string.Equals(def.abilityId, WhirlingBladeAbilityId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return;
+
+        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+        if (selected == 0)
+        {
+            // Twin Cyclone: second hit at 50% damage.
+            extraHitFactor += 0.5f;
+        }
+        else if (selected == 1)
+        {
+            // Expansive Whirl: larger radius (coverage utility). Keep single-target CP neutral.
         }
     }
 }

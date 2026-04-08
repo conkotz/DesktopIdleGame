@@ -148,12 +148,14 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (!skillsManager) return;
 
         skillsManager.OnLevelUp += HandleSkillsLevelUp;
+        skillsManager.OnSkillChoiceSelectionChanged += HandleSkillChoiceSelectionChanged;
     }
 
     private void TryUnsubscribeSkillsEvents()
     {
         if (!skillsManager) return;
         skillsManager.OnLevelUp -= HandleSkillsLevelUp;
+        skillsManager.OnSkillChoiceSelectionChanged -= HandleSkillChoiceSelectionChanged;
     }
 
     /// <summary>
@@ -163,6 +165,27 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     private void HandleSkillsLevelUp(SkillType type, int newLevel)
     {
         ScheduleDeferredProgressRefresh();
+    }
+
+    private void HandleSkillChoiceSelectionChanged(SkillType skillType, int sourceLevel, int choiceIndex)
+    {
+        if (!isActiveAndEnabled || _selectedSkill == null)
+            return;
+        if (_selectedSkill.skillType != skillType)
+            return;
+
+        RefreshRightPanelForCurrentSkill();
+    }
+
+    private void RefreshRightPanelForCurrentSkill()
+    {
+        if (_selectedSkill == null)
+            return;
+
+        int level = skillsManager ? skillsManager.GetLevel(_selectedSkill.skillType) : 1;
+        if (rightUnlocksText)
+            rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager);
+        RefreshAbilitiesPanel(_selectedSkill, level);
     }
 
     /// <summary>One deferred refresh per burst of XP (restarts if another gain queues before the frame runs).</summary>
@@ -392,7 +415,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             centerSkillTreeView.SetSkill(_selectedSkill);
 
         if (rightUnlocksText)
-            rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level);
+            rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager);
 
         RefreshAbilitiesPanel(_selectedSkill, level);
     }
@@ -616,7 +639,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             Destroy(rightAbilitiesListParent.GetChild(i).gameObject);
     }
 
-    private static string BuildUnlocksDisplay(SkillDefinition skill, int currentLevel)
+    private static string BuildUnlocksDisplay(SkillDefinition skill, int currentLevel, SkillsManager skillManager)
     {
         if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0)
             return "No unlocks yet.";
@@ -681,7 +704,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         AppendPct(sb, meleeCritChance, "Melee Crit Chance");
         AppendPct(sb, meleeCritDamage, "Melee Crit Damage");
         AppendPct(sb, bleedChance, "Bleed Chance (Melee Only)");
-        AppendPct(sb, bleedDamage, "Bleed Damage");
+        AppendPct(sb, bleedDamage, "Bleed Multiplier");
         AppendPct(sb, poisonChance, "Poison Chance (Melee Only)");
         AppendPct(sb, poisonDuration, "Poison Duration");
         AppendPct(sb, ailmentDamage, "Ailment Damage (Melee Hits Only)");
@@ -689,8 +712,33 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         AppendPct(sb, vsBleeding, "Damage to Bleeding Enemies (Melee)");
         AppendPct(sb, vsPoisoned, "Damage to Poisoned Enemies (Melee)");
         AppendPct(sb, vsShocked, "Damage to Shocked Enemies (Melee)");
-        AppendPct(sb, vsLowHp, "Damage to Low HP Enemies (Melee)");
+        AppendPct(sb, vsLowHp, "Damage to Low HP Enemies (<35% HP, Melee)");
         AppendPct(sb, lifeSteal, "Melee Lifesteal");
+
+        // Major passive conversion summary (currently Melee Lv10 Bloodletting branch).
+        if (skill.skillType == SkillType.Melee && currentLevel >= 10)
+        {
+            sb.AppendLine("• Bloodletting (Major Passive)");
+            int selected = skillManager != null ? skillManager.GetSkillChoiceSelection(SkillType.Melee, 10, -1) : -1;
+            if (selected == 0)
+            {
+                sb.AppendLine("   - Venom Edge (Choice)");
+                sb.AppendLine("     +10% Poison Chance");
+                sb.AppendLine("     +10% Damage to Poisoned Targets");
+            }
+            else if (selected == 1)
+            {
+                sb.AppendLine("   - Hemorrhage (Choice)");
+                sb.AppendLine("     +10% Bleed Multiplier");
+                sb.AppendLine("     +1s Bleed Duration");
+            }
+            else
+            {
+                sb.AppendLine("   - Base Effect");
+                sb.AppendLine("     +10% Bleed Chance");
+                sb.AppendLine("     +10% Damage to Bleeding Targets");
+            }
+        }
 
         if (sb.Length == 0)
             return "No unlocks yet.";

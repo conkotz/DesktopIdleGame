@@ -481,7 +481,13 @@ public class PlayerController : MonoBehaviour
 
         // If already in the same state, don’t spam Play() unless restarting
         if (!restart && _currentStateName == stateName)
-            return;
+        {
+            // Guard against stale cached state name after trigger-based attacks:
+            // only skip if animator is truly in that state right now.
+            AnimatorStateInfo st = animator.GetCurrentAnimatorStateInfo(0);
+            if (st.IsName(stateName))
+                return;
+        }
 
         // If you want a safety check:
         // if (!animator.HasState(0, Animator.StringToHash(stateName))) return; // optional
@@ -509,6 +515,62 @@ public class PlayerController : MonoBehaviour
         animator.ResetTrigger(magicAttackTriggerName);
 
         animator.SetTrigger(triggerToUse);
+    }
+
+    /// <summary>
+    /// Replays the attack animation trigger without touching attack locks/action override.
+    /// Use for cosmetic follow-up swings that must not affect normal attack cadence.
+    /// </summary>
+    public void TriggerAttackAnimVisualOnly()
+    {
+        if (!animator) return;
+
+        string triggerToUse = GetAttackTriggerName();
+
+        animator.ResetTrigger(attackTriggerName);
+        animator.ResetTrigger(rangedAttackTriggerName);
+        animator.ResetTrigger(magicAttackTriggerName);
+
+        animator.SetTrigger(triggerToUse);
+
+        // Visual-only casts don't participate in attack lock/override flow,
+        // so force a small recovery back to locomotion/idle after the clip window.
+        float duration = Mathf.Clamp(GetAttackClipLength(), 0.05f, 2.0f);
+        if (_visualOnlyAttackRecoverRoutine != null)
+            StopCoroutine(_visualOnlyAttackRecoverRoutine);
+        _visualOnlyAttackRecoverRoutine = StartCoroutine(RecoverFromVisualOnlyAttack(duration));
+    }
+
+    private Coroutine _visualOnlyAttackRecoverRoutine;
+
+    private IEnumerator RecoverFromVisualOnlyAttack(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+
+        // Don't interfere with normal locked attacks.
+        if (_attackLocked)
+        {
+            _visualOnlyAttackRecoverRoutine = null;
+            yield break;
+        }
+
+        bool isMoving =
+            state == State.MoveToPoint ||
+            state == State.MoveToTarget ||
+            state == State.MoveToPickup;
+
+        if (isMoving)
+        {
+            SetAction(PlayerAction.Walking, true);
+            PlayState(walkStateName, restart: false);
+        }
+        else if (state == State.Idle)
+        {
+            SetAction(PlayerAction.Idle, true);
+            PlayState(idleStateName, restart: false);
+        }
+
+        _visualOnlyAttackRecoverRoutine = null;
     }
 
     private string GetAttackTriggerName()

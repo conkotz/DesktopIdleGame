@@ -30,6 +30,10 @@ public class SkillTreeViewUI : MonoBehaviour
     [Tooltip("Extra Y offset for choices that use an explicit requiredLevel (eg. Lv8). 0 keeps them exactly on that row.")]
     [SerializeField] private float explicitChoiceRowYOffset = 0f;
     [SerializeField] private bool showAllLevelLabels = true;
+    [Header("Choice Selection Rules")]
+    [SerializeField] private PlayerController playerController;
+    [SerializeField] private PlayerCombatState playerCombatState;
+    [SerializeField] private float choiceChangePostCombatLockSeconds = 5f;
 
     private readonly List<SkillTreeNodeUI> spawnedNodes = new();
     private readonly List<SkillTreeConnectorUI> spawnedConnectors = new();
@@ -43,6 +47,8 @@ public class SkillTreeViewUI : MonoBehaviour
     private readonly Dictionary<string, ChoiceNodeMeta> choiceMetaByNodeId = new();
 
     private SkillTreeNodeUI selectedNode;
+    private float choiceChangeUnlockedAt;
+    private bool isCombatStateSubscribed;
 
     private readonly struct ChoiceNodeMeta
     {
@@ -76,7 +82,26 @@ public class SkillTreeViewUI : MonoBehaviour
 
     private void Start()
     {
+        if (!playerController)
+            playerController = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        ResolveCombatStateReference();
+        SubscribeCombatState();
         BuildForSelectedSkill();
+    }
+
+    private void OnEnable()
+    {
+        SubscribeCombatState();
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeCombatState();
+    }
+
+    private void OnDestroy()
+    {
+        UnsubscribeCombatState();
     }
 
     public void SetSkill(SkillDefinition skill)
@@ -428,6 +453,12 @@ public class SkillTreeViewUI : MonoBehaviour
         {
             if (!selectedSkill || !skillsManager)
                 return;
+            if (!CanChangeChoiceNow(out string reason))
+            {
+                if (playerController != null && !string.IsNullOrWhiteSpace(reason))
+                    playerController.ShowPopup(reason);
+                return;
+            }
 
             skillsManager.SetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.sourceLevel, choiceMeta.choiceIndex);
             RefreshChoiceSelectionVisuals();
@@ -524,5 +555,64 @@ public class SkillTreeViewUI : MonoBehaviour
             int selectedChoice = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.sourceLevel, -1);
             node.SetSelected(selectedChoice == meta.choiceIndex);
         }
+    }
+
+    private bool CanChangeChoiceNow(out string reason)
+    {
+        reason = string.Empty;
+        if (!playerController)
+            return true;
+
+        if (playerController.InCombat)
+        {
+            reason = "Cannot change nodes during combat.";
+            return false;
+        }
+
+        float remaining = choiceChangeUnlockedAt - Time.time;
+        if (remaining > 0f)
+        {
+            reason = $"Cannot change nodes during combat. Wait {Mathf.CeilToInt(remaining)}s after combat.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void ResolveCombatStateReference()
+    {
+        if (!playerController)
+            playerController = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (!playerCombatState && playerController)
+            playerCombatState = playerController.GetComponent<PlayerCombatState>();
+    }
+
+    private void SubscribeCombatState()
+    {
+        ResolveCombatStateReference();
+        if (isCombatStateSubscribed || playerCombatState == null)
+            return;
+
+        if (playerCombatState != null)
+        {
+            playerCombatState.OnCombatStateChanged += HandleCombatStateChanged;
+            isCombatStateSubscribed = true;
+        }
+    }
+
+    private void UnsubscribeCombatState()
+    {
+        if (!isCombatStateSubscribed || playerCombatState == null)
+            return;
+
+        if (playerCombatState != null)
+            playerCombatState.OnCombatStateChanged -= HandleCombatStateChanged;
+        isCombatStateSubscribed = false;
+    }
+
+    private void HandleCombatStateChanged(bool inCombat)
+    {
+        if (!inCombat)
+            choiceChangeUnlockedAt = Time.time + Mathf.Max(0f, choiceChangePostCombatLockSeconds);
     }
 }

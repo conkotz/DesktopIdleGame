@@ -1,5 +1,8 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 /// <summary>
 /// First <see cref="HotkeyBindIds.ActionBarSlotCount"/> slots use <see cref="HotkeyBindingManager"/> (list order =
@@ -134,12 +137,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     private void Update()
     {
-        MainMenuWindowUI menuUi = MainMenuWindowUI.Resolve();
-        bool mainMenuOpen = menuUi != null && menuUi.IsOpen;
-
-        // While any main menu page is open, don't steal keys from UI keyboard navigation / rebinding.
-        bool blockHotkeyPoll = mainMenuOpen ||
-                               HotkeySettingsRowUI.IsRebinding ||
+        // Allow action bar hotkeys even when windows are open.
+        // Only block while rebinding, on suppress frame, or when typing into a text field.
+        bool blockHotkeyPoll = HotkeySettingsRowUI.IsRebinding ||
+                               IsTypingIntoInputField() ||
                                Time.frameCount == HotkeySettingsRowUI.SuppressActionBarHotkeyPollFrame;
 
         for (int i = 0; i < slotBindings.Count; i++)
@@ -159,6 +160,19 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
 
         TryApplyPendingSavedState();
+    }
+
+    private static bool IsTypingIntoInputField()
+    {
+        if (EventSystem.current == null)
+            return false;
+
+        GameObject selected = EventSystem.current.currentSelectedGameObject;
+        if (selected == null)
+            return false;
+
+        return selected.GetComponent<TMP_InputField>() != null ||
+               selected.GetComponent<InputField>() != null;
     }
 
     private void OnSlotTriggered(ActionBarSlotUI slot)

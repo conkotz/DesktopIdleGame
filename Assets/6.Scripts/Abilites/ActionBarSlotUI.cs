@@ -506,6 +506,18 @@ public class ActionBarSlotUI : MonoBehaviour,
                 }
             }
         }
+        else if (string.Equals(def.abilityId, "whirling_blade", StringComparison.OrdinalIgnoreCase))
+        {
+            SkillsManager sm = SkillsManager.Instance;
+            if (sm != null)
+            {
+                int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+                if (selected == 0)
+                    choiceLine = "\n<color=#33CC66>Active Choice: Twin Cyclone (Second hit at 50%)</color>";
+                else if (selected == 1)
+                    choiceLine = "\n<color=#33CC66>Active Choice: Expansive Whirl (+3 radius)</color>";
+            }
+        }
 
         float physPct = physMult * 100f;
         float apPct = Mathf.Max(0f, def.abilityPowerMultiplier) * 100f;

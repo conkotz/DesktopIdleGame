@@ -103,21 +103,21 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 10
-    title: Major Passive I
-    description: Placeholder major passive milestone.
+    title: Bloodletting
+    description: "Your melee attacks are more likely to open deep wounds, and you press the advantage against weakened foes.\n+10% Bleed Chance\n+10% Damage to Bleeding Targets"
     icon: {fileID: 0}
     unlockType: 3
     meleeMinorStatOption: 0
     ability: {fileID: 0}
     choices:
-    - requiredLevel: 15
-      title: Major Passive I Choice A
-      description: Placeholder melee choice.
+    - requiredLevel: 13
+      title: Venom Edge
+      description: "Replaces Bloodletting bonuses with:\n+10% Poison Chance\n+10% Damage to Poisoned Targets\n\nYou abandon blood loss in favor of toxic strikes, turning lingering wounds into deadly venom."
       icon: {fileID: 0}
       ability: {fileID: 0}
-    - requiredLevel: 15
-      title: Major Passive I Choice B
-      description: Placeholder melee choice.
+    - requiredLevel: 13
+      title: Hemorrhage
+      description: "Replaces Bloodletting bonuses with:\n+10% Bleed Multiplier\n+1s Bleed Duration\n\nYour strikes deepen open wounds, causing victims to bleed harder and longer."
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 11
@@ -153,21 +153,21 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 15
-    title: Ability Milestone II
-    description: Placeholder ability milestone.
+    title: Whirling Blade
+    description: "Melee AoE attack.\n120% Melee Damage\nRadius: 2.5\nHits all enemies in range once."
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
-    ability: {fileID: 0}
+    ability: {fileID: 11400000, guid: a3d2f6b31c9e4f2b8d1a6c7e9f0b1234, type: 2}
     choices:
-    - requiredLevel: 20
-      title: Ability II Choice A
-      description: Placeholder melee choice.
+    - requiredLevel: 18
+      title: Twin Cyclone
+      description: Whirling Blade hits all enemies a second time for 50% of the original damage.
       icon: {fileID: 0}
       ability: {fileID: 0}
-    - requiredLevel: 20
-      title: Ability II Choice B
-      description: Placeholder melee choice.
+    - requiredLevel: 18
+      title: Expansive Whirl
+      description: Increase Whirling Blade radius by +3.
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 16
@@ -180,7 +180,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 17
     title: Bloodletting II
-    description: +10% Bleed Damage
+    description: +10% Bleed Multiplier
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 8
