@@ -701,8 +701,19 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (totalDealt > 0f)
             TryConsumeOffHandSupportAmmo();
 
-        TryApplyBleed(targetToHit, dealt);
-        TryApplyPoison(targetToHit, dealt);
+        bool suppressBleed = false;
+        bool suppressPoison = false;
+        if (abilityController != null)
+        {
+            var queued = abilityController.ConsumeQueuedHitEffects(targetToHit, dealt.physical, dealt.trueDamage);
+            suppressBleed = queued.suppressDefaultBleed;
+            suppressPoison = queued.suppressDefaultPoison;
+        }
+
+        if (!suppressBleed)
+            TryApplyBleed(targetToHit, dealt);
+        if (!suppressPoison)
+            TryApplyPoison(targetToHit, dealt);
         TryApplyElementalMagicAilment(targetToHit, dealt);
         TryApplyMeleeShock(targetToHit, dealt);
     }

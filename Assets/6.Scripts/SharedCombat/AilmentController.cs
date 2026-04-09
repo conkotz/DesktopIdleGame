@@ -26,12 +26,18 @@ public class AilmentController : MonoBehaviour
     private PlayerBuffController playerBuffs;
 
     private Coroutine bleedRoutine;
+    private Coroutine exclusiveBleedRoutine;
     private Coroutine poisonRoutine;
     private Coroutine chillRoutine;
     private Coroutine shockRoutine;
 
     private readonly List<int> bleedTickSchedule = new();
+    private readonly List<int> exclusiveBleedTickSchedule = new();
     private readonly List<PoisonStack> poisonStacks = new();
+    // Learned from the latest poison payload source (typically player stats PoisonMaxStacks).
+    private int poisonBaseMaxStacks = 1;
+    private int temporaryPoisonMaxStackBonus;
+    private float temporaryPoisonMaxStackBonusExpiresAt = -1f;
     private readonly List<float> chillExpireTimes = new();
     private float chillSlowPerStack = 0.15f;
     private int burnStackCount;
@@ -44,7 +50,7 @@ public class AilmentController : MonoBehaviour
 
     public event System.Action OnAilmentsChanged;
 
-    public bool HasBleed => bleedTickSchedule.Count > 0 || bleedRoutine != null;
+    public bool HasBleed => bleedTickSchedule.Count > 0 || bleedRoutine != null || exclusiveBleedTickSchedule.Count > 0 || exclusiveBleedRoutine != null;
     public bool HasPoison => poisonStacks.Count > 0 || poisonRoutine != null;
 
     public int BleedStacks => HasBleed ? 1 : 0;
@@ -107,6 +113,7 @@ public class AilmentController : MonoBehaviour
 
         bleedTickSchedule.Clear();
         poisonStacks.Clear();
+        poisonBaseMaxStacks = 1;
         chillExpireTimes.Clear();
         burnStackCount = 0;
         burnDamagePerTick = 0;
@@ -125,9 +132,13 @@ public class AilmentController : MonoBehaviour
 
         if (bleedRoutine != null)
             StopCoroutine(bleedRoutine);
+        if (exclusiveBleedRoutine != null)
+            StopCoroutine(exclusiveBleedRoutine);
 
         bleedRoutine = null;
+        exclusiveBleedRoutine = null;
         bleedTickSchedule.Clear();
+        exclusiveBleedTickSchedule.Clear();
 
         if (hadBleed)
             OnAilmentsChanged?.Invoke();
@@ -144,11 +155,34 @@ public class AilmentController : MonoBehaviour
 
         poisonRoutine = null;
         poisonStacks.Clear();
+        poisonBaseMaxStacks = 1;
 
         if (hadPoison)
             OnAilmentsChanged?.Invoke();
 
         return hadPoison;
+    }
+
+    /// <summary>
+    /// Temporarily increases the effective poison stack cap on this target.
+    /// Reapplying refreshes/extends the duration if it would last longer.
+    /// </summary>
+    public void GrantTemporaryPoisonMaxStacksBonus(int bonusStacks, float durationSeconds)
+    {
+        if (bonusStacks <= 0 || durationSeconds <= 0f)
+            return;
+
+        temporaryPoisonMaxStackBonus = Mathf.Max(temporaryPoisonMaxStackBonus, bonusStacks);
+        temporaryPoisonMaxStackBonusExpiresAt = Mathf.Max(temporaryPoisonMaxStackBonusExpiresAt, Time.time + durationSeconds);
+    }
+
+    /// <summary>
+    /// Returns base cap plus any active temporary stack-cap bonus.
+    /// </summary>
+    public int GetEffectivePoisonMaxStacks(int baseMaxStacks)
+    {
+        int activeBonus = IsTemporaryPoisonCapBonusActive() ? temporaryPoisonMaxStackBonus : 0;
+        return Mathf.Max(1, baseMaxStacks + Mathf.Max(0, activeBonus));
     }
 
     public void ApplyBleedFromHit(BleedPayload payload)
@@ -162,6 +196,10 @@ public class AilmentController : MonoBehaviour
                 Debug.Log("[Ailments] Bleed prevented by immunity.", this);
             return;
         }
+
+        // While exclusive bleed is active, block normal bleed applications.
+        if (exclusiveBleedTickSchedule.Count > 0 || exclusiveBleedRoutine != null)
+            return;
 
         int tickCount = Mathf.Max(1, payload.ticks);
         int newBleedTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
@@ -183,6 +221,38 @@ public class AilmentController : MonoBehaviour
         OnAilmentsChanged?.Invoke();
     }
 
+    /// <summary>
+    /// Applies a separate "exclusive" bleed channel.
+    /// While any exclusive bleed ticks remain, normal bleeds are blocked from being applied.
+    /// Exclusive bleed does not override/refresh the normal bleed schedule.
+    /// </summary>
+    public void ApplyExclusiveBleedFromHit(BleedPayload payload)
+    {
+        if (IsDead()) return;
+        if (payload.totalDamage <= 0f) return;
+
+        if (playerBuffs != null && playerBuffs.IsBleedImmune)
+            return;
+
+        int tickCount = Mathf.Max(1, payload.ticks);
+        int newTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
+
+        bool wasInactive = exclusiveBleedTickSchedule.Count == 0 && exclusiveBleedRoutine == null;
+        RefreshExclusiveBleedSchedule(newTick, tickCount);
+
+        if (wasInactive && exclusiveBleedTickSchedule.Count > 0)
+        {
+            int instantTick = Mathf.Max(1, exclusiveBleedTickSchedule[0]);
+            exclusiveBleedTickSchedule.RemoveAt(0);
+            ApplyBleedTick(instantTick, payload.source);
+        }
+
+        if (exclusiveBleedTickSchedule.Count > 0 && exclusiveBleedRoutine == null)
+            exclusiveBleedRoutine = StartCoroutine(ExclusiveBleedRoutine(payload.source));
+
+        OnAilmentsChanged?.Invoke();
+    }
+
     private void RefreshBleedSchedule(int newTickDamage, int tickCount)
     {
         while (bleedTickSchedule.Count > tickCount)
@@ -193,6 +263,18 @@ public class AilmentController : MonoBehaviour
 
         for (int i = 0; i < tickCount; i++)
             bleedTickSchedule[i] = Mathf.Max(bleedTickSchedule[i], newTickDamage);
+    }
+
+    private void RefreshExclusiveBleedSchedule(int newTickDamage, int tickCount)
+    {
+        while (exclusiveBleedTickSchedule.Count > tickCount)
+            exclusiveBleedTickSchedule.RemoveAt(exclusiveBleedTickSchedule.Count - 1);
+
+        while (exclusiveBleedTickSchedule.Count < tickCount)
+            exclusiveBleedTickSchedule.Add(0);
+
+        for (int i = 0; i < tickCount; i++)
+            exclusiveBleedTickSchedule[i] = Mathf.Max(exclusiveBleedTickSchedule[i], newTickDamage);
     }
 
     private IEnumerator BleedRoutine(Transform source)
@@ -221,6 +303,32 @@ public class AilmentController : MonoBehaviour
         OnAilmentsChanged?.Invoke();
     }
 
+    private IEnumerator ExclusiveBleedRoutine(Transform source)
+    {
+        while (!IsDead())
+        {
+            if (exclusiveBleedTickSchedule.Count == 0)
+                break;
+
+            yield return new WaitForSeconds(1f);
+
+            if (IsDead())
+                yield break;
+
+            if (exclusiveBleedTickSchedule.Count == 0)
+                continue;
+
+            int tickDamage = exclusiveBleedTickSchedule[0];
+            exclusiveBleedTickSchedule.RemoveAt(0);
+
+            ApplyBleedTick(tickDamage, source);
+            OnAilmentsChanged?.Invoke();
+        }
+
+        exclusiveBleedRoutine = null;
+        OnAilmentsChanged?.Invoke();
+    }
+
     private void ApplyBleedTick(int damage, Transform source)
     {
         ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Bleed, source);
@@ -243,7 +351,8 @@ public class AilmentController : MonoBehaviour
 
         int ticks = Mathf.Max(1, payload.ticks);
         int tickDamage = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / ticks));
-        int maxStacks = Mathf.Max(1, payload.maxStacks);
+        poisonBaseMaxStacks = Mathf.Max(1, payload.maxStacks);
+        int maxStacks = GetEffectivePoisonMaxStacks(poisonBaseMaxStacks);
 
         while (poisonStacks.Count >= maxStacks)
             poisonStacks.RemoveAt(0);
@@ -260,6 +369,9 @@ public class AilmentController : MonoBehaviour
     {
         while (!IsDead())
         {
+            CleanupExpiredTemporaryPoisonCapBonus();
+            TrimPoisonStacksToCurrentCap();
+
             if (poisonStacks.Count == 0)
                 break;
 
@@ -294,6 +406,38 @@ public class AilmentController : MonoBehaviour
 
         poisonRoutine = null;
         OnAilmentsChanged?.Invoke();
+    }
+
+    private bool IsTemporaryPoisonCapBonusActive()
+    {
+        return temporaryPoisonMaxStackBonus > 0 && Time.time < temporaryPoisonMaxStackBonusExpiresAt;
+    }
+
+    private void CleanupExpiredTemporaryPoisonCapBonus()
+    {
+        if (temporaryPoisonMaxStackBonus <= 0)
+            return;
+        if (Time.time < temporaryPoisonMaxStackBonusExpiresAt)
+            return;
+
+        temporaryPoisonMaxStackBonus = 0;
+        temporaryPoisonMaxStackBonusExpiresAt = -1f;
+    }
+
+    private void TrimPoisonStacksToCurrentCap()
+    {
+        // The "base" system cap on this project comes from payload.maxStacks from normal applications (typically stats.PoisonMaxStacks).
+        // When temporary cap expires, trim oldest stacks back down naturally.
+        int cap = GetEffectivePoisonMaxStacks(poisonBaseMaxStacks);
+        bool trimmed = false;
+        while (poisonStacks.Count > cap)
+        {
+            poisonStacks.RemoveAt(0);
+            trimmed = true;
+        }
+
+        if (trimmed)
+            OnAilmentsChanged?.Invoke();
     }
 
     private void ApplyPoisonTick(int damage, Transform source)

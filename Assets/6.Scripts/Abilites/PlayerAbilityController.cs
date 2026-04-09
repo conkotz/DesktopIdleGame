@@ -51,6 +51,8 @@ public class PlayerAbilityController : MonoBehaviour
     private readonly Dictionary<string, float> _cooldownEndsById = new(StringComparer.OrdinalIgnoreCase);
     private const string PowerSlashId = "power_slash";
     private const string WhirlingBladeId = "whirling_blade";
+    private const string RendingStrikeId = "rending_strike";
+    private const string VenomJabId = "venom_jab";
     private const int WhirlingBladeChoiceSourceLevel = 15;
     private const float WhirlingBladeBaseRadius = 2.5f;
     private const float WhirlingBladeDamageMultiplier = 1.2f;
@@ -58,9 +60,27 @@ public class PlayerAbilityController : MonoBehaviour
     private const float WhirlingBladeTwinCycloneSecondHitDelay = 0.5f;
     private const float WhirlingBladeRadiusBonus = 3f;
     private bool _powerSlashQueued;
+    private bool _rendingStrikeQueued;
+    private bool _venomJabQueued;
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
     private float _queuedPowerSlashMagicalMultiplier = 1f;
     private float _queuedPowerSlashAbilityPowerMultiplier;
+    private QueuedHitEffect _queuedConsumedThisHit;
+    private int _queuedConsumedFrame = -1;
+
+    private enum QueuedHitEffect
+    {
+        None,
+        PowerSlash,
+        RendingStrike,
+        VenomJab
+    }
+
+    public struct QueuedHitEffectResult
+    {
+        public bool suppressDefaultBleed;
+        public bool suppressDefaultPoison;
+    }
 
     private void Awake()
     {
@@ -149,6 +169,16 @@ public class PlayerAbilityController : MonoBehaviour
             if (_powerSlashQueued)
                 return false;
         }
+        if (string.Equals(def.abilityId, RendingStrikeId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_rendingStrikeQueued)
+                return false;
+        }
+        if (string.Equals(def.abilityId, VenomJabId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_venomJabQueued)
+                return false;
+        }
 
         if (def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
         {
@@ -166,6 +196,26 @@ public class PlayerAbilityController : MonoBehaviour
             _queuedPowerSlashPhysicalMultiplier = Mathf.Max(0f, def.physicalDamageMultiplier + powerSlashPhysicalBonus);
             _queuedPowerSlashMagicalMultiplier = Mathf.Max(0f, def.magicalDamageMultiplier);
             _queuedPowerSlashAbilityPowerMultiplier = Mathf.Max(0f, def.abilityPowerMultiplier);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
+        }
+
+        if (string.Equals(def.abilityId, RendingStrikeId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_rendingStrikeQueued)
+                return false;
+            _rendingStrikeQueued = true;
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
+        }
+
+        if (string.Equals(def.abilityId, VenomJabId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_venomJabQueued)
+                return false;
+            _venomJabQueued = true;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -611,35 +661,258 @@ public class PlayerAbilityController : MonoBehaviour
 
     public bool TryConsumeQueuedAttackModifier(ref SplitDamage rolled)
     {
-        if (!_powerSlashQueued || rolled.IsEmpty)
+        if (rolled.IsEmpty)
             return false;
 
-        _powerSlashQueued = false;
-
-        float physicalScaleBonus = Mathf.Max(0f, _queuedPowerSlashPhysicalMultiplier - 1f);
-        float physicalBonus = Mathf.Max(0f, rolled.physical * physicalScaleBonus);
-        float magScaleBonus = Mathf.Max(0f, _queuedPowerSlashMagicalMultiplier - 1f);
-        float magicalBonus = Mathf.Max(0f, rolled.magical * magScaleBonus);
-        float apBonus = Mathf.Max(0f, stats != null ? stats.AbilityPower * _queuedPowerSlashAbilityPowerMultiplier : 0f);
-        AbilityDefinition slashDef = GetAbilityDefinition(PowerSlashId);
-        float elementBonus = slashDef != null && stats != null ? AbilityElementScaling.GetElementDamageBonus(slashDef, stats) : 0f;
-        float ailmentBonus = slashDef != null && stats != null ? AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(slashDef, stats) : 0f;
-        float totalBonus = physicalBonus + magicalBonus + apBonus + elementBonus + ailmentBonus;
-
-        if (totalBonus > 0f)
+        if (_powerSlashQueued)
         {
-            rolled.physical += physicalBonus + apBonus + ailmentBonus;
-            rolled.magical += magicalBonus + elementBonus;
+            _powerSlashQueued = false;
+            _queuedConsumedThisHit = QueuedHitEffect.PowerSlash;
+            _queuedConsumedFrame = Time.frameCount;
+
+            float physicalScaleBonus = Mathf.Max(0f, _queuedPowerSlashPhysicalMultiplier - 1f);
+            float physicalBonus = Mathf.Max(0f, rolled.physical * physicalScaleBonus);
+            float magScaleBonus = Mathf.Max(0f, _queuedPowerSlashMagicalMultiplier - 1f);
+            float magicalBonus = Mathf.Max(0f, rolled.magical * magScaleBonus);
+            float apBonus = Mathf.Max(0f, stats != null ? stats.AbilityPower * _queuedPowerSlashAbilityPowerMultiplier : 0f);
+            AbilityDefinition slashDef = GetAbilityDefinition(PowerSlashId);
+            float elementBonus = slashDef != null && stats != null ? AbilityElementScaling.GetElementDamageBonus(slashDef, stats) : 0f;
+            float ailmentBonus = slashDef != null && stats != null ? AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(slashDef, stats) : 0f;
+            float totalBonus = physicalBonus + magicalBonus + apBonus + elementBonus + ailmentBonus;
+
+            if (totalBonus > 0f)
+            {
+                rolled.physical += physicalBonus + apBonus + ailmentBonus;
+                rolled.magical += magicalBonus + elementBonus;
+            }
+
+            AbilityDefinition def = GetAbilityDefinition(PowerSlashId);
+            if (def)
+                StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+
+            SpawnPowerSlashTrail();
+            return true;
         }
 
-        AbilityDefinition def = GetAbilityDefinition(PowerSlashId);
-        if (def)
-            StartCooldown(def);
-        if (globalCooldownSeconds > 0f)
-            _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+        if (_rendingStrikeQueued)
+        {
+            _rendingStrikeQueued = false;
+            _queuedConsumedThisHit = QueuedHitEffect.RendingStrike;
+            _queuedConsumedFrame = Time.frameCount;
+            return true;
+        }
 
-        SpawnPowerSlashTrail();
-        return true;
+        if (_venomJabQueued)
+        {
+            _venomJabQueued = false;
+            _queuedConsumedThisHit = QueuedHitEffect.VenomJab;
+            _queuedConsumedFrame = Time.frameCount;
+
+            const float quickStrikeMultiplier = 0.75f;
+            rolled.physical *= quickStrikeMultiplier;
+            rolled.magical *= quickStrikeMultiplier;
+            rolled.trueDamage *= quickStrikeMultiplier;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Called by <see cref="PlayerCombatController"/> after a hit lands, to apply queued on-hit logic that needs the target.
+    /// Returns suppression flags for the default bleed/poison application.
+    /// </summary>
+    public QueuedHitEffectResult ConsumeQueuedHitEffects(EnemyBaseController target, float physicalDealt, float trueDealt)
+    {
+        QueuedHitEffectResult result = default;
+        if (target == null || target.IsDead)
+            return result;
+
+        // Only apply once, and only for the same frame that consumed the queued modifier.
+        if (_queuedConsumedFrame != Time.frameCount)
+            return result;
+
+        if (_queuedConsumedThisHit == QueuedHitEffect.RendingStrike)
+        {
+            result.suppressDefaultBleed = true;
+            TryApplyRendingStrikeBleed(target, physicalDealt);
+
+            AbilityDefinition def = GetAbilityDefinition(RendingStrikeId);
+            if (def)
+                StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+        }
+        else if (_queuedConsumedThisHit == QueuedHitEffect.VenomJab)
+        {
+            result.suppressDefaultPoison = true;
+            TryApplyVenomJabPoison(target, trueDealt);
+
+            AbilityDefinition def = GetAbilityDefinition(VenomJabId);
+            if (def)
+                StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+        }
+
+        _queuedConsumedThisHit = QueuedHitEffect.None;
+        _queuedConsumedFrame = -1;
+        return result;
+    }
+
+    private void TryApplyRendingStrikeBleed(EnemyBaseController target, float physicalDealt)
+    {
+        if (stats == null || target == null || target.IsDead)
+            return;
+        if (physicalDealt <= 0f)
+            return;
+
+        float duration = Mathf.Max(1f, stats.BleedDuration) + 3f;
+        float baseDuration = Mathf.Max(1f, stats.BleedBaseDuration);
+        int ticks = Mathf.Max(1, Mathf.RoundToInt(duration));
+        float baseTickDamage = physicalDealt * (1f + stats.BleedMultiplier) / baseDuration;
+        if (baseTickDamage <= 0f)
+            return;
+
+        float totalDamage = baseTickDamage * ticks;
+
+        int selected = GetRendingStrikeSelectedChoice();
+        if (selected == 0)
+        {
+            // Upgrade 1: same total damage in half the duration.
+            duration = Mathf.Max(1f, duration * 0.5f);
+            ticks = Mathf.Max(1, Mathf.RoundToInt(duration));
+        }
+
+        var ailments = target.GetComponent<AilmentController>();
+        if (ailments == null)
+            return;
+
+        bool wasAlreadyBleeding = ailments.HasBleed;
+
+        // Exclusive bleed: blocks other bleed applications while active; also does not override normal bleed.
+        ailments.ApplyExclusiveBleedFromHit(new BleedPayload(totalDamage, duration, ticks, transform));
+
+        if (selected == 1 && wasAlreadyBleeding)
+        {
+            // Upgrade 2: If target already bleeding, spread this bleed to 1 nearby enemy.
+            EnemyBaseController spread = FindNearestLivingEnemyExcluding(target, range: 3f);
+            if (spread != null)
+            {
+                AilmentController otherAilments = spread.GetComponent<AilmentController>();
+                if (otherAilments != null)
+                    otherAilments.ApplyExclusiveBleedFromHit(new BleedPayload(totalDamage, duration, ticks, transform));
+            }
+        }
+    }
+
+    private void TryApplyVenomJabPoison(EnemyBaseController target, float trueDealt)
+    {
+        if (stats == null || target == null || target.IsDead)
+            return;
+
+        // "If player can poison (has true damage)".
+        if (trueDealt <= 0f)
+            return;
+
+        float perStackTotal = trueDealt * (1f + Mathf.Max(0f, stats.PoisonMultiplier));
+        if (perStackTotal <= 0f)
+            return;
+
+        int selected = GetVenomJabSelectedChoice();
+
+        float duration = Mathf.Max(0.1f, stats.PoisonDuration);
+        int ticks = Mathf.Max(1, Mathf.RoundToInt(duration));
+        int baseMaxStacks = Mathf.Max(1, stats.PoisonMaxStacks);
+        int stacksToApply = baseMaxStacks;
+
+        if (selected == 0)
+        {
+            // Upgrade 1: +2 max poison stacks on hit for 6 seconds.
+            duration = 6f;
+            ticks = Mathf.Max(1, Mathf.RoundToInt(duration));
+        }
+
+        var ailments = target.GetComponent<AilmentController>();
+        if (ailments == null)
+            return;
+
+        if (selected == 0)
+            ailments.GrantTemporaryPoisonMaxStacksBonus(2, 6f);
+
+        stacksToApply = ailments.GetEffectivePoisonMaxStacks(baseMaxStacks);
+        var payload = new PoisonPayload(perStackTotal, duration, ticks, baseMaxStacks, transform);
+        for (int i = 0; i < stacksToApply; i++)
+            ailments.ApplyPoisonFromHit(payload);
+
+        if (selected == 1)
+        {
+            // Upgrade 2: Poison spreads to 1 nearby enemy if it dies within 6 seconds.
+            var marker = target.GetComponent<VenomJabSpreadOnDeathMarker>();
+            if (marker == null)
+                marker = target.gameObject.AddComponent<VenomJabSpreadOnDeathMarker>();
+            marker.Arm(payload, expiresAt: Time.time + 6f, range: 3f);
+        }
+    }
+
+    private EnemyBaseController FindNearestLivingEnemyExcluding(EnemyBaseController exclude, float range)
+    {
+        EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        EnemyBaseController best = null;
+        float bestSqr = float.PositiveInfinity;
+        Vector3 origin = exclude != null ? exclude.transform.position : transform.position;
+        float r2 = Mathf.Max(0f, range) * Mathf.Max(0f, range);
+
+        for (int i = 0; i < allEnemies.Length; i++)
+        {
+            EnemyBaseController e = allEnemies[i];
+            if (e == null || e.IsDead || e == exclude)
+                continue;
+            float sqr = (e.transform.position - origin).sqrMagnitude;
+            if (sqr <= r2 && sqr < bestSqr)
+            {
+                bestSqr = sqr;
+                best = e;
+            }
+        }
+
+        return best;
+    }
+
+    private int GetRendingStrikeSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        // Primary: dedicated Rending upgrade row at Lv8.
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 8, -1);
+        if (selected >= 0)
+            return selected;
+
+        // Fallback: choice bound directly to the Lv5 Rending unlock node.
+        selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+        return selected;
+    }
+
+    private int GetVenomJabSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        // Primary: dedicated Venom Jab upgrade row at Lv9.
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 9, -1);
+        if (selected >= 0)
+            return selected;
+
+        // Fallback: choice bound directly to the Lv5 Venom Jab unlock node.
+        selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+        return selected;
     }
 
     public bool IsAbilityPrimed(string abilityId)
@@ -649,6 +922,10 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (string.Equals(abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
             return _powerSlashQueued;
+        if (string.Equals(abilityId, RendingStrikeId, StringComparison.OrdinalIgnoreCase))
+            return _rendingStrikeQueued;
+        if (string.Equals(abilityId, VenomJabId, StringComparison.OrdinalIgnoreCase))
+            return _venomJabQueued;
 
         return false;
     }

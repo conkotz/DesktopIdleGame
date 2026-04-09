@@ -741,13 +741,13 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             int selected = skillManager != null ? skillManager.GetSkillChoiceSelection(SkillType.Melee, 10, -1) : -1;
             if (selected == 0)
             {
-                sb.AppendLine("   - Venom Edge (Choice)");
+                sb.AppendLine("   - Venom Edge (Enhancement)");
                 sb.AppendLine("     +10% Poison Chance");
                 sb.AppendLine("     +10% Damage to Poisoned Targets");
             }
             else if (selected == 1)
             {
-                sb.AppendLine("   - Hemorrhage (Choice — adds to Bloodletting)");
+                sb.AppendLine("   - Hemorrhage (Enhancement — adds to Bloodletting)");
                 sb.AppendLine("     +10% Bleed Chance");
                 sb.AppendLine("     +10% Damage to Bleeding Targets");
                 sb.AppendLine("     +5% Bleed Multiplier");

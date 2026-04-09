@@ -189,12 +189,12 @@ public class AbilityEntryUI : MonoBehaviour,
             if (selected == 0)
             {
                 physMult += 0.25f;
-                choiceLine = "\nActive Choice: <color=#33CC66>Brutal Cut (+25% Physical)</color>";
+                choiceLine = "\nActive Enhancement: <color=#33CC66>Brutal Cut (+25% Physical)</color>";
             }
             else if (selected == 1)
             {
                 cooldown = Mathf.Max(0f, cooldown - 5f);
-                choiceLine = "\nActive Choice: <color=#33CC66>Relentless Flow (-5s Cooldown)</color>";
+                choiceLine = "\nActive Enhancement: <color=#33CC66>Relentless Flow (-5s Cooldown)</color>";
             }
         }
         else if (string.Equals(def.abilityId, "whirling_blade", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
@@ -202,12 +202,34 @@ public class AbilityEntryUI : MonoBehaviour,
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
             if (selected == 0)
             {
-                choiceLine = "\nActive Choice: <color=#33CC66>Twin Cyclone (Second hit at 20%)</color>";
+                choiceLine = "\nActive Enhancement: <color=#33CC66>Twin Cyclone (Second hit at 20%)</color>";
             }
             else if (selected == 1)
             {
-                choiceLine = "\nActive Choice: <color=#33CC66>Expansive Whirl (+3 radius)</color>";
+                choiceLine = "\nActive Enhancement: <color=#33CC66>Expansive Whirl (+3 radius)</color>";
             }
+        }
+        else if (string.Equals(def.abilityId, "rending_strike", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 8, -1);
+            if (selected < 0)
+                selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+
+            if (selected == 0)
+                choiceLine = "\nActive Enhancement: <color=#33CC66>Hemorrhaging Rush (Same bleed damage in half duration)</color>";
+            else if (selected == 1)
+                choiceLine = "\nActive Enhancement: <color=#33CC66>Crimson Spread (Spread bleed to 1 nearby bleeding target)</color>";
+        }
+        else if (string.Equals(def.abilityId, "venom_jab", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 9, -1);
+            if (selected < 0)
+                selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+
+            if (selected == 0)
+                choiceLine = "\nActive Enhancement: <color=#33CC66>Potent Venom (+2 max poison stacks, 6s)</color>";
+            else if (selected == 1)
+                choiceLine = "\nActive Enhancement: <color=#33CC66>Contagion Burst (Spread poison to 1 nearby target on death in 3 range)</color>";
         }
 
         float physPct = physMult * 100f;
@@ -231,10 +253,6 @@ public class AbilityEntryUI : MonoBehaviour,
     private static string BuildAbilityDescription(AbilityDefinition def)
     {
         if (!def) return "No description.";
-
-        if (string.Equals(def.abilityId, "power_slash", System.StringComparison.OrdinalIgnoreCase))
-            return "A powerful slash that readies your next attack. The bonus is consumed on your next successful hit.";
-
         return string.IsNullOrWhiteSpace(def.description) ? "No description." : def.description.Trim();
     }
 }

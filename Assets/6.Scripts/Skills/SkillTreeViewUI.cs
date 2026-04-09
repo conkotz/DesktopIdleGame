@@ -619,7 +619,7 @@ public class SkillTreeViewUI : MonoBehaviour
         string desc = choice != null && !string.IsNullOrWhiteSpace(choice.description)
             ? choice.description.Trim()
             : "No description yet.";
-        title = $"Choice - {unlockTitle}";
+        title = $"Enhancement - {unlockTitle}";
         body = $"{BuildStatusLine(isUnlocked)}\nUnlocks at Lv{unlockLevel}\n\n{desc}";
     }
 
@@ -652,7 +652,7 @@ public class SkillTreeViewUI : MonoBehaviour
             SkillTreeNodeVisualType.MajorPassive => "Major Passive",
             SkillTreeNodeVisualType.Unlock => "Unlock",
             SkillTreeNodeVisualType.Ability => "Ability",
-            SkillTreeNodeVisualType.Choice => "Choice",
+            SkillTreeNodeVisualType.Choice => "Enhancement",
             SkillTreeNodeVisualType.CapstonePassive => "Capstone",
             _ => "Node"
         };
@@ -772,9 +772,7 @@ public class SkillTreeViewUI : MonoBehaviour
             }
 
             int current = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.sourceLevel, -1);
-            if (current == choiceMeta.choiceIndex)
-                skillsManager.SetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.sourceLevel, -1);
-            else
+            if (current != choiceMeta.choiceIndex)
                 skillsManager.SetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.sourceLevel, choiceMeta.choiceIndex);
 
             expandedChoiceBranchesBySourceLevel.Remove(choiceMeta.sourceLevel);
@@ -917,12 +915,12 @@ public class SkillTreeViewUI : MonoBehaviour
             sb.Append(body.Trim());
         if (selectedChoice >= 0 && selectedChoice < choices.Count)
         {
-            sb.Append("\n\nActive Choice: ");
+            sb.Append("\n\nActive Enhancement: ");
             sb.Append("<color=#33CC66>");
             sb.Append(!string.IsNullOrWhiteSpace(choices[selectedChoice].title) ? choices[selectedChoice].title.Trim() : $"Option {selectedChoice + 1}");
             sb.Append("</color>");
         }
-        sb.Append("\n\nChoices:");
+        sb.Append("\n\nEnhancements:");
         for (int i = 0; i < choices.Count; i++)
         {
             string choiceName = !string.IsNullOrWhiteSpace(choices[i].title) ? choices[i].title.Trim() : $"Option {i + 1}";

@@ -13,6 +13,8 @@ public static class AbilityCombatPower
     /// <summary>Matches <see cref="PlayerAbilityController"/> Power Slash id — attack-queued bonus, not raw / cooldown.</summary>
     public const string PowerSlashAbilityId = "power_slash";
     public const string WhirlingBladeAbilityId = "whirling_blade";
+    public const string RendingStrikeAbilityId = "rending_strike";
+    public const string VenomJabAbilityId = "venom_jab";
 
     /// <summary>Second Twin Cyclone wave as a fraction of the first wave's scaled split (sync with Whirling Blade runtime).</summary>
     public const float WhirlingBladeTwinCycloneSecondHitFraction = 0.2f;
@@ -229,6 +231,7 @@ public static class AbilityCombatPower
 
         float avgPhys = (stats.MinSplitDamage.physical + stats.MaxSplitDamage.physical) * 0.5f;
         float avgMag = (stats.MinSplitDamage.magical + stats.MaxSplitDamage.magical) * 0.5f;
+        float avgTrue = (stats.MinSplitDamage.trueDamage + stats.MaxSplitDamage.trueDamage) * 0.5f;
         float magMult = Mathf.Max(0f, def.magicalDamageMultiplier);
         float apMult = Mathf.Max(0f, def.abilityPowerMultiplier);
         float ap = stats.AbilityPower;
@@ -246,6 +249,53 @@ public static class AbilityCombatPower
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
             return perEnhancedHit * procRate;
+        }
+
+        // Rending Strike: queued hit with guaranteed bleed package on that hit (no direct ability scaling hit bonus).
+        if (string.Equals(def.abilityId, RendingStrikeAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            float aps = stats.AttacksPerSecond;
+            float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
+            float bleedDuration = Mathf.Max(1f, stats.BleedDuration) + 3f;
+            int bleedTicks = Mathf.Max(1, Mathf.RoundToInt(bleedDuration));
+            float bleedBaseDuration = Mathf.Max(1f, stats.BleedBaseDuration);
+            float bleedTickDamage = Mathf.Max(0f, avgPhys * (1f + stats.BleedMultiplier) / bleedBaseDuration);
+            float totalBleedDamage = bleedTickDamage * bleedTicks;
+
+            int selected = GetRendingStrikeSelectedChoiceForCombatPower();
+            if (selected == 1)
+            {
+                // Crimson Spread: conditional second target (already bleeding + nearby target).
+                totalBleedDamage *= 1.35f;
+            }
+
+            float bleedCritAdjusted = totalBleedDamage * critFactor;
+            return bleedCritAdjusted * procRate;
+        }
+
+        // Venom Jab: queued quick strike (reduced hit) + guaranteed poison package when true damage exists.
+        if (string.Equals(def.abilityId, VenomJabAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            float aps = stats.AttacksPerSecond;
+            float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
+            const float quickStrikeMultiplier = 0.75f;
+
+            int selected = GetVenomJabSelectedChoiceForCombatPower();
+            int maxStacks = Mathf.Max(1, stats.PoisonMaxStacks);
+            if (selected == 0)
+                maxStacks += 2; // Potent Venom temporary stack-cap increase window.
+
+            float poisonSourceTrue = Mathf.Max(0f, avgTrue * quickStrikeMultiplier);
+            float poisonPerStackTotal = poisonSourceTrue * (1f + Mathf.Max(0f, stats.PoisonMultiplier));
+            float totalPoisonDamage = poisonPerStackTotal * maxStacks;
+            if (selected == 1)
+            {
+                // Contagion Burst: one nearby spread on death is conditional.
+                totalPoisonDamage *= 1.25f;
+            }
+
+            float poisonCritAdjusted = totalPoisonDamage * critFactor;
+            return poisonCritAdjusted * procRate;
         }
 
         // Default: instant cast nuke (same structure as PlayerAbilityController instant branch).
@@ -316,5 +366,31 @@ public static class AbilityCombatPower
             return selected;
 
         return sm.GetSkillChoiceSelection(SkillType.Melee, whirlingSourceLevel + 3, -1);
+    }
+
+    private static int GetRendingStrikeSelectedChoiceForCombatPower()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return -1;
+
+        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 8, -1);
+        if (selected >= 0)
+            return selected;
+
+        return sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+    }
+
+    private static int GetVenomJabSelectedChoiceForCombatPower()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return -1;
+
+        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 9, -1);
+        if (selected >= 0)
+            return selected;
+
+        return sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
     }
 }

@@ -72,38 +72,54 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Placeholder Ability 1
-    description: Placeholder ability milestone.
+    description: Open wounds, let them bleed out.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
-    ability: {fileID: 0}
-    choices:
-    - requiredLevel: 50
-      title: Capstone Choice A
-      description: Placeholder melee choice.
-      icon: {fileID: 0}
-      ability: {fileID: 0}
-    - requiredLevel: 50
-      title: Capstone Choice B
-      description: Placeholder melee choice.
-      icon: {fileID: 0}
-      ability: {fileID: 0}
+    ability: {fileID: 11400000, guid: 5f3b1c2d9a7e4b6c8d0e1f2a3b4c5d6e, type: 2}
+    choices: []
   - requiredLevel: 5
     title: Placeholder Ability 2
-    description: Placeholder ability milestone.
+    description: A quick strike laced with venom.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 9a1b2c3d4e5f60718293a4b5c6d7e8f9, type: 2}
+    choices: []
+  - requiredLevel: 8
+    title: Rending Strike Upgrades
+    description: Choose how your Rending Strike bleed evolves.
+    icon: {fileID: 0}
+    unlockType: 3
+    meleeMinorStatOption: 0
     ability: {fileID: 0}
     choices:
-    - requiredLevel: 50
-      title: Capstone Choice A
-      description: Placeholder melee choice.
+    - requiredLevel: 8
+      title: Rending Strike - Hemorrhaging Rush
+      description: This Bleed deals its same total damage in half the duration.
       icon: {fileID: 0}
       ability: {fileID: 0}
-    - requiredLevel: 50
-      title: Capstone Choice B
-      description: Placeholder melee choice.
+    - requiredLevel: 8
+      title: Rending Strike - Crimson Spread
+      description: If the target is already bleeding, spread this bleed to 1 nearby enemy (range 3).
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 9
+    title: Venom Jab Upgrades
+    description: Choose how your Venom Jab poison evolves.
+    icon: {fileID: 0}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 9
+      title: Venom Jab - Potent Venom
+      description: +2 max poison stacks on hit for 6 seconds.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 9
+      title: Venom Jab - Contagion Burst
+      description: Poison spreads to 1 nearby enemy if it dies within 6 seconds (range 3).
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 6

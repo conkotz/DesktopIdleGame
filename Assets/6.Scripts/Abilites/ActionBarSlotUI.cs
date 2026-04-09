@@ -497,12 +497,12 @@ public class ActionBarSlotUI : MonoBehaviour,
                 if (selected == 0)
                 {
                     physMult += 0.25f;
-                    choiceLine = "\n<color=#33CC66>Active Choice: Brutal Cut (+25% Physical)</color>";
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Brutal Cut (+25% Physical)</color>";
                 }
                 else if (selected == 1)
                 {
                     cooldown = Mathf.Max(0f, cooldown - 5f);
-                    choiceLine = "\n<color=#33CC66>Active Choice: Relentless Flow (-5s Cooldown)</color>";
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Relentless Flow (-5s Cooldown)</color>";
                 }
             }
         }
@@ -513,9 +513,39 @@ public class ActionBarSlotUI : MonoBehaviour,
             {
                 int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
                 if (selected == 0)
-                    choiceLine = "\n<color=#33CC66>Active Choice: Twin Cyclone (Second hit at 20%)</color>";
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Twin Cyclone (Second hit at 20%)</color>";
                 else if (selected == 1)
-                    choiceLine = "\n<color=#33CC66>Active Choice: Expansive Whirl (+3 radius)</color>";
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Expansive Whirl (+3 radius)</color>";
+            }
+        }
+        else if (string.Equals(def.abilityId, "rending_strike", StringComparison.OrdinalIgnoreCase))
+        {
+            SkillsManager sm = SkillsManager.Instance;
+            if (sm != null)
+            {
+                int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 8, -1);
+                if (selected < 0)
+                    selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+
+                if (selected == 0)
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Hemorrhaging Rush (Same bleed damage in half duration)</color>";
+                else if (selected == 1)
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Crimson Spread (Spread bleed to 1 nearby bleeding target)</color>";
+            }
+        }
+        else if (string.Equals(def.abilityId, "venom_jab", StringComparison.OrdinalIgnoreCase))
+        {
+            SkillsManager sm = SkillsManager.Instance;
+            if (sm != null)
+            {
+                int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 9, -1);
+                if (selected < 0)
+                    selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+
+                if (selected == 0)
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Potent Venom (+2 max poison stacks, 6s)</color>";
+                else if (selected == 1)
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Contagion Burst (Spread poison to 1 nearby target on death in 3 range)</color>";
             }
         }
 

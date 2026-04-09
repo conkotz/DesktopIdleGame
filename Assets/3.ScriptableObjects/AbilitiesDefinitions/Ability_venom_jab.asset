@@ -10,17 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_power_slash
+  m_Name: Ability_venom_jab
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: power_slash
-  displayName: Power Slash
-  description: A powerful slash that readies your next attack. The bonus is consumed on your next successful hit.
-  icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
-  cooldown: 15
-  energyCost: 60
-  physicalDamageMultiplier: 1.5
+  abilityId: venom_jab
+  displayName: Venom Jab
+  description: 'A quick strike laced with venom.
+
+    Primes your next hit:
+    - Quick Strike (reduced damage)
+    - If the hit deals True Damage, apply Poison at 100% chance with max stacks.'
+  icon: {fileID: 0}
+  cooldown: 10
+  energyCost: 30
+  physicalDamageMultiplier: 0
   magicalDamageMultiplier: 0
-  abilityPowerMultiplier: 0.5
+  abilityPowerMultiplier: 0
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0
   lightningDamageMultiplier: 0
@@ -29,3 +33,4 @@ MonoBehaviour:
   requiredWeaponType: 1
   sourceSkill: 3
   unlockLevel: 5
+
