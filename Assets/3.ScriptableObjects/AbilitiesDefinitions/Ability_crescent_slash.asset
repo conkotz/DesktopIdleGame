@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
+  m_Name: Ability_crescent_slash
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
+  abilityId: crescent_slash
+  displayName: Crescent Slash
+  description: Prime your next attack to unleash a crescent slash, extending its reach by 6 and striking up to 3 enemies in front of you.
+  icon: {fileID: 0}
+  cooldown: 16
+  energyCost: 40
+  physicalDamageMultiplier: 0
+  magicalDamageMultiplier: 0
+  abilityPowerMultiplier: 0
+  fireDamageMultiplier: 0
+  iceDamageMultiplier: 0
+  lightningDamageMultiplier: 0
+  poisonDamageMultiplier: 0
+  bleedDamageMultiplier: 0
+  requiredWeaponType: 1
+  sourceSkill: 3
+  unlockLevel: 15
+

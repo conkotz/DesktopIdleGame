@@ -371,7 +371,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         if (!action.IsItem || inventory == null)
         {
-            slot.SetStackText(0);
+            int abilityStackCount = 0;
+            if (action.IsAbility && abilityController != null)
+                abilityStackCount = abilityController.GetAbilityStackCountDisplay(action.id);
+            slot.SetStackText(abilityStackCount);
 
             if (action.IsAbility)
             {

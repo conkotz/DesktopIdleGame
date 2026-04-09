@@ -71,28 +71,12 @@ MonoBehaviour:
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 5
-    title: Placeholder Ability 1
+    title: Rending Strike
     description: Open wounds, let them bleed out.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
     ability: {fileID: 11400000, guid: 5f3b1c2d9a7e4b6c8d0e1f2a3b4c5d6e, type: 2}
-    choices: []
-  - requiredLevel: 5
-    title: Placeholder Ability 2
-    description: A quick strike laced with venom.
-    icon: {fileID: 0}
-    unlockType: 1
-    meleeMinorStatOption: 0
-    ability: {fileID: 11400000, guid: 9a1b2c3d4e5f60718293a4b5c6d7e8f9, type: 2}
-    choices: []
-  - requiredLevel: 8
-    title: Rending Strike Upgrades
-    description: Choose how your Rending Strike bleed evolves.
-    icon: {fileID: 0}
-    unlockType: 3
-    meleeMinorStatOption: 0
-    ability: {fileID: 0}
     choices:
     - requiredLevel: 8
       title: Rending Strike - Hemorrhaging Rush
@@ -104,20 +88,20 @@ MonoBehaviour:
       description: If the target is already bleeding, spread this bleed to 1 nearby enemy (range 3).
       icon: {fileID: 0}
       ability: {fileID: 0}
-  - requiredLevel: 9
-    title: Venom Jab Upgrades
-    description: Choose how your Venom Jab poison evolves.
+  - requiredLevel: 5
+    title: Venom Jab
+    description: A quick strike laced with venom.
     icon: {fileID: 0}
-    unlockType: 3
+    unlockType: 1
     meleeMinorStatOption: 0
-    ability: {fileID: 0}
+    ability: {fileID: 11400000, guid: 9a1b2c3d4e5f60718293a4b5c6d7e8f9, type: 2}
     choices:
-    - requiredLevel: 9
+    - requiredLevel: 8
       title: Venom Jab - Potent Venom
       description: +2 max poison stacks on hit for 6 seconds.
       icon: {fileID: 0}
       ability: {fileID: 0}
-    - requiredLevel: 9
+    - requiredLevel: 8
       title: Venom Jab - Contagion Burst
       description: Poison spreads to 1 nearby enemy if it dies within 6 seconds (range 3).
       icon: {fileID: 0}
@@ -248,6 +232,42 @@ MonoBehaviour:
     - requiredLevel: 18
       title: Expansive Whirl
       description: Increase Whirling Blade radius by +3.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 15
+    title: Cleaving Strikes
+    description: Empower your attacks for 10 seconds or 5 hits, causing each hit to also strike 1 additional nearby enemy within attack range.
+    icon: {fileID: 0}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 2c4fa8e5a0b54d4b91f6b62d0c9f4a11, type: 2}
+    choices:
+    - requiredLevel: 18
+      title: Greater Cleave
+      description: Cleaving Strikes hits 2 additional enemies, but only for 8 seconds or 4 hits.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 18
+      title: Lasting Momentum
+      description: Cleaving Strikes lasts for 14 seconds or 7 hits.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 15
+    title: Crescent Slash
+    description: Prime your next attack to unleash a crescent slash, extending its reach by 6 and striking up to 3 enemies in front of you.
+    icon: {fileID: 0}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 7e3bd07b5f7f4f82ad7a8f3d9c4b1d22, type: 2}
+    choices:
+    - requiredLevel: 18
+      title: Elemental Crescent
+      description: Crescent Slash applies an elemental ailment to enemies hit.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 18
+      title: Penetrating Crescent
+      description: Crescent Slash hits all enemies in its path instead of only the first 3.
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 16

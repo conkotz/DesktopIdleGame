@@ -1358,6 +1358,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private MeleeMinorNodeBonuses GetUnlockedMeleeMinorBonuses()
     {
+        // Skill-tree unlock/enhancement bonuses are player-only.
+        // Enemies also use CharacterStats, but must never inherit player progression.
+        if (!_ownerPlayer)
+            return default;
+
         if (!skillsManager) skillsManager = SkillsManager.Instance;
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         if (!skillsManager || !skillDatabase)

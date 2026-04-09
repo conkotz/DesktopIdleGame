@@ -48,11 +48,19 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField, Min(0f)] private float whirlingBladeUpwardDrift = 0.14f;
     [SerializeField, Min(0f)] private float whirlingBladeVerticalWave = 0.06f;
 
+    [Header("Crescent Slash VFX")]
+    [SerializeField] private Color crescentSlashColor = new Color(0.55f, 0.95f, 1f, 0.9f);
+    [SerializeField, Min(0.05f)] private float crescentSlashVfxDuration = 0.18f;
+    [SerializeField, Min(0.01f)] private float crescentSlashLineWidth = 0.12f;
+    [SerializeField] private Vector3 crescentSlashCenterOffset = new Vector3(0f, 0.65f, 0f);
+
     private readonly Dictionary<string, float> _cooldownEndsById = new(StringComparer.OrdinalIgnoreCase);
     private const string PowerSlashId = "power_slash";
     private const string WhirlingBladeId = "whirling_blade";
     private const string RendingStrikeId = "rending_strike";
     private const string VenomJabId = "venom_jab";
+    private const string CleavingStrikesId = "cleaving_strikes";
+    private const string CrescentSlashId = "crescent_slash";
     private const int WhirlingBladeChoiceSourceLevel = 15;
     private const float WhirlingBladeBaseRadius = 2.5f;
     private const float WhirlingBladeDamageMultiplier = 1.2f;
@@ -62,6 +70,11 @@ public class PlayerAbilityController : MonoBehaviour
     private bool _powerSlashQueued;
     private bool _rendingStrikeQueued;
     private bool _venomJabQueued;
+    private bool _crescentSlashQueued;
+    private int _cleavingHitsRemaining;
+    private int _cleavingAdditionalTargets;
+    private float _cleavingBuffEndsAt;
+    private bool _cleavingBuffActive;
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
     private float _queuedPowerSlashMagicalMultiplier = 1f;
     private float _queuedPowerSlashAbilityPowerMultiplier;
@@ -73,13 +86,17 @@ public class PlayerAbilityController : MonoBehaviour
         None,
         PowerSlash,
         RendingStrike,
-        VenomJab
+        VenomJab,
+        CrescentSlash
     }
 
     public struct QueuedHitEffectResult
     {
         public bool suppressDefaultBleed;
         public bool suppressDefaultPoison;
+        public bool triggerCrescentSlash;
+        public bool crescentAppliesElemental;
+        public bool crescentPenetrating;
     }
 
     private void Awake()
@@ -92,6 +109,11 @@ public class PlayerAbilityController : MonoBehaviour
         if (!abilityDatabase) abilityDatabase = AbilityDatabase.LoadDefault();
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         if (!skillsManager) skillsManager = SkillsManager.Instance;
+    }
+
+    private void Update()
+    {
+        TryAutoReleaseQueuedCrescentSlash();
     }
 
     public bool IsOnCooldown(string abilityId, out float remainingSeconds)
@@ -179,6 +201,11 @@ public class PlayerAbilityController : MonoBehaviour
             if (_venomJabQueued)
                 return false;
         }
+        if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_crescentSlashQueued)
+                return false;
+        }
 
         if (def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
         {
@@ -216,6 +243,31 @@ public class PlayerAbilityController : MonoBehaviour
             if (_venomJabQueued)
                 return false;
             _venomJabQueued = true;
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
+        }
+        if (string.Equals(def.abilityId, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
+        {
+            ActivateCleavingStrikesBuff();
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
+        }
+        if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
+        {
+            bool castNow = combat != null && combat.TryConsumeAttackCycleForAbilityCast();
+            if (castNow)
+            {
+                ExecuteCrescentSlashCast(def);
+            }
+            else
+            {
+                // Cadence is still cooling down: queue like Power Slash and fire on next eligible swing.
+                _crescentSlashQueued = true;
+            }
+
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -291,20 +343,25 @@ public class PlayerAbilityController : MonoBehaviour
             (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
         float baseMagical =
             (Mathf.Max(0f, stats.MinSplitDamage.magical) + Mathf.Max(0f, stats.MaxSplitDamage.magical)) * 0.5f;
+        float baseTrue =
+            (Mathf.Max(0f, stats.MinSplitDamage.trueDamage) + Mathf.Max(0f, stats.MaxSplitDamage.trueDamage)) * 0.5f;
 
         float scaledPhysical = basePhysical * Mathf.Max(0f, def.physicalDamageMultiplier);
         float scaledMagical = baseMagical * Mathf.Max(0f, def.magicalDamageMultiplier);
+        // Treat true damage as part of weapon-hit scaling so on-hit poison logic can trigger.
+        float scaledTrue = baseTrue * Mathf.Max(0f, def.physicalDamageMultiplier);
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float apBonus = Mathf.Max(0f, stats.AbilityPower * Mathf.Max(0f, def.abilityPowerMultiplier));
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
 
         float physPart = scaledPhysical + apBonus;
         float magPart = scaledMagical + elementBonus + ailmentBonus;
+        float truePart = scaledTrue;
 
-        nonCritBase = new SplitDamage(physPart, magPart, 0f);
+        nonCritBase = new SplitDamage(physPart, magPart, truePart);
 
         wasCrit = false;
-        float raw = physPart + magPart;
+        float raw = physPart + magPart + truePart;
         if (raw > 0f && UnityEngine.Random.value < Mathf.Clamp01(stats.CritChance))
             wasCrit = true;
     }
@@ -367,6 +424,102 @@ public class PlayerAbilityController : MonoBehaviour
             StartCoroutine(ApplyTwinCycloneSecondWave(new List<EnemyBaseController>(targets), secondHitBase, radius));
 
         return true;
+    }
+
+    private void TryUseCrescentSlash(AbilityDefinition def)
+    {
+        if (stats == null)
+            return;
+
+        int selected = GetCrescentSlashSelectedChoice();
+        bool elementalCrescent = selected == 0;
+        bool penetrating = selected == 1;
+
+        float reach = GetWhirlingBaseRange() + 6f;
+        SpawnCrescentSlashVfx(reach);
+
+        BuildWhirlingBladeAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
+        float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+        SplitDamage rolled = new SplitDamage(
+            rolledNonCrit.physical * critMult,
+            rolledNonCrit.magical * critMult,
+            rolledNonCrit.trueDamage * critMult);
+
+        EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        List<(EnemyBaseController enemy, float dist)> forwardHits = new List<(EnemyBaseController enemy, float dist)>(allEnemies.Length);
+        float facing = GetCombatFacingSign();
+        Vector3 origin = transform.position;
+        float laneWidth = Mathf.Max(0.6f, reach * 0.35f);
+
+        for (int i = 0; i < allEnemies.Length; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            Vector3 to = enemy.transform.position - origin;
+            float forwardDist = to.x * facing;
+            if (forwardDist <= 0f || forwardDist > reach)
+                continue;
+            if (Mathf.Abs(to.y) > laneWidth)
+                continue;
+
+            forwardHits.Add((enemy, forwardDist));
+        }
+
+        forwardHits.Sort((a, b) => a.dist.CompareTo(b.dist));
+        int cap = penetrating ? forwardHits.Count : Mathf.Min(3, forwardHits.Count);
+        for (int i = 0; i < cap; i++)
+        {
+            EnemyBaseController target = forwardHits[i].enemy;
+            if (!target || target.IsDead)
+                continue;
+
+            DealtHit dealt = ApplySplitDamageToEnemy(target, rolled, wasCrit);
+            ApplyOnHitEffects(target, dealt);
+            if (elementalCrescent)
+                ApplyElementalAilmentForCrescent(target, dealt);
+        }
+    }
+
+    private void ApplyElementalAilmentForCrescent(EnemyBaseController target, DealtHit dealt)
+    {
+        if (target == null || stats == null)
+            return;
+
+        AilmentController ailments = target.GetComponent<AilmentController>();
+        if (ailments == null)
+            return;
+
+        if (stats.CurrentAttackAppliesAsFireForBurn && dealt.Total > 0f)
+        {
+            ailments.TryApplyBurnFromFireHit(
+                dealt.Total,
+                1f,
+                stats.BurnExplosionMultiplier,
+                transform);
+            return;
+        }
+
+        switch (stats.CurrentMagicAttackType)
+        {
+            case MagicAttackType.Ice:
+                ailments.ApplyChillFromHit(new ChillPayload(
+                    duration: stats.ChillDuration,
+                    maxStacks: stats.ChillMaxStacks,
+                    slowPerStack: stats.ChillSlowPerStack,
+                    source: transform
+                ));
+                break;
+            case MagicAttackType.Lightning:
+            default:
+                ailments.ApplyShockFromHit(new ShockPayload(
+                    duration: stats.ShockDuration,
+                    damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
+                    source: transform
+                ));
+                break;
+        }
     }
 
     private IEnumerator ApplyTwinCycloneSecondWave(List<EnemyBaseController> targets, SplitDamage secondHitBase, float radius)
@@ -609,6 +762,99 @@ public class PlayerAbilityController : MonoBehaviour
         StartCoroutine(AnimateWhirlingBladeTrail(orbitGO.transform, trail, center, radius, startDir));
     }
 
+    private void SpawnCrescentSlashVfx(float reach)
+    {
+        Transform center = player != null ? player.transform : transform;
+        if (center == null)
+            return;
+
+        Vector3 startPos = center.position + crescentSlashCenterOffset;
+        float facing = GetCombatFacingSign();
+        Vector3 dir = Vector3.right * facing;
+        // Main wave + two quick echoes for a fuller slash-wave look.
+        StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0f, 1f, 1f, 25));
+        StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0.045f, 0.92f, 0.62f, 24));
+        StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0.09f, 0.84f, 0.38f, 23));
+    }
+
+    private IEnumerator SpawnProjectedCrescentWaveAfterDelay(
+        Vector3 startPos,
+        Vector3 direction,
+        float reach,
+        float delay,
+        float reachScale,
+        float alphaScale,
+        int sortingOrder)
+    {
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+
+        GameObject arcGO = new GameObject("CrescentSlashArcVfx");
+        arcGO.transform.position = startPos;
+        LineRenderer line = arcGO.AddComponent<LineRenderer>();
+        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.startWidth = crescentSlashLineWidth;
+        line.endWidth = crescentSlashLineWidth * 0.75f;
+        line.numCapVertices = 6;
+        line.numCornerVertices = 6;
+        line.textureMode = LineTextureMode.Stretch;
+        line.alignment = LineAlignment.TransformZ;
+        line.positionCount = 18;
+
+        Color c = new Color(crescentSlashColor.r, crescentSlashColor.g, crescentSlashColor.b, crescentSlashColor.a * Mathf.Clamp01(alphaScale));
+        line.startColor = c;
+        line.endColor = new Color(c.r, c.g, c.b, 0f);
+        line.sortingOrder = sortingOrder;
+
+        yield return AnimateProjectedCrescentVfx(line, arcGO, startPos, direction, reach * Mathf.Max(0.1f, reachScale), crescentSlashVfxDuration);
+    }
+
+    private IEnumerator AnimateProjectedCrescentVfx(
+        LineRenderer line,
+        GameObject owner,
+        Vector3 startPos,
+        Vector3 direction,
+        float reach,
+        float duration)
+    {
+        if (line == null || owner == null)
+            yield break;
+
+        float d = Mathf.Max(0.05f, duration);
+        float elapsed = 0f;
+        Color baseColor = line.startColor;
+        float visualRadius = Mathf.Clamp(reach * 0.22f, 0.9f, 2.8f);
+        float startDeg = -52f;
+        float endDeg = 52f;
+        Vector3 endPos = startPos + (direction.normalized * Mathf.Max(0.1f, reach));
+
+        while (elapsed < d && line != null)
+        {
+            float t = elapsed / d;
+            Vector3 center = Vector3.Lerp(startPos, endPos, t);
+            for (int i = 0; i < line.positionCount; i++)
+            {
+                float pt = i / Mathf.Max(1f, line.positionCount - 1f);
+                float deg = Mathf.Lerp(startDeg, endDeg, pt);
+                float rad = deg * Mathf.Deg2Rad;
+                Vector3 local = new Vector3(
+                    Mathf.Cos(rad) * visualRadius * Mathf.Sign(direction.x == 0f ? 1f : direction.x),
+                    Mathf.Sin(rad) * visualRadius,
+                    0f);
+                line.SetPosition(i, center + local);
+            }
+
+            float a = Mathf.Lerp(baseColor.a, 0f, t);
+            line.startColor = new Color(baseColor.r, baseColor.g, baseColor.b, a);
+            line.endColor = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (owner != null)
+            Destroy(owner);
+    }
+
     private IEnumerator AnimateWhirlingBladeTrail(Transform emitter, TrailRenderer trail, Transform center, float radius, Vector2 startDir)
     {
         if (emitter == null || center == null)
@@ -720,6 +966,72 @@ public class PlayerAbilityController : MonoBehaviour
         return false;
     }
 
+    private void TryAutoReleaseQueuedCrescentSlash()
+    {
+        if (!_crescentSlashQueued)
+            return;
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null || !combat.TryConsumeAttackCycleForAbilityCast())
+            return;
+
+        AbilityDefinition def = GetAbilityDefinition(CrescentSlashId);
+        if (!def)
+        {
+            _crescentSlashQueued = false;
+            return;
+        }
+
+        ExecuteCrescentSlashCast(def);
+    }
+
+    /// <summary>
+    /// Called from combat cadence; guarantees queued Crescent Slash gets priority over normal auto attacks.
+    /// </summary>
+    public bool TryAutoReleaseQueuedCrescentSlashFromCadence()
+    {
+        if (!_crescentSlashQueued)
+            return false;
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null || !combat.TryConsumeAttackCycleForAbilityCast())
+            return false;
+
+        AbilityDefinition def = GetAbilityDefinition(CrescentSlashId);
+        if (!def)
+        {
+            _crescentSlashQueued = false;
+            return false;
+        }
+
+        ExecuteCrescentSlashCast(def);
+        return true;
+    }
+
+    private void ExecuteCrescentSlashCast(AbilityDefinition def)
+    {
+        _crescentSlashQueued = false;
+        TryUseCrescentSlash(def);
+        player?.TriggerAttackAnim();
+        StartCooldown(def);
+    }
+
+    private float GetCombatFacingSign()
+    {
+        // Player visuals are flipped on visualsRoot, not necessarily on player transform.
+        Transform anchor = ResolvePowerSlashAnchor();
+        if (anchor != null)
+        {
+            float sx = anchor.lossyScale.x;
+            if (Mathf.Abs(sx) > 0.0001f)
+                return -Mathf.Sign(sx);
+        }
+
+        if (player != null)
+            return Mathf.Sign(player.transform.localScale.x >= 0f ? 1f : -1f);
+        return 1f;
+    }
+
     /// <summary>
     /// Called by <see cref="PlayerCombatController"/> after a hit lands, to apply queued on-hit logic that needs the target.
     /// Returns suppression flags for the default bleed/poison application.
@@ -751,6 +1063,19 @@ public class PlayerAbilityController : MonoBehaviour
             TryApplyVenomJabPoison(target, trueDealt);
 
             AbilityDefinition def = GetAbilityDefinition(VenomJabId);
+            if (def)
+                StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+        }
+        else if (_queuedConsumedThisHit == QueuedHitEffect.CrescentSlash)
+        {
+            result.triggerCrescentSlash = true;
+            int selected = GetCrescentSlashSelectedChoice();
+            result.crescentAppliesElemental = selected == 0;
+            result.crescentPenetrating = selected == 1;
+
+            AbilityDefinition def = GetAbilityDefinition(CrescentSlashId);
             if (def)
                 StartCooldown(def);
             if (globalCooldownSeconds > 0f)
@@ -881,6 +1206,133 @@ public class PlayerAbilityController : MonoBehaviour
         return best;
     }
 
+    private void ActivateCleavingStrikesBuff()
+    {
+        int selected = GetCleavingStrikesSelectedChoice();
+        _cleavingBuffActive = true;
+        if (selected == 0)
+        {
+            // Greater Cleave
+            _cleavingAdditionalTargets = 2;
+            _cleavingHitsRemaining = 4;
+            _cleavingBuffEndsAt = Time.time + 8f;
+        }
+        else if (selected == 1)
+        {
+            // Lasting Momentum
+            _cleavingAdditionalTargets = 1;
+            _cleavingHitsRemaining = 7;
+            _cleavingBuffEndsAt = Time.time + 14f;
+        }
+        else
+        {
+            // Base
+            _cleavingAdditionalTargets = 1;
+            _cleavingHitsRemaining = 5;
+            _cleavingBuffEndsAt = Time.time + 10f;
+        }
+    }
+
+    private void CleanupCleavingStrikesIfExpired()
+    {
+        if (!_cleavingBuffActive)
+            return;
+
+        // Cleaving should only end after BOTH constraints are satisfied:
+        // - required hit count has been consumed
+        // - duration window has elapsed
+        bool hitsConsumed = _cleavingHitsRemaining <= 0;
+        bool durationElapsed = Time.time >= _cleavingBuffEndsAt;
+        if (hitsConsumed && durationElapsed)
+        {
+            _cleavingBuffActive = false;
+            _cleavingAdditionalTargets = 0;
+            _cleavingHitsRemaining = 0;
+            _cleavingBuffEndsAt = 0f;
+        }
+    }
+
+    /// <summary>
+    /// Called on successful primary hit release. Returns whether cleaving is active and how many extra targets to attempt.
+    /// Hit count is consumed only when there was a valid successful release.
+    /// </summary>
+    public bool TryConsumeCleavingExtraTargetsOnSuccessfulHit(out int additionalTargets)
+    {
+        additionalTargets = 0;
+        CleanupCleavingStrikesIfExpired();
+        if (!_cleavingBuffActive)
+            return false;
+
+        additionalTargets = Mathf.Max(0, _cleavingAdditionalTargets);
+        if (additionalTargets <= 0)
+            return false;
+
+        _cleavingHitsRemaining = Mathf.Max(0, _cleavingHitsRemaining - 1);
+        CleanupCleavingStrikesIfExpired();
+        return true;
+    }
+
+    /// <summary>Action bar stack-text helper for ability-specific counters.</summary>
+    public int GetAbilityStackCountDisplay(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return 0;
+
+        if (string.Equals(abilityId, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
+        {
+            CleanupCleavingStrikesIfExpired();
+            return _cleavingBuffActive ? Mathf.Max(0, _cleavingHitsRemaining) : 0;
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Scales Cleaving Strikes secondary hits from the base rolled attack split.
+    /// Main hit remains unchanged; only bonus cleave hits use this scaled split.
+    /// </summary>
+    public SplitDamage BuildCleavingSecondarySplit(SplitDamage baseRolled)
+    {
+        AbilityDefinition def = GetAbilityDefinition(CleavingStrikesId);
+        if (def == null)
+            return baseRolled;
+
+        float physMult = Mathf.Max(0f, def.physicalDamageMultiplier);
+        float magMult = Mathf.Max(0f, def.magicalDamageMultiplier);
+        float apMult = Mathf.Max(0f, def.abilityPowerMultiplier);
+
+        SplitDamage scaled = new SplitDamage(
+            baseRolled.physical * physMult,
+            baseRolled.magical * magMult,
+            baseRolled.trueDamage * physMult
+        );
+
+        if (apMult > 0f && stats != null)
+            scaled.physical += Mathf.Max(0f, stats.AbilityPower * apMult);
+
+        return scaled;
+    }
+
+    private int GetCleavingStrikesSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+    }
+
+    private int GetCrescentSlashSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+    }
+
     private int GetRendingStrikeSelectedChoice()
     {
         if (!skillsManager)
@@ -888,14 +1340,8 @@ public class PlayerAbilityController : MonoBehaviour
         if (!skillsManager)
             return -1;
 
-        // Primary: dedicated Rending upgrade row at Lv8.
-        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 8, -1);
-        if (selected >= 0)
-            return selected;
-
-        // Fallback: choice bound directly to the Lv5 Rending unlock node.
-        selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
-        return selected;
+        // Rending Strike enhancement selection is keyed on the level-5 ability row.
+        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
     }
 
     private int GetVenomJabSelectedChoice()
@@ -905,14 +1351,8 @@ public class PlayerAbilityController : MonoBehaviour
         if (!skillsManager)
             return -1;
 
-        // Primary: dedicated Venom Jab upgrade row at Lv9.
-        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 9, -1);
-        if (selected >= 0)
-            return selected;
-
-        // Fallback: choice bound directly to the Lv5 Venom Jab unlock node.
-        selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
-        return selected;
+        // Venom Jab enhancement selection is keyed on the level-5 ability row.
+        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
     }
 
     public bool IsAbilityPrimed(string abilityId)
@@ -926,6 +1366,8 @@ public class PlayerAbilityController : MonoBehaviour
             return _rendingStrikeQueued;
         if (string.Equals(abilityId, VenomJabId, StringComparison.OrdinalIgnoreCase))
             return _venomJabQueued;
+        if (string.Equals(abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
+            return _crescentSlashQueued;
 
         return false;
     }

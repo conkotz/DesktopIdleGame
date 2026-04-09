@@ -5615,6 +5615,7 @@ MonoBehaviour:
   stats: {fileID: 4199332309700179123}
   combat: {fileID: 343137512557904079}
   abilityDatabase: {fileID: 0}
+  skillDatabase: {fileID: 0}
   skillsManager: {fileID: 0}
   equipment: {fileID: 0}
   inventory: {fileID: 0}
@@ -5642,6 +5643,10 @@ MonoBehaviour:
   whirlingBladeCenterOffset: {x: 0, y: 0.65, z: 0}
   whirlingBladeUpwardDrift: 0.14
   whirlingBladeVerticalWave: 0.06
+  crescentSlashColor: {r: 0, g: 0.14033018, b: 0.3207547, a: 1}
+  crescentSlashVfxDuration: 0.4
+  crescentSlashLineWidth: 1
+  crescentSlashCenterOffset: {x: 0, y: 0.65, z: 0}
 --- !u!114 &7462036414647869483
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5748,6 +5753,7 @@ MonoBehaviour:
   basePoisonMaxStacks: 3
   baseMagicAttackType: 1
   baseMagicAilmentApplyChance: 0
+  baseBurnChance: 0
   baseChillDuration: 5
   baseChillMaxStacks: 6
   baseChillSlowPerStack: 0.15
@@ -6150,7 +6156,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
-  burnFallbackDurationSeconds: 30
+  burnDurationTicks: 15
+  burnDamageFractionOfHitPerTick: 0.15
+  burnCombustTicksWorth: 10
 --- !u!114 &-183894165544996772
 MonoBehaviour:
   m_ObjectHideFlags: 0

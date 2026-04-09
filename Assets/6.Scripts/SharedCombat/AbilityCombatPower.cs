@@ -15,6 +15,8 @@ public static class AbilityCombatPower
     public const string WhirlingBladeAbilityId = "whirling_blade";
     public const string RendingStrikeAbilityId = "rending_strike";
     public const string VenomJabAbilityId = "venom_jab";
+    public const string CleavingStrikesAbilityId = "cleaving_strikes";
+    public const string CrescentSlashAbilityId = "crescent_slash";
 
     /// <summary>Second Twin Cyclone wave as a fraction of the first wave's scaled split (sync with Whirling Blade runtime).</summary>
     public const float WhirlingBladeTwinCycloneSecondHitFraction = 0.2f;
@@ -298,6 +300,52 @@ public static class AbilityCombatPower
             return poisonCritAdjusted * procRate;
         }
 
+        if (string.Equals(def.abilityId, CleavingStrikesAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            float aps = stats.AttacksPerSecond;
+            float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
+            int extraTargets = 1;
+            int empoweredHits = 5;
+            float duration = 10f;
+            int selected = GetCleavingStrikesSelectedChoiceForCombatPower();
+            if (selected == 0)
+            {
+                extraTargets = 2;
+                empoweredHits = 4;
+                duration = 8f;
+            }
+            else if (selected == 1)
+            {
+                extraTargets = 1;
+                empoweredHits = 7;
+                duration = 14f;
+            }
+
+            float activeWindow = Mathf.Min(duration, aps > 0f ? (empoweredHits / aps) : duration);
+            float uptime = activeWindow / Mathf.Max(0.01f, cd);
+            uptime = Mathf.Clamp01(uptime);
+            float aoeScale = Mathf.Clamp(extraTargets * 0.45f, 0f, 1.1f);
+            float baseHit = Mathf.Max(0f, avgPhys + avgMag + avgTrue) * critFactor;
+            return baseHit * aoeScale * procRate * uptime;
+        }
+
+        if (string.Equals(def.abilityId, CrescentSlashAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            float aps = stats.AttacksPerSecond;
+            float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
+            int targets = 3;
+            float utilityLift = 1f;
+            int selected = GetCrescentSlashSelectedChoiceForCombatPower();
+            if (selected == 0)
+                utilityLift = 1.08f; // Elemental Crescent small uplift.
+            else if (selected == 1)
+                targets = 5; // Penetrating Crescent moderate AoE increase estimate.
+
+            float targetFactor = 1f + Mathf.Clamp((targets - 1) * 0.33f, 0f, 1.35f);
+            float baseHit = Mathf.Max(0f, avgPhys + avgMag + avgTrue) * critFactor;
+            return baseHit * targetFactor * utilityLift * procRate;
+        }
+
         // Default: instant cast nuke (same structure as PlayerAbilityController instant branch).
         float scaledPhys = avgPhys * physMult;
         float scaledMag = avgMag * magMult;
@@ -374,10 +422,6 @@ public static class AbilityCombatPower
         if (sm == null)
             return -1;
 
-        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 8, -1);
-        if (selected >= 0)
-            return selected;
-
         return sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
     }
 
@@ -387,10 +431,24 @@ public static class AbilityCombatPower
         if (sm == null)
             return -1;
 
-        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 9, -1);
-        if (selected >= 0)
-            return selected;
-
         return sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+    }
+
+    private static int GetCleavingStrikesSelectedChoiceForCombatPower()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return -1;
+
+        return sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+    }
+
+    private static int GetCrescentSlashSelectedChoiceForCombatPower()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return -1;
+
+        return sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
     }
 }

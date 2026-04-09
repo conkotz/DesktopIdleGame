@@ -523,9 +523,7 @@ public class ActionBarSlotUI : MonoBehaviour,
             SkillsManager sm = SkillsManager.Instance;
             if (sm != null)
             {
-                int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 8, -1);
-                if (selected < 0)
-                    selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+                int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
 
                 if (selected == 0)
                     choiceLine = "\n<color=#33CC66>Active Enhancement: Hemorrhaging Rush (Same bleed damage in half duration)</color>";
@@ -538,14 +536,38 @@ public class ActionBarSlotUI : MonoBehaviour,
             SkillsManager sm = SkillsManager.Instance;
             if (sm != null)
             {
-                int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 9, -1);
-                if (selected < 0)
-                    selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+                int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
 
                 if (selected == 0)
                     choiceLine = "\n<color=#33CC66>Active Enhancement: Potent Venom (+2 max poison stacks, 6s)</color>";
                 else if (selected == 1)
                     choiceLine = "\n<color=#33CC66>Active Enhancement: Contagion Burst (Spread poison to 1 nearby target on death in 3 range)</color>";
+            }
+        }
+        else if (string.Equals(def.abilityId, "cleaving_strikes", StringComparison.OrdinalIgnoreCase))
+        {
+            SkillsManager sm = SkillsManager.Instance;
+            if (sm != null)
+            {
+                int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+
+                if (selected == 0)
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Greater Cleave (2 extra enemies, 4 hits or 8s)</color>";
+                else if (selected == 1)
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Lasting Momentum (7 hits or 14s)</color>";
+            }
+        }
+        else if (string.Equals(def.abilityId, "crescent_slash", StringComparison.OrdinalIgnoreCase))
+        {
+            SkillsManager sm = SkillsManager.Instance;
+            if (sm != null)
+            {
+                int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+
+                if (selected == 0)
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Elemental Crescent (Applies elemental ailment)</color>";
+                else if (selected == 1)
+                    choiceLine = "\n<color=#33CC66>Active Enhancement: Penetrating Crescent (Hits all enemies in path)</color>";
             }
         }
 

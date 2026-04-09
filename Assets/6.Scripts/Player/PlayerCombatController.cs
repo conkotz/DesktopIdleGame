@@ -133,6 +133,30 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         return Mathf.Clamp01(readyProgress);
     }
 
+    /// <summary>Whether an ability may consume the current attack cycle right now.</summary>
+    public bool CanConsumeAttackCycleNow()
+    {
+        return Time.time >= _nextAttackTime;
+    }
+
+    /// <summary>
+    /// Reserves the next attack cycle for an ability-cast attack timing gate.
+    /// Returns false if the normal attack timer is still cooling down.
+    /// </summary>
+    public bool TryConsumeAttackCycleForAbilityCast()
+    {
+        if (!CanConsumeAttackCycleNow())
+            return false;
+        if (stats == null)
+            return false;
+
+        float cooldown = 1f / Mathf.Max(0.01f, stats.AttacksPerSecond);
+        _nextAttackTime = Time.time + cooldown;
+        if (player != null)
+            player.SetActionOverride(PlayerController.PlayerAction.Fighting);
+        return true;
+    }
+
     public float GetCurrentDps()
     {
         float now = Time.time;
@@ -258,6 +282,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             player.FaceTargetX(enemyX);
 
         float cooldown = 1f / Mathf.Max(0.01f, stats.AttacksPerSecond);
+
+        // Prioritize queued Crescent Slash over normal auto attack cadence.
+        if (abilityController != null && abilityController.TryAutoReleaseQueuedCrescentSlashFromCadence())
+            return;
 
         if (Time.time < _nextAttackTime)
         {
@@ -694,6 +722,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         DamageResult dealt = ApplySplitDamageToTarget(targetToHit, rolled, wasCrit);
         float totalDealt = dealt.Total;
+        bool primaryHitSucceeded = totalDealt > 0f;
+        var alreadyHit = new HashSet<EnemyBaseController>();
+        if (targetToHit != null && primaryHitSucceeded)
+            alreadyHit.Add(targetToHit);
 
         if (totalDealt > 0f)
             player.ApplyLifeSteal(totalDealt);
@@ -703,11 +735,17 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         bool suppressBleed = false;
         bool suppressPoison = false;
+        bool triggerCrescentSlash = false;
+        bool crescentAppliesElemental = false;
+        bool crescentPenetrating = false;
         if (abilityController != null)
         {
             var queued = abilityController.ConsumeQueuedHitEffects(targetToHit, dealt.physical, dealt.trueDamage);
             suppressBleed = queued.suppressDefaultBleed;
             suppressPoison = queued.suppressDefaultPoison;
+            triggerCrescentSlash = queued.triggerCrescentSlash;
+            crescentAppliesElemental = queued.crescentAppliesElemental;
+            crescentPenetrating = queued.crescentPenetrating;
         }
 
         if (!suppressBleed)
@@ -716,6 +754,136 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             TryApplyPoison(targetToHit, dealt);
         TryApplyElementalMagicAilment(targetToHit, dealt);
         TryApplyMeleeShock(targetToHit, dealt);
+
+        if (primaryHitSucceeded && abilityController != null &&
+            abilityController.TryConsumeCleavingExtraTargetsOnSuccessfulHit(out int cleaveExtraTargets) &&
+            cleaveExtraTargets > 0)
+        {
+            ApplyCleaveSecondaryHits(targetToHit, rolled, wasCrit, cleaveExtraTargets, alreadyHit);
+        }
+
+        if (primaryHitSucceeded && triggerCrescentSlash)
+            ApplyCrescentSlashSecondaryHits(targetToHit, rolled, wasCrit, crescentPenetrating, crescentAppliesElemental, alreadyHit);
+    }
+
+    private void ApplyCleaveSecondaryHits(EnemyBaseController primaryTarget, SplitDamage rolled, bool wasCrit, int extraTargets, HashSet<EnemyBaseController> alreadyHit)
+    {
+        if (extraTargets <= 0 || stats == null)
+            return;
+
+        SplitDamage cleaveRolled = abilityController != null
+            ? abilityController.BuildCleavingSecondarySplit(rolled)
+            : rolled;
+        if (cleaveRolled.IsEmpty)
+            return;
+
+        // Secondary cleave hits roll crit independently per target.
+        SplitDamage cleaveNonCrit = cleaveRolled;
+        float critMult = Mathf.Max(1f, stats.CritMultiplier);
+        if (wasCrit && critMult > 1f)
+        {
+            cleaveNonCrit.physical /= critMult;
+            cleaveNonCrit.magical /= critMult;
+            // true damage is not crit-scaled in this combat model.
+        }
+
+        // Cleave uses at least 2f search range; longer-range weapons keep their full range.
+        float range = Mathf.Max(2f, stats.Range);
+        Vector3 origin = transform.position;
+        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var nearest = new List<(EnemyBaseController enemy, float sqr)>(candidates.Length);
+        float r2 = range * range;
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            EnemyBaseController e = candidates[i];
+            if (!IsValidSecondaryTarget(e, alreadyHit))
+                continue;
+            float sqr = (e.transform.position - origin).sqrMagnitude;
+            if (sqr > r2)
+                continue;
+            nearest.Add((e, sqr));
+        }
+
+        nearest.Sort((a, b) => a.sqr.CompareTo(b.sqr));
+        int count = Mathf.Min(extraTargets, nearest.Count);
+        for (int i = 0; i < count; i++)
+        {
+            EnemyBaseController e = nearest[i].enemy;
+            SplitDamage secondaryHit = cleaveNonCrit;
+            bool secondaryCrit = false;
+            if (UnityEngine.Random.value <= Mathf.Clamp01(stats.CritChance))
+            {
+                secondaryCrit = true;
+                secondaryHit.physical *= critMult;
+                secondaryHit.magical *= critMult;
+            }
+
+            ApplySecondaryHitPipeline(e, secondaryHit, secondaryCrit, forceElementalAilment: false);
+            alreadyHit.Add(e);
+        }
+    }
+
+    private void ApplyCrescentSlashSecondaryHits(EnemyBaseController primaryTarget, SplitDamage rolled, bool wasCrit, bool penetrating, bool applyElemental, HashSet<EnemyBaseController> alreadyHit)
+    {
+        if (stats == null)
+            return;
+
+        float reach = Mathf.Max(0.1f, stats.Range + 6f);
+        float forward = player != null ? Mathf.Sign(player.transform.localScale.x >= 0f ? 1f : -1f) : 1f;
+        Vector3 origin = transform.position;
+        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        var forwardHits = new List<(EnemyBaseController enemy, float dist)>(candidates.Length);
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            EnemyBaseController e = candidates[i];
+            if (!IsValidSecondaryTarget(e, alreadyHit))
+                continue;
+
+            Vector3 to = e.transform.position - origin;
+            float forwardDist = to.x * forward;
+            if (forwardDist <= 0f || forwardDist > reach)
+                continue;
+
+            float laneWidth = Mathf.Max(0.6f, reach * 0.35f);
+            if (Mathf.Abs(to.y) > laneWidth)
+                continue;
+
+            forwardHits.Add((e, forwardDist));
+        }
+
+        forwardHits.Sort((a, b) => a.dist.CompareTo(b.dist));
+        // Base Crescent Slash is "up to 3 enemies" including the primary hit, so apply to up to 2 additional targets here.
+        int cap = penetrating ? forwardHits.Count : Mathf.Min(2, forwardHits.Count);
+        for (int i = 0; i < cap; i++)
+        {
+            EnemyBaseController e = forwardHits[i].enemy;
+            ApplySecondaryHitPipeline(e, rolled, wasCrit, forceElementalAilment: applyElemental);
+            alreadyHit.Add(e);
+        }
+    }
+
+    private bool IsValidSecondaryTarget(EnemyBaseController enemy, HashSet<EnemyBaseController> alreadyHit)
+    {
+        if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+            return false;
+        if (alreadyHit != null && alreadyHit.Contains(enemy))
+            return false;
+        return true;
+    }
+
+    private void ApplySecondaryHitPipeline(EnemyBaseController target, SplitDamage rolled, bool wasCrit, bool forceElementalAilment)
+    {
+        DamageResult dealt = ApplySplitDamageToTarget(target, rolled, wasCrit);
+        if (dealt.Total <= 0f)
+            return;
+
+        player.ApplyLifeSteal(dealt.Total);
+        TryApplyBleed(target, dealt);
+        TryApplyPoison(target, dealt);
+        TryApplyElementalMagicAilment(target, dealt, forceElementalAilment);
+        TryApplyMeleeShock(target, dealt);
     }
 
     public void ToggleIdleCombat()
@@ -1041,7 +1209,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             ailments.ApplyPoisonFromHit(payload);
     }
 
-    private void TryApplyElementalMagicAilment(EnemyBaseController target, DamageResult dealt)
+    private void TryApplyElementalMagicAilment(EnemyBaseController target, DamageResult dealt, bool forceApply = false)
     {
         if (target == null) return;
         if (stats == null) return;
@@ -1059,12 +1227,15 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         // Non-fire elemental ailments use normal apply chance per hit.
-        if (dealt.magical <= 0f) return;
-        if (stats.CurrentAttackSkill != AttackSkill.Magic) return;
+        if (!forceApply && dealt.magical <= 0f) return;
+        if (!forceApply && stats.CurrentAttackSkill != AttackSkill.Magic) return;
 
         float chance = stats.MagicAilmentApplyChance;
-        if (chance <= 0f) return;
-        if (Random.value > chance) return;
+        if (!forceApply)
+        {
+            if (chance <= 0f) return;
+            if (Random.value > chance) return;
+        }
 
         switch (stats.CurrentMagicAttackType)
         {
