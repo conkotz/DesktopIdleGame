@@ -891,6 +891,11 @@ public class PlayerAbilityController : MonoBehaviour
 
     private bool CanUseWithEquippedWeapon(AbilityDefinition def)
     {
+        if (!stats)
+            stats = GetComponent<CharacterStats>();
+        if (stats)
+            return stats.IsAbilityUsableWithEquippedWeapon(def);
+
         if (!def || def.requiredWeaponType == AbilityWeaponRequirement.Any)
             return true;
 

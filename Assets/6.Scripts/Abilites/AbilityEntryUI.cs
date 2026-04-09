@@ -215,9 +215,11 @@ public class AbilityEntryUI : MonoBehaviour,
         float apPct = apMult * 100f;
         string physPreview = AbilityTooltipDamagePreview.FormatPhysSuffix(stats, physMult);
         string apPreview = AbilityTooltipDamagePreview.FormatAbilityPowerSuffix(stats, apMult);
+        string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, stats);
+        string afterDesc = string.IsNullOrEmpty(weaponLine) ? "" : $"\n\n{weaponLine}";
 
         return
-            $"{desc}\n\n" +
+            $"{desc}{afterDesc}\n\n" +
             $"Physical Multiplier: {physPct:0.#}%{physPreview}\n" +
             $"Ability Power Multiplier: {apPct:0.#}%{apPreview}\n" +
             $"Source Skill: {def.sourceSkill}\n" +

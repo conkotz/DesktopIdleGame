@@ -525,9 +525,11 @@ public class ActionBarSlotUI : MonoBehaviour,
         CharacterStats previewStats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
         string physPreview = AbilityTooltipDamagePreview.FormatPhysSuffix(previewStats, physMult);
         string apPreview = AbilityTooltipDamagePreview.FormatAbilityPowerSuffix(previewStats, apMult);
+        string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, previewStats, orangeWhenOk: true);
+        string afterDesc = string.IsNullOrEmpty(weaponLine) ? "" : $"\n\n{weaponLine}";
 
         return
-            $"{desc}\n\n" +
+            $"{desc}{afterDesc}\n\n" +
             $"<color=#FFB347>Physical Multiplier: {physPct:0.#}%{physPreview}</color>\n" +
             $"<color=#FFB347>Ability Power Multiplier: {apPct:0.#}%{apPreview}</color>\n" +
             $"<color=#FFB347>Source Skill: {def.sourceSkill}</color>\n" +

@@ -132,6 +132,15 @@ public static class AbilityCombatPower
                 continue;
             }
 
+            if (!stats.IsAbilityUsableWithEquippedWeapon(def))
+            {
+                if (log)
+                    Debug.Log(
+                        $"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: id='{a.id}' skipped (wrong equipped weapon for {def.requiredWeaponType}).",
+                        stats);
+                continue;
+            }
+
             float dps = EstimateAbilityDps(def, stats);
             total += dps;
 

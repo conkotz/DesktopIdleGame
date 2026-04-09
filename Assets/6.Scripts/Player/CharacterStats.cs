@@ -852,6 +852,36 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return (def && def.IsWeapon) ? def : null;
     }
 
+    /// <summary>
+    /// Matches <see cref="PlayerAbilityController"/> weapon gating for abilities with
+    /// <see cref="AbilityDefinition.requiredWeaponType"/>.
+    /// </summary>
+    public bool IsAbilityUsableWithEquippedWeapon(AbilityDefinition def)
+    {
+        if (def == null || def.requiredWeaponType == AbilityWeaponRequirement.Any)
+            return true;
+
+        if (!equipment)
+            equipment = GetComponent<EquipmentManager>();
+        if (!inventory)
+            inventory = GetComponent<Inventory>();
+        if (!equipment || !inventory || string.IsNullOrWhiteSpace(equipment.MainHandItemId))
+            return false;
+
+        ItemDefinition mainHand = inventory.GetItemDef(equipment.MainHandItemId);
+        if (!mainHand || !mainHand.IsWeapon)
+            return false;
+
+        AttackSkill skill = mainHand.weaponStats.attackSkill;
+        return def.requiredWeaponType switch
+        {
+            AbilityWeaponRequirement.Melee => skill == AttackSkill.Melee,
+            AbilityWeaponRequirement.Ranged => skill == AttackSkill.Ranged,
+            AbilityWeaponRequirement.Magic => skill == AttackSkill.Magic,
+            _ => true
+        };
+    }
+
     private ItemDefinition GetOffHandWeaponDef()
     {
         var main = GetMainHandWeaponDef();

@@ -397,15 +397,22 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                         slot.SetCooldownVisual(gcdNorm, gcdSecs);
 
                     slot.SetPrimedVisual(abilityController.IsAbilityPrimed(action.id));
-                    slot.SetNoStockVisual(abilityLocked);
-                    slot.SetAbilityWeaponCompatibility(abilityController.CanUseAbilityWithCurrentWeapon(action.id));
+                    bool weaponOk = abilityController.CanUseAbilityWithCurrentWeapon(action.id);
+                    slot.SetAbilityWeaponCompatibility(weaponOk);
+                    // Same red overlay as "not available" when skill-locked or wrong weapon type.
+                    slot.SetNoStockVisual(abilityLocked || !weaponOk);
                 }
                 else
                 {
                     slot.SetCooldownVisual(0f, 0f);
                     slot.SetPrimedVisual(false);
-                    slot.SetNoStockVisual(abilityLocked);
-                    slot.SetAbilityWeaponCompatibility(true);
+                    bool weaponOkNoController = true;
+                    var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+                    CharacterStats cs = player != null ? player.GetComponent<CharacterStats>() : null;
+                    if (cs != null && abilityDef != null)
+                        weaponOkNoController = cs.IsAbilityUsableWithEquippedWeapon(abilityDef);
+                    slot.SetAbilityWeaponCompatibility(weaponOkNoController);
+                    slot.SetNoStockVisual(abilityLocked || !weaponOkNoController);
                 }
 
                 return;

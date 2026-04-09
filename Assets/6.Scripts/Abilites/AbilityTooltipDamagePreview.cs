@@ -44,4 +44,32 @@ public static class AbilityTooltipDamagePreview
 
         return $" ({n} phys)";
     }
+
+    /// <summary>
+    /// TMP rich-text line for ability tooltips. Empty when <see cref="AbilityWeaponRequirement.Any"/>.
+    /// Red when equipped weapon does not match; neutral or orange (action bar) when it does.
+    /// </summary>
+    public static string BuildWeaponRequirementRichLine(AbilityDefinition def, CharacterStats stats, bool orangeWhenOk = false)
+    {
+        if (def == null || def.requiredWeaponType == AbilityWeaponRequirement.Any)
+            return "";
+
+        string label = def.requiredWeaponType switch
+        {
+            AbilityWeaponRequirement.Melee => "Melee",
+            AbilityWeaponRequirement.Ranged => "Ranged",
+            AbilityWeaponRequirement.Magic => "Magic",
+            _ => "Any"
+        };
+
+        string line = $"Required: {label} weapon";
+        bool ok = stats == null || stats.IsAbilityUsableWithEquippedWeapon(def);
+        if (!ok)
+            return $"<color=#FF5C5C>{line}</color>";
+
+        if (orangeWhenOk)
+            return $"<color=#FFB347>{line}</color>";
+
+        return line;
+    }
 }
