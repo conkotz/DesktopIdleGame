@@ -19,9 +19,15 @@ MonoBehaviour:
       amount: 0
       itemId: 
     quantity: -1
-  - itemId: splitwood_shortbow
+  - itemId: splitwood_swiftbow
     costs:
     - type: 0
       amount: 0
       itemId: 
-    quantity: 0
+    quantity: 1
+  - itemId: splitwood_longbow
+    costs:
+    - type: 0
+      amount: 0
+      itemId: 
+    quantity: 1

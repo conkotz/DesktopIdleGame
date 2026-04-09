@@ -14,14 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: rending_strike
   displayName: Rending Strike
-  description: 'Open wounds, let them bleed out.
-
-    Primes your next hit:
-    - 100% Bleed chance on that hit
-    - +3s Bleed duration for that application
+  description: 'Primes your next melee hit to have 100% Bleed chance and +3s Bleed
+    duration for that application.
 
     Note: This Bleed is exclusive while active.'
-  icon: {fileID: 0}
+  icon: {fileID: 4053483496676390279, guid: 23b4c584116042844ac4fd39f7196d9d, type: 3}
   cooldown: 12
   energyCost: 40
   physicalDamageMultiplier: 0
@@ -35,4 +32,3 @@ MonoBehaviour:
   requiredWeaponType: 1
   sourceSkill: 3
   unlockLevel: 5
-

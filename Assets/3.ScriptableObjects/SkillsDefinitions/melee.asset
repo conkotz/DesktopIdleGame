@@ -21,8 +21,8 @@ MonoBehaviour:
   listSortOrder: 0
   unlocks:
   - requiredLevel: 1
-    title: Beginner Combat
-    description: Can use tier 1 weapons
+    title: Beginner Melee Combat
+    description: Can use tier 1 melee weapons
     icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -54,7 +54,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 5
     title: Power Slash
-    description: A heavy physical strike.
+    description: Primes your next melee hit to perform a powerful physical slash.
     icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -72,25 +72,30 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Rending Strike
-    description: Open wounds, let them bleed out.
+    description: 'Primes your next melee hit to have 100% Bleed chance and +3s Bleed
+      duration for that application.
+
+      Note: This Bleed is exclusive while active.'
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
     ability: {fileID: 11400000, guid: 5f3b1c2d9a7e4b6c8d0e1f2a3b4c5d6e, type: 2}
     choices:
     - requiredLevel: 8
-      title: Rending Strike - Hemorrhaging Rush
+      title: Hemorrhaging Rush
       description: This Bleed deals its same total damage in half the duration.
-      icon: {fileID: 0}
+      icon: {fileID: 3082249669969757626, guid: 758becb09b9cc4e4484c42dff1814e86, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 8
-      title: Rending Strike - Crimson Spread
-      description: If the target is already bleeding, spread this bleed to 1 nearby enemy (range 3).
-      icon: {fileID: 0}
+      title: Crimson Spread
+      description: If the target is already bleeding, spread this bleed to 1 nearby
+        enemy (range 3).
+      icon: {fileID: 5570183790260993194, guid: a3f9e8e67e15ed24b86ba45820e05f95, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Venom Jab
-    description: A quick strike laced with venom.
+    description: Primes your next melee hit - If the hit deals True Damage, apply
+      Poison at 100% chance at max stacks.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -98,12 +103,13 @@ MonoBehaviour:
     choices:
     - requiredLevel: 8
       title: Venom Jab - Potent Venom
-      description: +2 max poison stacks on hit for 6 seconds.
+      description: +2 max poison stacks on hit against a single enemy for 6 seconds.
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 8
       title: Venom Jab - Contagion Burst
-      description: Poison spreads to 1 nearby enemy if it dies within 6 seconds (range 3).
+      description: Current poison spreads to 1 nearby enemy if it dies within 6 seconds
+        (range 3).
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 6
@@ -147,7 +153,7 @@ MonoBehaviour:
 
       +10%
       Damage to Bleeding Targets'
-    icon: {fileID: 0}
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
     ability: {fileID: 0}
@@ -214,10 +220,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 15
     title: Whirling Blade
-    description: 'Spin in a wide arc, striking all nearby enemies.
-
-      Hits all
-      enemies in range.'
+    description: Spin in a wide arc, striking all enemies in range.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -225,8 +228,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Twin Cyclone
-      description: Whirling Blade hits all enemies a second time for 20% of the first
-        wave's damage.
+      description: "If Whirling Blade hits an enemy, hit all enemies a second time
+        for 20% of the first attacks damage. \nCan apply on ailments."
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 18
@@ -236,7 +239,8 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Cleaving Strikes
-    description: Empower your attacks for 10 seconds or 5 hits, causing each hit to also strike 1 additional nearby enemy within attack range.
+    description: 'Empower your melee attacks for 10 seconds or 5 hits, causing each
+      hit to also strike 1 additional nearby enemy within attack range. '
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -244,7 +248,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Greater Cleave
-      description: Cleaving Strikes hits 2 additional enemies, but only for 8 seconds or 4 hits.
+      description: Cleaving Strikes hits 2 additional enemies, but only for 8 seconds
+        or 4 hits.
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 18
@@ -254,7 +259,8 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Crescent Slash
-    description: Prime your next attack to unleash a crescent slash, extending its reach by 6 and striking up to 3 enemies in front of you.
+    description: Unleash a crescent slash which will travel outwards (range 6) and
+      strike up to 3 enemies in front of you.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -262,12 +268,13 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Elemental Crescent
-      description: Crescent Slash applies an elemental ailment to enemies hit.
+      description: Crescent Slash now converts 50% Physical to random element and
+        applies the associated ailment.
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 18
       title: Penetrating Crescent
-      description: Crescent Slash hits all enemies in its path instead of only the first 3.
+      description: Crescent Slash now hits all enemies in its path.
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 16
@@ -305,7 +312,7 @@ MonoBehaviour:
   - requiredLevel: 20
     title: Major Passive II
     description: Placeholder major passive milestone.
-    icon: {fileID: 0}
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
     ability: {fileID: 0}
@@ -413,7 +420,7 @@ MonoBehaviour:
   - requiredLevel: 30
     title: Major Passive III
     description: Placeholder major passive milestone.
-    icon: {fileID: 0}
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
     ability: {fileID: 0}
@@ -513,7 +520,7 @@ MonoBehaviour:
   - requiredLevel: 40
     title: Major Passive IV
     description: Placeholder major passive milestone.
-    icon: {fileID: 0}
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
     ability: {fileID: 0}

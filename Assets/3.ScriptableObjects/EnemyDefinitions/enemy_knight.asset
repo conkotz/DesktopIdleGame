@@ -23,8 +23,8 @@ MonoBehaviour:
   armor: 75
   magicResist: 0
   physBlockChance: 0.1
-  minPhysicalDamage: 13
-  maxPhysicalDamage: 16
+  minPhysicalDamage: 1
+  maxPhysicalDamage: 1
   minMagicDamage: 0
   maxMagicDamage: 0
   minTrueDamage: 0

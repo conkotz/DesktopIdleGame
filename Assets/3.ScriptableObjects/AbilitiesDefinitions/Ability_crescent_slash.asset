@@ -14,13 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: crescent_slash
   displayName: Crescent Slash
-  description: Prime your next attack to unleash a crescent slash, extending its reach by 6 and striking up to 3 enemies in front of you.
-  icon: {fileID: 0}
-  cooldown: 16
-  energyCost: 40
-  physicalDamageMultiplier: 0
+  description: Unleash a crescent slash which will travel outwards (range 6) and
+    strike up to 3 enemies in front of you.
+  icon: {fileID: -5474065623339692901, guid: 6cb34204da6e6044ab2e5eac89ba221e, type: 3}
+  cooldown: 5
+  energyCost: 70
+  physicalDamageMultiplier: 1
   magicalDamageMultiplier: 0
-  abilityPowerMultiplier: 0
+  abilityPowerMultiplier: 0.5
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0
   lightningDamageMultiplier: 0
@@ -29,4 +30,3 @@ MonoBehaviour:
   requiredWeaponType: 1
   sourceSkill: 3
   unlockLevel: 15
-

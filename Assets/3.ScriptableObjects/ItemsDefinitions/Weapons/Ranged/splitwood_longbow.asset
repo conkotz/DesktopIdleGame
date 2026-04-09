@@ -16,22 +16,22 @@ MonoBehaviour:
   maxStack: 1
   itemId: splitwood_longbow
   displayName: Splitwood Longbow
-  icon: {fileID: -4003117158439236843, guid: b4d639748b223674fa32f2107cd737d3, type: 3}
-  heldSprite: {fileID: 21300226, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
-  equippedSprite: {fileID: 21300226, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
+  icon: {fileID: -2738976097225723992, guid: fd9be4dca11dbb74d8a88618169798ce, type: 3}
+  heldSprite: {fileID: -2738976097225723992, guid: fd9be4dca11dbb74d8a88618169798ce, type: 3}
+  equippedSprite: {fileID: -2738976097225723992, guid: fd9be4dca11dbb74d8a88618169798ce, type: 3}
   useCustomEquippedPose: 1
   equippedLocalOffset: {x: 0, y: -0.7}
   equippedLocalRotationZ: 80
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic 1h sword made from stone
+  description: A longbow made from splitwood. Can fire arrows from a long distance.
   rarity: 1
   value: 150
   equipSlot: 1
   handVisualKey: 1
   weaponStats:
-    minPhysicalDamage: 25
-    maxPhysicalDamage: 30
+    minPhysicalDamage: 35
+    maxPhysicalDamage: 45
     minMagicDamage: 0
     maxMagicDamage: 0
     minTrueDamage: 0

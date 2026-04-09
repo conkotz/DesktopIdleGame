@@ -22,7 +22,7 @@ MonoBehaviour:
   maxMana: 0
   armor: 0
   magicResist: 0
-  physBlockChance: 0.1
+  physBlockChance: 0
   minPhysicalDamage: 1
   maxPhysicalDamage: 1
   minMagicDamage: 0

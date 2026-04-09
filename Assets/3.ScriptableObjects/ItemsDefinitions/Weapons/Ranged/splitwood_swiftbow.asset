@@ -24,23 +24,23 @@ MonoBehaviour:
   equippedLocalRotationZ: 80
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic 1h sword made from stone
+  description: A swiftbow made from splitwood. Can fire arrows at a rapid pace.
   rarity: 1
   value: 150
   equipSlot: 1
   handVisualKey: 1
   weaponStats:
-    minPhysicalDamage: 25
-    maxPhysicalDamage: 30
+    minPhysicalDamage: 8
+    maxPhysicalDamage: 13
     minMagicDamage: 0
     maxMagicDamage: 0
     minTrueDamage: 0
     maxTrueDamage: 0
-    attacksPerSecond: 0.2
+    attacksPerSecond: 1
     critChance: 0.05
     critMultiplier: 1.5
     handedness: 1
-    attackRange: 18
+    attackRange: 12
     attackSkill: 1
     magicAttackType: 0
     manaCostPerAttack: 0
