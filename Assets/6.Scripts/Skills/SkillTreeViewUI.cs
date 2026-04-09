@@ -17,6 +17,8 @@ public class SkillTreeViewUI : MonoBehaviour
     [Header("Data")]
     [SerializeField] private SkillDefinition selectedSkill;
     [SerializeField] private SkillsManager skillsManager;
+    [Tooltip("Optional one-line hint: Tier 1/2/3 gates at skill L1 / L20 / L40. Leave empty to hide.")]
+    [SerializeField] private TMP_Text equipmentTierHint;
     [Tooltip("When true, stop rendering rows after the first invalid/missing unlock row.")]
     [SerializeField] private bool stopAfterFirstMissingUnlock = true;
 
@@ -170,6 +172,8 @@ public class SkillTreeViewUI : MonoBehaviour
     public void BuildForSelectedSkill()
     {
         ClearTree();
+        RefreshEquipmentTierHint();
+
         if (selectedSkill == null || selectedSkill.unlocks == null || selectedSkill.unlocks.Count == 0)
             return;
         if (!skillsManager)
@@ -592,9 +596,17 @@ public class SkillTreeViewUI : MonoBehaviour
 
     private static void BuildTooltipCopy(int level, SkillTreeNodeVisualType type, SkillUnlockDefinition unlock, bool isUnlocked, out string title, out string body)
     {
-        string typeLabel = TypeLabel(type);
         string unlockTitle = unlock != null && !string.IsNullOrWhiteSpace(unlock.title) ? unlock.title.Trim() : "Untitled";
         string desc = unlock != null && !string.IsNullOrWhiteSpace(unlock.description) ? unlock.description.Trim() : "No description yet.";
+
+        if (unlock != null && unlock.unlockType == SkillUnlockType.Unlock)
+        {
+            title = $"Unlock - {unlockTitle}";
+            body = $"{BuildStatusLine(isUnlocked)}\nUnlocks at level {level}\n\n{desc}";
+            return;
+        }
+
+        string typeLabel = TypeLabel(type);
         title = $"{typeLabel} - {unlockTitle}";
         body = $"{BuildStatusLine(isUnlocked)}\nUnlocks at Lv{level}\n\n{desc}";
     }
@@ -678,6 +690,28 @@ public class SkillTreeViewUI : MonoBehaviour
         choiceMetaByNodeId.Clear();
         selectedNode = null;
         sharedTooltip?.Hide();
+    }
+
+    private void RefreshEquipmentTierHint()
+    {
+        if (equipmentTierHint == null)
+            return;
+
+        if (selectedSkill == null)
+        {
+            equipmentTierHint.gameObject.SetActive(false);
+            return;
+        }
+
+        string h = EquipmentTierRules.BuildSkillTreeHint(selectedSkill.skillType);
+        if (string.IsNullOrEmpty(h))
+        {
+            equipmentTierHint.gameObject.SetActive(false);
+            return;
+        }
+
+        equipmentTierHint.gameObject.SetActive(true);
+        equipmentTierHint.text = h;
     }
 
     private void SpawnNode(string nodeId, Vector2 pos, SkillTreeNodeVisualType type, string tooltipTitle, string tooltipBody, bool unlocked)

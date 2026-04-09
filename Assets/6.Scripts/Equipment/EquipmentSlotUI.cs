@@ -567,7 +567,9 @@ public class EquipmentSlotUI : MonoBehaviour,
                     draggedDef.handVisualKey != ToolKey.None &&
                     draggedDef.handVisualKey != ToolKey.Weapon;
 
-                accept = isTool && !toolbelt.Contains(draggedId);
+                accept = isTool
+                    && !toolbelt.Contains(draggedId)
+                    && draggedDef.MeetsEquipmentTierRequirement(SkillsManager.Instance);
             }
             else
             {

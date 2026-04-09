@@ -168,7 +168,9 @@ public class HUDView : MonoBehaviour
                 "Burn",
                 ailments.BurnStacks,
                 "Burn",
-                $"Burn charges: {ailments.BurnStacks}/{Mathf.Max(1, ailments.BurnHitsToExplode)}\nExplodes when full."
+                $"Burn stacks: {ailments.BurnStacks}/{Mathf.Max(1, ailments.BurnHitsToExplode)}\n" +
+                "Tick damage uses your strongest fire hit (15%/tick, min 1, × burn mult).\n" +
+                "Stacks build to combust: 10× tick damage at 3 stacks; fire hits refresh 15s."
             );
 
         if (ailments.HasChill)

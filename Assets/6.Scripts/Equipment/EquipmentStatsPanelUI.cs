@@ -46,6 +46,12 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text burnText;
     [SerializeField] private TMP_Text shockText;
 
+    [Header("Ailment line colours (Burn / Chill / Shock)")]
+    [SerializeField] private Color burnAilmentLineColor = new Color(1f, 0.38f, 0.12f);
+    [SerializeField] private Color chillAilmentLineColor = new Color(0.38f, 0.78f, 1f);
+    [SerializeField] private Color shockAilmentLineColor = new Color(0.92f, 0.82f, 0.2f);
+    [SerializeField] private Color elementalAilmentInactiveColor = new Color(0.48f, 0.52f, 0.5f);
+
     // -------------------------
     // DPS
     // -------------------------
@@ -338,25 +344,45 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (chillText)
         {
             if (hasMagicAilmentChance && type == MagicAttackType.Ice.ToString())
+            {
                 chillText.text = $"Chill: {chance:0.#}% | {stats.ChillSlowPerStack * 100f:0.#}% | {stats.ChillDuration:0.#}s | {stats.ChillMaxStacks} stk";
+                chillText.color = chillAilmentLineColor;
+            }
             else
+            {
                 chillText.text = "Chill: None";
+                chillText.color = elementalAilmentInactiveColor;
+            }
         }
 
         if (burnText)
         {
-            if (hasMagicAilmentChance && type == MagicAttackType.Fire.ToString())
-                burnText.text = $"Burn: {chance:0.#}% | {stats.BurnHitsToExplode} hit | {stats.BurnExplosionMultiplier * 100f:0.#}%";
+            if (stats.CurrentAttackAppliesAsFireForBurn && stats.BurnApplyChance > 0f)
+            {
+                float burnMultBonusPct = (stats.BurnExplosionMultiplier - 1f) * 100f;
+                burnText.text =
+                    $"Burn: {stats.BurnApplyChance * 100f:0.#}% | {burnMultBonusPct:+0.#;-0.#;0}% | 15s | {stats.BurnHitsToExplode} stk";
+                burnText.color = burnAilmentLineColor;
+            }
             else
+            {
                 burnText.text = "Burn: None";
+                burnText.color = elementalAilmentInactiveColor;
+            }
         }
 
         if (shockText)
         {
             if (hasMagicAilmentChance && type == MagicAttackType.Lightning.ToString())
+            {
                 shockText.text = $"Shock: {chance:0.#}% | {stats.ShockDamageTakenMultiplier * 100f:0.#}% | {stats.ShockDuration:0.#}s";
+                shockText.color = shockAilmentLineColor;
+            }
             else
+            {
                 shockText.text = "Shock: None";
+                shockText.color = elementalAilmentInactiveColor;
+            }
         }
     }
 

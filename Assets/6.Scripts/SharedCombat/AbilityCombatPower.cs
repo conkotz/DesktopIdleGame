@@ -14,6 +14,9 @@ public static class AbilityCombatPower
     public const string PowerSlashAbilityId = "power_slash";
     public const string WhirlingBladeAbilityId = "whirling_blade";
 
+    /// <summary>Second Twin Cyclone wave as a fraction of the first wave's scaled split (sync with Whirling Blade runtime).</summary>
+    public const float WhirlingBladeTwinCycloneSecondHitFraction = 0.2f;
+
     /// <summary>Expected sustained DPS from all uniquely slotted abilities (0 if not the player or no bar).</summary>
     public static float EstimateTotalSlottedAbilityDps(CharacterStats stats, bool logDiagnostics = false)
     {
@@ -282,8 +285,8 @@ public static class AbilityCombatPower
         int selected = GetWhirlingBladeSelectedChoiceForCombatPower();
         if (selected == 0)
         {
-            // Twin Cyclone: second hit at 50% damage.
-            extraHitFactor += 0.5f;
+            // Twin Cyclone: second wave damage fraction (matches runtime second hit).
+            extraHitFactor += WhirlingBladeTwinCycloneSecondHitFraction;
         }
         else if (selected == 1)
         {

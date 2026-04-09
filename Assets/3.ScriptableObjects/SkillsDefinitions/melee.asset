@@ -21,8 +21,8 @@ MonoBehaviour:
   listSortOrder: 0
   unlocks:
   - requiredLevel: 1
-    title: Stone Weaponry
-    description: Can use stone weapons
+    title: Beginner Combat
+    description: Can use tier 1 weapons
     icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -54,7 +54,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 5
     title: Power Slash
-    description: A heavy strike that scales with Physical Damage and Ability Power.
+    description: A heavy physical strike.
     icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -214,14 +214,10 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 15
     title: Whirling Blade
-    description: 'Melee AoE attack.
+    description: 'Spin in a wide arc, striking all nearby enemies.
 
-      120% Melee Damage
-
-      Radius: 2.5
-
-      Hits
-      all enemies in range once.'
+      Hits all
+      enemies in range.'
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -229,8 +225,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Twin Cyclone
-      description: Whirling Blade hits all enemies a second time for 50% of the original
-        damage.
+      description: Whirling Blade hits all enemies a second time for 20% of the first
+        wave's damage.
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 18
@@ -289,8 +285,8 @@ MonoBehaviour:
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 20
-    title: Iron Weaponry
-    description: Can use Iron Weapons
+    title: Skilled Combat
+    description: Can use tier 2 weapons
     icon: {fileID: 0}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -496,6 +492,14 @@ MonoBehaviour:
       description: Placeholder melee choice.
       icon: {fileID: 0}
       ability: {fileID: 0}
+  - requiredLevel: 40
+    title: Master Combat
+    description: Can use tier 3 weapons
+    icon: {fileID: 0}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices: []
   - requiredLevel: 41
     title: Brutal Momentum V
     description: +3% Melee Damage

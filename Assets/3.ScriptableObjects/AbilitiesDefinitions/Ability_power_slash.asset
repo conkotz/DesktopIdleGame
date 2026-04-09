@@ -14,12 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: power_slash
   displayName: Power Slash
-  description: A heavy strike that scales with Physical Damage and Ability Power.
+  description: 'A heavy physical strike. '
   icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
   cooldown: 15
   energyCost: 60
   physicalDamageMultiplier: 1.5
+  magicalDamageMultiplier: 0
   abilityPowerMultiplier: 0.5
+  fireDamageMultiplier: 0
+  iceDamageMultiplier: 0
+  lightningDamageMultiplier: 0
+  poisonDamageMultiplier: 0
+  bleedDamageMultiplier: 0
   requiredWeaponType: 1
   sourceSkill: 3
   unlockLevel: 5

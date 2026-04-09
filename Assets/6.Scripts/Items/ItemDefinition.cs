@@ -123,6 +123,10 @@ public struct WeaponStats
     [Tooltip("Chance to apply elemental ailment from magic hits. Uses Magic Type: Ice=Chill, Fire=Burn, Lightning=Shock.")]
     public float magicAilmentApplyChance;
 
+    [Range(0f, 1f)]
+    [Tooltip("Burn stack chance on fire hits from this weapon. If 0, Magic Ailment Apply Chance is used when Attack Skill is Magic.")]
+    public float burnChance;
+
     [Header("Dual Wield")]
     [Tooltip("If true, this weapon may be equipped in the OffHand slot as well.")]
     public bool canEquipInOffHand;
@@ -130,6 +134,10 @@ public struct WeaponStats
     [Header("Support Requirement")]
     public bool requiresOffhandSupport;
     public CombatSupportType requiredSupportType;
+
+    [Header("Equipment Tier")]
+    [Tooltip("Shown as Tier 1–3; gate uses Attack Skill (Melee/Ranged/Magic) at L1 / L20 / L40.")]
+    public EquipmentTierRank equipmentTier;
 
 }
 
@@ -160,6 +168,10 @@ public struct ToolStats
 {
     [Header("Tool Type")]
     public ToolType toolType;
+
+    [Header("Equipment Tier")]
+    [Tooltip("Shown as Tier 1–3; gate is Woodcutting / Mining / Fishing by tool type at L1 / L20 / L40. Default Tier1 (enum 0).")]
+    public EquipmentTierRank equipmentTier;
 
     [Header("Gathering Speed")]
     public float gatherSpeedMultiplier;
@@ -278,8 +290,12 @@ public struct BonusStats
     [Tooltip("Bonus maximum poison stacks")]
     public int poisonMaxStacksBonus;
 
-    [Tooltip("Adds to burn explosion multiplier. 0.10 means +10 percentage points (e.g. 50% -> 60%).")]
+    [Tooltip("Multiplies burn tick damage (15% of strongest fire hit per tick, min 1).")]
     public float burnExplosionMultiplierBonus;
+
+    [Range(0f, 1f)]
+    [Tooltip("Bonus chance to apply a burn stack on fire hits (additive, player).")]
+    public float burnChance;
 
     [Tooltip("Adds to chill slow per stack. 0.02 means +2 percentage points (e.g. 15% -> 17%).")]
     public float chillSlowPerStackBonus;
@@ -304,6 +320,7 @@ public struct BonusStats
                poisonChance > 0f || poisonMultiplier != 0f ||
                poisonDurationBonus != 0f || poisonMaxStacksBonus != 0 ||
                burnExplosionMultiplierBonus != 0f ||
+               burnChance > 0f ||
                chillSlowPerStackBonus != 0f ||
                shockDamageTakenMultiplierBonus != 0f;
     }
@@ -496,6 +513,68 @@ public class ItemDefinition : ScriptableObject
     public bool IsJewelry => itemKind == ItemKind.Jewelry;
     public bool IsEquippable => IsWeapon || IsTool || IsArmor || IsJewelry || IsCombatSupport;
 
+    public bool UsesEquipmentTierGating =>
+        IsWeapon || (IsTool && toolStats.toolType != ToolType.None);
+
+    public SkillType GetEquipmentTierGateSkill()
+    {
+        if (IsWeapon)
+        {
+            return weaponStats.attackSkill switch
+            {
+                AttackSkill.Melee => SkillType.Melee,
+                AttackSkill.Ranged => SkillType.Ranged,
+                AttackSkill.Magic => SkillType.Magic,
+                _ => SkillType.Melee
+            };
+        }
+
+        if (IsTool)
+        {
+            return toolStats.toolType switch
+            {
+                ToolType.Axe => SkillType.Woodcutting,
+                ToolType.Pickaxe => SkillType.Mining,
+                ToolType.FishingRod => SkillType.Fishing,
+                _ => SkillType.Mining
+            };
+        }
+
+        return SkillType.Melee;
+    }
+
+    public EquipmentTierRank GetEquipmentTierRank()
+    {
+        if (IsWeapon) return weaponStats.equipmentTier;
+        if (IsTool) return toolStats.equipmentTier;
+        return EquipmentTierRank.Tier1;
+    }
+
+    public string GetEquipmentTierDisplayLabel()
+    {
+        if (!UsesEquipmentTierGating) return "";
+        return EquipmentTierRules.GetTierDisplayLabel(GetEquipmentTierRank());
+    }
+
+    public bool MeetsEquipmentTierRequirement(SkillsManager sm)
+    {
+        if (sm == null) return true;
+        if (!UsesEquipmentTierGating) return true;
+        int req = EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank());
+        return sm.IsLevelUnlocked(GetEquipmentTierGateSkill(), req);
+    }
+
+    public string BuildEquipmentTierBlockedMessage()
+    {
+        if (!UsesEquipmentTierGating) return "Cannot equip that item.";
+        var sm = SkillsManager.Instance;
+        int req = EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank());
+        SkillType gate = GetEquipmentTierGateSkill();
+        string label = GetEquipmentTierDisplayLabel();
+        int cur = sm != null ? sm.GetLevel(gate) : 0;
+        return $"{displayName} ({label}) needs {gate} level {req} (yours: {cur}).";
+    }
+
     public bool RequiresOffhandSupport =>
     IsWeapon &&
     weaponStats.requiresOffhandSupport &&
@@ -537,6 +616,16 @@ public class ItemDefinition : ScriptableObject
     public float MagicAilmentApplyChance => (IsWeapon && weaponStats.attackSkill == AttackSkill.Magic)
         ? Mathf.Clamp01(weaponStats.magicAilmentApplyChance)
         : 0f;
+
+    /// <summary>Burn stack chance from this weapon when Magic Type is Fire (uses <see cref="WeaponStats.burnChance"/> or magic ailment fallback).</summary>
+    public float ResolveWeaponBurnApplyChance()
+    {
+        if (!IsWeapon || weaponStats.magicAttackType != MagicAttackType.Fire)
+            return 0f;
+        if (weaponStats.burnChance > 0f)
+            return Mathf.Clamp01(weaponStats.burnChance);
+        return Mathf.Clamp01(weaponStats.magicAilmentApplyChance);
+    }
 
     public bool HasPhysicalWeaponDamage => IsWeapon && (weaponStats.minPhysicalDamage > 0 || weaponStats.maxPhysicalDamage > 0);
     public bool HasMagicWeaponDamage => IsWeapon && (weaponStats.minMagicDamage > 0 || weaponStats.maxMagicDamage > 0);
@@ -588,6 +677,7 @@ public class ItemDefinition : ScriptableObject
     public float PoisonDurationBonus => bonusStats.poisonDurationBonus;
     public int PoisonMaxStacksBonus => Mathf.Max(0, bonusStats.poisonMaxStacksBonus);
     public float BurnExplosionMultiplierBonus => bonusStats.burnExplosionMultiplierBonus;
+    public float BonusBurnChance => Mathf.Clamp01(bonusStats.burnChance);
     public float ChillSlowPerStackBonus => bonusStats.chillSlowPerStackBonus;
     public float ShockDamageTakenMultiplierBonus => bonusStats.shockDamageTakenMultiplierBonus;
 
@@ -710,6 +800,8 @@ public class ItemDefinition : ScriptableObject
                 magicManaLine = $"\nMana Cost: {ManaCostPerAttack:0.##}";
                 if (MagicAilmentApplyChance > 0f)
                     magicManaLine += $"\nAilment Chance: {MagicAilmentApplyChance * 100f:0.#}%";
+                if (weaponStats.magicAttackType == MagicAttackType.Fire && ResolveWeaponBurnApplyChance() > 0f)
+                    magicManaLine += "\nBurn: 15% of fire hit per tick (min 1, × burn mult); stacks track combust only; strongest hit sets tick dmg; 3 stacks combust for 10× tick; 15s refresh on fire hits.";
             }
 
             float critChancePct = Mathf.Clamp01(weaponStats.critChance + bonusStats.critChanceBonus) * 100f;
@@ -725,6 +817,8 @@ public class ItemDefinition : ScriptableObject
             string extras = BuildBonusLines(includeDefense: false);
 
             string s = "";
+            s += $"Tier: {GetEquipmentTierDisplayLabel()}\n" +
+                 $"Requires: {GetEquipmentTierGateSkill()} Lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}\n";
 
             if (HasPhysicalWeaponDamage)
                 s += $"Physical Damage: {weaponStats.minPhysicalDamage}-{weaponStats.maxPhysicalDamage}\n";
@@ -782,7 +876,14 @@ public class ItemDefinition : ScriptableObject
             string type = toolStats.toolType.ToString();
             string extras = BuildBonusLines(includeDefense: true);
 
-            string s =
+            string s = "";
+            if (UsesEquipmentTierGating)
+            {
+                s += $"Tier: {GetEquipmentTierDisplayLabel()}\n" +
+                     $"Requires: {GetEquipmentTierGateSkill()} Lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}\n";
+            }
+
+            s +=
                 $"Tool: {type}\n" +
                 $"Gather Speed: {GatherSpeedMultiplier:0.##}x\n" +
                 $"Gather Grit: {GatheringGrit * 100f:0.#}%\n" +
@@ -939,7 +1040,8 @@ public class ItemDefinition : ScriptableObject
         if (bonusStats.poisonMultiplier != 0f) s += $"Poison Bonus: {FormatSignedPercent01(bonusStats.poisonMultiplier)}\n";
         if (bonusStats.poisonDurationBonus != 0f) s += $"Poison Duration: {FormatSignedNumber(bonusStats.poisonDurationBonus)}s\n";
         if (bonusStats.poisonMaxStacksBonus != 0) s += $"Poison Max Stacks: {FormatSignedInt(bonusStats.poisonMaxStacksBonus)}\n";
-        if (bonusStats.burnExplosionMultiplierBonus != 0f) s += $"Burn Explosion Bonus: {FormatSignedPercent01(bonusStats.burnExplosionMultiplierBonus)}\n";
+        if (bonusStats.burnChance != 0f) s += $"Burn Chance: {FormatSignedPercent01(bonusStats.burnChance)}\n";
+        if (bonusStats.burnExplosionMultiplierBonus != 0f) s += $"Burn Damage Bonus: {FormatSignedPercent01(bonusStats.burnExplosionMultiplierBonus)}\n";
         if (bonusStats.chillSlowPerStackBonus != 0f) s += $"Chill Slow/Stack Bonus: {FormatSignedPercent01(bonusStats.chillSlowPerStackBonus)}\n";
         if (bonusStats.shockDamageTakenMultiplierBonus != 0f) s += $"Shock Amp Bonus: {FormatSignedPercent01(bonusStats.shockDamageTakenMultiplierBonus)}\n";
 

@@ -305,10 +305,12 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty magicAttackType = weaponStats.FindPropertyRelative("magicAttackType");
         SerializedProperty manaCostPerAttack = weaponStats.FindPropertyRelative("manaCostPerAttack");
         SerializedProperty magicAilmentApplyChance = weaponStats.FindPropertyRelative("magicAilmentApplyChance");
+        SerializedProperty weaponBurnChance = weaponStats.FindPropertyRelative("burnChance");
         SerializedProperty canEquipInOffHand = weaponStats.FindPropertyRelative("canEquipInOffHand");
 
         SerializedProperty requiresOffhandSupport = weaponStats.FindPropertyRelative("requiresOffhandSupport");
         SerializedProperty requiredSupportType = weaponStats.FindPropertyRelative("requiredSupportType");
+        SerializedProperty weaponEquipmentTier = weaponStats.FindPropertyRelative("equipmentTier");
 
         EditorGUILayout.LabelField("Damage", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(minPhysicalDamage, new GUIContent("Min Physical Damage"));
@@ -338,6 +340,17 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(handedness);
         EditorGUILayout.PropertyField(attackRange);
         EditorGUILayout.PropertyField(attackSkill);
+        if (weaponEquipmentTier != null)
+        {
+            EditorGUILayout.PropertyField(
+                weaponEquipmentTier,
+                new GUIContent(
+                    "Equipment Tier",
+                    "Tier 1–3 (display name is on the item). Gated by matching combat skill: L1 / L20 / L40."
+                )
+            );
+        }
+
         if (attackSkill != null &&
             (AttackSkill)attackSkill.enumValueIndex == AttackSkill.Magic &&
             magicAttackType != null)
@@ -347,6 +360,9 @@ public class ItemDefinitionEditor : Editor
                 EditorGUILayout.PropertyField(manaCostPerAttack, new GUIContent("Mana Cost Per Attack"));
             if (magicAilmentApplyChance != null)
                 EditorGUILayout.PropertyField(magicAilmentApplyChance, new GUIContent("Magic Ailment Apply Chance"));
+            if (weaponBurnChance != null && magicAttackType != null &&
+                (MagicAttackType)magicAttackType.enumValueIndex == MagicAttackType.Fire)
+                EditorGUILayout.PropertyField(weaponBurnChance, new GUIContent("Burn Apply Chance (0 = use Magic Ailment %)"));
 
             // Convenience: show elemental scaling bonuses here as well (stored in BonusStats).
             if (bonusStats != null)
@@ -358,7 +374,7 @@ public class ItemDefinitionEditor : Editor
                 EditorGUILayout.Space(4);
                 EditorGUILayout.LabelField("Magic Ailment Scaling (Bonus Stats)", EditorStyles.boldLabel);
                 if (burnExplosionMultiplierBonus != null)
-                    EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Explosion Bonus"));
+                    EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Damage Bonus"));
                 if (chillSlowPerStackBonus != null)
                     EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Slow/Stack Bonus"));
                 if (shockDamageTakenMultiplierBonus != null)
@@ -473,12 +489,24 @@ public class ItemDefinitionEditor : Editor
         }
 
         SerializedProperty toolType = toolStats.FindPropertyRelative("toolType");
+        SerializedProperty toolEquipmentTier = toolStats.FindPropertyRelative("equipmentTier");
         SerializedProperty gatherSpeedMultiplier = toolStats.FindPropertyRelative("gatherSpeedMultiplier");
         SerializedProperty gatheringGrit = toolStats.FindPropertyRelative("gatheringGrit");
         SerializedProperty bonusResourceFindChance = toolStats.FindPropertyRelative("bonusResourceFindChance");
         SerializedProperty staminaEfficiency = toolStats.FindPropertyRelative("staminaEfficiency");
 
         EditorGUILayout.PropertyField(toolType, new GUIContent("Tool Type"));
+        if (toolEquipmentTier != null)
+        {
+            EditorGUILayout.PropertyField(
+                toolEquipmentTier,
+                new GUIContent(
+                    "Equipment Tier",
+                    "Tier 1–3 (display name is on the item). Gated by Woodcutting / Mining / Fishing: L1 / L20 / L40."
+                )
+            );
+        }
+
         EditorGUILayout.PropertyField(gatherSpeedMultiplier, new GUIContent("Gather Speed Multiplier"));
         EditorGUILayout.PropertyField(gatheringGrit, new GUIContent("Gathering Grit"));
         EditorGUILayout.PropertyField(bonusResourceFindChance, new GUIContent("Bonus Resource Find Chance"));
@@ -751,6 +779,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty burnExplosionMultiplierBonus = bonusStats.FindPropertyRelative("burnExplosionMultiplierBonus");
         SerializedProperty chillSlowPerStackBonus = bonusStats.FindPropertyRelative("chillSlowPerStackBonus");
         SerializedProperty shockDamageTakenMultiplierBonus = bonusStats.FindPropertyRelative("shockDamageTakenMultiplierBonus");
+        SerializedProperty bonusBurnChance = bonusStats.FindPropertyRelative("burnChance");
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Vitals", EditorStyles.boldLabel);
@@ -796,7 +825,9 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(poisonMultiplier);
         EditorGUILayout.PropertyField(poisonDurationBonus);
         EditorGUILayout.PropertyField(poisonMaxStacksBonus);
-        EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Explosion Bonus"));
+        if (bonusBurnChance != null)
+            EditorGUILayout.PropertyField(bonusBurnChance, new GUIContent("Burn Chance (bonus)"));
+        EditorGUILayout.PropertyField(burnExplosionMultiplierBonus, new GUIContent("Burn Damage Bonus"));
         EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Slow/Stack Bonus"));
         EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Amp Bonus"));
 

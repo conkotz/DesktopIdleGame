@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [DisallowMultipleComponent]
 public class AilmentController : MonoBehaviour
@@ -10,8 +11,15 @@ public class AilmentController : MonoBehaviour
     [SerializeField] private bool debugLogs = false;
 
     [Header("Burn")]
-    [Tooltip("If burn never finishes charging, it clears this many seconds after the last fire hit that applied or advanced burn.")]
-    [SerializeField, Min(0.5f)] private float burnFallbackDurationSeconds = 30f;
+    [Tooltip("Seconds of burn DoT before expiring if not refreshed by another fire hit.")]
+    [SerializeField, Min(1)] private int burnDurationTicks = 15;
+    [Tooltip("Each burn tick deals this fraction of the applying fire hit (min 1/tick), before Burn Damage mult.")]
+    [SerializeField, Range(0.01f, 1f)]
+    [FormerlySerializedAs("burnTotalDamageFractionOfHit")]
+    private float burnDamageFractionOfHitPerTick = 0.15f;
+    [Tooltip("Combust burst = current tick damage × this count (10s worth at 1 tick/s).")]
+    [SerializeField, Min(1)] private int burnCombustTicksWorth = 10;
+    private const int BurnMaxStacks = 3;
 
     private CharacterStats characterStats;
     private EnemyBaseController enemy;
@@ -21,18 +29,16 @@ public class AilmentController : MonoBehaviour
     private Coroutine poisonRoutine;
     private Coroutine chillRoutine;
     private Coroutine shockRoutine;
-    private Coroutine burnRoutine;
 
     private readonly List<int> bleedTickSchedule = new();
     private readonly List<PoisonStack> poisonStacks = new();
     private readonly List<float> chillExpireTimes = new();
     private float chillSlowPerStack = 0.15f;
-    private bool burnActive;
-    private int burnRemainingFireHits;
-    private int burnAdditionalHitsRequired = 4;
-    private float burnAccumulatedDamage;
-    private int burnHitsToExplode = 4;
-    private float burnExpireTime = -1f;
+    private int burnStackCount;
+    private int burnDamagePerTick;
+    private int burnTicksRemaining;
+    private Transform burnDotSource;
+    private Coroutine burnTickRoutine;
     private float shockExpireTime = -1f;
     private float shockDamageTakenMultiplier = 0f;
 
@@ -44,13 +50,11 @@ public class AilmentController : MonoBehaviour
     public int BleedStacks => HasBleed ? 1 : 0;
     public int PoisonStacks => poisonStacks.Count;
 
-    public bool HasBurn => burnActive;
+    public bool HasBurn => burnStackCount > 0;
     public bool HasChill => chillExpireTimes.Count > 0 || chillRoutine != null;
     public bool HasShock => shockDamageTakenMultiplier > 0f && Time.time < shockExpireTime;
-    // Burn is a "charged" debuff: once applied, it needs N additional FIRE hits to explode.
-    // Stacks shown are progress toward the explosion (0..N).
-    public int BurnStacks => burnActive ? Mathf.Clamp(burnAdditionalHitsRequired - burnRemainingFireHits, 0, burnAdditionalHitsRequired) : 0;
-    public int BurnHitsToExplode => Mathf.Max(1, burnAdditionalHitsRequired);
+    public int BurnStacks => burnStackCount;
+    public int BurnHitsToExplode => BurnMaxStacks;
     public int ChillStacks => chillExpireTimes.Count;
     public float ChillSlowPercent => Mathf.Clamp01(GetChillSlowMultiplier()) * 100f;
 
@@ -93,23 +97,22 @@ public class AilmentController : MonoBehaviour
         if (poisonRoutine != null) StopCoroutine(poisonRoutine);
         if (chillRoutine != null) StopCoroutine(chillRoutine);
         if (shockRoutine != null) StopCoroutine(shockRoutine);
-        if (burnRoutine != null) StopCoroutine(burnRoutine);
+        if (burnTickRoutine != null) StopCoroutine(burnTickRoutine);
 
         bleedRoutine = null;
         poisonRoutine = null;
         chillRoutine = null;
         shockRoutine = null;
-        burnRoutine = null;
+        burnTickRoutine = null;
 
         bleedTickSchedule.Clear();
         poisonStacks.Clear();
         chillExpireTimes.Clear();
-        burnActive = false;
-        burnRemainingFireHits = 0;
-        burnAdditionalHitsRequired = 4;
-        burnAccumulatedDamage = 0f;
-        burnHitsToExplode = 4;
-        burnExpireTime = -1f;
+        burnStackCount = 0;
+        burnDamagePerTick = 0;
+        burnTicksRemaining = 0;
+        burnTickRoutine = null;
+        burnDotSource = null;
         shockExpireTime = -1f;
         shockDamageTakenMultiplier = 0f;
 
@@ -346,49 +349,68 @@ public class AilmentController : MonoBehaviour
 
     public void ApplyBurnFromHit(BurnPayload payload)
     {
-        if (IsDead()) return;
-        if (payload.sourceDamage <= 0f) return;
-
-        // Legacy entry point (older logic). Treat as "start burn" using the payload config.
-        StartBurn(payload.sourceDamage, payload.hitsToExplode, payload.explosionMultiplier);
-        OnAilmentsChanged?.Invoke();
+        TryApplyBurnFromFireHit(
+            payload.sourceDamage,
+            1f,
+            payload.burnDamageMultiplier,
+            payload.source);
     }
 
-    public void StartBurnFromFireHit(float fireHitDamage, int additionalFireHitsToExplode, float explosionMultiplier)
+    /// <summary>
+    /// Fire hits: refresh 15s timer while burning. Successful rolls add a stack (max 3); tick damage uses the strongest hit (bleed-style).
+    /// At 3 stacks, combust for tick damage × 10, then clear.
+    /// </summary>
+    public bool TryApplyBurnFromFireHit(
+        float fireDamageDealt,
+        float applyChance,
+        float burnDamageMultiplier,
+        Transform source)
     {
-        if (IsDead()) return;
-        if (fireHitDamage <= 0f) return;
-        StartBurn(fireHitDamage, additionalFireHitsToExplode, explosionMultiplier);
-        OnAilmentsChanged?.Invoke();
-    }
+        if (IsDead()) return false;
+        if (fireDamageDealt <= 0f) return false;
 
-    public void ApplyBurnFollowUpFireHit(float fireHitDamage, float explosionMultiplier, Transform source)
-    {
-        if (IsDead()) return;
-        if (!burnActive) return;
-        if (fireHitDamage <= 0f) return;
+        burnDotSource = source != null ? source : transform;
 
-        burnAccumulatedDamage += fireHitDamage;
-        burnRemainingFireHits = Mathf.Max(0, burnRemainingFireHits - 1);
-
-        if (burnRemainingFireHits > 0)
+        bool hadBurn = burnStackCount > 0;
+        if (hadBurn)
         {
-            burnExpireTime = Time.time + Mathf.Max(0.5f, burnFallbackDurationSeconds);
+            burnTicksRemaining = Mathf.Max(1, burnDurationTicks);
             OnAilmentsChanged?.Invoke();
-            return;
         }
 
-        ExplodeBurn(explosionMultiplier, source);
+        if (UnityEngine.Random.value > Mathf.Clamp01(applyChance))
+            return false;
+
+        float mult = Mathf.Max(0f, burnDamageMultiplier);
+        float fraction = Mathf.Clamp01(burnDamageFractionOfHitPerTick);
+        int candidateTick = Mathf.Max(1, Mathf.CeilToInt(fireDamageDealt * fraction * mult));
+        burnDamagePerTick = Mathf.Max(burnDamagePerTick, candidateTick);
+        burnStackCount = Mathf.Min(BurnMaxStacks, burnStackCount + 1);
+        burnTicksRemaining = Mathf.Max(1, burnDurationTicks);
+
+        if (burnTickRoutine == null)
+            burnTickRoutine = StartCoroutine(BurnTickRoutine());
+
+        OnAilmentsChanged?.Invoke();
+
+        if (burnStackCount >= BurnMaxStacks)
+            CombustBurn();
+
+        return true;
     }
 
     public bool ClearBurn()
     {
-        StopBurnExpiryRoutineOnly();
+        if (burnTickRoutine != null)
+        {
+            StopCoroutine(burnTickRoutine);
+            burnTickRoutine = null;
+        }
 
-        bool had = burnActive;
-        burnActive = false;
-        burnRemainingFireHits = 0;
-        burnAccumulatedDamage = 0f;
+        bool had = burnStackCount > 0;
+        burnStackCount = 0;
+        burnDamagePerTick = 0;
+        burnTicksRemaining = 0;
 
         if (had)
             OnAilmentsChanged?.Invoke();
@@ -396,65 +418,52 @@ public class AilmentController : MonoBehaviour
         return had;
     }
 
-    private void StopBurnExpiryRoutineOnly()
+    private void CombustBurn()
     {
-        if (burnRoutine != null)
+        if (burnStackCount <= 0 && burnDamagePerTick <= 0)
+            return;
+
+        int ticksWorth = Mathf.Max(1, burnCombustTicksWorth);
+        int combustDamage = Mathf.Max(1, burnDamagePerTick * ticksWorth);
+
+        burnStackCount = 0;
+        burnDamagePerTick = 0;
+        burnTicksRemaining = 0;
+
+        if (burnTickRoutine != null)
         {
-            StopCoroutine(burnRoutine);
-            burnRoutine = null;
+            StopCoroutine(burnTickRoutine);
+            burnTickRoutine = null;
         }
 
-        burnExpireTime = -1f;
+        ApplyDotDamage(combustDamage, FloatingDamageTextUI.PopupDamageKind.Magical, burnDotSource);
+        OnAilmentsChanged?.Invoke();
     }
 
-    private void RefreshBurnExpiry()
+    private IEnumerator BurnTickRoutine()
     {
-        burnExpireTime = Time.time + Mathf.Max(0.5f, burnFallbackDurationSeconds);
-        if (burnRoutine == null)
-            burnRoutine = StartCoroutine(BurnExpiryRoutine());
-    }
+        var wait = new WaitForSeconds(1f);
 
-    private IEnumerator BurnExpiryRoutine()
-    {
-        var wait = new WaitForSeconds(0.25f);
-
-        while (!IsDead() && burnActive)
+        while (!IsDead())
         {
             yield return wait;
-            if (!burnActive)
-                yield break;
 
-            if (Time.time >= burnExpireTime)
+            if (burnStackCount <= 0 || burnTicksRemaining <= 0)
             {
-                ClearBurn();
-                yield break;
+                burnStackCount = 0;
+                burnDamagePerTick = 0;
+                burnTicksRemaining = 0;
+                break;
             }
+
+            burnTicksRemaining--;
+            if (burnDamagePerTick > 0)
+                ApplyDotDamage(burnDamagePerTick, FloatingDamageTextUI.PopupDamageKind.Magical, burnDotSource);
+
+            OnAilmentsChanged?.Invoke();
         }
 
-        burnRoutine = null;
-    }
-
-    private void StartBurn(float firstFireHitDamage, int additionalFireHitsToExplode, float explosionMultiplier)
-    {
-        burnActive = true;
-        burnAdditionalHitsRequired = Mathf.Max(1, additionalFireHitsToExplode);
-        burnRemainingFireHits = burnAdditionalHitsRequired;
-        burnAccumulatedDamage = firstFireHitDamage;
-        burnHitsToExplode = burnAdditionalHitsRequired;
-        RefreshBurnExpiry();
-    }
-
-    private void ExplodeBurn(float explosionMultiplier, Transform source)
-    {
-        int explosionDamage = Mathf.Max(1, Mathf.RoundToInt(burnAccumulatedDamage * Mathf.Max(0f, explosionMultiplier)));
-
-        StopBurnExpiryRoutineOnly();
-
-        burnActive = false;
-        burnRemainingFireHits = 0;
-        burnAccumulatedDamage = 0f;
-
-        ApplyDotDamage(explosionDamage, FloatingDamageTextUI.PopupDamageKind.Magical, source);
+        burnTickRoutine = null;
         OnAilmentsChanged?.Invoke();
     }
 

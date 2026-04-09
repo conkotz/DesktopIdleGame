@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
-  m_Name: MapNode_pine_grove
+  m_Name: MapNode_green_grove
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
-  nodeId: pine_grove
-  displayName: Pine Grove
+  nodeId: green_grove
+  displayName: Green Grove
   description: Basic resources
   nodeType: 1
   enemyAggroMode: 0
@@ -28,7 +28,7 @@ MonoBehaviour:
   combatSkillGateMode: 0
   combatSingleSkill: 0
   combatRequiredLevel: 1
-  unlockRequirementNotes: Reccomended to have tools (axe)
+  unlockRequirementNotes: Reccomended to have tools (axe, pickaxe)
   connectedNodeIds: []
   nextNodeIds:
   - 

@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: ghorrocks_mace
+  m_Name: ability_power_pendant
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 1
+  itemKind: 4
   maxStack: 1
-  itemId: ghorrocks_mace
-  displayName: Ghorrocks mace
-  icon: {fileID: 21300168, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
+  itemId: ability_power_pendant
+  displayName: Pendant of Enhanced Ability
+  icon: {fileID: -7650717663049643274, guid: 81a21ba160b98c74c9b3f31ebc80a22f, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -24,23 +24,23 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A Legendary mace from lord Ghorrock
-  rarity: 4
-  value: 5000
-  equipSlot: 1
-  handVisualKey: 1
+  description: Grants increased Ability Power to increase damage dealt by abilites
+  rarity: 2
+  value: 800
+  equipSlot: 7
+  handVisualKey: 0
   weaponStats:
-    minPhysicalDamage: 200
-    maxPhysicalDamage: 200
+    minPhysicalDamage: 0
+    maxPhysicalDamage: 0
     minMagicDamage: 0
     maxMagicDamage: 0
-    minTrueDamage: 2
-    maxTrueDamage: 4
-    attacksPerSecond: 0.6
-    critChance: 0.1
-    critMultiplier: 1.5
+    minTrueDamage: 0
+    maxTrueDamage: 0
+    attacksPerSecond: 0
+    critChance: 0
+    critMultiplier: 0
     handedness: 0
-    attackRange: 2
+    attackRange: 0
     attackSkill: 0
     magicAttackType: 0
     manaCostPerAttack: 0
@@ -49,7 +49,7 @@ MonoBehaviour:
     canEquipInOffHand: 0
     requiresOffhandSupport: 0
     requiredSupportType: 0
-    equipmentTier: 2
+    equipmentTier: 0
   combatSupportStats:
     supportType: 0
     bonusPhysicalDamage: 0
@@ -90,7 +90,7 @@ MonoBehaviour:
     magicDamage: 0
     magicDamagePercent: 0
     trueDamage: 0
-    abilityPower: 0
+    abilityPower: 10
     attackSpeedPercent: 0
     critChanceBonus: 0
     critMultiplierBonus: 0

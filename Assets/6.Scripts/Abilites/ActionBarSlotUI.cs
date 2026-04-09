@@ -513,19 +513,23 @@ public class ActionBarSlotUI : MonoBehaviour,
             {
                 int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
                 if (selected == 0)
-                    choiceLine = "\n<color=#33CC66>Active Choice: Twin Cyclone (Second hit at 50%)</color>";
+                    choiceLine = "\n<color=#33CC66>Active Choice: Twin Cyclone (Second hit at 20%)</color>";
                 else if (selected == 1)
                     choiceLine = "\n<color=#33CC66>Active Choice: Expansive Whirl (+3 radius)</color>";
             }
         }
 
         float physPct = physMult * 100f;
-        float apPct = Mathf.Max(0f, def.abilityPowerMultiplier) * 100f;
+        float apMult = Mathf.Max(0f, def.abilityPowerMultiplier);
+        float apPct = apMult * 100f;
+        CharacterStats previewStats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
+        string physPreview = AbilityTooltipDamagePreview.FormatPhysSuffix(previewStats, physMult);
+        string apPreview = AbilityTooltipDamagePreview.FormatAbilityPowerSuffix(previewStats, apMult);
 
         return
             $"{desc}\n\n" +
-            $"<color=#FFB347>Physical Multiplier: {physPct:0.#}%</color>\n" +
-            $"<color=#FFB347>Ability Power Multiplier: {apPct:0.#}%</color>\n" +
+            $"<color=#FFB347>Physical Multiplier: {physPct:0.#}%{physPreview}</color>\n" +
+            $"<color=#FFB347>Ability Power Multiplier: {apPct:0.#}%{apPreview}</color>\n" +
             $"<color=#FFB347>Source Skill: {def.sourceSkill}</color>\n" +
             $"<color=#FFB347>Energy Cost: {def.energyCost:0.#}</color>\n" +
             $"<color=#FFB347>Cooldown: {cooldown:0.#}s</color>" +

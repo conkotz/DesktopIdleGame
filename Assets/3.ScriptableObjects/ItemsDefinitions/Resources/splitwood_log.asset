@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: wood_log
+  m_Name: splitwood_log
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 0
   maxStack: 999
-  itemId: wood_log
-  displayName: Logs
+  itemId: splitwood_log
+  displayName: Splitwood Logs
   icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
@@ -24,7 +24,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A wooden log
+  description: A splitwood log
   rarity: 0
   value: 8
   equipSlot: 0
@@ -42,9 +42,14 @@ MonoBehaviour:
     handedness: 0
     attackRange: 0
     attackSkill: 0
+    magicAttackType: 0
+    manaCostPerAttack: 0
+    magicAilmentApplyChance: 0
+    burnChance: 0
     canEquipInOffHand: 0
     requiresOffhandSupport: 0
     requiredSupportType: 0
+    equipmentTier: 0
   combatSupportStats:
     supportType: 0
     bonusPhysicalDamage: 0
@@ -57,8 +62,11 @@ MonoBehaviour:
     consumeAmountPerAttack: 0
   toolStats:
     toolType: 0
-    gatherPower: 0
+    equipmentTier: 0
     gatherSpeedMultiplier: 0
+    gatheringGrit: 0
+    bonusResourceFindChance: 0
+    staminaEfficiency: 0
   armorStats:
     armor: 0
     magicResist: 0
@@ -68,15 +76,19 @@ MonoBehaviour:
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
+    bonusMana: 0
     armor: 0
     magicResist: 0
     physBlockChance: 0
     lifeRegen: 0
     energyRegen: 0
+    manaRegen: 0
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
+    physicalDamagePercent: 0
     magicDamage: 0
+    magicDamagePercent: 0
     trueDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
@@ -89,6 +101,12 @@ MonoBehaviour:
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
+    burnExplosionMultiplierBonus: 0
+    burnChance: 0
+    chillSlowPerStackBonus: 0
+    shockDamageTakenMultiplierBonus: 0
+  miscEffects:
+    enemyRespawnTimeReductionSeconds: 0
   consumableStats:
     consumableType: 0
     healAmount: 0

@@ -10,25 +10,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: wood_bow
+  m_Name: splitwood_arrow
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 1
-  maxStack: 1
-  itemId: wood_bow
-  displayName: Wood Bow
-  icon: {fileID: 21300226, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
-  heldSprite: {fileID: 21300226, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
-  equippedSprite: {fileID: 21300226, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
-  useCustomEquippedPose: 1
-  equippedLocalOffset: {x: 0, y: -0.7}
-  equippedLocalRotationZ: 80
+  itemKind: 7
+  maxStack: 99999
+  itemId: splitwood_arrow
+  displayName: Splitwood Arrows
+  icon: {fileID: 21300128, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
+  heldSprite: {fileID: 0}
+  equippedSprite: {fileID: 0}
+  useCustomEquippedPose: 0
+  equippedLocalOffset: {x: 0, y: 0}
+  equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic 1h sword made from stone
-  rarity: 1
-  value: 150
-  equipSlot: 1
-  handVisualKey: 1
+  description: A basic wooden arrow
+  rarity: 0
+  value: 6
+  equipSlot: 2
+  handVisualKey: 0
   weaponStats:
     minPhysicalDamage: 25
     maxPhysicalDamage: 30
@@ -40,25 +40,33 @@ MonoBehaviour:
     critChance: 0.05
     critMultiplier: 1.5
     handedness: 1
-    attackRange: 18
+    attackRange: 8
     attackSkill: 1
+    magicAttackType: 0
+    manaCostPerAttack: 0
+    magicAilmentApplyChance: 0
+    burnChance: 0
     canEquipInOffHand: 0
-    requiresOffhandSupport: 1
-    requiredSupportType: 1
+    requiresOffhandSupport: 0
+    requiredSupportType: 0
+    equipmentTier: 0
   combatSupportStats:
-    supportType: 0
-    bonusPhysicalDamage: 0
+    supportType: 1
+    bonusPhysicalDamage: 2
     bonusMagicDamage: 0
     bonusTrueDamage: 0
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackSpeedPercent: 0
-    consumableOnAttack: 0
-    consumeAmountPerAttack: 0
+    consumableOnAttack: 1
+    consumeAmountPerAttack: 1
   toolStats:
     toolType: 0
-    gatherPower: 0
+    equipmentTier: 0
     gatherSpeedMultiplier: 0
+    gatheringGrit: 0
+    bonusResourceFindChance: 0
+    staminaEfficiency: 0
   armorStats:
     armor: 0
     magicResist: 0
@@ -68,15 +76,19 @@ MonoBehaviour:
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
+    bonusMana: 0
     armor: 0
     magicResist: 0
     physBlockChance: 0
     lifeRegen: 0
     energyRegen: 0
+    manaRegen: 0
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
+    physicalDamagePercent: 0
     magicDamage: 0
+    magicDamagePercent: 0
     trueDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
@@ -89,6 +101,12 @@ MonoBehaviour:
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
+    burnExplosionMultiplierBonus: 0
+    burnChance: 0
+    chillSlowPerStackBonus: 0
+    shockDamageTakenMultiplierBonus: 0
+  miscEffects:
+    enemyRespawnTimeReductionSeconds: 0
   consumableStats:
     consumableType: 0
     healAmount: 0

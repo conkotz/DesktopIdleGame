@@ -324,6 +324,12 @@ public class InventorySlotUI : MonoBehaviour,
                 if (toolbelt == null) return;
                 if (toolbelt.Contains(slot.itemId)) return; // no duplicates
 
+                if (def.UsesEquipmentTierGating && !def.MeetsEquipmentTierRequirement(SkillsManager.Instance))
+                {
+                    ShowEquipFailPopup(def, EquipSlot.MainHand);
+                    return;
+                }
+
                 // must have empty tool slot or do nothing
                 // remove one item first, then add; if fails, put back
                 if (_inventory.RemoveAmountAtSlot(_slotIndex, 1) != 1) return;
@@ -367,7 +373,10 @@ public class InventorySlotUI : MonoBehaviour,
         def.weaponStats.canEquipInOffHand))
         {
             if (!equipment.CanEquip(slot.itemId, EquipSlot.OffHand))
+            {
+                ShowEquipFailPopup(def, EquipSlot.OffHand);
                 return;
+            }
 
             // Same support item already equipped -> add to stack
             if (def.IsCombatSupport &&
@@ -790,6 +799,16 @@ public class InventorySlotUI : MonoBehaviour,
     private void ShowEquipFailPopup(ItemDefinition def, EquipSlot slot)
     {
         if (def == null || player == null) return;
+
+        if (def.UsesEquipmentTierGating && !def.MeetsEquipmentTierRequirement(SkillsManager.Instance))
+        {
+            player.SendMessage(
+                "ShowPopup",
+                def.BuildEquipmentTierBlockedMessage(),
+                SendMessageOptions.DontRequireReceiver
+            );
+            return;
+        }
 
         if (slot == EquipSlot.MainHand && def.IsWeapon && def.RequiresOffhandSupport)
         {

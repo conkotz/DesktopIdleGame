@@ -138,6 +138,10 @@ public class ToolbeltManager : MonoBehaviour, ISaveable
         if (!IsValidToolKey(newKey))
             return false;
 
+        var def = GetDef(itemId);
+        if (def && def.UsesEquipmentTierGating && !def.MeetsEquipmentTierRequirement(SkillsManager.Instance))
+            return false;
+
         // First: replace same tool type (e.g. Axe replaces Axe)
         int sameTypeSlot = FindSameToolTypeSlot(itemId);
         if (sameTypeSlot >= 0)

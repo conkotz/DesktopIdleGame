@@ -123,11 +123,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [Header("Base Elemental Ailments")]
     [SerializeField] private MagicAttackType baseMagicAttackType = MagicAttackType.Lightning;
     [SerializeField, Range(0f, 1f)] private float baseMagicAilmentApplyChance = 0f;
+    [SerializeField, Range(0f, 1f), Tooltip("Additive burn stack chance on fire hits (player). Weapon fire weapons add their own chance.")]
+    private float baseBurnChance = 0f;
     [SerializeField] private float baseChillDuration = 5f;
     [SerializeField] private int baseChillMaxStacks = 6;
     [SerializeField, Range(0f, 1f)] private float baseChillSlowPerStack = 0.15f;
-    [SerializeField] private int baseBurnHitsToExplode = 4;
-    [SerializeField] private float baseBurnExplosionMultiplier = 0.5f;
+    [Tooltip("Legacy tuning; burn combusts at 3 stacks (clamped).")]
+    [SerializeField] private int baseBurnHitsToExplode = 3;
+    [Tooltip("Multiplies burn tick damage (15% of strongest fire hit per tick, min 1).")]
+    [SerializeField] private float baseBurnExplosionMultiplier = 1f;
     [SerializeField] private float baseShockDuration = 5f;
     [SerializeField, Range(0f, 1f)] private float baseShockDamageTakenMultiplier = 0.15f;
 
@@ -369,10 +373,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public MagicAttackType CurrentMagicAttackType => GetCurrentMagicAttackType();
     public float MagicAilmentApplyChance => Mathf.Clamp01(baseMagicAilmentApplyChance + GetEquippedMagicAilmentApplyChance());
+
+    /// <summary>True when the current attack profile should run burn logic on fire hits (weapon fire type or active magic element Fire).</summary>
+    public bool CurrentAttackAppliesAsFireForBurn => GetCurrentAttackAppliesAsFireForBurn();
+
+    /// <summary>
+    /// Chance to add a burn stack on fire damage hits. Enemies use <see cref="MagicAilmentApplyChance"/> (burnChance on Fire type).
+    /// </summary>
+    public float BurnApplyChance => GetBurnApplyChance();
     public float ChillDuration => Mathf.Max(0.1f, baseChillDuration);
     public int ChillMaxStacks => Mathf.Max(1, baseChillMaxStacks);
     public float ChillSlowPerStack => Mathf.Clamp01(baseChillSlowPerStack + GetEquippedChillSlowPerStackBonus());
-    public int BurnHitsToExplode => Mathf.Max(2, baseBurnHitsToExplode);
+    /// <summary>Stacks before combust (fixed at 3 at runtime).</summary>
+    public int BurnHitsToExplode => Mathf.Clamp(Mathf.Max(2, baseBurnHitsToExplode), 2, 3);
+    /// <summary>Multiplies burn tick damage (15% of strongest fire hit per tick, min 1).</summary>
     public float BurnExplosionMultiplier => Mathf.Max(0f, baseBurnExplosionMultiplier + GetEquippedBurnExplosionMultiplierBonus());
     public float ShockDuration => Mathf.Max(0.1f, baseShockDuration);
     public float ShockDamageTakenMultiplier => Mathf.Clamp01(baseShockDamageTakenMultiplier + GetEquippedShockDamageTakenMultiplierBonus());
@@ -565,37 +579,24 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private float GetExpectedBurnDps()
     {
-        if (CurrentAttackSkill != AttackSkill.Magic)
+        if (!CurrentAttackAppliesAsFireForBurn)
             return 0f;
-        if (CurrentMagicAttackType != MagicAttackType.Fire)
-            return 0f;
-        float p = Mathf.Clamp01(MagicAilmentApplyChance);
-        if (p <= 0f)
-            return 0f;
-        if (AttacksPerSecond <= 0f)
-            return 0f;
-        if (ExpectedMagicalHit <= 0f)
+        float p = Mathf.Clamp01(BurnApplyChance);
+        if (p <= 0f || AttacksPerSecond <= 0f)
             return 0f;
 
-        // Burn model (current implementation):
-        // - burn has a START chance (p) on a Fire hit
-        // - once started, it consumes the next N Fire hits (no further chance rolls)
-        // - explosion damage = explosionMultiplier * accumulatedDamage
-        // - accumulatedDamage includes the start hit + the N follow-up fire hits
-        //
-        // Expected hits per explosion cycle:
-        // - expected hits until start = 1/p
-        // - plus N follow-up hits to detonate
-        //
-        // Expected explosion damage: (N + 1) * ExpectedMagicalHit * explosionMultiplier
-        // Expected time per hit: 1 / APS
-        // ExpectedBurnDPS =
-        //   explosionDamage / ((1/p + N) / APS)
-        // = APS * explosionDamage / (N + 1/p)
-        int n = Mathf.Max(1, BurnHitsToExplode);
-        float explosionDamage = (n + 1) * ExpectedMagicalHit * BurnExplosionMultiplier;
-        float expectedHitsPerExplosion = n + (1f / p);
-        return AttacksPerSecond * explosionDamage / Mathf.Max(0.0001f, expectedHitsPerExplosion);
+        float hit = ExpectedPhysicalHit + ExpectedMagicalHit + ExpectedTrueHit;
+        if (hit <= 0f)
+            return 0f;
+
+        const float burnFraction = 0.15f;
+        const int combustStacks = 3;
+        float mult = Mathf.Max(0f, BurnExplosionMultiplier);
+        float tick = Mathf.Max(1f, Mathf.Ceil(hit * burnFraction * mult));
+        float applyPerSec = p * AttacksPerSecond;
+        float dotDps = tick * Mathf.Clamp(applyPerSec * 0.35f, 0f, 1f);
+        float combustDps = (tick * 10f) * (applyPerSec / Mathf.Max(1, combustStacks));
+        return dotDps + combustDps;
     }
 
     // Tools
@@ -966,6 +967,42 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return mh.MagicAilmentApplyChance;
 
         return 0f;
+    }
+
+    private float GetBurnApplyChance()
+    {
+        ResolveOwnerEnemy();
+        if (_ownerEnemy != null)
+            return MagicAilmentApplyChance;
+
+        return Mathf.Clamp01(baseBurnChance + GetEquippedBurnChanceBonus() + GetMainHandWeaponBurnAdditive());
+    }
+
+    private bool GetCurrentAttackAppliesAsFireForBurn()
+    {
+        var mh = GetMainHandWeaponDef();
+        if (mh != null && mh.IsWeapon && mh.weaponStats.magicAttackType == MagicAttackType.Fire)
+            return true;
+
+        return GetCurrentMagicAttackType() == MagicAttackType.Fire;
+    }
+
+    private float GetEquippedBurnChanceBonus()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def == null) continue;
+            total += def.BonusBurnChance;
+        }
+
+        return total;
+    }
+
+    private float GetMainHandWeaponBurnAdditive()
+    {
+        var mh = GetMainHandWeaponDef();
+        return mh != null ? mh.ResolveWeaponBurnApplyChance() : 0f;
     }
 
     private DamageType GetLegacyCurrentDamageType()
@@ -1882,7 +1919,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         baseChillDuration = Mathf.Max(0.1f, def.chillDuration);
         baseChillMaxStacks = Mathf.Max(1, def.chillMaxStacks);
         baseChillSlowPerStack = Mathf.Clamp01(def.chillSlowPerStack);
-        baseBurnHitsToExplode = Mathf.Max(2, def.burnHitsToExplode);
+        baseBurnHitsToExplode = Mathf.Clamp(Mathf.Max(2, def.burnHitsToExplode), 2, 3);
         baseBurnExplosionMultiplier = Mathf.Max(0f, def.burnExplosionMultiplier);
         baseShockDuration = Mathf.Max(0.1f, def.shockDuration);
         baseShockDamageTakenMultiplier = Mathf.Clamp01(def.shockDamageTakenMultiplier);

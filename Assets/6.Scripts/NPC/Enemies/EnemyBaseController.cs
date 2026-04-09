@@ -644,25 +644,18 @@ public class EnemyBaseController : MonoBehaviour
             }
         }
 
-        // Elemental magic ailments (shared CharacterStats tuning for both enemies and player).
-        bool isFireMagicHit =
+        // Fire burn (enemy): any fire damage on the hit; chance from EnemyDefinition burnChance → MagicAilmentApplyChance.
+        bool isFireHit =
             stats.CurrentMagicAttackType == MagicAttackType.Fire &&
-            hit.magical > 0f;
+            hit.Total > 0f;
 
-        if (targetAilments.HasBurn && !isFireMagicHit)
-            targetAilments.ClearBurn();
-
-        if (isFireMagicHit)
+        if (isFireHit)
         {
-            if (targetAilments.HasBurn)
-            {
-                targetAilments.ApplyBurnFollowUpFireHit(hit.magical, stats.BurnExplosionMultiplier, transform);
-                return;
-            }
-
-            if (stats.MagicAilmentApplyChance > 0f && UnityEngine.Random.value <= stats.MagicAilmentApplyChance)
-                targetAilments.StartBurnFromFireHit(hit.magical, stats.BurnHitsToExplode, stats.BurnExplosionMultiplier);
-
+            targetAilments.TryApplyBurnFromFireHit(
+                hit.Total,
+                stats.BurnApplyChance,
+                stats.BurnExplosionMultiplier,
+                transform);
             return;
         }
 

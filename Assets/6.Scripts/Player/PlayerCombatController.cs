@@ -1037,30 +1037,13 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         var ailments = target.GetComponent<AilmentController>();
         if (ailments == null) return;
 
-        bool isFireMagicHit =
-            stats.CurrentAttackSkill == AttackSkill.Magic &&
-            stats.CurrentMagicAttackType == MagicAttackType.Fire &&
-            dealt.magical > 0f;
-
-        // If burn is active and we land any non-fire hit, burn disappears.
-        if (ailments.HasBurn && !isFireMagicHit)
-            ailments.ClearBurn();
-
-        // Fire burn special behavior:
-        // - roll chance only to START burn
-        // - once burn is active, next N fire hits charge it (no chance), then explode
-        if (isFireMagicHit)
+        if (stats.CurrentAttackAppliesAsFireForBurn && dealt.Total > 0f)
         {
-            if (ailments.HasBurn)
-            {
-                ailments.ApplyBurnFollowUpFireHit(dealt.magical, stats.BurnExplosionMultiplier, transform);
-                return;
-            }
-
-            float startChance = stats.MagicAilmentApplyChance;
-            if (startChance > 0f && Random.value <= startChance)
-                ailments.StartBurnFromFireHit(dealt.magical, stats.BurnHitsToExplode, stats.BurnExplosionMultiplier);
-
+            ailments.TryApplyBurnFromFireHit(
+                dealt.Total,
+                stats.BurnApplyChance,
+                stats.BurnExplosionMultiplier,
+                transform);
             return;
         }
 

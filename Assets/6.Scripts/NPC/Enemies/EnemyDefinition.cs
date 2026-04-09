@@ -162,12 +162,12 @@ public class EnemyDefinition : ScriptableObject
     public float chillSlowPerStack = 0.15f;
 
     [Min(2)]
-    [Tooltip("Maps to CharacterStats baseBurnHitsToExplode.")]
-    public int burnHitsToExplode = 4;
+    [Tooltip("Maps to CharacterStats baseBurnHitsToExplode (clamped to 3 stacks combust in combat).")]
+    public int burnHitsToExplode = 3;
 
     [Min(0f)]
-    [Tooltip("Maps to CharacterStats baseBurnExplosionMultiplier.")]
-    public float burnExplosionMultiplier = 0.5f;
+    [Tooltip("Maps to CharacterStats burn tick damage multiplier (15% of strongest fire hit per tick, min 1).")]
+    public float burnExplosionMultiplier = 1f;
 
     [Min(0.1f)]
     [Tooltip("Maps to CharacterStats baseShockDuration.")]

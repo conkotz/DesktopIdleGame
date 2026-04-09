@@ -33,4 +33,4 @@ MonoBehaviour:
   requiresTool: 1
   requiredTool: 2
   missingToolMessage: No pickaxe found in toolbelt
-  energyCostPerSwing: 50
+  energyCostPerSwing: 30

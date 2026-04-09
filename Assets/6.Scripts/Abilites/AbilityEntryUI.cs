@@ -85,7 +85,7 @@ public class AbilityEntryUI : MonoBehaviour,
     {
         if (_tooltip == null || _def == null) return;
 
-        string body = BuildLeagueStyleTooltip(_def, SkillsManager.Instance);
+        string body = BuildLeagueStyleTooltip(_def, SkillsManager.Instance, AbilityTooltipDamagePreview.FindLocalPlayerStats());
         RectTransform measure = _tooltipBoundsRect ? _tooltipBoundsRect : transform.root as RectTransform;
         Transform anchor = icon != null ? icon.transform : transform;
         _tooltip.ShowTextAt(
@@ -174,7 +174,7 @@ public class AbilityEntryUI : MonoBehaviour,
         _dragIconImage = null;
     }
 
-    private static string BuildLeagueStyleTooltip(AbilityDefinition def, SkillsManager skillsManager)
+    private static string BuildLeagueStyleTooltip(AbilityDefinition def, SkillsManager skillsManager, CharacterStats stats)
     {
         if (!def) return "";
 
@@ -202,7 +202,7 @@ public class AbilityEntryUI : MonoBehaviour,
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
             if (selected == 0)
             {
-                choiceLine = "\nActive Choice: <color=#33CC66>Twin Cyclone (Second hit at 50%)</color>";
+                choiceLine = "\nActive Choice: <color=#33CC66>Twin Cyclone (Second hit at 20%)</color>";
             }
             else if (selected == 1)
             {
@@ -211,12 +211,15 @@ public class AbilityEntryUI : MonoBehaviour,
         }
 
         float physPct = physMult * 100f;
-        float apPct = Mathf.Max(0f, def.abilityPowerMultiplier) * 100f;
+        float apMult = Mathf.Max(0f, def.abilityPowerMultiplier);
+        float apPct = apMult * 100f;
+        string physPreview = AbilityTooltipDamagePreview.FormatPhysSuffix(stats, physMult);
+        string apPreview = AbilityTooltipDamagePreview.FormatAbilityPowerSuffix(stats, apMult);
 
         return
             $"{desc}\n\n" +
-            $"Physical Multiplier: {physPct:0.#}%\n" +
-            $"Ability Power Multiplier: {apPct:0.#}%\n" +
+            $"Physical Multiplier: {physPct:0.#}%{physPreview}\n" +
+            $"Ability Power Multiplier: {apPct:0.#}%{apPreview}\n" +
             $"Source Skill: {def.sourceSkill}\n" +
             $"Energy Cost: {def.energyCost:0.#}\n" +
             $"Cooldown: {cooldown:0.#}s" +

@@ -47,7 +47,7 @@ GameObject:
   - component: {fileID: 4127917735906593618}
   - component: {fileID: 1078493593605119097}
   m_Layer: 7
-  m_Name: Arcanist
+  m_Name: Fletcher
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -248,8 +248,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9777a4e128bf6544598bb32177523c1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Merchant
-  merchantName: Aracnist
-  stock: {fileID: 11400000, guid: 7373a91b5e0fa234b80a76b95aa5c463, type: 2}
+  merchantName: Fletcher
+  stock: {fileID: 11400000, guid: 3657835b215667045aebf7b5670051a9, type: 2}
   ctrlClickSellsAll: 0
   onlyBuysStockedItems: 1
   cannotBuyItemPopupText: Cannot sell that item to {merchant}.
@@ -454,7 +454,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Arcanist
+  m_text: Fletcher
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

@@ -60,6 +60,10 @@ MonoBehaviour:
       count: 1
     - spawnPointGroupId: 
       enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: 894d2a0476be8f64b94cf767bead3ee5, type: 3}
+      count: 1
+    - spawnPointGroupId: 
+      enemyDefinition: {fileID: 0}
       prefab: {fileID: 6284140584376777183, guid: 3c57c2ed11c6eca46913488254667548, type: 3}
       count: 1
     shuffleSpawnPoints: 0

@@ -54,7 +54,7 @@ public class PlayerAbilityController : MonoBehaviour
     private const int WhirlingBladeChoiceSourceLevel = 15;
     private const float WhirlingBladeBaseRadius = 2.5f;
     private const float WhirlingBladeDamageMultiplier = 1.2f;
-    private const float WhirlingBladeSecondHitMultiplier = 0.2f;
+    private static readonly float WhirlingBladeSecondHitMultiplier = AbilityCombatPower.WhirlingBladeTwinCycloneSecondHitFraction;
     private const float WhirlingBladeTwinCycloneSecondHitDelay = 0.5f;
     private const float WhirlingBladeRadiusBonus = 3f;
     private bool _powerSlashQueued;
@@ -234,6 +234,31 @@ public class PlayerAbilityController : MonoBehaviour
         public float Total => physical + magical + trueDamage;
     }
 
+    /// <summary>Matches instant-cast ability damage: averages × ability mults, AP on physical, element + ailment hooks on magical.</summary>
+    private void BuildWhirlingBladeAbilityScaledSplit(AbilityDefinition def, out SplitDamage nonCritBase, out bool wasCrit)
+    {
+        float basePhysical =
+            (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
+        float baseMagical =
+            (Mathf.Max(0f, stats.MinSplitDamage.magical) + Mathf.Max(0f, stats.MaxSplitDamage.magical)) * 0.5f;
+
+        float scaledPhysical = basePhysical * Mathf.Max(0f, def.physicalDamageMultiplier);
+        float scaledMagical = baseMagical * Mathf.Max(0f, def.magicalDamageMultiplier);
+        float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+        float apBonus = Mathf.Max(0f, stats.AbilityPower * Mathf.Max(0f, def.abilityPowerMultiplier));
+        float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
+
+        float physPart = scaledPhysical + apBonus;
+        float magPart = scaledMagical + elementBonus + ailmentBonus;
+
+        nonCritBase = new SplitDamage(physPart, magPart, 0f);
+
+        wasCrit = false;
+        float raw = physPart + magPart;
+        if (raw > 0f && UnityEngine.Random.value < Mathf.Clamp01(stats.CritChance))
+            wasCrit = true;
+    }
+
     private bool TryUseWhirlingBlade(AbilityDefinition def)
     {
         if (stats == null)
@@ -267,17 +292,13 @@ public class PlayerAbilityController : MonoBehaviour
         if (targets.Count <= 0)
             return true; // ability cast still consumes resources/cooldown.
 
-        SplitDamage rolled = stats.RollSplitAttackDamage(out bool wasCrit);
-        SplitDamage rolledNonCrit = rolled;
-        if (wasCrit)
-        {
-            float critMult = Mathf.Max(1f, stats.CritMultiplier);
-            if (critMult > 1f)
-            {
-                rolledNonCrit.physical /= critMult;
-                rolledNonCrit.magical /= critMult;
-            }
-        }
+        BuildWhirlingBladeAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
+
+        float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+        SplitDamage rolled = new SplitDamage(
+            rolledNonCrit.physical * critMult,
+            rolledNonCrit.magical * critMult,
+            rolledNonCrit.trueDamage * critMult);
 
         SplitDamage firstHit = rolled * WhirlingBladeDamageMultiplier;
         SplitDamage secondHitBase = rolledNonCrit * WhirlingBladeDamageMultiplier * WhirlingBladeSecondHitMultiplier;

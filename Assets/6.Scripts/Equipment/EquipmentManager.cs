@@ -900,6 +900,9 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             if (def.itemKind != ItemKind.Weapon)
                 return false;
 
+            if (def.UsesEquipmentTierGating && !def.MeetsEquipmentTierRequirement(SkillsManager.Instance))
+                return false;
+
             return true;
         }
 
@@ -912,6 +915,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
                 def.weaponStats.handedness == Handedness.OneHanded &&
                 def.weaponStats.canEquipInOffHand)
             {
+                if (def.UsesEquipmentTierGating && !def.MeetsEquipmentTierRequirement(SkillsManager.Instance))
+                    return false;
                 return CanOffHandUseCurrentMainHand(itemId, MainHandItemId);
             }
 

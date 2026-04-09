@@ -5461,11 +5461,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
   tooltipTitle: Burn
-  tooltipText: "Builds up heat from repeated fire hits, then detonates.\r\n\r\nChance:
-    chance to apply Burn on hit  \r\nTrigger: activates on the 4th fire damage hit
-    after a successful Burn application \r\nExplosion: deals x% of accumulated damage
-    as a bonus hit  \r\n\r\nBurn stores damage invisibly and releases it in a powerful
-    burst. Only fire damage causes heat build up."
+  tooltipText: "Applies damage over time from fire attacks (physical, magic, or true
+    on the hit, when your weapon or element is Fire).\n\nChance: chance to add a burn
+    stack on hit  \nMultiplier: scales tick damage (15% of your strongest fire hit per
+    tick, minimum 1)  \nDuration: burn expires after 15s without a fire hit; any fire
+    hit refreshes this timer  \n\nStacks (max 3) do not increase tick damage—they only
+    build toward combust. At 3 stacks, combust deals 10× current tick damage as magical
+    damage,\n\nthen clears. Weaker hits never reduce tick damage."
   tooltipPanel: {fileID: 1265542261}
   tooltipAnchor: {fileID: 1369682479}
   tooltipMeasureRect: {fileID: 1751072472}
@@ -12703,7 +12705,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6c0eb409165c924f9a7b2ddb5525efe, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
-  tooltipTitle: Beed
+  tooltipTitle: Bleed
   tooltipText: "Applies a damage over time effect from physical attacks.\n\nChance:
     chance to apply Bleed on hit  \nMultiplier: increases total Bleed damage  \nDuration:
     how long Bleed lasts  \n\nBleed damage is not affected by armor or crits once

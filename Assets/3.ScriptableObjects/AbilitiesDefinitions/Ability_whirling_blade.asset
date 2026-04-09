@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: whirling_blade
   displayName: Whirling Blade
-  description: Spin in a wide arc, striking all nearby enemies once.
+  description: Spin in a wide arc, striking all nearby enemies.
   icon: {fileID: 1188567411443277773, guid: c3135ae013758b04caf9adc7364ae04c, type: 3}
   cooldown: 10
   energyCost: 35

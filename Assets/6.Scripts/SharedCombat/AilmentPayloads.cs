@@ -57,15 +57,13 @@ public struct ChillPayload
 public struct BurnPayload
 {
     public float sourceDamage;
-    public int hitsToExplode;
-    public float explosionMultiplier;
+    public float burnDamageMultiplier;
     public Transform source;
 
-    public BurnPayload(float sourceDamage, int hitsToExplode, float explosionMultiplier, Transform source)
+    public BurnPayload(float sourceDamage, float burnDamageMultiplier, Transform source)
     {
         this.sourceDamage = sourceDamage;
-        this.hitsToExplode = hitsToExplode;
-        this.explosionMultiplier = explosionMultiplier;
+        this.burnDamageMultiplier = burnDamageMultiplier;
         this.source = source;
     }
 }

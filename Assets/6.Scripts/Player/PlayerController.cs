@@ -49,7 +49,8 @@ public class PlayerController : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private Animator animator;
 
-    // Delay between gather animation “swings” while gathering
+    // Delay between gather animation “swings” while gathering (code-driven; see TickGather).
+    [Tooltip("Seconds between gather swings. If your Animator transitions gather→idle on exit time, only this interval should retrigger gather — not Reassert.")]
     [SerializeField] private float gatherAnimDelaySeconds = 3f;
     private float _nextGatherAnimTime;
 
@@ -563,6 +564,10 @@ public class PlayerController : MonoBehaviour
         {
             SetAction(PlayerAction.Walking, true);
             PlayState(walkStateName, restart: false);
+        }
+        else if (state == State.Gather)
+        {
+            SetAction(GetGatherAction(), true);
         }
         else if (state == State.Idle)
         {
@@ -1331,7 +1336,7 @@ public class PlayerController : MonoBehaviour
 
             PlayState(gatherStateName, restart: true);
 
-            _nextGatherAnimTime = Time.time + Mathf.Max(0.05f, gatherAnimDelaySeconds);
+            _nextGatherAnimTime = Time.time + Mathf.Max(0.25f, gatherAnimDelaySeconds);
         }
 
         Vector3 pos = transform.position;
@@ -1616,6 +1621,14 @@ public class PlayerController : MonoBehaviour
         if (_attackLocked) return;
         if (Time.time < _nextReassertTime) return;
 
+        // If the Animator Controller exits "gather" back to idle via exit time (common setup),
+        // we are no longer in the gather state most of the time — but we must NOT call PlayState
+        // here on a timer, or we re-enter gather every reassertCooldown and the swing looks
+        // dozens of times faster than gatherAnimDelaySeconds. Only TickGather may drive gather replays.
+        if (state == State.Gather &&
+            (action == PlayerAction.Mining || action == PlayerAction.Woodcutting || action == PlayerAction.Fishing))
+            return;
+
         string expected =
             (action == PlayerAction.Walking) ? walkStateName :
             (action == PlayerAction.Mining || action == PlayerAction.Woodcutting || action == PlayerAction.Fishing) ? gatherStateName :
@@ -1645,11 +1658,20 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // Gathering
+        // Gathering — swing cadence is owned by TickGather (_nextGatherAnimTime + gatherAnimDelaySeconds).
+        // Do not restart the gather clip on every SetAction(..., true) while already in the gather state,
+        // or the animation appears to spasm / run at the wrong rate after combat-related refreshes.
         if (_action == PlayerAction.Mining ||
             _action == PlayerAction.Woodcutting ||
             _action == PlayerAction.Fishing)
         {
+            if (state == State.Gather)
+            {
+                var st = animator.GetCurrentAnimatorStateInfo(0);
+                if (st.IsName(gatherStateName))
+                    return;
+            }
+
             PlayState(gatherStateName, restart: true);
             return;
         }
@@ -1683,10 +1705,14 @@ public class PlayerController : MonoBehaviour
 
         _clearFightOverrideRoutine = null;
 
-        // Force a refresh so we immediately go back to walk/idle as appropriate
-        SetAction(state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup
-            ? PlayerAction.Walking
-            : PlayerAction.Idle, true);
+        // Force a refresh so we immediately go back to walk / gather / idle as appropriate
+        PlayerAction resume =
+            (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup)
+                ? PlayerAction.Walking
+                : state == State.Gather
+                    ? GetGatherAction()
+                    : PlayerAction.Idle;
+        SetAction(resume, true);
     }
 
 
