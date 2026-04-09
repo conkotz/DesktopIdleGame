@@ -440,7 +440,8 @@ public class SkillTreeViewUI : MonoBehaviour
             string spineId = SpineNodeId(row);
             bool unlocked = row.level <= currentSkillLevel;
             BuildTooltipCopy(row.level, row.type, row.unlock, unlocked, out string mainTitle, out string mainBody);
-            SpawnNode(spineId, new Vector2(x, y), row.type, mainTitle, mainBody, unlocked);
+            Sprite mainIcon = ResolveUnlockNodeIcon(row.unlock);
+            SpawnNode(spineId, new Vector2(x, y), row.type, mainTitle, mainBody, unlocked, mainIcon);
             spineLayoutXBySpineId[spineId] = x;
             rowDefBySpineNodeId[spineId] = row;
         }
@@ -512,13 +513,15 @@ public class SkillTreeViewUI : MonoBehaviour
                 bool unlocked = row.level <= currentSkillLevel && choiceUnlockLevel <= currentSkillLevel;
                 BuildChoiceTooltipCopy(choiceUnlockLevel, choice, row.unlock, unlocked, out string cTitle, out string cBody);
                 string choiceNodeId = ChoiceId(parentSpineId, choiceUnlockLevel, choiceIndex);
+                Sprite choiceIcon = ResolveChoiceNodeIcon(choice);
                 SpawnNode(
                     choiceNodeId,
                     new Vector2(choiceX, choiceY),
                     SkillTreeNodeVisualType.Choice,
                     cTitle,
                     cBody,
-                    unlocked
+                    unlocked,
+                    choiceIcon
                 );
                 choiceMetaByNodeId[choiceNodeId] =
                     new ChoiceNodeMeta(parentSpineId, row.level, choiceIndex, choiceUnlockLevel, offsetX, choiceY);
@@ -714,13 +717,36 @@ public class SkillTreeViewUI : MonoBehaviour
         equipmentTierHint.text = h;
     }
 
-    private void SpawnNode(string nodeId, Vector2 pos, SkillTreeNodeVisualType type, string tooltipTitle, string tooltipBody, bool unlocked)
+    private static Sprite ResolveUnlockNodeIcon(SkillUnlockDefinition unlock)
+    {
+        if (unlock == null)
+            return null;
+        if (unlock.icon != null)
+            return unlock.icon;
+        if (unlock.ability != null && unlock.ability.icon != null)
+            return unlock.ability.icon;
+        return null;
+    }
+
+    private static Sprite ResolveChoiceNodeIcon(SkillChoiceDefinition choice)
+    {
+        if (choice == null)
+            return null;
+        if (choice.icon != null)
+            return choice.icon;
+        if (choice.ability != null && choice.ability.icon != null)
+            return choice.ability.icon;
+        return null;
+    }
+
+    private void SpawnNode(string nodeId, Vector2 pos, SkillTreeNodeVisualType type, string tooltipTitle, string tooltipBody, bool unlocked, Sprite iconSprite = null)
     {
         if (nodePrefab == null || nodesRoot == null) return;
 
         var node = Instantiate(nodePrefab, nodesRoot);
         node.RectTransform.anchoredPosition = pos;
         node.ApplyVisualType(type);
+        node.SetIcon(iconSprite, iconSprite != null);
         node.SetLocked(!unlocked);
         node.SetSelected(false);
         node.SetClick(() => OnNodeClicked(nodeId, node));
@@ -883,7 +909,7 @@ public class SkillTreeViewUI : MonoBehaviour
             string.IsNullOrWhiteSpace(body) ? "No node data yet." : body,
             measureRect: tooltipBoundsRect != null ? tooltipBoundsRect : nodesRoot,
             heightRect: tooltipBoundsRect != null ? tooltipBoundsRect : nodesRoot,
-            preferredSide: FlipInsideBounds.PreferredSide.Right
+            preferredSide: FlipInsideBounds.PreferredSide.Left
         );
     }
 

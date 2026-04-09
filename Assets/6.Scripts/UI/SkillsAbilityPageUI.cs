@@ -462,20 +462,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             return;
         }
 
-        int unlockedCount = 0;
-        foreach (var ability in abilities)
-        {
-            if (ability == null)
-                continue;
-            bool unlocked = level >= Mathf.Max(1, ability.unlockLevel);
-            if (unlocked && !SkillAbilityCommitRules.ShouldShowAbilityInRightPanel(skill, ability, skillsManager))
-                continue;
-            if (unlocked)
-                unlockedCount++;
-        }
-
+        int availableInTreeCount = CountTotalAbilitiesAvailableInTree(skill, level);
+        int selectedInTreeCount = CountTotalAbilitiesSelectedInTree(skill, level);
         if (rightAbilitiesText)
-            rightAbilitiesText.text = $"Abilities unlocked: {unlockedCount}/{abilities.Count}";
+            rightAbilitiesText.text = $"Abilities avaialble: {availableInTreeCount}\nAbilities selected: {selectedInTreeCount}";
 
         ClearAbilityRows();
 
@@ -518,6 +508,52 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         ConfigureAbilitiesListLayout(rt);
 
         return go.transform;
+    }
+
+    private int CountTotalAbilitiesAvailableInTree(SkillDefinition skill, int level)
+    {
+        if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < skill.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = skill.unlocks[i];
+            if (unlock == null || unlock.unlockType != SkillUnlockType.Ability || unlock.ability == null)
+                continue;
+
+            if (level >= Mathf.Max(1, unlock.requiredLevel))
+                count++;
+        }
+
+        return count;
+    }
+
+    private int CountTotalAbilitiesSelectedInTree(SkillDefinition skill, int level)
+    {
+        if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0 || skillsManager == null)
+            return 0;
+
+        HashSet<int> abilityRowLevels = new HashSet<int>();
+        for (int i = 0; i < skill.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = skill.unlocks[i];
+            if (unlock == null || unlock.unlockType != SkillUnlockType.Ability || unlock.ability == null)
+                continue;
+
+            int rowLevel = Mathf.Max(1, unlock.requiredLevel);
+            if (rowLevel <= level)
+                abilityRowLevels.Add(rowLevel);
+        }
+
+        int selectedRows = 0;
+        foreach (int rowLevel in abilityRowLevels)
+        {
+            if (skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1) >= 0)
+                selectedRows++;
+        }
+
+        return selectedRows;
     }
 
     private AbilityEntryUI CreateAbilityRow(Transform parent)

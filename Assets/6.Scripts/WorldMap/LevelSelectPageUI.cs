@@ -12,7 +12,6 @@ public class LevelSelectPageUI : MonoBehaviour
     [SerializeField] private Color regionUnlockedColor = new Color32(104, 111, 122, 255);
     [SerializeField] private Color regionLockedColor = new Color32(132, 68, 68, 255);
     [SerializeField] private Color regionHoverColor = new Color32(126, 133, 146, 255);
-    [SerializeField] private Color regionSelectedColor = new Color(1f, 1f, 1f, 0.35f); // almost-white transparent tint
     [SerializeField] private Color regionPressedColor = new Color32(92, 99, 113, 255);
 
     [Header("Data")]
@@ -25,7 +24,7 @@ public class LevelSelectPageUI : MonoBehaviour
     [Header("Left — Regions")]
     [SerializeField] private Transform regionListParent;
     [SerializeField] private GameObject regionRowPrefab;
-    [Tooltip("Child name under each region row used as selection highlight (optional).")]
+    [Tooltip("Fallback only: child name under each region row used as selection highlight when WorldMapRegionRowUI is not present.")]
     [SerializeField] private string regionSelectedChildName = "Selected";
 
     [Header("Center — Nodes")]
@@ -307,8 +306,9 @@ public class LevelSelectPageUI : MonoBehaviour
             _regionRows.Add(row);
             _regionRowRegions.Add(region);
 
-            Button b = row.GetComponentInChildren<Button>(true);
-            TMP_Text label = row.GetComponentInChildren<TMP_Text>(true);
+            WorldMapRegionRowUI rowUI = row.GetComponent<WorldMapRegionRowUI>();
+            Button b = rowUI != null ? rowUI.Button : row.GetComponentInChildren<Button>(true);
+            TMP_Text label = rowUI != null ? rowUI.NameText : row.GetComponentInChildren<TMP_Text>(true);
             bool unlocked = IsRegionAvailable(region, progress);
             if (label)
                 label.text = unlocked ? region.displayName : $"{region.displayName} (Locked)";
@@ -341,7 +341,14 @@ public class LevelSelectPageUI : MonoBehaviour
         if (!row) return;
 
         Button b = row.GetComponentInChildren<Button>(true);
-        ApplyRegionButtonTheme(b, unlocked, selected);
+        ApplyRegionButtonTheme(b, unlocked);
+
+        WorldMapRegionRowUI rowUI = row.GetComponent<WorldMapRegionRowUI>();
+        if (rowUI != null)
+        {
+            rowUI.SetSelected(selected);
+            return;
+        }
 
         if (!string.IsNullOrEmpty(regionSelectedChildName))
         {
@@ -351,15 +358,14 @@ public class LevelSelectPageUI : MonoBehaviour
         }
     }
 
-    private void ApplyRegionButtonTheme(Button button, bool unlocked, bool selected)
+    private void ApplyRegionButtonTheme(Button button, bool unlocked)
     {
         if (!button)
             return;
 
-        Color themeBase = unlocked ? regionUnlockedColor : regionLockedColor;
-        Color baseCol = selected ? Blend(themeBase, regionSelectedColor) : themeBase;
-        Color hoverCol = selected ? Lift(baseCol, 0.06f) : regionHoverColor;
-        Color pressedCol = selected ? Lift(baseCol, 0.1f) : regionPressedColor;
+        Color baseCol = unlocked ? regionUnlockedColor : regionLockedColor;
+        Color hoverCol = regionHoverColor;
+        Color pressedCol = regionPressedColor;
 
         ColorBlock cb = button.colors;
         cb.normalColor = baseCol;
@@ -382,16 +388,6 @@ public class LevelSelectPageUI : MonoBehaviour
             Mathf.Clamp01(c.g + (1f - c.g) * amount),
             Mathf.Clamp01(c.b + (1f - c.b) * amount),
             c.a);
-    }
-
-    private static Color Blend(Color baseCol, Color tint)
-    {
-        float t = Mathf.Clamp01(tint.a);
-        return new Color(
-            Mathf.Lerp(baseCol.r, tint.r, t),
-            Mathf.Lerp(baseCol.g, tint.g, t),
-            Mathf.Lerp(baseCol.b, tint.b, t),
-            baseCol.a);
     }
 
     private void OnRegionClicked(RegionDefinition region)

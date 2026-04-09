@@ -2,6 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 /// <summary>
 /// UI row/button for an ability. Supports drag/drop into the action bar.
@@ -189,61 +190,37 @@ public class AbilityEntryUI : MonoBehaviour,
             if (selected == 0)
             {
                 physMult += 0.25f;
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Brutal Cut (+25% Physical)</color>";
             }
             else if (selected == 1)
             {
                 cooldown = Mathf.Max(0f, cooldown - 5f);
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Relentless Flow (-5s Cooldown)</color>";
             }
+            choiceLine = BuildActiveEnhancementLine(def, selected);
         }
         else if (string.Equals(def.abilityId, "whirling_blade", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
-            if (selected == 0)
-            {
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Twin Cyclone (Second hit at 20%)</color>";
-            }
-            else if (selected == 1)
-            {
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Expansive Whirl (+3 radius)</color>";
-            }
+            choiceLine = BuildActiveEnhancementLine(def, selected);
         }
         else if (string.Equals(def.abilityId, "rending_strike", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
-
-            if (selected == 0)
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Hemorrhaging Rush (Same bleed damage in half duration)</color>";
-            else if (selected == 1)
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Crimson Spread (Spread bleed to 1 nearby bleeding target)</color>";
+            choiceLine = BuildActiveEnhancementLine(def, selected);
         }
         else if (string.Equals(def.abilityId, "venom_jab", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
-
-            if (selected == 0)
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Potent Venom (+2 max poison stacks, 6s)</color>";
-            else if (selected == 1)
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Contagion Burst (Spread poison to 1 nearby target on death in 3 range)</color>";
+            choiceLine = BuildActiveEnhancementLine(def, selected);
         }
         else if (string.Equals(def.abilityId, "cleaving_strikes", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
-
-            if (selected == 0)
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Greater Cleave (2 extra enemies, 4 hits or 8s)</color>";
-            else if (selected == 1)
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Lasting Momentum (7 hits or 14s)</color>";
+            choiceLine = BuildActiveEnhancementLine(def, selected);
         }
         else if (string.Equals(def.abilityId, "crescent_slash", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
-
-            if (selected == 0)
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Elemental Crescent (Applies elemental ailment)</color>";
-            else if (selected == 1)
-                choiceLine = "\nActive Enhancement: <color=#33CC66>Penetrating Crescent (Hits all enemies in path)</color>";
+            choiceLine = BuildActiveEnhancementLine(def, selected);
         }
 
         float physPct = physMult * 100f;
@@ -268,6 +245,36 @@ public class AbilityEntryUI : MonoBehaviour,
     {
         if (!def) return "No description.";
         return string.IsNullOrWhiteSpace(def.description) ? "No description." : def.description.Trim();
+    }
+
+    private static string BuildActiveEnhancementLine(AbilityDefinition def, int selectedIndex)
+    {
+        if (def == null || selectedIndex < 0)
+            return string.Empty;
+
+        SkillDatabase skillDb = SkillDatabase.LoadDefault();
+        SkillDefinition skill = skillDb != null ? skillDb.Get(def.sourceSkill) : null;
+        SkillUnlockDefinition unlock = SkillAbilityCommitRules.FindAbilityUnlockOnSkill(skill, def);
+        if (unlock == null || unlock.choices == null)
+            return string.Empty;
+
+        var nonNullChoices = new List<SkillChoiceDefinition>(unlock.choices.Count);
+        for (int i = 0; i < unlock.choices.Count; i++)
+        {
+            SkillChoiceDefinition c = unlock.choices[i];
+            if (c != null)
+                nonNullChoices.Add(c);
+        }
+
+        if (selectedIndex < 0 || selectedIndex >= nonNullChoices.Count)
+            return string.Empty;
+
+        SkillChoiceDefinition selected = nonNullChoices[selectedIndex];
+        string title = !string.IsNullOrWhiteSpace(selected.title) ? selected.title.Trim() : $"Enhancement {selectedIndex + 1}";
+        string desc = !string.IsNullOrWhiteSpace(selected.description) ? selected.description.Trim() : string.Empty;
+        return string.IsNullOrEmpty(desc)
+            ? $"\nActive Enhancement: <color=#33CC66>{title}</color>"
+            : $"\nActive Enhancement: <color=#33CC66>{title} ({desc})</color>";
     }
 }
 

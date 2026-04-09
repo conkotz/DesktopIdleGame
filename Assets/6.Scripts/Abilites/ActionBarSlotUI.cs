@@ -497,13 +497,12 @@ public class ActionBarSlotUI : MonoBehaviour,
                 if (selected == 0)
                 {
                     physMult += 0.25f;
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Brutal Cut (+25% Physical)</color>";
                 }
                 else if (selected == 1)
                 {
                     cooldown = Mathf.Max(0f, cooldown - 5f);
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Relentless Flow (-5s Cooldown)</color>";
                 }
+                choiceLine = BuildActiveEnhancementLine(def, selected);
             }
         }
         else if (string.Equals(def.abilityId, "whirling_blade", StringComparison.OrdinalIgnoreCase))
@@ -512,10 +511,7 @@ public class ActionBarSlotUI : MonoBehaviour,
             if (sm != null)
             {
                 int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
-                if (selected == 0)
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Twin Cyclone (Second hit at 20%)</color>";
-                else if (selected == 1)
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Expansive Whirl (+3 radius)</color>";
+                choiceLine = BuildActiveEnhancementLine(def, selected);
             }
         }
         else if (string.Equals(def.abilityId, "rending_strike", StringComparison.OrdinalIgnoreCase))
@@ -524,11 +520,7 @@ public class ActionBarSlotUI : MonoBehaviour,
             if (sm != null)
             {
                 int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
-
-                if (selected == 0)
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Hemorrhaging Rush (Same bleed damage in half duration)</color>";
-                else if (selected == 1)
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Crimson Spread (Spread bleed to 1 nearby bleeding target)</color>";
+                choiceLine = BuildActiveEnhancementLine(def, selected);
             }
         }
         else if (string.Equals(def.abilityId, "venom_jab", StringComparison.OrdinalIgnoreCase))
@@ -537,11 +529,7 @@ public class ActionBarSlotUI : MonoBehaviour,
             if (sm != null)
             {
                 int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
-
-                if (selected == 0)
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Potent Venom (+2 max poison stacks, 6s)</color>";
-                else if (selected == 1)
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Contagion Burst (Spread poison to 1 nearby target on death in 3 range)</color>";
+                choiceLine = BuildActiveEnhancementLine(def, selected);
             }
         }
         else if (string.Equals(def.abilityId, "cleaving_strikes", StringComparison.OrdinalIgnoreCase))
@@ -550,11 +538,7 @@ public class ActionBarSlotUI : MonoBehaviour,
             if (sm != null)
             {
                 int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
-
-                if (selected == 0)
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Greater Cleave (2 extra enemies, 4 hits or 8s)</color>";
-                else if (selected == 1)
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Lasting Momentum (7 hits or 14s)</color>";
+                choiceLine = BuildActiveEnhancementLine(def, selected);
             }
         }
         else if (string.Equals(def.abilityId, "crescent_slash", StringComparison.OrdinalIgnoreCase))
@@ -563,11 +547,7 @@ public class ActionBarSlotUI : MonoBehaviour,
             if (sm != null)
             {
                 int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
-
-                if (selected == 0)
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Elemental Crescent (Applies elemental ailment)</color>";
-                else if (selected == 1)
-                    choiceLine = "\n<color=#33CC66>Active Enhancement: Penetrating Crescent (Hits all enemies in path)</color>";
+                choiceLine = BuildActiveEnhancementLine(def, selected);
             }
         }
 
@@ -588,6 +568,36 @@ public class ActionBarSlotUI : MonoBehaviour,
             $"<color=#FFB347>Energy Cost: {def.energyCost:0.#}</color>\n" +
             $"<color=#FFB347>Cooldown: {cooldown:0.#}s</color>" +
             choiceLine;
+    }
+
+    private static string BuildActiveEnhancementLine(AbilityDefinition def, int selectedIndex)
+    {
+        if (def == null || selectedIndex < 0)
+            return string.Empty;
+
+        SkillDatabase skillDb = SkillDatabase.LoadDefault();
+        SkillDefinition skill = skillDb != null ? skillDb.Get(def.sourceSkill) : null;
+        SkillUnlockDefinition unlock = SkillAbilityCommitRules.FindAbilityUnlockOnSkill(skill, def);
+        if (unlock == null || unlock.choices == null)
+            return string.Empty;
+
+        var nonNullChoices = new List<SkillChoiceDefinition>(unlock.choices.Count);
+        for (int i = 0; i < unlock.choices.Count; i++)
+        {
+            SkillChoiceDefinition c = unlock.choices[i];
+            if (c != null)
+                nonNullChoices.Add(c);
+        }
+
+        if (selectedIndex < 0 || selectedIndex >= nonNullChoices.Count)
+            return string.Empty;
+
+        SkillChoiceDefinition selected = nonNullChoices[selectedIndex];
+        string title = !string.IsNullOrWhiteSpace(selected.title) ? selected.title.Trim() : $"Enhancement {selectedIndex + 1}";
+        string desc = !string.IsNullOrWhiteSpace(selected.description) ? selected.description.Trim() : string.Empty;
+        return string.IsNullOrEmpty(desc)
+            ? $"\n<color=#33CC66>Active Enhancement: {title}</color>"
+            : $"\n<color=#33CC66>Active Enhancement: {title} ({desc})</color>";
     }
 
     private System.Collections.IEnumerator ClickFeedback()

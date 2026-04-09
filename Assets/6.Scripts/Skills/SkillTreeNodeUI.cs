@@ -236,6 +236,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
             case SkillTreeNodeVisualType.Unlock:
                 color = unlockColor;
+                showIcon = true;
                 break;
 
             case SkillTreeNodeVisualType.Ability:
@@ -245,6 +246,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
             case SkillTreeNodeVisualType.Choice:
                 color = choiceColor;
+                showIcon = true;
                 break;
 
             case SkillTreeNodeVisualType.CapstonePassive:
@@ -276,7 +278,10 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
 
         if (iconImage != null)
+        {
+            FitIconToNode();
             iconImage.gameObject.SetActive(showIcon && iconImage.sprite != null);
+        }
 
         if (lockedOverlay != null)
         {
@@ -343,6 +348,22 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             typeText.overflowMode = TextOverflowModes.Overflow;
             rt.anchoredPosition = new Vector2(halfW + pad, yOffset);
         }
+    }
+
+    private void FitIconToNode()
+    {
+        if (iconImage == null)
+            return;
+
+        RectTransform iconRt = iconImage.rectTransform;
+        iconRt.anchorMin = iconRt.anchorMax = new Vector2(0.5f, 0.5f);
+        iconRt.pivot = new Vector2(0.5f, 0.5f);
+        iconRt.anchoredPosition = Vector2.zero;
+
+        Vector2 baseSize = fillImage != null ? fillImage.rectTransform.sizeDelta : RectTransform.sizeDelta;
+        // Force full inner fill size so prefab/scene serialized overrides cannot shrink ability icons.
+        iconRt.sizeDelta = baseSize;
+        iconImage.preserveAspect = true;
     }
 
     private void ApplySelectedOutlineFallback()

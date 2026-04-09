@@ -759,33 +759,17 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             abilityController.TryConsumeCleavingExtraTargetsOnSuccessfulHit(out int cleaveExtraTargets) &&
             cleaveExtraTargets > 0)
         {
-            ApplyCleaveSecondaryHits(targetToHit, rolled, wasCrit, cleaveExtraTargets, alreadyHit);
+            ApplyCleaveSecondaryHits(targetToHit, cleaveExtraTargets, alreadyHit);
         }
 
         if (primaryHitSucceeded && triggerCrescentSlash)
-            ApplyCrescentSlashSecondaryHits(targetToHit, rolled, wasCrit, crescentPenetrating, crescentAppliesElemental, alreadyHit);
+            ApplyCrescentSlashSecondaryHits(targetToHit, crescentPenetrating, crescentAppliesElemental, alreadyHit);
     }
 
-    private void ApplyCleaveSecondaryHits(EnemyBaseController primaryTarget, SplitDamage rolled, bool wasCrit, int extraTargets, HashSet<EnemyBaseController> alreadyHit)
+    private void ApplyCleaveSecondaryHits(EnemyBaseController primaryTarget, int extraTargets, HashSet<EnemyBaseController> alreadyHit)
     {
         if (extraTargets <= 0 || stats == null)
             return;
-
-        SplitDamage cleaveRolled = abilityController != null
-            ? abilityController.BuildCleavingSecondarySplit(rolled)
-            : rolled;
-        if (cleaveRolled.IsEmpty)
-            return;
-
-        // Secondary cleave hits roll crit independently per target.
-        SplitDamage cleaveNonCrit = cleaveRolled;
-        float critMult = Mathf.Max(1f, stats.CritMultiplier);
-        if (wasCrit && critMult > 1f)
-        {
-            cleaveNonCrit.physical /= critMult;
-            cleaveNonCrit.magical /= critMult;
-            // true damage is not crit-scaled in this combat model.
-        }
 
         // Cleave uses at least 2f search range; longer-range weapons keep their full range.
         float range = Mathf.Max(2f, stats.Range);
@@ -807,10 +791,26 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         nearest.Sort((a, b) => a.sqr.CompareTo(b.sqr));
         int count = Mathf.Min(extraTargets, nearest.Count);
+        float critMult = Mathf.Max(1f, stats.CritMultiplier);
         for (int i = 0; i < count; i++)
         {
             EnemyBaseController e = nearest[i].enemy;
-            SplitDamage secondaryHit = cleaveNonCrit;
+
+            // Roll each target independently (min/max + crit).
+            SplitDamage secondaryBase = stats.RollSplitAttackDamage(out bool baseWasCrit);
+            if (baseWasCrit && critMult > 1f)
+            {
+                secondaryBase.physical /= critMult;
+                secondaryBase.magical /= critMult;
+                // true damage is not crit-scaled in this combat model.
+            }
+
+            SplitDamage secondaryHit = abilityController != null
+                ? abilityController.BuildCleavingSecondarySplit(secondaryBase)
+                : secondaryBase;
+            if (secondaryHit.IsEmpty)
+                continue;
+
             bool secondaryCrit = false;
             if (UnityEngine.Random.value <= Mathf.Clamp01(stats.CritChance))
             {
@@ -824,7 +824,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
     }
 
-    private void ApplyCrescentSlashSecondaryHits(EnemyBaseController primaryTarget, SplitDamage rolled, bool wasCrit, bool penetrating, bool applyElemental, HashSet<EnemyBaseController> alreadyHit)
+    private void ApplyCrescentSlashSecondaryHits(EnemyBaseController primaryTarget, bool penetrating, bool applyElemental, HashSet<EnemyBaseController> alreadyHit)
     {
         if (stats == null)
             return;
@@ -859,7 +859,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         for (int i = 0; i < cap; i++)
         {
             EnemyBaseController e = forwardHits[i].enemy;
-            ApplySecondaryHitPipeline(e, rolled, wasCrit, forceElementalAilment: applyElemental);
+            // Roll each AoE target independently (damage range + crit).
+            SplitDamage secondaryHit = stats.RollSplitAttackDamage(out bool secondaryWasCrit);
+            ApplySecondaryHitPipeline(e, secondaryHit, secondaryWasCrit, forceElementalAilment: applyElemental);
             alreadyHit.Add(e);
         }
     }

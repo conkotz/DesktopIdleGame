@@ -10,6 +10,13 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class PlayerAbilityController : MonoBehaviour
 {
+    private enum CrescentConvertedElement
+    {
+        Fire,
+        Ice,
+        Lightning
+    }
+
     [Header("Refs")]
     [SerializeField] private PlayerController player;
     [SerializeField] private CharacterStats stats;
@@ -336,15 +343,21 @@ public class PlayerAbilityController : MonoBehaviour
         public float Total => physical + magical + trueDamage;
     }
 
-    /// <summary>Matches instant-cast ability damage: averages × ability mults, AP on physical, element + ailment hooks on magical.</summary>
+    /// <summary>Builds one independent ability hit roll (per target): attack roll + ability scaling + independent crit.</summary>
     private void BuildWhirlingBladeAbilityScaledSplit(AbilityDefinition def, out SplitDamage nonCritBase, out bool wasCrit)
     {
-        float basePhysical =
-            (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
-        float baseMagical =
-            (Mathf.Max(0f, stats.MinSplitDamage.magical) + Mathf.Max(0f, stats.MaxSplitDamage.magical)) * 0.5f;
-        float baseTrue =
-            (Mathf.Max(0f, stats.MinSplitDamage.trueDamage) + Mathf.Max(0f, stats.MaxSplitDamage.trueDamage)) * 0.5f;
+        SplitDamage baseRolled = stats.RollSplitAttackDamage(out bool baseWasCrit);
+        float critMult = Mathf.Max(1f, stats.CritMultiplier);
+        if (baseWasCrit && critMult > 1f)
+        {
+            baseRolled.physical /= critMult;
+            baseRolled.magical /= critMult;
+            // true damage is not crit-scaled in this combat model.
+        }
+
+        float basePhysical = Mathf.Max(0f, baseRolled.physical);
+        float baseMagical = Mathf.Max(0f, baseRolled.magical);
+        float baseTrue = Mathf.Max(0f, baseRolled.trueDamage);
 
         float scaledPhysical = basePhysical * Mathf.Max(0f, def.physicalDamageMultiplier);
         float scaledMagical = baseMagical * Mathf.Max(0f, def.magicalDamageMultiplier);
@@ -399,16 +412,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (targets.Count <= 0)
             return true; // ability cast still consumes resources/cooldown.
 
-        BuildWhirlingBladeAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
-
-        float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
-        SplitDamage rolled = new SplitDamage(
-            rolledNonCrit.physical * critMult,
-            rolledNonCrit.magical * critMult,
-            rolledNonCrit.trueDamage * critMult);
-
-        SplitDamage firstHit = rolled * WhirlingBladeDamageMultiplier;
-        SplitDamage secondHitBase = rolledNonCrit * WhirlingBladeDamageMultiplier * WhirlingBladeSecondHitMultiplier;
+        var secondWaveTargets = new List<(EnemyBaseController target, SplitDamage secondHitBase)>(targets.Count);
 
         for (int i = 0; i < targets.Count; i++)
         {
@@ -416,12 +420,22 @@ public class PlayerAbilityController : MonoBehaviour
             if (!target || target.IsDead)
                 continue;
 
+            BuildWhirlingBladeAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
+            float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+            SplitDamage rolled = new SplitDamage(
+                rolledNonCrit.physical * critMult,
+                rolledNonCrit.magical * critMult,
+                rolledNonCrit.trueDamage * critMult);
+            SplitDamage firstHit = rolled * WhirlingBladeDamageMultiplier;
+            SplitDamage secondHitBase = rolledNonCrit * WhirlingBladeDamageMultiplier * WhirlingBladeSecondHitMultiplier;
+
             DealtHit dealt = ApplySplitDamageToEnemy(target, firstHit, wasCrit);
             ApplyOnHitEffects(target, dealt);
+            secondWaveTargets.Add((target, secondHitBase));
         }
 
         if (twinCyclone)
-            StartCoroutine(ApplyTwinCycloneSecondWave(new List<EnemyBaseController>(targets), secondHitBase, radius));
+            StartCoroutine(ApplyTwinCycloneSecondWave(secondWaveTargets, radius));
 
         return true;
     }
@@ -437,13 +451,6 @@ public class PlayerAbilityController : MonoBehaviour
 
         float reach = GetWhirlingBaseRange() + 6f;
         SpawnCrescentSlashVfx(reach);
-
-        BuildWhirlingBladeAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
-        float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
-        SplitDamage rolled = new SplitDamage(
-            rolledNonCrit.physical * critMult,
-            rolledNonCrit.magical * critMult,
-            rolledNonCrit.trueDamage * critMult);
 
         EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         List<(EnemyBaseController enemy, float dist)> forwardHits = new List<(EnemyBaseController enemy, float dist)>(allEnemies.Length);
@@ -475,35 +482,75 @@ public class PlayerAbilityController : MonoBehaviour
             if (!target || target.IsDead)
                 continue;
 
-            DealtHit dealt = ApplySplitDamageToEnemy(target, rolled, wasCrit);
+            BuildWhirlingBladeAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
+            float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+            SplitDamage hitForTarget = new SplitDamage(
+                rolledNonCrit.physical * critMult,
+                rolledNonCrit.magical * critMult,
+                rolledNonCrit.trueDamage * critMult);
+            CrescentConvertedElement convertedElement = CrescentConvertedElement.Lightning;
+            float convertedDamage = 0f;
+            bool hasConvertedDamage = elementalCrescent &&
+                                      TryApplyElementalConversionForCrescent(ref hitForTarget, out convertedElement, out convertedDamage);
+
+            DealtHit dealt = ApplySplitDamageToEnemy(target, hitForTarget, wasCrit);
             ApplyOnHitEffects(target, dealt);
-            if (elementalCrescent)
-                ApplyElementalAilmentForCrescent(target, dealt);
+            if (hasConvertedDamage)
+                ApplyElementalAilmentForCrescent(target, convertedElement, convertedDamage);
         }
     }
 
-    private void ApplyElementalAilmentForCrescent(EnemyBaseController target, DealtHit dealt)
+    /// <summary>
+    /// Convert 50% of physical into magical as the final split step for this hit.
+    /// Each call rolls its own element so multi-target hits can differ per enemy.
+    /// </summary>
+    private static bool TryApplyElementalConversionForCrescent(
+        ref SplitDamage hit,
+        out CrescentConvertedElement element,
+        out float convertedDamage)
+    {
+        element = CrescentConvertedElement.Lightning;
+        convertedDamage = 0f;
+
+        float physical = Mathf.Max(0f, hit.physical);
+        if (physical <= 0f)
+            return false;
+
+        convertedDamage = physical * 0.5f;
+        hit.physical = Mathf.Max(0f, physical - convertedDamage);
+        hit.magical = Mathf.Max(0f, hit.magical) + convertedDamage;
+
+        int roll = UnityEngine.Random.Range(0, 3);
+        element = roll switch
+        {
+            0 => CrescentConvertedElement.Fire,
+            1 => CrescentConvertedElement.Ice,
+            _ => CrescentConvertedElement.Lightning
+        };
+        return true;
+    }
+
+    private void ApplyElementalAilmentForCrescent(EnemyBaseController target, CrescentConvertedElement element, float convertedDamage)
     {
         if (target == null || stats == null)
+            return;
+        if (convertedDamage <= 0f)
             return;
 
         AilmentController ailments = target.GetComponent<AilmentController>();
         if (ailments == null)
             return;
 
-        if (stats.CurrentAttackAppliesAsFireForBurn && dealt.Total > 0f)
+        switch (element)
         {
-            ailments.TryApplyBurnFromFireHit(
-                dealt.Total,
-                1f,
-                stats.BurnExplosionMultiplier,
-                transform);
-            return;
-        }
-
-        switch (stats.CurrentMagicAttackType)
-        {
-            case MagicAttackType.Ice:
+            case CrescentConvertedElement.Fire:
+                ailments.TryApplyBurnFromFireHit(
+                    convertedDamage,
+                    1f,
+                    stats.BurnExplosionMultiplier,
+                    transform);
+                break;
+            case CrescentConvertedElement.Ice:
                 ailments.ApplyChillFromHit(new ChillPayload(
                     duration: stats.ChillDuration,
                     maxStacks: stats.ChillMaxStacks,
@@ -511,7 +558,7 @@ public class PlayerAbilityController : MonoBehaviour
                     source: transform
                 ));
                 break;
-            case MagicAttackType.Lightning:
+            case CrescentConvertedElement.Lightning:
             default:
                 ailments.ApplyShockFromHit(new ShockPayload(
                     duration: stats.ShockDuration,
@@ -522,7 +569,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
     }
 
-    private IEnumerator ApplyTwinCycloneSecondWave(List<EnemyBaseController> targets, SplitDamage secondHitBase, float radius)
+    private IEnumerator ApplyTwinCycloneSecondWave(List<(EnemyBaseController target, SplitDamage secondHitBase)> targets, float radius)
     {
         yield return new WaitForSeconds(WhirlingBladeTwinCycloneSecondHitDelay);
 
@@ -534,11 +581,11 @@ public class PlayerAbilityController : MonoBehaviour
 
         for (int i = 0; i < targets.Count; i++)
         {
-            EnemyBaseController target = targets[i];
+            EnemyBaseController target = targets[i].target;
             if (!target || target.IsDead)
                 continue;
 
-            SplitDamage secondHit = secondHitBase;
+            SplitDamage secondHit = targets[i].secondHitBase;
             bool secondWasCrit = TryRollIndependentCrit(ref secondHit);
             DealtHit dealtSecond = ApplySplitDamageToEnemy(target, secondHit, secondWasCrit);
             ApplyOnHitEffects(target, dealtSecond); // Re-triggers on-hit effects.

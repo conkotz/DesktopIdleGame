@@ -32,8 +32,6 @@ public class WorldMapNodeButtonUI : MonoBehaviour
     [SerializeField] private Color dungeonColor = new Color32(88, 106, 122, 255);
     [SerializeField] private Color bossColor = new Color32(118, 60, 90, 255);
     [SerializeField] private Color fallbackColor = new Color32(74, 81, 95, 255);
-    [Tooltip("When this row is selected, blends toward this color on the Colour Icon only (alpha = strength). Default alpha 0 = strip stays pure node-type color; selection is via the Button only.")]
-    [SerializeField] private Color selectedTint = new Color(1f, 1f, 1f, 0f);
 
     private MapNodeDefinition _node;
     private Action<MapNodeDefinition> _onSelected;
@@ -106,8 +104,6 @@ public class WorldMapNodeButtonUI : MonoBehaviour
             return;
 
         Color themeForIcon = ResolveNodeTypeColor(node);
-        if (selected && selectedTint.a > 0f)
-            themeForIcon = Blend(themeForIcon, selectedTint);
 
         if (colourIcon)
         {
@@ -173,16 +169,6 @@ public class WorldMapNodeButtonUI : MonoBehaviour
             Mathf.Clamp01(c.g + (1f - c.g) * amount),
             Mathf.Clamp01(c.b + (1f - c.b) * amount),
             c.a);
-    }
-
-    private static Color Blend(Color baseCol, Color tint)
-    {
-        float t = Mathf.Clamp01(tint.a);
-        return new Color(
-            Mathf.Lerp(baseCol.r, tint.r, t),
-            Mathf.Lerp(baseCol.g, tint.g, t),
-            Mathf.Lerp(baseCol.b, tint.b, t),
-            baseCol.a);
     }
 
     private Image GetRowBackgroundImage()
