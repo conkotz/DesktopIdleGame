@@ -21,8 +21,8 @@ MonoBehaviour:
   listSortOrder: 0
   unlocks:
   - requiredLevel: 1
-    title: Melee Combat
-    description: Can use common melee weapons and basic attacks.
+    title: Stone Weaponry
+    description: Can use stone weapons
     icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -70,6 +70,42 @@ MonoBehaviour:
       description: -5 seconds Power Slash cooldown.
       icon: {fileID: 0}
       ability: {fileID: 0}
+  - requiredLevel: 5
+    title: Placeholder Ability 1
+    description: Placeholder ability milestone.
+    icon: {fileID: 0}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 50
+      title: Capstone Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 50
+      title: Capstone Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+  - requiredLevel: 5
+    title: Placeholder Ability 2
+    description: Placeholder ability milestone.
+    icon: {fileID: 0}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 50
+      title: Capstone Choice A
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 50
+      title: Capstone Choice B
+      description: Placeholder melee choice.
+      icon: {fileID: 0}
+      ability: {fileID: 0}
   - requiredLevel: 6
     title: Brutal Momentum I
     description: +3% Melee Damage
@@ -104,7 +140,13 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 10
     title: Bloodletting
-    description: "Your melee attacks are more likely to open deep wounds, and you press the advantage against weakened foes.\n+10% Bleed Chance\n+10% Damage to Bleeding Targets"
+    description: 'Your melee attacks are more likely to open deep wounds, and you
+      press the advantage against weakened foes.
+
+      +10% Bleed Chance
+
+      +10%
+      Damage to Bleeding Targets'
     icon: {fileID: 0}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -112,12 +154,30 @@ MonoBehaviour:
     choices:
     - requiredLevel: 13
       title: Venom Edge
-      description: "Replaces Bloodletting bonuses with:\n+10% Poison Chance\n+10% Damage to Poisoned Targets\n\nYou abandon blood loss in favor of toxic strikes, turning lingering wounds into deadly venom."
+      description: 'Replaces Bloodletting bonuses with:
+
+        +10% Poison Chance
+
+        +10%
+        Damage to Poisoned Targets
+
+
+        You abandon blood loss in favor of toxic
+        strikes, turning lingering wounds into deadly venom.'
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 13
       title: Hemorrhage
-      description: "Replaces Bloodletting bonuses with:\n+10% Bleed Multiplier\n+1s Bleed Duration\n\nYour strikes deepen open wounds, causing victims to bleed harder and longer."
+      description: 'Adds to Bloodletting:
+
+        +5% Bleed Multiplier
+
+        +1s
+        Bleed Duration
+
+
+        Your strikes deepen open wounds, causing victims
+        to bleed harder and longer.'
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 11
@@ -154,7 +214,14 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 15
     title: Whirling Blade
-    description: "Melee AoE attack.\n120% Melee Damage\nRadius: 2.5\nHits all enemies in range once."
+    description: 'Melee AoE attack.
+
+      120% Melee Damage
+
+      Radius: 2.5
+
+      Hits
+      all enemies in range once.'
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -162,7 +229,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Twin Cyclone
-      description: Whirling Blade hits all enemies a second time for 50% of the original damage.
+      description: Whirling Blade hits all enemies a second time for 50% of the original
+        damage.
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 18
@@ -220,6 +288,14 @@ MonoBehaviour:
       description: Placeholder melee choice.
       icon: {fileID: 0}
       ability: {fileID: 0}
+  - requiredLevel: 20
+    title: Iron Weaponry
+    description: Can use Iron Weapons
+    icon: {fileID: 0}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    ability: {fileID: 0}
+    choices: []
   - requiredLevel: 21
     title: Brutal Momentum III
     description: +3% Melee Damage

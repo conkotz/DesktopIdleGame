@@ -71,6 +71,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private PlayerController _ownerPlayer;
     private EnemyBaseController _ownerEnemy;
 
+    private SkillsManager _skillProgressCombatPowerSubscribed;
+
 
     public string UnitDisplayName => unitDisplayName;
     public float HP => currentHP;
@@ -211,6 +213,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private void Start()
     {
         InitializeVitals();
+        // SkillsManager may initialize after this component in some load orders.
+        TrySubscribeSkillProgressForCombatPower();
     }
 
     private void InitializeVitals()
@@ -231,6 +235,55 @@ public class CharacterStats : MonoBehaviour, ISaveable
         _ownerPlayer = GetComponent<PlayerController>() ?? GetComponentInParent<PlayerController>();
         ResolveOwnerEnemy();
     }
+
+    private void OnEnable()
+    {
+        TrySubscribeSkillProgressForCombatPower();
+    }
+
+    private void OnDisable()
+    {
+        TryUnsubscribeSkillProgressForCombatPower();
+    }
+
+    /// <summary>
+    /// Ability CP uses <see cref="AbilityCombatPower"/> (choice upgrades, row picks). Refresh when skill tree data changes.
+    /// </summary>
+    private void TrySubscribeSkillProgressForCombatPower()
+    {
+        if (!_ownerPlayer || _skillProgressCombatPowerSubscribed)
+            return;
+
+        SkillsManager sm = skillsManager ? skillsManager : SkillsManager.Instance;
+        if (!sm)
+            return;
+
+        sm.OnSkillChoiceSelectionChanged += OnSkillTreeChangedForCombatPower;
+        sm.OnSkillAbilityRowPickChanged += OnSkillAbilityRowPickChangedForCombatPower;
+        sm.OnLevelUp += OnSkillLevelUpForCombatPower;
+        _skillProgressCombatPowerSubscribed = sm;
+    }
+
+    private void TryUnsubscribeSkillProgressForCombatPower()
+    {
+        if (!_skillProgressCombatPowerSubscribed)
+            return;
+
+        SkillsManager sm = _skillProgressCombatPowerSubscribed;
+        sm.OnSkillChoiceSelectionChanged -= OnSkillTreeChangedForCombatPower;
+        sm.OnSkillAbilityRowPickChanged -= OnSkillAbilityRowPickChangedForCombatPower;
+        sm.OnLevelUp -= OnSkillLevelUpForCombatPower;
+        _skillProgressCombatPowerSubscribed = null;
+    }
+
+    private void OnSkillTreeChangedForCombatPower(SkillType skillType, int sourceLevel, int choiceIndex) =>
+        NotifyStatsChanged();
+
+    private void OnSkillAbilityRowPickChangedForCombatPower(SkillType skillType, int requiredLevel, int pickIndex) =>
+        NotifyStatsChanged();
+
+    private void OnSkillLevelUpForCombatPower(SkillType skillType, int newLevel) =>
+        NotifyStatsChanged();
 
     private void ResolveOwnerEnemy()
     {
@@ -1286,8 +1339,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
         else if (selected == 1)
         {
-            // Hemorrhage: replace Bloodletting bleed package.
-            total.meleeBleedDamage += 0.10f;
+            // Hemorrhage: keep Bloodletting base and add deeper-bleed bonuses.
+            total.meleeBleedChance += 0.10f;
+            total.damageVsBleeding += 0.10f;
+            total.meleeBleedDamage += 0.05f;
             total.meleeBleedDuration += 1f;
         }
         else

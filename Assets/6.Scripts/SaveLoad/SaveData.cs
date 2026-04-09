@@ -85,6 +85,11 @@ public class SaveData
     [Tooltip("Selected choice index per key; 0/1 for two-choice rows.")]
     public List<int> skillChoiceSelectionValues = new();
 
+    [Tooltip("Keys like 'Melee:abilityRow:5' → which sibling ability (0..n-1) is committed for that level tier.")]
+    public List<string> skillAbilityRowPickKeys = new();
+
+    public List<int> skillAbilityRowPickValues = new();
+
     [Serializable]
     public struct SkillSave
     {

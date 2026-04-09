@@ -117,6 +117,18 @@ public static class AbilityCombatPower
                 continue;
             }
 
+            SkillDatabase skillDb = SkillDatabase.LoadDefault();
+            SkillDefinition skillDef = skillDb != null ? skillDb.Get(def.sourceSkill) : null;
+            SkillsManager skillsMgr = SkillsManager.Instance;
+            if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skillDef, def, skillsMgr))
+            {
+                if (log)
+                    Debug.Log(
+                        $"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: id='{a.id}' skipped (not committed / level-locked on skill tree).",
+                        stats);
+                continue;
+            }
+
             float dps = EstimateAbilityDps(def, stats);
             total += dps;
 
@@ -267,11 +279,7 @@ public static class AbilityCombatPower
         if (!def || !string.Equals(def.abilityId, WhirlingBladeAbilityId, StringComparison.OrdinalIgnoreCase))
             return;
 
-        SkillsManager sm = SkillsManager.Instance;
-        if (sm == null)
-            return;
-
-        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+        int selected = GetWhirlingBladeSelectedChoiceForCombatPower();
         if (selected == 0)
         {
             // Twin Cyclone: second hit at 50% damage.
@@ -281,5 +289,20 @@ public static class AbilityCombatPower
         {
             // Expansive Whirl: larger radius (coverage utility). Keep single-target CP neutral.
         }
+    }
+
+    /// <summary>Matches <see cref="PlayerAbilityController"/> choice keying (Lv15 row, Lv18 fallback).</summary>
+    private static int GetWhirlingBladeSelectedChoiceForCombatPower()
+    {
+        const int whirlingSourceLevel = 15;
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return -1;
+
+        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, whirlingSourceLevel, -1);
+        if (selected >= 0)
+            return selected;
+
+        return sm.GetSkillChoiceSelection(SkillType.Melee, whirlingSourceLevel + 3, -1);
     }
 }

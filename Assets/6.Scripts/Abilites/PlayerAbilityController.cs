@@ -15,6 +15,7 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField] private CharacterStats stats;
     [SerializeField] private PlayerCombatController combat;
     [SerializeField] private AbilityDatabase abilityDatabase;
+    [SerializeField] private SkillDatabase skillDatabase;
     [SerializeField] private SkillsManager skillsManager;
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private Inventory inventory;
@@ -69,6 +70,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!equipment) equipment = GetComponent<EquipmentManager>();
         if (!inventory) inventory = GetComponent<Inventory>();
         if (!abilityDatabase) abilityDatabase = AbilityDatabase.LoadDefault();
+        if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         if (!skillsManager) skillsManager = SkillsManager.Instance;
     }
 
@@ -114,11 +116,18 @@ public class PlayerAbilityController : MonoBehaviour
         return Mathf.Clamp01(remaining / Mathf.Max(0.01f, globalCooldownSeconds));
     }
 
-    public bool TryUseAbility(string abilityId)
+    public bool TryUseAbility(string abilityId, bool showLockedFeedback = true)
     {
         AbilityDefinition def = GetAbilityDefinition(abilityId);
         if (!def)
             return false;
+
+        if (!IsAbilityAllowedBySkillProgress(def))
+        {
+            if (showLockedFeedback && player)
+                player.ShowPopup("Ability not available.");
+            return false;
+        }
 
         if (globalCooldownSeconds > 0f && Time.time < _globalCooldownEndsAt)
             return false;
@@ -839,6 +848,18 @@ public class PlayerAbilityController : MonoBehaviour
         if (!abilityDatabase)
             abilityDatabase = AbilityDatabase.LoadDefault();
         return abilityDatabase;
+    }
+
+    private bool IsAbilityAllowedBySkillProgress(AbilityDefinition def)
+    {
+        if (!def)
+            return false;
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillDatabase)
+            skillDatabase = SkillDatabase.LoadDefault();
+        SkillDefinition skill = skillDatabase ? skillDatabase.Get(def.sourceSkill) : null;
+        return SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager);
     }
 
     private AbilityDefinition GetAbilityDefinition(string abilityId)

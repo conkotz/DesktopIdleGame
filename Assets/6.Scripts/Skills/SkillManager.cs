@@ -42,6 +42,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
     private readonly Dictionary<SkillType, SkillProgress> _skills = new();
     private readonly Dictionary<SkillType, float> _xpRemainder = new();
     private readonly Dictionary<string, int> _skillChoiceSelections = new();
+    private readonly Dictionary<string, int> _skillAbilityRowPicks = new();
 
     // ✅ Active XP display (drives XP bar label + color)
     public event Action<SkillType, string> OnActiveXpDisplayChanged;
@@ -53,7 +54,11 @@ public class SkillsManager : MonoBehaviour, ISaveable
     // Hook this to your XP bar
     public event Action<SkillType, int, string> OnXpGained; // (skill, amount, source)
     public event Action<SkillType, int> OnLevelUp;          // (skill, newLevel)
+    /// <summary>choiceIndex is -1 when the player cleared that branch (no active choice).</summary>
     public event Action<SkillType, int, int> OnSkillChoiceSelectionChanged; // (skill, sourceLevel, choiceIndex)
+
+    /// <summary>pickIndex is -1 when cleared; otherwise sibling index among multiple abilities at the same level.</summary>
+    public event Action<SkillType, int, int> OnSkillAbilityRowPickChanged; // (skill, requiredLevel, pickIndex)
 
     private void Awake()
     {
@@ -134,21 +139,135 @@ public class SkillsManager : MonoBehaviour, ISaveable
         return $"{skillType}:{Mathf.Max(1, sourceLevel)}";
     }
 
+    /// <summary>
+    /// Sets the active choice for a branch. Pass <paramref name="choiceIndex"/> &lt; 0 to clear (no selection).
+    /// </summary>
     public void SetSkillChoiceSelection(SkillType skillType, int sourceLevel, int choiceIndex)
     {
         string key = BuildChoiceKey(skillType, sourceLevel);
+        int src = Mathf.Max(1, sourceLevel);
+
+        if (choiceIndex < 0)
+        {
+            if (!_skillChoiceSelections.Remove(key))
+                return;
+            OnSkillChoiceSelectionChanged?.Invoke(skillType, src, -1);
+            return;
+        }
+
         int clamped = Mathf.Max(0, choiceIndex);
         if (_skillChoiceSelections.TryGetValue(key, out int existing) && existing == clamped)
             return;
 
         _skillChoiceSelections[key] = clamped;
-        OnSkillChoiceSelectionChanged?.Invoke(skillType, Mathf.Max(1, sourceLevel), clamped);
+        OnSkillChoiceSelectionChanged?.Invoke(skillType, src, clamped);
     }
 
     public int GetSkillChoiceSelection(SkillType skillType, int sourceLevel, int defaultValue = -1)
     {
         string key = BuildChoiceKey(skillType, sourceLevel);
         return _skillChoiceSelections.TryGetValue(key, out int value) ? value : defaultValue;
+    }
+
+    public void ClearAllSkillChoiceSelections()
+    {
+        if (_skillChoiceSelections.Count == 0)
+            return;
+        var copy = new List<KeyValuePair<string, int>>(_skillChoiceSelections);
+        _skillChoiceSelections.Clear();
+        foreach (var kv in copy)
+            TryInvokeChoiceClearFromKey(kv.Key);
+    }
+
+    private void TryInvokeChoiceClearFromKey(string key)
+    {
+        int idx = key.IndexOf(':');
+        if (idx <= 0 || idx >= key.Length - 1)
+            return;
+        if (!Enum.TryParse(key.Substring(0, idx), out SkillType st))
+            return;
+        if (!int.TryParse(key.Substring(idx + 1), out int lvl))
+            return;
+        OnSkillChoiceSelectionChanged?.Invoke(st, Mathf.Max(1, lvl), -1);
+    }
+
+    /// <summary>Clears every passive-branch choice and every multi-ability row pick (global reset).</summary>
+    public void ResetAllSkillTreeSelections()
+    {
+        ClearAllSkillChoiceSelections();
+        ClearAllSkillAbilityRowPicks();
+    }
+
+    private static string BuildAbilityRowKey(SkillType skillType, int requiredLevel)
+    {
+        return $"{skillType}:abilityRow:{Mathf.Max(1, requiredLevel)}";
+    }
+
+    /// <summary>
+    /// Commits which sibling ability is active at this level. Clearing is only done via
+    /// <see cref="ClearSkillAbilityRowPicksForSkill"/> / <see cref="ClearAllSkillAbilityRowPicks"/> (e.g. Reset Tree), not by passing a negative index.
+    /// </summary>
+    public void SetSkillAbilityRowPick(SkillType skillType, int requiredLevel, int pickIndex)
+    {
+        if (pickIndex < 0)
+            return;
+
+        string key = BuildAbilityRowKey(skillType, requiredLevel);
+        int lvl = Mathf.Max(1, requiredLevel);
+
+        int clamped = Mathf.Max(0, pickIndex);
+        if (_skillAbilityRowPicks.TryGetValue(key, out int existing) && existing == clamped)
+            return;
+
+        _skillAbilityRowPicks[key] = clamped;
+        OnSkillAbilityRowPickChanged?.Invoke(skillType, lvl, clamped);
+    }
+
+    public int GetSkillAbilityRowPick(SkillType skillType, int requiredLevel, int defaultValue = -1)
+    {
+        string key = BuildAbilityRowKey(skillType, requiredLevel);
+        return _skillAbilityRowPicks.TryGetValue(key, out int value) ? value : defaultValue;
+    }
+
+    public void ClearAllSkillAbilityRowPicks()
+    {
+        if (_skillAbilityRowPicks.Count == 0)
+            return;
+        var copy = new List<KeyValuePair<string, int>>(_skillAbilityRowPicks);
+        _skillAbilityRowPicks.Clear();
+        foreach (var kv in copy)
+            TryInvokeAbilityRowClearFromKey(kv.Key);
+    }
+
+    /// <summary>Clears ability sibling picks for one skill (e.g. reset tree for current skill).</summary>
+    public void ClearSkillAbilityRowPicksForSkill(SkillType skillType)
+    {
+        string prefix = $"{skillType}:abilityRow:";
+        var toRemove = new List<string>();
+        foreach (var kv in _skillAbilityRowPicks)
+        {
+            if (kv.Key.StartsWith(prefix, StringComparison.Ordinal))
+                toRemove.Add(kv.Key);
+        }
+
+        foreach (string k in toRemove)
+        {
+            _skillAbilityRowPicks.Remove(k);
+            TryInvokeAbilityRowClearFromKey(k);
+        }
+    }
+
+    private void TryInvokeAbilityRowClearFromKey(string key)
+    {
+        int idx = key.IndexOf(":abilityRow:", StringComparison.Ordinal);
+        if (idx <= 0)
+            return;
+        if (!Enum.TryParse(key.Substring(0, idx), out SkillType st))
+            return;
+        int levelStart = idx + ":abilityRow:".Length;
+        if (levelStart >= key.Length || !int.TryParse(key.Substring(levelStart), out int lvl))
+            return;
+        OnSkillAbilityRowPickChanged?.Invoke(st, Mathf.Max(1, lvl), -1);
     }
 
     // -------------------------
@@ -273,6 +392,16 @@ public class SkillsManager : MonoBehaviour, ISaveable
             data.skillChoiceSelectionKeys.Add(kv.Key);
             data.skillChoiceSelectionValues.Add(kv.Value);
         }
+
+        data.skillAbilityRowPickKeys ??= new List<string>();
+        data.skillAbilityRowPickValues ??= new List<int>();
+        data.skillAbilityRowPickKeys.Clear();
+        data.skillAbilityRowPickValues.Clear();
+        foreach (var kv in _skillAbilityRowPicks)
+        {
+            data.skillAbilityRowPickKeys.Add(kv.Key);
+            data.skillAbilityRowPickValues.Add(kv.Value);
+        }
     }
 
     public void LoadFrom(SaveData data)
@@ -311,6 +440,19 @@ public class SkillsManager : MonoBehaviour, ISaveable
                 if (string.IsNullOrWhiteSpace(key))
                     continue;
                 _skillChoiceSelections[key] = Mathf.Max(0, data.skillChoiceSelectionValues[i]);
+            }
+        }
+
+        _skillAbilityRowPicks.Clear();
+        if (data.skillAbilityRowPickKeys != null && data.skillAbilityRowPickValues != null)
+        {
+            int ac = Mathf.Min(data.skillAbilityRowPickKeys.Count, data.skillAbilityRowPickValues.Count);
+            for (int i = 0; i < ac; i++)
+            {
+                string key = data.skillAbilityRowPickKeys[i];
+                if (string.IsNullOrWhiteSpace(key))
+                    continue;
+                _skillAbilityRowPicks[key] = Mathf.Max(0, data.skillAbilityRowPickValues[i]);
             }
         }
 

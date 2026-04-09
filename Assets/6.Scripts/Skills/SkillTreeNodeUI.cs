@@ -54,6 +54,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     private bool isSelected;
     private SkillTreeNodeVisualType appliedVisualType;
     private System.Action onClickAction;
+    private System.Action onRightClickAction;
     private System.Action onHoverEnter;
     private System.Action onHoverExit;
     private Vector2 _baseOuterRingSize;
@@ -127,6 +128,11 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
     }
 
+    public void SetRightClick(System.Action onRightClick)
+    {
+        onRightClickAction = onRightClick;
+    }
+
     public void SetHover(System.Action enter, System.Action exit)
     {
         onHoverEnter = enter;
@@ -145,7 +151,18 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (eventData != null && eventData.button != PointerEventData.InputButton.Left)
+        if (eventData == null)
+            return;
+
+        if (eventData.button == PointerEventData.InputButton.Right)
+        {
+            if (isLocked)
+                return;
+            onRightClickAction?.Invoke();
+            return;
+        }
+
+        if (eventData.button != PointerEventData.InputButton.Left)
             return;
         if (isLocked)
             return;
@@ -157,12 +174,6 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     public void SetSelected(bool selected)
     {
         isSelected = selected;
-
-        if (selectedGlow != null)
-        {
-            selectedGlow.SetActive(selected);
-        }
-
         ApplySelectedOutlineFallback();
     }
 
@@ -179,6 +190,8 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         {
             button.interactable = !locked;
         }
+
+        ApplySelectedOutlineFallback();
     }
 
     public bool IsLocked()
@@ -360,7 +373,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         if (selectedGlow == null)
             return;
 
-        bool showChoiceSelection = isSelected && appliedVisualType == SkillTreeNodeVisualType.Choice;
+        bool showGlow = ShouldShowSelectedGlow();
 
         RectTransform glowRt = selectedGlow.GetComponent<RectTransform>();
         if (glowRt != null)
@@ -394,8 +407,27 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
                 glowImage.type = Image.Type.Sliced;
         }
 
-        selectedGlow.SetActive(showChoiceSelection);
+        selectedGlow.SetActive(showGlow);
         if (_fillOutline != null)
-            _fillOutline.enabled = !showChoiceSelection;
+            _fillOutline.enabled = !showGlow;
+    }
+
+    /// <summary>
+    /// Choice / ability: glow only when <see cref="isSelected"/> (committed pick or active choice). Other milestones: glow when unlocked and/or tree-selected.
+    /// </summary>
+    private bool ShouldShowSelectedGlow()
+    {
+        switch (appliedVisualType)
+        {
+            case SkillTreeNodeVisualType.Choice:
+            case SkillTreeNodeVisualType.Ability:
+                return isSelected;
+            case SkillTreeNodeVisualType.MajorPassive:
+            case SkillTreeNodeVisualType.Unlock:
+            case SkillTreeNodeVisualType.CapstonePassive:
+                return !isLocked || isSelected;
+            default:
+                return isSelected;
+        }
     }
 }

@@ -456,7 +456,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (!slot.CanAccept(action))
                 continue;
 
-            if (abilityController.TryUseAbility(action.id))
+            if (abilityController.TryUseAbility(action.id, showLockedFeedback: false))
                 break;
         }
     }

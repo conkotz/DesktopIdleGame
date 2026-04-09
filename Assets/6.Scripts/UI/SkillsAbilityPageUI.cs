@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
@@ -149,6 +150,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         skillsManager.OnLevelUp += HandleSkillsLevelUp;
         skillsManager.OnSkillChoiceSelectionChanged += HandleSkillChoiceSelectionChanged;
+        skillsManager.OnSkillAbilityRowPickChanged += HandleSkillAbilityRowPickChanged;
     }
 
     private void TryUnsubscribeSkillsEvents()
@@ -156,6 +158,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (!skillsManager) return;
         skillsManager.OnLevelUp -= HandleSkillsLevelUp;
         skillsManager.OnSkillChoiceSelectionChanged -= HandleSkillChoiceSelectionChanged;
+        skillsManager.OnSkillAbilityRowPickChanged -= HandleSkillAbilityRowPickChanged;
     }
 
     /// <summary>
@@ -168,6 +171,16 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     }
 
     private void HandleSkillChoiceSelectionChanged(SkillType skillType, int sourceLevel, int choiceIndex)
+    {
+        if (!isActiveAndEnabled || _selectedSkill == null)
+            return;
+        if (_selectedSkill.skillType != skillType)
+            return;
+
+        RefreshRightPanelForCurrentSkill();
+    }
+
+    private void HandleSkillAbilityRowPickChanged(SkillType skillType, int requiredLevel, int pickIndex)
     {
         if (!isActiveAndEnabled || _selectedSkill == null)
             return;
@@ -450,10 +463,14 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
 
         int unlockedCount = 0;
-        for (int i = 0; i < abilities.Count; i++)
+        foreach (var ability in abilities)
         {
-            var ability = abilities[i];
-            if (ability != null && level >= Mathf.Max(1, ability.unlockLevel))
+            if (ability == null)
+                continue;
+            bool unlocked = level >= Mathf.Max(1, ability.unlockLevel);
+            if (unlocked && !SkillAbilityCommitRules.ShouldShowAbilityInRightPanel(skill, ability, skillsManager))
+                continue;
+            if (unlocked)
                 unlockedCount++;
         }
 
@@ -470,6 +487,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         {
             if (!a) continue;
             bool unlocked = level >= Mathf.Max(1, a.unlockLevel);
+            if (unlocked && !SkillAbilityCommitRules.ShouldShowAbilityInRightPanel(skill, a, skillsManager))
+                continue;
             var row = CreateAbilityRow(rightAbilitiesListParent);
             row.Bind(a, unlocked, tooltip, canvas);
             row.SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Left);
@@ -728,8 +747,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             }
             else if (selected == 1)
             {
-                sb.AppendLine("   - Hemorrhage (Choice)");
-                sb.AppendLine("     +10% Bleed Multiplier");
+                sb.AppendLine("   - Hemorrhage (Choice — adds to Bloodletting)");
+                sb.AppendLine("     +10% Bleed Chance");
+                sb.AppendLine("     +10% Damage to Bleeding Targets");
+                sb.AppendLine("     +5% Bleed Multiplier");
                 sb.AppendLine("     +1s Bleed Duration");
             }
             else

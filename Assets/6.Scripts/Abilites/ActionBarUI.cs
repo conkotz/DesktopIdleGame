@@ -56,6 +56,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     [SerializeField] private PlayerConsumableController consumableController;
     [SerializeField] private PlayerAbilityController abilityController;
     [SerializeField] private AbilityDatabase abilityDatabase;
+    [SerializeField] private SkillDatabase skillDatabase;
+    [SerializeField] private SkillsManager skillsManager;
 
     [Header("Saved State (backing fields)")]
     private List<SavedSlotState> savedSlots = new();
@@ -374,6 +376,12 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             if (action.IsAbility)
             {
                 ResolveCoreRefs();
+                AbilityDefinition abilityDef = GetAbilityDefinition(action.id);
+                bool abilityLocked = abilityDef == null || !SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(
+                    skillDatabase != null ? skillDatabase.Get(abilityDef.sourceSkill) : null,
+                    abilityDef,
+                    skillsManager);
+
                 if (abilityController != null)
                 {
                     float abilityNorm = abilityController.GetCooldownNormalized(action.id);
@@ -389,14 +397,14 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                         slot.SetCooldownVisual(gcdNorm, gcdSecs);
 
                     slot.SetPrimedVisual(abilityController.IsAbilityPrimed(action.id));
-                    slot.SetNoStockVisual(false);
+                    slot.SetNoStockVisual(abilityLocked);
                     slot.SetAbilityWeaponCompatibility(abilityController.CanUseAbilityWithCurrentWeapon(action.id));
                 }
                 else
                 {
                     slot.SetCooldownVisual(0f, 0f);
                     slot.SetPrimedVisual(false);
-                    slot.SetNoStockVisual(false);
+                    slot.SetNoStockVisual(abilityLocked);
                     slot.SetAbilityWeaponCompatibility(true);
                 }
 
@@ -558,6 +566,12 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         if (abilityDatabase == null)
             abilityDatabase = AbilityDatabase.LoadDefault();
+
+        if (skillDatabase == null)
+            skillDatabase = SkillDatabase.LoadDefault();
+
+        if (skillsManager == null)
+            skillsManager = SkillsManager.Instance;
     }
 
     private AbilityDefinition GetAbilityDefinition(string id)
