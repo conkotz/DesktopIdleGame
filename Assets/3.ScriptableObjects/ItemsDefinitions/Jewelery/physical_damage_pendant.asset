@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 4
   maxStack: 1
-  itemId: ability_power_pendant
-  displayName: Pendant of Enhanced Ability
-  icon: {fileID: -7650717663049643274, guid: 81a21ba160b98c74c9b3f31ebc80a22f, type: 3}
+  itemId: physical_damage_pendant
+  displayName: Pendant of Physical Damage
+  icon: {fileID: 975548719773553121, guid: 81a21ba160b98c74c9b3f31ebc80a22f, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -24,7 +24,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: Grants increased Ability Power to increase damage dealt by abilites
+  description: Grants increased global physcial damage
   rarity: 2
   value: 800
   equipSlot: 7
@@ -102,7 +102,7 @@ MonoBehaviour:
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
-    physicalDamagePercent: 0
+    physicalDamagePercent: 0.1
     globalPhysicalDamagePercent: 0
     rangedPhysicalDamagePercent: 0
     magicDamage: 0
@@ -112,7 +112,7 @@ MonoBehaviour:
     lightningSkillDamagePercent: 0
     corruptionDamagePercent: 0
     corruptionDamage: 0
-    abilityPower: 25
+    abilityPower: 0
     attackSpeedPercent: 0
     critChanceBonus: 0
     critMultiplierBonus: 0

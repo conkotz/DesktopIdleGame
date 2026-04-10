@@ -82,3 +82,6 @@ MonoBehaviour:
   - itemId: ability_power_pendant
     costs: []
     quantity: 1
+  - itemId: physical_damage_pendant
+    costs: []
+    quantity: 1
