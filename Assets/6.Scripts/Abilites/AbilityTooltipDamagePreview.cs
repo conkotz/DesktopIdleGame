@@ -128,7 +128,7 @@ public static class AbilityTooltipDamagePreview
         }
         else if (IsVenomJab(def))
         {
-            body.AppendLine(O("100% Poison on next hit (when True Damage is dealt)"));
+            body.AppendLine(O("100% Poison on next hit (when Corruption damage is dealt)"));
         }
         else if (IsCleavingStrikes(def))
         {

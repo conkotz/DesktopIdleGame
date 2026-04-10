@@ -92,7 +92,7 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Venom Jab
-    description: Primes your next melee hit. If the hit deals True Damage, apply
+    description: Primes your next melee hit. If the hit deals Corruption damage, apply
       Poison at 100% chance at max stacks.
     icon: {fileID: 0}
     unlockType: 1

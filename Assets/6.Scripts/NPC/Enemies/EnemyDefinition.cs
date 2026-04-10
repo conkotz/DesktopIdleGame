@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// Data-only enemy template: identity, base combat values, and prefab reference.
@@ -44,6 +45,9 @@ public class EnemyDefinition : ScriptableObject
     [Min(0)]
     public int magicResist = 0;
 
+    [Min(0)]
+    public int corruptionResist = 0;
+
     [Range(0f, 1f)]
     [Tooltip("Maps to CharacterStats basePhysBlockChance.")]
     public float physBlockChance = 0f;
@@ -63,10 +67,12 @@ public class EnemyDefinition : ScriptableObject
     public float maxMagicDamage = 0f;
 
     [Min(0)]
-    public float minTrueDamage = 0f;
+    [FormerlySerializedAs("minTrueDamage")]
+    public float minCorruptionDamage = 0f;
 
     [Min(0)]
-    public float maxTrueDamage = 0f;
+    [FormerlySerializedAs("maxTrueDamage")]
+    public float maxCorruptionDamage = 0f;
 
     [Header("Combat cadence")]
     [Tooltip("Attacks per second (unarmed APS on CharacterStats).")]
@@ -82,7 +88,7 @@ public class EnemyDefinition : ScriptableObject
     public float attackRange = 1f;
 
     [Range(0f, 1f)]
-    [Tooltip("Crit chance for physical/magical hits (true damage never crits).")]
+    [Tooltip("Crit chance for physical/magical hits (corruption never crits on basic attacks).")]
     public float critChance = 0f;
 
     [Min(1f)]

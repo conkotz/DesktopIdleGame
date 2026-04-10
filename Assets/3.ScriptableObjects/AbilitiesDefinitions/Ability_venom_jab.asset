@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: venom_jab
   displayName: Venom Jab
-  description: Primes your next melee hit. If the hit deals True Damage, apply Poison
-    at 100% chance at max stacks.
+  description: Primes your next melee hit. If the hit deals Corruption damage, apply
+    Poison at 100% chance at max stacks.
   icon: {fileID: -3106849600663172003, guid: eac4dfbab0ba6ba47923ad2fffa2615c, type: 3}
   cooldown: 10
   energyCost: 30

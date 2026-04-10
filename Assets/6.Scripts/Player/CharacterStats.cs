@@ -1,24 +1,25 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [System.Serializable]
 public struct SplitDamage
 {
     public float physical;
     public float magical;
-    public float trueDamage;
+    public float corruptionDamage;
 
-    public SplitDamage(float physical, float magical, float trueDamage)
+    public SplitDamage(float physical, float magical, float corruptionDamage)
     {
         this.physical = physical;
         this.magical = magical;
-        this.trueDamage = trueDamage;
+        this.corruptionDamage = corruptionDamage;
     }
 
-    public float Total => physical + magical + trueDamage;
+    public float Total => physical + magical + corruptionDamage;
 
-    public bool IsEmpty => physical <= 0f && magical <= 0f && trueDamage <= 0f;
+    public bool IsEmpty => physical <= 0f && magical <= 0f && corruptionDamage <= 0f;
 
     public static SplitDamage Zero => new SplitDamage(0f, 0f, 0f);
 
@@ -27,7 +28,7 @@ public struct SplitDamage
         return new SplitDamage(
             a.physical + b.physical,
             a.magical + b.magical,
-            a.trueDamage + b.trueDamage
+            a.corruptionDamage + b.corruptionDamage
         );
     }
 
@@ -36,7 +37,7 @@ public struct SplitDamage
         return new SplitDamage(
             a.physical * mult,
             a.magical * mult,
-            a.trueDamage * mult
+            a.corruptionDamage * mult
         );
     }
 }
@@ -86,6 +87,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private int baseMaxMana = 50;
     [SerializeField] private int baseArmor = 0;
     [SerializeField] private int baseMagicResist = 0;
+    [SerializeField] private int baseCorruptionResist = 0;
     [SerializeField, Range(0f, 1f)] private float basePhysBlockChance = 0f;
 
     [Header("Base Utility")]
@@ -104,8 +106,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private float baseMinMagicDamage = 0f;
     [SerializeField] private float baseMaxMagicDamage = 0f;
 
-    [SerializeField] private float baseMinTrueDamage = 0f;
-    [SerializeField] private float baseMaxTrueDamage = 0f;
+    [FormerlySerializedAs("baseMinTrueDamage")]
+    [SerializeField] private float baseMinCorruptionDamage = 0f;
+    [FormerlySerializedAs("baseMaxTrueDamage")]
+    [SerializeField] private float baseMaxCorruptionDamage = 0f;
 
     [SerializeField] private float baseAbilityPower = 0f;
     [SerializeField, Range(0f, 1f)] private float baseLifeSteal = 0f;
@@ -181,7 +185,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private const float combatPowerPhysicalWeight = 0.5f;
     private const float combatPowerMagicalWeight = 0.3f;
-    private const float combatPowerTrueWeight = 0.2f;
+    private const float combatPowerCorruptionWeight = 0.2f;
 
     private const float LowHealthThreshold01 = 0.35f;
 
@@ -308,6 +312,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public int MaxMana => Mathf.Max(0, baseMaxMana + GetEquippedBonusMana());
     public int Armor => baseArmor + GetEquippedArmor() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeArmor);
     public int MagicResist => baseMagicResist + GetEquippedMagicResist() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeMagicResist);
+    public int CorruptionResist => baseCorruptionResist + GetEquippedCorruptionResist();
 
     public float PhysBlockChance => Mathf.Clamp01(basePhysBlockChance + GetEquippedPhysBlockChance());
     public float PhysBlockChancePercent => PhysBlockChance * 100f;
@@ -352,8 +357,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float BaseMinMagicDamage => Mathf.Max(0f, baseMinMagicDamage);
     public float BaseMaxMagicDamage => Mathf.Max(BaseMinMagicDamage, baseMaxMagicDamage);
 
-    public float BaseMinTrueDamage => Mathf.Max(0f, baseMinTrueDamage);
-    public float BaseMaxTrueDamage => Mathf.Max(BaseMinTrueDamage, baseMaxTrueDamage);
+    public float BaseMinCorruptionDamage => Mathf.Max(0f, baseMinCorruptionDamage);
+    public float BaseMaxCorruptionDamage => Mathf.Max(BaseMinCorruptionDamage, baseMaxCorruptionDamage);
     public float AbilityPower => Mathf.Max(0f, baseAbilityPower + GetEquippedAbilityPower());
 
     // Ailments
@@ -417,6 +422,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
+    public float CorruptionReductionFromResistPercent
+    {
+        get
+        {
+            float cr = Mathf.Max(0f, CorruptionResist);
+            float multiplier = 100f / (100f + cr);
+            return (1f - multiplier) * 100f;
+        }
+    }
+
     // Offensive (display)
     public int MinDamage => Mathf.RoundToInt(MinSplitDamage.Total);
     public int MaxDamage => Mathf.RoundToInt(MaxSplitDamage.Total);
@@ -433,11 +448,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float CritChancePercent => CritChance * 100f;
     public float CritMultiplierPercent => CritMultiplier * 100f;
 
-    /// <summary>True when the attack has physical or magical damage; true-only hits cannot crit.</summary>
+    /// <summary>True when the attack has physical or magical damage; corruption-only hits cannot crit on basic attacks.</summary>
     public bool HasCrittableDirectDamage =>
         MaxSplitDamage.physical > 0f || MaxSplitDamage.magical > 0f;
 
-    /// <summary>Crit % for stats UI: 0 when damage is true-only (gear crit still applies only to crittable types).</summary>
+    /// <summary>Crit % for stats UI: 0 when damage is corruption-only (gear crit still applies only to crittable types).</summary>
     public float StatsPanelCritChancePercent =>
         HasCrittableDirectDamage ? CritChancePercent : 0f;
 
@@ -466,7 +481,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // Ailment (Expected DPS / UI)
     public float AveragePhysicalHit => (MinSplitDamage.physical + MaxSplitDamage.physical) * 0.5f;
     public float AverageMagicalHit => (MinSplitDamage.magical + MaxSplitDamage.magical) * 0.5f;
-    public float AverageTrueHit => (MinSplitDamage.trueDamage + MaxSplitDamage.trueDamage) * 0.5f;
+    public float AverageCorruptionHit => (MinSplitDamage.corruptionDamage + MaxSplitDamage.corruptionDamage) * 0.5f;
 
     public float ExpectedCritFactor
     {
@@ -481,8 +496,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float ExpectedPhysicalHit => AveragePhysicalHit * ExpectedCritFactor;
     public float ExpectedMagicalHit => AverageMagicalHit * ExpectedCritFactor;
 
-    /// <summary>True damage never benefits from crit (combat rolls and DPS models assume this).</summary>
-    public float ExpectedTrueHit => AverageTrueHit;
+    /// <summary>Corruption damage never benefits from crit on basic attacks (combat rolls and DPS models assume this).</summary>
+    public float ExpectedCorruptionHit => AverageCorruptionHit;
 
     // ---------- Bleed ----------
     public float BleedBaseTotalDamage => ExpectedPhysicalHit * (1f + BleedMultiplier);
@@ -518,7 +533,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     // ---------- Poison ----------
     // Stats-panel display model:
-    // - uses average true hit
+    // - uses average corruption hit
     // - includes poison multiplier
     // - assumes poison can ramp to full stacks
     // - PoisonMaxDPS is the sustained DPS at max stacks
@@ -529,9 +544,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         {
             if (PoisonChance <= 0f) return 0f;
             if (PoisonDuration <= 0f) return 0f;
-            if (AverageTrueHit <= 0f) return 0f;
+            if (AverageCorruptionHit <= 0f) return 0f;
 
-            return AverageTrueHit * (1f + PoisonMultiplier);
+            return AverageCorruptionHit * (1f + PoisonMultiplier);
         }
     }
 
@@ -585,7 +600,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (p <= 0f || AttacksPerSecond <= 0f)
             return 0f;
 
-        float hit = ExpectedPhysicalHit + ExpectedMagicalHit + ExpectedTrueHit;
+        float hit = ExpectedPhysicalHit + ExpectedMagicalHit + ExpectedCorruptionHit;
         if (hit <= 0f)
             return 0f;
 
@@ -641,7 +656,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    public float EffectiveHPVsTrue => MaxHP;
+    public float EffectiveHPVsCorruption
+    {
+        get
+        {
+            float damageTakenMultiplier = 100f / (100f + Mathf.Max(0f, CorruptionResist));
+            return MaxHP / Mathf.Max(0.01f, damageTakenMultiplier);
+        }
+    }
 
     public float WeightedEffectiveHP
     {
@@ -650,7 +672,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             float totalWeight =
                 combatPowerPhysicalWeight +
                 combatPowerMagicalWeight +
-                combatPowerTrueWeight;
+                combatPowerCorruptionWeight;
 
             if (totalWeight <= 0f)
                 return MaxHP;
@@ -658,7 +680,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return
                 (EffectiveHPVsPhysical * combatPowerPhysicalWeight +
                  EffectiveHPVsMagical * combatPowerMagicalWeight +
-                 EffectiveHPVsTrue * combatPowerTrueWeight)
+                 EffectiveHPVsCorruption * combatPowerCorruptionWeight)
                 / totalWeight;
         }
     }
@@ -695,7 +717,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return new CombatProfileDefenseHints(
             EffectiveHPVsPhysical,
             EffectiveHPVsMagical,
-            EffectiveHPVsTrue,
+            EffectiveHPVsCorruption,
             Armor,
             MagicResist,
             MaxHP,
@@ -1042,10 +1064,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         float totalPhys = min.physical + max.physical;
         float totalMag = min.magical + max.magical;
-        float totalTrue = min.trueDamage + max.trueDamage;
+        float totalCorruption = min.corruptionDamage + max.corruptionDamage;
 
-        if (totalTrue >= totalPhys && totalTrue >= totalMag && totalTrue > 0f)
-            return DamageType.True;
+        if (totalCorruption >= totalPhys && totalCorruption >= totalMag && totalCorruption > 0f)
+            return DamageType.Corruption;
 
         if (totalMag >= totalPhys && totalMag > 0f)
             return DamageType.Magical;
@@ -1070,7 +1092,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         {
             float phys = unarmedMinPhysicalDamage + BaseMinPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMinMeleeDamage;
             float mag = BaseMinMagicDamage + GetEquippedMagicDamage();
-            float tru = BaseMinTrueDamage + GetEquippedTrueDamage();
+            float corr = BaseMinCorruptionDamage + GetEquippedCorruptionDamage();
 
             phys *= (physicalBuffMult * physicalGearPctMult);
             mag *= (magicBuffMult * magicGearPctMult);
@@ -1078,7 +1100,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return new SplitDamage(
                 Mathf.Max(0f, phys),
                 Mathf.Max(0f, mag),
-                Mathf.Max(0f, tru)
+                Mathf.Max(0f, corr)
             );
         }
 
@@ -1090,25 +1112,25 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         float physMin = mh.weaponStats.minPhysicalDamage;
         float magMin = mh.weaponStats.minMagicDamage;
-        float trueMin = mh.weaponStats.minTrueDamage;
+        float corruptionMin = mh.weaponStats.minCorruptionDamage;
 
         if (ohWeapon)
         {
             physMin = (mh.weaponStats.minPhysicalDamage + ohWeapon.weaponStats.minPhysicalDamage) * 0.5f;
             magMin = (mh.weaponStats.minMagicDamage + ohWeapon.weaponStats.minMagicDamage) * 0.5f;
-            trueMin = (mh.weaponStats.minTrueDamage + ohWeapon.weaponStats.minTrueDamage) * 0.5f;
+            corruptionMin = (mh.weaponStats.minCorruptionDamage + ohWeapon.weaponStats.minCorruptionDamage) * 0.5f;
         }
 
         if (support)
         {
             physMin += support.SupportBonusPhysicalDamage;
             magMin += support.SupportBonusMagicDamage;
-            trueMin += support.SupportBonusTrueDamage;
+            corruptionMin += support.SupportBonusCorruptionDamage;
         }
 
         physMin += BaseMinPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMinMeleeDamage;
         magMin += BaseMinMagicDamage + GetEquippedMagicDamage();
-        trueMin += BaseMinTrueDamage + GetEquippedTrueDamage();
+        corruptionMin += BaseMinCorruptionDamage + GetEquippedCorruptionDamage();
 
         physMin *= (physicalBuffMult * physicalGearPctMult);
         magMin *= (magicBuffMult * magicGearPctMult);
@@ -1116,7 +1138,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return new SplitDamage(
             Mathf.Max(0f, physMin),
             Mathf.Max(0f, magMin),
-            Mathf.Max(0f, trueMin)
+            Mathf.Max(0f, corruptionMin)
         );
     }
 
@@ -1134,7 +1156,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         {
             float phys = unarmedMaxPhysicalDamage + BaseMaxPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMaxMeleeDamage;
             float mag = BaseMaxMagicDamage + GetEquippedMagicDamage();
-            float tru = BaseMaxTrueDamage + GetEquippedTrueDamage();
+            float corr = BaseMaxCorruptionDamage + GetEquippedCorruptionDamage();
 
             phys *= (physicalBuffMult * physicalGearPctMult);
             mag *= (magicBuffMult * magicGearPctMult);
@@ -1142,7 +1164,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return new SplitDamage(
                 Mathf.Max(0f, phys),
                 Mathf.Max(0f, mag),
-                Mathf.Max(0f, tru)
+                Mathf.Max(0f, corr)
             );
         }
 
@@ -1154,25 +1176,25 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         float physMax = mh.weaponStats.maxPhysicalDamage;
         float magMax = mh.weaponStats.maxMagicDamage;
-        float trueMax = mh.weaponStats.maxTrueDamage;
+        float corruptionMax = mh.weaponStats.maxCorruptionDamage;
 
         if (ohWeapon)
         {
             physMax = (mh.weaponStats.maxPhysicalDamage + ohWeapon.weaponStats.maxPhysicalDamage) * 0.5f;
             magMax = (mh.weaponStats.maxMagicDamage + ohWeapon.weaponStats.maxMagicDamage) * 0.5f;
-            trueMax = (mh.weaponStats.maxTrueDamage + ohWeapon.weaponStats.maxTrueDamage) * 0.5f;
+            corruptionMax = (mh.weaponStats.maxCorruptionDamage + ohWeapon.weaponStats.maxCorruptionDamage) * 0.5f;
         }
 
         if (support)
         {
             physMax += support.SupportBonusPhysicalDamage;
             magMax += support.SupportBonusMagicDamage;
-            trueMax += support.SupportBonusTrueDamage;
+            corruptionMax += support.SupportBonusCorruptionDamage;
         }
 
         physMax += BaseMaxPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMaxMeleeDamage;
         magMax += BaseMaxMagicDamage + GetEquippedMagicDamage();
-        trueMax += BaseMaxTrueDamage + GetEquippedTrueDamage();
+        corruptionMax += BaseMaxCorruptionDamage + GetEquippedCorruptionDamage();
 
         physMax *= (physicalBuffMult * physicalGearPctMult);
         magMax *= (magicBuffMult * magicGearPctMult);
@@ -1180,7 +1202,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return new SplitDamage(
             Mathf.Max(0f, physMax),
             Mathf.Max(0f, magMax),
-            Mathf.Max(0f, trueMax)
+            Mathf.Max(0f, corruptionMax)
         );
     }
 
@@ -1249,13 +1271,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float avgPhysical = (MinSplitDamage.physical + MaxSplitDamage.physical) * 0.5f;
         float avgMagical = (MinSplitDamage.magical + MaxSplitDamage.magical) * 0.5f;
-        float avgTrue = (MinSplitDamage.trueDamage + MaxSplitDamage.trueDamage) * 0.5f;
+        float avgCorruption = (MinSplitDamage.corruptionDamage + MaxSplitDamage.corruptionDamage) * 0.5f;
 
-        float avgTotal = avgPhysical + avgMagical + avgTrue;
+        float avgTotal = avgPhysical + avgMagical + avgCorruption;
         return avgTotal * AttacksPerSecond;
     }
 
-    /// <summary>Direct hit DPS for character sheet: expected damage with crit on phys/mag only; true never crits.</summary>
+    /// <summary>Direct hit DPS for character sheet: expected damage with crit on phys/mag only; corruption never crits on basics.</summary>
     private float GetStatsSheetDirectDps()
     {
         float aps = AttacksPerSecond;
@@ -1267,9 +1289,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         float avgPhys = (MinSplitDamage.physical + MaxSplitDamage.physical) * 0.5f;
         float avgMag = (MinSplitDamage.magical + MaxSplitDamage.magical) * 0.5f;
-        float avgTrue = (MinSplitDamage.trueDamage + MaxSplitDamage.trueDamage) * 0.5f;
+        float avgCorruption = (MinSplitDamage.corruptionDamage + MaxSplitDamage.corruptionDamage) * 0.5f;
 
-        return ((avgPhys + avgMag) * critFactor + avgTrue) * aps;
+        return ((avgPhys + avgMag) * critFactor + avgCorruption) * aps;
     }
 
     /// <summary>Ailment DPS for character sheet without CP tuning weights.</summary>
@@ -1504,7 +1526,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 total.meleeMagicDamagePercent += 0.03f;
                 total.meleeShockChance += 0.05f;
                 break;
-            case MeleeMinorNodeStatOption.MeleePoisonTrueHybrid:
+            case MeleeMinorNodeStatOption.MeleePoisonCorruptionHybrid:
                 total.meleePoisonChance += 0.05f;
                 total.meleePoisonDuration += 0.10f;
                 total.meleeAilmentDamage += 0.04f;
@@ -1643,11 +1665,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
-    private float GetEquippedTrueDamage()
+    private int GetEquippedCorruptionResist()
+    {
+        int total = 0;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.CorruptionResist;
+        return total;
+    }
+
+    private float GetEquippedCorruptionDamage()
     {
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
-            total += def.TrueDamage;
+            total += def.BonusCorruptionDamage;
         return total;
     }
 
@@ -1767,8 +1797,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             ? UnityEngine.Random.Range(min.magical, max.magical + 0.0001f)
             : 0f;
 
-        float tru = (max.trueDamage > 0f && max.trueDamage >= min.trueDamage)
-            ? UnityEngine.Random.Range(min.trueDamage, max.trueDamage + 0.0001f)
+        float corr = (max.corruptionDamage > 0f && max.corruptionDamage >= min.corruptionDamage)
+            ? UnityEngine.Random.Range(min.corruptionDamage, max.corruptionDamage + 0.0001f)
             : 0f;
 
         wasCrit = false;
@@ -1777,7 +1807,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         {
             float crit = Mathf.Max(1f, CritMultiplier);
 
-            // True damage never benefits from crit; only flag crit if phys/mag scaled.
+            // Corruption damage never benefits from crit on basic attacks; only flag crit if phys/mag scaled.
             if (phys > 0f || mag > 0f)
             {
                 wasCrit = true;
@@ -1789,7 +1819,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return new SplitDamage(
             Mathf.Max(0f, phys),
             Mathf.Max(0f, mag),
-            Mathf.Max(0f, tru)
+            Mathf.Max(0f, corr)
         );
     }
 
@@ -1803,21 +1833,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
     float abilityPowerScale,
     float physicalDamageScale,
     float magicDamageScale,
-    float trueDamageScale)
+    float corruptionDamageScale)
     {
         float ap = AbilityPower;
 
         // Use average of min/max ranges
         float pd = (BaseMinPhysicalDamage + BaseMaxPhysicalDamage) * 0.5f + GetEquippedPhysicalDamage();
         float md = (BaseMinMagicDamage + BaseMaxMagicDamage) * 0.5f + GetEquippedMagicDamage();
-        float td = (BaseMinTrueDamage + BaseMaxTrueDamage) * 0.5f + GetEquippedTrueDamage();
+        float cd = (BaseMinCorruptionDamage + BaseMaxCorruptionDamage) * 0.5f + GetEquippedCorruptionDamage();
 
         float result =
         baseDamage +
         (ap * abilityPowerScale) +
         (pd * physicalDamageScale) +
         (md * magicDamageScale) +
-        (td * trueDamageScale);
+        (cd * corruptionDamageScale);
 
         if (buffController)
         {
@@ -1922,8 +1952,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         baseMinMagicDamage = Mathf.Max(0f, def.minMagicDamage);
         baseMaxMagicDamage = Mathf.Max(baseMinMagicDamage, def.maxMagicDamage);
-        baseMinTrueDamage = Mathf.Max(0f, def.minTrueDamage);
-        baseMaxTrueDamage = Mathf.Max(baseMinTrueDamage, def.maxTrueDamage);
+        baseMinCorruptionDamage = Mathf.Max(0f, def.minCorruptionDamage);
+        baseMaxCorruptionDamage = Mathf.Max(baseMinCorruptionDamage, def.maxCorruptionDamage);
+        baseCorruptionResist = Mathf.Max(0, def.corruptionResist);
 
         baseAbilityPower = Mathf.Max(0f, def.abilityPower);
         baseLifeSteal = Mathf.Clamp01(def.lifeSteal);
@@ -1979,6 +2010,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         baseMaxHP = Mathf.Max(1, Mathf.RoundToInt(baseMaxHP * healthMult));
         baseArmor = Mathf.Max(0, Mathf.RoundToInt(baseArmor * armorMrMult));
         baseMagicResist = Mathf.Max(0, Mathf.RoundToInt(baseMagicResist * armorMrMult));
+        baseCorruptionResist = Mathf.Max(0, Mathf.RoundToInt(baseCorruptionResist * armorMrMult));
 
         unarmedMinPhysicalDamage = Mathf.Max(0, Mathf.RoundToInt(unarmedMinPhysicalDamage * outgoingDamageMult));
         unarmedMaxPhysicalDamage = Mathf.Max(
@@ -1990,8 +2022,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         baseMinMagicDamage *= outgoingDamageMult;
         baseMaxMagicDamage = Mathf.Max(baseMinMagicDamage, baseMaxMagicDamage * outgoingDamageMult);
-        baseMinTrueDamage *= outgoingDamageMult;
-        baseMaxTrueDamage = Mathf.Max(baseMinTrueDamage, baseMaxTrueDamage * outgoingDamageMult);
+        baseMinCorruptionDamage *= outgoingDamageMult;
+        baseMaxCorruptionDamage = Mathf.Max(baseMinCorruptionDamage, baseMaxCorruptionDamage * outgoingDamageMult);
 
         baseAbilityPower *= outgoingDamageMult;
 
@@ -2116,6 +2148,28 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return finalDamage;
     }
 
+    /// <summary>
+    /// Applies DoT (or other pre-resolved) damage: amount is already the intended tick total;
+    /// only global melee damage reduction applies (no armor / MR / corruption resist).
+    /// </summary>
+    public float TakeDamageFromResolvedDot(float amount, out bool blocked)
+    {
+        blocked = false;
+        if (_isDead) return 0f;
+
+        float finalDamage = ApplyMeleeDamageReduction(Mathf.Max(0f, amount));
+        currentHP = Mathf.Clamp(currentHP - finalDamage, 0f, MaxHP);
+        OnHPChanged?.Invoke(currentHP, MaxHP);
+
+        if (currentHP <= 0f && !_isDead)
+        {
+            _isDead = true;
+            OnDied?.Invoke();
+        }
+
+        return finalDamage;
+    }
+
     public void ReviveFull()
     {
         _isDead = false;
@@ -2136,8 +2190,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         switch (type)
         {
-            case DamageType.True:
-                return ApplyMeleeDamageReduction(rawDamage);
+            case DamageType.Corruption:
+                return ApplyMeleeDamageReduction(MitigateByRating(rawDamage, CorruptionResist));
 
             case DamageType.Physical:
                 {

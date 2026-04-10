@@ -25,7 +25,7 @@ public enum MeleeMinorNodeStatOption
     MeleeCrit = 103,
     MeleeBleedPhysicalPath = 104,
     MeleeElementalHybrid = 105,
-    MeleePoisonTrueHybrid = 106,
+    MeleePoisonCorruptionHybrid = 106,
     ConditionalMeleeOnly = 107,
     SustainMeleeScaled = 108,
     DefensiveMeleeBuild = 109

@@ -183,14 +183,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
             bool hasPhys = max.physical > 0f;
             bool hasMag = max.magical > 0f;
-            bool hasTrue = max.trueDamage > 0f;
+            bool hasCorruption = max.corruptionDamage > 0f;
 
             bool hasAnyDamage = stats.MaxDamage > 0 || stats.MinDamage > 0;
 
             int types =
                 (hasPhys ? 1 : 0) +
                 (hasMag ? 1 : 0) +
-                (hasTrue ? 1 : 0);
+                (hasCorruption ? 1 : 0);
 
             string typeLabel;
 
@@ -202,13 +202,13 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             {
                 if (hasPhys) typeLabel = "Physical";
                 else if (hasMag) typeLabel = "Magical";
-                else typeLabel = "True";
+                else typeLabel = "Corruption";
             }
             else if (types == 2)
             {
                 if (hasPhys && hasMag) typeLabel = "Physical + Magical";
-                else if (hasPhys && hasTrue) typeLabel = "Physical + True";
-                else typeLabel = "Magical + True";
+                else if (hasPhys && hasCorruption) typeLabel = "Physical + Corruption";
+                else typeLabel = "Magical + Corruption";
             }
             else
             {
@@ -234,14 +234,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 split += $"M {Mathf.RoundToInt(min.magical)}-{Mathf.RoundToInt(max.magical)}";
             }
 
-            if (hasTrue)
+            if (hasCorruption)
             {
                 if (!string.IsNullOrEmpty(split)) split += " | ";
-                split += $"T {Mathf.RoundToInt(min.trueDamage)}-{Mathf.RoundToInt(max.trueDamage)}";
+                split += $"C {Mathf.RoundToInt(min.corruptionDamage)}-{Mathf.RoundToInt(max.corruptionDamage)}";
             }
 
             string colouredTypeLabel = hasAnyDamage
-                ? BuildColouredTypeLabel(typeLabel, hasPhys, hasMag, hasTrue)
+                ? BuildColouredTypeLabel(typeLabel, hasPhys, hasMag, hasCorruption)
                 : typeLabel;
 
             damageSplitText.text = $"Type: {colouredTypeLabel}\nSplit: {split}";
@@ -395,13 +395,13 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         return stats.MagicAilmentApplyChance * 100f;
     }
 
-    private static string BuildColouredTypeLabel(string plainTypeLabel, bool hasPhys, bool hasMag, bool hasTrue)
+    private static string BuildColouredTypeLabel(string plainTypeLabel, bool hasPhys, bool hasMag, bool hasCorruption)
     {
         const string phys = "#FF5C5C";
         const string mag = "#4DB8FF";
-        const string tru = "#E6E6E6";
+        const string corr = "#7040C0";
 
-        if (hasPhys || hasMag || hasTrue)
+        if (hasPhys || hasMag || hasCorruption)
         {
             string result = "";
             if (hasPhys)
@@ -413,10 +413,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 result += $"<color={mag}>Magical</color>";
             }
 
-            if (hasTrue)
+            if (hasCorruption)
             {
                 if (!string.IsNullOrEmpty(result)) result += " + ";
-                result += $"<color={tru}>True</color>";
+                result += $"<color={corr}>Corruption</color>";
             }
 
             return result;
@@ -426,7 +426,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         return plainTypeLabel;
     }
 
-    private string GetAttackTypeColourHex(bool hasPhys, bool hasMag, bool hasTrue)
+    private string GetAttackTypeColourHex(bool hasPhys, bool hasMag, bool hasCorruption)
     {
         if (hasMag)
             return "#4DB8FF"; // blue
@@ -434,8 +434,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (hasPhys)
             return "#FF5C5C"; // red
 
-        if (hasTrue)
-            return "#E6E6E6"; // light grey/white
+        if (hasCorruption)
+            return "#7040C0";
 
         return stats.CurrentAttackSkill switch
         {

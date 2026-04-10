@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public enum ItemRarity
 {
@@ -88,9 +89,9 @@ public struct WeaponStats
     public int minMagicDamage;
     public int maxMagicDamage;
 
-    [Header("True Damage")]
-    public int minTrueDamage;
-    public int maxTrueDamage;
+    [Header("Corruption Damage")]
+    [FormerlySerializedAs("minTrueDamage")] public int minCorruptionDamage;
+    [FormerlySerializedAs("maxTrueDamage")] public int maxCorruptionDamage;
 
     [Header("Speed")]
     [Tooltip("Attacks per second (1 = one attack per second)")]
@@ -150,7 +151,7 @@ public struct CombatSupportStats
     [Header("Bonuses")]
     public float bonusPhysicalDamage;
     public float bonusMagicDamage;
-    public float bonusTrueDamage;
+    [FormerlySerializedAs("bonusTrueDamage")] public float bonusCorruptionDamage;
 
     [Range(0f, 1f)] public float critChanceBonus;
     public float critMultiplierBonus;
@@ -197,6 +198,7 @@ public struct ArmorStats
     [Header("Defence")]
     public int armor;
     public int magicResist;
+    public int corruptionResist;
 
     [Header("Block")]
     [Range(0f, 1f)]
@@ -218,6 +220,7 @@ public struct BonusStats
     [Header("Defence")]
     public int armor;
     public int magicResist;
+    public int corruptionResist;
     [Range(0f, 1f)] public float physBlockChance;
 
     [Header("Sustain")]
@@ -251,8 +254,8 @@ public struct BonusStats
     [Tooltip("0.10 = +10% magic damage (multiplier)")]
     public float magicDamagePercent;
 
-    [Tooltip("Flat bonus to true/basic attack damage")]
-    public float trueDamage;
+    [Tooltip("Flat bonus to corruption/basic attack damage")]
+    [FormerlySerializedAs("trueDamage")] public float corruptionDamage;
 
     [Tooltip("Generic power for abilities/spells")]
     public float abilityPower;
@@ -307,12 +310,12 @@ public struct BonusStats
     {
         return bonusHealth != 0 || bonusEnergy != 0 ||
                bonusMana != 0 ||
-               armor != 0 || magicResist != 0 || physBlockChance > 0f ||
+               armor != 0 || magicResist != 0 || corruptionResist != 0 || physBlockChance > 0f ||
                lifeRegen != 0f || energyRegen != 0f || manaRegen != 0f || lifeSteal > 0f ||
                moveSpeedPercent != 0f ||
                physicalDamage != 0f || physicalDamagePercent != 0f ||
                magicDamage != 0f || magicDamagePercent != 0f ||
-               trueDamage != 0f || abilityPower != 0f ||
+               corruptionDamage != 0f || abilityPower != 0f ||
                attackSpeedPercent != 0f ||
                critChanceBonus != 0f || critMultiplierBonus != 0f ||
                attackRangeBonus != 0f ||
@@ -589,8 +592,8 @@ public class ItemDefinition : ScriptableObject
     public float SupportBonusMagicDamage =>
         IsCombatSupport ? combatSupportStats.bonusMagicDamage : 0f;
 
-    public float SupportBonusTrueDamage =>
-        IsCombatSupport ? combatSupportStats.bonusTrueDamage : 0f;
+    public float SupportBonusCorruptionDamage =>
+        IsCombatSupport ? combatSupportStats.bonusCorruptionDamage : 0f;
 
     public float SupportCritChanceBonus =>
         IsCombatSupport ? combatSupportStats.critChanceBonus : 0f;
@@ -629,7 +632,7 @@ public class ItemDefinition : ScriptableObject
 
     public bool HasPhysicalWeaponDamage => IsWeapon && (weaponStats.minPhysicalDamage > 0 || weaponStats.maxPhysicalDamage > 0);
     public bool HasMagicWeaponDamage => IsWeapon && (weaponStats.minMagicDamage > 0 || weaponStats.maxMagicDamage > 0);
-    public bool HasTrueWeaponDamage => IsWeapon && (weaponStats.minTrueDamage > 0 || weaponStats.maxTrueDamage > 0);
+    public bool HasCorruptionWeaponDamage => IsWeapon && (weaponStats.minCorruptionDamage > 0 || weaponStats.maxCorruptionDamage > 0);
 
     public bool IsCombatSupport => itemKind == ItemKind.CombatSupport;
 
@@ -641,6 +644,7 @@ public class ItemDefinition : ScriptableObject
 
     public int ArmorValue => (IsArmor ? armorStats.armor : 0) + bonusStats.armor;
     public int MagicResist => (IsArmor ? armorStats.magicResist : 0) + bonusStats.magicResist;
+    public int CorruptionResist => (IsArmor ? armorStats.corruptionResist : 0) + bonusStats.corruptionResist;
 
     public float PhysBlockChance
     {
@@ -663,7 +667,7 @@ public class ItemDefinition : ScriptableObject
 
     public float PhysicalDamage => bonusStats.physicalDamage;
     public float MagicDamage => bonusStats.magicDamage;
-    public float TrueDamage => bonusStats.trueDamage;
+    public float BonusCorruptionDamage => bonusStats.corruptionDamage;
     public float AbilityPower => bonusStats.abilityPower;
 
     public float PhysicalDamagePercent => bonusStats.physicalDamagePercent;
@@ -737,10 +741,10 @@ public class ItemDefinition : ScriptableObject
         return Random.Range(weaponStats.minMagicDamage, weaponStats.maxMagicDamage + 1);
     }
 
-    public int RollTrueDamage()
+    public int RollCorruptionDamage()
     {
         if (!IsWeapon) return 0;
-        return Random.Range(weaponStats.minTrueDamage, weaponStats.maxTrueDamage + 1);
+        return Random.Range(weaponStats.minCorruptionDamage, weaponStats.maxCorruptionDamage + 1);
     }
 
     public float AttackCooldown
@@ -826,8 +830,8 @@ public class ItemDefinition : ScriptableObject
             if (HasMagicWeaponDamage)
                 s += $"Magic Damage: {weaponStats.minMagicDamage}-{weaponStats.maxMagicDamage}\n";
 
-            if (HasTrueWeaponDamage)
-                s += $"True Damage: {weaponStats.minTrueDamage}-{weaponStats.maxTrueDamage}\n";
+            if (HasCorruptionWeaponDamage)
+                s += $"Corruption Damage: {weaponStats.minCorruptionDamage}-{weaponStats.maxCorruptionDamage}\n";
 
             s +=
                 $"Attack Type: {skillType}\n" +
@@ -856,7 +860,7 @@ public class ItemDefinition : ScriptableObject
 
             if (SupportBonusPhysicalDamage != 0f) s += $"\nPhysical Damage: {FormatSignedNumber(SupportBonusPhysicalDamage)}";
             if (SupportBonusMagicDamage != 0f) s += $"\nMagic Damage: {FormatSignedNumber(SupportBonusMagicDamage)}";
-            if (SupportBonusTrueDamage != 0f) s += $"\nTrue Damage: {FormatSignedNumber(SupportBonusTrueDamage)}";
+            if (SupportBonusCorruptionDamage != 0f) s += $"\nCorruption Damage: {FormatSignedNumber(SupportBonusCorruptionDamage)}";
             if (SupportCritChanceBonus != 0f) s += $"\nCrit Chance: {FormatSignedPercent01(SupportCritChanceBonus)}";
             if (SupportCritMultiplierBonus != 0f) s += $"\nCrit Multi: {FormatSignedPercent01(SupportCritMultiplierBonus)}";
             if (SupportAttackSpeedPercent != 0f) s += $"\nAttack Speed: {FormatSignedPercent01(SupportAttackSpeedPercent)}";
@@ -906,6 +910,7 @@ public class ItemDefinition : ScriptableObject
 
             if (ArmorValue != 0) s += $"Armour: {ArmorValue}\n";
             if (MagicResist != 0) s += $"Magic Res: {MagicResist}\n";
+            if (CorruptionResist != 0) s += $"Corruption Res: {CorruptionResist}\n";
             if (BonusHealth != 0) s += $"Health: +{BonusHealth}\n";
             if (BonusEnergy != 0) s += $"Energy: +{BonusEnergy}\n";
             if (BonusMana != 0) s += $"Mana: +{BonusMana}\n";
@@ -1013,6 +1018,7 @@ public class ItemDefinition : ScriptableObject
         {
             if (bonusStats.armor != 0) s += $"Armour: {FormatSignedInt(bonusStats.armor)}\n";
             if (bonusStats.magicResist != 0) s += $"Magic Res: {FormatSignedInt(bonusStats.magicResist)}\n";
+            if (bonusStats.corruptionResist != 0) s += $"Corruption Res: {FormatSignedInt(bonusStats.corruptionResist)}\n";
             if (bonusStats.physBlockChance != 0f) s += $"Phys Block: {FormatSignedPercent01(bonusStats.physBlockChance)}\n";
         }
 
@@ -1024,7 +1030,7 @@ public class ItemDefinition : ScriptableObject
         if (bonusStats.physicalDamagePercent != 0f) s += $"Physical Damage %: {FormatSignedPercent01(bonusStats.physicalDamagePercent)}\n";
         if (bonusStats.magicDamage != 0f) s += $"Magic Damage: {FormatSignedNumber(bonusStats.magicDamage)}\n";
         if (bonusStats.magicDamagePercent != 0f) s += $"Magic Damage %: {FormatSignedPercent01(bonusStats.magicDamagePercent)}\n";
-        if (bonusStats.trueDamage != 0f) s += $"True Damage: {FormatSignedNumber(bonusStats.trueDamage)}\n";
+        if (bonusStats.corruptionDamage != 0f) s += $"Corruption Damage: {FormatSignedNumber(bonusStats.corruptionDamage)}\n";
         if (bonusStats.abilityPower != 0f) s += $"Ability Power: {FormatSignedNumber(bonusStats.abilityPower)}\n";
         if (bonusStats.lifeSteal != 0f) s += $"Life Steal: {FormatSignedPercent01(bonusStats.lifeSteal)}\n";
 
@@ -1067,8 +1073,8 @@ public class ItemDefinition : ScriptableObject
             if (HasMagicWeaponDamage)
                 s += $"Magic {weaponStats.minMagicDamage}-{weaponStats.maxMagicDamage}  ";
 
-            if (HasTrueWeaponDamage)
-                s += $"True {weaponStats.minTrueDamage}-{weaponStats.maxTrueDamage}  ";
+            if (HasCorruptionWeaponDamage)
+                s += $"Corruption {weaponStats.minCorruptionDamage}-{weaponStats.maxCorruptionDamage}  ";
 
             s += $"{weaponStats.attackSkill}  {AttackRange:0.#} range";
             if (weaponStats.attackSkill == AttackSkill.Magic)
@@ -1086,6 +1092,7 @@ public class ItemDefinition : ScriptableObject
 
             if (ArmorValue != 0) s += $"Armour {ArmorValue} • ";
             if (MagicResist != 0) s += $"MRes {MagicResist} • ";
+            if (CorruptionResist != 0) s += $"CRes {CorruptionResist} • ";
             if (BonusHealth != 0) s += $"HP +{BonusHealth} • ";
             if (BonusEnergy != 0) s += $"Energy +{BonusEnergy} • ";
             if (BonusMana != 0) s += $"Mana +{BonusMana} • ";

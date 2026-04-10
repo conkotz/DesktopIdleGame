@@ -41,7 +41,7 @@ public readonly struct CombatProfileDefenseHints
 {
     public float EffectiveHpVsPhysical { get; }
     public float EffectiveHpVsMagical { get; }
-    public float EffectiveHpVsTrue { get; }
+    public float EffectiveHpVsCorruption { get; }
     public int Armor { get; }
     public int MagicResist { get; }
     public int MaxHP { get; }
@@ -51,7 +51,7 @@ public readonly struct CombatProfileDefenseHints
     public CombatProfileDefenseHints(
         float effectiveHpVsPhysical,
         float effectiveHpVsMagical,
-        float effectiveHpVsTrue,
+        float effectiveHpVsCorruption,
         int armor,
         int magicResist,
         int maxHp,
@@ -59,7 +59,7 @@ public readonly struct CombatProfileDefenseHints
     {
         EffectiveHpVsPhysical = effectiveHpVsPhysical;
         EffectiveHpVsMagical = effectiveHpVsMagical;
-        EffectiveHpVsTrue = effectiveHpVsTrue;
+        EffectiveHpVsCorruption = effectiveHpVsCorruption;
         Armor = armor;
         MagicResist = magicResist;
         MaxHP = maxHp;
@@ -105,18 +105,18 @@ public static class CombatProfileThresholds
     public const float DefenseProfileMin = 0.26f;
 
     public const int ArmouredMinArmor = 10;
-    public const float ArmouredPhysEhpOverTrueMin = 1.12f;
+    public const float ArmouredPhysEhpOverCorruptionMin = 1.12f;
 
     public const int WardedMinMagicResist = 10;
-    public const float WardedMagEhpOverTrueMin = 1.12f;
+    public const float WardedMagEhpOverCorruptionMin = 1.12f;
 
     public const int TankMinMaxHp = 35;
 
     /// <summary>
-    /// Max ratio of physical (or magical) effective HP vs true EHP for "low mitigation" Tank identity.
+    /// Max ratio of physical (or magical) effective HP vs corruption EHP for "low mitigation" Tank identity.
     /// ~10% phys block alone yields ~1.11; keep above that so block-only dummies still qualify as Tank.
     /// </summary>
-    public const float TankMitigationEhpOverTrueMax = 1.15f;
+    public const float TankMitigationEhpOverCorruptionMax = 1.15f;
 
     public const float SustainingMin = 0.32f;
 
@@ -144,9 +144,9 @@ public static class CombatProfileClassifier
         float pS = b.Sustain / t;
         float pMob = b.Mobility / t;
 
-        float eTrue = Mathf.Max(1f, d.EffectiveHpVsTrue);
-        float physOverTrue = d.EffectiveHpVsPhysical / eTrue;
-        float magOverTrue = d.EffectiveHpVsMagical / eTrue;
+        float eCorr = Mathf.Max(1f, d.EffectiveHpVsCorruption);
+        float physOverCorruption = d.EffectiveHpVsPhysical / eCorr;
+        float magOverCorruption = d.EffectiveHpVsMagical / eCorr;
 
         // 1 Relentless — must meet min move speed (enemy inspector / player FinalMoveSpeed), then either
         //    strong offense+mobility CP split OR fast+decent offense. Checked before Glass Cannon so fast strikers
@@ -177,8 +177,8 @@ public static class CombatProfileClassifier
         // Without this, high-HP training dummies / punch bags read as Balanced because defense share looks small vs DPS CP.
         if (pD < CombatProfileThresholds.DefenseProfileMin)
         {
-            bool lowMitigation = physOverTrue <= CombatProfileThresholds.TankMitigationEhpOverTrueMax
-                                 && magOverTrue <= CombatProfileThresholds.TankMitigationEhpOverTrueMax;
+            bool lowMitigation = physOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax
+                                 && magOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax;
             if (lowMitigation
                 && d.MaxHP >= CombatProfileThresholds.TankMinMaxHp
                 && d.Armor < CombatProfileThresholds.ArmouredMinArmor
@@ -191,19 +191,19 @@ public static class CombatProfileClassifier
         {
             // 4 Armoured — armour rating / physical mitigation drives durability
             bool armourDriven = d.Armor >= CombatProfileThresholds.ArmouredMinArmor
-                              || physOverTrue >= CombatProfileThresholds.ArmouredPhysEhpOverTrueMin;
-            if (armourDriven && physOverTrue >= magOverTrue - 0.02f)
+                              || physOverCorruption >= CombatProfileThresholds.ArmouredPhysEhpOverCorruptionMin;
+            if (armourDriven && physOverCorruption >= magOverCorruption - 0.02f)
                 return CombatProfileLabel.Armoured;
 
             // 5 Warded — magic resist drives durability
             bool wardDriven = d.MagicResist >= CombatProfileThresholds.WardedMinMagicResist
-                              || magOverTrue >= CombatProfileThresholds.WardedMagEhpOverTrueMin;
-            if (wardDriven && magOverTrue >= physOverTrue - 0.02f)
+                              || magOverCorruption >= CombatProfileThresholds.WardedMagEhpOverCorruptionMin;
+            if (wardDriven && magOverCorruption >= physOverCorruption - 0.02f)
                 return CombatProfileLabel.Warded;
 
             // 6 Tank — large HP pool; mitigation from armour/MR is not the main story
-            bool lowMitigation = physOverTrue <= CombatProfileThresholds.TankMitigationEhpOverTrueMax
-                                 && magOverTrue <= CombatProfileThresholds.TankMitigationEhpOverTrueMax;
+            bool lowMitigation = physOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax
+                                 && magOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax;
             if (lowMitigation && d.MaxHP >= CombatProfileThresholds.TankMinMaxHp)
                 return CombatProfileLabel.Tank;
         }
@@ -261,7 +261,7 @@ public static class CombatProfileClassifier
     public static string BuildDebugSummary(CombatPowerBreakdown b, string label, CombatProfileDefenseHints d)
     {
         b.GetPercentages(out float pO, out float pD, out float pS, out float pMob);
-        float eTrue = Mathf.Max(1f, d.EffectiveHpVsTrue);
+        float eCorr = Mathf.Max(1f, d.EffectiveHpVsCorruption);
         return
             $"Combat profile: {label}\n" +
             $"Total CP: {b.TotalCombatPower:0.##}\n" +
@@ -270,6 +270,6 @@ public static class CombatProfileClassifier
             $"Sustain: {b.Sustain:0.##} ({pS * 100f:0.#}%)\n" +
             $"Mobility: {b.Mobility:0.##} ({pMob * 100f:0.#}%)\n" +
             $"Armor: {d.Armor} | MR: {d.MagicResist} | MaxHP: {d.MaxHP} | Move: {d.FinalMoveSpeed:0.##}\n" +
-            $"EHP phys/true: {d.EffectiveHpVsPhysical / eTrue:0.##} | mag/true: {d.EffectiveHpVsMagical / eTrue:0.##}";
+            $"EHP phys/corr: {d.EffectiveHpVsPhysical / eCorr:0.##} | mag/corr: {d.EffectiveHpVsMagical / eCorr:0.##}";
     }
 }

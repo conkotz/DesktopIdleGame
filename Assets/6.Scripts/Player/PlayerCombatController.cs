@@ -740,7 +740,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         bool crescentPenetrating = false;
         if (abilityController != null)
         {
-            var queued = abilityController.ConsumeQueuedHitEffects(targetToHit, dealt.physical, dealt.trueDamage);
+            var queued = abilityController.ConsumeQueuedHitEffects(targetToHit, dealt.physical, dealt.corruptionPoisonPotency);
             suppressBleed = queued.suppressDefaultBleed;
             suppressPoison = queued.suppressDefaultPoison;
             triggerCrescentSlash = queued.triggerCrescentSlash;
@@ -802,7 +802,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             {
                 secondaryBase.physical /= critMult;
                 secondaryBase.magical /= critMult;
-                // true damage is not crit-scaled in this combat model.
+                // corruption damage is not crit-scaled on cleave base rolls.
             }
 
             SplitDamage secondaryHit = abilityController != null
@@ -1074,9 +1074,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         public float physical;
         public float magical;
-        public float trueDamage;
+        public float corruptionDamage;
+        /// <summary>Outgoing corruption before target mitigation; drives poison potency (stable vs corruption resist).</summary>
+        public float corruptionPoisonPotency;
 
-        public float Total => physical + magical + trueDamage;
+        public float Total => physical + magical + corruptionDamage;
     }
 
     private DamageResult ApplySplitDamageToTarget(EnemyBaseController target, SplitDamage rolled, bool wasCrit)
@@ -1109,16 +1111,18 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             result.magical = Mathf.Max(0f, dealt);
         }
 
-        if (rolled.trueDamage > 0f)
+        if (rolled.corruptionDamage > 0f)
         {
+            float potency = Mathf.Max(0f, rolled.corruptionDamage * conditionalDamageMult);
             int dealt = target.TakeDamage(
-                Mathf.RoundToInt(rolled.trueDamage * conditionalDamageMult),
-                DamageType.True,
+                Mathf.RoundToInt(potency),
+                DamageType.Corruption,
                 wasCrit,
                 player.transform
             );
 
-            result.trueDamage = Mathf.Max(0f, dealt);
+            result.corruptionDamage = Mathf.Max(0f, dealt);
+            result.corruptionPoisonPotency = potency;
         }
 
         return result;
@@ -1183,7 +1187,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         if (target == null) return;
 
-        float poisonSourceDamage = dealt.trueDamage;
+        float poisonSourceDamage = dealt.corruptionPoisonPotency;
 
         if (poisonSourceDamage <= 0f) return;
         if (stats.PoisonChance <= 0f || stats.PoisonMultiplier < 0f) return;

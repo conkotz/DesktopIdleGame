@@ -618,12 +618,12 @@ TextureImporter:
       name: basic trinkets_23
       rect:
         serializedVersion: 2
-        x: 996
-        y: 761
-        width: 289
-        height: 260
-      alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+        x: 1008
+        y: 786
+        width: 161
+        height: 165
+      alignment: 9
+      pivot: {x: 0.57132393, y: 0.40430835}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []

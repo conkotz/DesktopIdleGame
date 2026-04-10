@@ -1,6 +1,7 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [DisallowMultipleComponent]
 public class FloatingDamageTextUI : MonoBehaviour
@@ -9,7 +10,7 @@ public class FloatingDamageTextUI : MonoBehaviour
     {
         Physical,
         Magical,
-        True,
+        Corruption,
         Bleed,
         Poison,
         Blocked
@@ -41,7 +42,8 @@ public class FloatingDamageTextUI : MonoBehaviour
     [Header("Colours")]
     [SerializeField] private Color physicalColor = new Color32(220, 40, 40, 255);
     [SerializeField] private Color magicalColor = new Color32(80, 170, 255, 255);
-    [SerializeField] private Color trueColor = new Color32(255, 230, 120, 255);
+    [FormerlySerializedAs("trueColor")]
+    [SerializeField] private Color corruptionColor = new Color32(112, 64, 192, 255);
     [SerializeField] private Color bleedColor = new Color32(170, 35, 35, 255);
     [SerializeField] private Color poisonColor = new Color32(85, 200, 90, 255);
     [SerializeField] private Color blockColor = new Color32(80, 170, 255, 255);
@@ -102,7 +104,7 @@ public class FloatingDamageTextUI : MonoBehaviour
         {
             PopupDamageKind.Physical => physicalColor,
             PopupDamageKind.Magical => magicalColor,
-            PopupDamageKind.True => trueColor,
+            PopupDamageKind.Corruption => corruptionColor,
             PopupDamageKind.Bleed => bleedColor,
             PopupDamageKind.Poison => poisonColor,
             PopupDamageKind.Blocked => blockColor,

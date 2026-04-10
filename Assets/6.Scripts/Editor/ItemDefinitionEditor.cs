@@ -293,8 +293,8 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty minMagicDamage = weaponStats.FindPropertyRelative("minMagicDamage");
         SerializedProperty maxMagicDamage = weaponStats.FindPropertyRelative("maxMagicDamage");
 
-        SerializedProperty minTrueDamage = weaponStats.FindPropertyRelative("minTrueDamage");
-        SerializedProperty maxTrueDamage = weaponStats.FindPropertyRelative("maxTrueDamage");
+        SerializedProperty minCorruptionDamage = weaponStats.FindPropertyRelative("minCorruptionDamage");
+        SerializedProperty maxCorruptionDamage = weaponStats.FindPropertyRelative("maxCorruptionDamage");
 
         SerializedProperty attacksPerSecond = weaponStats.FindPropertyRelative("attacksPerSecond");
         SerializedProperty critChance = weaponStats.FindPropertyRelative("critChance");
@@ -319,12 +319,12 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(minMagicDamage, new GUIContent("Min Magic Damage"));
         EditorGUILayout.PropertyField(maxMagicDamage, new GUIContent("Max Magic Damage"));
 
-        EditorGUILayout.PropertyField(minTrueDamage, new GUIContent("Min True Damage"));
-        EditorGUILayout.PropertyField(maxTrueDamage, new GUIContent("Max True Damage"));
+        EditorGUILayout.PropertyField(minCorruptionDamage, new GUIContent("Min Corruption Damage"));
+        EditorGUILayout.PropertyField(maxCorruptionDamage, new GUIContent("Max Corruption Damage"));
 
         ClampMinMax(minPhysicalDamage, maxPhysicalDamage);
         ClampMinMax(minMagicDamage, maxMagicDamage);
-        ClampMinMax(minTrueDamage, maxTrueDamage);
+        ClampMinMax(minCorruptionDamage, maxCorruptionDamage);
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Speed", EditorStyles.boldLabel);
@@ -406,12 +406,12 @@ public class ItemDefinitionEditor : Editor
         }
 
         EditorGUILayout.HelpBox(
-            "Weapons can now deal Physical, Magic, and/or True damage at the same time.\n" +
+            "Weapons can now deal Physical, Magic, and/or Corruption damage at the same time.\n" +
             "Examples:\n" +
             "- Sword: Physical only\n" +
             "- Wand: Magic only\n" +
             "- Hybrid blade: Physical + Magic\n" +
-            "- Rare cursed weapon: includes True damage\n\n" +
+            "- Rare cursed weapon: includes Corruption damage\n\n" +
             "Use Support Requirement for weapons like:\n" +
             "- Bow -> Arrows\n" +
             "- Staff -> Runes",
@@ -433,7 +433,7 @@ public class ItemDefinitionEditor : Editor
 
         SerializedProperty bonusPhysicalDamage = combatSupportStats.FindPropertyRelative("bonusPhysicalDamage");
         SerializedProperty bonusMagicDamage = combatSupportStats.FindPropertyRelative("bonusMagicDamage");
-        SerializedProperty bonusTrueDamage = combatSupportStats.FindPropertyRelative("bonusTrueDamage");
+        SerializedProperty bonusCorruptionDamage = combatSupportStats.FindPropertyRelative("bonusCorruptionDamage");
 
         SerializedProperty critChanceBonus = combatSupportStats.FindPropertyRelative("critChanceBonus");
         SerializedProperty critMultiplierBonus = combatSupportStats.FindPropertyRelative("critMultiplierBonus");
@@ -449,7 +449,7 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.LabelField("Bonuses", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(bonusPhysicalDamage);
         EditorGUILayout.PropertyField(bonusMagicDamage);
-        EditorGUILayout.PropertyField(bonusTrueDamage);
+        EditorGUILayout.PropertyField(bonusCorruptionDamage);
         EditorGUILayout.PropertyField(critChanceBonus);
         EditorGUILayout.PropertyField(critMultiplierBonus);
         EditorGUILayout.PropertyField(attackSpeedPercent);
@@ -749,6 +749,7 @@ public class ItemDefinitionEditor : Editor
 
         SerializedProperty armor = bonusStats.FindPropertyRelative("armor");
         SerializedProperty magicResist = bonusStats.FindPropertyRelative("magicResist");
+        SerializedProperty corruptionResistBonus = bonusStats.FindPropertyRelative("corruptionResist");
         SerializedProperty physBlockChance = bonusStats.FindPropertyRelative("physBlockChance");
 
         SerializedProperty lifeRegen = bonusStats.FindPropertyRelative("lifeRegen");
@@ -762,7 +763,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty physicalDamagePercent = bonusStats.FindPropertyRelative("physicalDamagePercent");
         SerializedProperty magicDamage = bonusStats.FindPropertyRelative("magicDamage");
         SerializedProperty magicDamagePercent = bonusStats.FindPropertyRelative("magicDamagePercent");
-        SerializedProperty trueDamage = bonusStats.FindPropertyRelative("trueDamage");
+        SerializedProperty corruptionDamage = bonusStats.FindPropertyRelative("corruptionDamage");
         SerializedProperty abilityPower = bonusStats.FindPropertyRelative("abilityPower");
 
         SerializedProperty attackSpeedPercent = bonusStats.FindPropertyRelative("attackSpeedPercent");
@@ -791,6 +792,8 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.LabelField("Defence", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(armor);
         EditorGUILayout.PropertyField(magicResist);
+        if (corruptionResistBonus != null)
+            EditorGUILayout.PropertyField(corruptionResistBonus, new GUIContent("Corruption Resist"));
         EditorGUILayout.PropertyField(physBlockChance);
 
         EditorGUILayout.Space(4);
@@ -810,7 +813,7 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(physicalDamagePercent, new GUIContent("Physical Damage %"));
         EditorGUILayout.PropertyField(magicDamage);
         EditorGUILayout.PropertyField(magicDamagePercent, new GUIContent("Magic Damage %"));
-        EditorGUILayout.PropertyField(trueDamage);
+        EditorGUILayout.PropertyField(corruptionDamage, new GUIContent("Corruption Damage"));
         EditorGUILayout.PropertyField(abilityPower);
         EditorGUILayout.PropertyField(attackSpeedPercent);
         EditorGUILayout.PropertyField(critChanceBonus);
@@ -836,7 +839,7 @@ public class ItemDefinitionEditor : Editor
             "Bonus Stats are additive modifiers.\n" +
             "Use these for Armour, Jewelry, and optionally Weapons/Tools.\n\n" +
             "Examples:\n" +
-            "- Physical / Magic / True Damage\n" +
+            "- Physical / Magic / Corruption Damage\n" +
             "- Ability Power\n" +
             "- Crit / attack speed / range\n" +
             "- Bleed or poison chance and multiplier\n" +

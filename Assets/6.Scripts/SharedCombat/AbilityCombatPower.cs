@@ -233,7 +233,7 @@ public static class AbilityCombatPower
 
         float avgPhys = (stats.MinSplitDamage.physical + stats.MaxSplitDamage.physical) * 0.5f;
         float avgMag = (stats.MinSplitDamage.magical + stats.MaxSplitDamage.magical) * 0.5f;
-        float avgTrue = (stats.MinSplitDamage.trueDamage + stats.MaxSplitDamage.trueDamage) * 0.5f;
+        float avgCorruption = (stats.MinSplitDamage.corruptionDamage + stats.MaxSplitDamage.corruptionDamage) * 0.5f;
         float magMult = def.magicalDamageMultiplier;
         float apMult = def.abilityPowerMultiplier;
         float ap = stats.AbilityPower;
@@ -253,51 +253,63 @@ public static class AbilityCombatPower
             return Mathf.Max(0f, perEnhancedHit * procRate);
         }
 
-        // Rend: queued hit with guaranteed bleed package on that hit (no direct ability scaling hit bonus).
+        // Rend: exclusive bleed on proc — value scales with how much "guaranteed bleed" improves over baseline chance.
+        // Duration barely moves CP (longer DoT spreads the same pool in runtime; avoid inflating from +3s / stat duration).
         if (string.Equals(def.abilityId, RendAbilityId, StringComparison.OrdinalIgnoreCase))
         {
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
-            float bleedDuration = Mathf.Max(1f, stats.BleedDuration) + 3f;
-            int bleedTicks = Mathf.Max(1, Mathf.RoundToInt(bleedDuration));
-            float bleedBaseDuration = Mathf.Max(1f, stats.BleedBaseDuration);
-            float bleedTickDamage = Mathf.Max(0f, avgPhys * (1f + stats.BleedMultiplier) / bleedBaseDuration);
-            float totalBleedDamage = bleedTickDamage * bleedTicks;
+            float baseDur = Mathf.Max(1f, stats.BleedBaseDuration);
+            float duration = Mathf.Max(1f, stats.BleedDuration) + 3f;
+            int ticks = Mathf.Max(1, Mathf.RoundToInt(duration));
+            float durRatio = ticks / baseDur;
+            durRatio = Mathf.Clamp(durRatio, 1f, 1.1f);
+
+            float totalBleedDamage = Mathf.Max(0f, avgPhys * (1f + stats.BleedMultiplier) * durRatio);
+
+            float marginalBleedProc = 1f - Mathf.Clamp01(stats.BleedChance);
+            float reliabilityWeight = Mathf.Lerp(0.22f, 1f, marginalBleedProc);
+            totalBleedDamage *= reliabilityWeight;
 
             int selected = GetRendSelectedChoiceForCombatPower();
-            if (selected == 1)
-            {
-                // Crimson Spread: conditional second target (already bleeding + nearby target).
-                totalBleedDamage *= 1.35f;
-            }
+            if (selected == 0)
+                totalBleedDamage *= 1.05f; // Hemorrhaging Rush: same total, faster — small throughput bump.
+            else if (selected == 1)
+                totalBleedDamage *= 1.12f; // Crimson Spread: conditional spread — modest uplift.
 
-            float bleedCritAdjusted = totalBleedDamage * critFactor;
-            return bleedCritAdjusted * procRate;
+            return Mathf.Max(0f, totalBleedDamage * procRate);
         }
 
-        // Venom Jab: queued quick strike (reduced hit) + guaranteed poison package when true damage exists.
+        // Venom Jab: poison from corruption on the quick strike — marginal value drops if poison already applies often; stacks matter.
         if (string.Equals(def.abilityId, VenomJabAbilityId, StringComparison.OrdinalIgnoreCase))
         {
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
             const float quickStrikeMultiplier = 0.75f;
 
+            float poisonSourceCorruption = Mathf.Max(0f, avgCorruption * quickStrikeMultiplier);
+            if (poisonSourceCorruption <= 0f)
+                return 0f;
+
             int selected = GetVenomJabSelectedChoiceForCombatPower();
-            int maxStacks = Mathf.Max(1, stats.PoisonMaxStacks);
+            int baseStacks = Mathf.Max(1, stats.PoisonMaxStacks);
+            int stackCount = baseStacks;
             if (selected == 0)
-                maxStacks += 2; // Potent Venom temporary stack-cap increase window.
+                stackCount = baseStacks + 2; // Potent Venom: extra stacks are a large part of the upgrade.
 
-            float poisonSourceTrue = Mathf.Max(0f, avgTrue * quickStrikeMultiplier);
-            float poisonPerStackTotal = poisonSourceTrue * (1f + Mathf.Max(0f, stats.PoisonMultiplier));
-            float totalPoisonDamage = poisonPerStackTotal * maxStacks;
-            if (selected == 1)
-            {
-                // Contagion Burst: one nearby spread on death is conditional.
-                totalPoisonDamage *= 1.25f;
-            }
+            float poisonPerStackTotal = poisonSourceCorruption * (1f + Mathf.Max(0f, stats.PoisonMultiplier));
+            float totalPoisonDamage = poisonPerStackTotal * stackCount;
 
-            float poisonCritAdjusted = totalPoisonDamage * critFactor;
-            return poisonCritAdjusted * procRate;
+            float marginalPoisonProc = 1f - Mathf.Clamp01(stats.PoisonChance);
+            float reliabilityWeight = Mathf.Lerp(0.28f, 1f, marginalPoisonProc);
+            totalPoisonDamage *= reliabilityWeight;
+
+            if (selected == 0)
+                totalPoisonDamage *= 1.12f; // Extra emphasis on stack-cap path beyond raw stackCount.
+            else if (selected == 1)
+                totalPoisonDamage *= 1.12f; // Contagion Burst: conditional spread.
+
+            return Mathf.Max(0f, totalPoisonDamage * procRate);
         }
 
         if (string.Equals(def.abilityId, CleavingStrikesAbilityId, StringComparison.OrdinalIgnoreCase))
@@ -325,36 +337,35 @@ public static class AbilityCombatPower
             float uptime = activeWindow / Mathf.Max(0.01f, cd);
             uptime = Mathf.Clamp01(uptime);
             float aoeScale = Mathf.Clamp(extraTargets * 0.45f, 0f, 1.1f);
-            float baseHit = Mathf.Max(0f, avgPhys + avgMag + avgTrue) * critFactor;
+            float baseHit = Mathf.Max(0f, avgPhys + avgMag + avgCorruption) * critFactor;
             return baseHit * aoeScale * procRate * uptime;
         }
 
-        if (string.Equals(def.abilityId, CrescentSlashAbilityId, StringComparison.OrdinalIgnoreCase))
-        {
-            float aps = stats.AttacksPerSecond;
-            float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
-            int targets = 3;
-            float utilityLift = 1f;
-            int selected = GetCrescentSlashSelectedChoiceForCombatPower();
-            if (selected == 0)
-                utilityLift = 1.08f; // Elemental Crescent small uplift.
-            else if (selected == 1)
-                targets = 5; // Penetrating Crescent moderate AoE increase estimate.
-
-            float targetFactor = 1f + Mathf.Clamp((targets - 1) * 0.33f, 0f, 1.35f);
-            float baseHit = Mathf.Max(0f, avgPhys + avgMag + avgTrue) * critFactor;
-            return baseHit * targetFactor * utilityLift * procRate;
-        }
-
-        // Default: instant cast nuke (same structure as PlayerAbilityController instant branch).
+        // Default: instant cast (Whirlwind, Crescent Slash, etc.) — matches scaled split + small AoE lift where relevant.
         float scaledPhys = avgPhys * physMult;
         float scaledMag = avgMag * magMult;
+        float scaledCorruption = avgCorruption * physMult; // same rule as PlayerAbilityController.BuildWhirlwindAbilityScaledSplit
         float elementBonusInstant = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float ailmentBonusInstant = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float apBonusInstant = ap * apMult;
-        float raw = scaledPhys + scaledMag + elementBonusInstant + apBonusInstant + ailmentBonusInstant;
+        float raw = scaledPhys + scaledMag + scaledCorruption + elementBonusInstant + apBonusInstant + ailmentBonusInstant;
         float perCast = raw * critFactor * Mathf.Max(1f, extraHitFactor);
-        return Mathf.Max(0f, perCast / cd);
+        float dps = Mathf.Max(0f, perCast / cd);
+
+        if (string.Equals(def.abilityId, CrescentSlashAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = GetCrescentSlashSelectedChoiceForCombatPower();
+            float expectedExtraHits = selected == 1 ? 2.5f : 2f; // soft estimate of extra enemies over primary
+            float aoeLift = 1f + 0.055f * expectedExtraHits;
+            if (selected == 0)
+                aoeLift *= 1.04f; // Elemental Crescent: minor utility.
+            return dps * aoeLift;
+        }
+
+        if (string.Equals(def.abilityId, WhirlwindAbilityId, StringComparison.OrdinalIgnoreCase))
+            return dps * 1.08f; // Slight AoE coverage on top of per-target scaled damage (Twin Cyclone already in extraHitFactor).
+
+        return dps;
     }
 
     private static float GetCritFactor(CharacterStats stats)

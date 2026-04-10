@@ -589,9 +589,9 @@ public class EnemyBaseController : MonoBehaviour
             dealtAnyDamage = true;
         }
 
-        if (hit.trueDamage > 0f)
+        if (hit.corruptionDamage > 0f)
         {
-            _playerController.TakeDamage(hit.trueDamage, DamageType.True, transform, wasCrit);
+            _playerController.TakeDamage(hit.corruptionDamage, DamageType.Corruption, transform, wasCrit);
             dealtAnyDamage = true;
         }
 
@@ -726,7 +726,7 @@ public class EnemyBaseController : MonoBehaviour
             {
                 DamageType.Physical => FloatingDamageTextUI.PopupDamageKind.Physical,
                 DamageType.Magical => FloatingDamageTextUI.PopupDamageKind.Magical,
-                DamageType.True => FloatingDamageTextUI.PopupDamageKind.True,
+                DamageType.Corruption => FloatingDamageTextUI.PopupDamageKind.Corruption,
                 _ => FloatingDamageTextUI.PopupDamageKind.Physical
             };
 
@@ -759,9 +759,8 @@ public class EnemyBaseController : MonoBehaviour
 
         _provoked = true;
 
-        // DOT damage passed here is already the final resolved amount,
-        // so apply it as True damage to bypass extra mitigation.
-        float applied = stats.TakeDamage(finalDamage, DamageType.True, out _);
+        // DOT tick amount is already final; do not re-apply armor/MR/corruption resist.
+        float applied = stats.TakeDamageFromResolvedDot(finalDamage, out _);
         int dealt = Mathf.RoundToInt(applied);
 
         AwardCombatXpToSource(source, dealt);

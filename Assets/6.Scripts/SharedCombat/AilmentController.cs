@@ -664,7 +664,7 @@ public class AilmentController : MonoBehaviour
 
         if (characterStats != null)
         {
-            float applied = characterStats.TakeDamage(damage, DamageType.True, out _);
+            float applied = characterStats.TakeDamageFromResolvedDot(damage, out _);
             int finalDamage = Mathf.RoundToInt(applied);
 
             if (showDotPopups && finalDamage > 0 && DamagePopupSystem.Instance != null)
@@ -743,7 +743,7 @@ public class AilmentController : MonoBehaviour
     - No mitigation, no crit, no block
 
     🟢 POISON (IMPLEMENTED)
-    - Source: True damage
+    - Source: Corruption damage (poison application); ticks use resolved DoT damage.
     - Behaviour: stacks
     - Each stack ticks independently
     - No mitigation, no crit, no block

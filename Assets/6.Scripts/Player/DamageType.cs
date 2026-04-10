@@ -1,8 +1,6 @@
-public enum 
-    
-    DamageType
+public enum DamageType
 {
     Physical,
     Magical,
-    True
+    Corruption
 }
