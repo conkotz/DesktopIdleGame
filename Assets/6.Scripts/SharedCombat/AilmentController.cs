@@ -580,7 +580,7 @@ public class AilmentController : MonoBehaviour
             burnTickRoutine = null;
         }
 
-        ApplyDotDamage(combustDamage, FloatingDamageTextUI.PopupDamageKind.Magical, burnDotSource);
+        ApplyDotDamage(combustDamage, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource);
         OnAilmentsChanged?.Invoke();
     }
 
@@ -602,7 +602,7 @@ public class AilmentController : MonoBehaviour
 
             burnTicksRemaining--;
             if (burnDamagePerTick > 0)
-                ApplyDotDamage(burnDamagePerTick, FloatingDamageTextUI.PopupDamageKind.Magical, burnDotSource);
+                ApplyDotDamage(burnDamagePerTick, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource);
 
             OnAilmentsChanged?.Invoke();
         }

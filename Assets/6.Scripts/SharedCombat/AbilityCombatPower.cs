@@ -232,21 +232,20 @@ public static class AbilityCombatPower
         float critFactor = GetCritFactor(stats);
 
         float avgPhys = (stats.MinSplitDamage.physical + stats.MaxSplitDamage.physical) * 0.5f;
-        float avgMag = (stats.MinSplitDamage.magical + stats.MaxSplitDamage.magical) * 0.5f;
+        float avgMag = (stats.MinSplitDamage.magic + stats.MaxSplitDamage.magic) * 0.5f;
         float avgCorruption = (stats.MinSplitDamage.corruptionDamage + stats.MaxSplitDamage.corruptionDamage) * 0.5f;
-        float magMult = def.magicalDamageMultiplier;
+        float magMult = def.magicDamageMultiplier;
         float apMult = def.abilityPowerMultiplier;
-        float ap = stats.AbilityPower;
 
         // Power Slash: bonus on top of a normal weapon hit; proc rate limited by attack speed and ability cooldown.
         if (string.Equals(def.abilityId, PowerSlashAbilityId, StringComparison.OrdinalIgnoreCase))
         {
             float bonusPhys = avgPhys * physMult;
             float bonusMag = avgMag * magMult;
-            float apBonus = ap * apMult;
+            float apM = stats.GetAbilityPowerDamageMultiplier(apMult);
             float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
             float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-            float rawBonus = bonusPhys + bonusMag + apBonus + elementBonus + ailmentBonus;
+            float rawBonus = (bonusPhys + ailmentBonus) * apM + (bonusMag + elementBonus) * apM;
             float perEnhancedHit = rawBonus * critFactor;
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
@@ -297,7 +296,9 @@ public static class AbilityCombatPower
             if (selected == 0)
                 stackCount = baseStacks + 2; // Potent Venom: extra stacks are a large part of the upgrade.
 
-            float poisonPerStackTotal = poisonSourceCorruption * (1f + Mathf.Max(0f, stats.PoisonMultiplier));
+            float poisonPerStackTotal =
+                poisonSourceCorruption * stats.PoisonPoolFractionOfCorruptionDamage *
+                (1f + Mathf.Max(0f, stats.PoisonMultiplier));
             float totalPoisonDamage = poisonPerStackTotal * stackCount;
 
             float marginalPoisonProc = 1f - Mathf.Clamp01(stats.PoisonChance);
@@ -346,10 +347,10 @@ public static class AbilityCombatPower
         float scaledMag = avgMag * magMult;
         float scaledCorruption = avgCorruption * physMult; // same rule as PlayerAbilityController.BuildWhirlwindAbilityScaledSplit
         float elementBonusInstant = AbilityElementScaling.GetElementDamageBonus(def, stats);
-        AbilityElementScaling.ScaleMagicalAbilityContributions(scaledMag, elementBonusInstant, stats, out float sm, out float se);
+        AbilityElementScaling.ScaleMagicAbilityContributions(scaledMag, elementBonusInstant, stats, out float sm, out float se);
         float ailmentBonusInstant = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-        float apBonusInstant = ap * apMult;
-        float raw = scaledPhys + sm + scaledCorruption + se + apBonusInstant + ailmentBonusInstant;
+        float apMInstant = stats.GetAbilityPowerDamageMultiplier(apMult);
+        float raw = (scaledPhys + scaledCorruption) * apMInstant + (sm + se + ailmentBonusInstant) * apMInstant;
         float perCast = raw * critFactor * Mathf.Max(1f, extraHitFactor);
         float dps = Mathf.Max(0f, perCast / cd);
 

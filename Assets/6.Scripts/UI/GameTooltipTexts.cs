@@ -1,0 +1,253 @@
+using UnityEngine;
+
+/// <summary>
+/// Single source of truth for shared UI / item / HUD tooltip copy.
+/// <see cref="UIHoverTooltip"/> resolves text by <c>GameObject.name</c> unless disabled.
+/// </summary>
+public static class GameTooltipTexts
+{
+    public const string BurnTitle = "Burn";
+
+    /// <summary>Burn overview (stats hover, debuff icon). Matches equipment panel: legend + one short line.</summary>
+    public static readonly string BurnMechanicDescription =
+        "chance | tick mult (gear) | duration | stacks to combust\n\n" +
+        "Fire hits apply burn stacks. At max stacks, combust deals 10 seconds of your current burn tick damage as magic, then clears.";
+
+    public static string FormatBurnHudBody(int stacks, int stacksToCombust) =>
+        $"Stacks: {stacks}/{Mathf.Max(1, stacksToCombust)}\n\n" + BurnMechanicDescription;
+
+    public const string BleedTitle = "Bleed";
+    public static readonly string BleedDescription =
+        "chance | damage mult | duration\n\n" +
+        "Damage over time from physical hits. Damage is based on the damage of the hit that caused the bleed.";
+
+    public const string PoisonTitle = "Poison";
+    public static string FormatPoisonHudBody(int stacks) =>
+        $"Taking poison damage over time.\nStacks: {stacks}";
+
+    public const string ShockTitle = "Shock";
+    public static readonly string ShockDescription =
+        "chance | damage taken | duration\n\n" +
+        "Target takes increased damage from hits while shocked.";
+
+    public const string ChillTitle = "Chill";
+    public static readonly string ChillDescription =
+        "chance | slow/stack | duration | max stacks\n\n" +
+        "Slows the target; stacks refresh when re-applied.";
+
+    /// <summary>Normalize hierarchy names: trim, strip quotes, collapse spaces (handles <c>'EnergyText '</c>, <c>ArmourText  </c>).</summary>
+    public static string NormalizeUiElementName(string raw)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return string.Empty;
+        string t = raw.Trim().Trim('\'', '"');
+        while (t.Contains("  "))
+            t = t.Replace("  ", " ");
+        return t;
+    }
+
+    /// <summary>Resolve hover copy for equipment / stats UI objects by <see cref="GameObject.name"/>.</summary>
+    public static bool TryGetForUiElement(string gameObjectName, out string title, out string description)
+    {
+        title = null;
+        description = null;
+        string key = NormalizeUiElementName(gameObjectName);
+        if (string.IsNullOrEmpty(key))
+            return false;
+
+        switch (key)
+        {
+            case "DPSText":
+                title = "DPS (Damage Per Second)";
+                description =
+                    "Your total expected damage per second.\n\n" +
+                    "Includes attack speed, critical strikes, damage types, and expected ailment damage (Bleed, Poison). " +
+                    "Useful as a single offensive summary.";
+                return true;
+
+            case "DMGText":
+                title = "Damage";
+                description =
+                    "Rough total damage per hit (min–max), before enemy mitigation.\n\n" +
+                    "Combines all damage types on your basic attack profile.";
+                return true;
+
+            case "DMGSplitText":
+                title = "Damage breakdown";
+                description =
+                    "How your hit splits between Physical, Magic (elemental total), and Corruption.";
+                return true;
+
+            case "AttackSpdText":
+                title = "Attack Speed";
+                description = "How many basic attacks you perform per second.";
+                return true;
+
+            case "AttackRangeText":
+                title = "Attack Range";
+                description =
+                    "How far your basic attack reaches in world units.\n\n" +
+                    "Ranged and magic weapons typically have larger values than melee.";
+                return true;
+
+            case "CritChanceText":
+                title = "Critical chance";
+                description =
+                    "Chance for your hits to critically strike. This also applies to abilities.";
+                return true;
+
+            case "CritDMGText":
+                title = "Critical damage";
+                description =
+                    "How much extra damage your critical hits deal. This also applies to abilities.";
+                return true;
+
+            case "LifeStealText":
+                title = "Life Steal";
+                description =
+                    "Percentage of damage dealt returned as healing.\n\n" +
+                    "Applies to hit damage and does not apply to ailments.";
+                return true;
+
+            case "AbilityPowerText":
+                title = "Ability Power";
+                description = "Extra damage on abilities based on this stat and each skill's Power scaling.";
+                return true;
+
+            case "PhysicalBonusText":
+                title = "Physical damage";
+                description =
+                    "Total physical damage increase from all sources.\n\n" +
+                    "If physical bonuses apply to melee or ranged, that weapon must be equipped.";
+                return true;
+
+            case "MagBonusText":
+                title = "Magic damage";
+                description = "Total magic damage increase from all sources.";
+                return true;
+
+            case "CorruptionBonusText":
+                title = "Corruption damage";
+                description = "Total corruption damage increase from all sources.";
+                return true;
+
+            case "FireBonusText":
+                title = "Fire %";
+                description = "Total fire hit damage increase from all sources.";
+                return true;
+
+            case "IceBonusText":
+                title = "Ice %";
+                description = "Total ice hit damage increase from all sources.";
+                return true;
+
+            case "LightningBonusText":
+                title = "Lightning %";
+                description = "Total lightning hit damage increase from all sources.";
+                return true;
+
+            case "BleedText":
+                title = BleedTitle;
+                description =
+                    "chance | damage mult | duration\n\n" +
+                    "Damage over time from physical hits. Damage is based on the damage of the hit that caused the bleed.";
+                return true;
+
+            case "PoisonText":
+                title = "Poison";
+                description =
+                    "chance | damage mult | duration | max stacks\n\n" +
+                    "Damage over time from corruption. Damage is based on the damage of the hit that caused the poison.";
+                return true;
+
+            case "ChillText":
+                title = ChillTitle;
+                description = ChillDescription;
+                return true;
+
+            case "BurnText":
+                title = BurnTitle;
+                description = BurnMechanicDescription;
+                return true;
+
+            case "SockText":
+            case "ShockText":
+                title = ShockTitle;
+                description = ShockDescription;
+                return true;
+
+            case "HpText":
+                title = "Health";
+                description =
+                    "Your total health pool.\n\n" +
+                    "When this reaches 0, you are defeated. Higher health improves survivability against all damage types.";
+                return true;
+
+            case "EnergyText":
+                title = "Energy";
+                description =
+                    "Resource used for gathering, movement abilities, and some actions.\n\n" +
+                    "Regenerates over time based on your Energy Regeneration.";
+                return true;
+
+            case "HpRegenText":
+                title = "Health Regeneration";
+                description =
+                    "Health restored per second.\n\n" +
+                    "Provides steady recovery between and during fights.";
+                return true;
+
+            case "EnergyRegenText":
+                title = "Energy Regeneration";
+                description =
+                    "Energy restored per second.\n\n" +
+                    "Higher regen lets you use stamina-heavy actions more often.";
+                return true;
+
+            case "MrText":
+                title = "Magic Resist";
+                description =
+                    "Reduces magic damage taken.\n\n" +
+                    "Stacks with armour and other mitigation; compare to enemy damage types.";
+                return true;
+
+            case "BlockText":
+                title = "Block Chance";
+                description =
+                    "Chance to fully block incoming physical hits.\n\n" +
+                    "Blocked attacks may deal no damage depending on rules; check shields and talents.";
+                return true;
+
+            case "MovespeedText":
+                title = "Movement Speed";
+                description =
+                    "How fast your character moves in the world.\n\n" +
+                    "Affected by gear, buffs, and chill/slow effects.";
+                return true;
+
+            case "ArmourText":
+                title = "Armour";
+                description =
+                    "Reduces physical damage taken.\n\n" +
+                    "Higher armour is stronger against enemies that deal mostly physical damage.";
+                return true;
+
+            case "CorruptionResistText":
+            case "CorrResText":
+                title = "Corruption resist";
+                description =
+                    "Rating that reduces corruption damage taken (shown with approximate reduction).";
+                return true;
+
+            case "StatsLHeaderLabel":
+                title = "Combat Power";
+                description =
+                    "A combined rating of overall combat strength.\n\n" +
+                    "Based on offense, defense, sustain, and mobility. Higher is generally stronger.";
+                return true;
+
+            default:
+                return false;
+        }
+    }
+}

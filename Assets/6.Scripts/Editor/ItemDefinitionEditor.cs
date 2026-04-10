@@ -309,7 +309,6 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty magicAttackType = weaponStats.FindPropertyRelative("magicAttackType");
         SerializedProperty manaCostPerAttack = weaponStats.FindPropertyRelative("manaCostPerAttack");
         SerializedProperty magicAilmentApplyChance = weaponStats.FindPropertyRelative("magicAilmentApplyChance");
-        SerializedProperty weaponBurnChance = weaponStats.FindPropertyRelative("burnChance");
         SerializedProperty canEquipInOffHand = weaponStats.FindPropertyRelative("canEquipInOffHand");
 
         SerializedProperty requiresOffhandSupport = weaponStats.FindPropertyRelative("requiresOffhandSupport");
@@ -320,7 +319,7 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(minPhysicalDamage, new GUIContent("Min Physical Damage"));
         EditorGUILayout.PropertyField(maxPhysicalDamage, new GUIContent("Max Physical Damage"));
 
-        EditorGUILayout.LabelField("Elemental (total = magical hit; Magic % scales sum)", EditorStyles.miniLabel);
+        EditorGUILayout.LabelField("Elemental (total = magic hit; Magic % scales sum)", EditorStyles.miniLabel);
         EditorGUILayout.PropertyField(minFireDamage, new GUIContent("Min Fire Damage"));
         EditorGUILayout.PropertyField(maxFireDamage, new GUIContent("Max Fire Damage"));
         EditorGUILayout.PropertyField(minIceDamage, new GUIContent("Min Ice Damage"));
@@ -371,9 +370,6 @@ public class ItemDefinitionEditor : Editor
                 EditorGUILayout.PropertyField(manaCostPerAttack, new GUIContent("Mana Cost Per Attack"));
             if (magicAilmentApplyChance != null)
                 EditorGUILayout.PropertyField(magicAilmentApplyChance, new GUIContent("Magic Ailment Apply Chance"));
-            if (weaponBurnChance != null && magicAttackType != null &&
-                (MagicAttackType)magicAttackType.enumValueIndex == MagicAttackType.Fire)
-                EditorGUILayout.PropertyField(weaponBurnChance, new GUIContent("Burn Apply Chance (0 = use Magic Ailment %)"));
 
             // Convenience: show elemental scaling bonuses here as well (stored in BonusStats).
             if (bonusStats != null)

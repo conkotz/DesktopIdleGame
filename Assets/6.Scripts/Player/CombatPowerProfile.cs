@@ -40,7 +40,7 @@ public readonly struct CombatPowerBreakdown
 public readonly struct CombatProfileDefenseHints
 {
     public float EffectiveHpVsPhysical { get; }
-    public float EffectiveHpVsMagical { get; }
+    public float EffectiveHpVsMagic { get; }
     public float EffectiveHpVsCorruption { get; }
     public int Armor { get; }
     public int MagicResist { get; }
@@ -51,7 +51,7 @@ public readonly struct CombatProfileDefenseHints
 
     public CombatProfileDefenseHints(
         float effectiveHpVsPhysical,
-        float effectiveHpVsMagical,
+        float effectiveHpVsMagic,
         float effectiveHpVsCorruption,
         int armor,
         int magicResist,
@@ -60,7 +60,7 @@ public readonly struct CombatProfileDefenseHints
         float finalMoveSpeed)
     {
         EffectiveHpVsPhysical = effectiveHpVsPhysical;
-        EffectiveHpVsMagical = effectiveHpVsMagical;
+        EffectiveHpVsMagic = effectiveHpVsMagic;
         EffectiveHpVsCorruption = effectiveHpVsCorruption;
         Armor = armor;
         MagicResist = magicResist;
@@ -117,13 +117,13 @@ public static class CombatProfileThresholds
     /// <summary>Corruption resist at or above this (same spirit as armour/MR gates) qualifies for Shrouded when EHP ratios agree.</summary>
     public const int ShroudedMinCorruptionResist = 25;
 
-    /// <summary>Corruption effective HP must exceed physical and magical EHP by this factor (mirror <see cref="ArmouredPhysEhpOverCorruptionMin"/>).</summary>
+    /// <summary>Corruption effective HP must exceed physical and magic EHP by this factor (mirror <see cref="ArmouredPhysEhpOverCorruptionMin"/>).</summary>
     public const float ShroudedCorruptionEhpOverOtherMin = 1.12f;
 
     public const int TankMinMaxHp = 35;
 
     /// <summary>
-    /// Max ratio of physical (or magical) effective HP vs corruption EHP for "low mitigation" Tank identity.
+    /// Max ratio of physical (or magic) effective HP vs corruption EHP for "low mitigation" Tank identity.
     /// ~10% phys block alone yields ~1.11; keep above that so block-only dummies still qualify as Tank.
     /// </summary>
     public const float TankMitigationEhpOverCorruptionMax = 1.15f;
@@ -157,9 +157,9 @@ public static class CombatProfileClassifier
 
         float eCorr = Mathf.Max(1f, d.EffectiveHpVsCorruption);
         float ePhys = Mathf.Max(1f, d.EffectiveHpVsPhysical);
-        float eMag = Mathf.Max(1f, d.EffectiveHpVsMagical);
+        float eMag = Mathf.Max(1f, d.EffectiveHpVsMagic);
         float physOverCorruption = d.EffectiveHpVsPhysical / eCorr;
-        float magOverCorruption = d.EffectiveHpVsMagical / eCorr;
+        float magOverCorruption = d.EffectiveHpVsMagic / eCorr;
         float corruptionOverPhys = eCorr / ePhys;
         float corruptionOverMag = eCorr / eMag;
 
@@ -230,7 +230,7 @@ public static class CombatProfileClassifier
             if (wardDriven && magOverCorruption >= physOverCorruption - 0.02f)
                 return CombatProfileLabel.Warded;
 
-            // 5b Shrouded — corruption resist / corruption EHP dominates physical and magical EHP
+            // 5b Shrouded — corruption resist / corruption EHP dominates physical and magic EHP
             bool shroudDriven = d.CorruptionResist >= CombatProfileThresholds.ShroudedMinCorruptionResist
                                 || (corruptionOverPhys >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin
                                     && corruptionOverMag >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin);
@@ -313,7 +313,7 @@ public static class CombatProfileClassifier
             $"Sustain: {b.Sustain:0.##} ({pS * 100f:0.#}%)\n" +
             $"Mobility: {b.Mobility:0.##} ({pMob * 100f:0.#}%)\n" +
             $"Armor: {d.Armor} | MR: {d.MagicResist} | CorruptionResist: {d.CorruptionResist} | MaxHP: {d.MaxHP} | Move: {d.FinalMoveSpeed:0.##}\n" +
-            $"EHP phys/corr: {d.EffectiveHpVsPhysical / eCorr:0.##} | mag/corr: {d.EffectiveHpVsMagical / eCorr:0.##}\n" +
-            $"EHP corr/phys: {eCorr / Mathf.Max(1f, d.EffectiveHpVsPhysical):0.##} | corr/mag: {eCorr / Mathf.Max(1f, d.EffectiveHpVsMagical):0.##}";
+            $"EHP phys/corr: {d.EffectiveHpVsPhysical / eCorr:0.##} | mag/corr: {d.EffectiveHpVsMagic / eCorr:0.##}\n" +
+            $"EHP corr/phys: {eCorr / Mathf.Max(1f, d.EffectiveHpVsPhysical):0.##} | corr/mag: {eCorr / Mathf.Max(1f, d.EffectiveHpVsMagic):0.##}";
     }
 }

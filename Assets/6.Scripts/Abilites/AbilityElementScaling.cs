@@ -7,13 +7,13 @@ using UnityEngine;
 public static class AbilityElementScaling
 {
     /// <summary>
-    /// Average weapon magical hit used for element lines (matches instant ability model).
+    /// Average weapon magic hit used for element lines (matches instant ability model).
     /// </summary>
-    private static float AverageMagicalHit(CharacterStats stats)
+    private static float AverageMagicHit(CharacterStats stats)
     {
         if (!stats)
             return 0f;
-        return (Mathf.Max(0f, stats.MinSplitDamage.magical) + Mathf.Max(0f, stats.MaxSplitDamage.magical)) * 0.5f;
+        return (Mathf.Max(0f, stats.MinSplitDamage.magic) + Mathf.Max(0f, stats.MaxSplitDamage.magic)) * 0.5f;
     }
 
     /// <summary>
@@ -24,7 +24,7 @@ public static class AbilityElementScaling
         if (!def || !stats)
             return 0f;
 
-        float avgMag = AverageMagicalHit(stats);
+        float avgMag = AverageMagicHit(stats);
         if (avgMag <= 0f)
             return 0f;
 
@@ -42,7 +42,7 @@ public static class AbilityElementScaling
     }
 
     /// <summary>
-    /// Multiplier for scaled weapon-magical + ability elemental lines on instant / whirlwind-style abilities.
+    /// Multiplier for scaled weapon-magic + ability elemental lines on instant / whirlwind-style abilities.
     /// Uses equipped Fire/Ice/Lightning skill % matching <see cref="CharacterStats.CurrentMagicAttackType"/>.
     /// Not applied to basic attacks or Power Slash (avoids inflating burn snapshots on melee fire hits).
     /// </summary>
@@ -53,16 +53,16 @@ public static class AbilityElementScaling
         return 1f + Mathf.Max(0f, stats.ElementSkillDamageScalingFractionForCurrentType());
     }
 
-    /// <summary>Apply <see cref="GetElementSkillDamageMultiplier"/> to magical and element bonus portions only.</summary>
-    public static void ScaleMagicalAbilityContributions(
-        float scaledMagical,
+    /// <summary>Apply <see cref="GetElementSkillDamageMultiplier"/> to magic and element bonus portions only.</summary>
+    public static void ScaleMagicAbilityContributions(
+        float scaledMagic,
         float elementBonus,
         CharacterStats stats,
         out float scaledMagOut,
         out float elementBonusOut)
     {
         float m = GetElementSkillDamageMultiplier(stats);
-        scaledMagOut = scaledMagical * m;
+        scaledMagOut = scaledMagic * m;
         elementBonusOut = elementBonus * m;
     }
 

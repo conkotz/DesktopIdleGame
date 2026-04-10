@@ -20,7 +20,7 @@ MonoBehaviour:
   cooldown: 18
   energyCost: 45
   physicalDamageMultiplier: -0.5
-  magicalDamageMultiplier: 0
+  magicDamageMultiplier: 0
   abilityPowerMultiplier: 0
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0

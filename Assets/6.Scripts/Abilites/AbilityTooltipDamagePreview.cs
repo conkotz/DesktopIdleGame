@@ -3,8 +3,8 @@ using System.Text;
 using UnityEngine;
 
 /// <summary>
-/// Ability tooltip damage preview: average weapon split × multipliers and AP × mult, before crit.
-/// Crit still applies when the hit resolves; values here match additive scaling from stats, not expected DPS.
+/// Ability tooltip damage preview: average weapon split × multipliers and ability power (× per-ability coefficient / 100), before crit.
+/// Crit still applies when the hit resolves; values here match runtime scaling, not expected DPS.
 /// </summary>
 public static class AbilityTooltipDamagePreview
 {
@@ -34,17 +34,17 @@ public static class AbilityTooltipDamagePreview
         return $" ({n} phys)";
     }
 
-    /// <summary>AP contribution is shown as phys — matches runtime (added to physical on most abilities).</summary>
+    /// <summary>Optional suffix: total % bonus from ability power at current stats (coefficient = damage % added per 1 AP).</summary>
     public static string FormatAbilityPowerSuffix(CharacterStats stats, float abilityPowerMultiplier)
     {
         if (stats == null)
             return "";
 
-        int n = Mathf.RoundToInt(Mathf.Max(0f, stats.AbilityPower) * abilityPowerMultiplier);
-        if (n == 0)
+        float bonusPct = Mathf.Max(0f, stats.AbilityPower) * Mathf.Max(0f, abilityPowerMultiplier);
+        if (bonusPct <= 0f)
             return "";
 
-        return $" ({n} phys)";
+        return $" (+{bonusPct:0.#}% from AP)";
     }
 
     /// <summary>
@@ -116,7 +116,7 @@ public static class AbilityTooltipDamagePreview
         float cooldown = Mathf.Max(0f, def.cooldown);
         AbilityTooltipAdjustments.ApplySkillTreeChoices(def, skillsManager, ref physMult, ref cooldown);
 
-        float magMult = def.magicalDamageMultiplier;
+        float magMult = def.magicDamageMultiplier;
         float apMult = def.abilityPowerMultiplier;
 
         var body = new StringBuilder();
@@ -148,18 +148,17 @@ public static class AbilityTooltipDamagePreview
                 ? (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f
                 : 0f;
             float avgMag = stats
-                ? (Mathf.Max(0f, stats.MinSplitDamage.magical) + Mathf.Max(0f, stats.MaxSplitDamage.magical)) * 0.5f
+                ? (Mathf.Max(0f, stats.MinSplitDamage.magic) + Mathf.Max(0f, stats.MaxSplitDamage.magic)) * 0.5f
                 : 0f;
-            float ap = stats ? Mathf.Max(0f, stats.AbilityPower) : 0f;
 
             float scaledPhysical = avgPhys * physMult;
-            float scaledMagical = avgMag * magMult;
+            float scaledMagic = avgMag * magMult;
             float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
-            AbilityElementScaling.ScaleMagicalAbilityContributions(scaledMagical, elementBonus, stats, out float magS, out float elemS);
-            float apBonus = ap * apMult;
+            AbilityElementScaling.ScaleMagicAbilityContributions(scaledMagic, elementBonus, stats, out float magS, out float elemS);
+            float apM = stats != null ? stats.GetAbilityPowerDamageMultiplier(apMult) : 1f;
             float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-            float physPart = scaledPhysical + apBonus;
-            float magPart = magS + elemS + ailmentBonus;
+            float physPart = scaledPhysical * apM;
+            float magPart = (magS + elemS + ailmentBonus) * apM;
 
             if (crescentSel == 0)
             {
@@ -176,7 +175,7 @@ public static class AbilityTooltipDamagePreview
             if (p != 0)
                 body.AppendLine(O(FormatSignedDamageLine(p, "Physical", dmgSuffix)));
             if (m != 0)
-                body.AppendLine(O(FormatSignedDamageLine(m, "Magical", dmgSuffix)));
+                body.AppendLine(O(FormatSignedDamageLine(m, "Magic", dmgSuffix)));
             if (p == 0 && m == 0)
                 body.AppendLine(O("(No direct damage — see description)"));
 
@@ -191,9 +190,8 @@ public static class AbilityTooltipDamagePreview
                 ? (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f
                 : 0f;
             float avgMag = stats
-                ? (Mathf.Max(0f, stats.MinSplitDamage.magical) + Mathf.Max(0f, stats.MaxSplitDamage.magical)) * 0.5f
+                ? (Mathf.Max(0f, stats.MinSplitDamage.magic) + Mathf.Max(0f, stats.MaxSplitDamage.magic)) * 0.5f
                 : 0f;
-            float ap = stats ? Mathf.Max(0f, stats.AbilityPower) : 0f;
 
             float physPart;
             float magPart;
@@ -202,22 +200,22 @@ public static class AbilityTooltipDamagePreview
             {
                 float bonusPhys = avgPhys * physMult;
                 float bonusMag = avgMag * magMult;
-                float apBonus = ap * apMult;
+                float apM = stats != null ? stats.GetAbilityPowerDamageMultiplier(apMult) : 1f;
                 float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
                 float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-                physPart = bonusPhys + apBonus + ailmentBonus;
-                magPart = bonusMag + elementBonus;
+                physPart = (bonusPhys + ailmentBonus) * apM;
+                magPart = (bonusMag + elementBonus) * apM;
             }
             else
             {
                 float scaledPhysical = avgPhys * physMult;
-                float scaledMagical = avgMag * magMult;
+                float scaledMagic = avgMag * magMult;
                 float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
-                AbilityElementScaling.ScaleMagicalAbilityContributions(scaledMagical, elementBonus, stats, out float magS, out float elemS);
-                float apBonus = ap * apMult;
+                AbilityElementScaling.ScaleMagicAbilityContributions(scaledMagic, elementBonus, stats, out float magS, out float elemS);
+                float apM = stats != null ? stats.GetAbilityPowerDamageMultiplier(apMult) : 1f;
                 float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-                physPart = scaledPhysical + apBonus;
-                magPart = magS + elemS + ailmentBonus;
+                physPart = scaledPhysical * apM;
+                magPart = (magS + elemS + ailmentBonus) * apM;
             }
 
             int p = Mathf.RoundToInt(physPart);
@@ -227,7 +225,7 @@ public static class AbilityTooltipDamagePreview
             if (p != 0)
                 body.AppendLine(O(FormatSignedDamageLine(p, "Physical", dmgSuffix)));
             if (m != 0)
-                body.AppendLine(O(FormatSignedDamageLine(m, "Magical", dmgSuffix)));
+                body.AppendLine(O(FormatSignedDamageLine(m, "Magic", dmgSuffix)));
             if (p == 0 && m == 0)
                 body.AppendLine(O("(No direct damage — see description)"));
         }
@@ -242,12 +240,11 @@ public static class AbilityTooltipDamagePreview
             ? (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f
             : 0f;
         float tipAvgMag = stats
-            ? (Mathf.Max(0f, stats.MinSplitDamage.magical) + Mathf.Max(0f, stats.MaxSplitDamage.magical)) * 0.5f
+            ? (Mathf.Max(0f, stats.MinSplitDamage.magic) + Mathf.Max(0f, stats.MaxSplitDamage.magic)) * 0.5f
             : 0f;
         float tipAp = stats ? Mathf.Max(0f, stats.AbilityPower) : 0f;
         int physScalingContrib = Mathf.RoundToInt(tipAvgPhys * physMult);
         int magScalingContrib = Mathf.RoundToInt(tipAvgMag * magMult);
-        int apScalingContrib = Mathf.RoundToInt(tipAp * apMult);
 
         if (showPhysScaling || showMagScaling || hasApScaling)
         {
@@ -255,9 +252,14 @@ public static class AbilityTooltipDamagePreview
             if (showPhysScaling)
                 body.AppendLine(O($"{physMult * 100f:0.#}% Physical Damage ({physScalingContrib})"));
             if (showMagScaling)
-                body.AppendLine(O($"{magMult * 100f:0.#}% Magic Damage ({magScalingContrib})"));
+                body.AppendLine(O($"{magMult * 100f:0.#}% Magic damage ({magScalingContrib})"));
             if (hasApScaling)
-                body.AppendLine(O($"{apMult * 100f:0.#}% Ability Power ({apScalingContrib})"));
+            {
+                float bonusPctNow = tipAp * apMult;
+                float linearWeaponScaled = Mathf.Max(0f, tipAvgPhys * physMult + tipAvgMag * magMult);
+                int apContrib = Mathf.RoundToInt(linearWeaponScaled * bonusPctNow / 100f);
+                body.AppendLine(O($"{bonusPctNow:0.#}% Ability Power ({apContrib})"));
+            }
         }
 
         body.AppendLine(string.Empty);

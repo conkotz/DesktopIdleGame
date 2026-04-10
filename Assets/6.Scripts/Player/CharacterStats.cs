@@ -7,19 +7,20 @@ using UnityEngine.Serialization;
 public struct SplitDamage
 {
     public float physical;
-    public float magical;
+    [FormerlySerializedAs("magical")]
+    public float magic;
     public float corruptionDamage;
 
-    public SplitDamage(float physical, float magical, float corruptionDamage)
+    public SplitDamage(float physical, float magic, float corruptionDamage)
     {
         this.physical = physical;
-        this.magical = magical;
+        this.magic = magic;
         this.corruptionDamage = corruptionDamage;
     }
 
-    public float Total => physical + magical + corruptionDamage;
+    public float Total => physical + magic + corruptionDamage;
 
-    public bool IsEmpty => physical <= 0f && magical <= 0f && corruptionDamage <= 0f;
+    public bool IsEmpty => physical <= 0f && magic <= 0f && corruptionDamage <= 0f;
 
     public static SplitDamage Zero => new SplitDamage(0f, 0f, 0f);
 
@@ -27,7 +28,7 @@ public struct SplitDamage
     {
         return new SplitDamage(
             a.physical + b.physical,
-            a.magical + b.magical,
+            a.magic + b.magic,
             a.corruptionDamage + b.corruptionDamage
         );
     }
@@ -36,7 +37,7 @@ public struct SplitDamage
     {
         return new SplitDamage(
             a.physical * mult,
-            a.magical * mult,
+            a.magic * mult,
             a.corruptionDamage * mult
         );
     }
@@ -121,6 +122,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     [SerializeField, Range(0f, 1f)] private float basePoisonChance = 0f;
     [SerializeField] private float basePoisonMultiplier = 0f;
+    [SerializeField, Range(0.05f, 1f), Tooltip("Portion of corruption damage on a hit that becomes one poison stack's total pool (before poison multiplier). Stacks add sustained damage.")]
+    private float poisonPoolFractionOfCorruptionDamage = 0.4f;
     [SerializeField] private float basePoisonDuration = 5f;
     [SerializeField] private int basePoisonMaxStacks = 3;
 
@@ -136,6 +139,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private int baseBurnHitsToExplode = 3;
     [Tooltip("Multiplies burn tick damage (15% of strongest fire hit per tick, min 1).")]
     [SerializeField] private float baseBurnExplosionMultiplier = 1f;
+    [Tooltip("Additive burn tick multiplier from skills, buffs, and passives (added after character base and gear).")]
+    [SerializeField] private float bonusBurnDamageMultiplier = 0f;
     [SerializeField] private float baseShockDuration = 5f;
     [SerializeField, Range(0f, 1f)] private float baseShockDamageTakenMultiplier = 0.15f;
 
@@ -184,7 +189,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private const float combatPowerMobilityScale = 2.0f;
 
     private const float combatPowerPhysicalWeight = 0.5f;
-    private const float combatPowerMagicalWeight = 0.3f;
+    private const float combatPowerMagicWeight = 0.3f;
     private const float combatPowerCorruptionWeight = 0.2f;
 
     private const float LowHealthThreshold01 = 0.35f;
@@ -361,6 +366,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float BaseMaxCorruptionDamage => Mathf.Max(BaseMinCorruptionDamage, baseMaxCorruptionDamage);
     public float AbilityPower => Mathf.Max(0f, baseAbilityPower + GetEquippedAbilityPower());
 
+    /// <summary>Denominator for ability power: bonus damage = AbilityPower × (per-ability coefficient) / this value (100 → 100 AP with coef 1 = +100% damage).</summary>
+    public const float AbilityPowerDamagePercentDivisor = 100f;
+
+    /// <summary>
+    /// Multiplier applied to ability damage after weapon/skill multipliers: <c>1 + AbilityPower × coefficient / <see cref="AbilityPowerDamagePercentDivisor"/></c>.
+    /// Coefficient 1: each AP adds1% damage; 100 AP adds +100% (×2 total).
+    /// </summary>
+    public float GetAbilityPowerDamageMultiplier(float abilityPowerCoefficient)
+    {
+        float c = Mathf.Max(0f, abilityPowerCoefficient);
+        if (c <= 0f)
+            return 1f;
+        return 1f + AbilityPower * c / AbilityPowerDamagePercentDivisor;
+    }
+
     // Ailments
     public float BleedChance => Mathf.Clamp01(baseBleedChance + GetEquippedBleedChance() + GetActiveMeleeMinorBonuses().meleeBleedChance);
     public float BleedMultiplier => Mathf.Max(0f, baseBleedMultiplier + GetEquippedBleedMultiplier() + GetActiveMeleeMinorBonuses().meleeBleedDamage + GetActiveMeleeMinorBonuses().meleeAilmentDamage);
@@ -376,6 +396,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float BleedChancePercent => BleedChance * 100f;
     public float PoisonChancePercent => PoisonChance * 100f;
 
+    /// <summary>Fraction of corruption dealt on a hit stored in one poison stack's pool (before <see cref="PoisonMultiplier"/>).</summary>
+    public float PoisonPoolFractionOfCorruptionDamage => Mathf.Clamp(poisonPoolFractionOfCorruptionDamage, 0.05f, 1f);
+
     public MagicAttackType CurrentMagicAttackType => GetCurrentMagicAttackType();
     public float MagicAilmentApplyChance => Mathf.Clamp01(baseMagicAilmentApplyChance + GetEquippedMagicAilmentApplyChance());
 
@@ -383,7 +406,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public bool CurrentAttackAppliesAsFireForBurn => GetCurrentAttackAppliesAsFireForBurn();
 
     /// <summary>
-    /// Chance to add a burn stack on fire damage hits. Enemies use <see cref="MagicAilmentApplyChance"/> (burnChance on Fire type).
+    /// Chance to add a burn stack on fire damage hits. Player: character base + gear bonus + fire weapon <see cref="ItemDefinition.ResolveWeaponBurnApplyChance"/> (weapon magic ailment chance).
     /// </summary>
     public float BurnApplyChance => GetBurnApplyChance();
     public float ChillDuration => Mathf.Max(0.1f, baseChillDuration);
@@ -391,8 +414,36 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float ChillSlowPerStack => Mathf.Clamp01(baseChillSlowPerStack + GetEquippedChillSlowPerStackBonus());
     /// <summary>Stacks before combust (fixed at 3 at runtime).</summary>
     public int BurnHitsToExplode => Mathf.Clamp(Mathf.Max(2, baseBurnHitsToExplode), 2, 3);
-    /// <summary>Multiplies burn tick damage (15% of strongest fire hit per tick, min 1).</summary>
-    public float BurnExplosionMultiplier => Mathf.Max(0f, baseBurnExplosionMultiplier + GetEquippedBurnExplosionMultiplierBonus());
+
+    /// <summary>
+    /// Total multiplier on burn tick damage (character base + gear + <see cref="BonusBurnDamageMultiplier"/>).
+    /// Matches combat: 15% of strongest fire hit × this value per tick (min 1), combust uses strongest tick × configured factor.
+    /// </summary>
+    public float BurnDamageMultiplier =>
+        Mathf.Max(0f, baseBurnExplosionMultiplier + GetEquippedBurnExplosionMultiplierBonus() + bonusBurnDamageMultiplier);
+
+    /// <summary>Multiplies burn tick damage; same value as <see cref="BurnDamageMultiplier"/>.</summary>
+    public float BurnExplosionMultiplier => BurnDamageMultiplier;
+
+    /// <summary>Skills, buffs, passives — additive on top of base and gear. Adjust at runtime for scaling systems.</summary>
+    public float BonusBurnDamageMultiplier
+    {
+        get => bonusBurnDamageMultiplier;
+        set
+        {
+            float v = Mathf.Max(0f, value);
+            if (Mathf.Approximately(bonusBurnDamageMultiplier, v))
+                return;
+            bonusBurnDamageMultiplier = v;
+            OnStatsChanged?.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// Sum of equipped <see cref="ItemDefinition.BurnExplosionMultiplierBonus"/> (fraction: 0.25 = +25% to tick multiplier when added to character base).
+    /// Use this for UI that should match item sliders; <see cref="BurnDamageMultiplier"/> also includes character base and <see cref="BonusBurnDamageMultiplier"/>.
+    /// </summary>
+    public float BurnExplosionMultiplierBonusFromEquipment => Mathf.Max(0f, GetEquippedBurnExplosionMultiplierBonus());
     public float ShockDuration => Mathf.Max(0.1f, baseShockDuration);
     public float ShockDamageTakenMultiplier => Mathf.Clamp01(baseShockDamageTakenMultiplier + GetEquippedShockDamageTakenMultiplierBonus());
     public float MeleeShockChance => Mathf.Clamp01(GetActiveMeleeMinorBonuses().meleeShockChance);
@@ -412,7 +463,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    public float MagicalReductionFromMrPercent
+    public float MagicReductionFromMrPercent
     {
         get
         {
@@ -448,9 +499,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float CritChancePercent => CritChance * 100f;
     public float CritMultiplierPercent => CritMultiplier * 100f;
 
-    /// <summary>True when the attack has physical or magical damage; corruption-only hits cannot crit on basic attacks.</summary>
+    /// <summary>True when the attack has physical or magic damage; corruption-only hits cannot crit on basic attacks.</summary>
     public bool HasCrittableDirectDamage =>
-        MaxSplitDamage.physical > 0f || MaxSplitDamage.magical > 0f;
+        MaxSplitDamage.physical > 0f || MaxSplitDamage.magic > 0f;
 
     /// <summary>Crit % for stats UI: 0 when damage is corruption-only (gear crit still applies only to crittable types).</summary>
     public float StatsPanelCritChancePercent =>
@@ -480,7 +531,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     // Ailment (Expected DPS / UI)
     public float AveragePhysicalHit => (MinSplitDamage.physical + MaxSplitDamage.physical) * 0.5f;
-    public float AverageMagicalHit => (MinSplitDamage.magical + MaxSplitDamage.magical) * 0.5f;
+    public float AverageMagicHit => (MinSplitDamage.magic + MaxSplitDamage.magic) * 0.5f;
     public float AverageCorruptionHit => (MinSplitDamage.corruptionDamage + MaxSplitDamage.corruptionDamage) * 0.5f;
 
     public float ExpectedCritFactor
@@ -494,7 +545,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     public float ExpectedPhysicalHit => AveragePhysicalHit * ExpectedCritFactor;
-    public float ExpectedMagicalHit => AverageMagicalHit * ExpectedCritFactor;
+    public float ExpectedMagicHit => AverageMagicHit * ExpectedCritFactor;
 
     /// <summary>Corruption damage never benefits from crit on basic attacks (combat rolls and DPS models assume this).</summary>
     public float ExpectedCorruptionHit => AverageCorruptionHit;
@@ -533,9 +584,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     // ---------- Poison ----------
     // Stats-panel display model (rough DPS estimate from your rolled corruption; ignores enemy mitigation):
-    // - uses average corruption hit from split damage
-    // - includes poison multiplier
-    // - assumes poison can ramp to full stacks
+    // - uses average corruption hit × PoisonPoolFractionOfCorruptionDamage × (1 + poison multiplier)
+    // - assumes poison can ramp toward full stacks
     // - PoisonMaxDPS is the sustained DPS at max stacks
     // Runtime: poison application uses corruption damage actually dealt to that target (post mitigation).
 
@@ -547,7 +597,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             if (PoisonDuration <= 0f) return 0f;
             if (AverageCorruptionHit <= 0f) return 0f;
 
-            return AverageCorruptionHit * (1f + PoisonMultiplier);
+            return AverageCorruptionHit * PoisonPoolFractionOfCorruptionDamage * (1f + PoisonMultiplier);
         }
     }
 
@@ -601,7 +651,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (p <= 0f || AttacksPerSecond <= 0f)
             return 0f;
 
-        float hit = ExpectedPhysicalHit + ExpectedMagicalHit + ExpectedCorruptionHit;
+        float hit = ExpectedPhysicalHit + ExpectedMagicHit + ExpectedCorruptionHit;
         if (hit <= 0f)
             return 0f;
 
@@ -648,7 +698,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    public float EffectiveHPVsMagical
+    public float EffectiveHPVsMagic
     {
         get
         {
@@ -672,7 +722,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         {
             float totalWeight =
                 combatPowerPhysicalWeight +
-                combatPowerMagicalWeight +
+                combatPowerMagicWeight +
                 combatPowerCorruptionWeight;
 
             if (totalWeight <= 0f)
@@ -680,7 +730,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
             return
                 (EffectiveHPVsPhysical * combatPowerPhysicalWeight +
-                 EffectiveHPVsMagical * combatPowerMagicalWeight +
+                 EffectiveHPVsMagic * combatPowerMagicWeight +
                  EffectiveHPVsCorruption * combatPowerCorruptionWeight)
                 / totalWeight;
         }
@@ -717,7 +767,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         return new CombatProfileDefenseHints(
             EffectiveHPVsPhysical,
-            EffectiveHPVsMagical,
+            EffectiveHPVsMagic,
             EffectiveHPVsCorruption,
             Armor,
             MagicResist,
@@ -1065,14 +1115,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         var max = MaxSplitDamage;
 
         float totalPhys = min.physical + max.physical;
-        float totalMag = min.magical + max.magical;
+        float totalMag = min.magic + max.magic;
         float totalCorruption = min.corruptionDamage + max.corruptionDamage;
 
         if (totalCorruption >= totalPhys && totalCorruption >= totalMag && totalCorruption > 0f)
             return DamageType.Corruption;
 
         if (totalMag >= totalPhys && totalMag > 0f)
-            return DamageType.Magical;
+            return DamageType.Magic;
 
         return DamageType.Physical;
     }
@@ -1081,18 +1131,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // Offensive calcs
     // -------------------------
     /// <summary>
-    /// Combined multipliers applied to physical / magical portions of melee split damage:
+    /// Combined multipliers applied to physical / magic portions of melee split damage:
     /// consumable boosts × (gear % + melee minor tree %). Matches <see cref="GetMinSplitDamage"/> / <see cref="GetMaxSplitDamage"/>.
     /// Corruption uses <see cref="GetEquippedCorruptionDamagePercent"/> (e.g. combat support) after flat bonuses.
     /// </summary>
-    private void GetMeleeSplitDamageScalingMultipliers(MeleeMinorNodeBonuses meleeBonuses, out float physicalDamageMult, out float magicalDamageMult)
+    private void GetMeleeSplitDamageScalingMultipliers(MeleeMinorNodeBonuses meleeBonuses, out float physicalDamageMult, out float magicDamageMult)
     {
         float physicalBuffMult = 1f + (buffController ? buffController.PhysicalDamageBoostPercent : 0f);
         float magicBuffMult = 1f + (buffController ? buffController.MagicDamageBoostPercent : 0f);
-        float physicalGearPctMult = 1f + Mathf.Max(0f, GetEquippedPhysicalDamagePercent() + meleeBonuses.meleeDamagePercent);
+        float physicalGearPctMult = 1f + Mathf.Max(0f,
+            GetEquippedGlobalPhysicalDamagePercent() +
+            GetEquippedPhysicalDamagePercent() +
+            meleeBonuses.meleeDamagePercent);
         float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent);
         physicalDamageMult = physicalBuffMult * physicalGearPctMult;
-        magicalDamageMult = magicBuffMult * magicGearPctMult;
+        magicDamageMult = magicBuffMult * magicGearPctMult;
     }
 
     /// <summary>Total % increase to physical melee split (20 = +20%).</summary>
@@ -1105,7 +1158,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    /// <summary>Total % increase to magical melee split (20 = +20%).</summary>
+    /// <summary>Total % increase to magic melee split (20 = +20%).</summary>
     public float MeleeMagicDamageTotalScalingPercentPoints
     {
         get
@@ -1124,6 +1177,56 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float IceSkillDamageTotalScalingPercentPoints => GetEquippedIceSkillDamagePercent() * 100f;
 
     public float LightningSkillDamageTotalScalingPercentPoints => GetEquippedLightningSkillDamagePercent() * 100f;
+
+    /// <summary>Equipped global physical % (gear + supports), additive fraction; 0.10 = +10%.</summary>
+    public float GlobalPhysicalDamageBonusPercentPoints => GetEquippedGlobalPhysicalDamagePercent() * 100f;
+
+    /// <summary>Equipped magic % on attacks (elemental weapon total + supports), additive fraction.</summary>
+    public float GlobalMagicDamageBonusPercentPoints => GetEquippedMagicDamagePercent() * 100f;
+
+    /// <summary>Equipped corruption attack-split % (armor bonus + combat supports).</summary>
+    public float GlobalCorruptionDamageBonusPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
+
+    /// <summary>Melee physical conditional: gear/support attack phys % + melee skill tree phys % (excludes global phys, buffs).</summary>
+    public float MeleePhysicalConditionalBonusPercentPoints
+    {
+        get
+        {
+            var m = GetActiveMeleeMinorBonuses();
+            return (GetEquippedPhysicalDamagePercent() + m.meleeDamagePercent) * 100f;
+        }
+    }
+
+    /// <summary>Ranged physical % from gear (reserved; not yet applied in combat).</summary>
+    public float RangedPhysicalDamageBonusPercentPoints => GetEquippedRangedPhysicalDamagePercent() * 100f;
+
+    /// <summary>Bleed is a single-stack DoT in the current combat model.</summary>
+    public int BleedMaxStacks => 1;
+
+    /// <summary>Burn DoT duration shown in UI (matches default burn tick window on targets).</summary>
+    public float BurnDotDurationSeconds => 15f;
+
+    /// <summary>Chance to apply shock for stats panel: lightning magic hits use magic ailment chance; otherwise melee shock.</summary>
+    public float ShockApplyChancePercentForStatsPanel
+    {
+        get
+        {
+            if (CurrentAttackSkill == AttackSkill.Magic && CurrentMagicAttackType == MagicAttackType.Lightning)
+                return MagicAilmentApplyChance * 100f;
+            return MeleeShockChance * 100f;
+        }
+    }
+
+    /// <summary>Chill apply chance for stats panel when ice magic attacks.</summary>
+    public float ChillApplyChancePercentForStatsPanel
+    {
+        get
+        {
+            if (CurrentAttackSkill == AttackSkill.Magic && CurrentMagicAttackType == MagicAttackType.Ice)
+                return MagicAilmentApplyChance * 100f;
+            return 0f;
+        }
+    }
 
     /// <summary>Fraction added to multiplier for abilities keyed to <see cref="CurrentMagicAttackType"/> (e.g. 0.2 = +20%).</summary>
     public float ElementSkillDamageScalingFractionForCurrentType() =>
@@ -1147,7 +1250,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private SplitDamage GetMinSplitDamage()
     {
         MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
-        GetMeleeSplitDamageScalingMultipliers(meleeBonuses, out float physicalDamageMult, out float magicalDamageMult);
+        GetMeleeSplitDamageScalingMultipliers(meleeBonuses, out float physicalDamageMult, out float magicDamageMult);
         float corruptionDamageMult = 1f + Mathf.Max(0f, GetEquippedCorruptionDamagePercent());
 
         var mh = GetMainHandWeaponDef();
@@ -1159,7 +1262,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             float corr = BaseMinCorruptionDamage + GetEquippedCorruptionDamage();
 
             phys *= physicalDamageMult;
-            mag *= magicalDamageMult;
+            mag *= magicDamageMult;
             corr *= corruptionDamageMult;
 
             return new SplitDamage(
@@ -1198,7 +1301,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         corruptionMin += BaseMinCorruptionDamage + GetEquippedCorruptionDamage();
 
         physMin *= physicalDamageMult;
-        magMin *= magicalDamageMult;
+        magMin *= magicDamageMult;
         corruptionMin *= corruptionDamageMult;
 
         return new SplitDamage(
@@ -1211,7 +1314,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private SplitDamage GetMaxSplitDamage()
     {
         MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
-        GetMeleeSplitDamageScalingMultipliers(meleeBonuses, out float physicalDamageMult, out float magicalDamageMult);
+        GetMeleeSplitDamageScalingMultipliers(meleeBonuses, out float physicalDamageMult, out float magicDamageMult);
         float corruptionDamageMult = 1f + Mathf.Max(0f, GetEquippedCorruptionDamagePercent());
 
         var mh = GetMainHandWeaponDef();
@@ -1223,7 +1326,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             float corr = BaseMaxCorruptionDamage + GetEquippedCorruptionDamage();
 
             phys *= physicalDamageMult;
-            mag *= magicalDamageMult;
+            mag *= magicDamageMult;
             corr *= corruptionDamageMult;
 
             return new SplitDamage(
@@ -1262,7 +1365,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         corruptionMax += BaseMaxCorruptionDamage + GetEquippedCorruptionDamage();
 
         physMax *= physicalDamageMult;
-        magMax *= magicalDamageMult;
+        magMax *= magicDamageMult;
         corruptionMax *= corruptionDamageMult;
 
         return new SplitDamage(
@@ -1336,10 +1439,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private float GetBaseDps()
     {
         float avgPhysical = (MinSplitDamage.physical + MaxSplitDamage.physical) * 0.5f;
-        float avgMagical = (MinSplitDamage.magical + MaxSplitDamage.magical) * 0.5f;
+        float avgMagic = (MinSplitDamage.magic + MaxSplitDamage.magic) * 0.5f;
         float avgCorruption = (MinSplitDamage.corruptionDamage + MaxSplitDamage.corruptionDamage) * 0.5f;
 
-        float avgTotal = avgPhysical + avgMagical + avgCorruption;
+        float avgTotal = avgPhysical + avgMagic + avgCorruption;
         return avgTotal * AttacksPerSecond;
     }
 
@@ -1354,7 +1457,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float critFactor = 1f + cc * (cm - 1f);
 
         float avgPhys = (MinSplitDamage.physical + MaxSplitDamage.physical) * 0.5f;
-        float avgMag = (MinSplitDamage.magical + MaxSplitDamage.magical) * 0.5f;
+        float avgMag = (MinSplitDamage.magic + MaxSplitDamage.magic) * 0.5f;
         float avgCorruption = (MinSplitDamage.corruptionDamage + MaxSplitDamage.corruptionDamage) * 0.5f;
 
         return ((avgPhys + avgMag) * critFactor + avgCorruption) * aps;
@@ -1718,6 +1821,22 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
+    private float GetEquippedGlobalPhysicalDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.GlobalPhysicalDamagePercent;
+        return Mathf.Max(0f, total);
+    }
+
+    private float GetEquippedRangedPhysicalDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.RangedPhysicalDamagePercent;
+        return Mathf.Max(0f, total);
+    }
+
     private float GetEquippedMagicDamage()
     {
         float total = 0f;
@@ -1788,7 +1907,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
+        {
             total += def.SupportCorruptionDamagePercent;
+            total += def.EquipmentCorruptionDamagePercent;
+        }
         return Mathf.Max(0f, total);
     }
 
@@ -1904,8 +2026,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             ? UnityEngine.Random.Range(min.physical, max.physical + 0.0001f)
             : 0f;
 
-        float mag = (max.magical > 0f && max.magical >= min.magical)
-            ? UnityEngine.Random.Range(min.magical, max.magical + 0.0001f)
+        float mag = (max.magic > 0f && max.magic >= min.magic)
+            ? UnityEngine.Random.Range(min.magic, max.magic + 0.0001f)
             : 0f;
 
         float corr = (max.corruptionDamage > 0f && max.corruptionDamage >= min.corruptionDamage)
@@ -1953,12 +2075,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float md = (BaseMinMagicDamage + BaseMaxMagicDamage) * 0.5f + GetEquippedMagicDamage();
         float cd = (BaseMinCorruptionDamage + BaseMaxCorruptionDamage) * 0.5f + GetEquippedCorruptionDamage();
 
-        float result =
-        baseDamage +
-        (ap * abilityPowerScale) +
-        (pd * physicalDamageScale) +
-        (md * magicDamageScale) +
-        (cd * corruptionDamageScale);
+        float weaponPart =
+            (pd * physicalDamageScale) +
+            (md * magicDamageScale) +
+            (cd * corruptionDamageScale);
+        float apMult = 1f + Mathf.Max(0f, ap) * Mathf.Max(0f, abilityPowerScale) / AbilityPowerDamagePercentDivisor;
+        float result = (baseDamage + weaponPart) * apMult;
 
         if (buffController)
         {
@@ -2317,7 +2439,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
                     return ApplyMeleeDamageReduction(dmg);
                 }
 
-            case DamageType.Magical:
+            case DamageType.Magic:
                 return ApplyMeleeDamageReduction(MitigateByRating(rawDamage, MagicResist));
 
             default:

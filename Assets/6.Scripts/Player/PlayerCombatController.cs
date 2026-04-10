@@ -801,7 +801,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (baseWasCrit && critMult > 1f)
             {
                 secondaryBase.physical /= critMult;
-                secondaryBase.magical /= critMult;
+                secondaryBase.magic /= critMult;
                 // corruption damage is not crit-scaled on cleave base rolls.
             }
 
@@ -816,7 +816,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             {
                 secondaryCrit = true;
                 secondaryHit.physical *= critMult;
-                secondaryHit.magical *= critMult;
+                secondaryHit.magic *= critMult;
             }
 
             ApplySecondaryHitPipeline(e, secondaryHit, secondaryCrit, forceElementalAilment: false);
@@ -1073,10 +1073,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private struct DamageResult
     {
         public float physical;
-        public float magical;
+        public float magic;
         public float corruptionDamage;
 
-        public float Total => physical + magical + corruptionDamage;
+        public float Total => physical + magic + corruptionDamage;
     }
 
     private DamageResult ApplySplitDamageToTarget(EnemyBaseController target, SplitDamage rolled, bool wasCrit)
@@ -1097,16 +1097,16 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             result.physical = Mathf.Max(0f, dealt);
         }
 
-        if (rolled.magical > 0f)
+        if (rolled.magic > 0f)
         {
             int dealt = target.TakeDamage(
-                Mathf.RoundToInt(rolled.magical * conditionalDamageMult),
-                DamageType.Magical,
+                Mathf.RoundToInt(rolled.magic * conditionalDamageMult),
+                DamageType.Magic,
                 wasCrit,
                 player.transform
             );
 
-            result.magical = Mathf.Max(0f, dealt);
+            result.magic = Mathf.Max(0f, dealt);
         }
 
         if (rolled.corruptionDamage > 0f)
@@ -1192,7 +1192,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (Random.value > stats.PoisonChance)
             return;
 
-        float totalPoisonDamage = poisonSourceDamage * (1f + stats.PoisonMultiplier);
+        float totalPoisonDamage =
+            poisonSourceDamage * stats.PoisonPoolFractionOfCorruptionDamage * (1f + stats.PoisonMultiplier);
         if (totalPoisonDamage <= 0f) return;
 
         float duration = Mathf.Max(0.1f, stats.PoisonDuration);
@@ -1230,7 +1231,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         // Non-fire elemental ailments use normal apply chance per hit.
-        if (!forceApply && dealt.magical <= 0f) return;
+        if (!forceApply && dealt.magic <= 0f) return;
         if (!forceApply && stats.CurrentAttackSkill != AttackSkill.Magic) return;
 
         float chance = stats.MagicAilmentApplyChance;

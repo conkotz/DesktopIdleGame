@@ -1,6 +1,6 @@
 public enum DamageType
 {
     Physical,
-    Magical,
+    Magic,
     Corruption
 }

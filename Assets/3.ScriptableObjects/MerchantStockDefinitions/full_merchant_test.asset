@@ -68,7 +68,7 @@ MonoBehaviour:
     costs:
     - type: 1
       amount: 1
-      itemId: wood_log
+      itemId: splitwood_log
     - type: 0
       amount: 1
       itemId: 

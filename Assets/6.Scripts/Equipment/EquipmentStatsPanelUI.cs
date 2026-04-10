@@ -1,10 +1,20 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class EquipmentStatsPanelUI : MonoBehaviour
 {
+    private static readonly Color BleedAilmentColor = new Color(0.996f, 0.361f, 0.361f);
+    private static readonly Color PoisonAilmentColor = new Color(0.298f, 0.686f, 0.314f);
+    private static readonly Color BurnAilmentColor = new Color(1f, 0.478f, 0.137f);
+    private static readonly Color ShockAilmentColor = new Color(0.945f, 0.831f, 0.204f);
+    private static readonly Color ChillAilmentColor = new Color(0.384f, 0.773f, 0.996f);
+    /// <summary>Dimmed ailment block when apply chance is 0% (matches prior elemental inactive styling).</summary>
+    private static readonly Color AilmentInactiveGrey = new Color(0.48f, 0.52f, 0.5f);
+
     [Header("Refs")]
     [SerializeField] private CharacterStats stats;
+    [SerializeField] private SharedTooltipUI ailmentSharedTooltip;
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private Inventory inventory;
     [SerializeField] private ToolbeltManager toolbelt;
@@ -19,6 +29,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text energyText;
     [SerializeField] private TMP_Text armorText;
     [SerializeField] private TMP_Text mrText;
+    [SerializeField] private TMP_Text corruptionResistText;
     [SerializeField] private TMP_Text blockText;
 
     [Header("Defensive (NEW)")]
@@ -39,29 +50,63 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text critDamageText;
     [SerializeField] private TMP_Text lifeStealText;
 
-    [Header("Damage type scaling (melee split)")]
-    [Tooltip("Shows net % from potions, gear %, and melee skill tree — same math as weapon Phys/Mag split.")]
-    [SerializeField] private TMP_Text physDamageScalingText;
-    [SerializeField] private TMP_Text magicDamageScalingText;
-    [SerializeField] private TMP_Text corruptionDamageScalingText;
+    [Header("Global bonuses (gear + supports)")]
+    [SerializeField] private TMP_Text globalPhysicalAllText;
+    [SerializeField] private TMP_Text globalMagicAllText;
+    [SerializeField] private TMP_Text globalCorruptionAllText;
+    [FormerlySerializedAs("conditionalFireText")]
+    [SerializeField] private TMP_Text globalFireBonusText;
+    [FormerlySerializedAs("conditionalIceText")]
+    [SerializeField] private TMP_Text globalIceBonusText;
+    [FormerlySerializedAs("conditionalLightningText")]
+    [SerializeField] private TMP_Text globalLightningBonusText;
 
-    [Header("Elemental skill scaling (Fire / Ice / Lightning abilities)")]
-    [SerializeField] private TMP_Text fireSkillScalingText;
-    [SerializeField] private TMP_Text iceSkillScalingText;
-    [SerializeField] private TMP_Text lightningSkillScalingText;
+    [Header("Conditional bonuses (gear + tree / passives where noted)")]
+    [FormerlySerializedAs("conditionalMeleePhysicalText")]
+    [SerializeField] private TMP_Text meleeDamageBonusText;
+    [FormerlySerializedAs("conditionalRangedPhysicalText")]
+    [SerializeField] private TMP_Text rangedDamageBonusText;
 
-    [Header("Ailments (Compact)")]
-    [SerializeField] private TMP_Text bleedText;
-    [SerializeField] private TMP_Text poisonText;
-    [SerializeField] private TMP_Text chillText;
-    [SerializeField] private TMP_Text burnText;
-    [SerializeField] private TMP_Text shockText;
+    [Header("Ailments — section titles (overview tooltip)")]
+    [FormerlySerializedAs("bleedText")]
+    [SerializeField] private TMP_Text bleedSectionTitleText;
+    [FormerlySerializedAs("poisonText")]
+    [SerializeField] private TMP_Text poisonSectionTitleText;
+    [FormerlySerializedAs("burnText")]
+    [SerializeField] private TMP_Text burnSectionTitleText;
+    [FormerlySerializedAs("shockText")]
+    [SerializeField] private TMP_Text shockSectionTitleText;
+    [FormerlySerializedAs("chillText")]
+    [SerializeField] private TMP_Text chillSectionTitleText;
 
-    [Header("Ailment line colours (Burn / Chill / Shock)")]
-    [SerializeField] private Color burnAilmentLineColor = new Color(1f, 0.38f, 0.12f);
-    [SerializeField] private Color chillAilmentLineColor = new Color(0.38f, 0.78f, 1f);
-    [SerializeField] private Color shockAilmentLineColor = new Color(0.92f, 0.82f, 0.2f);
-    [SerializeField] private Color elementalAilmentInactiveColor = new Color(0.48f, 0.52f, 0.5f);
+    [Header("Ailments — Bleed")]
+    [SerializeField] private TMP_Text bleedChanceLineText;
+    [SerializeField] private TMP_Text bleedMultiplierLineText;
+    [SerializeField] private TMP_Text bleedDurationLineText;
+    [SerializeField] private TMP_Text bleedMaxStacksLineText;
+
+    [Header("Ailments — Poison")]
+    [SerializeField] private TMP_Text poisonChanceLineText;
+    [SerializeField] private TMP_Text poisonMultiplierLineText;
+    [SerializeField] private TMP_Text poisonDurationLineText;
+    [SerializeField] private TMP_Text poisonMaxStacksLineText;
+
+    [Header("Ailments — Burn")]
+    [SerializeField] private TMP_Text burnChanceLineText;
+    [SerializeField] private TMP_Text burnMultiplierLineText;
+    [SerializeField] private TMP_Text burnDurationLineText;
+    [SerializeField] private TMP_Text burnStacksLineText;
+
+    [Header("Ailments — Shock")]
+    [SerializeField] private TMP_Text shockChanceLineText;
+    [SerializeField] private TMP_Text shockDamageAmountLineText;
+    [SerializeField] private TMP_Text shockDurationLineText;
+
+    [Header("Ailments — Chill")]
+    [SerializeField] private TMP_Text chillChanceLineText;
+    [SerializeField] private TMP_Text chillEffectLineText;
+    [SerializeField] private TMP_Text chillDurationLineText;
+    [SerializeField] private TMP_Text chillStacksLineText;
 
     // -------------------------
     // DPS
@@ -175,7 +220,9 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (hpText) hpText.text = $"Max HP: {stats.MaxHP}";
         if (energyText) energyText.text = $"Energy: {stats.MaxEnergy}";
         if (armorText) armorText.text = $"Armour: {stats.Armor} ({stats.PhysicalReductionFromArmorPercent:0.#}% Phys DR)";
-        if (mrText) mrText.text = $"Magic Res: {stats.MagicResist} ({stats.MagicalReductionFromMrPercent:0.#}% Mag DR)";
+        if (mrText) mrText.text = $"Magic Res: {stats.MagicResist} ({stats.MagicReductionFromMrPercent:0.#}% Mag DR)";
+        if (corruptionResistText)
+            corruptionResistText.text = $"Corr Res: {stats.CorruptionResist} ({stats.CorruptionReductionFromResistPercent:0.#}% Corr DR)";
         if (blockText) blockText.text = $"Phys Block: {stats.PhysBlockChancePercent:0.#}%";
 
         if (moveSpeedText)
@@ -198,7 +245,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             SplitDamage max = stats.MaxSplitDamage;
 
             bool hasPhys = max.physical > 0f;
-            bool hasMag = max.magical > 0f;
+            bool hasMag = max.magic > 0f;
             bool hasCorruption = max.corruptionDamage > 0f;
 
             bool hasAnyDamage = stats.MaxDamage > 0 || stats.MinDamage > 0;
@@ -217,14 +264,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             else if (types == 1)
             {
                 if (hasPhys) typeLabel = "Physical";
-                else if (hasMag) typeLabel = "Magical";
+                else if (hasMag) typeLabel = "Magic";
                 else typeLabel = "Corruption";
             }
             else if (types == 2)
             {
-                if (hasPhys && hasMag) typeLabel = "Physical + Magical";
+                if (hasPhys && hasMag) typeLabel = "Physical + Magic";
                 else if (hasPhys && hasCorruption) typeLabel = "Physical + Corruption";
-                else typeLabel = "Magical + Corruption";
+                else typeLabel = "Magic + Corruption";
             }
             else
             {
@@ -235,8 +282,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             if (hasAnyDamage && stats.CurrentAttackSkill == AttackSkill.Magic)
             {
                 string magicTypeLabel = GetCurrentMagicTypeLabel();
-                if (!string.IsNullOrWhiteSpace(magicTypeLabel) && typeLabel.Contains("Magical"))
-                    typeLabel = typeLabel.Replace("Magical", $"Magical ({magicTypeLabel})");
+                if (!string.IsNullOrWhiteSpace(magicTypeLabel) && typeLabel.Contains("Magic"))
+                    typeLabel = typeLabel.Replace("Magic", $"Magic ({magicTypeLabel})");
             }
 
             string split = "";
@@ -247,7 +294,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             if (hasMag)
             {
                 if (!string.IsNullOrEmpty(split)) split += " | ";
-                split += $"M {Mathf.RoundToInt(min.magical)}-{Mathf.RoundToInt(max.magical)}";
+                split += $"M {Mathf.RoundToInt(min.magic)}-{Mathf.RoundToInt(max.magic)}";
             }
 
             if (hasCorruption)
@@ -279,46 +326,26 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             lifeStealText.text = $"Life Steal: {lsPct:0.#}% of damage";
         }
 
-        if (physDamageScalingText)
-            physDamageScalingText.text = $"Physical: {FormatSignedPercentPoints(stats.MeleePhysicalDamageTotalScalingPercentPoints)}";
+        if (globalPhysicalAllText)
+            globalPhysicalAllText.text = $"Physical (All): {FormatSignedPercentPoints(stats.GlobalPhysicalDamageBonusPercentPoints)}";
+        if (globalMagicAllText)
+            globalMagicAllText.text = $"Magic (All): {FormatSignedPercentPoints(stats.GlobalMagicDamageBonusPercentPoints)}";
+        if (globalCorruptionAllText)
+            globalCorruptionAllText.text = $"Corruption (All): {FormatSignedPercentPoints(stats.GlobalCorruptionDamageBonusPercentPoints)}";
+        if (globalFireBonusText)
+            globalFireBonusText.text = $"Fire: {FormatSignedPercentPoints(stats.FireSkillDamageTotalScalingPercentPoints)}";
+        if (globalIceBonusText)
+            globalIceBonusText.text = $"Ice: {FormatSignedPercentPoints(stats.IceSkillDamageTotalScalingPercentPoints)}";
+        if (globalLightningBonusText)
+            globalLightningBonusText.text = $"Lightning: {FormatSignedPercentPoints(stats.LightningSkillDamageTotalScalingPercentPoints)}";
 
-        if (magicDamageScalingText)
-            magicDamageScalingText.text = $"Magical: {FormatSignedPercentPoints(stats.MeleeMagicDamageTotalScalingPercentPoints)}";
+        if (meleeDamageBonusText)
+            meleeDamageBonusText.text = $"Melee Damage: {FormatSignedPercentPoints(stats.MeleePhysicalConditionalBonusPercentPoints)}";
+        if (rangedDamageBonusText)
+            rangedDamageBonusText.text = $"Ranged Damage: {FormatSignedPercentPoints(stats.RangedPhysicalDamageBonusPercentPoints)}";
 
-        if (corruptionDamageScalingText)
-        {
-            float c = stats.MeleeCorruptionDamageTotalScalingPercentPoints;
-            corruptionDamageScalingText.text =
-                Mathf.Abs(c) > 0.0001f
-                    ? $"Corruption: {FormatSignedPercentPoints(c)}"
-                    : "Corruption: +0% (flat)";
-        }
-
-        if (fireSkillScalingText)
-            fireSkillScalingText.text = $"Fire: {FormatSignedPercentPoints(stats.FireSkillDamageTotalScalingPercentPoints)}";
-        if (iceSkillScalingText)
-            iceSkillScalingText.text = $"Ice: {FormatSignedPercentPoints(stats.IceSkillDamageTotalScalingPercentPoints)}";
-        if (lightningSkillScalingText)
-            lightningSkillScalingText.text = $"Lightning: {FormatSignedPercentPoints(stats.LightningSkillDamageTotalScalingPercentPoints)}";
-
-        // -------------------------
-        // Ailments (Compact)
-        // -------------------------
-        if (bleedText)
-        {
-            bleedText.text = (stats.BleedChance > 0f && stats.BleedDPS > 0f)
-                ? $"Bleed: {stats.BleedChancePercent:0.#}% | {stats.BleedMultiplier * 100f:+0.#;-0.#;0}% | {stats.BleedDuration:0.#}s"
-                : "Bleed: None";
-        }
-
-        if (poisonText)
-        {
-            poisonText.text = stats.PoisonChance > 0f
-                ? $"Poison: {stats.PoisonChancePercent:0.#}% | {stats.PoisonMultiplier * 100f:+0.#;-0.#;0}% | {stats.PoisonDuration:0.#}s | {stats.PoisonMaxStacks} stk"
-                : "Poison: None";
-        }
-
-        PopulateMagicAilmentTexts();
+        PopulateDetailedAilmentLines();
+        BindAilmentLineTooltips();
 
         // -------------------------
         // DPS
@@ -373,64 +400,186 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         return stats.CurrentMagicAttackType.ToString();
     }
 
-    private void PopulateMagicAilmentTexts()
+    private SharedTooltipUI ResolveAilmentSharedTooltip()
     {
-        float chance = GetCurrentMagicAilmentChancePercent();
-        bool hasMagicAilmentChance = chance > 0f;
-        string type = GetCurrentMagicTypeLabel();
+        if (ailmentSharedTooltip)
+            return ailmentSharedTooltip;
 
-        if (chillText)
+        SharedTooltipUI[] all =
+            FindObjectsByType<SharedTooltipUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+        foreach (SharedTooltipUI t in all)
         {
-            if (hasMagicAilmentChance && type == MagicAttackType.Ice.ToString())
-            {
-                chillText.text = $"Chill: {chance:0.#}% | {stats.ChillSlowPerStack * 100f:0.#}% | {stats.ChillDuration:0.#}s | {stats.ChillMaxStacks} stk";
-                chillText.color = chillAilmentLineColor;
-            }
-            else
-            {
-                chillText.text = "Chill: None";
-                chillText.color = elementalAilmentInactiveColor;
-            }
+            if (t && t.name == "SharedToolTipInfoPanel")
+                return t;
         }
 
-        if (burnText)
+        foreach (SharedTooltipUI t in all)
         {
-            if (stats.CurrentAttackAppliesAsFireForBurn && stats.BurnApplyChance > 0f)
-            {
-                float burnMultBonusPct = (stats.BurnExplosionMultiplier - 1f) * 100f;
-                burnText.text =
-                    $"Burn: {stats.BurnApplyChance * 100f:0.#}% | {burnMultBonusPct:+0.#;-0.#;0}% | 15s | {stats.BurnHitsToExplode} stk";
-                burnText.color = burnAilmentLineColor;
-            }
-            else
-            {
-                burnText.text = "Burn: None";
-                burnText.color = elementalAilmentInactiveColor;
-            }
+            if (t && t.name != "HUDToolInfoPanel")
+                return t;
         }
 
-        if (shockText)
-        {
-            if (hasMagicAilmentChance && type == MagicAttackType.Lightning.ToString())
-            {
-                shockText.text = $"Shock: {chance:0.#}% | {stats.ShockDamageTakenMultiplier * 100f:0.#}% | {stats.ShockDuration:0.#}s";
-                shockText.color = shockAilmentLineColor;
-            }
-            else
-            {
-                shockText.text = "Shock: None";
-                shockText.color = elementalAilmentInactiveColor;
-            }
-        }
+        return null;
     }
 
-    private float GetCurrentMagicAilmentChancePercent()
+    private void BindAilmentLineTooltips()
+    {
+        if (!stats)
+            return;
+
+        SharedTooltipUI tip = ResolveAilmentSharedTooltip();
+        if (!tip)
+            return;
+
+        void Wire(TMP_Text tmp, EquipmentAilmentLineTooltip.LineId lineId)
+        {
+            if (!tmp)
+                return;
+            tmp.raycastTarget = true;
+            EquipmentAilmentLineTooltip lineTip = tmp.GetComponent<EquipmentAilmentLineTooltip>();
+            if (!lineTip)
+                lineTip = tmp.gameObject.AddComponent<EquipmentAilmentLineTooltip>();
+            lineTip.SetLineId(lineId);
+            lineTip.Bind(stats, tip);
+        }
+
+        Wire(bleedSectionTitleText, EquipmentAilmentLineTooltip.LineId.BleedOverview);
+        Wire(bleedChanceLineText, EquipmentAilmentLineTooltip.LineId.BleedChance);
+        Wire(bleedMultiplierLineText, EquipmentAilmentLineTooltip.LineId.BleedMultiplier);
+        Wire(bleedDurationLineText, EquipmentAilmentLineTooltip.LineId.BleedDuration);
+        Wire(bleedMaxStacksLineText, EquipmentAilmentLineTooltip.LineId.BleedMaxStacks);
+
+        Wire(poisonSectionTitleText, EquipmentAilmentLineTooltip.LineId.PoisonOverview);
+        Wire(poisonChanceLineText, EquipmentAilmentLineTooltip.LineId.PoisonChance);
+        Wire(poisonMultiplierLineText, EquipmentAilmentLineTooltip.LineId.PoisonMultiplier);
+        Wire(poisonDurationLineText, EquipmentAilmentLineTooltip.LineId.PoisonDuration);
+        Wire(poisonMaxStacksLineText, EquipmentAilmentLineTooltip.LineId.PoisonMaxStacks);
+
+        Wire(burnSectionTitleText, EquipmentAilmentLineTooltip.LineId.BurnOverview);
+        Wire(burnChanceLineText, EquipmentAilmentLineTooltip.LineId.BurnChance);
+        Wire(burnMultiplierLineText, EquipmentAilmentLineTooltip.LineId.BurnMultiplier);
+        Wire(burnDurationLineText, EquipmentAilmentLineTooltip.LineId.BurnDuration);
+        Wire(burnStacksLineText, EquipmentAilmentLineTooltip.LineId.BurnStacks);
+
+        Wire(shockSectionTitleText, EquipmentAilmentLineTooltip.LineId.ShockOverview);
+        Wire(shockChanceLineText, EquipmentAilmentLineTooltip.LineId.ShockChance);
+        Wire(shockDamageAmountLineText, EquipmentAilmentLineTooltip.LineId.ShockDamageAmount);
+        Wire(shockDurationLineText, EquipmentAilmentLineTooltip.LineId.ShockDuration);
+
+        Wire(chillSectionTitleText, EquipmentAilmentLineTooltip.LineId.ChillOverview);
+        Wire(chillChanceLineText, EquipmentAilmentLineTooltip.LineId.ChillChance);
+        Wire(chillEffectLineText, EquipmentAilmentLineTooltip.LineId.ChillEffect);
+        Wire(chillDurationLineText, EquipmentAilmentLineTooltip.LineId.ChillDuration);
+        Wire(chillStacksLineText, EquipmentAilmentLineTooltip.LineId.ChillStacks);
+
+        foreach (EquipmentAilmentLineTooltip extra in GetComponentsInChildren<EquipmentAilmentLineTooltip>(true))
+            extra.Bind(stats, tip);
+    }
+
+    private void PopulateDetailedAilmentLines()
     {
         if (stats == null)
-            return 0f;
-        if (stats.CurrentAttackSkill != AttackSkill.Magic)
-            return 0f;
-        return stats.MagicAilmentApplyChance * 100f;
+            return;
+
+        if (bleedChanceLineText)
+            bleedChanceLineText.text = $"Bleed Chance: {stats.BleedChancePercent:0.#}%";
+        if (bleedMultiplierLineText)
+            bleedMultiplierLineText.text = $"Bleed Multiplier: {FormatSignedPercentPoints(stats.BleedMultiplier * 100f)}";
+        if (bleedDurationLineText)
+            bleedDurationLineText.text = $"Bleed Duration: {stats.BleedDuration:0.#}s";
+        if (bleedMaxStacksLineText)
+            bleedMaxStacksLineText.text = $"Bleed Max Stacks: {stats.BleedMaxStacks}";
+
+        if (poisonChanceLineText)
+            poisonChanceLineText.text = $"Poison Chance: {stats.PoisonChancePercent:0.#}%";
+        if (poisonMultiplierLineText)
+            poisonMultiplierLineText.text = $"Poison Multiplier: {FormatSignedPercentPoints(stats.PoisonMultiplier * 100f)}";
+        if (poisonDurationLineText)
+            poisonDurationLineText.text = $"Poison Duration: {stats.PoisonDuration:0.#}s";
+        if (poisonMaxStacksLineText)
+            poisonMaxStacksLineText.text = $"Poison Max Stacks: {stats.PoisonMaxStacks}";
+
+        if (burnChanceLineText)
+            burnChanceLineText.text = $"Burn Chance: {stats.BurnApplyChance * 100f:0.#}%";
+        if (burnMultiplierLineText)
+            burnMultiplierLineText.text =
+                $"Burn Multiplier: {FormatSignedPercentPoints((stats.BurnDamageMultiplier - 1f) * 100f)}";
+        if (burnDurationLineText)
+            burnDurationLineText.text = $"Burn Duration: {stats.BurnDotDurationSeconds:0.#}s";
+        if (burnStacksLineText)
+            burnStacksLineText.text = $"Burn Stacks: {stats.BurnHitsToExplode}";
+
+        if (shockChanceLineText)
+            shockChanceLineText.text = $"Shock Chance: {stats.ShockApplyChancePercentForStatsPanel:0.#}%";
+        if (shockDamageAmountLineText)
+            shockDamageAmountLineText.text = $"Shock Damage Amount: {stats.ShockDamageTakenMultiplier * 100f:0.#}%";
+        if (shockDurationLineText)
+            shockDurationLineText.text = $"Shock Duration: {stats.ShockDuration:0.#}s";
+
+        if (chillChanceLineText)
+            chillChanceLineText.text = $"Chill Chance: {stats.ChillApplyChancePercentForStatsPanel:0.#}%";
+        if (chillEffectLineText)
+            chillEffectLineText.text = $"Chill Effect: {stats.ChillSlowPerStack * 100f:0.#}% slow / stack";
+        if (chillDurationLineText)
+            chillDurationLineText.text = $"Chill Duration: {stats.ChillDuration:0.#}s";
+        if (chillStacksLineText)
+            chillStacksLineText.text = $"Chill Stacks: {stats.ChillMaxStacks}";
+
+        ApplyAilmentLineColors();
+    }
+
+    private void ApplyAilmentLineColors()
+    {
+        if (!stats)
+            return;
+
+        void Colorize(TMP_Text t, Color c)
+        {
+            if (t)
+                t.color = c;
+        }
+
+        bool bleedApplies = stats.BleedChance > 0f;
+        bool poisonApplies = stats.PoisonChance > 0f;
+        bool burnApplies = stats.BurnApplyChance > 0f;
+        bool shockApplies = stats.ShockApplyChancePercentForStatsPanel > 0f;
+        bool chillApplies = stats.ChillApplyChancePercentForStatsPanel > 0f;
+
+        Color bleedC = bleedApplies ? BleedAilmentColor : AilmentInactiveGrey;
+        Color poisonC = poisonApplies ? PoisonAilmentColor : AilmentInactiveGrey;
+        Color burnC = burnApplies ? BurnAilmentColor : AilmentInactiveGrey;
+        Color shockC = shockApplies ? ShockAilmentColor : AilmentInactiveGrey;
+        Color chillC = chillApplies ? ChillAilmentColor : AilmentInactiveGrey;
+
+        Colorize(bleedSectionTitleText, bleedC);
+        Colorize(bleedChanceLineText, bleedC);
+        Colorize(bleedMultiplierLineText, bleedC);
+        Colorize(bleedDurationLineText, bleedC);
+        Colorize(bleedMaxStacksLineText, bleedC);
+
+        Colorize(poisonSectionTitleText, poisonC);
+        Colorize(poisonChanceLineText, poisonC);
+        Colorize(poisonMultiplierLineText, poisonC);
+        Colorize(poisonDurationLineText, poisonC);
+        Colorize(poisonMaxStacksLineText, poisonC);
+
+        Colorize(burnSectionTitleText, burnC);
+        Colorize(burnChanceLineText, burnC);
+        Colorize(burnMultiplierLineText, burnC);
+        Colorize(burnDurationLineText, burnC);
+        Colorize(burnStacksLineText, burnC);
+
+        Colorize(shockSectionTitleText, shockC);
+        Colorize(shockChanceLineText, shockC);
+        Colorize(shockDamageAmountLineText, shockC);
+        Colorize(shockDurationLineText, shockC);
+
+        Colorize(chillSectionTitleText, chillC);
+        Colorize(chillChanceLineText, chillC);
+        Colorize(chillEffectLineText, chillC);
+        Colorize(chillDurationLineText, chillC);
+        Colorize(chillStacksLineText, chillC);
     }
 
     private static string BuildColouredTypeLabel(string plainTypeLabel, bool hasPhys, bool hasMag, bool hasCorruption)
@@ -448,7 +597,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             if (hasMag)
             {
                 if (!string.IsNullOrEmpty(result)) result += " + ";
-                result += $"<color={mag}>Magical</color>";
+                result += $"<color={mag}>Magic</color>";
             }
 
             if (hasCorruption)
@@ -462,23 +611,5 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         // Fallback for unexpected/empty cases.
         return plainTypeLabel;
-    }
-
-    private string GetAttackTypeColourHex(bool hasPhys, bool hasMag, bool hasCorruption)
-    {
-        if (hasMag)
-            return "#4DB8FF"; // blue
-
-        if (hasPhys)
-            return "#FF5C5C"; // red
-
-        if (hasCorruption)
-            return "#7040C0";
-
-        return stats.CurrentAttackSkill switch
-        {
-            AttackSkill.Magic => "#4DB8FF",
-            _ => "#FF5C5C"
-        };
     }
 }

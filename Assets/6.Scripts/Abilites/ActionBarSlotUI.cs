@@ -454,29 +454,12 @@ public class ActionBarSlotUI : MonoBehaviour,
             lines.Add($"<color=#FFB347>Energy: {def.EnergyAmount}</color>");
 
         if (def.HasGrantedEffect)
-            lines.Add($"<color=#FFB347>Effect: {FormatGrantedEffect(def.GrantedEffect)}</color>");
+            lines.Add($"<color=#FFB347>Effect: {ConsumableEffectTooltip.Format(def.GrantedEffect)}</color>");
 
         if (def.UseCooldown > 0f)
             lines.Add($"<color=#FFB347>Cooldown: {def.UseCooldown:0.#}s</color>");
 
         return string.Join("\n", lines);
-    }
-
-    private static string FormatGrantedEffect(ConsumableGrantedEffect effect)
-    {
-        string dur = effect.duration > 0f ? $" over {effect.duration:0.#}s" : "";
-        return effect.effectType switch
-        {
-            ConsumableEffectType.EnergyRestore => $"+{effect.magnitude:0.#} Energy",
-            ConsumableEffectType.HealOverTime => $"+{effect.magnitude:0.#} HP{dur}",
-            ConsumableEffectType.PhysicalDamageBoost => $"+{effect.magnitude:0.#}% Physical Damage{dur}",
-            ConsumableEffectType.MagicDamageBoost => $"+{effect.magnitude:0.#}% Magic Damage{dur}",
-            ConsumableEffectType.AttackSpeed => $"+{effect.magnitude:0.#}% Attack Speed{dur}",
-            ConsumableEffectType.MoveSpeed => $"+{effect.magnitude:0.#}% Move Speed{dur}",
-            ConsumableEffectType.DefenseBoost => $"+{effect.magnitude:0.#}% Defence{dur}",
-            ConsumableEffectType.EnergyRegen => $"+{effect.magnitude:0.#} Energy Regen{dur}",
-            _ => $"{effect.effectType}{dur}"
-        };
     }
 
     private static string BuildAbilityActionBarTooltip(AbilityDefinition def, ActionBarAssignment assignment)

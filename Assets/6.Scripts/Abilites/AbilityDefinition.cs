@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public enum AbilityWeaponRequirement
 {
@@ -23,13 +24,14 @@ public class AbilityDefinition : ScriptableObject
     [Tooltip("Physical coefficient: 1 = 100%, −0.5 = −50% (reduction), 0 = omit in tooltip. Power Slash: adds hit Physical × this.")]
     public float physicalDamageMultiplier = 0f;
 
-    [Tooltip("Magic coefficient: 1 = 100%, negative values reduce. Power Slash: adds hit Magical × this. 0 = omit in tooltip.")]
-    public float magicalDamageMultiplier = 0f;
+    [Tooltip("Magic coefficient: 1 = 100%, negative values reduce. Power Slash: adds hit Magic × this. 0 = omit in tooltip.")]
+    [FormerlySerializedAs("magicalDamageMultiplier")]
+    public float magicDamageMultiplier = 0f;
 
-    [Tooltip("Ability Power coefficient: 1 = 100% of AP stat as damage; negative reduces. 0 = omit in tooltip.")]
+    [Tooltip("Ability Power coefficient: damage × (1 + AP × this / 100). 1 = +1% damage per Ability Power (100 AP = +100%). 0 = no AP scaling.")]
     public float abilityPowerMultiplier = 0f;
 
-    [Tooltip("Extra scaling on magical damage when the character's magic attack type is Fire (see CharacterStats CurrentMagicAttackType). 0 = ignore.")]
+    [Tooltip("Extra scaling on magic damage when the character's magic attack type is Fire (see CharacterStats CurrentMagicAttackType). 0 = ignore.")]
     [Min(0f)] public float fireDamageMultiplier = 0f;
 
     [Tooltip("Extra scaling when magic attack type is Ice. 0 = ignore.")]

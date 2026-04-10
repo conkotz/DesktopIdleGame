@@ -1920,7 +1920,7 @@ public class PlayerController : MonoBehaviour
             FloatingDamageTextUI.PopupDamageKind popupKind = type switch
             {
                 DamageType.Physical => FloatingDamageTextUI.PopupDamageKind.Physical,
-                DamageType.Magical => FloatingDamageTextUI.PopupDamageKind.Magical,
+                DamageType.Magic => FloatingDamageTextUI.PopupDamageKind.Magic,
                 DamageType.Corruption => FloatingDamageTextUI.PopupDamageKind.Corruption,
                 _ => FloatingDamageTextUI.PopupDamageKind.Physical
             };
@@ -2056,7 +2056,7 @@ public class PlayerController : MonoBehaviour
                     return dmg;
                 }
 
-            case DamageType.Magical:
+            case DamageType.Magic:
                 {
                     float mr = characterStats ? characterStats.MagicResist : 0f;
                     return MitigateByRating(rawDamage, mr);

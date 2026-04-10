@@ -88,7 +88,7 @@ public class EnemyDefinition : ScriptableObject
     public float attackRange = 1f;
 
     [Range(0f, 1f)]
-    [Tooltip("Crit chance for physical/magical hits (corruption never crits on basic attacks).")]
+    [Tooltip("Crit chance for physical/magic hits (corruption never crits on basic attacks).")]
     public float critChance = 0f;
 
     [Min(1f)]

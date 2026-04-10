@@ -1,14 +1,27 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 
+public enum UiTooltipSource
+{
+    /// <summary>Uses <see cref="GameTooltipTexts.TryGetForUiElement"/> with this <c>GameObject</c> name.</summary>
+    AutoByGameObjectName = 0,
+    /// <summary>No hover tooltip.</summary>
+    Disabled = 1,
+    /// <summary>Inspector title + body (escape hatch for one-offs).</summary>
+    Custom = 2,
+}
+
 [DisallowMultipleComponent]
 public class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
-    [Header("Tooltip")]
-    [SerializeField] private string tooltipTitle = "Info";
+    [Header("Tooltip copy")]
+    [Tooltip("Auto: text comes from GameTooltipTexts using this object's name. Custom: use fields below.")]
+    [SerializeField] private UiTooltipSource tooltipSource = UiTooltipSource.AutoByGameObjectName;
+
+    [SerializeField] private string customTitle = "Info";
 
     [TextArea(3, 10)]
-    [SerializeField] private string tooltipText;
+    [SerializeField] private string customBody;
 
     [Header("Refs")]
     [SerializeField] private SharedTooltipUI tooltipPanel;
@@ -26,7 +39,21 @@ public class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (!tooltipPanel || string.IsNullOrWhiteSpace(tooltipText))
+        if (!tooltipPanel || tooltipSource == UiTooltipSource.Disabled)
+            return;
+
+        string title;
+        string body;
+
+        if (tooltipSource == UiTooltipSource.Custom)
+        {
+            title = customTitle;
+            body = customBody;
+        }
+        else if (!GameTooltipTexts.TryGetForUiElement(gameObject.name, out title, out body))
+            return;
+
+        if (string.IsNullOrWhiteSpace(body))
             return;
 
         var flipper = tooltipPanel.GetComponent<FlipInsideBounds>();
@@ -41,10 +68,9 @@ public class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitH
             }
         }
 
-        // IMPORTANT: use the dedicated stats anchor, not this text object's transform
         Transform anchor = tooltipAnchor ? tooltipAnchor : transform;
         tooltipPanel.SetAnchor(anchor);
-        tooltipPanel.ShowText(tooltipTitle, tooltipText);
+        tooltipPanel.ShowText(title, body);
     }
 
     public void OnPointerExit(PointerEventData eventData)

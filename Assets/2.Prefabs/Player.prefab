@@ -5749,6 +5749,7 @@ MonoBehaviour:
   baseBleedDuration: 5
   basePoisonChance: 0
   basePoisonMultiplier: 0
+  poisonPoolFractionOfCorruptionDamage: 0.4
   basePoisonDuration: 5
   basePoisonMaxStacks: 3
   baseMagicAttackType: 1
@@ -5758,7 +5759,8 @@ MonoBehaviour:
   baseChillMaxStacks: 6
   baseChillSlowPerStack: 0.15
   baseBurnHitsToExplode: 4
-  baseBurnExplosionMultiplier: 0.5
+  baseBurnExplosionMultiplier: 1
+  bonusBurnDamageMultiplier: 0
   baseShockDuration: 5
   baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15

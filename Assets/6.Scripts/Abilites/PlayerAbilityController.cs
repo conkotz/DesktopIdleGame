@@ -83,7 +83,7 @@ public class PlayerAbilityController : MonoBehaviour
     private float _cleavingBuffEndsAt;
     private bool _cleavingBuffActive;
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
-    private float _queuedPowerSlashMagicalMultiplier = 1f;
+    private float _queuedPowerSlashMagicMultiplier = 1f;
     private float _queuedPowerSlashAbilityPowerMultiplier;
     private QueuedHitEffect _queuedConsumedThisHit;
     private int _queuedConsumedFrame = -1;
@@ -228,7 +228,7 @@ public class PlayerAbilityController : MonoBehaviour
             _powerSlashQueued = true;
             float powerSlashPhysicalBonus = GetPowerSlashPhysicalMultiplierBonus();
             _queuedPowerSlashPhysicalMultiplier = def.physicalDamageMultiplier + powerSlashPhysicalBonus;
-            _queuedPowerSlashMagicalMultiplier = def.magicalDamageMultiplier;
+            _queuedPowerSlashMagicMultiplier = def.magicDamageMultiplier;
             _queuedPowerSlashAbilityPowerMultiplier = def.abilityPowerMultiplier;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
@@ -296,20 +296,20 @@ public class PlayerAbilityController : MonoBehaviour
         if (target == null || target.IsDead)
             return false;
 
-        // Instant-cast damage model: physical + magical weapon averages, optional element lines, AP, small ailment hook.
+        // Instant-cast damage model: physical + magic weapon averages, optional element lines, AP, small ailment hook.
         float basePhysical =
             (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
-        float baseMagical =
-            (Mathf.Max(0f, stats.MinSplitDamage.magical) + Mathf.Max(0f, stats.MaxSplitDamage.magical)) * 0.5f;
+        float baseMagic =
+            (Mathf.Max(0f, stats.MinSplitDamage.magic) + Mathf.Max(0f, stats.MaxSplitDamage.magic)) * 0.5f;
 
         float scaledPhysical = basePhysical * def.physicalDamageMultiplier;
-        float scaledMagical = baseMagical * def.magicalDamageMultiplier;
+        float scaledMagic = baseMagic * def.magicDamageMultiplier;
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
-        AbilityElementScaling.ScaleMagicalAbilityContributions(scaledMagical, elementBonus, stats, out float magScaled, out float elemScaled);
-        float apBonus = stats.AbilityPower * def.abilityPowerMultiplier;
+        AbilityElementScaling.ScaleMagicAbilityContributions(scaledMagic, elementBonus, stats, out float magScaled, out float elemScaled);
+        float apM = stats.GetAbilityPowerDamageMultiplier(def.abilityPowerMultiplier);
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-        float physPart = scaledPhysical + apBonus;
-        float magPart = magScaled + elemScaled + ailmentBonus;
+        float physPart = scaledPhysical * apM;
+        float magPart = (magScaled + elemScaled + ailmentBonus) * apM;
         float raw = Mathf.Max(0f, physPart + magPart);
 
         bool wasCrit = false;
@@ -326,7 +326,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (phys > 0)
             dealt += target.TakeDamage(phys, DamageType.Physical, wasCrit, transform);
         if (mag > 0)
-            dealt += target.TakeDamage(mag, DamageType.Magical, wasCrit, transform);
+            dealt += target.TakeDamage(mag, DamageType.Magic, wasCrit, transform);
 
         // Fire the attack anim as feedback, but do not modify basic attack cooldown timing.
         player.TriggerAttackAnim();
@@ -339,9 +339,9 @@ public class PlayerAbilityController : MonoBehaviour
     private struct DealtHit
     {
         public float physical;
-        public float magical;
+        public float magic;
         public float corruptionDamage;
-        public float Total => physical + magical + corruptionDamage;
+        public float Total => physical + magic + corruptionDamage;
     }
 
     /// <summary>Builds one independent ability hit roll (per target): attack roll + ability scaling + independent crit.</summary>
@@ -352,26 +352,26 @@ public class PlayerAbilityController : MonoBehaviour
         if (baseWasCrit && critMult > 1f)
         {
             baseRolled.physical /= critMult;
-            baseRolled.magical /= critMult;
+            baseRolled.magic /= critMult;
             // corruption damage is not crit-scaled on the base roll.
         }
 
         float basePhysical = Mathf.Max(0f, baseRolled.physical);
-        float baseMagical = Mathf.Max(0f, baseRolled.magical);
+        float baseMagic = Mathf.Max(0f, baseRolled.magic);
         float baseCorruption = Mathf.Max(0f, baseRolled.corruptionDamage);
 
         float scaledPhysical = basePhysical * def.physicalDamageMultiplier;
-        float scaledMagical = baseMagical * def.magicalDamageMultiplier;
+        float scaledMagic = baseMagic * def.magicDamageMultiplier;
         // Corruption scales like the physical multiplier so poison can still proc from ability hits.
         float scaledCorruption = baseCorruption * def.physicalDamageMultiplier;
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
-        AbilityElementScaling.ScaleMagicalAbilityContributions(scaledMagical, elementBonus, stats, out float magScaled, out float elemScaled);
-        float apBonus = stats.AbilityPower * def.abilityPowerMultiplier;
+        AbilityElementScaling.ScaleMagicAbilityContributions(scaledMagic, elementBonus, stats, out float magScaled, out float elemScaled);
+        float apM = stats.GetAbilityPowerDamageMultiplier(def.abilityPowerMultiplier);
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
 
-        float physPart = scaledPhysical + apBonus;
-        float magPart = magScaled + elemScaled + ailmentBonus;
-        float corruptionPart = scaledCorruption;
+        float physPart = scaledPhysical * apM;
+        float magPart = (magScaled + elemScaled + ailmentBonus) * apM;
+        float corruptionPart = scaledCorruption * apM;
 
         nonCritBase = new SplitDamage(physPart, magPart, corruptionPart);
 
@@ -426,7 +426,7 @@ public class PlayerAbilityController : MonoBehaviour
             float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
             SplitDamage rolled = new SplitDamage(
                 rolledNonCrit.physical * critMult,
-                rolledNonCrit.magical * critMult,
+                rolledNonCrit.magic * critMult,
                 rolledNonCrit.corruptionDamage * critMult);
             SplitDamage firstHit = rolled * WhirlwindDamageMultiplier;
             SplitDamage secondHitBase = rolledNonCrit * WhirlwindDamageMultiplier * WhirlwindSecondHitMultiplier;
@@ -488,7 +488,7 @@ public class PlayerAbilityController : MonoBehaviour
             float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
             SplitDamage hitForTarget = new SplitDamage(
                 rolledNonCrit.physical * critMult,
-                rolledNonCrit.magical * critMult,
+                rolledNonCrit.magic * critMult,
                 rolledNonCrit.corruptionDamage * critMult);
             CrescentConvertedElement convertedElement = CrescentConvertedElement.Lightning;
             float convertedDamage = 0f;
@@ -503,7 +503,7 @@ public class PlayerAbilityController : MonoBehaviour
     }
 
     /// <summary>
-    /// Convert 50% of physical into magical as the final split step for this hit.
+    /// Convert 50% of physical into magic as the final split step for this hit.
     /// Each call rolls its own element so multi-target hits can differ per enemy.
     /// </summary>
     private static bool TryApplyElementalConversionForCrescent(
@@ -520,7 +520,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         convertedDamage = physical * 0.5f;
         hit.physical = Mathf.Max(0f, physical - convertedDamage);
-        hit.magical = Mathf.Max(0f, hit.magical) + convertedDamage;
+        hit.magic = Mathf.Max(0f, hit.magic) + convertedDamage;
 
         int roll = UnityEngine.Random.Range(0, 3);
         element = roll switch
@@ -662,13 +662,13 @@ public class PlayerAbilityController : MonoBehaviour
 
         float cond = GetConditionalMeleeDamageMultiplier(target);
         float phys = Mathf.Max(0f, hit.physical * cond);
-        float mag = Mathf.Max(0f, hit.magical * cond);
+        float mag = Mathf.Max(0f, hit.magic * cond);
         float corrRaw = Mathf.Max(0f, hit.corruptionDamage * cond);
 
         if (phys > 0f)
             result.physical = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(phys), DamageType.Physical, wasCrit, transform));
         if (mag > 0f)
-            result.magical = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(mag), DamageType.Magical, wasCrit, transform));
+            result.magic = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(mag), DamageType.Magic, wasCrit, transform));
         if (corrRaw > 0f)
             result.corruptionDamage = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(corrRaw), DamageType.Corruption, wasCrit, transform));
 
@@ -704,7 +704,7 @@ public class PlayerAbilityController : MonoBehaviour
     {
         if (stats == null)
             return false;
-        if (hit.physical <= 0f && hit.magical <= 0f)
+        if (hit.physical <= 0f && hit.magic <= 0f)
             return false;
 
         float critChance = Mathf.Clamp01(stats.CritChance);
@@ -713,7 +713,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         float critMult = Mathf.Max(1f, stats.CritMultiplier);
         hit.physical *= critMult;
-        hit.magical *= critMult;
+        hit.magic *= critMult;
         return true;
     }
 
@@ -741,7 +741,8 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (dealt.corruptionDamage > 0f && stats.PoisonChance > 0f && stats.PoisonMultiplier >= 0f && UnityEngine.Random.value <= stats.PoisonChance)
         {
-            float totalPoisonDamage = dealt.corruptionDamage * (1f + stats.PoisonMultiplier);
+            float totalPoisonDamage =
+                dealt.corruptionDamage * stats.PoisonPoolFractionOfCorruptionDamage * (1f + stats.PoisonMultiplier);
             if (totalPoisonDamage > 0f)
             {
                 float duration = Mathf.Max(0.1f, stats.PoisonDuration);
@@ -966,16 +967,16 @@ public class PlayerAbilityController : MonoBehaviour
             _queuedConsumedFrame = Time.frameCount;
 
             float physicalBonus = rolled.physical * _queuedPowerSlashPhysicalMultiplier;
-            float magicalBonus = rolled.magical * _queuedPowerSlashMagicalMultiplier;
-            float apBonus = stats != null ? stats.AbilityPower * _queuedPowerSlashAbilityPowerMultiplier : 0f;
+            float magicBonus = rolled.magic * _queuedPowerSlashMagicMultiplier;
+            float apM = stats != null ? stats.GetAbilityPowerDamageMultiplier(_queuedPowerSlashAbilityPowerMultiplier) : 1f;
             AbilityDefinition slashDef = GetAbilityDefinition(PowerSlashId);
             float elementBonus = slashDef != null && stats != null ? AbilityElementScaling.GetElementDamageBonus(slashDef, stats) : 0f;
             float ailmentBonus = slashDef != null && stats != null ? AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(slashDef, stats) : 0f;
 
-            rolled.physical += physicalBonus + apBonus + ailmentBonus;
-            rolled.magical += magicalBonus + elementBonus;
+            rolled.physical += (physicalBonus + ailmentBonus) * apM;
+            rolled.magic += (magicBonus + elementBonus) * apM;
             rolled.physical = Mathf.Max(0f, rolled.physical);
-            rolled.magical = Mathf.Max(0f, rolled.magical);
+            rolled.magic = Mathf.Max(0f, rolled.magic);
 
             AbilityDefinition def = GetAbilityDefinition(PowerSlashId);
             if (def)
@@ -1003,7 +1004,7 @@ public class PlayerAbilityController : MonoBehaviour
 
             const float quickStrikeMultiplier = 0.75f;
             rolled.physical *= quickStrikeMultiplier;
-            rolled.magical *= quickStrikeMultiplier;
+            rolled.magic *= quickStrikeMultiplier;
             rolled.corruptionDamage *= quickStrikeMultiplier;
             return true;
         }
@@ -1186,7 +1187,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (corruptionDealtPostMitigation <= 0f)
             return;
 
-        float perStackTotal = corruptionDealtPostMitigation * (1f + Mathf.Max(0f, stats.PoisonMultiplier));
+        float perStackTotal =
+            corruptionDealtPostMitigation * stats.PoisonPoolFractionOfCorruptionDamage *
+            (1f + Mathf.Max(0f, stats.PoisonMultiplier));
         if (perStackTotal <= 0f)
             return;
 
@@ -1342,19 +1345,14 @@ public class PlayerAbilityController : MonoBehaviour
             return baseRolled;
 
         float physMult = def.physicalDamageMultiplier;
-        float magMult = def.magicalDamageMultiplier;
-        float apMult = def.abilityPowerMultiplier;
+        float magMult = def.magicDamageMultiplier;
+        float apM = stats != null ? stats.GetAbilityPowerDamageMultiplier(def.abilityPowerMultiplier) : 1f;
 
-        SplitDamage scaled = new SplitDamage(
-            baseRolled.physical * physMult,
-            baseRolled.magical * magMult,
-            baseRolled.corruptionDamage * physMult
+        return new SplitDamage(
+            baseRolled.physical * physMult * apM,
+            baseRolled.magic * magMult * apM,
+            baseRolled.corruptionDamage * physMult * apM
         );
-
-        if (Mathf.Abs(apMult) > 0.0001f && stats != null)
-            scaled.physical += stats.AbilityPower * apMult;
-
-        return scaled;
     }
 
     private int GetCleavingStrikesSelectedChoice()

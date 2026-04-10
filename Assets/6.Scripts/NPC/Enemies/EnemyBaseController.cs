@@ -583,9 +583,9 @@ public class EnemyBaseController : MonoBehaviour
             dealtAnyDamage = true;
         }
 
-        if (hit.magical > 0f)
+        if (hit.magic > 0f)
         {
-            _playerController.TakeDamage(hit.magical, DamageType.Magical, transform, wasCrit);
+            _playerController.TakeDamage(hit.magic, DamageType.Magic, transform, wasCrit);
             dealtAnyDamage = true;
         }
 
@@ -659,7 +659,7 @@ public class EnemyBaseController : MonoBehaviour
             return;
         }
 
-        if (hit.magical <= 0f || stats.MagicAilmentApplyChance <= 0f)
+        if (hit.magic <= 0f || stats.MagicAilmentApplyChance <= 0f)
             return;
 
         if (UnityEngine.Random.value > stats.MagicAilmentApplyChance)
@@ -725,7 +725,7 @@ public class EnemyBaseController : MonoBehaviour
             FloatingDamageTextUI.PopupDamageKind popupKind = type switch
             {
                 DamageType.Physical => FloatingDamageTextUI.PopupDamageKind.Physical,
-                DamageType.Magical => FloatingDamageTextUI.PopupDamageKind.Magical,
+                DamageType.Magic => FloatingDamageTextUI.PopupDamageKind.Magic,
                 DamageType.Corruption => FloatingDamageTextUI.PopupDamageKind.Corruption,
                 _ => FloatingDamageTextUI.PopupDamageKind.Physical
             };

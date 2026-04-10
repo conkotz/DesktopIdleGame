@@ -157,33 +157,35 @@ public class HUDView : MonoBehaviour
             return;
 
         if (ailments.HasBleed)
-            SpawnDebuffIcon(bleedIcon, "Bleed", 1, "Bleed", "Taking physical damage over time.");
+            SpawnDebuffIcon(bleedIcon, GameTooltipTexts.BleedTitle, 1, GameTooltipTexts.BleedTitle, GameTooltipTexts.BleedDescription);
 
         if (ailments.HasPoison)
-            SpawnDebuffIcon(poisonIcon, "Poison", ailments.PoisonStacks, "Poison", $"Taking poison damage over time.\nStacks: {ailments.PoisonStacks}");
+            SpawnDebuffIcon(
+                poisonIcon,
+                GameTooltipTexts.PoisonTitle,
+                ailments.PoisonStacks,
+                GameTooltipTexts.PoisonTitle,
+                GameTooltipTexts.FormatPoisonHudBody(ailments.PoisonStacks));
 
         if (ailments.HasBurn)
             SpawnDebuffIcon(
                 burnIcon,
-                "Burn",
+                GameTooltipTexts.BurnTitle,
                 ailments.BurnStacks,
-                "Burn",
-                $"Burn stacks: {ailments.BurnStacks}/{Mathf.Max(1, ailments.BurnHitsToExplode)}\n" +
-                "Tick damage uses your strongest fire hit (15%/tick, min 1, × burn mult).\n" +
-                "Stacks build to combust: 10× tick damage at 3 stacks; fire hits refresh 15s."
-            );
+                GameTooltipTexts.BurnTitle,
+                GameTooltipTexts.FormatBurnHudBody(ailments.BurnStacks, ailments.BurnHitsToExplode));
 
         if (ailments.HasChill)
             SpawnDebuffIcon(
                 chillIcon,
-                "Chill",
+                GameTooltipTexts.ChillTitle,
                 ailments.ChillStacks,
-                "Chill",
-                $"Move speed reduced.\nStacks: {ailments.ChillStacks} ({ailments.ChillSlowPercent:0.#}% slow)"
-            );
+                GameTooltipTexts.ChillTitle,
+                $"Move speed reduced.\nStacks: {ailments.ChillStacks} ({ailments.ChillSlowPercent:0.#}% slow)\n\n" +
+                GameTooltipTexts.ChillDescription);
 
         if (ailments.HasShock)
-            SpawnDebuffIcon(shockIcon, "Shock", 1, "Shock", "Electrified and vulnerable to follow-up effects.");
+            SpawnDebuffIcon(shockIcon, GameTooltipTexts.ShockTitle, 1, GameTooltipTexts.ShockTitle, GameTooltipTexts.ShockDescription);
     }
 
     public void RefreshBuffs(PlayerBuffController buffController)

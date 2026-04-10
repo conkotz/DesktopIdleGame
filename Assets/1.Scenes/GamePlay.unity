@@ -5740,7 +5740,7 @@ MonoBehaviour:
     a burn stack on hit  \r\nMultiplier: increases total Burn damage (this applies
     to each tick and combust)  \r\nDuration: How long burn lasts; any fire hit refreshes
     this timer  \r\nStacks: Do not increase tick damage\u2014they build toward combust.
-    At 3 stacks, combust deals 10 seconds of burn as magical damage, then clears.
+    At 3 stacks, combust deals 10 seconds of burn as magic damage, then clears.
     Weaker hits never reduce tick damage."
   tooltipPanel: {fileID: 1265542261}
   tooltipAnchor: {fileID: 1369682479}
@@ -16771,7 +16771,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
   tooltipTitle: Magic Resist
-  tooltipText: 'Reduces incoming magical damage.
+  tooltipText: 'Reduces incoming magic damage.
 
 
 
@@ -40131,7 +40131,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
   tooltipTitle: Damage Breakdown
   tooltipText: "Shows how your damage is split across types:\r\n\r\n\u2022 Physical:
-    reduced by armor, can be blocked\r\n\u2022 Magical: reduced by magic resist\r\n\u2022
+    reduced by armor, can be blocked\r\n\u2022 Magic: reduced by magic resist\r\n\u2022
     True: ignores all mitigation\r\n\r\nUseful for understanding how enemies will
     resist your attacks."
   tooltipPanel: {fileID: 1265542261}
@@ -43568,7 +43568,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
   tooltipTitle: Damage
   tooltipText: "Your total damage per hit.\n\nIncludes all damage types:\n\u2022
-    Physical\n\u2022 Magical\n\u2022 Corruption\n\nThis value is used to calculate
+    Physical\n\u2022 Magic\n\u2022 Corruption\n\nThis value is used to calculate
     your overall DPS."
   tooltipPanel: {fileID: 1265542261}
   tooltipAnchor: {fileID: 1369682479}

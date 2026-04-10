@@ -9,7 +9,7 @@ public class FloatingDamageTextUI : MonoBehaviour
     public enum PopupDamageKind
     {
         Physical,
-        Magical,
+        Magic,
         Corruption,
         Bleed,
         Poison,
@@ -41,7 +41,8 @@ public class FloatingDamageTextUI : MonoBehaviour
 
     [Header("Colours")]
     [SerializeField] private Color physicalColor = new Color32(220, 40, 40, 255);
-    [SerializeField] private Color magicalColor = new Color32(80, 170, 255, 255);
+    [FormerlySerializedAs("magicalColor")]
+    [SerializeField] private Color magicColor = new Color32(80, 170, 255, 255);
     [FormerlySerializedAs("trueColor")]
     [SerializeField] private Color corruptionColor = new Color32(112, 64, 192, 255);
     [SerializeField] private Color bleedColor = new Color32(170, 35, 35, 255);
@@ -103,7 +104,7 @@ public class FloatingDamageTextUI : MonoBehaviour
         Color c = kind switch
         {
             PopupDamageKind.Physical => physicalColor,
-            PopupDamageKind.Magical => magicalColor,
+            PopupDamageKind.Magic => magicColor,
             PopupDamageKind.Corruption => corruptionColor,
             PopupDamageKind.Bleed => bleedColor,
             PopupDamageKind.Poison => poisonColor,
