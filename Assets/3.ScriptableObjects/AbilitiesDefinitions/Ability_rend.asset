@@ -10,14 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_rending_strike
+  m_Name: Ability_rend
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: rending_strike
-  displayName: Rending Strike
-  description: 'Primes your next melee hit to have 100% Bleed chance and +3s Bleed
-    duration for that application.
-
-    Note: This Bleed is exclusive while active.'
+  abilityId: rend
+  displayName: Rend
+  description: 'Primes your next melee hit with guaranteed Bleed and extended duration
+    on that application. Exclusive while active.'
   icon: {fileID: 4053483496676390279, guid: 23b4c584116042844ac4fd39f7196d9d, type: 3}
   cooldown: 12
   energyCost: 40

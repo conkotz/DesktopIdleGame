@@ -2,7 +2,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-using System.Collections.Generic;
 
 /// <summary>
 /// UI row/button for an ability. Supports drag/drop into the action bar.
@@ -180,65 +179,57 @@ public class AbilityEntryUI : MonoBehaviour,
         if (!def) return "";
 
         string desc = BuildAbilityDescription(def);
-        float physMult = Mathf.Max(0f, def.physicalDamageMultiplier);
-        float cooldown = Mathf.Max(0f, def.cooldown);
-        string choiceLine = string.Empty;
-
-        if (string.Equals(def.abilityId, "power_slash", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
-        {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
-            if (selected == 0)
-            {
-                physMult += 0.25f;
-            }
-            else if (selected == 1)
-            {
-                cooldown = Mathf.Max(0f, cooldown - 5f);
-            }
-            choiceLine = BuildActiveEnhancementLine(def, selected);
-        }
-        else if (string.Equals(def.abilityId, "whirling_blade", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
-        {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
-            choiceLine = BuildActiveEnhancementLine(def, selected);
-        }
-        else if (string.Equals(def.abilityId, "rending_strike", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
-        {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
-            choiceLine = BuildActiveEnhancementLine(def, selected);
-        }
-        else if (string.Equals(def.abilityId, "venom_jab", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
-        {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
-            choiceLine = BuildActiveEnhancementLine(def, selected);
-        }
-        else if (string.Equals(def.abilityId, "cleaving_strikes", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
-        {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
-            choiceLine = BuildActiveEnhancementLine(def, selected);
-        }
-        else if (string.Equals(def.abilityId, "crescent_slash", System.StringComparison.OrdinalIgnoreCase) && skillsManager != null)
-        {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
-            choiceLine = BuildActiveEnhancementLine(def, selected);
-        }
-
-        float physPct = physMult * 100f;
-        float apMult = Mathf.Max(0f, def.abilityPowerMultiplier);
-        float apPct = apMult * 100f;
-        string physPreview = AbilityTooltipDamagePreview.FormatPhysSuffix(stats, physMult);
-        string apPreview = AbilityTooltipDamagePreview.FormatAbilityPowerSuffix(stats, apMult);
         string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, stats);
         string afterDesc = string.IsNullOrEmpty(weaponLine) ? "" : $"\n\n{weaponLine}";
 
-        return
-            $"{desc}{afterDesc}\n\n" +
-            $"Physical Multiplier: {physPct:0.#}%{physPreview}\n" +
-            $"Ability Power Multiplier: {apPct:0.#}%{apPreview}\n" +
-            $"Source Skill: {def.sourceSkill}\n" +
-            $"Energy Cost: {def.energyCost:0.#}\n" +
-            $"Cooldown: {cooldown:0.#}s" +
-            choiceLine;
+        string choiceLine = BuildActiveEnhancementLineForAbility(def, skillsManager);
+        string statsSection = AbilityTooltipDamagePreview.BuildAbilityTooltipStatsSection(def, stats, skillsManager, orangeMarkup: false);
+
+        return $"{desc}{afterDesc}\n\n{statsSection}{choiceLine}";
+    }
+
+    private static string BuildActiveEnhancementLineForAbility(AbilityDefinition def, SkillsManager skillsManager)
+    {
+        if (!def || skillsManager == null)
+            return string.Empty;
+
+        if (string.Equals(def.abilityId, "power_slash", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, AbilityCombatPower.WhirlwindAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, AbilityCombatPower.RendAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, "venom_jab", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, "cleaving_strikes", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, "crescent_slash", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        return string.Empty;
     }
 
     private static string BuildAbilityDescription(AbilityDefinition def)
@@ -247,34 +238,7 @@ public class AbilityEntryUI : MonoBehaviour,
         return string.IsNullOrWhiteSpace(def.description) ? "No description." : def.description.Trim();
     }
 
-    private static string BuildActiveEnhancementLine(AbilityDefinition def, int selectedIndex)
-    {
-        if (def == null || selectedIndex < 0)
-            return string.Empty;
-
-        SkillDatabase skillDb = SkillDatabase.LoadDefault();
-        SkillDefinition skill = skillDb != null ? skillDb.Get(def.sourceSkill) : null;
-        SkillUnlockDefinition unlock = SkillAbilityCommitRules.FindAbilityUnlockOnSkill(skill, def);
-        if (unlock == null || unlock.choices == null)
-            return string.Empty;
-
-        var nonNullChoices = new List<SkillChoiceDefinition>(unlock.choices.Count);
-        for (int i = 0; i < unlock.choices.Count; i++)
-        {
-            SkillChoiceDefinition c = unlock.choices[i];
-            if (c != null)
-                nonNullChoices.Add(c);
-        }
-
-        if (selectedIndex < 0 || selectedIndex >= nonNullChoices.Count)
-            return string.Empty;
-
-        SkillChoiceDefinition selected = nonNullChoices[selectedIndex];
-        string title = !string.IsNullOrWhiteSpace(selected.title) ? selected.title.Trim() : $"Enhancement {selectedIndex + 1}";
-        string desc = !string.IsNullOrWhiteSpace(selected.description) ? selected.description.Trim() : string.Empty;
-        return string.IsNullOrEmpty(desc)
-            ? $"\nActive Enhancement: <color=#33CC66>{title}</color>"
-            : $"\nActive Enhancement: <color=#33CC66>{title} ({desc})</color>";
-    }
+    private static string BuildActiveEnhancementLine(AbilityDefinition def, int selectedIndex) =>
+        AbilityTooltipDamagePreview.FormatActiveEnhancementLine(def, selectedIndex);
 }
 

@@ -46,7 +46,7 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField, Min(0f)] private float powerSlashSecondSwipeDelay = 0.035f;
     [SerializeField] private float powerSlashSecondSwipeAngleOffset = 18f;
 
-    [Header("Whirling Blade VFX")]
+    [Header("Whirlwind VFX")]
     [SerializeField] private Color whirlingBladeColor = new Color(1f, 0.88f, 0.22f, 0.95f);
     [SerializeField, Min(0.01f)] private float whirlingBladeDuration = 0.22f;
     [SerializeField, Min(90f)] private float whirlingBladeSpinDegrees = 720f;
@@ -63,19 +63,19 @@ public class PlayerAbilityController : MonoBehaviour
 
     private readonly Dictionary<string, float> _cooldownEndsById = new(StringComparer.OrdinalIgnoreCase);
     private const string PowerSlashId = "power_slash";
-    private const string WhirlingBladeId = "whirling_blade";
-    private const string RendingStrikeId = "rending_strike";
+    private const string WhirlwindId = "whirlwind";
+    private const string RendId = "rend";
     private const string VenomJabId = "venom_jab";
     private const string CleavingStrikesId = "cleaving_strikes";
     private const string CrescentSlashId = "crescent_slash";
-    private const int WhirlingBladeChoiceSourceLevel = 15;
-    private const float WhirlingBladeBaseRadius = 2.5f;
-    private const float WhirlingBladeDamageMultiplier = 1.2f;
-    private static readonly float WhirlingBladeSecondHitMultiplier = AbilityCombatPower.WhirlingBladeTwinCycloneSecondHitFraction;
-    private const float WhirlingBladeTwinCycloneSecondHitDelay = 0.5f;
-    private const float WhirlingBladeRadiusBonus = 3f;
+    private const int WhirlwindChoiceSourceLevel = 15;
+    private const float WhirlwindBaseRadius = 2.5f;
+    private const float WhirlwindDamageMultiplier = 1.2f;
+    private static readonly float WhirlwindSecondHitMultiplier = AbilityCombatPower.WhirlwindTwinCycloneSecondHitFraction;
+    private const float WhirlwindTwinCycloneSecondHitDelay = 0.5f;
+    private const float WhirlwindRadiusBonus = 3f;
     private bool _powerSlashQueued;
-    private bool _rendingStrikeQueued;
+    private bool _rendQueued;
     private bool _venomJabQueued;
     private bool _crescentSlashQueued;
     private int _cleavingHitsRemaining;
@@ -92,7 +92,7 @@ public class PlayerAbilityController : MonoBehaviour
     {
         None,
         PowerSlash,
-        RendingStrike,
+        Rend,
         VenomJab,
         CrescentSlash
     }
@@ -198,9 +198,9 @@ public class PlayerAbilityController : MonoBehaviour
             if (_powerSlashQueued)
                 return false;
         }
-        if (string.Equals(def.abilityId, RendingStrikeId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(def.abilityId, RendId, StringComparison.OrdinalIgnoreCase))
         {
-            if (_rendingStrikeQueued)
+            if (_rendQueued)
                 return false;
         }
         if (string.Equals(def.abilityId, VenomJabId, StringComparison.OrdinalIgnoreCase))
@@ -227,19 +227,19 @@ public class PlayerAbilityController : MonoBehaviour
 
             _powerSlashQueued = true;
             float powerSlashPhysicalBonus = GetPowerSlashPhysicalMultiplierBonus();
-            _queuedPowerSlashPhysicalMultiplier = Mathf.Max(0f, def.physicalDamageMultiplier + powerSlashPhysicalBonus);
-            _queuedPowerSlashMagicalMultiplier = Mathf.Max(0f, def.magicalDamageMultiplier);
-            _queuedPowerSlashAbilityPowerMultiplier = Mathf.Max(0f, def.abilityPowerMultiplier);
+            _queuedPowerSlashPhysicalMultiplier = def.physicalDamageMultiplier + powerSlashPhysicalBonus;
+            _queuedPowerSlashMagicalMultiplier = def.magicalDamageMultiplier;
+            _queuedPowerSlashAbilityPowerMultiplier = def.abilityPowerMultiplier;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
         }
 
-        if (string.Equals(def.abilityId, RendingStrikeId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(def.abilityId, RendId, StringComparison.OrdinalIgnoreCase))
         {
-            if (_rendingStrikeQueued)
+            if (_rendQueued)
                 return false;
-            _rendingStrikeQueued = true;
+            _rendQueued = true;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -280,9 +280,9 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
-        if (string.Equals(def.abilityId, WhirlingBladeId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
         {
-            bool usedWhirl = TryUseWhirlingBlade(def);
+            bool usedWhirl = TryUseWhirlwind(def);
             if (!usedWhirl)
                 return false;
 
@@ -302,10 +302,10 @@ public class PlayerAbilityController : MonoBehaviour
         float baseMagical =
             (Mathf.Max(0f, stats.MinSplitDamage.magical) + Mathf.Max(0f, stats.MaxSplitDamage.magical)) * 0.5f;
 
-        float scaledPhysical = basePhysical * Mathf.Max(0f, def.physicalDamageMultiplier);
-        float scaledMagical = baseMagical * Mathf.Max(0f, def.magicalDamageMultiplier);
+        float scaledPhysical = basePhysical * def.physicalDamageMultiplier;
+        float scaledMagical = baseMagical * def.magicalDamageMultiplier;
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
-        float apBonus = Mathf.Max(0f, stats.AbilityPower * Mathf.Max(0f, def.abilityPowerMultiplier));
+        float apBonus = stats.AbilityPower * def.abilityPowerMultiplier;
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float physPart = scaledPhysical + apBonus;
         float magPart = scaledMagical + elementBonus + ailmentBonus;
@@ -344,7 +344,7 @@ public class PlayerAbilityController : MonoBehaviour
     }
 
     /// <summary>Builds one independent ability hit roll (per target): attack roll + ability scaling + independent crit.</summary>
-    private void BuildWhirlingBladeAbilityScaledSplit(AbilityDefinition def, out SplitDamage nonCritBase, out bool wasCrit)
+    private void BuildWhirlwindAbilityScaledSplit(AbilityDefinition def, out SplitDamage nonCritBase, out bool wasCrit)
     {
         SplitDamage baseRolled = stats.RollSplitAttackDamage(out bool baseWasCrit);
         float critMult = Mathf.Max(1f, stats.CritMultiplier);
@@ -359,12 +359,12 @@ public class PlayerAbilityController : MonoBehaviour
         float baseMagical = Mathf.Max(0f, baseRolled.magical);
         float baseTrue = Mathf.Max(0f, baseRolled.trueDamage);
 
-        float scaledPhysical = basePhysical * Mathf.Max(0f, def.physicalDamageMultiplier);
-        float scaledMagical = baseMagical * Mathf.Max(0f, def.magicalDamageMultiplier);
+        float scaledPhysical = basePhysical * def.physicalDamageMultiplier;
+        float scaledMagical = baseMagical * def.magicalDamageMultiplier;
         // Treat true damage as part of weapon-hit scaling so on-hit poison logic can trigger.
-        float scaledTrue = baseTrue * Mathf.Max(0f, def.physicalDamageMultiplier);
+        float scaledTrue = baseTrue * def.physicalDamageMultiplier;
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
-        float apBonus = Mathf.Max(0f, stats.AbilityPower * Mathf.Max(0f, def.abilityPowerMultiplier));
+        float apBonus = stats.AbilityPower * def.abilityPowerMultiplier;
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
 
         float physPart = scaledPhysical + apBonus;
@@ -379,18 +379,18 @@ public class PlayerAbilityController : MonoBehaviour
             wasCrit = true;
     }
 
-    private bool TryUseWhirlingBlade(AbilityDefinition def)
+    private bool TryUseWhirlwind(AbilityDefinition def)
     {
         if (stats == null)
             return false;
 
-        int selectedChoice = GetWhirlingBladeSelectedChoice();
+        int selectedChoice = GetWhirlwindSelectedChoice();
         // First unlock acts as default branch until player explicitly chooses the other option.
         bool twinCyclone = selectedChoice == 0 || selectedChoice < 0;
         bool expansiveWhirl = selectedChoice == 1;
 
-        float baseWeaponRange = GetWhirlingBaseRange();
-        float radius = baseWeaponRange + (expansiveWhirl ? WhirlingBladeRadiusBonus : 0f);
+        float baseWeaponRange = GetWhirlwindBaseRange();
+        float radius = baseWeaponRange + (expansiveWhirl ? WhirlwindRadiusBonus : 0f);
 
         EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         List<EnemyBaseController> targets = new List<EnemyBaseController>(allEnemies.Length);
@@ -407,7 +407,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         player?.TriggerAttackAnimVisualOnly();
-        SpawnWhirlingBladeVfx(radius);
+        SpawnWhirlwindVfx(radius);
 
         if (targets.Count <= 0)
             return true; // ability cast still consumes resources/cooldown.
@@ -420,14 +420,14 @@ public class PlayerAbilityController : MonoBehaviour
             if (!target || target.IsDead)
                 continue;
 
-            BuildWhirlingBladeAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
+            BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
             float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
             SplitDamage rolled = new SplitDamage(
                 rolledNonCrit.physical * critMult,
                 rolledNonCrit.magical * critMult,
                 rolledNonCrit.trueDamage * critMult);
-            SplitDamage firstHit = rolled * WhirlingBladeDamageMultiplier;
-            SplitDamage secondHitBase = rolledNonCrit * WhirlingBladeDamageMultiplier * WhirlingBladeSecondHitMultiplier;
+            SplitDamage firstHit = rolled * WhirlwindDamageMultiplier;
+            SplitDamage secondHitBase = rolledNonCrit * WhirlwindDamageMultiplier * WhirlwindSecondHitMultiplier;
 
             DealtHit dealt = ApplySplitDamageToEnemy(target, firstHit, wasCrit);
             ApplyOnHitEffects(target, dealt);
@@ -449,7 +449,7 @@ public class PlayerAbilityController : MonoBehaviour
         bool elementalCrescent = selected == 0;
         bool penetrating = selected == 1;
 
-        float reach = GetWhirlingBaseRange() + 6f;
+        float reach = GetWhirlwindBaseRange() + 6f;
         SpawnCrescentSlashVfx(reach);
 
         EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
@@ -482,7 +482,7 @@ public class PlayerAbilityController : MonoBehaviour
             if (!target || target.IsDead)
                 continue;
 
-            BuildWhirlingBladeAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
+            BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
             float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
             SplitDamage hitForTarget = new SplitDamage(
                 rolledNonCrit.physical * critMult,
@@ -571,10 +571,10 @@ public class PlayerAbilityController : MonoBehaviour
 
     private IEnumerator ApplyTwinCycloneSecondWave(List<(EnemyBaseController target, SplitDamage secondHitBase)> targets, float radius)
     {
-        yield return new WaitForSeconds(WhirlingBladeTwinCycloneSecondHitDelay);
+        yield return new WaitForSeconds(WhirlwindTwinCycloneSecondHitDelay);
 
-        // Replay only the Whirling VFX; do not retrigger the attack animation on second wave.
-        SpawnWhirlingBladeVfx(radius);
+        // Replay only the Whirlwind VFX; do not retrigger the attack animation on second wave.
+        SpawnWhirlwindVfx(radius);
 
         if (targets == null || targets.Count == 0)
             yield break;
@@ -600,7 +600,7 @@ public class PlayerAbilityController : MonoBehaviour
         return c != null ? Mathf.Max(0f, c.bounds.extents.x) : 0f;
     }
 
-    private float GetWhirlingBaseRange()
+    private float GetWhirlwindBaseRange()
     {
         float best = stats != null ? Mathf.Max(0f, stats.Range) : 0f;
 
@@ -620,7 +620,7 @@ public class PlayerAbilityController : MonoBehaviour
         return Mathf.Max(0.1f, best);
     }
 
-    private int GetWhirlingBladeSelectedChoice()
+    private int GetWhirlwindSelectedChoice()
     {
         if (skillsManager == null)
             skillsManager = SkillsManager.Instance;
@@ -628,12 +628,12 @@ public class PlayerAbilityController : MonoBehaviour
             return -1;
 
         // Primary key: source unlock level (Lv15).
-        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, WhirlingBladeChoiceSourceLevel, -1);
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, WhirlwindChoiceSourceLevel, -1);
         if (selected >= 0)
             return selected;
 
         // Compatibility fallback: some earlier data/UI setups may key by choice unlock row (Lv18).
-        selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, WhirlingBladeChoiceSourceLevel + 3, -1);
+        selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, WhirlwindChoiceSourceLevel + 3, -1);
         return selected;
     }
 
@@ -758,7 +758,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
     }
 
-    private void SpawnWhirlingBladeVfx(float radius)
+    private void SpawnWhirlwindVfx(float radius)
     {
         Transform anchor = ResolvePowerSlashAnchor();
         Transform center = player != null ? player.transform : transform;
@@ -768,7 +768,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (anchor == null)
             anchor = center;
 
-        GameObject orbitGO = new GameObject("WhirlingBladeTrailEmitter");
+        GameObject orbitGO = new GameObject("WhirlwindTrailEmitter");
         orbitGO.transform.position = center.position + whirlingBladeCenterOffset;
 
         TrailRenderer trail = orbitGO.AddComponent<TrailRenderer>();
@@ -806,7 +806,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (startDir.sqrMagnitude <= 0.0001f)
             startDir = Vector2.right * ((player != null && player.transform.localScale.x < 0f) ? -1f : 1f);
 
-        StartCoroutine(AnimateWhirlingBladeTrail(orbitGO.transform, trail, center, radius, startDir));
+        StartCoroutine(AnimateWhirlwindTrail(orbitGO.transform, trail, center, radius, startDir));
     }
 
     private void SpawnCrescentSlashVfx(float reach)
@@ -902,7 +902,7 @@ public class PlayerAbilityController : MonoBehaviour
             Destroy(owner);
     }
 
-    private IEnumerator AnimateWhirlingBladeTrail(Transform emitter, TrailRenderer trail, Transform center, float radius, Vector2 startDir)
+    private IEnumerator AnimateWhirlwindTrail(Transform emitter, TrailRenderer trail, Transform center, float radius, Vector2 startDir)
     {
         if (emitter == null || center == null)
             yield break;
@@ -963,21 +963,17 @@ public class PlayerAbilityController : MonoBehaviour
             _queuedConsumedThisHit = QueuedHitEffect.PowerSlash;
             _queuedConsumedFrame = Time.frameCount;
 
-            float physicalScaleBonus = Mathf.Max(0f, _queuedPowerSlashPhysicalMultiplier - 1f);
-            float physicalBonus = Mathf.Max(0f, rolled.physical * physicalScaleBonus);
-            float magScaleBonus = Mathf.Max(0f, _queuedPowerSlashMagicalMultiplier - 1f);
-            float magicalBonus = Mathf.Max(0f, rolled.magical * magScaleBonus);
-            float apBonus = Mathf.Max(0f, stats != null ? stats.AbilityPower * _queuedPowerSlashAbilityPowerMultiplier : 0f);
+            float physicalBonus = rolled.physical * _queuedPowerSlashPhysicalMultiplier;
+            float magicalBonus = rolled.magical * _queuedPowerSlashMagicalMultiplier;
+            float apBonus = stats != null ? stats.AbilityPower * _queuedPowerSlashAbilityPowerMultiplier : 0f;
             AbilityDefinition slashDef = GetAbilityDefinition(PowerSlashId);
             float elementBonus = slashDef != null && stats != null ? AbilityElementScaling.GetElementDamageBonus(slashDef, stats) : 0f;
             float ailmentBonus = slashDef != null && stats != null ? AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(slashDef, stats) : 0f;
-            float totalBonus = physicalBonus + magicalBonus + apBonus + elementBonus + ailmentBonus;
 
-            if (totalBonus > 0f)
-            {
-                rolled.physical += physicalBonus + apBonus + ailmentBonus;
-                rolled.magical += magicalBonus + elementBonus;
-            }
+            rolled.physical += physicalBonus + apBonus + ailmentBonus;
+            rolled.magical += magicalBonus + elementBonus;
+            rolled.physical = Mathf.Max(0f, rolled.physical);
+            rolled.magical = Mathf.Max(0f, rolled.magical);
 
             AbilityDefinition def = GetAbilityDefinition(PowerSlashId);
             if (def)
@@ -989,10 +985,10 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
-        if (_rendingStrikeQueued)
+        if (_rendQueued)
         {
-            _rendingStrikeQueued = false;
-            _queuedConsumedThisHit = QueuedHitEffect.RendingStrike;
+            _rendQueued = false;
+            _queuedConsumedThisHit = QueuedHitEffect.Rend;
             _queuedConsumedFrame = Time.frameCount;
             return true;
         }
@@ -1093,12 +1089,12 @@ public class PlayerAbilityController : MonoBehaviour
         if (_queuedConsumedFrame != Time.frameCount)
             return result;
 
-        if (_queuedConsumedThisHit == QueuedHitEffect.RendingStrike)
+        if (_queuedConsumedThisHit == QueuedHitEffect.Rend)
         {
             result.suppressDefaultBleed = true;
-            TryApplyRendingStrikeBleed(target, physicalDealt);
+            TryApplyRendBleed(target, physicalDealt);
 
-            AbilityDefinition def = GetAbilityDefinition(RendingStrikeId);
+            AbilityDefinition def = GetAbilityDefinition(RendId);
             if (def)
                 StartCooldown(def);
             if (globalCooldownSeconds > 0f)
@@ -1134,7 +1130,7 @@ public class PlayerAbilityController : MonoBehaviour
         return result;
     }
 
-    private void TryApplyRendingStrikeBleed(EnemyBaseController target, float physicalDealt)
+    private void TryApplyRendBleed(EnemyBaseController target, float physicalDealt)
     {
         if (stats == null || target == null || target.IsDead)
             return;
@@ -1150,7 +1146,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         float totalDamage = baseTickDamage * ticks;
 
-        int selected = GetRendingStrikeSelectedChoice();
+        int selected = GetRendSelectedChoice();
         if (selected == 0)
         {
             // Upgrade 1: same total damage in half the duration.
@@ -1259,8 +1255,8 @@ public class PlayerAbilityController : MonoBehaviour
         _cleavingBuffActive = true;
         if (selected == 0)
         {
-            // Greater Cleave
-            _cleavingAdditionalTargets = 2;
+            // Greater Cleave: primary + 3 extra = up to 4 enemies per swing (cleave hits use reduced damage).
+            _cleavingAdditionalTargets = 3;
             _cleavingHitsRemaining = 4;
             _cleavingBuffEndsAt = Time.time + 8f;
         }
@@ -1344,9 +1340,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (def == null)
             return baseRolled;
 
-        float physMult = Mathf.Max(0f, def.physicalDamageMultiplier);
-        float magMult = Mathf.Max(0f, def.magicalDamageMultiplier);
-        float apMult = Mathf.Max(0f, def.abilityPowerMultiplier);
+        float physMult = def.physicalDamageMultiplier;
+        float magMult = def.magicalDamageMultiplier;
+        float apMult = def.abilityPowerMultiplier;
 
         SplitDamage scaled = new SplitDamage(
             baseRolled.physical * physMult,
@@ -1354,8 +1350,8 @@ public class PlayerAbilityController : MonoBehaviour
             baseRolled.trueDamage * physMult
         );
 
-        if (apMult > 0f && stats != null)
-            scaled.physical += Mathf.Max(0f, stats.AbilityPower * apMult);
+        if (Mathf.Abs(apMult) > 0.0001f && stats != null)
+            scaled.physical += stats.AbilityPower * apMult;
 
         return scaled;
     }
@@ -1380,14 +1376,14 @@ public class PlayerAbilityController : MonoBehaviour
         return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
     }
 
-    private int GetRendingStrikeSelectedChoice()
+    private int GetRendSelectedChoice()
     {
         if (!skillsManager)
             skillsManager = SkillsManager.Instance;
         if (!skillsManager)
             return -1;
 
-        // Rending Strike enhancement selection is keyed on the level-5 ability row.
+        // Rend enhancement selection is keyed on the level-5 ability row.
         return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
     }
 
@@ -1409,8 +1405,8 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (string.Equals(abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
             return _powerSlashQueued;
-        if (string.Equals(abilityId, RendingStrikeId, StringComparison.OrdinalIgnoreCase))
-            return _rendingStrikeQueued;
+        if (string.Equals(abilityId, RendId, StringComparison.OrdinalIgnoreCase))
+            return _rendQueued;
         if (string.Equals(abilityId, VenomJabId, StringComparison.OrdinalIgnoreCase))
             return _venomJabQueued;
         if (string.Equals(abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))

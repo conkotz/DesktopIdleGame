@@ -20,14 +20,14 @@ public class AbilityDefinition : ScriptableObject
     [Min(0f)] public float energyCost = 0f;
 
     [Header("Scaling")]
-    [Tooltip("Multiplier applied to Physical damage component (e.g. 1.25 = 125%).")]
-    [Min(0f)] public float physicalDamageMultiplier = 0f;
+    [Tooltip("Physical coefficient: 1 = 100%, −0.5 = −50% (reduction), 0 = omit in tooltip. Power Slash: adds hit Physical × this.")]
+    public float physicalDamageMultiplier = 0f;
 
-    [Tooltip("Multiplier on average weapon Magical split damage. 0 = no extra magic scaling from this ability.")]
-    [Min(0f)] public float magicalDamageMultiplier = 0f;
+    [Tooltip("Magic coefficient: 1 = 100%, negative values reduce. Power Slash: adds hit Magical × this. 0 = omit in tooltip.")]
+    public float magicalDamageMultiplier = 0f;
 
-    [Tooltip("Multiplier applied to Ability Power (e.g. 0.25 = 25%).")]
-    [Min(0f)] public float abilityPowerMultiplier = 0f;
+    [Tooltip("Ability Power coefficient: 1 = 100% of AP stat as damage; negative reduces. 0 = omit in tooltip.")]
+    public float abilityPowerMultiplier = 0f;
 
     [Tooltip("Extra scaling on magical damage when the character's magic attack type is Fire (see CharacterStats CurrentMagicAttackType). 0 = ignore.")]
     [Min(0f)] public float fireDamageMultiplier = 0f;

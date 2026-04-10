@@ -31098,7 +31098,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIHoverTooltip
   tooltipTitle: Damage
-  tooltipText: "Your total damage per hit.\n\nIncludes all damage types:\n\u2022
+  tooltipText: "Your total damage on hit.\n\nIncludes all damage types:\n\u2022
     Physical\n\u2022 Magical\n\u2022 True\n\nThis value is used to calculate your
     overall DPS."
   tooltipPanel: {fileID: 1265542261}

@@ -733,6 +733,11 @@ public class PlayerController : MonoBehaviour
 
         if (!node || !node.workSpot) return;
 
+        // Spam-clicking the same resource re-runs arrival logic: TickMoveToTarget zeros
+        // _nextGatherAnimTime so the next TickGather spends energy again immediately.
+        if (targetNode == node && (state == State.Gather || state == State.MoveToTarget))
+            return;
+
         if (_fatigueGatherProgressPending && node != _fatigueGatherSavedNode)
             ClearFatigueGatherProgress();
 

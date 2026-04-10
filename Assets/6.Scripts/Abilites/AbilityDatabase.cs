@@ -150,6 +150,12 @@ public class AbilityDatabase : ScriptableObject
                 continue;
             _byId[def.abilityId] = def;
         }
+
+        // Renamed ability ids — keep old keys working for saves / action-bar data.
+        if (_byId.TryGetValue("rend", out AbilityDefinition rend) && rend)
+            _byId["rending_strike"] = rend;
+        if (_byId.TryGetValue("whirlwind", out AbilityDefinition whirl) && whirl)
+            _byId["whirling_blade"] = whirl;
     }
 
     private static AbilityDatabase PickBestDatabase(IEnumerable<AbilityDatabase> candidates)

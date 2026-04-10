@@ -71,11 +71,9 @@ MonoBehaviour:
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 5
-    title: Rending Strike
-    description: 'Primes your next melee hit to have 100% Bleed chance and +3s Bleed
-      duration for that application.
-
-      Note: This Bleed is exclusive while active.'
+    title: Rend
+    description: 'Primes your next melee hit with guaranteed Bleed and extended duration
+      on that application. Exclusive while active.'
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -89,12 +87,12 @@ MonoBehaviour:
     - requiredLevel: 8
       title: Crimson Spread
       description: If the target is already bleeding, spread this bleed to 1 nearby
-        enemy (range 3).
+        enemy.
       icon: {fileID: 5570183790260993194, guid: a3f9e8e67e15ed24b86ba45820e05f95, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Venom Jab
-    description: Primes your next melee hit - If the hit deals True Damage, apply
+    description: Primes your next melee hit. If the hit deals True Damage, apply
       Poison at 100% chance at max stacks.
     icon: {fileID: 0}
     unlockType: 1
@@ -108,8 +106,7 @@ MonoBehaviour:
       ability: {fileID: 0}
     - requiredLevel: 8
       title: Venom Jab - Contagion Burst
-      description: Current poison spreads to 1 nearby enemy if it dies within 6 seconds
-        (range 3).
+      description: Current poison spreads to 1 nearby enemy if it dies within 6 seconds.
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 6
@@ -219,7 +216,7 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 15
-    title: Whirling Blade
+    title: Whirlwind
     description: Spin in a wide arc, striking all enemies in range.
     icon: {fileID: 0}
     unlockType: 1
@@ -228,19 +225,19 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Twin Cyclone
-      description: "If Whirling Blade hits an enemy, hit all enemies a second time
+      description: "If Whirlwind hits an enemy, hit all enemies a second time
         for 20% of the first attacks damage. \nCan apply on ailments."
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 18
       title: Expansive Whirl
-      description: Increase Whirling Blade radius by +3.
+      description: Increase Whirlwind radius by +3.
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Cleaving Strikes
-    description: 'Empower your melee attacks for 10 seconds or 5 hits, causing each
-      hit to also strike 1 additional nearby enemy within attack range. '
+    description: 'Empower your melee attacks causing each hit to also strike an additional
+      nearby enemy within attack range.'
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -248,7 +245,7 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Greater Cleave
-      description: Cleaving Strikes hits 2 additional enemies, but only for 8 seconds
+      description: Cleaving Strikes hits 3 additional enemies, but only for 8 seconds
         or 4 hits.
       icon: {fileID: 0}
       ability: {fileID: 0}
@@ -259,8 +256,8 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Crescent Slash
-    description: Unleash a crescent slash which will travel outwards (range 6) and
-      strike up to 3 enemies in front of you.
+    description: Unleash a crescent slash which travels outward and strikes enemies
+      in front of you.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0

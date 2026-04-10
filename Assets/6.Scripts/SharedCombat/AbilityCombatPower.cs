@@ -12,14 +12,14 @@ public static class AbilityCombatPower
 {
     /// <summary>Matches <see cref="PlayerAbilityController"/> Power Slash id — attack-queued bonus, not raw / cooldown.</summary>
     public const string PowerSlashAbilityId = "power_slash";
-    public const string WhirlingBladeAbilityId = "whirling_blade";
-    public const string RendingStrikeAbilityId = "rending_strike";
+    public const string WhirlwindAbilityId = "whirlwind";
+    public const string RendAbilityId = "rend";
     public const string VenomJabAbilityId = "venom_jab";
     public const string CleavingStrikesAbilityId = "cleaving_strikes";
     public const string CrescentSlashAbilityId = "crescent_slash";
 
-    /// <summary>Second Twin Cyclone wave as a fraction of the first wave's scaled split (sync with Whirling Blade runtime).</summary>
-    public const float WhirlingBladeTwinCycloneSecondHitFraction = 0.2f;
+    /// <summary>Second Twin Cyclone wave as a fraction of the first wave's scaled split (sync with Whirlwind runtime).</summary>
+    public const float WhirlwindTwinCycloneSecondHitFraction = 0.2f;
 
     /// <summary>Expected sustained DPS from all uniquely slotted abilities (0 if not the player or no bar).</summary>
     public static float EstimateTotalSlottedAbilityDps(CharacterStats stats, bool logDiagnostics = false)
@@ -224,37 +224,37 @@ public static class AbilityCombatPower
         if (!def || !stats)
             return 0f;
 
-        float physMult = Mathf.Max(0f, def.physicalDamageMultiplier);
+        float physMult = def.physicalDamageMultiplier;
         float cd = Mathf.Max(0.01f, def.cooldown);
         ApplyPowerSlashChoiceAdjustments(def, ref physMult, ref cd);
         float extraHitFactor = 1f;
-        ApplyWhirlingBladeChoiceAdjustments(def, ref cd, ref extraHitFactor);
+        ApplyWhirlwindChoiceAdjustments(def, ref cd, ref extraHitFactor);
         float critFactor = GetCritFactor(stats);
 
         float avgPhys = (stats.MinSplitDamage.physical + stats.MaxSplitDamage.physical) * 0.5f;
         float avgMag = (stats.MinSplitDamage.magical + stats.MaxSplitDamage.magical) * 0.5f;
         float avgTrue = (stats.MinSplitDamage.trueDamage + stats.MaxSplitDamage.trueDamage) * 0.5f;
-        float magMult = Mathf.Max(0f, def.magicalDamageMultiplier);
-        float apMult = Mathf.Max(0f, def.abilityPowerMultiplier);
+        float magMult = def.magicalDamageMultiplier;
+        float apMult = def.abilityPowerMultiplier;
         float ap = stats.AbilityPower;
 
         // Power Slash: bonus on top of a normal weapon hit; proc rate limited by attack speed and ability cooldown.
         if (string.Equals(def.abilityId, PowerSlashAbilityId, StringComparison.OrdinalIgnoreCase))
         {
-            float bonusPhys = avgPhys * Mathf.Max(0f, physMult - 1f);
-            float bonusMag = avgMag * Mathf.Max(0f, magMult - 1f);
+            float bonusPhys = avgPhys * physMult;
+            float bonusMag = avgMag * magMult;
             float apBonus = ap * apMult;
             float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
             float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-            float rawBonus = Mathf.Max(0f, bonusPhys + bonusMag + apBonus + elementBonus + ailmentBonus);
+            float rawBonus = bonusPhys + bonusMag + apBonus + elementBonus + ailmentBonus;
             float perEnhancedHit = rawBonus * critFactor;
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
-            return perEnhancedHit * procRate;
+            return Mathf.Max(0f, perEnhancedHit * procRate);
         }
 
-        // Rending Strike: queued hit with guaranteed bleed package on that hit (no direct ability scaling hit bonus).
-        if (string.Equals(def.abilityId, RendingStrikeAbilityId, StringComparison.OrdinalIgnoreCase))
+        // Rend: queued hit with guaranteed bleed package on that hit (no direct ability scaling hit bonus).
+        if (string.Equals(def.abilityId, RendAbilityId, StringComparison.OrdinalIgnoreCase))
         {
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
@@ -264,7 +264,7 @@ public static class AbilityCombatPower
             float bleedTickDamage = Mathf.Max(0f, avgPhys * (1f + stats.BleedMultiplier) / bleedBaseDuration);
             float totalBleedDamage = bleedTickDamage * bleedTicks;
 
-            int selected = GetRendingStrikeSelectedChoiceForCombatPower();
+            int selected = GetRendSelectedChoiceForCombatPower();
             if (selected == 1)
             {
                 // Crimson Spread: conditional second target (already bleeding + nearby target).
@@ -310,7 +310,7 @@ public static class AbilityCombatPower
             int selected = GetCleavingStrikesSelectedChoiceForCombatPower();
             if (selected == 0)
             {
-                extraTargets = 2;
+                extraTargets = 3;
                 empoweredHits = 4;
                 duration = 8f;
             }
@@ -352,9 +352,9 @@ public static class AbilityCombatPower
         float elementBonusInstant = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float ailmentBonusInstant = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float apBonusInstant = ap * apMult;
-        float raw = Mathf.Max(0f, scaledPhys + scaledMag + elementBonusInstant + apBonusInstant + ailmentBonusInstant);
+        float raw = scaledPhys + scaledMag + elementBonusInstant + apBonusInstant + ailmentBonusInstant;
         float perCast = raw * critFactor * Mathf.Max(1f, extraHitFactor);
-        return perCast / cd;
+        return Mathf.Max(0f, perCast / cd);
     }
 
     private static float GetCritFactor(CharacterStats stats)
@@ -384,16 +384,16 @@ public static class AbilityCombatPower
         }
     }
 
-    private static void ApplyWhirlingBladeChoiceAdjustments(AbilityDefinition def, ref float cooldownSeconds, ref float extraHitFactor)
+    private static void ApplyWhirlwindChoiceAdjustments(AbilityDefinition def, ref float cooldownSeconds, ref float extraHitFactor)
     {
-        if (!def || !string.Equals(def.abilityId, WhirlingBladeAbilityId, StringComparison.OrdinalIgnoreCase))
+        if (!def || !string.Equals(def.abilityId, WhirlwindAbilityId, StringComparison.OrdinalIgnoreCase))
             return;
 
-        int selected = GetWhirlingBladeSelectedChoiceForCombatPower();
+        int selected = GetWhirlwindSelectedChoiceForCombatPower();
         if (selected == 0)
         {
             // Twin Cyclone: second wave damage fraction (matches runtime second hit).
-            extraHitFactor += WhirlingBladeTwinCycloneSecondHitFraction;
+            extraHitFactor += WhirlwindTwinCycloneSecondHitFraction;
         }
         else if (selected == 1)
         {
@@ -402,21 +402,21 @@ public static class AbilityCombatPower
     }
 
     /// <summary>Matches <see cref="PlayerAbilityController"/> choice keying (Lv15 row, Lv18 fallback).</summary>
-    private static int GetWhirlingBladeSelectedChoiceForCombatPower()
+    private static int GetWhirlwindSelectedChoiceForCombatPower()
     {
-        const int whirlingSourceLevel = 15;
+        const int whirlwindSourceLevel = 15;
         SkillsManager sm = SkillsManager.Instance;
         if (sm == null)
             return -1;
 
-        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, whirlingSourceLevel, -1);
+        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, whirlwindSourceLevel, -1);
         if (selected >= 0)
             return selected;
 
-        return sm.GetSkillChoiceSelection(SkillType.Melee, whirlingSourceLevel + 3, -1);
+        return sm.GetSkillChoiceSelection(SkillType.Melee, whirlwindSourceLevel + 3, -1);
     }
 
-    private static int GetRendingStrikeSelectedChoiceForCombatPower()
+    private static int GetRendSelectedChoiceForCombatPower()
     {
         SkillsManager sm = SkillsManager.Instance;
         if (sm == null)
