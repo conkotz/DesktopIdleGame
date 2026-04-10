@@ -346,9 +346,10 @@ public static class AbilityCombatPower
         float scaledMag = avgMag * magMult;
         float scaledCorruption = avgCorruption * physMult; // same rule as PlayerAbilityController.BuildWhirlwindAbilityScaledSplit
         float elementBonusInstant = AbilityElementScaling.GetElementDamageBonus(def, stats);
+        AbilityElementScaling.ScaleMagicalAbilityContributions(scaledMag, elementBonusInstant, stats, out float sm, out float se);
         float ailmentBonusInstant = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float apBonusInstant = ap * apMult;
-        float raw = scaledPhys + scaledMag + scaledCorruption + elementBonusInstant + apBonusInstant + ailmentBonusInstant;
+        float raw = scaledPhys + sm + scaledCorruption + se + apBonusInstant + ailmentBonusInstant;
         float perCast = raw * critFactor * Mathf.Max(1f, extraHitFactor);
         float dps = Mathf.Max(0f, perCast / cd);
 

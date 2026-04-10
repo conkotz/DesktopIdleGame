@@ -290,8 +290,12 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty minPhysicalDamage = weaponStats.FindPropertyRelative("minPhysicalDamage");
         SerializedProperty maxPhysicalDamage = weaponStats.FindPropertyRelative("maxPhysicalDamage");
 
-        SerializedProperty minMagicDamage = weaponStats.FindPropertyRelative("minMagicDamage");
-        SerializedProperty maxMagicDamage = weaponStats.FindPropertyRelative("maxMagicDamage");
+        SerializedProperty minFireDamage = weaponStats.FindPropertyRelative("minFireDamage");
+        SerializedProperty maxFireDamage = weaponStats.FindPropertyRelative("maxFireDamage");
+        SerializedProperty minIceDamage = weaponStats.FindPropertyRelative("minIceDamage");
+        SerializedProperty maxIceDamage = weaponStats.FindPropertyRelative("maxIceDamage");
+        SerializedProperty minLightningDamage = weaponStats.FindPropertyRelative("minLightningDamage");
+        SerializedProperty maxLightningDamage = weaponStats.FindPropertyRelative("maxLightningDamage");
 
         SerializedProperty minCorruptionDamage = weaponStats.FindPropertyRelative("minCorruptionDamage");
         SerializedProperty maxCorruptionDamage = weaponStats.FindPropertyRelative("maxCorruptionDamage");
@@ -316,14 +320,21 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(minPhysicalDamage, new GUIContent("Min Physical Damage"));
         EditorGUILayout.PropertyField(maxPhysicalDamage, new GUIContent("Max Physical Damage"));
 
-        EditorGUILayout.PropertyField(minMagicDamage, new GUIContent("Min Magic Damage"));
-        EditorGUILayout.PropertyField(maxMagicDamage, new GUIContent("Max Magic Damage"));
+        EditorGUILayout.LabelField("Elemental (total = magical hit; Magic % scales sum)", EditorStyles.miniLabel);
+        EditorGUILayout.PropertyField(minFireDamage, new GUIContent("Min Fire Damage"));
+        EditorGUILayout.PropertyField(maxFireDamage, new GUIContent("Max Fire Damage"));
+        EditorGUILayout.PropertyField(minIceDamage, new GUIContent("Min Ice Damage"));
+        EditorGUILayout.PropertyField(maxIceDamage, new GUIContent("Max Ice Damage"));
+        EditorGUILayout.PropertyField(minLightningDamage, new GUIContent("Min Lightning Damage"));
+        EditorGUILayout.PropertyField(maxLightningDamage, new GUIContent("Max Lightning Damage"));
 
         EditorGUILayout.PropertyField(minCorruptionDamage, new GUIContent("Min Corruption Damage"));
         EditorGUILayout.PropertyField(maxCorruptionDamage, new GUIContent("Max Corruption Damage"));
 
         ClampMinMax(minPhysicalDamage, maxPhysicalDamage);
-        ClampMinMax(minMagicDamage, maxMagicDamage);
+        ClampMinMax(minFireDamage, maxFireDamage);
+        ClampMinMax(minIceDamage, maxIceDamage);
+        ClampMinMax(minLightningDamage, maxLightningDamage);
         ClampMinMax(minCorruptionDamage, maxCorruptionDamage);
 
         EditorGUILayout.Space(6);
@@ -439,6 +450,13 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty critMultiplierBonus = combatSupportStats.FindPropertyRelative("critMultiplierBonus");
         SerializedProperty attackSpeedPercent = combatSupportStats.FindPropertyRelative("attackSpeedPercent");
 
+        SerializedProperty physicalDamagePercent = combatSupportStats.FindPropertyRelative("physicalDamagePercent");
+        SerializedProperty magicDamagePercentCs = combatSupportStats.FindPropertyRelative("magicDamagePercent");
+        SerializedProperty fireDamagePercent = combatSupportStats.FindPropertyRelative("fireDamagePercent");
+        SerializedProperty iceDamagePercent = combatSupportStats.FindPropertyRelative("iceDamagePercent");
+        SerializedProperty coldDamagePercent = combatSupportStats.FindPropertyRelative("coldDamagePercent");
+        SerializedProperty corruptionDamagePercent = combatSupportStats.FindPropertyRelative("corruptionDamagePercent");
+
         SerializedProperty consumableOnAttack = combatSupportStats.FindPropertyRelative("consumableOnAttack");
         SerializedProperty consumeAmountPerAttack = combatSupportStats.FindPropertyRelative("consumeAmountPerAttack");
 
@@ -453,6 +471,21 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(critChanceBonus);
         EditorGUILayout.PropertyField(critMultiplierBonus);
         EditorGUILayout.PropertyField(attackSpeedPercent);
+
+        EditorGUILayout.Space(6);
+        EditorGUILayout.LabelField("Damage % (0.1 = +10%)", EditorStyles.boldLabel);
+        if (physicalDamagePercent != null)
+            EditorGUILayout.PropertyField(physicalDamagePercent, new GUIContent("Physical Damage %"));
+        if (magicDamagePercentCs != null)
+            EditorGUILayout.PropertyField(magicDamagePercentCs, new GUIContent("Magic Damage %"));
+        if (fireDamagePercent != null)
+            EditorGUILayout.PropertyField(fireDamagePercent, new GUIContent("Fire %"));
+        if (iceDamagePercent != null)
+            EditorGUILayout.PropertyField(iceDamagePercent, new GUIContent("Ice %"));
+        if (coldDamagePercent != null)
+            EditorGUILayout.PropertyField(coldDamagePercent, new GUIContent("Cold %"));
+        if (corruptionDamagePercent != null)
+            EditorGUILayout.PropertyField(corruptionDamagePercent, new GUIContent("Corruption Damage %"));
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Consumption", EditorStyles.boldLabel);
@@ -763,6 +796,9 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty physicalDamagePercent = bonusStats.FindPropertyRelative("physicalDamagePercent");
         SerializedProperty magicDamage = bonusStats.FindPropertyRelative("magicDamage");
         SerializedProperty magicDamagePercent = bonusStats.FindPropertyRelative("magicDamagePercent");
+        SerializedProperty fireSkillDamagePercent = bonusStats.FindPropertyRelative("fireSkillDamagePercent");
+        SerializedProperty iceSkillDamagePercent = bonusStats.FindPropertyRelative("iceSkillDamagePercent");
+        SerializedProperty lightningSkillDamagePercent = bonusStats.FindPropertyRelative("lightningSkillDamagePercent");
         SerializedProperty corruptionDamage = bonusStats.FindPropertyRelative("corruptionDamage");
         SerializedProperty abilityPower = bonusStats.FindPropertyRelative("abilityPower");
 
@@ -813,6 +849,12 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(physicalDamagePercent, new GUIContent("Physical Damage %"));
         EditorGUILayout.PropertyField(magicDamage);
         EditorGUILayout.PropertyField(magicDamagePercent, new GUIContent("Magic Damage %"));
+        if (fireSkillDamagePercent != null)
+            EditorGUILayout.PropertyField(fireSkillDamagePercent, new GUIContent("Fire Skill Damage %"));
+        if (iceSkillDamagePercent != null)
+            EditorGUILayout.PropertyField(iceSkillDamagePercent, new GUIContent("Ice Skill Damage %"));
+        if (lightningSkillDamagePercent != null)
+            EditorGUILayout.PropertyField(lightningSkillDamagePercent, new GUIContent("Lightning Skill Damage %"));
         EditorGUILayout.PropertyField(corruptionDamage, new GUIContent("Corruption Damage"));
         EditorGUILayout.PropertyField(abilityPower);
         EditorGUILayout.PropertyField(attackSpeedPercent);

@@ -305,10 +305,11 @@ public class PlayerAbilityController : MonoBehaviour
         float scaledPhysical = basePhysical * def.physicalDamageMultiplier;
         float scaledMagical = baseMagical * def.magicalDamageMultiplier;
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+        AbilityElementScaling.ScaleMagicalAbilityContributions(scaledMagical, elementBonus, stats, out float magScaled, out float elemScaled);
         float apBonus = stats.AbilityPower * def.abilityPowerMultiplier;
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float physPart = scaledPhysical + apBonus;
-        float magPart = scaledMagical + elementBonus + ailmentBonus;
+        float magPart = magScaled + elemScaled + ailmentBonus;
         float raw = Mathf.Max(0f, physPart + magPart);
 
         bool wasCrit = false;
@@ -340,7 +341,6 @@ public class PlayerAbilityController : MonoBehaviour
         public float physical;
         public float magical;
         public float corruptionDamage;
-        public float corruptionPoisonPotency;
         public float Total => physical + magical + corruptionDamage;
     }
 
@@ -365,11 +365,12 @@ public class PlayerAbilityController : MonoBehaviour
         // Corruption scales like the physical multiplier so poison can still proc from ability hits.
         float scaledCorruption = baseCorruption * def.physicalDamageMultiplier;
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+        AbilityElementScaling.ScaleMagicalAbilityContributions(scaledMagical, elementBonus, stats, out float magScaled, out float elemScaled);
         float apBonus = stats.AbilityPower * def.abilityPowerMultiplier;
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
 
         float physPart = scaledPhysical + apBonus;
-        float magPart = scaledMagical + elementBonus + ailmentBonus;
+        float magPart = magScaled + elemScaled + ailmentBonus;
         float corruptionPart = scaledCorruption;
 
         nonCritBase = new SplitDamage(physPart, magPart, corruptionPart);
@@ -669,10 +670,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (mag > 0f)
             result.magical = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(mag), DamageType.Magical, wasCrit, transform));
         if (corrRaw > 0f)
-        {
             result.corruptionDamage = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(corrRaw), DamageType.Corruption, wasCrit, transform));
-            result.corruptionPoisonPotency = corrRaw;
-        }
 
         return result;
     }
@@ -741,9 +739,9 @@ public class PlayerAbilityController : MonoBehaviour
             }
         }
 
-        if (dealt.corruptionPoisonPotency > 0f && stats.PoisonChance > 0f && stats.PoisonMultiplier >= 0f && UnityEngine.Random.value <= stats.PoisonChance)
+        if (dealt.corruptionDamage > 0f && stats.PoisonChance > 0f && stats.PoisonMultiplier >= 0f && UnityEngine.Random.value <= stats.PoisonChance)
         {
-            float totalPoisonDamage = dealt.corruptionPoisonPotency * (1f + stats.PoisonMultiplier);
+            float totalPoisonDamage = dealt.corruptionDamage * (1f + stats.PoisonMultiplier);
             if (totalPoisonDamage > 0f)
             {
                 float duration = Mathf.Max(0.1f, stats.PoisonDuration);
@@ -1083,7 +1081,7 @@ public class PlayerAbilityController : MonoBehaviour
     /// Called by <see cref="PlayerCombatController"/> after a hit lands, to apply queued on-hit logic that needs the target.
     /// Returns suppression flags for the default bleed/poison application.
     /// </summary>
-    public QueuedHitEffectResult ConsumeQueuedHitEffects(EnemyBaseController target, float physicalDealt, float corruptionPoisonPotency)
+    public QueuedHitEffectResult ConsumeQueuedHitEffects(EnemyBaseController target, float physicalDealt, float corruptionDealtPostMitigation)
     {
         QueuedHitEffectResult result = default;
         if (target == null || target.IsDead)
@@ -1107,7 +1105,7 @@ public class PlayerAbilityController : MonoBehaviour
         else if (_queuedConsumedThisHit == QueuedHitEffect.VenomJab)
         {
             result.suppressDefaultPoison = true;
-            TryApplyVenomJabPoison(target, corruptionPoisonPotency);
+            TryApplyVenomJabPoison(target, corruptionDealtPostMitigation);
 
             AbilityDefinition def = GetAbilityDefinition(VenomJabId);
             if (def)
@@ -1180,15 +1178,15 @@ public class PlayerAbilityController : MonoBehaviour
         }
     }
 
-    private void TryApplyVenomJabPoison(EnemyBaseController target, float corruptionPoisonPotency)
+    private void TryApplyVenomJabPoison(EnemyBaseController target, float corruptionDealtPostMitigation)
     {
         if (stats == null || target == null || target.IsDead)
             return;
 
-        if (corruptionPoisonPotency <= 0f)
+        if (corruptionDealtPostMitigation <= 0f)
             return;
 
-        float perStackTotal = corruptionPoisonPotency * (1f + Mathf.Max(0f, stats.PoisonMultiplier));
+        float perStackTotal = corruptionDealtPostMitigation * (1f + Mathf.Max(0f, stats.PoisonMultiplier));
         if (perStackTotal <= 0f)
             return;
 

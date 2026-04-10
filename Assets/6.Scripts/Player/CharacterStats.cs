@@ -532,11 +532,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float BleedTotalDamageAtCurrentDuration => BleedBaseTotalDamage;
 
     // ---------- Poison ----------
-    // Stats-panel display model:
-    // - uses average corruption hit
+    // Stats-panel display model (rough DPS estimate from your rolled corruption; ignores enemy mitigation):
+    // - uses average corruption hit from split damage
     // - includes poison multiplier
     // - assumes poison can ramp to full stacks
     // - PoisonMaxDPS is the sustained DPS at max stacks
+    // Runtime: poison application uses corruption damage actually dealt to that target (post mitigation).
 
     public float PoisonPerStackTotalDamage
     {
@@ -720,6 +721,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             EffectiveHPVsCorruption,
             Armor,
             MagicResist,
+            CorruptionResist,
             MaxHP,
             GetMoveSpeedForCombatPower());
     }
@@ -1078,13 +1080,75 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // -------------------------
     // Offensive calcs
     // -------------------------
+    /// <summary>
+    /// Combined multipliers applied to physical / magical portions of melee split damage:
+    /// consumable boosts × (gear % + melee minor tree %). Matches <see cref="GetMinSplitDamage"/> / <see cref="GetMaxSplitDamage"/>.
+    /// Corruption uses <see cref="GetEquippedCorruptionDamagePercent"/> (e.g. combat support) after flat bonuses.
+    /// </summary>
+    private void GetMeleeSplitDamageScalingMultipliers(MeleeMinorNodeBonuses meleeBonuses, out float physicalDamageMult, out float magicalDamageMult)
+    {
+        float physicalBuffMult = 1f + (buffController ? buffController.PhysicalDamageBoostPercent : 0f);
+        float magicBuffMult = 1f + (buffController ? buffController.MagicDamageBoostPercent : 0f);
+        float physicalGearPctMult = 1f + Mathf.Max(0f, GetEquippedPhysicalDamagePercent() + meleeBonuses.meleeDamagePercent);
+        float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent);
+        physicalDamageMult = physicalBuffMult * physicalGearPctMult;
+        magicalDamageMult = magicBuffMult * magicGearPctMult;
+    }
+
+    /// <summary>Total % increase to physical melee split (20 = +20%).</summary>
+    public float MeleePhysicalDamageTotalScalingPercentPoints
+    {
+        get
+        {
+            GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out float mult, out _);
+            return (mult - 1f) * 100f;
+        }
+    }
+
+    /// <summary>Total % increase to magical melee split (20 = +20%).</summary>
+    public float MeleeMagicDamageTotalScalingPercentPoints
+    {
+        get
+        {
+            GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out _, out float mult);
+            return (mult - 1f) * 100f;
+        }
+    }
+
+    /// <summary>Total % increase to corruption on attack split from gear (combat support %, etc.).</summary>
+    public float MeleeCorruptionDamageTotalScalingPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
+
+    /// <summary>Equipped additive fraction for Fire skill damage (0.10 = +10%). Buffs can extend later.</summary>
+    public float FireSkillDamageTotalScalingPercentPoints => GetEquippedFireSkillDamagePercent() * 100f;
+
+    public float IceSkillDamageTotalScalingPercentPoints => GetEquippedIceSkillDamagePercent() * 100f;
+
+    public float LightningSkillDamageTotalScalingPercentPoints => GetEquippedLightningSkillDamagePercent() * 100f;
+
+    /// <summary>Fraction added to multiplier for abilities keyed to <see cref="CurrentMagicAttackType"/> (e.g. 0.2 = +20%).</summary>
+    public float ElementSkillDamageScalingFractionForCurrentType() =>
+        ElementSkillDamageScalingFractionFor(CurrentMagicAttackType);
+
+    public float ElementSkillDamageScalingFractionFor(MagicAttackType type)
+    {
+        switch (type)
+        {
+            case MagicAttackType.Fire:
+                return GetEquippedFireSkillDamagePercent();
+            case MagicAttackType.Ice:
+                return GetEquippedIceSkillDamagePercent();
+            case MagicAttackType.Lightning:
+                return GetEquippedLightningSkillDamagePercent();
+            default:
+                return 0f;
+        }
+    }
+
     private SplitDamage GetMinSplitDamage()
     {
         MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
-        float physicalBuffMult = 1f + (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.PhysicalDamageBoost) : 0f);
-        float magicBuffMult = 1f + (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MagicDamageBoost) : 0f);
-        float physicalGearPctMult = 1f + Mathf.Max(0f, GetEquippedPhysicalDamagePercent() + meleeBonuses.meleeDamagePercent);
-        float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent);
+        GetMeleeSplitDamageScalingMultipliers(meleeBonuses, out float physicalDamageMult, out float magicalDamageMult);
+        float corruptionDamageMult = 1f + Mathf.Max(0f, GetEquippedCorruptionDamagePercent());
 
         var mh = GetMainHandWeaponDef();
 
@@ -1094,8 +1158,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
             float mag = BaseMinMagicDamage + GetEquippedMagicDamage();
             float corr = BaseMinCorruptionDamage + GetEquippedCorruptionDamage();
 
-            phys *= (physicalBuffMult * physicalGearPctMult);
-            mag *= (magicBuffMult * magicGearPctMult);
+            phys *= physicalDamageMult;
+            mag *= magicalDamageMult;
+            corr *= corruptionDamageMult;
 
             return new SplitDamage(
                 Mathf.Max(0f, phys),
@@ -1111,13 +1176,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
         var support = GetActiveOffHandSupportDef();
 
         float physMin = mh.weaponStats.minPhysicalDamage;
-        float magMin = mh.weaponStats.minMagicDamage;
+        float magMin = mh.weaponStats.TotalElementalDamageMin;
         float corruptionMin = mh.weaponStats.minCorruptionDamage;
 
         if (ohWeapon)
         {
             physMin = (mh.weaponStats.minPhysicalDamage + ohWeapon.weaponStats.minPhysicalDamage) * 0.5f;
-            magMin = (mh.weaponStats.minMagicDamage + ohWeapon.weaponStats.minMagicDamage) * 0.5f;
+            magMin = (mh.weaponStats.TotalElementalDamageMin + ohWeapon.weaponStats.TotalElementalDamageMin) * 0.5f;
             corruptionMin = (mh.weaponStats.minCorruptionDamage + ohWeapon.weaponStats.minCorruptionDamage) * 0.5f;
         }
 
@@ -1132,8 +1197,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         magMin += BaseMinMagicDamage + GetEquippedMagicDamage();
         corruptionMin += BaseMinCorruptionDamage + GetEquippedCorruptionDamage();
 
-        physMin *= (physicalBuffMult * physicalGearPctMult);
-        magMin *= (magicBuffMult * magicGearPctMult);
+        physMin *= physicalDamageMult;
+        magMin *= magicalDamageMult;
+        corruptionMin *= corruptionDamageMult;
 
         return new SplitDamage(
             Mathf.Max(0f, physMin),
@@ -1145,10 +1211,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private SplitDamage GetMaxSplitDamage()
     {
         MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
-        float physicalBuffMult = 1f + (buffController ? buffController.PhysicalDamageBoostPercent : 0f);
-        float magicBuffMult = 1f + (buffController ? buffController.MagicDamageBoostPercent : 0f);
-        float physicalGearPctMult = 1f + Mathf.Max(0f, GetEquippedPhysicalDamagePercent() + meleeBonuses.meleeDamagePercent);
-        float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent);
+        GetMeleeSplitDamageScalingMultipliers(meleeBonuses, out float physicalDamageMult, out float magicalDamageMult);
+        float corruptionDamageMult = 1f + Mathf.Max(0f, GetEquippedCorruptionDamagePercent());
 
         var mh = GetMainHandWeaponDef();
 
@@ -1158,8 +1222,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
             float mag = BaseMaxMagicDamage + GetEquippedMagicDamage();
             float corr = BaseMaxCorruptionDamage + GetEquippedCorruptionDamage();
 
-            phys *= (physicalBuffMult * physicalGearPctMult);
-            mag *= (magicBuffMult * magicGearPctMult);
+            phys *= physicalDamageMult;
+            mag *= magicalDamageMult;
+            corr *= corruptionDamageMult;
 
             return new SplitDamage(
                 Mathf.Max(0f, phys),
@@ -1175,13 +1240,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
         var support = GetActiveOffHandSupportDef();
 
         float physMax = mh.weaponStats.maxPhysicalDamage;
-        float magMax = mh.weaponStats.maxMagicDamage;
+        float magMax = mh.weaponStats.TotalElementalDamageMax;
         float corruptionMax = mh.weaponStats.maxCorruptionDamage;
 
         if (ohWeapon)
         {
             physMax = (mh.weaponStats.maxPhysicalDamage + ohWeapon.weaponStats.maxPhysicalDamage) * 0.5f;
-            magMax = (mh.weaponStats.maxMagicDamage + ohWeapon.weaponStats.maxMagicDamage) * 0.5f;
+            magMax = (mh.weaponStats.TotalElementalDamageMax + ohWeapon.weaponStats.TotalElementalDamageMax) * 0.5f;
             corruptionMax = (mh.weaponStats.maxCorruptionDamage + ohWeapon.weaponStats.maxCorruptionDamage) * 0.5f;
         }
 
@@ -1196,8 +1261,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         magMax += BaseMaxMagicDamage + GetEquippedMagicDamage();
         corruptionMax += BaseMaxCorruptionDamage + GetEquippedCorruptionDamage();
 
-        physMax *= (physicalBuffMult * physicalGearPctMult);
-        magMax *= (magicBuffMult * magicGearPctMult);
+        physMax *= physicalDamageMult;
+        magMax *= magicalDamageMult;
+        corruptionMax *= corruptionDamageMult;
 
         return new SplitDamage(
             Mathf.Max(0f, physMax),
@@ -1645,7 +1711,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
+        {
             total += def.PhysicalDamagePercent;
+            total += def.SupportPhysicalDamagePercent;
+        }
         return total;
     }
 
@@ -1661,8 +1730,42 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
+        {
             total += def.MagicDamagePercent;
+            total += def.SupportMagicDamagePercent;
+        }
         return total;
+    }
+
+    private float GetEquippedFireSkillDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            total += def.FireSkillDamagePercent;
+            total += def.SupportFireDamagePercent;
+        }
+        return Mathf.Max(0f, total);
+    }
+
+    private float GetEquippedIceSkillDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            total += def.IceSkillDamagePercent;
+            total += def.SupportIceDamagePercent;
+            total += def.SupportColdDamagePercent;
+        }
+        return Mathf.Max(0f, total);
+    }
+
+    private float GetEquippedLightningSkillDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.LightningSkillDamagePercent;
+        return Mathf.Max(0f, total);
     }
 
     private int GetEquippedCorruptionResist()
@@ -1679,6 +1782,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         foreach (var def in EnumerateEquippedDefs())
             total += def.BonusCorruptionDamage;
         return total;
+    }
+
+    private float GetEquippedCorruptionDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.SupportCorruptionDamagePercent;
+        return Mathf.Max(0f, total);
     }
 
     private float GetEquippedAbilityPower()

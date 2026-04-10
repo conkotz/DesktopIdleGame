@@ -22,6 +22,7 @@ public class UISectionToggle : MonoBehaviour
     private bool _expanded;
     private UISectionToggleGroup _group;
     private Image _buttonImage;
+    private CanvasGroup _sectionCanvasGroup;
 
     public bool IsExpanded => _expanded;
 
@@ -34,6 +35,13 @@ public class UISectionToggle : MonoBehaviour
 
         if (headerButton)
             _buttonImage = headerButton.GetComponent<Image>();
+
+        // Sibling stats sections often share the same full-rect anchors; the last sibling wins raycasts.
+        // When this section is collapsed, disable raycast blocking so ScrollRects / scroll wheels on the
+        // visible tab still receive input (and any always-on ScrollView chrome under a sibling won't eat drags).
+        _sectionCanvasGroup = GetComponent<CanvasGroup>();
+        if (_sectionCanvasGroup == null)
+            _sectionCanvasGroup = gameObject.AddComponent<CanvasGroup>();
 
         SetExpandedInternal(startExpanded);
 
@@ -76,6 +84,12 @@ public class UISectionToggle : MonoBehaviour
         {
             if (contents[i])
                 contents[i].SetActive(_expanded);
+        }
+
+        if (_sectionCanvasGroup)
+        {
+            _sectionCanvasGroup.blocksRaycasts = expanded;
+            _sectionCanvasGroup.interactable = expanded;
         }
 
         if (arrow)

@@ -42,6 +42,31 @@ public static class AbilityElementScaling
     }
 
     /// <summary>
+    /// Multiplier for scaled weapon-magical + ability elemental lines on instant / whirlwind-style abilities.
+    /// Uses equipped Fire/Ice/Lightning skill % matching <see cref="CharacterStats.CurrentMagicAttackType"/>.
+    /// Not applied to basic attacks or Power Slash (avoids inflating burn snapshots on melee fire hits).
+    /// </summary>
+    public static float GetElementSkillDamageMultiplier(CharacterStats stats)
+    {
+        if (!stats)
+            return 1f;
+        return 1f + Mathf.Max(0f, stats.ElementSkillDamageScalingFractionForCurrentType());
+    }
+
+    /// <summary>Apply <see cref="GetElementSkillDamageMultiplier"/> to magical and element bonus portions only.</summary>
+    public static void ScaleMagicalAbilityContributions(
+        float scaledMagical,
+        float elementBonus,
+        CharacterStats stats,
+        out float scaledMagOut,
+        out float elementBonusOut)
+    {
+        float m = GetElementSkillDamageMultiplier(stats);
+        scaledMagOut = scaledMagical * m;
+        elementBonusOut = elementBonus * m;
+    }
+
+    /// <summary>
     /// Small expected contribution from poison/bleed DPS scaled by ability multipliers (heuristic for balance).
     /// </summary>
     public static float GetPoisonBleedBonusForInstantAbility(AbilityDefinition def, CharacterStats stats)

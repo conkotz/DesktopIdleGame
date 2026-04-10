@@ -155,10 +155,11 @@ public static class AbilityTooltipDamagePreview
             float scaledPhysical = avgPhys * physMult;
             float scaledMagical = avgMag * magMult;
             float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+            AbilityElementScaling.ScaleMagicalAbilityContributions(scaledMagical, elementBonus, stats, out float magS, out float elemS);
             float apBonus = ap * apMult;
             float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
             float physPart = scaledPhysical + apBonus;
-            float magPart = scaledMagical + elementBonus + ailmentBonus;
+            float magPart = magS + elemS + ailmentBonus;
 
             if (crescentSel == 0)
             {
@@ -212,10 +213,11 @@ public static class AbilityTooltipDamagePreview
                 float scaledPhysical = avgPhys * physMult;
                 float scaledMagical = avgMag * magMult;
                 float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+                AbilityElementScaling.ScaleMagicalAbilityContributions(scaledMagical, elementBonus, stats, out float magS, out float elemS);
                 float apBonus = ap * apMult;
                 float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
                 physPart = scaledPhysical + apBonus;
-                magPart = scaledMagical + elementBonus + ailmentBonus;
+                magPart = magS + elemS + ailmentBonus;
             }
 
             int p = Mathf.RoundToInt(physPart);

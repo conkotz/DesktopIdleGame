@@ -44,6 +44,7 @@ public readonly struct CombatProfileDefenseHints
     public float EffectiveHpVsCorruption { get; }
     public int Armor { get; }
     public int MagicResist { get; }
+    public int CorruptionResist { get; }
     public int MaxHP { get; }
     /// <summary>Same value as CP mobility input (<see cref="CharacterStats.GetMoveSpeedForCombatPower"/>).</summary>
     public float FinalMoveSpeed { get; }
@@ -54,6 +55,7 @@ public readonly struct CombatProfileDefenseHints
         float effectiveHpVsCorruption,
         int armor,
         int magicResist,
+        int corruptionResist,
         int maxHp,
         float finalMoveSpeed)
     {
@@ -62,6 +64,7 @@ public readonly struct CombatProfileDefenseHints
         EffectiveHpVsCorruption = effectiveHpVsCorruption;
         Armor = armor;
         MagicResist = magicResist;
+        CorruptionResist = corruptionResist;
         MaxHP = maxHp;
         FinalMoveSpeed = finalMoveSpeed;
     }
@@ -75,6 +78,7 @@ public static class CombatProfileLabel
     public const string Relentless = "Relentless";
     public const string Armoured = "Armoured";
     public const string Warded = "Warded";
+    public const string Shrouded = "Shrouded";
     public const string Tank = "Tank";
     public const string Sustaining = "Sustaining";
     public const string Nimble = "Nimble";
@@ -110,6 +114,12 @@ public static class CombatProfileThresholds
     public const int WardedMinMagicResist = 10;
     public const float WardedMagEhpOverCorruptionMin = 1.12f;
 
+    /// <summary>Corruption resist at or above this (same spirit as armour/MR gates) qualifies for Shrouded when EHP ratios agree.</summary>
+    public const int ShroudedMinCorruptionResist = 25;
+
+    /// <summary>Corruption effective HP must exceed physical and magical EHP by this factor (mirror <see cref="ArmouredPhysEhpOverCorruptionMin"/>).</summary>
+    public const float ShroudedCorruptionEhpOverOtherMin = 1.12f;
+
     public const int TankMinMaxHp = 35;
 
     /// <summary>
@@ -129,7 +139,8 @@ public static class CombatProfileThresholds
 
 /// <summary>
 /// Classifies a unit by CP distribution and defensive identity. Priority: Relentless → Glass Cannon → Deadly →
-/// Tank (HP-forward) → Armoured → Warded → Tank → Sustaining → Nimble → Bruiser → Balanced.
+/// Shrouded or Tank when defense CP is low → Armoured → Warded → Shrouded → Tank (defense-heavy) →
+/// Sustaining → Nimble → Bruiser → Balanced.
 /// </summary>
 public static class CombatProfileClassifier
 {
@@ -145,8 +156,12 @@ public static class CombatProfileClassifier
         float pMob = b.Mobility / t;
 
         float eCorr = Mathf.Max(1f, d.EffectiveHpVsCorruption);
+        float ePhys = Mathf.Max(1f, d.EffectiveHpVsPhysical);
+        float eMag = Mathf.Max(1f, d.EffectiveHpVsMagical);
         float physOverCorruption = d.EffectiveHpVsPhysical / eCorr;
         float magOverCorruption = d.EffectiveHpVsMagical / eCorr;
+        float corruptionOverPhys = eCorr / ePhys;
+        float corruptionOverMag = eCorr / eMag;
 
         // 1 Relentless — must meet min move speed (enemy inspector / player FinalMoveSpeed), then either
         //    strong offense+mobility CP split OR fast+decent offense. Checked before Glass Cannon so fast strikers
@@ -173,7 +188,18 @@ public static class CombatProfileClassifier
             && pO > pD)
             return CombatProfileLabel.Deadly;
 
-        // 3b Tank (HP pool) — large MaxHP with flat mitigation when offense CP dominates (pD below defense threshold).
+        // 3b Shrouded (low defense CP share) — very high corruption resist or corruption EHP clearly above phys/mag.
+        // Runs before HP-only Tank so corruption-heavy dummies are not misread as Tank when pD is small.
+        if (pD < CombatProfileThresholds.DefenseProfileMin)
+        {
+            bool shroudDrivenLowPd = d.CorruptionResist >= CombatProfileThresholds.ShroudedMinCorruptionResist
+                                     || (corruptionOverPhys >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin
+                                         && corruptionOverMag >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin);
+            if (shroudDrivenLowPd && corruptionOverPhys >= corruptionOverMag - 0.02f)
+                return CombatProfileLabel.Shrouded;
+        }
+
+        // 3c Tank (HP pool) — large MaxHP with flat mitigation when offense CP dominates (pD below defense threshold).
         // Without this, high-HP training dummies / punch bags read as Balanced because defense share looks small vs DPS CP.
         if (pD < CombatProfileThresholds.DefenseProfileMin)
         {
@@ -182,7 +208,10 @@ public static class CombatProfileClassifier
             if (lowMitigation
                 && d.MaxHP >= CombatProfileThresholds.TankMinMaxHp
                 && d.Armor < CombatProfileThresholds.ArmouredMinArmor
-                && d.MagicResist < CombatProfileThresholds.WardedMinMagicResist)
+                && d.MagicResist < CombatProfileThresholds.WardedMinMagicResist
+                && d.CorruptionResist < CombatProfileThresholds.ShroudedMinCorruptionResist
+                && !(corruptionOverPhys >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin
+                     && corruptionOverMag >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin))
                 return CombatProfileLabel.Tank;
         }
 
@@ -201,10 +230,21 @@ public static class CombatProfileClassifier
             if (wardDriven && magOverCorruption >= physOverCorruption - 0.02f)
                 return CombatProfileLabel.Warded;
 
+            // 5b Shrouded — corruption resist / corruption EHP dominates physical and magical EHP
+            bool shroudDriven = d.CorruptionResist >= CombatProfileThresholds.ShroudedMinCorruptionResist
+                                || (corruptionOverPhys >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin
+                                    && corruptionOverMag >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin);
+            if (shroudDriven && corruptionOverPhys >= corruptionOverMag - 0.02f)
+                return CombatProfileLabel.Shrouded;
+
             // 6 Tank — large HP pool; mitigation from armour/MR is not the main story
             bool lowMitigation = physOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax
                                  && magOverCorruption <= CombatProfileThresholds.TankMitigationEhpOverCorruptionMax;
-            if (lowMitigation && d.MaxHP >= CombatProfileThresholds.TankMinMaxHp)
+            if (lowMitigation
+                && d.MaxHP >= CombatProfileThresholds.TankMinMaxHp
+                && d.CorruptionResist < CombatProfileThresholds.ShroudedMinCorruptionResist
+                && !(corruptionOverPhys >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin
+                     && corruptionOverMag >= CombatProfileThresholds.ShroudedCorruptionEhpOverOtherMin))
                 return CombatProfileLabel.Tank;
         }
 
@@ -243,6 +283,9 @@ public static class CombatProfileClassifier
         if (label == CombatProfileLabel.Warded)
             return new Color(0.55f, 0.45f, 0.85f);
 
+        if (label == CombatProfileLabel.Shrouded)
+            return new Color(112f / 255f, 64f / 255f, 192f / 255f);
+
         if (label == CombatProfileLabel.Tank)
             return new Color(0.45f, 0.72f, 0.48f);
 
@@ -269,7 +312,8 @@ public static class CombatProfileClassifier
             $"Defense: {b.Defense:0.##} ({pD * 100f:0.#}%)\n" +
             $"Sustain: {b.Sustain:0.##} ({pS * 100f:0.#}%)\n" +
             $"Mobility: {b.Mobility:0.##} ({pMob * 100f:0.#}%)\n" +
-            $"Armor: {d.Armor} | MR: {d.MagicResist} | MaxHP: {d.MaxHP} | Move: {d.FinalMoveSpeed:0.##}\n" +
-            $"EHP phys/corr: {d.EffectiveHpVsPhysical / eCorr:0.##} | mag/corr: {d.EffectiveHpVsMagical / eCorr:0.##}";
+            $"Armor: {d.Armor} | MR: {d.MagicResist} | CorruptionResist: {d.CorruptionResist} | MaxHP: {d.MaxHP} | Move: {d.FinalMoveSpeed:0.##}\n" +
+            $"EHP phys/corr: {d.EffectiveHpVsPhysical / eCorr:0.##} | mag/corr: {d.EffectiveHpVsMagical / eCorr:0.##}\n" +
+            $"EHP corr/phys: {eCorr / Mathf.Max(1f, d.EffectiveHpVsPhysical):0.##} | corr/mag: {eCorr / Mathf.Max(1f, d.EffectiveHpVsMagical):0.##}";
     }
 }

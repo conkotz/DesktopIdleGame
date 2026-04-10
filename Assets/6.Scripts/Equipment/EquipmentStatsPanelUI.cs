@@ -39,6 +39,17 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text critDamageText;
     [SerializeField] private TMP_Text lifeStealText;
 
+    [Header("Damage type scaling (melee split)")]
+    [Tooltip("Shows net % from potions, gear %, and melee skill tree — same math as weapon Phys/Mag split.")]
+    [SerializeField] private TMP_Text physDamageScalingText;
+    [SerializeField] private TMP_Text magicDamageScalingText;
+    [SerializeField] private TMP_Text corruptionDamageScalingText;
+
+    [Header("Elemental skill scaling (Fire / Ice / Lightning abilities)")]
+    [SerializeField] private TMP_Text fireSkillScalingText;
+    [SerializeField] private TMP_Text iceSkillScalingText;
+    [SerializeField] private TMP_Text lightningSkillScalingText;
+
     [Header("Ailments (Compact)")]
     [SerializeField] private TMP_Text bleedText;
     [SerializeField] private TMP_Text poisonText;
@@ -142,6 +153,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     {
         float pct = value01 * 100f;
         return $"{pct:+0.#;-0.#;0}%";
+    }
+
+    private static string FormatSignedPercentPoints(float percentPoints)
+    {
+        return $"{percentPoints:+0.#;-0.#;0}%";
     }
 
     private void HandleStatsChanged()
@@ -262,6 +278,28 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             float lsPct = Mathf.Clamp01(stats.LifeSteal) * 100f;
             lifeStealText.text = $"Life Steal: {lsPct:0.#}% of damage";
         }
+
+        if (physDamageScalingText)
+            physDamageScalingText.text = $"Physical: {FormatSignedPercentPoints(stats.MeleePhysicalDamageTotalScalingPercentPoints)}";
+
+        if (magicDamageScalingText)
+            magicDamageScalingText.text = $"Magical: {FormatSignedPercentPoints(stats.MeleeMagicDamageTotalScalingPercentPoints)}";
+
+        if (corruptionDamageScalingText)
+        {
+            float c = stats.MeleeCorruptionDamageTotalScalingPercentPoints;
+            corruptionDamageScalingText.text =
+                Mathf.Abs(c) > 0.0001f
+                    ? $"Corruption: {FormatSignedPercentPoints(c)}"
+                    : "Corruption: +0% (flat)";
+        }
+
+        if (fireSkillScalingText)
+            fireSkillScalingText.text = $"Fire: {FormatSignedPercentPoints(stats.FireSkillDamageTotalScalingPercentPoints)}";
+        if (iceSkillScalingText)
+            iceSkillScalingText.text = $"Ice: {FormatSignedPercentPoints(stats.IceSkillDamageTotalScalingPercentPoints)}";
+        if (lightningSkillScalingText)
+            lightningSkillScalingText.text = $"Lightning: {FormatSignedPercentPoints(stats.LightningSkillDamageTotalScalingPercentPoints)}";
 
         // -------------------------
         // Ailments (Compact)

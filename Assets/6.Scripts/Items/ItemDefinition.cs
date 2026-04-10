@@ -85,9 +85,26 @@ public struct WeaponStats
     public int minPhysicalDamage;
     public int maxPhysicalDamage;
 
-    [Header("Magic Damage")]
-    public int minMagicDamage;
-    public int maxMagicDamage;
+    [Header("Elemental Damage")]
+    [Tooltip("Flat fire damage on weapon hits. Total magical = fire + ice + lightning; Magic Damage % on gear scales that total.")]
+    public int minFireDamage;
+    public int maxFireDamage;
+    [Tooltip("Flat ice damage on weapon hits.")]
+    public int minIceDamage;
+    public int maxIceDamage;
+    [Tooltip("Flat lightning damage on weapon hits.")]
+    public int minLightningDamage;
+    public int maxLightningDamage;
+
+    [SerializeField, HideInInspector]
+    [FormerlySerializedAs("minMagicDamage")]
+    internal int legacyMinMagicDamage;
+    [SerializeField, HideInInspector]
+    [FormerlySerializedAs("maxMagicDamage")]
+    internal int legacyMaxMagicDamage;
+
+    public int TotalElementalDamageMin => minFireDamage + minIceDamage + minLightningDamage;
+    public int TotalElementalDamageMax => maxFireDamage + maxIceDamage + maxLightningDamage;
 
     [Header("Corruption Damage")]
     [FormerlySerializedAs("minTrueDamage")] public int minCorruptionDamage;
@@ -156,6 +173,20 @@ public struct CombatSupportStats
     [Range(0f, 1f)] public float critChanceBonus;
     public float critMultiplierBonus;
     public float attackSpeedPercent;
+
+    [Header("Damage % (multipliers)")]
+    [Tooltip("0.10 = +10% to the physical portion of attack split damage (stacks with gear).")]
+    public float physicalDamagePercent;
+    [Tooltip("0.10 = +10% to the total magical portion (elemental sum; stacks with gear).")]
+    public float magicDamagePercent;
+    [Tooltip("0.10 = +10% to Fire-tagged ability / instant magical scaling (stacks with gear).")]
+    public float fireDamagePercent;
+    [Tooltip("0.10 = +10% to Ice-tagged ability / instant magical scaling (stacks with gear).")]
+    public float iceDamagePercent;
+    [Tooltip("0.10 = +10% to Cold-tagged scaling; stacked additively with Ice % for the Ice ability path.")]
+    public float coldDamagePercent;
+    [Tooltip("0.10 = +10% to corruption damage on attack split (after flat bonuses).")]
+    public float corruptionDamagePercent;
 
     [Header("Optional Charges/Consumption")]
     public bool consumableOnAttack;
@@ -248,11 +279,20 @@ public struct BonusStats
     [Tooltip("0.10 = +10% physical damage (multiplier)")]
     public float physicalDamagePercent;
 
-    [Tooltip("Flat bonus to magic/basic attack damage")]
+    [Tooltip("Flat bonus added to total elemental weapon damage (fire+ice+lightning) on attacks.")]
     public float magicDamage;
 
-    [Tooltip("0.10 = +10% magic damage (multiplier)")]
+    [Tooltip("0.10 = +10% magic damage (multiplier). Scales total elemental weapon damage (fire+ice+lightning).")]
     public float magicDamagePercent;
+
+    [Tooltip("0.10 = +10% damage for Fire-tagged abilities / instant magical lines.")]
+    public float fireSkillDamagePercent;
+
+    [Tooltip("0.10 = +10% damage for Ice-tagged abilities / instant magical lines.")]
+    public float iceSkillDamagePercent;
+
+    [Tooltip("0.10 = +10% damage for Lightning-tagged abilities / instant magical lines.")]
+    public float lightningSkillDamagePercent;
 
     [Tooltip("Flat bonus to corruption/basic attack damage")]
     [FormerlySerializedAs("trueDamage")] public float corruptionDamage;
@@ -315,6 +355,7 @@ public struct BonusStats
                moveSpeedPercent != 0f ||
                physicalDamage != 0f || physicalDamagePercent != 0f ||
                magicDamage != 0f || magicDamagePercent != 0f ||
+               fireSkillDamagePercent != 0f || iceSkillDamagePercent != 0f || lightningSkillDamagePercent != 0f ||
                corruptionDamage != 0f || abilityPower != 0f ||
                attackSpeedPercent != 0f ||
                critChanceBonus != 0f || critMultiplierBonus != 0f ||
@@ -430,7 +471,7 @@ public struct CookableStats
 }
 
 [CreateAssetMenu(menuName = "Desktop Idle Game/Item Definition", fileName = "NewItem")]
-public class ItemDefinition : ScriptableObject
+public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 {
     [Header("Classification")]
     public ItemKind itemKind = ItemKind.Resource;
@@ -604,6 +645,24 @@ public class ItemDefinition : ScriptableObject
     public float SupportAttackSpeedPercent =>
         IsCombatSupport ? combatSupportStats.attackSpeedPercent : 0f;
 
+    public float SupportPhysicalDamagePercent =>
+        IsCombatSupport ? combatSupportStats.physicalDamagePercent : 0f;
+
+    public float SupportMagicDamagePercent =>
+        IsCombatSupport ? combatSupportStats.magicDamagePercent : 0f;
+
+    public float SupportFireDamagePercent =>
+        IsCombatSupport ? combatSupportStats.fireDamagePercent : 0f;
+
+    public float SupportIceDamagePercent =>
+        IsCombatSupport ? combatSupportStats.iceDamagePercent : 0f;
+
+    public float SupportColdDamagePercent =>
+        IsCombatSupport ? combatSupportStats.coldDamagePercent : 0f;
+
+    public float SupportCorruptionDamagePercent =>
+        IsCombatSupport ? combatSupportStats.corruptionDamagePercent : 0f;
+
     public bool SupportConsumableOnAttack =>
         IsCombatSupport && combatSupportStats.consumableOnAttack;
 
@@ -631,7 +690,7 @@ public class ItemDefinition : ScriptableObject
     }
 
     public bool HasPhysicalWeaponDamage => IsWeapon && (weaponStats.minPhysicalDamage > 0 || weaponStats.maxPhysicalDamage > 0);
-    public bool HasMagicWeaponDamage => IsWeapon && (weaponStats.minMagicDamage > 0 || weaponStats.maxMagicDamage > 0);
+    public bool HasMagicWeaponDamage => IsWeapon && (weaponStats.TotalElementalDamageMin > 0 || weaponStats.TotalElementalDamageMax > 0);
     public bool HasCorruptionWeaponDamage => IsWeapon && (weaponStats.minCorruptionDamage > 0 || weaponStats.maxCorruptionDamage > 0);
 
     public bool IsCombatSupport => itemKind == ItemKind.CombatSupport;
@@ -672,6 +731,10 @@ public class ItemDefinition : ScriptableObject
 
     public float PhysicalDamagePercent => bonusStats.physicalDamagePercent;
     public float MagicDamagePercent => bonusStats.magicDamagePercent;
+
+    public float FireSkillDamagePercent => bonusStats.fireSkillDamagePercent;
+    public float IceSkillDamagePercent => bonusStats.iceSkillDamagePercent;
+    public float LightningSkillDamagePercent => bonusStats.lightningSkillDamagePercent;
 
     public float BleedChance => Mathf.Clamp01(bonusStats.bleedChance);
     public float BleedMultiplier => Mathf.Max(0f, bonusStats.bleedMultiplier);
@@ -738,7 +801,7 @@ public class ItemDefinition : ScriptableObject
     public int RollMagicDamage()
     {
         if (!IsWeapon) return 0;
-        return Random.Range(weaponStats.minMagicDamage, weaponStats.maxMagicDamage + 1);
+        return Random.Range(weaponStats.TotalElementalDamageMin, weaponStats.TotalElementalDamageMax + 1);
     }
 
     public int RollCorruptionDamage()
@@ -827,8 +890,12 @@ public class ItemDefinition : ScriptableObject
             if (HasPhysicalWeaponDamage)
                 s += $"Physical Damage: {weaponStats.minPhysicalDamage}-{weaponStats.maxPhysicalDamage}\n";
 
-            if (HasMagicWeaponDamage)
-                s += $"Magic Damage: {weaponStats.minMagicDamage}-{weaponStats.maxMagicDamage}\n";
+            if (weaponStats.minFireDamage > 0 || weaponStats.maxFireDamage > 0)
+                s += $"Fire Damage: {weaponStats.minFireDamage}-{weaponStats.maxFireDamage}\n";
+            if (weaponStats.minIceDamage > 0 || weaponStats.maxIceDamage > 0)
+                s += $"Ice Damage: {weaponStats.minIceDamage}-{weaponStats.maxIceDamage}\n";
+            if (weaponStats.minLightningDamage > 0 || weaponStats.maxLightningDamage > 0)
+                s += $"Lightning Damage: {weaponStats.minLightningDamage}-{weaponStats.maxLightningDamage}\n";
 
             if (HasCorruptionWeaponDamage)
                 s += $"Corruption Damage: {weaponStats.minCorruptionDamage}-{weaponStats.maxCorruptionDamage}\n";
@@ -861,6 +928,12 @@ public class ItemDefinition : ScriptableObject
             if (SupportBonusPhysicalDamage != 0f) s += $"\nPhysical Damage: {FormatSignedNumber(SupportBonusPhysicalDamage)}";
             if (SupportBonusMagicDamage != 0f) s += $"\nMagic Damage: {FormatSignedNumber(SupportBonusMagicDamage)}";
             if (SupportBonusCorruptionDamage != 0f) s += $"\nCorruption Damage: {FormatSignedNumber(SupportBonusCorruptionDamage)}";
+            if (SupportPhysicalDamagePercent != 0f) s += $"\nPhysical Damage %: {FormatSignedPercent01(SupportPhysicalDamagePercent)}";
+            if (SupportMagicDamagePercent != 0f) s += $"\nMagic Damage %: {FormatSignedPercent01(SupportMagicDamagePercent)}";
+            if (SupportFireDamagePercent != 0f) s += $"\nFire %: {FormatSignedPercent01(SupportFireDamagePercent)}";
+            if (SupportIceDamagePercent != 0f) s += $"\nIce %: {FormatSignedPercent01(SupportIceDamagePercent)}";
+            if (SupportColdDamagePercent != 0f) s += $"\nCold %: {FormatSignedPercent01(SupportColdDamagePercent)}";
+            if (SupportCorruptionDamagePercent != 0f) s += $"\nCorruption Damage %: {FormatSignedPercent01(SupportCorruptionDamagePercent)}";
             if (SupportCritChanceBonus != 0f) s += $"\nCrit Chance: {FormatSignedPercent01(SupportCritChanceBonus)}";
             if (SupportCritMultiplierBonus != 0f) s += $"\nCrit Multi: {FormatSignedPercent01(SupportCritMultiplierBonus)}";
             if (SupportAttackSpeedPercent != 0f) s += $"\nAttack Speed: {FormatSignedPercent01(SupportAttackSpeedPercent)}";
@@ -1030,6 +1103,9 @@ public class ItemDefinition : ScriptableObject
         if (bonusStats.physicalDamagePercent != 0f) s += $"Physical Damage %: {FormatSignedPercent01(bonusStats.physicalDamagePercent)}\n";
         if (bonusStats.magicDamage != 0f) s += $"Magic Damage: {FormatSignedNumber(bonusStats.magicDamage)}\n";
         if (bonusStats.magicDamagePercent != 0f) s += $"Magic Damage %: {FormatSignedPercent01(bonusStats.magicDamagePercent)}\n";
+        if (bonusStats.fireSkillDamagePercent != 0f) s += $"Fire: {FormatSignedPercent01(bonusStats.fireSkillDamagePercent)}\n";
+        if (bonusStats.iceSkillDamagePercent != 0f) s += $"Ice: {FormatSignedPercent01(bonusStats.iceSkillDamagePercent)}\n";
+        if (bonusStats.lightningSkillDamagePercent != 0f) s += $"Lightning: {FormatSignedPercent01(bonusStats.lightningSkillDamagePercent)}\n";
         if (bonusStats.corruptionDamage != 0f) s += $"Corruption Damage: {FormatSignedNumber(bonusStats.corruptionDamage)}\n";
         if (bonusStats.abilityPower != 0f) s += $"Ability Power: {FormatSignedNumber(bonusStats.abilityPower)}\n";
         if (bonusStats.lifeSteal != 0f) s += $"Life Steal: {FormatSignedPercent01(bonusStats.lifeSteal)}\n";
@@ -1070,8 +1146,12 @@ public class ItemDefinition : ScriptableObject
             if (HasPhysicalWeaponDamage)
                 s += $"Phys {weaponStats.minPhysicalDamage}-{weaponStats.maxPhysicalDamage}  ";
 
-            if (HasMagicWeaponDamage)
-                s += $"Magic {weaponStats.minMagicDamage}-{weaponStats.maxMagicDamage}  ";
+            if (weaponStats.minFireDamage > 0 || weaponStats.maxFireDamage > 0)
+                s += $"Fire {weaponStats.minFireDamage}-{weaponStats.maxFireDamage}  ";
+            if (weaponStats.minIceDamage > 0 || weaponStats.maxIceDamage > 0)
+                s += $"Ice {weaponStats.minIceDamage}-{weaponStats.maxIceDamage}  ";
+            if (weaponStats.minLightningDamage > 0 || weaponStats.maxLightningDamage > 0)
+                s += $"Lightning {weaponStats.minLightningDamage}-{weaponStats.maxLightningDamage}  ";
 
             if (HasCorruptionWeaponDamage)
                 s += $"Corruption {weaponStats.minCorruptionDamage}-{weaponStats.maxCorruptionDamage}  ";
@@ -1128,5 +1208,46 @@ public class ItemDefinition : ScriptableObject
     public bool CanCook()
     {
         return IsCookable && !string.IsNullOrWhiteSpace(cookableStats.cookedResultItemId);
+    }
+
+    void ISerializationCallbackReceiver.OnAfterDeserialize() => TryMigrateLegacyWeaponMagicDamage();
+
+    void ISerializationCallbackReceiver.OnBeforeSerialize() { }
+
+    void TryMigrateLegacyWeaponMagicDamage()
+    {
+        if (itemKind != ItemKind.Weapon)
+            return;
+
+        WeaponStats w = weaponStats;
+        int elemMinSum = w.minFireDamage + w.minIceDamage + w.minLightningDamage;
+        int elemMaxSum = w.maxFireDamage + w.maxIceDamage + w.maxLightningDamage;
+        int legMin = w.legacyMinMagicDamage;
+        int legMax = w.legacyMaxMagicDamage;
+
+        if (elemMinSum == 0 && elemMaxSum == 0 && (legMin > 0 || legMax > 0))
+        {
+            int lo = Mathf.Max(0, legMin);
+            int hi = Mathf.Max(lo, legMax);
+            switch (w.magicAttackType)
+            {
+                case MagicAttackType.Fire:
+                    w.minFireDamage = lo;
+                    w.maxFireDamage = hi;
+                    break;
+                case MagicAttackType.Ice:
+                    w.minIceDamage = lo;
+                    w.maxIceDamage = hi;
+                    break;
+                case MagicAttackType.Lightning:
+                    w.minLightningDamage = lo;
+                    w.maxLightningDamage = hi;
+                    break;
+            }
+        }
+
+        w.legacyMinMagicDamage = 0;
+        w.legacyMaxMagicDamage = 0;
+        weaponStats = w;
     }
 }

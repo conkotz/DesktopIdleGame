@@ -740,7 +740,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         bool crescentPenetrating = false;
         if (abilityController != null)
         {
-            var queued = abilityController.ConsumeQueuedHitEffects(targetToHit, dealt.physical, dealt.corruptionPoisonPotency);
+            var queued = abilityController.ConsumeQueuedHitEffects(targetToHit, dealt.physical, dealt.corruptionDamage);
             suppressBleed = queued.suppressDefaultBleed;
             suppressPoison = queued.suppressDefaultPoison;
             triggerCrescentSlash = queued.triggerCrescentSlash;
@@ -1075,8 +1075,6 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         public float physical;
         public float magical;
         public float corruptionDamage;
-        /// <summary>Outgoing corruption before target mitigation; drives poison potency (stable vs corruption resist).</summary>
-        public float corruptionPoisonPotency;
 
         public float Total => physical + magical + corruptionDamage;
     }
@@ -1122,7 +1120,6 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             );
 
             result.corruptionDamage = Mathf.Max(0f, dealt);
-            result.corruptionPoisonPotency = potency;
         }
 
         return result;
@@ -1187,7 +1184,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         if (target == null) return;
 
-        float poisonSourceDamage = dealt.corruptionPoisonPotency;
+        float poisonSourceDamage = dealt.corruptionDamage;
 
         if (poisonSourceDamage <= 0f) return;
         if (stats.PoisonChance <= 0f || stats.PoisonMultiplier < 0f) return;
