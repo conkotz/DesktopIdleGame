@@ -447,6 +447,8 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty attackSpeedPercent = combatSupportStats.FindPropertyRelative("attackSpeedPercent");
 
         SerializedProperty physicalDamagePercent = combatSupportStats.FindPropertyRelative("physicalDamagePercent");
+        SerializedProperty globalPhysicalDamagePercentCs = combatSupportStats.FindPropertyRelative("globalPhysicalDamagePercent");
+        SerializedProperty rangedPhysicalDamagePercentCs = combatSupportStats.FindPropertyRelative("rangedPhysicalDamagePercent");
         SerializedProperty magicDamagePercentCs = combatSupportStats.FindPropertyRelative("magicDamagePercent");
         SerializedProperty fireDamagePercent = combatSupportStats.FindPropertyRelative("fireDamagePercent");
         SerializedProperty iceDamagePercent = combatSupportStats.FindPropertyRelative("iceDamagePercent");
@@ -470,18 +472,14 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Damage % (0.1 = +10%)", EditorStyles.boldLabel);
-        if (physicalDamagePercent != null)
-            EditorGUILayout.PropertyField(physicalDamagePercent, new GUIContent("Physical Damage %"));
-        if (magicDamagePercentCs != null)
-            EditorGUILayout.PropertyField(magicDamagePercentCs, new GUIContent("Magic Damage %"));
-        if (fireDamagePercent != null)
-            EditorGUILayout.PropertyField(fireDamagePercent, new GUIContent("Fire %"));
-        if (iceDamagePercent != null)
-            EditorGUILayout.PropertyField(iceDamagePercent, new GUIContent("Ice %"));
-        if (coldDamagePercent != null)
-            EditorGUILayout.PropertyField(coldDamagePercent, new GUIContent("Cold %"));
-        if (corruptionDamagePercent != null)
-            EditorGUILayout.PropertyField(corruptionDamagePercent, new GUIContent("Corruption Damage %"));
+        PropertyField(physicalDamagePercent, "All physical %");
+        PropertyField(globalPhysicalDamagePercentCs, "Global physical %");
+        PropertyField(rangedPhysicalDamagePercentCs, "Ranged physical %");
+        PropertyField(magicDamagePercentCs, "All magic %");
+        PropertyField(fireDamagePercent, "Fire skills %");
+        PropertyField(iceDamagePercent, "Ice skills %");
+        PropertyField(coldDamagePercent, "Cold skills %");
+        PropertyField(corruptionDamagePercent, "Corruption %");
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Consumption", EditorStyles.boldLabel);
@@ -790,6 +788,8 @@ public class ItemDefinitionEditor : Editor
 
         SerializedProperty physicalDamage = bonusStats.FindPropertyRelative("physicalDamage");
         SerializedProperty physicalDamagePercent = bonusStats.FindPropertyRelative("physicalDamagePercent");
+        SerializedProperty globalPhysicalDamagePercentBonus = bonusStats.FindPropertyRelative("globalPhysicalDamagePercent");
+        SerializedProperty rangedPhysicalDamagePercentBonus = bonusStats.FindPropertyRelative("rangedPhysicalDamagePercent");
         SerializedProperty magicDamage = bonusStats.FindPropertyRelative("magicDamage");
         SerializedProperty magicDamagePercent = bonusStats.FindPropertyRelative("magicDamagePercent");
         SerializedProperty fireSkillDamagePercent = bonusStats.FindPropertyRelative("fireSkillDamagePercent");
@@ -841,22 +841,21 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Offense", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(physicalDamage);
-        EditorGUILayout.PropertyField(physicalDamagePercent, new GUIContent("Physical Damage %"));
-        EditorGUILayout.PropertyField(magicDamage);
-        EditorGUILayout.PropertyField(magicDamagePercent, new GUIContent("Magic Damage %"));
-        if (fireSkillDamagePercent != null)
-            EditorGUILayout.PropertyField(fireSkillDamagePercent, new GUIContent("Fire Skill Damage %"));
-        if (iceSkillDamagePercent != null)
-            EditorGUILayout.PropertyField(iceSkillDamagePercent, new GUIContent("Ice Skill Damage %"));
-        if (lightningSkillDamagePercent != null)
-            EditorGUILayout.PropertyField(lightningSkillDamagePercent, new GUIContent("Lightning Skill Damage %"));
-        EditorGUILayout.PropertyField(corruptionDamage, new GUIContent("Corruption Damage"));
-        EditorGUILayout.PropertyField(abilityPower);
-        EditorGUILayout.PropertyField(attackSpeedPercent);
-        EditorGUILayout.PropertyField(critChanceBonus);
-        EditorGUILayout.PropertyField(critMultiplierBonus);
-        EditorGUILayout.PropertyField(attackRangeBonus);
+        PropertyField(physicalDamage, "Physical damage");
+        PropertyField(physicalDamagePercent, "All physical %");
+        PropertyField(globalPhysicalDamagePercentBonus, "Global physical %");
+        PropertyField(rangedPhysicalDamagePercentBonus, "Ranged physical %");
+        PropertyField(magicDamage, "Magic damage");
+        PropertyField(magicDamagePercent, "All magic %");
+        PropertyField(fireSkillDamagePercent, "Fire skills %");
+        PropertyField(iceSkillDamagePercent, "Ice skills %");
+        PropertyField(lightningSkillDamagePercent, "Lightning skills %");
+        PropertyField(corruptionDamage, "Corruption damage");
+        PropertyField(abilityPower, "Ability Power");
+        PropertyField(attackSpeedPercent, "Attack speed %");
+        PropertyField(critChanceBonus, "Crit chance bonus");
+        PropertyField(critMultiplierBonus, "Crit multiplier bonus");
+        PropertyField(attackRangeBonus, "Attack range bonus");
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Ailments", EditorStyles.boldLabel);
@@ -907,5 +906,18 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.Space(2);
         EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
         EditorGUILayout.Space(2);
+    }
+
+    /// <summary>Inspector label + tooltip from <see cref="TooltipAttribute"/> (plain PropertyField with custom label drops tooltips).</summary>
+    private static GUIContent Prop(SerializedProperty prop, string label)
+    {
+        string tip = prop.tooltip;
+        return string.IsNullOrEmpty(tip) ? new GUIContent(label) : new GUIContent(label, tip);
+    }
+
+    private static void PropertyField(SerializedProperty prop, string label)
+    {
+        if (prop != null)
+            EditorGUILayout.PropertyField(prop, Prop(prop, label));
     }
 }

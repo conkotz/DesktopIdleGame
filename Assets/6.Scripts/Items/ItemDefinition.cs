@@ -177,25 +177,25 @@ public struct CombatSupportStats
 
     [Range(0f, 1f)] public float critChanceBonus;
     public float critMultiplierBonus;
-    [Tooltip("Attack speed fraction: 0 = none; 0.25 = +25% APS; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Attack speed bonus on support (0.1 = +10% APS).")]
     public float attackSpeedPercent;
 
     [Header("Damage % (multipliers)")]
-    [Tooltip("Physical portion of attack split: 0 = none; 0.25 = +25%; 1 = +100% (fractional bonus; stacks with gear).")]
+    [Tooltip("Extra all-physical damage. Uses item scaling: 0.1 = +10% (stacks additively across gear).")]
     public float physicalDamagePercent;
-    [Tooltip("Applies to all physical damage (melee split, abilities using physical, etc.): 0 = none; 0.25 = +25%; 1 = +100%. Stacks additively in the physical multiplier.")]
+    [Tooltip("More all-physical damage, same stacking as Physical %. Use either or both; they add together.")]
     public float globalPhysicalDamagePercent;
-    [Tooltip("Reserved for ranged physical attacks: 0 = none; 0.25 = +25%; 1 = +100%. Display-only until ranged combat uses it.")]
+    [Tooltip("Extra physical damage with ranged weapons only (0.1 = +10%).")]
     public float rangedPhysicalDamagePercent;
-    [Tooltip("Total magic portion (elemental sum): 0 = none; 0.25 = +25%; 1 = +100% (fractional bonus; stacks with gear).")]
+    [Tooltip("Extra magic damage on elemental weapon totals (0.1 = +10%).")]
     public float magicDamagePercent;
-    [Tooltip("Fire ability / instant magic scaling: 0 = none; 0.25 = +25%; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Extra fire damage on fire-tagged hits and skills (0.1 = +10%).")]
     public float fireDamagePercent;
-    [Tooltip("Ice ability / instant magic scaling: 0 = none; 0.25 = +25%; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Extra ice damage on ice-tagged hits and skills (0.1 = +10%).")]
     public float iceDamagePercent;
-    [Tooltip("Cold path; stacks additively with Ice %: 0 = none; 0.25 = +25%; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Extra cold damage; stacks with ice % (0.1 = +10%).")]
     public float coldDamagePercent;
-    [Tooltip("Corruption on attack split (after flat bonuses): 0 = none; 0.25 = +25%; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Extra corruption on attack split (0.1 = +10%).")]
     public float corruptionDamagePercent;
 
     [Header("Optional Charges/Consumption")]
@@ -282,56 +282,56 @@ public struct BonusStats
     public float lifeSteal;
 
     [Header("Mobility")]
-    [Tooltip("Move speed fraction: 0 = none; 0.25 = +25%; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Move speed bonus (0.1 = +10%).")]
     public float moveSpeedPercent;
 
     [Header("Offense")]
-    [Tooltip("Flat bonus to physical/basic attack damage")]
+    [Tooltip("Flat physical damage added to attacks.")]
     public float physicalDamage;
 
-    [Tooltip("Physical portion of attack split: 0 = none; 0.25 = +25%; 1 = +100% (fractional bonus; stacks with gear).")]
+    [Tooltip("Extra all-physical damage (0.1 = +10%). Stacks with Global Physical % on this item.")]
     public float physicalDamagePercent;
 
-    [Tooltip("Applies to all physical damage (melee split, physical abilities, etc.): 0 = none; 0.25 = +25%; 1 = +100%. Stacks additively in the physical multiplier.")]
+    [Tooltip("More all-physical damage (0.1 = +10%). Same combat bucket as Physical %.")]
     public float globalPhysicalDamagePercent;
 
-    [Tooltip("Reserved for ranged physical attacks: 0 = none; 0.25 = +25%; 1 = +100%. Display-only until ranged combat uses it.")]
+    [Tooltip("Extra physical damage with ranged weapons (0.1 = +10%).")]
     public float rangedPhysicalDamagePercent;
 
-    [Tooltip("Flat bonus added to total elemental weapon damage (fire+ice+lightning) on attacks.")]
+    [Tooltip("Flat magic damage added to elemental weapon totals.")]
     public float magicDamage;
 
-    [Tooltip("Total elemental weapon damage (fire+ice+lightning): 0 = none; 0.25 = +25%; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Extra magic damage on elemental weapon totals (0.1 = +10%).")]
     public float magicDamagePercent;
 
-    [Tooltip("Fire-tagged abilities / instant magic lines: 0 = none; 0.25 = +25%; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Extra fire damage on fire skills and instant magic (0.1 = +10%).")]
     public float fireSkillDamagePercent;
 
-    [Tooltip("Ice-tagged abilities / instant magic lines: 0 = none; 0.25 = +25%; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Extra ice damage on ice skills and instant magic (0.1 = +10%).")]
     public float iceSkillDamagePercent;
 
-    [Tooltip("Lightning-tagged abilities / instant magic lines: 0 = none; 0.25 = +25%; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Extra lightning damage on lightning skills and instant magic (0.1 = +10%).")]
     public float lightningSkillDamagePercent;
 
-    [Tooltip("Corruption portion of attack split (after flat corruption damage): 0 = none; 0.25 = +25%; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Extra corruption on attack split (0.1 = +10%).")]
     public float corruptionDamagePercent;
 
-    [Tooltip("Flat bonus to corruption/basic attack damage")]
+    [Tooltip("Flat corruption damage on attacks.")]
     [FormerlySerializedAs("trueDamage")] public float corruptionDamage;
 
-    [Tooltip("Generic power for abilities/spells")]
+    [Tooltip("Ability Power for skills that scale from it.")]
     public float abilityPower;
 
-    [Tooltip("Attack speed fraction: 0 = none; 0.25 = +25% APS; 1 = +100% (same convention as ability scaling).")]
+    [Tooltip("Attack speed bonus (0.1 = +10% APS).")]
     public float attackSpeedPercent;
 
-    [Tooltip("Crit chance added to weapon (0–1 scale): 0 = none; 0.25 = +25 percentage points crit chance.")]
+    [Tooltip("Added crit chance, 0–1 scale (0.1 = +10 percentage points).")]
     public float critChanceBonus;
 
-    [Tooltip("Added to weapon crit multiplier (not a % of hit damage). 0.25 = +0.25 multiplier (e.g. 1.5× → 1.75×).")]
+    [Tooltip("Added to crit multiplier (0.1 = +0.1 mult).")]
     public float critMultiplierBonus;
 
-    [Tooltip("Extra attack range (additive)")]
+    [Tooltip("Added attack range.")]
     public float attackRangeBonus;
 
     [Header("Ailments")]
@@ -969,22 +969,21 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (SupportBonusPhysicalDamage != 0f) s += $"\nPhysical Damage: {FormatSignedNumber(SupportBonusPhysicalDamage)}";
             if (SupportBonusMagicDamage != 0f) s += $"\nMagic Damage: {FormatSignedNumber(SupportBonusMagicDamage)}";
             if (SupportBonusCorruptionDamage != 0f) s += $"\nCorruption Damage: {FormatSignedNumber(SupportBonusCorruptionDamage)}";
-            if (SupportPhysicalDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportPhysicalDamagePercent, "Physical Damage (attacks)")}";
-            if (SupportGlobalPhysicalDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportGlobalPhysicalDamagePercent, "Physical (All)")}";
+            float supAllPhys = SupportPhysicalDamagePercent + SupportGlobalPhysicalDamagePercent;
+            if (supAllPhys != 0f)
+                s += $"\n{FormatScalingCoefficientPercentLine(supAllPhys, "All physical")}";
             if (SupportRangedPhysicalDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportRangedPhysicalDamagePercent, "Physical (ranged)")}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportRangedPhysicalDamagePercent, "Ranged physical")}";
             if (SupportMagicDamagePercent != 0f)
-                s += $"\nMagic damage: {FormatSignedPercent01(SupportMagicDamagePercent)}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportMagicDamagePercent, "All magic")}";
             if (SupportFireDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportFireDamagePercent, "Fire Damage (skills)")}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportFireDamagePercent, "Fire skills")}";
             if (SupportIceDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportIceDamagePercent, "Ice Damage (skills)")}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportIceDamagePercent, "Ice skills")}";
             if (SupportColdDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportColdDamagePercent, "Cold Damage (skills)")}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportColdDamagePercent, "Cold skills")}";
             if (SupportCorruptionDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportCorruptionDamagePercent, "Corruption Damage (attacks)")}";
+                s += $"\n{FormatScalingCoefficientPercentLine(SupportCorruptionDamagePercent, "Corruption")}";
             if (SupportCritChanceBonus != 0f) s += $"\nCrit Chance: {FormatSignedPercent01(SupportCritChanceBonus)}";
             if (SupportCritMultiplierBonus != 0f) s += $"\nCrit Multi: {FormatSignedPercent01(SupportCritMultiplierBonus)}";
             if (SupportAttackSpeedPercent != 0f)
@@ -1140,23 +1139,22 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (bonusStats.moveSpeedPercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.moveSpeedPercent, "Move Speed")}\n";
         if (bonusStats.physicalDamage != 0f) s += $"Physical Damage: {FormatSignedNumber(bonusStats.physicalDamage)}\n";
-        if (bonusStats.physicalDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.physicalDamagePercent, "Physical Damage (attacks)")}\n";
-        if (bonusStats.globalPhysicalDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.globalPhysicalDamagePercent, "Physical (All)")}\n";
+        float allPhysPct = bonusStats.physicalDamagePercent + bonusStats.globalPhysicalDamagePercent;
+        if (allPhysPct != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(allPhysPct, "All physical")}\n";
         if (bonusStats.rangedPhysicalDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.rangedPhysicalDamagePercent, "Physical (ranged)")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.rangedPhysicalDamagePercent, "Ranged physical")}\n";
         if (bonusStats.magicDamage != 0f) s += $"Magic Damage: {FormatSignedNumber(bonusStats.magicDamage)}\n";
         if (bonusStats.magicDamagePercent != 0f)
-            s += $"Magic damage: {FormatSignedPercent01(bonusStats.magicDamagePercent)}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.magicDamagePercent, "All magic")}\n";
         if (bonusStats.fireSkillDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.fireSkillDamagePercent, "Fire Damage (skills)")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.fireSkillDamagePercent, "Fire skills")}\n";
         if (bonusStats.iceSkillDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.iceSkillDamagePercent, "Ice Damage (skills)")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.iceSkillDamagePercent, "Ice skills")}\n";
         if (bonusStats.lightningSkillDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.lightningSkillDamagePercent, "Lightning Damage (skills)")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.lightningSkillDamagePercent, "Lightning skills")}\n";
         if (bonusStats.corruptionDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.corruptionDamagePercent, "Corruption Damage (attacks)")}\n";
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.corruptionDamagePercent, "Corruption")}\n";
         if (bonusStats.corruptionDamage != 0f) s += $"Corruption Damage: {FormatSignedNumber(bonusStats.corruptionDamage)}\n";
         if (bonusStats.abilityPower != 0f) s += $"Ability Power: {FormatSignedNumber(bonusStats.abilityPower)}\n";
         if (bonusStats.lifeSteal != 0f) s += $"Life Steal: {FormatSignedPercent01(bonusStats.lifeSteal)}\n";

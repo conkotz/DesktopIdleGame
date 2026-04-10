@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 
 public enum UiTooltipSource
 {
@@ -18,8 +19,10 @@ public class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitH
     [Tooltip("Auto: text comes from GameTooltipTexts using this object's name. Custom: use fields below.")]
     [SerializeField] private UiTooltipSource tooltipSource = UiTooltipSource.AutoByGameObjectName;
 
+    [FormerlySerializedAs("tooltipTitle")]
     [SerializeField] private string customTitle = "Info";
 
+    [FormerlySerializedAs("tooltipText")]
     [TextArea(3, 10)]
     [SerializeField] private string customBody;
 
@@ -27,7 +30,10 @@ public class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitH
     [SerializeField] private SharedTooltipUI tooltipPanel;
 
     [Header("Docking")]
+    [Tooltip("Optional. Leave Use Shared Tooltip Anchor off so the tooltip parents to this row (same as ailment lines).")]
     [SerializeField] private Transform tooltipAnchor;
+    [Tooltip("If on, Tooltip Anchor is used (e.g. one shared dock for the whole window). Off by default so each stat line is its own anchor.")]
+    [SerializeField] private bool useSharedTooltipAnchor;
     [SerializeField] private RectTransform tooltipMeasureRect;
     [SerializeField] private FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Right;
 
@@ -35,6 +41,18 @@ public class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitH
     {
         if (!tooltipPanel)
             tooltipPanel = FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
+    }
+
+    /// <summary>
+    /// Use the equipment/inventory shared tooltip and auto-resolve copy from <see cref="GameTooltipTexts"/> by GameObject name.
+    /// (Avoids picking the HUD tooltip via <see cref="FindFirstObjectByType{T}"/>.)
+    /// </summary>
+    public void ConfigureForEquipmentStats(SharedTooltipUI panel)
+    {
+        if (panel)
+            tooltipPanel = panel;
+        tooltipSource = UiTooltipSource.AutoByGameObjectName;
+        useSharedTooltipAnchor = false;
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -68,7 +86,7 @@ public class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitH
             }
         }
 
-        Transform anchor = tooltipAnchor ? tooltipAnchor : transform;
+        Transform anchor = useSharedTooltipAnchor && tooltipAnchor ? tooltipAnchor : transform;
         tooltipPanel.SetAnchor(anchor);
         tooltipPanel.ShowText(title, body);
     }

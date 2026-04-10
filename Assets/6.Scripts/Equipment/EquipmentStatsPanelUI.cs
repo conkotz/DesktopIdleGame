@@ -50,18 +50,27 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text critDamageText;
     [SerializeField] private TMP_Text lifeStealText;
 
+    [Header("Offence — section titles (optional)")]
+    [Tooltip("e.g. \"Global bonuses\". Shown above phys/magic/corruption lines.")]
+    [SerializeField] private TMP_Text offenceGlobalBonusesHeaderText;
+    [Tooltip("e.g. \"By weapon\". Shown above melee/ranged lines.")]
+    [SerializeField] private TMP_Text offenceStyleBonusesHeaderText;
+
     [Header("Global bonuses (gear + supports)")]
+    [FormerlySerializedAs("physDamageScalingText")]
     [SerializeField] private TMP_Text globalPhysicalAllText;
+    [FormerlySerializedAs("magicDamageScalingText")]
     [SerializeField] private TMP_Text globalMagicAllText;
+    [FormerlySerializedAs("corruptionDamageScalingText")]
     [SerializeField] private TMP_Text globalCorruptionAllText;
-    [FormerlySerializedAs("conditionalFireText")]
+    [FormerlySerializedAs("fireSkillScalingText")]
     [SerializeField] private TMP_Text globalFireBonusText;
-    [FormerlySerializedAs("conditionalIceText")]
+    [FormerlySerializedAs("iceSkillScalingText")]
     [SerializeField] private TMP_Text globalIceBonusText;
-    [FormerlySerializedAs("conditionalLightningText")]
+    [FormerlySerializedAs("lightningSkillScalingText")]
     [SerializeField] private TMP_Text globalLightningBonusText;
 
-    [Header("Conditional bonuses (gear + tree / passives where noted)")]
+    [Header("Style bonuses (melee vs ranged physical)")]
     [FormerlySerializedAs("conditionalMeleePhysicalText")]
     [SerializeField] private TMP_Text meleeDamageBonusText;
     [FormerlySerializedAs("conditionalRangedPhysicalText")]
@@ -233,6 +242,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (abilityPowerText) abilityPowerText.text = $"Ability Power: {stats.AbilityPower:0.##}";
         if (statsHeaderText) statsHeaderText.text = $"Stats (CP: {stats.CombatPowerRounded})";
 
+        if (offenceGlobalBonusesHeaderText)
+            offenceGlobalBonusesHeaderText.text = "Global bonuses";
+        if (offenceStyleBonusesHeaderText)
+            offenceStyleBonusesHeaderText.text = "Conditional bonuses";
+
         // -------------------------
         // Offensive
         // -------------------------
@@ -327,11 +341,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         }
 
         if (globalPhysicalAllText)
-            globalPhysicalAllText.text = $"Physical (All): {FormatSignedPercentPoints(stats.GlobalPhysicalDamageBonusPercentPoints)}";
+            globalPhysicalAllText.text = $"Physical: {FormatSignedPercentPoints(stats.GlobalPhysicalDamageBonusPercentPoints)}";
         if (globalMagicAllText)
-            globalMagicAllText.text = $"Magic (All): {FormatSignedPercentPoints(stats.GlobalMagicDamageBonusPercentPoints)}";
+            globalMagicAllText.text = $"Magic: {FormatSignedPercentPoints(stats.GlobalMagicDamageBonusPercentPoints)}";
         if (globalCorruptionAllText)
-            globalCorruptionAllText.text = $"Corruption (All): {FormatSignedPercentPoints(stats.GlobalCorruptionDamageBonusPercentPoints)}";
+            globalCorruptionAllText.text = $"Corruption: {FormatSignedPercentPoints(stats.GlobalCorruptionDamageBonusPercentPoints)}";
         if (globalFireBonusText)
             globalFireBonusText.text = $"Fire: {FormatSignedPercentPoints(stats.FireSkillDamageTotalScalingPercentPoints)}";
         if (globalIceBonusText)
@@ -340,11 +354,12 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             globalLightningBonusText.text = $"Lightning: {FormatSignedPercentPoints(stats.LightningSkillDamageTotalScalingPercentPoints)}";
 
         if (meleeDamageBonusText)
-            meleeDamageBonusText.text = $"Melee Damage: {FormatSignedPercentPoints(stats.MeleePhysicalConditionalBonusPercentPoints)}";
+            meleeDamageBonusText.text = $"Melee Physical: {FormatSignedPercentPoints(stats.MeleePhysicalConditionalBonusPercentPoints)}";
         if (rangedDamageBonusText)
-            rangedDamageBonusText.text = $"Ranged Damage: {FormatSignedPercentPoints(stats.RangedPhysicalDamageBonusPercentPoints)}";
+            rangedDamageBonusText.text = $"Ranged Physical: {FormatSignedPercentPoints(stats.RangedPhysicalDamageBonusPercentPoints)}";
 
         PopulateDetailedAilmentLines();
+        EnsureOffenceBonusLineTooltips();
         BindAilmentLineTooltips();
 
         // -------------------------
@@ -421,6 +436,65 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Ensures hover tooltips on global / style bonus lines (uses <see cref="GameTooltipTexts"/> by GameObject name).
+    /// Binds the same <see cref="SharedTooltipUI"/> as ailment rows and rescans children so duplicate rows (e.g. extra tab layouts) still work.
+    /// </summary>
+    private void EnsureOffenceBonusLineTooltips()
+    {
+        SharedTooltipUI tip = ResolveAilmentSharedTooltip();
+
+        void Wire(TMP_Text tmp)
+        {
+            if (!tmp)
+                return;
+            tmp.raycastTarget = true;
+
+            EquipmentAilmentLineTooltip ailmentOnly = tmp.GetComponent<EquipmentAilmentLineTooltip>();
+            if (ailmentOnly)
+                Destroy(ailmentOnly);
+
+            UIHoverTooltip hover = tmp.GetComponent<UIHoverTooltip>();
+            if (!hover)
+                hover = tmp.gameObject.AddComponent<UIHoverTooltip>();
+            if (tip)
+                hover.ConfigureForEquipmentStats(tip);
+        }
+
+        Wire(globalPhysicalAllText);
+        Wire(globalMagicAllText);
+        Wire(globalCorruptionAllText);
+        Wire(globalFireBonusText);
+        Wire(globalIceBonusText);
+        Wire(globalLightningBonusText);
+        Wire(meleeDamageBonusText);
+        Wire(rangedDamageBonusText);
+
+        foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
+        {
+            switch (tmp.gameObject.name)
+            {
+                case "PhysicalBonusText":
+                case "GlobalPhysicalBonusText":
+                case "MagBonusText":
+                case "GlobalMagBonusText":
+                case "CorruptionBonusText":
+                case "GlobalCorruptionBonusText":
+                case "FireBonusText":
+                case "IceBonusText":
+                case "LightningBonusText":
+                case "MeleePhysBonusText":
+                case "MeleeDamageBonusText":
+                case "ConditionalMeleePhysBonusText":
+                case "RangedPhysBonusText":
+                case "RangedDamageBonusText":
+                case "ConditionalRangedPhysBonusText":
+                    Wire(tmp);
+                    break;
+            }
+        }
     }
 
     private void BindAilmentLineTooltips()

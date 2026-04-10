@@ -61,6 +61,7 @@ public class SkillTreeViewUI : MonoBehaviour
     private readonly List<RowDef> layoutRowsCache = new();
 
     private SkillTreeNodeUI selectedNode;
+    private SkillDefinition _lastBuiltSkill;
     private float choiceChangeUnlockedAt;
     private bool isCombatStateSubscribed;
 
@@ -194,6 +195,56 @@ public class SkillTreeViewUI : MonoBehaviour
         SpawnConnectors(rows);
         RefreshAbilityTierLayoutAndVisibility();
         RefreshChoiceBranchVisibility();
+        _lastBuiltSkill = selectedSkill;
+    }
+
+    /// <summary>
+    /// Updates lock state and tooltip strings without destroying nodes. Use when only the character's skill level changed
+    /// (full rebuild breaks hover tooltips if the pointer never exits destroyed nodes).
+    /// </summary>
+    public bool RefreshProgressIfSameSkill(SkillDefinition skill, int currentSkillLevel)
+    {
+        if (skill == null || selectedSkill != skill || skill != _lastBuiltSkill || nodeLookup.Count == 0)
+            return false;
+
+        sharedTooltip?.Hide();
+
+        foreach (var kv in nodeLookup)
+        {
+            string nodeId = kv.Key;
+            SkillTreeNodeUI nodeUi = kv.Value;
+            if (nodeUi == null)
+                continue;
+
+            if (rowDefBySpineNodeId.TryGetValue(nodeId, out RowDef row))
+            {
+                bool unlocked = row.level <= currentSkillLevel;
+                BuildTooltipCopy(row.level, row.type, row.unlock, unlocked, out string mainTitle, out string mainBody);
+                tooltipTitleByNodeId[nodeId] = string.IsNullOrWhiteSpace(mainTitle) ? "Node" : mainTitle;
+                tooltipBodyByNodeId[nodeId] = mainBody ?? string.Empty;
+                nodeUi.SetLocked(!unlocked);
+            }
+            else if (choiceMetaByNodeId.TryGetValue(nodeId, out ChoiceNodeMeta cm))
+            {
+                if (!rowDefBySpineNodeId.TryGetValue(cm.parentSpineNodeId, out RowDef parentRow))
+                    continue;
+
+                List<SkillChoiceDefinition> choices = GetNonNullChoices(parentRow.unlock);
+                SkillChoiceDefinition choice = cm.choiceIndex >= 0 && cm.choiceIndex < choices.Count
+                    ? choices[cm.choiceIndex]
+                    : null;
+                bool unlocked = parentRow.level <= currentSkillLevel && cm.unlockLevel <= currentSkillLevel;
+                BuildChoiceTooltipCopy(cm.unlockLevel, choice, parentRow.unlock, unlocked, out string cTitle, out string cBody);
+                tooltipTitleByNodeId[nodeId] = string.IsNullOrWhiteSpace(cTitle) ? "Node" : cTitle;
+                tooltipBodyByNodeId[nodeId] = cBody ?? string.Empty;
+                nodeUi.SetLocked(!unlocked);
+            }
+        }
+
+        RefreshChoiceSelectionVisuals();
+        RefreshAbilityTierLayoutAndVisibility();
+        RefreshChoiceBranchVisibility();
+        return true;
     }
 
     /// <summary>
@@ -663,6 +714,10 @@ public class SkillTreeViewUI : MonoBehaviour
 
     public void ClearTree()
     {
+        sharedTooltip?.Hide();
+
+        _lastBuiltSkill = null;
+
         foreach (var n in spawnedNodes)
             if (n != null) Destroy(n.gameObject);
 
@@ -692,7 +747,6 @@ public class SkillTreeViewUI : MonoBehaviour
         nodeLevelById.Clear();
         choiceMetaByNodeId.Clear();
         selectedNode = null;
-        sharedTooltip?.Hide();
     }
 
     private void RefreshEquipmentTierHint()

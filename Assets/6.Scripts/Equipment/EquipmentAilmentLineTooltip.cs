@@ -74,7 +74,7 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
         if (!tooltipPanel || !s)
             return;
 
-        if (!TryBuildTooltip(s, out string title, out string body) || string.IsNullOrWhiteSpace(body))
+        if (!TryBuildTooltip(out string title, out string body) || string.IsNullOrWhiteSpace(body))
             return;
 
         var flipper = tooltipPanel.GetComponent<FlipInsideBounds>();
@@ -102,7 +102,7 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
         tooltipPanel?.Hide();
     }
 
-    private bool TryBuildTooltip(CharacterStats s, out string title, out string body)
+    private bool TryBuildTooltip(out string title, out string body)
     {
         title = "";
         body = "";
@@ -112,8 +112,8 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
             case LineId.BleedOverview:
                 title = GameTooltipTexts.BleedTitle;
                 body =
-                    "Damage over time from physical hits. Base bleed deals 100% of the hit's physical damage over its duration " +
-                    "(bleed damage bonuses on your stats increase that total).\n\n" +
+                    "Damage over time from physical hits. Base bleed deals 100% of the hit's physical damage over its duration. " +
+                    "\n\n" +
                     "If a new bleed is applied from a harder hit, the remaining ticks become stronger.";
                 return true;
 

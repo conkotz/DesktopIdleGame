@@ -425,7 +425,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             centerSkillTreePlaceholderText.text = "";
 
         if (centerSkillTreeView)
-            centerSkillTreeView.SetSkill(_selectedSkill);
+        {
+            if (!centerSkillTreeView.RefreshProgressIfSameSkill(_selectedSkill, level))
+                centerSkillTreeView.SetSkill(_selectedSkill);
+        }
 
         if (rightUnlocksText)
             rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager);
@@ -465,7 +468,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         int availableInTreeCount = CountTotalAbilitiesAvailableInTree(skill, level);
         int selectedInTreeCount = CountTotalAbilitiesSelectedInTree(skill, level);
         if (rightAbilitiesText)
-            rightAbilitiesText.text = $"Abilities avaialble: {availableInTreeCount}\nAbilities selected: {selectedInTreeCount}";
+            rightAbilitiesText.text = $"Abilities available: {availableInTreeCount}\nAbilities selected: {selectedInTreeCount}";
 
         ClearAbilityRows();
 
@@ -476,11 +479,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         foreach (var a in abilities)
         {
             if (!a) continue;
-            bool unlocked = level >= Mathf.Max(1, a.unlockLevel);
-            if (unlocked && !SkillAbilityCommitRules.ShouldShowAbilityInRightPanel(skill, a, skillsManager))
+            if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, a, skillsManager))
                 continue;
             var row = CreateAbilityRow(rightAbilitiesListParent);
-            row.Bind(a, unlocked, tooltip, canvas);
+            row.Bind(a, unlocked: true, tooltip, canvas);
             row.SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Left);
         }
     }

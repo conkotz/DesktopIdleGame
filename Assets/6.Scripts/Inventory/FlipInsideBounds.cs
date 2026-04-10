@@ -19,6 +19,12 @@ public class FlipInsideBounds : MonoBehaviour
     // IMPORTANT: use a stable width (your original approach)
     [SerializeField] private float panelWidth = 240f;
 
+    [Header("Rarity border strip (optional)")]
+    [Tooltip("Child strip Image; auto-found as \"RarityBorder\" under Panel if empty.")]
+    [SerializeField] private RectTransform rarityBorderStrip;
+    [SerializeField] private float rarityBorderWidth = 6f;
+    [SerializeField] private float rarityBorderOutwardOffset = 6f;
+
     private RectTransform ParentRect => panel ? panel.parent as RectTransform : null;
 
     public void SetPreferredSide(PreferredSide side) => preferredSide = side;
@@ -30,12 +36,29 @@ public class FlipInsideBounds : MonoBehaviour
         panel = transform as RectTransform;
     }
 
+    private void Awake()
+    {
+        if (!rarityBorderStrip && panel)
+        {
+            Transform t = panel.Find("RarityBorder");
+            if (t)
+                rarityBorderStrip = t as RectTransform;
+        }
+    }
+
     private void LateUpdate()
     {
         if (!panel || !boundsRect) return;
 
         var parent = ParentRect;
         if (!parent) return;
+
+        if (!rarityBorderStrip && panel)
+        {
+            Transform t = panel.Find("RarityBorder");
+            if (t)
+                rarityBorderStrip = t as RectTransform;
+        }
 
         // Fallbacks
         var m = measureRect ? measureRect : parent;
@@ -88,6 +111,38 @@ public class FlipInsideBounds : MonoBehaviour
         // 3) Apply
         if (dockRight) DockRight(yMin, yMax);
         else DockLeft(yMin, yMax);
+
+        ApplyRarityBorderToInnerEdge(dockRight);
+    }
+
+    /// <summary>
+    /// Puts the rarity strip on the edge of the tooltip that faces the anchor (hovered cell).
+    /// Dock right → strip on the left; dock left → strip on the right.
+    /// </summary>
+    private void ApplyRarityBorderToInnerEdge(bool dockRight)
+    {
+        if (!rarityBorderStrip)
+            return;
+
+        float w = rarityBorderWidth;
+        float o = rarityBorderOutwardOffset;
+
+        if (dockRight)
+        {
+            rarityBorderStrip.anchorMin = new Vector2(0f, 0f);
+            rarityBorderStrip.anchorMax = new Vector2(0f, 1f);
+            rarityBorderStrip.pivot = new Vector2(0f, 0.5f);
+            rarityBorderStrip.anchoredPosition = new Vector2(-o, 0f);
+            rarityBorderStrip.sizeDelta = new Vector2(w, 0f);
+        }
+        else
+        {
+            rarityBorderStrip.anchorMin = new Vector2(1f, 0f);
+            rarityBorderStrip.anchorMax = new Vector2(1f, 1f);
+            rarityBorderStrip.pivot = new Vector2(1f, 0.5f);
+            rarityBorderStrip.anchoredPosition = new Vector2(o, 0f);
+            rarityBorderStrip.sizeDelta = new Vector2(w, 0f);
+        }
     }
 
     private void DockRight(float yMin, float yMax)

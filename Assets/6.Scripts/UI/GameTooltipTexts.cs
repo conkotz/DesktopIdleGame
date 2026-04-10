@@ -115,35 +115,50 @@ public static class GameTooltipTexts
                 return true;
 
             case "PhysicalBonusText":
-                title = "Physical damage";
-                description =
-                    "Total physical damage increase from all sources.\n\n" +
-                    "If physical bonuses apply to melee or ranged, that weapon must be equipped.";
+            case "GlobalPhysicalBonusText":
+                title = "All physical";
+                description = "Increases all Physical damage you deal.";
                 return true;
 
             case "MagBonusText":
-                title = "Magic damage";
-                description = "Total magic damage increase from all sources.";
+            case "GlobalMagBonusText":
+                title = "All magic";
+                description = "Increases all Magic damage you deal.";
                 return true;
 
             case "CorruptionBonusText":
-                title = "Corruption damage";
-                description = "Total corruption damage increase from all sources.";
+            case "GlobalCorruptionBonusText":
+                title = "All corruption";
+                description = "Increases all Corruption damage you deal.";
                 return true;
 
             case "FireBonusText":
-                title = "Fire %";
-                description = "Total fire hit damage increase from all sources.";
+                title = "Fire damage";
+                description = "Extra fire damage on hits that use fire (gear and supports).";
                 return true;
 
             case "IceBonusText":
-                title = "Ice %";
-                description = "Total ice hit damage increase from all sources.";
+                title = "Ice damage";
+                description = "Extra ice damage on hits that use ice (gear and supports).";
                 return true;
 
             case "LightningBonusText":
-                title = "Lightning %";
-                description = "Total lightning hit damage increase from all sources.";
+                title = "Lightning damage";
+                description = "Extra lightning damage on hits that use lightning (gear and supports).";
+                return true;
+
+            case "MeleePhysBonusText":
+            case "MeleeDamageBonusText":
+            case "ConditionalMeleePhysBonusText":
+                title = "Melee physical";
+                description = "Increases melee physical damage you deal.";
+                return true;
+
+            case "RangedPhysBonusText":
+            case "RangedDamageBonusText":
+            case "ConditionalRangedPhysBonusText":
+                title = "Ranged physical";
+                description = "Increases ranged physical damage you deal.";
                 return true;
 
             case "BleedText":

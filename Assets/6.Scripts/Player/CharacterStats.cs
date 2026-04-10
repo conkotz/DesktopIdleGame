@@ -1131,18 +1131,59 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // Offensive calcs
     // -------------------------
     /// <summary>
-    /// Combined multipliers applied to physical / magic portions of melee split damage:
-    /// consumable boosts × (gear % + melee minor tree %). Matches <see cref="GetMinSplitDamage"/> / <see cref="GetMaxSplitDamage"/>.
+    /// Additive physical % (before the <c>1 +</c> multiplier) for weapon split damage: global gear/support,
+    /// plus melee minor tree when <paramref name="weaponAttackSkill"/> is <see cref="AttackSkill.Melee"/>,
+    /// or <see cref="GetEquippedRangedPhysicalDamagePercent"/> when <see cref="AttackSkill.Ranged"/>.
+    /// Magic weapons use global only.
+    /// </summary>
+    private static float GetAdditivePhysicalPercentForWeaponStyle(
+        AttackSkill weaponAttackSkill,
+        float globalPhysicalFraction,
+        float rangedPhysicalFraction,
+        MeleeMinorNodeBonuses meleeBonuses)
+    {
+        float p = globalPhysicalFraction;
+        if (weaponAttackSkill == AttackSkill.Ranged)
+            p += rangedPhysicalFraction;
+        else if (weaponAttackSkill == AttackSkill.Melee)
+            p += meleeBonuses.meleeDamagePercent;
+        return Mathf.Max(0f, p);
+    }
+
+    /// <summary>
+    /// Same stacking as basic-attack physical scaling (global + melee tree or ranged gear), as a fraction before buffs (0.1 = +10%).
+    /// Use for ranged/melee abilities that should match weapon passive scaling; multiply by <c>1 +</c> this value, then apply consumable physical buffs if needed.
+    /// </summary>
+    public float GetPhysicalDamageScalingFractionBeforeBuffs(AttackSkill forWeaponAttackSkill)
+    {
+        MeleeMinorNodeBonuses melee =
+            forWeaponAttackSkill == AttackSkill.Melee ? GetActiveMeleeMinorBonuses() : default;
+        return GetAdditivePhysicalPercentForWeaponStyle(
+            forWeaponAttackSkill,
+            GetEquippedGlobalPhysicalDamagePercent(),
+            GetEquippedRangedPhysicalDamagePercent(),
+            melee);
+    }
+
+    /// <summary>Uses <see cref="CurrentAttackSkill"/> (main-hand weapon).</summary>
+    public float GetPhysicalDamageScalingFractionBeforeBuffs() =>
+        GetPhysicalDamageScalingFractionBeforeBuffs(GetCurrentAttackSkill());
+
+    /// <summary>
+    /// Combined multipliers applied to physical / magic portions of attack split damage:
+    /// consumable boosts × (global physical + melee minor % or ranged gear % by weapon style). Matches <see cref="GetMinSplitDamage"/> / <see cref="GetMaxSplitDamage"/>.
     /// Corruption uses <see cref="GetEquippedCorruptionDamagePercent"/> (e.g. combat support) after flat bonuses.
     /// </summary>
     private void GetMeleeSplitDamageScalingMultipliers(MeleeMinorNodeBonuses meleeBonuses, out float physicalDamageMult, out float magicDamageMult)
     {
         float physicalBuffMult = 1f + (buffController ? buffController.PhysicalDamageBoostPercent : 0f);
         float magicBuffMult = 1f + (buffController ? buffController.MagicDamageBoostPercent : 0f);
-        float physicalGearPctMult = 1f + Mathf.Max(0f,
-            GetEquippedGlobalPhysicalDamagePercent() +
-            GetEquippedPhysicalDamagePercent() +
-            meleeBonuses.meleeDamagePercent);
+        float physPct = GetAdditivePhysicalPercentForWeaponStyle(
+            GetCurrentAttackSkill(),
+            GetEquippedGlobalPhysicalDamagePercent(),
+            GetEquippedRangedPhysicalDamagePercent(),
+            meleeBonuses);
+        float physicalGearPctMult = 1f + physPct;
         float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent);
         physicalDamageMult = physicalBuffMult * physicalGearPctMult;
         magicDamageMult = magicBuffMult * magicGearPctMult;
@@ -1187,17 +1228,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Equipped corruption attack-split % (armor bonus + combat supports).</summary>
     public float GlobalCorruptionDamageBonusPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
 
-    /// <summary>Melee physical conditional: gear/support attack phys % + melee skill tree phys % (excludes global phys, buffs).</summary>
+    /// <summary>
+    /// Melee skill-tree physical % (always shows unlocked passives for UI). Combat applies this only with a <see cref="AttackSkill.Melee"/> weapon (see split-damage multipliers).
+    /// </summary>
     public float MeleePhysicalConditionalBonusPercentPoints
     {
         get
         {
-            var m = GetActiveMeleeMinorBonuses();
-            return (GetEquippedPhysicalDamagePercent() + m.meleeDamagePercent) * 100f;
+            var m = GetUnlockedMeleeMinorBonuses();
+            return m.meleeDamagePercent * 100f;
         }
     }
 
-    /// <summary>Ranged physical % from gear (reserved; not yet applied in combat).</summary>
+    /// <summary>Ranged physical % from gear/support; stacks with <see cref="GlobalPhysicalDamageBonusPercentPoints"/> on <see cref="AttackSkill.Ranged"/> attacks.</summary>
     public float RangedPhysicalDamageBonusPercentPoints => GetEquippedRangedPhysicalDamagePercent() * 100f;
 
     /// <summary>Bleed is a single-stack DoT in the current combat model.</summary>
@@ -1810,22 +1853,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
-    private float GetEquippedPhysicalDamagePercent()
-    {
-        float total = 0f;
-        foreach (var def in EnumerateEquippedDefs())
-        {
-            total += def.PhysicalDamagePercent;
-            total += def.SupportPhysicalDamagePercent;
-        }
-        return total;
-    }
-
     private float GetEquippedGlobalPhysicalDamagePercent()
     {
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
+        {
             total += def.GlobalPhysicalDamagePercent;
+            total += def.PhysicalDamagePercent;
+            total += def.SupportPhysicalDamagePercent;
+        }
         return Mathf.Max(0f, total);
     }
 

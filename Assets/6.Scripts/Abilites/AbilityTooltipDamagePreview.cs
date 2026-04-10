@@ -255,10 +255,15 @@ public static class AbilityTooltipDamagePreview
                 body.AppendLine(O($"{magMult * 100f:0.#}% Magic damage ({magScalingContrib})"));
             if (hasApScaling)
             {
-                float bonusPctNow = tipAp * apMult;
+                // Coefficient is "% damage added per 1 Ability Power" (matches GetAbilityPowerDamageMultiplier).
+                float coef = Mathf.Max(0f, apMult);
+                float bonusPctNow = tipAp * coef;
                 float linearWeaponScaled = Mathf.Max(0f, tipAvgPhys * physMult + tipAvgMag * magMult);
-                int apContrib = Mathf.RoundToInt(linearWeaponScaled * bonusPctNow / 100f);
-                body.AppendLine(O($"{bonusPctNow:0.#}% Ability Power ({apContrib})"));
+                float div = CharacterStats.AbilityPowerDamagePercentDivisor;
+                int apContrib = Mathf.RoundToInt(linearWeaponScaled * bonusPctNow / div);
+                string dmgBit = apContrib > 0 ? $"+{apContrib}" : apContrib.ToString();
+                body.AppendLine(O(
+                    $"+{coef:0.##}% damage per Ability Power (+{bonusPctNow:0.##}% from your AP · {dmgBit})"));
             }
         }
 
