@@ -113,8 +113,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _nextLowManaPopupTime;
     private float _combatSessionStartTime = -1f;
     private float _combatSessionDamageSum;
-    private float _lastDamageTime = -999f;
     private float _lastCombatActivityTime = -999f;
+    private float _lastHpForCombatEngageTrack = -1f;
 
     public float GetAttackCooldownSeconds()
     {
@@ -160,7 +160,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     public float GetCurrentDps()
     {
         float now = Time.time;
-        if (!IsCombatEngaged() && now - _lastCombatActivityTime >= Mathf.Max(0.1f, dpsResetOutOfCombatSeconds))
+        if (!IsCombatEngaged())
             return 0f;
 
         if (_combatSessionStartTime < 0f || _combatSessionDamageSum <= 0f)
@@ -181,17 +181,53 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             _nextIdleAutoPickupTime = Time.time + Mathf.Max(0.5f, idleAutoPickupIntervalSeconds);
     }
 
+    private void OnEnable()
+    {
+        TryResolveAutoConsumeRefs();
+        if (stats)
+        {
+            stats.OnHPChanged += HandlePlayerHpChangedForCombatEngage;
+            _lastHpForCombatEngageTrack = stats.HP;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (stats)
+            stats.OnHPChanged -= HandlePlayerHpChangedForCombatEngage;
+    }
+
+    private void HandlePlayerHpChangedForCombatEngage(float hp, float maxHp)
+    {
+        if (_lastHpForCombatEngageTrack >= 0f && hp < _lastHpForCombatEngageTrack - 0.0001f)
+            MarkRecentCombatActivity();
+        _lastHpForCombatEngageTrack = hp;
+    }
+
+    /// <summary>Bumps local engagement clock and player <see cref="PlayerCombatState"/> soft combat (dealt or took damage).</summary>
+    private void MarkRecentCombatActivity()
+    {
+        float window = Mathf.Max(0.1f, dpsResetOutOfCombatSeconds);
+        _lastCombatActivityTime = Time.time;
+        if (player)
+            player.NotifySoftCombatInteraction(window);
+    }
+
     private void Update()
     {
         if (!player || !stats) return;
 
+        float window = Mathf.Max(0.1f, dpsResetOutOfCombatSeconds);
+
+        if (IsProximityCombatEngaged())
+            _lastCombatActivityTime = Time.time;
+
         if (IsCombatEngaged())
         {
-            _lastCombatActivityTime = Time.time;
             if (_combatSessionStartTime < 0f)
                 _combatSessionStartTime = Time.time;
         }
-        else if (Time.time - _lastCombatActivityTime >= Mathf.Max(0.1f, dpsResetOutOfCombatSeconds))
+        else if (Time.time - _lastCombatActivityTime >= window)
         {
             ResetDpsSession();
         }
@@ -335,11 +371,20 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
     }
 
-    private bool IsCombatEngaged()
+    /// <summary>Target selected or an enemy is in proximity engage range (not soft combat from recent hits).</summary>
+    private bool IsProximityCombatEngaged()
     {
         bool hasLiveTarget = _target != null && !_target.IsDead && _target.gameObject.activeInHierarchy;
-        bool playerInCombat = player != null && player.InCombat;
-        return hasLiveTarget || playerInCombat;
+        bool enemyNear = player != null && player.HasEnemyProximityEngagement;
+        return hasLiveTarget || enemyNear;
+    }
+
+    /// <summary>Proximity engagement, or recent damage dealt or taken (within <see cref="dpsResetOutOfCombatSeconds"/>).</summary>
+    private bool IsCombatEngaged()
+    {
+        if (IsProximityCombatEngaged())
+            return true;
+        return Time.time - _lastCombatActivityTime < Mathf.Max(0.1f, dpsResetOutOfCombatSeconds);
     }
 
     private void TickAutoConsumables()
@@ -762,8 +807,12 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             ApplyCleaveSecondaryHits(targetToHit, cleaveExtraTargets, alreadyHit);
         }
 
-        if (primaryHitSucceeded && triggerCrescentSlash)
+        if (primaryHitSucceeded && triggerCrescentSlash && abilityController != null)
+        {
+            // Weapon damage already applied; add the same ability-scaled Crescent packet as instant-cast / secondary targets.
+            abilityController.ApplyMeleeQueuedCrescentSlashExtraHit(targetToHit, crescentAppliesElemental);
             ApplyCrescentSlashSecondaryHits(targetToHit, crescentPenetrating, crescentAppliesElemental, alreadyHit);
+        }
     }
 
     private void ApplyCleaveSecondaryHits(EnemyBaseController primaryTarget, int extraTargets, HashSet<EnemyBaseController> alreadyHit)
@@ -771,25 +820,40 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (extraTargets <= 0 || stats == null)
             return;
 
-        // Cleave uses at least 2f search range; longer-range weapons keep their full range.
-        float range = Mathf.Max(2f, stats.Range);
-        Vector3 origin = transform.position;
+        // Match primary melee reach: edge-to-edge X gap vs colliders (not center-to-center), with min 3 only for short weapons.
+        const float cleavingMinWeaponRange = 3f;
+        float weaponRange = Mathf.Max(0f, stats.Range);
+        float effectiveReach = Mathf.Max(cleavingMinWeaponRange, weaponRange) + rangePadding;
+
+        float myX = transform.position.x;
+        float myY = transform.position.y;
+        float myHalf = HalfWidthX(playerCol);
+        float yTol = Mathf.Max(0.85f, effectiveReach * 0.4f);
+
         var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        var nearest = new List<(EnemyBaseController enemy, float sqr)>(candidates.Length);
-        float r2 = range * range;
+        var nearest = new List<(EnemyBaseController enemy, float gap)>(candidates.Length);
 
         for (int i = 0; i < candidates.Length; i++)
         {
             EnemyBaseController e = candidates[i];
             if (!IsValidSecondaryTarget(e, alreadyHit))
                 continue;
-            float sqr = (e.transform.position - origin).sqrMagnitude;
-            if (sqr > r2)
+
+            if (Mathf.Abs(e.transform.position.y - myY) > yTol)
                 continue;
-            nearest.Add((e, sqr));
+
+            Collider2D enemyCol = e.GetComponent<Collider2D>();
+            if (enemyCol == null)
+                enemyCol = e.GetComponentInChildren<Collider2D>();
+
+            float gap = EdgeGapX(myX, e.transform.position.x, myHalf, HalfWidthX(enemyCol));
+            if (gap > effectiveReach)
+                continue;
+
+            nearest.Add((e, gap));
         }
 
-        nearest.Sort((a, b) => a.sqr.CompareTo(b.sqr));
+        nearest.Sort((a, b) => a.gap.CompareTo(b.gap));
         int count = Mathf.Min(extraTargets, nearest.Count);
         float critMult = Mathf.Max(1f, stats.CritMultiplier);
         for (int i = 0; i < count; i++)
@@ -859,9 +923,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         for (int i = 0; i < cap; i++)
         {
             EnemyBaseController e = forwardHits[i].enemy;
-            // Roll each AoE target independently (damage range + crit).
-            SplitDamage secondaryHit = stats.RollSplitAttackDamage(out bool secondaryWasCrit);
-            ApplySecondaryHitPipeline(e, secondaryHit, secondaryWasCrit, forceElementalAilment: applyElemental);
+            if (abilityController != null)
+                abilityController.ApplyMeleeQueuedCrescentSlashExtraHit(e, applyElemental);
+            else
+            {
+                SplitDamage secondaryHit = stats.RollSplitAttackDamage(out bool secondaryWasCrit);
+                ApplySecondaryHitPipeline(e, secondaryHit, secondaryWasCrit, forceElementalAilment: applyElemental);
+            }
+
             alreadyHit.Add(e);
         }
     }
@@ -1269,6 +1338,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return;
         if (dealt.Total <= 0f)
             return;
+        if (dealt.magic <= 0f)
+            return;
+        if (stats.GetMeleeMagicLightningFraction() <= 0f)
+            return;
 
         float chance = stats.MeleeShockChance;
         if (chance <= 0f || Random.value > chance)
@@ -1309,7 +1382,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return;
 
         float now = Time.time;
-        _lastDamageTime = now;
+        MarkRecentCombatActivity();
         if (_combatSessionStartTime < 0f)
             _combatSessionStartTime = now;
         _combatSessionDamageSum += damageAmount;
@@ -1319,7 +1392,6 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         _combatSessionStartTime = -1f;
         _combatSessionDamageSum = 0f;
-        _lastDamageTime = -999f;
     }
 
     private void TryResolveAutoConsumeRefs()

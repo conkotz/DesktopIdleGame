@@ -41,6 +41,7 @@ public class XPBarUI : MonoBehaviour
         {
             sm.OnXpGained += HandleXpGained;
             sm.OnLevelUp += HandleLevelUp;
+            sm.OnSkillLevelDecreased += HandleLevelUp;
             sm.OnActiveXpDisplayChanged += HandleActiveDisplayChanged;
 
             if (followActiveDisplay)
@@ -58,6 +59,7 @@ public class XPBarUI : MonoBehaviour
         {
             sm.OnXpGained -= HandleXpGained;
             sm.OnLevelUp -= HandleLevelUp;
+            sm.OnSkillLevelDecreased -= HandleLevelUp;
             sm.OnActiveXpDisplayChanged -= HandleActiveDisplayChanged;
         }
     }

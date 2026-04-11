@@ -341,11 +341,13 @@ public class PlayerAbilityController : MonoBehaviour
         public float physical;
         public float magic;
         public float corruptionDamage;
+        /// <summary>Fraction of pre-mitigation magic in the hit that is lightning (weapon split + lightning attack-type line + Crescent conversion).</summary>
+        public float meleeMagicLightningFraction;
         public float Total => physical + magic + corruptionDamage;
     }
 
     /// <summary>Builds one independent ability hit roll (per target): attack roll + ability scaling + independent crit.</summary>
-    private void BuildWhirlwindAbilityScaledSplit(AbilityDefinition def, out SplitDamage nonCritBase, out bool wasCrit)
+    private void BuildWhirlwindAbilityScaledSplit(AbilityDefinition def, out SplitDamage nonCritBase, out bool wasCrit, out float lightningMagicNonCrit)
     {
         SplitDamage baseRolled = stats.RollSplitAttackDamage(out bool baseWasCrit);
         float critMult = Mathf.Max(1f, stats.CritMultiplier);
@@ -372,6 +374,11 @@ public class PlayerAbilityController : MonoBehaviour
         float physPart = scaledPhysical * apM;
         float magPart = (magScaled + elemScaled + ailmentBonus) * apM;
         float corruptionPart = scaledCorruption * apM;
+
+        float fWeaponLightning = stats.GetMeleeMagicLightningFraction();
+        float weaponLightMag = magScaled * apM * fWeaponLightning;
+        float elemLightMag = stats.CurrentMagicAttackType == MagicAttackType.Lightning ? elemScaled * apM : 0f;
+        lightningMagicNonCrit = weaponLightMag + elemLightMag;
 
         nonCritBase = new SplitDamage(physPart, magPart, corruptionPart);
 
@@ -414,7 +421,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (targets.Count <= 0)
             return true; // ability cast still consumes resources/cooldown.
 
-        var secondWaveTargets = new List<(EnemyBaseController target, SplitDamage secondHitBase)>(targets.Count);
+        var secondWaveTargets = new List<(EnemyBaseController target, SplitDamage secondHitBase, float secondLightningMagNonCrit)>(targets.Count);
 
         for (int i = 0; i < targets.Count; i++)
         {
@@ -422,7 +429,7 @@ public class PlayerAbilityController : MonoBehaviour
             if (!target || target.IsDead)
                 continue;
 
-            BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
+            BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
             float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
             SplitDamage rolled = new SplitDamage(
                 rolledNonCrit.physical * critMult,
@@ -430,10 +437,14 @@ public class PlayerAbilityController : MonoBehaviour
                 rolledNonCrit.corruptionDamage * critMult);
             SplitDamage firstHit = rolled * WhirlwindDamageMultiplier;
             SplitDamage secondHitBase = rolledNonCrit * WhirlwindDamageMultiplier * WhirlwindSecondHitMultiplier;
+            float secondLightningMagNonCrit = lightningMagNonCrit * WhirlwindDamageMultiplier * WhirlwindSecondHitMultiplier;
 
-            DealtHit dealt = ApplySplitDamageToEnemy(target, firstHit, wasCrit);
+            float lightningAfterCrit = lightningMagNonCrit * critMult * WhirlwindDamageMultiplier;
+            float firstFrac = firstHit.magic > 1e-8f ? Mathf.Clamp01(lightningAfterCrit / firstHit.magic) : 0f;
+
+            DealtHit dealt = ApplySplitDamageToEnemy(target, firstHit, wasCrit, firstFrac);
             ApplyOnHitEffects(target, dealt);
-            secondWaveTargets.Add((target, secondHitBase));
+            secondWaveTargets.Add((target, secondHitBase, secondLightningMagNonCrit));
         }
 
         if (twinCyclone)
@@ -476,7 +487,7 @@ public class PlayerAbilityController : MonoBehaviour
             forwardHits.Add((enemy, forwardDist));
         }
 
-        forwardHits.Sort((a, b) => a.dist.CompareTo(b.dist));
+               forwardHits.Sort((a, b) => a.dist.CompareTo(b.dist));
         int cap = penetrating ? forwardHits.Count : Mathf.Min(3, forwardHits.Count);
         for (int i = 0; i < cap; i++)
         {
@@ -484,22 +495,57 @@ public class PlayerAbilityController : MonoBehaviour
             if (!target || target.IsDead)
                 continue;
 
-            BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit);
-            float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
-            SplitDamage hitForTarget = new SplitDamage(
-                rolledNonCrit.physical * critMult,
-                rolledNonCrit.magic * critMult,
-                rolledNonCrit.corruptionDamage * critMult);
-            CrescentConvertedElement convertedElement = CrescentConvertedElement.Lightning;
-            float convertedDamage = 0f;
-            bool hasConvertedDamage = elementalCrescent &&
-                                      TryApplyElementalConversionForCrescent(ref hitForTarget, out convertedElement, out convertedDamage);
-
-            DealtHit dealt = ApplySplitDamageToEnemy(target, hitForTarget, wasCrit);
-            ApplyOnHitEffects(target, dealt);
-            if (hasConvertedDamage)
-                ApplyElementalAilmentForCrescent(target, convertedElement, convertedDamage);
+            ApplyCrescentSlashSingleTargetHit(target, def, elementalCrescent);
         }
+    }
+
+    /// <summary>
+    /// One Crescent Slash damage packet (ability scaling + optional Elemental Crescent conversion). Also used when Crescent is consumed on a melee swing.
+    /// </summary>
+    private void ApplyCrescentSlashSingleTargetHit(EnemyBaseController target, AbilityDefinition def, bool elementalCrescent)
+    {
+        if (target == null || target.IsDead || stats == null || def == null)
+            return;
+
+        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+        SplitDamage hitForTarget = new SplitDamage(
+            rolledNonCrit.physical * critMult,
+            rolledNonCrit.magic * critMult,
+            rolledNonCrit.corruptionDamage * critMult);
+        float lightningMag = lightningMagNonCrit * critMult;
+        CrescentConvertedElement convertedElement = CrescentConvertedElement.Lightning;
+        float convertedDamage = 0f;
+        bool hasConvertedDamage = elementalCrescent &&
+                                  TryApplyElementalConversionForCrescent(ref hitForTarget, out convertedElement, out convertedDamage);
+
+        if (hasConvertedDamage && convertedElement == CrescentConvertedElement.Lightning)
+            lightningMag += convertedDamage;
+
+        float crescentFrac = hitForTarget.magic > 1e-8f ? Mathf.Clamp01(lightningMag / hitForTarget.magic) : 0f;
+
+        DealtHit dealt = ApplySplitDamageToEnemy(target, hitForTarget, wasCrit, crescentFrac);
+        ApplyOnHitEffects(target, dealt);
+        if (hasConvertedDamage)
+            ApplyElementalAilmentForCrescent(target, convertedElement, convertedDamage);
+
+        if (player != null && dealt.Total > 0f)
+            player.ApplyLifeSteal(dealt.Total);
+    }
+
+    /// <summary>
+    /// Extra Crescent Slash hit on a target after the normal melee swing damage (queued Crescent consumption).
+    /// </summary>
+    public void ApplyMeleeQueuedCrescentSlashExtraHit(EnemyBaseController target, bool elementalCrescent)
+    {
+        if (target == null || target.IsDead || stats == null)
+            return;
+
+        AbilityDefinition def = GetAbilityDefinition(CrescentSlashId);
+        if (!def)
+            return;
+
+        ApplyCrescentSlashSingleTargetHit(target, def, elementalCrescent);
     }
 
     /// <summary>
@@ -571,7 +617,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
     }
 
-    private IEnumerator ApplyTwinCycloneSecondWave(List<(EnemyBaseController target, SplitDamage secondHitBase)> targets, float radius)
+    private IEnumerator ApplyTwinCycloneSecondWave(List<(EnemyBaseController target, SplitDamage secondHitBase, float secondLightningMagNonCrit)> targets, float radius)
     {
         yield return new WaitForSeconds(WhirlwindTwinCycloneSecondHitDelay);
 
@@ -588,8 +634,12 @@ public class PlayerAbilityController : MonoBehaviour
                 continue;
 
             SplitDamage secondHit = targets[i].secondHitBase;
+            float secondLightningBase = targets[i].secondLightningMagNonCrit;
             bool secondWasCrit = TryRollIndependentCrit(ref secondHit);
-            DealtHit dealtSecond = ApplySplitDamageToEnemy(target, secondHit, secondWasCrit);
+            float crit2 = secondWasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+            float lightningSecond = secondLightningBase * crit2;
+            float secondFrac = secondHit.magic > 1e-8f ? Mathf.Clamp01(lightningSecond / secondHit.magic) : 0f;
+            DealtHit dealtSecond = ApplySplitDamageToEnemy(target, secondHit, secondWasCrit, secondFrac);
             ApplyOnHitEffects(target, dealtSecond); // Re-triggers on-hit effects.
         }
     }
@@ -654,11 +704,15 @@ public class PlayerAbilityController : MonoBehaviour
         return edgeGapX <= Mathf.Max(0f, radius);
     }
 
-    private DealtHit ApplySplitDamageToEnemy(EnemyBaseController target, SplitDamage hit, bool wasCrit)
+    private DealtHit ApplySplitDamageToEnemy(EnemyBaseController target, SplitDamage hit, bool wasCrit, float meleeMagicLightningFraction = -1f)
     {
         DealtHit result = default;
         if (target == null || target.IsDead)
             return result;
+
+        if (meleeMagicLightningFraction < 0f)
+            meleeMagicLightningFraction = stats != null ? stats.GetMeleeMagicLightningFraction() : 0f;
+        result.meleeMagicLightningFraction = Mathf.Clamp01(meleeMagicLightningFraction);
 
         float cond = GetConditionalMeleeDamageMultiplier(target);
         float phys = Mathf.Max(0f, hit.physical * cond);
@@ -752,7 +806,10 @@ public class PlayerAbilityController : MonoBehaviour
             }
         }
 
-        if (dealt.Total > 0f && stats.MeleeShockChance > 0f && UnityEngine.Random.value <= stats.MeleeShockChance)
+        if (dealt.magic > 0f &&
+            dealt.meleeMagicLightningFraction > 1e-5f &&
+            stats.MeleeShockChance > 0f &&
+            UnityEngine.Random.value <= stats.MeleeShockChance)
         {
             ailments.ApplyShockFromHit(new ShockPayload(
                 duration: stats.ShockDuration,
@@ -1285,12 +1342,10 @@ public class PlayerAbilityController : MonoBehaviour
         if (!_cleavingBuffActive)
             return;
 
-        // Cleaving should only end after BOTH constraints are satisfied:
-        // - required hit count has been consumed
-        // - duration window has elapsed
+        // End when empowered hits are exhausted or the buff duration ends (whichever comes first).
         bool hitsConsumed = _cleavingHitsRemaining <= 0;
         bool durationElapsed = Time.time >= _cleavingBuffEndsAt;
-        if (hitsConsumed && durationElapsed)
+        if (hitsConsumed || durationElapsed)
         {
             _cleavingBuffActive = false;
             _cleavingAdditionalTargets = 0;
@@ -1307,7 +1362,7 @@ public class PlayerAbilityController : MonoBehaviour
     {
         additionalTargets = 0;
         CleanupCleavingStrikesIfExpired();
-        if (!_cleavingBuffActive)
+        if (!_cleavingBuffActive || _cleavingHitsRemaining <= 0)
             return false;
 
         additionalTargets = Mathf.Max(0, _cleavingAdditionalTargets);
@@ -1349,9 +1404,9 @@ public class PlayerAbilityController : MonoBehaviour
         float apM = stats != null ? stats.GetAbilityPowerDamageMultiplier(def.abilityPowerMultiplier) : 1f;
 
         return new SplitDamage(
-            baseRolled.physical * physMult * apM,
-            baseRolled.magic * magMult * apM,
-            baseRolled.corruptionDamage * physMult * apM
+            Mathf.Max(0f, baseRolled.physical * physMult * apM),
+            Mathf.Max(0f, baseRolled.magic * magMult * apM),
+            Mathf.Max(0f, baseRolled.corruptionDamage * physMult * apM)
         );
     }
 

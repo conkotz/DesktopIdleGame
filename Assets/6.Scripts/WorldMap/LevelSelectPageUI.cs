@@ -179,6 +179,7 @@ public class LevelSelectPageUI : MonoBehaviour
         UnsubscribeSkillsLevelEvents();
         _skillsLevelEventsTarget = s;
         _skillsLevelEventsTarget.OnLevelUp += OnPlayerSkillLevelChanged;
+        _skillsLevelEventsTarget.OnSkillLevelDecreased += OnPlayerSkillLevelChanged;
     }
 
     private void UnsubscribeSkillsLevelEvents()
@@ -186,6 +187,7 @@ public class LevelSelectPageUI : MonoBehaviour
         if (_skillsLevelEventsTarget != null)
         {
             _skillsLevelEventsTarget.OnLevelUp -= OnPlayerSkillLevelChanged;
+            _skillsLevelEventsTarget.OnSkillLevelDecreased -= OnPlayerSkillLevelChanged;
             _skillsLevelEventsTarget = null;
         }
     }

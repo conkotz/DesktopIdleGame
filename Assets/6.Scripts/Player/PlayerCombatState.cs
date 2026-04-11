@@ -6,8 +6,25 @@ using System;
 public class PlayerCombatState : MonoBehaviour
 {
     private readonly HashSet<int> _engagers = new HashSet<int>();
-    public bool InCombat => _engagers.Count > 0;
+    /// <summary>Enemy in attack/engage range (excludes soft combat from recent hits).</summary>
+    public bool HasEnemyProximityEngagement => _engagers.Count > 0;
+
+    /// <summary>Enemy proximity engagement OR recent damage dealt/taken (see <see cref="NotifySoftCombat"/>).</summary>
+    public bool InCombat => HasEnemyProximityEngagement || Time.time < _softCombatUntil;
     public event Action<bool> OnCombatStateChanged; // true=in combat, false=out of combat
+
+    private float _softCombatUntil = -999f;
+
+    /// <summary>Extends "in combat" for gathering/UI until <paramref name="durationSeconds"/> elapses (stacked with max end time).</summary>
+    public void NotifySoftCombat(float durationSeconds)
+    {
+        if (durationSeconds <= 0f) return;
+        bool was = InCombat;
+        _softCombatUntil = Mathf.Max(_softCombatUntil, Time.time + durationSeconds);
+        bool now = InCombat;
+        if (was != now)
+            OnCombatStateChanged?.Invoke(now);
+    }
 
     public void SetEngaged(EnemyBaseController enemy, bool engaged)
     {
@@ -26,7 +43,7 @@ public class PlayerCombatState : MonoBehaviour
     {
         bool wasInCombat = InCombat;
         _engagers.Clear();
-        if (wasInCombat)
-            OnCombatStateChanged?.Invoke(false);
+        if (wasInCombat != InCombat)
+            OnCombatStateChanged?.Invoke(InCombat);
     }
 }

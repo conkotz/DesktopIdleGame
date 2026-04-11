@@ -43,6 +43,10 @@ MonoBehaviour:
       prefab: {fileID: 0}
       count: 1
     - spawnPointGroupId: 
+      enemyDefinition: {fileID: 11400000, guid: 018988b4e6f49f843a83603a5d29913b, type: 2}
+      prefab: {fileID: 0}
+      count: 1
+    - spawnPointGroupId: 
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 2240485527361661371, guid: 6e93381c288e6ae488bc8daf3fc70d29, type: 3}
       count: 1

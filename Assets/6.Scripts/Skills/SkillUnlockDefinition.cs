@@ -12,6 +12,8 @@ public class SkillUnlockDefinition
     public SkillUnlockType unlockType = SkillUnlockType.MinorPassive;
     [Tooltip("Preset stat package for MinorPassive melee nodes. Ignored for non-MinorPassive rows.")]
     public MeleeMinorNodeStatOption meleeMinorStatOption = MeleeMinorNodeStatOption.None;
+    [Tooltip("Preset stat package for MinorPassive ranged nodes. Ignored for non-MinorPassive rows.")]
+    public RangedMinorNodeStatOption rangedMinorStatOption = RangedMinorNodeStatOption.None;
 
     [Header("Optional refs")]
     public AbilityDefinition ability;

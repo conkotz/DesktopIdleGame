@@ -54,6 +54,8 @@ public class SkillsManager : MonoBehaviour, ISaveable
     // Hook this to your XP bar
     public event Action<SkillType, int, string> OnXpGained; // (skill, amount, source)
     public event Action<SkillType, int> OnLevelUp;          // (skill, newLevel)
+    /// <summary>Fired when a skill level drops outside normal XP rules (e.g. debug). Does not fire <see cref="OnLevelUp"/>.</summary>
+    public event Action<SkillType, int> OnSkillLevelDecreased; // (skill, newLevel)
     /// <summary>choiceIndex is -1 when the player cleared that branch (no active choice).</summary>
     public event Action<SkillType, int, int> OnSkillChoiceSelectionChanged; // (skill, sourceLevel, choiceIndex)
 
@@ -315,6 +317,24 @@ public class SkillsManager : MonoBehaviour, ISaveable
 
         if (whole > 0)
             AddXp(skill, whole, source);
+    }
+
+    /// <summary>
+    /// Debug / testing: each tracked skill loses one level (minimum 1). XP into the current level is cleared.
+    /// Fires <see cref="OnSkillLevelDecreased"/> per changed skill (not <see cref="OnLevelUp"/>).
+    /// </summary>
+    public void DebugDecreaseAllSkillsOneLevel()
+    {
+        foreach (SkillType t in GetAllTrackedSkills())
+        {
+            var p = Get(t);
+            if (p.level <= 1)
+                continue;
+
+            p.level--;
+            p.xp = 0;
+            OnSkillLevelDecreased?.Invoke(t, p.level);
+        }
     }
 
     private SkillProgress Get(SkillType type)

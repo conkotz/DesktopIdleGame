@@ -655,14 +655,15 @@ public class SkillTreeViewUI : MonoBehaviour
 
         if (unlock != null && unlock.unlockType == SkillUnlockType.Unlock)
         {
-            title = $"Unlock - {unlockTitle}";
-            body = $"{BuildStatusLine(isUnlocked)}\nUnlocks at level {level}\n\n{desc}";
+            title = unlockTitle;
+            string unlockTypeLabel = TypeLabel(SkillTreeNodeVisualType.Unlock);
+            body = $"{unlockTypeLabel} {BuildStatusLine(isUnlocked)}\nUnlocks at level {level}\n\n{desc}";
             return;
         }
 
         string typeLabel = TypeLabel(type);
-        title = $"{typeLabel} - {unlockTitle}";
-        body = $"{BuildStatusLine(isUnlocked)}\nUnlocks at Lv{level}\n\n{desc}";
+        title = unlockTitle;
+        body = $"{typeLabel} {BuildStatusLine(isUnlocked)}\nUnlocks at Lv{level}\n\n{desc}";
     }
 
     private static void BuildChoiceTooltipCopy(int unlockLevel, SkillChoiceDefinition choice, SkillUnlockDefinition parentUnlock, bool isUnlocked, out string title, out string body)
@@ -673,8 +674,9 @@ public class SkillTreeViewUI : MonoBehaviour
         string desc = choice != null && !string.IsNullOrWhiteSpace(choice.description)
             ? choice.description.Trim()
             : "No description yet.";
-        title = $"Enhancement - {unlockTitle}";
-        body = $"{BuildStatusLine(isUnlocked)}\nUnlocks at Lv{unlockLevel}\n\n{desc}";
+        string typeLabel = TypeLabel(SkillTreeNodeVisualType.Choice);
+        title = unlockTitle;
+        body = $"{typeLabel} {BuildStatusLine(isUnlocked)}\nUnlocks at Lv{unlockLevel}\n\n{desc}";
     }
 
     private static string BuildStatusLine(bool isUnlocked)

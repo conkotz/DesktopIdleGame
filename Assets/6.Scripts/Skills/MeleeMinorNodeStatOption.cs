@@ -19,6 +19,7 @@ public enum MeleeMinorNodeStatOption
     MeleeDamageVsShockedPercent10 = 16,
     MeleeLifeStealPercent1 = 17,
     MeleeDamageVsBleedingPercent10 = 18,
+    MeleeMoveSpeedPercent5 = 19,
     // Legacy grouped presets kept for backwards compatibility with any existing authored nodes:
     CoreMeleeOffense = 101,
     MeleeSpeed = 102,

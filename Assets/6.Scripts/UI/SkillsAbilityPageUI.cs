@@ -149,6 +149,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (!skillsManager) return;
 
         skillsManager.OnLevelUp += HandleSkillsLevelUp;
+        skillsManager.OnSkillLevelDecreased += HandleSkillsLevelUp;
         skillsManager.OnSkillChoiceSelectionChanged += HandleSkillChoiceSelectionChanged;
         skillsManager.OnSkillAbilityRowPickChanged += HandleSkillAbilityRowPickChanged;
     }
@@ -157,6 +158,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     {
         if (!skillsManager) return;
         skillsManager.OnLevelUp -= HandleSkillsLevelUp;
+        skillsManager.OnSkillLevelDecreased -= HandleSkillsLevelUp;
         skillsManager.OnSkillChoiceSelectionChanged -= HandleSkillChoiceSelectionChanged;
         skillsManager.OnSkillAbilityRowPickChanged -= HandleSkillAbilityRowPickChanged;
     }
@@ -719,6 +721,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         float vsPoisoned = 0f;
         float vsShocked = 0f;
         float vsLowHp = 0f;
+        float rangedDamage = 0f;
 
         foreach (var unlock in skill.unlocks)
         {
@@ -729,48 +732,68 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             if (unlock.unlockType != SkillUnlockType.MinorPassive)
                 continue;
 
-            switch (unlock.meleeMinorStatOption)
+            if (skill.skillType == SkillType.Melee)
             {
-                case MeleeMinorNodeStatOption.MinMeleeDamageFlat2: minMeleeDamage += 2f; break;
-                case MeleeMinorNodeStatOption.MaxMeleeDamageFlat2: maxMeleeDamage += 2f; break;
-                case MeleeMinorNodeStatOption.MeleeAttackSpeedPercent3: meleeAttackSpeed += 0.03f; break;
-                case MeleeMinorNodeStatOption.MeleeDamagePercent3: meleeDamage += 0.03f; break;
-                case MeleeMinorNodeStatOption.MeleeCritChancePercent2: meleeCritChance += 0.02f; break;
-                case MeleeMinorNodeStatOption.MeleeDamageVsLowHpPercent10: vsLowHp += 0.10f; break;
-                case MeleeMinorNodeStatOption.MeleeBleedChancePercent5: bleedChance += 0.05f; break;
-                case MeleeMinorNodeStatOption.MeleeBleedDamagePercent10: bleedDamage += 0.10f; break;
-                case MeleeMinorNodeStatOption.MeleeMoveSpeedPercent2: meleeMoveSpeed += 0.02f; break;
-                case MeleeMinorNodeStatOption.MeleeCritDamagePercent8: meleeCritDamage += 0.08f; break;
-                case MeleeMinorNodeStatOption.MeleePoisonChancePercent5: poisonChance += 0.05f; break;
-                case MeleeMinorNodeStatOption.MeleePoisonDurationPercent10: poisonDuration += 0.10f; break;
-                case MeleeMinorNodeStatOption.MeleeAilmentDamagePercent4: ailmentDamage += 0.04f; break;
-                case MeleeMinorNodeStatOption.MeleeDamageVsPoisonedPercent10: vsPoisoned += 0.10f; break;
-                case MeleeMinorNodeStatOption.MeleeShockChancePercent5: shockChance += 0.05f; break;
-                case MeleeMinorNodeStatOption.MeleeDamageVsShockedPercent10: vsShocked += 0.10f; break;
-                case MeleeMinorNodeStatOption.MeleeLifeStealPercent1: lifeSteal += 0.01f; break;
-                case MeleeMinorNodeStatOption.MeleeDamageVsBleedingPercent10: vsBleeding += 0.10f; break;
+                switch (unlock.meleeMinorStatOption)
+                {
+                    case MeleeMinorNodeStatOption.MinMeleeDamageFlat2: minMeleeDamage += 2f; break;
+                    case MeleeMinorNodeStatOption.MaxMeleeDamageFlat2: maxMeleeDamage += 2f; break;
+                    case MeleeMinorNodeStatOption.MeleeAttackSpeedPercent3: meleeAttackSpeed += 0.03f; break;
+                    case MeleeMinorNodeStatOption.MeleeDamagePercent3: meleeDamage += 0.03f; break;
+                    case MeleeMinorNodeStatOption.MeleeCritChancePercent2: meleeCritChance += 0.02f; break;
+                    case MeleeMinorNodeStatOption.MeleeDamageVsLowHpPercent10: vsLowHp += 0.10f; break;
+                    case MeleeMinorNodeStatOption.MeleeBleedChancePercent5: bleedChance += 0.05f; break;
+                    case MeleeMinorNodeStatOption.MeleeBleedDamagePercent10: bleedDamage += 0.10f; break;
+                    case MeleeMinorNodeStatOption.MeleeMoveSpeedPercent2: meleeMoveSpeed += 0.02f; break;
+                    case MeleeMinorNodeStatOption.MeleeMoveSpeedPercent5: meleeMoveSpeed += 0.05f; break;
+                    case MeleeMinorNodeStatOption.MeleeCritDamagePercent8: meleeCritDamage += 0.08f; break;
+                    case MeleeMinorNodeStatOption.MeleePoisonChancePercent5: poisonChance += 0.05f; break;
+                    case MeleeMinorNodeStatOption.MeleePoisonDurationPercent10: poisonDuration += 0.10f; break;
+                    case MeleeMinorNodeStatOption.MeleeAilmentDamagePercent4: ailmentDamage += 0.04f; break;
+                    case MeleeMinorNodeStatOption.MeleeDamageVsPoisonedPercent10: vsPoisoned += 0.10f; break;
+                    case MeleeMinorNodeStatOption.MeleeShockChancePercent5: shockChance += 0.05f; break;
+                    case MeleeMinorNodeStatOption.MeleeDamageVsShockedPercent10: vsShocked += 0.10f; break;
+                    case MeleeMinorNodeStatOption.MeleeLifeStealPercent1: lifeSteal += 0.01f; break;
+                    case MeleeMinorNodeStatOption.MeleeDamageVsBleedingPercent10: vsBleeding += 0.10f; break;
+                }
+            }
+            else if (skill.skillType == SkillType.Ranged)
+            {
+                switch (unlock.rangedMinorStatOption)
+                {
+                    case RangedMinorNodeStatOption.RangedDamagePercent3:
+                        rangedDamage += 0.03f;
+                        break;
+                }
             }
         }
 
         var sb = new StringBuilder();
-        AppendFlat(sb, minMeleeDamage, "Min Melee Damage");
-        AppendFlat(sb, maxMeleeDamage, "Max Melee Damage");
-        AppendPct(sb, meleeDamage, "Melee Damage");
-        AppendPct(sb, meleeAttackSpeed, "Melee Attack Speed");
-        AppendPct(sb, meleeMoveSpeed, "Melee Move Speed");
-        AppendPct(sb, meleeCritChance, "Melee Crit Chance");
-        AppendPct(sb, meleeCritDamage, "Melee Crit Damage");
-        AppendPct(sb, bleedChance, "Bleed Chance (Melee Only)");
-        AppendPct(sb, bleedDamage, "Bleed Multiplier");
-        AppendPct(sb, poisonChance, "Poison Chance (Melee Only)");
-        AppendPct(sb, poisonDuration, "Poison Duration");
-        AppendPct(sb, ailmentDamage, "Ailment Damage (Melee Hits Only)");
-        AppendPct(sb, shockChance, "Shock Chance (Melee Only)");
-        AppendPct(sb, vsBleeding, "Damage to Bleeding Enemies (Melee)");
-        AppendPct(sb, vsPoisoned, "Damage to Poisoned Enemies (Melee)");
-        AppendPct(sb, vsShocked, "Damage to Shocked Enemies (Melee)");
-        AppendPct(sb, vsLowHp, "Damage to Low HP Enemies (<35% HP, Melee)");
-        AppendPct(sb, lifeSteal, "Melee Lifesteal");
+        if (skill.skillType == SkillType.Melee)
+        {
+            AppendFlat(sb, minMeleeDamage, "Min Melee Damage");
+            AppendFlat(sb, maxMeleeDamage, "Max Melee Damage");
+            AppendPct(sb, meleeDamage, "Melee Damage");
+            AppendPct(sb, meleeAttackSpeed, "Melee Attack Speed");
+            AppendPct(sb, meleeMoveSpeed, "Melee Move Speed");
+            AppendPct(sb, meleeCritChance, "Melee Crit Chance");
+            AppendPct(sb, meleeCritDamage, "Melee Crit Damage");
+            AppendPct(sb, bleedChance, "Bleed Chance (Melee Only)");
+            AppendPct(sb, bleedDamage, "Bleed Multiplier");
+            AppendPct(sb, poisonChance, "Poison Chance (Melee Only)");
+            AppendPct(sb, poisonDuration, "Poison Duration");
+            AppendPct(sb, ailmentDamage, "Ailment multipliers — Bleed, Poison, Burn (melee)");
+            AppendPct(sb, shockChance, "Shock Chance (Melee Only)");
+            AppendPct(sb, vsBleeding, "Damage to Bleeding Enemies (Melee)");
+            AppendPct(sb, vsPoisoned, "Damage to Poisoned Enemies (Melee)");
+            AppendPct(sb, vsShocked, "Damage to Shocked Enemies (Melee)");
+            AppendPct(sb, vsLowHp, "Damage to Low HP Enemies (<35% HP, Melee)");
+            AppendPct(sb, lifeSteal, "Melee Lifesteal");
+        }
+        else if (skill.skillType == SkillType.Ranged)
+        {
+            AppendPct(sb, rangedDamage, "Ranged Damage");
+        }
 
         // Major passive conversion summary (currently Melee Lv10 Bloodletting branch).
         if (skill.skillType == SkillType.Melee && currentLevel >= 10)

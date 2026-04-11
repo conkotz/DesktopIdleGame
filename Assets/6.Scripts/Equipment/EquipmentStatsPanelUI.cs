@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -70,7 +71,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [FormerlySerializedAs("lightningSkillScalingText")]
     [SerializeField] private TMP_Text globalLightningBonusText;
 
-    [Header("Style bonuses (melee vs ranged physical)")]
+    [Header("Style bonuses (melee vs ranged — all basic-attack damage types)")]
     [FormerlySerializedAs("conditionalMeleePhysicalText")]
     [SerializeField] private TMP_Text meleeDamageBonusText;
     [FormerlySerializedAs("conditionalRangedPhysicalText")]
@@ -122,6 +123,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     // -------------------------
     [Header("DPS (Bottom)")]
     [SerializeField] private TMP_Text dpsText;
+    [Tooltip("Optional second line for (weapon, bleed, poison, …). Use a smaller font size here; if unset, the breakdown is appended under DPS with a reduced font via rich text.")]
+    [SerializeField] private TMP_Text dpsBreakdownText;
+    [Tooltip("When dpsBreakdownText is not assigned: breakdown font size = dpsText.fontSize × this.")]
+    [SerializeField, Range(0.55f, 1f)] private float dpsBreakdownInlineFontScale = 0.82f;
 
     // -------------------------
     // Tools
@@ -354,9 +359,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             globalLightningBonusText.text = $"Lightning: {FormatSignedPercentPoints(stats.LightningSkillDamageTotalScalingPercentPoints)}";
 
         if (meleeDamageBonusText)
-            meleeDamageBonusText.text = $"Melee Physical: {FormatSignedPercentPoints(stats.MeleePhysicalConditionalBonusPercentPoints)}";
+            meleeDamageBonusText.text =
+                $"Melee total: {FormatSignedPercentPoints(stats.MeleePhysicalConditionalBonusPercentPoints)}";
         if (rangedDamageBonusText)
-            rangedDamageBonusText.text = $"Ranged Physical: {FormatSignedPercentPoints(stats.RangedPhysicalDamageBonusPercentPoints)}";
+            rangedDamageBonusText.text =
+                $"Ranged total: {FormatSignedPercentPoints(stats.RangedTotalDamageBonusPercentPoints)}";
 
         PopulateDetailedAilmentLines();
         EnsureOffenceBonusLineTooltips();
@@ -369,18 +376,26 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         {
             float sheetDps = stats.DPS;
             float weaponDps = stats.WeaponDpsComponent;
-            float ailmentDps = stats.AilmentDpsComponent;
+            float bleedDps = stats.ExpectedBleedDPS;
+            float poisonDps = stats.ExpectedPoisonDPS;
+            float burnDps = stats.ExpectedBurnDPS;
             float abilityDps = AbilityCombatPower.EstimateTotalSlottedAbilityDps(stats);
             float totalWithAbilities = sheetDps + Mathf.Max(0f, abilityDps);
 
-            if (abilityDps > 0.01f && ailmentDps > 0.01f)
-                dpsText.text = $"DPS: {totalWithAbilities:0.#} ({weaponDps:0.#} weapon, {ailmentDps:0.#} ailment, {abilityDps:0.#} ability)";
-            else if (abilityDps > 0.01f)
-                dpsText.text = $"DPS: {totalWithAbilities:0.#} ({weaponDps:0.#} weapon, {abilityDps:0.#} ability)";
-            else if (ailmentDps > 0.01f)
-                dpsText.text = $"DPS: {sheetDps:0.#} ({weaponDps:0.#} weapon, {ailmentDps:0.#} ailment)";
+            float headlineTotal = abilityDps > 0.01f ? totalWithAbilities : sheetDps;
+            string breakdown = BuildDpsBreakdownLine(weaponDps, bleedDps, poisonDps, burnDps, abilityDps);
+
+            if (dpsBreakdownText)
+            {
+                dpsText.text = $"DPS: {headlineTotal:0.#}";
+                dpsBreakdownText.text = $"({breakdown})";
+            }
             else
-                dpsText.text = $"DPS: {sheetDps:0.##} ({weaponDps:0.##} weapon)";
+            {
+                dpsText.richText = true;
+                int subSize = Mathf.Max(8, Mathf.RoundToInt(dpsText.fontSize * dpsBreakdownInlineFontScale));
+                dpsText.text = $"DPS: {headlineTotal:0.#}\n<size={subSize}>({breakdown})</size>";
+            }
         }
 
         // -------------------------
@@ -413,6 +428,26 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             return "";
 
         return stats.CurrentMagicAttackType.ToString();
+    }
+
+    private static string BuildDpsBreakdownLine(
+        float weaponDps,
+        float bleedDps,
+        float poisonDps,
+        float burnDps,
+        float abilityDps)
+    {
+        const float eps = 0.01f;
+        var parts = new List<string>(5) { $"{weaponDps:0.#} weapon" };
+        if (bleedDps > eps)
+            parts.Add($"{bleedDps:0.#} bleed");
+        if (poisonDps > eps)
+            parts.Add($"{poisonDps:0.#} poison");
+        if (burnDps > eps)
+            parts.Add($"{burnDps:0.#} burn");
+        if (abilityDps > eps)
+            parts.Add($"{abilityDps:0.#} ability");
+        return string.Join(", ", parts);
     }
 
     private SharedTooltipUI ResolveAilmentSharedTooltip()

@@ -30,6 +30,8 @@ public class DebugGiveItems : MonoBehaviour
 
     [Header("L Debug Pack")]
     [SerializeField] private KeyCode grantPackKey = KeyCode.L;
+    [Tooltip("Drop every tracked skill by 1 level (min 1). No level-up VFX.")]
+    [SerializeField] private KeyCode decreaseAllSkillsKey = KeyCode.K;
     [SerializeField] private int grantGold = 50000;
     [SerializeField] private int grantResourceAmount = 100;
     [SerializeField] private Vector3 popupWorldOffset = new Vector3(0f, 1.6f, 0f);
@@ -62,7 +64,10 @@ public class DebugGiveItems : MonoBehaviour
     {
         if (Input.GetKeyDown(grantPackKey))
             GrantDebugPack();
-        
+
+        if (Input.GetKeyDown(decreaseAllSkillsKey))
+            DebugDecreaseAllSkillsOneLevel();
+
         // Disabled for now: number-key spawning.
         // (We only want the L debug pack to apply.)
         /*
@@ -99,6 +104,19 @@ public class DebugGiveItems : MonoBehaviour
             popupSpawner.ShowMessageAtWorld(popupAnchor.position + popupWorldOffset, "DEBUG LEVEL UP!", Color.yellow);
 
         Debug.Log($"[DebugGiveItems] Granted pack: +{grantGold} gold, +{grantResourceAmount} stone/wood/fish, +1 level all skills.");
+    }
+
+    private void DebugDecreaseAllSkillsOneLevel()
+    {
+        SkillsManager sm = ResolveSkillsManager();
+        if (sm == null)
+        {
+            Debug.LogWarning("[DebugGiveItems] No SkillsManager — cannot decrease skill levels.");
+            return;
+        }
+
+        sm.DebugDecreaseAllSkillsOneLevel();
+        Debug.Log("[DebugGiveItems] K: decreased all skills by 1 level (min 1).");
     }
 
     /// <summary>Grants exactly one level per skill via XP (same rules as normal progression).</summary>

@@ -115,6 +115,16 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private PlayerCombatState combatState;
     public bool InCombat => combatState && combatState.InCombat;
 
+    /// <summary>True when an enemy is in engage range; use for combat logic that must not treat soft combat as proximity.</summary>
+    public bool HasEnemyProximityEngagement => combatState && combatState.HasEnemyProximityEngagement;
+
+    /// <summary>Marks the player as in combat for a short window after dealing or taking damage (ranged abilities, etc.).</summary>
+    public void NotifySoftCombatInteraction(float keepAliveSeconds)
+    {
+        if (combatState)
+            combatState.NotifySoftCombat(keepAliveSeconds);
+    }
+
     private float _gatherSpeedMultiplier = 1f;
     private float _gatherGritChance;
     private float _gatherBonusFindChance;

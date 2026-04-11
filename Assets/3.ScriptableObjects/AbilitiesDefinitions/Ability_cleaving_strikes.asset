@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: cleaving_strikes
   displayName: Cleaving Strikes
-  description: Empower your melee attacks causing each hit to also strike an additional
-    nearby enemy within attack range.
+  description: Empower your melee attacks causing each hit to also strike additional
+    nearby enemies within your weapon range from you (minimum 3).
   icon: {fileID: 1970096588046012890, guid: e4f6c452a92daed479d72fb292a28d34, type: 3}
   cooldown: 18
   energyCost: 45
-  physicalDamageMultiplier: -0.5
+  physicalDamageMultiplier: 0.5
   magicDamageMultiplier: 0
   abilityPowerMultiplier: 0
   fireDamageMultiplier: 0

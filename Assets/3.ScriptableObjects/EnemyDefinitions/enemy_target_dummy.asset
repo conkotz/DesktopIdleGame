@@ -17,12 +17,12 @@ MonoBehaviour:
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010755293042, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
-  maxHealth: 150
+  maxHealth: 5000
   maxEnergy: 0
   maxMana: 0
   armor: 0
   magicResist: 0
-  corruptionResist: 200
+  corruptionResist: 0
   physBlockChance: 0
   minPhysicalDamage: 1
   maxPhysicalDamage: 1

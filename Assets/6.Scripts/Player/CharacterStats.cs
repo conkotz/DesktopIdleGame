@@ -223,6 +223,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float damageVsLowHp;
     }
 
+    private struct RangedMinorNodeBonuses
+    {
+        public float rangedDamagePercent;
+    }
+
     private void Start()
     {
         InitializeVitals();
@@ -274,6 +279,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         sm.OnSkillChoiceSelectionChanged += OnSkillTreeChangedForCombatPower;
         sm.OnSkillAbilityRowPickChanged += OnSkillAbilityRowPickChangedForCombatPower;
         sm.OnLevelUp += OnSkillLevelUpForCombatPower;
+        sm.OnSkillLevelDecreased += OnSkillLevelUpForCombatPower;
         _skillProgressCombatPowerSubscribed = sm;
     }
 
@@ -286,6 +292,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         sm.OnSkillChoiceSelectionChanged -= OnSkillTreeChangedForCombatPower;
         sm.OnSkillAbilityRowPickChanged -= OnSkillAbilityRowPickChangedForCombatPower;
         sm.OnLevelUp -= OnSkillLevelUpForCombatPower;
+        sm.OnSkillLevelDecreased -= OnSkillLevelUpForCombatPower;
         _skillProgressCombatPowerSubscribed = null;
     }
 
@@ -416,11 +423,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public int BurnHitsToExplode => Mathf.Clamp(Mathf.Max(2, baseBurnHitsToExplode), 2, 3);
 
     /// <summary>
-    /// Total multiplier on burn tick damage (character base + gear + <see cref="BonusBurnDamageMultiplier"/>).
+    /// Total multiplier on burn tick damage (character base + gear + <see cref="BonusBurnDamageMultiplier"/>
+    /// + melee skill-tree <c>meleeAilmentDamage</c> when using a melee weapon, same as bleed/poison multipliers).
     /// Matches combat: 15% of strongest fire hit × this value per tick (min 1), combust uses strongest tick × configured factor.
     /// </summary>
     public float BurnDamageMultiplier =>
-        Mathf.Max(0f, baseBurnExplosionMultiplier + GetEquippedBurnExplosionMultiplierBonus() + bonusBurnDamageMultiplier);
+        Mathf.Max(
+            0f,
+            baseBurnExplosionMultiplier + GetEquippedBurnExplosionMultiplierBonus() + bonusBurnDamageMultiplier +
+            GetActiveMeleeMinorBonuses().meleeAilmentDamage);
 
     /// <summary>Multiplies burn tick damage; same value as <see cref="BurnDamageMultiplier"/>.</summary>
     public float BurnExplosionMultiplier => BurnDamageMultiplier;
@@ -534,6 +545,40 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float AverageMagicHit => (MinSplitDamage.magic + MaxSplitDamage.magic) * 0.5f;
     public float AverageCorruptionHit => (MinSplitDamage.corruptionDamage + MaxSplitDamage.corruptionDamage) * 0.5f;
 
+    /// <summary>
+    /// Fraction of average melee magic damage that is lightning (weapon elemental split only; flat magic from gear is not lightning).
+    /// Used so melee shock only procs when the hit actually includes lightning damage.
+    /// </summary>
+    public float GetMeleeMagicLightningFraction()
+    {
+        float avgM = AverageMagicHit;
+        if (avgM <= 0f) return 0f;
+        return Mathf.Clamp01(GetMeleeAverageWeaponLightningDamagePerHit() / avgM);
+    }
+
+    /// <summary>Average lightning from the equipped weapon(s) on a melee hit after <see cref="GetMeleeSplitDamageScalingMultipliers"/> magic mult.</summary>
+    private float GetMeleeAverageWeaponLightningDamagePerHit()
+    {
+        var mh = GetMainHandWeaponDef();
+        if (!mh) return 0f;
+        if (mh.RequiresOffhandSupport && !HasRequiredOffHandSupport()) return 0f;
+
+        GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out _, out float magicDamageMult, out _);
+
+        float Lmin = Mathf.Max(0f, mh.weaponStats.minLightningDamage);
+        float Lmax = Mathf.Max(0f, mh.weaponStats.maxLightningDamage);
+        var oh = GetOffHandWeaponDef();
+        if (oh)
+        {
+            Lmin = (Mathf.Max(0f, mh.weaponStats.minLightningDamage) + Mathf.Max(0f, oh.weaponStats.minLightningDamage)) * 0.5f;
+            Lmax = (Mathf.Max(0f, mh.weaponStats.maxLightningDamage) + Mathf.Max(0f, oh.weaponStats.maxLightningDamage)) * 0.5f;
+        }
+
+        Lmin *= magicDamageMult;
+        Lmax *= magicDamageMult;
+        return (Lmin + Lmax) * 0.5f;
+    }
+
     public float ExpectedCritFactor
     {
         get
@@ -586,7 +631,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // Stats-panel display model (rough DPS estimate from your rolled corruption; ignores enemy mitigation):
     // - uses average corruption hit × PoisonPoolFractionOfCorruptionDamage × (1 + poison multiplier)
     // - assumes poison can ramp toward full stacks
-    // - PoisonMaxDPS is the sustained DPS at max stacks
+    // - PoisonMaxDPS is sustained DPS if every stack slot were always full (see ExpectedPoisonStacks for sheet model)
     // Runtime: poison application uses corruption damage actually dealt to that target (post mitigation).
 
     public float PoisonPerStackTotalDamage
@@ -633,9 +678,18 @@ public class CharacterStats : MonoBehaviour, ISaveable
             if (PoisonChance <= 0f || AttacksPerSecond <= 0f || PoisonTicks <= 0)
                 return 0f;
 
-            // Runtime stack life is `PoisonTicks` seconds (one tick per second).
-            float expectedApplicationsInWindow = AttacksPerSecond * PoisonChance * PoisonTicks;
-            return Mathf.Clamp(expectedApplicationsInWindow, 0f, PoisonMaxStacks);
+            float m = PoisonMaxStacks;
+            float p = Mathf.Clamp01(PoisonChance);
+            // Little's-style mean concurrent stacks if uncapped: λ × duration × proc chance.
+            float little = AttacksPerSecond * p * PoisonTicks;
+
+            // Below the stack cap this already includes apply chance (fewer procs → fewer stacks).
+            if (little < m - 0.0001f)
+                return Mathf.Clamp(little, 0f, m);
+
+            // At the cap, clamping to M assumed you always sit on max stacks. Missed procs still
+            // create downtime, so scale sustained stacks by proc chance for sheet DPS / CP.
+            return m * p;
         }
     }
 
@@ -1132,19 +1186,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // -------------------------
     /// <summary>
     /// Additive physical % (before the <c>1 +</c> multiplier) for weapon split damage: global gear/support,
-    /// plus melee minor tree when <paramref name="weaponAttackSkill"/> is <see cref="AttackSkill.Melee"/>,
-    /// or <see cref="GetEquippedRangedPhysicalDamagePercent"/> when <see cref="AttackSkill.Ranged"/>.
-    /// Magic weapons use global only.
+    /// plus melee minor tree <c>meleeDamagePercent</c> when <paramref name="weaponAttackSkill"/> is <see cref="AttackSkill.Melee"/>,
+    /// or ranged gear + ranged skill-tree % when <see cref="AttackSkill.Ranged"/>.
+    /// (Ranged gear and <c>rangedDamagePercent</c> also scale magic and corruption on ranged basics — see <see cref="GetMeleeSplitDamageScalingMultipliers"/>.)
+    /// Magic-staff attacks use global physical % only here.
     /// </summary>
     private static float GetAdditivePhysicalPercentForWeaponStyle(
         AttackSkill weaponAttackSkill,
         float globalPhysicalFraction,
         float rangedPhysicalFraction,
+        float rangedSkillTreeDamagePercent,
         MeleeMinorNodeBonuses meleeBonuses)
     {
         float p = globalPhysicalFraction;
         if (weaponAttackSkill == AttackSkill.Ranged)
-            p += rangedPhysicalFraction;
+            p += rangedPhysicalFraction + rangedSkillTreeDamagePercent;
         else if (weaponAttackSkill == AttackSkill.Melee)
             p += meleeBonuses.meleeDamagePercent;
         return Mathf.Max(0f, p);
@@ -1158,10 +1214,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         MeleeMinorNodeBonuses melee =
             forWeaponAttackSkill == AttackSkill.Melee ? GetActiveMeleeMinorBonuses() : default;
+        float rangedSkillTree = 0f;
+        if (forWeaponAttackSkill == AttackSkill.Ranged)
+            rangedSkillTree = GetActiveRangedMinorBonuses().rangedDamagePercent;
+
         return GetAdditivePhysicalPercentForWeaponStyle(
             forWeaponAttackSkill,
             GetEquippedGlobalPhysicalDamagePercent(),
             GetEquippedRangedPhysicalDamagePercent(),
+            rangedSkillTree,
             melee);
     }
 
@@ -1170,21 +1231,47 @@ public class CharacterStats : MonoBehaviour, ISaveable
         GetPhysicalDamageScalingFractionBeforeBuffs(GetCurrentAttackSkill());
 
     /// <summary>
-    /// Combined multipliers applied to physical / magic portions of attack split damage:
-    /// consumable boosts × (global physical + melee minor % or ranged gear % by weapon style). Matches <see cref="GetMinSplitDamage"/> / <see cref="GetMaxSplitDamage"/>.
-    /// Corruption uses <see cref="GetEquippedCorruptionDamagePercent"/> (e.g. combat support) after flat bonuses.
+    /// Combined multipliers for basic-attack split damage (matches <see cref="GetMinSplitDamage"/> / <see cref="GetMaxSplitDamage"/>):
+    /// Physical: consumable physical × (global + melee-tree % or ranged gear + ranged-tree %).
+    /// Magic: consumable magic × (global magic + melee magic % + melee-tree % when melee, or + ranged totals when ranged).
+    /// Corruption: global corruption % + melee-tree % when melee, or + ranged totals when ranged.
     /// </summary>
-    private void GetMeleeSplitDamageScalingMultipliers(MeleeMinorNodeBonuses meleeBonuses, out float physicalDamageMult, out float magicDamageMult)
+    private void GetMeleeSplitDamageScalingMultipliers(
+        MeleeMinorNodeBonuses meleeBonuses,
+        out float physicalDamageMult,
+        out float magicDamageMult,
+        out float corruptionDamageMult)
     {
+        AttackSkill skill = GetCurrentAttackSkill();
+        RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
+        float rangedGear = GetEquippedRangedPhysicalDamagePercent();
+        float rangedSkill = rangedBonuses.rangedDamagePercent;
+        float rangedTotalPct = rangedGear + rangedSkill;
+
         float physicalBuffMult = 1f + (buffController ? buffController.PhysicalDamageBoostPercent : 0f);
         float magicBuffMult = 1f + (buffController ? buffController.MagicDamageBoostPercent : 0f);
         float physPct = GetAdditivePhysicalPercentForWeaponStyle(
-            GetCurrentAttackSkill(),
+            skill,
             GetEquippedGlobalPhysicalDamagePercent(),
-            GetEquippedRangedPhysicalDamagePercent(),
+            rangedGear,
+            rangedSkill,
             meleeBonuses);
         float physicalGearPctMult = 1f + physPct;
-        float magicGearPctMult = 1f + Mathf.Max(0f, GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent);
+
+        float magicPct = GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent;
+        if (skill == AttackSkill.Melee)
+            magicPct += meleeBonuses.meleeDamagePercent;
+        if (skill == AttackSkill.Ranged)
+            magicPct += rangedTotalPct;
+        float magicGearPctMult = 1f + Mathf.Max(0f, magicPct);
+
+        float corrPct = GetEquippedCorruptionDamagePercent();
+        if (skill == AttackSkill.Melee)
+            corrPct += meleeBonuses.meleeDamagePercent;
+        if (skill == AttackSkill.Ranged)
+            corrPct += rangedTotalPct;
+        corruptionDamageMult = 1f + Mathf.Max(0f, corrPct);
+
         physicalDamageMult = physicalBuffMult * physicalGearPctMult;
         magicDamageMult = magicBuffMult * magicGearPctMult;
     }
@@ -1194,23 +1281,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out float mult, out _);
+            GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out float mult, out _, out _);
             return (mult - 1f) * 100f;
         }
     }
 
-    /// <summary>Total % increase to magic melee split (20 = +20%).</summary>
+    /// <summary>Total % increase to magic on the attack split (20 = +20%), including melee skill-tree % when using a melee weapon.</summary>
     public float MeleeMagicDamageTotalScalingPercentPoints
     {
         get
         {
-            GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out _, out float mult);
+            GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out _, out float mult, out _);
             return (mult - 1f) * 100f;
         }
     }
 
-    /// <summary>Total % increase to corruption on attack split from gear (combat support %, etc.).</summary>
-    public float MeleeCorruptionDamageTotalScalingPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
+    /// <summary>Total % increase to corruption on the attack split from gear plus melee skill-tree % when using a melee weapon.</summary>
+    public float MeleeCorruptionDamageTotalScalingPercentPoints
+    {
+        get
+        {
+            GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out _, out _, out float mult);
+            return (mult - 1f) * 100f;
+        }
+    }
 
     /// <summary>Equipped additive fraction for Fire skill damage (0.10 = +10%). Buffs can extend later.</summary>
     public float FireSkillDamageTotalScalingPercentPoints => GetEquippedFireSkillDamagePercent() * 100f;
@@ -1229,7 +1323,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float GlobalCorruptionDamageBonusPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
 
     /// <summary>
-    /// Melee skill-tree physical % (always shows unlocked passives for UI). Combat applies this only with a <see cref="AttackSkill.Melee"/> weapon (see split-damage multipliers).
+    /// Melee skill-tree % bonus to all damage on your melee attack split (physical, magic, corruption). Shown for unlocked passives; applies only with a <see cref="AttackSkill.Melee"/> weapon.
     /// </summary>
     public float MeleePhysicalConditionalBonusPercentPoints
     {
@@ -1240,8 +1334,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    /// <summary>Ranged physical % from gear/support; stacks with <see cref="GlobalPhysicalDamageBonusPercentPoints"/> on <see cref="AttackSkill.Ranged"/> attacks.</summary>
-    public float RangedPhysicalDamageBonusPercentPoints => GetEquippedRangedPhysicalDamagePercent() * 100f;
+    /// <summary>
+    /// Ranged gear + ranged skill-tree % applied to all basic-attack damage (physical, magic, corruption) with a ranged weapon.
+    /// </summary>
+    public float RangedTotalDamageBonusPercentPoints =>
+        (GetEquippedRangedPhysicalDamagePercent() + GetUnlockedRangedMinorBonuses().rangedDamagePercent) * 100f;
+
+    /// <inheritdoc cref="RangedTotalDamageBonusPercentPoints"/>
+    public float RangedPhysicalDamageBonusPercentPoints => RangedTotalDamageBonusPercentPoints;
 
     /// <summary>Bleed is a single-stack DoT in the current combat model.</summary>
     public int BleedMaxStacks => 1;
@@ -1293,8 +1393,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private SplitDamage GetMinSplitDamage()
     {
         MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
-        GetMeleeSplitDamageScalingMultipliers(meleeBonuses, out float physicalDamageMult, out float magicDamageMult);
-        float corruptionDamageMult = 1f + Mathf.Max(0f, GetEquippedCorruptionDamagePercent());
+        GetMeleeSplitDamageScalingMultipliers(
+            meleeBonuses,
+            out float physicalDamageMult,
+            out float magicDamageMult,
+            out float corruptionDamageMult);
 
         var mh = GetMainHandWeaponDef();
 
@@ -1357,8 +1460,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private SplitDamage GetMaxSplitDamage()
     {
         MeleeMinorNodeBonuses meleeBonuses = GetActiveMeleeMinorBonuses();
-        GetMeleeSplitDamageScalingMultipliers(meleeBonuses, out float physicalDamageMult, out float magicDamageMult);
-        float corruptionDamageMult = 1f + Mathf.Max(0f, GetEquippedCorruptionDamagePercent());
+        GetMeleeSplitDamageScalingMultipliers(
+            meleeBonuses,
+            out float physicalDamageMult,
+            out float magicDamageMult,
+            out float corruptionDamageMult);
 
         var mh = GetMainHandWeaponDef();
 
@@ -1590,6 +1696,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return GetUnlockedMeleeMinorBonuses();
     }
 
+    private RangedMinorNodeBonuses GetActiveRangedMinorBonuses()
+    {
+        if (GetCurrentAttackSkill() != AttackSkill.Ranged)
+            return default;
+
+        return GetUnlockedRangedMinorBonuses();
+    }
+
     private MeleeMinorNodeBonuses GetUnlockedMeleeMinorBonuses()
     {
         // Skill-tree unlock/enhancement bonuses are player-only.
@@ -1622,6 +1736,38 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
 
         ApplyLevel10BloodlettingBranch(meleeLevel, ref total);
+
+        return total;
+    }
+
+    private RangedMinorNodeBonuses GetUnlockedRangedMinorBonuses()
+    {
+        if (!_ownerPlayer)
+            return default;
+
+        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
+        if (!skillsManager || !skillDatabase)
+            return default;
+
+        SkillDefinition rangedDef = skillDatabase.Get(SkillType.Ranged);
+        if (rangedDef == null || rangedDef.unlocks == null || rangedDef.unlocks.Count == 0)
+            return default;
+
+        int rangedLevel = skillsManager.GetLevel(SkillType.Ranged);
+        RangedMinorNodeBonuses total = default;
+        for (int i = 0; i < rangedDef.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = rangedDef.unlocks[i];
+            if (unlock == null)
+                continue;
+            if (unlock.unlockType != SkillUnlockType.MinorPassive)
+                continue;
+            if (unlock.requiredLevel > rangedLevel)
+                continue;
+
+            ApplyRangedMinorOption(unlock.rangedMinorStatOption, ref total);
+        }
 
         return total;
     }
@@ -1689,6 +1835,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 break;
             case MeleeMinorNodeStatOption.MeleeMoveSpeedPercent2:
                 total.meleeMoveSpeedPercent += 0.02f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeMoveSpeedPercent5:
+                total.meleeMoveSpeedPercent += 0.05f;
                 break;
             case MeleeMinorNodeStatOption.MeleeCritDamagePercent8:
                 total.meleeCritDamage += 0.08f;
@@ -1758,6 +1907,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 total.meleeArmor += 10f;
                 total.meleeMagicResist += 10f;
                 total.meleeDamageReduction += 0.02f;
+                break;
+        }
+    }
+
+    private static void ApplyRangedMinorOption(RangedMinorNodeStatOption option, ref RangedMinorNodeBonuses total)
+    {
+        switch (option)
+        {
+            case RangedMinorNodeStatOption.RangedDamagePercent3:
+                total.rangedDamagePercent += 0.03f;
                 break;
         }
     }

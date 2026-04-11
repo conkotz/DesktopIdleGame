@@ -61,7 +61,7 @@ public static class GameTooltipTexts
                 title = "DPS (Damage Per Second)";
                 description =
                     "Your total expected damage per second.\n\n" +
-                    "Includes attack speed, critical strikes, damage types, and expected ailment damage (Bleed, Poison). " +
+                    "Includes attack speed, critical strikes, damage types, abilities currently slotted (assuming you have energy), and expected ailment damage (Bleed, Poison). " +
                     "Useful as a single offensive summary.";
                 return true;
 
@@ -111,7 +111,9 @@ public static class GameTooltipTexts
 
             case "AbilityPowerText":
                 title = "Ability Power";
-                description = "Extra damage on abilities based on this stat and each skill's Power scaling.";
+                description =
+                    "Extra damage on abilities that scale from Power—often about 1% ability damage " +
+                    "per Ability Power. Each ability's tooltip shows your exact +% from AP and the bonus damage.";
                 return true;
 
             case "PhysicalBonusText":
@@ -150,15 +152,19 @@ public static class GameTooltipTexts
             case "MeleePhysBonusText":
             case "MeleeDamageBonusText":
             case "ConditionalMeleePhysBonusText":
-                title = "Melee physical";
-                description = "Increases melee physical damage you deal.";
+                title = "Melee damage";
+                description =
+                    "Increases all damage from your melee attacks: Physical, Magic (elemental on the melee weapon), " +
+                    "and Corruption portions of the hit.";
                 return true;
 
             case "RangedPhysBonusText":
             case "RangedDamageBonusText":
             case "ConditionalRangedPhysBonusText":
-                title = "Ranged physical";
-                description = "Increases ranged physical damage you deal.";
+                title = "Ranged damage";
+                description =
+                    "Increases all damage from your ranged attacks: Physical, Magic (elemental on the weapon), " +
+                    "and Corruption portions of the hit.";
                 return true;
 
             case "BleedText":

@@ -236,8 +236,8 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Cleaving Strikes
-    description: 'Empower your melee attacks causing each hit to also strike an additional
-      nearby enemy within attack range.'
+    description: 'Empower your melee attacks causing each hit to also strike additional
+      nearby enemies within your weapon range from you (minimum 3).'
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -350,10 +350,10 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 23
     title: Footwork I
-    description: +2% Melee Move Speed
+    description: +5% Melee Move Speed
     icon: {fileID: 0}
     unlockType: 0
-    meleeMinorStatOption: 9
+    meleeMinorStatOption: 19
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 24
@@ -399,8 +399,8 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 28
-    title: Toxic Synergy I
-    description: +4% Ailment Damage (Melee Hits Only)
+    title: Ailment Synergy I
+    description: +4% Bleed, Poison & Burn multipliers (melee weapon)
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 13
@@ -508,10 +508,10 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 39
     title: Footwork II
-    description: +2% Melee Move Speed
+    description: +5% Melee Move Speed
     icon: {fileID: 0}
     unlockType: 0
-    meleeMinorStatOption: 9
+    meleeMinorStatOption: 19
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 40
@@ -591,8 +591,8 @@ MonoBehaviour:
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 46
-    title: Toxic Synergy II
-    description: +4% Ailment Damage (Melee Hits Only)
+    title: Ailment Synergy II
+    description: +4% Bleed, Poison & Burn multipliers (melee weapon)
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 13
