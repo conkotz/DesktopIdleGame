@@ -134,11 +134,11 @@ public static class AbilityTooltipDamagePreview
         {
             int cleaveSel = GetMeleeSkillRow15Choice(skillsManager);
             if (cleaveSel == 0)
-                body.AppendLine(O("+3 nearby enemies per strike (8s, 4 hits); reduced cleave damage."));
+                body.AppendLine(O("+2 nearby enemies per strike (5s, 3 hits); reduced cleave damage."));
             else if (cleaveSel == 1)
-                body.AppendLine(O("+1 nearby enemy per strike (14s, 7 hits); reduced cleave damage."));
+                body.AppendLine(O("+1 nearby enemy per strike (10s, 6 hits); reduced cleave damage."));
             else
-                body.AppendLine(O("+1 nearby enemy per strike (10s, 5 hits); reduced cleave damage."));
+                body.AppendLine(O("+1 nearby enemy per strike (7s, 4 hits); reduced cleave damage."));
         }
         else if (IsCrescentSlash(def))
         {

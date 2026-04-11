@@ -26,6 +26,7 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField] private SkillsManager skillsManager;
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private Inventory inventory;
+    [SerializeField] private PlayerBuffController buffController;
 
     [Header("Global Cooldown")]
     [SerializeField, Min(0f)] private float globalCooldownSeconds = 0.15f;
@@ -81,7 +82,10 @@ public class PlayerAbilityController : MonoBehaviour
     private int _cleavingHitsRemaining;
     private int _cleavingAdditionalTargets;
     private float _cleavingBuffEndsAt;
+    private float _cleavingBuffDuration;
     private bool _cleavingBuffActive;
+    private int _lastSyncedCleavingHudStacks = int.MinValue;
+    private float _lastSyncedCleavingHudEnd = float.NaN;
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
     private float _queuedPowerSlashMagicMultiplier = 1f;
     private float _queuedPowerSlashAbilityPowerMultiplier;
@@ -113,6 +117,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!combat) combat = GetComponent<PlayerCombatController>();
         if (!equipment) equipment = GetComponent<EquipmentManager>();
         if (!inventory) inventory = GetComponent<Inventory>();
+        if (!buffController) buffController = GetComponent<PlayerBuffController>();
         if (!abilityDatabase) abilityDatabase = AbilityDatabase.LoadDefault();
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         if (!skillsManager) skillsManager = SkillsManager.Instance;
@@ -121,6 +126,8 @@ public class PlayerAbilityController : MonoBehaviour
     private void Update()
     {
         TryAutoReleaseQueuedCrescentSlash();
+        CleanupCleavingStrikesIfExpired();
+        SyncCleavingStrikesHudBuff();
     }
 
     public bool IsOnCooldown(string abilityId, out float remainingSeconds)
@@ -1316,25 +1323,32 @@ public class PlayerAbilityController : MonoBehaviour
         _cleavingBuffActive = true;
         if (selected == 0)
         {
-            // Greater Cleave: primary + 3 extra = up to 4 enemies per swing (cleave hits use reduced damage).
-            _cleavingAdditionalTargets = 3;
-            _cleavingHitsRemaining = 4;
-            _cleavingBuffEndsAt = Time.time + 8f;
+            // Greater Cleave: primary + 2 extra targets per swing (cleave hits use reduced damage).
+            _cleavingAdditionalTargets = 2;
+            _cleavingHitsRemaining = 3;
+            _cleavingBuffDuration = 5f;
+            _cleavingBuffEndsAt = Time.time + _cleavingBuffDuration;
         }
         else if (selected == 1)
         {
             // Lasting Momentum
             _cleavingAdditionalTargets = 1;
-            _cleavingHitsRemaining = 7;
-            _cleavingBuffEndsAt = Time.time + 14f;
+            _cleavingHitsRemaining = 6;
+            _cleavingBuffDuration = 10f;
+            _cleavingBuffEndsAt = Time.time + _cleavingBuffDuration;
         }
         else
         {
-            // Base
+            // Base (no Lv18 enhancement)
             _cleavingAdditionalTargets = 1;
-            _cleavingHitsRemaining = 5;
-            _cleavingBuffEndsAt = Time.time + 10f;
+            _cleavingHitsRemaining = 4;
+            _cleavingBuffDuration = 7f;
+            _cleavingBuffEndsAt = Time.time + _cleavingBuffDuration;
         }
+
+        _lastSyncedCleavingHudStacks = int.MinValue;
+        _lastSyncedCleavingHudEnd = float.NaN;
+        SyncCleavingStrikesHudBuff();
     }
 
     private void CleanupCleavingStrikesIfExpired()
@@ -1342,34 +1356,65 @@ public class PlayerAbilityController : MonoBehaviour
         if (!_cleavingBuffActive)
             return;
 
-        // End when empowered hits are exhausted or the buff duration ends (whichever comes first).
+        // End only when both duration and hit budget are satisfied: slow weapons can finish all swings after
+        // the timer; fast weapons keep cleaving until the timer after spending all hit charges.
         bool hitsConsumed = _cleavingHitsRemaining <= 0;
         bool durationElapsed = Time.time >= _cleavingBuffEndsAt;
-        if (hitsConsumed || durationElapsed)
+        if (hitsConsumed && durationElapsed)
         {
             _cleavingBuffActive = false;
             _cleavingAdditionalTargets = 0;
             _cleavingHitsRemaining = 0;
             _cleavingBuffEndsAt = 0f;
+            _cleavingBuffDuration = 0f;
         }
+    }
+
+    private void SyncCleavingStrikesHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!_cleavingBuffActive)
+        {
+            if (!float.IsNaN(_lastSyncedCleavingHudEnd) || _lastSyncedCleavingHudStacks != int.MinValue)
+            {
+                buffController.ClearHudAbilityBuff(CleavingStrikesId);
+                _lastSyncedCleavingHudStacks = int.MinValue;
+                _lastSyncedCleavingHudEnd = float.NaN;
+            }
+
+            return;
+        }
+
+        int displayStacks = Mathf.Max(1, _cleavingHitsRemaining);
+        if (_lastSyncedCleavingHudStacks == displayStacks &&
+            Mathf.Approximately(_lastSyncedCleavingHudEnd, _cleavingBuffEndsAt))
+            return;
+
+        _lastSyncedCleavingHudStacks = displayStacks;
+        _lastSyncedCleavingHudEnd = _cleavingBuffEndsAt;
+        buffController.SetHudAbilityBuff(CleavingStrikesId, displayStacks, _cleavingBuffEndsAt, _cleavingBuffDuration);
     }
 
     /// <summary>
     /// Called on successful primary hit release. Returns whether cleaving is active and how many extra targets to attempt.
-    /// Hit count is consumed only when there was a valid successful release.
+    /// Hit charges decrement until zero; after that, cleave continues until duration ends.
     /// </summary>
     public bool TryConsumeCleavingExtraTargetsOnSuccessfulHit(out int additionalTargets)
     {
         additionalTargets = 0;
         CleanupCleavingStrikesIfExpired();
-        if (!_cleavingBuffActive || _cleavingHitsRemaining <= 0)
+        if (!_cleavingBuffActive)
             return false;
 
         additionalTargets = Mathf.Max(0, _cleavingAdditionalTargets);
         if (additionalTargets <= 0)
             return false;
 
-        _cleavingHitsRemaining = Mathf.Max(0, _cleavingHitsRemaining - 1);
+        if (_cleavingHitsRemaining > 0)
+            _cleavingHitsRemaining--;
+
         CleanupCleavingStrikesIfExpired();
         return true;
     }
@@ -1383,7 +1428,10 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
         {
             CleanupCleavingStrikesIfExpired();
-            return _cleavingBuffActive ? Mathf.Max(0, _cleavingHitsRemaining) : 0;
+            if (!_cleavingBuffActive)
+                return 0;
+            // After hit budget is spent, show1 so the slot still reads as active during the time-only tail.
+            return _cleavingHitsRemaining > 0 ? _cleavingHitsRemaining : 1;
         }
 
         return 0;

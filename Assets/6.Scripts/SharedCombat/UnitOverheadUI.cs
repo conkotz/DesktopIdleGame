@@ -407,7 +407,7 @@ public class UnitOverheadUI : MonoBehaviour
         DebuffIconUI iconUI = icon.GetComponent<DebuffIconUI>();
         if (iconUI != null)
         {
-            iconUI.SetData(sprite, stacks, true);
+            iconUI.SetData(sprite, stacks);
         }
         else
         {

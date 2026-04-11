@@ -62,11 +62,14 @@ public class HUDView : MonoBehaviour
 
     [SerializeField] private Inventory inventory;
 
+    private AbilityDatabase _abilityDatabase;
 
     private void Awake()
     {
         if (!inventory)
             inventory = FindFirstObjectByType<Inventory>();
+
+        _abilityDatabase = AbilityDatabase.LoadDefault();
 
         if (!hudTooltip)
             hudTooltip = GameObject.Find("HUDToolTipInfoPanel")?.GetComponent<SharedTooltipUI>();
@@ -206,18 +209,27 @@ public class HUDView : MonoBehaviour
                 continue;
 
             SpawnBuffIcon(
-            GetBuffSpriteFromItem(buff),
-            GetBuffIconName(buff.type),
-            GetBuffValueLabel(buff),
-            buff.RemainingSeconds,
-            GetBuffTitle(buff),
-            GetBuffBody(buff)
-);
+                GetBuffSpriteFromItem(buff),
+                GetBuffIconKey(buff),
+                GetBuffValueLabel(buff),
+                buff.RemainingSeconds,
+                GetBuffTitle(buff),
+                GetBuffBody(buff),
+                buff.displayStacks,
+                buff.displayStacks > 0);
         }
     }
 
     private Sprite GetBuffSpriteFromItem(PlayerBuffController.ActiveBuff buff)
     {
+        if (buff.type == ConsumableEffectType.HudAbilityBuff && _abilityDatabase != null &&
+            !string.IsNullOrWhiteSpace(buff.id))
+        {
+            AbilityDefinition adef = _abilityDatabase.Get(buff.id);
+            if (adef != null && adef.icon != null)
+                return adef.icon;
+        }
+
         if (inventory != null && !string.IsNullOrWhiteSpace(buff.id))
         {
             var def = inventory.GetItemDef(buff.id);
@@ -285,7 +297,6 @@ public class HUDView : MonoBehaviour
             iconUI.SetData(
                 sprite,
                 stacks,
-                true,
                 title,
                 body,
                 hudTooltip,
@@ -303,7 +314,9 @@ public class HUDView : MonoBehaviour
         string valueLabel,
         float remainingSeconds,
         string title,
-        string body)
+        string body,
+        int stacks = 0,
+        bool showStacks = false)
     {
         if (sprite == null)
             sprite = defaultBuffIcon;
@@ -326,10 +339,20 @@ public class HUDView : MonoBehaviour
                 hudTooltip,
                 tooltipMeasureRect,
                 tooltipHeightRect,
-                tooltipPreferredSide);
+                tooltipPreferredSide,
+                stacks,
+                showStacks);
         }
 
         spawnedBuffIcons.Add(icon);
+    }
+
+    private static string GetBuffIconKey(PlayerBuffController.ActiveBuff buff)
+    {
+        if (buff.type == ConsumableEffectType.HudAbilityBuff)
+            return string.IsNullOrWhiteSpace(buff.id) ? "HudAbilityBuff" : buff.id;
+
+        return GetBuffIconNameConsumable(buff.type);
     }
 
     private Sprite GetBuffSprite(ConsumableEffectType type)
@@ -343,7 +366,7 @@ public class HUDView : MonoBehaviour
         };
     }
 
-    private string GetBuffIconName(ConsumableEffectType type)
+    private static string GetBuffIconNameConsumable(ConsumableEffectType type)
     {
         return type switch
         {
@@ -356,6 +379,9 @@ public class HUDView : MonoBehaviour
 
     private string GetBuffValueLabel(PlayerBuffController.ActiveBuff buff)
     {
+        if (buff.type == ConsumableEffectType.HudAbilityBuff)
+            return "";
+
         float pct = buff.magnitude * 100f;
 
         return buff.type switch
@@ -388,6 +414,18 @@ public class HUDView : MonoBehaviour
 
     private string GetBuffTitle(PlayerBuffController.ActiveBuff buff)
     {
+        if (buff.type == ConsumableEffectType.HudAbilityBuff)
+        {
+            if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))
+            {
+                AbilityDefinition def = _abilityDatabase.Get(buff.id);
+                if (def != null && !string.IsNullOrWhiteSpace(def.displayName))
+                    return def.displayName;
+            }
+
+            return string.IsNullOrWhiteSpace(buff.id) ? "Ability" : buff.id;
+        }
+
         return buff.type switch
         {
             ConsumableEffectType.PhysicalDamageBoost => "Physical Damage Boost",
@@ -409,6 +447,21 @@ public class HUDView : MonoBehaviour
 
     private string GetBuffBody(PlayerBuffController.ActiveBuff buff)
     {
+        if (buff.type == ConsumableEffectType.HudAbilityBuff)
+        {
+            string core = "Temporary ability effect.";
+            if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))
+            {
+                AbilityDefinition def = _abilityDatabase.Get(buff.id);
+                if (def != null && !string.IsNullOrWhiteSpace(def.description))
+                    core = def.description;
+            }
+
+            if (buff.displayStacks > 0)
+                core += $"\n\nSwing charges: {buff.displayStacks}";
+            return core;
+        }
+
         float pct = buff.magnitude * 100f;
 
         return buff.type switch

@@ -7,6 +7,7 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 {
     [SerializeField] private Image iconImage;
     [SerializeField] private TMP_Text valueText;
+    [SerializeField] private TMP_Text stackText;
     [SerializeField] private TMP_Text timerText;
 
     [Header("Tooltip")]
@@ -31,7 +32,9 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         SharedTooltipUI sharedTooltip = null,
         RectTransform measureRect = null,
         RectTransform heightRect = null,
-        FlipInsideBounds.PreferredSide side = FlipInsideBounds.PreferredSide.Right)
+        FlipInsideBounds.PreferredSide side = FlipInsideBounds.PreferredSide.Right,
+        int stacks = 0,
+        bool showStacks = false)
     {
         _hasValidData = sprite != null;
 
@@ -40,6 +43,17 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             iconImage.sprite = sprite;
             iconImage.enabled = sprite != null;
             iconImage.raycastTarget = true;
+        }
+
+        if (stackText != null)
+        {
+            stackText.raycastTarget = false;
+
+            bool shouldShowStacks = showStacks && stacks > 0;
+            stackText.gameObject.SetActive(shouldShowStacks);
+
+            if (shouldShowStacks)
+                stackText.text = stacks.ToString();
         }
 
         if (valueText != null)
@@ -104,6 +118,21 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
                !string.IsNullOrWhiteSpace(_title);
     }
 
+    /// <summary>Omit "Remaining: …" when duration is over (e.g. Cleaving Strikes hit-charge tail); timer text already hidden in that case.</summary>
+    private string BuildTooltipBodyWithOptionalRemaining()
+    {
+        bool showRemaining = _remainingSeconds > 0f;
+        string remainingLine = showRemaining ? $"Remaining: {Mathf.CeilToInt(_remainingSeconds)}s" : "";
+
+        if (string.IsNullOrWhiteSpace(_body))
+            return remainingLine;
+
+        if (!showRemaining)
+            return _body;
+
+        return $"{_body}\n{remainingLine}";
+    }
+
     private void RefreshHoveredTooltip()
     {
         if (!_isPointerOver)
@@ -115,9 +144,7 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             return;
         }
 
-        string body = string.IsNullOrWhiteSpace(_body)
-            ? $"Remaining: {Mathf.CeilToInt(_remainingSeconds)}s"
-            : $"{_body}\nRemaining: {Mathf.CeilToInt(_remainingSeconds)}s";
+        string body = BuildTooltipBodyWithOptionalRemaining();
 
         tooltip.ShowTextAt(
             transform,

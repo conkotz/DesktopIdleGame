@@ -26,6 +26,7 @@ MonoBehaviour:
     icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 2
@@ -34,6 +35,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 1
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 3
@@ -42,6 +44,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 2
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 4
@@ -50,6 +53,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 3
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 5
@@ -58,6 +62,7 @@ MonoBehaviour:
     icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 11400000, guid: cef0107d3357c9b4e86a08e4b6e8a0a7, type: 2}
     choices:
     - requiredLevel: 8
@@ -72,11 +77,12 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Rend
-    description: 'Primes your next melee hit with guaranteed Bleed and extended duration
-      on that application. Exclusive while active.'
+    description: Primes your next melee hit with guaranteed Bleed and extended duration
+      on that application. Exclusive while active.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 11400000, guid: 5f3b1c2d9a7e4b6c8d0e1f2a3b4c5d6e, type: 2}
     choices:
     - requiredLevel: 8
@@ -92,11 +98,12 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Venom Jab
-    description: Primes your next melee hit. If the hit deals Corruption damage, apply
-      Poison at 100% chance at max stacks.
+    description: Primes your next melee hit. If the hit deals Corruption damage,
+      apply Poison at 100% chance at max stacks.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 11400000, guid: 9a1b2c3d4e5f60718293a4b5c6d7e8f9, type: 2}
     choices:
     - requiredLevel: 8
@@ -115,6 +122,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 4
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 7
@@ -123,6 +131,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 5
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 8
@@ -131,6 +140,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 3
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 9
@@ -139,6 +149,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 6
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 10
@@ -153,6 +164,7 @@ MonoBehaviour:
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 13
@@ -189,6 +201,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 1
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 12
@@ -197,6 +210,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 2
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 13
@@ -205,6 +219,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 3
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 14
@@ -213,6 +228,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 4
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 15
@@ -221,12 +237,13 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 11400000, guid: a3d2f6b31c9e4f2b8d1a6c7e9f0b1234, type: 2}
     choices:
     - requiredLevel: 18
       title: Twin Cyclone
-      description: "If Whirlwind hits an enemy, hit all enemies a second time
-        for 20% of the first attacks damage. \nCan apply on ailments."
+      description: "If Whirlwind hits an enemy, hit all enemies a second time for
+        20% of the first attacks damage. \nCan apply on ailments."
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 18
@@ -236,22 +253,22 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Cleaving Strikes
-    description: 'Empower your melee attacks causing each hit to also strike additional
-      nearby enemies within your weapon range from you (minimum 3).'
+    description: Empower your melee basic attacks causing each hit to also strike
+      additional nearby enemies within your weapon range from you (minimum 3 range).
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 11400000, guid: 2c4fa8e5a0b54d4b91f6b62d0c9f4a11, type: 2}
     choices:
     - requiredLevel: 18
       title: Greater Cleave
-      description: Cleaving Strikes hits 3 additional enemies, but only for 8 seconds
-        or 4 hits.
+      description: Cleaving Strikes hits 2 enemies, but only for 5 seconds or 3 hits.
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 18
       title: Lasting Momentum
-      description: Cleaving Strikes lasts for 14 seconds or 7 hits.
+      description: Cleaving Strikes lasts for 10 seconds or 6 hits.
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 15
@@ -261,6 +278,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 11400000, guid: 7e3bd07b5f7f4f82ad7a8f3d9c4b1d22, type: 2}
     choices:
     - requiredLevel: 18
@@ -280,6 +298,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 7
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 17
@@ -288,6 +307,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 8
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 18
@@ -296,6 +316,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 5
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 19
@@ -304,6 +325,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 18
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 20
@@ -312,6 +334,7 @@ MonoBehaviour:
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 25
@@ -330,6 +353,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 2
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 21
@@ -338,6 +362,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 4
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 22
@@ -346,6 +371,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 3
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 23
@@ -354,6 +380,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 19
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 24
@@ -362,6 +389,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 10
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 25
@@ -370,6 +398,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 30
@@ -388,6 +417,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 11
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 27
@@ -396,6 +426,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 12
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 28
@@ -404,6 +435,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 13
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 29
@@ -412,6 +444,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 14
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 30
@@ -420,6 +453,7 @@ MonoBehaviour:
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 35
@@ -438,6 +472,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 4
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 32
@@ -446,6 +481,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 3
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 33
@@ -454,6 +490,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 5
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 34
@@ -462,6 +499,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 10
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 35
@@ -470,6 +508,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 40
@@ -488,6 +527,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 15
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 37
@@ -496,6 +536,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 16
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 38
@@ -504,6 +545,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 17
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 39
@@ -512,6 +554,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 19
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 40
@@ -520,6 +563,7 @@ MonoBehaviour:
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 45
@@ -538,6 +582,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 2
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 41
@@ -546,6 +591,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 4
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 42
@@ -554,6 +600,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 3
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 43
@@ -562,6 +609,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 5
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 44
@@ -570,6 +618,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 10
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 45
@@ -578,6 +627,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 50
@@ -596,6 +646,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 13
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 47
@@ -604,6 +655,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 17
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 48
@@ -612,6 +664,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 3
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 49
@@ -620,6 +673,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 0
     meleeMinorStatOption: 6
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 50
@@ -628,6 +682,7 @@ MonoBehaviour:
     icon: {fileID: 0}
     unlockType: 4
     meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 50

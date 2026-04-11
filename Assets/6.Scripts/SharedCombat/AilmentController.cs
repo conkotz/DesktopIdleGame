@@ -204,16 +204,7 @@ public class AilmentController : MonoBehaviour
         int tickCount = Mathf.Max(1, payload.ticks);
         int newBleedTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
 
-        bool wasInactive = !HasBleed;
-
         RefreshBleedSchedule(newBleedTick, tickCount);
-
-        if (wasInactive && bleedTickSchedule.Count > 0)
-        {
-            int instantTick = Mathf.Max(1, bleedTickSchedule[0]);
-            bleedTickSchedule.RemoveAt(0);
-            ApplyBleedTick(instantTick, payload.source);
-        }
 
         if (bleedTickSchedule.Count > 0 && bleedRoutine == null)
             bleedRoutine = StartCoroutine(BleedRoutine(payload.source));
@@ -237,15 +228,7 @@ public class AilmentController : MonoBehaviour
         int tickCount = Mathf.Max(1, payload.ticks);
         int newTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
 
-        bool wasInactive = exclusiveBleedTickSchedule.Count == 0 && exclusiveBleedRoutine == null;
         RefreshExclusiveBleedSchedule(newTick, tickCount);
-
-        if (wasInactive && exclusiveBleedTickSchedule.Count > 0)
-        {
-            int instantTick = Mathf.Max(1, exclusiveBleedTickSchedule[0]);
-            exclusiveBleedTickSchedule.RemoveAt(0);
-            ApplyBleedTick(instantTick, payload.source);
-        }
 
         if (exclusiveBleedTickSchedule.Count > 0 && exclusiveBleedRoutine == null)
             exclusiveBleedRoutine = StartCoroutine(ExclusiveBleedRoutine(payload.source));

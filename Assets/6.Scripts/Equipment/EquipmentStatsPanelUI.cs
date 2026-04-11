@@ -244,7 +244,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         if (lifeRegenText) lifeRegenText.text = $"Life Regen: {stats.LifeRegenPerSecond:0.##}/s";
         if (energyRegenText) energyRegenText.text = $"Energy Regen: {stats.EnergyRegenPerSecond:0.##}/s";
-        if (abilityPowerText) abilityPowerText.text = $"Ability Power: {stats.AbilityPower:0.##}";
+        if (abilityPowerText)
+        {
+            float ap = stats.AbilityPower;
+            float abilityPotionPct = stats.AbilityDamageBoostConsumablePercentPoints;
+            abilityPowerText.text = abilityPotionPct > 0.001f
+                ? $"Ability Power: {ap:0.##} (abilities {abilityPotionPct:+0.#;-0.#;0}%)"
+                : $"Ability Power: {ap:0.##}";
+        }
         if (statsHeaderText) statsHeaderText.text = $"Stats (CP: {stats.CombatPowerRounded})";
 
         if (offenceGlobalBonusesHeaderText)

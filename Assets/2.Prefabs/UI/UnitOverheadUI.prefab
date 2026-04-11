@@ -64,6 +64,9 @@ MonoBehaviour:
   worldOffset: {x: 0, y: 0, z: 0}
   parentCanvas: {fileID: 0}
   targetCamera: {fileID: 0}
+  enableOverlappingStack: 1
+  stackOverlapThresholdPx: 64
+  stackVerticalSpacingPx: 56
 --- !u!1 &2733774353303313739
 GameObject:
   m_ObjectHideFlags: 0
@@ -672,8 +675,8 @@ MonoBehaviour:
     m_Right: 0
     m_Top: 8
     m_Bottom: 0
-  m_ChildAlignment: 3
-  m_Spacing: 24
+  m_ChildAlignment: 0
+  m_Spacing: 28
   m_ChildForceExpandWidth: 0
   m_ChildForceExpandHeight: 0
   m_ChildControlWidth: 1

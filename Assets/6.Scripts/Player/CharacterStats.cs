@@ -322,8 +322,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public int MaxHP => baseMaxHP + GetEquippedBonusHealth();
     public int MaxEnergy => baseMaxEnergy + GetEquippedBonusEnergy();
     public int MaxMana => Mathf.Max(0, baseMaxMana + GetEquippedBonusMana());
-    public int Armor => baseArmor + GetEquippedArmor() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeArmor);
-    public int MagicResist => baseMagicResist + GetEquippedMagicResist() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeMagicResist);
+    public int Armor =>
+        baseArmor + GetEquippedArmor() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeArmor) +
+        (buffController ? Mathf.RoundToInt(buffController.GetTotalMagnitude(ConsumableEffectType.ArmorBoost)) : 0);
+
+    public int MagicResist =>
+        baseMagicResist + GetEquippedMagicResist() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeMagicResist) +
+        (buffController ? Mathf.RoundToInt(buffController.GetTotalMagnitude(ConsumableEffectType.MagicResistBoost)) : 0);
     public int CorruptionResist => baseCorruptionResist + GetEquippedCorruptionResist();
 
     public float PhysBlockChance => Mathf.Clamp01(basePhysBlockChance + GetEquippedPhysBlockChance());
@@ -335,7 +340,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // Future-ready: temporary slows / buffs from ailments, skills, etc.
     public float TemporaryMoveSpeedPercent => 0f;
 
-    public float TotalMoveSpeedPercent => GearMoveSpeedPercent + TemporaryMoveSpeedPercent + GetActiveMeleeMinorBonuses().meleeMoveSpeedPercent;
+    public float TotalMoveSpeedPercent =>
+        GearMoveSpeedPercent + TemporaryMoveSpeedPercent + GetActiveMeleeMinorBonuses().meleeMoveSpeedPercent +
+        (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MoveSpeed) : 0f);
 
     public float MoveSpeedMultiplier => Mathf.Max(0.1f, baseMoveSpeedMult * (1f + TotalMoveSpeedPercent));
     public float FinalMoveSpeed => BaseMoveSpeed * MoveSpeedMultiplier;
@@ -358,7 +365,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float MoveSpeedBonusPercent => MoveSpeedMultiplier - 1f;
 
     public float LifeRegenPerSecond => Mathf.Max(0f, baseLifeRegen + GetEquippedLifeRegen() + GetActiveMeleeMinorBonuses().meleeLifeRegen);
-    public float EnergyRegenPerSecond => Mathf.Max(0f, baseEnergyRegen + GetEquippedEnergyRegen() + GetActiveMeleeMinorBonuses().meleeEnergyRegen);
+    public float EnergyRegenPerSecond =>
+        Mathf.Max(
+            0f,
+            baseEnergyRegen + GetEquippedEnergyRegen() + GetActiveMeleeMinorBonuses().meleeEnergyRegen +
+            (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.EnergyRegen) : 0f));
     public float ManaRegenPerSecond => Mathf.Max(0f, baseManaRegen + GetEquippedManaRegen());
     public float LifeSteal => Mathf.Clamp01(baseLifeSteal + GetEquippedLifeSteal() + GetActiveMeleeMinorBonuses().meleeLifeSteal);
 
@@ -372,6 +383,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float BaseMinCorruptionDamage => Mathf.Max(0f, baseMinCorruptionDamage);
     public float BaseMaxCorruptionDamage => Mathf.Max(BaseMinCorruptionDamage, baseMaxCorruptionDamage);
     public float AbilityPower => Mathf.Max(0f, baseAbilityPower + GetEquippedAbilityPower());
+
+    /// <summary>Active ability-damage potion as percent points (+20 for +20%), for stats panel; matches <see cref="GetAbilityDamage"/> multiplier.</summary>
+    public float AbilityDamageBoostConsumablePercentPoints =>
+        (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.AbilityDamageBoost) : 0f) * 100f;
 
     /// <summary>Denominator for ability power: bonus damage = AbilityPower × (per-ability coefficient) / this value (100 → 100 AP with coef 1 = +100% damage).</summary>
     public const float AbilityPowerDamagePercentDivisor = 100f;
@@ -468,7 +483,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            float a = Mathf.Max(0f, Armor);
+            float a = Mathf.Max(0f, Armor) * GetConsumableDefenseBoostRatingMultiplier();
             float multiplier = 100f / (100f + a);
             return (1f - multiplier) * 100f;
         }
@@ -478,7 +493,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            float mr = Mathf.Max(0f, MagicResist);
+            float mr = Mathf.Max(0f, MagicResist) * GetConsumableDefenseBoostRatingMultiplier();
             float multiplier = 100f / (100f + mr);
             return (1f - multiplier) * 100f;
         }
@@ -488,7 +503,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            float cr = Mathf.Max(0f, CorruptionResist);
+            float cr = Mathf.Max(0f, CorruptionResist) * GetConsumableDefenseBoostRatingMultiplier();
             float multiplier = 100f / (100f + cr);
             return (1f - multiplier) * 100f;
         }
@@ -1313,11 +1328,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float LightningSkillDamageTotalScalingPercentPoints => GetEquippedLightningSkillDamagePercent() * 100f;
 
-    /// <summary>Equipped global physical % (gear + supports), additive fraction; 0.10 = +10%.</summary>
-    public float GlobalPhysicalDamageBonusPercentPoints => GetEquippedGlobalPhysicalDamagePercent() * 100f;
+    /// <summary>Global physical % on attacks: gear, supports, and active <see cref="ConsumableEffectType.PhysicalDamageBoost"/>; additive fraction (0.10 = +10%).</summary>
+    public float GlobalPhysicalDamageBonusPercentPoints =>
+        (GetEquippedGlobalPhysicalDamagePercent() + (buffController ? buffController.PhysicalDamageBoostPercent : 0f)) * 100f;
 
-    /// <summary>Equipped magic % on attacks (elemental weapon total + supports), additive fraction.</summary>
-    public float GlobalMagicDamageBonusPercentPoints => GetEquippedMagicDamagePercent() * 100f;
+    /// <summary>Global magic % on attacks: gear, supports, and active <see cref="ConsumableEffectType.MagicDamageBoost"/>.</summary>
+    public float GlobalMagicDamageBonusPercentPoints =>
+        (GetEquippedMagicDamagePercent() + (buffController ? buffController.MagicDamageBoostPercent : 0f)) * 100f;
 
     /// <summary>Equipped corruption attack-split % (armor bonus + combat supports).</summary>
     public float GlobalCorruptionDamageBonusPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
@@ -2585,7 +2602,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         blocked = false;
         if (_isDead) return 0f;
 
-        float finalDamage = ApplyMeleeDamageReduction(Mathf.Max(0f, amount));
+        float finalDamage = ApplyFlatDamageTakenReduction(
+            ApplyMeleeDamageReduction(Mathf.Max(0f, amount)),
+            GetConsumableFlatDamageReductionFraction());
         currentHP = Mathf.Clamp(currentHP - finalDamage, 0f, MaxHP);
         OnHPChanged?.Invoke(currentHP, MaxHP);
 
@@ -2609,6 +2628,23 @@ public class CharacterStats : MonoBehaviour, ISaveable
         OnManaChanged?.Invoke(currentMana, MaxMana);
     }
 
+    private float GetConsumableDefenseBoostRatingMultiplier()
+    {
+        return 1f + (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.DefenseBoost) : 0f);
+    }
+
+    private float GetConsumableFlatDamageReductionFraction()
+    {
+        return buffController ? Mathf.Clamp01(buffController.GetTotalMagnitude(ConsumableEffectType.DamageReduction)) : 0f;
+    }
+
+    private static float ApplyFlatDamageTakenReduction(float damage, float reduction01)
+    {
+        if (reduction01 <= 0f || damage <= 0f)
+            return damage;
+        return damage * (1f - reduction01);
+    }
+
     private float ApplyMitigation(float rawDamage, DamageType type, out bool blocked)
     {
         blocked = false;
@@ -2616,14 +2652,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
         rawDamage = Mathf.Max(0f, rawDamage);
         if (rawDamage <= 0f) return 0f;
 
+        float defMult = GetConsumableDefenseBoostRatingMultiplier();
+        float consumableDr = GetConsumableFlatDamageReductionFraction();
+
         switch (type)
         {
             case DamageType.Corruption:
-                return ApplyMeleeDamageReduction(MitigateByRating(rawDamage, CorruptionResist));
+                return ApplyFlatDamageTakenReduction(
+                    ApplyMeleeDamageReduction(MitigateByRating(rawDamage, CorruptionResist * defMult)),
+                    consumableDr);
 
             case DamageType.Physical:
                 {
-                    float dmg = MitigateByRating(rawDamage, Armor);
+                    float dmg = MitigateByRating(rawDamage, Armor * defMult);
 
                     if (PhysBlockChance > 0f && UnityEngine.Random.value < Mathf.Clamp01(PhysBlockChance))
                     {
@@ -2631,14 +2672,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
                         return 0f;
                     }
 
-                    return ApplyMeleeDamageReduction(dmg);
+                    return ApplyFlatDamageTakenReduction(ApplyMeleeDamageReduction(dmg), consumableDr);
                 }
 
             case DamageType.Magic:
-                return ApplyMeleeDamageReduction(MitigateByRating(rawDamage, MagicResist));
+                return ApplyFlatDamageTakenReduction(
+                    ApplyMeleeDamageReduction(MitigateByRating(rawDamage, MagicResist * defMult)),
+                    consumableDr);
 
             default:
-                return ApplyMeleeDamageReduction(rawDamage);
+                return ApplyFlatDamageTakenReduction(ApplyMeleeDamageReduction(rawDamage), consumableDr);
         }
     }
 

@@ -447,7 +447,10 @@ public enum ConsumableEffectType
 
     // Immunities
     PoisonImmunity,
-    BleedImmunity
+    BleedImmunity,
+
+    /// <summary>Ability-granted HUD buff only; excluded from consumable stat totals.</summary>
+    HudAbilityBuff
 }
 
 [System.Serializable]

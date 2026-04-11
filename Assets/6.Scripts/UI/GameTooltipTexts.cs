@@ -154,7 +154,7 @@ public static class GameTooltipTexts
             case "ConditionalMeleePhysBonusText":
                 title = "Melee damage";
                 description =
-                    "Increases all damage from your melee attacks: Physical, Magic (elemental on the melee weapon), " +
+                    "Increases all damage you deal from melee attacks: Physical, Magic (elemental on the melee weapon), " +
                     "and Corruption portions of the hit.";
                 return true;
 
@@ -163,7 +163,7 @@ public static class GameTooltipTexts
             case "ConditionalRangedPhysBonusText":
                 title = "Ranged damage";
                 description =
-                    "Increases all damage from your ranged attacks: Physical, Magic (elemental on the weapon), " +
+                    "Increases all damage you deal from ranged attacks: Physical, Magic (elemental on the weapon), " +
                     "and Corruption portions of the hit.";
                 return true;
 

@@ -251,7 +251,7 @@ public class ActionBarSlotUI : MonoBehaviour,
     public void SetStackText(int amount)
     {
         if (stackText == null) return;
-        stackText.text = amount > 1 ? amount.ToString() : "";
+        stackText.text = amount > 0 ? amount.ToString() : "";
     }
 
     public void SetCooldownVisual(float normalizedRemaining, float secondsRemaining = 0f)

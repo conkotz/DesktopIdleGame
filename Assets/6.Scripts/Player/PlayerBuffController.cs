@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -14,6 +14,9 @@ public class PlayerBuffController : MonoBehaviour
         public float endTime;
 
         public float duration; // ✅ ADD THIS
+
+        /// <summary>Corner stack count for HUD (e.g. Cleaving Strikes swings). 0 = use potion-style value label only.</summary>
+        public int displayStacks;
 
         public float RemainingSeconds => Mathf.Max(0f, endTime - Time.time);
         public bool IsExpired => Time.time >= endTime;
@@ -68,11 +71,55 @@ public class PlayerBuffController : MonoBehaviour
             type = effect.effectType,
             magnitude = effect.magnitude,
             endTime = endTime,
-            duration = effect.duration // ✅ ADD THIS
+            duration = effect.duration, // ✅ ADD THIS
+            displayStacks = 0
         });
 
         RecalculateBuffTotals();
         NotifyChanged();
+    }
+
+    /// <summary>Registers or updates a timed ability buff for the HUD bar only (no consumable stat totals).</summary>
+    public void SetHudAbilityBuff(string abilityId, int displayStacks, float endTime, float durationSeconds)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return;
+
+        activeBuffs.RemoveAll(b =>
+            b.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(b.id, abilityId, StringComparison.OrdinalIgnoreCase));
+
+        // Cleaving Strikes (and similar) can outlast the duration until hit charges are spent — keep HUD while stacks > 0.
+        if (displayStacks <= 0)
+        {
+            NotifyChanged();
+            return;
+        }
+
+        activeBuffs.Add(new ActiveBuff
+        {
+            id = abilityId,
+            type = ConsumableEffectType.HudAbilityBuff,
+            magnitude = 0f,
+            endTime = endTime,
+            duration = Mathf.Max(0f, durationSeconds),
+            displayStacks = displayStacks
+        });
+
+        NotifyChanged();
+    }
+
+    public void ClearHudAbilityBuff(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return;
+
+        int removed = activeBuffs.RemoveAll(b =>
+            b.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(b.id, abilityId, StringComparison.OrdinalIgnoreCase));
+
+        if (removed > 0)
+            NotifyChanged();
     }
 
     public bool HasBuff(ConsumableEffectType type)
@@ -165,6 +212,10 @@ public class PlayerBuffController : MonoBehaviour
 
             if (buff.IsExpired)
             {
+                // Ability HUD buffs use the real duration for the icon timer only; expiry is cleared by gameplay (e.g. Cleaving Strikes).
+                if (buff.type == ConsumableEffectType.HudAbilityBuff)
+                    continue;
+
                 activeBuffs.RemoveAt(i);
                 changed = true;
                 continue;
@@ -199,6 +250,9 @@ public class PlayerBuffController : MonoBehaviour
             ActiveBuff buff = activeBuffs[i];
 
             if (buff.IsExpired)
+                continue;
+
+            if (buff.type == ConsumableEffectType.HudAbilityBuff)
                 continue;
 
             if (totals.ContainsKey(buff.type))

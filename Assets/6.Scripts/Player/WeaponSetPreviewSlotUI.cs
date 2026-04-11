@@ -181,7 +181,7 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
         if (slotType == PreviewSlotType.OffHandInactive && _def.IsCombatSupport && equipment != null)
         {
             int amount = Mathf.Max(1, equipment.GetInactiveOffHandStackAmount());
-            return amount > 1 ? $"x{amount}" : "";
+            return $"x{amount}";
         }
 
         return "";

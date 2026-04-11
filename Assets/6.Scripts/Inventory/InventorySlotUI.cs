@@ -174,7 +174,7 @@ public class InventorySlotUI : MonoBehaviour,
         }
 
         if (countText)
-            countText.text = (def != null && amount > 1) ? amount.ToString() : "";
+            countText.text = (def != null && amount > 0) ? amount.ToString() : "";
 
         RefreshRarityBorder(def);
     }

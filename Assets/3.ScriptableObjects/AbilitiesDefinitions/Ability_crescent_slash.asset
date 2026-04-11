@@ -17,8 +17,8 @@ MonoBehaviour:
   description: Unleash a crescent slash which travels outward and strikes enemies
     in front of you.
   icon: {fileID: -5474065623339692901, guid: 6cb34204da6e6044ab2e5eac89ba221e, type: 3}
-  cooldown: 5
-  energyCost: 70
+  cooldown: 12
+  energyCost: 25
   physicalDamageMultiplier: 1
   magicDamageMultiplier: 0
   abilityPowerMultiplier: 1

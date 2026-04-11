@@ -23,7 +23,6 @@ public class DebuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     public void SetData(
         Sprite sprite,
         int stacks,
-        bool showOne = true,
         string title = "",
         string body = "",
         SharedTooltipUI sharedTooltip = null,
@@ -44,7 +43,7 @@ public class DebuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         {
             stackText.raycastTarget = false;
 
-            bool shouldShow = stacks > 1 || (showOne && stacks == 1);
+            bool shouldShow = stacks > 0;
             stackText.gameObject.SetActive(shouldShow);
 
             if (shouldShow)

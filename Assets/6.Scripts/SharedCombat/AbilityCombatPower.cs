@@ -318,20 +318,20 @@ public static class AbilityCombatPower
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
             int extraTargets = 1;
-            int empoweredHits = 5;
-            float duration = 10f;
+            int empoweredHits = 4;
+            float duration = 7f;
             int selected = GetCleavingStrikesSelectedChoiceForCombatPower();
             if (selected == 0)
             {
-                extraTargets = 3;
-                empoweredHits = 4;
-                duration = 8f;
+                extraTargets = 2;
+                empoweredHits = 3;
+                duration = 5f;
             }
             else if (selected == 1)
             {
                 extraTargets = 1;
-                empoweredHits = 7;
-                duration = 14f;
+                empoweredHits = 6;
+                duration = 10f;
             }
 
             float activeWindow = Mathf.Min(duration, aps > 0f ? (empoweredHits / aps) : duration);

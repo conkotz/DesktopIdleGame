@@ -425,7 +425,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         if (slotType == EquipmentUISlotType.OffHand && _def.IsCombatSupport && equipment != null)
         {
             int amount = Mathf.Max(1, equipment.OffHandStackAmount);
-            return amount > 1 ? $"x{amount}" : "";
+            return $"x{amount}";
         }
 
         return "";
