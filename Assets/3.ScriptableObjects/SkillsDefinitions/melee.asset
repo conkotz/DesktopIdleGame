@@ -236,7 +236,8 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 15
     title: Whirlwind
-    description: Spin in a wide arc, striking all enemies in range.
+    description: Spin in a wide arc, striking all enemies within your weapon range
+      from you (minimum 3 range, or your weapon range if longer).
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -257,7 +258,8 @@ MonoBehaviour:
   - requiredLevel: 15
     title: Cleaving Strikes
     description: Empower your melee basic attacks causing each hit to also strike
-      additional nearby enemies within your weapon range from you (minimum 3 range).
+      additional nearby enemies within your weapon range from you (minimum 3 range,
+      or your weapon range if longer).
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0

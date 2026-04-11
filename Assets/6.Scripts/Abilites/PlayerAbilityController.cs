@@ -70,7 +70,6 @@ public class PlayerAbilityController : MonoBehaviour
     private const string CleavingStrikesId = "cleaving_strikes";
     private const string CrescentSlashId = "crescent_slash";
     private const int WhirlwindChoiceSourceLevel = 15;
-    private const float WhirlwindBaseRadius = 2.5f;
     private const float WhirlwindDamageMultiplier = 1.2f;
     private static readonly float WhirlwindSecondHitMultiplier = AbilityCombatPower.WhirlwindTwinCycloneSecondHitFraction;
     private const float WhirlwindTwinCycloneSecondHitDelay = 0.5f;
@@ -405,7 +404,7 @@ public class PlayerAbilityController : MonoBehaviour
         bool twinCyclone = selectedChoice == 0 || selectedChoice < 0;
         bool expansiveWhirl = selectedChoice == 1;
 
-        float baseWeaponRange = GetWhirlwindBaseRange();
+        float baseWeaponRange = GetWhirlwindHitRadius();
         float radius = baseWeaponRange + (expansiveWhirl ? WhirlwindRadiusBonus : 0f);
 
         EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
@@ -657,6 +656,15 @@ public class PlayerAbilityController : MonoBehaviour
         if (c == null)
             c = GetComponentInChildren<Collider2D>();
         return c != null ? Mathf.Max(0f, c.bounds.extents.x) : 0f;
+    }
+
+    /// <summary>Whirlwind AoE radius: same basis as cleaving secondaries (max(3, stats.Range) + padding).</summary>
+    private float GetWhirlwindHitRadius()
+    {
+        const float cleavingMinWeaponRange = 3f;
+        float weaponRange = stats != null ? Mathf.Max(0f, stats.Range) : 0f;
+        float pad = combat != null ? combat.GetMeleeRangePadding() : 0.05f;
+        return Mathf.Max(cleavingMinWeaponRange, weaponRange) + pad;
     }
 
     private float GetWhirlwindBaseRange()

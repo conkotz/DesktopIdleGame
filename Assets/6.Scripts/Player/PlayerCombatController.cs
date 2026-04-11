@@ -122,6 +122,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         return 1f / Mathf.Max(0.01f, stats.AttacksPerSecond);
     }
 
+    /// <summary>Extra reach padding on melee strike / cleave checks (serialized on this component).</summary>
+    public float GetMeleeRangePadding() => rangePadding;
+
     public float GetAttackCycleNormalized()
     {
         float cooldown = GetAttackCooldownSeconds();
