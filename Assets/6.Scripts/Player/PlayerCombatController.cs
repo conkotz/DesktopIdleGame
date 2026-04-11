@@ -116,6 +116,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _lastCombatActivityTime = -999f;
     private float _lastHpForCombatEngageTrack = -1f;
 
+    private readonly List<EnemyBaseController> _ailmentSpreadScratch = new List<EnemyBaseController>(16);
+
     public float GetAttackCooldownSeconds()
     {
         if (stats == null) return 0f;
@@ -892,99 +894,61 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     }
 
     /// <summary>
-    /// Rend Crimson Spread: radial from the struck enemy (not the player). Radius is max(3, weapon range) + padding.
-    /// Prefers targets that are not already bleeding.
+    /// Radial from <paramref name="originEnemy"/> position (not the player). Radius is max(3, weapon range) + padding.
+    /// Fills <paramref name="results"/> with other living enemies in range (excludes <paramref name="originEnemy"/>).
     /// </summary>
-    public EnemyBaseController FindEnemyForRendBleedSpread(EnemyBaseController primaryTarget)
+    private void CollectEnemiesInAilmentSpreadRadius(EnemyBaseController originEnemy, List<EnemyBaseController> results)
     {
-        if (stats == null || primaryTarget == null || primaryTarget.IsDead)
-            return null;
+        results.Clear();
+        if (stats == null || originEnemy == null)
+            return;
 
         const float spreadMinRadius = 3f;
         float weaponRange = Mathf.Max(0f, stats.Range);
         float radius = Mathf.Max(spreadMinRadius, weaponRange) + rangePadding;
         float r2 = radius * radius;
-        Vector3 origin = primaryTarget.transform.position;
+        Vector3 origin = originEnemy.transform.position;
 
         var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        EnemyBaseController bestUnaffected = null;
-        float bestUnaffectedSqr = float.PositiveInfinity;
-        EnemyBaseController bestAny = null;
-        float bestAnySqr = float.PositiveInfinity;
-
         for (int i = 0; i < candidates.Length; i++)
         {
             EnemyBaseController e = candidates[i];
-            if (e == null || e.IsDead || !e.gameObject.activeInHierarchy || e == primaryTarget)
+            if (e == null || e.IsDead || !e.gameObject.activeInHierarchy || e == originEnemy)
                 continue;
 
             float sqr = (e.transform.position - origin).sqrMagnitude;
             if (sqr > r2)
                 continue;
 
-            if (sqr < bestAnySqr)
-            {
-                bestAnySqr = sqr;
-                bestAny = e;
-            }
-
-            AilmentController ac = e.GetComponent<AilmentController>();
-            if (ac != null && !ac.HasBleed && sqr < bestUnaffectedSqr)
-            {
-                bestUnaffectedSqr = sqr;
-                bestUnaffected = e;
-            }
+            results.Add(e);
         }
-
-        return bestUnaffected != null ? bestUnaffected : bestAny;
     }
 
-    /// <summary>
-    /// Venom Jab Contagion Burst: radial from the source enemy (not the player). Radius matches Crimson Spread.
-    /// <paramref name="exclude"/> may already be dead (on-death spread). Prefers targets not already poisoned.
-    /// </summary>
-    public EnemyBaseController FindEnemyForContagionPoisonSpread(EnemyBaseController exclude)
+    /// <summary>Rend Crimson Spread: same exclusive bleed payload to every other enemy in radial range of the struck target.</summary>
+    public void ApplyBleedToEnemiesInRadialSpread(EnemyBaseController originEnemy, BleedPayload payload)
     {
-        if (stats == null || exclude == null)
-            return null;
-
-        const float spreadMinRadius = 3f;
-        float weaponRange = Mathf.Max(0f, stats.Range);
-        float radius = Mathf.Max(spreadMinRadius, weaponRange) + rangePadding;
-        float r2 = radius * radius;
-        Vector3 origin = exclude.transform.position;
-
-        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        EnemyBaseController bestUnaffected = null;
-        float bestUnaffectedSqr = float.PositiveInfinity;
-        EnemyBaseController bestAny = null;
-        float bestAnySqr = float.PositiveInfinity;
-
-        for (int i = 0; i < candidates.Length; i++)
+        CollectEnemiesInAilmentSpreadRadius(originEnemy, _ailmentSpreadScratch);
+        for (int i = 0; i < _ailmentSpreadScratch.Count; i++)
         {
-            EnemyBaseController e = candidates[i];
-            if (e == null || e.IsDead || !e.gameObject.activeInHierarchy || e == exclude)
-                continue;
-
-            float sqr = (e.transform.position - origin).sqrMagnitude;
-            if (sqr > r2)
-                continue;
-
-            if (sqr < bestAnySqr)
-            {
-                bestAnySqr = sqr;
-                bestAny = e;
-            }
-
-            AilmentController ac = e.GetComponent<AilmentController>();
-            if (ac != null && !ac.HasPoison && sqr < bestUnaffectedSqr)
-            {
-                bestUnaffectedSqr = sqr;
-                bestUnaffected = e;
-            }
+            AilmentController ac = _ailmentSpreadScratch[i].GetComponent<AilmentController>();
+            if (ac != null)
+                ac.ApplyExclusiveBleedFromHit(payload);
         }
+    }
 
-        return bestUnaffected != null ? bestUnaffected : bestAny;
+    /// <summary>Venom Jab Contagion Burst: full poison stack packet to every other enemy in radial range of the source (victim may be dead).</summary>
+    public void ApplyPoisonContagionSpread(EnemyBaseController originEnemy, PoisonPayload payload)
+    {
+        CollectEnemiesInAilmentSpreadRadius(originEnemy, _ailmentSpreadScratch);
+        for (int i = 0; i < _ailmentSpreadScratch.Count; i++)
+        {
+            AilmentController ac = _ailmentSpreadScratch[i].GetComponent<AilmentController>();
+            if (ac == null)
+                continue;
+
+            for (int s = 0; s < payload.maxStacks; s++)
+                ac.ApplyPoisonFromHit(payload);
+        }
     }
 
     private void ApplyCrescentSlashSecondaryHits(EnemyBaseController primaryTarget, bool penetrating, bool applyElemental, HashSet<EnemyBaseController> alreadyHit)

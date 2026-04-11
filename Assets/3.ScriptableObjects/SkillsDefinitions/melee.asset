@@ -58,7 +58,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 5
     title: Power Slash
-    description: Primes your next melee hit to perform a powerful physical slash.
+    description: Primes your next melee hit to perform a powerful slash.
     icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -92,9 +92,8 @@ MonoBehaviour:
       ability: {fileID: 0}
     - requiredLevel: 8
       title: Crimson Spread
-      description: Also applies the same Bleed to 1 other enemy within range of the
-        struck target (minimum 3 range, or your weapon range if longer), preferring
-        targets not already bleeding.
+      description: Also applies the same Bleed to all other enemies within range
+        of the struck target (minimum 3 range, or your weapon range if longer).
       icon: {fileID: 5570183790260993194, guid: a3f9e8e67e15ed24b86ba45820e05f95, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 5
@@ -114,9 +113,9 @@ MonoBehaviour:
       ability: {fileID: 0}
     - requiredLevel: 8
       title: Contagion Burst
-      description: If this enemy dies within 6 seconds, its poison spreads to 1 other
-        enemy within range of it (minimum 3 range, or your weapon range if longer),
-        preferring targets not already poisoned.
+      description: If this enemy dies within 6 seconds, its poison spreads to all
+        other enemies within range of it (minimum 3 range, or your weapon range if
+        longer).
       icon: {fileID: 3055892615885000108, guid: ec7b076d4dc3a9f42b3a61d12d08426a, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 6
@@ -278,8 +277,8 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Crescent Slash
-    description: Unleash a crescent slash which travels outward and strikes enemies
-      in front of you.
+    description: Unleash a wave which travels outward and strikes enemies in front
+      of you.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0

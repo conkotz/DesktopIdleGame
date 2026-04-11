@@ -111,9 +111,7 @@ public static class GameTooltipTexts
 
             case "AbilityPowerText":
                 title = "Ability Power";
-                description =
-                    "Extra damage on abilities that scale from Power—often about 1% ability damage " +
-                    "per Ability Power. Each ability's tooltip shows your exact +% from AP and the bonus damage.";
+                description = "Scales your abilities to do bonus damage";
                 return true;
 
             case "PhysicalBonusText":

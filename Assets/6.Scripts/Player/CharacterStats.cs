@@ -388,12 +388,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float AbilityDamageBoostConsumablePercentPoints =>
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.AbilityDamageBoost) : 0f) * 100f;
 
-    /// <summary>Denominator for ability power: bonus damage = AbilityPower × (per-ability coefficient) / this value (100 → 100 AP with coef 1 = +100% damage).</summary>
+    /// <summary>Denominator for ability power: bonus damage = AbilityPower × (per-ability coefficient) / this value (e.g. 100 AP with standard coef 0.5 = +50% damage).</summary>
     public const float AbilityPowerDamagePercentDivisor = 100f;
 
     /// <summary>
     /// Multiplier applied to ability damage after weapon/skill multipliers: <c>1 + AbilityPower × coefficient / <see cref="AbilityPowerDamagePercentDivisor"/></c>.
-    /// Coefficient 1: each AP adds1% damage; 100 AP adds +100% (×2 total).
+    /// With <see cref="AbilityDefinition.StandardAbilityPowerCoefficient"/>: each AP adds +0.5% damage; 100 AP adds +50% (×1.5 total).
     /// </summary>
     public float GetAbilityPowerDamageMultiplier(float abilityPowerCoefficient)
     {

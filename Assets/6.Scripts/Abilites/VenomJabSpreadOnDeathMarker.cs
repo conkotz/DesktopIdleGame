@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// Attached to an enemy when Venom Jab's spread upgrade is active.
-/// If the enemy dies before expiry, spread the stored poison payload to nearby enemies.
+/// If the enemy dies before expiry, spread the stored poison payload to all other enemies in radial range.
 /// </summary>
 [DisallowMultipleComponent]
 public class VenomJabSpreadOnDeathMarker : MonoBehaviour
@@ -50,16 +50,7 @@ public class VenomJabSpreadOnDeathMarker : MonoBehaviour
         if (Time.time > expiresAt)
             return;
 
-        EnemyBaseController best = combat != null ? combat.FindEnemyForContagionPoisonSpread(enemy) : null;
-        if (best == null)
-            return;
-
-        var bestAilments = best.GetComponent<AilmentController>();
-        if (bestAilments == null)
-            return;
-
-        for (int s = 0; s < payload.maxStacks; s++)
-            bestAilments.ApplyPoisonFromHit(payload);
+        combat?.ApplyPoisonContagionSpread(enemy, payload);
     }
 }
 

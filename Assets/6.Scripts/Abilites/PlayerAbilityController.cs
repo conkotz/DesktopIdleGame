@@ -70,7 +70,6 @@ public class PlayerAbilityController : MonoBehaviour
     private const string CleavingStrikesId = "cleaving_strikes";
     private const string CrescentSlashId = "crescent_slash";
     private const int WhirlwindChoiceSourceLevel = 15;
-    private const float WhirlwindDamageMultiplier = 1.2f;
     private static readonly float WhirlwindSecondHitMultiplier = AbilityCombatPower.WhirlwindTwinCycloneSecondHitFraction;
     private const float WhirlwindTwinCycloneSecondHitDelay = 0.5f;
     private const float WhirlwindRadiusBonus = 3f;
@@ -87,7 +86,8 @@ public class PlayerAbilityController : MonoBehaviour
     private float _lastSyncedCleavingHudEnd = float.NaN;
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
     private float _queuedPowerSlashMagicMultiplier = 1f;
-    private float _queuedPowerSlashAbilityPowerMultiplier;
+    private float _queuedPowerSlashCorruptionMultiplier;
+    private float _queuedPowerSlashAllDamageMultiplier = 1f;
     private QueuedHitEffect _queuedConsumedThisHit;
     private int _queuedConsumedFrame = -1;
 
@@ -233,9 +233,11 @@ public class PlayerAbilityController : MonoBehaviour
 
             _powerSlashQueued = true;
             float powerSlashPhysicalBonus = GetPowerSlashPhysicalMultiplierBonus();
-            _queuedPowerSlashPhysicalMultiplier = def.physicalDamageMultiplier + powerSlashPhysicalBonus;
-            _queuedPowerSlashMagicMultiplier = def.magicDamageMultiplier;
-            _queuedPowerSlashAbilityPowerMultiplier = def.abilityPowerMultiplier;
+            float physCombo = def.physicalDamageMultiplier + powerSlashPhysicalBonus;
+            _queuedPowerSlashPhysicalMultiplier = physCombo <= 0f ? 1f : physCombo;
+            _queuedPowerSlashMagicMultiplier = def.GetMagicHitScalingMultiplier();
+            _queuedPowerSlashCorruptionMultiplier = def.GetCorruptionHitScalingMultiplier();
+            _queuedPowerSlashAllDamageMultiplier = def.GetEffectiveAllDamageMultiplier();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -308,15 +310,22 @@ public class PlayerAbilityController : MonoBehaviour
         float baseMagic =
             (Mathf.Max(0f, stats.MinSplitDamage.magic) + Mathf.Max(0f, stats.MaxSplitDamage.magic)) * 0.5f;
 
-        float scaledPhysical = basePhysical * def.physicalDamageMultiplier;
-        float scaledMagic = baseMagic * def.magicDamageMultiplier;
+        float baseCorruption =
+            (Mathf.Max(0f, stats.MinSplitDamage.corruptionDamage) + Mathf.Max(0f, stats.MaxSplitDamage.corruptionDamage)) * 0.5f;
+        float allM = def.GetEffectiveAllDamageMultiplier();
+        float pM = def.GetPhysicalHitScalingMultiplier();
+        float mM = def.GetMagicHitScalingMultiplier();
+        float cM = def.GetCorruptionHitScalingMultiplier();
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
-        AbilityElementScaling.ScaleMagicAbilityContributions(scaledMagic, elementBonus, stats, out float magScaled, out float elemScaled);
-        float apM = stats.GetAbilityPowerDamageMultiplier(def.abilityPowerMultiplier);
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-        float physPart = scaledPhysical * apM;
-        float magPart = (magScaled + elemScaled + ailmentBonus) * apM;
-        float raw = Mathf.Max(0f, physPart + magPart);
+        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
+        float physLine = basePhysical * pM + ailmentBonus;
+        float magLine = baseMagic * mM * elemM + elementBonus * elemM;
+        float physPart = physLine * allM * apM;
+        float magPart = magLine * allM * apM;
+        float corrPart = (baseCorruption * cM) * allM * apM;
+        float raw = Mathf.Max(0f, physPart + magPart + corrPart);
 
         bool wasCrit = false;
         float critMult = 1f;
@@ -328,11 +337,14 @@ public class PlayerAbilityController : MonoBehaviour
 
         int phys = Mathf.Max(0, Mathf.RoundToInt(physPart * critMult));
         int mag = Mathf.Max(0, Mathf.RoundToInt(magPart * critMult));
+        int corr = Mathf.Max(0, Mathf.RoundToInt(corrPart * critMult));
         int dealt = 0;
         if (phys > 0)
             dealt += target.TakeDamage(phys, DamageType.Physical, wasCrit, transform);
         if (mag > 0)
             dealt += target.TakeDamage(mag, DamageType.Magic, wasCrit, transform);
+        if (corr > 0)
+            dealt += target.TakeDamage(corr, DamageType.Corruption, wasCrit, transform);
 
         // Fire the attack anim as feedback, but do not modify basic attack cooldown timing.
         player.TriggerAttackAnim();
@@ -368,22 +380,24 @@ public class PlayerAbilityController : MonoBehaviour
         float baseMagic = Mathf.Max(0f, baseRolled.magic);
         float baseCorruption = Mathf.Max(0f, baseRolled.corruptionDamage);
 
-        float scaledPhysical = basePhysical * def.physicalDamageMultiplier;
-        float scaledMagic = baseMagic * def.magicDamageMultiplier;
-        // Corruption scales like the physical multiplier so poison can still proc from ability hits.
-        float scaledCorruption = baseCorruption * def.physicalDamageMultiplier;
+        float allM = def.GetEffectiveAllDamageMultiplier();
+        float pM = def.GetPhysicalHitScalingMultiplier();
+        float mM = def.GetMagicHitScalingMultiplier();
+        float cM = def.GetCorruptionHitScalingMultiplier();
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
-        AbilityElementScaling.ScaleMagicAbilityContributions(scaledMagic, elementBonus, stats, out float magScaled, out float elemScaled);
-        float apM = stats.GetAbilityPowerDamageMultiplier(def.abilityPowerMultiplier);
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
+        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
 
-        float physPart = scaledPhysical * apM;
-        float magPart = (magScaled + elemScaled + ailmentBonus) * apM;
-        float corruptionPart = scaledCorruption * apM;
+        float physLine = basePhysical * pM + ailmentBonus;
+        float magLine = baseMagic * mM * elemM + elementBonus * elemM;
+        float physPart = physLine * allM * apM;
+        float magPart = magLine * allM * apM;
+        float corruptionPart = (baseCorruption * cM) * allM * apM;
 
         float fWeaponLightning = stats.GetMeleeMagicLightningFraction();
-        float weaponLightMag = magScaled * apM * fWeaponLightning;
-        float elemLightMag = stats.CurrentMagicAttackType == MagicAttackType.Lightning ? elemScaled * apM : 0f;
+        float weaponLightMag = baseMagic * mM * elemM * allM * apM * fWeaponLightning;
+        float elemLightMag = stats.CurrentMagicAttackType == MagicAttackType.Lightning ? elementBonus * elemM * allM * apM : 0f;
         lightningMagicNonCrit = weaponLightMag + elemLightMag;
 
         nonCritBase = new SplitDamage(physPart, magPart, corruptionPart);
@@ -400,8 +414,8 @@ public class PlayerAbilityController : MonoBehaviour
             return false;
 
         int selectedChoice = GetWhirlwindSelectedChoice();
-        // First unlock acts as default branch until player explicitly chooses the other option.
-        bool twinCyclone = selectedChoice == 0 || selectedChoice < 0;
+        // Twin Cyclone (Lv18 choice index 0): second wave only when that upgrade is committed — not by default.
+        bool twinCyclone = selectedChoice == 0;
         bool expansiveWhirl = selectedChoice == 1;
 
         float baseWeaponRange = GetWhirlwindHitRadius();
@@ -427,7 +441,8 @@ public class PlayerAbilityController : MonoBehaviour
         if (targets.Count <= 0)
             return true; // ability cast still consumes resources/cooldown.
 
-        var secondWaveTargets = new List<(EnemyBaseController target, SplitDamage secondHitBase, float secondLightningMagNonCrit)>(targets.Count);
+        List<(EnemyBaseController target, SplitDamage secondHitBase, float secondLightningMagNonCrit)> secondWaveTargets =
+            twinCyclone ? new List<(EnemyBaseController, SplitDamage, float)>(targets.Count) : null;
 
         for (int i = 0; i < targets.Count; i++)
         {
@@ -441,19 +456,22 @@ public class PlayerAbilityController : MonoBehaviour
                 rolledNonCrit.physical * critMult,
                 rolledNonCrit.magic * critMult,
                 rolledNonCrit.corruptionDamage * critMult);
-            SplitDamage firstHit = rolled * WhirlwindDamageMultiplier;
-            SplitDamage secondHitBase = rolledNonCrit * WhirlwindDamageMultiplier * WhirlwindSecondHitMultiplier;
-            float secondLightningMagNonCrit = lightningMagNonCrit * WhirlwindDamageMultiplier * WhirlwindSecondHitMultiplier;
+            SplitDamage firstHit = rolled;
 
-            float lightningAfterCrit = lightningMagNonCrit * critMult * WhirlwindDamageMultiplier;
+            float lightningAfterCrit = lightningMagNonCrit * critMult;
             float firstFrac = firstHit.magic > 1e-8f ? Mathf.Clamp01(lightningAfterCrit / firstHit.magic) : 0f;
 
             DealtHit dealt = ApplySplitDamageToEnemy(target, firstHit, wasCrit, firstFrac);
             ApplyOnHitEffects(target, dealt);
-            secondWaveTargets.Add((target, secondHitBase, secondLightningMagNonCrit));
+            if (twinCyclone && secondWaveTargets != null)
+            {
+                SplitDamage secondHitBase = rolledNonCrit * WhirlwindSecondHitMultiplier;
+                float secondLightningMagNonCrit = lightningMagNonCrit * WhirlwindSecondHitMultiplier;
+                secondWaveTargets.Add((target, secondHitBase, secondLightningMagNonCrit));
+            }
         }
 
-        if (twinCyclone)
+        if (twinCyclone && secondWaveTargets != null && secondWaveTargets.Count > 0)
             StartCoroutine(ApplyTwinCycloneSecondWave(secondWaveTargets, radius));
 
         return true;
@@ -1038,15 +1056,18 @@ public class PlayerAbilityController : MonoBehaviour
             _queuedConsumedThisHit = QueuedHitEffect.PowerSlash;
             _queuedConsumedFrame = Time.frameCount;
 
-            float physicalBonus = rolled.physical * _queuedPowerSlashPhysicalMultiplier;
-            float magicBonus = rolled.magic * _queuedPowerSlashMagicMultiplier;
-            float apM = stats != null ? stats.GetAbilityPowerDamageMultiplier(_queuedPowerSlashAbilityPowerMultiplier) : 1f;
+            float apM = stats != null
+                ? stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient)
+                : 1f;
+            float allM = _queuedPowerSlashAllDamageMultiplier;
             AbilityDefinition slashDef = GetAbilityDefinition(PowerSlashId);
             float elementBonus = slashDef != null && stats != null ? AbilityElementScaling.GetElementDamageBonus(slashDef, stats) : 0f;
             float ailmentBonus = slashDef != null && stats != null ? AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(slashDef, stats) : 0f;
 
-            rolled.physical += (physicalBonus + ailmentBonus) * apM;
-            rolled.magic += (magicBonus + elementBonus) * apM;
+            // Mult scales the rolled basic hit (150% = 1.5× that swing), not an extra additive copy of it.
+            rolled.physical = (rolled.physical * _queuedPowerSlashPhysicalMultiplier + ailmentBonus) * apM * allM;
+            rolled.magic = (rolled.magic * _queuedPowerSlashMagicMultiplier + elementBonus) * apM * allM;
+            rolled.corruptionDamage = (rolled.corruptionDamage * _queuedPowerSlashCorruptionMultiplier) * apM * allM;
             rolled.physical = Mathf.Max(0f, rolled.physical);
             rolled.magic = Mathf.Max(0f, rolled.magic);
 
@@ -1073,11 +1094,6 @@ public class PlayerAbilityController : MonoBehaviour
             _venomJabQueued = false;
             _queuedConsumedThisHit = QueuedHitEffect.VenomJab;
             _queuedConsumedFrame = Time.frameCount;
-
-            const float quickStrikeMultiplier = 0.75f;
-            rolled.physical *= quickStrikeMultiplier;
-            rolled.magic *= quickStrikeMultiplier;
-            rolled.corruptionDamage *= quickStrikeMultiplier;
             return true;
         }
 
@@ -1238,14 +1254,9 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (selected == 1)
         {
-            // Crimson Spread: radial from struck target (min 3, else weapon range).
-            EnemyBaseController spread = combat != null ? combat.FindEnemyForRendBleedSpread(target) : null;
-            if (spread != null)
-            {
-                AilmentController otherAilments = spread.GetComponent<AilmentController>();
-                if (otherAilments != null)
-                    otherAilments.ApplyExclusiveBleedFromHit(new BleedPayload(totalDamage, duration, ticks, transform));
-            }
+            // Crimson Spread: same bleed to all other enemies in radial range of the struck target.
+            var spreadPayload = new BleedPayload(totalDamage, duration, ticks, transform);
+            combat?.ApplyBleedToEnemiesInRadialSpread(target, spreadPayload);
         }
     }
 
@@ -1291,7 +1302,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (selected == 1)
         {
-            // Upgrade 2: Poison spreads to 1 nearby enemy if it dies within 6 seconds.
+            // Upgrade 2: on death within 6s, poison spreads to all other enemies in radial range of the victim.
             var marker = target.GetComponent<VenomJabSpreadOnDeathMarker>();
             if (marker == null)
                 marker = target.gameObject.AddComponent<VenomJabSpreadOnDeathMarker>();
@@ -1420,24 +1431,16 @@ public class PlayerAbilityController : MonoBehaviour
     }
 
     /// <summary>
-    /// Scales Cleaving Strikes secondary hits from the base rolled attack split.
-    /// Main hit remains unchanged; only bonus cleave hits use this scaled split.
+    /// Cleaving Strikes: bonus targets take a flat fraction of the same rolled weapon split (no ability/AP scaling).
+    /// Primary target damage is unchanged.
     /// </summary>
     public SplitDamage BuildCleavingSecondarySplit(SplitDamage baseRolled)
     {
-        AbilityDefinition def = GetAbilityDefinition(CleavingStrikesId);
-        if (def == null)
-            return baseRolled;
-
-        float physMult = def.physicalDamageMultiplier;
-        float magMult = def.magicDamageMultiplier;
-        float apM = stats != null ? stats.GetAbilityPowerDamageMultiplier(def.abilityPowerMultiplier) : 1f;
-
+        float m = AbilityCombatPower.CleavingStrikesSecondaryHitWeaponDamageFraction;
         return new SplitDamage(
-            Mathf.Max(0f, baseRolled.physical * physMult * apM),
-            Mathf.Max(0f, baseRolled.magic * magMult * apM),
-            Mathf.Max(0f, baseRolled.corruptionDamage * physMult * apM)
-        );
+            Mathf.Max(0f, baseRolled.physical * m),
+            Mathf.Max(0f, baseRolled.magic * m),
+            Mathf.Max(0f, baseRolled.corruptionDamage * m));
     }
 
     private int GetCleavingStrikesSelectedChoice()

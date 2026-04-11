@@ -21,7 +21,8 @@ MonoBehaviour:
   energyCost: 30
   physicalDamageMultiplier: 0
   magicDamageMultiplier: 0
-  abilityPowerMultiplier: 0
+  corruptionDamageMultiplier: 0
+  allDamageMultiplier: 0
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0
   lightningDamageMultiplier: 0

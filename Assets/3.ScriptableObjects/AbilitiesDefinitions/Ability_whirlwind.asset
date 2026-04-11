@@ -18,9 +18,10 @@ MonoBehaviour:
   icon: {fileID: 1188567411443277773, guid: c3135ae013758b04caf9adc7364ae04c, type: 3}
   cooldown: 5
   energyCost: 35
-  physicalDamageMultiplier: 0.5
+  physicalDamageMultiplier: 0
   magicDamageMultiplier: 0
-  abilityPowerMultiplier: 1
+  corruptionDamageMultiplier: 0
+  allDamageMultiplier: 0.8
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0
   lightningDamageMultiplier: 0

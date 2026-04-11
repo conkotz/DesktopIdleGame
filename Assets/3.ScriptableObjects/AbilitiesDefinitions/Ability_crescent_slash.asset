@@ -14,14 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: crescent_slash
   displayName: Crescent Slash
-  description: Unleash a crescent slash which travels outward and strikes enemies
-    in front of you.
+  description: Unleash a wave which travels outward and strikes enemies in front
+    of you.
   icon: {fileID: -5474065623339692901, guid: 6cb34204da6e6044ab2e5eac89ba221e, type: 3}
   cooldown: 12
   energyCost: 25
-  physicalDamageMultiplier: 1
+  physicalDamageMultiplier: 1.2
   magicDamageMultiplier: 0
-  abilityPowerMultiplier: 1
+  corruptionDamageMultiplier: 0
+  allDamageMultiplier: 0
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0
   lightningDamageMultiplier: 0

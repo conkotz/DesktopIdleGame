@@ -21,6 +21,12 @@ public static class AbilityCombatPower
     /// <summary>Second Twin Cyclone wave as a fraction of the first wave's scaled split (sync with Whirlwind runtime).</summary>
     public const float WhirlwindTwinCycloneSecondHitFraction = 0.2f;
 
+    /// <summary>Cleaving Strikes secondary hits: fraction of rolled weapon split (sync with <see cref="PlayerAbilityController.BuildCleavingSecondarySplit"/>).</summary>
+    public const float CleavingStrikesSecondaryHitWeaponDamageFraction = 0.6f;
+
+    /// <summary>Combat-power heuristic: extra enemies credited for Crimson Spread / Contagion full radial payloads.</summary>
+    private const float AilmentRadialSpreadAssumedExtraTargets = 2.5f;
+
     /// <summary>Expected sustained DPS from all uniquely slotted abilities (0 if not the player or no bar).</summary>
     public static float EstimateTotalSlottedAbilityDps(CharacterStats stats, bool logDiagnostics = false)
     {
@@ -234,18 +240,21 @@ public static class AbilityCombatPower
         float avgPhys = (stats.MinSplitDamage.physical + stats.MaxSplitDamage.physical) * 0.5f;
         float avgMag = (stats.MinSplitDamage.magic + stats.MaxSplitDamage.magic) * 0.5f;
         float avgCorruption = (stats.MinSplitDamage.corruptionDamage + stats.MaxSplitDamage.corruptionDamage) * 0.5f;
-        float magMult = def.magicDamageMultiplier;
-        float apMult = def.abilityPowerMultiplier;
 
-        // Power Slash: bonus on top of a normal weapon hit; proc rate limited by attack speed and ability cooldown.
+        // Power Slash: rolled hit × multipliers (+ extras), not a second additive copy of the roll.
         if (string.Equals(def.abilityId, PowerSlashAbilityId, StringComparison.OrdinalIgnoreCase))
         {
-            float bonusPhys = avgPhys * physMult;
-            float bonusMag = avgMag * magMult;
-            float apM = stats.GetAbilityPowerDamageMultiplier(apMult);
+            float psAllM = def.GetEffectiveAllDamageMultiplier();
+            float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+            float physEff = physMult <= 0f ? 1f : physMult;
+            float magEff = def.GetMagicHitScalingMultiplier();
+            float corrEff = def.GetCorruptionHitScalingMultiplier();
             float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
             float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-            float rawBonus = (bonusPhys + ailmentBonus) * apM + (bonusMag + elementBonus) * apM;
+            float physExtra = (avgPhys * physEff + ailmentBonus) * apM * psAllM - avgPhys;
+            float magExtra = (avgMag * magEff + elementBonus) * apM * psAllM - avgMag;
+            float corrExtra = (avgCorruption * corrEff) * apM * psAllM - avgCorruption;
+            float rawBonus = physExtra + magExtra + corrExtra;
             float perEnhancedHit = rawBonus * critFactor;
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
@@ -274,7 +283,7 @@ public static class AbilityCombatPower
             if (selected == 0)
                 totalBleedDamage *= 1.05f; // Hemorrhaging Rush: same total, faster — small throughput bump.
             else if (selected == 1)
-                totalBleedDamage *= 1.12f; // Crimson Spread: second target in radial spread range — modest uplift.
+                totalBleedDamage *= 1f + 0.12f * AilmentRadialSpreadAssumedExtraTargets; // Crimson Spread: all in radius (~2.5 targets).
 
             return Mathf.Max(0f, totalBleedDamage * procRate);
         }
@@ -284,9 +293,8 @@ public static class AbilityCombatPower
         {
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
-            const float quickStrikeMultiplier = 0.75f;
 
-            float poisonSourceCorruption = Mathf.Max(0f, avgCorruption * quickStrikeMultiplier);
+            float poisonSourceCorruption = Mathf.Max(0f, avgCorruption);
             if (poisonSourceCorruption <= 0f)
                 return 0f;
 
@@ -308,7 +316,7 @@ public static class AbilityCombatPower
             if (selected == 0)
                 totalPoisonDamage *= 1.12f; // Extra emphasis on stack-cap path beyond raw stackCount.
             else if (selected == 1)
-                totalPoisonDamage *= 1.12f; // Contagion Burst: on-death radial spread from victim.
+                totalPoisonDamage *= 1f + 0.12f * AilmentRadialSpreadAssumedExtraTargets; // Contagion: all in radius on death.
 
             return Mathf.Max(0f, totalPoisonDamage * procRate);
         }
@@ -337,20 +345,24 @@ public static class AbilityCombatPower
             float activeWindow = Mathf.Min(duration, aps > 0f ? (empoweredHits / aps) : duration);
             float uptime = activeWindow / Mathf.Max(0.01f, cd);
             uptime = Mathf.Clamp01(uptime);
-            float aoeScale = Mathf.Clamp(extraTargets * 0.45f, 0f, 1.1f);
+            float cleaveExtraScale = extraTargets * CleavingStrikesSecondaryHitWeaponDamageFraction;
             float baseHit = Mathf.Max(0f, avgPhys + avgMag + avgCorruption) * critFactor;
-            return baseHit * aoeScale * procRate * uptime;
+            return baseHit * cleaveExtraScale * procRate * uptime;
         }
 
-        // Default: instant cast (Whirlwind, Crescent Slash, etc.) — matches scaled split + small AoE lift where relevant.
-        float scaledPhys = avgPhys * physMult;
-        float scaledMag = avgMag * magMult;
-        float scaledCorruption = avgCorruption * physMult; // same rule as PlayerAbilityController.BuildWhirlwindAbilityScaledSplit
+        // Default: instant cast (Whirlwind, Crescent Slash, etc.).
+        float pEff = def.GetPhysicalHitScalingMultiplier();
+        float mEff = def.GetMagicHitScalingMultiplier();
+        float cEff = def.GetCorruptionHitScalingMultiplier();
+        float allM = def.GetEffectiveAllDamageMultiplier();
         float elementBonusInstant = AbilityElementScaling.GetElementDamageBonus(def, stats);
-        AbilityElementScaling.ScaleMagicAbilityContributions(scaledMag, elementBonusInstant, stats, out float sm, out float se);
         float ailmentBonusInstant = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-        float apMInstant = stats.GetAbilityPowerDamageMultiplier(apMult);
-        float raw = (scaledPhys + scaledCorruption) * apMInstant + (sm + se + ailmentBonusInstant) * apMInstant;
+        float apMInstant = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
+        float raw =
+            (avgPhys * pEff + ailmentBonusInstant) * allM * apMInstant
+            + (avgMag * mEff * elemM + elementBonusInstant * elemM) * allM * apMInstant
+            + (avgCorruption * cEff) * allM * apMInstant;
         float perCast = raw * critFactor * Mathf.Max(1f, extraHitFactor);
         float dps = Mathf.Max(0f, perCast / cd);
 
