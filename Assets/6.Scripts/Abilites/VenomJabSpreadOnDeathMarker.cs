@@ -9,15 +9,15 @@ public class VenomJabSpreadOnDeathMarker : MonoBehaviour
 {
     private PoisonPayload payload;
     private float expiresAt;
-    private float range;
+    private PlayerCombatController combat;
 
     private EnemyBaseController enemy;
 
-    public void Arm(PoisonPayload payload, float expiresAt, float range)
+    public void Arm(PoisonPayload payload, float expiresAt, PlayerCombatController combat)
     {
         this.payload = payload;
         this.expiresAt = expiresAt;
-        this.range = Mathf.Max(0f, range);
+        this.combat = combat;
     }
 
     private void Awake()
@@ -50,28 +50,7 @@ public class VenomJabSpreadOnDeathMarker : MonoBehaviour
         if (Time.time > expiresAt)
             return;
 
-        EnemyBaseController[] all = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        Vector3 origin = transform.position;
-        float r2 = range * range;
-        EnemyBaseController best = null;
-        float bestSqr = float.PositiveInfinity;
-
-        for (int i = 0; i < all.Length; i++)
-        {
-            EnemyBaseController e = all[i];
-            if (e == null || e.IsDead || e == enemy)
-                continue;
-
-            float sqr = (e.transform.position - origin).sqrMagnitude;
-            if (sqr > r2)
-                continue;
-            if (sqr < bestSqr)
-            {
-                bestSqr = sqr;
-                best = e;
-            }
-        }
-
+        EnemyBaseController best = combat != null ? combat.FindEnemyForContagionPoisonSpread(enemy) : null;
         if (best == null)
             return;
 

@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Whirlwind
   description: Spin in a wide arc, striking all enemies in range.
   icon: {fileID: 1188567411443277773, guid: c3135ae013758b04caf9adc7364ae04c, type: 3}
-  cooldown: 10
+  cooldown: 5
   energyCost: 35
   physicalDamageMultiplier: 0.5
   magicDamageMultiplier: 0

@@ -491,7 +491,7 @@ public class SkillTreeViewUI : MonoBehaviour
             string spineId = SpineNodeId(row);
             bool unlocked = row.level <= currentSkillLevel;
             BuildTooltipCopy(row.level, row.type, row.unlock, unlocked, out string mainTitle, out string mainBody);
-            Sprite mainIcon = ResolveUnlockNodeIcon(row.unlock);
+            Sprite mainIcon = ResolveUnlockNodeIcon(row.unlock, selectedSkill);
             SpawnNode(spineId, new Vector2(x, y), row.type, mainTitle, mainBody, unlocked, mainIcon);
             spineLayoutXBySpineId[spineId] = x;
             rowDefBySpineNodeId[spineId] = row;
@@ -773,14 +773,40 @@ public class SkillTreeViewUI : MonoBehaviour
         equipmentTierHint.text = h;
     }
 
-    private static Sprite ResolveUnlockNodeIcon(SkillUnlockDefinition unlock)
+    private static Sprite ResolveUnlockNodeIcon(SkillUnlockDefinition unlock, SkillDefinition skill)
     {
         if (unlock == null)
             return null;
         if (unlock.icon != null)
             return unlock.icon;
+
+        if (unlock.unlockType == SkillUnlockType.MinorPassive)
+        {
+            Sprite sharedMinor = FindFirstAuthoredMinorPassiveIcon(skill);
+            if (sharedMinor != null)
+                return sharedMinor;
+            if (skill != null && skill.icon != null)
+                return skill.icon;
+        }
+
         if (unlock.ability != null && unlock.ability.icon != null)
             return unlock.ability.icon;
+        return null;
+    }
+
+    /// <summary>First minor-passive row on this skill with a non-null <see cref="SkillUnlockDefinition.icon"/> (source for all other minor nodes).</summary>
+    private static Sprite FindFirstAuthoredMinorPassiveIcon(SkillDefinition skill)
+    {
+        if (skill?.unlocks == null || skill.unlocks.Count == 0)
+            return null;
+
+        for (int i = 0; i < skill.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition u = skill.unlocks[i];
+            if (u != null && u.unlockType == SkillUnlockType.MinorPassive && u.icon != null)
+                return u.icon;
+        }
+
         return null;
     }
 

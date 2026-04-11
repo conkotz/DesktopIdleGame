@@ -33,7 +33,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     [SerializeField] private Color minorPassiveColor = new Color(0.72f, 0.33f, 0.33f);
     [FormerlySerializedAs("passiveColor")]
     [SerializeField] private Color majorPassiveColor = new Color(0.78f, 0.62f, 0.26f);
-    [SerializeField] private Color unlockColor = new Color(0.28f, 0.55f, 0.62f);
+    [SerializeField] private Color unlockColor = Color.black;
     [SerializeField] private Color abilityColor = new Color(0.82f, 0.42f, 0.18f);
     [FormerlySerializedAs("branchColor")]
     [SerializeField] private Color choiceColor = new Color(0.26f, 0.53f, 0.82f);

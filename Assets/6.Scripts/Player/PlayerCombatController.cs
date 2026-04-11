@@ -888,6 +888,102 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>
+    /// Rend Crimson Spread: radial from the struck enemy (not the player). Radius is max(3, weapon range) + padding.
+    /// Prefers targets that are not already bleeding.
+    /// </summary>
+    public EnemyBaseController FindEnemyForRendBleedSpread(EnemyBaseController primaryTarget)
+    {
+        if (stats == null || primaryTarget == null || primaryTarget.IsDead)
+            return null;
+
+        const float spreadMinRadius = 3f;
+        float weaponRange = Mathf.Max(0f, stats.Range);
+        float radius = Mathf.Max(spreadMinRadius, weaponRange) + rangePadding;
+        float r2 = radius * radius;
+        Vector3 origin = primaryTarget.transform.position;
+
+        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        EnemyBaseController bestUnaffected = null;
+        float bestUnaffectedSqr = float.PositiveInfinity;
+        EnemyBaseController bestAny = null;
+        float bestAnySqr = float.PositiveInfinity;
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            EnemyBaseController e = candidates[i];
+            if (e == null || e.IsDead || !e.gameObject.activeInHierarchy || e == primaryTarget)
+                continue;
+
+            float sqr = (e.transform.position - origin).sqrMagnitude;
+            if (sqr > r2)
+                continue;
+
+            if (sqr < bestAnySqr)
+            {
+                bestAnySqr = sqr;
+                bestAny = e;
+            }
+
+            AilmentController ac = e.GetComponent<AilmentController>();
+            if (ac != null && !ac.HasBleed && sqr < bestUnaffectedSqr)
+            {
+                bestUnaffectedSqr = sqr;
+                bestUnaffected = e;
+            }
+        }
+
+        return bestUnaffected != null ? bestUnaffected : bestAny;
+    }
+
+    /// <summary>
+    /// Venom Jab Contagion Burst: radial from the source enemy (not the player). Radius matches Crimson Spread.
+    /// <paramref name="exclude"/> may already be dead (on-death spread). Prefers targets not already poisoned.
+    /// </summary>
+    public EnemyBaseController FindEnemyForContagionPoisonSpread(EnemyBaseController exclude)
+    {
+        if (stats == null || exclude == null)
+            return null;
+
+        const float spreadMinRadius = 3f;
+        float weaponRange = Mathf.Max(0f, stats.Range);
+        float radius = Mathf.Max(spreadMinRadius, weaponRange) + rangePadding;
+        float r2 = radius * radius;
+        Vector3 origin = exclude.transform.position;
+
+        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        EnemyBaseController bestUnaffected = null;
+        float bestUnaffectedSqr = float.PositiveInfinity;
+        EnemyBaseController bestAny = null;
+        float bestAnySqr = float.PositiveInfinity;
+
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            EnemyBaseController e = candidates[i];
+            if (e == null || e.IsDead || !e.gameObject.activeInHierarchy || e == exclude)
+                continue;
+
+            float sqr = (e.transform.position - origin).sqrMagnitude;
+            if (sqr > r2)
+                continue;
+
+            if (sqr < bestAnySqr)
+            {
+                bestAnySqr = sqr;
+                bestAny = e;
+            }
+
+            AilmentController ac = e.GetComponent<AilmentController>();
+            if (ac != null && !ac.HasPoison && sqr < bestUnaffectedSqr)
+            {
+                bestUnaffectedSqr = sqr;
+                bestUnaffected = e;
+            }
+        }
+
+        return bestUnaffected != null ? bestUnaffected : bestAny;
+    }
+
     private void ApplyCrescentSlashSecondaryHits(EnemyBaseController primaryTarget, bool penetrating, bool applyElemental, HashSet<EnemyBaseController> alreadyHit)
     {
         if (stats == null)

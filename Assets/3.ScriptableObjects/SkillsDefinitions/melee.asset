@@ -23,7 +23,7 @@ MonoBehaviour:
   - requiredLevel: 1
     title: Beginner Melee Combat
     description: Can use tier 1 melee weapons
-    icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
+    icon: {fileID: -8401682335034606711, guid: e2fcfaa90bcc47f4ca87fa460995f03d, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -32,7 +32,7 @@ MonoBehaviour:
   - requiredLevel: 2
     title: Tempered Strikes I
     description: +2 Min Melee Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 1
     rangedMinorStatOption: 0
@@ -41,7 +41,7 @@ MonoBehaviour:
   - requiredLevel: 3
     title: Tempered Strikes II
     description: +2 Max Melee Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 2
     rangedMinorStatOption: 0
@@ -50,7 +50,7 @@ MonoBehaviour:
   - requiredLevel: 4
     title: Quick Hands I
     description: +3% Melee Attack Speed
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
@@ -66,14 +66,14 @@ MonoBehaviour:
     ability: {fileID: 11400000, guid: cef0107d3357c9b4e86a08e4b6e8a0a7, type: 2}
     choices:
     - requiredLevel: 8
-      title: Power Slash - Brutal Cut
+      title: Brutal Cut
       description: +25% extra physical damage on Power Slash.
-      icon: {fileID: 0}
+      icon: {fileID: -809727694383032684, guid: 3fdd0875dbb17674c9abeae52e832828, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 8
-      title: Power Slash - Relentless Flow
+      title: Relentless Flow
       description: -5 seconds Power Slash cooldown.
-      icon: {fileID: 0}
+      icon: {fileID: -4127215080429908137, guid: 4597501a54f49e74bb23c8c362a57b64, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Rend
@@ -92,8 +92,9 @@ MonoBehaviour:
       ability: {fileID: 0}
     - requiredLevel: 8
       title: Crimson Spread
-      description: If the target is already bleeding, spread this bleed to 1 nearby
-        enemy.
+      description: Also applies the same Bleed to 1 other enemy within range of the
+        struck target (minimum 3 range, or your weapon range if longer), preferring
+        targets not already bleeding.
       icon: {fileID: 5570183790260993194, guid: a3f9e8e67e15ed24b86ba45820e05f95, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 5
@@ -107,19 +108,21 @@ MonoBehaviour:
     ability: {fileID: 11400000, guid: 9a1b2c3d4e5f60718293a4b5c6d7e8f9, type: 2}
     choices:
     - requiredLevel: 8
-      title: Venom Jab - Potent Venom
+      title: Potent Venom
       description: +2 max poison stacks on hit against a single enemy for 6 seconds.
-      icon: {fileID: 0}
+      icon: {fileID: 7052941084183541033, guid: 3bf93da0b2c995b49ac6ebc4750b094d, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 8
-      title: Venom Jab - Contagion Burst
-      description: Current poison spreads to 1 nearby enemy if it dies within 6 seconds.
-      icon: {fileID: 0}
+      title: Contagion Burst
+      description: If this enemy dies within 6 seconds, its poison spreads to 1 other
+        enemy within range of it (minimum 3 range, or your weapon range if longer),
+        preferring targets not already poisoned.
+      icon: {fileID: 3055892615885000108, guid: ec7b076d4dc3a9f42b3a61d12d08426a, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 6
     title: Brutal Momentum I
     description: +3% Melee Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 4
     rangedMinorStatOption: 0
@@ -128,7 +131,7 @@ MonoBehaviour:
   - requiredLevel: 7
     title: Precision I
     description: +2% Melee Crit Chance
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 5
     rangedMinorStatOption: 0
@@ -137,7 +140,7 @@ MonoBehaviour:
   - requiredLevel: 8
     title: Quick Hands II
     description: +3% Melee Attack Speed
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
@@ -146,7 +149,7 @@ MonoBehaviour:
   - requiredLevel: 9
     title: Finisher Instinct I
     description: +10% Damage to Low HP Enemies (Melee)
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 6
     rangedMinorStatOption: 0
@@ -198,7 +201,7 @@ MonoBehaviour:
   - requiredLevel: 11
     title: Tempered Strikes III
     description: +2 Min Melee Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 1
     rangedMinorStatOption: 0
@@ -207,7 +210,7 @@ MonoBehaviour:
   - requiredLevel: 12
     title: Tempered Strikes IV
     description: +2 Max Melee Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 2
     rangedMinorStatOption: 0
@@ -216,7 +219,7 @@ MonoBehaviour:
   - requiredLevel: 13
     title: Quick Hands III
     description: +3% Melee Attack Speed
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
@@ -225,7 +228,7 @@ MonoBehaviour:
   - requiredLevel: 14
     title: Brutal Momentum II
     description: +3% Melee Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 4
     rangedMinorStatOption: 0
@@ -295,7 +298,7 @@ MonoBehaviour:
   - requiredLevel: 16
     title: Bloodletting I
     description: +5% Bleed Chance (Melee Only)
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 7
     rangedMinorStatOption: 0
@@ -304,7 +307,7 @@ MonoBehaviour:
   - requiredLevel: 17
     title: Bloodletting II
     description: +10% Bleed Multiplier
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 8
     rangedMinorStatOption: 0
@@ -313,7 +316,7 @@ MonoBehaviour:
   - requiredLevel: 18
     title: Precision II
     description: +2% Melee Crit Chance
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 5
     rangedMinorStatOption: 0
@@ -322,7 +325,7 @@ MonoBehaviour:
   - requiredLevel: 19
     title: Predator's Focus I
     description: +10% Damage to Bleeding Enemies (Melee)
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 18
     rangedMinorStatOption: 0
@@ -348,9 +351,9 @@ MonoBehaviour:
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 20
-    title: Skilled Combat
-    description: Can use tier 2 weapons
-    icon: {fileID: 0}
+    title: Skilled Melee Combat
+    description: Can use tier 2 melee weapons
+    icon: {fileID: -466788390, guid: e2fcfaa90bcc47f4ca87fa460995f03d, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -359,7 +362,7 @@ MonoBehaviour:
   - requiredLevel: 21
     title: Brutal Momentum III
     description: +3% Melee Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 4
     rangedMinorStatOption: 0
@@ -368,7 +371,7 @@ MonoBehaviour:
   - requiredLevel: 22
     title: Quick Hands IV
     description: +3% Melee Attack Speed
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
@@ -377,7 +380,7 @@ MonoBehaviour:
   - requiredLevel: 23
     title: Footwork I
     description: +5% Melee Move Speed
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 19
     rangedMinorStatOption: 0
@@ -386,7 +389,7 @@ MonoBehaviour:
   - requiredLevel: 24
     title: Lethal Precision I
     description: +8% Melee Crit Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 10
     rangedMinorStatOption: 0
@@ -414,7 +417,7 @@ MonoBehaviour:
   - requiredLevel: 26
     title: Venom Edge I
     description: +5% Poison Chance (Melee Only)
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 11
     rangedMinorStatOption: 0
@@ -423,7 +426,7 @@ MonoBehaviour:
   - requiredLevel: 27
     title: Venom Edge II
     description: +10% Poison Duration
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 12
     rangedMinorStatOption: 0
@@ -432,7 +435,7 @@ MonoBehaviour:
   - requiredLevel: 28
     title: Ailment Synergy I
     description: +4% Bleed, Poison & Burn multipliers (melee weapon)
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 13
     rangedMinorStatOption: 0
@@ -441,7 +444,7 @@ MonoBehaviour:
   - requiredLevel: 29
     title: Predator's Focus II
     description: +10% Damage to Poisoned Enemies (Melee)
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 14
     rangedMinorStatOption: 0
@@ -469,7 +472,7 @@ MonoBehaviour:
   - requiredLevel: 31
     title: Brutal Momentum IV
     description: +3% Melee Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 4
     rangedMinorStatOption: 0
@@ -478,7 +481,7 @@ MonoBehaviour:
   - requiredLevel: 32
     title: Quick Hands V
     description: +3% Melee Attack Speed
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
@@ -487,7 +490,7 @@ MonoBehaviour:
   - requiredLevel: 33
     title: Precision III
     description: +2% Melee Crit Chance
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 5
     rangedMinorStatOption: 0
@@ -496,7 +499,7 @@ MonoBehaviour:
   - requiredLevel: 34
     title: Lethal Precision II
     description: +8% Melee Crit Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 10
     rangedMinorStatOption: 0
@@ -524,7 +527,7 @@ MonoBehaviour:
   - requiredLevel: 36
     title: Storm Edge I
     description: +5% Shock Chance (Melee Only)
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 15
     rangedMinorStatOption: 0
@@ -533,7 +536,7 @@ MonoBehaviour:
   - requiredLevel: 37
     title: Predator's Focus III
     description: +10% Damage to Shocked Enemies (Melee)
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 16
     rangedMinorStatOption: 0
@@ -542,7 +545,7 @@ MonoBehaviour:
   - requiredLevel: 38
     title: Battle Sustain I
     description: +1% Melee Lifesteal
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 17
     rangedMinorStatOption: 0
@@ -551,7 +554,7 @@ MonoBehaviour:
   - requiredLevel: 39
     title: Footwork II
     description: +5% Melee Move Speed
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 19
     rangedMinorStatOption: 0
@@ -577,9 +580,9 @@ MonoBehaviour:
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 40
-    title: Master Combat
-    description: Can use tier 3 weapons
-    icon: {fileID: 0}
+    title: Master Melee Combat
+    description: Can use tier 3 melee weapons
+    icon: {fileID: 47734959, guid: e2fcfaa90bcc47f4ca87fa460995f03d, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -588,7 +591,7 @@ MonoBehaviour:
   - requiredLevel: 41
     title: Brutal Momentum V
     description: +3% Melee Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 4
     rangedMinorStatOption: 0
@@ -597,7 +600,7 @@ MonoBehaviour:
   - requiredLevel: 42
     title: Quick Hands VI
     description: +3% Melee Attack Speed
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
@@ -606,7 +609,7 @@ MonoBehaviour:
   - requiredLevel: 43
     title: Precision IV
     description: +2% Melee Crit Chance
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 5
     rangedMinorStatOption: 0
@@ -615,7 +618,7 @@ MonoBehaviour:
   - requiredLevel: 44
     title: Lethal Precision III
     description: +8% Melee Crit Damage
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 10
     rangedMinorStatOption: 0
@@ -643,7 +646,7 @@ MonoBehaviour:
   - requiredLevel: 46
     title: Ailment Synergy II
     description: +4% Bleed, Poison & Burn multipliers (melee weapon)
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 13
     rangedMinorStatOption: 0
@@ -652,7 +655,7 @@ MonoBehaviour:
   - requiredLevel: 47
     title: Battle Sustain II
     description: +1% Melee Lifesteal
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 17
     rangedMinorStatOption: 0
@@ -661,7 +664,7 @@ MonoBehaviour:
   - requiredLevel: 48
     title: Quick Hands VII
     description: +3% Melee Attack Speed
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
@@ -670,7 +673,7 @@ MonoBehaviour:
   - requiredLevel: 49
     title: Finisher Instinct II
     description: +10% Damage to Low HP Enemies (Melee)
-    icon: {fileID: 0}
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 6
     rangedMinorStatOption: 0
@@ -679,7 +682,7 @@ MonoBehaviour:
   - requiredLevel: 50
     title: Capstone Passive
     description: Placeholder capstone milestone.
-    icon: {fileID: 0}
+    icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
     unlockType: 4
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0

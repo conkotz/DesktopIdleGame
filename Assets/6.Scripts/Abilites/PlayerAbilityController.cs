@@ -1225,15 +1225,13 @@ public class PlayerAbilityController : MonoBehaviour
         if (ailments == null)
             return;
 
-        bool wasAlreadyBleeding = ailments.HasBleed;
-
         // Exclusive bleed: blocks other bleed applications while active; also does not override normal bleed.
         ailments.ApplyExclusiveBleedFromHit(new BleedPayload(totalDamage, duration, ticks, transform));
 
-        if (selected == 1 && wasAlreadyBleeding)
+        if (selected == 1)
         {
-            // Upgrade 2: If target already bleeding, spread this bleed to 1 nearby enemy.
-            EnemyBaseController spread = FindNearestLivingEnemyExcluding(target, range: 3f);
+            // Crimson Spread: radial from struck target (min 3, else weapon range).
+            EnemyBaseController spread = combat != null ? combat.FindEnemyForRendBleedSpread(target) : null;
             if (spread != null)
             {
                 AilmentController otherAilments = spread.GetComponent<AilmentController>();
@@ -1289,32 +1287,8 @@ public class PlayerAbilityController : MonoBehaviour
             var marker = target.GetComponent<VenomJabSpreadOnDeathMarker>();
             if (marker == null)
                 marker = target.gameObject.AddComponent<VenomJabSpreadOnDeathMarker>();
-            marker.Arm(payload, expiresAt: Time.time + 6f, range: 3f);
+            marker.Arm(payload, expiresAt: Time.time + 6f, combat);
         }
-    }
-
-    private EnemyBaseController FindNearestLivingEnemyExcluding(EnemyBaseController exclude, float range)
-    {
-        EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        EnemyBaseController best = null;
-        float bestSqr = float.PositiveInfinity;
-        Vector3 origin = exclude != null ? exclude.transform.position : transform.position;
-        float r2 = Mathf.Max(0f, range) * Mathf.Max(0f, range);
-
-        for (int i = 0; i < allEnemies.Length; i++)
-        {
-            EnemyBaseController e = allEnemies[i];
-            if (e == null || e.IsDead || e == exclude)
-                continue;
-            float sqr = (e.transform.position - origin).sqrMagnitude;
-            if (sqr <= r2 && sqr < bestSqr)
-            {
-                bestSqr = sqr;
-                best = e;
-            }
-        }
-
-        return best;
     }
 
     private void ActivateCleavingStrikesBuff()

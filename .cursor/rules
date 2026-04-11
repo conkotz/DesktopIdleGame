@@ -17,3 +17,8 @@ When responding:
 - Clearly state what files were modified
 - Explain why the change was made
 - Keep solutions simple and maintainable
+
+Scoped edits (when the user narrows the request):
+- If they say things like **update text**, **wording only**, **description only**, **update icon**, **tooltip only**, or otherwise name a single kind of change, **only edit that part**. Do not replace whole YAML blocks, list entries, or components just to update one field.
+- For Unity `.asset` / `.prefab` YAML: do not overwrite `icon`, `guid`, `fileID`, or other serialized fields unless they explicitly asked to change those. Read the **current** file before patching; never paste an outdated block that would wipe Inspector values.
+- If the scope is unclear, ask—or change only what they named (e.g. “text” = description/copy only).

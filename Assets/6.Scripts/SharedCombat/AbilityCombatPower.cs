@@ -274,7 +274,7 @@ public static class AbilityCombatPower
             if (selected == 0)
                 totalBleedDamage *= 1.05f; // Hemorrhaging Rush: same total, faster — small throughput bump.
             else if (selected == 1)
-                totalBleedDamage *= 1.12f; // Crimson Spread: conditional spread — modest uplift.
+                totalBleedDamage *= 1.12f; // Crimson Spread: second target in radial spread range — modest uplift.
 
             return Mathf.Max(0f, totalBleedDamage * procRate);
         }
@@ -308,7 +308,7 @@ public static class AbilityCombatPower
             if (selected == 0)
                 totalPoisonDamage *= 1.12f; // Extra emphasis on stack-cap path beyond raw stackCount.
             else if (selected == 1)
-                totalPoisonDamage *= 1.12f; // Contagion Burst: conditional spread.
+                totalPoisonDamage *= 1.12f; // Contagion Burst: on-death radial spread from victim.
 
             return Mathf.Max(0f, totalPoisonDamage * procRate);
         }
