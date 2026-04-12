@@ -118,7 +118,7 @@ public static class GameTooltipTexts
                 title = "Minion damage";
                 description =
                     "Bonus damage to your minions and summons (additive %).\n\n" +
-                    "Applies on the owner no matter whether a minion inherits your hit damage or uses its own base damage. " +
+                    "Applies on the owner no matter whether a minion inherits your hit damage or uses pure minion source damage. " +
                     "Does not affect your hero DPS until summon combat is implemented.";
                 return true;
 

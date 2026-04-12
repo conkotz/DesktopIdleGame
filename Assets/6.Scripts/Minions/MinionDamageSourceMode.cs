@@ -1,17 +1,19 @@
+using UnityEngine;
+
 /// <summary>
-/// How a minion resolves its pre-bonus hit <see cref="SplitDamage"/> before owner <see cref="CharacterStats.FinalMinionDamagePercent"/> is applied.
-/// Does not imply inheritance of crit, APS, ailments, or on-hit procs from the player.
+/// How a minion resolves combat stats: inherit owner weapon vs minion-only numbers (see <see cref="MinionCombatConfig"/>).
 /// </summary>
 public enum MinionDamageSourceMode
 {
     /// <summary>
-    /// Use a caller-supplied slice of the owner&apos;s current hit split (weapon/ability context).
-    /// Only <see cref="SplitDamage"/> is taken from the owner; see <see cref="MinionRuntimeStatsCalculator"/> remarks.
+    /// Owner weapon: hit split, APS, crit, crit mult, and ailment chances (each scaled by inherit coefficients), plus owner durations/multipliers on apply.
     /// </summary>
+    [InspectorName("Inherit owner weapon hit")]
     InheritOwnerHitSplit = 0,
 
     /// <summary>
-    /// Use <see cref="MinionCombatConfig.baseDamageSplit"/> defined on the minion (wolf, spirit, etc.).
+    /// Minion-only damage, APS, crit, and ailments from <see cref="MinionCombatConfig"/> — not owner weapon hit/APS/crit (still gets owner % bonuses like FinalMinionDamagePercent).
     /// </summary>
-    UseBaseDamageSplit = 1,
+    [InspectorName("Pure minion source damage")]
+    PureMinionSourceDamage = 1,
 }

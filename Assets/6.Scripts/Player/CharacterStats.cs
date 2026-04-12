@@ -43,6 +43,57 @@ public struct SplitDamage
     }
 }
 
+/// <summary>Per-lane min/max damage (player-style basics); each hit rolls independently in range.</summary>
+[System.Serializable]
+public struct SplitDamageRange
+{
+    public SplitDamage min;
+    public SplitDamage max;
+
+    public static SplitDamageRange Uniform(SplitDamage v) => new SplitDamageRange { min = v, max = v };
+
+    public bool IsUnset => min.IsEmpty && max.IsEmpty;
+
+    /// <summary>
+    /// Per-lane uniform roll + crit on phys/mag only (corruption never crits),
+    /// matching <see cref="CharacterStats.RollSplitAttackDamage"/>.
+    /// </summary>
+    public SplitDamage RollBasicAttackDamage(float critChance, float critMultiplier, out bool wasCrit)
+    {
+        float phys = (max.physical > 0f && max.physical >= min.physical)
+            ? UnityEngine.Random.Range(min.physical, max.physical + 0.0001f)
+            : 0f;
+
+        float mag = (max.magic > 0f && max.magic >= min.magic)
+            ? UnityEngine.Random.Range(min.magic, max.magic + 0.0001f)
+            : 0f;
+
+        float corr = (max.corruptionDamage > 0f && max.corruptionDamage >= min.corruptionDamage)
+            ? UnityEngine.Random.Range(min.corruptionDamage, max.corruptionDamage + 0.0001f)
+            : 0f;
+
+        wasCrit = false;
+
+        if (UnityEngine.Random.value < Mathf.Clamp01(critChance))
+        {
+            float crit = Mathf.Max(1f, critMultiplier);
+
+            if (phys > 0f || mag > 0f)
+            {
+                wasCrit = true;
+                phys *= crit;
+                mag *= crit;
+            }
+        }
+
+        return new SplitDamage(
+            Mathf.Max(0f, phys),
+            Mathf.Max(0f, mag),
+            Mathf.Max(0f, corr)
+        );
+    }
+}
+
 [DisallowMultipleComponent]
 public class CharacterStats : MonoBehaviour, ISaveable
 {

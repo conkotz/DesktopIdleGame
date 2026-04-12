@@ -1,12 +1,13 @@
+using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
 /// <summary>
 /// Reusable runtime config for summons/minions: motion, duration, prefab, and embedded <see cref="MinionCombatConfig"/>
-/// (inherit owner split vs internal base split). Used by <see cref="SpectralWeaponMinion"/> and future minion types.
+/// (inherit owner weapon vs pure minion source damage). Used by <see cref="SpectralWeaponMinion"/> and future minion types.
 /// </summary>
 [CreateAssetMenu(fileName = "MinionDefinition_", menuName = "Desktop Idle Game/Minions/Minion Definition")]
-public class MinionDefinition : ScriptableObject
+public class MinionDefinition : ScriptableObject, ISerializationCallbackReceiver
 {
     [Header("Prefab")]
     [Tooltip("Prefab must include a SpectralWeaponMinion (or future runtime) on the root or a child.")]
@@ -39,23 +40,55 @@ public class MinionDefinition : ScriptableObject
     [Min(0.01f)]
     public float returnSpeed = 13f;
 
-    [Tooltip("World units added above the chord for the overhead swing (scaled down for very close targets).")]
+    [Header("Attach & slash (spectral weapon)")]
+    [Tooltip(
+        "Extra world units above the top of the enemy's sprite/collider bounds (not the pivot). " +
+        "Use ~0.3–0.8 so the weapon clears the head like the player spawn anchor.")]
     [Min(0f)]
-    public float attackArcHeight = 2.35f;
+    public float attachHeightAboveEnemy = 0.45f;
 
-    [Tooltip("Where the arc peaks between home and enemy (lower = more windup behind / higher apex toward you).")]
-    [Range(0.18f, 0.5f)]
-    public float attackArcPeakAlong = 0.3f;
+    [Tooltip("World-units along +X from the enemy root (magnitude only; spectral weapon always uses this flank for stable facing).")]
+    public float attachHorizontalOffsetTowardPlayer = 0.65f;
 
-    [Tooltip("Degrees added to motion tangent for sprite blade alignment (2D: 0 if blade points along travel, often ~±90 if art is vertical at rest).")]
-    public float attackSwingRotationOffsetDegrees = 0f;
+    [Tooltip(
+        "Local offset from root transform (handle bottom / slash pivot in world) to the sprite's pivot. " +
+        "Typical vertical axe art: pivot at sprite center, handle below → positive Y moves sprite up from the handle.")]
+    public Vector3 handlePivotToSpritePivotLocal = new Vector3(0f, 0.35f, 0f);
 
-    [Tooltip("Arc parameter (0–1) where rotation starts easing from path tangent toward a horizontal chop. Lower = longer tangent-following phase.")]
-    [Range(0.35f, 0.92f)]
-    public float attackStrikeHorizontalBlendStart = 0.58f;
+    [Tooltip("Snap to Attached when within this distance of the hover point.")]
+    [Min(0.05f)]
+    public float attachArrivalDistance = 0.4f;
 
-    [Tooltip("Extra degrees on the horizontal finish (e.g. -6 for a slight downward tip — “almost” horizontal).")]
-    public float attackStrikeHorizontalOffsetDegrees = 0f;
+    [Tooltip("Blade rotation around the handle pivot during each chop (degrees toward the enemy, ~80–90 typical).")]
+    [Min(0f)]
+    public float attachedSlashMaxRotationDegrees = 80f;
+
+    [Tooltip("Quick strike phase: seconds from upright to full chop (pivot fixed at handle).")]
+    [Min(0.02f)]
+    public float attachedSlashStrikeSeconds = 0.085f;
+
+    [Tooltip("Time to ease back to upright after the chop. Independent of APS; slow attack speed only adds idle time between chops.")]
+    [Min(0.04f)]
+    public float attachedSlashReturnMinSeconds = 0.2f;
+
+    [Tooltip("Added on top of the stable attached formula (SignedAngle toward enemy + 180°). Use ±90 if the blade reads sideways.")]
+    public float attachedFacingExtraDegrees = 0f;
+
+    [Header("Flight facing (approach — tune in Play Mode)")]
+    [Tooltip("Extra Z° after SignedAngle(up, flight dir) + Attached facing extra. Try 180 if the handle leads flight instead of the blade.")]
+    public float flightApproachFacingExtraDegrees = 0f;
+
+    [Tooltip("When true, flipX follows player/visuals (home anchor lossyScale). When false, flipX is chosen automatically from which side of the enemy the player is on (world X), unless Manual flight flip X is enabled.")]
+    public bool flightApproachFlipXFromPlayer = true;
+
+    [Tooltip("When Flip X from player is off: if true, use Flight Approach Flip X only. If false (default), flipX is true when the player is to the right of the strike target (world X), false when to the left — matches separate left/right tuning.")]
+    public bool flightApproachFlipXManual = false;
+
+    [Tooltip("SpriteRenderer.flipX during approach when Flip X from player is off and Manual flight flip X is on.")]
+    public bool flightApproachFlipX = false;
+
+    [Tooltip("SpriteRenderer.flipY during approach.")]
+    public bool flightApproachFlipY = true;
 
     [Header("Idle wobble")]
     [Tooltip("Horizontal sway amplitude (world units).")]
@@ -82,4 +115,11 @@ public class MinionDefinition : ScriptableObject
 
     [Tooltip("SpriteRenderer.sortingOrder.")]
     public int spriteSortingOrder = 4;
+
+    public void OnBeforeSerialize() { }
+
+    public void OnAfterDeserialize()
+    {
+        combatConfig = MinionCombatConfig.AfterDeserialize(combatConfig);
+    }
 }

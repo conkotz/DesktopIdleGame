@@ -61,7 +61,8 @@ public class AbilityDefinition : ScriptableObject
 
     [Header("Summon (optional)")]
     [Tooltip(
-        "When set, this ability uses the summon path in PlayerAbilityController: energy + cooldown apply, then SpectralWeaponMinion is spawned. " +
+        "When set, this ability uses the summon path in PlayerAbilityController: energy on first spawn, SpectralWeaponMinion is spawned, " +
+        "and ability cooldown starts when the summon expires (recast while active only retargets). " +
         "Scaling fields above are not used for that path (damage comes from MinionDefinition / MinionCombatConfig + owner minion stats).")]
     public MinionDefinition minionSpawnDefinition;
 

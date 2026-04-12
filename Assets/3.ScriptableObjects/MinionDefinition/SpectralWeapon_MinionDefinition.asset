@@ -13,36 +13,57 @@ MonoBehaviour:
   m_Name: SpectralWeapon_MinionDefinition
   m_EditorClassIdentifier: Assembly-CSharp::MinionDefinition
   runtimePrefab: {fileID: 5834920744521277035, guid: 2d089ffdb42e1404b8233d580cdc04e3, type: 3}
-  summonDuration: 10
+  summonDuration: 30
   combatConfig:
     damageSourceMode: 0
-    inheritDamageCoefficient: 0.35
-    baseDamageSplit:
+    inheritDamageCoefficient: 0.6
+    inheritAttackSpeedCoefficient: 0.75
+    inheritCritChanceCoefficient: 0.5
+    inheritCritMultiplierCoefficient: 0.5
+    inheritAilmentChanceCoefficient: 0.5
+    pureMinionDamageSplitRange:
+      min:
+        physical: 0
+        magic: 0
+        corruptionDamage: 0
+      max:
+        physical: 0
+        magic: 0
+        corruptionDamage: 0
+    _legacyBaseDamageSplit:
       physical: 0
       magic: 0
       corruptionDamage: 0
-    baseAttackSpeed: 1.1
-    baseCritChance: 0.05
+    pureMinionAttackSpeed: 0
+    pureMinionCritChance: 0
     ailmentChances:
       poisonChance: 0
       bleedChance: 0
       burnChance: 0
       shockChance: 0
-  attackRange: 9
+  attackRange: 6
   hitRadius: 0.42
-  idleFollowSpeed: 7
+  idleFollowSpeed: 3
   launchSpeed: 16
   returnSpeed: 13
-  attackArcHeight: 2.35
-  attackArcPeakAlong: 0.3
-  attackSwingRotationOffsetDegrees: 0
-  attackStrikeHorizontalBlendStart: 0.58
-  attackStrikeHorizontalOffsetDegrees: 0
+  attachHeightAboveEnemy: 0.25
+  attachHorizontalOffsetTowardPlayer: 0.95
+  handlePivotToSpritePivotLocal: {x: 0, y: 0.35, z: 0}
+  attachArrivalDistance: 0.4
+  attachedSlashMaxRotationDegrees: 100
+  attachedSlashStrikeSeconds: 0.02
+  attachedSlashReturnMinSeconds: 0.45
+  attachedFacingExtraDegrees: 10
+  flightApproachFacingExtraDegrees: 180
+  flightApproachFlipXFromPlayer: 0
+  flightApproachFlipXManual: 0
+  flightApproachFlipX: 1
+  flightApproachFlipY: 1
   wobbleAmplitudeX: 0.035
   wobbleAmplitudeY: 0.07
   wobbleFrequency: 2
   rotationWobbleDegrees: 3.5
   visualWorldScale: 0.85
-  spectralTint: {r: 0.62, g: 0.82, b: 1, a: 0.9}
+  spectralTint: {r: 0.7207546, g: 0.2104272, b: 0.18902804, a: 0.9}
   placeholderWeaponSprite: {fileID: -8860823726366746541, guid: 2e15a983e647ec142bfdadc1698f81bc, type: 3}
   spriteSortingOrder: 4

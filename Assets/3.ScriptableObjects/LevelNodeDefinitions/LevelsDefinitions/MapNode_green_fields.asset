@@ -34,9 +34,10 @@ MonoBehaviour:
   biome: 0
   prefabGroups: []
   spawnGroupPlans:
-  - groupId: CombatEnemies
+  - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
+      spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
       prefab: {fileID: 0}
       count: 5

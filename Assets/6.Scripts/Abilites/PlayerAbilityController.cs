@@ -99,6 +99,9 @@ public class PlayerAbilityController : MonoBehaviour
 
     private SpectralWeaponMinion _activeSpectralWeaponMinion;
 
+    /// <summary>When the spectral summon despawns, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
+    private AbilityDefinition _spectralWeaponCooldownAbilityDef;
+
     private enum QueuedHitEffect
     {
         None,
@@ -194,12 +197,6 @@ public class PlayerAbilityController : MonoBehaviour
             return false;
         }
 
-        if (globalCooldownSeconds > 0f && Time.time < _globalCooldownEndsAt)
-            return false;
-
-        if (IsOnCooldown(def.abilityId, out _))
-            return false;
-
         if (!player || !stats)
             return false;
 
@@ -208,6 +205,20 @@ public class PlayerAbilityController : MonoBehaviour
             player.ShowPopup("Ability cant be used with this weapon");
             return false;
         }
+
+        if (globalCooldownSeconds > 0f && Time.time < _globalCooldownEndsAt)
+            return false;
+
+        if (def.minionSpawnDefinition && _activeSpectralWeaponMinion)
+        {
+            _activeSpectralWeaponMinion.TryRecastRetargetOrReturn();
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
+        }
+
+        if (IsOnCooldown(def.abilityId, out _))
+            return false;
 
         if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
         {
@@ -251,7 +262,6 @@ public class PlayerAbilityController : MonoBehaviour
                 return false;
             }
 
-            StartCooldown(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -1801,7 +1811,8 @@ public class PlayerAbilityController : MonoBehaviour
     }
 
     /// <summary>
-    /// Spawns <see cref="SpectralWeaponMinion"/> from ability context: only one active instance per controller; recast replaces the previous.
+    /// Spawns <see cref="SpectralWeaponMinion"/> from ability context: only one active instance per controller.
+    /// Recast while alive retargets or sends the minion home instead of destroying and respawning.
     /// Visual + anchor come from equipment and <see cref="PlayerController.SpectralWeaponSpawnPoint"/> (no scene-wide searches on the minion).
     /// </summary>
     private bool TrySpawnSpectralWeaponMinion(AbilityDefinition def)
@@ -1809,11 +1820,6 @@ public class PlayerAbilityController : MonoBehaviour
         MinionDefinition md = def.minionSpawnDefinition;
         if (!md || !md.runtimePrefab || !_ownerStats || !player)
             return false;
-
-        // One active spectral weapon: despawn previous before creating a new instance.
-        if (_activeSpectralWeaponMinion)
-            _activeSpectralWeaponMinion.CancelAndDestroy();
-        _activeSpectralWeaponMinion = null;
 
         Transform anchor = player.SpectralWeaponSpawnPoint;
         Transform attacker = _ownerTransform ? _ownerTransform : _ownerStats.transform;
@@ -1834,6 +1840,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         _activeSpectralWeaponMinion = minion;
+        _spectralWeaponCooldownAbilityDef = def;
         return true;
     }
 
@@ -1841,6 +1848,12 @@ public class PlayerAbilityController : MonoBehaviour
     {
         if (_activeSpectralWeaponMinion == m)
             _activeSpectralWeaponMinion = null;
+
+        if (_spectralWeaponCooldownAbilityDef)
+        {
+            StartCooldown(_spectralWeaponCooldownAbilityDef);
+            _spectralWeaponCooldownAbilityDef = null;
+        }
     }
 
     /// <summary>

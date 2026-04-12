@@ -14,10 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: spectral_weapon
   displayName: Spectral Weapon
-  description: Summon a spectral copy of your main-hand weapon to strike at foes, then return to your side.
+  description: Summon a spectral copy of your main-hand weapon to strike at foes,
+    then return to your side.
   icon: {fileID: -8860823726366746541, guid: 2e15a983e647ec142bfdadc1698f81bc, type: 3}
-  cooldown: 20
-  energyCost: 40
+  cooldown: 60
+  energyCost: 100
   physicalDamageMultiplier: 0
   magicDamageMultiplier: 0
   corruptionDamageMultiplier: 0
@@ -27,7 +28,7 @@ MonoBehaviour:
   lightningDamageMultiplier: 0
   poisonDamageMultiplier: 0
   bleedDamageMultiplier: 0
-  requiredWeaponType: 0
+  requiredWeaponType: 1
   sourceSkill: 3
   unlockLevel: 35
   minionSpawnDefinition: {fileID: 11400000, guid: f40acea502b0ad6419011c0cf2e23bb5, type: 2}

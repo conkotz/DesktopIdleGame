@@ -2,9 +2,9 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// First summon runtime: spectral main-hand weapon. Home anchor + idle wobble, launch/return, one hit per trip.
-/// Combat: <see cref="MinionRuntimeStatsCalculator"/> only — inherited owner <see cref="SplitDamage"/> snapshot (average min/max)
-/// plus owner minion bonuses; local base APS/crit; fixed minion crit multiplier. Does not use player APS/crit/procs/ailments/LS.
+/// Spectral main-hand weapon: root transform follows the handle-bottom world pivot; child SlashPivot rotates for slashes.
+/// Idle at spawn anchor, approach without rotating root, attach beside target and face them, slash around pivot with damage each strike.
+/// Combat: <see cref="MinionRuntimeStatsCalculator"/> — inherited owner <see cref="SplitDamage"/> snapshot plus minion bonuses.
 /// </summary>
 [DisallowMultipleComponent]
 public class SpectralWeaponMinion : MonoBehaviour
@@ -12,7 +12,8 @@ public class SpectralWeaponMinion : MonoBehaviour
     public enum MotionState
     {
         Idle,
-        Attacking,
+        Approaching,
+        Attached,
         Returning
     }
 
@@ -35,15 +36,38 @@ public class SpectralWeaponMinion : MonoBehaviour
     private EnemyBaseController _strikeTarget;
     private float _nextStrikeReadyTime;
     private MinionRuntimeCombatStats _runtimeStats;
+    private MinionOwnerWeaponSnapshot _ownerWeaponSnapshot;
     private float _baseRotationZ;
     private Vector3 _lastMoveDir = Vector3.right;
-    private Vector3 _attackArcStart;
-    private float _attackArcT;
+    private float _slashUnwrappedTime;
     private bool _initialized;
     private bool _warnedOwnerNull;
     private bool _warnedDefinitionNull;
 
-    /// <summary>Combat snapshot: average of owner min/max split (no player crit roll in the snapshot).</summary>
+    private EnemyBaseController _cachedBoundsEnemy;
+    private Collider2D[] _cachedEnemyColliders;
+    private SpriteRenderer[] _cachedEnemySpriteRenderers;
+
+    /// <summary>World X offset from enemy root, captured once per attach so mirror flips on the enemy do not re-bias the flank.</summary>
+    private float _attachFrozenDeltaXFromEnemyRoot;
+
+    /// <summary>World Y = stable root Y + this (set once at attach). Avoids following animated sprite/collider bounds each frame.</summary>
+    private float _attachHoverHeightAboveStableRoot;
+
+    private bool _attachFrozenHorizontalValid;
+
+    private bool _returnFlipLocked;
+    private bool _returnFlipX;
+    private bool _returnFlipY;
+    private float _returnLockedEulerZ;
+
+    /// <summary>Child: local Z rotation only = slash swing; pivot is parent (handle bottom).</summary>
+    private Transform _swingPivot;
+
+    /// <summary>Child of swing pivot: positions sprite so its texture pivot sits correctly relative to the handle.</summary>
+    private Transform _spriteMount;
+
+    /// <summary>Average of owner min/max split (utility; summoned minions use a full min–max snapshot at spawn).</summary>
     public static SplitDamage GetAverageOwnerHitSplit(CharacterStats stats)
     {
         if (!stats) return SplitDamage.Zero;
@@ -57,7 +81,7 @@ public class SpectralWeaponMinion : MonoBehaviour
     }
 
     /// <summary>
-    /// Entry point for future ability spawn code. Pass weapon sprite from caller (e.g. main-hand HeldSprite); if null, uses definition placeholder.
+    /// Entry point for ability spawn. Pass weapon sprite from caller (e.g. main-hand HeldSprite); if null, uses definition placeholder.
     /// </summary>
     /// <param name="attackerTransform">Source for enemy aggro / damage attribution; defaults to ownerStats.transform.</param>
     /// <param name="onDespawned">Optional callback when destroyed (duration or Cancel).</param>
@@ -104,12 +128,48 @@ public class SpectralWeaponMinion : MonoBehaviour
 
         _expireTime = Time.time + Mathf.Max(0.1f, _def.summonDuration);
         ApplyWeaponVisual(weaponSprite);
+        EnsureHandlePivotHierarchy();
+        _ownerWeaponSnapshot = MinionOwnerWeaponSnapshot.From(ownerStats);
         RefreshCombatStats();
         _nextStrikeReadyTime = Time.time + 0.15f;
         _baseRotationZ = transform.eulerAngles.z;
-        transform.localScale = Vector3.one * Mathf.Max(0.05f, _def.visualWorldScale);
+        ApplyVisualScaleUniform();
+        ApplyFacingFromPlayerVisuals();
         _initialized = true;
         return true;
+    }
+
+    /// <summary>
+    /// Ability pressed again while summon is alive: prefer a different in-range enemy (recast retarget), else same/nearest, or return home if none.
+    /// </summary>
+    public void TryRecastRetargetOrReturn()
+    {
+        if (!_initialized || !_def || !_ownerStats)
+            return;
+
+        Vector3 origin = GetPlayerRangeOrigin();
+        float range = _def.attackRange;
+        EnemyBaseController enemy = FindNearestEnemyExcluding(origin, range, _strikeTarget);
+        if (!enemy)
+            enemy = FindNearestEnemy(origin, range);
+        if (enemy)
+        {
+            _strikeTarget = enemy;
+            _attachFrozenHorizontalValid = false;
+            _returnFlipLocked = false;
+            _state = MotionState.Approaching;
+            if (debugLogs)
+                Debug.Log($"[SpectralWeapon] Recast → approach {enemy.name}", this);
+        }
+        else
+        {
+            _strikeTarget = null;
+            _attachFrozenHorizontalValid = false;
+            _returnFlipLocked = false;
+            _state = MotionState.Returning;
+            if (debugLogs)
+                Debug.Log("[SpectralWeapon] Recast → return (no enemy in range)", this);
+        }
     }
 
     /// <summary>Clears despawn callback then destroys (e.g. replacing another summon).</summary>
@@ -138,13 +198,87 @@ public class SpectralWeaponMinion : MonoBehaviour
         spriteRenderer.sortingOrder = _def.spriteSortingOrder;
     }
 
+    /// <summary>
+    /// Root = handle bottom in world. SlashPivot child gets swing rotation; SpriteMount offsets art from pivot per definition.
+    /// </summary>
+    private void EnsureHandlePivotHierarchy()
+    {
+        if (_swingPivot)
+            return;
+
+        var swingGo = new GameObject("SlashPivot");
+        swingGo.transform.SetParent(transform, false);
+        swingGo.transform.localPosition = Vector3.zero;
+        swingGo.transform.localRotation = Quaternion.identity;
+        swingGo.transform.localScale = Vector3.one;
+        _swingPivot = swingGo.transform;
+
+        var mountGo = new GameObject("SpriteMount");
+        mountGo.transform.SetParent(_swingPivot, false);
+        mountGo.transform.localPosition = _def.handlePivotToSpritePivotLocal;
+        mountGo.transform.localRotation = Quaternion.identity;
+        mountGo.transform.localScale = Vector3.one;
+        _spriteMount = mountGo.transform;
+
+        if (!spriteRenderer)
+            return;
+
+        if (spriteRenderer.transform == transform)
+        {
+            SpriteRenderer oldSr = spriteRenderer;
+            spriteRenderer = mountGo.AddComponent<SpriteRenderer>();
+            CopySpriteRenderer(oldSr, spriteRenderer);
+            Destroy(oldSr);
+        }
+        else
+        {
+            spriteRenderer.transform.SetParent(_spriteMount, false);
+            spriteRenderer.transform.localPosition = Vector3.zero;
+            spriteRenderer.transform.localRotation = Quaternion.identity;
+            spriteRenderer.transform.localScale = Vector3.one;
+        }
+    }
+
+    private static void CopySpriteRenderer(SpriteRenderer src, SpriteRenderer dst)
+    {
+        if (!src || !dst) return;
+        dst.sprite = src.sprite;
+        dst.color = src.color;
+        dst.flipX = src.flipX;
+        dst.flipY = src.flipY;
+        dst.drawMode = src.drawMode;
+        dst.size = src.size;
+        dst.tileMode = src.tileMode;
+        dst.adaptiveModeThreshold = src.adaptiveModeThreshold;
+        dst.maskInteraction = src.maskInteraction;
+        dst.spriteSortPoint = src.spriteSortPoint;
+        dst.sortingLayerID = src.sortingLayerID;
+        dst.sortingOrder = src.sortingOrder;
+        dst.sortingLayerName = src.sortingLayerName;
+        if (src.sharedMaterial)
+            dst.sharedMaterial = src.sharedMaterial;
+    }
+
+    private void ResetSwingPivotLocalRotation()
+    {
+        if (!_swingPivot) return;
+        _swingPivot.localRotation = Quaternion.identity;
+    }
+
+    /// <summary>Call once at summon; stats stay fixed for this instance (gear changes do not apply).</summary>
     private void RefreshCombatStats()
     {
-        SplitDamage inherited = _def.combatConfig.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit
-            ? GetAverageOwnerHitSplit(_ownerStats)
-            : SplitDamage.Zero;
+        SplitDamageRange inheritedRange = default;
+        if (_def.combatConfig.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit && _ownerStats)
+        {
+            inheritedRange = new SplitDamageRange
+            {
+                min = _ownerStats.MinSplitDamage,
+                max = _ownerStats.MaxSplitDamage
+            };
+        }
 
-        _runtimeStats = MinionRuntimeStatsCalculator.Compute(_ownerStats, _def.combatConfig, inherited);
+        _runtimeStats = MinionRuntimeStatsCalculator.Compute(_ownerStats, _def.combatConfig, inheritedRange);
     }
 
     private Vector3 GetHomeWorldPosition()
@@ -158,6 +292,97 @@ public class SpectralWeaponMinion : MonoBehaviour
         return transform.position;
     }
 
+    private Vector3 GetAttachWorldPosition(EnemyBaseController enemy)
+    {
+        if (!enemy)
+            return transform.position;
+
+        Vector3 p = enemy.transform.position;
+        float topY = GetEnemyVisualTopY(enemy);
+        p.y = topY + Mathf.Max(0f, _def.attachHeightAboveEnemy);
+        p.z = transform.position.z;
+
+        // Always use +world X flank (same side as when the owner is right of the enemy). Bias-toward-player
+        // mirrored the sprite/read for left-flank attaches and the chop faced away from the target.
+        if (Mathf.Abs(_def.attachHorizontalOffsetTowardPlayer) > 1e-4f)
+            p.x += Mathf.Abs(_def.attachHorizontalOffsetTowardPlayer);
+
+        return p;
+    }
+
+    /// <summary>
+    /// Highest Y of enemy body (colliders first, then sprites). Uses colliders before sprites so overhead UI sprites do not raise the hover point.
+    /// </summary>
+    private float GetEnemyVisualTopY(EnemyBaseController enemy)
+    {
+        if (!enemy)
+            return transform.position.y;
+
+        if (enemy != _cachedBoundsEnemy || _cachedEnemyColliders == null || _cachedEnemySpriteRenderers == null)
+        {
+            _cachedBoundsEnemy = enemy;
+            _cachedEnemyColliders = enemy.GetComponentsInChildren<Collider2D>(true);
+            _cachedEnemySpriteRenderers = enemy.GetComponentsInChildren<SpriteRenderer>(true);
+        }
+
+        float topY = enemy.transform.position.y;
+        bool found = false;
+
+        // Prefer the largest AABB (main body). Small equipment / weapon colliders can win max.y after a flip and yank the hover point.
+        Collider2D primaryBody = null;
+        float primaryArea = -1f;
+        for (int i = 0; i < _cachedEnemyColliders.Length; i++)
+        {
+            Collider2D c = _cachedEnemyColliders[i];
+            if (!c || !c.enabled || !c.gameObject.activeInHierarchy)
+                continue;
+            Vector2 s = c.bounds.size;
+            float area = Mathf.Abs(s.x * s.y);
+            if (area > primaryArea)
+            {
+                primaryArea = area;
+                primaryBody = c;
+            }
+        }
+
+        if (primaryBody)
+        {
+            topY = primaryBody.bounds.max.y;
+            found = true;
+        }
+
+        if (!found)
+        {
+            for (int i = 0; i < _cachedEnemySpriteRenderers.Length; i++)
+            {
+                SpriteRenderer sr = _cachedEnemySpriteRenderers[i];
+                if (!sr || !sr.enabled || !sr.gameObject.activeInHierarchy)
+                    continue;
+                float y = sr.bounds.max.y;
+                if (!found || y > topY)
+                {
+                    topY = y;
+                    found = true;
+                }
+            }
+        }
+
+        return topY;
+    }
+
+    /// <summary>
+    /// Physics body / root position (not animated sprite bounds). Matches how the player home anchor stays stable while visuals animate.
+    /// </summary>
+    private static Vector2 GetEnemyStableWorldAnchor(EnemyBaseController enemy)
+    {
+        if (!enemy)
+            return Vector2.zero;
+        var rb = enemy.GetComponent<Rigidbody2D>();
+        if (rb)
+            return rb.position;
+        return enemy.transform.position;
+    }
+
     private void Update()
     {
         if (!_initialized || !_def || !_ownerStats)
@@ -169,15 +394,16 @@ public class SpectralWeaponMinion : MonoBehaviour
             return;
         }
 
-        RefreshCombatStats();
-
         switch (_state)
         {
             case MotionState.Idle:
                 TickIdle();
                 break;
-            case MotionState.Attacking:
-                TickAttacking();
+            case MotionState.Approaching:
+                TickApproaching();
+                break;
+            case MotionState.Attached:
+                TickAttached();
                 break;
             case MotionState.Returning:
                 TickReturning();
@@ -187,7 +413,16 @@ public class SpectralWeaponMinion : MonoBehaviour
         ApplyMotionFacing();
     }
 
-    private void TickIdle()
+    /// <summary>Hover at home: 80% of player move speed (when owner stats exist), else definition fallback.</summary>
+    private float GetIdleFollowSpeed()
+    {
+        if (_ownerStats)
+            return Mathf.Max(0.01f, _ownerStats.FinalMoveSpeed * 0.8f);
+        return Mathf.Max(0.01f, _def.idleFollowSpeed);
+    }
+
+    /// <summary>Bob + drift + rotation wobble at idle home (Idle only — Returning uses locked rotation + definition return speed).</summary>
+    private void ApplyIdleStyleFloatMotion()
     {
         Vector3 home = GetHomeWorldPosition();
         if (_homeAnchor)
@@ -199,141 +434,222 @@ public class SpectralWeaponMinion : MonoBehaviour
             Mathf.Sin(t * 1.13f + 0.7f) * _def.wobbleAmplitudeY,
             0f);
         Vector3 target = home + bob;
-        transform.position = Vector3.MoveTowards(transform.position, target, _def.idleFollowSpeed * Time.deltaTime);
+        transform.position = Vector3.MoveTowards(transform.position, target, GetIdleFollowSpeed() * Time.deltaTime);
 
         float rotWobble = Mathf.Sin(t * 0.9f + 0.2f) * _def.rotationWobbleDegrees;
         Vector3 e = transform.eulerAngles;
         e.z = _baseRotationZ + rotWobble;
         transform.eulerAngles = e;
+    }
+
+    /// <summary>Return flight: same bob target as idle but moves at <see cref="MinionDefinition.returnSpeed"/>; world Z rotation stays locked until idle.</summary>
+    private void ApplyReturningFloatMotion()
+    {
+        Vector3 home = GetHomeWorldPosition();
+        float t = Time.time * Mathf.Max(0.01f, _def.wobbleFrequency);
+        Vector3 bob = new Vector3(
+            Mathf.Sin(t) * _def.wobbleAmplitudeX,
+            Mathf.Sin(t * 1.13f + 0.7f) * _def.wobbleAmplitudeY,
+            0f);
+        Vector3 target = home + bob;
+        float rs = Mathf.Max(0.01f, _def.returnSpeed);
+        transform.position = Vector3.MoveTowards(transform.position, target, rs * Time.deltaTime);
+
+        Vector3 e = transform.eulerAngles;
+        e.z = _returnLockedEulerZ;
+        transform.eulerAngles = e;
+    }
+
+    private void TickIdle()
+    {
+        ApplyVisualScaleUniform();
+        ApplyIdleStyleFloatMotion();
+        ResetSwingPivotLocalRotation();
 
         if (Time.time < _nextStrikeReadyTime)
             return;
 
-        EnemyBaseController enemy = FindNearestEnemy(home, _def.attackRange);
+        Vector3 rangeOrigin = GetPlayerRangeOrigin();
+        EnemyBaseController enemy = FindNearestEnemy(rangeOrigin, _def.attackRange);
         if (!enemy)
             return;
 
         _strikeTarget = enemy;
-        _attackArcStart = transform.position;
-        _attackArcT = 0f;
-        _state = MotionState.Attacking;
+        _attachFrozenHorizontalValid = false;
+        _returnFlipLocked = false;
+        _state = MotionState.Approaching;
         if (debugLogs)
-            Debug.Log($"[SpectralWeapon] Attack → {enemy.name}", this);
+            Debug.Log($"[SpectralWeapon] Approach → {enemy.name}", this);
     }
 
-    private void TickAttacking()
+    private void TickApproaching()
     {
         if (!_strikeTarget || _strikeTarget.IsDead)
         {
             _strikeTarget = null;
+            _attachFrozenHorizontalValid = false;
             _state = MotionState.Returning;
             return;
         }
 
-        Vector3 goal = _strikeTarget.transform.position;
-        goal.z = transform.position.z;
-
-        Vector3 ctrl = BuildAttackArcControl(_attackArcStart, goal);
-        float arcLen = ApproximateQuadraticBezierLength(_attackArcStart, ctrl, goal, 20);
+        Vector3 attach = GetAttachWorldPosition(_strikeTarget);
         float dt = Time.deltaTime;
-        _attackArcT += (_def.launchSpeed * dt) / Mathf.Max(0.12f, arcLen);
-        _attackArcT = Mathf.Clamp01(_attackArcT);
+        transform.position = Vector3.MoveTowards(transform.position, attach, _def.launchSpeed * dt);
 
-        Vector3 onCurve = QuadraticBezier(_attackArcStart, ctrl, goal, _attackArcT);
-        transform.position = onCurve;
-
-        Vector3 tan = QuadraticBezierTangent(_attackArcStart, ctrl, goal, Mathf.Clamp01(_attackArcT));
-        if (tan.sqrMagnitude > 1e-8f)
+        Vector3 toAttach = attach - transform.position;
+        if (toAttach.sqrMagnitude > 1e-8f)
         {
-            tan.Normalize();
-            _lastMoveDir = tan;
-            float tangentZ = Mathf.Atan2(tan.y, tan.x) * Mathf.Rad2Deg + _def.attackSwingRotationOffsetDegrees;
-            float horizontalZ = ComputeStrikeHorizontalRotationZ(goal) + _def.attackSwingRotationOffsetDegrees +
-                _def.attackStrikeHorizontalOffsetDegrees;
-            float blend = Mathf.InverseLerp(_def.attackStrikeHorizontalBlendStart, 1f, _attackArcT);
-            blend = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(blend));
-            float swingZ = Mathf.LerpAngle(tangentZ, horizontalZ, blend);
+            Vector2 toTarget = new Vector2(toAttach.x, toAttach.y).normalized;
+            // Flight uses a different base than Attached (+180 chop). Same +180 here plus flipY fought the art (blade read up).
+            float z = Vector2.SignedAngle(Vector2.up, toTarget) + _def.attachedFacingExtraDegrees +
+                      _def.flightApproachFacingExtraDegrees;
             Vector3 e = transform.eulerAngles;
-            e.z = swingZ;
+            e.z = z;
             transform.eulerAngles = e;
         }
 
-        Vector3 delta = goal - transform.position;
-        bool inRange = delta.magnitude <= _def.hitRadius;
-        bool pathComplete = _attackArcT >= 0.999f;
-        if (inRange || pathComplete)
+        ResetSwingPivotLocalRotation();
+
+        _lastMoveDir = toAttach.sqrMagnitude > 1e-6f ? toAttach.normalized : _lastMoveDir;
+
+        if (Vector3.Distance(transform.position, attach) <= _def.attachArrivalDistance)
         {
-            ApplyHit(_strikeTarget);
+            Vector2 stable = GetEnemyStableWorldAnchor(_strikeTarget);
+            float topY = GetEnemyVisualTopY(_strikeTarget);
+            _attachHoverHeightAboveStableRoot =
+                topY + Mathf.Max(0f, _def.attachHeightAboveEnemy) - stable.y;
+            _attachFrozenDeltaXFromEnemyRoot = attach.x - stable.x;
+            _attachFrozenHorizontalValid = true;
+            _state = MotionState.Attached;
+            if (debugLogs)
+                Debug.Log($"[SpectralWeapon] Attached → {_strikeTarget.name}", this);
+        }
+    }
+
+    private void TickAttached()
+    {
+        if (!_strikeTarget || _strikeTarget.IsDead)
+        {
             _strikeTarget = null;
+            _attachFrozenHorizontalValid = false;
             _state = MotionState.Returning;
-            ScheduleNextStrike();
+            return;
         }
-    }
 
-    /// <summary>World Z for a side-view blade lying flat along X, tip toward the strike direction.</summary>
-    private float ComputeStrikeHorizontalRotationZ(Vector3 goal)
-    {
-        float dx = goal.x - _attackArcStart.x;
-        if (Mathf.Abs(dx) < 0.02f)
-            dx = _lastMoveDir.x;
-        return dx >= 0f ? 0f : 180f;
-    }
-
-    private Vector3 BuildAttackArcControl(Vector3 start, Vector3 end)
-    {
-        Vector3 mid = Vector3.Lerp(start, end, Mathf.Clamp01(_def.attackArcPeakAlong));
-        Vector2 flat = new Vector2(end.x - start.x, end.y - start.y);
-        float flatMag = flat.magnitude;
-        float heightScale = flatMag < 0.15f ? 0.35f : Mathf.Clamp01(flatMag / 3.2f);
-        return mid + Vector3.up * (_def.attackArcHeight * heightScale);
-    }
-
-    private static Vector3 QuadraticBezier(Vector3 p0, Vector3 p1, Vector3 p2, float t)
-    {
-        float u = 1f - t;
-        return u * u * p0 + 2f * u * t * p1 + t * t * p2;
-    }
-
-    private static Vector3 QuadraticBezierTangent(Vector3 p0, Vector3 p1, Vector3 p2, float t)
-    {
-        float u = 1f - t;
-        return 2f * u * (p1 - p0) + 2f * t * (p2 - p1);
-    }
-
-    private static float ApproximateQuadraticBezierLength(Vector3 p0, Vector3 p1, Vector3 p2, int segments)
-    {
-        segments = Mathf.Max(2, segments);
-        float len = 0f;
-        Vector3 prev = p0;
-        for (int i = 1; i <= segments; i++)
+        Vector2 stable = GetEnemyStableWorldAnchor(_strikeTarget);
+        if (!_attachFrozenHorizontalValid)
         {
-            float t = i / (float)segments;
-            Vector3 p = QuadraticBezier(p0, p1, p2, t);
-            len += Vector3.Distance(prev, p);
-            prev = p;
+            float topY = GetEnemyVisualTopY(_strikeTarget);
+            _attachHoverHeightAboveStableRoot =
+                topY + Mathf.Max(0f, _def.attachHeightAboveEnemy) - stable.y;
+            _attachFrozenDeltaXFromEnemyRoot = transform.position.x - stable.x;
+            _attachFrozenHorizontalValid = true;
         }
 
-        return len;
+        float anchorY = stable.y + _attachHoverHeightAboveStableRoot;
+        Vector3 anchorBase = new Vector3(stable.x + _attachFrozenDeltaXFromEnemyRoot, anchorY, transform.position.z);
+        float wobbleT = Time.time * Mathf.Max(0.01f, _def.wobbleFrequency);
+        Vector3 bob = new Vector3(
+            Mathf.Sin(wobbleT) * _def.wobbleAmplitudeX,
+            Mathf.Sin(wobbleT * 1.13f + 0.7f) * _def.wobbleAmplitudeY,
+            0f);
+        Vector3 targetPos = anchorBase + bob;
+        transform.position = Vector3.MoveTowards(transform.position, targetPos, GetIdleFollowSpeed() * Time.deltaTime);
+
+        Vector2 toEnemy = new Vector2(
+            stable.x - transform.position.x,
+            stable.y - transform.position.y);
+        if (toEnemy.sqrMagnitude < 1e-8f)
+            toEnemy = Vector2.right;
+        toEnemy.Normalize();
+
+        // Match legacy BladeForwardRotationZ(..., spriteFlipY: true) from when player faced away from target (perfect reference).
+        float baseZ = Vector2.SignedAngle(Vector2.up, toEnemy) + 180f + _def.attachedFacingExtraDegrees;
+        float rotWobble = Mathf.Sin(wobbleT * 0.9f + 0.2f) * _def.rotationWobbleDegrees;
+
+        float dt = Time.deltaTime;
+        float aps = Mathf.Max(0.01f, _runtimeStats.AttacksPerSecond);
+        float strike = Mathf.Max(0.04f, _def.attachedSlashStrikeSeconds);
+        float recover = Mathf.Max(0.06f, _def.attachedSlashReturnMinSeconds);
+        float animLen = strike + recover;
+        // Hits every1/APS; strike/recover stay fast from definition. Extra time = hold upright between chops.
+        float period = Mathf.Max(1f / aps, animLen + 1e-4f);
+
+        float prevU = _slashUnwrappedTime;
+        _slashUnwrappedTime += dt;
+        if (_strikeTarget && !_strikeTarget.IsDead)
+        {
+            float hitT = Mathf.Floor(prevU / period) * period + strike;
+            if (hitT <= prevU)
+                hitT += period;
+            while (hitT <= _slashUnwrappedTime + 1e-6f)
+            {
+                ApplyHit(_strikeTarget);
+                hitT += period;
+            }
+        }
+
+        float tInPeriod = Mathf.Repeat(_slashUnwrappedTime, period);
+        float slash;
+        if (tInPeriod < strike)
+        {
+            float u = strike > 1e-6f ? tInPeriod / strike : 1f;
+            u = 1f - Mathf.Pow(1f - Mathf.Clamp01(u), 2.5f);
+            slash = u * _def.attachedSlashMaxRotationDegrees;
+        }
+        else if (tInPeriod < animLen)
+        {
+            float u = recover > 1e-6f ? (tInPeriod - strike) / recover : 1f;
+            u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(u));
+            slash = (1f - u) * _def.attachedSlashMaxRotationDegrees;
+        }
+        else
+            slash = 0f;
+
+        Vector3 euler = transform.eulerAngles;
+        euler.z = baseZ + rotWobble;
+        transform.eulerAngles = euler;
+
+        if (_swingPivot)
+        {
+            Vector3 swingE = _swingPivot.localEulerAngles;
+            swingE.z = slash;
+            _swingPivot.localEulerAngles = swingE;
+        }
+
+        _lastMoveDir = new Vector3(toEnemy.x, toEnemy.y, 0f);
     }
 
     private void TickReturning()
     {
+        if (!_returnFlipLocked)
+        {
+            if (spriteRenderer)
+            {
+                _returnFlipX = spriteRenderer.flipX;
+                _returnFlipY = spriteRenderer.flipY;
+            }
+
+            _returnLockedEulerZ = transform.eulerAngles.z;
+            _returnFlipLocked = true;
+        }
+
+        ApplyVisualScaleUniform();
+        ApplyReturningFloatMotion();
+        ResetSwingPivotLocalRotation();
+
         Vector3 home = GetHomeWorldPosition();
         home.z = transform.position.z;
         Vector3 delta = home - transform.position;
         _lastMoveDir = delta.sqrMagnitude > 0.0001f ? delta.normalized : _lastMoveDir;
-        transform.position = Vector3.MoveTowards(transform.position, home, _def.returnSpeed * Time.deltaTime);
 
-        if (_homeAnchor)
+        float arrive = 0.08f + Mathf.Max(_def.wobbleAmplitudeX, _def.wobbleAmplitudeY);
+        if (delta.magnitude < arrive)
         {
-            Vector3 e = transform.eulerAngles;
-            e.z = _homeAnchor.eulerAngles.z;
-            transform.eulerAngles = e;
-        }
-
-        if (delta.magnitude < 0.08f)
-        {
+            _slashUnwrappedTime = 0f;
+            _returnFlipLocked = false;
             _state = MotionState.Idle;
+            ScheduleNextStrike();
             if (debugLogs)
                 Debug.Log("[SpectralWeapon] Idle", this);
         }
@@ -350,12 +666,13 @@ public class SpectralWeaponMinion : MonoBehaviour
     {
         if (!enemy || enemy.IsDead || !_ownerStats) return;
 
-        SplitDamage d = _runtimeStats.FinalDamageSplit;
-        bool crit = UnityEngine.Random.value < _runtimeStats.CritChance;
-        float cm = crit ? _runtimeStats.CritDamageMultiplier : 1f;
+        SplitDamage d = _runtimeStats.FinalDamageSplitRange.RollBasicAttackDamage(
+            _runtimeStats.CritChance,
+            _runtimeStats.CritDamageMultiplier,
+            out bool crit);
 
-        float p = Mathf.Max(0f, d.physical * cm);
-        float m = Mathf.Max(0f, d.magic * cm);
+        float p = Mathf.Max(0f, d.physical);
+        float m = Mathf.Max(0f, d.magic);
         float c = Mathf.Max(0f, d.corruptionDamage);
 
         int ip = Mathf.RoundToInt(p);
@@ -370,26 +687,39 @@ public class SpectralWeaponMinion : MonoBehaviour
         if (ic > 0)
             enemy.TakeDamage(ic, DamageType.Corruption, false, atk);
 
+        MinionHitEffects.ApplyAilmentsFromOwnerWeapon(
+            enemy,
+            _ownerWeaponSnapshot,
+            _runtimeStats,
+            ip,
+            im,
+            ic,
+            atk);
+
         if (debugLogs)
             Debug.Log($"[SpectralWeapon] Hit {enemy.name} p={ip} m={im} c={ic} crit={crit}", this);
     }
 
     private static EnemyBaseController FindNearestEnemy(Vector3 from, float range)
     {
+        return FindNearestEnemyExcluding(from, range, null);
+    }
+
+    /// <summary>Nearest living enemy within range; skips <paramref name="exclude"/> when non-null (used so recast can swap off the current target).</summary>
+    private static EnemyBaseController FindNearestEnemyExcluding(Vector3 from, float range, EnemyBaseController exclude)
+    {
         float r2 = range * range;
         var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         EnemyBaseController best = null;
-        float bestD = r2;
+        float bestD = float.MaxValue;
         for (int i = 0; i < candidates.Length; i++)
         {
             EnemyBaseController e = candidates[i];
-            if (!e || e.IsDead) continue;
+            if (!e || e.IsDead || e == exclude) continue;
             float d = (e.transform.position - from).sqrMagnitude;
-            if (d <= bestD)
-            {
-                bestD = d;
-                best = e;
-            }
+            if (d > r2 || d >= bestD) continue;
+            bestD = d;
+            best = e;
         }
 
         return best;
@@ -397,9 +727,73 @@ public class SpectralWeaponMinion : MonoBehaviour
 
     private void ApplyMotionFacing()
     {
-        if (!spriteRenderer || _state == MotionState.Attacking) return;
-        if (Mathf.Abs(_lastMoveDir.x) < 0.05f) return;
-        spriteRenderer.flipX = _lastMoveDir.x < 0f;
+        if (!spriteRenderer)
+            return;
+
+        ApplyVisualScaleUniform();
+
+        if (_state == MotionState.Attached && _strikeTarget)
+        {
+            spriteRenderer.flipX = false;
+            // flipY true mirrored the held-weapon sprite and read as upside-down (handle up); false matches upright chop reference.
+            spriteRenderer.flipY = false;
+            return;
+        }
+
+        if (_state == MotionState.Approaching && _strikeTarget)
+        {
+            if (_def.flightApproachFlipXFromPlayer)
+                ApplyFacingFromPlayerVisuals();
+            else if (_def.flightApproachFlipXManual)
+                spriteRenderer.flipX = _def.flightApproachFlipX;
+            else
+            {
+                float px = GetPlayerRangeOrigin().x;
+                float ex = _strikeTarget.transform.position.x;
+                spriteRenderer.flipX = px > ex;
+            }
+
+            spriteRenderer.flipY = _def.flightApproachFlipY;
+            return;
+        }
+
+        if (_state == MotionState.Returning && _returnFlipLocked)
+        {
+            spriteRenderer.flipX = _returnFlipX;
+            spriteRenderer.flipY = _returnFlipY;
+            return;
+        }
+
+        spriteRenderer.flipY = false;
+        ApplyFacingFromPlayerVisuals();
+    }
+
+    /// <summary>Match player rig mirror (SpectralWeaponSpawnPoint under flipped Visuals), not idle wobble direction.</summary>
+    private void ApplyFacingFromPlayerVisuals()
+    {
+        if (!spriteRenderer)
+            return;
+        if (_homeAnchor && Mathf.Abs(_homeAnchor.lossyScale.x) > 1e-4f)
+            spriteRenderer.flipX = _homeAnchor.lossyScale.x < 0f;
+        else if (Mathf.Abs(_lastMoveDir.x) < 0.05f)
+            return;
+        else
+            spriteRenderer.flipX = _lastMoveDir.x < 0f;
+    }
+
+    private Vector3 GetPlayerRangeOrigin()
+    {
+        if (_attackerTransform)
+            return _attackerTransform.position;
+        return _ownerStats ? _ownerStats.transform.position : transform.position;
+    }
+
+    private float UniformVisualScale => Mathf.Max(0.05f, _def.visualWorldScale);
+
+    private void ApplyVisualScaleUniform()
+    {
+        float u = UniformVisualScale;
+        transform.localScale = new Vector3(u, u, u);
     }
 
 #if UNITY_EDITOR
@@ -409,7 +803,9 @@ public class SpectralWeaponMinion : MonoBehaviour
         Vector3 h = Application.isPlaying && _initialized ? GetHomeWorldPosition() : transform.position;
         Gizmos.color = new Color(0.3f, 0.85f, 1f, 0.35f);
         Gizmos.DrawWireSphere(h, 0.12f);
-        Gizmos.DrawWireSphere(h, _def.attackRange);
+        Vector3 ro = Application.isPlaying && _initialized ? GetPlayerRangeOrigin() : transform.position;
+        Gizmos.color = new Color(0.5f, 0.95f, 1f, 0.45f);
+        Gizmos.DrawWireSphere(ro, _def.attackRange);
     }
 #endif
 }

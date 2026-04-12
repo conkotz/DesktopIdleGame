@@ -36,41 +36,49 @@ MonoBehaviour:
   - groupId: 
     prefabs: []
   spawnGroupPlans:
-  - groupId: TownSpawns
+  - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint8
       enemyDefinition: {fileID: 11400000, guid: 018988b4e6f49f843a83603a5d29913b, type: 2}
       prefab: {fileID: 0}
       count: 1
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint10
       enemyDefinition: {fileID: 11400000, guid: 018988b4e6f49f843a83603a5d29913b, type: 2}
       prefab: {fileID: 0}
       count: 1
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint24
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 2240485527361661371, guid: 6e93381c288e6ae488bc8daf3fc70d29, type: 3}
       count: 1
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint26
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 4973683916600228948, guid: 4f6f9e8217f875c49a5b9fc9421d1191, type: 3}
       count: 1
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint28
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 5214886831892509811, guid: eafb4a3050e169e43a98e83150bb1a94, type: 3}
       count: 1
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint30
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 4920183082709471436, guid: 24ff604100c61b34fb70516a67da032c, type: 3}
       count: 1
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint32
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 5214886831892509811, guid: 894d2a0476be8f64b94cf767bead3ee5, type: 3}
       count: 1
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint38
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 6284140584376777183, guid: 3c57c2ed11c6eca46913488254667548, type: 3}
       count: 1
-    shuffleSpawnPoints: 0
+    shuffleSpawnPoints: 1
   enduranceWaves: []
   enduranceCompletionLoot: []
   enduranceCompletionLootByTier: []
