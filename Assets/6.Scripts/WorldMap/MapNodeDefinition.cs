@@ -62,6 +62,12 @@ public class SpawnPrefabCount
     [Tooltip("SpawnPointGroup.groupId in the scene. Leave empty to use the wave default (endurance) or the parent plan Group Id (combat spawn plans).")]
     public string spawnPointGroupId = "";
 
+    [Tooltip(
+        "Optional: exact name of a child transform under the SpawnPointGroup (e.g. SpawnPoint, SpawnPoint2). " +
+        "When set, each instance for this row tries that point first (still respects overlap / occupancy). " +
+        "Leave empty to use plan order: sequential when shuffle is off, or shuffled cursor order when shuffle is on.")]
+    public string spawnPointName = "";
+
     [Header("Content (EnemyDefinition preferred)")]
     [Tooltip("Preferred reference. Runtime resolves prefab via this asset and calls EnemyBaseController.InitializeFromDefinition when spawning enemies.")]
     public EnemyDefinition enemyDefinition;
@@ -241,6 +247,7 @@ public class EnduranceWavePlan : ISerializationCallbackReceiver
                 spawns.Add(new SpawnPrefabCount
                 {
                     spawnPointGroupId = rowGid,
+                    spawnPointName = s.spawnPointName,
                     enemyDefinition = s.enemyDefinition,
                     prefab = s.prefab,
                     count = s.count

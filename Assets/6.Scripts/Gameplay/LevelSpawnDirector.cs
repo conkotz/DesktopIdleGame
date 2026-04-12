@@ -48,6 +48,7 @@ public class LevelSpawnDirector : MonoBehaviour
         public string NodeId;
         public string SpawnPointGroupId;
         public bool ShuffleSpawnPointsFromPlan;
+        public string SpawnPointName;
         public GameObject PrefabAsset;
         public EnemyDefinition EnemyDefinition;
     }
@@ -298,12 +299,39 @@ public class LevelSpawnDirector : MonoBehaviour
 
             for (int c = 0; c < entry.count; c++)
             {
-                Transform p = PickNextAvailablePoint(
-                    cursor.PointList,
-                    ref cursor.Cursor,
-                    out bool hadToReuse,
-                    gid,
-                    pointGroup);
+                bool hadToReuse = false;
+                Transform p = null;
+                if (entry != null && !string.IsNullOrWhiteSpace(entry.spawnPointName))
+                {
+                    string wantName = entry.spawnPointName.Trim();
+                    p = TryResolveSpawnPointByName(pointGroup, wantName);
+                    if (!p)
+                    {
+                        if (logSpawns)
+                            Debug.LogWarning(
+                                $"[LevelSpawnDirector] No spawn point named '{wantName}' in group '{gid}' — using cursor order.",
+                                pointGroup);
+                    }
+                    else if (!IsSpawnPointStrictlyFree(p))
+                    {
+                        if (logSpawns)
+                            Debug.LogWarning(
+                                $"[LevelSpawnDirector] Named spawn point '{p.name}' is not free — using cursor order.",
+                                pointGroup);
+                        p = null;
+                    }
+                }
+
+                if (!p)
+                {
+                    p = PickNextAvailablePoint(
+                        cursor.PointList,
+                        ref cursor.Cursor,
+                        out hadToReuse,
+                        gid,
+                        pointGroup);
+                }
+
                 if (!p)
                     continue;
 
@@ -330,7 +358,14 @@ public class LevelSpawnDirector : MonoBehaviour
                     if (ec != null)
                     {
                         var src = inst.AddComponent<EnemySpawnSource>();
-                        src.Bind(this, levelDefForRespawn, gid, plan.shuffleSpawnPoints, prefabAsset, defForInit);
+                        src.Bind(
+                            this,
+                            levelDefForRespawn,
+                            gid,
+                            plan.shuffleSpawnPoints,
+                            prefabAsset,
+                            defForInit,
+                            entry.spawnPointName);
                     }
                 }
 
@@ -354,14 +389,15 @@ public class LevelSpawnDirector : MonoBehaviour
         string spawnPointGroupId,
         bool shuffleSpawnPointsFromPlan,
         GameObject prefabAsset,
-        EnemyDefinition enemyDefinition)
+        EnemyDefinition enemyDefinition,
+        string spawnPointName = null)
     {
         if (!mapNode || !mapNode.enemyRespawnEnabled || mapNode.enemyRespawnDelaySeconds < 0.01f)
             return;
         if (!prefabAsset)
             return;
 
-        StartCoroutine(CoRespawnAfterDelay(mapNode, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition));
+        StartCoroutine(CoRespawnAfterDelay(mapNode, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition, spawnPointName));
     }
 
     private void ClearPendingRespawnsForNewLevel()
@@ -384,13 +420,15 @@ public class LevelSpawnDirector : MonoBehaviour
         string spawnPointGroupId,
         bool shuffleSpawnPointsFromPlan,
         GameObject prefabAsset,
-        EnemyDefinition enemyDefinition)
+        EnemyDefinition enemyDefinition,
+        string spawnPointName)
     {
         _pendingRespawns.Add(new PendingRespawn
         {
             NodeId = nodeId,
             SpawnPointGroupId = spawnPointGroupId,
             ShuffleSpawnPointsFromPlan = shuffleSpawnPointsFromPlan,
+            SpawnPointName = spawnPointName,
             PrefabAsset = prefabAsset,
             EnemyDefinition = enemyDefinition,
         });
@@ -415,6 +453,7 @@ public class LevelSpawnDirector : MonoBehaviour
                         pr.ShuffleSpawnPointsFromPlan,
                         pr.PrefabAsset,
                         pr.EnemyDefinition,
+                        pr.SpawnPointName,
                         logWhenNoFreePoint: false);
 
                     if (outcome == RespawnAttemptOutcome.Spawned)
@@ -451,6 +490,7 @@ public class LevelSpawnDirector : MonoBehaviour
         bool shuffleSpawnPointsFromPlan,
         GameObject prefabAsset,
         EnemyDefinition enemyDefinition,
+        string spawnPointName,
         bool logWhenNoFreePoint)
     {
         MapNodeDefinition active = GameplayLevelBootstrapper.Instance != null
@@ -467,7 +507,7 @@ public class LevelSpawnDirector : MonoBehaviour
         if (!groupsById.TryGetValue(spawnPointGroupId, out SpawnPointGroup pointGroup) || pointGroup == null)
             return RespawnAttemptOutcome.AbortedInvalidContext;
 
-        Transform p = PickSpawnPointForRespawn(pointGroup, shuffleSpawnPointsFromPlan);
+        Transform p = PickSpawnPointForRespawn(pointGroup, shuffleSpawnPointsFromPlan, spawnPointName);
         if (!p)
         {
             if (logWhenNoFreePoint && logSpawns)
@@ -496,7 +536,7 @@ public class LevelSpawnDirector : MonoBehaviour
         if (ec != null && active.enemyRespawnEnabled && active.enemyRespawnDelaySeconds >= 0.01f)
         {
             var src = inst.AddComponent<EnemySpawnSource>();
-            src.Bind(this, active, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition);
+            src.Bind(this, active, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition, spawnPointName);
         }
 
         if (logSpawns)
@@ -512,7 +552,8 @@ public class LevelSpawnDirector : MonoBehaviour
         string spawnPointGroupId,
         bool shuffleSpawnPointsFromPlan,
         GameObject prefabAsset,
-        EnemyDefinition enemyDefinition)
+        EnemyDefinition enemyDefinition,
+        string spawnPointName)
     {
         string nodeId = mapNode.nodeId;
         float delay = GetEffectiveRespawnDelayForNode(mapNode);
@@ -527,16 +568,24 @@ public class LevelSpawnDirector : MonoBehaviour
             shuffleSpawnPointsFromPlan,
             prefabAsset,
             enemyDefinition,
+            spawnPointName,
             logWhenNoFreePoint: true);
 
         if (outcome == RespawnAttemptOutcome.NoFreePoint)
         {
-            EnqueuePendingRespawn(nodeId, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition);
+            EnqueuePendingRespawn(nodeId, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition, spawnPointName);
         }
     }
 
-    private Transform PickSpawnPointForRespawn(SpawnPointGroup group, bool shuffleSpawnPointsFromPlan)
+    private Transform PickSpawnPointForRespawn(SpawnPointGroup group, bool shuffleSpawnPointsFromPlan, string spawnPointName)
     {
+        if (!string.IsNullOrWhiteSpace(spawnPointName))
+        {
+            Transform named = TryResolveSpawnPointByName(group, spawnPointName.Trim());
+            if (named && !IsSpawnPointOccupiedByEnemy(named.position))
+                return named;
+        }
+
         IReadOnlyList<Transform> raw = group.Points;
         var list = new List<Transform>();
         for (int i = 0; i < raw.Count; i++)
@@ -561,6 +610,33 @@ public class LevelSpawnDirector : MonoBehaviour
         }
 
         return null;
+    }
+
+    private static Transform TryResolveSpawnPointByName(SpawnPointGroup group, string name)
+    {
+        if (group == null || string.IsNullOrWhiteSpace(name))
+            return null;
+
+        IReadOnlyList<Transform> raw = group.Points;
+        for (int i = 0; i < raw.Count; i++)
+        {
+            Transform t = raw[i];
+            if (t && string.Equals(t.name, name, StringComparison.OrdinalIgnoreCase))
+                return t;
+        }
+
+        return null;
+    }
+
+    private bool IsSpawnPointStrictlyFree(Transform p)
+    {
+        if (!p)
+            return false;
+        if (IsSpawnPointOccupiedByEnemy(p.position))
+            return false;
+        if (preventOverlappingSpawns && IsReserved(p.position))
+            return false;
+        return true;
     }
 
     private GameObject SpawnEnemyInstanceAt(Transform spawnPoint, GameObject prefabAsset, EnemyDefinition defForInit, Transform parent)
@@ -658,22 +734,11 @@ public class LevelSpawnDirector : MonoBehaviour
 
         int start = cursor;
 
-        bool PointIsStrictlyFree(Transform p)
-        {
-            if (!p)
-                return false;
-            if (IsSpawnPointOccupiedByEnemy(p.position))
-                return false;
-            if (preventOverlappingSpawns && IsReserved(p.position))
-                return false;
-            return true;
-        }
-
         for (int tries = 0; tries < points.Count; tries++)
         {
             Transform p = points[cursor % points.Count];
             cursor++;
-            if (PointIsStrictlyFree(p))
+            if (IsSpawnPointStrictlyFree(p))
                 return p;
         }
 
