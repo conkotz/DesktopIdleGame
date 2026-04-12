@@ -1,12 +1,21 @@
 using UnityEngine;
+using UnityEngine.UI;
 
+/// <summary>
+/// Positions a tooltip panel left or right of a measured anchor so it stays inside <see cref="boundsRect"/>.
+/// Width/height can come from laid-out rects (dynamic) or fixed fallbacks — see <see cref="GetMeasuredWidth"/> / <see cref="GetMeasuredHeight"/>.
+/// </summary>
 public class FlipInsideBounds : MonoBehaviour
 {
     [Header("Refs")]
-    [SerializeField] private RectTransform panel;          // Tooltip panel (this)
-    [SerializeField] private RectTransform boundsRect;     // WindowsArea (visible bounds)
-    [SerializeField] private RectTransform measureRect;    // WINDOW (recommended) or slot/anchor
-    [SerializeField] private RectTransform heightRect;     // Grid/content used to clamp height
+    [SerializeField] private RectTransform panel;          // Tooltip root (positioning; usually this object)
+    [SerializeField] private RectTransform boundsRect;     // Visible window / safe area (screen bounds)
+    [Tooltip("World-space anchor for left/right gap (hovered slot/window). Set at runtime; not used for tooltip width.")]
+    [SerializeField] private RectTransform measureRect;
+    [Tooltip("Vertical clamp target for Y anchoring (optional). If null, parent is used.")]
+    [SerializeField] private RectTransform heightRect;
+    [Tooltip("Laid-out tooltip box (e.g. Content with VLG + CSF). Width/height come from here after rebuild. If null, width uses panelWidth / panel.")]
+    [SerializeField] private RectTransform tooltipContentRect;
 
     public enum PreferredSide { Left, Right }
 
@@ -16,7 +25,8 @@ public class FlipInsideBounds : MonoBehaviour
     [Header("Layout")]
     [SerializeField] private float gap = 10f;
 
-    // IMPORTANT: use a stable width (your original approach)
+    [Header("Fixed fallback width (when MeasureRect is not used for width)")]
+    [Tooltip("When MeasureRect is null: if > 0, used as fixed width. If 0, width comes from panel.rect after layout rebuild.")]
     [SerializeField] private float panelWidth = 240f;
 
     [Header("Rarity border strip (optional)")]
@@ -60,11 +70,17 @@ public class FlipInsideBounds : MonoBehaviour
                 rarityBorderStrip = t as RectTransform;
         }
 
-        // Fallbacks
+        RebuildLayoutForMeasurement();
+
+        float measuredWidth = GetMeasuredWidth();
+        float measuredHeight = GetMeasuredHeight();
+        bool useExplicitContentSize = tooltipContentRect != null || heightRect != null;
+
+        // World-space anchor for gap (slot / UI element), not tooltip box size
         var m = measureRect ? measureRect : parent;
         var h = heightRect ? heightRect : parent;
 
-        // 1) Space calc (world)
+        // 1) Space calc (world) — use measured tooltip width so flip logic matches real size
         Vector3[] mc = new Vector3[4];
         Vector3[] bc = new Vector3[4];
         m.GetWorldCorners(mc);
@@ -79,15 +95,11 @@ public class FlipInsideBounds : MonoBehaviour
         float spaceRight = boundsRight - mRight - gap;
         float spaceLeft = mLeft - boundsLeft - gap;
 
-        bool canDockRight = spaceRight >= panelWidth;
-        bool canDockLeft = spaceLeft >= panelWidth;
+        bool canDockRight = spaceRight >= measuredWidth;
+        bool canDockLeft = spaceLeft >= measuredWidth;
 
         bool dockRight;
 
-        // ✅ ORIGINAL behaviour:
-        // - If only one side fits, take it (this is the "flip near edge" behaviour)
-        // - If neither fits, take the side with more space
-        // - If BOTH fit, use preferredSide
         if (canDockRight && !canDockLeft)
         {
             dockRight = true;
@@ -105,14 +117,67 @@ public class FlipInsideBounds : MonoBehaviour
             dockRight = spaceRight >= spaceLeft;
         }
 
-        // 2) Clamp Y to heightRect in parent space
+        // 2) Clamp Y to heightRect in parent space (unchanged)
         GetNormalizedYAnchors(parent, h, out float yMin, out float yMax);
 
-        // 3) Apply
-        if (dockRight) DockRight(yMin, yMax);
-        else DockLeft(yMin, yMax);
+        // 3) Apply dock + size
+        if (dockRight)
+            DockRight(yMin, yMax, measuredWidth, measuredHeight, useExplicitContentSize);
+        else
+            DockLeft(yMin, yMax, measuredWidth, measuredHeight, useExplicitContentSize);
 
         ApplyRarityBorderToInnerEdge(dockRight);
+    }
+
+    /// <summary>
+    /// Ensures ContentSizeFitter / layout groups have applied before we read rect sizes.
+    /// </summary>
+    private void RebuildLayoutForMeasurement()
+    {
+        Canvas.ForceUpdateCanvases();
+
+        if (tooltipContentRect && tooltipContentRect != panel)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(tooltipContentRect);
+        if (heightRect && heightRect != tooltipContentRect && heightRect != panel)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(heightRect);
+        if (panel)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(panel);
+
+        Canvas.ForceUpdateCanvases();
+    }
+
+    /// <summary>
+    /// Laid-out width: <see cref="tooltipContentRect"/> first, then fixed <see cref="panelWidth"/> if &gt; 0, else <see cref="panel"/>.
+    /// </summary>
+    private float GetMeasuredWidth()
+    {
+        if (tooltipContentRect)
+            return Mathf.Max(0f, tooltipContentRect.rect.width);
+
+        if (panelWidth > 0f)
+            return panelWidth;
+
+        if (panel)
+            return Mathf.Max(0f, panel.rect.width);
+
+        return 0f;
+    }
+
+    /// <summary>
+    /// Laid-out height: <see cref="tooltipContentRect"/> first, then <see cref="heightRect"/>, else <see cref="panel"/>.
+    /// </summary>
+    private float GetMeasuredHeight()
+    {
+        if (tooltipContentRect)
+            return Mathf.Max(0f, tooltipContentRect.rect.height);
+
+        if (heightRect)
+            return Mathf.Max(0f, heightRect.rect.height);
+
+        if (panel)
+            return Mathf.Max(0f, panel.rect.height);
+
+        return 0f;
     }
 
     /// <summary>
@@ -145,30 +210,62 @@ public class FlipInsideBounds : MonoBehaviour
         }
     }
 
-    private void DockRight(float yMin, float yMax)
+    private void DockRight(
+        float yMin,
+        float yMax,
+        float measuredWidth,
+        float measuredHeight,
+        bool useExplicitContentSize)
     {
-        panel.anchorMin = new Vector2(1f, yMin);
-        panel.anchorMax = new Vector2(1f, yMax);
-        panel.pivot = new Vector2(0f, 0.5f);
-
-        panel.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, panelWidth);
-        panel.anchoredPosition = new Vector2(gap, 0f);
-
-        panel.offsetMin = new Vector2(panel.offsetMin.x, 0f);
-        panel.offsetMax = new Vector2(panel.offsetMax.x, 0f);
+        if (useExplicitContentSize)
+        {
+            float yCenter = (yMin + yMax) * 0.5f;
+            panel.anchorMin = new Vector2(1f, yCenter);
+            panel.anchorMax = new Vector2(1f, yCenter);
+            panel.pivot = new Vector2(0f, 0.5f);
+            panel.anchoredPosition = new Vector2(gap, 0f);
+            panel.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, measuredWidth);
+            panel.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, measuredHeight);
+        }
+        else
+        {
+            panel.anchorMin = new Vector2(1f, yMin);
+            panel.anchorMax = new Vector2(1f, yMax);
+            panel.pivot = new Vector2(0f, 0.5f);
+            panel.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, measuredWidth);
+            panel.anchoredPosition = new Vector2(gap, 0f);
+            panel.offsetMin = new Vector2(panel.offsetMin.x, 0f);
+            panel.offsetMax = new Vector2(panel.offsetMax.x, 0f);
+        }
     }
 
-    private void DockLeft(float yMin, float yMax)
+    private void DockLeft(
+        float yMin,
+        float yMax,
+        float measuredWidth,
+        float measuredHeight,
+        bool useExplicitContentSize)
     {
-        panel.anchorMin = new Vector2(0f, yMin);
-        panel.anchorMax = new Vector2(0f, yMax);
-        panel.pivot = new Vector2(1f, 0.5f);
-
-        panel.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, panelWidth);
-        panel.anchoredPosition = new Vector2(-gap, 0f);
-
-        panel.offsetMin = new Vector2(panel.offsetMin.x, 0f);
-        panel.offsetMax = new Vector2(panel.offsetMax.x, 0f);
+        if (useExplicitContentSize)
+        {
+            float yCenter = (yMin + yMax) * 0.5f;
+            panel.anchorMin = new Vector2(0f, yCenter);
+            panel.anchorMax = new Vector2(0f, yCenter);
+            panel.pivot = new Vector2(1f, 0.5f);
+            panel.anchoredPosition = new Vector2(-gap, 0f);
+            panel.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, measuredWidth);
+            panel.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, measuredHeight);
+        }
+        else
+        {
+            panel.anchorMin = new Vector2(0f, yMin);
+            panel.anchorMax = new Vector2(0f, yMax);
+            panel.pivot = new Vector2(1f, 0.5f);
+            panel.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, measuredWidth);
+            panel.anchoredPosition = new Vector2(-gap, 0f);
+            panel.offsetMin = new Vector2(panel.offsetMin.x, 0f);
+            panel.offsetMax = new Vector2(panel.offsetMax.x, 0f);
+        }
     }
 
     private static void GetNormalizedYAnchors(RectTransform parent, RectTransform target, out float yMin, out float yMax)

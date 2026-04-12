@@ -111,7 +111,7 @@ public static class GameTooltipTexts
 
             case "AbilityPowerText":
                 title = "Ability Power";
-                description = "Scales your abilities to do bonus damage";
+                description = "Scales your abilities to do bonus damage.";
                 return true;
 
             case "PhysicalBonusText":

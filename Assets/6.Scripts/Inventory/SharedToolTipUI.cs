@@ -24,6 +24,9 @@ public class SharedTooltipUI : MonoBehaviour
     [SerializeField] private Color defaultBorderColor = new Color(1f, 1f, 1f, 0.25f);
     [SerializeField] private FlipInsideBounds flipInsideBounds;
 
+    [Tooltip("VLG + CSF tooltip box (e.g. child named Content). Rebuilt before flip positioning.")]
+    [SerializeField] private RectTransform tooltipLayoutRoot;
+
     [Header("Scale")]
     [SerializeField] private Vector2 defaultTooltipScale = Vector2.one;
     [SerializeField] private Vector2 hudTooltipScale = new Vector2(0.8f, 0.8f);
@@ -43,6 +46,13 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (!flipInsideBounds)
             flipInsideBounds = GetComponent<FlipInsideBounds>();
+
+        if (!tooltipLayoutRoot)
+        {
+            Transform t = transform.Find("Content");
+            if (t)
+                tooltipLayoutRoot = t as RectTransform;
+        }
 
         if (canvasGroup)
         {
@@ -156,12 +166,10 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         if (_rt)
-        {
             _rt.localScale = new Vector3(defaultTooltipScale.x, defaultTooltipScale.y, 1f);
-            LayoutRebuilder.ForceRebuildLayoutImmediate(_rt);
-        }
 
-        Canvas.ForceUpdateCanvases();
+        RebuildTooltipLayoutNow();
+
         canvasGroup.alpha = 1f;
     }
 
@@ -208,12 +216,10 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         if (_rt)
-        {
             _rt.localScale = new Vector3(defaultTooltipScale.x, defaultTooltipScale.y, 1f);
-            LayoutRebuilder.ForceRebuildLayoutImmediate(_rt);
-        }
 
-        Canvas.ForceUpdateCanvases();
+        RebuildTooltipLayoutNow();
+
         canvasGroup.alpha = 1f;
     }
 
@@ -268,11 +274,22 @@ public class SharedTooltipUI : MonoBehaviour
         if (rarityBorder)
             rarityBorder.color = defaultBorderColor;
 
+        RebuildTooltipLayoutNow();
+
+        canvasGroup.alpha = 1f;
+    }
+
+    /// <summary>
+    /// Ensures ContentSizeFitter / layout groups apply before <see cref="FlipInsideBounds"/> runs in LateUpdate.
+    /// </summary>
+    private void RebuildTooltipLayoutNow()
+    {
+        Canvas.ForceUpdateCanvases();
+        if (tooltipLayoutRoot)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(tooltipLayoutRoot);
         if (_rt)
             LayoutRebuilder.ForceRebuildLayoutImmediate(_rt);
-
         Canvas.ForceUpdateCanvases();
-        canvasGroup.alpha = 1f;
     }
 
     public void Hide()
