@@ -189,7 +189,11 @@ public class PlayerAbilityController : MonoBehaviour
         return Mathf.Clamp01(remaining / Mathf.Max(0.01f, globalCooldownSeconds));
     }
 
-    public bool TryUseAbility(string abilityId, bool showLockedFeedback = true)
+    /// <param name="allowSoulforgedRecastWhileActive">
+    /// When false (e.g. idle auto-abilities), an active Soulforged Weapon minion does not receive recast/retarget — use fails so other bar abilities can run.
+    /// Manual bar use keeps default true (player can recast while the summon is up).
+    /// </param>
+    public bool TryUseAbility(string abilityId, bool showLockedFeedback = true, bool allowSoulforgedRecastWhileActive = true)
     {
         AbilityDefinition def = GetAbilityDefinition(abilityId);
         if (!def)
@@ -216,6 +220,9 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (def.minionSpawnDefinition && _activeSoulforgedWeaponMinion)
         {
+            if (!allowSoulforgedRecastWhileActive)
+                return false;
+
             _activeSoulforgedWeaponMinion.TryRecastRetargetOrReturn();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;

@@ -71,6 +71,13 @@ public enum AttackSkill
     Magic
 }
 
+/// <summary>Ranged weapon style for UI and idle auto-targeting (only when <see cref="AttackSkill.Ranged"/>).</summary>
+public enum RangedBowType
+{
+    Swiftbow,
+    Longbow
+}
+
 public enum MagicAttackType
 {
     Lightning,
@@ -127,6 +134,9 @@ public struct WeaponStats
 
     [Header("Skill Type")]
     public AttackSkill attackSkill;
+
+    [Tooltip("Only when Attack Skill is Ranged. Swiftbow: default. Longbow: auto-battle targets the furthest enemy first.")]
+    public RangedBowType rangedBowType;
 
     [Header("Magic Type")]
     [Tooltip("Only used when Attack Skill is Magic.")]

@@ -14,11 +14,13 @@ public static class AbilityTooltipDamagePreview
     /// <summary>Scaling lines when effects are default/white (e.g. skills ability list).</summary>
     private const string TooltipScalingAccentColorPlain = "#B0C8DD";
 
-    /// <summary>Inherit-mode minions: no per-type damage numbers — one global rule (matches scaling-accent lines).</summary>
+    /// <summary>Inherit-mode minions: no per-type damage numbers — one global rule (orange, like Power Slash primary effects).</summary>
     private const string InheritMinionDamageRuleLine =
         "- Minion damage inherits a portion of the damage from your total damage";
 
-    private const string InheritMinionScalingPenaltyNote = "(inherited minions gain 50% less scaling)";
+    /// <summary>Blue scaling line for inherit Soulforged-style minions (matches Power Slash "Deals %..." accent).</summary>
+    private const string InheritMinionDealsBonusScalingLine =
+        "Deals bonus damage from minion damage scaling (reduced for inherited minions)";
 
     /// <summary>Rich-text tag line for minion summon abilities (prepend above description). Empty if not applicable.</summary>
     public static string BuildAbilityTooltipTagLine(AbilityDefinition def, bool orangeMarkup)
@@ -412,13 +414,17 @@ public static class AbilityTooltipDamagePreview
     {
         MinionCombatConfig cfg = def.minionSpawnDefinition.combatConfig;
         if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
-            body.AppendLine(S(InheritMinionDamageRuleLine));
+        {
+            body.AppendLine(O(InheritMinionDamageRuleLine));
+            body.AppendLine(string.Empty);
+            body.AppendLine(S("+0 damage from Minion Damage" + DamageTimingSuffix()));
+            body.AppendLine(S(InheritMinionDealsBonusScalingLine));
+        }
         else
+        {
             body.AppendLine(O("Minion source damage"));
-
-        body.AppendLine(O("+0 damage from Minion Damage" + DamageTimingSuffix()));
-        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
-            body.AppendLine(O(InheritMinionScalingPenaltyNote));
+            body.AppendLine(O("+0 damage from Minion Damage" + DamageTimingSuffix()));
+        }
     }
 
     private static void AppendMinionSpawnTooltipEffects(
@@ -434,7 +440,7 @@ public static class AbilityTooltipDamagePreview
 
         if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
         {
-            body.AppendLine(S(InheritMinionDamageRuleLine));
+            body.AppendLine(O(InheritMinionDamageRuleLine));
         }
         else
         {
@@ -473,10 +479,17 @@ public static class AbilityTooltipDamagePreview
         }
 
         int mdFlat = ComputeTooltipMinionDamageFlatBonus(def, stats);
-        body.AppendLine(O($"+{mdFlat} damage from Minion Damage{dmgSuffix}"));
 
         if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
-            body.AppendLine(O(InheritMinionScalingPenaltyNote));
+        {
+            body.AppendLine(string.Empty);
+            body.AppendLine(S($"+{mdFlat} damage from Minion Damage{dmgSuffix}"));
+            body.AppendLine(S(InheritMinionDealsBonusScalingLine));
+        }
+        else
+        {
+            body.AppendLine(O($"+{mdFlat} damage from Minion Damage{dmgSuffix}"));
+        }
 
         AppendMinionModifierStatLines(body, S, stats, cfg.damageSourceMode);
     }

@@ -366,6 +366,12 @@ public class MapNodeDefinition : ScriptableObject
     [Tooltip("Seconds after death before a respawn attempt. LevelSpawnDirector subtracts equipped ItemDefinition → Misc → Enemy Respawn Time Reduction from this value.")]
     public float enemyRespawnDelaySeconds = 30f;
 
+    [Range(0f, 1f)]
+    [Tooltip(
+        "Chance (0–1) that an enemy spawned by respawn is Elite: +100% HP, +25% damage, 2× combat XP per damage, 2× gold. " +
+        "Never rolled on the level's initial spawn — only when respawning after death.")]
+    public float eliteSpawnChance = 0f;
+
     [FormerlySerializedAs("recommendedCombatPower")]
     [Min(1)]
     [Tooltip("Manual fallback when RecommendedCombatPower cannot score spawn rows (e.g. missing Enemy Definition). Display CP is computed from spawns in code: endurance trials use wave stress; combat zones use spawn group plans only (no wave multiplier).")]

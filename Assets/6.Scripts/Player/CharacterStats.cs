@@ -2599,6 +2599,42 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     /// <summary>
+    /// After <see cref="ApplyEnemyDefinition"/>, scales this enemy for Elite: +100% HP, +25% outgoing damage (enemies only).
+    /// </summary>
+    public void ApplyEliteEnemyScaling()
+    {
+        if (!GetComponent<EnemyBaseController>())
+        {
+            Debug.LogWarning("[CharacterStats] ApplyEliteEnemyScaling is only valid on enemies with EnemyBaseController.", this);
+            return;
+        }
+
+        const float hpMult = 2f;
+        const float dmgMult = 1.25f;
+
+        baseMaxHP = Mathf.Max(1, Mathf.RoundToInt(baseMaxHP * hpMult));
+
+        unarmedMinPhysicalDamage = Mathf.Max(0, Mathf.RoundToInt(unarmedMinPhysicalDamage * dmgMult));
+        unarmedMaxPhysicalDamage = Mathf.Max(
+            unarmedMinPhysicalDamage,
+            Mathf.RoundToInt(unarmedMaxPhysicalDamage * dmgMult));
+
+        baseMinPhysicalDamage *= dmgMult;
+        baseMaxPhysicalDamage = Mathf.Max(baseMinPhysicalDamage, baseMaxPhysicalDamage * dmgMult);
+
+        baseMinMagicDamage *= dmgMult;
+        baseMaxMagicDamage = Mathf.Max(baseMinMagicDamage, baseMaxMagicDamage * dmgMult);
+        baseMinCorruptionDamage *= dmgMult;
+        baseMaxCorruptionDamage = Mathf.Max(baseMinCorruptionDamage, baseMaxCorruptionDamage * dmgMult);
+
+        baseAbilityPower *= dmgMult;
+
+        currentHP = MaxHP;
+        RefreshVitalsFromStats(fillIfEmpty: false);
+        OnStatsChanged?.Invoke();
+    }
+
+    /// <summary>
     /// After <see cref="ApplyEnemyDefinition"/>, scales bases for endurance trial Tier II–V (enemies only).
     /// </summary>
     public void ApplyEnduranceTrialDifficultyScaling(float healthMult, float outgoingDamageMult, float armorMrMult)

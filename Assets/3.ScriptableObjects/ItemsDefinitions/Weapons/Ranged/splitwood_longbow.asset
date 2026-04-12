@@ -42,6 +42,7 @@ MonoBehaviour:
     handedness: 1
     attackRange: 18
     attackSkill: 1
+    rangedBowType: 1
     magicAttackType: 0
     manaCostPerAttack: 0
     magicAilmentApplyChance: 0

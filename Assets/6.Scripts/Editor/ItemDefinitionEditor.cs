@@ -306,6 +306,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty handedness = weaponStats.FindPropertyRelative("handedness");
         SerializedProperty attackRange = weaponStats.FindPropertyRelative("attackRange");
         SerializedProperty attackSkill = weaponStats.FindPropertyRelative("attackSkill");
+        SerializedProperty rangedBowType = weaponStats.FindPropertyRelative("rangedBowType");
         SerializedProperty magicAttackType = weaponStats.FindPropertyRelative("magicAttackType");
         SerializedProperty manaCostPerAttack = weaponStats.FindPropertyRelative("manaCostPerAttack");
         SerializedProperty magicAilmentApplyChance = weaponStats.FindPropertyRelative("magicAilmentApplyChance");
@@ -350,6 +351,17 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(handedness);
         EditorGUILayout.PropertyField(attackRange);
         EditorGUILayout.PropertyField(attackSkill);
+        if (attackSkill != null &&
+            (AttackSkill)attackSkill.enumValueIndex == AttackSkill.Ranged &&
+            rangedBowType != null)
+        {
+            EditorGUILayout.PropertyField(
+                rangedBowType,
+                new GUIContent(
+                    "Ranged bow type",
+                    "Swiftbow: default targeting. Longbow: auto-battle picks the furthest living enemy on the map first."));
+        }
+
         if (weaponEquipmentTier != null)
         {
             EditorGUILayout.PropertyField(

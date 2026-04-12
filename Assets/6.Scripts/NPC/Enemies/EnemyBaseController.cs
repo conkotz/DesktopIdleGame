@@ -110,6 +110,12 @@ public class EnemyBaseController : MonoBehaviour
     private bool _countedAlive;
     private bool _provoked;
     private bool _engaged;
+    private bool _isElite;
+    /// <summary>Display name without the Elite prefix; used for overhead rich text (red "Elite" + name).</summary>
+    private string _nameCoreForUi = "";
+
+    private const float EliteVisualScale = 1.3f;
+    private static readonly Color EliteSpriteColorTint = new Color(1f, 0.72f, 0.72f, 1f);
 
     private CurrencyWallet _wallet;
     private GoldPopupSpawner _goldPopupSpawner;
@@ -136,6 +142,9 @@ public class EnemyBaseController : MonoBehaviour
 
     public string DisplayName => displayName;
 
+    /// <summary>Spawned as Elite from level respawn roll (+HP, +damage, 2× XP per hit, 2× gold).</summary>
+    public bool IsElite => _isElite;
+
     /// <summary>Active data asset; set in the inspector or via <see cref="InitializeFromDefinition"/>.</summary>
     public EnemyDefinition Definition => definition;
 
@@ -157,14 +166,25 @@ public class EnemyBaseController : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(newName)) return;
         displayName = newName;
+        if (!_isElite)
+            _nameCoreForUi = "";
         OnNameChanged?.Invoke(displayName);
+    }
+
+    /// <summary>TMP rich text: red "Elite" prefix when elite, else plain <see cref="DisplayName"/>.</summary>
+    public string GetRichTextDisplayNameForOverhead()
+    {
+        if (!_isElite)
+            return displayName;
+        string core = string.IsNullOrEmpty(_nameCoreForUi) ? displayName : _nameCoreForUi;
+        return $"<color=#FF5C5C>Elite</color> {core}";
     }
 
     /// <summary>
     /// Applies identity and combat values from <paramref name="def"/>; behaviour and visuals stay on the prefab.
     /// Call immediately after spawning if you assign the definition from code (after Awake has run without a definition).
     /// </summary>
-    public void InitializeFromDefinition(EnemyDefinition def)
+    public void InitializeFromDefinition(EnemyDefinition def, bool spawnAsElite = false)
     {
         if (def == null)
         {
@@ -173,6 +193,7 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         definition = def;
+        _isElite = spawnAsElite;
 
         if (!stats)
             stats = GetComponent<CharacterStats>();
@@ -184,9 +205,26 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         stats.ApplyEnemyDefinition(def);
+        if (spawnAsElite)
+            stats.ApplyEliteEnemyScaling();
 
         string dn = string.IsNullOrWhiteSpace(def.displayName) ? "Enemy" : def.displayName.Trim();
-        SetDisplayName(dn);
+        _nameCoreForUi = dn;
+        if (spawnAsElite)
+        {
+            SetDisplayName("Elite " + dn);
+            ApplyEliteVisualPresentation();
+        }
+        else
+        {
+            SetDisplayName(dn);
+        }
+
+        if (spawnAsElite)
+        {
+            goldMin = Mathf.Max(0, goldMin * 2);
+            goldMax = Mathf.Max(goldMin, goldMax * 2);
+        }
 
         moveSpeed = Mathf.Max(0f, def.moveSpeed);
 
@@ -986,6 +1024,28 @@ public class EnemyBaseController : MonoBehaviour
         ApplyUIUnflip(s.x);
     }
 
+    private void ApplyEliteVisualPresentation()
+    {
+        if (visualsRoot != null)
+            visualsRoot.localScale *= EliteVisualScale;
+        else
+            transform.localScale *= EliteVisualScale;
+
+        Transform tintRoot = visualsRoot != null ? visualsRoot : transform;
+        SpriteRenderer[] srs = tintRoot.GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < srs.Length; i++)
+        {
+            SpriteRenderer sr = srs[i];
+            if (!sr)
+                continue;
+            Color c = sr.color;
+            c.r *= EliteSpriteColorTint.r;
+            c.g *= EliteSpriteColorTint.g;
+            c.b *= EliteSpriteColorTint.b;
+            sr.color = c;
+        }
+    }
+
     private void ApplyUIUnflip(float visualsScaleX)
     {
         if (uiRoot)
@@ -1048,7 +1108,7 @@ public class EnemyBaseController : MonoBehaviour
             combat = source.GetComponentInParent<PlayerCombatController>();
 
         if (combat != null)
-            combat.AwardCombatXp(damageDealt);
+            combat.AwardCombatXp(damageDealt * (_isElite ? 2f : 1f));
     }
 
     private void OnDrawGizmosSelected()

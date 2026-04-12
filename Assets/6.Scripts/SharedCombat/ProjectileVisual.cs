@@ -123,13 +123,17 @@ public class ProjectileVisual : MonoBehaviour
 
     private void TickArc()
     {
-        if (_arcDuration <= 0f)
-        {
-            OnArrived();
-            return;
-        }
+        // Rebuild the arc each frame so the end follows a moving target (locked-at-launch P2 made shots land behind runners).
+        _arcP2 = ResolveDestination();
+        float horizontalSpan = Mathf.Abs(_arcP2.x - _arcP0.x);
+        float peak = arcHeight + arcHeightPerHorizontalUnit * horizontalSpan;
+        peak = Mathf.Clamp(peak, arcPeakMin, arcPeakMax);
+        _arcP1 = (_arcP0 + _arcP2) * 0.5f + Vector3.up * peak;
 
-        _arcT += Time.deltaTime / _arcDuration;
+        _arcLength = Mathf.Max(0.001f, ApproximateQuadraticBezierLength(_arcP0, _arcP1, _arcP2, 24));
+        float deltaT = (Mathf.Max(0.01f, speed) * Time.deltaTime) / _arcLength;
+        _arcT += deltaT;
+
         if (_arcT >= 1f)
         {
             transform.position = _arcP2;
@@ -137,7 +141,7 @@ public class ProjectileVisual : MonoBehaviour
             return;
         }
 
-        float t = _arcT;
+        float t = Mathf.Clamp01(_arcT);
         Vector3 pos = QuadraticBezier(_arcP0, _arcP1, _arcP2, t);
         Vector3 tan = QuadraticBezierTangent(_arcP0, _arcP1, _arcP2, t);
         transform.position = pos;

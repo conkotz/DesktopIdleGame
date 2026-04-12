@@ -167,7 +167,7 @@ public class LevelSpawnDirector : MonoBehaviour
                 continue;
             }
 
-            SpawnGroup(plan, groups, parent, null, def);
+            SpawnGroup(plan, groups, parent, null, def, allowEliteSpawnRoll: false);
         }
     }
 
@@ -212,7 +212,7 @@ public class LevelSpawnDirector : MonoBehaviour
             if (!SpawnPlanHasGroupSource(plan))
                 continue;
 
-            SpawnGroup(plan, groups, parent, spawnedRoots, null);
+            SpawnGroup(plan, groups, parent, spawnedRoots, null, allowEliteSpawnRoll: false);
         }
 
         for (int i = 0; i < spawnedRoots.Count; i++)
@@ -255,7 +255,13 @@ public class LevelSpawnDirector : MonoBehaviour
         return dict;
     }
 
-    private void SpawnGroup(LevelSpawnGroupPlan plan, Dictionary<string, SpawnPointGroup> groupsById, Transform parent, List<GameObject> collectRoots, MapNodeDefinition levelDefForRespawn)
+    private void SpawnGroup(
+        LevelSpawnGroupPlan plan,
+        Dictionary<string, SpawnPointGroup> groupsById,
+        Transform parent,
+        List<GameObject> collectRoots,
+        MapNodeDefinition levelDefForRespawn,
+        bool allowEliteSpawnRoll)
     {
         if (plan.spawns == null)
             return;
@@ -335,7 +341,13 @@ public class LevelSpawnDirector : MonoBehaviour
                 if (!p)
                     continue;
 
-                GameObject inst = SpawnEnemyInstanceAt(p, prefabAsset, defForInit, parent);
+                GameObject inst = SpawnEnemyInstanceAt(
+                    p,
+                    prefabAsset,
+                    defForInit,
+                    parent,
+                    allowEliteSpawnRoll,
+                    allowEliteSpawnRoll ? levelDefForRespawn : null);
                 if (!inst)
                     continue;
 
@@ -521,7 +533,7 @@ public class LevelSpawnDirector : MonoBehaviour
         }
 
         Transform parent = ResolveSpawnParent();
-        GameObject inst = SpawnEnemyInstanceAt(p, prefabAsset, enemyDefinition, parent);
+        GameObject inst = SpawnEnemyInstanceAt(p, prefabAsset, enemyDefinition, parent, allowEliteRoll: true, nodeForEliteChance: active);
         if (!inst)
             return RespawnAttemptOutcome.AbortedInvalidContext;
 
@@ -639,28 +651,44 @@ public class LevelSpawnDirector : MonoBehaviour
         return true;
     }
 
-    private GameObject SpawnEnemyInstanceAt(Transform spawnPoint, GameObject prefabAsset, EnemyDefinition defForInit, Transform parent)
+    private GameObject SpawnEnemyInstanceAt(
+        Transform spawnPoint,
+        GameObject prefabAsset,
+        EnemyDefinition defForInit,
+        Transform parent,
+        bool allowEliteRoll,
+        MapNodeDefinition nodeForEliteChance)
     {
         GameObject inst = Instantiate(prefabAsset, spawnPoint.position, spawnPoint.rotation, parent);
         if (!inst.activeSelf)
             inst.SetActive(true);
 
         if (defForInit != null)
-            ApplyEnemyDefinitionAfterSpawn(inst, defForInit);
+            ApplyEnemyDefinitionAfterSpawn(inst, defForInit, allowEliteRoll, nodeForEliteChance);
 
         return inst;
     }
 
-    private void ApplyEnemyDefinitionAfterSpawn(GameObject instance, EnemyDefinition def)
+    private void ApplyEnemyDefinitionAfterSpawn(
+        GameObject instance,
+        EnemyDefinition def,
+        bool allowEliteRoll,
+        MapNodeDefinition nodeForEliteChance)
     {
         if (!def || !instance)
             return;
+
+        bool spawnAsElite = false;
+        if (allowEliteRoll && nodeForEliteChance != null && nodeForEliteChance.eliteSpawnChance > 0f)
+        {
+            spawnAsElite = UnityEngine.Random.value < Mathf.Clamp01(nodeForEliteChance.eliteSpawnChance);
+        }
 
         EnemyBaseController ec = instance.GetComponent<EnemyBaseController>() ??
                                   instance.GetComponentInChildren<EnemyBaseController>(true);
         if (ec != null)
         {
-            ec.InitializeFromDefinition(def);
+            ec.InitializeFromDefinition(def, spawnAsElite);
             return;
         }
 

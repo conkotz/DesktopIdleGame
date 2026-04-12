@@ -416,12 +416,13 @@ public class UnitOverheadUI : MonoBehaviour
         string baseName = "Unit";
 
         if (enemy != null)
-            baseName = enemy.DisplayName;
+            baseName = enemy.GetRichTextDisplayNameForOverhead();
         else if (characterStats != null)
             baseName = characterStats.UnitDisplayName;
 
         if (nameText != null)
         {
+            nameText.richText = true;
             if (characterStats == null)
                 nameText.text = baseName;
             else

@@ -60,7 +60,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     [Header("Idle Combat (Auto Target)")]
     [SerializeField] private bool idleCombatEnabled = false;
 
-    [Tooltip("How often to rescan for closest enemy (seconds).")]
+    [Tooltip("How often to rescan for a living enemy while idle (seconds). Closest by default; Longbow picks the furthest enemy first.")]
     [SerializeField] private float idleRescanInterval = 0.25f;
 
     [Tooltip("While idle combat is on, every N seconds all dropped items on the scene are picked up (no walking).")]
@@ -534,7 +534,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (!slot.CanAccept(action))
                 continue;
 
-            if (abilityController.TryUseAbility(action.id, showLockedFeedback: false))
+            if (abilityController.TryUseAbility(action.id, showLockedFeedback: false, allowSoulforgedRecastWhileActive: false))
                 break;
         }
     }
@@ -1094,18 +1094,31 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
             return;
 
-        var closest = FindClosestLivingEnemy();
-        if (closest != null)
+        EnemyBaseController picked = ShouldIdlePickFurthestEnemyFirst()
+            ? FindFurthestLivingEnemy()
+            : FindClosestLivingEnemy();
+        if (picked != null)
         {
-            SetTargetInternal(closest);
+            SetTargetInternal(picked);
 
             if (debugLogs)
-                Debug.Log($"[Combat] Idle picked target: {closest.name}", this);
+                Debug.Log($"[Combat] Idle picked target: {picked.name}", this);
         }
         else
         {
             ClearTargetInternal();
         }
+    }
+
+    /// <summary>Longbow + ranged: idle auto-battle targets the enemy farthest along X first; Swiftbow/other uses closest.</summary>
+    private bool ShouldIdlePickFurthestEnemyFirst()
+    {
+        ItemDefinition def = GetMainWeaponDefForPopup();
+        if (def == null || !def.IsWeapon)
+            return false;
+        if (def.weaponStats.attackSkill != AttackSkill.Ranged)
+            return false;
+        return def.weaponStats.rangedBowType == RangedBowType.Longbow;
     }
 
     private EnemyBaseController FindClosestLivingEnemy()
@@ -1127,6 +1140,34 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
             float d = Mathf.Abs(e.transform.position.x - myX);
             if (d < bestDist)
+            {
+                bestDist = d;
+                best = e;
+            }
+        }
+
+        return best;
+    }
+
+    private EnemyBaseController FindFurthestLivingEnemy()
+    {
+        var enemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        if (enemies == null || enemies.Length == 0) return null;
+
+        float bestDist = -1f;
+        EnemyBaseController best = null;
+
+        float myX = transform.position.x;
+
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            var e = enemies[i];
+            if (!e) continue;
+            if (e.IsDead) continue;
+            if (!e.gameObject.activeInHierarchy) continue;
+
+            float d = Mathf.Abs(e.transform.position.x - myX);
+            if (d > bestDist)
             {
                 bestDist = d;
                 best = e;
