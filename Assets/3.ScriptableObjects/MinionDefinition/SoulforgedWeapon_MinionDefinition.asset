@@ -41,29 +41,4 @@ MonoBehaviour:
       bleedChance: 0
       burnChance: 0
       shockChance: 0
-  attackRange: 6
-  hitRadius: 0.42
-  idleFollowSpeed: 3
-  launchSpeed: 16
-  returnSpeed: 13
-  attachHeightAboveEnemy: 0.25
-  attachHorizontalOffsetTowardPlayer: 0.95
-  handlePivotToSpritePivotLocal: {x: 0, y: 0.35, z: 0}
-  attachArrivalDistance: 0.4
-  attachedSlashMaxRotationDegrees: 100
-  attachedSlashStrikeSeconds: 0.02
-  attachedSlashReturnMinSeconds: 0.45
-  attachedFacingExtraDegrees: 10
-  flightApproachFacingExtraDegrees: 180
-  flightApproachFlipXFromPlayer: 0
-  flightApproachFlipXManual: 0
-  flightApproachFlipX: 1
-  flightApproachFlipY: 1
-  wobbleAmplitudeX: 0.035
-  wobbleAmplitudeY: 0.07
-  wobbleFrequency: 2
-  rotationWobbleDegrees: 3.5
-  visualWorldScale: 0.85
-  spectralTint: {r: 0.7207546, g: 0.2104272, b: 0.18902804, a: 0.9}
-  placeholderWeaponSprite: {fileID: -8860823726366746541, guid: 2e15a983e647ec142bfdadc1698f81bc, type: 3}
-  spriteSortingOrder: 4
+  baseMaxHealth: 0

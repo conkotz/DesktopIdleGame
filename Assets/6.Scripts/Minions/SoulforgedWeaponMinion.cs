@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -27,6 +28,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
     private CharacterStats _ownerStats;
     private MinionDefinition _def;
+    private SoulforgedWeaponMinionPresentation _presentation;
     private Transform _homeAnchor;
     private Transform _attackerTransform;
     private Action<SoulforgedWeaponMinion> _onDespawned;
@@ -50,6 +52,11 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
     /// <summary>World X offset from enemy root, captured once per attach so mirror flips on the enemy do not re-bias the flank.</summary>
     private float _attachFrozenDeltaXFromEnemyRoot;
+
+    /// <summary>Recast targeting: prefer enemies not damaged by this minion in the last few seconds.</summary>
+    private const float RecastPreferFreshTargetSeconds = 5f;
+
+    private readonly Dictionary<int, float> _lastHitTimeByEnemyInstanceId = new Dictionary<int, float>();
 
     /// <summary>World Y = stable root Y + this (set once at attach). Avoids following animated sprite/collider bounds each frame.</summary>
     private float _attachHoverHeightAboveStableRoot;
@@ -88,6 +95,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     public bool Initialize(
         CharacterStats ownerStats,
         MinionDefinition definition,
+        SoulforgedWeaponMinionPresentation presentationFromController,
         Transform homeAnchor,
         Sprite weaponSprite = null,
         Transform attackerTransform = null,
@@ -117,6 +125,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
         _ownerStats = ownerStats;
         _def = definition;
+        _presentation = SoulforgedWeaponMinionPresentation.Resolve(presentationFromController);
         _attackerTransform = attackerTransform ? attackerTransform : ownerStats.transform;
         if (!homeAnchor)
             homeAnchor = ownerStats.transform;
@@ -140,7 +149,8 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     }
 
     /// <summary>
-    /// Ability pressed again while summon is alive: prefer a different in-range enemy (recast retarget), else same/nearest, or return home if none.
+    /// Ability pressed again while summon is alive: prefer an in-range enemy not hit in the last
+    /// <see cref="RecastPreferFreshTargetSeconds"/>s, then a different enemy than current, else nearest (or return home).
     /// </summary>
     public void TryRecastRetargetOrReturn()
     {
@@ -148,10 +158,8 @@ public class SoulforgedWeaponMinion : MonoBehaviour
             return;
 
         Vector3 origin = GetPlayerRangeOrigin();
-        float range = _def.attackRange;
-        EnemyBaseController enemy = FindNearestEnemyExcluding(origin, range, _strikeTarget);
-        if (!enemy)
-            enemy = FindNearestEnemy(origin, range);
+        float range = _presentation.attackRange;
+        EnemyBaseController enemy = FindBestRecastTarget(origin, range);
         if (enemy)
         {
             _strikeTarget = enemy;
@@ -190,12 +198,12 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     {
         if (!spriteRenderer) return;
 
-        Sprite s = weaponSprite ? weaponSprite : _def.placeholderWeaponSprite;
+        Sprite s = weaponSprite ? weaponSprite : _presentation.placeholderWeaponSprite;
         if (s)
             spriteRenderer.sprite = s;
 
-        spriteRenderer.color = _def.spectralTint;
-        spriteRenderer.sortingOrder = _def.spriteSortingOrder;
+        spriteRenderer.color = _presentation.spectralTint;
+        spriteRenderer.sortingOrder = _presentation.spriteSortingOrder;
     }
 
     /// <summary>
@@ -215,7 +223,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
         var mountGo = new GameObject("SpriteMount");
         mountGo.transform.SetParent(_swingPivot, false);
-        mountGo.transform.localPosition = _def.handlePivotToSpritePivotLocal;
+        mountGo.transform.localPosition = _presentation.handlePivotToSpritePivotLocal;
         mountGo.transform.localRotation = Quaternion.identity;
         mountGo.transform.localScale = Vector3.one;
         _spriteMount = mountGo.transform;
@@ -299,13 +307,13 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
         Vector3 p = enemy.transform.position;
         float topY = GetEnemyVisualTopY(enemy);
-        p.y = topY + Mathf.Max(0f, _def.attachHeightAboveEnemy);
+        p.y = topY + Mathf.Max(0f, _presentation.attachHeightAboveEnemy);
         p.z = transform.position.z;
 
         // Always use +world X flank (same side as when the owner is right of the enemy). Bias-toward-player
         // mirrored the sprite/read for left-flank attaches and the chop faced away from the target.
-        if (Mathf.Abs(_def.attachHorizontalOffsetTowardPlayer) > 1e-4f)
-            p.x += Mathf.Abs(_def.attachHorizontalOffsetTowardPlayer);
+        if (Mathf.Abs(_presentation.attachHorizontalOffsetTowardPlayer) > 1e-4f)
+            p.x += Mathf.Abs(_presentation.attachHorizontalOffsetTowardPlayer);
 
         return p;
     }
@@ -418,7 +426,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     {
         if (_ownerStats)
             return Mathf.Max(0.01f, _ownerStats.FinalMoveSpeed * 0.8f);
-        return Mathf.Max(0.01f, _def.idleFollowSpeed);
+        return Mathf.Max(0.01f, _presentation.idleFollowSpeed);
     }
 
     /// <summary>Bob + drift + rotation wobble at idle home (Idle only — Returning uses locked rotation + definition return speed).</summary>
@@ -428,31 +436,31 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         if (_homeAnchor)
             _baseRotationZ = _homeAnchor.eulerAngles.z;
 
-        float t = Time.time * Mathf.Max(0.01f, _def.wobbleFrequency);
+        float t = Time.time * Mathf.Max(0.01f, _presentation.wobbleFrequency);
         Vector3 bob = new Vector3(
-            Mathf.Sin(t) * _def.wobbleAmplitudeX,
-            Mathf.Sin(t * 1.13f + 0.7f) * _def.wobbleAmplitudeY,
+            Mathf.Sin(t) * _presentation.wobbleAmplitudeX,
+            Mathf.Sin(t * 1.13f + 0.7f) * _presentation.wobbleAmplitudeY,
             0f);
         Vector3 target = home + bob;
         transform.position = Vector3.MoveTowards(transform.position, target, GetIdleFollowSpeed() * Time.deltaTime);
 
-        float rotWobble = Mathf.Sin(t * 0.9f + 0.2f) * _def.rotationWobbleDegrees;
+        float rotWobble = Mathf.Sin(t * 0.9f + 0.2f) * _presentation.rotationWobbleDegrees;
         Vector3 e = transform.eulerAngles;
         e.z = _baseRotationZ + rotWobble;
         transform.eulerAngles = e;
     }
 
-    /// <summary>Return flight: same bob target as idle but moves at <see cref="MinionDefinition.returnSpeed"/>; world Z rotation stays locked until idle.</summary>
+    /// <summary>Return flight: same bob target as idle but moves at presentation return speed; world Z rotation stays locked until idle.</summary>
     private void ApplyReturningFloatMotion()
     {
         Vector3 home = GetHomeWorldPosition();
-        float t = Time.time * Mathf.Max(0.01f, _def.wobbleFrequency);
+        float t = Time.time * Mathf.Max(0.01f, _presentation.wobbleFrequency);
         Vector3 bob = new Vector3(
-            Mathf.Sin(t) * _def.wobbleAmplitudeX,
-            Mathf.Sin(t * 1.13f + 0.7f) * _def.wobbleAmplitudeY,
+            Mathf.Sin(t) * _presentation.wobbleAmplitudeX,
+            Mathf.Sin(t * 1.13f + 0.7f) * _presentation.wobbleAmplitudeY,
             0f);
         Vector3 target = home + bob;
-        float rs = Mathf.Max(0.01f, _def.returnSpeed);
+        float rs = Mathf.Max(0.01f, _presentation.returnSpeed);
         transform.position = Vector3.MoveTowards(transform.position, target, rs * Time.deltaTime);
 
         Vector3 e = transform.eulerAngles;
@@ -470,7 +478,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
             return;
 
         Vector3 rangeOrigin = GetPlayerRangeOrigin();
-        EnemyBaseController enemy = FindNearestEnemy(rangeOrigin, _def.attackRange);
+        EnemyBaseController enemy = FindNearestEnemy(rangeOrigin, _presentation.attackRange);
         if (!enemy)
             return;
 
@@ -494,15 +502,15 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
         Vector3 attach = GetAttachWorldPosition(_strikeTarget);
         float dt = Time.deltaTime;
-        transform.position = Vector3.MoveTowards(transform.position, attach, _def.launchSpeed * dt);
+        transform.position = Vector3.MoveTowards(transform.position, attach, _presentation.launchSpeed * dt);
 
         Vector3 toAttach = attach - transform.position;
         if (toAttach.sqrMagnitude > 1e-8f)
         {
             Vector2 toTarget = new Vector2(toAttach.x, toAttach.y).normalized;
             // Flight uses a different base than Attached (+180 chop). Same +180 here plus flipY fought the art (blade read up).
-            float z = Vector2.SignedAngle(Vector2.up, toTarget) + _def.attachedFacingExtraDegrees +
-                      _def.flightApproachFacingExtraDegrees;
+            float z = Vector2.SignedAngle(Vector2.up, toTarget) + _presentation.attachedFacingExtraDegrees +
+                      _presentation.flightApproachFacingExtraDegrees;
             Vector3 e = transform.eulerAngles;
             e.z = z;
             transform.eulerAngles = e;
@@ -512,12 +520,12 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
         _lastMoveDir = toAttach.sqrMagnitude > 1e-6f ? toAttach.normalized : _lastMoveDir;
 
-        if (Vector3.Distance(transform.position, attach) <= _def.attachArrivalDistance)
+        if (Vector3.Distance(transform.position, attach) <= _presentation.attachArrivalDistance)
         {
             Vector2 stable = GetEnemyStableWorldAnchor(_strikeTarget);
             float topY = GetEnemyVisualTopY(_strikeTarget);
             _attachHoverHeightAboveStableRoot =
-                topY + Mathf.Max(0f, _def.attachHeightAboveEnemy) - stable.y;
+                topY + Mathf.Max(0f, _presentation.attachHeightAboveEnemy) - stable.y;
             _attachFrozenDeltaXFromEnemyRoot = attach.x - stable.x;
             _attachFrozenHorizontalValid = true;
             _state = MotionState.Attached;
@@ -541,17 +549,17 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         {
             float topY = GetEnemyVisualTopY(_strikeTarget);
             _attachHoverHeightAboveStableRoot =
-                topY + Mathf.Max(0f, _def.attachHeightAboveEnemy) - stable.y;
+                topY + Mathf.Max(0f, _presentation.attachHeightAboveEnemy) - stable.y;
             _attachFrozenDeltaXFromEnemyRoot = transform.position.x - stable.x;
             _attachFrozenHorizontalValid = true;
         }
 
         float anchorY = stable.y + _attachHoverHeightAboveStableRoot;
         Vector3 anchorBase = new Vector3(stable.x + _attachFrozenDeltaXFromEnemyRoot, anchorY, transform.position.z);
-        float wobbleT = Time.time * Mathf.Max(0.01f, _def.wobbleFrequency);
+        float wobbleT = Time.time * Mathf.Max(0.01f, _presentation.wobbleFrequency);
         Vector3 bob = new Vector3(
-            Mathf.Sin(wobbleT) * _def.wobbleAmplitudeX,
-            Mathf.Sin(wobbleT * 1.13f + 0.7f) * _def.wobbleAmplitudeY,
+            Mathf.Sin(wobbleT) * _presentation.wobbleAmplitudeX,
+            Mathf.Sin(wobbleT * 1.13f + 0.7f) * _presentation.wobbleAmplitudeY,
             0f);
         Vector3 targetPos = anchorBase + bob;
         transform.position = Vector3.MoveTowards(transform.position, targetPos, GetIdleFollowSpeed() * Time.deltaTime);
@@ -564,13 +572,13 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         toEnemy.Normalize();
 
         // Match legacy BladeForwardRotationZ(..., spriteFlipY: true) from when player faced away from target (perfect reference).
-        float baseZ = Vector2.SignedAngle(Vector2.up, toEnemy) + 180f + _def.attachedFacingExtraDegrees;
-        float rotWobble = Mathf.Sin(wobbleT * 0.9f + 0.2f) * _def.rotationWobbleDegrees;
+        float baseZ = Vector2.SignedAngle(Vector2.up, toEnemy) + 180f + _presentation.attachedFacingExtraDegrees;
+        float rotWobble = Mathf.Sin(wobbleT * 0.9f + 0.2f) * _presentation.rotationWobbleDegrees;
 
         float dt = Time.deltaTime;
         float aps = Mathf.Max(0.01f, _runtimeStats.AttacksPerSecond);
-        float strike = Mathf.Max(0.04f, _def.attachedSlashStrikeSeconds);
-        float recover = Mathf.Max(0.06f, _def.attachedSlashReturnMinSeconds);
+        float strike = Mathf.Max(0.04f, _presentation.attachedSlashStrikeSeconds);
+        float recover = Mathf.Max(0.06f, _presentation.attachedSlashReturnMinSeconds);
         float animLen = strike + recover;
         // Hits every1/APS; strike/recover stay fast from definition. Extra time = hold upright between chops.
         float period = Mathf.Max(1f / aps, animLen + 1e-4f);
@@ -595,13 +603,13 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         {
             float u = strike > 1e-6f ? tInPeriod / strike : 1f;
             u = 1f - Mathf.Pow(1f - Mathf.Clamp01(u), 2.5f);
-            slash = u * _def.attachedSlashMaxRotationDegrees;
+            slash = u * _presentation.attachedSlashMaxRotationDegrees;
         }
         else if (tInPeriod < animLen)
         {
             float u = recover > 1e-6f ? (tInPeriod - strike) / recover : 1f;
             u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(u));
-            slash = (1f - u) * _def.attachedSlashMaxRotationDegrees;
+            slash = (1f - u) * _presentation.attachedSlashMaxRotationDegrees;
         }
         else
             slash = 0f;
@@ -643,7 +651,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         Vector3 delta = home - transform.position;
         _lastMoveDir = delta.sqrMagnitude > 0.0001f ? delta.normalized : _lastMoveDir;
 
-        float arrive = 0.08f + Mathf.Max(_def.wobbleAmplitudeX, _def.wobbleAmplitudeY);
+        float arrive = 0.08f + Mathf.Max(_presentation.wobbleAmplitudeX, _presentation.wobbleAmplitudeY);
         if (delta.magnitude < arrive)
         {
             _slashUnwrappedTime = 0f;
@@ -698,6 +706,48 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
         if (debugLogs)
             Debug.Log($"[SoulforgedWeapon] Hit {enemy.name} p={ip} m={im} c={ic} crit={crit}", this);
+
+        _lastHitTimeByEnemyInstanceId[enemy.GetInstanceID()] = Time.time;
+    }
+
+    private bool WasHitRecentlyForRecast(EnemyBaseController enemy)
+    {
+        if (!enemy)
+            return true;
+        if (!_lastHitTimeByEnemyInstanceId.TryGetValue(enemy.GetInstanceID(), out float t))
+            return false;
+        return Time.time - t < RecastPreferFreshTargetSeconds;
+    }
+
+    /// <summary>
+    /// Nearest in-range enemy we have not hit in <see cref="RecastPreferFreshTargetSeconds"/>; if none, same chain as before
+    /// (prefer different from current, then any nearest).
+    /// </summary>
+    private EnemyBaseController FindBestRecastTarget(Vector3 origin, float range)
+    {
+        float r2 = range * range;
+        var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        EnemyBaseController bestFresh = null;
+        float bestFreshD2 = float.MaxValue;
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            EnemyBaseController e = candidates[i];
+            if (!e || e.IsDead) continue;
+            float d2 = (e.transform.position - origin).sqrMagnitude;
+            if (d2 > r2) continue;
+            if (WasHitRecentlyForRecast(e)) continue;
+            if (d2 >= bestFreshD2) continue;
+            bestFreshD2 = d2;
+            bestFresh = e;
+        }
+
+        if (bestFresh)
+            return bestFresh;
+
+        EnemyBaseController fallback = FindNearestEnemyExcluding(origin, range, _strikeTarget);
+        if (!fallback)
+            fallback = FindNearestEnemy(origin, range);
+        return fallback;
     }
 
     private static EnemyBaseController FindNearestEnemy(Vector3 from, float range)
@@ -742,10 +792,10 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
         if (_state == MotionState.Approaching && _strikeTarget)
         {
-            if (_def.flightApproachFlipXFromPlayer)
+            if (_presentation.flightApproachFlipXFromPlayer)
                 ApplyFacingFromPlayerVisuals();
-            else if (_def.flightApproachFlipXManual)
-                spriteRenderer.flipX = _def.flightApproachFlipX;
+            else if (_presentation.flightApproachFlipXManual)
+                spriteRenderer.flipX = _presentation.flightApproachFlipX;
             else
             {
                 float px = GetPlayerRangeOrigin().x;
@@ -753,7 +803,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
                 spriteRenderer.flipX = px > ex;
             }
 
-            spriteRenderer.flipY = _def.flightApproachFlipY;
+            spriteRenderer.flipY = _presentation.flightApproachFlipY;
             return;
         }
 
@@ -788,7 +838,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         return _ownerStats ? _ownerStats.transform.position : transform.position;
     }
 
-    private float UniformVisualScale => Mathf.Max(0.05f, _def.visualWorldScale);
+    private float UniformVisualScale => Mathf.Max(0.05f, _presentation.visualWorldScale);
 
     private void ApplyVisualScaleUniform()
     {
@@ -805,7 +855,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         Gizmos.DrawWireSphere(h, 0.12f);
         Vector3 ro = Application.isPlaying && _initialized ? GetPlayerRangeOrigin() : transform.position;
         Gizmos.color = new Color(0.5f, 0.95f, 1f, 0.45f);
-        Gizmos.DrawWireSphere(ro, _def.attackRange);
+        Gizmos.DrawWireSphere(ro, _presentation.attackRange);
     }
 #endif
 }

@@ -6,7 +6,10 @@ public enum AbilityWeaponRequirement
     Any,
     Melee,
     Ranged,
-    Magic
+    Magic,
+    /// <summary>Physical weapon attacks only: melee or ranged (excludes magic weapons).</summary>
+    [InspectorName("Melee or Ranged")]
+    MeleeOrRanged
 }
 
 [CreateAssetMenu(fileName = "Ability_", menuName = "Desktop Idle Game/Skills/Ability Definition")]

@@ -1,11 +1,11 @@
 using UnityEngine;
 
 /// <summary>
-/// Attached to an enemy when Venom Jab's spread upgrade is active.
+/// Attached to an enemy when Envenom's spread upgrade is active.
 /// If the enemy dies before expiry, spread the stored poison payload to all other enemies in radial range.
 /// </summary>
 [DisallowMultipleComponent]
-public class VenomJabSpreadOnDeathMarker : MonoBehaviour
+public class EnvenomSpreadOnDeathMarker : MonoBehaviour
 {
     private PoisonPayload payload;
     private float expiresAt;
@@ -53,4 +53,3 @@ public class VenomJabSpreadOnDeathMarker : MonoBehaviour
         combat?.ApplyPoisonContagionSpread(enemy, payload);
     }
 }
-

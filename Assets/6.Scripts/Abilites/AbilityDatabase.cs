@@ -156,6 +156,8 @@ public class AbilityDatabase : ScriptableObject
             _byId["rending_strike"] = rend;
         if (_byId.TryGetValue("whirlwind", out AbilityDefinition whirl) && whirl)
             _byId["whirling_blade"] = whirl;
+        if (_byId.TryGetValue("envenom", out AbilityDefinition envenom) && envenom)
+            _byId["venom_jab"] = envenom;
     }
 
     private static AbilityDatabase PickBestDatabase(IEnumerable<AbilityDatabase> candidates)

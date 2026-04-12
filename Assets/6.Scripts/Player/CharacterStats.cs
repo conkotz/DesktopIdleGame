@@ -1124,6 +1124,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             AbilityWeaponRequirement.Melee => skill == AttackSkill.Melee,
             AbilityWeaponRequirement.Ranged => skill == AttackSkill.Ranged,
             AbilityWeaponRequirement.Magic => skill == AttackSkill.Magic,
+            AbilityWeaponRequirement.MeleeOrRanged =>
+                skill == AttackSkill.Melee || skill == AttackSkill.Ranged,
             _ => true
         };
     }

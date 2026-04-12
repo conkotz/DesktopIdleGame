@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_venom_jab
+  m_Name: Ability_envenom
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: venom_jab
-  displayName: Venom Jab
-  description: Primes your next melee hit. If the hit deals Corruption damage, apply
-    Poison at 100% chance at max stacks.
+  abilityId: envenom
+  displayName: Envenom
+  description: Primes your next hit. If the hit deals Corruption damage, apply Poison
+    at 100% chance at max stacks.
   icon: {fileID: -3106849600663172003, guid: eac4dfbab0ba6ba47923ad2fffa2615c, type: 3}
   cooldown: 10
   energyCost: 30
@@ -28,6 +28,6 @@ MonoBehaviour:
   lightningDamageMultiplier: 0
   poisonDamageMultiplier: 0
   bleedDamageMultiplier: 0
-  requiredWeaponType: 1
+  requiredWeaponType: 4
   sourceSkill: 3
   unlockLevel: 5

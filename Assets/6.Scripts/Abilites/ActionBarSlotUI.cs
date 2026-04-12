@@ -512,7 +512,7 @@ public class ActionBarSlotUI : MonoBehaviour,
             return AbilityTooltipDamagePreview.FormatActiveEnhancementLine(def, selected);
         }
 
-        if (string.Equals(def.abilityId, "venom_jab", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(def.abilityId, AbilityCombatPower.EnvenomAbilityId, StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
             return AbilityTooltipDamagePreview.FormatActiveEnhancementLine(def, selected);

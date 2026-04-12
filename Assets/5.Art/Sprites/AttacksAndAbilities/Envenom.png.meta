@@ -4,7 +4,7 @@ TextureImporter:
   internalIDToNameTable:
   - first:
       213: -3106849600663172003
-    second: Venom Jab_0
+    second: Envenom_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,7 +100,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Venom Jab_0
+      name: Envenom_0
       rect:
         serializedVersion: 2
         x: 0
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Venom Jab_0: -3106849600663172003
+      Envenom_0: -3106849600663172003
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

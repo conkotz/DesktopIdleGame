@@ -14,7 +14,7 @@ public static class AbilityCombatPower
     public const string PowerSlashAbilityId = "power_slash";
     public const string WhirlwindAbilityId = "whirlwind";
     public const string RendAbilityId = "rend";
-    public const string VenomJabAbilityId = "venom_jab";
+    public const string EnvenomAbilityId = "envenom";
     public const string CleavingStrikesAbilityId = "cleaving_strikes";
     public const string CrescentSlashAbilityId = "crescent_slash";
 
@@ -298,8 +298,8 @@ public static class AbilityCombatPower
             return Mathf.Max(0f, totalBleedDamage * procRate);
         }
 
-        // Venom Jab: poison from corruption on the quick strike — marginal value drops if poison already applies often; stacks matter.
-        if (string.Equals(def.abilityId, VenomJabAbilityId, StringComparison.OrdinalIgnoreCase))
+        // Envenom: poison from corruption on the quick strike — marginal value drops if poison already applies often; stacks matter.
+        if (string.Equals(def.abilityId, EnvenomAbilityId, StringComparison.OrdinalIgnoreCase))
         {
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
@@ -308,7 +308,7 @@ public static class AbilityCombatPower
             if (poisonSourceCorruption <= 0f)
                 return 0f;
 
-            int selected = GetVenomJabSelectedChoiceForCombatPower();
+            int selected = GetEnvenomSelectedChoiceForCombatPower();
             int baseStacks = Mathf.Max(1, stats.PoisonMaxStacks);
             int stackCount = baseStacks;
             if (selected == 0)
@@ -460,7 +460,7 @@ public static class AbilityCombatPower
         return sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
     }
 
-    private static int GetVenomJabSelectedChoiceForCombatPower()
+    private static int GetEnvenomSelectedChoiceForCombatPower()
     {
         SkillsManager sm = SkillsManager.Instance;
         if (sm == null)

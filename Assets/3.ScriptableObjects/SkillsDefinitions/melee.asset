@@ -58,7 +58,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 5
     title: Power Slash
-    description: Primes your next melee hit to perform a powerful slash.
+    description: Primes your next hit to perform a powerful slash.
     icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -77,8 +77,8 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Rend
-    description: Primes your next melee hit with guaranteed Bleed and extended duration
-      on that application. Exclusive while active.
+    description: Primes your next hit with guaranteed Bleed and extended duration on
+      that application. Exclusive while active.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -97,9 +97,9 @@ MonoBehaviour:
       icon: {fileID: 5570183790260993194, guid: a3f9e8e67e15ed24b86ba45820e05f95, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 5
-    title: Venom Jab
-    description: Primes your next melee hit. If the hit deals Corruption damage,
-      apply Poison at 100% chance at max stacks.
+    title: Envenom
+    description: Primes your next hit. If the hit deals Corruption damage, apply Poison
+      at 100% chance at max stacks.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0

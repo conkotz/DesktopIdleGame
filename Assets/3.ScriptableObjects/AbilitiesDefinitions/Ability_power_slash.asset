@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: power_slash
   displayName: Power Slash
-  description: Primes your next melee hit to perform a powerful slash.
+  description: Primes your next hit to perform a powerful slash.
   icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
   cooldown: 15
   energyCost: 30

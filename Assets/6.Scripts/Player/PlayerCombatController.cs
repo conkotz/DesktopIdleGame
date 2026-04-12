@@ -936,7 +936,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
     }
 
-    /// <summary>Venom Jab Contagion Burst: full poison stack packet to every other enemy in radial range of the source (victim may be dead).</summary>
+    /// <summary>Envenom Contagion Burst: full poison stack packet to every other enemy in radial range of the source (victim may be dead).</summary>
     public void ApplyPoisonContagionSpread(EnemyBaseController originEnemy, PoisonPayload payload)
     {
         CollectEnemiesInAilmentSpreadRadius(originEnemy, _ailmentSpreadScratch);

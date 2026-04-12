@@ -32,7 +32,7 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField, Min(0f)] private float globalCooldownSeconds = 0.15f;
     private float _globalCooldownEndsAt;
 
-    [Header("Power Slash VFX")]
+    // Power Slash VFX — grouped in Inspector via PlayerAbilityControllerEditor
     [SerializeField] private Transform powerSlashTrailAnchor;
     [SerializeField] private string[] powerSlashAnchorNameCandidates = { "Weapon", "MainHandItem", "MainHand" };
     [SerializeField] private Color powerSlashTrailColor = new Color(1f, 0.88f, 0.22f, 0.95f);
@@ -47,7 +47,7 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField, Min(0f)] private float powerSlashSecondSwipeDelay = 0.035f;
     [SerializeField] private float powerSlashSecondSwipeAngleOffset = 18f;
 
-    [Header("Whirlwind VFX")]
+    // Whirlwind VFX — grouped in Inspector via PlayerAbilityControllerEditor
     [SerializeField] private Color whirlingBladeColor = new Color(1f, 0.88f, 0.22f, 0.95f);
     [SerializeField, Min(0.01f)] private float whirlingBladeDuration = 0.22f;
     [SerializeField, Min(90f)] private float whirlingBladeSpinDegrees = 720f;
@@ -56,17 +56,22 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField, Min(0f)] private float whirlingBladeUpwardDrift = 0.14f;
     [SerializeField, Min(0f)] private float whirlingBladeVerticalWave = 0.06f;
 
-    [Header("Crescent Slash VFX")]
+    // Crescent Slash VFX — grouped in Inspector via PlayerAbilityControllerEditor
     [SerializeField] private Color crescentSlashColor = new Color(0.55f, 0.95f, 1f, 0.9f);
     [SerializeField, Min(0.05f)] private float crescentSlashVfxDuration = 0.18f;
     [SerializeField, Min(0.01f)] private float crescentSlashLineWidth = 0.12f;
     [SerializeField] private Vector3 crescentSlashCenterOffset = new Vector3(0f, 0.65f, 0f);
 
+    /// <summary>
+    /// Motion, attach, slash, and visuals for Soulforged Weapon minion (tune on Player prefab).
+    /// </summary>
+    [SerializeField] private SoulforgedWeaponMinionPresentation soulforgedWeaponMinionPresentation;
+
     private readonly Dictionary<string, float> _cooldownEndsById = new(StringComparer.OrdinalIgnoreCase);
     private const string PowerSlashId = "power_slash";
     private const string WhirlwindId = "whirlwind";
     private const string RendId = "rend";
-    private const string VenomJabId = "venom_jab";
+    private const string EnvenomId = "envenom";
     private const string CleavingStrikesId = "cleaving_strikes";
     private const string CrescentSlashId = "crescent_slash";
     private const int WhirlwindChoiceSourceLevel = 15;
@@ -75,7 +80,7 @@ public class PlayerAbilityController : MonoBehaviour
     private const float WhirlwindRadiusBonus = 3f;
     private bool _powerSlashQueued;
     private bool _rendQueued;
-    private bool _venomJabQueued;
+    private bool _envenomQueued;
     private bool _crescentSlashQueued;
     private int _cleavingHitsRemaining;
     private int _cleavingAdditionalTargets;
@@ -107,7 +112,7 @@ public class PlayerAbilityController : MonoBehaviour
         None,
         PowerSlash,
         Rend,
-        VenomJab,
+        Envenom,
         CrescentSlash
     }
 
@@ -230,9 +235,9 @@ public class PlayerAbilityController : MonoBehaviour
             if (_rendQueued)
                 return false;
         }
-        if (string.Equals(def.abilityId, VenomJabId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(def.abilityId, EnvenomId, StringComparison.OrdinalIgnoreCase))
         {
-            if (_venomJabQueued)
+            if (_envenomQueued)
                 return false;
         }
         if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
@@ -294,11 +299,11 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
-        if (string.Equals(def.abilityId, VenomJabId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(def.abilityId, EnvenomId, StringComparison.OrdinalIgnoreCase))
         {
-            if (_venomJabQueued)
+            if (_envenomQueued)
                 return false;
-            _venomJabQueued = true;
+            _envenomQueued = true;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -1130,10 +1135,10 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
-        if (_venomJabQueued)
+        if (_envenomQueued)
         {
-            _venomJabQueued = false;
-            _queuedConsumedThisHit = QueuedHitEffect.VenomJab;
+            _envenomQueued = false;
+            _queuedConsumedThisHit = QueuedHitEffect.Envenom;
             _queuedConsumedFrame = Time.frameCount;
             return true;
         }
@@ -1217,8 +1222,11 @@ public class PlayerAbilityController : MonoBehaviour
         if (target == null || target.IsDead)
             return result;
 
-        // Only apply once, and only for the same frame that consumed the queued modifier.
-        if (_queuedConsumedFrame != Time.frameCount)
+        // Melee resolves damage on the same frame as TryConsumeQueuedAttackModifier; ranged/projectile hits
+        // often land later, so Rend/Envenom must not require the same frame.
+        bool requiresSameFrameAsConsume =
+            _queuedConsumedThisHit != QueuedHitEffect.Rend && _queuedConsumedThisHit != QueuedHitEffect.Envenom;
+        if (requiresSameFrameAsConsume && _queuedConsumedFrame != Time.frameCount)
             return result;
 
         if (_queuedConsumedThisHit == QueuedHitEffect.Rend)
@@ -1232,12 +1240,12 @@ public class PlayerAbilityController : MonoBehaviour
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
         }
-        else if (_queuedConsumedThisHit == QueuedHitEffect.VenomJab)
+        else if (_queuedConsumedThisHit == QueuedHitEffect.Envenom)
         {
             result.suppressDefaultPoison = true;
-            TryApplyVenomJabPoison(target, corruptionDealtPostMitigation);
+            TryApplyEnvenomPoison(target, corruptionDealtPostMitigation);
 
-            AbilityDefinition def = GetAbilityDefinition(VenomJabId);
+            AbilityDefinition def = GetAbilityDefinition(EnvenomId);
             if (def)
                 StartCooldown(def);
             if (globalCooldownSeconds > 0f)
@@ -1301,7 +1309,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
     }
 
-    private void TryApplyVenomJabPoison(EnemyBaseController target, float corruptionDealtPostMitigation)
+    private void TryApplyEnvenomPoison(EnemyBaseController target, float corruptionDealtPostMitigation)
     {
         if (stats == null || target == null || target.IsDead)
             return;
@@ -1315,7 +1323,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (perStackTotal <= 0f)
             return;
 
-        int selected = GetVenomJabSelectedChoice();
+        int selected = GetEnvenomSelectedChoice();
 
         float duration = Mathf.Max(0.1f, stats.PoisonDuration);
         int ticks = Mathf.Max(1, Mathf.RoundToInt(duration));
@@ -1344,9 +1352,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (selected == 1)
         {
             // Upgrade 2: on death within 6s, poison spreads to all other enemies in radial range of the victim.
-            var marker = target.GetComponent<VenomJabSpreadOnDeathMarker>();
+            var marker = target.GetComponent<EnvenomSpreadOnDeathMarker>();
             if (marker == null)
-                marker = target.gameObject.AddComponent<VenomJabSpreadOnDeathMarker>();
+                marker = target.gameObject.AddComponent<EnvenomSpreadOnDeathMarker>();
             marker.Arm(payload, expiresAt: Time.time + 6f, combat);
         }
     }
@@ -1515,14 +1523,14 @@ public class PlayerAbilityController : MonoBehaviour
         return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
     }
 
-    private int GetVenomJabSelectedChoice()
+    private int GetEnvenomSelectedChoice()
     {
         if (!skillsManager)
             skillsManager = SkillsManager.Instance;
         if (!skillsManager)
             return -1;
 
-        // Venom Jab enhancement selection is keyed on the level-5 ability row.
+        // Envenom enhancement selection is keyed on the level-5 ability row.
         return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
     }
 
@@ -1535,8 +1543,8 @@ public class PlayerAbilityController : MonoBehaviour
             return _powerSlashQueued;
         if (string.Equals(abilityId, RendId, StringComparison.OrdinalIgnoreCase))
             return _rendQueued;
-        if (string.Equals(abilityId, VenomJabId, StringComparison.OrdinalIgnoreCase))
-            return _venomJabQueued;
+        if (string.Equals(abilityId, EnvenomId, StringComparison.OrdinalIgnoreCase))
+            return _envenomQueued;
         if (string.Equals(abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return _crescentSlashQueued;
 
@@ -1806,6 +1814,8 @@ public class PlayerAbilityController : MonoBehaviour
             AbilityWeaponRequirement.Melee => skill == AttackSkill.Melee,
             AbilityWeaponRequirement.Ranged => skill == AttackSkill.Ranged,
             AbilityWeaponRequirement.Magic => skill == AttackSkill.Magic,
+            AbilityWeaponRequirement.MeleeOrRanged =>
+                skill == AttackSkill.Melee || skill == AttackSkill.Ranged,
             _ => true
         };
     }
@@ -1833,7 +1843,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         Sprite weaponSprite = ResolveSoulforgedWeaponVisualSprite(md, def);
-        if (!minion.Initialize(_ownerStats, md, anchor, weaponSprite, attacker, HandleSoulforgedWeaponReleased))
+        if (!minion.Initialize(_ownerStats, md, soulforgedWeaponMinionPresentation, anchor, weaponSprite, attacker, HandleSoulforgedWeaponReleased))
         {
             Destroy(go);
             return false;
@@ -1865,7 +1875,9 @@ public class PlayerAbilityController : MonoBehaviour
         {
             if (abilityDef && abilityDef.icon)
                 return abilityDef.icon;
-            return md ? md.placeholderWeaponSprite : null;
+            if (soulforgedWeaponMinionPresentation.placeholderWeaponSprite)
+                return soulforgedWeaponMinionPresentation.placeholderWeaponSprite;
+            return null;
         }
 
         if (!equipment || !inventory)

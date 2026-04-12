@@ -215,7 +215,7 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
-        if (string.Equals(def.abilityId, "venom_jab", System.StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(def.abilityId, AbilityCombatPower.EnvenomAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
             return BuildActiveEnhancementLine(def, selected);

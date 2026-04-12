@@ -85,6 +85,7 @@ public static class AbilityTooltipDamagePreview
             AbilityWeaponRequirement.Melee => "Melee",
             AbilityWeaponRequirement.Ranged => "Ranged",
             AbilityWeaponRequirement.Magic => "Magic",
+            AbilityWeaponRequirement.MeleeOrRanged => "Melee or Ranged",
             _ => "Any"
         };
 
@@ -105,8 +106,8 @@ public static class AbilityTooltipDamagePreview
     private static bool IsRend(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.RendAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsVenomJab(AbilityDefinition def) =>
-        def && string.Equals(def.abilityId, AbilityCombatPower.VenomJabAbilityId, System.StringComparison.OrdinalIgnoreCase);
+    private static bool IsEnvenom(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.EnvenomAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
     private static bool IsCleavingStrikes(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.CleavingStrikesAbilityId, System.StringComparison.OrdinalIgnoreCase);
@@ -163,7 +164,7 @@ public static class AbilityTooltipDamagePreview
 
         float tipAp = stats ? Mathf.Max(0f, stats.AbilityPower) : 0f;
         bool showApInEffects =
-            !IsCleavingStrikes(def) && !IsRend(def) && !IsVenomJab(def) && !def.SpawnsMinionOnCast;
+            !IsCleavingStrikes(def) && !IsRend(def) && !IsEnvenom(def) && !def.SpawnsMinionOnCast;
         int tooltipApBonus = showApInEffects && stats != null
             ? ComputeTooltipApBonusDamage(def, stats, pEffTip, mEffTip, cEffTip, allM)
             : 0;
@@ -190,7 +191,7 @@ public static class AbilityTooltipDamagePreview
             if (GetMeleeSkillRow5Choice(skillsManager) == 1)
                 body.AppendLine(O("Crimson Spread"));
         }
-        else if (IsVenomJab(def))
+        else if (IsEnvenom(def))
         {
             body.AppendLine(O("100% poison on next hit if corruption damage is dealt."));
             body.AppendLine(O("Apply max poison stacks"));
