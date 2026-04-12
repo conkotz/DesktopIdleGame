@@ -91,6 +91,11 @@ public static class SkillAbilityCommitRules
         if (siblings.Count == 0)
             return true;
 
+        // Only one ability on this tier row: nothing to choose between — do not require a committed row pick.
+        // (Otherwise pick stays -1 until the player clicks the node, and the right-hand abilities list stays empty.)
+        if (siblings.Count == 1)
+            return IndexOfAbilityInSiblingList(siblings, ability) == 0;
+
         int pick = sm.GetSkillAbilityRowPick(skill.skillType, req, -1);
         if (pick < 0)
             return false;

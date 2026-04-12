@@ -221,6 +221,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float damageVsPoisoned;
         public float damageVsShocked;
         public float damageVsLowHp;
+        /// <summary>Minion damage % (fraction). Phase 1: wired from skill options later; gear uses <see cref="BonusStats"/>.</summary>
+        public float minionDamagePercent;
+        public float minionAttackSpeedPercent;
+        public float minionCritChance;
     }
 
     private struct RangedMinorNodeBonuses
@@ -524,6 +528,35 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float CritChancePercent => CritChance * 100f;
     public float CritMultiplierPercent => CritMultiplier * 100f;
+
+    /// <summary>Fixed crit damage for all minions: ×1.5 total hit damage (+50% bonus). Not scalable from gear or passives.</summary>
+    public const float MinionCritDamageMultiplier = 1.5f;
+
+    /// <summary>Lowest allowed aggregate minion attack speed bonus so future APS uses <c>max(0.1, 1 + total)</c>.</summary>
+    private const float MinMinionAttackSpeedPercentAdditive = -0.9f;
+
+    /// <summary>Aggregated minion damage bonus fraction from gear + owner passives (melee skill minors for now). ≥ 0.</summary>
+    public float FinalMinionDamagePercent =>
+        Mathf.Max(0f, GetEquippedMinionDamagePercent() + GetOwnerMinionBonusesFromSkills().minionDamagePercent);
+
+    /// <summary>Aggregated minion attack speed bonus fraction. Clamped so <c>1 + value ≥ 0.1</c> for future APS math.</summary>
+    public float FinalMinionAttackSpeedPercent =>
+        Mathf.Max(
+            MinMinionAttackSpeedPercentAdditive,
+            GetEquippedMinionAttackSpeedPercent() + GetOwnerMinionBonusesFromSkills().minionAttackSpeedPercent);
+
+    /// <summary>Aggregated minion crit chance (0–1 additive from gear + passives). ≥ 0; no upper clamp (matches player crit style for high values).</summary>
+    public float FinalMinionCritChance =>
+        Mathf.Max(0f, GetEquippedMinionCritChance() + GetOwnerMinionBonusesFromSkills().minionCritChance);
+
+    /// <summary>UI: minion damage % as display points (+15 for +15%).</summary>
+    public float FinalMinionDamagePercentPoints => FinalMinionDamagePercent * 100f;
+
+    /// <summary>UI: minion attack speed % as display points.</summary>
+    public float FinalMinionAttackSpeedPercentPoints => FinalMinionAttackSpeedPercent * 100f;
+
+    /// <summary>UI: minion crit as percentage points for labels.</summary>
+    public float FinalMinionCritChancePercentPoints => FinalMinionCritChance * 100f;
 
     /// <summary>True when the attack has physical or magic damage; corruption-only hits cannot crit on basic attacks.</summary>
     public bool HasCrittableDirectDamage =>
@@ -1109,6 +1142,49 @@ public class CharacterStats : MonoBehaviour, ISaveable
             total += def.bonusStats.attackSpeedPercent;
         }
         return total;
+    }
+
+    private float GetEquippedMinionDamagePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def == null) continue;
+            total += def.bonusStats.minionDamagePercent;
+        }
+        return total;
+    }
+
+    private float GetEquippedMinionAttackSpeedPercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def == null) continue;
+            total += def.bonusStats.minionAttackSpeedPercent;
+        }
+        return total;
+    }
+
+    private float GetEquippedMinionCritChance()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def == null) continue;
+            total += def.bonusStats.minionCritChance;
+        }
+        return total;
+    }
+
+    /// <summary>
+    /// Melee skill-tree minors that grant minion stats. Phase 2 TODO: add other skill tracks (ranged/magic) without changing <see cref="FinalMinionDamagePercent"/> API.
+    /// </summary>
+    private MeleeMinorNodeBonuses GetOwnerMinionBonusesFromSkills()
+    {
+        if (!_ownerPlayer)
+            return default;
+        return GetUnlockedMeleeMinorBonuses();
     }
 
     // -------------------------

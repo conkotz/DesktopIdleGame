@@ -325,6 +325,16 @@ public struct BonusStats
     [Tooltip("Attack speed bonus (0.1 = +10% APS).")]
     public float attackSpeedPercent;
 
+    [Header("Minions (owner scaling)")]
+    [Tooltip("Extra damage for your minions / summons (0.1 = +10%). Generic; works with inherited or internal minion base damage.")]
+    public float minionDamagePercent;
+
+    [Tooltip("Extra minion attack speed (0.1 = +10% APS). Aggregate clamped so 1 + total ≥ 0.1.")]
+    public float minionAttackSpeedPercent;
+
+    [Tooltip("Added minion crit chance, 0–1 scale (0.1 = +10 percentage points). Minion crit damage is fixed ×1.5 (not from items).")]
+    public float minionCritChance;
+
     [Tooltip("Added crit chance, 0–1 scale (0.1 = +10 percentage points).")]
     public float critChanceBonus;
 
@@ -382,6 +392,7 @@ public struct BonusStats
                corruptionDamagePercent != 0f ||
                corruptionDamage != 0f || abilityPower != 0f ||
                attackSpeedPercent != 0f ||
+               minionDamagePercent != 0f || minionAttackSpeedPercent != 0f || minionCritChance != 0f ||
                critChanceBonus != 0f || critMultiplierBonus != 0f ||
                attackRangeBonus != 0f ||
                bleedChance > 0f || bleedMultiplier != 0f ||
@@ -1164,6 +1175,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (bonusStats.attackSpeedPercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.attackSpeedPercent, "Attack Speed")}\n";
+        if (bonusStats.minionDamagePercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.minionDamagePercent, "Minion Damage")}\n";
+        if (bonusStats.minionAttackSpeedPercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.minionAttackSpeedPercent, "Minion Attack Speed")}\n";
+        if (bonusStats.minionCritChance != 0f)
+            s += $"Minion Crit Chance: {FormatSignedPercent01(bonusStats.minionCritChance)}\n";
         if (bonusStats.critChanceBonus != 0f) s += $"Crit Chance: {FormatSignedPercent01(bonusStats.critChanceBonus)}\n";
         if (bonusStats.critMultiplierBonus != 0f) s += $"Crit Multi: {FormatSignedPercent01(bonusStats.critMultiplierBonus)}\n";
         if (bonusStats.attackRangeBonus != 0f) s += $"Range: {FormatSignedNumber(bonusStats.attackRangeBonus)}\n";

@@ -59,6 +59,15 @@ public class AbilityDefinition : ScriptableObject
     public SkillType sourceSkill;
     public int unlockLevel = 1;
 
+    [Header("Summon (optional)")]
+    [Tooltip(
+        "When set, this ability uses the summon path in PlayerAbilityController: energy + cooldown apply, then SpectralWeaponMinion is spawned. " +
+        "Scaling fields above are not used for that path (damage comes from MinionDefinition / MinionCombatConfig + owner minion stats).")]
+    public MinionDefinition minionSpawnDefinition;
+
+    /// <summary>True when casting should spawn a minion instead of the generic instant-hit damage pipeline.</summary>
+    public bool SpawnsMinionOnCast => minionSpawnDefinition != null;
+
     /// <summary>≤0 uses1 (legacy / Inspector0): no extra all-damage pass; phys/mag/corruption coeffs only.</summary>
     public float GetEffectiveAllDamageMultiplier() =>
         allDamageMultiplier <= 0f ? 1f : allDamageMultiplier;

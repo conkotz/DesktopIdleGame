@@ -114,6 +114,29 @@ public static class GameTooltipTexts
                 description = "Scales your abilities to do bonus damage.";
                 return true;
 
+            case "MinionDamageText":
+                title = "Minion damage";
+                description =
+                    "Bonus damage to your minions and summons (additive %).\n\n" +
+                    "Applies on the owner no matter whether a minion inherits your hit damage or uses its own base damage. " +
+                    "Does not affect your hero DPS until summon combat is implemented.";
+                return true;
+
+            case "MinionAttackSpeedText":
+                title = "Minion attack speed";
+                description =
+                    "Bonus attack speed for your minions (additive %).\n\n" +
+                    "Aggregate is floored so minion APS never goes below 10% of base in future combat code. " +
+                    "Does not change your hero attack speed.";
+                return true;
+
+            case "MinionCritChanceText":
+                title = "Minion critical chance";
+                description =
+                    "Additive crit chance for minion hits (same 0–1 scale as hero crit).\n\n" +
+                    "Minion critical strikes always deal ×1.5 total damage (+50% bonus); that multiplier is not scalable.";
+                return true;
+
             case "PhysicalBonusText":
             case "GlobalPhysicalBonusText":
                 title = "All physical";

@@ -507,13 +507,13 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 35
-    title: Ability Milestone IV
-    description: Placeholder ability milestone.
-    icon: {fileID: 0}
+    title: Spectral Weapon
+    description: Summon a spectral copy of your main-hand weapon to strike at foes, then return to your side.
+    icon: {fileID: -8860823726366746541, guid: 2e15a983e647ec142bfdadc1698f81bc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    ability: {fileID: 0}
+    ability: {fileID: 11400000, guid: f8a7b6c5d4e3f2109a8b7c6d5e4f3021, type: 2}
     choices:
     - requiredLevel: 40
       title: Ability IV Choice A

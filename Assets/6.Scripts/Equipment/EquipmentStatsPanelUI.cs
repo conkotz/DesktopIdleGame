@@ -51,6 +51,12 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text critDamageText;
     [SerializeField] private TMP_Text lifeStealText;
 
+    [Header("Minions (owner scaling — no DPS yet)")]
+    [Tooltip("Optional. Assign TMP in offence tab; wire GameObject names MinionDamageText / MinionAttackSpeedText / MinionCritChanceText for hover copy.")]
+    [SerializeField] private TMP_Text minionDamageText;
+    [SerializeField] private TMP_Text minionAttackSpeedText;
+    [SerializeField] private TMP_Text minionCritChanceText;
+
     [Header("Offence — section titles (optional)")]
     [Tooltip("e.g. \"Global bonuses\". Shown above phys/magic/corruption lines.")]
     [SerializeField] private TMP_Text offenceGlobalBonusesHeaderText;
@@ -352,6 +358,16 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             lifeStealText.text = $"Life Steal: {lsPct:0.#}% of damage";
         }
 
+        if (minionDamageText)
+            minionDamageText.text =
+                $"Minion Damage: {FormatSignedPercentPoints(stats.FinalMinionDamagePercentPoints)}";
+        if (minionAttackSpeedText)
+            minionAttackSpeedText.text =
+                $"Minion Attack Speed: {FormatSignedPercentPoints(stats.FinalMinionAttackSpeedPercentPoints)}";
+        if (minionCritChanceText)
+            minionCritChanceText.text =
+                $"Minion Crit Chance: {stats.FinalMinionCritChancePercentPoints:0.#}%";
+
         if (globalPhysicalAllText)
             globalPhysicalAllText.text = $"Physical: {FormatSignedPercentPoints(stats.GlobalPhysicalDamageBonusPercentPoints)}";
         if (globalMagicAllText)
@@ -513,6 +529,9 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(globalLightningBonusText);
         Wire(meleeDamageBonusText);
         Wire(rangedDamageBonusText);
+        Wire(minionDamageText);
+        Wire(minionAttackSpeedText);
+        Wire(minionCritChanceText);
 
         foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
         {
@@ -533,6 +552,9 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 case "RangedPhysBonusText":
                 case "RangedDamageBonusText":
                 case "ConditionalRangedPhysBonusText":
+                case "MinionDamageText":
+                case "MinionAttackSpeedText":
+                case "MinionCritChanceText":
                     Wire(tmp);
                     break;
             }

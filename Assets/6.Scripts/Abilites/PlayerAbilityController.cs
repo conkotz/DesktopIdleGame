@@ -91,6 +91,14 @@ public class PlayerAbilityController : MonoBehaviour
     private QueuedHitEffect _queuedConsumedThisHit;
     private int _queuedConsumedFrame = -1;
 
+    /// <summary>Same object as <see cref="stats"/>; cached for summon spawn clarity.</summary>
+    private CharacterStats _ownerStats;
+
+    /// <summary>Player root transform (this component lives on the player).</summary>
+    private Transform _ownerTransform;
+
+    private SpectralWeaponMinion _activeSpectralWeaponMinion;
+
     private enum QueuedHitEffect
     {
         None,
@@ -113,6 +121,8 @@ public class PlayerAbilityController : MonoBehaviour
     {
         if (!player) player = GetComponent<PlayerController>();
         if (!stats) stats = GetComponent<CharacterStats>();
+        _ownerStats = stats;
+        _ownerTransform = transform;
         if (!combat) combat = GetComponent<PlayerCombatController>();
         if (!equipment) equipment = GetComponent<EquipmentManager>();
         if (!inventory) inventory = GetComponent<Inventory>();
@@ -224,6 +234,27 @@ public class PlayerAbilityController : MonoBehaviour
         {
             player.ShowPopup("Not enough energy.");
             return false;
+        }
+
+        // Summon abilities: no current-target requirement (unlike the generic instant-hit block below).
+        if (def.minionSpawnDefinition)
+        {
+            if (!def.minionSpawnDefinition.runtimePrefab)
+            {
+                player.AddEnergy(def.energyCost);
+                return false;
+            }
+
+            if (!TrySpawnSpectralWeaponMinion(def))
+            {
+                player.AddEnergy(def.energyCost);
+                return false;
+            }
+
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
         }
 
         if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
@@ -1767,6 +1798,91 @@ public class PlayerAbilityController : MonoBehaviour
             AbilityWeaponRequirement.Magic => skill == AttackSkill.Magic,
             _ => true
         };
+    }
+
+    /// <summary>
+    /// Spawns <see cref="SpectralWeaponMinion"/> from ability context: only one active instance per controller; recast replaces the previous.
+    /// Visual + anchor come from equipment and <see cref="PlayerController.SpectralWeaponSpawnPoint"/> (no scene-wide searches on the minion).
+    /// </summary>
+    private bool TrySpawnSpectralWeaponMinion(AbilityDefinition def)
+    {
+        MinionDefinition md = def.minionSpawnDefinition;
+        if (!md || !md.runtimePrefab || !_ownerStats || !player)
+            return false;
+
+        // One active spectral weapon: despawn previous before creating a new instance.
+        if (_activeSpectralWeaponMinion)
+            _activeSpectralWeaponMinion.CancelAndDestroy();
+        _activeSpectralWeaponMinion = null;
+
+        Transform anchor = player.SpectralWeaponSpawnPoint;
+        Transform attacker = _ownerTransform ? _ownerTransform : _ownerStats.transform;
+
+        GameObject go = Instantiate(md.runtimePrefab, anchor.position, Quaternion.identity);
+        SpectralWeaponMinion minion = go.GetComponent<SpectralWeaponMinion>();
+        if (!minion)
+        {
+            Destroy(go);
+            return false;
+        }
+
+        Sprite weaponSprite = ResolveSpectralWeaponVisualSprite(md, def);
+        if (!minion.Initialize(_ownerStats, md, anchor, weaponSprite, attacker, HandleSpectralWeaponReleased))
+        {
+            Destroy(go);
+            return false;
+        }
+
+        _activeSpectralWeaponMinion = minion;
+        return true;
+    }
+
+    private void HandleSpectralWeaponReleased(SpectralWeaponMinion m)
+    {
+        if (_activeSpectralWeaponMinion == m)
+            _activeSpectralWeaponMinion = null;
+    }
+
+    /// <summary>
+    /// Visual only: held → equipped → item icon → <see cref="AbilityDefinition.icon"/> → minion placeholder. Does not copy weapon combat stats.
+    /// </summary>
+    private Sprite ResolveSpectralWeaponVisualSprite(MinionDefinition md, AbilityDefinition abilityDef)
+    {
+        Sprite FallbackAbilityOrPlaceholder()
+        {
+            if (abilityDef && abilityDef.icon)
+                return abilityDef.icon;
+            return md ? md.placeholderWeaponSprite : null;
+        }
+
+        if (!equipment || !inventory)
+            return FallbackAbilityOrPlaceholder();
+
+        string id = equipment.MainHandItemId;
+        if (string.IsNullOrWhiteSpace(id))
+            return FallbackAbilityOrPlaceholder();
+
+        ItemDefinition itemDef = inventory.GetItemDef(id);
+        if (!itemDef)
+            return FallbackAbilityOrPlaceholder();
+
+        if (itemDef.HeldSprite)
+            return itemDef.HeldSprite;
+        if (itemDef.EquippedSprite)
+            return itemDef.EquippedSprite;
+        if (itemDef.icon)
+            return itemDef.icon;
+
+        return FallbackAbilityOrPlaceholder();
+    }
+
+    private void OnDestroy()
+    {
+        if (_activeSpectralWeaponMinion)
+        {
+            _activeSpectralWeaponMinion.CancelAndDestroy();
+            _activeSpectralWeaponMinion = null;
+        }
     }
 }
 

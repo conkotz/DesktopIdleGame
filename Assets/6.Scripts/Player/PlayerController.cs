@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 
 [RequireComponent(typeof(Inventory))]
 public class PlayerController : MonoBehaviour
@@ -95,6 +96,53 @@ public class PlayerController : MonoBehaviour
 
     /// <summary>Lets <see cref="PlayerLevelTransition"/> own visuals scale during a level change.</summary>
     public void SetTeleportOutVisualsActive(bool active) => _suppressSpriteFlipForTeleport = active;
+
+    [Header("Summons")]
+    [Tooltip("Home anchor for the spectral weapon (world position + rotation). If unset, Awake resolves SpectralWeaponSpawnPoint under Sprite Flip → Visuals Root (same hierarchy as ranged/magic spawn points), then a direct child of this object, else player root.")]
+    [SerializeField, FormerlySerializedAs("spectralWeaponHomeAnchor")]
+    private Transform spectralWeaponSpawnPoint;
+
+    private bool _warnedSpectralSpawnPointOnce;
+
+    /// <summary>
+    /// Home anchor for spectral summons (under visuals root with other weapon spawn points when auto-resolved). Falls back to player root if missing.
+    /// </summary>
+    public Transform SpectralWeaponSpawnPoint => spectralWeaponSpawnPoint ? spectralWeaponSpawnPoint : transform;
+
+    private void ResolveSpectralWeaponSpawnPoint()
+    {
+        if (spectralWeaponSpawnPoint)
+            return;
+
+        // Same pattern as PlayerCombatController projectile anchors: child of visuals root (e.g. Soldier) so it moves/flips with the rig.
+        if (visualsRoot)
+        {
+            Transform underVisuals = visualsRoot.Find("SpectralWeaponSpawnPoint");
+            if (underVisuals)
+            {
+                spectralWeaponSpawnPoint = underVisuals;
+                return;
+            }
+        }
+
+        Transform t = transform.Find("SpectralWeaponSpawnPoint");
+        if (t)
+        {
+            spectralWeaponSpawnPoint = t;
+            return;
+        }
+
+        if (!_warnedSpectralSpawnPointOnce)
+        {
+            Debug.LogWarning(
+                "[Player] SpectralWeaponSpawnPoint: assign in inspector, or add SpectralWeaponSpawnPoint under Sprite Flip → Visuals Root, or as a direct child of the player. Using player transform for summon home.",
+                this);
+            _warnedSpectralSpawnPointOnce = true;
+        }
+    }
+
+    /// <summary>World position for spectral weapon idle/home (see <see cref="SpectralWeaponSpawnPoint"/>).</summary>
+    public Vector3 GetSpectralWeaponHomeWorldPosition() => SpectralWeaponSpawnPoint.position;
 
     [Header("Popup (World Tooltip)")]
     [SerializeField] private GameObject actionPopup;          // one popup object
@@ -311,6 +359,8 @@ public class PlayerController : MonoBehaviour
 
         if (actionPopup)
             actionPopup.SetActive(false);
+
+        ResolveSpectralWeaponSpawnPoint();
     }
 
     private void Start()

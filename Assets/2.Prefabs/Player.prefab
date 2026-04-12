@@ -5155,7 +5155,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7149526798742480501}
   m_Layer: 10
-  m_Name: TrailingAnchor
+  m_Name: TrailingAnchorForVFX
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5619,6 +5619,7 @@ MonoBehaviour:
   skillsManager: {fileID: 0}
   equipment: {fileID: 0}
   inventory: {fileID: 0}
+  buffController: {fileID: 0}
   globalCooldownSeconds: 1
   powerSlashTrailAnchor: {fileID: 7149526798742480501}
   powerSlashAnchorNameCandidates:
@@ -5695,6 +5696,7 @@ MonoBehaviour:
   visualsRoot: {fileID: 3287728027510253299}
   invertFlip: 1
   flipDeadzone: 0.0005
+  spectralWeaponSpawnPoint: {fileID: 8517957175408816748}
   actionPopup: {fileID: 8815557873514647352}
   actionPopupSeconds: 1.5
   requireToolForGathering: 1
@@ -5730,6 +5732,7 @@ MonoBehaviour:
   baseMaxMana: 50
   baseArmor: 0
   baseMagicResist: 0
+  baseCorruptionResist: 0
   basePhysBlockChance: 0
   baseMoveSpeed: 2.5
   baseMoveSpeedMult: 1
@@ -5740,8 +5743,8 @@ MonoBehaviour:
   baseMaxPhysicalDamage: 0
   baseMinMagicDamage: 0
   baseMaxMagicDamage: 0
-  baseMinTrueDamage: 0
-  baseMaxTrueDamage: 0
+  baseMinCorruptionDamage: 0
+  baseMaxCorruptionDamage: 0
   baseAbilityPower: 0
   baseLifeSteal: 0
   baseBleedChance: 0
@@ -6032,6 +6035,7 @@ MonoBehaviour:
   fishDef: {fileID: 0}
   amount: 1
   grantPackKey: 108
+  decreaseAllSkillsKey: 107
   grantGold: 50000
   grantResourceAmount: 100
   popupWorldOffset: {x: 0, y: 1.6, z: 0}
@@ -6298,6 +6302,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 3287728027510253299}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &8202035371521116410
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8517957175408816748}
+  m_Layer: 0
+  m_Name: SpectralWeaponSpawnPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8517957175408816748
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8202035371521116410}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.71, y: 1.43, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3287728027510253299}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8815557873514647352
 GameObject:
   m_ObjectHideFlags: 0
@@ -6464,6 +6499,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4000013857073264, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8560780535896276919}
+    - targetCorrespondingSourceObject: {fileID: 4000013857073264, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8517957175408816748}
     - targetCorrespondingSourceObject: {fileID: 4000013857073264, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       insertIndex: -1
       addedObject: {fileID: 44207935928407347}
