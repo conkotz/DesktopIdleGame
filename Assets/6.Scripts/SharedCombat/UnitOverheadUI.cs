@@ -38,7 +38,10 @@ public class UnitOverheadUI : MonoBehaviour
     [Header("Overlap stack (enemy overhead only)")]
     [Tooltip("When multiple enemy overheads project to nearby X positions on the strip canvas, stack them vertically.")]
     [SerializeField] private bool enableOverlappingStack = true;
-    [SerializeField] private float stackOverlapThresholdPx = 64f;
+    [Tooltip(
+        "Extra horizontal margin (canvas px) when deciding if two nameplates overlap. " +
+        "Overlap uses each overhead's full RectTransform bounds (including long names), not just the anchor point.")]
+    [SerializeField] private float stackHorizontalOverlapPaddingPx = 2f;
     [SerializeField] private float stackVerticalSpacingPx = 56f;
 
     private RectTransform canvasRect;
@@ -174,36 +177,130 @@ public class UnitOverheadUI : MonoBehaviour
             return;
         }
 
-        float threshold = Mathf.Max(1f, candidates[0].stackOverlapThresholdPx);
+        Canvas.ForceUpdateCanvases();
+
+        float padding = Mathf.Max(0f, candidates[0].stackHorizontalOverlapPaddingPx);
         float spacing = Mathf.Max(1f, candidates[0].stackVerticalSpacingPx);
 
-        candidates.Sort((a, b) => a._stackBaseAnchored.x.CompareTo(b._stackBaseAnchored.x));
-
-        int start = 0;
-        while (start < candidates.Count)
+        var spans = new List<(float minX, float maxX, UnitOverheadUI ui)>(candidates.Count);
+        for (int i = 0; i < candidates.Count; i++)
         {
-            int end = start;
-            while (end + 1 < candidates.Count &&
-                   candidates[end + 1]._stackBaseAnchored.x - candidates[end]._stackBaseAnchored.x <= threshold)
+            candidates[i].GetHorizontalSpanInCanvas(out float minX, out float maxX);
+            spans.Add((minX, maxX, candidates[i]));
+        }
+
+        spans.Sort((a, b) => a.minX.CompareTo(b.minX));
+
+        var cluster = new List<UnitOverheadUI>();
+        float clusterMaxX = float.NegativeInfinity;
+
+        for (int i = 0; i < spans.Count; i++)
+        {
+            (float minX, float maxX, UnitOverheadUI ui) = spans[i];
+
+            if (cluster.Count == 0)
             {
-                end++;
+                cluster.Add(ui);
+                clusterMaxX = maxX;
+                continue;
             }
 
-            var cluster = new List<UnitOverheadUI>();
-            for (int j = start; j <= end; j++)
-                cluster.Add(candidates[j]);
-
-            cluster.Sort((a, b) => a.GetInstanceID().CompareTo(b.GetInstanceID()));
-
-            for (int k = 0; k < cluster.Count; k++)
-                cluster[k]._stackYOffset = k * spacing;
-
-            start = end + 1;
+            bool overlapsCluster = minX <= clusterMaxX + padding;
+            if (overlapsCluster)
+            {
+                cluster.Add(ui);
+                if (maxX > clusterMaxX)
+                    clusterMaxX = maxX;
+            }
+            else
+            {
+                ApplyVerticalOffsetsToCluster(cluster, spacing);
+                cluster.Clear();
+                cluster.Add(ui);
+                clusterMaxX = maxX;
+            }
         }
+
+        ApplyVerticalOffsetsToCluster(cluster, spacing);
 
         for (int i = 0; i < candidates.Count; i++)
             candidates[i].ApplyStackedPosition();
     }
+
+    private static void ApplyVerticalOffsetsToCluster(List<UnitOverheadUI> cluster, float spacing)
+    {
+        if (cluster == null || cluster.Count == 0)
+            return;
+
+        cluster.Sort((a, b) => a.GetInstanceID().CompareTo(b.GetInstanceID()));
+
+        for (int k = 0; k < cluster.Count; k++)
+            cluster[k]._stackYOffset = k * spacing;
+    }
+
+    /// <summary>
+    /// Left/right in canvas-local space. Uses root rect <b>and</b> TMP mesh bounds — long names often draw wider than the root/bar rect.
+    /// </summary>
+    private void GetHorizontalSpanInCanvas(out float minX, out float maxX)
+    {
+        minX = maxX = _stackBaseAnchored.x;
+
+        if (root == null)
+            return;
+
+        if (canvasRect == null && parentCanvas != null)
+            canvasRect = parentCanvas.transform as RectTransform;
+
+        if (canvasRect == null)
+            return;
+
+        minX = float.MaxValue;
+        maxX = float.MinValue;
+
+        root.GetWorldCorners(UnitOverheadUIWorkCorners);
+        for (int c = 0; c < 4; c++)
+        {
+            Vector3 local = canvasRect.InverseTransformPoint(UnitOverheadUIWorkCorners[c]);
+            if (local.x < minX) minX = local.x;
+            if (local.x > maxX) maxX = local.x;
+        }
+
+        ExpandHorizontalSpanWithTmpMeshBounds(canvasRect, ref minX, ref maxX);
+    }
+
+    /// <summary>
+    /// Root rect can be bar-sized while TMP draws past it; <see cref="TMP_Text.textBounds"/> matches rendered glyphs.
+    /// </summary>
+    private void ExpandHorizontalSpanWithTmpMeshBounds(RectTransform canvasRt, ref float minX, ref float maxX)
+    {
+        TMP_Text[] tmps = root.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < tmps.Length; i++)
+        {
+            TMP_Text tmp = tmps[i];
+            if (!tmp || !tmp.gameObject.activeInHierarchy)
+                continue;
+
+            tmp.ForceMeshUpdate();
+            Bounds b = tmp.textBounds;
+            Vector3 c = b.center;
+            Vector3 e = b.extents;
+            if (e.x < 1e-6f && e.y < 1e-6f && e.z < 1e-6f)
+                continue;
+
+            for (int ix = -1; ix <= 1; ix += 2)
+            for (int iy = -1; iy <= 1; iy += 2)
+            for (int iz = -1; iz <= 1; iz += 2)
+            {
+                Vector3 localCorner = c + new Vector3(ix * e.x, iy * e.y, iz * e.z);
+                Vector3 world = tmp.transform.TransformPoint(localCorner);
+                Vector3 canvasLocal = canvasRt.InverseTransformPoint(world);
+                if (canvasLocal.x < minX) minX = canvasLocal.x;
+                if (canvasLocal.x > maxX) maxX = canvasLocal.x;
+            }
+        }
+    }
+
+    private static readonly Vector3[] UnitOverheadUIWorkCorners = new Vector3[4];
 
     private void Subscribe()
     {
