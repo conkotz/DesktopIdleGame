@@ -52,10 +52,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text lifeStealText;
 
     [Header("Minions (owner scaling — no DPS yet)")]
-    [Tooltip("Optional. Assign TMP in offence tab; wire GameObject names MinionDamageText / MinionAttackSpeedText / MinionCritChanceText for hover copy.")]
+    [Tooltip("Optional. Assign TMP in offence tab; wire GameObject names MinionDamageText / MinionAttackSpeedText / MinionCritChanceText / MinionMaxLifeText for hover copy.")]
     [SerializeField] private TMP_Text minionDamageText;
     [SerializeField] private TMP_Text minionAttackSpeedText;
     [SerializeField] private TMP_Text minionCritChanceText;
+    [SerializeField] private TMP_Text minionMaxLifeText;
 
     [Header("Offence — section titles (optional)")]
     [Tooltip("e.g. \"Global bonuses\". Shown above phys/magic/corruption lines.")]
@@ -367,6 +368,9 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (minionCritChanceText)
             minionCritChanceText.text =
                 $"Minion Crit Chance: {stats.FinalMinionCritChancePercentPoints:0.#}%";
+        if (minionMaxLifeText)
+            minionMaxLifeText.text =
+                $"Minion Max Life: {FormatSignedPercentPoints(stats.FinalMinionMaxLifePercentPoints)}";
 
         if (globalPhysicalAllText)
             globalPhysicalAllText.text = $"Physical: {FormatSignedPercentPoints(stats.GlobalPhysicalDamageBonusPercentPoints)}";
@@ -532,6 +536,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(minionDamageText);
         Wire(minionAttackSpeedText);
         Wire(minionCritChanceText);
+        Wire(minionMaxLifeText);
 
         foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
         {
@@ -555,6 +560,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 case "MinionDamageText":
                 case "MinionAttackSpeedText":
                 case "MinionCritChanceText":
+                case "MinionMaxLifeText":
                     Wire(tmp);
                     break;
             }

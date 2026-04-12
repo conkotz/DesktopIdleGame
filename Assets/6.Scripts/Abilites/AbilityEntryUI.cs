@@ -178,7 +178,11 @@ public class AbilityEntryUI : MonoBehaviour,
     {
         if (!def) return "";
 
+        string tagLine = AbilityTooltipDamagePreview.BuildAbilityTooltipTagLine(def, orangeMarkup: false);
         string desc = BuildAbilityDescription(def);
+        if (!string.IsNullOrEmpty(tagLine))
+            desc = $"{tagLine}\n\n{desc}";
+
         string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, stats);
         string afterDesc = string.IsNullOrEmpty(weaponLine) ? "" : $"\n\n{weaponLine}";
 

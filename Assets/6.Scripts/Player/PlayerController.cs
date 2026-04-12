@@ -98,18 +98,18 @@ public class PlayerController : MonoBehaviour
     public void SetTeleportOutVisualsActive(bool active) => _suppressSpriteFlipForTeleport = active;
 
     [Header("Summons")]
-    [Tooltip("Home anchor for the spectral weapon (world position + rotation). If unset, Awake resolves SpectralWeaponSpawnPoint under Sprite Flip → Visuals Root (same hierarchy as ranged/magic spawn points), then a direct child of this object, else player root.")]
+    [Tooltip("Home anchor for Soulforged Weapon (world position + rotation). If unset, Awake resolves SoulforgedWeaponSpawnPoint under Sprite Flip → Visuals Root (same hierarchy as ranged/magic spawn points), then a direct child of this object, else player root.")]
     [SerializeField, FormerlySerializedAs("spectralWeaponHomeAnchor")]
     private Transform spectralWeaponSpawnPoint;
 
-    private bool _warnedSpectralSpawnPointOnce;
+    private bool _warnedSoulforgedWeaponSpawnPointOnce;
 
     /// <summary>
-    /// Home anchor for spectral summons (under visuals root with other weapon spawn points when auto-resolved). Falls back to player root if missing.
+    /// Home anchor for Soulforged Weapon summons (under visuals root with other weapon spawn points when auto-resolved). Falls back to player root if missing.
     /// </summary>
-    public Transform SpectralWeaponSpawnPoint => spectralWeaponSpawnPoint ? spectralWeaponSpawnPoint : transform;
+    public Transform SoulforgedWeaponSpawnPoint => spectralWeaponSpawnPoint ? spectralWeaponSpawnPoint : transform;
 
-    private void ResolveSpectralWeaponSpawnPoint()
+    private void ResolveSoulforgedWeaponSpawnPoint()
     {
         if (spectralWeaponSpawnPoint)
             return;
@@ -117,7 +117,7 @@ public class PlayerController : MonoBehaviour
         // Same pattern as PlayerCombatController projectile anchors: child of visuals root (e.g. Soldier) so it moves/flips with the rig.
         if (visualsRoot)
         {
-            Transform underVisuals = visualsRoot.Find("SpectralWeaponSpawnPoint");
+            Transform underVisuals = visualsRoot.Find("SoulforgedWeaponSpawnPoint");
             if (underVisuals)
             {
                 spectralWeaponSpawnPoint = underVisuals;
@@ -125,24 +125,24 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        Transform t = transform.Find("SpectralWeaponSpawnPoint");
+        Transform t = transform.Find("SoulforgedWeaponSpawnPoint");
         if (t)
         {
             spectralWeaponSpawnPoint = t;
             return;
         }
 
-        if (!_warnedSpectralSpawnPointOnce)
+        if (!_warnedSoulforgedWeaponSpawnPointOnce)
         {
             Debug.LogWarning(
-                "[Player] SpectralWeaponSpawnPoint: assign in inspector, or add SpectralWeaponSpawnPoint under Sprite Flip → Visuals Root, or as a direct child of the player. Using player transform for summon home.",
+                "[Player] SoulforgedWeaponSpawnPoint: assign in inspector, or add SoulforgedWeaponSpawnPoint under Sprite Flip → Visuals Root, or as a direct child of the player. Using player transform for summon home.",
                 this);
-            _warnedSpectralSpawnPointOnce = true;
+            _warnedSoulforgedWeaponSpawnPointOnce = true;
         }
     }
 
-    /// <summary>World position for spectral weapon idle/home (see <see cref="SpectralWeaponSpawnPoint"/>).</summary>
-    public Vector3 GetSpectralWeaponHomeWorldPosition() => SpectralWeaponSpawnPoint.position;
+    /// <summary>World position for Soulforged Weapon idle/home (see <see cref="SoulforgedWeaponSpawnPoint"/>).</summary>
+    public Vector3 GetSoulforgedWeaponHomeWorldPosition() => SoulforgedWeaponSpawnPoint.position;
 
     [Header("Popup (World Tooltip)")]
     [SerializeField] private GameObject actionPopup;          // one popup object
@@ -360,7 +360,7 @@ public class PlayerController : MonoBehaviour
         if (actionPopup)
             actionPopup.SetActive(false);
 
-        ResolveSpectralWeaponSpawnPoint();
+        ResolveSoulforgedWeaponSpawnPoint();
     }
 
     private void Start()

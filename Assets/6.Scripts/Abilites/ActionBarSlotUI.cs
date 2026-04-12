@@ -467,7 +467,11 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (def == null)
             return string.IsNullOrWhiteSpace(assignment?.description) ? "Ability" : assignment.description.Trim();
 
+        string tagLine = AbilityTooltipDamagePreview.BuildAbilityTooltipTagLine(def, orangeMarkup: true);
         string desc = string.IsNullOrWhiteSpace(assignment?.description) ? "Ability" : assignment.description.Trim();
+        if (!string.IsNullOrEmpty(tagLine))
+            desc = $"{tagLine}\n\n{desc}";
+
         SkillsManager sm = SkillsManager.Instance;
 
         CharacterStats previewStats = AbilityTooltipDamagePreview.FindLocalPlayerStats();

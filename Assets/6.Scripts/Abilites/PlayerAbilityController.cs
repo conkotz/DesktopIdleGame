@@ -97,10 +97,10 @@ public class PlayerAbilityController : MonoBehaviour
     /// <summary>Player root transform (this component lives on the player).</summary>
     private Transform _ownerTransform;
 
-    private SpectralWeaponMinion _activeSpectralWeaponMinion;
+    private SoulforgedWeaponMinion _activeSoulforgedWeaponMinion;
 
-    /// <summary>When the spectral summon despawns, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
-    private AbilityDefinition _spectralWeaponCooldownAbilityDef;
+    /// <summary>When the Soulforged Weapon summon despawns, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
+    private AbilityDefinition _soulforgedWeaponCooldownAbilityDef;
 
     private enum QueuedHitEffect
     {
@@ -209,9 +209,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (globalCooldownSeconds > 0f && Time.time < _globalCooldownEndsAt)
             return false;
 
-        if (def.minionSpawnDefinition && _activeSpectralWeaponMinion)
+        if (def.minionSpawnDefinition && _activeSoulforgedWeaponMinion)
         {
-            _activeSpectralWeaponMinion.TryRecastRetargetOrReturn();
+            _activeSoulforgedWeaponMinion.TryRecastRetargetOrReturn();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -256,7 +256,7 @@ public class PlayerAbilityController : MonoBehaviour
                 return false;
             }
 
-            if (!TrySpawnSpectralWeaponMinion(def))
+            if (!TrySpawnSoulforgedWeaponMinion(def))
             {
                 player.AddEnergy(def.energyCost);
                 return false;
@@ -1811,55 +1811,55 @@ public class PlayerAbilityController : MonoBehaviour
     }
 
     /// <summary>
-    /// Spawns <see cref="SpectralWeaponMinion"/> from ability context: only one active instance per controller.
+    /// Spawns <see cref="SoulforgedWeaponMinion"/> from ability context: only one active instance per controller.
     /// Recast while alive retargets or sends the minion home instead of destroying and respawning.
-    /// Visual + anchor come from equipment and <see cref="PlayerController.SpectralWeaponSpawnPoint"/> (no scene-wide searches on the minion).
+    /// Visual + anchor come from equipment and <see cref="PlayerController.SoulforgedWeaponSpawnPoint"/> (no scene-wide searches on the minion).
     /// </summary>
-    private bool TrySpawnSpectralWeaponMinion(AbilityDefinition def)
+    private bool TrySpawnSoulforgedWeaponMinion(AbilityDefinition def)
     {
         MinionDefinition md = def.minionSpawnDefinition;
         if (!md || !md.runtimePrefab || !_ownerStats || !player)
             return false;
 
-        Transform anchor = player.SpectralWeaponSpawnPoint;
+        Transform anchor = player.SoulforgedWeaponSpawnPoint;
         Transform attacker = _ownerTransform ? _ownerTransform : _ownerStats.transform;
 
         GameObject go = Instantiate(md.runtimePrefab, anchor.position, Quaternion.identity);
-        SpectralWeaponMinion minion = go.GetComponent<SpectralWeaponMinion>();
+        SoulforgedWeaponMinion minion = go.GetComponent<SoulforgedWeaponMinion>();
         if (!minion)
         {
             Destroy(go);
             return false;
         }
 
-        Sprite weaponSprite = ResolveSpectralWeaponVisualSprite(md, def);
-        if (!minion.Initialize(_ownerStats, md, anchor, weaponSprite, attacker, HandleSpectralWeaponReleased))
+        Sprite weaponSprite = ResolveSoulforgedWeaponVisualSprite(md, def);
+        if (!minion.Initialize(_ownerStats, md, anchor, weaponSprite, attacker, HandleSoulforgedWeaponReleased))
         {
             Destroy(go);
             return false;
         }
 
-        _activeSpectralWeaponMinion = minion;
-        _spectralWeaponCooldownAbilityDef = def;
+        _activeSoulforgedWeaponMinion = minion;
+        _soulforgedWeaponCooldownAbilityDef = def;
         return true;
     }
 
-    private void HandleSpectralWeaponReleased(SpectralWeaponMinion m)
+    private void HandleSoulforgedWeaponReleased(SoulforgedWeaponMinion m)
     {
-        if (_activeSpectralWeaponMinion == m)
-            _activeSpectralWeaponMinion = null;
+        if (_activeSoulforgedWeaponMinion == m)
+            _activeSoulforgedWeaponMinion = null;
 
-        if (_spectralWeaponCooldownAbilityDef)
+        if (_soulforgedWeaponCooldownAbilityDef)
         {
-            StartCooldown(_spectralWeaponCooldownAbilityDef);
-            _spectralWeaponCooldownAbilityDef = null;
+            StartCooldown(_soulforgedWeaponCooldownAbilityDef);
+            _soulforgedWeaponCooldownAbilityDef = null;
         }
     }
 
     /// <summary>
     /// Visual only: held → equipped → item icon → <see cref="AbilityDefinition.icon"/> → minion placeholder. Does not copy weapon combat stats.
     /// </summary>
-    private Sprite ResolveSpectralWeaponVisualSprite(MinionDefinition md, AbilityDefinition abilityDef)
+    private Sprite ResolveSoulforgedWeaponVisualSprite(MinionDefinition md, AbilityDefinition abilityDef)
     {
         Sprite FallbackAbilityOrPlaceholder()
         {
@@ -1891,10 +1891,10 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_activeSpectralWeaponMinion)
+        if (_activeSoulforgedWeaponMinion)
         {
-            _activeSpectralWeaponMinion.CancelAndDestroy();
-            _activeSpectralWeaponMinion = null;
+            _activeSoulforgedWeaponMinion.CancelAndDestroy();
+            _activeSoulforgedWeaponMinion = null;
         }
     }
 }

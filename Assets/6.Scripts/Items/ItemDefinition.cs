@@ -335,6 +335,9 @@ public struct BonusStats
     [Tooltip("Added minion crit chance, 0–1 scale (0.1 = +10 percentage points). Minion crit damage is fixed ×1.5 (not from items).")]
     public float minionCritChance;
 
+    [Tooltip("Bonus max life for your minions (0.1 = +10%). Applied when minion HP is implemented; halved for inherited weapon-hit minions.")]
+    public float minionMaxLifePercent;
+
     [Tooltip("Added crit chance, 0–1 scale (0.1 = +10 percentage points).")]
     public float critChanceBonus;
 
@@ -393,6 +396,7 @@ public struct BonusStats
                corruptionDamage != 0f || abilityPower != 0f ||
                attackSpeedPercent != 0f ||
                minionDamagePercent != 0f || minionAttackSpeedPercent != 0f || minionCritChance != 0f ||
+               minionMaxLifePercent != 0f ||
                critChanceBonus != 0f || critMultiplierBonus != 0f ||
                attackRangeBonus != 0f ||
                bleedChance > 0f || bleedMultiplier != 0f ||
@@ -1181,6 +1185,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.minionAttackSpeedPercent, "Minion Attack Speed")}\n";
         if (bonusStats.minionCritChance != 0f)
             s += $"Minion Crit Chance: {FormatSignedPercent01(bonusStats.minionCritChance)}\n";
+        if (bonusStats.minionMaxLifePercent != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.minionMaxLifePercent, "Minion Max Life")}\n";
         if (bonusStats.critChanceBonus != 0f) s += $"Crit Chance: {FormatSignedPercent01(bonusStats.critChanceBonus)}\n";
         if (bonusStats.critMultiplierBonus != 0f) s += $"Crit Multi: {FormatSignedPercent01(bonusStats.critMultiplierBonus)}\n";
         if (bonusStats.attackRangeBonus != 0f) s += $"Range: {FormatSignedNumber(bonusStats.attackRangeBonus)}\n";

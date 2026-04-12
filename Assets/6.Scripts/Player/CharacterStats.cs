@@ -276,6 +276,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float minionDamagePercent;
         public float minionAttackSpeedPercent;
         public float minionCritChance;
+        public float minionMaxLifePercent;
     }
 
     private struct RangedMinorNodeBonuses
@@ -600,6 +601,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float FinalMinionCritChance =>
         Mathf.Max(0f, GetEquippedMinionCritChance() + GetOwnerMinionBonusesFromSkills().minionCritChance);
 
+    /// <summary>Aggregated bonus max life fraction for minions (gear + passives). Use with minion HP when implemented.</summary>
+    public float FinalMinionMaxLifePercent =>
+        Mathf.Max(0f, GetEquippedMinionMaxLifePercent() + GetOwnerMinionBonusesFromSkills().minionMaxLifePercent);
+
     /// <summary>UI: minion damage % as display points (+15 for +15%).</summary>
     public float FinalMinionDamagePercentPoints => FinalMinionDamagePercent * 100f;
 
@@ -608,6 +613,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     /// <summary>UI: minion crit as percentage points for labels.</summary>
     public float FinalMinionCritChancePercentPoints => FinalMinionCritChance * 100f;
+
+    /// <summary>UI: minion max life % as display points.</summary>
+    public float FinalMinionMaxLifePercentPoints => FinalMinionMaxLifePercent * 100f;
+
+    /// <summary>
+    /// Owner minion max-life % after inherit penalty (half strength when inheriting weapon hit stats).
+    /// </summary>
+    public float GetEffectiveMinionMaxLifePercent(MinionDamageSourceMode mode)
+    {
+        float scale = mode == MinionDamageSourceMode.InheritOwnerHitSplit
+            ? MinionRuntimeStatsCalculator.InheritMinionOwnerBonusScale
+            : 1f;
+        return FinalMinionMaxLifePercent * scale;
+    }
 
     /// <summary>True when the attack has physical or magic damage; corruption-only hits cannot crit on basic attacks.</summary>
     public bool HasCrittableDirectDamage =>
@@ -1224,6 +1243,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
         {
             if (def == null) continue;
             total += def.bonusStats.minionCritChance;
+        }
+        return total;
+    }
+
+    private float GetEquippedMinionMaxLifePercent()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def == null) continue;
+            total += def.bonusStats.minionMaxLifePercent;
         }
         return total;
     }

@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 2e15a983e647ec142bfdadc1698f81bc
+guid: a311d655e950d354a9c1c011aaaeb036
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -8860823726366746541
-    second: Spectral weapons_0
+      213: 2127427094619477876
+    second: ForgeWeapon2_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,7 +100,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Spectral weapons_0
+      name: ForgeWeapon2_0
       rect:
         serializedVersion: 2
         x: 0
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 3589e8c74c7080580800000000000000
-      internalID: -8860823726366746541
+      spriteID: 477d554cba3268d10800000000000000
+      internalID: 2127427094619477876
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Spectral weapons_0: -8860823726366746541
+      ForgeWeapon2_0: 2127427094619477876
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

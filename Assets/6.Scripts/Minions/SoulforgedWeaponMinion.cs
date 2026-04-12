@@ -2,12 +2,12 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// Spectral main-hand weapon: root transform follows the handle-bottom world pivot; child SlashPivot rotates for slashes.
+/// Soulforged Weapon: root transform follows the handle-bottom world pivot; child SlashPivot rotates for slashes.
 /// Idle at spawn anchor, approach without rotating root, attach beside target and face them, slash around pivot with damage each strike.
 /// Combat: <see cref="MinionRuntimeStatsCalculator"/> — inherited owner <see cref="SplitDamage"/> snapshot plus minion bonuses.
 /// </summary>
 [DisallowMultipleComponent]
-public class SpectralWeaponMinion : MonoBehaviour
+public class SoulforgedWeaponMinion : MonoBehaviour
 {
     public enum MotionState
     {
@@ -29,7 +29,7 @@ public class SpectralWeaponMinion : MonoBehaviour
     private MinionDefinition _def;
     private Transform _homeAnchor;
     private Transform _attackerTransform;
-    private Action<SpectralWeaponMinion> _onDespawned;
+    private Action<SoulforgedWeaponMinion> _onDespawned;
 
     private float _expireTime;
     private MotionState _state = MotionState.Idle;
@@ -91,13 +91,13 @@ public class SpectralWeaponMinion : MonoBehaviour
         Transform homeAnchor,
         Sprite weaponSprite = null,
         Transform attackerTransform = null,
-        Action<SpectralWeaponMinion> onDespawned = null)
+        Action<SoulforgedWeaponMinion> onDespawned = null)
     {
         if (!ownerStats)
         {
             if (!_warnedOwnerNull)
             {
-                Debug.LogWarning("[SpectralWeaponMinion] Initialize failed: owner CharacterStats is null.", this);
+                Debug.LogWarning("[SoulforgedWeaponMinion] Initialize failed: owner CharacterStats is null.", this);
                 _warnedOwnerNull = true;
             }
 
@@ -108,7 +108,7 @@ public class SpectralWeaponMinion : MonoBehaviour
         {
             if (!_warnedDefinitionNull)
             {
-                Debug.LogWarning("[SpectralWeaponMinion] Initialize failed: MinionDefinition is null.", this);
+                Debug.LogWarning("[SoulforgedWeaponMinion] Initialize failed: MinionDefinition is null.", this);
                 _warnedDefinitionNull = true;
             }
 
@@ -159,7 +159,7 @@ public class SpectralWeaponMinion : MonoBehaviour
             _returnFlipLocked = false;
             _state = MotionState.Approaching;
             if (debugLogs)
-                Debug.Log($"[SpectralWeapon] Recast → approach {enemy.name}", this);
+                Debug.Log($"[SoulforgedWeapon] Recast → approach {enemy.name}", this);
         }
         else
         {
@@ -168,7 +168,7 @@ public class SpectralWeaponMinion : MonoBehaviour
             _returnFlipLocked = false;
             _state = MotionState.Returning;
             if (debugLogs)
-                Debug.Log("[SpectralWeapon] Recast → return (no enemy in range)", this);
+                Debug.Log("[SoulforgedWeapon] Recast → return (no enemy in range)", this);
         }
     }
 
@@ -479,7 +479,7 @@ public class SpectralWeaponMinion : MonoBehaviour
         _returnFlipLocked = false;
         _state = MotionState.Approaching;
         if (debugLogs)
-            Debug.Log($"[SpectralWeapon] Approach → {enemy.name}", this);
+            Debug.Log($"[SoulforgedWeapon] Approach → {enemy.name}", this);
     }
 
     private void TickApproaching()
@@ -522,7 +522,7 @@ public class SpectralWeaponMinion : MonoBehaviour
             _attachFrozenHorizontalValid = true;
             _state = MotionState.Attached;
             if (debugLogs)
-                Debug.Log($"[SpectralWeapon] Attached → {_strikeTarget.name}", this);
+                Debug.Log($"[SoulforgedWeapon] Attached → {_strikeTarget.name}", this);
         }
     }
 
@@ -651,7 +651,7 @@ public class SpectralWeaponMinion : MonoBehaviour
             _state = MotionState.Idle;
             ScheduleNextStrike();
             if (debugLogs)
-                Debug.Log("[SpectralWeapon] Idle", this);
+                Debug.Log("[SoulforgedWeapon] Idle", this);
         }
     }
 
@@ -697,7 +697,7 @@ public class SpectralWeaponMinion : MonoBehaviour
             atk);
 
         if (debugLogs)
-            Debug.Log($"[SpectralWeapon] Hit {enemy.name} p={ip} m={im} c={ic} crit={crit}", this);
+            Debug.Log($"[SoulforgedWeapon] Hit {enemy.name} p={ip} m={im} c={ic} crit={crit}", this);
     }
 
     private static EnemyBaseController FindNearestEnemy(Vector3 from, float range)
@@ -768,7 +768,7 @@ public class SpectralWeaponMinion : MonoBehaviour
         ApplyFacingFromPlayerVisuals();
     }
 
-    /// <summary>Match player rig mirror (SpectralWeaponSpawnPoint under flipped Visuals), not idle wobble direction.</summary>
+    /// <summary>Match player rig mirror (SoulforgedWeaponSpawnPoint under flipped Visuals), not idle wobble direction.</summary>
     private void ApplyFacingFromPlayerVisuals()
     {
         if (!spriteRenderer)

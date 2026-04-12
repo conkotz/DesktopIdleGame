@@ -13,6 +13,25 @@ public static class AbilityTooltipDamagePreview
 
     /// <summary>Scaling lines when effects are default/white (e.g. skills ability list).</summary>
     private const string TooltipScalingAccentColorPlain = "#B0C8DD";
+
+    /// <summary>Inherit-mode minions: no per-type damage numbers — one global rule (matches scaling-accent lines).</summary>
+    private const string InheritMinionDamageRuleLine =
+        "- Minion damage inherits a portion of the damage from your total damage";
+
+    private const string InheritMinionScalingPenaltyNote = "(inherited minions gain 50% less scaling)";
+
+    /// <summary>Rich-text tag line for minion summon abilities (prepend above description). Empty if not applicable.</summary>
+    public static string BuildAbilityTooltipTagLine(AbilityDefinition def, bool orangeMarkup)
+    {
+        if (!def || !def.SpawnsMinionOnCast)
+            return "";
+
+        const string tag = "Minion";
+        return orangeMarkup
+            ? $"<color=#FFB347>{tag}</color>"
+            : $"<color=#B0C8DD>{tag}</color>";
+    }
+
     public static CharacterStats FindLocalPlayerStats()
     {
         var player = Object.FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
@@ -144,13 +163,25 @@ public static class AbilityTooltipDamagePreview
 
         float tipAp = stats ? Mathf.Max(0f, stats.AbilityPower) : 0f;
         bool showApInEffects =
-            !IsCleavingStrikes(def) && !IsRend(def) && !IsVenomJab(def);
+            !IsCleavingStrikes(def) && !IsRend(def) && !IsVenomJab(def) && !def.SpawnsMinionOnCast;
         int tooltipApBonus = showApInEffects && stats != null
             ? ComputeTooltipApBonusDamage(def, stats, pEffTip, mEffTip, cEffTip, allM)
             : 0;
 
         var body = new StringBuilder();
         body.AppendLine(O("Effects:"));
+
+        if (def.SpawnsMinionOnCast && def.minionSpawnDefinition)
+        {
+            if (stats != null)
+                AppendMinionSpawnTooltipEffects(body, O, S, def, stats);
+            else
+                AppendMinionSpawnTooltipEffectsNoStats(body, O, S, def);
+
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"{def.energyCost:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            return body.ToString().TrimEnd();
+        }
 
         if (IsRend(def))
         {
@@ -370,6 +401,157 @@ public static class AbilityTooltipDamagePreview
         body.AppendLine(O($"{def.energyCost:0.#} Energy • {cooldown:0.#}s Cooldown"));
 
         return body.ToString().TrimEnd();
+    }
+
+    private static void AppendMinionSpawnTooltipEffectsNoStats(
+        StringBuilder body,
+        System.Func<string, string> O,
+        System.Func<string, string> S,
+        AbilityDefinition def)
+    {
+        MinionCombatConfig cfg = def.minionSpawnDefinition.combatConfig;
+        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
+            body.AppendLine(S(InheritMinionDamageRuleLine));
+        else
+            body.AppendLine(O("Minion source damage"));
+
+        body.AppendLine(O("+0 damage from Minion Damage" + DamageTimingSuffix()));
+        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
+            body.AppendLine(O(InheritMinionScalingPenaltyNote));
+    }
+
+    private static void AppendMinionSpawnTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        System.Func<string, string> S,
+        AbilityDefinition def,
+        CharacterStats stats)
+    {
+        MinionCombatConfig cfg = def.minionSpawnDefinition.combatConfig;
+        const float scalerEps = 0.05f;
+        string dmgSuffix = DamageTimingSuffix();
+
+        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
+        {
+            body.AppendLine(S(InheritMinionDamageRuleLine));
+        }
+        else
+        {
+            SplitDamageRange basePre = cfg.pureMinionDamageSplitRange;
+            float dmgMult = 1f + stats.FinalMinionDamagePercent;
+
+            float avgPhys = (basePre.min.physical + basePre.max.physical) * 0.5f;
+            float avgMag = (basePre.min.magic + basePre.max.magic) * 0.5f;
+            float avgCorr = (basePre.min.corruptionDamage + basePre.max.corruptionDamage) * 0.5f;
+
+            float finalPhys = avgPhys * dmgMult;
+            float finalMag = avgMag * dmgMult;
+            float finalCorr = avgCorr * dmgMult;
+
+            float physScaler = finalPhys - avgPhys;
+            float magScaler = finalMag - avgMag;
+            float corrScaler = finalCorr - avgCorr;
+
+            bool anySignificant =
+                Mathf.Abs(physScaler) >= scalerEps || Mathf.Abs(magScaler) >= scalerEps ||
+                Mathf.Abs(corrScaler) >= scalerEps;
+
+            if (anySignificant)
+            {
+                if (Mathf.Abs(physScaler) >= scalerEps)
+                    body.AppendLine(O(FormatSignedDamageLine(Mathf.RoundToInt(physScaler), "Physical", dmgSuffix)));
+                if (Mathf.Abs(magScaler) >= scalerEps)
+                    body.AppendLine(O(FormatSignedDamageLine(Mathf.RoundToInt(magScaler), "Magic", dmgSuffix)));
+                if (Mathf.Abs(corrScaler) >= scalerEps)
+                    body.AppendLine(O(FormatSignedDamageLine(Mathf.RoundToInt(corrScaler), "Corruption", dmgSuffix)));
+            }
+            else
+            {
+                body.AppendLine(O("Minion source damage"));
+            }
+        }
+
+        int mdFlat = ComputeTooltipMinionDamageFlatBonus(def, stats);
+        body.AppendLine(O($"+{mdFlat} damage from Minion Damage{dmgSuffix}"));
+
+        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
+            body.AppendLine(O(InheritMinionScalingPenaltyNote));
+
+        AppendMinionModifierStatLines(body, S, stats, cfg.damageSourceMode);
+    }
+
+    /// <summary>Flat damage from owner Minion Damage % on one hit (matches runtime × pre-hit base; inherit uses half scaling).</summary>
+    private static int ComputeTooltipMinionDamageFlatBonus(AbilityDefinition def, CharacterStats stats)
+    {
+        if (!def || def.minionSpawnDefinition == null || !stats)
+            return 0;
+
+        MinionCombatConfig cfg = def.minionSpawnDefinition.combatConfig;
+        float scale = cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit
+            ? MinionRuntimeStatsCalculator.InheritMinionOwnerBonusScale
+            : 1f;
+        float effectivePct = Mathf.Max(0f, stats.FinalMinionDamagePercent) * scale;
+
+        if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
+        {
+            float coeff = Mathf.Max(0f, cfg.inheritDamageCoefficient);
+            SplitDamageRange preBonus = new SplitDamageRange
+            {
+                min = stats.MinSplitDamage * coeff,
+                max = stats.MaxSplitDamage * coeff
+            };
+            float avgPhys = (preBonus.min.physical + preBonus.max.physical) * 0.5f;
+            float avgMag = (preBonus.min.magic + preBonus.max.magic) * 0.5f;
+            float avgCorr = (preBonus.min.corruptionDamage + preBonus.max.corruptionDamage) * 0.5f;
+            float preTotal = avgPhys + avgMag + avgCorr;
+            return Mathf.RoundToInt(preTotal * effectivePct);
+        }
+
+        SplitDamageRange basePre = cfg.pureMinionDamageSplitRange;
+        float p = (basePre.min.physical + basePre.max.physical) * 0.5f;
+        float m = (basePre.min.magic + basePre.max.magic) * 0.5f;
+        float c = (basePre.min.corruptionDamage + basePre.max.corruptionDamage) * 0.5f;
+        float preTotalPure = p + m + c;
+        return Mathf.RoundToInt(preTotalPure * Mathf.Max(0f, stats.FinalMinionDamagePercent));
+    }
+
+    private static void AppendMinionModifierStatLines(
+        StringBuilder body,
+        System.Func<string, string> S,
+        CharacterStats stats,
+        MinionDamageSourceMode mode)
+    {
+        const float eps = 0.0001f;
+        float scale = mode == MinionDamageSourceMode.InheritOwnerHitSplit
+            ? MinionRuntimeStatsCalculator.InheritMinionOwnerBonusScale
+            : 1f;
+
+        if (Mathf.Abs(stats.FinalMinionAttackSpeedPercent * scale) > eps)
+        {
+            body.AppendLine(S(
+                $"{FormatSignedPercentPointsForTooltip(stats.FinalMinionAttackSpeedPercentPoints * scale)} attack speed from minion attack speed"));
+        }
+
+        if (Mathf.Abs(stats.FinalMinionCritChance * scale) > eps)
+        {
+            body.AppendLine(S(
+                $"{FormatSignedPercentPointsForTooltip(stats.FinalMinionCritChancePercentPoints * scale)} crit chance from minion crit chance"));
+        }
+
+        if (Mathf.Abs(stats.FinalMinionMaxLifePercent * scale) > eps)
+        {
+            body.AppendLine(S(
+                $"{FormatSignedPercentPointsForTooltip(stats.FinalMinionMaxLifePercentPoints * scale)} max life from minion max life"));
+        }
+    }
+
+    private static string FormatSignedPercentPointsForTooltip(float percentPoints)
+    {
+        if (percentPoints > 0f)
+            return $"+{percentPoints:0.#}%";
+        if (percentPoints < 0f)
+            return $"{percentPoints:0.#}%";
+        return "0%";
     }
 
     private static void AppendDecimalScalerEffectLines(

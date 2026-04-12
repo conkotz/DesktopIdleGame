@@ -4,13 +4,13 @@ using UnityEngine.Serialization;
 
 /// <summary>
 /// Reusable runtime config for summons/minions: motion, duration, prefab, and embedded <see cref="MinionCombatConfig"/>
-/// (inherit owner weapon vs pure minion source damage). Used by <see cref="SpectralWeaponMinion"/> and future minion types.
+/// (inherit owner weapon vs pure minion source damage). Used by <see cref="SoulforgedWeaponMinion"/> and future minion types.
 /// </summary>
 [CreateAssetMenu(fileName = "MinionDefinition_", menuName = "Desktop Idle Game/Minions/Minion Definition")]
 public class MinionDefinition : ScriptableObject, ISerializationCallbackReceiver
 {
     [Header("Prefab")]
-    [Tooltip("Prefab must include a SpectralWeaponMinion (or future runtime) on the root or a child.")]
+    [Tooltip("Prefab must include a SoulforgedWeaponMinion (or future runtime) on the root or a child.")]
     public GameObject runtimePrefab;
 
     [Header("Lifetime")]
@@ -40,14 +40,14 @@ public class MinionDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Min(0.01f)]
     public float returnSpeed = 13f;
 
-    [Header("Attach & slash (spectral weapon)")]
+    [Header("Attach & slash (Soulforged Weapon)")]
     [Tooltip(
         "Extra world units above the top of the enemy's sprite/collider bounds (not the pivot). " +
         "Use ~0.3–0.8 so the weapon clears the head like the player spawn anchor.")]
     [Min(0f)]
     public float attachHeightAboveEnemy = 0.45f;
 
-    [Tooltip("World-units along +X from the enemy root (magnitude only; spectral weapon always uses this flank for stable facing).")]
+    [Tooltip("World-units along +X from the enemy root (magnitude only; Soulforged Weapon always uses this flank for stable facing).")]
     public float attachHorizontalOffsetTowardPlayer = 0.65f;
 
     [Tooltip(

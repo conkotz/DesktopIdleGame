@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9b1c9fcc0c4430e4b973ca502d99cd4a, type: 3}
-  m_Name: SpectralWeapon_MinionDefinition
+  m_Name: SoulforgedWeapon_MinionDefinition
   m_EditorClassIdentifier: Assembly-CSharp::MinionDefinition
   runtimePrefab: {fileID: 5834920744521277035, guid: 2d089ffdb42e1404b8233d580cdc04e3, type: 3}
   summonDuration: 30

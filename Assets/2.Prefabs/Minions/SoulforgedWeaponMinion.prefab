@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 8758740548893858179}
   - component: {fileID: 2837880141419803573}
   m_Layer: 0
-  m_Name: SpectralWeaponMinion
+  m_Name: SoulforgedWeaponMinion
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -103,7 +103,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4daaf4d561736e745b865608e73e5377, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SpectralWeaponMinion
+  m_EditorClassIdentifier: Assembly-CSharp::SoulforgedWeaponMinion
   spriteRenderer: {fileID: 8758740548893858179}
   debugLogs: 0
   debugDrawGizmo: 0

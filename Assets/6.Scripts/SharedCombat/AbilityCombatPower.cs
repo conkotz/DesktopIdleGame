@@ -230,6 +230,16 @@ public static class AbilityCombatPower
         if (!def || !stats)
             return 0f;
 
+        if (def.minionSpawnDefinition)
+        {
+            float mdps = MinionRuntimeStatsCalculator.EstimateMinionDamagePerSecond(
+                stats,
+                def.minionSpawnDefinition.combatConfig);
+            float summonDur = Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration);
+            float cooldown = Mathf.Max(0.01f, def.cooldown);
+            return Mathf.Max(0f, mdps * (summonDur / cooldown));
+        }
+
         float physMult = def.physicalDamageMultiplier;
         float cd = Mathf.Max(0.01f, def.cooldown);
         ApplyPowerSlashChoiceAdjustments(def, ref physMult, ref cd);

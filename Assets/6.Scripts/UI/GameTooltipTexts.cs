@@ -137,6 +137,13 @@ public static class GameTooltipTexts
                     "Minion critical strikes always deal ×1.5 total damage (+50% bonus); that multiplier is not scalable.";
                 return true;
 
+            case "MinionMaxLifeText":
+                title = "Minion max life";
+                description =
+                    "Bonus maximum life for your minions and summons (additive %).\n\n" +
+                    "Applies when minion HP is implemented. Inherited weapon-hit minions gain half as much from this stat as pure minion-source summons.";
+                return true;
+
             case "PhysicalBonusText":
             case "GlobalPhysicalBonusText":
                 title = "All physical";

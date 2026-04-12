@@ -507,8 +507,10 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 35
-    title: Spectral Weapon
-    description: Summon a spectral copy of your main-hand weapon to strike at foes, then return to your side.
+    title: Soulforged Weapon
+    description: Summon a soulforged copy of your main-hand weapon to strike at foes.
+      This weapon will stay attached to the enemy unless commanded to swap targets
+      or return to you if out of enemy range.
     icon: {fileID: -8860823726366746541, guid: 2e15a983e647ec142bfdadc1698f81bc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
