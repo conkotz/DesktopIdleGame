@@ -32,6 +32,7 @@ public class QuestListRowUI : MonoBehaviour
             rowCanvasGroup = GetComponent<CanvasGroup>();
     }
 
+    /// <param name="completed">True when a non-repeatable quest had its reward claimed (row is dimmed).</param>
     public void Bind(
         QuestDefinition quest,
         string subtitle,

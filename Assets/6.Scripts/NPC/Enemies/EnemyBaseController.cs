@@ -865,6 +865,16 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         OnDeath?.Invoke();
+
+        if (QuestProgressManager.Instance != null)
+            QuestProgressManager.Instance.NotifyEnemyKilledForActiveMap();
+        else
+        {
+            QuestProgressManager mgr = FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+            if (mgr)
+                mgr.NotifyEnemyKilledForActiveMap();
+        }
+
         TryDropGold();
 
         if (_rb) _rb.simulated = false;

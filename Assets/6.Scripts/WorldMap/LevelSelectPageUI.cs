@@ -10,9 +10,11 @@ public class LevelSelectPageUI : MonoBehaviour
 {
     [Header("Theme — Region Buttons")]
     [SerializeField] private Color regionUnlockedColor = new Color32(104, 111, 122, 255);
-    [SerializeField] private Color regionLockedColor = new Color32(132, 68, 68, 255);
+    [SerializeField] private Color regionLockedColor = new Color32(56, 58, 62, 255);
     [SerializeField] private Color regionHoverColor = new Color32(126, 133, 146, 255);
     [SerializeField] private Color regionPressedColor = new Color32(92, 99, 113, 255);
+    [SerializeField] private Color regionNameUnlockedColor = new Color32(247, 225, 190, 255);
+    [SerializeField] private Color regionNameLockedColor = new Color32(160, 155, 148, 200);
 
     [Header("Data")]
     [SerializeField] private WorldMapDefinition worldMap;
@@ -346,6 +348,8 @@ public class LevelSelectPageUI : MonoBehaviour
         ApplyRegionButtonTheme(b, unlocked);
 
         WorldMapRegionRowUI rowUI = row.GetComponent<WorldMapRegionRowUI>();
+        ApplyRegionNameStyle(row, rowUI, unlocked);
+
         if (rowUI != null)
         {
             rowUI.SetSelected(selected);
@@ -358,6 +362,13 @@ public class LevelSelectPageUI : MonoBehaviour
             if (t)
                 t.gameObject.SetActive(selected);
         }
+    }
+
+    private void ApplyRegionNameStyle(GameObject row, WorldMapRegionRowUI rowUI, bool unlocked)
+    {
+        TMP_Text label = rowUI != null ? rowUI.NameText : row.GetComponentInChildren<TMP_Text>(true);
+        if (label)
+            label.color = unlocked ? regionNameUnlockedColor : regionNameLockedColor;
     }
 
     private void ApplyRegionButtonTheme(Button button, bool unlocked)

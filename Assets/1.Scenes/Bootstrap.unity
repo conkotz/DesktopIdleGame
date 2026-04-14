@@ -2464,6 +2464,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4c97f2680b24045892c4aacc78377a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestProgressManager
+  questDatabase: {fileID: 11400000, guid: f180c6551db14bf68c47f01f5a087c0f, type: 2}
 --- !u!1 &950795108
 GameObject:
   m_ObjectHideFlags: 0

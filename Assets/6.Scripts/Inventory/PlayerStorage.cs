@@ -82,6 +82,41 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         return _slots[slotIndex];
     }
 
+    public int GetTotalAmount(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId)) return 0;
+        int total = 0;
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            if (_slots[i].itemId == itemId)
+                total += _slots[i].amount;
+        }
+
+        return total;
+    }
+
+    /// <summary>Removes stacks from highest slot index first (same order as <see cref="Inventory.Remove"/>).</summary>
+    public bool Remove(string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return false;
+        if (GetTotalAmount(itemId) < amount) return false;
+
+        for (int i = _slots.Count - 1; i >= 0 && amount > 0; i--)
+        {
+            var s = _slots[i];
+            if (s.IsEmpty || s.itemId != itemId) continue;
+
+            int take = Mathf.Min(s.amount, amount);
+            s.amount -= take;
+            amount -= take;
+            if (s.amount <= 0) s.Clear();
+            _slots[i] = s;
+        }
+
+        OnStorageChanged?.Invoke();
+        return amount == 0;
+    }
+
     public void ReplaceSlot(int slotIndex, Slot newSlot)
     {
         if (slotIndex < 0 || slotIndex >= _slots.Count) return;

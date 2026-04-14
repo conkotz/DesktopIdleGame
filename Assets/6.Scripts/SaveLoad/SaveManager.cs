@@ -307,6 +307,8 @@ public class SaveManager : MonoBehaviour
             data.inventorySlots = new List<SaveData.InventorySlotData>();
         if (data.storageSlots == null)
             data.storageSlots = new List<SaveData.InventorySlotData>();
+        if (data.questRewardClaimedIds == null)
+            data.questRewardClaimedIds = new List<string>();
     }
 
     private IEnumerator DeferredApplyPlayerStorageLoad()

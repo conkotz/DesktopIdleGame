@@ -20,7 +20,7 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("Right-hand label on the row (e.g. Town, Combat, Gathering).")]
     public string listCategoryLabel = "";
 
-    [Tooltip("Smaller status line (e.g. Unlocked). Leave empty to hide.")]
+    [Tooltip("Replaces the automatic status line when set (Available / In progress / Ready / COMPLETE). Leave empty for defaults.")]
     public string listStatusOverride = "";
 
     [Header("Objective")]
@@ -42,6 +42,13 @@ public class QuestDefinition : ScriptableObject
 
     [TextArea(1, 3)]
     public string rewardNotes = "";
+
+    [Header("Rules")]
+    [Tooltip("If false, rewards can only be claimed once; the quest stays COMPLETE in the list.")]
+    public bool repeatable;
+
+    [Tooltip("For kill quests: only increments while this MapNodeDefinition.nodeId is active (empty = any map).")]
+    public string progressMapNodeId = "";
 
     [Header("Ordering")]
     public int sortOrder;

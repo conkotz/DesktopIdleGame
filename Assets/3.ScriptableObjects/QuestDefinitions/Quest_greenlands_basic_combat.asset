@@ -10,21 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
-  m_Name: Quest_greenlands_timber
+  m_Name: Quest_greenlands_basic_combat
   m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
-  questId: greenlands_splitwood_contract
+  questId: greenlands_basic_combat_training
   regionId: greenlands
-  displayName: Splitwood for the town
-  description: Gather splitwood logs for the builders.
-  listCategoryLabel: Gathering
+  displayName: Basic combat training
+  description: Kill 10 enemies in the Green Fields while honing your skills.
+  listCategoryLabel: Combat
   listStatusOverride: 
-  objectiveKind: 2
-  targetCount: 150
-  gatherItemId: splitwood_log
-  rewardGold: 250
-  rewardItem: {fileID: 11400000, guid: 48ca8504b7d8aa143a62f7b3d8b2f519, type: 2}
+  objectiveKind: 1
+  targetCount: 10
+  gatherItemId: 
+  rewardGold: 75
+  rewardItem: {fileID: 0}
   rewardItemId: 
   rewardNotes: 
-  sortOrder: 20
+  sortOrder: 0
   repeatable: 0
-  progressMapNodeId: 
+  progressMapNodeId: green_fields

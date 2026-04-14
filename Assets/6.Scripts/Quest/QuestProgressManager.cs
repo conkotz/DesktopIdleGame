@@ -3,14 +3,22 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Tracks per-quest objective amounts (kills gathered, items gathered, etc.). Persisted via <see cref="ISaveable"/>.
-/// Call <see cref="AddProgress"/> from gameplay when relevant events occur.
+/// Tracks per-quest objective amounts (kills, etc.). Gather-item quests use live inventory + storage counts.
+/// Persisted via <see cref="ISaveable"/>.
 /// </summary>
 public class QuestProgressManager : MonoBehaviour, ISaveable
 {
     public static QuestProgressManager Instance { get; private set; }
 
+    [SerializeField] private QuestDatabase questDatabase;
+
+    [Header("Gather quest — popup")]
+    [SerializeField] private Color gatherConsumedPopupColor = new Color(0.85f, 0.35f, 0.3f, 1f);
+
     private readonly Dictionary<string, int> _amounts = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _rewardClaimed = new(StringComparer.Ordinal);
+
+    private QuestDatabase _resolvedDatabase;
 
     public event Action ProgressChanged;
 
@@ -23,12 +31,63 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         }
 
         Instance = this;
+        ResolveQuestDatabase();
     }
 
     private void OnDestroy()
     {
         if (Instance == this)
             Instance = null;
+    }
+
+    private void ResolveQuestDatabase()
+    {
+        if (questDatabase)
+            _resolvedDatabase = questDatabase;
+        else
+            _resolvedDatabase = Resources.Load<QuestDatabase>("Databases/QuestDatabase_Main");
+    }
+
+    private QuestDefinition FindQuestDefinition(string questId)
+    {
+        if (string.IsNullOrEmpty(questId))
+            return null;
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null)
+            return null;
+        string key = questId.Trim();
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition q = all[i];
+            if (q && string.Equals(q.questId?.Trim(), key, StringComparison.Ordinal))
+                return q;
+        }
+
+        return null;
+    }
+
+    /// <summary>Kill quests: saved progress. Gather quests: inventory + storage total (not saved in _amounts).</summary>
+    public int GetDisplayProgress(QuestDefinition q)
+    {
+        if (!q)
+            return 0;
+        if (q.objectiveKind == QuestObjectiveKind.GatherItem)
+            return GetGatherItemCountLive(q.gatherItemId);
+        return GetProgress(q.questId);
+    }
+
+    public int GetGatherItemCountLive(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return 0;
+        itemId = itemId.Trim();
+        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        int n = inv ? inv.GetTotalAmount(itemId) : 0;
+        if (st)
+            n += st.GetTotalAmount(itemId);
+        return n;
     }
 
     public int GetProgress(string questId)
@@ -43,6 +102,10 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (string.IsNullOrEmpty(questId))
             return;
         questId = questId.Trim();
+        QuestDefinition def = FindQuestDefinition(questId);
+        if (def != null && def.objectiveKind == QuestObjectiveKind.GatherItem)
+            return;
+
         value = Mathf.Max(0, value);
         int prev = GetProgress(questId);
         if (prev == value)
@@ -57,8 +120,211 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     {
         if (delta == 0 || string.IsNullOrEmpty(questId))
             return;
+        QuestDefinition def = FindQuestDefinition(questId);
+        if (def != null && def.objectiveKind == QuestObjectiveKind.GatherItem)
+            return;
+
         int cur = GetProgress(questId);
         SetProgress(questId, cur + delta);
+    }
+
+    public bool IsRewardClaimed(string questId)
+    {
+        if (string.IsNullOrEmpty(questId))
+            return false;
+        return _rewardClaimed.Contains(questId.Trim());
+    }
+
+    public bool IsPermanentlyComplete(QuestDefinition q)
+    {
+        return q && !q.repeatable && IsRewardClaimed(q.questId);
+    }
+
+    public bool CanClaimReward(QuestDefinition q)
+    {
+        if (!q || string.IsNullOrEmpty(q.questId) || q.objectiveKind == QuestObjectiveKind.None)
+            return false;
+        int prog = GetDisplayProgress(q);
+        if (!q.IsComplete(prog))
+            return false;
+        if (!q.repeatable && IsRewardClaimed(q.questId))
+            return false;
+        return true;
+    }
+
+    public bool TryClaimQuestReward(QuestDefinition q)
+    {
+        if (!CanClaimReward(q))
+            return false;
+
+        if (q.objectiveKind == QuestObjectiveKind.GatherItem)
+        {
+            if (!TryConsumeGatherItems(q, out int consumed, out string itemIdNorm))
+                return false;
+            ShowGatherConsumedPopup(consumed, itemIdNorm);
+        }
+
+        GrantRewards(q);
+
+        if (q.repeatable)
+        {
+            if (q.objectiveKind != QuestObjectiveKind.GatherItem)
+                SetProgress(q.questId, 0);
+            else
+                ProgressChanged?.Invoke();
+        }
+        else
+        {
+            MarkRewardClaimed(q.questId);
+            ProgressChanged?.Invoke();
+            if (SaveManager.Instance != null)
+                SaveManager.Instance.Save();
+        }
+
+        return true;
+    }
+
+    private bool TryConsumeGatherItems(QuestDefinition q, out int consumedAmount, out string itemIdNormalized)
+    {
+        consumedAmount = 0;
+        itemIdNormalized = null;
+        string rawId = q.gatherItemId?.Trim();
+        if (string.IsNullOrEmpty(rawId))
+            return false;
+
+        int need = q.targetCount;
+        if (GetGatherItemCountLive(rawId) < need)
+            return false;
+
+        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+
+        int remaining = need;
+        if (inv != null)
+        {
+            int inInv = inv.GetTotalAmount(rawId);
+            int take = Mathf.Min(remaining, inInv);
+            if (take > 0)
+            {
+                if (!inv.Remove(rawId, take))
+                    return false;
+                remaining -= take;
+            }
+        }
+
+        if (remaining > 0 && st != null)
+        {
+            if (!st.Remove(rawId, remaining))
+                return false;
+            remaining = 0;
+        }
+
+        if (remaining != 0)
+            return false;
+
+        consumedAmount = need;
+        itemIdNormalized = rawId;
+        return true;
+    }
+
+    private void ShowGatherConsumedPopup(int amount, string itemId)
+    {
+        GoldPopupSpawner spawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
+        if (!spawner || amount <= 0)
+            return;
+
+        Transform anchor = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include)?.transform;
+        if (!anchor)
+            return;
+
+        string itemLabel = ResolveItemDisplayName(itemId);
+        string msg = $"-{amount} {itemLabel}";
+        Vector3 worldPos = anchor.position + Vector3.up * 1.2f;
+        spawner.ShowMessageAtWorld(worldPos, msg, gatherConsumedPopupColor);
+    }
+
+    private static string ResolveItemDisplayName(string itemId)
+    {
+        ItemDatabase db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        if (db)
+        {
+            ItemDefinition d = db.Get(itemId);
+            if (d)
+                return d.displayName;
+        }
+
+        return FormatItemIdFallback(itemId);
+    }
+
+    private static string FormatItemIdFallback(string raw)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return "items";
+        string[] parts = raw.Split('_');
+        for (int i = 0; i < parts.Length; i++)
+        {
+            string p = parts[i];
+            if (p.Length == 0)
+                continue;
+            parts[i] = char.ToUpperInvariant(p[0]) + (p.Length > 1 ? p.Substring(1).ToLowerInvariant() : "");
+        }
+
+        return string.Join(" ", parts);
+    }
+
+    private void MarkRewardClaimed(string questId)
+    {
+        if (string.IsNullOrEmpty(questId))
+            return;
+        _rewardClaimed.Add(questId.Trim());
+    }
+
+    private void GrantRewards(QuestDefinition q)
+    {
+        if (q.rewardGold > 0)
+        {
+            CurrencyWallet w = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
+            if (w)
+                w.AddGold(q.rewardGold);
+        }
+
+        string itemId = q.rewardItem ? q.rewardItem.itemId : q.rewardItemId;
+        if (!string.IsNullOrWhiteSpace(itemId))
+        {
+            Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+            if (inv)
+                inv.Add(itemId.Trim(), 1);
+        }
+    }
+
+    /// <summary>Call from enemy death; applies kill credit to active kill quests for the current map node.</summary>
+    public void NotifyEnemyKilledForActiveMap()
+    {
+        ResolveQuestDatabase();
+        if (!_resolvedDatabase)
+            return;
+
+        string nodeId = ActiveLevelContext.Current != null ? ActiveLevelContext.Current.nodeId : "";
+
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase.All;
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition q = all[i];
+            if (!q || q.objectiveKind != QuestObjectiveKind.KillCount)
+                continue;
+            if (!q.repeatable && IsRewardClaimed(q.questId))
+                continue;
+
+            if (!string.IsNullOrEmpty(q.progressMapNodeId) &&
+                !string.Equals(q.progressMapNodeId.Trim(), nodeId, StringComparison.Ordinal))
+                continue;
+
+            int amt = GetProgress(q.questId);
+            if (amt >= q.targetCount)
+                continue;
+
+            AddProgress(q.questId, 1);
+        }
     }
 
     public void SaveInto(SaveData data)
@@ -70,22 +336,36 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             data.questProgressIds = new List<string>();
         if (data.questProgressAmounts == null)
             data.questProgressAmounts = new List<int>();
+        if (data.questRewardClaimedIds == null)
+            data.questRewardClaimedIds = new List<string>();
 
         data.questProgressIds.Clear();
         data.questProgressAmounts.Clear();
 
+        ResolveQuestDatabase();
         foreach (var kv in _amounts)
         {
             if (string.IsNullOrEmpty(kv.Key))
                 continue;
+            QuestDefinition def = FindQuestDefinition(kv.Key);
+            if (def != null && def.objectiveKind == QuestObjectiveKind.GatherItem)
+                continue;
             data.questProgressIds.Add(kv.Key);
             data.questProgressAmounts.Add(kv.Value);
+        }
+
+        data.questRewardClaimedIds.Clear();
+        foreach (string id in _rewardClaimed)
+        {
+            if (!string.IsNullOrEmpty(id))
+                data.questRewardClaimedIds.Add(id);
         }
     }
 
     public void LoadFrom(SaveData data)
     {
         _amounts.Clear();
+        _rewardClaimed.Clear();
 
         if (data?.questProgressIds == null || data.questProgressAmounts == null)
         {
@@ -93,13 +373,27 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             return;
         }
 
+        ResolveQuestDatabase();
         int n = Mathf.Min(data.questProgressIds.Count, data.questProgressAmounts.Count);
         for (int i = 0; i < n; i++)
         {
             string id = data.questProgressIds[i];
             if (string.IsNullOrEmpty(id))
                 continue;
+            QuestDefinition def = FindQuestDefinition(id);
+            if (def != null && def.objectiveKind == QuestObjectiveKind.GatherItem)
+                continue;
             _amounts[id.Trim()] = Mathf.Max(0, data.questProgressAmounts[i]);
+        }
+
+        if (data.questRewardClaimedIds != null)
+        {
+            for (int i = 0; i < data.questRewardClaimedIds.Count; i++)
+            {
+                string id = data.questRewardClaimedIds[i];
+                if (!string.IsNullOrEmpty(id))
+                    _rewardClaimed.Add(id.Trim());
+            }
         }
 
         ProgressChanged?.Invoke();

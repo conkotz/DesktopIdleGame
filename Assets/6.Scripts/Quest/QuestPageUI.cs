@@ -11,9 +11,11 @@ public class QuestPageUI : MonoBehaviour
 {
     [Header("Theme — Region Buttons (match Level Select)")]
     [SerializeField] private Color regionUnlockedColor = new Color32(104, 111, 122, 255);
-    [SerializeField] private Color regionLockedColor = new Color32(132, 68, 68, 255);
+    [SerializeField] private Color regionLockedColor = new Color32(56, 58, 62, 255);
     [SerializeField] private Color regionHoverColor = new Color32(126, 133, 146, 255);
     [SerializeField] private Color regionPressedColor = new Color32(92, 99, 113, 255);
+    [SerializeField] private Color regionNameUnlockedColor = new Color32(247, 225, 190, 255);
+    [SerializeField] private Color regionNameLockedColor = new Color32(160, 155, 148, 200);
 
     [Header("Data")]
     [SerializeField] private WorldMapDefinition worldMap;
@@ -27,7 +29,7 @@ public class QuestPageUI : MonoBehaviour
     [Header("Center — Quest list")]
     [SerializeField] private Transform questListParent;
     [SerializeField] private QuestListRowUI questRowPrefab;
-    [Tooltip("Alpha for rows whose objective is complete.")]
+    [Tooltip("Alpha for rows whose rewards were claimed (non-repeatable COMPLETE).")]
     [Range(0.1f, 1f)]
     [SerializeField] private float completedRowAlpha = 0.45f;
 
@@ -50,7 +52,14 @@ public class QuestPageUI : MonoBehaviour
     private QuestDefinition _selectedQuest;
     private QuestProgressManager _progressEventsTarget;
     private WorldMapProgressManager _worldProgressEventsTarget;
+    private Inventory _subscribedInventory;
+    private PlayerStorage _subscribedStorage;
     private bool _detailWidgetsBuilt;
+
+    private Button _questClaimButton;
+    private TMP_Text _questClaimButtonLabel;
+    private GameObject _questActionRowRoot;
+    private static Sprite _cachedUiWhiteSprite;
 
     private static WorldMapProgressManager FindWorldProgress()
     {
@@ -66,9 +75,15 @@ public class QuestPageUI : MonoBehaviour
         return FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
     }
 
+    private static ItemDatabase _cachedItemDatabase;
+
     private static ItemDatabase FindItemDatabase()
     {
-        return FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        if (_cachedItemDatabase)
+            return _cachedItemDatabase;
+
+        _cachedItemDatabase = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        return _cachedItemDatabase;
     }
 
     private void Awake()
@@ -80,6 +95,8 @@ public class QuestPageUI : MonoBehaviour
     {
         TrySubscribeQuestProgress();
         TrySubscribeWorldProgress();
+        TrySubscribeInventoryAndStorage();
+
         ResolveWorldMap();
 
         if (worldMap)
@@ -94,6 +111,7 @@ public class QuestPageUI : MonoBehaviour
     {
         UnsubscribeQuestProgress();
         UnsubscribeWorldProgress();
+        UnsubscribeInventoryAndStorage();
     }
 
     private void Update()
@@ -106,6 +124,12 @@ public class QuestPageUI : MonoBehaviour
                 RebuildQuestList();
                 RefreshDetails();
             }
+        }
+
+        if (TrySubscribeInventoryAndStorage())
+        {
+            RebuildQuestList();
+            RefreshDetails();
         }
     }
 
@@ -162,6 +186,59 @@ public class QuestPageUI : MonoBehaviour
         if (!isActiveAndEnabled)
             return;
         RebuildRegionList();
+        RebuildQuestList();
+        RefreshDetails();
+    }
+
+    /// <returns>True if a new inventory or storage reference was bound (subscribe list changed).</returns>
+    private bool TrySubscribeInventoryAndStorage()
+    {
+        bool changed = false;
+
+        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (inv != _subscribedInventory)
+        {
+            if (_subscribedInventory)
+                _subscribedInventory.OnInventoryChanged -= OnInventoryOrStorageChanged;
+            _subscribedInventory = inv;
+            if (_subscribedInventory)
+                _subscribedInventory.OnInventoryChanged += OnInventoryOrStorageChanged;
+            changed = true;
+        }
+
+        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (st != _subscribedStorage)
+        {
+            if (_subscribedStorage)
+                _subscribedStorage.OnStorageChanged -= OnInventoryOrStorageChanged;
+            _subscribedStorage = st;
+            if (_subscribedStorage)
+                _subscribedStorage.OnStorageChanged += OnInventoryOrStorageChanged;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private void UnsubscribeInventoryAndStorage()
+    {
+        if (_subscribedInventory != null)
+        {
+            _subscribedInventory.OnInventoryChanged -= OnInventoryOrStorageChanged;
+            _subscribedInventory = null;
+        }
+
+        if (_subscribedStorage != null)
+        {
+            _subscribedStorage.OnStorageChanged -= OnInventoryOrStorageChanged;
+            _subscribedStorage = null;
+        }
+    }
+
+    private void OnInventoryOrStorageChanged()
+    {
+        if (!isActiveAndEnabled)
+            return;
         RebuildQuestList();
         RefreshDetails();
     }
@@ -264,6 +341,8 @@ public class QuestPageUI : MonoBehaviour
         ApplyRegionButtonTheme(b, unlocked);
 
         WorldMapRegionRowUI rowUI = row.GetComponent<WorldMapRegionRowUI>();
+        ApplyRegionNameStyle(row, rowUI, unlocked);
+
         if (rowUI != null)
         {
             rowUI.SetSelected(selected);
@@ -276,6 +355,13 @@ public class QuestPageUI : MonoBehaviour
             if (t)
                 t.gameObject.SetActive(selected);
         }
+    }
+
+    private void ApplyRegionNameStyle(GameObject row, WorldMapRegionRowUI rowUI, bool unlocked)
+    {
+        TMP_Text label = rowUI != null ? rowUI.NameText : row.GetComponentInChildren<TMP_Text>(true);
+        if (label)
+            label.color = unlocked ? regionNameUnlockedColor : regionNameLockedColor;
     }
 
     private void ApplyRegionButtonTheme(Button button, bool unlocked)
@@ -355,10 +441,10 @@ public class QuestPageUI : MonoBehaviour
             QuestListRowUI row = Instantiate(questRowPrefab, questListParent);
             _questRows.Add(row);
 
-            int amt = qProg ? qProg.GetProgress(q.questId) : 0;
-            bool done = q.objectiveKind != QuestObjectiveKind.None && q.IsComplete(amt);
-            string status = !string.IsNullOrEmpty(q.listStatusOverride) ? q.listStatusOverride : "Unlocked";
-            row.Bind(q, q.listCategoryLabel, status, _selectedQuest == q, done, completedRowAlpha, OnQuestClicked);
+            int amt = qProg && q ? qProg.GetDisplayProgress(q) : 0;
+            bool permanentlyDone = qProg && qProg.IsPermanentlyComplete(q);
+            string status = BuildQuestListStatus(q, qProg, amt);
+            row.Bind(q, q.listCategoryLabel, status, _selectedQuest == q, permanentlyDone, completedRowAlpha, OnQuestClicked);
         }
 
         if (_selectedQuest != null && !_scratchQuests.Contains(_selectedQuest))
@@ -387,10 +473,22 @@ public class QuestPageUI : MonoBehaviour
 
     private static bool IsQuestCompleteForSort(QuestDefinition q, QuestProgressManager qProg)
     {
-        if (!q || q.objectiveKind == QuestObjectiveKind.None)
+        if (!q)
             return false;
-        int amt = qProg ? qProg.GetProgress(q.questId) : 0;
-        return q.IsComplete(amt);
+        return qProg && qProg.IsPermanentlyComplete(q);
+    }
+
+    private static string BuildQuestListStatus(QuestDefinition q, QuestProgressManager mgr, int amt)
+    {
+        if (mgr != null && mgr.IsPermanentlyComplete(q))
+            return "COMPLETE";
+        if (!string.IsNullOrEmpty(q.listStatusOverride))
+            return q.listStatusOverride;
+        if (q.IsComplete(amt))
+            return "Ready";
+        if (amt > 0)
+            return "In progress";
+        return "Available";
     }
 
     private void ClearQuestRows()
@@ -438,7 +536,7 @@ public class QuestPageUI : MonoBehaviour
             detailDescriptionText.text = q ? q.description : "";
 
         bool showProgress = q && q.objectiveKind != QuestObjectiveKind.None;
-        int amt = q && qProg ? qProg.GetProgress(q.questId) : 0;
+        int amt = q && qProg ? qProg.GetDisplayProgress(q) : 0;
 
         if (progressSectionLabelText)
             progressSectionLabelText.gameObject.SetActive(showProgress);
@@ -460,7 +558,10 @@ public class QuestPageUI : MonoBehaviour
         {
             progressValueText.gameObject.SetActive(showProgress);
             if (showProgress)
-                progressValueText.text = FormatProgressLine(q, amt, items);
+            {
+                bool permanent = qProg && qProg.IsPermanentlyComplete(q);
+                progressValueText.text = FormatProgressLine(q, amt, items, permanent);
+            }
         }
 
         if (rewardsLabelText)
@@ -472,13 +573,72 @@ public class QuestPageUI : MonoBehaviour
                 rewardsValueText.text = FormatRewardsLine(q, items);
         }
 
+        RefreshQuestClaimButton(q, qProg);
+
         if (detailsContentRoot is RectTransform rt)
             LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
     }
 
-    private static string FormatProgressLine(QuestDefinition q, int current, ItemDatabase db)
+    private void RefreshQuestClaimButton(QuestDefinition q, QuestProgressManager qProg)
+    {
+        EnsureDetailWidgets();
+        if (!_questActionRowRoot || !_questClaimButton)
+            return;
+
+        bool show = q != null && q.objectiveKind != QuestObjectiveKind.None;
+        _questActionRowRoot.SetActive(show);
+        if (!show)
+            return;
+
+        bool permanent = qProg && qProg.IsPermanentlyComplete(q);
+        bool canClaim = qProg && qProg.CanClaimReward(q);
+
+        if (permanent)
+        {
+            if (_questClaimButtonLabel)
+                _questClaimButtonLabel.text = "Completed";
+            _questClaimButton.interactable = false;
+            return;
+        }
+
+        if (canClaim)
+        {
+            if (_questClaimButtonLabel)
+                _questClaimButtonLabel.text = "Complete Quest";
+            _questClaimButton.interactable = true;
+            return;
+        }
+
+        if (_questClaimButtonLabel)
+            _questClaimButtonLabel.text = "In Progress";
+        _questClaimButton.interactable = false;
+    }
+
+    private void OnQuestClaimClicked()
+    {
+        QuestProgressManager mgr = FindQuestProgress();
+        if (!_selectedQuest || mgr == null || !mgr.TryClaimQuestReward(_selectedQuest))
+            return;
+
+        RebuildQuestList();
+        RefreshDetails();
+    }
+
+    private static string FormatProgressLine(QuestDefinition q, int current, ItemDatabase db, bool permanentlyComplete)
     {
         int target = Mathf.Max(1, q.targetCount);
+
+        if (permanentlyComplete)
+        {
+            return q.objectiveKind switch
+            {
+                QuestObjectiveKind.GatherItem =>
+                    $"Completed - {target} {ResolveItemName(q.gatherItemId, null, db)}",
+                QuestObjectiveKind.KillCount => $"Completed - {target} kills",
+                _ => "Completed"
+            };
+        }
+
         current = Mathf.Clamp(current, 0, target);
 
         switch (q.objectiveKind)
@@ -523,7 +683,26 @@ public class QuestPageUI : MonoBehaviour
         if (string.IsNullOrWhiteSpace(itemId))
             return "items";
         ItemDefinition d = db ? db.Get(itemId) : null;
-        return d ? d.displayName : itemId;
+        if (d)
+            return d.displayName;
+        return FormatItemIdAsFallbackName(itemId.Trim());
+    }
+
+    /// <summary>When an id is missing from the database, show readable words instead of raw snake_case.</summary>
+    private static string FormatItemIdAsFallbackName(string raw)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return "items";
+        string[] parts = raw.Split('_');
+        for (int i = 0; i < parts.Length; i++)
+        {
+            string p = parts[i];
+            if (p.Length == 0)
+                continue;
+            parts[i] = char.ToUpperInvariant(p[0]) + (p.Length > 1 ? p.Substring(1).ToLowerInvariant() : "");
+        }
+
+        return string.Join(" ", parts);
     }
 
     private void EnsureDetailWidgets()
@@ -572,7 +751,85 @@ public class QuestPageUI : MonoBehaviour
         if (progressSectionLabelText && string.IsNullOrEmpty(progressSectionLabelText.text))
             progressSectionLabelText.text = "Progress";
 
+        EnsureQuestClaimWidgets();
         _detailWidgetsBuilt = true;
+    }
+
+    private void EnsureQuestClaimWidgets()
+    {
+        if (_questClaimButton || !detailsContentRoot)
+            return;
+
+        var row = new GameObject("QuestDetailActionRow", typeof(RectTransform), typeof(LayoutElement));
+        row.transform.SetParent(detailsContentRoot, false);
+        var rowLe = row.GetComponent<LayoutElement>();
+        rowLe.preferredHeight = 56f;
+        rowLe.minHeight = 56f;
+        rowLe.flexibleHeight = 0f;
+        rowLe.minWidth = 0f;
+        rowLe.flexibleWidth = 1f;
+
+        var btnGo = new GameObject("QuestClaimButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        btnGo.transform.SetParent(row.transform, false);
+        RectTransform btnRt = btnGo.GetComponent<RectTransform>();
+        btnRt.anchorMin = new Vector2(0f, 0f);
+        btnRt.anchorMax = new Vector2(1f, 1f);
+        btnRt.pivot = new Vector2(0.5f, 0.5f);
+        btnRt.offsetMin = new Vector2(0f, 6f);
+        btnRt.offsetMax = new Vector2(0f, -6f);
+        var img = btnGo.GetComponent<Image>();
+        img.sprite = GetUiWhiteSprite();
+        img.type = Image.Type.Simple;
+        img.color = new Color(0.4f, 0.44f, 0.5f, 1f);
+
+        var btn = btnGo.GetComponent<Button>();
+        btn.targetGraphic = img;
+        btn.transition = Selectable.Transition.ColorTint;
+        ColorBlock cb = btn.colors;
+        cb.normalColor = Color.white;
+        cb.highlightedColor = new Color(0.92f, 0.92f, 0.92f);
+        cb.pressedColor = new Color(0.78f, 0.78f, 0.78f);
+        cb.selectedColor = new Color(0.92f, 0.92f, 0.92f);
+        cb.disabledColor = new Color(0.55f, 0.55f, 0.55f, 0.55f);
+        cb.colorMultiplier = 1f;
+        cb.fadeDuration = 0.08f;
+        btn.colors = cb;
+        btn.onClick.AddListener(OnQuestClaimClicked);
+
+        var textGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+        textGo.transform.SetParent(btnGo.transform, false);
+        RectTransform trt = textGo.GetComponent<RectTransform>();
+        trt.anchorMin = Vector2.zero;
+        trt.anchorMax = Vector2.one;
+        trt.offsetMin = Vector2.zero;
+        trt.offsetMax = Vector2.zero;
+
+        var tmp = textGo.GetComponent<TextMeshProUGUI>();
+        if (TMP_Settings.defaultFontAsset)
+            tmp.font = TMP_Settings.defaultFontAsset;
+        tmp.fontSize = 17;
+        tmp.fontStyle = FontStyles.Bold;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.color = Color.white;
+        tmp.text = "In Progress";
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+        tmp.overflowMode = TextOverflowModes.Overflow;
+        tmp.enableAutoSizing = false;
+
+        _questClaimButton = btn;
+        _questClaimButtonLabel = tmp;
+        _questActionRowRoot = row;
+    }
+
+    private static Sprite GetUiWhiteSprite()
+    {
+        if (_cachedUiWhiteSprite)
+            return _cachedUiWhiteSprite;
+        var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+        tex.SetPixel(0, 0, Color.white);
+        tex.Apply();
+        _cachedUiWhiteSprite = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 100f);
+        return _cachedUiWhiteSprite;
     }
 
     private static bool IsRegionAvailable(RegionDefinition region, WorldMapProgressManager progress)

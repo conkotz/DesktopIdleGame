@@ -26,3 +26,5 @@ MonoBehaviour:
   rewardItemId: 
   rewardNotes: Bonus gear from the quartermaster
   sortOrder: 10
+  repeatable: 0
+  progressMapNodeId: 
