@@ -103,6 +103,12 @@ public class SaveData
     public List<int> actionBarKinds = new();
     public List<string> actionBarIds = new();
 
+    [Header("Quests")]
+    [Tooltip("Parallel lists: QuestDefinition.questId → current objective amount.")]
+    public List<string> questProgressIds = new();
+
+    public List<int> questProgressAmounts = new();
+
     [Header("Merchant Stock")]
     public List<MerchantStockSave> merchantStocks = new();
 

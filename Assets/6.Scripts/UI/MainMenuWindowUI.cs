@@ -29,6 +29,7 @@ public class MainMenuWindowUI : MonoBehaviour
     [SerializeField] private string skillsTitle = "Skills & Abilities";
     [FormerlySerializedAs("worldMapTitle")]
     [SerializeField] private string levelSelectTitle = "Level select";
+    [SerializeField] private string questTitle = "Quests";
     [SerializeField] private string settingsTitle = "Settings";
 
     [Header("Optional UI gating")]
@@ -44,6 +45,7 @@ public class MainMenuWindowUI : MonoBehaviour
     [SerializeField] private GameObject skillsAbilitiesPage;
     [FormerlySerializedAs("worldMapPage")]
     [SerializeField] private GameObject levelSelectPage;
+    [SerializeField] private GameObject questPage;
     [SerializeField] private GameObject settingsPage;
 
     private GameObject currentPage;
@@ -135,6 +137,22 @@ public class MainMenuWindowUI : MonoBehaviour
         }
 
         OpenPage(levelSelectPage);
+    }
+
+    public void ToggleQuest()
+    {
+        TogglePage(questPage);
+    }
+
+    public void OpenQuest()
+    {
+        if (IsOpen && currentPage == questPage)
+        {
+            Close();
+            return;
+        }
+
+        OpenPage(questPage);
     }
 
     public void ToggleSettings()
@@ -291,6 +309,7 @@ public class MainMenuWindowUI : MonoBehaviour
         if (characterPage) characterPage.SetActive(false);
         if (skillsAbilitiesPage) skillsAbilitiesPage.SetActive(false);
         if (levelSelectPage) levelSelectPage.SetActive(false);
+        if (questPage) questPage.SetActive(false);
         if (settingsPage) settingsPage.SetActive(false);
     }
 
@@ -304,6 +323,8 @@ public class MainMenuWindowUI : MonoBehaviour
             headerTitleText.text = skillsTitle;
         else if (currentPage == levelSelectPage)
             headerTitleText.text = levelSelectTitle;
+        else if (currentPage == questPage)
+            headerTitleText.text = questTitle;
         else if (currentPage == settingsPage)
             headerTitleText.text = settingsTitle;
         else
