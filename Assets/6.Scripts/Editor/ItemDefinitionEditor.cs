@@ -811,6 +811,10 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty abilityPower = bonusStats.FindPropertyRelative("abilityPower");
 
         SerializedProperty attackSpeedPercent = bonusStats.FindPropertyRelative("attackSpeedPercent");
+        SerializedProperty minionDamagePercent = bonusStats.FindPropertyRelative("minionDamagePercent");
+        SerializedProperty minionAttackSpeedPercent = bonusStats.FindPropertyRelative("minionAttackSpeedPercent");
+        SerializedProperty minionCritChance = bonusStats.FindPropertyRelative("minionCritChance");
+        SerializedProperty minionMaxLifePercent = bonusStats.FindPropertyRelative("minionMaxLifePercent");
         SerializedProperty critChanceBonus = bonusStats.FindPropertyRelative("critChanceBonus");
         SerializedProperty critMultiplierBonus = bonusStats.FindPropertyRelative("critMultiplierBonus");
         SerializedProperty attackRangeBonus = bonusStats.FindPropertyRelative("attackRangeBonus");
@@ -870,6 +874,13 @@ public class ItemDefinitionEditor : Editor
         PropertyField(attackRangeBonus, "Attack range bonus");
 
         EditorGUILayout.Space(4);
+        EditorGUILayout.LabelField("Minion", EditorStyles.boldLabel);
+        PropertyField(minionDamagePercent, "Minion damage %");
+        PropertyField(minionAttackSpeedPercent, "Minion attack speed %");
+        PropertyField(minionCritChance, "Minion crit chance");
+        PropertyField(minionMaxLifePercent, "Minion health %");
+
+        EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Ailments", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(bleedChance);
         EditorGUILayout.PropertyField(bleedMultiplier);
@@ -891,6 +902,7 @@ public class ItemDefinitionEditor : Editor
             "- Physical / Magic / Corruption Damage\n" +
             "- Ability Power\n" +
             "- Crit / attack speed / range\n" +
+            "- Minion damage, attack speed, crit chance, and health (max life %)\n" +
             "- Bleed or poison chance and multiplier\n" +
             "- Poison duration and poison max stacks\n" +
             "- Burn/Chill/Shock elemental ailment scaling",
