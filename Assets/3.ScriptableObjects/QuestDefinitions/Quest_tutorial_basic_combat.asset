@@ -10,21 +10,26 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
-  m_Name: Quest_greenlands_basic_combat
+  m_Name: Quest_tutorial_basic_combat
   m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
-  questId: greenlands_basic_combat_training
-  regionId: greenlands
-  displayName: Basic combat training
-  description: Kill 10 enemies in the Green Fields while honing your skills.
+  questId: tutorial_basic_combat
+  regionId: tutorial
+  displayName: Basic Combat 1
+  description: Defeat a Rogue on Tutorial 2.
   listCategoryLabel: Combat
   listStatusOverride: 
   objectiveKind: 1
-  targetCount: 10
+  targetCount: 1
   gatherItemId: 
-  rewardGold: 75
-  rewardItem: {fileID: 0}
+  rewardGold: 0
+  rewardItem: {fileID: 11400000, guid: b3a17782af5716744a93c10e9418bf17, type: 2}
   rewardItemId: 
   rewardNotes: 
-  sortOrder: 0
   repeatable: 0
-  progressMapNodeId: green_fields
+  progressMapNodeId: tutorial_2
+  prerequisiteRewardClaimedQuestIds: []
+  requireAllPrerequisiteQuests: 1
+  requiredCompletedMapNodeId: 
+  killEnemyIdFilter: enemy_tutorial_rogue
+  hideUntilMapNodeUnlockedId: tutorial_2
+  sortOrder: 12

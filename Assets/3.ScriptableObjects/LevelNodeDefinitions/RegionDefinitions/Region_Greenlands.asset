@@ -21,3 +21,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: bd9148f386fcb4644a8c0b41179c8e24, type: 2}
   - {fileID: 11400000, guid: b83eca7b83cd6da489882cf699b56269, type: 2}
   backgroundSprite: {fileID: 0}
+  useRegionLock: 1
+  prerequisiteCompletedNodeIds:
+  - tutorial_2
+  requireAllPrerequisites: 1
+  unlockAfterLeavingWorldRegionId: tutorial

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -13,11 +15,20 @@ public class GoldPopupSpawner : MonoBehaviour
     [SerializeField] private Transform playerWorld;
     [SerializeField] private Vector3 worldOffset = new Vector3(0f, 1.2f, 0f);
 
+    [Header("Stacking")]
+    [Tooltip("Extra vertical offset per concurrent popup so simultaneous messages do not overlap.")]
+    [SerializeField] private float stackVerticalSpacing = 30f;
+
+    [Header("Draw order")]
+    [Tooltip("Added to the root UICanvas sorting order so popups render above the rest of the HUD.")]
+    [SerializeField] private int popupSortingOrderOffset = 30000;
+
     [Header("Colours")]
     [SerializeField] private Color defaultMessageColor = Color.white;
     [SerializeField] private Color levelUpColor = new Color(0.35f, 0.8f, 1f, 1f);
 
     private Camera _cam;
+    private readonly List<bool> _stackSlotBusy = new List<bool>();
 
     private void OnEnable()
     {
@@ -61,7 +72,7 @@ public class GoldPopupSpawner : MonoBehaviour
         }
     }
 
-    public void ShowGoldGained(int amount)
+    public void ShowGoldGained(int amount, string sourceLine = null)
     {
         if (amount <= 0 || !popupPrefab) return;
 
@@ -70,10 +81,10 @@ public class GoldPopupSpawner : MonoBehaviour
 
         if (!canvas || !playerWorld) return;
 
-        ShowGoldGainedAtWorld(playerWorld.position + worldOffset, amount);
+        ShowGoldGainedAtWorld(playerWorld.position + worldOffset, amount, sourceLine);
     }
 
-    public void ShowGoldGainedAtWorld(Vector3 worldPos, int amount)
+    public void ShowGoldGainedAtWorld(Vector3 worldPos, int amount, string sourceLine = null)
     {
         if (amount <= 0 || !popupPrefab) return;
 
@@ -86,15 +97,17 @@ public class GoldPopupSpawner : MonoBehaviour
         if (!cam) return;
 
         Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
-
-        var popup = Instantiate(popupPrefab, canvas.transform);
         RectTransform canvasRect = canvas.transform as RectTransform;
 
-        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvasRect, screenPos, cam, out Vector2 localPoint))
-        {
-            popup.PlayLocal(localPoint, amount);
-        }
+            return;
+
+        int slot = AcquireStackSlot();
+        Vector2 stackedLocal = localPoint + Vector2.up * (slot * stackVerticalSpacing);
+        var popup = Instantiate(popupPrefab, canvas.transform);
+        BringPopupToFront(popup);
+        popup.PlayLocal(stackedLocal, amount, sourceLine, () => ReleaseStackSlot(slot));
     }
 
     public void ShowNotEnoughGold()
@@ -127,15 +140,60 @@ public class GoldPopupSpawner : MonoBehaviour
         if (!cam) return;
 
         Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
-
-        var popup = Instantiate(popupPrefab, canvas.transform);
         RectTransform canvasRect = canvas.transform as RectTransform;
 
-        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvasRect, screenPos, cam, out Vector2 localPoint))
+            return;
+
+        int slot = AcquireStackSlot();
+        Vector2 stackedLocal = localPoint + Vector2.up * (slot * stackVerticalSpacing);
+        var popup = Instantiate(popupPrefab, canvas.transform);
+        BringPopupToFront(popup);
+        popup.PlayLocalText(stackedLocal, message, color, applyGoldStroke: false, () => ReleaseStackSlot(slot));
+    }
+
+    private void BringPopupToFront(GoldPopup popup)
+    {
+        if (!popup || !canvas)
+            return;
+
+        popup.transform.SetAsLastSibling();
+
+        var popupCanvas = popup.GetComponent<Canvas>();
+        if (!popupCanvas)
+            popupCanvas = popup.gameObject.AddComponent<Canvas>();
+
+        popupCanvas.overrideSorting = true;
+        popupCanvas.sortingOrder = canvas.rootCanvas.sortingOrder + Mathf.Max(0, popupSortingOrderOffset);
+
+        var cg = popup.GetComponent<CanvasGroup>();
+        if (!cg)
+            cg = popup.gameObject.AddComponent<CanvasGroup>();
+        cg.blocksRaycasts = false;
+        cg.interactable = false;
+    }
+
+    private int AcquireStackSlot()
+    {
+        for (int i = 0; i < _stackSlotBusy.Count; i++)
         {
-            popup.PlayLocalText(localPoint, message, color);
+            if (!_stackSlotBusy[i])
+            {
+                _stackSlotBusy[i] = true;
+                return i;
+            }
         }
+
+        _stackSlotBusy.Add(true);
+        return _stackSlotBusy.Count - 1;
+    }
+
+    private void ReleaseStackSlot(int slot)
+    {
+        if (slot < 0 || slot >= _stackSlotBusy.Count)
+            return;
+        _stackSlotBusy[slot] = false;
     }
 
     public void ShowLevelUpAtWorld(Vector3 worldPos, string message)

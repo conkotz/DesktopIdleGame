@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -39,10 +40,14 @@ public class UnitOverheadUI : MonoBehaviour
     [Tooltip("When multiple enemy overheads project to nearby X positions on the strip canvas, stack them vertically.")]
     [SerializeField] private bool enableOverlappingStack = true;
     [Tooltip(
-        "Extra horizontal margin (canvas px) when deciding if two nameplates overlap. " +
-        "Overlap uses each overhead's full RectTransform bounds (including long names), not just the anchor point.")]
-    [SerializeField] private float stackHorizontalOverlapPaddingPx = 2f;
+        "Small fudge (canvas px) added when testing horizontal overlap. Keep low so stacks only form when UI actually overlaps.")]
+    [FormerlySerializedAs("stackOverlapThresholdPx")]
+    [SerializeField] private float stackHorizontalOverlapPaddingPx = 8f;
     [SerializeField] private float stackVerticalSpacingPx = 56f;
+    [Tooltip(
+        "Optional minimum half-width (canvas px) for overlap tests. 0 = use measured rect + TMP bounds only. " +
+        "Increase slightly if very narrow layouts fail to stack when enemies stand on the same spot.")]
+    [SerializeField] private float stackMinClusteringHalfWidthPx = 0f;
 
     private RectTransform canvasRect;
     private readonly List<GameObject> spawnedDebuffIcons = new();
@@ -56,6 +61,11 @@ public class UnitOverheadUI : MonoBehaviour
 
     private PlayerCombatController _playerCombatCache;
     private Image _clickBackingImage;
+
+    private bool _hpBarOnlyLayout;
+
+    /// <summary>True when the follow target is in the strip camera band this frame; used for overlap stacking (same idea as when the whole object was deactivated off-screen).</summary>
+    private bool _worldBandVisible;
 
     private void Awake()
     {
@@ -100,7 +110,8 @@ public class UnitOverheadUI : MonoBehaviour
         AilmentController ailmentController,
         Transform target,
         Canvas canvas,
-        Camera cam)
+        Camera cam,
+        bool hpBarOnly = false)
     {
         Unsubscribe();
 
@@ -111,7 +122,9 @@ public class UnitOverheadUI : MonoBehaviour
         parentCanvas = canvas;
         targetCamera = cam;
         canvasRect = canvas ? canvas.transform as RectTransform : null;
+        _hpBarOnlyLayout = hpBarOnly;
 
+        ApplyHpBarOnlyVisuals();
         Subscribe();
         RefreshAll();
         EnsureClickableBacking();
@@ -120,6 +133,17 @@ public class UnitOverheadUI : MonoBehaviour
             ApplyDirectPosition();
         else
             ApplyStackedPosition();
+    }
+
+    private void ApplyHpBarOnlyVisuals()
+    {
+        bool showExtras = !_hpBarOnlyLayout;
+        if (nameText)
+            nameText.gameObject.SetActive(showExtras);
+        if (combatProfileText)
+            combatProfileText.gameObject.SetActive(showExtras);
+        if (debuffContainer)
+            debuffContainer.gameObject.SetActive(showExtras);
     }
 
     private static void EnsureCanvasStackCallback()
@@ -147,6 +171,8 @@ public class UnitOverheadUI : MonoBehaviour
         {
             UnitOverheadUI ui = s_instances[i];
             if (ui == null || !ui.isActiveAndEnabled || !ui.gameObject.activeInHierarchy)
+                continue;
+            if (!ui._worldBandVisible)
                 continue;
             if (!ui.enableOverlappingStack || ui.enemy == null)
                 continue;
@@ -182,10 +208,13 @@ public class UnitOverheadUI : MonoBehaviour
         float padding = Mathf.Max(0f, candidates[0].stackHorizontalOverlapPaddingPx);
         float spacing = Mathf.Max(1f, candidates[0].stackVerticalSpacingPx);
 
+        float minHalfW = Mathf.Max(0f, candidates[0].stackMinClusteringHalfWidthPx);
+
         var spans = new List<(float minX, float maxX, UnitOverheadUI ui)>(candidates.Count);
         for (int i = 0; i < candidates.Count; i++)
         {
             candidates[i].GetHorizontalSpanInCanvas(out float minX, out float maxX);
+            WidenSpanForClusterMerge(candidates[i]._stackBaseAnchored.x, minHalfW, ref minX, ref maxX);
             spans.Add((minX, maxX, candidates[i]));
         }
 
@@ -225,6 +254,15 @@ public class UnitOverheadUI : MonoBehaviour
 
         for (int i = 0; i < candidates.Count; i++)
             candidates[i].ApplyStackedPosition();
+    }
+
+    private static void WidenSpanForClusterMerge(float anchorCanvasX, float minHalfWidth, ref float minX, ref float maxX)
+    {
+        float w = maxX - minX;
+        float center = w > 0.001f ? (minX + maxX) * 0.5f : anchorCanvasX;
+        float half = Mathf.Max(w * 0.5f, minHalfWidth);
+        minX = center - half;
+        maxX = center + half;
     }
 
     private static void ApplyVerticalOffsetsToCluster(List<UnitOverheadUI> cluster, float spacing)
@@ -357,10 +395,30 @@ public class UnitOverheadUI : MonoBehaviour
         RefreshDebuffIcons();
     }
 
+    private static bool IsOverheadWorldPointVisible(Camera cam, Vector3 worldPos, Vector3 screenPos)
+    {
+        if (cam == null)
+            return screenPos.z > 0f;
+
+        if (cam.orthographic)
+        {
+            Vector3 vp = cam.WorldToViewportPoint(worldPos);
+            if (vp.z < 0f)
+                return false;
+            const float margin = 0.2f;
+            return vp.x >= -margin && vp.x <= 1f + margin && vp.y >= -margin && vp.y <= 1f + margin;
+        }
+
+        return screenPos.z > 0f;
+    }
+
     private void ComputeBaseAnchoredAndVisibility()
     {
         if (root == null || followTarget == null || parentCanvas == null || targetCamera == null)
+        {
+            _worldBandVisible = false;
             return;
+        }
 
         if (canvasRect == null)
             canvasRect = parentCanvas.transform as RectTransform;
@@ -368,9 +426,15 @@ public class UnitOverheadUI : MonoBehaviour
         Vector3 worldPos = followTarget.position + worldOffset;
         Vector3 screenPos = targetCamera.WorldToScreenPoint(worldPos);
 
-        bool visible = screenPos.z > 0f;
-        if (gameObject.activeSelf != visible)
-            gameObject.SetActive(visible);
+        // WorldToScreenPoint z <= 0 often means "behind" the camera, but orthographic 2D setups can edge-case;
+        // viewport test keeps nameplates on-screen when the point is in front of the camera frustum.
+        bool visible = IsOverheadWorldPointVisible(targetCamera, worldPos, screenPos);
+        _worldBandVisible = visible;
+
+        // Toggle only the UI root, not this behaviour's GameObject — otherwise LateUpdate stops
+        // and we never recover when the follow target later moves on-screen (player scene teleport).
+        if (root != null && root.gameObject.activeSelf != visible)
+            root.gameObject.SetActive(visible);
 
         if (!visible)
             return;
@@ -385,7 +449,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void ApplyDirectPosition()
     {
-        if (root == null || !gameObject.activeSelf)
+        if (root == null || !root.gameObject.activeSelf)
             return;
 
         root.anchoredPosition = _stackBaseAnchored;
@@ -394,7 +458,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void ApplyStackedPosition()
     {
-        if (root == null || !gameObject.activeSelf)
+        if (root == null || !root.gameObject.activeSelf)
             return;
 
         root.anchoredPosition = _stackBaseAnchored + new Vector2(0f, _stackYOffset);
@@ -476,6 +540,9 @@ public class UnitOverheadUI : MonoBehaviour
     {
         ClearDebuffIcons();
 
+        if (_hpBarOnlyLayout)
+            return;
+
         if (ailments == null || debuffContainer == null || debuffIconPrefab == null)
             return;
 
@@ -538,7 +605,7 @@ public class UnitOverheadUI : MonoBehaviour
             _clickBackingImage.color = new Color(1f, 1f, 1f, 0f);
         }
 
-        _clickBackingImage.raycastTarget = true;
+        _clickBackingImage.raycastTarget = !_hpBarOnlyLayout;
 
         OverheadClickRelay relay = root.GetComponent<OverheadClickRelay>();
         if (relay == null)

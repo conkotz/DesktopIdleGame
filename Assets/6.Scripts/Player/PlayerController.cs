@@ -1960,22 +1960,10 @@ public class PlayerController : MonoBehaviour
 
         if (DamagePopupSystem.Instance != null)
         {
-            // Prefer child anchor so it follows visual flip/offset correctly.
             var anchor = GetComponentInChildren<DamagePopupAnchor>(true);
-            Vector3 pos = anchor ? anchor.WorldPos : transform.position;
+            Vector3 anchorPos = anchor ? anchor.WorldPos : transform.position;
 
-            // If we know the attacker, bias the popup to the impact side (attacker side),
-            // so damage appears "in front" even if we're facing away.
-            if (attacker)
-            {
-                float dirX = Mathf.Sign(attacker.position.x - transform.position.x); // toward attacker
-                if (dirX == 0f) dirX = 1f;
-                pos.x += dirX * 0.25f;
-            }
-
-            Vector3 dir = attacker
-                ? (transform.position - attacker.position).normalized
-                : Vector3.up;
+            GetIncomingDamagePopupPlacement(anchorPos, attacker, 0.35f, out Vector3 pos, out Vector3 dir);
 
             FloatingDamageTextUI.PopupDamageKind popupKind = type switch
             {
@@ -2000,6 +1988,34 @@ public class PlayerController : MonoBehaviour
         {
             TriggerHurtAnim();
         }
+    }
+
+    /// <summary>
+    /// Spawn point and world drift for incoming damage popups. Always offsets horizontally away from the attacker
+    /// and drifts in that same world direction (flee the threat). Does not use sprite facing so it stays correct
+    /// even if <see cref="visualsRoot"/> scale and combat orientation disagree.
+    /// </summary>
+    public void GetIncomingDamagePopupPlacement(
+        Vector3 anchorWorldPos,
+        Transform attacker,
+        float sideOffset,
+        out Vector3 spawnWorldPos,
+        out Vector3 driftWorldDir)
+    {
+        spawnWorldPos = anchorWorldPos;
+        driftWorldDir = Vector3.up;
+
+        if (!attacker)
+            return;
+
+        float towardAttackerX = Mathf.Sign(attacker.position.x - transform.position.x);
+        if (towardAttackerX == 0f)
+            towardAttackerX = 1f;
+
+        spawnWorldPos = anchorWorldPos + new Vector3(-towardAttackerX * sideOffset, 0f, 0f);
+
+        Vector3 awayFromAttacker = transform.position - attacker.position;
+        driftWorldDir = awayFromAttacker.sqrMagnitude > 0.0001f ? awayFromAttacker.normalized : Vector3.up;
     }
 
     public void Heal(float amount)

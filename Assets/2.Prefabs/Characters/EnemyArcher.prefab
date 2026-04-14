@@ -39,6 +39,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4000012882303986}
+  - {fileID: 8159590446177966193}
   - {fileID: 2647035770845584335}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -111,6 +112,12 @@ MonoBehaviour:
   aggroRange: 14
   moveSpeed: 2.5
   xOnly: 1
+  idleWanderEnabled: 0
+  idleWanderSpeed: 0.8
+  idleWanderMoveMinSec: 1
+  idleWanderMoveMaxSec: 3
+  idleWanderIdleMinSec: 2
+  idleWanderIdleMaxSec: 8
   enemyAttackWindup: 0.1
   requireRangeOnHit: 1
   destroyOnDeath: 1
@@ -157,6 +164,7 @@ MonoBehaviour:
   baseMaxMana: 50
   baseArmor: 0
   baseMagicResist: 0
+  baseCorruptionResist: 0
   basePhysBlockChance: 0
   baseMoveSpeed: 3
   baseMoveSpeedMult: 1
@@ -167,8 +175,8 @@ MonoBehaviour:
   baseMaxPhysicalDamage: 0
   baseMinMagicDamage: 0
   baseMaxMagicDamage: 0
-  baseMinTrueDamage: 0
-  baseMaxTrueDamage: 0
+  baseMinCorruptionDamage: 0
+  baseMaxCorruptionDamage: 0
   baseAbilityPower: 0
   baseLifeSteal: 0
   baseBleedChance: 0
@@ -176,21 +184,26 @@ MonoBehaviour:
   baseBleedDuration: 5
   basePoisonChance: 0
   basePoisonMultiplier: 0
+  poisonPoolFractionOfCorruptionDamage: 0.4
   basePoisonDuration: 5
   basePoisonMaxStacks: 3
   baseMagicAttackType: 0
   baseMagicAilmentApplyChance: 0
+  baseBurnChance: 0
   baseChillDuration: 5
   baseChillMaxStacks: 6
   baseChillSlowPerStack: 0.15
   baseBurnHitsToExplode: 4
   baseBurnExplosionMultiplier: 0.5
+  bonusBurnDamageMultiplier: 0
   baseShockDuration: 5
   baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
   equipment: {fileID: 0}
   inventory: {fileID: 0}
   toolbelt: {fileID: 0}
+  skillsManager: {fileID: 0}
+  skillDatabase: {fileID: 0}
   unarmedMinPhysicalDamage: 1
   unarmedMaxPhysicalDamage: 2
   unarmedAttacksPerSecond: 1
@@ -200,6 +213,7 @@ MonoBehaviour:
   bonusAxeSpeedMult: 0
   bonusPickaxeSpeedMult: 0
   bonusRodSpeedMult: 0
+  debugAbilityCombatPower: 0
 --- !u!114 &2401529003064995906
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -252,7 +266,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
-  burnFallbackDurationSeconds: 30
+  burnDurationTicks: 15
+  burnDamageFractionOfHitPerTick: 0.15
+  burnCombustTicksWorth: 10
 --- !u!114 &6857195379358081498
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1117,6 +1133,37 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2647035770845584335}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &6626958328934411622
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8159590446177966193}
+  m_Layer: 10
+  m_Name: DropAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8159590446177966193
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6626958328934411622}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.22, y: 0.94, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4000010464396976}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6863052633205629225
 GameObject:

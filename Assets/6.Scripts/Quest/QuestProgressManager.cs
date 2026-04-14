@@ -140,12 +140,60 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         return q && !q.repeatable && IsRewardClaimed(q.questId);
     }
 
+    public bool ArePrerequisitesSatisfied(QuestDefinition q)
+    {
+        if (q == null || q.prerequisiteRewardClaimedQuestIds == null || q.prerequisiteRewardClaimedQuestIds.Count == 0)
+            return true;
+
+        bool anyConfigured = false;
+        bool anyMet = false;
+
+        for (int i = 0; i < q.prerequisiteRewardClaimedQuestIds.Count; i++)
+        {
+            string id = q.prerequisiteRewardClaimedQuestIds[i];
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+
+            anyConfigured = true;
+            bool met = IsRewardClaimed(id.Trim());
+
+            if (q.requireAllPrerequisiteQuests && !met)
+                return false;
+            if (!q.requireAllPrerequisiteQuests && met)
+                anyMet = true;
+        }
+
+        if (!anyConfigured)
+            return true;
+
+        return q.requireAllPrerequisiteQuests || anyMet;
+    }
+
+    public bool IsRequiredMapNodeSatisfied(QuestDefinition q)
+    {
+        if (q == null || string.IsNullOrWhiteSpace(q.requiredCompletedMapNodeId))
+            return true;
+
+        WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        return wmp != null && wmp.IsNodeCompleted(q.requiredCompletedMapNodeId.Trim());
+    }
+
+    public bool IsQuestGatedByPrerequisites(QuestDefinition q)
+    {
+        return q != null && !ArePrerequisitesSatisfied(q);
+    }
+
     public bool CanClaimReward(QuestDefinition q)
     {
         if (!q || string.IsNullOrEmpty(q.questId) || q.objectiveKind == QuestObjectiveKind.None)
             return false;
+        if (!ArePrerequisitesSatisfied(q))
+            return false;
         int prog = GetDisplayProgress(q);
         if (!q.IsComplete(prog))
+            return false;
+        if (!IsRequiredMapNodeSatisfied(q))
             return false;
         if (!q.repeatable && IsRewardClaimed(q.questId))
             return false;
@@ -177,6 +225,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         {
             MarkRewardClaimed(q.questId);
             ProgressChanged?.Invoke();
+            TutorialQuestAfterClaim.Invoke(q);
             if (SaveManager.Instance != null)
                 SaveManager.Instance.Save();
         }
@@ -286,6 +335,10 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             CurrencyWallet w = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
             if (w)
                 w.AddGold(q.rewardGold);
+
+            GoldPopupSpawner popups = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
+            if (popups)
+                popups.ShowGoldGained(q.rewardGold);
         }
 
         string itemId = q.rewardItem ? q.rewardItem.itemId : q.rewardItemId;
@@ -293,18 +346,20 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         {
             Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
             if (inv)
-                inv.Add(itemId.Trim(), 1);
+                inv.Add(itemId.Trim(), Mathf.Max(1, q.rewardItemQuantity));
         }
     }
 
     /// <summary>Call from enemy death; applies kill credit to active kill quests for the current map node.</summary>
-    public void NotifyEnemyKilledForActiveMap()
+    public void NotifyEnemyKilledForActiveMap(string killedEnemyId = null)
     {
         ResolveQuestDatabase();
         if (!_resolvedDatabase)
             return;
 
         string nodeId = ActiveLevelContext.Current != null ? ActiveLevelContext.Current.nodeId : "";
+        if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
+            nodeId = GameplayLevelBootstrapper.Instance.ActiveDefinition.nodeId ?? nodeId;
 
         IReadOnlyList<QuestDefinition> all = _resolvedDatabase.All;
         for (int i = 0; i < all.Count; i++)
@@ -314,10 +369,27 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 continue;
             if (!q.repeatable && IsRewardClaimed(q.questId))
                 continue;
-
-            if (!string.IsNullOrEmpty(q.progressMapNodeId) &&
-                !string.Equals(q.progressMapNodeId.Trim(), nodeId, StringComparison.Ordinal))
+            if (IsQuestGatedByPrerequisites(q))
                 continue;
+
+            if (!string.IsNullOrEmpty(q.killEnemyIdFilter))
+            {
+                string want = q.killEnemyIdFilter.Trim();
+                if (string.IsNullOrEmpty(killedEnemyId) ||
+                    !string.Equals(want, killedEnemyId.Trim(), StringComparison.Ordinal))
+                    continue;
+            }
+
+            bool mapScoped = q.killProgressOnlyOnProgressMap ||
+                             !string.IsNullOrEmpty(q.progressMapNodeId?.Trim());
+            if (mapScoped)
+            {
+                string wantNode = q.progressMapNodeId != null ? q.progressMapNodeId.Trim() : "";
+                if (string.IsNullOrEmpty(wantNode))
+                    continue;
+                if (!string.Equals(wantNode, nodeId, StringComparison.Ordinal))
+                    continue;
+            }
 
             int amt = GetProgress(q.questId);
             if (amt >= q.targetCount)

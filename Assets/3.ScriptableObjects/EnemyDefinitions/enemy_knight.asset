@@ -22,13 +22,14 @@ MonoBehaviour:
   maxMana: 0
   armor: 75
   magicResist: 0
+  corruptionResist: 0
   physBlockChance: 0.1
   minPhysicalDamage: 1
   maxPhysicalDamage: 1
   minMagicDamage: 0
   maxMagicDamage: 0
-  minTrueDamage: 0
-  maxTrueDamage: 0
+  minCorruptionDamage: 0
+  maxCorruptionDamage: 0
   attackSpeed: 0.5
   moveSpeed: 2
   attackRange: 2
@@ -63,4 +64,14 @@ MonoBehaviour:
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
+  dropGold: 1
+  goldMin: 250
+  goldMax: 300
+  goldDropChance: 1
+  goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
+  eliteGoldMultiplier: 2
+  loot: []
+  eliteLootHandling: 0
+  eliteLootChanceMultiplier: 2
+  eliteLoot: []
   designerNotes: 

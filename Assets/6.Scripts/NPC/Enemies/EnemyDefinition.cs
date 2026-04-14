@@ -1,5 +1,54 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
+
+/// <summary>
+/// How elite enemies resolve item loot vs the base <see cref="EnemyDefinition.loot"/> table.
+/// </summary>
+public enum EnemyEliteLootHandling
+{
+    [Tooltip("Always roll the base loot table. When elite, multiply each row's drop chance by Elite Loot Chance Multiplier (capped at 1).")]
+    ScaleBaseLootChances = 0,
+
+    [Tooltip("Non-elite: base table only. Elite: only rows under Elite Loot (base table ignored for item drops).")]
+    EliteLootTableOnly = 1,
+
+    [Tooltip("Roll the base table (elite: chances scaled). If elite, also roll Elite Loot rows.")]
+    ScaledBasePlusExtraEliteEntries = 2,
+}
+
+/// <summary>
+/// One independent item roll when an enemy dies (same rules as endurance trial loot rows).
+/// </summary>
+[Serializable]
+public class EnemyLootEntry : ISerializationCallbackReceiver
+{
+    [Tooltip("Item granted to the player inventory when this row succeeds its roll.")]
+    public ItemDefinition item;
+
+    [Min(1)]
+    [Tooltip("Minimum stack when this entry succeeds.")]
+    public int amountMin = 1;
+
+    [Min(1)]
+    [Tooltip("Maximum stack (inclusive). Must be >= Amount Min.")]
+    public int amountMax = 1;
+
+    [Range(0f, 1f)]
+    [Tooltip("Independent chance this row succeeds (0 = never, 1 = always). Each row rolls separately.")]
+    public float dropChance = 1f;
+
+    public void OnBeforeSerialize()
+    {
+    }
+
+    public void OnAfterDeserialize()
+    {
+        if (amountMax < amountMin)
+            amountMax = amountMin;
+    }
+}
 
 /// <summary>
 /// Data-only enemy template: identity, base combat values, and prefab reference.
@@ -204,6 +253,42 @@ public class EnemyDefinition : ScriptableObject
 
     [Min(0.05f)]
     public float idleWanderIdleMaxSec = 8f;
+
+    [Header("Gold drop")]
+    [Tooltip("When false, this enemy awards no gold on death.")]
+    public bool dropGold = true;
+
+    [Min(0)]
+    public int goldMin = 1;
+
+    [Min(0)]
+    public int goldMax = 5;
+
+    [Range(0f, 1f)]
+    [Tooltip("Chance the gold payout runs at all (before rolling min–max).")]
+    public float goldDropChance = 1f;
+
+    [Tooltip("World offset for the floating +gold popup.")]
+    public Vector3 goldPopupWorldOffset = new Vector3(0f, 1.2f, 0f);
+
+    [Min(1f)]
+    [Tooltip("Applied to the rolled gold amount when this spawn is Elite (see MapNodeDefinition.eliteSpawnChance). Ignored for legacy prefabs with no definition.")]
+    public float eliteGoldMultiplier = 2f;
+
+    [Header("Item loot (on death)")]
+    [Tooltip("Each row rolls independently when the enemy dies. Empty = no item drops from data.")]
+    public List<EnemyLootEntry> loot = new();
+
+    [Header("Elite — item loot")]
+    [Tooltip("See enum tooltips. Use Elite Loot Table Only to replace base drops; otherwise scale chances or add extra rows.")]
+    public EnemyEliteLootHandling eliteLootHandling = EnemyEliteLootHandling.ScaleBaseLootChances;
+
+    [Min(0f)]
+    [Tooltip("When handling scales base chances and this enemy is Elite: effective chance = min(1, row.dropChance × this).")]
+    public float eliteLootChanceMultiplier = 2f;
+
+    [Tooltip("Used when handling is Elite Table Only (elite only) or Scaled Base + Extra (elite only).")]
+    public List<EnemyLootEntry> eliteLoot = new();
 
     [Header("Notes")]
     [TextArea(2, 8)]

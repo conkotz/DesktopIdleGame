@@ -10,50 +10,46 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
-  m_Name: MapNode_green_grove
+  m_Name: MapNode_tutorial_1
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
-  nodeId: green_grove
-  displayName: Green Grove
-  description: Basic resources
+  nodeId: tutorial_1
+  displayName: Tutorial 1
+  description: Gather and learn the basics. Populate this map in the editor.
   nodeType: 1
-  enemyAggroMode: 0
+  enemyAggroMode: 1
   ignoreAggroRange: 0
   enemyRespawnEnabled: 0
   enemyRespawnDelaySeconds: 30
+  eliteSpawnChance: 0
   fallbackRecommendedCombatPower: 1
-  isRepeatable: 1
-  requiresMapUnlock: 0
+  isRepeatable: 0
+  markCompletedWhenReturningToMenu: 1
+  completedLabelRequiresEnteredNodeId: tutorial_2
+  requiresMapUnlock: 1
   icon: {fileID: 0}
   requiredSkillLevels: []
   combatSkillGateMode: 0
   combatSingleSkill: 0
   combatRequiredLevel: 1
-  unlockRequirementNotes: Reccomended to have tools (axe, pickaxe)
+  unlockRequirementNotes: 
   connectedNodeIds: []
-  nextNodeIds:
-  - 
+  nextNodeIds: []
   biome: 0
-  prefabGroups:
-  - groupId: Resources
-    prefabs:
-    - {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-    - {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
+  prefabGroups: []
   spawnGroupPlans:
-  - groupId: Resources
+  - groupId: MiddleSpawns
     spawns:
     - spawnPointGroupId: 
+      spawnPointName: 
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      count: 3
-    - spawnPointGroupId: 
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       count: 2
-    shuffleSpawnPoints: 0
+    shuffleSpawnPoints: 1
   enduranceWaves: []
   enduranceCompletionLoot: []
   enduranceCompletionLootByTier: []
   enduranceCompletionLootInterval: 0.5
-  contentDesignerNotes: 
+  contentDesignerNotes: "Designer \u2014 add resources and encounters in the scene;
+    no spawn rows on this asset yet."
   sceneNamePlaceholder: 
   encounterIdPlaceholder: 

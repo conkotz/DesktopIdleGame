@@ -88,7 +88,7 @@ GameObject:
   - component: {fileID: 5164290417990167664}
   - component: {fileID: 7975909168495234287}
   m_Layer: 5
-  m_Name: TypeText
+  m_Name: StateText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -110,8 +110,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 102.965, y: -36}
-  m_SizeDelta: {x: 42.35, y: 25}
+  m_AnchoredPosition: {x: 105.345, y: -36}
+  m_SizeDelta: {x: 47.11, y: 25}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1273107989095541744
 CanvasRenderer:
@@ -141,7 +141,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Type
+  m_text: State
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -462,8 +462,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldMapNodeButtonUI
   button: {fileID: 8428549890479222724}
   nameText: {fileID: 5458183906558336682}
-  typeText: {fileID: 5164290417990167664}
-  stateText: {fileID: 1519307949908627189}
+  typeText: {fileID: 1519307949908627189}
+  stateText: {fileID: 5164290417990167664}
   selectedHighlight: {fileID: 114485073117082883}
   colourIcon: {fileID: 7260341489567714084}
   rowBackgroundImage: {fileID: 4797788200141887069}
@@ -488,7 +488,7 @@ GameObject:
   - component: {fileID: 3171233310275208879}
   - component: {fileID: 1519307949908627189}
   m_Layer: 5
-  m_Name: StateText
+  m_Name: TypeText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -541,9 +541,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'State
-
-'
+  m_text: Type
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -730,7 +728,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 34.895, y: -36}
-  m_SizeDelta: {x: 0, y: 25}
+  m_SizeDelta: {x: 69.79, y: 25}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &5198596742698371356
 CanvasRenderer:

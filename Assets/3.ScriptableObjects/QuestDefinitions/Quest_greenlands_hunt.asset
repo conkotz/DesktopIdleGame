@@ -25,6 +25,12 @@ MonoBehaviour:
   rewardItem: {fileID: 0}
   rewardItemId: 
   rewardNotes: Bonus gear from the quartermaster
-  sortOrder: 10
   repeatable: 0
-  progressMapNodeId: 
+  progressMapNodeId: green_fields
+  killProgressOnlyOnProgressMap: 1
+  prerequisiteRewardClaimedQuestIds: []
+  requireAllPrerequisiteQuests: 1
+  requiredCompletedMapNodeId: 
+  killEnemyIdFilter: 
+  hideUntilMapNodeUnlockedId: 
+  sortOrder: 10

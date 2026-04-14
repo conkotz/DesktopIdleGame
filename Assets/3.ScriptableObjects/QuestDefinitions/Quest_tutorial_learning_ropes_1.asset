@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
+  m_Name: Quest_tutorial_learning_ropes_1
+  m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
+  questId: tutorial_learning_ropes_1
+  regionId: tutorial
+  displayName: Learning the ropes 1
+  description: "Gather 3 splitwood logs. Gathering without the required tool equipped
+    will cause you gather at greatly reduced speeds. \nThis might take some time..."
+  listCategoryLabel: Gathering
+  listStatusOverride: 
+  objectiveKind: 2
+  targetCount: 3
+  gatherItemId: splitwood_log
+  rewardGold: 5
+  rewardItem: {fileID: 11400000, guid: db75d88da4098f74f981abe58a3e7c03, type: 2}
+  rewardItemId: 
+  rewardNotes: 
+  repeatable: 0
+  progressMapNodeId: 
+  prerequisiteRewardClaimedQuestIds: []
+  requireAllPrerequisiteQuests: 0
+  requiredCompletedMapNodeId: 
+  killEnemyIdFilter: 
+  hideUntilMapNodeUnlockedId: 
+  sortOrder: 10

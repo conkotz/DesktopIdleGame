@@ -298,7 +298,7 @@ public class StorageSlotUI : MonoBehaviour,
             int remainder = equipAmount - dep;
             if (remainder > 0)
             {
-                if (!_inventory.Add(equipItemId, remainder))
+                if (!_inventory.Add(equipItemId, remainder, null, notifyItemGainPopup: false))
                 {
                     if (dep > 0)
                         _storage.RemoveItemAmountAcrossSlots(equipItemId, dep);

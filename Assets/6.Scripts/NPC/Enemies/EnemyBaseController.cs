@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -73,7 +74,8 @@ public class EnemyBaseController : MonoBehaviour
     [SerializeField] private string hurtTrigger = "Hurt";
     [SerializeField] private string dieTrigger = "Die";
 
-    [Header("Gold Drop")]
+    [Header("Gold drop (legacy)")]
+    [Tooltip("Used only when Enemy Definition is not assigned on this prefab. Otherwise gold comes from EnemyDefinition.")]
     [SerializeField] private bool dropGold = true;
     [SerializeField] private int goldMin = 1;
     [SerializeField] private int goldMax = 5;
@@ -92,6 +94,10 @@ public class EnemyBaseController : MonoBehaviour
     [Header("Damage Popup Anchor")]
     [Tooltip("Optional override. If null, we auto-resolve (prefer under visualsRoot, then under this enemy).")]
     [SerializeField] private DamagePopupAnchor damagePopupAnchor;
+
+    [Header("Loot drop (world pickup)")]
+    [Tooltip("Where item loot from EnemyDefinition spawns. If null, auto-finds a descendant named DropAnchor, else uses this enemy's position.")]
+    [SerializeField] private Transform dropLootAnchor;
 
     [Header("Debug")]
     [SerializeField] private bool drawGizmos = true;
@@ -218,12 +224,6 @@ public class EnemyBaseController : MonoBehaviour
         else
         {
             SetDisplayName(dn);
-        }
-
-        if (spawnAsElite)
-        {
-            goldMin = Mathf.Max(0, goldMin * 2);
-            goldMax = Mathf.Max(goldMin, goldMax * 2);
         }
 
         moveSpeed = Mathf.Max(0f, def.moveSpeed);
@@ -866,16 +866,18 @@ public class EnemyBaseController : MonoBehaviour
 
         OnDeath?.Invoke();
 
+        string eid = EnemyId;
         if (QuestProgressManager.Instance != null)
-            QuestProgressManager.Instance.NotifyEnemyKilledForActiveMap();
+            QuestProgressManager.Instance.NotifyEnemyKilledForActiveMap(eid);
         else
         {
             QuestProgressManager mgr = FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
             if (mgr)
-                mgr.NotifyEnemyKilledForActiveMap();
+                mgr.NotifyEnemyKilledForActiveMap(eid);
         }
 
         TryDropGold();
+        TryDropLoot();
 
         if (_rb) _rb.simulated = false;
 
@@ -1087,14 +1089,29 @@ public class EnemyBaseController : MonoBehaviour
 
     private void TryDropGold()
     {
-        if (!dropGold) return;
+        bool useDef = definition != null;
+        bool shouldDrop = useDef ? definition.dropGold : dropGold;
+        if (!shouldDrop) return;
 
-        if (goldDropChance < 1f && UnityEngine.Random.value > goldDropChance)
+        float chance = useDef ? definition.goldDropChance : goldDropChance;
+        if (chance < 1f && UnityEngine.Random.value > chance)
             return;
 
-        int min = Mathf.Max(0, goldMin);
-        int max = Mathf.Max(min, goldMax);
-        int amount = UnityEngine.Random.Range(min, max + 1);
+        int min = useDef ? definition.goldMin : goldMin;
+        int max = useDef ? definition.goldMax : goldMax;
+        Vector3 offset = useDef ? definition.goldPopupWorldOffset : goldPopupWorldOffset;
+
+        int gmin = Mathf.Max(0, min);
+        int gmax = Mathf.Max(gmin, max);
+        int amount = UnityEngine.Random.Range(gmin, gmax + 1);
+
+        if (_isElite)
+        {
+            if (useDef)
+                amount = Mathf.Max(0, Mathf.RoundToInt(amount * Mathf.Max(1f, definition.eliteGoldMultiplier)));
+            else
+                amount = Mathf.Max(0, amount * 2);
+        }
 
         if (amount <= 0) return;
 
@@ -1105,7 +1122,91 @@ public class EnemyBaseController : MonoBehaviour
             _wallet.AddGold(amount);
 
         if (_goldPopupSpawner != null)
-            _goldPopupSpawner.ShowGoldGainedAtWorld(transform.position + goldPopupWorldOffset, amount);
+            _goldPopupSpawner.ShowGoldGainedAtWorld(transform.position + offset, amount);
+    }
+
+    private void TryDropLoot()
+    {
+        if (definition == null)
+            return;
+
+        float eliteChanceMul = _isElite ? Mathf.Max(0f, definition.eliteLootChanceMultiplier) : 1f;
+
+        switch (definition.eliteLootHandling)
+        {
+            case EnemyEliteLootHandling.ScaleBaseLootChances:
+                RollEnemyLootTable(definition.loot, eliteChanceMul);
+                break;
+            case EnemyEliteLootHandling.EliteLootTableOnly:
+                if (_isElite)
+                    RollEnemyLootTable(definition.eliteLoot, 1f);
+                else
+                    RollEnemyLootTable(definition.loot, 1f);
+                break;
+            case EnemyEliteLootHandling.ScaledBasePlusExtraEliteEntries:
+                RollEnemyLootTable(definition.loot, eliteChanceMul);
+                if (_isElite)
+                    RollEnemyLootTable(definition.eliteLoot, 1f);
+                break;
+        }
+    }
+
+    private void RollEnemyLootTable(List<EnemyLootEntry> entries, float dropChanceMultiplier)
+    {
+        if (entries == null || entries.Count == 0)
+            return;
+
+        DropManager dm = DropManager.Instance != null
+            ? DropManager.Instance
+            : FindFirstObjectByType<DropManager>(FindObjectsInactive.Include);
+        if (dm == null)
+        {
+            Debug.LogWarning($"[Enemy] No DropManager in scene — item loot from '{name}' was not spawned.", this);
+            return;
+        }
+
+        Transform anchor = ResolveDropLootAnchor();
+        Vector3 spawnBase = anchor ? anchor.position : transform.position;
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            EnemyLootEntry e = entries[i];
+            if (e?.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
+                continue;
+
+            float p = Mathf.Clamp01(e.dropChance * dropChanceMultiplier);
+            if (p <= 0f)
+                continue;
+            if (p < 1f && UnityEngine.Random.value > p)
+                continue;
+
+            int amtMin = Mathf.Max(1, e.amountMin);
+            int amtMax = Mathf.Max(amtMin, e.amountMax);
+            int stack = UnityEngine.Random.Range(amtMin, amtMax + 1);
+            if (stack <= 0)
+                continue;
+
+            dm.SpawnAtWorldPosition(e.item.itemId.Trim(), stack, e.item.icon, spawnBase);
+        }
+    }
+
+    private Transform ResolveDropLootAnchor()
+    {
+        if (dropLootAnchor != null)
+            return dropLootAnchor;
+
+        var all = GetComponentsInChildren<Transform>(true);
+        for (int j = 0; j < all.Length; j++)
+        {
+            Transform t = all[j];
+            if (t != null && t.name == "DropAnchor")
+            {
+                dropLootAnchor = t;
+                return dropLootAnchor;
+            }
+        }
+
+        return null;
     }
 
     private void AwardCombatXpToSource(Transform source, float damageDealt)

@@ -282,6 +282,9 @@ public class MainMenuWindowUI : MonoBehaviour
             return;
         }
 
+        if (targetPage == levelSelectPage || targetPage == questPage)
+            MapNodeTravelProgress.TryMarkCurrentNodeIfConfigured();
+
         // Always activate the window root. UIWindowCloseButton (and similar) may SetActive(false) on this
         // GameObject; in canvas-group hide mode we previously skipped SetActive(true) and the menu could never reopen.
         mainMenuWindow.SetActive(true);

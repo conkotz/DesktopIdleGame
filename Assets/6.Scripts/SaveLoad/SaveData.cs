@@ -6,7 +6,7 @@ using UnityEngine;
 public class SaveData
 {
     [Header("Meta")]
-    public int version = 3;
+    public int version = 4;
     public long savedAtUnix;
 
     [Header("World / Map")]
@@ -15,6 +15,15 @@ public class SaveData
 
     [Tooltip("Cached display label for save slot UI (denormalized).")]
     public string activeMapDisplayName = "";
+
+    [Tooltip("World map node ids the player may select (includes starting node; merged on load).")]
+    public List<string> worldMapUnlockedNodeIds = new();
+
+    [Tooltip("World map node ids marked story-completed.")]
+    public List<string> worldMapCompletedNodeIds = new();
+
+    [Tooltip("MapNodeDefinition.nodeId values the player has loaded in GamePlay at least once (entered map).")]
+    public List<string> worldMapEnteredNodeIds = new();
 
     [Header("Endurance trials")]
     [Tooltip("Parallel lists: MapNodeDefinition.nodeId → max selectable tier (1–5) for that trial.")]

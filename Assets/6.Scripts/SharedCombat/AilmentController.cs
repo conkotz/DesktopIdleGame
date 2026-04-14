@@ -652,21 +652,25 @@ public class AilmentController : MonoBehaviour
 
             if (showDotPopups && finalDamage > 0 && DamagePopupSystem.Instance != null)
             {
-                // Prefer child anchor so it follows visual flip/offset correctly.
                 var anchor = GetComponentInChildren<DamagePopupAnchor>(true);
-                Vector3 pos = anchor ? anchor.WorldPos : transform.position;
+                Vector3 anchorPos = anchor ? anchor.WorldPos : transform.position;
 
-                // DOT source side feels like "impact" side as well.
-                if (source)
+                PlayerController pc = GetComponent<PlayerController>();
+                Vector3 pos;
+                Vector3 dir;
+                if (pc != null)
+                    pc.GetIncomingDamagePopupPlacement(anchorPos, source, 0.35f, out pos, out dir);
+                else
                 {
-                    float dirX = Mathf.Sign(source.position.x - transform.position.x); // toward source
-                    if (dirX == 0f) dirX = 1f;
-                    pos.x += dirX * 0.25f;
+                    pos = anchorPos;
+                    dir = source ? (transform.position - source.position).normalized : Vector3.up;
+                    if (source)
+                    {
+                        float toward = Mathf.Sign(source.position.x - transform.position.x);
+                        if (toward == 0f) toward = 1f;
+                        pos.x -= toward * 0.35f;
+                    }
                 }
-
-                Vector3 dir = source
-                    ? (transform.position - source.position).normalized
-                    : Vector3.up;
 
                 DamagePopupSystem.Instance.Spawn(
                     pos,

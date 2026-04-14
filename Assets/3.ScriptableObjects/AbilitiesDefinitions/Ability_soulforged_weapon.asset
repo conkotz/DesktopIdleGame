@@ -19,7 +19,7 @@ MonoBehaviour:
     or return to you if out of enemy range. '
   icon: {fileID: 2127427094619477876, guid: a311d655e950d354a9c1c011aaaeb036, type: 3}
   cooldown: 60
-  energyCost: 100
+  energyCost: 10
   physicalDamageMultiplier: 0
   magicDamageMultiplier: 0
   corruptionDamageMultiplier: 0

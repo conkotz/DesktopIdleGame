@@ -332,7 +332,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
         amount = Mathf.Max(1, amount);
 
-        if (inventory.Add(itemId, amount))
+        if (inventory.Add(itemId, amount, null, notifyItemGainPopup: false))
             return;
 
         var def = GetDef(itemId);
@@ -539,10 +539,10 @@ public class EquipmentManager : MonoBehaviour, ISaveable
                 returnAmount = isSupport ? Mathf.Max(1, OffHandStackAmount) : 1;
             }
 
-            bool returned = inv.Add(currentlyEquipped, returnAmount);
+            bool returned = inv.Add(currentlyEquipped, returnAmount, null, notifyItemGainPopup: false);
             if (!returned)
             {
-                inv.Add(itemId, 1);
+                inv.Add(itemId, 1, null, notifyItemGainPopup: false);
                 return false;
             }
         }

@@ -5054,6 +5054,37 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelUpEffect
   levelParticles: {fileID: 924575403944571737}
+--- !u!1 &4206316379986374380
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 915268031099771178}
+  m_Layer: 8
+  m_Name: OverHeadAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &915268031099771178
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4206316379986374380}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.099999994, y: 1.98, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3287728027510253299}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4743721962739816599
 GameObject:
   m_ObjectHideFlags: 0
@@ -5516,6 +5547,7 @@ GameObject:
   - component: {fileID: 6203984249307556777}
   - component: {fileID: 2976291199266507660}
   - component: {fileID: 2755516244557776269}
+  - component: {fileID: 5821047392856102844}
   m_Layer: 10
   m_Name: Player
   m_TagString: Player
@@ -5981,6 +6013,8 @@ MonoBehaviour:
   canvas: {fileID: 0}
   playerWorld: {fileID: 753017158846464440}
   worldOffset: {x: 0, y: 1.2, z: 0}
+  stackVerticalSpacing: 30
+  popupSortingOrderOffset: 30000
   defaultMessageColor: {r: 1, g: 1, b: 1, a: 1}
   levelUpColor: {r: 0.35, g: 0.8, b: 1, a: 1}
 --- !u!114 &3838213064938477584
@@ -6298,6 +6332,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerLevelTransition
   shrinkDurationSeconds: 2
   shrinkToScale: 0.01
+--- !u!114 &5821047392856102844
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d4a37e2dc988fd47ad11848e99e2900, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyOverheadUISpawner
+  overheadPrefab: {fileID: 8344640054554863328, guid: 8099321fe44a7d540b9be18f0578e80d, type: 3}
+  overheadAnchor: {fileID: 915268031099771178}
+  characterStats: {fileID: 4199332309700179123}
+  enemy: {fileID: 0}
+  ailments: {fileID: 2141707508347274369}
+  stripCanvas: {fileID: 0}
+  stripCamera: {fileID: 0}
+  hpBarOnly: 1
 --- !u!1 &7830489794965648568
 GameObject:
   m_ObjectHideFlags: 0
@@ -6532,6 +6586,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4000013857073264, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       insertIndex: -1
       addedObject: {fileID: 44207935928407347}
+    - targetCorrespondingSourceObject: {fileID: 4000013857073264, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 915268031099771178}
     - targetCorrespondingSourceObject: {fileID: 4000011425412340, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7401999038469796969}

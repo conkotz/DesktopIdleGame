@@ -60,17 +60,9 @@ public struct SplitDamageRange
     /// </summary>
     public SplitDamage RollBasicAttackDamage(float critChance, float critMultiplier, out bool wasCrit)
     {
-        float phys = (max.physical > 0f && max.physical >= min.physical)
-            ? UnityEngine.Random.Range(min.physical, max.physical + 0.0001f)
-            : 0f;
-
-        float mag = (max.magic > 0f && max.magic >= min.magic)
-            ? UnityEngine.Random.Range(min.magic, max.magic + 0.0001f)
-            : 0f;
-
-        float corr = (max.corruptionDamage > 0f && max.corruptionDamage >= min.corruptionDamage)
-            ? UnityEngine.Random.Range(min.corruptionDamage, max.corruptionDamage + 0.0001f)
-            : 0f;
+        float phys = RollDamageLaneForBasicAttack(min.physical, max.physical);
+        float mag = RollDamageLaneForBasicAttack(min.magic, max.magic);
+        float corr = RollDamageLaneForBasicAttack(min.corruptionDamage, max.corruptionDamage);
 
         wasCrit = false;
 
@@ -91,6 +83,18 @@ public struct SplitDamageRange
             Mathf.Max(0f, mag),
             Mathf.Max(0f, corr)
         );
+    }
+
+    /// <summary>One damage lane: orders min/max so rounding errors cannot zero a hit that should deal damage.</summary>
+    public static float RollDamageLaneForBasicAttack(float minVal, float maxVal)
+    {
+        float lo = Mathf.Min(minVal, maxVal);
+        float hi = Mathf.Max(minVal, maxVal);
+        if (hi <= 0f && lo <= 0f)
+            return 0f;
+        if (lo >= hi)
+            return Mathf.Max(0f, lo);
+        return Mathf.Max(0f, UnityEngine.Random.Range(lo, hi + 0.0001f));
     }
 }
 
@@ -1094,6 +1098,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // -------------------------
     private ItemDefinition GetMainHandWeaponDef()
     {
+        // Match gather / visual unarmed override: use fist profile from Attack Profile (Unarmed) for damage.
+        if (equipment != null && equipment.ForceUnarmed)
+            return null;
+
         var def = GetDef(equipment ? equipment.MainHandItemId : null);
         return (def && def.IsWeapon) ? def : null;
     }
@@ -2393,17 +2401,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         var min = MinSplitDamage;
         var max = MaxSplitDamage;
 
-        float phys = (max.physical > 0f && max.physical >= min.physical)
-            ? UnityEngine.Random.Range(min.physical, max.physical + 0.0001f)
-            : 0f;
-
-        float mag = (max.magic > 0f && max.magic >= min.magic)
-            ? UnityEngine.Random.Range(min.magic, max.magic + 0.0001f)
-            : 0f;
-
-        float corr = (max.corruptionDamage > 0f && max.corruptionDamage >= min.corruptionDamage)
-            ? UnityEngine.Random.Range(min.corruptionDamage, max.corruptionDamage + 0.0001f)
-            : 0f;
+        float phys = SplitDamageRange.RollDamageLaneForBasicAttack(min.physical, max.physical);
+        float mag = SplitDamageRange.RollDamageLaneForBasicAttack(min.magic, max.magic);
+        float corr = SplitDamageRange.RollDamageLaneForBasicAttack(min.corruptionDamage, max.corruptionDamage);
 
         wasCrit = false;
 

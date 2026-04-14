@@ -229,6 +229,37 @@ public class LevelSpawnDirector : MonoBehaviour
         return enemies;
     }
 
+    /// <summary>
+    /// Extra encounter mid-session (tutorial phases, scripted waves). Does not change initial spawn bookkeeping.
+    /// </summary>
+    public List<EnemyBaseController> SpawnAdditionalGroupPlan(LevelSpawnGroupPlan plan, MapNodeDefinition respawnRulesFrom = null)
+    {
+        var enemies = new List<EnemyBaseController>();
+        if (plan == null || plan.spawns == null || plan.spawns.Count == 0)
+            return enemies;
+        if (!SpawnPlanHasGroupSource(plan))
+            return enemies;
+
+        var groups = FindAllSpawnPointGroups();
+        Transform parent = ResolveSpawnParent();
+        var spawnedRoots = new List<GameObject>();
+
+        SpawnGroup(plan, groups, parent, spawnedRoots, respawnRulesFrom, allowEliteSpawnRoll: false);
+
+        for (int i = 0; i < spawnedRoots.Count; i++)
+        {
+            GameObject go = spawnedRoots[i];
+            if (!go)
+                continue;
+            EnemyBaseController ec = go.GetComponent<EnemyBaseController>() ??
+                                     go.GetComponentInChildren<EnemyBaseController>(true);
+            if (ec)
+                enemies.Add(ec);
+        }
+
+        return enemies;
+    }
+
     private Transform ResolveSpawnParent()
     {
         if (spawnParentOverride != null)

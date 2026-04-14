@@ -115,12 +115,12 @@ MonoBehaviour:
     corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
-    minionDamagePercent: 0
+    minionDamagePercent: 0.2
     minionAttackSpeedPercent: 0
     minionCritChance: 0
     minionMaxLifePercent: 0
-    critChanceBonus: 0.1
-    critMultiplierBonus: 0.1
+    critChanceBonus: 0
+    critMultiplierBonus: 0
     attackRangeBonus: 0
     bleedChance: 0
     bleedMultiplier: 0

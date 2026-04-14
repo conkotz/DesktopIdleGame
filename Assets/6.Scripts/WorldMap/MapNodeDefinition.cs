@@ -368,7 +368,7 @@ public class MapNodeDefinition : ScriptableObject
 
     [Range(0f, 1f)]
     [Tooltip(
-        "Chance (0–1) that an enemy spawned by respawn is Elite: +100% HP, +25% damage, 2× combat XP per damage, 2× gold. " +
+        "Chance (0–1) that an enemy spawned by respawn is Elite: +100% HP, +25% damage, 2× combat XP per damage; gold uses EnemyDefinition.eliteGoldMultiplier (default 2×); item loot uses EnemyDefinition elite loot handling. " +
         "Never rolled on the level's initial spawn — only when respawning after death.")]
     public float eliteSpawnChance = 0f;
 
@@ -379,6 +379,19 @@ public class MapNodeDefinition : ScriptableObject
 
     [Tooltip("If false, node may be hidden or disabled after first clear (future use).")]
     public bool isRepeatable = true;
+
+    [Tooltip("When true, opening Level Select or Quests from the in-game main menu marks this node completed (for 'finish the level' quest gates).")]
+    public bool markCompletedWhenReturningToMenu;
+
+    [Header("Map UI — completion label")]
+    [Tooltip(
+        "Optional MapNodeDefinition.nodeId. When set, level select shows \"Completed\" and one-shot retired styling only after " +
+        "this node is saved as complete AND the player has entered that map at least once (Gameplay load). " +
+        "Story/quest logic still uses raw completion. Example: tutorial_1 → tutorial_2.")]
+    public string completedLabelRequiresEnteredNodeId = "";
+
+    [Tooltip("When true, level select never shows “Completed” for this node — uses “Cleared” instead (e.g. Tutorial 2).")]
+    public bool mapUiUseClearedInsteadOfCompleted;
 
     [Header("Unlock — Map progression")]
     [Tooltip("If true (default), WorldMapProgressManager must include this nodeId (starting node, story unlock, or additional list). If false, skill requirements only gate entry — use for areas that are open when skills are high enough.")]
@@ -547,17 +560,45 @@ public class MapNodeDefinition : ScriptableObject
     }
 
     /// <summary>
-    /// True when the player can enter: map gate (if any) + skill gates.
+    /// Level-select Completed label / retired row: raw save completion plus optional <see cref="completedLabelRequiresEnteredNodeId"/> gate.
+    /// Quests and region locks still use <see cref="WorldMapProgressManager.IsNodeCompleted"/> only.
+    /// </summary>
+    public bool IsCompletedShownInMapUi(WorldMapProgressManager progress)
+    {
+        if (progress == null || !progress.IsNodeCompleted(nodeId))
+            return false;
+
+        string need = completedLabelRequiresEnteredNodeId;
+        if (string.IsNullOrWhiteSpace(need))
+            return true;
+
+        return progress.HasEnteredNode(need.Trim());
+    }
+
+    /// <summary>
+    /// One-time nodes: shown as finished in level select (grey, no Enter) when <see cref="IsCompletedShownInMapUi"/> is true.
+    /// </summary>
+    public bool IsPermanentlyCompleted(WorldMapProgressManager progress)
+    {
+        return !isRepeatable && IsCompletedShownInMapUi(progress);
+    }
+
+    /// <summary>
+    /// True when the player can enter: map gate (if any) + skill gates, and not a finished one-shot node (raw completion).
     /// </summary>
     public bool CanEnter(WorldMapProgressManager progress, SkillsManager skills)
     {
         if (!IsMapProgressSatisfied(progress))
             return false;
-        return MeetsSkillRequirements(skills);
+        if (!MeetsSkillRequirements(skills))
+            return false;
+        if (!isRepeatable && progress != null && progress.IsNodeCompleted(nodeId))
+            return false;
+        return true;
     }
 
     /// <summary>
-    /// Short label for list/detail: distinguishes map lock vs skill lock vs completed.
+    /// Short label for list/detail: map/skill lock, Unlocked, Cleared (gated one-shot retired), or Completed.
     /// </summary>
     public string GetUiStateLabel(WorldMapProgressManager progress, SkillsManager skills)
     {
@@ -566,7 +607,19 @@ public class MapNodeDefinition : ScriptableObject
         if (!MeetsSkillRequirements(skills))
             return "Skill locked";
         if (progress != null && progress.IsNodeCompleted(nodeId))
-            return "Completed";
+        {
+            if (!IsCompletedShownInMapUi(progress))
+            {
+                if (!string.IsNullOrWhiteSpace(completedLabelRequiresEnteredNodeId))
+                    return "Unlocked";
+                return mapUiUseClearedInsteadOfCompleted ? "Cleared" : "Completed";
+            }
+
+            if (!string.IsNullOrWhiteSpace(completedLabelRequiresEnteredNodeId))
+                return "Cleared";
+            return mapUiUseClearedInsteadOfCompleted ? "Cleared" : "Completed";
+        }
+
         return "Unlocked";
     }
 

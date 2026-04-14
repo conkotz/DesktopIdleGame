@@ -85,3 +85,6 @@ MonoBehaviour:
   - itemId: physical_damage_pendant
     costs: []
     quantity: 1
+  - itemId: bone_ring
+    costs: []
+    quantity: 1

@@ -338,7 +338,7 @@ public class InventorySlotUI : MonoBehaviour,
                 if (!ok)
                 {
                     // toolbelt full -> put back, and DO NOT equip mainhand
-                    _inventory.Add(slot.itemId, 1);
+                    _inventory.Add(slot.itemId, 1, null, notifyItemGainPopup: false);
                 }
                 return;
             }
@@ -361,7 +361,7 @@ public class InventorySlotUI : MonoBehaviour,
             equipment.EquipMainHand(slot.itemId);
 
             if (!string.IsNullOrWhiteSpace(prev) && prev != slot.itemId)
-                _inventory.Add(prev, 1);
+                _inventory.Add(prev, 1, null, notifyItemGainPopup: false);
 
             return;
         }
@@ -407,7 +407,7 @@ public class InventorySlotUI : MonoBehaviour,
             equipment.EquipOffHand(slot.itemId, equipAmount);
 
             if (!string.IsNullOrWhiteSpace(prev) && prev != slot.itemId)
-                _inventory.Add(prev, Mathf.Max(1, prevAmount));
+                _inventory.Add(prev, Mathf.Max(1, prevAmount), null, notifyItemGainPopup: false);
 
             return;
         }
@@ -434,7 +434,7 @@ public class InventorySlotUI : MonoBehaviour,
                 // If something got replaced, add it back
                 // (simple approach: if both were full, we replaced ring1)
                 if (!string.IsNullOrWhiteSpace(beforeR1) && beforeR1 != afterR1 && beforeR1 != slot.itemId)
-                    _inventory.Add(beforeR1, 1);
+                    _inventory.Add(beforeR1, 1, null, notifyItemGainPopup: false);
 
                 return;
             }
@@ -448,7 +448,7 @@ public class InventorySlotUI : MonoBehaviour,
             equipment.EquipGear(def.equipSlot, slot.itemId);
 
             if (!string.IsNullOrWhiteSpace(prev) && prev != slot.itemId)
-                _inventory.Add(prev, 1);
+                _inventory.Add(prev, 1, null, notifyItemGainPopup: false);
 
             return;
         }
@@ -496,7 +496,7 @@ public class InventorySlotUI : MonoBehaviour,
         equipment.EquipGear(slot, itemId);
 
         if (!string.IsNullOrWhiteSpace(prev) && prev != itemId)
-            _inventory.Add(prev, 1);
+            _inventory.Add(prev, 1, null, notifyItemGainPopup: false);
 
         return true;
     }
@@ -679,7 +679,7 @@ public class InventorySlotUI : MonoBehaviour,
             if (_inventory == null) return;
             if (string.IsNullOrWhiteSpace(equipItemId)) return;
 
-            bool ok = _inventory.TryPlaceExternalAtSlot(equipItemId, equipAmount, _slotIndex);
+            bool ok = _inventory.TryPlaceExternalAtSlot(equipItemId, equipAmount, _slotIndex, null, notifyItemGainPopup: false);
             if (!ok)
             {
                 // No room / can't place on this slot -> keep equipped (drag state already consumed)
@@ -775,7 +775,7 @@ public class InventorySlotUI : MonoBehaviour,
     {
         if (string.IsNullOrWhiteSpace(itemId) || _inventory == null || amount <= 0) return;
 
-        bool ok = _inventory.Add(itemId, amount);
+        bool ok = _inventory.Add(itemId, amount, null, notifyItemGainPopup: false);
         if (ok) return;
 
         var def = _inventory.GetItemDef(itemId);

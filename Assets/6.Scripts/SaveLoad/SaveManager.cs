@@ -120,7 +120,7 @@ public class SaveManager : MonoBehaviour
     {
         var data = new SaveData
         {
-            version = 3,
+            version = 4,
             savedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
 
@@ -134,11 +134,31 @@ public class SaveManager : MonoBehaviour
                 s.LoadFrom(data);
 
             EnsurePlayerStorageLoadedFromData(data);
+            SeedActiveLevelFromWorldMapIfNeeded(data);
         }
         finally
         {
             _isApplyingSaveData = false;
         }
+    }
+
+    private static void SeedActiveLevelFromWorldMapIfNeeded(SaveData data)
+    {
+        if (data != null && !string.IsNullOrWhiteSpace(data.activeMapNodeId))
+            return;
+
+        WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        if (wmp == null || wmp.WorldMap == null)
+            return;
+
+        string startId = wmp.WorldMap.startingNodeId;
+        if (string.IsNullOrWhiteSpace(startId))
+            return;
+
+        MapNodeDefinition node = wmp.WorldMap.FindNodeById(startId.Trim());
+        if (node != null)
+            ActiveLevelContext.SetPendingLevel(node, logToConsole: false);
     }
 
     private static void EnsurePlayerStorageInSaveData(SaveData data)
@@ -199,7 +219,7 @@ public class SaveManager : MonoBehaviour
 
         var data = new SaveData
         {
-            version = 3,
+            version = 4,
             savedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
 
@@ -309,6 +329,12 @@ public class SaveManager : MonoBehaviour
             data.storageSlots = new List<SaveData.InventorySlotData>();
         if (data.questRewardClaimedIds == null)
             data.questRewardClaimedIds = new List<string>();
+        if (data.worldMapUnlockedNodeIds == null)
+            data.worldMapUnlockedNodeIds = new List<string>();
+        if (data.worldMapCompletedNodeIds == null)
+            data.worldMapCompletedNodeIds = new List<string>();
+        if (data.worldMapEnteredNodeIds == null)
+            data.worldMapEnteredNodeIds = new List<string>();
     }
 
     private IEnumerator DeferredApplyPlayerStorageLoad()

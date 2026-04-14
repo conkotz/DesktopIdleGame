@@ -142,13 +142,33 @@ public class DropManager : MonoBehaviour
     {
         if (!dropAnchor) ResolveAnchor();
 
-        if (!worldDropPrefab || !dropAnchor ||
-            string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+        if (!dropAnchor)
+        {
+            Debug.LogWarning("[DropManager] No drop anchor — cannot spawn.", this);
+            return;
+        }
+
+        SpawnAtWorldPosition(itemId, amount, icon, dropAnchor.position, clampToDropFrame: true);
+    }
+
+    /// <summary>
+    /// Spawn a world pickup at a position (e.g. enemy <c>DropAnchor</c>). Uses the same prefab and horizontal scatter as <see cref="Spawn"/>.
+    /// Frame clamp is off by default so ground loot stays at the spawn point.
+    /// </summary>
+    public void SpawnAtWorldPosition(
+        string itemId,
+        int amount,
+        Sprite icon,
+        Vector3 worldPosition,
+        bool clampToDropFrame = false)
+    {
+        if (!worldDropPrefab || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
             return;
 
         float scatterX = UnityEngine.Random.Range(-scatterRadius, scatterRadius);
-        Vector3 spawnPos = dropAnchor.position + new Vector3(scatterX, 0f, 0f);
-        ClampSpawnToDropFrame(ref spawnPos);
+        Vector3 spawnPos = worldPosition + new Vector3(scatterX, 0f, 0f);
+        if (clampToDropFrame)
+            ClampSpawnToDropFrame(ref spawnPos);
 
         var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
         drop.Init(itemId, amount, icon);

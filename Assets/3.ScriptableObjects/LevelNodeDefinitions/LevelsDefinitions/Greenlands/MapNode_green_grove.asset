@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
+  m_Name: MapNode_green_grove
+  m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
+  nodeId: green_grove
+  displayName: Green Grove
+  description: Basic resources
+  nodeType: 1
+  enemyAggroMode: 0
+  ignoreAggroRange: 0
+  enemyRespawnEnabled: 0
+  enemyRespawnDelaySeconds: 30
+  eliteSpawnChance: 0
+  fallbackRecommendedCombatPower: 1
+  isRepeatable: 1
+  markCompletedWhenReturningToMenu: 0
+  requiresMapUnlock: 0
+  icon: {fileID: 0}
+  requiredSkillLevels: []
+  combatSkillGateMode: 0
+  combatSingleSkill: 0
+  combatRequiredLevel: 1
+  unlockRequirementNotes: Reccomended to have tools (axe, pickaxe)
+  connectedNodeIds: []
+  nextNodeIds:
+  - 
+  biome: 0
+  prefabGroups:
+  - groupId: Resources
+    prefabs:
+    - {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+    - {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
+  spawnGroupPlans:
+  - groupId: MiddleSpawns
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      count: 3
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
+      count: 2
+    shuffleSpawnPoints: 0
+  enduranceWaves: []
+  enduranceCompletionLoot: []
+  enduranceCompletionLootByTier: []
+  enduranceCompletionLootInterval: 0.5
+  contentDesignerNotes: 
+  sceneNamePlaceholder: 
+  encounterIdPlaceholder: 

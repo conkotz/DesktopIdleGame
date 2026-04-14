@@ -65,8 +65,9 @@ MonoBehaviour:
   parentCanvas: {fileID: 0}
   targetCamera: {fileID: 0}
   enableOverlappingStack: 1
-  stackOverlapThresholdPx: 64
+  stackHorizontalOverlapPaddingPx: 8
   stackVerticalSpacingPx: 56
+  stackMinClusteringHalfWidthPx: 0
 --- !u!1 &2733774353303313739
 GameObject:
   m_ObjectHideFlags: 0

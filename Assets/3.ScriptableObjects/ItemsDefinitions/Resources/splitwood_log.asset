@@ -16,6 +16,7 @@ MonoBehaviour:
   maxStack: 999
   itemId: splitwood_log
   displayName: Splitwood Logs
+  displayNameSingular: Splitwood Log
   icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}

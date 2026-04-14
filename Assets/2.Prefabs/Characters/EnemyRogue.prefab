@@ -573,6 +573,37 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!1 &3663130642109078914
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7837345831235559395}
+  m_Layer: 10
+  m_Name: DropAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7837345831235559395
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3663130642109078914}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.11, y: 0.94, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6538367760463352144}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4171944133737046111
 GameObject:
   m_ObjectHideFlags: 0
@@ -885,6 +916,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 3187697152546181186}
+  - {fileID: 7837345831235559395}
   - {fileID: 574227060512856258}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -957,6 +989,12 @@ MonoBehaviour:
   aggroRange: 7
   moveSpeed: 3
   xOnly: 1
+  idleWanderEnabled: 0
+  idleWanderSpeed: 0.8
+  idleWanderMoveMinSec: 1
+  idleWanderMoveMaxSec: 3
+  idleWanderIdleMinSec: 2
+  idleWanderIdleMaxSec: 8
   enemyAttackWindup: 0.2
   requireRangeOnHit: 1
   destroyOnDeath: 1
@@ -979,6 +1017,7 @@ MonoBehaviour:
   nameLabel: {fileID: 0}
   hpBar: {fileID: 0}
   damagePopupAnchor: {fileID: 0}
+  dropLootAnchor: {fileID: 0}
   drawGizmos: 1
   state: 0
 --- !u!114 &217292436927114433
@@ -1003,6 +1042,7 @@ MonoBehaviour:
   baseMaxMana: 1
   baseArmor: 0
   baseMagicResist: 0
+  baseCorruptionResist: 0
   basePhysBlockChance: 0
   baseMoveSpeed: 0
   baseMoveSpeedMult: 0
@@ -1013,8 +1053,8 @@ MonoBehaviour:
   baseMaxPhysicalDamage: 2
   baseMinMagicDamage: 0
   baseMaxMagicDamage: 0
-  baseMinTrueDamage: 0
-  baseMaxTrueDamage: 0
+  baseMinCorruptionDamage: 0
+  baseMaxCorruptionDamage: 0
   baseAbilityPower: 0
   baseLifeSteal: 0
   baseBleedChance: 0
@@ -1022,21 +1062,26 @@ MonoBehaviour:
   baseBleedDuration: 5
   basePoisonChance: 0
   basePoisonMultiplier: 0
+  poisonPoolFractionOfCorruptionDamage: 0.4
   basePoisonDuration: 5
   basePoisonMaxStacks: 3
   baseMagicAttackType: 0
   baseMagicAilmentApplyChance: 0
+  baseBurnChance: 0
   baseChillDuration: 5
   baseChillMaxStacks: 6
   baseChillSlowPerStack: 0.15
   baseBurnHitsToExplode: 4
   baseBurnExplosionMultiplier: 0.5
+  bonusBurnDamageMultiplier: 0
   baseShockDuration: 5
   baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
   equipment: {fileID: 0}
   inventory: {fileID: 0}
   toolbelt: {fileID: 0}
+  skillsManager: {fileID: 0}
+  skillDatabase: {fileID: 0}
   unarmedMinPhysicalDamage: 0
   unarmedMaxPhysicalDamage: 0
   unarmedAttacksPerSecond: 0
@@ -1046,6 +1091,7 @@ MonoBehaviour:
   bonusAxeSpeedMult: 0
   bonusPickaxeSpeedMult: 0
   bonusRodSpeedMult: 0
+  debugAbilityCombatPower: 0
 --- !u!114 &2944910628672340933
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1098,7 +1144,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
-  burnFallbackDurationSeconds: 30
+  burnDurationTicks: 15
+  burnDamageFractionOfHitPerTick: 0.15
+  burnCombustTicksWorth: 10
 --- !u!114 &549625517635857652
 MonoBehaviour:
   m_ObjectHideFlags: 0

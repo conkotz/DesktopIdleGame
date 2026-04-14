@@ -214,6 +214,7 @@ public class LevelSelectPageUI : MonoBehaviour
 
     private void OnProgressChanged()
     {
+        RebuildRegionList();
         RebuildNodeList();
         RefreshDetails();
     }
@@ -261,7 +262,7 @@ public class LevelSelectPageUI : MonoBehaviour
         if (!string.IsNullOrEmpty(worldMap.startingRegionId))
         {
             RegionDefinition preferred = worldMap.FindRegionById(worldMap.startingRegionId);
-            if (preferred && IsRegionAvailable(preferred, progress))
+            if (preferred && ShouldShowRegionInPicker(preferred, progress) && IsRegionAvailable(preferred, progress))
                 _selectedRegion = preferred;
         }
 
@@ -270,7 +271,7 @@ public class LevelSelectPageUI : MonoBehaviour
             for (int i = 0; i < worldMap.regions.Count; i++)
             {
                 RegionDefinition r = worldMap.regions[i];
-                if (r && IsRegionAvailable(r, progress))
+                if (r && ShouldShowRegionInPicker(r, progress) && IsRegionAvailable(r, progress))
                 {
                     _selectedRegion = r;
                     break;
@@ -279,6 +280,19 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         if (!_selectedRegion)
+        {
+            for (int i = 0; i < worldMap.regions.Count; i++)
+            {
+                RegionDefinition r = worldMap.regions[i];
+                if (r && ShouldShowRegionInPicker(r, progress))
+                {
+                    _selectedRegion = r;
+                    break;
+                }
+            }
+        }
+
+        if (!_selectedRegion && worldMap.regions.Count > 0)
             _selectedRegion = worldMap.regions[0];
 
         if (!string.IsNullOrEmpty(worldMap.startingNodeId))
@@ -305,6 +319,8 @@ public class LevelSelectPageUI : MonoBehaviour
         {
             RegionDefinition region = worldMap.regions[i];
             if (!region) continue;
+            if (!region.ShouldListInRegionPicker(progress, ResolveActiveMapNodeIdForRegionUi(), worldMap))
+                continue;
 
             GameObject row = Instantiate(regionRowPrefab, regionListParent);
             _regionRows.Add(row);
@@ -326,6 +342,8 @@ public class LevelSelectPageUI : MonoBehaviour
 
             SetRegionRowSelected(row, unlocked, unlocked && region == _selectedRegion);
         }
+
+        MigrateRegionSelectionIfNeeded(progress);
     }
 
     private void ClearRegionRows()
@@ -453,7 +471,8 @@ public class LevelSelectPageUI : MonoBehaviour
                 : "Unlocked";
 
             bool sel = _selectedNode && _selectedNode == node;
-            row.Bind(node, state, sel, OnNodeSelected);
+            bool greyOneShotDone = progress && node.IsPermanentlyCompleted(progress);
+            row.Bind(node, state, sel, OnNodeSelected, greyOneShotDone);
         }
     }
 
@@ -546,9 +565,14 @@ public class LevelSelectPageUI : MonoBehaviour
 
         RefreshRequirementsBlock(n);
 
+        bool hideEnter = n && progress && n.IsPermanentlyCompleted(progress);
         bool canEnter = n && n.CanEnter(progress, skills);
         if (enterNodeButton)
-            enterNodeButton.interactable = canEnter;
+        {
+            enterNodeButton.gameObject.SetActive(!hideEnter);
+            if (!hideEnter)
+                enterNodeButton.interactable = canEnter;
+        }
 
         ApplyPanelThemeColors(n);
         PublishHudPreview();
@@ -658,10 +682,50 @@ public class LevelSelectPageUI : MonoBehaviour
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate(gameplaySceneName);
     }
 
-    private static bool IsRegionAvailable(RegionDefinition region, WorldMapProgressManager progress)
+    private bool IsRegionAvailable(RegionDefinition region, WorldMapProgressManager progress)
     {
         if (!region)
             return false;
-        return region.IsRegionUnlocked(progress);
+        return region.IsRegionUnlocked(progress, ResolveActiveMapNodeIdForRegionUi(), worldMap);
+    }
+
+    private bool ShouldShowRegionInPicker(RegionDefinition region, WorldMapProgressManager progress)
+    {
+        if (!region)
+            return false;
+        return region.ShouldListInRegionPicker(progress, ResolveActiveMapNodeIdForRegionUi(), worldMap);
+    }
+
+    private void MigrateRegionSelectionIfNeeded(WorldMapProgressManager progress)
+    {
+        if (_regionRowRegions.Count == 0)
+        {
+            _selectedRegion = null;
+            _selectedNode = null;
+            return;
+        }
+
+        if (_selectedRegion != null && _regionRowRegions.Contains(_selectedRegion))
+            return;
+
+        _selectedRegion = _regionRowRegions[0];
+        _selectedNode = null;
+        if (_selectedRegion != null && _selectedRegion.nodes is { Count: > 0 })
+            _selectedNode = _selectedRegion.nodes[0];
+
+        for (int i = 0; i < _regionRows.Count && i < _regionRowRegions.Count; i++)
+        {
+            bool unlocked = IsRegionAvailable(_regionRowRegions[i], progress);
+            SetRegionRowSelected(_regionRows[i], unlocked, unlocked && _regionRowRegions[i] == _selectedRegion);
+        }
+    }
+
+    private static string ResolveActiveMapNodeIdForRegionUi()
+    {
+        if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
+            return GameplayLevelBootstrapper.Instance.ActiveDefinition.nodeId;
+        if (ActiveLevelContext.Current != null)
+            return ActiveLevelContext.Current.nodeId;
+        return null;
     }
 }

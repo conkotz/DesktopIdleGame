@@ -512,7 +512,7 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         int amountToReturn = GetEquippedAmountForThisSlot();
 
-        bool ok = inventory.Add(_itemId, amountToReturn);
+        bool ok = inventory.Add(_itemId, amountToReturn, null, notifyItemGainPopup: false);
         if (!ok) return;
 
         ClearThisSlot();
@@ -841,7 +841,7 @@ public class EquipmentSlotUI : MonoBehaviour,
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return;
 
-        bool ok = inventory.Add(itemId, amount);
+        bool ok = inventory.Add(itemId, amount, null, notifyItemGainPopup: false);
         if (ok) return;
 
         var def = inventory.GetItemDef(itemId);

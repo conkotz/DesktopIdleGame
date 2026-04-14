@@ -537,6 +537,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     [Header("Display")]
     public string displayName = "New Item";
+    [Tooltip("Optional. Used for +1 gather popups when set (e.g. Splitwood Log vs Splitwood Logs).")]
+    public string displayNameSingular = "";
     public Sprite icon;
 
     [Header("Held Visual (optional)")]

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "Desktop Idle Game/Quest/Quest Definition", fileName = "Quest_")]
@@ -40,6 +41,10 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("If set without rewardItem, name is resolved via ItemDatabase in UI.")]
     public string rewardItemId = "";
 
+    [Min(1)]
+    [Tooltip("Stack size granted for Reward Item / Reward Item Id when the quest is completed.")]
+    public int rewardItemQuantity = 1;
+
     [TextArea(1, 3)]
     public string rewardNotes = "";
 
@@ -47,11 +52,43 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("If false, rewards can only be claimed once; the quest stays COMPLETE in the list.")]
     public bool repeatable;
 
-    [Tooltip("For kill quests: only increments while this MapNodeDefinition.nodeId is active (empty = any map).")]
+    [Tooltip("For kill quests: map node id where kills may count (see Kill Progress Only On This Map).")]
     public string progressMapNodeId = "";
+
+    [Tooltip(
+        "KillCount: when true, only kills on Progress Map Node Id count toward this quest (any enemy unless Kill Enemy Id Filter is set). " +
+        "Progress Map Node Id must be set. When false, an empty Progress Map Node Id lets kills on any map count (legacy / rare).")]
+    public bool killProgressOnlyOnProgressMap;
+
+    [Header("Prerequisites")]
+    [Tooltip("These quest ids must have had rewards claimed before this quest can be completed (claim).")]
+    public List<string> prerequisiteRewardClaimedQuestIds = new();
+
+    [Tooltip("If true, every prerequisite id must be claimed. If false, any one claimed suffices.")]
+    public bool requireAllPrerequisiteQuests = true;
+
+    [Tooltip("In addition to objective progress, this map node id must be marked completed (e.g. Tutorial 1 cleared via level-select / menu flow).")]
+    public string requiredCompletedMapNodeId = "";
+
+    [Tooltip("KillCount only: when set, only kills of this EnemyDefinition.enemyId count (e.g. enemy_rogue).")]
+    public string killEnemyIdFilter = "";
+
+    [Header("Quest list visibility")]
+    [Tooltip("If set, this quest is omitted from the quest list until WorldMapProgressManager unlocks this MapNodeDefinition.nodeId (e.g. tutorial_2). Prerequisites still control Locked vs Available once visible.")]
+    public string hideUntilMapNodeUnlockedId = "";
 
     [Header("Ordering")]
     public int sortOrder;
+
+    /// <summary>False when <see cref="hideUntilMapNodeUnlockedId"/> is set and that node is not map-unlocked yet.</summary>
+    public bool IsShownInQuestList(WorldMapProgressManager mapProgress)
+    {
+        if (string.IsNullOrWhiteSpace(hideUntilMapNodeUnlockedId))
+            return true;
+        if (mapProgress == null)
+            return false;
+        return mapProgress.IsNodeUnlocked(hideUntilMapNodeUnlockedId.Trim());
+    }
 
     public bool IsComplete(int currentAmount)
     {

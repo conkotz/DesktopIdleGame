@@ -64,4 +64,14 @@ MonoBehaviour:
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
+  dropGold: 1
+  goldMin: 250
+  goldMax: 300
+  goldDropChance: 1
+  goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
+  eliteGoldMultiplier: 2
+  loot: []
+  eliteLootHandling: 0
+  eliteLootChanceMultiplier: 2
+  eliteLoot: []
   designerNotes: 

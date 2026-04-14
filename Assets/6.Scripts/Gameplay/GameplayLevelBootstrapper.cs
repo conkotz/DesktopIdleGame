@@ -74,6 +74,13 @@ public class GameplayLevelBootstrapper : MonoBehaviour
         ActiveDefinition = node;
         ActiveLevelContext.SetPendingLevel(node, logToConsole: false);
 
+        WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        if (wmp != null && !string.IsNullOrEmpty(node.nodeId) &&
+            wmp.MarkNodeEntered(node.nodeId.Trim()) &&
+            SaveManager.Instance != null)
+            SaveManager.Instance.Save();
+
         // Suppress startup spam logs during normal gameplay.
 
         if (devInstantiatePrefabGroups)

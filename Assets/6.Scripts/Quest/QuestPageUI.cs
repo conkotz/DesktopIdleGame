@@ -264,7 +264,7 @@ public class QuestPageUI : MonoBehaviour
         if (!string.IsNullOrEmpty(worldMap.startingRegionId))
         {
             RegionDefinition preferred = worldMap.FindRegionById(worldMap.startingRegionId);
-            if (preferred && IsRegionAvailable(preferred, progress))
+            if (preferred && ShouldShowRegionInPicker(preferred, progress) && IsRegionAvailable(preferred, progress))
                 _selectedRegion = preferred;
         }
 
@@ -273,7 +273,7 @@ public class QuestPageUI : MonoBehaviour
             for (int i = 0; i < worldMap.regions.Count; i++)
             {
                 RegionDefinition r = worldMap.regions[i];
-                if (r && IsRegionAvailable(r, progress))
+                if (r && ShouldShowRegionInPicker(r, progress) && IsRegionAvailable(r, progress))
                 {
                     _selectedRegion = r;
                     break;
@@ -282,6 +282,19 @@ public class QuestPageUI : MonoBehaviour
         }
 
         if (!_selectedRegion)
+        {
+            for (int i = 0; i < worldMap.regions.Count; i++)
+            {
+                RegionDefinition r = worldMap.regions[i];
+                if (r && ShouldShowRegionInPicker(r, progress))
+                {
+                    _selectedRegion = r;
+                    break;
+                }
+            }
+        }
+
+        if (!_selectedRegion && worldMap.regions.Count > 0)
             _selectedRegion = worldMap.regions[0];
     }
 
@@ -298,6 +311,8 @@ public class QuestPageUI : MonoBehaviour
         {
             RegionDefinition region = worldMap.regions[i];
             if (!region) continue;
+            if (!region.ShouldListInRegionPicker(progress, ResolveActiveMapNodeIdForRegionUi(), worldMap))
+                continue;
 
             GameObject row = Instantiate(regionRowPrefab, regionListParent);
             _regionRows.Add(row);
@@ -319,6 +334,8 @@ public class QuestPageUI : MonoBehaviour
 
             SetRegionRowSelected(row, unlocked, unlocked && region == _selectedRegion);
         }
+
+        MigrateQuestRegionSelectionIfNeeded(progress);
     }
 
     private void ClearRegionRows()
@@ -423,6 +440,7 @@ public class QuestPageUI : MonoBehaviour
 
         _scratchQuests.Clear();
         questDatabase.CollectForRegion(_selectedRegion.regionId, _scratchQuests);
+        _scratchQuests.RemoveAll(q => !q || !q.IsShownInQuestList(mapProgress));
         if (_scratchQuests.Count == 0)
         {
             _selectedQuest = null;
@@ -449,7 +467,7 @@ public class QuestPageUI : MonoBehaviour
 
         if (_selectedQuest != null && !_scratchQuests.Contains(_selectedQuest))
             _selectedQuest = null;
-        if (!_selectedQuest)
+        if (!_selectedQuest && _scratchQuests.Count > 0)
             _selectedQuest = _scratchQuests[0];
 
         RefreshQuestSelectionVisuals();
@@ -461,10 +479,16 @@ public class QuestPageUI : MonoBehaviour
 
     private int CompareQuestRows(QuestDefinition a, QuestDefinition b, QuestProgressManager qProg)
     {
+        if (!a && !b) return 0;
+        if (!a) return 1;
+        if (!b) return -1;
+
+        // Incomplete / in-progress / locked rows first; permanently completed rows last.
         bool ca = IsQuestCompleteForSort(a, qProg);
         bool cb = IsQuestCompleteForSort(b, qProg);
         if (ca != cb)
             return ca ? 1 : -1;
+
         int o = a.sortOrder.CompareTo(b.sortOrder);
         if (o != 0)
             return o;
@@ -482,13 +506,17 @@ public class QuestPageUI : MonoBehaviour
     {
         if (mgr != null && mgr.IsPermanentlyComplete(q))
             return "COMPLETE";
+        if (mgr != null && mgr.IsQuestGatedByPrerequisites(q))
+            return "Locked";
         if (!string.IsNullOrEmpty(q.listStatusOverride))
             return q.listStatusOverride;
+        if (q.IsComplete(amt) && mgr != null && !mgr.IsRequiredMapNodeSatisfied(q))
+            return "In Progress";
         if (q.IsComplete(amt))
-            return "Ready";
+            return "In Progress";
         if (amt > 0)
-            return "In progress";
-        return "Available";
+            return "In Progress";
+        return "In Progress";
     }
 
     private void ClearQuestRows()
@@ -523,10 +551,14 @@ public class QuestPageUI : MonoBehaviour
     {
         EnsureDetailWidgets();
         ItemDatabase items = FindItemDatabase();
+        EnemyDatabase enemies = FindEnemyDatabase();
         QuestProgressManager qProg = FindQuestProgress();
 
+        WorldMapProgressManager mapProg = FindWorldProgress();
         QuestDefinition q = _selectedQuest;
-        if (!q || _selectedRegion == null || !IsRegionAvailable(_selectedRegion, FindWorldProgress()))
+        if (!q || _selectedRegion == null || !IsRegionAvailable(_selectedRegion, mapProg))
+            q = null;
+        if (q != null && !q.IsShownInQuestList(mapProg))
             q = null;
 
         if (detailNameText)
@@ -542,16 +574,19 @@ public class QuestPageUI : MonoBehaviour
             progressSectionLabelText.gameObject.SetActive(showProgress);
         if (progressKindLabelText)
         {
-            progressKindLabelText.gameObject.SetActive(showProgress);
+            string kindText = "";
             if (showProgress && q != null)
             {
-                progressKindLabelText.text = q.objectiveKind switch
+                kindText = q.objectiveKind switch
                 {
-                    QuestObjectiveKind.KillCount => "Kills",
-                    QuestObjectiveKind.GatherItem => "Items",
+                    QuestObjectiveKind.KillCount => FormatKillQuestProgressKindLabel(q, enemies),
+                    QuestObjectiveKind.GatherItem => FormatGatherQuestProgressKindLabel(q, items),
                     _ => ""
                 };
             }
+
+            progressKindLabelText.text = kindText;
+            progressKindLabelText.gameObject.SetActive(showProgress && !string.IsNullOrEmpty(kindText));
         }
 
         if (progressValueText)
@@ -560,7 +595,7 @@ public class QuestPageUI : MonoBehaviour
             if (showProgress)
             {
                 bool permanent = qProg && qProg.IsPermanentlyComplete(q);
-                progressValueText.text = FormatProgressLine(q, amt, items, permanent);
+                progressValueText.text = FormatProgressLine(q, amt, items, enemies, permanent);
             }
         }
 
@@ -592,6 +627,7 @@ public class QuestPageUI : MonoBehaviour
 
         bool permanent = qProg && qProg.IsPermanentlyComplete(q);
         bool canClaim = qProg && qProg.CanClaimReward(q);
+        bool gated = qProg && qProg.IsQuestGatedByPrerequisites(q);
 
         if (permanent)
         {
@@ -601,11 +637,27 @@ public class QuestPageUI : MonoBehaviour
             return;
         }
 
+        if (gated)
+        {
+            if (_questClaimButtonLabel)
+                _questClaimButtonLabel.text = "Locked";
+            _questClaimButton.interactable = false;
+            return;
+        }
+
         if (canClaim)
         {
             if (_questClaimButtonLabel)
                 _questClaimButtonLabel.text = "Complete Quest";
             _questClaimButton.interactable = true;
+            return;
+        }
+
+        if (qProg != null && q.IsComplete(qProg.GetDisplayProgress(q)) && !qProg.IsRequiredMapNodeSatisfied(q))
+        {
+            if (_questClaimButtonLabel)
+                _questClaimButtonLabel.text = "Finish level first";
+            _questClaimButton.interactable = false;
             return;
         }
 
@@ -624,7 +676,7 @@ public class QuestPageUI : MonoBehaviour
         RefreshDetails();
     }
 
-    private static string FormatProgressLine(QuestDefinition q, int current, ItemDatabase db, bool permanentlyComplete)
+    private static string FormatProgressLine(QuestDefinition q, int current, ItemDatabase db, EnemyDatabase enemyDb, bool permanentlyComplete)
     {
         int target = Mathf.Max(1, q.targetCount);
 
@@ -633,8 +685,9 @@ public class QuestPageUI : MonoBehaviour
             return q.objectiveKind switch
             {
                 QuestObjectiveKind.GatherItem =>
-                    $"Completed - {target} {ResolveItemName(q.gatherItemId, null, db)}",
-                QuestObjectiveKind.KillCount => $"Completed - {target} kills",
+                    $"Completed - {target} {GatherObjectiveItemLabel(q, db)}",
+                QuestObjectiveKind.KillCount =>
+                    $"Completed - {target} {KillQuestEnemyUnitLabel(q, enemyDb, target)}",
                 _ => "Completed"
             };
         }
@@ -644,11 +697,14 @@ public class QuestPageUI : MonoBehaviour
         switch (q.objectiveKind)
         {
             case QuestObjectiveKind.KillCount:
-                return $"{current}/{target} kills";
+            {
+                string unit = KillQuestEnemyUnitLabel(q, enemyDb, target);
+                return $"{current} / {target} {unit}";
+            }
             case QuestObjectiveKind.GatherItem:
             {
-                string itemName = ResolveItemName(q.gatherItemId, null, db);
-                return $"{current} {itemName}/{target} {itemName}";
+                string itemName = GatherObjectiveItemLabel(q, db);
+                return $"{current} {itemName} / {target} {itemName}";
             }
             default:
                 return "";
@@ -661,13 +717,14 @@ public class QuestPageUI : MonoBehaviour
         if (q.rewardGold > 0)
             parts.Add($"{q.rewardGold}g");
 
+        int qty = Mathf.Max(1, q.rewardItemQuantity);
         if (q.rewardItem)
-            parts.Add(q.rewardItem.displayName);
-        else
+            parts.Add(FormatRewardItemLine(q.rewardItem.displayName, qty));
+        else if (!string.IsNullOrWhiteSpace(q.rewardItemId))
         {
             string nm = ResolveItemName(q.rewardItemId, null, db);
             if (!string.IsNullOrEmpty(nm))
-                parts.Add(nm);
+                parts.Add(FormatRewardItemLine(nm, qty));
         }
 
         if (!string.IsNullOrWhiteSpace(q.rewardNotes))
@@ -676,12 +733,80 @@ public class QuestPageUI : MonoBehaviour
         return parts.Count > 0 ? string.Join(" / ", parts) : "—";
     }
 
+    private static string FormatRewardItemLine(string displayName, int quantity)
+    {
+        if (string.IsNullOrEmpty(displayName))
+            return "";
+        return $"{displayName} x{quantity}";
+    }
+
+    private static string FormatGatherQuestProgressKindLabel(QuestDefinition q, ItemDatabase db)
+    {
+        if (q == null || string.IsNullOrWhiteSpace(q.gatherItemId))
+            return "";
+        string label = ResolveItemName(q.gatherItemId, null, db);
+        if (string.IsNullOrEmpty(label))
+            return "";
+        return PluralizeForCount(label, 2) + " Gathered";
+    }
+
+    private static string GatherObjectiveItemLabel(QuestDefinition q, ItemDatabase db)
+    {
+        string name = ResolveItemName(q.gatherItemId, null, db);
+        return string.IsNullOrEmpty(name) ? "resource" : name;
+    }
+
+    private static EnemyDatabase FindEnemyDatabase()
+    {
+        return Resources.Load<EnemyDatabase>("Databases/EnemyDatabase");
+    }
+
+    private static string FormatKillQuestProgressKindLabel(QuestDefinition q, EnemyDatabase enemyDb)
+    {
+        string singular = ResolveKillEnemySingularName(q, enemyDb);
+        return PluralizeForCount(singular,2) + " Killed";
+    }
+
+    private static string KillQuestEnemyUnitLabel(QuestDefinition q, EnemyDatabase enemyDb, int countForGrammar)
+    {
+        string singular = ResolveKillEnemySingularName(q, enemyDb);
+        return PluralizeForCount(singular, countForGrammar);
+    }
+
+    private static string ResolveKillEnemySingularName(QuestDefinition q, EnemyDatabase enemyDb)
+    {
+        if (q == null || string.IsNullOrWhiteSpace(q.killEnemyIdFilter))
+            return "enemy";
+        EnemyDefinition def = enemyDb ? enemyDb.Get(q.killEnemyIdFilter.Trim()) : null;
+        if (def && !string.IsNullOrWhiteSpace(def.displayName))
+            return def.displayName.Trim();
+        string raw = q.killEnemyIdFilter.Trim();
+        if (raw.StartsWith("enemy_", StringComparison.Ordinal))
+            raw = raw.Substring("enemy_".Length);
+        return FormatItemIdAsFallbackName(raw);
+    }
+
+    /// <summary>User rule: count 1 = singular; else append s (display names like "Rogue" → "Rogues").</summary>
+    private static string PluralizeForCount(string singular, int count)
+    {
+        if (string.IsNullOrEmpty(singular))
+            return count == 1 ? "enemy" : "enemies";
+        if (count == 1)
+            return singular;
+        if (string.Equals(singular, "enemy", StringComparison.OrdinalIgnoreCase))
+            return "enemies";
+        char last = singular[^1];
+        if (char.ToLowerInvariant(last) == 's')
+            return singular;
+        return singular + "s";
+    }
+
     private static string ResolveItemName(string itemId, ItemDefinition direct, ItemDatabase db)
     {
         if (direct)
             return direct.displayName;
         if (string.IsNullOrWhiteSpace(itemId))
-            return "items";
+            return "";
         ItemDefinition d = db ? db.Get(itemId) : null;
         if (d)
             return d.displayName;
@@ -692,7 +817,7 @@ public class QuestPageUI : MonoBehaviour
     private static string FormatItemIdAsFallbackName(string raw)
     {
         if (string.IsNullOrEmpty(raw))
-            return "items";
+            return "";
         string[] parts = raw.Split('_');
         for (int i = 0; i < parts.Length; i++)
         {
@@ -832,10 +957,51 @@ public class QuestPageUI : MonoBehaviour
         return _cachedUiWhiteSprite;
     }
 
-    private static bool IsRegionAvailable(RegionDefinition region, WorldMapProgressManager progress)
+    private bool IsRegionAvailable(RegionDefinition region, WorldMapProgressManager progress)
     {
         if (!region)
             return false;
-        return region.IsRegionUnlocked(progress);
+        return region.IsRegionUnlocked(progress, ResolveActiveMapNodeIdForRegionUi(), worldMap);
+    }
+
+    private bool ShouldShowRegionInPicker(RegionDefinition region, WorldMapProgressManager progress)
+    {
+        if (!region)
+            return false;
+        return region.ShouldListInRegionPicker(progress, ResolveActiveMapNodeIdForRegionUi(), worldMap);
+    }
+
+    private void MigrateQuestRegionSelectionIfNeeded(WorldMapProgressManager progress)
+    {
+        if (_regionRowRegions.Count == 0)
+        {
+            _selectedRegion = null;
+            _selectedQuest = null;
+            return;
+        }
+
+        if (_selectedRegion != null && _regionRowRegions.Contains(_selectedRegion))
+            return;
+
+        _selectedRegion = _regionRowRegions[0];
+        _selectedQuest = null;
+
+        for (int i = 0; i < _regionRows.Count && i < _regionRowRegions.Count; i++)
+        {
+            bool unlocked = IsRegionAvailable(_regionRowRegions[i], progress);
+            SetRegionRowSelected(_regionRows[i], unlocked, unlocked && _regionRowRegions[i] == _selectedRegion);
+        }
+    }
+
+    /// <summary>
+    /// While playing a map in this region, keep the region unlocked for Quests even if retire-after-complete rules would lock it.
+    /// </summary>
+    private static string ResolveActiveMapNodeIdForRegionUi()
+    {
+        if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
+            return GameplayLevelBootstrapper.Instance.ActiveDefinition.nodeId;
+        if (ActiveLevelContext.Current != null)
+            return ActiveLevelContext.Current.nodeId;
+        return null;
     }
 }

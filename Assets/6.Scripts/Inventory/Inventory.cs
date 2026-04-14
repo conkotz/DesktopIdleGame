@@ -122,7 +122,8 @@ public class Inventory : MonoBehaviour, ISaveable
     /// Adds as much as possible. Returns how many were actually added (0..amount).
     /// Does NOT fire OnInventoryFull (caller decides what to do with overflow).
     /// </summary>
-    public int AddPartial(string itemId, int amount = 1, int? maxStackOverride = null)
+    /// <param name="notifyItemGainPopup">False skips item-gained world popups.</param>
+    public int AddPartial(string itemId, int amount = 1, int? maxStackOverride = null, bool notifyItemGainPopup = true)
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return 0;
 
@@ -160,14 +161,21 @@ public class Inventory : MonoBehaviour, ISaveable
         }
 
         if (addedTotal > 0)
+        {
             OnInventoryChanged?.Invoke();
+            if (notifyItemGainPopup)
+                ItemGainPopupNotifier.Notify(itemId, addedTotal);
+        }
 
         return addedTotal;
     }
 
-    public bool Add(string itemId, int amount = 1, int? maxStackOverride = null)
+    /// <summary>Add items to the bag. Set <paramref name="notifyItemGainPopup"/> false to skip world "item gained" feedback.</summary>
+    public bool Add(string itemId, int amount = 1, int? maxStackOverride = null, bool notifyItemGainPopup = true)
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return true;
+
+        int beforeTotal = GetTotalAmount(itemId);
 
         int itemValue = GetItemValue(itemId);
         int totalValue = itemValue * amount;
@@ -207,7 +215,9 @@ public class Inventory : MonoBehaviour, ISaveable
         if (overflow)
             OnInventoryFull?.Invoke();
 
-        //Debug.Log($"[Inventory] Total inventory worth: {GetTotalInventoryValue()}");
+        int gained = GetTotalAmount(itemId) - beforeTotal;
+        if (gained > 0 && notifyItemGainPopup)
+            ItemGainPopupNotifier.Notify(itemId, gained);
 
         return !overflow;
     }
@@ -481,7 +491,12 @@ public class Inventory : MonoBehaviour, ISaveable
     /// Empty/same-item: fills or merges that slot first; overflow uses normal <see cref="AddPartial"/> rules.
     /// Different item: swaps with that slot and stacks the displaced items elsewhere (fails if they cannot fit).
     /// </summary>
-    public bool TryPlaceExternalAtSlot(string itemId, int amount, int slotIndex, int? maxStackOverride = null)
+    public bool TryPlaceExternalAtSlot(
+        string itemId,
+        int amount,
+        int slotIndex,
+        int? maxStackOverride = null,
+        bool notifyItemGainPopup = true)
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return false;
         if (slotIndex < 0 || slotIndex >= _slots.Count) return false;
@@ -498,7 +513,7 @@ public class Inventory : MonoBehaviour, ISaveable
             int remainder = amount - chunk;
             if (remainder > 0)
             {
-                int added = AddPartial(itemId, remainder, maxStackOverride);
+                int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup);
                 if (added != remainder)
                 {
                     Debug.LogError("[Inventory] TryPlaceExternalAtSlot: overflow after CanAdd — state may be inconsistent.");
@@ -522,7 +537,7 @@ public class Inventory : MonoBehaviour, ISaveable
             int remainder = amount - add;
             if (remainder > 0)
             {
-                int added = AddPartial(itemId, remainder, maxStackOverride);
+                int added = AddPartial(itemId, remainder, maxStackOverride, notifyItemGainPopup);
                 if (added != remainder)
                 {
                     Debug.LogError("[Inventory] TryPlaceExternalAtSlot: overflow after merge — state may be inconsistent.");
@@ -534,7 +549,7 @@ public class Inventory : MonoBehaviour, ISaveable
 
         var displaced = to;
         ReplaceSlot(slotIndex, new Slot { itemId = itemId, amount = amount });
-        int placedDisplaced = AddPartial(displaced.itemId, displaced.amount);
+        int placedDisplaced = AddPartial(displaced.itemId, displaced.amount, null, notifyItemGainPopup);
         if (placedDisplaced < displaced.amount)
         {
             if (placedDisplaced > 0)
