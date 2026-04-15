@@ -6,9 +6,11 @@ using UnityEngine.UI;
 public class QuestListRowUI : MonoBehaviour
 {
     [SerializeField] private Button button;
+    [SerializeField] private Button trackQuestButton;
     [SerializeField] private TMP_Text titleText;
     [SerializeField] private TMP_Text subtitleText;
     [SerializeField] private TMP_Text statusText;
+    [SerializeField] private TMP_Text trackQuestButtonLabel;
     [SerializeField] private GameObject selectedHighlight;
     [SerializeField] private CanvasGroup rowCanvasGroup;
 
@@ -22,6 +24,10 @@ public class QuestListRowUI : MonoBehaviour
             subtitleText = transform.Find("Subtitle")?.GetComponent<TMP_Text>();
         if (!statusText)
             statusText = transform.Find("Status")?.GetComponent<TMP_Text>();
+        if (!trackQuestButton)
+            trackQuestButton = transform.Find("TrackQuestButton")?.GetComponent<Button>();
+        if (!trackQuestButtonLabel)
+            trackQuestButtonLabel = transform.Find("TrackQuestButton")?.GetComponentInChildren<TMP_Text>(true);
         if (!selectedHighlight)
         {
             Transform t = transform.Find("SelectedBorder");
@@ -40,7 +46,10 @@ public class QuestListRowUI : MonoBehaviour
         bool selected,
         bool completed,
         float completedAlpha,
-        Action<QuestDefinition> onClicked)
+        Action<QuestDefinition> onClicked,
+        bool tracked,
+        Action<QuestDefinition> onTrackClicked,
+        bool showTrackToggle)
     {
         if (titleText)
             titleText.text = quest ? quest.displayName : "";
@@ -70,6 +79,17 @@ public class QuestListRowUI : MonoBehaviour
             if (quest != null && onClicked != null)
                 button.onClick.AddListener(() => onClicked(quest));
         }
+
+        if (trackQuestButton)
+        {
+            trackQuestButton.gameObject.SetActive(showTrackToggle);
+            trackQuestButton.onClick.RemoveAllListeners();
+            if (showTrackToggle && quest != null && onTrackClicked != null)
+                trackQuestButton.onClick.AddListener(() => onTrackClicked(quest));
+        }
+
+        if (trackQuestButtonLabel && showTrackToggle)
+            trackQuestButtonLabel.text = tracked ? "Untrack" : "Track";
     }
 
     public void SetSelected(bool selected)

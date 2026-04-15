@@ -32,11 +32,10 @@ public class EnduranceWaveHUD : MonoBehaviour
     {
         EnduranceTrialDirector d = EnduranceTrialDirector.Instance;
         MapNodeDefinition active = EnduranceTrialUIHelpers.TryGetActiveEnduranceMapNode();
-        bool match = EnduranceTrialUIHelpers.MatchesAssignedTrial(trialMap, active);
+        bool match = MatchesAssignedTrial(active);
         bool show = d != null && d.ShowEnduranceHud && match;
 
-        GameObject r = panelRoot != null ? panelRoot : gameObject;
-        r.SetActive(show);
+        SetPanelVisibleFromDirector(show);
 
         if (!show)
         {
@@ -87,5 +86,22 @@ public class EnduranceWaveHUD : MonoBehaviour
                 nextWaveCountdownText.text = string.Format(fmt, cd);
             }
         }
+    }
+
+    public bool MatchesAssignedTrial(MapNodeDefinition active)
+    {
+        return EnduranceTrialUIHelpers.MatchesAssignedTrial(trialMap, active);
+    }
+
+    public GameObject ResolvePanelRoot()
+    {
+        return panelRoot != null ? panelRoot : gameObject;
+    }
+
+    public void SetPanelVisibleFromDirector(bool visible)
+    {
+        GameObject r = ResolvePanelRoot();
+        if (r != null && r.activeSelf != visible)
+            r.SetActive(visible);
     }
 }

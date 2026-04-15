@@ -96,6 +96,7 @@ public class QuestPageUI : MonoBehaviour
         TrySubscribeQuestProgress();
         TrySubscribeWorldProgress();
         TrySubscribeInventoryAndStorage();
+        QuestTrackerState.Changed += OnTrackedQuestChanged;
 
         ResolveWorldMap();
 
@@ -112,6 +113,7 @@ public class QuestPageUI : MonoBehaviour
         UnsubscribeQuestProgress();
         UnsubscribeWorldProgress();
         UnsubscribeInventoryAndStorage();
+        QuestTrackerState.Changed -= OnTrackedQuestChanged;
     }
 
     private void Update()
@@ -241,6 +243,13 @@ public class QuestPageUI : MonoBehaviour
             return;
         RebuildQuestList();
         RefreshDetails();
+    }
+
+    private void OnTrackedQuestChanged()
+    {
+        if (!isActiveAndEnabled)
+            return;
+        RebuildQuestList();
     }
 
     private void ResolveWorldMap()
@@ -462,7 +471,19 @@ public class QuestPageUI : MonoBehaviour
             int amt = qProg && q ? qProg.GetDisplayProgress(q) : 0;
             bool permanentlyDone = qProg && qProg.IsPermanentlyComplete(q);
             string status = BuildQuestListStatus(q, qProg, amt);
-            row.Bind(q, q.listCategoryLabel, status, _selectedQuest == q, permanentlyDone, completedRowAlpha, OnQuestClicked);
+            bool tracked = QuestTrackerState.IsTracked(q.questId);
+            bool isObjectiveComplete = q.IsComplete(amt);
+            row.Bind(
+                q,
+                q.listCategoryLabel,
+                status,
+                _selectedQuest == q,
+                permanentlyDone,
+                completedRowAlpha,
+                OnQuestClicked,
+                tracked,
+                OnTrackQuestClicked,
+                !isObjectiveComplete);
         }
 
         if (_selectedQuest != null && !_scratchQuests.Contains(_selectedQuest))
@@ -535,6 +556,48 @@ public class QuestPageUI : MonoBehaviour
         _selectedQuest = quest;
         RefreshQuestSelectionVisuals();
         RefreshDetails();
+    }
+
+    private void OnTrackQuestClicked(QuestDefinition quest)
+    {
+        if (!quest || string.IsNullOrWhiteSpace(quest.questId))
+            return;
+
+        if (QuestTrackerState.IsTracked(quest.questId))
+            QuestTrackerState.UntrackQuest(quest.questId);
+        else
+        {
+            QuestTrackerState.TrackQuest(quest.questId);
+            EnsureQuestTrackerWindowEnabled();
+        }
+    }
+
+    private static void EnsureQuestTrackerWindowEnabled()
+    {
+        QuestTrackerWindowUI tracker =
+            FindFirstObjectByType<QuestTrackerWindowUI>(FindObjectsInactive.Include);
+
+        if (tracker != null)
+        {
+            if (!tracker.gameObject.activeSelf)
+                tracker.gameObject.SetActive(true);
+            return;
+        }
+
+        // Fallback: support scenes where the component was not attached yet.
+        Transform[] all = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            Transform t = all[i];
+            if (t == null || t.gameObject == null)
+                continue;
+            if (!string.Equals(t.gameObject.name, "QuestTrackerWindow", StringComparison.Ordinal))
+                continue;
+
+            if (!t.gameObject.activeSelf)
+                t.gameObject.SetActive(true);
+            break;
+        }
     }
 
     private void RefreshQuestSelectionVisuals()
@@ -1003,5 +1066,46 @@ public class QuestPageUI : MonoBehaviour
         if (ActiveLevelContext.Current != null)
             return ActiveLevelContext.Current.nodeId;
         return null;
+    }
+
+    /// <summary>
+    /// External entry point (e.g. tracker row click): opens/selects a quest in this page.
+    /// Returns false if the quest id cannot be resolved.
+    /// </summary>
+    public bool SelectQuestById(string questId)
+    {
+        if (string.IsNullOrWhiteSpace(questId) || questDatabase == null || questDatabase.All == null)
+            return false;
+
+        string key = questId.Trim();
+        QuestDefinition target = null;
+        IReadOnlyList<QuestDefinition> all = questDatabase.All;
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition q = all[i];
+            if (!q || string.IsNullOrWhiteSpace(q.questId))
+                continue;
+            if (!string.Equals(q.questId.Trim(), key, StringComparison.Ordinal))
+                continue;
+            target = q;
+            break;
+        }
+
+        if (!target)
+            return false;
+
+        ResolveWorldMap();
+        if (worldMap != null)
+        {
+            RegionDefinition r = worldMap.FindRegionById(target.regionId);
+            if (r != null)
+                _selectedRegion = r;
+        }
+
+        _selectedQuest = target;
+        RebuildRegionList();
+        RebuildQuestList();
+        RefreshDetails();
+        return true;
     }
 }

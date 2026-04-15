@@ -9,6 +9,9 @@ using UnityEngine.Serialization;
 [RequireComponent(typeof(Inventory))]
 public class PlayerController : MonoBehaviour
 {
+    private const string GameplaySceneName = "GamePlay";
+    private static bool s_forceFullRespawnOnNextGameplayLoad;
+
     public enum State { Idle, MoveToTarget, MoveToPoint, Gather, MoveToPickup }
     public enum PlayerAction { Idle, Walking, Mining, Woodcutting, Fishing, Fighting, Fatigued }
 
@@ -2097,9 +2100,65 @@ public class PlayerController : MonoBehaviour
         float wait = GetDieClipLength();
         yield return new WaitForSeconds(Mathf.Max(0.05f, wait));
 
-        // for now: disable player
+        MapNodeDefinition respawnNode = ResolveRegionTownRespawnNode();
+        if (respawnNode != null)
+        {
+            ActiveLevelContext.SetPendingLevel(respawnNode, logToConsole: false);
+            s_forceFullRespawnOnNextGameplayLoad = true;
+            SceneManager.LoadScene(GameplaySceneName);
+            yield break;
+        }
+
+        // Fallback if no world-map data can be resolved.
         gameObject.SetActive(false);
     }
+    /// <summary>
+    /// Respawn target on death: town node of the current region.
+    /// Fallbacks: any town on the map, then starting node.
+    /// </summary>
+    private static MapNodeDefinition ResolveRegionTownRespawnNode()
+    {
+        WorldMapProgressManager progress = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        WorldMapDefinition map = progress ? progress.WorldMap : null;
+        if (!map)
+            return null;
+
+        MapNodeDefinition current = ActiveLevelContext.Current;
+        if (current != null)
+        {
+            RegionDefinition currentRegion = map.FindRegionContainingNode(current.nodeId);
+            MapNodeDefinition townInRegion = FindTownNodeInRegion(currentRegion);
+            if (townInRegion != null)
+                return townInRegion;
+        }
+
+        // Cross-region fallback if the current node has no town configured.
+        for (int i = 0; i < map.regions.Count; i++)
+        {
+            MapNodeDefinition town = FindTownNodeInRegion(map.regions[i]);
+            if (town != null)
+                return town;
+        }
+
+        return map.FindNodeById(map.startingNodeId);
+    }
+
+    private static MapNodeDefinition FindTownNodeInRegion(RegionDefinition region)
+    {
+        if (region == null || region.nodes == null)
+            return null;
+
+        for (int i = 0; i < region.nodes.Count; i++)
+        {
+            MapNodeDefinition node = region.nodes[i];
+            if (node != null && node.nodeType == MapNodeType.Town)
+                return node;
+        }
+
+        return null;
+    }
+
 
    
 
@@ -2197,7 +2256,17 @@ public class PlayerController : MonoBehaviour
     {
         RebindCameras();
         if (characterStats != null && scene.name == "GamePlay")
-            characterStats.SnapGuardToNaturalCapOnSessionLoad();
+        {
+            if (s_forceFullRespawnOnNextGameplayLoad)
+            {
+                characterStats.ReviveFull();
+                s_forceFullRespawnOnNextGameplayLoad = false;
+            }
+            else
+            {
+                characterStats.SnapGuardToNaturalCapOnSessionLoad();
+            }
+        }
     }
 
     private void RebindCameras()

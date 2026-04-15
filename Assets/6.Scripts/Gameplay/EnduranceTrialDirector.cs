@@ -122,6 +122,7 @@ public class EnduranceTrialDirector : MonoBehaviour
             _def = null;
             SetNextWaveCountdown(0);
             SetEnduranceTrialsUiActive(false);
+            WakeEnduranceWaveHudPanels(null, false);
             return;
         }
 
@@ -160,6 +161,7 @@ public class EnduranceTrialDirector : MonoBehaviour
         SetNextWaveCountdown(0);
         ResolveEnduranceTrialsUiReference();
         SetEnduranceTrialsUiActive(true);
+        WakeEnduranceWaveHudPanels(def, true);
     }
 
     /// <summary>
@@ -205,6 +207,23 @@ public class EnduranceTrialDirector : MonoBehaviour
     {
         if (enduranceTrialsUI && enduranceTrialsUI.activeSelf != active)
             enduranceTrialsUI.SetActive(active);
+    }
+
+    /// <summary>
+    /// Ensures EnduranceWaveHUD roots wake up when entering endurance maps, even when those HUD objects were disabled in-scene.
+    /// </summary>
+    private static void WakeEnduranceWaveHudPanels(MapNodeDefinition activeDef, bool show)
+    {
+        EnduranceWaveHUD[] all = FindObjectsByType<EnduranceWaveHUD>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            EnduranceWaveHUD hud = all[i];
+            if (hud == null)
+                continue;
+
+            bool match = activeDef != null && hud.MatchesAssignedTrial(activeDef);
+            hud.SetPanelVisibleFromDirector(show && match);
+        }
     }
 
     /// <summary>

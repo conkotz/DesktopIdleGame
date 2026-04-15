@@ -312,9 +312,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestListRowUI
   button: {fileID: 5500550055005500005}
+  trackQuestButton: {fileID: 5427702671424175670}
   titleText: {fileID: 5500550055005500024}
   subtitleText: {fileID: 5500550055005500034}
   statusText: {fileID: 5500550055005500044}
+  trackQuestButtonLabel: {fileID: 7253282932087087094}
   selectedHighlight: {fileID: 5500550055005500011}
   rowCanvasGroup: {fileID: 5500550055005500007}
 --- !u!1 &5500550055005500011
