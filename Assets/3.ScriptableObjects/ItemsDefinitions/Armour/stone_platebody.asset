@@ -16,6 +16,7 @@ MonoBehaviour:
   maxStack: 1
   itemId: stone_platebody
   displayName: Stone Platebody
+  displayNameSingular: 
   icon: {fileID: -5215976841785607928, guid: 1662ee03339d17346bb0f89529bb26ff, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: -5215976841785607928, guid: 1662ee03339d17346bb0f89529bb26ff, type: 3}
@@ -32,54 +33,95 @@ MonoBehaviour:
   weaponStats:
     minPhysicalDamage: 0
     maxPhysicalDamage: 0
-    minMagicDamage: 0
-    maxMagicDamage: 0
-    minTrueDamage: 0
-    maxTrueDamage: 0
+    minFireDamage: 0
+    maxFireDamage: 0
+    minIceDamage: 0
+    maxIceDamage: 0
+    minLightningDamage: 0
+    maxLightningDamage: 0
+    legacyMinMagicDamage: 0
+    legacyMaxMagicDamage: 0
+    minCorruptionDamage: 0
+    maxCorruptionDamage: 0
     attacksPerSecond: 0
     critChance: 0
     critMultiplier: 0
     handedness: 0
     attackRange: 0
     attackSkill: 0
+    rangedBowType: 0
+    magicAttackType: 0
+    manaCostPerAttack: 0
+    magicAilmentApplyChance: 0
+    unusedLegacyWeaponBurnChance: 0
     canEquipInOffHand: 0
     requiresOffhandSupport: 0
     requiredSupportType: 0
+    equipmentTier: 0
   combatSupportStats:
     supportType: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
-    bonusTrueDamage: 0
+    bonusCorruptionDamage: 0
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackSpeedPercent: 0
+    physicalDamagePercent: 0
+    globalPhysicalDamagePercent: 0
+    rangedPhysicalDamagePercent: 0
+    magicDamagePercent: 0
+    fireDamagePercent: 0
+    iceDamagePercent: 0
+    coldDamagePercent: 0
+    corruptionDamagePercent: 0
     consumableOnAttack: 0
     consumeAmountPerAttack: 0
   toolStats:
     toolType: 0
-    gatherPower: 0
+    equipmentTier: 0
     gatherSpeedMultiplier: 0
+    gatheringGrit: 0
+    bonusResourceFindChance: 0
+    staminaEfficiency: 0
   armorStats:
     armor: 40
     magicResist: 0
+    corruptionResist: 0
     physBlockChance: 0
     bonusHealth: 50
     bonusEnergy: 0
+    flatGuard: 40
+    maxGuardPercent: 0
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
+    bonusMana: 0
     armor: 0
     magicResist: 0
+    corruptionResist: 0
     physBlockChance: 0
     lifeRegen: 0
     energyRegen: 0
+    manaRegen: 0
     lifeSteal: 0
     moveSpeedPercent: -0.2
     physicalDamage: 0
+    physicalDamagePercent: 0
+    globalPhysicalDamagePercent: 0
+    rangedPhysicalDamagePercent: 0
     magicDamage: 0
-    trueDamage: 0
+    magicDamagePercent: 0
+    fireSkillDamagePercent: 0
+    iceSkillDamagePercent: 0
+    lightningSkillDamagePercent: 0
+    corruptionDamagePercent: 0
+    corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
+    minionDamagePercent: 0
+    minionAttackSpeedPercent: 0
+    minionCritChance: 0
+    minionMaxLifePercent: 0
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackRangeBonus: 0
@@ -89,6 +131,12 @@ MonoBehaviour:
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
+    burnExplosionMultiplierBonus: 0
+    burnChance: 0
+    chillSlowPerStackBonus: 0
+    shockDamageTakenMultiplierBonus: 0
+  miscEffects:
+    enemyRespawnTimeReductionSeconds: 0
   consumableStats:
     consumableType: 0
     healAmount: 0
