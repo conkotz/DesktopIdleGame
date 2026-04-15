@@ -209,6 +209,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (!player || !stats)
             return false;
 
+        if (player.IsDead || stats.IsDead)
+            return false;
+
         if (!CanUseWithEquippedWeapon(def))
         {
             player.ShowPopup("Ability cant be used with this weapon");
@@ -1871,6 +1874,27 @@ public class PlayerAbilityController : MonoBehaviour
             StartCooldown(_soulforgedWeaponCooldownAbilityDef);
             _soulforgedWeaponCooldownAbilityDef = null;
         }
+    }
+
+    /// <summary>
+    /// Owner death: immediately end active Soulforged Weapon summon and force ability cooldown.
+    /// </summary>
+    public void EndSoulforgedOnOwnerDeath()
+    {
+        AbilityDefinition cooldownDef = _soulforgedWeaponCooldownAbilityDef;
+        bool hadActiveMinion = _activeSoulforgedWeaponMinion != null;
+
+        if (_activeSoulforgedWeaponMinion != null)
+        {
+            // Cancel callback path to avoid duplicate StartCooldown from OnDestroy.
+            _activeSoulforgedWeaponMinion.CancelAndDestroy();
+            _activeSoulforgedWeaponMinion = null;
+        }
+
+        if (cooldownDef != null && hadActiveMinion)
+            StartCooldown(cooldownDef);
+
+        _soulforgedWeaponCooldownAbilityDef = null;
     }
 
     /// <summary>

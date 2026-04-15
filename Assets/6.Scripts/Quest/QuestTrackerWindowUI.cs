@@ -13,6 +13,9 @@ public class QuestTrackerWindowUI : MonoBehaviour
     private const string TrackerContentName = "Content";
     private const string RowNameTextChild = "QuestTrackerListName";
     private const string RowProgressTextChild = "QuestTrackerProgress";
+    private static readonly Color TrackerDefaultTextColor = new Color(0.16f, 0.13f, 0.1f, 1f);
+    private static readonly Color TrackerDefaultRowColor = new Color(1f, 1f, 1f, 1f);
+    private static readonly Color TrackerObjectiveCompleteRowColor = new Color(0.82f, 0.96f, 0.82f, 1f);
 
     [SerializeField] private RectTransform trackerContentRoot;
     [SerializeField] private QuestDatabase questDatabase;
@@ -105,14 +108,14 @@ public class QuestTrackerWindowUI : MonoBehaviour
             return;
         }
 
-        // Auto-untrack completed (objective met) or missing quests.
+        // Auto-untrack only missing or permanently completed (claimed) quests.
         QuestTrackerState.PruneMissing(id =>
         {
             QuestDefinition def = FindQuestDefinition(id);
             if (!def)
                 return false;
-            int current = _questProgress != null ? _questProgress.GetDisplayProgress(def) : 0;
-            return !def.IsComplete(current);
+            bool permanentlyDone = _questProgress != null && _questProgress.IsPermanentlyComplete(def);
+            return !permanentlyDone;
         });
 
         IReadOnlyList<string> tracked = QuestTrackerState.OrderedTrackedQuestIds;
@@ -126,6 +129,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
 
             int current = _questProgress != null ? _questProgress.GetDisplayProgress(q) : 0;
             int target = Mathf.Max(1, q.targetCount);
+            bool objectiveComplete = q.IsComplete(current);
 
             string progress = q.objectiveKind switch
             {
@@ -134,7 +138,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
                 _ => $"{Mathf.Clamp(current, 0, target)}/{target}"
             };
 
-            CreateRow(q.questId, q.displayName, progress);
+            CreateRow(q.questId, q.displayName, progress, objectiveComplete);
             renderedCount++;
         }
 
@@ -155,7 +159,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
         _spawnedRows.Clear();
     }
 
-    private void CreateRow(string questId, string questName, string progressText)
+    private void CreateRow(string questId, string questName, string progressText, bool objectiveComplete)
     {
         if (!questTrackerRowPrefab)
             return;
@@ -176,10 +180,19 @@ public class QuestTrackerWindowUI : MonoBehaviour
 
         TMP_Text nameText = row.transform.Find(RowNameTextChild)?.GetComponent<TMP_Text>();
         TMP_Text progressDisplayText = row.transform.Find(RowProgressTextChild)?.GetComponent<TMP_Text>();
+        Image rowBg = row.GetComponent<Image>();
+        if (rowBg != null)
+            rowBg.color = objectiveComplete ? TrackerObjectiveCompleteRowColor : TrackerDefaultRowColor;
         if (nameText)
+        {
             nameText.text = questName;
+            nameText.color = TrackerDefaultTextColor;
+        }
         if (progressDisplayText)
+        {
             progressDisplayText.text = progressText;
+            progressDisplayText.color = TrackerDefaultTextColor;
+        }
 
         Button rowButton = row.GetComponent<Button>();
         if (rowButton == null)

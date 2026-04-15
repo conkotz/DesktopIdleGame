@@ -45926,7 +45926,7 @@ Transform:
   m_GameObject: {fileID: 1550592806}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -23.22998, y: -1.800003, z: 0}
+  m_LocalPosition: {x: -22.61, y: -1.38, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -58247,7 +58247,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1998343933
 RectTransform:
   m_ObjectHideFlags: 0
@@ -61244,6 +61244,10 @@ PrefabInstance:
       propertyPath: hudTooltip
       value: 
       objectReference: {fileID: 719275860}
+    - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
+      propertyPath: overlapCamera
+      value: 
+      objectReference: {fileID: 414385169}
     - target: {fileID: 1616562719777693485, guid: 2ab1a9562f97c5b4fba2adf15024624c, type: 3}
       propertyPath: tooltipHeightRect
       value: 

@@ -58,6 +58,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     private Vector2 _stackBaseAnchored;
     private float _stackYOffset;
+    private float _externalScale = 1f;
 
     private static readonly List<UnitOverheadUI> s_instances = new();
     private static bool s_canvasCallbackSubscribed;
@@ -67,6 +68,7 @@ public class UnitOverheadUI : MonoBehaviour
     private Image _clickBackingImage;
 
     private bool _hpBarOnlyLayout;
+    private bool _vitalsVisible = true;
 
     /// <summary>True when the follow target is in the strip camera band this frame; used for overlap stacking (same idea as when the whole object was deactivated off-screen).</summary>
     private bool _worldBandVisible;
@@ -102,7 +104,7 @@ public class UnitOverheadUI : MonoBehaviour
     {
         ComputeBaseAnchoredAndVisibility();
 
-        if (!enableOverlappingStack || enemy == null)
+        if (!ShouldUseOverlapStacking())
             ApplyDirectPosition();
         else
             ApplyStackedPosition();
@@ -133,7 +135,7 @@ public class UnitOverheadUI : MonoBehaviour
         RefreshAll();
         EnsureClickableBacking();
         ComputeBaseAnchoredAndVisibility();
-        if (!enableOverlappingStack || enemy == null)
+        if (!ShouldUseOverlapStacking())
             ApplyDirectPosition();
         else
             ApplyStackedPosition();
@@ -178,7 +180,7 @@ public class UnitOverheadUI : MonoBehaviour
                 continue;
             if (!ui._worldBandVisible)
                 continue;
-            if (!ui.enableOverlappingStack || ui.enemy == null)
+            if (!ui.ShouldUseOverlapStacking())
                 continue;
 
             int canvasKey = ui.parentCanvas != null ? ui.parentCanvas.GetInstanceID() : 0;
@@ -274,10 +276,45 @@ public class UnitOverheadUI : MonoBehaviour
         if (cluster == null || cluster.Count == 0)
             return;
 
-        cluster.Sort((a, b) => a.GetInstanceID().CompareTo(b.GetInstanceID()));
+        cluster.Sort((a, b) =>
+        {
+            int roleCmp = GetStackRolePriority(a).CompareTo(GetStackRolePriority(b));
+            if (roleCmp != 0)
+                return roleCmp;
+            return a.GetInstanceID().CompareTo(b.GetInstanceID());
+        });
 
         for (int k = 0; k < cluster.Count; k++)
             cluster[k]._stackYOffset = k * spacing;
+    }
+
+    private static int GetStackRolePriority(UnitOverheadUI ui)
+    {
+        if (ui == null)
+            return int.MaxValue;
+
+        // Player compact HP bar should always be the lowest bar in the stack.
+        if (ui._hpBarOnlyLayout && ui.enemy == null)
+            return 0;
+
+        // Enemy bars stack above player.
+        if (ui.enemy != null)
+            return 1;
+
+        // Any other compact/world bar.
+        if (ui._hpBarOnlyLayout)
+            return 2;
+
+        return 3;
+    }
+
+    private bool ShouldUseOverlapStacking()
+    {
+        if (!enableOverlappingStack)
+            return false;
+
+        // Stack enemy bars as before, and include compact player/world HP-only bars.
+        return enemy != null || _hpBarOnlyLayout;
     }
 
     /// <summary>
@@ -437,7 +474,7 @@ public class UnitOverheadUI : MonoBehaviour
 
         // WorldToScreenPoint z <= 0 often means "behind" the camera, but orthographic 2D setups can edge-case;
         // viewport test keeps nameplates on-screen when the point is in front of the camera frustum.
-        bool visible = IsOverheadWorldPointVisible(targetCamera, worldPos, screenPos);
+        bool visible = IsOverheadWorldPointVisible(targetCamera, worldPos, screenPos) && _vitalsVisible;
         _worldBandVisible = visible;
 
         // Toggle only the UI root, not this behaviour's GameObject — otherwise LateUpdate stops
@@ -462,7 +499,7 @@ public class UnitOverheadUI : MonoBehaviour
             return;
 
         root.anchoredPosition = _stackBaseAnchored;
-        root.localScale = Vector3.one;
+        root.localScale = Vector3.one * _externalScale;
     }
 
     private void ApplyStackedPosition()
@@ -471,7 +508,14 @@ public class UnitOverheadUI : MonoBehaviour
             return;
 
         root.anchoredPosition = _stackBaseAnchored + new Vector2(0f, _stackYOffset);
-        root.localScale = Vector3.one;
+        root.localScale = Vector3.one * _externalScale;
+    }
+
+    public void SetExternalScale(float scale)
+    {
+        _externalScale = Mathf.Max(0.01f, scale);
+        if (root != null)
+            root.localScale = Vector3.one * _externalScale;
     }
 
     private void HandleStatsChanged()
@@ -527,6 +571,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void HandleCharacterHpChanged(float current, float max)
     {
+        _vitalsVisible = characterStats == null || !characterStats.IsDead;
         float fill = max > 0f ? current / max : 0f;
 
         if (hpFill != null)

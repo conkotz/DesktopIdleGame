@@ -5,12 +5,12 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(Inventory))]
 public class PlayerController : MonoBehaviour
 {
     private const string GameplaySceneName = "GamePlay";
-    private static bool s_forceFullRespawnOnNextGameplayLoad;
 
     public enum State { Idle, MoveToTarget, MoveToPoint, Gather, MoveToPickup }
     public enum PlayerAction { Idle, Walking, Mining, Woodcutting, Fishing, Fighting, Fatigued }
@@ -44,6 +44,8 @@ public class PlayerController : MonoBehaviour
 
     [Header("Stats")]
     [SerializeField] private CharacterStats characterStats;
+    [SerializeField] private AilmentController ailments;
+    [SerializeField] private PlayerAbilityController abilityController;
 
 
     [Header("Pickup")]
@@ -80,6 +82,16 @@ public class PlayerController : MonoBehaviour
 
     private bool _isDead;
     private Coroutine _deathRoutine;
+    private Coroutine _deathPoseRoutine;
+    private MapNodeDefinition _pendingDeathRespawnNode;
+
+    [Header("Death Respawn Popup (optional; auto-resolved by name if empty)")]
+    [SerializeField] private GameObject deathPopupWindow;
+    [SerializeField] private TMP_Text deathPopupNotificationText;
+    [SerializeField] private Button deathPopupButton;
+    [SerializeField] private TMP_Text deathPopupButtonLabel;
+    [SerializeField, Min(0f)] private float deathPopupDelaySeconds = 1f;
+    [SerializeField, Min(0.01f)] private float deathRespawnFadeSeconds = 0.35f;
 
     [Header("Overflow Drops (World)")]
     [SerializeField] private bool dropOverflowToGround = true;
@@ -346,6 +358,8 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         if (!combatState) combatState = GetComponent<PlayerCombatState>();
+        if (!ailments) ailments = GetComponent<AilmentController>();
+        if (!abilityController) abilityController = GetComponent<PlayerAbilityController>();
 
         inventory = GetComponent<Inventory>();
         laneBounds = FindFirstObjectByType<LaneBounds>();
@@ -2083,34 +2097,45 @@ public class PlayerController : MonoBehaviour
         if (_isDead) return;
         _isDead = true;
 
+        ailments?.ClearAllAilments();
+        abilityController?.EndSoulforgedOnOwnerDeath();
+
         clickToMoveEnabled = false;
 
         combat?.ClearTarget();
+        if (combat != null)
+            combat.enabled = false;
         ClearActionOverride();
         CancelAction();
 
         TriggerDieAnim();
 
+        _pendingDeathRespawnNode = ResolveRegionTownRespawnNode();
+
         if (_deathRoutine != null) StopCoroutine(_deathRoutine);
-        _deathRoutine = StartCoroutine(DisableAfterDeath());
+        if (_deathPoseRoutine != null) StopCoroutine(_deathPoseRoutine);
+        _deathPoseRoutine = StartCoroutine(HoldDeathPoseAtFinalFrame());
+        _deathRoutine = StartCoroutine(ShowDeathPopupAfterDelay());
     }
 
-    private IEnumerator DisableAfterDeath()
+    private IEnumerator ShowDeathPopupAfterDelay()
+    {
+        yield return new WaitForSeconds(Mathf.Max(0f, deathPopupDelaySeconds));
+        ShowDeathPopup();
+    }
+
+    private IEnumerator HoldDeathPoseAtFinalFrame()
     {
         float wait = GetDieClipLength();
         yield return new WaitForSeconds(Mathf.Max(0.05f, wait));
 
-        MapNodeDefinition respawnNode = ResolveRegionTownRespawnNode();
-        if (respawnNode != null)
-        {
-            ActiveLevelContext.SetPendingLevel(respawnNode, logToConsole: false);
-            s_forceFullRespawnOnNextGameplayLoad = true;
-            SceneManager.LoadScene(GameplaySceneName);
+        if (!_isDead || animator == null)
             yield break;
-        }
 
-        // Fallback if no world-map data can be resolved.
-        gameObject.SetActive(false);
+        // Lock visuals on the end of the death animation so the character cannot blend back to idle.
+        animator.Play(dieStateName, 0, 0.999f);
+        animator.Update(0f);
+        animator.speed = 0f;
     }
     /// <summary>
     /// Respawn target on death: town node of the current region.
@@ -2121,6 +2146,8 @@ public class PlayerController : MonoBehaviour
         WorldMapProgressManager progress = WorldMapProgressManager.Instance ??
             FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
         WorldMapDefinition map = progress ? progress.WorldMap : null;
+        if (!map)
+            map = Resources.Load<WorldMapDefinition>("Databases/WorldMap_Main");
         if (!map)
             return null;
 
@@ -2157,6 +2184,223 @@ public class PlayerController : MonoBehaviour
         }
 
         return null;
+    }
+
+    private void ShowDeathPopup()
+    {
+        ResolveDeathPopupRefs();
+        if (!deathPopupWindow)
+            return;
+
+        if (deathPopupNotificationText)
+            deathPopupNotificationText.text = "You have died";
+        if (deathPopupButtonLabel)
+            deathPopupButtonLabel.text = "Respawn";
+
+        if (deathPopupButton)
+        {
+            deathPopupButton.onClick.RemoveAllListeners();
+            deathPopupButton.onClick.AddListener(OnDeathPopupRespawnClicked);
+            deathPopupButton.interactable = true;
+        }
+
+        deathPopupWindow.SetActive(true);
+        ForceDeathPopupOnTop();
+    }
+
+    private void ForceDeathPopupOnTop()
+    {
+        if (!deathPopupWindow)
+            return;
+
+        Transform t = deathPopupWindow.transform;
+        t.SetAsLastSibling();
+
+        Canvas popupCanvas = deathPopupWindow.GetComponent<Canvas>();
+        if (popupCanvas == null)
+            popupCanvas = deathPopupWindow.AddComponent<Canvas>();
+
+        int topLayerId = GetHighestSortingLayerId();
+        const int topOrder = 32760;
+
+        popupCanvas.overrideSorting = true;
+        popupCanvas.sortingLayerID = topLayerId;
+        popupCanvas.sortingOrder = topOrder;
+
+        if (deathPopupWindow.GetComponent<GraphicRaycaster>() == null)
+            deathPopupWindow.AddComponent<GraphicRaycaster>();
+
+        Canvas[] nestedCanvases = deathPopupWindow.GetComponentsInChildren<Canvas>(true);
+        for (int i = 0; i < nestedCanvases.Length; i++)
+        {
+            Canvas c = nestedCanvases[i];
+            if (c == null)
+                continue;
+            c.overrideSorting = true;
+            c.sortingLayerID = topLayerId;
+            c.sortingOrder = topOrder;
+        }
+    }
+
+    private static int GetHighestSortingLayerId()
+    {
+        SortingLayer[] layers = SortingLayer.layers;
+        if (layers == null || layers.Length == 0)
+            return 0;
+
+        int bestId = layers[0].id;
+        int bestValue = layers[0].value;
+        for (int i = 1; i < layers.Length; i++)
+        {
+            if (layers[i].value <= bestValue)
+                continue;
+            bestValue = layers[i].value;
+            bestId = layers[i].id;
+        }
+
+        return bestId;
+    }
+
+    private void OnDeathPopupRespawnClicked()
+    {
+        if (deathPopupButton)
+            deathPopupButton.interactable = false;
+        StartCoroutine(CoFadeAndRespawnToTown());
+    }
+
+    private IEnumerator CoFadeAndRespawnToTown()
+    {
+        CanvasGroup fader = CreateRuntimeSceneFader();
+        if (fader != null)
+        {
+            fader.alpha = 0f;
+            float t = 0f;
+            float dur = Mathf.Max(0.01f, deathRespawnFadeSeconds);
+            while (t < dur)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / dur);
+                fader.alpha = Mathf.Lerp(0f, 1f, k);
+                yield return null;
+            }
+            fader.alpha = 1f;
+        }
+
+        if (characterStats != null)
+            characterStats.ReviveFull();
+
+        ResetDeathStateForRespawnLoad();
+
+        MapNodeDefinition respawnNode = _pendingDeathRespawnNode != null
+            ? _pendingDeathRespawnNode
+            : ResolveRegionTownRespawnNode();
+        if (respawnNode != null)
+            ActiveLevelContext.SetPendingLevel(respawnNode, logToConsole: false);
+        else
+            Debug.LogWarning("[Player] Respawn town node could not be resolved; loading current GamePlay context.", this);
+
+        SceneManager.LoadScene(GameplaySceneName, LoadSceneMode.Single);
+    }
+
+    private void ResetDeathStateForRespawnLoad()
+    {
+        _isDead = false;
+        clickToMoveEnabled = true;
+        movementLocked = false;
+
+        if (animator != null)
+            animator.speed = 1f;
+
+        if (combat != null)
+            combat.enabled = true;
+
+        _pendingDeathRespawnNode = null;
+    }
+
+    private void ResolveDeathPopupRefs()
+    {
+        if (!deathPopupWindow)
+        {
+            Transform[] all = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Transform t = all[i];
+                if (t != null && t.gameObject != null && t.gameObject.name == "PopupWindow")
+                {
+                    deathPopupWindow = t.gameObject;
+                    break;
+                }
+            }
+        }
+
+        if (!deathPopupWindow)
+            return;
+
+        if (!deathPopupNotificationText)
+            deathPopupNotificationText = FindChildTmpByName(deathPopupWindow.transform, "NotificationText")
+                                        ?? FindChildTmpByName(deathPopupWindow.transform, "Notification");
+
+        if (!deathPopupButton)
+            deathPopupButton = FindChildComponentByName<Button>(deathPopupWindow.transform, "Button");
+
+        if (!deathPopupButtonLabel)
+        {
+            if (deathPopupButton)
+                deathPopupButtonLabel = deathPopupButton.GetComponentInChildren<TMP_Text>(true);
+            if (!deathPopupButtonLabel)
+                deathPopupButtonLabel = FindChildTmpByName(deathPopupWindow.transform, "ButtonText");
+        }
+    }
+
+    private static TMP_Text FindChildTmpByName(Transform root, string name)
+    {
+        return FindChildComponentByName<TMP_Text>(root, name);
+    }
+
+    private static T FindChildComponentByName<T>(Transform root, string name) where T : Component
+    {
+        if (root == null || string.IsNullOrEmpty(name))
+            return null;
+
+        Transform[] all = root.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < all.Length; i++)
+        {
+            Transform t = all[i];
+            if (t == null || t.gameObject == null || t.gameObject.name != name)
+                continue;
+            T comp = t.GetComponent<T>();
+            if (comp != null)
+                return comp;
+        }
+
+        return null;
+    }
+
+    private static CanvasGroup CreateRuntimeSceneFader()
+    {
+        GameObject go = new GameObject("DeathRespawnFader", typeof(Canvas), typeof(CanvasGroup), typeof(Image));
+        Canvas canvas = go.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = short.MaxValue;
+
+        CanvasGroup cg = go.GetComponent<CanvasGroup>();
+        cg.interactable = false;
+        cg.blocksRaycasts = false;
+
+        Image img = go.GetComponent<Image>();
+        img.color = Color.black;
+        img.raycastTarget = false;
+
+        RectTransform rt = go.transform as RectTransform;
+        if (rt != null)
+        {
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+
+        return cg;
     }
 
 
@@ -2256,17 +2500,7 @@ public class PlayerController : MonoBehaviour
     {
         RebindCameras();
         if (characterStats != null && scene.name == "GamePlay")
-        {
-            if (s_forceFullRespawnOnNextGameplayLoad)
-            {
-                characterStats.ReviveFull();
-                s_forceFullRespawnOnNextGameplayLoad = false;
-            }
-            else
-            {
-                characterStats.SnapGuardToNaturalCapOnSessionLoad();
-            }
-        }
+            characterStats.SnapGuardToNaturalCapOnSessionLoad();
     }
 
     private void RebindCameras()

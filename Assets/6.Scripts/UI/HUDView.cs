@@ -5,6 +5,12 @@ using UnityEngine.UI;
 
 public class HUDView : MonoBehaviour
 {
+    [Header("HUD Left Auto Fade")]
+    [SerializeField] private bool fadeWhenPlayerOverlaps = true;
+    [SerializeField, Range(0.1f, 1f)] private float overlapAlpha = 0.5f;
+    [SerializeField] private Camera overlapCamera;
+    [SerializeField] private string overlapCameraName = "StripCamera";
+
     [Header("Text")]
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text dpsText;
@@ -67,6 +73,12 @@ public class HUDView : MonoBehaviour
     [SerializeField] private Inventory inventory;
 
     private AbilityDatabase _abilityDatabase;
+    private RectTransform _selfRect;
+    private CanvasGroup _selfCanvasGroup;
+    private PlayerController _player;
+    private SpriteRenderer[] _playerRenderers = System.Array.Empty<SpriteRenderer>();
+    private Canvas _parentCanvas;
+    private Camera _hudRectEventCamera;
 
     private void Awake()
     {
@@ -87,6 +99,133 @@ public class HUDView : MonoBehaviour
             if (!tooltipMeasureRect) tooltipMeasureRect = selfRect;
             if (!tooltipHeightRect) tooltipHeightRect = selfRect;
         }
+
+        _selfRect = transform as RectTransform;
+        _parentCanvas = GetComponentInParent<Canvas>();
+        _hudRectEventCamera = ResolveHudRectEventCamera();
+        _selfCanvasGroup = GetComponent<CanvasGroup>();
+        if (!_selfCanvasGroup)
+            _selfCanvasGroup = gameObject.AddComponent<CanvasGroup>();
+    }
+
+    private void LateUpdate()
+    {
+        if (!fadeWhenPlayerOverlaps || _selfRect == null || _selfCanvasGroup == null)
+            return;
+
+        if (_player == null)
+            _player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+
+        RefreshPlayerRenderersIfNeeded();
+        bool overlaps = IsPlayerSpriteOverHudRect();
+        _selfCanvasGroup.alpha = overlaps ? overlapAlpha : 1f;
+    }
+
+    private bool IsPlayerSpriteOverHudRect()
+    {
+        if (_selfRect == null || _player == null || _playerRenderers == null || _playerRenderers.Length == 0)
+            return false;
+
+        Camera cam = ResolveOverlapCamera();
+        if (cam == null)
+            return false;
+
+        for (int i = 0; i < _playerRenderers.Length; i++)
+        {
+            SpriteRenderer sr = _playerRenderers[i];
+            if (sr == null || !sr.enabled || sr.sprite == null || !sr.gameObject.activeInHierarchy)
+                continue;
+
+            if (IsSpriteRendererOverHudRect(sr, cam))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void RefreshPlayerRenderersIfNeeded()
+    {
+        if (_player == null)
+            return;
+
+        bool needsRefresh = _playerRenderers == null || _playerRenderers.Length == 0;
+        if (!needsRefresh)
+        {
+            for (int i = 0; i < _playerRenderers.Length; i++)
+            {
+                if (_playerRenderers[i] == null)
+                {
+                    needsRefresh = true;
+                    break;
+                }
+            }
+        }
+
+        if (needsRefresh)
+            _playerRenderers = _player.GetComponentsInChildren<SpriteRenderer>(true);
+    }
+
+    private Camera ResolveOverlapCamera()
+    {
+        if (overlapCamera != null)
+            return overlapCamera;
+
+        if (_parentCanvas != null && _parentCanvas.worldCamera != null)
+            return _parentCanvas.worldCamera;
+
+        if (!string.IsNullOrWhiteSpace(overlapCameraName))
+        {
+            GameObject named = GameObject.Find(overlapCameraName.Trim());
+            if (named != null)
+            {
+                Camera c = named.GetComponent<Camera>();
+                if (c != null)
+                    return c;
+            }
+        }
+
+        return Camera.main;
+    }
+
+    private Camera ResolveHudRectEventCamera()
+    {
+        if (_parentCanvas == null)
+            return null;
+
+        if (_parentCanvas.renderMode == RenderMode.ScreenSpaceOverlay)
+            return null;
+
+        if (_parentCanvas.worldCamera != null)
+            return _parentCanvas.worldCamera;
+
+        return Camera.main;
+    }
+
+    private bool IsSpriteRendererOverHudRect(SpriteRenderer sr, Camera cam)
+    {
+        Bounds b = sr.bounds;
+        Vector3 c = b.center;
+        Vector3 e = b.extents;
+
+        Vector3[] points =
+        {
+            c,
+            c + new Vector3(-e.x, -e.y, 0f),
+            c + new Vector3(-e.x,  e.y, 0f),
+            c + new Vector3( e.x, -e.y, 0f),
+            c + new Vector3( e.x,  e.y, 0f)
+        };
+
+        for (int i = 0; i < points.Length; i++)
+        {
+            Vector3 screen = cam.WorldToScreenPoint(points[i]);
+            if (screen.z <= 0f)
+                continue;
+            if (RectTransformUtility.RectangleContainsScreenPoint(_selfRect, screen, _hudRectEventCamera))
+                return true;
+        }
+
+        return false;
     }
 
     public void SetNameAndCombatPower(string displayName, float combatPower)
@@ -170,6 +309,14 @@ public class HUDView : MonoBehaviour
 
         if (attackDelayValueText)
             attackDelayValueText.text = attacksPerSecond > 0f ? $"{attacksPerSecond:0.##} APS" : "0 APS";
+    }
+
+    public void SetHealthBarVisible(bool visible)
+    {
+        if (hpFill) hpFill.gameObject.SetActive(visible);
+        if (hpValueText) hpValueText.gameObject.SetActive(visible);
+        if (guardFill) guardFill.gameObject.SetActive(visible);
+        if (guardValueText) guardValueText.gameObject.SetActive(visible);
     }
 
     public void SetGatherDebuff(bool active, float speedMultiplier)

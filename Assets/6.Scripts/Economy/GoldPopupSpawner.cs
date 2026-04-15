@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 public class GoldPopupSpawner : MonoBehaviour
@@ -22,6 +23,9 @@ public class GoldPopupSpawner : MonoBehaviour
     [Header("Draw order")]
     [Tooltip("Added to the root UICanvas sorting order so popups render above the rest of the HUD.")]
     [SerializeField] private int popupSortingOrderOffset = 30000;
+    [Tooltip("When enabled, popups are spawned under a dedicated top-most UI canvas.")]
+    [SerializeField] private bool useDedicatedTopPopupCanvas = true;
+    [SerializeField] private string topPopupCanvasName = "TopPopupCanvas";
 
     [Header("Colours")]
     [SerializeField] private Color defaultMessageColor = Color.white;
@@ -29,6 +33,7 @@ public class GoldPopupSpawner : MonoBehaviour
 
     private Camera _cam;
     private readonly List<bool> _stackSlotBusy = new List<bool>();
+    private Canvas _topPopupCanvas;
 
     private void OnEnable()
     {
@@ -70,6 +75,8 @@ public class GoldPopupSpawner : MonoBehaviour
         {
             if (!canvas.worldCamera) canvas.worldCamera = _cam;
         }
+
+        EnsureTopPopupCanvas();
     }
 
     public void ShowGoldGained(int amount, string sourceLine = null)
@@ -88,24 +95,24 @@ public class GoldPopupSpawner : MonoBehaviour
     {
         if (amount <= 0 || !popupPrefab) return;
 
-        if (!canvas)
-            Rebind();
+        Rebind();
 
-        if (!canvas) return;
-
-        Camera cam = canvas.worldCamera ? canvas.worldCamera : Camera.main;
+        Camera cam = ResolveWorldProjectionCamera();
         if (!cam) return;
 
         Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
-        RectTransform canvasRect = canvas.transform as RectTransform;
+        Canvas targetCanvas = GetPopupTargetCanvas();
+        if (targetCanvas == null)
+            return;
+        RectTransform canvasRect = targetCanvas.transform as RectTransform;
 
         if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvasRect, screenPos, cam, out Vector2 localPoint))
+                canvasRect, screenPos, GetRectEventCamera(targetCanvas), out Vector2 localPoint))
             return;
 
         int slot = AcquireStackSlot();
         Vector2 stackedLocal = localPoint + Vector2.up * (slot * stackVerticalSpacing);
-        var popup = Instantiate(popupPrefab, canvas.transform);
+        var popup = Instantiate(popupPrefab, targetCanvas.transform);
         BringPopupToFront(popup);
         popup.PlayLocal(stackedLocal, amount, sourceLine, () => ReleaseStackSlot(slot));
     }
@@ -131,31 +138,35 @@ public class GoldPopupSpawner : MonoBehaviour
     {
         if (string.IsNullOrWhiteSpace(message) || !popupPrefab) return;
 
-        if (!canvas)
-            Rebind();
+        Rebind();
 
-        if (!canvas) return;
-
-        Camera cam = canvas.worldCamera ? canvas.worldCamera : Camera.main;
+        Camera cam = ResolveWorldProjectionCamera();
         if (!cam) return;
 
         Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
-        RectTransform canvasRect = canvas.transform as RectTransform;
+        Canvas targetCanvas = GetPopupTargetCanvas();
+        if (targetCanvas == null)
+            return;
+        RectTransform canvasRect = targetCanvas.transform as RectTransform;
 
         if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvasRect, screenPos, cam, out Vector2 localPoint))
+                canvasRect, screenPos, GetRectEventCamera(targetCanvas), out Vector2 localPoint))
             return;
 
         int slot = AcquireStackSlot();
         Vector2 stackedLocal = localPoint + Vector2.up * (slot * stackVerticalSpacing);
-        var popup = Instantiate(popupPrefab, canvas.transform);
+        var popup = Instantiate(popupPrefab, targetCanvas.transform);
         BringPopupToFront(popup);
         popup.PlayLocalText(stackedLocal, message, color, applyGoldStroke: false, () => ReleaseStackSlot(slot));
     }
 
     private void BringPopupToFront(GoldPopup popup)
     {
-        if (!popup || !canvas)
+        if (!popup)
+            return;
+
+        Canvas targetCanvas = GetPopupTargetCanvas();
+        if (targetCanvas == null)
             return;
 
         popup.transform.SetAsLastSibling();
@@ -164,14 +175,97 @@ public class GoldPopupSpawner : MonoBehaviour
         if (!popupCanvas)
             popupCanvas = popup.gameObject.AddComponent<Canvas>();
 
+        int topLayerId = GetHighestSortingLayerId();
+        int baseOrder = targetCanvas.sortingOrder;
+
         popupCanvas.overrideSorting = true;
-        popupCanvas.sortingOrder = canvas.rootCanvas.sortingOrder + Mathf.Max(0, popupSortingOrderOffset);
+        popupCanvas.sortingLayerID = topLayerId;
+        popupCanvas.sortingOrder = baseOrder + Mathf.Max(0, popupSortingOrderOffset);
 
         var cg = popup.GetComponent<CanvasGroup>();
         if (!cg)
             cg = popup.gameObject.AddComponent<CanvasGroup>();
         cg.blocksRaycasts = false;
         cg.interactable = false;
+    }
+
+    private Canvas GetPopupTargetCanvas()
+    {
+        if (useDedicatedTopPopupCanvas && _topPopupCanvas != null)
+            return _topPopupCanvas;
+        return canvas;
+    }
+
+    private Camera ResolveWorldProjectionCamera()
+    {
+        if (canvas != null && canvas.worldCamera != null)
+            return canvas.worldCamera;
+        return Camera.main;
+    }
+
+    private static Camera GetRectEventCamera(Canvas target)
+    {
+        if (target == null || target.renderMode == RenderMode.ScreenSpaceOverlay)
+            return null;
+        return target.worldCamera != null ? target.worldCamera : Camera.main;
+    }
+
+    private void EnsureTopPopupCanvas()
+    {
+        if (!useDedicatedTopPopupCanvas)
+        {
+            _topPopupCanvas = null;
+            return;
+        }
+
+        if (_topPopupCanvas != null)
+            return;
+
+        GameObject existing = GameObject.Find(topPopupCanvasName);
+        if (existing != null)
+            _topPopupCanvas = existing.GetComponent<Canvas>();
+
+        if (_topPopupCanvas == null)
+        {
+            GameObject go = new GameObject(topPopupCanvasName, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            _topPopupCanvas = go.GetComponent<Canvas>();
+            DontDestroyOnLoad(go);
+        }
+
+        if (_topPopupCanvas == null)
+            return;
+
+        _topPopupCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        _topPopupCanvas.overrideSorting = true;
+        _topPopupCanvas.sortingLayerID = GetHighestSortingLayerId();
+        _topPopupCanvas.sortingOrder = short.MaxValue - 100;
+
+        CanvasScaler scaler = _topPopupCanvas.GetComponent<CanvasScaler>();
+        if (scaler != null)
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+
+        GraphicRaycaster raycaster = _topPopupCanvas.GetComponent<GraphicRaycaster>();
+        if (raycaster != null)
+            raycaster.enabled = false;
+    }
+
+    private static int GetHighestSortingLayerId()
+    {
+        SortingLayer[] layers = SortingLayer.layers;
+        if (layers == null || layers.Length == 0)
+            return 0;
+
+        int bestId = layers[0].id;
+        int bestValue = layers[0].value;
+        for (int i = 1; i < layers.Length; i++)
+        {
+            if (layers[i].value <= bestValue)
+                continue;
+            bestValue = layers[i].value;
+            bestId = layers[i].id;
+        }
+
+        return bestId;
     }
 
     private int AcquireStackSlot()

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -5,6 +6,7 @@ using UnityEngine.SceneManagement;
 [DisallowMultipleComponent]
 public class EnemyOverheadUISpawner : MonoBehaviour
 {
+    private static readonly string[] LeftHudNameCandidates = { "LeftHud", "HUD_Left" };
     [Header("Refs")]
     [SerializeField] private UnitOverheadUI overheadPrefab;
     [SerializeField] private Transform overheadAnchor;
@@ -53,6 +55,17 @@ public class EnemyOverheadUISpawner : MonoBehaviour
         TrySpawnAfterSceneChange();
         if (!overheadInstance)
             StartCoroutine(SpawnOverheadWhenReady());
+    }
+
+    private void Update()
+    {
+        // Keep player-style overhead bars (hpBarOnly) visually tied to teleport shrink.
+        if (!hpBarOnly || overheadInstance == null || overheadAnchor == null)
+            return;
+
+        Vector3 ls = overheadAnchor.lossyScale;
+        float uniform = (Mathf.Abs(ls.x) + Mathf.Abs(ls.y) + Mathf.Abs(ls.z)) / 3f;
+        overheadInstance.SetExternalScale(Mathf.Max(0.01f, uniform));
     }
 
     /// <summary>
@@ -131,6 +144,48 @@ public class EnemyOverheadUISpawner : MonoBehaviour
             stripCamera,
             hpBarOnly
         );
+
+        if (hpBarOnly)
+            PlaceUnderLeftHud();
+    }
+
+    private void PlaceUnderLeftHud()
+    {
+        if (overheadInstance == null || stripCanvas == null)
+            return;
+
+        Transform overheadTransform = overheadInstance.transform;
+        Transform leftHud = FindLeftHudTransform();
+        if (leftHud == null || leftHud.parent != stripCanvas.transform)
+            return;
+
+        int leftHudIndex = leftHud.GetSiblingIndex();
+        int targetIndex = Mathf.Max(0, leftHudIndex);
+        overheadTransform.SetSiblingIndex(targetIndex);
+    }
+
+    private Transform FindLeftHudTransform()
+    {
+        for (int i = 0; i < LeftHudNameCandidates.Length; i++)
+        {
+            Transform t = stripCanvas.transform.Find(LeftHudNameCandidates[i]);
+            if (t != null)
+                return t;
+        }
+
+        for (int i = 0; i < stripCanvas.transform.childCount; i++)
+        {
+            Transform child = stripCanvas.transform.GetChild(i);
+            if (child == null)
+                continue;
+
+            string n = child.name;
+            if (string.Equals(n, "LeftHud", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(n, "HUD_Left", StringComparison.OrdinalIgnoreCase))
+                return child;
+        }
+
+        return null;
     }
 
     private void OnDestroy()

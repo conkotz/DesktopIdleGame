@@ -472,7 +472,6 @@ public class QuestPageUI : MonoBehaviour
             bool permanentlyDone = qProg && qProg.IsPermanentlyComplete(q);
             string status = BuildQuestListStatus(q, qProg, amt);
             bool tracked = QuestTrackerState.IsTracked(q.questId);
-            bool isObjectiveComplete = q.IsComplete(amt);
             row.Bind(
                 q,
                 q.listCategoryLabel,
@@ -483,7 +482,7 @@ public class QuestPageUI : MonoBehaviour
                 OnQuestClicked,
                 tracked,
                 OnTrackQuestClicked,
-                !isObjectiveComplete);
+                !permanentlyDone);
         }
 
         if (_selectedQuest != null && !_scratchQuests.Contains(_selectedQuest))
