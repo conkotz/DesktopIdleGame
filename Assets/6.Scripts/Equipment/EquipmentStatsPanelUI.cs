@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -32,6 +33,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text mrText;
     [SerializeField] private TMP_Text corruptionResistText;
     [SerializeField] private TMP_Text blockText;
+    [SerializeField] private TMP_Text guardFlatText;
+    [SerializeField] private TMP_Text maxGuardPercentText;
 
     [Header("Defensive (NEW)")]
     [SerializeField] private TMP_Text moveSpeedText;
@@ -235,6 +238,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     {
         if (!stats) return;
 
+        EnsureGuardStatTextRefs();
+
         // -------------------------
         // Defensive
         // -------------------------
@@ -245,6 +250,15 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (corruptionResistText)
             corruptionResistText.text = $"Corr Res: {stats.CorruptionResist} ({stats.CorruptionReductionFromResistPercent:0.#}% Corr DR)";
         if (blockText) blockText.text = $"Phys Block: {stats.PhysBlockChancePercent:0.#}%";
+
+        if (guardFlatText)
+            guardFlatText.text = $"Guard (flat): {stats.GearFlatGuardSum}";
+        if (maxGuardPercentText)
+        {
+            float pctPts = stats.GearMaxGuardPercentSum * 100f;
+            maxGuardPercentText.text =
+                $"Max Guard: +{pctPts:0.#}% (Guard ceiling {stats.NaturalGuardHpCeilingFromGear:0.#})";
+        }
 
         if (moveSpeedText)
             moveSpeedText.text = $"Move Speed: {FormatSignedPercentFrom01(stats.MoveSpeedBonusPercent)}";
@@ -477,6 +491,27 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         return string.Join(", ", parts);
     }
 
+    /// <summary>
+    /// Binds defence guard lines when inspector refs were not saved (e.g. older scenes) or names differ.
+    /// </summary>
+    private void EnsureGuardStatTextRefs()
+    {
+        if (guardFlatText && maxGuardPercentText)
+            return;
+
+        foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
+        {
+            string key = GameTooltipTexts.NormalizeUiElementName(tmp.gameObject.name);
+            if (!guardFlatText &&
+                key.Equals("GuardFlatText", StringComparison.OrdinalIgnoreCase))
+                guardFlatText = tmp;
+            else if (!maxGuardPercentText &&
+                     (key.Equals("MaxGuardPercentText", StringComparison.OrdinalIgnoreCase) ||
+                      key.Equals("MaxGuardText", StringComparison.OrdinalIgnoreCase)))
+                maxGuardPercentText = tmp;
+        }
+    }
+
     private SharedTooltipUI ResolveAilmentSharedTooltip()
     {
         if (ailmentSharedTooltip)
@@ -525,6 +560,22 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 hover.ConfigureForEquipmentStats(tip);
         }
 
+        void WireFixedGuardLine(TMP_Text tmp, string gameTooltipKey)
+        {
+            if (!tmp || !tip)
+                return;
+            if (!GameTooltipTexts.TryGetForUiElement(gameTooltipKey, out string title, out string desc))
+                return;
+            tmp.raycastTarget = true;
+            EquipmentAilmentLineTooltip ailmentOnly = tmp.GetComponent<EquipmentAilmentLineTooltip>();
+            if (ailmentOnly)
+                Destroy(ailmentOnly);
+            UIHoverTooltip hover = tmp.GetComponent<UIHoverTooltip>();
+            if (!hover)
+                hover = tmp.gameObject.AddComponent<UIHoverTooltip>();
+            hover.ConfigureForEquipmentStatsFixedCopy(tip, title, desc);
+        }
+
         Wire(globalPhysicalAllText);
         Wire(globalMagicAllText);
         Wire(globalCorruptionAllText);
@@ -537,9 +588,25 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(minionAttackSpeedText);
         Wire(minionCritChanceText);
         Wire(minionMaxLifeText);
+        WireFixedGuardLine(guardFlatText, "GuardFlatText");
+        WireFixedGuardLine(maxGuardPercentText, "MaxGuardPercentText");
 
         foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
         {
+            string rowName = GameTooltipTexts.NormalizeUiElementName(tmp.gameObject.name);
+            if (rowName.Equals("GuardFlatText", StringComparison.OrdinalIgnoreCase))
+            {
+                WireFixedGuardLine(tmp, "GuardFlatText");
+                continue;
+            }
+
+            if (rowName.Equals("MaxGuardPercentText", StringComparison.OrdinalIgnoreCase) ||
+                rowName.Equals("MaxGuardText", StringComparison.OrdinalIgnoreCase))
+            {
+                WireFixedGuardLine(tmp, "MaxGuardPercentText");
+                continue;
+            }
+
             switch (tmp.gameObject.name)
             {
                 case "PhysicalBonusText":

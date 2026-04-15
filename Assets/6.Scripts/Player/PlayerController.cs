@@ -372,6 +372,8 @@ public class PlayerController : MonoBehaviour
             OnHPChanged?.Invoke(characterStats.HP, characterStats.MaxHP);
             OnEnergyChanged?.Invoke(characterStats.Energy, characterStats.MaxEnergy);
             OnManaChanged?.Invoke(characterStats.Mana, characterStats.MaxMana);
+            if (SceneManager.GetActiveScene().name == "GamePlay")
+                characterStats.SnapGuardToNaturalCapOnSessionLoad();
         }
     }
 
@@ -1951,7 +1953,7 @@ public class PlayerController : MonoBehaviour
 
         float preMitigatedDamage = Mathf.Max(0f, amount);
         bool blocked;
-        float finalDamage = characterStats.TakeDamage(amount, type, out blocked);
+        float finalDamage = characterStats.TakeDamage(amount, type, out blocked, out float hpDamage);
 
         AwardEnduranceXpFromIncomingDamage(preMitigatedDamage);
 
@@ -1984,7 +1986,7 @@ public class PlayerController : MonoBehaviour
             );
         }
 
-        if (!blocked && !_isDead)
+        if (!blocked && !_isDead && hpDamage > 0.001f)
         {
             TriggerHurtAnim();
         }
@@ -2194,6 +2196,8 @@ public class PlayerController : MonoBehaviour
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         RebindCameras();
+        if (characterStats != null && scene.name == "GamePlay")
+            characterStats.SnapGuardToNaturalCapOnSessionLoad();
     }
 
     private void RebindCameras()

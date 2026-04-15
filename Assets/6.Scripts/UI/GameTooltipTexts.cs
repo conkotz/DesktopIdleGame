@@ -253,6 +253,22 @@ public static class GameTooltipTexts
                     "Higher regen lets you use stamina-heavy actions more often.";
                 return true;
 
+            case "GuardFlatText":
+                title = "Guard (flat)";
+                description =
+                    "Total flat guard amount.\n\n" +
+                    "Out of combat, guard refills up to your guard amount. This cannot surpass your max guard amount. " +
+                    "(Incoming damage is taken by guard before health.";
+                return true;
+
+            case "MaxGuardPercentText":
+            case "MaxGuardText":
+                title = "Max Guard";
+                description =
+                    "Max guard basine is equal to your max hp.\n\n" +
+                    "Gaining max guard increasing the guard you can obtain above your max hp.";
+                return true;
+
             case "MrText":
                 title = "Magic Resist";
                 description =

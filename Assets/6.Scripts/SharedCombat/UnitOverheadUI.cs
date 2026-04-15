@@ -14,6 +14,10 @@ public class UnitOverheadUI : MonoBehaviour
     [Tooltip("Optional. Shows combat profile label (e.g. Glass Cannon, Deadly); color is set from the profile. Assign in the Inspector.")]
     [SerializeField] private TMP_Text combatProfileText;
     [SerializeField] private Image hpFill;
+    [Tooltip("Optional; same bar stack as player/enemy HP.")]
+    [SerializeField] private Image guardFill;
+    [Tooltip("Optional. Shows current guard / natural cap.")]
+    [SerializeField] private TMP_Text guardValueText;
     [SerializeField] private TMP_Text hpValueText;
     [SerializeField] private Transform debuffContainer;
     [SerializeField] private GameObject debuffIconPrefab;
@@ -346,6 +350,7 @@ public class UnitOverheadUI : MonoBehaviour
         {
             characterStats.OnNameChanged += HandleNameChanged;
             characterStats.OnHPChanged += HandleCharacterHpChanged;
+            characterStats.OnGuardChanged += HandleCharacterGuardChanged;
             characterStats.OnStatsChanged += HandleStatsChanged;
         }
 
@@ -367,6 +372,7 @@ public class UnitOverheadUI : MonoBehaviour
         {
             characterStats.OnNameChanged -= HandleNameChanged;
             characterStats.OnHPChanged -= HandleCharacterHpChanged;
+            characterStats.OnGuardChanged -= HandleCharacterGuardChanged;
             characterStats.OnStatsChanged -= HandleStatsChanged;
         }
 
@@ -387,7 +393,10 @@ public class UnitOverheadUI : MonoBehaviour
         HandleNameChanged(string.Empty);
 
         if (characterStats != null)
+        {
             HandleCharacterHpChanged(characterStats.HP, characterStats.MaxHP);
+            HandleCharacterGuardChanged(characterStats.Guard, characterStats.NaturalGuardCap);
+        }
 
         if (enemy != null)
             HandleEnemyHpChanged(enemy.HP, enemy.MaxHP);
@@ -468,6 +477,8 @@ public class UnitOverheadUI : MonoBehaviour
     private void HandleStatsChanged()
     {
         HandleNameChanged(string.Empty);
+        if (characterStats != null)
+            HandleCharacterGuardChanged(characterStats.Guard, characterStats.NaturalGuardCap);
     }
 
     private void HandleNameChanged(string _)
@@ -523,6 +534,36 @@ public class UnitOverheadUI : MonoBehaviour
 
         if (hpValueText != null)
             hpValueText.text = $"{Mathf.CeilToInt(current)}/{Mathf.CeilToInt(max)}";
+    }
+
+    private void HandleCharacterGuardChanged(float current, float naturalCap)
+    {
+        if (characterStats == null)
+            return;
+
+        if (guardFill != null)
+        {
+            if (naturalCap <= 0.0001f)
+                guardFill.fillAmount = 0f;
+            else
+            {
+                float hpD = Mathf.Max(1f, characterStats.MaxHP);
+                float guardZone01 = Mathf.Clamp01(naturalCap / hpD);
+                float guardFill01 = Mathf.Clamp01(current / naturalCap);
+                guardFill.fillAmount = Mathf.Clamp01(guardFill01 * guardZone01);
+            }
+        }
+
+        if (guardValueText)
+        {
+            if (current <= 0.0001f)
+                guardValueText.gameObject.SetActive(false);
+            else
+            {
+                guardValueText.gameObject.SetActive(true);
+                guardValueText.text = $"{Mathf.CeilToInt(current)}";
+            }
+        }
     }
 
     private void HandleEnemyHpChanged(int current, int max)

@@ -101,6 +101,15 @@ public class EnemyDefinition : ScriptableObject
     [Tooltip("Maps to CharacterStats basePhysBlockChance.")]
     public float physBlockChance = 0f;
 
+    [Header("Guard (same rules as player armor)")]
+    [Min(0)]
+    [Tooltip("Flat guard pool cap contribution; replenish cap is min(this, Max HP × (1 + Max Guard %))).")]
+    public int flatGuard = 0;
+
+    [Tooltip("Additive fraction above Max HP for the guard ceiling (0.1 = +10%, i.e. cap from HP is 110% of Max HP).")]
+    [Min(0f)]
+    public float maxGuardPercent = 0f;
+
     [Header("Direct damage (base)")]
     [Tooltip("Physical portion uses unarmed min/max on CharacterStats.")]
     [Min(0)]

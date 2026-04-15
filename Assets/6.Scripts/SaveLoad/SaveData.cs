@@ -39,6 +39,8 @@ public class SaveData
     public int playerLevel = 1;
     public int xp = 0;
     public float playerCurrentHP = -1f;
+    [Tooltip("Guard pool; -1 = omit (legacy saves).")]
+    public float playerCurrentGuard = -1f;
     [Tooltip("Legacy; not restored on load. Energy refills to max when loading.")]
     public float playerCurrentEnergy = -1f;
     [Tooltip("Legacy; not restored on load. Mana refills to max when loading.")]

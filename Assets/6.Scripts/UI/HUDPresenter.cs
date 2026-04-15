@@ -80,7 +80,10 @@ public class HUDPresenter : MonoBehaviour
             buffs.OnBuffsChanged += HandleBuffsChanged;
 
         if (stats != null)
+        {
             stats.OnStatsChanged += HandleStatsChangedForCombatPower;
+            stats.OnGuardChanged += HandleGuardChanged;
+        }
 
         RefreshAll();
     }
@@ -113,7 +116,17 @@ public class HUDPresenter : MonoBehaviour
             buffs.OnBuffsChanged -= HandleBuffsChanged;
 
         if (stats != null)
+        {
             stats.OnStatsChanged -= HandleStatsChangedForCombatPower;
+            stats.OnGuardChanged -= HandleGuardChanged;
+        }
+    }
+
+    private void HandleGuardChanged(float current, float naturalCap)
+    {
+        if (hud == null || stats == null)
+            return;
+        hud.SetGuard(current, naturalCap, stats.MaxHP);
     }
 
     private void Update()
@@ -181,6 +194,8 @@ public class HUDPresenter : MonoBehaviour
     {
         RefreshNameAndCombatPower();
         hud.SetHP(player.HP, player.MaxHP);
+        if (stats)
+            hud.SetGuard(stats.Guard, stats.NaturalGuardCap, stats.MaxHP);
         hud.SetEnergy(player.Energy, player.MaxEnergy);
         hud.SetMana(player.Mana, player.MaxMana);
         float aps = stats ? stats.AttacksPerSecond : 0f;

@@ -734,8 +734,8 @@ public class EnemyBaseController : MonoBehaviour
 
         float shockMult = _ailments != null ? _ailments.GetIncomingDamageMultiplier() : 1f;
         float scaledAmount = Mathf.Max(0f, amount * shockMult);
-        float applied = stats.TakeDamage(scaledAmount, type, out bool blocked);
-        int finalDamage = Mathf.RoundToInt(applied);      
+        float applied = stats.TakeDamage(scaledAmount, type, out bool blocked, out float hpDamage);
+        int finalDamage = Mathf.RoundToInt(applied);
 
         if (blocked)
             wasCrit = false;
@@ -779,7 +779,7 @@ public class EnemyBaseController : MonoBehaviour
             );
         }
 
-        if (finalDamage > 0 && !blocked && !stats.IsDead)
+        if (hpDamage > 0.001f && !blocked && !stats.IsDead)
             SetTriggerSafe(hurtTrigger);
 
         if (stats.IsDead && state != EnemyState.Dead)

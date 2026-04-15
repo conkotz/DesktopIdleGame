@@ -12,6 +12,10 @@ public class HUDView : MonoBehaviour
 
     [Header("HP")]
     [SerializeField] private Image hpFill;
+    [Tooltip("Optional overlay; fill is current guard / max(natural cap, current guard).")]
+    [SerializeField] private Image guardFill;
+    [Tooltip("Optional. Shows current guard / natural cap (e.g. 40/40).")]
+    [SerializeField] private TMP_Text guardValueText;
     [SerializeField] private TMP_Text hpValueText;
 
     [Header("Energy")]
@@ -114,6 +118,37 @@ public class HUDView : MonoBehaviour
     {
         if (hpFill) hpFill.fillAmount = (max <= 0f) ? 0f : Mathf.Clamp01(current / max);
         if (hpValueText) hpValueText.text = $"{Mathf.RoundToInt(current)}/{Mathf.RoundToInt(max)}";
+    }
+
+    /// <summary>
+    /// Guard uses the same bar rect as HP; fill only occupies (naturalCap / maxHp) of the width at full guard,
+    /// so a small flat cap does not read as a full-length bar.
+    /// </summary>
+    public void SetGuard(float current, float naturalCap, float maxHp)
+    {
+        if (guardFill)
+        {
+            if (naturalCap <= 0.0001f)
+                guardFill.fillAmount = 0f;
+            else
+            {
+                float hpD = Mathf.Max(1f, maxHp);
+                float guardZone01 = Mathf.Clamp01(naturalCap / hpD);
+                float guardFill01 = Mathf.Clamp01(current / naturalCap);
+                guardFill.fillAmount = Mathf.Clamp01(guardFill01 * guardZone01);
+            }
+        }
+
+        if (guardValueText)
+        {
+            if (current <= 0.0001f)
+                guardValueText.gameObject.SetActive(false);
+            else
+            {
+                guardValueText.gameObject.SetActive(true);
+                guardValueText.text = $"{Mathf.RoundToInt(current)}";
+            }
+        }
     }
 
     public void SetEnergy(float current, float max)

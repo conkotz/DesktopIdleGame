@@ -218,6 +218,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             player.NotifySoftCombatInteraction(window);
     }
 
+    /// <summary>
+    /// Guard absorbs and similar non-HP combat events should still refresh the DPS session / soft-combat clock.
+    /// </summary>
+    public void NotifyNonHpCombatInteraction()
+    {
+        MarkRecentCombatActivity();
+    }
+
     private void Update()
     {
         if (!player || !stats) return;

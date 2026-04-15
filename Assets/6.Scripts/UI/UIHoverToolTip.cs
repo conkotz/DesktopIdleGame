@@ -55,6 +55,20 @@ public class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitH
         useSharedTooltipAnchor = false;
     }
 
+    /// <summary>
+    /// Equipment stats row: bind shared tooltip with explicit copy so hover works even when the TMP
+    /// <see cref="GameObject"/> name does not match <see cref="GameTooltipTexts"/> keys.
+    /// </summary>
+    public void ConfigureForEquipmentStatsFixedCopy(SharedTooltipUI panel, string title, string body)
+    {
+        if (panel)
+            tooltipPanel = panel;
+        tooltipSource = UiTooltipSource.Custom;
+        customTitle = string.IsNullOrEmpty(title) ? "Info" : title;
+        customBody = body ?? string.Empty;
+        useSharedTooltipAnchor = false;
+    }
+
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (!tooltipPanel || tooltipSource == UiTooltipSource.Disabled)

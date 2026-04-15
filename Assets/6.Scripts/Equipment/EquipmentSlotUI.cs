@@ -476,8 +476,17 @@ public class EquipmentSlotUI : MonoBehaviour,
             }
         }
 
-        bool compact = !_def.IsCombatSupport;
+        // Jewellery in the middle equipment panel should use full tooltip mode so item description text is shown.
+        bool compact = !_def.IsCombatSupport && !IsJewellerySlot(slotType);
         tooltip.ShowAt(transform, _def, GetEquippedAmountForThisSlot(), compact);
+    }
+
+    private static bool IsJewellerySlot(EquipmentUISlotType uiSlotType)
+    {
+        return uiSlotType == EquipmentUISlotType.Trinket
+               || uiSlotType == EquipmentUISlotType.Pendant
+               || uiSlotType == EquipmentUISlotType.Ring1
+               || uiSlotType == EquipmentUISlotType.Ring2;
     }
 
     public void OnPointerExit(PointerEventData eventData)

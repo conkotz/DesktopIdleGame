@@ -109,6 +109,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField, HideInInspector] private float currentHP = -1f;
     [SerializeField, HideInInspector] private float currentEnergy = -1f;
     [SerializeField, HideInInspector] private float currentMana = -1f;
+    [SerializeField, HideInInspector] private float currentGuard = -1f;
 
     private bool _isDead;
     private bool _didInitialFill;
@@ -125,16 +126,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public event Action OnStatsChanged;
 
+    /// <summary>Current guard vs natural cap (armor or enemy definition). UI fill uses natural cap unless current exceeds it.</summary>
+    public event Action<float, float> OnGuardChanged;
+
     private PlayerController _ownerPlayer;
     private EnemyBaseController _ownerEnemy;
+    private PlayerCombatState _playerCombatState;
 
     private SkillsManager _skillProgressCombatPowerSubscribed;
 
+    private float _guardPeaceTimer;
+    private bool _wasInCombatForGuardTimer;
+
+    [SerializeField, HideInInspector] private int _enemyDefinitionFlatGuard;
+    [SerializeField, HideInInspector] private float _enemyDefinitionMaxGuardPercent;
+
+    /// <summary>Enemy guard regen: no regen/decay until this many seconds after last damage to guard or HP.</summary>
+    private float _lastIncomingDamageTimeForGuard = -999f;
 
     public string UnitDisplayName => unitDisplayName;
     public float HP => currentHP;
     public float Energy => currentEnergy;
     public float Mana => currentMana;
+    /// <summary>Current guard pool (absorbs damage before HP). May exceed <see cref="NaturalGuardCap"/> from future abilities.</summary>
+    public float Guard => Mathf.Max(0f, currentGuard);
     public bool IsDead => _isDead;
 
     [Header("Base Stats")]
@@ -246,8 +261,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private const float combatPowerPhysicalWeight = 0.5f;
     private const float combatPowerMagicWeight = 0.3f;
     private const float combatPowerCorruptionWeight = 0.2f;
+    /// <summary>CP defense only: guard contributes as a discounted HP-equivalent pool.</summary>
+    private const float combatPowerGuardHealthEquivalentWeight = 0.70f;
 
     private const float LowHealthThreshold01 = 0.35f;
+
+    private const float GuardOutOfCombatSecondsBeforeRegen = 10f;
+    private const float GuardRegenOrDecayPerSecondFraction = 0.10f;
 
     private struct MeleeMinorNodeBonuses
     {
@@ -311,6 +331,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!skillsManager) skillsManager = SkillsManager.Instance;
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         _ownerPlayer = GetComponent<PlayerController>() ?? GetComponentInParent<PlayerController>();
+        if (_ownerPlayer)
+            _playerCombatState = _ownerPlayer.GetComponent<PlayerCombatState>();
         ResolveOwnerEnemy();
     }
 
@@ -380,6 +402,26 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     // Defensive
     public int MaxHP => baseMaxHP + GetEquippedBonusHealth();
+
+    /// <summary>
+    /// Maximum natural guard: min(total flat, Max HP × (1 + total max-guard %)).
+    /// Player: from armor; enemy: from <see cref="EnemyDefinition"/>. Abilities may still push <see cref="Guard"/> above this.
+    /// </summary>
+    public float NaturalGuardCap =>
+        Mathf.Max(0f, Mathf.Min((float)GetNaturalGuardFlatTotal(), NaturalGuardHpCeilingFromGear));
+
+    /// <summary>Upper bound from vitals only: Max HP × (1 + additive max-guard % from armor or enemy definition).</summary>
+    public float NaturalGuardHpCeilingFromGear
+    {
+        get
+        {
+            float hp = Mathf.Max(1f, MaxHP);
+            return hp * (1f + GetNaturalGuardMaxGuardPercentTotal());
+        }
+    }
+
+    public int GearFlatGuardSum => GetEquippedArmorFlatGuardSum();
+    public float GearMaxGuardPercentSum => GetEquippedArmorMaxGuardPercentSum();
     public int MaxEnergy => baseMaxEnergy + GetEquippedBonusEnergy();
     public int MaxMana => Mathf.Max(0, baseMaxMana + GetEquippedBonusMana());
     public int Armor =>
@@ -870,7 +912,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             // Physical block is chance to take 0 damage, so expected damage taken is reduced by (1 - blockChance)
             damageTakenMultiplier *= Mathf.Max(0.05f, 1f - PhysBlockChance);
 
-            return MaxHP / Mathf.Max(0.01f, damageTakenMultiplier);
+            return CombatPowerDefenseHealthPool / Mathf.Max(0.01f, damageTakenMultiplier);
         }
     }
 
@@ -879,7 +921,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         get
         {
             float damageTakenMultiplier = 100f / (100f + Mathf.Max(0f, MagicResist));
-            return MaxHP / Mathf.Max(0.01f, damageTakenMultiplier);
+            return CombatPowerDefenseHealthPool / Mathf.Max(0.01f, damageTakenMultiplier);
         }
     }
 
@@ -888,9 +930,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
         get
         {
             float damageTakenMultiplier = 100f / (100f + Mathf.Max(0f, CorruptionResist));
-            return MaxHP / Mathf.Max(0.01f, damageTakenMultiplier);
+            return CombatPowerDefenseHealthPool / Mathf.Max(0.01f, damageTakenMultiplier);
         }
     }
+
+    /// <summary>
+    /// Defensive pool used by CP: Max HP plus a discounted guard-equivalent buffer.
+    /// Guard matters, but less than true HP for scaling.
+    /// </summary>
+    public float CombatPowerDefenseHealthPool =>
+        Mathf.Max(1f, MaxHP + NaturalGuardCap * combatPowerGuardHealthEquivalentWeight);
 
     public float WeightedEffectiveHP
     {
@@ -902,7 +951,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 combatPowerCorruptionWeight;
 
             if (totalWeight <= 0f)
-                return MaxHP;
+                return CombatPowerDefenseHealthPool;
 
             return
                 (EffectiveHPVsPhysical * combatPowerPhysicalWeight +
@@ -2116,6 +2165,46 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
+    private int GetEquippedArmorFlatGuardSum()
+    {
+        int total = 0;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def == null) continue;
+            total += def.ArmorFlatGuard;
+        }
+
+        return Mathf.Max(0, total);
+    }
+
+    private int GetNaturalGuardFlatTotal()
+    {
+        ResolveOwnerEnemy();
+        if (_ownerEnemy)
+            return Mathf.Max(0, _enemyDefinitionFlatGuard);
+        return GetEquippedArmorFlatGuardSum();
+    }
+
+    private float GetEquippedArmorMaxGuardPercentSum()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def == null) continue;
+            total += def.ArmorMaxGuardPercent;
+        }
+
+        return Mathf.Max(0f, total);
+    }
+
+    private float GetNaturalGuardMaxGuardPercentTotal()
+    {
+        ResolveOwnerEnemy();
+        if (_ownerEnemy)
+            return Mathf.Max(0f, _enemyDefinitionMaxGuardPercent);
+        return GetEquippedArmorMaxGuardPercentSum();
+    }
+
     private int GetEquippedMagicResist()
     {
         int total = 0;
@@ -2483,16 +2572,22 @@ public class CharacterStats : MonoBehaviour, ISaveable
             if (currentHP < 0f) currentHP = newMaxHP;
             if (currentEnergy < 0f) currentEnergy = newMaxEnergy;
             if (currentMana < 0f) currentMana = newMaxMana;
+            if (currentGuard < 0f) currentGuard = 0f;
             _didInitialFill = true;
         }
 
         currentHP = Mathf.Clamp(currentHP, 0f, newMaxHP);
         currentEnergy = Mathf.Clamp(currentEnergy, 0f, newMaxEnergy);
         currentMana = Mathf.Clamp(currentMana, 0f, newMaxMana);
+        if (currentGuard < 0f)
+            currentGuard = 0f;
+        else
+            currentGuard = Mathf.Max(0f, currentGuard);
 
         OnHPChanged?.Invoke(currentHP, newMaxHP);
         OnEnergyChanged?.Invoke(currentEnergy, newMaxEnergy);
         OnManaChanged?.Invoke(currentMana, newMaxMana);
+        RaiseGuardChanged();
         OnStatsChanged?.Invoke();
     }
 
@@ -2503,19 +2598,40 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public void ApplyLoadedVitals(float hp, float energy)
     {
-        ApplyLoadedVitals(hp, energy, currentMana >= 0f ? currentMana : MaxMana);
+        ApplyLoadedVitals(hp, energy, currentMana >= 0f ? currentMana : MaxMana, -1f);
     }
 
     public void ApplyLoadedVitals(float hp, float energy, float mana)
+    {
+        ApplyLoadedVitals(hp, energy, mana, -1f);
+    }
+
+    public void ApplyLoadedVitals(float hp, float energy, float mana, float guard)
     {
         // Never restore into a dead state on load; dead state blocks resource spending (e.g. mana).
         currentHP = Mathf.Max(1f, hp);
         currentEnergy = energy;
         currentMana = mana;
+        _ = guard;
         _didInitialFill = true;
         _hasPendingLoadedVitals = false;
         _isDead = currentHP <= 0f;
         RefreshVitalsFromStats(fillIfEmpty: false);
+    }
+
+    /// <summary>
+    /// Sets guard to <see cref="NaturalGuardCap"/> (player: after save/map load; not used while dead).
+    /// </summary>
+    public void SnapGuardToNaturalCapOnSessionLoad()
+    {
+        if (_isDead)
+            return;
+        ResolveOwnerEnemy();
+        if (!_ownerPlayer)
+            return;
+
+        currentGuard = NaturalGuardCap;
+        RaiseGuardChanged();
     }
 
     public void SetDisplayName(string newName)
@@ -2594,8 +2710,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
         baseShockDuration = Mathf.Max(0.1f, def.shockDuration);
         baseShockDamageTakenMultiplier = Mathf.Clamp01(def.shockDamageTakenMultiplier);
 
+        _enemyDefinitionFlatGuard = Mathf.Max(0, def.flatGuard);
+        _enemyDefinitionMaxGuardPercent = Mathf.Max(0f, def.maxGuardPercent);
+
+        currentGuard = NaturalGuardCap;
+        _lastIncomingDamageTimeForGuard = Time.time;
+
         OnStatsChanged?.Invoke();
         OnNameChanged?.Invoke(unitDisplayName);
+        RaiseGuardChanged();
     }
 
     /// <summary>
@@ -2631,6 +2754,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         currentHP = MaxHP;
         RefreshVitalsFromStats(fillIfEmpty: false);
+        ResolveOwnerEnemy();
+        if (_ownerEnemy)
+        {
+            currentGuard = NaturalGuardCap;
+            RaiseGuardChanged();
+        }
+
         OnStatsChanged?.Invoke();
     }
 
@@ -2671,6 +2801,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         // Re-fill to the new scaled max so UI shows correct current/max (e.g. 150/150 not 100/150).
         currentHP = MaxHP;
         RefreshVitalsFromStats(fillIfEmpty: false);
+        currentGuard = NaturalGuardCap;
+        RaiseGuardChanged();
     }
 
     public void TickRegen(float dt)
@@ -2722,6 +2854,100 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (hpChanged) OnHPChanged?.Invoke(currentHP, maxHp);
         if (energyChanged) OnEnergyChanged?.Invoke(currentEnergy, maxEnergy);
         if (manaChanged) OnManaChanged?.Invoke(currentMana, maxMana);
+
+        TickGuardRegen(dt);
+    }
+
+    private void TickGuardRegen(float dt)
+    {
+        if (_isDead || dt <= 0f)
+            return;
+
+        ResolveOwnerEnemy();
+
+        if (_ownerPlayer)
+        {
+            bool inCombat = _playerCombatState != null && _playerCombatState.InCombat;
+            if (inCombat)
+            {
+                _guardPeaceTimer = 0f;
+                _wasInCombatForGuardTimer = true;
+                return;
+            }
+
+            if (_wasInCombatForGuardTimer)
+            {
+                _guardPeaceTimer = 0f;
+                _wasInCombatForGuardTimer = false;
+            }
+
+            _guardPeaceTimer += dt;
+            if (_guardPeaceTimer < GuardOutOfCombatSecondsBeforeRegen)
+                return;
+        }
+        else if (_ownerEnemy)
+        {
+            if (Time.time - _lastIncomingDamageTimeForGuard < GuardOutOfCombatSecondsBeforeRegen)
+                return;
+        }
+        else
+            return;
+
+        float cap = NaturalGuardCap;
+        if (cap <= 0f && currentGuard <= 0.0001f)
+            return;
+
+        bool changed = false;
+
+        if (currentGuard < cap - 0.0001f && cap > 0f)
+        {
+            float add = GuardRegenOrDecayPerSecondFraction * cap * dt;
+            float newG = Mathf.Min(cap, currentGuard + add);
+            if (!Mathf.Approximately(newG, currentGuard))
+            {
+                currentGuard = newG;
+                changed = true;
+            }
+        }
+        else if (currentGuard > cap + 0.0001f)
+        {
+            float decayBase = cap > 0.0001f ? cap : Mathf.Max(1f, currentGuard);
+            float sub = GuardRegenOrDecayPerSecondFraction * decayBase * dt;
+            float newG = Mathf.Max(cap, currentGuard - sub);
+            if (!Mathf.Approximately(newG, currentGuard))
+            {
+                currentGuard = newG;
+                changed = true;
+            }
+        }
+
+        if (changed)
+            RaiseGuardChanged();
+    }
+
+    private void RaiseGuardChanged()
+    {
+        OnGuardChanged?.Invoke(Guard, NaturalGuardCap);
+    }
+
+    private void NotifyGuardAbsorbedCombatClock()
+    {
+        if (!_ownerPlayer)
+            return;
+
+        PlayerCombatController pcc = _ownerPlayer.GetComponent<PlayerCombatController>();
+        if (pcc)
+            pcc.NotifyNonHpCombatInteraction();
+    }
+
+    /// <summary>Future: temporary guard from abilities (may exceed <see cref="NaturalGuardCap"/>).</summary>
+    public void AddBonusGuard(float amount)
+    {
+        if (_isDead || amount <= 0f)
+            return;
+
+        currentGuard = Mathf.Max(0f, currentGuard + amount);
+        RaiseGuardChanged();
     }
 
     public bool SpendEnergy(float amount)
@@ -2770,46 +2996,57 @@ public class CharacterStats : MonoBehaviour, ISaveable
         OnHPChanged?.Invoke(currentHP, MaxHP);
     }
 
-    public float TakeDamage(float amount, DamageType type, out bool blocked)
+    /// <returns>Damage that reached guard and/or HP after mitigation (for popups and combat totals). Use <paramref name="hpDamageDealt"/> for HP-only effects.</returns>
+    public float TakeDamage(float amount, DamageType type, out bool blocked, out float hpDamageDealt)
     {
         blocked = false;
+        hpDamageDealt = 0f;
         if (_isDead) return 0f;
 
-        float finalDamage = ApplyMitigation(amount, type, out blocked);
-        currentHP = Mathf.Clamp(currentHP - finalDamage, 0f, MaxHP);
+        float mitigated = ApplyMitigation(amount, type, out blocked);
+        float totalToVitals = Mathf.Max(0f, mitigated);
+        float remainder = totalToVitals;
+        hpDamageDealt = ApplyDamageToGuardThenHp(ref remainder);
         OnHPChanged?.Invoke(currentHP, MaxHP);
 
         if (currentHP <= 0f && !_isDead)
         {
             _isDead = true;
+            currentGuard = 0f;
+            RaiseGuardChanged();
             OnDied?.Invoke();
         }
 
-        return finalDamage;
+        return totalToVitals;
     }
 
     /// <summary>
     /// Applies DoT (or other pre-resolved) damage: amount is already the intended tick total;
     /// only global melee damage reduction applies (no armor / MR / corruption resist).
     /// </summary>
+    /// <returns>Damage that reached guard and/or HP after reductions (same semantics as <see cref="TakeDamage"/> return value).</returns>
     public float TakeDamageFromResolvedDot(float amount, out bool blocked)
     {
         blocked = false;
         if (_isDead) return 0f;
 
-        float finalDamage = ApplyFlatDamageTakenReduction(
+        float mitigated = ApplyFlatDamageTakenReduction(
             ApplyMeleeDamageReduction(Mathf.Max(0f, amount)),
             GetConsumableFlatDamageReductionFraction());
-        currentHP = Mathf.Clamp(currentHP - finalDamage, 0f, MaxHP);
+        float totalToVitals = Mathf.Max(0f, mitigated);
+        float remainder = totalToVitals;
+        ApplyDamageToGuardThenHp(ref remainder);
         OnHPChanged?.Invoke(currentHP, MaxHP);
 
         if (currentHP <= 0f && !_isDead)
         {
             _isDead = true;
+            currentGuard = 0f;
+            RaiseGuardChanged();
             OnDied?.Invoke();
         }
 
-        return finalDamage;
+        return totalToVitals;
     }
 
     public void ReviveFull()
@@ -2818,9 +3055,40 @@ public class CharacterStats : MonoBehaviour, ISaveable
         currentHP = MaxHP;
         currentEnergy = MaxEnergy;
         currentMana = MaxMana;
+        currentGuard = NaturalGuardCap;
         OnHPChanged?.Invoke(currentHP, MaxHP);
         OnEnergyChanged?.Invoke(currentEnergy, MaxEnergy);
         OnManaChanged?.Invoke(currentMana, MaxMana);
+        RaiseGuardChanged();
+    }
+
+    /// <summary>
+    /// Consumes <paramref name="damage"/> against guard first, then HP. Mutates <paramref name="damage"/> to HP loss only.
+    /// </summary>
+    private float ApplyDamageToGuardThenHp(ref float damage)
+    {
+        damage = Mathf.Max(0f, damage);
+        if (damage <= 0f)
+            return 0f;
+
+        float guardBefore = currentGuard;
+        float absorb = Mathf.Min(guardBefore, damage);
+        if (absorb > 0f)
+        {
+            currentGuard = Mathf.Max(0f, guardBefore - absorb);
+            damage -= absorb;
+            NotifyGuardAbsorbedCombatClock();
+            RaiseGuardChanged();
+        }
+
+        float hpLoss = damage;
+        currentHP = Mathf.Clamp(currentHP - hpLoss, 0f, MaxHP);
+
+        ResolveOwnerEnemy();
+        if (_ownerEnemy && (absorb > 0f || hpLoss > 0.0001f))
+            _lastIncomingDamageTimeForGuard = Time.time;
+
+        return hpLoss;
     }
 
     private float GetConsumableDefenseBoostRatingMultiplier()

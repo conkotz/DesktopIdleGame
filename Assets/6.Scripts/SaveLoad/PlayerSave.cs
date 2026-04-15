@@ -30,6 +30,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
 
         // Energy/mana always start full after load (saved values were only used for HP).
         stats.ApplyLoadedVitals(_pendingHp, stats.MaxEnergy, stats.MaxMana);
+        stats.SnapGuardToNaturalCapOnSessionLoad();
         _hasPendingVitals = false;
         ApplyPendingName();
     }

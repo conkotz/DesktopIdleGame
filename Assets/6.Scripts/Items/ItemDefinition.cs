@@ -258,6 +258,13 @@ public struct ArmorStats
     [Header("Vitals")]
     public int bonusHealth;
     public int bonusEnergy;
+
+    [Header("Guard")]
+    [Tooltip("Flat bonus to natural guard cap (same stacking as bonus health).")]
+    public int flatGuard;
+
+    [Tooltip("Extra maximum guard as a fraction of Max HP (0.1 = +10% cap, i.e. 110% of Max HP before flat bonuses).")]
+    public float maxGuardPercent;
 }
 
 /// <summary>
@@ -774,6 +781,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public int BonusHealth => (IsArmor ? armorStats.bonusHealth : 0) + bonusStats.bonusHealth;
     public int BonusEnergy => (IsArmor ? armorStats.bonusEnergy : 0) + bonusStats.bonusEnergy;
+
+    /// <summary>Armor-only flat contribution to natural guard cap.</summary>
+    public int ArmorFlatGuard => IsArmor ? Mathf.Max(0, armorStats.flatGuard) : 0;
+
+    /// <summary>Armor-only additive fraction: natural cap includes MaxHP * (1 + sum of these).</summary>
+    public float ArmorMaxGuardPercent => IsArmor ? Mathf.Max(0f, armorStats.maxGuardPercent) : 0f;
     public int BonusMana => bonusStats.bonusMana;
 
     public float LifeRegen => bonusStats.lifeRegen;
@@ -1069,6 +1082,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (BonusEnergy != 0) s += $"Energy: +{BonusEnergy}\n";
             if (BonusMana != 0) s += $"Mana: +{BonusMana}\n";
             if (PhysBlockChance > 0f) s += $"Phys Block: {PhysBlockChance * 100f:0.#}%\n";
+            if (ArmorFlatGuard > 0) s += $"Guard: +{ArmorFlatGuard}\n";
+            if (ArmorMaxGuardPercent > 0.00001f) s += $"Max Guard: {FormatSignedPercent01(ArmorMaxGuardPercent)}\n";
 
             string extras = BuildBonusLines(includeDefense: false);
 
@@ -1270,6 +1285,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (BonusHealth != 0) s += $"HP +{BonusHealth} • ";
             if (BonusEnergy != 0) s += $"Energy +{BonusEnergy} • ";
             if (BonusMana != 0) s += $"Mana +{BonusMana} • ";
+            if (ArmorFlatGuard > 0) s += $"Guard +{ArmorFlatGuard} • ";
+            if (ArmorMaxGuardPercent > 0.00001f) s += $"Max Guard {FormatSignedPercent01(ArmorMaxGuardPercent)} • ";
 
             return s.TrimEnd(' ', '•');
         }
