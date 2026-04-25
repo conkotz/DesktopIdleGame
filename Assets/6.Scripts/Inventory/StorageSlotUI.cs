@@ -263,14 +263,58 @@ public class StorageSlotUI : MonoBehaviour,
     {
         if (_dragIconGO) Destroy(_dragIconGO);
 
+        if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
+        {
+            TryDropStorageDragToGround();
+            return;
+        }
+
         // Drop handlers on other UI (e.g. inventory slots) may run after EndDrag on the source in some
         // Unity versions. Clearing drag state immediately breaks those drops — defer cleanup one frame.
         StartCoroutine(EndStorageDragDeferred());
     }
 
+    private void TryDropStorageDragToGround()
+    {
+        if (_storage == null || !InventoryDragState.HasDrag || InventoryDragState.Source != InventoryDragState.SourceKind.Storage)
+        {
+            EndStorageDragNow();
+            return;
+        }
+
+        int fromSlot = InventoryDragState.FromSlotIndex;
+        string itemId = InventoryDragState.ItemId;
+        int dropAmount = InventoryDragState.IsSplit ? InventoryDragState.CarriedAmount : _storage.GetSlot(fromSlot).amount;
+
+        if (string.IsNullOrWhiteSpace(itemId) || dropAmount <= 0)
+        {
+            EndStorageDragNow();
+            return;
+        }
+
+        int removed = _storage.RemoveAmountAtSlot(fromSlot, dropAmount);
+        if (removed > 0)
+        {
+            Sprite iconSprite = _def ? _def.icon : null;
+            if (DropManager.Instance != null)
+                DropManager.Instance.Spawn(itemId, removed, iconSprite);
+            ItemGainPopupNotifier.NotifyLost(itemId, removed);
+        }
+
+        EndStorageDragNow();
+    }
+
     private IEnumerator EndStorageDragDeferred()
     {
         yield return null;
+        if (InventoryDragState.HasDrag && InventoryDragState.Source == InventoryDragState.SourceKind.Storage)
+            InventoryDragState.EndDrag();
+
+        EndStorageDragNow();
+    }
+
+    private void EndStorageDragNow()
+    {
         if (InventoryDragState.HasDrag && InventoryDragState.Source == InventoryDragState.SourceKind.Storage)
             InventoryDragState.EndDrag();
 

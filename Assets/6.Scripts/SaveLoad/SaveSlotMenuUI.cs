@@ -359,7 +359,10 @@ public class SaveSlotMenuUI : MonoBehaviour
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
                 out var utc))
         {
-            return utc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+            string format = ToggleSettingsStore.Get(ToggleSettingId.UseTwentyFourHourTime)
+                ? "yyyy-MM-dd HH:mm:ss"
+                : "yyyy-MM-dd h:mm:ss tt";
+            return utc.ToLocalTime().ToString(format, CultureInfo.InvariantCulture);
         }
 
         // Fallback if parse fails for older/custom strings.

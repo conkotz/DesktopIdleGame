@@ -618,6 +618,7 @@ public class InventorySlotUI : MonoBehaviour,
 
                     if (DropManager.Instance != null)
                         DropManager.Instance.Spawn(itemId, removed, iconSprite);
+                    ItemGainPopupNotifier.NotifyLost(itemId, removed);
                 }
             }
         }

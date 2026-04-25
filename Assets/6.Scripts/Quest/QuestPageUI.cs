@@ -659,12 +659,26 @@ public class QuestPageUI : MonoBehaviour
             return;
 
         if (QuestTrackerState.IsTracked(quest.questId))
-            QuestTrackerState.UntrackQuest(quest.questId);
-        else
         {
-            QuestTrackerState.TrackQuest(quest.questId);
-            EnsureQuestTrackerWindowEnabled();
+            QuestTrackerState.UntrackQuest(quest.questId);
+            return;
         }
+
+        QuestProgressManager qProg = FindQuestProgress();
+        if (qProg != null && qProg.IsQuestGatedByPrerequisites(quest))
+        {
+            GameLog.Add("Cannot track quests that are not yet available.");
+            return;
+        }
+
+        if (!QuestTrackerState.CanTrackMore)
+        {
+            GameLog.Add($"Cannot track more than {QuestTrackerState.MaxTrackedQuestCount} quests.");
+            return;
+        }
+
+        if (QuestTrackerState.TrackQuest(quest.questId))
+            EnsureQuestTrackerWindowEnabled();
     }
 
     private static void EnsureQuestTrackerWindowEnabled()

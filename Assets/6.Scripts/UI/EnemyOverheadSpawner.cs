@@ -87,7 +87,6 @@ public class EnemyOverheadUISpawner : MonoBehaviour
 
     private IEnumerator SpawnOverheadWhenReady()
     {
-        int frames = 0;
         while (!overheadInstance && overheadPrefab)
         {
             if (!isActiveAndEnabled)
@@ -97,15 +96,6 @@ public class EnemyOverheadUISpawner : MonoBehaviour
             ResolveStripContext();
             if (stripCanvas && stripCamera)
                 SpawnAndBind();
-
-            frames++;
-            if (frames % 600 == 0)
-            {
-                Debug.LogWarning(
-                    "[EnemyOverheadUISpawner] Still waiting for UICanvas / camera for overhead on '" + name +
-                    "'. Assign Strip Canvas on the prefab or tag gameplay canvas 'UICanvas'.",
-                    this);
-            }
         }
     }
 
@@ -118,13 +108,32 @@ public class EnemyOverheadUISpawner : MonoBehaviour
                 stripCanvas = tagged.GetComponent<Canvas>();
         }
 
+        if (!stripCanvas)
+            stripCanvas = FindSceneCanvasByTagOrName("UICanvas", "StripUICanvas");
+
         if (stripCanvas && !stripCamera)
         {
             if (stripCanvas.renderMode == RenderMode.ScreenSpaceCamera && stripCanvas.worldCamera)
                 stripCamera = stripCanvas.worldCamera;
             else
-                stripCamera = Camera.main;
+                stripCamera = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>(FindObjectsInactive.Exclude);
         }
+    }
+
+    private static Canvas FindSceneCanvasByTagOrName(string tagName, string objectName)
+    {
+        Canvas[] canvases = Resources.FindObjectsOfTypeAll<Canvas>();
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Canvas canvas = canvases[i];
+            if (canvas == null || canvas.hideFlags != HideFlags.None || !canvas.gameObject.scene.IsValid())
+                continue;
+
+            if (canvas.CompareTag(tagName) || canvas.name == objectName)
+                return canvas;
+        }
+
+        return null;
     }
 
     private void SpawnAndBind()

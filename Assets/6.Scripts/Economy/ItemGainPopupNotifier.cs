@@ -19,6 +19,20 @@ public static class ItemGainPopupNotifier
         GameLog.ItemGained(label, amount);
     }
 
+    public static void NotifyLost(string itemId, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        itemId = itemId.Trim();
+
+        ItemDatabase db = Object.FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        ItemDefinition def = db ? db.Get(itemId) : null;
+
+        string label = ResolveLabel(def, itemId, amount);
+        GameLog.ItemLost(label, amount);
+    }
+
     private static string ResolveLabel(ItemDefinition def, string itemId, int amount)
     {
         if (def)

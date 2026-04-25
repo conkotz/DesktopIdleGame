@@ -7,11 +7,15 @@ using UnityEngine;
 /// </summary>
 public static class QuestTrackerState
 {
+    public const int MaxTrackedQuestCount = 5;
+
     private static readonly List<string> TrackedQuestIds = new();
 
     public static event Action Changed;
 
     public static IReadOnlyList<string> OrderedTrackedQuestIds => TrackedQuestIds;
+    public static int TrackedCount => TrackedQuestIds.Count;
+    public static bool CanTrackMore => TrackedQuestIds.Count < MaxTrackedQuestCount;
 
     public static bool IsTracked(string questId)
     {
@@ -20,17 +24,20 @@ public static class QuestTrackerState
         return TrackedQuestIds.Contains(questId.Trim());
     }
 
-    public static void TrackQuest(string questId)
+    public static bool TrackQuest(string questId)
     {
         if (string.IsNullOrWhiteSpace(questId))
-            return;
+            return false;
 
         string id = questId.Trim();
         if (TrackedQuestIds.Contains(id))
-            return;
+            return true;
+        if (!CanTrackMore)
+            return false;
 
         TrackedQuestIds.Add(id);
         Changed?.Invoke();
+        return true;
     }
 
     public static void UntrackQuest(string questId)
@@ -55,6 +62,19 @@ public static class QuestTrackerState
             if (isValidQuestId(TrackedQuestIds[i]))
                 continue;
             TrackedQuestIds.RemoveAt(i);
+            changed = true;
+        }
+
+        if (changed)
+            Changed?.Invoke();
+    }
+
+    public static void PruneToMaxCount()
+    {
+        bool changed = false;
+        while (TrackedQuestIds.Count > MaxTrackedQuestCount)
+        {
+            TrackedQuestIds.RemoveAt(TrackedQuestIds.Count - 1);
             changed = true;
         }
 

@@ -61,15 +61,26 @@ public class GameLogWindowUI : MonoBehaviour
     {
         _configured = false;
         EnsureConfigured();
+        ToggleSettingsStore.Changed += OnToggleSettingChanged;
         RebuildFromHistory();
+    }
+
+    private void OnDisable()
+    {
+        ToggleSettingsStore.Changed -= OnToggleSettingChanged;
     }
 
     public void AddLog(string message)
     {
-        AddLog(message, GameLog.DefaultTextColor);
+        AddLog(message, GameLog.DefaultTextColor, "");
     }
 
     public void AddLog(string message, Color textColor)
+    {
+        AddLog(message, textColor, "");
+    }
+
+    public void AddLog(string message, Color textColor, string timeText)
     {
         if (string.IsNullOrWhiteSpace(message))
             return;
@@ -78,11 +89,20 @@ public class GameLogWindowUI : MonoBehaviour
         if (contentRoot == null)
             return;
 
-        TMP_Text row = CreateRow();
-        row.text = message.Trim();
-        row.color = textColor;
-        row.faceColor = textColor;
-        row.gameObject.SetActive(true);
+        ActivityRow row = CreateRow();
+        if (row.MessageText != null)
+        {
+            row.MessageText.text = message.Trim();
+            row.MessageText.color = textColor;
+            row.MessageText.faceColor = textColor;
+            row.MessageText.gameObject.SetActive(true);
+        }
+
+        if (row.TimestampText != null)
+        {
+            row.TimestampText.text = string.IsNullOrWhiteSpace(timeText) ? "" : timeText.Trim();
+            row.TimestampText.gameObject.SetActive(!string.IsNullOrWhiteSpace(row.TimestampText.text));
+        }
 
         Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
@@ -107,8 +127,14 @@ public class GameLogWindowUI : MonoBehaviour
         for (int i = 0; i < history.Count; i++)
         {
             GameLog.Entry entry = history[i];
-            AddLog(entry.Message, entry.Color);
+            AddLog(entry.Message, entry.Color, GameLog.FormatClock(entry.TimestampLocal));
         }
+    }
+
+    private void OnToggleSettingChanged(ToggleSettingId setting, bool _)
+    {
+        if (setting == ToggleSettingId.UseTwentyFourHourTime)
+            RebuildFromHistory();
     }
 
     private void ClearRows()
@@ -124,26 +150,42 @@ public class GameLogWindowUI : MonoBehaviour
         }
     }
 
-    private TMP_Text CreateRow()
+    private readonly struct ActivityRow
+    {
+        public readonly TMP_Text MessageText;
+        public readonly TMP_Text TimestampText;
+
+        public ActivityRow(TMP_Text messageText, TMP_Text timestampText)
+        {
+            MessageText = messageText;
+            TimestampText = timestampText;
+        }
+    }
+
+    private ActivityRow CreateRow()
     {
         GameObject rowObject;
-        TMP_Text rowText;
+        TMP_Text messageText;
+        TMP_Text timestampText;
         if (rowPrefab != null)
         {
             rowObject = Instantiate(rowPrefab, contentRoot);
-            rowText = rowObject.GetComponentInChildren<TMP_Text>(true);
+            messageText = FindChildText(rowObject.transform, "ActivityRowText") ??
+                rowObject.GetComponentInChildren<TMP_Text>(true);
+            timestampText = FindChildText(rowObject.transform, "TimeStamp");
         }
         else
         {
             rowObject = new GameObject("GameLogRow", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
             rowObject.transform.SetParent(contentRoot, false);
-            rowText = rowObject.GetComponent<TMP_Text>();
+            messageText = rowObject.GetComponent<TMP_Text>();
+            timestampText = null;
         }
 
         rowObject.SetActive(true);
-        ConfigureSpawnedRow(rowObject.transform as RectTransform, rowText);
+        ConfigureSpawnedRow(rowObject.transform as RectTransform, messageText, timestampText);
         rowObject.transform.SetAsLastSibling();
-        return rowText;
+        return new ActivityRow(messageText, timestampText);
     }
 
     private void EnsureConfigured()
@@ -206,7 +248,7 @@ public class GameLogWindowUI : MonoBehaviour
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
     }
 
-    private static void ConfigureSpawnedRow(RectTransform rowRoot, TMP_Text rowText)
+    private static void ConfigureSpawnedRow(RectTransform rowRoot, TMP_Text rowText, TMP_Text timestampText)
     {
         if (rowRoot == null)
             return;
@@ -245,6 +287,26 @@ public class GameLogWindowUI : MonoBehaviour
         textRect.pivot = new Vector2(0f, 0.5f);
         textRect.anchoredPosition = Vector2.zero;
         textRect.sizeDelta = Vector2.zero;
+
+        if (timestampText == null)
+            return;
+
+        timestampText.gameObject.SetActive(true);
+        timestampText.enabled = true;
+        if (timestampText.font == null && TMP_Settings.defaultFontAsset != null)
+            timestampText.font = TMP_Settings.defaultFontAsset;
+        timestampText.alpha = 1f;
+        timestampText.raycastTarget = false;
+
+        CanvasRenderer timestampRenderer = timestampText.canvasRenderer;
+        if (timestampRenderer != null)
+            timestampRenderer.SetAlpha(1f);
+    }
+
+    private static TMP_Text FindChildText(Transform root, string childName)
+    {
+        Transform t = FindChildByName(root, childName);
+        return t != null ? t.GetComponent<TMP_Text>() : null;
     }
 
     private void KeepNewestVisible()

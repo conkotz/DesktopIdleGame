@@ -4,6 +4,7 @@ using UnityEngine;
 public static class ToggleSettingsStore
 {
     private const string HidePlayerHealthBarOutOfCombatKey = "Settings.HidePlayerHealthBarOutOfCombat";
+    private const string UseTwentyFourHourTimeKey = "Settings.UseTwentyFourHourTime";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -13,6 +14,8 @@ public static class ToggleSettingsStore
         {
             ToggleSettingId.HidePlayerHealthBarOutOfCombat =>
                 PlayerPrefs.GetInt(HidePlayerHealthBarOutOfCombatKey, 0) != 0,
+            ToggleSettingId.UseTwentyFourHourTime =>
+                PlayerPrefs.GetInt(UseTwentyFourHourTimeKey, 1) != 0,
             _ => false
         };
     }
@@ -27,6 +30,9 @@ public static class ToggleSettingsStore
             case ToggleSettingId.HidePlayerHealthBarOutOfCombat:
                 PlayerPrefs.SetInt(HidePlayerHealthBarOutOfCombatKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.UseTwentyFourHourTime:
+                PlayerPrefs.SetInt(UseTwentyFourHourTimeKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -38,6 +44,7 @@ public static class ToggleSettingsStore
         return setting switch
         {
             ToggleSettingId.HidePlayerHealthBarOutOfCombat => "Hide player health bar out of combat",
+            ToggleSettingId.UseTwentyFourHourTime => "Use 24-hour time",
             _ => setting.ToString()
         };
     }

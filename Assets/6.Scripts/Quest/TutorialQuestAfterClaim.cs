@@ -33,7 +33,10 @@ public static class TutorialQuestAfterClaim
         if (id != BasicCombat2)
             return;
 
+        bool wasTutorial2Completed = wmp.IsNodeCompleted(NodeTutorial2);
         wmp.SetNodeCompleted(NodeTutorial2, true);
+        if (!wasTutorial2Completed)
+            GameLog.RegionUnlocked("Greenlands");
 
         if (SaveManager.Instance != null)
             SaveManager.Instance.Save();

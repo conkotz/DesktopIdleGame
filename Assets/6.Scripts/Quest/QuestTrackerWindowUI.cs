@@ -11,6 +11,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
 {
     private const string TrackerWindowName = "QuestTrackerWindow";
     private const string TrackerContentName = "Content";
+    private const string TrackerTitleName = "QuestsTrackLabel";
     private const string RowNameTextChild = "QuestTrackerListName";
     private const string RowProgressTextChild = "QuestTrackerProgress";
     private static readonly Color TrackerDefaultTextColor = new Color(0.16f, 0.13f, 0.1f, 1f);
@@ -18,6 +19,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
     private static readonly Color TrackerObjectiveCompleteRowColor = new Color(0.82f, 0.96f, 0.82f, 1f);
 
     [SerializeField] private RectTransform trackerContentRoot;
+    [SerializeField] private TMP_Text trackerTitleText;
     [SerializeField] private QuestDatabase questDatabase;
     [SerializeField] private GameObject questTrackerRowPrefab;
 
@@ -81,6 +83,9 @@ public class QuestTrackerWindowUI : MonoBehaviour
                 trackerContentRoot = content as RectTransform;
         }
 
+        if (!trackerTitleText)
+            trackerTitleText = FindChildByName(transform, TrackerTitleName)?.GetComponent<TMP_Text>();
+
         if (!questDatabase)
             questDatabase = Resources.Load<QuestDatabase>("Databases/QuestDatabase_Main");
 
@@ -115,8 +120,10 @@ public class QuestTrackerWindowUI : MonoBehaviour
             if (!def)
                 return false;
             bool permanentlyDone = _questProgress != null && _questProgress.IsPermanentlyComplete(def);
-            return !permanentlyDone;
+            bool gated = _questProgress != null && _questProgress.IsQuestGatedByPrerequisites(def);
+            return !permanentlyDone && !gated;
         });
+        QuestTrackerState.PruneToMaxCount();
 
         IReadOnlyList<string> tracked = QuestTrackerState.OrderedTrackedQuestIds;
         int renderedCount = 0;
@@ -142,6 +149,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
             renderedCount++;
         }
 
+        RefreshTitle(renderedCount);
         SetTrackerVisible(renderedCount > 0);
         if (trackerContentRoot != null)
             LayoutRebuilder.ForceRebuildLayoutImmediate(trackerContentRoot);
@@ -224,6 +232,15 @@ public class QuestTrackerWindowUI : MonoBehaviour
         return null;
     }
 
+    private void RefreshTitle(int trackedCount)
+    {
+        if (!trackerTitleText)
+            return;
+
+        int current = Mathf.Clamp(trackedCount, 0, QuestTrackerState.MaxTrackedQuestCount);
+        trackerTitleText.text = $"Quest Tracker ({current}/{QuestTrackerState.MaxTrackedQuestCount})";
+    }
+
     private void OnTrackedQuestRowClicked(string questId)
     {
         if (string.IsNullOrWhiteSpace(questId))
@@ -263,5 +280,24 @@ public class QuestTrackerWindowUI : MonoBehaviour
         _canvasGroup.alpha = visible ? 1f : 0f;
         _canvasGroup.interactable = visible;
         _canvasGroup.blocksRaycasts = visible;
+    }
+
+    private static Transform FindChildByName(Transform root, string childName)
+    {
+        if (root == null || string.IsNullOrEmpty(childName))
+            return null;
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform child = root.GetChild(i);
+            if (child.name == childName)
+                return child;
+
+            Transform nested = FindChildByName(child, childName);
+            if (nested != null)
+                return nested;
+        }
+
+        return null;
     }
 }
