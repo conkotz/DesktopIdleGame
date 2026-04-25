@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Handles ability cooldowns + executing ability effects.
@@ -24,6 +25,7 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField] private AbilityDatabase abilityDatabase;
     [SerializeField] private SkillDatabase skillDatabase;
     [SerializeField] private SkillsManager skillsManager;
+    [SerializeField] private ActionBarUI actionBar;
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private Inventory inventory;
     [SerializeField] private PlayerBuffController buffController;
@@ -75,6 +77,13 @@ public class PlayerAbilityController : MonoBehaviour
     private const string CleavingStrikesId = "cleaving_strikes";
     private const string CrescentSlashId = "crescent_slash";
     private const int WhirlwindChoiceSourceLevel = 15;
+    private const int SoulforgedWeaponChoiceSourceLevel = 35;
+    private const int SoulforgedWeaponSwarmChoiceIndex = 0;
+    private const int SoulforgedWeaponIndefiniteChoiceIndex = 1;
+    private const int SoulforgedWeaponSwarmCount = 3;
+    private const float SoulforgedWeaponSwarmDamageMultiplier = 0.75f;
+    private const float SoulforgedWeaponSwarmDurationSeconds = 20f;
+    private const float SoulforgedWeaponSceneLoadActionBarGraceSeconds = 2f;
     private static readonly float WhirlwindSecondHitMultiplier = AbilityCombatPower.WhirlwindTwinCycloneSecondHitFraction;
     private const float WhirlwindTwinCycloneSecondHitDelay = 0.5f;
     private const float WhirlwindRadiusBonus = 3f;
@@ -102,10 +111,14 @@ public class PlayerAbilityController : MonoBehaviour
     /// <summary>Player root transform (this component lives on the player).</summary>
     private Transform _ownerTransform;
 
-    private SoulforgedWeaponMinion _activeSoulforgedWeaponMinion;
+    private readonly List<SoulforgedWeaponMinion> _activeSoulforgedWeaponMinions = new();
+    private bool _activeSoulforgedWeaponIsPersistent;
+    private float _soulforgedAvailabilityCheckPausedUntil;
 
     /// <summary>When the Soulforged Weapon summon despawns, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
     private AbilityDefinition _soulforgedWeaponCooldownAbilityDef;
+
+    private static string s_pendingSoulforgedRestoreAbilityId;
 
     private enum QueuedHitEffect
     {
@@ -138,6 +151,18 @@ public class PlayerAbilityController : MonoBehaviour
         if (!abilityDatabase) abilityDatabase = AbilityDatabase.LoadDefault();
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         if (!skillsManager) skillsManager = SkillsManager.Instance;
+        if (!actionBar) actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+        StartCoroutine(RestorePendingSoulforgedAfterSceneLoad());
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
     }
 
     private void Update()
@@ -145,6 +170,45 @@ public class PlayerAbilityController : MonoBehaviour
         TryAutoReleaseQueuedCrescentSlash();
         CleanupCleavingStrikesIfExpired();
         SyncCleavingStrikesHudBuff();
+        CleanupSoulforgedWeaponIfUnavailable();
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        _soulforgedAvailabilityCheckPausedUntil = Time.time + SoulforgedWeaponSceneLoadActionBarGraceSeconds;
+
+        if (!actionBar)
+            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+
+        CleanupSoulforgedWeaponList();
+        for (int i = 0; i < _activeSoulforgedWeaponMinions.Count; i++)
+        {
+            SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
+            if (!minion)
+                continue;
+
+            minion.PersistAcrossSceneLoads();
+            minion.ReturnHomeAfterSceneLoad();
+        }
+    }
+
+    private IEnumerator RestorePendingSoulforgedAfterSceneLoad()
+    {
+        yield return null;
+
+        if (string.IsNullOrWhiteSpace(s_pendingSoulforgedRestoreAbilityId) || _activeSoulforgedWeaponMinions.Count > 0)
+            yield break;
+
+        string abilityId = s_pendingSoulforgedRestoreAbilityId;
+        s_pendingSoulforgedRestoreAbilityId = null;
+        AbilityDefinition def = GetAbilityDefinition(abilityId);
+        if (!def || !def.minionSpawnDefinition || IsOnCooldown(def.abilityId, out _))
+            yield break;
+
+        if (!IsAbilityAllowedBySkillProgress(def) || !CanUseWithEquippedWeapon(def))
+            yield break;
+
+        TrySpawnSoulforgedWeaponMinion(def);
     }
 
     public bool IsOnCooldown(string abilityId, out float remainingSeconds)
@@ -221,12 +285,13 @@ public class PlayerAbilityController : MonoBehaviour
         if (globalCooldownSeconds > 0f && Time.time < _globalCooldownEndsAt)
             return false;
 
-        if (def.minionSpawnDefinition && _activeSoulforgedWeaponMinion)
+        CleanupSoulforgedWeaponList();
+        if (def.minionSpawnDefinition && _activeSoulforgedWeaponMinions.Count > 0)
         {
             if (!allowSoulforgedRecastWhileActive)
                 return false;
 
-            _activeSoulforgedWeaponMinion.TryRecastRetargetOrReturn();
+            RecastActiveSoulforgedWeapons();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -1830,11 +1895,6 @@ public class PlayerAbilityController : MonoBehaviour
         };
     }
 
-    /// <summary>
-    /// Spawns <see cref="SoulforgedWeaponMinion"/> from ability context: only one active instance per controller.
-    /// Recast while alive retargets or sends the minion home instead of destroying and respawning.
-    /// Visual + anchor come from equipment and <see cref="PlayerController.SoulforgedWeaponSpawnPoint"/> (no scene-wide searches on the minion).
-    /// </summary>
     private bool TrySpawnSoulforgedWeaponMinion(AbilityDefinition def)
     {
         MinionDefinition md = def.minionSpawnDefinition;
@@ -1843,37 +1903,218 @@ public class PlayerAbilityController : MonoBehaviour
 
         Transform anchor = player.SoulforgedWeaponSpawnPoint;
         Transform attacker = _ownerTransform ? _ownerTransform : _ownerStats.transform;
-
-        GameObject go = Instantiate(md.runtimePrefab, anchor.position, Quaternion.identity);
-        SoulforgedWeaponMinion minion = go.GetComponent<SoulforgedWeaponMinion>();
-        if (!minion)
-        {
-            Destroy(go);
-            return false;
-        }
-
         Sprite weaponSprite = ResolveSoulforgedWeaponVisualSprite(md, def);
-        if (!minion.Initialize(_ownerStats, md, soulforgedWeaponMinionPresentation, anchor, weaponSprite, attacker, HandleSoulforgedWeaponReleased))
+        int selectedChoice = GetSoulforgedWeaponSelectedChoice();
+        bool swarm = selectedChoice == SoulforgedWeaponSwarmChoiceIndex;
+        bool indefinite = selectedChoice == SoulforgedWeaponIndefiniteChoiceIndex;
+        int spawnCount = swarm ? SoulforgedWeaponSwarmCount : 1;
+        _activeSoulforgedWeaponIsPersistent = indefinite;
+        CleanupSoulforgedWeaponList();
+
+        var occupiedTargets = new HashSet<int>();
+
+        for (int i = 0; i < spawnCount; i++)
         {
-            Destroy(go);
-            return false;
+            Vector3 homeOffset = swarm ? GetSoulforgedSwarmHomeOffset(i) : Vector3.zero;
+            Vector3 attachOffset = swarm ? GetSoulforgedSwarmAttachOffset(i) : Vector3.zero;
+            GameObject go = Instantiate(md.runtimePrefab, anchor.position + homeOffset, Quaternion.identity);
+            SoulforgedWeaponMinion minion = go.GetComponent<SoulforgedWeaponMinion>();
+            if (!minion)
+            {
+                Destroy(go);
+                CleanupSoulforgedWeaponSummonsWithoutCooldown();
+                return false;
+            }
+
+            if (!minion.Initialize(
+                    _ownerStats,
+                    md,
+                    soulforgedWeaponMinionPresentation,
+                    anchor,
+                    weaponSprite,
+                    attacker,
+                    HandleSoulforgedWeaponReleased,
+                    swarm ? SoulforgedWeaponSwarmDurationSeconds : -1f,
+                    indefinite,
+                    swarm ? SoulforgedWeaponSwarmDamageMultiplier : 1f,
+                    homeOffset,
+                    attachOffset))
+            {
+                Destroy(go);
+                CleanupSoulforgedWeaponSummonsWithoutCooldown();
+                return false;
+            }
+
+            minion.PersistAcrossSceneLoads();
+            _activeSoulforgedWeaponMinions.Add(minion);
+            if (swarm)
+            {
+                minion.TryRecastRetargetOrReturn(occupiedTargets);
+                RememberSoulforgedTarget(occupiedTargets, minion.CurrentTarget);
+            }
         }
 
-        _activeSoulforgedWeaponMinion = minion;
         _soulforgedWeaponCooldownAbilityDef = def;
         return true;
     }
 
+    private int GetSoulforgedWeaponSelectedChoice()
+    {
+        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, SoulforgedWeaponChoiceSourceLevel, -1);
+    }
+
+    private static Vector3 GetSoulforgedSwarmHomeOffset(int index)
+    {
+        return index switch
+        {
+            1 => new Vector3(-0.28f, 0.18f, 0f),
+            2 => new Vector3(0.28f, -0.12f, 0f),
+            _ => Vector3.zero
+        };
+    }
+
+    private static Vector3 GetSoulforgedSwarmAttachOffset(int index)
+    {
+        return index switch
+        {
+            1 => new Vector3(-0.22f, 0.16f, 0f),
+            2 => new Vector3(0.22f, -0.12f, 0f),
+            _ => Vector3.zero
+        };
+    }
+
     private void HandleSoulforgedWeaponReleased(SoulforgedWeaponMinion m)
     {
-        if (_activeSoulforgedWeaponMinion == m)
-            _activeSoulforgedWeaponMinion = null;
+        _activeSoulforgedWeaponMinions.Remove(m);
+        CleanupSoulforgedWeaponList();
 
-        if (_soulforgedWeaponCooldownAbilityDef)
+        if (_activeSoulforgedWeaponMinions.Count == 0 && _soulforgedWeaponCooldownAbilityDef)
         {
             StartCooldown(_soulforgedWeaponCooldownAbilityDef);
             _soulforgedWeaponCooldownAbilityDef = null;
+            _activeSoulforgedWeaponIsPersistent = false;
         }
+    }
+
+    private void RecastActiveSoulforgedWeapons()
+    {
+        CleanupSoulforgedWeaponList();
+        bool swarm = GetSoulforgedWeaponSelectedChoice() == SoulforgedWeaponSwarmChoiceIndex;
+        EnemyBaseController collapseTarget = swarm && combat != null ? combat.CurrentTarget : null;
+        if (swarm && collapseTarget && !collapseTarget.IsDead)
+        {
+            for (int i = 0; i < _activeSoulforgedWeaponMinions.Count; i++)
+                _activeSoulforgedWeaponMinions[i]?.ForceTarget(collapseTarget);
+            return;
+        }
+
+        var occupiedTargets = swarm ? new HashSet<int>() : null;
+        for (int i = 0; i < _activeSoulforgedWeaponMinions.Count; i++)
+        {
+            SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
+            if (!minion)
+                continue;
+            minion.TryRecastRetargetOrReturn(occupiedTargets);
+            if (swarm)
+                RememberSoulforgedTarget(occupiedTargets, minion.CurrentTarget);
+        }
+    }
+
+    private static void RememberSoulforgedTarget(HashSet<int> occupiedTargets, EnemyBaseController target)
+    {
+        if (occupiedTargets != null && target && !target.IsDead)
+            occupiedTargets.Add(target.GetInstanceID());
+    }
+
+    private void CleanupSoulforgedWeaponList()
+    {
+        for (int i = _activeSoulforgedWeaponMinions.Count - 1; i >= 0; i--)
+        {
+            if (!_activeSoulforgedWeaponMinions[i])
+                _activeSoulforgedWeaponMinions.RemoveAt(i);
+        }
+    }
+
+    private void CleanupSoulforgedWeaponSummonsWithoutCooldown()
+    {
+        for (int i = _activeSoulforgedWeaponMinions.Count - 1; i >= 0; i--)
+        {
+            SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
+            if (minion)
+                minion.CancelAndDestroy();
+        }
+        _activeSoulforgedWeaponMinions.Clear();
+        _soulforgedWeaponCooldownAbilityDef = null;
+        _activeSoulforgedWeaponIsPersistent = false;
+    }
+
+    private void CleanupSoulforgedWeaponIfUnavailable()
+    {
+        if (!_activeSoulforgedWeaponIsPersistent || _activeSoulforgedWeaponMinions.Count == 0)
+            return;
+
+        if (Time.time < _soulforgedAvailabilityCheckPausedUntil)
+            return;
+
+        AbilityDefinition def = _soulforgedWeaponCooldownAbilityDef;
+        if (!def)
+            return;
+
+        bool stillAvailable =
+            GetSoulforgedWeaponSelectedChoice() == SoulforgedWeaponIndefiniteChoiceIndex &&
+            IsAbilityAllowedBySkillProgress(def) &&
+            IsAbilityAssignedToActionBar(def.abilityId);
+        if (stillAvailable)
+            return;
+
+        EndSoulforgedAndStartCooldown();
+    }
+
+    private bool IsAbilityAssignedToActionBar(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return false;
+
+        if (!actionBar)
+            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (!actionBar)
+            return true;
+
+        foreach (ActionBarSlotUI slot in actionBar.GetSlots())
+        {
+            ActionBarAssignment action = slot != null ? slot.AssignedAction : null;
+            if (action != null &&
+                action.IsAbility &&
+                string.Equals(action.id, abilityId, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void EndSoulforgedAndStartCooldown()
+    {
+        AbilityDefinition cooldownDef = _soulforgedWeaponCooldownAbilityDef;
+        bool hadActiveMinion = _activeSoulforgedWeaponMinions.Count > 0;
+
+        for (int i = _activeSoulforgedWeaponMinions.Count - 1; i >= 0; i--)
+        {
+            SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
+            if (minion)
+                minion.CancelAndDestroy();
+        }
+
+        _activeSoulforgedWeaponMinions.Clear();
+
+        if (cooldownDef != null && hadActiveMinion)
+            StartCooldown(cooldownDef);
+
+        _soulforgedWeaponCooldownAbilityDef = null;
+        _activeSoulforgedWeaponIsPersistent = false;
     }
 
     /// <summary>
@@ -1882,19 +2123,21 @@ public class PlayerAbilityController : MonoBehaviour
     public void EndSoulforgedOnOwnerDeath()
     {
         AbilityDefinition cooldownDef = _soulforgedWeaponCooldownAbilityDef;
-        bool hadActiveMinion = _activeSoulforgedWeaponMinion != null;
+        bool hadActiveMinion = _activeSoulforgedWeaponMinions.Count > 0;
 
-        if (_activeSoulforgedWeaponMinion != null)
+        for (int i = _activeSoulforgedWeaponMinions.Count - 1; i >= 0; i--)
         {
-            // Cancel callback path to avoid duplicate StartCooldown from OnDestroy.
-            _activeSoulforgedWeaponMinion.CancelAndDestroy();
-            _activeSoulforgedWeaponMinion = null;
+            SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
+            if (minion)
+                minion.CancelAndDestroy();
         }
+        _activeSoulforgedWeaponMinions.Clear();
 
         if (cooldownDef != null && hadActiveMinion)
             StartCooldown(cooldownDef);
 
         _soulforgedWeaponCooldownAbilityDef = null;
+        _activeSoulforgedWeaponIsPersistent = false;
     }
 
     /// <summary>
@@ -1934,11 +2177,16 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_activeSoulforgedWeaponMinion)
+        if (_activeSoulforgedWeaponMinions.Count > 0 && _soulforgedWeaponCooldownAbilityDef)
+            s_pendingSoulforgedRestoreAbilityId = _soulforgedWeaponCooldownAbilityDef.abilityId;
+
+        for (int i = _activeSoulforgedWeaponMinions.Count - 1; i >= 0; i--)
         {
-            _activeSoulforgedWeaponMinion.CancelAndDestroy();
-            _activeSoulforgedWeaponMinion = null;
+            SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
+            if (minion)
+                minion.CancelAndDestroy();
         }
+        _activeSoulforgedWeaponMinions.Clear();
     }
 }
 

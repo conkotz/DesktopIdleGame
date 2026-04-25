@@ -10153,6 +10153,7 @@ GameObject:
   - component: {fileID: 293093891}
   - component: {fileID: 293093890}
   - component: {fileID: 293093889}
+  - component: {fileID: 293093892}
   m_Layer: 5
   m_Name: ToggleFullDPSButton
   m_TagString: Untagged
@@ -10262,6 +10263,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 293093887}
   m_CullTransparentMesh: 1
+--- !u!114 &293093892
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 293093887}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e8e24527f684e4196418fb7f5d77cd3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FullDpsWindowToggleUI
+  fullDpsWindow: {fileID: 564906786}
+  fullDpsWindowName: FullDPSWindow
 --- !u!1 &300103153
 GameObject:
   m_ObjectHideFlags: 0
@@ -17313,11 +17328,11 @@ RectTransform:
   - {fileID: 1858860351}
   m_Father: {fileID: 1770614726}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 1, y: 1}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -1737, y: -187}
+  m_AnchorMin: {x: 0.5, y: 1}
+  m_AnchorMax: {x: 0.5, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 900, y: 350}
-  m_Pivot: {x: 1, y: 1}
+  m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &564906788
 MonoBehaviour:
   m_ObjectHideFlags: 0

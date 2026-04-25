@@ -16,11 +16,16 @@ public static class AbilityTooltipDamagePreview
 
     /// <summary>Inherit-mode minions: no per-type damage numbers — one global rule (orange, like Power Slash primary effects).</summary>
     private const string InheritMinionDamageRuleLine =
-        "- Minion damage inherits a portion of the damage from your total damage";
+        "This minion inherits a portion of the damage from your total damage";
 
     /// <summary>Blue scaling line for inherit Soulforged-style minions (matches Power Slash "Deals %..." accent).</summary>
     private const string InheritMinionDealsBonusScalingLine =
         "Deals bonus damage from minion damage scaling (reduced for inherited minions)";
+
+    private const int SoulforgedWeaponChoiceSourceLevel = 35;
+    private const int SoulforgedWeaponSwarmChoiceIndex = 0;
+    private const int SoulforgedWeaponIndefiniteChoiceIndex = 1;
+    private const float SoulforgedWeaponSwarmDurationSeconds = 20f;
 
     /// <summary>Rich-text tag line for minion summon abilities (prepend above description). Empty if not applicable.</summary>
     public static string BuildAbilityTooltipTagLine(AbilityDefinition def, bool orangeMarkup)
@@ -120,6 +125,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsWhirlwind(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.WhirlwindAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsSoulforgedWeapon(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static int GetMeleeSkillRow15Choice(SkillsManager skillsManager)
     {
         if (skillsManager == null)
@@ -177,9 +185,9 @@ public static class AbilityTooltipDamagePreview
         if (def.SpawnsMinionOnCast && def.minionSpawnDefinition)
         {
             if (stats != null)
-                AppendMinionSpawnTooltipEffects(body, O, S, def, stats);
+                AppendMinionSpawnTooltipEffects(body, O, S, def, stats, skillsManager);
             else
-                AppendMinionSpawnTooltipEffectsNoStats(body, O, S, def);
+                AppendMinionSpawnTooltipEffectsNoStats(body, O, S, def, skillsManager);
 
             body.AppendLine(string.Empty);
             body.AppendLine(O($"{def.energyCost:0.#} Energy • {cooldown:0.#}s Cooldown"));
@@ -410,12 +418,16 @@ public static class AbilityTooltipDamagePreview
         StringBuilder body,
         System.Func<string, string> O,
         System.Func<string, string> S,
-        AbilityDefinition def)
+        AbilityDefinition def,
+        SkillsManager skillsManager)
     {
         MinionCombatConfig cfg = def.minionSpawnDefinition.combatConfig;
         if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
         {
             body.AppendLine(O(InheritMinionDamageRuleLine));
+            string lingerLine = BuildMinionLingerLine(def, skillsManager);
+            if (!string.IsNullOrEmpty(lingerLine))
+                body.AppendLine(O(lingerLine));
             body.AppendLine(string.Empty);
             body.AppendLine(S("+0 damage from Minion Damage" + DamageTimingSuffix()));
             body.AppendLine(S(InheritMinionDealsBonusScalingLine));
@@ -432,7 +444,8 @@ public static class AbilityTooltipDamagePreview
         System.Func<string, string> O,
         System.Func<string, string> S,
         AbilityDefinition def,
-        CharacterStats stats)
+        CharacterStats stats,
+        SkillsManager skillsManager)
     {
         MinionCombatConfig cfg = def.minionSpawnDefinition.combatConfig;
         const float scalerEps = 0.05f;
@@ -441,6 +454,9 @@ public static class AbilityTooltipDamagePreview
         if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
         {
             body.AppendLine(O(InheritMinionDamageRuleLine));
+            string lingerLine = BuildMinionLingerLine(def, skillsManager);
+            if (!string.IsNullOrEmpty(lingerLine))
+                body.AppendLine(O(lingerLine));
         }
         else
         {
@@ -492,6 +508,24 @@ public static class AbilityTooltipDamagePreview
         }
 
         AppendMinionModifierStatLines(body, S, stats, cfg.damageSourceMode);
+    }
+
+    private static string BuildMinionLingerLine(AbilityDefinition def, SkillsManager skillsManager)
+    {
+        float seconds = def != null && def.minionSpawnDefinition != null
+            ? Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration)
+            : 0f;
+
+        if (IsSoulforgedWeapon(def) && skillsManager != null)
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, SoulforgedWeaponChoiceSourceLevel, -1);
+            if (selected == SoulforgedWeaponIndefiniteChoiceIndex)
+                return string.Empty;
+            if (selected == SoulforgedWeaponSwarmChoiceIndex)
+                seconds = SoulforgedWeaponSwarmDurationSeconds;
+        }
+
+        return $"This minion lingers for {seconds:0.#} seconds";
     }
 
     /// <summary>Flat damage from owner Minion Damage % on one hit (matches runtime × pre-hit base; inherit uses half scaling).</summary>

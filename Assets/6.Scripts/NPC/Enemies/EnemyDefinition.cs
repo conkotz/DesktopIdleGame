@@ -263,6 +263,10 @@ public class EnemyDefinition : ScriptableObject
     [Min(0.05f)]
     public float idleWanderIdleMaxSec = 8f;
 
+    [Header("Experience")]
+    [Tooltip("When false, damaging this enemy grants no combat XP. Use for training dummies and test targets.")]
+    public bool grantCombatXp = true;
+
     [Header("Gold drop")]
     [Tooltip("When false, this enemy awards no gold on death.")]
     public bool dropGold = true;

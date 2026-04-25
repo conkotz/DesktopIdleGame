@@ -233,6 +233,12 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
+        if (string.Equals(def.abilityId, "soulforged_weapon", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 35, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
         return string.Empty;
     }
 

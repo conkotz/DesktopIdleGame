@@ -34,6 +34,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     private Action<SoulforgedWeaponMinion> _onDespawned;
 
     private float _expireTime;
+    private bool _neverExpires;
     private MotionState _state = MotionState.Idle;
     private EnemyBaseController _strikeTarget;
     private float _nextStrikeReadyTime;
@@ -67,6 +68,10 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     private bool _returnFlipX;
     private bool _returnFlipY;
     private float _returnLockedEulerZ;
+    private Vector3 _homeFormationOffset;
+    private Vector3 _attachFormationOffset;
+
+    public EnemyBaseController CurrentTarget => _strikeTarget;
 
     /// <summary>Child: local Z rotation only = slash swing; pivot is parent (handle bottom).</summary>
     private Transform _swingPivot;
@@ -99,7 +104,12 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         Transform homeAnchor,
         Sprite weaponSprite = null,
         Transform attackerTransform = null,
-        Action<SoulforgedWeaponMinion> onDespawned = null)
+        Action<SoulforgedWeaponMinion> onDespawned = null,
+        float durationOverrideSeconds = -1f,
+        bool neverExpires = false,
+        float inheritedDamageMultiplier = 1f,
+        Vector3 homeFormationOffset = default,
+        Vector3 attachFormationOffset = default)
     {
         if (!ownerStats)
         {
@@ -131,15 +141,19 @@ public class SoulforgedWeaponMinion : MonoBehaviour
             homeAnchor = ownerStats.transform;
         _homeAnchor = homeAnchor;
         _onDespawned = onDespawned;
+        _neverExpires = neverExpires;
+        _homeFormationOffset = homeFormationOffset;
+        _attachFormationOffset = attachFormationOffset;
 
         if (!spriteRenderer)
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 
-        _expireTime = Time.time + Mathf.Max(0.1f, _def.summonDuration);
+        float duration = durationOverrideSeconds > 0f ? durationOverrideSeconds : _def.summonDuration;
+        _expireTime = neverExpires ? float.PositiveInfinity : Time.time + Mathf.Max(0.1f, duration);
         ApplyWeaponVisual(weaponSprite);
         EnsureHandlePivotHierarchy();
         _ownerWeaponSnapshot = MinionOwnerWeaponSnapshot.From(ownerStats);
-        RefreshCombatStats();
+        RefreshCombatStats(inheritedDamageMultiplier);
         _nextStrikeReadyTime = Time.time + 0.15f;
         _baseRotationZ = transform.eulerAngles.z;
         ApplyVisualScaleUniform();
@@ -154,30 +168,42 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     /// </summary>
     public void TryRecastRetargetOrReturn()
     {
+        TryRecastRetargetOrReturn(null);
+    }
+
+    public void TryRecastRetargetOrReturn(HashSet<int> avoidEnemyInstanceIds)
+    {
         if (!_initialized || !_def || !_ownerStats)
             return;
 
         Vector3 origin = GetPlayerRangeOrigin();
         float range = _presentation.attackRange;
-        EnemyBaseController enemy = FindBestRecastTarget(origin, range);
-        if (enemy)
-        {
-            _strikeTarget = enemy;
-            _attachFrozenHorizontalValid = false;
-            _returnFlipLocked = false;
-            _state = MotionState.Approaching;
-            if (debugLogs)
-                Debug.Log($"[SoulforgedWeapon] Recast → approach {enemy.name}", this);
-        }
-        else
+        EnemyBaseController enemy = FindBestRecastTarget(origin, range, avoidEnemyInstanceIds);
+        if (!ForceTarget(enemy) && debugLogs)
+            Debug.Log("[SoulforgedWeapon] Recast → return (no enemy in range)", this);
+    }
+
+    public bool ForceTarget(EnemyBaseController enemy)
+    {
+        if (!_initialized)
+            return false;
+
+        if (!enemy || enemy.IsDead)
         {
             _strikeTarget = null;
             _attachFrozenHorizontalValid = false;
             _returnFlipLocked = false;
             _state = MotionState.Returning;
-            if (debugLogs)
-                Debug.Log("[SoulforgedWeapon] Recast → return (no enemy in range)", this);
+            return false;
         }
+
+        _strikeTarget = enemy;
+        _attachFrozenHorizontalValid = false;
+        _returnFlipLocked = false;
+        _state = MotionState.Approaching;
+        if (debugLogs)
+            Debug.Log($"[SoulforgedWeapon] Recast → approach {enemy.name}", this);
+        return true;
     }
 
     /// <summary>Clears despawn callback then destroys (e.g. replacing another summon).</summary>
@@ -188,6 +214,23 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     }
 
     public void ExpireImmediately() => Destroy(gameObject);
+
+    public void PersistAcrossSceneLoads()
+    {
+        transform.SetParent(null, true);
+        DontDestroyOnLoad(gameObject);
+    }
+
+    public void ReturnHomeAfterSceneLoad()
+    {
+        _strikeTarget = null;
+        _cachedBoundsEnemy = null;
+        _cachedEnemyColliders = null;
+        _cachedEnemySpriteRenderers = null;
+        _attachFrozenHorizontalValid = false;
+        _returnFlipLocked = false;
+        _state = MotionState.Returning;
+    }
 
     private void OnDestroy()
     {
@@ -274,15 +317,16 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     }
 
     /// <summary>Call once at summon; stats stay fixed for this instance (gear changes do not apply).</summary>
-    private void RefreshCombatStats()
+    private void RefreshCombatStats(float inheritedDamageMultiplier)
     {
         SplitDamageRange inheritedRange = default;
         if (_def.combatConfig.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit && _ownerStats)
         {
+            float mult = Mathf.Max(0f, inheritedDamageMultiplier);
             inheritedRange = new SplitDamageRange
             {
-                min = _ownerStats.MinSplitDamage,
-                max = _ownerStats.MaxSplitDamage
+                min = _ownerStats.MinSplitDamage * mult,
+                max = _ownerStats.MaxSplitDamage * mult
             };
         }
 
@@ -292,10 +336,10 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     private Vector3 GetHomeWorldPosition()
     {
         if (_homeAnchor && _homeAnchor != _attackerTransform)
-            return _homeAnchor.position;
+            return _homeAnchor.position + _homeFormationOffset;
 
         if (_attackerTransform)
-            return _attackerTransform.position + new Vector3(-0.55f, 0.38f, 0f);
+            return _attackerTransform.position + new Vector3(-0.55f, 0.38f, 0f) + _homeFormationOffset;
 
         return transform.position;
     }
@@ -315,7 +359,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         if (Mathf.Abs(_presentation.attachHorizontalOffsetTowardPlayer) > 1e-4f)
             p.x += Mathf.Abs(_presentation.attachHorizontalOffsetTowardPlayer);
 
-        return p;
+        return p + _attachFormationOffset;
     }
 
     /// <summary>
@@ -396,7 +440,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         if (!_initialized || !_def || !_ownerStats)
             return;
 
-        if (Time.time >= _expireTime)
+        if (!_neverExpires && Time.time >= _expireTime)
         {
             ExpireImmediately();
             return;
@@ -723,18 +767,29 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     /// Nearest in-range enemy we have not hit in <see cref="RecastPreferFreshTargetSeconds"/>; if none, same chain as before
     /// (prefer different from current, then any nearest).
     /// </summary>
-    private EnemyBaseController FindBestRecastTarget(Vector3 origin, float range)
+    private EnemyBaseController FindBestRecastTarget(Vector3 origin, float range, HashSet<int> avoidEnemyInstanceIds = null)
     {
         float r2 = range * range;
         var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         EnemyBaseController bestFresh = null;
         float bestFreshD2 = float.MaxValue;
+        EnemyBaseController avoidedFallback = null;
+        float avoidedFallbackD2 = float.MaxValue;
         for (int i = 0; i < candidates.Length; i++)
         {
             EnemyBaseController e = candidates[i];
             if (!e || e.IsDead) continue;
             float d2 = (e.transform.position - origin).sqrMagnitude;
             if (d2 > r2) continue;
+            if (avoidEnemyInstanceIds != null && avoidEnemyInstanceIds.Contains(e.GetInstanceID()))
+            {
+                if (d2 < avoidedFallbackD2)
+                {
+                    avoidedFallbackD2 = d2;
+                    avoidedFallback = e;
+                }
+                continue;
+            }
             if (WasHitRecentlyForRecast(e)) continue;
             if (d2 >= bestFreshD2) continue;
             bestFreshD2 = d2;
@@ -744,9 +799,11 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         if (bestFresh)
             return bestFresh;
 
-        EnemyBaseController fallback = FindNearestEnemyExcluding(origin, range, _strikeTarget);
+        EnemyBaseController fallback = FindNearestEnemyExcluding(origin, range, _strikeTarget, avoidEnemyInstanceIds);
         if (!fallback)
-            fallback = FindNearestEnemy(origin, range);
+            fallback = FindNearestEnemyExcluding(origin, range, null, avoidEnemyInstanceIds);
+        if (!fallback)
+            fallback = avoidedFallback;
         return fallback;
     }
 
@@ -756,7 +813,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
     }
 
     /// <summary>Nearest living enemy within range; skips <paramref name="exclude"/> when non-null (used so recast can swap off the current target).</summary>
-    private static EnemyBaseController FindNearestEnemyExcluding(Vector3 from, float range, EnemyBaseController exclude)
+    private static EnemyBaseController FindNearestEnemyExcluding(Vector3 from, float range, EnemyBaseController exclude, HashSet<int> avoidEnemyInstanceIds = null)
     {
         float r2 = range * range;
         var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
@@ -766,6 +823,7 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         {
             EnemyBaseController e = candidates[i];
             if (!e || e.IsDead || e == exclude) continue;
+            if (avoidEnemyInstanceIds != null && avoidEnemyInstanceIds.Contains(e.GetInstanceID())) continue;
             float d = (e.transform.position - from).sqrMagnitude;
             if (d > r2 || d >= bestD) continue;
             bestD = d;

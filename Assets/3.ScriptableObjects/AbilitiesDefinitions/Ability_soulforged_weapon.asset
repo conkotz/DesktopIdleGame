@@ -18,7 +18,7 @@ MonoBehaviour:
     This weapon will stay attached to the enemy unless commanded to swap targets
     or return to you if out of enemy range. '
   icon: {fileID: 2127427094619477876, guid: a311d655e950d354a9c1c011aaaeb036, type: 3}
-  cooldown: 60
+  cooldown: 45
   energyCost: 10
   physicalDamageMultiplier: 0
   magicDamageMultiplier: 0

@@ -1214,6 +1214,9 @@ public class EnemyBaseController : MonoBehaviour
         if (source == null || damageDealt <= 0f)
             return;
 
+        if (definition != null && !definition.grantCombatXp)
+            return;
+
         var combat = source.GetComponent<PlayerCombatController>();
         if (combat == null)
             combat = source.GetComponentInParent<PlayerCombatController>();

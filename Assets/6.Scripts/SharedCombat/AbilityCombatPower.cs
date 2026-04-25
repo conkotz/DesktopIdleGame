@@ -17,6 +17,7 @@ public static class AbilityCombatPower
     public const string EnvenomAbilityId = "envenom";
     public const string CleavingStrikesAbilityId = "cleaving_strikes";
     public const string CrescentSlashAbilityId = "crescent_slash";
+    public const string SoulforgedWeaponAbilityId = "soulforged_weapon";
 
     /// <summary>Second Twin Cyclone wave as a fraction of the first wave's scaled split (sync with Whirlwind runtime).</summary>
     public const float WhirlwindTwinCycloneSecondHitFraction = 0.2f;
@@ -26,6 +27,12 @@ public static class AbilityCombatPower
 
     /// <summary>Combat-power heuristic: extra enemies credited for Crimson Spread / Contagion full radial payloads.</summary>
     private const float AilmentRadialSpreadAssumedExtraTargets = 2.5f;
+    private const int SoulforgedWeaponChoiceSourceLevel = 35;
+    private const int SoulforgedWeaponSwarmChoiceIndex = 0;
+    private const int SoulforgedWeaponIndefiniteChoiceIndex = 1;
+    private const float SoulforgedWeaponSwarmCount = 3f;
+    private const float SoulforgedWeaponSwarmDamageMultiplier = 0.75f;
+    private const float SoulforgedWeaponSwarmDurationSeconds = 20f;
 
     /// <summary>Expected sustained DPS from all uniquely slotted abilities (0 if not the player or no bar).</summary>
     public static float EstimateTotalSlottedAbilityDps(CharacterStats stats, bool logDiagnostics = false)
@@ -237,7 +244,24 @@ public static class AbilityCombatPower
                 def.minionSpawnDefinition.combatConfig);
             float summonDur = Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration);
             float cooldown = Mathf.Max(0.01f, def.cooldown);
-            return Mathf.Max(0f, mdps * (summonDur / cooldown));
+
+            if (string.Equals(def.abilityId, SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
+            {
+                int selected = GetSoulforgedWeaponSelectedChoice();
+                if (selected == SoulforgedWeaponSwarmChoiceIndex)
+                {
+                    mdps *= SoulforgedWeaponSwarmCount * SoulforgedWeaponSwarmDamageMultiplier;
+                    summonDur = SoulforgedWeaponSwarmDurationSeconds;
+                }
+                else if (selected == SoulforgedWeaponIndefiniteChoiceIndex)
+                {
+                    return Mathf.Max(0f, mdps);
+                }
+            }
+
+            // Summon cooldown starts after the summon expires, so the average cycle is active duration + cooldown.
+            float cycleSeconds = summonDur + cooldown;
+            return Mathf.Max(0f, mdps * (summonDur / cycleSeconds));
         }
 
         float physMult = def.physicalDamageMultiplier;
@@ -390,6 +414,15 @@ public static class AbilityCombatPower
             return dps * 1.08f; // Slight AoE coverage on top of per-target scaled damage (Twin Cyclone already in extraHitFactor).
 
         return dps;
+    }
+
+    private static int GetSoulforgedWeaponSelectedChoice()
+    {
+        SkillsManager skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, SoulforgedWeaponChoiceSourceLevel, -1);
     }
 
     private static float GetCritFactor(CharacterStats stats)

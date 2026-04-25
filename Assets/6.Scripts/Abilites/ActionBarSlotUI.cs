@@ -530,6 +530,12 @@ public class ActionBarSlotUI : MonoBehaviour,
             return AbilityTooltipDamagePreview.FormatActiveEnhancementLine(def, selected);
         }
 
+        if (string.Equals(def.abilityId, "soulforged_weapon", StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 35, -1);
+            return AbilityTooltipDamagePreview.FormatActiveEnhancementLine(def, selected);
+        }
+
         return string.Empty;
     }
 

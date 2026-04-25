@@ -64,6 +64,7 @@ MonoBehaviour:
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
+  grantCombatXp: 0
   dropGold: 1
   goldMin: 250
   goldMax: 300

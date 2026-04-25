@@ -173,14 +173,15 @@ MonoBehaviour:
       title: Venom Edge
       description: 'Replaces Bloodletting bonuses with:
 
-        +10% Melee Poison Chance
+        +10% Melee Poison
+        Chance
 
-        +10%
-        Melee Damage to Poisoned Targets
+        +10% Melee Damage to Poisoned Targets
 
 
-        You abandon blood loss in favor of toxic
-        strikes, turning lingering wounds into deadly venom.'
+        You abandon
+        blood loss in favor of toxic strikes, turning lingering wounds into deadly
+        venom.'
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 13
@@ -518,13 +519,17 @@ MonoBehaviour:
     ability: {fileID: 11400000, guid: f8a7b6c5d4e3f2109a8b7c6d5e4f3021, type: 2}
     choices:
     - requiredLevel: 40
-      title: Ability IV Choice A
-      description: Placeholder melee choice.
+      title: Swarm
+      description: Summon 3 Soulforged Weapons for 20 seconds. Each weapon inherits
+        the original summon scaling, then further reduces inherited damage by 25%.
+        Recast to collapse them onto your current target, or find new targets if
+        you have none.
       icon: {fileID: 0}
       ability: {fileID: 0}
     - requiredLevel: 40
-      title: Ability IV Choice B
-      description: Placeholder melee choice.
+      title: Indefinite
+      description: 'Soulforged Weapon persists indefinitely, keeping its original
+        behavior. '
       icon: {fileID: 0}
       ability: {fileID: 0}
   - requiredLevel: 36
