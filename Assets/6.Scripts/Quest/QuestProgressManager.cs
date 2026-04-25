@@ -248,6 +248,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         else
         {
             MarkRewardClaimed(q.questId);
+            GameLog.QuestComplete(string.IsNullOrWhiteSpace(q.displayName) ? q.questId : q.displayName);
             ProgressChanged?.Invoke();
             TutorialQuestAfterClaim.Invoke(q);
             if (SaveManager.Instance != null)
@@ -302,18 +303,12 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     private void ShowGatherConsumedPopup(int amount, string itemId)
     {
-        GoldPopupSpawner spawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
-        if (!spawner || amount <= 0)
-            return;
-
-        Transform anchor = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include)?.transform;
-        if (!anchor)
+        if (amount <= 0)
             return;
 
         string itemLabel = ResolveItemDisplayName(itemId);
         string msg = $"-{amount} {itemLabel}";
-        Vector3 worldPos = anchor.position + Vector3.up * 1.2f;
-        spawner.ShowMessageAtWorld(worldPos, msg, gatherConsumedPopupColor);
+        GameLog.Add(msg, gatherConsumedPopupColor);
     }
 
     private static string ResolveItemDisplayName(string itemId)

@@ -472,7 +472,8 @@ public class LevelSelectPageUI : MonoBehaviour
 
             bool sel = _selectedNode && _selectedNode == node;
             bool greyOneShotDone = progress && node.IsPermanentlyCompleted(progress);
-            row.Bind(node, state, sel, OnNodeSelected, greyOneShotDone);
+            bool unavailable = state == "Map locked" || state == "Skill locked";
+            row.Bind(node, state, sel, OnNodeSelected, greyOneShotDone, unavailable);
         }
     }
 

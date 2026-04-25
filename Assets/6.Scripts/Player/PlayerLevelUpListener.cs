@@ -51,15 +51,8 @@ public class PlayerLevelUpListener : MonoBehaviour
         if (levelUpEffect != null)
             levelUpEffect.PlayLevelUp();
 
-        if (popupSpawner != null)
-        {
-            string message = $"{FormatSkillName(skill)} LEVEL UP !";
-            popupSpawner.ShowMessageAtWorld(
-                transform.position + popupWorldOffset,
-                message,
-                GetColorForSkill(skill)
-            );
-        }
+        string message = $"{FormatSkillName(skill)} LEVEL UP !";
+        GameLog.Add(message, GetColorForSkill(skill));
     }
 
     private static string FormatSkillName(SkillType skill)

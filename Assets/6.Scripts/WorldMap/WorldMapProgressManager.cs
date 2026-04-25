@@ -139,7 +139,9 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
     public void UnlockNode(string nodeId)
     {
         if (string.IsNullOrEmpty(nodeId)) return;
-        if (!_unlocked.Add(nodeId)) return;
+        string id = nodeId.Trim();
+        if (!_unlocked.Add(id)) return;
+        GameLog.LevelAvailable(ResolveNodeDisplayName(id));
         ProgressChanged?.Invoke();
     }
 
@@ -148,6 +150,18 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         if (string.IsNullOrEmpty(nodeId)) return;
         if (!_unlocked.Remove(nodeId)) return;
         ProgressChanged?.Invoke();
+    }
+
+    private string ResolveNodeDisplayName(string nodeId)
+    {
+        if (worldMap != null)
+        {
+            MapNodeDefinition node = worldMap.FindNodeById(nodeId);
+            if (node != null && !string.IsNullOrWhiteSpace(node.displayName))
+                return node.displayName;
+        }
+
+        return nodeId;
     }
 
     public void SetNodeCompleted(string nodeId, bool completed)

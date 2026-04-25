@@ -81,17 +81,30 @@ public class GoldPopupSpawner : MonoBehaviour
 
     public void ShowGoldGained(int amount, string sourceLine = null)
     {
-        if (amount <= 0 || !popupPrefab) return;
+        if (amount <= 0)
+            return;
+
+        GameLog.GoldGained(amount, sourceLine);
+        if (!popupPrefab)
+            return;
 
         if (!canvas || !playerWorld)
             Rebind();
 
         if (!canvas || !playerWorld) return;
 
-        ShowGoldGainedAtWorld(playerWorld.position + worldOffset, amount, sourceLine);
+        SpawnGoldPopupAtWorld(playerWorld.position + worldOffset, amount, sourceLine);
     }
 
     public void ShowGoldGainedAtWorld(Vector3 worldPos, int amount, string sourceLine = null)
+    {
+        if (amount <= 0)
+            return;
+        GameLog.GoldGained(amount, sourceLine);
+        SpawnGoldPopupAtWorld(worldPos, amount, sourceLine);
+    }
+
+    private void SpawnGoldPopupAtWorld(Vector3 worldPos, int amount, string sourceLine)
     {
         if (amount <= 0 || !popupPrefab) return;
 
@@ -119,14 +132,7 @@ public class GoldPopupSpawner : MonoBehaviour
 
     public void ShowNotEnoughGold()
     {
-        if (!popupPrefab) return;
-
-        if (!canvas || !playerWorld)
-            Rebind();
-
-        if (!canvas || !playerWorld) return;
-
-        ShowMessageAtWorld(playerWorld.position + worldOffset, "Not enough gold", defaultMessageColor);
+        ShowMessageAtWorld(Vector3.zero, "Not enough gold", defaultMessageColor);
     }
 
     public void ShowMessageAtWorld(Vector3 worldPos, string message)
@@ -136,28 +142,10 @@ public class GoldPopupSpawner : MonoBehaviour
 
     public void ShowMessageAtWorld(Vector3 worldPos, string message, Color color)
     {
-        if (string.IsNullOrWhiteSpace(message) || !popupPrefab) return;
-
-        Rebind();
-
-        Camera cam = ResolveWorldProjectionCamera();
-        if (!cam) return;
-
-        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
-        Canvas targetCanvas = GetPopupTargetCanvas();
-        if (targetCanvas == null)
-            return;
-        RectTransform canvasRect = targetCanvas.transform as RectTransform;
-
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvasRect, screenPos, GetRectEventCamera(targetCanvas), out Vector2 localPoint))
+        if (string.IsNullOrWhiteSpace(message))
             return;
 
-        int slot = AcquireStackSlot();
-        Vector2 stackedLocal = localPoint + Vector2.up * (slot * stackVerticalSpacing);
-        var popup = Instantiate(popupPrefab, targetCanvas.transform);
-        BringPopupToFront(popup);
-        popup.PlayLocalText(stackedLocal, message, color, applyGoldStroke: false, () => ReleaseStackSlot(slot));
+        GameLog.Add(message, color);
     }
 
     private void BringPopupToFront(GoldPopup popup)

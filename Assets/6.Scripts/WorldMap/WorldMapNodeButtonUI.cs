@@ -12,6 +12,7 @@ public class WorldMapNodeButtonUI : MonoBehaviour
     [SerializeField] private TMP_Text stateText;
     [Tooltip("Optional overlay when this row is the selected node. Leave empty if you only use the Button for selection.")]
     [SerializeField] private GameObject selectedHighlight;
+    [SerializeField] private CanvasGroup rowCanvasGroup;
 
     [Header("Theme strip")]
     [Tooltip("Top strip Image — node-type palette applies here only, not the full row.")]
@@ -22,6 +23,8 @@ public class WorldMapNodeButtonUI : MonoBehaviour
     [SerializeField] private Image rowBackgroundImage;
     [Tooltip("Solid fill for the row. Node-type theme colors go on Colour Icon only.")]
     [SerializeField] private Color rowBackgroundColor = new Color(0.29f, 0.32f, 0.37f, 1f);
+    [Range(0.1f, 1f)]
+    [SerializeField] private float unavailableAlpha = 0.45f;
 
     [Header("Theme — Node Type Colors")]
     [SerializeField] private Color townColor = new Color32(196, 171, 128, 255);
@@ -36,12 +39,17 @@ public class WorldMapNodeButtonUI : MonoBehaviour
     private MapNodeDefinition _node;
     private Action<MapNodeDefinition> _onSelected;
     private bool _greyedOut;
+    private bool _unavailable;
     public MapNodeDefinition Node => _node;
 
     private void Awake()
     {
         if (!button)
             button = GetComponent<Button>();
+        if (!rowCanvasGroup)
+            rowCanvasGroup = GetComponent<CanvasGroup>();
+        if (!rowCanvasGroup)
+            rowCanvasGroup = gameObject.AddComponent<CanvasGroup>();
 
         if (button)
             button.onClick.AddListener(OnClick);
@@ -75,11 +83,13 @@ public class WorldMapNodeButtonUI : MonoBehaviour
         string stateLabel,
         bool selected,
         Action<MapNodeDefinition> onSelected,
-        bool greyOutCompletedNonRepeatable = false)
+        bool greyOutCompletedNonRepeatable = false,
+        bool unavailable = false)
     {
         _node = node;
         _onSelected = onSelected;
         _greyedOut = greyOutCompletedNonRepeatable;
+        _unavailable = unavailable;
 
         if (nameText)
             nameText.text = node ? node.displayName : "—";
@@ -103,8 +113,14 @@ public class WorldMapNodeButtonUI : MonoBehaviour
         ApplyNodeTypeTheme(_node, selected);
         if (_greyedOut)
             ApplyRetiredNonRepeatableDimming();
+        if (rowCanvasGroup)
+        {
+            rowCanvasGroup.alpha = _unavailable ? Mathf.Clamp01(unavailableAlpha) : 1f;
+            rowCanvasGroup.interactable = true;
+            rowCanvasGroup.blocksRaycasts = true;
+        }
         if (selectedHighlight)
-            selectedHighlight.SetActive(selected && !_greyedOut);
+            selectedHighlight.SetActive(selected);
     }
 
     private void ApplyRetiredNonRepeatableDimming()

@@ -14,8 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: tutorial_2
   displayName: Tutorial Level 2
-  description: Basic combat. Add TutorialRogueReinforcementSpawner to the scene and
-    assign the Rogue definition.
+  description: 'Basic combat. '
   nodeType: 0
   enemyAggroMode: 1
   ignoreAggroRange: 0
@@ -24,7 +23,7 @@ MonoBehaviour:
   eliteSpawnChance: 0
   fallbackRecommendedCombatPower: 1
   isRepeatable: 0
-  markCompletedWhenReturningToMenu: 1
+  markCompletedWhenReturningToMenu: 0
   completedLabelRequiresEnteredNodeId: 
   mapUiUseClearedInsteadOfCompleted: 1
   requiresMapUnlock: 1

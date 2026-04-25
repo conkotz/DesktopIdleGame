@@ -1021,10 +1021,12 @@ public class PlayerController : MonoBehaviour
 
     private void ShowPopupInternal(string msg, float? seconds = null)
     {
-        if (!actionPopup) return;
-
         if (string.IsNullOrWhiteSpace(msg))
             msg = "Action not allowed.";
+
+        GameLog.Add(msg);
+
+        if (!actionPopup) return;
 
         var tmp = actionPopup.GetComponentInChildren<TMP_Text>(true);
         if (tmp) tmp.text = msg;
