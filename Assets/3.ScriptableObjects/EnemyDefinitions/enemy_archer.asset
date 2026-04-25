@@ -22,13 +22,16 @@ MonoBehaviour:
   maxMana: 0
   armor: 0
   magicResist: 0
+  corruptionResist: 0
   physBlockChance: 0
+  flatGuard: 0
+  maxGuardPercent: 0
   minPhysicalDamage: 28
   maxPhysicalDamage: 35
   minMagicDamage: 0
   maxMagicDamage: 0
-  minTrueDamage: 0
-  maxTrueDamage: 0
+  minCorruptionDamage: 0
+  maxCorruptionDamage: 0
   attackSpeed: 0.3
   moveSpeed: 2
   attackRange: 8
@@ -39,7 +42,7 @@ MonoBehaviour:
   manaRegenPerSecond: 1
   abilityPower: 0
   lifeSteal: 0
-  bleedChance: 0.25
+  bleedChance: 0.5
   bleedMultiplier: 0
   bleedDuration: 5
   poisonChance: 0

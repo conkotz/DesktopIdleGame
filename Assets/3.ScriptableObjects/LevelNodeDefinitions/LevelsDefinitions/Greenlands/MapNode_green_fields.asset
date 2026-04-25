@@ -23,6 +23,9 @@ MonoBehaviour:
   eliteSpawnChance: 0.5
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
+  markCompletedWhenReturningToMenu: 0
+  completedLabelRequiresEnteredNodeId: 
+  mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 0
   icon: {fileID: 0}
   requiredSkillLevels: []
@@ -41,7 +44,22 @@ MonoBehaviour:
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
       prefab: {fileID: 0}
-      count: 5
+      count: 2
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
+      prefab: {fileID: 0}
+      count: 3
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: 887a5292c260b2843b8e76ae0621615c, type: 2}
+      prefab: {fileID: 0}
+      count: 2
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
+      prefab: {fileID: 0}
+      count: 2
     shuffleSpawnPoints: 1
   enduranceWaves: []
   enduranceCompletionLoot: []

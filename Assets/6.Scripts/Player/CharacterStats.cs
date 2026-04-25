@@ -1675,9 +1675,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
             corruptionMin += support.SupportBonusCorruptionDamage;
         }
 
-        physMin += BaseMinPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMinMeleeDamage;
-        magMin += BaseMinMagicDamage + GetEquippedMagicDamage();
-        corruptionMin += BaseMinCorruptionDamage + GetEquippedCorruptionDamage();
+        physMin += GetEquippedPhysicalDamage();
+        magMin += GetEquippedMagicDamage();
+        corruptionMin += GetEquippedCorruptionDamage();
+        AddFlatDamageAcrossExistingLanes(
+            meleeBonuses.flatMinMeleeDamage,
+            ref physMin,
+            ref magMin,
+            ref corruptionMin);
 
         physMin *= physicalDamageMult;
         magMin *= magicDamageMult;
@@ -1742,9 +1747,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
             corruptionMax += support.SupportBonusCorruptionDamage;
         }
 
-        physMax += BaseMaxPhysicalDamage + GetEquippedPhysicalDamage() + meleeBonuses.flatMaxMeleeDamage;
-        magMax += BaseMaxMagicDamage + GetEquippedMagicDamage();
-        corruptionMax += BaseMaxCorruptionDamage + GetEquippedCorruptionDamage();
+        physMax += GetEquippedPhysicalDamage();
+        magMax += GetEquippedMagicDamage();
+        corruptionMax += GetEquippedCorruptionDamage();
+        AddFlatDamageAcrossExistingLanes(
+            meleeBonuses.flatMaxMeleeDamage,
+            ref physMax,
+            ref magMax,
+            ref corruptionMax);
 
         physMax *= physicalDamageMult;
         magMax *= magicDamageMult;
@@ -1755,6 +1765,31 @@ public class CharacterStats : MonoBehaviour, ISaveable
             Mathf.Max(0f, magMax),
             Mathf.Max(0f, corruptionMax)
         );
+    }
+
+    private static void AddFlatDamageAcrossExistingLanes(
+        float flatDamage,
+        ref float physical,
+        ref float magic,
+        ref float corruption)
+    {
+        if (flatDamage <= 0f)
+            return;
+
+        float phys = Mathf.Max(0f, physical);
+        float mag = Mathf.Max(0f, magic);
+        float corr = Mathf.Max(0f, corruption);
+        float total = phys + mag + corr;
+
+        if (total <= 0f)
+        {
+            physical += flatDamage;
+            return;
+        }
+
+        physical += flatDamage * (phys / total);
+        magic += flatDamage * (mag / total);
+        corruption += flatDamage * (corr / total);
     }
 
     private float GetAttackRange()

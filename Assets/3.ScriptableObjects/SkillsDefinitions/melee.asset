@@ -147,7 +147,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 9
     title: Finisher Instinct I
-    description: +10% Damage to Low HP Enemies (Melee)
+    description: +10% Melee Damage to Low HP Enemies
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 6
@@ -159,10 +159,10 @@ MonoBehaviour:
     description: 'Your melee attacks are more likely to open deep wounds, and you
       press the advantage against weakened foes.
 
-      +10% Bleed Chance
+      +10% Melee Bleed Chance
 
       +10%
-      Damage to Bleeding Targets'
+      Melee Damage to Bleeding Targets'
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -173,10 +173,10 @@ MonoBehaviour:
       title: Venom Edge
       description: 'Replaces Bloodletting bonuses with:
 
-        +10% Poison Chance
+        +10% Melee Poison Chance
 
         +10%
-        Damage to Poisoned Targets
+        Melee Damage to Poisoned Targets
 
 
         You abandon blood loss in favor of toxic
@@ -187,10 +187,10 @@ MonoBehaviour:
       title: Hemorrhage
       description: 'Adds to Bloodletting:
 
-        +5% Bleed Multiplier
+        +5% Melee Bleed Multiplier
 
         +1s
-        Bleed Duration
+        Melee Bleed Duration
 
 
         Your strikes deepen open wounds, causing victims
@@ -298,7 +298,7 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 16
     title: Bloodletting I
-    description: +5% Bleed Chance (Melee Only)
+    description: +5% Melee Bleed Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 7
@@ -307,7 +307,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 17
     title: Bloodletting II
-    description: +10% Bleed Multiplier
+    description: +10% Melee Bleed Multiplier
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 8
@@ -325,7 +325,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 19
     title: Predator's Focus I
-    description: +10% Damage to Bleeding Enemies (Melee)
+    description: +10% Melee Damage to Bleeding Enemies
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 18
@@ -417,7 +417,7 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 26
     title: Venom Edge I
-    description: +5% Poison Chance (Melee Only)
+    description: +5% Melee Poison Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 11
@@ -426,7 +426,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 27
     title: Venom Edge II
-    description: +10% Poison Duration
+    description: +10% Melee Poison Duration
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 12
@@ -435,7 +435,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 28
     title: Ailment Synergy I
-    description: +4% Bleed, Poison & Burn multipliers (melee weapon)
+    description: +4% Melee Bleed, Poison & Burn Multipliers
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 13
@@ -444,7 +444,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 29
     title: Predator's Focus II
-    description: +10% Damage to Poisoned Enemies (Melee)
+    description: +10% Melee Damage to Poisoned Enemies
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 14
@@ -529,7 +529,7 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 36
     title: Storm Edge I
-    description: +5% Shock Chance (Melee Only)
+    description: +5% Melee Shock Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 15
@@ -538,7 +538,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 37
     title: Predator's Focus III
-    description: +10% Damage to Shocked Enemies (Melee)
+    description: +10% Melee Damage to Shocked Enemies
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 16
@@ -648,7 +648,7 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 46
     title: Ailment Synergy II
-    description: +4% Bleed, Poison & Burn multipliers (melee weapon)
+    description: +4% Melee Bleed, Poison & Burn Multipliers
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 13
@@ -675,7 +675,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 49
     title: Finisher Instinct II
-    description: +10% Damage to Low HP Enemies (Melee)
+    description: +10% Melee Damage to Low HP Enemies
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 6

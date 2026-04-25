@@ -82,6 +82,11 @@ public class GameLogWindowUI : MonoBehaviour
 
     public void AddLog(string message, Color textColor, string timeText)
     {
+        AddLogInternal(message, textColor, timeText, true);
+    }
+
+    private void AddLogInternal(string message, Color textColor, string timeText, bool refreshLayout)
+    {
         if (string.IsNullOrWhiteSpace(message))
             return;
 
@@ -105,10 +110,8 @@ public class GameLogWindowUI : MonoBehaviour
         }
 
         TrimVisibleRowsToMax();
-        Canvas.ForceUpdateCanvases();
-        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
-
-        KeepNewestVisible();
+        if (refreshLayout)
+            RefreshLayoutAndScroll();
     }
 
     public void ClearLogs()
@@ -128,8 +131,10 @@ public class GameLogWindowUI : MonoBehaviour
         for (int i = 0; i < history.Count; i++)
         {
             GameLog.Entry entry = history[i];
-            AddLog(entry.Message, entry.Color, GameLog.FormatClock(entry.TimestampLocal));
+            AddLogInternal(entry.Message, entry.Color, GameLog.FormatClock(entry.TimestampLocal), false);
         }
+
+        RefreshLayoutAndScroll();
     }
 
     private void OnToggleSettingChanged(ToggleSettingId setting, bool _)
@@ -147,7 +152,7 @@ public class GameLogWindowUI : MonoBehaviour
         for (int i = contentRoot.childCount - 1; i >= 0; i--)
         {
             Transform child = contentRoot.GetChild(i);
-            Destroy(child.gameObject);
+            DestroyRow(child);
         }
     }
 
@@ -157,11 +162,26 @@ public class GameLogWindowUI : MonoBehaviour
         if (contentRoot == null)
             return;
 
-        while (contentRoot.childCount > GameLog.MaxEntries)
+        int overflow = contentRoot.childCount - GameLog.MaxEntries;
+        for (int i = 0; i < overflow; i++)
         {
             Transform oldest = contentRoot.GetChild(0);
-            Destroy(oldest.gameObject);
+            DestroyRow(oldest);
         }
+    }
+
+    private static void DestroyRow(Transform row)
+    {
+        if (row == null)
+            return;
+
+        GameObject rowObject = row.gameObject;
+        row.SetParent(null, false);
+
+        if (Application.isPlaying)
+            Destroy(rowObject);
+        else
+            DestroyImmediate(rowObject);
     }
 
     private readonly struct ActivityRow
@@ -340,6 +360,16 @@ public class GameLogWindowUI : MonoBehaviour
         }
 
         scrollRect.verticalNormalizedPosition = 0f;
+    }
+
+    private void RefreshLayoutAndScroll()
+    {
+        if (contentRoot == null)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+        KeepNewestVisible();
     }
 
     private static Transform FindChildByName(Transform root, string childName)

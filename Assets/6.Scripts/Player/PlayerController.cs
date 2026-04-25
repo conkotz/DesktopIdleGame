@@ -163,6 +163,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private GameObject actionPopup;          // one popup object
     [SerializeField] private float actionPopupSeconds = 1.5f; // default duration
     private Coroutine _actionPopupRoutine;
+    private const float ConsumableCooldownActivityLogIntervalSeconds = 5f;
+    private float _nextFoodCooldownActivityLogTime;
+    private float _nextPotionCooldownActivityLogTime;
 
     [Header("Tools Required (Gather)")]
     [SerializeField] private bool requireToolForGathering = true;
@@ -1024,7 +1027,8 @@ public class PlayerController : MonoBehaviour
         if (string.IsNullOrWhiteSpace(msg))
             msg = "Action not allowed.";
 
-        GameLog.Add(msg);
+        if (ShouldLogPopupToActivity(msg))
+            GameLog.Add(msg);
 
         if (!actionPopup) return;
 
@@ -1045,6 +1049,33 @@ public class PlayerController : MonoBehaviour
     public void ShowPopup(string msg, float seconds)
     {
         ShowPopupInternal(msg, seconds);
+    }
+
+    private bool ShouldLogPopupToActivity(string msg)
+    {
+        if (IsConsumableCooldownMessage(msg, "Food"))
+            return TryPassConsumableCooldownLogGate(ref _nextFoodCooldownActivityLogTime);
+
+        if (IsConsumableCooldownMessage(msg, "Potions") ||
+            IsConsumableCooldownMessage(msg, "Potion"))
+            return TryPassConsumableCooldownLogGate(ref _nextPotionCooldownActivityLogTime);
+
+        return true;
+    }
+
+    private static bool IsConsumableCooldownMessage(string msg, string consumableLabel)
+    {
+        return !string.IsNullOrWhiteSpace(msg) &&
+               msg.StartsWith($"{consumableLabel} on cooldown", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryPassConsumableCooldownLogGate(ref float nextAllowedTime)
+    {
+        if (Time.unscaledTime < nextAllowedTime)
+            return false;
+
+        nextAllowedTime = Time.unscaledTime + ConsumableCooldownActivityLogIntervalSeconds;
+        return true;
     }
 
     private IEnumerator PopupRoutine(float secs)
@@ -1973,6 +2004,8 @@ public class PlayerController : MonoBehaviour
         float preMitigatedDamage = Mathf.Max(0f, amount);
         bool blocked;
         float finalDamage = characterStats.TakeDamage(amount, type, out blocked, out float hpDamage);
+        if (combat != null && finalDamage > 0f)
+            combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type));
 
         AwardEnduranceXpFromIncomingDamage(preMitigatedDamage);
 
@@ -2009,6 +2042,16 @@ public class PlayerController : MonoBehaviour
         {
             TriggerHurtAnim();
         }
+    }
+
+    private static DpsDamageBucket ToDpsBucket(DamageType type)
+    {
+        return type switch
+        {
+            DamageType.Magic => DpsDamageBucket.Magic,
+            DamageType.Corruption => DpsDamageBucket.Corruption,
+            _ => DpsDamageBucket.Physical
+        };
     }
 
     /// <summary>
@@ -2099,6 +2142,7 @@ public class PlayerController : MonoBehaviour
         if (_isDead) return;
         _isDead = true;
 
+        combat?.PauseDpsTracker();
         ailments?.ClearAllAilments();
         abilityController?.EndSoulforgedOnOwnerDeath();
 
@@ -2315,7 +2359,10 @@ public class PlayerController : MonoBehaviour
             animator.speed = 1f;
 
         if (combat != null)
+        {
+            combat.ResetDpsTrackerForRespawn();
             combat.enabled = true;
+        }
 
         _pendingDeathRespawnNode = null;
     }

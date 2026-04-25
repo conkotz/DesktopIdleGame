@@ -778,16 +778,16 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             AppendPct(sb, meleeMoveSpeed, "Melee Move Speed");
             AppendPct(sb, meleeCritChance, "Melee Crit Chance");
             AppendPct(sb, meleeCritDamage, "Melee Crit Damage");
-            AppendPct(sb, bleedChance, "Bleed Chance (Melee Only)");
-            AppendPct(sb, bleedDamage, "Bleed Multiplier");
-            AppendPct(sb, poisonChance, "Poison Chance (Melee Only)");
-            AppendPct(sb, poisonDuration, "Poison Duration");
-            AppendPct(sb, ailmentDamage, "Ailment multipliers — Bleed, Poison, Burn (melee)");
-            AppendPct(sb, shockChance, "Shock Chance (Melee Only)");
-            AppendPct(sb, vsBleeding, "Damage to Bleeding Enemies (Melee)");
-            AppendPct(sb, vsPoisoned, "Damage to Poisoned Enemies (Melee)");
-            AppendPct(sb, vsShocked, "Damage to Shocked Enemies (Melee)");
-            AppendPct(sb, vsLowHp, "Damage to Low HP Enemies (<35% HP, Melee)");
+            AppendPct(sb, bleedChance, "Melee Bleed Chance");
+            AppendPct(sb, bleedDamage, "Melee Bleed Multiplier");
+            AppendPct(sb, poisonChance, "Melee Poison Chance");
+            AppendPct(sb, poisonDuration, "Melee Poison Duration");
+            AppendPct(sb, ailmentDamage, "Melee Bleed, Poison, Burn Multipliers");
+            AppendPct(sb, shockChance, "Melee Shock Chance");
+            AppendPct(sb, vsBleeding, "Melee Damage to Bleeding Enemies");
+            AppendPct(sb, vsPoisoned, "Melee Damage to Poisoned Enemies");
+            AppendPct(sb, vsShocked, "Melee Damage to Shocked Enemies");
+            AppendPct(sb, vsLowHp, "Melee Damage to Low HP Enemies (<35% HP)");
             AppendPct(sb, lifeSteal, "Melee Lifesteal");
         }
         else if (skill.skillType == SkillType.Ranged)
@@ -803,22 +803,22 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             if (selected == 0)
             {
                 sb.AppendLine("   - Venom Edge (Enhancement)");
-                sb.AppendLine("     +10% Poison Chance");
-                sb.AppendLine("     +10% Damage to Poisoned Targets");
+                sb.AppendLine("     +10% Melee Poison Chance");
+                sb.AppendLine("     +10% Melee Damage to Poisoned Targets");
             }
             else if (selected == 1)
             {
                 sb.AppendLine("   - Hemorrhage (Enhancement — adds to Bloodletting)");
-                sb.AppendLine("     +10% Bleed Chance");
-                sb.AppendLine("     +10% Damage to Bleeding Targets");
-                sb.AppendLine("     +5% Bleed Multiplier");
-                sb.AppendLine("     +1s Bleed Duration");
+                sb.AppendLine("     +10% Melee Bleed Chance");
+                sb.AppendLine("     +10% Melee Damage to Bleeding Targets");
+                sb.AppendLine("     +5% Melee Bleed Multiplier");
+                sb.AppendLine("     +1s Melee Bleed Duration");
             }
             else
             {
                 sb.AppendLine("   - Base Effect");
-                sb.AppendLine("     +10% Bleed Chance");
-                sb.AppendLine("     +10% Damage to Bleeding Targets");
+                sb.AppendLine("     +10% Melee Bleed Chance");
+                sb.AppendLine("     +10% Melee Damage to Bleeding Targets");
             }
         }
 

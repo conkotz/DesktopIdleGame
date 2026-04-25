@@ -649,6 +649,11 @@ public class AilmentController : MonoBehaviour
         {
             float applied = characterStats.TakeDamageFromResolvedDot(damage, out _);
             int finalDamage = Mathf.RoundToInt(applied);
+            PlayerCombatController combat = GetComponent<PlayerCombatController>();
+            if (combat == null)
+                combat = GetComponentInParent<PlayerCombatController>();
+            if (combat != null && finalDamage > 0)
+                combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type));
 
             if (showDotPopups && finalDamage > 0 && DamagePopupSystem.Instance != null)
             {
@@ -683,6 +688,18 @@ public class AilmentController : MonoBehaviour
                 );
             }
         }
+    }
+
+    private static DpsDamageBucket ToDpsBucket(FloatingDamageTextUI.PopupDamageKind kind)
+    {
+        return kind switch
+        {
+            FloatingDamageTextUI.PopupDamageKind.Bleed => DpsDamageBucket.Bleed,
+            FloatingDamageTextUI.PopupDamageKind.Poison => DpsDamageBucket.Poison,
+            FloatingDamageTextUI.PopupDamageKind.Magic => DpsDamageBucket.Burn,
+            FloatingDamageTextUI.PopupDamageKind.Corruption => DpsDamageBucket.Corruption,
+            _ => DpsDamageBucket.Physical
+        };
     }
 
     private bool IsDead()

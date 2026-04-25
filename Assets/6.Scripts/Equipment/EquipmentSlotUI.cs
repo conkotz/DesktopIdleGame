@@ -599,7 +599,11 @@ public class EquipmentSlotUI : MonoBehaviour,
         if (logDrops)
             Debug.Log($"[EquipSlotUI] OnDrop slotType={slotType} dragged='{draggedId}' amount={draggedAmount} accept={accept}", this);
 
-        if (!accept) return;
+        if (!accept)
+        {
+            LogRequirementBlockedDrop(draggedDef);
+            return;
+        }
 
         // MAIN HAND
         if (slotType == EquipmentUISlotType.MainHand)
@@ -740,6 +744,46 @@ public class EquipmentSlotUI : MonoBehaviour,
         }
 
         return inventory.RemoveAmountAtSlot(fromSlot, amount) == amount;
+    }
+
+    private void LogRequirementBlockedDrop(ItemDefinition draggedDef)
+    {
+        if (draggedDef == null)
+            return;
+
+        if (!draggedDef.UsesEquipmentTierGating || draggedDef.MeetsEquipmentTierRequirement(SkillsManager.Instance))
+            return;
+
+        if (!IsRequirementRelevantDropTarget(draggedDef))
+            return;
+
+        GameLog.Add(draggedDef.BuildEquipmentTierBlockedMessage());
+    }
+
+    private bool IsRequirementRelevantDropTarget(ItemDefinition draggedDef)
+    {
+        if (draggedDef == null)
+            return false;
+
+        if (slotType == EquipmentUISlotType.MainHand)
+            return draggedDef.itemKind == ItemKind.Weapon;
+
+        if (slotType == EquipmentUISlotType.OffHand)
+        {
+            return draggedDef.itemKind == ItemKind.Weapon &&
+                   draggedDef.weaponStats.handedness == Handedness.OneHanded &&
+                   draggedDef.weaponStats.canEquipInOffHand;
+        }
+
+        int toolIndex = GetToolbeltIndex();
+        if (toolIndex >= 0)
+        {
+            return draggedDef.itemKind == ItemKind.Tool &&
+                   draggedDef.handVisualKey != ToolKey.None &&
+                   draggedDef.handVisualKey != ToolKey.Weapon;
+        }
+
+        return false;
     }
 
     public void OnBeginDrag(PointerEventData eventData)

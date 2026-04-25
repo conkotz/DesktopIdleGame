@@ -725,7 +725,7 @@ public class EnemyBaseController : MonoBehaviour
         }
     }
 
-    public int TakeDamage(int amount, DamageType type, bool wasCrit, Transform attacker)
+    public int TakeDamage(int amount, DamageType type, bool wasCrit, Transform attacker, DpsDamageBucket? dpsBucketOverride = null)
     {
         if (state == EnemyState.Dead || stats == null)
             return 0;
@@ -740,7 +740,7 @@ public class EnemyBaseController : MonoBehaviour
         if (blocked)
             wasCrit = false;
 
-        AwardCombatXpToSource(attacker, finalDamage);
+        AwardCombatXpToSource(attacker, finalDamage, dpsBucketOverride ?? ToDpsBucket(type));
 
         OnDamaged?.Invoke(finalDamage, wasCrit);
 
@@ -801,7 +801,7 @@ public class EnemyBaseController : MonoBehaviour
         float applied = stats.TakeDamageFromResolvedDot(finalDamage, out _);
         int dealt = Mathf.RoundToInt(applied);
 
-        AwardCombatXpToSource(source, dealt);
+        AwardCombatXpToSource(source, dealt, ToDpsBucket(popupKind));
 
         OnDamaged?.Invoke(dealt, false);
 
@@ -1209,7 +1209,7 @@ public class EnemyBaseController : MonoBehaviour
         return null;
     }
 
-    private void AwardCombatXpToSource(Transform source, float damageDealt)
+    private void AwardCombatXpToSource(Transform source, float damageDealt, DpsDamageBucket bucket)
     {
         if (source == null || damageDealt <= 0f)
             return;
@@ -1219,7 +1219,29 @@ public class EnemyBaseController : MonoBehaviour
             combat = source.GetComponentInParent<PlayerCombatController>();
 
         if (combat != null)
-            combat.AwardCombatXp(damageDealt * (_isElite ? 2f : 1f));
+            combat.AwardCombatXp(damageDealt * (_isElite ? 2f : 1f), bucket);
+    }
+
+    private static DpsDamageBucket ToDpsBucket(DamageType type)
+    {
+        return type switch
+        {
+            DamageType.Magic => DpsDamageBucket.Magic,
+            DamageType.Corruption => DpsDamageBucket.Corruption,
+            _ => DpsDamageBucket.Physical
+        };
+    }
+
+    private static DpsDamageBucket ToDpsBucket(FloatingDamageTextUI.PopupDamageKind kind)
+    {
+        return kind switch
+        {
+            FloatingDamageTextUI.PopupDamageKind.Bleed => DpsDamageBucket.Bleed,
+            FloatingDamageTextUI.PopupDamageKind.Poison => DpsDamageBucket.Poison,
+            FloatingDamageTextUI.PopupDamageKind.Magic => DpsDamageBucket.Burn,
+            FloatingDamageTextUI.PopupDamageKind.Corruption => DpsDamageBucket.Corruption,
+            _ => DpsDamageBucket.Physical
+        };
     }
 
     private void OnDrawGizmosSelected()

@@ -113,6 +113,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _nextLowManaPopupTime;
     private float _combatSessionStartTime = -1f;
     private float _combatSessionDamageSum;
+    private DpsDamageBreakdown _outgoingDamageSum;
+    private DpsDamageBreakdown _incomingDamageSum;
+    private bool _dpsTrackerPaused;
+    private float _pausedDpsSessionDuration;
     private float _lastCombatActivityTime = -999f;
     private float _lastHpForCombatEngageTrack = -1f;
 
@@ -164,18 +168,54 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     public float GetCurrentDps()
     {
-        float now = Time.time;
-        if (!IsCombatEngaged())
+        if (_combatSessionDamageSum <= 0f || !TryGetDpsSessionDuration(out float duration))
             return 0f;
 
-        if (_combatSessionStartTime < 0f || _combatSessionDamageSum <= 0f)
-            return 0f;
-
-        float duration = Mathf.Max(0.001f, now - _combatSessionStartTime);
         if (duration <= 0f)
             return 0f;
 
         return _combatSessionDamageSum / duration;
+    }
+
+    public DpsDamageBreakdown GetOutgoingDpsBreakdown()
+    {
+        if (!TryGetDpsSessionDuration(out float duration))
+            return default;
+
+        return _outgoingDamageSum.PerSecond(duration);
+    }
+
+    public DpsDamageBreakdown GetIncomingDpsBreakdown()
+    {
+        if (!TryGetDpsSessionDuration(out float duration))
+            return default;
+
+        return _incomingDamageSum.PerSecond(duration);
+    }
+
+    public float GetCurrentIncomingDps()
+    {
+        DpsDamageBreakdown incoming = GetIncomingDpsBreakdown();
+        return incoming.Total;
+    }
+
+    private bool TryGetDpsSessionDuration(out float duration)
+    {
+        duration = 0f;
+        if (_combatSessionStartTime < 0f)
+            return false;
+
+        if (_dpsTrackerPaused)
+        {
+            duration = Mathf.Max(0.001f, _pausedDpsSessionDuration);
+            return duration > 0f;
+        }
+
+        if (!IsCombatEngaged())
+            return false;
+
+        duration = Mathf.Max(0.001f, Time.time - _combatSessionStartTime);
+        return duration > 0f;
     }
 
     private void Awake()
@@ -192,6 +232,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (stats)
         {
             stats.OnHPChanged += HandlePlayerHpChangedForCombatEngage;
+            stats.OnDied += PauseDpsTracker;
             _lastHpForCombatEngageTrack = stats.HP;
         }
     }
@@ -199,7 +240,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private void OnDisable()
     {
         if (stats)
+        {
             stats.OnHPChanged -= HandlePlayerHpChangedForCombatEngage;
+            stats.OnDied -= PauseDpsTracker;
+        }
     }
 
     private void HandlePlayerHpChangedForCombatEngage(float hp, float maxHp)
@@ -212,6 +256,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     /// <summary>Bumps local engagement clock and player <see cref="PlayerCombatState"/> soft combat (dealt or took damage).</summary>
     private void MarkRecentCombatActivity()
     {
+        if (_dpsTrackerPaused)
+            return;
+
         float window = Mathf.Max(0.1f, dpsResetOutOfCombatSeconds);
         _lastCombatActivityTime = Time.time;
         if (player)
@@ -229,6 +276,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private void Update()
     {
         if (!player || !stats) return;
+        if (_dpsTrackerPaused) return;
 
         float window = Mathf.Max(0.1f, dpsResetOutOfCombatSeconds);
 
@@ -1472,10 +1520,15 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     public void AwardCombatXp(float damageDealt)
     {
+        AwardCombatXp(damageDealt, null);
+    }
+
+    public void AwardCombatXp(float damageDealt, DpsDamageBucket? bucket)
+    {
         if (damageDealt <= 0f)
             return;
 
-        RecordDamageForDps(damageDealt);
+        RecordDamageForDps(damageDealt, bucket);
 
         if (xpPerDamage <= 0f)
             return;
@@ -1488,22 +1541,66 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         sm.AddXpFloat(skill, damageDealt * xpPerDamage, combatXpSource);
     }
 
-    private void RecordDamageForDps(float damageAmount)
+    public void RecordIncomingDamageForDps(float damageAmount, DpsDamageBucket bucket)
     {
-        if (damageAmount <= 0f)
+        if (damageAmount <= 0f || _dpsTrackerPaused)
             return;
 
-        float now = Time.time;
         MarkRecentCombatActivity();
-        if (_combatSessionStartTime < 0f)
-            _combatSessionStartTime = now;
+        EnsureDpsSessionStarted();
+        _incomingDamageSum.Add(bucket, damageAmount);
+    }
+
+    private void RecordDamageForDps(float damageAmount, DpsDamageBucket? bucket)
+    {
+        if (damageAmount <= 0f || _dpsTrackerPaused)
+            return;
+
+        MarkRecentCombatActivity();
+        EnsureDpsSessionStarted();
         _combatSessionDamageSum += damageAmount;
+        if (bucket.HasValue)
+            _outgoingDamageSum.Add(bucket.Value, damageAmount);
+    }
+
+    private void EnsureDpsSessionStarted()
+    {
+        if (_combatSessionStartTime < 0f)
+            _combatSessionStartTime = Time.time;
+    }
+
+    public void PauseDpsTracker()
+    {
+        if (_dpsTrackerPaused)
+            return;
+
+        if (_combatSessionStartTime < 0f)
+        {
+            _pausedDpsSessionDuration = 0f;
+        }
+        else
+        {
+            _pausedDpsSessionDuration = Mathf.Max(0.001f, Time.time - _combatSessionStartTime);
+        }
+
+        _dpsTrackerPaused = true;
+    }
+
+    public void ResetDpsTrackerForRespawn()
+    {
+        _dpsTrackerPaused = false;
+        _pausedDpsSessionDuration = 0f;
+        ResetDpsSession();
+        _lastCombatActivityTime = -999f;
     }
 
     private void ResetDpsSession()
     {
         _combatSessionStartTime = -1f;
         _combatSessionDamageSum = 0f;
+        _outgoingDamageSum = default;
+        _incomingDamageSum = default;
+        _pausedDpsSessionDuration = 0f;
     }
 
     private void TryResolveAutoConsumeRefs()
