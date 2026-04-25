@@ -5079,7 +5079,7 @@ Transform:
   m_GameObject: {fileID: 4206316379986374380}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.099999994, y: 1.98, z: 0}
+  m_LocalPosition: {x: 0.02, y: 1.98, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5735,6 +5735,8 @@ MonoBehaviour:
     m_Bits: 448
   clickArriveThreshold: 0.05
   characterStats: {fileID: 4199332309700179123}
+  ailments: {fileID: 0}
+  abilityController: {fileID: 0}
   pickupRange: 0.5
   animator: {fileID: 3242570586586147477}
   gatherAnimDelaySeconds: 3
@@ -5748,6 +5750,12 @@ MonoBehaviour:
   dieTriggerName: Die
   dieStateName: die
   dieDisableDelay: 0
+  deathPopupWindow: {fileID: 0}
+  deathPopupNotificationText: {fileID: 0}
+  deathPopupButton: {fileID: 0}
+  deathPopupButtonLabel: {fileID: 0}
+  deathPopupDelaySeconds: 1
+  deathRespawnFadeSeconds: 0.35
   dropOverflowToGround: 1
   worldDropPrefab: {fileID: 0}
   dropScatterRadius: 0.8
@@ -5786,6 +5794,9 @@ MonoBehaviour:
   currentHP: -1
   currentEnergy: -1
   currentMana: -1
+  currentGuard: -1
+  _enemyDefinitionFlatGuard: 0
+  _enemyDefinitionMaxGuardPercent: 0
   baseMaxHP: 100
   baseMaxEnergy: 100
   baseMaxMana: 50
@@ -6015,6 +6026,8 @@ MonoBehaviour:
   worldOffset: {x: 0, y: 1.2, z: 0}
   stackVerticalSpacing: 30
   popupSortingOrderOffset: 30000
+  useDedicatedTopPopupCanvas: 1
+  topPopupCanvasName: TopPopupCanvas
   defaultMessageColor: {r: 1, g: 1, b: 1, a: 1}
   levelUpColor: {r: 0.35, g: 0.8, b: 1, a: 1}
 --- !u!114 &3838213064938477584

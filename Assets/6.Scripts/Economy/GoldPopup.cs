@@ -9,12 +9,15 @@ public class GoldPopup : MonoBehaviour
     [SerializeField] private TMP_Text label;
     [Tooltip("Optional second line under the gold amount (e.g. quest rewards). Leave empty in prefab to use single-line popups only.")]
     [SerializeField] private TMP_Text sourceLabel;
-    [SerializeField] private float floatUpPx = 90f;
+    [SerializeField] private float floatUpPx = 45f;
     [Header("Message popups (+ gold lingers / phased fade)")]
-    [SerializeField] private float riseDuration = 0.35f;
+    [SerializeField] private float riseDuration = 1.1f;
     [FormerlySerializedAs("duration")]
     [SerializeField] private float lingerAtApexSeconds = 2f;
     [SerializeField] private float fadeDuration = 0.5f;
+    [Header("Popup size")]
+    [SerializeField, Range(0.1f, 1f)] private float messageScale = 0.35f;
+    [SerializeField, Range(0.1f, 1f)] private float goldScale = 0.65f;
 
     [Header("Gold gain popup (+Ng)")]
     [Tooltip("Original style: float up and fade out together over this time (unscaled).")]
@@ -106,7 +109,10 @@ public class GoldPopup : MonoBehaviour
         }
 
         if (_rt != null)
+        {
             _rt.anchoredPosition = startAnchoredPos;
+            _rt.localScale = Vector3.one * (useGoldLegacyFade ? goldScale : messageScale);
+        }
 
         if (_co != null) StopCoroutine(_co);
         _co = useGoldLegacyFade

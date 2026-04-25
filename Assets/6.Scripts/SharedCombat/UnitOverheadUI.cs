@@ -69,6 +69,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     private bool _hpBarOnlyLayout;
     private bool _vitalsVisible = true;
+    private PlayerCombatState _playerCombatState;
 
     /// <summary>True when the follow target is in the strip camera band this frame; used for overlap stacking (same idea as when the whole object was deactivated off-screen).</summary>
     private bool _worldBandVisible;
@@ -129,6 +130,7 @@ public class UnitOverheadUI : MonoBehaviour
         targetCamera = cam;
         canvasRect = canvas ? canvas.transform as RectTransform : null;
         _hpBarOnlyLayout = hpBarOnly;
+        ResolvePlayerCombatState();
 
         ApplyHpBarOnlyVisuals();
         Subscribe();
@@ -401,10 +403,14 @@ public class UnitOverheadUI : MonoBehaviour
         {
             ailments.OnAilmentsChanged += RefreshDebuffIcons;
         }
+
+        ToggleSettingsStore.Changed += HandleToggleSettingChanged;
     }
 
     private void Unsubscribe()
     {
+        ToggleSettingsStore.Changed -= HandleToggleSettingChanged;
+
         if (characterStats != null)
         {
             characterStats.OnNameChanged -= HandleNameChanged;
@@ -423,6 +429,12 @@ public class UnitOverheadUI : MonoBehaviour
         {
             ailments.OnAilmentsChanged -= RefreshDebuffIcons;
         }
+    }
+
+    private void HandleToggleSettingChanged(ToggleSettingId setting, bool _)
+    {
+        if (setting == ToggleSettingId.HidePlayerHealthBarOutOfCombat)
+            ComputeBaseAnchoredAndVisibility();
     }
 
     private void RefreshAll()
@@ -474,7 +486,9 @@ public class UnitOverheadUI : MonoBehaviour
 
         // WorldToScreenPoint z <= 0 often means "behind" the camera, but orthographic 2D setups can edge-case;
         // viewport test keeps nameplates on-screen when the point is in front of the camera frustum.
-        bool visible = IsOverheadWorldPointVisible(targetCamera, worldPos, screenPos) && _vitalsVisible;
+        bool visible = IsOverheadWorldPointVisible(targetCamera, worldPos, screenPos) &&
+                       _vitalsVisible &&
+                       ShouldShowPlayerOverheadByCombatSetting();
         _worldBandVisible = visible;
 
         // Toggle only the UI root, not this behaviour's GameObject — otherwise LateUpdate stops
@@ -491,6 +505,32 @@ public class UnitOverheadUI : MonoBehaviour
             parentCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : targetCamera,
             out _stackBaseAnchored
         );
+    }
+
+    private void ResolvePlayerCombatState()
+    {
+        _playerCombatState = null;
+        if (!_hpBarOnlyLayout || enemy != null)
+            return;
+
+        if (characterStats != null)
+            _playerCombatState = characterStats.GetComponentInParent<PlayerCombatState>();
+        if (_playerCombatState == null && followTarget != null)
+            _playerCombatState = followTarget.GetComponentInParent<PlayerCombatState>();
+    }
+
+    private bool ShouldShowPlayerOverheadByCombatSetting()
+    {
+        if (!_hpBarOnlyLayout || enemy != null)
+            return true;
+
+        if (!ToggleSettingsStore.Get(ToggleSettingId.HidePlayerHealthBarOutOfCombat))
+            return true;
+
+        if (_playerCombatState == null)
+            ResolvePlayerCombatState();
+
+        return _playerCombatState != null && _playerCombatState.InCombat;
     }
 
     private void ApplyDirectPosition()

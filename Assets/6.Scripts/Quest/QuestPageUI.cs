@@ -43,6 +43,13 @@ public class QuestPageUI : MonoBehaviour
     [SerializeField] private TMP_Text rewardsLabelText;
     [SerializeField] private TMP_Text rewardsValueText;
 
+    [Header("Right — Quest action button")]
+    [Tooltip("Assign the new Complete Quest / In Progress / Unavailable button here.")]
+    [SerializeField] private Button questClaimButton;
+    [SerializeField] private TMP_Text questClaimButtonLabel;
+    [Tooltip("Optional parent/root to show and hide with the assigned quest action button.")]
+    [SerializeField] private GameObject questActionRowRoot;
+
     private readonly List<GameObject> _regionRows = new();
     private readonly List<RegionDefinition> _regionRowRegions = new();
     private readonly List<QuestListRowUI> _questRows = new();
@@ -56,9 +63,6 @@ public class QuestPageUI : MonoBehaviour
     private PlayerStorage _subscribedStorage;
     private bool _detailWidgetsBuilt;
 
-    private Button _questClaimButton;
-    private TMP_Text _questClaimButtonLabel;
-    private GameObject _questActionRowRoot;
     private static Sprite _cachedUiWhiteSprite;
 
     private static WorldMapProgressManager FindWorldProgress()
@@ -470,14 +474,16 @@ public class QuestPageUI : MonoBehaviour
 
             int amt = qProg && q ? qProg.GetDisplayProgress(q) : 0;
             bool permanentlyDone = qProg && qProg.IsPermanentlyComplete(q);
+            bool gated = qProg && qProg.IsQuestGatedByPrerequisites(q);
             string status = BuildQuestListStatus(q, qProg, amt);
+            string subtitle = gated ? "Unavailable" : q.listCategoryLabel;
             bool tracked = QuestTrackerState.IsTracked(q.questId);
             row.Bind(
                 q,
-                q.listCategoryLabel,
+                subtitle,
                 status,
                 _selectedQuest == q,
-                permanentlyDone,
+                permanentlyDone || gated,
                 completedRowAlpha,
                 OnQuestClicked,
                 tracked,
@@ -527,7 +533,7 @@ public class QuestPageUI : MonoBehaviour
         if (mgr != null && mgr.IsPermanentlyComplete(q))
             return "COMPLETE";
         if (mgr != null && mgr.IsQuestGatedByPrerequisites(q))
-            return "Locked";
+            return "Unavailable";
         if (!string.IsNullOrEmpty(q.listStatusOverride))
             return q.listStatusOverride;
         if (q.IsComplete(amt) && mgr != null && !mgr.IsRequiredMapNodeSatisfied(q))
@@ -679,11 +685,14 @@ public class QuestPageUI : MonoBehaviour
     private void RefreshQuestClaimButton(QuestDefinition q, QuestProgressManager qProg)
     {
         EnsureDetailWidgets();
-        if (!_questActionRowRoot || !_questClaimButton)
+        if (!questClaimButton)
             return;
 
         bool show = q != null && q.objectiveKind != QuestObjectiveKind.None;
-        _questActionRowRoot.SetActive(show);
+        if (questActionRowRoot)
+            questActionRowRoot.SetActive(show);
+        else
+            questClaimButton.gameObject.SetActive(show);
         if (!show)
             return;
 
@@ -693,39 +702,39 @@ public class QuestPageUI : MonoBehaviour
 
         if (permanent)
         {
-            if (_questClaimButtonLabel)
-                _questClaimButtonLabel.text = "Completed";
-            _questClaimButton.interactable = false;
+            if (questClaimButtonLabel)
+                questClaimButtonLabel.text = "Completed";
+            questClaimButton.interactable = false;
             return;
         }
 
         if (gated)
         {
-            if (_questClaimButtonLabel)
-                _questClaimButtonLabel.text = "Locked";
-            _questClaimButton.interactable = false;
+            if (questClaimButtonLabel)
+                questClaimButtonLabel.text = "Unavailable";
+            questClaimButton.interactable = false;
             return;
         }
 
         if (canClaim)
         {
-            if (_questClaimButtonLabel)
-                _questClaimButtonLabel.text = "Complete Quest";
-            _questClaimButton.interactable = true;
+            if (questClaimButtonLabel)
+                questClaimButtonLabel.text = "Complete Quest";
+            questClaimButton.interactable = true;
             return;
         }
 
         if (qProg != null && q.IsComplete(qProg.GetDisplayProgress(q)) && !qProg.IsRequiredMapNodeSatisfied(q))
         {
-            if (_questClaimButtonLabel)
-                _questClaimButtonLabel.text = "Finish level first";
-            _questClaimButton.interactable = false;
+            if (questClaimButtonLabel)
+                questClaimButtonLabel.text = "Finish level first";
+            questClaimButton.interactable = false;
             return;
         }
 
-        if (_questClaimButtonLabel)
-            _questClaimButtonLabel.text = "In Progress";
-        _questClaimButton.interactable = false;
+        if (questClaimButtonLabel)
+            questClaimButtonLabel.text = "In Progress";
+        questClaimButton.interactable = false;
     }
 
     private void OnQuestClaimClicked()
@@ -944,68 +953,18 @@ public class QuestPageUI : MonoBehaviour
 
     private void EnsureQuestClaimWidgets()
     {
-        if (_questClaimButton || !detailsContentRoot)
+        if (!questClaimButton && detailsContentRoot)
+            questClaimButton = detailsContentRoot.GetComponentInChildren<Button>(true);
+        if (questClaimButton && !questClaimButtonLabel)
+            questClaimButtonLabel = questClaimButton.GetComponentInChildren<TMP_Text>(true);
+        if (questClaimButton && !questActionRowRoot)
+            questActionRowRoot = questClaimButton.gameObject;
+
+        if (!questClaimButton)
             return;
 
-        var row = new GameObject("QuestDetailActionRow", typeof(RectTransform), typeof(LayoutElement));
-        row.transform.SetParent(detailsContentRoot, false);
-        var rowLe = row.GetComponent<LayoutElement>();
-        rowLe.preferredHeight = 56f;
-        rowLe.minHeight = 56f;
-        rowLe.flexibleHeight = 0f;
-        rowLe.minWidth = 0f;
-        rowLe.flexibleWidth = 1f;
-
-        var btnGo = new GameObject("QuestClaimButton", typeof(RectTransform), typeof(Image), typeof(Button));
-        btnGo.transform.SetParent(row.transform, false);
-        RectTransform btnRt = btnGo.GetComponent<RectTransform>();
-        btnRt.anchorMin = new Vector2(0f, 0f);
-        btnRt.anchorMax = new Vector2(1f, 1f);
-        btnRt.pivot = new Vector2(0.5f, 0.5f);
-        btnRt.offsetMin = new Vector2(0f, 6f);
-        btnRt.offsetMax = new Vector2(0f, -6f);
-        var img = btnGo.GetComponent<Image>();
-        img.sprite = GetUiWhiteSprite();
-        img.type = Image.Type.Simple;
-        img.color = new Color(0.4f, 0.44f, 0.5f, 1f);
-
-        var btn = btnGo.GetComponent<Button>();
-        btn.targetGraphic = img;
-        btn.transition = Selectable.Transition.ColorTint;
-        ColorBlock cb = btn.colors;
-        cb.normalColor = Color.white;
-        cb.highlightedColor = new Color(0.92f, 0.92f, 0.92f);
-        cb.pressedColor = new Color(0.78f, 0.78f, 0.78f);
-        cb.selectedColor = new Color(0.92f, 0.92f, 0.92f);
-        cb.disabledColor = new Color(0.55f, 0.55f, 0.55f, 0.55f);
-        cb.colorMultiplier = 1f;
-        cb.fadeDuration = 0.08f;
-        btn.colors = cb;
-        btn.onClick.AddListener(OnQuestClaimClicked);
-
-        var textGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
-        textGo.transform.SetParent(btnGo.transform, false);
-        RectTransform trt = textGo.GetComponent<RectTransform>();
-        trt.anchorMin = Vector2.zero;
-        trt.anchorMax = Vector2.one;
-        trt.offsetMin = Vector2.zero;
-        trt.offsetMax = Vector2.zero;
-
-        var tmp = textGo.GetComponent<TextMeshProUGUI>();
-        if (TMP_Settings.defaultFontAsset)
-            tmp.font = TMP_Settings.defaultFontAsset;
-        tmp.fontSize = 17;
-        tmp.fontStyle = FontStyles.Bold;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.color = Color.white;
-        tmp.text = "In Progress";
-        tmp.textWrappingMode = TextWrappingModes.NoWrap;
-        tmp.overflowMode = TextOverflowModes.Overflow;
-        tmp.enableAutoSizing = false;
-
-        _questClaimButton = btn;
-        _questClaimButtonLabel = tmp;
-        _questActionRowRoot = row;
+        questClaimButton.onClick.RemoveListener(OnQuestClaimClicked);
+        questClaimButton.onClick.AddListener(OnQuestClaimClicked);
     }
 
     private static Sprite GetUiWhiteSprite()

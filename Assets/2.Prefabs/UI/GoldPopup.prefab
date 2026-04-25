@@ -139,6 +139,33 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &5036531993529958741
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7311315576408924288}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4724a2c684310a489b083c62a9432ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GoldPopup
+  label: {fileID: 3095145006131258376}
+  sourceLabel: {fileID: 9123456780123456792}
+  floatUpPx: 60
+  riseDuration: 0.25
+  lingerAtApexSeconds: 1
+  fadeDuration: 1
+  messageScale: 0.35
+  goldScale: 0.65
+  goldCombinedDuration: 2
+  goldColor: {r: 0.72, g: 0.52, b: 0.06, a: 1}
+  messageColor: {r: 1, g: 1, b: 1, a: 1}
+  levelUpColor: {r: 0.35, g: 0.8, b: 1, a: 1}
+  sourceLineColor: {r: 0.74, g: 0.77, b: 0.82, a: 1}
+  goldOutlineWidth: 0.28
+  goldOutlineColor: {r: 0.12, g: 0.08, b: 0.02, a: 1}
 --- !u!1 &9123456780123456790
 GameObject:
   m_ObjectHideFlags: 0
@@ -276,28 +303,3 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
---- !u!114 &5036531993529958741
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7311315576408924288}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d4724a2c684310a489b083c62a9432ac, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GoldPopup
-  label: {fileID: 3095145006131258376}
-  sourceLabel: {fileID: 9123456780123456792}
-  floatUpPx: 90
-  riseDuration: 0.35
-  lingerAtApexSeconds: 2
-  fadeDuration: 0.5
-  goldCombinedDuration: 2
-  goldColor: {r: 0.72, g: 0.52, b: 0.06, a: 1}
-  messageColor: {r: 1, g: 1, b: 1, a: 1}
-  levelUpColor: {r: 0.35, g: 0.8, b: 1, a: 1}
-  sourceLineColor: {r: 0.74, g: 0.77, b: 0.82, a: 1}
-  goldOutlineWidth: 0.28
-  goldOutlineColor: {r: 0.12, g: 0.08, b: 0.02, a: 1}
