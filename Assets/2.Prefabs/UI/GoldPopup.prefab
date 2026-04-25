@@ -77,7 +77,7 @@ MonoBehaviour:
   m_fontColor32:
     serializedVersion: 2
     rgba: 4280006105
-  m_fontColor: {r: 0.8509804, g: 0.70980394, b: 0.105882354, a: 1}
+  m_fontColor: {r: 0.87169814, g: 0.746895, b: 0.20229968, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -153,14 +153,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GoldPopup
   label: {fileID: 3095145006131258376}
   sourceLabel: {fileID: 9123456780123456792}
-  floatUpPx: 60
-  riseDuration: 0.25
-  lingerAtApexSeconds: 1
-  fadeDuration: 1
+  floatUpPx: 35
+  riseDuration: 0.45
+  lingerAtApexSeconds: 1.5
+  fadeDuration: 1.5
   messageScale: 0.35
-  goldScale: 0.65
-  goldCombinedDuration: 2
-  goldColor: {r: 0.72, g: 0.52, b: 0.06, a: 1}
+  goldScale: 0.408
+  goldCombinedDuration: 1.5
+  goldColor: {r: 0.8745098, g: 0.7490196, b: 0.20392157, a: 1}
   messageColor: {r: 1, g: 1, b: 1, a: 1}
   levelUpColor: {r: 0.35, g: 0.8, b: 1, a: 1}
   sourceLineColor: {r: 0.74, g: 0.77, b: 0.82, a: 1}

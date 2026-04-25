@@ -11,4 +11,5 @@ public enum HotkeyBindId
     ActionBar5 = 4,
     ActionBar6 = 5,
     ActionBar7 = 6,
+    CloseAllWindows = 7,
 }

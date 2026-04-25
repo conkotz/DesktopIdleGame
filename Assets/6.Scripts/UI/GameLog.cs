@@ -7,17 +7,31 @@ using UnityEngine;
 /// </summary>
 public static class GameLog
 {
+    public const int MaxEntries = 150;
+
     public readonly struct Entry
     {
         public readonly string Message;
         public readonly Color Color;
         public readonly System.DateTime TimestampLocal;
+        public readonly string StackKey;
+        public readonly int StackAmount;
+        public readonly int RepeatCount;
 
-        public Entry(string message, Color color, System.DateTime timestampLocal)
+        public Entry(
+            string message,
+            Color color,
+            System.DateTime timestampLocal,
+            string stackKey = "",
+            int stackAmount = 0,
+            int repeatCount = 1)
         {
             Message = message;
             Color = color;
             TimestampLocal = timestampLocal;
+            StackKey = stackKey;
+            StackAmount = stackAmount;
+            RepeatCount = repeatCount;
         }
     }
 
@@ -52,10 +66,20 @@ public static class GameLog
         string trimmed = message.Trim();
         System.DateTime timestampLocal = System.DateTime.Now;
         Entries.Add(new Entry(trimmed, color, timestampLocal));
+        TrimToMaxEntries();
 
         GameLogWindowUI window = GameLogWindowUI.ResolveOrCreate();
         if (window != null)
             window.AddLog(trimmed, color, FormatClock(timestampLocal));
+    }
+
+    private static void TrimToMaxEntries()
+    {
+        int overflow = Entries.Count - MaxEntries;
+        if (overflow <= 0)
+            return;
+
+        Entries.RemoveRange(0, overflow);
     }
 
     public static void Clear()
@@ -72,7 +96,55 @@ public static class GameLog
         if (amount <= 0 || string.IsNullOrWhiteSpace(itemName))
             return;
 
-        Add($"+{amount} {itemName.Trim()}", ItemGainColor);
+        AddStackableItemGain(itemName.Trim(), amount);
+    }
+
+    private static void AddStackableItemGain(string itemName, int amount)
+    {
+        string stackKey = $"ItemGain:{itemName}";
+        System.DateTime timestampLocal = System.DateTime.Now;
+
+        if (Entries.Count > 0)
+        {
+            int lastIndex = Entries.Count - 1;
+            Entry last = Entries[lastIndex];
+            if (last.StackKey == stackKey)
+            {
+                int total = Mathf.Max(0, last.StackAmount) + amount;
+                int repeatCount = Mathf.Max(1, last.RepeatCount) + 1;
+                Entries[lastIndex] = new Entry(
+                    FormatStackedItemGain(itemName, total, repeatCount),
+                    ItemGainColor,
+                    timestampLocal,
+                    stackKey,
+                    total,
+                    repeatCount);
+
+                GameLogWindowUI window = GameLogWindowUI.ResolveOrCreate();
+                if (window != null)
+                    window.RebuildFromHistory();
+                return;
+            }
+        }
+
+        Entries.Add(new Entry(
+            FormatStackedItemGain(itemName, amount, 1),
+            ItemGainColor,
+            timestampLocal,
+            stackKey,
+            amount,
+            1));
+        TrimToMaxEntries();
+
+        GameLogWindowUI logWindow = GameLogWindowUI.ResolveOrCreate();
+        if (logWindow != null)
+            logWindow.AddLog(Entries[^1].Message, ItemGainColor, FormatClock(timestampLocal));
+    }
+
+    private static string FormatStackedItemGain(string itemName, int amount, int repeatCount)
+    {
+        string suffix = repeatCount > 1 ? " (Repeat action)" : "";
+        return $"+{amount} {itemName}{suffix}";
     }
 
     public static void ItemLost(string itemName, int amount)
@@ -116,6 +188,14 @@ public static class GameLog
             return;
 
         Add($"{regionName.Trim()} Region Unlocked", RegionUnlockedColor);
+    }
+
+    public static void EnteringMap(string mapName)
+    {
+        if (string.IsNullOrWhiteSpace(mapName))
+            return;
+
+        Add($"Entering Map {mapName.Trim()}");
     }
 
     public static string FormatClock(System.DateTime localTime)

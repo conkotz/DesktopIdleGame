@@ -104,6 +104,7 @@ public class GameLogWindowUI : MonoBehaviour
             row.TimestampText.gameObject.SetActive(!string.IsNullOrWhiteSpace(row.TimestampText.text));
         }
 
+        TrimVisibleRowsToMax();
         Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
 
@@ -115,7 +116,7 @@ public class GameLogWindowUI : MonoBehaviour
         ClearRows();
     }
 
-    private void RebuildFromHistory()
+    public void RebuildFromHistory()
     {
         EnsureConfigured();
         if (contentRoot == null)
@@ -147,6 +148,19 @@ public class GameLogWindowUI : MonoBehaviour
         {
             Transform child = contentRoot.GetChild(i);
             Destroy(child.gameObject);
+        }
+    }
+
+    private void TrimVisibleRowsToMax()
+    {
+        EnsureConfigured();
+        if (contentRoot == null)
+            return;
+
+        while (contentRoot.childCount > GameLog.MaxEntries)
+        {
+            Transform oldest = contentRoot.GetChild(0);
+            Destroy(oldest.gameObject);
         }
     }
 

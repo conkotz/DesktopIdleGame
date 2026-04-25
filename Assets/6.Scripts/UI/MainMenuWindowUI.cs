@@ -1,12 +1,55 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 using TMPro;
 
 public class MainMenuWindowUI : MonoBehaviour
 {
+    private enum PersistedPage
+    {
+        None,
+        Character,
+        SkillsAbilities,
+        LevelSelect,
+        Quest,
+        Settings
+    }
+
     private static MainMenuWindowUI s_instance;
+    private static bool s_restoreOpen;
+    private static PersistedPage s_restorePage = PersistedPage.None;
+
+    private bool _restoredPersistedState;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void RegisterSceneLoadedRestore()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoadedRestoreMenu;
+        SceneManager.sceneLoaded += OnSceneLoadedRestoreMenu;
+    }
+
+    private static void OnSceneLoadedRestoreMenu(Scene scene, LoadSceneMode mode)
+    {
+        RestoreAnyLoadedMenu();
+    }
+
+    public static void CaptureOpenStateForSceneChange()
+    {
+        MainMenuWindowUI menu = Resolve();
+        if (menu == null || !menu.IsOpen)
+        {
+            s_restoreOpen = false;
+            s_restorePage = PersistedPage.None;
+            return;
+        }
+
+        s_restoreOpen = true;
+        s_restorePage = menu.GetPersistedPage(menu.currentPage);
+        if (s_restorePage == PersistedPage.None)
+            s_restorePage = PersistedPage.Character;
+    }
 
     /// <summary>
     /// Returns the in-scene menu (cached). Use from toolbar buttons when serialized references are missing or stale.
@@ -103,6 +146,11 @@ public class MainMenuWindowUI : MonoBehaviour
         HideAllPages();
     }
 
+    private void Start()
+    {
+        RestorePersistedWindowState();
+    }
+
     public void ToggleCharacter()
     {
         TogglePage(characterPage);
@@ -167,6 +215,9 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public void Close()
     {
+        s_restoreOpen = false;
+        s_restorePage = PersistedPage.None;
+
         if (mainMenuWindow)
         {
             if (_hideWindowWithCanvasGroup)
@@ -285,6 +336,8 @@ public class MainMenuWindowUI : MonoBehaviour
         if (targetPage == levelSelectPage || targetPage == questPage)
             MapNodeTravelProgress.TryMarkCurrentNodeIfConfigured();
 
+        RememberOpenPage(targetPage);
+
         // Always activate the window root. UIWindowCloseButton (and similar) may SetActive(false) on this
         // GameObject; in canvas-group hide mode we previously skipped SetActive(true) and the menu could never reopen.
         mainMenuWindow.SetActive(true);
@@ -332,6 +385,75 @@ public class MainMenuWindowUI : MonoBehaviour
             headerTitleText.text = settingsTitle;
         else
             headerTitleText.text = "";
+    }
+
+    private void RestorePersistedWindowState()
+    {
+        if (_restoredPersistedState)
+            return;
+        _restoredPersistedState = true;
+
+        if (!s_restoreOpen)
+            return;
+
+        GameObject page = ResolvePersistedPage(s_restorePage);
+        if (!page)
+            page = characterPage;
+        if (page)
+            OpenPage(page);
+    }
+
+    private void RememberOpenPage(GameObject page)
+    {
+        s_restoreOpen = true;
+        s_restorePage = GetPersistedPage(page);
+    }
+
+    private PersistedPage GetPersistedPage(GameObject page)
+    {
+        if (page == characterPage)
+            return PersistedPage.Character;
+        if (page == skillsAbilitiesPage)
+            return PersistedPage.SkillsAbilities;
+        if (page == levelSelectPage)
+            return PersistedPage.LevelSelect;
+        if (page == questPage)
+            return PersistedPage.Quest;
+        if (page == settingsPage)
+            return PersistedPage.Settings;
+        return PersistedPage.None;
+    }
+
+    private GameObject ResolvePersistedPage(PersistedPage page)
+    {
+        return page switch
+        {
+            PersistedPage.Character => characterPage,
+            PersistedPage.SkillsAbilities => skillsAbilitiesPage,
+            PersistedPage.LevelSelect => levelSelectPage,
+            PersistedPage.Quest => questPage,
+            PersistedPage.Settings => settingsPage,
+            _ => null
+        };
+    }
+
+    private static void RestoreAnyLoadedMenu()
+    {
+        if (!s_restoreOpen)
+            return;
+
+        MainMenuWindowUI menu = Resolve();
+        if (menu == null)
+        {
+            MainMenuWindowUI[] menus = FindObjectsByType<MainMenuWindowUI>(
+                FindObjectsInactive.Include,
+                FindObjectsSortMode.None);
+            if (menus != null && menus.Length > 0)
+                menu = menus[0];
+        }
+
+        if (menu != null)
+            menu.RestorePersistedWindowState();
     }
 
     private void EnsureWindowInteractable()

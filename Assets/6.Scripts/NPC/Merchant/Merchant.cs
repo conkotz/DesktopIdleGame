@@ -74,33 +74,45 @@ public class Merchant : MonoBehaviour, ISaveable
             return false;
         }
 
+        int bought = 0;
         for (int i = 0; i < amount; i++)
         {
             if (!CanAfford(entry))
             {
+                if (bought > 0)
+                    ItemGainPopupNotifier.Notify(entry.itemId, bought);
                 Debug.Log($"[Merchant] Cannot afford {itemId}.");
                 return false;
             }
 
             if (!inventory.CanAdd(entry.itemId, 1))
             {
+                if (bought > 0)
+                    ItemGainPopupNotifier.Notify(entry.itemId, bought);
                 Debug.Log($"[Merchant] Inventory full, could not add {itemId}.");
                 return false;
             }
 
             SpendCosts(entry);
 
-            bool added = inventory.Add(entry.itemId, 1);
+            bool added = inventory.Add(entry.itemId, 1, null, notifyItemGainPopup: false);
             if (!added)
             {
+                if (bought > 0)
+                    ItemGainPopupNotifier.Notify(entry.itemId, bought);
                 Debug.LogError($"[Merchant] Failed to add {itemId} after spending costs.");
                 return false;
             }
+
+            bought++;
 
             int current = GetQuantity(entry);
             if (current > 0)
                 SetQuantity(entry, current - 1);
         }
+
+        if (bought > 0)
+            ItemGainPopupNotifier.Notify(entry.itemId, bought);
 
         Debug.Log($"[Merchant] Bought {amount}x {itemId}.");
         return true;

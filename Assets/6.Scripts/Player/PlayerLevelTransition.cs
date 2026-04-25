@@ -41,6 +41,7 @@ public class PlayerLevelTransition : MonoBehaviour
 
         PlayerController pc = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         PlayerLevelTransition t = pc != null ? pc.GetComponent<PlayerLevelTransition>() : null;
+        MainMenuWindowUI.CaptureOpenStateForSceneChange();
 
         if (t != null)
             t.BeginShrinkThenLoad(sceneName);

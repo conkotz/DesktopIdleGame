@@ -73,6 +73,7 @@ public class GameplayLevelBootstrapper : MonoBehaviour
 
         ActiveDefinition = node;
         ActiveLevelContext.SetPendingLevel(node, logToConsole: false);
+        GameLog.EnteringMap(ResolveMapDisplayName(node));
 
         WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
             FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
@@ -87,6 +88,15 @@ public class GameplayLevelBootstrapper : MonoBehaviour
             DevInstantiatePrefabGroups(node);
 
         OnLevelStarted?.Invoke(ActiveDefinition);
+    }
+
+    private static string ResolveMapDisplayName(MapNodeDefinition node)
+    {
+        if (node == null)
+            return "";
+        if (!string.IsNullOrWhiteSpace(node.displayName))
+            return node.displayName;
+        return node.nodeId;
     }
 
     private static void LogPrefabSpawnPlan(MapNodeDefinition node)

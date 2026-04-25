@@ -7,20 +7,27 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
     [SerializeField] private RectTransform window;        // panel to move
    // [SerializeField] private float minVisiblePixels = 24f;
     [SerializeField] private bool clampOnEnable = true;
+    [SerializeField] private string memoryKey;
 
     private RectTransform _parent;
     private Vector2 _pointerOffsetLocal;
+    private Vector2 _anchorPoint;
     private bool _isDragging;
+    private bool _recordAfterClamp;
     private Coroutine _deferredClamp;
 
     private void Awake()
     {
         if (!window) window = transform as RectTransform;
         _parent = window.parent as RectTransform;
+        _anchorPoint = window ? window.anchoredPosition : Vector2.zero;
+        if (string.IsNullOrWhiteSpace(memoryKey))
+            memoryKey = ResolveMemoryKey();
     }
 
     private void OnEnable()
     {
+        RestoreRememberedPosition();
         if (clampOnEnable)
             ClampNow();
     }
@@ -62,7 +69,22 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
     public void OnEndDrag(PointerEventData eventData)
     {
         _isDragging = false;
+        _recordAfterClamp = true;
         ClampNow();
+    }
+
+    public void ResetToAnchorPoint()
+    {
+        if (!window) return;
+
+        if (_deferredClamp != null)
+        {
+            StopCoroutine(_deferredClamp);
+            _deferredClamp = null;
+        }
+
+        window.anchoredPosition = _anchorPoint;
+        _recordAfterClamp = false;
     }
 
     private void OnRectTransformDimensionsChange()
@@ -89,6 +111,11 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
 
         if (_isDragging) yield break;
         ClampToScreenEdges();
+        if (_recordAfterClamp)
+        {
+            _recordAfterClamp = false;
+            RememberCurrentPosition();
+        }
     }
 
     [SerializeField] private float edgePadding = 0f; // set to 0 or e.g. 6f if you want a small inset
@@ -135,5 +162,30 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, deltaScreen, null, out var localDelta);
 
         window.anchoredPosition += (localDelta - local0);
+    }
+
+    private void RestoreRememberedPosition()
+    {
+        if (!window)
+            return;
+
+        if (UIWindowPositionMemory.TryGet(memoryKey, out Vector2 remembered))
+            window.anchoredPosition = remembered;
+    }
+
+    private void RememberCurrentPosition()
+    {
+        if (!window)
+            return;
+
+        UIWindowPositionMemory.Save(memoryKey, window.anchoredPosition);
+    }
+
+    private string ResolveMemoryKey()
+    {
+        if (window != null && !string.IsNullOrWhiteSpace(window.name))
+            return window.name;
+
+        return gameObject.name;
     }
 }

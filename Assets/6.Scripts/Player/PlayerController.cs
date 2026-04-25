@@ -2301,6 +2301,7 @@ public class PlayerController : MonoBehaviour
         else
             Debug.LogWarning("[Player] Respawn town node could not be resolved; loading current GamePlay context.", this);
 
+        MainMenuWindowUI.CaptureOpenStateForSceneChange();
         SceneManager.LoadScene(GameplaySceneName, LoadSceneMode.Single);
     }
 

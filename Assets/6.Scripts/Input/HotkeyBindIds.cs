@@ -42,6 +42,8 @@ public static class HotkeyBindIds
                 return "Food Slot";
             case HotkeyBindId.ActionBar7:
                 return "Potion Slot";
+            case HotkeyBindId.CloseAllWindows:
+                return "Close All Windows";
             default:
                 return id.ToString();
         }

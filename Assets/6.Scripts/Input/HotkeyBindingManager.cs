@@ -71,6 +71,7 @@ public sealed class HotkeyBindingManager : MonoBehaviour
             HotkeyBindId.ActionBar5 => KeyCode.Alpha5,
             HotkeyBindId.ActionBar6 => KeyCode.Q,
             HotkeyBindId.ActionBar7 => KeyCode.E,
+            HotkeyBindId.CloseAllWindows => KeyCode.Escape,
             _ => KeyCode.None
         };
     }
