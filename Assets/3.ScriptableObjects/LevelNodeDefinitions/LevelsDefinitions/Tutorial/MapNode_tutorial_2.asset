@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MapNode_tutorial_2
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: tutorial_2
-  displayName: Tutorial 2
+  displayName: Tutorial Level 2
   description: Basic combat. Add TutorialRogueReinforcementSpawner to the scene and
     assign the Rogue definition.
   nodeType: 0

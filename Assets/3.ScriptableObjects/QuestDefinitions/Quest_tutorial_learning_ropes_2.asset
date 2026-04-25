@@ -15,8 +15,10 @@ MonoBehaviour:
   questId: tutorial_learning_ropes_2
   regionId: tutorial
   displayName: Learning the ropes 2
-  description: Gather 100 splitwood logs and finish Tutorial 1 (open Level Select
-    or Quests from the menu after completing the area).
+  description: 'Gather 25 splitwood logs and finish Tutorial Level 1.
+
+    Open Level
+    Select menu after completing th?e quest and move to the next Tutoral Level 2. '
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
@@ -34,6 +36,9 @@ MonoBehaviour:
   - tutorial_learning_ropes_1
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
+  requiredSkillLevels:
+  - skill: 1
+    requiredLevel: 2
   killEnemyIdFilter: 
   hideUntilMapNodeUnlockedId: 
   sortOrder: 10

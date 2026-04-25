@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MapNode_tutorial_1
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: tutorial_1
-  displayName: Tutorial 1
+  displayName: Tutorial Level 1
   description: Gather and learn the basics. Populate this map in the editor.
   nodeType: 1
   enemyAggroMode: 1
@@ -25,6 +25,7 @@ MonoBehaviour:
   isRepeatable: 0
   markCompletedWhenReturningToMenu: 1
   completedLabelRequiresEnteredNodeId: tutorial_2
+  mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 1
   icon: {fileID: 0}
   requiredSkillLevels: []

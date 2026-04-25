@@ -70,6 +70,9 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("In addition to objective progress, this map node id must be marked completed (e.g. Tutorial 1 cleared via level-select / menu flow).")]
     public string requiredCompletedMapNodeId = "";
 
+    [Tooltip("All listed skills must meet their levels before this quest can be completed.")]
+    public List<SkillLevelRequirement> requiredSkillLevels = new();
+
     [Tooltip("KillCount only: when set, only kills of this EnemyDefinition.enemyId count (e.g. enemy_rogue).")]
     public string killEnemyIdFilter = "";
 

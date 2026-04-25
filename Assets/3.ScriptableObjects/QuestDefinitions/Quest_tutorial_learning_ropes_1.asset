@@ -16,21 +16,24 @@ MonoBehaviour:
   regionId: tutorial
   displayName: Learning the ropes 1
   description: "Gather 3 splitwood logs. Gathering without the required tool equipped
-    will cause you gather at greatly reduced speeds. \nThis might take some time..."
+    will cause you to gather at greatly reduced speeds. \nThis might take some time..."
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
   targetCount: 3
   gatherItemId: splitwood_log
-  rewardGold: 5
+  rewardGold: 0
   rewardItem: {fileID: 11400000, guid: db75d88da4098f74f981abe58a3e7c03, type: 2}
   rewardItemId: 
+  rewardItemQuantity: 1
   rewardNotes: 
   repeatable: 0
   progressMapNodeId: 
+  killProgressOnlyOnProgressMap: 0
   prerequisiteRewardClaimedQuestIds: []
   requireAllPrerequisiteQuests: 0
   requiredCompletedMapNodeId: 
+  requiredSkillLevels: []
   killEnemyIdFilter: 
   hideUntilMapNodeUnlockedId: 
   sortOrder: 10

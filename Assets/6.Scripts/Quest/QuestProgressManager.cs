@@ -181,7 +181,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     public bool IsQuestGatedByPrerequisites(QuestDefinition q)
     {
-        return q != null && !ArePrerequisitesSatisfied(q);
+        return q != null && (!ArePrerequisitesSatisfied(q) || !AreSkillRequirementsSatisfied(q));
     }
 
     public bool CanClaimReward(QuestDefinition q)
@@ -190,6 +190,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             return false;
         if (!ArePrerequisitesSatisfied(q))
             return false;
+        if (!AreSkillRequirementsSatisfied(q))
+            return false;
         int prog = GetDisplayProgress(q);
         if (!q.IsComplete(prog))
             return false;
@@ -197,6 +199,28 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             return false;
         if (!q.repeatable && IsRewardClaimed(q.questId))
             return false;
+        return true;
+    }
+
+    public bool AreSkillRequirementsSatisfied(QuestDefinition q)
+    {
+        if (q == null || q.requiredSkillLevels == null || q.requiredSkillLevels.Count == 0)
+            return true;
+
+        SkillsManager skills = SkillsManager.Instance ??
+            FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
+        if (skills == null)
+            return false;
+
+        for (int i = 0; i < q.requiredSkillLevels.Count; i++)
+        {
+            SkillLevelRequirement req = q.requiredSkillLevels[i];
+            if (req == null || req.requiredLevel <= 0)
+                continue;
+            if (!skills.IsLevelUnlocked(req.skill, req.requiredLevel))
+                return false;
+        }
+
         return true;
     }
 
