@@ -1214,15 +1214,13 @@ public class EnemyBaseController : MonoBehaviour
         if (source == null || damageDealt <= 0f)
             return;
 
-        if (definition != null && !definition.grantCombatXp)
-            return;
-
         var combat = source.GetComponent<PlayerCombatController>();
         if (combat == null)
             combat = source.GetComponentInParent<PlayerCombatController>();
 
+        bool grantXp = definition == null || definition.grantCombatXp;
         if (combat != null)
-            combat.AwardCombatXp(damageDealt * (_isElite ? 2f : 1f), bucket);
+            combat.AwardCombatXp(damageDealt * (_isElite ? 2f : 1f), bucket, grantXp);
     }
 
     private static DpsDamageBucket ToDpsBucket(DamageType type)

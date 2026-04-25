@@ -164,8 +164,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float actionPopupSeconds = 1.5f; // default duration
     private Coroutine _actionPopupRoutine;
     private const float ConsumableCooldownActivityLogIntervalSeconds = 5f;
+    private const float RepeatedPopupActivityLogIntervalSeconds = 5f;
     private float _nextFoodCooldownActivityLogTime;
     private float _nextPotionCooldownActivityLogTime;
+    private readonly Dictionary<string, float> _nextActivityLogTimeByPopupMessage = new(StringComparer.OrdinalIgnoreCase);
 
     [Header("Tools Required (Gather)")]
     [SerializeField] private bool requireToolForGathering = true;
@@ -1060,7 +1062,7 @@ public class PlayerController : MonoBehaviour
             IsConsumableCooldownMessage(msg, "Potion"))
             return TryPassConsumableCooldownLogGate(ref _nextPotionCooldownActivityLogTime);
 
-        return true;
+        return TryPassRepeatedPopupLogGate(msg);
     }
 
     private static bool IsConsumableCooldownMessage(string msg, string consumableLabel)
@@ -1075,6 +1077,20 @@ public class PlayerController : MonoBehaviour
             return false;
 
         nextAllowedTime = Time.unscaledTime + ConsumableCooldownActivityLogIntervalSeconds;
+        return true;
+    }
+
+    private bool TryPassRepeatedPopupLogGate(string msg)
+    {
+        if (string.IsNullOrWhiteSpace(msg))
+            return true;
+
+        string key = msg.Trim();
+        if (_nextActivityLogTimeByPopupMessage.TryGetValue(key, out float nextAllowedTime) &&
+            Time.unscaledTime < nextAllowedTime)
+            return false;
+
+        _nextActivityLogTimeByPopupMessage[key] = Time.unscaledTime + RepeatedPopupActivityLogIntervalSeconds;
         return true;
     }
 
@@ -2135,6 +2151,7 @@ public class PlayerController : MonoBehaviour
     {
         if (!characterStats) return;
         characterStats.RefreshVitalsFromStats(fillIfEmpty: false);
+        characterStats.ClampGuardToNaturalCap();
     }
 
     private void Die()

@@ -2985,6 +2985,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
         RaiseGuardChanged();
     }
 
+    public void ClampGuardToNaturalCap()
+    {
+        float cap = NaturalGuardCap;
+        float clamped = Mathf.Clamp(currentGuard, 0f, cap);
+        if (Mathf.Approximately(currentGuard, clamped))
+        {
+            RaiseGuardChanged();
+            return;
+        }
+
+        currentGuard = clamped;
+        RaiseGuardChanged();
+    }
+
     public bool SpendEnergy(float amount)
     {
         if (_isDead) return false;

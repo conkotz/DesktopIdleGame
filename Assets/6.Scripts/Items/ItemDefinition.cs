@@ -661,6 +661,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return EquipmentTierRules.GetTierDisplayLabel(GetEquipmentTierRank());
     }
 
+    private string GetEquipmentTierNumberLabel()
+    {
+        return (((int)GetEquipmentTierRank()) + 1).ToString();
+    }
+
     public bool MeetsEquipmentTierRequirement(SkillsManager sm)
     {
         if (sm == null) return true;
@@ -965,7 +970,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             string extras = BuildBonusLines(includeDefense: false, omitBurnBonuses: true);
 
             string s = "";
-            s += $"Tier: {GetEquipmentTierDisplayLabel()}\n" +
+            s += $"Tier: {GetEquipmentTierNumberLabel()}\n" +
                  $"Requires: {GetEquipmentTierGateSkill()} Lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}\n";
 
             if (HasPhysicalWeaponDamage)
@@ -1050,7 +1055,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             string s = "";
             if (UsesEquipmentTierGating)
             {
-                s += $"Tier: {GetEquipmentTierDisplayLabel()}\n" +
+                s += $"Tier: {GetEquipmentTierNumberLabel()}\n" +
                      $"Requires: {GetEquipmentTierGateSkill()} Lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}\n";
             }
 
@@ -1182,7 +1187,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (bonusStats.energyRegen != 0f) s += $"Energy Regen: {FormatSignedNumber(bonusStats.energyRegen)}/s\n";
         if (bonusStats.manaRegen != 0f) s += $"Mana Regen: {FormatSignedNumber(bonusStats.manaRegen)}/s\n";
         if (bonusStats.moveSpeedPercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.moveSpeedPercent, "Move Speed")}\n";
+            s += $"Move Speed: {FormatSignedPercent01(bonusStats.moveSpeedPercent)}\n";
         if (bonusStats.physicalDamage != 0f) s += $"Physical Damage: {FormatSignedNumber(bonusStats.physicalDamage)}\n";
         float allPhysPct = bonusStats.physicalDamagePercent + bonusStats.globalPhysicalDamagePercent;
         if (allPhysPct != 0f)
@@ -1191,7 +1196,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.rangedPhysicalDamagePercent, "Ranged physical")}\n";
         if (bonusStats.magicDamage != 0f) s += $"Magic Damage: {FormatSignedNumber(bonusStats.magicDamage)}\n";
         if (bonusStats.magicDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.magicDamagePercent, "All magic")}\n";
+            s += $"Magic Dmg: {FormatSignedPercent01(bonusStats.magicDamagePercent)}\n";
         if (bonusStats.fireSkillDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.fireSkillDamagePercent, "Fire skills")}\n";
         if (bonusStats.iceSkillDamagePercent != 0f)

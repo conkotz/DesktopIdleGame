@@ -1525,12 +1525,17 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     public void AwardCombatXp(float damageDealt, DpsDamageBucket? bucket)
     {
+        AwardCombatXp(damageDealt, bucket, true);
+    }
+
+    public void AwardCombatXp(float damageDealt, DpsDamageBucket? bucket, bool grantXp)
+    {
         if (damageDealt <= 0f)
             return;
 
         RecordDamageForDps(damageDealt, bucket);
 
-        if (xpPerDamage <= 0f)
+        if (!grantXp || xpPerDamage <= 0f)
             return;
 
         var sm = SkillsManager.Instance;
