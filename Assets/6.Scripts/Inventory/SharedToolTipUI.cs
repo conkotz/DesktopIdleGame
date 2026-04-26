@@ -91,6 +91,11 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         bool isEquip = def.equipSlot != EquipSlot.None;
+        bool showMaxStackSize =
+            def.itemKind != ItemKind.Weapon &&
+            def.itemKind != ItemKind.Armor &&
+            def.itemKind != ItemKind.CombatSupport &&
+            def.itemKind != ItemKind.Jewelry;
 
         int each = Mathf.Max(0, valueOverride ?? def.value);
         string valueLabel = string.IsNullOrWhiteSpace(valueLabelOverride) ? "Value" : valueLabelOverride;
@@ -128,7 +133,7 @@ public class SharedTooltipUI : MonoBehaviour
 
             if (customValueText)
             {
-                customValueText.text = customBlock;
+                customValueText.text = FormatShopValueBlock(customBlock);
                 customValueText.enabled = true;
                 customValueText.gameObject.SetActive(true);
             }
@@ -155,6 +160,8 @@ public class SharedTooltipUI : MonoBehaviour
                     stackAmount = Mathf.Max(0, stackAmount);
                     int stackValue = each * stackAmount;
                     stackValueText.text = $"Stack value: {FormatGold(stackValue)} ({stackAmount}×)";
+                    if (showMaxStackSize)
+                        stackValueText.text += $"\nMax stack size: {Mathf.Max(1, def.maxStack)}";
                     stackValueText.gameObject.SetActive(true);
                 }
                 else
@@ -388,6 +395,14 @@ public class SharedTooltipUI : MonoBehaviour
     {
         if (g >= 1000) return $"{(g / 1000f):0.#}k gold";
         return $"{g} gold";
+    }
+
+    private static string FormatShopValueBlock(string block)
+    {
+        if (string.IsNullOrWhiteSpace(block))
+            return "";
+
+        return $"\n<size=115%>{block.Trim()}</size>";
     }
 
     private static Color GetRarityColor(ItemRarity r)

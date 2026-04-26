@@ -38,7 +38,8 @@ public enum ItemKind
     Jewelry,
     Consumable,
     Quest,
-    CombatSupport
+    CombatSupport,
+    EnhancementScroll
 }
 
 public enum CombatSupportType
@@ -246,6 +247,10 @@ public struct ToolStats
 [System.Serializable]
 public struct ArmorStats
 {
+    [Header("Equipment Tier")]
+    [Tooltip("Shown as Tier 1–3; future gate uses Endurance at L1 / L20 / L40.")]
+    public EquipmentTierRank equipmentTier;
+
     [Header("Defence")]
     public int armor;
     public int magicResist;
@@ -510,6 +515,80 @@ public struct ConsumableStats
     public ConsumableGrantedEffect grantedEffect;
 }
 
+public enum EnhancementScrollTargetStat
+{
+    PhysicalDamage,
+    MagicDamage,
+    CorruptionDamage,
+    Health,
+    Energy,
+    Mana,
+    Armor,
+    MagicResist,
+    CorruptionResist,
+    CritChance,
+    CritMultiplier,
+    AttackSpeed,
+    LifeSteal,
+    MoveSpeed,
+}
+
+public enum EnhancementScrollModifierKind
+{
+    Flat,
+    Percent
+}
+
+public enum EnhancementScrollFailureOutcome
+{
+    Nothing,
+    DestroyItem,
+    DowngradeOrRemoveStat
+}
+
+[System.Flags]
+public enum EnhancementScrollGearMask
+{
+    None = 0,
+    Weapon = 1 << 0,
+    Armor = 1 << 1,
+    Jewelry = 1 << 2,
+    CombatSupport = 1 << 3,
+    Tool = 1 << 4,
+    AllGear = Weapon | Armor | Jewelry | CombatSupport | Tool
+}
+
+[System.Serializable]
+public struct EnhancementScrollStats
+{
+    [Header("Success Behaviour")]
+    [Range(0f, 1f)]
+    [Tooltip("Chance to apply the modifier. 0.8 = 80%.")]
+    public float successChance;
+
+    public EnhancementScrollTargetStat targetStat;
+    public EnhancementScrollModifierKind modifierKind;
+
+    [Tooltip("Flat value or fractional percent value depending on Modifier Kind. Percent uses 0.1 = 10%.")]
+    public float modifierValue;
+
+    [Header("Failure Behaviour")]
+    [Tooltip("If true, a gear upgrade slot is consumed even when this scroll fails.")]
+    public bool consumeSlotOnFailure;
+
+    public EnhancementScrollFailureOutcome failureOutcome;
+
+    [Range(0f, 1f)]
+    [Tooltip("Only used when Failure Outcome is Destroy Item, or for cursed high-risk scroll designs.")]
+    public float destroyChanceOnFailure;
+
+    [Tooltip("Future hook for high-risk scrolls. Use with Destroy Chance on Failure for cursed scrolls.")]
+    public bool cursed;
+
+    [Header("Gear Restrictions")]
+    public EnhancementScrollGearMask allowedGearTypes;
+}
+
 [System.Serializable]
 public struct CookableStats
 {
@@ -589,6 +668,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Tooltip("Which hand visual this item represents (Weapon/Pickaxe/Axe/FishingRod).")]
     public ToolKey handVisualKey = ToolKey.None;
 
+    [Header("Upgrades")]
+    [Tooltip("Currently filled enhancement slots. Max slots are derived from item type and tier.")]
+    [Min(0)] public int usedUpgradeSlots;
+
     [Header("Weapon Stats (Only if ItemKind = Weapon)")]
     public WeaponStats weaponStats;
 
@@ -612,6 +695,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Header("Consumable Stats (Only if ItemKind = Consumable)")]
     public ConsumableStats consumableStats;
 
+    [Header("Enhancement Scroll Stats (Only if ItemKind = EnhancementScroll)")]
+    public EnhancementScrollStats enhancementScrollStats;
+
     [Header("Cookable Stats")]
     public CookableStats cookableStats;
 
@@ -619,10 +705,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public bool IsTool => itemKind == ItemKind.Tool;
     public bool IsArmor => itemKind == ItemKind.Armor;
     public bool IsJewelry => itemKind == ItemKind.Jewelry;
+    public bool IsEnhancementScroll => itemKind == ItemKind.EnhancementScroll;
     public bool IsEquippable => IsWeapon || IsTool || IsArmor || IsJewelry || IsCombatSupport;
 
     public bool UsesEquipmentTierGating =>
-        IsWeapon || (IsTool && toolStats.toolType != ToolType.None);
+        IsWeapon || IsArmor || (IsTool && toolStats.toolType != ToolType.None);
 
     public SkillType GetEquipmentTierGateSkill()
     {
@@ -648,12 +735,16 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             };
         }
 
+        if (IsArmor)
+            return SkillType.Endurance;
+
         return SkillType.Melee;
     }
 
     public EquipmentTierRank GetEquipmentTierRank()
     {
         if (IsWeapon) return weaponStats.equipmentTier;
+        if (IsArmor) return armorStats.equipmentTier;
         if (IsTool) return toolStats.equipmentTier;
         return EquipmentTierRank.Tier1;
     }
@@ -774,6 +865,31 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public CombatSupportType SupportType =>
         IsCombatSupport ? combatSupportStats.supportType : CombatSupportType.None;
 
+    public bool HasUpgradeSlots => IsWeapon || IsArmor || IsTool || IsJewelry || IsCombatSupport;
+
+    public int MaxUpgradeSlots
+    {
+        get
+        {
+            if (IsWeapon || IsArmor)
+                return 5 + (int)GetEquipmentTierRank();
+            if (IsTool || IsJewelry || IsCombatSupport)
+                return 3;
+            return 0;
+        }
+    }
+
+    public int UsedUpgradeSlots => HasUpgradeSlots ? Mathf.Clamp(usedUpgradeSlots, 0, MaxUpgradeSlots) : 0;
+    public int AvailableUpgradeSlots => HasUpgradeSlots ? Mathf.Max(0, MaxUpgradeSlots - UsedUpgradeSlots) : 0;
+    public bool HasAvailableUpgradeSlot => AvailableUpgradeSlots > 0;
+
+    public string GetUpgradeSlotsTooltipLine()
+    {
+        if (!HasUpgradeSlots)
+            return "";
+        return $"Upgrade Slots: {UsedUpgradeSlots}/{MaxUpgradeSlots}";
+    }
+
     public int ArmorValue => (IsArmor ? armorStats.armor : 0) + bonusStats.armor;
     public int MagicResist => (IsArmor ? armorStats.magicResist : 0) + bonusStats.magicResist;
     public int CorruptionResist => (IsArmor ? armorStats.corruptionResist : 0) + bonusStats.corruptionResist;
@@ -848,6 +964,36 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public bool IsPotion =>
         IsConsumable && consumableStats.consumableType == ConsumableType.Potion;
+
+    public float EnhancementScrollSuccessChance =>
+        IsEnhancementScroll ? Mathf.Clamp01(enhancementScrollStats.successChance) : 0f;
+
+    public bool EnhancementScrollCanTarget(ItemDefinition gear)
+    {
+        if (!IsEnhancementScroll || gear == null || !gear.HasUpgradeSlots)
+            return false;
+
+        EnhancementScrollGearMask mask = enhancementScrollStats.allowedGearTypes;
+        if (mask == EnhancementScrollGearMask.None)
+            return false;
+
+        EnhancementScrollGearMask gearType = gear.itemKind switch
+        {
+            ItemKind.Weapon => EnhancementScrollGearMask.Weapon,
+            ItemKind.Armor => EnhancementScrollGearMask.Armor,
+            ItemKind.Jewelry => EnhancementScrollGearMask.Jewelry,
+            ItemKind.CombatSupport => EnhancementScrollGearMask.CombatSupport,
+            ItemKind.Tool => EnhancementScrollGearMask.Tool,
+            _ => EnhancementScrollGearMask.None
+        };
+
+        return gearType != EnhancementScrollGearMask.None && (mask & gearType) != 0;
+    }
+
+    public bool CanUseEnhancementScrollOn(ItemDefinition gear)
+    {
+        return EnhancementScrollCanTarget(gear) && gear.HasAvailableUpgradeSlot;
+    }
 
     public int HealAmount =>
         IsConsumable ? Mathf.Max(0, consumableStats.healAmount) : 0;
@@ -971,6 +1117,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             string s = "";
             s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
+                 FormatTooltipMetaLine("Upgrade Slots", $"{UsedUpgradeSlots}/{MaxUpgradeSlots}") + "\n" +
                  FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n" +
                  FormatTooltipMetaLine("Type", type) + "\n" +
                  FormatTooltipMetaLine("Hands", hands) + "\n\n";
@@ -1015,6 +1162,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (IsCombatSupport)
         {
             string s = $"Support Type: {SupportType}";
+            if (HasUpgradeSlots)
+                s += $"\n{GetUpgradeSlotsTooltipLine()}";
 
             if (SupportBonusPhysicalDamage != 0f) s += $"\nPhysical Damage: {FormatSignedNumber(SupportBonusPhysicalDamage)}";
             if (SupportBonusMagicDamage != 0f) s += $"\nMagic Damage: {FormatSignedNumber(SupportBonusMagicDamage)}";
@@ -1058,7 +1207,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (UsesEquipmentTierGating)
             {
                 s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
+                     FormatTooltipMetaLine("Upgrade Slots", $"{UsedUpgradeSlots}/{MaxUpgradeSlots}") + "\n" +
                      FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n";
+            }
+            else if (HasUpgradeSlots)
+            {
+                s += FormatTooltipMetaLine("Upgrade Slots", $"{UsedUpgradeSlots}/{MaxUpgradeSlots}") + "\n";
             }
 
             s += FormatTooltipMetaLine("Tool", type) + "\n\n" +
@@ -1080,6 +1234,17 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (IsArmor || IsJewelry)
         {
             string s = "";
+
+            if (IsArmor)
+            {
+                s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
+                     FormatTooltipMetaLine("Upgrade Slots", $"{UsedUpgradeSlots}/{MaxUpgradeSlots}") + "\n" +
+                     FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n\n";
+            }
+            else if (HasUpgradeSlots)
+            {
+                s += $"{GetUpgradeSlotsTooltipLine()}\n";
+            }
 
             if (ArmorValue != 0) s += $"Armour: {ArmorValue}\n";
             if (MagicResist != 0) s += $"Magic Res: {MagicResist}\n";
@@ -1123,6 +1288,18 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             if (CanCook())
                 s += "\nCookable: Yes";
+
+            return s;
+        }
+
+        if (IsEnhancementScroll)
+        {
+            string s =
+                $"Success Chance: {EnhancementScrollSuccessChance * 100f:0.#}%\n" +
+                $"Effect: {FormatEnhancementScrollModifier()}\n" +
+                $"Allowed Gear: {FormatEnhancementGearMask(enhancementScrollStats.allowedGearTypes)}\n" +
+                $"Consumes Slot On Fail: {(enhancementScrollStats.consumeSlotOnFailure ? "Yes" : "No")}\n" +
+                $"Failure: {FormatEnhancementFailure()}";
 
             return s;
         }
@@ -1306,6 +1483,83 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return $"Enemy respawn: -{EnemyRespawnTimeReductionSeconds:0.#}s";
     }
 
+    private string FormatEnhancementScrollModifier()
+    {
+        string value = enhancementScrollStats.modifierKind == EnhancementScrollModifierKind.Percent
+            ? FormatSignedPercent01(enhancementScrollStats.modifierValue)
+            : FormatSignedNumber(enhancementScrollStats.modifierValue);
+
+        return $"{value} {FormatEnhancementTargetStat(enhancementScrollStats.targetStat)}";
+    }
+
+    private static string FormatEnhancementTargetStat(EnhancementScrollTargetStat stat)
+    {
+        return stat switch
+        {
+            EnhancementScrollTargetStat.PhysicalDamage => "Physical Damage",
+            EnhancementScrollTargetStat.MagicDamage => "Magic Damage",
+            EnhancementScrollTargetStat.CorruptionDamage => "Corruption Damage",
+            EnhancementScrollTargetStat.Health => "Health",
+            EnhancementScrollTargetStat.Energy => "Energy",
+            EnhancementScrollTargetStat.Mana => "Mana",
+            EnhancementScrollTargetStat.Armor => "Armour",
+            EnhancementScrollTargetStat.MagicResist => "Magic Res",
+            EnhancementScrollTargetStat.CorruptionResist => "Corruption Res",
+            EnhancementScrollTargetStat.CritChance => "Crit Chance",
+            EnhancementScrollTargetStat.CritMultiplier => "Crit Multi",
+            EnhancementScrollTargetStat.AttackSpeed => "Attack Speed",
+            EnhancementScrollTargetStat.LifeSteal => "Life Steal",
+            EnhancementScrollTargetStat.MoveSpeed => "Move Speed",
+            _ => stat.ToString()
+        };
+    }
+
+    private string FormatEnhancementFailure()
+    {
+        string outcome = enhancementScrollStats.failureOutcome switch
+        {
+            EnhancementScrollFailureOutcome.Nothing => "Nothing",
+            EnhancementScrollFailureOutcome.DestroyItem => "Item may be destroyed",
+            EnhancementScrollFailureOutcome.DowngradeOrRemoveStat => "Downgrade/remove stat (future)",
+            _ => enhancementScrollStats.failureOutcome.ToString()
+        };
+
+        if (enhancementScrollStats.failureOutcome == EnhancementScrollFailureOutcome.DestroyItem ||
+            enhancementScrollStats.cursed)
+        {
+            outcome += $" ({Mathf.Clamp01(enhancementScrollStats.destroyChanceOnFailure) * 100f:0.#}% destroy chance)";
+        }
+
+        if (enhancementScrollStats.cursed)
+            outcome += ", Cursed";
+
+        return outcome;
+    }
+
+    private static string FormatEnhancementGearMask(EnhancementScrollGearMask mask)
+    {
+        if (mask == EnhancementScrollGearMask.None)
+            return "None";
+        if ((mask & EnhancementScrollGearMask.AllGear) == EnhancementScrollGearMask.AllGear)
+            return "All Gear";
+
+        string s = "";
+        AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Weapon, "Weapon");
+        AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Armor, "Armour");
+        AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Jewelry, "Jewelry");
+        AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.CombatSupport, "Combat Support");
+        AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Tool, "Tool");
+        return s;
+    }
+
+    private static void AppendMaskLabel(ref string list, EnhancementScrollGearMask mask, EnhancementScrollGearMask flag, string label)
+    {
+        if ((mask & flag) == 0)
+            return;
+
+        list = string.IsNullOrWhiteSpace(list) ? label : $"{list}, {label}";
+    }
+
     public string BuildTooltipStatsOneLine()
     {
         if (IsWeapon)
@@ -1369,6 +1623,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             return s;
         }
+
+        if (IsEnhancementScroll)
+            return $"{EnhancementScrollSuccessChance * 100f:0.#}% • {FormatEnhancementScrollModifier()}";
 
         if (CanCook())
             return "Cookable";

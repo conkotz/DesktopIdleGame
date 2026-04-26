@@ -11,6 +11,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
     [Header("Layout")]
     [SerializeField] private Vector2 fixedSize = new(250f, 250f);
     [SerializeField] private float worldScale = 0.01f;
+    [SerializeField, Range(0f, 0.1f)] private float viewportPadding = 0.02f;
 
     [Header("Optional refs")]
     [SerializeField] private TMP_Text dialogueText;
@@ -63,6 +64,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         }
 
         gameObject.SetActive(true);
+        ClampInsideScreen();
         StartAutoClose(autoCloseSeconds);
     }
 
@@ -99,6 +101,61 @@ public class NPCDialogueBoxUI : MonoBehaviour
     {
         _onAccept?.Invoke();
         Hide();
+    }
+
+    private void ClampInsideScreen()
+    {
+        if (!_rectTransform)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+
+        Canvas canvas = GetComponent<Canvas>();
+        Camera cam = canvas && canvas.worldCamera ? canvas.worldCamera : Camera.main;
+        if (!cam)
+            return;
+
+        Vector3[] corners = new Vector3[4];
+        _rectTransform.GetWorldCorners(corners);
+
+        float minX = float.PositiveInfinity;
+        float minY = float.PositiveInfinity;
+        float maxX = float.NegativeInfinity;
+        float maxY = float.NegativeInfinity;
+
+        for (int i = 0; i < corners.Length; i++)
+        {
+            Vector3 viewportPoint = cam.WorldToViewportPoint(corners[i]);
+            if (viewportPoint.z < 0f)
+                return;
+
+            minX = Mathf.Min(minX, viewportPoint.x);
+            minY = Mathf.Min(minY, viewportPoint.y);
+            maxX = Mathf.Max(maxX, viewportPoint.x);
+            maxY = Mathf.Max(maxY, viewportPoint.y);
+        }
+
+        float pad = Mathf.Clamp01(viewportPadding);
+        float dx = 0f;
+        float dy = 0f;
+
+        if (minX < pad)
+            dx = pad - minX;
+        else if (maxX > 1f - pad)
+            dx = (1f - pad) - maxX;
+
+        if (minY < pad)
+            dy = pad - minY;
+        else if (maxY > 1f - pad)
+            dy = (1f - pad) - maxY;
+
+        if (Mathf.Approximately(dx, 0f) && Mathf.Approximately(dy, 0f))
+            return;
+
+        float depth = cam.WorldToViewportPoint(transform.position).z;
+        Vector3 worldOrigin = cam.ViewportToWorldPoint(new Vector3(0f, 0f, depth));
+        Vector3 worldDelta = cam.ViewportToWorldPoint(new Vector3(dx, dy, depth)) - worldOrigin;
+        transform.position += worldDelta;
     }
 
     private void EnsureBuilt()

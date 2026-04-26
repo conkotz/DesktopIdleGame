@@ -10,54 +10,33 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6deaf633806e57a4f95e5f954b076992, type: 3}
-  m_Name: full_merchant_test
+  m_Name: blacksmith_merchant
   m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
   items:
-  - itemId: leather_boots
+  - itemId: stone_sword
     costs: []
     quantity: 1
-  - itemId: crit_ring
+  - itemId: stone_dagger
     costs: []
     quantity: 1
-  - itemId: vamp_ring
+  - itemId: poison_dagger
     costs: []
     quantity: 1
-  - itemId: sapphire_trinket
+  - itemId: stone_spear
     costs: []
     quantity: 1
-  - itemId: wooden_rod
-    costs:
-    - type: 1
-      amount: 1
-      itemId: raw_fish
-    - type: 0
-      amount: 1
-      itemId: 
-    quantity: 1
-  - itemId: stone_pickaxe
-    costs:
-    - type: 1
-      amount: 1
-      itemId: stone_chunk
-    - type: 0
-      amount: 1
-      itemId: 
-    quantity: 1
-  - itemId: stone_axe
-    costs:
-    - type: 1
-      amount: 1
-      itemId: splitwood_log
-    - type: 0
-      amount: 1
-      itemId: 
-    quantity: 1
-  - itemId: ability_power_pendant
+  - itemId: knights_polearm
     costs: []
     quantity: 1
-  - itemId: physical_damage_pendant
+  - itemId: ghorrocks_mace
     costs: []
     quantity: 1
-  - itemId: bone_ring
+  - itemId: stone_shield
+    costs: []
+    quantity: 1
+  - itemId: stone_platebody
+    costs: []
+    quantity: 1
+  - itemId: stone_helmet
     costs: []
     quantity: 1

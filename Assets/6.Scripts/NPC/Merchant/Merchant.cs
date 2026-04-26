@@ -1,12 +1,14 @@
 using System.Text;
 using System.Collections.Generic;
 using System;
+using TMPro;
 using UnityEngine;
 
 public class Merchant : MonoBehaviour, ISaveable
 {
     public event Action<Merchant> StockChanged;
     [Header("Identity")]
+    [SerializeField, InspectorName("Name")] private string characterName = "";
     [SerializeField] private string merchantName = "Merchant";
     [SerializeField] private MerchantStock stock;
 
@@ -23,6 +25,7 @@ public class Merchant : MonoBehaviour, ISaveable
     [Header("Refs (optional)")]
     [SerializeField] private Inventory inventory;
     [SerializeField] private CurrencyWallet wallet;
+    [SerializeField] private TMP_Text nameLabel;
 
     public string MerchantName => merchantName;
     public MerchantStock Stock => stock;
@@ -35,7 +38,68 @@ public class Merchant : MonoBehaviour, ISaveable
     {
         if (!inventory) inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
         if (!wallet) wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
+        ApplyIdentityToLabel();
         InitializeRuntimeStockFromDefaults();
+    }
+
+    private void OnEnable()
+    {
+        ApplyIdentityToLabel();
+    }
+
+    private void OnValidate()
+    {
+        ApplyIdentityToLabel();
+    }
+
+    private void ApplyIdentityToLabel()
+    {
+        if (!nameLabel)
+            nameLabel = FindNameLabel();
+
+        if (nameLabel)
+        {
+            nameLabel.textWrappingMode = TextWrappingModes.NoWrap;
+            nameLabel.overflowMode = TextOverflowModes.Overflow;
+            nameLabel.alignment = TextAlignmentOptions.Center;
+            nameLabel.richText = true;
+            nameLabel.fontStyle = FontStyles.Normal;
+            nameLabel.text = BuildNameLabelText();
+        }
+    }
+
+    private string BuildNameLabelText()
+    {
+        string person = string.IsNullOrWhiteSpace(characterName) ? "" : characterName.Trim();
+        string role = string.IsNullOrWhiteSpace(merchantName) ? "Merchant" : merchantName.Trim();
+
+        return string.IsNullOrWhiteSpace(person)
+            ? $"<size=85%>{EscapeRichText(role)}</size>"
+            : $"<b>{EscapeRichText(person)}</b>\n<size=85%>{EscapeRichText(role)}</size>";
+    }
+
+    private static string EscapeRichText(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return "";
+
+        return value
+            .Replace("&", "&amp;")
+            .Replace("<", "&lt;")
+            .Replace(">", "&gt;");
+    }
+
+    private TMP_Text FindNameLabel()
+    {
+        TMP_Text[] labels = GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < labels.Length; i++)
+        {
+            TMP_Text label = labels[i];
+            if (label && label.name == "NameLabel")
+                return label;
+        }
+
+        return null;
     }
 
     private void OnMouseDown()

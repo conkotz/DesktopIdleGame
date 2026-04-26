@@ -34,8 +34,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.1, y: 0.6}
-  m_SizeDelta: {x: 3, y: 2}
+  m_AnchoredPosition: {x: 0.16, y: 0.8}
+  m_SizeDelta: {x: 4, y: 1}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!23 &4071963302049133019
 MeshRenderer:
@@ -106,7 +106,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Chef
+  m_text: '<b>Garrick</b>
+
+    <size=85%>Chef</size>'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -133,13 +135,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 4
-  m_fontSizeBase: 4
+  m_fontSize: 3
+  m_fontSizeBase: 3
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -150,9 +152,9 @@ MonoBehaviour:
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
-  m_TextWrappingMode: 1
+  m_TextWrappingMode: 0
   m_wordWrappingRatios: 0.4
-  m_overflowMode: 3
+  m_overflowMode: 0
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 0
@@ -337,7 +339,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 38a92ba9f6d6f3c4e85e3b4ed075251c, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::MerchantClick
   mainMenuWindowUI: {fileID: 0}
   merchantModeBanner: {fileID: 0}
@@ -399,6 +401,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9777a4e128bf6544598bb32177523c1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Merchant
+  characterName: Garrick
   merchantName: Chef
   stock: {fileID: 11400000, guid: 6f1670c7869e5304aab5f6ecb8fa3c64, type: 2}
   ctrlClickSellsAll: 0
@@ -407,6 +410,7 @@ MonoBehaviour:
   merchantId: 
   inventory: {fileID: 0}
   wallet: {fileID: 0}
+  nameLabel: {fileID: 6899963982841364320}
 --- !u!114 &882000000000000001
 MonoBehaviour:
   m_ObjectHideFlags: 0

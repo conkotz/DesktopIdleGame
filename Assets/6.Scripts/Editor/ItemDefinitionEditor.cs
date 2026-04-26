@@ -7,7 +7,7 @@ public class ItemDefinitionEditor : Editor
     // Core
     private SerializedProperty itemKind;
     private SerializedProperty maxStack, itemId, displayName, icon, description, rarity, value;
-    private SerializedProperty equipSlot, handVisualKey;
+    private SerializedProperty equipSlot, handVisualKey, usedUpgradeSlots;
 
     // Visuals
     private SerializedProperty heldSprite;
@@ -24,6 +24,7 @@ public class ItemDefinitionEditor : Editor
     private SerializedProperty toolStats;
     private SerializedProperty armorStats;
     private SerializedProperty consumableStats;
+    private SerializedProperty enhancementScrollStats;
     private SerializedProperty cookableStats;
 
     // Bonuses
@@ -44,6 +45,7 @@ public class ItemDefinitionEditor : Editor
 
         equipSlot = serializedObject.FindProperty("equipSlot");
         handVisualKey = serializedObject.FindProperty("handVisualKey");
+        usedUpgradeSlots = serializedObject.FindProperty("usedUpgradeSlots");
 
         heldSprite = serializedObject.FindProperty("heldSprite");
         equippedSprite = serializedObject.FindProperty("equippedSprite");
@@ -58,6 +60,7 @@ public class ItemDefinitionEditor : Editor
         toolStats = serializedObject.FindProperty("toolStats");
         armorStats = serializedObject.FindProperty("armorStats");
         consumableStats = serializedObject.FindProperty("consumableStats");
+        enhancementScrollStats = serializedObject.FindProperty("enhancementScrollStats");
         cookableStats = serializedObject.FindProperty("cookableStats");
 
         bonusStats = serializedObject.FindProperty("bonusStats");
@@ -103,6 +106,28 @@ public class ItemDefinitionEditor : Editor
 
         DrawEquipSlotHint(kind, slot);
         EnforceSlotRules(kind, equipSlot, ref slot);
+
+        bool hasUpgradeSlots =
+            kind == ItemKind.Weapon ||
+            kind == ItemKind.Armor ||
+            kind == ItemKind.Tool ||
+            kind == ItemKind.Jewelry ||
+            kind == ItemKind.CombatSupport;
+
+        if (hasUpgradeSlots && usedUpgradeSlots != null)
+        {
+            EditorGUILayout.Space(6);
+            EditorGUILayout.LabelField("Upgrades", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(
+                usedUpgradeSlots,
+                new GUIContent("Used Upgrade Slots", "Current filled slots. Max slots are derived from item type and equipment tier."));
+            if (usedUpgradeSlots.intValue < 0)
+                usedUpgradeSlots.intValue = 0;
+        }
+        else if (usedUpgradeSlots != null)
+        {
+            usedUpgradeSlots.intValue = 0;
+        }
 
         bool showHandVisualKey =
             slot == EquipSlot.MainHand &&
@@ -266,6 +291,10 @@ public class ItemDefinitionEditor : Editor
         else if (kind == ItemKind.Consumable)
         {
             DrawConsumableStatsBlock();
+        }
+        else if (kind == ItemKind.EnhancementScroll)
+        {
+            DrawEnhancementScrollStatsBlock();
         }
         else
         {
@@ -607,6 +636,68 @@ public class ItemDefinitionEditor : Editor
             "Consumables can be assigned to the action bar and used by hotkey.\n\n" +
             "Food: usually instant healing.\n" +
             "Potion: can heal, restore energy, and/or apply a temporary effect.",
+            MessageType.None
+        );
+    }
+
+    private void DrawEnhancementScrollStatsBlock()
+    {
+        DrawModuleHeader("Enhancement Scroll Stats");
+
+        if (enhancementScrollStats == null)
+        {
+            EditorGUILayout.HelpBox("enhancementScrollStats property not found.", MessageType.Error);
+            return;
+        }
+
+        SerializedProperty successChance = enhancementScrollStats.FindPropertyRelative("successChance");
+        SerializedProperty targetStat = enhancementScrollStats.FindPropertyRelative("targetStat");
+        SerializedProperty modifierKind = enhancementScrollStats.FindPropertyRelative("modifierKind");
+        SerializedProperty modifierValue = enhancementScrollStats.FindPropertyRelative("modifierValue");
+        SerializedProperty consumeSlotOnFailure = enhancementScrollStats.FindPropertyRelative("consumeSlotOnFailure");
+        SerializedProperty failureOutcome = enhancementScrollStats.FindPropertyRelative("failureOutcome");
+        SerializedProperty destroyChanceOnFailure = enhancementScrollStats.FindPropertyRelative("destroyChanceOnFailure");
+        SerializedProperty cursed = enhancementScrollStats.FindPropertyRelative("cursed");
+        SerializedProperty allowedGearTypes = enhancementScrollStats.FindPropertyRelative("allowedGearTypes");
+
+        EditorGUILayout.LabelField("Success Behaviour", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(successChance, new GUIContent("Success Chance"));
+        EditorGUILayout.PropertyField(targetStat, new GUIContent("Stat Modifier Applied"));
+        EditorGUILayout.PropertyField(modifierKind, new GUIContent("Modifier Type"));
+        EditorGUILayout.PropertyField(modifierValue, new GUIContent("Modifier Value"));
+
+        if (successChance != null)
+            successChance.floatValue = Mathf.Clamp01(successChance.floatValue);
+
+        EditorGUILayout.Space(6);
+        EditorGUILayout.LabelField("Failure Behaviour", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(consumeSlotOnFailure, new GUIContent("Consume Slot On Failure"));
+        EditorGUILayout.PropertyField(failureOutcome, new GUIContent("Failure Outcome"));
+        EditorGUILayout.PropertyField(cursed, new GUIContent("Cursed"));
+
+        bool showDestroyChance =
+            (failureOutcome != null &&
+             (EnhancementScrollFailureOutcome)failureOutcome.enumValueIndex == EnhancementScrollFailureOutcome.DestroyItem) ||
+            (cursed != null && cursed.boolValue);
+
+        if (showDestroyChance)
+        {
+            EditorGUILayout.PropertyField(destroyChanceOnFailure, new GUIContent("Destroy Chance On Failure"));
+            if (destroyChanceOnFailure != null)
+                destroyChanceOnFailure.floatValue = Mathf.Clamp01(destroyChanceOnFailure.floatValue);
+        }
+        else if (destroyChanceOnFailure != null)
+        {
+            destroyChanceOnFailure.floatValue = 0f;
+        }
+
+        EditorGUILayout.Space(6);
+        EditorGUILayout.LabelField("Gear Restrictions", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(allowedGearTypes, new GUIContent("Allowed Gear Types"));
+
+        EditorGUILayout.HelpBox(
+            "Scroll design: one clear effect, one success chance, and simple risk.\n\n" +
+            "Example: Basic Attack Scroll -> 80% success, +2 Physical Damage, allowed on Weapon, consume slot on failure, no destruction.",
             MessageType.None
         );
     }

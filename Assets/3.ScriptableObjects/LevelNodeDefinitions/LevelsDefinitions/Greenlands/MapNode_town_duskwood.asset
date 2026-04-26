@@ -53,9 +53,14 @@ MonoBehaviour:
       prefab: {fileID: 0}
       count: 1
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint24
+      spawnPointName: SpawnPoint22
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 2240485527361661371, guid: 6e93381c288e6ae488bc8daf3fc70d29, type: 3}
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint24
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: 310e684af90247d68b5f681c8c39a402, type: 3}
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint26
@@ -76,6 +81,11 @@ MonoBehaviour:
       spawnPointName: SpawnPoint32
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 5214886831892509811, guid: 894d2a0476be8f64b94cf767bead3ee5, type: 3}
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint34
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: 6cb99a9702e798e4f9f4e802dd9284e9, type: 3}
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint36
