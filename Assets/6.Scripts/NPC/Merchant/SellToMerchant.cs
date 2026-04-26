@@ -42,6 +42,8 @@ public class SellToMerchant : MonoBehaviour, IPointerClickHandler
         var slot = inventory.GetSlot(slotIndex);
         if (slot.IsEmpty) return;
 
+        string itemName = ResolveItemDisplayName(slot.itemId);
+
         if (MerchantClick.TryGetActiveMerchant(out var activeMerchantRef) &&
             activeMerchantRef != null &&
             activeMerchantRef.TryRejectUnsellableItemWithPopup(slot.itemId))
@@ -75,10 +77,20 @@ public class SellToMerchant : MonoBehaviour, IPointerClickHandler
         }
 
         SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, merchantId, stockAdded);
+        GameLog.SoldItem(itemName, removed, goldGained);
 
         Debug.Log($"[InvSlotSell] Sold 1x {slot.itemId} for {goldGained} gold (slot {slotIndex}).");
 
         // Stops other click logic (drag/tooltip) if needed
         eventData.Use();
+    }
+
+    private string ResolveItemDisplayName(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return "";
+
+        ItemDefinition def = inventory ? inventory.GetItemDef(itemId) : null;
+        return def && !string.IsNullOrWhiteSpace(def.displayName) ? def.displayName : itemId;
     }
 }

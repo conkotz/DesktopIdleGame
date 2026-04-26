@@ -671,7 +671,9 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Failure Behaviour", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(consumeSlotOnFailure, new GUIContent("Consume Slot On Failure"));
+        EditorGUILayout.PropertyField(
+            consumeSlotOnFailure,
+            new GUIContent("Consumes Slot On Use", "Default scroll behaviour. Turn this off for special scrolls like slot reduction."));
         EditorGUILayout.PropertyField(failureOutcome, new GUIContent("Failure Outcome"));
         EditorGUILayout.PropertyField(cursed, new GUIContent("Cursed"));
 
@@ -697,7 +699,7 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.HelpBox(
             "Scroll design: one clear effect, one success chance, and simple risk.\n\n" +
-            "Example: Basic Attack Scroll -> 80% success, +2 Physical Damage, allowed on Weapon, consume slot on failure, no destruction.",
+            "Example: Basic Attack Scroll -> 80% success, +2 Physical Damage, allowed on Weapon, consumes slot on use, no destruction.",
             MessageType.None
         );
     }

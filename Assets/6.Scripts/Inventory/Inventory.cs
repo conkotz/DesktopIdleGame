@@ -52,6 +52,16 @@ public class Inventory : MonoBehaviour, ISaveable
         return def;
     }
 
+    public ItemDefinition CreateRuntimeEnhancedItem(ItemDefinition baseDef, string runtimeItemId = null)
+    {
+        return itemDb ? itemDb.CreateRuntimeEnhancedItem(baseDef, runtimeItemId) : null;
+    }
+
+    public bool IsRuntimeEnhancedItem(string itemId)
+    {
+        return itemDb && itemDb.IsRuntimeEnhancedItem(itemId);
+    }
+
     [Serializable]
     public struct Slot
     {
@@ -374,6 +384,9 @@ public class Inventory : MonoBehaviour, ISaveable
     {
         if (data == null) return;
 
+        if (itemDb)
+            itemDb.SaveRuntimeEnhancedItemsInto(data);
+
         data.inventorySlotCount = _slots.Count;
 
         if (data.inventorySlots == null)
@@ -395,6 +408,9 @@ public class Inventory : MonoBehaviour, ISaveable
     public void LoadFrom(SaveData data)
     {
         if (data == null) return;
+
+        if (itemDb)
+            itemDb.LoadRuntimeEnhancedItemsFrom(data);
 
         // Make sure we have the right slot count first
         int count = Mathf.Max(1, data.inventorySlotCount > 0 ? data.inventorySlotCount : 32);

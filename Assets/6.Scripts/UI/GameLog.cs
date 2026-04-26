@@ -155,6 +155,28 @@ public static class GameLog
         Add($"-{amount} {itemName.Trim()}", ItemLostColor);
     }
 
+    public static void InventoryFull(string itemName = null)
+    {
+        string suffix = string.IsNullOrWhiteSpace(itemName) ? "" : $": {itemName.Trim()}";
+        Add($"Inventory full{suffix}", ItemLostColor);
+    }
+
+    public static void PurchaseFailed(string reason, string itemName = null)
+    {
+        string trimmedReason = string.IsNullOrWhiteSpace(reason) ? "Purchase failed" : reason.Trim();
+        string suffix = string.IsNullOrWhiteSpace(itemName) ? "" : $": {itemName.Trim()}";
+        Add($"{trimmedReason}{suffix}", ItemLostColor);
+    }
+
+    public static void SoldItem(string itemName, int amount, int gold)
+    {
+        if (amount <= 0 || gold <= 0)
+            return;
+
+        string label = string.IsNullOrWhiteSpace(itemName) ? "Item" : itemName.Trim();
+        Add($"Sold {amount}x {label} for {gold} gold", GoldColor);
+    }
+
     public static void GoldGained(int amount, string sourceLine = null)
     {
         if (amount <= 0)

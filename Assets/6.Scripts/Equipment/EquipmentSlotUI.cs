@@ -534,6 +534,28 @@ public class EquipmentSlotUI : MonoBehaviour,
         int fromSlot = InventoryDragState.FromSlotIndex;
         if (fromSlot < 0) return;
 
+        if (draggedDef.itemKind == ItemKind.EnhancementScroll)
+        {
+            if (!IsDropReleaseConfirmed(eventData))
+                return;
+
+            bool success = false;
+            bool attempted = InventoryDragState.Source == InventoryDragState.SourceKind.Inventory &&
+                TryEnhanceEquippedItemFromScroll(fromSlot, out success);
+
+            InventoryDragState.EndDrag();
+            eventData.Use();
+
+            if (attempted)
+            {
+                EnhancementFlashUI.Flash(success);
+                RefreshFromState();
+                tooltip?.Hide();
+            }
+
+            return;
+        }
+
         bool fromStorage = InventoryDragState.Source == InventoryDragState.SourceKind.Storage;
         PlayerStorage playerStorage = fromStorage
             ? (InventoryDragState.StorageSource != null
@@ -735,6 +757,84 @@ public class EquipmentSlotUI : MonoBehaviour,
         }
 
         return inventory.RemoveAmountAtSlot(fromSlot, amount) == amount;
+    }
+
+    private bool TryEnhanceEquippedItemFromScroll(int scrollSlotIndex, out bool success)
+    {
+        success = false;
+
+        string targetItemId = GetItemIdForThisSlot();
+        if (string.IsNullOrWhiteSpace(targetItemId))
+            return false;
+
+        if (slotType == EquipmentUISlotType.OffHand && _def != null && _def.IsCombatSupport && equipment != null &&
+            equipment.OffHandStackAmount > 1)
+        {
+            return false;
+        }
+
+        return EnhancementUpgradeService.TryUseScrollOnEquippedItem(
+            inventory,
+            scrollSlotIndex,
+            targetItemId,
+            ReplaceThisEquippedItemId,
+            ClearThisSlot,
+            out success);
+    }
+
+    private void ReplaceThisEquippedItemId(string itemId)
+    {
+        switch (slotType)
+        {
+            case EquipmentUISlotType.MainHand:
+                equipment?.EquipMainHand(itemId);
+                break;
+            case EquipmentUISlotType.OffHand:
+                equipment?.EquipOffHand(itemId, GetEquippedAmountForThisSlot());
+                break;
+            case EquipmentUISlotType.Helmet:
+                equipment?.EquipGear(EquipSlot.Helmet, itemId);
+                break;
+            case EquipmentUISlotType.Body:
+                equipment?.EquipGear(EquipSlot.Body, itemId);
+                break;
+            case EquipmentUISlotType.Boots:
+                equipment?.EquipGear(EquipSlot.Boots, itemId);
+                break;
+            case EquipmentUISlotType.Trinket:
+                equipment?.EquipGear(EquipSlot.Trinket, itemId);
+                break;
+            case EquipmentUISlotType.Pendant:
+                equipment?.EquipGear(EquipSlot.Pendant, itemId);
+                break;
+            case EquipmentUISlotType.Ring1:
+                equipment?.EquipGear(EquipSlot.Ring, itemId, 0);
+                break;
+            case EquipmentUISlotType.Ring2:
+                equipment?.EquipGear(EquipSlot.Ring, itemId, 1);
+                break;
+            case EquipmentUISlotType.Toolbelt0:
+            case EquipmentUISlotType.Toolbelt1:
+            case EquipmentUISlotType.Toolbelt2:
+            case EquipmentUISlotType.Toolbelt3:
+                int toolIndex = GetToolbeltIndex();
+                if (toolIndex >= 0)
+                    toolbelt?.SetToolItemId(toolIndex, itemId);
+                break;
+        }
+    }
+
+    private static bool IsDropReleaseConfirmed(PointerEventData eventData)
+    {
+#if ENABLE_INPUT_SYSTEM
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null)
+            return mouse.leftButton.wasReleasedThisFrame || !mouse.leftButton.isPressed;
+#endif
+        return eventData == null ||
+               eventData.button != PointerEventData.InputButton.Left ||
+               Input.GetMouseButtonUp(0) ||
+               !Input.GetMouseButton(0);
     }
 
     private void LogRequirementBlockedDrop(ItemDefinition draggedDef)

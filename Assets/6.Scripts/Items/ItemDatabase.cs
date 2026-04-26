@@ -4,9 +4,13 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "Desktop Idle Game/Item Database", fileName = "ItemDatabase")]
 public class ItemDatabase : ScriptableObject
 {
+    private const string RuntimeEnhancedSeparator = "__enh_";
+
     [SerializeField] private List<ItemDefinition> items = new List<ItemDefinition>();
 
     private Dictionary<string, ItemDefinition> _map;
+    private readonly Dictionary<string, ItemDefinition> _runtimeItems = new Dictionary<string, ItemDefinition>(32);
+    private readonly Dictionary<string, string> _runtimeBaseIds = new Dictionary<string, string>(32);
 
     private void OnEnable()
     {
@@ -70,8 +74,131 @@ public class ItemDatabase : ScriptableObject
             Build();
 
         string key = Normalize(itemId);
-        return (key != null && _map.TryGetValue(key, out var def)) ? def : null;
+        if (key != null && _runtimeItems.TryGetValue(key, out var runtimeDef))
+            return runtimeDef;
+        if (key != null && _map.TryGetValue(key, out var def))
+            return def;
+
+        return TryRebuildRuntimeEnhancedFallback(itemId);
     }
 
     public List<ItemDefinition> GetAll() => items;
+
+    public bool IsRuntimeEnhancedItem(string itemId)
+    {
+        string key = Normalize(itemId);
+        return key != null && _runtimeItems.ContainsKey(key);
+    }
+
+    public ItemDefinition CreateRuntimeEnhancedItem(ItemDefinition baseDef, string runtimeItemId = null)
+    {
+        if (!baseDef || string.IsNullOrWhiteSpace(baseDef.itemId))
+            return null;
+
+        string id = string.IsNullOrWhiteSpace(runtimeItemId)
+            ? $"{baseDef.itemId}{RuntimeEnhancedSeparator}{System.Guid.NewGuid():N}"
+            : runtimeItemId.Trim();
+
+        ItemDefinition clone = Instantiate(baseDef);
+        clone.name = id;
+        clone.itemId = id;
+        clone.maxStack = 1;
+        clone.hideFlags = HideFlags.DontSave;
+        RegisterRuntimeItem(clone, baseDef.itemId);
+        return clone;
+    }
+
+    public void RegisterRuntimeItem(ItemDefinition def, string baseItemId)
+    {
+        if (!def || string.IsNullOrWhiteSpace(def.itemId) || string.IsNullOrWhiteSpace(baseItemId))
+            return;
+
+        string key = Normalize(def.itemId);
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        _runtimeItems[key] = def;
+        _runtimeBaseIds[key] = Normalize(baseItemId);
+    }
+
+    public void SaveRuntimeEnhancedItemsInto(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        data.enhancedItems ??= new List<SaveData.EnhancedItemData>();
+        data.enhancedItems.Clear();
+
+        foreach (var pair in _runtimeItems)
+        {
+            ItemDefinition def = pair.Value;
+            if (!def || !_runtimeBaseIds.TryGetValue(pair.Key, out string baseId))
+                continue;
+
+            data.enhancedItems.Add(new SaveData.EnhancedItemData
+            {
+                itemId = def.itemId,
+                baseItemId = baseId,
+                displayName = def.displayName,
+                usedUpgradeSlots = def.usedUpgradeSlots,
+                successfulEnhancements = def.successfulEnhancements,
+                weaponStats = def.weaponStats,
+                armorStats = def.armorStats,
+                bonusStats = def.bonusStats,
+                combatSupportStats = def.combatSupportStats,
+                toolStats = def.toolStats
+            });
+        }
+    }
+
+    public void LoadRuntimeEnhancedItemsFrom(SaveData data)
+    {
+        _runtimeItems.Clear();
+        _runtimeBaseIds.Clear();
+
+        if (data?.enhancedItems == null)
+            return;
+
+        for (int i = 0; i < data.enhancedItems.Count; i++)
+        {
+            SaveData.EnhancedItemData saved = data.enhancedItems[i];
+            if (saved == null || string.IsNullOrWhiteSpace(saved.itemId) || string.IsNullOrWhiteSpace(saved.baseItemId))
+                continue;
+
+            ItemDefinition baseDef = Get(saved.baseItemId);
+            if (!baseDef)
+                continue;
+
+            ItemDefinition clone = CreateRuntimeEnhancedItem(baseDef, saved.itemId);
+            if (!clone)
+                continue;
+
+            clone.displayName = string.IsNullOrWhiteSpace(saved.displayName) ? baseDef.displayName : saved.displayName;
+            clone.usedUpgradeSlots = Mathf.Max(0, saved.usedUpgradeSlots);
+            clone.successfulEnhancements = Mathf.Max(0, saved.successfulEnhancements);
+            clone.weaponStats = saved.weaponStats;
+            clone.armorStats = saved.armorStats;
+            clone.bonusStats = saved.bonusStats;
+            clone.combatSupportStats = saved.combatSupportStats;
+            clone.toolStats = saved.toolStats;
+        }
+    }
+
+    private ItemDefinition TryRebuildRuntimeEnhancedFallback(string runtimeItemId)
+    {
+        if (string.IsNullOrWhiteSpace(runtimeItemId))
+            return null;
+
+        int markerIndex = runtimeItemId.IndexOf(RuntimeEnhancedSeparator, System.StringComparison.Ordinal);
+        if (markerIndex <= 0)
+            return null;
+
+        string baseItemId = runtimeItemId.Substring(0, markerIndex);
+        ItemDefinition baseDef = Get(baseItemId);
+        if (!baseDef)
+            return null;
+
+        ItemDefinition clone = CreateRuntimeEnhancedItem(baseDef, runtimeItemId);
+        return clone;
+    }
 }

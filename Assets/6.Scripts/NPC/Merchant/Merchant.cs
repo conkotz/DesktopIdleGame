@@ -134,6 +134,7 @@ public class Merchant : MonoBehaviour, ISaveable
         int available = GetQuantity(entry);
         if (available >= 0 && available < amount)
         {
+            GameLog.PurchaseFailed("Not enough stock", ResolveItemDisplayName(entry.itemId));
             Debug.Log($"[Merchant] Not enough stock for {itemId}.");
             return false;
         }
@@ -145,6 +146,7 @@ public class Merchant : MonoBehaviour, ISaveable
             {
                 if (bought > 0)
                     ItemGainPopupNotifier.Notify(entry.itemId, bought);
+                GameLog.PurchaseFailed("Cannot afford", ResolveItemDisplayName(entry.itemId));
                 Debug.Log($"[Merchant] Cannot afford {itemId}.");
                 return false;
             }
@@ -153,6 +155,7 @@ public class Merchant : MonoBehaviour, ISaveable
             {
                 if (bought > 0)
                     ItemGainPopupNotifier.Notify(entry.itemId, bought);
+                GameLog.InventoryFull(ResolveItemDisplayName(entry.itemId));
                 Debug.Log($"[Merchant] Inventory full, could not add {itemId}.");
                 return false;
             }
@@ -164,6 +167,7 @@ public class Merchant : MonoBehaviour, ISaveable
             {
                 if (bought > 0)
                     ItemGainPopupNotifier.Notify(entry.itemId, bought);
+                GameLog.PurchaseFailed("Purchase failed", ResolveItemDisplayName(entry.itemId));
                 Debug.LogError($"[Merchant] Failed to add {itemId} after spending costs.");
                 return false;
             }
@@ -322,6 +326,21 @@ public class Merchant : MonoBehaviour, ISaveable
             sb.Append($"Stock: {qty}");
 
         return sb.ToString().TrimEnd();
+    }
+
+    private string ResolveItemDisplayName(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return "";
+
+        if (inventory != null)
+        {
+            ItemDefinition def = inventory.GetItemDef(itemId);
+            if (def != null && !string.IsNullOrWhiteSpace(def.displayName))
+                return def.displayName;
+        }
+
+        return itemId;
     }
 
     public bool TryReplenishStockFromPlayerSale(string itemId, int amount, out int addedToStock)

@@ -129,6 +129,8 @@ public class SaveManager : MonoBehaviour
         _isApplyingSaveData = true;
         try
         {
+            ApplyRuntimeEnhancedItemsToDatabase(data);
+
             var saveables = FindSaveables();
             foreach (var s in saveables)
                 s.LoadFrom(data);
@@ -177,6 +179,13 @@ public class SaveManager : MonoBehaviour
         var ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
         if (ps != null)
             ps.LoadFrom(data);
+    }
+
+    private static void ApplyRuntimeEnhancedItemsToDatabase(SaveData data)
+    {
+        ItemDatabase db = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        if (db != null)
+            db.LoadRuntimeEnhancedItemsFrom(data);
     }
 
     private void ApplyPendingNewGamePlayerName()
@@ -302,6 +311,8 @@ public class SaveManager : MonoBehaviour
         _isApplyingSaveData = true;
         try
         {
+            ApplyRuntimeEnhancedItemsToDatabase(data);
+
             var saveables = FindSaveables();
             foreach (var s in saveables)
                 s.LoadFrom(data);
@@ -325,6 +336,8 @@ public class SaveManager : MonoBehaviour
 
         if (data.inventorySlots == null)
             data.inventorySlots = new List<SaveData.InventorySlotData>();
+        if (data.enhancedItems == null)
+            data.enhancedItems = new List<SaveData.EnhancedItemData>();
         if (data.storageSlots == null)
             data.storageSlots = new List<SaveData.InventorySlotData>();
         if (data.questRewardClaimedIds == null)

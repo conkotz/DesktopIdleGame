@@ -531,6 +531,7 @@ public enum EnhancementScrollTargetStat
     AttackSpeed,
     LifeSteal,
     MoveSpeed,
+    UpgradeSlotReduction,
 }
 
 public enum EnhancementScrollModifierKind
@@ -550,11 +551,20 @@ public enum EnhancementScrollFailureOutcome
 public enum EnhancementScrollGearMask
 {
     None = 0,
+    [InspectorName("Any Weapon")]
     Weapon = 1 << 0,
     Armor = 1 << 1,
     Jewelry = 1 << 2,
     CombatSupport = 1 << 3,
     Tool = 1 << 4,
+    [InspectorName("Melee Weapon")]
+    MeleeWeapon = 1 << 5,
+    [InspectorName("Ranged Weapon")]
+    RangedWeapon = 1 << 6,
+    [InspectorName("Magic Weapon")]
+    MagicWeapon = 1 << 7,
+    [InspectorName("Ranged or Melee Weapon")]
+    MeleeOrRangedWeapon = MeleeWeapon | RangedWeapon,
     AllGear = Weapon | Armor | Jewelry | CombatSupport | Tool
 }
 
@@ -573,7 +583,7 @@ public struct EnhancementScrollStats
     public float modifierValue;
 
     [Header("Failure Behaviour")]
-    [Tooltip("If true, a gear upgrade slot is consumed even when this scroll fails.")]
+    [Tooltip("If true, a gear upgrade slot is consumed when this scroll is used. Turn off for special scrolls like slot reduction.")]
     public bool consumeSlotOnFailure;
 
     public EnhancementScrollFailureOutcome failureOutcome;
@@ -671,6 +681,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Header("Upgrades")]
     [Tooltip("Currently filled enhancement slots. Max slots are derived from item type and tier.")]
     [Min(0)] public int usedUpgradeSlots;
+    [Tooltip("Number of successful enhancements on this item instance. Used for +1/+2 display names.")]
+    [Min(0)] public int successfulEnhancements;
 
     [Header("Weapon Stats (Only if ItemKind = Weapon)")]
     public WeaponStats weaponStats;
@@ -977,22 +989,49 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (mask == EnhancementScrollGearMask.None)
             return false;
 
-        EnhancementScrollGearMask gearType = gear.itemKind switch
+        EnhancementScrollGearMask gearType = GetEnhancementGearMaskFor(gear);
+
+        return gearType != EnhancementScrollGearMask.None && (mask & gearType) != 0;
+    }
+
+    private static EnhancementScrollGearMask GetEnhancementGearMaskFor(ItemDefinition gear)
+    {
+        if (gear == null)
+            return EnhancementScrollGearMask.None;
+
+        if (gear.itemKind == ItemKind.Weapon)
         {
-            ItemKind.Weapon => EnhancementScrollGearMask.Weapon,
+            EnhancementScrollGearMask weaponMask = EnhancementScrollGearMask.Weapon;
+            weaponMask |= gear.weaponStats.attackSkill switch
+            {
+                AttackSkill.Melee => EnhancementScrollGearMask.MeleeWeapon,
+                AttackSkill.Ranged => EnhancementScrollGearMask.RangedWeapon,
+                AttackSkill.Magic => EnhancementScrollGearMask.MagicWeapon,
+                _ => EnhancementScrollGearMask.None
+            };
+
+            return weaponMask;
+        }
+
+        return gear.itemKind switch
+        {
             ItemKind.Armor => EnhancementScrollGearMask.Armor,
             ItemKind.Jewelry => EnhancementScrollGearMask.Jewelry,
             ItemKind.CombatSupport => EnhancementScrollGearMask.CombatSupport,
             ItemKind.Tool => EnhancementScrollGearMask.Tool,
             _ => EnhancementScrollGearMask.None
         };
-
-        return gearType != EnhancementScrollGearMask.None && (mask & gearType) != 0;
     }
 
     public bool CanUseEnhancementScrollOn(ItemDefinition gear)
     {
-        return EnhancementScrollCanTarget(gear) && gear.HasAvailableUpgradeSlot;
+        if (!EnhancementScrollCanTarget(gear))
+            return false;
+
+        if (enhancementScrollStats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
+            return gear.UsedUpgradeSlots > 0;
+
+        return gear.HasAvailableUpgradeSlot;
     }
 
     public int HealAmount =>
@@ -1298,8 +1337,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 $"Success Chance: {EnhancementScrollSuccessChance * 100f:0.#}%\n" +
                 $"Effect: {FormatEnhancementScrollModifier()}\n" +
                 $"Allowed Gear: {FormatEnhancementGearMask(enhancementScrollStats.allowedGearTypes)}\n" +
-                $"Consumes Slot On Fail: {(enhancementScrollStats.consumeSlotOnFailure ? "Yes" : "No")}\n" +
-                $"Failure: {FormatEnhancementFailure()}";
+                $"Consumes Slot On Use: {(enhancementScrollStats.consumeSlotOnFailure ? "Yes" : "No")}";
+
+            if (enhancementScrollStats.failureOutcome != EnhancementScrollFailureOutcome.Nothing)
+                s += $"\nFailure: {FormatEnhancementFailure()}";
 
             return s;
         }
@@ -1485,6 +1526,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     private string FormatEnhancementScrollModifier()
     {
+        if (enhancementScrollStats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
+        {
+            int slots = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(enhancementScrollStats.modifierValue)));
+            return $"-{slots} Used Upgrade Slot{(slots == 1 ? "" : "s")}";
+        }
+
         string value = enhancementScrollStats.modifierKind == EnhancementScrollModifierKind.Percent
             ? FormatSignedPercent01(enhancementScrollStats.modifierValue)
             : FormatSignedNumber(enhancementScrollStats.modifierValue);
@@ -1510,6 +1557,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             EnhancementScrollTargetStat.AttackSpeed => "Attack Speed",
             EnhancementScrollTargetStat.LifeSteal => "Life Steal",
             EnhancementScrollTargetStat.MoveSpeed => "Move Speed",
+            EnhancementScrollTargetStat.UpgradeSlotReduction => "Used Upgrade Slot",
             _ => stat.ToString()
         };
     }
@@ -1544,7 +1592,21 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             return "All Gear";
 
         string s = "";
-        AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Weapon, "Weapon");
+        if ((mask & EnhancementScrollGearMask.Weapon) == EnhancementScrollGearMask.Weapon)
+        {
+            AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Weapon, "Any Weapon");
+        }
+        else if ((mask & EnhancementScrollGearMask.MeleeOrRangedWeapon) == EnhancementScrollGearMask.MeleeOrRangedWeapon)
+        {
+            AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.MeleeOrRangedWeapon, "Ranged or Melee Weapon");
+        }
+        else
+        {
+            AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.MeleeWeapon, "Melee Weapon");
+            AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.RangedWeapon, "Ranged Weapon");
+        }
+
+        AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.MagicWeapon, "Magic Weapon");
         AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Armor, "Armour");
         AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Jewelry, "Jewelry");
         AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.CombatSupport, "Combat Support");

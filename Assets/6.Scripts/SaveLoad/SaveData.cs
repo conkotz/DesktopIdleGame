@@ -52,6 +52,7 @@ public class SaveData
     [Header("Inventory")]
     public int inventorySlotCount = 32;
     public List<InventorySlotData> inventorySlots = new();
+    public List<EnhancedItemData> enhancedItems = new();
 
     [Header("Town storage chest")]
     public int storageSlotCount = 28;
@@ -62,6 +63,21 @@ public class SaveData
     {
         public string itemId;
         public int amount;
+    }
+
+    [Serializable]
+    public class EnhancedItemData
+    {
+        public string itemId;
+        public string baseItemId;
+        public string displayName;
+        public int usedUpgradeSlots;
+        public int successfulEnhancements;
+        public WeaponStats weaponStats;
+        public ArmorStats armorStats;
+        public BonusStats bonusStats;
+        public CombatSupportStats combatSupportStats;
+        public ToolStats toolStats;
     }
 
     [Header("Equipment")]

@@ -16,3 +16,6 @@ MonoBehaviour:
   - itemId: basic_weapon_physical_scroll
     costs: []
     quantity: -1
+  - itemId: slot_reduction_scroll
+    costs: []
+    quantity: -1

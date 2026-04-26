@@ -248,6 +248,7 @@ public class InventorySlotUI : MonoBehaviour,
 
         var slot = _inventory.GetSlot(_slotIndex);
         if (slot.IsEmpty) return;
+        string soldItemName = ResolveItemDisplayName(slot.itemId);
 
         if (MerchantClick.TryGetActiveMerchant(out var activeMerchantRef) &&
             activeMerchantRef != null &&
@@ -279,6 +280,7 @@ public class InventorySlotUI : MonoBehaviour,
         if (spawner) spawner.ShowGoldGained(goldGained);
 
         SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, merchantId, stockAdded);
+        GameLog.SoldItem(soldItemName, removed, goldGained);
 
         eventData.Use();
         _tooltip?.Hide();
@@ -754,6 +756,32 @@ public class InventorySlotUI : MonoBehaviour,
         if (fromSlot < 0 || toSlot < 0) return;
         if (fromSlot == toSlot) return;
 
+        if (IsDraggedEnhancementScroll() && ShouldTreatDropAsEnhancementTarget(toSlot))
+        {
+            if (!IsDropReleaseConfirmed(eventData))
+                return;
+
+            bool attempted = EnhancementUpgradeService.TryUseScrollOnInventorySlot(
+                _inventory,
+                fromSlot,
+                toSlot,
+                out bool success);
+
+            if (attempted)
+            {
+                EnhancementFlashUI.Flash(success);
+                InventoryDragState.EndDrag();
+                _tooltip?.Hide();
+                eventData.Use();
+                return;
+            }
+
+            // Invalid scroll target: consume the drop event so the scroll snaps back instead of swapping slots.
+            InventoryDragState.EndDrag();
+            eventData.Use();
+            return;
+        }
+
         if (InventoryDragState.IsSplit)
         {
             _inventory.MoveAmount(fromSlot, toSlot, InventoryDragState.CarriedAmount);
@@ -770,6 +798,52 @@ public class InventorySlotUI : MonoBehaviour,
         }
 
         _inventory.SwapSlots(fromSlot, toSlot);
+    }
+
+    private bool IsDraggedEnhancementScroll()
+    {
+        if (_inventory == null || !InventoryDragState.HasDrag)
+            return false;
+        if (InventoryDragState.Source != InventoryDragState.SourceKind.Inventory)
+            return false;
+
+        ItemDefinition draggedDef = _inventory.GetItemDef(InventoryDragState.ItemId);
+        return draggedDef && draggedDef.itemKind == ItemKind.EnhancementScroll;
+    }
+
+    private static bool IsDropReleaseConfirmed(PointerEventData eventData)
+    {
+#if ENABLE_INPUT_SYSTEM
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (mouse != null)
+            return mouse.leftButton.wasReleasedThisFrame || !mouse.leftButton.isPressed;
+#endif
+        return eventData == null ||
+               eventData.button != PointerEventData.InputButton.Left ||
+               Input.GetMouseButtonUp(0) ||
+               !Input.GetMouseButton(0);
+    }
+
+    private bool ShouldTreatDropAsEnhancementTarget(int targetSlotIndex)
+    {
+        if (_inventory == null)
+            return false;
+
+        var target = _inventory.GetSlot(targetSlotIndex);
+        if (target.IsEmpty)
+            return false;
+
+        ItemDefinition targetDef = _inventory.GetItemDef(target.itemId);
+        return targetDef && targetDef.itemKind != ItemKind.EnhancementScroll;
+    }
+
+    private string ResolveItemDisplayName(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return "";
+
+        ItemDefinition def = _inventory ? _inventory.GetItemDef(itemId) : null;
+        return def && !string.IsNullOrWhiteSpace(def.displayName) ? def.displayName : itemId;
     }
 
     private void ReturnOrDrop(string itemId, int amount = 1)
