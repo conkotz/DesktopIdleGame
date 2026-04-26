@@ -161,7 +161,7 @@ MonoBehaviour:
     failureOutcome: 0
     destroyChanceOnFailure: 0
     cursed: 0
-    allowedGearTypes: 23
+    allowedGearTypes: 19
   cookableStats:
     isCookable: 0
     cookedResultItemId: 
