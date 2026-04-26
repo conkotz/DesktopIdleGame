@@ -1057,12 +1057,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             string s = "";
             if (UsesEquipmentTierGating)
             {
-                s += $"Tier: {GetEquipmentTierNumberLabel()}\n" +
-                     $"Requires: {GetEquipmentTierGateSkill()} Lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}\n";
+                s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
+                     FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n";
             }
 
-            s +=
-                $"Tool: {type}\n" +
+            s += FormatTooltipMetaLine("Tool", type) + "\n\n" +
                 $"Gather Speed: {GatherSpeedMultiplier:0.##}x\n" +
                 $"Gather Grit: {GatheringGrit * 100f:0.#}%\n" +
                 $"Bonus Find: +{BonusResourceFindChance * 100f:0.#}%\n" +
