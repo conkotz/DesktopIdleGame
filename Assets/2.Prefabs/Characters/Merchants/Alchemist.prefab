@@ -107,6 +107,7 @@ GameObject:
   - component: {fileID: 4040638256829886367}
   - component: {fileID: 5225099290699661342}
   - component: {fileID: 2532923814944410918}
+  - component: {fileID: 882000000000000001}
   m_Layer: 7
   m_Name: Alchemist
   m_TagString: Untagged
@@ -247,7 +248,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 38a92ba9f6d6f3c4e85e3b4ed075251c, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::MerchantClick
   mainMenuWindowUI: {fileID: 0}
   merchantModeBanner: {fileID: 0}
@@ -257,7 +258,7 @@ MonoBehaviour:
   shopRect: {fileID: 0}
   canvasRect: {fileID: 0}
   uiCamera: {fileID: 0}
-  screenOffset: {x: 0, y: 0}
+  screenOffset: {x: -220, y: 80}
 --- !u!114 &4040638256829886367
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -317,6 +318,23 @@ MonoBehaviour:
   merchantId: 
   inventory: {fileID: 0}
   wallet: {fileID: 0}
+--- !u!114 &882000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4973683916600228948}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
+  dialogue: howdy
+  dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
+  dialogueLocalOffset: {x: 1.25, y: -0.35, z: 0}
+  nonQuestAutoCloseSeconds: 5
+  questGiver: {fileID: 0}
 --- !u!1 &8799760392566647684
 GameObject:
   m_ObjectHideFlags: 0
@@ -342,7 +360,7 @@ Transform:
   m_GameObject: {fileID: 8799760392566647684}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.07, y: -0.73, z: 0}
+  m_LocalPosition: {x: -1.11, y: -0.16, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

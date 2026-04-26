@@ -1,12 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 /// <summary>
-/// First-pass quest giver: attach to an NPC, merchant, noticeboard, or clickable world/UI object.
+/// Quest availability marker/provider. NPCInteractionSettings handles click dialogue and accepting.
 /// Configure a location id that matches QuestDefinition.obtainLocationId and one or more quest ids.
 /// </summary>
-public class QuestGiver : MonoBehaviour, IPointerClickHandler
+public class QuestGiver : MonoBehaviour
 {
     [Header("Quest source")]
     [Tooltip("Must match QuestDefinition.obtainLocationId for quests offered here.")]
@@ -21,7 +20,8 @@ public class QuestGiver : MonoBehaviour, IPointerClickHandler
     [Header("Available quest marker")]
     [Tooltip("Optional prefab to show while a quest is available. If empty, a yellow 3D '!' is created.")]
     [SerializeField] private GameObject exclamationMarkPrefab;
-    [SerializeField] private Vector3 exclamationMarkLocalOffset = new(0.2f, 1.5f, 0f);
+    [Tooltip("World offset from the top-center of this object's Collider2D bounds.")]
+    [SerializeField] private Vector3 exclamationMarkLocalOffset = new(0f, 0.75f, 0f);
     [SerializeField] private float generatedExclamationMarkSize = 0.2f;
     [SerializeField] private Color exclamationMarkColor = Color.yellow;
 
@@ -52,31 +52,6 @@ public class QuestGiver : MonoBehaviour, IPointerClickHandler
         }
     }
 
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        TryGrantAvailableQuest();
-    }
-
-    private void OnMouseDown()
-    {
-        TryGrantAvailableQuest();
-    }
-
-    public bool TryGrantAvailableQuest()
-    {
-        TryBindManager();
-        if (_manager == null)
-            return false;
-
-        QuestDefinition quest = FindFirstAvailableQuest();
-        if (!quest)
-            return false;
-
-        bool accepted = _manager.TryAcceptQuest(quest, locationId);
-        RefreshExclamationMark();
-        return accepted;
-    }
-
     private void TryBindManager()
     {
         QuestProgressManager next = QuestProgressManager.Instance ??
@@ -93,8 +68,9 @@ public class QuestGiver : MonoBehaviour, IPointerClickHandler
             _manager.ProgressChanged += RefreshExclamationMark;
     }
 
-    private QuestDefinition FindFirstAvailableQuest()
+    public QuestDefinition GetFirstAvailableQuest()
     {
+        TryBindManager();
         if (_manager == null)
             return null;
 
@@ -115,6 +91,17 @@ public class QuestGiver : MonoBehaviour, IPointerClickHandler
         return _manager.FindFirstAcceptableQuestAtLocation(locationId);
     }
 
+    public bool TryAcceptQuest(QuestDefinition quest)
+    {
+        TryBindManager();
+        if (_manager == null || !quest)
+            return false;
+
+        bool accepted = _manager.TryAcceptQuest(quest, locationId);
+        RefreshExclamationMark();
+        return accepted;
+    }
+
     private QuestDefinition FindAvailableQuestById(string id)
     {
         if (string.IsNullOrWhiteSpace(id) || _manager == null)
@@ -129,10 +116,13 @@ public class QuestGiver : MonoBehaviour, IPointerClickHandler
 
     private void RefreshExclamationMark()
     {
-        bool show = FindFirstAvailableQuest() != null;
+        bool show = GetFirstAvailableQuest() != null;
         EnsureExclamationMarkInstance();
         if (_exclamationMarkInstance)
+        {
+            PositionExclamationMark();
             _exclamationMarkInstance.SetActive(show);
+        }
     }
 
     private void EnsureExclamationMarkInstance()
@@ -143,13 +133,11 @@ public class QuestGiver : MonoBehaviour, IPointerClickHandler
         if (exclamationMarkPrefab)
         {
             _exclamationMarkInstance = Instantiate(exclamationMarkPrefab, transform);
-            _exclamationMarkInstance.transform.localPosition = exclamationMarkLocalOffset;
             return;
         }
 
         var go = new GameObject("AvailableQuestExclamationMark", typeof(TextMesh));
         go.transform.SetParent(transform, false);
-        go.transform.localPosition = exclamationMarkLocalOffset;
 
         TextMesh text = go.GetComponent<TextMesh>();
         text.text = "!";
@@ -160,5 +148,27 @@ public class QuestGiver : MonoBehaviour, IPointerClickHandler
         text.fontSize = 96;
 
         _exclamationMarkInstance = go;
+    }
+
+    private void PositionExclamationMark()
+    {
+        Vector3 anchor = GetColliderTopCenterWorld();
+        _exclamationMarkInstance.transform.position = anchor + exclamationMarkLocalOffset;
+        _exclamationMarkInstance.transform.rotation = Quaternion.identity;
+    }
+
+    private Vector3 GetColliderTopCenterWorld()
+    {
+        Collider2D col = GetComponent<Collider2D>();
+        if (!col)
+            col = GetComponentInChildren<Collider2D>();
+        if (!col)
+            col = GetComponentInParent<Collider2D>();
+
+        if (!col)
+            return transform.position;
+
+        Bounds b = col.bounds;
+        return new Vector3(b.center.x, b.max.y, transform.position.z);
     }
 }

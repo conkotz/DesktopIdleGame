@@ -25,8 +25,11 @@ MonoBehaviour:
   rewardItem: {fileID: 0}
   rewardItemId: 
   rewardItemQuantity: 1
+  additionalItemRewards: []
   rewardNotes: 
   repeatable: 0
+  abandonable: 1
+  obtainLocationId: noticeboard
   progressMapNodeId: green_fields
   killProgressOnlyOnProgressMap: 1
   prerequisiteRewardClaimedQuestIds: []

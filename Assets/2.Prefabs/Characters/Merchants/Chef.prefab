@@ -96,7 +96,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9541d86e2fd84c1d9990edf0852d74ab, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshPro
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -196,6 +196,7 @@ GameObject:
   - component: {fileID: 945217071761784929}
   - component: {fileID: 206423607712956019}
   - component: {fileID: 1094599605783443717}
+  - component: {fileID: 882000000000000001}
   m_Layer: 7
   m_Name: Chef
   m_TagString: Untagged
@@ -346,7 +347,7 @@ MonoBehaviour:
   shopRect: {fileID: 0}
   canvasRect: {fileID: 0}
   uiCamera: {fileID: 0}
-  screenOffset: {x: 0, y: 0}
+  screenOffset: {x: -220, y: 80}
 --- !u!114 &945217071761784929
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -406,6 +407,23 @@ MonoBehaviour:
   merchantId: 
   inventory: {fileID: 0}
   wallet: {fileID: 0}
+--- !u!114 &882000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4920183082709471436}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
+  dialogue: howdy
+  dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
+  dialogueLocalOffset: {x: 1.25, y: -0.35, z: 0}
+  nonQuestAutoCloseSeconds: 5
+  questGiver: {fileID: 0}
 --- !u!1 &6640105156933996686
 GameObject:
   m_ObjectHideFlags: 0

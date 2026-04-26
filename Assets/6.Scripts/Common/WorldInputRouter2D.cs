@@ -71,7 +71,12 @@ public class WorldInputRouter2D : MonoBehaviour
                 return;
             }
 
-            // 3) Merchant / NPC interactables
+            // 3) Generic NPC dialogue / quest interactables
+            var npc = winnerCol.GetComponentInParent<NPCInteractionSettings>();
+            if (npc != null)
+                npc.Interact();
+
+            // 3b) Merchant / NPC interactables
             var merchant = winnerCol.GetComponentInParent<MerchantClick>();
             if (merchant != null)
             {
@@ -79,7 +84,7 @@ public class WorldInputRouter2D : MonoBehaviour
                 return;
             }
 
-            // 3b) Town storage chest
+            // 3c) Town storage chest
             var storage = winnerCol.GetComponentInParent<StorageClick>();
             if (storage != null)
             {

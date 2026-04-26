@@ -17,7 +17,7 @@ public class MerchantClick : MonoBehaviour
     [SerializeField] private RectTransform shopRect;        // Shop window RectTransform
     [SerializeField] private RectTransform canvasRect;      // Root canvas RectTransform
     [SerializeField] private Camera uiCamera;               // Null for Screen Space Overlay
-    [SerializeField] private Vector2 screenOffset = new Vector2(0f, 20f);
+    [SerializeField] private Vector2 screenOffset = new Vector2(-220f, 80f);
 
     public static bool MerchantModeOpen { get; private set; }
     public static bool IsShopOpen => _active != null && _active.shopUI != null && _active.shopUI.IsOpen;
@@ -190,9 +190,9 @@ public class MerchantClick : MonoBehaviour
 
     private void PositionShopUI()
     {
-        if (!shopAnchor || !shopRect || !canvasRect)
+        if (!shopRect || !canvasRect)
         {
-            Debug.LogWarning("[MerchantClick] Missing shopAnchor, shopRect, or canvasRect for positioning.");
+            Debug.LogWarning("[MerchantClick] Missing shopRect or canvasRect for positioning.");
             return;
         }
 
@@ -201,7 +201,7 @@ public class MerchantClick : MonoBehaviour
         Camera worldCam = Camera.main;
         Camera uiCam = uiCamera; // null for Screen Space Overlay
 
-        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(worldCam, shopAnchor.position);
+        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(worldCam, transform.position);
         screenPos += screenOffset;
 
         if (RectTransformUtility.ScreenPointToWorldPointInRectangle(

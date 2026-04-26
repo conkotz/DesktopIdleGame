@@ -19,6 +19,12 @@ public class UIWindowCloseButton : MonoBehaviour
         _button.onClick.AddListener(CloseWindow);
     }
 
+    public void Configure(GameObject target, bool disableInstead = false)
+    {
+        targetWindow = target;
+        disableInsteadOfHide = disableInstead;
+    }
+
     public void CloseWindow()
     {
         if (!targetWindow)

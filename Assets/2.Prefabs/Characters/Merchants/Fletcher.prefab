@@ -47,6 +47,7 @@ GameObject:
   - component: {fileID: 4127917735906593618}
   - component: {fileID: 1078493593605119097}
   - component: {fileID: 5839785130135361787}
+  - component: {fileID: 882000000000000001}
   m_Layer: 7
   m_Name: Fletcher
   m_TagString: Untagged
@@ -187,7 +188,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 38a92ba9f6d6f3c4e85e3b4ed075251c, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::MerchantClick
   mainMenuWindowUI: {fileID: 0}
   merchantModeBanner: {fileID: 0}
@@ -197,7 +198,7 @@ MonoBehaviour:
   shopRect: {fileID: 0}
   canvasRect: {fileID: 0}
   uiCamera: {fileID: 0}
-  screenOffset: {x: 0, y: 0}
+  screenOffset: {x: -220, y: 80}
 --- !u!114 &4574227046474827055
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -269,13 +270,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 057b23ef544f434baada2bf6cb93395a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestGiver
-  locationId: 
+  locationId: fletcher
   questId: fletchers_request
   additionalQuestIds: []
   exclamationMarkPrefab: {fileID: 0}
-  exclamationMarkLocalOffset: {x: 0.2, y: 1.5, z: 0}
+  exclamationMarkLocalOffset: {x: 0, y: 0.75, z: 0}
   generatedExclamationMarkSize: 0.2
   exclamationMarkColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+--- !u!114 &882000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5214886831892509811}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
+  dialogue: howdy
+  dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
+  dialogueLocalOffset: {x: 1.25, y: -0.35, z: 0}
+  nonQuestAutoCloseSeconds: 5
+  questGiver: {fileID: 5839785130135361787}
 --- !u!1 &6118185414367586614
 GameObject:
   m_ObjectHideFlags: 0
