@@ -469,6 +469,8 @@ public class QuestPageUI : MonoBehaviour
         _scratchQuests.Clear();
         questDatabase.CollectForRegion(_selectedRegion.regionId, _scratchQuests);
         _scratchQuests.RemoveAll(q => !q || !q.IsShownInQuestList(mapProgress));
+        if (qProg != null)
+            _scratchQuests.RemoveAll(q => !qProg.IsQuestVisibleInList(q));
         ApplyQuestListFilters(_scratchQuests, qProg);
         if (_scratchQuests.Count == 0)
         {
@@ -492,6 +494,7 @@ public class QuestPageUI : MonoBehaviour
             bool gated = qProg && qProg.IsQuestGatedByPrerequisites(q);
             string status = BuildQuestListStatus(q, qProg, amt);
             bool tracked = QuestTrackerState.IsTracked(q.questId);
+            bool canAbandon = qProg != null && qProg.CanAbandonQuest(q);
             row.Bind(
                 q,
                 q.listCategoryLabel,
@@ -502,7 +505,9 @@ public class QuestPageUI : MonoBehaviour
                 OnQuestClicked,
                 tracked,
                 OnTrackQuestClicked,
-                !permanentlyDone);
+                !permanentlyDone && qProg != null && qProg.IsQuestAccepted(q),
+                OnAbandonQuestClicked,
+                canAbandon);
         }
 
         if (_selectedQuest != null && !_scratchQuests.Contains(_selectedQuest))
@@ -567,6 +572,8 @@ public class QuestPageUI : MonoBehaviour
         quests.RemoveAll(q =>
         {
             if (!q)
+                return true;
+            if (!qProg.IsQuestVisibleInList(q))
                 return true;
             if (!showUnavailableQuests && qProg.IsQuestGatedByPrerequisites(q))
                 return true;
@@ -681,6 +688,19 @@ public class QuestPageUI : MonoBehaviour
             EnsureQuestTrackerWindowEnabled();
     }
 
+    private void OnAbandonQuestClicked(QuestDefinition quest)
+    {
+        QuestProgressManager mgr = FindQuestProgress();
+        if (!quest || mgr == null || !mgr.TryAbandonQuest(quest))
+            return;
+
+        if (_selectedQuest == quest)
+            _selectedQuest = null;
+
+        RebuildQuestList();
+        RefreshDetails();
+    }
+
     private static void EnsureQuestTrackerWindowEnabled()
     {
         QuestTrackerWindowUI tracker =
@@ -731,6 +751,8 @@ public class QuestPageUI : MonoBehaviour
         if (!q || _selectedRegion == null || !IsRegionAvailable(_selectedRegion, mapProg))
             q = null;
         if (q != null && !q.IsShownInQuestList(mapProg))
+            q = null;
+        if (q != null && qProg != null && !qProg.IsQuestVisibleInList(q))
             q = null;
 
         if (detailNameText)
@@ -932,6 +954,21 @@ public class QuestPageUI : MonoBehaviour
             string nm = ResolveItemName(q.rewardItemId, null, db);
             if (!string.IsNullOrEmpty(nm))
                 parts.Add(FormatRewardItemLine(nm, qty));
+        }
+
+        if (q.additionalItemRewards != null)
+        {
+            for (int i = 0; i < q.additionalItemRewards.Count; i++)
+            {
+                QuestItemReward reward = q.additionalItemRewards[i];
+                if (reward == null)
+                    continue;
+
+                string itemId = reward.item ? reward.item.itemId : reward.itemId;
+                string nm = reward.item ? reward.item.displayName : ResolveItemName(itemId, null, db);
+                if (!string.IsNullOrEmpty(nm))
+                    parts.Add(FormatRewardItemLine(nm, Mathf.Max(1, reward.quantity)));
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(q.rewardNotes))

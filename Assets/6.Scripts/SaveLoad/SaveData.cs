@@ -123,6 +123,9 @@ public class SaveData
     [Tooltip("QuestDefinition.questId values that have had rewards claimed (non-repeatable quests stay here).")]
     public List<string> questRewardClaimedIds = new();
 
+    [Tooltip("QuestDefinition.questId values accepted from quest givers.")]
+    public List<string> acceptedQuestIds = new();
+
     [Header("Merchant Stock")]
     public List<MerchantStockSave> merchantStocks = new();
 

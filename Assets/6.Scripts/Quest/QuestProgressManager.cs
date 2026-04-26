@@ -17,6 +17,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     private readonly Dictionary<string, int> _amounts = new(StringComparer.Ordinal);
     private readonly HashSet<string> _rewardClaimed = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _acceptedQuestIds = new(StringComparer.Ordinal);
 
     private QuestDatabase _resolvedDatabase;
 
@@ -66,6 +67,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
         return null;
     }
+
+    public QuestDefinition GetQuestDefinition(string questId) => FindQuestDefinition(questId);
 
     /// <summary>Kill quests: saved progress. Gather quests: inventory + storage total (not saved in _amounts).</summary>
     public int GetDisplayProgress(QuestDefinition q)
@@ -140,6 +143,113 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         return q && !q.repeatable && IsRewardClaimed(q.questId);
     }
 
+    public static bool RequiresQuestGiver(QuestDefinition q)
+    {
+        return q && !string.IsNullOrWhiteSpace(q.obtainLocationId);
+    }
+
+    public bool IsQuestAccepted(QuestDefinition q)
+    {
+        if (!q || string.IsNullOrWhiteSpace(q.questId))
+            return false;
+        if (!RequiresQuestGiver(q))
+            return true;
+        return _acceptedQuestIds.Contains(q.questId.Trim());
+    }
+
+    public bool IsQuestVisibleInList(QuestDefinition q)
+    {
+        if (!q)
+            return false;
+        return IsQuestAccepted(q) || IsPermanentlyComplete(q);
+    }
+
+    public bool CanAcceptQuest(QuestDefinition q, string giverLocationId = null)
+    {
+        if (!q || string.IsNullOrWhiteSpace(q.questId))
+            return false;
+        if (!RequiresQuestGiver(q))
+            return false;
+        if (IsQuestAccepted(q) || IsPermanentlyComplete(q))
+            return false;
+        if (!string.IsNullOrWhiteSpace(giverLocationId) &&
+            !string.Equals(q.obtainLocationId.Trim(), giverLocationId.Trim(), StringComparison.Ordinal))
+            return false;
+        if (!ArePrerequisitesSatisfied(q) || !AreSkillRequirementsSatisfied(q))
+            return false;
+        return true;
+    }
+
+    public bool TryAcceptQuest(QuestDefinition q, string giverLocationId = null)
+    {
+        if (!CanAcceptQuest(q, giverLocationId))
+            return false;
+
+        _acceptedQuestIds.Add(q.questId.Trim());
+        GameLog.Add($"Quest accepted: {q.displayName}");
+        ProgressChanged?.Invoke();
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.Save();
+        return true;
+    }
+
+    public bool TryAcceptQuest(string questId, string giverLocationId = null)
+    {
+        return TryAcceptQuest(FindQuestDefinition(questId), giverLocationId);
+    }
+
+    public QuestDefinition FindFirstAcceptableQuestAtLocation(string giverLocationId)
+    {
+        if (string.IsNullOrWhiteSpace(giverLocationId))
+            return null;
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null)
+            return null;
+
+        string location = giverLocationId.Trim();
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition quest = all[i];
+            if (!quest || string.IsNullOrWhiteSpace(quest.obtainLocationId))
+                continue;
+            if (!string.Equals(quest.obtainLocationId.Trim(), location, StringComparison.Ordinal))
+                continue;
+            if (CanAcceptQuest(quest, location))
+                return quest;
+        }
+
+        return null;
+    }
+
+    public bool CanAbandonQuest(QuestDefinition q)
+    {
+        return q &&
+               q.abandonable &&
+               RequiresQuestGiver(q) &&
+               IsQuestAccepted(q) &&
+               !IsPermanentlyComplete(q);
+    }
+
+    public bool TryAbandonQuest(QuestDefinition q)
+    {
+        if (!CanAbandonQuest(q))
+            return false;
+
+        string questId = q.questId.Trim();
+        _acceptedQuestIds.Remove(questId);
+        if (q.objectiveKind != QuestObjectiveKind.GatherItem)
+            _amounts.Remove(questId);
+        QuestTrackerState.UntrackQuest(questId);
+
+        GameLog.Add($"Quest abandoned: {q.displayName}");
+        ProgressChanged?.Invoke();
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.Save();
+        return true;
+    }
+
     public bool ArePrerequisitesSatisfied(QuestDefinition q)
     {
         if (q == null || q.prerequisiteRewardClaimedQuestIds == null || q.prerequisiteRewardClaimedQuestIds.Count == 0)
@@ -187,6 +297,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     public bool CanClaimReward(QuestDefinition q)
     {
         if (!q || string.IsNullOrEmpty(q.questId) || q.objectiveKind == QuestObjectiveKind.None)
+            return false;
+        if (!IsQuestAccepted(q))
             return false;
         if (!ArePrerequisitesSatisfied(q))
             return false;
@@ -367,6 +479,26 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             if (inv)
                 inv.Add(itemId.Trim(), Mathf.Max(1, q.rewardItemQuantity));
         }
+
+        if (q.additionalItemRewards == null || q.additionalItemRewards.Count == 0)
+            return;
+
+        Inventory inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (!inventory)
+            return;
+
+        for (int i = 0; i < q.additionalItemRewards.Count; i++)
+        {
+            QuestItemReward reward = q.additionalItemRewards[i];
+            if (reward == null)
+                continue;
+
+            string extraItemId = reward.item ? reward.item.itemId : reward.itemId;
+            if (string.IsNullOrWhiteSpace(extraItemId))
+                continue;
+
+            inventory.Add(extraItemId.Trim(), Mathf.Max(1, reward.quantity));
+        }
     }
 
     /// <summary>Call from enemy death; applies kill credit to active kill quests for the current map node.</summary>
@@ -387,6 +519,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             if (!q || q.objectiveKind != QuestObjectiveKind.KillCount)
                 continue;
             if (!q.repeatable && IsRewardClaimed(q.questId))
+                continue;
+            if (!IsQuestAccepted(q))
                 continue;
             if (IsQuestGatedByPrerequisites(q))
                 continue;
@@ -429,6 +563,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             data.questProgressAmounts = new List<int>();
         if (data.questRewardClaimedIds == null)
             data.questRewardClaimedIds = new List<string>();
+        if (data.acceptedQuestIds == null)
+            data.acceptedQuestIds = new List<string>();
 
         data.questProgressIds.Clear();
         data.questProgressAmounts.Clear();
@@ -451,15 +587,24 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             if (!string.IsNullOrEmpty(id))
                 data.questRewardClaimedIds.Add(id);
         }
+
+        data.acceptedQuestIds.Clear();
+        foreach (string id in _acceptedQuestIds)
+        {
+            if (!string.IsNullOrEmpty(id))
+                data.acceptedQuestIds.Add(id);
+        }
     }
 
     public void LoadFrom(SaveData data)
     {
         _amounts.Clear();
         _rewardClaimed.Clear();
+        _acceptedQuestIds.Clear();
 
         if (data?.questProgressIds == null || data.questProgressAmounts == null)
         {
+            LoadAcceptedQuestIds(data);
             ProgressChanged?.Invoke();
             return;
         }
@@ -487,6 +632,21 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             }
         }
 
+        LoadAcceptedQuestIds(data);
+
         ProgressChanged?.Invoke();
+    }
+
+    private void LoadAcceptedQuestIds(SaveData data)
+    {
+        if (data?.acceptedQuestIds == null)
+            return;
+
+        for (int i = 0; i < data.acceptedQuestIds.Count; i++)
+        {
+            string id = data.acceptedQuestIds[i];
+            if (!string.IsNullOrWhiteSpace(id))
+                _acceptedQuestIds.Add(id.Trim());
+        }
     }
 }

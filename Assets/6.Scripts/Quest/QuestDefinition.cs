@@ -1,6 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[System.Serializable]
+public class QuestItemReward
+{
+    public ItemDefinition item;
+    [Tooltip("If set without Item, name is resolved via ItemDatabase in UI and granted by id.")]
+    public string itemId = "";
+    [Min(1)] public int quantity = 1;
+}
+
 [CreateAssetMenu(menuName = "Desktop Idle Game/Quest/Quest Definition", fileName = "Quest_")]
 public class QuestDefinition : ScriptableObject
 {
@@ -45,12 +54,22 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("Stack size granted for Reward Item / Reward Item Id when the quest is completed.")]
     public int rewardItemQuantity = 1;
 
+    [Tooltip("Optional extra item rewards granted alongside Reward Item / Reward Item Id.")]
+    public List<QuestItemReward> additionalItemRewards = new();
+
     [TextArea(1, 3)]
     public string rewardNotes = "";
 
     [Header("Rules")]
     [Tooltip("If false, rewards can only be claimed once; the quest stays COMPLETE in the list.")]
     public bool repeatable;
+
+    [Tooltip("If true, the quest can be removed from the quest list and returned to its quest giver.")]
+    public bool abandonable;
+
+    [Header("Quest obtain location")]
+    [Tooltip("Optional id of the QuestGiver this quest starts from. Empty keeps the old behavior: quest is available directly from the quest list.")]
+    public string obtainLocationId = "";
 
     [Tooltip("For kill quests: map node id where kills may count (see Kill Progress Only On This Map).")]
     public string progressMapNodeId = "";

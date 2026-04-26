@@ -46,6 +46,7 @@ GameObject:
   - component: {fileID: 4574227046474827055}
   - component: {fileID: 4127917735906593618}
   - component: {fileID: 1078493593605119097}
+  - component: {fileID: 5839785130135361787}
   m_Layer: 7
   m_Name: Fletcher
   m_TagString: Untagged
@@ -256,6 +257,25 @@ MonoBehaviour:
   merchantId: 
   inventory: {fileID: 0}
   wallet: {fileID: 0}
+--- !u!114 &5839785130135361787
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5214886831892509811}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 057b23ef544f434baada2bf6cb93395a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QuestGiver
+  locationId: 
+  questId: fletchers_request
+  additionalQuestIds: []
+  exclamationMarkPrefab: {fileID: 0}
+  exclamationMarkLocalOffset: {x: 0.2, y: 1.5, z: 0}
+  generatedExclamationMarkSize: 0.2
+  exclamationMarkColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1 &6118185414367586614
 GameObject:
   m_ObjectHideFlags: 0

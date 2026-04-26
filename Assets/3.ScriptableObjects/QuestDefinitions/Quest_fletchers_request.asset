@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
+  m_Name: Quest_fletchers_request
+  m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
+  questId: fletchers_request
+  regionId: greenlands
+  displayName: Fletcher's request
+  description: Gather 50 splitwood logs for the fletcher.
+  listCategoryLabel: Gathering
+  listStatusOverride: 
+  objectiveKind: 2
+  targetCount: 50
+  gatherItemId: splitwood_log
+  rewardGold: 0
+  rewardItem: {fileID: 11400000, guid: 5b415bdca2253f847bbe0dd00a2f22c1, type: 2}
+  rewardItemId: 
+  rewardItemQuantity: 1
+  additionalItemRewards:
+  - item: {fileID: 11400000, guid: dd82c9333168f8d4fb45518f3c9cf6a9, type: 2}
+    itemId: 
+    quantity: 50
+  rewardNotes: 
+  repeatable: 0
+  abandonable: 1
+  obtainLocationId: fletcher
+  progressMapNodeId: 
+  killProgressOnlyOnProgressMap: 0
+  prerequisiteRewardClaimedQuestIds: []
+  requireAllPrerequisiteQuests: 1
+  requiredCompletedMapNodeId: 
+  requiredSkillLevels: []
+  killEnemyIdFilter: 
+  hideUntilMapNodeUnlockedId: 
+  sortOrder: 30
