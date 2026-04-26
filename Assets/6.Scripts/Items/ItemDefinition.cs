@@ -565,7 +565,7 @@ public enum EnhancementScrollGearMask
     MagicWeapon = 1 << 7,
     [InspectorName("Ranged or Melee Weapon")]
     MeleeOrRangedWeapon = MeleeWeapon | RangedWeapon,
-    AllGear = Weapon | Armor | Jewelry | CombatSupport | Tool
+    AllGear = Weapon | Armor | Tool
 }
 
 [System.Serializable]
@@ -877,7 +877,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public CombatSupportType SupportType =>
         IsCombatSupport ? combatSupportStats.supportType : CombatSupportType.None;
 
-    public bool HasUpgradeSlots => IsWeapon || IsArmor || IsTool || IsJewelry || IsCombatSupport;
+    public bool HasUpgradeSlots => IsWeapon || IsArmor || IsTool;
 
     public int MaxUpgradeSlots
     {
@@ -885,7 +885,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             if (IsWeapon || IsArmor)
                 return 5 + (int)GetEquipmentTierRank();
-            if (IsTool || IsJewelry || IsCombatSupport)
+            if (IsTool)
                 return 3;
             return 0;
         }
@@ -894,12 +894,55 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public int UsedUpgradeSlots => HasUpgradeSlots ? Mathf.Clamp(usedUpgradeSlots, 0, MaxUpgradeSlots) : 0;
     public int AvailableUpgradeSlots => HasUpgradeSlots ? Mathf.Max(0, MaxUpgradeSlots - UsedUpgradeSlots) : 0;
     public bool HasAvailableUpgradeSlot => AvailableUpgradeSlots > 0;
+    public int MaxSuccessfulEnhancements => HasUpgradeSlots ? MaxUpgradeSlots : 0;
+    public int SuccessfulEnhancements => HasUpgradeSlots ? Mathf.Clamp(successfulEnhancements, 0, MaxSuccessfulEnhancements) : 0;
+    public bool HasReachedEnhancementCap => HasUpgradeSlots && MaxSuccessfulEnhancements > 0 && SuccessfulEnhancements >= MaxSuccessfulEnhancements;
 
     public string GetUpgradeSlotsTooltipLine()
     {
         if (!HasUpgradeSlots)
             return "";
-        return $"Upgrade Slots: {UsedUpgradeSlots}/{MaxUpgradeSlots}";
+        return $"Upgrade Slots: {GetUpgradeSlotsTooltipValue()}";
+    }
+
+    public void NormalizeEnhancementState()
+    {
+        if (!HasUpgradeSlots)
+        {
+            usedUpgradeSlots = 0;
+            successfulEnhancements = 0;
+            return;
+        }
+
+        usedUpgradeSlots = UsedUpgradeSlots;
+        int normalizedSuccessfulEnhancements = SuccessfulEnhancements;
+        if (successfulEnhancements != normalizedSuccessfulEnhancements)
+            successfulEnhancements = normalizedSuccessfulEnhancements;
+
+        if (successfulEnhancements > 0)
+            displayName = $"{StripEnhancementSuffix(displayName)} +{successfulEnhancements}";
+    }
+
+    private string GetUpgradeSlotsTooltipValue()
+    {
+        string value = $"{UsedUpgradeSlots}/{MaxUpgradeSlots}";
+        if (HasReachedEnhancementCap)
+            value += " <color=#D66A6A>(Max reached)</color>";
+        return value;
+    }
+
+    private static string StripEnhancementSuffix(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "Item";
+
+        string trimmed = value.Trim();
+        int marker = trimmed.LastIndexOf(" +", System.StringComparison.Ordinal);
+        if (marker < 0)
+            return trimmed;
+
+        string suffix = trimmed.Substring(marker + 2);
+        return int.TryParse(suffix, out _) ? trimmed.Substring(0, marker) : trimmed;
     }
 
     public int ArmorValue => (IsArmor ? armorStats.armor : 0) + bonusStats.armor;
@@ -1016,8 +1059,6 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return gear.itemKind switch
         {
             ItemKind.Armor => EnhancementScrollGearMask.Armor,
-            ItemKind.Jewelry => EnhancementScrollGearMask.Jewelry,
-            ItemKind.CombatSupport => EnhancementScrollGearMask.CombatSupport,
             ItemKind.Tool => EnhancementScrollGearMask.Tool,
             _ => EnhancementScrollGearMask.None
         };
@@ -1031,7 +1072,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (enhancementScrollStats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
             return gear.UsedUpgradeSlots > 0;
 
-        return gear.HasAvailableUpgradeSlot;
+        return gear.HasAvailableUpgradeSlot && !gear.HasReachedEnhancementCap;
     }
 
     public int HealAmount =>
@@ -1156,7 +1197,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             string s = "";
             s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                 FormatTooltipMetaLine("Upgrade Slots", $"{UsedUpgradeSlots}/{MaxUpgradeSlots}") + "\n" +
+                 FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
                  FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n" +
                  FormatTooltipMetaLine("Type", type) + "\n" +
                  FormatTooltipMetaLine("Hands", hands) + "\n\n";
@@ -1201,9 +1242,6 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (IsCombatSupport)
         {
             string s = $"Support Type: {SupportType}";
-            if (HasUpgradeSlots)
-                s += $"\n{GetUpgradeSlotsTooltipLine()}";
-
             if (SupportBonusPhysicalDamage != 0f) s += $"\nPhysical Damage: {FormatSignedNumber(SupportBonusPhysicalDamage)}";
             if (SupportBonusMagicDamage != 0f) s += $"\nMagic Damage: {FormatSignedNumber(SupportBonusMagicDamage)}";
             if (SupportBonusCorruptionDamage != 0f) s += $"\nCorruption Damage: {FormatSignedNumber(SupportBonusCorruptionDamage)}";
@@ -1246,12 +1284,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (UsesEquipmentTierGating)
             {
                 s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                     FormatTooltipMetaLine("Upgrade Slots", $"{UsedUpgradeSlots}/{MaxUpgradeSlots}") + "\n" +
+                     FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
                      FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n";
             }
             else if (HasUpgradeSlots)
             {
-                s += FormatTooltipMetaLine("Upgrade Slots", $"{UsedUpgradeSlots}/{MaxUpgradeSlots}") + "\n";
+                s += FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n";
             }
 
             s += FormatTooltipMetaLine("Tool", type) + "\n\n" +
@@ -1277,7 +1315,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (IsArmor)
             {
                 s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                     FormatTooltipMetaLine("Upgrade Slots", $"{UsedUpgradeSlots}/{MaxUpgradeSlots}") + "\n" +
+                     FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
                      FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n\n";
             }
             else if (HasUpgradeSlots)
@@ -1608,8 +1646,6 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.MagicWeapon, "Magic Weapon");
         AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Armor, "Armour");
-        AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Jewelry, "Jewelry");
-        AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.CombatSupport, "Combat Support");
         AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Tool, "Tool");
         return s;
     }

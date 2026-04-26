@@ -98,21 +98,32 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.LabelField("Economy", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(value);
 
-        EditorGUILayout.Space(10);
-        EditorGUILayout.LabelField("Equipment", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(equipSlot);
+        bool showEquipmentSection = kind != ItemKind.EnhancementScroll;
+        var slot = EquipSlot.None;
 
-        var slot = (EquipSlot)equipSlot.enumValueIndex;
+        if (showEquipmentSection)
+        {
+            EditorGUILayout.Space(10);
+            EditorGUILayout.LabelField("Equipment", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(equipSlot);
 
-        DrawEquipSlotHint(kind, slot);
-        EnforceSlotRules(kind, equipSlot, ref slot);
+            slot = (EquipSlot)equipSlot.enumValueIndex;
+
+            DrawEquipSlotHint(kind, slot);
+            EnforceSlotRules(kind, equipSlot, ref slot);
+        }
+        else
+        {
+            if (equipSlot != null)
+                equipSlot.enumValueIndex = (int)EquipSlot.None;
+            if (handVisualKey != null)
+                handVisualKey.enumValueIndex = (int)ToolKey.None;
+        }
 
         bool hasUpgradeSlots =
             kind == ItemKind.Weapon ||
             kind == ItemKind.Armor ||
-            kind == ItemKind.Tool ||
-            kind == ItemKind.Jewelry ||
-            kind == ItemKind.CombatSupport;
+            kind == ItemKind.Tool;
 
         if (hasUpgradeSlots && usedUpgradeSlots != null)
         {
@@ -301,7 +312,8 @@ public class ItemDefinitionEditor : Editor
             DrawBonusBlockIfPresent("Bonus Stats", show: false);
         }
 
-        DrawCookableStatsBlock();
+        if (kind != ItemKind.EnhancementScroll)
+            DrawCookableStatsBlock();
 
         serializedObject.ApplyModifiedProperties();
     }
@@ -695,13 +707,54 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Gear Restrictions", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(allowedGearTypes, new GUIContent("Allowed Gear Types"));
+        DrawEnhancementAllowedGearTypes(allowedGearTypes);
 
         EditorGUILayout.HelpBox(
             "Scroll design: one clear effect, one success chance, and simple risk.\n\n" +
             "Example: Basic Attack Scroll -> 80% success, +2 Physical Damage, allowed on Weapon, consumes slot on use, no destruction.",
             MessageType.None
         );
+    }
+
+    private static void DrawEnhancementAllowedGearTypes(SerializedProperty allowedGearTypes)
+    {
+        if (allowedGearTypes == null)
+            return;
+
+        EnhancementScrollGearMask current = (EnhancementScrollGearMask)allowedGearTypes.intValue;
+
+        bool anyWeapon = (current & EnhancementScrollGearMask.Weapon) != 0;
+        bool melee = (current & EnhancementScrollGearMask.MeleeWeapon) != 0;
+        bool ranged = (current & EnhancementScrollGearMask.RangedWeapon) != 0;
+        bool magic = (current & EnhancementScrollGearMask.MagicWeapon) != 0;
+        bool armor = (current & EnhancementScrollGearMask.Armor) != 0;
+        bool tool = (current & EnhancementScrollGearMask.Tool) != 0;
+
+        anyWeapon = EditorGUILayout.Toggle(new GUIContent("Any Weapon"), anyWeapon);
+        using (new EditorGUI.DisabledScope(anyWeapon))
+        {
+            melee = EditorGUILayout.Toggle(new GUIContent("Melee Weapon"), melee);
+            ranged = EditorGUILayout.Toggle(new GUIContent("Ranged Weapon"), ranged);
+            magic = EditorGUILayout.Toggle(new GUIContent("Magic Weapon"), magic);
+        }
+
+        armor = EditorGUILayout.Toggle(new GUIContent("Armor"), armor);
+        tool = EditorGUILayout.Toggle(new GUIContent("Tool"), tool);
+
+        EnhancementScrollGearMask next = EnhancementScrollGearMask.None;
+        if (anyWeapon)
+            next |= EnhancementScrollGearMask.Weapon;
+        else
+        {
+            if (melee) next |= EnhancementScrollGearMask.MeleeWeapon;
+            if (ranged) next |= EnhancementScrollGearMask.RangedWeapon;
+            if (magic) next |= EnhancementScrollGearMask.MagicWeapon;
+        }
+
+        if (armor) next |= EnhancementScrollGearMask.Armor;
+        if (tool) next |= EnhancementScrollGearMask.Tool;
+
+        allowedGearTypes.intValue = (int)next;
     }
 
     private void DrawCookableStatsBlock()

@@ -75,7 +75,10 @@ public class ItemDatabase : ScriptableObject
 
         string key = Normalize(itemId);
         if (key != null && _runtimeItems.TryGetValue(key, out var runtimeDef))
+        {
+            runtimeDef.NormalizeEnhancementState();
             return runtimeDef;
+        }
         if (key != null && _map.TryGetValue(key, out var def))
             return def;
 
@@ -181,6 +184,7 @@ public class ItemDatabase : ScriptableObject
             clone.bonusStats = saved.bonusStats;
             clone.combatSupportStats = saved.combatSupportStats;
             clone.toolStats = saved.toolStats;
+            clone.NormalizeEnhancementState();
         }
     }
 

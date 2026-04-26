@@ -26,6 +26,7 @@ public static class EnhancementUpgradeService
 
         ItemDefinition scrollDef = inventory.GetItemDef(scrollSlot.itemId);
         ItemDefinition targetDef = inventory.GetItemDef(targetSlot.itemId);
+        LogRejectedScrollTargetAttempt(scrollDef, targetDef);
         if (!IsValidScrollTarget(scrollDef, targetDef))
             return false;
 
@@ -79,6 +80,7 @@ public static class EnhancementUpgradeService
 
         ItemDefinition scrollDef = inventory.GetItemDef(scrollSlot.itemId);
         ItemDefinition targetDef = inventory.GetItemDef(targetItemId);
+        LogRejectedScrollTargetAttempt(scrollDef, targetDef);
         if (!IsValidScrollTarget(scrollDef, targetDef))
             return false;
 
@@ -112,6 +114,8 @@ public static class EnhancementUpgradeService
         out bool success)
     {
         success = false;
+        bool slotReductionScroll = IsSlotReductionScroll(scrollDef);
+        int usedSlotsBefore = enhancedTarget.UsedUpgradeSlots;
 
         if (inventory.RemoveAmountAtSlot(scrollSlotIndex, 1) != 1)
             return false;
@@ -128,18 +132,22 @@ public static class EnhancementUpgradeService
         if (success)
         {
             ApplyModifier(enhancedTarget, scrollDef.enhancementScrollStats);
+            int usedSlotsAfter = enhancedTarget.UsedUpgradeSlots;
 
-            if (!IsSlotReductionScroll(scrollDef))
+            if (!slotReductionScroll)
             {
-                enhancedTarget.successfulEnhancements = Mathf.Max(0, enhancedTarget.successfulEnhancements) + 1;
+                enhancedTarget.successfulEnhancements = Mathf.Clamp(
+                    enhancedTarget.successfulEnhancements + 1,
+                    0,
+                    Mathf.Max(0, enhancedTarget.MaxSuccessfulEnhancements));
                 ApplyEnhancedDisplayName(enhancedTarget, previousTargetDef);
             }
 
-            LogResult(enhancedTarget, true);
+            LogResult(enhancedTarget, true, slotReductionScroll, usedSlotsBefore, usedSlotsAfter);
         }
         else
         {
-            LogResult(enhancedTarget, false);
+            LogResult(enhancedTarget, false, slotReductionScroll, usedSlotsBefore, usedSlotsBefore);
             ApplyFailureOutcome(destroyTarget, scrollDef.enhancementScrollStats);
         }
 
@@ -155,6 +163,8 @@ public static class EnhancementUpgradeService
         if (targetDef.itemKind == ItemKind.EnhancementScroll)
             return false;
         if (targetDef.MaxUpgradeSlots <= 0)
+            return false;
+        if (!IsSlotReductionScroll(scrollDef) && targetDef.HasReachedEnhancementCap)
             return false;
 
         return scrollDef.CanUseEnhancementScrollOn(targetDef);
@@ -283,6 +293,39 @@ public static class EnhancementUpgradeService
                scrollDef.enhancementScrollStats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction;
     }
 
+    private static void LogRejectedScrollTargetAttempt(ItemDefinition scrollDef, ItemDefinition targetDef)
+    {
+        if (!scrollDef || scrollDef.itemKind != ItemKind.EnhancementScroll || !targetDef)
+            return;
+
+        string itemName = !string.IsNullOrWhiteSpace(targetDef.displayName) ? targetDef.displayName.Trim() : "Item";
+        string scrollName = !string.IsNullOrWhiteSpace(scrollDef.displayName) ? scrollDef.displayName.Trim() : "Scroll";
+
+        if (IsSlotReductionScroll(scrollDef))
+        {
+            if (!scrollDef.EnhancementScrollCanTarget(targetDef))
+                GameLog.Add($"Cannot use {scrollName} on {itemName}", GameLog.ItemLostColor);
+            else if (targetDef.UsedUpgradeSlots <= 0)
+                GameLog.Add($"Cannot reduce slots, no used slots: {itemName}", GameLog.ItemLostColor);
+            return;
+        }
+
+        if (targetDef.HasReachedEnhancementCap)
+        {
+            GameLog.Add($"Cannot enhance further, already at max: {itemName}", GameLog.ItemLostColor);
+            return;
+        }
+
+        if (!scrollDef.EnhancementScrollCanTarget(targetDef))
+        {
+            GameLog.Add($"Cannot use {scrollName} on {itemName}", GameLog.ItemLostColor);
+            return;
+        }
+
+        if (!targetDef.HasAvailableUpgradeSlot)
+            GameLog.Add($"Cannot enhance, no upgrade slots available: {itemName}", GameLog.ItemLostColor);
+    }
+
     private static float ApplyValue(float current, float value, bool percent)
     {
         return percent ? current * (1f + value) : current + value;
@@ -299,9 +342,23 @@ public static class EnhancementUpgradeService
         target.displayName = $"{baseName} +{target.successfulEnhancements}";
     }
 
-    private static void LogResult(ItemDefinition target, bool success)
+    private static void LogResult(
+        ItemDefinition target,
+        bool success,
+        bool slotReductionScroll,
+        int usedSlotsBefore,
+        int usedSlotsAfter)
     {
         string itemName = target && !string.IsNullOrWhiteSpace(target.displayName) ? target.displayName.Trim() : "Item";
+        if (slotReductionScroll)
+        {
+            if (success)
+                GameLog.Add($"Successful Reduction: {itemName} {usedSlotsBefore}->{usedSlotsAfter}", GameLog.ItemGainColor);
+            else
+                GameLog.Add($"Failed Reduction: {itemName}", GameLog.ItemLostColor);
+            return;
+        }
+
         if (success)
             GameLog.Add($"Successful Enhancement: {itemName}", GameLog.ItemGainColor);
         else
