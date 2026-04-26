@@ -532,6 +532,9 @@ public struct CookableStats
 [CreateAssetMenu(menuName = "Desktop Idle Game/Item Definition", fileName = "NewItem")]
 public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 {
+    private const string TooltipMetaColor = "#E8E0D0";
+    private const string TooltipMetaSize = "90%";
+
     [Header("Classification")]
     public ItemKind itemKind = ItemKind.Resource;
 
@@ -948,30 +951,29 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             aps *= Mathf.Max(0.1f, 1f + bonusStats.attackSpeedPercent);
 
             string speed = $"{aps:0.##} atk/s";
-            string skillType = weaponStats.attackSkill.ToString();
-            string magicExtraLines = "";
-            if (weaponStats.attackSkill == AttackSkill.Magic)
-            {
-                magicExtraLines = $"\nMana Cost: {ManaCostPerAttack:0.##}";
-                if (MagicAilmentApplyChance > 0f)
-                    magicExtraLines += $"\nAilment Chance: {MagicAilmentApplyChance * 100f:0.#}%";
-            }
-
             float critChancePct = Mathf.Clamp01(weaponStats.critChance + bonusStats.critChanceBonus) * 100f;
             float critMultPct = Mathf.Max(0f, weaponStats.critMultiplier + bonusStats.critMultiplierBonus) * 100f;
 
-            string hands = weaponStats.handedness == Handedness.TwoHanded ? "Two-handed" : "One-handed";
+            string hands = FormatHandednessLabel(weaponStats.handedness);
             string range = $"{AttackRange:0.##}";
 
             string dual = (weaponStats.handedness == Handedness.OneHanded && weaponStats.canEquipInOffHand)
                 ? "\nDual Wield: Yes"
                 : "";
 
-            string extras = BuildBonusLines(includeDefense: false, omitBurnBonuses: true);
+            string extras = BuildBonusLines(
+                includeDefense: false,
+                omitBurnBonuses: true,
+                omitAilmentChanceBonuses: true);
+            string type = weaponStats.attackSkill == AttackSkill.Magic
+                ? $"{weaponStats.attackSkill} ({weaponStats.magicAttackType})"
+                : weaponStats.attackSkill.ToString();
 
             string s = "";
-            s += $"Tier: {GetEquipmentTierNumberLabel()}\n" +
-                 $"Requires: {GetEquipmentTierGateSkill()} Lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}\n";
+            s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
+                 FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n" +
+                 FormatTooltipMetaLine("Type", type) + "\n" +
+                 FormatTooltipMetaLine("Hands", hands) + "\n\n";
 
             if (HasPhysicalWeaponDamage)
                 s += $"Physical Damage: {weaponStats.minPhysicalDamage}-{weaponStats.maxPhysicalDamage}\n";
@@ -986,19 +988,19 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (HasCorruptionWeaponDamage)
                 s += $"Corruption Damage: {weaponStats.minCorruptionDamage}-{weaponStats.maxCorruptionDamage}\n";
 
-            string attackTypeBlock = $"Attack Type: {skillType}\n";
-            if (weaponStats.attackSkill == AttackSkill.Magic)
-                attackTypeBlock += $"Magic Type: {weaponStats.magicAttackType}\n";
-
             s +=
-                attackTypeBlock +
                 $"Speed: {speed}\n" +
                 $"Crit Chance: {critChancePct:0.#}%\n" +
                 $"Crit Multi: {critMultPct:0.#}%\n" +
-                $"Range: {range}\n" +
-                $"Hands: {hands}" +
-                magicExtraLines +
+                $"{BuildWeaponAilmentsLine()}\n" +
+                $"Range: {range}" +
                 dual;
+
+            if (weaponStats.attackSkill == AttackSkill.Magic)
+                s += $"\nMana Cost: {ManaCostPerAttack:0.##}";
+
+            if (RequiresOffhandSupport)
+                s += $"\nRequires: {RequiredSupportType}";
 
             if (!string.IsNullOrWhiteSpace(extras))
                 s += "\n" + extras;
@@ -1171,7 +1173,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return $"{fraction * 100f:0.#}% {label}";
     }
 
-    private string BuildBonusLines(bool includeDefense, bool omitBurnBonuses = false)
+    private string BuildBonusLines(
+        bool includeDefense,
+        bool omitBurnBonuses = false,
+        bool omitAilmentChanceBonuses = false)
     {
         string s = "";
 
@@ -1223,18 +1228,21 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (bonusStats.critMultiplierBonus != 0f) s += $"Crit Multi: {FormatSignedPercent01(bonusStats.critMultiplierBonus)}\n";
         if (bonusStats.attackRangeBonus != 0f) s += $"Range: {FormatSignedNumber(bonusStats.attackRangeBonus)}\n";
 
-        if (bonusStats.bleedChance != 0f) s += $"Bleed Chance: {FormatSignedPercent01(bonusStats.bleedChance)}\n";
+        if (!omitAilmentChanceBonuses && bonusStats.bleedChance != 0f)
+            s += $"Bleed Chance: {FormatSignedPercent01(bonusStats.bleedChance)}\n";
         if (bonusStats.bleedMultiplier != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.bleedMultiplier, "Bleed Damage")}\n";
 
-        if (bonusStats.poisonChance != 0f) s += $"Poison Chance: {FormatSignedPercent01(bonusStats.poisonChance)}\n";
+        if (!omitAilmentChanceBonuses && bonusStats.poisonChance != 0f)
+            s += $"Poison Chance: {FormatSignedPercent01(bonusStats.poisonChance)}\n";
         if (bonusStats.poisonMultiplier != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.poisonMultiplier, "Poison Damage")}\n";
         if (bonusStats.poisonDurationBonus != 0f) s += $"Poison Duration: {FormatSignedNumber(bonusStats.poisonDurationBonus)}s\n";
         if (bonusStats.poisonMaxStacksBonus != 0) s += $"Poison Max Stacks: {FormatSignedInt(bonusStats.poisonMaxStacksBonus)}\n";
         if (!omitBurnBonuses)
         {
-            if (bonusStats.burnChance != 0f) s += $"Burn Chance: {FormatSignedPercent01(bonusStats.burnChance)}\n";
+            if (!omitAilmentChanceBonuses && bonusStats.burnChance != 0f)
+                s += $"Burn Chance: {FormatSignedPercent01(bonusStats.burnChance)}\n";
             if (bonusStats.burnExplosionMultiplierBonus != 0f)
                 s += $"{FormatScalingCoefficientPercentLine(bonusStats.burnExplosionMultiplierBonus, "Burn tick mult (added to character base)")}\n";
         }
@@ -1242,6 +1250,54 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (bonusStats.shockDamageTakenMultiplierBonus != 0f) s += $"Shock Amp Bonus: {FormatSignedPercent01(bonusStats.shockDamageTakenMultiplierBonus)}\n";
 
         return s.TrimEnd('\n');
+    }
+
+    private static string FormatTooltipMetaLine(string label, string value)
+    {
+        return $"<size={TooltipMetaSize}><color={TooltipMetaColor}>{label}: {value}</color></size>";
+    }
+
+    private static string FormatHandednessLabel(Handedness handedness)
+    {
+        return handedness == Handedness.TwoHanded ? "Two-Handed" : "One-Handed";
+    }
+
+    private string BuildWeaponAilmentsLine()
+    {
+        string ailments = "";
+
+        if (weaponStats.attackSkill == AttackSkill.Magic && MagicAilmentApplyChance > 0f)
+            AppendInlineListItem(ref ailments, $"{GetMagicAilmentName()} {MagicAilmentApplyChance * 100f:0.#}%");
+
+        if (bonusStats.bleedChance != 0f)
+            AppendInlineListItem(ref ailments, $"Bleed {FormatSignedPercent01(bonusStats.bleedChance)}");
+        if (bonusStats.poisonChance != 0f)
+            AppendInlineListItem(ref ailments, $"Poison {FormatSignedPercent01(bonusStats.poisonChance)}");
+        if (bonusStats.burnChance != 0f)
+            AppendInlineListItem(ref ailments, $"Burn {FormatSignedPercent01(bonusStats.burnChance)}");
+
+        return string.IsNullOrWhiteSpace(ailments)
+            ? "Ailments: None"
+            : $"Ailments: {ailments}";
+    }
+
+    private string GetMagicAilmentName()
+    {
+        return weaponStats.magicAttackType switch
+        {
+            MagicAttackType.Fire => "Burn",
+            MagicAttackType.Ice => "Chill",
+            MagicAttackType.Lightning => "Shock",
+            _ => "Ailment"
+        };
+    }
+
+    private static void AppendInlineListItem(ref string list, string item)
+    {
+        if (string.IsNullOrWhiteSpace(item))
+            return;
+
+        list = string.IsNullOrWhiteSpace(list) ? item : $"{list}, {item}";
     }
 
     private string BuildMiscTooltipLines()

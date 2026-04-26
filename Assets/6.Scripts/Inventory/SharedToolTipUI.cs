@@ -413,13 +413,14 @@ public class SharedTooltipUI : MonoBehaviour
         if (!def.RequiresOffhandSupport || def.RequiredSupportType == CombatSupportType.None)
             return stats;
 
-        // Remove any legacy "Requires:" line if present (older saves/strings).
-        stats = RemoveLinesStartingWith(stats, "Requires:");
-
         bool hasRequirementEquipped = HasRequiredSupportEquipped(def.RequiredSupportType);
 
         string colour = hasRequirementEquipped ? "#55DD55" : "#FF5555";
         string reqLine = $"<color={colour}>Requires: {def.RequiredSupportType}</color>";
+
+        stats = ReplaceLineStartingWith(stats, "Requires:", reqLine, out bool replaced);
+        if (replaced)
+            return stats;
 
         if (string.IsNullOrWhiteSpace(stats))
             return reqLine;
@@ -427,8 +428,14 @@ public class SharedTooltipUI : MonoBehaviour
         return stats.TrimEnd('\n') + "\n" + reqLine;
     }
 
-    private static string RemoveLinesStartingWith(string block, string startsWith)
+    private static string ReplaceLineStartingWith(
+        string block,
+        string startsWith,
+        string replacement,
+        out bool replaced)
     {
+        replaced = false;
+
         if (string.IsNullOrWhiteSpace(block) || string.IsNullOrWhiteSpace(startsWith))
             return block ?? "";
 
@@ -439,7 +446,10 @@ public class SharedTooltipUI : MonoBehaviour
         {
             string line = lines[i] ?? "";
             if (line.TrimStart().StartsWith(startsWith))
-                continue;
+            {
+                line = replacement ?? "";
+                replaced = true;
+            }
 
             if (sb.Length > 0)
                 sb.Append('\n');
