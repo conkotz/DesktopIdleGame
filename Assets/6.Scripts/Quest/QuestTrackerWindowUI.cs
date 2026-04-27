@@ -17,6 +17,8 @@ public class QuestTrackerWindowUI : MonoBehaviour
     private static readonly Color TrackerDefaultTextColor = new Color(0.16f, 0.13f, 0.1f, 1f);
     private static readonly Color TrackerDefaultRowColor = new Color(1f, 1f, 1f, 1f);
     private static readonly Color TrackerObjectiveCompleteRowColor = new Color(0.82f, 0.96f, 0.82f, 1f);
+    private static bool s_hasRememberedWindowActiveState;
+    private static bool s_rememberedWindowActive = true;
 
     [SerializeField] private RectTransform trackerContentRoot;
     [SerializeField] private TMP_Text trackerTitleText;
@@ -34,7 +36,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void AutoAttachToTrackerWindow()
     {
-        GameObject window = GameObject.Find(TrackerWindowName);
+        GameObject window = FindSceneObjectByName(TrackerWindowName);
         if (!window)
             return;
         if (!window.GetComponent<QuestTrackerWindowUI>())
@@ -45,10 +47,12 @@ public class QuestTrackerWindowUI : MonoBehaviour
     {
         ResolveReferences();
         EnsureCanvasGroup();
+        ApplyRememberedWindowActiveState();
     }
 
     private void OnEnable()
     {
+        RememberWindowActiveState(true);
         ResolveReferences();
         QuestTrackerState.Changed += RefreshRows;
 
@@ -280,6 +284,40 @@ public class QuestTrackerWindowUI : MonoBehaviour
         _canvasGroup.alpha = visible ? 1f : 0f;
         _canvasGroup.interactable = visible;
         _canvasGroup.blocksRaycasts = visible;
+    }
+
+    private void ApplyRememberedWindowActiveState()
+    {
+        if (!s_hasRememberedWindowActiveState || s_rememberedWindowActive)
+            return;
+
+        gameObject.SetActive(false);
+    }
+
+    private void RememberWindowActiveState(bool active)
+    {
+        s_hasRememberedWindowActiveState = true;
+        s_rememberedWindowActive = active;
+    }
+
+    public void RememberWindowClosedByUser()
+    {
+        RememberWindowActiveState(false);
+    }
+
+    private static GameObject FindSceneObjectByName(string objectName)
+    {
+        Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
+        for (int i = 0; i < all.Length; i++)
+        {
+            Transform t = all[i];
+            if (t == null || t.hideFlags != HideFlags.None || !t.gameObject.scene.IsValid())
+                continue;
+            if (t.name == objectName)
+                return t.gameObject;
+        }
+
+        return null;
     }
 
     private static Transform FindChildByName(Transform root, string childName)

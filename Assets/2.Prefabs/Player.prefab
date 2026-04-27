@@ -6060,12 +6060,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerSpawnController
   rb: {fileID: 528797751873154347}
   col: {fileID: 4092479453765693464}
-  player: {fileID: 0}
-  spawnPointName: SpawnPoint_Player_Destination
-  walkInOnSceneLoad: 1
-  walkInEntryPointName: SpawnPoint_Player_Entry
-  walkInArrivalPointName: SpawnPoint_Player_Destination
-  walkInCommandDelaySeconds: 0.05
+  spawnPointName: SpawnPoint_Player
   waitFramesAfterLoad: 2
   snapToGround: 1
   groundMask:

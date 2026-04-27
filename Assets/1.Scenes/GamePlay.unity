@@ -5196,7 +5196,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 1088023133}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &159190181
@@ -10289,6 +10290,7 @@ GameObject:
   - component: {fileID: 300103157}
   - component: {fileID: 300103156}
   - component: {fileID: 300103155}
+  - component: {fileID: 300103158}
   m_Layer: 5
   m_Name: StripUICanvas
   m_TagString: UICanvas
@@ -10309,8 +10311,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2042090762}
-  - {fileID: 1558580853}
-  - {fileID: 395888640}
   - {fileID: 719275852}
   - {fileID: 1998343933}
   m_Father: {fileID: 0}
@@ -10354,7 +10354,7 @@ MonoBehaviour:
   m_ScaleFactor: 1
   m_ReferenceResolution: {x: 2560, y: 480}
   m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0.5
+  m_MatchWidthOrHeight: 0
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
@@ -10369,8 +10369,8 @@ Canvas:
   m_GameObject: {fileID: 300103153}
   m_Enabled: 1
   serializedVersion: 3
-  m_RenderMode: 1
-  m_Camera: {fileID: 414385169}
+  m_RenderMode: 0
+  m_Camera: {fileID: 0}
   m_PlaneDistance: 10
   m_PixelPerfect: 0
   m_ReceivesEvents: 1
@@ -10383,6 +10383,25 @@ Canvas:
   m_SortingLayerID: 1946004807
   m_SortingOrder: 0
   m_TargetDisplay: 0
+--- !u!114 &300103158
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 300103153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dbe672a131164b258d68bb82290b53c7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RuntimeCanvasScaleController
+  canvasScaler: {fileID: 300103156}
+  baseReferenceResolution: {x: 2560, y: 480}
+  defaultScaleMultiplier: 1
+  minScaleMultiplier: 0.85
+  maxScaleMultiplier: 1.4
+  hotkeyStep: 0.05
+  enableHotkeys: 1
 --- !u!1 &301266706
 GameObject:
   m_ObjectHideFlags: 0
@@ -12541,7 +12560,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 300103154}
+  m_Father: {fileID: 2042090762}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
@@ -12560,11 +12579,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b7922336ac5711548911979e13ae2ee8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RightEdgeResizer
-  stripViewport: {fileID: 414385172}
-  stripCamera: {fileID: 414385169}
+  stripController: {fileID: 414385172}
   keepLeftAnchored: 1
-  minWidthPx: 1200
-  screenPaddingPx: 6
+  minWidthNormalized: 0.3
+  screenPaddingNormalized: 0
   hoverLine: {fileID: 0}
   hoverAlpha: 0.35
 --- !u!114 &395888642
@@ -12904,7 +12922,7 @@ GameObject:
   m_Component:
   - component: {fileID: 412571915}
   m_Layer: 0
-  m_Name: SpawnPoint_Player_Destination
+  m_Name: SpawnPoint_Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -12919,7 +12937,7 @@ Transform:
   m_GameObject: {fileID: 412571914}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -15.5, y: -2.3, z: 0}
+  m_LocalPosition: {x: -11.2, y: -2.67, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -12937,7 +12955,6 @@ GameObject:
   - component: {fileID: 414385169}
   - component: {fileID: 414385171}
   - component: {fileID: 414385172}
-  - component: {fileID: 414385173}
   m_Layer: 0
   m_Name: StripCamera
   m_TagString: MainCamera
@@ -12975,7 +12992,7 @@ Camera:
     x: 0
     y: 0
     width: 1
-    height: 1
+    height: 0.33333334
   near clip plane: 0.3
   far clip plane: 1000
   field of view: 60
@@ -13064,29 +13081,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 414385167}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e6a375e4a9adae644b0e8cdd8b185917, type: 3}
+  m_Script: {fileID: 11500000, guid: 7c94176b9e9d43f4886c17db413e1460, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StripViewport
+  m_EditorClassIdentifier: Assembly-CSharp::StripCameraController
   stripCamera: {fileID: 414385169}
-  stripHeightPx: 480
+  stripHeightPercent: 0.33333334
   bottomNormalized: 0
-  widthNormalized: 1
   leftNormalized: 0
-  applyOnlyWhenDirty: 1
---- !u!114 &414385173
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 414385167}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d7357d2bdd960aa479f55f536c64ef61, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LockStripCameraOrtho
-  stripCamera: {fileID: 414385169}
-  fixedOrthoSize: 4
+  widthNormalized: 1
+  baseOrthoSize: 4
+  updateContinuously: 0
 --- !u!1 &417117100
 GameObject:
   m_ObjectHideFlags: 0
@@ -25500,6 +25504,7 @@ GameObject:
   - component: {fileID: 852128588}
   - component: {fileID: 852128587}
   - component: {fileID: 852128586}
+  - component: {fileID: 852128589}
   m_Layer: 5
   m_Name: FullWindowCanvas
   m_TagString: FullWindowCanvas
@@ -25590,6 +25595,25 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
+--- !u!114 &852128589
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 852128584}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dbe672a131164b258d68bb82290b53c7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RuntimeCanvasScaleController
+  canvasScaler: {fileID: 852128587}
+  baseReferenceResolution: {x: 2560, y: 1440}
+  defaultScaleMultiplier: 1
+  minScaleMultiplier: 0.85
+  maxScaleMultiplier: 1.4
+  hotkeyStep: 0.05
+  enableHotkeys: 1
 --- !u!1 &858344918
 GameObject:
   m_ObjectHideFlags: 0
@@ -32738,7 +32762,6 @@ GameObject:
   - component: {fileID: 1044983561}
   - component: {fileID: 1044983562}
   - component: {fileID: 1044983563}
-  - component: {fileID: 1044983564}
   - component: {fileID: 1044983565}
   - component: {fileID: 1044983566}
   m_Layer: 0
@@ -32767,6 +32790,15 @@ MonoBehaviour:
   dropFrameBounds: {fileID: 2042090762}
   dropFrameInsetPixels: 1
   dropClampCamera: {fileID: 0}
+  alignPlayerDropsToGround: 1
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 512
+  groundCastDistance: 10
+  groundSkin: 0.01
+  launchDuration: 0.35
+  launchArcHeight: 1.25
+  landingJitterX: 0.2
 --- !u!4 &1044983556
 Transform:
   m_ObjectHideFlags: 0
@@ -32832,25 +32864,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LaneBounds
   cam: {fileID: 414385169}
   paddingWorld: 0.3
---- !u!114 &1044983564
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1044983554}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d30a22ce7fddc114ca1ec73128fbaeac, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::WorldSquishToWindow
-  stripCamera: {fileID: 414385169}
-  worldRoot: {fileID: 158813735}
-  leftAnchor: {fileID: 0}
-  useCustomReferenceAspect: 1
-  referenceAspect: 5.333333
-  minScaleX: 0.4
-  maxScaleX: 1
 --- !u!114 &1044983565
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -34248,6 +34261,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1088023133}
+  - component: {fileID: 1088023134}
+  - component: {fileID: 1088023135}
   m_Layer: 0
   m_Name: LevelSpawnPoints
   m_TagString: Untagged
@@ -34263,18 +34278,60 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1088023132}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.868654, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 1558580853}
   - {fileID: 412571915}
-  - {fileID: 1550592807}
   - {fileID: 2047187991}
   - {fileID: 1166094644}
   - {fileID: 88544215}
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 158813735}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1088023134
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1088023132}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a0b706ea7a641d68d7e6c4bb56f2458, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldPlacementGizmos
+  playerSpawnPoint: {fileID: 412571915}
+  laneRoot: {fileID: 1558580853}
+  floorCollider: {fileID: 1101752655}
+  showLabels: 1
+  showSpawnGroups: 1
+  markerRadius: 0.18
+--- !u!114 &1088023135
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1088023132}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9350c329f58419b8f019e2fe453d493, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldFloorToUIEdge
+  sourceRect: {fileID: 1463235205}
+  sourceEdge: 0
+  sourcePixelOffset: 6
+  worldCamera: {fileID: 414385169}
+  worldRoot: {fileID: 1088023133}
+  floorCollider: {fileID: 1101752655}
+  worldYOffset: 0
+  moveRuntimeActorsWithFloor: 1
+  moveItemDropsWithFloor: 1
+  forceCanvasUpdate: 1
+  updateContinuously: 1
+  minMoveDelta: 0.0001
 --- !u!1 &1095206345
 GameObject:
   m_ObjectHideFlags: 0
@@ -34650,7 +34707,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: -47.135864, y: -8.569239}
+  m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -34660,7 +34717,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 2845.0188, y: 0.28279114}
+  m_Size: {x: 100, y: 0.25}
   m_EdgeRadius: 0
 --- !u!4 &1101752656
 Transform:
@@ -34671,8 +34728,8 @@ Transform:
   m_GameObject: {fileID: 1101752654}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 109, y: -258, z: 0}
-  m_LocalScale: {x: 1.38, y: 1, z: 1}
+  m_LocalPosition: {x: 0.038, y: -3.12, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1558580853}
@@ -35253,8 +35310,8 @@ Transform:
   m_GameObject: {fileID: 1125193033}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.2, y: -10.7, z: 0}
-  m_LocalScale: {x: 3, y: 3, z: 0.9140336}
+  m_LocalPosition: {x: 0.2, y: 0.2, z: 0}
+  m_LocalScale: {x: 5.3652906, y: 5.0615954, z: 1.5421562}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -47872,9 +47929,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: baf7bacc209b7ae44acc486f85e711ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DragStripBar
-  stripCamera: {fileID: 414385169}
-  stripHeightPx: 360
-  bottomPaddingPx: 0
+  stripController: {fileID: 414385172}
+  bottomPaddingNormalized: 0
 --- !u!1001 &1464520156
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -51259,37 +51315,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1550504883}
   m_CullTransparentMesh: 1
---- !u!1 &1550592806
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1550592807}
-  m_Layer: 0
-  m_Name: SpawnPoint_Player_Entry
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1550592807
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1550592806}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -22.61, y: -1.38, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1088023133}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1558580852
 GameObject:
   m_ObjectHideFlags: 0
@@ -51315,12 +51340,12 @@ Transform:
   m_GameObject: {fileID: 1558580852}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -20.7, y: 86, z: 0}
+  m_LocalPosition: {x: -0.3319815, y: 0.19099589, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1101752656}
-  m_Father: {fileID: 300103154}
+  m_Father: {fileID: 1088023133}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1561369990
 GameObject:
@@ -66200,6 +66225,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2042090762}
+  - component: {fileID: 2042090763}
   m_Layer: 5
   m_Name: UI_Frame
   m_TagString: Untagged
@@ -66227,13 +66253,28 @@ RectTransform:
   - {fileID: 914429127}
   - {fileID: 1039092199}
   - {fileID: 265969955}
+  - {fileID: 395888640}
   m_Father: {fileID: 300103154}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMax: {x: 1, y: 0.33333334}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &2042090763
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2042090761}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91b9fb7c6a544ea0919bc42ab0f7bc64, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StripUIViewportFollower
+  stripCamera: {fileID: 414385169}
+  targetRect: {fileID: 2042090762}
 --- !u!1 &2046178025
 GameObject:
   m_ObjectHideFlags: 0
@@ -68972,4 +69013,3 @@ SceneRoots:
   - {fileID: 300103154}
   - {fileID: 852128585}
   - {fileID: 1125193035}
-  - {fileID: 1088023133}

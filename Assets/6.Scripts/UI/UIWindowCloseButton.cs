@@ -61,6 +61,10 @@ public class UIWindowCloseButton : MonoBehaviour
             }
         }
 
+        QuestTrackerWindowUI questTracker = targetWindow.GetComponent<QuestTrackerWindowUI>();
+        if (questTracker != null)
+            questTracker.RememberWindowClosedByUser();
+
         targetWindow.SetActive(false);
     }
 }

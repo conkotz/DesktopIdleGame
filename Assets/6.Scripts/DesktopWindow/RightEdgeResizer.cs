@@ -6,27 +6,28 @@ public class RightEdgeResizer : MonoBehaviour,
     IBeginDragHandler, IDragHandler, IPointerEnterHandler, IPointerExitHandler
 {
     [Header("Refs")]
-    [SerializeField] private StripViewport stripViewport;   // <-- assign your StripViewport script
-    [SerializeField] private Camera stripCamera;            // optional; will auto find from StripViewport
-    [SerializeField] private bool keepLeftAnchored = true;  // keeps x=0 while resizing
+    [SerializeField] private StripCameraController stripController;
+    [SerializeField] private bool keepLeftAnchored = true;
 
-    [Header("Limits (pixels)")]
-    [SerializeField] private float minWidthPx = 600f;
+    [Header("Limits")]
+    [Range(0.1f, 1f)]
+    [SerializeField] private float minWidthNormalized = 0.3f;
 
-    [Tooltip("Extra pixels to subtract from screen width (breathing room).")]
-    [SerializeField] private float screenPaddingPx = 0f;
+    [Tooltip("Extra normalized screen width to leave unused on the right edge.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float screenPaddingNormalized = 0f;
 
     [Header("Hover (2px line)")]
     [SerializeField] private Image hoverLine;     // assign a 2px Image child (recommended)
     [SerializeField] private float hoverAlpha = 0.35f;
 
     private float _startMouseX;
-    private float _startWidthPx;
+    private float _startWidthNormalized;
 
     private void Awake()
     {
-        if (!stripViewport) stripViewport = FindFirstObjectByType<StripViewport>();
-        if (!stripCamera && stripViewport) stripCamera = stripViewport.GetComponent<Camera>();
+        if (!stripController)
+            stripController = FindFirstObjectByType<StripCameraController>();
 
         if (!hoverLine)
         {
@@ -39,32 +40,28 @@ public class RightEdgeResizer : MonoBehaviour,
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (!stripViewport || !stripCamera) return;
+        if (!stripController) return;
 
         _startMouseX = eventData.position.x;
-
-        // current strip width in pixels from camera viewport rect
-        _startWidthPx = stripCamera.rect.width * Screen.width;
+        _startWidthNormalized = stripController.WidthNormalized;
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (!stripViewport || !stripCamera) return;
+        if (!stripController || Screen.width <= 0) return;
 
-        float deltaX = eventData.position.x - _startMouseX;
-
-        float maxWidthPx = Mathf.Max(0f, Screen.width - screenPaddingPx);
-        if (maxWidthPx <= 0f) maxWidthPx = Screen.width;
-
-        float newWidthPx = Mathf.Clamp(_startWidthPx + deltaX, minWidthPx, maxWidthPx);
-
-        float wNorm = Mathf.Clamp01(newWidthPx / Screen.width);
+        float deltaNormalized = (eventData.position.x - _startMouseX) / Screen.width;
+        float maxWidthNormalized = Mathf.Clamp01(1f - screenPaddingNormalized);
+        float nextWidth = Mathf.Clamp(
+            _startWidthNormalized + deltaNormalized,
+            minWidthNormalized,
+            maxWidthNormalized);
 
         // Keep it pinned left so it "shrinks from the right"
         if (keepLeftAnchored)
-            stripViewport.SetLeftNormalized(0f);
+            stripController.SetLeftNormalized(0f);
 
-        stripViewport.SetWidthNormalized(wNorm);
+        stripController.SetWidthNormalized(nextWidth);
     }
 
     public void OnPointerEnter(PointerEventData eventData) => SetHover(true);

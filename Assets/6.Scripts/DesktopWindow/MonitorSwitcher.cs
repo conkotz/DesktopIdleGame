@@ -14,6 +14,9 @@ public class MonitorSwitcher : MonoBehaviour
     [SerializeField] private KeyCode hotkey = KeyCode.F10;
     [SerializeField] private bool snapOnStart = true;
     [SerializeField] private int delayFrames = 6;
+    [SerializeField] private bool syncUnityResolutionToMonitor = true;
+    [SerializeField] private bool useNativeWorkAreaPlacement = true;
+    [SerializeField] private bool refreshTransparencyAfterMove = true;
     private int _index = 0;
 #pragma warning restore 0414
 
@@ -87,6 +90,23 @@ public class MonitorSwitcher : MonoBehaviour
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetActiveWindow();
+
+    [DllImport("user32.dll")]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int x,
+        int y,
+        int cx,
+        int cy,
+        uint uFlags);
+
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
+    private const uint SWP_FRAMECHANGED = 0x0020;
+
     private struct MonitorRect
     {
         public RECT monitor;
@@ -118,30 +138,8 @@ public class MonitorSwitcher : MonoBehaviour
         return list;
     }
 
-    private static bool TryGetPrimary(List<MonitorRect> mons, out MonitorRect primary)
-    {
-        for (int i = 0; i < mons.Count; i++)
-        {
-            if (mons[i].primary)
-            {
-                primary = mons[i];
-                return true;
-            }
-        }
-        primary = default;
-        return false;
-    }
-
     private void MoveToMonitor(MonitorRect target)
     {
-        var mons = GetMonitors();
-        if (mons.Count == 0) return;
-
-        if (!TryGetPrimary(mons, out var primary))
-            primary = mons[0];
-
-        // Use WORK AREA (excludes taskbar)
-        RECT p = primary.monitor;
         RECT w = target.work;
 
         int workLeft = w.left;
@@ -153,15 +151,59 @@ public class MonitorSwitcher : MonoBehaviour
         int workHeight = workBottom - workTop;
 
         // Fill the monitor work area
+        if (syncUnityResolutionToMonitor)
+            Screen.SetResolution(workWidth, workHeight, FullScreenMode.Windowed);
+
         uniWin.windowSize = new Vector2(workWidth, workHeight);
+        uniWin.windowPosition = new Vector2(workLeft, workTop);
 
-        // Position at work area's bottom-left
-        // UniWin origin: primary monitor bottom-left, Y+ up
-        // Windows coords: Y+ down
-        float uniX = workLeft - p.left;
-        float uniY = p.bottom - workBottom;
+        if (useNativeWorkAreaPlacement)
+            ApplyNativeWindowRect(workLeft, workTop, workWidth, workHeight);
 
-        uniWin.windowPosition = new Vector2(uniX, uniY);
+        RefreshTransparency();
+        StartCoroutine(ReapplyUniWindowRectNextFrame(workLeft, workTop, workWidth, workHeight));
+    }
+
+    private IEnumerator ReapplyUniWindowRectNextFrame(int x, int y, int width, int height)
+    {
+        yield return null;
+        yield return new WaitForEndOfFrame();
+
+        if (uniWin)
+        {
+            uniWin.windowSize = new Vector2(width, height);
+            uniWin.windowPosition = new Vector2(x, y);
+            if (useNativeWorkAreaPlacement)
+                ApplyNativeWindowRect(x, y, width, height);
+
+            RefreshTransparency();
+        }
+    }
+
+    private void RefreshTransparency()
+    {
+        if (!refreshTransparencyAfterMove || !uniWin)
+            return;
+
+        var type = uniWin.transparentType;
+        uniWin.SetTransparentType(type);
+        uniWin.isTransparent = true;
+    }
+
+    private static void ApplyNativeWindowRect(int x, int y, int width, int height)
+    {
+        IntPtr hwnd = GetActiveWindow();
+        if (hwnd == IntPtr.Zero)
+            return;
+
+        SetWindowPos(
+            hwnd,
+            IntPtr.Zero,
+            x,
+            y,
+            width,
+            height,
+            SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
     }
 
 #endif

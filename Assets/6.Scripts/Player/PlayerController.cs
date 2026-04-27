@@ -106,6 +106,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool invertFlip = true;
     [SerializeField] private float flipDeadzone = 0.0005f;
     private float _lastX;
+    public float FacingDirectionX { get; private set; } = 1f;
 
     private bool _suppressSpriteFlipForTeleport;
 
@@ -1956,6 +1957,9 @@ public class PlayerController : MonoBehaviour
         float abs = Mathf.Abs(s.x);
         s.x = flip ? -abs : abs;
         visualsRoot.localScale = s;
+
+        bool facingLeft = invertFlip ? !flip : flip;
+        FacingDirectionX = facingLeft ? -1f : 1f;
     }
 
     public void FaceTargetX(float targetX)

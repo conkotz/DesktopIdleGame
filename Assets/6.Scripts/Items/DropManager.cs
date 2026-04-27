@@ -27,6 +27,17 @@ public class DropManager : MonoBehaviour
     [Tooltip("Used for screen-space clamping. Leave empty to use Camera.main.")]
     [SerializeField] private Camera dropClampCamera;
 
+    [Header("Ground alignment")]
+    [SerializeField] private bool alignPlayerDropsToGround = true;
+    [SerializeField] private LayerMask groundMask;
+    [SerializeField] private float groundCastDistance = 10f;
+    [SerializeField] private float groundSkin = 0.01f;
+    [SerializeField] private float launchDuration = 0.35f;
+    [SerializeField] private float launchArcHeight = 1.25f;
+    [SerializeField] private float landingJitterX = 0.5f;
+
+    private PlayerController _player;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -60,19 +71,19 @@ public class DropManager : MonoBehaviour
         ResolveAnchor();
     }
 
-    private void ResolveAnchor()
+    private void ResolveAnchor(bool forceRefresh = false)
     {
-        if (dropAnchor) return;
+        if (dropAnchor && !forceRefresh) return;
 
-        var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-        if (!player) return;
+        _player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (!_player) return;
 
         // Best option (if you add this to PlayerController): player.DropAnchor
         // if (player.DropAnchor) { dropAnchor = player.DropAnchor; return; }
 
         // Otherwise: find by name anywhere under the player (works with nested hierarchy)
-        var found = FindDeepChild(player.transform, dropAnchorChildName);
-        dropAnchor = found ? found : player.transform; // safe fallback
+        var found = FindDeepChild(_player.transform, dropAnchorChildName);
+        dropAnchor = found ? found : _player.transform; // safe fallback
     }
 
     private static Transform FindDeepChild(Transform parent, string name)
@@ -140,7 +151,7 @@ public class DropManager : MonoBehaviour
 
     public void Spawn(string itemId, int amount, Sprite icon)
     {
-        if (!dropAnchor) ResolveAnchor();
+        ResolveAnchor(forceRefresh: true);
 
         if (!dropAnchor)
         {
@@ -148,7 +159,12 @@ public class DropManager : MonoBehaviour
             return;
         }
 
-        SpawnAtWorldPosition(itemId, amount, icon, dropAnchor.position, clampToDropFrame: true);
+        SpawnAtWorldPosition(
+            itemId,
+            amount,
+            icon,
+            dropAnchor.position,
+            alignToGround: alignPlayerDropsToGround);
     }
 
     /// <summary>
@@ -160,17 +176,65 @@ public class DropManager : MonoBehaviour
         int amount,
         Sprite icon,
         Vector3 worldPosition,
-        bool clampToDropFrame = false)
+        bool clampToDropFrame = false,
+        bool alignToGround = false)
     {
         if (!worldDropPrefab || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
             return;
 
-        float scatterX = UnityEngine.Random.Range(-scatterRadius, scatterRadius);
+        float scatterX = GetOutwardScatterX(worldPosition, alignToGround);
         Vector3 spawnPos = worldPosition + new Vector3(scatterX, 0f, 0f);
         if (clampToDropFrame)
             ClampSpawnToDropFrame(ref spawnPos);
 
-        var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
+        float groundY = 0f;
+        bool hasGround = alignToGround && TryFindGroundY(spawnPos, out groundY);
+
+        Vector3 instantiatePosition = hasGround ? worldPosition : spawnPos;
+        var drop = Instantiate(worldDropPrefab, instantiatePosition, Quaternion.identity);
         drop.Init(itemId, amount, icon);
+
+        if (hasGround)
+        {
+            drop.LaunchToGround(
+                worldPosition,
+                spawnPos,
+                groundY,
+                launchDuration,
+                launchArcHeight,
+                groundSkin);
+        }
+    }
+
+    private bool TryFindGroundY(Vector3 origin, out float groundY)
+    {
+        groundY = 0f;
+
+        int mask = groundMask.value != 0 ? groundMask.value : Physics2D.AllLayers;
+        RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, Mathf.Max(0.1f, groundCastDistance), mask);
+        if (!hit.collider)
+            return false;
+
+        groundY = hit.point.y;
+        return true;
+    }
+
+    private float GetOutwardScatterX(Vector3 worldPosition, bool usePlayerDirection)
+    {
+        float distance = UnityEngine.Random.Range(scatterRadius * 0.35f, scatterRadius);
+        distance += UnityEngine.Random.Range(-landingJitterX, landingJitterX);
+        distance = Mathf.Max(0.05f, distance);
+
+        if (!usePlayerDirection || !dropAnchor)
+            return UnityEngine.Random.value < 0.5f ? -distance : distance;
+
+        if (!_player)
+            _player = dropAnchor.GetComponentInParent<PlayerController>();
+
+        float awaySign = _player ? Mathf.Sign(_player.FacingDirectionX) : 1f;
+        if (Mathf.Approximately(awaySign, 0f))
+            awaySign = 1f;
+
+        return awaySign * distance;
     }
 }

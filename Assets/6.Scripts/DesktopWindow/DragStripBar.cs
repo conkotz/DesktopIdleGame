@@ -4,49 +4,40 @@ using UnityEngine.EventSystems;
 public class DragStripBar : MonoBehaviour, IBeginDragHandler, IDragHandler
 {
     [Header("Refs")]
-    [SerializeField] private Camera stripCamera;
-
-    [Header("Strip size (pixels)")]
-    [SerializeField] private float stripHeightPx = 360f;
+    [SerializeField] private StripCameraController stripController;
 
     [Header("Clamp")]
-    [Tooltip("Extra pixels to keep above bottom edge (optional).")]
-    [SerializeField] private float bottomPaddingPx = 0f;
+    [Tooltip("Extra normalized space to keep above the bottom edge.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float bottomPaddingNormalized = 0f;
 
     private float _startYNorm;
     private float _startMouseY;
 
     private void Awake()
     {
-        if (!stripCamera) stripCamera = GameObject.Find("StripCamera")?.GetComponent<Camera>();
+        if (!stripController)
+            stripController = FindFirstObjectByType<StripCameraController>();
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (!stripCamera) return;
+        if (!stripController) return;
 
         _startMouseY = eventData.position.y;
-        _startYNorm = stripCamera.rect.y;
+        _startYNorm = stripController.BottomNormalized;
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (!stripCamera) return;
+        if (!stripController || Screen.height <= 0) return;
 
-        float dyPx = eventData.position.y - _startMouseY;
-        float dyNorm = dyPx / Screen.height;
+        // Pointer positions arrive in screen pixels, then immediately become normalized viewport movement.
+        float deltaNormalized = (eventData.position.y - _startMouseY) / Screen.height;
+        float minY = Mathf.Clamp01(bottomPaddingNormalized);
+        float maxY = 1f - stripController.StripHeightPercent;
+        float nextY = Mathf.Clamp(_startYNorm + deltaNormalized, minY, maxY);
 
-        Rect r = stripCamera.rect;
-
-        // Keep height fixed, only move Y
-        float stripHeightNorm = stripHeightPx / Screen.height;
-
-        float minY = bottomPaddingPx / Screen.height;
-        float maxY = 1f - stripHeightNorm;
-
-        r.y = Mathf.Clamp(_startYNorm + dyNorm, minY, maxY);
-        r.height = stripHeightNorm;
-
-        stripCamera.rect = r;
+        stripController.SetBottomNormalized(nextY);
     }
 }
