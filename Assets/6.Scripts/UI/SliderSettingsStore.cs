@@ -1,0 +1,71 @@
+using System;
+using UnityEngine;
+
+public static class SliderSettingsStore
+{
+    public const string HudResizeKey = "ui.scaleMultiplier";
+
+    public static event Action<SliderSettingId, float> Changed;
+
+    public static float Get(SliderSettingId setting)
+    {
+        return setting switch
+        {
+            SliderSettingId.HudResize => PlayerPrefs.GetFloat(HudResizeKey, GetDefault(setting)),
+            _ => GetDefault(setting)
+        };
+    }
+
+    public static void Set(SliderSettingId setting, float value)
+    {
+        float clamped = Mathf.Clamp(value, GetMin(setting), GetMax(setting));
+        if (Mathf.Approximately(Get(setting), clamped))
+            return;
+
+        switch (setting)
+        {
+            case SliderSettingId.HudResize:
+                PlayerPrefs.SetFloat(HudResizeKey, clamped);
+                break;
+        }
+
+        PlayerPrefs.Save();
+        Changed?.Invoke(setting, clamped);
+    }
+
+    public static string GetDisplayName(SliderSettingId setting)
+    {
+        return setting switch
+        {
+            SliderSettingId.HudResize => "HUD resize",
+            _ => setting.ToString()
+        };
+    }
+
+    public static float GetDefault(SliderSettingId setting)
+    {
+        return setting switch
+        {
+            SliderSettingId.HudResize => 1f,
+            _ => 0f
+        };
+    }
+
+    public static float GetMin(SliderSettingId setting)
+    {
+        return setting switch
+        {
+            SliderSettingId.HudResize => 0.85f,
+            _ => 0f
+        };
+    }
+
+    public static float GetMax(SliderSettingId setting)
+    {
+        return setting switch
+        {
+            SliderSettingId.HudResize => 1.4f,
+            _ => 1f
+        };
+    }
+}
