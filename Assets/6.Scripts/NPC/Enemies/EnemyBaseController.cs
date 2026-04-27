@@ -46,6 +46,7 @@ public class EnemyBaseController : MonoBehaviour
     private float _idleWanderPhaseEndTime;
     private float _idleWanderDirSign = 1f;
     private int _idleWanderPhaseTickFrame = -1;
+    private const float WanderBoundsEpsilon = 0.02f;
 
     [Header("Attack (from CharacterStats)")]
     [Tooltip("Delay before damage is applied (for animation timing).")]
@@ -393,9 +394,10 @@ public class EnemyBaseController : MonoBehaviour
         if (!IsPlayerValidAlive())
             return false;
         if (EnemyWanderBounds.Instance == null ||
-            !EnemyWanderBounds.Instance.TryGetWorldXBounds(out _, out _))
+            !EnemyWanderBounds.Instance.TryGetWorldXBounds(out float minX, out float maxX))
             return false;
-        return _idleWanderInMovePhase;
+
+        return _idleWanderInMovePhase || IsOutsideWanderBounds(transform.position.x, minX, maxX);
     }
 
     private void Update()
@@ -511,10 +513,17 @@ public class EnemyBaseController : MonoBehaviour
             return false;
 
         float x = transform.position.x;
+        bool outsideBounds = IsOutsideWanderBounds(x, minX, maxX);
+
         if (x <= minX)
             _idleWanderDirSign = 1f;
         else if (x >= maxX)
             _idleWanderDirSign = -1f;
+        else if (!_idleWanderInMovePhase && !outsideBounds)
+            return false;
+
+        if (!_idleWanderInMovePhase && outsideBounds)
+            _idleWanderPhaseEndTime = Time.time + UnityEngine.Random.Range(idleWanderMoveMinSec, idleWanderMoveMaxSec);
 
         FaceTargetX(transform.position.x + _idleWanderDirSign * 100f);
 
@@ -523,6 +532,11 @@ public class EnemyBaseController : MonoBehaviour
         float yVel = _rb.linearVelocity.y;
         _rb.linearVelocity = new Vector2(_idleWanderDirSign * spd, xOnly ? yVel : _rb.linearVelocity.y);
         return true;
+    }
+
+    private static bool IsOutsideWanderBounds(float x, float minX, float maxX)
+    {
+        return x < minX - WanderBoundsEpsilon || x > maxX + WanderBoundsEpsilon;
     }
 
     private void StopHorizontal()

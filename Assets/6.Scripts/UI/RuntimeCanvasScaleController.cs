@@ -5,6 +5,7 @@ using UnityEngine.UI;
 [RequireComponent(typeof(CanvasScaler))]
 public sealed class RuntimeCanvasScaleController : MonoBehaviour
 {
+    [SerializeField] private SliderSettingId settingId = SliderSettingId.HudResize;
     [SerializeField] private CanvasScaler canvasScaler;
     [SerializeField] private Vector2 baseReferenceResolution = new Vector2(2560f, 1440f);
 
@@ -18,7 +19,7 @@ public sealed class RuntimeCanvasScaleController : MonoBehaviour
         if (baseReferenceResolution.x <= 0f || baseReferenceResolution.y <= 0f)
             baseReferenceResolution = canvasScaler ? canvasScaler.referenceResolution : new Vector2(2560f, 1440f);
 
-        _scaleMultiplier = SliderSettingsStore.Get(SliderSettingId.HudResize);
+        _scaleMultiplier = SliderSettingsStore.Get(settingId);
         ApplyScale();
     }
 
@@ -34,7 +35,7 @@ public sealed class RuntimeCanvasScaleController : MonoBehaviour
 
     private void OnSliderSettingChanged(SliderSettingId setting, float value)
     {
-        if (setting != SliderSettingId.HudResize)
+        if (setting != settingId)
             return;
 
         _scaleMultiplier = value;
