@@ -10,7 +10,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
     [Header("Layout")]
     [SerializeField] private Vector2 fixedSize = new(250f, 250f);
-    [SerializeField] private float worldScale = 0.01f;
+    [SerializeField] private float worldScale = 0.015f;
     [SerializeField, Range(0f, 0.1f)] private float viewportPadding = 0.02f;
 
     [Header("Optional refs")]

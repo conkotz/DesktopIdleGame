@@ -65,7 +65,7 @@ public class SettingsButtonRowUI : MonoBehaviour
     {
         return id switch
         {
-            SettingsButtonActionId.ReturnAllWindowsToAnchorPoints => "Return all windows back to anchor points",
+            SettingsButtonActionId.ReturnAllWindowsToAnchorPoints => "Resets all windows - size and position",
             _ => id.ToString()
         };
     }

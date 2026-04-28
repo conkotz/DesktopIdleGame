@@ -52,6 +52,15 @@ public class FloatingDamageTextUI : MonoBehaviour
     private float _baseFontSize;
     private Coroutine _run;
 
+    /// <summary>Set by <see cref="DamagePopupSystem"/> so popups follow world hits while the strip camera pans.</summary>
+    private Vector3 _worldAnchor;
+    private Vector2 _spawnJitter;
+    private Camera _worldCam;
+    private RectTransform _parentRect;
+    private Camera _overlayEventCam;
+
+    private bool HasWorldFollow => _parentRect != null && _worldCam != null;
+
     private void Awake()
     {
         if (!text) text = GetComponentInChildren<TMP_Text>(true);
@@ -61,6 +70,19 @@ public class FloatingDamageTextUI : MonoBehaviour
 
         if (text != null)
             _baseFontSize = text.fontSize;
+    }
+
+    /// <summary>
+    /// Call immediately after instantiate (before <see cref="Init"/>). Keeps the label pinned to the world hit
+    /// while the gameplay camera moves; still drawn on the high-sort damage overlay canvas.
+    /// </summary>
+    public void BeginWorldAnchorFollow(Vector3 worldAnchor, Vector2 spawnJitter, Camera worldCam, RectTransform parentRect, Camera overlayEventCam)
+    {
+        _worldAnchor = worldAnchor;
+        _spawnJitter = spawnJitter;
+        _worldCam = worldCam;
+        _parentRect = parentRect;
+        _overlayEventCam = overlayEventCam;
     }
 
     public void Init(int amount, PopupDamageKind kind, bool isCrit, bool isDot, Vector3 worldDirection)
@@ -159,8 +181,9 @@ public class FloatingDamageTextUI : MonoBehaviour
 
     private IEnumerator Run(Vector2 direction, float lifeTime)
     {
-        Vector2 start = rect.anchoredPosition;
-        Vector2 end = start + direction * distance;
+        Vector2 travel = direction * distance;
+        Vector2 legacyStart = rect.anchoredPosition;
+        Vector2 legacyEnd = legacyStart + travel;
 
         group.alpha = 0f;
 
@@ -169,6 +192,8 @@ public class FloatingDamageTextUI : MonoBehaviour
         {
             t += Time.deltaTime;
             group.alpha = Mathf.Clamp01(t / Mathf.Max(0.0001f, fadeInSeconds));
+            if (HasWorldFollow)
+                rect.anchoredPosition = GetAnchorLocal() + _spawnJitter;
             yield return null;
         }
 
@@ -181,12 +206,20 @@ public class FloatingDamageTextUI : MonoBehaviour
             elapsed += Time.deltaTime;
             float p = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, lifeTime));
 
-            Vector2 pos = Vector2.Lerp(start, end, p);
-
-            float arc = Mathf.Sin(p * Mathf.PI) * arcHeight;
-            pos.y += arc;
-
-            rect.anchoredPosition = pos;
+            if (HasWorldFollow)
+            {
+                Vector2 anim = Vector2.Lerp(Vector2.zero, travel, p);
+                float arc = Mathf.Sin(p * Mathf.PI) * arcHeight;
+                anim.y += arc;
+                rect.anchoredPosition = GetAnchorLocal() + _spawnJitter + anim;
+            }
+            else
+            {
+                Vector2 pos = Vector2.Lerp(legacyStart, legacyEnd, p);
+                float arc = Mathf.Sin(p * Mathf.PI) * arcHeight;
+                pos.y += arc;
+                rect.anchoredPosition = pos;
+            }
 
             if (elapsed > lifeTime - fadeOutSeconds)
             {
@@ -198,6 +231,16 @@ public class FloatingDamageTextUI : MonoBehaviour
         }
 
         Destroy(gameObject);
+    }
+
+    private Vector2 GetAnchorLocal()
+    {
+        Vector3 screen = _worldCam.WorldToScreenPoint(_worldAnchor);
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                _parentRect, screen, _overlayEventCam, out Vector2 local))
+            return local;
+
+        return rect.anchoredPosition - _spawnJitter;
     }
 
     private Vector2 Rotate(Vector2 v, float degrees)

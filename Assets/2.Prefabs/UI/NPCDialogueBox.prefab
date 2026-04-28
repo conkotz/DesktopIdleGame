@@ -49,6 +49,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCDialogueBoxUI
   fixedSize: {x: 250, y: 250}
-  worldScale: 0.01
+  worldScale: 0.015
   dialogueText: {fileID: 0}
   acceptButton: {fileID: 0}

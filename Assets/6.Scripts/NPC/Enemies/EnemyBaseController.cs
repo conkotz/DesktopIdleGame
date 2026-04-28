@@ -47,6 +47,7 @@ public class EnemyBaseController : MonoBehaviour
     private float _idleWanderDirSign = 1f;
     private int _idleWanderPhaseTickFrame = -1;
     private const float WanderBoundsEpsilon = 0.02f;
+    private const float WorldBoundsXPadding = 0.5f;
 
     [Header("Attack (from CharacterStats)")]
     [Tooltip("Delay before damage is applied (for animation timing).")]
@@ -471,6 +472,7 @@ public class EnemyBaseController : MonoBehaviour
         if (!IsPlayerValidAlive())
         {
             StopHorizontal();
+            EnforceWorldBoundsX();
             return;
         }
 
@@ -496,6 +498,35 @@ public class EnemyBaseController : MonoBehaviour
         {
             StopHorizontal();
         }
+
+        EnforceWorldBoundsX();
+    }
+
+    /// <summary>
+    /// Keeps the enemy inside <see cref="WorldBounds"/> horizontally (chase, idle wander, knockback, etc.).
+    /// </summary>
+    private void EnforceWorldBoundsX()
+    {
+        if (!_rb || !WorldBounds.Instance)
+            return;
+
+        float minX = WorldBounds.Instance.Left + WorldBoundsXPadding;
+        float maxX = WorldBounds.Instance.Right - WorldBoundsXPadding;
+        if (minX > maxX)
+            maxX = minX;
+
+        Vector2 p = _rb.position;
+        Vector2 v = _rb.linearVelocity;
+
+        p.x = Mathf.Clamp(p.x, minX, maxX);
+
+        if (p.x <= minX)
+            v.x = Mathf.Max(0f, v.x);
+        else if (p.x >= maxX)
+            v.x = Mathf.Min(0f, v.x);
+
+        _rb.position = p;
+        _rb.linearVelocity = v;
     }
 
     private bool TryApplyIdleWanderMovement()

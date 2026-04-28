@@ -108,6 +108,8 @@ public class PlayerController : MonoBehaviour
     private float _lastX;
     public float FacingDirectionX { get; private set; } = 1f;
 
+    private Rigidbody2D _rb;
+
     private bool _suppressSpriteFlipForTeleport;
 
     /// <summary>Lets <see cref="PlayerLevelTransition"/> own visuals scale during a level change.</summary>
@@ -218,6 +220,7 @@ public class PlayerController : MonoBehaviour
     private ResourceNode _pausedNode;
 
     private LaneBounds laneBounds;
+    private const float WorldBoundsXPadding = 0.5f;
     private Inventory inventory;
     private ResourceNode targetNode;
 
@@ -379,6 +382,8 @@ public class PlayerController : MonoBehaviour
 
         if (!animator)
             animator = GetComponentInChildren<Animator>(true);
+
+        _rb = GetComponent<Rigidbody2D>();
 
         if (actionPopup)
             actionPopup.SetActive(false);
@@ -1231,8 +1236,7 @@ public class PlayerController : MonoBehaviour
         _gatherTimer = 0f;
         _nextGatherInterval = 0f;
 
-        float min = laneBounds ? laneBounds.MinX : -999f;
-        float max = laneBounds ? laneBounds.MaxX : 999f;
+        GetClampXMinMax(out float min, out float max);
 
         moveTargetX = Mathf.Clamp(x, min, max);
         state = State.MoveToPoint;
@@ -1245,8 +1249,7 @@ public class PlayerController : MonoBehaviour
     {
         if (_isDead) return;
 
-        float min = laneBounds ? laneBounds.MinX : -999f;
-        float max = laneBounds ? laneBounds.MaxX : 999f;
+        GetClampXMinMax(out float min, out float max);
 
         float clamped = Mathf.Clamp(x, min, max);
 
@@ -1474,10 +1477,10 @@ public class PlayerController : MonoBehaviour
         }
 
         Vector3 pos = transform.position;
-        float minX = laneBounds ? laneBounds.MinX : -999f;
-        float maxX = laneBounds ? laneBounds.MaxX : 999f;
+        GetClampXMinMax(out float minX, out float maxX);
         pos.x = Mathf.Clamp(targetNode.workSpot.position.x, minX, maxX);
         transform.position = pos;
+        SyncPlayerRigidbody2DPosition();
 
         if (targetNode.UseRandomInterval)
         {
@@ -1878,14 +1881,39 @@ public class PlayerController : MonoBehaviour
 
     private void MoveToX(float x, float speed)
     {
-        float min = laneBounds ? laneBounds.MinX : -999f;
-        float max = laneBounds ? laneBounds.MaxX : 999f;
-
         Vector3 pos = transform.position;
         pos.x = Mathf.MoveTowards(pos.x, x, speed * Time.deltaTime);
+
+        GetClampXMinMax(out float min, out float max);
         pos.x = Mathf.Clamp(pos.x, min, max);
 
         transform.position = pos;
+        SyncPlayerRigidbody2DPosition();
+    }
+
+    /// <summary>
+    /// Kinematic Rigidbody2D stays in lockstep with scripted transform writes (Update) vs floor alignment(LateUpdate).
+    /// </summary>
+    private void SyncPlayerRigidbody2DPosition()
+    {
+        if (_rb)
+            _rb.position = transform.position;
+    }
+
+    /// <summary>
+    /// Horizontal limits for player position: <see cref="WorldBounds"/> with edge padding when present, else <see cref="LaneBounds"/>.
+    /// </summary>
+    private void GetClampXMinMax(out float minX, out float maxX)
+    {
+        if (WorldBounds.Instance != null)
+        {
+            minX = WorldBounds.Instance.Left + WorldBoundsXPadding;
+            maxX = WorldBounds.Instance.Right - WorldBoundsXPadding;
+            return;
+        }
+
+        minX = laneBounds ? laneBounds.MinX : -999f;
+        maxX = laneBounds ? laneBounds.MaxX : 999f;
     }
 
     private float GetMoveSpeed()
