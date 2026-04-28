@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -8,6 +7,8 @@ public sealed class UIWindowCornerResize : MonoBehaviour
 {
     private static Sprite s_hitSprite;
 
+    private const string ScalePrefsPrefix = "UI.WindowScale.";
+
     public enum ResizeCorner
     {
         BottomLeft,
@@ -15,8 +16,6 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         TopRight,
         BottomRight
     }
-
-    private static readonly Dictionary<string, float> SavedScaleMultipliers = new();
 
     [SerializeField] private RectTransform targetWindow;
     [SerializeField] private float minScale = 0.75f;
@@ -46,17 +45,20 @@ public sealed class UIWindowCornerResize : MonoBehaviour
 
     public static void ResetAllScalesToDefault()
     {
-        SavedScaleMultipliers.Clear();
-
         UIWindowCornerResize[] resizers = FindObjectsByType<UIWindowCornerResize>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
 
         for (int i = 0; i < resizers.Length; i++)
         {
-            if (resizers[i] != null)
-                resizers[i].ResetScale();
+            if (resizers[i] == null)
+                continue;
+
+            resizers[i].DeletePersistedScale();
+            resizers[i].ResetScale();
         }
+
+        PlayerPrefs.Save();
     }
 
     private void Awake()
@@ -296,11 +298,15 @@ public sealed class UIWindowCornerResize : MonoBehaviour
 
     private void RestoreRememberedScale()
     {
-        if (!targetWindow)
+        if (!targetWindow || string.IsNullOrWhiteSpace(memoryKey))
             return;
 
-        if (SavedScaleMultipliers.TryGetValue(memoryKey, out float scaleMultiplier))
-            ApplyScale(scaleMultiplier);
+        float multiplier = 1f;
+        string prefsKey = GetScalePrefsKey(memoryKey);
+        if (PlayerPrefs.HasKey(prefsKey))
+            multiplier = PlayerPrefs.GetFloat(prefsKey, 1f);
+
+        ApplyScale(Mathf.Clamp(multiplier, minScale, maxScale));
     }
 
     private void RememberCurrentScale()
@@ -308,7 +314,22 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         if (!targetWindow || string.IsNullOrWhiteSpace(memoryKey))
             return;
 
-        SavedScaleMultipliers[memoryKey] = GetCurrentScaleMultiplier();
+        float mult = GetCurrentScaleMultiplier();
+        PlayerPrefs.SetFloat(GetScalePrefsKey(memoryKey), mult);
+        PlayerPrefs.Save();
+    }
+
+    private void DeletePersistedScale()
+    {
+        if (string.IsNullOrWhiteSpace(memoryKey))
+            return;
+
+        PlayerPrefs.DeleteKey(GetScalePrefsKey(memoryKey));
+    }
+
+    private static string GetScalePrefsKey(string key)
+    {
+        return ScalePrefsPrefix + key.Trim();
     }
 
     private void ClampDragWindows()
