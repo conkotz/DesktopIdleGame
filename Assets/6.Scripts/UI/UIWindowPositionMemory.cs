@@ -30,6 +30,7 @@ public static class UIWindowPositionMemory
     public static void ResetAllWindowsToAnchors()
     {
         ForgetAll();
+        UIWindowCornerResize.ResetAllScalesToDefault();
 
         UIDragWindow[] windows = Object.FindObjectsByType<UIDragWindow>(
             FindObjectsInactive.Include,

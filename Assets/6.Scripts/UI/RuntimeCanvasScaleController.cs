@@ -19,6 +19,12 @@ public sealed class RuntimeCanvasScaleController : MonoBehaviour
         if (baseReferenceResolution.x <= 0f || baseReferenceResolution.y <= 0f)
             baseReferenceResolution = canvasScaler ? canvasScaler.referenceResolution : new Vector2(2560f, 1440f);
 
+        if (!SliderSettingsStore.IsVisible(settingId))
+        {
+            enabled = false;
+            return;
+        }
+
         _scaleMultiplier = SliderSettingsStore.Get(settingId);
         ApplyScale();
     }

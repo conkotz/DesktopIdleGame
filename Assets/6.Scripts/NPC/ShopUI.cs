@@ -231,7 +231,8 @@ public class ShopUI : MonoBehaviour
             // UIDragWindow lives on a header Image that is NOT a Selectable; without this, raycastTarget
             // stays false and the bar is click-through — drag never starts (see RefreshShopRaycastTargets).
             bool isDragHandle = g.GetComponentInParent<UIDragWindow>(true) != null;
-            g.raycastTarget = isInteractive || isDragHandle || IsPointerBlockingGraphic(g);
+            bool isResizeHandle = g.GetComponentInParent<UIWindowResizeHandle>(true) != null;
+            g.raycastTarget = isInteractive || isDragHandle || isResizeHandle || IsPointerBlockingGraphic(g);
         }
     }
 

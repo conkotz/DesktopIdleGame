@@ -10,12 +10,14 @@ public static class SliderSettingsStore
 
     public static float Get(SliderSettingId setting)
     {
-        return setting switch
+        float value = setting switch
         {
             SliderSettingId.HudResize => PlayerPrefs.GetFloat(HudResizeKey, GetDefault(setting)),
             SliderSettingId.WindowResize => PlayerPrefs.GetFloat(WindowResizeKey, GetDefault(setting)),
             _ => GetDefault(setting)
         };
+
+        return Mathf.Clamp(value, GetMin(setting), GetMax(setting));
     }
 
     public static void Set(SliderSettingId setting, float value)
@@ -48,6 +50,15 @@ public static class SliderSettingsStore
         };
     }
 
+    public static bool IsVisible(SliderSettingId setting)
+    {
+        return setting switch
+        {
+            SliderSettingId.WindowResize => false,
+            _ => true
+        };
+    }
+
     public static float GetDefault(SliderSettingId setting)
     {
         return setting switch
@@ -62,8 +73,8 @@ public static class SliderSettingsStore
     {
         return setting switch
         {
-            SliderSettingId.HudResize => 0.5f,
-            SliderSettingId.WindowResize => 0.5f,
+            SliderSettingId.HudResize => 0.75f,
+            SliderSettingId.WindowResize => 0.75f,
             _ => 0f
         };
     }
@@ -72,8 +83,8 @@ public static class SliderSettingsStore
     {
         return setting switch
         {
-            SliderSettingId.HudResize => 1.5f,
-            SliderSettingId.WindowResize => 1.5f,
+            SliderSettingId.HudResize => 1.25f,
+            SliderSettingId.WindowResize => 1.25f,
             _ => 1f
         };
     }

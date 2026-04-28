@@ -20,6 +20,13 @@ public sealed class SliderSettingsRowUI : MonoBehaviour
     private void OnEnable()
     {
         ResolveReferences();
+
+        if (!SliderSettingsStore.IsVisible(settingId))
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+
         ConfigureSlider();
 
         if (slider)

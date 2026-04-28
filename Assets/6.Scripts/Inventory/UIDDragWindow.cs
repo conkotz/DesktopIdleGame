@@ -23,6 +23,8 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         _anchorPoint = window ? window.anchoredPosition : Vector2.zero;
         if (string.IsNullOrWhiteSpace(memoryKey))
             memoryKey = ResolveMemoryKey();
+
+        UIWindowCornerResize.EnsureOn(window);
     }
 
     private void OnEnable()
