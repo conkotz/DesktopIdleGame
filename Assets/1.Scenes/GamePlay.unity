@@ -13310,6 +13310,10 @@ MonoBehaviour:
   leftNormalized: 0
   widthNormalized: 1
   baseOrthoSize: 4
+  minOrthoSize: 2.5
+  maxOrthoSizeFallback: 9
+  enableKeyboardZoom: 1
+  orthoZoomSpeed: 5
   updateContinuously: 0
 --- !u!114 &414385173
 MonoBehaviour:
@@ -13326,6 +13330,12 @@ MonoBehaviour:
   target: {fileID: 0}
   targetTag: Player
   followSpeed: 5
+  deadZoneWidth: 10
+  deadZoneForwardOffset: 0.4
+  velocityLeadPerSpeed: 0.06
+  velocityLeadMax: 2
+  velocityLeadDeadzone: 0.08
+  maxCameraSpeed: 22
   orthographicSize: 5
 --- !u!1 &417117100
 GameObject:
@@ -31792,7 +31802,7 @@ Transform:
   m_GameObject: {fileID: 999888770}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.02640605, z: 0}
+  m_LocalPosition: {x: 0, y: 0.47489095, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -34594,15 +34604,23 @@ MonoBehaviour:
   worldRoot: {fileID: 999888771}
   floorCollider: {fileID: 1101752655}
   worldYOffset: 0
+  orthoAlignmentReferenceHalfHeight: 4
+  alignmentWorldYOffsetPerOrthoUnitVsReference: 0
   sourceMeasurementLatchWorld: 0.04
   moveRuntimeActorsWithFloor: 1
   moveItemDropsWithFloor: 1
   moveResourceNodesWithFloor: 1
-  forceCanvasUpdateEveryFrame: 0
+  forceCanvasUpdateEveryFrame: 1
   updateContinuously: 1
   minMoveDelta: 0.025
   alignmentSmoothHz: 10
   layoutChangeEpsilonUnits: 0.1
+  maxAlignmentStepWorld: 2
+  debugLaneAlignment: 0
+  debugSampleInterval: 0.25
+  debugLogEveryApply: 0
+  debugResidualDeltaLogThreshold: 0.012
+  debugIncludeSourceRectLayout: 0
 --- !u!1 &1095206345
 GameObject:
   m_ObjectHideFlags: 0

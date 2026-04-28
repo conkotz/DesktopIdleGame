@@ -64,6 +64,10 @@ public class PlayerSpawnController : MonoBehaviour
 
     private IEnumerator SpawnAfterLoad(Scene loadedScene)
     {
+        var playerController = GetComponent<PlayerController>();
+        if (playerController != null)
+            playerController.SetTeleportDamageImmune(true);
+
         var combat = GetComponent<PlayerCombatController>();
         if (combat != null)
             combat.SetIdleCombatEnabled(false);
@@ -128,6 +132,9 @@ public class PlayerSpawnController : MonoBehaviour
             yield return FadeIn();
         else
             SetAlpha(1f);
+
+        if (playerController != null)
+            playerController.SetTeleportDamageImmune(false);
 
         _running = null;
     }

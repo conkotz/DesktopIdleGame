@@ -37,6 +37,17 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
     [SerializeField] private BoxCollider2D floorCollider;
     [SerializeField] private float worldYOffset;
 
+    [Header("Orthographic zoom (strip camera)")]
+    [Tooltip(
+        "Orthographic half-height where the UI↔floor offset was tuned (e.g. StripCamera at 4). " +
+        "If feet drift at min/max zoom while this reference is correct elsewhere, set Alignment Y Per Ortho Unit.")]
+    [SerializeField] private float orthoAlignmentReferenceHalfHeight = 4f;
+
+    [Tooltip(
+        "Extra world Y added to the sampled HUD edge target: (current ortho half-height − reference ortho) × this value. " +
+        "Try small values (e.g. −0.015 to −0.03) if sprites float when zoomed out and sink when zoomed in.")]
+    [SerializeField] private float alignmentWorldYOffsetPerOrthoUnitVsReference;
+
     [Header("Stabilization")]
     [Tooltip("Measured world-Y target must move further than this (from the latched value) before the latch updates. Stops layout micro-jitter on maps with busy HUD (layout groups, tutorial UI, gathering bars). Set 0 to disable.")]
     [SerializeField] private float sourceMeasurementLatchWorld = 0.04f;
@@ -241,6 +252,13 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
 
         float measuredRaw = GetSourceEdgeWorldY() + worldYOffset;
 
+        if (worldCamera.orthographic)
+        {
+            float dOrtho =
+                worldCamera.orthographicSize - Mathf.Max(0.01f, orthoAlignmentReferenceHalfHeight);
+            measuredRaw += alignmentWorldYOffsetPerOrthoUnitVsReference * dOrtho;
+        }
+
         if (force || float.IsNaN(_latchedSourceWorldY))
             _latchedSourceWorldY = measuredRaw;
         else if (sourceMeasurementLatchWorld <= 0f)
@@ -389,6 +407,16 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         screenY = Mathf.Round(screenY);
 
         float planeDistance = Mathf.Abs(worldCamera.transform.position.z - floorCollider.transform.position.z);
+
+        if (worldCamera.orthographic)
+        {
+            Rect pr = worldCamera.pixelRect;
+            float vx = (screenX - pr.xMin) / Mathf.Max(1e-4f, pr.width);
+            float vy = (screenY - pr.yMin) / Mathf.Max(1e-4f, pr.height);
+            Vector3 w = worldCamera.ViewportToWorldPoint(new Vector3(vx, vy, planeDistance));
+            return w.y;
+        }
+
         Vector3 worldPoint = worldCamera.ScreenToWorldPoint(new Vector3(screenX, screenY, planeDistance));
         return worldPoint.y;
     }

@@ -111,9 +111,16 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D _rb;
 
     private bool _suppressSpriteFlipForTeleport;
+    private bool _teleportDamageImmune;
 
     /// <summary>Lets <see cref="PlayerLevelTransition"/> own visuals scale during a level change.</summary>
     public void SetTeleportOutVisualsActive(bool active) => _suppressSpriteFlipForTeleport = active;
+
+    /// <summary>Scene transition / spawn — when true, <see cref="TakeDamage"/> and DoTs are ignored.</summary>
+    public bool TeleportDamageImmune => _teleportDamageImmune;
+
+    /// <inheritdoc cref="TeleportDamageImmune"/>
+    public void SetTeleportDamageImmune(bool immune) => _teleportDamageImmune = immune;
 
     [Header("Summons")]
     [Tooltip("Home anchor for Soulforged Weapon (world position + rotation). If unset, Awake resolves SoulforgedWeaponSpawnPoint under Sprite Flip → Visuals Root (same hierarchy as ranged/magic spawn points), then a direct child of this object, else player root.")]
@@ -2045,6 +2052,9 @@ public class PlayerController : MonoBehaviour
     public void TakeDamage(float amount, DamageType type, Transform attacker = null, bool wasCrit = false)
     {
         if (_isDead || !characterStats) return;
+
+        if (_teleportDamageImmune)
+            return;
 
         if (combat != null && attacker != null)
             combat.TryRetaliateFromAttacker(attacker);

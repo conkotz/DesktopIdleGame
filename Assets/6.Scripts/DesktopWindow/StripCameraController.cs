@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
@@ -27,6 +28,19 @@ public sealed class StripCameraController : MonoBehaviour
     [Header("Orthographic Scaling")]
     [Min(0.01f)]
     public float baseOrthoSize = 4f;
+
+    [Tooltip("Minimum orthographic half-height while playing (furthest zoom in).")]
+    [SerializeField] private float minOrthoSize = 2.25f;
+
+    [Tooltip("Fallback max ortho half-height only when lane WorldBounds are unavailable (e.g. loading). While playing with WorldBounds, max zoom-out is computed from lane width.")]
+    [SerializeField, FormerlySerializedAs("maxOrthoSize")] private float maxOrthoSizeFallback = 9f;
+
+    [Header("Keyboard zoom")]
+    [Tooltip("Arrow Up zooms in; Arrow Down zooms out. Holds repeat every frame — use Zoom Speed × deltaTime while key is held.")]
+    [SerializeField] private bool enableKeyboardZoom = true;
+
+    [Tooltip("Ortho half-height change per second while Up/Down is held (world units/s).")]
+    [SerializeField] private float orthoZoomSpeed = 5f;
 
     [Header("Behaviour")]
     public bool updateContinuously = false;
@@ -64,8 +78,62 @@ public sealed class StripCameraController : MonoBehaviour
 
     private void Update()
     {
+        if (Application.isPlaying)
+            ClampInspectorValues();
+
+        if (Application.isPlaying && enableKeyboardZoom)
+            ApplyKeyboardOrthoZoom();
+
         if (updateContinuously || HasChanged())
             Apply(force: false);
+    }
+
+    /// <summary>Hold Up = zoom in (− ortho half-height); Hold Down = zoom out (+).</summary>
+    private void ApplyKeyboardOrthoZoom()
+    {
+        CacheCamera();
+
+        if (!stripCamera || !stripCamera.orthographic)
+            return;
+
+        float change = orthoZoomSpeed * Time.deltaTime;
+        int zoomInput = 0;
+        if (Input.GetKey(KeyCode.DownArrow)) zoomInput++;
+        if (Input.GetKey(KeyCode.UpArrow)) zoomInput--;
+        if (zoomInput == 0)
+            return;
+
+        baseOrthoSize += change * zoomInput;
+
+        ClampInspectorValues();
+
+        Apply(force: true);
+    }
+
+    /// <summary>
+    /// Max zoom-out = ortho half-height such that visible world width matches lane width
+    /// (<c>2 × ortho × aspect</c> = lane width from <see cref="WorldBounds"/>).
+    /// </summary>
+    private float GetEffectiveMaxOrthoSize()
+    {
+        if (!Application.isPlaying)
+            return maxOrthoSizeFallback;
+
+        CacheCamera();
+
+        if (!stripCamera || !stripCamera.orthographic || !stripCamera.isActiveAndEnabled)
+            return Mathf.Max(minOrthoSize, maxOrthoSizeFallback);
+
+        WorldBounds wb = WorldBounds.Instance;
+        if (wb == null)
+            return Mathf.Max(minOrthoSize, maxOrthoSizeFallback);
+
+        float laneW = wb.Right - wb.Left;
+        if (laneW <= 1e-4f)
+            return Mathf.Max(minOrthoSize, maxOrthoSizeFallback);
+
+        float aspect = Mathf.Max(0.001f, stripCamera.aspect);
+        return Mathf.Max(minOrthoSize, laneW / (2f * aspect));
     }
 
     public void SetBottomNormalized(float value)
@@ -144,7 +212,12 @@ public sealed class StripCameraController : MonoBehaviour
         bottomNormalized = Mathf.Clamp01(bottomNormalized);
         leftNormalized = Mathf.Clamp01(leftNormalized);
         widthNormalized = Mathf.Clamp(widthNormalized, 0.1f, 1f);
-        baseOrthoSize = Mathf.Max(0.01f, baseOrthoSize);
+
+        minOrthoSize = Mathf.Max(0.01f, minOrthoSize);
+
+        float hi = GetEffectiveMaxOrthoSize();
+
+        baseOrthoSize = Mathf.Clamp(Mathf.Max(0.01f, baseOrthoSize), minOrthoSize, hi);
     }
 
     private void RememberCurrentState()

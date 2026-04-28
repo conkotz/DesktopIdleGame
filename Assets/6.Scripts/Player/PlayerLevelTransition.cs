@@ -84,6 +84,7 @@ public class PlayerLevelTransition : MonoBehaviour
         if (pc != null)
         {
             pc.SetTeleportOutVisualsActive(true);
+            pc.SetTeleportDamageImmune(true);
             pc.SetMovementLocked(true);
         }
 
@@ -139,6 +140,8 @@ public class PlayerLevelTransition : MonoBehaviour
 
     private void OnDisable()
     {
+        bool abortedCoroutine = _running != null;
+
         if (_running != null)
         {
             StopCoroutine(_running);
@@ -150,7 +153,13 @@ public class PlayerLevelTransition : MonoBehaviour
 
         var pc = GetComponent<PlayerController>();
         if (pc != null)
+        {
             pc.SetTeleportOutVisualsActive(false);
+
+            // Aborted mid-shrink without scene load — release damage immunity so the player isn't stuck immune.
+            if (abortedCoroutine)
+                pc.SetTeleportDamageImmune(false);
+        }
     }
 
     private void DisableAnimators()

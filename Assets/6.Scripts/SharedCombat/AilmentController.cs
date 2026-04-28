@@ -647,6 +647,10 @@ public class AilmentController : MonoBehaviour
 
         if (characterStats != null)
         {
+            PlayerController pcTeleport = GetComponent<PlayerController>();
+            if (pcTeleport != null && pcTeleport.TeleportDamageImmune)
+                return;
+
             float applied = characterStats.TakeDamageFromResolvedDot(damage, out _);
             int finalDamage = Mathf.RoundToInt(applied);
             PlayerCombatController combat = GetComponent<PlayerCombatController>();
