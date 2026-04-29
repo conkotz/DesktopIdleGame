@@ -5,7 +5,7 @@ using UnityEngine;
 /// </summary>
 public static class ItemGainPopupNotifier
 {
-    public static void Notify(string itemId, int amount)
+    public static void Notify(string itemId, int amount, bool purchased = false)
     {
         if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
             return;
@@ -16,7 +16,10 @@ public static class ItemGainPopupNotifier
         ItemDefinition def = db ? db.Get(itemId) : null;
 
         string label = ResolveLabel(def, itemId, amount);
-        GameLog.ItemGained(label, amount);
+        if (purchased)
+            GameLog.ItemPurchased(label, amount);
+        else
+            GameLog.ItemGained(label, amount);
     }
 
     public static void NotifyLost(string itemId, int amount)

@@ -22,7 +22,7 @@ public class MerchantClick : MonoBehaviour
     public static bool MerchantModeOpen { get; private set; }
     public static bool IsShopOpen => _active != null && _active.shopUI != null && _active.shopUI.IsOpen;
 
-    // Tracks which merchant is currently "active" so we can toggle-close on re-click.
+    // Tracks which merchant is currently "active" for shop mode and switching merchants.
     private static MerchantClick _active;
 
     private void Awake()
@@ -103,7 +103,8 @@ public class MerchantClick : MonoBehaviour
 
     /// <summary>
     /// Called by WorldInputRouter when this merchant is clicked.
-    /// Toggle behavior: clicking same merchant again closes shop + merchant mode (NOT main menu).
+    /// Re-clicking the same merchant while shop mode is open keeps the shop open (dialogue still runs via <see cref="NPCInteractionSettings.Interact"/>).
+    /// Clicking a different merchant replaces the active shop as before.
     /// </summary>
     public void Open()
     {
@@ -121,10 +122,9 @@ public class MerchantClick : MonoBehaviour
             return;
         }
 
-        // Toggle off if clicking the same merchant while already open
         if (MerchantModeOpen && _active == this)
         {
-            CloseOnlyMerchantMode();
+            PositionShopUI();
             return;
         }
 

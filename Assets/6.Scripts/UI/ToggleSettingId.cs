@@ -4,5 +4,6 @@ public enum ToggleSettingId
     UseTwentyFourHourTime = 1,
     ShowWindowResizeHandles = 2,
     TopMostGameWindow = 3,
-    AutoTrackNewQuest = 4
+    AutoTrackNewQuest = 4,
+    AutoLootDuringAutoBattle = 5
 }

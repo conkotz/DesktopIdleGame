@@ -436,6 +436,59 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         return movedTotal;
     }
 
+    /// <summary>How many of <paramref name="amount"/> could be deposited from external source (same rules as <see cref="TryDepositAmountFromExternal"/>).</summary>
+    public int GetReceivableAmountFromExternal(string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return 0;
+
+        int remaining = amount;
+        int total = 0;
+
+        while (remaining > 0)
+        {
+            bool progressed = false;
+
+            for (int i = 0; i < _slots.Count && remaining > 0; i++)
+            {
+                var s = _slots[i];
+                if (s.IsEmpty || s.itemId != itemId)
+                    continue;
+
+                int maxStack = GetMaxStack(itemId);
+                int space = maxStack - s.amount;
+                if (space <= 0)
+                    continue;
+
+                int add = Mathf.Min(space, remaining);
+                total += add;
+                remaining -= add;
+                progressed = true;
+            }
+
+            if (remaining <= 0)
+                break;
+
+            for (int i = 0; i < _slots.Count && remaining > 0; i++)
+            {
+                if (!_slots[i].IsEmpty)
+                    continue;
+
+                int maxStack = GetMaxStack(itemId);
+                int chunk = Mathf.Min(remaining, maxStack);
+                total += chunk;
+                remaining -= chunk;
+                progressed = true;
+                break;
+            }
+
+            if (!progressed)
+                break;
+        }
+
+        return total;
+    }
+
     /// <summary>Deposits every non-empty inventory stack into storage, limited by free storage space (same rules as per-slot deposit).</summary>
     public int TryDepositEntireInventory(Inventory inv)
     {

@@ -12,4 +12,8 @@ public enum HotkeyBindId
     ActionBar6 = 5,
     ActionBar7 = 6,
     CloseAllWindows = 7,
+    OpenCharacterPage = 8,
+    OpenSkillsAbilities = 9,
+    OpenLevelSelect = 10,
+    OpenQuestPage = 11,
 }

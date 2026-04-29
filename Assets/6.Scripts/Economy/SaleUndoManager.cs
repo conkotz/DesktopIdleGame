@@ -509,6 +509,10 @@ public class SaleUndoManager : MonoBehaviour
             return;
         }
 
+        var defUndo = inventory.GetItemDef(e.itemId);
+        string undoItemName = defUndo ? defUndo.displayName : e.itemId;
+        GameLog.SaleUndoRestored(undoItemName, e.amount, e.gold);
+
         _entries.RemoveAt(idx);
         if (_entries.Count == 0)
             _isUndoPanelVisible = false;

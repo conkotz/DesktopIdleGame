@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
@@ -39,6 +40,8 @@ public static class GameLog
     public static readonly Color ItemGainColor = new Color(0.22f, 0.68f, 0.28f, 1f);
     public static readonly Color ItemLostColor = new Color(0.95f, 0.38f, 0.32f, 1f);
     public static readonly Color GoldColor = new Color(1f, 0.82f, 0.2f, 1f);
+    /// <summary>Activity log color for lines starting with "Cannot" (blocked actions).</summary>
+    public static readonly Color CannotMessageColor = new Color(0.95f, 0.28f, 0.28f, 1f);
     public static readonly Color QuestCompleteColor = new Color(0.82f, 0.96f, 0.82f, 1f);
     public static readonly Color LevelAvailableColor = new Color(0.35f, 0.8f, 1f, 1f);
     public static readonly Color RegionUnlockedColor = new Color(0.45f, 1f, 0.45f, 1f);
@@ -64,6 +67,7 @@ public static class GameLog
             return;
 
         string trimmed = message.Trim();
+        color = ResolveCannotLogColor(trimmed, color);
         System.DateTime timestampLocal = System.DateTime.Now;
         Entries.Add(new Entry(trimmed, color, timestampLocal));
         TrimToMaxEntries();
@@ -96,12 +100,21 @@ public static class GameLog
         if (amount <= 0 || string.IsNullOrWhiteSpace(itemName))
             return;
 
-        AddStackableItemGain(itemName.Trim(), amount);
+        AddStackableItemGain(itemName.Trim(), amount, isPurchase: false);
     }
 
-    private static void AddStackableItemGain(string itemName, int amount)
+    /// <summary>Shop (and similar) buys: same stacking as <see cref="ItemGained"/> but message starts with \"Purchased\".</summary>
+    public static void ItemPurchased(string itemName, int amount)
     {
-        string stackKey = $"ItemGain:{itemName}";
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemName))
+            return;
+
+        AddStackableItemGain(itemName.Trim(), amount, isPurchase: true);
+    }
+
+    private static void AddStackableItemGain(string itemName, int amount, bool isPurchase)
+    {
+        string stackKey = (isPurchase ? "ItemPurchase:" : "ItemGain:") + itemName;
         System.DateTime timestampLocal = System.DateTime.Now;
 
         if (Entries.Count > 0)
@@ -113,7 +126,7 @@ public static class GameLog
                 int total = Mathf.Max(0, last.StackAmount) + amount;
                 int repeatCount = Mathf.Max(1, last.RepeatCount) + 1;
                 Entries[lastIndex] = new Entry(
-                    FormatStackedItemGain(itemName, total, repeatCount),
+                    FormatStackedItemGain(itemName, total, repeatCount, isPurchase),
                     ItemGainColor,
                     timestampLocal,
                     stackKey,
@@ -128,7 +141,7 @@ public static class GameLog
         }
 
         Entries.Add(new Entry(
-            FormatStackedItemGain(itemName, amount, 1),
+            FormatStackedItemGain(itemName, amount, 1, isPurchase),
             ItemGainColor,
             timestampLocal,
             stackKey,
@@ -141,10 +154,11 @@ public static class GameLog
             logWindow.AddLog(Entries[^1].Message, ItemGainColor, FormatClock(timestampLocal));
     }
 
-    private static string FormatStackedItemGain(string itemName, int amount, int repeatCount)
+    private static string FormatStackedItemGain(string itemName, int amount, int repeatCount, bool purchased)
     {
         string suffix = repeatCount > 1 ? " (Repeat action)" : "";
-        return $"+{amount} {itemName}{suffix}";
+        string core = $"+{amount} {itemName}{suffix}";
+        return purchased ? $"Purchased {core}" : core;
     }
 
     public static void ItemLost(string itemName, int amount)
@@ -196,6 +210,30 @@ public static class GameLog
 
         string label = string.IsNullOrWhiteSpace(itemName) ? "Item" : itemName.Trim();
         Add($"Sold {amount}x {label} for {gold} gold", GoldColor);
+    }
+
+    /// <summary>
+    /// Logs items returned when undoing a sale, and a gold line matching the original <see cref="GoldGained"/> entry (+X Gold).
+    /// </summary>
+    public static void SaleUndoRestored(string itemName, int amount, int goldLineAmount)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemName))
+            return;
+
+        string label = itemName.Trim();
+        ItemGained(label, amount);
+
+        if (goldLineAmount > 0)
+            GoldGained(goldLineAmount);
+    }
+
+    private static Color ResolveCannotLogColor(string trimmedMessage, Color requestedColor)
+    {
+        if (trimmedMessage.StartsWith("Cannot", StringComparison.OrdinalIgnoreCase) ||
+            trimmedMessage.StartsWith("Item not available", StringComparison.OrdinalIgnoreCase) ||
+            trimmedMessage.StartsWith("Ability not available", StringComparison.OrdinalIgnoreCase))
+            return CannotMessageColor;
+        return requestedColor;
     }
 
     public static void GoldGained(int amount, string sourceLine = null)

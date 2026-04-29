@@ -15,6 +15,10 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     [Header("Gather quest — popup")]
     [SerializeField] private Color gatherConsumedPopupColor = new Color(0.85f, 0.35f, 0.3f, 1f);
 
+    [Header("Reward delivery")]
+    [Tooltip("Activity log when quest item rewards overflow to storage.")]
+    [SerializeField] private Color questRewardToStorageLogColor = new Color(0.55f, 0.78f, 1f, 1f);
+
     private readonly Dictionary<string, int> _amounts = new(StringComparer.Ordinal);
     private readonly HashSet<string> _rewardClaimed = new(StringComparer.Ordinal);
     private readonly HashSet<string> _acceptedQuestIds = new(StringComparer.Ordinal);
@@ -199,6 +203,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
         if (ToggleSettingsStore.Get(ToggleSettingId.AutoTrackNewQuest))
             ApplyAutoTrackAndShowQuestTracker(q.questId);
+
+        MainMenuWindowUI.Resolve()?.OpenQuestShow();
 
         return true;
     }
@@ -414,11 +420,28 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (!CanClaimReward(q))
             return false;
 
+        int gatherToRestore = 0;
+        string gatherItemToRestore = null;
+
         if (q.objectiveKind == QuestObjectiveKind.GatherItem)
         {
             if (!TryConsumeGatherItems(q, out int consumed, out string itemIdNorm))
                 return false;
+
+            gatherToRestore = consumed;
+            gatherItemToRestore = itemIdNorm;
             ShowGatherConsumedPopup(consumed, itemIdNorm);
+        }
+
+        if (!CanReceiveAllItemRewards(q))
+        {
+            if (gatherToRestore > 0 && !string.IsNullOrEmpty(gatherItemToRestore))
+                RestoreGatheredItems(gatherItemToRestore, gatherToRestore);
+
+            GameLog.Add(
+                "Inventory and storage are full — make space before you claim this reward.",
+                GameLog.CannotMessageColor);
+            return false;
         }
 
         GrantRewards(q);
@@ -441,6 +464,97 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         }
 
         return true;
+    }
+
+    /// <summary>True when the quest grants at least one item stack (not gold-only).</summary>
+    public bool HasItemRewardsToGrant(QuestDefinition q)
+    {
+        var stacks = new Dictionary<string, int>();
+        CollectQuestItemRewardStacks(q, stacks);
+        return stacks.Count > 0;
+    }
+
+    /// <summary>Whether inventory + storage can hold all item rewards at the current moment.</summary>
+    public bool CanReceiveAllItemRewards(QuestDefinition q)
+    {
+        var stacks = new Dictionary<string, int>();
+        CollectQuestItemRewardStacks(q, stacks);
+        if (stacks.Count == 0)
+            return true;
+
+        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (!inv)
+            return false;
+
+        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+
+        foreach (KeyValuePair<string, int> kv in stacks)
+        {
+            int qty = kv.Value;
+            if (qty <= 0)
+                continue;
+
+            int fitInv = inv.GetReceivableAmount(kv.Key, qty);
+            int rest = qty - fitInv;
+            int fitSt = st ? st.GetReceivableAmountFromExternal(kv.Key, rest) : 0;
+            if (fitInv + fitSt < qty)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static void CollectQuestItemRewardStacks(QuestDefinition q, Dictionary<string, int> into)
+    {
+        if (q == null || into == null)
+            return;
+
+        void AddStack(string itemId, int qty)
+        {
+            if (string.IsNullOrWhiteSpace(itemId) || qty <= 0)
+                return;
+            itemId = itemId.Trim();
+            if (into.TryGetValue(itemId, out int cur))
+                into[itemId] = cur + qty;
+            else
+                into[itemId] = qty;
+        }
+
+        string mainId = q.rewardItem ? q.rewardItem.itemId : q.rewardItemId;
+        if (!string.IsNullOrWhiteSpace(mainId))
+            AddStack(mainId, Mathf.Max(1, q.rewardItemQuantity));
+
+        if (q.additionalItemRewards == null)
+            return;
+
+        for (int i = 0; i < q.additionalItemRewards.Count; i++)
+        {
+            QuestItemReward r = q.additionalItemRewards[i];
+            if (r == null)
+                continue;
+
+            string id = r.item ? r.item.itemId : r.itemId;
+            AddStack(id, Mathf.Max(1, r.quantity));
+        }
+    }
+
+    private void RestoreGatheredItems(string itemId, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+
+        int left = amount;
+        if (inv != null)
+            left -= inv.AddPartial(itemId, left, null, notifyItemGainPopup: false);
+
+        if (left > 0 && st != null)
+            left -= st.TryDepositAmountFromExternal(itemId, left);
+
+        if (left > 0)
+            Debug.LogWarning($"[QuestProgressManager] Could not restore {left}x {itemId} after a blocked claim.", this);
     }
 
     private bool TryConsumeGatherItems(QuestDefinition q, out int consumedAmount, out string itemIdNormalized)
@@ -545,32 +659,37 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 popups.ShowGoldGained(q.rewardGold);
         }
 
-        string itemId = q.rewardItem ? q.rewardItem.itemId : q.rewardItemId;
-        if (!string.IsNullOrWhiteSpace(itemId))
-        {
-            Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-            if (inv)
-                inv.Add(itemId.Trim(), Mathf.Max(1, q.rewardItemQuantity));
-        }
-
-        if (q.additionalItemRewards == null || q.additionalItemRewards.Count == 0)
+        var stacks = new Dictionary<string, int>();
+        CollectQuestItemRewardStacks(q, stacks);
+        if (stacks.Count == 0)
             return;
 
-        Inventory inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        if (!inventory)
+        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (!inv)
             return;
 
-        for (int i = 0; i < q.additionalItemRewards.Count; i++)
+        foreach (KeyValuePair<string, int> kv in stacks)
         {
-            QuestItemReward reward = q.additionalItemRewards[i];
-            if (reward == null)
+            string itemId = kv.Key;
+            int qty = kv.Value;
+            if (qty <= 0)
                 continue;
 
-            string extraItemId = reward.item ? reward.item.itemId : reward.itemId;
-            if (string.IsNullOrWhiteSpace(extraItemId))
+            int toInv = inv.AddPartial(itemId, qty, null, notifyItemGainPopup: true);
+            if (toInv >= qty)
                 continue;
 
-            inventory.Add(extraItemId.Trim(), Mathf.Max(1, reward.quantity));
+            if (!st)
+                continue;
+
+            int remainder = qty - toInv;
+            int toSt = st.TryDepositAmountFromExternal(itemId, remainder);
+            if (toSt > 0)
+            {
+                string label = ResolveItemDisplayName(itemId);
+                GameLog.Add($"Inventory was full — sent {toSt}x {label} to storage.", questRewardToStorageLogColor);
+            }
         }
     }
 

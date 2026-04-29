@@ -129,6 +129,7 @@ public static class EnhancementUpgradeService
         }
 
         success = UnityEngine.Random.value <= scrollDef.EnhancementScrollSuccessChance;
+        int enhancementBefore = enhancedTarget.successfulEnhancements;
         if (success)
         {
             ApplyModifier(enhancedTarget, scrollDef.enhancementScrollStats);
@@ -143,11 +144,12 @@ public static class EnhancementUpgradeService
                 ApplyEnhancedDisplayName(enhancedTarget, previousTargetDef);
             }
 
-            LogResult(enhancedTarget, true, slotReductionScroll, usedSlotsBefore, usedSlotsAfter);
+            int enhancementAfter = enhancedTarget.successfulEnhancements;
+            LogResult(enhancedTarget, true, slotReductionScroll, usedSlotsBefore, usedSlotsAfter, enhancementBefore, enhancementAfter);
         }
         else
         {
-            LogResult(enhancedTarget, false, slotReductionScroll, usedSlotsBefore, usedSlotsBefore);
+            LogResult(enhancedTarget, false, slotReductionScroll, usedSlotsBefore, usedSlotsBefore, enhancementBefore, enhancementBefore);
             ApplyFailureOutcome(destroyTarget, scrollDef.enhancementScrollStats);
         }
 
@@ -354,20 +356,35 @@ public static class EnhancementUpgradeService
         bool success,
         bool slotReductionScroll,
         int usedSlotsBefore,
-        int usedSlotsAfter)
+        int usedSlotsAfter,
+        int enhancementBefore,
+        int enhancementAfter)
     {
         string itemName = target && !string.IsNullOrWhiteSpace(target.displayName) ? target.displayName.Trim() : "Item";
         if (slotReductionScroll)
         {
             if (success)
-                GameLog.Add($"Successful Reduction: {itemName} {usedSlotsBefore}->{usedSlotsAfter}", GameLog.ItemGainColor);
+            {
+                string baseForSlot = target ? ResolveBaseDisplayName(target) : "Item";
+                string beforeWord = usedSlotsBefore == 1 ? "slot" : "slots";
+                string afterWord = usedSlotsAfter == 1 ? "slot" : "slots";
+                GameLog.Add(
+                    $"Successful Slot Reduction: {baseForSlot} ({usedSlotsBefore} {beforeWord} to {usedSlotsAfter} {afterWord})",
+                    GameLog.ItemGainColor);
+            }
             else
                 GameLog.Add($"Failed Reduction: {itemName}", GameLog.ItemLostColor);
             return;
         }
 
+        string baseName = target ? ResolveBaseDisplayName(target) : "Item";
         if (success)
-            GameLog.Add($"Successful Enhancement: {itemName}", GameLog.ItemGainColor);
+        {
+            if (enhancementAfter > enhancementBefore)
+                GameLog.Add($"Successful Enhancement: {baseName} ({enhancementBefore} to {enhancementAfter})", GameLog.ItemGainColor);
+            else
+                GameLog.Add($"Successful Enhancement: {baseName}", GameLog.ItemGainColor);
+        }
         else
             GameLog.Add($"Failed Enhancement: {itemName}", GameLog.ItemLostColor);
     }

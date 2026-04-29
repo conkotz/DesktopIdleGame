@@ -212,6 +212,16 @@ public class MainMenuWindowUI : MonoBehaviour
         OpenPage(questPage);
     }
 
+    /// <summary>Shows the main menu on the Quests tab. Does not close the menu if the Quests tab is already active (unlike <see cref="OpenQuest"/> toggle).</summary>
+    public void OpenQuestShow()
+    {
+        if (!questPage)
+            return;
+        if (IsOpen && currentPage == questPage)
+            return;
+        OpenPage(questPage);
+    }
+
     public void ToggleSettings()
     {
         TogglePage(settingsPage);
@@ -326,10 +336,6 @@ public class MainMenuWindowUI : MonoBehaviour
         // Rebind flow can leave InputSystemUIInputModule disabled; bottom bar stops receiving keyboard Submit.
         HotkeySettingsRowUI.EnsureUiInputModulesEnabled();
 
-        // Ensure merchant mode never blocks opening pages.
-        MerchantClick.ForceCloseMerchantMode();
-        StorageClick.ForceCloseStorageMode();
-
         if (!mainMenuWindow)
         {
             Debug.LogError("[MainMenuWindowUI] mainMenuWindow is not assigned — cannot open pages.", this);
@@ -341,6 +347,18 @@ public class MainMenuWindowUI : MonoBehaviour
             Debug.LogError("[MainMenuWindowUI] Target page is not assigned — cannot open this tab.", this);
             return;
         }
+
+        // Already on this page: avoid HideAllPages / SetActive churn so child UIs (e.g. inventory grid) don't
+        // OnDisable/OnEnable and replay hide-until-layout — fixes flicker when opening a shop while Character is visible.
+        if (IsOpen && currentPage == targetPage)
+        {
+            EnsureWindowInteractable();
+            return;
+        }
+
+        // Ensure merchant mode never blocks opening pages.
+        MerchantClick.ForceCloseMerchantMode();
+        StorageClick.ForceCloseStorageMode();
 
         if (targetPage == levelSelectPage || targetPage == questPage)
             MapNodeTravelProgress.TryMarkCurrentNodeIfConfigured();

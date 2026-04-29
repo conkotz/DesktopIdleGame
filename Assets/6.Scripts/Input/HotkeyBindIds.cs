@@ -44,6 +44,14 @@ public static class HotkeyBindIds
                 return "Potion Slot";
             case HotkeyBindId.CloseAllWindows:
                 return "Close All Windows";
+            case HotkeyBindId.OpenCharacterPage:
+                return "Open Character";
+            case HotkeyBindId.OpenSkillsAbilities:
+                return "Open Skills & Abilities";
+            case HotkeyBindId.OpenLevelSelect:
+                return "Open Level select";
+            case HotkeyBindId.OpenQuestPage:
+                return "Open Quests";
             default:
                 return id.ToString();
         }

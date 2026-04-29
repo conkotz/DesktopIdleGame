@@ -959,6 +959,23 @@ public class QuestPageUI : MonoBehaviour
             return;
         }
 
+        if (qProg != null &&
+            !permanent &&
+            !gated &&
+            q.objectiveKind != QuestObjectiveKind.GatherItem &&
+            q.IsComplete(qProg.GetDisplayProgress(q)) &&
+            qProg.IsRequiredMapNodeSatisfied(q) &&
+            qProg.AreSkillRequirementsSatisfied(q) &&
+            qProg.HasItemRewardsToGrant(q) &&
+            !qProg.CanReceiveAllItemRewards(q))
+        {
+            SetQuestClaimButtonBackground(false);
+            if (questClaimButtonLabel)
+                questClaimButtonLabel.text = "Make space for rewards";
+            questClaimButton.interactable = false;
+            return;
+        }
+
         if (canClaim)
         {
             SetQuestClaimButtonBackground(true);
@@ -1003,8 +1020,14 @@ public class QuestPageUI : MonoBehaviour
     private void OnQuestClaimClicked()
     {
         QuestProgressManager mgr = FindQuestProgress();
-        if (!_selectedQuest || mgr == null || !mgr.TryClaimQuestReward(_selectedQuest))
+        if (!_selectedQuest || mgr == null)
             return;
+
+        if (!mgr.TryClaimQuestReward(_selectedQuest))
+        {
+            RefreshDetails();
+            return;
+        }
 
         RebuildQuestList();
         RefreshDetails();

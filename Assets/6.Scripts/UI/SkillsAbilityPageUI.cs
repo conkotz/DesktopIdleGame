@@ -118,6 +118,14 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
     }
 
+    private void LateUpdate()
+    {
+        if (!isActiveAndEnabled || !skillsManager)
+            return;
+
+        RefreshAllEntryLevels();
+    }
+
     /// <summary>Logs missing required references once (Awake only — not per-frame).</summary>
     private void ValidateRefsOnce()
     {

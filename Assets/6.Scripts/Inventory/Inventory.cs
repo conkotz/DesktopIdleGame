@@ -183,6 +183,44 @@ public class Inventory : MonoBehaviour, ISaveable
         return addedTotal;
     }
 
+    /// <summary>How many of <paramref name="amount"/> could fit without changing inventory (same rules as <see cref="AddPartial"/>).</summary>
+    public int GetReceivableAmount(string itemId, int amount, int? maxStackOverride = null)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return 0;
+
+        int maxStack = GetMaxStack(itemId, maxStackOverride);
+        int remaining = amount;
+        int total = 0;
+
+        for (int i = 0; i < _slots.Count && remaining > 0; i++)
+        {
+            var s = _slots[i];
+            if (s.IsEmpty || s.itemId != itemId)
+                continue;
+
+            int space = maxStack - s.amount;
+            if (space <= 0)
+                continue;
+
+            int add = Mathf.Min(space, remaining);
+            total += add;
+            remaining -= add;
+        }
+
+        for (int i = 0; i < _slots.Count && remaining > 0; i++)
+        {
+            if (!_slots[i].IsEmpty)
+                continue;
+
+            int add = Mathf.Min(maxStack, remaining);
+            total += add;
+            remaining -= add;
+        }
+
+        return total;
+    }
+
     /// <summary>Add items to the bag. Set <paramref name="notifyItemGainPopup"/> false to skip world "item gained" feedback.</summary>
     public bool Add(string itemId, int amount = 1, int? maxStackOverride = null, bool notifyItemGainPopup = true)
     {

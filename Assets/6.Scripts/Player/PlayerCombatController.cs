@@ -1130,6 +1130,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private void TickIdleAutoPickup()
     {
         if (!inventory) return;
+        if (!ToggleSettingsStore.Get(ToggleSettingId.AutoLootDuringAutoBattle))
+            return;
         if (Time.time < _nextIdleAutoPickupTime) return;
         _nextIdleAutoPickupTime = Time.time + Mathf.Max(0.5f, idleAutoPickupIntervalSeconds);
 

@@ -72,6 +72,10 @@ public sealed class HotkeyBindingManager : MonoBehaviour
             HotkeyBindId.ActionBar6 => KeyCode.Q,
             HotkeyBindId.ActionBar7 => KeyCode.E,
             HotkeyBindId.CloseAllWindows => KeyCode.Escape,
+            HotkeyBindId.OpenCharacterPage => KeyCode.I,
+            HotkeyBindId.OpenSkillsAbilities => KeyCode.S,
+            HotkeyBindId.OpenLevelSelect => KeyCode.L,
+            HotkeyBindId.OpenQuestPage => KeyCode.T,
             _ => KeyCode.None
         };
     }

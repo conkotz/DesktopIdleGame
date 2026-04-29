@@ -146,7 +146,7 @@ public class Merchant : MonoBehaviour, ISaveable
             if (!CanAfford(entry))
             {
                 if (bought > 0)
-                    ItemGainPopupNotifier.Notify(entry.itemId, bought);
+                    ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
                 GameLog.PurchaseFailed("Cannot afford", ResolveItemDisplayName(entry.itemId));
                 Debug.Log($"[Merchant] Cannot afford {itemId}.");
                 return false;
@@ -155,7 +155,7 @@ public class Merchant : MonoBehaviour, ISaveable
             if (!inventory.CanAdd(entry.itemId, 1))
             {
                 if (bought > 0)
-                    ItemGainPopupNotifier.Notify(entry.itemId, bought);
+                    ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
                 GameLog.InventoryFull(ResolveItemDisplayName(entry.itemId));
                 Debug.Log($"[Merchant] Inventory full, could not add {itemId}.");
                 return false;
@@ -167,7 +167,7 @@ public class Merchant : MonoBehaviour, ISaveable
             if (!added)
             {
                 if (bought > 0)
-                    ItemGainPopupNotifier.Notify(entry.itemId, bought);
+                    ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
                 GameLog.PurchaseFailed("Purchase failed", ResolveItemDisplayName(entry.itemId));
                 Debug.LogError($"[Merchant] Failed to add {itemId} after spending costs.");
                 return false;
@@ -181,7 +181,7 @@ public class Merchant : MonoBehaviour, ISaveable
         }
 
         if (bought > 0)
-            ItemGainPopupNotifier.Notify(entry.itemId, bought);
+            ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
 
         Debug.Log($"[Merchant] Bought {amount}x {itemId}.");
         return true;

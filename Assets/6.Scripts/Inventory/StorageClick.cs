@@ -49,7 +49,8 @@ public class StorageClick : MonoBehaviour
     }
 
     /// <summary>
-    /// Called from <see cref="WorldInputRouter2D"/> when this chest is clicked. Toggle closes when clicking the same chest again.
+    /// Called from <see cref="WorldInputRouter2D"/> when this chest is clicked.
+    /// Re-clicking the same chest while storage is open keeps it open (no toggle-close).
     /// </summary>
     public void Open()
     {
@@ -63,7 +64,7 @@ public class StorageClick : MonoBehaviour
 
         if (StorageUI.IsOpen && _active == this)
         {
-            CloseStorageMode();
+            PositionStorageUI();
             return;
         }
 

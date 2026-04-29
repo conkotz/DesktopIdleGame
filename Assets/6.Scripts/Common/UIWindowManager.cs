@@ -33,7 +33,35 @@ public class UIWindowManager : MonoBehaviour
             Input.GetKeyDown(closeKey))
         {
             CloseAllWindows();
+            return;
         }
+
+        if (HotkeySettingsRowUI.IsRebinding || IsTypingIntoInputField())
+            return;
+
+        if (Time.frameCount == HotkeySettingsRowUI.SuppressActionBarHotkeyPollFrame)
+            return;
+
+        MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
+        if (menu == null)
+            return;
+
+        if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenCharacterPage))
+            menu.ToggleCharacter();
+        else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenSkillsAbilities))
+            menu.ToggleSkillsAbilities();
+        else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenLevelSelect))
+            menu.ToggleLevelSelect();
+        else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenQuestPage))
+            menu.ToggleQuest();
+    }
+
+    private static bool WasHotkeyPressedThisFrame(HotkeyBindId id)
+    {
+        KeyCode k = HotkeyBindingManager.Instance != null
+            ? HotkeyBindingManager.Instance.GetBinding(id)
+            : HotkeyBindingManager.GetDefaultKey(id);
+        return k != KeyCode.None && Input.GetKeyDown(k);
     }
 
     public void Register(GameObject window)

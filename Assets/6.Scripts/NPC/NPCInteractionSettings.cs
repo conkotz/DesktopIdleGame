@@ -44,6 +44,13 @@ public class NPCInteractionSettings : MonoBehaviour
         List<QuestDefinition> quests =
             questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>();
 
+        if (quests.Count == 0 && string.IsNullOrWhiteSpace(dialogue))
+        {
+            if (_activeDialogue)
+                _activeDialogue.Hide();
+            return;
+        }
+
         NPCDialogueBoxUI box = GetOrCreateDialogueBox();
         if (!box)
             return;

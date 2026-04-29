@@ -54,15 +54,49 @@ public class ItemDatabase : ScriptableObject
             _map[key] = item;
         }
     }
+    /// <summary>
+    /// List index used for inventory/storage sort order. Runtime enhanced items
+    /// (<c>baseId__enh_...</c>) use the same index as their base <see cref="ItemDefinition"/> so
+    /// variants stay grouped with the authored item order, regardless of display name.
+    /// </summary>
     public int GetIndex(string itemId)
     {
+        if (_map == null || _map.Count == 0)
+            Build();
+
+        string key = Normalize(itemId);
+        if (string.IsNullOrEmpty(key))
+            return int.MaxValue;
+
         for (int i = 0; i < items.Count; i++)
         {
-            if (items[i] != null && items[i].itemId == itemId)
+            if (items[i] != null && Normalize(items[i].itemId) == key)
                 return i;
         }
 
-        return int.MaxValue; // unknown items go to bottom
+        if (_runtimeBaseIds.TryGetValue(key, out string baseKey) && !string.IsNullOrEmpty(baseKey))
+            return GetIndexForBaseNormalized(baseKey);
+
+        int marker = itemId.IndexOf(RuntimeEnhancedSeparator, System.StringComparison.Ordinal);
+        if (marker > 0)
+        {
+            string parsedBase = Normalize(itemId.Substring(0, marker));
+            if (!string.IsNullOrEmpty(parsedBase))
+                return GetIndexForBaseNormalized(parsedBase);
+        }
+
+        return int.MaxValue;
+    }
+
+    private int GetIndexForBaseNormalized(string baseKeyNormalized)
+    {
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (items[i] != null && Normalize(items[i].itemId) == baseKeyNormalized)
+                return i;
+        }
+
+        return int.MaxValue;
     }
 
     public ItemDefinition Get(string itemId)

@@ -10,8 +10,9 @@ public class RightEdgeResizer : MonoBehaviour,
     [SerializeField] private bool keepLeftAnchored = true;
 
     [Header("Limits")]
+    [Tooltip("Strip cannot be resized narrower than this fraction of screen width.")]
     [Range(0.1f, 1f)]
-    [SerializeField] private float minWidthNormalized = 0.3f;
+    [SerializeField] private float minWidthNormalized = 0.35f;
 
     [Tooltip("Extra normalized screen width to leave unused on the right edge.")]
     [Range(0f, 1f)]

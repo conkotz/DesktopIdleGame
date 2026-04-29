@@ -16,6 +16,14 @@ public class XPBarUI : MonoBehaviour
     [Tooltip("Used only if followActiveDisplay = false.")]
     [SerializeField] private SkillType fixedSkill = SkillType.Mining;
 
+    [Header("Strip layout")]
+    [Tooltip("Optional. When set (or auto-found), SourceText is hidden while strip width is below Hide Label Below Strip Width.")]
+    [SerializeField] private StripCameraController stripController;
+
+    [Tooltip("Hide the level/xp label when strip width normalized is below this (narrow desktop strip).")]
+    [Range(0f, 1f)]
+    [SerializeField] private float hideLabelBelowStripWidthNormalized = 0.5f;
+
     [Header("Skill Colours")]
     [SerializeField] private Color miningColor = new Color(0.8f, 0.8f, 0.8f, 1f);    // light grey
     [SerializeField] private Color woodcuttingColor = new Color(0.2f, 0.8f, 0.2f, 1f); // green
@@ -25,6 +33,7 @@ public class XPBarUI : MonoBehaviour
     [SerializeField] private Color magicColor = new Color(0.4f, 0.4f, 1f);
     [SerializeField] private Color enduranceColor = new Color(0.9f, 0.6f, 0.2f);
     private SkillType _currentSkill;
+    private bool _labelHiddenForStrip;
 
     private void Awake()
     {
@@ -32,6 +41,13 @@ public class XPBarUI : MonoBehaviour
         if (!label) label = transform.Find("SourceText")?.GetComponent<TMP_Text>();
 
         _currentSkill = fixedSkill;
+        if (!stripController)
+            stripController = FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Exclude);
+    }
+
+    private void LateUpdate()
+    {
+        ApplyStripLabelVisibility();
     }
 
     private void OnEnable()
@@ -49,8 +65,8 @@ public class XPBarUI : MonoBehaviour
         }
 
         RefreshAll();
+        ApplyStripLabelVisibility();
     }
-
 
     private void OnDisable()
     {
@@ -73,6 +89,23 @@ public class XPBarUI : MonoBehaviour
         _currentSkill = skill;
 
         RefreshAll();
+        ApplyStripLabelVisibility();
+    }
+
+    private void ApplyStripLabelVisibility()
+    {
+        if (!label)
+            return;
+
+        if (!stripController)
+            stripController = FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Exclude);
+
+        bool hide = stripController && stripController.WidthNormalized + 1e-4f < hideLabelBelowStripWidthNormalized;
+        if (hide == _labelHiddenForStrip)
+            return;
+
+        _labelHiddenForStrip = hide;
+        label.gameObject.SetActive(!hide);
     }
 
     private void HandleXpGained(SkillType skill, int amount, string source)

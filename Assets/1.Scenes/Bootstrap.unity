@@ -1224,7 +1224,6 @@ GameObject:
   m_Component:
   - component: {fileID: 521227782}
   - component: {fileID: 521227781}
-  - component: {fileID: 521227783}
   m_Layer: 0
   m_Name: BootstrapMain
   m_TagString: Untagged
@@ -1262,21 +1261,6 @@ Transform:
   - {fileID: 1560239938}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &521227783
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 521227780}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0e28daa5ef914174f9c19363026cd0a7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DevSceneLoader
-  sceneOne: Resource_Map_01
-  sceneTwo: Combat_Map_01
-  sceneThree: Resource_Map_02
 --- !u!1 &542944183
 GameObject:
   m_ObjectHideFlags: 0
@@ -2743,6 +2727,14 @@ PrefabInstance:
       propertyPath: vampRingDef
       value: 
       objectReference: {fileID: 11400000, guid: 9536ae07a3934b44d87ba09eaf2037d5, type: 2}
+    - target: {fileID: 8305620475968429046, guid: a6dab9bce5963d543b8e2214e81d8f97, type: 3}
+      propertyPath: grantPackKey
+      value: 282
+      objectReference: {fileID: 0}
+    - target: {fileID: 8305620475968429046, guid: a6dab9bce5963d543b8e2214e81d8f97, type: 3}
+      propertyPath: decreaseAllSkillsKey
+      value: 283
+      objectReference: {fileID: 0}
     - target: {fileID: 8658341095352958026, guid: a6dab9bce5963d543b8e2214e81d8f97, type: 3}
       propertyPath: m_IsActive
       value: 0

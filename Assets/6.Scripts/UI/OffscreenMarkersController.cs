@@ -169,19 +169,25 @@ public class OffscreenMarkersController : MonoBehaviour
 
     private void LayoutStack(int activeCount)
     {
-        float total = 0f;
+        float halfParentH = markerContainer ? markerContainer.rect.height * 0.5f : 0f;
+        if (halfParentH <= 0.01f) halfParentH = 50f;
+
         var heights = new float[activeCount];
+        var leftOrder = new List<int>(activeCount);
+        var rightOrder = new List<int>(activeCount);
         for (int i = 0; i < activeCount; i++)
         {
             RectTransform rt = _pool[i].transform as RectTransform;
-            float h = rt ? rt.rect.height * Mathf.Abs(rt.lossyScale.y) : 0f;
-            heights[i] = h;
-            total += h;
-            if (i < activeCount - 1) total += stackSpacingPixels;
+            heights[i] = rt ? rt.rect.height * Mathf.Abs(rt.lossyScale.y) : 0f;
+            if (_pool[i].DockedLeft)
+                leftOrder.Add(i);
+            else
+                rightOrder.Add(i);
         }
 
-        float halfParentH = markerContainer ? markerContainer.rect.height * 0.5f : 0f;
-        if (halfParentH <= 0.01f) halfParentH = 50f;
+        var yByIndex = new float[activeCount];
+        ComputeSideStackY(leftOrder, heights, halfParentH, yByIndex);
+        ComputeSideStackY(rightOrder, heights, halfParentH, yByIndex);
 
         for (int i = 0; i < activeCount; i++)
         {
@@ -198,25 +204,54 @@ public class OffscreenMarkersController : MonoBehaviour
             float halfToTip = HorizontalCenterToOuterTip(rt) + markerHorizontalBleedPadding;
             float x = dockLeft ? edgePaddingPixels + halfToTip : -(edgePaddingPixels + halfToTip);
 
-            float yCenter;
-            if (alignStackFromTop)
+            rt.anchoredPosition = new Vector2(x, yByIndex[i] + stackVerticalOffsetPixels);
+        }
+    }
+
+    /// <summary>Vertical positions for one edge only, so left/right stacks align row 0 at the same height.</summary>
+    private void ComputeSideStackY(List<int> order, float[] heights, float halfParentH, float[] yOut)
+    {
+        int n = order.Count;
+        if (n == 0)
+            return;
+
+        if (alignStackFromTop)
+        {
+            float y = halfParentH - firstRowInsetFromTopPixels;
+            for (int k = 0; k < n; k++)
             {
-                yCenter = halfParentH - firstRowInsetFromTopPixels;
-                for (int j = 0; j < i; j++)
-                    yCenter -= heights[j] * 0.5f + stackSpacingPixels + heights[j + 1] * 0.5f;
-            }
-            else
-            {
-                yCenter = total * 0.5f;
-                for (int j = 0; j < i; j++)
+                int idx = order[k];
+                float h = heights[idx];
+                if (k > 0)
                 {
-                    yCenter -= heights[j];
-                    yCenter -= stackSpacingPixels;
+                    int prev = order[k - 1];
+                    y -= heights[prev] * 0.5f + stackSpacingPixels + h * 0.5f;
                 }
-                yCenter -= heights[i] * 0.5f;
+
+                yOut[idx] = y;
+            }
+        }
+        else
+        {
+            float total = 0f;
+            for (int k = 0; k < n; k++)
+            {
+                total += heights[order[k]];
+                if (k < n - 1)
+                    total += stackSpacingPixels;
             }
 
-            rt.anchoredPosition = new Vector2(x, yCenter + stackVerticalOffsetPixels);
+            float yCenter = total * 0.5f;
+            for (int k = 0; k < n; k++)
+            {
+                int idx = order[k];
+                float h = heights[idx];
+                yCenter -= h * 0.5f;
+                yOut[idx] = yCenter;
+                yCenter -= h * 0.5f;
+                if (k < n - 1)
+                    yCenter -= stackSpacingPixels;
+            }
         }
     }
 
