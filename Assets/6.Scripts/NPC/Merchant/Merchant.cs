@@ -19,7 +19,8 @@ public class Merchant : MonoBehaviour, ISaveable
     [SerializeField] private string cannotBuyItemPopupText = "Cannot sell that item to {merchant}.";
 
     [Header("Save Identity")]
-    [Tooltip("Unique id for this merchant used in save data. Leave empty to auto-generate from scene path.")]
+    [Tooltip(
+        "Unique id for merchant stock in save data. If empty, id is merchantStock:<MerchantStock asset key> so inventory persists across level loads. Set explicitly when two merchants share one stock asset.")]
     [SerializeField] private string merchantId;
 
     [Header("Refs (optional)")]
@@ -479,10 +480,10 @@ public class Merchant : MonoBehaviour, ISaveable
     {
         int index = GetEntryIndex(entry);
         if (index < 0)
-            return entry != null ? entry.quantity : 0;
+            return entry != null ? Mathf.Max(-1, entry.defaultQuantity) : 0;
 
         if (index >= _runtimeQuantities.Count)
-            return entry.quantity;
+            return entry != null ? Mathf.Max(-1, entry.defaultQuantity) : 0;
 
         return _runtimeQuantities[index];
     }
@@ -499,6 +500,8 @@ public class Merchant : MonoBehaviour, ISaveable
 
         _runtimeQuantities[index] = clamped;
         StockChanged?.Invoke(this);
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.NotifyShopStockChanged();
     }
 
     private int GetEntryIndex(MerchantStock.Entry entry)
@@ -521,7 +524,7 @@ public class Merchant : MonoBehaviour, ISaveable
         for (int i = 0; i < stock.Items.Count; i++)
         {
             var e = stock.Items[i];
-            _runtimeQuantities.Add(e != null ? Mathf.Max(-1, e.quantity) : 0);
+            _runtimeQuantities.Add(e != null ? Mathf.Max(-1, e.defaultQuantity) : 0);
         }
     }
 
@@ -529,16 +532,51 @@ public class Merchant : MonoBehaviour, ISaveable
     {
         if (stock == null || stock.Items == null) return;
         while (_runtimeQuantities.Count < stock.Items.Count)
-            _runtimeQuantities.Add(0);
+        {
+            int i = _runtimeQuantities.Count;
+            var e = stock.Items[i];
+            _runtimeQuantities.Add(e != null ? Mathf.Max(-1, e.defaultQuantity) : 0);
+        }
     }
 
     private string GetMerchantId()
     {
         if (!string.IsNullOrWhiteSpace(merchantId))
-            return merchantId;
+            return merchantId.Trim();
 
-        // Stable fallback id per scene object path.
+        if (stock != null)
+            return $"merchantStock:{stock.StockSaveKey}";
+
         return $"{gameObject.scene.name}:{BuildPath(transform)}";
+    }
+
+    private static SaveData.MerchantStockSave FindMerchantStockSave(SaveData data, string id)
+    {
+        if (data?.merchantStocks == null || string.IsNullOrWhiteSpace(id))
+            return null;
+
+        for (int i = 0; i < data.merchantStocks.Count; i++)
+        {
+            SaveData.MerchantStockSave s = data.merchantStocks[i];
+            if (s != null && s.merchantId == id)
+                return s;
+        }
+
+        return null;
+    }
+
+    private List<string> BuildMerchantSaveLookupKeys()
+    {
+        var keys = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(merchantId))
+            keys.Add(merchantId.Trim());
+
+        if (stock != null)
+            keys.Add($"merchantStock:{stock.StockSaveKey}");
+
+        keys.Add($"{gameObject.scene.name}:{BuildPath(transform)}");
+        return keys;
     }
 
     private static string BuildPath(Transform t)
@@ -560,17 +598,39 @@ public class Merchant : MonoBehaviour, ISaveable
 
         data.merchantStocks ??= new List<SaveData.MerchantStockSave>();
 
-        var save = new SaveData.MerchantStockSave
+        string id = GetMerchantId();
+        List<string> legacyIds = BuildMerchantSaveLookupKeys();
+
+        // Drop older save buckets for this vendor (e.g. scene path before we switched to merchantStock:<asset> keys).
+        for (int i = data.merchantStocks.Count - 1; i >= 0; i--)
         {
-            merchantId = GetMerchantId(),
-            quantities = new List<int>()
-        };
+            SaveData.MerchantStockSave s = data.merchantStocks[i];
+            if (s == null || string.IsNullOrWhiteSpace(s.merchantId))
+                continue;
+            if (s.merchantId == id)
+                continue;
+            if (legacyIds.Contains(s.merchantId))
+                data.merchantStocks.RemoveAt(i);
+        }
+
+        SaveData.MerchantStockSave save = FindMerchantStockSave(data, id);
+        if (save == null)
+        {
+            save = new SaveData.MerchantStockSave
+            {
+                merchantId = id,
+                quantities = new List<int>()
+            };
+            data.merchantStocks.Add(save);
+        }
+
+        save.merchantId = id;
+        save.quantities ??= new List<int>();
+        save.quantities.Clear();
 
         EnsureRuntimeStockCapacity();
         for (int i = 0; i < stock.Items.Count; i++)
             save.quantities.Add(i < _runtimeQuantities.Count ? _runtimeQuantities[i] : 0);
-
-        data.merchantStocks.Add(save);
     }
 
     public void LoadFrom(SaveData data)
@@ -581,16 +641,13 @@ public class Merchant : MonoBehaviour, ISaveable
         if (data == null || data.merchantStocks == null || data.merchantStocks.Count == 0 || stock == null || stock.Items == null)
             return;
 
-        string id = GetMerchantId();
         SaveData.MerchantStockSave matched = null;
-        for (int i = 0; i < data.merchantStocks.Count; i++)
+        List<string> lookupKeys = BuildMerchantSaveLookupKeys();
+        for (int k = 0; k < lookupKeys.Count; k++)
         {
-            var s = data.merchantStocks[i];
-            if (s != null && s.merchantId == id)
-            {
-                matched = s;
+            matched = FindMerchantStockSave(data, lookupKeys[k]);
+            if (matched != null)
                 break;
-            }
         }
 
         if (matched == null || matched.quantities == null)

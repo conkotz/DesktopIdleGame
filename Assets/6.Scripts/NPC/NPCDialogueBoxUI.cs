@@ -51,6 +51,9 @@ public class NPCDialogueBoxUI : MonoBehaviour
     [Header("Multi-quest offers")]
     [SerializeField] private float questOfferCardSpacing = 10f;
 
+    [Tooltip("Shown above the quest name when this box is used as a quest offer (plain NPC dialogue hides this row).")]
+    [SerializeField] private string questDialogueHeaderText = "Available Quest";
+
     [Header("Typewriter")]
     [Tooltip("Delay between each word for dialogue body and quest description only.")]
     [SerializeField] private float typewriterSecondsPerWord = 1f;
@@ -64,6 +67,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
     private Coroutine _autoCloseRoutine;
 
     private GameObject _singleModeScrollRoot;
+    private TMP_Text _questOfferHeaderText;
     private TMP_Text _singleTitleText;
     private TMP_Text _singleRewardText;
 
@@ -352,6 +356,12 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
     private void ConfigureSingleScrollTextsForPlainDialogue()
     {
+        if (_questOfferHeaderText)
+        {
+            _questOfferHeaderText.text = "";
+            _questOfferHeaderText.gameObject.SetActive(false);
+        }
+
         if (_singleTitleText)
         {
             _singleTitleText.text = "";
@@ -372,6 +382,14 @@ public class NPCDialogueBoxUI : MonoBehaviour
     {
         if (!quest)
             return;
+
+        if (_questOfferHeaderText)
+        {
+            _questOfferHeaderText.gameObject.SetActive(true);
+            _questOfferHeaderText.text = string.IsNullOrWhiteSpace(questDialogueHeaderText)
+                ? "Available Quest"
+                : questDialogueHeaderText.Trim();
+        }
 
         if (_singleTitleText)
         {
@@ -696,9 +714,6 @@ public class NPCDialogueBoxUI : MonoBehaviour
     /// </summary>
     private void BindSingleModeRefsFromHierarchy()
     {
-        if (dialogueText && _singleTitleText && _singleRewardText && acceptButton && _singleModeScrollRoot)
-            return;
-
         if (!_singleModeScrollRoot)
         {
             Transform scroll = transform.Find("DialogueScrollView");
@@ -711,6 +726,13 @@ public class NPCDialogueBoxUI : MonoBehaviour
             Transform content = _singleModeScrollRoot.transform.Find("Viewport/Content");
             if (content)
             {
+                if (!_questOfferHeaderText)
+                {
+                    Transform h = content.Find("QuestOfferHeader");
+                    if (h)
+                        _questOfferHeaderText = h.GetComponent<TMP_Text>();
+                }
+
                 if (!_singleTitleText)
                 {
                     Transform t = content.Find("QuestTitle");
@@ -742,6 +764,30 @@ public class NPCDialogueBoxUI : MonoBehaviour
         }
     }
 
+    /// <summary>Upgrades older prefabs: inserts the quest header row above <see cref="QuestTitle"/> when missing.</summary>
+    private void EnsureQuestOfferHeaderInsertedIfMissing()
+    {
+        if (_questOfferHeaderText)
+            return;
+
+        Transform content = null;
+        if (_singleModeScrollRoot)
+            content = _singleModeScrollRoot.transform.Find("Viewport/Content");
+        if (!content)
+        {
+            Transform scroll = transform.Find("DialogueScrollView");
+            if (scroll)
+                content = scroll.Find("Viewport/Content");
+        }
+        if (!content)
+            return;
+
+        _questOfferHeaderText = CreateScrollLineTMP("QuestOfferHeader", content, 17f, FontStyles.Bold, bodyFlexible: false);
+        _questOfferHeaderText.color = new Color(0.88f, 0.91f, 0.96f, 1f);
+        _questOfferHeaderText.gameObject.SetActive(false);
+        _questOfferHeaderText.rectTransform.SetSiblingIndex(0);
+    }
+
     private void EnsureBuilt()
     {
         if (_rectTransform == null)
@@ -752,6 +798,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         _rectTransform.sizeDelta = fixedSize;
 
         BindSingleModeRefsFromHierarchy();
+        EnsureQuestOfferHeaderInsertedIfMissing();
 
         if (dialogueText != null && acceptButton != null)
             return;
@@ -831,6 +878,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
         ContentSizeFitter contentFitter = contentGo.GetComponent<ContentSizeFitter>();
         contentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
         contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        _questOfferHeaderText = CreateScrollLineTMP("QuestOfferHeader", contentGo.transform, 17f, FontStyles.Bold, bodyFlexible: false);
+        _questOfferHeaderText.color = new Color(0.88f, 0.91f, 0.96f, 1f);
+        _questOfferHeaderText.gameObject.SetActive(false);
 
         _singleTitleText = CreateScrollLineTMP("QuestTitle", contentGo.transform, 20f, FontStyles.Bold, bodyFlexible: false);
         dialogueText = CreateScrollLineTMP("QuestBody", contentGo.transform, 18f, FontStyles.Normal, bodyFlexible: true);

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [CreateAssetMenu(menuName = "Desktop Idle Game/Merchant Stock", fileName = "MerchantStock")]
 public class MerchantStock : ScriptableObject
@@ -33,13 +34,24 @@ public class MerchantStock : ScriptableObject
         public List<Cost> costs = new();
 
         [Header("Stock")]
-        [Tooltip("-1 = infinite stock")]
-        public int quantity = -1;
+        [Tooltip(
+            "-1 = infinite. Starting quantity for a new game; current stock is stored in the player save and is not written back to this asset.")]
+        [FormerlySerializedAs("quantity")]
+        public int defaultQuantity = -1;
     }
 
     [SerializeField] private List<Entry> items = new();
 
     public IReadOnlyList<Entry> Items => items;
+
+    /// <summary>
+    /// Used in save data when <see cref="Merchant"/> has no explicit merchant id.
+    /// Defaults to the asset name so the same shop stock persists across level scenes.
+    /// </summary>
+    public string StockSaveKey => string.IsNullOrWhiteSpace(stockSaveKey) ? name : stockSaveKey.Trim();
+
+    [SerializeField, Tooltip("Optional. If empty, the asset file name is used. Set when two stock assets share the same name.")]
+    private string stockSaveKey = "";
 
     public Entry GetEntry(string itemId)
     {
@@ -76,8 +88,8 @@ public class MerchantStock : ScriptableObject
             if (entry.costs == null)
                 entry.costs = new List<Cost>();
 
-            if (entry.quantity < -1)
-                entry.quantity = -1;
+            if (entry.defaultQuantity < -1)
+                entry.defaultQuantity = -1;
 
             for (int j = 0; j < entry.costs.Count; j++)
             {

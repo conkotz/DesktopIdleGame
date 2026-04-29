@@ -27,6 +27,8 @@ public class SaveManager : MonoBehaviour
 
     private string ActiveSavePath => SaveSlotManager.GetSavePath(GetSafeActiveSlot());
     private float _autosaveTimer;
+    private float _shopStockSaveDueUnscaled = -1f;
+    private const float ShopStockSaveDebounceSeconds = 0.12f;
 
     private bool _didInitialLoadOrCreate;
 
@@ -74,6 +76,15 @@ public class SaveManager : MonoBehaviour
         // Rebind inventory for the new scene (Inventory likely lives in scene)
         TryBindInventory();
         TryBindPlayerStorage();
+
+        // Merchants reset runtime stock in Awake() from ScriptableObject defaults.
+        // After the first session init, reload merchant quantities from disk when entering any gameplay scene.
+        if (_didInitialLoadOrCreate &&
+            !scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+        {
+            RehydrateMerchantStocksFromSave();
+            ScheduleMerchantRehydrateFrames(2);
+        }
 
         // Only initialize once per app run.
         if (_didInitialLoadOrCreate) return;
@@ -204,6 +215,14 @@ public class SaveManager : MonoBehaviour
     private void Update()
     {
         if (!_didInitialLoadOrCreate) return;   // ✅ ADD THIS
+
+        if (_shopStockSaveDueUnscaled >= 0f && Time.unscaledTime >= _shopStockSaveDueUnscaled)
+        {
+            _shopStockSaveDueUnscaled = -1f;
+            if (!_isApplyingSaveData)
+                Save();
+        }
+
         if (!autosave) return;
 
         _autosaveTimer += Time.unscaledDeltaTime;
@@ -261,6 +280,44 @@ public class SaveManager : MonoBehaviour
             combatPower
         );
         SaveSlotManager.WriteHeader(header);
+    }
+
+    /// <summary>
+    /// Call after shop stock changes without an inventory delta (debounced full save).
+    /// </summary>
+    public void NotifyShopStockChanged()
+    {
+        if (!_didInitialLoadOrCreate || _isApplyingSaveData)
+            return;
+
+        _shopStockSaveDueUnscaled = Time.unscaledTime + ShopStockSaveDebounceSeconds;
+    }
+
+    /// <summary>
+    /// Reload merchant runtime quantities from disk or last loaded data. Safe after NPCs spawn mid-frame.
+    /// </summary>
+    public void RehydrateMerchantStocksFromSave() => RehydrateMerchantStocksFromSaveCore();
+
+    /// <summary>
+    /// Waits <paramref name="frames"/> frames then rehydrates (catches merchants spawned after scene load).
+    /// </summary>
+    public void ScheduleMerchantRehydrateFrames(int frames)
+    {
+        if (frames <= 0)
+        {
+            RehydrateMerchantStocksFromSaveCore();
+            return;
+        }
+
+        StartCoroutine(CoRehydrateMerchantsAfterFrames(frames));
+    }
+
+    private IEnumerator CoRehydrateMerchantsAfterFrames(int frames)
+    {
+        for (int i = 0; i < frames; i++)
+            yield return null;
+
+        RehydrateMerchantStocksFromSaveCore();
     }
 
     private static void ApplyActiveMapToSaveData(SaveData data)
@@ -348,6 +405,56 @@ public class SaveManager : MonoBehaviour
             data.worldMapCompletedNodeIds = new List<string>();
         if (data.worldMapEnteredNodeIds == null)
             data.worldMapEnteredNodeIds = new List<string>();
+        if (data.merchantStocks == null)
+            data.merchantStocks = new List<SaveData.MerchantStockSave>();
+    }
+
+    /// <summary>
+    /// After scene reload, <see cref="Merchant"/> Awake resets stock from assets. Rehydrate from the active save file.
+    /// </summary>
+    private void RehydrateMerchantStocksFromSaveCore()
+    {
+        if (_isApplyingSaveData)
+            return;
+
+        SaveData data = null;
+        if (HasSave())
+        {
+            try
+            {
+                string json = File.ReadAllText(ActiveSavePath);
+                data = JsonUtility.FromJson<SaveData>(json);
+                NormalizeSaveDataLists(data);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[SaveManager] Could not read save for merchant stock: {ex.Message}");
+            }
+        }
+
+        if (data == null || data.merchantStocks == null || data.merchantStocks.Count == 0)
+            data = _lastLoadedData;
+
+        if (data == null || data.merchantStocks == null || data.merchantStocks.Count == 0)
+            return;
+
+        var merchants = FindObjectsByType<Merchant>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (merchants == null || merchants.Length == 0)
+            return;
+
+        _isApplyingSaveData = true;
+        try
+        {
+            for (int i = 0; i < merchants.Length; i++)
+            {
+                if (merchants[i] != null)
+                    merchants[i].LoadFrom(data);
+            }
+        }
+        finally
+        {
+            _isApplyingSaveData = false;
+        }
     }
 
     private IEnumerator DeferredApplyPlayerStorageLoad()

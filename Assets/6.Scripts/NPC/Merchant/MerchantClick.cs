@@ -13,11 +13,11 @@ public class MerchantClick : MonoBehaviour
     [SerializeField] private Merchant merchant; // on self or parent
 
     [Header("Shop Positioning")]
-    [SerializeField] private Transform shopAnchor;          // World-space point above merchant
+    [Tooltip("Pinned to the right edge of the main menu (Character) window; flips to the left if it would leave the canvas.")]
     [SerializeField] private RectTransform shopRect;        // Shop window RectTransform
     [SerializeField] private RectTransform canvasRect;      // Root canvas RectTransform
-    [SerializeField] private Camera uiCamera;               // Null for Screen Space Overlay
-    [SerializeField] private Vector2 screenOffset = new Vector2(-220f, 80f);
+    [SerializeField] private float pinGap = 8f;
+    [SerializeField] private float pinCanvasEdgeMargin = 4f;
 
     public static bool MerchantModeOpen { get; private set; }
     public static bool IsShopOpen => _active != null && _active.shopUI != null && _active.shopUI.IsOpen;
@@ -60,25 +60,6 @@ public class MerchantClick : MonoBehaviour
             if (c) canvasRect = c.transform as RectTransform;
         }
 
-        if (!shopAnchor)
-        {
-            Transform found = transform.Find("ShopAnchor");
-            if (!found)
-            {
-                // Optional fallback: try children recursively
-                Transform[] children = GetComponentsInChildren<Transform>(true);
-                for (int i = 0; i < children.Length; i++)
-                {
-                    if (children[i].name == "ShopAnchor")
-                    {
-                        found = children[i];
-                        break;
-                    }
-                }
-            }
-
-            shopAnchor = found ? found : transform;
-        }
     }
 
     private static GameObject FindSceneObjectByName(string objectName)
@@ -196,62 +177,8 @@ public class MerchantClick : MonoBehaviour
             return;
         }
 
-        Canvas.ForceUpdateCanvases();
-
-        Camera worldCam = Camera.main;
-        Camera uiCam = uiCamera; // null for Screen Space Overlay
-
-        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(worldCam, transform.position);
-        screenPos += screenOffset;
-
-        if (RectTransformUtility.ScreenPointToWorldPointInRectangle(
-                canvasRect,
-                screenPos,
-                uiCam,
-                out Vector3 worldPoint))
-        {
-            shopRect.position = worldPoint;
-            ClampToCanvas(shopRect, canvasRect);
-        }
-    }
-
-    private static void ClampToCanvas(RectTransform rect, RectTransform canvas)
-    {
-        if (!rect || !canvas) return;
-
-        Canvas.ForceUpdateCanvases();
-
-        Vector3[] rectCorners = new Vector3[4];
-        Vector3[] canvasCorners = new Vector3[4];
-
-        rect.GetWorldCorners(rectCorners);
-        canvas.GetWorldCorners(canvasCorners);
-
-        Vector3 offset = Vector3.zero;
-
-        float rectLeft = rectCorners[0].x;
-        float rectBottom = rectCorners[0].y;
-        float rectRight = rectCorners[2].x;
-        float rectTop = rectCorners[2].y;
-
-        float canvasLeft = canvasCorners[0].x;
-        float canvasBottom = canvasCorners[0].y;
-        float canvasRight = canvasCorners[2].x;
-        float canvasTop = canvasCorners[2].y;
-
-        if (rectLeft < canvasLeft)
-            offset.x += canvasLeft - rectLeft;
-
-        if (rectRight > canvasRight)
-            offset.x -= rectRight - canvasRight;
-
-        if (rectBottom < canvasBottom)
-            offset.y += canvasBottom - rectBottom;
-
-        if (rectTop > canvasTop)
-            offset.y -= rectTop - canvasTop;
-
-        rect.position += offset;
+        MainMenuWindowUI menu = mainMenuWindowUI != null ? mainMenuWindowUI : MainMenuWindowUI.Resolve();
+        UIPinNextToMenuWindow.PositionNextToMainMenu(shopRect, canvasRect, menu, pinGap, pinCanvasEdgeMargin);
     }
 
     private void CloseOnlyMerchantMode()

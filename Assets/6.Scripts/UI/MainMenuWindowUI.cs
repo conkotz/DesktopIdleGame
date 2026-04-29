@@ -114,6 +114,15 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public GameObject CurrentPage => currentPage;
 
+    /// <summary>Outer menu shell used to pin merchant/storage windows beside the Character window.</summary>
+    public RectTransform MenuWindowRect => mainMenuWindow != null ? mainMenuWindow.transform as RectTransform : null;
+
+    public bool TryGetMenuWindowRect(out RectTransform rect)
+    {
+        rect = MenuWindowRect;
+        return rect != null;
+    }
+
     private void Awake()
     {
         if (s_instance != null && s_instance != this)

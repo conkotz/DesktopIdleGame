@@ -26,6 +26,16 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     [Tooltip("Outline thickness in UI space (bigger = thicker).")]
     [SerializeField] private Vector2 rarityBorderThickness = new Vector2(4f, 4f);
 
+    [Header("Rarity slot panel (button target graphic)")]
+    [Tooltip("How much the slot fill blends from the dark base toward the rarity accent when an item is shown (higher = less grey/muddy undertone).")]
+    [Range(0f, 1f)]
+    [SerializeField] private float rarityPanelAccentBlend = 0.92f;
+
+    [SerializeField] private Color rarityPanelDarkBase = new Color(0.08f, 0.09f, 0.11f, 1f);
+
+    [Header("Sold out")]
+    [Range(0f, 1f)]
+    [SerializeField] private float soldOutIconAlpha = 0.75f;
 
     [Header("Tooltip (shared)")]
     [SerializeField] private SharedTooltipUI tooltip;
@@ -93,11 +103,18 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         _shopWindowRect = shopWindowRect;
         _preferredSide = preferredSide;
 
+        int qtyForVisual = _entry != null ? (_merchant != null ? _merchant.GetQuantity(_entry) : _entry.defaultQuantity) : 0;
+        bool soldOut = def != null && _entry != null && qtyForVisual >= 0 && qtyForVisual == 0;
+
         if (icon)
         {
             icon.sprite = def ? def.icon : null;
             icon.enabled = def && def.icon != null;
             icon.preserveAspect = true;
+
+            Color ic = icon.color;
+            ic.a = soldOut ? soldOutIconAlpha : 1f;
+            icon.color = ic;
         }
 
         RefreshRarityBorder(def);
@@ -117,16 +134,16 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             if (_entry == null)
                 stockText.text = "";
             else
-            {
-                int qty = _merchant != null ? _merchant.GetQuantity(_entry) : _entry.quantity;
-                stockText.text = qty < 0 ? "∞" : (qty == 0 ? "Sold Out" : $"x{qty}");
-            }
+                stockText.text = qtyForVisual < 0 ? "∞" : (qtyForVisual == 0 ? "Sold Out" : $"x{qtyForVisual}");
+
+            Color st = stockText.color;
+            st.a = 1f;
+            stockText.color = st;
         }
 
         if (button)
         {
-            int qty = _entry != null ? (_merchant != null ? _merchant.GetQuantity(_entry) : _entry.quantity) : 0;
-            bool inStock = _entry != null && qty != 0;
+            bool inStock = _entry != null && qtyForVisual != 0;
             button.interactable = def != null && inStock;
 
             button.onClick.RemoveAllListeners();
@@ -137,9 +154,53 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
                 if (_shop != null && _merchant != null && _entry != null)
                     _shop.TryBuy(_merchant, _entry);
             });
+
+            ApplyRarityPanelColors(def);
         }
 
         RefreshHoveredTooltip();
+    }
+
+    private void ApplyRarityPanelColors(ItemDefinition def)
+    {
+        if (!button)
+            return;
+
+        if (button.targetGraphic is Image targetGraphic)
+            targetGraphic.color = Color.white;
+
+        Color baseFill = GetRarityPanelBaseColor(def);
+        ColorBlock cb = button.colors;
+        cb.normalColor = baseFill;
+        cb.highlightedColor = Color.Lerp(baseFill, Color.white, 0.14f);
+        cb.pressedColor = Color.Lerp(baseFill, Color.black, 0.18f);
+        cb.selectedColor = cb.highlightedColor;
+        Color dim = Color.Lerp(baseFill, Color.black, 0.22f);
+        cb.disabledColor = new Color(dim.r, dim.g, dim.b, 0.92f);
+        cb.colorMultiplier = 1f;
+        button.colors = cb;
+    }
+
+    private Color GetRarityPanelBaseColor(ItemDefinition def)
+    {
+        if (def == null)
+            return new Color(0.118f, 0.133f, 0.165f, 1f);
+
+        Color accent = def.rarity switch
+        {
+            ItemRarity.Common => new Color(0.14f, 0.15f, 0.17f, 1f),
+            ItemRarity.Uncommon => uncommonBorder,
+            ItemRarity.Rare => rareBorder,
+            ItemRarity.Epic => epicBorder,
+            ItemRarity.Legendary => legendaryBorder,
+            _ => Color.white
+        };
+
+        if (def.rarity == ItemRarity.Common)
+            return accent;
+
+        float t = Mathf.Clamp01(rarityPanelAccentBlend);
+        return Color.Lerp(rarityPanelDarkBase, accent, t);
     }
 
     private void RefreshRarityBorder(ItemDefinition def)

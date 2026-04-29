@@ -77,17 +77,26 @@ public class GameplayLevelBootstrapper : MonoBehaviour
 
         WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
             FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
-        if (wmp != null && !string.IsNullOrEmpty(node.nodeId) &&
-            wmp.MarkNodeEntered(node.nodeId.Trim()) &&
-            SaveManager.Instance != null)
-            SaveManager.Instance.Save();
+        bool markedNodeEntered =
+            wmp != null &&
+            !string.IsNullOrEmpty(node.nodeId) &&
+            wmp.MarkNodeEntered(node.nodeId.Trim());
 
         // Suppress startup spam logs during normal gameplay.
 
         if (devInstantiatePrefabGroups)
             DevInstantiatePrefabGroups(node);
 
+        // Spawn/enabled listeners run here — merchants often exist only after this event.
         OnLevelStarted?.Invoke(ActiveDefinition);
+
+        if (SaveManager.Instance != null)
+        {
+            SaveManager.Instance.RehydrateMerchantStocksFromSave();
+            SaveManager.Instance.ScheduleMerchantRehydrateFrames(2);
+            if (markedNodeEntered)
+                SaveManager.Instance.Save();
+        }
     }
 
     private static string ResolveMapDisplayName(MapNodeDefinition node)
