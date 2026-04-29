@@ -48,6 +48,12 @@ public class SettingsButtonRowUI : MonoBehaviour
             case SettingsButtonActionId.ReturnAllWindowsToAnchorPoints:
                 UIWindowPositionMemory.ResetAllWindowsToAnchors();
                 break;
+
+            case SettingsButtonActionId.SwapGameScreen:
+                MonitorSwitcher switcher = FindFirstObjectByType<MonitorSwitcher>(FindObjectsInactive.Include);
+                if (switcher)
+                    switcher.SwapToNextMonitor();
+                break;
         }
     }
 
@@ -66,6 +72,7 @@ public class SettingsButtonRowUI : MonoBehaviour
         return id switch
         {
             SettingsButtonActionId.ReturnAllWindowsToAnchorPoints => "Resets all windows - size and position",
+            SettingsButtonActionId.SwapGameScreen => "Change game screen",
             _ => id.ToString()
         };
     }
@@ -75,6 +82,7 @@ public class SettingsButtonRowUI : MonoBehaviour
         return id switch
         {
             SettingsButtonActionId.ReturnAllWindowsToAnchorPoints => "Reset",
+            SettingsButtonActionId.SwapGameScreen => "Swap",
             _ => "Run"
         };
     }

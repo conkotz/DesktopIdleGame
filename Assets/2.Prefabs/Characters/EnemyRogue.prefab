@@ -897,7 +897,7 @@ GameObject:
   - component: {fileID: 549625517635857652}
   m_Layer: 8
   m_Name: EnemyRogue
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1037,6 +1037,9 @@ MonoBehaviour:
   currentHP: -1
   currentEnergy: -1
   currentMana: -1
+  currentGuard: -1
+  _enemyDefinitionFlatGuard: 0
+  _enemyDefinitionMaxGuardPercent: 0
   baseMaxHP: 1
   baseMaxEnergy: 0
   baseMaxMana: 1
@@ -1166,6 +1169,7 @@ MonoBehaviour:
   ailments: {fileID: 1174277405054573469}
   stripCanvas: {fileID: 0}
   stripCamera: {fileID: 0}
+  hpBarOnly: 0
 --- !u!1 &7487605686070336555
 GameObject:
   m_ObjectHideFlags: 0

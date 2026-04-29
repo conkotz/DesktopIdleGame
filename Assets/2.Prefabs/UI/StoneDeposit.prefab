@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: 7244179452609815655}
   m_Layer: 6
   m_Name: StoneDeposit
-  m_TagString: Untagged
+  m_TagString: Resource
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

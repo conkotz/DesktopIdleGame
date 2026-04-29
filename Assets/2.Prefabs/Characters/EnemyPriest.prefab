@@ -437,7 +437,7 @@ GameObject:
   - component: {fileID: 2739365819787256807}
   m_Layer: 8
   m_Name: EnemyPriest
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -577,6 +577,9 @@ MonoBehaviour:
   currentHP: -1
   currentEnergy: -1
   currentMana: -1
+  currentGuard: -1
+  _enemyDefinitionFlatGuard: 0
+  _enemyDefinitionMaxGuardPercent: 0
   baseMaxHP: 100
   baseMaxEnergy: 100
   baseMaxMana: 50
@@ -706,6 +709,7 @@ MonoBehaviour:
   ailments: {fileID: 5443397999179092105}
   stripCanvas: {fileID: 0}
   stripCamera: {fileID: 0}
+  hpBarOnly: 0
 --- !u!1 &1000013226060160
 GameObject:
   m_ObjectHideFlags: 0

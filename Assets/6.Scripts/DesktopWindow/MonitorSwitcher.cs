@@ -11,6 +11,8 @@ public class MonitorSwitcher : MonoBehaviour
     [SerializeField] private UniWindowController uniWin;
 
 #pragma warning disable 0414
+    [Tooltip("When enabled, cycles displays using the hotkey (Windows standalone builds only). Prefer the Settings ► Swap button.")]
+    [SerializeField] private bool enableHotkey;
     [SerializeField] private KeyCode hotkey = KeyCode.F10;
     [SerializeField] private bool snapOnStart = true;
     [SerializeField] private int delayFrames = 6;
@@ -38,16 +40,25 @@ public class MonitorSwitcher : MonoBehaviour
     private void Update()
     {
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
-        if (!uniWin) return;
+        if (!enableHotkey || !uniWin) return;
 
         if (Input.GetKeyDown(hotkey))
-        {
-            var mons = GetMonitors();
-            if (mons.Count == 0) return;
+            SwapToNextMonitor();
+#endif
+    }
 
-            _index = (_index + 1) % mons.Count;
-            MoveToMonitor(mons[_index]);
-        }
+    /// <summary>Called from Settings UI (and optionally <see cref="enableHotkey"/>).</summary>
+    public void SwapToNextMonitor()
+    {
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+        if (!uniWin) uniWin = FindFirstObjectByType<UniWindowController>();
+        if (!uniWin) return;
+
+        var mons = GetMonitors();
+        if (mons.Count == 0) return;
+
+        _index = (_index + 1) % mons.Count;
+        MoveToMonitor(mons[_index]);
 #endif
     }
 

@@ -20,7 +20,7 @@ GameObject:
   - component: {fileID: 101716477094515511}
   m_Layer: 8
   m_Name: TrainingDummy
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -111,6 +111,12 @@ MonoBehaviour:
   aggroRange: 1
   moveSpeed: 0
   xOnly: 1
+  idleWanderEnabled: 0
+  idleWanderSpeed: 0.8
+  idleWanderMoveMinSec: 1
+  idleWanderMoveMaxSec: 3
+  idleWanderIdleMinSec: 2
+  idleWanderIdleMaxSec: 8
   enemyAttackWindup: 0.1
   requireRangeOnHit: 1
   destroyOnDeath: 1
@@ -133,6 +139,7 @@ MonoBehaviour:
   nameLabel: {fileID: 0}
   hpBar: {fileID: 0}
   damagePopupAnchor: {fileID: 0}
+  dropLootAnchor: {fileID: 0}
   drawGizmos: 1
   state: 0
 --- !u!114 &739235800069344356
@@ -152,11 +159,15 @@ MonoBehaviour:
   currentHP: -1
   currentEnergy: -1
   currentMana: -1
+  currentGuard: -1
+  _enemyDefinitionFlatGuard: 0
+  _enemyDefinitionMaxGuardPercent: 0
   baseMaxHP: 100
   baseMaxEnergy: 100
   baseMaxMana: 50
   baseArmor: 0
   baseMagicResist: 0
+  baseCorruptionResist: 0
   basePhysBlockChance: 0
   baseMoveSpeed: 3
   baseMoveSpeedMult: 1
@@ -167,8 +178,8 @@ MonoBehaviour:
   baseMaxPhysicalDamage: 0
   baseMinMagicDamage: 0
   baseMaxMagicDamage: 0
-  baseMinTrueDamage: 0
-  baseMaxTrueDamage: 0
+  baseMinCorruptionDamage: 0
+  baseMaxCorruptionDamage: 0
   baseAbilityPower: 0
   baseLifeSteal: 0
   baseBleedChance: 0
@@ -176,21 +187,26 @@ MonoBehaviour:
   baseBleedDuration: 5
   basePoisonChance: 0
   basePoisonMultiplier: 0
+  poisonPoolFractionOfCorruptionDamage: 0.4
   basePoisonDuration: 5
   basePoisonMaxStacks: 3
   baseMagicAttackType: 0
   baseMagicAilmentApplyChance: 0
+  baseBurnChance: 0
   baseChillDuration: 5
   baseChillMaxStacks: 6
   baseChillSlowPerStack: 0.15
   baseBurnHitsToExplode: 4
   baseBurnExplosionMultiplier: 0.5
+  bonusBurnDamageMultiplier: 0
   baseShockDuration: 5
   baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
   equipment: {fileID: 0}
   inventory: {fileID: 0}
   toolbelt: {fileID: 0}
+  skillsManager: {fileID: 0}
+  skillDatabase: {fileID: 0}
   unarmedMinPhysicalDamage: 1
   unarmedMaxPhysicalDamage: 2
   unarmedAttacksPerSecond: 1
@@ -200,6 +216,7 @@ MonoBehaviour:
   bonusAxeSpeedMult: 0
   bonusPickaxeSpeedMult: 0
   bonusRodSpeedMult: 0
+  debugAbilityCombatPower: 0
 --- !u!114 &6916494899203147554
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -252,7 +269,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
-  burnFallbackDurationSeconds: 30
+  burnDurationTicks: 15
+  burnDamageFractionOfHitPerTick: 0.15
+  burnCombustTicksWorth: 10
 --- !u!114 &101716477094515511
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -272,6 +291,7 @@ MonoBehaviour:
   ailments: {fileID: 1645354627277816554}
   stripCanvas: {fileID: 0}
   stripCamera: {fileID: 0}
+  hpBarOnly: 0
 --- !u!1 &1000011164445256
 GameObject:
   m_ObjectHideFlags: 0

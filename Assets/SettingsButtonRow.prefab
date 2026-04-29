@@ -429,6 +429,7 @@ GameObject:
   - component: {fileID: 991467257696114974}
   - component: {fileID: 5798085337497234688}
   - component: {fileID: 612843815667391123}
+  - component: {fileID: 712843815667391124}
   m_Layer: 5
   m_Name: SettingsButtonRow
   m_TagString: Untagged
@@ -541,3 +542,19 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &712843815667391124
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7635310006468528385}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: caeaa23e2b7e06b4180e1e2f63b6abb7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SettingsButtonRowUI
+  actionId: 0
+  settingNameText: {fileID: 0}
+  buttonLabelText: {fileID: 0}
+  button: {fileID: 0}

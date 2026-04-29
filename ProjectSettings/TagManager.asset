@@ -7,6 +7,8 @@ TagManager:
   - Enemy
   - UICanvas
   - FullWindowCanvas
+  - NPC
+  - Resource
   layers:
   - Default
   - TransparentFX

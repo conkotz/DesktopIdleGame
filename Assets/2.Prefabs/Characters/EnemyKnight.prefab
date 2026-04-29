@@ -20,7 +20,7 @@ GameObject:
   - component: {fileID: 101716477094515511}
   m_Layer: 8
   m_Name: EnemyKnight
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -160,6 +160,9 @@ MonoBehaviour:
   currentHP: -1
   currentEnergy: -1
   currentMana: -1
+  currentGuard: -1
+  _enemyDefinitionFlatGuard: 0
+  _enemyDefinitionMaxGuardPercent: 0
   baseMaxHP: 100
   baseMaxEnergy: 100
   baseMaxMana: 50
@@ -289,6 +292,7 @@ MonoBehaviour:
   ailments: {fileID: 1645354627277816554}
   stripCanvas: {fileID: 0}
   stripCamera: {fileID: 0}
+  hpBarOnly: 0
 --- !u!1 &1000011164445256
 GameObject:
   m_ObjectHideFlags: 0
