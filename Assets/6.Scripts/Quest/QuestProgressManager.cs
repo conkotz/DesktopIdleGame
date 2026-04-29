@@ -297,11 +297,11 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     public bool CanAbandonQuest(QuestDefinition q)
     {
-        return q &&
-               q.abandonable &&
-               RequiresQuestGiver(q) &&
-               IsQuestAccepted(q) &&
-               !IsPermanentlyComplete(q);
+        if (!q || !q.abandonable || !RequiresQuestGiver(q))
+            return false;
+
+        // In progress, ready to turn in, or already reward-claimed — abandon fully resets journal state.
+        return IsQuestAccepted(q) || IsPermanentlyComplete(q);
     }
 
     public bool TryAbandonQuest(QuestDefinition q)
@@ -311,6 +311,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
         string questId = q.questId.Trim();
         _acceptedQuestIds.Remove(questId);
+        _rewardClaimed.Remove(questId);
         if (q.objectiveKind != QuestObjectiveKind.GatherItem)
             _amounts.Remove(questId);
         QuestTrackerState.UntrackQuest(questId);

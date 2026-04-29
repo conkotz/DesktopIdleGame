@@ -836,7 +836,8 @@ public class QuestPageUI : MonoBehaviour
         if (!questClaimButton)
             return;
 
-        bool show = q != null && q.objectiveKind != QuestObjectiveKind.None;
+        bool questListEmpty = _questRows.Count == 0;
+        bool show = !questListEmpty && q != null && q.objectiveKind != QuestObjectiveKind.None;
         if (questActionRowRoot)
             questActionRowRoot.SetActive(show);
         else

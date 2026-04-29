@@ -23,6 +23,9 @@ public class StorageSlotUI : MonoBehaviour,
     [SerializeField] private Color hoverColor = new Color32(198, 184, 158, 255);
     [SerializeField] private Color pressedColor = new Color32(217, 164, 65, 255);
 
+    [Header("Idle auto-battle new loot")]
+    [SerializeField] private Color autoBattleNewLootColor = new Color32(217, 190, 100, 255);
+
     [Header("Rarity Border")]
     [SerializeField] private bool showRarityBorder = true;
     [SerializeField] private Color uncommonBorder = new Color32(80, 200, 120, 255);
@@ -122,6 +125,11 @@ public class StorageSlotUI : MonoBehaviour,
             countText.text = (def != null && amount > 0) ? amount.ToString() : "";
 
         RefreshRarityBorder(def);
+
+        if (def == null || amount <= 0 || string.IsNullOrEmpty(itemId))
+            AutoBattleLootHighlight.ClearStorageSlot(slotIndex);
+
+        ApplySlotBackground();
     }
 
     public void SetTooltipDocking(
@@ -162,6 +170,18 @@ public class StorageSlotUI : MonoBehaviour,
         };
     }
 
+    private void ApplySlotBackground()
+    {
+        if (!background) return;
+
+        if (_isPointerOver)
+            background.color = hoverColor;
+        else if (AutoBattleLootHighlight.IsStorageSlotMarked(_slotIndex))
+            background.color = autoBattleNewLootColor;
+        else
+            background.color = idleColor;
+    }
+
     public void OnPointerClick(PointerEventData eventData)
     {
         if (eventData.button != PointerEventData.InputButton.Left)
@@ -174,7 +194,7 @@ public class StorageSlotUI : MonoBehaviour,
         bool doubleClick = (t - _lastClickTime) <= doubleClickSeconds;
         _lastClickTime = t;
 
-        if (doubleClick)
+        if (doubleClick || InventorySlotUI.InputUtil.CtrlHeld())
         {
             TryDoubleClickWithdrawToInventory();
             eventData.Use();
@@ -194,6 +214,8 @@ public class StorageSlotUI : MonoBehaviour,
     public void OnPointerEnter(PointerEventData eventData)
     {
         _isPointerOver = true;
+
+        AutoBattleLootHighlight.ClearStorageSlot(_slotIndex);
 
         if (background)
             background.color = hoverColor;
@@ -219,8 +241,7 @@ public class StorageSlotUI : MonoBehaviour,
     {
         _isPointerOver = false;
 
-        if (background)
-            background.color = idleColor;
+        ApplySlotBackground();
 
         _tooltip?.Hide();
     }
@@ -228,6 +249,10 @@ public class StorageSlotUI : MonoBehaviour,
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (MerchantClick.MerchantModeOpen && InventorySlotUI.InputUtil.CtrlHeld())
+            return;
+
+        // Ctrl+click withdraws to inventory (same as double-click); don't start a drag.
+        if (InventorySlotUI.InputUtil.CtrlHeld())
             return;
 
         if (_def == null || string.IsNullOrEmpty(_itemId) || _rootCanvas == null || _storage == null) return;
@@ -252,8 +277,7 @@ public class StorageSlotUI : MonoBehaviour,
         CreateDragIcon();
         UpdateDragIconPosition(eventData);
 
-        if (background)
-            background.color = _isPointerOver ? hoverColor : idleColor;
+        ApplySlotBackground();
     }
 
     public void OnDrag(PointerEventData eventData)
@@ -323,6 +347,8 @@ public class StorageSlotUI : MonoBehaviour,
 
         var storageUi = FindFirstObjectByType<StorageUI>(FindObjectsInactive.Include);
         storageUi?.EndDragFromStoragePanel();
+
+        ApplySlotBackground();
     }
 
     public void OnDrop(PointerEventData eventData)
@@ -464,5 +490,6 @@ public class StorageSlotUI : MonoBehaviour,
     {
         _isPointerOver = false;
         _tooltip?.Hide();
+        ApplySlotBackground();
     }
 }

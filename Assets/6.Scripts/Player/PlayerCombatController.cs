@@ -1133,12 +1133,18 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (Time.time < _nextIdleAutoPickupTime) return;
         _nextIdleAutoPickupTime = Time.time + Mathf.Max(0.5f, idleAutoPickupIntervalSeconds);
 
+        PlayerStorage storage = null;
+        if (player != null)
+            storage = player.GetComponent<PlayerStorage>();
+        if (!storage)
+            storage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+
         var drops = FindObjectsByType<ItemDrop>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         for (int i = 0; i < drops.Length; i++)
         {
             var d = drops[i];
             if (d != null)
-                d.TryPickup(inventory);
+                d.TryPickup(inventory, storage, idleAutoBattleLoot: true);
         }
     }
 

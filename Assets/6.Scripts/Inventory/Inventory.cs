@@ -133,7 +133,8 @@ public class Inventory : MonoBehaviour, ISaveable
     /// Does NOT fire OnInventoryFull (caller decides what to do with overflow).
     /// </summary>
     /// <param name="notifyItemGainPopup">False skips item-gained world popups.</param>
-    public int AddPartial(string itemId, int amount = 1, int? maxStackOverride = null, bool notifyItemGainPopup = true)
+    /// <param name="touchedSlotIndices">If non-null, receives each inventory slot index that was created or had its amount increased.</param>
+    public int AddPartial(string itemId, int amount = 1, int? maxStackOverride = null, bool notifyItemGainPopup = true, IList<int> touchedSlotIndices = null)
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return 0;
 
@@ -153,6 +154,7 @@ public class Inventory : MonoBehaviour, ISaveable
             int add = Mathf.Min(space, remaining);
             s.amount += add;
             _slots[i] = s;
+            touchedSlotIndices?.Add(i);
 
             remaining -= add;
             addedTotal += add;
@@ -165,6 +167,7 @@ public class Inventory : MonoBehaviour, ISaveable
 
             int add = Mathf.Min(maxStack, remaining);
             _slots[i] = new Slot { itemId = itemId, amount = add };
+            touchedSlotIndices?.Add(i);
 
             remaining -= add;
             addedTotal += add;

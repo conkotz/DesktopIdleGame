@@ -33,6 +33,18 @@ public static class ItemGainPopupNotifier
         GameLog.ItemLost(label, amount);
     }
 
+    /// <summary>Player-facing item name for logs (same rules as <see cref="Notify"/>).</summary>
+    public static string ResolveDisplayLabel(string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return "item";
+
+        itemId = itemId.Trim();
+        ItemDatabase db = Object.FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        ItemDefinition def = db ? db.Get(itemId) : null;
+        return ResolveLabel(def, itemId, amount);
+    }
+
     private static string ResolveLabel(ItemDefinition def, string itemId, int amount)
     {
         if (def)

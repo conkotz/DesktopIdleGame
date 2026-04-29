@@ -161,6 +161,27 @@ public static class GameLog
         Add($"Inventory full{suffix}", ItemLostColor);
     }
 
+    /// <summary>Idle auto-loot: items that fit only in storage because the inventory had no room.</summary>
+    public static void ItemSentToStorageBecauseInventoryFull(string itemDisplayName, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemDisplayName))
+            return;
+
+        string label = itemDisplayName.Trim();
+        Add($"+{amount} {label} - Inventory was full, sent to storage.", ItemGainColor);
+    }
+
+    /// <summary>Idle auto-loot: pickup could not fit in inventory or storage.</summary>
+    public static void CannotObtainInventoryAndStorageFull(string itemDisplayName, int amount)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemDisplayName))
+            return;
+
+        string label = itemDisplayName.Trim();
+        string qtyPrefix = amount == 1 ? "" : $"{amount}x ";
+        Add($"Cannot obtain {qtyPrefix}{label} since inventory and storage is full.", ItemLostColor);
+    }
+
     public static void PurchaseFailed(string reason, string itemName = null)
     {
         string trimmedReason = string.IsNullOrWhiteSpace(reason) ? "Purchase failed" : reason.Trim();

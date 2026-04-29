@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -167,13 +168,42 @@ public class ItemDrop : MonoBehaviour
     }
 
 
-    public bool TryPickup(Inventory inv)
+    /// <param name="storage">When <paramref name="idleAutoBattleLoot"/> is true, overflow may be deposited here if the inventory cannot take the rest.</param>
+    public bool TryPickup(Inventory inv, PlayerStorage storage = null, bool idleAutoBattleLoot = false)
     {
         if (inv == null) return false;
         if (Amount <= 0 || string.IsNullOrWhiteSpace(ItemId)) return false;
 
-        int added = inv.AddPartial(ItemId, Amount);
+        List<int> invTouched = idleAutoBattleLoot ? new List<int>(4) : null;
+        int added = inv.AddPartial(ItemId, Amount, null, true, invTouched);
         int left = Amount - added;
+
+        if (idleAutoBattleLoot && invTouched != null)
+        {
+            for (int i = 0; i < invTouched.Count; i++)
+                AutoBattleLootHighlight.MarkInventorySlot(invTouched[i]);
+        }
+
+        if (idleAutoBattleLoot && storage != null && left > 0 && inv.IsFull())
+        {
+            var stTouched = new List<int>(4);
+            int dep = storage.TryDepositAmountFromExternal(ItemId, left, stTouched);
+            left -= dep;
+            for (int i = 0; i < stTouched.Count; i++)
+                AutoBattleLootHighlight.MarkStorageSlot(stTouched[i]);
+
+            if (dep > 0)
+            {
+                string label = ItemGainPopupNotifier.ResolveDisplayLabel(ItemId, dep);
+                GameLog.ItemSentToStorageBecauseInventoryFull(label, dep);
+            }
+
+            if (left > 0)
+            {
+                string label = ItemGainPopupNotifier.ResolveDisplayLabel(ItemId, left);
+                GameLog.CannotObtainInventoryAndStorageFull(label, left);
+            }
+        }
 
         if (left <= 0)
         {

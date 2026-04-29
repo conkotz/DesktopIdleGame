@@ -33,6 +33,9 @@ public class InventorySlotUI : MonoBehaviour,
     [SerializeField] private Color hoverColor = new Color32(198, 184, 158, 255);  // #C6B89E
     [SerializeField] private Color pressedColor = new Color32(217, 164, 65, 255); // #D9A441
 
+    [Header("Idle auto-battle new loot")]
+    [SerializeField] private Color autoBattleNewLootColor = new Color32(217, 190, 100, 255);
+
     [Header("Rarity Border")]
     [Tooltip("If false, no rarity border is shown.")]
     [SerializeField] private bool showRarityBorder = true;
@@ -177,6 +180,11 @@ public class InventorySlotUI : MonoBehaviour,
             countText.text = (def != null && amount > 0) ? amount.ToString() : "";
 
         RefreshRarityBorder(def);
+
+        if (def == null || amount <= 0 || string.IsNullOrEmpty(itemId))
+            AutoBattleLootHighlight.ClearInventorySlot(slotIndex);
+
+        ApplySlotBackground();
     }
 
     private void RefreshRarityBorder(ItemDefinition def)
@@ -207,6 +215,18 @@ public class InventorySlotUI : MonoBehaviour,
         };
     }
 
+    private void ApplySlotBackground()
+    {
+        if (!background) return;
+
+        if (_isPointerOver)
+            background.color = hoverColor;
+        else if (AutoBattleLootHighlight.IsInventorySlotMarked(_slotIndex))
+            background.color = autoBattleNewLootColor;
+        else
+            background.color = idleColor;
+    }
+
     public void OnPointerClick(PointerEventData eventData)
     {
         if (eventData.button != PointerEventData.InputButton.Left)
@@ -216,27 +236,25 @@ public class InventorySlotUI : MonoBehaviour,
         if (InventoryDragState.HasDrag)
             return;
 
-        // Double click to Equip/Toolbelt
         float t = Time.unscaledTime;
         bool doubleClick = (t - _lastClickTime) <= doubleClickSeconds;
         _lastClickTime = t;
 
+        if (StorageUI.IsOpen && (doubleClick || InputUtil.CtrlHeld()))
+        {
+            TryDoubleClickDepositToStorage();
+            eventData.Use();
+            return;
+        }
+
         if (doubleClick)
         {
-            if (StorageUI.IsOpen)
-            {
-                TryDoubleClickDepositToStorage();
-                // Never fall through to equip while storage is open (deposit can fail if full).
-                eventData.Use();
-                return;
-            }
-
             TryDoubleClickEquipFromThisSlot();
             eventData.Use();
             return;
         }
 
-        // Existing: Merchant mode + CTRL -> sell full stack
+        // Merchant mode + CTRL -> sell full stack
         if (!MerchantClick.MerchantModeOpen)
             return;
 
@@ -507,6 +525,8 @@ public class InventorySlotUI : MonoBehaviour,
     {
         _isPointerOver = true;
 
+        AutoBattleLootHighlight.ClearInventorySlot(_slotIndex);
+
         if (background)
             background.color = hoverColor;
 
@@ -536,16 +556,16 @@ public class InventorySlotUI : MonoBehaviour,
     {
         _isPointerOver = false;
 
-        if (background)
-            background.color = idleColor;
+        ApplySlotBackground();
 
         _tooltip?.Hide();
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        // IMPORTANT: if merchant mode is open and ctrl held, don't allow drag.
-        if (MerchantClick.MerchantModeOpen && InputUtil.CtrlHeld())
+        // Ctrl+click is used for sell (merchant) and stash (storage); don't start a drag.
+        if (InputUtil.CtrlHeld() &&
+            (MerchantClick.MerchantModeOpen || StorageUI.IsOpen))
             return;
 
         if (_def == null || string.IsNullOrEmpty(_itemId) || _rootCanvas == null || _inventory == null) return;
@@ -567,8 +587,7 @@ public class InventorySlotUI : MonoBehaviour,
         CreateDragIcon();
         UpdateDragIconPosition(eventData);
 
-        if (background)
-            background.color = _isPointerOver ? hoverColor : idleColor;
+        ApplySlotBackground();
     }
 
     public void OnDrag(PointerEventData eventData)
@@ -608,6 +627,7 @@ public class InventorySlotUI : MonoBehaviour,
                 if (string.IsNullOrWhiteSpace(itemId) || dropAmount <= 0)
                 {
                     InventoryDragState.EndDrag();
+                    ApplySlotBackground();
                     return;
                 }
 
@@ -626,6 +646,7 @@ public class InventorySlotUI : MonoBehaviour,
         }
 
         InventoryDragState.EndDrag();
+        ApplySlotBackground();
     }
 
     private IEnumerator DeferredEndInventoryDragOverUi()
@@ -633,6 +654,7 @@ public class InventorySlotUI : MonoBehaviour,
         yield return null;
         if (InventoryDragState.HasDrag && InventoryDragState.Source == InventoryDragState.SourceKind.Inventory)
             InventoryDragState.EndDrag();
+        ApplySlotBackground();
     }
 
     public void OnDrop(PointerEventData eventData)

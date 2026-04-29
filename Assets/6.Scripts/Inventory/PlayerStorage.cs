@@ -381,7 +381,8 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     /// Places items not coming from an inventory slot (e.g. unequipped gear) into storage,
     /// merging into matching stacks then filling empty slots up to max stack.
     /// </summary>
-    public int TryDepositAmountFromExternal(string itemId, int amount)
+    /// <param name="touchedSlotIndices">If non-null, each storage slot index that received items is appended (merge or new stack).</param>
+    public int TryDepositAmountFromExternal(string itemId, int amount, IList<int> touchedSlotIndices = null)
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0) return 0;
 
@@ -406,6 +407,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
                 remaining -= add;
                 movedTotal += add;
                 _slots[i] = s;
+                touchedSlotIndices?.Add(i);
                 progressed = true;
             }
 
@@ -420,6 +422,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
                 _slots[i] = new Slot { itemId = itemId, amount = chunk };
                 remaining -= chunk;
                 movedTotal += chunk;
+                touchedSlotIndices?.Add(i);
                 progressed = true;
                 break;
             }
@@ -431,6 +434,22 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             OnStorageChanged?.Invoke();
 
         return movedTotal;
+    }
+
+    /// <summary>Deposits every non-empty inventory stack into storage, limited by free storage space (same rules as per-slot deposit).</summary>
+    public int TryDepositEntireInventory(Inventory inv)
+    {
+        if (inv == null) return 0;
+
+        int total = 0;
+        int n = inv.SlotCount;
+        for (int i = 0; i < n; i++)
+        {
+            if (inv.GetSlot(i).IsEmpty) continue;
+            total += TryDepositAllFromInventorySlot(inv, i);
+        }
+
+        return total;
     }
 
     /// <summary>Removes up to <paramref name="amount"/> of <paramref name="itemId"/> across slots (for rollback after partial external deposit).</summary>
