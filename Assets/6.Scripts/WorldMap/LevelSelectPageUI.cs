@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using TMPro;
@@ -56,6 +57,8 @@ public class LevelSelectPageUI : MonoBehaviour
     [SerializeField] private Image detailsPanelBackgroundImage;
     [Tooltip("Optional. Tint the center Locations list panel to match the selected node type.")]
     [SerializeField] private Image locationsPanelBackgroundImage;
+
+    private const string EmberHollowRegionId = "emberhollow";
 
     private readonly List<GameObject> _regionRows = new();
     private readonly List<RegionDefinition> _regionRowRegions = new();
@@ -336,7 +339,8 @@ public class LevelSelectPageUI : MonoBehaviour
             RegionDefinition captured = region;
             if (b)
             {
-                b.interactable = unlocked;
+                // Keep interactable so locked regions can show feedback (e.g. activity log) on click.
+                b.interactable = true;
                 b.onClick.AddListener(() => OnRegionClicked(captured));
             }
 
@@ -425,7 +429,15 @@ public class LevelSelectPageUI : MonoBehaviour
     {
         WorldMapProgressManager progress = FindProgressManager();
         if (!IsRegionAvailable(region, progress))
+        {
+            if (region != null &&
+                string.Equals(region.regionId, EmberHollowRegionId, StringComparison.OrdinalIgnoreCase))
+            {
+                GameLog.Add("This Region is locked - accessible after defeating Greenlands Boss");
+            }
+
             return;
+        }
 
         // Prevent flicker: if user clicks the already-selected region, keep current rows/selection as-is.
         if (_selectedRegion == region)

@@ -19,13 +19,6 @@ public class WorldInputRouter2D : MonoBehaviour
 
     private SimpleHoverHighlight2D _currentHover; // or EdgeHighlight2D if you swap later
 
-    [Header("Merchant open")]
-    [Tooltip("Second left-click on the same merchant within this time (seconds) opens/closes, or hold Ctrl while clicking.")]
-    [SerializeField, Min(0.05f)] private float merchantDoubleClickMaxDelay = 0.35f;
-
-    private MerchantClick _lastMerchantClickTarget;
-    private float _lastMerchantClickUnscaledTime = -999f;
-
     /// <summary>True when this router drives hover highlights (used to avoid duplicate HoverPicker2D).</summary>
     public bool HoverHighlightEnabled => enableHoverHighlight;
 
@@ -78,16 +71,23 @@ public class WorldInputRouter2D : MonoBehaviour
                 return;
             }
 
-            // 3) Generic NPC dialogue / quest interactables
-            var npc = winnerCol.GetComponentInParent<NPCInteractionSettings>();
-            if (npc != null)
-                npc.Interact();
+            // 3) NPCs + merchants
+            NPCInteractionSettings npc = winnerCol.GetComponentInParent<NPCInteractionSettings>();
+            MerchantClick merchant = winnerCol.GetComponentInParent<MerchantClick>();
 
-            // 3b) Merchant / NPC interactables (Ctrl+click or double-click — not plain single click)
-            var merchant = winnerCol.GetComponentInParent<MerchantClick>();
-            if (merchant != null && TryConsumeMerchantOpenClick(merchant))
+            if (merchant != null)
             {
+                // Dialogue/quest UI when this NPC has interaction settings, plus shop + character menu.
+                if (npc != null)
+                    npc.Interact();
+
                 merchant.Open();
+                return;
+            }
+
+            if (npc != null)
+            {
+                npc.Interact();
                 return;
             }
 
@@ -129,44 +129,4 @@ public class WorldInputRouter2D : MonoBehaviour
         if (_currentHover) _currentHover.SetHovered(true);
     }
 
-    private bool IsCtrlHeldForWorldClick()
-    {
-#if ENABLE_INPUT_SYSTEM
-        var kb = UnityEngine.InputSystem.Keyboard.current;
-        return kb != null && (kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed);
-#else
-        return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-#endif
-    }
-
-    private void ResetMerchantDoubleClickState()
-    {
-        _lastMerchantClickTarget = null;
-        _lastMerchantClickUnscaledTime = -999f;
-    }
-
-    /// <summary>True when this click should open/toggle the merchant (Ctrl held, or second click on same NPC in time window).</summary>
-    private bool TryConsumeMerchantOpenClick(MerchantClick merchant)
-    {
-        if (merchant == null)
-            return false;
-
-        if (IsCtrlHeldForWorldClick())
-        {
-            ResetMerchantDoubleClickState();
-            return true;
-        }
-
-        float t = Time.unscaledTime;
-        if (_lastMerchantClickTarget == merchant &&
-            (t - _lastMerchantClickUnscaledTime) <= merchantDoubleClickMaxDelay)
-        {
-            ResetMerchantDoubleClickState();
-            return true;
-        }
-
-        _lastMerchantClickTarget = merchant;
-        _lastMerchantClickUnscaledTime = t;
-        return false;
-    }
 }

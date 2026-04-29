@@ -24,6 +24,18 @@ public class NPCInteractionSettings : MonoBehaviour
             questGiver = GetComponent<QuestGiver>();
     }
 
+    /// <summary>Used by world click routing: merchants open the shop unless a quest offer should appear instead.</summary>
+    public bool HasAvailableQuestOffers()
+    {
+        if (!questGiver)
+            questGiver = GetComponent<QuestGiver>();
+
+        List<QuestDefinition> quests =
+            questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>();
+
+        return quests.Count > 0;
+    }
+
     public void Interact()
     {
         if (!questGiver)

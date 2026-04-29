@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -19,6 +20,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
     private static readonly Color TrackerObjectiveCompleteRowColor = new Color(0.82f, 0.96f, 0.82f, 1f);
     private static bool s_hasRememberedWindowActiveState;
     private static bool s_rememberedWindowActive = true;
+    private static bool s_hooksRegistered;
 
     [SerializeField] private RectTransform trackerContentRoot;
     [SerializeField] private TMP_Text trackerTitleText;
@@ -30,21 +32,51 @@ public class QuestTrackerWindowUI : MonoBehaviour
     private Inventory _inventory;
     private PlayerStorage _storage;
     private bool _isRefreshingRows;
+    private Coroutine _deferredLayoutRebuild;
 
     private readonly List<GameObject> _spawnedRows = new();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void AutoAttachToTrackerWindow()
     {
+        EnsureSceneLoadedHook();
+        TryRestoreTrackerForCurrentScene();
+    }
+
+    private static void EnsureSceneLoadedHook()
+    {
+        if (s_hooksRegistered)
+            return;
+        s_hooksRegistered = true;
+        SceneManager.sceneLoaded -= OnSceneLoadedRestoreTracker;
+        SceneManager.sceneLoaded += OnSceneLoadedRestoreTracker;
+    }
+
+    private static void OnSceneLoadedRestoreTracker(Scene scene, LoadSceneMode mode)
+    {
+        TryRestoreTrackerForCurrentScene();
+    }
+
+    /// <summary>Re-show the tracker after a scene change when the player still has tracked quests (state is static; the window is recreated per scene).</summary>
+    private static void TryRestoreTrackerForCurrentScene()
+    {
+        if (QuestTrackerState.TrackedCount <= 0)
+            return;
+
         GameObject window = FindSceneObjectByName(TrackerWindowName);
         if (!window)
             return;
+
         if (!window.GetComponent<QuestTrackerWindowUI>())
             window.AddComponent<QuestTrackerWindowUI>();
+
+        if (!window.activeSelf)
+            window.SetActive(true);
     }
 
     private void Awake()
     {
+        EnsureSceneLoadedHook();
         ResolveReferences();
         EnsureCanvasGroup();
         ApplyRememberedWindowActiveState();
@@ -68,6 +100,12 @@ public class QuestTrackerWindowUI : MonoBehaviour
 
     private void OnDisable()
     {
+        if (_deferredLayoutRebuild != null)
+        {
+            StopCoroutine(_deferredLayoutRebuild);
+            _deferredLayoutRebuild = null;
+        }
+
         QuestTrackerState.Changed -= RefreshRows;
 
         if (_questProgress != null)
@@ -117,15 +155,15 @@ public class QuestTrackerWindowUI : MonoBehaviour
             return;
         }
 
-        // Auto-untrack only missing or permanently completed (claimed) quests.
+        // Drop unknown ids and finished (reward claimed) non-repeatable quests only.
+        // Do not prune "gated" / unavailable — map/skills briefly unset during loads and would empty the tracker.
         QuestTrackerState.PruneMissing(id =>
         {
             QuestDefinition def = FindQuestDefinition(id);
             if (!def)
                 return false;
             bool permanentlyDone = _questProgress != null && _questProgress.IsPermanentlyComplete(def);
-            bool gated = _questProgress != null && _questProgress.IsQuestGatedByPrerequisites(def);
-            return !permanentlyDone && !gated;
+            return !permanentlyDone;
         });
         QuestTrackerState.PruneToMaxCount();
 
@@ -155,8 +193,10 @@ public class QuestTrackerWindowUI : MonoBehaviour
 
         RefreshTitle(renderedCount);
         SetTrackerVisible(renderedCount > 0);
-        if (trackerContentRoot != null)
-            LayoutRebuilder.ForceRebuildLayoutImmediate(trackerContentRoot);
+        RebuildTrackerLayoutImmediate();
+
+        if (renderedCount > 0)
+            ScheduleDeferredLayoutRebuild();
 
         _isRefreshingRows = false;
     }
@@ -199,11 +239,13 @@ public class QuestTrackerWindowUI : MonoBehaviour
         {
             nameText.text = questName;
             nameText.color = TrackerDefaultTextColor;
+            nameText.ForceMeshUpdate(true);
         }
         if (progressDisplayText)
         {
             progressDisplayText.text = progressText;
             progressDisplayText.color = TrackerDefaultTextColor;
+            progressDisplayText.ForceMeshUpdate(true);
         }
 
         Button rowButton = row.GetComponent<Button>();
@@ -215,6 +257,57 @@ public class QuestTrackerWindowUI : MonoBehaviour
         rowButton.transition = Selectable.Transition.None;
         rowButton.onClick.RemoveAllListeners();
         rowButton.onClick.AddListener(() => OnTrackedQuestRowClicked(questId));
+    }
+
+    private void RebuildTrackerLayoutImmediate()
+    {
+        if (!trackerContentRoot)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+
+        for (int i = 0; i < _spawnedRows.Count; i++)
+        {
+            if (!_spawnedRows[i])
+                continue;
+            RectTransform rowRt = _spawnedRows[i].transform as RectTransform;
+            if (rowRt)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(rowRt);
+        }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(trackerContentRoot);
+
+        RectTransform contentParent = trackerContentRoot.parent as RectTransform;
+        if (contentParent)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(contentParent);
+    }
+
+    private void ScheduleDeferredLayoutRebuild()
+    {
+        if (_deferredLayoutRebuild != null)
+            StopCoroutine(_deferredLayoutRebuild);
+        _deferredLayoutRebuild = StartCoroutine(DeferredLayoutRebuildRoutine());
+    }
+
+    private IEnumerator DeferredLayoutRebuildRoutine()
+    {
+        yield return null;
+        _deferredLayoutRebuild = null;
+        if (!this || !isActiveAndEnabled || !trackerContentRoot)
+            yield break;
+
+        for (int i = 0; i < _spawnedRows.Count; i++)
+        {
+            if (!_spawnedRows[i])
+                continue;
+            foreach (TMP_Text tmp in _spawnedRows[i].GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (tmp)
+                    tmp.ForceMeshUpdate(true);
+            }
+        }
+
+        RebuildTrackerLayoutImmediate();
     }
 
     private QuestDefinition FindQuestDefinition(string questId)
@@ -288,6 +381,12 @@ public class QuestTrackerWindowUI : MonoBehaviour
 
     private void ApplyRememberedWindowActiveState()
     {
+        if (QuestTrackerState.TrackedCount > 0)
+        {
+            gameObject.SetActive(true);
+            return;
+        }
+
         if (!s_hasRememberedWindowActiveState || s_rememberedWindowActive)
             return;
 

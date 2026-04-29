@@ -76,6 +76,9 @@ public class QuestPageUI : MonoBehaviour
     private PlayerStorage _subscribedStorage;
     private bool _detailWidgetsBuilt;
 
+    /// <summary>Set in <see cref="RebuildQuestList"/> so the claim button does not use a stale selection when the list is empty.</summary>
+    private int _visibleQuestListCount;
+
     private static Sprite _cachedUiWhiteSprite;
 
     private static WorldMapProgressManager FindWorldProgress()
@@ -270,6 +273,7 @@ public class QuestPageUI : MonoBehaviour
         if (!isActiveAndEnabled)
             return;
         RebuildQuestList();
+        RefreshDetails();
     }
 
     private void ResolveWorldMap()
@@ -455,6 +459,7 @@ public class QuestPageUI : MonoBehaviour
     private void RebuildQuestList()
     {
         ClearQuestRows();
+        _visibleQuestListCount = 0;
 
         if (!questListParent || !questRowPrefab || !questDatabase || !_selectedRegion)
             return;
@@ -515,7 +520,24 @@ public class QuestPageUI : MonoBehaviour
         if (_selectedQuest != null && !_scratchQuests.Contains(_selectedQuest))
             _selectedQuest = null;
         if (!_selectedQuest && _scratchQuests.Count > 0)
-            _selectedQuest = _scratchQuests[0];
+        {
+            for (int i = 0; i < _scratchQuests.Count; i++)
+            {
+                if (_scratchQuests[i])
+                {
+                    _selectedQuest = _scratchQuests[i];
+                    break;
+                }
+            }
+        }
+
+        if (_questRows.Count == 0)
+        {
+            _selectedQuest = null;
+            _visibleQuestListCount = 0;
+        }
+        else
+            _visibleQuestListCount = _questRows.Count;
 
         RefreshQuestSelectionVisuals();
 
@@ -655,6 +677,52 @@ public class QuestPageUI : MonoBehaviour
         _questRows.Clear();
     }
 
+    private void RemoveDestroyedQuestRowRefs()
+    {
+        _questRows.RemoveAll(r => !r);
+    }
+
+    private int CountActiveQuestRowsUnderListParent()
+    {
+        if (!questListParent)
+            return 0;
+        QuestListRowUI[] rows = questListParent.GetComponentsInChildren<QuestListRowUI>(true);
+        int n = 0;
+        for (int i = 0; i < rows.Length; i++)
+        {
+            QuestListRowUI row = rows[i];
+            if (row != null && row.gameObject.activeInHierarchy)
+                n++;
+        }
+        return n;
+    }
+
+    /// <summary>Whether the center list has no live rows (tracks list + hierarchy; do not use stale count fields).</summary>
+    private bool IsQuestCenterListEffectivelyEmpty()
+    {
+        RemoveDestroyedQuestRowRefs();
+        if (_questRows.Count > 0)
+            return false;
+        return CountActiveQuestRowsUnderListParent() == 0;
+    }
+
+    /// <summary>Hides claim buttons whose label is still "Complete Quest" when inspector refs point at the wrong object.</summary>
+    private void HideOrphanCompleteQuestButtonsUnderDetails()
+    {
+        if (!detailsContentRoot)
+            return;
+        foreach (TMP_Text tmp in detailsContentRoot.GetComponentsInChildren<TMP_Text>(true))
+        {
+            if (!tmp || string.IsNullOrEmpty(tmp.text))
+                continue;
+            if (!string.Equals(tmp.text.Trim(), "Complete Quest", StringComparison.Ordinal))
+                continue;
+            Button btn = tmp.GetComponentInParent<Button>();
+            if (btn)
+                btn.gameObject.SetActive(false);
+        }
+    }
+
     private void OnQuestClicked(QuestDefinition quest)
     {
         _selectedQuest = quest;
@@ -744,9 +812,13 @@ public class QuestPageUI : MonoBehaviour
     private void RefreshDetails()
     {
         EnsureDetailWidgets();
+        RemoveDestroyedQuestRowRefs();
         ItemDatabase items = FindItemDatabase();
         EnemyDatabase enemies = FindEnemyDatabase();
         QuestProgressManager qProg = FindQuestProgress();
+
+        if (IsQuestCenterListEffectivelyEmpty())
+            _selectedQuest = null;
 
         WorldMapProgressManager mapProg = FindWorldProgress();
         QuestDefinition q = _selectedQuest;
@@ -756,6 +828,19 @@ public class QuestPageUI : MonoBehaviour
             q = null;
         if (q != null && qProg != null && !qProg.IsQuestVisibleInList(q))
             q = null;
+
+        // No rows in the center list => no details / claim (handles wrong inspector wiring + stale tut/tracker quest).
+        if (IsQuestCenterListEffectivelyEmpty())
+        {
+            _visibleQuestListCount = 0;
+            _selectedQuest = null;
+            q = null;
+        }
+        else if (q != null && !_scratchQuests.Contains(q))
+        {
+            _selectedQuest = null;
+            q = null;
+        }
 
         if (detailNameText)
             detailNameText.text = q ? q.displayName : "—";
@@ -833,16 +918,23 @@ public class QuestPageUI : MonoBehaviour
     private void RefreshQuestClaimButton(QuestDefinition q, QuestProgressManager qProg)
     {
         EnsureDetailWidgets();
-        if (!questClaimButton)
-            return;
+        RemoveDestroyedQuestRowRefs();
 
-        bool questListEmpty = _questRows.Count == 0;
+        bool questListEmpty = IsQuestCenterListEffectivelyEmpty();
         bool show = !questListEmpty && q != null && q.objectiveKind != QuestObjectiveKind.None;
+
         if (questActionRowRoot)
             questActionRowRoot.SetActive(show);
-        else
+        if (questClaimButton)
             questClaimButton.gameObject.SetActive(show);
+
         if (!show)
+        {
+            HideOrphanCompleteQuestButtonsUnderDetails();
+            return;
+        }
+
+        if (!questClaimButton)
             return;
 
         bool permanent = qProg && qProg.IsPermanentlyComplete(q);

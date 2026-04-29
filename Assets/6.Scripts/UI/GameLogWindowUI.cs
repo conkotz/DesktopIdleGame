@@ -18,8 +18,16 @@ public class GameLogWindowUI : MonoBehaviour
 
     private bool _configured;
 #if UNITY_EDITOR
-    private const string DefaultRowPrefabAssetPath = "Assets/2.Prefabs/UI/GameLogRow.prefab";
+    private const string DefaultRowPrefabAssetPath = "Assets/2.Prefabs/UI/GameActivityRow.prefab";
 #endif
+
+    private const float MinActivityRowHeight = 44f;
+    private const float ActivityRowVerticalPadding = 16f;
+    private const float ActivityMessageFontSize = 24f;
+    private const float ActivityTimestampFontSize = 16f;
+    private const int ActivityRowTextGroupLeftPadding = 10;
+    /// <summary>Fixed width so the message column always starts at the same X for every row.</summary>
+    private const float ActivityTimestampColumnWidth = 152f;
 
     public static GameLogWindowUI ResolveOrCreate()
     {
@@ -291,14 +299,13 @@ public class GameLogWindowUI : MonoBehaviour
         rowRoot.anchorMax = new Vector2(1f, 0f);
         rowRoot.pivot = Vector2.zero;
         rowRoot.anchoredPosition = Vector2.zero;
-        rowRoot.sizeDelta = new Vector2(0f, Mathf.Max(22f, rowRoot.sizeDelta.y));
+        rowRoot.sizeDelta = new Vector2(0f, rowRoot.sizeDelta.y);
 
         LayoutElement layout = rowRoot.GetComponent<LayoutElement>();
         if (layout == null)
             layout = rowRoot.gameObject.AddComponent<LayoutElement>();
         layout.flexibleWidth = 1f;
-        if (layout.preferredHeight <= 0f)
-            layout.preferredHeight = Mathf.Max(22f, rowRoot.sizeDelta.y);
+        layout.minHeight = Mathf.Max(layout.minHeight, MinActivityRowHeight);
 
         if (rowText == null)
             return;
@@ -309,11 +316,32 @@ public class GameLogWindowUI : MonoBehaviour
             rowText.font = TMP_Settings.defaultFontAsset;
         rowText.alpha = 1f;
         rowText.raycastTarget = false;
-        rowText.alignment = TextAlignmentOptions.MidlineLeft;
+        ApplyActivityMessageTypography(rowText);
 
         CanvasRenderer renderer = rowText.canvasRenderer;
         if (renderer != null)
             renderer.SetAlpha(1f);
+
+        if (timestampText != null)
+        {
+            ApplyActivityTimestampTypography(timestampText);
+            timestampText.gameObject.SetActive(true);
+            timestampText.enabled = true;
+            if (timestampText.font == null && TMP_Settings.defaultFontAsset != null)
+                timestampText.font = TMP_Settings.defaultFontAsset;
+            timestampText.alpha = 1f;
+            timestampText.raycastTarget = false;
+
+            CanvasRenderer timestampRenderer = timestampText.canvasRenderer;
+            if (timestampRenderer != null)
+                timestampRenderer.SetAlpha(1f);
+
+            ConfigureActivityRowTwoColumnLayout(rowRoot, timestampText, rowText);
+            return;
+        }
+
+        // Fallback: single text cell fills the row (no timestamp / prefab chrome).
+        rowText.alignment = TextAlignmentOptions.MidlineLeft;
 
         RectTransform textRect = rowText.rectTransform;
         textRect.anchorMin = Vector2.zero;
@@ -321,26 +349,146 @@ public class GameLogWindowUI : MonoBehaviour
         textRect.pivot = new Vector2(0f, 0.5f);
         textRect.anchoredPosition = Vector2.zero;
         textRect.sizeDelta = Vector2.zero;
+    }
 
-        if (timestampText == null)
+    private static void ConfigureActivityRowTwoColumnLayout(RectTransform rowRoot, TMP_Text timestampText, TMP_Text messageText)
+    {
+        if (!rowRoot || timestampText == null)
             return;
 
-        timestampText.gameObject.SetActive(true);
-        timestampText.enabled = true;
-        if (timestampText.font == null && TMP_Settings.defaultFontAsset != null)
-            timestampText.font = TMP_Settings.defaultFontAsset;
-        timestampText.alpha = 1f;
-        timestampText.raycastTarget = false;
+        Transform textGroupT = rowRoot.Find("TextGroup");
+        if (textGroupT != null)
+        {
+            HorizontalLayoutGroup hlg = textGroupT.GetComponent<HorizontalLayoutGroup>();
+            if (hlg != null)
+            {
+                RectOffset p = hlg.padding;
+                hlg.padding = new RectOffset(ActivityRowTextGroupLeftPadding, p.right, p.top, p.bottom);
+            }
+        }
 
-        CanvasRenderer timestampRenderer = timestampText.canvasRenderer;
-        if (timestampRenderer != null)
-            timestampRenderer.SetAlpha(1f);
+        LayoutElement tsLe = timestampText.GetComponent<LayoutElement>();
+        if (tsLe == null)
+            tsLe = timestampText.gameObject.AddComponent<LayoutElement>();
+        tsLe.minWidth = ActivityTimestampColumnWidth;
+        tsLe.preferredWidth = ActivityTimestampColumnWidth;
+        tsLe.flexibleWidth = 0f;
+
+        if (messageText != null)
+        {
+            LayoutElement msgLe = messageText.GetComponent<LayoutElement>();
+            if (msgLe == null)
+                msgLe = messageText.gameObject.AddComponent<LayoutElement>();
+            msgLe.minWidth = 0f;
+            msgLe.flexibleWidth = 1f;
+        }
     }
 
     private static TMP_Text FindChildText(Transform root, string childName)
     {
         Transform t = FindChildByName(root, childName);
         return t != null ? t.GetComponent<TMP_Text>() : null;
+    }
+
+    private void RefreshLayoutAndScroll()
+    {
+        if (contentRoot == null)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+        SyncAllActivityRowHeights();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+        Canvas.ForceUpdateCanvases();
+        KeepNewestVisible();
+    }
+
+    /// <summary>
+    /// Wrapped TMP needs a stable width before <see cref="TMP_Text.GetPreferredValues"/>; run after layout assigns flex widths.
+    /// </summary>
+    private void SyncAllActivityRowHeights()
+    {
+        if (contentRoot == null)
+            return;
+
+        for (int i = 0; i < contentRoot.childCount; i++)
+        {
+            TMP_Text msg = FindChildText(contentRoot.GetChild(i), "ActivityRowText");
+            if (msg)
+                ApplyActivityMessageTypography(msg);
+        }
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
+
+        for (int i = 0; i < contentRoot.childCount; i++)
+        {
+            Transform rowT = contentRoot.GetChild(i);
+            TMP_Text msg = FindChildText(rowT, "ActivityRowText");
+            if (!msg)
+                continue;
+
+            float w = msg.rectTransform.rect.width;
+            if (w < 8f && rowT is RectTransform rowRt)
+            {
+                Transform tg = rowT.Find("TextGroup");
+                HorizontalLayoutGroup hlg = tg != null ? tg.GetComponent<HorizontalLayoutGroup>() : null;
+                float spacing = hlg != null ? hlg.spacing : 18f;
+                int padH = hlg != null ? hlg.padding.left + hlg.padding.right : ActivityRowTextGroupLeftPadding;
+                w = Mathf.Max(50f, rowRt.rect.width - padH - ActivityTimestampColumnWidth - spacing);
+            }
+            else if (w < 8f)
+                w = contentRoot.rect.width > 8f ? contentRoot.rect.width - 24f : 200f;
+
+            msg.ForceMeshUpdate(true);
+            float textHeight = msg.GetPreferredValues(msg.text, w, 0).y;
+            float rowH = Mathf.Max(MinActivityRowHeight, textHeight + ActivityRowVerticalPadding);
+
+            LayoutElement rowLe = rowT.GetComponent<LayoutElement>();
+            if (rowLe)
+            {
+                rowLe.minHeight = rowH;
+                rowLe.preferredHeight = rowH;
+            }
+
+            Transform textGroup = rowT.Find("TextGroup");
+            if (textGroup)
+            {
+                LayoutElement tgLe = textGroup.GetComponent<LayoutElement>();
+                if (tgLe)
+                {
+                    tgLe.minHeight = rowH;
+                    tgLe.preferredHeight = rowH;
+                }
+            }
+        }
+    }
+
+    private static void ApplyActivityMessageTypography(TMP_Text rowText)
+    {
+        if (!rowText)
+            return;
+
+        rowText.enableAutoSizing = false;
+        rowText.fontSize = ActivityMessageFontSize;
+        rowText.fontSizeMin = ActivityMessageFontSize;
+        rowText.fontSizeMax = ActivityMessageFontSize;
+        rowText.textWrappingMode = TextWrappingModes.Normal;
+        rowText.overflowMode = TextOverflowModes.Overflow;
+        rowText.alignment = TextAlignmentOptions.MidlineLeft;
+    }
+
+    private static void ApplyActivityTimestampTypography(TMP_Text timeText)
+    {
+        if (!timeText)
+            return;
+
+        timeText.enableAutoSizing = false;
+        timeText.fontSize = ActivityTimestampFontSize;
+        timeText.fontSizeMin = ActivityTimestampFontSize;
+        timeText.fontSizeMax = ActivityTimestampFontSize;
+        timeText.textWrappingMode = TextWrappingModes.NoWrap;
+        timeText.alignment = TextAlignmentOptions.MidlineLeft;
     }
 
     private void KeepNewestVisible()
@@ -360,16 +508,6 @@ public class GameLogWindowUI : MonoBehaviour
         }
 
         scrollRect.verticalNormalizedPosition = 0f;
-    }
-
-    private void RefreshLayoutAndScroll()
-    {
-        if (contentRoot == null)
-            return;
-
-        Canvas.ForceUpdateCanvases();
-        LayoutRebuilder.ForceRebuildLayoutImmediate(contentRoot);
-        KeepNewestVisible();
     }
 
     private static Transform FindChildByName(Transform root, string childName)

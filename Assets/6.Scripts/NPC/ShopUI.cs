@@ -44,6 +44,8 @@ public class ShopUI : MonoBehaviour
     private Merchant _currentMerchant;
     private int _buyAmount = 1;
     public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
+    /// <summary>Selected buy pack (1x / 50x toggles). Ctrl+click on a slot uses this amount.</summary>
+    public int CurrentBuyAmount => Mathf.Max(1, _buyAmount);
 
     private void Awake()
     {
@@ -271,10 +273,17 @@ public class ShopUI : MonoBehaviour
 
     public void TryBuy(Merchant merchant, MerchantStock.Entry entry)
     {
+        TryBuy(merchant, entry, null);
+    }
+
+    /// <param name="amountOverride">When set, purchase this many items in one transaction.</param>
+    public void TryBuy(Merchant merchant, MerchantStock.Entry entry, int? amountOverride)
+    {
         if (merchant == null || entry == null)
             return;
 
-        int amount = Mathf.Max(1, _buyAmount);
+        int amount = amountOverride ?? Mathf.Max(1, _buyAmount);
+        amount = Mathf.Max(1, amount);
         bool success = merchant.TryBuy(entry.itemId, amount);
 
         if (!success)

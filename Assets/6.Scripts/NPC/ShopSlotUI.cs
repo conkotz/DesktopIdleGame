@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
     [Header("UI")]
     [SerializeField] private Image icon;
@@ -147,18 +147,23 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             button.interactable = def != null && inStock;
 
             button.onClick.RemoveAllListeners();
-            button.onClick.AddListener(() =>
-            {
-                tooltip?.Hide();
-
-                if (_shop != null && _merchant != null && _entry != null)
-                    _shop.TryBuy(_merchant, _entry);
-            });
 
             ApplyRarityPanelColors(def);
         }
 
         RefreshHoveredTooltip();
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData.button != PointerEventData.InputButton.Left)
+            return;
+
+        if (!button || !button.interactable || _shop == null || _merchant == null || _entry == null)
+            return;
+
+        if (InventorySlotUI.InputUtil.CtrlHeld())
+            _shop.TryBuy(_merchant, _entry);
     }
 
     private void ApplyRarityPanelColors(ItemDefinition def)
