@@ -1,17 +1,59 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class NPCDialogueBoxUI : MonoBehaviour
 {
     private static NPCDialogueBoxUI _activeBox;
+    private static readonly List<NPCDialogueBoxUI> ActiveMultiOfferBoxes = new();
+    private static bool BulkClosingMultiOfferGroup;
+
+    private static NPCDialogueBoxUI SpreadTemplate;
+    private static Transform SpreadParent;
+    private static Transform SpreadAnchor;
+    private static Vector3 SpreadBaseOffset;
+    private static Func<List<QuestDefinition>> SpreadRefreshQuests;
+    private static Func<QuestDefinition, bool> SpreadTryAcceptQuest;
+    private static float SpreadAutoCloseSeconds;
+
+    private bool _spawnedAsOfferClone;
+
+    /// <summary>True when this instance is the active dialogue and is nested under <paramref name="ancestor"/> (e.g. NPC hover scale should not move the box).</summary>
+    public static bool ActiveDialogueIsDescendantOf(Transform ancestor)
+    {
+        if (!ancestor)
+            return false;
+
+        if (_activeBox != null && _activeBox.gameObject.activeInHierarchy &&
+            _activeBox.transform.IsChildOf(ancestor))
+            return true;
+
+        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+        {
+            NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+            if (b && b.gameObject.activeInHierarchy && b.transform.IsChildOf(ancestor))
+                return true;
+        }
+
+        return false;
+    }
 
     [Header("Layout")]
     [SerializeField] private Vector2 fixedSize = new(250f, 250f);
     [SerializeField] private float worldScale = 0.015f;
     [SerializeField, Range(0f, 0.1f)] private float viewportPadding = 0.02f;
+
+    [Header("Multi-quest offers")]
+    [SerializeField] private float questOfferCardSpacing = 10f;
+
+    [Header("Typewriter")]
+    [Tooltip("Delay between each word for dialogue body and quest description only.")]
+    [SerializeField] private float typewriterSecondsPerWord = 1f;
 
     [Header("Optional refs")]
     [SerializeField] private TMP_Text dialogueText;
@@ -21,10 +63,140 @@ public class NPCDialogueBoxUI : MonoBehaviour
     private RectTransform _rectTransform;
     private Coroutine _autoCloseRoutine;
 
+    private GameObject _singleModeScrollRoot;
+    private TMP_Text _singleTitleText;
+    private TMP_Text _singleRewardText;
+
+    private sealed class ActiveTypewriter
+    {
+        public TMP_Text Tmp;
+        public string FullPlain;
+        public Coroutine Co;
+        public Action OnComplete;
+    }
+
+    private readonly List<ActiveTypewriter> _activeTypewriters = new();
+
     private void Awake()
     {
         EnsureBuilt();
         gameObject.SetActive(false);
+    }
+
+    /// <summary>Shows remaining typewriter text immediately (click anywhere on the box).</summary>
+    public void CompleteAllTypewriters()
+    {
+        for (int i = 0; i < _activeTypewriters.Count; i++)
+        {
+            ActiveTypewriter a = _activeTypewriters[i];
+            if (a.Co != null)
+                StopCoroutine(a.Co);
+            if (a.Tmp)
+                a.Tmp.text = a.FullPlain;
+            a.OnComplete?.Invoke();
+        }
+
+        _activeTypewriters.Clear();
+    }
+
+    private void AttachClickForward(GameObject go)
+    {
+        if (!go)
+            return;
+        NpcDialogueTypewriterClickForward f = go.GetComponent<NpcDialogueTypewriterClickForward>();
+        if (!f)
+            f = go.AddComponent<NpcDialogueTypewriterClickForward>();
+        f.Init(this);
+    }
+
+    private void StartTypewriter(TMP_Text tmp, string plainFull, Action onComplete = null)
+    {
+        if (!tmp)
+        {
+            onComplete?.Invoke();
+            return;
+        }
+
+        plainFull ??= "";
+        if (plainFull.Length == 0)
+        {
+            tmp.text = "";
+            onComplete?.Invoke();
+            return;
+        }
+
+        if (!gameObject.activeInHierarchy)
+        {
+            tmp.text = plainFull;
+            onComplete?.Invoke();
+            return;
+        }
+
+        tmp.text = "";
+        var entry = new ActiveTypewriter { Tmp = tmp, FullPlain = plainFull, OnComplete = onComplete };
+        entry.Co = StartCoroutine(RunTypewriter(entry));
+        _activeTypewriters.Add(entry);
+    }
+
+    private IEnumerator RunTypewriter(ActiveTypewriter entry)
+    {
+        List<(string word, string trailingWs)> tokens = TokenizeWordsWithWhitespace(entry.FullPlain);
+        var sb = new StringBuilder();
+
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            sb.Append(tokens[i].word);
+            sb.Append(tokens[i].trailingWs);
+            entry.Tmp.text = sb.ToString();
+            if (i < tokens.Count - 1)
+                yield return new WaitForSeconds(typewriterSecondsPerWord);
+        }
+
+        Action done = entry.OnComplete;
+        _activeTypewriters.Remove(entry);
+        done?.Invoke();
+    }
+
+    private static List<(string word, string trailingWs)> TokenizeWordsWithWhitespace(string s)
+    {
+        var list = new List<(string, string)>();
+        if (string.IsNullOrEmpty(s))
+            return list;
+
+        int i = 0;
+        int len = s.Length;
+        while (i < len)
+        {
+            while (i < len && char.IsWhiteSpace(s[i]))
+                i++;
+            if (i >= len)
+                break;
+
+            int w0 = i;
+            while (i < len && !char.IsWhiteSpace(s[i]))
+                i++;
+            string word = s.Substring(w0, i - w0);
+
+            int ws0 = i;
+            while (i < len && char.IsWhiteSpace(s[i]))
+                i++;
+            string ws = s.Substring(ws0, i - ws0);
+            list.Add((word, ws));
+        }
+
+        return list;
+    }
+
+    private void ApplyCommonShowTransforms(Transform parent, Transform anchor, Vector3 localOffset)
+    {
+        if (!parent)
+            return;
+
+        transform.SetParent(parent, false);
+        Vector3 anchorWorld = anchor ? anchor.position : parent.position;
+        transform.position = anchorWorld + localOffset;
+        transform.localRotation = Quaternion.identity;
+        transform.localScale = Vector3.one * worldScale;
     }
 
     public void Show(Transform owner, Vector3 localOffset, string message, bool showAccept, Action onAccept, float autoCloseSeconds = 0f)
@@ -35,6 +207,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
     public void ShowAt(Transform parent, Transform anchor, Vector3 localOffset, string message, bool showAccept, Action onAccept, float autoCloseSeconds = 0f)
     {
         EnsureBuilt();
+        CloseAllMultiOfferBoxesTogether();
+        CompleteAllTypewriters();
+        CleanupMultiOfferUi();
+        SetOfferModeMulti(false);
 
         if (_activeBox != null && _activeBox != this)
             _activeBox.Hide();
@@ -52,8 +228,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
         if (_rectTransform)
             _rectTransform.sizeDelta = fixedSize;
 
-        if (dialogueText)
-            dialogueText.text = message ?? "";
+        gameObject.SetActive(true);
+
+        ConfigureSingleScrollTextsForPlainDialogue();
+        StartTypewriter(dialogueText, message ?? "");
 
         _onAccept = onAccept;
         if (acceptButton)
@@ -63,13 +241,25 @@ public class NPCDialogueBoxUI : MonoBehaviour
             acceptButton.onClick.AddListener(HandleAcceptClicked);
         }
 
-        gameObject.SetActive(true);
         ClampInsideScreen();
         StartAutoClose(autoCloseSeconds);
     }
 
     public void Hide()
     {
+        if (!BulkClosingMultiOfferGroup && ActiveMultiOfferBoxes.Contains(this))
+        {
+            CloseAllMultiOfferBoxesTogether();
+            return;
+        }
+
+        HideSolo();
+    }
+
+    private void HideSolo()
+    {
+        ActiveMultiOfferBoxes.Remove(this);
+
         if (_autoCloseRoutine != null)
         {
             StopCoroutine(_autoCloseRoutine);
@@ -79,7 +269,267 @@ public class NPCDialogueBoxUI : MonoBehaviour
         if (_activeBox == this)
             _activeBox = null;
 
+        CompleteAllTypewriters();
+        CleanupMultiOfferUi();
+        SetOfferModeMulti(false);
+
         gameObject.SetActive(false);
+    }
+
+    private static void CloseAllMultiOfferBoxesTogether()
+    {
+        if (ActiveMultiOfferBoxes.Count == 0)
+            return;
+
+        BulkClosingMultiOfferGroup = true;
+        List<NPCDialogueBoxUI> snapshot = new(ActiveMultiOfferBoxes);
+        ActiveMultiOfferBoxes.Clear();
+
+        for (int i = 0; i < snapshot.Count; i++)
+        {
+            NPCDialogueBoxUI b = snapshot[i];
+            if (!b)
+                continue;
+
+            if (b._spawnedAsOfferClone)
+                Destroy(b.gameObject);
+            else
+                b.HideSolo();
+        }
+
+        BulkClosingMultiOfferGroup = false;
+    }
+
+    /// <summary>Single quest offer: title + reward static; description typewrites.</summary>
+    public void ShowQuestOfferSingle(
+        Transform parent,
+        Transform anchor,
+        Vector3 localOffset,
+        QuestDefinition quest,
+        bool showAccept,
+        Action onAccept,
+        float autoCloseSeconds,
+        bool partOfMultiSpread = false)
+    {
+        EnsureBuilt();
+        if (!partOfMultiSpread)
+        {
+            CloseAllMultiOfferBoxesTogether();
+            CompleteAllTypewriters();
+            if (_activeBox != null && _activeBox != this)
+                _activeBox.Hide();
+            _activeBox = this;
+        }
+        else
+        {
+            CompleteAllTypewriters();
+        }
+
+        CleanupMultiOfferUi();
+        SetOfferModeMulti(false);
+
+        ApplyCommonShowTransforms(parent, anchor, localOffset);
+
+        if (_rectTransform)
+            _rectTransform.sizeDelta = fixedSize;
+
+        gameObject.SetActive(true);
+
+        ConfigureSingleScrollTextsForQuestOffer(quest);
+
+        _onAccept = onAccept;
+        if (acceptButton)
+        {
+            acceptButton.gameObject.SetActive(showAccept);
+            acceptButton.onClick.RemoveListener(HandleAcceptClicked);
+            acceptButton.onClick.AddListener(HandleAcceptClicked);
+        }
+
+        if (!partOfMultiSpread)
+            ClampInsideScreen();
+        StartAutoClose(autoCloseSeconds);
+    }
+
+    private void ConfigureSingleScrollTextsForPlainDialogue()
+    {
+        if (_singleTitleText)
+        {
+            _singleTitleText.text = "";
+            _singleTitleText.gameObject.SetActive(false);
+        }
+
+        if (_singleRewardText)
+        {
+            _singleRewardText.text = "";
+            _singleRewardText.gameObject.SetActive(false);
+        }
+
+        if (dialogueText)
+            dialogueText.gameObject.SetActive(true);
+    }
+
+    private void ConfigureSingleScrollTextsForQuestOffer(QuestDefinition quest)
+    {
+        if (!quest)
+            return;
+
+        if (_singleTitleText)
+        {
+            _singleTitleText.gameObject.SetActive(true);
+            _singleTitleText.text = NPCInteractionSettings.BuildQuestOfferTitleHtml(quest);
+        }
+
+        string rewardHtml = NPCInteractionSettings.BuildQuestOfferRewardHtml(quest);
+        if (_singleRewardText)
+        {
+            _singleRewardText.text = "";
+            _singleRewardText.gameObject.SetActive(false);
+        }
+
+        if (dialogueText)
+            dialogueText.gameObject.SetActive(true);
+
+        string descPlain = NPCInteractionSettings.GetQuestOfferDescriptionPlain(quest);
+        void RevealReward()
+        {
+            if (!_singleRewardText)
+                return;
+            _singleRewardText.text = rewardHtml;
+            _singleRewardText.gameObject.SetActive(true);
+        }
+
+        if (string.IsNullOrEmpty(descPlain))
+            RevealReward();
+        else
+            StartTypewriter(dialogueText, descPlain, RevealReward);
+    }
+
+    /// <summary>Show one or more quest offers. Multiple quests use separate full dialogue boxes laid out horizontally.</summary>
+    public void ShowQuestOffersAt(
+        Transform parent,
+        Transform anchor,
+        Vector3 localOffset,
+        List<QuestDefinition> quests,
+        Func<List<QuestDefinition>> refreshQuests,
+        Func<QuestDefinition, bool> tryAcceptQuest,
+        float autoCloseSeconds = 0f)
+    {
+        EnsureBuilt();
+
+        if (quests == null || quests.Count == 0)
+        {
+            Hide();
+            return;
+        }
+
+        if (quests.Count == 1)
+        {
+            QuestDefinition only = quests[0];
+            ShowQuestOfferSingle(
+                parent,
+                anchor,
+                localOffset,
+                only,
+                showAccept: true,
+                () => tryAcceptQuest?.Invoke(only),
+                autoCloseSeconds);
+            return;
+        }
+
+        OpenMultipleQuestOffersAsSeparateBoxes(
+            parent, anchor, localOffset, quests, refreshQuests, tryAcceptQuest, autoCloseSeconds);
+    }
+
+    private void OpenMultipleQuestOffersAsSeparateBoxes(
+        Transform parent,
+        Transform anchor,
+        Vector3 baseOffset,
+        List<QuestDefinition> quests,
+        Func<List<QuestDefinition>> refreshQuests,
+        Func<QuestDefinition, bool> tryAcceptQuest,
+        float autoCloseSeconds)
+    {
+        SpreadTemplate = this;
+        SpreadParent = parent;
+        SpreadAnchor = anchor;
+        SpreadBaseOffset = baseOffset;
+        SpreadRefreshQuests = refreshQuests;
+        SpreadTryAcceptQuest = tryAcceptQuest;
+        SpreadAutoCloseSeconds = autoCloseSeconds;
+
+        CloseAllMultiOfferBoxesTogether();
+
+        if (_activeBox != null && _activeBox != this)
+            _activeBox.Hide();
+        _activeBox = null;
+
+        if (gameObject.activeSelf)
+            HideSolo();
+
+        float stepWorld = (fixedSize.x + questOfferCardSpacing) * worldScale;
+
+        for (int i = 0; i < quests.Count; i++)
+        {
+            QuestDefinition q = quests[i];
+            NPCDialogueBoxUI inst = i == 0 ? this : Instantiate(gameObject).GetComponent<NPCDialogueBoxUI>();
+            if (i > 0)
+                inst._spawnedAsOfferClone = true;
+
+            ActiveMultiOfferBoxes.Add(inst);
+
+            QuestDefinition captured = q;
+            inst.ShowQuestOfferSingle(
+                parent,
+                anchor,
+                baseOffset + new Vector3(stepWorld * i, 0f, 0f),
+                captured,
+                showAccept: true,
+                () => HandleSpreadQuestAccepted(captured),
+                autoCloseSeconds,
+                partOfMultiSpread: true);
+        }
+
+        Canvas.ForceUpdateCanvases();
+        ClampMultiOfferBoxesToViewport();
+    }
+
+    private static void HandleSpreadQuestAccepted(QuestDefinition quest)
+    {
+        if (SpreadTryAcceptQuest == null || !SpreadTryAcceptQuest(quest))
+            return;
+
+        List<QuestDefinition> next = SpreadRefreshQuests != null ? SpreadRefreshQuests() : null;
+        CloseAllMultiOfferBoxesTogether();
+
+        if (next == null || next.Count == 0)
+            return;
+
+        if (next.Count == 1)
+        {
+            QuestDefinition only = next[0];
+            SpreadTemplate.ShowQuestOfferSingle(
+                SpreadParent,
+                SpreadAnchor,
+                SpreadBaseOffset,
+                only,
+                showAccept: true,
+                () =>
+                {
+                    SpreadTryAcceptQuest?.Invoke(only);
+                    SpreadTemplate.Hide();
+                },
+                SpreadAutoCloseSeconds);
+            return;
+        }
+
+        SpreadTemplate.OpenMultipleQuestOffersAsSeparateBoxes(
+            SpreadParent,
+            SpreadAnchor,
+            SpreadBaseOffset,
+            next,
+            SpreadRefreshQuests,
+            SpreadTryAcceptQuest,
+            SpreadAutoCloseSeconds);
     }
 
     private void StartAutoClose(float seconds)
@@ -158,6 +608,140 @@ public class NPCDialogueBoxUI : MonoBehaviour
         transform.position += worldDelta;
     }
 
+    /// <summary>Moves every open multi-offer box by the same delta so the group stays inside the viewport (shift inward when overlapping an edge).</summary>
+    private void ClampMultiOfferBoxesToViewport()
+    {
+        if (ActiveMultiOfferBoxes.Count == 0)
+            return;
+
+        Camera cam = null;
+        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+        {
+            NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
+            if (!box)
+                continue;
+            Canvas c = box.GetComponent<Canvas>();
+            if (c && c.worldCamera)
+            {
+                cam = c.worldCamera;
+                break;
+            }
+        }
+
+        if (!cam)
+            cam = Camera.main;
+        if (!cam)
+            return;
+
+        float pad = Mathf.Clamp01(viewportPadding);
+        Vector3[] corners = new Vector3[4];
+
+        for (int iter = 0; iter < 4; iter++)
+        {
+            float minX = float.PositiveInfinity;
+            float minY = float.PositiveInfinity;
+            float maxX = float.NegativeInfinity;
+            float maxY = float.NegativeInfinity;
+
+            for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+            {
+                NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
+                if (!box || !box._rectTransform)
+                    continue;
+
+                box._rectTransform.GetWorldCorners(corners);
+                for (int j = 0; j < corners.Length; j++)
+                {
+                    Vector3 vp = cam.WorldToViewportPoint(corners[j]);
+                    if (vp.z < 0f)
+                        return;
+
+                    minX = Mathf.Min(minX, vp.x);
+                    minY = Mathf.Min(minY, vp.y);
+                    maxX = Mathf.Max(maxX, vp.x);
+                    maxY = Mathf.Max(maxY, vp.y);
+                }
+            }
+
+            float dx = 0f;
+            float dy = 0f;
+            if (maxX > 1f - pad)
+                dx = (1f - pad) - maxX;
+            else if (minX < pad)
+                dx = pad - minX;
+
+            if (maxY > 1f - pad)
+                dy = (1f - pad) - maxY;
+            else if (minY < pad)
+                dy = pad - minY;
+
+            if (Mathf.Approximately(dx, 0f) && Mathf.Approximately(dy, 0f))
+                break;
+
+            float refDepth = cam.WorldToViewportPoint(ActiveMultiOfferBoxes[0].transform.position).z;
+            Vector3 worldOrigin = cam.ViewportToWorldPoint(new Vector3(0f, 0f, refDepth));
+            Vector3 worldDelta = cam.ViewportToWorldPoint(new Vector3(dx, dy, refDepth)) - worldOrigin;
+
+            for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+            {
+                if (ActiveMultiOfferBoxes[i])
+                    ActiveMultiOfferBoxes[i].transform.position += worldDelta;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Unity does not copy non-serialized refs on Instantiate; bind to the cloned hierarchy so we do not spawn duplicate UI
+    /// (which caused overlapping text and wrong quest data on 2nd+ boxes).
+    /// </summary>
+    private void BindSingleModeRefsFromHierarchy()
+    {
+        if (dialogueText && _singleTitleText && _singleRewardText && acceptButton && _singleModeScrollRoot)
+            return;
+
+        if (!_singleModeScrollRoot)
+        {
+            Transform scroll = transform.Find("DialogueScrollView");
+            if (scroll)
+                _singleModeScrollRoot = scroll.gameObject;
+        }
+
+        if (_singleModeScrollRoot)
+        {
+            Transform content = _singleModeScrollRoot.transform.Find("Viewport/Content");
+            if (content)
+            {
+                if (!_singleTitleText)
+                {
+                    Transform t = content.Find("QuestTitle");
+                    if (t)
+                        _singleTitleText = t.GetComponent<TMP_Text>();
+                }
+
+                if (!dialogueText)
+                {
+                    Transform t = content.Find("QuestBody");
+                    if (t)
+                        dialogueText = t.GetComponent<TMP_Text>();
+                }
+
+                if (!_singleRewardText)
+                {
+                    Transform t = content.Find("QuestReward");
+                    if (t)
+                        _singleRewardText = t.GetComponent<TMP_Text>();
+                }
+            }
+        }
+
+        if (!acceptButton)
+        {
+            Transform t = transform.Find("AcceptButton");
+            if (t)
+                acceptButton = t.GetComponent<Button>();
+        }
+    }
+
     private void EnsureBuilt()
     {
         if (_rectTransform == null)
@@ -166,6 +750,11 @@ public class NPCDialogueBoxUI : MonoBehaviour
             _rectTransform = gameObject.AddComponent<RectTransform>();
 
         _rectTransform.sizeDelta = fixedSize;
+
+        BindSingleModeRefsFromHierarchy();
+
+        if (dialogueText != null && acceptButton != null)
+            return;
 
         Canvas canvas = GetComponent<Canvas>();
         if (!canvas)
@@ -184,6 +773,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
         if (!bg)
             bg = gameObject.AddComponent<Image>();
         bg.color = new Color(0.05f, 0.05f, 0.08f, 0.94f);
+        bg.raycastTarget = true;
+        AttachClickForward(gameObject);
 
         if (dialogueText != null && acceptButton != null)
             return;
@@ -194,26 +785,32 @@ public class NPCDialogueBoxUI : MonoBehaviour
             close = closeRt.gameObject.AddComponent<UIWindowCloseButton>();
         close.Configure(gameObject);
 
-        GameObject scrollGo = new("DialogueScrollView", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+        GameObject scrollGo = new GameObject("DialogueScrollView", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
         scrollGo.transform.SetParent(_rectTransform, false);
         RectTransform scrollRt = scrollGo.GetComponent<RectTransform>();
         scrollRt.anchorMin = new Vector2(0f, 0f);
         scrollRt.anchorMax = new Vector2(1f, 1f);
         scrollRt.offsetMin = new Vector2(10f, 45f);
         scrollRt.offsetMax = new Vector2(-10f, -35f);
-        scrollGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.15f);
+        Image scrollBg = scrollGo.GetComponent<Image>();
+        scrollBg.color = new Color(0f, 0f, 0f, 0.15f);
+        scrollBg.raycastTarget = true;
+        AttachClickForward(scrollGo);
 
-        GameObject viewportGo = new("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+        GameObject viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
         viewportGo.transform.SetParent(scrollRt, false);
         RectTransform viewportRt = viewportGo.GetComponent<RectTransform>();
         viewportRt.anchorMin = Vector2.zero;
         viewportRt.anchorMax = Vector2.one;
         viewportRt.offsetMin = Vector2.zero;
         viewportRt.offsetMax = Vector2.zero;
-        viewportGo.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.02f);
+        Image viewportImg = viewportGo.GetComponent<Image>();
+        viewportImg.color = new Color(1f, 1f, 1f, 0.02f);
+        viewportImg.raycastTarget = true;
         viewportGo.GetComponent<Mask>().showMaskGraphic = false;
+        AttachClickForward(viewportGo);
 
-        GameObject contentGo = new("Content", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(ContentSizeFitter));
+        GameObject contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
         contentGo.transform.SetParent(viewportRt, false);
         RectTransform contentRt = contentGo.GetComponent<RectTransform>();
         contentRt.anchorMin = new Vector2(0f, 1f);
@@ -222,16 +819,22 @@ public class NPCDialogueBoxUI : MonoBehaviour
         contentRt.offsetMin = new Vector2(6f, 0f);
         contentRt.offsetMax = new Vector2(-6f, 0f);
 
-        dialogueText = contentGo.GetComponent<TMP_Text>();
-        dialogueText.fontSize = 18f;
-        dialogueText.color = new Color(0.93f, 0.86f, 0.72f, 1f);
-        dialogueText.richText = true;
-        dialogueText.textWrappingMode = TextWrappingModes.Normal;
-        dialogueText.alignment = TextAlignmentOptions.TopLeft;
+        VerticalLayoutGroup vlg = contentGo.GetComponent<VerticalLayoutGroup>();
+        vlg.spacing = 6f;
+        vlg.padding = new RectOffset(0, 0, 0, 0);
+        vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.childControlHeight = true;
+        vlg.childControlWidth = true;
+        vlg.childForceExpandWidth = true;
+        vlg.childForceExpandHeight = false;
 
-        ContentSizeFitter fitter = contentGo.GetComponent<ContentSizeFitter>();
-        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        ContentSizeFitter contentFitter = contentGo.GetComponent<ContentSizeFitter>();
+        contentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        _singleTitleText = CreateScrollLineTMP("QuestTitle", contentGo.transform, 20f, FontStyles.Bold, bodyFlexible: false);
+        dialogueText = CreateScrollLineTMP("QuestBody", contentGo.transform, 18f, FontStyles.Normal, bodyFlexible: true);
+        _singleRewardText = CreateScrollLineTMP("QuestReward", contentGo.transform, 16f, FontStyles.Normal, bodyFlexible: false);
 
         ScrollRect scroll = scrollGo.GetComponent<ScrollRect>();
         scroll.viewport = viewportRt;
@@ -240,8 +843,54 @@ public class NPCDialogueBoxUI : MonoBehaviour
         scroll.vertical = true;
         scroll.movementType = ScrollRect.MovementType.Clamped;
 
+        _singleModeScrollRoot = scrollGo;
+
         RectTransform acceptRt = CreateButton("AcceptButton", "Accept", _rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-45f, 22f), new Vector2(80f, 30f), out acceptButton);
         acceptRt.gameObject.SetActive(false);
+    }
+
+    private TMP_Text CreateScrollLineTMP(string name, Transform parent, float fontSize, FontStyles style, bool bodyFlexible)
+    {
+        GameObject go = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement), typeof(ContentSizeFitter));
+        go.transform.SetParent(parent, false);
+
+        var le = go.GetComponent<LayoutElement>();
+        var sz = go.GetComponent<ContentSizeFitter>();
+        sz.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        sz.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        if (bodyFlexible)
+        {
+            le.flexibleHeight = 1f;
+            le.minHeight = 28f;
+        }
+        else
+        {
+            le.flexibleHeight = 0f;
+            le.minHeight = 0f;
+        }
+
+        TMP_Text tmp = go.GetComponent<TMP_Text>();
+        tmp.fontSize = fontSize;
+        tmp.color = new Color(0.93f, 0.86f, 0.72f, 1f);
+        tmp.richText = true;
+        tmp.textWrappingMode = TextWrappingModes.Normal;
+        tmp.alignment = TextAlignmentOptions.TopLeft;
+        tmp.fontStyle = style;
+        tmp.raycastTarget = true;
+
+        AttachClickForward(go);
+        return tmp;
+    }
+
+    private void SetOfferModeMulti(bool multi)
+    {
+        if (_singleModeScrollRoot)
+            _singleModeScrollRoot.SetActive(!multi);
+    }
+
+    private void CleanupMultiOfferUi()
+    {
     }
 
     private static RectTransform CreateButton(

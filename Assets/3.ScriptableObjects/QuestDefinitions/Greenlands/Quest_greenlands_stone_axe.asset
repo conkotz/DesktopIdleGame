@@ -17,6 +17,7 @@ MonoBehaviour:
   displayName: First stone for the forge
   description: Gather a few stone chunks so the town smith can shape your first axe
     for the Greenlands.
+  details: 
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
@@ -26,12 +27,15 @@ MonoBehaviour:
   rewardItem: {fileID: 11400000, guid: 7430bf37785e3a14e96af84084aa40f0, type: 2}
   rewardItemId: 
   rewardItemQuantity: 1
+  additionalItemRewards: []
   rewardNotes: 
   repeatable: 0
+  abandonable: 1
+  obtainLocationId: blacksmith
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
   prerequisiteRewardClaimedQuestIds: []
-  requireAllPrerequisiteQuests: 1
+  requireAllPrerequisiteQuests: 0
   requiredCompletedMapNodeId: 
   requiredSkillLevels: []
   killEnemyIdFilter: 

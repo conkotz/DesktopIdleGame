@@ -46,6 +46,14 @@ MonoBehaviour:
       prefab: {fileID: 0}
       count: 1
     shuffleSpawnPoints: 1
+  - groupId: AllSpawns
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint5
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: 72c108752d1eaa941b8bdbd43d4928f3, type: 3}
+      count: 1
+    shuffleSpawnPoints: 0
   enduranceWaves: []
   enduranceCompletionLoot: []
   enduranceCompletionLootByTier: []

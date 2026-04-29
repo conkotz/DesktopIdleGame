@@ -1072,7 +1072,82 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (enhancementScrollStats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
             return gear.UsedUpgradeSlots > 0;
 
+        if (!gear.HasBaseStatForEnhancementScroll(enhancementScrollStats.targetStat))
+            return false;
+
         return gear.HasAvailableUpgradeSlot && !gear.HasReachedEnhancementCap;
+    }
+
+    /// <summary>
+    /// Whether this item already contributes the stat type that an enhancement scroll would modify
+    /// (e.g. Physical Damage scroll requires physical weapon range or flat bonus physical on the item).
+    /// </summary>
+    public bool HasBaseStatForEnhancementScroll(EnhancementScrollTargetStat stat)
+    {
+        const float eps = 1e-4f;
+
+        switch (stat)
+        {
+            case EnhancementScrollTargetStat.PhysicalDamage:
+                if (IsWeapon)
+                    return HasPhysicalWeaponDamage || Mathf.Abs(bonusStats.physicalDamage) > eps;
+                return Mathf.Abs(bonusStats.physicalDamage) > eps;
+
+            case EnhancementScrollTargetStat.MagicDamage:
+                if (IsWeapon)
+                    return HasMagicWeaponDamage || Mathf.Abs(bonusStats.magicDamage) > eps;
+                return Mathf.Abs(bonusStats.magicDamage) > eps;
+
+            case EnhancementScrollTargetStat.CorruptionDamage:
+                if (IsWeapon)
+                    return HasCorruptionWeaponDamage || Mathf.Abs(bonusStats.corruptionDamage) > eps;
+                return Mathf.Abs(bonusStats.corruptionDamage) > eps;
+
+            case EnhancementScrollTargetStat.Health:
+                return BonusHealth != 0;
+
+            case EnhancementScrollTargetStat.Energy:
+                return BonusEnergy != 0;
+
+            case EnhancementScrollTargetStat.Mana:
+                return BonusMana != 0;
+
+            case EnhancementScrollTargetStat.Armor:
+                return ArmorValue != 0;
+
+            case EnhancementScrollTargetStat.MagicResist:
+                return MagicResist != 0;
+
+            case EnhancementScrollTargetStat.CorruptionResist:
+                return CorruptionResist != 0;
+
+            case EnhancementScrollTargetStat.CritChance:
+                if (IsWeapon)
+                    return weaponStats.critChance > eps || Mathf.Abs(bonusStats.critChanceBonus) > eps;
+                return Mathf.Abs(bonusStats.critChanceBonus) > eps;
+
+            case EnhancementScrollTargetStat.CritMultiplier:
+                if (IsWeapon)
+                    return weaponStats.critMultiplier > 1f + eps || Mathf.Abs(bonusStats.critMultiplierBonus) > eps;
+                return Mathf.Abs(bonusStats.critMultiplierBonus) > eps;
+
+            case EnhancementScrollTargetStat.AttackSpeed:
+                if (IsWeapon)
+                    return weaponStats.attacksPerSecond > eps || Mathf.Abs(bonusStats.attackSpeedPercent) > eps;
+                return Mathf.Abs(bonusStats.attackSpeedPercent) > eps;
+
+            case EnhancementScrollTargetStat.LifeSteal:
+                return Mathf.Abs(bonusStats.lifeSteal) > eps;
+
+            case EnhancementScrollTargetStat.MoveSpeed:
+                return Mathf.Abs(bonusStats.moveSpeedPercent) > eps;
+
+            case EnhancementScrollTargetStat.UpgradeSlotReduction:
+                return true;
+
+            default:
+                return true;
+        }
     }
 
     public int HealAmount =>
@@ -1374,8 +1449,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             string s =
                 $"Success Chance: {EnhancementScrollSuccessChance * 100f:0.#}%\n" +
                 $"Effect: {FormatEnhancementScrollModifier()}\n" +
-                $"Allowed Gear: {FormatEnhancementGearMask(enhancementScrollStats.allowedGearTypes)}\n" +
-                $"Consumes Slot On Use: {(enhancementScrollStats.consumeSlotOnFailure ? "Yes" : "No")}";
+                $"Allowed Gear: {FormatEnhancementGearMask(enhancementScrollStats.allowedGearTypes)}\n";
+
+            if (enhancementScrollStats.targetStat != EnhancementScrollTargetStat.UpgradeSlotReduction)
+                s += $"\nRequires Target: {GetEnhancementScrollTargetStatDisplayName(enhancementScrollStats.targetStat)}";
+
+            s += $"\nConsumes Slot On Use: {(enhancementScrollStats.consumeSlotOnFailure ? "Yes" : "No")}";
 
             if (enhancementScrollStats.failureOutcome != EnhancementScrollFailureOutcome.Nothing)
                 s += $"\nFailure: {FormatEnhancementFailure()}";
@@ -1574,10 +1653,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             ? FormatSignedPercent01(enhancementScrollStats.modifierValue)
             : FormatSignedNumber(enhancementScrollStats.modifierValue);
 
-        return $"{value} {FormatEnhancementTargetStat(enhancementScrollStats.targetStat)}";
+        return $"{value} {GetEnhancementScrollTargetStatDisplayName(enhancementScrollStats.targetStat)}";
     }
 
-    private static string FormatEnhancementTargetStat(EnhancementScrollTargetStat stat)
+    public static string GetEnhancementScrollTargetStatDisplayName(EnhancementScrollTargetStat stat)
     {
         return stat switch
         {

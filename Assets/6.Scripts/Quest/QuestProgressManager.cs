@@ -172,6 +172,12 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             return false;
         if (IsQuestAccepted(q) || IsPermanentlyComplete(q))
             return false;
+
+        WorldMapProgressManager mapProgress = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        if (!q.IsShownInQuestList(mapProgress))
+            return false;
+
         if (!string.IsNullOrWhiteSpace(giverLocationId) &&
             !string.Equals(q.obtainLocationId.Trim(), giverLocationId.Trim(), StringComparison.Ordinal))
             return false;
@@ -190,7 +196,27 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         ProgressChanged?.Invoke();
         if (SaveManager.Instance != null)
             SaveManager.Instance.Save();
+
+        if (ToggleSettingsStore.Get(ToggleSettingId.AutoTrackNewQuest))
+            ApplyAutoTrackAndShowQuestTracker(q.questId);
+
         return true;
+    }
+
+    private static void ApplyAutoTrackAndShowQuestTracker(string questId)
+    {
+        if (string.IsNullOrWhiteSpace(questId))
+            return;
+
+        string id = questId.Trim();
+        if (!QuestTrackerState.TrackQuest(id))
+        {
+            if (!QuestTrackerState.IsTracked(id) && !QuestTrackerState.CanTrackMore)
+                GameLog.Add($"Cannot track more than {QuestTrackerState.MaxTrackedQuestCount} quests.");
+            return;
+        }
+
+        QuestTrackerWindowUI.EnsureWindowOpenAfterTrack();
     }
 
     public bool TryAcceptQuest(string questId, string giverLocationId = null)
@@ -221,6 +247,52 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// All quests the player can accept at this giver location, sorted for stable UI order.
+    /// </summary>
+    public void CollectAcceptableQuestsAtLocation(string giverLocationId, List<QuestDefinition> into)
+    {
+        if (into == null)
+            return;
+        into.Clear();
+
+        if (string.IsNullOrWhiteSpace(giverLocationId))
+            return;
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null)
+            return;
+
+        string location = giverLocationId.Trim();
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition quest = all[i];
+            if (!quest || string.IsNullOrWhiteSpace(quest.obtainLocationId))
+                continue;
+            if (!string.Equals(quest.obtainLocationId.Trim(), location, StringComparison.Ordinal))
+                continue;
+            if (!CanAcceptQuest(quest, location))
+                continue;
+            into.Add(quest);
+        }
+
+        into.Sort(CompareQuestGiverOfferOrder);
+    }
+
+    private static int CompareQuestGiverOfferOrder(QuestDefinition a, QuestDefinition b)
+    {
+        if (!a && !b) return 0;
+        if (!a) return 1;
+        if (!b) return -1;
+
+        int o = a.sortOrder.CompareTo(b.sortOrder);
+        if (o != 0)
+            return o;
+
+        return string.Compare(a.questId, b.questId, StringComparison.Ordinal);
     }
 
     public bool CanAbandonQuest(QuestDefinition q)

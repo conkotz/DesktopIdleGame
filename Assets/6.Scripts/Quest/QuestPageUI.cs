@@ -46,6 +46,8 @@ public class QuestPageUI : MonoBehaviour
     [SerializeField] private Transform detailsContentRoot;
     [SerializeField] private TMP_Text detailNameText;
     [SerializeField] private TMP_Text detailDescriptionText;
+    [SerializeField] private TMP_Text detailsSectionLabelText;
+    [SerializeField] private TMP_Text detailDetailsText;
     [SerializeField] private TMP_Text prerequisitesLabelText;
     [SerializeField] private TMP_Text prerequisitesValueText;
     [SerializeField] private TMP_Text progressSectionLabelText;
@@ -761,6 +763,16 @@ public class QuestPageUI : MonoBehaviour
         if (detailDescriptionText)
             detailDescriptionText.text = q ? q.description : "";
 
+        string detailsBody = q && !string.IsNullOrWhiteSpace(q.details) ? q.details.Trim() : "";
+        bool showDetails = !string.IsNullOrEmpty(detailsBody);
+        if (detailsSectionLabelText)
+            detailsSectionLabelText.gameObject.SetActive(showDetails);
+        if (detailDetailsText)
+        {
+            detailDetailsText.gameObject.SetActive(showDetails);
+            detailDetailsText.text = showDetails ? detailsBody : "";
+        }
+
         string prerequisitesText = q ? FormatPrerequisitesLine(q) : "";
         bool showPrerequisites = q != null && !string.IsNullOrWhiteSpace(prerequisitesText);
         if (prerequisitesLabelText)
@@ -1174,6 +1186,14 @@ public class QuestPageUI : MonoBehaviour
             detailNameText = MakeText("QuestDetailName", 22, FontStyles.Bold);
         if (!detailDescriptionText)
             detailDescriptionText = MakeText("QuestDetailBody", 18);
+        if (!detailsSectionLabelText)
+        {
+            detailsSectionLabelText = MakeText("DetailsSectionLabel", 16, FontStyles.Bold);
+            detailsSectionLabelText.text = "Details";
+        }
+
+        if (!detailDetailsText)
+            detailDetailsText = MakeText("QuestDetailDetails", 18);
         if (!prerequisitesLabelText)
         {
             prerequisitesLabelText = MakeText("PrerequisitesLabel", 16, FontStyles.Bold);
@@ -1200,6 +1220,8 @@ public class QuestPageUI : MonoBehaviour
             progressSectionLabelText.text = "Progress";
         if (prerequisitesLabelText && string.IsNullOrEmpty(prerequisitesLabelText.text))
             prerequisitesLabelText.text = "Pre-requisites";
+        if (detailsSectionLabelText && string.IsNullOrEmpty(detailsSectionLabelText.text))
+            detailsSectionLabelText.text = "Details";
 
         EnsureQuestClaimWidgets();
         _detailWidgetsBuilt = true;

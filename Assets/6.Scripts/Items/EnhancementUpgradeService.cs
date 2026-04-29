@@ -322,6 +322,13 @@ public static class EnhancementUpgradeService
             return;
         }
 
+        if (!targetDef.HasBaseStatForEnhancementScroll(scrollDef.enhancementScrollStats.targetStat))
+        {
+            string statName = ItemDefinition.GetEnhancementScrollTargetStatDisplayName(scrollDef.enhancementScrollStats.targetStat);
+            GameLog.Add($"Cannot use {scrollName} on {itemName}: item has no {statName} to enhance", GameLog.ItemLostColor);
+            return;
+        }
+
         if (!targetDef.HasAvailableUpgradeSlot)
             GameLog.Add($"Cannot enhance, no upgrade slots available: {itemName}", GameLog.ItemLostColor);
     }

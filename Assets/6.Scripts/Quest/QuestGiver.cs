@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -27,6 +28,7 @@ public class QuestGiver : MonoBehaviour
 
     private GameObject _exclamationMarkInstance;
     private QuestProgressManager _manager;
+    private readonly List<QuestDefinition> _scratchLocationQuests = new();
 
     private void OnEnable()
     {
@@ -89,6 +91,44 @@ public class QuestGiver : MonoBehaviour
         }
 
         return _manager.FindFirstAcceptableQuestAtLocation(locationId);
+    }
+
+    /// <summary>
+    /// Explicit quest ids first (primary, then additional), then any other acceptable quests at <see cref="locationId"/>.
+    /// </summary>
+    public List<QuestDefinition> GetAllAvailableQuests()
+    {
+        var list = new List<QuestDefinition>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        void TryAdd(QuestDefinition q)
+        {
+            if (!q || string.IsNullOrWhiteSpace(q.questId))
+                return;
+            string id = q.questId.Trim();
+            if (seen.Contains(id))
+                return;
+            seen.Add(id);
+            list.Add(q);
+        }
+
+        TryBindManager();
+
+        TryAdd(FindAvailableQuestById(questId));
+        if (additionalQuestIds != null)
+        {
+            for (int i = 0; i < additionalQuestIds.Count; i++)
+                TryAdd(FindAvailableQuestById(additionalQuestIds[i]));
+        }
+
+        if (_manager != null && !string.IsNullOrWhiteSpace(locationId))
+        {
+            _manager.CollectAcceptableQuestsAtLocation(locationId, _scratchLocationQuests);
+            for (int i = 0; i < _scratchLocationQuests.Count; i++)
+                TryAdd(_scratchLocationQuests[i]);
+        }
+
+        return list;
     }
 
     public bool TryAcceptQuest(QuestDefinition quest)

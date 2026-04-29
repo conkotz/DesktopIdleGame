@@ -15,8 +15,8 @@ MonoBehaviour:
   questId: tutorial_basic_combat_2
   regionId: tutorial
   displayName: Basic Combat 2
-  description: Defeat 5 Rogues on Tutorial 2 (extra rogues spawn after you complete
-    Basic Combat).
+  description: 'Defeat 5 more Rogues on Tutorial 2 '
+  details: 
   listCategoryLabel: Combat
   listStatusOverride: 
   objectiveKind: 1
@@ -25,13 +25,19 @@ MonoBehaviour:
   rewardGold: 100
   rewardItem: {fileID: 0}
   rewardItemId: 
+  rewardItemQuantity: 1
+  additionalItemRewards: []
   rewardNotes: Finishes the tutorial and moves you to Duskwood.
   repeatable: 0
+  abandonable: 0
+  obtainLocationId: npc_tutorial_2
   progressMapNodeId: tutorial_2
+  killProgressOnlyOnProgressMap: 0
   prerequisiteRewardClaimedQuestIds:
   - tutorial_basic_combat
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
+  requiredSkillLevels: []
   killEnemyIdFilter: enemy_tutorial_rogue
   hideUntilMapNodeUnlockedId: tutorial_2
   sortOrder: 13

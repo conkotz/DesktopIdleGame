@@ -320,6 +320,27 @@ public class QuestTrackerWindowUI : MonoBehaviour
         return null;
     }
 
+    /// <summary>
+    /// Shows the quest tracker window after <see cref="QuestTrackerState.TrackQuest"/> so <see cref="OnEnable"/> refresh includes the new quest.
+    /// </summary>
+    public static void EnsureWindowOpenAfterTrack()
+    {
+        QuestTrackerWindowUI ui =
+            FindFirstObjectByType<QuestTrackerWindowUI>(FindObjectsInactive.Include);
+        if (!ui)
+        {
+            GameObject window = FindSceneObjectByName(TrackerWindowName);
+            if (window)
+                ui = window.GetComponent<QuestTrackerWindowUI>();
+        }
+
+        if (!ui)
+            return;
+
+        if (!ui.gameObject.activeSelf)
+            ui.gameObject.SetActive(true);
+    }
+
     private static Transform FindChildByName(Transform root, string childName)
     {
         if (root == null || string.IsNullOrEmpty(childName))

@@ -42,14 +42,11 @@ GameObject:
   - component: {fileID: 7053704570091792237}
   - component: {fileID: 954824350829144391}
   - component: {fileID: 5862396816241924625}
-  - component: {fileID: 1768316623824706206}
-  - component: {fileID: 4574227046474827055}
   - component: {fileID: 4127917735906593618}
-  - component: {fileID: 1078493593605119097}
   - component: {fileID: 5839785130135361787}
   - component: {fileID: 882000000000000001}
   m_Layer: 7
-  m_Name: Blacksmith
+  m_Name: NPC_Tutoral_1
   m_TagString: NPC
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -178,43 +175,6 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1.4347639, y: 3.1644251}
   m_EdgeRadius: 0
---- !u!114 &1768316623824706206
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5214886831892509811}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 38a92ba9f6d6f3c4e85e3b4ed075251c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MerchantClick
-  mainMenuWindowUI: {fileID: 0}
-  merchantModeBanner: {fileID: 0}
-  shopUI: {fileID: 0}
-  merchant: {fileID: 0}
-  shopAnchor: {fileID: 6690756805502218501}
-  shopRect: {fileID: 0}
-  canvasRect: {fileID: 0}
-  uiCamera: {fileID: 0}
-  screenOffset: {x: -220, y: 80}
---- !u!114 &4574227046474827055
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5214886831892509811}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 73abfa881bf22604f8c98534ba84c6c1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SellToMerchant
-  slotIndex: 0
-  inventory: {fileID: 0}
-  wallet: {fileID: 0}
-  showGoldPopup: 1
 --- !u!114 &4127917735906593618
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -238,28 +198,6 @@ MonoBehaviour:
   pulseWhenTargeted: 1
   pulseSpeed: 5
   pulseAmount: 0.015
---- !u!114 &1078493593605119097
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5214886831892509811}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9777a4e128bf6544598bb32177523c1e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Merchant
-  characterName: Draven
-  merchantName: Blacksmith
-  stock: {fileID: 11400000, guid: 9e808d0537e64304f933e3da6c27e753, type: 2}
-  ctrlClickSellsAll: 0
-  onlyBuysStockedItems: 1
-  cannotBuyItemPopupText: Cannot sell that item to {merchant}.
-  merchantId: 
-  inventory: {fileID: 0}
-  wallet: {fileID: 0}
-  nameLabel: {fileID: 3195782117559173001}
 --- !u!114 &5839785130135361787
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -272,9 +210,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 057b23ef544f434baada2bf6cb93395a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestGiver
-  locationId: 
-  questId: greenlands_stone_axe_intro
-  additionalQuestIds: []
+  locationId: npc_tutorial_1
+  questId: tutorial_learning_ropes_1
+  additionalQuestIds:
+  - tutorial_learning_ropes_2
   exclamationMarkPrefab: {fileID: 0}
   exclamationMarkLocalOffset: {x: 0, y: 0.75, z: 0}
   generatedExclamationMarkSize: 0.2
@@ -291,9 +230,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
-  dialogue: 'Howdy!
-
-    Would you fancy any melee weapons or heavy armours?'
+  dialogue: 
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
   dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
   nonQuestAutoCloseSeconds: 5
@@ -496,9 +433,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: '<b>Draven</b>
+  m_text: '<b>Ivan</b>
 
-    <size=85%>Blacksmith</size>'
+    <size=85%>Tutoral Guy</size>'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

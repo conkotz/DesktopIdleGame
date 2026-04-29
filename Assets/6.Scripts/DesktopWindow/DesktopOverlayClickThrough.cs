@@ -119,6 +119,8 @@ public class DesktopOverlayClickThrough : MonoBehaviour
     private void LateUpdate()
     {
 #if !(UNITY_STANDALONE_WIN && !UNITY_EDITOR)
+        // Inspector field only applies to Windows player; keep referenced so Editor doesn't warn CS0414.
+        _ = reapplyTopmostWhileClickThrough;
         if (!debugLogging)
             return;
 #else

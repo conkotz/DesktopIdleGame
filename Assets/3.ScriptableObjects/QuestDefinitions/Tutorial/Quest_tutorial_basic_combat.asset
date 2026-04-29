@@ -26,6 +26,7 @@ MonoBehaviour:
   rewardItemId: 
   rewardNotes: 
   repeatable: 0
+  obtainLocationId: npc_tutorial_2
   progressMapNodeId: tutorial_2
   prerequisiteRewardClaimedQuestIds: []
   requireAllPrerequisiteQuests: 1

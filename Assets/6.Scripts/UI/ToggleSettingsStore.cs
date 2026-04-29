@@ -7,6 +7,7 @@ public static class ToggleSettingsStore
     private const string UseTwentyFourHourTimeKey = "Settings.UseTwentyFourHourTime";
     private const string ShowWindowResizeHandlesKey = "Settings.ShowWindowResizeHandles";
     private const string TopMostGameWindowKey = "Settings.TopMostGameWindow";
+    private const string AutoTrackNewQuestKey = "Settings.AutoTrackNewQuest";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -22,6 +23,8 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(ShowWindowResizeHandlesKey, 0) != 0,
             ToggleSettingId.TopMostGameWindow =>
                 PlayerPrefs.GetInt(TopMostGameWindowKey, 1) != 0,
+            ToggleSettingId.AutoTrackNewQuest =>
+                PlayerPrefs.GetInt(AutoTrackNewQuestKey, 1) != 0,
             _ => false
         };
     }
@@ -45,6 +48,9 @@ public static class ToggleSettingsStore
             case ToggleSettingId.TopMostGameWindow:
                 PlayerPrefs.SetInt(TopMostGameWindowKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.AutoTrackNewQuest:
+                PlayerPrefs.SetInt(AutoTrackNewQuestKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -62,6 +68,7 @@ public static class ToggleSettingsStore
             ToggleSettingId.UseTwentyFourHourTime => "Use 24-hour time",
             ToggleSettingId.ShowWindowResizeHandles => "Show window resize handles",
             ToggleSettingId.TopMostGameWindow => "Is topmost game window",
+            ToggleSettingId.AutoTrackNewQuest => "Auto track new quest",
             _ => setting.ToString()
         };
     }

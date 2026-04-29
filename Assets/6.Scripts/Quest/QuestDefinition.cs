@@ -26,6 +26,10 @@ public class QuestDefinition : ScriptableObject
     [TextArea(2, 6)]
     public string description = "";
 
+    [TextArea(2, 8)]
+    [Tooltip("Shown only in the quest journal (below Description). NPC quest dialogue uses Description only.")]
+    public string details = "";
+
     [Header("List row")]
     [Tooltip("Right-hand label on the row (e.g. Town, Combat, Gathering).")]
     public string listCategoryLabel = "";

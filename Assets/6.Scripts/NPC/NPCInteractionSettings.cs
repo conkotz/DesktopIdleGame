@@ -9,7 +9,7 @@ public class NPCInteractionSettings : MonoBehaviour
     [SerializeField] private string dialogue = "howdy";
     [SerializeField] private NPCDialogueBoxUI dialogueBoxPrefab;
     [Tooltip("World offset from the top-right of this object's Collider2D bounds.")]
-    [SerializeField] private Vector3 dialogueLocalOffset = new(1.25f, -0.35f, 0f);
+    [SerializeField] private Vector3 dialogueLocalOffset = new(1.95f, 0.5f, 0f);
     [SerializeField] private float nonQuestAutoCloseSeconds = 5f;
 
     [Header("Quest integration")]
@@ -29,22 +29,28 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!questGiver)
             questGiver = GetComponent<QuestGiver>();
 
-        QuestDefinition availableQuest = questGiver ? questGiver.GetFirstAvailableQuest() : null;
-        string message = availableQuest
-            ? BuildQuestOfferText(availableQuest)
-            : dialogue;
+        List<QuestDefinition> quests =
+            questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>();
 
-        bool showAccept = availableQuest != null;
         NPCDialogueBoxUI box = GetOrCreateDialogueBox();
         if (!box)
             return;
 
-        float autoCloseSeconds = showAccept ? 0f : nonQuestAutoCloseSeconds;
-        box.ShowAt(transform, GetDialogueAnchor(), dialogueLocalOffset, message, showAccept, () =>
+        if (quests.Count > 0)
         {
-            if (questGiver && availableQuest)
-                questGiver.TryAcceptQuest(availableQuest);
-        }, autoCloseSeconds);
+            box.ShowQuestOffersAt(
+                transform,
+                GetDialogueAnchor(),
+                dialogueLocalOffset,
+                quests,
+                () => questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>(),
+                q => questGiver != null && questGiver.TryAcceptQuest(q),
+                autoCloseSeconds: 0f);
+            return;
+        }
+
+        box.ShowAt(transform, GetDialogueAnchor(), dialogueLocalOffset, dialogue, showAccept: false,
+            onAccept: null, nonQuestAutoCloseSeconds);
     }
 
     private Transform GetDialogueAnchor()
@@ -86,11 +92,28 @@ public class NPCInteractionSettings : MonoBehaviour
         return _activeDialogue;
     }
 
-    private static string BuildQuestOfferText(QuestDefinition quest)
+    public static string BuildQuestOfferTitleHtml(QuestDefinition quest)
+    {
+        string questName = string.IsNullOrWhiteSpace(quest.displayName) ? "Quest" : quest.displayName.Trim();
+        return $"<size=115%><b><color=#FFD66B>{questName}</color></b></size>";
+    }
+
+    public static string GetQuestOfferDescriptionPlain(QuestDefinition quest)
+    {
+        return quest != null && !string.IsNullOrWhiteSpace(quest.description)
+            ? quest.description.Trim()
+            : "";
+    }
+
+    public static string BuildQuestOfferRewardHtml(QuestDefinition quest)
+    {
+        return $"<size=95%><b><color=#B8E6A1>Reward:</color></b> {FormatQuestRewards(quest)}</size>";
+    }
+
+    public static string BuildQuestOfferText(QuestDefinition quest)
     {
         var sb = new StringBuilder();
-        string questName = string.IsNullOrWhiteSpace(quest.displayName) ? "Quest" : quest.displayName.Trim();
-        sb.AppendLine($"<size=115%><b><color=#FFD66B>{questName}</color></b></size>");
+        sb.AppendLine(BuildQuestOfferTitleHtml(quest));
         sb.AppendLine();
 
         if (!string.IsNullOrWhiteSpace(quest.description))
@@ -99,13 +122,11 @@ public class NPCInteractionSettings : MonoBehaviour
             sb.AppendLine();
         }
 
-        sb.Append("<size=95%><b><color=#B8E6A1>Reward:</color></b> ");
-        sb.Append(FormatQuestRewards(quest));
-        sb.Append("</size>");
+        sb.Append(BuildQuestOfferRewardHtml(quest));
         return sb.ToString();
     }
 
-    private static string FormatQuestRewards(QuestDefinition quest)
+    public static string FormatQuestRewards(QuestDefinition quest)
     {
         var parts = new List<string>();
 

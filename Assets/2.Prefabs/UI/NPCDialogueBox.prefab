@@ -50,5 +50,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCDialogueBoxUI
   fixedSize: {x: 250, y: 250}
   worldScale: 0.015
+  viewportPadding: 0.02
+  questOfferCardWidth: 230
+  questOfferCardSpacing: 10
+  typewriterSecondsPerWord: 0.15
   dialogueText: {fileID: 0}
   acceptButton: {fileID: 0}

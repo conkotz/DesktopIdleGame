@@ -80,8 +80,16 @@ public class SimpleHoverHighlight2D : MonoBehaviour
             darkenMul = hoverDarkenMul;
         }
 
+        if (NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
+        {
+            mul = 1f;
+            darkenMul = 1f;
+        }
+
         float pulse = 0f;
-        if (_targeted && pulseWhenTargeted)
+        if (NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
+            pulse = 0f;
+        else if (_targeted && pulseWhenTargeted)
             pulse = Mathf.Sin(Time.time * pulseSpeed) * pulseAmount;
 
         Vector3 targetScale = _baseScale * (mul + pulse);

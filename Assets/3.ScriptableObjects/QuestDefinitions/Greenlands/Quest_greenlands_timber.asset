@@ -16,6 +16,7 @@ MonoBehaviour:
   regionId: greenlands
   displayName: Splitwood for the town
   description: Gather splitwood logs for the builders.
+  details: 
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
@@ -24,7 +25,18 @@ MonoBehaviour:
   rewardGold: 250
   rewardItem: {fileID: 11400000, guid: 48ca8504b7d8aa143a62f7b3d8b2f519, type: 2}
   rewardItemId: 
+  rewardItemQuantity: 1
+  additionalItemRewards: []
   rewardNotes: 
-  sortOrder: 20
   repeatable: 0
+  abandonable: 1
+  obtainLocationId: noticeboard
   progressMapNodeId: 
+  killProgressOnlyOnProgressMap: 0
+  prerequisiteRewardClaimedQuestIds: []
+  requireAllPrerequisiteQuests: 0
+  requiredCompletedMapNodeId: 
+  requiredSkillLevels: []
+  killEnemyIdFilter: 
+  hideUntilMapNodeUnlockedId: 
+  sortOrder: 20
