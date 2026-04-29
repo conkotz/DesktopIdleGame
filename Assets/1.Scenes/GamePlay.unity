@@ -10067,6 +10067,7 @@ RectTransform:
   m_Children:
   - {fileID: 1434520221}
   - {fileID: 2058146448}
+  - {fileID: 1182424383}
   - {fileID: 265314909}
   - {fileID: 1670696987}
   m_Father: {fileID: 1770614726}
@@ -39763,16 +39764,16 @@ RectTransform:
   m_GameObject: {fileID: 1182424382}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.3961028, y: 1.3961028, z: 1.3961028}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1639714717}
-  m_Father: {fileID: 2042090762}
+  m_Father: {fileID: 282072119}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -250, y: -10}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 1846.9978, y: -171.6868}
+  m_SizeDelta: {x: 16, y: 24}
   m_Pivot: {x: 1, y: 1}
 --- !u!114 &1182424385
 MonoBehaviour:
@@ -39917,6 +39918,8 @@ MonoBehaviour:
   undoPanel: {fileID: 1182424382}
   rowsRoot: {fileID: 1639714717}
   undoRowPrefab: {fileID: 1913034980}
+  shopWindowRoot: {fileID: 282072119}
+  verticalClampBounds: {fileID: 1770614726}
 --- !u!1 &1193339277
 GameObject:
   m_ObjectHideFlags: 0
@@ -55218,7 +55221,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: -0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 16, y: 24}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1639714718
 MonoBehaviour:
@@ -67901,7 +67904,6 @@ RectTransform:
   - {fileID: 5510529321893980864}
   - {fileID: 1561369991}
   - {fileID: 1463235205}
-  - {fileID: 1182424383}
   - {fileID: 72417149}
   - {fileID: 914429127}
   - {fileID: 1039092199}

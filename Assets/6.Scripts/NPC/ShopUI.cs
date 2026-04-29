@@ -44,6 +44,8 @@ public class ShopUI : MonoBehaviour
     private Merchant _currentMerchant;
     private int _buyAmount = 1;
     public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
+    /// <summary>Root <see cref="RectTransform"/> of the shop chrome (same as serialized panel root).</summary>
+    public RectTransform PanelRectTransform => panelRoot != null ? panelRoot.transform as RectTransform : null;
     /// <summary>Selected buy pack (1x / 50x toggles). Ctrl+click on a slot uses this amount.</summary>
     public int CurrentBuyAmount => Mathf.Max(1, _buyAmount);
 

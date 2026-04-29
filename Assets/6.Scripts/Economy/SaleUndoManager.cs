@@ -29,9 +29,10 @@ public class SaleUndoManager : MonoBehaviour
     [SerializeField] private RectTransform rowsRoot;        // RowRoot
     [SerializeField] private SaleUndoRowUI undoRowPrefab;   // inactive template
 
-    [Header("Fixed Screen Position")]
-    [Tooltip("Panel anchoredPosition in the canvas. Example: TopRight anchor with (-20,-20) for 20px inset.")]
-    [SerializeField] private Vector2 fixedAnchoredPosition = new Vector2(-20f, -20f);
+    [Header("Shop dock")]
+    [Tooltip(
+        "Gap between shop chrome and undo panel. Bottom dock: panel top sits just under the shop bottom edge and rows stack downward; top dock (flip): panel bottom sits just above the shop top.")]
+    [SerializeField] private float shopDockEdgePadding = 8f;
 
     [Header("Behaviour")]
     [SerializeField] private int visibleMax = 4;
@@ -44,6 +45,19 @@ public class SaleUndoManager : MonoBehaviour
     private float _autoHideAt = -1f;
 
     private RectTransform _panelRect;
+    private RectTransform _shopDockOptional;
+    private RectTransform _flipClampOptional;
+
+    private bool _capturedStripLayout;
+    private Transform _stripParent;
+    private int _stripSiblingIndex;
+    private Vector2 _stripAnchorMin;
+    private Vector2 _stripAnchorMax;
+    private Vector2 _stripPivot;
+    private Vector2 _stripAnchoredPosition;
+    private Vector2 _stripSizeDelta;
+
+    private readonly Vector3[] _worldCorners = new Vector3[4];
 
     private void Awake()
     {
@@ -94,6 +108,9 @@ public class SaleUndoManager : MonoBehaviour
         rowsRoot = null;
         undoRowPrefab = null;
         _panelRect = null;
+        _shopDockOptional = null;
+        _flipClampOptional = null;
+        _capturedStripLayout = false;
     }
 
     /// <summary>
@@ -102,13 +119,24 @@ public class SaleUndoManager : MonoBehaviour
     /// </summary>
     public void BindUI(GameObject panel, RectTransform root, SaleUndoRowUI rowPrefab)
     {
+        BindUI(panel, root, rowPrefab, null, null);
+    }
+
+    public void BindUI(
+        GameObject panel,
+        RectTransform root,
+        SaleUndoRowUI rowPrefab,
+        RectTransform shopWindowDock,
+        RectTransform verticalClampBounds)
+    {
         undoPanel = panel;
         rowsRoot = root;
         undoRowPrefab = rowPrefab;
+        _shopDockOptional = shopWindowDock;
+        _flipClampOptional = verticalClampBounds;
 
         _panelRect = undoPanel ? undoPanel.GetComponent<RectTransform>() : null;
-
-        // If rowsRoot not provided, try find it
+        _capturedStripLayout = false;
         if (!rowsRoot && _panelRect)
         {
             var rr = _panelRect.Find("RowRoot");
@@ -125,9 +153,207 @@ public class SaleUndoManager : MonoBehaviour
         if (undoRowPrefab && undoRowPrefab.gameObject.activeSelf)
             undoRowPrefab.gameObject.SetActive(false);
 
+        CaptureStripLayoutIfNeeded();
+
         if (undoPanel) undoPanel.SetActive(_isUndoPanelVisible && _entries.Count > 0);
 
         RefreshUI();
+    }
+
+    private void CaptureStripLayoutIfNeeded()
+    {
+        if (_capturedStripLayout || !_panelRect)
+            return;
+
+        _stripParent = _panelRect.parent;
+        _stripSiblingIndex = _panelRect.GetSiblingIndex();
+        _stripAnchorMin = _panelRect.anchorMin;
+        _stripAnchorMax = _panelRect.anchorMax;
+        _stripPivot = _panelRect.pivot;
+        _stripAnchoredPosition = _panelRect.anchoredPosition;
+        _stripSizeDelta = _panelRect.sizeDelta;
+        _capturedStripLayout = true;
+    }
+
+    private void RestoreStripDockLayout()
+    {
+        if (!_capturedStripLayout || !_stripParent || !_panelRect)
+            return;
+
+        _panelRect.SetParent(_stripParent, false);
+        int idx = Mathf.Clamp(_stripSiblingIndex, 0, _stripParent.childCount - 1);
+        _panelRect.SetSiblingIndex(idx);
+        _panelRect.anchorMin = _stripAnchorMin;
+        _panelRect.anchorMax = _stripAnchorMax;
+        _panelRect.pivot = _stripPivot;
+        _panelRect.anchoredPosition = _stripAnchoredPosition;
+        _panelRect.sizeDelta = _stripSizeDelta;
+    }
+
+    private ShopUI FindShopUI() => FindFirstObjectByType<ShopUI>(FindObjectsInactive.Include);
+
+    private RectTransform ResolveShopDock(ShopUI shop)
+    {
+        if (_shopDockOptional)
+            return _shopDockOptional;
+        return shop ? shop.PanelRectTransform : null;
+    }
+
+    private RectTransform ResolveClampBounds(ShopUI shop)
+    {
+        if (_flipClampOptional)
+            return _flipClampOptional;
+
+        return shop ? shop.PanelRectTransform : null;
+    }
+
+    private void ApplyUndoPanelPlacement(bool layoutAlreadyRebuilt)
+    {
+        if (!_panelRect || !undoPanel || !undoPanel.activeInHierarchy)
+            return;
+
+        ShopUI shop = FindShopUI();
+        RectTransform dock = ResolveShopDock(shop);
+        bool useShop = shop && shop.IsOpen && dock;
+
+        if (useShop)
+        {
+            if (_panelRect.parent != dock)
+            {
+                _panelRect.SetParent(dock, false);
+                _panelRect.SetAsLastSibling();
+            }
+
+            if (!layoutAlreadyRebuilt)
+                RebuildUndoLayout();
+
+            RectTransform clampRt = ResolveClampBounds(shop);
+            ResolveShopVerticalDock(clampRt);
+        }
+        else
+            RestoreStripDockLayout();
+    }
+
+    /// <summary>
+    /// Pin under the shop bottom (below buy/undo bar): top edge of panel at shop bottom, content stacks downward.
+    /// </summary>
+    private void DockShopUndoToBottom()
+    {
+        float pad = shopDockEdgePadding;
+        _panelRect.anchorMin = new Vector2(0.5f, 0f);
+        _panelRect.anchorMax = new Vector2(0.5f, 0f);
+        _panelRect.pivot = new Vector2(0.5f, 1f);
+        _panelRect.anchoredPosition = new Vector2(0f, -pad);
+    }
+
+    /// <summary>
+    /// Flip: bottom edge of panel at shop top, list extends upward above the window when bottom space is tight.
+    /// </summary>
+    private void DockShopUndoToTop()
+    {
+        float pad = shopDockEdgePadding;
+        _panelRect.anchorMin = new Vector2(0.5f, 1f);
+        _panelRect.anchorMax = new Vector2(0.5f, 1f);
+        _panelRect.pivot = new Vector2(0.5f, 0f);
+        _panelRect.anchoredPosition = new Vector2(0f, pad);
+    }
+
+    private void RebuildUndoLayout()
+    {
+        if (rowsRoot)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rowsRoot);
+        if (_panelRect)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
+        Canvas.ForceUpdateCanvases();
+    }
+
+    private void ResolveShopVerticalDock(RectTransform clampBounds)
+    {
+        if (!clampBounds)
+        {
+            DockShopUndoToBottom();
+            return;
+        }
+
+        const float epsilon = 2f;
+
+        DockShopUndoToBottom();
+        RebuildUndoLayout();
+
+        clampBounds.GetWorldCorners(_worldCorners);
+        float bMin = _worldCorners[0].y;
+        float bMax = _worldCorners[2].y;
+
+        _panelRect.GetWorldCorners(_worldCorners);
+        float pMin = _worldCorners[0].y;
+        if (pMin >= bMin - epsilon)
+            return;
+
+        DockShopUndoToTop();
+        RebuildUndoLayout();
+
+        _panelRect.GetWorldCorners(_worldCorners);
+        float pMax = _worldCorners[2].y;
+        if (pMax <= bMax + epsilon)
+            return;
+
+        DockShopUndoToBottom();
+        RebuildUndoLayout();
+
+        _panelRect.GetWorldCorners(_worldCorners);
+        float bv = Mathf.Max(0f, bMin - _worldCorners[0].y);
+        DockShopUndoToTop();
+        RebuildUndoLayout();
+        _panelRect.GetWorldCorners(_worldCorners);
+        float tv = Mathf.Max(0f, _worldCorners[2].y - bMax);
+
+        if (bv <= tv)
+        {
+            DockShopUndoToBottom();
+            RebuildUndoLayout();
+        }
+    }
+
+    private void MaintainShopVerticalFlipIfDocked()
+    {
+        if (!_panelRect || !undoPanel || !undoPanel.activeSelf)
+            return;
+
+        ShopUI shop = FindShopUI();
+        if (shop == null || !shop.IsOpen)
+            return;
+
+        RectTransform dock = ResolveShopDock(shop);
+        RectTransform clampRt = ResolveClampBounds(shop);
+        if (!dock || _panelRect.parent != dock || !clampRt)
+            return;
+
+        clampRt.GetWorldCorners(_worldCorners);
+        float bMin = _worldCorners[0].y;
+        float bMax = _worldCorners[2].y;
+
+        _panelRect.GetWorldCorners(_worldCorners);
+        float pMin = _worldCorners[0].y;
+        float pMax = _worldCorners[2].y;
+
+        bool dockedBelowShop = Mathf.Approximately(_panelRect.anchorMin.y, 0f) &&
+                               Mathf.Approximately(_panelRect.anchorMax.y, 0f);
+        bool dockedAboveShop = Mathf.Approximately(_panelRect.anchorMin.y, 1f) &&
+                               Mathf.Approximately(_panelRect.anchorMax.y, 1f);
+
+        if (dockedBelowShop && pMin < bMin - 1f)
+        {
+            DockShopUndoToTop();
+            return;
+        }
+
+        if (dockedAboveShop && pMax > bMax + 1f)
+            DockShopUndoToBottom();
+    }
+
+    private void LateUpdate()
+    {
+        MaintainShopVerticalFlipIfDocked();
     }
 
     private void Update()
@@ -204,18 +430,18 @@ public class SaleUndoManager : MonoBehaviour
         if (_entries.Count == 0)
         {
             undoPanel.SetActive(false);
+            RestoreStripDockLayout();
             return;
         }
 
         if (!_isUndoPanelVisible)
         {
             undoPanel.SetActive(false);
+            RestoreStripDockLayout();
             return;
         }
 
-        // Show panel + place it at fixed position
         undoPanel.SetActive(true);
-        _panelRect.anchoredPosition = fixedAnchoredPosition;
 
         int showCount = Mathf.Min(visibleMax, _entries.Count);
 
@@ -246,6 +472,7 @@ public class SaleUndoManager : MonoBehaviour
         Canvas.ForceUpdateCanvases();
         LayoutRebuilder.ForceRebuildLayoutImmediate(rowsRoot);
         LayoutRebuilder.ForceRebuildLayoutImmediate(_panelRect);
+        ApplyUndoPanelPlacement(layoutAlreadyRebuilt: true);
     }
 
     private void Undo(int entryId)

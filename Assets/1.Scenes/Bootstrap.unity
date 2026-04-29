@@ -2336,7 +2336,7 @@ MonoBehaviour:
   undoPanel: {fileID: 0}
   rowsRoot: {fileID: 0}
   undoRowPrefab: {fileID: 0}
-  fixedAnchoredPosition: {x: -20, y: -20}
+  shopDockEdgePadding: 8
   visibleMax: 4
   maxEntriesKept: 30
   undoTimeoutSeconds: 10
