@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Spawns stacked <see cref="OffscreenMarkerView"/> rows for objects tagged Enemy, NPC, and Resource
+/// Spawns stacked <see cref="OffscreenMarkerView"/> rows for objects tagged Enemy, NPC, Resource, Storage, and NoticeBoard
 /// that are outside the gameplay camera. One row per category with aggregated counts.
 /// </summary>
 [DisallowMultipleComponent]
@@ -11,12 +11,16 @@ public class OffscreenMarkersController : MonoBehaviour
     private const string EnemyTag = "Enemy";
     private const string NpcTag = "NPC";
     private const string ResourceTag = "Resource";
+    private const string StorageTag = "Storage";
+    private const string NoticeBoardTag = "NoticeBoard";
 
     private enum OffscreenKind
     {
         Enemy,
         Npc,
-        Resource
+        Resource,
+        Storage,
+        NoticeBoard
     }
 
     private struct Aggregate
@@ -61,6 +65,8 @@ public class OffscreenMarkersController : MonoBehaviour
     [SerializeField] private Color enemyColor = new Color(1f, 0f, 0f, 1f);
     [SerializeField] private Color npcColor = new Color(0.35f, 0.6f, 1f, 1f);
     [SerializeField] private Color resourceColor = new Color(0.35f, 0.95f, 0.45f, 1f);
+    [SerializeField] private Color storageColor = new Color(0.95f, 0.72f, 0.2f, 1f);
+    [SerializeField] private Color noticeBoardColor = new Color(0.85f, 0.5f, 1f, 1f);
 
     private readonly List<OffscreenMarkerView> _pool = new();
 
@@ -112,15 +118,21 @@ public class OffscreenMarkersController : MonoBehaviour
             Aggregate enemies = default;
             Aggregate npcs = default;
             Aggregate resources = default;
+            Aggregate storages = default;
+            Aggregate noticeBoards = default;
 
             CollectEnemies(ref enemies);
             CollectNpcs(ref npcs);
             CollectResources(ref resources);
+            CollectTaggedWorldObjects(StorageTag, ref storages);
+            CollectTaggedWorldObjects(NoticeBoardTag, ref noticeBoards);
 
             int need = 0;
             if (enemies.Any) need++;
             if (npcs.Any) need++;
             if (resources.Any) need++;
+            if (storages.Any) need++;
+            if (noticeBoards.Any) need++;
 
             EnsurePoolSize(need);
             for (int i = 0; i < _pool.Count; i++)
@@ -133,6 +145,10 @@ public class OffscreenMarkersController : MonoBehaviour
                 ApplyRow(_pool[idx++], OffscreenKind.Npc, npcs);
             if (resources.Any)
                 ApplyRow(_pool[idx++], OffscreenKind.Resource, resources);
+            if (storages.Any)
+                ApplyRow(_pool[idx++], OffscreenKind.Storage, storages);
+            if (noticeBoards.Any)
+                ApplyRow(_pool[idx++], OffscreenKind.NoticeBoard, noticeBoards);
 
             _activeMarkerRows = need;
         }
@@ -229,8 +245,14 @@ public class OffscreenMarkersController : MonoBehaviour
             case OffscreenKind.Npc:
                 row.Apply(npcColor, $"NPC {agg.Count}x", flipX);
                 break;
-            default:
+            case OffscreenKind.Resource:
                 row.Apply(resourceColor, $"Resources {agg.Count}x", flipX);
+                break;
+            case OffscreenKind.Storage:
+                row.Apply(storageColor, $"Storage {agg.Count}x", flipX);
+                break;
+            case OffscreenKind.NoticeBoard:
+                row.Apply(noticeBoardColor, $"Notice board {agg.Count}x", flipX);
                 break;
         }
     }
@@ -250,6 +272,23 @@ public class OffscreenMarkersController : MonoBehaviour
         a.Count++;
         a.SumWorldX += worldX;
         a.Any = true;
+    }
+
+    private void CollectTaggedWorldObjects(string unityTag, ref Aggregate agg)
+    {
+        HashSet<int> seen = new HashSet<int>();
+        GameObject[] tagged = GameObject.FindGameObjectsWithTag(unityTag);
+        for (int i = 0; i < tagged.Length; i++)
+        {
+            GameObject go = tagged[i];
+            if (!go.activeInHierarchy) continue;
+
+            Vector3 p = go.transform.position;
+            int id = go.GetInstanceID();
+            if (!seen.Add(id)) continue;
+            if (!IsOffCamera(p)) continue;
+            Add(ref agg, p.x);
+        }
     }
 
     private void CollectEnemies(ref Aggregate agg)

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -45,6 +46,24 @@ public sealed class StripCameraController : MonoBehaviour
     [Header("Behaviour")]
     public bool updateContinuously = false;
 
+    [Header("Persistence")]
+    [Tooltip("Save strip viewport (size, screen position, zoom) and restore after level loads / next play session.")]
+    [SerializeField] private bool persistStripLayout = true;
+
+    private const string StripLayoutPrefsKey = "DesktopStripLayout.v1";
+    private const float StripPrefsWriteMinInterval = 0.12f;
+    private static float _nextAllowStripPrefsWriteTime = -999f;
+
+    [Serializable]
+    private struct SavedStripLayout
+    {
+        public float stripHeightPercent;
+        public float bottomNormalized;
+        public float leftNormalized;
+        public float widthNormalized;
+        public float baseOrthoSize;
+    }
+
     private int _lastScreenWidth = -1;
     private int _lastScreenHeight = -1;
     private float _lastStripHeightPercent = float.NaN;
@@ -61,12 +80,26 @@ public sealed class StripCameraController : MonoBehaviour
     private void OnEnable()
     {
         CacheCamera();
+        if (Application.isPlaying && persistStripLayout)
+            TryLoadSavedLayoutQuiet();
         Apply(force: true);
     }
 
     private void Start()
     {
         Apply(force: true);
+    }
+
+    private void OnApplicationQuit()
+    {
+        if (Application.isPlaying && persistStripLayout)
+            SaveLayoutToPrefs(forceImmediate: true);
+    }
+
+    private void OnDestroy()
+    {
+        if (Application.isPlaying && persistStripLayout)
+            SaveLayoutToPrefs(forceImmediate: true);
     }
 
     private void OnValidate()
@@ -206,6 +239,49 @@ public sealed class StripCameraController : MonoBehaviour
         RememberCurrentState();
     }
 
+    private void TryLoadSavedLayoutQuiet()
+    {
+        if (!PlayerPrefs.HasKey(StripLayoutPrefsKey))
+            return;
+
+        try
+        {
+            string json = PlayerPrefs.GetString(StripLayoutPrefsKey, string.Empty);
+            if (string.IsNullOrEmpty(json))
+                return;
+
+            SavedStripLayout s = JsonUtility.FromJson<SavedStripLayout>(json);
+            stripHeightPercent = s.stripHeightPercent;
+            bottomNormalized = s.bottomNormalized;
+            leftNormalized = s.leftNormalized;
+            widthNormalized = s.widthNormalized;
+            baseOrthoSize = Mathf.Max(0.01f, s.baseOrthoSize);
+        }
+        catch (Exception)
+        {
+            // Corrupt or incompatible saved data — keep scene defaults.
+        }
+    }
+
+    private void SaveLayoutToPrefs(bool forceImmediate)
+    {
+        if (!forceImmediate && Time.unscaledTime < _nextAllowStripPrefsWriteTime)
+            return;
+
+        _nextAllowStripPrefsWriteTime = Time.unscaledTime + StripPrefsWriteMinInterval;
+
+        var s = new SavedStripLayout
+        {
+            stripHeightPercent = stripHeightPercent,
+            bottomNormalized = bottomNormalized,
+            leftNormalized = leftNormalized,
+            widthNormalized = widthNormalized,
+            baseOrthoSize = baseOrthoSize
+        };
+
+        PlayerPrefs.SetString(StripLayoutPrefsKey, JsonUtility.ToJson(s));
+    }
+
     private void ClampInspectorValues()
     {
         stripHeightPercent = Mathf.Clamp(stripHeightPercent, 0.1f, 1f);
@@ -222,6 +298,15 @@ public sealed class StripCameraController : MonoBehaviour
 
     private void RememberCurrentState()
     {
+        bool layoutChanged =
+            !Mathf.Approximately(stripHeightPercent, _lastStripHeightPercent) ||
+            !Mathf.Approximately(bottomNormalized, _lastBottomNormalized) ||
+            !Mathf.Approximately(leftNormalized, _lastLeftNormalized) ||
+            !Mathf.Approximately(widthNormalized, _lastWidthNormalized) ||
+            !Mathf.Approximately(baseOrthoSize, _lastBaseOrthoSize) ||
+            Screen.width != _lastScreenWidth ||
+            Screen.height != _lastScreenHeight;
+
         _lastScreenWidth = Screen.width;
         _lastScreenHeight = Screen.height;
         _lastStripHeightPercent = stripHeightPercent;
@@ -229,5 +314,8 @@ public sealed class StripCameraController : MonoBehaviour
         _lastLeftNormalized = leftNormalized;
         _lastWidthNormalized = widthNormalized;
         _lastBaseOrthoSize = baseOrthoSize;
+
+        if (Application.isPlaying && persistStripLayout && layoutChanged)
+            SaveLayoutToPrefs(forceImmediate: false);
     }
 }

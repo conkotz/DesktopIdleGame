@@ -9,6 +9,8 @@ TagManager:
   - FullWindowCanvas
   - NPC
   - Resource
+  - Storage
+  - NoticeBoard
   layers:
   - Default
   - TransparentFX

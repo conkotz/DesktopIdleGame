@@ -3136,6 +3136,10 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2416199871598626845, guid: e893aefd93740714b999573b02916984, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2416199871598626845, guid: e893aefd93740714b999573b02916984, type: 3}
       propertyPath: hitTestType
       value: 1
       objectReference: {fileID: 0}
@@ -3146,6 +3150,22 @@ PrefabInstance:
     - target: {fileID: 2416199871598626845, guid: e893aefd93740714b999573b02916984, type: 3}
       propertyPath: opacityThreshold
       value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2881264717139658640, guid: e893aefd93740714b999573b02916984, type: 3}
+      propertyPath: debugLogging
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2881264717139658640, guid: e893aefd93740714b999573b02916984, type: 3}
+      propertyPath: debugEveryFrame
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2881264717139658640, guid: e893aefd93740714b999573b02916984, type: 3}
+      propertyPath: disableUniWinAutoHitTest
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2881264717139658640, guid: e893aefd93740714b999573b02916984, type: 3}
+      propertyPath: allowlistOnlyOutsideStrip
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6746535172560018068, guid: e893aefd93740714b999573b02916984, type: 3}
       propertyPath: m_Enabled

@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: 4181235982351577245}
   m_Layer: 7
   m_Name: NoticeBoard
-  m_TagString: NPC
+  m_TagString: NoticeBoard
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

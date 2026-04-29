@@ -6,6 +6,7 @@ public static class ToggleSettingsStore
     private const string HidePlayerHealthBarOutOfCombatKey = "Settings.HidePlayerHealthBarOutOfCombat";
     private const string UseTwentyFourHourTimeKey = "Settings.UseTwentyFourHourTime";
     private const string ShowWindowResizeHandlesKey = "Settings.ShowWindowResizeHandles";
+    private const string TopMostGameWindowKey = "Settings.TopMostGameWindow";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -19,6 +20,8 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(UseTwentyFourHourTimeKey, 1) != 0,
             ToggleSettingId.ShowWindowResizeHandles =>
                 PlayerPrefs.GetInt(ShowWindowResizeHandlesKey, 0) != 0,
+            ToggleSettingId.TopMostGameWindow =>
+                PlayerPrefs.GetInt(TopMostGameWindowKey, 1) != 0,
             _ => false
         };
     }
@@ -39,6 +42,9 @@ public static class ToggleSettingsStore
             case ToggleSettingId.ShowWindowResizeHandles:
                 PlayerPrefs.SetInt(ShowWindowResizeHandlesKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.TopMostGameWindow:
+                PlayerPrefs.SetInt(TopMostGameWindowKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -55,6 +61,7 @@ public static class ToggleSettingsStore
             ToggleSettingId.HidePlayerHealthBarOutOfCombat => "Hide player health bar out of combat",
             ToggleSettingId.UseTwentyFourHourTime => "Use 24-hour time",
             ToggleSettingId.ShowWindowResizeHandles => "Show window resize handles",
+            ToggleSettingId.TopMostGameWindow => "Is topmost game window",
             _ => setting.ToString()
         };
     }
