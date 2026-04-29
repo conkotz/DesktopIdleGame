@@ -229,11 +229,47 @@ public static class GameLog
 
     private static Color ResolveCannotLogColor(string trimmedMessage, Color requestedColor)
     {
-        if (trimmedMessage.StartsWith("Cannot", StringComparison.OrdinalIgnoreCase) ||
-            trimmedMessage.StartsWith("Item not available", StringComparison.OrdinalIgnoreCase) ||
-            trimmedMessage.StartsWith("Ability not available", StringComparison.OrdinalIgnoreCase))
+        if (ShouldUseBlockedOrNegativeLogColor(trimmedMessage))
             return CannotMessageColor;
         return requestedColor;
+    }
+
+    /// <summary>
+    /// Default activity lines use <see cref="DefaultTextColor"/>; these patterns are shown in <see cref="CannotMessageColor"/> instead.
+    /// </summary>
+    private static bool ShouldUseBlockedOrNegativeLogColor(string m)
+    {
+        if (string.IsNullOrEmpty(m))
+            return false;
+
+        if (m.StartsWith("Cannot", StringComparison.OrdinalIgnoreCase) ||
+            m.StartsWith("Item not available", StringComparison.OrdinalIgnoreCase) ||
+            m.StartsWith("Ability not available", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (m.StartsWith("This Region is locked", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (m.StartsWith("No ", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (m.StartsWith("Missing ", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (m.StartsWith("Unable to", StringComparison.OrdinalIgnoreCase) ||
+            m.StartsWith("Failed ", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(m, "Action not allowed.", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (m.IndexOf(" not found", StringComparison.OrdinalIgnoreCase) >= 0)
+            return true;
+
+        // Equipment tier gate: "Iron Sword (Tier II) needs Mining level 5 (yours: 2)."
+        if (m.IndexOf(" (yours:", StringComparison.OrdinalIgnoreCase) >= 0 &&
+            m.IndexOf(" needs ", StringComparison.OrdinalIgnoreCase) >= 0)
+            return true;
+
+        return false;
     }
 
     public static void GoldGained(int amount, string sourceLine = null)

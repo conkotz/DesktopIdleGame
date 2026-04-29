@@ -17,7 +17,7 @@ public static class ToggleSettingsStore
         return setting switch
         {
             ToggleSettingId.HidePlayerHealthBarOutOfCombat =>
-                PlayerPrefs.GetInt(HidePlayerHealthBarOutOfCombatKey, 0) != 0,
+                PlayerPrefs.GetInt(HidePlayerHealthBarOutOfCombatKey, 1) != 0,
             ToggleSettingId.UseTwentyFourHourTime =>
                 PlayerPrefs.GetInt(UseTwentyFourHourTimeKey, 1) != 0,
             ToggleSettingId.ShowWindowResizeHandles =>

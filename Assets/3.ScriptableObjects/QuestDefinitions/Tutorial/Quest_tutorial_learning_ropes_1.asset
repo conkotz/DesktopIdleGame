@@ -23,7 +23,7 @@ MonoBehaviour:
   objectiveKind: 2
   targetCount: 3
   gatherItemId: splitwood_log
-  rewardGold: 0
+  rewardGold: 25
   rewardItem: {fileID: 11400000, guid: db75d88da4098f74f981abe58a3e7c03, type: 2}
   rewardItemId: 
   rewardItemQuantity: 1

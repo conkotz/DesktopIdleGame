@@ -51,6 +51,9 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
         }
 
+        if (NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
+            return;
+
         NPCDialogueBoxUI box = GetOrCreateDialogueBox();
         if (!box)
             return;

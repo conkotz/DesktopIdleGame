@@ -15,7 +15,7 @@ MonoBehaviour:
   questId: tutorial_learning_ropes_2
   regionId: tutorial
   displayName: Learning the ropes 2
-  description: "Gather 25 splitwood logs and finish Tutorial Level 1.\n "
+  description: "Gather 25 splitwood logs.\n "
   details: Open Level Select menu after completing this quest and move to the next
     Tutoral Level 2.
   listCategoryLabel: Gathering
@@ -23,12 +23,12 @@ MonoBehaviour:
   objectiveKind: 2
   targetCount: 25
   gatherItemId: splitwood_log
-  rewardGold: 0
+  rewardGold: 50
   rewardItem: {fileID: 0}
   rewardItemId: 
   rewardItemQuantity: 1
   additionalItemRewards: []
-  rewardNotes: Unlocks Tutorial 2 on the world map.
+  rewardNotes: Unlocks Tutorial 2.
   repeatable: 0
   abandonable: 0
   obtainLocationId: npc_tutorial_1

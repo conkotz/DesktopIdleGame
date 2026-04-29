@@ -58,6 +58,7 @@ public class LevelSelectPageUI : MonoBehaviour
     [Tooltip("Optional. Tint the center Locations list panel to match the selected node type.")]
     [SerializeField] private Image locationsPanelBackgroundImage;
 
+    private const string GreenlandsRegionId = "greenlands";
     private const string EmberHollowRegionId = "emberhollow";
 
     private readonly List<GameObject> _regionRows = new();
@@ -430,10 +431,20 @@ public class LevelSelectPageUI : MonoBehaviour
         WorldMapProgressManager progress = FindProgressManager();
         if (!IsRegionAvailable(region, progress))
         {
-            if (region != null &&
-                string.Equals(region.regionId, EmberHollowRegionId, StringComparison.OrdinalIgnoreCase))
+            if (region == null)
+                return;
+
+            if (string.Equals(region.regionId, GreenlandsRegionId, StringComparison.OrdinalIgnoreCase))
             {
-                GameLog.Add("This Region is locked - accessible after defeating Greenlands Boss");
+                GameLog.Add(
+                    "This Region is locked - accessible after finishing all tutorial quests",
+                    GameLog.CannotMessageColor);
+            }
+            else if (string.Equals(region.regionId, EmberHollowRegionId, StringComparison.OrdinalIgnoreCase))
+            {
+                GameLog.Add(
+                    "This Region is locked - accessible after defeating Greenlands Boss",
+                    GameLog.CannotMessageColor);
             }
 
             return;

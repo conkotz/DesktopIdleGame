@@ -15,22 +15,28 @@ MonoBehaviour:
   questId: tutorial_basic_combat
   regionId: tutorial
   displayName: Basic Combat 1
-  description: Defeat a Rogue on Tutorial 2.
+  description: Defeat a Rogue.
+  details: You dont have any weapons yet, but you can still punch enemies to death.
   listCategoryLabel: Combat
   listStatusOverride: 
   objectiveKind: 1
   targetCount: 1
   gatherItemId: 
-  rewardGold: 0
+  rewardGold: 50
   rewardItem: {fileID: 11400000, guid: b3a17782af5716744a93c10e9418bf17, type: 2}
   rewardItemId: 
+  rewardItemQuantity: 1
+  additionalItemRewards: []
   rewardNotes: 
   repeatable: 0
+  abandonable: 0
   obtainLocationId: npc_tutorial_2
   progressMapNodeId: tutorial_2
+  killProgressOnlyOnProgressMap: 0
   prerequisiteRewardClaimedQuestIds: []
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
+  requiredSkillLevels: []
   killEnemyIdFilter: enemy_tutorial_rogue
   hideUntilMapNodeUnlockedId: tutorial_2
   sortOrder: 12

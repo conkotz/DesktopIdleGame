@@ -109,7 +109,7 @@ GameObject:
   - component: {fileID: 4336976856956784377}
   - component: {fileID: 2083914713384130223}
   - component: {fileID: 6855638986129594513}
-  m_Layer: 10
+  m_Layer: 5
   m_Name: LevelUpEffect
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1078,7 +1078,7 @@ ParticleSystem:
       countCurve:
         serializedVersion: 2
         minMaxState: 0
-        scalar: 30
+        scalar: 40
         minScalar: 30
         maxCurve:
           serializedVersion: 2
@@ -4957,9 +4957,9 @@ ParticleSystemRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingLayerID: 1946004807
+  m_SortingLayer: 6
+  m_SortingOrder: 15
   m_MaskInteraction: 0
   m_RenderMode: 0
   m_MeshDistribution: 0
@@ -5649,6 +5649,7 @@ MonoBehaviour:
   abilityDatabase: {fileID: 0}
   skillDatabase: {fileID: 0}
   skillsManager: {fileID: 0}
+  actionBar: {fileID: 0}
   equipment: {fileID: 0}
   inventory: {fileID: 0}
   buffController: {fileID: 0}
