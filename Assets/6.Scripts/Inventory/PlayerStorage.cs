@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Town chest / bank storage: same slot shape as <see cref="Inventory"/>, separate grid (default 7×4).
+/// Town chest / bank storage: same slot shape as <see cref="Inventory"/>, separate grid (UI drives slot count).
 /// </summary>
 public class PlayerStorage : MonoBehaviour, ISaveable
 {
-    public const int DefaultSlotCount = 28;
+    public const int DefaultSlotCount = 72;
 
     [SerializeField] private ItemDatabase itemDb;
     [SerializeField] private int defaultMaxStack = 99;

@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Binds <see cref="PlayerStorage"/> to a fixed grid (default 7×4).
+/// Binds <see cref="PlayerStorage"/> to a fixed grid (default 7×4 in code; scene often overrides).
 /// </summary>
 public class StorageGridUI : MonoBehaviour
 {
@@ -172,7 +172,10 @@ public class StorageGridUI : MonoBehaviour
 
         float w = slotsGrid.rect.width;
         float h = slotsGrid.rect.height;
-        if (w <= 1f || h <= 1f) return;
+        if (w <= 1f) return;
+
+        ScrollRect scroll = slotsGrid.GetComponentInParent<ScrollRect>(true);
+        if (h <= 1f && scroll == null) return;
 
         columns = Mathf.Max(1, columns);
         rows = Mathf.Max(1, rows);
@@ -181,17 +184,25 @@ public class StorageGridUI : MonoBehaviour
         _grid.constraintCount = columns;
 
         float usableW = w - _grid.padding.left - _grid.padding.right - _grid.spacing.x * (columns - 1);
-        float usableH = h - _grid.padding.top - _grid.padding.bottom - _grid.spacing.y * (rows - 1);
 
+        if (squareCells && scroll != null)
+        {
+            float edge = Mathf.Floor(usableW / columns);
+            edge = Mathf.Max(minCellSize, edge);
+            _grid.cellSize = new Vector2(edge, edge);
+            return;
+        }
+
+        float usableH = h - _grid.padding.top - _grid.padding.bottom - _grid.spacing.y * (rows - 1);
         float cellW = usableW / columns;
         float cellH = usableH / rows;
 
-        float cell = Mathf.Min(cellW, cellH);
-        cell = Mathf.Floor(cell);
-        cell = Mathf.Max(minCellSize, cell);
+        float cellSide = Mathf.Min(cellW, cellH);
+        cellSide = Mathf.Floor(cellSide);
+        cellSide = Mathf.Max(minCellSize, cellSide);
 
         if (squareCells)
-            _grid.cellSize = new Vector2(cell, cell);
+            _grid.cellSize = new Vector2(cellSide, cellSide);
         else
             _grid.cellSize = new Vector2(
                 Mathf.Max(minCellSize, Mathf.Floor(cellW)),

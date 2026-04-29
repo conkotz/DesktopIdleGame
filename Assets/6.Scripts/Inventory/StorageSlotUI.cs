@@ -80,6 +80,9 @@ public class StorageSlotUI : MonoBehaviour,
         if (icon) icon.raycastTarget = false;
         if (countText) countText.raycastTarget = false;
 
+        foreach (var mg in GetComponentsInChildren<MaskableGraphic>(true))
+            mg.maskable = true;
+
         if (!_inventory)
             _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
     }
