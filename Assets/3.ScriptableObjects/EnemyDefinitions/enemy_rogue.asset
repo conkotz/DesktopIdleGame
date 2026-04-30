@@ -26,8 +26,8 @@ MonoBehaviour:
   physBlockChance: 0
   flatGuard: 0
   maxGuardPercent: 0
-  minPhysicalDamage: 3
-  maxPhysicalDamage: 5
+  minPhysicalDamage: 0
+  maxPhysicalDamage: 0
   minMagicDamage: 0
   maxMagicDamage: 0
   minCorruptionDamage: 3

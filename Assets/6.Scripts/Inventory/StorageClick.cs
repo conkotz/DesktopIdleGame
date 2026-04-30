@@ -68,6 +68,8 @@ public class StorageClick : MonoBehaviour
             return;
         }
 
+        MerchantClick.ForceCloseMerchantMode();
+
         MainMenuWindowUI menu = mainMenuWindowUI != null ? mainMenuWindowUI : MainMenuWindowUI.Resolve();
         if (menu != null)
             menu.OpenCharacter();

@@ -26,6 +26,12 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
     [SerializeField] private RectTransform sourceRect;
     [SerializeField] private RectEdge sourceEdge = RectEdge.Top;
 
+    /// <summary>e.g. <c>BotomGameBar</c> — used by strip overlays (NPC dialogue) to stay above the same edge as the lane alignment.</summary>
+    public RectTransform HudBarRect => sourceRect;
+
+    /// <summary>Strip camera sampled for hud-edge projection (paired with <see cref="HudBarRect"/>).</summary>
+    public Camera AlignmentStripCamera => worldCamera;
+
     [Tooltip("Positive values place the world floor above the selected UI edge in screen pixels.")]
     [SerializeField] private float sourcePixelOffset;
 

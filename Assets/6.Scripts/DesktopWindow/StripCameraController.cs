@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -6,7 +7,7 @@ using UnityEngine.Serialization;
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Camera))]
 [DefaultExecutionOrder(-200)]
-public sealed class StripCameraController : MonoBehaviour
+public sealed class StripCameraController : MonoBehaviour, ISaveable
 {
     [SerializeField] private Camera stripCamera;
 
@@ -48,7 +49,7 @@ public sealed class StripCameraController : MonoBehaviour
 
     [Header("Persistence")]
     [Tooltip(
-        "Save strip viewport rectangle (size, screen position only). Strip zoom level resets when the application starts fresh; within one session zoom is kept across level loads.")]
+        "Save strip viewport rectangle via PlayerPrefs. Ortho zoom is persisted to the save slot and re-applied across level loads.")]
     [SerializeField] private bool persistStripLayout = true;
 
     private const string StripLayoutLegacyPrefsKey = "DesktopStripLayout.v1";
@@ -56,7 +57,7 @@ public sealed class StripCameraController : MonoBehaviour
     private const float StripPrefsWriteMinInterval = 0.12f;
     private static float _nextAllowStripPrefsWriteTime = -999f;
 
-    /// <summary>Keyboard zoom survives scene loads within one app session but is not persisted to disk.</summary>
+    /// <summary>Keyboard zoom survives scene loads within one app session; save slot stores <see cref="SaveData.stripCameraZoomMultiplier"/>.</summary>
     private static bool _sessionOrthoActive;
 
     private static float _sessionBaseOrthoSize;
@@ -100,6 +101,10 @@ public sealed class StripCameraController : MonoBehaviour
     private float _lastWidthNormalized = float.NaN;
     private float _lastBaseOrthoSize = float.NaN;
 
+    private GameplayLevelBootstrapper _subscribedGameplayBootstrapper;
+
+    private Coroutine _levelZoomReapplyRoutine;
+
     public float StripHeightPercent => Mathf.Clamp(stripHeightPercent, 0.1f, 1f);
     public float BottomNormalized => bottomNormalized;
     public float LeftNormalized => leftNormalized;
@@ -128,6 +133,74 @@ public sealed class StripCameraController : MonoBehaviour
     private void Start()
     {
         Apply(force: true);
+
+        if (!Application.isPlaying)
+            return;
+
+        StartCoroutine(CoBindGameplayBootstrapperForZoom());
+    }
+
+    private IEnumerator CoBindGameplayBootstrapperForZoom()
+    {
+        for (int i = 0; i < 12; i++)
+        {
+            GameplayLevelBootstrapper b = GameplayLevelBootstrapper.Instance;
+            if (b != null)
+            {
+                if (_subscribedGameplayBootstrapper != null)
+                    _subscribedGameplayBootstrapper.OnLevelStarted -= HandleGameplayLevelStartedForZoom;
+
+                _subscribedGameplayBootstrapper = b;
+                _subscribedGameplayBootstrapper.OnLevelStarted += HandleGameplayLevelStartedForZoom;
+                yield break;
+            }
+
+            yield return null;
+        }
+    }
+
+    private void HandleGameplayLevelStartedForZoom(MapNodeDefinition _)
+    {
+        if (!Application.isPlaying)
+            return;
+
+        if (_levelZoomReapplyRoutine != null)
+            StopCoroutine(_levelZoomReapplyRoutine);
+        _levelZoomReapplyRoutine = StartCoroutine(CoApplyZoomAfterLevelContentReady());
+    }
+
+    private IEnumerator CoApplyZoomAfterLevelContentReady()
+    {
+        // WorldBounds / lane width often update the frame after GameplayLevelBootstrapper.Start spawns layout.
+        yield return null;
+        yield return null;
+
+        _levelZoomReapplyRoutine = null;
+
+        if (!this || !isActiveAndEnabled)
+            yield break;
+
+        if (_sessionOrthoActive)
+            baseOrthoSize = _sessionBaseOrthoSize;
+        else
+            ApplyZoomFromLastLoadedSaveDataIfAny();
+
+        Apply(force: true);
+    }
+
+    private void ApplyZoomFromLastLoadedSaveDataIfAny()
+    {
+        if (SaveManager.Instance == null ||
+            !SaveManager.Instance.TryGetLastLoadedData(out SaveData data) ||
+            data.stripCameraZoomMultiplier <= 0.0001f)
+            return;
+
+        float baseline = DefaultOrthoBaseline;
+        if (baseline < 0.01f)
+            return;
+
+        baseOrthoSize = baseline * data.stripCameraZoomMultiplier;
+        Apply(force: true);
     }
 
     private void OnApplicationQuit()
@@ -138,6 +211,18 @@ public sealed class StripCameraController : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (_subscribedGameplayBootstrapper != null)
+        {
+            _subscribedGameplayBootstrapper.OnLevelStarted -= HandleGameplayLevelStartedForZoom;
+            _subscribedGameplayBootstrapper = null;
+        }
+
+        if (_levelZoomReapplyRoutine != null)
+        {
+            StopCoroutine(_levelZoomReapplyRoutine);
+            _levelZoomReapplyRoutine = null;
+        }
+
         if (Application.isPlaying && persistStripLayout)
             SaveLayoutToPrefs(forceImmediate: true);
     }
@@ -476,5 +561,36 @@ public sealed class StripCameraController : MonoBehaviour
 
         if (Application.isPlaying && persistStripLayout && layoutChanged)
             SaveLayoutToPrefs(forceImmediate: false);
+
+        if (Application.isPlaying && layoutChanged)
+            SaveManager.Instance?.NotifyStripZoomChangedDebounced();
+    }
+
+    public void SaveInto(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        float baseline = DefaultOrthoBaseline;
+        if (baseline < 0.01f)
+            return;
+
+        data.stripCameraZoomMultiplier = Mathf.Max(0.01f, baseOrthoSize) / baseline;
+    }
+
+    public void LoadFrom(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        if (data.stripCameraZoomMultiplier <= 0.0001f)
+            return;
+
+        float baseline = DefaultOrthoBaseline;
+        if (baseline < 0.01f)
+            return;
+
+        baseOrthoSize = baseline * data.stripCameraZoomMultiplier;
+        Apply(force: true);
     }
 }

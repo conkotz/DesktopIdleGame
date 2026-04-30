@@ -7,9 +7,8 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Strip dialogue: Screen→local and hierarchy parent share the same <see cref="RectTransform"/> —
-/// preferably <c>UI_Frame</c> from <see cref="StripUIViewportFollower"/> (aligned to strip <see cref="Camera.rect"/>), else the strip canvas root.
-/// World anchors that sit slightly above the strip frustum clamp to the viewport top so pixels stay inside <see cref="Camera.pixelRect"/>.
+/// Strip dialogue: <see cref="RenderMode.ScreenSpaceOverlay"/> on <c>StripUICanvas</c> (same parent as <see cref="EnemyOverheadUISpawner"/> overheads),
+/// screen→local each frame. Optional <see cref="pinDialogueInWorldWhenStripPresent"/> uses a world-space canvas under the NPC instead.
 /// </summary>
 [DefaultExecutionOrder(120)]
 public class NPCDialogueBoxUI : MonoBehaviour
@@ -32,10 +31,24 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
     private Transform _stripFollowAnchor;
     private Vector3 _stripFollowWorldOffset;
+    /// <summary>When set (NPC dialogue), pivot is recomputed each frame from collider bounds so parent hover scale cannot move the anchored point.</summary>
+    private NPCInteractionSettings _npcStripFollowPivotSource;
     private Vector2 _stripAnchoredSpreadOffset;
     private Canvas _resolvedStripPresentationCanvas;
-    /// <summary><see cref="RectTransform"/> passed to Screen→local conversions (canvas root or UI_Frame).</summary>
+    /// <summary><see cref="RectTransform"/> passed to Screen→local conversions (strip canvas root).</summary>
     private RectTransform _stripProjectionRectRt;
+
+    /// <summary>Resolved <c>UI_Frame</c>; when non-null, clamps this box inside strip layout (see <see cref="StripUIViewportFollower"/>).</summary>
+    private RectTransform _stripUiClampFrameRt;
+
+    private bool _stripWorldFollowActive;
+
+    private static bool s_deferredStripMultiOpening;
+
+    private static RectTransform s_sharedHudBarForFloorClamp;
+    private static Camera s_stripCamForHudBarClampSample;
+
+    private static readonly Vector3[] sHudClampCornerScratch = new Vector3[4];
 
     /// <summary>True when this instance is the active dialogue and is nested under <paramref name="ancestor"/> (e.g. NPC hover scale should not move the box).</summary>
     public static bool ActiveDialogueIsDescendantOf(Transform ancestor)
@@ -86,24 +99,30 @@ public class NPCDialogueBoxUI : MonoBehaviour
     [SerializeField] private TMP_Text dialogueText;
     [SerializeField] private Button acceptButton;
 
-    public enum StripPresentationParentChoice
-    {
-        /// <summary><see cref="EnemyOverheadUISpawner"/> spawns overhead UI here — parity default.</summary>
-        StripCanvasRoot = 0,
-        ViewportAlignedFrame = 1
-    }
-
-    [Header("Strip UI (parity with overhead HP bars)")]
+    [Header("Strip UI")]
     [Tooltip(
-        "StripCanvasRoot: parent + project using the strip canvas root only (legacy / compare to UnitOverheadUI).\n" +
-        "ViewportAlignedFrame (recommended): use StripUIViewportFollower target (UI_Frame) when present so layout matches the strip Camera.rect band.")]
-    [SerializeField] private StripPresentationParentChoice stripPresentationParent =
-        StripPresentationParentChoice.ViewportAlignedFrame;
+        "If on, parents under the NPC with a World Space Canvas (strip camera). If off (default), parents under StripUICanvas like overhead HP bars — readable at all zoom levels and draws on top via sibling order.")]
+    [SerializeField] private bool pinDialogueInWorldWhenStripPresent = false;
+
+    [Tooltip("World-space path only: sorting order on the dialogue Canvas.")]
+    [SerializeField] private int stripWorldDialogueSortingOrder = 800;
+
+    [Tooltip("World-space path only: sorting layer name, or empty for default.")]
+    [SerializeField] private string stripWorldDialogueSortingLayer = "";
 
     [Tooltip(
-        "If off, uses Camera.ViewportToScreenPoint with viewport XY clamped to [0,1] (recommended for letterboxed strip cameras). " +
-        "If on, clamped viewport × Camera.pixelRect.")]
+        "If off, uses Camera.ViewportToScreenPoint with viewport XY clamped to [0,1]. If on, clamped viewport × Camera.pixelRect.")]
     [SerializeField] private bool deriveScreenViaViewportTimesPixelRect = false;
+
+    [Tooltip(
+        "Sample the bottom HUD bar top in screen space (same source as WorldFloorToUIEdge) so dialogue cannot sit over the desktop bar across zoom/layout.")]
+    [SerializeField] private bool clampAboveBottomHudBar = true;
+
+    [Tooltip("Added above the HUD top edge in screen pixels (parity with WorldFloorToUIEdge source pixel offset ~6).")]
+    [SerializeField, Min(0f)] private float bottomHudClearanceScreenPx = 6f;
+
+    [Tooltip("Optional. If unset, resolves from WorldFloorToUIEdge.HudBarRect or a GameObject named BotomGameBar.")]
+    [SerializeField] private RectTransform bottomHudBarOverride;
 
     [Header("Debug (dialogue anchoredPosition)")]
     [SerializeField] private bool logStripPresentationDiagnostics;
@@ -204,58 +223,192 @@ public class NPCDialogueBoxUI : MonoBehaviour
         done?.Invoke();
     }
 
-    private void ApplyCommonShowTransforms(Transform interactionOwner, Transform anchor, Vector3 worldOffsetFromAnchor)
+    private void ApplyCommonShowTransforms(
+        Transform interactionOwner,
+        Transform anchor,
+        Vector3 worldOffsetFromAnchor)
     {
         if (!interactionOwner)
             return;
 
         _interactionOwnerTransform = interactionOwner;
+        _npcStripFollowPivotSource = interactionOwner
+            ? interactionOwner.GetComponent<NPCInteractionSettings>()
+            : null;
 
         Canvas strip = ResolveStripOverlayCanvas();
         if (!strip)
         {
+            TeardownNpcDialogueRootCanvasComponents();
+            _stripWorldFollowActive = false;
             transform.SetParent(interactionOwner, false);
-            Vector3 anchorWorld = anchor ? anchor.position : interactionOwner.position;
-            transform.position = anchorWorld + worldOffsetFromAnchor;
+            if (_npcStripFollowPivotSource)
+                transform.position = _npcStripFollowPivotSource.GetDialogueFollowWorldPoint();
+            else
+            {
+                Vector3 anchorWorld = anchor ? anchor.position : interactionOwner.position;
+                transform.position = anchorWorld + worldOffsetFromAnchor;
+            }
             transform.localRotation = Quaternion.identity;
             transform.localScale = Vector3.one * worldScale;
             _stripFollowAnchor = null;
             _resolvedStripPresentationCanvas = null;
             _stripProjectionRectRt = null;
+            _stripUiClampFrameRt = null;
             return;
         }
+
+        Camera stripGameplayCam = ResolveStripGameplayCamera(strip);
+
+        // Default: World Space Canvas under the NPC — same idea as strip-off mode, drawn by StripCamera — no HUD/overlay pixel remap.
+        if (pinDialogueInWorldWhenStripPresent && stripGameplayCam)
+        {
+            TeardownNpcDialogueRootCanvasComponents();
+
+            _stripWorldFollowActive = true;
+            _resolvedStripPresentationCanvas = strip;
+            _stripProjectionRectRt = null;
+            _stripUiClampFrameRt = null;
+            _stripFollowAnchor = anchor ? anchor : interactionOwner;
+            _stripFollowWorldOffset = worldOffsetFromAnchor;
+
+            transform.SetParent(interactionOwner, false);
+            ConfigureStripWorldFollowCanvas(stripGameplayCam);
+            _rectTransform.anchorMin = _rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            _rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            ApplyStripWorldFollowScale();
+            RefreshStripWorldFollowWorldPosition();
+
+            transform.SetAsLastSibling();
+            return;
+        }
+
+        _stripWorldFollowActive = false;
+        TeardownNpcDialogueRootCanvasComponents();
 
         _resolvedStripPresentationCanvas = strip;
         RectTransform canvasRt = strip.transform as RectTransform;
         _stripFollowAnchor = anchor ? anchor : interactionOwner;
         _stripFollowWorldOffset = worldOffsetFromAnchor;
 
-        RectTransform frame = TryResolveViewportAlignedFrame(strip);
-        _stripProjectionRectRt = stripPresentationParent == StripPresentationParentChoice.ViewportAlignedFrame && frame
-            ? frame
-            : canvasRt;
-
-        transform.SetParent(_stripProjectionRectRt, false);
+        // Canvas root projection + sibling order match EnemyOverheadUISpawner; UI_Frame clamps layout to strip Camera.rect band.
+        _stripProjectionRectRt = canvasRt;
+        _stripUiClampFrameRt = TryResolveViewportAlignedFrame(strip);
+        transform.SetParent(canvasRt, false);
         transform.localRotation = Quaternion.identity;
         ApplyStripPresentationLocalScale();
 
         _rectTransform.anchorMin = _rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
         _rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        // Strip position + clamps run after activation and content/layout in FinalizeStripOverlayOpen (same frame/strip order as LateUpdate).
+    }
 
+    /// <summary>
+    /// Runs after <see cref="StripUIViewportFollower"/> would have aligned UI_Frame — avoids clamping twice with stale anchors (open jitter).
+    /// </summary>
+    private void SyncStripViewportFollowerImmediate()
+    {
+        if (_stripWorldFollowActive || !_resolvedStripPresentationCanvas || !_stripProjectionRectRt)
+            return;
+
+        StripUIViewportFollower follower =
+            _resolvedStripPresentationCanvas.GetComponentInChildren<StripUIViewportFollower>(true);
+        follower?.ForceApplyViewportAnchorsNow();
+    }
+
+    private void FinalizeStripOverlayOpen(bool clampToUiFrameBand, bool syncViewportAnchorsFirst)
+    {
+        if (_stripWorldFollowActive || _stripProjectionRectRt == null || _rectTransform == null)
+            return;
+
+        if (syncViewportAnchorsFirst)
+            SyncStripViewportFollowerImmediate();
+
+        Canvas.ForceUpdateCanvases();
+
+        ApplyStripPresentationLocalScale();
         UpdateStripPresentationTransform();
         transform.SetAsLastSibling();
+
+        if (clampToUiFrameBand && _stripUiClampFrameRt)
+            ClampAnchoredRectInsideUiFrame();
     }
 
     private void LateUpdate()
     {
-        if (!isActiveAndEnabled || !gameObject.activeInHierarchy || _stripFollowAnchor == null ||
-            _stripProjectionRectRt == null)
+        if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
             return;
+
+        if (_stripWorldFollowActive && _stripFollowAnchor)
+        {
+            RefreshStripWorldFollowWorldPosition();
+            ApplyStripWorldFollowScale();
+            return;
+        }
+
+        if (_stripFollowAnchor == null || _stripProjectionRectRt == null)
+            return;
+
+        // Multi-offer overlay row: one driver updates every box using the same screen→anchor math so horizontal
+        // spread stays fixed; group UI_Frame clamp applies one delta so cards do not stack.
+        if (ActiveMultiOfferBoxes.Count > 1 && ActiveMultiOfferBoxes.Contains(this))
+        {
+            if (!ReferenceEquals(this, SpreadTemplate))
+                return;
+
+            // First LateUpdate after open: lane + UI_Frame are already synced (follower 110 < this 120).
+            if (s_deferredStripMultiOpening)
+            {
+                s_deferredStripMultiOpening = false;
+                SyncStripViewportFollowerImmediate();
+                Canvas.ForceUpdateCanvases();
+                for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+                {
+                    NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+                    if (b && b.isActiveAndEnabled && b._stripProjectionRectRt)
+                        b.RefreshStripOverlayLayoutForFrame();
+                }
+
+                for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+                {
+                    NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+                    if (b)
+                        b.transform.SetAsLastSibling();
+                }
+
+                ClampMultiOfferBoxesToViewport();
+                return;
+            }
+
+            for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+            {
+                NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+                if (b && b.isActiveAndEnabled && b._stripProjectionRectRt)
+                    b.RefreshStripOverlayLayoutForFrame();
+            }
+
+            for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+            {
+                NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+                if (b)
+                    b.transform.SetAsLastSibling();
+            }
+
+            ClampMultiOfferRowInsideUiFrame();
+            return;
+        }
 
         ApplyStripPresentationLocalScale();
 
         UpdateStripPresentationTransform();
         transform.SetAsLastSibling();
+        ClampAnchoredRectInsideUiFrame();
+    }
+
+    private void RefreshStripOverlayLayoutForFrame()
+    {
+        ApplyStripPresentationLocalScale();
+        UpdateStripPresentationTransform();
     }
 
     private void UpdateStripPresentationTransform()
@@ -263,7 +416,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         if (_stripFollowAnchor == null || _stripProjectionRectRt == null || _rectTransform == null)
             return;
 
-        Vector3 worldPt = _stripFollowAnchor.position + _stripFollowWorldOffset;
+        Vector3 worldPt = ResolveStripFollowWorldPoint();
         Camera cam = ResolveWorldToScreenCamera();
         if (!cam)
             return;
@@ -315,6 +468,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         float hud = Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.HudResize));
         float overheadBar = Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.OverheadHpBarResize));
         float s = Mathf.Max(0.01f, worldScale / 0.015f) * overheadBar / hud;
+
         transform.localScale = Vector3.one * s;
     }
 
@@ -371,7 +525,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         float ohBar = Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.OverheadHpBarResize));
 
         Debug.Log(
-            $"[NPCDialogueBoxUI] choice={stripPresentationParent} projRt='{projRtName}' hierarchyParent='{hierarchyParentName}' projRt.lossyScale=({ls.x:F5},{ls.y:F5},{ls.z:F5}) " +
+            $"[NPCDialogueBoxUI] worldFollow={_stripWorldFollowActive} projRt='{projRtName}' hierarchyParent='{hierarchyParentName}' projRt.lossyScale=({ls.x:F5},{ls.y:F5},{ls.z:F5}) " +
             $"hudResize×={hud:F3} overheadBar×={ohBar:F3} boxScale={transform.localScale.x:F4} " +
             $"cam='{cam.name}' tag={cam.tag} rect={cam.rect} pixelRect={cam.pixelRect} orthoSize={cam.orthographicSize:F3} " +
             $"zoomVsPrefab~{pct:F1}% canvas={canvasMode} " +
@@ -382,6 +536,84 @@ public class NPCDialogueBoxUI : MonoBehaviour
             this);
     }
 
+
+    /// <summary>Gameplay camera used to draw lane + world-space HUD (StripCamera via <see cref="Camera.main"/> when overlay).</summary>
+    private Camera ResolveStripGameplayCamera(Canvas stripUi)
+    {
+        if (stripUi != null && stripUi.renderMode == RenderMode.ScreenSpaceCamera && stripUi.worldCamera != null &&
+            stripUi.worldCamera.isActiveAndEnabled)
+            return stripUi.worldCamera;
+
+        if (Camera.main != null && Camera.main.isActiveAndEnabled)
+            return Camera.main;
+
+        return FindFirstObjectByType<Camera>(FindObjectsInactive.Exclude);
+    }
+
+    private void TeardownNpcDialogueRootCanvasComponents()
+    {
+        GraphicRaycaster[] rays = GetComponents<GraphicRaycaster>();
+        for (int i = rays.Length - 1; i >= 0; i--)
+        {
+            if (rays[i])
+                DestroyImmediate(rays[i]);
+        }
+
+        Canvas[] canvases = GetComponents<Canvas>();
+        for (int i = canvases.Length - 1; i >= 0; i--)
+        {
+            if (canvases[i])
+                DestroyImmediate(canvases[i]);
+        }
+    }
+
+    private void ConfigureStripWorldFollowCanvas(Camera worldCam)
+    {
+        if (!worldCam)
+            return;
+
+        Canvas c = GetComponent<Canvas>();
+        if (!c)
+            c = gameObject.AddComponent<Canvas>();
+        if (!c)
+            return;
+
+        c.renderMode = RenderMode.WorldSpace;
+        c.worldCamera = worldCam;
+        c.overrideSorting = true;
+        c.sortingOrder = stripWorldDialogueSortingOrder;
+        if (!string.IsNullOrWhiteSpace(stripWorldDialogueSortingLayer))
+        {
+            int lid = SortingLayer.NameToID(stripWorldDialogueSortingLayer);
+            if (lid >= 0)
+                c.sortingLayerID = lid;
+        }
+
+        if (!GetComponent<GraphicRaycaster>())
+            gameObject.AddComponent<GraphicRaycaster>();
+    }
+
+    private Vector3 ResolveStripFollowWorldPoint()
+    {
+        if (_npcStripFollowPivotSource)
+            return _npcStripFollowPivotSource.GetDialogueFollowWorldPoint();
+        return _stripFollowAnchor.position + _stripFollowWorldOffset;
+    }
+
+    private void RefreshStripWorldFollowWorldPosition()
+    {
+        if (_stripFollowAnchor == null || _rectTransform == null)
+            return;
+
+        transform.position = ResolveStripFollowWorldPoint();
+        transform.rotation = Quaternion.identity;
+    }
+
+    private void ApplyStripWorldFollowScale()
+    {
+        float s = Mathf.Max(0.0001f, worldScale);
+        transform.localScale = Vector3.one * s;
+    }
 
     private Camera ResolveWorldToScreenCamera()
     {
@@ -431,18 +663,152 @@ public class NPCDialogueBoxUI : MonoBehaviour
         return null;
     }
 
+    /// <summary>Strip <c>UI_Frame</c> tracked by <see cref="StripUIViewportFollower"/> (strip <see cref="Camera.rect"/> band).</summary>
     private static RectTransform TryResolveViewportAlignedFrame(Canvas strip)
     {
         if (!strip)
             return null;
 
         StripUIViewportFollower follower = strip.GetComponentInChildren<StripUIViewportFollower>(true);
-        RectTransform frame = follower != null ? follower.ViewportAlignedRect : null;
-        if (frame)
-            return frame;
+        RectTransform frameRt = follower != null ? follower.ViewportAlignedRect : null;
+        if (frameRt)
+            return frameRt;
 
         Transform named = strip.transform.Find("UI_Frame");
         return named ? named as RectTransform : null;
+    }
+
+    private static void InvalidateSharedHudBarClampRefsIfDestroyed()
+    {
+        if (!s_sharedHudBarForFloorClamp || !s_sharedHudBarForFloorClamp.gameObject)
+            s_sharedHudBarForFloorClamp = null;
+
+        if (!s_stripCamForHudBarClampSample)
+            s_stripCamForHudBarClampSample = null;
+    }
+
+    private static void EnsureSharedHudBarClampReferences()
+    {
+        InvalidateSharedHudBarClampRefsIfDestroyed();
+
+        bool haveBar = s_sharedHudBarForFloorClamp;
+        bool haveCam = s_stripCamForHudBarClampSample && s_stripCamForHudBarClampSample.isActiveAndEnabled;
+        if (haveBar && haveCam)
+            return;
+
+        s_sharedHudBarForFloorClamp = null;
+        s_stripCamForHudBarClampSample = null;
+
+        WorldFloorToUIEdge[] edges =
+            FindObjectsByType<WorldFloorToUIEdge>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < edges.Length; i++)
+        {
+            WorldFloorToUIEdge e = edges[i];
+            if (!e || !e.HudBarRect)
+                continue;
+
+            s_sharedHudBarForFloorClamp = e.HudBarRect;
+            if (e.AlignmentStripCamera && e.AlignmentStripCamera.isActiveAndEnabled)
+                s_stripCamForHudBarClampSample = e.AlignmentStripCamera;
+            break;
+        }
+
+        if (!s_stripCamForHudBarClampSample)
+        {
+            StripCameraController ctl = FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Exclude);
+            if (ctl && ctl.TryGetComponent(out Camera cam))
+                s_stripCamForHudBarClampSample = cam;
+        }
+
+        if (!s_sharedHudBarForFloorClamp)
+        {
+            GameObject named = GameObject.Find("BotomGameBar");
+            if (named)
+                s_sharedHudBarForFloorClamp = named.transform as RectTransform;
+        }
+    }
+
+    private static Camera ResolveStripCameraFromController()
+    {
+        StripCameraController ctl = FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Exclude);
+        return ctl ? ctl.GetComponent<Camera>() : null;
+    }
+
+    private RectTransform ResolveHudBarRectForClamp()
+    {
+        if (bottomHudBarOverride)
+            return bottomHudBarOverride;
+
+        EnsureSharedHudBarClampReferences();
+        return s_sharedHudBarForFloorClamp;
+    }
+
+    /// <summary>WorldFloorToUIEdge parity: top of bottom HUD in screen space → strip-canvas local Y floor for dialogue.</summary>
+    private bool TryGetBottomHudTopAsMinLocalY(RectTransform projectionRoot, out float minLocalY)
+    {
+        minLocalY = float.NegativeInfinity;
+        if (!clampAboveBottomHudBar || !projectionRoot)
+            return false;
+
+        RectTransform hudBar = ResolveHudBarRectForClamp();
+        if (!hudBar)
+            return false;
+
+        EnsureSharedHudBarClampReferences();
+
+        Camera stripCam = s_stripCamForHudBarClampSample && s_stripCamForHudBarClampSample.isActiveAndEnabled
+            ? s_stripCamForHudBarClampSample
+            : null;
+        if (!stripCam)
+            stripCam = ResolveStripCameraFromController();
+
+        hudBar.GetWorldCorners(sHudClampCornerScratch);
+
+        float screenTopY = float.MinValue;
+        for (int i = 0; i < 4; i++)
+        {
+            Vector2 sp = RectTransformUtility.WorldToScreenPoint(null, sHudClampCornerScratch[i]);
+            screenTopY = Mathf.Max(screenTopY, sp.y);
+        }
+
+        screenTopY = Mathf.Round(screenTopY + bottomHudClearanceScreenPx);
+
+        float screenX;
+        if (stripCam != null && stripCam.pixelRect.width > 1e-3f)
+        {
+            Rect pr = stripCam.pixelRect;
+            screenX = Mathf.Clamp(pr.center.x, pr.xMin, pr.xMax);
+        }
+        else
+            screenX = Screen.width * 0.5f;
+
+        Canvas projCanvas = projectionRoot.GetComponentInParent<Canvas>();
+        Camera overlayEventCam =
+            projCanvas != null && projCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+                ? projCanvas.worldCamera
+                : null;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                projectionRoot, new Vector2(screenX, screenTopY), overlayEventCam, out Vector2 local))
+            return false;
+
+        minLocalY = local.y;
+        return true;
+    }
+
+    private static NPCDialogueBoxUI PickHudClampSettingsSourceForMultiSpread()
+    {
+        if (SpreadTemplate)
+            return SpreadTemplate;
+
+        return ActiveMultiOfferBoxes.Count > 0 ? ActiveMultiOfferBoxes[0] : null;
+    }
+
+    private static bool TryGetBottomHudTopAsMinLocalYStatic(RectTransform projectionRoot, out float minLocalY)
+    {
+        minLocalY = float.NegativeInfinity;
+        NPCDialogueBoxUI src = PickHudClampSettingsSourceForMultiSpread();
+        return src != null && src.TryGetBottomHudTopAsMinLocalY(projectionRoot, out minLocalY);
     }
 
     /// <summary>
@@ -530,8 +896,11 @@ public class NPCDialogueBoxUI : MonoBehaviour
             acceptButton.onClick.AddListener(HandleAcceptClicked);
         }
 
-        UpdateStripPresentationTransform();
-        ClampInsideScreen();
+        if (!_stripWorldFollowActive && _stripProjectionRectRt != null)
+            FinalizeStripOverlayOpen(clampToUiFrameBand: true, syncViewportAnchorsFirst: true);
+        else
+            ClampInsideScreen();
+
         StartAutoClose(autoCloseSeconds);
     }
 
@@ -563,12 +932,17 @@ public class NPCDialogueBoxUI : MonoBehaviour
         CleanupMultiOfferUi();
         SetOfferModeMulti(false);
 
+        _stripWorldFollowActive = false;
+        TeardownNpcDialogueRootCanvasComponents();
+
         _stripFollowAnchor = null;
         _resolvedStripPresentationCanvas = null;
         _stripProjectionRectRt = null;
         _stripAnchoredSpreadOffset = Vector2.zero;
+        _stripUiClampFrameRt = null;
 
         _interactionOwnerTransform = null;
+        _npcStripFollowPivotSource = null;
 
         gameObject.SetActive(false);
     }
@@ -577,6 +951,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
     {
         if (ActiveMultiOfferBoxes.Count == 0)
             return;
+
+        s_deferredStripMultiOpening = false;
 
         BulkClosingMultiOfferGroup = true;
         List<NPCDialogueBoxUI> snapshot = new(ActiveMultiOfferBoxes);
@@ -644,9 +1020,15 @@ public class NPCDialogueBoxUI : MonoBehaviour
             acceptButton.onClick.AddListener(HandleAcceptClicked);
         }
 
-        UpdateStripPresentationTransform();
-        if (!partOfMultiSpread)
+        // Overlay: single finalize here (sync follower + clamps); multi-offer batches in SpreadTemplate LateUpdate.
+        if (!_stripWorldFollowActive && _stripProjectionRectRt != null)
+        {
+            if (!partOfMultiSpread)
+                FinalizeStripOverlayOpen(clampToUiFrameBand: true, syncViewportAnchorsFirst: true);
+        }
+        else if (!partOfMultiSpread)
             ClampInsideScreen();
+
         StartAutoClose(autoCloseSeconds);
     }
 
@@ -804,8 +1186,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
                 stripAnchoredSpreadOffset: new Vector2(spreadStepPx * i, 0f));
         }
 
-        Canvas.ForceUpdateCanvases();
-        ClampMultiOfferBoxesToViewport();
+        s_deferredStripMultiOpening = true;
     }
 
     private static void HandleSpreadQuestAccepted(QuestDefinition quest)
@@ -868,10 +1249,65 @@ public class NPCDialogueBoxUI : MonoBehaviour
         Hide();
     }
 
+    /// <summary>Keeps dialogue rect inside <see cref="_stripUiClampFrameRt"/> (UI strip band) using canvas-root-relative bounds.</summary>
+    private void ClampAnchoredRectInsideUiFrame()
+    {
+        if (!_stripUiClampFrameRt || !_rectTransform || !_stripProjectionRectRt)
+            return;
+
+        Transform canvasRoot = _stripProjectionRectRt;
+
+        for (int pass = 0; pass < 4; pass++)
+        {
+            Canvas.ForceUpdateCanvases();
+
+            Bounds box = RectTransformUtility.CalculateRelativeRectTransformBounds(canvasRoot, _rectTransform);
+            Bounds frame = RectTransformUtility.CalculateRelativeRectTransformBounds(canvasRoot, _stripUiClampFrameRt);
+
+            float padFrac = Mathf.Clamp01(viewportPadding);
+            float inset = Mathf.Max(4f, padFrac * 0.5f * Mathf.Min(frame.size.x, frame.size.y));
+
+            float minX = frame.min.x + inset;
+            float maxX = frame.max.x - inset;
+            float minY = frame.min.y + inset;
+            if (TryGetBottomHudTopAsMinLocalY(_stripProjectionRectRt, out float hudMinFloorY))
+                minY = Mathf.Max(minY, hudMinFloorY);
+            float maxY = frame.max.y - inset;
+            if (minX >= maxX || minY >= maxY)
+                return;
+
+            float dx = 0f;
+            float dy = 0f;
+            if (box.min.x < minX)
+                dx = minX - box.min.x;
+            else if (box.max.x > maxX)
+                dx = maxX - box.max.x;
+            if (box.min.y < minY)
+                dy = minY - box.min.y;
+            else if (box.max.y > maxY)
+                dy = maxY - box.max.y;
+
+            if (Mathf.Approximately(dx, 0f) && Mathf.Approximately(dy, 0f))
+                return;
+
+            _rectTransform.anchoredPosition += new Vector2(dx, dy);
+        }
+    }
+
     private void ClampInsideScreen()
     {
         if (!_rectTransform)
             return;
+
+        if (_stripWorldFollowActive)
+            return;
+
+        if (_stripUiClampFrameRt)
+        {
+            Canvas.ForceUpdateCanvases();
+            ClampAnchoredRectInsideUiFrame();
+            return;
+        }
 
         Canvas.ForceUpdateCanvases();
 
@@ -1032,6 +1468,97 @@ public class NPCDialogueBoxUI : MonoBehaviour
                     ActiveMultiOfferBoxes[i].transform.position += worldDelta;
             }
         }
+
+        Canvas.ForceUpdateCanvases();
+        ClampMultiOfferRowInsideUiFrame();
+    }
+
+    /// <summary>Single delta vs <see cref="_stripUiClampFrameRt"/> using union bounds — keeps horizontal spacing from <see cref="_stripAnchoredSpreadOffset"/>.</summary>
+    private static void ClampMultiOfferRowInsideUiFrame()
+    {
+        if (ActiveMultiOfferBoxes.Count < 2)
+            return;
+
+        RectTransform canvasRoot = null;
+        RectTransform frameRt = null;
+
+        for (int si = 0; si < ActiveMultiOfferBoxes.Count; si++)
+        {
+            NPCDialogueBoxUI b = ActiveMultiOfferBoxes[si];
+            if (!b || !b._stripProjectionRectRt || !b._stripUiClampFrameRt)
+                continue;
+            canvasRoot = b._stripProjectionRectRt;
+            frameRt = b._stripUiClampFrameRt;
+            break;
+        }
+
+        if (!canvasRoot || !frameRt)
+            return;
+
+        NPCDialogueBoxUI padSrc = SpreadTemplate ? SpreadTemplate : ActiveMultiOfferBoxes[0];
+        float padFrac = padSrc ? Mathf.Clamp01(padSrc.viewportPadding) : 0f;
+
+        for (int pass = 0; pass < 4; pass++)
+        {
+            Canvas.ForceUpdateCanvases();
+
+            bool hasUnion = false;
+            Bounds union = default;
+
+            for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+            {
+                NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
+                if (!box || !box._rectTransform || box._stripProjectionRectRt != canvasRoot)
+                    continue;
+
+                Bounds boxB = RectTransformUtility.CalculateRelativeRectTransformBounds(canvasRoot, box._rectTransform);
+                if (!hasUnion)
+                {
+                    union = boxB;
+                    hasUnion = true;
+                }
+                else
+                    union.Encapsulate(boxB);
+            }
+
+            if (!hasUnion)
+                return;
+
+            Bounds frame = RectTransformUtility.CalculateRelativeRectTransformBounds(canvasRoot, frameRt);
+            float inset = Mathf.Max(4f, padFrac * 0.5f * Mathf.Min(frame.size.x, frame.size.y));
+
+            float minX = frame.min.x + inset;
+            float maxX = frame.max.x - inset;
+            float minY = frame.min.y + inset;
+            if (TryGetBottomHudTopAsMinLocalYStatic(canvasRoot, out float hudMinFloorY))
+                minY = Mathf.Max(minY, hudMinFloorY);
+            float maxY = frame.max.y - inset;
+            if (minX >= maxX || minY >= maxY)
+                return;
+
+            float dx = 0f;
+            float dy = 0f;
+            if (union.min.x < minX)
+                dx = minX - union.min.x;
+            else if (union.max.x > maxX)
+                dx = maxX - union.max.x;
+            if (union.min.y < minY)
+                dy = minY - union.min.y;
+            else if (union.max.y > maxY)
+                dy = maxY - union.max.y;
+
+            if (Mathf.Approximately(dx, 0f) && Mathf.Approximately(dy, 0f))
+                return;
+
+            Vector2 delta = new Vector2(dx, dy);
+
+            for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+            {
+                NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
+                if (box && box._stripProjectionRectRt == canvasRoot && box._rectTransform)
+                    box._rectTransform.anchoredPosition += delta;
+            }
+        }
     }
 
     /// <summary>
@@ -1108,21 +1635,51 @@ public class NPCDialogueBoxUI : MonoBehaviour
         if (!content)
             return;
 
-        _questOfferHeaderText = CreateScrollLineTMP("QuestOfferHeader", content, 17f, FontStyles.Bold, bodyFlexible: false);
+        _questOfferHeaderText = CreateScrollLineTMP("QuestOfferHeader", content, DialogueQuestHeaderFontSize, FontStyles.Bold, bodyFlexible: false);
         _questOfferHeaderText.color = new Color(0.88f, 0.91f, 0.96f, 1f);
         _questOfferHeaderText.gameObject.SetActive(false);
         _questOfferHeaderText.rectTransform.SetSiblingIndex(0);
     }
 
-    private void StripPresentation_RemoveNestedCanvas()
-    {
-        Canvas c = GetComponent<Canvas>();
-        if (c != null)
-            Destroy(c);
+    private static readonly Color DialoguePanelBackdrop = new Color(0.05f, 0.05f, 0.08f, 0.94f);
+    /// <summary>Unity stencil <see cref="Mask"/> derives visibility from graphic alpha — 0 hides all masked children.</summary>
+    private const float DialogueViewportMaskMinAlpha = 0.02f;
 
-        GraphicRaycaster gr = GetComponent<GraphicRaycaster>();
-        if (gr != null)
-            Destroy(gr);
+    private const float DialogueQuestHeaderFontSize = 15f;
+    private const float DialogueQuestTitleFontSize = 18f;
+    private const float DialogueBodyFontSize = 16f;
+    private const float DialogueQuestRewardFontSize = 14f;
+    private const float DialogueChromeButtonLabelFontSize = 15f;
+
+    private void ApplyDialogueScrollTypography()
+    {
+        if (_questOfferHeaderText)
+            _questOfferHeaderText.fontSize = DialogueQuestHeaderFontSize;
+        if (_singleTitleText)
+            _singleTitleText.fontSize = DialogueQuestTitleFontSize;
+        if (dialogueText)
+            dialogueText.fontSize = DialogueBodyFontSize;
+        if (_singleRewardText)
+            _singleRewardText.fontSize = DialogueQuestRewardFontSize;
+    }
+
+    /// <summary>Single flat panel read: outer root carries the tint; scroll/image fills stay visually flat; viewport keeps low alpha only for masking.</summary>
+    private void NormalizeDialoguePanelChrome()
+    {
+        Image rootImg = GetComponent<Image>();
+        if (rootImg)
+            rootImg.color = DialoguePanelBackdrop;
+
+        Transform scrollTr = transform.Find("DialogueScrollView");
+        if (scrollTr && scrollTr.TryGetComponent<Image>(out Image scrollBg))
+            scrollBg.color = new Color(DialoguePanelBackdrop.r, DialoguePanelBackdrop.g, DialoguePanelBackdrop.b, 0f);
+
+        if (!scrollTr)
+            return;
+
+        Transform vpTr = scrollTr.Find("Viewport");
+        if (vpTr && vpTr.TryGetComponent<Image>(out Image vpImg))
+            vpImg.color = new Color(1f, 1f, 1f, DialogueViewportMaskMinAlpha);
     }
 
     private void EnsureBuilt()
@@ -1136,8 +1693,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         BindSingleModeRefsFromHierarchy();
         EnsureQuestOfferHeaderInsertedIfMissing();
-
-        StripPresentation_RemoveNestedCanvas();
+        NormalizeDialoguePanelChrome();
+        ApplyDialogueScrollTypography();
 
         if (dialogueText != null && acceptButton != null)
             return;
@@ -1145,7 +1702,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         Image bg = GetComponent<Image>();
         if (!bg)
             bg = gameObject.AddComponent<Image>();
-        bg.color = new Color(0.05f, 0.05f, 0.08f, 0.94f);
+        bg.color = DialoguePanelBackdrop;
         bg.raycastTarget = true;
         AttachClickForward(gameObject);
 
@@ -1166,7 +1723,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
         scrollRt.offsetMin = new Vector2(10f, 45f);
         scrollRt.offsetMax = new Vector2(-10f, -35f);
         Image scrollBg = scrollGo.GetComponent<Image>();
-        scrollBg.color = new Color(0f, 0f, 0f, 0.15f);
+        scrollBg.color =
+            new Color(DialoguePanelBackdrop.r, DialoguePanelBackdrop.g, DialoguePanelBackdrop.b, 0f);
         scrollBg.raycastTarget = true;
         AttachClickForward(scrollGo);
 
@@ -1178,7 +1736,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         viewportRt.offsetMin = Vector2.zero;
         viewportRt.offsetMax = Vector2.zero;
         Image viewportImg = viewportGo.GetComponent<Image>();
-        viewportImg.color = new Color(1f, 1f, 1f, 0.02f);
+        viewportImg.color = new Color(1f, 1f, 1f, DialogueViewportMaskMinAlpha);
         viewportImg.raycastTarget = true;
         viewportGo.GetComponent<Mask>().showMaskGraphic = false;
         AttachClickForward(viewportGo);
@@ -1205,13 +1763,13 @@ public class NPCDialogueBoxUI : MonoBehaviour
         contentFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
         contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        _questOfferHeaderText = CreateScrollLineTMP("QuestOfferHeader", contentGo.transform, 17f, FontStyles.Bold, bodyFlexible: false);
+        _questOfferHeaderText = CreateScrollLineTMP("QuestOfferHeader", contentGo.transform, DialogueQuestHeaderFontSize, FontStyles.Bold, bodyFlexible: false);
         _questOfferHeaderText.color = new Color(0.88f, 0.91f, 0.96f, 1f);
         _questOfferHeaderText.gameObject.SetActive(false);
 
-        _singleTitleText = CreateScrollLineTMP("QuestTitle", contentGo.transform, 20f, FontStyles.Bold, bodyFlexible: false);
-        dialogueText = CreateScrollLineTMP("QuestBody", contentGo.transform, 18f, FontStyles.Normal, bodyFlexible: true);
-        _singleRewardText = CreateScrollLineTMP("QuestReward", contentGo.transform, 16f, FontStyles.Normal, bodyFlexible: false);
+        _singleTitleText = CreateScrollLineTMP("QuestTitle", contentGo.transform, DialogueQuestTitleFontSize, FontStyles.Bold, bodyFlexible: false);
+        dialogueText = CreateScrollLineTMP("QuestBody", contentGo.transform, DialogueBodyFontSize, FontStyles.Normal, bodyFlexible: true);
+        _singleRewardText = CreateScrollLineTMP("QuestReward", contentGo.transform, DialogueQuestRewardFontSize, FontStyles.Normal, bodyFlexible: false);
 
         ScrollRect scroll = scrollGo.GetComponent<ScrollRect>();
         scroll.viewport = viewportRt;
@@ -1224,6 +1782,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         RectTransform acceptRt = CreateButton("AcceptButton", "Accept", _rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-45f, 22f), new Vector2(80f, 30f), out acceptButton);
         acceptRt.gameObject.SetActive(false);
+
+        ApplyDialogueScrollTypography();
     }
 
     private TMP_Text CreateScrollLineTMP(string name, Transform parent, float fontSize, FontStyles style, bool bodyFlexible)
@@ -1303,7 +1863,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         TMP_Text tmp = textGo.GetComponent<TMP_Text>();
         tmp.text = label;
-        tmp.fontSize = 16f;
+        tmp.fontSize = DialogueChromeButtonLabelFontSize;
         tmp.color = new Color(0.12f, 0.1f, 0.08f, 1f);
         tmp.alignment = TextAlignmentOptions.Center;
 

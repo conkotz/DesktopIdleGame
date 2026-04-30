@@ -89,7 +89,11 @@ public sealed class CameraFollow : MonoBehaviour
         }
 
         CacheTargetFollowExtras();
-        ApplyOrthographicSizeInternal(orthographicSize);
+        // StripCameraController owns Camera.orthographicSize (keyboard + save). Applying our serialized ortho here
+        // runs after StripCamera Awake but before StripCamera OnEnable and overwrites persisted zoom until the next Apply.
+        if (!stripController)
+            ApplyOrthographicSizeInternal(orthographicSize);
+
         ScheduleInitialSnapAfterDelay();
     }
 

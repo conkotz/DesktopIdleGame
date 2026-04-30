@@ -128,6 +128,8 @@ public class MerchantClick : MonoBehaviour
             return;
         }
 
+        StorageClick.ForceCloseStorageMode();
+
         // Open the new Character page (inventory + equipment inside MainMenuWindow)
         MainMenuWindowUI menu = mainMenuWindowUI != null ? mainMenuWindowUI : MainMenuWindowUI.Resolve();
         if (menu != null)

@@ -40,6 +40,15 @@ public sealed class StripUIViewportFollower : MonoBehaviour
         Apply(force: false);
     }
 
+    /// <summary>
+    /// Ensures anchors match <see cref="Camera.rect"/> immediately (used when strip UI opens before this component's LateUpdate).
+    /// </summary>
+    public void ForceApplyViewportAnchorsNow()
+    {
+        CacheTarget();
+        Apply(force: true);
+    }
+
     private void CacheTarget()
     {
         if (!targetRect)

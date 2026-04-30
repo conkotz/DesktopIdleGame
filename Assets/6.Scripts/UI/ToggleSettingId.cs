@@ -11,4 +11,7 @@ public enum ToggleSettingId
 
     /// <summary>When true (default), HP and guard show numeric text on player/enemy overheads; false = bars only.</summary>
     ShowOverheadHealthGuardNumbers = 6,
+
+    /// <summary>When true (default), tutorial/helper tips may appear; false disables all helpers (persisted).</summary>
+    ShowHelpPopups = 7,
 }

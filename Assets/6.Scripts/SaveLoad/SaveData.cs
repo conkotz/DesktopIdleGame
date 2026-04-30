@@ -152,6 +152,10 @@ public class SaveData
         public List<int> quantities = new();
     }
 
+    [Header("Desktop strip zoom")]
+    [Tooltip("StripCamera orthographicSize ÷ prefab baseline (HUD \"Zoom %\"). 0 = legacy/unset; use scene default.")]
+    public float stripCameraZoomMultiplier;
+
     [Header("Helpers / Tutorial popups")]
     [Tooltip("HelperPopupDefinition.helperId values dismissed for this character (do not replay until New Game clears the save).")]
     public List<string> dismissedHelperIds = new();

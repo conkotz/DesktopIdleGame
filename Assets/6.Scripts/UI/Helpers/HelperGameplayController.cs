@@ -223,6 +223,9 @@ public sealed class HelperGameplayController : MonoBehaviour
         }
 
         Instance = this;
+
+        ToggleSettingsStore.Changed += OnUserToggleShowHelpSettingChanged;
+
         RegisterProgressKeys();
         LogMisconfiguredDefinitions();
     }
@@ -329,6 +332,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void OnDestroy()
     {
+        ToggleSettingsStore.Changed -= OnUserToggleShowHelpSettingChanged;
+
         if (Instance == this)
         {
             DismissSilent();
@@ -384,6 +389,16 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
 
         StartCoroutine(EvaluateMapEntryNextFrame(node));
+    }
+
+    /// <summary>Close an open helper when the player disables &quot;Show help popups&quot; — does not mark the tip dismissed.</summary>
+    private void OnUserToggleShowHelpSettingChanged(ToggleSettingId id, bool _)
+    {
+        if (id != ToggleSettingId.ShowHelpPopups)
+            return;
+
+        if (_blockActive && !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
+            DismissSilent();
     }
 
     private IEnumerator EvaluateMapEntryNextFrame(MapNodeDefinition node)
@@ -989,6 +1004,10 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void ShowPopup(HelperPopupDefinition def)
     {
+        if (def == null ||
+            !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
+            return;
+
         _activeDefinition = def;
         _blockActive = true;
 
@@ -1382,7 +1401,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         titleRt.anchoredPosition = new Vector2(16f, -12f);
 
         _titleText = titleGo.AddComponent<TextMeshProUGUI>();
-        _titleText.fontSize = 21f;
+        _titleText.fontSize = 19f;
         _titleText.fontStyle = FontStyles.Bold;
         _titleText.color = new Color(0.88f, 0.91f, 0.96f, 1f);
         _titleText.alignment = TextAlignmentOptions.TopLeft;
@@ -1398,7 +1417,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         bodyRt.offsetMax = new Vector2(-16f, -52f);
 
         _bodyText = bodyGo.AddComponent<TextMeshProUGUI>();
-        _bodyText.fontSize = 18f;
+        _bodyText.fontSize = 16f;
         _bodyText.color = new Color(0.93f, 0.86f, 0.72f, 1f);
         _bodyText.textWrappingMode = TextWrappingModes.Normal;
         _bodyText.alignment = TextAlignmentOptions.TopJustified;
@@ -1960,7 +1979,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         lbl.transform.SetParent(btGo.transform, false);
         TextMeshProUGUI tmp = lbl.AddComponent<TextMeshProUGUI>();
         tmp.text = "X";
-        tmp.fontSize = 18f;
+        tmp.fontSize = 16f;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
         tmp.raycastTarget = false;

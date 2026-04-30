@@ -358,6 +358,7 @@ public class OffscreenMarkersController : MonoBehaviour
 
     private void CollectEnemies(ref Aggregate agg)
     {
+        HashSet<int> seenEnemyRoots = new HashSet<int>();
         GameObject[] tagged = GameObject.FindGameObjectsWithTag(EnemyTag);
 
         for (int i = 0; i < tagged.Length; i++)
@@ -368,7 +369,10 @@ public class OffscreenMarkersController : MonoBehaviour
             EnemyBaseController ebc = go.GetComponentInParent<EnemyBaseController>();
             if (ebc && ebc.IsDead) continue;
 
-            Vector3 p = go.transform.position;
+            int dedupeId = ebc ? ebc.gameObject.GetInstanceID() : go.GetInstanceID();
+            if (!seenEnemyRoots.Add(dedupeId)) continue;
+
+            Vector3 p = ebc ? ebc.transform.position : go.transform.position;
             if (!IsOffCamera(p)) continue;
             Add(ref agg, p.x);
         }

@@ -14,6 +14,9 @@ public static class ToggleSettingsStore
     private const string TopMostGameWindowKey = "Settings.TopMostGameWindow";
     private const string AutoTrackNewQuestKey = "Settings.AutoTrackNewQuest";
     private const string AutoLootDuringAutoBattleKey = "Settings.AutoLootDuringAutoBattle";
+    private const string ShowHelpPopupsKey = "Settings.ShowHelpPopups";
+    /// <summary>Inverted naming from before ShowHelpPopups; migrated once.</summary>
+    private const string LegacyHideHelpPopupsKey = "Settings.HideHelpPopups";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -34,6 +37,7 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(AutoTrackNewQuestKey, 1) != 0,
             ToggleSettingId.AutoLootDuringAutoBattle =>
                 PlayerPrefs.GetInt(AutoLootDuringAutoBattleKey, 1) != 0,
+            ToggleSettingId.ShowHelpPopups => GetShowHelpPopups(),
             _ => false
         };
     }
@@ -50,6 +54,24 @@ public static class ToggleSettingsStore
         {
             bool legacyHidePrimaryMeaningWasOn = PlayerPrefs.GetInt(LegacyHidePlayerHealthBarOutOfCombatKey, 1) != 0;
             return !legacyHidePrimaryMeaningWasOn;
+        }
+
+        return true;
+    }
+
+    private static bool GetShowHelpPopups()
+    {
+        if (PlayerPrefs.HasKey(ShowHelpPopupsKey))
+            return PlayerPrefs.GetInt(ShowHelpPopupsKey, 1) != 0;
+
+        if (PlayerPrefs.HasKey(LegacyHideHelpPopupsKey))
+        {
+            bool hideLegacyOn = PlayerPrefs.GetInt(LegacyHideHelpPopupsKey, 0) != 0;
+            bool show = !hideLegacyOn;
+            PlayerPrefs.SetInt(ShowHelpPopupsKey, show ? 1 : 0);
+            PlayerPrefs.DeleteKey(LegacyHideHelpPopupsKey);
+            PlayerPrefs.Save();
+            return show;
         }
 
         return true;
@@ -84,6 +106,10 @@ public static class ToggleSettingsStore
             case ToggleSettingId.AutoLootDuringAutoBattle:
                 PlayerPrefs.SetInt(AutoLootDuringAutoBattleKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.ShowHelpPopups:
+                PlayerPrefs.SetInt(ShowHelpPopupsKey, value ? 1 : 0);
+                PlayerPrefs.DeleteKey(LegacyHideHelpPopupsKey);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -103,6 +129,8 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(TopMostGameWindowKey);
         PlayerPrefs.DeleteKey(AutoTrackNewQuestKey);
         PlayerPrefs.DeleteKey(AutoLootDuringAutoBattleKey);
+        PlayerPrefs.DeleteKey(ShowHelpPopupsKey);
+        PlayerPrefs.DeleteKey(LegacyHideHelpPopupsKey);
         PlayerPrefs.Save();
 
         UIWindowCornerResize.RefreshAllHandlesVisibility();
@@ -116,12 +144,13 @@ public static class ToggleSettingsStore
         return setting switch
         {
             ToggleSettingId.ShowPlayerHealthBarOutOfCombat => "Show player health bar out of combat",
-            ToggleSettingId.ShowOverheadHealthGuardNumbers => "Show players health and guard number values",
+            ToggleSettingId.ShowOverheadHealthGuardNumbers => "Show player health and guard number values",
             ToggleSettingId.UseTwentyFourHourTime => "Use 24-hour time",
             ToggleSettingId.ShowWindowResizeHandles => "Show window resize handles",
             ToggleSettingId.TopMostGameWindow => "Is topmost game window",
             ToggleSettingId.AutoTrackNewQuest => "Auto track new quest",
             ToggleSettingId.AutoLootDuringAutoBattle => "Auto loot during auto battle",
+            ToggleSettingId.ShowHelpPopups => "Show help popups",
             _ => setting.ToString()
         };
     }

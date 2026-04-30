@@ -28,6 +28,7 @@ public class SaveManager : MonoBehaviour
     private string ActiveSavePath => SaveSlotManager.GetSavePath(GetSafeActiveSlot());
     private float _autosaveTimer;
     private float _shopStockSaveDueUnscaled = -1f;
+    private float _stripZoomSaveDueUnscaled = -1f;
     private const float ShopStockSaveDebounceSeconds = 0.12f;
 
     private bool _didInitialLoadOrCreate;
@@ -227,6 +228,13 @@ public class SaveManager : MonoBehaviour
                 Save();
         }
 
+        if (_stripZoomSaveDueUnscaled >= 0f && Time.unscaledTime >= _stripZoomSaveDueUnscaled)
+        {
+            _stripZoomSaveDueUnscaled = -1f;
+            if (!_isApplyingSaveData)
+                Save();
+        }
+
         if (!autosave) return;
 
         _autosaveTimer += Time.unscaledDeltaTime;
@@ -286,6 +294,17 @@ public class SaveManager : MonoBehaviour
             combatPower
         );
         SaveSlotManager.WriteHeader(header);
+    }
+
+    /// <summary>
+    /// Call after strip ortho / layout changes so <see cref="SaveData.stripCameraZoomMultiplier"/> catches up before scene reloads (debounced).
+    /// </summary>
+    public void NotifyStripZoomChangedDebounced()
+    {
+        if (!_didInitialLoadOrCreate || _isApplyingSaveData)
+            return;
+
+        _stripZoomSaveDueUnscaled = Time.unscaledTime + ShopStockSaveDebounceSeconds;
     }
 
     /// <summary>

@@ -16,7 +16,6 @@ public class NPCInteractionSettings : MonoBehaviour
     [SerializeField] private QuestGiver questGiver;
 
     private NPCDialogueBoxUI _activeDialogue;
-    private Transform _dialogueAnchor;
 
     private void Awake()
     {
@@ -62,8 +61,8 @@ public class NPCInteractionSettings : MonoBehaviour
         {
             box.ShowQuestOffersAt(
                 transform,
-                GetDialogueAnchor(),
-                dialogueLocalOffset,
+                transform,
+                Vector3.zero,
                 quests,
                 () => questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>(),
                 q => questGiver != null && questGiver.TryAcceptQuest(q),
@@ -71,31 +70,30 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
         }
 
-        box.ShowAt(transform, GetDialogueAnchor(), dialogueLocalOffset, dialogue, showAccept: false,
+        box.ShowAt(transform, transform, Vector3.zero, dialogue, showAccept: false,
             onAccept: null, nonQuestAutoCloseSeconds);
     }
 
-    private Transform GetDialogueAnchor()
+    /// <summary>World point for dialogue follow each frame — uses collider bounds + <see cref="dialogueLocalOffset"/> so NPC hover scale cannot drift the pivot.</summary>
+    public Vector3 GetDialogueFollowWorldPoint()
+    {
+        Collider2D col = ResolveInteractCollider2D();
+        Vector3 pivot = dialogueLocalOffset;
+        if (!col)
+            return transform.position + pivot;
+
+        Bounds b = col.bounds;
+        return new Vector3(b.max.x + pivot.x, b.max.y + pivot.y, transform.position.z + pivot.z);
+    }
+
+    private Collider2D ResolveInteractCollider2D()
     {
         Collider2D col = GetComponent<Collider2D>();
         if (!col)
             col = GetComponentInChildren<Collider2D>();
         if (!col)
             col = GetComponentInParent<Collider2D>();
-
-        if (!col)
-            return transform;
-
-        if (!_dialogueAnchor)
-        {
-            GameObject anchor = new("NPCDialogueColliderAnchor");
-            anchor.transform.SetParent(transform, false);
-            _dialogueAnchor = anchor.transform;
-        }
-
-        Bounds b = col.bounds;
-        _dialogueAnchor.position = new Vector3(b.max.x, b.max.y, transform.position.z);
-        return _dialogueAnchor;
+        return col;
     }
 
     private NPCDialogueBoxUI GetOrCreateDialogueBox()
