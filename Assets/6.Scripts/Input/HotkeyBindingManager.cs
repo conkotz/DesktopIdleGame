@@ -76,6 +76,8 @@ public sealed class HotkeyBindingManager : MonoBehaviour
             HotkeyBindId.OpenSkillsAbilities => KeyCode.S,
             HotkeyBindId.OpenLevelSelect => KeyCode.L,
             HotkeyBindId.OpenQuestPage => KeyCode.T,
+            HotkeyBindId.ZoomIn => KeyCode.UpArrow,
+            HotkeyBindId.ZoomOut => KeyCode.DownArrow,
             _ => KeyCode.None
         };
     }
@@ -139,6 +141,30 @@ public sealed class HotkeyBindingManager : MonoBehaviour
         }
 
         OnBindingsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Clears hotkey prefs and restores in-memory bindings to <see cref="GetDefaultKey"/> values.
+    /// Used by <see cref="GlobalUserSettings.RestoreAllToDefaults"/>.
+    /// </summary>
+    public static void ResetPersistedBindingsToDefaults()
+    {
+        foreach (HotkeyBindId id in Enum.GetValues(typeof(HotkeyBindId)))
+            PlayerPrefs.DeleteKey(PrefKey(id));
+
+        if (Instance != null)
+        {
+            Instance._bindings.Clear();
+            foreach (HotkeyBindId id in Enum.GetValues(typeof(HotkeyBindId)))
+                Instance._bindings[id] = GetDefaultKey(id);
+
+            Instance.SaveToPlayerPrefs();
+            Instance.OnBindingsChanged?.Invoke();
+        }
+        else
+        {
+            PlayerPrefs.Save();
+        }
     }
 
     private static string PrefKey(HotkeyBindId id) => $"HotkeyBind_{id}";

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>
@@ -12,8 +13,18 @@ public class SettingsPageUI : MonoBehaviour
 
     private void OnEnable()
     {
-        if (hotkeyPanel)
-            hotkeyPanel.RefreshAll();
+        GlobalUserSettings.RestoredDefaults += OnGlobalRestoredDefaults;
+        OnGlobalRestoredDefaults();
+    }
+
+    private void OnDisable()
+    {
+        GlobalUserSettings.RestoredDefaults -= OnGlobalRestoredDefaults;
+    }
+
+    private void OnGlobalRestoredDefaults()
+    {
+        hotkeyPanel?.RefreshAll();
     }
 
     public void CloseSettingsMenu()

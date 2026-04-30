@@ -37,7 +37,7 @@ public sealed class StripCameraController : MonoBehaviour
     [SerializeField, FormerlySerializedAs("maxOrthoSize")] private float maxOrthoSizeFallback = 9f;
 
     [Header("Keyboard zoom")]
-    [Tooltip("Arrow Up zooms in; Arrow Down zooms out. Holds repeat every frame — use Zoom Speed × deltaTime while key is held.")]
+    [Tooltip("Uses Settings ▸ Hotkeys ▸ Zoom In / Zoom Out (↑ / ↓ by default). Hold to repeat — speed × Δt each frame.")]
     [SerializeField] private bool enableKeyboardZoom = true;
 
     [Tooltip("Ortho half-height change per second while Up/Down is held (world units/s).")]
@@ -47,15 +47,38 @@ public sealed class StripCameraController : MonoBehaviour
     public bool updateContinuously = false;
 
     [Header("Persistence")]
-    [Tooltip("Save strip viewport (size, screen position, zoom) and restore after level loads / next play session.")]
+    [Tooltip(
+        "Save strip viewport rectangle (size, screen position only). Strip zoom level resets when the application starts fresh; within one session zoom is kept across level loads.")]
     [SerializeField] private bool persistStripLayout = true;
 
-    private const string StripLayoutPrefsKey = "DesktopStripLayout.v1";
+    private const string StripLayoutLegacyPrefsKey = "DesktopStripLayout.v1";
+    private const string StripLayoutPrefsKey = "DesktopStripLayout.v2";
     private const float StripPrefsWriteMinInterval = 0.12f;
     private static float _nextAllowStripPrefsWriteTime = -999f;
 
+    /// <summary>Keyboard zoom survives scene loads within one app session but is not persisted to disk.</summary>
+    private static bool _sessionOrthoActive;
+
+    private static float _sessionBaseOrthoSize;
+
+    /// <summary>
+    /// First strip <see cref="Camera.aspect"/> we see during play (after lane bounds exist).
+    /// Narrower strips than baseline would otherwise allow much larger lane-fit ortho; we clamp max zoom-out so it never exceeds <c>lane / (2×baselineAspect)</c>.
+    /// </summary>
+    private static float _sessionLaneZoomBaselineStripAspect = -1f;
+
     [Serializable]
-    private struct SavedStripLayout
+    private struct SavedStripLayoutV2
+    {
+        public float stripHeightPercent;
+        public float bottomNormalized;
+        public float leftNormalized;
+        public float widthNormalized;
+    }
+
+    /// <summary>Legacy saved JSON (ortho embedded); ortho ignored when migrating.</summary>
+    [Serializable]
+    private struct SavedStripLayoutLegacyV1
     {
         public float stripHeightPercent;
         public float bottomNormalized;
@@ -64,6 +87,11 @@ public sealed class StripCameraController : MonoBehaviour
         public float baseOrthoSize;
     }
 
+    private float _prefabOrthoAtAwake;
+    private float _prefabStripHeightPercent;
+    private float _prefabBottomNormalized;
+    private float _prefabLeftNormalized;
+    private float _prefabWidthNormalized;
     private int _lastScreenWidth = -1;
     private int _lastScreenHeight = -1;
     private float _lastStripHeightPercent = float.NaN;
@@ -77,11 +105,23 @@ public sealed class StripCameraController : MonoBehaviour
     public float LeftNormalized => leftNormalized;
     public float WidthNormalized => Mathf.Clamp(widthNormalized, 0.1f, 1f);
 
+    /// <summary>Orthographic size captured from the prefab/scene at <see cref="Awake"/> — base for zoom % HUD.</summary>
+    public float DefaultOrthoBaseline => _prefabOrthoAtAwake;
+
+    private void Awake()
+    {
+        CapturePrefabBaselineSnapshotFromSerializedFields();
+    }
+
     private void OnEnable()
     {
         CacheCamera();
         if (Application.isPlaying && persistStripLayout)
             TryLoadSavedLayoutQuiet();
+
+        if (Application.isPlaying && _sessionOrthoActive)
+            baseOrthoSize = _sessionBaseOrthoSize;
+
         Apply(force: true);
     }
 
@@ -121,7 +161,9 @@ public sealed class StripCameraController : MonoBehaviour
             Apply(force: false);
     }
 
-    /// <summary>Hold Up = zoom in (− ortho half-height); Hold Down = zoom out (+).</summary>
+    /// <summary>
+    /// Hold configured keys (defaults: Up = zoom in / smaller ortho, Down = zoom out / larger ortho) — editable in Settings ▸ Hotkeys.
+    /// </summary>
     private void ApplyKeyboardOrthoZoom()
     {
         CacheCamera();
@@ -129,10 +171,22 @@ public sealed class StripCameraController : MonoBehaviour
         if (!stripCamera || !stripCamera.orthographic)
             return;
 
+        if (HotkeySettingsRowUI.IsRebinding)
+            return;
+
+        KeyCode zoomIn = HotkeyBindingManager.Instance != null
+            ? HotkeyBindingManager.Instance.GetBinding(HotkeyBindId.ZoomIn)
+            : HotkeyBindingManager.GetDefaultKey(HotkeyBindId.ZoomIn);
+        KeyCode zoomOut = HotkeyBindingManager.Instance != null
+            ? HotkeyBindingManager.Instance.GetBinding(HotkeyBindId.ZoomOut)
+            : HotkeyBindingManager.GetDefaultKey(HotkeyBindId.ZoomOut);
+
         float change = orthoZoomSpeed * Time.deltaTime;
         int zoomInput = 0;
-        if (Input.GetKey(KeyCode.DownArrow)) zoomInput++;
-        if (Input.GetKey(KeyCode.UpArrow)) zoomInput--;
+        if (zoomOut != KeyCode.None && Input.GetKey(zoomOut))
+            zoomInput++;
+        if (zoomIn != KeyCode.None && Input.GetKey(zoomIn))
+            zoomInput--;
         if (zoomInput == 0)
             return;
 
@@ -144,8 +198,9 @@ public sealed class StripCameraController : MonoBehaviour
     }
 
     /// <summary>
-    /// Max zoom-out = ortho half-height such that visible world width matches lane width
-    /// (<c>2 × ortho × aspect</c> = lane width from <see cref="WorldBounds"/>).
+    /// Max zoom-out ortho from lane width: visible world width ≈ <c>2 × ortho × aspect</c>, so lane fit is <c>lane / (2×aspect)</c>.
+    /// The first-session baseline strip aspect records "full width" at load — we never allow ortho above that baseline lane-fit ceiling,
+    /// so narrowing the window cannot unlock an even more distant zoom-out.
     /// </summary>
     private float GetEffectiveMaxOrthoSize()
     {
@@ -166,7 +221,16 @@ public sealed class StripCameraController : MonoBehaviour
             return Mathf.Max(minOrthoSize, maxOrthoSizeFallback);
 
         float aspect = Mathf.Max(0.001f, stripCamera.aspect);
-        return Mathf.Max(minOrthoSize, laneW / (2f * aspect));
+
+        // One-shot per cold session — "good" max zoom matches full-width-at-load lane fit; narrower window uses min(...) so ortho ceiling does not rise.
+        if (_sessionLaneZoomBaselineStripAspect < 1e-4f)
+            _sessionLaneZoomBaselineStripAspect = aspect;
+
+        float laneFitAtCurrentAspect = laneW / (2f * aspect);
+        float laneFitAtBaselineAspect = laneW / (2f * _sessionLaneZoomBaselineStripAspect);
+        float laneBasedMax = Mathf.Min(laneFitAtCurrentAspect, laneFitAtBaselineAspect);
+
+        return Mathf.Max(minOrthoSize, laneBasedMax);
     }
 
     public void SetBottomNormalized(float value)
@@ -191,6 +255,55 @@ public sealed class StripCameraController : MonoBehaviour
     {
         stripHeightPercent = value;
         Apply(force: true);
+    }
+
+    /// <summary>Deletes persisted strip rectangle prefs, clears session ortho zoom, and snaps all strip cameras back to prefab/script defaults.</summary>
+    public static void FactoryResetStoredStripLayoutAcrossApp()
+    {
+        PlayerPrefs.DeleteKey(StripLayoutPrefsKey);
+        PlayerPrefs.DeleteKey(StripLayoutLegacyPrefsKey);
+        PlayerPrefs.Save();
+
+        ClearSessionOrthoZoomState();
+
+        StripCameraController[] list = UnityEngine.Object.FindObjectsByType<StripCameraController>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        for (int i = 0; i < list.Length; i++)
+        {
+            StripCameraController c = list[i];
+            if (!c || !Application.isPlaying)
+                continue;
+
+            c.ApplyPrefabBaselineSnapshot();
+            if (c.persistStripLayout)
+                c.SaveLayoutToPrefs(forceImmediate: true);
+        }
+    }
+
+    public static void ClearSessionOrthoZoomState()
+    {
+        _sessionOrthoActive = false;
+        _sessionLaneZoomBaselineStripAspect = -1f;
+    }
+
+    private void CapturePrefabBaselineSnapshotFromSerializedFields()
+    {
+        _prefabOrthoAtAwake = baseOrthoSize;
+        _prefabStripHeightPercent = stripHeightPercent;
+        _prefabBottomNormalized = bottomNormalized;
+        _prefabLeftNormalized = leftNormalized;
+        _prefabWidthNormalized = widthNormalized;
+    }
+
+    private void ApplyPrefabBaselineSnapshot()
+    {
+        stripHeightPercent = _prefabStripHeightPercent;
+        bottomNormalized = _prefabBottomNormalized;
+        leftNormalized = _prefabLeftNormalized;
+        widthNormalized = _prefabWidthNormalized;
+        baseOrthoSize = _prefabOrthoAtAwake;
     }
 
     private void CacheCamera()
@@ -242,7 +355,10 @@ public sealed class StripCameraController : MonoBehaviour
     private void TryLoadSavedLayoutQuiet()
     {
         if (!PlayerPrefs.HasKey(StripLayoutPrefsKey))
+        {
+            TryMigrateLegacyStripLayoutPrefsV1Quiet();
             return;
+        }
 
         try
         {
@@ -250,17 +366,51 @@ public sealed class StripCameraController : MonoBehaviour
             if (string.IsNullOrEmpty(json))
                 return;
 
-            SavedStripLayout s = JsonUtility.FromJson<SavedStripLayout>(json);
-            stripHeightPercent = s.stripHeightPercent;
-            bottomNormalized = s.bottomNormalized;
-            leftNormalized = s.leftNormalized;
-            widthNormalized = s.widthNormalized;
-            baseOrthoSize = Mathf.Max(0.01f, s.baseOrthoSize);
+            SavedStripLayoutV2 s = JsonUtility.FromJson<SavedStripLayoutV2>(json);
+            ApplyRectsFromSaved(s);
         }
         catch (Exception)
         {
-            // Corrupt or incompatible saved data — keep scene defaults.
+            // Corrupt pref data — ignored.
         }
+    }
+
+    private void TryMigrateLegacyStripLayoutPrefsV1Quiet()
+    {
+        if (!PlayerPrefs.HasKey(StripLayoutLegacyPrefsKey))
+            return;
+
+        try
+        {
+            string json = PlayerPrefs.GetString(StripLayoutLegacyPrefsKey, string.Empty);
+            if (string.IsNullOrEmpty(json))
+                return;
+
+            SavedStripLayoutLegacyV1 legacy = JsonUtility.FromJson<SavedStripLayoutLegacyV1>(json);
+            var v2 = new SavedStripLayoutV2
+            {
+                stripHeightPercent = legacy.stripHeightPercent,
+                bottomNormalized = legacy.bottomNormalized,
+                leftNormalized = legacy.leftNormalized,
+                widthNormalized = legacy.widthNormalized
+            };
+
+            ApplyRectsFromSaved(v2);
+            PlayerPrefs.DeleteKey(StripLayoutLegacyPrefsKey);
+            SaveLayoutToPrefs(forceImmediate: true);
+        }
+        catch (Exception)
+        {
+            PlayerPrefs.DeleteKey(StripLayoutLegacyPrefsKey);
+        }
+    }
+
+    private void ApplyRectsFromSaved(SavedStripLayoutV2 s)
+    {
+        stripHeightPercent = s.stripHeightPercent;
+        bottomNormalized = s.bottomNormalized;
+        leftNormalized = s.leftNormalized;
+        widthNormalized = s.widthNormalized;
     }
 
     private void SaveLayoutToPrefs(bool forceImmediate)
@@ -270,16 +420,16 @@ public sealed class StripCameraController : MonoBehaviour
 
         _nextAllowStripPrefsWriteTime = Time.unscaledTime + StripPrefsWriteMinInterval;
 
-        var s = new SavedStripLayout
+        var s = new SavedStripLayoutV2
         {
             stripHeightPercent = stripHeightPercent,
             bottomNormalized = bottomNormalized,
             leftNormalized = leftNormalized,
-            widthNormalized = widthNormalized,
-            baseOrthoSize = baseOrthoSize
+            widthNormalized = widthNormalized
         };
 
         PlayerPrefs.SetString(StripLayoutPrefsKey, JsonUtility.ToJson(s));
+        PlayerPrefs.Save();
     }
 
     private void ClampInspectorValues()
@@ -314,6 +464,12 @@ public sealed class StripCameraController : MonoBehaviour
         _lastLeftNormalized = leftNormalized;
         _lastWidthNormalized = widthNormalized;
         _lastBaseOrthoSize = baseOrthoSize;
+
+        if (Application.isPlaying)
+        {
+            _sessionBaseOrthoSize = baseOrthoSize;
+            _sessionOrthoActive = true;
+        }
 
         if (Application.isPlaying && persistStripLayout && layoutChanged)
             SaveLayoutToPrefs(forceImmediate: false);

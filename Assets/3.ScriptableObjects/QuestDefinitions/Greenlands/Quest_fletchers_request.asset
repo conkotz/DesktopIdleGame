@@ -16,6 +16,7 @@ MonoBehaviour:
   regionId: greenlands
   displayName: Fletcher's request
   description: Gather 50 splitwood logs for the fletcher.
+  details: 
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
@@ -33,6 +34,7 @@ MonoBehaviour:
   repeatable: 0
   abandonable: 1
   obtainLocationId: fletcher
+  obtainLocationDisplayName: Robin the Fletcher
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
   prerequisiteRewardClaimedQuestIds: []

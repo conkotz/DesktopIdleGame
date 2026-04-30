@@ -40,6 +40,16 @@ public static class SliderSettingsStore
         Changed?.Invoke(setting, clamped);
     }
 
+    internal static void ClearAllStoredKeysAndReload()
+    {
+        PlayerPrefs.DeleteKey(HudResizeKey);
+        PlayerPrefs.DeleteKey(WindowResizeKey);
+        PlayerPrefs.Save();
+
+        foreach (SliderSettingId id in Enum.GetValues(typeof(SliderSettingId)))
+            Changed?.Invoke(id, Get(id));
+    }
+
     public static string GetDisplayName(SliderSettingId setting)
     {
         return setting switch

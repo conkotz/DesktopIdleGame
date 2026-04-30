@@ -161,12 +161,11 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         return _acceptedQuestIds.Contains(q.questId.Trim());
     }
 
-    public bool IsQuestVisibleInList(QuestDefinition q)
-    {
-        if (!q)
-            return false;
-        return IsQuestAccepted(q) || IsPermanentlyComplete(q);
-    }
+    /// <summary>
+    /// Regional quest journal eligibility. Includes undiscovered quest-giver offers so the list can show where to obtain them.
+    /// Map visibility gates still use <see cref="QuestDefinition.IsShownInQuestList"/>.
+    /// </summary>
+    public bool IsQuestVisibleInList(QuestDefinition q) => q != null;
 
     public bool CanAcceptQuest(QuestDefinition q, string giverLocationId = null)
     {
@@ -306,8 +305,11 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (!q || !q.abandonable || !RequiresQuestGiver(q))
             return false;
 
-        // In progress, ready to turn in, or already reward-claimed — abandon fully resets journal state.
-        return IsQuestAccepted(q) || IsPermanentlyComplete(q);
+        // One-and-done quests stay done — no abandon from journal after COMPLETE reward is claimed.
+        if (IsPermanentlyComplete(q))
+            return false;
+
+        return IsQuestAccepted(q);
     }
 
     public bool TryAbandonQuest(QuestDefinition q)

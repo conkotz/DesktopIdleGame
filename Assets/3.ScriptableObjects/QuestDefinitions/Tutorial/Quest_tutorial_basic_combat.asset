@@ -31,6 +31,7 @@ MonoBehaviour:
   repeatable: 0
   abandonable: 0
   obtainLocationId: npc_tutorial_2
+  obtainLocationDisplayName: Greggor in Tutoral 2
   progressMapNodeId: tutorial_2
   killProgressOnlyOnProgressMap: 0
   prerequisiteRewardClaimedQuestIds: []

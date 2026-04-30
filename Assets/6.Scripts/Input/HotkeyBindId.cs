@@ -16,4 +16,7 @@ public enum HotkeyBindId
     OpenSkillsAbilities = 9,
     OpenLevelSelect = 10,
     OpenQuestPage = 11,
+
+    ZoomIn = 12,
+    ZoomOut = 13,
 }

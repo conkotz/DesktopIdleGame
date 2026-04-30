@@ -1,5 +1,6 @@
 public enum SettingsButtonActionId
 {
     ReturnAllWindowsToAnchorPoints = 0,
-    SwapGameScreen = 1
+    SwapGameScreen = 1,
+    FactoryResetAllSettings = 2
 }

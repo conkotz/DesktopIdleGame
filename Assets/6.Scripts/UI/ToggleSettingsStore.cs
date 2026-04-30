@@ -1,6 +1,9 @@
 using System;
 using UnityEngine;
 
+/// <summary>
+/// Persists miscellaneous toggles in <see cref="PlayerPrefs"/> (global keys, not tied to save slots).
+/// </summary>
 public static class ToggleSettingsStore
 {
     private const string HidePlayerHealthBarOutOfCombatKey = "Settings.HidePlayerHealthBarOutOfCombat";
@@ -64,6 +67,22 @@ public static class ToggleSettingsStore
 
         if (setting == ToggleSettingId.ShowWindowResizeHandles)
             UIWindowCornerResize.RefreshAllHandlesVisibility();
+    }
+
+    internal static void ClearAllStoredKeysAndReload()
+    {
+        PlayerPrefs.DeleteKey(HidePlayerHealthBarOutOfCombatKey);
+        PlayerPrefs.DeleteKey(UseTwentyFourHourTimeKey);
+        PlayerPrefs.DeleteKey(ShowWindowResizeHandlesKey);
+        PlayerPrefs.DeleteKey(TopMostGameWindowKey);
+        PlayerPrefs.DeleteKey(AutoTrackNewQuestKey);
+        PlayerPrefs.DeleteKey(AutoLootDuringAutoBattleKey);
+        PlayerPrefs.Save();
+
+        UIWindowCornerResize.RefreshAllHandlesVisibility();
+
+        foreach (ToggleSettingId id in Enum.GetValues(typeof(ToggleSettingId)))
+            Changed?.Invoke(id, Get(id));
     }
 
     public static string GetDisplayName(ToggleSettingId setting)

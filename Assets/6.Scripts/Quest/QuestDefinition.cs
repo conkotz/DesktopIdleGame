@@ -75,6 +75,9 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("Optional id of the QuestGiver this quest starts from. Empty keeps the old behavior: quest is available directly from the quest list.")]
     public string obtainLocationId = "";
 
+    [Tooltip("Journal / list label for where to get this quest (e.g. Fletcher). If empty, Obtain Location Id is pretty-printed.")]
+    public string obtainLocationDisplayName = "";
+
     [Tooltip("For kill quests: map node id where kills may count (see Kill Progress Only On This Map).")]
     public string progressMapNodeId = "";
 

@@ -52,6 +52,10 @@ public static class HotkeyBindIds
                 return "Open Level select";
             case HotkeyBindId.OpenQuestPage:
                 return "Open Quests";
+            case HotkeyBindId.ZoomIn:
+                return "Zoom In";
+            case HotkeyBindId.ZoomOut:
+                return "Zoom Out";
             default:
                 return id.ToString();
         }

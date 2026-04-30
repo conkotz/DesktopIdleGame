@@ -16,6 +16,7 @@ MonoBehaviour:
   regionId: greenlands
   displayName: Green Fields clearance
   description: Thin the hostile creatures in the Green Fields.
+  details: 
   listCategoryLabel: Combat
   listStatusOverride: 
   objectiveKind: 1
@@ -30,6 +31,7 @@ MonoBehaviour:
   repeatable: 0
   abandonable: 1
   obtainLocationId: noticeboard
+  obtainLocationDisplayName: The Notice Board
   progressMapNodeId: green_fields
   killProgressOnlyOnProgressMap: 1
   prerequisiteRewardClaimedQuestIds: []

@@ -54,6 +54,10 @@ public class SettingsButtonRowUI : MonoBehaviour
                 if (switcher)
                     switcher.SwapToNextMonitor();
                 break;
+
+            case SettingsButtonActionId.FactoryResetAllSettings:
+                GlobalUserSettings.RestoreAllToDefaults();
+                break;
         }
     }
 
@@ -73,6 +77,8 @@ public class SettingsButtonRowUI : MonoBehaviour
         {
             SettingsButtonActionId.ReturnAllWindowsToAnchorPoints => "Resets all windows - size and position",
             SettingsButtonActionId.SwapGameScreen => "Change game screen",
+            SettingsButtonActionId.FactoryResetAllSettings =>
+                "Reset all preferences (toggles, sliders, hotkeys, strip layout) to defaults",
             _ => id.ToString()
         };
     }
@@ -83,6 +89,7 @@ public class SettingsButtonRowUI : MonoBehaviour
         {
             SettingsButtonActionId.ReturnAllWindowsToAnchorPoints => "Reset",
             SettingsButtonActionId.SwapGameScreen => "Swap",
+            SettingsButtonActionId.FactoryResetAllSettings => "Reset",
             _ => "Run"
         };
     }

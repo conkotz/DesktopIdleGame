@@ -15,8 +15,7 @@ MonoBehaviour:
   questId: greenlands_stone_axe_intro
   regionId: greenlands
   displayName: First stone for the forge
-  description: Gather a few stone chunks so the town smith can shape your first axe
-    for the Greenlands.
+  description: Gather a few stone chunks so the town smith can shape your first pickaxe.
   details: 
   listCategoryLabel: Gathering
   listStatusOverride: 
@@ -32,6 +31,7 @@ MonoBehaviour:
   repeatable: 0
   abandonable: 1
   obtainLocationId: blacksmith
+  obtainLocationDisplayName: Draven the Blacksmith
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
   prerequisiteRewardClaimedQuestIds: []

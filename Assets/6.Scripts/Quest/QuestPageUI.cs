@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 /// <summary>
@@ -31,20 +32,28 @@ public class QuestPageUI : MonoBehaviour
     [Header("Center — Quest list")]
     [SerializeField] private Transform questListParent;
     [SerializeField] private QuestListRowUI questRowPrefab;
-    [Tooltip("Alpha for rows whose rewards were claimed (non-repeatable COMPLETE).")]
+    [Tooltip(
+        "Row dimming alpha for permanently completed quests, prerequisite-blocked quests, " +
+        "and quests not yet picked up from their source (NPC / notice board)—matches their background wash.")]
     [Range(0.1f, 1f)]
     [SerializeField] private float completedRowAlpha = 0.45f;
+    [Tooltip("Small section labels above each group: Current / Available / Unavailable (blocked by prereqs) / Complete.")]
+    [SerializeField] private int questListGroupHeadingFontSize = 15;
+    [SerializeField] private Color questListGroupHeadingColor = new Color32(120, 110, 98, 255);
     [Header("Center — Quest list filters")]
     [SerializeField] private Button showUnavailableButton;
     [SerializeField] private TMP_Text showUnavailableButtonLabel;
     [SerializeField] private Button showCompletedButton;
     [SerializeField] private TMP_Text showCompletedButtonLabel;
-    [SerializeField] private bool showUnavailableQuests = true;
+    [FormerlySerializedAs("showUnavailableQuests")]
+    [Tooltip("When on, lists quests you have not yet picked up from a quest source (NPC, notice board, etc.). When off, only quests you already accepted—or one-time completions—appear.")]
+    [SerializeField] private bool showNotObtainedQuests = true;
     [SerializeField] private bool showCompletedQuests = true;
 
     [Header("Right — Details (optional; created at runtime if missing)")]
     [SerializeField] private Transform detailsContentRoot;
     [SerializeField] private TMP_Text detailNameText;
+    [SerializeField] private TMP_Text detailObtainLocationText;
     [SerializeField] private TMP_Text detailDescriptionText;
     [SerializeField] private TMP_Text detailsSectionLabelText;
     [SerializeField] private TMP_Text detailDetailsText;
@@ -66,6 +75,7 @@ public class QuestPageUI : MonoBehaviour
     private readonly List<GameObject> _regionRows = new();
     private readonly List<RegionDefinition> _regionRowRegions = new();
     private readonly List<QuestListRowUI> _questRows = new();
+    private readonly List<GameObject> _questListGroupHeadings = new();
     private readonly List<QuestDefinition> _scratchQuests = new();
 
     private RegionDefinition _selectedRegion;
@@ -294,6 +304,17 @@ public class QuestPageUI : MonoBehaviour
 
         WorldMapProgressManager progress = FindWorldProgress();
 
+        string activeNodeId = ResolveActiveMapNodeIdForRegionUi();
+        if (!string.IsNullOrEmpty(activeNodeId))
+        {
+            RegionDefinition here = worldMap.FindRegionContainingNode(activeNodeId.Trim());
+            if (here && ShouldShowRegionInPicker(here, progress) && IsRegionAvailable(here, progress))
+            {
+                _selectedRegion = here;
+                return;
+            }
+        }
+
         if (!string.IsNullOrEmpty(worldMap.startingRegionId))
         {
             RegionDefinition preferred = worldMap.FindRegionById(worldMap.startingRegionId);
@@ -361,7 +382,7 @@ public class QuestPageUI : MonoBehaviour
             RegionDefinition captured = region;
             if (b)
             {
-                b.interactable = unlocked;
+                b.interactable = true;
                 b.onClick.AddListener(() => OnRegionClicked(captured));
             }
 
@@ -437,7 +458,10 @@ public class QuestPageUI : MonoBehaviour
     {
         WorldMapProgressManager progress = FindWorldProgress();
         if (!IsRegionAvailable(region, progress))
+        {
+            LockedRegionClickFeedback.LogLockedRegionNotice(region);
             return;
+        }
 
         if (_selectedRegion == region)
             return;
@@ -478,7 +502,7 @@ public class QuestPageUI : MonoBehaviour
         _scratchQuests.RemoveAll(q => !q || !q.IsShownInQuestList(mapProgress));
         if (qProg != null)
             _scratchQuests.RemoveAll(q => !qProg.IsQuestVisibleInList(q));
-        ApplyQuestListFilters(_scratchQuests, qProg);
+        ApplyQuestListFilters(_scratchQuests, qProg, mapProgress);
         if (_scratchQuests.Count == 0)
         {
             _selectedQuest = null;
@@ -488,10 +512,18 @@ public class QuestPageUI : MonoBehaviour
 
         _scratchQuests.Sort((a, b) => CompareQuestRows(a, b, qProg));
 
+        int prevGroup = -1;
+
         for (int i = 0; i < _scratchQuests.Count; i++)
         {
             QuestDefinition q = _scratchQuests[i];
             if (!q) continue;
+
+            int group = (int)GetQuestJournalListGroup(q, qProg);
+            if (prevGroup != group)
+                CreateQuestListGroupHeading((QuestJournalListGroup)group);
+
+            prevGroup = group;
 
             QuestListRowUI row = Instantiate(questRowPrefab, questListParent);
             _questRows.Add(row);
@@ -499,15 +531,16 @@ public class QuestPageUI : MonoBehaviour
             int amt = qProg && q ? qProg.GetDisplayProgress(q) : 0;
             bool permanentlyDone = qProg && qProg.IsPermanentlyComplete(q);
             bool gated = qProg && qProg.IsQuestGatedByPrerequisites(q);
+            bool notPickedUp = qProg != null && IsQuestNotYetPickedUpAtSource(q, qProg);
             string status = BuildQuestListStatus(q, qProg, amt);
             bool tracked = QuestTrackerState.IsTracked(q.questId);
             bool canAbandon = qProg != null && qProg.CanAbandonQuest(q);
             row.Bind(
                 q,
-                q.listCategoryLabel,
+                BuildQuestListTypeSubtitle(q),
                 status,
                 _selectedQuest == q,
-                permanentlyDone || gated,
+                permanentlyDone || gated || notPickedUp,
                 completedRowAlpha,
                 OnQuestClicked,
                 tracked,
@@ -552,11 +585,10 @@ public class QuestPageUI : MonoBehaviour
         if (!a) return 1;
         if (!b) return -1;
 
-        // Incomplete / in-progress / locked rows first; permanently completed rows last.
-        bool ca = IsQuestCompleteForSort(a, qProg);
-        bool cb = IsQuestCompleteForSort(b, qProg);
-        if (ca != cb)
-            return ca ? 1 : -1;
+        int ga = (int)GetQuestJournalListGroup(a, qProg);
+        int gb = (int)GetQuestJournalListGroup(b, qProg);
+        if (ga != gb)
+            return ga.CompareTo(gb);
 
         int o = a.sortOrder.CompareTo(b.sortOrder);
         if (o != 0)
@@ -564,11 +596,84 @@ public class QuestPageUI : MonoBehaviour
         return string.Compare(a.displayName, b.displayName, StringComparison.Ordinal);
     }
 
-    private static bool IsQuestCompleteForSort(QuestDefinition q, QuestProgressManager qProg)
+    /// <summary>
+    /// Accepted (not one-time DONE) → Current; pick-up ready → Available; pick-up blocked by prereqs/skills → Unavailable; COMPLETE → last.
+    /// </summary>
+    private enum QuestJournalListGroup
     {
-        if (!q)
-            return false;
-        return qProg && qProg.IsPermanentlyComplete(q);
+        Active = 0,
+        Available = 1,
+        UnavailablePrereq = 2,
+        Completed = 3
+    }
+
+    private static QuestJournalListGroup GetQuestJournalListGroup(QuestDefinition q, QuestProgressManager qProg)
+    {
+        if (!q || qProg == null)
+            return QuestJournalListGroup.Available;
+        if (qProg.IsPermanentlyComplete(q))
+            return QuestJournalListGroup.Completed;
+        if (qProg.IsQuestAccepted(q))
+            return QuestJournalListGroup.Active;
+        if (!QuestProgressManager.RequiresQuestGiver(q))
+            return QuestJournalListGroup.Available;
+
+        if (qProg.IsQuestGatedByPrerequisites(q))
+            return QuestJournalListGroup.UnavailablePrereq;
+
+        return QuestJournalListGroup.Available;
+    }
+
+    private static string GetQuestJournalListHeadingText(QuestJournalListGroup group)
+    {
+        return group switch
+        {
+            QuestJournalListGroup.Active => "Current",
+            QuestJournalListGroup.Available => "Available",
+            QuestJournalListGroup.UnavailablePrereq => "Unavailable",
+            QuestJournalListGroup.Completed => "Complete",
+            _ => ""
+        };
+    }
+
+    private void CreateQuestListGroupHeading(QuestJournalListGroup group)
+    {
+        if (!questListParent)
+            return;
+
+        string label = GetQuestJournalListHeadingText(group);
+        if (string.IsNullOrEmpty(label))
+            return;
+
+        var go = new GameObject("QuestListGroupHeading", typeof(RectTransform), typeof(TextMeshProUGUI),
+            typeof(LayoutElement));
+        go.transform.SetParent(questListParent, false);
+        TMP_Text tmp = go.GetComponent<TextMeshProUGUI>();
+        if (TMP_Settings.defaultFontAsset)
+            tmp.font = TMP_Settings.defaultFontAsset;
+        tmp.fontSize = questListGroupHeadingFontSize;
+        tmp.fontStyle = FontStyles.Bold;
+        tmp.color = questListGroupHeadingColor;
+        tmp.text = label;
+        tmp.textWrappingMode = TextWrappingModes.Normal;
+        tmp.overflowMode = TextOverflowModes.Overflow;
+        tmp.alignment = TextAlignmentOptions.Left;
+        tmp.margin = new Vector4(2f, 2f, 2f, 0f);
+        tmp.raycastTarget = false;
+
+        float h = Mathf.Max(20f, questListGroupHeadingFontSize + 8f);
+        LayoutElement le = go.GetComponent<LayoutElement>();
+        le.minHeight = h;
+        le.preferredHeight = h;
+        le.flexibleHeight = 0f;
+
+        RectTransform rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0f, 1f);
+        rt.sizeDelta = new Vector2(0f, h);
+
+        _questListGroupHeadings.Add(go);
     }
 
     private static string BuildQuestListStatus(QuestDefinition q, QuestProgressManager mgr, int amt)
@@ -577,6 +682,8 @@ public class QuestPageUI : MonoBehaviour
             return "COMPLETE";
         if (mgr != null && mgr.IsQuestGatedByPrerequisites(q))
             return "Unavailable";
+        if (mgr != null && QuestProgressManager.RequiresQuestGiver(q) && !mgr.IsQuestAccepted(q))
+            return "Available";
         if (!string.IsNullOrEmpty(q.listStatusOverride))
             return q.listStatusOverride;
         if (q.IsComplete(amt) && mgr != null && !mgr.IsRequiredMapNodeSatisfied(q))
@@ -588,10 +695,51 @@ public class QuestPageUI : MonoBehaviour
         return "In Progress";
     }
 
-    private void ApplyQuestListFilters(List<QuestDefinition> quests, QuestProgressManager qProg)
+    /// <summary>Quest list right-hand subtitle: quest type/category only (Gathering, Combat, …).</summary>
+    private static string BuildQuestListTypeSubtitle(QuestDefinition q)
+    {
+        return !q || string.IsNullOrWhiteSpace(q.listCategoryLabel)
+            ? ""
+            : q.listCategoryLabel.Trim();
+    }
+
+    private static string FormatQuestObtainLocationLabel(QuestDefinition q)
+    {
+        if (!q || string.IsNullOrWhiteSpace(q.obtainLocationId))
+            return "";
+        if (!string.IsNullOrWhiteSpace(q.obtainLocationDisplayName))
+            return q.obtainLocationDisplayName.Trim();
+        return FormatItemIdAsFallbackName(q.obtainLocationId.Trim());
+    }
+
+    private static string FormatDetailObtainFromLine(QuestDefinition q)
+    {
+        if (!q || !QuestProgressManager.RequiresQuestGiver(q))
+            return "";
+        string loc = FormatQuestObtainLocationLabel(q);
+        return string.IsNullOrEmpty(loc) ? "" : $"Obtained from: {loc}";
+    }
+
+    /// <summary>
+    /// Has <see cref="QuestDefinition.obtainLocationId"/> but is not accepted (or one-time COMPLETE). Notice board / NPC pickups.
+    /// </summary>
+    private static bool IsQuestNotYetPickedUpAtSource(QuestDefinition q, QuestProgressManager qProg)
+    {
+        if (!q || qProg == null || !QuestProgressManager.RequiresQuestGiver(q))
+            return false;
+        if (qProg.IsPermanentlyComplete(q))
+            return false;
+        return !qProg.IsQuestAccepted(q);
+    }
+
+    private void ApplyQuestListFilters(List<QuestDefinition> quests, QuestProgressManager qProg, WorldMapProgressManager mapProgress)
     {
         if (quests == null || qProg == null)
             return;
+
+        ResolveWorldMap();
+        RegionDefinition journalRegion =
+            worldMap ? worldMap.FindRegionContainingNode(ResolveActiveMapNodeIdForRegionUi()?.Trim()) : null;
 
         quests.RemoveAll(q =>
         {
@@ -599,7 +747,18 @@ public class QuestPageUI : MonoBehaviour
                 return true;
             if (!qProg.IsQuestVisibleInList(q))
                 return true;
-            if (!showUnavailableQuests && qProg.IsQuestGatedByPrerequisites(q))
+            if (mapProgress != null && !q.IsShownInQuestList(mapProgress))
+                return true;
+            // Not-yet-acquired quest-giver offers only when viewing the region the player is currently in (active gameplay node).
+            if (journalRegion != null &&
+                _selectedRegion != null &&
+                _selectedRegion != journalRegion &&
+                QuestProgressManager.RequiresQuestGiver(q) &&
+                !qProg.IsQuestAccepted(q) &&
+                !qProg.IsPermanentlyComplete(q))
+                return true;
+            // Not-yet picked up at a quest-giver-ish source (obtainLocationId): hidden when filtering to "only what I obtained".
+            if (!showNotObtainedQuests && IsQuestNotYetPickedUpAtSource(q, qProg))
                 return true;
             if (!showCompletedQuests && qProg.IsPermanentlyComplete(q))
                 return true;
@@ -607,9 +766,9 @@ public class QuestPageUI : MonoBehaviour
         });
     }
 
-    public void ToggleShowUnavailableQuests()
+    public void ToggleShowNotObtainedQuests()
     {
-        showUnavailableQuests = !showUnavailableQuests;
+        showNotObtainedQuests = !showNotObtainedQuests;
         RefreshQuestFilterButtonLabels();
         RebuildQuestList();
         RefreshDetails();
@@ -628,8 +787,8 @@ public class QuestPageUI : MonoBehaviour
         ResolveQuestFilterButtonLabels();
         if (showUnavailableButton)
         {
-            showUnavailableButton.onClick.RemoveListener(ToggleShowUnavailableQuests);
-            showUnavailableButton.onClick.AddListener(ToggleShowUnavailableQuests);
+            showUnavailableButton.onClick.RemoveListener(ToggleShowNotObtainedQuests);
+            showUnavailableButton.onClick.AddListener(ToggleShowNotObtainedQuests);
         }
 
         if (showCompletedButton)
@@ -644,7 +803,7 @@ public class QuestPageUI : MonoBehaviour
     private void UnwireQuestFilterButtons()
     {
         if (showUnavailableButton)
-            showUnavailableButton.onClick.RemoveListener(ToggleShowUnavailableQuests);
+            showUnavailableButton.onClick.RemoveListener(ToggleShowNotObtainedQuests);
         if (showCompletedButton)
             showCompletedButton.onClick.RemoveListener(ToggleShowCompletedQuests);
     }
@@ -661,13 +820,23 @@ public class QuestPageUI : MonoBehaviour
     {
         ResolveQuestFilterButtonLabels();
         if (showUnavailableButtonLabel)
-            showUnavailableButtonLabel.text = showUnavailableQuests ? "Hide Unavailable" : "Show Unavailable";
+            showUnavailableButtonLabel.text =
+                showNotObtainedQuests ? "Hide Not obtained" : "Show Not obtained";
         if (showCompletedButtonLabel)
             showCompletedButtonLabel.text = showCompletedQuests ? "Hide Completed" : "Show Completed";
     }
 
     private void ClearQuestRows()
     {
+        for (int i = 0; i < _questListGroupHeadings.Count; i++)
+        {
+            GameObject heading = _questListGroupHeadings[i];
+            if (heading)
+                Destroy(heading);
+        }
+
+        _questListGroupHeadings.Clear();
+
         for (int i = 0; i < _questRows.Count; i++)
         {
             if (_questRows[i])
@@ -845,6 +1014,15 @@ public class QuestPageUI : MonoBehaviour
         if (detailNameText)
             detailNameText.text = q ? q.displayName : "—";
 
+        if (detailObtainLocationText)
+        {
+            string obtainLine = q != null ? FormatDetailObtainFromLine(q) : "";
+            bool showObtainLine = !string.IsNullOrEmpty(obtainLine);
+            detailObtainLocationText.gameObject.SetActive(showObtainLine);
+            if (showObtainLine)
+                detailObtainLocationText.text = obtainLine;
+        }
+
         if (detailDescriptionText)
             detailDescriptionText.text = q ? q.description : "";
 
@@ -868,7 +1046,11 @@ public class QuestPageUI : MonoBehaviour
             prerequisitesValueText.text = prerequisitesText;
         }
 
-        bool showProgress = q && q.objectiveKind != QuestObjectiveKind.None;
+        bool showProgress = q &&
+            q.objectiveKind != QuestObjectiveKind.None &&
+            (qProg == null ||
+             !QuestProgressManager.RequiresQuestGiver(q) ||
+             qProg.IsQuestAccepted(q));
         int amt = q && qProg ? qProg.GetDisplayProgress(q) : 0;
 
         if (progressSectionLabelText)
@@ -955,6 +1137,19 @@ public class QuestPageUI : MonoBehaviour
             SetQuestClaimButtonBackground(false);
             if (questClaimButtonLabel)
                 questClaimButtonLabel.text = "Unavailable";
+            questClaimButton.interactable = false;
+            return;
+        }
+
+        if (QuestProgressManager.RequiresQuestGiver(q) && qProg != null && !qProg.IsQuestAccepted(q))
+        {
+            SetQuestClaimButtonBackground(false);
+            if (questClaimButtonLabel)
+            {
+                string who = FormatQuestObtainLocationLabel(q);
+                questClaimButtonLabel.text = string.IsNullOrEmpty(who) ? "Talk to quest giver" : $"Talk to {who}";
+            }
+
             questClaimButton.interactable = false;
             return;
         }
@@ -1300,6 +1495,16 @@ public class QuestPageUI : MonoBehaviour
 
         if (!detailNameText)
             detailNameText = MakeText("QuestDetailName", 22, FontStyles.Bold);
+        if (!detailObtainLocationText)
+        {
+            detailObtainLocationText = MakeText("QuestDetailObtainLocation", 16);
+            detailObtainLocationText.fontStyle = FontStyles.Normal;
+            detailObtainLocationText.alpha = 0.88f;
+            if (detailNameText && detailNameText.transform.parent == detailsContentRoot)
+                detailObtainLocationText.rectTransform.SetSiblingIndex(detailNameText.transform.GetSiblingIndex() +
+                    1);
+        }
+
         if (!detailDescriptionText)
             detailDescriptionText = MakeText("QuestDetailBody", 18);
         if (!detailsSectionLabelText)

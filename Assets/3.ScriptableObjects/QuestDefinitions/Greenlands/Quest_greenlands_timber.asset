@@ -31,6 +31,7 @@ MonoBehaviour:
   repeatable: 0
   abandonable: 1
   obtainLocationId: noticeboard
+  obtainLocationDisplayName: The Notice Board
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
   prerequisiteRewardClaimedQuestIds: []

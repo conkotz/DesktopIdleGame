@@ -32,6 +32,7 @@ MonoBehaviour:
   repeatable: 0
   abandonable: 0
   obtainLocationId: npc_tutorial_1
+  obtainLocationDisplayName: Ivan
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
   prerequisiteRewardClaimedQuestIds: []
