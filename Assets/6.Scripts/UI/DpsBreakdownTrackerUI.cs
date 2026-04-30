@@ -97,8 +97,16 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
     private static bool ContainsTrackerTitle(Transform transform)
     {
+        if (!transform)
+            return false;
+
         TMP_Text text = transform.GetComponent<TMP_Text>();
-        return text && text.text.IndexOf("Full Damage Breakdown", System.StringComparison.OrdinalIgnoreCase) >= 0;
+        if (!text)
+            return false;
+
+        string body = text.text;
+        return !string.IsNullOrEmpty(body) &&
+               body.IndexOf("Full Damage Breakdown", System.StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static Transform ResolveTrackerRoot(Transform candidate)

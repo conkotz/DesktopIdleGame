@@ -1,38 +1,72 @@
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 /// <summary>
 /// Data for a single helper tip. Dismissal is tracked per-character in <see cref="SaveData.dismissedHelperIds"/> (cleared automatically on New Game).
 /// Create assets under <b>Assets → Create → Desktop Idle Game → Helper Popup Definition</b>:
-/// <b>Empty</b> for a blank SO (creates next to whichever folder you have selected — pick <c>Assets/3.ScriptableObjects/HelperDefinitions</c> first), or <b>Game Start</b> for a sample early-game / first-visit preset (edit map node id, copy, and <c>helperId</c> per area).
+/// <b>Empty</b> for a blank SO (creates next to whichever folder you have selected — pick <c>Assets/3.ScriptableObjects/HelperDefinitions</c> first), or <b>Game Start</b> for a sample early-game / first-visit preset (edit map node id, copy, and a <b>new</b> unique <c>helperId</c> per popup).
 /// </summary>
 [CreateAssetMenu(fileName = "HelperPopup", menuName = "Desktop Idle Game/Helper Popup Definition/Empty", order = 52)]
 public sealed class HelperPopupDefinition : ScriptableObject
 {
-    [Tooltip("Stable id for PlayerPrefs (e.g. game_start_tutorial).")]
+    [Tooltip("Unique stable id saved to dismissal list (same id on two definitions will collide). Use lowercase_snake_case, e.g. first_item_hint.")]
     public string helperId = "unnamed_helper";
 
-    [Tooltip("Shown above body; leave empty to hide the title row.")]
+    [Tooltip("Shown above body; leave empty to hide the title row. Use {playerName} for the character name from CharacterStats.")]
     public string title = "Help";
 
     [TextArea(4, 18)]
+    [Tooltip("Supports {playerName} — replaced at runtime with CharacterStats.UnitDisplayName (fallback: Adventurer).")]
     public string bodyText = "";
 
     public HelperActivationTrigger activationTrigger = HelperActivationTrigger.FirstVisitMapNode;
 
-    [Tooltip("When FirstVisitMapNode: only show when this map node loads (e.g. tutorial_1).")]
+    [Tooltip("When FirstVisitMapNode or Inventory Item Count Reached (non-empty): only run when active level nodeId matches.")]
     public string requiredMapNodeId = "";
+
+    [Tooltip("When InventoryItemCountReached: item id summed across bag slots.")]
+    public string inventoryTriggerItemId = "";
+
+    [Tooltip("When InventoryItemCountReached: fire once when inventory total reaches this threshold.")]
+    [Min(1)] public int inventoryTriggerItemCount = 3;
+
+    [Tooltip(
+        "When QuestGatherObjectiveReady: QuestDefinition.questId. GatherItem quests only — fires when the quest is accepted, " +
+        "reward is not claimed yet, and live gather count (inventory + storage, same as tracker) >= target count.")]
+    public string questGatherTriggerQuestId = "";
+
+    [Tooltip(
+        "When QuestRewardClaimed: QuestDefinition.questId. Fires once after the player completes the quest — i.e. reward is claimed (Complete clicked).")]
+    public string questRewardClaimedTriggerQuestId = "";
+
+    [Tooltip(
+        "When QuestAccepted: QuestDefinition.questId (e.g. tutorial_basic_combat). Fires once when the player accepts the quest.")]
+    public string questAcceptedTriggerQuestId = "";
+
+    [Tooltip("When SkillLevelReached: skill that must ding (fires from SkillsManager.OnLevelUp).")]
+    public SkillType skillLevelTriggerSkill = SkillType.Woodcutting;
+
+    [Tooltip(
+        "When SkillLevelReached: minimum new level from OnLevelUp (default 2 = first rise above starter level 1).")]
+    [Min(2)] public int skillLevelTriggerMinimumNewLevel = 2;
 
     [Tooltip("Lower runs first when several helpers could activate the same frame.")]
     public int priority = 0;
 
-    [Tooltip("How the player can dismiss this helper while it is showing.")]
-    public HelperDismissMode dismissModes = HelperDismissMode.CloseButton | HelperDismissMode.CharacterPageOpened;
+    [Tooltip("When off, hides the overlay X button (whitelist dismiss flow only — X closes when on).")]
+    public bool showCloseButton = true;
 
-    [Header("World allowed targets (while helper blocks input)")]
-    [Tooltip("Ids on HelperWhitelistInteractTarget on the NPC/merchant (same GameObject or parent of the click collider). Case-insensitive.")]
+    [Tooltip("Whitelist dismiss (+ overlay X via Show Close Button). Character-page auto-dismiss removed.")]
+    public HelperDismissMode dismissModes = HelperDismissMode.InteractWhitelistDismiss;
+
+    [Header("Allowed interact targets while helper modal (whitelist ids)")]
+    [Tooltip(
+        "Case-insensitive ids: (1) <see cref=\"HelperWhitelistInteractTarget\"/> — world clicks still route; "
+        + "(2) <see cref=\"HelperWhitelistUiInteractTarget\"/> — toolbar / UI clicks dismiss when matched. Raise UI canvas sorting on the Character button prefab via the whitelist UI component.")]
     public string[] whitelistedInteractionIds;
 
-    [Tooltip("If true, whitelisted worlds targets get a yellow pulsing glow silhouette above the dimmer plus optional world tint when glow is off (see HelperGameplayController).")]
+    [Tooltip(
+        "If true, whitelisted world sprites and UI Graphics get a yellow pulsing glow clone above the dimmer (world tint fallback when Glow Above Dimmer is off — UI uses overlay glow only).")]
     public bool highlightWhitelistTargetsDuringHelper = true;
 
     public bool MatchesWhitelistId(string markerId)
@@ -65,6 +99,38 @@ public sealed class HelperPopupDefinition : ScriptableObject
 
         return MatchesWhitelistId(marker.InteractionId);
     }
+
+    /// <summary>
+    /// Replaces <c>{playerName}</c> (case-insensitive) with <see cref="CharacterStats.UnitDisplayName"/> when <paramref name="stats"/> is assigned.
+    /// </summary>
+    public static string ApplyRuntimeSubstitutions(string text, CharacterStats stats)
+    {
+        if (text == null)
+            return string.Empty;
+
+        string name = ResolvePlayerDisplayName(stats);
+
+        try
+        {
+            return Regex.Replace(
+                text,
+                @"\{playerName\}",
+                _ => name,
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return text;
+        }
+    }
+
+    private static string ResolvePlayerDisplayName(CharacterStats stats)
+    {
+        if (stats != null && !string.IsNullOrWhiteSpace(stats.UnitDisplayName))
+            return stats.UnitDisplayName.Trim();
+
+        return "Adventurer";
+    }
 }
 
 public enum HelperActivationTrigger
@@ -74,20 +140,46 @@ public enum HelperActivationTrigger
 
     /// <summary>Show once the first time the player enters <see cref="HelperPopupDefinition.requiredMapNodeId"/>.</summary>
     FirstVisitMapNode = 1,
+
+    /// <summary>Show once when total item quantity in inventory goes from 0 to &gt;0 after save load on an empty bag (skipped if save already had items).</summary>
+    FirstBagGainFromZero = 2,
+
+    /// <summary>
+    /// Show once when bag total for <see cref="HelperPopupDefinition.inventoryTriggerItemId"/> reaches
+    /// <see cref="HelperPopupDefinition.inventoryTriggerItemCount"/> (use <see cref="HelperPopupDefinition.requiredMapNodeId"/> for map filter).
+    /// </summary>
+    InventoryItemCountReached = 3,
+
+    /// <summary>
+    /// GatherItem quest: once when accepted and <see cref="QuestProgressManager.GetDisplayProgress"/> meets
+    /// <see cref="QuestDefinition.targetCount"/> before rewards are claimed (matches on-screen tracker).
+    /// </summary>
+    QuestGatherObjectiveReady = 4,
+
+    /// <summary>Fires once when <see cref="SkillsManager.OnLevelUp"/> reports <see cref="HelperPopupDefinition.skillLevelTriggerSkill"/> reaching at least <see cref="HelperPopupDefinition.skillLevelTriggerMinimumNewLevel"/>.</summary>
+    SkillLevelReached = 5,
+
+    /// <summary>Fires once when <see cref="QuestProgressManager.IsRewardClaimed"/> becomes true for <see cref="HelperPopupDefinition.questRewardClaimedTriggerQuestId"/>.</summary>
+    QuestRewardClaimed = 6,
+
+    /// <summary>Fires once when <see cref="QuestProgressManager.IsQuestAccepted"/> becomes true for <see cref="HelperPopupDefinition.questAcceptedTriggerQuestId"/>.</summary>
+    QuestAccepted = 7,
 }
 
 [System.Flags]
 public enum HelperDismissMode
 {
     None = 0,
+
+    /// <summary>Reserved (strip from assets). Closing with X is always allowed regardless of bitmask.</summary>
     CloseButton = 1 << 0,
 
-    /// <summary>Dismiss when <see cref="MainMenuWindowUI"/> opens the Character page (inventory/equipment).</summary>
+    /// <summary>Obsolete in runtime; leftover bit from older helpers — stripped in Inspector.</summary>
     CharacterPageOpened = 1 << 1,
 
     /// <summary>
-    /// When the player uses a whitelist world target (<see cref="HelperWhitelistInteractTarget"/>),
-    /// dismiss after that interact is routed (<see cref="WorldInputRouter2D"/>). Requires whitelist ids populated.
+    /// Dismiss after a whitelist world interact routes (<see cref="WorldInputRouter2D"/>) or a matching toolbar
+    /// <see cref="HelperWhitelistUiInteractTarget"/> click (<see cref="HelperGameplayController.NotifyWhitelistUiInteract"/>).
     /// </summary>
     InteractWhitelistDismiss = 1 << 2,
 }

@@ -286,7 +286,11 @@ public class SaveSlotMenuUI : MonoBehaviour
         if (playerNameInputField)
         {
             playerNameInputField.characterLimit = Mathf.Clamp(playerNameMaxLength, 3, 8);
-            playerNameInputField.onValueChanged.AddListener(_ => RefreshNameStartButtonState());
+            playerNameInputField.onValueChanged.AddListener(_ =>
+            {
+                EnsureFirstLetterOfNameDraftIsCapital();
+                RefreshNameStartButtonState();
+            });
         }
 
         if (playerNameStartButton)
@@ -552,6 +556,34 @@ public class SaveSlotMenuUI : MonoBehaviour
             }
         }
 
-        return sb.ToString().Trim();
+        return CapitalizeFirstLetterOfName(sb.ToString().Trim());
+    }
+
+    private static string CapitalizeFirstLetterOfName(string s)
+    {
+        if (string.IsNullOrEmpty(s))
+            return s;
+
+        char c = s[0];
+        return char.IsLetter(c) && char.IsLower(c) ? $"{char.ToUpperInvariant(c)}{s.Substring(1)}" : s;
+    }
+
+    private void EnsureFirstLetterOfNameDraftIsCapital()
+    {
+        if (!playerNameInputField)
+            return;
+
+        string value = playerNameInputField.text;
+        if (string.IsNullOrEmpty(value))
+            return;
+
+        string next = CapitalizeFirstLetterOfName(value);
+        if (next == value)
+            return;
+
+        int caretBefore = Mathf.Clamp(playerNameInputField.caretPosition, 0, value.Length);
+        playerNameInputField.SetTextWithoutNotify(next);
+        playerNameInputField.caretPosition =
+            Mathf.Clamp(caretBefore + (next.Length - value.Length), 0, next.Length);
     }
 }

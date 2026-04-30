@@ -324,6 +324,45 @@ public class MainMenuWindowUI : MonoBehaviour
 
         if (IsOpen && currentPage == targetPage)
         {
+            if (characterPage != null &&
+                targetPage == characterPage &&
+                (HelperGameplayController.BlocksStripGameplay ||
+                 HelperGameplayController.IsCharacterWhitelistToolbarDismissOnThisFrame()))
+            {
+                // Helper modal open on Character tab, or same-frame whitelist dismiss paired with Toolbar ToggleCharacter —
+                // stay on Character instead of interpreting the tap as Close().
+                EnsureWindowInteractable();
+                return;
+            }
+
+            if (questPage != null &&
+                targetPage == questPage &&
+                (HelperGameplayController.BlocksStripGameplay ||
+                 HelperGameplayController.IsQuestWhitelistToolbarDismissOnThisFrame()))
+            {
+                // Same idea as Character: whitelist dismiss opens Quest Toolbar while already on Quest — keep tab open.
+                EnsureWindowInteractable();
+                return;
+            }
+
+            if (skillsAbilitiesPage != null &&
+                targetPage == skillsAbilitiesPage &&
+                (HelperGameplayController.BlocksStripGameplay ||
+                 HelperGameplayController.IsSkillsAbilityWhitelistToolbarDismissOnThisFrame()))
+            {
+                EnsureWindowInteractable();
+                return;
+            }
+
+            if (levelSelectPage != null &&
+                targetPage == levelSelectPage &&
+                (HelperGameplayController.BlocksStripGameplay ||
+                 HelperGameplayController.IsLevelSelectWhitelistToolbarDismissOnThisFrame()))
+            {
+                EnsureWindowInteractable();
+                return;
+            }
+
             Close();
             return;
         }
@@ -376,9 +415,6 @@ public class MainMenuWindowUI : MonoBehaviour
         currentPage = targetPage;
         RefreshHeaderTitle();
 
-        if (characterPage != null && targetPage == characterPage)
-            HelperGameplayController.NotifyCharacterMenuOpened();
-
         if (!_hideWindowWithCanvasGroup &&
             (!mainMenuWindow.activeSelf || !targetPage.activeSelf))
         {
@@ -387,9 +423,6 @@ public class MainMenuWindowUI : MonoBehaviour
             targetPage.SetActive(true);
             currentPage = targetPage;
             RefreshHeaderTitle();
-
-            if (characterPage != null && targetPage == characterPage)
-                HelperGameplayController.NotifyCharacterMenuOpened();
         }
     }
 

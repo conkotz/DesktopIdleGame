@@ -1,12 +1,17 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+/// <summary>
+/// Strip dialogue: Screen→local and hierarchy parent share the same <see cref="RectTransform"/> —
+/// preferably <c>UI_Frame</c> from <see cref="StripUIViewportFollower"/> (aligned to strip <see cref="Camera.rect"/>), else the strip canvas root.
+/// World anchors that sit slightly above the strip frustum clamp to the viewport top so pixels stay inside <see cref="Camera.pixelRect"/>.
+/// </summary>
+[DefaultExecutionOrder(120)]
 public class NPCDialogueBoxUI : MonoBehaviour
 {
     private static NPCDialogueBoxUI _activeBox;
@@ -23,20 +28,39 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
     private bool _spawnedAsOfferClone;
 
+    private Transform _interactionOwnerTransform;
+
+    private Transform _stripFollowAnchor;
+    private Vector3 _stripFollowWorldOffset;
+    private Vector2 _stripAnchoredSpreadOffset;
+    private Canvas _resolvedStripPresentationCanvas;
+    /// <summary><see cref="RectTransform"/> passed to Screen→local conversions (canvas root or UI_Frame).</summary>
+    private RectTransform _stripProjectionRectRt;
+
     /// <summary>True when this instance is the active dialogue and is nested under <paramref name="ancestor"/> (e.g. NPC hover scale should not move the box).</summary>
     public static bool ActiveDialogueIsDescendantOf(Transform ancestor)
     {
         if (!ancestor)
             return false;
 
-        if (_activeBox != null && _activeBox.gameObject.activeInHierarchy &&
-            _activeBox.transform.IsChildOf(ancestor))
+        static bool Matches(NPCDialogueBoxUI box, Transform anc)
+        {
+            if (box == null || !box.gameObject.activeInHierarchy)
+                return false;
+
+            if (box.transform.IsChildOf(anc))
+                return true;
+
+            Transform owner = box._interactionOwnerTransform;
+            return owner && (owner == anc || owner.IsChildOf(anc));
+        }
+
+        if (_activeBox != null && Matches(_activeBox, ancestor))
             return true;
 
         for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
         {
-            NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
-            if (b && b.gameObject.activeInHierarchy && b.transform.IsChildOf(ancestor))
+            if (Matches(ActiveMultiOfferBoxes[i], ancestor))
                 return true;
         }
 
@@ -55,12 +79,35 @@ public class NPCDialogueBoxUI : MonoBehaviour
     [SerializeField] private string questDialogueHeaderText = "Available Quest";
 
     [Header("Typewriter")]
-    [Tooltip("Delay between each word for dialogue body and quest description only.")]
-    [SerializeField] private float typewriterSecondsPerWord = 1f;
+    [Tooltip("How fast body / quest description reveals (visible characters per second). Uses full-paragraph layout while typing. Higher = snappier. 0 = one character per frame.")]
+    [SerializeField] private float typewriterCharactersPerSecond = 48f;
 
     [Header("Optional refs")]
     [SerializeField] private TMP_Text dialogueText;
     [SerializeField] private Button acceptButton;
+
+    public enum StripPresentationParentChoice
+    {
+        /// <summary><see cref="EnemyOverheadUISpawner"/> spawns overhead UI here — parity default.</summary>
+        StripCanvasRoot = 0,
+        ViewportAlignedFrame = 1
+    }
+
+    [Header("Strip UI (parity with overhead HP bars)")]
+    [Tooltip(
+        "StripCanvasRoot: parent + project using the strip canvas root only (legacy / compare to UnitOverheadUI).\n" +
+        "ViewportAlignedFrame (recommended): use StripUIViewportFollower target (UI_Frame) when present so layout matches the strip Camera.rect band.")]
+    [SerializeField] private StripPresentationParentChoice stripPresentationParent =
+        StripPresentationParentChoice.ViewportAlignedFrame;
+
+    [Tooltip(
+        "If off, uses Camera.ViewportToScreenPoint with viewport XY clamped to [0,1] (recommended for letterboxed strip cameras). " +
+        "If on, clamped viewport × Camera.pixelRect.")]
+    [SerializeField] private bool deriveScreenViaViewportTimesPixelRect = false;
+
+    [Header("Debug (dialogue anchoredPosition)")]
+    [SerializeField] private bool logStripPresentationDiagnostics;
+    [SerializeField, Min(1)] private int diagnosticsLogThrottleFrames = 45;
 
     private Action _onAccept;
     private RectTransform _rectTransform;
@@ -96,7 +143,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
             if (a.Co != null)
                 StopCoroutine(a.Co);
             if (a.Tmp)
+            {
+                DialogueTextTypewriter.RestoreFullReveal(a.Tmp);
                 a.Tmp.text = a.FullPlain;
+            }
             a.OnComplete?.Invoke();
         }
 
@@ -124,6 +174,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         plainFull ??= "";
         if (plainFull.Length == 0)
         {
+            DialogueTextTypewriter.RestoreFullReveal(tmp);
             tmp.text = "";
             onComplete?.Invoke();
             return;
@@ -131,11 +182,13 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         if (!gameObject.activeInHierarchy)
         {
+            DialogueTextTypewriter.RestoreFullReveal(tmp);
             tmp.text = plainFull;
             onComplete?.Invoke();
             return;
         }
 
+        DialogueTextTypewriter.RestoreFullReveal(tmp);
         tmp.text = "";
         var entry = new ActiveTypewriter { Tmp = tmp, FullPlain = plainFull, OnComplete = onComplete };
         entry.Co = StartCoroutine(RunTypewriter(entry));
@@ -144,63 +197,299 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
     private IEnumerator RunTypewriter(ActiveTypewriter entry)
     {
-        List<(string word, string trailingWs)> tokens = TokenizeWordsWithWhitespace(entry.FullPlain);
-        var sb = new StringBuilder();
-
-        for (int i = 0; i < tokens.Count; i++)
-        {
-            sb.Append(tokens[i].word);
-            sb.Append(tokens[i].trailingWs);
-            entry.Tmp.text = sb.ToString();
-            if (i < tokens.Count - 1)
-                yield return new WaitForSeconds(typewriterSecondsPerWord);
-        }
+        yield return DialogueTextTypewriter.RevealFlowingCharacters(entry.Tmp, entry.FullPlain, typewriterCharactersPerSecond);
 
         Action done = entry.OnComplete;
         _activeTypewriters.Remove(entry);
         done?.Invoke();
     }
 
-    private static List<(string word, string trailingWs)> TokenizeWordsWithWhitespace(string s)
+    private void ApplyCommonShowTransforms(Transform interactionOwner, Transform anchor, Vector3 worldOffsetFromAnchor)
     {
-        var list = new List<(string, string)>();
-        if (string.IsNullOrEmpty(s))
-            return list;
-
-        int i = 0;
-        int len = s.Length;
-        while (i < len)
-        {
-            while (i < len && char.IsWhiteSpace(s[i]))
-                i++;
-            if (i >= len)
-                break;
-
-            int w0 = i;
-            while (i < len && !char.IsWhiteSpace(s[i]))
-                i++;
-            string word = s.Substring(w0, i - w0);
-
-            int ws0 = i;
-            while (i < len && char.IsWhiteSpace(s[i]))
-                i++;
-            string ws = s.Substring(ws0, i - ws0);
-            list.Add((word, ws));
-        }
-
-        return list;
-    }
-
-    private void ApplyCommonShowTransforms(Transform parent, Transform anchor, Vector3 localOffset)
-    {
-        if (!parent)
+        if (!interactionOwner)
             return;
 
-        transform.SetParent(parent, false);
-        Vector3 anchorWorld = anchor ? anchor.position : parent.position;
-        transform.position = anchorWorld + localOffset;
+        _interactionOwnerTransform = interactionOwner;
+
+        Canvas strip = ResolveStripOverlayCanvas();
+        if (!strip)
+        {
+            transform.SetParent(interactionOwner, false);
+            Vector3 anchorWorld = anchor ? anchor.position : interactionOwner.position;
+            transform.position = anchorWorld + worldOffsetFromAnchor;
+            transform.localRotation = Quaternion.identity;
+            transform.localScale = Vector3.one * worldScale;
+            _stripFollowAnchor = null;
+            _resolvedStripPresentationCanvas = null;
+            _stripProjectionRectRt = null;
+            return;
+        }
+
+        _resolvedStripPresentationCanvas = strip;
+        RectTransform canvasRt = strip.transform as RectTransform;
+        _stripFollowAnchor = anchor ? anchor : interactionOwner;
+        _stripFollowWorldOffset = worldOffsetFromAnchor;
+
+        RectTransform frame = TryResolveViewportAlignedFrame(strip);
+        _stripProjectionRectRt = stripPresentationParent == StripPresentationParentChoice.ViewportAlignedFrame && frame
+            ? frame
+            : canvasRt;
+
+        transform.SetParent(_stripProjectionRectRt, false);
         transform.localRotation = Quaternion.identity;
-        transform.localScale = Vector3.one * worldScale;
+        ApplyStripPresentationLocalScale();
+
+        _rectTransform.anchorMin = _rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        _rectTransform.pivot = new Vector2(0.5f, 0.5f);
+
+        UpdateStripPresentationTransform();
+        transform.SetAsLastSibling();
+    }
+
+    private void LateUpdate()
+    {
+        if (!isActiveAndEnabled || !gameObject.activeInHierarchy || _stripFollowAnchor == null ||
+            _stripProjectionRectRt == null)
+            return;
+
+        ApplyStripPresentationLocalScale();
+
+        UpdateStripPresentationTransform();
+        transform.SetAsLastSibling();
+    }
+
+    private void UpdateStripPresentationTransform()
+    {
+        if (_stripFollowAnchor == null || _stripProjectionRectRt == null || _rectTransform == null)
+            return;
+
+        Vector3 worldPt = _stripFollowAnchor.position + _stripFollowWorldOffset;
+        Camera cam = ResolveWorldToScreenCamera();
+        if (!cam)
+            return;
+
+        Vector3 vpRaw = cam.WorldToViewportPoint(worldPt);
+        if (cam.orthographic ? vpRaw.z < 0f : vpRaw.z <= 0f)
+            return;
+
+        // Keep screen pixels inside Camera.pixelRect — exclamation / collider top can sit above ortho frustum (vp.y > 1).
+        Vector3 vpClamp = new Vector3(Mathf.Clamp01(vpRaw.x), Mathf.Clamp01(vpRaw.y), vpRaw.z);
+
+        bool usedVpTimesPr = deriveScreenViaViewportTimesPixelRect;
+        Vector2 screenPx;
+        if (usedVpTimesPr)
+        {
+            if (!TryClampedViewportTimesPixelRect(cam, vpClamp, out screenPx))
+                return;
+        }
+        else
+        {
+            Vector3 ss = cam.ViewportToScreenPoint(vpClamp);
+            screenPx = new Vector2(ss.x, ss.y);
+        }
+
+        Canvas canvas = _resolvedStripPresentationCanvas;
+        Camera screenToLocalCam =
+            canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? cam : null;
+
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            _stripProjectionRectRt,
+            screenPx,
+            screenToLocalCam,
+            out Vector2 local);
+
+        _rectTransform.anchoredPosition = local + _stripAnchoredSpreadOffset;
+
+        if (logStripPresentationDiagnostics && diagnosticsLogThrottleFrames > 0 &&
+            Time.frameCount % diagnosticsLogThrottleFrames == 0)
+            LogStripPresentationDiagnostics(cam, worldPt, vpRaw, vpClamp, screenPx, usedVpTimesPr, screenToLocalCam, local);
+    }
+
+    /// <summary>
+    /// Same idea as <see cref="UnitOverheadUI.ApplyCombinedRootScale"/> / <see cref="OffscreenMarkersController.ApplyMarkersIndependentOfHudResize"/>:
+    /// <see cref="RuntimeCanvasScaleController"/> boosts the strip canvas via <see cref="SliderSettingId.HudResize"/>; dividing keeps this box’s authored <see cref="worldScale"/>
+    /// visually stable and aligned with overhead screen→local math.
+    /// </summary>
+    private void ApplyStripPresentationLocalScale()
+    {
+        float hud = Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.HudResize));
+        float overheadBar = Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.OverheadHpBarResize));
+        float s = Mathf.Max(0.01f, worldScale / 0.015f) * overheadBar / hud;
+        transform.localScale = Vector3.one * s;
+    }
+
+    /// <summary>Clamped viewport (0–1) → screen pixels inside <see cref="Camera.pixelRect"/>.</summary>
+    private static bool TryClampedViewportTimesPixelRect(Camera cam, Vector3 vpClamped, out Vector2 screenPx)
+    {
+        screenPx = default;
+        if (!cam)
+            return false;
+
+        Rect pr = cam.pixelRect;
+        if (pr.width > 1f && pr.height > 1f)
+        {
+            screenPx.x = pr.xMin + vpClamped.x * pr.width;
+            screenPx.y = pr.yMin + vpClamped.y * pr.height;
+            return true;
+        }
+
+        Vector3 ss = cam.ViewportToScreenPoint(vpClamped);
+        screenPx = new Vector2(ss.x, ss.y);
+        return true;
+    }
+
+    private void LogStripPresentationDiagnostics(
+        Camera cam,
+        Vector3 worldPt,
+        Vector3 viewportRaw,
+        Vector3 viewportClamped,
+        Vector2 screenPxUsed,
+        bool usedVpTimesPixelRectProjection,
+        Camera screenToLocalCamera,
+        Vector2 anchoredResult)
+    {
+        Vector3 wsFallback = cam.WorldToScreenPoint(worldPt);
+        Vector2 screenVpPr = Vector2.zero;
+        bool vpPrOk = TryClampedViewportTimesPixelRect(cam, viewportClamped, out screenVpPr);
+
+        Canvas canvasDiag = _resolvedStripPresentationCanvas;
+        string canvasMode =
+            canvasDiag == null ? "none" :
+            canvasDiag.renderMode == RenderMode.ScreenSpaceOverlay ? "Overlay" : canvasDiag.renderMode.ToString();
+
+        string projRtName =
+            _stripProjectionRectRt ? _stripProjectionRectRt.name : "?";
+        string hierarchyParentName = transform.parent ? transform.parent.name : "?";
+        Vector3 ls = _stripProjectionRectRt ? _stripProjectionRectRt.lossyScale : default;
+        StripCameraController stripCtl =
+            FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Exclude);
+        float pct = stripCtl != null && stripCtl.DefaultOrthoBaseline > 0.01f
+            ? Mathf.Round(stripCtl.GetComponent<Camera>().orthographicSize / stripCtl.DefaultOrthoBaseline * 1000f)
+            / 10f : -1f;
+
+        float hud = Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.HudResize));
+        float ohBar = Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.OverheadHpBarResize));
+
+        Debug.Log(
+            $"[NPCDialogueBoxUI] choice={stripPresentationParent} projRt='{projRtName}' hierarchyParent='{hierarchyParentName}' projRt.lossyScale=({ls.x:F5},{ls.y:F5},{ls.z:F5}) " +
+            $"hudResize×={hud:F3} overheadBar×={ohBar:F3} boxScale={transform.localScale.x:F4} " +
+            $"cam='{cam.name}' tag={cam.tag} rect={cam.rect} pixelRect={cam.pixelRect} orthoSize={cam.orthographicSize:F3} " +
+            $"zoomVsPrefab~{pct:F1}% canvas={canvasMode} " +
+            $"worldPt={worldPt} vpRaw={viewportRaw} vpClamp={viewportClamped} screenUsed=({screenPxUsed.x:F1},{screenPxUsed.y:F1}) via={(usedVpTimesPixelRectProjection ? "clamp×pixelRect" : "Viewport→Screen clamped")} " +
+            $"WorldToScreenAlt=({wsFallback.x:F1},{wsFallback.y:F1}) vpPrAltOk={vpPrOk} vpPrAlt=({screenVpPr.x:F1},{screenVpPr.y:F1}) " +
+            $"ScreenToLocalCam={(screenToLocalCamera ? screenToLocalCamera.name : "null")} anchored=({anchoredResult.x:F1},{anchoredResult.y:F1}) " +
+            $"anchor='{(_stripFollowAnchor ? _stripFollowAnchor.name : "?")}'",
+            this);
+    }
+
+
+    private Camera ResolveWorldToScreenCamera()
+    {
+        // Mirror EnemyOverheadUISpawner.ResolveStripContext so World→screen shares the overhead pixel basis.
+        Canvas c = _resolvedStripPresentationCanvas;
+        if (!c && _stripProjectionRectRt != null)
+            _resolvedStripPresentationCanvas = c = _stripProjectionRectRt.GetComponentInParent<Canvas>();
+
+        if (c != null)
+        {
+            if (c.renderMode == RenderMode.ScreenSpaceCamera && c.worldCamera != null &&
+                c.worldCamera.isActiveAndEnabled)
+                return c.worldCamera;
+
+            if (Camera.main != null && Camera.main.isActiveAndEnabled)
+                return Camera.main;
+
+            return FindFirstObjectByType<Camera>(FindObjectsInactive.Exclude);
+        }
+
+        return Camera.main != null && Camera.main.isActiveAndEnabled
+            ? Camera.main
+            : FindFirstObjectByType<Camera>(FindObjectsInactive.Exclude);
+    }
+
+    private static Canvas ResolveStripOverlayCanvas()
+    {
+        GameObject tagged = GameObject.FindGameObjectWithTag("UICanvas");
+        if (tagged)
+        {
+            Canvas c = tagged.GetComponent<Canvas>();
+            if (c)
+                return c;
+        }
+
+        Canvas[] canvases = Resources.FindObjectsOfTypeAll<Canvas>();
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Canvas canvas = canvases[i];
+            if (canvas == null || canvas.hideFlags != HideFlags.None || !canvas.gameObject.scene.IsValid())
+                continue;
+
+            if (canvas.CompareTag("UICanvas") || string.Equals(canvas.name, "StripUICanvas", StringComparison.Ordinal))
+                return canvas;
+        }
+
+        return null;
+    }
+
+    private static RectTransform TryResolveViewportAlignedFrame(Canvas strip)
+    {
+        if (!strip)
+            return null;
+
+        StripUIViewportFollower follower = strip.GetComponentInChildren<StripUIViewportFollower>(true);
+        RectTransform frame = follower != null ? follower.ViewportAlignedRect : null;
+        if (frame)
+            return frame;
+
+        Transform named = strip.transform.Find("UI_Frame");
+        return named ? named as RectTransform : null;
+    }
+
+    /// <summary>
+    /// Viewport deltas (<see cref="Camera.WorldToViewportPoint"/> on clamp corners) → anchored deltas in the strip projection rect,
+    /// same projection basis as <see cref="UnitOverheadUI"/> / <see cref="UpdateStripPresentationTransform"/>.
+    /// </summary>
+    private Vector2 ViewportDeltaToAnchoredDeltaInStripParent(
+        Camera cam,
+        float dxViewport,
+        float dyViewport)
+    {
+        Rect pr = cam.pixelRect;
+        Vector2 screenDelta = new Vector2(dxViewport * pr.width, dyViewport * pr.height);
+        Vector2 refScreen = new Vector2(pr.xMin + pr.width * 0.5f, pr.yMin + pr.height * 0.5f);
+
+        Camera eventCam =
+            _resolvedStripPresentationCanvas != null &&
+            _resolvedStripPresentationCanvas.renderMode != RenderMode.ScreenSpaceOverlay ? cam : null;
+
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            _stripProjectionRectRt, refScreen, eventCam, out Vector2 lf0);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            _stripProjectionRectRt, refScreen + screenDelta, eventCam, out Vector2 lf1);
+
+        return lf1 - lf0;
+    }
+
+    private static Vector2 ViewportDeltaToAnchoredDeltaInStripParentStatic(
+        RectTransform stripParentRt,
+        Canvas stripCanvas,
+        Camera cam,
+        float dxViewport,
+        float dyViewport)
+    {
+        Rect pr = cam.pixelRect;
+        Vector2 screenDelta = new Vector2(dxViewport * pr.width, dyViewport * pr.height);
+        Vector2 refScreen = new Vector2(pr.xMin + pr.width * 0.5f, pr.yMin + pr.height * 0.5f);
+
+        Camera eventCam =
+            stripCanvas && stripCanvas.renderMode != RenderMode.ScreenSpaceOverlay ? cam : null;
+
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            stripParentRt, refScreen, eventCam, out Vector2 lf0);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            stripParentRt, refScreen + screenDelta, eventCam, out Vector2 lf1);
+
+        return lf1 - lf0;
     }
 
     public void Show(Transform owner, Vector3 localOffset, string message, bool showAccept, Action onAccept, float autoCloseSeconds = 0f)
@@ -220,14 +509,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
             _activeBox.Hide();
         _activeBox = this;
 
+        _stripAnchoredSpreadOffset = Vector2.zero;
+
         if (parent)
-        {
-            transform.SetParent(parent, false);
-            Vector3 anchorWorld = anchor ? anchor.position : parent.position;
-            transform.position = anchorWorld + localOffset;
-            transform.localRotation = Quaternion.identity;
-            transform.localScale = Vector3.one * worldScale;
-        }
+            ApplyCommonShowTransforms(parent, anchor, localOffset);
 
         if (_rectTransform)
             _rectTransform.sizeDelta = fixedSize;
@@ -245,6 +530,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
             acceptButton.onClick.AddListener(HandleAcceptClicked);
         }
 
+        UpdateStripPresentationTransform();
         ClampInsideScreen();
         StartAutoClose(autoCloseSeconds);
     }
@@ -276,6 +562,13 @@ public class NPCDialogueBoxUI : MonoBehaviour
         CompleteAllTypewriters();
         CleanupMultiOfferUi();
         SetOfferModeMulti(false);
+
+        _stripFollowAnchor = null;
+        _resolvedStripPresentationCanvas = null;
+        _stripProjectionRectRt = null;
+        _stripAnchoredSpreadOffset = Vector2.zero;
+
+        _interactionOwnerTransform = null;
 
         gameObject.SetActive(false);
     }
@@ -313,9 +606,11 @@ public class NPCDialogueBoxUI : MonoBehaviour
         bool showAccept,
         Action onAccept,
         float autoCloseSeconds,
-        bool partOfMultiSpread = false)
+        bool partOfMultiSpread = false,
+        Vector2 stripAnchoredSpreadOffset = default)
     {
         EnsureBuilt();
+        _stripAnchoredSpreadOffset = stripAnchoredSpreadOffset;
         if (!partOfMultiSpread)
         {
             CloseAllMultiOfferBoxesTogether();
@@ -349,6 +644,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
             acceptButton.onClick.AddListener(HandleAcceptClicked);
         }
 
+        UpdateStripPresentationTransform();
         if (!partOfMultiSpread)
             ClampInsideScreen();
         StartAutoClose(autoCloseSeconds);
@@ -484,7 +780,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         if (gameObject.activeSelf)
             HideSolo();
 
-        float stepWorld = (fixedSize.x + questOfferCardSpacing) * worldScale;
+        float spreadStepPx = fixedSize.x + questOfferCardSpacing;
 
         for (int i = 0; i < quests.Count; i++)
         {
@@ -499,12 +795,13 @@ public class NPCDialogueBoxUI : MonoBehaviour
             inst.ShowQuestOfferSingle(
                 parent,
                 anchor,
-                baseOffset + new Vector3(stepWorld * i, 0f, 0f),
+                baseOffset,
                 captured,
                 showAccept: true,
                 () => HandleSpreadQuestAccepted(captured),
                 autoCloseSeconds,
-                partOfMultiSpread: true);
+                partOfMultiSpread: true,
+                stripAnchoredSpreadOffset: new Vector2(spreadStepPx * i, 0f));
         }
 
         Canvas.ForceUpdateCanvases();
@@ -578,8 +875,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         Canvas.ForceUpdateCanvases();
 
-        Canvas canvas = GetComponent<Canvas>();
-        Camera cam = canvas && canvas.worldCamera ? canvas.worldCamera : Camera.main;
+        Camera cam = ResolveWorldToScreenCamera();
         if (!cam)
             return;
 
@@ -620,6 +916,13 @@ public class NPCDialogueBoxUI : MonoBehaviour
         if (Mathf.Approximately(dx, 0f) && Mathf.Approximately(dy, 0f))
             return;
 
+        if (_stripProjectionRectRt != null)
+        {
+            _rectTransform.anchoredPosition +=
+                ViewportDeltaToAnchoredDeltaInStripParent(cam, dx, dy);
+            return;
+        }
+
         float depth = cam.WorldToViewportPoint(transform.position).z;
         Vector3 worldOrigin = cam.ViewportToWorldPoint(new Vector3(0f, 0f, depth));
         Vector3 worldDelta = cam.ViewportToWorldPoint(new Vector3(dx, dy, depth)) - worldOrigin;
@@ -636,20 +939,30 @@ public class NPCDialogueBoxUI : MonoBehaviour
         for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
         {
             NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
-            if (!box)
+            if (!box || !box.isActiveAndEnabled)
                 continue;
-            Canvas c = box.GetComponent<Canvas>();
-            if (c && c.worldCamera)
-            {
-                cam = c.worldCamera;
-                break;
-            }
+
+            cam = box.ResolveWorldToScreenCamera();
+            break;
         }
 
         if (!cam)
             cam = Camera.main;
         if (!cam)
             return;
+
+        RectTransform stripParent = null;
+        Canvas stripCanvas = null;
+        for (int si = 0; si < ActiveMultiOfferBoxes.Count; si++)
+        {
+            NPCDialogueBoxUI b = ActiveMultiOfferBoxes[si];
+            if (b != null && b._stripProjectionRectRt != null)
+            {
+                stripParent = b._stripProjectionRectRt;
+                stripCanvas = b._resolvedStripPresentationCanvas;
+                break;
+            }
+        }
 
         float pad = Mathf.Clamp01(viewportPadding);
         Vector3[] corners = new Vector3[4];
@@ -695,6 +1008,19 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
             if (Mathf.Approximately(dx, 0f) && Mathf.Approximately(dy, 0f))
                 break;
+
+            if (stripParent != null)
+            {
+                Vector2 nudge =
+                    ViewportDeltaToAnchoredDeltaInStripParentStatic(
+                        stripParent, stripCanvas, cam, dx, dy);
+                for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+                {
+                    if (ActiveMultiOfferBoxes[i] && ActiveMultiOfferBoxes[i]._rectTransform)
+                        ActiveMultiOfferBoxes[i]._rectTransform.anchoredPosition += nudge;
+                }
+                continue;
+            }
 
             float refDepth = cam.WorldToViewportPoint(ActiveMultiOfferBoxes[0].transform.position).z;
             Vector3 worldOrigin = cam.ViewportToWorldPoint(new Vector3(0f, 0f, refDepth));
@@ -788,6 +1114,17 @@ public class NPCDialogueBoxUI : MonoBehaviour
         _questOfferHeaderText.rectTransform.SetSiblingIndex(0);
     }
 
+    private void StripPresentation_RemoveNestedCanvas()
+    {
+        Canvas c = GetComponent<Canvas>();
+        if (c != null)
+            Destroy(c);
+
+        GraphicRaycaster gr = GetComponent<GraphicRaycaster>();
+        if (gr != null)
+            Destroy(gr);
+    }
+
     private void EnsureBuilt()
     {
         if (_rectTransform == null)
@@ -800,21 +1137,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
         BindSingleModeRefsFromHierarchy();
         EnsureQuestOfferHeaderInsertedIfMissing();
 
+        StripPresentation_RemoveNestedCanvas();
+
         if (dialogueText != null && acceptButton != null)
             return;
-
-        Canvas canvas = GetComponent<Canvas>();
-        if (!canvas)
-            canvas = gameObject.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.WorldSpace;
-        if (!canvas.worldCamera)
-            canvas.worldCamera = Camera.main;
-        canvas.overrideSorting = true;
-        canvas.sortingLayerName = "UI";
-        canvas.sortingOrder = 1000;
-
-        if (!GetComponent<GraphicRaycaster>())
-            gameObject.AddComponent<GraphicRaycaster>();
 
         Image bg = GetComponent<Image>();
         if (!bg)

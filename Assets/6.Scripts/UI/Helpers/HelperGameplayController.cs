@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -17,6 +16,31 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     /// <summary>True while a helper popup is modal over the strip — blocks clicks, zoom hotkeys, and action bar polling.</summary>
     public static bool BlocksStripGameplay => Instance != null && Instance._blockActive;
+
+    /// <summary>
+    /// <see cref="Time.frameCount"/> when the Character-toolbar whitelist UI path dismissed the helper —
+    /// paired Toolbar <c>ToggleCharacter</c> must not <see cref="MainMenuWindowUI.Close"/> if already on Character.
+    /// </summary>
+    private static int s_characterToolbarWhitelistUiDismissStampFrame = -1;
+
+    /// <seealso cref="MainMenuWindowUI"/>
+    internal static bool IsCharacterWhitelistToolbarDismissOnThisFrame() =>
+        s_characterToolbarWhitelistUiDismissStampFrame == Time.frameCount;
+
+    private static int s_questToolbarWhitelistUiDismissStampFrame = -1;
+
+    internal static bool IsQuestWhitelistToolbarDismissOnThisFrame() =>
+        s_questToolbarWhitelistUiDismissStampFrame == Time.frameCount;
+
+    private static int s_skillsAbilityToolbarWhitelistUiDismissStampFrame = -1;
+
+    internal static bool IsSkillsAbilityWhitelistToolbarDismissOnThisFrame() =>
+        s_skillsAbilityToolbarWhitelistUiDismissStampFrame == Time.frameCount;
+
+    private static int s_levelSelectToolbarWhitelistUiDismissStampFrame = -1;
+
+    internal static bool IsLevelSelectWhitelistToolbarDismissOnThisFrame() =>
+        s_levelSelectToolbarWhitelistUiDismissStampFrame == Time.frameCount;
 
     [Header("Data")]
     [Tooltip("Assign helper assets here. First-visit triggers only run when Required Map Node Id matches the active level's MapNodeDefinition.nodeId (e.g. tutorial_1).")]
@@ -68,13 +92,26 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     [SerializeField] private float whitelistTintLerpSpeed = 14f;
 
+    [Header("Whitelist UI glow (toolbar / buttons)")]
+    [Tooltip("Soft outer pad (each side) behind the icon clone so UI targets read like the NPC pulse, not a flat panel fill.")]
+    [SerializeField] private float whitelistUiGlowHaloPadding = 12f;
+
+    [SerializeField] [Range(1f, 1.25f)] private float whitelistUiGlowHaloUniformScale = 1.06f;
+
+    [SerializeField] [Range(0.1f, 1f)] private float whitelistUiGlowHaloAlphaScale = 0.55f;
+
     [SerializeField] private Vector2 panelSize = new(560f, 280f);
 
     [SerializeField] private Vector2 panelAnchoredPosition = new(40f, -88f);
 
+    [Tooltip(
+        "How far above the helper front panel Canvas sort order to place nested canvases built on whitelist UI markers (toolbar buttons). Larger = safer over other overlays.")]
+    [SerializeField] private int whitelistUiCanvasSortBeyondPanel = 125;
+
     [Header("Body typewriter")]
-    [Tooltip("Delay between each revealed word on the helper body (same pacing model as NPCDialogueBoxUI). Title shows immediately.")]
-    [SerializeField] private float typewriterSecondsPerWord = 1f;
+    [Tooltip(
+        "How fast the helper body reveals (TMP visible characters per second; full paragraph layout while typing — same idea as NPCDialogueBoxUI). Higher = faster. 0 = one character per frame.")]
+    [SerializeField] private float typewriterCharactersPerSecond = 48f;
 
     private Coroutine _bodyTypewriterCo;
     private string _bodyTypewriterFullPlain;
@@ -82,6 +119,28 @@ public sealed class HelperGameplayController : MonoBehaviour
     private bool _blockActive;
     private HelperPopupDefinition _activeDefinition;
     private PlayerController _player;
+
+    private Inventory _inventoryForHelpers;
+
+    private QuestProgressManager _questProgressForHelpers;
+
+    private SkillsManager _skillsManagerForHelpers;
+
+    /// <summary>Snapshot before each <see cref="Inventory.OnInventoryChanged"/> callback for trigger math.</summary>
+    private int _lastSeenInventoryTotalUnitsBeforeChange;
+
+    private readonly List<SavedWhitelistUiElevation> _whitelistUiElevations = new(4);
+
+    private readonly Vector3[] _uiWorldCornersScratch = new Vector3[4];
+
+    private struct SavedWhitelistUiElevation
+    {
+        public Canvas CanvasComp;
+        public bool CanvasCreatedDuringHelperOverlay;
+        public bool GraphicRaycasterCreatedDuringHelperOverlay;
+        public bool BackupHadOverrideSorting;
+        public int BackupSortOrder;
+    }
 
     private GameObject _overlayRoot;
     private RectTransform _overlayRect;
@@ -91,6 +150,9 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private Canvas _panelFrontCanvas;
 
+    /// <summary>Runtime-only close control (optional per-definition).</summary>
+    private GameObject _helperCloseButtonRoot;
+
     /// <summary>Glow overlays above dimmer.</summary>
     private RectTransform _whitelistGlowHolder;
 
@@ -98,8 +160,12 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private struct WhitelistGlowLink
     {
-        public SpriteRenderer Source;
+        public SpriteRenderer SourceSprite;
+        public Graphic SourceGraphic;
+        /// <summary>Foreground silhouette (matches NPC glow Image clone).</summary>
         public Image GlowImg;
+        /// <summary>Optional soft rim drawn under <see cref="GlowImg"/> for UI sources only.</summary>
+        public Image GlowHaloImg;
     }
 
     private struct WhitelistTintState
@@ -117,6 +183,17 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
 
         Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss);
+    }
+
+    /// <summary>
+    /// Call from <see cref="HelperWhitelistUiInteractTarget"/> when the player activates a whitelist id (toolbar / UI).
+    /// </summary>
+    public static void NotifyWhitelistUiInteract(string interactionIdMarker)
+    {
+        if (Instance == null || string.IsNullOrWhiteSpace(interactionIdMarker))
+            return;
+
+        Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss, interactionIdMarker.Trim());
     }
 
     /// <summary>True while blocking and the active helper lists at least one whitelist world interaction id.</summary>
@@ -162,11 +239,22 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
         }
 
+        var seenIds = new HashSet<string>(System.StringComparer.Ordinal);
+
         for (int i = 0; i < definitions.Length; i++)
         {
             HelperPopupDefinition d = definitions[i];
             if (!d || string.IsNullOrWhiteSpace(d.helperId))
                 continue;
+
+            string idTrimmed = d.helperId.Trim();
+
+            if (!seenIds.Add(idTrimmed))
+            {
+                Debug.LogWarning(
+                    $"[HelperGameplayController] Duplicate helperId '{idTrimmed}' across definitions — dismissal will behave incorrectly.",
+                    d);
+            }
 
             if (d.activationTrigger == HelperActivationTrigger.FirstVisitMapNode &&
                 string.IsNullOrWhiteSpace(d.requiredMapNodeId))
@@ -184,6 +272,55 @@ public sealed class HelperGameplayController : MonoBehaviour
                     $"[HelperGameplayController] Helper '{d.helperId}' uses Interact Whitelist Dismiss but Whitelisted Interaction Ids is empty.",
                     d);
             }
+
+            if (d.activationTrigger == HelperActivationTrigger.InventoryItemCountReached)
+            {
+                if (string.IsNullOrWhiteSpace(d.inventoryTriggerItemId))
+                {
+                    Debug.LogWarning(
+                        $"[HelperGameplayController] Helper '{d.helperId}' uses Inventory Item Count Reached but Inventory Trigger Item Id is empty.",
+                        d);
+                }
+
+                if (d.inventoryTriggerItemCount < 1)
+                {
+                    Debug.LogWarning(
+                        $"[HelperGameplayController] Helper '{d.helperId}' uses Inventory Item Count Reached but count is below 1 — set Inventory Trigger Item Count (e.g. 3).",
+                        d);
+                }
+            }
+
+            if (d.activationTrigger == HelperActivationTrigger.QuestGatherObjectiveReady &&
+                string.IsNullOrWhiteSpace(d.questGatherTriggerQuestId))
+            {
+                Debug.LogWarning(
+                    $"[HelperGameplayController] Helper '{d.helperId}' uses Quest Gather Objective Ready but Quest Gather Trigger Quest Id is empty.",
+                    d);
+            }
+
+            if (d.activationTrigger == HelperActivationTrigger.QuestRewardClaimed &&
+                string.IsNullOrWhiteSpace(d.questRewardClaimedTriggerQuestId))
+            {
+                Debug.LogWarning(
+                    $"[HelperGameplayController] Helper '{d.helperId}' uses Quest Reward Claimed but Quest Reward Claimed Trigger Quest Id is empty.",
+                    d);
+            }
+
+            if (d.activationTrigger == HelperActivationTrigger.QuestAccepted &&
+                string.IsNullOrWhiteSpace(d.questAcceptedTriggerQuestId))
+            {
+                Debug.LogWarning(
+                    $"[HelperGameplayController] Helper '{d.helperId}' uses Quest Accepted but Quest Accepted Trigger Quest Id is empty.",
+                    d);
+            }
+
+            if (d.activationTrigger == HelperActivationTrigger.SkillLevelReached &&
+                d.skillLevelTriggerMinimumNewLevel < 2)
+            {
+                Debug.LogWarning(
+                    $"[HelperGameplayController] Helper '{d.helperId}' uses Skill Level Reached with Minimum New Level below 2 — clamp in inspector.",
+                    d);
+            }
         }
     }
 #else
@@ -198,6 +335,10 @@ public sealed class HelperGameplayController : MonoBehaviour
             Instance = null;
         }
 
+        UnsubscribeInventoryHelpers();
+        UnsubscribeQuestProgressHelpers();
+        UnsubscribeSkillsHelpers();
+
         if (GameplayLevelBootstrapper.Instance != null)
             GameplayLevelBootstrapper.Instance.OnLevelStarted -= HandleLevelStarted;
     }
@@ -208,10 +349,16 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         _player ??= FindFirstObjectByType<PlayerController>(FindObjectsInactive.Exclude);
 
+        SubscribeInventoryHelpers();
+        SubscribeQuestProgressHelpers();
+        SubscribeSkillsHelpers();
+
         GameplayLevelBootstrapper boots = GameplayLevelBootstrapper.Instance;
         if (boots == null)
         {
-            Debug.LogWarning("[HelperGameplayController] No GameplayLevelBootstrapper — map-entry helpers will never run.", this);
+            Debug.LogWarning(
+                "[HelperGameplayController] No GameplayLevelBootstrapper — First Visit helpers will never run.",
+                this);
             yield break;
         }
 
@@ -229,12 +376,6 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         for (int i = 0; i < definitions.Length; i++)
             HelperProgressStore.RegisterDefinition(definitions[i]);
-    }
-
-    /// <remarks>Call from MainMenu when the Character (inventory/equipment) tab opens.</remarks>
-    public static void NotifyCharacterMenuOpened()
-    {
-        Instance?.TryDismiss(HelperDismissMode.CharacterPageOpened);
     }
 
     private void HandleLevelStarted(MapNodeDefinition node)
@@ -286,6 +427,564 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (candidates.Count > 0)
             ShowPopup(candidates[0]);
+
+        if (!_blockActive)
+        {
+            EvaluateInventoryItemCountReachedHelpers();
+            EvaluateQuestGatherProgressHelpers();
+            EvaluateQuestRewardClaimedHelpers();
+            EvaluateQuestAcceptedHelpers();
+        }
+    }
+
+    private void SubscribeInventoryHelpers()
+    {
+        UnsubscribeInventoryHelpers();
+
+        _player ??= FindFirstObjectByType<PlayerController>(FindObjectsInactive.Exclude);
+
+        Inventory inv = _player ? _player.GetComponent<Inventory>() : null;
+        _inventoryForHelpers = inv;
+        if (_inventoryForHelpers == null)
+            return;
+
+        _lastSeenInventoryTotalUnitsBeforeChange = CountTotalInventoryUnits(_inventoryForHelpers);
+
+        _inventoryForHelpers.OnInventoryChanged += HandleInventoryChangedForHelpers;
+    }
+
+    private void UnsubscribeInventoryHelpers()
+    {
+        if (_inventoryForHelpers == null)
+            return;
+
+        _inventoryForHelpers.OnInventoryChanged -= HandleInventoryChangedForHelpers;
+        _inventoryForHelpers = null;
+    }
+
+    private void HandleInventoryChangedForHelpers()
+    {
+        if (_inventoryForHelpers == null || definitions == null || definitions.Length == 0)
+            return;
+
+        if (!HelperProgressStore.IsHydratedFromSave)
+            return;
+
+        int total = CountTotalInventoryUnits(_inventoryForHelpers);
+        int prev = _lastSeenInventoryTotalUnitsBeforeChange;
+
+        bool becameNonEmptyFromEmpty = prev <= 0 && total > 0;
+        _lastSeenInventoryTotalUnitsBeforeChange = total;
+
+        if (_blockActive)
+            return;
+
+        if (becameNonEmptyFromEmpty)
+            EvaluateFirstBagGainFromZeroHelpers();
+
+        EvaluateInventoryItemCountReachedHelpers();
+        EvaluateQuestGatherProgressHelpers();
+        EvaluateQuestRewardClaimedHelpers();
+        EvaluateQuestAcceptedHelpers();
+    }
+
+    private void SubscribeQuestProgressHelpers()
+    {
+        UnsubscribeQuestProgressHelpers();
+
+        _questProgressForHelpers =
+            QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+
+        if (_questProgressForHelpers == null)
+            return;
+
+        _questProgressForHelpers.ProgressChanged += HandleQuestProgressForHelpers;
+    }
+
+    private void UnsubscribeQuestProgressHelpers()
+    {
+        if (_questProgressForHelpers == null)
+            return;
+
+        _questProgressForHelpers.ProgressChanged -= HandleQuestProgressForHelpers;
+        _questProgressForHelpers = null;
+    }
+
+    private void HandleQuestProgressForHelpers()
+    {
+        if (_blockActive)
+            return;
+
+        EvaluateQuestGatherProgressHelpers();
+        EvaluateQuestRewardClaimedHelpers();
+        EvaluateQuestAcceptedHelpers();
+    }
+
+    private void SubscribeSkillsHelpers()
+    {
+        UnsubscribeSkillsHelpers();
+
+        _skillsManagerForHelpers =
+            SkillsManager.Instance ??
+            FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
+
+        if (_skillsManagerForHelpers == null)
+            return;
+
+        _skillsManagerForHelpers.OnLevelUp += HandleSkillLevelUpForHelpers;
+    }
+
+    private void UnsubscribeSkillsHelpers()
+    {
+        if (_skillsManagerForHelpers == null)
+            return;
+
+        _skillsManagerForHelpers.OnLevelUp -= HandleSkillLevelUpForHelpers;
+        _skillsManagerForHelpers = null;
+    }
+
+    private void HandleSkillLevelUpForHelpers(SkillType skillType, int newLevel)
+    {
+        if (_blockActive)
+            return;
+
+        EvaluateSkillLevelReachedHelpers(skillType, newLevel);
+    }
+
+    private void EvaluateFirstBagGainFromZeroHelpers()
+    {
+        if (_blockActive || definitions == null || definitions.Length == 0)
+            return;
+
+        var candidates = new List<HelperPopupDefinition>();
+        for (int i = 0; i < definitions.Length; i++)
+        {
+            HelperPopupDefinition d = definitions[i];
+            if (!d || string.IsNullOrWhiteSpace(d.helperId))
+                continue;
+
+            switch (d.activationTrigger)
+            {
+                case HelperActivationTrigger.FirstBagGainFromZero
+                    when !HelperProgressStore.WasDismissed(d.helperId):
+
+                    candidates.Add(d);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        candidates.Sort(static (a, b) =>
+        {
+            int c = a.priority.CompareTo(b.priority);
+            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
+        });
+
+        if (candidates.Count > 0)
+            ShowPopup(candidates[0]);
+    }
+
+    private void EvaluateInventoryItemCountReachedHelpers()
+    {
+        if (_blockActive || definitions == null || definitions.Length == 0 || _inventoryForHelpers == null)
+            return;
+
+        if (!HelperProgressStore.IsHydratedFromSave)
+            return;
+
+        MapNodeDefinition activeMap = ResolveActiveMapForHelpers();
+
+        var candidates = new List<HelperPopupDefinition>();
+        for (int i = 0; i < definitions.Length; i++)
+        {
+            HelperPopupDefinition d = definitions[i];
+            if (!d ||
+                string.IsNullOrWhiteSpace(d.helperId) ||
+                d.activationTrigger != HelperActivationTrigger.InventoryItemCountReached ||
+                HelperProgressStore.WasDismissed(d.helperId))
+                continue;
+
+            if (string.IsNullOrWhiteSpace(d.inventoryTriggerItemId) || d.inventoryTriggerItemCount < 1)
+                continue;
+
+            if (!MapNodeMatchesOptional(d, activeMap))
+                continue;
+
+            int have = ResolveLiveGatherItemAmount(d.inventoryTriggerItemId);
+            if (have < d.inventoryTriggerItemCount)
+                continue;
+
+            candidates.Add(d);
+        }
+
+        candidates.Sort(static (a, b) =>
+        {
+            int c = a.priority.CompareTo(b.priority);
+            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
+        });
+
+        if (candidates.Count > 0)
+            ShowPopup(candidates[0]);
+    }
+
+    private void EvaluateQuestGatherProgressHelpers()
+    {
+        if (_blockActive || definitions == null || definitions.Length == 0)
+            return;
+
+        if (!HelperProgressStore.IsHydratedFromSave)
+            return;
+
+        QuestProgressManager qm =
+            QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (qm == null)
+            return;
+
+        MapNodeDefinition activeMap = ResolveActiveMapForHelpers();
+
+        var candidates = new List<HelperPopupDefinition>();
+        for (int i = 0; i < definitions.Length; i++)
+        {
+            HelperPopupDefinition d = definitions[i];
+            if (!d ||
+                string.IsNullOrWhiteSpace(d.helperId) ||
+                d.activationTrigger != HelperActivationTrigger.QuestGatherObjectiveReady ||
+                HelperProgressStore.WasDismissed(d.helperId))
+                continue;
+
+            if (string.IsNullOrWhiteSpace(d.questGatherTriggerQuestId))
+                continue;
+
+            QuestDefinition q = qm.GetQuestDefinition(d.questGatherTriggerQuestId.Trim());
+            if (!q || q.objectiveKind != QuestObjectiveKind.GatherItem || q.targetCount <= 0)
+                continue;
+
+            if (!qm.IsQuestAccepted(q))
+                continue;
+
+            if (qm.IsRewardClaimed(q.questId))
+                continue;
+
+            if (qm.GetDisplayProgress(q) < q.targetCount)
+                continue;
+
+            if (!MapNodeMatchesOptional(d, activeMap))
+                continue;
+
+            candidates.Add(d);
+        }
+
+        candidates.Sort(static (a, b) =>
+        {
+            int c = a.priority.CompareTo(b.priority);
+            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
+        });
+
+        if (candidates.Count > 0)
+            ShowPopup(candidates[0]);
+    }
+
+    private void EvaluateSkillLevelReachedHelpers(SkillType firedSkill, int newLevel)
+    {
+        if (_blockActive || definitions == null || definitions.Length == 0)
+            return;
+
+        if (!HelperProgressStore.IsHydratedFromSave)
+            return;
+
+        MapNodeDefinition activeMap = ResolveActiveMapForHelpers();
+
+        var candidates = new List<HelperPopupDefinition>();
+        for (int i = 0; i < definitions.Length; i++)
+        {
+            HelperPopupDefinition d = definitions[i];
+            if (!d ||
+                string.IsNullOrWhiteSpace(d.helperId) ||
+                d.activationTrigger != HelperActivationTrigger.SkillLevelReached ||
+                HelperProgressStore.WasDismissed(d.helperId))
+                continue;
+
+            if (d.skillLevelTriggerSkill != firedSkill)
+                continue;
+
+            int minLv = Mathf.Max(2, d.skillLevelTriggerMinimumNewLevel);
+            if (newLevel < minLv)
+                continue;
+
+            if (!MapNodeMatchesOptional(d, activeMap))
+                continue;
+
+            candidates.Add(d);
+        }
+
+        candidates.Sort(static (a, b) =>
+        {
+            int c = a.priority.CompareTo(b.priority);
+            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
+        });
+
+        if (candidates.Count > 0)
+            ShowPopup(candidates[0]);
+    }
+
+    private void EvaluateQuestRewardClaimedHelpers()
+    {
+        if (_blockActive || definitions == null || definitions.Length == 0)
+            return;
+
+        if (!HelperProgressStore.IsHydratedFromSave)
+            return;
+
+        QuestProgressManager qm =
+            QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (qm == null)
+            return;
+
+        MapNodeDefinition activeMap = ResolveActiveMapForHelpers();
+
+        var candidates = new List<HelperPopupDefinition>();
+        for (int i = 0; i < definitions.Length; i++)
+        {
+            HelperPopupDefinition d = definitions[i];
+            if (!d ||
+                string.IsNullOrWhiteSpace(d.helperId) ||
+                d.activationTrigger != HelperActivationTrigger.QuestRewardClaimed ||
+                HelperProgressStore.WasDismissed(d.helperId))
+                continue;
+
+            if (string.IsNullOrWhiteSpace(d.questRewardClaimedTriggerQuestId))
+                continue;
+
+            string qid = d.questRewardClaimedTriggerQuestId.Trim();
+            if (!qm.IsRewardClaimed(qid))
+                continue;
+
+            if (!MapNodeMatchesOptional(d, activeMap))
+                continue;
+
+            candidates.Add(d);
+        }
+
+        candidates.Sort(static (a, b) =>
+        {
+            int c = a.priority.CompareTo(b.priority);
+            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
+        });
+
+        if (candidates.Count > 0)
+            ShowPopup(candidates[0]);
+    }
+
+    private void EvaluateQuestAcceptedHelpers()
+    {
+        if (_blockActive || definitions == null || definitions.Length == 0)
+            return;
+
+        if (!HelperProgressStore.IsHydratedFromSave)
+            return;
+
+        QuestProgressManager qm =
+            QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (qm == null)
+            return;
+
+        MapNodeDefinition activeMap = ResolveActiveMapForHelpers();
+
+        var candidates = new List<HelperPopupDefinition>();
+        for (int i = 0; i < definitions.Length; i++)
+        {
+            HelperPopupDefinition d = definitions[i];
+            if (!d ||
+                string.IsNullOrWhiteSpace(d.helperId) ||
+                d.activationTrigger != HelperActivationTrigger.QuestAccepted ||
+                HelperProgressStore.WasDismissed(d.helperId))
+                continue;
+
+            if (string.IsNullOrWhiteSpace(d.questAcceptedTriggerQuestId))
+                continue;
+
+            string qid = d.questAcceptedTriggerQuestId.Trim();
+            QuestDefinition qdef = qm.GetQuestDefinition(qid);
+            if (qdef == null || !qm.IsQuestAccepted(qdef))
+                continue;
+
+            if (!MapNodeMatchesOptional(d, activeMap))
+                continue;
+
+            candidates.Add(d);
+        }
+
+        candidates.Sort(static (a, b) =>
+        {
+            int c = a.priority.CompareTo(b.priority);
+            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
+        });
+
+        if (candidates.Count > 0)
+            ShowPopup(candidates[0]);
+    }
+
+    private int ResolveLiveGatherItemAmount(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return 0;
+
+        string id = itemId.Trim();
+        QuestProgressManager qm =
+            QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (qm != null)
+            return qm.GetGatherItemCountLive(id);
+
+        return _inventoryForHelpers ? _inventoryForHelpers.GetTotalAmount(id) : 0;
+    }
+
+    private static MapNodeDefinition ResolveActiveMapForHelpers()
+    {
+        GameplayLevelBootstrapper boots = GameplayLevelBootstrapper.Instance;
+        if (boots != null && boots.ActiveDefinition != null)
+            return boots.ActiveDefinition;
+
+        return ActiveLevelContext.Current;
+    }
+
+    private static bool MapNodeMatchesOptional(HelperPopupDefinition d, MapNodeDefinition activeMap)
+    {
+        if (string.IsNullOrWhiteSpace(d.requiredMapNodeId))
+            return true;
+
+        string required = d.requiredMapNodeId.Trim();
+        string activeId = activeMap != null && !string.IsNullOrWhiteSpace(activeMap.nodeId)
+            ? activeMap.nodeId.Trim()
+            : null;
+
+        return activeId != null &&
+               string.Equals(activeId, required, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int CountTotalInventoryUnits(Inventory inv)
+    {
+        if (!inv || inv.SlotCount <= 0)
+            return 0;
+
+        int total = 0;
+        int n = inv.SlotCount;
+
+        for (int i = 0; i < n; i++)
+        {
+            Inventory.Slot slot = inv.GetSlot(i);
+
+            if (slot.IsEmpty)
+                continue;
+
+            total += slot.amount;
+        }
+
+        return total;
+    }
+
+    private void RaiseWhitelistUiTargetCanvasesForActiveOverlay()
+    {
+        RestoreWhitelistUiTargetCanvases();
+
+        if (!_blockActive ||
+            _activeDefinition == null ||
+            _activeDefinition.whitelistedInteractionIds == null ||
+            _activeDefinition.whitelistedInteractionIds.Length == 0)
+            return;
+
+        int overlayTopSort = canvasSortOrder + panelSortDelta;
+        if (_panelFrontCanvas)
+            overlayTopSort = Mathf.Max(overlayTopSort, _panelFrontCanvas.sortingOrder);
+
+        int whitelistSort =
+            Mathf.Clamp(overlayTopSort + Mathf.Max(1, whitelistUiCanvasSortBeyondPanel), -30000, 32760);
+
+        HelperWhitelistUiInteractTarget[] markers =
+            FindObjectsByType<HelperWhitelistUiInteractTarget>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+        int bump = 0;
+        for (int i = 0; i < markers.Length; i++)
+        {
+            HelperWhitelistUiInteractTarget marker = markers[i];
+            if (!marker || !_activeDefinition.MatchesWhitelistId(marker.InteractionId))
+                continue;
+
+            ElevateWhitelistUiInteractTarget(marker, whitelistSort + bump);
+            bump++;
+        }
+    }
+
+    /// <summary>
+    /// Puts a nested Canvas + raycaster on the whitelist marker so it sorts above the helper modal without retargeting the whole strip root.
+    /// </summary>
+    private void ElevateWhitelistUiInteractTarget(HelperWhitelistUiInteractTarget marker, int sortingOrderValue)
+    {
+        Canvas c = marker.GetComponent<Canvas>();
+        bool createdCanvas = false;
+
+        if (!c)
+        {
+            c = marker.gameObject.AddComponent<Canvas>();
+            createdCanvas = true;
+        }
+
+        GraphicRaycaster gr = marker.GetComponent<GraphicRaycaster>();
+        bool createdGr = false;
+
+        if (!gr)
+        {
+            gr = marker.gameObject.AddComponent<GraphicRaycaster>();
+            createdGr = true;
+        }
+
+        _whitelistUiElevations.Add(new SavedWhitelistUiElevation
+        {
+            CanvasComp = c,
+            CanvasCreatedDuringHelperOverlay = createdCanvas,
+            GraphicRaycasterCreatedDuringHelperOverlay = createdGr,
+            BackupHadOverrideSorting = c.overrideSorting,
+            BackupSortOrder = c.sortingOrder,
+        });
+
+        c.overrideSorting = true;
+        c.sortingOrder = sortingOrderValue;
+    }
+
+    private void RestoreWhitelistUiTargetCanvases()
+    {
+        for (int i = 0; i < _whitelistUiElevations.Count; i++)
+        {
+            SavedWhitelistUiElevation snap = _whitelistUiElevations[i];
+            Canvas c = snap.CanvasComp;
+            if (!c)
+                continue;
+
+            if (snap.GraphicRaycasterCreatedDuringHelperOverlay)
+            {
+                GraphicRaycaster gr = c.gameObject.GetComponent<GraphicRaycaster>();
+                if (gr)
+                    Destroy(gr);
+            }
+
+            if (snap.CanvasCreatedDuringHelperOverlay)
+            {
+                Destroy(c);
+            }
+            else
+            {
+                c.overrideSorting = snap.BackupHadOverrideSorting;
+                c.sortingOrder = snap.BackupSortOrder;
+            }
+        }
+
+        _whitelistUiElevations.Clear();
     }
 
     private void ShowPopup(HelperPopupDefinition def)
@@ -293,7 +992,8 @@ public sealed class HelperGameplayController : MonoBehaviour
         _activeDefinition = def;
         _blockActive = true;
 
-        ResolvePlayerMovementLock(true);
+        ResolvePlayerMovementLock(true, preserveGatherFreezeForHelper: true);
+
         EnsureViewBuilt();
         if (_overlayRoot == null)
         {
@@ -303,15 +1003,22 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
         }
 
+        RaiseWhitelistUiTargetCanvasesForActiveOverlay();
+
+        CharacterStats stats = ResolvePlayerCharacterStats();
+
         bool hasTitle = def.title != null && def.title.Trim().Length > 0;
         _titleText.gameObject.SetActive(hasTitle);
         if (hasTitle)
-            _titleText.text = def.title.Trim();
+            _titleText.text = HelperPopupDefinition.ApplyRuntimeSubstitutions(def.title.Trim(), stats);
+
+        if (_helperCloseButtonRoot)
+            _helperCloseButtonRoot.SetActive(def.showCloseButton);
 
         _overlayRoot.transform.SetAsLastSibling();
         _overlayRoot.SetActive(true);
 
-        StartBodyTypewriter(def.bodyText ?? string.Empty);
+        StartBodyTypewriter(HelperPopupDefinition.ApplyRuntimeSubstitutions(def.bodyText ?? string.Empty, stats));
 
         RefreshWhitelistPresentationEmphasis();
     }
@@ -326,16 +1033,26 @@ public sealed class HelperGameplayController : MonoBehaviour
         LerpWhitelistPresentationTints();
     }
 
-    private void ResolvePlayerMovementLock(bool locked)
+    private CharacterStats ResolvePlayerCharacterStats()
+    {
+        _player ??= FindFirstObjectByType<PlayerController>(FindObjectsInactive.Exclude);
+        return _player ? _player.GetComponent<CharacterStats>() : null;
+    }
+
+    private void ResolvePlayerMovementLock(bool locked, bool preserveGatherFreezeForHelper = false)
     {
         _player ??= FindFirstObjectByType<PlayerController>(FindObjectsInactive.Exclude);
         if (_player != null)
-            _player.SetMovementLocked(locked);
+            _player.SetMovementLocked(locked, preserveGatherStateForUiModal: preserveGatherFreezeForHelper);
     }
 
     public void CloseFromUIButton()
     {
-        TryDismiss(HelperDismissMode.CloseButton);
+        if (!_blockActive || _activeDefinition == null)
+            return;
+
+        // Close (X) is always allowed regardless of dismissedModes bitmask / CloseButton stripping.
+        DismissMarked();
     }
 
     /// <summary>Pointer-down on the helper panel reveals the full body text immediately (matches NPC dialogue box).</summary>
@@ -347,7 +1064,10 @@ public sealed class HelperGameplayController : MonoBehaviour
         StopCoroutine(_bodyTypewriterCo);
         _bodyTypewriterCo = null;
         if (_bodyText && _bodyTypewriterFullPlain != null)
+        {
+            DialogueTextTypewriter.RestoreFullReveal(_bodyText);
             _bodyText.text = _bodyTypewriterFullPlain;
+        }
         _bodyTypewriterFullPlain = null;
     }
 
@@ -372,16 +1092,19 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (plainFull.Length == 0)
         {
+            DialogueTextTypewriter.RestoreFullReveal(_bodyText);
             _bodyText.text = "";
             return;
         }
 
         if (!gameObject.activeInHierarchy)
         {
+            DialogueTextTypewriter.RestoreFullReveal(_bodyText);
             _bodyText.text = plainFull;
             return;
         }
 
+        DialogueTextTypewriter.RestoreFullReveal(_bodyText);
         _bodyTypewriterFullPlain = plainFull;
         _bodyText.text = "";
         _bodyTypewriterCo = StartCoroutine(RunBodyTypewriterCoroutine());
@@ -390,59 +1113,55 @@ public sealed class HelperGameplayController : MonoBehaviour
     private IEnumerator RunBodyTypewriterCoroutine()
     {
         string full = _bodyTypewriterFullPlain ?? "";
-        List<(string word, string trailingWs)> tokens = TokenizeWordsWithWhitespace(full);
-        var sb = new StringBuilder();
-
-        for (int i = 0; i < tokens.Count; i++)
-        {
-            sb.Append(tokens[i].word);
-            sb.Append(tokens[i].trailingWs);
-            _bodyText.text = sb.ToString();
-            if (i < tokens.Count - 1)
-                yield return new WaitForSeconds(typewriterSecondsPerWord);
-        }
-
+        yield return DialogueTextTypewriter.RevealFlowingCharacters(_bodyText, full, typewriterCharactersPerSecond);
         _bodyTypewriterCo = null;
         _bodyTypewriterFullPlain = null;
     }
 
-    private static List<(string word, string trailingWs)> TokenizeWordsWithWhitespace(string s)
-    {
-        var list = new List<(string, string)>();
-        if (string.IsNullOrEmpty(s))
-            return list;
-
-        int i = 0;
-        int len = s.Length;
-        while (i < len)
-        {
-            while (i < len && char.IsWhiteSpace(s[i]))
-                i++;
-            if (i >= len)
-                break;
-
-            int w0 = i;
-            while (i < len && !char.IsWhiteSpace(s[i]))
-                i++;
-            string word = s.Substring(w0, i - w0);
-
-            int ws0 = i;
-            while (i < len && char.IsWhiteSpace(s[i]))
-                i++;
-            string ws = s.Substring(ws0, i - ws0);
-            list.Add((word, ws));
-        }
-
-        return list;
-    }
-
-    private void TryDismiss(HelperDismissMode modeReason)
+    private void TryDismiss(HelperDismissMode modeReason, string interactWhitelistIdMarker = null)
     {
         if (!_blockActive || _activeDefinition == null)
             return;
 
         if ((_activeDefinition.dismissModes & modeReason) == 0)
             return;
+
+        if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
+            interactWhitelistIdMarker != null &&
+            !_activeDefinition.MatchesWhitelistId(interactWhitelistIdMarker))
+            return;
+
+        if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
+            interactWhitelistIdMarker != null &&
+            string.Equals(
+                interactWhitelistIdMarker.Trim(),
+                HelperWhitelistUiInteractTarget.CharacterToolbarWhitelistId,
+                System.StringComparison.OrdinalIgnoreCase))
+            s_characterToolbarWhitelistUiDismissStampFrame = Time.frameCount;
+
+        if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
+            interactWhitelistIdMarker != null &&
+            string.Equals(
+                interactWhitelistIdMarker.Trim(),
+                HelperWhitelistUiInteractTarget.QuestToolbarWhitelistId,
+                System.StringComparison.OrdinalIgnoreCase))
+            s_questToolbarWhitelistUiDismissStampFrame = Time.frameCount;
+
+        if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
+            interactWhitelistIdMarker != null &&
+            string.Equals(
+                interactWhitelistIdMarker.Trim(),
+                HelperWhitelistUiInteractTarget.SkillsAbilityToolbarWhitelistId,
+                System.StringComparison.OrdinalIgnoreCase))
+            s_skillsAbilityToolbarWhitelistUiDismissStampFrame = Time.frameCount;
+
+        if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
+            interactWhitelistIdMarker != null &&
+            string.Equals(
+                interactWhitelistIdMarker.Trim(),
+                HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId,
+                System.StringComparison.OrdinalIgnoreCase))
+            s_levelSelectToolbarWhitelistUiDismissStampFrame = Time.frameCount;
 
         DismissMarked();
     }
@@ -455,6 +1174,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         string id = _activeDefinition.helperId;
         HelperProgressStore.MarkDismissed(id);
 
+        RestoreWhitelistUiTargetCanvases();
         HideUi();
         _activeDefinition = null;
         _blockActive = false;
@@ -467,6 +1187,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (!_blockActive)
             return;
 
+        RestoreWhitelistUiTargetCanvases();
         HideUi();
         _activeDefinition = null;
         _blockActive = false;
@@ -477,7 +1198,10 @@ public sealed class HelperGameplayController : MonoBehaviour
     {
         StopBodyTypewriterAndClear();
         if (_bodyText)
+        {
+            DialogueTextTypewriter.RestoreFullReveal(_bodyText);
             _bodyText.text = string.Empty;
+        }
 
         ClearWhitelistGlowOverlays();
         ClearWhitelistPresentationTints();
@@ -715,60 +1439,289 @@ public sealed class HelperGameplayController : MonoBehaviour
         }
 
         Camera cam = worldCameraForWhitelistGlow;
-        if (!cam)
-            return;
 
-        HelperWhitelistInteractTarget[] markers =
-            FindObjectsByType<HelperWhitelistInteractTarget>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-
-        var sources = new List<SpriteRenderer>(24);
-        var seen = new HashSet<SpriteRenderer>();
-
-        for (int i = 0; i < markers.Length; i++)
+        if (cam)
         {
-            HelperWhitelistInteractTarget marker = markers[i];
-            if (!marker || !_activeDefinition.MatchesWhitelistId(marker.InteractionId))
-                continue;
+            HelperWhitelistInteractTarget[] markers =
+                FindObjectsByType<HelperWhitelistInteractTarget>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 
-            CollectWhitelistPresentationSprites(marker, visualsSubtreeChildName, sources, seen);
+            var sources = new List<SpriteRenderer>(24);
+            var seen = new HashSet<SpriteRenderer>();
+
+            for (int i = 0; i < markers.Length; i++)
+            {
+                HelperWhitelistInteractTarget marker = markers[i];
+                if (!marker || !_activeDefinition.MatchesWhitelistId(marker.InteractionId))
+                    continue;
+
+                CollectWhitelistPresentationSprites(marker, visualsSubtreeChildName, sources, seen);
+            }
+
+            sources.Sort(static (a, b) =>
+            {
+                int layerCmp = SortingLayer.GetLayerValueFromID(a.sortingLayerID)
+                    .CompareTo(SortingLayer.GetLayerValueFromID(b.sortingLayerID));
+                if (layerCmp != 0)
+                    return layerCmp;
+                int orderCmp = a.sortingOrder.CompareTo(b.sortingOrder);
+                return orderCmp != 0 ? orderCmp : string.CompareOrdinal(a.name, b.name);
+            });
+
+            for (int i = 0; i < sources.Count; i++)
+            {
+                SpriteRenderer sr = sources[i];
+                if (!sr || !sr.sprite)
+                    continue;
+
+                GameObject go = new GameObject("WhitelistGlowSprite", typeof(RectTransform));
+                RectTransform rt = go.GetComponent<RectTransform>();
+                rt.SetParent(_whitelistGlowHolder, false);
+
+                Image img = go.AddComponent<Image>();
+                img.sprite = sr.sprite;
+                img.raycastTarget = false;
+                img.preserveAspect = false;
+
+                FitSpriteRendererOverlayRect(sr, rt, _whitelistGlowHolder, cam);
+                img.color = PulsedWhitelistGlowColor(0f);
+
+                _whitelistGlowLinks.Add(new WhitelistGlowLink
+                {
+                    SourceSprite = sr,
+                    SourceGraphic = null,
+                    GlowImg = img,
+                    GlowHaloImg = null,
+                });
+            }
         }
 
-        sources.Sort(static (a, b) =>
-        {
-            int layerCmp = SortingLayer.GetLayerValueFromID(a.sortingLayerID)
-                .CompareTo(SortingLayer.GetLayerValueFromID(b.sortingLayerID));
-            if (layerCmp != 0)
-                return layerCmp;
-            int orderCmp = a.sortingOrder.CompareTo(b.sortingOrder);
-            return orderCmp != 0 ? orderCmp : string.CompareOrdinal(a.name, b.name);
-        });
+        AppendWhitelistUiGlowOverlaysIntoHolder();
+    }
 
-        for (int i = 0; i < sources.Count; i++)
+    /// <remarks>Whitelist UI rects use each Canvas's projected screen bounds; no StripCamera required.</remarks>
+    private void AppendWhitelistUiGlowOverlaysIntoHolder()
+    {
+        if (!_blockActive ||
+            _activeDefinition == null ||
+            _whitelistGlowHolder == null ||
+            !_activeDefinition.highlightWhitelistTargetsDuringHelper ||
+            _activeDefinition.whitelistedInteractionIds == null ||
+            _activeDefinition.whitelistedInteractionIds.Length == 0)
+            return;
+
+        HelperWhitelistUiInteractTarget[] uis =
+            FindObjectsByType<HelperWhitelistUiInteractTarget>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+        for (int i = 0; i < uis.Length; i++)
         {
-            SpriteRenderer sr = sources[i];
-            if (!sr || !sr.sprite)
+            HelperWhitelistUiInteractTarget row = uis[i];
+            if (!row || !_activeDefinition.MatchesWhitelistId(row.InteractionId))
                 continue;
 
-            GameObject go = new GameObject("WhitelistGlowSprite", typeof(RectTransform));
+            Graphic gfx = row.GlowSourceGraphic;
+            if (!gfx || !gfx.isActiveAndEnabled)
+                continue;
+
+            Image haloImg = null;
+            RectTransform haloRt = null;
+
+            if (whitelistUiGlowHaloPadding > 0f)
+            {
+                GameObject haloGo = new GameObject("WhitelistGlowUiHalo", typeof(RectTransform));
+                haloRt = haloGo.GetComponent<RectTransform>();
+                haloRt.SetParent(_whitelistGlowHolder, false);
+                haloImg = haloGo.AddComponent<Image>();
+                haloImg.sprite = GetOrCreateWhitelistGlowUiFallbackSprite();
+                haloImg.type = Image.Type.Simple;
+                haloImg.raycastTarget = false;
+                haloImg.preserveAspect = false;
+                haloImg.color = PulsedWhitelistGlowColor(0f);
+            }
+
+            GameObject go = new GameObject("WhitelistGlowUiGraphic", typeof(RectTransform));
             RectTransform rt = go.GetComponent<RectTransform>();
             rt.SetParent(_whitelistGlowHolder, false);
 
             Image img = go.AddComponent<Image>();
-            img.sprite = sr.sprite;
-            img.raycastTarget = false;
-            img.preserveAspect = false;
+            if (gfx is Image uiImage && uiImage.sprite)
+            {
+                img.sprite = uiImage.sprite;
+                CopyImagePresentationForGlowClone(img, uiImage);
+            }
+            else if (gfx is RawImage)
+            {
+                img.sprite = GetOrCreateWhitelistGlowUiFallbackSprite();
+                img.type = Image.Type.Simple;
+                img.preserveAspect = false;
+            }
+            else
+            {
+                img.sprite = GetOrCreateWhitelistGlowUiFallbackSprite();
+                img.type = Image.Type.Simple;
+                img.preserveAspect = false;
+            }
 
-            FitSpriteRendererOverlayRect(sr, rt, _whitelistGlowHolder, cam);
+            img.raycastTarget = false;
+
+            FitUiGraphicOverlayRect(gfx, rt, _whitelistGlowHolder, _uiWorldCornersScratch);
+
+            if (haloImg && haloRt != null)
+                SyncUiGlowHaloUnderCore(haloRt, rt, adjustSiblingOrder: true);
+
             img.color = PulsedWhitelistGlowColor(0f);
 
-            _whitelistGlowLinks.Add(new WhitelistGlowLink { Source = sr, GlowImg = img });
+            if (haloImg)
+            {
+                Color hc = PulsedWhitelistGlowColor(0f);
+                hc.a *= whitelistUiGlowHaloAlphaScale;
+                haloImg.color = hc;
+            }
+
+            _whitelistGlowLinks.Add(new WhitelistGlowLink
+            {
+                SourceSprite = null,
+                SourceGraphic = gfx,
+                GlowImg = img,
+                GlowHaloImg = haloImg,
+            });
         }
+    }
+
+    private void SyncUiGlowHaloUnderCore(RectTransform haloRt, RectTransform coreRt, bool adjustSiblingOrder)
+    {
+        if (!haloRt || !coreRt)
+            return;
+
+        haloRt.anchorMin = haloRt.anchorMax = new Vector2(0.5f, 0.5f);
+        haloRt.pivot = new Vector2(0.5f, 0.5f);
+        haloRt.anchoredPosition = coreRt.anchoredPosition;
+        haloRt.localRotation = coreRt.localRotation;
+        float haloScale = Mathf.Max(1f, whitelistUiGlowHaloUniformScale);
+        haloRt.localScale = coreRt.localScale * haloScale;
+
+        Vector2 pad = Vector2.one * (whitelistUiGlowHaloPadding * 2f);
+        haloRt.sizeDelta = coreRt.sizeDelta + pad;
+
+        if (adjustSiblingOrder)
+            haloRt.SetSiblingIndex(Mathf.Max(0, coreRt.GetSiblingIndex() - 1));
+    }
+
+    private static void CopyImagePresentationForGlowClone(Image dst, Image src)
+    {
+        if (!dst || !src)
+            return;
+
+        dst.type = src.type;
+        dst.preserveAspect = src.preserveAspect;
+        dst.fillCenter = src.fillCenter;
+        dst.fillMethod = src.fillMethod;
+        dst.fillOrigin = src.fillOrigin;
+        dst.fillAmount = src.fillAmount;
+        dst.fillClockwise = src.fillClockwise;
+        dst.pixelsPerUnitMultiplier = src.pixelsPerUnitMultiplier;
+        dst.useSpriteMesh = src.useSpriteMesh;
+
+        if (src.sprite)
+            dst.sprite = src.sprite;
+    }
+
+    private static Sprite _whitelistGlowUiFallbackSprite;
+
+    private static Sprite GetOrCreateWhitelistGlowUiFallbackSprite()
+    {
+        if (_whitelistGlowUiFallbackSprite)
+            return _whitelistGlowUiFallbackSprite;
+
+        Texture2D t = Texture2D.whiteTexture;
+        float w = Mathf.Max(1f, t.width);
+        float h = Mathf.Max(1f, t.height);
+
+        _whitelistGlowUiFallbackSprite = Sprite.Create(
+            t,
+            new Rect(0f, 0f, w, h),
+            new Vector2(0.5f, 0.5f),
+            100f,
+            0,
+            SpriteMeshType.FullRect);
+
+        return _whitelistGlowUiFallbackSprite;
+    }
+
+    /// <summary>Projects a UI <see cref="Graphic"/> onto the whitelist glow holder.</summary>
+    private static void FitUiGraphicOverlayRect(
+        Graphic gfx,
+        RectTransform imgRt,
+        RectTransform holder,
+        Vector3[] worldCornersScratch)
+    {
+        if (!gfx || worldCornersScratch == null || worldCornersScratch.Length < 4)
+            return;
+
+        gfx.rectTransform.GetWorldCorners(worldCornersScratch);
+
+        Camera projCam = GetCanvasProjectionCamera(gfx.canvas);
+
+        float minX = float.MaxValue;
+        float minY = float.MaxValue;
+        float maxX = float.MinValue;
+        float maxY = float.MinValue;
+
+        bool anyOk = false;
+
+        for (int i = 0; i < 4; i++)
+        {
+            Vector3 sp = RectTransformUtility.WorldToScreenPoint(projCam, worldCornersScratch[i]);
+            if (sp.z < 0f)
+                continue;
+
+            anyOk = true;
+            minX = Mathf.Min(minX, sp.x);
+            maxX = Mathf.Max(maxX, sp.x);
+            minY = Mathf.Min(minY, sp.y);
+            maxY = Mathf.Max(maxY, sp.y);
+        }
+
+        if (!anyOk || minX >= maxX || minY >= maxY)
+            return;
+
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(holder, new Vector2(minX, minY), null, out Vector2 localBl);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(holder, new Vector2(maxX, maxY), null, out Vector2 localTr);
+
+        imgRt.anchorMin = imgRt.anchorMax = new Vector2(0.5f, 0.5f);
+        imgRt.pivot = new Vector2(0.5f, 0.5f);
+        imgRt.sizeDelta = new Vector2(Mathf.Abs(localTr.x - localBl.x), Mathf.Abs(localTr.y - localBl.y));
+        imgRt.anchoredPosition = (localBl + localTr) * 0.5f;
+
+        Quaternion worldRot = gfx.rectTransform.rotation;
+        imgRt.localRotation = Quaternion.Euler(0f, 0f, worldRot.eulerAngles.z);
+
+        Vector3 lossy = gfx.rectTransform.lossyScale;
+        imgRt.localScale = new Vector3(Mathf.Sign(lossy.x), Mathf.Sign(lossy.y), 1f);
+    }
+
+    private static Camera GetCanvasProjectionCamera(Canvas wc)
+    {
+        if (!wc)
+            return null;
+
+        RenderMode rm = wc.renderMode;
+        return rm switch
+        {
+            RenderMode.ScreenSpaceOverlay => null,
+            RenderMode.ScreenSpaceCamera => wc.worldCamera,
+            RenderMode.WorldSpace => wc.worldCamera,
+            _ => null,
+        };
     }
 
     private void ClearWhitelistGlowOverlays()
     {
         for (int i = 0; i < _whitelistGlowLinks.Count; i++)
         {
+            Image halo = _whitelistGlowLinks[i].GlowHaloImg;
+            if (halo)
+                Destroy(halo.gameObject);
+
             Image g = _whitelistGlowLinks[i].GlowImg;
             if (g)
                 Destroy(g.gameObject);
@@ -792,9 +1745,7 @@ public sealed class HelperGameplayController : MonoBehaviour
                 worldCameraForWhitelistGlow = camGo.GetComponent<Camera>();
         }
 
-        Camera cam = worldCameraForWhitelistGlow;
-        if (!cam)
-            return;
+        Camera stripCam = worldCameraForWhitelistGlow;
 
         float pulseT = (Mathf.Sin(Time.time * whitelistGlowPulseSpeed) + 1f) * 0.5f;
         Color glowCol = PulsedWhitelistGlowColor(pulseT);
@@ -802,16 +1753,73 @@ public sealed class HelperGameplayController : MonoBehaviour
         for (int i = _whitelistGlowLinks.Count - 1; i >= 0; i--)
         {
             WhitelistGlowLink link = _whitelistGlowLinks[i];
-            if (!link.Source || link.Source.sprite == null || !link.GlowImg)
+
+            if (!link.GlowImg)
             {
-                if (link.GlowImg)
-                    Destroy(link.GlowImg.gameObject);
+                if (link.GlowHaloImg)
+                    Destroy(link.GlowHaloImg.gameObject);
+
                 _whitelistGlowLinks.RemoveAt(i);
                 continue;
             }
 
-            FitSpriteRendererOverlayRect(link.Source, link.GlowImg.rectTransform, _whitelistGlowHolder, cam);
+            if (link.SourceSprite)
+            {
+                if (!stripCam ||
+                    link.SourceSprite.sprite == null)
+                {
+                    if (link.GlowHaloImg)
+                        Destroy(link.GlowHaloImg.gameObject);
+                    Destroy(link.GlowImg.gameObject);
+                    _whitelistGlowLinks.RemoveAt(i);
+                    continue;
+                }
+
+                FitSpriteRendererOverlayRect(link.SourceSprite, link.GlowImg.rectTransform, _whitelistGlowHolder, stripCam);
+            }
+            else if (link.SourceGraphic)
+            {
+                if (!link.SourceGraphic.isActiveAndEnabled || !link.SourceGraphic.canvas)
+                {
+                    if (link.GlowHaloImg)
+                        Destroy(link.GlowHaloImg.gameObject);
+                    Destroy(link.GlowImg.gameObject);
+                    _whitelistGlowLinks.RemoveAt(i);
+                    continue;
+                }
+
+                FitUiGraphicOverlayRect(link.SourceGraphic, link.GlowImg.rectTransform, _whitelistGlowHolder, _uiWorldCornersScratch);
+
+                if (link.SourceGraphic is Image srcGlow && srcGlow.sprite)
+                {
+                    link.GlowImg.sprite = srcGlow.sprite;
+                    CopyImagePresentationForGlowClone(link.GlowImg, srcGlow);
+                }
+
+                if (!link.GlowImg.sprite)
+                    link.GlowImg.sprite = GetOrCreateWhitelistGlowUiFallbackSprite();
+
+                if (link.GlowHaloImg)
+                    SyncUiGlowHaloUnderCore(link.GlowHaloImg.rectTransform, link.GlowImg.rectTransform,
+                        adjustSiblingOrder: false);
+            }
+            else
+            {
+                if (link.GlowHaloImg)
+                    Destroy(link.GlowHaloImg.gameObject);
+                Destroy(link.GlowImg.gameObject);
+                _whitelistGlowLinks.RemoveAt(i);
+                continue;
+            }
+
             link.GlowImg.color = glowCol;
+
+            if (link.GlowHaloImg)
+            {
+                Color haloC = glowCol;
+                haloC.a *= whitelistUiGlowHaloAlphaScale;
+                link.GlowHaloImg.color = haloC;
+            }
         }
     }
 
@@ -935,6 +1943,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     private void CreateCloseButton(Transform panel)
     {
         GameObject btGo = new GameObject("CloseButton", typeof(RectTransform), typeof(Image), typeof(Button));
+        _helperCloseButtonRoot = btGo;
         btGo.transform.SetParent(panel, false);
         RectTransform btRt = btGo.GetComponent<RectTransform>();
         btRt.anchorMin = new Vector2(1f, 1f);

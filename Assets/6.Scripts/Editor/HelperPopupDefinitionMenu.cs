@@ -15,14 +15,12 @@ public static class HelperPopupDefinitionMenu
         def.helperId = "early_game_helper";
         def.title = "Welcome";
         def.bodyText =
-            "Welcome to the game, let's start going through the basics. Firstly, seeing a yellow exclamation mark signifies a quest is available. Try clicking on the NPC here to get your first quest.\n\n" +
+            "Welcome {playerName}, let's start going through the basics. Firstly, seeing a yellow exclamation mark signifies a quest is available. Try clicking on the NPC here to get your first quest.\n\n" +
             "The Help feature can be disabled in Settings.";
         def.activationTrigger = HelperActivationTrigger.FirstVisitMapNode;
         def.requiredMapNodeId = "tutorial_1";
         def.priority = 0;
-        def.dismissModes = HelperDismissMode.CloseButton |
-            HelperDismissMode.CharacterPageOpened |
-            HelperDismissMode.InteractWhitelistDismiss;
+        def.dismissModes = HelperDismissMode.InteractWhitelistDismiss;
         def.whitelistedInteractionIds = new[] { "NPC_Tutorial_1" };
 
         const string dir = "Assets/3.ScriptableObjects/HelperDefinitions";

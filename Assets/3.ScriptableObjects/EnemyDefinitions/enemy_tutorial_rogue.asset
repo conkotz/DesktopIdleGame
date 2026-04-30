@@ -24,12 +24,14 @@ MonoBehaviour:
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
-  minPhysicalDamage: 0
-  maxPhysicalDamage: 0
+  flatGuard: 0
+  maxGuardPercent: 0
+  minPhysicalDamage: 2
+  maxPhysicalDamage: 4
   minMagicDamage: 0
   maxMagicDamage: 0
-  minCorruptionDamage: 2
-  maxCorruptionDamage: 4
+  minCorruptionDamage: 0
+  maxCorruptionDamage: 0
   attackSpeed: 1
   moveSpeed: 3
   attackRange: 1
@@ -64,6 +66,7 @@ MonoBehaviour:
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
+  grantCombatXp: 1
   dropGold: 1
   goldMin: 50
   goldMax: 85

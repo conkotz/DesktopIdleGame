@@ -2,12 +2,26 @@ using UnityEngine;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
+[DefaultExecutionOrder(110)]
 public sealed class StripUIViewportFollower : MonoBehaviour
 {
     [SerializeField] private Camera stripCamera;
     [SerializeField] private RectTransform targetRect;
 
     private Rect _lastRect = new Rect(float.NaN, float.NaN, float.NaN, float.NaN);
+
+    /// <summary>
+    /// Rect whose anchors track <see cref="Camera.rect"/> — may differ from <see cref="Component.transform"/> when this component lives on a manager object.
+    /// </summary>
+    public RectTransform ViewportAlignedRect
+    {
+        get
+        {
+            if (!targetRect)
+                targetRect = transform as RectTransform;
+            return targetRect;
+        }
+    }
 
     private void OnEnable()
     {

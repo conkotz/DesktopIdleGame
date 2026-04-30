@@ -10,25 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d4549ab826df384b91e9e2da5b95c50, type: 3}
-  m_Name: Helper_GameStart
+  m_Name: Helper_GameStart_1
   m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
-  helperId: early_game_helper
-  title: Welcome
-  bodyText: 'Welcome {playerName}, let''s start going through the basics. Firstly,
-    seeing a yellow exclamation mark signifies a quest is available. Try clicking
-    on the NPC here to get your first quest.
-
-
-    The Help feature can be disabled
-    in Settings.'
-  activationTrigger: 1
+  helperId: first_item_helper
+  title: First Item
+  bodyText: '{playerName}, you have gained your first item. Open the character tab
+    to see your all the items you collect. In this tab you can also view your eqipped
+    items and see your characters stats. '
+  activationTrigger: 2
   requiredMapNodeId: tutorial_1
-  inventoryTriggerItemId: 
-  inventoryTriggerItemCount: 3
-  priority: 0
+  priority: 1
   showCloseButton: 1
   dismissModes: 4
   whitelistedInteractionIds:
-  - NPC_Tutorial_1
-  - UIButton_Settings
+  - UIButton_Character
   highlightWhitelistTargetsDuringHelper: 1

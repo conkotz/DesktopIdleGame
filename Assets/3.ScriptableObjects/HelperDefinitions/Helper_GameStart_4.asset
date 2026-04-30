@@ -10,25 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d4549ab826df384b91e9e2da5b95c50, type: 3}
-  m_Name: Helper_GameStart
+  m_Name: Helper_GameStart_4
   m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
-  helperId: early_game_helper
-  title: Welcome
-  bodyText: 'Welcome {playerName}, let''s start going through the basics. Firstly,
-    seeing a yellow exclamation mark signifies a quest is available. Try clicking
-    on the NPC here to get your first quest.
-
-
-    The Help feature can be disabled
-    in Settings.'
-  activationTrigger: 1
+  helperId: change_levels_helper
+  title: Learning the ropes 2 complete
+  bodyText: Well done! you have completed all the quests in the tutorials first level.
+    Access the level select window to move to the new area.
+  activationTrigger: 6
   requiredMapNodeId: tutorial_1
   inventoryTriggerItemId: 
-  inventoryTriggerItemCount: 3
-  priority: 0
+  inventoryTriggerItemCount: 1
+  questGatherTriggerQuestId: 
+  questRewardClaimedTriggerQuestId: tutorial_learning_ropes_2
+  skillLevelTriggerSkill: 1
+  skillLevelTriggerMinimumNewLevel: 2
+  priority: 4
   showCloseButton: 1
   dismissModes: 4
   whitelistedInteractionIds:
-  - NPC_Tutorial_1
-  - UIButton_Settings
+  - UIButton_LevelSelect
   highlightWhitelistTargetsDuringHelper: 1

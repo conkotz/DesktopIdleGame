@@ -42,24 +42,9 @@ MonoBehaviour:
     spawns:
     - spawnPointGroupId: 
       spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
-      prefab: {fileID: 0}
-      count: 2
-    - spawnPointGroupId: 
-      spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 0}
-      count: 3
-    - spawnPointGroupId: 
-      spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 887a5292c260b2843b8e76ae0621615c, type: 2}
-      prefab: {fileID: 0}
-      count: 2
-    - spawnPointGroupId: 
-      spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
-      prefab: {fileID: 0}
-      count: 2
+      count: 8
     shuffleSpawnPoints: 1
   enduranceWaves: []
   enduranceCompletionLoot: []

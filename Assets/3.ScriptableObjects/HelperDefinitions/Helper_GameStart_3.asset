@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d4549ab826df384b91e9e2da5b95c50, type: 3}
+  m_Name: Helper_GameStart_3
+  m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
+  helperId: skill_level_helper
+  title: First Skill Level Gained
+  bodyText: You have advanced a woodcutting level. Open the Skills and Abilities
+    tab to view your available skills. In this tab you can also see the selected
+    skills tree which grants you bonus as you gain levels in each skill. Finally
+    you unlock powerful passive and active ability effects as you get experience.
+  activationTrigger: 5
+  requiredMapNodeId: tutorial_1
+  inventoryTriggerItemId: 
+  inventoryTriggerItemCount: 1
+  questGatherTriggerQuestId: 
+  questRewardClaimedTriggerQuestId: 
+  skillLevelTriggerSkill: 1
+  skillLevelTriggerMinimumNewLevel: 2
+  priority: 3
+  showCloseButton: 1
+  dismissModes: 4
+  whitelistedInteractionIds:
+  - UIButton_SkillsAbilities
+  highlightWhitelistTargetsDuringHelper: 1

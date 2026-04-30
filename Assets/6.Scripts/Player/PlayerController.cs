@@ -169,10 +169,9 @@ public class PlayerController : MonoBehaviour
     /// <summary>World position for Soulforged Weapon idle/home (see <see cref="SoulforgedWeaponSpawnPoint"/>).</summary>
     public Vector3 GetSoulforgedWeaponHomeWorldPosition() => SoulforgedWeaponSpawnPoint.position;
 
-    [Header("Popup (World Tooltip)")]
-    [SerializeField] private GameObject actionPopup;          // one popup object
-    [SerializeField] private float actionPopupSeconds = 1.5f; // default duration
-    private Coroutine _actionPopupRoutine;
+    [Header("Popup (reserved; messages go to activity log only)")]
+    [SerializeField] private GameObject actionPopup;
+
     private const float ConsumableCooldownActivityLogIntervalSeconds = 5f;
     private const float RepeatedPopupActivityLogIntervalSeconds = 5f;
     private float _nextFoodCooldownActivityLogTime;
@@ -752,7 +751,7 @@ public class PlayerController : MonoBehaviour
 
     private void HandleInventoryFull()
     {
-        ShowPopup("Inventory Full!", 1.5f);
+        ShowPopup("Inventory Full!");
 
         if (dropOverflowToGround) return;
 
@@ -794,20 +793,32 @@ public class PlayerController : MonoBehaviour
     // -------------------------
 
 
-    public void SetMovementLocked(bool locked)
+    /// <param name="preserveGatherStateForUiModal">
+    /// When true and the player is gathering a resource (<see cref="State.Gather"/> with a valid
+    /// <see cref="targetNode"/>), do not clear targets or Idle the state — <see cref="movementLocked"/> still
+    /// freezes gather ticks until unlocked (modal dismiss).
+    /// </param>
+    public void SetMovementLocked(bool locked, bool preserveGatherStateForUiModal = false)
     {
         movementLocked = locked;
 
-        if (locked)
-        {
-            ClearFatigueGatherProgress();
-            // Cancel manual intentions immediately
-            // (combat will drive movement)
-            // Don't clear combat target here.
-            targetNode = null;
-            _pickupTarget = null;
-            state = State.Idle;
-        }
+        if (!locked)
+            return;
+
+        bool keepGatherFreeze =
+            preserveGatherStateForUiModal &&
+            state == State.Gather &&
+            targetNode &&
+            targetNode.Definition != null;
+
+        if (keepGatherFreeze)
+            return;
+
+        ClearFatigueGatherProgress();
+
+        targetNode = null;
+        _pickupTarget = null;
+        state = State.Idle;
     }
 
     public void SelectNode(ResourceNode node)
@@ -927,9 +938,7 @@ public class PlayerController : MonoBehaviour
         {
             _gatherToolItemId = null;
 
-            ShowPopup(string.IsNullOrWhiteSpace(node.MissingToolMessage)
-                ? "Missing tool in toolbelt."
-                : node.MissingToolMessage);
+            ShowPopup(BuildMissingToolActivityMessage(node));
             if (allowGatherWithoutTool)
             {
                 _gatherSpeedMultiplier = missingToolSpeedMultiplier;
@@ -1033,11 +1042,25 @@ public class PlayerController : MonoBehaviour
         _ => SkillType.Woodcutting
     };
 
+    private const string GatherSpeedGreatlyReducedTail = "Gather speed is greatly reduced.";
+
+    private static string BuildMissingToolActivityMessage(ResourceNode node, bool appendGatherPenalty)
+    {
+        string baseMsg = string.IsNullOrWhiteSpace(node.MissingToolMessage)
+            ? "Missing tool in toolbelt."
+            : node.MissingToolMessage.Trim();
+
+        return appendGatherPenalty ? $"{baseMsg} - {GatherSpeedGreatlyReducedTail}" : baseMsg;
+    }
+
+    private string BuildMissingToolActivityMessage(ResourceNode node) =>
+        BuildMissingToolActivityMessage(node, allowGatherWithoutTool);
+
     // -------------------------
-    // Popup (World Tooltip)
+    // Popup feedback (activity log only; no floating copy above the player)
     // -------------------------
 
-    private void ShowPopupInternal(string msg, float? seconds = null)
+    private void ShowPopupInternal(string msg)
     {
         if (string.IsNullOrWhiteSpace(msg))
             msg = "Action not allowed.";
@@ -1045,25 +1068,14 @@ public class PlayerController : MonoBehaviour
         if (ShouldLogPopupToActivity(msg))
             GameLog.Add(msg);
 
-        if (!actionPopup) return;
-
-        var tmp = actionPopup.GetComponentInChildren<TMP_Text>(true);
-        if (tmp) tmp.text = msg;
-
-        if (_actionPopupRoutine != null)
-            StopCoroutine(_actionPopupRoutine);
-
-        _actionPopupRoutine = StartCoroutine(PopupRoutine(seconds ?? actionPopupSeconds));
+        // Activity log only — no floating world copy above the player.
+        if (actionPopup)
+            actionPopup.SetActive(false);
     }
 
     public void ShowPopup(string msg)
     {
-        ShowPopupInternal(msg, null);
-    }
-
-    public void ShowPopup(string msg, float seconds)
-    {
-        ShowPopupInternal(msg, seconds);
+        ShowPopupInternal(msg);
     }
 
     private bool ShouldLogPopupToActivity(string msg)
@@ -1105,14 +1117,6 @@ public class PlayerController : MonoBehaviour
 
         _nextActivityLogTimeByPopupMessage[key] = Time.unscaledTime + RepeatedPopupActivityLogIntervalSeconds;
         return true;
-    }
-
-    private IEnumerator PopupRoutine(float secs)
-    {
-        actionPopup.SetActive(true);
-        yield return new WaitForSeconds(secs);
-        actionPopup.SetActive(false);
-        _actionPopupRoutine = null;
     }
 
     public void CancelAction()
@@ -1281,6 +1285,9 @@ public class PlayerController : MonoBehaviour
 
     private void TickMoveToTarget()
     {
+        if (movementLocked)
+            return;
+
         if (!targetNode) { ReturnToIdle(); return; }
 
         float targetX = targetNode.workSpot.position.x;
@@ -1362,6 +1369,9 @@ public class PlayerController : MonoBehaviour
 
     private void TickMoveToPickup()
     {
+        if (movementLocked)
+            return;
+
         if (_pickupTarget == null)
         {
             ReturnToIdle();
@@ -1381,7 +1391,7 @@ public class PlayerController : MonoBehaviour
                 _pickupTarget.TryPickup(inventory);
 
                 if (!canFullyPickup)
-                    ShowPopup("Inventory Full!", 1.5f);
+                    ShowPopup("Inventory Full!");
             }
 
             _pickupTarget = null;
@@ -1432,15 +1442,12 @@ public class PlayerController : MonoBehaviour
                 equipment?.SetHideBothHandsOverride(true);
 
                 if (state == State.Gather)
-                {
-                    ShowPopup(string.IsNullOrWhiteSpace(targetNode.MissingToolMessage)
-                        ? "Missing tool in toolbelt."
-                        : targetNode.MissingToolMessage);
-                }
+                    ShowPopup(BuildMissingToolActivityMessage(targetNode));
             }
             else
             {
                 CancelAction();
+                return;
             }
         }
     }
@@ -1451,6 +1458,8 @@ public class PlayerController : MonoBehaviour
 
     private void TickGather()
     {
+        if (movementLocked)
+            return;
 
         if (AnyEnemyOnMap)
         {
@@ -1499,6 +1508,12 @@ public class PlayerController : MonoBehaviour
             if (_gatherTimer >= _nextGatherInterval)
             {
                 DoOneGatherTick();
+
+                // AddPartial can synchronously invoke OnInventoryChanged (e.g. helper overlay locks movement →
+                // SetMovementLocked clears targetNode). Don't touch targetNode afterward.
+                if (!targetNode)
+                    return;
+
                 _gatherTimer = 0f;
                 _nextGatherInterval = targetNode.GetNextInterval();
             }
@@ -1560,7 +1575,7 @@ public class PlayerController : MonoBehaviour
                         }
                     }
 
-                    ShowPopup("Inventory Full!", 1.5f);
+                    ShowPopup("Inventory Full!");
                 }
 
                 // ✅ XP ONLY for main yield tick
@@ -1619,7 +1634,7 @@ public class PlayerController : MonoBehaviour
                     }
                 }
 
-                ShowPopup("Inventory Full!", 1.5f);
+                ShowPopup("Inventory Full!");
             }
         }
     }
