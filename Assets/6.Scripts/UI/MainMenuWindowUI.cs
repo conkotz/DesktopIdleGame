@@ -376,6 +376,9 @@ public class MainMenuWindowUI : MonoBehaviour
         currentPage = targetPage;
         RefreshHeaderTitle();
 
+        if (characterPage != null && targetPage == characterPage)
+            HelperGameplayController.NotifyCharacterMenuOpened();
+
         if (!_hideWindowWithCanvasGroup &&
             (!mainMenuWindow.activeSelf || !targetPage.activeSelf))
         {
@@ -384,6 +387,9 @@ public class MainMenuWindowUI : MonoBehaviour
             targetPage.SetActive(true);
             currentPage = targetPage;
             RefreshHeaderTitle();
+
+            if (characterPage != null && targetPage == characterPage)
+                HelperGameplayController.NotifyCharacterMenuOpened();
         }
     }
 

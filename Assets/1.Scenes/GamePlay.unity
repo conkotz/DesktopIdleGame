@@ -11048,7 +11048,6 @@ RectTransform:
   m_Children:
   - {fileID: 2042090762}
   - {fileID: 719275852}
-  - {fileID: 1998343933}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -19483,7 +19482,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameplayLevelBootstrapper
   contentRoot: {fileID: 0}
-  devFallbackNode: {fileID: 11400000, guid: cfc0b92c2808e6e41bbfcc7de180cc2a, type: 2}
+  devFallbackNode: {fileID: 11400000, guid: 268f98c476273384a896390c96aa7917, type: 2}
   devInstantiatePrefabGroups: 0
   devSpawnGridStep: {x: 2, y: 0, z: 0}
 --- !u!4 &592385034
@@ -33396,7 +33395,7 @@ Transform:
   m_GameObject: {fileID: 999888770}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.47489095, z: 0}
+  m_LocalPosition: {x: 0, y: -0.26248288, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -34610,6 +34609,7 @@ GameObject:
   - component: {fileID: 1044983565}
   - component: {fileID: 1044983563}
   - component: {fileID: 1044983566}
+  - component: {fileID: 1044983567}
   m_Layer: 0
   m_Name: WorldManager
   m_TagString: Untagged
@@ -34746,6 +34746,37 @@ MonoBehaviour:
   stripCamera: {fileID: 414385169}
   boundsRect: {fileID: 2042090762}
   horizontalEdgePadding: 0.5
+--- !u!114 &1044983567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1044983554}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c8e49967c501bc43aac3274a227c10d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HelperGameplayController
+  definitions:
+  - {fileID: 11400000, guid: 661ebbb1df4c8974aa9ff3d7ea176bf3, type: 2}
+  uiParentOverride: {fileID: 2042090762}
+  preferFullscreenUiCanvasForHelper: 1
+  canvasSortOrder: 15000
+  whitelistGlowSortDelta: 1
+  panelSortDelta: 2
+  visualsSubtreeChildName: Visuals
+  whitelistGlowAboveDimmer: 1
+  worldCameraForWhitelistGlow: {fileID: 414385169}
+  whitelistHelperTint: {r: 1, g: 0.92, b: 0.35, a: 1}
+  whitelistGlowPulseAlphaMin: 0
+  whitelistGlowPulseAlphaMax: 0.55
+  whitelistGlowPulseSpeed: 2.8
+  whitelistHelperTintStrength: 0.42
+  whitelistTintLerpSpeed: 14
+  panelSize: {x: 560, y: 280}
+  panelAnchoredPosition: {x: 60, y: -700}
+  typewriterSecondsPerWord: 4
 --- !u!1 &1046578828
 GameObject:
   m_ObjectHideFlags: 0
@@ -37180,7 +37211,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.2, y: 0.2, z: 0}
-  m_LocalScale: {x: 6.6063094, y: 2.194487, z: 1.6511867}
+  m_LocalScale: {x: 8.191824, y: 2.194487, z: 1.6511867}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -67915,11 +67946,11 @@ RectTransform:
   m_Children:
   - {fileID: 1891005025}
   - {fileID: 53704514}
-  m_Father: {fileID: 300103154}
+  m_Father: {fileID: 2042090762}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 40}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 350, y: 350}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1998343934
@@ -69638,6 +69669,7 @@ RectTransform:
   - {fileID: 265969955}
   - {fileID: 395888640}
   - {fileID: 1358094316}
+  - {fileID: 1998343933}
   m_Father: {fileID: 300103154}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}

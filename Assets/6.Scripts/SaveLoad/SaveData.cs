@@ -151,4 +151,8 @@ public class SaveData
         public string merchantId;
         public List<int> quantities = new();
     }
+
+    [Header("Helpers / Tutorial popups")]
+    [Tooltip("HelperPopupDefinition.helperId values dismissed for this character (do not replay until New Game clears the save).")]
+    public List<string> dismissedHelperIds = new();
 }

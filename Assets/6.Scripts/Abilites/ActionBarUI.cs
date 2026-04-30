@@ -141,7 +141,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     {
         // Allow action bar hotkeys even when windows are open.
         // Only block while rebinding, on suppress frame, or when typing into a text field.
-        bool blockHotkeyPoll = HotkeySettingsRowUI.IsRebinding ||
+        bool blockHotkeyPoll = HelperGameplayController.BlocksStripGameplay ||
+                               HotkeySettingsRowUI.IsRebinding ||
                                IsTypingIntoInputField() ||
                                Time.frameCount == HotkeySettingsRowUI.SuppressActionBarHotkeyPollFrame;
 

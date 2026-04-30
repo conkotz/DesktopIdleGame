@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d4549ab826df384b91e9e2da5b95c50, type: 3}
+  m_Name: Helper_GameStart
+  m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
+  helperId: early_game_helper
+  title: Welcome
+  bodyText: 'Welcome to the game, let''s start going through the basics. Firstly,
+    seeing a yellow exclamation mark signifies a quest is available. Try clicking
+    on the NPC here to get your first quest.
+
+
+    The Help feature can be disabled
+    in Settings.'
+  activationTrigger: 1
+  requiredMapNodeId: tutorial_1
+  priority: 0
+  dismissModes: 5
+  whitelistedInteractionIds:
+  - NPC_Tutorial_1
+  highlightWhitelistTargetsDuringHelper: 1

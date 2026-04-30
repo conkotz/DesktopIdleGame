@@ -166,6 +166,9 @@ public sealed class StripCameraController : MonoBehaviour
     /// </summary>
     private void ApplyKeyboardOrthoZoom()
     {
+        if (HelperGameplayController.BlocksStripGameplay)
+            return;
+
         CacheCamera();
 
         if (!stripCamera || !stripCamera.orthographic)

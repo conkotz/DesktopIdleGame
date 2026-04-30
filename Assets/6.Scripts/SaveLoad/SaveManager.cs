@@ -100,6 +100,8 @@ public class SaveManager : MonoBehaviour
         if (pendingMode == SaveSlotManager.SlotStartMode.None)
             pendingMode = HasSave() ? SaveSlotManager.SlotStartMode.LoadGame : SaveSlotManager.SlotStartMode.NewGame;
 
+        HelperProgressStore.ResetHydrationForNewSession();
+
         _didInitialLoadOrCreate = true;
 
         if (pendingMode == SaveSlotManager.SlotStartMode.NewGame)
@@ -121,6 +123,8 @@ public class SaveManager : MonoBehaviour
                 Save();
             }
         }
+
+        HelperProgressStore.ApplyFromSaveData(_lastLoadedData);
 
         var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         if (player == null)
@@ -256,6 +260,8 @@ public class SaveManager : MonoBehaviour
             s.SaveInto(data);
 
         EnsurePlayerStorageInSaveData(data);
+
+        HelperProgressStore.WriteDismissedInto(data);
 
         ApplyActiveMapToSaveData(data);
 
@@ -407,6 +413,8 @@ public class SaveManager : MonoBehaviour
             data.worldMapEnteredNodeIds = new List<string>();
         if (data.merchantStocks == null)
             data.merchantStocks = new List<SaveData.MerchantStockSave>();
+        if (data.dismissedHelperIds == null)
+            data.dismissedHelperIds = new List<string>();
     }
 
     /// <summary>

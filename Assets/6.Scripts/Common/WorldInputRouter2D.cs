@@ -17,103 +17,138 @@ public class WorldInputRouter2D : MonoBehaviour
     [SerializeField] private bool restrictClicksToStrip = true;
     [SerializeField] private Camera stripCamera; // assign StripCamera in the scene
 
-    private SimpleHoverHighlight2D _currentHover; // or EdgeHighlight2D if you swap later
+    private SimpleHoverHighlight2D _currentHover;
 
-    /// <summary>True when this router drives hover highlights (used to avoid duplicate HoverPicker2D).</summary>
     public bool HoverHighlightEnabled => enableHoverHighlight;
 
     private void Awake()
     {
-        if (!cam) cam = Camera.main;
-        if (!player) player = FindFirstObjectByType<PlayerController>();
+        if (!cam)
+            cam = Camera.main;
+        if (!player)
+            player = FindFirstObjectByType<PlayerController>();
     }
 
     private void Update()
     {
-        if (!cam) cam = Camera.main;
-        if (!cam) return;
+        if (!cam)
+            cam = Camera.main;
+        if (!cam)
+            return;
 
-        // UI blocks hover/click
-        bool overUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+        bool helperLocks = HelperGameplayController.BlocksStripGameplay;
 
-        // ----- Hover (winner under mouse) -----
+        bool overUI =
+            EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+
         Collider2D winnerCol = null;
         if (!overUI)
             winnerCol = PickWinnerUnderMouse();
+        else if (helperLocks && HelperGameplayController.ActiveHelperUsesWorldWhitelist)
+            winnerCol = PickWinnerUnderMouse();
 
         if (enableHoverHighlight)
-            UpdateHoverHighlight(winnerCol);
+        {
+            bool allowHoverWinner = winnerCol;
+            if (helperLocks)
+                allowHoverWinner = winnerCol && HelperGameplayController.IsWhitelistedWorldPick(winnerCol);
 
-        // ----- Click -----
-        if (!Input.GetMouseButtonDown(0)) return;
-        if (overUI) return;
+            UpdateHoverHighlight(allowHoverWinner ? winnerCol : null);
+        }
 
-        if (restrictClicksToStrip && stripCamera &&
+        if (!Input.GetMouseButtonDown(0))
+            return;
+
+        bool preferWorldOverUi =
+            helperLocks && HelperGameplayController.ActiveHelperUsesWorldWhitelist &&
+            EventSystem.current != null;
+
+        if (!preferWorldOverUi && overUI)
+            return;
+
+        // If a fullscreen UI canvas is under the pointer but this helper needs map clicks, probe world first.
+        Collider2D worldUnderPointer = null;
+        if (preferWorldOverUi && overUI)
+            worldUnderPointer = PickWinnerUnderMouse();
+
+        // True click on real UI (menus) still blocks; whitelist only bypasses when there's a whitelisted collider.
+        if (overUI && !(worldUnderPointer != null && HelperGameplayController.IsWhitelistedWorldPick(worldUnderPointer)))
+            return;
+
+        if (!player)
+            return;
+
+        bool skipStripForWhitelist =
+            helperLocks && HelperGameplayController.ActiveHelperUsesWorldWhitelist;
+
+        if (restrictClicksToStrip && stripCamera && !skipStripForWhitelist &&
             !stripCamera.pixelRect.Contains(Input.mousePosition))
             return;
 
-        if (winnerCol != null)
+        winnerCol = PickWinnerUnderMouse();
+
+        if (helperLocks)
         {
-            // Route by component type (priority order)
-            // 1) Item drops
-            var drop = winnerCol.GetComponentInParent<ItemDrop>();
-            if (drop != null)
-            {
-                player.RequestPickup(drop);
+            if (!winnerCol)
                 return;
-            }
 
-            // 2) Resources (trees/rocks/pond)
-            var node = winnerCol.GetComponentInParent<ResourceNode>();
-            if (node != null)
-            {
-                player.SelectNode(node);
+            if (!HelperGameplayController.IsWhitelistedWorldPick(winnerCol))
                 return;
-            }
 
-            // 3) NPCs + merchants
-            NPCInteractionSettings npc = winnerCol.GetComponentInParent<NPCInteractionSettings>();
-            MerchantClick merchant = winnerCol.GetComponentInParent<MerchantClick>();
-
-            if (merchant != null)
-            {
-                // Dialogue/quest UI when this NPC has interaction settings, plus shop + character menu.
-                if (npc != null)
-                    npc.Interact();
-
-                merchant.Open();
-                return;
-            }
-
-            if (npc != null)
-            {
-                npc.Interact();
-                return;
-            }
-
-            // 3c) Town storage chest
-            var storage = winnerCol.GetComponentInParent<StorageClick>();
-            if (storage != null)
-            {
-                storage.Open();
-                return;
-            }
-
-            // 4) Enemy later (example)
-            // var enemy = winnerCol.GetComponentInParent<Enemy>();
-            // if (enemy != null) { player.Attack(enemy); return; }
-
-            // If winner exists but isn't something we handle, do nothing
+            RouteWorldClick(winnerCol);
+            HelperGameplayController.NotifyWhitelistWorldRouteHandled();
             return;
         }
 
-     
+        RouteWorldClick(winnerCol);
+    }
+
+    private void RouteWorldClick(Collider2D winnerCol)
+    {
+        if (winnerCol == null)
+            return;
+
+        var drop = winnerCol.GetComponentInParent<ItemDrop>();
+        if (drop != null)
+        {
+            player.RequestPickup(drop);
+            return;
+        }
+
+        var node = winnerCol.GetComponentInParent<ResourceNode>();
+        if (node != null)
+        {
+            player.SelectNode(node);
+            return;
+        }
+
+        NPCInteractionSettings npc = winnerCol.GetComponentInParent<NPCInteractionSettings>();
+        MerchantClick merchant = winnerCol.GetComponentInParent<MerchantClick>();
+
+        if (merchant != null)
+        {
+            if (npc != null)
+                npc.Interact();
+
+            merchant.Open();
+            return;
+        }
+
+        if (npc != null)
+        {
+            npc.Interact();
+            return;
+        }
+
+        var storage = winnerCol.GetComponentInParent<StorageClick>();
+        if (storage != null)
+            storage.Open();
     }
 
     private Collider2D PickWinnerUnderMouse()
     {
         Vector3 w3 = cam.ScreenToWorldPoint(Input.mousePosition);
-        Vector2 point = new Vector2(w3.x, w3.y);
+        Vector2 point = new(w3.x, w3.y);
 
         return WorldClickPicker2D.PickTopmostAtPoint(point, worldClickMask);
     }
@@ -122,11 +157,13 @@ public class WorldInputRouter2D : MonoBehaviour
     {
         var newHover = winnerCol ? winnerCol.GetComponentInParent<SimpleHoverHighlight2D>() : null;
 
-        if (_currentHover == newHover) return;
+        if (_currentHover == newHover)
+            return;
 
-        if (_currentHover) _currentHover.SetHovered(false);
+        if (_currentHover)
+            _currentHover.SetHovered(false);
         _currentHover = newHover;
-        if (_currentHover) _currentHover.SetHovered(true);
+        if (_currentHover)
+            _currentHover.SetHovered(true);
     }
-
 }
