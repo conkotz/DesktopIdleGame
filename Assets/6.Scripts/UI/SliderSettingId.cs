@@ -1,5 +1,6 @@
 public enum SliderSettingId
 {
     HudResize = 0,
-    WindowResize = 1
+    WindowResize = 1,
+    OverheadHpBarResize = 2,
 }

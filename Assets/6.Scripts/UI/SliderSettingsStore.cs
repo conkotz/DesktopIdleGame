@@ -5,6 +5,7 @@ public static class SliderSettingsStore
 {
     public const string HudResizeKey = "ui.scaleMultiplier";
     public const string WindowResizeKey = "ui.windowScaleMultiplier";
+    public const string OverheadHpBarResizeKey = "ui.overheadHpBarScaleMultiplier";
 
     public static event Action<SliderSettingId, float> Changed;
 
@@ -14,6 +15,8 @@ public static class SliderSettingsStore
         {
             SliderSettingId.HudResize => PlayerPrefs.GetFloat(HudResizeKey, GetDefault(setting)),
             SliderSettingId.WindowResize => PlayerPrefs.GetFloat(WindowResizeKey, GetDefault(setting)),
+            SliderSettingId.OverheadHpBarResize =>
+                PlayerPrefs.GetFloat(OverheadHpBarResizeKey, GetDefault(setting)),
             _ => GetDefault(setting)
         };
 
@@ -34,6 +37,9 @@ public static class SliderSettingsStore
             case SliderSettingId.WindowResize:
                 PlayerPrefs.SetFloat(WindowResizeKey, clamped);
                 break;
+            case SliderSettingId.OverheadHpBarResize:
+                PlayerPrefs.SetFloat(OverheadHpBarResizeKey, clamped);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -44,6 +50,7 @@ public static class SliderSettingsStore
     {
         PlayerPrefs.DeleteKey(HudResizeKey);
         PlayerPrefs.DeleteKey(WindowResizeKey);
+        PlayerPrefs.DeleteKey(OverheadHpBarResizeKey);
         PlayerPrefs.Save();
 
         foreach (SliderSettingId id in Enum.GetValues(typeof(SliderSettingId)))
@@ -56,6 +63,7 @@ public static class SliderSettingsStore
         {
             SliderSettingId.HudResize => "HUD resize",
             SliderSettingId.WindowResize => "Window resize",
+            SliderSettingId.OverheadHpBarResize => "Overhead HP bar resize",
             _ => setting.ToString()
         };
     }
@@ -75,6 +83,7 @@ public static class SliderSettingsStore
         {
             SliderSettingId.HudResize => 1f,
             SliderSettingId.WindowResize => 1f,
+            SliderSettingId.OverheadHpBarResize => 1f,
             _ => 0f
         };
     }
@@ -85,6 +94,7 @@ public static class SliderSettingsStore
         {
             SliderSettingId.HudResize => 0.75f,
             SliderSettingId.WindowResize => 0.75f,
+            SliderSettingId.OverheadHpBarResize => 0.75f,
             _ => 0f
         };
     }
@@ -95,6 +105,7 @@ public static class SliderSettingsStore
         {
             SliderSettingId.HudResize => 1.25f,
             SliderSettingId.WindowResize => 1.25f,
+            SliderSettingId.OverheadHpBarResize => 1.25f,
             _ => 1f
         };
     }

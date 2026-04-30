@@ -60,6 +60,12 @@ public class UnitOverheadUI : MonoBehaviour
     private float _stackYOffset;
     private float _externalScale = 1f;
 
+    /// <summary>Cached <see cref="SliderSettingId.OverheadHpBarResize"/>; multiplied into root scale alongside <see cref="_externalScale"/>.</summary>
+    private float _overheadBarResizeSlider = 1f;
+
+    /// <summary>Cached <see cref="SliderSettingId.HudResize"/>; dividing undoes CanvasScaler HUD growth so overhead size follows overhead slider only.</summary>
+    private float _hudResizeSlider = 1f;
+
     private static readonly List<UnitOverheadUI> s_instances = new();
     private static bool s_canvasCallbackSubscribed;
     private static int s_lastStackResolveFrame = -1;
@@ -91,12 +97,15 @@ public class UnitOverheadUI : MonoBehaviour
         if (!s_instances.Contains(this))
             s_instances.Add(this);
         EnsureCanvasStackCallback();
+        SliderSettingsStore.Changed += HandleSliderSettingsChanged;
+        RefreshSliderScaleCaches();
         Subscribe();
         RefreshAll();
     }
 
     private void OnDisable()
     {
+        SliderSettingsStore.Changed -= HandleSliderSettingsChanged;
         s_instances.Remove(this);
         Unsubscribe();
     }
@@ -433,8 +442,33 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void HandleToggleSettingChanged(ToggleSettingId setting, bool _)
     {
-        if (setting == ToggleSettingId.HidePlayerHealthBarOutOfCombat)
+        if (setting == ToggleSettingId.ShowPlayerHealthBarOutOfCombat)
             ComputeBaseAnchoredAndVisibility();
+
+        if (setting == ToggleSettingId.ShowOverheadHealthGuardNumbers)
+            ApplyOverheadNumericLabelPreference();
+    }
+
+    private void ApplyOverheadNumericLabelPreference()
+    {
+        bool showNums = ToggleSettingsStore.Get(ToggleSettingId.ShowOverheadHealthGuardNumbers);
+
+        if (hpValueText != null)
+            hpValueText.gameObject.SetActive(showNums);
+
+        if (guardValueText == null)
+            return;
+
+        if (!showNums)
+        {
+            guardValueText.gameObject.SetActive(false);
+            return;
+        }
+
+        if (characterStats != null)
+            HandleCharacterGuardChanged(characterStats.Guard, characterStats.NaturalGuardCap);
+        else
+            guardValueText.gameObject.SetActive(false);
     }
 
     private void RefreshAll()
@@ -451,6 +485,7 @@ public class UnitOverheadUI : MonoBehaviour
             HandleEnemyHpChanged(enemy.HP, enemy.MaxHP);
 
         RefreshDebuffIcons();
+        ApplyOverheadNumericLabelPreference();
     }
 
     private static bool IsOverheadWorldPointVisible(Camera cam, Vector3 worldPos, Vector3 screenPos)
@@ -524,7 +559,7 @@ public class UnitOverheadUI : MonoBehaviour
         if (!_hpBarOnlyLayout || enemy != null)
             return true;
 
-        if (!ToggleSettingsStore.Get(ToggleSettingId.HidePlayerHealthBarOutOfCombat))
+        if (ToggleSettingsStore.Get(ToggleSettingId.ShowPlayerHealthBarOutOfCombat))
             return true;
 
         if (_playerCombatState == null)
@@ -539,7 +574,7 @@ public class UnitOverheadUI : MonoBehaviour
             return;
 
         root.anchoredPosition = _stackBaseAnchored;
-        root.localScale = Vector3.one * _externalScale;
+        ApplyCombinedRootScale();
     }
 
     private void ApplyStackedPosition()
@@ -548,14 +583,35 @@ public class UnitOverheadUI : MonoBehaviour
             return;
 
         root.anchoredPosition = _stackBaseAnchored + new Vector2(0f, _stackYOffset);
-        root.localScale = Vector3.one * _externalScale;
+        ApplyCombinedRootScale();
     }
 
     public void SetExternalScale(float scale)
     {
         _externalScale = Mathf.Max(0.01f, scale);
-        if (root != null)
-            root.localScale = Vector3.one * _externalScale;
+        ApplyCombinedRootScale();
+    }
+
+    private void HandleSliderSettingsChanged(SliderSettingId id, float _)
+    {
+        if (id == SliderSettingId.HudResize || id == SliderSettingId.OverheadHpBarResize)
+            RefreshSliderScaleCaches();
+    }
+
+    private void RefreshSliderScaleCaches()
+    {
+        _overheadBarResizeSlider = SliderSettingsStore.Get(SliderSettingId.OverheadHpBarResize);
+        _hudResizeSlider = Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.HudResize));
+        ApplyCombinedRootScale();
+    }
+
+    private void ApplyCombinedRootScale()
+    {
+        if (root == null)
+            return;
+
+        float s = Mathf.Max(0.01f, _externalScale) * _overheadBarResizeSlider / _hudResizeSlider;
+        root.localScale = Vector3.one * s;
     }
 
     private void HandleStatsChanged()
@@ -618,7 +674,10 @@ public class UnitOverheadUI : MonoBehaviour
             hpFill.fillAmount = Mathf.Clamp01(fill);
 
         if (hpValueText != null)
+        {
             hpValueText.text = $"{Mathf.CeilToInt(current)}/{Mathf.CeilToInt(max)}";
+            hpValueText.gameObject.SetActive(ToggleSettingsStore.Get(ToggleSettingId.ShowOverheadHealthGuardNumbers));
+        }
     }
 
     private void HandleCharacterGuardChanged(float current, float naturalCap)
@@ -641,6 +700,12 @@ public class UnitOverheadUI : MonoBehaviour
 
         if (guardValueText)
         {
+            if (!ToggleSettingsStore.Get(ToggleSettingId.ShowOverheadHealthGuardNumbers))
+            {
+                guardValueText.gameObject.SetActive(false);
+                return;
+            }
+
             if (current <= 0.0001f)
                 guardValueText.gameObject.SetActive(false);
             else
@@ -659,7 +724,10 @@ public class UnitOverheadUI : MonoBehaviour
             hpFill.fillAmount = Mathf.Clamp01(fill);
 
         if (hpValueText != null)
+        {
             hpValueText.text = $"{current}/{max}";
+            hpValueText.gameObject.SetActive(ToggleSettingsStore.Get(ToggleSettingId.ShowOverheadHealthGuardNumbers));
+        }
     }
 
     public void RefreshDebuffIcons()

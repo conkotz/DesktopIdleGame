@@ -41,7 +41,7 @@ public sealed class StripCameraController : MonoBehaviour
     [SerializeField] private bool enableKeyboardZoom = true;
 
     [Tooltip("Ortho half-height change per second while Up/Down is held (world units/s).")]
-    [SerializeField] private float orthoZoomSpeed = 5f;
+    [SerializeField] private float orthoZoomSpeed = 3f;
 
     [Header("Behaviour")]
     public bool updateContinuously = false;

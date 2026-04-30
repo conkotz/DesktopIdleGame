@@ -6,7 +6,9 @@ using UnityEngine;
 /// </summary>
 public static class ToggleSettingsStore
 {
-    private const string HidePlayerHealthBarOutOfCombatKey = "Settings.HidePlayerHealthBarOutOfCombat";
+    private const string LegacyHidePlayerHealthBarOutOfCombatKey = "Settings.HidePlayerHealthBarOutOfCombat";
+    private const string ShowPlayerHealthBarOutOfCombatKey = "Settings.ShowPlayerHealthBarOutOfCombat";
+    private const string ShowOverheadHealthGuardNumbersKey = "Settings.ShowOverheadHealthGuardNumbers";
     private const string UseTwentyFourHourTimeKey = "Settings.UseTwentyFourHourTime";
     private const string ShowWindowResizeHandlesKey = "Settings.ShowWindowResizeHandles";
     private const string TopMostGameWindowKey = "Settings.TopMostGameWindow";
@@ -19,8 +21,9 @@ public static class ToggleSettingsStore
     {
         return setting switch
         {
-            ToggleSettingId.HidePlayerHealthBarOutOfCombat =>
-                PlayerPrefs.GetInt(HidePlayerHealthBarOutOfCombatKey, 1) != 0,
+            ToggleSettingId.ShowPlayerHealthBarOutOfCombat => GetShowPlayerHealthBarOutOfCombat(),
+            ToggleSettingId.ShowOverheadHealthGuardNumbers =>
+                PlayerPrefs.GetInt(ShowOverheadHealthGuardNumbersKey, 1) != 0,
             ToggleSettingId.UseTwentyFourHourTime =>
                 PlayerPrefs.GetInt(UseTwentyFourHourTimeKey, 1) != 0,
             ToggleSettingId.ShowWindowResizeHandles =>
@@ -35,6 +38,23 @@ public static class ToggleSettingsStore
         };
     }
 
+    /// <summary>
+    /// New key prefers show-out-of-combat (default ON). Migrates legacy &quot;hide&quot; prefs by inverting once.
+    /// </summary>
+    private static bool GetShowPlayerHealthBarOutOfCombat()
+    {
+        if (PlayerPrefs.HasKey(ShowPlayerHealthBarOutOfCombatKey))
+            return PlayerPrefs.GetInt(ShowPlayerHealthBarOutOfCombatKey, 1) != 0;
+
+        if (PlayerPrefs.HasKey(LegacyHidePlayerHealthBarOutOfCombatKey))
+        {
+            bool legacyHidePrimaryMeaningWasOn = PlayerPrefs.GetInt(LegacyHidePlayerHealthBarOutOfCombatKey, 1) != 0;
+            return !legacyHidePrimaryMeaningWasOn;
+        }
+
+        return true;
+    }
+
     public static void Set(ToggleSettingId setting, bool value)
     {
         if (Get(setting) == value)
@@ -42,8 +62,12 @@ public static class ToggleSettingsStore
 
         switch (setting)
         {
-            case ToggleSettingId.HidePlayerHealthBarOutOfCombat:
-                PlayerPrefs.SetInt(HidePlayerHealthBarOutOfCombatKey, value ? 1 : 0);
+            case ToggleSettingId.ShowPlayerHealthBarOutOfCombat:
+                PlayerPrefs.SetInt(ShowPlayerHealthBarOutOfCombatKey, value ? 1 : 0);
+                PlayerPrefs.DeleteKey(LegacyHidePlayerHealthBarOutOfCombatKey);
+                break;
+            case ToggleSettingId.ShowOverheadHealthGuardNumbers:
+                PlayerPrefs.SetInt(ShowOverheadHealthGuardNumbersKey, value ? 1 : 0);
                 break;
             case ToggleSettingId.UseTwentyFourHourTime:
                 PlayerPrefs.SetInt(UseTwentyFourHourTimeKey, value ? 1 : 0);
@@ -71,7 +95,9 @@ public static class ToggleSettingsStore
 
     internal static void ClearAllStoredKeysAndReload()
     {
-        PlayerPrefs.DeleteKey(HidePlayerHealthBarOutOfCombatKey);
+        PlayerPrefs.DeleteKey(LegacyHidePlayerHealthBarOutOfCombatKey);
+        PlayerPrefs.DeleteKey(ShowPlayerHealthBarOutOfCombatKey);
+        PlayerPrefs.DeleteKey(ShowOverheadHealthGuardNumbersKey);
         PlayerPrefs.DeleteKey(UseTwentyFourHourTimeKey);
         PlayerPrefs.DeleteKey(ShowWindowResizeHandlesKey);
         PlayerPrefs.DeleteKey(TopMostGameWindowKey);
@@ -89,7 +115,8 @@ public static class ToggleSettingsStore
     {
         return setting switch
         {
-            ToggleSettingId.HidePlayerHealthBarOutOfCombat => "Hide player health bar out of combat",
+            ToggleSettingId.ShowPlayerHealthBarOutOfCombat => "Show player health bar out of combat",
+            ToggleSettingId.ShowOverheadHealthGuardNumbers => "Show players health and guard number values",
             ToggleSettingId.UseTwentyFourHourTime => "Use 24-hour time",
             ToggleSettingId.ShowWindowResizeHandles => "Show window resize handles",
             ToggleSettingId.TopMostGameWindow => "Is topmost game window",

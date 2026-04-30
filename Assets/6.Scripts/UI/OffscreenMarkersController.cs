@@ -89,6 +89,36 @@ public class OffscreenMarkersController : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        SliderSettingsStore.Changed += OnSliderSettingsChanged;
+        ApplyMarkersIndependentOfHudResize();
+    }
+
+    private void OnDisable()
+    {
+        SliderSettingsStore.Changed -= OnSliderSettingsChanged;
+    }
+
+    private void OnSliderSettingsChanged(SliderSettingId id, float _)
+    {
+        if (id == SliderSettingId.HudResize)
+            ApplyMarkersIndependentOfHudResize();
+    }
+
+    /// <summary>
+    /// <see cref="RuntimeCanvasScaleController"/> scales the whole HUD canvas via <see cref="SliderSettingId.HudResize"/>.
+    /// Counter-scale the marker stack so arrows stay authoring size while strip HUD scales.
+    /// </summary>
+    private void ApplyMarkersIndependentOfHudResize()
+    {
+        if (!markerContainer)
+            return;
+
+        float hud = Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.HudResize));
+        markerContainer.localScale = Vector3.one / hud;
+    }
+
     private void ResolveWorldCamera()
     {
         if (worldCamera)

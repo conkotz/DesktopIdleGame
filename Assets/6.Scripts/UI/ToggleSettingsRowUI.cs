@@ -5,7 +5,7 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class ToggleSettingsRowUI : MonoBehaviour
 {
-    [SerializeField] private ToggleSettingId settingId = ToggleSettingId.HidePlayerHealthBarOutOfCombat;
+    [SerializeField] private ToggleSettingId settingId = ToggleSettingId.ShowPlayerHealthBarOutOfCombat;
     [SerializeField] private TMP_Text settingNameText;
     [SerializeField] private Toggle toggle;
 
