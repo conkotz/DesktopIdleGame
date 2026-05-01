@@ -18,13 +18,29 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
 
     private void Awake()
     {
-        if (!window) window = transform as RectTransform;
+        if (!window)
+            window = transform as RectTransform;
         _parent = window.parent as RectTransform;
         _anchorPoint = window ? window.anchoredPosition : Vector2.zero;
         if (string.IsNullOrWhiteSpace(memoryKey))
             memoryKey = ResolveMemoryKey();
+    }
 
-        UIWindowCornerResize.EnsureOn(window);
+    /// <summary>
+    /// Use when adding <see cref="UIDragWindow"/> from code — sets the movable panel (e.g. handle on header, window is outer panel).
+    /// </summary>
+    public void AttachWindow(RectTransform targetWindow) =>
+        AttachWindow(targetWindow, false, false);
+
+    /// <param name="omitTopCornerHandles">Forwarded to <see cref="UIWindowCornerResize"/> on the movable window.</param>
+    /// <param name="counterHudCanvasScale">Keeps authored size stable when HUD canvas applies <see cref="SliderSettingId.HudResize"/>.</param>
+    public void AttachWindow(
+        RectTransform targetWindow,
+        bool omitTopCornerHandles,
+        bool counterHudCanvasScale)
+    {
+        window = targetWindow ? targetWindow : transform as RectTransform;
+        UIWindowCornerResize.EnsureOn(window, omitTopCornerHandles, counterHudCanvasScale);
     }
 
     private void OnEnable()

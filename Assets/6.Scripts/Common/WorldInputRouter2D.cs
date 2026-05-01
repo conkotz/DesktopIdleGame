@@ -36,7 +36,8 @@ public class WorldInputRouter2D : MonoBehaviour
         if (!cam)
             return;
 
-        bool helperLocks = HelperGameplayController.BlocksStripGameplay;
+        bool gameplayLockedByHelperModal = HelperGameplayController.BlocksStripGameplay;
+        bool whitelistTutorialRoutesWorld = HelperGameplayController.UsesWorldWhitelistRouting;
 
         bool overUI =
             EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
@@ -44,13 +45,13 @@ public class WorldInputRouter2D : MonoBehaviour
         Collider2D winnerCol = null;
         if (!overUI)
             winnerCol = PickWinnerUnderMouse();
-        else if (helperLocks && HelperGameplayController.ActiveHelperUsesWorldWhitelist)
+        else if (whitelistTutorialRoutesWorld && EventSystem.current != null)
             winnerCol = PickWinnerUnderMouse();
 
         if (enableHoverHighlight)
         {
             bool allowHoverWinner = winnerCol;
-            if (helperLocks)
+            if (whitelistTutorialRoutesWorld)
                 allowHoverWinner = winnerCol && HelperGameplayController.IsWhitelistedWorldPick(winnerCol);
 
             UpdateHoverHighlight(allowHoverWinner ? winnerCol : null);
@@ -60,8 +61,7 @@ public class WorldInputRouter2D : MonoBehaviour
             return;
 
         bool preferWorldOverUi =
-            helperLocks && HelperGameplayController.ActiveHelperUsesWorldWhitelist &&
-            EventSystem.current != null;
+            HelperGameplayController.UsesWorldWhitelistRouting && EventSystem.current != null;
 
         if (!preferWorldOverUi && overUI)
             return;
@@ -78,8 +78,7 @@ public class WorldInputRouter2D : MonoBehaviour
         if (!player)
             return;
 
-        bool skipStripForWhitelist =
-            helperLocks && HelperGameplayController.ActiveHelperUsesWorldWhitelist;
+        bool skipStripForWhitelist = HelperGameplayController.UsesWorldWhitelistRouting;
 
         if (restrictClicksToStrip && stripCamera && !skipStripForWhitelist &&
             !stripCamera.pixelRect.Contains(Input.mousePosition))
@@ -87,7 +86,7 @@ public class WorldInputRouter2D : MonoBehaviour
 
         winnerCol = PickWinnerUnderMouse();
 
-        if (helperLocks)
+        if (whitelistTutorialRoutesWorld && gameplayLockedByHelperModal)
         {
             if (!winnerCol)
                 return;
@@ -97,6 +96,16 @@ public class WorldInputRouter2D : MonoBehaviour
 
             RouteWorldClick(winnerCol);
             HelperGameplayController.NotifyWhitelistWorldRouteHandled();
+            return;
+        }
+
+        if (whitelistTutorialRoutesWorld)
+        {
+            RouteWorldClick(winnerCol);
+
+            if (winnerCol != null && HelperGameplayController.IsWhitelistedWorldPick(winnerCol))
+                HelperGameplayController.NotifyWhitelistWorldRouteHandled();
+
             return;
         }
 

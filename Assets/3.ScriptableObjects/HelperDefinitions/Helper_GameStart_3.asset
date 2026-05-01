@@ -24,10 +24,12 @@ MonoBehaviour:
   inventoryTriggerItemCount: 1
   questGatherTriggerQuestId: 
   questRewardClaimedTriggerQuestId: 
+  questAcceptedTriggerQuestId: 
   skillLevelTriggerSkill: 1
   skillLevelTriggerMinimumNewLevel: 2
   priority: 3
   showCloseButton: 1
+  darkenScreenAndLockGameplay: 0
   dismissModes: 4
   whitelistedInteractionIds:
   - UIButton_SkillsAbilities

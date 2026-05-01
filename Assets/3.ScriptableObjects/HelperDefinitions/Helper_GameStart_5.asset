@@ -29,6 +29,7 @@ MonoBehaviour:
   skillLevelTriggerMinimumNewLevel: 2
   priority: 5
   showCloseButton: 1
+  darkenScreenAndLockGameplay: 0
   dismissModes: 0
   whitelistedInteractionIds: []
   highlightWhitelistTargetsDuringHelper: 0

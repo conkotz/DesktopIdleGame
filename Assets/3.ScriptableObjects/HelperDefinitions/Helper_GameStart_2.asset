@@ -29,6 +29,7 @@ MonoBehaviour:
   skillLevelTriggerMinimumNewLevel: 2
   priority: 2
   showCloseButton: 1
+  darkenScreenAndLockGameplay: 0
   dismissModes: 4
   whitelistedInteractionIds:
   - UIButton_Quest

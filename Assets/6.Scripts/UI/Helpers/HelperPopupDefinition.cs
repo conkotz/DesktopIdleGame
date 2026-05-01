@@ -56,6 +56,11 @@ public sealed class HelperPopupDefinition : ScriptableObject
     [Tooltip("When off, hides the overlay X button (whitelist dismiss flow only — X closes when on).")]
     public bool showCloseButton = true;
 
+    [Tooltip(
+        "When on (default): fullscreen dimmer blocks clicks behind the helper and movement is locked while this tip is expanded. "
+        + "When off: the popup still appears but the player can keep interacting and moving.")]
+    public bool darkenScreenAndLockGameplay = true;
+
     [Tooltip("Whitelist dismiss (+ overlay X via Show Close Button). Character-page auto-dismiss removed.")]
     public HelperDismissMode dismissModes = HelperDismissMode.InteractWhitelistDismiss;
 

@@ -55,6 +55,8 @@ public sealed class HelperPopupDefinitionEditor : UnityEditor.Editor
 
         EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(HelperPopupDefinition.priority)));
         EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(HelperPopupDefinition.showCloseButton)));
+        EditorGUILayout.PropertyField(
+            serializedObject.FindProperty(nameof(HelperPopupDefinition.darkenScreenAndLockGameplay)));
         EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(HelperPopupDefinition.dismissModes)));
 
         EditorGUILayout.PropertyField(

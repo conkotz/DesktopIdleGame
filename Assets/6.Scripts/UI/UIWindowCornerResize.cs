@@ -23,6 +23,16 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     [SerializeField] private float handleSize = 28f;
     [SerializeField] private string memoryKey;
 
+    [Tooltip("When true, TopLeft / TopRight hit targets are not created (resize from bottom corners only).")]
+    [SerializeField] private bool omitTopCornerHandles;
+
+    /// <summary>
+    /// Divides authored local scale by <see cref="SliderSettingId.HudResize"/> each frame-ish so apparent size stays constant while the HUD canvas scaler changes.
+    /// </summary>
+    [SerializeField] private bool counterHudCanvasScale;
+
+    private bool _subscribedHudSlider;
+
     private readonly Vector3[] _corners = new Vector3[4];
     private RectTransform _rect;
     private Vector3 _baseLocalScale = Vector3.one;
@@ -30,7 +40,13 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     private float _resizeStartDistance;
     private float _resizeStartScaleMultiplier = 1f;
 
-    public static UIWindowCornerResize EnsureOn(RectTransform window)
+    public static UIWindowCornerResize EnsureOn(RectTransform window) =>
+        EnsureOn(window, false, false);
+
+    public static UIWindowCornerResize EnsureOn(
+        RectTransform window,
+        bool omitTopCornerHandles,
+        bool counterHudCanvasScale)
     {
         if (!window)
             return null;
@@ -40,6 +56,15 @@ public sealed class UIWindowCornerResize : MonoBehaviour
             resize = window.gameObject.AddComponent<UIWindowCornerResize>();
 
         resize.targetWindow = window;
+        resize.omitTopCornerHandles = omitTopCornerHandles;
+        resize.counterHudCanvasScale = counterHudCanvasScale;
+        resize.ResolveTarget();
+        resize.EnsureHandles();
+        resize.RefreshHandlesActive();
+
+        float remembered = resize.GetPersistedCornerScaleMultiplier();
+
+        resize.ApplyScale(remembered);
         return resize;
     }
 
@@ -78,6 +103,35 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         RestoreRememberedScale();
         EnsureHandles();
         RefreshHandlesActive();
+        SubscribeHudResizeIfNeeded();
+    }
+
+    private void OnDisable() => UnsubscribeHudResize();
+
+    private void SubscribeHudResizeIfNeeded()
+    {
+        if (!counterHudCanvasScale || _subscribedHudSlider)
+            return;
+
+        SliderSettingsStore.Changed += OnSliderHudResizeChanged;
+        _subscribedHudSlider = true;
+    }
+
+    private void UnsubscribeHudResize()
+    {
+        if (!_subscribedHudSlider)
+            return;
+
+        SliderSettingsStore.Changed -= OnSliderHudResizeChanged;
+        _subscribedHudSlider = false;
+    }
+
+    private void OnSliderHudResizeChanged(SliderSettingId id, float _)
+    {
+        if (id != SliderSettingId.HudResize || !counterHudCanvasScale || !enabled)
+            return;
+
+        ApplyScale(GetCurrentScaleMultiplier());
     }
 
     /// <summary>Apply saved toggle to corner hit targets (also called when settings change).</summary>
@@ -91,6 +145,10 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         for (int i = 0; i < 4; i++)
         {
             var corner = (ResizeCorner)i;
+            if (omitTopCornerHandles &&
+                (corner == ResizeCorner.TopLeft || corner == ResizeCorner.TopRight))
+                continue;
+
             string handleName = $"ResizeHandle_{corner}";
             Transform t = _rect.Find(handleName);
             if (t)
@@ -175,6 +233,17 @@ public sealed class UIWindowCornerResize : MonoBehaviour
 
     private void EnsureHandle(ResizeCorner corner)
     {
+        if (omitTopCornerHandles &&
+            (corner == ResizeCorner.TopLeft || corner == ResizeCorner.TopRight))
+        {
+            string killName = $"ResizeHandle_{corner}";
+            Transform old = _rect.Find(killName);
+            if (old)
+                Destroy(old.gameObject);
+
+            return;
+        }
+
         string handleName = $"ResizeHandle_{corner}";
         Transform existing = _rect.Find(handleName);
         RectTransform handleRect;
@@ -264,12 +333,18 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         handleRect.sizeDelta = new Vector2(handleSize, handleSize);
     }
 
+    private float GetHudScaleCorrection() =>
+        counterHudCanvasScale ? Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.HudResize)) : 1f;
+
     private void ApplyScale(float scaleMultiplier)
     {
         float clamped = Mathf.Clamp(scaleMultiplier, minScale, maxScale);
+        float h = GetHudScaleCorrection();
+        float v = clamped / h;
+
         targetWindow.localScale = new Vector3(
-            _baseLocalScale.x * clamped,
-            _baseLocalScale.y * clamped,
+            _baseLocalScale.x * v,
+            _baseLocalScale.y * v,
             _baseLocalScale.z);
     }
 
@@ -278,7 +353,8 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         if (!targetWindow || Mathf.Approximately(_baseLocalScale.x, 0f))
             return 1f;
 
-        return Mathf.Clamp(targetWindow.localScale.x / _baseLocalScale.x, minScale, maxScale);
+        float h = GetHudScaleCorrection();
+        return Mathf.Clamp((targetWindow.localScale.x / _baseLocalScale.x) * h, minScale, maxScale);
     }
 
     private int GetOppositeCornerIndex(ResizeCorner corner)
@@ -298,15 +374,21 @@ public sealed class UIWindowCornerResize : MonoBehaviour
 
     private void RestoreRememberedScale()
     {
+        ApplyScale(GetPersistedCornerScaleMultiplier());
+    }
+
+    private float GetPersistedCornerScaleMultiplier()
+    {
         if (!targetWindow || string.IsNullOrWhiteSpace(memoryKey))
-            return;
+            return 1f;
 
         float multiplier = 1f;
         string prefsKey = GetScalePrefsKey(memoryKey);
+
         if (PlayerPrefs.HasKey(prefsKey))
             multiplier = PlayerPrefs.GetFloat(prefsKey, 1f);
 
-        ApplyScale(Mathf.Clamp(multiplier, minScale, maxScale));
+        return Mathf.Clamp(multiplier, minScale, maxScale);
     }
 
     private void RememberCurrentScale()

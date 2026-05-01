@@ -19,8 +19,16 @@ MonoBehaviour:
     items and see your characters stats. '
   activationTrigger: 2
   requiredMapNodeId: tutorial_1
+  inventoryTriggerItemId: 
+  inventoryTriggerItemCount: 3
+  questGatherTriggerQuestId: 
+  questRewardClaimedTriggerQuestId: 
+  questAcceptedTriggerQuestId: 
+  skillLevelTriggerSkill: 1
+  skillLevelTriggerMinimumNewLevel: 2
   priority: 1
   showCloseButton: 1
+  darkenScreenAndLockGameplay: 0
   dismissModes: 4
   whitelistedInteractionIds:
   - UIButton_Character

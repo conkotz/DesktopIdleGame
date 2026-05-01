@@ -14,8 +14,10 @@ public sealed class HelperGameplayController : MonoBehaviour
 {
     public static HelperGameplayController Instance { get; private set; }
 
-    /// <summary>True while a helper popup is modal over the strip — blocks clicks, zoom hotkeys, and action bar polling.</summary>
-    public static bool BlocksStripGameplay => Instance != null && Instance._blockActive;
+    /// <summary>True while this helper uses modal dim + gameplay lock (see <see cref="HelperPopupDefinition.darkenScreenAndLockGameplay"/>).</summary>
+    public static bool BlocksStripGameplay =>
+        Instance != null &&
+        Instance.IsActiveHelperExpandedWithModalGameplayLock();
 
     /// <summary>
     /// <see cref="Time.frameCount"/> when the Character-toolbar whitelist UI path dismissed the helper —
@@ -116,8 +118,51 @@ public sealed class HelperGameplayController : MonoBehaviour
     private Coroutine _bodyTypewriterCo;
     private string _bodyTypewriterFullPlain;
 
-    private bool _blockActive;
+    private bool _activeUsesWorldWhitelistRouting;
+
     private HelperPopupDefinition _activeDefinition;
+
+    private const float ExpandedHeaderStripHeight = 40f;
+
+    private const float ExpandedFooterNavHeight = 34f;
+
+    /// <summary>Last non–header-only helper panel height (preserves resize across minimize).</summary>
+    private Vector2 _lastExpandedPanelSizeDelta;
+
+    private bool HasActiveTutorialDefinitionPending() => _activeDefinition != null;
+
+    private bool IsHelperExpandedPresentation() =>
+        _expandedPanelRoot != null && _expandedPanelRoot.activeSelf;
+
+    private bool IsActiveHelperExpandedWithModalGameplayLock() =>
+        _activeDefinition != null &&
+        _activeDefinition.darkenScreenAndLockGameplay &&
+        IsHelperExpandedPresentation();
+
+    private GameObject _expandedPanelRoot;
+
+    private RectTransform _helperPanelRt;
+
+    private Image _dimmerImage;
+
+    private TMP_Text _chromeStripTitleText;
+
+    private TMP_Text _minimizeExpandGlyphTmp;
+
+    private Button _prevHistoryButton;
+
+    private Button _nextHistoryButton;
+
+    private struct HelperDisplayedMessageSnap
+    {
+        public string TitlePlain;
+        public string BodyPlain;
+    }
+
+    private readonly List<HelperDisplayedMessageSnap> _sessionMessageHistory = new(16);
+
+    private int _historyViewIndex;
+
     private PlayerController _player;
 
     private Inventory _inventoryForHelpers;
@@ -196,10 +241,13 @@ public sealed class HelperGameplayController : MonoBehaviour
         Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss, interactionIdMarker.Trim());
     }
 
-    /// <summary>True while blocking and the active helper lists at least one whitelist world interaction id.</summary>
+    /// <summary>True while a scripted helper expects world / strip picks for whitelist dismiss routing.</summary>
+    public static bool UsesWorldWhitelistRouting =>
+        Instance != null && Instance._activeUsesWorldWhitelistRouting;
+
+    /// <summary>Whitelist ids configured on active helper.</summary>
     public static bool ActiveHelperUsesWorldWhitelist =>
         Instance != null &&
-        Instance._blockActive &&
         Instance._activeDefinition != null &&
         Instance._activeDefinition.whitelistedInteractionIds != null &&
         Instance._activeDefinition.whitelistedInteractionIds.Length > 0;
@@ -207,7 +255,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     /// <summary>True when <paramref name="winnerCol"/> hits a subtree that carries a whitelist id listed on the active helper.</summary>
     public static bool IsWhitelistedWorldPick(Collider2D winnerCol)
     {
-        if (!winnerCol || Instance == null || !Instance._blockActive || Instance._activeDefinition == null)
+        if (!winnerCol || Instance == null || Instance._activeDefinition == null)
             return false;
 
         return Instance._activeDefinition.IsWhitelistedCollider(winnerCol);
@@ -224,7 +272,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         Instance = this;
 
-        ToggleSettingsStore.Changed += OnUserToggleShowHelpSettingChanged;
+        ToggleSettingsStore.Changed += OnToggleSettingsChanged;
 
         RegisterProgressKeys();
         LogMisconfiguredDefinitions();
@@ -332,7 +380,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void OnDestroy()
     {
-        ToggleSettingsStore.Changed -= OnUserToggleShowHelpSettingChanged;
+        ToggleSettingsStore.Changed -= OnToggleSettingsChanged;
 
         if (Instance == this)
         {
@@ -385,19 +433,20 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void HandleLevelStarted(MapNodeDefinition node)
     {
-        if (_blockActive || node == null || definitions == null || definitions.Length == 0)
+        if (_activeDefinition != null || node == null || definitions == null || definitions.Length == 0)
             return;
 
         StartCoroutine(EvaluateMapEntryNextFrame(node));
     }
 
     /// <summary>Close an open helper when the player disables &quot;Show help popups&quot; — does not mark the tip dismissed.</summary>
-    private void OnUserToggleShowHelpSettingChanged(ToggleSettingId id, bool _)
+    private void OnToggleSettingsChanged(ToggleSettingId id, bool _)
     {
         if (id != ToggleSettingId.ShowHelpPopups)
             return;
 
-        if (_blockActive && !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
+        if ((_activeDefinition != null || (_overlayRoot && _overlayRoot.activeSelf)) &&
+            !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
             DismissSilent();
     }
 
@@ -405,7 +454,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     {
         yield return null;
 
-        if (_blockActive)
+        if (_activeDefinition != null)
             yield break;
 
         string enteredId = string.IsNullOrWhiteSpace(node.nodeId) ? null : node.nodeId.Trim();
@@ -443,7 +492,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (candidates.Count > 0)
             ShowPopup(candidates[0]);
 
-        if (!_blockActive)
+        if (_activeDefinition == null)
         {
             EvaluateInventoryItemCountReachedHelpers();
             EvaluateQuestGatherProgressHelpers();
@@ -491,7 +540,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         bool becameNonEmptyFromEmpty = prev <= 0 && total > 0;
         _lastSeenInventoryTotalUnitsBeforeChange = total;
 
-        if (_blockActive)
+        if (_activeDefinition != null)
             return;
 
         if (becameNonEmptyFromEmpty)
@@ -528,7 +577,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void HandleQuestProgressForHelpers()
     {
-        if (_blockActive)
+        if (_activeDefinition != null)
             return;
 
         EvaluateQuestGatherProgressHelpers();
@@ -561,7 +610,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void HandleSkillLevelUpForHelpers(SkillType skillType, int newLevel)
     {
-        if (_blockActive)
+        if (_activeDefinition != null)
             return;
 
         EvaluateSkillLevelReachedHelpers(skillType, newLevel);
@@ -569,7 +618,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void EvaluateFirstBagGainFromZeroHelpers()
     {
-        if (_blockActive || definitions == null || definitions.Length == 0)
+        if (_activeDefinition != null || definitions == null || definitions.Length == 0)
             return;
 
         var candidates = new List<HelperPopupDefinition>();
@@ -604,7 +653,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void EvaluateInventoryItemCountReachedHelpers()
     {
-        if (_blockActive || definitions == null || definitions.Length == 0 || _inventoryForHelpers == null)
+        if (_activeDefinition != null || definitions == null || definitions.Length == 0 ||
+            _inventoryForHelpers == null)
             return;
 
         if (!HelperProgressStore.IsHydratedFromSave)
@@ -647,7 +697,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void EvaluateQuestGatherProgressHelpers()
     {
-        if (_blockActive || definitions == null || definitions.Length == 0)
+        if (_activeDefinition != null || definitions == null || definitions.Length == 0)
             return;
 
         if (!HelperProgressStore.IsHydratedFromSave)
@@ -705,7 +755,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void EvaluateSkillLevelReachedHelpers(SkillType firedSkill, int newLevel)
     {
-        if (_blockActive || definitions == null || definitions.Length == 0)
+        if (_activeDefinition != null || definitions == null || definitions.Length == 0)
             return;
 
         if (!HelperProgressStore.IsHydratedFromSave)
@@ -748,7 +798,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void EvaluateQuestRewardClaimedHelpers()
     {
-        if (_blockActive || definitions == null || definitions.Length == 0)
+        if (_activeDefinition != null || definitions == null || definitions.Length == 0)
             return;
 
         if (!HelperProgressStore.IsHydratedFromSave)
@@ -797,7 +847,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void EvaluateQuestAcceptedHelpers()
     {
-        if (_blockActive || definitions == null || definitions.Length == 0)
+        if (_activeDefinition != null || definitions == null || definitions.Length == 0)
             return;
 
         if (!HelperProgressStore.IsHydratedFromSave)
@@ -908,8 +958,8 @@ public sealed class HelperGameplayController : MonoBehaviour
     {
         RestoreWhitelistUiTargetCanvases();
 
-        if (!_blockActive ||
-            _activeDefinition == null ||
+        if (_activeDefinition == null ||
+            !IsHelperExpandedPresentation() ||
             _activeDefinition.whitelistedInteractionIds == null ||
             _activeDefinition.whitelistedInteractionIds.Length == 0)
             return;
@@ -1009,27 +1059,28 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
 
         _activeDefinition = def;
-        _blockActive = true;
-
-        ResolvePlayerMovementLock(true, preserveGatherFreezeForHelper: true);
 
         EnsureViewBuilt();
         if (_overlayRoot == null)
         {
-            _blockActive = false;
             _activeDefinition = null;
-            ResolvePlayerMovementLock(false);
+            SyncMovementLockFromSettings();
             return;
         }
 
-        RaiseWhitelistUiTargetCanvasesForActiveOverlay();
-
         CharacterStats stats = ResolvePlayerCharacterStats();
+        string substitutedTitle = HelperPopupDefinition.ApplyRuntimeSubstitutions(def.title ?? string.Empty, stats);
+        string substitutedBody = HelperPopupDefinition.ApplyRuntimeSubstitutions(def.bodyText ?? string.Empty, stats);
 
-        bool hasTitle = def.title != null && def.title.Trim().Length > 0;
-        _titleText.gameObject.SetActive(hasTitle);
-        if (hasTitle)
-            _titleText.text = HelperPopupDefinition.ApplyRuntimeSubstitutions(def.title.Trim(), stats);
+        _sessionMessageHistory.Add(new HelperDisplayedMessageSnap
+        {
+            TitlePlain = substitutedTitle.Trim(),
+            BodyPlain = substitutedBody,
+        });
+        _historyViewIndex = _sessionMessageHistory.Count - 1;
+
+        TransitionToExpandedPresentationLayout();
+        RaiseWhitelistUiTargetCanvasesForActiveOverlay();
 
         if (_helperCloseButtonRoot)
             _helperCloseButtonRoot.SetActive(def.showCloseButton);
@@ -1037,9 +1088,268 @@ public sealed class HelperGameplayController : MonoBehaviour
         _overlayRoot.transform.SetAsLastSibling();
         _overlayRoot.SetActive(true);
 
-        StartBodyTypewriter(HelperPopupDefinition.ApplyRuntimeSubstitutions(def.bodyText ?? string.Empty, stats));
+        ApplyDisplayedHistoryIndexToPanel(_historyViewIndex, startTypewriterFresh: true);
 
         RefreshWhitelistPresentationEmphasis();
+
+        RefreshWorldWhitelistRoutingFlag();
+        ApplyDarkenModalPresentation();
+    }
+
+    private void RefreshChromeCollapsedVisuals(bool headerOnlyCollapsed)
+    {
+        if (_chromeStripTitleText)
+        {
+            _chromeStripTitleText.gameObject.SetActive(headerOnlyCollapsed);
+            if (headerOnlyCollapsed)
+                _chromeStripTitleText.text = "Helper Window";
+        }
+
+        if (_minimizeExpandGlyphTmp)
+            _minimizeExpandGlyphTmp.text = headerOnlyCollapsed ? "+" : "-";
+    }
+
+    private void TransitionToExpandedPresentationLayout()
+    {
+        if (!_helperPanelRt || !_expandedPanelRoot)
+            return;
+
+        _expandedPanelRoot.SetActive(true);
+        RefreshChromeCollapsedVisuals(false);
+
+        Vector2 fallback = panelSize;
+        float w =
+            _lastExpandedPanelSizeDelta.x > 1f ? _lastExpandedPanelSizeDelta.x : fallback.x;
+        float h =
+            _lastExpandedPanelSizeDelta.y > ExpandedHeaderStripHeight + 24f
+                ? _lastExpandedPanelSizeDelta.y
+                : fallback.y;
+
+        _helperPanelRt.sizeDelta = new Vector2(w, h);
+
+        if (_prevHistoryButton && _nextHistoryButton)
+        {
+            bool showNav = _sessionMessageHistory.Count > 1;
+            _prevHistoryButton.gameObject.SetActive(showNav);
+            _nextHistoryButton.gameObject.SetActive(showNav);
+        }
+    }
+
+    private void TransitionToCollapsedStripeLayout()
+    {
+        if (!_helperPanelRt || !_expandedPanelRoot)
+            return;
+
+        _lastExpandedPanelSizeDelta = _helperPanelRt.sizeDelta;
+
+        _expandedPanelRoot.SetActive(false);
+
+        Vector2 stripeSize = _lastExpandedPanelSizeDelta.x > 1f ? _lastExpandedPanelSizeDelta : panelSize;
+
+        _helperPanelRt.sizeDelta = new Vector2(stripeSize.x, ExpandedHeaderStripHeight);
+        RefreshChromeCollapsedVisuals(true);
+
+        if (_prevHistoryButton)
+            _prevHistoryButton.gameObject.SetActive(false);
+        if (_nextHistoryButton)
+            _nextHistoryButton.gameObject.SetActive(false);
+    }
+
+    private void RefreshWorldWhitelistRoutingFlag()
+    {
+        if (_activeDefinition == null ||
+            (_activeDefinition.dismissModes & HelperDismissMode.InteractWhitelistDismiss) == 0)
+        {
+            _activeUsesWorldWhitelistRouting = false;
+            return;
+        }
+
+        HelperWhitelistInteractTarget[] markers =
+            FindObjectsByType<HelperWhitelistInteractTarget>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        for (int i = 0; i < markers.Length; i++)
+        {
+            HelperWhitelistInteractTarget m = markers[i];
+            if (m && _activeDefinition.MatchesWhitelistId(m.InteractionId))
+            {
+                _activeUsesWorldWhitelistRouting = true;
+                return;
+            }
+        }
+
+        _activeUsesWorldWhitelistRouting = false;
+    }
+
+    private void ApplyDarkenModalPresentation()
+    {
+        if (!_dimmerImage)
+            return;
+
+        bool wants =
+            IsActiveHelperExpandedWithModalGameplayLock() &&
+            _overlayRoot != null &&
+            _overlayRoot.activeSelf;
+
+        _dimmerImage.enabled = wants;
+        _dimmerImage.color = wants ? new Color(0f, 0f, 0f, 0.62f) : new Color(0f, 0f, 0f, 0f);
+        _dimmerImage.raycastTarget = wants;
+
+        SyncMovementLockFromSettings();
+    }
+
+    private void SyncMovementLockFromSettings()
+    {
+        bool want =
+            IsActiveHelperExpandedWithModalGameplayLock();
+
+        ResolvePlayerMovementLock(want, preserveGatherFreezeForHelper: true);
+    }
+
+    private bool ViewingLatestHistoryEntry() =>
+        _sessionMessageHistory.Count == 0 ||
+        _historyViewIndex == _sessionMessageHistory.Count - 1;
+
+    private void RefreshHistoryNavButtonInteractable()
+    {
+        if (!_prevHistoryButton || !_nextHistoryButton)
+            return;
+
+        int max = _sessionMessageHistory.Count - 1;
+        if (max <= 0)
+            return;
+
+        _prevHistoryButton.interactable = _historyViewIndex > 0;
+        _nextHistoryButton.interactable = _historyViewIndex < max;
+    }
+
+    private void ApplyDisplayedHistoryIndexToPanel(int index, bool startTypewriterFresh)
+    {
+        if (_sessionMessageHistory.Count == 0 || index < 0 || index >= _sessionMessageHistory.Count)
+            return;
+
+        HelperDisplayedMessageSnap snap = _sessionMessageHistory[index];
+        bool hasTitle = snap.TitlePlain != null && snap.TitlePlain.Length > 0;
+        if (_titleText)
+        {
+            _titleText.gameObject.SetActive(hasTitle);
+            if (hasTitle)
+                _titleText.text = snap.TitlePlain ?? string.Empty;
+        }
+
+        if (!_bodyText)
+            return;
+
+        if (startTypewriterFresh && index == _sessionMessageHistory.Count - 1 &&
+            _activeDefinition != null)
+        {
+            StartBodyTypewriter(snap.BodyPlain ?? string.Empty);
+        }
+        else
+        {
+            DialogueTextTypewriter.RestoreFullReveal(_bodyText);
+            _bodyText.text = snap.BodyPlain ?? string.Empty;
+        }
+
+        RefreshHistoryNavButtonInteractable();
+    }
+
+    public void OnHistoryNavClicked(int delta)
+    {
+        if (_sessionMessageHistory.Count == 0 || !IsHelperExpandedPresentation())
+            return;
+
+        CompleteBodyTypewriter();
+
+        int next = Mathf.Clamp(_historyViewIndex + delta, 0, _sessionMessageHistory.Count - 1);
+        if (next == _historyViewIndex)
+            return;
+
+        _historyViewIndex = next;
+        ApplyDisplayedHistoryIndexToPanel(_historyViewIndex, startTypewriterFresh: false);
+
+        if (ViewingLatestHistoryEntry() &&
+            _activeDefinition != null &&
+            _activeDefinition.highlightWhitelistTargetsDuringHelper)
+            RefreshWhitelistPresentationEmphasis();
+        else
+            ClearWhitelistGlowOverlaysSafelyForHistoryBrowsing();
+    }
+
+    private void ClearWhitelistGlowOverlaysSafelyForHistoryBrowsing()
+    {
+        ClearWhitelistGlowOverlays();
+        ClearWhitelistPresentationTints();
+    }
+
+    public void ToggleMinimizeStripe()
+    {
+        if (_overlayRoot == null || !_overlayRoot.activeSelf || !_expandedPanelRoot)
+            return;
+
+        if (IsHelperExpandedPresentation())
+        {
+            RestoreWhitelistUiTargetCanvases();
+            TransitionToCollapsedStripeLayout();
+            ApplyDarkenModalPresentation();
+            RefreshWorldWhitelistRoutingFlag();
+
+            CompleteBodyTypewriter();
+            return;
+        }
+
+        TransitionToExpandedPresentationLayout();
+        RaiseWhitelistUiTargetCanvasesForActiveOverlay();
+        ApplyDisplayedHistoryIndexToPanel(_historyViewIndex, startTypewriterFresh: false);
+
+        RefreshWhitelistPresentationEmphasis();
+        ApplyDarkenModalPresentation();
+        RefreshWorldWhitelistRoutingFlag();
+    }
+
+    private void HideOverlayCompletely(bool clearMovementLock, bool purgeMessageHistory = true)
+    {
+        RestoreWhitelistUiTargetCanvases();
+        StopBodyTypewriterAndClear();
+        if (_bodyText)
+        {
+            DialogueTextTypewriter.RestoreFullReveal(_bodyText);
+            _bodyText.text = string.Empty;
+        }
+
+        ClearWhitelistGlowOverlays();
+        ClearWhitelistPresentationTints();
+
+        _lastExpandedPanelSizeDelta = Vector2.zero;
+
+        if (_expandedPanelRoot)
+            _expandedPanelRoot.SetActive(true);
+
+        RefreshChromeCollapsedVisuals(false);
+
+        if (_helperPanelRt)
+            _helperPanelRt.sizeDelta = panelSize;
+
+        _activeUsesWorldWhitelistRouting = false;
+
+        if (purgeMessageHistory)
+        {
+            _sessionMessageHistory.Clear();
+            _historyViewIndex = 0;
+        }
+
+        if (_overlayRoot)
+            _overlayRoot.SetActive(false);
+
+        if (_dimmerImage)
+        {
+            _dimmerImage.enabled = false;
+            _dimmerImage.raycastTarget = false;
+        }
+
+        _activeDefinition = null;
+
+        if (clearMovementLock)
+            ResolvePlayerMovementLock(false);
     }
 
     private void LateUpdate()
@@ -1067,12 +1377,17 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     public void CloseFromUIButton()
     {
-        if (!_blockActive || _activeDefinition == null)
+        if (_overlayRoot == null || !_overlayRoot.activeSelf)
             return;
 
-        // Close (X) is always allowed regardless of dismissedModes bitmask / CloseButton stripping.
-        DismissMarked();
+        if (_activeDefinition != null)
+            DismissMarked();
+        else
+            HideOverlayCompletely(true);
     }
+
+    /// <remarks>Same as <see cref="CloseFromUIButton"/> (shared header close control).</remarks>
+    public void CloseFromCollapsedStripeButton() => CloseFromUIButton();
 
     /// <summary>Pointer-down on the helper panel reveals the full body text immediately (matches NPC dialogue box).</summary>
     public void CompleteBodyTypewriter()
@@ -1139,7 +1454,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void TryDismiss(HelperDismissMode modeReason, string interactWhitelistIdMarker = null)
     {
-        if (!_blockActive || _activeDefinition == null)
+        if (_activeDefinition == null)
             return;
 
         if ((_activeDefinition.dismissModes & modeReason) == 0)
@@ -1182,51 +1497,63 @@ public sealed class HelperGameplayController : MonoBehaviour
                 System.StringComparison.OrdinalIgnoreCase))
             s_levelSelectToolbarWhitelistUiDismissStampFrame = Time.frameCount;
 
+        if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
+            ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups) &&
+            IsHelperExpandedPresentation())
+        {
+            CompleteInteractWhitelistDismissByMinimize();
+            return;
+        }
+
         DismissMarked();
+    }
+
+    private void CompleteInteractWhitelistDismissByMinimize()
+    {
+        if (_activeDefinition == null)
+            return;
+
+        HelperProgressStore.MarkDismissed(_activeDefinition.helperId);
+
+        RestoreWhitelistUiTargetCanvases();
+        StopBodyTypewriterAndClear();
+
+        ClearWhitelistGlowOverlays();
+        ClearWhitelistPresentationTints();
+
+        _activeDefinition = null;
+        _activeUsesWorldWhitelistRouting = false;
+
+        if (!_helperPanelRt || !_expandedPanelRoot || _overlayRoot == null)
+        {
+            HideOverlayCompletely(true);
+            return;
+        }
+
+        TransitionToCollapsedStripeLayout();
+
+        _overlayRoot.transform.SetAsLastSibling();
+        _overlayRoot.SetActive(true);
+        ApplyDarkenModalPresentation();
     }
 
     private void DismissMarked()
     {
-        if (!_blockActive || _activeDefinition == null)
+        if (_activeDefinition == null)
             return;
 
-        string id = _activeDefinition.helperId;
-        HelperProgressStore.MarkDismissed(id);
-
-        RestoreWhitelistUiTargetCanvases();
-        HideUi();
-        _activeDefinition = null;
-        _blockActive = false;
-        ResolvePlayerMovementLock(false);
+        HelperProgressStore.MarkDismissed(_activeDefinition.helperId);
+        HideOverlayCompletely(true);
     }
 
     /// <summary>Does not persist — used when controller is destroyed mid-session.</summary>
     private void DismissSilent()
     {
-        if (!_blockActive)
+        bool hasSurface = (_overlayRoot && _overlayRoot.activeSelf) || _activeDefinition != null;
+        if (!hasSurface)
             return;
 
-        RestoreWhitelistUiTargetCanvases();
-        HideUi();
-        _activeDefinition = null;
-        _blockActive = false;
-        ResolvePlayerMovementLock(false);
-    }
-
-    private void HideUi()
-    {
-        StopBodyTypewriterAndClear();
-        if (_bodyText)
-        {
-            DialogueTextTypewriter.RestoreFullReveal(_bodyText);
-            _bodyText.text = string.Empty;
-        }
-
-        ClearWhitelistGlowOverlays();
-        ClearWhitelistPresentationTints();
-
-        if (_overlayRoot)
-            _overlayRoot.SetActive(false);
+        HideOverlayCompletely(true);
     }
 
     private void RefreshWhitelistPresentationEmphasis()
@@ -1235,6 +1562,8 @@ public sealed class HelperGameplayController : MonoBehaviour
         ClearWhitelistPresentationTints();
 
         if (_activeDefinition == null ||
+            !IsHelperExpandedPresentation() ||
+            !ViewingLatestHistoryEntry() ||
             !_activeDefinition.highlightWhitelistTargetsDuringHelper ||
             _activeDefinition.whitelistedInteractionIds == null ||
             _activeDefinition.whitelistedInteractionIds.Length == 0)
@@ -1281,7 +1610,9 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void LerpWhitelistPresentationTints()
     {
-        if (!_blockActive ||
+        if (!IsHelperExpandedPresentation() ||
+            _activeDefinition == null ||
+            !ViewingLatestHistoryEntry() ||
             _whitelistPresentationTints.Count == 0 ||
             _whitelistGlowLinks.Count != 0)
             return;
@@ -1349,6 +1680,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         Image dimImg = dimGo.AddComponent<Image>();
         dimImg.color = new Color(0f, 0f, 0f, 0.62f);
         dimImg.raycastTarget = true;
+        _dimmerImage = dimImg;
 
         GameObject glowLayerGo = CreateChild(_overlayRoot.transform, "WhitelistGlowOverlay");
         RectTransform glowLayerRt = glowLayerGo.GetComponent<RectTransform>();
@@ -1381,24 +1713,152 @@ public sealed class HelperGameplayController : MonoBehaviour
         panelLayerGo.AddComponent<GraphicRaycaster>();
 
         GameObject panelGo = CreateChild(panelLayerGo.transform, "HelperPanel");
-        RectTransform panelRt = panelGo.GetComponent<RectTransform>();
-        panelRt.anchorMin = new Vector2(0f, 1f);
-        panelRt.anchorMax = new Vector2(0f, 1f);
-        panelRt.pivot = new Vector2(0f, 1f);
-        panelRt.anchoredPosition = panelAnchoredPosition;
-        panelRt.sizeDelta = panelSize;
+        _helperPanelRt = panelGo.GetComponent<RectTransform>();
+        _helperPanelRt.anchorMin = new Vector2(0f, 1f);
+        _helperPanelRt.anchorMax = new Vector2(0f, 1f);
+        _helperPanelRt.pivot = new Vector2(0f, 1f);
+        _helperPanelRt.anchoredPosition = panelAnchoredPosition;
+        _helperPanelRt.sizeDelta = panelSize;
 
         Image panelBg = panelGo.AddComponent<Image>();
         panelBg.color = new Color(0.05f, 0.05f, 0.08f, 1f);
         panelBg.raycastTarget = true;
 
-        GameObject titleGo = CreateChild(panelGo.transform, "TitleText");
+        GameObject chromeGo = CreateChild(panelGo.transform, "TopChromeStrip");
+
+        chromeGo.transform.SetAsFirstSibling();
+
+        RectTransform chromeRt = chromeGo.GetComponent<RectTransform>();
+        chromeRt.anchorMin = new Vector2(0f, 1f);
+        chromeRt.anchorMax = new Vector2(1f, 1f);
+        chromeRt.pivot = new Vector2(0.5f, 1f);
+        chromeRt.sizeDelta = new Vector2(0f, ExpandedHeaderStripHeight);
+        chromeRt.anchoredPosition = Vector2.zero;
+
+        Image chromeTint = chromeGo.AddComponent<Image>();
+        chromeTint.color = new Color(0.09f, 0.09f, 0.17f, 0.94f);
+        chromeTint.raycastTarget = true;
+
+        UIDragWindow chromeDrag = chromeGo.AddComponent<UIDragWindow>();
+        chromeDrag.AttachWindow(_helperPanelRt, omitTopCornerHandles: true, counterHudCanvasScale: true);
+
+        GameObject chromeTitleGo = CreateChild(chromeGo.transform, "ChromeTitle");
+        RectTransform chromeTitleRt = chromeTitleGo.GetComponent<RectTransform>();
+        chromeTitleRt.anchorMin = new Vector2(0f, 0f);
+        chromeTitleRt.anchorMax = new Vector2(1f, 1f);
+        chromeTitleRt.pivot = new Vector2(0f, 0.5f);
+        chromeTitleRt.offsetMin = new Vector2(12f, 0f);
+        chromeTitleRt.offsetMax = new Vector2(-112f, 0f);
+
+        _chromeStripTitleText = chromeTitleGo.AddComponent<TextMeshProUGUI>();
+        _chromeStripTitleText.text = "Helper Window";
+        _chromeStripTitleText.fontSize = 16f;
+        _chromeStripTitleText.fontStyle = FontStyles.Bold;
+        _chromeStripTitleText.color = new Color(0.88f, 0.91f, 0.96f, 1f);
+        _chromeStripTitleText.alignment = TextAlignmentOptions.Left;
+        _chromeStripTitleText.enableAutoSizing = false;
+        _chromeStripTitleText.raycastTarget = false;
+        _chromeStripTitleText.gameObject.SetActive(false);
+
+        _helperCloseButtonRoot = CreateStripeChromeButton(chromeGo.transform, "CloseButton",
+            new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-12f, -8f),
+            new Vector2(30f, 30f),
+            new Color(0.35f, 0.08f, 0.08f, 1f));
+
+        Button closeBt = _helperCloseButtonRoot.GetComponent<Button>();
+        closeBt.onClick.RemoveAllListeners();
+        closeBt.onClick.AddListener(CloseFromUIButton);
+
+        TMP_Text closeLbl = FindTmpOnButton(_helperCloseButtonRoot);
+        if (closeLbl)
+        {
+            closeLbl.text = "X";
+            closeLbl.fontSize = 16f;
+        }
+
+        GameObject minimizeBtGo = CreateStripeChromeButton(chromeGo.transform, "MinimizeStripeButton",
+            new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-48f, -8f),
+            new Vector2(30f, 30f),
+            new Color(0.22f, 0.24f, 0.32f, 1f));
+
+        Button minBt = minimizeBtGo.GetComponent<Button>();
+        minBt.onClick.RemoveAllListeners();
+        minBt.onClick.AddListener(ToggleMinimizeStripe);
+        _minimizeExpandGlyphTmp = FindTmpOnButton(minimizeBtGo);
+        if (_minimizeExpandGlyphTmp)
+        {
+            _minimizeExpandGlyphTmp.text = "-";
+            _minimizeExpandGlyphTmp.fontSize = 18f;
+        }
+
+        _expandedPanelRoot = CreateChild(panelGo.transform, "ExpandedPresentation");
+        RectTransform expRootRt = _expandedPanelRoot.GetComponent<RectTransform>();
+        expRootRt.anchorMin = Vector2.zero;
+        expRootRt.anchorMax = Vector2.one;
+        expRootRt.offsetMin = Vector2.zero;
+        expRootRt.offsetMax = new Vector2(0f, -ExpandedHeaderStripHeight);
+
+        GameObject footerGo =
+            CreateChild(_expandedPanelRoot.transform, "FooterNav");
+        RectTransform footerRt = footerGo.GetComponent<RectTransform>();
+        footerRt.anchorMin = new Vector2(0f, 0f);
+        footerRt.anchorMax = new Vector2(1f, 0f);
+        footerRt.pivot = new Vector2(0.5f, 0f);
+        footerRt.sizeDelta = new Vector2(0f, ExpandedFooterNavHeight);
+        footerRt.anchoredPosition = Vector2.zero;
+        Image footerBg = footerGo.AddComponent<Image>();
+        footerBg.color = new Color(0f, 0f, 0f, 0f);
+        footerBg.raycastTarget = false;
+
+        GameObject prevBtGo =
+            CreateStripeChromeButton(footerGo.transform, "HistoryPrevButton",
+                new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(10f, 8f),
+                new Vector2(28f, 26f),
+                new Color(0.16f, 0.18f, 0.26f, 1f));
+
+        Button prevBt = prevBtGo.GetComponent<Button>();
+        prevBt.onClick.RemoveAllListeners();
+        prevBt.onClick.AddListener(() => OnHistoryNavClicked(-1));
+
+        TMP_Text pt = FindTmpOnButton(prevBtGo);
+        if (pt)
+        {
+            pt.text = "<";
+            pt.fontSize = 18f;
+        }
+
+        GameObject nextBtGo =
+            CreateStripeChromeButton(footerGo.transform, "HistoryNextButton",
+                new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-10f, 8f),
+                new Vector2(28f, 26f),
+                new Color(0.16f, 0.18f, 0.26f, 1f));
+
+        Button nextBt = nextBtGo.GetComponent<Button>();
+        nextBt.onClick.RemoveAllListeners();
+        nextBt.onClick.AddListener(() => OnHistoryNavClicked(+1));
+
+        TMP_Text nt = FindTmpOnButton(nextBtGo);
+        if (nt)
+        {
+            nt.text = ">";
+            nt.fontSize = 18f;
+        }
+
+        _prevHistoryButton = prevBt;
+        _nextHistoryButton = nextBt;
+        prevBt.gameObject.SetActive(false);
+        nextBt.gameObject.SetActive(false);
+
+        GameObject titleGo =
+            CreateChild(_expandedPanelRoot.transform, "TitleText");
         RectTransform titleRt = titleGo.GetComponent<RectTransform>();
         titleRt.anchorMin = new Vector2(0f, 1f);
         titleRt.anchorMax = new Vector2(1f, 1f);
         titleRt.pivot = new Vector2(0f, 1f);
-        titleRt.sizeDelta = new Vector2(panelSize.x - 48f, 36f);
-        titleRt.anchoredPosition = new Vector2(16f, -12f);
+        float titleTopInset = 12f;
+        float titleBlockH = 36f;
+        titleRt.offsetMax = new Vector2(-16f, -titleTopInset);
+        titleRt.offsetMin = new Vector2(16f, -(titleTopInset + titleBlockH));
 
         _titleText = titleGo.AddComponent<TextMeshProUGUI>();
         _titleText.fontSize = 19f;
@@ -1408,26 +1868,25 @@ public sealed class HelperGameplayController : MonoBehaviour
         _titleText.textWrappingMode = TextWrappingModes.Normal;
         _titleText.raycastTarget = false;
 
-        GameObject bodyGo = CreateChild(panelGo.transform, "BodyText");
+        GameObject bodyGo =
+            CreateChild(_expandedPanelRoot.transform, "BodyText");
         RectTransform bodyRt = bodyGo.GetComponent<RectTransform>();
         bodyRt.anchorMin = new Vector2(0f, 0f);
         bodyRt.anchorMax = new Vector2(1f, 1f);
         bodyRt.pivot = new Vector2(0f, 1f);
-        bodyRt.offsetMin = new Vector2(16f, 20f);
-        bodyRt.offsetMax = new Vector2(-16f, -52f);
+        float bodyTopInset = titleTopInset + titleBlockH + 6f;
+        bodyRt.offsetMin = new Vector2(16f, ExpandedFooterNavHeight + 8f);
+        bodyRt.offsetMax = new Vector2(-16f, -bodyTopInset);
 
         _bodyText = bodyGo.AddComponent<TextMeshProUGUI>();
         _bodyText.fontSize = 16f;
         _bodyText.color = new Color(0.93f, 0.86f, 0.72f, 1f);
         _bodyText.textWrappingMode = TextWrappingModes.Normal;
         _bodyText.alignment = TextAlignmentOptions.TopJustified;
-        _bodyText.raycastTarget = false;
+        _bodyText.raycastTarget = true;
 
-        CreateCloseButton(panelGo.transform);
-
-        HelperTypewriterPanelSkip clickSkip = panelGo.GetComponent<HelperTypewriterPanelSkip>();
-        if (!clickSkip)
-            clickSkip = panelGo.AddComponent<HelperTypewriterPanelSkip>();
+        HelperTypewriterPanelSkip clickSkip =
+            bodyGo.GetComponent<HelperTypewriterPanelSkip>() ?? bodyGo.AddComponent<HelperTypewriterPanelSkip>();
         clickSkip.Init(this);
 
         dimGo.transform.SetSiblingIndex(0);
@@ -1442,7 +1901,8 @@ public sealed class HelperGameplayController : MonoBehaviour
         ClearWhitelistGlowOverlays();
 
         if (!whitelistGlowAboveDimmer ||
-            !_blockActive ||
+            !IsHelperExpandedPresentation() ||
+            !ViewingLatestHistoryEntry() ||
             _activeDefinition == null ||
             _whitelistGlowHolder == null ||
             !_activeDefinition.highlightWhitelistTargetsDuringHelper ||
@@ -1520,7 +1980,8 @@ public sealed class HelperGameplayController : MonoBehaviour
     /// <remarks>Whitelist UI rects use each Canvas's projected screen bounds; no StripCamera required.</remarks>
     private void AppendWhitelistUiGlowOverlaysIntoHolder()
     {
-        if (!_blockActive ||
+        if (!IsHelperExpandedPresentation() ||
+            !ViewingLatestHistoryEntry() ||
             _activeDefinition == null ||
             _whitelistGlowHolder == null ||
             !_activeDefinition.highlightWhitelistTargetsDuringHelper ||
@@ -1751,7 +2212,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void SyncAndPulseWhitelistGlow()
     {
-        if (!_blockActive ||
+        if (!IsHelperExpandedPresentation() ||
+            !ViewingLatestHistoryEntry() ||
             !whitelistGlowAboveDimmer ||
             _whitelistGlowLinks.Count == 0 ||
             !_whitelistGlowHolder)
@@ -1959,29 +2421,43 @@ public sealed class HelperGameplayController : MonoBehaviour
         return go;
     }
 
-    private void CreateCloseButton(Transform panel)
+    private GameObject CreateStripeChromeButton(
+        Transform parent,
+        string objName,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 pivot,
+        Vector2 anchoredPosition,
+        Vector2 sizeDelta,
+        Color graphicColor)
     {
-        GameObject btGo = new GameObject("CloseButton", typeof(RectTransform), typeof(Image), typeof(Button));
-        _helperCloseButtonRoot = btGo;
-        btGo.transform.SetParent(panel, false);
+        GameObject btGo =
+            new GameObject(objName, typeof(RectTransform), typeof(Image), typeof(Button));
+
+        btGo.transform.SetParent(parent, false);
+
         RectTransform btRt = btGo.GetComponent<RectTransform>();
-        btRt.anchorMin = new Vector2(1f, 1f);
-        btRt.anchorMax = new Vector2(1f, 1f);
-        btRt.pivot = new Vector2(1f, 1f);
-        btRt.anchoredPosition = new Vector2(-14f, -12f);
-        btRt.sizeDelta = new Vector2(30f, 30f);
+        btRt.anchorMin = anchorMin;
+        btRt.anchorMax = anchorMax;
+        btRt.pivot = pivot;
+        btRt.anchoredPosition = anchoredPosition;
+        btRt.sizeDelta = sizeDelta;
+        btRt.localScale = Vector3.one;
 
         Image img = btGo.GetComponent<Image>();
-        img.color = new Color(0.35f, 0.08f, 0.08f, 1f);
+        img.color = graphicColor;
         img.raycastTarget = true;
 
         GameObject lbl = new GameObject("Label", typeof(RectTransform));
         lbl.transform.SetParent(btGo.transform, false);
+
         TextMeshProUGUI tmp = lbl.AddComponent<TextMeshProUGUI>();
-        tmp.text = "X";
+        tmp.text = "";
         tmp.fontSize = 16f;
+        tmp.fontStyle = FontStyles.Bold;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
+        tmp.enableWordWrapping = false;
         tmp.raycastTarget = false;
 
         RectTransform lrt = lbl.GetComponent<RectTransform>();
@@ -1990,9 +2466,17 @@ public sealed class HelperGameplayController : MonoBehaviour
         lrt.offsetMin = Vector2.zero;
         lrt.offsetMax = Vector2.zero;
 
-        Button b = btGo.GetComponent<Button>();
-        b.onClick.RemoveAllListeners();
-        b.onClick.AddListener(CloseFromUIButton);
+        Button btn = btGo.GetComponent<Button>();
+        btn.targetGraphic = img;
+        btn.transition = Selectable.Transition.None;
+
+        return btGo;
+    }
+
+    private static TMP_Text FindTmpOnButton(GameObject buttonRoot)
+    {
+        Transform t = buttonRoot ? buttonRoot.transform.Find("Label") : null;
+        return t ? t.GetComponent<TMP_Text>() : null;
     }
 
     private RectTransform ResolveOverlayParent()
