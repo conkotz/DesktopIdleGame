@@ -12,14 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d4549ab826df384b91e9e2da5b95c50, type: 3}
   m_Name: Helper_GameStart_6
   m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
-  helperId: first_combat_helper
-  title: Defeating your first enemy
-  bodyText: "It's time for the dangerous stuff... \nThere is lots to know about fighting
-    enemies. As you get stronger you will equip better items, level up skills and
-    gain abilities to defeat tougher foes. You can still defeat enemies without anything
-    equipped, but you will be much weaker.\n\n\n"
+  helperId: first_duskwood_helper
+  title: Entered Greenlands
+  bodyText: 'You finished the tutorial and are now in a new region Greenlands. This
+    is the town Duskwood. Feel free to explore and see what is availble in this town.
+
+
+'
   activationTrigger: 1
-  requiredMapNodeId: tutorial_2
+  requiredMapNodeId: duskwood
   inventoryTriggerItemId: 
   inventoryTriggerItemCount: 1
   questGatherTriggerQuestId: 
@@ -27,9 +28,9 @@ MonoBehaviour:
   questAcceptedTriggerQuestId: tutorial_basic_combat
   skillLevelTriggerSkill: 1
   skillLevelTriggerMinimumNewLevel: 2
-  priority: 5
+  priority: 6
   showCloseButton: 1
-  darkenScreenAndLockGameplay: 0
-  dismissModes: 0
+  darkenScreenAndLockGameplay: 1
+  dismissModes: 8
   whitelistedInteractionIds: []
   highlightWhitelistTargetsDuringHelper: 0

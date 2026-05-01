@@ -68,14 +68,25 @@ public class SpawnPrefabCount
         "Leave empty to use plan order: sequential when shuffle is off, or shuffled cursor order when shuffle is on.")]
     public string spawnPointName = "";
 
-    [Header("Content (EnemyDefinition preferred)")]
+    [Header("Content (enemy, prefab, or world item)")]
     [Tooltip("Preferred reference. Runtime resolves prefab via this asset and calls EnemyBaseController.InitializeFromDefinition when spawning enemies.")]
     public EnemyDefinition enemyDefinition;
 
     [Tooltip("Legacy / fallback prefab. Used when Enemy Definition is empty, or when the definition has no prefab but this field is set.")]
     public GameObject prefab;
 
+    [Tooltip("When set, spawns a world pickup at the same spawn points as enemies/NPCs (no despawn timer; one claim per save when fully picked up). Takes precedence over enemy/prefab for that row.")]
+    public ItemDefinition itemDefinition;
+
     [Min(1)]
+    [Tooltip("Stack per pickup when Item Definition is assigned.")]
+    public int itemAmount = 1;
+
+    [Tooltip("Optional stable save key. If empty, a key is derived from map node id + plan/row index + instance + item id.")]
+    public string levelOneShotPickupKey = "";
+
+    [Min(1)]
+    [Tooltip("How many pickups to place for this row (each uses spawn point selection like enemy count).")]
     public int count = 1;
 
     /// <summary>
@@ -87,6 +98,9 @@ public class SpawnPrefabCount
     {
         resolvedPrefab = null;
         usedDefinitionForInit = null;
+
+        if (itemDefinition)
+            return false;
 
         if (enemyDefinition != null)
         {
@@ -237,7 +251,7 @@ public class EnduranceWavePlan : ISerializationCallbackReceiver
                 SpawnPrefabCount s = gp.spawns[j];
                 if (s == null || s.count <= 0)
                     continue;
-                if (!s.prefab && s.enemyDefinition == null)
+                if (!s.prefab && s.enemyDefinition == null && !s.itemDefinition)
                     continue;
 
                 string rowGid = !string.IsNullOrWhiteSpace(s.spawnPointGroupId)
@@ -250,6 +264,9 @@ public class EnduranceWavePlan : ISerializationCallbackReceiver
                     spawnPointName = s.spawnPointName,
                     enemyDefinition = s.enemyDefinition,
                     prefab = s.prefab,
+                    itemDefinition = s.itemDefinition,
+                    itemAmount = Mathf.Max(1, s.itemAmount),
+                    levelOneShotPickupKey = s.levelOneShotPickupKey,
                     count = s.count
                 });
             }

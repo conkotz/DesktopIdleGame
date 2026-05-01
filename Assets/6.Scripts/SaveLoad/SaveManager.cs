@@ -127,6 +127,7 @@ public class SaveManager : MonoBehaviour
         }
 
         HelperProgressStore.ApplyFromSaveData(_lastLoadedData);
+        LevelItemPickupSaveStore.ApplyFromSaveData(_lastLoadedData);
 
         var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         if (player == null)
@@ -159,6 +160,10 @@ public class SaveManager : MonoBehaviour
         {
             _isApplyingSaveData = false;
         }
+
+        NormalizeSaveDataLists(data);
+        HelperProgressStore.ApplyFromSaveData(data);
+        LevelItemPickupSaveStore.ApplyFromSaveData(data);
     }
 
     private static void SeedActiveLevelFromWorldMapIfNeeded(SaveData data)
@@ -271,6 +276,7 @@ public class SaveManager : MonoBehaviour
         EnsurePlayerStorageInSaveData(data);
 
         HelperProgressStore.WriteDismissedInto(data);
+        LevelItemPickupSaveStore.WriteInto(data);
 
         ApplyActiveMapToSaveData(data);
 
@@ -411,6 +417,9 @@ public class SaveManager : MonoBehaviour
 
         // Player / ItemDatabase can be a frame behind scene setup; re-apply chest so load never misses.
         StartCoroutine(DeferredApplyPlayerStorageLoad());
+
+        HelperProgressStore.ApplyFromSaveData(data);
+        LevelItemPickupSaveStore.ApplyFromSaveData(data);
     }
 
     private static void NormalizeSaveDataLists(SaveData data)
@@ -435,7 +444,13 @@ public class SaveManager : MonoBehaviour
             data.merchantStocks = new List<SaveData.MerchantStockSave>();
         if (data.dismissedHelperIds == null)
             data.dismissedHelperIds = new List<string>();
+        if (data.levelItemPickupOnceClaimedKeys == null)
+            data.levelItemPickupOnceClaimedKeys = new List<string>();
     }
+
+    public bool IsLevelItemPickupOnceClaimed(string key) => LevelItemPickupSaveStore.IsClaimed(key);
+
+    public void MarkLevelItemPickupOnceClaimed(string key) => LevelItemPickupSaveStore.MarkClaimed(key);
 
     /// <summary>
     /// After scene reload, <see cref="Merchant"/> Awake resets stock from assets. Rehydrate from the active save file.

@@ -167,7 +167,15 @@ public class LevelSpawnDirector : MonoBehaviour
                 continue;
             }
 
-            SpawnGroup(plan, groups, parent, null, def, allowEliteSpawnRoll: false);
+            SpawnGroup(
+                plan,
+                groups,
+                parent,
+                collectRoots: null,
+                levelDefForRespawn: def,
+                allowEliteSpawnRoll: false,
+                planIndexForSaveKeys: i,
+                levelDefForOneShotKeys: def);
         }
     }
 
@@ -203,6 +211,10 @@ public class LevelSpawnDirector : MonoBehaviour
         Transform parent = ResolveSpawnParent();
         var spawnedRoots = new List<GameObject>();
 
+        MapNodeDefinition saveDef = GameplayLevelBootstrapper.Instance != null
+            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+            : ActiveLevelContext.Current;
+
         for (int i = 0; i < plans.Count; i++)
         {
             LevelSpawnGroupPlan plan = plans[i];
@@ -212,7 +224,15 @@ public class LevelSpawnDirector : MonoBehaviour
             if (!SpawnPlanHasGroupSource(plan))
                 continue;
 
-            SpawnGroup(plan, groups, parent, spawnedRoots, null, allowEliteSpawnRoll: false);
+            SpawnGroup(
+                plan,
+                groups,
+                parent,
+                spawnedRoots,
+                levelDefForRespawn: null,
+                allowEliteSpawnRoll: false,
+                planIndexForSaveKeys: i,
+                levelDefForOneShotKeys: saveDef);
         }
 
         for (int i = 0; i < spawnedRoots.Count; i++)
@@ -244,7 +264,21 @@ public class LevelSpawnDirector : MonoBehaviour
         Transform parent = ResolveSpawnParent();
         var spawnedRoots = new List<GameObject>();
 
-        SpawnGroup(plan, groups, parent, spawnedRoots, respawnRulesFrom, allowEliteSpawnRoll: false);
+        MapNodeDefinition saveDef = respawnRulesFrom;
+        if (saveDef == null && GameplayLevelBootstrapper.Instance != null)
+            saveDef = GameplayLevelBootstrapper.Instance.ActiveDefinition;
+        if (saveDef == null)
+            saveDef = ActiveLevelContext.Current;
+
+        SpawnGroup(
+            plan,
+            groups,
+            parent,
+            spawnedRoots,
+            respawnRulesFrom,
+            allowEliteSpawnRoll: false,
+            planIndexForSaveKeys: -1,
+            levelDefForOneShotKeys: saveDef);
 
         for (int i = 0; i < spawnedRoots.Count; i++)
         {
@@ -286,24 +320,170 @@ public class LevelSpawnDirector : MonoBehaviour
         return dict;
     }
 
+    private static string BuildLevelItemOneShotKey(
+        MapNodeDefinition levelDef,
+        int planIndex,
+        int rowIndex,
+        int instanceIndex,
+        string itemId,
+        string designerOverride)
+    {
+        if (!string.IsNullOrWhiteSpace(designerOverride))
+            return designerOverride.Trim();
+
+        string node = levelDef != null && !string.IsNullOrWhiteSpace(levelDef.nodeId)
+            ? levelDef.nodeId.Trim()
+            : "unknown_node";
+        string iid = string.IsNullOrWhiteSpace(itemId) ? "unknown_item" : itemId.Trim();
+        int pi = planIndex >= 0 ? planIndex : 0;
+        return $"levelItem:{node}:p{pi}:r{rowIndex}:i{instanceIndex}:{iid}";
+    }
+
+    private bool TryResolveOneSpawnPoint(
+        SpawnPrefabCount entry,
+        LevelSpawnGroupPlan plan,
+        Dictionary<string, GroupSpawnCursor> cursors,
+        string gid,
+        SpawnPointGroup pointGroup,
+        out Transform point,
+        out bool hadToReuse)
+    {
+        hadToReuse = false;
+        point = null;
+
+        GroupSpawnCursor cursor = GetOrCreateGroupCursor(cursors, gid, pointGroup, plan.shuffleSpawnPoints);
+        if (cursor.PointList.Count == 0)
+        {
+            if (logSpawns)
+                Debug.LogWarning($"[LevelSpawnDirector] SpawnPointGroup '{gid}' has no points.", pointGroup);
+            return false;
+        }
+
+        Transform p = null;
+        if (entry != null && !string.IsNullOrWhiteSpace(entry.spawnPointName))
+        {
+            string wantName = entry.spawnPointName.Trim();
+            p = TryResolveSpawnPointByName(pointGroup, wantName);
+            if (!p)
+            {
+                if (logSpawns)
+                    Debug.LogWarning(
+                        $"[LevelSpawnDirector] No spawn point named '{wantName}' in group '{gid}' — using cursor order.",
+                        pointGroup);
+            }
+            else if (!IsSpawnPointStrictlyFree(p))
+            {
+                if (logSpawns)
+                    Debug.LogWarning(
+                        $"[LevelSpawnDirector] Named spawn point '{p.name}' is not free — using cursor order.",
+                        pointGroup);
+                p = null;
+            }
+        }
+
+        if (!p)
+        {
+            p = PickNextAvailablePoint(
+                cursor.PointList,
+                ref cursor.Cursor,
+                out hadToReuse,
+                gid,
+                pointGroup);
+        }
+
+        point = p;
+        return p != null;
+    }
+
     private void SpawnGroup(
         LevelSpawnGroupPlan plan,
         Dictionary<string, SpawnPointGroup> groupsById,
         Transform parent,
         List<GameObject> collectRoots,
         MapNodeDefinition levelDefForRespawn,
-        bool allowEliteSpawnRoll)
+        bool allowEliteSpawnRoll,
+        int planIndexForSaveKeys = -1,
+        MapNodeDefinition levelDefForOneShotKeys = null)
     {
         if (plan.spawns == null)
             return;
 
+        MapNodeDefinition saveDef = levelDefForOneShotKeys
+                                    ?? GameplayLevelBootstrapper.Instance?.ActiveDefinition
+                                    ?? ActiveLevelContext.Current;
+
         var cursors = new Dictionary<string, GroupSpawnCursor>(StringComparer.OrdinalIgnoreCase);
         int totalSpawned = 0;
 
-        foreach (SpawnPrefabCount entry in plan.spawns)
+        for (int rowIdx = 0; rowIdx < plan.spawns.Count; rowIdx++)
         {
+            SpawnPrefabCount entry = plan.spawns[rowIdx];
             if (entry == null || entry.count <= 0)
                 continue;
+
+            if (entry.itemDefinition != null)
+            {
+                string itemId = entry.itemDefinition.itemId != null ? entry.itemDefinition.itemId.Trim() : string.Empty;
+                if (string.IsNullOrEmpty(itemId))
+                {
+                    if (logSpawns)
+                        Debug.LogWarning($"[LevelSpawnDirector] ItemDefinition '{entry.itemDefinition.name}' has no itemId — skipped.", entry.itemDefinition);
+                    continue;
+                }
+
+                string itemGid = ResolveSpawnGroupId(plan, entry);
+                if (string.IsNullOrWhiteSpace(itemGid))
+                {
+                    if (logSpawns)
+                        Debug.LogWarning("[LevelSpawnDirector] Spawn row has no Group Id (set plan default or Spawn Point Group Id on the row).", this);
+                    continue;
+                }
+
+                if (!groupsById.TryGetValue(itemGid, out SpawnPointGroup itemPointGroup) || itemPointGroup == null)
+                {
+                    if (logSpawns)
+                        Debug.LogWarning($"[LevelSpawnDirector] Missing SpawnPointGroup for groupId='{itemGid}'", this);
+                    continue;
+                }
+
+                int stack = Mathf.Max(1, entry.itemAmount);
+
+                for (int c = 0; c < entry.count; c++)
+                {
+                    string key = BuildLevelItemOneShotKey(saveDef, planIndexForSaveKeys, rowIdx, c, itemId, entry.levelOneShotPickupKey);
+                    if (LevelItemPickupSaveStore.IsClaimed(key))
+                        continue;
+
+                    if (!TryResolveOneSpawnPoint(entry, plan, cursors, itemGid, itemPointGroup, out Transform p, out bool hadToReuse))
+                        continue;
+
+                    DropManager dm = DropManager.Instance;
+                    if (dm == null)
+                    {
+                        if (logSpawns)
+                            Debug.LogWarning("[LevelSpawnDirector] DropManager missing — cannot spawn level item pickup.", this);
+                        continue;
+                    }
+
+                    dm.SpawnPlacedLevelPickup(entry.itemDefinition, stack, p.position, parent, alignSpawnPointToColliderBottom, key);
+
+                    if (preventOverlappingSpawns)
+                        ReservePoint(p.position);
+
+                    totalSpawned++;
+
+                    if (logSpawns)
+                    {
+                        Debug.Log(
+                            $"[LevelSpawnDirector] Spawned item '{itemId}' x{stack} at group '{itemGid}' point '{p.name}' pos={p.position} (one-shot key '{key}')",
+                            this);
+                        if (hadToReuse)
+                            Debug.LogWarning($"[LevelSpawnDirector] Group '{itemGid}' ran out of free spawn points; reusing a location. Add more points to avoid overlaps.", itemPointGroup);
+                    }
+                }
+
+                continue;
+            }
 
             if (!entry.TryResolveSpawnPrefab(out GameObject prefabAsset, out EnemyDefinition defForInit, this, logSpawns))
                 continue;
@@ -323,8 +503,8 @@ public class LevelSpawnDirector : MonoBehaviour
                 continue;
             }
 
-            GroupSpawnCursor cursor = GetOrCreateGroupCursor(cursors, gid, pointGroup, plan.shuffleSpawnPoints);
-            if (cursor.PointList.Count == 0)
+            GroupSpawnCursor cursorProbe = GetOrCreateGroupCursor(cursors, gid, pointGroup, plan.shuffleSpawnPoints);
+            if (cursorProbe.PointList.Count == 0)
             {
                 if (logSpawns)
                     Debug.LogWarning($"[LevelSpawnDirector] SpawnPointGroup '{gid}' has no points.", pointGroup);
@@ -336,40 +516,7 @@ public class LevelSpawnDirector : MonoBehaviour
 
             for (int c = 0; c < entry.count; c++)
             {
-                bool hadToReuse = false;
-                Transform p = null;
-                if (entry != null && !string.IsNullOrWhiteSpace(entry.spawnPointName))
-                {
-                    string wantName = entry.spawnPointName.Trim();
-                    p = TryResolveSpawnPointByName(pointGroup, wantName);
-                    if (!p)
-                    {
-                        if (logSpawns)
-                            Debug.LogWarning(
-                                $"[LevelSpawnDirector] No spawn point named '{wantName}' in group '{gid}' — using cursor order.",
-                                pointGroup);
-                    }
-                    else if (!IsSpawnPointStrictlyFree(p))
-                    {
-                        if (logSpawns)
-                            Debug.LogWarning(
-                                $"[LevelSpawnDirector] Named spawn point '{p.name}' is not free — using cursor order.",
-                                pointGroup);
-                        p = null;
-                    }
-                }
-
-                if (!p)
-                {
-                    p = PickNextAvailablePoint(
-                        cursor.PointList,
-                        ref cursor.Cursor,
-                        out hadToReuse,
-                        gid,
-                        pointGroup);
-                }
-
-                if (!p)
+                if (!TryResolveOneSpawnPoint(entry, plan, cursors, gid, pointGroup, out Transform p, out bool hadToReuse))
                     continue;
 
                 GameObject inst = SpawnEnemyInstanceAt(

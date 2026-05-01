@@ -159,4 +159,8 @@ public class SaveData
     [Header("Helpers / Tutorial popups")]
     [Tooltip("HelperPopupDefinition.helperId values dismissed for this character (do not replay until New Game clears the save).")]
     public List<string> dismissedHelperIds = new();
+
+    [Header("Level-placed item pickups")]
+    [Tooltip("Keys for spawn-plan item drops that were fully picked up; those placements are not spawned again.")]
+    public List<string> levelItemPickupOnceClaimedKeys = new();
 }

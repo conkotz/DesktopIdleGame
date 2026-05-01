@@ -206,6 +206,39 @@ public class DropManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Spawns a pickup at an exact world position (level spawn points). No horizontal scatter, no drop-frame clamp.
+    /// </summary>
+    public void SpawnPlacedLevelPickup(
+        ItemDefinition itemDef,
+        int amount,
+        Vector3 worldPosition,
+        Transform parent,
+        bool alignToGround,
+        string levelOneShotSaveKey)
+    {
+        if (!itemDef || amount <= 0)
+            return;
+
+        if (!worldDropPrefab)
+        {
+            Debug.LogWarning("[DropManager] World Drop Prefab is not assigned — cannot spawn level item pickup.", this);
+            return;
+        }
+
+        string itemId = string.IsNullOrWhiteSpace(itemDef.itemId) ? null : itemDef.itemId.Trim();
+        if (string.IsNullOrEmpty(itemId))
+            return;
+
+        var drop = Instantiate(worldDropPrefab, worldPosition, Quaternion.identity, parent != null ? parent : null);
+        drop.Init(itemId, amount, itemDef.icon, disableAutoDespawn: true);
+        if (!string.IsNullOrWhiteSpace(levelOneShotSaveKey))
+            drop.SetLevelOneShotPickupClaimKey(levelOneShotSaveKey);
+
+        if (alignToGround && TryFindGroundY(worldPosition, out float groundY))
+            drop.SnapVisualBottomToWorldY(groundY, groundSkin);
+    }
+
     private bool TryFindGroundY(Vector3 origin, out float groundY)
     {
         groundY = 0f;

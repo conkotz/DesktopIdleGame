@@ -21,6 +21,8 @@ public class ItemDrop : MonoBehaviour
     public string ItemId { get; private set; }
     public int Amount { get; private set; }
 
+    private string _levelOneShotPickupClaimKey;
+
     private Collider2D _col;
     private Rigidbody2D _rb;
     private Coroutine _launchRoutine;
@@ -36,7 +38,8 @@ public class ItemDrop : MonoBehaviour
         DropOrder = ++_dropSeq;
     }
 
-    public void Init(string itemId, int amount, Sprite icon)
+    /// <param name="disableAutoDespawn">When true, the pickup never auto-destroys (e.g. level-placed one-shot loot).</param>
+    public void Init(string itemId, int amount, Sprite icon, bool disableAutoDespawn = false)
     {
         ItemId = itemId;
         Amount = amount;
@@ -47,8 +50,14 @@ public class ItemDrop : MonoBehaviour
         ResolveStackLabel();
         RefreshStackLabel();
 
-        if (lifetimeSeconds > 0f)
+        if (!disableAutoDespawn && lifetimeSeconds > 0f)
             Destroy(gameObject, lifetimeSeconds);
+    }
+
+    /// <summary>When set, fully picking up this drop marks the key in save data (one-time level spawn reward).</summary>
+    public void SetLevelOneShotPickupClaimKey(string saveKey)
+    {
+        _levelOneShotPickupClaimKey = string.IsNullOrWhiteSpace(saveKey) ? null : saveKey.Trim();
     }
 
     public void SnapVisualBottomToWorldY(float worldY, float skin = 0.01f)
@@ -207,6 +216,9 @@ public class ItemDrop : MonoBehaviour
 
         if (left <= 0)
         {
+            if (!string.IsNullOrEmpty(_levelOneShotPickupClaimKey))
+                SaveManager.Instance?.MarkLevelItemPickupOnceClaimed(_levelOneShotPickupClaimKey);
+
             Destroy(gameObject);
             return true;
         }

@@ -353,6 +353,8 @@ public static class RecommendedCombatPower
     {
         if (row == null)
             return null;
+        if (row.itemDefinition)
+            return null;
         // UnityEngine.Object: use truthiness so missing/broken references match inspector behaviour.
         if (row.enemyDefinition)
             return row.enemyDefinition;
