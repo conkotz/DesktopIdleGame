@@ -44,6 +44,20 @@ public static class HelperProgressStore
         PlayerPrefs.Save();
     }
 
+    /// <summary>
+    /// Clears dismissed-helper state and persists. Used when the player turns &quot;Show help popups&quot; back on
+    /// so previously dismissed tips can appear again.
+    /// </summary>
+    public static void ClearDismissedForHelpToggleOn()
+    {
+        DismissedThisSave.Clear();
+        foreach (string id in RegisteredIds)
+            PlayerPrefs.DeleteKey(LegacyKeyPrefix + id);
+
+        SaveManager.Instance?.Save();
+        PlayerPrefs.Save();
+    }
+
     /// <summary>Next <see cref="ApplyFromSaveData"/> will set <see cref="IsHydratedFromSave"/>.</summary>
     internal static void ResetHydrationForNewSession()
     {

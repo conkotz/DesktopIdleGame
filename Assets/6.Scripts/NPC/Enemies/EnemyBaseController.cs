@@ -41,13 +41,15 @@ public class EnemyBaseController : MonoBehaviour
     [SerializeField] private float idleWanderMoveMaxSec = 3f;
     [SerializeField] private float idleWanderIdleMinSec = 2f;
     [SerializeField] private float idleWanderIdleMaxSec = 8f;
+    [SerializeField] private float idleWanderMaxDistanceFromSpawn = 10f;
 
     private bool _idleWanderInMovePhase = true;
     private float _idleWanderPhaseEndTime;
     private float _idleWanderDirSign = 1f;
     private int _idleWanderPhaseTickFrame = -1;
-    private const float WanderBoundsEpsilon = 0.02f;
-    private const float WorldBoundsXPadding = 0.5f;
+    private const float WanderSpawnRangeEpsilon = 0.02f;
+    private const float WorldBoundsXPadding = 0f;
+    private float _spawnOriginX;
 
     [Header("Attack (from CharacterStats)")]
     [Tooltip("Delay before damage is applied (for animation timing).")]
@@ -236,6 +238,7 @@ public class EnemyBaseController : MonoBehaviour
         idleWanderMoveMaxSec = Mathf.Max(idleWanderMoveMinSec, def.idleWanderMoveMaxSec);
         idleWanderIdleMinSec = Mathf.Max(0.05f, def.idleWanderIdleMinSec);
         idleWanderIdleMaxSec = Mathf.Max(idleWanderIdleMinSec, def.idleWanderIdleMaxSec);
+        idleWanderMaxDistanceFromSpawn = Mathf.Max(0f, def.idleWanderMaxDistanceFromSpawn);
         ResetIdleWanderCycle();
 
         stats.RefreshVitalsFromStats(fillIfEmpty: true);
@@ -297,10 +300,15 @@ public class EnemyBaseController : MonoBehaviour
 
         if (definition != null)
             InitializeFromDefinition(definition);
+
+        _spawnOriginX = transform.position.x;
     }
 
     private void OnEnable()
     {
+        LevelAggroState.AggroPulseTriggered -= HandleAggroPulseTriggered;
+        LevelAggroState.AggroPulseTriggered += HandleAggroPulseTriggered;
+
         if (stats != null)
         {
             stats.OnHPChanged += HandleStatsHPChanged;
@@ -316,6 +324,8 @@ public class EnemyBaseController : MonoBehaviour
 
     private void OnDisable()
     {
+        LevelAggroState.AggroPulseTriggered -= HandleAggroPulseTriggered;
+
         if (stats != null)
         {
             stats.OnHPChanged -= HandleStatsHPChanged;
@@ -364,9 +374,6 @@ public class EnemyBaseController : MonoBehaviour
             return;
         if (!IsPlayerValidAlive())
             return;
-        if (EnemyWanderBounds.Instance == null ||
-            !EnemyWanderBounds.Instance.TryGetWorldXBounds(out _, out _))
-            return;
 
         _idleWanderPhaseTickFrame = Time.frameCount;
 
@@ -394,11 +401,9 @@ public class EnemyBaseController : MonoBehaviour
             return false;
         if (!IsPlayerValidAlive())
             return false;
-        if (EnemyWanderBounds.Instance == null ||
-            !EnemyWanderBounds.Instance.TryGetWorldXBounds(out float minX, out float maxX))
-            return false;
+        GetIdleWanderSpawnBounds(out float minX, out float maxX);
 
-        return _idleWanderInMovePhase || IsOutsideWanderBounds(transform.position.x, minX, maxX);
+        return _idleWanderInMovePhase || IsOutsideWanderSpawnRange(transform.position.x, minX, maxX);
     }
 
     private void Update()
@@ -536,22 +541,18 @@ public class EnemyBaseController : MonoBehaviour
         if (!idleWanderEnabled || idleWanderSpeed <= 0f)
             return false;
 
-        EnemyWanderBounds wb = EnemyWanderBounds.Instance;
-        if (wb == null || !wb.TryGetWorldXBounds(out float minX, out float maxX))
-            return false;
+        GetIdleWanderSpawnBounds(out float minX, out float maxX);
 
-        if (!_idleWanderInMovePhase)
+        bool outsideBounds = IsOutsideWanderSpawnRange(transform.position.x, minX, maxX);
+        if (!_idleWanderInMovePhase && !outsideBounds)
             return false;
 
         float x = transform.position.x;
-        bool outsideBounds = IsOutsideWanderBounds(x, minX, maxX);
 
         if (x <= minX)
             _idleWanderDirSign = 1f;
         else if (x >= maxX)
             _idleWanderDirSign = -1f;
-        else if (!_idleWanderInMovePhase && !outsideBounds)
-            return false;
 
         if (!_idleWanderInMovePhase && outsideBounds)
             _idleWanderPhaseEndTime = Time.time + UnityEngine.Random.Range(idleWanderMoveMinSec, idleWanderMoveMaxSec);
@@ -565,9 +566,16 @@ public class EnemyBaseController : MonoBehaviour
         return true;
     }
 
-    private static bool IsOutsideWanderBounds(float x, float minX, float maxX)
+    private void GetIdleWanderSpawnBounds(out float minX, out float maxX)
     {
-        return x < minX - WanderBoundsEpsilon || x > maxX + WanderBoundsEpsilon;
+        float maxDist = Mathf.Max(0f, idleWanderMaxDistanceFromSpawn);
+        minX = _spawnOriginX - maxDist;
+        maxX = _spawnOriginX + maxDist;
+    }
+
+    private static bool IsOutsideWanderSpawnRange(float x, float minX, float maxX)
+    {
+        return x < minX - WanderSpawnRangeEpsilon || x > maxX + WanderSpawnRangeEpsilon;
     }
 
     private void StopHorizontal()
@@ -585,7 +593,12 @@ public class EnemyBaseController : MonoBehaviour
             def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
         if (def == null)
             return true;
-        return def.enemyAggroMode == LevelEnemyAggroMode.Aggressive;
+        return def.enemyAggroMode switch
+        {
+            LevelEnemyAggroMode.Aggressive => true,
+            LevelEnemyAggroMode.CalmUntilPlayerAggressive => LevelAggroState.IsWaveAggroLatched(def),
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -775,6 +788,7 @@ public class EnemyBaseController : MonoBehaviour
         if (state == EnemyState.Dead || stats == null)
             return 0;
 
+        TryTriggerMapWideAggroFromAttacker(attacker);
         _provoked = true;
 
         float shockMult = _ailments != null ? _ailments.GetIncomingDamageMultiplier() : 1f;
@@ -840,6 +854,7 @@ public class EnemyBaseController : MonoBehaviour
 
         finalDamage = Mathf.Max(1, finalDamage);
 
+        TryTriggerMapWideAggroFromAttacker(source);
         _provoked = true;
 
         // DOT tick amount is already final; do not re-apply armor/MR/corruption resist.
@@ -1288,6 +1303,57 @@ public class EnemyBaseController : MonoBehaviour
             FloatingDamageTextUI.PopupDamageKind.Corruption => DpsDamageBucket.Corruption,
             _ => DpsDamageBucket.Physical
         };
+    }
+
+    private static void TryTriggerMapWideAggroFromAttacker(Transform attacker)
+    {
+        if (!IsFromPlayerTeam(attacker))
+            return;
+
+        MapNodeDefinition def = ActiveLevelContext.Current;
+        if (def == null && GameplayLevelBootstrapper.Instance != null)
+            def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
+        if (def == null || def.enemyAggroMode != LevelEnemyAggroMode.CalmUntilPlayerAggressive)
+            return;
+
+        LevelAggroState.TriggerPlayerAggression(def);
+    }
+
+    private static bool IsFromPlayerTeam(Transform attacker)
+    {
+        if (attacker == null)
+            return false;
+
+        if (attacker.CompareTag("Player"))
+            return true;
+        if (attacker.GetComponent<PlayerController>() != null || attacker.GetComponentInParent<PlayerController>() != null)
+            return true;
+        if (attacker.GetComponent<PlayerCombatController>() != null || attacker.GetComponentInParent<PlayerCombatController>() != null)
+            return true;
+        if (attacker.GetComponent<PlayerAbilityController>() != null || attacker.GetComponentInParent<PlayerAbilityController>() != null)
+            return true;
+        if (attacker.GetComponent<SoulforgedWeaponMinion>() != null || attacker.GetComponentInParent<SoulforgedWeaponMinion>() != null)
+            return true;
+
+        return false;
+    }
+
+    private void HandleAggroPulseTriggered(string nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId) || state == EnemyState.Dead)
+            return;
+
+        MapNodeDefinition def = ActiveLevelContext.Current;
+        if (def == null && GameplayLevelBootstrapper.Instance != null)
+            def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
+        if (def == null || def.enemyAggroMode != LevelEnemyAggroMode.CalmUntilPlayerAggressive)
+            return;
+
+        string activeNodeId = string.IsNullOrWhiteSpace(def.nodeId) ? string.Empty : def.nodeId.Trim();
+        if (!string.Equals(activeNodeId, nodeId.Trim(), StringComparison.Ordinal))
+            return;
+
+        _provoked = true;
     }
 
     private void OnDrawGizmosSelected()

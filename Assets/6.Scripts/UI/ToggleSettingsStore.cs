@@ -150,7 +150,7 @@ public static class ToggleSettingsStore
             ToggleSettingId.TopMostGameWindow => "Is topmost game window",
             ToggleSettingId.AutoTrackNewQuest => "Auto track new quest",
             ToggleSettingId.AutoLootDuringAutoBattle => "Auto loot during auto battle",
-            ToggleSettingId.ShowHelpPopups => "Show help popups",
+            ToggleSettingId.ShowHelpPopups => "Enable help feature",
             _ => setting.ToString()
         };
     }

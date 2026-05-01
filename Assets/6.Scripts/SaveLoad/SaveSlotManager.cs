@@ -5,6 +5,7 @@ using UnityEngine;
 public static class SaveSlotManager
 {
     public const int MaxSlots = 2;
+    private const string LastPlayedSlotPrefKey = "SaveSlots.LastPlayedSlotIndex";
 
     public static int ActiveSlotIndex { get; private set; } = -1;
 
@@ -148,5 +149,77 @@ public static class SaveSlotManager
 
         if (File.Exists(metaPath))
             File.Delete(metaPath);
+    }
+
+    public static int GetLastPlayedSlotIndex()
+    {
+        int raw = PlayerPrefs.GetInt(LastPlayedSlotPrefKey, -1);
+        return raw >= 0 && raw < MaxSlots ? raw : -1;
+    }
+
+    public static void MarkSlotAsLastPlayed(int slotIndex)
+    {
+        int clamped = Mathf.Clamp(slotIndex, 0, MaxSlots - 1);
+        PlayerPrefs.SetInt(LastPlayedSlotPrefKey, clamped);
+        PlayerPrefs.Save();
+    }
+
+    public static bool SwapSlots(int slotA, int slotB)
+    {
+        int a = Mathf.Clamp(slotA, 0, MaxSlots - 1);
+        int b = Mathf.Clamp(slotB, 0, MaxSlots - 1);
+        if (a == b)
+            return true;
+
+        try
+        {
+            SwapFilesSafe(GetSavePath(a), GetSavePath(b));
+            SwapFilesSafe(GetMetaPath(a), GetMetaPath(b));
+
+            RewriteHeaderSlotIndexIfPresent(a);
+            RewriteHeaderSlotIndexIfPresent(b);
+
+            int lastPlayed = GetLastPlayedSlotIndex();
+            if (lastPlayed == a) MarkSlotAsLastPlayed(b);
+            else if (lastPlayed == b) MarkSlotAsLastPlayed(a);
+
+            if (ActiveSlotIndex == a) ActiveSlotIndex = b;
+            else if (ActiveSlotIndex == b) ActiveSlotIndex = a;
+
+            return true;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[SaveSlotManager] Failed to swap slot {a + 1} and slot {b + 1}: {e.Message}");
+            return false;
+        }
+    }
+
+    private static void SwapFilesSafe(string pathA, string pathB)
+    {
+        bool hasA = File.Exists(pathA);
+        bool hasB = File.Exists(pathB);
+        if (!hasA && !hasB)
+            return;
+
+        string temp = pathA + ".swap_tmp";
+        if (File.Exists(temp))
+            File.Delete(temp);
+
+        if (hasA)
+            File.Move(pathA, temp);
+        if (hasB)
+            File.Move(pathB, pathA);
+        if (hasA)
+            File.Move(temp, pathB);
+    }
+
+    private static void RewriteHeaderSlotIndexIfPresent(int slotIndex)
+    {
+        if (!TryReadHeader(slotIndex, out SaveGameHeader header) || header == null)
+            return;
+
+        header.slotIndex = slotIndex;
+        WriteHeader(header);
     }
 }

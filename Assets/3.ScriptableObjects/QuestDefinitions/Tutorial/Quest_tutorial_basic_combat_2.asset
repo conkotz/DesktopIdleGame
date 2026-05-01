@@ -15,12 +15,12 @@ MonoBehaviour:
   questId: tutorial_basic_combat_2
   regionId: tutorial
   displayName: Basic Combat 2
-  description: 'Defeat 5 more Rogues. '
+  description: 'Defeat 10 more Rogues. '
   details: 
   listCategoryLabel: Combat
   listStatusOverride: 
   objectiveKind: 1
-  targetCount: 5
+  targetCount: 10
   gatherItemId: 
   rewardGold: 150
   rewardItem: {fileID: 0}
@@ -29,11 +29,12 @@ MonoBehaviour:
   additionalItemRewards: []
   rewardNotes: Finishes the tutorial and moves you to Duskwood.
   repeatable: 0
+  autoCompleteQuest: 1
   abandonable: 0
   obtainLocationId: npc_tutorial_2
   obtainLocationDisplayName: Greggor in Tutoral 2
   progressMapNodeId: tutorial_2
-  killProgressOnlyOnProgressMap: 0
+  killProgressOnlyOnProgressMap: 1
   prerequisiteRewardClaimedQuestIds:
   - tutorial_basic_combat
   requireAllPrerequisiteQuests: 1

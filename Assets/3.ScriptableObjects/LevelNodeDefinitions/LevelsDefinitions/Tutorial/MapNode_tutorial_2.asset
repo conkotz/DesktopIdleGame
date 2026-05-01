@@ -16,9 +16,10 @@ MonoBehaviour:
   displayName: Tutorial Level 2
   description: 'Basic combat. '
   nodeType: 0
-  enemyAggroMode: 1
+  enemyAggroMode: 2
   ignoreAggroRange: 0
-  enemyRespawnEnabled: 1
+  respawnHereIfDied: 1
+  enemyRespawnEnabled: 0
   enemyRespawnDelaySeconds: 3
   eliteSpawnChance: 0
   fallbackRecommendedCombatPower: 1
@@ -38,22 +39,76 @@ MonoBehaviour:
   biome: 0
   prefabGroups: []
   spawnGroupPlans:
-  - groupId: MiddleSpawns
-    spawns:
-    - spawnPointGroupId: 
-      spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 3eca1e824a54ed84f84eb314acdeabed, type: 2}
-      prefab: {fileID: 0}
-      count: 1
-    shuffleSpawnPoints: 1
   - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint5
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 5214886831892509811, guid: 72c108752d1eaa941b8bdbd43d4928f3, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
-    shuffleSpawnPoints: 0
+    - spawnPointGroupId: MiddleSpawns
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: 3eca1e824a54ed84f84eb314acdeabed, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 1
+      levelOneShotPickupKey: 
+      count: 1
+    shuffleSpawnPoints: 1
+  simpleCombatWaves:
+  - defaultSpawnGroupId: MiddleSpawns
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: 3eca1e824a54ed84f84eb314acdeabed, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    shuffleSpawnPoints: 1
+    repeatThisWave: 0
+    _legacyGroupPlans: []
+  - defaultSpawnGroupId: MiddleSpawns
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: 3eca1e824a54ed84f84eb314acdeabed, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 2
+    shuffleSpawnPoints: 1
+    repeatThisWave: 0
+    _legacyGroupPlans: []
+  - defaultSpawnGroupId: MiddleSpawns
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: 3eca1e824a54ed84f84eb314acdeabed, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 3
+    shuffleSpawnPoints: 1
+    repeatThisWave: 1
+    _legacyGroupPlans: []
+  simpleCombatWavesAutoStartOnLevelEnter: 1
+  simpleCombatWavesRequireQuestRewardClaimed: 0
+  simpleCombatWavesRequiredQuestId: 
+  simpleCombatWavesRequireQuestAccepted: 1
+  simpleCombatWavesQuestAcceptedId: tutorial_basic_combat_2
+  simpleCombatWavesRunOncePerSceneSession: 0
   enduranceWaves: []
   enduranceCompletionLoot: []
   enduranceCompletionLootByTier: []

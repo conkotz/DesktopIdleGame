@@ -25,8 +25,10 @@ public class OffscreenMarkersController : MonoBehaviour
 
     private struct Aggregate
     {
-        public int Count;
-        public float SumWorldX;
+        public int LeftCount;
+        public float LeftSumWorldX;
+        public int RightCount;
+        public float RightSumWorldX;
         public bool Any;
     }
 
@@ -63,7 +65,6 @@ public class OffscreenMarkersController : MonoBehaviour
     [SerializeField] private bool shiftLeftMarkersIntoStripView = true;
     [Tooltip("Added to pixelRect.xMin before mapping into UI (screen pixels). Use a small positive value if a reference/safe frame sits inside the camera rect.")]
     [SerializeField] [Min(0f)] private float leftClampScreenInsetPixels = 0f;
-
     [Header("Performance")]
     [Tooltip("How often to rescan the scene for markers (seconds).")]
     [SerializeField] private float refreshInterval = 0.08f;
@@ -165,27 +166,22 @@ public class OffscreenMarkersController : MonoBehaviour
             CollectTaggedWorldObjects(NoticeBoardTag, ref noticeBoards);
 
             int need = 0;
-            if (enemies.Any) need++;
-            if (npcs.Any) need++;
-            if (resources.Any) need++;
-            if (storages.Any) need++;
-            if (noticeBoards.Any) need++;
+            need += CountRowsForAggregate(enemies);
+            need += CountRowsForAggregate(npcs);
+            need += CountRowsForAggregate(resources);
+            need += CountRowsForAggregate(storages);
+            need += CountRowsForAggregate(noticeBoards);
 
             EnsurePoolSize(need);
             for (int i = 0; i < _pool.Count; i++)
                 _pool[i].gameObject.SetActive(i < need);
 
             int idx = 0;
-            if (enemies.Any)
-                ApplyRow(_pool[idx++], OffscreenKind.Enemy, enemies);
-            if (npcs.Any)
-                ApplyRow(_pool[idx++], OffscreenKind.Npc, npcs);
-            if (resources.Any)
-                ApplyRow(_pool[idx++], OffscreenKind.Resource, resources);
-            if (storages.Any)
-                ApplyRow(_pool[idx++], OffscreenKind.Storage, storages);
-            if (noticeBoards.Any)
-                ApplyRow(_pool[idx++], OffscreenKind.NoticeBoard, noticeBoards);
+            EmitRowsForAggregate(ref idx, OffscreenKind.Enemy, enemies);
+            EmitRowsForAggregate(ref idx, OffscreenKind.Npc, npcs);
+            EmitRowsForAggregate(ref idx, OffscreenKind.Resource, resources);
+            EmitRowsForAggregate(ref idx, OffscreenKind.Storage, storages);
+            EmitRowsForAggregate(ref idx, OffscreenKind.NoticeBoard, noticeBoards);
 
             _activeMarkerRows = need;
         }
@@ -354,28 +350,47 @@ public class OffscreenMarkersController : MonoBehaviour
         return Mathf.Max(halfBox, fromRef);
     }
 
-    private void ApplyRow(OffscreenMarkerView row, OffscreenKind kind, Aggregate agg)
+    private int CountRowsForAggregate(Aggregate agg)
     {
-        float camX = worldCamera.transform.position.x;
-        float avgX = agg.SumWorldX / Mathf.Max(1, agg.Count);
-        bool flipX = avgX < camX;
+        int rows = 0;
+        bool hasLeft = agg.LeftCount > 0;
+        bool hasRight = agg.RightCount > 0;
+        if (hasLeft) rows++;
+        if (hasRight) rows++;
+        return rows;
+    }
 
+    private void EmitRowsForAggregate(ref int idx, OffscreenKind kind, Aggregate agg)
+    {
+        bool hasLeft = agg.LeftCount > 0;
+        bool hasRight = agg.RightCount > 0;
+        if (!hasLeft && !hasRight)
+            return;
+
+        if (hasLeft)
+            ApplyRow(_pool[idx++], kind, agg.LeftCount, dockLeft: true);
+        if (hasRight)
+            ApplyRow(_pool[idx++], kind, agg.RightCount, dockLeft: false);
+    }
+
+    private void ApplyRow(OffscreenMarkerView row, OffscreenKind kind, int count, bool dockLeft)
+    {
         switch (kind)
         {
             case OffscreenKind.Enemy:
-                row.Apply(enemyColor, $"Enemy {agg.Count}x", flipX);
+                row.Apply(enemyColor, $"Enemy {count}x", dockLeft);
                 break;
             case OffscreenKind.Npc:
-                row.Apply(npcColor, $"NPC {agg.Count}x", flipX);
+                row.Apply(npcColor, $"NPC {count}x", dockLeft);
                 break;
             case OffscreenKind.Resource:
-                row.Apply(resourceColor, $"Resources {agg.Count}x", flipX);
+                row.Apply(resourceColor, $"Resources {count}x", dockLeft);
                 break;
             case OffscreenKind.Storage:
-                row.Apply(storageColor, $"Storage {agg.Count}x", flipX);
+                row.Apply(storageColor, $"Storage {count}x", dockLeft);
                 break;
             case OffscreenKind.NoticeBoard:
-                row.Apply(noticeBoardColor, $"Notice board {agg.Count}x", flipX);
+                row.Apply(noticeBoardColor, $"Notice board {count}x", dockLeft);
                 break;
         }
     }
@@ -390,10 +405,19 @@ public class OffscreenMarkersController : MonoBehaviour
         return vp.x < m || vp.x > 1f - m || vp.y < m || vp.y > 1f - m;
     }
 
-    private static void Add(ref Aggregate a, float worldX)
+    private void Add(ref Aggregate a, float worldX)
     {
-        a.Count++;
-        a.SumWorldX += worldX;
+        float camX = worldCamera ? worldCamera.transform.position.x : 0f;
+        if (worldX < camX)
+        {
+            a.LeftCount++;
+            a.LeftSumWorldX += worldX;
+        }
+        else
+        {
+            a.RightCount++;
+            a.RightSumWorldX += worldX;
+        }
         a.Any = true;
     }
 

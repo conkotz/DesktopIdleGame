@@ -24,6 +24,11 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private readonly HashSet<string> _acceptedQuestIds = new(StringComparer.Ordinal);
 
     private QuestDatabase _resolvedDatabase;
+    private bool _isAutoCompleteProcessing;
+
+    private Inventory _autoInv;
+    private SkillsManager _autoSkills;
+    private WorldMapProgressManager _autoWorldMap;
 
     public event Action ProgressChanged;
 
@@ -41,8 +46,20 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     private void OnDestroy()
     {
+        UnbindAutoCompleteSignals();
+
         if (Instance == this)
             Instance = null;
+    }
+
+    private void OnEnable()
+    {
+        BindAutoCompleteSignals();
+    }
+
+    private void OnDisable()
+    {
+        UnbindAutoCompleteSignals();
     }
 
     private void ResolveQuestDatabase()
@@ -51,6 +68,56 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             _resolvedDatabase = questDatabase;
         else
             _resolvedDatabase = Resources.Load<QuestDatabase>("Databases/QuestDatabase_Main");
+    }
+
+    private void BindAutoCompleteSignals()
+    {
+        _autoInv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (_autoInv != null)
+        {
+            _autoInv.OnInventoryChanged -= HandleAutoCompleteSignalChanged;
+            _autoInv.OnInventoryChanged += HandleAutoCompleteSignalChanged;
+        }
+
+        _autoSkills = SkillsManager.Instance ??
+            FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
+        if (_autoSkills != null)
+        {
+            _autoSkills.OnLevelUp -= HandleAutoCompleteSkillLevelUp;
+            _autoSkills.OnLevelUp += HandleAutoCompleteSkillLevelUp;
+        }
+
+        _autoWorldMap = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        if (_autoWorldMap != null)
+        {
+            _autoWorldMap.ProgressChanged -= HandleAutoCompleteSignalChanged;
+            _autoWorldMap.ProgressChanged += HandleAutoCompleteSignalChanged;
+        }
+    }
+
+    private void UnbindAutoCompleteSignals()
+    {
+        if (_autoInv != null)
+            _autoInv.OnInventoryChanged -= HandleAutoCompleteSignalChanged;
+        if (_autoSkills != null)
+            _autoSkills.OnLevelUp -= HandleAutoCompleteSkillLevelUp;
+        if (_autoWorldMap != null)
+            _autoWorldMap.ProgressChanged -= HandleAutoCompleteSignalChanged;
+
+        _autoInv = null;
+        _autoSkills = null;
+        _autoWorldMap = null;
+    }
+
+    private void HandleAutoCompleteSignalChanged()
+    {
+        TryAutoCompleteEligibleQuests();
+    }
+
+    private void HandleAutoCompleteSkillLevelUp(SkillType _, int __)
+    {
+        TryAutoCompleteEligibleQuests();
     }
 
     private QuestDefinition FindQuestDefinition(string questId)
@@ -121,6 +188,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         ProgressChanged?.Invoke();
         if (SaveManager.Instance != null)
             SaveManager.Instance.Save();
+        TryAutoCompleteEligibleQuests();
     }
 
     public void AddProgress(string questId, int delta)
@@ -204,6 +272,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             ApplyAutoTrackAndShowQuestTracker(q.questId);
 
         MainMenuWindowUI.Resolve()?.OpenQuestShow();
+        TryAutoCompleteEligibleQuests();
 
         return true;
     }
@@ -466,6 +535,52 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         }
 
         return true;
+    }
+
+    private void TryAutoCompleteEligibleQuests()
+    {
+        if (_isAutoCompleteProcessing)
+            return;
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null || all.Count == 0)
+            return;
+
+        _isAutoCompleteProcessing = true;
+        try
+        {
+            const int maxPasses = 16;
+            for (int pass = 0; pass < maxPasses; pass++)
+            {
+                bool claimedAny = false;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    QuestDefinition q = all[i];
+                    if (!q || !q.autoCompleteQuest)
+                        continue;
+                    if (!CanClaimReward(q))
+                        continue;
+
+                    // Auto-claim should stay quiet when claim is blocked only by capacity.
+                    if (HasItemRewardsToGrant(q) && !CanReceiveAllItemRewards(q))
+                        continue;
+
+                    if (TryClaimQuestReward(q))
+                    {
+                        claimedAny = true;
+                        break;
+                    }
+                }
+
+                if (!claimedAny)
+                    break;
+            }
+        }
+        finally
+        {
+            _isAutoCompleteProcessing = false;
+        }
     }
 
     /// <summary>True when the quest grants at least one item stack (not gold-only).</summary>
@@ -829,6 +944,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         LoadAcceptedQuestIds(data);
 
         ProgressChanged?.Invoke();
+        TryAutoCompleteEligibleQuests();
     }
 
     private void LoadAcceptedQuestIds(SaveData data)

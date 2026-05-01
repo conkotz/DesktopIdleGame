@@ -24,7 +24,9 @@ public enum LevelEnemyAggroMode
     [Tooltip("Enemies chase and attack when the player enters each enemy's aggro range (default).")]
     Aggressive,
     [Tooltip("No proximity aggro; enemies ignore the player until they take damage, then retaliate.")]
-    Calm
+    Calm,
+    [Tooltip("Starts calm. Once the player attacks any enemy, all active enemies switch to normal proximity aggro for this level session.")]
+    CalmUntilPlayerAggressive
 }
 
 /// <summary>High-level environment for music, lighting, skybox, ambient VFX, etc.</summary>
@@ -81,6 +83,9 @@ public class SpawnPrefabCount
     [Min(1)]
     [Tooltip("Stack per pickup when Item Definition is assigned.")]
     public int itemAmount = 1;
+
+    [Tooltip("When true, this enemy row can respawn even if Enemy Respawn Enabled is off, but only until Simple Combat Waves start on this map.")]
+    public bool respawnUntilSimpleWavesStart;
 
     [Tooltip("Optional stable save key. If empty, a key is derived from map node id + plan/row index + instance + item id.")]
     public string levelOneShotPickupKey = "";
@@ -175,6 +180,9 @@ public class EnduranceWavePlan : ISerializationCallbackReceiver
 
     [Tooltip("If true, shuffles spawn points within each group before placing.")]
     public bool shuffleSpawnPoints = true;
+
+    [Tooltip("If enabled, this wave repeats indefinitely instead of advancing to the next wave.")]
+    public bool repeatThisWave;
 
     [FormerlySerializedAs("groupPlans")]
     [SerializeField, HideInInspector]
@@ -369,11 +377,14 @@ public class MapNodeDefinition : ScriptableObject
     [Tooltip("Category for map UI and GamePlay. Use Endurance Trial when this node uses endurance waves (wave director + UI). Recommended CP can still be computed from waves even if this is wrong, but gameplay expects Endurance Trial.")]
     public MapNodeType nodeType = MapNodeType.Combat;
 
-    [Tooltip("Aggressive: proximity aggro as usual. Calm: enemies ignore the player until damaged (retaliation only).")]
+    [Tooltip("Aggressive: normal proximity aggro. Calm: enemies only retaliate when hit. CalmUntilPlayerAggressive: starts calm, then first player hit enables proximity aggro for all active enemies.")]
     public LevelEnemyAggroMode enemyAggroMode = LevelEnemyAggroMode.Aggressive;
 
     [Tooltip("When true, spawned enemies ignore aggro range and always chase/attack the player (no distance gate). Use for endurance trials / waves so every enemy commits immediately.")]
     public bool ignoreAggroRange;
+
+    [Tooltip("When true, death respawns the player back onto this same map instead of the region town fallback.")]
+    public bool respawnHereIfDied;
 
     [Header("Enemy respawn (spawn group plans)")]
     [Tooltip("When true, enemies spawned from spawn group plans can respawn after death. Delay is Enemy Respawn Delay Seconds below. Ignored for endurance waves.")]
@@ -453,6 +464,28 @@ public class MapNodeDefinition : ScriptableObject
 
     [Tooltip("Concrete spawn plan: which prefabs to instantiate and how many, mapped to SpawnPointGroup ids in the scene.")]
     public List<LevelSpawnGroupPlan> spawnGroupPlans = new();
+
+    [Header("Simple wave sequence (non-endurance combat)")]
+    [Tooltip("Optional extra wave sequence for non-Endurance maps. Uses Endurance-style wave rows and spawns via LevelSpawnDirector.SpawnAdditionalGroupPlan.")]
+    public List<EnduranceWavePlan> simpleCombatWaves = new();
+
+    [Tooltip("If enabled, the simple wave sequence attempts to start automatically when this node loads.")]
+    public bool simpleCombatWavesAutoStartOnLevelEnter = true;
+
+    [Tooltip("If enabled, simple waves start only after Required Quest Id reward is claimed.")]
+    public bool simpleCombatWavesRequireQuestRewardClaimed;
+
+    [Tooltip("Quest id checked when Simple Combat Waves Require Quest Reward Claimed is enabled.")]
+    public string simpleCombatWavesRequiredQuestId = "";
+
+    [Tooltip("If enabled, simple waves start only after Quest Accepted Id is accepted in the quest log.")]
+    public bool simpleCombatWavesRequireQuestAccepted;
+
+    [Tooltip("Quest id checked when Simple Combat Waves Require Quest Accepted is enabled.")]
+    public string simpleCombatWavesQuestAcceptedId = "";
+
+    [Tooltip("If true, this sequence runs only once each time the gameplay scene is loaded.")]
+    public bool simpleCombatWavesRunOncePerSceneSession = true;
 
     [Header("Endurance trial (wave mode)")]
     [Tooltip("When nodeType is EnduranceTrial, each entry is one wave: set Default Spawn Group Id (optional), then Spawns (prefab, count, Spawn Point Group Id per row). No nested Group Plans.")]
@@ -674,5 +707,59 @@ public class MapNodeDefinition : ScriptableObject
         }
 
         return sb.ToString().Trim();
+    }
+
+    private void OnValidate()
+    {
+        NormalizeItemAmountsInPlans(spawnGroupPlans);
+        NormalizeItemAmountsInWaves(simpleCombatWaves);
+        NormalizeItemAmountsInWaves(enduranceWaves);
+    }
+
+    private static void NormalizeItemAmountsInPlans(List<LevelSpawnGroupPlan> plans)
+    {
+        if (plans == null)
+            return;
+
+        for (int i = 0; i < plans.Count; i++)
+        {
+            LevelSpawnGroupPlan plan = plans[i];
+            if (plan == null || plan.spawns == null)
+                continue;
+
+            NormalizeItemAmountsInRows(plan.spawns);
+        }
+    }
+
+    private static void NormalizeItemAmountsInWaves(List<EnduranceWavePlan> waves)
+    {
+        if (waves == null)
+            return;
+
+        for (int i = 0; i < waves.Count; i++)
+        {
+            EnduranceWavePlan wave = waves[i];
+            if (wave == null || wave.spawns == null)
+                continue;
+
+            NormalizeItemAmountsInRows(wave.spawns);
+        }
+    }
+
+    private static void NormalizeItemAmountsInRows(List<SpawnPrefabCount> rows)
+    {
+        if (rows == null)
+            return;
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            SpawnPrefabCount row = rows[i];
+            if (row == null)
+                continue;
+
+            row.itemAmount = row.itemDefinition != null
+                ? Mathf.Max(1, row.itemAmount)
+                : 0;
+        }
     }
 }

@@ -51,6 +51,7 @@ public class LevelSpawnDirector : MonoBehaviour
         public string SpawnPointName;
         public GameObject PrefabAsset;
         public EnemyDefinition EnemyDefinition;
+        public bool RespawnUntilSimpleWavesStart;
     }
 
     private enum RespawnAttemptOutcome
@@ -539,9 +540,11 @@ public class LevelSpawnDirector : MonoBehaviour
 
                 totalSpawned++;
 
-                if (levelDefForRespawn != null
-                    && levelDefForRespawn.enemyRespawnEnabled
-                    && levelDefForRespawn.enemyRespawnDelaySeconds >= 0.01f)
+                bool allowRespawn =
+                    levelDefForRespawn != null &&
+                    levelDefForRespawn.enemyRespawnDelaySeconds >= 0.01f &&
+                    ShouldAllowRespawnBinding(levelDefForRespawn, entry.respawnUntilSimpleWavesStart);
+                if (allowRespawn)
                 {
                     EnemyBaseController ec = inst.GetComponent<EnemyBaseController>() ??
                                              inst.GetComponentInChildren<EnemyBaseController>(true);
@@ -555,7 +558,8 @@ public class LevelSpawnDirector : MonoBehaviour
                             plan.shuffleSpawnPoints,
                             prefabAsset,
                             defForInit,
-                            entry.spawnPointName);
+                            entry.spawnPointName,
+                            entry.respawnUntilSimpleWavesStart);
                     }
                 }
 
@@ -580,14 +584,24 @@ public class LevelSpawnDirector : MonoBehaviour
         bool shuffleSpawnPointsFromPlan,
         GameObject prefabAsset,
         EnemyDefinition enemyDefinition,
-        string spawnPointName = null)
+        string spawnPointName = null,
+        bool respawnUntilSimpleWavesStart = false)
     {
-        if (!mapNode || !mapNode.enemyRespawnEnabled || mapNode.enemyRespawnDelaySeconds < 0.01f)
+        if (!mapNode || mapNode.enemyRespawnDelaySeconds < 0.01f)
             return;
         if (!prefabAsset)
             return;
+        if (!ShouldAllowRespawnNow(mapNode, respawnUntilSimpleWavesStart))
+            return;
 
-        StartCoroutine(CoRespawnAfterDelay(mapNode, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition, spawnPointName));
+        StartCoroutine(CoRespawnAfterDelay(
+            mapNode,
+            spawnPointGroupId,
+            shuffleSpawnPointsFromPlan,
+            prefabAsset,
+            enemyDefinition,
+            spawnPointName,
+            respawnUntilSimpleWavesStart));
     }
 
     private void ClearPendingRespawnsForNewLevel()
@@ -611,7 +625,8 @@ public class LevelSpawnDirector : MonoBehaviour
         bool shuffleSpawnPointsFromPlan,
         GameObject prefabAsset,
         EnemyDefinition enemyDefinition,
-        string spawnPointName)
+        string spawnPointName,
+        bool respawnUntilSimpleWavesStart)
     {
         _pendingRespawns.Add(new PendingRespawn
         {
@@ -621,6 +636,7 @@ public class LevelSpawnDirector : MonoBehaviour
             SpawnPointName = spawnPointName,
             PrefabAsset = prefabAsset,
             EnemyDefinition = enemyDefinition,
+            RespawnUntilSimpleWavesStart = respawnUntilSimpleWavesStart,
         });
 
         if (_respawnQueueCoroutine == null && isActiveAndEnabled)
@@ -644,6 +660,7 @@ public class LevelSpawnDirector : MonoBehaviour
                         pr.PrefabAsset,
                         pr.EnemyDefinition,
                         pr.SpawnPointName,
+                        pr.RespawnUntilSimpleWavesStart,
                         logWhenNoFreePoint: false);
 
                     if (outcome == RespawnAttemptOutcome.Spawned)
@@ -681,13 +698,14 @@ public class LevelSpawnDirector : MonoBehaviour
         GameObject prefabAsset,
         EnemyDefinition enemyDefinition,
         string spawnPointName,
+        bool respawnUntilSimpleWavesStart,
         bool logWhenNoFreePoint)
     {
         MapNodeDefinition active = GameplayLevelBootstrapper.Instance != null
             ? GameplayLevelBootstrapper.Instance.ActiveDefinition
             : ActiveLevelContext.Current;
 
-        if (active == null || active.nodeId != expectedNodeId || !active.enemyRespawnEnabled)
+        if (active == null || active.nodeId != expectedNodeId || !ShouldAllowRespawnNow(active, respawnUntilSimpleWavesStart))
             return RespawnAttemptOutcome.AbortedInvalidContext;
 
         if (!prefabAsset)
@@ -723,10 +741,20 @@ public class LevelSpawnDirector : MonoBehaviour
 
         EnemyBaseController ec = inst.GetComponent<EnemyBaseController>() ??
                                  inst.GetComponentInChildren<EnemyBaseController>(true);
-        if (ec != null && active.enemyRespawnEnabled && active.enemyRespawnDelaySeconds >= 0.01f)
+        if (ec != null &&
+            active.enemyRespawnDelaySeconds >= 0.01f &&
+            ShouldAllowRespawnBinding(active, respawnUntilSimpleWavesStart))
         {
             var src = inst.AddComponent<EnemySpawnSource>();
-            src.Bind(this, active, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition, spawnPointName);
+            src.Bind(
+                this,
+                active,
+                spawnPointGroupId,
+                shuffleSpawnPointsFromPlan,
+                prefabAsset,
+                enemyDefinition,
+                spawnPointName,
+                respawnUntilSimpleWavesStart);
         }
 
         if (logSpawns)
@@ -743,7 +771,8 @@ public class LevelSpawnDirector : MonoBehaviour
         bool shuffleSpawnPointsFromPlan,
         GameObject prefabAsset,
         EnemyDefinition enemyDefinition,
-        string spawnPointName)
+        string spawnPointName,
+        bool respawnUntilSimpleWavesStart)
     {
         string nodeId = mapNode.nodeId;
         float delay = GetEffectiveRespawnDelayForNode(mapNode);
@@ -759,12 +788,46 @@ public class LevelSpawnDirector : MonoBehaviour
             prefabAsset,
             enemyDefinition,
             spawnPointName,
+            respawnUntilSimpleWavesStart,
             logWhenNoFreePoint: true);
 
         if (outcome == RespawnAttemptOutcome.NoFreePoint)
         {
-            EnqueuePendingRespawn(nodeId, spawnPointGroupId, shuffleSpawnPointsFromPlan, prefabAsset, enemyDefinition, spawnPointName);
+            EnqueuePendingRespawn(
+                nodeId,
+                spawnPointGroupId,
+                shuffleSpawnPointsFromPlan,
+                prefabAsset,
+                enemyDefinition,
+                spawnPointName,
+                respawnUntilSimpleWavesStart);
         }
+    }
+
+    private static bool ShouldAllowRespawnBinding(MapNodeDefinition node, bool respawnUntilSimpleWavesStart)
+    {
+        if (node == null)
+            return false;
+        if (node.enemyRespawnEnabled)
+            return true;
+        if (!respawnUntilSimpleWavesStart)
+            return false;
+        if (node.simpleCombatWaves == null || node.simpleCombatWaves.Count == 0)
+            return false;
+        return !SimpleCombatWaveDirector.HaveSimpleWavesStartedFor(node);
+    }
+
+    private static bool ShouldAllowRespawnNow(MapNodeDefinition node, bool respawnUntilSimpleWavesStart)
+    {
+        if (node == null)
+            return false;
+        if (node.enemyRespawnEnabled)
+            return true;
+        if (!respawnUntilSimpleWavesStart)
+            return false;
+        if (node.simpleCombatWaves == null || node.simpleCombatWaves.Count == 0)
+            return false;
+        return !SimpleCombatWaveDirector.HaveSimpleWavesStartedFor(node);
     }
 
     private Transform PickSpawnPointForRespawn(SpawnPointGroup group, bool shuffleSpawnPointsFromPlan, string spawnPointName)

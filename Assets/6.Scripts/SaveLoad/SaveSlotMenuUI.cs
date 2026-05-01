@@ -17,6 +17,9 @@ public class SaveSlotMenuUI : MonoBehaviour
     [Tooltip("If not assigned, we'll auto-find Slot1Card/InfoLabel and Slot2Card/InfoLabel.")]
     [SerializeField] private TMP_Text slot0InfoText;
     [SerializeField] private TMP_Text slot1InfoText;
+    [Tooltip("Optional title labels (Save Slot 1/2). If empty, auto-finds Slot1Card/SlotLabel and Slot2Card/SlotLabel.")]
+    [SerializeField] private TMP_Text slot0TitleText;
+    [SerializeField] private TMP_Text slot1TitleText;
     [Tooltip("Per-slot Resume / LoadGameButton. Leave empty to auto-find Slot1Card/Slot2Card → ButtonsRow/LoadGameButton.")]
     [SerializeField] private Button slot0ResumeButton;
     [SerializeField] private Button slot1ResumeButton;
@@ -42,9 +45,21 @@ public class SaveSlotMenuUI : MonoBehaviour
     private bool _confirmPopupBound;
     private bool _nameUiBound;
 
+    private void Update()
+    {
+        if (playerNameSelectRoot == null || !playerNameSelectRoot.activeSelf)
+            return;
+        if (playerNameStartButton == null || !playerNameStartButton.interactable)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            OnClickConfirmPlayerNameStartGame();
+    }
+
     private void Awake()
     {
         AutoBindInfoLabelsIfNeeded();
+        AutoBindTitleLabelsIfNeeded();
         AutoBindSlotButtonsIfNeeded();
         EnsureDoubleClickResumeOnSlotCards();
         AutoBindNameSelectIfNeeded();
@@ -55,6 +70,7 @@ public class SaveSlotMenuUI : MonoBehaviour
     private void OnEnable()
     {
         AutoBindSlotButtonsIfNeeded();
+        AutoBindTitleLabelsIfNeeded();
         RefreshSlotInfoUI();
         RefreshSlotButtonsState();
     }
@@ -156,6 +172,13 @@ public class SaveSlotMenuUI : MonoBehaviour
 
         if (slot0ResumeButton != null && slot0ResumeButton == slot1ResumeButton)
             slot1ResumeButton = null;
+
+    }
+
+    private void AutoBindTitleLabelsIfNeeded()
+    {
+        slot0TitleText ??= FindTitleLabelUnder("Slot1Card");
+        slot1TitleText ??= FindTitleLabelUnder("Slot2Card");
     }
 
     /// <summary>
@@ -241,6 +264,19 @@ public class SaveSlotMenuUI : MonoBehaviour
         return info ? info.GetComponent<TMP_Text>() : null;
     }
 
+    private TMP_Text FindTitleLabelUnder(string cardRootName)
+    {
+        Transform card = FindCardTransformIncludingInactive(cardRootName);
+        if (!card) return null;
+
+        Transform t = card.Find("SlotLabel");
+        if (t) return t.GetComponent<TMP_Text>();
+
+        // Fallback: legacy naming
+        t = card.Find("Title");
+        return t ? t.GetComponent<TMP_Text>() : null;
+    }
+
     private Button FindButtonUnder(string cardRootName, string relativePath)
     {
         Transform card = FindCardTransformIncludingInactive(cardRootName);
@@ -308,8 +344,37 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     private void RefreshSlotInfoUI()
     {
+        RefreshSlotTitleUI();
         SetSlotInfoText(0, slot0InfoText);
         SetSlotInfoText(1, slot1InfoText);
+    }
+
+    private void RefreshSlotTitleUI()
+    {
+        int lastPlayed = SaveSlotManager.GetLastPlayedSlotIndex();
+        bool anySlotHasData = false;
+        for (int i = 0; i < SaveSlotManager.MaxSlots; i++)
+        {
+            if (SaveSlotManager.HasSave(i))
+            {
+                anySlotHasData = true;
+                break;
+            }
+        }
+
+        SetSlotTitleText(0, slot0TitleText, anySlotHasData && lastPlayed == 0);
+        SetSlotTitleText(1, slot1TitleText, anySlotHasData && lastPlayed == 1);
+    }
+
+    private static void SetSlotTitleText(int slotIndex, TMP_Text label, bool isLastPlayed)
+    {
+        if (!label) return;
+
+        string baseText = $"Save Slot {slotIndex + 1}";
+        if (isLastPlayed)
+            label.text = $"{baseText}  <size=72%><color=#C8BD91>Last Played</color></size>";
+        else
+            label.text = baseText;
     }
 
     private void RefreshSlotButtonsState()
@@ -410,6 +475,7 @@ public class SaveSlotMenuUI : MonoBehaviour
             return;
 
         SaveSlotManager.SetActiveSlot(slotIndex);
+        SaveSlotManager.MarkSlotAsLastPlayed(slotIndex);
         SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.LoadGame);
         if (CanLoadGameplayScene())
             SceneManager.LoadScene(gameplaySceneName);
@@ -493,6 +559,7 @@ public class SaveSlotMenuUI : MonoBehaviour
 
         SaveSlotManager.DeleteSlot(slotIndex);
         SaveSlotManager.SetActiveSlot(slotIndex);
+        SaveSlotManager.MarkSlotAsLastPlayed(slotIndex);
         SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.NewGame);
         SaveSlotManager.SetPendingNewGamePlayerName(sanitizedName);
 
@@ -500,6 +567,15 @@ public class SaveSlotMenuUI : MonoBehaviour
 
         if (CanLoadGameplayScene())
             SceneManager.LoadScene(gameplaySceneName);
+    }
+
+    public void OnClickSwapSlots()
+    {
+        if (!SaveSlotManager.SwapSlots(0, 1))
+            return;
+
+        RefreshSlotInfoUI();
+        RefreshSlotButtonsState();
     }
 
     private bool TryValidatePlayerName(string rawInput, out string sanitizedName, out string error)

@@ -242,7 +242,7 @@ public class EnemyDefinition : ScriptableObject
     public float shockDamageTakenMultiplier = 0.15f;
 
     [Header("Idle wander (optional)")]
-    [Tooltip("When not aggroed, pace horizontally within EnemyWanderBounds (scene) if assigned.")]
+    [Tooltip("When not aggroed, pace horizontally around the spawn point using Max Walk Distance From Spawn.")]
     public bool idleWanderEnabled = false;
 
     [Tooltip("Horizontal speed during each wander move burst (independent of chase moveSpeed). Use 0 to disable even if enabled above.")]
@@ -262,6 +262,10 @@ public class EnemyDefinition : ScriptableObject
 
     [Min(0.05f)]
     public float idleWanderIdleMaxSec = 8f;
+
+    [Tooltip("Maximum horizontal distance from the enemy's spawn position while idling. Enemy turns around at this limit.")]
+    [Min(0f)]
+    public float idleWanderMaxDistanceFromSpawn = 10f;
 
     [Header("Experience")]
     [Tooltip("When false, damaging this enemy grants no combat XP. Use for training dummies and test targets.")]

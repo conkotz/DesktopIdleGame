@@ -205,17 +205,22 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private struct HelperDisplayedMessageSnap
     {
+        public string HelperId;
+
         public string TitlePlain;
+
         public string BodyPlain;
     }
 
     private const int MaxPersistedHelperMessages = 32;
 
-    private const string PersistedHelperHistoryKey = "HelperSessionMessageHistory.v1";
+    private const string PersistedHelperHistoryKey = "HelperSessionMessageHistory.v2";
 
     [Serializable]
     private sealed class PersistedHelperSnapDto
     {
+        public string helperId;
+
         public string title;
 
         public string body;
@@ -611,6 +616,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             HelperDisplayedMessageSnap s = _sessionMessageHistory[start + i];
             dto.items[i] = new PersistedHelperSnapDto
             {
+                helperId = s.HelperId ?? string.Empty,
                 title = s.TitlePlain ?? string.Empty,
                 body = s.BodyPlain ?? string.Empty,
             };
@@ -642,8 +648,11 @@ public sealed class HelperGameplayController : MonoBehaviour
             if (row == null)
                 continue;
 
+            string hid = row.helperId?.Trim() ?? string.Empty;
+
             _sessionMessageHistory.Add(new HelperDisplayedMessageSnap
             {
+                HelperId = hid,
                 TitlePlain = row.title ?? string.Empty,
                 BodyPlain = row.body ?? string.Empty,
             });
@@ -664,7 +673,26 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (_activeDefinition != null)
             return;
 
+        if (!ShouldAutoPresentLatestHistoryEntry())
+            return;
+
         PresentSessionHistoryOverlayExpanded();
+    }
+
+    /// <summary>
+    /// Do not reopen the overlay for a session-history tip the player already dismissed (same helper id).
+    /// </summary>
+    private bool ShouldAutoPresentLatestHistoryEntry()
+    {
+        if (_sessionMessageHistory.Count == 0)
+            return false;
+
+        int idx = _sessionMessageHistory.Count - 1;
+        HelperDisplayedMessageSnap snap = _sessionMessageHistory[idx];
+        if (!string.IsNullOrWhiteSpace(snap.HelperId) && HelperProgressStore.WasDismissed(snap.HelperId))
+            return false;
+
+        return true;
     }
 
     private void PresentSessionHistoryOverlayExpanded()
@@ -822,28 +850,38 @@ public sealed class HelperGameplayController : MonoBehaviour
             definitions.Length == 0)
             return;
 
-        StartCoroutine(EvaluateMapEntryNextFrame(node));
+        bool isFirstVisitThisEntry = GameplayLevelBootstrapper.Instance != null &&
+            GameplayLevelBootstrapper.Instance.ActiveDefinition == node &&
+            GameplayLevelBootstrapper.Instance.ActiveLevelWasFirstVisit;
+
+        StartCoroutine(EvaluateMapEntryNextFrame(node, isFirstVisitThisEntry));
     }
 
     /// <summary>
-    /// When &quot;Show help popups&quot; is turned off: hide any overlay, clear in-memory and persisted message history, and stop helper logic.
-    /// When turned back on: restore persisted history (if any) and show the overlay when no new helper fired.
+    /// When &quot;Show help popups&quot; is turned off: hide any overlay and stop helper logic.
+    /// When turned back on after being off: clear per-save dismissed helpers so tips can show again,
+    /// then show history (if any) even when previously closed via X.
     /// </summary>
-    private void OnToggleSettingsChanged(ToggleSettingId id, bool _)
+    private void OnToggleSettingsChanged(ToggleSettingId id, bool enabled)
     {
         if (id != ToggleSettingId.ShowHelpPopups)
             return;
 
-        if (ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
+        if (enabled)
         {
             LoadMessageHistoryFromPlayerPrefs();
-            TryPresentSessionHistoryWhenOverlayHidden();
+            if (_sessionMessageHistory.Count > 0 &&
+                (_overlayRoot == null || !_overlayRoot.activeSelf) &&
+                _activeDefinition == null)
+            {
+                PresentSessionHistoryOverlayExpanded();
+            }
+            else
+            {
+                TryPresentSessionHistoryWhenOverlayHidden();
+            }
             return;
         }
-
-        ClearPersistedHelperMessageHistoryKey();
-        _sessionMessageHistory.Clear();
-        _historyViewIndex = 0;
 
         StopStuckQueuedAdvanceCoroutine();
         _pendingHelperQueue.Clear();
@@ -855,7 +893,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             SyncMovementLockFromSettings();
     }
 
-    private IEnumerator EvaluateMapEntryNextFrame(MapNodeDefinition node)
+    private IEnumerator EvaluateMapEntryNextFrame(MapNodeDefinition node, bool isFirstVisitThisEntry)
     {
         yield return null;
 
@@ -874,6 +912,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             switch (d.activationTrigger)
             {
                 case HelperActivationTrigger.FirstVisitMapNode when enteredId != null &&
+                    isFirstVisitThisEntry &&
                     !string.IsNullOrWhiteSpace(d.requiredMapNodeId) &&
                     string.Equals(d.requiredMapNodeId.Trim(), enteredId,
                         System.StringComparison.OrdinalIgnoreCase):
@@ -1523,6 +1562,11 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (_activeDefinition != null)
             SupersedeActiveHelperForIncoming(def);
 
+        // Fail-safe: once a helper has been shown, treat it as consumed for this save
+        // so repeating gameplay conditions cannot retrigger the same helper id.
+        if (!string.IsNullOrWhiteSpace(def.helperId))
+            HelperProgressStore.MarkDismissed(def.helperId.Trim());
+
         _activeDefinition = def;
 
         EnsureViewBuilt();
@@ -1539,11 +1583,14 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         _sessionMessageHistory.Add(new HelperDisplayedMessageSnap
         {
+            HelperId = string.IsNullOrWhiteSpace(def.helperId) ? string.Empty : def.helperId.Trim(),
             TitlePlain = substitutedTitle.Trim(),
             BodyPlain = substitutedBody,
         });
         _historyViewIndex = _sessionMessageHistory.Count - 1;
 
+        // Keep saved position/size, but always open expanded for a brand-new helper event.
+        ApplyLoadedHelperLayout();
         TransitionToExpandedPresentationLayout();
         RaiseWhitelistUiTargetCanvasesForActiveOverlay();
 
@@ -1792,7 +1839,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         RefreshWorldWhitelistRoutingFlag();
     }
 
-    private void HideOverlayCompletely(bool clearMovementLock, bool purgeMessageHistory = true)
+    private void HideOverlayCompletely(bool clearMovementLock, bool purgeMessageHistory = true, bool drainPendingQueue = true)
     {
         StopStuckQueuedAdvanceCoroutine();
 
@@ -1810,9 +1857,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         ClearWhitelistPresentationTints();
 
         if (_expandedPanelRoot)
-            _expandedPanelRoot.SetActive(true);
-
-        RefreshChromeCollapsedVisuals(false);
+            RefreshChromeCollapsedVisuals(!_expandedPanelRoot.activeSelf);
 
         if (_helperPanelRt)
             _helperPanelRt.sizeDelta = panelSize;
@@ -1839,7 +1884,8 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (clearMovementLock)
             ResolvePlayerMovementLock(false);
 
-        TryDrainPendingHelperQueue();
+        if (drainPendingQueue)
+            TryDrainPendingHelperQueue();
     }
 
     private void LateUpdate()
@@ -1926,9 +1972,9 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
 
         if (_activeDefinition != null)
-            DismissMarked();
+            DismissMarked(drainPendingQueue: false);
         else
-            HideOverlayCompletely(true, purgeMessageHistory: false);
+            HideOverlayCompletely(true, purgeMessageHistory: false, drainPendingQueue: false);
     }
 
     /// <remarks>Same as <see cref="CloseFromUIButton"/> (shared header close control).</remarks>
@@ -2044,8 +2090,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if ((modeReason == HelperDismissMode.InteractWhitelistDismiss ||
              modeReason == HelperDismissMode.AnyPlayerActionDismiss) &&
-            ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups) &&
-            IsHelperExpandedPresentation())
+            ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
         {
             CompleteScriptedDismissLeaveExpanded();
             return;
@@ -2097,13 +2142,14 @@ public sealed class HelperGameplayController : MonoBehaviour
         TryDrainPendingHelperQueue();
     }
 
-    private void DismissMarked()
+    private void DismissMarked(bool drainPendingQueue = true)
     {
         if (_activeDefinition == null)
             return;
 
         HelperProgressStore.MarkDismissed(_activeDefinition.helperId);
-        HideOverlayCompletely(true, purgeMessageHistory: false);
+
+        HideOverlayCompletely(true, purgeMessageHistory: false, drainPendingQueue: drainPendingQueue);
     }
 
     private void RefreshWhitelistPresentationEmphasis()

@@ -13,6 +13,7 @@ public class EnemySpawnSource : MonoBehaviour
     private string _spawnPointName;
     private GameObject _prefabAsset;
     private EnemyDefinition _enemyDefinition;
+    private bool _respawnUntilSimpleWavesStart;
 
     private EnemyBaseController _enemy;
 
@@ -23,7 +24,8 @@ public class EnemySpawnSource : MonoBehaviour
         bool shuffleSpawnPointsFromPlan,
         GameObject prefabAsset,
         EnemyDefinition enemyDefinition,
-        string spawnPointName = null)
+        string spawnPointName = null,
+        bool respawnUntilSimpleWavesStart = false)
     {
         if (_enemy != null)
             _enemy.OnDeath -= HandleDeath;
@@ -35,6 +37,7 @@ public class EnemySpawnSource : MonoBehaviour
         _spawnPointName = spawnPointName;
         _prefabAsset = prefabAsset;
         _enemyDefinition = enemyDefinition;
+        _respawnUntilSimpleWavesStart = respawnUntilSimpleWavesStart;
 
         _enemy = GetComponent<EnemyBaseController>() ?? GetComponentInChildren<EnemyBaseController>(true);
         if (_enemy != null)
@@ -58,6 +61,7 @@ public class EnemySpawnSource : MonoBehaviour
             _shuffleSpawnPointsFromPlan,
             _prefabAsset,
             _enemyDefinition,
-            _spawnPointName);
+            _spawnPointName,
+            _respawnUntilSimpleWavesStart);
     }
 }

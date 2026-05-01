@@ -18,6 +18,7 @@ MonoBehaviour:
   nodeType: 1
   enemyAggroMode: 1
   ignoreAggroRange: 0
+  respawnHereIfDied: 1
   enemyRespawnEnabled: 0
   enemyRespawnDelaySeconds: 30
   eliteSpawnChance: 0
@@ -38,22 +39,64 @@ MonoBehaviour:
   biome: 0
   prefabGroups: []
   spawnGroupPlans:
-  - groupId: MiddleSpawns
+  - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
-      spawnPointName: 
+      spawnPointName: SpawnPoint22
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      count: 2
-    shuffleSpawnPoints: 1
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint27
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint35
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint41
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    shuffleSpawnPoints: 0
   - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint5
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 5214886831892509811, guid: 1190615d365b1a444b2f41aaae428275, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     shuffleSpawnPoints: 0
+  simpleCombatWaves: []
+  simpleCombatWavesAutoStartOnLevelEnter: 1
+  simpleCombatWavesRequireQuestRewardClaimed: 0
+  simpleCombatWavesRequiredQuestId: 
+  simpleCombatWavesRequireQuestAccepted: 0
+  simpleCombatWavesQuestAcceptedId: 
+  simpleCombatWavesRunOncePerSceneSession: 1
   enduranceWaves: []
   enduranceCompletionLoot: []
   enduranceCompletionLootByTier: []

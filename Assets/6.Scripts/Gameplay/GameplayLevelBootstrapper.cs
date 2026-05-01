@@ -30,6 +30,8 @@ public class GameplayLevelBootstrapper : MonoBehaviour
 
     /// <summary>Map node from level select (or dev fallback). All playable data is on this asset.</summary>
     public MapNodeDefinition ActiveDefinition { get; private set; }
+    /// <summary>True only when this Start() marked the active node as entered for the first time in this save.</summary>
+    public bool ActiveLevelWasFirstVisit { get; private set; }
 
     /// <summary>Where to parent spawned encounters; defaults to this transform.</summary>
     public Transform ContentRoot => contentRoot != null ? contentRoot : transform;
@@ -73,6 +75,7 @@ public class GameplayLevelBootstrapper : MonoBehaviour
 
         ActiveDefinition = node;
         ActiveLevelContext.SetPendingLevel(node, logToConsole: false);
+        LevelAggroState.ResetForLevel(node);
         GameLog.EnteringMap(ResolveMapDisplayName(node));
 
         WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
@@ -81,6 +84,7 @@ public class GameplayLevelBootstrapper : MonoBehaviour
             wmp != null &&
             !string.IsNullOrEmpty(node.nodeId) &&
             wmp.MarkNodeEntered(node.nodeId.Trim());
+        ActiveLevelWasFirstVisit = markedNodeEntered;
 
         // Suppress startup spam logs during normal gameplay.
 

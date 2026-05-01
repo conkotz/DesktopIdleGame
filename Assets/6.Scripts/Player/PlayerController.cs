@@ -2230,7 +2230,7 @@ public class PlayerController : MonoBehaviour
 
         TriggerDieAnim();
 
-        _pendingDeathRespawnNode = ResolveRegionTownRespawnNode();
+        _pendingDeathRespawnNode = ResolveDeathRespawnNode();
 
         if (_deathRoutine != null) StopCoroutine(_deathRoutine);
         if (_deathPoseRoutine != null) StopCoroutine(_deathPoseRoutine);
@@ -2259,6 +2259,22 @@ public class PlayerController : MonoBehaviour
     }
     /// <summary>
     /// Respawn target on death: town node of the current region.
+    /// Fallbacks: any town on the map, then starting node.
+    /// </summary>
+    private static MapNodeDefinition ResolveDeathRespawnNode()
+    {
+        MapNodeDefinition current = ActiveLevelContext.Current;
+        if (current == null && GameplayLevelBootstrapper.Instance != null)
+            current = GameplayLevelBootstrapper.Instance.ActiveDefinition;
+
+        if (current != null && current.respawnHereIfDied)
+            return current;
+
+        return ResolveRegionTownRespawnNode();
+    }
+
+    /// <summary>
+    /// Region-town fallback target on death.
     /// Fallbacks: any town on the map, then starting node.
     /// </summary>
     private static MapNodeDefinition ResolveRegionTownRespawnNode()
@@ -2413,7 +2429,7 @@ public class PlayerController : MonoBehaviour
 
         MapNodeDefinition respawnNode = _pendingDeathRespawnNode != null
             ? _pendingDeathRespawnNode
-            : ResolveRegionTownRespawnNode();
+            : ResolveDeathRespawnNode();
         if (respawnNode != null)
             ActiveLevelContext.SetPendingLevel(respawnNode, logToConsole: false);
         else

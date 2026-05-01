@@ -68,6 +68,9 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("If false, rewards can only be claimed once; the quest stays COMPLETE in the list.")]
     public bool repeatable;
 
+    [Tooltip("When enabled, rewards are automatically claimed once objective + prerequisites are satisfied (no manual Complete Quest click).")]
+    public bool autoCompleteQuest;
+
     [Tooltip("If true, the quest can be removed from the quest list and returned to its quest giver.")]
     public bool abandonable;
 
