@@ -110,6 +110,7 @@ public class SaveManager : MonoBehaviour
             ResetAllSaveablesToDefaults();
             ApplyPendingNewGamePlayerName();
             Save();
+            HelperGameplayController.ResetHelperWindowLayoutForNewGame();
         }
         else // LoadGame
         {

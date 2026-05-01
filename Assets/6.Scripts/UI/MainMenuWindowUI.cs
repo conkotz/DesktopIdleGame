@@ -189,6 +189,13 @@ public class MainMenuWindowUI : MonoBehaviour
     {
         if (IsOpen && currentPage == levelSelectPage)
         {
+            if (HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
+                    HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId))
+            {
+                EnsureWindowInteractable();
+                return;
+            }
+
             Close();
             return;
         }
@@ -205,6 +212,13 @@ public class MainMenuWindowUI : MonoBehaviour
     {
         if (IsOpen && currentPage == questPage)
         {
+            if (HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
+                    HelperWhitelistUiInteractTarget.QuestToolbarWhitelistId))
+            {
+                EnsureWindowInteractable();
+                return;
+            }
+
             Close();
             return;
         }
@@ -326,29 +340,26 @@ public class MainMenuWindowUI : MonoBehaviour
         {
             if (characterPage != null &&
                 targetPage == characterPage &&
-                (HelperGameplayController.BlocksStripGameplay ||
-                 HelperGameplayController.IsCharacterWhitelistToolbarDismissOnThisFrame()))
+                HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
+                    HelperWhitelistUiInteractTarget.CharacterToolbarWhitelistId))
             {
-                // Helper modal open on Character tab, or same-frame whitelist dismiss paired with Toolbar ToggleCharacter —
-                // stay on Character instead of interpreting the tap as Close().
                 EnsureWindowInteractable();
                 return;
             }
 
             if (questPage != null &&
                 targetPage == questPage &&
-                (HelperGameplayController.BlocksStripGameplay ||
-                 HelperGameplayController.IsQuestWhitelistToolbarDismissOnThisFrame()))
+                HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
+                    HelperWhitelistUiInteractTarget.QuestToolbarWhitelistId))
             {
-                // Same idea as Character: whitelist dismiss opens Quest Toolbar while already on Quest — keep tab open.
                 EnsureWindowInteractable();
                 return;
             }
 
             if (skillsAbilitiesPage != null &&
                 targetPage == skillsAbilitiesPage &&
-                (HelperGameplayController.BlocksStripGameplay ||
-                 HelperGameplayController.IsSkillsAbilityWhitelistToolbarDismissOnThisFrame()))
+                HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
+                    HelperWhitelistUiInteractTarget.SkillsAbilityToolbarWhitelistId))
             {
                 EnsureWindowInteractable();
                 return;
@@ -356,8 +367,8 @@ public class MainMenuWindowUI : MonoBehaviour
 
             if (levelSelectPage != null &&
                 targetPage == levelSelectPage &&
-                (HelperGameplayController.BlocksStripGameplay ||
-                 HelperGameplayController.IsLevelSelectWhitelistToolbarDismissOnThisFrame()))
+                HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
+                    HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId))
             {
                 EnsureWindowInteractable();
                 return;

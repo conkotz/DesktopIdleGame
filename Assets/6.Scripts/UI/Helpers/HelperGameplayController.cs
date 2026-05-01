@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -44,6 +45,38 @@ public sealed class HelperGameplayController : MonoBehaviour
     internal static bool IsLevelSelectWhitelistToolbarDismissOnThisFrame() =>
         s_levelSelectToolbarWhitelistUiDismissStampFrame == Time.frameCount;
 
+    /// <summary>
+    /// When the menu is already on a toolbar tab and the player taps that tab again, normally <see cref="MainMenuWindowUI.Close"/> runs.
+    /// During an active helper that whitelist-dismisses that same toolbar id, we keep the menu open (helper dismisses separately).
+    /// Uses definition match so script order vs. <see cref="NotifyWhitelistUiInteract"/> does not matter; frame stamps still apply for edge cases.
+    /// </summary>
+    internal static bool KeepMainMenuOpenWhenRepeatingToolbarTap(string toolbarWhitelistId)
+    {
+        if (BlocksStripGameplay)
+            return true;
+
+        if (string.IsNullOrWhiteSpace(toolbarWhitelistId))
+            return false;
+
+        if (Instance != null &&
+            Instance._activeDefinition != null &&
+            (Instance._activeDefinition.dismissModes & HelperDismissMode.InteractWhitelistDismiss) != 0 &&
+            Instance._activeDefinition.MatchesWhitelistId(toolbarWhitelistId))
+            return true;
+
+        string t = toolbarWhitelistId.Trim();
+        if (string.Equals(t, HelperWhitelistUiInteractTarget.CharacterToolbarWhitelistId, StringComparison.OrdinalIgnoreCase))
+            return IsCharacterWhitelistToolbarDismissOnThisFrame();
+        if (string.Equals(t, HelperWhitelistUiInteractTarget.QuestToolbarWhitelistId, StringComparison.OrdinalIgnoreCase))
+            return IsQuestWhitelistToolbarDismissOnThisFrame();
+        if (string.Equals(t, HelperWhitelistUiInteractTarget.SkillsAbilityToolbarWhitelistId, StringComparison.OrdinalIgnoreCase))
+            return IsSkillsAbilityWhitelistToolbarDismissOnThisFrame();
+        if (string.Equals(t, HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId, StringComparison.OrdinalIgnoreCase))
+            return IsLevelSelectWhitelistToolbarDismissOnThisFrame();
+
+        return false;
+    }
+
     [Header("Data")]
     [Tooltip("Assign helper assets here. First-visit triggers only run when Required Map Node Id matches the active level's MapNodeDefinition.nodeId (e.g. tutorial_1).")]
     [SerializeField] private HelperPopupDefinition[] definitions;
@@ -58,9 +91,6 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     /// <summary>Falls above maps/menus canvases (~10k); lower values let FullWindow raycasts steal clicks.</summary>
     [SerializeField] private int canvasSortOrder = 15000;
-
-    [Tooltip("Nested canvas sorting: glow layer between root (dimmer) and panel.")]
-    [SerializeField] private int whitelistGlowSortDelta = 1;
 
     [Tooltip("Nested panel canvas — must sort above glow so text/close raycasts hit first.")]
     [SerializeField] private int panelSortDelta = 2;
@@ -106,6 +136,10 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     [SerializeField] private Vector2 panelAnchoredPosition = new(40f, -88f);
 
+    public Vector2 DefaultHelperPanelAnchoredPosition => panelAnchoredPosition;
+
+    public Vector2 DefaultHelperPanelSize => panelSize;
+
     [Tooltip(
         "How far above the helper front panel Canvas sort order to place nested canvases built on whitelist UI markers (toolbar buttons). Larger = safer over other overlays.")]
     [SerializeField] private int whitelistUiCanvasSortBeyondPanel = 125;
@@ -128,6 +162,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     /// <summary>Last non–header-only helper panel height (preserves resize across minimize).</summary>
     private Vector2 _lastExpandedPanelSizeDelta;
+
+    private Vector2 _layoutTrackSize;
 
     private bool HasActiveTutorialDefinitionPending() => _activeDefinition != null;
 
@@ -189,11 +225,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private GameObject _overlayRoot;
     private RectTransform _overlayRect;
-    private Canvas _overlayCanvas;
     private TMP_Text _titleText;
     private TMP_Text _bodyText;
-
-    private Canvas _panelFrontCanvas;
 
     /// <summary>Runtime-only close control (optional per-definition).</summary>
     private GameObject _helperCloseButtonRoot;
@@ -239,6 +272,53 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
 
         Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss, interactionIdMarker.Trim());
+    }
+
+    /// <summary>
+    /// New save slot only: clears persisted helper layout (other windows unchanged). Called from <see cref="SaveManager"/>.
+    /// </summary>
+    public static void ResetHelperWindowLayoutForNewGame()
+    {
+        HelperPopupLayoutPrefs.Clear();
+        UIWindowPositionMemory.ForgetKey("HelperPopupWindow.Panel");
+
+        HelperGameplayController ctrl =
+            Instance ?? FindFirstObjectByType<HelperGameplayController>(FindObjectsInactive.Include);
+
+        Vector2 pos = ctrl != null ? ctrl.DefaultHelperPanelAnchoredPosition : new Vector2(40f, -88f);
+        Vector2 sz = ctrl != null ? ctrl.DefaultHelperPanelSize : new Vector2(560f, 280f);
+
+        HelperPopupWindow host = HelperPopupWindow.FindExisting();
+        RectTransform panel = host ? host.transform.Find("HelperPanel") as RectTransform : null;
+        if (panel != null)
+        {
+            panel.anchoredPosition = pos;
+            panel.sizeDelta = sz;
+
+            Transform expanded = panel.Find("ExpandedPresentation");
+            if (expanded)
+                expanded.gameObject.SetActive(true);
+
+            Transform chrome = panel.Find("TopChromeStrip");
+            if (chrome)
+            {
+                Transform titleGo = chrome.Find("ChromeTitle");
+                if (titleGo)
+                    titleGo.gameObject.SetActive(false);
+
+                Transform glyphTr = chrome.Find("MinimizeStripeButton/Label");
+                if (glyphTr && glyphTr.TryGetComponent(out TMP_Text gTmp))
+                    gTmp.text = "-";
+            }
+
+            if (panel.TryGetComponent(out UIWindowCornerResize rz))
+                rz.ForgetPersistedScaleAndResetToBase();
+        }
+
+        UIWindowPositionMemory.Save("HelperPopupWindow.Panel", pos);
+
+        if (ctrl != null)
+            ctrl.SyncHelperInternalStateAfterNewGameLayout(pos, sz);
     }
 
     /// <summary>True while a scripted helper expects world / strip picks for whitelist dismiss routing.</summary>
@@ -399,6 +479,8 @@ public sealed class HelperGameplayController : MonoBehaviour
     private IEnumerator Start()
     {
         yield return HelperProgressStore.WaitUntilHydratedFromSave();
+
+        EnsureViewBuilt();
 
         _player ??= FindFirstObjectByType<PlayerController>(FindObjectsInactive.Exclude);
 
@@ -965,8 +1047,6 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
 
         int overlayTopSort = canvasSortOrder + panelSortDelta;
-        if (_panelFrontCanvas)
-            overlayTopSort = Mathf.Max(overlayTopSort, _panelFrontCanvas.sortingOrder);
 
         int whitelistSort =
             Mathf.Clamp(overlayTopSort + Mathf.Max(1, whitelistUiCanvasSortBeyondPanel), -30000, 32760);
@@ -1133,6 +1213,8 @@ public sealed class HelperGameplayController : MonoBehaviour
             _prevHistoryButton.gameObject.SetActive(showNav);
             _nextHistoryButton.gameObject.SetActive(showNav);
         }
+
+        SaveHelperLayoutSnapshot();
     }
 
     private void TransitionToCollapsedStripeLayout()
@@ -1153,6 +1235,8 @@ public sealed class HelperGameplayController : MonoBehaviour
             _prevHistoryButton.gameObject.SetActive(false);
         if (_nextHistoryButton)
             _nextHistoryButton.gameObject.SetActive(false);
+
+        SaveHelperLayoutSnapshot();
     }
 
     private void RefreshWorldWhitelistRoutingFlag()
@@ -1308,6 +1392,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void HideOverlayCompletely(bool clearMovementLock, bool purgeMessageHistory = true)
     {
+        SaveHelperLayoutSnapshot();
+
         RestoreWhitelistUiTargetCanvases();
         StopBodyTypewriterAndClear();
         if (_bodyText)
@@ -1318,8 +1404,6 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         ClearWhitelistGlowOverlays();
         ClearWhitelistPresentationTints();
-
-        _lastExpandedPanelSizeDelta = Vector2.zero;
 
         if (_expandedPanelRoot)
             _expandedPanelRoot.SetActive(true);
@@ -1355,6 +1439,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     private void LateUpdate()
     {
         SyncAndPulseWhitelistGlow();
+        TrackHelperLayoutSave();
     }
 
     private void Update()
@@ -1496,6 +1581,9 @@ public sealed class HelperGameplayController : MonoBehaviour
                 HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId,
                 System.StringComparison.OrdinalIgnoreCase))
             s_levelSelectToolbarWhitelistUiDismissStampFrame = Time.frameCount;
+
+        // Stamps above: MainMenuWindowUI treats same-frame toolbar clicks as "don't Close() the menu
+        // when already on that tab" — helper still dismisses/minimizes below.
 
         if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
             ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups) &&
@@ -1643,19 +1731,168 @@ public sealed class HelperGameplayController : MonoBehaviour
         _whitelistPresentationTints.Clear();
     }
 
+    private void SyncHelperInternalStateAfterNewGameLayout(Vector2 pos, Vector2 size)
+    {
+        _lastExpandedPanelSizeDelta = Vector2.zero;
+
+        if (_helperPanelRt)
+        {
+            _helperPanelRt.anchoredPosition = pos;
+            _helperPanelRt.sizeDelta = size;
+        }
+
+        if (_expandedPanelRoot)
+        {
+            _expandedPanelRoot.SetActive(true);
+            RefreshChromeCollapsedVisuals(false);
+        }
+
+        _layoutTrackSize = size;
+    }
+
+    private void SaveHelperLayoutSnapshot()
+    {
+        if (!_helperPanelRt)
+            return;
+
+        bool headerOnly = _expandedPanelRoot && !_expandedPanelRoot.activeSelf;
+        Vector2 lastExp = headerOnly ? _lastExpandedPanelSizeDelta : _helperPanelRt.sizeDelta;
+        if (lastExp.x < 1f || lastExp.y < 1f)
+            lastExp = panelSize;
+
+        HelperPopupLayoutPrefs.Save(_helperPanelRt.anchoredPosition, lastExp, headerOnly);
+        UIWindowPositionMemory.Save("HelperPopupWindow.Panel", _helperPanelRt.anchoredPosition);
+    }
+
+    private void ApplyLoadedHelperLayout()
+    {
+        if (!_helperPanelRt || !_expandedPanelRoot)
+            return;
+
+        if (!HelperPopupLayoutPrefs.TryLoad(out Vector2 pos, out Vector2 lastExp, out bool headerOnly))
+        {
+            _layoutTrackSize = _helperPanelRt.sizeDelta;
+            return;
+        }
+
+        _lastExpandedPanelSizeDelta = lastExp;
+        _helperPanelRt.anchoredPosition = pos;
+        UIWindowPositionMemory.Save("HelperPopupWindow.Panel", pos);
+
+        if (headerOnly)
+        {
+            _expandedPanelRoot.SetActive(false);
+            RefreshChromeCollapsedVisuals(true);
+            float w = lastExp.x > 1f ? lastExp.x : panelSize.x;
+            _helperPanelRt.sizeDelta = new Vector2(w, ExpandedHeaderStripHeight);
+        }
+        else
+        {
+            _expandedPanelRoot.SetActive(true);
+            RefreshChromeCollapsedVisuals(false);
+            float w = lastExp.x > 1f ? lastExp.x : panelSize.x;
+            float h = lastExp.y > ExpandedHeaderStripHeight + 24f ? lastExp.y : panelSize.y;
+            _helperPanelRt.sizeDelta = new Vector2(w, h);
+        }
+
+        _layoutTrackSize = _helperPanelRt.sizeDelta;
+    }
+
+    private void TrackHelperLayoutSave()
+    {
+        if (_helperPanelRt == null || _overlayRoot == null || !_overlayRoot.activeSelf)
+            return;
+
+        Vector2 sz = _helperPanelRt.sizeDelta;
+        if (sz != _layoutTrackSize)
+        {
+            _layoutTrackSize = sz;
+            SaveHelperLayoutSnapshot();
+        }
+    }
+
+    private bool TryWireExistingHelperPopupWindow()
+    {
+        HelperPopupWindow host = HelperPopupWindow.FindExisting();
+        if (!host)
+            return false;
+
+        Transform rootTf = host.transform;
+        Transform panelTf = rootTf.Find("HelperPanel");
+        if (!panelTf)
+            return false;
+
+        Transform chrome = panelTf.Find("TopChromeStrip");
+        if (!chrome)
+            return false;
+
+        Transform expandedTf = panelTf.Find("ExpandedPresentation");
+        if (!expandedTf || !expandedTf.Find("BodyText"))
+            return false;
+
+        _overlayRoot = host.gameObject;
+        _overlayRect = _overlayRoot.transform as RectTransform;
+
+        Transform dim = _overlayRoot.transform.Find("Dimmer");
+        _dimmerImage = dim ? dim.GetComponent<Image>() : null;
+
+        Transform glowHolderTf = _overlayRoot.transform.Find("WhitelistGlowOverlay/WhitelistGlowHolder");
+        _whitelistGlowHolder = glowHolderTf as RectTransform;
+
+        _helperPanelRt = panelTf as RectTransform;
+
+        _chromeStripTitleText = chrome.Find("ChromeTitle")?.GetComponent<TMP_Text>();
+        _helperCloseButtonRoot = chrome.Find("CloseButton")?.gameObject;
+
+        GameObject minimizeGo = chrome.Find("MinimizeStripeButton")?.gameObject;
+        _minimizeExpandGlyphTmp = FindTmpOnButton(minimizeGo);
+
+        UIDragWindow drag = chrome.GetComponent<UIDragWindow>();
+        if (drag)
+        {
+            drag.SetRuntimeMemoryKey("HelperPopupWindow.Panel");
+            drag.UsePlayerPrefsForAnchoredPosition(HelperPopupLayoutPrefs.PosX, HelperPopupLayoutPrefs.PosY);
+        }
+
+        _expandedPanelRoot = expandedTf.gameObject;
+
+        _prevHistoryButton = _expandedPanelRoot.transform.Find("FooterNav/HistoryPrevButton")?.GetComponent<Button>();
+        _nextHistoryButton = _expandedPanelRoot.transform.Find("FooterNav/HistoryNextButton")?.GetComponent<Button>();
+        _titleText = _expandedPanelRoot.transform.Find("TitleText")?.GetComponent<TMP_Text>();
+        _bodyText = _expandedPanelRoot.transform.Find("BodyText")?.GetComponent<TMP_Text>();
+        if (_bodyText)
+        {
+            HelperTypewriterPanelSkip skip =
+                _bodyText.GetComponent<HelperTypewriterPanelSkip>() ??
+                _bodyText.gameObject.AddComponent<HelperTypewriterPanelSkip>();
+            skip.Init(this);
+        }
+
+        RectTransform parentRt = ResolveOverlayParent();
+        if (parentRt)
+            host.EnsureUnderWindowsArea(parentRt);
+
+        ApplyLoadedHelperLayout();
+        return true;
+    }
+
     private void EnsureViewBuilt()
     {
         if (_overlayRoot != null)
             return;
 
+        if (TryWireExistingHelperPopupWindow())
+            return;
+
         RectTransform parentRt = ResolveOverlayParent();
         if (!parentRt)
         {
-            Debug.LogError("[HelperGameplayController] No UI parent — UICanvas tag, or assign Ui Parent Override and turn Prefer Full Screen off.");
+            Debug.LogError("[HelperGameplayController] No UI parent — assign FullWindowCanvas tag + WindowsArea child, UICanvas tag, or Ui Parent Override.");
             return;
         }
 
-        _overlayRoot = new GameObject("HelperSystemOverlay");
+        _overlayRoot = new GameObject("HelperPopupWindow");
+        _overlayRoot.AddComponent<HelperPopupWindow>();
         _overlayRect = _overlayRoot.AddComponent<RectTransform>();
         _overlayRect.SetParent(parentRt, false);
         _overlayRect.anchorMin = Vector2.zero;
@@ -1663,12 +1900,6 @@ public sealed class HelperGameplayController : MonoBehaviour
         _overlayRect.offsetMin = Vector2.zero;
         _overlayRect.offsetMax = Vector2.zero;
         _overlayRect.localScale = Vector3.one;
-
-        _overlayCanvas = _overlayRoot.AddComponent<Canvas>();
-        _overlayCanvas.overrideSorting = true;
-        _overlayCanvas.sortingOrder = canvasSortOrder;
-        _overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        _overlayRoot.AddComponent<GraphicRaycaster>();
 
         GameObject dimGo = CreateChild(_overlayRoot.transform, "Dimmer");
         RectTransform dimRt = dimGo.GetComponent<RectTransform>();
@@ -1678,7 +1909,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         dimRt.offsetMax = Vector2.zero;
 
         Image dimImg = dimGo.AddComponent<Image>();
-        dimImg.color = new Color(0f, 0f, 0f, 0.62f);
+        dimImg.color = new Color(0f, 0f, 0f, 0f);
         dimImg.raycastTarget = true;
         _dimmerImage = dimImg;
 
@@ -1689,10 +1920,6 @@ public sealed class HelperGameplayController : MonoBehaviour
         glowLayerRt.offsetMin = Vector2.zero;
         glowLayerRt.offsetMax = Vector2.zero;
 
-        Canvas glowCanvas = glowLayerGo.AddComponent<Canvas>();
-        glowCanvas.overrideSorting = true;
-        glowCanvas.sortingOrder = canvasSortOrder + whitelistGlowSortDelta;
-
         GameObject glowHolderGo = CreateChild(glowLayerGo.transform, "WhitelistGlowHolder");
         _whitelistGlowHolder = glowHolderGo.GetComponent<RectTransform>();
         _whitelistGlowHolder.anchorMin = Vector2.zero;
@@ -1700,19 +1927,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         _whitelistGlowHolder.offsetMin = Vector2.zero;
         _whitelistGlowHolder.offsetMax = Vector2.zero;
 
-        GameObject panelLayerGo = CreateChild(_overlayRoot.transform, "WelcomePanelOverlay");
-        RectTransform panelLayerRt = panelLayerGo.GetComponent<RectTransform>();
-        panelLayerRt.anchorMin = Vector2.zero;
-        panelLayerRt.anchorMax = Vector2.one;
-        panelLayerRt.offsetMin = Vector2.zero;
-        panelLayerRt.offsetMax = Vector2.zero;
-
-        _panelFrontCanvas = panelLayerGo.AddComponent<Canvas>();
-        _panelFrontCanvas.overrideSorting = true;
-        _panelFrontCanvas.sortingOrder = canvasSortOrder + panelSortDelta;
-        panelLayerGo.AddComponent<GraphicRaycaster>();
-
-        GameObject panelGo = CreateChild(panelLayerGo.transform, "HelperPanel");
+        GameObject panelGo = CreateChild(_overlayRoot.transform, "HelperPanel");
         _helperPanelRt = panelGo.GetComponent<RectTransform>();
         _helperPanelRt.anchorMin = new Vector2(0f, 1f);
         _helperPanelRt.anchorMax = new Vector2(0f, 1f);
@@ -1741,6 +1956,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         UIDragWindow chromeDrag = chromeGo.AddComponent<UIDragWindow>();
         chromeDrag.AttachWindow(_helperPanelRt, omitTopCornerHandles: true, counterHudCanvasScale: true);
+        chromeDrag.SetRuntimeMemoryKey("HelperPopupWindow.Panel");
+        chromeDrag.UsePlayerPrefsForAnchoredPosition(HelperPopupLayoutPrefs.PosX, HelperPopupLayoutPrefs.PosY);
 
         GameObject chromeTitleGo = CreateChild(chromeGo.transform, "ChromeTitle");
         RectTransform chromeTitleRt = chromeTitleGo.GetComponent<RectTransform>();
@@ -1891,7 +2108,13 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         dimGo.transform.SetSiblingIndex(0);
         glowLayerGo.transform.SetSiblingIndex(1);
-        panelLayerGo.transform.SetSiblingIndex(2);
+        panelGo.transform.SetSiblingIndex(2);
+
+        HelperPopupWindow hostComp = _overlayRoot.GetComponent<HelperPopupWindow>();
+        hostComp.MarkPersistentRoot();
+        hostComp.EnsureUnderWindowsArea(parentRt);
+
+        ApplyLoadedHelperLayout();
 
         _overlayRoot.SetActive(false);
     }
@@ -2481,6 +2704,13 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private RectTransform ResolveOverlayParent()
     {
+        // Helper popup should behave like a regular window, living under FullWindowCanvas/WindowsArea.
+        // This also prevents the HUD resize slider (Strip canvas) from scaling the helper.
+        RectTransform windowsArea = HelperPopupWindow.ResolveWindowsArea();
+        if (windowsArea)
+            return windowsArea;
+
+        // Fallback to legacy overlay parenting when FullWindowCanvas is not present (e.g. template scenes).
         if (preferFullscreenUiCanvasForHelper)
         {
             GameObject taggedFullscreen = GameObject.FindGameObjectWithTag("UICanvas");

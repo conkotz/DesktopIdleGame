@@ -27,10 +27,19 @@ public static class UIWindowPositionMemory
         SavedAnchoredPositions.Clear();
     }
 
+    public static void ForgetKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        SavedAnchoredPositions.Remove(key.Trim());
+    }
+
     public static void ResetAllWindowsToAnchors()
     {
         ForgetAll();
         UIWindowCornerResize.ResetAllScalesToDefault();
+        HelperPopupLayoutPrefs.Clear();
 
         UIDragWindow[] windows = Object.FindObjectsByType<UIDragWindow>(
             FindObjectsInactive.Include,

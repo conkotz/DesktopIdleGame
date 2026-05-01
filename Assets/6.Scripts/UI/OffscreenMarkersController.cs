@@ -56,6 +56,13 @@ public class OffscreenMarkersController : MonoBehaviour
     [SerializeField] private float stackVerticalOffsetPixels = 0f;
     [Tooltip("If true, this controller's RectTransform is stretched between the strip's left and right edges so row anchors align with the screen. Turn off if you already stretch it in the editor.")]
     [SerializeField] private bool stretchContainerHorizontally = true;
+    [Tooltip(
+        "When the HUD canvas is wider than the strip camera's on-screen rect (reference resolution / letterboxing), " +
+        "left-docked markers can sit in dead space left of the gameplay view. Maps the strip camera pixelRect left edge " +
+        "into this container and shifts left markers right so the arrow tip stays inside the viewable strip. Right-docked layout is unchanged.")]
+    [SerializeField] private bool shiftLeftMarkersIntoStripView = true;
+    [Tooltip("Added to pixelRect.xMin before mapping into UI (screen pixels). Use a small positive value if a reference/safe frame sits inside the camera rect.")]
+    [SerializeField] [Min(0f)] private float leftClampScreenInsetPixels = 0f;
 
     [Header("Performance")]
     [Tooltip("How often to rescan the scene for markers (seconds).")]
@@ -219,6 +226,13 @@ public class OffscreenMarkersController : MonoBehaviour
         ComputeSideStackY(leftOrder, heights, halfParentH, yByIndex);
         ComputeSideStackY(rightOrder, heights, halfParentH, yByIndex);
 
+        float stripLeftLocalX = 0f;
+        bool haveStripLeft =
+            shiftLeftMarkersIntoStripView &&
+            markerContainer &&
+            TryGetStripLeftEdgeLocalInMarkerContainer(out stripLeftLocalX);
+        float containerLeftLocalX = markerContainer ? markerContainer.rect.xMin : 0f;
+
         for (int i = 0; i < activeCount; i++)
         {
             OffscreenMarkerView view = _pool[i];
@@ -234,8 +248,52 @@ public class OffscreenMarkersController : MonoBehaviour
             float halfToTip = HorizontalCenterToOuterTip(rt) + markerHorizontalBleedPadding;
             float x = dockLeft ? edgePaddingPixels + halfToTip : -(edgePaddingPixels + halfToTip);
 
+            // Left anchors sit on the container's left edge at local x = rect.xMin (works for any pivot — e.g. scene pivot (1,0.5) => xMin = -width).
+            // Child pivot x ≈ rect.xMin + anchoredPosition.x; outer left tip ≈ that minus halfToTip.
+            if (dockLeft && haveStripLeft && markerContainer.rect.width > 1f)
+            {
+                float baseX = edgePaddingPixels + halfToTip;
+                float minXFromLeftAnchor =
+                    stripLeftLocalX - containerLeftLocalX + halfToTip + edgePaddingPixels;
+                if (minXFromLeftAnchor > baseX)
+                    x = minXFromLeftAnchor;
+            }
+
             rt.anchoredPosition = new Vector2(x, yByIndex[i] + stackVerticalOffsetPixels);
         }
+    }
+
+    /// <summary>
+    /// Left edge of the strip camera's <see cref="Camera.pixelRect"/> in <see cref="markerContainer"/> local space
+    /// (origin at container pivot — same as <see cref="RectTransformUtility.ScreenPointToLocalPointInRectangle"/>).
+    /// </summary>
+    private bool TryGetStripLeftEdgeLocalInMarkerContainer(out float stripLeftLocalX)
+    {
+        stripLeftLocalX = 0f;
+        if (!markerContainer || !worldCamera)
+            return false;
+
+        Rect pr = worldCamera.pixelRect;
+        if (pr.width < 2f || pr.height < 2f)
+            return false;
+
+        float sy = pr.yMin + pr.height * 0.5f;
+        float sx = Mathf.Clamp(
+            pr.xMin + Mathf.Max(0f, leftClampScreenInsetPixels),
+            pr.xMin,
+            Mathf.Max(pr.xMin, pr.xMax - 0.01f));
+        Canvas root = markerContainer.GetComponentInParent<Canvas>();
+        if (!root)
+            return false;
+
+        Camera camForUi = root.renderMode == RenderMode.ScreenSpaceOverlay ? null : root.worldCamera;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                markerContainer, new Vector2(sx, sy), camForUi, out Vector2 local))
+            return false;
+
+        stripLeftLocalX = local.x;
+        return true;
     }
 
     /// <summary>Vertical positions for one edge only, so left/right stacks align row 0 at the same height.</summary>

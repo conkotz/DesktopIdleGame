@@ -212,6 +212,13 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         targetWindow.localScale = _baseLocalScale;
     }
 
+    /// <summary>Clears saved corner-scale prefs and applies a neutral multiplier (for per-window factory reset).</summary>
+    public void ForgetPersistedScaleAndResetToBase()
+    {
+        DeletePersistedScale();
+        ApplyScale(1f);
+    }
+
     private void ResolveTarget()
     {
         if (!targetWindow)

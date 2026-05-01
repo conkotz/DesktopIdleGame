@@ -15,15 +15,42 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
     private bool _isDragging;
     private bool _recordAfterClamp;
     private Coroutine _deferredClamp;
+    private bool _windowWasAutoAssigned;
+
+    private string _prefsPosKeyX;
+    private string _prefsPosKeyY;
 
     private void Awake()
     {
         if (!window)
+        {
             window = transform as RectTransform;
+            _windowWasAutoAssigned = true;
+        }
         _parent = window.parent as RectTransform;
         _anchorPoint = window ? window.anchoredPosition : Vector2.zero;
         if (string.IsNullOrWhiteSpace(memoryKey))
             memoryKey = ResolveMemoryKey();
+
+        // Keep resize handles working for windows that assign "window" in the inspector.
+        // For runtime-created drag strips (like the Helper chrome), "window" is auto-assigned to the strip itself,
+        // so we must NOT auto-create resize handles on the strip.
+        if (!_windowWasAutoAssigned && window)
+            UIWindowCornerResize.EnsureOn(window);
+    }
+
+    /// <summary>Override auto key (e.g. runtime-built drag strips call <see cref="AttachWindow"/> after Awake).</summary>
+    public void SetRuntimeMemoryKey(string key)
+    {
+        if (!string.IsNullOrWhiteSpace(key))
+            memoryKey = key.Trim();
+    }
+
+    /// <summary>Persist <see cref="RectTransform.anchoredPosition"/> to <see cref="PlayerPrefs"/> (machine-local).</summary>
+    public void UsePlayerPrefsForAnchoredPosition(string prefsKeyX, string prefsKeyY)
+    {
+        _prefsPosKeyX = prefsKeyX;
+        _prefsPosKeyY = prefsKeyY;
     }
 
     /// <summary>
@@ -187,6 +214,17 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         if (!window)
             return;
 
+        if (!string.IsNullOrWhiteSpace(_prefsPosKeyX) &&
+            !string.IsNullOrWhiteSpace(_prefsPosKeyY) &&
+            PlayerPrefs.HasKey(_prefsPosKeyX) &&
+            PlayerPrefs.HasKey(_prefsPosKeyY))
+        {
+            var fromDisk = new Vector2(PlayerPrefs.GetFloat(_prefsPosKeyX), PlayerPrefs.GetFloat(_prefsPosKeyY));
+            window.anchoredPosition = fromDisk;
+            UIWindowPositionMemory.Save(memoryKey, fromDisk);
+            return;
+        }
+
         if (UIWindowPositionMemory.TryGet(memoryKey, out Vector2 remembered))
             window.anchoredPosition = remembered;
     }
@@ -197,6 +235,13 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
             return;
 
         UIWindowPositionMemory.Save(memoryKey, window.anchoredPosition);
+
+        if (!string.IsNullOrWhiteSpace(_prefsPosKeyX) && !string.IsNullOrWhiteSpace(_prefsPosKeyY))
+        {
+            PlayerPrefs.SetFloat(_prefsPosKeyX, window.anchoredPosition.x);
+            PlayerPrefs.SetFloat(_prefsPosKeyY, window.anchoredPosition.y);
+            PlayerPrefs.Save();
+        }
     }
 
     private string ResolveMemoryKey()
