@@ -61,7 +61,8 @@ public sealed class HelperPopupDefinition : ScriptableObject
         + "When off: the popup still appears but the player can keep interacting and moving.")]
     public bool darkenScreenAndLockGameplay = true;
 
-    [Tooltip("Whitelist dismiss (+ overlay X via Show Close Button). Character-page auto-dismiss removed.")]
+    [Tooltip(
+        "Scripted dismiss: whitelist interact and/or any player action (movement / world click). Overlay X still closes when Show Close Button is on. Scripted dismiss keeps the panel expanded.")]
     public HelperDismissMode dismissModes = HelperDismissMode.InteractWhitelistDismiss;
 
     [Header("Allowed interact targets while helper modal (whitelist ids)")]
@@ -85,7 +86,13 @@ public sealed class HelperPopupDefinition : ScriptableObject
             string row = whitelistedInteractionIds[i];
             if (string.IsNullOrWhiteSpace(row))
                 continue;
-            if (string.Equals(row.Trim(), trimmed, System.StringComparison.OrdinalIgnoreCase))
+
+            string rowTrim = row.Trim();
+            if (string.Equals(rowTrim, trimmed, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (HelperWhitelistUiInteractTarget.IsSkillsAbilityToolbarWhitelistMarker(trimmed) &&
+                HelperWhitelistUiInteractTarget.IsSkillsAbilityToolbarWhitelistMarker(rowTrim))
                 return true;
         }
 
@@ -187,4 +194,10 @@ public enum HelperDismissMode
     /// <see cref="HelperWhitelistUiInteractTarget"/> click (<see cref="HelperGameplayController.NotifyWhitelistUiInteract"/>).
     /// </summary>
     InteractWhitelistDismiss = 1 << 2,
+
+    /// <summary>
+    /// Dismiss when the player uses movement (Horizontal/Vertical axes) or clicks the game world (mouse buttons, not over UI).
+    /// Useful when there is no whitelist target. Overlay X still closes when <see cref="HelperPopupDefinition.showCloseButton"/> is on.
+    /// </summary>
+    AnyPlayerActionDismiss = 1 << 3,
 }

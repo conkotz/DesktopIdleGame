@@ -60,16 +60,23 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (Instance != null &&
             Instance._activeDefinition != null &&
-            (Instance._activeDefinition.dismissModes & HelperDismissMode.InteractWhitelistDismiss) != 0 &&
-            Instance._activeDefinition.MatchesWhitelistId(toolbarWhitelistId))
-            return true;
+            (Instance._activeDefinition.dismissModes & HelperDismissMode.InteractWhitelistDismiss) != 0)
+        {
+            if (Instance._activeDefinition.MatchesWhitelistId(toolbarWhitelistId))
+                return true;
+
+            if (HelperWhitelistUiInteractTarget.IsSkillsAbilityToolbarWhitelistMarker(toolbarWhitelistId) &&
+                Instance._activeDefinition.MatchesWhitelistId(
+                    HelperWhitelistUiInteractTarget.SkillsAbilityToolbarWhitelistIdLegacy))
+                return true;
+        }
 
         string t = toolbarWhitelistId.Trim();
         if (string.Equals(t, HelperWhitelistUiInteractTarget.CharacterToolbarWhitelistId, StringComparison.OrdinalIgnoreCase))
             return IsCharacterWhitelistToolbarDismissOnThisFrame();
         if (string.Equals(t, HelperWhitelistUiInteractTarget.QuestToolbarWhitelistId, StringComparison.OrdinalIgnoreCase))
             return IsQuestWhitelistToolbarDismissOnThisFrame();
-        if (string.Equals(t, HelperWhitelistUiInteractTarget.SkillsAbilityToolbarWhitelistId, StringComparison.OrdinalIgnoreCase))
+        if (HelperWhitelistUiInteractTarget.IsSkillsAbilityToolbarWhitelistMarker(t))
             return IsSkillsAbilityWhitelistToolbarDismissOnThisFrame();
         if (string.Equals(t, HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId, StringComparison.OrdinalIgnoreCase))
             return IsLevelSelectWhitelistToolbarDismissOnThisFrame();
@@ -149,6 +156,13 @@ public sealed class HelperGameplayController : MonoBehaviour
         "How fast the helper body reveals (TMP visible characters per second; full paragraph layout while typing — same idea as NPCDialogueBoxUI). Higher = faster. 0 = one character per frame.")]
     [SerializeField] private float typewriterCharactersPerSecond = 48f;
 
+    [Header("Helper priority queue")]
+    [Tooltip(
+        "When several helpers are eligible in the same evaluation pass, only the highest-priority one shows first; the rest queue and open immediately after the current one clears (whitelist dismiss/minimize, X close, or the next popup in the chain). " +
+        "If > 0 and the player leaves the whitelist-dismiss step idle while more helpers are still queued, the current tip is marked completed after this delay so the next queued helper can open. Set to 0 to disable timed skip.")]
+    [SerializeField]
+    private float autoSkipStuckHelperWhenQueueHasMoreSeconds = 22f;
+
     private Coroutine _bodyTypewriterCo;
     private string _bodyTypewriterFullPlain;
 
@@ -195,7 +209,29 @@ public sealed class HelperGameplayController : MonoBehaviour
         public string BodyPlain;
     }
 
+    private const int MaxPersistedHelperMessages = 32;
+
+    private const string PersistedHelperHistoryKey = "HelperSessionMessageHistory.v1";
+
+    [Serializable]
+    private sealed class PersistedHelperSnapDto
+    {
+        public string title;
+
+        public string body;
+    }
+
+    [Serializable]
+    private sealed class PersistedHelperHistoryDto
+    {
+        public PersistedHelperSnapDto[] items;
+    }
+
     private readonly List<HelperDisplayedMessageSnap> _sessionMessageHistory = new(16);
+
+    private readonly Queue<HelperPopupDefinition> _pendingHelperQueue = new();
+
+    private Coroutine _stuckQueuedAdvanceCo;
 
     private int _historyViewIndex;
 
@@ -257,7 +293,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     /// <summary>Call from <see cref="WorldInputRouter2D"/> after routing a click that hit a whitelist collider while blocking.</summary>
     public static void NotifyWhitelistWorldRouteHandled()
     {
-        if (Instance == null)
+        if (Instance == null || !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
             return;
 
         Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss);
@@ -268,7 +304,9 @@ public sealed class HelperGameplayController : MonoBehaviour
     /// </summary>
     public static void NotifyWhitelistUiInteract(string interactionIdMarker)
     {
-        if (Instance == null || string.IsNullOrWhiteSpace(interactionIdMarker))
+        if (Instance == null ||
+            string.IsNullOrWhiteSpace(interactionIdMarker) ||
+            !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
             return;
 
         Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss, interactionIdMarker.Trim());
@@ -317,8 +355,23 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         UIWindowPositionMemory.Save("HelperPopupWindow.Panel", pos);
 
+        ClearPersistedHelperMessageHistoryKey();
+
         if (ctrl != null)
+        {
+            ctrl.StopStuckQueuedAdvanceCoroutine();
+            ctrl._pendingHelperQueue.Clear();
+
+            ctrl._sessionMessageHistory.Clear();
+            ctrl._historyViewIndex = 0;
+            ctrl._activeDefinition = null;
+            ctrl._activeUsesWorldWhitelistRouting = false;
+
+            if (ctrl._overlayRoot && ctrl._overlayRoot.activeSelf)
+                ctrl.HideOverlayCompletely(true, purgeMessageHistory: false);
+
             ctrl.SyncHelperInternalStateAfterNewGameLayout(pos, sz);
+        }
     }
 
     /// <summary>True while a scripted helper expects world / strip picks for whitelist dismiss routing.</summary>
@@ -464,7 +517,13 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (Instance == this)
         {
-            DismissSilent();
+            StopStuckQueuedAdvanceCoroutine();
+            _pendingHelperQueue.Clear();
+
+            bool hasSurface = (_overlayRoot && _overlayRoot.activeSelf) || _activeDefinition != null;
+            if (hasSurface)
+                HideOverlayCompletely(true, purgeMessageHistory: false);
+
             Instance = null;
         }
 
@@ -488,12 +547,17 @@ public sealed class HelperGameplayController : MonoBehaviour
         SubscribeQuestProgressHelpers();
         SubscribeSkillsHelpers();
 
+        if (HelpersPermittedBySettings())
+            LoadMessageHistoryFromPlayerPrefs();
+
         GameplayLevelBootstrapper boots = GameplayLevelBootstrapper.Instance;
         if (boots == null)
         {
             Debug.LogWarning(
                 "[HelperGameplayController] No GameplayLevelBootstrapper — First Visit helpers will never run.",
                 this);
+            yield return null;
+            TryPresentSessionHistoryWhenOverlayHidden();
             yield break;
         }
 
@@ -502,6 +566,9 @@ public sealed class HelperGameplayController : MonoBehaviour
         // Execution order: our Start runs after Bootstrapper.Start — replay the active map once.
         if (boots.ActiveDefinition != null)
             HandleLevelStarted(boots.ActiveDefinition);
+
+        yield return null;
+        TryPresentSessionHistoryWhenOverlayHidden();
     }
 
     private void RegisterProgressKeys()
@@ -513,30 +580,286 @@ public sealed class HelperGameplayController : MonoBehaviour
             HelperProgressStore.RegisterDefinition(definitions[i]);
     }
 
+    private static bool HelpersPermittedBySettings() =>
+        ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups);
+
+    private static void ClearPersistedHelperMessageHistoryKey()
+    {
+        PlayerPrefs.DeleteKey(PersistedHelperHistoryKey);
+        PlayerPrefs.Save();
+    }
+
+    private void SaveMessageHistoryToPlayerPrefs()
+    {
+        if (!HelpersPermittedBySettings())
+            return;
+
+        int n = _sessionMessageHistory.Count;
+        if (n == 0)
+        {
+            ClearPersistedHelperMessageHistoryKey();
+            return;
+        }
+
+        int cap = Mathf.Min(n, MaxPersistedHelperMessages);
+        int start = n - cap;
+
+        var dto = new PersistedHelperHistoryDto { items = new PersistedHelperSnapDto[cap] };
+
+        for (int i = 0; i < cap; i++)
+        {
+            HelperDisplayedMessageSnap s = _sessionMessageHistory[start + i];
+            dto.items[i] = new PersistedHelperSnapDto
+            {
+                title = s.TitlePlain ?? string.Empty,
+                body = s.BodyPlain ?? string.Empty,
+            };
+        }
+
+        PlayerPrefs.SetString(PersistedHelperHistoryKey, JsonUtility.ToJson(dto));
+        PlayerPrefs.Save();
+    }
+
+    private void LoadMessageHistoryFromPlayerPrefs()
+    {
+        _sessionMessageHistory.Clear();
+        _historyViewIndex = 0;
+
+        if (!HelpersPermittedBySettings() || !PlayerPrefs.HasKey(PersistedHelperHistoryKey))
+            return;
+
+        string json = PlayerPrefs.GetString(PersistedHelperHistoryKey, string.Empty);
+        if (string.IsNullOrEmpty(json))
+            return;
+
+        PersistedHelperHistoryDto dto = JsonUtility.FromJson<PersistedHelperHistoryDto>(json);
+        if (dto?.items == null)
+            return;
+
+        for (int i = 0; i < dto.items.Length; i++)
+        {
+            PersistedHelperSnapDto row = dto.items[i];
+            if (row == null)
+                continue;
+
+            _sessionMessageHistory.Add(new HelperDisplayedMessageSnap
+            {
+                TitlePlain = row.title ?? string.Empty,
+                BodyPlain = row.body ?? string.Empty,
+            });
+        }
+
+        if (_sessionMessageHistory.Count > 0)
+            _historyViewIndex = _sessionMessageHistory.Count - 1;
+    }
+
+    private void TryPresentSessionHistoryWhenOverlayHidden()
+    {
+        if (!HelpersPermittedBySettings() || _sessionMessageHistory.Count == 0)
+            return;
+
+        if (_overlayRoot != null && _overlayRoot.activeSelf)
+            return;
+
+        if (_activeDefinition != null)
+            return;
+
+        PresentSessionHistoryOverlayExpanded();
+    }
+
+    private void PresentSessionHistoryOverlayExpanded()
+    {
+        EnsureViewBuilt();
+        if (_overlayRoot == null || _sessionMessageHistory.Count == 0)
+            return;
+
+        _activeDefinition = null;
+        _activeUsesWorldWhitelistRouting = false;
+
+        RestoreWhitelistUiTargetCanvases();
+        StopBodyTypewriterAndClear();
+
+        TransitionToExpandedPresentationLayout();
+        RaiseWhitelistUiTargetCanvasesForActiveOverlay();
+
+        if (_helperCloseButtonRoot)
+            _helperCloseButtonRoot.SetActive(true);
+
+        _overlayRoot.transform.SetAsLastSibling();
+        _overlayRoot.SetActive(true);
+
+        _historyViewIndex = Mathf.Clamp(_sessionMessageHistory.Count - 1, 0, _sessionMessageHistory.Count - 1);
+        ApplyDisplayedHistoryIndexToPanel(_historyViewIndex, startTypewriterFresh: false);
+
+        RefreshWhitelistPresentationEmphasis();
+        RefreshWorldWhitelistRoutingFlag();
+        ApplyDarkenModalPresentation();
+    }
+
+    private void StopStuckQueuedAdvanceCoroutine()
+    {
+        if (_stuckQueuedAdvanceCo == null)
+            return;
+
+        StopCoroutine(_stuckQueuedAdvanceCo);
+        _stuckQueuedAdvanceCo = null;
+    }
+
+    private bool IsHelperIdAlreadyPendingOrActive(string helperId)
+    {
+        if (string.IsNullOrWhiteSpace(helperId))
+            return false;
+
+        string id = helperId.Trim();
+        if (_activeDefinition &&
+            !string.IsNullOrWhiteSpace(_activeDefinition.helperId) &&
+            string.Equals(_activeDefinition.helperId.Trim(), id, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        foreach (HelperPopupDefinition q in _pendingHelperQueue)
+        {
+            if (q &&
+                !string.IsNullOrWhiteSpace(q.helperId) &&
+                string.Equals(q.helperId.Trim(), id, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void EnqueueDeferredSortedCandidates(List<HelperPopupDefinition> sorted, int skipFirstSorted = 1)
+    {
+        if (sorted == null || sorted.Count <= skipFirstSorted)
+            return;
+
+        for (int i = skipFirstSorted; i < sorted.Count; i++)
+        {
+            HelperPopupDefinition d = sorted[i];
+            if (!d || string.IsNullOrWhiteSpace(d.helperId))
+                continue;
+
+            if (HelperProgressStore.WasDismissed(d.helperId))
+                continue;
+
+            if (IsHelperIdAlreadyPendingOrActive(d.helperId))
+                continue;
+
+            _pendingHelperQueue.Enqueue(d);
+        }
+    }
+
+    private void TryDrainPendingHelperQueue()
+    {
+        if (!HelpersPermittedBySettings() || _activeDefinition != null)
+            return;
+
+        StopStuckQueuedAdvanceCoroutine();
+
+        while (_pendingHelperQueue.Count > 0)
+        {
+            HelperPopupDefinition next = _pendingHelperQueue.Dequeue();
+            if (!next || string.IsNullOrWhiteSpace(next.helperId))
+                continue;
+
+            if (HelperProgressStore.WasDismissed(next.helperId))
+                continue;
+
+            ShowPopup(next);
+            return;
+        }
+    }
+
+    private void MaybeStartStuckQueuedAdvanceWatcher()
+    {
+        StopStuckQueuedAdvanceCoroutine();
+
+        if (autoSkipStuckHelperWhenQueueHasMoreSeconds <= 0f ||
+            _pendingHelperQueue.Count == 0 ||
+            _activeDefinition == null ||
+            !gameObject.activeInHierarchy)
+            return;
+
+        _stuckQueuedAdvanceCo = StartCoroutine(CoAdvanceQueuedIfStuck(_activeDefinition));
+    }
+
+    private IEnumerator CoAdvanceQueuedIfStuck(HelperPopupDefinition startDef)
+    {
+        float wait = Mathf.Max(0.01f, autoSkipStuckHelperWhenQueueHasMoreSeconds);
+        yield return new WaitForSeconds(wait);
+
+        _stuckQueuedAdvanceCo = null;
+
+        if (!HelpersPermittedBySettings())
+            yield break;
+
+        if (_activeDefinition != startDef || startDef == null)
+            yield break;
+
+        if (_pendingHelperQueue.Count == 0)
+            yield break;
+
+        HelperProgressStore.MarkDismissed(startDef.helperId);
+
+        RestoreWhitelistUiTargetCanvases();
+        StopBodyTypewriterAndClear();
+        ClearWhitelistGlowOverlays();
+        ClearWhitelistPresentationTints();
+
+        _activeDefinition = null;
+        _activeUsesWorldWhitelistRouting = false;
+
+        TryDrainPendingHelperQueue();
+
+        if (_activeDefinition == null && _overlayRoot && _overlayRoot.activeSelf)
+            HideOverlayCompletely(true, purgeMessageHistory: false);
+    }
+
     private void HandleLevelStarted(MapNodeDefinition node)
     {
-        if (_activeDefinition != null || node == null || definitions == null || definitions.Length == 0)
+        if (!HelpersPermittedBySettings() ||
+            node == null ||
+            definitions == null ||
+            definitions.Length == 0)
             return;
 
         StartCoroutine(EvaluateMapEntryNextFrame(node));
     }
 
-    /// <summary>Close an open helper when the player disables &quot;Show help popups&quot; — does not mark the tip dismissed.</summary>
+    /// <summary>
+    /// When &quot;Show help popups&quot; is turned off: hide any overlay, clear in-memory and persisted message history, and stop helper logic.
+    /// When turned back on: restore persisted history (if any) and show the overlay when no new helper fired.
+    /// </summary>
     private void OnToggleSettingsChanged(ToggleSettingId id, bool _)
     {
         if (id != ToggleSettingId.ShowHelpPopups)
             return;
 
-        if ((_activeDefinition != null || (_overlayRoot && _overlayRoot.activeSelf)) &&
-            !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
-            DismissSilent();
+        if (ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
+        {
+            LoadMessageHistoryFromPlayerPrefs();
+            TryPresentSessionHistoryWhenOverlayHidden();
+            return;
+        }
+
+        ClearPersistedHelperMessageHistoryKey();
+        _sessionMessageHistory.Clear();
+        _historyViewIndex = 0;
+
+        StopStuckQueuedAdvanceCoroutine();
+        _pendingHelperQueue.Clear();
+
+        bool hasSurface = (_overlayRoot && _overlayRoot.activeSelf) || _activeDefinition != null;
+        if (hasSurface)
+            HideOverlayCompletely(true, purgeMessageHistory: false);
+        else
+            SyncMovementLockFromSettings();
     }
 
     private IEnumerator EvaluateMapEntryNextFrame(MapNodeDefinition node)
     {
         yield return null;
 
-        if (_activeDefinition != null)
+        if (!HelpersPermittedBySettings())
             yield break;
 
         string enteredId = string.IsNullOrWhiteSpace(node.nodeId) ? null : node.nodeId.Trim();
@@ -572,15 +895,17 @@ public sealed class HelperGameplayController : MonoBehaviour
         });
 
         if (candidates.Count > 0)
-            ShowPopup(candidates[0]);
-
-        if (_activeDefinition == null)
         {
-            EvaluateInventoryItemCountReachedHelpers();
-            EvaluateQuestGatherProgressHelpers();
-            EvaluateQuestRewardClaimedHelpers();
-            EvaluateQuestAcceptedHelpers();
+            EnqueueDeferredSortedCandidates(candidates);
+            ShowPopup(candidates[0]);
         }
+
+        EvaluateInventoryItemCountReachedHelpers();
+        EvaluateQuestGatherProgressHelpers();
+        EvaluateQuestRewardClaimedHelpers();
+        EvaluateQuestAcceptedHelpers();
+
+        TryPresentSessionHistoryWhenOverlayHidden();
     }
 
     private void SubscribeInventoryHelpers()
@@ -610,7 +935,10 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void HandleInventoryChangedForHelpers()
     {
-        if (_inventoryForHelpers == null || definitions == null || definitions.Length == 0)
+        if (!HelpersPermittedBySettings() ||
+            _inventoryForHelpers == null ||
+            definitions == null ||
+            definitions.Length == 0)
             return;
 
         if (!HelperProgressStore.IsHydratedFromSave)
@@ -621,9 +949,6 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         bool becameNonEmptyFromEmpty = prev <= 0 && total > 0;
         _lastSeenInventoryTotalUnitsBeforeChange = total;
-
-        if (_activeDefinition != null)
-            return;
 
         if (becameNonEmptyFromEmpty)
             EvaluateFirstBagGainFromZeroHelpers();
@@ -659,7 +984,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void HandleQuestProgressForHelpers()
     {
-        if (_activeDefinition != null)
+        if (!HelpersPermittedBySettings())
             return;
 
         EvaluateQuestGatherProgressHelpers();
@@ -692,7 +1017,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void HandleSkillLevelUpForHelpers(SkillType skillType, int newLevel)
     {
-        if (_activeDefinition != null)
+        if (!HelpersPermittedBySettings())
             return;
 
         EvaluateSkillLevelReachedHelpers(skillType, newLevel);
@@ -700,7 +1025,9 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void EvaluateFirstBagGainFromZeroHelpers()
     {
-        if (_activeDefinition != null || definitions == null || definitions.Length == 0)
+        if (!HelpersPermittedBySettings() ||
+            definitions == null ||
+            definitions.Length == 0)
             return;
 
         var candidates = new List<HelperPopupDefinition>();
@@ -730,12 +1057,17 @@ public sealed class HelperGameplayController : MonoBehaviour
         });
 
         if (candidates.Count > 0)
+        {
+            EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
+        }
     }
 
     private void EvaluateInventoryItemCountReachedHelpers()
     {
-        if (_activeDefinition != null || definitions == null || definitions.Length == 0 ||
+        if (!HelpersPermittedBySettings() ||
+            definitions == null ||
+            definitions.Length == 0 ||
             _inventoryForHelpers == null)
             return;
 
@@ -774,12 +1106,17 @@ public sealed class HelperGameplayController : MonoBehaviour
         });
 
         if (candidates.Count > 0)
+        {
+            EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
+        }
     }
 
     private void EvaluateQuestGatherProgressHelpers()
     {
-        if (_activeDefinition != null || definitions == null || definitions.Length == 0)
+        if (!HelpersPermittedBySettings() ||
+            definitions == null ||
+            definitions.Length == 0)
             return;
 
         if (!HelperProgressStore.IsHydratedFromSave)
@@ -832,12 +1169,17 @@ public sealed class HelperGameplayController : MonoBehaviour
         });
 
         if (candidates.Count > 0)
+        {
+            EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
+        }
     }
 
     private void EvaluateSkillLevelReachedHelpers(SkillType firedSkill, int newLevel)
     {
-        if (_activeDefinition != null || definitions == null || definitions.Length == 0)
+        if (!HelpersPermittedBySettings() ||
+            definitions == null ||
+            definitions.Length == 0)
             return;
 
         if (!HelperProgressStore.IsHydratedFromSave)
@@ -875,12 +1217,17 @@ public sealed class HelperGameplayController : MonoBehaviour
         });
 
         if (candidates.Count > 0)
+        {
+            EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
+        }
     }
 
     private void EvaluateQuestRewardClaimedHelpers()
     {
-        if (_activeDefinition != null || definitions == null || definitions.Length == 0)
+        if (!HelpersPermittedBySettings() ||
+            definitions == null ||
+            definitions.Length == 0)
             return;
 
         if (!HelperProgressStore.IsHydratedFromSave)
@@ -924,12 +1271,17 @@ public sealed class HelperGameplayController : MonoBehaviour
         });
 
         if (candidates.Count > 0)
+        {
+            EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
+        }
     }
 
     private void EvaluateQuestAcceptedHelpers()
     {
-        if (_activeDefinition != null || definitions == null || definitions.Length == 0)
+        if (!HelpersPermittedBySettings() ||
+            definitions == null ||
+            definitions.Length == 0)
             return;
 
         if (!HelperProgressStore.IsHydratedFromSave)
@@ -974,7 +1326,10 @@ public sealed class HelperGameplayController : MonoBehaviour
         });
 
         if (candidates.Count > 0)
+        {
+            EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
+        }
     }
 
     private int ResolveLiveGatherItemAmount(string itemId)
@@ -1132,11 +1487,41 @@ public sealed class HelperGameplayController : MonoBehaviour
         _whitelistUiElevations.Clear();
     }
 
+    /// <summary>
+    /// When a new helper fires while another is still active (player has not finished the whitelist step),
+    /// mark the outgoing tip dismissed, clear its presentation, and drop same-pass queue so the newest trigger wins.
+    /// Prior messages stay in session history for the footer history buttons.
+    /// </summary>
+    private void SupersedeActiveHelperForIncoming(HelperPopupDefinition incoming)
+    {
+        HelperPopupDefinition outgoing = _activeDefinition;
+        if (outgoing == null || incoming == null || outgoing == incoming)
+            return;
+
+        StopStuckQueuedAdvanceCoroutine();
+        _pendingHelperQueue.Clear();
+
+        if (!string.IsNullOrWhiteSpace(outgoing.helperId))
+            HelperProgressStore.MarkDismissed(outgoing.helperId.Trim());
+
+        RestoreWhitelistUiTargetCanvases();
+        StopBodyTypewriterAndClear();
+        ClearWhitelistGlowOverlays();
+        ClearWhitelistPresentationTints();
+        _activeUsesWorldWhitelistRouting = false;
+    }
+
     private void ShowPopup(HelperPopupDefinition def)
     {
         if (def == null ||
             !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
             return;
+
+        if (_activeDefinition == def)
+            return;
+
+        if (_activeDefinition != null)
+            SupersedeActiveHelperForIncoming(def);
 
         _activeDefinition = def;
 
@@ -1174,6 +1559,10 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         RefreshWorldWhitelistRoutingFlag();
         ApplyDarkenModalPresentation();
+
+        SaveMessageHistoryToPlayerPrefs();
+
+        MaybeStartStuckQueuedAdvanceWatcher();
     }
 
     private void RefreshChromeCollapsedVisuals(bool headerOnlyCollapsed)
@@ -1266,19 +1655,32 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void ApplyDarkenModalPresentation()
     {
-        if (!_dimmerImage)
-            return;
-
         bool wants =
             IsActiveHelperExpandedWithModalGameplayLock() &&
             _overlayRoot != null &&
             _overlayRoot.activeSelf;
 
-        _dimmerImage.enabled = wants;
-        _dimmerImage.color = wants ? new Color(0f, 0f, 0f, 0.62f) : new Color(0f, 0f, 0f, 0f);
-        _dimmerImage.raycastTarget = wants;
+        if (_dimmerImage)
+        {
+            _dimmerImage.enabled = wants;
+            _dimmerImage.color = wants ? new Color(0f, 0f, 0f, 0.62f) : new Color(0f, 0f, 0f, 0f);
+            _dimmerImage.raycastTarget = wants;
+        }
 
         SyncMovementLockFromSettings();
+    }
+
+    /// <summary>Forces modal visuals off and unlocks movement — used after scripted dismiss so state cannot get stuck if dimmer reference or EventSystem routing differs.</summary>
+    private void ClearModalDimmerAndUnlockPlayer()
+    {
+        if (_dimmerImage)
+        {
+            _dimmerImage.enabled = false;
+            _dimmerImage.raycastTarget = false;
+            _dimmerImage.color = new Color(0f, 0f, 0f, 0f);
+        }
+
+        ResolvePlayerMovementLock(false);
     }
 
     private void SyncMovementLockFromSettings()
@@ -1392,6 +1794,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void HideOverlayCompletely(bool clearMovementLock, bool purgeMessageHistory = true)
     {
+        StopStuckQueuedAdvanceCoroutine();
+
         SaveHelperLayoutSnapshot();
 
         RestoreWhitelistUiTargetCanvases();
@@ -1434,6 +1838,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (clearMovementLock)
             ResolvePlayerMovementLock(false);
+
+        TryDrainPendingHelperQueue();
     }
 
     private void LateUpdate()
@@ -1445,6 +1851,60 @@ public sealed class HelperGameplayController : MonoBehaviour
     private void Update()
     {
         LerpWhitelistPresentationTints();
+        PollAnyPlayerActionDismiss();
+    }
+
+    private void PollAnyPlayerActionDismiss()
+    {
+        if (_activeDefinition == null ||
+            !IsHelperExpandedPresentation() ||
+            !HelpersPermittedBySettings())
+            return;
+
+        if ((_activeDefinition.dismissModes & HelperDismissMode.AnyPlayerActionDismiss) == 0)
+            return;
+
+        if (Mathf.Abs(Input.GetAxisRaw("Horizontal")) > 0.01f ||
+            Mathf.Abs(Input.GetAxisRaw("Vertical")) > 0.01f)
+        {
+            TryDismiss(HelperDismissMode.AnyPlayerActionDismiss);
+            return;
+        }
+
+        if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1))
+        {
+            if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
+            {
+                TryDismiss(HelperDismissMode.AnyPlayerActionDismiss);
+                return;
+            }
+
+            if (IsTopUiRaycastHitHelperModalDimmer())
+                TryDismiss(HelperDismissMode.AnyPlayerActionDismiss);
+        }
+    }
+
+    /// <summary>
+    /// True when the topmost graphic hit is the helper fullscreen dimmer (dark area), not the helper panel / other UI.
+    /// Clicks there must count as "any player action" — otherwise <see cref="EventSystem.IsPointerOverGameObject"/> blocks dismiss.
+    /// </summary>
+    private bool IsTopUiRaycastHitHelperModalDimmer()
+    {
+        if (_dimmerImage == null || !_dimmerImage.isActiveAndEnabled)
+            return false;
+
+        if (EventSystem.current == null)
+            return false;
+
+        var ped = new PointerEventData(EventSystem.current) { position = Input.mousePosition };
+        var results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(ped, results);
+        if (results.Count == 0)
+            return false;
+
+        Transform top = results[0].gameObject.transform;
+        Transform dim = _dimmerImage.transform;
+        return top == dim || top.IsChildOf(dim);
     }
 
     private CharacterStats ResolvePlayerCharacterStats()
@@ -1468,7 +1928,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (_activeDefinition != null)
             DismissMarked();
         else
-            HideOverlayCompletely(true);
+            HideOverlayCompletely(true, purgeMessageHistory: false);
     }
 
     /// <remarks>Same as <see cref="CloseFromUIButton"/> (shared header close control).</remarks>
@@ -1568,10 +2028,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
             interactWhitelistIdMarker != null &&
-            string.Equals(
-                interactWhitelistIdMarker.Trim(),
-                HelperWhitelistUiInteractTarget.SkillsAbilityToolbarWhitelistId,
-                System.StringComparison.OrdinalIgnoreCase))
+            HelperWhitelistUiInteractTarget.IsSkillsAbilityToolbarWhitelistMarker(interactWhitelistIdMarker))
             s_skillsAbilityToolbarWhitelistUiDismissStampFrame = Time.frameCount;
 
         if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
@@ -1583,20 +2040,25 @@ public sealed class HelperGameplayController : MonoBehaviour
             s_levelSelectToolbarWhitelistUiDismissStampFrame = Time.frameCount;
 
         // Stamps above: MainMenuWindowUI treats same-frame toolbar clicks as "don't Close() the menu
-        // when already on that tab" — helper still dismisses/minimizes below.
+        // when already on that tab" — helper still completes scripted dismiss below (stays expanded).
 
-        if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
+        if ((modeReason == HelperDismissMode.InteractWhitelistDismiss ||
+             modeReason == HelperDismissMode.AnyPlayerActionDismiss) &&
             ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups) &&
             IsHelperExpandedPresentation())
         {
-            CompleteInteractWhitelistDismissByMinimize();
+            CompleteScriptedDismissLeaveExpanded();
             return;
         }
 
         DismissMarked();
     }
 
-    private void CompleteInteractWhitelistDismissByMinimize()
+    /// <summary>
+    /// Marks the active tip dismissed, clears whitelist presentation, unlocks gameplay, and keeps the helper panel expanded (history + nav).
+    /// The player can still minimize via the chrome control.
+    /// </summary>
+    private void CompleteScriptedDismissLeaveExpanded()
     {
         if (_activeDefinition == null)
             return;
@@ -1612,17 +2074,27 @@ public sealed class HelperGameplayController : MonoBehaviour
         _activeDefinition = null;
         _activeUsesWorldWhitelistRouting = false;
 
+        ClearModalDimmerAndUnlockPlayer();
+
         if (!_helperPanelRt || !_expandedPanelRoot || _overlayRoot == null)
         {
-            HideOverlayCompletely(true);
+            HideOverlayCompletely(true, purgeMessageHistory: false);
             return;
         }
 
-        TransitionToCollapsedStripeLayout();
+        if (!IsHelperExpandedPresentation())
+            TransitionToExpandedPresentationLayout();
+
+        if (_helperCloseButtonRoot)
+            _helperCloseButtonRoot.SetActive(true);
 
         _overlayRoot.transform.SetAsLastSibling();
         _overlayRoot.SetActive(true);
+
+        ApplyDisplayedHistoryIndexToPanel(_historyViewIndex, startTypewriterFresh: false);
         ApplyDarkenModalPresentation();
+
+        TryDrainPendingHelperQueue();
     }
 
     private void DismissMarked()
@@ -1631,17 +2103,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
 
         HelperProgressStore.MarkDismissed(_activeDefinition.helperId);
-        HideOverlayCompletely(true);
-    }
-
-    /// <summary>Does not persist — used when controller is destroyed mid-session.</summary>
-    private void DismissSilent()
-    {
-        bool hasSurface = (_overlayRoot && _overlayRoot.activeSelf) || _activeDefinition != null;
-        if (!hasSurface)
-            return;
-
-        HideOverlayCompletely(true);
+        HideOverlayCompletely(true, purgeMessageHistory: false);
     }
 
     private void RefreshWhitelistPresentationEmphasis()
@@ -2680,7 +3142,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         tmp.fontStyle = FontStyles.Bold;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
-        tmp.enableWordWrapping = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
         tmp.raycastTarget = false;
 
         RectTransform lrt = lbl.GetComponent<RectTransform>();

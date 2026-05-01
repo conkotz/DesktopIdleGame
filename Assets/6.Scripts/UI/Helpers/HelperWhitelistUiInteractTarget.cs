@@ -25,6 +25,11 @@ public sealed class HelperWhitelistUiInteractTarget : MonoBehaviour, IPointerCli
     /// <summary>Skills &amp; Abilities toolbar — same-frame whitelist dismiss keeps tab open.</summary>
     public const string SkillsAbilityToolbarWhitelistId = "UIButton_SkillsAbility";
 
+    /// <summary>
+    /// Some helper assets and buttons use this spelling; treat it as equivalent to <see cref="SkillsAbilityToolbarWhitelistId"/> for menu / stamp logic.
+    /// </summary>
+    public const string SkillsAbilityToolbarWhitelistIdLegacy = "UIButton_SkillsAbilities";
+
     /// <summary>Level select toolbar — same-frame whitelist dismiss keeps tab open.</summary>
     public const string LevelSelectToolbarWhitelistId = "UIButton_LevelSelect";
 
@@ -39,6 +44,17 @@ public sealed class HelperWhitelistUiInteractTarget : MonoBehaviour, IPointerCli
     public string InteractionId => interactionId != null ? interactionId.Trim() : string.Empty;
 
     public Graphic GlowSourceGraphic => glowSourceGraphic ? glowSourceGraphic : GetComponent<Graphic>();
+
+    /// <summary>True for canonical or legacy Skills toolbar whitelist ids.</summary>
+    public static bool IsSkillsAbilityToolbarWhitelistMarker(string markerId)
+    {
+        if (string.IsNullOrWhiteSpace(markerId))
+            return false;
+
+        string m = markerId.Trim();
+        return string.Equals(m, SkillsAbilityToolbarWhitelistId, System.StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(m, SkillsAbilityToolbarWhitelistIdLegacy, System.StringComparison.OrdinalIgnoreCase);
+    }
 
     private void Reset()
     {

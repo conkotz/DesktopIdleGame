@@ -10,27 +10,26 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d4549ab826df384b91e9e2da5b95c50, type: 3}
-  m_Name: Helper_GameStart_3
+  m_Name: Helper_GameStart_6
   m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
-  helperId: skill_level_helper
-  title: First Skill Level Gained
-  bodyText: You have advanced a woodcutting level. Open the Skills and Abilities
-    tab to view your available skills. In this tab you can also see the selected
-    skills tree which grants you bonus as you gain levels in each skill. Finally
-    you unlock powerful passive and active ability effects as you get experience.
-  activationTrigger: 5
-  requiredMapNodeId: tutorial_1
+  helperId: first_combat_helper
+  title: Defeating your first enemy
+  bodyText: "It's time for the dangerous stuff... \nThere is lots to know about fighting
+    enemies. As you get stronger you will equip better items, level up skills and
+    gain abilities to defeat tougher foes. You can still defeat enemies without anything
+    equipped, but you will be much weaker.\n\n\n"
+  activationTrigger: 1
+  requiredMapNodeId: tutorial_2
   inventoryTriggerItemId: 
   inventoryTriggerItemCount: 1
   questGatherTriggerQuestId: 
   questRewardClaimedTriggerQuestId: 
-  questAcceptedTriggerQuestId: 
+  questAcceptedTriggerQuestId: tutorial_basic_combat
   skillLevelTriggerSkill: 1
   skillLevelTriggerMinimumNewLevel: 2
-  priority: 3
+  priority: 5
   showCloseButton: 1
   darkenScreenAndLockGameplay: 0
-  dismissModes: 4
-  whitelistedInteractionIds:
-  - UIButton_SkillsAbility
-  highlightWhitelistTargetsDuringHelper: 1
+  dismissModes: 0
+  whitelistedInteractionIds: []
+  highlightWhitelistTargetsDuringHelper: 0

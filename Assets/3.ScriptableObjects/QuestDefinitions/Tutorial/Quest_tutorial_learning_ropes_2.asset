@@ -16,8 +16,8 @@ MonoBehaviour:
   regionId: tutorial
   displayName: Learning the ropes 2
   description: "Gather 25 splitwood logs.\n "
-  details: Open Level Select menu after completing this quest and move to the next
-    Tutoral Level 2.
+  details: Equipping the correct tools will increase the speed at which you gain
+    resources.
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
