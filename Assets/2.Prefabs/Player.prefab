@@ -5766,7 +5766,6 @@ MonoBehaviour:
   flipDeadzone: 0.0005
   spectralWeaponSpawnPoint: {fileID: 8517957175408816748}
   actionPopup: {fileID: 8815557873514647352}
-  actionPopupSeconds: 1.5
   requireToolForGathering: 1
   allowGatherWithoutTool: 1
   missingToolSpeedMultiplier: 0.1
@@ -6103,11 +6102,13 @@ MonoBehaviour:
   stoneDef: {fileID: 0}
   woodDef: {fileID: 0}
   fishDef: {fileID: 0}
+  devDestroyerMaceDef: {fileID: 11400000, guid: 3cf41e30a68fc594f8b3da62f8d02bb7, type: 2}
   amount: 1
   grantPackKey: 108
   decreaseAllSkillsKey: 107
   grantGold: 50000
   grantResourceAmount: 100
+  grantDevDestroyerMaceAmount: 1
   popupWorldOffset: {x: 0, y: 1.6, z: 0}
 --- !u!114 &7897775695737928978
 MonoBehaviour:

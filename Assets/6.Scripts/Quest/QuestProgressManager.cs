@@ -9,6 +9,7 @@ using UnityEngine;
 public class QuestProgressManager : MonoBehaviour, ISaveable
 {
     public static QuestProgressManager Instance { get; private set; }
+    private const string GameplaySceneName = "GamePlay";
 
     [SerializeField] private QuestDatabase questDatabase;
 
@@ -534,7 +535,33 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 SaveManager.Instance.Save();
         }
 
+        TryTeleportPlayerAfterClaim(q);
         return true;
+    }
+
+    private static void TryTeleportPlayerAfterClaim(QuestDefinition q)
+    {
+        if (q == null || string.IsNullOrWhiteSpace(q.teleportPlayerToNodeIdOnCompletion))
+            return;
+
+        string nodeId = q.teleportPlayerToNodeIdOnCompletion.Trim();
+        WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        WorldMapDefinition map = wmp ? wmp.WorldMap : null;
+        if (!map)
+            map = Resources.Load<WorldMapDefinition>("Databases/WorldMap_Main");
+        if (!map)
+            return;
+
+        MapNodeDefinition target = map.FindNodeById(nodeId);
+        if (target == null)
+        {
+            Debug.LogWarning($"[QuestProgressManager] Teleport node '{nodeId}' not found for quest '{q.questId}'.");
+            return;
+        }
+
+        ActiveLevelContext.SetPendingLevel(target, logToConsole: false);
+        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
     }
 
     private void TryAutoCompleteEligibleQuests()

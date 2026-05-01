@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
-  m_Name: MapNode_tutorial_2
+  m_Name: MapNode_tutorial_3
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
-  nodeId: tutorial_2
-  displayName: Tutorial Level 2
-  description: 'Basic combat. '
+  nodeId: tutorial_3
+  displayName: Tutorial Level 3
+  description: Distanced Combat
   nodeType: 0
   enemyAggroMode: 2
   ignoreAggroRange: 0
@@ -24,19 +24,18 @@ MonoBehaviour:
   eliteSpawnChance: 0
   fallbackRecommendedCombatPower: 1
   isRepeatable: 0
-  markCompletedWhenReturningToMenu: 1
-  completedLabelRequiresEnteredNodeId: tutorial_3
-  mapUiUseClearedInsteadOfCompleted: 0
+  markCompletedWhenReturningToMenu: 0
+  completedLabelRequiresEnteredNodeId: 
+  mapUiUseClearedInsteadOfCompleted: 1
   requiresMapUnlock: 1
   icon: {fileID: 0}
   requiredSkillLevels: []
   combatSkillGateMode: 0
   combatSingleSkill: 0
   combatRequiredLevel: 1
-  unlockRequirementNotes: Unlocks after Learning the ropes 2.
+  unlockRequirementNotes: Unlocks after Basic Combat 2.
   connectedNodeIds: []
-  nextNodeIds:
-  - tutorial_3
+  nextNodeIds: []
   biome: 0
   prefabGroups: []
   spawnGroupPlans:
@@ -45,19 +44,10 @@ MonoBehaviour:
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint5
       enemyDefinition: {fileID: 0}
-      prefab: {fileID: 5214886831892509811, guid: 72c108752d1eaa941b8bdbd43d4928f3, type: 3}
+      prefab: {fileID: 5214886831892509811, guid: 08ad5688c87ad9843bf9e91dc1f1296a, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-    - spawnPointGroupId: MiddleSpawns
-      spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 3eca1e824a54ed84f84eb314acdeabed, type: 2}
-      prefab: {fileID: 0}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      respawnUntilSimpleWavesStart: 1
       levelOneShotPickupKey: 
       count: 1
     shuffleSpawnPoints: 1
@@ -107,8 +97,8 @@ MonoBehaviour:
   simpleCombatWavesAutoStartOnLevelEnter: 1
   simpleCombatWavesRequireQuestRewardClaimed: 0
   simpleCombatWavesRequiredQuestId: 
-  simpleCombatWavesRequireQuestAccepted: 1
-  simpleCombatWavesQuestAcceptedId: tutorial_basic_combat_2
+  simpleCombatWavesRequireQuestAccepted: 0
+  simpleCombatWavesQuestAcceptedId: 
   simpleCombatWavesRunOncePerSceneSession: 0
   enduranceWaves: []
   enduranceCompletionLoot: []

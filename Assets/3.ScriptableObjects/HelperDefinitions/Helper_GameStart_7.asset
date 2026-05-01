@@ -17,10 +17,6 @@ MonoBehaviour:
   bodyText: 'You finished the tutorial and are now in a new region Greenlands. This
     is the town Duskwood. Feel free to explore and see what is availble in this town.
 
-    If
-    you ever want to see the popups again you can always turn the ''Enable help feature''
-    off/on again in the settings.
-
 '
   activationTrigger: 1
   requiredMapNodeId: duskwood

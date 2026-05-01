@@ -11,8 +11,6 @@ public static class TutorialQuestAfterClaim
     public const string NodeTutorial1 = "tutorial_1";
     public const string NodeTutorial2 = "tutorial_2";
 
-    private const string GameplaySceneName = "GamePlay";
-
     public static void Invoke(QuestDefinition q)
     {
         if (q == null || string.IsNullOrEmpty(q.questId))
@@ -40,16 +38,5 @@ public static class TutorialQuestAfterClaim
 
         if (SaveManager.Instance != null)
             SaveManager.Instance.Save();
-
-        WorldMapDefinition map = wmp.WorldMap;
-        if (map != null)
-        {
-            MapNodeDefinition dusk = map.FindNodeById("duskwood");
-            if (dusk != null)
-            {
-                ActiveLevelContext.SetPendingLevel(dusk, logToConsole: false);
-                PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
-            }
-        }
     }
 }

@@ -74,6 +74,10 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("If true, the quest can be removed from the quest list and returned to its quest giver.")]
     public bool abandonable;
 
+    [Header("Completion transition")]
+    [Tooltip("Optional map node id to load immediately after this quest reward is claimed (e.g. tutorial_3). Leave empty for no teleport.")]
+    public string teleportPlayerToNodeIdOnCompletion = "";
+
     [Header("Quest obtain location")]
     [Tooltip("Optional id of the QuestGiver this quest starts from. Empty keeps the old behavior: quest is available directly from the quest list.")]
     public string obtainLocationId = "";

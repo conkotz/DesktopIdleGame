@@ -144,7 +144,7 @@ public static class ToggleSettingsStore
         return setting switch
         {
             ToggleSettingId.ShowPlayerHealthBarOutOfCombat => "Show player health bar out of combat",
-            ToggleSettingId.ShowOverheadHealthGuardNumbers => "Show player health and guard number values",
+            ToggleSettingId.ShowOverheadHealthGuardNumbers => "Show health and guard number values on hp bars",
             ToggleSettingId.UseTwentyFourHourTime => "Use 24-hour time",
             ToggleSettingId.ShowWindowResizeHandles => "Show window resize handles",
             ToggleSettingId.TopMostGameWindow => "Is topmost game window",

@@ -35,7 +35,8 @@ MonoBehaviour:
   combatRequiredLevel: 1
   unlockRequirementNotes: 
   connectedNodeIds: []
-  nextNodeIds: []
+  nextNodeIds:
+  - tutorial_2
   biome: 0
   prefabGroups: []
   spawnGroupPlans:

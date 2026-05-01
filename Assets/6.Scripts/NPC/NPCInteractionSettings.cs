@@ -11,16 +11,31 @@ public class NPCInteractionSettings : MonoBehaviour
     [Tooltip("World offset from the top-right of this object's Collider2D bounds.")]
     [SerializeField] private Vector3 dialogueLocalOffset = new(1.95f, 0.5f, 0f);
     [SerializeField] private float nonQuestAutoCloseSeconds = 5f;
+    [SerializeField] private bool openDialogueOnFirstSighting;
 
     [Header("Quest integration")]
     [SerializeField] private QuestGiver questGiver;
 
     private NPCDialogueBoxUI _activeDialogue;
+    private bool _hasOpenedOnFirstSighting;
 
     private void Awake()
     {
         if (!questGiver)
             questGiver = GetComponent<QuestGiver>();
+    }
+
+    private void Update()
+    {
+        if (!openDialogueOnFirstSighting || _hasOpenedOnFirstSighting || !Application.isPlaying)
+            return;
+
+        Camera cam = Camera.main;
+        if (!cam || !IsVisibleInCameraViewport(cam))
+            return;
+
+        _hasOpenedOnFirstSighting = true;
+        Interact();
     }
 
     /// <summary>Used by world click routing: merchants open the shop unless a quest offer should appear instead.</summary>
@@ -94,6 +109,46 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!col)
             col = GetComponentInParent<Collider2D>();
         return col;
+    }
+
+    private bool IsVisibleInCameraViewport(Camera cam)
+    {
+        if (!cam)
+            return false;
+
+        Bounds b;
+        Collider2D col = ResolveInteractCollider2D();
+        if (col != null)
+            b = col.bounds;
+        else
+        {
+            Renderer r = GetComponentInChildren<Renderer>();
+            b = r != null ? r.bounds : new Bounds(transform.position, Vector3.one * 0.25f);
+        }
+
+        Vector3 min = b.min;
+        Vector3 max = b.max;
+        var points = new[]
+        {
+            new Vector3(min.x, min.y, min.z),
+            new Vector3(min.x, min.y, max.z),
+            new Vector3(min.x, max.y, min.z),
+            new Vector3(min.x, max.y, max.z),
+            new Vector3(max.x, min.y, min.z),
+            new Vector3(max.x, min.y, max.z),
+            new Vector3(max.x, max.y, min.z),
+            new Vector3(max.x, max.y, max.z),
+            b.center
+        };
+
+        for (int i = 0; i < points.Length; i++)
+        {
+            Vector3 vp = cam.WorldToViewportPoint(points[i]);
+            if (vp.z > 0f && vp.x >= 0f && vp.x <= 1f && vp.y >= 0f && vp.y <= 1f)
+                return true;
+        }
+
+        return false;
     }
 
     private NPCDialogueBoxUI GetOrCreateDialogueBox()

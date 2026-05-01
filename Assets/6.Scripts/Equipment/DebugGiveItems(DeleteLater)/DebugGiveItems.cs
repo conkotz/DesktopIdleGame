@@ -24,6 +24,7 @@ public class DebugGiveItems : MonoBehaviour
     [SerializeField] private ItemDefinition stoneDef;
     [SerializeField] private ItemDefinition woodDef;
     [SerializeField] private ItemDefinition fishDef;
+    [SerializeField] private ItemDefinition devDestroyerMaceDef;
 
     [Header("Amount")]
     [SerializeField] private int amount = 1;
@@ -34,6 +35,7 @@ public class DebugGiveItems : MonoBehaviour
     [SerializeField] private KeyCode decreaseAllSkillsKey = KeyCode.K;
     [SerializeField] private int grantGold = 50000;
     [SerializeField] private int grantResourceAmount = 100;
+    [SerializeField] private int grantDevDestroyerMaceAmount = 1;
     [SerializeField] private Vector3 popupWorldOffset = new Vector3(0f, 1.6f, 0f);
 
     private void Awake()
@@ -94,6 +96,7 @@ public class DebugGiveItems : MonoBehaviour
         AddToInventory(stoneDef, grantResourceAmount);
         AddToInventory(woodDef, grantResourceAmount);
         AddToInventory(fishDef, grantResourceAmount);
+        AddToInventory(devDestroyerMaceDef, Mathf.Max(1, grantDevDestroyerMaceAmount));
 
         if (levelUpEffect != null)
             levelUpEffect.PlayLevelUp();
@@ -103,7 +106,7 @@ public class DebugGiveItems : MonoBehaviour
         if (popupSpawner != null && popupAnchor != null)
             popupSpawner.ShowMessageAtWorld(popupAnchor.position + popupWorldOffset, "DEBUG LEVEL UP!", Color.yellow);
 
-        Debug.Log($"[DebugGiveItems] Granted pack: +{grantGold} gold, +{grantResourceAmount} stone/wood/fish, +1 level all skills.");
+        Debug.Log($"[DebugGiveItems] Granted pack: +{grantGold} gold, +{grantResourceAmount} stone/wood/fish, +{Mathf.Max(1, grantDevDestroyerMaceAmount)} dev_destroyer_mace, +1 level all skills.");
     }
 
     private void DebugDecreaseAllSkillsOneLevel()
