@@ -121,10 +121,12 @@ public class EnemyBaseController : MonoBehaviour
     private bool _provoked;
     private bool _engaged;
     private bool _isElite;
+    private float _nextDeadlyCloseRangePulseTime;
     /// <summary>Display name without the Elite prefix; used for overhead rich text (red "Elite" + name).</summary>
     private string _nameCoreForUi = "";
 
     private const float EliteVisualScale = 1.3f;
+    private const float DeadlyCloseRangePulseIntervalSeconds = 1f;
     private static readonly Color EliteSpriteColorTint = new Color(1f, 0.72f, 0.72f, 1f);
 
     private CurrencyWallet _wallet;
@@ -440,6 +442,9 @@ public class EnemyBaseController : MonoBehaviour
             SetMoving(ShouldShowIdleWanderMoving());
             return;
         }
+
+        // Special close-range pulses should only happen after the enemy is actively aggroed.
+        TryApplyDeadlyCloseRangeEffect();
 
         UpdateEngagement(dist);
 
@@ -783,13 +788,19 @@ public class EnemyBaseController : MonoBehaviour
         }
     }
 
-    public int TakeDamage(int amount, DamageType type, bool wasCrit, Transform attacker, DpsDamageBucket? dpsBucketOverride = null)
+    public int TakeDamage(int amount, DamageType type, bool wasCrit, Transform attacker, AttackSkill? attackSkillSource = null, DpsDamageBucket? dpsBucketOverride = null)
     {
         if (state == EnemyState.Dead || stats == null)
             return 0;
 
         TryTriggerMapWideAggroFromAttacker(attacker);
         _provoked = true;
+
+        if (IsImmuneToIncomingHit(attackSkillSource))
+        {
+            ShowImmunePopup(attacker);
+            return 0;
+        }
 
         float shockMult = _ailments != null ? _ailments.GetIncomingDamageMultiplier() : 1f;
         float scaledAmount = Mathf.Max(0f, amount * shockMult);
@@ -824,6 +835,7 @@ public class EnemyBaseController : MonoBehaviour
                 DamageType.Physical => FloatingDamageTextUI.PopupDamageKind.Physical,
                 DamageType.Magic => FloatingDamageTextUI.PopupDamageKind.Magic,
                 DamageType.Corruption => FloatingDamageTextUI.PopupDamageKind.Corruption,
+                DamageType.Typless => FloatingDamageTextUI.PopupDamageKind.Typless,
                 _ => FloatingDamageTextUI.PopupDamageKind.Physical
             };
 
@@ -1289,6 +1301,7 @@ public class EnemyBaseController : MonoBehaviour
         {
             DamageType.Magic => DpsDamageBucket.Magic,
             DamageType.Corruption => DpsDamageBucket.Corruption,
+            DamageType.Typless => DpsDamageBucket.Physical,
             _ => DpsDamageBucket.Physical
         };
     }
@@ -1336,6 +1349,60 @@ public class EnemyBaseController : MonoBehaviour
             return true;
 
         return false;
+    }
+
+    private bool IsImmuneToIncomingHit(AttackSkill? attackSkillSource)
+    {
+        if (definition == null || attackSkillSource == null)
+            return false;
+
+        return attackSkillSource.Value switch
+        {
+            AttackSkill.Melee => definition.immuneToMeleeDamage,
+            AttackSkill.Ranged => definition.immuneToRangedDamage,
+            AttackSkill.Magic => definition.immuneToMagicDamage,
+            _ => false
+        };
+    }
+
+    private void ShowImmunePopup(Transform attacker)
+    {
+        if (DamagePopupSystem.Instance == null)
+            return;
+
+        Vector3 pos = damagePopupAnchor ? damagePopupAnchor.WorldPos : transform.position;
+        if (attacker)
+        {
+            float dirX = Mathf.Sign(attacker.position.x - transform.position.x);
+            if (dirX == 0f) dirX = 1f;
+            pos.x += dirX * 0.25f;
+        }
+
+        Vector3 dir = attacker ? (transform.position - attacker.position).normalized : Vector3.up;
+        DamagePopupSystem.Instance.Spawn(
+            pos,
+            0,
+            FloatingDamageTextUI.PopupDamageKind.Immune,
+            false,
+            false,
+            dir,
+            false
+        );
+    }
+
+    private void TryApplyDeadlyCloseRangeEffect()
+    {
+        if (definition == null || !definition.deadlyAtCloseRange || definition.deadlyCloseRangeTyplessDamage <= 0f)
+            return;
+        if (_playerController == null || Time.time < _nextDeadlyCloseRangePulseTime)
+            return;
+
+        float triggerDistance = Mathf.Max(0.1f, definition.deadlyCloseRangeDistance);
+        if (DistanceToPlayerX() > triggerDistance)
+            return;
+
+        _nextDeadlyCloseRangePulseTime = Time.time + DeadlyCloseRangePulseIntervalSeconds;
+        _playerController.TakeDamage(definition.deadlyCloseRangeTyplessDamage, DamageType.Typless, transform, false);
     }
 
     private void HandleAggroPulseTriggered(string nodeId)

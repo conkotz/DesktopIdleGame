@@ -46,6 +46,10 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("For GatherItem: ItemDefinition.itemId")]
     public string gatherItemId = "";
 
+    [TextArea(1, 3)]
+    [Tooltip("Optional custom objective text used by quest list/tracker for special objective kinds (e.g. DieOnce).")]
+    public string specialObjectiveListText = "";
+
     [Header("Rewards (display)")]
     public int rewardGold;
 
@@ -130,6 +134,7 @@ public class QuestDefinition : ScriptableObject
     {
         if (objectiveKind == QuestObjectiveKind.None)
             return false;
-        return currentAmount >= targetCount;
+        int required = Mathf.Max(1, targetCount);
+        return currentAmount >= required;
     }
 }

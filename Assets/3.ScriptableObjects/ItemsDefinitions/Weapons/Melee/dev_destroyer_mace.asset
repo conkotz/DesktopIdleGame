@@ -43,9 +43,9 @@ MonoBehaviour:
     maxLightningDamage: 0
     legacyMinMagicDamage: 0
     legacyMaxMagicDamage: 0
-    minCorruptionDamage: 2
-    maxCorruptionDamage: 4
-    attacksPerSecond: 0.6
+    minCorruptionDamage: 0
+    maxCorruptionDamage: 0
+    attacksPerSecond: 1
     critChance: 1
     critMultiplier: 1.5
     handedness: 0

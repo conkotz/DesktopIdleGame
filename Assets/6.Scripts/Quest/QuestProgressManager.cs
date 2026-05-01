@@ -30,6 +30,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private Inventory _autoInv;
     private SkillsManager _autoSkills;
     private WorldMapProgressManager _autoWorldMap;
+    private CharacterStats _playerDeathStats;
 
     public event Action ProgressChanged;
 
@@ -56,10 +57,12 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private void OnEnable()
     {
         BindAutoCompleteSignals();
+        TryBindPlayerDeathSignal();
     }
 
     private void OnDisable()
     {
+        UnbindPlayerDeathSignal();
         UnbindAutoCompleteSignals();
     }
 
@@ -119,6 +122,66 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private void HandleAutoCompleteSkillLevelUp(SkillType _, int __)
     {
         TryAutoCompleteEligibleQuests();
+    }
+
+    private void Update()
+    {
+        if (_playerDeathStats == null)
+            TryBindPlayerDeathSignal();
+    }
+
+    private void TryBindPlayerDeathSignal()
+    {
+        if (_playerDeathStats != null)
+            return;
+
+        PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player == null)
+            return;
+
+        CharacterStats stats = player.GetComponent<CharacterStats>();
+        if (stats == null)
+            return;
+
+        _playerDeathStats = stats;
+        _playerDeathStats.OnDied -= HandlePlayerDiedForQuestProgress;
+        _playerDeathStats.OnDied += HandlePlayerDiedForQuestProgress;
+    }
+
+    private void UnbindPlayerDeathSignal()
+    {
+        if (_playerDeathStats == null)
+            return;
+
+        _playerDeathStats.OnDied -= HandlePlayerDiedForQuestProgress;
+        _playerDeathStats = null;
+    }
+
+    private void HandlePlayerDiedForQuestProgress()
+    {
+        ResolveQuestDatabase();
+        if (_resolvedDatabase == null)
+            return;
+
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase.All;
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition q = all[i];
+            if (!q || q.objectiveKind != QuestObjectiveKind.DieOnce)
+                continue;
+            if (!q.repeatable && IsRewardClaimed(q.questId))
+                continue;
+            if (!IsQuestAccepted(q))
+                continue;
+            if (IsQuestGatedByPrerequisites(q))
+                continue;
+
+            int required = Mathf.Max(1, q.targetCount);
+            if (GetProgress(q.questId) >= required)
+                continue;
+
+            SetProgress(q.questId, required);
+        }
     }
 
     private QuestDefinition FindQuestDefinition(string questId)
@@ -970,8 +1033,23 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
         LoadAcceptedQuestIds(data);
 
+        ApplyTutorialStoryUnlocksForExistingSaves();
         ProgressChanged?.Invoke();
         TryAutoCompleteEligibleQuests();
+    }
+
+    private void ApplyTutorialStoryUnlocksForExistingSaves()
+    {
+        WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        if (wmp == null)
+            return;
+
+        if (IsRewardClaimed(TutorialQuestAfterClaim.LearningRopes2))
+            wmp.UnlockNode(TutorialQuestAfterClaim.NodeTutorial2);
+
+        if (IsRewardClaimed(TutorialQuestAfterClaim.BasicCombat2))
+            wmp.UnlockNode(TutorialQuestAfterClaim.NodeTutorial3);
     }
 
     private void LoadAcceptedQuestIds(SaveData data)

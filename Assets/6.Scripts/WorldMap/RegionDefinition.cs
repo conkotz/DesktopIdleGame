@@ -33,6 +33,12 @@ public class RegionDefinition : ScriptableObject
     [Tooltip("If true, ALL prerequisite node ids must be completed. If false, ANY one completed node unlocks the region.")]
     public bool requireAllPrerequisites = true;
 
+    [Tooltip("Quest ids whose rewards must be claimed before this region unlocks.")]
+    public List<string> prerequisiteRewardClaimedQuestIds = new();
+
+    [Tooltip("If true, ALL prerequisite quest rewards must be claimed. If false, ANY one claimed quest reward unlocks this gate.")]
+    public bool requireAllPrerequisiteQuestRewards = true;
+
     [Tooltip(
         "After map-node prerequisites pass, keep this region locked until the player has entered a map outside this world region id " +
         "(e.g. greenlands uses 'tutorial' so Combat 2 can finish while still on Tutorial 2, then Greenlands opens after leaving for another region).")]
@@ -97,35 +103,37 @@ public class RegionDefinition : ScriptableObject
         if (!useRegionLock)
             return true;
 
-        if (prerequisiteCompletedNodeIds == null || prerequisiteCompletedNodeIds.Count == 0)
+        bool nodesConfigured = HasAnyConfiguredIds(prerequisiteCompletedNodeIds);
+        bool questsConfigured = HasAnyConfiguredIds(prerequisiteRewardClaimedQuestIds);
+        if (!nodesConfigured && !questsConfigured)
             return false;
 
-        if (progress == null)
+        if (nodesConfigured && progress == null)
             return false;
 
-        bool anyConfigured = false;
-        bool anyMet = false;
-
-        for (int i = 0; i < prerequisiteCompletedNodeIds.Count; i++)
+        if (nodesConfigured &&
+            !AreConfiguredIdsSatisfied(prerequisiteCompletedNodeIds, requireAllPrerequisites, id => progress.IsNodeCompleted(id)))
         {
-            string id = prerequisiteCompletedNodeIds[i];
-            if (string.IsNullOrWhiteSpace(id))
-                continue;
-
-            anyConfigured = true;
-            bool met = progress.IsNodeCompleted(id.Trim());
-
-            if (requireAllPrerequisites && !met)
-                return false;
-            if (!requireAllPrerequisites && met)
-                anyMet = true;
+            return false;
         }
 
-        if (!anyConfigured)
-            return false;
+        if (questsConfigured)
+        {
+            QuestProgressManager questProgress = QuestProgressManager.Instance ??
+                FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+            if (questProgress == null)
+                return false;
 
-        bool prereqsDone = requireAllPrerequisites || anyMet;
-        if (!prereqsDone)
+            if (!AreConfiguredIdsSatisfied(
+                    prerequisiteRewardClaimedQuestIds,
+                    requireAllPrerequisiteQuestRewards,
+                    id => questProgress.IsRewardClaimed(id)))
+            {
+                return false;
+            }
+        }
+
+        if (!nodesConfigured && !questsConfigured)
             return false;
 
         if (!string.IsNullOrWhiteSpace(unlockAfterLeavingWorldRegionId) && progress != null && map != null)
@@ -135,6 +143,48 @@ public class RegionDefinition : ScriptableObject
         }
 
         return true;
+    }
+
+    private static bool HasAnyConfiguredIds(List<string> ids)
+    {
+        if (ids == null || ids.Count == 0)
+            return false;
+        for (int i = 0; i < ids.Count; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(ids[i]))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool AreConfiguredIdsSatisfied(List<string> ids, bool requireAll, Func<string, bool> isSatisfied)
+    {
+        if (ids == null || ids.Count == 0 || isSatisfied == null)
+            return false;
+
+        bool anyConfigured = false;
+        bool anyMet = false;
+
+        for (int i = 0; i < ids.Count; i++)
+        {
+            string raw = ids[i];
+            if (string.IsNullOrWhiteSpace(raw))
+                continue;
+
+            string id = raw.Trim();
+            anyConfigured = true;
+            bool met = isSatisfied(id);
+            if (requireAll && !met)
+                return false;
+            if (!requireAll && met)
+                anyMet = true;
+        }
+
+        if (!anyConfigured)
+            return false;
+
+        return requireAll || anyMet;
     }
 
     /// <summary>

@@ -11,9 +11,11 @@ public class FloatingDamageTextUI : MonoBehaviour
         Physical,
         Magic,
         Corruption,
+        Typless,
         Bleed,
         Poison,
-        Blocked
+        Blocked,
+        Immune
     }
 
     [Header("Refs")]
@@ -45,6 +47,7 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField] private Color magicColor = new Color32(80, 170, 255, 255);
     [FormerlySerializedAs("trueColor")]
     [SerializeField] private Color corruptionColor = new Color32(112, 64, 192, 255);
+    [SerializeField] private Color typlessColor = Color.white;
     [SerializeField] private Color bleedColor = new Color32(170, 35, 35, 255);
     [SerializeField] private Color poisonColor = new Color32(85, 200, 90, 255);
     [SerializeField] private Color blockColor = new Color32(80, 170, 255, 255);
@@ -121,6 +124,20 @@ public class FloatingDamageTextUI : MonoBehaviour
         _run = StartCoroutine(Run(dir, visibleSeconds + fadeOutSeconds));
     }
 
+    public void InitImmune(Vector3 worldDirection)
+    {
+        if (!text) return;
+
+        text.text = "Immune";
+        text.color = blockColor;
+        text.fontSize = _baseFontSize;
+
+        Vector2 dir = BuildDirection(worldDirection);
+
+        if (_run != null) StopCoroutine(_run);
+        _run = StartCoroutine(Run(dir, visibleSeconds + fadeOutSeconds));
+    }
+
     private Color GetDisplayColor(PopupDamageKind kind, bool isCrit)
     {
         Color c = kind switch
@@ -128,9 +145,11 @@ public class FloatingDamageTextUI : MonoBehaviour
             PopupDamageKind.Physical => physicalColor,
             PopupDamageKind.Magic => magicColor,
             PopupDamageKind.Corruption => corruptionColor,
+            PopupDamageKind.Typless => typlessColor,
             PopupDamageKind.Bleed => bleedColor,
             PopupDamageKind.Poison => poisonColor,
             PopupDamageKind.Blocked => blockColor,
+            PopupDamageKind.Immune => blockColor,
             _ => physicalColor
         };
 

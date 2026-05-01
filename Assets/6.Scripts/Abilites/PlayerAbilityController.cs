@@ -461,11 +461,11 @@ public class PlayerAbilityController : MonoBehaviour
         int corr = Mathf.Max(0, Mathf.RoundToInt(corrPart * critMult));
         int dealt = 0;
         if (phys > 0)
-            dealt += target.TakeDamage(phys, DamageType.Physical, wasCrit, transform);
+            dealt += target.TakeDamage(phys, DamageType.Physical, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null);
         if (mag > 0)
-            dealt += target.TakeDamage(mag, DamageType.Magic, wasCrit, transform);
+            dealt += target.TakeDamage(mag, DamageType.Magic, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null);
         if (corr > 0)
-            dealt += target.TakeDamage(corr, DamageType.Corruption, wasCrit, transform);
+            dealt += target.TakeDamage(corr, DamageType.Corruption, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null);
 
         // Fire the attack anim as feedback, but do not modify basic attack cooldown timing.
         player.TriggerAttackAnim();
@@ -874,11 +874,11 @@ public class PlayerAbilityController : MonoBehaviour
         float corrRaw = Mathf.Max(0f, hit.corruptionDamage * cond);
 
         if (phys > 0f)
-            result.physical = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(phys), DamageType.Physical, wasCrit, transform));
+            result.physical = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(phys), DamageType.Physical, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null));
         if (mag > 0f)
-            result.magic = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(mag), DamageType.Magic, wasCrit, transform));
+            result.magic = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(mag), DamageType.Magic, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null));
         if (corrRaw > 0f)
-            result.corruptionDamage = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(corrRaw), DamageType.Corruption, wasCrit, transform));
+            result.corruptionDamage = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(corrRaw), DamageType.Corruption, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null));
 
         return result;
     }

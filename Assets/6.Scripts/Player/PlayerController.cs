@@ -2097,6 +2097,7 @@ public class PlayerController : MonoBehaviour
                 DamageType.Physical => FloatingDamageTextUI.PopupDamageKind.Physical,
                 DamageType.Magic => FloatingDamageTextUI.PopupDamageKind.Magic,
                 DamageType.Corruption => FloatingDamageTextUI.PopupDamageKind.Corruption,
+                DamageType.Typless => FloatingDamageTextUI.PopupDamageKind.Typless,
                 _ => FloatingDamageTextUI.PopupDamageKind.Physical
             };
 
@@ -2123,6 +2124,7 @@ public class PlayerController : MonoBehaviour
         {
             DamageType.Magic => DpsDamageBucket.Magic,
             DamageType.Corruption => DpsDamageBucket.Corruption,
+            DamageType.Typless => DpsDamageBucket.Physical,
             _ => DpsDamageBucket.Physical
         };
     }

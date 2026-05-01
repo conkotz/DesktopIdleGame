@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4de60bca8597d954ea0c7c5a377a09cf, type: 3}
-  m_Name: enemy_tutorial_rogue
+  m_Name: enemy_tutorial_archer
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
-  enemyId: enemy_tutorial_rogue
-  displayName: Rogue
+  enemyId: enemy_tutorial_archer
+  displayName: Ivan
   description: 
   icon: {fileID: 0}
-  prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
-  maxHealth: 30
+  prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
+  maxHealth: 40
   maxEnergy: 0
   maxMana: 0
   armor: 0
@@ -26,15 +26,15 @@ MonoBehaviour:
   physBlockChance: 0
   flatGuard: 0
   maxGuardPercent: 0
-  minPhysicalDamage: 2
-  maxPhysicalDamage: 4
+  minPhysicalDamage: 10
+  maxPhysicalDamage: 15
   minMagicDamage: 0
   maxMagicDamage: 0
   minCorruptionDamage: 0
   maxCorruptionDamage: 0
-  attackSpeed: 1
-  moveSpeed: 3
-  attackRange: 1
+  attackSpeed: 0.3
+  moveSpeed: 2
+  attackRange: 8
   critChance: 0
   critMultiplier: 1.5
   lifeRegenPerSecond: 0
@@ -60,23 +60,23 @@ MonoBehaviour:
   burnExplosionMultiplier: 0.5
   shockDuration: 5
   shockDamageTakenMultiplier: 0.15
-  deadlyAtCloseRange: 0
+  deadlyAtCloseRange: 1
   deadlyCloseRangeDistance: 3
-  deadlyCloseRangeTyplessDamage: 0
-  immuneToMeleeDamage: 0
+  deadlyCloseRangeTyplessDamage: 25
+  immuneToMeleeDamage: 1
   immuneToRangedDamage: 0
   immuneToMagicDamage: 0
   idleWanderEnabled: 1
-  idleWanderSpeed: 2
+  idleWanderSpeed: 1.5
   idleWanderMoveMinSec: 1
-  idleWanderMoveMaxSec: 3
+  idleWanderMoveMaxSec: 2
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
-  idleWanderMaxDistanceFromSpawn: 6
+  idleWanderMaxDistanceFromSpawn: 10
   grantCombatXp: 1
   dropGold: 1
-  goldMin: 10
-  goldMax: 20
+  goldMin: 50
+  goldMax: 70
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2

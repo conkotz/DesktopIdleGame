@@ -733,11 +733,11 @@ public class SoulforgedWeaponMinion : MonoBehaviour
 
         Transform atk = _attackerTransform ? _attackerTransform : transform;
         if (ip > 0)
-            enemy.TakeDamage(ip, DamageType.Physical, crit, atk, DpsDamageBucket.Minion);
+            enemy.TakeDamage(ip, DamageType.Physical, crit, atk, null, DpsDamageBucket.Minion);
         if (im > 0)
-            enemy.TakeDamage(im, DamageType.Magic, crit, atk, DpsDamageBucket.Minion);
+            enemy.TakeDamage(im, DamageType.Magic, crit, atk, null, DpsDamageBucket.Minion);
         if (ic > 0)
-            enemy.TakeDamage(ic, DamageType.Corruption, false, atk, DpsDamageBucket.Minion);
+            enemy.TakeDamage(ic, DamageType.Corruption, false, atk, null, DpsDamageBucket.Minion);
 
         MinionHitEffects.ApplyAilmentsFromOwnerWeapon(
             enemy,

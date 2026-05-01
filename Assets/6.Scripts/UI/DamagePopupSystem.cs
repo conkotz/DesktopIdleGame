@@ -160,7 +160,9 @@ public class DamagePopupSystem : MonoBehaviour
 
         floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, yOffset), _worldProjectionCamera, rectForMath, eventCam);
 
-        if (blocked || kind == FloatingDamageTextUI.PopupDamageKind.Blocked)
+        if (kind == FloatingDamageTextUI.PopupDamageKind.Immune)
+            floater.InitImmune(direction);
+        else if (blocked || kind == FloatingDamageTextUI.PopupDamageKind.Blocked)
             floater.InitBlocked(direction);
         else
             floater.Init(amount, kind, isCrit, isDot, direction);

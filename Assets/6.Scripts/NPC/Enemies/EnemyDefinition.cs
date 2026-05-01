@@ -241,6 +241,28 @@ public class EnemyDefinition : ScriptableObject
     [Tooltip("Maps to CharacterStats baseShockDamageTakenMultiplier.")]
     public float shockDamageTakenMultiplier = 0.15f;
 
+    [Header("Unique Effects / Special")]
+    [Tooltip("When enabled, this enemy deals periodic typless damage while the player is within Deadly Distance.")]
+    public bool deadlyAtCloseRange = false;
+
+    [Min(0.1f)]
+    [Tooltip("Edge-to-edge horizontal range required to trigger Deadly at close range.")]
+    public float deadlyCloseRangeDistance = 3f;
+
+    [Min(0f)]
+    [Tooltip("Typless damage dealt each deadly close-range pulse. Uses true damage rules (unmitigable, unblockable).")]
+    public float deadlyCloseRangeTyplessDamage = 0f;
+
+    [Header("Damage Immunities")]
+    [Tooltip("Ignore all incoming melee attack hits.")]
+    public bool immuneToMeleeDamage = false;
+
+    [Tooltip("Ignore all incoming ranged attack hits.")]
+    public bool immuneToRangedDamage = false;
+
+    [Tooltip("Ignore all incoming magic attack hits.")]
+    public bool immuneToMagicDamage = false;
+
     [Header("Idle wander (optional)")]
     [Tooltip("When not aggroed, pace horizontally around the spawn point using Max Walk Distance From Spawn.")]
     public bool idleWanderEnabled = false;

@@ -3169,6 +3169,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         switch (type)
         {
+            case DamageType.Typless:
+                // True untyped damage: no block chance, no mitigation, no reduction modifiers.
+                return rawDamage;
+
             case DamageType.Corruption:
                 return ApplyFlatDamageTakenReduction(
                     ApplyMeleeDamageReduction(MitigateByRating(rawDamage, CorruptionResist * defMult)),

@@ -632,8 +632,7 @@ public class LevelSelectPageUI : MonoBehaviour
         {
             if (sb.Length > 0)
                 sb.AppendLine();
-            sb.Append(
-                "Map: Locked — not unlocked in WorldMapProgressManager yet. Add this node id to unlocks, or turn off Requires Map Unlock on the asset if skills alone should open it.");
+            sb.Append("Map: Locked");
         }
 
         SkillsManager skills = FindSkillsManager();

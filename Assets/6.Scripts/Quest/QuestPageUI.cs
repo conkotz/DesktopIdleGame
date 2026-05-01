@@ -1064,6 +1064,7 @@ public class QuestPageUI : MonoBehaviour
                 {
                     QuestObjectiveKind.KillCount => FormatKillQuestProgressKindLabel(q, enemies),
                     QuestObjectiveKind.GatherItem => FormatGatherQuestProgressKindLabel(q, items),
+                    QuestObjectiveKind.DieOnce => ResolveSpecialObjectiveTextOrDefault(q, "Special Objective"),
                     _ => ""
                 };
             }
@@ -1240,6 +1241,8 @@ public class QuestPageUI : MonoBehaviour
                     $"Completed - {target} {GatherObjectiveItemLabel(q, db)}",
                 QuestObjectiveKind.KillCount =>
                     $"Completed - {target} {KillQuestEnemyUnitLabel(q, enemyDb, target)}",
+                QuestObjectiveKind.DieOnce =>
+                    $"Completed - {ResolveSpecialObjectiveTextOrDefault(q, "Die once")}",
                 _ => "Completed"
             };
         }
@@ -1258,9 +1261,18 @@ public class QuestPageUI : MonoBehaviour
                 string itemName = GatherObjectiveItemLabel(q, db);
                 return $"{current} {itemName} / {target} {itemName}";
             }
+            case QuestObjectiveKind.DieOnce:
+                return ResolveSpecialObjectiveTextOrDefault(q, "Die once");
             default:
                 return "";
         }
+    }
+
+    private static string ResolveSpecialObjectiveTextOrDefault(QuestDefinition q, string fallback)
+    {
+        if (q != null && !string.IsNullOrWhiteSpace(q.specialObjectiveListText))
+            return q.specialObjectiveListText.Trim();
+        return fallback;
     }
 
     private static string FormatRewardsLine(QuestDefinition q, ItemDatabase db)

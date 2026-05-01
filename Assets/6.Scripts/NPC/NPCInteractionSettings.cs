@@ -35,7 +35,7 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
 
         _hasOpenedOnFirstSighting = true;
-        Interact();
+        ShowNormalDialogueOnly();
     }
 
     /// <summary>Used by world click routing: merchants open the shop unless a quest offer should appear instead.</summary>
@@ -87,6 +87,28 @@ public class NPCInteractionSettings : MonoBehaviour
 
         box.ShowAt(transform, transform, Vector3.zero, dialogue, showAccept: false,
             onAccept: null, nonQuestAutoCloseSeconds);
+    }
+
+    private void ShowNormalDialogueOnly()
+    {
+        if (string.IsNullOrWhiteSpace(dialogue))
+            return;
+
+        if (NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
+            return;
+
+        NPCDialogueBoxUI box = GetOrCreateDialogueBox();
+        if (!box)
+            return;
+
+        box.ShowAt(
+            transform,
+            transform,
+            Vector3.zero,
+            dialogue,
+            showAccept: false,
+            onAccept: null,
+            nonQuestAutoCloseSeconds);
     }
 
     /// <summary>World point for dialogue follow each frame — uses collider bounds + <see cref="dialogueLocalOffset"/> so NPC hover scale cannot drift the pivot.</summary>

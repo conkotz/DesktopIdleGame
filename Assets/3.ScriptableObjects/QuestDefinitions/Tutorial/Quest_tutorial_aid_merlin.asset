@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
+  m_Name: Quest_tutorial_aid_merlin
+  m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
+  questId: tutorial_aid_merlin
+  regionId: tutorial
+  displayName: Aid merlin
+  description: Try and defeat Ivan.
+  details: This guy isnt your normal enemy...
+  listCategoryLabel: Combat
+  listStatusOverride: 
+  objectiveKind: 3
+  targetCount: 1
+  gatherItemId: 
+  specialObjectiveListText: Kill Ivan???
+  rewardGold: 0
+  rewardItem: {fileID: 11400000, guid: a197f0b628ce61444915b2b725bf4471, type: 2}
+  rewardItemId: basic_ice_wand
+  rewardItemQuantity: 1
+  additionalItemRewards:
+  - item: {fileID: 11400000, guid: a9b9fbd1af4462542b24e62b53a6bff5, type: 2}
+    itemId: basic_focus
+    quantity: 1
+  - item: {fileID: 11400000, guid: 62f3f781aaffd6e46a32040a8b81664b, type: 2}
+    itemId: 
+    quantity: 5
+  rewardNotes: 
+  repeatable: 0
+  autoCompleteQuest: 0
+  abandonable: 0
+  teleportPlayerToNodeIdOnCompletion: 
+  obtainLocationId: npc_tutorial_3
+  obtainLocationDisplayName: Merlin in Tutorial 3
+  progressMapNodeId: 
+  killProgressOnlyOnProgressMap: 0
+  prerequisiteRewardClaimedQuestIds:
+  - tutorial_basic_combat_2
+  requireAllPrerequisiteQuests: 1
+  requiredCompletedMapNodeId: 
+  requiredSkillLevels: []
+  killEnemyIdFilter: 
+  hideUntilMapNodeUnlockedId: 
+  sortOrder: 13

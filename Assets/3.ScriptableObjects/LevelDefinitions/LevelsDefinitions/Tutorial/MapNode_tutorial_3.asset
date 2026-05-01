@@ -16,11 +16,11 @@ MonoBehaviour:
   displayName: Tutorial Level 3
   description: Distanced Combat
   nodeType: 0
-  enemyAggroMode: 2
+  enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 1
   enemyRespawnEnabled: 0
-  enemyRespawnDelaySeconds: 3
+  enemyRespawnDelaySeconds: 1
   eliteSpawnChance: 0
   fallbackRecommendedCombatPower: 1
   isRepeatable: 0
@@ -50,13 +50,12 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
-    shuffleSpawnPoints: 1
-  simpleCombatWaves:
-  - defaultSpawnGroupId: MiddleSpawns
+    shuffleSpawnPoints: 0
+  - groupId: MiddleSpawns
     spawns:
     - spawnPointGroupId: 
       spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 3eca1e824a54ed84f84eb314acdeabed, type: 2}
+      enemyDefinition: {fileID: 11400000, guid: a4d17577548723844bf438bc259b4c29, type: 2}
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
       itemAmount: 0
@@ -64,36 +63,7 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
     shuffleSpawnPoints: 1
-    repeatThisWave: 0
-    _legacyGroupPlans: []
-  - defaultSpawnGroupId: MiddleSpawns
-    spawns:
-    - spawnPointGroupId: 
-      spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 3eca1e824a54ed84f84eb314acdeabed, type: 2}
-      prefab: {fileID: 0}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 2
-    shuffleSpawnPoints: 1
-    repeatThisWave: 0
-    _legacyGroupPlans: []
-  - defaultSpawnGroupId: MiddleSpawns
-    spawns:
-    - spawnPointGroupId: 
-      spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 3eca1e824a54ed84f84eb314acdeabed, type: 2}
-      prefab: {fileID: 0}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 3
-    shuffleSpawnPoints: 1
-    repeatThisWave: 1
-    _legacyGroupPlans: []
+  simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 1
   simpleCombatWavesRequireQuestRewardClaimed: 0
   simpleCombatWavesRequiredQuestId: 

@@ -23,6 +23,11 @@ MonoBehaviour:
   backgroundSprite: {fileID: 0}
   useRegionLock: 1
   prerequisiteCompletedNodeIds:
-  - tutorial_2
+  - 
   requireAllPrerequisites: 1
+  prerequisiteRewardClaimedQuestIds:
+  - tutorial_aid_merlin
+  requireAllPrerequisiteQuestRewards: 1
   unlockAfterLeavingWorldRegionId: tutorial
+  lockWhenAllNodesCompleted: []
+  hideFromRegionListsWhenLocked: 0

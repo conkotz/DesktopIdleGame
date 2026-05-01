@@ -184,6 +184,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
             {
                 QuestObjectiveKind.KillCount => $"{Mathf.Clamp(current, 0, target)}/{target} kills",
                 QuestObjectiveKind.GatherItem => $"{Mathf.Clamp(current, 0, target)}/{target} gathered",
+                QuestObjectiveKind.DieOnce => ResolveSpecialObjectiveTextOrDefault(q, "Die once"),
                 _ => $"{Mathf.Clamp(current, 0, target)}/{target}"
             };
 
@@ -438,6 +439,13 @@ public class QuestTrackerWindowUI : MonoBehaviour
 
         if (!ui.gameObject.activeSelf)
             ui.gameObject.SetActive(true);
+    }
+
+    private static string ResolveSpecialObjectiveTextOrDefault(QuestDefinition q, string fallback)
+    {
+        if (q != null && !string.IsNullOrWhiteSpace(q.specialObjectiveListText))
+            return q.specialObjectiveListText.Trim();
+        return fallback;
     }
 
     private static Transform FindChildByName(Transform root, string childName)

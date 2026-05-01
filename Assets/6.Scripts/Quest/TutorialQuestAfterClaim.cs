@@ -10,6 +10,7 @@ public static class TutorialQuestAfterClaim
 
     public const string NodeTutorial1 = "tutorial_1";
     public const string NodeTutorial2 = "tutorial_2";
+    public const string NodeTutorial3 = "tutorial_3";
 
     public static void Invoke(QuestDefinition q)
     {
@@ -30,6 +31,8 @@ public static class TutorialQuestAfterClaim
 
         if (id != BasicCombat2)
             return;
+
+        wmp.UnlockNode(NodeTutorial3);
 
         bool wasTutorial2Completed = wmp.IsNodeCompleted(NodeTutorial2);
         wmp.SetNodeCompleted(NodeTutorial2, true);

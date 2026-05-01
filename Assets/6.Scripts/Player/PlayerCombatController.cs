@@ -1328,7 +1328,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 Mathf.RoundToInt(rolled.physical * conditionalDamageMult),
                 DamageType.Physical,
                 wasCrit,
-                player.transform
+                player.transform,
+                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null
             );
 
             result.physical = Mathf.Max(0f, dealt);
@@ -1340,7 +1341,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 Mathf.RoundToInt(rolled.magic * conditionalDamageMult),
                 DamageType.Magic,
                 wasCrit,
-                player.transform
+                player.transform,
+                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null
             );
 
             result.magic = Mathf.Max(0f, dealt);
@@ -1353,7 +1355,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 Mathf.RoundToInt(potency),
                 DamageType.Corruption,
                 wasCrit,
-                player.transform
+                player.transform,
+                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null
             );
 
             result.corruptionDamage = Mathf.Max(0f, dealt);
