@@ -102,7 +102,7 @@ public class UIHoverTooltip : MonoBehaviour, IPointerEnterHandler, IPointerExitH
 
         Transform anchor = useSharedTooltipAnchor && tooltipAnchor ? tooltipAnchor : transform;
         tooltipPanel.SetAnchor(anchor);
-        tooltipPanel.ShowText(title, body);
+        tooltipPanel.ShowText(title, body, null, useStatsDisplayHeader: true);
     }
 
     public void OnPointerExit(PointerEventData eventData)

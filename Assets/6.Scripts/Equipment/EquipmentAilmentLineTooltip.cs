@@ -89,7 +89,7 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
         }
 
         tooltipPanel.SetAnchor(transform);
-        tooltipPanel.ShowText(title, body);
+        tooltipPanel.ShowText(title, body, null, useStatsDisplayHeader: true);
     }
 
     public void OnPointerExit(PointerEventData eventData)

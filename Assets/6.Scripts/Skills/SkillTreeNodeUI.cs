@@ -14,6 +14,12 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     private const float SideLabelWidth = 80f;
     private const float CapstoneLabelYOffset = 12f;
 
+    private const float LockedFillRgbScale = 0.06f;
+    private const float LockedFillAlphaScale = 0.25f;
+    private const float LockedIconRgbScale = 0.1f;
+    private const float LockedIconAlphaScale = 0.18f;
+    private const float LockedOverlayAlpha = 0.97f;
+
     [Header("References")]
     [SerializeField] private RectTransform rectTransform;
     [SerializeField] private Image outerRingImage;
@@ -62,8 +68,27 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     private System.Action onHoverExit;
     private Vector2 _baseOuterRingSize;
     private Outline _fillOutline;
+    private Color _unlockedFillColor = Color.black;
+    private Color _unlockedIconColor = Color.white;
+    private Color _unlockedRingColor = Color.white;
+    private Color _defaultLockedOverlayColor = new Color(0f, 0f, 0f, 0.92f);
+    private Color _unlockedOutlineEffect = Color.black;
+    private bool _cachedUnlockedOutline;
 
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
+
+    private void Awake()
+    {
+        if (lockedOverlay != null)
+        {
+            Image overlayImg = lockedOverlay.GetComponent<Image>();
+            if (overlayImg != null)
+                _defaultLockedOverlayColor = overlayImg.color;
+        }
+
+        if (outerRingImage != null)
+            _unlockedRingColor = outerRingImage.color;
+    }
 
     /// <summary>
     /// Shared source of truth for node visual sizes.
@@ -196,6 +221,60 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
         }
 
         ApplySelectedOutlineFallback();
+        RefreshLockedPresentation();
+    }
+
+    private void RefreshLockedPresentation()
+    {
+        if (_fillOutline == null && fillImage != null)
+            _fillOutline = fillImage.GetComponent<Outline>();
+        if (_fillOutline != null && !_cachedUnlockedOutline)
+        {
+            _unlockedOutlineEffect = _fillOutline.effectColor;
+            _cachedUnlockedOutline = true;
+        }
+
+        if (fillImage != null)
+            fillImage.color = isLocked ? LockedTintFill(_unlockedFillColor) : _unlockedFillColor;
+
+        if (iconImage != null && iconImage.gameObject.activeSelf && iconImage.sprite != null)
+            iconImage.color = isLocked ? LockedTintIcon(_unlockedIconColor) : _unlockedIconColor;
+
+        if (_fillOutline != null)
+            _fillOutline.effectColor = isLocked ? LockedTintIcon(_unlockedOutlineEffect) : _unlockedOutlineEffect;
+
+        if (lockedOverlay != null)
+        {
+            Image overlayImg = lockedOverlay.GetComponent<Image>();
+            if (overlayImg != null)
+            {
+                Color c = overlayImg.color;
+                overlayImg.color = isLocked
+                    ? new Color(c.r, c.g, c.b, LockedOverlayAlpha)
+                    : _defaultLockedOverlayColor;
+            }
+        }
+
+        if (outerRingImage != null)
+            outerRingImage.color = isLocked ? LockedTintIcon(_unlockedRingColor) : _unlockedRingColor;
+    }
+
+    private static Color LockedTintFill(Color c)
+    {
+        return new Color(
+            c.r * LockedFillRgbScale,
+            c.g * LockedFillRgbScale,
+            c.b * LockedFillRgbScale,
+            c.a * LockedFillAlphaScale);
+    }
+
+    private static Color LockedTintIcon(Color c)
+    {
+        return new Color(
+            c.r * LockedIconRgbScale,
+            c.g * LockedIconRgbScale,
+            c.b * LockedIconRgbScale,
+            c.a * LockedIconAlphaScale);
     }
 
     public bool IsLocked()
@@ -215,6 +294,10 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
         iconImage.sprite = sprite;
         iconImage.gameObject.SetActive(visible && sprite != null);
+        if (visible && sprite != null)
+            _unlockedIconColor = Color.white;
+
+        RefreshLockedPresentation();
     }
 
     public void ApplyVisualType(SkillTreeNodeVisualType type)
@@ -269,7 +352,10 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = rootSize;
             _baseOuterRingSize = rt.sizeDelta;
+            outerRingImage.color = _unlockedRingColor;
         }
+
+        _unlockedFillColor = color;
 
         if (fillImage != null)
         {
@@ -283,6 +369,8 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
         if (iconImage != null)
         {
+            iconImage.color = Color.white;
+            _unlockedIconColor = Color.white;
             FitIconToNode();
             iconImage.gameObject.SetActive(showIcon && iconImage.sprite != null);
         }
@@ -315,6 +403,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
         // Side labels disabled for now (tooltips later).
         ApplySelectedOutlineFallback();
+        RefreshLockedPresentation();
     }
 
     private void LayoutSideLabels(Vector2 rootSize, bool showSideLabels)

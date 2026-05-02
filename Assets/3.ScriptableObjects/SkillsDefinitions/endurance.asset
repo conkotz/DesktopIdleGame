@@ -25,5 +25,8 @@ MonoBehaviour:
     title: Basic Armour
     description: Can equip stone, leather and linen robes
     icon: {fileID: -7556199866425377712, guid: 3a5bee715b8e3a040a3f9abb0f109194, type: 3}
-    unlockType: 0
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
+    choices: []

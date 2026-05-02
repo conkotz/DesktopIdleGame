@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class SharedTooltipUI : MonoBehaviour
@@ -9,14 +10,22 @@ public class SharedTooltipUI : MonoBehaviour
 
     [Header("Text")]
     [SerializeField] private TMP_Text nameText;
+
+    [Tooltip("Smaller title for plain-text tooltips (e.g. stats panel hovers). When used, NameText is hidden.")]
+    [SerializeField] private TMP_Text statsOnlyNameText;
+
     [SerializeField] private TMP_Text rarityText;
     [SerializeField] private TMP_Text valueEachText;
     [SerializeField] private TMP_Text stackValueText;
     [SerializeField] private TMP_Text descriptionText;
     [SerializeField] private TMP_Text customValueText; // optional now / not relied on
 
-    [Header("Stats")]
-    [SerializeField] private TMP_Text statsText;
+    [Header("Misc stats (tier, requirements, type, tool line…)")]
+    [FormerlySerializedAs("statsText")]
+    [SerializeField] private TMP_Text miscStatsText;
+
+    [Header("Main stats (damage, gather rates, armor, support bonuses…)")]
+    [SerializeField] private TMP_Text mainStatsText;
 
     [Header("Rarity UI")]
     [SerializeField] private Image rarityBorder;
@@ -27,12 +36,38 @@ public class SharedTooltipUI : MonoBehaviour
     [Tooltip("VLG + CSF tooltip box (e.g. child named Content). Rebuilt before flip positioning.")]
     [SerializeField] private RectTransform tooltipLayoutRoot;
 
+    [Header("Content width (TMP)")]
+    [Tooltip("Minimum total width of the Content rect (short lines still get this width).")]
+    [SerializeField] private float tooltipContentMinWidth = 220f;
+
+    [Tooltip("Maximum total width before TMP wraps and the panel grows vertically.")]
+    [SerializeField] private float tooltipContentMaxWidth = 400f;
+
+    [Header("Section spacing")]
+    [Tooltip("Extra space below the description block (TMP margin). Newlines alone often do not change layout height with VLG/CSF.")]
+    [SerializeField] private float spacingAfterDescriptionPixels = 8f;
+
+    [Tooltip("Extra space below main stats, or below the combined stats block when MainStatsText is not used.")]
+    [SerializeField] private float spacingAfterMainStatsPixels = 8f;
+
     [Header("Scale")]
     [SerializeField] private Vector2 defaultTooltipScale = Vector2.one;
     [SerializeField] private Vector2 hudTooltipScale = new Vector2(0.8f, 0.8f);
 
     private RectTransform _defaultParent;
     private RectTransform _rt;
+
+    /// <summary>When parented to a slot/window, used to cancel that hierarchy's lossy scale so tooltip size follows <see cref="SliderSettingId.TooltipResize"/> only.</summary>
+    private Transform _scaleAnchor;
+
+    private bool _useHudTooltipScalePath;
+
+    private LayoutElement _tooltipContentLayoutElement;
+
+    private Vector4 _marginBaseDescription;
+    private Vector4 _marginBaseMisc;
+    private Vector4 _marginBaseMain;
+    private bool _tooltipMarginBasesCaptured;
 
     private void Awake()
     {
@@ -54,6 +89,9 @@ public class SharedTooltipUI : MonoBehaviour
                 tooltipLayoutRoot = t as RectTransform;
         }
 
+        ConfigureTooltipContentForDynamicWidth();
+        ResolveOptionalSplitStatsTextRefs();
+
         if (canvasGroup)
         {
             canvasGroup.blocksRaycasts = false;
@@ -61,6 +99,56 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         Hide();
+    }
+
+    private void OnEnable()
+    {
+        SliderSettingsStore.Changed += OnSliderSettingsChanged;
+    }
+
+    private void OnDisable()
+    {
+        SliderSettingsStore.Changed -= OnSliderSettingsChanged;
+    }
+
+    private void LateUpdate()
+    {
+        if (!canvasGroup || canvasGroup.alpha < 0.01f || !_scaleAnchor)
+            return;
+
+        ApplyDockedTooltipScale();
+    }
+
+    private void OnSliderSettingsChanged(SliderSettingId id, float _)
+    {
+        if (id != SliderSettingId.TooltipResize)
+            return;
+
+        if (canvasGroup && canvasGroup.alpha > 0.01f)
+            ApplyDockedTooltipScale();
+    }
+
+    /// <summary>
+    /// World-space size ≈ <paramref name="baseScale"/> × tooltip slider; parent chain scale (e.g. per-window resize) is divided out when docked.
+    /// </summary>
+    private void ApplyDockedTooltipScale()
+    {
+        if (!_rt)
+            return;
+
+        Vector2 baseScale = _useHudTooltipScalePath ? hudTooltipScale : defaultTooltipScale;
+        float ax = _scaleAnchor ? Mathf.Max(0.001f, _scaleAnchor.lossyScale.x) : 1f;
+        float tipMul = Mathf.Max(0.05f, SliderSettingsStore.Get(SliderSettingId.TooltipResize));
+        float f = tipMul / ax;
+        _rt.localScale = new Vector3(baseScale.x * f, baseScale.y * f, 1f);
+    }
+
+    private void ResetTooltipLocalScaleToDefaultAuthored()
+    {
+        if (!_rt)
+            return;
+
+        _rt.localScale = new Vector3(defaultTooltipScale.x, defaultTooltipScale.y, 1f);
     }
 
     public void Show(
@@ -73,11 +161,15 @@ public class SharedTooltipUI : MonoBehaviour
         if (!def || !canvasGroup || !nameText)
             return;
 
+        ResetTooltipSectionMargins();
+
         SetEquipmentCompactMode(false);
 
         var c = GetRarityColor(def.rarity);
 
         if (rarityBorder) rarityBorder.color = c;
+
+        HideStatsOnlyNameHeader();
 
         nameText.color = c;
         nameText.text = def.displayName;
@@ -107,15 +199,14 @@ public class SharedTooltipUI : MonoBehaviour
         if (descriptionText)
         {
             descriptionText.text = itemDescription;
-            descriptionText.gameObject.SetActive(!string.IsNullOrWhiteSpace(itemDescription));
+            bool hasDesc = !string.IsNullOrWhiteSpace(itemDescription);
+            descriptionText.margin = hasDesc
+                ? WithExtraBottomMargin(_marginBaseDescription, spacingAfterDescriptionPixels)
+                : _marginBaseDescription;
+            descriptionText.gameObject.SetActive(hasDesc);
         }
 
-        if (statsText)
-        {
-            string stats = BuildTooltipStatsTextWithSupportRequirement(def);
-            statsText.text = stats;
-            statsText.gameObject.SetActive(!string.IsNullOrWhiteSpace(stats));
-        }
+        BindTooltipStats(def);
 
         if (hasShopBlock)
         {
@@ -172,8 +263,7 @@ public class SharedTooltipUI : MonoBehaviour
             }
         }
 
-        if (_rt)
-            _rt.localScale = new Vector3(defaultTooltipScale.x, defaultTooltipScale.y, 1f);
+        ApplyDockedTooltipScale();
 
         RebuildTooltipLayoutNow();
 
@@ -185,11 +275,15 @@ public class SharedTooltipUI : MonoBehaviour
         if (!def || !canvasGroup || !nameText)
             return;
 
+        ResetTooltipSectionMargins();
+
         SetEquipmentCompactMode(true);
 
         var c = GetRarityColor(def.rarity);
 
         if (rarityBorder) rarityBorder.color = c;
+
+        HideStatsOnlyNameHeader();
 
         nameText.color = c;
         nameText.text = def.displayName;
@@ -202,12 +296,7 @@ public class SharedTooltipUI : MonoBehaviour
             rarityText.gameObject.SetActive(true);
         }
 
-        if (statsText)
-        {
-            string stats = BuildTooltipStatsTextWithSupportRequirement(def);
-            statsText.text = stats;
-            statsText.gameObject.SetActive(!string.IsNullOrWhiteSpace(stats));
-        }
+        BindTooltipStats(def);
 
         if (descriptionText)
         {
@@ -222,20 +311,42 @@ public class SharedTooltipUI : MonoBehaviour
             customValueText.gameObject.SetActive(false);
         }
 
-        if (_rt)
-            _rt.localScale = new Vector3(defaultTooltipScale.x, defaultTooltipScale.y, 1f);
+        ApplyDockedTooltipScale();
 
         RebuildTooltipLayoutNow();
 
         canvasGroup.alpha = 1f;
     }
 
-    public void ShowText(string title, string body, Color? titleColor = null)
+    /// <param name="useStatsDisplayHeader">
+    /// When true and <see cref="statsOnlyNameText"/> is assigned, title goes there and <see cref="nameText"/> is hidden (stats / help hovers).
+    /// </param>
+    public void ShowText(string title, string body, Color? titleColor = null, bool useStatsDisplayHeader = false)
     {
+        ResetTooltipSectionMargins();
+
         SetEquipmentCompactMode(false);
 
-        if (nameText)
+        bool statsHeader = useStatsDisplayHeader && statsOnlyNameText;
+        if (statsHeader)
         {
+            if (nameText)
+            {
+                nameText.text = "";
+                nameText.gameObject.SetActive(false);
+            }
+
+            statsOnlyNameText.text = title ?? "";
+            statsOnlyNameText.color = titleColor ?? defaultNameColor;
+            statsOnlyNameText.gameObject.SetActive(true);
+        }
+        else
+        {
+            if (!nameText)
+                return;
+
+            HideStatsOnlyNameHeader();
+
             nameText.text = title ?? "";
             nameText.color = titleColor ?? defaultNameColor;
             nameText.gameObject.SetActive(true);
@@ -261,15 +372,16 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (descriptionText)
         {
-            descriptionText.text = body ?? "";
-            descriptionText.gameObject.SetActive(!string.IsNullOrWhiteSpace(body));
+            string b = body ?? "";
+            descriptionText.text = b;
+            bool hasBody = !string.IsNullOrWhiteSpace(b);
+            descriptionText.margin = hasBody
+                ? WithExtraBottomMargin(_marginBaseDescription, spacingAfterDescriptionPixels)
+                : _marginBaseDescription;
+            descriptionText.gameObject.SetActive(hasBody);
         }
 
-        if (statsText)
-        {
-            statsText.text = "";
-            statsText.gameObject.SetActive(false);
-        }
+        ClearTooltipStatsFields();
 
         if (customValueText)
         {
@@ -291,6 +403,8 @@ public class SharedTooltipUI : MonoBehaviour
     /// </summary>
     private void RebuildTooltipLayoutNow()
     {
+        ApplyDynamicTooltipContentWidth();
+
         Canvas.ForceUpdateCanvases();
         if (tooltipLayoutRoot)
             LayoutRebuilder.ForceRebuildLayoutImmediate(tooltipLayoutRoot);
@@ -299,14 +413,111 @@ public class SharedTooltipUI : MonoBehaviour
         Canvas.ForceUpdateCanvases();
     }
 
+    private void ResolveOptionalSplitStatsTextRefs()
+    {
+        if (!miscStatsText && tooltipLayoutRoot)
+        {
+            miscStatsText = tooltipLayoutRoot.Find("MiscStatsText")?.GetComponent<TMP_Text>()
+                ?? tooltipLayoutRoot.Find("StatsText")?.GetComponent<TMP_Text>();
+        }
+
+        if (!mainStatsText && tooltipLayoutRoot)
+            mainStatsText = tooltipLayoutRoot.Find("MainStatsText")?.GetComponent<TMP_Text>();
+
+        if (!statsOnlyNameText && tooltipLayoutRoot)
+            statsOnlyNameText = tooltipLayoutRoot.Find("StatsOnlyNameText")?.GetComponent<TMP_Text>();
+    }
+
+    private void HideStatsOnlyNameHeader()
+    {
+        if (!statsOnlyNameText)
+            return;
+
+        statsOnlyNameText.text = "";
+        statsOnlyNameText.gameObject.SetActive(false);
+    }
+
+    private void ConfigureTooltipContentForDynamicWidth()
+    {
+        if (!tooltipLayoutRoot)
+            return;
+
+        var vlg = tooltipLayoutRoot.GetComponent<VerticalLayoutGroup>();
+        if (vlg)
+        {
+            vlg.childControlWidth = true;
+            vlg.childForceExpandWidth = true;
+        }
+
+        var csf = tooltipLayoutRoot.GetComponent<ContentSizeFitter>();
+        if (csf && csf.horizontalFit != ContentSizeFitter.FitMode.Unconstrained)
+            csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+    }
+
+    /// <summary>
+    /// Width = clamp(max(active TMP natural width) + horizontal padding, min, max); TMP wrap past max so height grows.
+    /// </summary>
+    private void ApplyDynamicTooltipContentWidth()
+    {
+        if (!tooltipLayoutRoot)
+            return;
+
+        float minW = Mathf.Max(1f, tooltipContentMinWidth);
+        float maxW = Mathf.Max(minW, tooltipContentMaxWidth);
+
+        float hPad = 0f;
+        var vlg = tooltipLayoutRoot.GetComponent<VerticalLayoutGroup>();
+        if (vlg)
+            hPad += vlg.padding.left + vlg.padding.right;
+        var hlg = tooltipLayoutRoot.GetComponent<HorizontalLayoutGroup>();
+        if (hlg)
+            hPad += hlg.padding.left + hlg.padding.right;
+
+        float maxPreferred = 0f;
+        TMP_Text[] tmps = tooltipLayoutRoot.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < tmps.Length; i++)
+        {
+            TMP_Text tmp = tmps[i];
+            if (!tmp || !tmp.gameObject.activeInHierarchy)
+                continue;
+
+            tmp.textWrappingMode = TextWrappingModes.Normal;
+
+            string s = tmp.text ?? string.Empty;
+            if (string.IsNullOrEmpty(s))
+                continue;
+
+            Vector2 pref = tmp.GetPreferredValues(s, float.PositiveInfinity, float.PositiveInfinity);
+            maxPreferred = Mathf.Max(maxPreferred, pref.x);
+        }
+
+        float naturalTotal = maxPreferred + hPad;
+        float targetWidth = Mathf.Clamp(Mathf.Max(naturalTotal, minW), minW, maxW);
+
+        if (!_tooltipContentLayoutElement)
+            _tooltipContentLayoutElement = tooltipLayoutRoot.GetComponent<LayoutElement>();
+        if (!_tooltipContentLayoutElement)
+            _tooltipContentLayoutElement = tooltipLayoutRoot.gameObject.AddComponent<LayoutElement>();
+
+        _tooltipContentLayoutElement.preferredWidth = targetWidth;
+
+        // Content has no parent LayoutGroup; LayoutElement alone does not resize the RectTransform.
+        // Horizontal CSF is Unconstrained so we assign width explicitly; vertical CSF still grows height.
+        tooltipLayoutRoot.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, targetWidth);
+    }
+
     public void Hide()
     {
+        ResetTooltipSectionMargins();
+
         RestoreDefaultParent();
+        _scaleAnchor = null;
+        _useHudTooltipScalePath = false;
 
         if (_rt)
         {
             _rt.anchoredPosition = Vector2.zero;
-            _rt.localScale = new Vector3(defaultTooltipScale.x, defaultTooltipScale.y, 1f);
+            ResetTooltipLocalScaleToDefaultAuthored();
         }
 
         if (canvasGroup)
@@ -318,6 +529,8 @@ public class SharedTooltipUI : MonoBehaviour
             nameText.color = defaultNameColor;
             nameText.gameObject.SetActive(true);
         }
+
+        HideStatsOnlyNameHeader();
 
         if (rarityText)
         {
@@ -343,11 +556,7 @@ public class SharedTooltipUI : MonoBehaviour
             descriptionText.gameObject.SetActive(false);
         }
 
-        if (statsText)
-        {
-            statsText.text = "";
-            statsText.gameObject.SetActive(false);
-        }
+        ClearTooltipStatsFields();
 
         if (customValueText)
         {
@@ -358,6 +567,104 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (rarityBorder)
             rarityBorder.color = defaultBorderColor;
+    }
+
+    private void ClearTooltipStatsFields()
+    {
+        CaptureTooltipMarginBasesOnce();
+
+        if (miscStatsText)
+        {
+            miscStatsText.text = "";
+            miscStatsText.margin = _marginBaseMisc;
+            miscStatsText.gameObject.SetActive(false);
+        }
+
+        if (mainStatsText)
+        {
+            mainStatsText.text = "";
+            mainStatsText.margin = _marginBaseMain;
+            mainStatsText.gameObject.SetActive(false);
+        }
+    }
+
+    private void BindTooltipStats(ItemDefinition def)
+    {
+        if (!def)
+        {
+            ClearTooltipStatsFields();
+            return;
+        }
+
+        CaptureTooltipMarginBasesOnce();
+
+        if (mainStatsText == null)
+        {
+            string combined = BuildTooltipStatsTextWithSupportRequirement(def);
+            if (miscStatsText)
+            {
+                miscStatsText.text = combined;
+                bool has = !string.IsNullOrWhiteSpace(combined);
+                miscStatsText.margin = has
+                    ? WithExtraBottomMargin(_marginBaseMisc, spacingAfterMainStatsPixels)
+                    : _marginBaseMisc;
+                miscStatsText.gameObject.SetActive(has);
+            }
+
+            return;
+        }
+
+        string misc = def.BuildTooltipMiscStatsText() ?? "";
+        string main = BuildTooltipMainStatsTextWithSupportRequirement(def);
+
+        if (miscStatsText)
+        {
+            miscStatsText.text = misc;
+            miscStatsText.margin = _marginBaseMisc;
+            miscStatsText.gameObject.SetActive(!string.IsNullOrWhiteSpace(misc));
+        }
+
+        bool hasMain = !string.IsNullOrWhiteSpace(main);
+        mainStatsText.text = main;
+        mainStatsText.margin = hasMain
+            ? WithExtraBottomMargin(_marginBaseMain, spacingAfterMainStatsPixels)
+            : _marginBaseMain;
+        mainStatsText.gameObject.SetActive(hasMain);
+    }
+
+    private void CaptureTooltipMarginBasesOnce()
+    {
+        if (_tooltipMarginBasesCaptured)
+            return;
+
+        if (descriptionText)
+            _marginBaseDescription = descriptionText.margin;
+        if (miscStatsText)
+            _marginBaseMisc = miscStatsText.margin;
+        if (mainStatsText)
+            _marginBaseMain = mainStatsText.margin;
+
+        _tooltipMarginBasesCaptured = true;
+    }
+
+    private void ResetTooltipSectionMargins()
+    {
+        CaptureTooltipMarginBasesOnce();
+
+        if (descriptionText)
+            descriptionText.margin = _marginBaseDescription;
+        if (miscStatsText)
+            miscStatsText.margin = _marginBaseMisc;
+        if (mainStatsText)
+            mainStatsText.margin = _marginBaseMain;
+    }
+
+    private static Vector4 WithExtraBottomMargin(Vector4 baseMargin, float extraBottom)
+    {
+        if (extraBottom <= 0f)
+            return baseMargin;
+
+        return new Vector4(baseMargin.x, baseMargin.y, baseMargin.z, baseMargin.w + extraBottom);
     }
 
     private void SetEquipmentCompactMode(bool compact)
@@ -425,22 +732,39 @@ public class SharedTooltipUI : MonoBehaviour
 
         string stats = def.BuildTooltipStatsText() ?? "";
 
+        return ApplyOffhandSupportRequirementColoring(stats, def);
+    }
+
+    private string BuildTooltipMainStatsTextWithSupportRequirement(ItemDefinition def)
+    {
+        if (!def)
+            return "";
+
+        string main = def.BuildTooltipMainStatsText() ?? "";
+        return ApplyOffhandSupportRequirementColoring(main, def);
+    }
+
+    private string ApplyOffhandSupportRequirementColoring(string block, ItemDefinition def)
+    {
+        if (!def)
+            return block ?? "";
+
         if (!def.RequiresOffhandSupport || def.RequiredSupportType == CombatSupportType.None)
-            return stats;
+            return block ?? "";
 
         bool hasRequirementEquipped = HasRequiredSupportEquipped(def.RequiredSupportType);
 
         string colour = hasRequirementEquipped ? "#55DD55" : "#FF5555";
         string reqLine = $"<color={colour}>Requires: {def.RequiredSupportType}</color>";
 
-        stats = ReplaceLineStartingWith(stats, "Requires:", reqLine, out bool replaced);
-        if (replaced)
-            return stats;
-
-        if (string.IsNullOrWhiteSpace(stats))
+        if (string.IsNullOrWhiteSpace(block))
             return reqLine;
 
-        return stats.TrimEnd('\n') + "\n" + reqLine;
+        block = ReplaceLineStartingWith(block, "Requires:", reqLine, out bool replaced);
+        if (replaced)
+            return block;
+
+        return block.TrimEnd('\n') + "\n" + reqLine;
     }
 
     private static string ReplaceLineStartingWith(
@@ -506,10 +830,11 @@ public class SharedTooltipUI : MonoBehaviour
         if (!anchor || _rt == null)
             return;
 
+        _scaleAnchor = anchor;
         _rt.SetParent(anchor, false);
         _rt.anchoredPosition = Vector2.zero;
-        _rt.localScale = new Vector3(defaultTooltipScale.x, defaultTooltipScale.y, 1f);
         _rt.SetAsLastSibling();
+        ApplyDockedTooltipScale();
     }
 
     public void ShowAt(
@@ -529,6 +854,7 @@ public class SharedTooltipUI : MonoBehaviour
 
         RestoreDefaultParent();
         transform.SetAsLastSibling();
+        _useHudTooltipScalePath = false;
         SetAnchor(anchor);
 
         if (compact)
@@ -561,7 +887,8 @@ public class SharedTooltipUI : MonoBehaviour
         RectTransform measureRect = null,
         RectTransform heightRect = null,
         FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Right,
-        Color? titleColor = null)
+        Color? titleColor = null,
+        bool useStatsDisplayHeader = false)
     {
         if (!anchor)
         {
@@ -571,10 +898,8 @@ public class SharedTooltipUI : MonoBehaviour
 
         RestoreDefaultParent();
         transform.SetAsLastSibling();
+        _useHudTooltipScalePath = true;
         SetAnchor(anchor);
-
-        if (_rt != null)
-            _rt.localScale = new Vector3(hudTooltipScale.x, hudTooltipScale.y, 1f);
 
         if (flipInsideBounds)
         {
@@ -584,10 +909,8 @@ public class SharedTooltipUI : MonoBehaviour
             flipInsideBounds.SetPreferredSide(preferredSide);
         }
 
-        ShowText(title, body, titleColor);
-
-        if (_rt != null)
-            _rt.localScale = new Vector3(hudTooltipScale.x, hudTooltipScale.y, 1f);
+        ShowText(title, body, titleColor, useStatsDisplayHeader);
+        ApplyDockedTooltipScale();
     }
 
 }

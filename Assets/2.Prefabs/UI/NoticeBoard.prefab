@@ -82,8 +82,8 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 1946004807
-  m_SortingLayer: 6
+  m_SortingLayerID: -461134989
+  m_SortingLayer: 3
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: -2120515193595787852, guid: f405e0bd8be4e2f4898227bdcae593b3, type: 3}
@@ -178,6 +178,8 @@ MonoBehaviour:
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
   dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
   nonQuestAutoCloseSeconds: 5
+  openDialogueOnFirstSighting: 0
+  additionalConditionalDialogues: []
   questGiver: {fileID: 781000000000000001}
 --- !u!114 &4181235982351577245
 MonoBehaviour:

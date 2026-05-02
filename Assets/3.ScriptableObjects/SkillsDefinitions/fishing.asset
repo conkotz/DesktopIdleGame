@@ -18,10 +18,14 @@ MonoBehaviour:
   icon: {fileID: 1027717821713504454, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
   themeColor: {r: 0.16702022, g: 0.113485165, b: 0.6075471, a: 1}
   category: 0
+  listSortOrder: 0
   unlocks:
   - requiredLevel: 1
     title: Catch fish
-    description: Can can basic fish
+    description: Can catch basic fish
     icon: {fileID: 3253238206631418633, guid: 6985879258b1b3448baebbcf4e516fc1, type: 3}
     unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
+    choices: []

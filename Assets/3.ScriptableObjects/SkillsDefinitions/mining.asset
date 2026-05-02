@@ -18,10 +18,14 @@ MonoBehaviour:
   icon: {fileID: -1493139528197004052, guid: df4be2da5eb7ec04da437f7d8e75814c, type: 3}
   themeColor: {r: 0.21568629, g: 0.21568629, b: 0.21568629, a: 1}
   category: 0
+  listSortOrder: 0
   unlocks:
   - requiredLevel: 1
     title: Mine Stone
-    description: Can mine stock deposits
+    description: Can mine stone deposits
     icon: {fileID: 21300000, guid: 1a2a5b7fb636e2643a41f61d0ff4f055, type: 3}
     unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
+    choices: []

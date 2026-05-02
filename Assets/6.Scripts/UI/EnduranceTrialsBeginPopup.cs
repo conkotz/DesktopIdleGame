@@ -298,7 +298,9 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
 
         if (tierLabel)
         {
-            string roman = EnduranceTrialTier.ToRomanNumeral(d.LastCompletedRunTier);
+            MapNodeDefinition node = EnduranceTrialUIHelpers.TryGetActiveEnduranceMapNode();
+            int nextPlayTier = ResolveNextTrialTierAfterCompletion(d, node);
+            string roman = EnduranceTrialTier.ToRomanNumeral(nextPlayTier);
             tierLabel.text = string.IsNullOrEmpty(tierFormat)
                 ? $"Tier {roman}"
                 : string.Format(tierFormat, roman);
@@ -335,7 +337,9 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
         if (beginButtonLabel)
             beginButtonLabel.text = beginButtonTextAfterTrial;
 
-        ForceLayoutRebuild();
+        // Layout/mesh rebuild runs in ScheduleDeferredLayoutRebuild only — synchronous ForceMeshUpdate +
+        // LayoutRebuilder here runs in the same stack as popup activation and triggers Canvas.ForceUpdateCanvases
+        // during OnRectTransformDimensionsChange (console warnings on EnduranceLootText / RightSection).
     }
 
     private void ScheduleDeferredLayoutRebuild()
@@ -376,7 +380,8 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
                 tmp.ForceMeshUpdate(true);
         }
 
-        Canvas.ForceUpdateCanvases();
+        // Avoid Canvas.ForceUpdateCanvases() here: it can trigger SendMessage during Awake / OnValidate /
+        // OnRectTransformDimensionsChange on nested layout (e.g. EnduranceLootText, RightSection).
 
         Transform rootT = popupRoot.transform;
         LayoutGroup[] groups = popupRoot.GetComponentsInChildren<LayoutGroup>(true);
@@ -533,14 +538,38 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
         EnduranceTrialDirector d = EnduranceTrialDirector.Instance;
         if (d != null && d.TrialCompleted && !_completionSummaryDismissed)
         {
+            MapNodeDefinition node = EnduranceTrialUIHelpers.TryGetActiveEnduranceMapNode();
+            int nextPlayTier = ResolveNextTrialTierAfterCompletion(d, node);
+            EnduranceTrialPendingTier.Tier = nextPlayTier;
             _completionSummaryDismissed = true;
+            _refreshedCompletionUi = false;
             if (popupRoot != null)
                 popupRoot.SetActive(false);
+            d.RestartTrialFromCompletionSummary(nextPlayTier);
             return;
         }
 
         EnduranceTrialPendingTier.Tier = _selectedTier;
         if (d != null)
             d.ConfirmBeginTrial();
+    }
+
+    /// <summary>Tier shown on the completion summary and started by Continue: newly unlocked tier if any, else repeat last cleared tier (capped by save max).</summary>
+    private static int ResolveNextTrialTierAfterCompletion(EnduranceTrialDirector d, MapNodeDefinition def)
+    {
+        if (d == null)
+            return EnduranceTrialTier.MinTier;
+
+        WorldMapProgressManager progress = WorldMapProgressManager.Instance != null
+            ? WorldMapProgressManager.Instance
+            : FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        int maxSel = progress != null && def != null
+            ? progress.GetEnduranceMaxSelectableTier(def.nodeId)
+            : EnduranceTrialTier.MaxTier;
+
+        if (d.LastRunUnlockedNextTier && d.LastUnlockedTier > 0)
+            return Mathf.Clamp(d.LastUnlockedTier, EnduranceTrialTier.MinTier, maxSel);
+
+        return Mathf.Clamp(d.LastCompletedRunTier, EnduranceTrialTier.MinTier, maxSel);
     }
 }

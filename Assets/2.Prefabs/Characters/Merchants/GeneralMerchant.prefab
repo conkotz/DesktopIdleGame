@@ -437,11 +437,10 @@ MonoBehaviour:
   merchantModeBanner: {fileID: 0}
   shopUI: {fileID: 0}
   merchant: {fileID: 0}
-  shopAnchor: {fileID: 1096126419719829772}
   shopRect: {fileID: 0}
   canvasRect: {fileID: 0}
-  uiCamera: {fileID: 0}
-  screenOffset: {x: -220, y: 80}
+  pinGap: 8
+  pinCanvasEdgeMargin: 4
 --- !u!114 &9000473773748408232
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -515,10 +514,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
-  dialogue: howdy
+  dialogue: I stock a wide range of items! I'll also buy yours if you have anything
+    good
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
   dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
   nonQuestAutoCloseSeconds: 5
+  openDialogueOnFirstSighting: 0
+  additionalConditionalDialogues: []
   questGiver: {fileID: 0}
 --- !u!1 &4761147117411399375
 GameObject:

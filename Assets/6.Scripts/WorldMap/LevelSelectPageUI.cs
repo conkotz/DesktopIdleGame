@@ -68,6 +68,19 @@ public class LevelSelectPageUI : MonoBehaviour
     private bool _selectionInitialized;
 
     /// <summary>
+    /// Consumed on next <see cref="OnEnable"/> (e.g. quest journal "Go to location"). Cleared after one attempt.
+    /// </summary>
+    private static string s_pendingFocusNodeId;
+
+    /// <summary>
+    /// Focus this map node when the level-select page next enables (after <see cref="MainMenuWindowUI"/> opens that tab).
+    /// </summary>
+    public static void SetPendingMapNodeFocus(string nodeId)
+    {
+        s_pendingFocusNodeId = string.IsNullOrWhiteSpace(nodeId) ? null : nodeId.Trim();
+    }
+
+    /// <summary>
     /// While the level-select page is active, HUD can read this to show the highlighted node
     /// (before the player presses Enter).
     /// </summary>
@@ -98,16 +111,24 @@ public class LevelSelectPageUI : MonoBehaviour
         ResolveDefaults();
         if (worldMap)
         {
-            // Prefer the map we're actually playing (bootstrap / ActiveLevelContext) so the grey
-            // selection matches the current area — not only startingNodeId / first row.
-            bool syncedToActive = TrySelectActiveMapNode();
-            if (!syncedToActive && !_selectionInitialized)
+            bool usedJournalFocus = TryConsumePendingMapNodeFocus();
+            if (usedJournalFocus)
             {
-                ApplyDefaultSelection();
                 _selectionInitialized = true;
             }
-            else if (syncedToActive)
-                _selectionInitialized = true;
+            else
+            {
+                // Prefer the map we're actually playing (bootstrap / ActiveLevelContext) so the grey
+                // selection matches the current area — not only startingNodeId / first row.
+                bool syncedToActive = TrySelectActiveMapNode();
+                if (!syncedToActive && !_selectionInitialized)
+                {
+                    ApplyDefaultSelection();
+                    _selectionInitialized = true;
+                }
+                else if (syncedToActive)
+                    _selectionInitialized = true;
+            }
         }
 
         RebuildRegionList();
@@ -224,6 +245,27 @@ public class LevelSelectPageUI : MonoBehaviour
     /// <summary>
     /// Select region + node for the level currently loaded in GamePlay (if any).
     /// </summary>
+    private bool TryConsumePendingMapNodeFocus()
+    {
+        if (string.IsNullOrEmpty(s_pendingFocusNodeId) || !worldMap)
+            return false;
+
+        string id = s_pendingFocusNodeId;
+        s_pendingFocusNodeId = null;
+
+        RegionDefinition region = worldMap.FindRegionContainingNode(id);
+        if (!region)
+            return false;
+
+        MapNodeDefinition nodeInList = region.FindNodeById(id);
+        if (!nodeInList)
+            return false;
+
+        _selectedRegion = region;
+        _selectedNode = nodeInList;
+        return true;
+    }
+
     private bool TrySelectActiveMapNode()
     {
         if (!worldMap || worldMap.regions == null || worldMap.regions.Count == 0)

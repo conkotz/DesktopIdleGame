@@ -2,6 +2,7 @@ This is a Unity 6 2D project.
 
 General Rules:
 - Use modern Unity APIs (avoid deprecated methods like FindObjectOfType)
+- **TextMeshPro (`TMP_Text`)**: Do not set `enableWordWrapping` (obsolete). Use `textWrappingMode` instead: `TextWrappingModes.NoWrap` when wrapping should be off, `TextWrappingModes.Normal` (or `PreserveWhitespace` / `CSS` as needed) when wrapping should be on.
 - Do not rewrite entire systems unless explicitly asked
 - Prefer minimal, safe, drop-in changes
 - Preserve existing architecture and naming conventions

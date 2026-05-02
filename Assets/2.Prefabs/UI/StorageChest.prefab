@@ -262,8 +262,8 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 1946004807
-  m_SortingLayer: 6
+  m_SortingLayerID: -461134989
+  m_SortingLayer: 3
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 1509478067197531143, guid: d7a890a06c195fe449a2f07a2e79aee7, type: 3}
@@ -336,11 +336,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StorageClick
   mainMenuWindowUI: {fileID: 0}
   storageUI: {fileID: 0}
-  storageAnchor: {fileID: 0}
   storageRect: {fileID: 0}
   canvasRect: {fileID: 0}
-  uiCamera: {fileID: 0}
-  screenOffset: {x: 0, y: 20}
+  pinGap: 8
+  pinCanvasEdgeMargin: 4
 --- !u!114 &-5161748566951480440
 MonoBehaviour:
   m_ObjectHideFlags: 0

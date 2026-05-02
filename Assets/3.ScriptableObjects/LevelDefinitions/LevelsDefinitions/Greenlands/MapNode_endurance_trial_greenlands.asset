@@ -13,16 +13,20 @@ MonoBehaviour:
   m_Name: MapNode_endurance_trial_greenlands
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: endurance_trial_greenlands
-  displayName: 'Greenlands Test '
-  description: "Can you survive the continuous waves of enemies?\nTest Spacing \nTest
-    Spacing\nTest Spacing\nTest Spacing\nTest Spacing "
+  displayName: 'The Greenlands Trial '
+  description: 'Can you survive the continuous waves of enemies? '
   nodeType: 6
   enemyAggroMode: 0
   ignoreAggroRange: 1
+  respawnHereIfDied: 0
   enemyRespawnEnabled: 0
   enemyRespawnDelaySeconds: 30
+  eliteSpawnChance: 0
   fallbackRecommendedCombatPower: 100
   isRepeatable: 1
+  markCompletedWhenReturningToMenu: 0
+  completedLabelRequiresEnteredNodeId: 
+  mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 0
   icon: {fileID: 0}
   requiredSkillLevels: []
@@ -36,6 +40,13 @@ MonoBehaviour:
   biome: 0
   prefabGroups: []
   spawnGroupPlans: []
+  simpleCombatWaves: []
+  simpleCombatWavesAutoStartOnLevelEnter: 1
+  simpleCombatWavesRequireQuestRewardClaimed: 0
+  simpleCombatWavesRequiredQuestId: 
+  simpleCombatWavesRequireQuestAccepted: 0
+  simpleCombatWavesQuestAcceptedId: 
+  simpleCombatWavesRunOncePerSceneSession: 1
   enduranceWaves:
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
@@ -43,8 +54,13 @@ MonoBehaviour:
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     shuffleSpawnPoints: 1
+    repeatThisWave: 0
     _legacyGroupPlans: []
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
@@ -52,8 +68,13 @@ MonoBehaviour:
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 2
     shuffleSpawnPoints: 1
+    repeatThisWave: 0
     _legacyGroupPlans: []
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
@@ -61,8 +82,13 @@ MonoBehaviour:
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 3
     shuffleSpawnPoints: 1
+    repeatThisWave: 0
     _legacyGroupPlans: []
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
@@ -70,13 +96,22 @@ MonoBehaviour:
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 2
     - spawnPointGroupId: EnduranceTrialRightOnly
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     shuffleSpawnPoints: 1
+    repeatThisWave: 0
     _legacyGroupPlans: []
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
@@ -84,8 +119,13 @@ MonoBehaviour:
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 3
     shuffleSpawnPoints: 1
+    repeatThisWave: 0
     _legacyGroupPlans: []
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
@@ -93,13 +133,22 @@ MonoBehaviour:
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 2
     - spawnPointGroupId: EnduranceTrialLeftOnly
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: 887a5292c260b2843b8e76ae0621615c, type: 2}
       prefab: {fileID: 1000013034572668, guid: 6814905bb3c3d7440b3306c02b2b222c, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     shuffleSpawnPoints: 1
+    repeatThisWave: 0
     _legacyGroupPlans: []
   - defaultSpawnGroupId: EnduranceTrialAll
     spawns:
@@ -107,8 +156,13 @@ MonoBehaviour:
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
       prefab: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     shuffleSpawnPoints: 1
+    repeatThisWave: 0
     _legacyGroupPlans: []
   enduranceCompletionLoot:
   - item: {fileID: 11400000, guid: 36038d5dfd5228b4682f03cfcf3151df, type: 2}

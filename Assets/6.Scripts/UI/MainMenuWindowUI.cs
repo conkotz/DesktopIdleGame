@@ -203,6 +203,16 @@ public class MainMenuWindowUI : MonoBehaviour
         OpenPage(levelSelectPage);
     }
 
+    /// <summary>Shows the main menu on Level select. Does not close the menu if that tab is already active (unlike <see cref="OpenLevelSelect"/> toggle).</summary>
+    public void OpenLevelSelectShow()
+    {
+        if (!levelSelectPage)
+            return;
+        if (IsOpen && currentPage == levelSelectPage)
+            return;
+        OpenPage(levelSelectPage);
+    }
+
     public void ToggleQuest()
     {
         TogglePage(questPage);

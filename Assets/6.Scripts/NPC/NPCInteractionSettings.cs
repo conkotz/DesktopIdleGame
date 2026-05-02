@@ -490,6 +490,9 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!string.IsNullOrWhiteSpace(quest.rewardNotes))
             parts.Add(quest.rewardNotes.Trim());
 
+        if (quest.grantIdleCombatUnlockOnRewardClaim)
+            parts.Add("Unlocks Auto Battle");
+
         return parts.Count > 0 ? string.Join(" / ", parts) : "-";
     }
 

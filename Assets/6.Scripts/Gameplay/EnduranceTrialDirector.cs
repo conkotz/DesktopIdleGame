@@ -241,6 +241,37 @@ public class EnduranceTrialDirector : MonoBehaviour
         BeginWave();
     }
 
+    /// <summary>
+    /// After <see cref="TrialCompleted"/>: restarts waves at <paramref name="tier"/> (e.g. Continue on the summary picks the newly unlocked tier).
+    /// </summary>
+    public void RestartTrialFromCompletionSummary(int tier)
+    {
+        if (!_started || _def == null || _def.nodeType != MapNodeType.EnduranceTrial || !_trialComplete)
+            return;
+        if (_spawnDirector == null)
+        {
+            _spawnDirector = FindFirstObjectByType<LevelSpawnDirector>();
+            if (_spawnDirector == null)
+            {
+                Debug.LogError("[EnduranceTrialDirector] RestartTrial: no LevelSpawnDirector.", this);
+                return;
+            }
+        }
+
+        StopBetweenWavesRoutine();
+        StopCompletionLootRoutine();
+        _trialComplete = false;
+        _waveIndex = 0;
+        _trialTier = Mathf.Clamp(tier, EnduranceTrialTier.MinTier, EnduranceTrialTier.MaxTier);
+        _waitingForPlayerBegin = false;
+        _lastCompletionLoot.Clear();
+        LastCompletedRunTier = 0;
+        LastRunUnlockedNextTier = false;
+        LastUnlockedTier = 0;
+        SetNextWaveCountdown(0);
+        BeginWave();
+    }
+
     private void BeginWave()
     {
         SetNextWaveCountdown(0);

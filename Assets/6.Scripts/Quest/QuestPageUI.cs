@@ -72,6 +72,11 @@ public class QuestPageUI : MonoBehaviour
     [Tooltip("Optional parent/root to show and hide with the assigned quest action button.")]
     [SerializeField] private GameObject questActionRowRoot;
 
+    [Header("Right — Go to quest map location")]
+    [Tooltip("Shown when the quest has Progress Map Node Id set and it exists on the world map. Opens Level select with that node focused.")]
+    [SerializeField] private Button goToQuestLocationButton;
+    [SerializeField] private TMP_Text goToQuestLocationButtonLabel;
+
     private readonly List<GameObject> _regionRows = new();
     private readonly List<RegionDefinition> _regionRowRegions = new();
     private readonly List<QuestListRowUI> _questRows = new();
@@ -981,6 +986,7 @@ public class QuestPageUI : MonoBehaviour
     private void RefreshDetails()
     {
         EnsureDetailWidgets();
+        ResolveWorldMap();
         RemoveDestroyedQuestRowRefs();
         ItemDatabase items = FindItemDatabase();
         EnemyDatabase enemies = FindEnemyDatabase();
@@ -1092,10 +1098,38 @@ public class QuestPageUI : MonoBehaviour
                 rewardsValueText.text = FormatRewardsLine(q, items);
         }
 
+        RefreshGoToQuestLocationButton(q);
+
         RefreshQuestClaimButton(q, qProg);
 
         if (detailsContentRoot is RectTransform rt)
             LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+    }
+
+    private void RefreshGoToQuestLocationButton(QuestDefinition q)
+    {
+        string nodeId = q != null && !string.IsNullOrWhiteSpace(q.progressMapNodeId) ? q.progressMapNodeId.Trim() : "";
+        MapNodeDefinition node = !string.IsNullOrEmpty(nodeId) && worldMap ? worldMap.FindNodeById(nodeId) : null;
+        bool show = q != null && node != null;
+
+        if (goToQuestLocationButton)
+            goToQuestLocationButton.gameObject.SetActive(show);
+        if (show && goToQuestLocationButtonLabel)
+            goToQuestLocationButtonLabel.text = "Go to location ->";
+    }
+
+    private void OnGoToQuestLocationClicked()
+    {
+        QuestDefinition q = _selectedQuest;
+        if (!q || string.IsNullOrWhiteSpace(q.progressMapNodeId))
+            return;
+
+        string nodeId = q.progressMapNodeId.Trim();
+        if (worldMap && !worldMap.FindNodeById(nodeId))
+            return;
+
+        LevelSelectPageUI.SetPendingMapNodeFocus(nodeId);
+        MainMenuWindowUI.Resolve()?.OpenLevelSelectShow();
     }
 
     private void RefreshQuestClaimButton(QuestDefinition q, QuestProgressManager qProg)
@@ -1568,14 +1602,44 @@ public class QuestPageUI : MonoBehaviour
         if (detailsSectionLabelText && string.IsNullOrEmpty(detailsSectionLabelText.text))
             detailsSectionLabelText.text = "Details";
 
+        EnsureGoToQuestLocationButton();
         EnsureQuestClaimWidgets();
         _detailWidgetsBuilt = true;
+    }
+
+    private void EnsureGoToQuestLocationButton()
+    {
+        if (!goToQuestLocationButton && detailsContentRoot)
+        {
+            Transform t = detailsContentRoot.Find("GoToQuestLocationButton");
+            if (t)
+                goToQuestLocationButton = t.GetComponent<Button>();
+        }
+
+        if (!goToQuestLocationButton)
+            return;
+
+        goToQuestLocationButton.onClick.RemoveListener(OnGoToQuestLocationClicked);
+        goToQuestLocationButton.onClick.AddListener(OnGoToQuestLocationClicked);
+
+        if (!goToQuestLocationButtonLabel)
+            goToQuestLocationButtonLabel = goToQuestLocationButton.GetComponentInChildren<TMP_Text>(true);
     }
 
     private void EnsureQuestClaimWidgets()
     {
         if (!questClaimButton && detailsContentRoot)
-            questClaimButton = detailsContentRoot.GetComponentInChildren<Button>(true);
+        {
+            Button[] buttons = detailsContentRoot.GetComponentsInChildren<Button>(true);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                Button b = buttons[i];
+                if (!b || b == goToQuestLocationButton)
+                    continue;
+                questClaimButton = b;
+                break;
+            }
+        }
         if (questClaimButton && !questClaimButtonLabel)
             questClaimButtonLabel = questClaimButton.GetComponentInChildren<TMP_Text>(true);
         if (questClaimButton && !questActionRowRoot)

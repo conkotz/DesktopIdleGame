@@ -169,6 +169,17 @@ public sealed class HelperGameplayController : MonoBehaviour
     [SerializeField] [Range(0.5f, 2f)]
     private float helperTipTextSizeMultiplier = 1f;
 
+    [Header("Helper \"new\" badge")]
+    [Tooltip("Alpha pulse speed when a fresh helper tip opens (unscaled time).")]
+    [SerializeField]
+    private float helperNewBadgePulseSpeed = 1.65f;
+
+    [SerializeField] [Range(0.15f, 1f)]
+    private float helperNewBadgePulseAlphaMin = 0.4f;
+
+    [SerializeField] [Range(0.15f, 1f)]
+    private float helperNewBadgePulseAlphaMax = 1f;
+
     [Header("Helper priority queue")]
     [Tooltip(
         "When several helpers are eligible in the same evaluation pass, only the highest-priority one shows first; the rest queue and open immediately after the current one clears (whitelist dismiss/minimize, X close, or the next popup in the chain). " +
@@ -184,6 +195,18 @@ public sealed class HelperGameplayController : MonoBehaviour
     private HelperPopupDefinition _activeDefinition;
 
     private const float ExpandedHeaderStripHeight = 40f;
+
+    private const string HelperNewBadgeChildName = "HelperNewBadge";
+
+    private const float HelperNewBadgeFontSize = 45f;
+
+    private static readonly Vector2 kHelperNewBadgeSizeDelta = new(288f, 72f);
+
+    private static readonly Vector2 kHelperNewBadgeAnchoredPosition = new(30f, 36f);
+
+    private const float HelperBodyScrollbarWidth = 14f;
+
+    private const float HelperBodyScrollHorizontalPadding = 8f;
 
     private const float ExpandedFooterNavHeight = 34f;
 
@@ -213,7 +236,15 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private TMP_Text _chromeStripTitleText;
 
+    private GameObject _helperNewBadgeRoot;
+
+    private CanvasGroup _helperNewBadgeCanvasGroup;
+
     private int _helperFontBasesOverlayInstanceId = int.MinValue;
+
+    /// <summary>Last <see cref="HelperTipTextSizeMultiplierClamped"/> applied to TMP font sizes (drives base-font recomputation when it changes).</summary>
+    private float _lastAppliedHelperTipMul;
+
     private float _baseFontChromeStripTitle;
     private float _baseFontTitle;
     private float _baseFontBody;
@@ -293,6 +324,10 @@ public sealed class HelperGameplayController : MonoBehaviour
     private RectTransform _overlayRect;
     private TMP_Text _titleText;
     private TMP_Text _bodyText;
+
+    private ScrollRect _helperBodyScrollRect;
+    private RectTransform _helperBodyScrollContent;
+    private Scrollbar _helperBodyScrollbar;
 
     /// <summary>Runtime-only close control (optional per-definition).</summary>
     private GameObject _helperCloseButtonRoot;
@@ -955,10 +990,16 @@ public sealed class HelperGameplayController : MonoBehaviour
             return;
 
         int id = _overlayRoot.GetInstanceID();
-        if (_helperFontBasesOverlayInstanceId == id)
+        float tip = HelperTipTextSizeMultiplierClamped();
+
+        if (_helperFontBasesOverlayInstanceId == id && Mathf.Approximately(_lastAppliedHelperTipMul, tip))
             return;
 
-        float invMul = 1f / Mathf.Max(0.01f, HelperTipTextSizeMultiplierClamped());
+        float prevTip = 1f;
+        if (_helperFontBasesOverlayInstanceId == id && _lastAppliedHelperTipMul > 0.01f)
+            prevTip = _lastAppliedHelperTipMul;
+
+        float invMul = 1f / Mathf.Max(0.01f, prevTip);
 
         if (_chromeStripTitleText)
             _baseFontChromeStripTitle = _chromeStripTitleText.fontSize * invMul;
@@ -1039,6 +1080,10 @@ public sealed class HelperGameplayController : MonoBehaviour
             if (nt)
                 nt.fontSize = _baseFontNextNav * mul;
         }
+
+        RefreshHelperBodyScrollLayout(scrollToTop: false);
+
+        _lastAppliedHelperTipMul = mul;
     }
 
 #if UNITY_EDITOR
@@ -1939,6 +1984,8 @@ public sealed class HelperGameplayController : MonoBehaviour
         ApplyHelperTipTextScale();
 
         MaybeStartStuckQueuedAdvanceWatcher();
+
+        ShowHelperNewBadge();
     }
 
     private void RefreshChromeCollapsedVisuals(bool headerOnlyCollapsed)
@@ -2115,6 +2162,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         }
 
         RefreshHistoryNavButtonInteractable();
+        RefreshHelperBodyScrollLayout(scrollToTop: true);
     }
 
     public void OnHistoryNavClicked(int delta)
@@ -2204,6 +2252,8 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (_overlayRoot)
             _overlayRoot.SetActive(false);
 
+        HideHelperNewBadge();
+
         if (_dimmerImage)
         {
             _dimmerImage.enabled = false;
@@ -2225,6 +2275,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     {
         SyncAndPulseWhitelistGlow();
         TrackHelperLayoutSave();
+        PulseHelperNewBadgeAlpha();
     }
 
     private void Update()
@@ -2327,6 +2378,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             _bodyText.text = _bodyTypewriterFullPlain;
         }
         _bodyTypewriterFullPlain = null;
+        RefreshHelperBodyScrollLayout(scrollToTop: true);
     }
 
     private void StopBodyTypewriterAndClear()
@@ -2352,6 +2404,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         {
             DialogueTextTypewriter.RestoreFullReveal(_bodyText);
             _bodyText.text = "";
+            RefreshHelperBodyScrollLayout(scrollToTop: true);
             return;
         }
 
@@ -2359,6 +2412,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         {
             DialogueTextTypewriter.RestoreFullReveal(_bodyText);
             _bodyText.text = plainFull;
+            RefreshHelperBodyScrollLayout(scrollToTop: true);
             return;
         }
 
@@ -2374,6 +2428,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         yield return DialogueTextTypewriter.RevealFlowingCharacters(_bodyText, full, typewriterCharactersPerSecond);
         _bodyTypewriterCo = null;
         _bodyTypewriterFullPlain = null;
+        RefreshHelperBodyScrollLayout(scrollToTop: true);
     }
 
     private void TryDismiss(HelperDismissMode modeReason, string interactWhitelistIdMarker = null)
@@ -2657,6 +2712,408 @@ public sealed class HelperGameplayController : MonoBehaviour
         }
     }
 
+    private static Transform FindHelperBodyUnderExpanded(Transform expandedTf)
+    {
+        if (!expandedTf)
+            return null;
+        Transform direct = expandedTf.Find("BodyText");
+        if (direct)
+            return direct;
+        return expandedTf.Find("BodyScrollView/Viewport/Content/BodyText");
+    }
+
+    /// <summary>Upgrades scroll <c>Content</c> from older builds (CSF-only) so TMP preferred height drives scroll range.</summary>
+    private static void EnsureHelperScrollContentHasVerticalLayout(RectTransform contentRt)
+    {
+        if (!contentRt)
+            return;
+
+        if (contentRt.GetComponent<VerticalLayoutGroup>())
+            return;
+
+        VerticalLayoutGroup vlg = contentRt.gameObject.AddComponent<VerticalLayoutGroup>();
+        vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.childControlWidth = true;
+        vlg.childForceExpandWidth = true;
+        vlg.childControlHeight = true;
+        vlg.childForceExpandHeight = false;
+        vlg.spacing = 0;
+        vlg.padding = new RectOffset(
+            Mathf.RoundToInt(HelperBodyScrollHorizontalPadding),
+            Mathf.RoundToInt(HelperBodyScrollHorizontalPadding),
+            0,
+            0);
+    }
+
+    private void BuildHelperBodyScrollInternals(
+        RectTransform scrollRootRt,
+        out ScrollRect scrollRect,
+        out RectTransform viewportRt,
+        out RectTransform contentRt,
+        out Scrollbar verticalSb)
+    {
+        ScrollRect sr = scrollRootRt.GetComponent<ScrollRect>();
+        if (!sr)
+            sr = scrollRootRt.gameObject.AddComponent<ScrollRect>();
+        scrollRect = sr;
+        sr.horizontal = false;
+        sr.vertical = true;
+        sr.movementType = ScrollRect.MovementType.Clamped;
+        sr.scrollSensitivity = 22f;
+        sr.inertia = true;
+        sr.decelerationRate = 0.135f;
+        sr.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
+
+        GameObject vpGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(RectMask2D));
+        viewportRt = vpGo.GetComponent<RectTransform>();
+        viewportRt.SetParent(scrollRootRt, false);
+        viewportRt.anchorMin = Vector2.zero;
+        viewportRt.anchorMax = Vector2.one;
+        viewportRt.pivot = new Vector2(0f, 1f);
+        viewportRt.offsetMin = Vector2.zero;
+        viewportRt.offsetMax = new Vector2(-HelperBodyScrollbarWidth, 0f);
+        Image vpImg = vpGo.GetComponent<Image>();
+        vpImg.color = new Color(0f, 0f, 0f, 0.001f);
+        vpImg.raycastTarget = true;
+
+        GameObject sbGo = new GameObject("ScrollbarVertical", typeof(RectTransform), typeof(Scrollbar));
+        RectTransform sbRt = sbGo.GetComponent<RectTransform>();
+        sbRt.SetParent(scrollRootRt, false);
+        sbRt.anchorMin = new Vector2(1f, 0f);
+        sbRt.anchorMax = new Vector2(1f, 1f);
+        sbRt.pivot = new Vector2(1f, 0.5f);
+        sbRt.anchoredPosition = Vector2.zero;
+        sbRt.sizeDelta = new Vector2(HelperBodyScrollbarWidth, 0f);
+
+        verticalSb = sbGo.GetComponent<Scrollbar>();
+        verticalSb.direction = Scrollbar.Direction.BottomToTop;
+        verticalSb.transition = Selectable.Transition.ColorTint;
+
+        GameObject slide = new GameObject("SlidingArea", typeof(RectTransform));
+        slide.transform.SetParent(sbGo.transform, false);
+        RectTransform slideRt = slide.GetComponent<RectTransform>();
+        slideRt.anchorMin = new Vector2(0.08f, 0.02f);
+        slideRt.anchorMax = new Vector2(0.92f, 0.98f);
+        slideRt.offsetMin = Vector2.zero;
+        slideRt.offsetMax = Vector2.zero;
+
+        GameObject handle = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+        handle.transform.SetParent(slide.transform, false);
+        RectTransform handleRt = handle.GetComponent<RectTransform>();
+        handleRt.anchorMin = Vector2.zero;
+        handleRt.anchorMax = Vector2.one;
+        handleRt.pivot = new Vector2(0.5f, 0.5f);
+        handleRt.sizeDelta = Vector2.zero;
+
+        Image hImg = handle.GetComponent<Image>();
+        hImg.color = new Color(0.48f, 0.5f, 0.56f, 0.92f);
+        hImg.raycastTarget = true;
+
+        verticalSb.targetGraphic = hImg;
+        verticalSb.handleRect = handleRt;
+
+        GameObject contentGo = new GameObject("Content", typeof(RectTransform), typeof(ContentSizeFitter));
+        contentRt = contentGo.GetComponent<RectTransform>();
+        contentRt.SetParent(viewportRt, false);
+        contentRt.anchorMin = new Vector2(0f, 1f);
+        contentRt.anchorMax = new Vector2(1f, 1f);
+        contentRt.pivot = new Vector2(0.5f, 1f);
+        contentRt.anchoredPosition = Vector2.zero;
+        contentRt.offsetMin = Vector2.zero;
+        contentRt.offsetMax = Vector2.zero;
+
+        VerticalLayoutGroup vlg = contentGo.AddComponent<VerticalLayoutGroup>();
+        vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.childControlWidth = true;
+        vlg.childForceExpandWidth = true;
+        vlg.childControlHeight = true;
+        vlg.childForceExpandHeight = false;
+        vlg.spacing = 0;
+        vlg.padding = new RectOffset(
+            Mathf.RoundToInt(HelperBodyScrollHorizontalPadding),
+            Mathf.RoundToInt(HelperBodyScrollHorizontalPadding),
+            0,
+            0);
+
+        ContentSizeFitter csf = contentGo.GetComponent<ContentSizeFitter>();
+        csf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        sr.viewport = viewportRt;
+        sr.content = contentRt;
+        sr.verticalScrollbar = verticalSb;
+    }
+
+    private void EnsureHelperBodyScrollPresentation()
+    {
+        if (_bodyText == null)
+            return;
+
+        ScrollRect existing = _bodyText.GetComponentInParent<ScrollRect>();
+        if (existing != null)
+        {
+            _helperBodyScrollRect = existing;
+            _helperBodyScrollContent = existing.content;
+            _helperBodyScrollbar = existing.verticalScrollbar;
+            EnsureHelperScrollContentHasVerticalLayout(_helperBodyScrollContent);
+            ApplyHelperBodyTextScrollLayoutDefaults(_bodyText);
+            WireHelperBodyViewportTypewriterSkip();
+            RefreshHelperBodyScrollLayout(scrollToTop: false);
+            return;
+        }
+
+        RectTransform bodyRt = _bodyText.rectTransform;
+        Transform parent = bodyRt.parent;
+        if (!parent)
+            return;
+
+        int idx = bodyRt.GetSiblingIndex();
+
+        GameObject scrollGo = new GameObject("BodyScrollView", typeof(RectTransform));
+        RectTransform scrollRt = scrollGo.GetComponent<RectTransform>();
+        scrollRt.SetParent(parent, false);
+        scrollRt.SetSiblingIndex(idx);
+        scrollRt.localScale = Vector3.one;
+        scrollRt.anchorMin = bodyRt.anchorMin;
+        scrollRt.anchorMax = bodyRt.anchorMax;
+        scrollRt.pivot = bodyRt.pivot;
+        scrollRt.anchoredPosition = bodyRt.anchoredPosition;
+        scrollRt.sizeDelta = bodyRt.sizeDelta;
+        scrollRt.offsetMin = bodyRt.offsetMin;
+        scrollRt.offsetMax = bodyRt.offsetMax;
+
+        BuildHelperBodyScrollInternals(scrollRt, out ScrollRect sr, out RectTransform viewportRt, out RectTransform contentRt,
+            out Scrollbar sb);
+        _helperBodyScrollRect = sr;
+        _helperBodyScrollContent = contentRt;
+        _helperBodyScrollbar = sb;
+
+        _bodyText.transform.SetParent(contentRt, false);
+        RectTransform brt = _bodyText.rectTransform;
+        brt.localScale = Vector3.one;
+        brt.anchorMin = new Vector2(0f, 1f);
+        brt.anchorMax = new Vector2(1f, 1f);
+        brt.pivot = new Vector2(0.5f, 1f);
+        brt.anchoredPosition = Vector2.zero;
+        brt.offsetMin = Vector2.zero;
+        brt.offsetMax = Vector2.zero;
+        ApplyHelperBodyTextScrollLayoutDefaults(_bodyText);
+
+        WireHelperBodyViewportTypewriterSkip();
+        RefreshHelperBodyScrollLayout(scrollToTop: true);
+    }
+
+    /// <summary>
+    /// Body TMP must not raycast — it would steal drags/wheel from <see cref="ScrollRect"/>. Typewriter skip lives on the viewport instead.
+    /// </summary>
+    private static void ApplyHelperBodyTextScrollLayoutDefaults(TMP_Text body)
+    {
+        if (!body)
+            return;
+
+        body.raycastTarget = false;
+        ContentSizeFitter fit = body.GetComponent<ContentSizeFitter>();
+        if (!fit)
+            fit = body.gameObject.AddComponent<ContentSizeFitter>();
+        fit.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+    }
+
+    private void WireHelperBodyViewportTypewriterSkip()
+    {
+        if (!_helperBodyScrollRect || !_helperBodyScrollRect.viewport)
+            return;
+
+        GameObject vp = _helperBodyScrollRect.viewport.gameObject;
+        if (_bodyText && _bodyText.TryGetComponent(out HelperTypewriterPanelSkip oldSkip))
+            Destroy(oldSkip);
+
+        HelperTypewriterPanelSkip s = vp.GetComponent<HelperTypewriterPanelSkip>() ?? vp.AddComponent<HelperTypewriterPanelSkip>();
+        s.Init(this);
+    }
+
+    private void RefreshHelperBodyScrollLayout(bool scrollToTop)
+    {
+        if (!_helperBodyScrollRect || !_helperBodyScrollContent)
+            return;
+
+        if (_bodyText)
+        {
+            _bodyText.ForceMeshUpdate(true);
+            ApplyHelperBodyTextScrollLayoutDefaults(_bodyText);
+        }
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(_helperBodyScrollContent);
+        if (_bodyText)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_bodyText.rectTransform);
+
+        if (scrollToTop)
+            _helperBodyScrollRect.verticalNormalizedPosition = 1f;
+    }
+
+    /// <summary>Hides the flashing &quot;! new&quot; badge when the player clicks the helper panel (body chrome, title, etc.).</summary>
+    public void DismissHelperNewBadgeFromPanelPointer() => HideHelperNewBadge();
+
+    private void ShowHelperNewBadge()
+    {
+        EnsureHelperNewBadgeBuilt();
+        EnsureHelperNewBadgeDismissTargetsWired();
+        if (_helperNewBadgeRoot == null)
+            return;
+
+        _helperNewBadgeRoot.SetActive(true);
+        if (_helperNewBadgeCanvasGroup)
+            _helperNewBadgeCanvasGroup.alpha = helperNewBadgePulseAlphaMax;
+    }
+
+    private void HideHelperNewBadge()
+    {
+        if (_helperNewBadgeRoot != null && _helperNewBadgeRoot.activeSelf)
+            _helperNewBadgeRoot.SetActive(false);
+    }
+
+    private void PulseHelperNewBadgeAlpha()
+    {
+        if (_helperNewBadgeRoot == null || !_helperNewBadgeRoot.activeSelf || _helperNewBadgeCanvasGroup == null)
+            return;
+
+        float w = Mathf.Sin(Time.unscaledTime * Mathf.Max(0.01f, helperNewBadgePulseSpeed));
+        float n = (w + 1f) * 0.5f;
+        float min = Mathf.Clamp01(helperNewBadgePulseAlphaMin);
+        float max = Mathf.Clamp01(helperNewBadgePulseAlphaMax);
+        if (max < min)
+        {
+            float t = min;
+            min = max;
+            max = t;
+        }
+
+        _helperNewBadgeCanvasGroup.alpha = Mathf.Lerp(min, max, n);
+    }
+
+    private void EnsureHelperNewBadgeBuilt()
+    {
+        if (_helperPanelRt == null)
+            return;
+
+        Transform existing = _helperPanelRt.Find(HelperNewBadgeChildName);
+        if (existing != null)
+        {
+            _helperNewBadgeRoot = existing.gameObject;
+            _helperNewBadgeCanvasGroup = _helperNewBadgeRoot.GetComponent<CanvasGroup>();
+            if (!_helperNewBadgeCanvasGroup)
+            {
+                _helperNewBadgeCanvasGroup = _helperNewBadgeRoot.AddComponent<CanvasGroup>();
+                _helperNewBadgeCanvasGroup.blocksRaycasts = false;
+                _helperNewBadgeCanvasGroup.interactable = false;
+            }
+
+            ApplyHelperNewBadgeLayout(_helperNewBadgeRoot);
+            return;
+        }
+
+        GameObject badgeGo = new GameObject(HelperNewBadgeChildName, typeof(RectTransform));
+        badgeGo.transform.SetParent(_helperPanelRt, false);
+        RectTransform brt = badgeGo.GetComponent<RectTransform>();
+        brt.anchorMin = new Vector2(0f, 1f);
+        brt.anchorMax = new Vector2(0f, 1f);
+        brt.pivot = new Vector2(0f, 1f);
+
+        CanvasGroup cg = badgeGo.AddComponent<CanvasGroup>();
+        cg.blocksRaycasts = false;
+        cg.interactable = false;
+        _helperNewBadgeCanvasGroup = cg;
+
+        TMP_Text tmp = badgeGo.AddComponent<TextMeshProUGUI>();
+        tmp.text = "! new";
+        tmp.fontStyle = FontStyles.Bold;
+        tmp.color = new Color(1f, 0.92f, 0.18f, 1f);
+        tmp.alignment = TextAlignmentOptions.Left;
+        tmp.raycastTarget = false;
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+        tmp.overflowMode = TextOverflowModes.Overflow;
+
+        _helperNewBadgeRoot = badgeGo;
+        badgeGo.transform.SetAsLastSibling();
+        ApplyHelperNewBadgeLayout(_helperNewBadgeRoot);
+    }
+
+    private static void ApplyHelperNewBadgeLayout(GameObject badgeRoot)
+    {
+        if (!badgeRoot)
+            return;
+
+        if (badgeRoot.TryGetComponent(out RectTransform brt))
+        {
+            brt.sizeDelta = kHelperNewBadgeSizeDelta;
+            brt.anchoredPosition = kHelperNewBadgeAnchoredPosition;
+        }
+
+        TMP_Text tmp = badgeRoot.GetComponent<TMP_Text>();
+        if (!tmp)
+            tmp = badgeRoot.GetComponentInChildren<TMP_Text>(true);
+        if (tmp)
+            tmp.fontSize = HelperNewBadgeFontSize;
+    }
+
+    private void EnsureHelperNewBadgeDismissTargetsWired()
+    {
+        if (_helperPanelRt == null)
+            return;
+
+        Transform chrome = _helperPanelRt.Find("TopChromeStrip");
+        if (chrome)
+        {
+            WireHelperNewBadgeDismissPointer(chrome);
+            Transform minBt = chrome.Find("MinimizeStripeButton");
+            if (minBt)
+                WireHelperNewBadgeDismissPointer(minBt);
+        }
+
+        if (_helperCloseButtonRoot)
+            WireHelperNewBadgeDismissPointer(_helperCloseButtonRoot.transform);
+
+        if (_titleText)
+        {
+            _titleText.raycastTarget = true;
+            WireHelperNewBadgeDismissPointer(_titleText.transform);
+        }
+
+        if (_expandedPanelRoot)
+        {
+            Transform footer = _expandedPanelRoot.transform.Find("FooterNav");
+            if (footer && footer.TryGetComponent(out Image footImg))
+            {
+                footImg.raycastTarget = true;
+                WireHelperNewBadgeDismissPointer(footer);
+            }
+        }
+
+        if (_prevHistoryButton)
+            WireHelperNewBadgeDismissPointer(_prevHistoryButton.transform);
+        if (_nextHistoryButton)
+            WireHelperNewBadgeDismissPointer(_nextHistoryButton.transform);
+
+        // Body viewport uses <see cref="HelperTypewriterPanelSkip"/> (also dismisses the new badge).
+
+        if (_helperBodyScrollbar)
+            WireHelperNewBadgeDismissPointer(_helperBodyScrollbar.transform);
+
+        WireHelperNewBadgeDismissPointer(_helperPanelRt);
+    }
+
+    private void WireHelperNewBadgeDismissPointer(Transform t)
+    {
+        if (!t)
+            return;
+
+        HelperPanelDismissNewBadgeOnPointerDown w =
+            t.GetComponent<HelperPanelDismissNewBadgeOnPointerDown>() ??
+            t.gameObject.AddComponent<HelperPanelDismissNewBadgeOnPointerDown>();
+        w.Init(this);
+    }
+
     private bool TryWireExistingHelperPopupWindow()
     {
         HelperPopupWindow host = HelperPopupWindow.FindExisting();
@@ -2673,7 +3130,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             return false;
 
         Transform expandedTf = panelTf.Find("ExpandedPresentation");
-        if (!expandedTf || !expandedTf.Find("BodyText"))
+        if (!expandedTf || !FindHelperBodyUnderExpanded(expandedTf))
             return false;
 
         _overlayRoot = host.gameObject;
@@ -2705,14 +3162,9 @@ public sealed class HelperGameplayController : MonoBehaviour
         _prevHistoryButton = _expandedPanelRoot.transform.Find("FooterNav/HistoryPrevButton")?.GetComponent<Button>();
         _nextHistoryButton = _expandedPanelRoot.transform.Find("FooterNav/HistoryNextButton")?.GetComponent<Button>();
         _titleText = _expandedPanelRoot.transform.Find("TitleText")?.GetComponent<TMP_Text>();
-        _bodyText = _expandedPanelRoot.transform.Find("BodyText")?.GetComponent<TMP_Text>();
-        if (_bodyText)
-        {
-            HelperTypewriterPanelSkip skip =
-                _bodyText.GetComponent<HelperTypewriterPanelSkip>() ??
-                _bodyText.gameObject.AddComponent<HelperTypewriterPanelSkip>();
-            skip.Init(this);
-        }
+        _bodyText = FindHelperBodyUnderExpanded(expandedTf)?.GetComponent<TMP_Text>();
+
+        EnsureHelperBodyScrollPresentation();
 
         RectTransform parentRt = ResolveOverlayParent();
         if (parentRt)
@@ -2721,6 +3173,8 @@ public sealed class HelperGameplayController : MonoBehaviour
         ApplyLoadedHelperLayout();
         EnsureHelperWindowFocus();
         ApplyHelperTipTextScale();
+        EnsureHelperNewBadgeBuilt();
+        EnsureHelperNewBadgeDismissTargetsWired();
         return true;
     }
 
@@ -2730,6 +3184,8 @@ public sealed class HelperGameplayController : MonoBehaviour
         {
             EnsureHelperWindowFocus();
             ApplyHelperTipTextScale();
+            EnsureHelperNewBadgeBuilt();
+            EnsureHelperNewBadgeDismissTargetsWired();
             return;
         }
 
@@ -2937,26 +3393,38 @@ public sealed class HelperGameplayController : MonoBehaviour
         _titleText.textWrappingMode = TextWrappingModes.Normal;
         _titleText.raycastTarget = false;
 
-        GameObject bodyGo =
-            CreateChild(_expandedPanelRoot.transform, "BodyText");
-        RectTransform bodyRt = bodyGo.GetComponent<RectTransform>();
-        bodyRt.anchorMin = new Vector2(0f, 0f);
-        bodyRt.anchorMax = new Vector2(1f, 1f);
-        bodyRt.pivot = new Vector2(0f, 1f);
+        GameObject scrollGo = CreateChild(_expandedPanelRoot.transform, "BodyScrollView");
+        RectTransform scrollRt = scrollGo.GetComponent<RectTransform>();
+        scrollRt.anchorMin = new Vector2(0f, 0f);
+        scrollRt.anchorMax = new Vector2(1f, 1f);
+        scrollRt.pivot = new Vector2(0f, 1f);
         float bodyTopInset = titleTopInset + titleBlockH + 6f;
-        bodyRt.offsetMin = new Vector2(16f, ExpandedFooterNavHeight + 8f);
-        bodyRt.offsetMax = new Vector2(-16f, -bodyTopInset);
+        scrollRt.offsetMin = new Vector2(16f, ExpandedFooterNavHeight + 8f);
+        scrollRt.offsetMax = new Vector2(-16f, -bodyTopInset);
+
+        BuildHelperBodyScrollInternals(scrollRt, out ScrollRect bodySr, out RectTransform viewportRt, out RectTransform contentRt,
+            out Scrollbar bodyVBar);
+        _helperBodyScrollRect = bodySr;
+        _helperBodyScrollContent = contentRt;
+        _helperBodyScrollbar = bodyVBar;
+
+        GameObject bodyGo = CreateChild(contentRt.transform, "BodyText");
+        RectTransform bodyInnerRt = bodyGo.GetComponent<RectTransform>();
+        bodyInnerRt.anchorMin = new Vector2(0f, 1f);
+        bodyInnerRt.anchorMax = new Vector2(1f, 1f);
+        bodyInnerRt.pivot = new Vector2(0.5f, 1f);
+        bodyInnerRt.anchoredPosition = Vector2.zero;
+        bodyInnerRt.offsetMin = Vector2.zero;
+        bodyInnerRt.offsetMax = Vector2.zero;
 
         _bodyText = bodyGo.AddComponent<TextMeshProUGUI>();
         _bodyText.fontSize = 16f;
         _bodyText.color = new Color(0.93f, 0.86f, 0.72f, 1f);
         _bodyText.textWrappingMode = TextWrappingModes.Normal;
         _bodyText.alignment = TextAlignmentOptions.TopJustified;
-        _bodyText.raycastTarget = true;
+        ApplyHelperBodyTextScrollLayoutDefaults(_bodyText);
 
-        HelperTypewriterPanelSkip clickSkip =
-            bodyGo.GetComponent<HelperTypewriterPanelSkip>() ?? bodyGo.AddComponent<HelperTypewriterPanelSkip>();
-        clickSkip.Init(this);
+        WireHelperBodyViewportTypewriterSkip();
 
         dimGo.transform.SetSiblingIndex(0);
         glowLayerGo.transform.SetSiblingIndex(1);
@@ -2969,6 +3437,9 @@ public sealed class HelperGameplayController : MonoBehaviour
         ApplyLoadedHelperLayout();
         EnsureHelperWindowFocus();
         ApplyHelperTipTextScale();
+
+        EnsureHelperNewBadgeBuilt();
+        EnsureHelperNewBadgeDismissTargetsWired();
 
         _overlayRoot.SetActive(false);
     }
@@ -3007,6 +3478,9 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (_bodyText)
             WireFocusTarget(_bodyText.gameObject);
+
+        if (_helperBodyScrollRect)
+            WireFocusTarget(_helperBodyScrollRect.gameObject);
 
         Transform dim = _overlayRoot.transform.Find("Dimmer");
         if (dim)
@@ -3732,5 +4206,18 @@ public sealed class HelperTypewriterPanelSkip : MonoBehaviour, IPointerDownHandl
     public void OnPointerDown(PointerEventData eventData)
     {
         _host?.CompleteBodyTypewriter();
+        _host?.DismissHelperNewBadgeFromPanelPointer();
     }
+}
+
+/// <summary>Forwards pointer-down on helper chrome / title / panel to hide the &quot;! new&quot; badge.</summary>
+[DisallowMultipleComponent]
+public sealed class HelperPanelDismissNewBadgeOnPointerDown : MonoBehaviour, IPointerDownHandler
+{
+    private HelperGameplayController _host;
+
+    public void Init(HelperGameplayController host) => _host = host;
+
+    public void OnPointerDown(PointerEventData eventData) =>
+        _host?.DismissHelperNewBadgeFromPanelPointer();
 }

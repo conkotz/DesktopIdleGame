@@ -22,7 +22,10 @@ MonoBehaviour:
   unlocks:
   - requiredLevel: 1
     title: Ranged Combat
-    description: Can use common ranged weapons
+    description: Can use tier 1 ranged weapons
     icon: {fileID: -4003117158439236843, guid: b4d639748b223674fa32f2107cd737d3, type: 3}
-    unlockType: 0
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
+    choices: []

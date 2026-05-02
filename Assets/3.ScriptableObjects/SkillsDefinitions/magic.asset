@@ -22,7 +22,10 @@ MonoBehaviour:
   unlocks:
   - requiredLevel: 1
     title: Magic Combat
-    description: Can use common magic weapons
+    description: Can use tier 1 magic weapons
     icon: {fileID: 21300170, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
-    unlockType: 0
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
     ability: {fileID: 0}
+    choices: []

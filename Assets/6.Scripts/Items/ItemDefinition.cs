@@ -1248,7 +1248,57 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public string GetRarityLabel() => rarity.ToString();
 
-    public string BuildTooltipStatsText()
+    /// <summary>Tier, requirements, tool/weapon type labels — shown in the misc stats TMP.</summary>
+    public string BuildTooltipMiscStatsText()
+    {
+        if (IsWeapon)
+        {
+            string hands = FormatHandednessLabel(weaponStats.handedness);
+            string type = weaponStats.attackSkill == AttackSkill.Magic
+                ? $"{weaponStats.attackSkill} ({weaponStats.magicAttackType})"
+                : weaponStats.attackSkill.ToString();
+            return FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
+                   FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
+                   FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n" +
+                   FormatTooltipMetaLine("Type", type) + "\n" +
+                   FormatTooltipMetaLine("Hands", hands);
+        }
+
+        if (IsCombatSupport)
+            return $"Support Type: {SupportType}";
+
+        if (IsTool)
+        {
+            string type = toolStats.toolType.ToString();
+            string s = "";
+            if (UsesEquipmentTierGating)
+            {
+                s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
+                     FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
+                     FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n";
+            }
+            else if (HasUpgradeSlots)
+                s += FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n";
+
+            s += FormatTooltipMetaLine("Tool", type);
+            return s;
+        }
+
+        if (IsArmor)
+        {
+            return FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
+                   FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
+                   FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}");
+        }
+
+        if (IsJewelry && HasUpgradeSlots)
+            return GetUpgradeSlotsTooltipLine();
+
+        return string.Empty;
+    }
+
+    /// <summary>Damage, speeds, resistances, gather rates — shown in the main stats TMP.</summary>
+    public string BuildTooltipMainStatsText()
     {
         if (IsWeapon)
         {
@@ -1259,7 +1309,6 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float critChancePct = Mathf.Clamp01(weaponStats.critChance + bonusStats.critChanceBonus) * 100f;
             float critMultPct = Mathf.Max(0f, weaponStats.critMultiplier + bonusStats.critMultiplierBonus) * 100f;
 
-            string hands = FormatHandednessLabel(weaponStats.handedness);
             string range = $"{AttackRange:0.##}";
 
             string dual = (weaponStats.handedness == Handedness.OneHanded && weaponStats.canEquipInOffHand)
@@ -1270,16 +1319,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 includeDefense: false,
                 omitBurnBonuses: true,
                 omitAilmentChanceBonuses: true);
-            string type = weaponStats.attackSkill == AttackSkill.Magic
-                ? $"{weaponStats.attackSkill} ({weaponStats.magicAttackType})"
-                : weaponStats.attackSkill.ToString();
 
             string s = "";
-            s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                 FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
-                 FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n" +
-                 FormatTooltipMetaLine("Type", type) + "\n" +
-                 FormatTooltipMetaLine("Hands", hands) + "\n\n";
 
             if (HasPhysicalWeaponDamage)
                 s += $"Physical Damage: {weaponStats.minPhysicalDamage}-{weaponStats.maxPhysicalDamage}\n";
@@ -1315,12 +1356,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (!string.IsNullOrWhiteSpace(misc))
                 s += "\n" + misc;
 
-            return s;
+            return s.TrimEnd('\n');
         }
 
         if (IsCombatSupport)
         {
-            string s = $"Support Type: {SupportType}";
+            string s = "";
             if (SupportBonusPhysicalDamage != 0f) s += $"\nPhysical Damage: {FormatSignedNumber(SupportBonusPhysicalDamage)}";
             if (SupportBonusMagicDamage != 0f) s += $"\nMagic Damage: {FormatSignedNumber(SupportBonusMagicDamage)}";
             if (SupportBonusCorruptionDamage != 0f) s += $"\nCorruption Damage: {FormatSignedNumber(SupportBonusCorruptionDamage)}";
@@ -1351,27 +1392,14 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (!string.IsNullOrWhiteSpace(miscCs))
                 s += "\n" + miscCs;
 
-            return s;
+            return s.TrimStart('\n').TrimEnd('\n');
         }
 
         if (IsTool)
         {
-            string type = toolStats.toolType.ToString();
             string extras = BuildBonusLines(includeDefense: true);
 
-            string s = "";
-            if (UsesEquipmentTierGating)
-            {
-                s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                     FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
-                     FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n";
-            }
-            else if (HasUpgradeSlots)
-            {
-                s += FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n";
-            }
-
-            s += FormatTooltipMetaLine("Tool", type) + "\n\n" +
+            string s =
                 $"Gather Speed: {GatherSpeedMultiplier:0.##}x\n" +
                 $"Gather Grit: {GatheringGrit * 100f:0.#}%\n" +
                 $"Bonus Find: +{BonusResourceFindChance * 100f:0.#}%\n" +
@@ -1390,17 +1418,6 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (IsArmor || IsJewelry)
         {
             string s = "";
-
-            if (IsArmor)
-            {
-                s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                     FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
-                     FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n\n";
-            }
-            else if (HasUpgradeSlots)
-            {
-                s += $"{GetUpgradeSlotsTooltipLine()}\n";
-            }
 
             if (ArmorValue != 0) s += $"Armour: {ArmorValue}\n";
             if (MagicResist != 0) s += $"Magic Res: {MagicResist}\n";
@@ -1438,9 +1455,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 s += $"\nCooldown: {UseCooldown:0.##}s";
 
             if (HasGrantedEffect)
-            {
                 s += $"\nEffect: {ConsumableEffectTooltip.Format(GrantedEffect)}";
-            }
 
             if (CanCook())
                 s += "\nCookable: Yes";
@@ -1483,6 +1498,18 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         }
 
         return string.Empty;
+    }
+
+    /// <summary>Full block (misc + main) for legacy callers and copy/paste.</summary>
+    public string BuildTooltipStatsText()
+    {
+        string misc = BuildTooltipMiscStatsText();
+        string main = BuildTooltipMainStatsText();
+        if (string.IsNullOrWhiteSpace(misc))
+            return main ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(main))
+            return misc;
+        return misc.TrimEnd('\n') + "\n\n" + main.TrimEnd('\n');
     }
 
     private static string FormatSignedNumber(float value)

@@ -10,13 +10,18 @@ using UnityEngine;
 /// Never recommend below the <b>strongest</b> enemy in the pull: <c>base = max(averageCp × stress, maxInstanceCp)</c>, then × <see cref="Options.TierMultiplier"/>.<br/>
 /// <b>Endurance:</b> <c>waveStress = 1 + max(0, waveCount − 1) × WaveStressPerExtraWave</c>.<br/>
 /// <b>Combat:</b> <c>enemyStress = 1 + max(0, instanceCount − 1) × EnemyStressPerExtraInstance</c>.<br/>
-/// <c>recommended = max(Minimum, round(base × TierMultiplier))</c>
+/// <c>recommended = max(Minimum, round(base × TierMultiplier))</c>, then × <see cref="EnduranceTrialRecommendedCpDisplayMultiplier"/> for endurance trials only (waves + sustained pressure).
 /// </para>
 /// Rows without a resolvable <see cref="EnemyDefinition"/> are skipped: use <see cref="SpawnPrefabCount.enemyDefinition"/>,
 /// or a <see cref="SpawnPrefabCount.prefab"/> whose root/children include <see cref="EnemyBaseController"/> with a definition assigned.
 /// </summary>
 public static class RecommendedCombatPower
 {
+    /// <summary>
+    /// Extra factor on endurance-trial recommendations (level select, begin popup). Tuned so multi-wave pulls read closer to real difficulty.
+    /// </summary>
+    public const float EnduranceTrialRecommendedCpDisplayMultiplier = 3f;
+
     /// <summary>Set true to print verbose recommended-CP traces to the Console. Off by default.</summary>
     public static bool DiagnosticsEnabled = false;
 
@@ -86,6 +91,8 @@ public static class RecommendedCombatPower
             options,
             $"endurance '{def.nodeId}'",
             CpStressMode.EnduranceWaveStress);
+        if (result > 0)
+            result = Mathf.Max(1, Mathf.RoundToInt(result * EnduranceTrialRecommendedCpDisplayMultiplier));
         DiagLog($"ComputeForEnduranceTrial result={result} (0 = will use fallbackRecommendedCombatPower on node).", def);
         return result;
     }
@@ -196,7 +203,10 @@ public static class RecommendedCombatPower
         if (computed > 0)
             return computed;
 
-        return def.fallbackRecommendedCombatPower;
+        int fallback = def.fallbackRecommendedCombatPower;
+        if (def.nodeType == MapNodeType.EnduranceTrial && fallback > 0)
+            return Mathf.Max(1, Mathf.RoundToInt(fallback * EnduranceTrialRecommendedCpDisplayMultiplier));
+        return fallback;
     }
 
     public static int GetRecommendedCombatPowerForDisplay(MapNodeDefinition def)
