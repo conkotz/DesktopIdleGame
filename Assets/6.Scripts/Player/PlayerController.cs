@@ -2439,6 +2439,7 @@ public class PlayerController : MonoBehaviour
 
         MainMenuWindowUI.CaptureOpenStateForSceneChange();
         GameplayRespawnHelperPersistence.MarkKeepHelperOverlayAcrossNextGameplayLoad();
+        SaveManager.Instance?.SaveBeforeSceneTransition();
         SceneManager.LoadScene(GameplaySceneName, LoadSceneMode.Single);
     }
 

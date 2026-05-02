@@ -20,7 +20,7 @@ public class Merchant : MonoBehaviour, ISaveable
 
     [Header("Save Identity")]
     [Tooltip(
-        "Unique id for merchant stock in save data. If empty, id is merchantStock:<MerchantStock asset key> so inventory persists across level loads. Set explicitly when two merchants share one stock asset.")]
+        "Optional override for save JSON merchantId. If empty, uses merchantStock:<Stock Save Key> (or asset file name when Stock Save Key is empty). Empty is normal — you only need a custom id if two NPCs share one MerchantStock asset.")]
     [SerializeField] private string merchantId;
 
     [Header("Refs (optional)")]
@@ -146,7 +146,10 @@ public class Merchant : MonoBehaviour, ISaveable
             if (!CanAfford(entry))
             {
                 if (bought > 0)
+                {
                     ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
+                    SaveManager.Instance?.NotifyShopStockChanged();
+                }
                 GameLog.PurchaseFailed("Cannot afford", ResolveItemDisplayName(entry.itemId));
                 Debug.Log($"[Merchant] Cannot afford {itemId}.");
                 return false;
@@ -155,7 +158,10 @@ public class Merchant : MonoBehaviour, ISaveable
             if (!inventory.CanAdd(entry.itemId, 1))
             {
                 if (bought > 0)
+                {
                     ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
+                    SaveManager.Instance?.NotifyShopStockChanged();
+                }
                 GameLog.InventoryFull(ResolveItemDisplayName(entry.itemId));
                 Debug.Log($"[Merchant] Inventory full, could not add {itemId}.");
                 return false;
@@ -167,7 +173,10 @@ public class Merchant : MonoBehaviour, ISaveable
             if (!added)
             {
                 if (bought > 0)
+                {
                     ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
+                    SaveManager.Instance?.NotifyShopStockChanged();
+                }
                 GameLog.PurchaseFailed("Purchase failed", ResolveItemDisplayName(entry.itemId));
                 Debug.LogError($"[Merchant] Failed to add {itemId} after spending costs.");
                 return false;
@@ -177,11 +186,14 @@ public class Merchant : MonoBehaviour, ISaveable
 
             int current = GetQuantity(entry);
             if (current > 0)
-                SetQuantity(entry, current - 1);
+                SetQuantity(entry, current - 1, persistToDisk: false);
         }
 
         if (bought > 0)
+        {
             ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
+            SaveManager.Instance?.NotifyShopStockChanged();
+        }
 
         Debug.Log($"[Merchant] Bought {amount}x {itemId}.");
         return true;
@@ -488,7 +500,7 @@ public class Merchant : MonoBehaviour, ISaveable
         return _runtimeQuantities[index];
     }
 
-    public void SetQuantity(MerchantStock.Entry entry, int quantity)
+    public void SetQuantity(MerchantStock.Entry entry, int quantity, bool persistToDisk = true)
     {
         int index = GetEntryIndex(entry);
         if (index < 0) return;
@@ -500,7 +512,7 @@ public class Merchant : MonoBehaviour, ISaveable
 
         _runtimeQuantities[index] = clamped;
         StockChanged?.Invoke(this);
-        if (SaveManager.Instance != null)
+        if (persistToDisk && SaveManager.Instance != null)
             SaveManager.Instance.NotifyShopStockChanged();
     }
 
@@ -616,21 +628,17 @@ public class Merchant : MonoBehaviour, ISaveable
         SaveData.MerchantStockSave save = FindMerchantStockSave(data, id);
         if (save == null)
         {
-            save = new SaveData.MerchantStockSave
-            {
-                merchantId = id,
-                quantities = new List<int>()
-            };
+            save = new SaveData.MerchantStockSave { merchantId = id };
             data.merchantStocks.Add(save);
         }
 
         save.merchantId = id;
-        save.quantities ??= new List<int>();
-        save.quantities.Clear();
 
         EnsureRuntimeStockCapacity();
-        for (int i = 0; i < stock.Items.Count; i++)
-            save.quantities.Add(i < _runtimeQuantities.Count ? _runtimeQuantities[i] : 0);
+        int n = stock.Items.Count;
+        save.quantities = new int[n];
+        for (int i = 0; i < n; i++)
+            save.quantities[i] = i < _runtimeQuantities.Count ? _runtimeQuantities[i] : 0;
     }
 
     public void LoadFrom(SaveData data)
@@ -650,11 +658,11 @@ public class Merchant : MonoBehaviour, ISaveable
                 break;
         }
 
-        if (matched == null || matched.quantities == null)
+        if (matched == null || matched.quantities == null || matched.quantities.Length == 0)
             return;
 
         EnsureRuntimeStockCapacity();
-        int n = Mathf.Min(_runtimeQuantities.Count, matched.quantities.Count);
+        int n = Mathf.Min(_runtimeQuantities.Count, matched.quantities.Length);
         for (int i = 0; i < n; i++)
             _runtimeQuantities[i] = Mathf.Max(-1, matched.quantities[i]);
     }

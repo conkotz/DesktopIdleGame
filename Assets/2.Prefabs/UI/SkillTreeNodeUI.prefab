@@ -507,7 +507,7 @@ MonoBehaviour:
   levelText: {fileID: 3451455167035919970}
   typeText: {fileID: 3594428978921009824}
   lockedOverlay: {fileID: 7829962505556040931}
-  selectedGlow: {fileID: 6724881658191109502}
+  selectedGlow: {fileID: 0}
   button: {fileID: 1358460105655363396}
   selectedOutlineColor: {r: 1, g: 0.92, b: 0.35, a: 1}
   selectedBorderThickness: 8

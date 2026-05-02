@@ -337,6 +337,21 @@ public class SkillsManager : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>
+    /// Debug / testing: each tracked skill gains one level. XP into the current level is cleared.
+    /// Fires <see cref="OnLevelUp"/> per skill (same hook as normal progression).
+    /// </summary>
+    public void DebugIncreaseAllSkillsOneLevel()
+    {
+        foreach (SkillType t in GetAllTrackedSkills())
+        {
+            var p = Get(t);
+            p.level++;
+            p.xp = 0;
+            OnLevelUp?.Invoke(t, p.level);
+        }
+    }
+
     private SkillProgress Get(SkillType type)
     {
         if (_skills.TryGetValue(type, out var p) && p != null)

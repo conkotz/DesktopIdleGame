@@ -6083,32 +6083,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DebugGiveItems
   inventory: {fileID: 4615812802344899198}
-  wallet: {fileID: 0}
   levelUpEffect: {fileID: 0}
   popupSpawner: {fileID: 0}
   popupAnchor: {fileID: 0}
-  swordDef: {fileID: 11400000, guid: b3a17782af5716744a93c10e9418bf17, type: 2}
-  shieldDef: {fileID: 11400000, guid: 5c81fc352dab3d64ebc3f41d63015ddd, type: 2}
-  axeDef: {fileID: 11400000, guid: db75d88da4098f74f981abe58a3e7c03, type: 2}
-  rodDef: {fileID: 11400000, guid: 2f3f60e28977fc84183ed38434fd6551, type: 2}
-  pickaxeDef: {fileID: 11400000, guid: 7430bf37785e3a14e96af84084aa40f0, type: 2}
-  spearDef: {fileID: 11400000, guid: fe1b174af23d50a4b83fd41b4aead98b, type: 2}
-  polearmDef: {fileID: 11400000, guid: 6c03eb97d12298f4586bf53d54b712c8, type: 2}
-  daggerDef: {fileID: 11400000, guid: 074fa9e1e331a964eabda14f761d6cd8, type: 2}
-  maceDef: {fileID: 11400000, guid: d8f304631b3aeb844a9bc2dec8caacca, type: 2}
-  critRingDef: {fileID: 0}
-  vampRingDef: {fileID: 0}
-  bootsDef: {fileID: 0}
-  stoneDef: {fileID: 0}
-  woodDef: {fileID: 0}
-  fishDef: {fileID: 0}
-  devDestroyerMaceDef: {fileID: 11400000, guid: 3cf41e30a68fc594f8b3da62f8d02bb7, type: 2}
-  amount: 1
-  grantPackKey: 108
-  decreaseAllSkillsKey: 107
-  grantGold: 50000
+  fishDef: {fileID: 11400000, guid: 26d3cf45f31e7c14fafe1948c442cd0e, type: 2}
+  logsDef: {fileID: 11400000, guid: 60a88e1e810c3ee46a36fb6b840a76b3, type: 2}
+  stoneChunkDef: {fileID: 11400000, guid: 30b1b02abfbe72445a66a849d7f7783c, type: 2}
   grantResourceAmount: 100
-  grantDevDestroyerMaceAmount: 1
+  devDestroyerMaceDef: {fileID: 11400000, guid: 3cf41e30a68fc594f8b3da62f8d02bb7, type: 2}
   popupWorldOffset: {x: 0, y: 1.6, z: 0}
 --- !u!114 &7897775695737928978
 MonoBehaviour:

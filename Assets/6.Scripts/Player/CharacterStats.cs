@@ -328,7 +328,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!inventory && equipment) inventory = equipment.Inventory;
         if (!toolbelt) toolbelt = GetComponent<ToolbeltManager>();
         if (!buffController) buffController = GetComponent<PlayerBuffController>();
-        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        PreferRuntimeSkillsManager();
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         _ownerPlayer = GetComponent<PlayerController>() ?? GetComponentInParent<PlayerController>();
         if (_ownerPlayer)
@@ -351,18 +351,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// </summary>
     private void TrySubscribeSkillProgressForCombatPower()
     {
-        if (!_ownerPlayer || _skillProgressCombatPowerSubscribed)
+        if (!_ownerPlayer)
             return;
 
-        SkillsManager sm = skillsManager ? skillsManager : SkillsManager.Instance;
+        PreferRuntimeSkillsManager();
+        SkillsManager sm = SkillsManager.Instance != null ? SkillsManager.Instance : skillsManager;
         if (!sm)
             return;
+
+        if (_skillProgressCombatPowerSubscribed == sm)
+            return;
+
+        TryUnsubscribeSkillProgressForCombatPower();
 
         sm.OnSkillChoiceSelectionChanged += OnSkillTreeChangedForCombatPower;
         sm.OnSkillAbilityRowPickChanged += OnSkillAbilityRowPickChangedForCombatPower;
         sm.OnLevelUp += OnSkillLevelUpForCombatPower;
         sm.OnSkillLevelDecreased += OnSkillLevelUpForCombatPower;
         _skillProgressCombatPowerSubscribed = sm;
+    }
+
+    private void PreferRuntimeSkillsManager()
+    {
+        if (SkillsManager.Instance != null)
+            skillsManager = SkillsManager.Instance;
     }
 
     private void TryUnsubscribeSkillProgressForCombatPower()
@@ -1979,7 +1991,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!_ownerPlayer)
             return default;
 
-        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        PreferRuntimeSkillsManager();
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         if (!skillsManager || !skillDatabase)
             return default;
@@ -2013,7 +2025,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!_ownerPlayer)
             return default;
 
-        if (!skillsManager) skillsManager = SkillsManager.Instance;
+        PreferRuntimeSkillsManager();
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         if (!skillsManager || !skillDatabase)
             return default;

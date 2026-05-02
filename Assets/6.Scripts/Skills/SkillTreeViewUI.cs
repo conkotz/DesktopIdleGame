@@ -60,6 +60,9 @@ public class SkillTreeViewUI : MonoBehaviour
     private readonly List<InterTierVerticalRecord> interTierVerticalConnectors = new();
     private readonly List<RowDef> layoutRowsCache = new();
 
+    /// <summary>Scales serialized layout distances to match <see cref="SkillTreeNodeUI.NodeVisualScale"/>.</summary>
+    private static float ScaledLayout(float value) => value * SkillTreeNodeUI.NodeVisualScale;
+
     private SkillTreeNodeUI selectedNode;
     private SkillDefinition _lastBuiltSkill;
     private float choiceChangeUnlockedAt;
@@ -146,6 +149,7 @@ public class SkillTreeViewUI : MonoBehaviour
             playerController = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         ResolveCombatStateReference();
         SubscribeCombatState();
+        PreferRuntimeSkillsManager();
         BuildForSelectedSkill();
     }
 
@@ -170,6 +174,12 @@ public class SkillTreeViewUI : MonoBehaviour
         BuildForSelectedSkill();
     }
 
+    private void PreferRuntimeSkillsManager()
+    {
+        if (SkillsManager.Instance != null)
+            skillsManager = SkillsManager.Instance;
+    }
+
     public void BuildForSelectedSkill()
     {
         ClearTree();
@@ -177,6 +187,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
         if (selectedSkill == null || selectedSkill.unlocks == null || selectedSkill.unlocks.Count == 0)
             return;
+        PreferRuntimeSkillsManager();
         if (!skillsManager)
             skillsManager = SkillsManager.Instance;
 
@@ -206,6 +217,8 @@ public class SkillTreeViewUI : MonoBehaviour
     {
         if (skill == null || selectedSkill != skill || skill != _lastBuiltSkill || nodeLookup.Count == 0)
             return false;
+
+        PreferRuntimeSkillsManager();
 
         sharedTooltip?.Hide();
 
@@ -258,6 +271,7 @@ public class SkillTreeViewUI : MonoBehaviour
     /// <summary>Clears committed ability picks for the skill currently shown in this tree, then rebuilds.</summary>
     public void ResetAbilityRowPicksForCurrentSkillAndRebuild()
     {
+        PreferRuntimeSkillsManager();
         if (selectedSkill != null && skillsManager)
             skillsManager.ClearSkillAbilityRowPicksForSkill(selectedSkill.skillType);
         RebuildAfterAbilityRowReset();
@@ -268,6 +282,7 @@ public class SkillTreeViewUI : MonoBehaviour
     /// </summary>
     public void OnResetSkillTreeButtonClicked()
     {
+        PreferRuntimeSkillsManager();
         if (!skillsManager)
             skillsManager = SkillsManager.Instance;
         if (skillsManager != null)
@@ -377,7 +392,7 @@ public class SkillTreeViewUI : MonoBehaviour
             {
                 RowDef prev = rows[i - 1];
                 float prevHalf = SkillTreeNodeUI.GetVisualBoxSize(prev.type).y * 0.5f;
-                y = layoutRowY[i - 1] - prevHalf - Mathf.Max(0f, rowGap) - currentHalf;
+                y = layoutRowY[i - 1] - prevHalf - Mathf.Max(0f, ScaledLayout(rowGap)) - currentHalf;
             }
 
             layoutRowY.Add(y);
@@ -397,7 +412,7 @@ public class SkillTreeViewUI : MonoBehaviour
             if (TierIsMultiAbilityOnly(rows, g, end))
             {
                 int n = end - g + 1;
-                float step = Mathf.Max(1f, abilitySiblingSpacing);
+                float step = Mathf.Max(1f, ScaledLayout(abilitySiblingSpacing));
                 for (int k = 0; k < n; k++)
                 {
                     float t = k - (n - 1) * 0.5f;
@@ -414,7 +429,7 @@ public class SkillTreeViewUI : MonoBehaviour
                     {
                         float halfA = SkillTreeNodeUI.GetVisualBoxSize(rows[i].type).x * 0.5f;
                         float halfB = SkillTreeNodeUI.GetVisualBoxSize(rows[i + 1].type).x * 0.5f;
-                        xPos += halfA + Mathf.Max(0f, sameLevelNodeGap) + halfB;
+                        xPos += halfA + Mathf.Max(0f, ScaledLayout(sameLevelNodeGap)) + halfB;
                     }
                 }
             }
@@ -547,16 +562,16 @@ public class SkillTreeViewUI : MonoBehaviour
                 if (!rowYByLevel.TryGetValue(choiceUnlockLevel, out float targetY))
                     continue; // no authored row at that level yet
 
-                float xStep = row.type == SkillTreeNodeVisualType.CapstonePassive ? capstoneChoiceOffsetX : choiceOffsetX;
+                float xStep = ScaledLayout(row.type == SkillTreeNodeVisualType.CapstonePassive ? capstoneChoiceOffsetX : choiceOffsetX);
                 float yOffset;
                 if (choiceUnlockLevel != row.level)
                 {
                     // Choice rows that unlock later than their source can use a dedicated offset.
-                    yOffset = explicitChoiceRowYOffset;
+                    yOffset = ScaledLayout(explicitChoiceRowYOffset);
                 }
                 else
                 {
-                    yOffset = row.type == SkillTreeNodeVisualType.CapstonePassive ? capstoneChoiceYOffset : choiceYOffset;
+                    yOffset = ScaledLayout(row.type == SkillTreeNodeVisualType.CapstonePassive ? capstoneChoiceYOffset : choiceYOffset);
                 }
                 float offsetX = (choiceIndex - center) * xStep;
                 float choiceY = targetY + yOffset;

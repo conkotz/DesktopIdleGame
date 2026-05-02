@@ -41,6 +41,9 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     [SerializeField] private Color capstonePassiveColor = new Color(0.58f, 0.32f, 0.76f);
 
     [Header("Sizes")]
+    /// <summary>Multiplier for <see cref="GetVisualSize"/>; layout code should scale serialized gaps via the same value.</summary>
+    public const float NodeVisualScale = 1.5f;
+
     /// <summary>Filler spine nodes — kept small so milestone nodes read clearly.</summary>
     private static readonly Vector2 MINOR_PASSIVE_SIZE = new Vector2(18f, 18f);
     private static readonly Vector2 MILESTONE_SIZE = new Vector2(55f, 55f);
@@ -68,7 +71,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     /// </summary>
     public static Vector2 GetVisualSize(SkillTreeNodeVisualType type)
     {
-        return type switch
+        Vector2 baseSize = type switch
         {
             SkillTreeNodeVisualType.MinorPassive => MINOR_PASSIVE_SIZE,
             SkillTreeNodeVisualType.MajorPassive => MAJOR_PASSIVE_SIZE,
@@ -78,6 +81,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
             SkillTreeNodeVisualType.CapstonePassive => CAPSTONE_PASSIVE_SIZE,
             _ => MINOR_PASSIVE_SIZE
         };
+        return baseSize * NodeVisualScale;
     }
 
     /// <summary>

@@ -27,7 +27,6 @@ public class SaveManager : MonoBehaviour
 
     private string ActiveSavePath => SaveSlotManager.GetSavePath(GetSafeActiveSlot());
     private float _autosaveTimer;
-    private float _shopStockSaveDueUnscaled = -1f;
     private float _stripZoomSaveDueUnscaled = -1f;
     private const float ShopStockSaveDebounceSeconds = 0.12f;
 
@@ -229,13 +228,6 @@ public class SaveManager : MonoBehaviour
     {
         if (!_didInitialLoadOrCreate) return;   // ✅ ADD THIS
 
-        if (_shopStockSaveDueUnscaled >= 0f && Time.unscaledTime >= _shopStockSaveDueUnscaled)
-        {
-            _shopStockSaveDueUnscaled = -1f;
-            if (!_isApplyingSaveData)
-                Save();
-        }
-
         if (_stripZoomSaveDueUnscaled >= 0f && Time.unscaledTime >= _stripZoomSaveDueUnscaled)
         {
             _stripZoomSaveDueUnscaled = -1f;
@@ -270,6 +262,10 @@ public class SaveManager : MonoBehaviour
             version = 4,
             savedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
+
+        // Merchants only exist in the gameplay scene. Autosave / menu / world-map saves used to build an empty
+        // merchantStocks list and wipe every vendor on disk. Seed from the last snapshot, then in-scene merchants overwrite.
+        SeedMerchantStocksFromSnapshot(data, _lastLoadedData);
 
         var saveables = FindSaveables();
         foreach (var s in saveables)
@@ -318,14 +314,25 @@ public class SaveManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Call after shop stock changes without an inventory delta (debounced full save).
+    /// Call after shop stock changes. Persists immediately so a quick scene reload cannot skip the debounced write.
     /// </summary>
     public void NotifyShopStockChanged()
     {
         if (!_didInitialLoadOrCreate || _isApplyingSaveData)
             return;
 
-        _shopStockSaveDueUnscaled = Time.unscaledTime + ShopStockSaveDebounceSeconds;
+        Save();
+    }
+
+    /// <summary>
+    /// Writes the active slot to disk before unloading gameplay (merchants, inventory, etc.).
+    /// </summary>
+    public void SaveBeforeSceneTransition()
+    {
+        if (!_didInitialLoadOrCreate || _isApplyingSaveData)
+            return;
+
+        Save();
     }
 
     /// <summary>
@@ -452,6 +459,58 @@ public class SaveManager : MonoBehaviour
             data.levelItemPickupOnceClaimedKeys = new List<string>();
         if (data.permanentDeadEnemySpawnKeys == null)
             data.permanentDeadEnemySpawnKeys = new List<string>();
+
+        MigrateLegacyWorldMapEnteredNodeIdsIfNeeded(data);
+    }
+
+    /// <summary>
+    /// Older saves never persisted <see cref="SaveData.worldMapEnteredNodeIds"/>, so it stayed empty and every load of a
+    /// map was treated as a first visit — replaying <see cref="HelperActivationTrigger.FirstVisitMapNode"/> helpers
+    /// like the Welcome tip on <c>tutorial_1</c>. When the slot is clearly not a fresh start, infer nodes already entered.
+    /// </summary>
+    private static void MigrateLegacyWorldMapEnteredNodeIdsIfNeeded(SaveData data)
+    {
+        if (data == null || data.worldMapEnteredNodeIds == null || data.worldMapEnteredNodeIds.Count > 0)
+            return;
+
+        bool progressed =
+            (data.worldMapCompletedNodeIds != null && data.worldMapCompletedNodeIds.Count > 0) ||
+            (data.questRewardClaimedIds != null && data.questRewardClaimedIds.Count > 0) ||
+            (data.acceptedQuestIds != null && data.acceptedQuestIds.Count > 0) ||
+            (data.levelItemPickupOnceClaimedKeys != null && data.levelItemPickupOnceClaimedKeys.Count > 0) ||
+            (data.permanentDeadEnemySpawnKeys != null && data.permanentDeadEnemySpawnKeys.Count > 0) ||
+            data.playerLevel > 1 ||
+            data.xp > 0 ||
+            data.gold > 0 ||
+            (data.worldMapUnlockedNodeIds != null && data.worldMapUnlockedNodeIds.Count > 1);
+
+        if (!progressed)
+            return;
+
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        void AddId(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                return;
+            set.Add(id.Trim());
+        }
+
+        if (data.worldMapUnlockedNodeIds != null)
+        {
+            for (int i = 0; i < data.worldMapUnlockedNodeIds.Count; i++)
+                AddId(data.worldMapUnlockedNodeIds[i]);
+        }
+
+        if (data.worldMapCompletedNodeIds != null)
+        {
+            for (int i = 0; i < data.worldMapCompletedNodeIds.Count; i++)
+                AddId(data.worldMapCompletedNodeIds[i]);
+        }
+
+        AddId(data.activeMapNodeId);
+
+        data.worldMapEnteredNodeIds.AddRange(set);
+        data.worldMapEnteredNodeIds.Sort(string.CompareOrdinal);
     }
 
     public bool IsLevelItemPickupOnceClaimed(string key) => LevelItemPickupSaveStore.IsClaimed(key);
@@ -602,6 +661,32 @@ public class SaveManager : MonoBehaviour
         );
 
         return behaviours.OfType<ISaveable>().ToArray();
+    }
+
+    private static void SeedMerchantStocksFromSnapshot(SaveData dest, SaveData source)
+    {
+        if (dest == null || source == null) return;
+        if (source.merchantStocks == null || source.merchantStocks.Count == 0) return;
+
+        dest.merchantStocks ??= new List<SaveData.MerchantStockSave>();
+        dest.merchantStocks.Clear();
+
+        for (int i = 0; i < source.merchantStocks.Count; i++)
+        {
+            SaveData.MerchantStockSave row = source.merchantStocks[i];
+            if (row == null || string.IsNullOrWhiteSpace(row.merchantId))
+                continue;
+            dest.merchantStocks.Add(CloneMerchantStockRow(row));
+        }
+    }
+
+    private static SaveData.MerchantStockSave CloneMerchantStockRow(SaveData.MerchantStockSave row)
+    {
+        return new SaveData.MerchantStockSave
+        {
+            merchantId = row.merchantId,
+            quantities = row.quantities != null ? (int[])row.quantities.Clone() : null
+        };
     }
 
     public void DeleteSave()

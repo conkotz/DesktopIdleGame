@@ -1562,7 +1562,8 @@ public sealed class HelperGameplayController : MonoBehaviour
                 HelperProgressStore.WasDismissed(d.helperId))
                 continue;
 
-            if (d.skillLevelTriggerSkill != firedSkill)
+            if (d.skillLevelTriggerSkill != HelperSkillLevelTriggerOption.AnySkill &&
+                (SkillType)d.skillLevelTriggerSkill != firedSkill)
                 continue;
 
             int minLv = Mathf.Max(2, d.skillLevelTriggerMinimumNewLevel);

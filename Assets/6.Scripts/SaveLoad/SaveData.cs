@@ -149,7 +149,11 @@ public class SaveData
     public class MerchantStockSave
     {
         public string merchantId;
-        public List<int> quantities = new();
+        /// <summary>
+        /// Parallel to <see cref="MerchantStock.Items"/> indices. Must be <c>int[]</c> (not <c>List&lt;int&gt;</c>):
+        /// Unity <see cref="UnityEngine.JsonUtility"/> does not round-trip nested lists inside list elements, so stock never persisted.
+        /// </summary>
+        public int[] quantities;
     }
 
     [Header("Desktop strip zoom")]

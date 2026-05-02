@@ -77,8 +77,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void Awake()
     {
-        if (!skillsManager)
-            skillsManager = SkillsManager.Instance;
+        PreferRuntimeSkillsManager();
 
         if (!player)
             player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
@@ -95,8 +94,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void OnEnable()
     {
-        if (!skillsManager)
-            skillsManager = SkillsManager.Instance;
+        PreferRuntimeSkillsManager();
         if (!abilityDatabase)
             abilityDatabase = AbilityDatabase.LoadDefault();
         EnsureCenterTreeReference();
@@ -120,10 +118,23 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (!isActiveAndEnabled || !skillsManager)
+        if (!isActiveAndEnabled)
+            return;
+
+        PreferRuntimeSkillsManager();
+        if (!skillsManager)
             return;
 
         RefreshAllEntryLevels();
+    }
+
+    /// <summary>
+    /// Menu prefabs often serialize a scene SkillsManager; the real progression lives on <see cref="SkillsManager.Instance"/> (DontDestroyOnLoad).
+    /// </summary>
+    private void PreferRuntimeSkillsManager()
+    {
+        if (SkillsManager.Instance != null)
+            skillsManager = SkillsManager.Instance;
     }
 
     /// <summary>Logs missing required references once (Awake only — not per-frame).</summary>
@@ -152,8 +163,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void TrySubscribeSkillsEvents()
     {
-        if (!skillsManager)
-            skillsManager = SkillsManager.Instance;
+        TryUnsubscribeSkillsEvents();
+        PreferRuntimeSkillsManager();
         if (!skillsManager) return;
 
         skillsManager.OnLevelUp += HandleSkillsLevelUp;
@@ -413,6 +424,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void RefreshView()
     {
+        PreferRuntimeSkillsManager();
+
         if (_selectedSkill == null)
         {
             if (centerTitleText) centerTitleText.text = "No Skill Selected";

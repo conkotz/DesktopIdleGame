@@ -2,6 +2,21 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 
 /// <summary>
+/// Which skill level-up can fire a <see cref="HelperActivationTrigger.SkillLevelReached"/> helper. Values 0–6 match <see cref="SkillType"/>; <see cref="AnySkill"/> matches any tracked skill.
+/// </summary>
+public enum HelperSkillLevelTriggerOption
+{
+    Mining = 0,
+    Woodcutting = 1,
+    Fishing = 2,
+    Melee = 3,
+    Ranged = 4,
+    Magic = 5,
+    Endurance = 6,
+    AnySkill = 7,
+}
+
+/// <summary>
 /// Data for a single helper tip. Dismissal is tracked per-character in <see cref="SaveData.dismissedHelperIds"/> (cleared automatically on New Game).
 /// Create assets under <b>Assets → Create → Desktop Idle Game → Helper Popup Definition</b>:
 /// <b>Empty</b> for a blank SO (creates next to whichever folder you have selected — pick <c>Assets/3.ScriptableObjects/HelperDefinitions</c> first), or <b>Game Start</b> for a sample early-game / first-visit preset (edit map node id, copy, and a <b>new</b> unique <c>helperId</c> per popup).
@@ -43,11 +58,12 @@ public sealed class HelperPopupDefinition : ScriptableObject
         "When QuestAccepted: QuestDefinition.questId (e.g. tutorial_basic_combat). Fires once when the player accepts the quest.")]
     public string questAcceptedTriggerQuestId = "";
 
-    [Tooltip("When SkillLevelReached: skill that must ding (fires from SkillsManager.OnLevelUp).")]
-    public SkillType skillLevelTriggerSkill = SkillType.Woodcutting;
+    [Tooltip(
+        "When SkillLevelReached: which skill's level-up fires this helper (from SkillsManager.OnLevelUp), or Any Skill for whichever skill reaches the minimum level first.")]
+    public HelperSkillLevelTriggerOption skillLevelTriggerSkill = HelperSkillLevelTriggerOption.Woodcutting;
 
     [Tooltip(
-        "When SkillLevelReached: minimum new level from OnLevelUp (default 2 = first rise above starter level 1).")]
+        "When SkillLevelReached: minimum new level from OnLevelUp (default 2 = first rise above starter level 1). With Any Skill, any tracked skill reaching at least this level triggers once.")]
     [Min(2)] public int skillLevelTriggerMinimumNewLevel = 2;
 
     [Tooltip("Lower runs first when several helpers could activate the same frame.")]
@@ -168,7 +184,7 @@ public enum HelperActivationTrigger
     /// </summary>
     QuestGatherObjectiveReady = 4,
 
-    /// <summary>Fires once when <see cref="SkillsManager.OnLevelUp"/> reports <see cref="HelperPopupDefinition.skillLevelTriggerSkill"/> reaching at least <see cref="HelperPopupDefinition.skillLevelTriggerMinimumNewLevel"/>.</summary>
+    /// <summary>Fires once when <see cref="SkillsManager.OnLevelUp"/> reports a level-up matching <see cref="HelperPopupDefinition.skillLevelTriggerSkill"/> (or any skill when that option is <see cref="HelperSkillLevelTriggerOption.AnySkill"/>) at least <see cref="HelperPopupDefinition.skillLevelTriggerMinimumNewLevel"/>.</summary>
     SkillLevelReached = 5,
 
     /// <summary>Fires once when <see cref="QuestProgressManager.IsRewardClaimed"/> becomes true for <see cref="HelperPopupDefinition.questRewardClaimedTriggerQuestId"/>.</summary>

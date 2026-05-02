@@ -46,7 +46,10 @@ public class PlayerLevelTransition : MonoBehaviour
         if (t != null)
             t.BeginShrinkThenLoad(sceneName);
         else
+        {
+            SaveManager.Instance?.SaveBeforeSceneTransition();
             SceneManager.LoadScene(sceneName);
+        }
     }
 
     /// <summary>Called from <see cref="PlayerSpawnController"/> after a DDOL scene change.</summary>
@@ -117,6 +120,7 @@ public class PlayerLevelTransition : MonoBehaviour
         // Avoid one visible frame at tiny scale before the scene swap; spawn flow fades in from alpha 0.
         HideAllSpriteAlphas();
 
+        SaveManager.Instance?.SaveBeforeSceneTransition();
         SceneManager.LoadScene(_pendingScene);
         _running = null;
     }
