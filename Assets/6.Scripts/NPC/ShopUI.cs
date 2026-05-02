@@ -1,6 +1,8 @@
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class ShopUI : MonoBehaviour
@@ -14,17 +16,16 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private Button buy1xButton;
     [SerializeField] private Button buy50xButton;
     [SerializeField] private Button buybackToggleButton;
-    [Header("Buy Toggle Visuals")]
+    [Header("Buy button visuals")]
     [SerializeField] private bool enableButtonTint = false;
     [SerializeField] private Image buy1xButtonImage;
     [SerializeField] private Image buy50xButtonImage;
     [SerializeField] private TMP_Text buy1xButtonText;
     [SerializeField] private TMP_Text buy50xButtonText;
-    [SerializeField] private Color buySelectedColor = new Color(0.20f, 0.60f, 0.20f, 1f);
     [SerializeField] private Color buyUnselectedColor = Color.white;
-    [SerializeField] private Color selectedTextColor = Color.white;
+    [SerializeField] private Color buyButtonsNoSelectionImageTint = new Color(0.55f, 0.55f, 0.55f, 0.5f);
     [SerializeField] private Color unselectedTextColor = new Color(0.15f, 0.15f, 0.15f, 1f);
-    [SerializeField] private Vector3 selectedScale = new Vector3(1.05f, 1.05f, 1f);
+    [SerializeField] private Color buyButtonsDisabledTextColor = new Color(0.45f, 0.45f, 0.45f, 0.65f);
     [SerializeField] private Vector3 unselectedScale = Vector3.one;
 
     [Header("Refs")]
@@ -40,14 +41,33 @@ public class ShopUI : MonoBehaviour
     [Tooltip("When set, these graphics always receive raycasts while the shop is open (blocks clicks to the game). Panel Root Image is included automatically. Use for extra backdrop/underlay Images.")]
     [SerializeField] private Graphic[] additionalPointerBlockingGraphics;
 
+    [Header("Selection")]
+    [Tooltip("Optional. Full-area graphic behind shop item slots (earlier sibling = underneath). Left-click clears the selected item so Buy buttons grey out. Leave empty to only clear on shop close.")]
+    [SerializeField] private Graphic clearSelectionWhenClicked;
+
+    [Header("Shop item grid")]
+    [Tooltip("Fixed column count (items wrap to new rows). Cell size is computed from the SlotsGrid rect so the grid fits the panel.")]
+    [SerializeField] private int shopGridColumns = 6;
+    [Tooltip("Used with column count to pick a square cell size that fits this many rows in the grid area (matches inventory-style sizing).")]
+    [SerializeField] private int shopGridRowsForFit = 3;
+    [Tooltip(
+        "When off (default), gap between slots comes from the Grid Layout Group on contentRoot — change Spacing there and it will stick. " +
+        "When on, ShopUI pushes the vector below every layout (overrides the Grid Layout Group).")]
+    [SerializeField] private bool useGridSpacingFromShopUI;
+    [SerializeField] private Vector2 shopGridSpacing = new Vector2(10f, 10f);
+    [SerializeField] private bool shopSquareCells = true;
+    [SerializeField] private float shopMinCellSize = 48f;
+    [SerializeField] private int shopGridLayoutRetryFrames = 3;
+
     private readonly List<ShopSlotUI> _spawned = new();
+    private GridLayoutGroup _shopGrid;
+    private Coroutine _shopGridLayoutRetry;
     private Merchant _currentMerchant;
-    private int _buyAmount = 1;
+    private string _selectedShopItemId;
+
     public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
     /// <summary>Root <see cref="RectTransform"/> of the shop chrome (same as serialized panel root).</summary>
     public RectTransform PanelRectTransform => panelRoot != null ? panelRoot.transform as RectTransform : null;
-    /// <summary>Selected buy pack (1x / 50x toggles). Ctrl+click on a slot uses this amount.</summary>
-    public int CurrentBuyAmount => Mathf.Max(1, _buyAmount);
 
     private void Awake()
     {
@@ -63,13 +83,13 @@ public class ShopUI : MonoBehaviour
         if (buy1xButton)
         {
             buy1xButton.onClick.RemoveAllListeners();
-            buy1xButton.onClick.AddListener(SetBuyAmount1x);
+            buy1xButton.onClick.AddListener(OnBuy1Clicked);
         }
 
         if (buy50xButton)
         {
             buy50xButton.onClick.RemoveAllListeners();
-            buy50xButton.onClick.AddListener(SetBuyAmount50x);
+            buy50xButton.onClick.AddListener(OnBuy50Clicked);
         }
 
         if (buybackToggleButton)
@@ -90,7 +110,8 @@ public class ShopUI : MonoBehaviour
         if (!buy50xButtonText && buy50xButton)
             buy50xButtonText = buy50xButton.GetComponentInChildren<TMP_Text>(true);
 
-        UpdateBuyToggleVisuals();
+        WireClearSelectionBackdrop();
+        UpdateBuyButtonsForSelectionState();
 
         if (panelRoot)
             panelRoot.SetActive(false);
@@ -101,7 +122,27 @@ public class ShopUI : MonoBehaviour
         if (!shopTooltip)
             shopTooltip = FindShopTooltip();
 
+        if (contentRoot)
+            _shopGrid = contentRoot.GetComponent<GridLayoutGroup>();
+
         RefreshShopRaycastTargets();
+    }
+
+    private void OnRectTransformDimensionsChange()
+    {
+        if (IsOpen && contentRoot)
+            ApplyShopGridLayout();
+    }
+
+    private void WireClearSelectionBackdrop()
+    {
+        if (!clearSelectionWhenClicked)
+            return;
+
+        var receiver = clearSelectionWhenClicked.GetComponent<ShopClearSelectionReceiver>();
+        if (!receiver)
+            receiver = clearSelectionWhenClicked.gameObject.AddComponent<ShopClearSelectionReceiver>();
+        receiver.Initialize(this);
     }
 
     private void TryResolveRefs()
@@ -152,8 +193,7 @@ public class ShopUI : MonoBehaviour
         }
 
         SetCurrentMerchant(merchant);
-        // Requirement: each time a shop opens, default back to 1x.
-        SetBuyAmountInternal(1);
+        _selectedShopItemId = null;
 
         if (titleText)
             titleText.text = merchant.MerchantName;
@@ -170,11 +210,42 @@ public class ShopUI : MonoBehaviour
 
     public void Close()
     {
+        ClearSlotSelection();
         SetCurrentMerchant(null);
         shopTooltip?.Hide();
 
         if (panelRoot)
             panelRoot.SetActive(false);
+    }
+
+    /// <summary>Called by <see cref="ShopSlotUI"/> when the player selects a purchasable item.</summary>
+    public void NotifySlotSelected(ShopSlotUI slot)
+    {
+        if (slot?.Entry == null || string.IsNullOrWhiteSpace(slot.Entry.itemId))
+            return;
+
+        _selectedShopItemId = slot.Entry.itemId;
+
+        for (int i = 0; i < _spawned.Count; i++)
+        {
+            ShopSlotUI s = _spawned[i];
+            if (!s) continue;
+            s.SetSlotSelected(s == slot);
+        }
+
+        UpdateBuyButtonsForSelectionState();
+    }
+
+    /// <summary>Clears the current shop item selection (grey Buy buttons). Tooltip is hidden.</summary>
+    public void ClearSlotSelection()
+    {
+        _selectedShopItemId = null;
+
+        for (int i = 0; i < _spawned.Count; i++)
+            _spawned[i]?.SetSlotSelected(false);
+
+        UpdateBuyButtonsForSelectionState();
+        shopTooltip?.Hide();
     }
 
     private void Rebuild(Merchant merchant)
@@ -214,7 +285,9 @@ public class ShopUI : MonoBehaviour
             _spawned.Add(slot);
         }
 
+        RestoreSlotSelectionAfterRebuild(merchant);
         ForceLayoutRefresh();
+        ScheduleShopGridLayout();
         RefreshShopRaycastTargets();
     }
 
@@ -273,6 +346,86 @@ public class ShopUI : MonoBehaviour
         Canvas.ForceUpdateCanvases();
     }
 
+    private void ScheduleShopGridLayout()
+    {
+        ApplyShopGridLayout();
+
+        if (ShopGridRectIsReady())
+            return;
+
+        if (_shopGridLayoutRetry != null)
+            StopCoroutine(_shopGridLayoutRetry);
+        _shopGridLayoutRetry = StartCoroutine(CoRetryShopGridLayout());
+    }
+
+    private IEnumerator CoRetryShopGridLayout()
+    {
+        for (int i = 0; i < Mathf.Max(1, shopGridLayoutRetryFrames); i++)
+        {
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            ApplyShopGridLayout();
+            if (ShopGridRectIsReady())
+                break;
+        }
+
+        _shopGridLayoutRetry = null;
+    }
+
+    private bool ShopGridRectIsReady()
+    {
+        return contentRoot is RectTransform r && r.rect.width > 1f && r.rect.height > 1f;
+    }
+
+    private void ApplyShopGridLayout()
+    {
+        if (!contentRoot)
+            return;
+
+        if (!_shopGrid)
+            _shopGrid = contentRoot.GetComponent<GridLayoutGroup>();
+        if (!_shopGrid)
+            return;
+
+        var rect = contentRoot as RectTransform;
+        if (!rect)
+            return;
+
+        int cols = Mathf.Max(1, shopGridColumns);
+        int rows = Mathf.Max(1, shopGridRowsForFit);
+
+        _shopGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        _shopGrid.constraintCount = cols;
+
+        if (useGridSpacingFromShopUI)
+            _shopGrid.spacing = shopGridSpacing;
+
+        float w = rect.rect.width;
+        float h = rect.rect.height;
+        if (w <= 1f || h <= 1f)
+            return;
+
+        Vector2 sp = _shopGrid.spacing;
+        RectOffset pad = _shopGrid.padding;
+        float usableW = w - pad.left - pad.right - sp.x * (cols - 1);
+        float usableH = h - pad.top - pad.bottom - sp.y * (rows - 1);
+
+        float cellW = Mathf.Max(1f, usableW) / cols;
+        float cellH = Mathf.Max(1f, usableH) / rows;
+        float cell = Mathf.Min(cellW, cellH);
+        cell = Mathf.Floor(cell);
+        cell = Mathf.Max(shopMinCellSize, cell);
+
+        if (shopSquareCells)
+            _shopGrid.cellSize = new Vector2(cell, cell);
+        else
+        {
+            _shopGrid.cellSize = new Vector2(
+                Mathf.Max(shopMinCellSize, Mathf.Floor(cellW)),
+                Mathf.Max(shopMinCellSize, Mathf.Floor(cellH)));
+        }
+    }
+
     public void TryBuy(Merchant merchant, MerchantStock.Entry entry)
     {
         TryBuy(merchant, entry, null);
@@ -284,7 +437,7 @@ public class ShopUI : MonoBehaviour
         if (merchant == null || entry == null)
             return;
 
-        int amount = amountOverride ?? Mathf.Max(1, _buyAmount);
+        int amount = amountOverride ?? 1;
         amount = Mathf.Max(1, amount);
         bool success = merchant.TryBuy(entry.itemId, amount);
 
@@ -321,6 +474,12 @@ public class ShopUI : MonoBehaviour
 
     private void OnDisable()
     {
+        if (_shopGridLayoutRetry != null)
+        {
+            StopCoroutine(_shopGridLayoutRetry);
+            _shopGridLayoutRetry = null;
+        }
+
         if (_currentMerchant != null)
             _currentMerchant.StockChanged -= HandleMerchantStockChanged;
     }
@@ -331,41 +490,95 @@ public class ShopUI : MonoBehaviour
             _currentMerchant.StockChanged -= HandleMerchantStockChanged;
     }
 
-    public void SetBuyAmount1x() => SetBuyAmountInternal(1);
-    public void SetBuyAmount50x() => SetBuyAmountInternal(50);
-
-    private void SetBuyAmountInternal(int amount)
+    private void OnBuy1Clicked()
     {
-        _buyAmount = Mathf.Max(1, amount);
-        UpdateBuyToggleVisuals();
+        MerchantStock.Entry entry = FindSelectedEntry(_currentMerchant);
+        if (entry != null)
+            TryBuy(_currentMerchant, entry, 1);
     }
 
-    private void UpdateBuyToggleVisuals()
+    private void OnBuy50Clicked()
     {
-        // Make selected option non-interactable to indicate active toggle state.
-        bool oneSelected = _buyAmount == 1;
-        bool fiftySelected = _buyAmount == 50;
+        MerchantStock.Entry entry = FindSelectedEntry(_currentMerchant);
+        if (entry != null)
+            TryBuy(_currentMerchant, entry, 50);
+    }
 
-        if (buy1xButton) buy1xButton.interactable = !oneSelected;
-        if (buy50xButton) buy50xButton.interactable = !fiftySelected;
+    private MerchantStock.Entry FindSelectedEntry(Merchant merchant)
+    {
+        if (merchant?.Stock == null || string.IsNullOrEmpty(_selectedShopItemId))
+            return null;
+
+        return merchant.Stock.GetEntry(_selectedShopItemId);
+    }
+
+    private void RestoreSlotSelectionAfterRebuild(Merchant merchant)
+    {
+        for (int i = 0; i < _spawned.Count; i++)
+            _spawned[i]?.SetSlotSelected(false);
+
+        if (string.IsNullOrEmpty(_selectedShopItemId) || merchant == null)
+        {
+            UpdateBuyButtonsForSelectionState();
+            return;
+        }
+
+        if (!IsEntryStillSelectable(merchant, _selectedShopItemId))
+        {
+            _selectedShopItemId = null;
+            UpdateBuyButtonsForSelectionState();
+            return;
+        }
+
+        for (int i = 0; i < _spawned.Count; i++)
+        {
+            ShopSlotUI s = _spawned[i];
+            if (s && s.Entry != null && s.Entry.itemId == _selectedShopItemId)
+                s.SetSlotSelected(true);
+        }
+
+        UpdateBuyButtonsForSelectionState();
+    }
+
+    private static bool IsEntryStillSelectable(Merchant merchant, string itemId)
+    {
+        if (merchant?.Stock == null)
+            return false;
+
+        MerchantStock.Entry entry = merchant.Stock.GetEntry(itemId);
+        if (entry == null)
+            return false;
+
+        int qty = merchant.GetQuantity(entry);
+        return qty != 0;
+    }
+
+    private bool IsSelectionValid()
+    {
+        return !string.IsNullOrEmpty(_selectedShopItemId)
+               && _currentMerchant != null
+               && IsEntryStillSelectable(_currentMerchant, _selectedShopItemId);
+    }
+
+    private void UpdateBuyButtonsForSelectionState()
+    {
+        bool has = IsSelectionValid();
+
+        if (buy1xButton) buy1xButton.interactable = has;
+        if (buy50xButton) buy50xButton.interactable = has;
+
+        if (buy1xButton) buy1xButton.transform.localScale = unselectedScale;
+        if (buy50xButton) buy50xButton.transform.localScale = unselectedScale;
 
         if (enableButtonTint && buy1xButtonImage)
-            buy1xButtonImage.color = oneSelected ? buySelectedColor : buyUnselectedColor;
+            buy1xButtonImage.color = has ? buyUnselectedColor : buyButtonsNoSelectionImageTint;
 
         if (enableButtonTint && buy50xButtonImage)
-            buy50xButtonImage.color = fiftySelected ? buySelectedColor : buyUnselectedColor;
+            buy50xButtonImage.color = has ? buyUnselectedColor : buyButtonsNoSelectionImageTint;
 
-        if (buy1xButtonText)
-            buy1xButtonText.color = oneSelected ? selectedTextColor : unselectedTextColor;
-
-        if (buy50xButtonText)
-            buy50xButtonText.color = fiftySelected ? selectedTextColor : unselectedTextColor;
-
-        if (buy1xButton)
-            buy1xButton.transform.localScale = oneSelected ? selectedScale : unselectedScale;
-
-        if (buy50xButton)
-            buy50xButton.transform.localScale = fiftySelected ? selectedScale : unselectedScale;
+        Color textColor = has ? unselectedTextColor : buyButtonsDisabledTextColor;
+        if (buy1xButtonText) buy1xButtonText.color = textColor;
+        if (buy50xButtonText) buy50xButtonText.color = textColor;
     }
 
     private void ToggleBuybackPanel()
@@ -374,5 +587,20 @@ public class ShopUI : MonoBehaviour
             return;
 
         SaleUndoManager.Instance.ToggleUndoPanelVisibility();
+    }
+
+    /// <summary>Left-click target behind item slots to clear selection.</summary>
+    private sealed class ShopClearSelectionReceiver : MonoBehaviour, IPointerClickHandler
+    {
+        private ShopUI _shop;
+
+        public void Initialize(ShopUI shop) => _shop = shop;
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (!_shop || eventData.button != PointerEventData.InputButton.Left)
+                return;
+            _shop.ClearSlotSelection();
+        }
     }
 }

@@ -17,6 +17,12 @@ public class ResourceNode : MonoBehaviour
     public Transform workSpot;
     public float interactRange = 0.1f;
 
+    /// <summary>
+    /// World X the player should face while gathering. Uses this node's position (visual center), not
+    /// <see cref="workSpot"/> — the avatar stands at the work spot, so work-spot X matches the player and breaks flip logic.
+    /// </summary>
+    public float GatherFacingWorldX => transform.position.x;
+
     // Read-only views of the definition data
     public string DisplayName => definition ? definition.displayName : "Resource";
     public NodeAction ActionType => definition ? definition.actionType : NodeAction.Woodcutting;

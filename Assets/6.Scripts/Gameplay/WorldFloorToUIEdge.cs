@@ -122,7 +122,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         CacheReferences();
         ResetLatchAndSmooth();
         SnapshotScreenAndSourceFingerprint();
-        Apply(force: true);
+        Apply(force: true, allowCanvasForce: true);
     }
 
     private void OnDisable()
@@ -135,7 +135,8 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         CacheReferences();
         ResetLatchAndSmooth();
         SnapshotScreenAndSourceFingerprint();
-        Apply(force: true);
+        // ForceUpdateCanvases during OnValidate triggers SendMessage on other UI (e.g. layout rows) and spams console warnings.
+        Apply(force: true, allowCanvasForce: false);
     }
 
     private void ResetLatchAndSmooth()
@@ -152,11 +153,11 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
                 return;
 
             if (_appliedOncePlaying && ScreenOrSourceLayoutChanged())
-                Apply(force: true);
+                Apply(force: true, allowCanvasForce: true);
             return;
         }
 
-        Apply(force: false);
+        Apply(force: false, allowCanvasForce: true);
     }
 
     /// <summary>The transform whose Y tracks the UI edge (serialized <see cref="worldRoot"/>), e.g. UILaneAlignment.</summary>
@@ -227,7 +228,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         return false;
     }
 
-    private void Apply(bool force)
+    private void Apply(bool force, bool allowCanvasForce = true)
     {
         CacheReferences();
 
@@ -253,7 +254,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         if (Application.isPlaying)
             _appliedOncePlaying = true;
 
-        if (!Application.isPlaying || force || forceCanvasUpdateEveryFrame)
+        if (allowCanvasForce && (!Application.isPlaying || force || forceCanvasUpdateEveryFrame))
             Canvas.ForceUpdateCanvases();
 
         float measuredRaw = GetSourceEdgeWorldY() + worldYOffset;

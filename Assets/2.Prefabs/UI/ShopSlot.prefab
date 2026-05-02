@@ -352,6 +352,19 @@ MonoBehaviour:
   priceText: {fileID: 5598328490219700533}
   stockText: {fileID: 3615541266218501823}
   button: {fileID: 210547786377617199}
+  background: {fileID: 0}
+  rarityOutline: {fileID: 0}
+  showRarityBorder: 1
+  commonBorder: {r: 0.54901963, g: 0.54901963, b: 0.54901963, a: 1}
+  uncommonBorder: {r: 0.3137255, g: 0.78431374, b: 0.47058824, a: 1}
+  rareBorder: {r: 0.3137255, g: 0.5882353, b: 1, a: 1}
+  epicBorder: {r: 0.74509805, g: 0.3529412, b: 1, a: 1}
+  legendaryBorder: {r: 1, g: 0.6666667, b: 0.15686275, a: 1}
+  rarityBorderThickness: {x: 4, y: 4}
+  selectedRarityBorderColor: {r: 0.5686275, g: 0.42352942, b: 0.10980392, a: 1}
+  rarityPanelAccentBlend: 1
+  rarityPanelDarkBase: {r: 0.06804547, g: 0.069415174, b: 0.07169801, a: 1}
+  soldOutIconAlpha: 0.75
   tooltip: {fileID: 0}
 --- !u!1 &8207557333895667886
 GameObject:

@@ -26,6 +26,10 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     [Tooltip("Outline thickness in UI space (bigger = thicker).")]
     [SerializeField] private Vector2 rarityBorderThickness = new Vector2(4f, 4f);
 
+    [Header("Selection (shop)")]
+    [Tooltip("Recolors the rarity outline while this slot is selected (no second outline).")]
+    [SerializeField] private Color selectedRarityBorderColor = new Color32(145, 108, 28, 255);
+
     [Header("Rarity slot panel (button target graphic)")]
     [Tooltip("How much the slot fill blends from the dark base toward the rarity accent when an item is shown (higher = less grey/muddy undertone).")]
     [Range(0f, 1f)]
@@ -49,6 +53,7 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     private ItemDefinition _def;
 
     private bool _isPointerOver;
+    private bool _slotSelected;
 
     public ItemDefinition Definition => _def;
     public MerchantStock.Entry Entry => _entry;
@@ -117,7 +122,7 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             icon.color = ic;
         }
 
-        RefreshRarityBorder(def);
+        UpdateRarityOutline();
 
         if (priceText)
         {
@@ -154,6 +159,48 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         RefreshHoveredTooltip();
     }
 
+    /// <summary>Highlights this slot when the player has selected it for purchasing.</summary>
+    public void SetSlotSelected(bool selected)
+    {
+        _slotSelected = selected;
+        UpdateRarityOutline();
+    }
+
+    private void UpdateRarityOutline()
+    {
+        if (!showRarityBorder || !rarityOutline)
+        {
+            if (rarityOutline) rarityOutline.enabled = false;
+            return;
+        }
+
+        if (_def == null)
+        {
+            rarityOutline.enabled = false;
+            return;
+        }
+
+        rarityOutline.enabled = true;
+        rarityOutline.useGraphicAlpha = false;
+        rarityOutline.effectDistance = rarityBorderThickness;
+
+        if (_slotSelected)
+        {
+            rarityOutline.effectColor = selectedRarityBorderColor;
+            return;
+        }
+
+        rarityOutline.effectColor = _def.rarity switch
+        {
+            ItemRarity.Common => Color.white,
+            ItemRarity.Uncommon => uncommonBorder,
+            ItemRarity.Rare => rareBorder,
+            ItemRarity.Epic => epicBorder,
+            ItemRarity.Legendary => legendaryBorder,
+            _ => Color.white
+        };
+    }
+
     public void OnPointerClick(PointerEventData eventData)
     {
         if (eventData.button != PointerEventData.InputButton.Left)
@@ -162,8 +209,7 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         if (!button || !button.interactable || _shop == null || _merchant == null || _entry == null)
             return;
 
-        if (InventorySlotUI.InputUtil.CtrlHeld())
-            _shop.TryBuy(_merchant, _entry);
+        _shop.NotifySlotSelected(this);
     }
 
     private void ApplyRarityPanelColors(ItemDefinition def)
@@ -206,34 +252,6 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
         float t = Mathf.Clamp01(rarityPanelAccentBlend);
         return Color.Lerp(rarityPanelDarkBase, accent, t);
-    }
-
-    private void RefreshRarityBorder(ItemDefinition def)
-    {
-        if (!showRarityBorder || !rarityOutline)
-        {
-            if (rarityOutline) rarityOutline.enabled = false;
-            return;
-        }
-
-        if (def == null)
-        {
-            rarityOutline.enabled = false;
-            return;
-        }
-
-        rarityOutline.enabled = true;
-        rarityOutline.useGraphicAlpha = false;
-        rarityOutline.effectDistance = rarityBorderThickness;
-        rarityOutline.effectColor = def.rarity switch
-        {
-            ItemRarity.Common => Color.white,
-            ItemRarity.Uncommon => uncommonBorder,
-            ItemRarity.Rare => rareBorder,
-            ItemRarity.Epic => epicBorder,
-            ItemRarity.Legendary => legendaryBorder,
-            _ => Color.white
-        };
     }
 
     private string GetCompactPriceText()

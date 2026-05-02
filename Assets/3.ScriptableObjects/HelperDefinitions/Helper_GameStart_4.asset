@@ -15,18 +15,22 @@ MonoBehaviour:
   helperId: change_levels_helper
   title: Learning the ropes 2 complete
   bodyText: Well done! you have completed all the quests in the tutorials first level.
-    Access the level select window to move to the new area.
+    Access the map tab to move to the new area, Tutorial level 2.
   activationTrigger: 6
   requiredMapNodeId: tutorial_1
   inventoryTriggerItemId: 
   inventoryTriggerItemCount: 1
   questGatherTriggerQuestId: 
   questRewardClaimedTriggerQuestId: tutorial_learning_ropes_2
+  questAcceptedTriggerQuestId: 
   skillLevelTriggerSkill: 1
   skillLevelTriggerMinimumNewLevel: 2
   priority: 4
   showCloseButton: 1
+  darkenScreenAndLockGameplay: 1
   dismissModes: 4
+  whitelistInteractEntries: []
   whitelistedInteractionIds:
   - UIButton_LevelSelect
   highlightWhitelistTargetsDuringHelper: 1
+  highlightInventorySlotsForItem: {fileID: 0}

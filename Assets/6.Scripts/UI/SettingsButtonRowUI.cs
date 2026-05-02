@@ -167,11 +167,28 @@ public class SettingsButtonRowUI : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    private bool _editorLayoutDelayScheduled;
+
     private void OnValidate()
     {
         ResolveReferences();
-        EnsureRowLayoutFitsLongLabel();
         RefreshDisplay();
+
+        // Changing RectTransforms / layout during OnValidate triggers
+        // "SendMessage cannot be called during ... OnValidate (ActionLabelText: OnRectTransformDimensionsChange)".
+        // Defer layout to the next editor tick.
+        if (_editorLayoutDelayScheduled)
+            return;
+        _editorLayoutDelayScheduled = true;
+        UnityEditor.EditorApplication.delayCall += EditorDeferredEnsureRowLayout;
+    }
+
+    private void EditorDeferredEnsureRowLayout()
+    {
+        _editorLayoutDelayScheduled = false;
+        if (this == null || gameObject == null)
+            return;
+        EnsureRowLayoutFitsLongLabel();
     }
 #endif
 }

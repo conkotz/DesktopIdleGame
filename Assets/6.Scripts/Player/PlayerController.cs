@@ -786,6 +786,8 @@ public class PlayerController : MonoBehaviour
 
         state = dist <= targetNode.interactRange ? State.Gather : State.MoveToTarget;
         SetAction(state == State.Gather ? GetGatherAction() : PlayerAction.Walking, true);
+        if (state == State.Gather)
+            FaceGatheringPoint();
     }
 
     // -------------------------
@@ -1298,8 +1300,7 @@ public class PlayerController : MonoBehaviour
         {
             state = State.Gather;
 
-            // ✅ face before snapping makes currentX != targetX still meaningful
-            FaceTargetX(targetNode.workSpot.position.x);
+            FaceGatheringPoint();
 
             _nextGatherAnimTime = 0f;
 
@@ -1976,7 +1977,7 @@ public class PlayerController : MonoBehaviour
 
         if (state == State.Gather && targetNode != null && targetNode.workSpot != null)
         {
-            float targetX = targetNode.workSpot.position.x;
+            float targetX = targetNode.GatherFacingWorldX;
             bool faceLeft = targetX < currentX;
 
             bool flip = faceLeft;
@@ -2023,6 +2024,12 @@ public class PlayerController : MonoBehaviour
         if (invertFlip) flip = !flip;
 
         ApplyVisualFlip(flip);
+    }
+
+    private void FaceGatheringPoint()
+    {
+        if (!targetNode) return;
+        FaceTargetX(targetNode.GatherFacingWorldX);
     }
 
     private void ApplyGatherHandVisuals()
