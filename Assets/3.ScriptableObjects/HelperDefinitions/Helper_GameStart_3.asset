@@ -16,7 +16,7 @@ MonoBehaviour:
   title: First Skill Level Gained
   bodyText: You have advanced a woodcutting level. Open the Skills and Abilities
     tab to view your available skills. In this tab you can also see the selected
-    skills tree which grants you bonus as you gain levels in each skill. Finally
+    skills tree which grants you bonuses as you gain levels in each skill. Finally
     you unlock powerful passive and active ability effects as you get experience.
   activationTrigger: 5
   requiredMapNodeId: tutorial_1
@@ -29,8 +29,10 @@ MonoBehaviour:
   skillLevelTriggerMinimumNewLevel: 2
   priority: 3
   showCloseButton: 1
-  darkenScreenAndLockGameplay: 0
+  darkenScreenAndLockGameplay: 1
   dismissModes: 4
+  whitelistInteractEntries: []
   whitelistedInteractionIds:
   - UIButton_SkillsAbility
   highlightWhitelistTargetsDuringHelper: 1
+  highlightInventorySlotsForItem: {fileID: 0}

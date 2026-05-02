@@ -22,20 +22,26 @@ MonoBehaviour:
   objectiveKind: 2
   targetCount: 3
   objectiveId: stone_chunk
+  specialObjectiveListText: 
   rewardGold: 0
   rewardItem: {fileID: 11400000, guid: 7430bf37785e3a14e96af84084aa40f0, type: 2}
   rewardItemId: 
   rewardItemQuantity: 1
   additionalItemRewards: []
   rewardNotes: 
+  grantIdleCombatUnlockOnRewardClaim: 0
   repeatable: 0
+  autoCompleteQuest: 0
   abandonable: 1
+  teleportPlayerToNodeIdOnCompletion: 
   obtainLocationId: blacksmith
   obtainLocationDisplayName: Draven the Blacksmith
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
+  autoAcceptWhenPriorQuestRewardClaimed: 0
+  autoAcceptAfterPriorQuestId: 
   prerequisiteRewardClaimedQuestIds: []
-  requireAllPrerequisiteQuests: 0
+  requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
   requiredSkillLevels: []
   killEnemyIdFilter: 

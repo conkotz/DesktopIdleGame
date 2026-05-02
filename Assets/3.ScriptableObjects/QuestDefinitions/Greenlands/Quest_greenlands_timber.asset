@@ -22,20 +22,26 @@ MonoBehaviour:
   objectiveKind: 2
   targetCount: 150
   objectiveId: splitwood_log
+  specialObjectiveListText: 
   rewardGold: 250
   rewardItem: {fileID: 11400000, guid: 48ca8504b7d8aa143a62f7b3d8b2f519, type: 2}
   rewardItemId: 
   rewardItemQuantity: 1
   additionalItemRewards: []
   rewardNotes: 
+  grantIdleCombatUnlockOnRewardClaim: 0
   repeatable: 0
+  autoCompleteQuest: 0
   abandonable: 1
+  teleportPlayerToNodeIdOnCompletion: 
   obtainLocationId: noticeboard
   obtainLocationDisplayName: The Notice Board
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
+  autoAcceptWhenPriorQuestRewardClaimed: 0
+  autoAcceptAfterPriorQuestId: 
   prerequisiteRewardClaimedQuestIds: []
-  requireAllPrerequisiteQuests: 0
+  requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
   requiredSkillLevels: []
   killEnemyIdFilter: 

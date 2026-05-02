@@ -15,20 +15,40 @@ MonoBehaviour:
   helperId: early_game_helper
   title: Welcome
   bodyText: 'Welcome {playerName}, let''s start going through the basics. Firstly,
-    seeing a yellow exclamation mark signifies a quest is available. Try clicking
-    on the NPC here to get your first quest.
+    seeing a yellow exclamation mark signifies a quest is available. Details about
+    what needs to be done are shown within the quest log.
 
 
-    The Help feature can be disabled
-    in Settings.'
+    Interacting with
+    an object such as this tree will allow you to gather logs from it. You can still
+    gather items without any tools but it will be slow.
+
+
+    The game world can
+    be zoomed in or out by using the up and down arrow keys if you ever lose track
+    of your surroundings.
+
+
+    These help popups can be disabled and more can be
+    adjusted in the settings.'
   activationTrigger: 1
   requiredMapNodeId: tutorial_1
   inventoryTriggerItemId: 
   inventoryTriggerItemCount: 3
+  questGatherTriggerQuestId: 
+  questRewardClaimedTriggerQuestId: 
+  questAcceptedTriggerQuestId: 
+  skillLevelTriggerSkill: 1
+  skillLevelTriggerMinimumNewLevel: 2
   priority: 0
   showCloseButton: 1
+  darkenScreenAndLockGameplay: 1
   dismissModes: 4
+  whitelistInteractEntries:
+  - interactionId: 
+    clearGlowOnPointerEnter: 0
   whitelistedInteractionIds:
   - NPC_Tutorial_1
   - UIButton_Settings
   highlightWhitelistTargetsDuringHelper: 1
+  highlightInventorySlotsForItem: {fileID: 0}

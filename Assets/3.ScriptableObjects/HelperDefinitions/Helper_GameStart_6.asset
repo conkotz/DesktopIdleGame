@@ -14,12 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
   helperId: combat_helper
   title: Combat Improvments
-  bodyText: "You have now received both a melee weapon and food which help you survive
-    in combat. \n\nTry equipping the sword and adding the food to your food slot
-    in the ability bar. Anything slotted in the ability bar will be used during auto
-    battle and can also be used manually. \n\nTry enabling Retaliation to allow you
+  bodyText: "You have now received a melee weapon and food which help you become
+    stronger and sustain in combat. \n\nTry equipping the sword and adding the food
+    to your food slot in the ability bar. \n\nTry enabling Retaliation to allow you
     to automatically hit targets back. Later you will unlock Auto Battle which will
-    fight for you and automatically use items or abilities on your action bar."
+    also fight for you and automatically use items or abilities on your action bar."
   activationTrigger: 6
   requiredMapNodeId: tutorial_2
   inventoryTriggerItemId: 
@@ -33,9 +32,12 @@ MonoBehaviour:
   showCloseButton: 1
   darkenScreenAndLockGameplay: 1
   dismissModes: 4
+  whitelistInteractEntries:
+  - interactionId: FoodSlot
+    clearGlowOnPointerEnter: 1
   whitelistedInteractionIds:
-  - FoodSlot
   - UIButton_Character
   - UIButton_Character
   - RetaliationToggleButton
   highlightWhitelistTargetsDuringHelper: 1
+  highlightInventorySlotsForItem: {fileID: 0}

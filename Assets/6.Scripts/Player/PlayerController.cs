@@ -2234,6 +2234,8 @@ public class PlayerController : MonoBehaviour
 
         _pendingDeathRespawnNode = ResolveDeathRespawnNode();
 
+        NpcPostDeathRespawnDialogueStore.MarkPendingAndSave();
+
         if (_deathRoutine != null) StopCoroutine(_deathRoutine);
         if (_deathPoseRoutine != null) StopCoroutine(_deathPoseRoutine);
         _deathPoseRoutine = StartCoroutine(HoldDeathPoseAtFinalFrame());

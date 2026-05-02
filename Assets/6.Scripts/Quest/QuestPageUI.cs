@@ -47,7 +47,7 @@ public class QuestPageUI : MonoBehaviour
     [SerializeField] private TMP_Text showCompletedButtonLabel;
     [FormerlySerializedAs("showUnavailableQuests")]
     [Tooltip("When on, lists quests you have not yet picked up from a quest source (NPC, notice board, etc.). When off, only quests you already accepted—or one-time completions—appear.")]
-    [SerializeField] private bool showNotObtainedQuests = true;
+    [SerializeField] private bool showNotObtainedQuests = false;
     [SerializeField] private bool showCompletedQuests = true;
 
     [Header("Right — Details (optional; created at runtime if missing)")]
@@ -1180,10 +1180,7 @@ public class QuestPageUI : MonoBehaviour
         {
             SetQuestClaimButtonBackground(false);
             if (questClaimButtonLabel)
-            {
-                string who = FormatQuestObtainLocationLabel(q);
-                questClaimButtonLabel.text = string.IsNullOrEmpty(who) ? "Talk to quest giver" : $"Talk to {who}";
-            }
+                questClaimButtonLabel.text = "Available";
 
             questClaimButton.interactable = false;
             return;
@@ -1364,7 +1361,7 @@ public class QuestPageUI : MonoBehaviour
                 if (string.IsNullOrWhiteSpace(id))
                     continue;
 
-                parts.Add($"Complete quest: {ResolveQuestDisplayName(id.Trim())}");
+                parts.Add($"Complete and claim quest: {ResolveQuestDisplayName(id.Trim())}");
             }
         }
 

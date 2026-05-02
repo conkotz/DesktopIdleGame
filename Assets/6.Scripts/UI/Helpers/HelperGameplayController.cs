@@ -120,12 +120,12 @@ public sealed class HelperGameplayController : MonoBehaviour
     [SerializeField] private Camera worldCameraForWhitelistGlow;
 
     [Tooltip("Glow colour; alpha is driven by the pulse (min/max below).")]
-    [SerializeField] private Color whitelistHelperTint = new Color(1f, 0.92f, 0.35f, 1f);
+    [SerializeField] private Color whitelistHelperTint = new Color(1f, 0.93f, 0.42f, 1f);
 
     [Tooltip("Alpha pulse extremes for the overlay glow (0 = fades to fully transparent).")]
     [SerializeField] [Range(0f, 1f)] private float whitelistGlowPulseAlphaMin;
 
-    [SerializeField] [Range(0f, 1f)] private float whitelistGlowPulseAlphaMax = 0.55f;
+    [SerializeField] [Range(0f, 1f)] private float whitelistGlowPulseAlphaMax = 0.74f;
 
     [SerializeField] private float whitelistGlowPulseSpeed = 2.8f;
 
@@ -136,11 +136,11 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     [Header("Whitelist UI glow (toolbar / buttons)")]
     [Tooltip("Soft outer pad (each side) behind the icon clone so UI targets read like the NPC pulse, not a flat panel fill.")]
-    [SerializeField] private float whitelistUiGlowHaloPadding = 12f;
+    [SerializeField] private float whitelistUiGlowHaloPadding = 14f;
 
-    [SerializeField] [Range(1f, 1.25f)] private float whitelistUiGlowHaloUniformScale = 1.06f;
+    [SerializeField] [Range(1f, 1.25f)] private float whitelistUiGlowHaloUniformScale = 1.09f;
 
-    [SerializeField] [Range(0.1f, 1f)] private float whitelistUiGlowHaloAlphaScale = 0.55f;
+    [SerializeField] [Range(0.1f, 1f)] private float whitelistUiGlowHaloAlphaScale = 0.72f;
 
     /// <summary>Single source for script default, reset-all-windows fallback, and new-game layout when no controller.</summary>
     private static readonly Vector2 kDefaultHelperPanelSize = new(800f, 800f);
@@ -198,11 +198,11 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private const string HelperNewBadgeChildName = "HelperNewBadge";
 
-    private const float HelperNewBadgeFontSize = 45f;
+    private const float HelperNewBadgeFontSize = 31.5f;
 
-    private static readonly Vector2 kHelperNewBadgeSizeDelta = new(288f, 72f);
+    private static readonly Vector2 kHelperNewBadgeSizeDelta = new(201.6f, 50.4f);
 
-    private static readonly Vector2 kHelperNewBadgeAnchoredPosition = new(30f, 36f);
+    private static readonly Vector2 kHelperNewBadgeAnchoredPosition = new(21f, 25.2f);
 
     private const float HelperBodyScrollbarWidth = 14f;
 
@@ -361,6 +361,9 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (Instance == null || !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
             return;
 
+        if (Instance._activeDefinition != null)
+            Instance.DismissHelperNewBadgeFromPanelPointer();
+
         Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss);
     }
 
@@ -374,7 +377,70 @@ public sealed class HelperGameplayController : MonoBehaviour
             !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
             return;
 
-        Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss, interactionIdMarker.Trim());
+        string trimmed = interactionIdMarker.Trim();
+        if (Instance._activeDefinition != null && Instance._activeDefinition.MatchesWhitelistId(trimmed))
+            Instance.DismissHelperNewBadgeFromPanelPointer();
+
+        Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss, trimmed);
+    }
+
+    /// <summary>
+    /// Removes the pulsing glow overlay tied to <paramref name="sourceGraphic"/> (must match the graphic used when the glow was built).
+    /// Called from <see cref="HelperWhitelistUiInteractTarget"/> when clear-glow-on-hover is enabled (component or
+    /// <see cref="HelperPopupDefinition.whitelistInteractEntries"/> when that id is listed there).
+    /// </summary>
+    public static void NotifyWhitelistUiGlowClearedByPointerEnter(Graphic sourceGraphic)
+    {
+        if (Instance == null || !sourceGraphic || !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
+            return;
+
+        Instance.RemoveWhitelistGlowLinkForSourceGraphic(sourceGraphic);
+    }
+
+    /// <summary>
+    /// Resolves whether pointer-enter should clear this UI target's glow: if the id matches a
+    /// <see cref="HelperPopupDefinition.whitelistInteractEntries"/> row, that row's flag is used; otherwise the component default
+    /// (ids whitelisted only via <see cref="HelperPopupDefinition.whitelistedInteractionIds"/>).
+    /// </summary>
+    public static bool ShouldClearWhitelistUiGlowOnPointerEnter(string interactionId, bool componentDefault)
+    {
+        if (string.IsNullOrWhiteSpace(interactionId))
+            return false;
+
+        HelperGameplayController inst = Instance;
+        if (inst == null || inst._activeDefinition == null)
+            return componentDefault;
+
+        HelperPopupDefinition def = inst._activeDefinition;
+        if (!def.MatchesWhitelistId(interactionId))
+            return false;
+
+        if (def.TryGetStructuredEntryClearGlowOnPointerEnter(interactionId, out bool clearGlow))
+            return clearGlow;
+
+        return componentDefault;
+    }
+
+    private void RemoveWhitelistGlowLinkForSourceGraphic(Graphic sourceGraphic)
+    {
+        if (!sourceGraphic || _whitelistGlowLinks.Count == 0)
+            return;
+
+        for (int i = _whitelistGlowLinks.Count - 1; i >= 0; i--)
+        {
+            WhitelistGlowLink link = _whitelistGlowLinks[i];
+            if (link.SourceGraphic != sourceGraphic)
+                continue;
+
+            if (link.GlowHaloImg)
+                Destroy(link.GlowHaloImg.gameObject);
+
+            if (link.GlowImg)
+                Destroy(link.GlowImg.gameObject);
+
+            _whitelistGlowLinks.RemoveAt(i);
+            return;
+        }
     }
 
     /// <summary>
@@ -516,8 +582,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     public static bool ActiveHelperUsesWorldWhitelist =>
         Instance != null &&
         Instance._activeDefinition != null &&
-        Instance._activeDefinition.whitelistedInteractionIds != null &&
-        Instance._activeDefinition.whitelistedInteractionIds.Length > 0;
+        Instance._activeDefinition.HasConfiguredWhitelistInteractIds();
 
     /// <summary>True when <paramref name="winnerCol"/> hits a subtree that carries a whitelist id listed on the active helper.</summary>
     public static bool IsWhitelistedWorldPick(Collider2D winnerCol)
@@ -584,10 +649,10 @@ public sealed class HelperGameplayController : MonoBehaviour
             }
 
             if ((d.dismissModes & HelperDismissMode.InteractWhitelistDismiss) != 0 &&
-                (d.whitelistedInteractionIds == null || d.whitelistedInteractionIds.Length == 0))
+                !d.HasConfiguredWhitelistInteractIds())
             {
                 Debug.LogWarning(
-                    $"[HelperGameplayController] Helper '{d.helperId}' uses Interact Whitelist Dismiss but Whitelisted Interaction Ids is empty.",
+                    $"[HelperGameplayController] Helper '{d.helperId}' uses Interact Whitelist Dismiss but no whitelist ids are configured (entries or legacy list).",
                     d);
             }
 
@@ -965,6 +1030,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             ApplyDisplayedHistoryIndexToPanel(idx, startTypewriterFresh: false);
 
             RefreshWhitelistPresentationEmphasis();
+            ApplyInventoryLootHighlightFromActiveDefinition();
             RefreshWorldWhitelistRoutingFlag();
             ApplyDarkenModalPresentation();
             MaybeStartStuckQueuedAdvanceWatcher();
@@ -1808,8 +1874,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (_activeDefinition == null ||
             !IsHelperExpandedPresentation() ||
-            _activeDefinition.whitelistedInteractionIds == null ||
-            _activeDefinition.whitelistedInteractionIds.Length == 0)
+            !_activeDefinition.HasConfiguredWhitelistInteractIds())
             return;
 
         int overlayTopSort = canvasSortOrder + panelSortDelta;
@@ -1975,6 +2040,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         ApplyDisplayedHistoryIndexToPanel(_historyViewIndex, startTypewriterFresh: true);
 
         RefreshWhitelistPresentationEmphasis();
+        ApplyInventoryLootHighlightFromActiveDefinition();
 
         RefreshWorldWhitelistRoutingFlag();
         ApplyDarkenModalPresentation();
@@ -2549,8 +2615,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             !IsHelperExpandedPresentation() ||
             !ViewingLatestHistoryEntry() ||
             !_activeDefinition.highlightWhitelistTargetsDuringHelper ||
-            _activeDefinition.whitelistedInteractionIds == null ||
-            _activeDefinition.whitelistedInteractionIds.Length == 0)
+            !_activeDefinition.HasConfiguredWhitelistInteractIds())
         {
             EnsureHelperModalOverlayDrawOrder();
             return;
@@ -2564,12 +2629,24 @@ public sealed class HelperGameplayController : MonoBehaviour
         EnsureHelperModalOverlayDrawOrder();
     }
 
+    private void ApplyInventoryLootHighlightFromActiveDefinition()
+    {
+        if (_activeDefinition == null)
+            return;
+
+        ItemDefinition item = _activeDefinition.highlightInventorySlotsForItem;
+        if (!item || string.IsNullOrWhiteSpace(item.itemId))
+            return;
+
+        AutoBattleLootHighlight.MarkSlotsContainingItem(item.itemId);
+        AutoBattleLootHighlight.RefreshLootHighlightUIs();
+    }
+
     private void ApplyWhitelistPresentationTintsInner()
     {
         if (_activeDefinition == null ||
             !_activeDefinition.highlightWhitelistTargetsDuringHelper ||
-            _activeDefinition.whitelistedInteractionIds == null ||
-            _activeDefinition.whitelistedInteractionIds.Length == 0)
+            !_activeDefinition.HasConfiguredWhitelistInteractIds())
             return;
 
         HelperWhitelistInteractTarget[] markers =
@@ -2743,6 +2820,29 @@ public sealed class HelperGameplayController : MonoBehaviour
             Mathf.RoundToInt(HelperBodyScrollHorizontalPadding),
             0,
             0);
+    }
+
+    /// <summary>
+    /// Body paragraphs sit inside the scroll view margin plus <see cref="VerticalLayoutGroup.padding"/> on content —
+    /// match the title's left edge to that same X so the header lines up with the text block.
+    /// </summary>
+    private void ApplyHelperTitleLeftInsetFromBodyLayout()
+    {
+        if (!_titleText || !_helperBodyScrollRect)
+            return;
+
+        RectTransform scrollRt = _helperBodyScrollRect.transform as RectTransform;
+        if (!scrollRt)
+            return;
+
+        int padLeft = Mathf.RoundToInt(HelperBodyScrollHorizontalPadding);
+        if (_helperBodyScrollContent &&
+            _helperBodyScrollContent.TryGetComponent(out VerticalLayoutGroup bodyContentVlg))
+            padLeft = bodyContentVlg.padding.left;
+
+        float alignedLeft = scrollRt.offsetMin.x + padLeft;
+        RectTransform titleRt = _titleText.rectTransform;
+        titleRt.offsetMin = new Vector2(alignedLeft, titleRt.offsetMin.y);
     }
 
     private void BuildHelperBodyScrollInternals(
@@ -2952,7 +3052,10 @@ public sealed class HelperGameplayController : MonoBehaviour
             _helperBodyScrollRect.verticalNormalizedPosition = 1f;
     }
 
-    /// <summary>Hides the flashing &quot;! new&quot; badge when the player clicks the helper panel (body chrome, title, etc.).</summary>
+    /// <summary>
+    /// Hides the flashing &quot;! new&quot; badge when the player clicks the helper panel (chrome, title, body, etc.)
+    /// or activates a UI id that matches the active helper whitelist (see <see cref="NotifyWhitelistUiInteract"/>).
+    /// </summary>
     public void DismissHelperNewBadgeFromPanelPointer() => HideHelperNewBadge();
 
     private void ShowHelperNewBadge()
@@ -3165,6 +3268,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         _bodyText = FindHelperBodyUnderExpanded(expandedTf)?.GetComponent<TMP_Text>();
 
         EnsureHelperBodyScrollPresentation();
+        ApplyHelperTitleLeftInsetFromBodyLayout();
 
         RectTransform parentRt = ResolveOverlayParent();
         if (parentRt)
@@ -3182,6 +3286,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     {
         if (_overlayRoot != null)
         {
+            ApplyHelperTitleLeftInsetFromBodyLayout();
             EnsureHelperWindowFocus();
             ApplyHelperTipTextScale();
             EnsureHelperNewBadgeBuilt();
@@ -3435,6 +3540,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         hostComp.EnsureUnderWindowsArea(parentRt);
 
         ApplyLoadedHelperLayout();
+        ApplyHelperTitleLeftInsetFromBodyLayout();
         EnsureHelperWindowFocus();
         ApplyHelperTipTextScale();
 
@@ -3592,8 +3698,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             _activeDefinition == null ||
             _whitelistGlowHolder == null ||
             !_activeDefinition.highlightWhitelistTargetsDuringHelper ||
-            _activeDefinition.whitelistedInteractionIds == null ||
-            _activeDefinition.whitelistedInteractionIds.Length == 0)
+            !_activeDefinition.HasConfiguredWhitelistInteractIds())
             return;
 
         if (!worldCameraForWhitelistGlow)
@@ -3672,8 +3777,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             _activeDefinition == null ||
             _whitelistGlowHolder == null ||
             !_activeDefinition.highlightWhitelistTargetsDuringHelper ||
-            _activeDefinition.whitelistedInteractionIds == null ||
-            _activeDefinition.whitelistedInteractionIds.Length == 0)
+            !_activeDefinition.HasConfiguredWhitelistInteractIds())
             return;
 
         HelperWhitelistUiInteractTarget[] uis =

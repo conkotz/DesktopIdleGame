@@ -33,6 +33,9 @@ public class NPCDialogueBoxUI : MonoBehaviour
     /// <summary>When true, <see cref="CloseAllMultiOfferBoxesTogether"/> removes quest clones but keeps this box open (plain host + quest row).</summary>
     private bool _pinnedPlainHostForQuestSpread;
 
+    /// <summary>Plain host was closed (X / auto-close) while quest cards stay open — layout collapses to quest-only columns until the NPC is clicked again.</summary>
+    private bool _plainHostCollapsedLeavingQuestsOpen;
+
     private Transform _interactionOwnerTransform;
 
     private Transform _stripFollowAnchor;
@@ -91,7 +94,60 @@ public class NPCDialogueBoxUI : MonoBehaviour
         box &&
         box.gameObject.activeInHierarchy &&
         box._plainDialogueMode &&
-        !ActiveMultiOfferBoxes.Contains(box);
+        (!ActiveMultiOfferBoxes.Contains(box) || box._pinnedPlainHostForQuestSpread);
+
+    /// <summary>True when this NPC still has an active plain+quest spread session (expanded or collapsed dialogue host).</summary>
+    public static bool HasPinnedPlainQuestSpreadForNpc(Transform npcRoot)
+    {
+        if (!npcRoot || SpreadTemplate == null)
+            return false;
+        if (!SpreadTemplate._pinnedPlainHostForQuestSpread)
+            return false;
+        return ActiveDialogueIsDescendantOf(npcRoot);
+    }
+
+    /// <summary>Plain dialogue panel is hidden but quest offer clones from the same session are still open.</summary>
+    public static bool IsPlainHostCollapsedForActiveSpread() =>
+        SpreadTemplate && SpreadTemplate._plainHostCollapsedLeavingQuestsOpen;
+
+    /// <summary>Restores the plain dialogue column beside existing quest cards after the host was collapsed.</summary>
+    public static bool TryReshowCollapsedPlainDialogueForNpc(Transform npcRoot)
+    {
+        if (!npcRoot || SpreadTemplate == null || !SpreadTemplate._plainHostCollapsedLeavingQuestsOpen)
+            return false;
+        if (!SpreadTemplate._pinnedPlainHostForQuestSpread)
+            return false;
+        if (!ActiveDialogueIsDescendantOf(npcRoot))
+            return false;
+
+        SpreadTemplate._plainHostCollapsedLeavingQuestsOpen = false;
+        if (!SpreadTemplate.gameObject.activeSelf)
+            SpreadTemplate.gameObject.SetActive(true);
+
+        ActiveMultiOfferBoxes.Add(SpreadTemplate);
+        SortActiveMultiOfferBoxesLeftToRight();
+
+        float step = SpreadTemplate.fixedSize.x + SpreadTemplate.questOfferCardSpacing;
+        SpreadTemplate._stripAnchoredSpreadOffset = Vector2.zero;
+
+        int col = 0;
+        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+        {
+            NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+            if (!b || ReferenceEquals(b, SpreadTemplate))
+                continue;
+            if (b._spawnedAsOfferClone)
+            {
+                col++;
+                b._stripAnchoredSpreadOffset = new Vector2(step * col, 0f);
+            }
+        }
+
+        SortActiveMultiOfferBoxesLeftToRight();
+        s_deferredStripMultiOpening = true;
+        _activeBox = SpreadTemplate;
+        return true;
+    }
 
     [Header("Layout")]
     [SerializeField] private Vector2 fixedSize = new(250f, 250f);
@@ -366,7 +422,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
         // spread stays fixed; group UI_Frame clamp applies one delta so cards do not stack.
         if (ActiveMultiOfferBoxes.Count > 1 && ActiveMultiOfferBoxes.Contains(this))
         {
-            if (!ReferenceEquals(this, SpreadTemplate))
+            NPCDialogueBoxUI stripDriver = ResolveMultiOfferStripDriver();
+            if (!ReferenceEquals(this, stripDriver))
                 return;
 
             // First LateUpdate after open: lane + UI_Frame are already synced (follower 110 < this 120).
@@ -418,6 +475,23 @@ public class NPCDialogueBoxUI : MonoBehaviour
         UpdateStripPresentationTransform();
         transform.SetAsLastSibling();
         ClampAnchoredRectInsideUiFrame();
+    }
+
+    private static NPCDialogueBoxUI ResolveMultiOfferStripDriver()
+    {
+        if (SpreadTemplate != null &&
+            SpreadTemplate._pinnedPlainHostForQuestSpread &&
+            SpreadTemplate._plainHostCollapsedLeavingQuestsOpen)
+        {
+            for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+            {
+                NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+                if (b && b._spawnedAsOfferClone)
+                    return b;
+            }
+        }
+
+        return SpreadTemplate;
     }
 
     private void RefreshStripOverlayLayoutForFrame()
@@ -948,6 +1022,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         _stripAnchoredSpreadOffset = Vector2.zero;
         _pinnedPlainHostForQuestSpread = true;
+        _plainHostCollapsedLeavingQuestsOpen = false;
         ActiveMultiOfferBoxes.Add(this);
 
         float spreadStepPx = fixedSize.x + questOfferCardSpacing;
@@ -981,6 +1056,14 @@ public class NPCDialogueBoxUI : MonoBehaviour
     {
         if (!BulkClosingMultiOfferGroup && ActiveMultiOfferBoxes.Contains(this))
         {
+            if (_pinnedPlainHostForQuestSpread &&
+                ReferenceEquals(this, SpreadTemplate) &&
+                ActiveMultiOfferBoxes.Count > 1)
+            {
+                CollapsePlainHostLeavingQuestOffers();
+                return;
+            }
+
             bool dismissPlainHostEntirely =
                 _pinnedPlainHostForQuestSpread &&
                 ReferenceEquals(this, SpreadTemplate);
@@ -994,6 +1077,37 @@ public class NPCDialogueBoxUI : MonoBehaviour
         }
 
         HideSolo();
+    }
+
+    private void CollapsePlainHostLeavingQuestOffers()
+    {
+        if (!ReferenceEquals(this, SpreadTemplate) || !_pinnedPlainHostForQuestSpread)
+        {
+            HideSolo();
+            return;
+        }
+
+        if (_autoCloseRoutine != null)
+        {
+            StopCoroutine(_autoCloseRoutine);
+            _autoCloseRoutine = null;
+        }
+
+        ActiveMultiOfferBoxes.Remove(this);
+        _plainHostCollapsedLeavingQuestsOpen = true;
+        gameObject.SetActive(false);
+
+        float step = fixedSize.x + questOfferCardSpacing;
+        int j = 0;
+        SortActiveMultiOfferBoxesLeftToRight();
+        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+        {
+            NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+            if (b && b._spawnedAsOfferClone)
+                b._stripAnchoredSpreadOffset = new Vector2(step * j++, 0f);
+        }
+
+        s_deferredStripMultiOpening = true;
     }
 
     private void HideSolo()
@@ -1027,6 +1141,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         _plainDialogueMode = false;
         _pinnedPlainHostForQuestSpread = false;
+        _plainHostCollapsedLeavingQuestsOpen = false;
 
         gameObject.SetActive(false);
     }
@@ -1083,7 +1198,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
             else if (b._pinnedPlainHostForQuestSpread)
             {
                 b._pinnedPlainHostForQuestSpread = false;
+                b._plainHostCollapsedLeavingQuestsOpen = false;
                 b._stripAnchoredSpreadOffset = Vector2.zero;
+                if (!b.gameObject.activeSelf)
+                    b.gameObject.SetActive(true);
             }
             else
                 b.HideSolo();
@@ -1834,7 +1952,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
         ApplyDialogueScrollTypography();
 
         if (dialogueText != null && acceptButton != null)
+        {
+            WireCloseButtonDismissesViaHide();
             return;
+        }
 
         Image bg = GetComponent<Image>();
         if (!bg)
@@ -1844,13 +1965,13 @@ public class NPCDialogueBoxUI : MonoBehaviour
         AttachClickForward(gameObject);
 
         if (dialogueText != null && acceptButton != null)
+        {
+            WireCloseButtonDismissesViaHide();
             return;
+        }
 
         RectTransform closeRt = CreateButton("CloseButton", "X", _rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-14f, -14f), new Vector2(24f, 24f), out Button closeButton);
-        UIWindowCloseButton close = closeRt.gameObject.GetComponent<UIWindowCloseButton>();
-        if (!close)
-            close = closeRt.gameObject.AddComponent<UIWindowCloseButton>();
-        close.Configure(gameObject);
+        WireCloseButton(closeButton);
 
         GameObject scrollGo = new GameObject("DialogueScrollView", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
         scrollGo.transform.SetParent(_rectTransform, false);
@@ -1921,6 +2042,39 @@ public class NPCDialogueBoxUI : MonoBehaviour
         acceptRt.gameObject.SetActive(false);
 
         ApplyDialogueScrollTypography();
+    }
+
+    /// <summary>
+    /// <see cref="UIWindowCloseButton"/> uses <c>SetActive(false)</c>, which skips <see cref="Hide"/> collapse / spread bookkeeping for plain+quest sessions.
+    /// </summary>
+    private void WireCloseButtonDismissesViaHide()
+    {
+        Transform closeT = transform.Find("CloseButton");
+        if (!closeT)
+            return;
+        Button b = closeT.GetComponent<Button>();
+        if (!b)
+            return;
+
+        UIWindowCloseButton winClose = closeT.GetComponent<UIWindowCloseButton>();
+        if (winClose)
+            Destroy(winClose);
+
+        b.onClick.RemoveAllListeners();
+        b.onClick.AddListener(Hide);
+    }
+
+    private void WireCloseButton(Button closeButton)
+    {
+        if (!closeButton)
+            return;
+
+        UIWindowCloseButton winClose = closeButton.GetComponent<UIWindowCloseButton>();
+        if (winClose)
+            Destroy(winClose);
+
+        closeButton.onClick.RemoveAllListeners();
+        closeButton.onClick.AddListener(Hide);
     }
 
     private TMP_Text CreateScrollLineTMP(string name, Transform parent, float fontSize, FontStyles style, bool bodyFlexible)

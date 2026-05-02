@@ -231,17 +231,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
-  dialogue: 'Hey... you''re lucky i saved you just intime! it looked like you were
-    struggling.....
+  dialogue: 'Hey... you''re lucky i teleported you to safety just intime! it looked
+    like you were struggling.....
 
-    I need your help.  '
+    But need your help. Ivan has turned mad!  '
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
   dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
   nonQuestAutoCloseSeconds: 10
   openDialogueOnFirstSighting: 1
+  openDialogueAfterQuestAccepted: 0
+  openDialogueAfterQuestAcceptedQuestId: 
   additionalConditionalDialogues:
-  - condition: 0
-    completedQuestId: tutorial_aid_merlin
+  - condition: 1
+    completedQuestId: 
+    afterDeathRespawnMapNodeId: 
     dialogue: Sorry about that... i forgot to mention Ivan cant be defeated with
       melee. I gave you a magic weapon, try use it to defeat him. Dont forget to
       use your food and potions!
@@ -250,6 +253,7 @@ MonoBehaviour:
     teleportMapNodeId: 
   - condition: 0
     completedQuestId: tutorial_defeat_ivan
+    afterDeathRespawnMapNodeId: 
     dialogue: Well done! your job here is complete. Would you like me to send you
       to Duskwood?
     onAcceptOutcome: 1

@@ -16,7 +16,7 @@ MonoBehaviour:
   title: Complete First Quest
   bodyText: "You have gathered enough resources to complete the first quest. Once
     a quest is completed, you can collect the rewards from within the quest menu.
-    View the quest list to see if there's any more quests you can obtain.  \nMake
+    View the quest list to see if there's any more quests you can obtain.  \n\nMake
     sure to access your inventory and equip your new axe."
   activationTrigger: 4
   requiredMapNodeId: tutorial_1
@@ -29,8 +29,10 @@ MonoBehaviour:
   skillLevelTriggerMinimumNewLevel: 2
   priority: 2
   showCloseButton: 1
-  darkenScreenAndLockGameplay: 0
+  darkenScreenAndLockGameplay: 1
   dismissModes: 4
+  whitelistInteractEntries: []
   whitelistedInteractionIds:
   - UIButton_Quest
   highlightWhitelistTargetsDuringHelper: 1
+  highlightInventorySlotsForItem: {fileID: 0}

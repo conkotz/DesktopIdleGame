@@ -197,7 +197,7 @@ public class RegionDefinition : ScriptableObject
         return IsRegionUnlocked(progress, activeGameplayNodeId, map);
     }
 
-    private bool OwnsMapNodeId(string nodeId)
+    public bool OwnsMapNodeId(string nodeId)
     {
         if (nodes == null || string.IsNullOrEmpty(nodeId))
             return false;

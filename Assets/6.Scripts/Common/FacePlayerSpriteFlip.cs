@@ -2,6 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Faces a 2D character toward the player using the same scale-x flip as <see cref="EnemyBaseController.FaceTargetX"/>.
+/// While the player is within <see cref="facePlayerRangeX"/>, facing updates only when they move to the opposite side
+/// (outside <see cref="flipDeadZoneWorld"/>); scale is not reset when the player walks away.
 /// Assign <see cref="flipTarget"/> to <c>Visuals</c> so sibling name labels / world dialogue are not mirrored.
 /// </summary>
 [AddComponentMenu("Desktop Idle Game/Character/Face Player Sprite Flip")]
@@ -29,10 +31,13 @@ public sealed class FacePlayerSpriteFlip : MonoBehaviour
     [Tooltip("Forced positive localScale.x after flip (enemy UIRoot / name label behaviour). Optional if UI is sibling of flipTarget.")]
     [SerializeField] private Transform[] unmirrorUiRoots;
 
-    /// <summary>Captured in Awake; restored when the player moves beyond <see cref="facePlayerRangeX"/>.</summary>
-    private Vector3 _defaultFlipTargetLocalScale = Vector3.one;
-
     private Transform _playerTf;
+
+    /// <summary>False until we have applied at least one in-range facing (handles first approach).</summary>
+    private bool _hasLatchedSide;
+
+    /// <summary>Committed side: player left of this transform in X (same sign as dx = px - myX).</summary>
+    private bool _latchedPlayerOnLeft;
 
     private void Awake()
     {
@@ -41,9 +46,6 @@ public sealed class FacePlayerSpriteFlip : MonoBehaviour
             Transform v = transform.Find("Visuals");
             flipTarget = v ? v : transform;
         }
-
-        if (flipTarget)
-            _defaultFlipTargetLocalScale = flipTarget.localScale;
 
         ResolvePlayerTransform();
     }
@@ -61,20 +63,28 @@ public sealed class FacePlayerSpriteFlip : MonoBehaviour
         float distX = DistanceToPlayerX();
         if (distX > facePlayerRangeX)
         {
-            flipTarget.localScale = _defaultFlipTargetLocalScale;
             UnmirrorUiRoots();
             return;
         }
 
         float myX = transform.position.x;
         float px = _playerTf.position.x;
-        if (flipDeadZoneWorld > 0f && Mathf.Abs(px - myX) < flipDeadZoneWorld)
+        float dx = px - myX;
+
+        if (flipDeadZoneWorld > 0f && Mathf.Abs(dx) < flipDeadZoneWorld)
         {
             UnmirrorUiRoots();
             return;
         }
 
-        ApplyFaceTargetX(px);
+        bool playerOnLeft = dx < 0f;
+        if (!_hasLatchedSide || playerOnLeft != _latchedPlayerOnLeft)
+        {
+            _latchedPlayerOnLeft = playerOnLeft;
+            _hasLatchedSide = true;
+            ApplyFacePlayerOnLeft(_latchedPlayerOnLeft);
+        }
+
         UnmirrorUiRoots();
     }
 
@@ -117,10 +127,9 @@ public sealed class FacePlayerSpriteFlip : MonoBehaviour
     /// are mirrored vs enemy sprites so facing toward the player needs the opposite scale-x sign.
     /// Toggle <see cref="invertFlip"/> if a specific prefab still faces the wrong way.
     /// </remarks>
-    private void ApplyFaceTargetX(float targetX)
+    private void ApplyFacePlayerOnLeft(bool playerIsOnLeft)
     {
-        float myX = transform.position.x;
-        bool faceLeft = targetX < myX;
+        bool faceLeft = playerIsOnLeft;
 
         bool flip = !faceLeft;
         if (invertFlip)

@@ -1,3 +1,4 @@
+using System;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
@@ -14,6 +15,21 @@ public enum HelperSkillLevelTriggerOption
     Magic = 5,
     Endurance = 6,
     AnySkill = 7,
+}
+
+/// <summary>
+/// One whitelisted interact id for a helper, with optional per-target UI glow behavior.
+/// </summary>
+[Serializable]
+public sealed class HelperWhitelistInteractEntry
+{
+    [Tooltip("Case-insensitive; must match HelperWhitelistUiInteractTarget / HelperWhitelistInteractTarget id.")]
+    public string interactionId = "";
+
+    [Tooltip(
+        "When on, moving the pointer over this whitelisted UI target clears only that target's pulsing glow overlay " +
+        "(click can still run whitelist dismiss).")]
+    public bool clearGlowOnPointerEnter;
 }
 
 /// <summary>
@@ -83,20 +99,122 @@ public sealed class HelperPopupDefinition : ScriptableObject
 
     [Header("Allowed interact targets while helper modal (whitelist ids)")]
     [Tooltip(
-        "Case-insensitive ids: (1) <see cref=\"HelperWhitelistInteractTarget\"/> — world clicks still route; "
-        + "(2) <see cref=\"HelperWhitelistUiInteractTarget\"/> — toolbar / UI clicks dismiss when matched. Raise UI canvas sorting on the Character button prefab via the whitelist UI component.")]
+        "Per-id whitelist with optional clear-glow-on-hover on each row. Union with Whitelisted Interaction Ids — both lists apply at once.")]
+    public HelperWhitelistInteractEntry[] whitelistInteractEntries;
+
+    [Tooltip(
+        "Click / interact whitelist ids (same matching rules as hover entries). Union with hover entries — both lists apply at once.")]
     public string[] whitelistedInteractionIds;
 
     [Tooltip(
         "If true, whitelisted world sprites and UI Graphics get a yellow pulsing glow clone above the dimmer (world tint fallback when Glow Above Dimmer is off — UI uses overlay glow only).")]
     public bool highlightWhitelistTargetsDuringHelper = true;
 
+    [Tooltip(
+        "Optional: bag / storage slots that currently hold this item use the same yellow tint as idle auto-battle new loot when the helper is shown " +
+        "(e.g. First Bag Gain From Zero — assign the item the player just received). Leave empty to skip.")]
+    public ItemDefinition highlightInventorySlotsForItem;
+
+    /// <summary>
+    /// True when at least one non-empty whitelist id is configured (structured entries and/or legacy strings).
+    /// </summary>
+    public bool HasConfiguredWhitelistInteractIds()
+    {
+        if (whitelistInteractEntries != null)
+        {
+            for (int i = 0; i < whitelistInteractEntries.Length; i++)
+            {
+                HelperWhitelistInteractEntry e = whitelistInteractEntries[i];
+                if (e != null && !string.IsNullOrWhiteSpace(e.interactionId))
+                    return true;
+            }
+        }
+
+        if (whitelistedInteractionIds != null)
+        {
+            for (int i = 0; i < whitelistedInteractionIds.Length; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(whitelistedInteractionIds[i]))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     public bool MatchesWhitelistId(string markerId)
     {
-        if (string.IsNullOrWhiteSpace(markerId) || whitelistedInteractionIds == null)
+        if (string.IsNullOrWhiteSpace(markerId))
             return false;
 
         string trimmed = markerId.Trim();
+        if (MatchesWhitelistIdInEntries(trimmed))
+            return true;
+
+        return MatchesWhitelistIdInLegacyStrings(trimmed);
+    }
+
+    /// <summary>
+    /// When <paramref name="markerId"/> matches a row in <see cref="whitelistInteractEntries"/>, returns true and that row's
+    /// clear-glow-on-hover flag. Ids whitelisted only via <see cref="whitelistedInteractionIds"/> return false (use UI component default).
+    /// </summary>
+    public bool TryGetStructuredEntryClearGlowOnPointerEnter(string markerId, out bool clearGlowOnPointerEnter)
+    {
+        clearGlowOnPointerEnter = false;
+        if (string.IsNullOrWhiteSpace(markerId) || whitelistInteractEntries == null)
+            return false;
+
+        string trimmed = markerId.Trim();
+
+        for (int i = 0; i < whitelistInteractEntries.Length; i++)
+        {
+            HelperWhitelistInteractEntry e = whitelistInteractEntries[i];
+            if (e == null || string.IsNullOrWhiteSpace(e.interactionId))
+                continue;
+
+            string rowTrim = e.interactionId.Trim();
+            if (WhitelistIdRowMatches(trimmed, rowTrim))
+            {
+                clearGlowOnPointerEnter = e.clearGlowOnPointerEnter;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool WhitelistIdRowMatches(string trimmedMarker, string rowTrim)
+    {
+        if (string.Equals(rowTrim, trimmedMarker, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return HelperWhitelistUiInteractTarget.IsSkillsAbilityToolbarWhitelistMarker(trimmedMarker) &&
+               HelperWhitelistUiInteractTarget.IsSkillsAbilityToolbarWhitelistMarker(rowTrim);
+    }
+
+    private bool MatchesWhitelistIdInEntries(string trimmed)
+    {
+        if (whitelistInteractEntries == null)
+            return false;
+
+        for (int i = 0; i < whitelistInteractEntries.Length; i++)
+        {
+            HelperWhitelistInteractEntry e = whitelistInteractEntries[i];
+            if (e == null || string.IsNullOrWhiteSpace(e.interactionId))
+                continue;
+
+            if (WhitelistIdRowMatches(trimmed, e.interactionId.Trim()))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool MatchesWhitelistIdInLegacyStrings(string trimmedMarker)
+    {
+        if (whitelistedInteractionIds == null)
+            return false;
+
         for (int i = 0; i < whitelistedInteractionIds.Length; i++)
         {
             string row = whitelistedInteractionIds[i];
@@ -104,11 +222,7 @@ public sealed class HelperPopupDefinition : ScriptableObject
                 continue;
 
             string rowTrim = row.Trim();
-            if (string.Equals(rowTrim, trimmed, System.StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            if (HelperWhitelistUiInteractTarget.IsSkillsAbilityToolbarWhitelistMarker(trimmed) &&
-                HelperWhitelistUiInteractTarget.IsSkillsAbilityToolbarWhitelistMarker(rowTrim))
+            if (WhitelistIdRowMatches(trimmedMarker, rowTrim))
                 return true;
         }
 

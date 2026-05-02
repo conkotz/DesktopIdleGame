@@ -14,4 +14,10 @@ public enum ToggleSettingId
 
     /// <summary>When true (default), tutorial/helper tips may appear; false disables all helpers (persisted).</summary>
     ShowHelpPopups = 7,
+
+    /// <summary>
+    /// When true (default), repeated item-gain / purchase lines in the activity log merge into one entry with &quot;(Repeat action)&quot;.
+    /// When false, each gain logs as its own line.
+    /// </summary>
+    GroupRepeatedActivityLogItemGains = 8,
 }

@@ -19,8 +19,10 @@ public class IdleCombatButton : MonoBehaviour
     [SerializeField] private Color onColor = new Color(0.2f, 0.8f, 0.2f); // green
     [SerializeField] private Color offColor = new Color(0.85f, 0.85f, 0.85f); // light grey
 
-    [Tooltip("Shown in the activity log when the player clicks Auto Battle while it is still locked.")]
-    [SerializeField] private string lockedActivityLogMessage = "Locked until Green Fields clearance is completed.";
+    [Tooltip(
+        "Fallback activity log line when Auto Battle is locked but no quest grants idle unlock in the database. " +
+        "Normally the message is built from quests with Grant Idle Combat Unlock On Reward Claim.")]
+    [SerializeField] private string lockedActivityLogMessage = "";
 
     [SerializeField] private Color lockTintColor = new Color(1f, 0.45f, 0.45f, 0.45f);
 
@@ -81,9 +83,14 @@ public class IdleCombatButton : MonoBehaviour
     {
         if (IsAutoBattleLocked())
         {
-            string msg = string.IsNullOrWhiteSpace(lockedActivityLogMessage)
-                ? "Auto Battle is locked."
-                : lockedActivityLogMessage.Trim();
+            QuestProgressManager qpm = QuestProgressManager.Instance ??
+                FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+            string dynamicMsg = qpm != null ? qpm.BuildIdleCombatUnlockBlockedMessage() : "";
+            string msg = !string.IsNullOrWhiteSpace(dynamicMsg)
+                ? dynamicMsg
+                : !string.IsNullOrWhiteSpace(lockedActivityLogMessage)
+                    ? lockedActivityLogMessage.Trim()
+                    : "Auto Battle is locked.";
             GameLog.Add(msg, GameLog.CannotMessageColor);
             return;
         }

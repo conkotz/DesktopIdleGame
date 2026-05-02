@@ -10,17 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
-  m_Name: MapNode_green_fields
+  m_Name: MapNode_battlegrounds
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
-  nodeId: green_fields
-  displayName: 'Green Fields '
+  nodeId: battlegrounds
+  displayName: Battleground
   description: 'Combat level '
   nodeType: 0
   enemyAggroMode: 1
   ignoreAggroRange: 0
+  respawnHereIfDied: 0
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 10
-  eliteSpawnChance: 0.5
+  eliteSpawnChance: 0.15
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
@@ -44,8 +45,19 @@ MonoBehaviour:
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 8
     shuffleSpawnPoints: 1
+  simpleCombatWaves: []
+  simpleCombatWavesAutoStartOnLevelEnter: 0
+  simpleCombatWavesRequireQuestRewardClaimed: 0
+  simpleCombatWavesRequiredQuestId: 
+  simpleCombatWavesRequireQuestAccepted: 0
+  simpleCombatWavesQuestAcceptedId: 
+  simpleCombatWavesRunOncePerSceneSession: 0
   enduranceWaves: []
   enduranceCompletionLoot: []
   enduranceCompletionLootByTier: []

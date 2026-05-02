@@ -39,6 +39,44 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     public bool IsIdleCombatUnlocked => _idleCombatUnlocked;
 
+    /// <summary>
+    /// Activity-log line when the player tries to use Auto Battle before any
+    /// <see cref="QuestDefinition.grantIdleCombatUnlockOnRewardClaim"/> quest has had its reward claimed.
+    /// </summary>
+    public string BuildIdleCombatUnlockBlockedMessage()
+    {
+        if (IsIdleCombatUnlocked)
+            return "";
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null || all.Count == 0)
+            return "";
+
+        var names = new List<string>();
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition q = all[i];
+            if (!q || q.repeatable || !q.grantIdleCombatUnlockOnRewardClaim)
+                continue;
+            if (IsRewardClaimed(q.questId))
+                continue;
+
+            string nm = string.IsNullOrWhiteSpace(q.displayName) ? q.questId.Trim() : q.displayName.Trim();
+            if (names.Contains(nm))
+                continue;
+            names.Add(nm);
+        }
+
+        if (names.Count == 0)
+            return "";
+
+        if (names.Count == 1)
+            return $"Locked until you complete and claim the quest reward: {names[0]}.";
+
+        return "Locked until you complete and claim the quest reward for one of: " + string.Join(", ", names) + ".";
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -980,7 +1018,11 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             if (qty <= 0)
                 continue;
 
-            int toInv = inv.AddPartial(itemId, qty, null, notifyItemGainPopup: true);
+            var invTouched = new List<int>(8);
+            int toInv = inv.AddPartial(itemId, qty, null, notifyItemGainPopup: true, invTouched);
+            for (int i = 0; i < invTouched.Count; i++)
+                AutoBattleLootHighlight.MarkInventorySlot(invTouched[i]);
+
             if (toInv >= qty)
                 continue;
 
@@ -988,13 +1030,19 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
                 continue;
 
             int remainder = qty - toInv;
-            int toSt = st.TryDepositAmountFromExternal(itemId, remainder);
+            var stTouched = new List<int>(8);
+            int toSt = st.TryDepositAmountFromExternal(itemId, remainder, stTouched);
+            for (int i = 0; i < stTouched.Count; i++)
+                AutoBattleLootHighlight.MarkStorageSlot(stTouched[i]);
+
             if (toSt > 0)
             {
                 string label = ResolveItemDisplayName(itemId);
                 GameLog.Add($"Inventory was full — sent {toSt}x {label} to storage.", questRewardToStorageLogColor);
             }
         }
+
+        AutoBattleLootHighlight.RefreshLootHighlightUIs();
     }
 
     /// <summary>Call from enemy death; applies kill credit to active kill quests for the current map node.</summary>

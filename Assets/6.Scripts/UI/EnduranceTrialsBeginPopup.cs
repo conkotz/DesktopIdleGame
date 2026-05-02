@@ -276,8 +276,7 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
         if (beginButtonLabel)
             beginButtonLabel.text = beginButtonTextPreTrial;
 
-        // Single layout pass after waves + tier row + loot (tier row alone calls RefreshTierRow + ForceLayoutRebuild on arrow clicks).
-        ForceLayoutRebuild();
+        // Layout: callers use ScheduleDeferredLayoutRebuild (immediate rebuild pulls in Canvas.ForceUpdateCanvases).
     }
 
     private void RefreshCompletionSummary(EnduranceTrialDirector d)
@@ -353,19 +352,21 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
 
     private IEnumerator CoDeferredLayoutRebuild()
     {
-        // After SetActive + text changes, TMP and nested layout groups need a frame before sizes are final.
+        // Exit activation / OnValidate stacks before touching layout (TMP + ForceRebuildLayoutImmediate both
+        // end up in Canvas.ForceUpdateCanvases → SendMessage warnings on EnduranceLootText / RightSection).
         yield return null;
-        ForceLayoutRebuild();
         yield return new WaitForEndOfFrame();
-        ForceLayoutRebuild();
+        QueueLayoutRebuildMarks();
+        yield return null;
+        QueueLayoutRebuildMarks();
         _deferredLayoutCoroutine = null;
     }
 
     /// <summary>
-    /// Updates TMP meshes, then rebuilds layout. Nested Content → LeftSection/RightSection layouts require
-    /// rebuilding child <see cref="LayoutGroup"/>s deepest-first; a single rebuild on the panel root is not enough.
+    /// Schedules layout rebuilds only — no <see cref="TMP_Text.ForceMeshUpdate"/> or
+    /// <see cref="LayoutRebuilder.ForceRebuildLayoutImmediate"/> (they flush the canvas synchronously).
     /// </summary>
-    private void ForceLayoutRebuild()
+    private void QueueLayoutRebuildMarks()
     {
         if (!popupRoot)
             return;
@@ -373,15 +374,6 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
         RectTransform rootRt = popupRoot.GetComponent<RectTransform>();
         if (rootRt == null)
             return;
-
-        foreach (TMP_Text tmp in popupRoot.GetComponentsInChildren<TMP_Text>(true))
-        {
-            if (tmp)
-                tmp.ForceMeshUpdate(true);
-        }
-
-        // Avoid Canvas.ForceUpdateCanvases() here: it can trigger SendMessage during Awake / OnValidate /
-        // OnRectTransformDimensionsChange on nested layout (e.g. EnduranceLootText, RightSection).
 
         Transform rootT = popupRoot.transform;
         LayoutGroup[] groups = popupRoot.GetComponentsInChildren<LayoutGroup>(true);
@@ -392,10 +384,10 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
         {
             RectTransform rt = groups[i].transform as RectTransform;
             if (rt != null)
-                LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+                LayoutRebuilder.MarkLayoutForRebuild(rt);
         }
 
-        LayoutRebuilder.ForceRebuildLayoutImmediate(rootRt);
+        LayoutRebuilder.MarkLayoutForRebuild(rootRt);
     }
 
     private static int DepthBelow(Transform node, Transform ancestor)
@@ -512,7 +504,7 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
             return;
         _selectedTier = Mathf.Max(EnduranceTrialTier.MinTier, _selectedTier - 1);
         RefreshTierRow(def);
-        ForceLayoutRebuild();
+        ScheduleDeferredLayoutRebuild();
     }
 
     private void OnTierNextClicked()
@@ -530,7 +522,7 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
 
         _selectedTier = Mathf.Min(maxSel, _selectedTier + 1);
         RefreshTierRow(def);
-        ForceLayoutRebuild();
+        ScheduleDeferredLayoutRebuild();
     }
 
     private void OnBeginClicked()

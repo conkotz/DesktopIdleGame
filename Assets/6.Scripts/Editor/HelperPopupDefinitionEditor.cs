@@ -60,11 +60,19 @@ public sealed class HelperPopupDefinitionEditor : UnityEditor.Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(HelperPopupDefinition.dismissModes)));
 
         EditorGUILayout.PropertyField(
+            serializedObject.FindProperty(nameof(HelperPopupDefinition.whitelistInteractEntries)),
+            new GUIContent("Whitelist interact hover Id's"),
+            includeChildren: true);
+
+        EditorGUILayout.PropertyField(
             serializedObject.FindProperty(nameof(HelperPopupDefinition.whitelistedInteractionIds)),
             includeChildren: true);
 
         EditorGUILayout.PropertyField(
             serializedObject.FindProperty(nameof(HelperPopupDefinition.highlightWhitelistTargetsDuringHelper)));
+
+        EditorGUILayout.PropertyField(
+            serializedObject.FindProperty(nameof(HelperPopupDefinition.highlightInventorySlotsForItem)));
 
         serializedObject.ApplyModifiedProperties();
     }

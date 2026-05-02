@@ -15,11 +15,13 @@ MonoBehaviour:
   helperId: magic_helper
   title: Magic Combat
   bodyText: "You have gained your first magic weapon. Some weapons require a secondary
-    support items to be equipped in order to use them. For magic weapons you will
+    support item to be equipped in order to use them. For magic weapons you will
     need either a focus or runes and for ranged weapon, they will require arrows.
     \n\nMaigc attacks will consume mana to cast but they will also provide elemental
-    ailments. This ice weapon causes chill on enemies which causes them to move slower
-    per stack. "
+    ailments based on their. This ice weapon adds chill upon hitting enemies which
+    causes them to move slower per stack. \n\nTry hitting 'Tab' and equipping the
+    magic weapon on your secondary weapon set. This makes switching between two styles
+    easy."
   activationTrigger: 3
   requiredMapNodeId: tutorial_3
   inventoryTriggerItemId: basic_ice_wand
@@ -33,5 +35,7 @@ MonoBehaviour:
   showCloseButton: 1
   darkenScreenAndLockGameplay: 0
   dismissModes: 8
+  whitelistInteractEntries: []
   whitelistedInteractionIds: []
   highlightWhitelistTargetsDuringHelper: 0
+  highlightInventorySlotsForItem: {fileID: 0}

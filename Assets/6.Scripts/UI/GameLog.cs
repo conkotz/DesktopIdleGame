@@ -117,7 +117,8 @@ public static class GameLog
         string stackKey = (isPurchase ? "ItemPurchase:" : "ItemGain:") + itemName;
         System.DateTime timestampLocal = System.DateTime.Now;
 
-        if (Entries.Count > 0)
+        if (ToggleSettingsStore.Get(ToggleSettingId.GroupRepeatedActivityLogItemGains) &&
+            Entries.Count > 0)
         {
             int lastIndex = Entries.Count - 1;
             Entry last = Entries[lastIndex];

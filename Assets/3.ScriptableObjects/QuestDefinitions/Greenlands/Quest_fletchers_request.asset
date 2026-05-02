@@ -24,6 +24,7 @@ MonoBehaviour:
   objectiveKind: 2
   targetCount: 50
   objectiveId: splitwood_log
+  specialObjectiveListText: 
   rewardGold: 0
   rewardItem: {fileID: 11400000, guid: 5b415bdca2253f847bbe0dd00a2f22c1, type: 2}
   rewardItemId: 
@@ -33,12 +34,17 @@ MonoBehaviour:
     itemId: 
     quantity: 50
   rewardNotes: 
+  grantIdleCombatUnlockOnRewardClaim: 0
   repeatable: 0
+  autoCompleteQuest: 0
   abandonable: 1
+  teleportPlayerToNodeIdOnCompletion: 
   obtainLocationId: fletcher
   obtainLocationDisplayName: Robin the Fletcher
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
+  autoAcceptWhenPriorQuestRewardClaimed: 0
+  autoAcceptAfterPriorQuestId: 
   prerequisiteRewardClaimedQuestIds: []
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 

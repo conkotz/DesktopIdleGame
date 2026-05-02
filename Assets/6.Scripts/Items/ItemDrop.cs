@@ -214,6 +214,9 @@ public class ItemDrop : MonoBehaviour
             }
         }
 
+        if (idleAutoBattleLoot)
+            AutoBattleLootHighlight.RefreshLootHighlightUIs();
+
         if (left <= 0)
         {
             if (!string.IsNullOrEmpty(_levelOneShotPickupClaimKey))

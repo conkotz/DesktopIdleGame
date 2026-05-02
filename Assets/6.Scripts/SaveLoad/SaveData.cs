@@ -172,4 +172,9 @@ public class SaveData
     [Tooltip(
         "Spawn-slot keys for enemies with EnemyDefinition.cannotRespawn that have died; those slots stay empty across reload until New Game.")]
     public List<string> permanentDeadEnemySpawnKeys = new();
+
+    [Header("NPC dialogue")]
+    [Tooltip(
+        "Set when the player dies in GamePlay; cleared after conditional dialogue with After Death And Respawn is shown.")]
+    public bool npcPostDeathRespawnDialoguePending;
 }

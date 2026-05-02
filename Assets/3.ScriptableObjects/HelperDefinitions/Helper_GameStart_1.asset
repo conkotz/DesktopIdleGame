@@ -15,7 +15,7 @@ MonoBehaviour:
   helperId: first_item_helper
   title: First Item
   bodyText: '{playerName}, you have gained your first item. Open the character tab
-    to see your all the items you collect. In this tab you can also view your eqipped
+    to see all the items you collect. In this tab you can also view your eqipped
     items and see your characters stats. '
   activationTrigger: 2
   requiredMapNodeId: tutorial_1
@@ -28,8 +28,10 @@ MonoBehaviour:
   skillLevelTriggerMinimumNewLevel: 2
   priority: 1
   showCloseButton: 1
-  darkenScreenAndLockGameplay: 0
+  darkenScreenAndLockGameplay: 1
   dismissModes: 4
+  whitelistInteractEntries: []
   whitelistedInteractionIds:
   - UIButton_Character
   highlightWhitelistTargetsDuringHelper: 1
+  highlightInventorySlotsForItem: {fileID: 11400000, guid: 60a88e1e810c3ee46a36fb6b840a76b3, type: 2}

@@ -17,6 +17,7 @@ public static class ToggleSettingsStore
     private const string ShowHelpPopupsKey = "Settings.ShowHelpPopups";
     /// <summary>Inverted naming from before ShowHelpPopups; migrated once.</summary>
     private const string LegacyHideHelpPopupsKey = "Settings.HideHelpPopups";
+    private const string GroupRepeatedActivityLogItemGainsKey = "Settings.GroupRepeatedActivityLogItemGains";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -38,6 +39,8 @@ public static class ToggleSettingsStore
             ToggleSettingId.AutoLootDuringAutoBattle =>
                 PlayerPrefs.GetInt(AutoLootDuringAutoBattleKey, 1) != 0,
             ToggleSettingId.ShowHelpPopups => GetShowHelpPopups(),
+            ToggleSettingId.GroupRepeatedActivityLogItemGains =>
+                PlayerPrefs.GetInt(GroupRepeatedActivityLogItemGainsKey, 1) != 0,
             _ => false
         };
     }
@@ -110,6 +113,9 @@ public static class ToggleSettingsStore
                 PlayerPrefs.SetInt(ShowHelpPopupsKey, value ? 1 : 0);
                 PlayerPrefs.DeleteKey(LegacyHideHelpPopupsKey);
                 break;
+            case ToggleSettingId.GroupRepeatedActivityLogItemGains:
+                PlayerPrefs.SetInt(GroupRepeatedActivityLogItemGainsKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -131,6 +137,7 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(AutoLootDuringAutoBattleKey);
         PlayerPrefs.DeleteKey(ShowHelpPopupsKey);
         PlayerPrefs.DeleteKey(LegacyHideHelpPopupsKey);
+        PlayerPrefs.DeleteKey(GroupRepeatedActivityLogItemGainsKey);
         PlayerPrefs.Save();
 
         UIWindowCornerResize.RefreshAllHandlesVisibility();
@@ -151,6 +158,8 @@ public static class ToggleSettingsStore
             ToggleSettingId.AutoTrackNewQuest => "Auto track new quest",
             ToggleSettingId.AutoLootDuringAutoBattle => "Auto loot during auto battle",
             ToggleSettingId.ShowHelpPopups => "Enable help feature",
+            ToggleSettingId.GroupRepeatedActivityLogItemGains =>
+                "Show repeated actions as grouped in activity log",
             _ => setting.ToString()
         };
     }

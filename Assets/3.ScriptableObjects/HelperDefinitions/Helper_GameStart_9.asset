@@ -27,8 +27,10 @@ MonoBehaviour:
   skillLevelTriggerMinimumNewLevel: 5
   priority: 9
   showCloseButton: 1
-  darkenScreenAndLockGameplay: 0
+  darkenScreenAndLockGameplay: 1
   dismissModes: 8
+  whitelistInteractEntries: []
   whitelistedInteractionIds:
   - UIButton_SkillsAbility
   highlightWhitelistTargetsDuringHelper: 1
+  highlightInventorySlotsForItem: {fileID: 0}

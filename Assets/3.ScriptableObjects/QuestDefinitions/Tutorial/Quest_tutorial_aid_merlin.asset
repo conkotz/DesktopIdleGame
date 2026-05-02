@@ -22,7 +22,7 @@ MonoBehaviour:
   objectiveKind: 3
   targetCount: 1
   objectiveId: 
-  specialObjectiveListText: Kill Ivan???
+  specialObjectiveListText: Kill Ivan??
   rewardGold: 0
   rewardItem: {fileID: 11400000, guid: a197f0b628ce61444915b2b725bf4471, type: 2}
   rewardItemId: basic_ice_wand
@@ -38,8 +38,9 @@ MonoBehaviour:
     itemId: 
     quantity: 2
   rewardNotes: 
+  grantIdleCombatUnlockOnRewardClaim: 0
   repeatable: 0
-  autoCompleteQuest: 1
+  autoCompleteQuest: 0
   abandonable: 0
   teleportPlayerToNodeIdOnCompletion: 
   obtainLocationId: npc_tutorial_3

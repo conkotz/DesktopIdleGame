@@ -227,6 +227,9 @@ public class InventorySlotUI : MonoBehaviour,
             background.color = idleColor;
     }
 
+    /// <summary>Updates the idle / new-loot tint without re-binding slot data.</summary>
+    public void RefreshLootHighlightVisual() => ApplySlotBackground();
+
     public void OnPointerClick(PointerEventData eventData)
     {
         if (eventData.button != PointerEventData.InputButton.Left)
