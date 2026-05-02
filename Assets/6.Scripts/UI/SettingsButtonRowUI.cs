@@ -5,6 +5,8 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class SettingsButtonRowUI : MonoBehaviour
 {
+    const float ButtonPreferredWidth = 96f;
+    const float ButtonPreferredHeight = 40f;
     [SerializeField] private SettingsButtonActionId actionId = SettingsButtonActionId.ReturnAllWindowsToAnchorPoints;
     [SerializeField] private TMP_Text settingNameText;
     [SerializeField] private TMP_Text buttonLabelText;
@@ -13,6 +15,7 @@ public class SettingsButtonRowUI : MonoBehaviour
     private void Awake()
     {
         ResolveReferences();
+        EnsureRowLayoutFitsLongLabel();
     }
 
     private void OnEnable()
@@ -64,11 +67,80 @@ public class SettingsButtonRowUI : MonoBehaviour
     private void ResolveReferences()
     {
         if (!settingNameText)
-            settingNameText = transform.Find("SettingName")?.GetComponent<TMP_Text>();
+        {
+            Transform labelTf = transform.Find("SettingName") ?? transform.Find("ActionLabelText");
+            settingNameText = labelTf ? labelTf.GetComponent<TMP_Text>() : null;
+        }
+
         if (!button)
             button = GetComponentInChildren<Button>(true);
         if (!buttonLabelText && button)
             buttonLabelText = button.GetComponentInChildren<TMP_Text>(true);
+    }
+
+    /// <summary>
+    /// Keeps the action button on-screen: label takes remaining width and wraps; row height grows with wrapped text.
+    /// </summary>
+    private void EnsureRowLayoutFitsLongLabel()
+    {
+        var hlg = GetComponent<HorizontalLayoutGroup>();
+        if (hlg != null)
+        {
+            hlg.childControlWidth = true;
+            hlg.childControlHeight = true;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = false;
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+        }
+
+        if (settingNameText)
+        {
+            GameObject labelGo = settingNameText.gameObject;
+            var le = labelGo.GetComponent<LayoutElement>() ?? labelGo.AddComponent<LayoutElement>();
+            le.minWidth = 0f;
+            le.preferredWidth = -1f;
+            le.flexibleWidth = 1f;
+            le.minHeight = 0f;
+            le.preferredHeight = -1f;
+            le.flexibleHeight = 0f;
+            le.layoutPriority = 1;
+
+            var fitter = labelGo.GetComponent<ContentSizeFitter>() ?? labelGo.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            RectTransform rt = settingNameText.rectTransform;
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+
+            settingNameText.textWrappingMode = TextWrappingModes.Normal;
+            settingNameText.overflowMode = TextOverflowModes.Overflow;
+        }
+
+        if (button)
+        {
+            var ble = button.gameObject.GetComponent<LayoutElement>() ?? button.gameObject.AddComponent<LayoutElement>();
+            ble.minWidth = ButtonPreferredWidth;
+            ble.preferredWidth = ButtonPreferredWidth;
+            ble.flexibleWidth = 0f;
+            ble.minHeight = ButtonPreferredHeight;
+            ble.preferredHeight = ButtonPreferredHeight;
+            ble.flexibleHeight = 0f;
+            ble.layoutPriority = 2;
+        }
+
+        var rowFitter = GetComponent<ContentSizeFitter>() ?? gameObject.AddComponent<ContentSizeFitter>();
+        rowFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        rowFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        if (TryGetComponent(out LayoutElement rowLe))
+        {
+            rowLe.preferredHeight = -1;
+            rowLe.minHeight = 0f;
+        }
     }
 
     private static string GetSettingName(SettingsButtonActionId id)
@@ -98,6 +170,7 @@ public class SettingsButtonRowUI : MonoBehaviour
     private void OnValidate()
     {
         ResolveReferences();
+        EnsureRowLayoutFitsLongLabel();
         RefreshDisplay();
     }
 #endif

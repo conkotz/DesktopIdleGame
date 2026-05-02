@@ -9,6 +9,12 @@ public class SkillTreeViewUI : MonoBehaviour
     [SerializeField] private RectTransform connectorsRoot;
     [SerializeField] private RectTransform levelsRoot;
     [SerializeField] private TMP_Text levelRowLabelPrefab;
+    [Tooltip("Optional right-side mirror of level labels (e.g. Unlock / Ability / Major Passive / Capstone). Same Y as each Lv row.")]
+    [SerializeField] private TMP_Text levelTierRowLabelPrefab;
+    [Tooltip(
+        "Wide rect for tier captions (e.g. SkillTreeRoot). If empty, uses Levels Root’s parent so labels sit on the panel’s right edge, not inside the narrow Lv column.")]
+    [SerializeField] private RectTransform levelTierRowLabelsRoot;
+    [SerializeField] private float levelTierLabelRightInset = 12f;
     [SerializeField] private SkillTreeNodeUI nodePrefab;
     [SerializeField] private SkillTreeConnectorUI connectorPrefab;
     [SerializeField] private SharedTooltipUI sharedTooltip;
@@ -44,6 +50,7 @@ public class SkillTreeViewUI : MonoBehaviour
     private readonly List<SkillTreeNodeUI> spawnedNodes = new();
     private readonly List<SkillTreeConnectorUI> spawnedConnectors = new();
     private readonly List<TMP_Text> spawnedLevelLabels = new();
+    private readonly List<TMP_Text> spawnedTierRowLabels = new();
     private readonly Dictionary<string, SkillTreeNodeUI> nodeLookup = new();
     private readonly Dictionary<int, float> rowYByLevel = new();
     private readonly Dictionary<string, string> tooltipTitleByNodeId = new();
@@ -491,7 +498,70 @@ public class SkillTreeViewUI : MonoBehaviour
             rt.pivot = new Vector2(1f, 0.5f);
             rt.anchoredPosition = new Vector2(0f, layoutRowY[labelIndex]);
             spawnedLevelLabels.Add(t);
+
+            string tierCaption = TierRowCaptionForSkillLevel(tierLevel);
+            if (levelTierRowLabelPrefab != null && !string.IsNullOrEmpty(tierCaption))
+            {
+                RectTransform tierParent = ResolveLevelTierRowLabelParent();
+                if (tierParent != null)
+                {
+                    var tr = Instantiate(levelTierRowLabelPrefab, tierParent);
+                    tr.text = tierCaption;
+                    tr.alignment = TextAlignmentOptions.MidlineRight;
+
+                    RectTransform rtt = tr.rectTransform;
+                    rtt.anchorMin = new Vector2(1f, 1f);
+                    rtt.anchorMax = new Vector2(1f, 1f);
+                    rtt.pivot = new Vector2(1f, 0.5f);
+                    float tierY = ResolveTierLabelAnchoredY(tierParent, layoutRowY[labelIndex]);
+                    float inset = Mathf.Max(0f, levelTierLabelRightInset);
+                    rtt.anchoredPosition = new Vector2(-inset, tierY);
+                    spawnedTierRowLabels.Add(tr);
+                }
+            }
         }
+    }
+
+    private RectTransform ResolveLevelTierRowLabelParent()
+    {
+        if (levelTierRowLabelsRoot != null)
+            return levelTierRowLabelsRoot;
+        if (levelsRoot != null && levelsRoot.parent is RectTransform p)
+            return p;
+        return nodesRoot;
+    }
+
+    /// <summary>Maps a row Y from <see cref="levelsRoot"/> space into <paramref name="tierParent"/>’s anchored space so rows line up.</summary>
+    private float ResolveTierLabelAnchoredY(RectTransform tierParent, float rowYInLevelsRootSpace)
+    {
+        if (levelsRoot == null || tierParent == null || tierParent == levelsRoot)
+            return rowYInLevelsRootSpace;
+
+        Vector3 world = levelsRoot.TransformPoint(new Vector3(0f, rowYInLevelsRootSpace, 0f));
+        Canvas canvas = tierParent.GetComponentInParent<Canvas>();
+        Camera cam = null;
+        if (canvas != null &&
+            (canvas.renderMode == RenderMode.ScreenSpaceCamera || canvas.renderMode == RenderMode.WorldSpace))
+            cam = canvas.worldCamera;
+
+        Vector2 screen = RectTransformUtility.WorldToScreenPoint(cam, world);
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(tierParent, screen, cam, out Vector2 local))
+            return local.y;
+
+        return rowYInLevelsRootSpace;
+    }
+
+    /// <summary>Display names for the standard skill-tree milestone rows (matches typical Lv 1/5/10… spine).</summary>
+    private static string TierRowCaptionForSkillLevel(int level)
+    {
+        return level switch
+        {
+            1 => "Unlock",
+            5 or 15 or 25 or 35 or 45 => "Ability",
+            10 or 20 or 30 or 40 => "Major Passive",
+            50 => "Capstone",
+            _ => ""
+        };
     }
 
     private void SpawnRows(List<RowDef> rows, int currentSkillLevel)
@@ -751,9 +821,13 @@ public class SkillTreeViewUI : MonoBehaviour
         foreach (var t in spawnedLevelLabels)
             if (t != null) Destroy(t.gameObject);
 
+        foreach (var t in spawnedTierRowLabels)
+            if (t != null) Destroy(t.gameObject);
+
         spawnedNodes.Clear();
         spawnedConnectors.Clear();
         spawnedLevelLabels.Clear();
+        spawnedTierRowLabels.Clear();
         nodeLookup.Clear();
         rowYByLevel.Clear();
         rowDefBySpineNodeId.Clear();
