@@ -340,6 +340,21 @@ public class LevelSpawnDirector : MonoBehaviour
         return $"levelItem:{node}:p{pi}:r{rowIndex}:i{instanceIndex}:{iid}";
     }
 
+    private static string BuildPermanentEnemyDeathKey(
+        MapNodeDefinition levelDef,
+        int planIndex,
+        int rowIndex,
+        int instanceIndex,
+        string enemyId)
+    {
+        string node = levelDef != null && !string.IsNullOrWhiteSpace(levelDef.nodeId)
+            ? levelDef.nodeId.Trim()
+            : "unknown_node";
+        string eid = string.IsNullOrWhiteSpace(enemyId) ? "unknown_enemy" : enemyId.Trim();
+        string planTag = planIndex >= 0 ? $"p{planIndex}" : "pX";
+        return $"permDeadEnemy:{node}:{planTag}:r{rowIndex}:i{instanceIndex}:{eid}";
+    }
+
     private bool TryResolveOneSpawnPoint(
         SpawnPrefabCount entry,
         LevelSpawnGroupPlan plan,
@@ -517,6 +532,15 @@ public class LevelSpawnDirector : MonoBehaviour
 
             for (int c = 0; c < entry.count; c++)
             {
+                string permDeathKey = null;
+                if (defForInit != null && defForInit.cannotRespawn && saveDef != null &&
+                    !string.IsNullOrWhiteSpace(saveDef.nodeId))
+                {
+                    permDeathKey = BuildPermanentEnemyDeathKey(saveDef, planIndexForSaveKeys, rowIdx, c, defForInit.enemyId);
+                    if (PermanentEnemyDeathSaveStore.IsPermanentlyDead(permDeathKey))
+                        continue;
+                }
+
                 if (!TryResolveOneSpawnPoint(entry, plan, cursors, gid, pointGroup, out Transform p, out bool hadToReuse))
                     continue;
 
@@ -543,7 +567,8 @@ public class LevelSpawnDirector : MonoBehaviour
                 bool allowRespawn =
                     levelDefForRespawn != null &&
                     levelDefForRespawn.enemyRespawnDelaySeconds >= 0.01f &&
-                    ShouldAllowRespawnBinding(levelDefForRespawn, entry.respawnUntilSimpleWavesStart);
+                    ShouldAllowRespawnBinding(levelDefForRespawn, entry.respawnUntilSimpleWavesStart) &&
+                    (defForInit == null || !defForInit.cannotRespawn);
                 if (allowRespawn)
                 {
                     EnemyBaseController ec = inst.GetComponent<EnemyBaseController>() ??
@@ -561,6 +586,12 @@ public class LevelSpawnDirector : MonoBehaviour
                             entry.spawnPointName,
                             entry.respawnUntilSimpleWavesStart);
                     }
+                }
+
+                if (!string.IsNullOrEmpty(permDeathKey))
+                {
+                    var deathMarker = inst.AddComponent<EnemyPermanentDeathMarker>();
+                    deathMarker.Initialize(permDeathKey);
                 }
 
                 if (logSpawns)
@@ -743,7 +774,8 @@ public class LevelSpawnDirector : MonoBehaviour
                                  inst.GetComponentInChildren<EnemyBaseController>(true);
         if (ec != null &&
             active.enemyRespawnDelaySeconds >= 0.01f &&
-            ShouldAllowRespawnBinding(active, respawnUntilSimpleWavesStart))
+            ShouldAllowRespawnBinding(active, respawnUntilSimpleWavesStart) &&
+            (enemyDefinition == null || !enemyDefinition.cannotRespawn))
         {
             var src = inst.AddComponent<EnemySpawnSource>();
             src.Bind(

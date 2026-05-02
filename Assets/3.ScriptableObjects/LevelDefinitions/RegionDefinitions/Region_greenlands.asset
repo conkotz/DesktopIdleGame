@@ -26,8 +26,8 @@ MonoBehaviour:
   - 
   requireAllPrerequisites: 1
   prerequisiteRewardClaimedQuestIds:
-  - tutorial_aid_merlin
+  - tutorial_defeat_ivan
   requireAllPrerequisiteQuestRewards: 1
-  unlockAfterLeavingWorldRegionId: tutorial
+  unlockAfterLeavingWorldRegionId: 
   lockWhenAllNodesCompleted: []
   hideFromRegionListsWhenLocked: 0

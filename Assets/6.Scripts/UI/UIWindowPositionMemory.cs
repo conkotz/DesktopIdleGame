@@ -50,5 +50,7 @@ public static class UIWindowPositionMemory
             if (windows[i] != null)
                 windows[i].ResetToAnchorPoint();
         }
+
+        HelperGameplayController.ResetHelperPanelLayoutToInspectorDefaultsAfterGlobalWindowReset();
     }
 }

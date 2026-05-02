@@ -21,7 +21,7 @@ MonoBehaviour:
   listStatusOverride: 
   objectiveKind: 1
   targetCount: 1
-  gatherItemId: 
+  objectiveId: enemy_tutorial_ivan
   specialObjectiveListText: 
   rewardGold: 0
   rewardItem: {fileID: 0}
@@ -37,11 +37,13 @@ MonoBehaviour:
   obtainLocationDisplayName: Merlin in Tutorial 3
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
+  autoAcceptWhenPriorQuestRewardClaimed: 1
+  autoAcceptAfterPriorQuestId: tutorial_aid_merlin
   prerequisiteRewardClaimedQuestIds:
   - tutorial_aid_merlin
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
   requiredSkillLevels: []
-  killEnemyIdFilter: 
-  hideUntilMapNodeUnlockedId: 
+  killEnemyIdFilter: enemy_tutorial_ivan
+  hideUntilMapNodeUnlockedId: tutorial_3
   sortOrder: 13

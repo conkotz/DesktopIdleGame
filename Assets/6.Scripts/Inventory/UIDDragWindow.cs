@@ -132,6 +132,17 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
         _recordAfterClamp = false;
     }
 
+    /// <summary>
+    /// Updates the position used by <see cref="ResetToAnchorPoint"/> (e.g. after Settings reset all windows so the helper
+    /// uses <see cref="HelperGameplayController"/> inspector defaults instead of an Awake-captured top-left value).
+    /// </summary>
+    public void SetResetAnchorPoint(Vector2 anchoredPosition)
+    {
+        _anchorPoint = anchoredPosition;
+        if (window)
+            window.anchoredPosition = anchoredPosition;
+    }
+
     private void OnRectTransformDimensionsChange()
     {
         if (_isDragging) return;

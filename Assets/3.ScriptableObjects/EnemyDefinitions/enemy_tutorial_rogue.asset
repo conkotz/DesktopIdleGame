@@ -17,6 +17,7 @@ MonoBehaviour:
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+  cannotRespawn: 0
   maxHealth: 30
   maxEnergy: 0
   maxMana: 0

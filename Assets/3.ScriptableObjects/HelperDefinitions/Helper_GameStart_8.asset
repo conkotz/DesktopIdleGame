@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d4549ab826df384b91e9e2da5b95c50, type: 3}
+  m_Name: Helper_GameStart_8
+  m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
+  helperId: first_duskwood_helper
+  title: Entered Greenlands
+  bodyText: 'You finished the tutorial and are now in a new region Greenlands. This
+    is the town Duskwood. Feel free to explore and see what is availble in this town.
+
+'
+  activationTrigger: 1
+  requiredMapNodeId: duskwood
+  inventoryTriggerItemId: 
+  inventoryTriggerItemCount: 1
+  questGatherTriggerQuestId: 
+  questRewardClaimedTriggerQuestId: 
+  questAcceptedTriggerQuestId: tutorial_basic_combat
+  skillLevelTriggerSkill: 1
+  skillLevelTriggerMinimumNewLevel: 2
+  priority: 8
+  showCloseButton: 1
+  darkenScreenAndLockGameplay: 1
+  dismissModes: 8
+  whitelistedInteractionIds: []
+  highlightWhitelistTargetsDuringHelper: 0

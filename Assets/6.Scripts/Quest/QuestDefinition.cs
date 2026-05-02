@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [System.Serializable]
 public class QuestItemReward
@@ -43,8 +44,11 @@ public class QuestDefinition : ScriptableObject
     [Min(1)]
     public int targetCount = 1;
 
-    [Tooltip("For GatherItem: ItemDefinition.itemId")]
-    public string gatherItemId = "";
+    [Tooltip(
+        "GatherItem: ItemDefinition.itemId to collect.\n" +
+        "KillCount: enemy id (EnemyDefinition.enemyId) shown in progress UI; also used for kill credit when Kill Enemy Id Filter is empty.")]
+    [FormerlySerializedAs("gatherItemId")]
+    public string objectiveId = "";
 
     [TextArea(1, 3)]
     [Tooltip("Optional custom objective text used by quest list/tracker for special objective kinds (e.g. DieOnce).")]
@@ -67,6 +71,12 @@ public class QuestDefinition : ScriptableObject
 
     [TextArea(1, 3)]
     public string rewardNotes = "";
+
+    [Header("Special rewards")]
+    [Tooltip(
+        "When this quest's reward is claimed (non-repeatable), Auto Battle (idle combat) unlocks for this character. " +
+        "Can be enabled on multiple quests; any one claimed is enough to unlock.")]
+    public bool grantIdleCombatUnlockOnRewardClaim;
 
     [Header("Rules")]
     [Tooltip("If false, rewards can only be claimed once; the quest stays COMPLETE in the list.")]
@@ -97,6 +107,15 @@ public class QuestDefinition : ScriptableObject
         "Progress Map Node Id must be set. When false, an empty Progress Map Node Id lets kills on any map count (legacy / rare).")]
     public bool killProgressOnlyOnProgressMap;
 
+    [Header("Auto-accept after prior quest")]
+    [Tooltip(
+        "When enabled, after the quest below has had its reward claimed, this quest is accepted automatically " +
+        "whenever rules allow (same checks as accepting from the quest giver / journal).")]
+    public bool autoAcceptWhenPriorQuestRewardClaimed;
+
+    [Tooltip("QuestDefinition.questId whose reward must be claimed first (e.g. tutorial_aid_merlin before Defeat Ivan).")]
+    public string autoAcceptAfterPriorQuestId = "";
+
     [Header("Prerequisites")]
     [Tooltip("These quest ids must have had rewards claimed before this quest can be completed (claim).")]
     public List<string> prerequisiteRewardClaimedQuestIds = new();
@@ -110,7 +129,9 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("All listed skills must meet their levels before this quest can be completed.")]
     public List<SkillLevelRequirement> requiredSkillLevels = new();
 
-    [Tooltip("KillCount only: when set, only kills of this EnemyDefinition.enemyId count (e.g. enemy_rogue).")]
+    [Tooltip(
+        "KillCount only: when set, only kills of this EnemyDefinition.enemyId count. " +
+        "If empty, Objective Id is used for kill credit when it matches an enemy id.")]
     public string killEnemyIdFilter = "";
 
     [Header("Quest list visibility")]
@@ -136,5 +157,29 @@ public class QuestDefinition : ScriptableObject
             return false;
         int required = Mathf.Max(1, targetCount);
         return currentAmount >= required;
+    }
+
+    /// <summary>KillCount: which enemy id must die for credit when <see cref="killEnemyIdFilter"/> is empty.</summary>
+    public string ResolveKillCreditEnemyId()
+    {
+        if (objectiveKind != QuestObjectiveKind.KillCount)
+            return "";
+        if (!string.IsNullOrWhiteSpace(killEnemyIdFilter))
+            return killEnemyIdFilter.Trim();
+        if (!string.IsNullOrWhiteSpace(objectiveId))
+            return objectiveId.Trim();
+        return "";
+    }
+
+    /// <summary>KillCount: enemy id used to resolve display name (objective id first, then kill filter).</summary>
+    public string ResolveKillDisplayEnemyId()
+    {
+        if (objectiveKind != QuestObjectiveKind.KillCount)
+            return "";
+        if (!string.IsNullOrWhiteSpace(objectiveId))
+            return objectiveId.Trim();
+        if (!string.IsNullOrWhiteSpace(killEnemyIdFilter))
+            return killEnemyIdFilter.Trim();
+        return "";
     }
 }

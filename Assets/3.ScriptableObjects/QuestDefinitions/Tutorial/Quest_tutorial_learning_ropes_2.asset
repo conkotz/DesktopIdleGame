@@ -22,7 +22,7 @@ MonoBehaviour:
   listStatusOverride: 
   objectiveKind: 2
   targetCount: 25
-  gatherItemId: splitwood_log
+  objectiveId: splitwood_log
   rewardGold: 50
   rewardItem: {fileID: 0}
   rewardItemId: 

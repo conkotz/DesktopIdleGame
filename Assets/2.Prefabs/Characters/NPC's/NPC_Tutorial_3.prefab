@@ -239,6 +239,22 @@ MonoBehaviour:
   dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
   nonQuestAutoCloseSeconds: 10
   openDialogueOnFirstSighting: 1
+  additionalConditionalDialogues:
+  - condition: 0
+    completedQuestId: tutorial_aid_merlin
+    dialogue: Sorry about that... i forgot to mention Ivan cant be defeated with
+      melee. I gave you a magic weapon, try use it to defeat him. Dont forget to
+      use your food and potions!
+    onAcceptOutcome: 0
+    teleportTargetNode: {fileID: 0}
+    teleportMapNodeId: 
+  - condition: 0
+    completedQuestId: tutorial_defeat_ivan
+    dialogue: Well done! your job here is complete. Would you like me to send you
+      to Duskwood?
+    onAcceptOutcome: 1
+    teleportTargetNode: {fileID: 11400000, guid: 268f98c476273384a896390c96aa7917, type: 2}
+    teleportMapNodeId: duskwood
   questGiver: {fileID: 5839785130135361787}
 --- !u!114 &-5742210032571608364
 MonoBehaviour:

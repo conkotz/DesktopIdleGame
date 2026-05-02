@@ -163,4 +163,9 @@ public class SaveData
     [Header("Level-placed item pickups")]
     [Tooltip("Keys for spawn-plan item drops that were fully picked up; those placements are not spawned again.")]
     public List<string> levelItemPickupOnceClaimedKeys = new();
+
+    [Header("Permanent enemy deaths (map spawns)")]
+    [Tooltip(
+        "Spawn-slot keys for enemies with EnemyDefinition.cannotRespawn that have died; those slots stay empty across reload until New Game.")]
+    public List<string> permanentDeadEnemySpawnKeys = new();
 }

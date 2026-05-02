@@ -16,6 +16,7 @@ MonoBehaviour:
   maxStack: 1
   itemId: knights_polearm
   displayName: Knights Polearm
+  displayNameSingular: 
   icon: {fileID: 21300132, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
@@ -29,9 +30,11 @@ MonoBehaviour:
   value: 1250
   equipSlot: 1
   handVisualKey: 1
+  usedUpgradeSlots: 0
+  successfulEnhancements: 0
   weaponStats:
     minPhysicalDamage: 4
-    maxPhysicalDamage: 16
+    maxPhysicalDamage: 24
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 0
@@ -48,6 +51,7 @@ MonoBehaviour:
     handedness: 1
     attackRange: 4
     attackSkill: 0
+    rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
     magicAilmentApplyChance: 0
@@ -82,12 +86,15 @@ MonoBehaviour:
     bonusResourceFindChance: 0
     staminaEfficiency: 0
   armorStats:
+    equipmentTier: 0
     armor: 0
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
     bonusHealth: 0
     bonusEnergy: 0
+    flatGuard: 0
+    maxGuardPercent: 0
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
@@ -114,6 +121,10 @@ MonoBehaviour:
     corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
+    minionDamagePercent: 0
+    minionAttackSpeedPercent: 0
+    minionCritChance: 0
+    minionMaxLifePercent: 0
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackRangeBonus: 0
@@ -140,6 +151,16 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+  enhancementScrollStats:
+    successChance: 0
+    targetStat: 0
+    modifierKind: 0
+    modifierValue: 0
+    consumeSlotOnFailure: 0
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    cursed: 0
+    allowedGearTypes: 0
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

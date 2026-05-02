@@ -184,6 +184,7 @@ public class PlayerConsumableController : MonoBehaviour
             ConsumableEffectType.DamageReduction => $"{itemName}: Damage Reduction{durationText}",
             ConsumableEffectType.EnergyRegen => $"{itemName}: Energy Regen Up{durationText}",
             ConsumableEffectType.HealOverTime => $"{itemName}: Regeneration{durationText}",
+            ConsumableEffectType.ManaRegenOverTime => $"{itemName}: Mana Regeneration{durationText}",
             _ => $"{itemName}: {effect.effectType}{durationText}"
         };
     }

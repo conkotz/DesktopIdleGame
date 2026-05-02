@@ -467,6 +467,10 @@ public enum ConsumableEffectType
 
     // Duration buffs
     HealOverTime,
+
+    /// <summary>Total mana restored over <see cref="ConsumableGrantedEffect.duration"/> (same rule as <see cref="HealOverTime"/> for HP).</summary>
+    ManaRegenOverTime,
+
     EnergyRegen,
     MoveSpeed,
     AttackSpeed,

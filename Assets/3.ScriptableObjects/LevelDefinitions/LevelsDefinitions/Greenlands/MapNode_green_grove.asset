@@ -16,14 +16,17 @@ MonoBehaviour:
   displayName: Green Grove
   description: Basic resources
   nodeType: 1
-  enemyAggroMode: 0
+  enemyAggroMode: 1
   ignoreAggroRange: 0
+  respawnHereIfDied: 0
   enemyRespawnEnabled: 0
   enemyRespawnDelaySeconds: 30
   eliteSpawnChance: 0
   fallbackRecommendedCombatPower: 1
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
+  completedLabelRequiresEnteredNodeId: 
+  mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 0
   icon: {fileID: 0}
   requiredSkillLevels: []
@@ -40,20 +43,63 @@ MonoBehaviour:
     prefabs:
     - {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
     - {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
+    - {fileID: 6165540910069784205, guid: 3f7498b5e783df94ba16c5b9d0d75259, type: 3}
   spawnGroupPlans:
-  - groupId: MiddleSpawns
+  - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
-      spawnPointName: 
+      spawnPointName: SpawnPoint20_Middle
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      count: 3
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
     - spawnPointGroupId: 
-      spawnPointName: 
+      spawnPointName: SpawnPoint26
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint42
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint48
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 6165540910069784205, guid: 3f7498b5e783df94ba16c5b9d0d75259, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint56
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
-      count: 2
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
     shuffleSpawnPoints: 0
+  simpleCombatWaves: []
+  simpleCombatWavesAutoStartOnLevelEnter: 1
+  simpleCombatWavesRequireQuestRewardClaimed: 0
+  simpleCombatWavesRequiredQuestId: 
+  simpleCombatWavesRequireQuestAccepted: 0
+  simpleCombatWavesQuestAcceptedId: 
+  simpleCombatWavesRunOncePerSceneSession: 1
   enduranceWaves: []
   enduranceCompletionLoot: []
   enduranceCompletionLootByTier: []

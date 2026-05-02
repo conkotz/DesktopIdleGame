@@ -1,9 +1,47 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
+public enum NpcDialogueConditionKind
+{
+    [Tooltip("True after the player has claimed this quest's reward (quest fully finished).")]
+    CompletedQuest = 0,
+}
+
+public enum NpcDialogueOutcomeKind
+{
+    None = 0,
+    [Tooltip("Loads GamePlay with the chosen map node (same flow as quest reward teleport).")]
+    TeleportToMapNode = 1,
+}
+
+[Serializable]
+public class NpcConditionalDialogueEntry
+{
+    public NpcDialogueConditionKind condition = NpcDialogueConditionKind.CompletedQuest;
+
+    [Tooltip("Quest id (QuestDefinition.questId). Must match after reward is claimed.")]
+    public string completedQuestId = "";
+
+    [TextArea(2, 6)]
+    public string dialogue = "";
+
+    [Header("On Accept (optional)")]
+    [Tooltip("When not None, the dialogue box shows an Accept button and runs this after click.")]
+    public NpcDialogueOutcomeKind onAcceptOutcome = NpcDialogueOutcomeKind.None;
+
+    [Tooltip("e.g. drag MapNode_town_duskwood, or leave empty and set Teleport Map Node Id.")]
+    public MapNodeDefinition teleportTargetNode;
+
+    [Tooltip("Used when Teleport Target Node is empty. Must match MapNodeDefinition.nodeId (e.g. duskwood).")]
+    public string teleportMapNodeId = "";
+}
+
 public class NPCInteractionSettings : MonoBehaviour
 {
+    private const string GameplaySceneName = "GamePlay";
+
     [Header("Dialogue")]
     [TextArea(2, 6)]
     [SerializeField] private string dialogue = "howdy";
@@ -11,13 +49,20 @@ public class NPCInteractionSettings : MonoBehaviour
     [Tooltip("World offset from the top-right of this object's Collider2D bounds.")]
     [SerializeField] private Vector3 dialogueLocalOffset = new(1.95f, 0.5f, 0f);
     [SerializeField] private float nonQuestAutoCloseSeconds = 5f;
+    [Tooltip("When enabled, shows dialogue the first time this NPC is on-screen, then re-opens automatically when conditional dialogue changes (e.g. after a quest completes).")]
     [SerializeField] private bool openDialogueOnFirstSighting;
+
+    [Header("Additional dialogues (conditional)")]
+    [Tooltip("Evaluated top to bottom; later rows override earlier ones when their condition is met. Falls back to Dialogue above.")]
+    [SerializeField] private List<NpcConditionalDialogueEntry> additionalConditionalDialogues = new();
 
     [Header("Quest integration")]
     [SerializeField] private QuestGiver questGiver;
 
     private NPCDialogueBoxUI _activeDialogue;
     private bool _hasOpenedOnFirstSighting;
+    private string _lastAutoPlainDialogueSignature;
+    private QuestProgressManager _boundQuestProgress;
 
     private void Awake()
     {
@@ -25,9 +70,25 @@ public class NPCInteractionSettings : MonoBehaviour
             questGiver = GetComponent<QuestGiver>();
     }
 
+    private void OnEnable()
+    {
+        TrySubscribeQuestProgressForAutoDialogue();
+    }
+
+    private void OnDisable()
+    {
+        TryUnsubscribeQuestProgressForAutoDialogue();
+    }
+
     private void Update()
     {
-        if (!openDialogueOnFirstSighting || _hasOpenedOnFirstSighting || !Application.isPlaying)
+        if (!Application.isPlaying)
+            return;
+
+        if (openDialogueOnFirstSighting && HasConditionalDialogues() && _boundQuestProgress == null)
+            TrySubscribeQuestProgressForAutoDialogue();
+
+        if (!openDialogueOnFirstSighting || _hasOpenedOnFirstSighting)
             return;
 
         Camera cam = Camera.main;
@@ -35,8 +96,11 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
 
         _hasOpenedOnFirstSighting = true;
-        ShowNormalDialogueOnly();
+        ShowNormalDialogueOnly(false);
     }
+
+    private bool HasConditionalDialogues() =>
+        additionalConditionalDialogues != null && additionalConditionalDialogues.Count > 0;
 
     /// <summary>Used by world click routing: merchants open the shop unless a quest offer should appear instead.</summary>
     public bool HasAvailableQuestOffers()
@@ -58,10 +122,24 @@ public class NPCInteractionSettings : MonoBehaviour
         List<QuestDefinition> quests =
             questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>();
 
-        if (quests.Count == 0 && string.IsNullOrWhiteSpace(dialogue))
+        if (quests.Count == 0 && string.IsNullOrWhiteSpace(GetResolvedDialogueText()))
         {
             if (_activeDialogue)
                 _activeDialogue.Hide();
+            return;
+        }
+
+        if (quests.Count > 0 &&
+            _activeDialogue &&
+            _activeDialogue.gameObject.activeInHierarchy &&
+            NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform) &&
+            NPCDialogueBoxUI.IsEligiblePlainHostForStackedQuestOffers(_activeDialogue))
+        {
+            _activeDialogue.StackQuestOffersBesidePlainDialogue(
+                quests,
+                () => questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>(),
+                q => questGiver != null && questGiver.TryAcceptQuest(q),
+                autoCloseSeconds: 0f);
             return;
         }
 
@@ -85,30 +163,189 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
         }
 
-        box.ShowAt(transform, transform, Vector3.zero, dialogue, showAccept: false,
-            onAccept: null, nonQuestAutoCloseSeconds);
+        TryGetResolvedPlainDialogue(out string text, out bool showAccept, out Action onAccept);
+        float autoClose = showAccept ? 0f : nonQuestAutoCloseSeconds;
+        box.ShowAt(transform, transform, Vector3.zero, text, showAccept, onAccept, autoClose);
+        RememberAutoPlainDialogueSignatureIfNeeded(text, showAccept);
     }
 
-    private void ShowNormalDialogueOnly()
+    private void ShowNormalDialogueOnly(bool replaceExistingThisNpcDialogue)
     {
-        if (string.IsNullOrWhiteSpace(dialogue))
+        TryGetResolvedPlainDialogue(out string text, out bool showAccept, out Action onAccept);
+        if (string.IsNullOrWhiteSpace(text))
             return;
 
         if (NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
-            return;
+        {
+            if (!replaceExistingThisNpcDialogue)
+                return;
+            if (_activeDialogue)
+                _activeDialogue.Hide();
+        }
 
         NPCDialogueBoxUI box = GetOrCreateDialogueBox();
         if (!box)
             return;
 
+        float autoClose = showAccept ? 0f : nonQuestAutoCloseSeconds;
         box.ShowAt(
             transform,
             transform,
             Vector3.zero,
-            dialogue,
-            showAccept: false,
-            onAccept: null,
-            nonQuestAutoCloseSeconds);
+            text,
+            showAccept,
+            onAccept,
+            autoClose);
+        RememberAutoPlainDialogueSignatureIfNeeded(text, showAccept);
+    }
+
+    private void RememberAutoPlainDialogueSignatureIfNeeded(string text, bool showAccept)
+    {
+        if (!openDialogueOnFirstSighting)
+            return;
+        _lastAutoPlainDialogueSignature = BuildPlainDialogueSignature(text, showAccept);
+    }
+
+    private static string BuildPlainDialogueSignature(string text, bool showAccept) =>
+        $"{showAccept}\u001f{text ?? ""}";
+
+    private void TrySubscribeQuestProgressForAutoDialogue()
+    {
+        if (!openDialogueOnFirstSighting || additionalConditionalDialogues == null ||
+            additionalConditionalDialogues.Count == 0)
+            return;
+
+        QuestProgressManager mgr = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (!mgr || mgr == _boundQuestProgress)
+            return;
+
+        TryUnsubscribeQuestProgressForAutoDialogue();
+        _boundQuestProgress = mgr;
+        _boundQuestProgress.ProgressChanged += HandleQuestProgressChangedForAutoDialogue;
+    }
+
+    private void TryUnsubscribeQuestProgressForAutoDialogue()
+    {
+        if (_boundQuestProgress == null)
+            return;
+        _boundQuestProgress.ProgressChanged -= HandleQuestProgressChangedForAutoDialogue;
+        _boundQuestProgress = null;
+    }
+
+    private void HandleQuestProgressChangedForAutoDialogue()
+    {
+        if (!openDialogueOnFirstSighting || !_hasOpenedOnFirstSighting || !Application.isPlaying)
+            return;
+        if (additionalConditionalDialogues == null || additionalConditionalDialogues.Count == 0)
+            return;
+
+        TryGetResolvedPlainDialogue(out string text, out bool showAccept, out Action onAccept);
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        string sig = BuildPlainDialogueSignature(text, showAccept);
+        if (sig == _lastAutoPlainDialogueSignature)
+            return;
+
+        ShowNormalDialogueOnly(true);
+    }
+
+    private string GetResolvedDialogueText()
+    {
+        TryGetResolvedPlainDialogue(out string resolved, out _, out _);
+        return resolved;
+    }
+
+    private void TryGetResolvedPlainDialogue(out string text, out bool showAccept, out Action onAccept)
+    {
+        text = dialogue != null ? dialogue.Trim() : "";
+        showAccept = false;
+        onAccept = null;
+
+        QuestProgressManager mgr = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+
+        if (additionalConditionalDialogues == null || additionalConditionalDialogues.Count == 0)
+            return;
+
+        for (int i = 0; i < additionalConditionalDialogues.Count; i++)
+        {
+            NpcConditionalDialogueEntry e = additionalConditionalDialogues[i];
+            if (e == null || string.IsNullOrWhiteSpace(e.dialogue))
+                continue;
+            if (!EvaluateConditionalEntry(e, mgr))
+                continue;
+
+            text = e.dialogue.Trim();
+            Action built = BuildAcceptActionOrNull(e);
+            showAccept = built != null;
+            onAccept = built;
+        }
+    }
+
+    private static Action BuildAcceptActionOrNull(NpcConditionalDialogueEntry e)
+    {
+        switch (e.onAcceptOutcome)
+        {
+            case NpcDialogueOutcomeKind.TeleportToMapNode:
+            {
+                MapNodeDefinition node = ResolveTeleportMapNode(e);
+                if (!node)
+                    return null;
+                MapNodeDefinition captured = node;
+                return () => TeleportPlayerToMapNode(captured);
+            }
+            default:
+                return null;
+        }
+    }
+
+    private static MapNodeDefinition ResolveTeleportMapNode(NpcConditionalDialogueEntry e)
+    {
+        if (e.teleportTargetNode)
+            return e.teleportTargetNode;
+        if (!string.IsNullOrWhiteSpace(e.teleportMapNodeId))
+            return FindMapNodeById(e.teleportMapNodeId.Trim());
+        return null;
+    }
+
+    private static MapNodeDefinition FindMapNodeById(string nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId))
+            return null;
+
+        WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        WorldMapDefinition map = wmp ? wmp.WorldMap : null;
+        if (!map)
+            map = Resources.Load<WorldMapDefinition>("Databases/WorldMap_Main");
+        if (!map)
+            return null;
+
+        return map.FindNodeById(nodeId);
+    }
+
+    private static void TeleportPlayerToMapNode(MapNodeDefinition node)
+    {
+        if (!node)
+            return;
+
+        ActiveLevelContext.SetPendingLevel(node, logToConsole: false);
+        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
+    }
+
+    private static bool EvaluateConditionalEntry(NpcConditionalDialogueEntry e, QuestProgressManager mgr)
+    {
+        switch (e.condition)
+        {
+            case NpcDialogueConditionKind.CompletedQuest:
+                if (string.IsNullOrWhiteSpace(e.completedQuestId) || mgr == null)
+                    return false;
+                return mgr.IsRewardClaimed(e.completedQuestId.Trim());
+            default:
+                return false;
+        }
     }
 
     /// <summary>World point for dialogue follow each frame — uses collider bounds + <see cref="dialogueLocalOffset"/> so NPC hover scale cannot drift the pivot.</summary>

@@ -21,7 +21,7 @@ MonoBehaviour:
   listStatusOverride: 
   objectiveKind: 1
   targetCount: 10
-  gatherItemId: 
+  objectiveId: 
   rewardGold: 150
   rewardItem: {fileID: 0}
   rewardItemId: 

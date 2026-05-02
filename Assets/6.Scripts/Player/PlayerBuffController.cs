@@ -231,6 +231,14 @@ public class PlayerBuffController : MonoBehaviour
                         stats.Heal(healPerSecond * dt);
                     }
                     break;
+
+                case ConsumableEffectType.ManaRegenOverTime:
+                    if (stats != null && buff.magnitude > 0f && buff.duration > 0f)
+                    {
+                        float manaPerSecond = buff.magnitude / buff.duration;
+                        stats.AddMana(manaPerSecond * dt);
+                    }
+                    break;
             }
         }
 

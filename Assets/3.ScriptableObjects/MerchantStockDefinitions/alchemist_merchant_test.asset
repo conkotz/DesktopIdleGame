@@ -15,19 +15,26 @@ MonoBehaviour:
   items:
   - itemId: basic_phys_damage_potion
     costs: []
-    quantity: -1
+    defaultQuantity: -1
   - itemId: basic_mag_damage_potion
     costs: []
-    quantity: -1
+    defaultQuantity: -1
   - itemId: basic_attack_speed_potion
     costs:
     - type: 0
       amount: 0
       itemId: 
-    quantity: -1
+    defaultQuantity: -1
   - itemId: basic_health_regen_potion
     costs:
     - type: 0
       amount: 0
       itemId: 
-    quantity: -1
+    defaultQuantity: -1
+  - itemId: basic_mana_regen_potion
+    costs:
+    - type: 0
+      amount: 0
+      itemId: 
+    defaultQuantity: -1
+  stockSaveKey: 

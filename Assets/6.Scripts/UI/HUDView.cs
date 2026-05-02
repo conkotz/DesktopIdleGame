@@ -578,6 +578,9 @@ public class HUDView : MonoBehaviour
             ConsumableEffectType.HealOverTime =>
               $"{(buff.duration > 0f ? buff.magnitude / buff.duration : 0f):0.#}/s",
 
+            ConsumableEffectType.ManaRegenOverTime =>
+                $"{(buff.duration > 0f ? buff.magnitude / buff.duration : 0f):0.#}/s",
+
             ConsumableEffectType.EnergyRegen =>
                 $"{buff.magnitude:0.#}/s",
 
@@ -614,6 +617,7 @@ public class HUDView : MonoBehaviour
             ConsumableEffectType.MagicDamageBoost => "Magic Damage Boost",
             ConsumableEffectType.AttackSpeed => "Attack Speed Boost",
             ConsumableEffectType.HealOverTime => "Regeneration",
+            ConsumableEffectType.ManaRegenOverTime => "Mana Regeneration",
             ConsumableEffectType.EnergyRegen => "Energy Regeneration",
             ConsumableEffectType.MoveSpeed => "Move Speed",
             ConsumableEffectType.AbilityDamageBoost => "Ability Power Boost",
@@ -654,6 +658,9 @@ public class HUDView : MonoBehaviour
 
             ConsumableEffectType.HealOverTime =>
                 $"Heals {(buff.duration > 0f ? buff.magnitude / buff.duration : 0f):0.#} HP per second",
+
+            ConsumableEffectType.ManaRegenOverTime =>
+                $"Restores {(buff.duration > 0f ? buff.magnitude / buff.duration : 0f):0.#} mana per second",
 
             ConsumableEffectType.EnergyRegen =>
                 $"+{buff.magnitude:0.#} energy per second",

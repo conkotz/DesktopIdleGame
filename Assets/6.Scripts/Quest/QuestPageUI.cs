@@ -1309,6 +1309,9 @@ public class QuestPageUI : MonoBehaviour
         if (!string.IsNullOrWhiteSpace(q.rewardNotes))
             parts.Add(q.rewardNotes.Trim());
 
+        if (q.grantIdleCombatUnlockOnRewardClaim)
+            parts.Add("Unlocks Auto Battle");
+
         return parts.Count > 0 ? string.Join(" / ", parts) : "—";
     }
 
@@ -1393,9 +1396,9 @@ public class QuestPageUI : MonoBehaviour
 
     private static string FormatGatherQuestProgressKindLabel(QuestDefinition q, ItemDatabase db)
     {
-        if (q == null || string.IsNullOrWhiteSpace(q.gatherItemId))
+        if (q == null || string.IsNullOrWhiteSpace(q.objectiveId))
             return "";
-        string label = ResolveItemName(q.gatherItemId, null, db);
+        string label = ResolveItemName(q.objectiveId, null, db);
         if (string.IsNullOrEmpty(label))
             return "";
         return PluralizeForCount(label, 2) + " Gathered";
@@ -1403,13 +1406,18 @@ public class QuestPageUI : MonoBehaviour
 
     private static string GatherObjectiveItemLabel(QuestDefinition q, ItemDatabase db)
     {
-        string name = ResolveItemName(q.gatherItemId, null, db);
+        string name = ResolveItemName(q.objectiveId, null, db);
         return string.IsNullOrEmpty(name) ? "resource" : name;
     }
 
+    private static EnemyDatabase _cachedEnemyDatabase;
+
     private static EnemyDatabase FindEnemyDatabase()
     {
-        return Resources.Load<EnemyDatabase>("Databases/EnemyDatabase");
+        if (_cachedEnemyDatabase)
+            return _cachedEnemyDatabase;
+        _cachedEnemyDatabase = Resources.Load<EnemyDatabase>("Databases/EnemyDatabase");
+        return _cachedEnemyDatabase;
     }
 
     private static string FormatKillQuestProgressKindLabel(QuestDefinition q, EnemyDatabase enemyDb)
@@ -1426,12 +1434,16 @@ public class QuestPageUI : MonoBehaviour
 
     private static string ResolveKillEnemySingularName(QuestDefinition q, EnemyDatabase enemyDb)
     {
-        if (q == null || string.IsNullOrWhiteSpace(q.killEnemyIdFilter))
+        if (q == null)
             return "enemy";
-        EnemyDefinition def = enemyDb ? enemyDb.Get(q.killEnemyIdFilter.Trim()) : null;
+        string rawId = q.ResolveKillDisplayEnemyId();
+        if (string.IsNullOrWhiteSpace(rawId))
+            return "enemy";
+        enemyDb ??= FindEnemyDatabase();
+        EnemyDefinition def = enemyDb ? enemyDb.Get(rawId) : null;
         if (def && !string.IsNullOrWhiteSpace(def.displayName))
             return def.displayName.Trim();
-        string raw = q.killEnemyIdFilter.Trim();
+        string raw = rawId;
         if (raw.StartsWith("enemy_", StringComparison.Ordinal))
             raw = raw.Substring("enemy_".Length);
         return FormatItemIdAsFallbackName(raw);

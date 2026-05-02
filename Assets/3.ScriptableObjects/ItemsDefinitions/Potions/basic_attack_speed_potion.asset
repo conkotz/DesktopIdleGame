@@ -96,7 +96,7 @@ MonoBehaviour:
     cooldownSeconds: 60
     consumeOnUse: 1
     grantedEffect:
-      effectType: 8
+      effectType: 9
       magnitude: 0.15
       duration: 30
       effectId: 

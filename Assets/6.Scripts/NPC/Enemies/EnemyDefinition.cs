@@ -74,6 +74,12 @@ public class EnemyDefinition : ScriptableObject
     [Tooltip("Prefab with EnemyBaseController, CharacterStats, visuals, and colliders.")]
     public GameObject prefab;
 
+    [Header("Spawning / persistence")]
+    [Tooltip(
+        "When true, this enemy's map spawn slot is remembered as cleared after death: it will not respawn on reload. " +
+        "Cleared when starting a New Game (save reset). Uses LevelSpawnDirector spawn-plan keys.")]
+    public bool cannotRespawn = false;
+
     [Header("Vitals (base)")]
     [Min(1)]
     [Tooltip("Maps to CharacterStats baseMaxHP.")]

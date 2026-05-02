@@ -12,24 +12,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3d4549ab826df384b91e9e2da5b95c50, type: 3}
   m_Name: Helper_GameStart_7
   m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
-  helperId: first_duskwood_helper
-  title: Entered Greenlands
-  bodyText: 'You finished the tutorial and are now in a new region Greenlands. This
-    is the town Duskwood. Feel free to explore and see what is availble in this town.
-
-'
-  activationTrigger: 1
-  requiredMapNodeId: duskwood
-  inventoryTriggerItemId: 
+  helperId: magic_helper
+  title: Magic Combat
+  bodyText: "You have gained your first magic weapon. Some weapons require a secondary
+    support items to be equipped in order to use them. For magic weapons you will
+    need either a focus or runes and for ranged weapon, they will require arrows.
+    \n\nMaigc attacks will consume mana to cast but they will also provide elemental
+    ailments. This ice weapon causes chill on enemies which causes them to move slower
+    per stack. "
+  activationTrigger: 3
+  requiredMapNodeId: tutorial_3
+  inventoryTriggerItemId: basic_ice_wand
   inventoryTriggerItemCount: 1
   questGatherTriggerQuestId: 
-  questRewardClaimedTriggerQuestId: 
+  questRewardClaimedTriggerQuestId: tutorial_aid_merlin
   questAcceptedTriggerQuestId: tutorial_basic_combat
   skillLevelTriggerSkill: 1
   skillLevelTriggerMinimumNewLevel: 2
   priority: 7
   showCloseButton: 1
-  darkenScreenAndLockGameplay: 1
+  darkenScreenAndLockGameplay: 0
   dismissModes: 8
   whitelistedInteractionIds: []
   highlightWhitelistTargetsDuringHelper: 0

@@ -21,7 +21,7 @@ MonoBehaviour:
   listStatusOverride: 
   objectiveKind: 3
   targetCount: 1
-  gatherItemId: 
+  objectiveId: 
   specialObjectiveListText: Kill Ivan???
   rewardGold: 0
   rewardItem: {fileID: 11400000, guid: a197f0b628ce61444915b2b725bf4471, type: 2}
@@ -34,20 +34,25 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: 62f3f781aaffd6e46a32040a8b81664b, type: 2}
     itemId: 
     quantity: 5
+  - item: {fileID: 11400000, guid: b28a737f9d9ae5642bece067520a27b1, type: 2}
+    itemId: 
+    quantity: 2
   rewardNotes: 
   repeatable: 0
-  autoCompleteQuest: 0
+  autoCompleteQuest: 1
   abandonable: 0
   teleportPlayerToNodeIdOnCompletion: 
   obtainLocationId: npc_tutorial_3
   obtainLocationDisplayName: Merlin in Tutorial 3
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
+  autoAcceptWhenPriorQuestRewardClaimed: 0
+  autoAcceptAfterPriorQuestId: 
   prerequisiteRewardClaimedQuestIds:
   - tutorial_basic_combat_2
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
   requiredSkillLevels: []
   killEnemyIdFilter: 
-  hideUntilMapNodeUnlockedId: 
+  hideUntilMapNodeUnlockedId: tutorial_3
   sortOrder: 13

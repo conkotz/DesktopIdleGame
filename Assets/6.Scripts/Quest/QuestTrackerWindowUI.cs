@@ -180,13 +180,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
             int target = Mathf.Max(1, q.targetCount);
             bool objectiveComplete = q.IsComplete(current);
 
-            string progress = q.objectiveKind switch
-            {
-                QuestObjectiveKind.KillCount => $"{Mathf.Clamp(current, 0, target)}/{target} kills",
-                QuestObjectiveKind.GatherItem => $"{Mathf.Clamp(current, 0, target)}/{target} gathered",
-                QuestObjectiveKind.DieOnce => ResolveSpecialObjectiveTextOrDefault(q, "Die once"),
-                _ => $"{Mathf.Clamp(current, 0, target)}/{target}"
-            };
+            string progress = FormatTrackerObjectiveProgress(q, current, target);
 
             CreateRow(q.questId, q.displayName, progress, objectiveComplete);
             renderedCount++;
@@ -446,6 +440,70 @@ public class QuestTrackerWindowUI : MonoBehaviour
         if (q != null && !string.IsNullOrWhiteSpace(q.specialObjectiveListText))
             return q.specialObjectiveListText.Trim();
         return fallback;
+    }
+
+    private static string FormatTrackerObjectiveProgress(QuestDefinition q, int current, int target)
+    {
+        int c = Mathf.Clamp(current, 0, target);
+        int t = Mathf.Max(1, target);
+
+        return q.objectiveKind switch
+        {
+            QuestObjectiveKind.KillCount => FormatKillTrackerLine(q, c, t),
+            QuestObjectiveKind.GatherItem => FormatGatherTrackerLine(q, c, t),
+            QuestObjectiveKind.DieOnce => ResolveSpecialObjectiveTextOrDefault(q, "Die once"),
+            _ => $"{c}/{t}"
+        };
+    }
+
+    private static string FormatKillTrackerLine(QuestDefinition q, int c, int t)
+    {
+        string id = q.ResolveKillDisplayEnemyId();
+        if (string.IsNullOrEmpty(id))
+            return $"{c}/{t} kills";
+
+        EnemyDatabase ed = Resources.Load<EnemyDatabase>("Databases/EnemyDatabase");
+        EnemyDefinition def = ed ? ed.Get(id) : null;
+        string singular = def && !string.IsNullOrWhiteSpace(def.displayName)
+            ? def.displayName.Trim()
+            : FormatTrackerEnemyIdFallback(id);
+        return $"{c}/{t} {PluralizeTrackerUnit(singular, t)}";
+    }
+
+    private static string FormatGatherTrackerLine(QuestDefinition q, int c, int t)
+    {
+        if (string.IsNullOrWhiteSpace(q.objectiveId))
+            return $"{c}/{t} gathered";
+
+        ItemDatabase db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        ItemDefinition item = db ? db.Get(q.objectiveId.Trim()) : null;
+        string singular = item && !string.IsNullOrWhiteSpace(item.displayName)
+            ? item.displayName.Trim()
+            : q.objectiveId.Trim();
+        return $"{c}/{t} {PluralizeTrackerUnit(singular, t)}";
+    }
+
+    private static string FormatTrackerEnemyIdFallback(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return "";
+        if (raw.StartsWith("enemy_", System.StringComparison.Ordinal))
+            raw = raw.Substring("enemy_".Length);
+        return raw.Replace('_', ' ');
+    }
+
+    private static string PluralizeTrackerUnit(string singular, int count)
+    {
+        if (string.IsNullOrEmpty(singular))
+            return count == 1 ? "enemy" : "enemies";
+        if (count == 1)
+            return singular;
+        if (string.Equals(singular, "enemy", System.StringComparison.OrdinalIgnoreCase))
+            return "enemies";
+        char last = singular[^1];
+        if (char.ToLowerInvariant(last) == 's')
+            return singular;
+        return singular + "s";
     }
 
     private static Transform FindChildByName(Transform root, string childName)

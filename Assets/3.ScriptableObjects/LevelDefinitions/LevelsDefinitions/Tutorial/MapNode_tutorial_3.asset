@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: tutorial_3
   displayName: Tutorial Level 3
-  description: Distanced Combat
+  description: Magic Combat
   nodeType: 0
   enemyAggroMode: 1
   ignoreAggroRange: 0

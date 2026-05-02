@@ -19,6 +19,7 @@ public static class ConsumableEffectTooltip
             ConsumableEffectType.EnergyRegen => $"+{effect.magnitude:0.##} Energy Regen for {dur}",
             ConsumableEffectType.EnergyRestore => $"+{effect.magnitude:0.##} Energy",
             ConsumableEffectType.HealOverTime => $"+{effect.magnitude:0.##} HP over {dur}",
+            ConsumableEffectType.ManaRegenOverTime => $"+{effect.magnitude:0.##} Mana over {dur}",
             _ => $"{effect.effectType} for {dur}"
         };
     }

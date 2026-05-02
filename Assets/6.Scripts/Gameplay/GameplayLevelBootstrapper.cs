@@ -101,6 +101,9 @@ public class GameplayLevelBootstrapper : MonoBehaviour
             if (markedNodeEntered)
                 SaveManager.Instance.Save();
         }
+
+        if (FindFirstObjectByType<HelperGameplayController>(FindObjectsInactive.Include) == null)
+            GameplayRespawnHelperPersistence.ClearStaleKeepOverlayFlagIfPresent();
     }
 
     private static string ResolveMapDisplayName(MapNodeDefinition node)

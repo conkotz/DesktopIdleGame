@@ -24,6 +24,9 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private readonly HashSet<string> _rewardClaimed = new(StringComparer.Ordinal);
     private readonly HashSet<string> _acceptedQuestIds = new(StringComparer.Ordinal);
 
+    /// <summary>True after any non-repeatable quest with <see cref="QuestDefinition.grantIdleCombatUnlockOnRewardClaim"/> has had its reward claimed.</summary>
+    private bool _idleCombatUnlocked;
+
     private QuestDatabase _resolvedDatabase;
     private bool _isAutoCompleteProcessing;
 
@@ -33,6 +36,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private CharacterStats _playerDeathStats;
 
     public event Action ProgressChanged;
+
+    public bool IsIdleCombatUnlocked => _idleCombatUnlocked;
 
     private void Awake()
     {
@@ -211,7 +216,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (!q)
             return 0;
         if (q.objectiveKind == QuestObjectiveKind.GatherItem)
-            return GetGatherItemCountLive(q.gatherItemId);
+            return GetGatherItemCountLive(q.objectiveId);
         return GetProgress(q.questId);
     }
 
@@ -457,6 +462,9 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             _amounts.Remove(questId);
         QuestTrackerState.UntrackQuest(questId);
 
+        RecomputeIdleCombatUnlockedFromClaimedRewards();
+        DisableIdleCombatIfLocked();
+
         GameLog.Add($"Quest abandoned: {q.displayName}");
         ProgressChanged?.Invoke();
         if (SaveManager.Instance != null)
@@ -591,15 +599,104 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         else
         {
             MarkRewardClaimed(q.questId);
+            RecomputeIdleCombatUnlockedFromClaimedRewards();
+            DisableIdleCombatIfLocked();
             GameLog.QuestComplete(string.IsNullOrWhiteSpace(q.displayName) ? q.questId : q.displayName);
             ProgressChanged?.Invoke();
             TutorialQuestAfterClaim.Invoke(q);
             if (SaveManager.Instance != null)
                 SaveManager.Instance.Save();
+
+            TryAutoAcceptQuestsAfterPriorRewardClaimed(q.questId);
         }
 
         TryTeleportPlayerAfterClaim(q);
+
         return true;
+    }
+
+    private void RecomputeIdleCombatUnlockedFromClaimedRewards()
+    {
+        _idleCombatUnlocked = false;
+        ResolveQuestDatabase();
+        if (_resolvedDatabase == null)
+            return;
+
+        foreach (string id in _rewardClaimed)
+        {
+            QuestDefinition d = FindQuestDefinition(id);
+            if (d && d.grantIdleCombatUnlockOnRewardClaim)
+            {
+                _idleCombatUnlocked = true;
+                return;
+            }
+        }
+    }
+
+    private static void DisableIdleCombatIfLocked()
+    {
+        QuestProgressManager inst = Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (inst == null || inst._idleCombatUnlocked)
+            return;
+
+        PlayerCombatController combat =
+            FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
+        if (combat != null && combat.IdleCombatEnabled)
+            combat.SetIdleCombatEnabled(false);
+    }
+
+    /// <summary>
+    /// Accepts quests that opt in via <see cref="QuestDefinition.autoAcceptWhenPriorQuestRewardClaimed"/> now that
+    /// <paramref name="priorQuestIdClaimed"/> had its reward claimed.
+    /// </summary>
+    private void TryAutoAcceptQuestsAfterPriorRewardClaimed(string priorQuestIdClaimed)
+    {
+        if (string.IsNullOrWhiteSpace(priorQuestIdClaimed))
+            return;
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null || all.Count == 0)
+            return;
+
+        string prior = priorQuestIdClaimed.Trim();
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition followUp = all[i];
+            if (!followUp || !followUp.autoAcceptWhenPriorQuestRewardClaimed)
+                continue;
+            if (string.IsNullOrWhiteSpace(followUp.autoAcceptAfterPriorQuestId))
+                continue;
+            if (!string.Equals(followUp.autoAcceptAfterPriorQuestId.Trim(), prior, StringComparison.Ordinal))
+                continue;
+
+            TryAcceptQuest(followUp, null);
+        }
+    }
+
+    /// <summary>
+    /// After loading a save, accepts any auto-accept quests whose prior is already reward-claimed.
+    /// </summary>
+    private void TryAutoAcceptQuestsAfterLoadHydration()
+    {
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null || all.Count == 0)
+            return;
+
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition followUp = all[i];
+            if (!followUp || !followUp.autoAcceptWhenPriorQuestRewardClaimed)
+                continue;
+            if (string.IsNullOrWhiteSpace(followUp.autoAcceptAfterPriorQuestId))
+                continue;
+            if (!IsRewardClaimed(followUp.autoAcceptAfterPriorQuestId))
+                continue;
+
+            TryAcceptQuest(followUp, null);
+        }
     }
 
     private static void TryTeleportPlayerAfterClaim(QuestDefinition q)
@@ -768,7 +865,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     {
         consumedAmount = 0;
         itemIdNormalized = null;
-        string rawId = q.gatherItemId?.Trim();
+        string rawId = q.objectiveId?.Trim();
         if (string.IsNullOrEmpty(rawId))
             return false;
 
@@ -924,11 +1021,11 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             if (IsQuestGatedByPrerequisites(q))
                 continue;
 
-            if (!string.IsNullOrEmpty(q.killEnemyIdFilter))
+            string wantKillId = q.ResolveKillCreditEnemyId();
+            if (!string.IsNullOrEmpty(wantKillId))
             {
-                string want = q.killEnemyIdFilter.Trim();
                 if (string.IsNullOrEmpty(killedEnemyId) ||
-                    !string.Equals(want, killedEnemyId.Trim(), StringComparison.Ordinal))
+                    !string.Equals(wantKillId, killedEnemyId.Trim(), StringComparison.Ordinal))
                     continue;
             }
 
@@ -1004,6 +1101,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (data?.questProgressIds == null || data.questProgressAmounts == null)
         {
             LoadAcceptedQuestIds(data);
+            RecomputeIdleCombatUnlockedFromClaimedRewards();
+            DisableIdleCombatIfLocked();
             ProgressChanged?.Invoke();
             return;
         }
@@ -1034,8 +1133,13 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         LoadAcceptedQuestIds(data);
 
         ApplyTutorialStoryUnlocksForExistingSaves();
+
+        RecomputeIdleCombatUnlockedFromClaimedRewards();
+        DisableIdleCombatIfLocked();
+
         ProgressChanged?.Invoke();
         TryAutoCompleteEligibleQuests();
+        TryAutoAcceptQuestsAfterLoadHydration();
     }
 
     private void ApplyTutorialStoryUnlocksForExistingSaves()

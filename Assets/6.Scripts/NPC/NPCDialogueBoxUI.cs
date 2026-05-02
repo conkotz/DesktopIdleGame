@@ -27,6 +27,12 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
     private bool _spawnedAsOfferClone;
 
+    /// <summary>True while this box shows plain NPC lines (not a quest-offer card). Used to stack quest panels beside an open greeting.</summary>
+    private bool _plainDialogueMode;
+
+    /// <summary>When true, <see cref="CloseAllMultiOfferBoxesTogether"/> removes quest clones but keeps this box open (plain host + quest row).</summary>
+    private bool _pinnedPlainHostForQuestSpread;
+
     private Transform _interactionOwnerTransform;
 
     private Transform _stripFollowAnchor;
@@ -79,6 +85,13 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         return false;
     }
+
+    /// <summary>True when this instance is showing plain dialogue (eligible to stack quest offer cards beside it on re-click).</summary>
+    public static bool IsEligiblePlainHostForStackedQuestOffers(NPCDialogueBoxUI box) =>
+        box &&
+        box.gameObject.activeInHierarchy &&
+        box._plainDialogueMode &&
+        !ActiveMultiOfferBoxes.Contains(box);
 
     [Header("Layout")]
     [SerializeField] private Vector2 fixedSize = new(250f, 250f);
@@ -369,6 +382,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
                         b.RefreshStripOverlayLayoutForFrame();
                 }
 
+                SortActiveMultiOfferBoxesLeftToRight();
                 for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
                 {
                     NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
@@ -387,6 +401,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
                     b.RefreshStripOverlayLayoutForFrame();
             }
 
+            SortActiveMultiOfferBoxesLeftToRight();
             for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
             {
                 NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
@@ -887,6 +902,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         ConfigureSingleScrollTextsForPlainDialogue();
         StartTypewriter(dialogueText, message ?? "");
+        _plainDialogueMode = true;
 
         _onAccept = onAccept;
         if (acceptButton)
@@ -904,11 +920,76 @@ public class NPCDialogueBoxUI : MonoBehaviour
         StartAutoClose(autoCloseSeconds);
     }
 
+    /// <summary>
+    /// Keeps this plain-dialogue box open and opens quest offer clone(s) to the right, using the same horizontal spread as multi-quest.
+    /// </summary>
+    public void StackQuestOffersBesidePlainDialogue(
+        List<QuestDefinition> quests,
+        Func<List<QuestDefinition>> refreshQuests,
+        Func<QuestDefinition, bool> tryAcceptQuest,
+        float autoCloseSeconds)
+    {
+        if (quests == null || quests.Count == 0 || !gameObject.activeSelf)
+            return;
+
+        EnsureBuilt();
+
+        CloseAllMultiOfferBoxesTogether();
+
+        SpreadTemplate = this;
+        SpreadParent = _interactionOwnerTransform ? _interactionOwnerTransform : transform.parent;
+        SpreadAnchor = _stripFollowAnchor ? _stripFollowAnchor : SpreadParent;
+        SpreadBaseOffset = _stripFollowWorldOffset;
+        SpreadRefreshQuests = refreshQuests;
+        SpreadTryAcceptQuest = tryAcceptQuest;
+        SpreadAutoCloseSeconds = autoCloseSeconds;
+
+        ActiveMultiOfferBoxes.Clear();
+
+        _stripAnchoredSpreadOffset = Vector2.zero;
+        _pinnedPlainHostForQuestSpread = true;
+        ActiveMultiOfferBoxes.Add(this);
+
+        float spreadStepPx = fixedSize.x + questOfferCardSpacing;
+
+        for (int i = 0; i < quests.Count; i++)
+        {
+            QuestDefinition q = quests[i];
+            NPCDialogueBoxUI inst = Instantiate(gameObject).GetComponent<NPCDialogueBoxUI>();
+            inst._spawnedAsOfferClone = true;
+            ActiveMultiOfferBoxes.Add(inst);
+
+            QuestDefinition captured = q;
+            inst.ShowQuestOfferSingle(
+                SpreadParent,
+                SpreadAnchor,
+                SpreadBaseOffset,
+                captured,
+                showAccept: true,
+                () => HandleSpreadQuestAccepted(captured),
+                autoCloseSeconds,
+                partOfMultiSpread: true,
+                stripAnchoredSpreadOffset: new Vector2(spreadStepPx * (i + 1), 0f));
+        }
+
+        s_deferredStripMultiOpening = true;
+
+        SortActiveMultiOfferBoxesLeftToRight();
+    }
+
     public void Hide()
     {
         if (!BulkClosingMultiOfferGroup && ActiveMultiOfferBoxes.Contains(this))
         {
+            bool dismissPlainHostEntirely =
+                _pinnedPlainHostForQuestSpread &&
+                ReferenceEquals(this, SpreadTemplate);
+
             CloseAllMultiOfferBoxesTogether();
+
+            if (dismissPlainHostEntirely)
+                HideSolo();
+
             return;
         }
 
@@ -944,7 +1025,40 @@ public class NPCDialogueBoxUI : MonoBehaviour
         _interactionOwnerTransform = null;
         _npcStripFollowPivotSource = null;
 
+        _plainDialogueMode = false;
+        _pinnedPlainHostForQuestSpread = false;
+
         gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// Keeps <see cref="ActiveMultiOfferBoxes"/> ordered by horizontal spread (left → right). Plain host wins ties so it stays the left column.
+    /// </summary>
+    private static void SortActiveMultiOfferBoxesLeftToRight()
+    {
+        if (ActiveMultiOfferBoxes.Count < 2)
+            return;
+
+        ActiveMultiOfferBoxes.Sort(static (a, b) =>
+        {
+            if (!a && !b)
+                return 0;
+            if (!a)
+                return 1;
+            if (!b)
+                return -1;
+
+            int cmp = a._stripAnchoredSpreadOffset.x.CompareTo(b._stripAnchoredSpreadOffset.x);
+            if (cmp != 0)
+                return cmp;
+
+            if (a._pinnedPlainHostForQuestSpread && !b._pinnedPlainHostForQuestSpread)
+                return -1;
+            if (!a._pinnedPlainHostForQuestSpread && b._pinnedPlainHostForQuestSpread)
+                return 1;
+
+            return a.GetInstanceID().CompareTo(b.GetInstanceID());
+        });
     }
 
     private static void CloseAllMultiOfferBoxesTogether()
@@ -966,6 +1080,11 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
             if (b._spawnedAsOfferClone)
                 Destroy(b.gameObject);
+            else if (b._pinnedPlainHostForQuestSpread)
+            {
+                b._pinnedPlainHostForQuestSpread = false;
+                b._stripAnchoredSpreadOffset = Vector2.zero;
+            }
             else
                 b.HideSolo();
         }
@@ -1060,6 +1179,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
     {
         if (!quest)
             return;
+
+        _plainDialogueMode = false;
 
         if (_questOfferHeaderText)
         {
@@ -1187,6 +1308,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
         }
 
         s_deferredStripMultiOpening = true;
+
+        SortActiveMultiOfferBoxesLeftToRight();
     }
 
     private static void HandleSpreadQuestAccepted(QuestDefinition quest)
@@ -1199,6 +1322,16 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         if (next == null || next.Count == 0)
             return;
+
+        if (SpreadTemplate != null && IsEligiblePlainHostForStackedQuestOffers(SpreadTemplate))
+        {
+            SpreadTemplate.StackQuestOffersBesidePlainDialogue(
+                next,
+                SpreadRefreshQuests,
+                SpreadTryAcceptQuest,
+                SpreadAutoCloseSeconds);
+            return;
+        }
 
         if (next.Count == 1)
         {
@@ -1371,6 +1504,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
         if (ActiveMultiOfferBoxes.Count == 0)
             return;
 
+        SortActiveMultiOfferBoxesLeftToRight();
+
         Camera cam = null;
         for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
         {
@@ -1478,6 +1613,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
     {
         if (ActiveMultiOfferBoxes.Count < 2)
             return;
+
+        SortActiveMultiOfferBoxesLeftToRight();
 
         RectTransform canvasRoot = null;
         RectTransform frameRt = null;

@@ -128,6 +128,7 @@ public class SaveManager : MonoBehaviour
 
         HelperProgressStore.ApplyFromSaveData(_lastLoadedData);
         LevelItemPickupSaveStore.ApplyFromSaveData(_lastLoadedData);
+        PermanentEnemyDeathSaveStore.ApplyFromSaveData(_lastLoadedData);
 
         var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         if (player == null)
@@ -164,6 +165,7 @@ public class SaveManager : MonoBehaviour
         NormalizeSaveDataLists(data);
         HelperProgressStore.ApplyFromSaveData(data);
         LevelItemPickupSaveStore.ApplyFromSaveData(data);
+        PermanentEnemyDeathSaveStore.ApplyFromSaveData(data);
     }
 
     private static void SeedActiveLevelFromWorldMapIfNeeded(SaveData data)
@@ -277,6 +279,7 @@ public class SaveManager : MonoBehaviour
 
         HelperProgressStore.WriteDismissedInto(data);
         LevelItemPickupSaveStore.WriteInto(data);
+        PermanentEnemyDeathSaveStore.WriteInto(data);
 
         ApplyActiveMapToSaveData(data);
 
@@ -420,6 +423,7 @@ public class SaveManager : MonoBehaviour
 
         HelperProgressStore.ApplyFromSaveData(data);
         LevelItemPickupSaveStore.ApplyFromSaveData(data);
+        PermanentEnemyDeathSaveStore.ApplyFromSaveData(data);
     }
 
     private static void NormalizeSaveDataLists(SaveData data)
@@ -446,6 +450,8 @@ public class SaveManager : MonoBehaviour
             data.dismissedHelperIds = new List<string>();
         if (data.levelItemPickupOnceClaimedKeys == null)
             data.levelItemPickupOnceClaimedKeys = new List<string>();
+        if (data.permanentDeadEnemySpawnKeys == null)
+            data.permanentDeadEnemySpawnKeys = new List<string>();
     }
 
     public bool IsLevelItemPickupOnceClaimed(string key) => LevelItemPickupSaveStore.IsClaimed(key);

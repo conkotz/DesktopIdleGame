@@ -1078,7 +1078,18 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     public void ToggleIdleCombat()
     {
-        SetIdleCombatEnabled(!idleCombatEnabled);
+        bool wantOn = !idleCombatEnabled;
+        if (wantOn && IsIdleCombatLockedByQuestProgress())
+            return;
+
+        SetIdleCombatEnabled(wantOn);
+    }
+
+    private static bool IsIdleCombatLockedByQuestProgress()
+    {
+        QuestProgressManager qpm = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        return qpm != null && !qpm.IsIdleCombatUnlocked;
     }
 
     public void ToggleRetaliation()
@@ -1106,6 +1117,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     public void SetIdleCombatEnabled(bool enabled)
     {
+        if (enabled && IsIdleCombatLockedByQuestProgress())
+            return;
+
         idleCombatEnabled = enabled;
         OnIdleCombatChanged?.Invoke(idleCombatEnabled);
 

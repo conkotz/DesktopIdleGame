@@ -45,6 +45,9 @@ public sealed class HelperGameplayController : MonoBehaviour
     internal static bool IsLevelSelectWhitelistToolbarDismissOnThisFrame() =>
         s_levelSelectToolbarWhitelistUiDismissStampFrame == Time.frameCount;
 
+    /// <summary>When respawning with <see cref="GameplayRespawnHelperPersistence"/>, old controller stores this so the new instance can restore <see cref="_activeDefinition"/>.</summary>
+    private static string s_resumeActiveHelperIdAfterSceneReload;
+
     /// <summary>
     /// When the menu is already on a toolbar tab and the player taps that tab again, normally <see cref="MainMenuWindowUI.Close"/> runs.
     /// During an active helper that whitelist-dismisses that same toolbar id, we keep the menu open (helper dismisses separately).
@@ -139,9 +142,14 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     [SerializeField] [Range(0.1f, 1f)] private float whitelistUiGlowHaloAlphaScale = 0.55f;
 
-    [SerializeField] private Vector2 panelSize = new(560f, 280f);
+    /// <summary>Single source for script default, reset-all-windows fallback, and new-game layout when no controller.</summary>
+    private static readonly Vector2 kDefaultHelperPanelSize = new(800f, 800f);
 
-    [SerializeField] private Vector2 panelAnchoredPosition = new(40f, -88f);
+    private static readonly Vector2 kDefaultHelperPanelAnchoredPosition = new(60f, -500f);
+
+    [SerializeField] private Vector2 panelSize = kDefaultHelperPanelSize;
+
+    [SerializeField] private Vector2 panelAnchoredPosition = kDefaultHelperPanelAnchoredPosition;
 
     public Vector2 DefaultHelperPanelAnchoredPosition => panelAnchoredPosition;
 
@@ -155,6 +163,11 @@ public sealed class HelperGameplayController : MonoBehaviour
     [Tooltip(
         "How fast the helper body reveals (TMP visible characters per second; full paragraph layout while typing — same idea as NPCDialogueBoxUI). Higher = faster. 0 = one character per frame.")]
     [SerializeField] private float typewriterCharactersPerSecond = 48f;
+
+    [Tooltip(
+        "Scales title, body, chrome strip title, and footer/chrome button TMP font sizes (1 = default authored sizes). Designer-only — not a player setting.")]
+    [SerializeField] [Range(0.5f, 2f)]
+    private float helperTipTextSizeMultiplier = 1f;
 
     [Header("Helper priority queue")]
     [Tooltip(
@@ -193,9 +206,21 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private RectTransform _helperPanelRt;
 
+    /// <summary>True when we added a runtime <see cref="Canvas"/> on <see cref="_helperPanelRt"/> for modal stacking (safe to remove with its <see cref="GraphicRaycaster"/>).</summary>
+    private bool _helperPanelModalBreakoutOwned;
+
     private Image _dimmerImage;
 
     private TMP_Text _chromeStripTitleText;
+
+    private int _helperFontBasesOverlayInstanceId = int.MinValue;
+    private float _baseFontChromeStripTitle;
+    private float _baseFontTitle;
+    private float _baseFontBody;
+    private float _baseFontMinimizeGlyph;
+    private float _baseFontClose;
+    private float _baseFontPrevNav;
+    private float _baseFontNextNav;
 
     private TMP_Text _minimizeExpandGlyphTmp;
 
@@ -318,6 +343,72 @@ public sealed class HelperGameplayController : MonoBehaviour
     }
 
     /// <summary>
+    /// After Settings "reset all windows": restores helper panel to serialized defaults and fixes
+    /// <see cref="UIDragWindow"/> reset anchor (global reset clears prefs/memory and re-runs <see cref="UIDragWindow.ResetToAnchorPoint"/> first).
+    /// </summary>
+    public static void ResetHelperPanelLayoutToInspectorDefaultsAfterGlobalWindowReset()
+    {
+        HelperGameplayController ctrl =
+            Instance ?? FindFirstObjectByType<HelperGameplayController>(FindObjectsInactive.Include);
+        if (ctrl != null)
+        {
+            ctrl.ResetHelperPanelLayoutToInspectorDefaults();
+            return;
+        }
+
+        Vector2 pos = kDefaultHelperPanelAnchoredPosition;
+        Vector2 sz = kDefaultHelperPanelSize;
+        HelperPopupWindow host = HelperPopupWindow.FindExisting();
+        RectTransform panel = host ? host.transform.Find("HelperPanel") as RectTransform : null;
+        if (!panel)
+            return;
+
+        panel.anchoredPosition = pos;
+        panel.sizeDelta = sz;
+
+        Transform chrome = panel.Find("TopChromeStrip");
+        if (chrome && chrome.TryGetComponent(out UIDragWindow dw))
+            dw.SetResetAnchorPoint(pos);
+
+        if (panel.TryGetComponent(out UIWindowCornerResize rz))
+            rz.ForgetPersistedScaleAndResetToBase();
+
+        HelperPopupLayoutPrefs.Save(pos, sz, headerOnlyLayout: false);
+        UIWindowPositionMemory.Save("HelperPopupWindow.Panel", pos);
+    }
+
+    private void ResetHelperPanelLayoutToInspectorDefaults()
+    {
+        if (!_helperPanelRt)
+            return;
+
+        Vector2 pos = DefaultHelperPanelAnchoredPosition;
+        Vector2 sz = DefaultHelperPanelSize;
+
+        _helperPanelRt.anchoredPosition = pos;
+        _helperPanelRt.sizeDelta = sz;
+        _lastExpandedPanelSizeDelta = Vector2.zero;
+
+        if (_expandedPanelRoot)
+        {
+            _expandedPanelRoot.SetActive(true);
+            RefreshChromeCollapsedVisuals(false);
+        }
+
+        _layoutTrackSize = sz;
+
+        Transform chrome = _helperPanelRt.Find("TopChromeStrip");
+        if (chrome && chrome.TryGetComponent(out UIDragWindow dw))
+            dw.SetResetAnchorPoint(pos);
+
+        if (_helperPanelRt.TryGetComponent(out UIWindowCornerResize rz))
+            rz.ForgetPersistedScaleAndResetToBase();
+
+        HelperPopupLayoutPrefs.Save(pos, sz, headerOnlyLayout: false);
+        UIWindowPositionMemory.Save("HelperPopupWindow.Panel", pos);
+    }
+
+    /// <summary>
     /// New save slot only: clears persisted helper layout (other windows unchanged). Called from <see cref="SaveManager"/>.
     /// </summary>
     public static void ResetHelperWindowLayoutForNewGame()
@@ -328,8 +419,8 @@ public sealed class HelperGameplayController : MonoBehaviour
         HelperGameplayController ctrl =
             Instance ?? FindFirstObjectByType<HelperGameplayController>(FindObjectsInactive.Include);
 
-        Vector2 pos = ctrl != null ? ctrl.DefaultHelperPanelAnchoredPosition : new Vector2(40f, -88f);
-        Vector2 sz = ctrl != null ? ctrl.DefaultHelperPanelSize : new Vector2(560f, 280f);
+        Vector2 pos = ctrl != null ? ctrl.DefaultHelperPanelAnchoredPosition : kDefaultHelperPanelAnchoredPosition;
+        Vector2 sz = ctrl != null ? ctrl.DefaultHelperPanelSize : kDefaultHelperPanelSize;
 
         HelperPopupWindow host = HelperPopupWindow.FindExisting();
         RectTransform panel = host ? host.transform.Find("HelperPanel") as RectTransform : null;
@@ -345,6 +436,9 @@ public sealed class HelperGameplayController : MonoBehaviour
             Transform chrome = panel.Find("TopChromeStrip");
             if (chrome)
             {
+                if (chrome.TryGetComponent(out UIDragWindow dw))
+                    dw.SetResetAnchorPoint(pos);
+
                 Transform titleGo = chrome.Find("ChromeTitle");
                 if (titleGo)
                     titleGo.gameObject.SetActive(false);
@@ -525,9 +619,21 @@ public sealed class HelperGameplayController : MonoBehaviour
             StopStuckQueuedAdvanceCoroutine();
             _pendingHelperQueue.Clear();
 
+            bool keepForRespawn =
+                GameplayRespawnHelperPersistence.IsKeepHelperOverlayAcrossNextGameplayLoadFlagSet();
+
             bool hasSurface = (_overlayRoot && _overlayRoot.activeSelf) || _activeDefinition != null;
             if (hasSurface)
-                HideOverlayCompletely(true, purgeMessageHistory: false);
+            {
+                if (keepForRespawn)
+                {
+                    SaveMessageHistoryToPlayerPrefs();
+                    if (_activeDefinition != null && !string.IsNullOrWhiteSpace(_activeDefinition.helperId))
+                        s_resumeActiveHelperIdAfterSceneReload = _activeDefinition.helperId.Trim();
+                }
+                else
+                    HideOverlayCompletely(true, purgeMessageHistory: false);
+            }
 
             Instance = null;
         }
@@ -555,12 +661,17 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (HelpersPermittedBySettings())
             LoadMessageHistoryFromPlayerPrefs();
 
+        bool resumedFromDeath =
+            GameplayRespawnHelperPersistence.ConsumeKeepHelperOverlayAcrossNextGameplayLoad();
+
         GameplayLevelBootstrapper boots = GameplayLevelBootstrapper.Instance;
         if (boots == null)
         {
             Debug.LogWarning(
                 "[HelperGameplayController] No GameplayLevelBootstrapper — First Visit helpers will never run.",
                 this);
+            if (resumedFromDeath)
+                TryResumeHelperAfterDeathRespawnSceneReload();
             yield return null;
             TryPresentSessionHistoryWhenOverlayHidden();
             yield break;
@@ -571,6 +682,9 @@ public sealed class HelperGameplayController : MonoBehaviour
         // Execution order: our Start runs after Bootstrapper.Start — replay the active map once.
         if (boots.ActiveDefinition != null)
             HandleLevelStarted(boots.ActiveDefinition);
+
+        if (resumedFromDeath)
+            TryResumeHelperAfterDeathRespawnSceneReload();
 
         yield return null;
         TryPresentSessionHistoryWhenOverlayHidden();
@@ -707,6 +821,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         RestoreWhitelistUiTargetCanvases();
         StopBodyTypewriterAndClear();
 
+        ApplyLoadedHelperLayout();
         TransitionToExpandedPresentationLayout();
         RaiseWhitelistUiTargetCanvasesForActiveOverlay();
 
@@ -722,7 +837,218 @@ public sealed class HelperGameplayController : MonoBehaviour
         RefreshWhitelistPresentationEmphasis();
         RefreshWorldWhitelistRoutingFlag();
         ApplyDarkenModalPresentation();
+        ApplyHelperTipTextScale();
     }
+
+    private HelperPopupDefinition FindDefinitionByHelperId(string helperId)
+    {
+        if (string.IsNullOrWhiteSpace(helperId) || definitions == null)
+            return null;
+
+        string t = helperId.Trim();
+        for (int i = 0; i < definitions.Length; i++)
+        {
+            HelperPopupDefinition d = definitions[i];
+            if (d && string.Equals(d.helperId?.Trim(), t, StringComparison.OrdinalIgnoreCase))
+                return d;
+        }
+
+        return null;
+    }
+
+    private void TryResumeHelperAfterDeathRespawnSceneReload()
+    {
+        string hid = s_resumeActiveHelperIdAfterSceneReload;
+        s_resumeActiveHelperIdAfterSceneReload = null;
+
+        if (!HelpersPermittedBySettings())
+        {
+            if (_overlayRoot && _overlayRoot.activeSelf)
+                HideOverlayCompletely(true, purgeMessageHistory: false);
+            return;
+        }
+
+        if (_overlayRoot == null)
+            return;
+
+        HelperPopupWindow host = _overlayRoot.GetComponent<HelperPopupWindow>();
+        RectTransform parentRt = ResolveOverlayParent();
+        if (host && parentRt)
+            host.EnsureUnderWindowsArea(parentRt);
+
+        EnsureHelperWindowFocus();
+
+        if (!_overlayRoot.activeSelf)
+        {
+            if (_sessionMessageHistory.Count > 0)
+                PresentSessionHistoryOverlayExpanded();
+            else
+                HideOverlayCompletely(true, purgeMessageHistory: false);
+
+            ApplyHelperTipTextScale();
+            return;
+        }
+
+        HelperPopupDefinition def =
+            !string.IsNullOrWhiteSpace(hid) ? FindDefinitionByHelperId(hid) : null;
+
+        int idx = -1;
+        if (!string.IsNullOrWhiteSpace(hid))
+        {
+            for (int i = _sessionMessageHistory.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(
+                        _sessionMessageHistory[i].HelperId?.Trim(),
+                        hid,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    idx = i;
+                    break;
+                }
+            }
+        }
+
+        if (def != null && idx >= 0)
+        {
+            _activeDefinition = def;
+            _activeUsesWorldWhitelistRouting = false;
+            _historyViewIndex = idx;
+
+            RestoreWhitelistUiTargetCanvases();
+            StopBodyTypewriterAndClear();
+
+            ApplyLoadedHelperLayout();
+            TransitionToExpandedPresentationLayout();
+            RaiseWhitelistUiTargetCanvasesForActiveOverlay();
+
+            if (_helperCloseButtonRoot)
+                _helperCloseButtonRoot.SetActive(def.showCloseButton);
+
+            _overlayRoot.transform.SetAsLastSibling();
+            _overlayRoot.SetActive(true);
+
+            ApplyDisplayedHistoryIndexToPanel(idx, startTypewriterFresh: false);
+
+            RefreshWhitelistPresentationEmphasis();
+            RefreshWorldWhitelistRoutingFlag();
+            ApplyDarkenModalPresentation();
+            MaybeStartStuckQueuedAdvanceWatcher();
+        }
+        else if (_sessionMessageHistory.Count > 0)
+        {
+            PresentSessionHistoryOverlayExpanded();
+        }
+        else
+        {
+            HideOverlayCompletely(true, purgeMessageHistory: false);
+        }
+
+        ApplyHelperTipTextScale();
+    }
+
+    private float HelperTipTextSizeMultiplierClamped() =>
+        Mathf.Clamp(helperTipTextSizeMultiplier, 0.5f, 2f);
+
+    private void EnsureHelperAuthoredFontBasesForCurrentOverlay()
+    {
+        if (_overlayRoot == null)
+            return;
+
+        int id = _overlayRoot.GetInstanceID();
+        if (_helperFontBasesOverlayInstanceId == id)
+            return;
+
+        float invMul = 1f / Mathf.Max(0.01f, HelperTipTextSizeMultiplierClamped());
+
+        if (_chromeStripTitleText)
+            _baseFontChromeStripTitle = _chromeStripTitleText.fontSize * invMul;
+        else
+            _baseFontChromeStripTitle = 16f;
+
+        if (_titleText)
+            _baseFontTitle = _titleText.fontSize * invMul;
+        else
+            _baseFontTitle = 19f;
+
+        if (_bodyText)
+            _baseFontBody = _bodyText.fontSize * invMul;
+        else
+            _baseFontBody = 16f;
+        if (_minimizeExpandGlyphTmp)
+            _baseFontMinimizeGlyph = _minimizeExpandGlyphTmp.fontSize * invMul;
+        else
+            _baseFontMinimizeGlyph = 18f;
+
+        TMP_Text closeTmp = _helperCloseButtonRoot ? FindTmpOnButton(_helperCloseButtonRoot) : null;
+        _baseFontClose = closeTmp ? closeTmp.fontSize * invMul : 16f;
+
+        if (_prevHistoryButton)
+        {
+            TMP_Text pt = FindTmpOnButton(_prevHistoryButton.gameObject);
+            _baseFontPrevNav = pt ? pt.fontSize * invMul : 18f;
+        }
+        else
+            _baseFontPrevNav = 18f;
+
+        if (_nextHistoryButton)
+        {
+            TMP_Text nt = FindTmpOnButton(_nextHistoryButton.gameObject);
+            _baseFontNextNav = nt ? nt.fontSize * invMul : 18f;
+        }
+        else
+            _baseFontNextNav = 18f;
+
+        _helperFontBasesOverlayInstanceId = id;
+    }
+
+    private void ApplyHelperTipTextScale()
+    {
+        if (_overlayRoot == null)
+            return;
+
+        EnsureHelperAuthoredFontBasesForCurrentOverlay();
+
+        float mul = HelperTipTextSizeMultiplierClamped();
+
+        if (_chromeStripTitleText)
+            _chromeStripTitleText.fontSize = _baseFontChromeStripTitle * mul;
+        if (_titleText)
+            _titleText.fontSize = _baseFontTitle * mul;
+        if (_bodyText)
+            _bodyText.fontSize = _baseFontBody * mul;
+        if (_minimizeExpandGlyphTmp)
+            _minimizeExpandGlyphTmp.fontSize = _baseFontMinimizeGlyph * mul;
+
+        if (_helperCloseButtonRoot)
+        {
+            TMP_Text closeTmp = FindTmpOnButton(_helperCloseButtonRoot);
+            if (closeTmp)
+                closeTmp.fontSize = _baseFontClose * mul;
+        }
+
+        if (_prevHistoryButton)
+        {
+            TMP_Text pt = FindTmpOnButton(_prevHistoryButton.gameObject);
+            if (pt)
+                pt.fontSize = _baseFontPrevNav * mul;
+        }
+
+        if (_nextHistoryButton)
+        {
+            TMP_Text nt = FindTmpOnButton(_nextHistoryButton.gameObject);
+            if (nt)
+                nt.fontSize = _baseFontNextNav * mul;
+        }
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        helperTipTextSizeMultiplier = Mathf.Clamp(helperTipTextSizeMultiplier, 0.5f, 2f);
+        if (Application.isPlaying && Instance == this && _overlayRoot != null)
+            ApplyHelperTipTextScale();
+    }
+#endif
 
     private void StopStuckQueuedAdvanceCoroutine()
     {
@@ -1609,6 +1935,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         SaveMessageHistoryToPlayerPrefs();
 
+        ApplyHelperTipTextScale();
+
         MaybeStartStuckQueuedAdvanceWatcher();
     }
 
@@ -1715,6 +2043,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         }
 
         SyncMovementLockFromSettings();
+        EnsureHelperModalOverlayDrawOrder();
     }
 
     /// <summary>Forces modal visuals off and unlocks movement — used after scripted dismiss so state cannot get stuck if dimmer reference or EventSystem routing differs.</summary>
@@ -1728,6 +2057,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         }
 
         ResolvePlayerMovementLock(false);
+        EnsureHelperModalOverlayDrawOrder();
     }
 
     private void SyncMovementLockFromSettings()
@@ -1886,6 +2216,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (drainPendingQueue)
             TryDrainPendingHelperQueue();
+
+        EnsureHelperModalOverlayDrawOrder();
     }
 
     private void LateUpdate()
@@ -2163,12 +2495,17 @@ public sealed class HelperGameplayController : MonoBehaviour
             !_activeDefinition.highlightWhitelistTargetsDuringHelper ||
             _activeDefinition.whitelistedInteractionIds == null ||
             _activeDefinition.whitelistedInteractionIds.Length == 0)
+        {
+            EnsureHelperModalOverlayDrawOrder();
             return;
+        }
 
         if (whitelistGlowAboveDimmer)
             RebuildWhitelistGlowOverlays();
         else
             ApplyWhitelistPresentationTintsInner();
+
+        EnsureHelperModalOverlayDrawOrder();
     }
 
     private void ApplyWhitelistPresentationTintsInner()
@@ -2381,13 +2718,19 @@ public sealed class HelperGameplayController : MonoBehaviour
             host.EnsureUnderWindowsArea(parentRt);
 
         ApplyLoadedHelperLayout();
+        EnsureHelperWindowFocus();
+        ApplyHelperTipTextScale();
         return true;
     }
 
     private void EnsureViewBuilt()
     {
         if (_overlayRoot != null)
+        {
+            EnsureHelperWindowFocus();
+            ApplyHelperTipTextScale();
             return;
+        }
 
         if (TryWireExistingHelperPopupWindow())
             return;
@@ -2623,8 +2966,145 @@ public sealed class HelperGameplayController : MonoBehaviour
         hostComp.EnsureUnderWindowsArea(parentRt);
 
         ApplyLoadedHelperLayout();
+        EnsureHelperWindowFocus();
+        ApplyHelperTipTextScale();
 
         _overlayRoot.SetActive(false);
+    }
+
+    /// <summary>
+    /// Same stacking behavior as other <see cref="UIWindowFocus"/> windows: bring <see cref="_overlayRoot"/> above
+    /// WindowsArea siblings when the helper opens or the player clicks the panel, chrome, body, or dimmer.
+    /// </summary>
+    private void EnsureHelperWindowFocus()
+    {
+        if (_overlayRoot == null || _helperPanelRt == null)
+            return;
+
+        Transform overlayTf = _overlayRoot.transform;
+
+        void WireFocusTarget(GameObject go)
+        {
+            if (!go)
+                return;
+
+            UIWindowFocus f = go.GetComponent<UIWindowFocus>();
+            if (!f)
+                f = go.AddComponent<UIWindowFocus>();
+
+            f.SetBringToFrontTransform(overlayTf);
+        }
+
+        if (!_overlayRoot.TryGetComponent(out UIWindowFocus _))
+            _overlayRoot.AddComponent<UIWindowFocus>();
+
+        WireFocusTarget(_helperPanelRt.gameObject);
+
+        Transform chrome = _helperPanelRt.Find("TopChromeStrip");
+        if (chrome)
+            WireFocusTarget(chrome.gameObject);
+
+        if (_bodyText)
+            WireFocusTarget(_bodyText.gameObject);
+
+        Transform dim = _overlayRoot.transform.Find("Dimmer");
+        if (dim)
+            WireFocusTarget(dim.gameObject);
+
+        EnsureHelperModalOverlayDrawOrder();
+    }
+
+    /// <summary>
+    /// Restores Dimmer → WhitelistGlowOverlay → HelperPanel sibling order, then (while the modal dimmer is visible) gives
+    /// <b>only</b> <see cref="_helperPanelRt"/> a nested canvas so it draws above the blackout. Glow stays on the root canvas
+    /// (above the dimmer via hierarchy) — we do not add a Canvas on <c>WhitelistGlowOverlay</c> (avoids MissingComponent /
+    /// RequireComponent issues with raycasters and keeps glow logic unchanged).
+    /// </summary>
+    private void EnsureHelperModalOverlayDrawOrder()
+    {
+        if (_overlayRoot == null || _helperPanelRt == null)
+            return;
+
+        Transform rootTf = _overlayRoot.transform;
+        Transform dimTf = rootTf.Find("Dimmer");
+        Transform glowLayerTf = rootTf.Find("WhitelistGlowOverlay");
+
+        if (dimTf)
+            dimTf.SetSiblingIndex(0);
+        if (glowLayerTf)
+            glowLayerTf.SetSiblingIndex(dimTf != null ? 1 : 0);
+
+        _helperPanelRt.SetAsLastSibling();
+
+        bool modalDimmerVisible =
+            _overlayRoot.activeSelf &&
+            _dimmerImage &&
+            _dimmerImage.isActiveAndEnabled &&
+            _dimmerImage.enabled &&
+            _dimmerImage.color.a > 0.05f;
+
+        if (!modalDimmerVisible)
+        {
+            ClearHelperModalNestedCanvasOverrides();
+            return;
+        }
+
+        int panelOrder = Mathf.Clamp(canvasSortOrder + Mathf.Max(panelSortDelta, 2), -30000, 32760);
+
+        if (!_helperPanelRt.TryGetComponent(out Canvas _) &&
+            _helperPanelRt.TryGetComponent(out GraphicRaycaster orphanRay))
+        {
+            Destroy(orphanRay);
+        }
+
+        Canvas pc = _helperPanelRt.GetComponent<Canvas>();
+        if (!pc)
+        {
+            pc = _helperPanelRt.gameObject.AddComponent<Canvas>();
+            _helperPanelModalBreakoutOwned = true;
+        }
+
+        pc.overrideSorting = true;
+        pc.sortingOrder = panelOrder;
+        if (!_helperPanelRt.TryGetComponent(out GraphicRaycaster _))
+            _helperPanelRt.gameObject.AddComponent<GraphicRaycaster>();
+    }
+
+    private void ClearHelperModalNestedCanvasOverrides()
+    {
+        if (_overlayRoot)
+        {
+            Transform glowLayerTf = _overlayRoot.transform.Find("WhitelistGlowOverlay");
+            if (glowLayerTf)
+            {
+                if (glowLayerTf.TryGetComponent(out GraphicRaycaster gr))
+                    Destroy(gr);
+
+                if (glowLayerTf.TryGetComponent(out Canvas gc))
+                    Destroy(gc);
+            }
+        }
+
+        if (!_helperPanelRt)
+            return;
+
+        if (_helperPanelModalBreakoutOwned)
+        {
+            if (_helperPanelRt.TryGetComponent(out GraphicRaycaster pr))
+                Destroy(pr);
+
+            if (_helperPanelRt.TryGetComponent(out Canvas ownedCanvas))
+                Destroy(ownedCanvas);
+
+            _helperPanelModalBreakoutOwned = false;
+            return;
+        }
+
+        if (_helperPanelRt.TryGetComponent(out Canvas pc) && pc.overrideSorting)
+        {
+            pc.overrideSorting = false;
+            pc.sortingOrder = 0;
+        }
     }
 
     private void RebuildWhitelistGlowOverlays()
@@ -2706,6 +3186,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         }
 
         AppendWhitelistUiGlowOverlaysIntoHolder();
+        EnsureHelperModalOverlayDrawOrder();
     }
 
     /// <remarks>Whitelist UI rects use each Canvas's projected screen bounds; no StripCamera required.</remarks>

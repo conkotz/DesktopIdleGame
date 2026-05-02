@@ -21,7 +21,7 @@ MonoBehaviour:
   listStatusOverride: 
   objectiveKind: 2
   targetCount: 3
-  gatherItemId: stone_chunk
+  objectiveId: stone_chunk
   rewardGold: 0
   rewardItem: {fileID: 11400000, guid: 7430bf37785e3a14e96af84084aa40f0, type: 2}
   rewardItemId: 

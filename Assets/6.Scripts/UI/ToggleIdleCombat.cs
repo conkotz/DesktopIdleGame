@@ -2,15 +2,27 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// Bottom-strip Auto Battle toggle. When <see cref="QuestProgressManager.IsIdleCombatUnlocked"/> is false,
+/// shows a light red tint and logs a blocked message instead of toggling idle combat.
+/// </summary>
 public class IdleCombatButton : MonoBehaviour
 {
     [SerializeField] private PlayerCombatController combat;
     [SerializeField] private TMP_Text label;
     [SerializeField] private Image buttonImage;
 
+    [Tooltip("Drawn above the button graphic while locked; disable Raycast Target on this image so clicks reach the button.")]
+    [SerializeField] private Image lockTintOverlay;
+
     [Header("Colours")]
-    [SerializeField] private Color onColor = new Color(0.2f, 0.8f, 0.2f);      // green
-    [SerializeField] private Color offColor = new Color(0.85f, 0.85f, 0.85f);  // light grey
+    [SerializeField] private Color onColor = new Color(0.2f, 0.8f, 0.2f); // green
+    [SerializeField] private Color offColor = new Color(0.85f, 0.85f, 0.85f); // light grey
+
+    [Tooltip("Shown in the activity log when the player clicks Auto Battle while it is still locked.")]
+    [SerializeField] private string lockedActivityLogMessage = "Locked until Green Fields clearance is completed.";
+
+    [SerializeField] private Color lockTintColor = new Color(1f, 0.45f, 0.45f, 0.45f);
 
     private void Awake()
     {
@@ -22,32 +34,87 @@ public class IdleCombatButton : MonoBehaviour
 
         if (!buttonImage)
             buttonImage = GetComponent<Image>();
+
+        if (!lockTintOverlay)
+        {
+            Transform t = transform.Find("LockTint");
+            if (t)
+                lockTintOverlay = t.GetComponent<Image>();
+        }
+
+        if (lockTintOverlay)
+        {
+            lockTintOverlay.raycastTarget = false;
+            lockTintOverlay.color = lockTintColor;
+        }
     }
 
     private void OnEnable()
     {
         if (combat != null)
             combat.OnIdleCombatChanged += HandleIdleChanged;
+
+        QuestProgressManager qpm = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (qpm != null)
+            qpm.ProgressChanged += HandleQuestProgressChanged;
+
+        RefreshLockVisual();
+        if (combat != null)
+            HandleIdleChanged(combat.IdleCombatEnabled);
     }
 
     private void OnDisable()
     {
         if (combat != null)
             combat.OnIdleCombatChanged -= HandleIdleChanged;
+
+        QuestProgressManager qpm = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (qpm != null)
+            qpm.ProgressChanged -= HandleQuestProgressChanged;
     }
+
+    private void HandleQuestProgressChanged() => RefreshLockVisual();
 
     public void ToggleIdleCombat()
     {
+        if (IsAutoBattleLocked())
+        {
+            string msg = string.IsNullOrWhiteSpace(lockedActivityLogMessage)
+                ? "Auto Battle is locked."
+                : lockedActivityLogMessage.Trim();
+            GameLog.Add(msg, GameLog.CannotMessageColor);
+            return;
+        }
+
         if (!combat)
             combat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
 
-        if (combat == null) return;
+        if (combat == null)
+            return;
 
         combat.ToggleIdleCombat();
     }
 
+    private bool IsAutoBattleLocked()
+    {
+        QuestProgressManager qpm = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        return qpm != null && !qpm.IsIdleCombatUnlocked;
+    }
+
+    private void RefreshLockVisual()
+    {
+        if (!lockTintOverlay)
+            return;
+
+        lockTintOverlay.gameObject.SetActive(IsAutoBattleLocked());
+    }
+
     private void Start()
     {
+        RefreshLockVisual();
         if (combat != null)
             HandleIdleChanged(combat.IdleCombatEnabled);
     }
