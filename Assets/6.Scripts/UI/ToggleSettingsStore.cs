@@ -40,7 +40,7 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(AutoLootDuringAutoBattleKey, 1) != 0,
             ToggleSettingId.ShowHelpPopups => GetShowHelpPopups(),
             ToggleSettingId.GroupRepeatedActivityLogItemGains =>
-                PlayerPrefs.GetInt(GroupRepeatedActivityLogItemGainsKey, 1) != 0,
+                PlayerPrefs.GetInt(GroupRepeatedActivityLogItemGainsKey, 0) != 0,
             _ => false
         };
     }

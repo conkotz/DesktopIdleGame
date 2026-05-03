@@ -54,7 +54,7 @@ MonoBehaviour:
   - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint26
+      spawnPointName: SpawnPoint35
       enemyDefinition: {fileID: 11400000, guid: a4d17577548723844bf438bc259b4c29, type: 2}
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}

@@ -43,6 +43,33 @@ MonoBehaviour:
   - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint-12
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint8
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint16
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
       spawnPointName: SpawnPoint22
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}

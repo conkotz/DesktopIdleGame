@@ -80,6 +80,11 @@ public class EnemyDefinition : ScriptableObject
         "Cleared when starting a New Game (save reset). Uses LevelSpawnDirector spawn-plan keys.")]
     public bool cannotRespawn = false;
 
+    [Tooltip(
+        "When true, this enemy is omitted from recommended combat power for map nodes / level select (spawn plans and endurance waves). " +
+        "Use for target dummies or other non-threat spawns so they do not inflate suggested CP.")]
+    public bool doesNotContributeToRecommendedCombatPower = false;
+
     [Header("Vitals (base)")]
     [Min(1)]
     [Tooltip("Maps to CharacterStats baseMaxHP.")]

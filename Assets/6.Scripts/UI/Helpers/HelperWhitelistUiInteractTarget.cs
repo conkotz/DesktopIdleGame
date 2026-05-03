@@ -96,6 +96,6 @@ public sealed class HelperWhitelistUiInteractTarget : MonoBehaviour, IPointerCli
 
     private void RaiseNotify()
     {
-        HelperGameplayController.NotifyWhitelistUiInteract(InteractionId);
+        HelperGameplayController.NotifyWhitelistUiInteract(InteractionId, GlowSourceGraphic);
     }
 }

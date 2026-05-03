@@ -19,7 +19,7 @@ GameObject:
   - component: {fileID: 1645354627277816554}
   - component: {fileID: 101716477094515511}
   m_Layer: 8
-  m_Name: TrainingDummy
+  m_Name: TargetDummy
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -117,6 +117,7 @@ MonoBehaviour:
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
+  idleWanderMaxDistanceFromSpawn: 10
   enemyAttackWindup: 0.1
   requireRangeOnHit: 1
   destroyOnDeath: 1

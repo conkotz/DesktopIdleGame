@@ -164,6 +164,10 @@ public class SaveData
     [Tooltip("HelperPopupDefinition.helperId values dismissed for this character (do not replay until New Game clears the save).")]
     public List<string> dismissedHelperIds = new();
 
+    [Tooltip(
+        "Helper ids for which the flashing \"! new\" badge must not appear again (persists across respawn / scene load / app restart). Cleared on New Game.")]
+    public List<string> helperNewBadgeSuppressedHelperIds = new();
+
     [Header("Level-placed item pickups")]
     [Tooltip("Keys for spawn-plan item drops that were fully picked up; those placements are not spawned again.")]
     public List<string> levelItemPickupOnceClaimedKeys = new();
@@ -177,4 +181,26 @@ public class SaveData
     [Tooltip(
         "Set when the player dies in GamePlay; cleared after conditional dialogue with After Death And Respawn is shown.")]
     public bool npcPostDeathRespawnDialoguePending;
+
+    [Tooltip(
+        "MapNodeDefinition.nodeId where the player died when Pending was set (empty in legacy saves). " +
+        "Used with After Death And Respawn + After Death Respawn Map Node Id on NPC dialogue.")]
+    public string npcPostDeathRespawnDialogueDeathNodeId = "";
+
+    [Tooltip(
+        "NPCInteractionSettings one-way dialogue save ids that have shown a conditional line (base dialogue suppressed).")]
+    public List<string> npcOneWayConditionalDialogueConsumedKeys = new();
+
+    [Tooltip(
+        "Per one-way save id: highest Additional Conditional Dialogues index that has been presented (0-based). " +
+        "Earlier rows are never chosen again until the chain is exhausted, then base dialogue may return.")]
+    public List<NpcOneWayDialogueChainProgressRow> npcOneWayDialogueChainProgressRows = new();
+}
+
+/// <summary>Serialized row for <see cref="SaveData.npcOneWayDialogueChainProgressRows"/>.</summary>
+[Serializable]
+public class NpcOneWayDialogueChainProgressRow
+{
+    public string saveId;
+    public int highestIndex;
 }

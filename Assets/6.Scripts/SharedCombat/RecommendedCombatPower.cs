@@ -14,6 +14,7 @@ using UnityEngine;
 /// </para>
 /// Rows without a resolvable <see cref="EnemyDefinition"/> are skipped: use <see cref="SpawnPrefabCount.enemyDefinition"/>,
 /// or a <see cref="SpawnPrefabCount.prefab"/> whose root/children include <see cref="EnemyBaseController"/> with a definition assigned.
+/// Rows whose <see cref="EnemyDefinition.doesNotContributeToRecommendedCombatPower"/> is true are also skipped (training dummies, etc.).
 /// </summary>
 public static class RecommendedCombatPower
 {
@@ -252,6 +253,7 @@ public static class RecommendedCombatPower
         int maxInstanceCp = 0;
         int skippedNullRow = 0;
         int skippedNoEnemyDef = 0;
+        int skippedDoesNotContributeCp = 0;
         int skippedCpException = 0;
         int skipDetailBudget = 8;
 
@@ -275,6 +277,14 @@ public static class RecommendedCombatPower
                         row.prefab);
                 }
 
+                continue;
+            }
+
+            if (enemyDef.doesNotContributeToRecommendedCombatPower)
+            {
+                skippedDoesNotContributeCp++;
+                if (skipDetailBudget-- > 0)
+                    DiagLog($"  row[{i}] skip: doesNotContributeToRecommendedCombatPower enemy='{enemyDef.name}'", enemyDef);
                 continue;
             }
 
@@ -308,7 +318,8 @@ public static class RecommendedCombatPower
         {
             DiagLog(
                 $"ComputeFromSpawnRows ({contextLabel}): nothing scored. rows={rows.Count} " +
-                $"skippedNullRow={skippedNullRow} skippedNoEnemyDef={skippedNoEnemyDef} skippedCpException={skippedCpException}");
+                $"skippedNullRow={skippedNullRow} skippedNoEnemyDef={skippedNoEnemyDef} " +
+                $"skippedDoesNotContributeCp={skippedDoesNotContributeCp} skippedCpException={skippedCpException}");
             return 0;
         }
 

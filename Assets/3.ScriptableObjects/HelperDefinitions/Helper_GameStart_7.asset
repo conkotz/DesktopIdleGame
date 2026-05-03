@@ -36,6 +36,7 @@ MonoBehaviour:
   darkenScreenAndLockGameplay: 0
   dismissModes: 8
   whitelistInteractEntries: []
-  whitelistedInteractionIds: []
-  highlightWhitelistTargetsDuringHelper: 0
+  whitelistedInteractionIds:
+  - UIButton_Character
+  highlightWhitelistTargetsDuringHelper: 1
   highlightInventorySlotsForItem: {fileID: 0}

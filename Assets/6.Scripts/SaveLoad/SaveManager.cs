@@ -129,6 +129,7 @@ public class SaveManager : MonoBehaviour
         LevelItemPickupSaveStore.ApplyFromSaveData(_lastLoadedData);
         PermanentEnemyDeathSaveStore.ApplyFromSaveData(_lastLoadedData);
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
+        NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
 
         var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         if (player == null)
@@ -167,6 +168,7 @@ public class SaveManager : MonoBehaviour
         LevelItemPickupSaveStore.ApplyFromSaveData(data);
         PermanentEnemyDeathSaveStore.ApplyFromSaveData(data);
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(data);
+        NpcOneWayDialogueQueueStore.ApplyFromSaveData(data);
     }
 
     private static void SeedActiveLevelFromWorldMapIfNeeded(SaveData data)
@@ -276,9 +278,11 @@ public class SaveManager : MonoBehaviour
         EnsurePlayerStorageInSaveData(data);
 
         HelperProgressStore.WriteDismissedInto(data);
+        HelperProgressStore.WriteNewBadgeSuppressedInto(data);
         LevelItemPickupSaveStore.WriteInto(data);
         PermanentEnemyDeathSaveStore.WriteInto(data);
         NpcPostDeathRespawnDialogueStore.WriteInto(data);
+        NpcOneWayDialogueQueueStore.WriteInto(data);
 
         ApplyActiveMapToSaveData(data);
 
@@ -435,6 +439,7 @@ public class SaveManager : MonoBehaviour
         LevelItemPickupSaveStore.ApplyFromSaveData(data);
         PermanentEnemyDeathSaveStore.ApplyFromSaveData(data);
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(data);
+        NpcOneWayDialogueQueueStore.ApplyFromSaveData(data);
     }
 
     private static void NormalizeSaveDataLists(SaveData data)
@@ -459,10 +464,16 @@ public class SaveManager : MonoBehaviour
             data.merchantStocks = new List<SaveData.MerchantStockSave>();
         if (data.dismissedHelperIds == null)
             data.dismissedHelperIds = new List<string>();
+        if (data.helperNewBadgeSuppressedHelperIds == null)
+            data.helperNewBadgeSuppressedHelperIds = new List<string>();
         if (data.levelItemPickupOnceClaimedKeys == null)
             data.levelItemPickupOnceClaimedKeys = new List<string>();
         if (data.permanentDeadEnemySpawnKeys == null)
             data.permanentDeadEnemySpawnKeys = new List<string>();
+        if (data.npcOneWayConditionalDialogueConsumedKeys == null)
+            data.npcOneWayConditionalDialogueConsumedKeys = new List<string>();
+        if (data.npcOneWayDialogueChainProgressRows == null)
+            data.npcOneWayDialogueChainProgressRows = new List<NpcOneWayDialogueChainProgressRow>();
 
         MigrateLegacyWorldMapEnteredNodeIdsIfNeeded(data);
     }

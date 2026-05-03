@@ -192,6 +192,12 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private bool _activeUsesWorldWhitelistRouting;
 
+    /// <summary>
+    /// After the first whitelist interact while staged emphasis is active, modal dim + movement lock are released
+    /// but <see cref="_activeDefinition"/> stays set until every whitelist glow/tint is cleared (click or hover rules).
+    /// </summary>
+    private bool _whitelistStagedModalReleased;
+
     private HelperPopupDefinition _activeDefinition;
 
     private const float ExpandedHeaderStripHeight = 40f;
@@ -223,7 +229,8 @@ public sealed class HelperGameplayController : MonoBehaviour
     private bool IsActiveHelperExpandedWithModalGameplayLock() =>
         _activeDefinition != null &&
         _activeDefinition.darkenScreenAndLockGameplay &&
-        IsHelperExpandedPresentation();
+        IsHelperExpandedPresentation() &&
+        !_whitelistStagedModalReleased;
 
     private GameObject _expandedPanelRoot;
 
@@ -356,7 +363,8 @@ public sealed class HelperGameplayController : MonoBehaviour
     private readonly List<WhitelistTintState> _whitelistPresentationTints = new();
 
     /// <summary>Call from <see cref="WorldInputRouter2D"/> after routing a click that hit a whitelist collider while blocking.</summary>
-    public static void NotifyWhitelistWorldRouteHandled()
+    /// <param name="worldWinnerCollider">Collider used to clear only that target's whitelist glow (staged emphasis).</param>
+    public static void NotifyWhitelistWorldRouteHandled(Collider2D worldWinnerCollider = null)
     {
         if (Instance == null || !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
             return;
@@ -364,13 +372,18 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (Instance._activeDefinition != null)
             Instance.DismissHelperNewBadgeFromPanelPointer();
 
-        Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss);
+        Instance.TryDismiss(
+            HelperDismissMode.InteractWhitelistDismiss,
+            interactWhitelistIdMarker: null,
+            whitelistUiGlowSource: null,
+            whitelistWorldWinnerCollider: worldWinnerCollider);
     }
 
     /// <summary>
     /// Call from <see cref="HelperWhitelistUiInteractTarget"/> when the player activates a whitelist id (toolbar / UI).
     /// </summary>
-    public static void NotifyWhitelistUiInteract(string interactionIdMarker)
+    /// <param name="whitelistUiGlowSource">Graphic used when building this target's glow overlay — clears the correct instance when ids repeat.</param>
+    public static void NotifyWhitelistUiInteract(string interactionIdMarker, Graphic whitelistUiGlowSource = null)
     {
         if (Instance == null ||
             string.IsNullOrWhiteSpace(interactionIdMarker) ||
@@ -381,7 +394,11 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (Instance._activeDefinition != null && Instance._activeDefinition.MatchesWhitelistId(trimmed))
             Instance.DismissHelperNewBadgeFromPanelPointer();
 
-        Instance.TryDismiss(HelperDismissMode.InteractWhitelistDismiss, trimmed);
+        Instance.TryDismiss(
+            HelperDismissMode.InteractWhitelistDismiss,
+            trimmed,
+            whitelistUiGlowSource,
+            whitelistWorldWinnerCollider: null);
     }
 
     /// <summary>
@@ -439,8 +456,104 @@ public sealed class HelperGameplayController : MonoBehaviour
                 Destroy(link.GlowImg.gameObject);
 
             _whitelistGlowLinks.RemoveAt(i);
+            MaybeCompleteStagedWhitelistEmphasisDismiss();
             return;
         }
+    }
+
+    /// <summary>
+    /// Staged whitelist: first interact lifts modal + unlock only; glows drop per target until none remain, then scripted dismiss completes.
+    /// </summary>
+    private bool ActiveHelperUsesStagedWhitelistEmphasisRelease()
+    {
+        if (_activeDefinition == null)
+            return false;
+
+        if ((_activeDefinition.dismissModes & HelperDismissMode.InteractWhitelistDismiss) == 0)
+            return false;
+
+        if (!_activeDefinition.darkenScreenAndLockGameplay ||
+            !_activeDefinition.highlightWhitelistTargetsDuringHelper ||
+            !whitelistGlowAboveDimmer ||
+            !_activeDefinition.HasConfiguredWhitelistInteractIds())
+            return false;
+
+        return true;
+    }
+
+    private bool TryProgressStagedWhitelistInteractDismiss(
+        string interactWhitelistIdMarker,
+        Graphic whitelistUiGlowSource,
+        Collider2D whitelistWorldWinnerCollider)
+    {
+        if (!ActiveHelperUsesStagedWhitelistEmphasisRelease())
+            return false;
+
+        if (!_whitelistStagedModalReleased && _activeDefinition.darkenScreenAndLockGameplay)
+        {
+            _whitelistStagedModalReleased = true;
+            ClearModalDimmerAndUnlockPlayer();
+            ApplyDarkenModalPresentation();
+            EnsureHelperModalOverlayDrawOrder();
+        }
+
+        if (whitelistUiGlowSource)
+            RemoveWhitelistGlowLinkForSourceGraphic(whitelistUiGlowSource);
+        else if (whitelistWorldWinnerCollider)
+            RemoveWhitelistGlowLinksForWorldCollider(whitelistWorldWinnerCollider);
+
+        MaybeCompleteStagedWhitelistEmphasisDismiss();
+        return true;
+    }
+
+    private void MaybeCompleteStagedWhitelistEmphasisDismiss()
+    {
+        if (_activeDefinition == null)
+            return;
+
+        if (!ActiveHelperUsesStagedWhitelistEmphasisRelease())
+            return;
+
+        if (_whitelistGlowLinks.Count > 0 || _whitelistPresentationTints.Count > 0)
+            return;
+
+        CompleteScriptedDismissLeaveExpanded();
+    }
+
+    private void RemoveWhitelistGlowLinksForWorldCollider(Collider2D winnerCol)
+    {
+        if (!winnerCol || _activeDefinition == null || _whitelistGlowLinks.Count == 0)
+            return;
+
+        HelperWhitelistInteractTarget marker =
+            winnerCol.GetComponentInParent<HelperWhitelistInteractTarget>(true);
+        if (!marker || !_activeDefinition.MatchesWhitelistId(marker.InteractionId))
+            return;
+
+        var scratch = new List<SpriteRenderer>(24);
+        var seen = new HashSet<SpriteRenderer>();
+        CollectWhitelistPresentationSprites(marker, visualsSubtreeChildName, scratch, seen);
+        if (scratch.Count == 0)
+            return;
+
+        var spriteSet = new HashSet<SpriteRenderer>(scratch);
+        for (int i = _whitelistGlowLinks.Count - 1; i >= 0; i--)
+        {
+            WhitelistGlowLink link = _whitelistGlowLinks[i];
+            SpriteRenderer spr = link.SourceSprite;
+            if (!spr || !spriteSet.Contains(spr))
+                continue;
+
+            if (link.GlowHaloImg)
+                Destroy(link.GlowHaloImg.gameObject);
+
+            if (link.GlowImg)
+                Destroy(link.GlowImg.gameObject);
+
+            _whitelistGlowLinks.RemoveAt(i);
+        }
+
+        MaybeCompleteStagedWhitelistEmphasisDismiss();
     }
 
     /// <summary>
@@ -564,6 +677,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
             ctrl._sessionMessageHistory.Clear();
             ctrl._historyViewIndex = 0;
+            ctrl._whitelistStagedModalReleased = false;
             ctrl._activeDefinition = null;
             ctrl._activeUsesWorldWhitelistRouting = false;
 
@@ -915,6 +1029,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (_overlayRoot == null || _sessionMessageHistory.Count == 0)
             return;
 
+        _whitelistStagedModalReleased = false;
         _activeDefinition = null;
         _activeUsesWorldWhitelistRouting = false;
 
@@ -1034,6 +1149,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             RefreshWorldWhitelistRoutingFlag();
             ApplyDarkenModalPresentation();
             MaybeStartStuckQueuedAdvanceWatcher();
+            HideHelperNewBadge();
         }
         else if (_sessionMessageHistory.Count > 0)
         {
@@ -1270,6 +1386,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         ClearWhitelistGlowOverlays();
         ClearWhitelistPresentationTints();
 
+        _whitelistStagedModalReleased = false;
         _activeDefinition = null;
         _activeUsesWorldWhitelistRouting = false;
 
@@ -1985,6 +2102,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         ClearWhitelistGlowOverlays();
         ClearWhitelistPresentationTints();
         _activeUsesWorldWhitelistRouting = false;
+        _whitelistStagedModalReleased = false;
     }
 
     private void ShowPopup(HelperPopupDefinition def)
@@ -2005,6 +2123,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             HelperProgressStore.MarkDismissed(def.helperId.Trim());
 
         _activeDefinition = def;
+        _whitelistStagedModalReleased = false;
 
         EnsureViewBuilt();
         if (_overlayRoot == null)
@@ -2051,7 +2170,11 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         MaybeStartStuckQueuedAdvanceWatcher();
 
-        ShowHelperNewBadge();
+        string hidForBadge = string.IsNullOrWhiteSpace(def.helperId) ? null : def.helperId.Trim();
+        if (string.IsNullOrEmpty(hidForBadge) || !HelperProgressStore.WasNewBadgeSuppressed(hidForBadge))
+            ShowHelperNewBadge();
+        if (!string.IsNullOrEmpty(hidForBadge))
+            HelperProgressStore.MarkNewBadgeSuppressed(hidForBadge);
     }
 
     private void RefreshChromeCollapsedVisuals(bool headerOnlyCollapsed)
@@ -2326,6 +2449,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             _dimmerImage.raycastTarget = false;
         }
 
+        _whitelistStagedModalReleased = false;
         _activeDefinition = null;
 
         if (clearMovementLock)
@@ -2497,7 +2621,11 @@ public sealed class HelperGameplayController : MonoBehaviour
         RefreshHelperBodyScrollLayout(scrollToTop: true);
     }
 
-    private void TryDismiss(HelperDismissMode modeReason, string interactWhitelistIdMarker = null)
+    private void TryDismiss(
+        HelperDismissMode modeReason,
+        string interactWhitelistIdMarker = null,
+        Graphic whitelistUiGlowSource = null,
+        Collider2D whitelistWorldWinnerCollider = null)
     {
         if (_activeDefinition == null)
             return;
@@ -2546,6 +2674,13 @@ public sealed class HelperGameplayController : MonoBehaviour
              modeReason == HelperDismissMode.AnyPlayerActionDismiss) &&
             ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
         {
+            if (modeReason == HelperDismissMode.InteractWhitelistDismiss &&
+                TryProgressStagedWhitelistInteractDismiss(
+                    interactWhitelistIdMarker,
+                    whitelistUiGlowSource,
+                    whitelistWorldWinnerCollider))
+                return;
+
             CompleteScriptedDismissLeaveExpanded();
             return;
         }
@@ -2561,6 +2696,8 @@ public sealed class HelperGameplayController : MonoBehaviour
     {
         if (_activeDefinition == null)
             return;
+
+        _whitelistStagedModalReleased = false;
 
         HelperProgressStore.MarkDismissed(_activeDefinition.helperId);
 
@@ -3056,7 +3193,12 @@ public sealed class HelperGameplayController : MonoBehaviour
     /// Hides the flashing &quot;! new&quot; badge when the player clicks the helper panel (chrome, title, body, etc.)
     /// or activates a UI id that matches the active helper whitelist (see <see cref="NotifyWhitelistUiInteract"/>).
     /// </summary>
-    public void DismissHelperNewBadgeFromPanelPointer() => HideHelperNewBadge();
+    public void DismissHelperNewBadgeFromPanelPointer()
+    {
+        if (_activeDefinition != null && !string.IsNullOrWhiteSpace(_activeDefinition.helperId))
+            HelperProgressStore.MarkNewBadgeSuppressed(_activeDefinition.helperId.Trim());
+        HideHelperNewBadge();
+    }
 
     private void ShowHelperNewBadge()
     {
@@ -3113,33 +3255,37 @@ public sealed class HelperGameplayController : MonoBehaviour
             }
 
             ApplyHelperNewBadgeLayout(_helperNewBadgeRoot);
-            return;
+        }
+        else
+        {
+            GameObject badgeGo = new GameObject(HelperNewBadgeChildName, typeof(RectTransform));
+            badgeGo.transform.SetParent(_helperPanelRt, false);
+            RectTransform brt = badgeGo.GetComponent<RectTransform>();
+            brt.anchorMin = new Vector2(0f, 1f);
+            brt.anchorMax = new Vector2(0f, 1f);
+            brt.pivot = new Vector2(0f, 1f);
+
+            CanvasGroup cg = badgeGo.AddComponent<CanvasGroup>();
+            cg.blocksRaycasts = false;
+            cg.interactable = false;
+            _helperNewBadgeCanvasGroup = cg;
+
+            TMP_Text tmp = badgeGo.AddComponent<TextMeshProUGUI>();
+            tmp.text = "! new";
+            tmp.fontStyle = FontStyles.Bold;
+            tmp.color = new Color(1f, 0.92f, 0.18f, 1f);
+            tmp.alignment = TextAlignmentOptions.Left;
+            tmp.raycastTarget = false;
+            tmp.textWrappingMode = TextWrappingModes.NoWrap;
+            tmp.overflowMode = TextOverflowModes.Overflow;
+
+            _helperNewBadgeRoot = badgeGo;
+            badgeGo.transform.SetAsLastSibling();
+            ApplyHelperNewBadgeLayout(_helperNewBadgeRoot);
         }
 
-        GameObject badgeGo = new GameObject(HelperNewBadgeChildName, typeof(RectTransform));
-        badgeGo.transform.SetParent(_helperPanelRt, false);
-        RectTransform brt = badgeGo.GetComponent<RectTransform>();
-        brt.anchorMin = new Vector2(0f, 1f);
-        brt.anchorMax = new Vector2(0f, 1f);
-        brt.pivot = new Vector2(0f, 1f);
-
-        CanvasGroup cg = badgeGo.AddComponent<CanvasGroup>();
-        cg.blocksRaycasts = false;
-        cg.interactable = false;
-        _helperNewBadgeCanvasGroup = cg;
-
-        TMP_Text tmp = badgeGo.AddComponent<TextMeshProUGUI>();
-        tmp.text = "! new";
-        tmp.fontStyle = FontStyles.Bold;
-        tmp.color = new Color(1f, 0.92f, 0.18f, 1f);
-        tmp.alignment = TextAlignmentOptions.Left;
-        tmp.raycastTarget = false;
-        tmp.textWrappingMode = TextWrappingModes.NoWrap;
-        tmp.overflowMode = TextOverflowModes.Overflow;
-
-        _helperNewBadgeRoot = badgeGo;
-        badgeGo.transform.SetAsLastSibling();
-        ApplyHelperNewBadgeLayout(_helperNewBadgeRoot);
+        // Default hidden until <see cref="ShowHelperNewBadge"/>; avoids "! new" flashing after respawn when UI is rebuilt.
+        HideHelperNewBadge();
     }
 
     private static void ApplyHelperNewBadgeLayout(GameObject badgeRoot)

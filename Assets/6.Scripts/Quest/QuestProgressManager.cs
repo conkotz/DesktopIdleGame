@@ -574,6 +574,67 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         return true;
     }
 
+    /// <summary>
+    /// Same gating as the green <c>Complete Quest</c> button in <see cref="QuestPageUI"/> (includes inventory space for item rewards on non-gather quests).
+    /// </summary>
+    public bool IsQuestReadyToClaimInJournal(QuestDefinition q)
+    {
+        if (!CanClaimReward(q))
+            return false;
+
+        if (q.objectiveKind != QuestObjectiveKind.GatherItem &&
+            HasItemRewardsToGrant(q) &&
+            !CanReceiveAllItemRewards(q))
+            return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Quest is ready to claim via <see cref="TryClaimQuestReward"/> and belongs to this obtain-location (when <paramref name="giverLocationId"/> is set).
+    /// </summary>
+    public bool IsQuestReadyToClaimAtGiverLocation(QuestDefinition q, string giverLocationId)
+    {
+        if (!IsQuestReadyToClaimInJournal(q))
+            return false;
+        if (!RequiresQuestGiver(q))
+            return false;
+        if (string.IsNullOrWhiteSpace(giverLocationId))
+            return true;
+        return string.Equals(q.obtainLocationId.Trim(), giverLocationId.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Fills <paramref name="into"/> with accepted quests from this obtain-location that match the journal Complete Quest button (sorted like pickup offers).
+    /// </summary>
+    public void CollectClaimableQuestsAtLocation(string giverLocationId, List<QuestDefinition> into)
+    {
+        if (into == null)
+            return;
+        into.Clear();
+
+        if (string.IsNullOrWhiteSpace(giverLocationId))
+            return;
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null)
+            return;
+
+        string location = giverLocationId.Trim();
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition quest = all[i];
+            if (!quest || string.IsNullOrWhiteSpace(quest.obtainLocationId))
+                continue;
+            if (!IsQuestReadyToClaimAtGiverLocation(quest, location))
+                continue;
+            into.Add(quest);
+        }
+
+        into.Sort(CompareQuestGiverOfferOrder);
+    }
+
     public bool AreSkillRequirementsSatisfied(QuestDefinition q)
     {
         if (q == null || q.requiredSkillLevels == null || q.requiredSkillLevels.Count == 0)

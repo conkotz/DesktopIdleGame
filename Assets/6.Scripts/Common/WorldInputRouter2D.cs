@@ -95,7 +95,7 @@ public class WorldInputRouter2D : MonoBehaviour
                 return;
 
             RouteWorldClick(winnerCol);
-            HelperGameplayController.NotifyWhitelistWorldRouteHandled();
+            HelperGameplayController.NotifyWhitelistWorldRouteHandled(winnerCol);
             return;
         }
 
@@ -104,7 +104,7 @@ public class WorldInputRouter2D : MonoBehaviour
             RouteWorldClick(winnerCol);
 
             if (winnerCol != null && HelperGameplayController.IsWhitelistedWorldPick(winnerCol))
-                HelperGameplayController.NotifyWhitelistWorldRouteHandled();
+                HelperGameplayController.NotifyWhitelistWorldRouteHandled(winnerCol);
 
             return;
         }
@@ -148,6 +148,10 @@ public class WorldInputRouter2D : MonoBehaviour
             npc.Interact();
             return;
         }
+
+        QuestGiver questGiverOnly = winnerCol.GetComponentInParent<QuestGiver>();
+        if (questGiverOnly != null && questGiverOnly.TryClaimFirstReadyQuestReward())
+            return;
 
         var storage = winnerCol.GetComponentInParent<StorageClick>();
         if (storage != null)

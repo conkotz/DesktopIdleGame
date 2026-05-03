@@ -47,7 +47,7 @@ public class QuestPageUI : MonoBehaviour
     [SerializeField] private TMP_Text showCompletedButtonLabel;
     [FormerlySerializedAs("showUnavailableQuests")]
     [Tooltip("When on, lists quests you have not yet picked up from a quest source (NPC, notice board, etc.). When off, only quests you already accepted—or one-time completions—appear.")]
-    [SerializeField] private bool showNotObtainedQuests = false;
+    [SerializeField] private bool showNotObtainedQuests = true;
     [SerializeField] private bool showCompletedQuests = true;
 
     [Header("Right — Details (optional; created at runtime if missing)")]

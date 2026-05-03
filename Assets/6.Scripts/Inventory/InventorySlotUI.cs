@@ -3,6 +3,7 @@
 // - Double click equips:
 //     * MainHand items -> try toolbelt first (no duplicates), else main hand
 //     * OffHand items -> off hand
+//     * Food / potion -> matching action bar slot (replaces prior assignment)
 // - Drag inventory -> equipment works (and won't drop to world while over UI)
 // - Drag equipment -> inventory works via EquipmentSlotUI.TryConsumeEquipDrag
 // - Still supports merchant ctrl-sell logic (kept from your version)
@@ -474,6 +475,13 @@ public class InventorySlotUI : MonoBehaviour,
                 _inventory.Add(prev, 1, null, notifyItemGainPopup: false);
 
             return;
+        }
+
+        if ((def.IsFood || def.IsPotion) && slot.amount > 0)
+        {
+            ActionBarUI actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+            if (actionBar != null && actionBar.TryAssignConsumableFromItemDefinition(def))
+                return;
         }
     }
 

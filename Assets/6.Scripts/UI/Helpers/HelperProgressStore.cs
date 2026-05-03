@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>/// Tracks which helpers were dismissed for the current save (<see cref="SaveData.dismissedHelperIds"/>).
-/// New Game creates an empty save list so tutorials show again on that slot.
+/// <summary>
+/// Tracks which helpers were dismissed for the current save (<see cref="SaveData.dismissedHelperIds"/>)
+/// and which helper ids should never show the flashing &quot;! new&quot; badge again (<see cref="SaveData.helperNewBadgeSuppressedHelperIds"/>).
+/// New Game creates empty lists so tutorials show again on that slot.
 /// </summary>
 public static class HelperProgressStore
 {
@@ -11,6 +13,8 @@ public static class HelperProgressStore
     private static readonly HashSet<string> RegisteredIds = new();
 
     private static readonly HashSet<string> DismissedThisSave = new();
+
+    private static readonly HashSet<string> NewBadgeSuppressedThisSave = new();
 
     /// <summary>True once <see cref="ApplyFromSaveData"/> rebuilt state from SaveManager.</summary>
     public static bool IsHydratedFromSave { get; private set; }
@@ -51,6 +55,7 @@ public static class HelperProgressStore
     public static void ClearDismissedForHelpToggleOn()
     {
         DismissedThisSave.Clear();
+        NewBadgeSuppressedThisSave.Clear();
         foreach (string id in RegisteredIds)
             PlayerPrefs.DeleteKey(LegacyKeyPrefix + id);
 
@@ -62,6 +67,26 @@ public static class HelperProgressStore
     internal static void ResetHydrationForNewSession()
     {
         IsHydratedFromSave = false;
+    }
+
+    public static bool WasNewBadgeSuppressed(string helperId)
+    {
+        if (string.IsNullOrWhiteSpace(helperId))
+            return false;
+        return NewBadgeSuppressedThisSave.Contains(helperId.Trim());
+    }
+
+    public static void MarkNewBadgeSuppressed(string helperId)
+    {
+        if (string.IsNullOrWhiteSpace(helperId))
+            return;
+
+        string id = helperId.Trim();
+        if (!NewBadgeSuppressedThisSave.Add(id))
+            return;
+
+        SaveManager.Instance?.Save();
+        PlayerPrefs.Save();
     }
 
     internal static void ApplyFromSaveData(SaveData data)
@@ -79,6 +104,23 @@ public static class HelperProgressStore
                 DismissedThisSave.Add(row.Trim());
             }
         }
+
+        NewBadgeSuppressedThisSave.Clear();
+        List<string> badgeList = data?.helperNewBadgeSuppressedHelperIds;
+        if (badgeList != null)
+        {
+            for (int i = 0; i < badgeList.Count; i++)
+            {
+                string row = badgeList[i];
+                if (string.IsNullOrWhiteSpace(row))
+                    continue;
+                NewBadgeSuppressedThisSave.Add(row.Trim());
+            }
+        }
+
+        // Older saves only had dismissedHelperIds: treat those as "already saw ! new" so respawn/loads stay quiet.
+        foreach (string id in DismissedThisSave)
+            NewBadgeSuppressedThisSave.Add(id);
 
         IsHydratedFromSave = true;
     }
@@ -99,6 +141,24 @@ public static class HelperProgressStore
 
         foreach (string id in sorted)
             data.dismissedHelperIds.Add(id);
+    }
+
+    internal static void WriteNewBadgeSuppressedInto(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        data.helperNewBadgeSuppressedHelperIds ??= new List<string>();
+        data.helperNewBadgeSuppressedHelperIds.Clear();
+
+        if (NewBadgeSuppressedThisSave.Count == 0)
+            return;
+
+        List<string> sorted = new(NewBadgeSuppressedThisSave);
+        sorted.Sort(string.CompareOrdinal);
+
+        foreach (string id in sorted)
+            data.helperNewBadgeSuppressedHelperIds.Add(id);
     }
 
     /// <summary>Yields until SaveManager hydrated helper progress (normally same frame).</summary>

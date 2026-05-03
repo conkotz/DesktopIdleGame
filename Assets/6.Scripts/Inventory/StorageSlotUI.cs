@@ -210,8 +210,17 @@ public class StorageSlotUI : MonoBehaviour,
         var slot = _storage.GetSlot(_slotIndex);
         if (slot.IsEmpty) return;
 
-        _storage.TryWithdrawAllToInventory(_inventory, _slotIndex);
+        ItemDefinition defForBar = _def;
+        bool assignConsumableAfter = defForBar != null && (defForBar.IsFood || defForBar.IsPotion);
+
+        int moved = _storage.TryWithdrawAllToInventory(_inventory, _slotIndex);
         _tooltip?.Hide();
+
+        if (moved > 0 && assignConsumableAfter && defForBar != null)
+        {
+            ActionBarUI actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+            actionBar?.TryAssignConsumableFromItemDefinition(defForBar);
+        }
     }
 
     public void OnPointerEnter(PointerEventData eventData)

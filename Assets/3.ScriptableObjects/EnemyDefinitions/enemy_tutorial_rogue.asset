@@ -18,7 +18,7 @@ MonoBehaviour:
   icon: {fileID: 0}
   prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
   cannotRespawn: 0
-  maxHealth: 30
+  maxHealth: 25
   maxEnergy: 0
   maxMana: 0
   armor: 0
@@ -27,7 +27,7 @@ MonoBehaviour:
   physBlockChance: 0
   flatGuard: 0
   maxGuardPercent: 0
-  minPhysicalDamage: 2
+  minPhysicalDamage: 1
   maxPhysicalDamage: 4
   minMagicDamage: 0
   maxMagicDamage: 0

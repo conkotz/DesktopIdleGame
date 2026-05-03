@@ -40,6 +40,42 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>
+    /// Puts food on the Food action bar slot or a potion on the Potion slot, replacing any item already there.
+    /// Does not remove items from inventory (same as drag-assign).
+    /// </summary>
+    public bool TryAssignConsumableFromItemDefinition(ItemDefinition def)
+    {
+        if (def == null || (!def.IsFood && !def.IsPotion))
+            return false;
+
+        ResolveCoreRefs();
+
+        ActionBarSlotType wantType = def.IsFood ? ActionBarSlotType.Food : ActionBarSlotType.Potion;
+        ActionBarSlotUI target = null;
+        foreach (ActionBarSlotUI slot in GetSlots())
+        {
+            if (slot != null && slot.SlotType == wantType)
+            {
+                target = slot;
+                break;
+            }
+        }
+
+        if (target == null)
+            return false;
+
+        ActionBarAssignment assignment = ActionBarAssignment.CreateItem(def);
+        if (assignment == null || !assignment.IsAssigned)
+            return false;
+
+        if (!target.CanAccept(assignment, def))
+            return false;
+
+        target.Assign(assignment);
+        return true;
+    }
+
     /// <summary>Inspector or runtime default — same DB used to resolve saved bar slots and tooltips.</summary>
     public AbilityDatabase GetAbilityDatabaseOrDefault()
     {

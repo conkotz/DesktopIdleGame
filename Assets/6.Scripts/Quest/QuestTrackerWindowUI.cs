@@ -16,8 +16,6 @@ public class QuestTrackerWindowUI : MonoBehaviour
     private const string RowNameTextChild = "QuestTrackerListName";
     private const string RowProgressTextChild = "QuestTrackerProgress";
     private static readonly Color TrackerDefaultTextColor = new Color(0.16f, 0.13f, 0.1f, 1f);
-    private static readonly Color TrackerDefaultRowColor = new Color(1f, 1f, 1f, 1f);
-    private static readonly Color TrackerObjectiveCompleteRowColor = new Color(0.82f, 0.96f, 0.82f, 1f);
     private static bool s_hasRememberedWindowActiveState;
     private static bool s_rememberedWindowActive = true;
     private static bool s_hooksRegistered;
@@ -26,6 +24,13 @@ public class QuestTrackerWindowUI : MonoBehaviour
     [SerializeField] private TMP_Text trackerTitleText;
     [SerializeField] private QuestDatabase questDatabase;
     [SerializeField] private GameObject questTrackerRowPrefab;
+
+    [Header("Row background (optional tint)")]
+    [Tooltip(
+        "Applied only while the quest objective is complete (ready to turn in). " +
+        "Leave rows at the prefab Image color for in-progress quests.")]
+    [SerializeField]
+    private Color trackerObjectiveCompleteRowColor = new Color(0.82f, 0.96f, 0.82f, 1f);
 
     private CanvasGroup _canvasGroup;
     private QuestProgressManager _questProgress;
@@ -228,8 +233,8 @@ public class QuestTrackerWindowUI : MonoBehaviour
         TMP_Text nameText = row.transform.Find(RowNameTextChild)?.GetComponent<TMP_Text>();
         TMP_Text progressDisplayText = row.transform.Find(RowProgressTextChild)?.GetComponent<TMP_Text>();
         Image rowBg = row.GetComponent<Image>();
-        if (rowBg != null)
-            rowBg.color = objectiveComplete ? TrackerObjectiveCompleteRowColor : TrackerDefaultRowColor;
+        if (rowBg != null && objectiveComplete)
+            rowBg.color = trackerObjectiveCompleteRowColor;
         if (nameText)
         {
             nameText.text = questName;

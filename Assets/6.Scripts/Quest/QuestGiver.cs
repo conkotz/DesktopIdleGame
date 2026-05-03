@@ -18,8 +18,8 @@ public class QuestGiver : MonoBehaviour
     [Tooltip("Optional extra QuestDefinition.questIds offered by this same object.")]
     [SerializeField] private List<string> additionalQuestIds = new();
 
-    [Header("Available quest marker")]
-    [Tooltip("Optional prefab to show while a quest is available. If empty, a yellow 3D '!' is created.")]
+    [Header("Quest pickup / turn-in marker")]
+    [Tooltip("Optional prefab while a quest is available (!) or ready to turn in here (?). If empty, a yellow 3D TextMesh is created.")]
     [SerializeField] private GameObject exclamationMarkPrefab;
     [Tooltip("World offset from the top-center of this object's Collider2D bounds.")]
     [SerializeField] private Vector3 exclamationMarkLocalOffset = new(0f, 0.75f, 0f);
@@ -29,15 +29,20 @@ public class QuestGiver : MonoBehaviour
     private GameObject _exclamationMarkInstance;
     private QuestProgressManager _manager;
     private readonly List<QuestDefinition> _scratchLocationQuests = new();
+    private readonly List<QuestDefinition> _scratchClaimableQuests = new();
+    private Inventory _subscribedInventory;
+    private PlayerStorage _subscribedStorage;
 
     private void OnEnable()
     {
         TryBindManager();
+        TrySubscribeInventoryAndStorage();
         RefreshExclamationMark();
     }
 
     private void OnDisable()
     {
+        UnsubscribeInventoryAndStorage();
         if (_manager != null)
         {
             _manager.ProgressChanged -= RefreshExclamationMark;
@@ -52,6 +57,9 @@ public class QuestGiver : MonoBehaviour
             TryBindManager();
             RefreshExclamationMark();
         }
+
+        if (TrySubscribeInventoryAndStorage())
+            RefreshExclamationMark();
     }
 
     private void TryBindManager()
@@ -68,6 +76,58 @@ public class QuestGiver : MonoBehaviour
         _manager = next;
         if (_manager != null)
             _manager.ProgressChanged += RefreshExclamationMark;
+    }
+
+    /// <returns>True when the subscribed inventory or storage instance changed (same pattern as <see cref="QuestPageUI"/>).</returns>
+    private bool TrySubscribeInventoryAndStorage()
+    {
+        bool changed = false;
+
+        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (inv != _subscribedInventory)
+        {
+            if (_subscribedInventory)
+                _subscribedInventory.OnInventoryChanged -= OnInventoryOrStorageChanged;
+            _subscribedInventory = inv;
+            if (_subscribedInventory)
+                _subscribedInventory.OnInventoryChanged += OnInventoryOrStorageChanged;
+            changed = true;
+        }
+
+        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (st != _subscribedStorage)
+        {
+            if (_subscribedStorage)
+                _subscribedStorage.OnStorageChanged -= OnInventoryOrStorageChanged;
+            _subscribedStorage = st;
+            if (_subscribedStorage)
+                _subscribedStorage.OnStorageChanged += OnInventoryOrStorageChanged;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private void UnsubscribeInventoryAndStorage()
+    {
+        if (_subscribedInventory != null)
+        {
+            _subscribedInventory.OnInventoryChanged -= OnInventoryOrStorageChanged;
+            _subscribedInventory = null;
+        }
+
+        if (_subscribedStorage != null)
+        {
+            _subscribedStorage.OnStorageChanged -= OnInventoryOrStorageChanged;
+            _subscribedStorage = null;
+        }
+    }
+
+    private void OnInventoryOrStorageChanged()
+    {
+        if (!isActiveAndEnabled)
+            return;
+        RefreshExclamationMark();
     }
 
     public QuestDefinition GetFirstAvailableQuest()
@@ -91,6 +151,60 @@ public class QuestGiver : MonoBehaviour
         }
 
         return _manager.FindFirstAcceptableQuestAtLocation(locationId);
+    }
+
+    /// <summary>
+    /// First quest from this giver that matches the journal <c>Complete Quest</c> button (ready to claim at this obtain-location).
+    /// When both a claimable and an available quest exist, prefer this for markers and <see cref="TryClaimFirstReadyQuestReward"/>.
+    /// </summary>
+    public QuestDefinition GetFirstClaimableQuestAtLocation()
+    {
+        TryBindManager();
+        if (_manager == null)
+            return null;
+
+        QuestDefinition q = FindClaimableQuestById(questId);
+        if (q)
+            return q;
+
+        if (additionalQuestIds != null)
+        {
+            for (int i = 0; i < additionalQuestIds.Count; i++)
+            {
+                q = FindClaimableQuestById(additionalQuestIds[i]);
+                if (q)
+                    return q;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(locationId))
+        {
+            _manager.CollectClaimableQuestsAtLocation(locationId, _scratchClaimableQuests);
+            if (_scratchClaimableQuests.Count > 0)
+                return _scratchClaimableQuests[0];
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Claims the first claimable quest at this giver (same as journal Complete Quest). Returns false if nothing to claim or claim blocked.
+    /// </summary>
+    public bool TryClaimFirstReadyQuestReward()
+    {
+        TryBindManager();
+        if (_manager == null)
+            return false;
+
+        QuestDefinition q = GetFirstClaimableQuestAtLocation();
+        if (!q)
+            return false;
+
+        if (!_manager.TryClaimQuestReward(q))
+            return false;
+
+        RefreshExclamationMark();
+        return true;
     }
 
     /// <summary>
@@ -154,14 +268,45 @@ public class QuestGiver : MonoBehaviour
         return quest;
     }
 
+    private QuestDefinition FindClaimableQuestById(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id) || _manager == null)
+            return null;
+
+        QuestDefinition quest = _manager.GetQuestDefinition(id.Trim());
+        if (!quest || !_manager.IsQuestReadyToClaimAtGiverLocation(quest, locationId))
+            return null;
+
+        return quest;
+    }
+
     private void RefreshExclamationMark()
     {
-        bool show = GetFirstAvailableQuest() != null;
+        bool claimable = GetFirstClaimableQuestAtLocation() != null;
+        bool available = GetFirstAvailableQuest() != null;
+        bool show = claimable || available;
+
         EnsureExclamationMarkInstance();
         if (_exclamationMarkInstance)
         {
             PositionExclamationMark();
+            ApplyMarkerGlyph(claimable);
             _exclamationMarkInstance.SetActive(show);
+        }
+    }
+
+    private void ApplyMarkerGlyph(bool readyToClaim)
+    {
+        if (!_exclamationMarkInstance)
+            return;
+
+        TextMesh tm = _exclamationMarkInstance.GetComponent<TextMesh>();
+        if (!tm)
+            tm = _exclamationMarkInstance.GetComponentInChildren<TextMesh>(true);
+        if (tm)
+        {
+            tm.text = readyToClaim ? "?" : "!";
+            tm.color = exclamationMarkColor;
         }
     }
 

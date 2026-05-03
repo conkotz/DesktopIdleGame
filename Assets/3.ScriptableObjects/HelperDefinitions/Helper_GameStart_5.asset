@@ -32,9 +32,8 @@ MonoBehaviour:
   priority: 5
   showCloseButton: 1
   darkenScreenAndLockGameplay: 1
-  dismissModes: 12
+  dismissModes: 8
   whitelistInteractEntries: []
-  whitelistedInteractionIds:
-  - NPC_Tutorial_1
+  whitelistedInteractionIds: []
   highlightWhitelistTargetsDuringHelper: 0
   highlightInventorySlotsForItem: {fileID: 0}
