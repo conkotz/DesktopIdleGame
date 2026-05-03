@@ -329,6 +329,11 @@ public class EnemyDefinition : ScriptableObject
     [Tooltip("Each row rolls independently when the enemy dies. Empty = no item drops from data.")]
     public List<EnemyLootEntry> loot = new();
 
+    [Tooltip(
+        "When enabled, each loot-table roll (base and elite lists each count separately) still rolls every row's Drop Chance, " +
+        "but at most one item is dropped from that table: if several rows succeed, one of those successes is chosen at random.")]
+    public bool lootAtMostOneDropPerTable = false;
+
     [Header("Elite — item loot")]
     [Tooltip("See enum tooltips. Use Elite Loot Table Only to replace base drops; otherwise scale chances or add extra rows.")]
     public EnemyEliteLootHandling eliteLootHandling = EnemyEliteLootHandling.ScaleBaseLootChances;

@@ -465,9 +465,11 @@ MonoBehaviour:
   typeText: {fileID: 1519307949908627189}
   stateText: {fileID: 5164290417990167664}
   selectedHighlight: {fileID: 114485073117082883}
+  rowCanvasGroup: {fileID: 0}
   colourIcon: {fileID: 7260341489567714084}
   rowBackgroundImage: {fileID: 4797788200141887069}
   rowBackgroundColor: {r: 0.29, g: 0.32, b: 0.37, a: 1}
+  unavailableAlpha: 0.45
   townColor: {r: 0.4188679, g: 0.2924753, b: 0.075080045, a: 1}
   combatColor: {r: 0.5999999, g: 0.1502931, b: 0.0033961767, a: 1}
   gatheringColor: {r: 0.6313726, g: 0.74509805, b: 0.65882355, a: 1}

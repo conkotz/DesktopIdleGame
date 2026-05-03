@@ -88,6 +88,10 @@ public class NPCInteractionSettings : MonoBehaviour
     [Header("Quest integration")]
     [SerializeField] private QuestGiver questGiver;
 
+    [Header("Debug")]
+    [Tooltip("Logs one line when a click would open no plain dialogue (pending / one-way / chain index).")]
+    [SerializeField] private bool debugLogPlainDialogueResolution;
+
     private NPCDialogueBoxUI _activeDialogue;
     private bool _hasOpenedOnFirstSighting;
     private string _lastAutoPlainDialogueSignature = "";
@@ -174,8 +178,8 @@ public class NPCInteractionSettings : MonoBehaviour
     }
 
     /// <summary>
-    /// After any conditional row has been shown, never evaluate earlier rows again. Later rows can still win;
-    /// <see cref="Interact"/> may fall back to base dialogue when no row matches.
+    /// After any conditional row has been shown, never evaluate earlier rows again. Later rows can still win.
+    /// When one-way base is consumed and no row matches, dialogue stays empty (no base fallback).
     /// </summary>
     private int GetHighestOneWayConditionalPresented()
     {
@@ -188,7 +192,7 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!_sessionOneWayConditionalConsumed)
             return -1;
 
-        return _sessionHighestOneWayConditionalPresented < 0 ? 0 : _sessionHighestOneWayConditionalPresented;
+        return _sessionHighestOneWayConditionalPresented;
     }
 
     private void RecordOneWayConditionalPresented(int conditionalIndex)
@@ -205,18 +209,12 @@ public class NPCInteractionSettings : MonoBehaviour
                 Mathf.Max(_sessionHighestOneWayConditionalPresented, conditionalIndex);
     }
 
-    private void NotifyOneWayConditionalPresented(NpcConditionalDialogueEntry winning)
+    /// <param name="winningConditionalIndex">Index in <see cref="additionalConditionalDialogues"/> when <paramref name="winning"/> came from that loop; otherwise -1.</param>
+    private void NotifyOneWayConditionalPresented(NpcConditionalDialogueEntry winning, int winningConditionalIndex)
     {
-        if (winning == null || additionalConditionalDialogues == null)
+        if (winning == null || winningConditionalIndex < 0)
             return;
-
-        for (int i = 0; i < additionalConditionalDialogues.Count; i++)
-        {
-            if (!ReferenceEquals(additionalConditionalDialogues[i], winning))
-                continue;
-            RecordOneWayConditionalPresented(i);
-            return;
-        }
+        RecordOneWayConditionalPresented(winningConditionalIndex);
     }
 
     /// <summary>First conditional index to evaluate (skips rows already superseded by the one-way chain).</summary>
@@ -227,8 +225,23 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!oneWayDialogueQueue || !IsOneWayBaseDialogueConsumed())
             return 0;
 
+        // While death/respawn dialogue is still pending, the After Death row must stay in the evaluation window even
+        // if chain progress was written by an older build or the box was dismissed before pending was cleared correctly.
+        if (NpcPostDeathRespawnDialogueStore.IsPending && HasAfterDeathConditionalEntry())
+            return 0;
+
         int highest = GetHighestOneWayConditionalPresented();
-        return Mathf.Min(highest + 1, additionalConditionalDialogues.Count);
+        if (highest < 0)
+            return 0;
+
+        int count = additionalConditionalDialogues.Count;
+        // Next row after the furthest-shown index — but when that index is already the last row (highest == count - 1),
+        // highest + 1 == count and the for-loop never runs, stranding e.g. "Accept → teleport" after closing the box.
+        int start = highest + 1;
+        if (start >= count)
+            start = Mathf.Max(0, count - 1);
+
+        return start;
     }
 
     private bool NeedsQuestProgressSubscription() =>
@@ -271,14 +284,23 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!questGiver)
             questGiver = GetComponent<QuestGiver>();
 
-        if (questGiver != null && questGiver.TryClaimFirstReadyQuestReward())
+        // Ready quest reward would return here with no visible dialogue in some setups — never steal the click when
+        // post-death conditional dialogue still needs to show.
+        bool deferRewardClaimForDeathDialogue =
+            NpcPostDeathRespawnDialogueStore.IsPending && HasAfterDeathConditionalEntry();
+        if (!deferRewardClaimForDeathDialogue &&
+            questGiver != null &&
+            questGiver.TryClaimFirstReadyQuestReward())
             return;
 
         List<QuestDefinition> quests =
             questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>();
 
+        NPCDialogueBoxUI.TryDismissStaleMultiOfferSpreadForZeroQuests(transform, quests.Count);
+
         TryGetResolvedPlainDialogue(
             out string interactResolved,
+            out _,
             out _,
             out _,
             out _,
@@ -286,6 +308,7 @@ public class NPCInteractionSettings : MonoBehaviour
         EnsurePlainDialogueNeverEmpty(ref interactResolved);
         if (quests.Count == 0 && string.IsNullOrWhiteSpace(interactResolved))
         {
+            MaybeLogPlainDialogueTapDiagnostics(quests.Count, "empty plain resolve (early exit)");
             if (_activeDialogue)
                 _activeDialogue.Hide();
             return;
@@ -314,7 +337,10 @@ public class NPCInteractionSettings : MonoBehaviour
         }
 
         if (NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
+        {
+            MaybeLogPlainDialogueTapDiagnostics(quests.Count, "blocked: ActiveDialogueIsDescendantOf(this NPC)");
             return;
+        }
 
         NPCDialogueBoxUI box = GetOrCreateDialogueBox();
         if (!box)
@@ -338,14 +364,13 @@ public class NPCInteractionSettings : MonoBehaviour
             out bool showAccept,
             out Action onAccept,
             out NpcConditionalDialogueEntry winning,
+            out int winningConditionalIndex,
             allowBaseWhenOneWayHasNoMatchingConditional: true);
         EnsurePlainDialogueNeverEmpty(ref text);
-        float autoClose = showAccept ? 0f : nonQuestAutoCloseSeconds;
+        float autoClose = ResolvePlainAutoCloseSeconds(showAccept, winning);
         box.ShowAt(transform, transform, Vector3.zero, text, showAccept, onAccept, autoClose);
         RememberAutoPlainDialogueSignatureIfNeeded(text, showAccept);
-        NotifyPresentedDeathRespawnDialogueIfNeeded(winning);
-        MaybeMarkOneWayBaseDialogueConsumed(winning);
-        NotifyOneWayConditionalPresented(winning);
+        ApplyPlainDialoguePresentedSideEffects(box, winning, winningConditionalIndex);
     }
 
     private void ShowNormalDialogueOnly(bool replaceExistingThisNpcDialogue)
@@ -355,6 +380,7 @@ public class NPCInteractionSettings : MonoBehaviour
             out bool showAccept,
             out Action onAccept,
             out NpcConditionalDialogueEntry winning,
+            out int winningConditionalIndex,
             allowBaseWhenOneWayHasNoMatchingConditional: true);
         EnsurePlainDialogueNeverEmpty(ref text);
         if (string.IsNullOrWhiteSpace(text))
@@ -372,7 +398,7 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!box)
             return;
 
-        float autoClose = showAccept ? 0f : nonQuestAutoCloseSeconds;
+        float autoClose = ResolvePlainAutoCloseSeconds(showAccept, winning);
         box.ShowAt(
             transform,
             transform,
@@ -384,20 +410,49 @@ public class NPCInteractionSettings : MonoBehaviour
         if (openDialogueOnFirstSighting)
             _hasOpenedOnFirstSighting = true;
         RememberAutoPlainDialogueSignatureIfNeeded(text, showAccept);
-        NotifyPresentedDeathRespawnDialogueIfNeeded(winning);
+        ApplyPlainDialoguePresentedSideEffects(box, winning, winningConditionalIndex);
+    }
+
+    /// <summary>Auto-close delay for plain lines; after-death rows stay open until dismissed when post-death is pending.</summary>
+    private float ResolvePlainAutoCloseSeconds(bool showAccept, NpcConditionalDialogueEntry winning)
+    {
+        if (showAccept)
+            return 0f;
+        if (winning != null &&
+            winning.condition == NpcDialogueConditionKind.AfterDeathAndRespawn &&
+            NpcPostDeathRespawnDialogueStore.IsPending)
+            return 0f;
+        return nonQuestAutoCloseSeconds;
+    }
+
+    private void ApplyPlainDialoguePresentedSideEffects(
+        NPCDialogueBoxUI box,
+        NpcConditionalDialogueEntry winning,
+        int winningConditionalIndex)
+    {
+        box.SetPlainDialogueHideOnceCallback(null);
         MaybeMarkOneWayBaseDialogueConsumed(winning);
-        NotifyOneWayConditionalPresented(winning);
+
+        if (winning != null &&
+            winning.condition == NpcDialogueConditionKind.AfterDeathAndRespawn &&
+            NpcPostDeathRespawnDialogueStore.IsPending)
+        {
+            box.SetPlainDialogueHideOnceCallback(() =>
+            {
+                NpcPostDeathRespawnDialogueStore.ClearPendingAndSave();
+                NotifyOneWayConditionalPresented(winning, winningConditionalIndex);
+            });
+            return;
+        }
+
+        NotifyPresentedDeathRespawnDialogueIfNeeded(winning);
+        NotifyOneWayConditionalPresented(winning, winningConditionalIndex);
     }
 
     private void NotifyPresentedDeathRespawnDialogueIfNeeded(NpcConditionalDialogueEntry winning)
     {
         if (!NpcPostDeathRespawnDialogueStore.IsPending || winning == null)
             return;
-        if (winning.condition == NpcDialogueConditionKind.AfterDeathAndRespawn)
-        {
-            NpcPostDeathRespawnDialogueStore.ClearPendingAndSave();
-            return;
-        }
 
         if (winning.condition == NpcDialogueConditionKind.CompletedQuest && HasAfterDeathConditionalEntry())
             NpcPostDeathRespawnDialogueStore.ClearPendingAndSave();
@@ -415,6 +470,23 @@ public class NPCInteractionSettings : MonoBehaviour
         }
 
         return false;
+    }
+
+    private void MaybeLogPlainDialogueTapDiagnostics(int questOfferCount, string reason)
+    {
+        if (!debugLogPlainDialogueResolution)
+            return;
+
+        int hi = GetHighestOneWayConditionalPresented();
+        int minIdx = GetOneWayChainMinimumConditionalIndexForEvaluation();
+        Debug.Log(
+            $"[NPCInteraction '{name}' ({gameObject.name})] {reason}\n" +
+            $"  postDeathPending={NpcPostDeathRespawnDialogueStore.IsPending} deathNodeId='{NpcPostDeathRespawnDialogueStore.DeathOccurredOnMapNodeId}' " +
+            $"curMapId='{NpcPostDeathRespawnDialogueStore.ResolveCurrentGameplayMapNodeId()}'\n" +
+            $"  oneWay={oneWayDialogueQueue} baseConsumed={IsOneWayBaseDialogueConsumed()} chainHigh={hi} evalMin={minIdx} " +
+            $"saveId='{oneWayDialogueQueueSaveId}'\n" +
+            $"  questOffers={questOfferCount} hasAfterDeathRow={HasAfterDeathConditionalEntry()}",
+            this);
     }
 
     private void RememberAutoPlainDialogueSignatureIfNeeded(string text, bool showAccept)
@@ -466,7 +538,13 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!ShouldReactToQuestProgressWithConditionalDialogue())
             return;
 
-        TryGetResolvedPlainDialogue(out string text, out bool showAccept, out Action onAccept, out _);
+        TryGetResolvedPlainDialogue(
+            out string text,
+            out bool showAccept,
+            out Action onAccept,
+            out _,
+            out _,
+            allowBaseWhenOneWayHasNoMatchingConditional: false);
         if (string.IsNullOrWhiteSpace(text))
             return;
 
@@ -529,14 +607,16 @@ public class NPCInteractionSettings : MonoBehaviour
     }
 
     /// <param name="allowBaseWhenOneWayHasNoMatchingConditional">
-    /// When true (manual <see cref="Interact"/> only): if one-way mode has suppressed the base line but no conditional row
-    /// matches right now, fall back to the base Dialogue field so the box can still open. Auto dialogue paths pass false.
+    /// When true (manual <see cref="Interact"/> only): if non-one-way base was suppressed but no conditional matches,
+    /// fall back to the base Dialogue field. Ignored when <see cref="oneWayDialogueQueue"/> is on (base never returns).
     /// </param>
+    /// <param name="winningConditionalIndex">0-based index of <paramref name="winningEntry"/> in <see cref="additionalConditionalDialogues"/>; -1 if resolution used base dialogue or none.</param>
     private void TryGetResolvedPlainDialogue(
         out string text,
         out bool showAccept,
         out Action onAccept,
         out NpcConditionalDialogueEntry winningEntry,
+        out int winningConditionalIndex,
         bool allowBaseWhenOneWayHasNoMatchingConditional = false)
     {
         bool skipBase = IsOneWayBaseDialogueConsumed();
@@ -544,6 +624,7 @@ public class NPCInteractionSettings : MonoBehaviour
         showAccept = false;
         onAccept = null;
         winningEntry = null;
+        winningConditionalIndex = -1;
 
         QuestProgressManager mgr = QuestProgressManager.Instance ??
             FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
@@ -571,6 +652,7 @@ public class NPCInteractionSettings : MonoBehaviour
             showAccept = built != null;
             onAccept = built;
             winningEntry = e;
+            winningConditionalIndex = i;
         }
 
         ApplyOneWayManualInteractBaseFallback(
@@ -586,6 +668,9 @@ public class NPCInteractionSettings : MonoBehaviour
     {
         if (!allowBaseWhenOneWayHasNoMatchingConditional || !skipBase || !string.IsNullOrWhiteSpace(text))
             return;
+        // One-way mode after a conditional has been shown: never resurrect the base line here (matches inspector tooltip).
+        if (oneWayDialogueQueue)
+            return;
         if (string.IsNullOrWhiteSpace(dialogue))
             return;
         text = dialogue.Trim();
@@ -595,6 +680,8 @@ public class NPCInteractionSettings : MonoBehaviour
     private void EnsurePlainDialogueNeverEmpty(ref string text)
     {
         if (!string.IsNullOrWhiteSpace(text))
+            return;
+        if (oneWayDialogueQueue && IsOneWayBaseDialogueConsumed())
             return;
         if (string.IsNullOrWhiteSpace(dialogue))
             return;

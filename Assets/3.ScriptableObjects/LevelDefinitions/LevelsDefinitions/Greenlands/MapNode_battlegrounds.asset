@@ -33,7 +33,8 @@ MonoBehaviour:
   combatSkillGateMode: 0
   combatSingleSkill: 0
   combatRequiredLevel: 1
-  unlockRequirementNotes: 
+  unlockRequirementNotes: Be prepared to fight enemies. Should have food, potions
+    and combat gear.
   connectedNodeIds: []
   nextNodeIds: []
   biome: 0

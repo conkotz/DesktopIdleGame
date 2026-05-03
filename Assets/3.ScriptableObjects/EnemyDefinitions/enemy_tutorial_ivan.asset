@@ -18,6 +18,7 @@ MonoBehaviour:
   icon: {fileID: 0}
   prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
   cannotRespawn: 1
+  doesNotContributeToRecommendedCombatPower: 0
   maxHealth: 140
   maxEnergy: 0
   maxMana: 0
@@ -27,15 +28,15 @@ MonoBehaviour:
   physBlockChance: 0
   flatGuard: 0
   maxGuardPercent: 0
-  minPhysicalDamage: 12
-  maxPhysicalDamage: 25
+  minPhysicalDamage: 14
+  maxPhysicalDamage: 18
   minMagicDamage: 0
   maxMagicDamage: 0
   minCorruptionDamage: 0
   maxCorruptionDamage: 0
   attackSpeed: 0.3
   moveSpeed: 1.5
-  attackRange: 8
+  attackRange: 18
   critChance: 0
   critMultiplier: 1.5
   lifeRegenPerSecond: 0

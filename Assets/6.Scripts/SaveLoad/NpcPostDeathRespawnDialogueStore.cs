@@ -59,6 +59,8 @@ public static class NpcPostDeathRespawnDialogueStore
         _pending = true;
         _deathOccurredOnMapNodeId = string.IsNullOrWhiteSpace(diedOnMapNodeId) ? "" : diedOnMapNodeId.Trim();
         SaveManager.Instance?.Save();
+        // Full Save() returns early while save data is being applied; still persist these flags to disk.
+        SaveManager.Instance?.FlushNpcPostDeathDialogueToDisk();
     }
 
     /// <summary>After plain NPC dialogue that used the After Death And Respawn condition is shown.</summary>
@@ -70,5 +72,13 @@ public static class NpcPostDeathRespawnDialogueStore
         _pending = false;
         _deathOccurredOnMapNodeId = "";
         SaveManager.Instance?.Save();
+        SaveManager.Instance?.FlushNpcPostDeathDialogueToDisk();
+    }
+
+    /// <summary>Used when rehydration applied a stale save that cleared in-memory post-death state mid-respawn.</summary>
+    internal static void RestorePendingState(string deathNodeId)
+    {
+        _pending = true;
+        _deathOccurredOnMapNodeId = string.IsNullOrWhiteSpace(deathNodeId) ? "" : deathNodeId.Trim();
     }
 }

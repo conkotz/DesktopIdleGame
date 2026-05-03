@@ -30,6 +30,12 @@ public class NPCDialogueBoxUI : MonoBehaviour
     /// <summary>True while this box shows plain NPC lines (not a quest-offer card). Used to stack quest panels beside an open greeting.</summary>
     private bool _plainDialogueMode;
 
+    /// <summary>
+    /// When set, invoked once when plain dialogue is hidden (X, auto-close, replaced by another box, or plain host collapsed in quest spread).
+    /// Used so death/respawn NPC lines can persist <see cref="NpcPostDeathRespawnDialogueStore"/> until the player dismisses the box, not on first paint.
+    /// </summary>
+    private Action _plainHideOnceCallback;
+
     /// <summary>When true, <see cref="CloseAllMultiOfferBoxesTogether"/> removes quest clones but keeps this box open (plain host + quest row).</summary>
     private bool _pinnedPlainHostForQuestSpread;
 
@@ -961,7 +967,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         SetOfferModeMulti(false);
 
         if (_activeBox != null && _activeBox != this)
-            _activeBox.Hide();
+            _activeBox.Hide(suppressPlainDismissCallback: true);
         _activeBox = this;
 
         _stripAnchoredSpreadOffset = Vector2.zero;
@@ -1052,7 +1058,11 @@ public class NPCDialogueBoxUI : MonoBehaviour
         SortActiveMultiOfferBoxesLeftToRight();
     }
 
-    public void Hide()
+    /// <param name="suppressPlainDismissCallback">
+    /// When true, the plain-dialogue hide-once callback (e.g. post-death NPC save) is not invoked — use when this box
+    /// is hidden because another <see cref="NPCDialogueBoxUI"/> replaced <see cref="_activeBox"/>, not because the player dismissed it.
+    /// </param>
+    public void Hide(bool suppressPlainDismissCallback = false)
     {
         if (!BulkClosingMultiOfferGroup && ActiveMultiOfferBoxes.Contains(this))
         {
@@ -1071,19 +1081,19 @@ public class NPCDialogueBoxUI : MonoBehaviour
             CloseAllMultiOfferBoxesTogether();
 
             if (dismissPlainHostEntirely)
-                HideSolo();
+                HideSolo(invokePlainDismissCallback: !suppressPlainDismissCallback);
 
             return;
         }
 
-        HideSolo();
+        HideSolo(invokePlainDismissCallback: !suppressPlainDismissCallback);
     }
 
     private void CollapsePlainHostLeavingQuestOffers()
     {
         if (!ReferenceEquals(this, SpreadTemplate) || !_pinnedPlainHostForQuestSpread)
         {
-            HideSolo();
+            HideSolo(invokePlainDismissCallback: true);
             return;
         }
 
@@ -1095,6 +1105,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
         ActiveMultiOfferBoxes.Remove(this);
         _plainHostCollapsedLeavingQuestsOpen = true;
+        // Collapsing the plain host to show quest cards only is not a full dismiss for post-death / one-way callbacks.
+        _plainHideOnceCallback = null;
         gameObject.SetActive(false);
 
         float step = fixedSize.x + questOfferCardSpacing;
@@ -1110,7 +1122,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         s_deferredStripMultiOpening = true;
     }
 
-    private void HideSolo()
+    private void HideSolo(bool invokePlainDismissCallback = true)
     {
         ActiveMultiOfferBoxes.Remove(this);
 
@@ -1144,6 +1156,30 @@ public class NPCDialogueBoxUI : MonoBehaviour
         _plainHostCollapsedLeavingQuestsOpen = false;
 
         gameObject.SetActive(false);
+        if (invokePlainDismissCallback)
+            InvokeAndClearPlainHideOnceCallback();
+        else
+            _plainHideOnceCallback = null;
+    }
+
+    /// <summary>Registers a callback fired once when this plain dialogue instance is hidden; cleared on the next <see cref="ShowAt"/>.</summary>
+    public void SetPlainDialogueHideOnceCallback(Action callback) => _plainHideOnceCallback = callback;
+
+    private void InvokeAndClearPlainHideOnceCallback()
+    {
+        Action cb = _plainHideOnceCallback;
+        _plainHideOnceCallback = null;
+        cb?.Invoke();
+    }
+
+    private void OnDestroy()
+    {
+        _plainHideOnceCallback = null;
+        ActiveMultiOfferBoxes.Remove(this);
+        if (_activeBox == this)
+            _activeBox = null;
+        if (ReferenceEquals(SpreadTemplate, this))
+            SpreadTemplate = null;
     }
 
     /// <summary>
@@ -1176,6 +1212,45 @@ public class NPCDialogueBoxUI : MonoBehaviour
         });
     }
 
+    /// <summary>
+    /// When the quest giver reports no quests but a multi-offer spread is still registered for this NPC (stale session),
+    /// tear it down so <see cref="ActiveDialogueIsDescendantOf"/> does not block plain dialogue.
+    /// </summary>
+    public static bool TryDismissStaleMultiOfferSpreadForZeroQuests(Transform npcRoot, int availableQuestCount)
+    {
+        if (!npcRoot || availableQuestCount != 0)
+            return false;
+        if (ActiveMultiOfferBoxes.Count == 0)
+            return false;
+        if (!ActiveDialogueIsDescendantOf(npcRoot))
+            return false;
+
+        CloseAllMultiOfferBoxesTogether();
+        EndMultiOfferSpreadSession(suppressPlainDismissCallback: true);
+        return true;
+    }
+
+    /// <summary>
+    /// After the last quest in a spread is accepted, <see cref="CloseAllMultiOfferBoxesTogether"/> removes clones and unpins
+    /// the plain host but does not hide it — callers must invoke this so <see cref="ActiveDialogueIsDescendantOf"/> does not
+    /// block the next NPC click with an invisible/stale host.
+    /// </summary>
+    private static void EndMultiOfferSpreadSession(bool suppressPlainDismissCallback)
+    {
+        NPCDialogueBoxUI tpl = SpreadTemplate;
+        if (tpl)
+            tpl.Hide(suppressPlainDismissCallback);
+
+        SpreadTemplate = null;
+        SpreadParent = null;
+        SpreadAnchor = null;
+        SpreadBaseOffset = Vector3.zero;
+        SpreadRefreshQuests = null;
+        SpreadTryAcceptQuest = null;
+        SpreadAutoCloseSeconds = 0f;
+        s_deferredStripMultiOpening = false;
+    }
+
     private static void CloseAllMultiOfferBoxesTogether()
     {
         if (ActiveMultiOfferBoxes.Count == 0)
@@ -1204,7 +1279,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
                     b.gameObject.SetActive(true);
             }
             else
-                b.HideSolo();
+                b.HideSolo(invokePlainDismissCallback: false);
         }
 
         BulkClosingMultiOfferGroup = false;
@@ -1229,7 +1304,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
             CloseAllMultiOfferBoxesTogether();
             CompleteAllTypewriters();
             if (_activeBox != null && _activeBox != this)
-                _activeBox.Hide();
+                _activeBox.Hide(suppressPlainDismissCallback: true);
             _activeBox = this;
         }
         else
@@ -1395,11 +1470,11 @@ public class NPCDialogueBoxUI : MonoBehaviour
         CloseAllMultiOfferBoxesTogether();
 
         if (_activeBox != null && _activeBox != this)
-            _activeBox.Hide();
+            _activeBox.Hide(suppressPlainDismissCallback: true);
         _activeBox = null;
 
         if (gameObject.activeSelf)
-            HideSolo();
+            HideSolo(invokePlainDismissCallback: false);
 
         float spreadStepPx = fixedSize.x + questOfferCardSpacing;
 
@@ -1439,7 +1514,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
         CloseAllMultiOfferBoxesTogether();
 
         if (next == null || next.Count == 0)
+        {
+            EndMultiOfferSpreadSession(suppressPlainDismissCallback: true);
             return;
+        }
 
         if (SpreadTemplate != null && IsEligiblePlainHostForStackedQuestOffers(SpreadTemplate))
         {
@@ -2061,7 +2139,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
             Destroy(winClose);
 
         b.onClick.RemoveAllListeners();
-        b.onClick.AddListener(Hide);
+        b.onClick.AddListener(() => Hide());
     }
 
     private void WireCloseButton(Button closeButton)
@@ -2074,7 +2152,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
             Destroy(winClose);
 
         closeButton.onClick.RemoveAllListeners();
-        closeButton.onClick.AddListener(Hide);
+        closeButton.onClick.AddListener(() => Hide());
     }
 
     private TMP_Text CreateScrollLineTMP(string name, Transform parent, float fontSize, FontStyles style, bool bodyFlexible)

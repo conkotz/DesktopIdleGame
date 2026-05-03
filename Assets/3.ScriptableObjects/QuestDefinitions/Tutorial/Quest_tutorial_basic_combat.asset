@@ -22,6 +22,7 @@ MonoBehaviour:
   objectiveKind: 1
   targetCount: 1
   objectiveId: 
+  specialObjectiveListText: 
   rewardGold: 50
   rewardItem: {fileID: 11400000, guid: b3a17782af5716744a93c10e9418bf17, type: 2}
   rewardItemId: 
@@ -31,12 +32,17 @@ MonoBehaviour:
     itemId: 
     quantity: 3
   rewardNotes: 
+  grantIdleCombatUnlockOnRewardClaim: 0
   repeatable: 0
+  autoCompleteQuest: 0
   abandonable: 0
+  teleportPlayerToNodeIdOnCompletion: 
   obtainLocationId: npc_tutorial_2
   obtainLocationDisplayName: Greggor in Tutoral 2
   progressMapNodeId: tutorial_2
   killProgressOnlyOnProgressMap: 0
+  autoAcceptWhenPriorQuestRewardClaimed: 0
+  autoAcceptAfterPriorQuestId: 
   prerequisiteRewardClaimedQuestIds: []
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 

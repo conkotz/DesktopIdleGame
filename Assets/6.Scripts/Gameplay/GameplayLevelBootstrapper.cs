@@ -98,6 +98,7 @@ public class GameplayLevelBootstrapper : MonoBehaviour
         {
             SaveManager.Instance.RehydrateMerchantStocksFromSave();
             SaveManager.Instance.ScheduleMerchantRehydrateFrames(2);
+            SaveManager.Instance.RehydrateNpcDialogueStoresFromDiskPreferFile();
             if (markedNodeEntered)
                 SaveManager.Instance.Save();
         }

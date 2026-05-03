@@ -14,10 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: duskwood
   displayName: Duskwood
-  description: First town
+  description: "Greenlands Township offers essential services to get you started\u2014local
+    shops stocked with basic gear and supplies, a shared storage area to stash your
+    valuables, and training grounds fitted with target dummies to test your strength
+    and sharpen your skills."
   nodeType: 5
   enemyAggroMode: 1
   ignoreAggroRange: 0
+  respawnHereIfDied: 0
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 5
   eliteSpawnChance: 0
@@ -46,58 +50,109 @@ MonoBehaviour:
       spawnPointName: SpawnPoint8
       enemyDefinition: {fileID: 11400000, guid: 018988b4e6f49f843a83603a5d29913b, type: 2}
       prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint10
       enemyDefinition: {fileID: 11400000, guid: 018988b4e6f49f843a83603a5d29913b, type: 2}
       prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint22
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 2240485527361661371, guid: 6e93381c288e6ae488bc8daf3fc70d29, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint24
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 5214886831892509811, guid: 310e684af90247d68b5f681c8c39a402, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint26
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 4973683916600228948, guid: 4f6f9e8217f875c49a5b9fc9421d1191, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint28
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 5214886831892509811, guid: eafb4a3050e169e43a98e83150bb1a94, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint30
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 4920183082709471436, guid: 24ff604100c61b34fb70516a67da032c, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint32
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 5214886831892509811, guid: 894d2a0476be8f64b94cf767bead3ee5, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint34
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 5214886831892509811, guid: 6cb99a9702e798e4f9f4e802dd9284e9, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint36
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 6284140584376777183, guid: 3c57c2ed11c6eca46913488254667548, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint39
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 1301700847255990616, guid: f94a1f33a820505499ed9c36ae0b6bc9, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
       count: 1
     shuffleSpawnPoints: 0
+  simpleCombatWaves: []
+  simpleCombatWavesAutoStartOnLevelEnter: 1
+  simpleCombatWavesRequireQuestRewardClaimed: 0
+  simpleCombatWavesRequiredQuestId: 
+  simpleCombatWavesRequireQuestAccepted: 0
+  simpleCombatWavesQuestAcceptedId: 
+  simpleCombatWavesRunOncePerSceneSession: 1
   enduranceWaves: []
   enduranceCompletionLoot: []
   enduranceCompletionLootByTier: []

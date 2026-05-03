@@ -30,6 +30,8 @@ MonoBehaviour:
   value: 150
   equipSlot: 1
   handVisualKey: 1
+  usedUpgradeSlots: 0
+  successfulEnhancements: 0
   weaponStats:
     minPhysicalDamage: 0
     maxPhysicalDamage: 0
@@ -47,7 +49,7 @@ MonoBehaviour:
     critChance: 0.05
     critMultiplier: 1.5
     handedness: 1
-    attackRange: 8
+    attackRange: 12
     attackSkill: 2
     rangedBowType: 0
     magicAttackType: 0
@@ -84,6 +86,7 @@ MonoBehaviour:
     bonusResourceFindChance: 0
     staminaEfficiency: 0
   armorStats:
+    equipmentTier: 0
     armor: 0
     magicResist: 0
     corruptionResist: 0
@@ -148,6 +151,16 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+  enhancementScrollStats:
+    successChance: 0
+    targetStat: 0
+    modifierKind: 0
+    modifierValue: 0
+    consumeSlotOnFailure: 0
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    cursed: 0
+    allowedGearTypes: 0
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

@@ -604,10 +604,10 @@ TextureImporter:
       name: Currency_22
       rect:
         serializedVersion: 2
-        x: 2160
-        y: 0
-        width: 432
-        height: 288
+        x: 2290
+        y: 26
+        width: 230
+        height: 230
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}

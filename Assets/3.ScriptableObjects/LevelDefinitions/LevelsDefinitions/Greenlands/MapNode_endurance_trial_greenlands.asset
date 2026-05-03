@@ -48,9 +48,9 @@ MonoBehaviour:
   simpleCombatWavesQuestAcceptedId: 
   simpleCombatWavesRunOncePerSceneSession: 1
   enduranceWaves:
-  - defaultSpawnGroupId: EnduranceTrialAll
+  - defaultSpawnGroupId: 
     spawns:
-    - spawnPointGroupId: EnduranceTrialLeftOnly
+    - spawnPointGroupId: MiddleSpawns
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 0}
@@ -62,9 +62,9 @@ MonoBehaviour:
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
-  - defaultSpawnGroupId: EnduranceTrialAll
+  - defaultSpawnGroupId: 
     spawns:
-    - spawnPointGroupId: EnduranceTrialRightOnly
+    - spawnPointGroupId: MiddleSpawns
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 0}
@@ -76,9 +76,9 @@ MonoBehaviour:
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
-  - defaultSpawnGroupId: EnduranceTrialAll
+  - defaultSpawnGroupId: 
     spawns:
-    - spawnPointGroupId: EnduranceTrialLeftOnly
+    - spawnPointGroupId: MiddleSpawns
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 0}
@@ -90,9 +90,9 @@ MonoBehaviour:
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
-  - defaultSpawnGroupId: EnduranceTrialAll
+  - defaultSpawnGroupId: 
     spawns:
-    - spawnPointGroupId: AllSpawns
+    - spawnPointGroupId: MiddleSpawns
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: f7d8843aef649d141bbd1776fe188fa1, type: 2}
       prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
@@ -113,9 +113,9 @@ MonoBehaviour:
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
-  - defaultSpawnGroupId: EnduranceTrialAll
+  - defaultSpawnGroupId: 
     spawns:
-    - spawnPointGroupId: AllSpawns
+    - spawnPointGroupId: MiddleSpawns
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
@@ -127,9 +127,9 @@ MonoBehaviour:
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
-  - defaultSpawnGroupId: EnduranceTrialAll
+  - defaultSpawnGroupId: 
     spawns:
-    - spawnPointGroupId: EnduranceTrialLeftOnly
+    - spawnPointGroupId: MiddleSpawns
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
@@ -138,7 +138,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 2
-    - spawnPointGroupId: EnduranceTrialLeftOnly
+    - spawnPointGroupId: MiddleSpawns
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: 887a5292c260b2843b8e76ae0621615c, type: 2}
       prefab: {fileID: 1000013034572668, guid: 6814905bb3c3d7440b3306c02b2b222c, type: 3}
@@ -150,7 +150,7 @@ MonoBehaviour:
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
-  - defaultSpawnGroupId: EnduranceTrialAll
+  - defaultSpawnGroupId: 
     spawns:
     - spawnPointGroupId: EnduranceTrialBoss
       spawnPointName: 

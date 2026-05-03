@@ -688,6 +688,32 @@ public sealed class HelperGameplayController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Call before loading Bootstrap when leaving gameplay (logout / save-slot menu). Death-respawn can set a flag so
+    /// <see cref="OnDestroy"/> keeps the DontDestroyOnLoad helper shell visible for the next GamePlay load; if the player
+    /// goes to Bootstrap instead, that path skips <see cref="HideOverlayCompletely"/> and the dimmer then intercepts all UI clicks.
+    /// </summary>
+    public static void ForceHidePersistentOverlayForMenuNavigation()
+    {
+        GameplayRespawnHelperPersistence.ClearStaleKeepOverlayFlagIfPresent();
+
+        HelperGameplayController inst =
+            Instance ?? FindFirstObjectByType<HelperGameplayController>(FindObjectsInactive.Include);
+        if (inst != null)
+            inst.HideOverlayCompletely(true, purgeMessageHistory: false, drainPendingQueue: true);
+
+        // Logout / Bootstrap: destroy the DDOL helper shell entirely. SetActive(false) still leaves whitelist-elevated
+        // nested canvases + sorting state that can win raycasts over the save-slot menu after a death-resume session.
+        // Death→GamePlay reload never calls this method, so the overlay can still be preserved across respawn loads.
+        HelperPopupWindow[] shells =
+            FindObjectsByType<HelperPopupWindow>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < shells.Length; i++)
+        {
+            if (shells[i])
+                UnityEngine.Object.Destroy(shells[i].gameObject);
+        }
+    }
+
     /// <summary>True while a scripted helper expects world / strip picks for whitelist dismiss routing.</summary>
     public static bool UsesWorldWhitelistRouting =>
         Instance != null && Instance._activeUsesWorldWhitelistRouting;

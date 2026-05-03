@@ -97,7 +97,8 @@ public static class NpcOneWayDialogueQueueStore
 
     /// <summary>
     /// Highest conditional row index (0-based) that has been presented for this one-way id, or -1 if unknown.
-    /// Legacy saves: consumed key exists but no chain row → assume index 0 was shown (skip only the first row).
+    /// Legacy saves: consumed key exists but no chain row (older bug never wrote chain progress) → return -1 so
+    /// evaluation still starts at row 0; otherwise After Death and similar rows are skipped forever.
     /// </summary>
     public static int GetHighestConditionalIndexPresented(string saveId)
     {
@@ -109,7 +110,7 @@ public static class NpcOneWayDialogueQueueStore
             return v;
 
         if (ConsumedKeys.Contains(k))
-            return 0;
+            return -1;
 
         return -1;
     }

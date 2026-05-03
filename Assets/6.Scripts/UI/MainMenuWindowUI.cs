@@ -52,6 +52,16 @@ public class MainMenuWindowUI : MonoBehaviour
     }
 
     /// <summary>
+    /// Clears the cross-scene "reopen main menu" snapshot (used after death-respawn). Prevents stale restore intent when
+    /// returning to Bootstrap from logout instead of reloading GamePlay.
+    /// </summary>
+    public static void CancelPersistedOpenRestore()
+    {
+        s_restoreOpen = false;
+        s_restorePage = PersistedPage.None;
+    }
+
+    /// <summary>
     /// Returns the in-scene menu (cached). Use from toolbar buttons when serialized references are missing or stale.
     /// </summary>
     public static MainMenuWindowUI Resolve()

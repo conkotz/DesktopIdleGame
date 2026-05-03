@@ -17,6 +17,8 @@ MonoBehaviour:
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
+  cannotRespawn: 0
+  doesNotContributeToRecommendedCombatPower: 0
   maxHealth: 250
   maxEnergy: 0
   maxMana: 0
@@ -60,19 +62,48 @@ MonoBehaviour:
   burnExplosionMultiplier: 0.5
   shockDuration: 5
   shockDamageTakenMultiplier: 0.15
+  deadlyAtCloseRange: 0
+  deadlyCloseRangeDistance: 3
+  deadlyCloseRangeTyplessDamage: 0
+  immuneToMeleeDamage: 0
+  immuneToRangedDamage: 0
+  immuneToMagicDamage: 0
   idleWanderEnabled: 1
   idleWanderSpeed: 1.5
   idleWanderMoveMinSec: 1
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
+  idleWanderMaxDistanceFromSpawn: 10
+  grantCombatXp: 1
   dropGold: 1
   goldMin: 250
   goldMax: 300
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
-  loot: []
+  loot:
+  - item: {fileID: 11400000, guid: ce545810005a2d94eb99c83180d7c433, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.05
+  - item: {fileID: 11400000, guid: 5c81fc352dab3d64ebc3f41d63015ddd, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.04
+  - item: {fileID: 11400000, guid: b3a17782af5716744a93c10e9418bf17, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.1
+  - item: {fileID: 11400000, guid: dd82c9333168f8d4fb45518f3c9cf6a9, type: 2}
+    amountMin: 10
+    amountMax: 25
+    dropChance: 0.2
+  - item: {fileID: 11400000, guid: 866174f124f25fe47b77fbc9e4058445, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.03
+  lootAtMostOneDropPerTable: 1
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 2
   eliteLoot: []

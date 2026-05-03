@@ -1204,26 +1204,28 @@ public class EnemyBaseController : MonoBehaviour
 
         float eliteChanceMul = _isElite ? Mathf.Max(0f, definition.eliteLootChanceMultiplier) : 1f;
 
+        bool singlePick = definition.lootAtMostOneDropPerTable;
+
         switch (definition.eliteLootHandling)
         {
             case EnemyEliteLootHandling.ScaleBaseLootChances:
-                RollEnemyLootTable(definition.loot, eliteChanceMul);
+                RollEnemyLootTable(definition.loot, eliteChanceMul, singlePick);
                 break;
             case EnemyEliteLootHandling.EliteLootTableOnly:
                 if (_isElite)
-                    RollEnemyLootTable(definition.eliteLoot, 1f);
+                    RollEnemyLootTable(definition.eliteLoot, 1f, singlePick);
                 else
-                    RollEnemyLootTable(definition.loot, 1f);
+                    RollEnemyLootTable(definition.loot, 1f, singlePick);
                 break;
             case EnemyEliteLootHandling.ScaledBasePlusExtraEliteEntries:
-                RollEnemyLootTable(definition.loot, eliteChanceMul);
+                RollEnemyLootTable(definition.loot, eliteChanceMul, singlePick);
                 if (_isElite)
-                    RollEnemyLootTable(definition.eliteLoot, 1f);
+                    RollEnemyLootTable(definition.eliteLoot, 1f, singlePick);
                 break;
         }
     }
 
-    private void RollEnemyLootTable(List<EnemyLootEntry> entries, float dropChanceMultiplier)
+    private void RollEnemyLootTable(List<EnemyLootEntry> entries, float dropChanceMultiplier, bool atMostOneDropFromSuccessfulRolls)
     {
         if (entries == null || entries.Count == 0)
             return;
@@ -1239,6 +1241,42 @@ public class EnemyBaseController : MonoBehaviour
 
         Transform anchor = ResolveDropLootAnchor();
         Vector3 spawnBase = anchor ? anchor.position : transform.position;
+
+        if (atMostOneDropFromSuccessfulRolls)
+        {
+            int winnerIndex = -1;
+            int successCount = 0;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                EnemyLootEntry e = entries[i];
+                if (e?.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
+                    continue;
+
+                float p = Mathf.Clamp01(e.dropChance * dropChanceMultiplier);
+                if (p <= 0f)
+                    continue;
+                if (p < 1f && UnityEngine.Random.value > p)
+                    continue;
+
+                successCount++;
+                if (UnityEngine.Random.Range(0, successCount) == 0)
+                    winnerIndex = i;
+            }
+
+            if (winnerIndex < 0)
+                return;
+
+            EnemyLootEntry won = entries[winnerIndex];
+            int amtMin = Mathf.Max(1, won.amountMin);
+            int amtMax = Mathf.Max(amtMin, won.amountMax);
+            int stack = UnityEngine.Random.Range(amtMin, amtMax + 1);
+            if (stack <= 0)
+                return;
+
+            dm.SpawnAtWorldPosition(won.item.itemId.Trim(), stack, won.item.icon, spawnBase);
+            return;
+        }
 
         for (int i = 0; i < entries.Count; i++)
         {

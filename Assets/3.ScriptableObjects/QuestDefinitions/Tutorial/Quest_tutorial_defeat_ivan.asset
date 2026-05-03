@@ -29,6 +29,7 @@ MonoBehaviour:
   rewardItemQuantity: 1
   additionalItemRewards: []
   rewardNotes: Unlocks Greenlands region
+  grantIdleCombatUnlockOnRewardClaim: 0
   repeatable: 0
   autoCompleteQuest: 0
   abandonable: 0
@@ -37,8 +38,8 @@ MonoBehaviour:
   obtainLocationDisplayName: Merlin in Tutorial 3
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
-  autoAcceptWhenPriorQuestRewardClaimed: 1
-  autoAcceptAfterPriorQuestId: tutorial_aid_merlin
+  autoAcceptWhenPriorQuestRewardClaimed: 0
+  autoAcceptAfterPriorQuestId: 
   prerequisiteRewardClaimedQuestIds:
   - tutorial_aid_merlin
   requireAllPrerequisiteQuests: 1

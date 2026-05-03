@@ -3,7 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Kirurobo;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 
 public class SaveManager : MonoBehaviour
@@ -77,6 +79,12 @@ public class SaveManager : MonoBehaviour
         TryBindInventory();
         TryBindPlayerStorage();
 
+        if (scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+            StartCoroutine(CoRefreshSaveSlotMenusAfterBootstrapLoad());
+
+        if (IsGameplaySceneForHudWiring(scene))
+            StartCoroutine(CoRewireReturnToLoginButtonsAfterGameplayScene());
+
         // Merchants reset runtime stock in Awake() from ScriptableObject defaults.
         // After the first session init, reload merchant quantities from disk when entering any gameplay scene.
         if (_didInitialLoadOrCreate &&
@@ -84,6 +92,7 @@ public class SaveManager : MonoBehaviour
         {
             RehydrateMerchantStocksFromSave();
             ScheduleMerchantRehydrateFrames(2);
+            RehydrateNpcDialogueStoresFromDiskPreferFile();
         }
 
         // Only initialize once per app run.
@@ -134,6 +143,64 @@ public class SaveManager : MonoBehaviour
         var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         if (player == null)
             Debug.LogWarning("[SaveManager] No PlayerController found after gameplay init. If you start from Bootstrap, ensure a player exists in the gameplay scene or is spawned by a bootstrapper.");
+    }
+
+    /// <summary>
+    /// <see cref="SaveSlotMenuUI"/> is commonly on the same DontDestroyOnLoad root as SaveManager, so returning to
+    /// Bootstrap does not re-fire <see cref="SaveSlotMenuUI.OnEnable"/>. Refresh after a frame so TMP/layout and disk headers exist.
+    /// </summary>
+    private static bool IsGameplaySceneForHudWiring(Scene scene)
+    {
+        if (!scene.IsValid() || !scene.isLoaded)
+            return false;
+        if (scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return scene.name.Equals("GamePlay", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private IEnumerator CoRewireReturnToLoginButtonsAfterGameplayScene()
+    {
+        yield return null;
+        yield return null;
+        ReturnToLoginMenuButton.RewireAll();
+    }
+
+    private IEnumerator CoRefreshSaveSlotMenusAfterBootstrapLoad()
+    {
+        const int maxWaitFrames = 30;
+        int waited = 0;
+        while (!SaveSlotMenuUI.TryGetLoadedBootstrapScene(out _) && waited < maxWaitFrames)
+        {
+            yield return null;
+            waited++;
+        }
+
+        yield return null;
+
+        SaveSlotMenuUI[] menus = FindObjectsByType<SaveSlotMenuUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        bool haveDdolMenu = false;
+        for (int i = 0; i < menus.Length; i++)
+        {
+            if (menus[i] && menus[i].gameObject.scene.name == "DontDestroyOnLoad")
+            {
+                haveDdolMenu = true;
+                break;
+            }
+        }
+
+        for (int i = 0; i < menus.Length; i++)
+        {
+            if (!menus[i])
+                continue;
+            // Normal flow: menu is on DDOL with SaveManager. Editor-only bootstrap-only play has no DDOL menu — refresh all.
+            if (haveDdolMenu && menus[i].gameObject.scene.name != "DontDestroyOnLoad")
+                continue;
+
+            menus[i].RefreshSlotsFromDisk();
+        }
+
+        yield return null;
+        RepairBootstrapUiAfterReturningFromGameplay();
     }
 
     private void ResetAllSaveablesToDefaults()
@@ -257,6 +324,47 @@ public class SaveManager : MonoBehaviour
 
     public bool HasSave() => File.Exists(ActiveSavePath);
 
+    /// <summary>Active map node id from the last in-memory save payload (fallback when gameplay context is missing).</summary>
+    public string GetLastWrittenActiveMapNodeId()
+    {
+        if (_lastLoadedData == null || string.IsNullOrWhiteSpace(_lastLoadedData.activeMapNodeId))
+            return "";
+        return _lastLoadedData.activeMapNodeId.Trim();
+    }
+
+    /// <summary>
+    /// Merges only <see cref="NpcPostDeathRespawnDialogueStore"/> fields into the active save file.
+    /// Use when <see cref="Save"/> was skipped (<see cref="_isApplyingSaveData"/>) so death/respawn dialogue flags are not lost.
+    /// </summary>
+    public void FlushNpcPostDeathDialogueToDisk()
+    {
+        if (!HasSave())
+            return;
+
+        try
+        {
+            string json = File.ReadAllText(ActiveSavePath);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+            if (data == null)
+                return;
+
+            NormalizeSaveDataLists(data);
+            NpcPostDeathRespawnDialogueStore.WriteInto(data);
+
+            if (_lastLoadedData != null)
+            {
+                _lastLoadedData.npcPostDeathRespawnDialoguePending = data.npcPostDeathRespawnDialoguePending;
+                _lastLoadedData.npcPostDeathRespawnDialogueDeathNodeId = data.npcPostDeathRespawnDialogueDeathNodeId ?? "";
+            }
+
+            File.WriteAllText(ActiveSavePath, JsonUtility.ToJson(data, true));
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[SaveManager] FlushNpcPostDeathDialogueToDisk: {ex.Message}");
+        }
+    }
+
     public void Save()
     {
         if (_isApplyingSaveData) return;
@@ -332,6 +440,66 @@ public class SaveManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Reloads post-death / one-way NPC dialogue static stores from the active save <b>file</b> (then aligns
+    /// <see cref="_lastLoadedData"/> flags). Use after gameplay scene loads so respawn always matches what was written
+    /// before <c>LoadScene</c>, even if statics or the in-memory snapshot drifted.
+    /// </summary>
+    public void RehydrateNpcDialogueStoresFromDiskPreferFile()
+    {
+        if (!_didInitialLoadOrCreate || _isApplyingSaveData)
+            return;
+
+        bool memPending = NpcPostDeathRespawnDialogueStore.IsPending;
+        string memDeathNode = NpcPostDeathRespawnDialogueStore.DeathOccurredOnMapNodeId;
+
+        if (!HasSave())
+        {
+            if (_lastLoadedData != null)
+            {
+                NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
+                NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
+            }
+
+            return;
+        }
+
+        try
+        {
+            string json = File.ReadAllText(ActiveSavePath);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+            if (data == null)
+                return;
+
+            NormalizeSaveDataLists(data);
+            NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(data);
+            NpcOneWayDialogueQueueStore.ApplyFromSaveData(data);
+
+            if (_lastLoadedData != null)
+            {
+                _lastLoadedData.npcPostDeathRespawnDialoguePending = data.npcPostDeathRespawnDialoguePending;
+                _lastLoadedData.npcPostDeathRespawnDialogueDeathNodeId = data.npcPostDeathRespawnDialogueDeathNodeId ?? "";
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[SaveManager] RehydrateNpcDialogueStoresFromDiskPreferFile failed: {ex.Message}");
+            if (_lastLoadedData != null)
+            {
+                NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
+                NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
+            }
+        }
+
+        // Disk can still have pending=false if full Save() was skipped when death was recorded; restore session truth.
+        if (memPending && !NpcPostDeathRespawnDialogueStore.IsPending)
+        {
+            NpcPostDeathRespawnDialogueStore.RestorePendingState(memDeathNode);
+            Save();
+            FlushNpcPostDeathDialogueToDisk();
+        }
+    }
+
+    /// <summary>
     /// Writes the active slot to disk before unloading gameplay (merchants, inventory, etc.).
     /// </summary>
     public void SaveBeforeSceneTransition()
@@ -340,6 +508,106 @@ public class SaveManager : MonoBehaviour
             return;
 
         Save();
+    }
+
+    /// <summary>
+    /// Persists the active slot, tears down the persisted player (same idea as stopping Play in the editor),
+    /// clears gameplay session init so the next load runs <see cref="OnSceneLoaded"/> again, and loads the
+    /// bootstrap / save-slot scene so the player can pick Continue or New Game.
+    /// </summary>
+    /// <param name="bootstrapSceneName">Must match the scene in Build Settings (default <c>Bootstrap</c>).</param>
+    public void ReturnToSaveSlotSelectAfterSaving(string bootstrapSceneName = "Bootstrap")
+    {
+        if (_didInitialLoadOrCreate && !_isApplyingSaveData)
+        {
+            Save();
+            int slot = SaveSlotManager.ActiveSlotIndex;
+            if (slot < 0)
+                slot = 0;
+            SaveSlotManager.MarkSlotAsLastPlayed(slot);
+        }
+
+        SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.None);
+
+        PlayerController pc = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (pc != null)
+            Destroy(pc.gameObject);
+
+        _didInitialLoadOrCreate = false;
+
+        if (string.IsNullOrWhiteSpace(bootstrapSceneName))
+            bootstrapSceneName = "Bootstrap";
+
+        string scene = bootstrapSceneName.Trim();
+        if (!Application.CanStreamedLevelBeLoaded(scene))
+        {
+            Debug.LogError(
+                $"[SaveManager] Cannot load scene '{scene}'. Add it to Build Settings or fix the name.",
+                this);
+            return;
+        }
+
+        // Death-respawn can leave the DDOL helper overlay + PlayerPrefs "keep overlay" flag; Bootstrap load would then
+        // skip tearing it down in HelperGameplayController.OnDestroy and clicks hit the dimmer instead of save-slot UI.
+        HelperGameplayController.ForceHidePersistentOverlayForMenuNavigation();
+        MainMenuWindowUI.CancelPersistedOpenRestore();
+        DestroyDeathRespawnFullScreenFaderIfAny();
+
+        SceneManager.LoadScene(scene, LoadSceneMode.Single);
+    }
+
+    private static void DestroyDeathRespawnFullScreenFaderIfAny()
+    {
+        GameObject fader = GameObject.Find("DeathRespawnFader");
+        if (fader != null)
+            UnityEngine.Object.Destroy(fader);
+    }
+
+    /// <summary>
+    /// Windows: UniWindow click-through can stay enabled if UI raycasts briefly fail after a scene swap.
+    /// Also collapses duplicate <see cref="EventSystem"/> instances so Bootstrap receives pointer events.
+    /// </summary>
+    private static void RepairBootstrapUiAfterReturningFromGameplay()
+    {
+        HotkeySettingsRowUI.EnsureUiInputModulesEnabled();
+
+        UniWindowController[] uniWins =
+            FindObjectsByType<UniWindowController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < uniWins.Length; i++)
+        {
+            if (uniWins[i])
+                uniWins[i].SetClickThrough(false);
+        }
+
+        EventSystem[] systems =
+            FindObjectsByType<EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (systems.Length <= 1)
+            return;
+
+        EventSystem keep = null;
+        for (int i = 0; i < systems.Length; i++)
+        {
+            EventSystem es = systems[i];
+            if (!es)
+                continue;
+            Scene s = es.gameObject.scene;
+            if (s.IsValid() && s.isLoaded && s.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+            {
+                keep = es;
+                break;
+            }
+        }
+
+        if (keep == null)
+            keep = EventSystem.current;
+
+        for (int i = 0; i < systems.Length; i++)
+        {
+            EventSystem es = systems[i];
+            if (!es || es == keep)
+                continue;
+            UnityEngine.Object.Destroy(es.gameObject);
+        }
     }
 
     /// <summary>

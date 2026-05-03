@@ -33,7 +33,7 @@ MonoBehaviour:
   combatSkillGateMode: 0
   combatSingleSkill: 0
   combatRequiredLevel: 1
-  unlockRequirementNotes: Reccomended to have tools (axe, pickaxe)
+  unlockRequirementNotes: Reccomended to have tools (axe, pickaxe. fishing rod)
   connectedNodeIds: []
   nextNodeIds:
   - 

@@ -50,6 +50,10 @@ public class LevelSelectPageUI : MonoBehaviour
     [SerializeField] private TMP_Text selectedNodeDescription;
     [SerializeField] private GameObject selectedNodeRequirements;
     [SerializeField] private TMP_Text selectedNodeRequirementsText;
+    [Tooltip("Optional row root (e.g. NodeContains). Hidden when the map node has no detected interactables.")]
+    [SerializeField] private GameObject selectedNodeContainsRoot;
+    [Tooltip("Shows merchants (Merchant Name), Storage, Notice Board, and quest NPCs inferred from MapNodeDefinition prefabs / spawn plans.")]
+    [SerializeField] private TMP_Text selectedNodeContainsText;
     [SerializeField] private Button enterNodeButton;
 
     [Header("Right — Panel backgrounds (node type theme)")]
@@ -587,32 +591,40 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         if (selectedNodeType)
-            selectedNodeType.text = n ? n.nodeType.ToString() : "";
+            selectedNodeType.text = n ? $"Type: {n.nodeType}" : "";
 
         SkillsManager skills = FindSkillsManager();
 
         if (selectedNodeState)
         {
             if (!regionUnlocked)
-                selectedNodeState.text = "Region locked";
+                selectedNodeState.text = "State: Region locked";
             else if (n && progress)
-                selectedNodeState.text = n.GetUiStateLabel(progress, skills);
+                selectedNodeState.text = $"State: {n.GetUiStateLabel(progress, skills)}";
             else if (n)
-                selectedNodeState.text = "Unlocked";
+                selectedNodeState.text = "State: Unlocked";
             else
                 selectedNodeState.text = "";
         }
 
         if (selectedNodeRecommendedCp)
-            selectedNodeRecommendedCp.text = n ? $"Recommended CP: {RecommendedCombatPower.GetRecommendedCombatPowerForDisplay(n)}" : "";
+            selectedNodeRecommendedCp.text = n
+                ? $"Recommended cp: {RecommendedCombatPower.GetRecommendedCombatPowerForDisplay(n)}"
+                : "";
 
         if (selectedNodeRepeatable)
             selectedNodeRepeatable.text = n ? (n.isRepeatable ? "Repeatable: Yes" : "Repeatable: No") : "";
 
         if (selectedNodeDescription)
-            selectedNodeDescription.text = n ? n.description : "";
+        {
+            if (!n || string.IsNullOrWhiteSpace(n.description))
+                selectedNodeDescription.text = "";
+            else
+                selectedNodeDescription.text = $"Description: {n.description.Trim()}";
+        }
 
         RefreshRequirementsBlock(n);
+        RefreshNodeContainsSummary(n);
 
         bool hideEnter = n && progress && n.IsPermanentlyCompleted(progress);
         bool canEnter = n && n.CanEnter(progress, skills);
@@ -625,6 +637,25 @@ public class LevelSelectPageUI : MonoBehaviour
 
         ApplyPanelThemeColors(n);
         PublishHudPreview();
+    }
+
+    private void RefreshNodeContainsSummary(MapNodeDefinition n)
+    {
+        if (!selectedNodeContainsText && !selectedNodeContainsRoot)
+            return;
+
+        string body = MapNodeInteractablesPreview.BuildSummary(n);
+        string line = string.IsNullOrEmpty(body) ? "" : $"Contains: {body}";
+
+        if (selectedNodeContainsText)
+        {
+            selectedNodeContainsText.text = line;
+            if (!selectedNodeContainsRoot)
+                selectedNodeContainsText.gameObject.SetActive(!string.IsNullOrEmpty(line));
+        }
+
+        if (selectedNodeContainsRoot)
+            selectedNodeContainsRoot.SetActive(!string.IsNullOrEmpty(line));
     }
 
     private void ApplyPanelThemeColors(MapNodeDefinition n)
@@ -690,7 +721,7 @@ public class LevelSelectPageUI : MonoBehaviour
         bool hasAny = combined.Length > 0;
 
         if (selectedNodeRequirementsText)
-            selectedNodeRequirementsText.text = hasAny ? combined : "";
+            selectedNodeRequirementsText.text = hasAny ? $"Requirements: {combined}" : "";
 
         if (selectedNodeRequirements)
             selectedNodeRequirements.SetActive(hasAny);

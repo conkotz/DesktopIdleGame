@@ -17,6 +17,8 @@ MonoBehaviour:
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010755293042, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
+  cannotRespawn: 0
+  doesNotContributeToRecommendedCombatPower: 1
   maxHealth: 5000
   maxEnergy: 0
   maxMana: 0
@@ -24,6 +26,8 @@ MonoBehaviour:
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
+  flatGuard: 0
+  maxGuardPercent: 0
   minPhysicalDamage: 1
   maxPhysicalDamage: 1
   minMagicDamage: 0
@@ -58,12 +62,19 @@ MonoBehaviour:
   burnExplosionMultiplier: 0.5
   shockDuration: 5
   shockDamageTakenMultiplier: 0.15
+  deadlyAtCloseRange: 0
+  deadlyCloseRangeDistance: 3
+  deadlyCloseRangeTyplessDamage: 0
+  immuneToMeleeDamage: 0
+  immuneToRangedDamage: 0
+  immuneToMagicDamage: 0
   idleWanderEnabled: 0
   idleWanderSpeed: 0.8
   idleWanderMoveMinSec: 1
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
+  idleWanderMaxDistanceFromSpawn: 10
   grantCombatXp: 0
   dropGold: 1
   goldMin: 250
