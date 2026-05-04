@@ -14,6 +14,8 @@ public class SaveSlotCardDoubleClickUI : MonoBehaviour, IPointerClickHandler
     {
         if (eventData.clickCount != 2 || !menu)
             return;
+        if (menu.IsResumeTransitionActive)
+            return;
         menu.OnClickLoadSlot(slotIndex);
     }
 }

@@ -608,9 +608,27 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         if (selectedNodeRecommendedCp)
-            selectedNodeRecommendedCp.text = n
-                ? $"Recommended cp: {RecommendedCombatPower.GetRecommendedCombatPowerForDisplay(n)}"
-                : "";
+        {
+            if (!n)
+            {
+                selectedNodeRecommendedCp.text = "";
+                selectedNodeRecommendedCp.gameObject.SetActive(true);
+            }
+            else
+            {
+                int recCp = RecommendedCombatPower.GetRecommendedCombatPowerForDisplay(n);
+                if (recCp <= 1)
+                {
+                    selectedNodeRecommendedCp.text = "";
+                    selectedNodeRecommendedCp.gameObject.SetActive(false);
+                }
+                else
+                {
+                    selectedNodeRecommendedCp.gameObject.SetActive(true);
+                    selectedNodeRecommendedCp.text = $"Recommended cp: {recCp}";
+                }
+            }
+        }
 
         if (selectedNodeRepeatable)
             selectedNodeRepeatable.text = n ? (n.isRepeatable ? "Repeatable: Yes" : "Repeatable: No") : "";

@@ -7,20 +7,42 @@ using Kirurobo;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class SaveManager : MonoBehaviour
 {
+    public enum SaveRequestKind
+    {
+        Unknown = 0,
+        AutosaveInterval = 1,
+        DebouncedStripZoom = 2,
+        InventoryChanged = 3,
+        StorageChanged = 4,
+        ShopStockChanged = 5,
+        SceneTransition = 6,
+        ReturnToBootstrap = 7,
+        AppQuit = 8,
+        Manual = 9,
+        NewGameInit = 10,
+        LoadFallbackRecovery = 11,
+        DeathDialogueRecovery = 12
+    }
+
     public static SaveManager Instance { get; private set; }
+    public event Action OnSaveSystemReady;
 
     [SerializeField] private bool autosave = true;
     [SerializeField] private float autosaveIntervalSeconds = 30f;
+
+    [Header("Debug")]
+    [Tooltip("Logs non-critical save flow messages (staged load, ApplyToPlayer summary, slot metadata, force-apply). Warnings for real problems stay on.")]
+    [SerializeField] private bool verboseInfoLogs;
 
     private int GetSafeActiveSlot()
     {
         int slot = SaveSlotManager.ActiveSlotIndex;
         if (slot < 0)
         {
-            Debug.LogWarning("[SaveManager] ActiveSlotIndex < 0. Defaulting to slot 0.");
             slot = 0;
         }
 
@@ -28,6 +50,7 @@ public class SaveManager : MonoBehaviour
     }
 
     private string ActiveSavePath => SaveSlotManager.GetSavePath(GetSafeActiveSlot());
+    private string ActiveSaveBackupPath => ActiveSavePath + ".bak";
     private float _autosaveTimer;
     private float _stripZoomSaveDueUnscaled = -1f;
     private const float ShopStockSaveDebounceSeconds = 0.12f;
@@ -43,13 +66,33 @@ public class SaveManager : MonoBehaviour
 
     private SaveData _lastLoadedData;
     private bool _isApplyingSaveData;
+    private SaveSlotManager.SlotStartMode _lastStartMode = SaveSlotManager.SlotStartMode.None;
+    private bool _hasPendingLoad;
+    private bool _didFinalApplyForCurrentLoad;
+    private Coroutine _forceApplyAfterSceneLoadRoutine;
+
+    /// <summary>True after gameplay scene stabilizes (player + inventory present). Debounced saves wait for this.</summary>
+    public bool IsGameFullyLoaded { get; private set; }
+
+    private Coroutine _gameplayReadyRoutine;
+    private float _autosaveHoldUntilUnscaled = -1f;
+    private bool _saveRequestPending;
+    private SaveRequestKind _pendingSaveKind = SaveRequestKind.Unknown;
+    private string InstanceLogTag => $"id={GetInstanceID()} scene='{gameObject.scene.name}'";
+    private readonly bool[] _slotHasSaveCache = new bool[SaveSlotManager.MaxSlots];
 
     private void Awake()
     {
-        if (Instance != null) { Destroy(gameObject); return; }
+        if (Instance != null && Instance != this)
+        {
+            DestroyImmediate(gameObject);
+            return;
+        }
         Instance = this;
         // Must target a scene root; SaveManager may live under a child (e.g. _GameSystems on Bootstrap).
         DontDestroyOnLoad(transform.root.gameObject);
+        LoadAllSaveMetadata();
+        FireSaveSystemReady("Awake");
     }
 
     private void OnEnable()
@@ -75,35 +118,63 @@ public class SaveManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        bool nonBootstrap = scene.IsValid() && scene.isLoaded &&
+                            !scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase);
+        if (nonBootstrap)
+        {
+            IsGameFullyLoaded = false;
+            _autosaveHoldUntilUnscaled = Time.unscaledTime + 0.85f;
+            if (_gameplayReadyRoutine != null)
+            {
+                StopCoroutine(_gameplayReadyRoutine);
+                _gameplayReadyRoutine = null;
+            }
+
+            _gameplayReadyRoutine = StartCoroutine(CoMarkGameplayReadyWhenStable());
+
+            if (_forceApplyAfterSceneLoadRoutine != null)
+            {
+                StopCoroutine(_forceApplyAfterSceneLoadRoutine);
+                _forceApplyAfterSceneLoadRoutine = null;
+            }
+            _forceApplyAfterSceneLoadRoutine = StartCoroutine(CoForceApplyPendingLoadAfterSceneEntry());
+        }
+
         // Rebind inventory for the new scene (Inventory likely lives in scene)
         TryBindInventory();
         TryBindPlayerStorage();
 
         if (scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+        {
+            RefreshSaveSlots();
             StartCoroutine(CoRefreshSaveSlotMenusAfterBootstrapLoad());
+        }
 
         if (IsGameplaySceneForHudWiring(scene))
             StartCoroutine(CoRewireReturnToLoginButtonsAfterGameplayScene());
-
-        // Merchants reset runtime stock in Awake() from ScriptableObject defaults.
-        // After the first session init, reload merchant quantities from disk when entering any gameplay scene.
-        if (_didInitialLoadOrCreate &&
-            !scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
-        {
-            RehydrateMerchantStocksFromSave();
-            ScheduleMerchantRehydrateFrames(2);
-            RehydrateNpcDialogueStoresFromDiskPreferFile();
-        }
-
-        // Only initialize once per app run.
-        if (_didInitialLoadOrCreate) return;
 
         // Bootstrap is intentionally "save-less". We initialize when entering gameplay.
         if (scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
             return;
 
         int slot = GetSafeActiveSlot();
-        var pendingMode = SaveSlotManager.ConsumePendingStartMode();
+        SaveSlotManager.SlotStartMode pendingMode = SaveSlotManager.ConsumePendingStartMode();
+        bool hasExplicitStartRequest = pendingMode != SaveSlotManager.SlotStartMode.None;
+        _lastStartMode = pendingMode;
+
+        // Merchants reset runtime stock in Awake() from ScriptableObject defaults.
+        // After the first session init, reload merchant quantities from disk when entering gameplay scene.
+        if (_didInitialLoadOrCreate)
+        {
+            RehydrateMerchantStocksFromSave();
+            ScheduleMerchantRehydrateFrames(2);
+            RehydrateNpcDialogueStoresFromDiskPreferFile();
+
+            // Critical: if bootstrap explicitly requested resume/new game, do not skip init.
+            // Previously this early-return swallowed pending start intent and load/apply never ran.
+            if (!hasExplicitStartRequest)
+                return;
+        }
 
         // Safe fallback if something loads gameplay without going through the Bootstrap UI buttons.
         if (pendingMode == SaveSlotManager.SlotStartMode.None)
@@ -115,9 +186,11 @@ public class SaveManager : MonoBehaviour
 
         if (pendingMode == SaveSlotManager.SlotStartMode.NewGame)
         {
+            _hasPendingLoad = false;
+            _didFinalApplyForCurrentLoad = true;
             ResetAllSaveablesToDefaults();
             ApplyPendingNewGamePlayerName();
-            Save();
+            RequestSave(SaveRequestKind.NewGameInit, immediate: true);
             HelperGameplayController.ResetHelperWindowLayoutForNewGame();
         }
         else // LoadGame
@@ -128,9 +201,10 @@ public class SaveManager : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning($"[SaveManager] Continue/Load requested but no save exists for slot {slot}. Starting a fresh game instead.");
+                _hasPendingLoad = false;
+                _didFinalApplyForCurrentLoad = true;
                 ResetAllSaveablesToDefaults();
-                Save();
+                RequestSave(SaveRequestKind.LoadFallbackRecovery, immediate: true);
             }
         }
 
@@ -141,8 +215,65 @@ public class SaveManager : MonoBehaviour
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
 
         var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-        if (player == null)
-            Debug.LogWarning("[SaveManager] No PlayerController found after gameplay init. If you start from Bootstrap, ensure a player exists in the gameplay scene or is spawned by a bootstrapper.");
+        _ = player;
+    }
+
+    private IEnumerator CoMarkGameplayReadyWhenStable()
+    {
+        yield return null;
+        yield return null;
+
+        const float timeout = 5f;
+        float start = Time.unscaledTime;
+        while (Time.unscaledTime - start < timeout)
+        {
+            if (FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include) != null &&
+                FindFirstObjectByType<Inventory>(FindObjectsInactive.Include) != null)
+                break;
+            yield return null;
+        }
+
+        IsGameFullyLoaded = true;
+        _gameplayReadyRoutine = null;
+
+        OnGameplayReady();
+    }
+
+    /// <summary>
+    /// Secondary deterministic safety apply. Resume can enter gameplay while some saveables still initialize;
+    /// retry a few times so staged payload always lands even if first-ready timing drifts.
+    /// </summary>
+    private IEnumerator CoForceApplyPendingLoadAfterSceneEntry()
+    {
+        // Let scene Awake/Start and first layout/input/system ticks settle.
+        yield return null;
+        yield return null;
+
+        const int maxAttempts = 180;
+        for (int i = 0; i < maxAttempts; i++)
+        {
+            if (!_hasPendingLoad || _didFinalApplyForCurrentLoad)
+                break;
+
+            PlayerBootstrapper.EnsurePlayerExists("CoForceApplyPendingLoadAfterSceneEntry");
+
+            if (ApplyToPlayer(null))
+            {
+                StartCoroutine(DeferredApplyPlayerStorageLoad());
+                _hasPendingLoad = false;
+                _didFinalApplyForCurrentLoad = true;
+                if (verboseInfoLogs)
+                    Debug.Log($"[SaveManager] Force-apply succeeded on attempt {i + 1}.");
+                break;
+            }
+
+            yield return null;
+        }
+
+        if (_hasPendingLoad && !_didFinalApplyForCurrentLoad)
+            Debug.LogWarning("[SaveManager] Force-apply exhausted attempts; pending load still not applied.");
+
+        _forceApplyAfterSceneLoadRoutine = null;
     }
 
     /// <summary>
@@ -208,10 +339,17 @@ public class SaveManager : MonoBehaviour
         var data = new SaveData
         {
             version = 4,
-            savedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+            savedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            // Class default is -1 ("omit"); 0 avoids a bogus integrity warning before PlayerSave applies real HP.
+            playerCurrentHP = 0f,
         };
 
         _lastLoadedData = data;
+
+        NormalizeSaveDataLists(data);
+        AlignNewGameTemplateSlotCountsFromRuntime(data);
+        SeedEmptyInventoryAndStorageRowsForNewGame(data);
+        SaveDataIntegrity.RepairAfterJsonLoad(data, "NewGameTemplate");
 
         _isApplyingSaveData = true;
         try
@@ -230,12 +368,49 @@ public class SaveManager : MonoBehaviour
             _isApplyingSaveData = false;
         }
 
-        NormalizeSaveDataLists(data);
         HelperProgressStore.ApplyFromSaveData(data);
         LevelItemPickupSaveStore.ApplyFromSaveData(data);
         PermanentEnemyDeathSaveStore.ApplyFromSaveData(data);
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(data);
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(data);
+    }
+
+    /// <summary>
+    /// <see cref="SaveData"/> still carries legacy default slot counts (32/28) for JsonUtility; new game should match
+    /// the live <see cref="Inventory"/> / <see cref="PlayerStorage"/> grid so integrity repair does not log noise.
+    /// </summary>
+    private static void AlignNewGameTemplateSlotCountsFromRuntime(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (inv != null && inv.SlotCount > 0)
+            data.inventorySlotCount = inv.SlotCount;
+
+        PlayerStorage ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        if (ps != null && ps.SlotCount > 0)
+            data.storageSlotCount = ps.SlotCount;
+    }
+
+    private static void SeedEmptyInventoryAndStorageRowsForNewGame(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        data.inventorySlots ??= new List<SaveData.InventorySlotData>();
+        data.storageSlots ??= new List<SaveData.InventorySlotData>();
+
+        int invWant = Mathf.Clamp(data.inventorySlotCount > 0 ? data.inventorySlotCount : 1, 1, 512);
+        int stWant = Mathf.Clamp(data.storageSlotCount > 0 ? data.storageSlotCount : 1, 1, 512);
+
+        data.inventorySlots.Clear();
+        for (int i = 0; i < invWant; i++)
+            data.inventorySlots.Add(default);
+
+        data.storageSlots.Clear();
+        for (int i = 0; i < stWant; i++)
+            data.storageSlots.Add(default);
     }
 
     private static void SeedActiveLevelFromWorldMapIfNeeded(SaveData data)
@@ -297,13 +472,10 @@ public class SaveManager : MonoBehaviour
 
     private void Update()
     {
-        if (!_didInitialLoadOrCreate) return;   // ✅ ADD THIS
-
         if (_stripZoomSaveDueUnscaled >= 0f && Time.unscaledTime >= _stripZoomSaveDueUnscaled)
         {
             _stripZoomSaveDueUnscaled = -1f;
-            if (!_isApplyingSaveData)
-                Save();
+            RequestSave(SaveRequestKind.DebouncedStripZoom);
         }
 
         if (!autosave) return;
@@ -312,17 +484,54 @@ public class SaveManager : MonoBehaviour
         if (_autosaveTimer >= autosaveIntervalSeconds)
         {
             _autosaveTimer = 0f;
-            Save();
+            RequestSave(SaveRequestKind.AutosaveInterval);
+        }
+
+        if (_saveRequestPending)
+        {
+            SaveRequestKind kind = _pendingSaveKind;
+            _saveRequestPending = false;
+            _pendingSaveKind = SaveRequestKind.Unknown;
+            ExecuteSave(kind);
         }
     }
 
     private void OnApplicationQuit()
     {
-        if (!_didInitialLoadOrCreate) return;   // ✅ ADD THIS
-        Save();
+        RequestSave(SaveRequestKind.AppQuit, immediate: true);
     }
 
     public bool HasSave() => File.Exists(ActiveSavePath);
+
+    /// <summary>UI-facing slot existence query from last metadata refresh.</summary>
+    public bool SaveExists(int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= _slotHasSaveCache.Length)
+            return false;
+        return _slotHasSaveCache[slotIndex];
+    }
+
+    /// <summary>Reload slot metadata from disk and notify listeners (Bootstrap UI).</summary>
+    public void RefreshSaveSlots()
+    {
+        LoadAllSaveMetadata();
+        FireSaveSystemReady("RefreshSaveSlots");
+    }
+
+    private void LoadAllSaveMetadata()
+    {
+        for (int i = 0; i < SaveSlotManager.MaxSlots; i++)
+            _slotHasSaveCache[i] = SaveSlotManager.HasSave(i);
+        if (verboseInfoLogs)
+            Debug.Log($"[SaveManager] Loaded slot metadata: slot0={_slotHasSaveCache[0]}, slot1={_slotHasSaveCache[1]}");
+    }
+
+    private void FireSaveSystemReady(string source)
+    {
+        if (verboseInfoLogs)
+            Debug.Log($"[SaveManager] OnSaveSystemReady fired ({source}).");
+        OnSaveSystemReady?.Invoke();
+    }
 
     /// <summary>Active map node id from the last in-memory save payload (fallback when gameplay context is missing).</summary>
     public string GetLastWrittenActiveMapNodeId()
@@ -349,6 +558,7 @@ public class SaveManager : MonoBehaviour
                 return;
 
             NormalizeSaveDataLists(data);
+            SaveDataIntegrity.RepairAfterJsonLoad(data, "FlushNpcPostDeath");
             NpcPostDeathRespawnDialogueStore.WriteInto(data);
 
             if (_lastLoadedData != null)
@@ -357,17 +567,70 @@ public class SaveManager : MonoBehaviour
                 _lastLoadedData.npcPostDeathRespawnDialogueDeathNodeId = data.npcPostDeathRespawnDialogueDeathNodeId ?? "";
             }
 
+            SaveDataIntegrity.SanitizeBeforeWrite(data, "FlushNpcPostDeath");
             File.WriteAllText(ActiveSavePath, JsonUtility.ToJson(data, true));
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"[SaveManager] FlushNpcPostDeathDialogueToDisk: {ex.Message}");
+            _ = ex;
         }
     }
 
     public void Save()
     {
+        RequestSave(SaveRequestKind.Manual, immediate: true);
+    }
+
+    public void RequestSave(SaveRequestKind kind, bool immediate = false)
+    {
+        if (_isApplyingSaveData)
+            return;
+
+        if (immediate)
+        {
+            ExecuteSave(kind);
+            return;
+        }
+
+        if (!_saveRequestPending)
+        {
+            _saveRequestPending = true;
+            _pendingSaveKind = kind;
+            return;
+        }
+
+        // Coalesce bursty requests by keeping the highest-priority pending reason.
+        if (GetSaveRequestPriority(kind) > GetSaveRequestPriority(_pendingSaveKind))
+            _pendingSaveKind = kind;
+    }
+
+    private static int GetSaveRequestPriority(SaveRequestKind kind)
+    {
+        return kind switch
+        {
+            SaveRequestKind.AppQuit => 400,
+            SaveRequestKind.SceneTransition => 350,
+            SaveRequestKind.ReturnToBootstrap => 340,
+            SaveRequestKind.NewGameInit => 300,
+            SaveRequestKind.LoadFallbackRecovery => 290,
+            SaveRequestKind.Manual => 250,
+            SaveRequestKind.DeathDialogueRecovery => 220,
+            SaveRequestKind.ShopStockChanged => 180,
+            SaveRequestKind.InventoryChanged => 140,
+            SaveRequestKind.StorageChanged => 130,
+            SaveRequestKind.DebouncedStripZoom => 90,
+            SaveRequestKind.AutosaveInterval => 50,
+            _ => 0
+        };
+    }
+
+    private void ExecuteSave(SaveRequestKind kind)
+    {
         if (_isApplyingSaveData) return;
+        if (!IsRuntimeReadyForSave(out string readinessReason))
+            return;
+
+        SaveData previousSnapshot = _lastLoadedData;
 
         var data = new SaveData
         {
@@ -375,11 +638,14 @@ public class SaveManager : MonoBehaviour
             savedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
 
+        NormalizeSaveDataLists(data);
+
         // Merchants only exist in the gameplay scene. Autosave / menu / world-map saves used to build an empty
         // merchantStocks list and wipe every vendor on disk. Seed from the last snapshot, then in-scene merchants overwrite.
         SeedMerchantStocksFromSnapshot(data, _lastLoadedData);
 
-        var saveables = FindSaveables();
+        ISaveable[] saveablesRaw = FindSaveables();
+        List<ISaveable> saveables = DedupeActionBarSaveables(saveablesRaw);
         foreach (var s in saveables)
             s.SaveInto(data);
 
@@ -394,7 +660,17 @@ public class SaveManager : MonoBehaviour
 
         ApplyActiveMapToSaveData(data);
 
-        _lastLoadedData = data;
+        SaveDataIntegrity.SanitizeBeforeWrite(data, "Save");
+        if (!IsCriticalSnapshotValid(data, out string snapshotReason))
+            return;
+        if (IsSuspiciousProgressWipe(data, previousSnapshot, kind, out string suspiciousReason))
+        {
+            Debug.LogWarning($"[SaveManager] Skipping save ({kind}) because {suspiciousReason}");
+            return;
+        }
+
+        if (File.Exists(ActiveSavePath))
+            File.Copy(ActiveSavePath, ActiveSaveBackupPath, overwrite: true);
 
         var json = JsonUtility.ToJson(data, true);
         File.WriteAllText(ActiveSavePath, json);
@@ -415,6 +691,202 @@ public class SaveManager : MonoBehaviour
             combatPower
         );
         SaveSlotManager.WriteHeader(header);
+        _lastLoadedData = data;
+    }
+
+    private bool IsRuntimeReadyForSave(out string reason)
+    {
+        Scene active = SceneManager.GetActiveScene();
+        if (!active.IsValid() || !active.isLoaded)
+        {
+            reason = "active scene is invalid or not loaded";
+            return false;
+        }
+
+        if (active.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+        {
+            reason = "active scene is Bootstrap";
+            return false;
+        }
+
+        if (FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include) == null)
+        {
+            reason = "PlayerController missing";
+            return false;
+        }
+
+        if (FindFirstObjectByType<Inventory>(FindObjectsInactive.Include) == null)
+        {
+            reason = "Inventory missing";
+            return false;
+        }
+
+        reason = "";
+        return true;
+    }
+
+    private static bool IsCriticalSnapshotValid(SaveData data, out string reason)
+    {
+        if (data == null)
+        {
+            reason = "SaveData is null";
+            return false;
+        }
+
+        if (float.IsNaN(data.playerCurrentHP) || float.IsInfinity(data.playerCurrentHP) || data.playerCurrentHP < 0f)
+        {
+            reason = $"playerCurrentHP={data.playerCurrentHP}";
+            return false;
+        }
+
+        if (data.inventorySlots == null)
+        {
+            reason = "inventorySlots is null";
+            return false;
+        }
+
+        if (data.storageSlots == null)
+        {
+            reason = "storageSlots is null";
+            return false;
+        }
+
+        if (data.inventorySlotCount > 0 && data.inventorySlots.Count == 0)
+        {
+            reason = $"inventorySlots empty while inventorySlotCount={data.inventorySlotCount}";
+            return false;
+        }
+
+        if (data.storageSlotCount > 0 && data.storageSlots.Count == 0)
+        {
+            reason = $"storageSlots empty while storageSlotCount={data.storageSlotCount}";
+            return false;
+        }
+
+        reason = "";
+        return true;
+    }
+
+    private static bool IsSuspiciousProgressWipe(
+        SaveData current,
+        SaveData previous,
+        SaveRequestKind kind,
+        out string reason)
+    {
+        // Allow expected sparse snapshots for bootstrap/new-game flows.
+        if (kind == SaveRequestKind.NewGameInit || kind == SaveRequestKind.LoadFallbackRecovery)
+        {
+            reason = "";
+            return false;
+        }
+
+        if (current == null || previous == null)
+        {
+            reason = "";
+            return false;
+        }
+
+        int currentInvFilled = CountFilledSlots(current.inventorySlots);
+        int currentStorageFilled = CountFilledSlots(current.storageSlots);
+        int currentEquipFilled = CountFilledEquipIds(current);
+        int currentToolbeltFilled = CountFilledIds(current.toolbeltItemIds);
+        int currentActionBarFilled = CountFilledActionBarItems(current);
+
+        int prevInvFilled = CountFilledSlots(previous.inventorySlots);
+        int prevStorageFilled = CountFilledSlots(previous.storageSlots);
+        int prevEquipFilled = CountFilledEquipIds(previous);
+        int prevToolbeltFilled = CountFilledIds(previous.toolbeltItemIds);
+        int prevActionBarFilled = CountFilledActionBarItems(previous);
+
+        bool previousHadProgress =
+            prevInvFilled > 0 ||
+            prevStorageFilled > 0 ||
+            prevEquipFilled > 0 ||
+            prevToolbeltFilled > 0 ||
+            prevActionBarFilled > 0;
+
+        bool currentWiped =
+            currentInvFilled == 0 &&
+            currentStorageFilled == 0 &&
+            currentEquipFilled == 0 &&
+            currentToolbeltFilled == 0 &&
+            currentActionBarFilled == 0;
+
+        if (previousHadProgress && currentWiped)
+        {
+            reason =
+                $"suspicious wipe detected. prev(inv={prevInvFilled},storage={prevStorageFilled},equip={prevEquipFilled},toolbelt={prevToolbeltFilled},bar={prevActionBarFilled}) -> " +
+                $"current(inv={currentInvFilled},storage={currentStorageFilled},equip={currentEquipFilled},toolbelt={currentToolbeltFilled},bar={currentActionBarFilled})";
+            return true;
+        }
+
+        reason = "";
+        return false;
+    }
+
+    private static int CountFilledSlots(List<SaveData.InventorySlotData> slots)
+    {
+        if (slots == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(slots[i].itemId) && slots[i].amount > 0)
+                count++;
+        }
+        return count;
+    }
+
+    private static int CountFilledIds(List<string> ids)
+    {
+        if (ids == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < ids.Count; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(ids[i]))
+                count++;
+        }
+        return count;
+    }
+
+    private static int CountFilledActionBarItems(SaveData data)
+    {
+        if (data == null || data.actionBarKinds == null || data.actionBarIds == null)
+            return 0;
+
+        int n = Mathf.Min(data.actionBarKinds.Count, data.actionBarIds.Count);
+        int count = 0;
+        for (int i = 0; i < n; i++)
+        {
+            if (data.actionBarKinds[i] != (int)ActionBarAssignmentKind.Item)
+                continue;
+            if (!string.IsNullOrWhiteSpace(data.actionBarIds[i]))
+                count++;
+        }
+        return count;
+    }
+
+    private static int CountFilledEquipIds(SaveData data)
+    {
+        if (data == null)
+            return 0;
+
+        int count = 0;
+        if (!string.IsNullOrWhiteSpace(data.equippedMainHand1ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedOffHand1ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedMainHand2ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedOffHand2ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedHelmetItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedBodyItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedBootsItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedTrinketItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedPendantItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedRing1ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedRing2ItemId)) count++;
+        return count;
     }
 
     /// <summary>
@@ -422,7 +894,7 @@ public class SaveManager : MonoBehaviour
     /// </summary>
     public void NotifyStripZoomChangedDebounced()
     {
-        if (!_didInitialLoadOrCreate || _isApplyingSaveData)
+        if (_isApplyingSaveData)
             return;
 
         _stripZoomSaveDueUnscaled = Time.unscaledTime + ShopStockSaveDebounceSeconds;
@@ -433,10 +905,7 @@ public class SaveManager : MonoBehaviour
     /// </summary>
     public void NotifyShopStockChanged()
     {
-        if (!_didInitialLoadOrCreate || _isApplyingSaveData)
-            return;
-
-        Save();
+        RequestSave(SaveRequestKind.ShopStockChanged, immediate: true);
     }
 
     /// <summary>
@@ -471,6 +940,7 @@ public class SaveManager : MonoBehaviour
                 return;
 
             NormalizeSaveDataLists(data);
+            SaveDataIntegrity.RepairAfterJsonLoad(data, "RehydrateNpcDialogue");
             NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(data);
             NpcOneWayDialogueQueueStore.ApplyFromSaveData(data);
 
@@ -482,7 +952,7 @@ public class SaveManager : MonoBehaviour
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"[SaveManager] RehydrateNpcDialogueStoresFromDiskPreferFile failed: {ex.Message}");
+            _ = ex;
             if (_lastLoadedData != null)
             {
                 NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
@@ -494,7 +964,7 @@ public class SaveManager : MonoBehaviour
         if (memPending && !NpcPostDeathRespawnDialogueStore.IsPending)
         {
             NpcPostDeathRespawnDialogueStore.RestorePendingState(memDeathNode);
-            Save();
+            RequestSave(SaveRequestKind.DeathDialogueRecovery, immediate: true);
             FlushNpcPostDeathDialogueToDisk();
         }
     }
@@ -504,10 +974,7 @@ public class SaveManager : MonoBehaviour
     /// </summary>
     public void SaveBeforeSceneTransition()
     {
-        if (!_didInitialLoadOrCreate || _isApplyingSaveData)
-            return;
-
-        Save();
+        RequestSave(SaveRequestKind.SceneTransition, immediate: true);
     }
 
     /// <summary>
@@ -518,9 +985,10 @@ public class SaveManager : MonoBehaviour
     /// <param name="bootstrapSceneName">Must match the scene in Build Settings (default <c>Bootstrap</c>).</param>
     public void ReturnToSaveSlotSelectAfterSaving(string bootstrapSceneName = "Bootstrap")
     {
-        if (_didInitialLoadOrCreate && !_isApplyingSaveData)
+        if (!_isApplyingSaveData)
         {
-            Save();
+            RequestSave(SaveRequestKind.ReturnToBootstrap, immediate: true);
+            IsGameFullyLoaded = false;
             int slot = SaveSlotManager.ActiveSlotIndex;
             if (slot < 0)
                 slot = 0;
@@ -529,9 +997,12 @@ public class SaveManager : MonoBehaviour
 
         SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.None);
 
+        // Keep the persistent player alive across Bootstrap round-trips.
+        // Destroying here made resume depend on PlayerBootstrapper being present in every flow.
+        // With DDOL-based architecture, preserving the player gives deterministic resume behavior.
         PlayerController pc = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         if (pc != null)
-            Destroy(pc.gameObject);
+            DontDestroyOnLoad(pc.transform.root != null ? pc.transform.root.gameObject : pc.gameObject);
 
         _didInitialLoadOrCreate = false;
 
@@ -541,9 +1012,6 @@ public class SaveManager : MonoBehaviour
         string scene = bootstrapSceneName.Trim();
         if (!Application.CanStreamedLevelBeLoaded(scene))
         {
-            Debug.LogError(
-                $"[SaveManager] Cannot load scene '{scene}'. Add it to Build Settings or fix the name.",
-                this);
             return;
         }
 
@@ -600,6 +1068,21 @@ public class SaveManager : MonoBehaviour
 
         if (keep == null)
             keep = EventSystem.current;
+        if (keep == null && systems.Length > 0)
+            keep = systems[0];
+
+        if (keep != null)
+        {
+            keep.enabled = true;
+            if (EventSystem.current != keep)
+                EventSystem.current = keep;
+            BaseInputModule[] keepModules = keep.GetComponents<BaseInputModule>();
+            for (int m = 0; m < keepModules.Length; m++)
+            {
+                if (keepModules[m] != null)
+                    keepModules[m].enabled = true;
+            }
+        }
 
         for (int i = 0; i < systems.Length; i++)
         {
@@ -607,6 +1090,21 @@ public class SaveManager : MonoBehaviour
             if (!es || es == keep)
                 continue;
             UnityEngine.Object.Destroy(es.gameObject);
+        }
+
+        // Bootstrap UI can become non-clickable if GraphicRaycaster is disabled on scene canvases after transitions.
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Canvas c = canvases[i];
+            if (!c || !c.gameObject.scene.IsValid() || !c.gameObject.scene.isLoaded)
+                continue;
+            if (!c.gameObject.scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            GraphicRaycaster ray = c.GetComponent<GraphicRaycaster>();
+            if (ray != null)
+                ray.enabled = true;
         }
     }
 
@@ -675,39 +1173,36 @@ public class SaveManager : MonoBehaviour
     {
         if (!HasSave()) return;
 
-        var json = File.ReadAllText(ActiveSavePath);
-        var data = JsonUtility.FromJson<SaveData>(json);
+        SaveData data = ReadSaveDataFromPath(ActiveSavePath);
+        SaveData backup = ReadSaveDataFromPath(ActiveSaveBackupPath);
+        if (ShouldPreferBackup(data, backup))
+        {
+            Debug.LogWarning(
+                $"[SaveManager] Active save looked wiped; restoring from backup '{ActiveSaveBackupPath}'.");
+            data = backup;
+        }
+        if (data == null)
+            return;
 
         NormalizeSaveDataLists(data);
+        SaveDataIntegrity.RepairAfterJsonLoad(data, "Load");
 
         _lastLoadedData = data;
+        _hasPendingLoad = true;
+        _didFinalApplyForCurrentLoad = false;
 
-        _isApplyingSaveData = true;
-        try
+        int filledInv = CountFilledSlots(data.inventorySlots);
+        int filledStorage = CountFilledSlots(data.storageSlots);
+        int filledEquip = CountFilledEquipIds(data);
+        int filledBarItems = CountFilledActionBarItems(data);
+
+        if (verboseInfoLogs)
         {
-            ApplyRuntimeEnhancedItemsToDatabase(data);
-
-            var saveables = FindSaveables();
-            foreach (var s in saveables)
-                s.LoadFrom(data);
-
-            EnsurePlayerStorageLoadedFromData(data);
-
-            RestoreActiveMapFromSaveData(data);
+            Debug.Log(
+                $"[SaveManager] Load staged slot={GetSafeActiveSlot()} inv={data.inventorySlots?.Count ?? -1}/{data.inventorySlotCount} filledInv={filledInv} " +
+                $"storage={data.storageSlots?.Count ?? -1}/{data.storageSlotCount} filledStorage={filledStorage} equipFilled={filledEquip} barItemSlots={filledBarItems} " +
+                $"gold={data.gold} hp={data.playerCurrentHP}");
         }
-        finally
-        {
-            _isApplyingSaveData = false;
-        }
-
-        // Player / ItemDatabase can be a frame behind scene setup; re-apply chest so load never misses.
-        StartCoroutine(DeferredApplyPlayerStorageLoad());
-
-        HelperProgressStore.ApplyFromSaveData(data);
-        LevelItemPickupSaveStore.ApplyFromSaveData(data);
-        PermanentEnemyDeathSaveStore.ApplyFromSaveData(data);
-        NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(data);
-        NpcOneWayDialogueQueueStore.ApplyFromSaveData(data);
     }
 
     private static void NormalizeSaveDataLists(SaveData data)
@@ -742,6 +1237,41 @@ public class SaveManager : MonoBehaviour
             data.npcOneWayConditionalDialogueConsumedKeys = new List<string>();
         if (data.npcOneWayDialogueChainProgressRows == null)
             data.npcOneWayDialogueChainProgressRows = new List<NpcOneWayDialogueChainProgressRow>();
+
+        if (data.questProgressIds == null)
+            data.questProgressIds = new List<string>();
+        if (data.questProgressAmounts == null)
+            data.questProgressAmounts = new List<int>();
+        if (data.acceptedQuestIds == null)
+            data.acceptedQuestIds = new List<string>();
+
+        if (data.enduranceTrialNodeIds == null)
+            data.enduranceTrialNodeIds = new List<string>();
+        if (data.enduranceTrialMaxSelectableTier == null)
+            data.enduranceTrialMaxSelectableTier = new List<int>();
+
+        if (data.skills == null)
+            data.skills = new List<SaveData.SkillSave>();
+        if (data.skillChoiceSelectionKeys == null)
+            data.skillChoiceSelectionKeys = new List<string>();
+        if (data.skillChoiceSelectionValues == null)
+            data.skillChoiceSelectionValues = new List<int>();
+        if (data.skillAbilityRowPickKeys == null)
+            data.skillAbilityRowPickKeys = new List<string>();
+        if (data.skillAbilityRowPickValues == null)
+            data.skillAbilityRowPickValues = new List<int>();
+
+        if (data.toolbeltItemIds == null)
+            data.toolbeltItemIds = new List<string>();
+
+        if (data.actionBarSlotIndexes == null)
+            data.actionBarSlotIndexes = new List<int>();
+        if (data.actionBarKinds == null)
+            data.actionBarKinds = new List<int>();
+        if (data.actionBarIds == null)
+            data.actionBarIds = new List<string>();
+        if (data.actionBarItemAmounts == null)
+            data.actionBarItemAmounts = new List<int>();
 
         MigrateLegacyWorldMapEnteredNodeIdsIfNeeded(data);
     }
@@ -816,10 +1346,11 @@ public class SaveManager : MonoBehaviour
                 string json = File.ReadAllText(ActiveSavePath);
                 data = JsonUtility.FromJson<SaveData>(json);
                 NormalizeSaveDataLists(data);
+                SaveDataIntegrity.RepairAfterJsonLoad(data, "MerchantRehydrate");
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[SaveManager] Could not read save for merchant stock: {ex.Message}");
+                _ = ex;
             }
         }
 
@@ -869,14 +1400,13 @@ public class SaveManager : MonoBehaviour
 
     private void HandleInventoryChanged()
     {
-        if (!_didInitialLoadOrCreate) return;   // ✅ ADD THIS
         if (_isApplyingSaveData) return;
 
         if (Time.unscaledTime - _lastInventoryImmediateSave < MinSaveGap)
             return;
 
         _lastInventoryImmediateSave = Time.unscaledTime;
-        Save();
+        RequestSave(SaveRequestKind.InventoryChanged);
     }
 
     private void TryBindInventory()
@@ -925,7 +1455,6 @@ public class SaveManager : MonoBehaviour
 
     private void HandleStorageChanged()
     {
-        if (!_didInitialLoadOrCreate) return;
         if (_isApplyingSaveData) return;
 
         // Separate debounce from inventory so a recent inv save cannot block persisting storage.
@@ -933,7 +1462,7 @@ public class SaveManager : MonoBehaviour
             return;
 
         _lastStorageImmediateSave = Time.unscaledTime;
-        Save();
+        RequestSave(SaveRequestKind.StorageChanged);
     }
 
     private ISaveable[] FindSaveables()
@@ -944,6 +1473,63 @@ public class SaveManager : MonoBehaviour
         );
 
         return behaviours.OfType<ISaveable>().ToArray();
+    }
+
+    /// <summary>
+    /// Multiple <see cref="ActionBarUI"/> (e.g. persistent player shell + scene Canvas) would each call
+    /// <see cref="ISaveable.SaveInto"/> and overwrite the same lists; arbitrary order could persist an empty bar
+    /// and delete food after level loads.
+    /// </summary>
+    private static List<ISaveable> DedupeActionBarSaveables(ISaveable[] raw)
+    {
+        var list = new List<ISaveable>(raw);
+        var bars = list.OfType<ActionBarUI>().ToList();
+        if (bars.Count <= 1)
+            return list;
+
+        ActionBarUI keep = PickCanonicalActionBarForSave(bars);
+        for (int i = list.Count - 1; i >= 0; i--)
+        {
+            if (list[i] is ActionBarUI ab && ab != keep)
+                list.RemoveAt(i);
+        }
+
+        return list;
+    }
+
+    private static ActionBarUI PickCanonicalActionBarForSave(List<ActionBarUI> bars)
+    {
+        if (bars == null || bars.Count == 0)
+            return null;
+
+        Scene active = SceneManager.GetActiveScene();
+        ActionBarUI best = null;
+        int bestScore = -1;
+
+        for (int i = 0; i < bars.Count; i++)
+        {
+            ActionBarUI b = bars[i];
+            if (!b)
+                continue;
+
+            int s = b.ComputeSavePriorityScore();
+            bool replace = best == null || s > bestScore;
+            if (!replace && s == bestScore)
+            {
+                bool bActive = b.gameObject.scene == active;
+                bool bestActive = best.gameObject.scene == active;
+                if (bActive && !bestActive)
+                    replace = true;
+            }
+
+            if (replace)
+            {
+                bestScore = s;
+                best = b;
+            }
+        }
+
+        return best != null ? best : bars[0];
     }
 
     private static void SeedMerchantStocksFromSnapshot(SaveData dest, SaveData source)
@@ -982,5 +1568,186 @@ public class SaveManager : MonoBehaviour
     {
         data = _lastLoadedData;
         return data != null;
+    }
+
+    /// <summary>
+    /// Explicit post-scene-load save application hook for resume flows.
+    /// Re-applies the last loaded payload after runtime objects (player/UI/systems) are fully initialized.
+    /// </summary>
+    public bool ApplyToPlayer(PlayerController player)
+    {
+        if (player == null)
+            player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        bool hasPlayer = player != null;
+
+        if (_isApplyingSaveData)
+        {
+            Debug.LogWarning("[SaveManager] ApplyToPlayer skipped: already applying save data.");
+            return false;
+        }
+
+        if (_lastLoadedData == null)
+        {
+            if (!HasSave())
+            {
+                Debug.LogWarning("[SaveManager] ApplyToPlayer skipped: no save exists and no staged payload.");
+                return false;
+            }
+            Load();
+            if (_lastLoadedData == null)
+            {
+                Debug.LogWarning("[SaveManager] ApplyToPlayer skipped: Load() produced null payload.");
+                return false;
+            }
+        }
+        _isApplyingSaveData = true;
+        try
+        {
+            ApplyRuntimeEnhancedItemsToDatabase(_lastLoadedData);
+
+            ISaveable[] saveables = FindSaveables();
+            if (saveables == null || saveables.Length == 0)
+            {
+                Debug.LogWarning("[SaveManager] ApplyToPlayer skipped: no ISaveable components found yet.");
+                return false;
+            }
+            for (int i = 0; i < saveables.Length; i++)
+            {
+                ISaveable s = saveables[i];
+                if (s != null)
+                    s.LoadFrom(_lastLoadedData);
+            }
+
+            EnsurePlayerStorageLoadedFromData(_lastLoadedData);
+            RestoreActiveMapFromSaveData(_lastLoadedData);
+
+            HelperProgressStore.ApplyFromSaveData(_lastLoadedData);
+            LevelItemPickupSaveStore.ApplyFromSaveData(_lastLoadedData);
+            PermanentEnemyDeathSaveStore.ApplyFromSaveData(_lastLoadedData);
+            NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
+            NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
+        }
+        finally
+        {
+            _isApplyingSaveData = false;
+        }
+        if (verboseInfoLogs)
+        {
+            Debug.Log(
+                $"[SaveManager] ApplyToPlayer complete slot={GetSafeActiveSlot()} inv={_lastLoadedData.inventorySlots?.Count ?? -1}/{_lastLoadedData.inventorySlotCount} " +
+                $"storage={_lastLoadedData.storageSlots?.Count ?? -1}/{_lastLoadedData.storageSlotCount} gold={_lastLoadedData.gold} hp={_lastLoadedData.playerCurrentHP}");
+        }
+
+        // IMPORTANT: in Bootstrap/DDOL architectures, PlayerController can be transient during scene swaps.
+        // Treat a successful ISaveable apply as final and stop pending-load retries immediately.
+        _hasPendingLoad = false;
+        _didFinalApplyForCurrentLoad = true;
+
+        if (!hasPlayer && verboseInfoLogs)
+            Debug.Log("[SaveManager] ApplyToPlayer succeeded without PlayerController present (Bootstrap/DDOL flow).");
+
+        return true;
+    }
+
+    private static SaveData ReadSaveDataFromPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+
+        try
+        {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+            if (data == null)
+                return null;
+
+            NormalizeSaveDataLists(data);
+            SaveDataIntegrity.RepairAfterJsonLoad(data, $"Load:{Path.GetFileName(path)}");
+            return data;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[SaveManager] Failed reading save path '{path}': {ex.Message}");
+            return null;
+        }
+    }
+
+    private static bool ShouldPreferBackup(SaveData active, SaveData backup)
+    {
+        if (active == null || backup == null)
+            return false;
+
+        int activeScore = ScoreSaveProgress(active);
+        int backupScore = ScoreSaveProgress(backup);
+
+        // Prefer backup only when it is materially richer and active looks near-empty.
+        return activeScore <= 1 && backupScore >= 5;
+    }
+
+    private static int ScoreSaveProgress(SaveData data)
+    {
+        if (data == null)
+            return 0;
+
+        int score = 0;
+        score += CountFilledSlots(data.inventorySlots);
+        score += CountFilledSlots(data.storageSlots);
+        score += CountFilledEquipIds(data);
+        score += CountFilledIds(data.toolbeltItemIds);
+        score += CountFilledActionBarItems(data);
+        return score;
+    }
+
+    /// <summary>
+    /// Called when gameplay runtime is ready (after scene object initialization).
+    /// Applies staged load payload once, late, to avoid Awake/Start default resets overwriting loaded data.
+    /// </summary>
+    public void OnGameplayReady()
+    {
+        IsGameFullyLoaded = true;
+
+        if (!_hasPendingLoad || _didFinalApplyForCurrentLoad)
+            return;
+
+        PlayerBootstrapper.EnsurePlayerExists("OnGameplayReady");
+
+        if (!ApplyToPlayer(null))
+            return;
+
+        // Player / ItemDatabase can still be a frame behind on some loads; keep this late-pass too.
+        StartCoroutine(DeferredApplyPlayerStorageLoad());
+
+        _hasPendingLoad = false;
+        _didFinalApplyForCurrentLoad = true;
+    }
+
+    /// <summary>
+    /// Resume/New Game bootstrap entry-point safety reset.
+    /// Forces gameplay scene re-entry to run init/load logic even if stale runtime flags survived.
+    /// </summary>
+    public void PrepareForBootstrapResumeLoad(string reason)
+    {
+        _ = reason;
+
+        _didInitialLoadOrCreate = false;
+        _isApplyingSaveData = false;
+        IsGameFullyLoaded = false;
+        _hasPendingLoad = false;
+        _didFinalApplyForCurrentLoad = false;
+        _autosaveTimer = 0f;
+        _stripZoomSaveDueUnscaled = -1f;
+        _autosaveHoldUntilUnscaled = -1f;
+
+        if (_gameplayReadyRoutine != null)
+        {
+            StopCoroutine(_gameplayReadyRoutine);
+            _gameplayReadyRoutine = null;
+        }
+
+        if (_forceApplyAfterSceneLoadRoutine != null)
+        {
+            StopCoroutine(_forceApplyAfterSceneLoadRoutine);
+            _forceApplyAfterSceneLoadRoutine = null;
+        }
     }
 }

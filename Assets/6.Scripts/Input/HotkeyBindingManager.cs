@@ -55,7 +55,7 @@ public sealed class HotkeyBindingManager : MonoBehaviour
         foreach (HotkeyBindId id in Enum.GetValues(typeof(HotkeyBindId)))
         {
             if (!_bindings.ContainsKey(id))
-                _bindings[id] = GetDefaultKey(id);
+                _bindings[id] = ResolveDefaultKey(id);
         }
     }
 
@@ -76,6 +76,7 @@ public sealed class HotkeyBindingManager : MonoBehaviour
             HotkeyBindId.OpenSkillsAbilities => KeyCode.S,
             HotkeyBindId.OpenLevelSelect => KeyCode.L,
             HotkeyBindId.OpenQuestPage => KeyCode.T,
+            HotkeyBindId.SwapWeaponSet => KeyCode.Tab,
             HotkeyBindId.ZoomIn => KeyCode.UpArrow,
             HotkeyBindId.ZoomOut => KeyCode.DownArrow,
             _ => KeyCode.None
@@ -84,7 +85,7 @@ public sealed class HotkeyBindingManager : MonoBehaviour
 
     public KeyCode GetBinding(HotkeyBindId id)
     {
-        return _bindings.TryGetValue(id, out KeyCode k) ? k : GetDefaultKey(id);
+        return _bindings.TryGetValue(id, out KeyCode k) ? k : ResolveDefaultKey(id);
     }
 
     /// <summary>Sets a binding; clears the same key from other binds. Returns false if nothing changed.</summary>
@@ -156,7 +157,7 @@ public sealed class HotkeyBindingManager : MonoBehaviour
         {
             Instance._bindings.Clear();
             foreach (HotkeyBindId id in Enum.GetValues(typeof(HotkeyBindId)))
-                Instance._bindings[id] = GetDefaultKey(id);
+                Instance._bindings[id] = ResolveDefaultKey(id);
 
             Instance.SaveToPlayerPrefs();
             Instance.OnBindingsChanged?.Invoke();
@@ -168,6 +169,13 @@ public sealed class HotkeyBindingManager : MonoBehaviour
     }
 
     private static string PrefKey(HotkeyBindId id) => $"HotkeyBind_{id}";
+
+    private static KeyCode ResolveDefaultKey(HotkeyBindId id)
+    {
+        if (HotkeySettingsRowUI.TryGetSerializedDefaultKey(id, out KeyCode fromRow))
+            return fromRow;
+        return GetDefaultKey(id);
+    }
 
     public static string GetDisplayString(KeyCode key)
     {

@@ -14,50 +14,72 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
   items:
   - itemId: leather_boots
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: 1
   - itemId: crit_ring
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    defaultQuantity: 1
   - itemId: vamp_ring
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    defaultQuantity: 1
   - itemId: sapphire_trinket
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    defaultQuantity: 1
   - itemId: wooden_rod
     costs:
     - type: 1
       amount: 1
       itemId: raw_fish
     - type: 0
-      amount: 1
+      amount: 300
       itemId: 
-    quantity: 1
+    defaultQuantity: 1
   - itemId: stone_pickaxe
     costs:
     - type: 1
       amount: 1
       itemId: stone_chunk
     - type: 0
-      amount: 1
+      amount: 300
       itemId: 
-    quantity: 1
+    defaultQuantity: 1
   - itemId: stone_axe
     costs:
     - type: 1
       amount: 1
       itemId: splitwood_log
     - type: 0
-      amount: 1
+      amount: 300
       itemId: 
-    quantity: 1
+    defaultQuantity: 1
   - itemId: ability_power_pendant
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    defaultQuantity: 1
   - itemId: physical_damage_pendant
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    defaultQuantity: 1
   - itemId: bone_ring
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    defaultQuantity: 1
+  stockSaveKey: 

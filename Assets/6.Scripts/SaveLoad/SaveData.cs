@@ -50,11 +50,13 @@ public class SaveData
     public int gold = 0;
 
     [Header("Inventory")]
+    [Tooltip("Serialized default for JSON only; new games align to Inventory.SlotCount before first save.")]
     public int inventorySlotCount = 32;
     public List<InventorySlotData> inventorySlots = new();
     public List<EnhancedItemData> enhancedItems = new();
 
     [Header("Town storage chest")]
+    [Tooltip("Serialized default for JSON only; new games align to PlayerStorage.SlotCount before first save.")]
     public int storageSlotCount = 28;
     public List<InventorySlotData> storageSlots = new();
 
@@ -129,6 +131,7 @@ public class SaveData
     public List<int> actionBarSlotIndexes = new();
     public List<int> actionBarKinds = new();
     public List<string> actionBarIds = new();
+    public List<int> actionBarItemAmounts = new();
 
     [Header("Quests")]
     [Tooltip("Parallel lists: QuestDefinition.questId → current objective amount.")]

@@ -15,7 +15,12 @@ public class WeaponSetSwapInput : MonoBehaviour
     {
         if (!equipment) return;
 
-        if (Input.GetKeyDown(KeyCode.Tab))
+        HotkeyBindingManager mgr = HotkeyBindingManager.Instance;
+        KeyCode swapKey = mgr != null
+            ? mgr.GetBinding(HotkeyBindId.SwapWeaponSet)
+            : KeyCode.Tab;
+
+        if (swapKey != KeyCode.None && Input.GetKeyDown(swapKey))
             equipment.ToggleWeaponSet();
     }
 }

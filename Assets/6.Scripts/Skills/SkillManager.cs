@@ -405,6 +405,10 @@ public class SkillsManager : MonoBehaviour, ISaveable
     {
         if (data == null) return;
 
+        data.skills ??= new List<SaveData.SkillSave>();
+        data.skillChoiceSelectionKeys ??= new List<string>();
+        data.skillChoiceSelectionValues ??= new List<int>();
+
         data.skills.Clear();
         foreach (var kv in _skills)
         {

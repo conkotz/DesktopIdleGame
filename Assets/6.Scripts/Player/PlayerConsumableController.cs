@@ -24,6 +24,7 @@ public class PlayerConsumableController : MonoBehaviour
     {
         if (!inventory) inventory = GetComponent<Inventory>();
         if (!player) player = GetComponent<PlayerController>();
+        if (!actionBar) actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
     }
 
     public bool TryUseItem(string itemId)
@@ -116,7 +117,15 @@ public class PlayerConsumableController : MonoBehaviour
 
     public int CountItem(string itemId)
     {
-        if (inventory == null || string.IsNullOrWhiteSpace(itemId))
+        if (string.IsNullOrWhiteSpace(itemId))
+            return 0;
+
+        if (!actionBar)
+            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (actionBar != null)
+            return actionBar.CountSlottedItem(itemId);
+
+        if (inventory == null)
             return 0;
 
         int total = 0;
@@ -222,6 +231,11 @@ public class PlayerConsumableController : MonoBehaviour
 
     private bool RemoveOne(string itemId)
     {
+        if (!actionBar)
+            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (actionBar != null)
+            return actionBar.TryConsumeSlottedItem(itemId, 1);
+
         if (inventory == null) return false;
 
         for (int i = 0; i < inventory.SlotCount; i++)

@@ -14,8 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
   items:
   - itemId: basic_weapon_physical_scroll
-    costs: []
-    quantity: -1
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
   - itemId: slot_reduction_scroll
-    costs: []
-    quantity: -1
+    costs:
+    - type: 0
+      amount: 20000
+      itemId: 
+    defaultQuantity: -1
+  stockSaveKey: 

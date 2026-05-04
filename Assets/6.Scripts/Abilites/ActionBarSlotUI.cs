@@ -61,6 +61,7 @@ public class ActionBarSlotUI : MonoBehaviour,
 
     [Header("Runtime")]
     [SerializeField] private ActionBarAssignment assignedAction;
+    [SerializeField] private int assignedItemAmount;
     [SerializeField] private AbilityDatabase abilityDatabase;
 
     private Inventory inventory;
@@ -69,6 +70,7 @@ public class ActionBarSlotUI : MonoBehaviour,
     public ActionBarSlotType SlotType => slotType;
     public int SlotIndex => slotIndex;
     public ActionBarAssignment AssignedAction => assignedAction;
+    public int AssignedItemAmount => assignedAction != null && assignedAction.IsItem ? Mathf.Max(0, assignedItemAmount) : 0;
 
     private System.Action<ActionBarSlotUI> onPressed;
     private System.Action<ActionBarSlotUI> onAssignmentChanged;
@@ -192,6 +194,10 @@ public class ActionBarSlotUI : MonoBehaviour,
     public void Assign(ActionBarAssignment newAssignment, bool notify = true)
     {
         assignedAction = newAssignment;
+        if (assignedAction == null || !assignedAction.IsItem)
+            assignedItemAmount = 0;
+        else if (assignedItemAmount <= 0)
+            assignedItemAmount = 1;
         RefreshUI();
 
         if (isPointerOver)
@@ -204,6 +210,7 @@ public class ActionBarSlotUI : MonoBehaviour,
     public void ClearAssignment(bool notify = true)
     {
         assignedAction = null;
+        assignedItemAmount = 0;
         RefreshUI();
         SetStackText(0);
         SetCooldownVisual(0f);
@@ -336,9 +343,16 @@ public class ActionBarSlotUI : MonoBehaviour,
 
         if (!InventoryDragState.HasDrag)
             return;
+        if (InventoryDragState.Source != InventoryDragState.SourceKind.Inventory)
+            return;
+
+        int fromSlotIndex = InventoryDragState.FromSlotIndex;
+        int requestedAmount = InventoryDragState.IsSplit
+            ? InventoryDragState.CarriedAmount
+            : (inventory != null && fromSlotIndex >= 0 ? inventory.GetSlot(fromSlotIndex).amount : 0);
 
         string itemId = InventoryDragState.ItemId;
-        if (string.IsNullOrWhiteSpace(itemId))
+        if (string.IsNullOrWhiteSpace(itemId) || requestedAmount <= 0)
             return;
 
         if (!inventory)
@@ -351,19 +365,17 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (!itemDef.IsConsumable)
             return;
 
-        ActionBarAssignment itemAssignment = ActionBarAssignment.CreateItem(itemDef);
-
-        if (!CanAccept(itemAssignment, itemDef))
-            return;
-
-        Assign(itemAssignment);
-        InventoryDragState.EndDrag();
+        if (TryStoreConsumableFromInventorySlot(fromSlotIndex, requestedAmount))
+            InventoryDragState.EndDrag();
     }
 
     public void OnPointerClick(PointerEventData eventData)
     {
         if (eventData.button == PointerEventData.InputButton.Right)
-            ClearAssignment();
+        {
+            if (!TryReturnStoredConsumableToInventory())
+                ClearAssignment();
+        }
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -622,6 +634,136 @@ public class ActionBarSlotUI : MonoBehaviour,
             inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
 
         return inventory ? inventory.GetItemDef(action.id) : null;
+    }
+
+    public bool TryStoreConsumableFromInventorySlot(int sourceSlotIndex, int amountToMove)
+    {
+        if (sourceSlotIndex < 0)
+            return false;
+
+        if (!inventory)
+            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (!inventory)
+            return false;
+
+        Inventory.Slot source = inventory.GetSlot(sourceSlotIndex);
+        if (source.IsEmpty || string.IsNullOrWhiteSpace(source.itemId))
+            return false;
+
+        ItemDefinition sourceDef = inventory.GetItemDef(source.itemId);
+        if (!sourceDef || !sourceDef.IsConsumable)
+            return false;
+
+        ActionBarAssignment incoming = ActionBarAssignment.CreateItem(sourceDef);
+        if (incoming == null || !incoming.IsAssigned || !CanAccept(incoming, sourceDef))
+            return false;
+
+        int toMove = Mathf.Clamp(amountToMove, 1, source.amount);
+        int removed = inventory.RemoveAmountAtSlot(sourceSlotIndex, toMove);
+        if (removed <= 0)
+            return false;
+
+        string incomingId = Inventory.RemapLegacyItemId(source.itemId);
+        string existingId = assignedAction != null && assignedAction.IsItem
+            ? Inventory.RemapLegacyItemId(assignedAction.id)
+            : null;
+        int existingAmount = AssignedItemAmount;
+
+        if (!string.IsNullOrWhiteSpace(existingId) &&
+            !string.Equals(existingId, incomingId, StringComparison.OrdinalIgnoreCase) &&
+            existingAmount > 0)
+        {
+            if (!inventory.Add(existingId, existingAmount, null, notifyItemGainPopup: false))
+            {
+                ItemDefinition existingDef = inventory.GetItemDef(existingId);
+                if (DropManager.Instance != null)
+                    DropManager.Instance.Spawn(existingId, existingAmount, existingDef ? existingDef.icon : null);
+            }
+        }
+
+        if (string.Equals(existingId, incomingId, StringComparison.OrdinalIgnoreCase))
+            assignedItemAmount += removed;
+        else
+        {
+            assignedAction = incoming;
+            assignedItemAmount = removed;
+        }
+
+        RefreshUI();
+        if (isPointerOver)
+            ShowTooltip();
+        onAssignmentChanged?.Invoke(this);
+        return true;
+    }
+
+    public bool TryConsumeStoredItem(int amount)
+    {
+        if (amount <= 0 || assignedAction == null || !assignedAction.IsItem)
+            return false;
+
+        if (assignedItemAmount < amount)
+            return false;
+
+        assignedItemAmount -= amount;
+        if (assignedItemAmount <= 0)
+            ClearAssignment(notify: true);
+        else
+        {
+            RefreshUI();
+            if (isPointerOver)
+                ShowTooltip();
+            onAssignmentChanged?.Invoke(this);
+        }
+        return true;
+    }
+
+    public void SetAssignedItemAmountFromSave(int amount, bool notify)
+    {
+        if (assignedAction == null || !assignedAction.IsItem)
+        {
+            assignedItemAmount = 0;
+            return;
+        }
+
+        assignedItemAmount = Mathf.Max(0, amount);
+        if (assignedItemAmount <= 0)
+        {
+            ClearAssignment(notify);
+            return;
+        }
+
+        RefreshUI();
+        if (isPointerOver)
+            ShowTooltip();
+        if (notify)
+            onAssignmentChanged?.Invoke(this);
+    }
+
+    private bool TryReturnStoredConsumableToInventory()
+    {
+        if (assignedAction == null || !assignedAction.IsItem || assignedItemAmount <= 0)
+            return false;
+
+        if (!inventory)
+            inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (!inventory)
+            return false;
+
+        string id = Inventory.RemapLegacyItemId(assignedAction.id);
+        int amount = Mathf.Max(0, assignedItemAmount);
+        if (amount <= 0)
+            return false;
+
+        bool returned = inventory.Add(id, amount, null, notifyItemGainPopup: false);
+        if (!returned)
+        {
+            ItemDefinition def = inventory.GetItemDef(id);
+            if (DropManager.Instance != null)
+                DropManager.Instance.Spawn(id, amount, def ? def.icon : null);
+        }
+
+        ClearAssignment(notify: true);
+        return true;
     }
 
     private AbilityDefinition GetAbilityDefinition(string abilityId)

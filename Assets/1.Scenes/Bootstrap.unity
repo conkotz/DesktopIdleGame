@@ -119,6 +119,50 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &29084072
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 29084073}
+  - component: {fileID: 29084075}
+  m_Layer: 5
+  m_Name: SpawnPoint_BootstrapPlayerPreview
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &29084073
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 29084072}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 1, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 1462, y: 173}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 1, y: 1}
+--- !u!222 &29084075
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 29084072}
+  m_CullTransparentMesh: 1
 --- !u!1 &59276435
 GameObject:
   m_ObjectHideFlags: 0
@@ -131,7 +175,7 @@ GameObject:
   - component: {fileID: 59276439}
   - component: {fileID: 59276438}
   - component: {fileID: 59276437}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: ConfirmButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -251,7 +295,7 @@ GameObject:
   - component: {fileID: 89758738}
   - component: {fileID: 89758740}
   - component: {fileID: 89758739}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: LoadGameText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -388,7 +432,7 @@ GameObject:
   - component: {fileID: 97718846}
   - component: {fileID: 97718848}
   - component: {fileID: 97718847}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: TitleText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -617,7 +661,7 @@ GameObject:
   - component: {fileID: 144160725}
   - component: {fileID: 144160727}
   - component: {fileID: 144160726}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Text
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -754,7 +798,7 @@ GameObject:
   - component: {fileID: 159347465}
   - component: {fileID: 159347467}
   - component: {fileID: 159347466}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: TitleText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -889,8 +933,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 232077213}
-  - component: {fileID: 232077214}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: SlotRow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -916,34 +959,8 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
+  m_SizeDelta: {x: 600, y: 100}
   m_Pivot: {x: 0, y: 1}
---- !u!114 &232077214
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 232077212}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30649d3a9faa99c48a7b1166b86bf2a0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.HorizontalLayoutGroup
-  m_Padding:
-    m_Left: 0
-    m_Right: 0
-    m_Top: 0
-    m_Bottom: 0
-  m_ChildAlignment: 0
-  m_Spacing: 0
-  m_ChildForceExpandWidth: 1
-  m_ChildForceExpandHeight: 1
-  m_ChildControlWidth: 0
-  m_ChildControlHeight: 0
-  m_ChildScaleWidth: 0
-  m_ChildScaleHeight: 0
-  m_ReverseArrangement: 0
 --- !u!1 &293532351
 GameObject:
   m_ObjectHideFlags: 0
@@ -955,7 +972,7 @@ GameObject:
   - component: {fileID: 293532352}
   - component: {fileID: 293532354}
   - component: {fileID: 293532353}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Text (TMP)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1093,7 +1110,7 @@ GameObject:
   - component: {fileID: 379854900}
   - component: {fileID: 379854899}
   - component: {fileID: 379854898}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: NewGameButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1225,7 +1242,7 @@ GameObject:
   - component: {fileID: 441792145}
   - component: {fileID: 441792147}
   - component: {fileID: 441792146}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: NewGameText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1409,7 +1426,7 @@ GameObject:
   - component: {fileID: 542944184}
   - component: {fileID: 542944186}
   - component: {fileID: 542944185}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: InfoLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1432,9 +1449,9 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 10, y: 0}
   m_SizeDelta: {x: 580, y: 90}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 0, y: 0}
 --- !u!114 &542944185
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1546,7 +1563,7 @@ GameObject:
   - component: {fileID: 560871763}
   - component: {fileID: 560871765}
   - component: {fileID: 560871764}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Dimmer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1622,7 +1639,7 @@ GameObject:
   - component: {fileID: 621477254}
   - component: {fileID: 621477253}
   - component: {fileID: 621477252}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: DeleteGameButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1754,7 +1771,7 @@ GameObject:
   - component: {fileID: 641705814}
   - component: {fileID: 641705816}
   - component: {fileID: 641705815}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Panel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1833,7 +1850,7 @@ GameObject:
   - component: {fileID: 822385326}
   - component: {fileID: 822385328}
   - component: {fileID: 822385327}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: NewGameText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1970,7 +1987,7 @@ GameObject:
   - component: {fileID: 872352195}
   - component: {fileID: 872352197}
   - component: {fileID: 872352196}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: CancelText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2140,7 +2157,7 @@ GameObject:
   - component: {fileID: 907705145}
   - component: {fileID: 907705144}
   - component: {fileID: 907705143}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: StartButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2260,7 +2277,7 @@ GameObject:
   - component: {fileID: 917912605}
   - component: {fileID: 917912607}
   - component: {fileID: 917912606}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Info Label
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2399,7 +2416,7 @@ GameObject:
   - component: {fileID: 944023044}
   - component: {fileID: 944023043}
   - component: {fileID: 944023046}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: ExitGameButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2574,6 +2591,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SaveManager
   autosave: 1
   autosaveIntervalSeconds: 30
+  verboseInfoLogs: 0
 --- !u!114 &945330857
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2682,6 +2700,9 @@ MonoBehaviour:
   playerNameCancelButton: {fileID: 1076905160}
   playerNameErrorText: {fileID: 1657748979}
   playerNameMaxLength: 16
+  bootstrapInputDiagnostics: 1
+  bootstrapInputDiagnosticsKey: 289
+  verboseSlotMenuLogs: 0
 --- !u!114 &945330862
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2733,7 +2754,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 950795109}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: ConfirmNewGamePopup
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2771,7 +2792,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1007820670}
   - component: {fileID: 1007820671}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Text Area
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3035,7 +3056,7 @@ GameObject:
   - component: {fileID: 1021528667}
   - component: {fileID: 1021528666}
   - component: {fileID: 1021528665}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: NameChooseField
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3224,7 +3245,7 @@ GameObject:
   - component: {fileID: 1076905162}
   - component: {fileID: 1076905161}
   - component: {fileID: 1076905160}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: CancelButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3399,7 +3420,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2416199871598626844, guid: e893aefd93740714b999573b02916984, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2416199871598626845, guid: e893aefd93740714b999573b02916984, type: 3}
       propertyPath: m_Enabled
@@ -3457,7 +3478,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1151327771}
   - component: {fileID: 1151327772}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: ButtonsRow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3481,9 +3502,9 @@ RectTransform:
   - {fileID: 621477251}
   m_Father: {fileID: 1209089083}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 600, y: -80}
   m_SizeDelta: {x: 200, y: 80}
   m_Pivot: {x: 0, y: 0}
 --- !u!114 &1151327772
@@ -3521,8 +3542,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1209089083}
-  - component: {fileID: 1209089084}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: SlotRow2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3550,32 +3570,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0, y: 1}
---- !u!114 &1209089084
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1209089082}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30649d3a9faa99c48a7b1166b86bf2a0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.HorizontalLayoutGroup
-  m_Padding:
-    m_Left: 0
-    m_Right: 0
-    m_Top: 0
-    m_Bottom: 0
-  m_ChildAlignment: 0
-  m_Spacing: 0
-  m_ChildForceExpandWidth: 1
-  m_ChildForceExpandHeight: 1
-  m_ChildControlWidth: 0
-  m_ChildControlHeight: 0
-  m_ChildScaleWidth: 0
-  m_ChildScaleHeight: 0
-  m_ReverseArrangement: 0
 --- !u!1 &1297218965
 GameObject:
   m_ObjectHideFlags: 0
@@ -3587,7 +3581,7 @@ GameObject:
   - component: {fileID: 1297218966}
   - component: {fileID: 1297218968}
   - component: {fileID: 1297218967}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: TitleText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3724,7 +3718,7 @@ GameObject:
   - component: {fileID: 1314734042}
   - component: {fileID: 1314734044}
   - component: {fileID: 1314734043}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: SlotLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3745,11 +3739,11 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1780533622}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 10, y: 0}
   m_SizeDelta: {x: 600, y: 35}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 0, y: 1}
 --- !u!114 &1314734043
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3860,7 +3854,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1328151308}
   - component: {fileID: 1328151309}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: ButtonsRow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3925,7 +3919,7 @@ GameObject:
   - component: {fileID: 1382487162}
   - component: {fileID: 1382487164}
   - component: {fileID: 1382487163}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: CancelText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4068,7 +4062,7 @@ GameObject:
   - component: {fileID: 1504969905}
   - component: {fileID: 1504969904}
   - component: {fileID: 1504969903}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Placeholder
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4225,7 +4219,7 @@ GameObject:
   - component: {fileID: 1518958352}
   - component: {fileID: 1518958354}
   - component: {fileID: 1518958353}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: LoadGameText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4363,7 +4357,7 @@ GameObject:
   - component: {fileID: 1530890076}
   - component: {fileID: 1530890075}
   - component: {fileID: 1530890074}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: DeleteGameButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4495,7 +4489,7 @@ GameObject:
   - component: {fileID: 1548914543}
   - component: {fileID: 1548914545}
   - component: {fileID: 1548914544}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Dimmer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4589,7 +4583,7 @@ Transform:
   m_GameObject: {fileID: 1560239937}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -27.04, y: 4.4, z: 0}
+  m_LocalPosition: {x: -24.1, y: 4.4, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4607,7 +4601,7 @@ GameObject:
   - component: {fileID: 1610422823}
   - component: {fileID: 1610422825}
   - component: {fileID: 1610422824}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: InfoLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4630,9 +4624,9 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 580, y: 90}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 10, y: 0}
+  m_SizeDelta: {x: 600, y: 90}
+  m_Pivot: {x: 0, y: 0}
 --- !u!114 &1610422824
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4745,7 +4739,7 @@ GameObject:
   - component: {fileID: 1628616326}
   - component: {fileID: 1628616325}
   - component: {fileID: 1628616324}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: SwapOrderButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4877,7 +4871,7 @@ GameObject:
   - component: {fileID: 1657748978}
   - component: {fileID: 1657748980}
   - component: {fileID: 1657748979}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: ErrorText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4923,7 +4917,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Name Error
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -5015,7 +5009,7 @@ GameObject:
   - component: {fileID: 1668348648}
   - component: {fileID: 1668348647}
   - component: {fileID: 1668348646}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: NewGameButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5146,7 +5140,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1760498348}
   - component: {fileID: 1760498349}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: ButtonsRow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5170,9 +5164,9 @@ RectTransform:
   - {fileID: 1530890073}
   m_Father: {fileID: 232077213}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 600, y: -80}
   m_SizeDelta: {x: 200, y: 80}
   m_Pivot: {x: 0, y: 0}
 --- !u!114 &1760498349
@@ -5212,7 +5206,7 @@ GameObject:
   - component: {fileID: 1772880570}
   - component: {fileID: 1772880572}
   - component: {fileID: 1772880571}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: SlotLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5233,11 +5227,11 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1925469047}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 10, y: 0}
   m_SizeDelta: {x: 600, y: 35}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 0, y: 1}
 --- !u!114 &1772880571
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5347,14 +5341,12 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1780533622}
-  - component: {fileID: 1780533623}
   - component: {fileID: 1780533625}
   - component: {fileID: 1780533624}
   - component: {fileID: 1780533628}
   - component: {fileID: 1780533627}
-  - component: {fileID: 1780533626}
   - component: {fileID: 1780533629}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Slot1Card
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5380,34 +5372,8 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: -0}
-  m_SizeDelta: {x: 600, y: 0}
+  m_SizeDelta: {x: 600, y: 150}
   m_Pivot: {x: 0, y: 1}
---- !u!114 &1780533623
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1780533621}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 59f8146938fff824cb5fd77236b75775, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.VerticalLayoutGroup
-  m_Padding:
-    m_Left: 6
-    m_Right: 6
-    m_Top: 6
-    m_Bottom: 0
-  m_ChildAlignment: 0
-  m_Spacing: 16
-  m_ChildForceExpandWidth: 1
-  m_ChildForceExpandHeight: 1
-  m_ChildControlWidth: 0
-  m_ChildControlHeight: 0
-  m_ChildScaleWidth: 0
-  m_ChildScaleHeight: 0
-  m_ReverseArrangement: 0
 --- !u!114 &1780533624
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5446,20 +5412,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1780533621}
   m_CullTransparentMesh: 1
---- !u!114 &1780533626
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1780533621}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
-  m_HorizontalFit: 0
-  m_VerticalFit: 2
 --- !u!114 &1780533627
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5545,7 +5497,7 @@ GameObject:
   - component: {fileID: 1784000530}
   - component: {fileID: 1784000532}
   - component: {fileID: 1784000531}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Panel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5624,7 +5576,7 @@ GameObject:
   - component: {fileID: 1811284495}
   - component: {fileID: 1811284497}
   - component: {fileID: 1811284496}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Text (TMP)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5761,7 +5713,7 @@ GameObject:
   - component: {fileID: 1840748716}
   - component: {fileID: 1840748718}
   - component: {fileID: 1840748717}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: StartGameText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5899,7 +5851,7 @@ GameObject:
   - component: {fileID: 1847828929}
   - component: {fileID: 1847828928}
   - component: {fileID: 1847828927}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Canvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6002,7 +5954,7 @@ GameObject:
   - component: {fileID: 1853624585}
   - component: {fileID: 1853624587}
   - component: {fileID: 1853624586}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: ConfirmText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6139,7 +6091,7 @@ GameObject:
   - component: {fileID: 1880596455}
   - component: {fileID: 1880596457}
   - component: {fileID: 1880596456}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Panel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6216,14 +6168,12 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1925469047}
-  - component: {fileID: 1925469054}
   - component: {fileID: 1925469053}
   - component: {fileID: 1925469052}
   - component: {fileID: 1925469051}
   - component: {fileID: 1925469050}
-  - component: {fileID: 1925469049}
   - component: {fileID: 1925469048}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: Slot2Card
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6249,7 +6199,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: -0}
-  m_SizeDelta: {x: 600, y: 0}
+  m_SizeDelta: {x: 600, y: 150}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1925469048
 MonoBehaviour:
@@ -6295,20 +6245,6 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
---- !u!114 &1925469049
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1925469046}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
-  m_HorizontalFit: 0
-  m_VerticalFit: 2
 --- !u!114 &1925469050
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6377,32 +6313,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1925469046}
   m_CullTransparentMesh: 1
---- !u!114 &1925469054
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1925469046}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 59f8146938fff824cb5fd77236b75775, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.VerticalLayoutGroup
-  m_Padding:
-    m_Left: 6
-    m_Right: 6
-    m_Top: 6
-    m_Bottom: 0
-  m_ChildAlignment: 0
-  m_Spacing: 16
-  m_ChildForceExpandWidth: 1
-  m_ChildForceExpandHeight: 1
-  m_ChildControlWidth: 0
-  m_ChildControlHeight: 0
-  m_ChildScaleWidth: 0
-  m_ChildScaleHeight: 0
-  m_ReverseArrangement: 0
 --- !u!1 &1952597422
 GameObject:
   m_ObjectHideFlags: 0
@@ -6414,7 +6324,7 @@ GameObject:
   - component: {fileID: 1952597423}
   - component: {fileID: 1952597425}
   - component: {fileID: 1952597424}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: DeleteGameText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6630,7 +6540,7 @@ GameObject:
   - component: {fileID: 1988582608}
   - component: {fileID: 1988582610}
   - component: {fileID: 1988582609}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: DeleteGameText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6766,7 +6676,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1989847737}
   - component: {fileID: 1989847738}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: ButtonsRow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6832,7 +6742,7 @@ GameObject:
   - component: {fileID: 2001569753}
   - component: {fileID: 2001569752}
   - component: {fileID: 2001569751}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: LoadGameButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6965,7 +6875,7 @@ GameObject:
   - component: {fileID: 2019561713}
   - component: {fileID: 2019561712}
   - component: {fileID: 2019561711}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: CancelButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -7096,10 +7006,9 @@ GameObject:
   m_Component:
   - component: {fileID: 2051728593}
   - component: {fileID: 2051728595}
-  - component: {fileID: 2051728594}
   - component: {fileID: 2051728598}
   - component: {fileID: 2051728596}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: SlotsPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -7125,22 +7034,8 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 35, y: -80}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 600, y: 340}
   m_Pivot: {x: 0, y: 1}
---- !u!114 &2051728594
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2051728592}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
-  m_HorizontalFit: 2
-  m_VerticalFit: 2
 --- !u!114 &2051728595
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7228,7 +7123,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2059786050}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: PlayerNameSelect
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -7268,7 +7163,7 @@ GameObject:
   - component: {fileID: 2108370501}
   - component: {fileID: 2108370500}
   - component: {fileID: 2108370499}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: LoadGameButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -7400,7 +7295,7 @@ GameObject:
   - component: {fileID: 2110554642}
   - component: {fileID: 2110554644}
   - component: {fileID: 2110554643}
-  m_Layer: 5
+  m_Layer: 0
   m_Name: BodyText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -7535,5 +7430,6 @@ SceneRoots:
   m_Roots:
   - {fileID: 114472786}
   - {fileID: 521227782}
+  - {fileID: 29084073}
   - {fileID: 1847828930}
   - {fileID: 1963663886}

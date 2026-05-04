@@ -17,6 +17,7 @@ public enum HotkeyBindId
     OpenLevelSelect = 10,
     OpenQuestPage = 11,
 
-    ZoomIn = 12,
-    ZoomOut = 13,
+    SwapWeaponSet = 12,
+    ZoomIn = 13,
+    ZoomOut = 14,
 }

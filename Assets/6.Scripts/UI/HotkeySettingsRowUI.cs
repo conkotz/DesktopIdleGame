@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
 
@@ -13,6 +14,8 @@ using TMPro;
 public class HotkeySettingsRowUI : MonoBehaviour
 {
     [SerializeField] private HotkeyBindId bindId = HotkeyBindId.ActionBar1;
+    [Tooltip("Factory-reset default for this bind. KeyCode.None = use HotkeyBindingManager code default.")]
+    [SerializeField] private KeyCode serializedDefaultKey = KeyCode.None;
     [SerializeField] private TMP_Text actionNameText;
     [SerializeField] private TMP_Text currentKeyText;
     [Tooltip("Optional: separate label for \"Press any key…\". If null, the prompt is shown on Current Key Text.")]
@@ -26,6 +29,7 @@ public class HotkeySettingsRowUI : MonoBehaviour
     private Coroutine _deferredFocusCoroutine;
     private static KeyCode[] _keyScanOrder;
     private static HotkeySettingsRowUI _activeListener;
+    private static readonly HashSet<HotkeySettingsRowUI> s_registeredRows = new();
 
     /// <summary>True while a row is waiting for a key — use to avoid action bar / gameplay consuming the same keys.</summary>
     public static bool IsRebinding => _activeListener != null;
@@ -85,15 +89,45 @@ public class HotkeySettingsRowUI : MonoBehaviour
     {
         ResumeUiInputModules();
 
-        EventSystem es = EventSystem.current;
-        if (es == null)
-            return;
+        EventSystem[] systems =
+            FindObjectsByType<EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
-        BaseInputModule[] modules = es.GetComponents<BaseInputModule>();
-        for (int i = 0; i < modules.Length; i++)
+        EventSystem prefer = EventSystem.current;
+        if (prefer == null)
         {
-            if (modules[i] != null)
-                modules[i].enabled = true;
+            for (int i = 0; i < systems.Length; i++)
+            {
+                EventSystem es = systems[i];
+                if (es == null)
+                    continue;
+                Scene s = es.gameObject.scene;
+                if (s.IsValid() && s.isLoaded && s.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+                {
+                    prefer = es;
+                    break;
+                }
+            }
+        }
+
+        if (prefer == null && systems.Length > 0)
+            prefer = systems[0];
+
+        if (prefer != null && EventSystem.current != prefer)
+            EventSystem.current = prefer;
+
+        for (int si = 0; si < systems.Length; si++)
+        {
+            EventSystem es = systems[si];
+            if (es == null)
+                continue;
+
+            es.enabled = true;
+            BaseInputModule[] modules = es.GetComponents<BaseInputModule>();
+            for (int i = 0; i < modules.Length; i++)
+            {
+                if (modules[i] != null)
+                    modules[i].enabled = true;
+            }
         }
     }
 
@@ -155,6 +189,8 @@ public class HotkeySettingsRowUI : MonoBehaviour
 
     private void OnEnable()
     {
+        s_registeredRows.Add(this);
+
         if (rebindButton != null)
             rebindButton.onClick.AddListener(BeginListening);
 
@@ -168,6 +204,8 @@ public class HotkeySettingsRowUI : MonoBehaviour
 
     private void OnDisable()
     {
+        s_registeredRows.Remove(this);
+
         if (rebindButton != null)
             rebindButton.onClick.RemoveListener(BeginListening);
 
@@ -324,6 +362,24 @@ public class HotkeySettingsRowUI : MonoBehaviour
     {
         if (actionNameText != null)
             actionNameText.text = text;
+    }
+
+    public HotkeyBindId BindId => bindId;
+    public KeyCode SerializedDefaultKey => serializedDefaultKey;
+
+    public static bool TryGetSerializedDefaultKey(HotkeyBindId id, out KeyCode key)
+    {
+        foreach (HotkeySettingsRowUI row in s_registeredRows)
+        {
+            if (row == null || row.bindId != id || row.serializedDefaultKey == KeyCode.None)
+                continue;
+
+            key = row.serializedDefaultKey;
+            return true;
+        }
+
+        key = KeyCode.None;
+        return false;
     }
 
 #if UNITY_EDITOR

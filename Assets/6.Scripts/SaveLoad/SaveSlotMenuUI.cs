@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Collections;
 using System.IO;
 using System.Globalization;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -41,10 +44,20 @@ public class SaveSlotMenuUI : MonoBehaviour
     [SerializeField] private TMP_Text playerNameErrorText;
     [SerializeField, Min(3)] private int playerNameMaxLength = 8;
 
+    [Header("Diagnostics (optional)")]
+    [Tooltip("F8 (or chosen key) dumps EventSystem / resume button state when Bootstrap loads. Off by default.")]
+    [SerializeField] private bool bootstrapInputDiagnostics;
+    [SerializeField] private KeyCode bootstrapInputDiagnosticsKey = KeyCode.F8;
+
+    [Tooltip("Logs slot refresh summaries to the Console. Off by default.")]
+    [SerializeField] private bool verboseSlotMenuLogs;
+
     private int _pendingNewGameSlotIndex = -1;
     private int _pendingNameSlotIndex = -1;
     private bool _confirmPopupBound;
-    private bool _nameUiBound;
+    private bool _resumeLoadInProgress;
+    private bool _resumeClickLatch;
+    private int _resumeClickFrame = -1;
 
     private void Update()
     {
@@ -72,6 +85,7 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     private void OnEnable()
     {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
         AutoBindTitleLabelsIfNeeded();
         RefreshSlotInfoUI();
 
@@ -82,7 +96,44 @@ public class SaveSlotMenuUI : MonoBehaviour
 
         RewireResumeSlotButtons();
         RewireNewGameSlotButtons();
-        RefreshSlotButtonsState();
+        RefreshUI();
+
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.OnSaveSystemReady += RefreshUI;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.OnSaveSystemReady -= RefreshUI;
+    }
+
+    private IEnumerator Start()
+    {
+        yield return null;
+        yield return null;
+        RefreshUI();
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (!scene.IsValid() || !scene.isLoaded)
+            return;
+
+        if (!scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        // New Bootstrap session: always clear any stale resume guard/latch from prior transitions.
+        _resumeLoadInProgress = false;
+        _resumeClickLatch = false;
+        _resumeClickFrame = -1;
+        SetResumeButtonsInteractable(true);
+
+        if (bootstrapInputDiagnostics)
+            DumpBootstrapInputDiagnostics("sceneLoaded");
+        RefreshSlotsFromDisk();
+        RefreshUI();
     }
 
     private bool ShouldRebindSlotResumeButtonsForVisibleBootstrap()
@@ -156,7 +207,6 @@ public class SaveSlotMenuUI : MonoBehaviour
             playerNameSelectRoot = null;
 
         _confirmPopupBound = false;
-        _nameUiBound = false;
     }
 
     public static bool TryGetLoadedBootstrapScene(out Scene scene)
@@ -228,10 +278,24 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     private void HandleResumeSlot1Clicked() => OnClickLoadSlot(1);
 
+    private void SetResumeButtonsInteractable(bool interactable)
+    {
+        if (slot0ResumeButton && slot0ResumeButton.gameObject.activeInHierarchy)
+            slot0ResumeButton.interactable = interactable;
+        if (slot1ResumeButton && slot1ResumeButton.gameObject.activeInHierarchy)
+            slot1ResumeButton.interactable = interactable;
+    }
+
+    public bool IsResumeTransitionActive => _resumeLoadInProgress || _resumeClickLatch;
+
     private void RewireNewGameSlotButtons()
     {
-        Button b0 = FindButtonUnder("Slot1Card", "ButtonsRow/NewGameButton");
-        Button b1 = FindButtonUnder("Slot2Card", "ButtonsRow/NewGameButton");
+        Transform c0 = FindCardTransformForSaveMenu("Slot1Card");
+        Transform c1 = FindCardTransformForSaveMenu("Slot2Card");
+        Button b0 = FindNewGameButtonOnCard(c0) ?? FindButtonUnder("Slot1Card", "ButtonsRow/NewGameButton");
+        Button b1 = FindNewGameButtonOnCard(c1) ?? FindButtonUnder("Slot2Card", "ButtonsRow/NewGameButton");
+        if (b0 == null || b1 == null)
+            ResolveNewGameButtonsByLabelFallback(ref b0, ref b1);
 
         if (b0)
         {
@@ -357,6 +421,7 @@ public class SaveSlotMenuUI : MonoBehaviour
         if (slot0ResumeButton != null && slot0ResumeButton == slot1ResumeButton)
             slot1ResumeButton = null;
 
+        TryBindButtonsByLabelFallback();
     }
 
     /// <summary>
@@ -371,6 +436,29 @@ public class SaveSlotMenuUI : MonoBehaviour
         slot1ResumeButton = FindResumeOrLoadGameButtonOnCard(c1);
         if (slot0ResumeButton != null && slot0ResumeButton == slot1ResumeButton)
             slot1ResumeButton = null;
+        TryBindButtonsByLabelFallback();
+    }
+
+    /// <summary>
+    /// ButtonsRow may be a child of Slot1Card (legacy) or a <b>sibling</b> under SlotRow / SlotRow2 (current UI).
+    /// </summary>
+    private static Transform FindButtonsRowForSlotCard(Transform cardRoot)
+    {
+        if (!cardRoot)
+            return null;
+
+        Transform row = cardRoot.Find("ButtonsRow");
+        if (row)
+            return row;
+
+        if (cardRoot.parent != null)
+        {
+            row = cardRoot.parent.Find("ButtonsRow");
+            if (row)
+                return row;
+        }
+
+        return null;
     }
 
     private static Button FindResumeOrLoadGameButtonOnCard(Transform cardRoot)
@@ -378,7 +466,7 @@ public class SaveSlotMenuUI : MonoBehaviour
         if (!cardRoot)
             return null;
 
-        Transform row = cardRoot.Find("ButtonsRow");
+        Transform row = FindButtonsRowForSlotCard(cardRoot);
         if (!row)
             return null;
 
@@ -391,7 +479,64 @@ public class SaveSlotMenuUI : MonoBehaviour
         }
 
         Transform load = row.Find("LoadGameButton");
-        return load ? load.GetComponent<Button>() : null;
+        if (load)
+            return load.GetComponent<Button>();
+
+        Button byLabel = FindButtonByLabelWithin(row, "resume", "load game");
+        if (byLabel)
+            return byLabel;
+
+        return FindButtonByLabelWithin(cardRoot, "resume", "load game");
+    }
+
+    private static Button FindNewGameButtonOnCard(Transform cardRoot)
+    {
+        if (!cardRoot)
+            return null;
+
+        Transform row = FindButtonsRowForSlotCard(cardRoot);
+        if (!row)
+            return null;
+
+        Transform ng = row.Find("NewGameButton");
+        if (ng)
+        {
+            Button b = ng.GetComponent<Button>();
+            if (b)
+                return b;
+        }
+
+        Button byLabel = FindButtonByLabelWithin(row, "start new game", "new game");
+        if (byLabel)
+            return byLabel;
+
+        return FindButtonByLabelWithin(cardRoot, "start new game", "new game");
+    }
+
+    private static Button FindButtonByLabelWithin(Transform root, params string[] labelsLower)
+    {
+        if (!root || labelsLower == null || labelsLower.Length == 0)
+            return null;
+
+        Button[] buttons = root.GetComponentsInChildren<Button>(true);
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            Button b = buttons[i];
+            if (!b) continue;
+
+            TMP_Text t = b.GetComponentInChildren<TMP_Text>(true);
+            if (t == null || string.IsNullOrWhiteSpace(t.text))
+                continue;
+
+            string text = t.text.Trim().ToLowerInvariant();
+            for (int j = 0; j < labelsLower.Length; j++)
+            {
+                if (text.Contains(labelsLower[j]))
+                    return b;
+            }
+        }
+
+        return null;
     }
 
     private void AutoBindTitleLabelsIfNeeded()
@@ -469,14 +614,28 @@ public class SaveSlotMenuUI : MonoBehaviour
 
         if (!playerNameStartButton)
         {
-            var t = playerNameSelectRoot.transform.Find("Panel/ButtonsRow/StartGame");
-            if (t) playerNameStartButton = t.GetComponent<Button>();
+            Transform row = playerNameSelectRoot.transform.Find("Panel/ButtonsRow");
+            if (row)
+            {
+                Transform t = row.Find("StartButton") ?? row.Find("StartGame");
+                if (t) playerNameStartButton = t.GetComponent<Button>();
+            }
         }
 
         if (!playerNameCancelButton)
         {
-            var t = playerNameSelectRoot.transform.Find("Panel/ButtonsRow/ConfirmButton");
-            if (t) playerNameCancelButton = t.GetComponent<Button>();
+            Transform row = playerNameSelectRoot.transform.Find("Panel/ButtonsRow");
+            if (row)
+            {
+                Transform t = row.Find("CancelButton") ?? row.Find("ConfirmButton");
+                if (t) playerNameCancelButton = t.GetComponent<Button>();
+            }
+        }
+
+        if (!playerNameErrorText)
+        {
+            var t = playerNameSelectRoot.transform.Find("Panel/ErrorText");
+            if (t) playerNameErrorText = t.GetComponent<TMP_Text>();
         }
     }
 
@@ -507,7 +666,130 @@ public class SaveSlotMenuUI : MonoBehaviour
         Transform card = FindCardTransformForSaveMenu(cardRootName);
         if (!card) return null;
         Transform node = card.Find(relativePath);
-        return node ? node.GetComponent<Button>() : null;
+        if (node)
+            return node.GetComponent<Button>();
+
+        // ButtonsRow is sibling of SlotNCard under SlotRow / SlotRow2
+        const string prefix = "ButtonsRow/";
+        if (card.parent != null &&
+            relativePath.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            Transform row = card.parent.Find("ButtonsRow");
+            if (row)
+            {
+                string sub = relativePath.Substring(prefix.Length);
+                node = row.Find(sub);
+                return node ? node.GetComponent<Button>() : null;
+            }
+        }
+
+        return null;
+    }
+
+    private void TryBindButtonsByLabelFallback()
+    {
+        if (slot0ResumeButton != null && slot1ResumeButton != null)
+            return;
+
+        List<Button> resumeButtons = FindBootstrapButtonsByLabelContains("resume");
+        for (int i = 0; i < resumeButtons.Count; i++)
+        {
+            Button b = resumeButtons[i];
+            int slot = ResolveSlotIndexFromButtonHierarchy(b);
+            if (slot == 0 && slot0ResumeButton == null)
+                slot0ResumeButton = b;
+            else if (slot == 1 && slot1ResumeButton == null)
+                slot1ResumeButton = b;
+        }
+
+        // Last-resort fallback: some prefab variants do not keep buttons parented under SlotNCard.
+        // In this UI, slot 1 is visually above slot 2.
+        if ((slot0ResumeButton == null || slot1ResumeButton == null) && resumeButtons.Count >= 2)
+        {
+            resumeButtons.Sort((a, b) => b.transform.position.y.CompareTo(a.transform.position.y));
+            slot0ResumeButton ??= resumeButtons[0];
+            slot1ResumeButton ??= resumeButtons[1];
+        }
+        else if (slot0ResumeButton == null && resumeButtons.Count == 1)
+        {
+            slot0ResumeButton = resumeButtons[0];
+        }
+    }
+
+    private static void ResolveNewGameButtonsByLabelFallback(ref Button slot0, ref Button slot1)
+    {
+        List<Button> newGameButtons = FindBootstrapButtonsByLabelContains("start new game");
+        for (int i = 0; i < newGameButtons.Count; i++)
+        {
+            Button b = newGameButtons[i];
+            int resolvedSlot = ResolveSlotIndexFromButtonHierarchy(b);
+            if (resolvedSlot == 0 && slot0 == null)
+                slot0 = b;
+            else if (resolvedSlot == 1 && slot1 == null)
+                slot1 = b;
+        }
+
+        if ((slot0 == null || slot1 == null) && newGameButtons.Count >= 2)
+        {
+            newGameButtons.Sort((a, b) => b.transform.position.y.CompareTo(a.transform.position.y));
+            slot0 ??= newGameButtons[0];
+            slot1 ??= newGameButtons[1];
+        }
+        else if (slot0 == null && newGameButtons.Count == 1)
+        {
+            slot0 = newGameButtons[0];
+        }
+    }
+
+    private static int ResolveSlotIndexFromButtonHierarchy(Button button)
+    {
+        if (!button)
+            return -1;
+
+        Transform t = button.transform;
+        while (t != null)
+        {
+            if (string.Equals(t.name, "Slot1Card", StringComparison.OrdinalIgnoreCase))
+                return 0;
+            if (string.Equals(t.name, "Slot2Card", StringComparison.OrdinalIgnoreCase))
+                return 1;
+            t = t.parent;
+        }
+
+        return -1;
+    }
+
+    private static List<Button> FindBootstrapButtonsByLabelContains(string containsLower)
+    {
+        var result = new List<Button>();
+        bool hasBootstrapScene = TryGetLoadedBootstrapScene(out Scene bs);
+
+        Button[] all = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            Button b = all[i];
+            if (!b)
+                continue;
+
+            Scene buttonScene = b.gameObject.scene;
+            bool inBootstrapScene = hasBootstrapScene && buttonScene == bs;
+            bool inDdol = buttonScene.IsValid() && buttonScene.name == "DontDestroyOnLoad";
+            if (!inBootstrapScene && !inDdol)
+                continue;
+
+            TMP_Text t = b.GetComponentInChildren<TMP_Text>(true);
+            if (t == null || string.IsNullOrWhiteSpace(t.text))
+                continue;
+
+            string labelText = t.text.Trim().ToLowerInvariant();
+            if (!labelText.Contains(containsLower))
+                continue;
+            result.Add(b);
+        }
+
+        // Slot 1 is visually above slot 2 in this menu.
+        result.Sort((a, b) => b.transform.position.y.CompareTo(a.transform.position.y));
+        return result;
     }
 
     private Button FindResumeLikeButtonUnder(Transform root)
@@ -578,11 +860,12 @@ public class SaveSlotMenuUI : MonoBehaviour
         return null;
     }
 
+    /// <summary>
+    /// Wires the new-game name modal. Safe to call repeatedly (e.g. after Bootstrap UI is recreated);
+    /// avoids the old one-shot latch that left buttons dead when auto-bind paths did not match the scene.
+    /// </summary>
     private void BindNameSelectOnce()
     {
-        if (_nameUiBound) return;
-        _nameUiBound = true;
-
         if (playerNameSelectRoot)
             playerNameSelectRoot.SetActive(false);
 
@@ -647,22 +930,45 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     private void RefreshSlotButtonsState()
     {
+        bool slot0Exists = SaveManager.Instance != null
+            ? SaveManager.Instance.SaveExists(0)
+            : SaveSlotManager.HasSave(0);
+        bool slot1Exists = SaveManager.Instance != null
+            ? SaveManager.Instance.SaveExists(1)
+            : SaveSlotManager.HasSave(1);
+
         // Hide Resume when that slot has no save file (per-slot Load buttons).
         if (slot0ResumeButton)
         {
-            bool has = SaveSlotManager.HasSave(0);
-            slot0ResumeButton.gameObject.SetActive(has);
-            if (has)
+            slot0ResumeButton.gameObject.SetActive(slot0Exists);
+            if (slot0Exists)
                 slot0ResumeButton.interactable = true;
         }
 
         if (slot1ResumeButton)
         {
-            bool has = SaveSlotManager.HasSave(1);
-            slot1ResumeButton.gameObject.SetActive(has);
-            if (has)
+            slot1ResumeButton.gameObject.SetActive(slot1Exists);
+            if (slot1Exists)
                 slot1ResumeButton.interactable = true;
         }
+    }
+
+    public void RefreshUI()
+    {
+        AutoBindSlotButtonsIfNeeded();
+        RewireResumeSlotButtons();
+        RewireNewGameSlotButtons();
+        RefreshSlotInfoUI();
+        RefreshSlotButtonsState();
+
+        bool slot0Exists = SaveManager.Instance != null
+            ? SaveManager.Instance.SaveExists(0)
+            : SaveSlotManager.HasSave(0);
+        bool slot1Exists = SaveManager.Instance != null
+            ? SaveManager.Instance.SaveExists(1)
+            : SaveSlotManager.HasSave(1);
+        if (verboseSlotMenuLogs)
+            Debug.Log($"[UI Refresh] Slot0={slot0Exists}, Slot1={slot1Exists}");
     }
 
     private void SetSlotInfoText(int slotIndex, TMP_Text label)
@@ -719,10 +1025,7 @@ public class SaveSlotMenuUI : MonoBehaviour
     private bool CanLoadGameplayScene()
     {
         if (string.IsNullOrWhiteSpace(gameplaySceneName))
-        {
-            Debug.LogError("[SaveSlotMenuUI] gameplaySceneName is empty.", this);
             return false;
-        }
 
         // Avoid "freeze" reports when the scene name is wrong / not in Build Settings.
         if (!Application.CanStreamedLevelBeLoaded(gameplaySceneName))
@@ -733,14 +1036,10 @@ public class SaveSlotMenuUI : MonoBehaviour
             {
                 if (Application.CanStreamedLevelBeLoaded(FallbackGameplaySceneName))
                 {
-                    Debug.LogWarning($"[SaveSlotMenuUI] Can't load scene '{gameplaySceneName}'. Falling back to '{FallbackGameplaySceneName}'. " +
-                                     "Update the BootMenu inspector field when convenient.", this);
                     gameplaySceneName = FallbackGameplaySceneName;
                     return true;
                 }
             }
-
-            Debug.LogError($"[SaveSlotMenuUI] Can't load scene '{gameplaySceneName}'. Add it to Build Settings or fix the name.", this);
             return false;
         }
 
@@ -749,14 +1048,147 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     public void OnClickLoadSlot(int slotIndex)
     {
-        if (!SaveSlotManager.HasSave(slotIndex))
+        if (_resumeLoadInProgress || _resumeClickLatch)
+        {
+            return;
+        }
+
+        _resumeClickLatch = true;
+        _resumeClickFrame = Time.frameCount;
+        SetResumeButtonsInteractable(false);
+        StartCoroutine(CoResumeLoadFlow(slotIndex));
+    }
+
+    private IEnumerator CoResumeLoadFlow(int slotIndex)
+    {
+        _resumeLoadInProgress = true;
+        try
+        {
+            if (!SaveSlotManager.HasSave(slotIndex))
+                yield break;
+
+            if (SaveManager.Instance == null)
+                yield break;
+
+            SaveSlotManager.SetActiveSlot(slotIndex);
+            SaveSlotManager.MarkSlotAsLastPlayed(slotIndex);
+            SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.LoadGame);
+
+            SaveManager.Instance.PrepareForBootstrapResumeLoad($"Resume slot {slotIndex + 1}");
+
+            if (!CanLoadGameplayScene())
+                yield break;
+
+            string targetScene = gameplaySceneName;
+            Scene active = SceneManager.GetActiveScene();
+            if (active.IsValid() && active.isLoaded &&
+                active.name.Equals(targetScene, StringComparison.OrdinalIgnoreCase))
+            {
+                targetScene = active.name;
+            }
+
+            AsyncOperation op = SceneManager.LoadSceneAsync(targetScene, LoadSceneMode.Single);
+            if (op == null)
+                yield break;
+
+            yield return op;
+
+            // SaveManager drives Load()/NewGame init on sceneLoaded.
+            // Fallback: if data is still missing, force one explicit Load now.
+            if (SaveManager.Instance == null)
+                yield break;
+
+            if (!SaveManager.Instance.TryGetLastLoadedData(out SaveData loadedData) || loadedData == null)
+            {
+                SaveManager.Instance.Load();
+
+                if (!SaveManager.Instance.TryGetLastLoadedData(out loadedData) || loadedData == null)
+                    yield break;
+            }
+
+            const int maxWaitFrames = 180;
+            PlayerController player = null;
+            for (int i = 0; i < maxWaitFrames; i++)
+            {
+                player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+                if (player != null)
+                    break;
+                yield return null;
+            }
+
+            if (player == null)
+                yield break;
+
+            // Deterministic resume safety: force one explicit apply after scene load in case gameplay-ready timing drifts.
+            // SaveManager still keeps the canonical late-apply path; this is an extra guard for bootstrap round-trips.
+            bool applied = SaveManager.Instance.ApplyToPlayer(player);
+            if (!applied)
+            {
+                // Retry once on next frame for rare init-order races (player exists, but dependent systems are not ready yet).
+                yield return null;
+                _ = SaveManager.Instance.ApplyToPlayer(player);
+            }
+        }
+        finally
+        {
+            _resumeLoadInProgress = false;
+            if (SceneManager.GetActiveScene().name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+            {
+                _resumeClickLatch = false;
+                _resumeClickFrame = -1;
+                SetResumeButtonsInteractable(true);
+            }
+        }
+    }
+
+    public void OnResumeClicked()
+    {
+        int slot = SaveSlotManager.GetLastPlayedSlotIndex();
+        if (slot < 0 || slot >= SaveSlotManager.MaxSlots)
+            slot = 0;
+        OnClickLoadSlot(slot);
+    }
+
+    private void LateUpdate()
+    {
+        if (!bootstrapInputDiagnostics)
             return;
 
-        SaveSlotManager.SetActiveSlot(slotIndex);
-        SaveSlotManager.MarkSlotAsLastPlayed(slotIndex);
-        SaveSlotManager.SetPendingStartMode(SaveSlotManager.SlotStartMode.LoadGame);
-        if (CanLoadGameplayScene())
-            SceneManager.LoadScene(gameplaySceneName);
+        Scene active = SceneManager.GetActiveScene();
+        if (!active.IsValid() || !active.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (bootstrapInputDiagnosticsKey != KeyCode.None && Input.GetKeyDown(bootstrapInputDiagnosticsKey))
+            DumpBootstrapInputDiagnostics("manual-hotkey");
+    }
+
+    private void DumpBootstrapInputDiagnostics(string source)
+    {
+        EventSystem[] systems = FindObjectsByType<EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        Debug.Log($"[BootstrapDiag] source={source} activeScene={SceneManager.GetActiveScene().name} eventSystems={systems.Length} current={(EventSystem.current ? EventSystem.current.name : "null")}");
+        for (int i = 0; i < systems.Length; i++)
+        {
+            EventSystem es = systems[i];
+            if (!es) continue;
+            BaseInputModule[] mods = es.GetComponents<BaseInputModule>();
+            string modInfo = "";
+            for (int m = 0; m < mods.Length; m++)
+                modInfo += $"{mods[m].GetType().Name}:{mods[m].enabled} ";
+            Debug.Log($"[BootstrapDiag] EventSystem '{es.name}' enabled={es.enabled} scene='{es.gameObject.scene.name}' modules=[{modInfo.Trim()}]");
+        }
+
+        Debug.Log($"[BootstrapDiag] Slot1Resume exists={slot0ResumeButton != null} active={(slot0ResumeButton && slot0ResumeButton.gameObject.activeInHierarchy)} interactable={(slot0ResumeButton && slot0ResumeButton.interactable)}");
+        Debug.Log($"[BootstrapDiag] Slot2Resume exists={slot1ResumeButton != null} active={(slot1ResumeButton && slot1ResumeButton.gameObject.activeInHierarchy)} interactable={(slot1ResumeButton && slot1ResumeButton.interactable)}");
+
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Canvas c = canvases[i];
+            if (!c || !c.gameObject.scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
+                continue;
+            GraphicRaycaster ray = c.GetComponent<GraphicRaycaster>();
+            Debug.Log($"[BootstrapDiag] Canvas '{c.name}' enabled={c.enabled} raycaster={(ray != null ? ray.enabled : false)}");
+        }
     }
 
     public void OnClickNewGame(int slotIndex)
@@ -782,6 +1214,7 @@ public class SaveSlotMenuUI : MonoBehaviour
 
     private void OpenPlayerNameSelect(int slotIndex)
     {
+        AutoBindNameSelectIfNeeded();
         BindNameSelectOnce();
         _pendingNameSlotIndex = slotIndex;
 

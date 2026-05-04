@@ -16,18 +16,25 @@ MonoBehaviour:
   - itemId: splitwood_arrow
     costs:
     - type: 0
-      amount: 0
+      amount: 5
       itemId: 
-    quantity: -1
+    defaultQuantity: -1
   - itemId: splitwood_swiftbow
     costs:
     - type: 0
-      amount: 0
+      amount: 3500
       itemId: 
-    quantity: 1
+    - type: 1
+      amount: 25
+      itemId: splitwood_log
+    defaultQuantity: 1
   - itemId: splitwood_longbow
     costs:
     - type: 0
-      amount: 0
+      amount: 3500
       itemId: 
-    quantity: 1
+    - type: 1
+      amount: 35
+      itemId: splitwood_log
+    defaultQuantity: 1
+  stockSaveKey: 

@@ -14,27 +14,33 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
   items:
   - itemId: basic_phys_damage_potion
-    costs: []
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
     defaultQuantity: -1
   - itemId: basic_mag_damage_potion
-    costs: []
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
     defaultQuantity: -1
   - itemId: basic_attack_speed_potion
     costs:
     - type: 0
-      amount: 0
+      amount: 500
       itemId: 
     defaultQuantity: -1
   - itemId: basic_health_regen_potion
     costs:
     - type: 0
-      amount: 0
+      amount: 500
       itemId: 
     defaultQuantity: -1
   - itemId: basic_mana_regen_potion
     costs:
     - type: 0
-      amount: 0
+      amount: 500
       itemId: 
     defaultQuantity: -1
   stockSaveKey: 

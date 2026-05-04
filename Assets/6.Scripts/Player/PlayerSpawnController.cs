@@ -13,6 +13,8 @@ public class PlayerSpawnController : MonoBehaviour
     [Header("Spawn Point")]
     [Tooltip("Name of the spawn point GameObject in each scene.")]
     [SerializeField] private string spawnPointName = "SpawnPoint_Player";
+    [Tooltip("Optional spawn point name used only in Bootstrap scene for character preview.")]
+    [SerializeField] private string bootstrapSpawnPointName = "SpawnPoint_BootstrapPlayerPreview";
 
     [Tooltip("Extra frames to wait after scene load before moving player (helps setup order).")]
     [SerializeField] private int waitFramesAfterLoad = 1;
@@ -93,14 +95,22 @@ public class PlayerSpawnController : MonoBehaviour
         for (int i = 0; i < waitFramesAfterLoad; i++)
             yield return null;
 
-        GameObject spawn = GameObject.Find(spawnPointName);
+        bool isBootstrap = IsBootstrapScene(loadedScene);
+        string targetSpawnName = isBootstrap && !string.IsNullOrWhiteSpace(bootstrapSpawnPointName)
+            ? bootstrapSpawnPointName
+            : spawnPointName;
+
+        GameObject spawn = GameObject.Find(targetSpawnName);
+        if (spawn == null && isBootstrap && !string.Equals(targetSpawnName, spawnPointName, StringComparison.Ordinal))
+            spawn = GameObject.Find(spawnPointName);
+
         if (spawn != null)
         {
             transform.position = spawn.transform.position;
         }
-        else if (!IsBootstrapScene(loadedScene))
+        else if (!isBootstrap)
         {
-            Debug.LogWarning($"[PlayerSpawnController] Missing spawn point '{spawnPointName}' in scene. Player stays where it is.");
+            Debug.LogWarning($"[PlayerSpawnController] Missing spawn point '{targetSpawnName}' in scene. Player stays where it is.");
         }
 
         // Let transforms + physics settle
@@ -110,11 +120,11 @@ public class PlayerSpawnController : MonoBehaviour
 
         // Restore full scale BEFORE ground snap. Snapping at teleport scale (~0.01) uses wrong collider bounds
         // and places the root incorrectly relative to the ground.
-        GetComponent<PlayerLevelTransition>()?.RestoreScaleAfterLevelChange();
+        levelTransition?.RestoreScaleAfterLevelChange();
         Physics2D.SyncTransforms();
 
         if (snapToGround)
-            SnapToGround_ColliderCast(!IsBootstrapScene(loadedScene));
+            SnapToGround_ColliderCast(!isBootstrap);
 
         if (rb)
             rb.position = transform.position;

@@ -25,6 +25,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         public int slotIndex;
         public int kind;
         public string id;
+        public int amount;
     }
 
     public IReadOnlyList<SlotBinding> SlotBindings => slotBindings;
@@ -41,39 +42,58 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     }
 
     /// <summary>
-    /// Puts food on the Food action bar slot or a potion on the Potion slot, replacing any item already there.
-    /// Does not remove items from inventory (same as drag-assign).
+    /// Moves consumables from an inventory slot into the matching action-bar consumable slot.
+    /// Same item stacks in-bar; different item swaps back into inventory.
     /// </summary>
+    public bool TryMoveConsumableFromInventorySlot(int inventorySlotIndex, int amountToMove = int.MaxValue)
+    {
+        ResolveCoreRefs();
+        if (inventory == null || inventorySlotIndex < 0)
+            return false;
+
+        Inventory.Slot src = inventory.GetSlot(inventorySlotIndex);
+        if (src.IsEmpty || string.IsNullOrWhiteSpace(src.itemId))
+            return false;
+
+        ItemDefinition def = inventory.GetItemDef(src.itemId);
+        if (def == null || (!def.IsFood && !def.IsPotion))
+            return false;
+
+        ActionBarSlotUI target = FindConsumableSlot(def);
+        if (target == null)
+            return false;
+
+        int move = Mathf.Clamp(amountToMove, 1, src.amount);
+        return target.TryStoreConsumableFromInventorySlot(inventorySlotIndex, move);
+    }
+
     public bool TryAssignConsumableFromItemDefinition(ItemDefinition def)
     {
         if (def == null || (!def.IsFood && !def.IsPotion))
             return false;
 
         ResolveCoreRefs();
-
-        ActionBarSlotType wantType = def.IsFood ? ActionBarSlotType.Food : ActionBarSlotType.Potion;
-        ActionBarSlotUI target = null;
-        foreach (ActionBarSlotUI slot in GetSlots())
-        {
-            if (slot != null && slot.SlotType == wantType)
-            {
-                target = slot;
-                break;
-            }
-        }
+        if (inventory == null)
+            return false;
+        ActionBarSlotUI target = FindConsumableSlot(def);
 
         if (target == null)
             return false;
 
-        ActionBarAssignment assignment = ActionBarAssignment.CreateItem(def);
-        if (assignment == null || !assignment.IsAssigned)
-            return false;
+        for (int i = 0; i < inventory.SlotCount; i++)
+        {
+            Inventory.Slot slot = inventory.GetSlot(i);
+            if (slot.IsEmpty || string.IsNullOrWhiteSpace(slot.itemId))
+                continue;
 
-        if (!target.CanAccept(assignment, def))
-            return false;
+            string remapped = Inventory.RemapLegacyItemId(slot.itemId);
+            if (!string.Equals(remapped, def.itemId, System.StringComparison.OrdinalIgnoreCase))
+                continue;
 
-        target.Assign(assignment);
-        return true;
+            return target.TryStoreConsumableFromInventorySlot(i, slot.amount);
+        }
+
+        return false;
     }
 
     /// <summary>Inspector or runtime default — same DB used to resolve saved bar slots and tooltips.</summary>
@@ -89,6 +109,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     [Header("Refs")]
     [SerializeField] private Inventory inventory;
+    [SerializeField] private ItemDatabase itemDatabase;
     [SerializeField] private PlayerConsumableController consumableController;
     [SerializeField] private PlayerAbilityController abilityController;
     [SerializeField] private AbilityDatabase abilityDatabase;
@@ -255,6 +276,12 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                     return;
                 }
 
+                if (slot.AssignedItemAmount <= 0)
+                {
+                    slot.SetNoStockVisual(true);
+                    return;
+                }
+
                 bool used = consumableController.TryUseItem(action.id);
 
                 if (debugLogs)
@@ -286,6 +313,28 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>
+    /// Used when multiple <see cref="ActionBarUI"/> instances exist (DDOL + scene HUD): <see cref="SaveManager"/>
+    /// keeps the richest snapshot so an empty duplicate cannot wipe consumables on disk.
+    /// </summary>
+    public int ComputeSavePriorityScore()
+    {
+        CaptureSlotsToSavedState();
+        int score = 0;
+        for (int i = 0; i < savedSlots.Count; i++)
+        {
+            SavedSlotState e = savedSlots[i];
+            if (string.IsNullOrWhiteSpace(e.id))
+                continue;
+            if (e.kind == (int)ActionBarAssignmentKind.Item)
+                score += Mathf.Max(1, e.amount);
+            else
+                score += 1;
+        }
+
+        return score;
+    }
+
     private void CaptureSlotsToSavedState()
     {
         savedSlots.Clear();
@@ -304,7 +353,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             {
                 slotIndex = binding.slot.SlotIndex,
                 kind = (int)action.kind,
-                id = action.id
+                id = action.id,
+                amount = action.IsItem ? binding.slot.AssignedItemAmount : 0
             });
         }
     }
@@ -340,6 +390,13 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             }
 
             slot.Assign(assignment, false);
+            if (assignment.IsItem)
+            {
+                int savedAmount = Mathf.Max(0, saved.amount);
+                if (savedAmount <= 0)
+                    savedAmount = 1; // legacy saves had ids only; keep slot usable
+                slot.SetAssignedItemAmountFromSave(savedAmount, notify: false);
+            }
         }
 
         return unresolved;
@@ -354,14 +411,22 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             case ActionBarAssignmentKind.Item:
                 ResolveCoreRefs();
 
-                if (inventory == null || string.IsNullOrWhiteSpace(id))
+                if (string.IsNullOrWhiteSpace(id))
                     return null;
 
-                ItemDefinition def = inventory.GetItemDef(id);
+                string resolvedId = Inventory.RemapLegacyItemId(id);
+                ItemDefinition def = inventory != null ? inventory.GetItemDef(resolvedId) : null;
+                if (!def)
+                {
+                    if (itemDatabase == null)
+                        itemDatabase = ResolveItemDatabase();
+                    if (itemDatabase != null)
+                        def = itemDatabase.Get(resolvedId);
+                }
                 if (!def)
                 {
                     if (debugLogs)
-                        Debug.LogWarning($"[ActionBar] Could not find ItemDefinition for '{id}'");
+                        Debug.LogWarning($"[ActionBar] Could not find ItemDefinition for '{id}' (remapped='{resolvedId}')");
                     return null;
                 }
 
@@ -465,14 +530,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             return;
         }
 
-        int count = 0;
-        for (int i = 0; i < inventory.SlotCount; i++)
-        {
-            var invSlot = inventory.GetSlot(i);
-            if (!invSlot.IsEmpty && invSlot.itemId == action.id)
-                count += invSlot.amount;
-        }
-
+        int count = slot.AssignedItemAmount;
         slot.SetStackText(count);
         bool noStock = count <= 0 &&
                        (slot.SlotType == ActionBarSlotType.Food || slot.SlotType == ActionBarSlotType.Potion);
@@ -498,15 +556,26 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (data == null)
             return;
 
+        // Always snapshot live slot assignments right before serialization so level transitions
+        // cannot persist stale cached state.
+        CaptureSlotsToSavedState();
+
+        data.actionBarSlotIndexes ??= new List<int>();
+        data.actionBarKinds ??= new List<int>();
+        data.actionBarIds ??= new List<string>();
+        data.actionBarItemAmounts ??= new List<int>();
+
         data.actionBarSlotIndexes.Clear();
         data.actionBarKinds.Clear();
         data.actionBarIds.Clear();
+        data.actionBarItemAmounts.Clear();
 
         for (int i = 0; i < savedSlots.Count; i++)
         {
             data.actionBarSlotIndexes.Add(savedSlots[i].slotIndex);
             data.actionBarKinds.Add(savedSlots[i].kind);
             data.actionBarIds.Add(savedSlots[i].id);
+            data.actionBarItemAmounts.Add(Mathf.Max(0, savedSlots[i].amount));
         }
     }
 
@@ -529,7 +598,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             {
                 slotIndex = data.actionBarSlotIndexes[i],
                 kind = data.actionBarKinds[i],
-                id = data.actionBarIds[i]
+                id = data.actionBarIds[i],
+                amount = data.actionBarItemAmounts != null && i < data.actionBarItemAmounts.Count
+                    ? Mathf.Max(0, data.actionBarItemAmounts[i])
+                    : 0
             });
         }
 
@@ -605,6 +677,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (inventory == null)
             inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
 
+        if (itemDatabase == null)
+            itemDatabase = ResolveItemDatabase();
+
         if (consumableController == null)
             consumableController = FindFirstObjectByType<PlayerConsumableController>(FindObjectsInactive.Include);
 
@@ -619,6 +694,26 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         if (skillsManager == null)
             skillsManager = SkillsManager.Instance;
+    }
+
+    private static ItemDatabase ResolveItemDatabase()
+    {
+        ItemDatabase db = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        if (db != null)
+            return db;
+
+        db = Resources.Load<ItemDatabase>("ItemDatabase");
+        if (db != null)
+            return db;
+
+        ItemDatabase[] loaded = Resources.FindObjectsOfTypeAll<ItemDatabase>();
+        for (int i = 0; i < loaded.Length; i++)
+        {
+            if (loaded[i] != null)
+                return loaded[i];
+        }
+
+        return null;
     }
 
     private AbilityDefinition GetAbilityDefinition(string id)
@@ -640,6 +735,64 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
 
         return null;
+    }
+
+    private ActionBarSlotUI FindConsumableSlot(ItemDefinition def)
+    {
+        if (def == null)
+            return null;
+
+        ActionBarSlotType wantType = def.IsFood ? ActionBarSlotType.Food : ActionBarSlotType.Potion;
+        foreach (ActionBarSlotUI slot in GetSlots())
+        {
+            if (slot != null && slot.SlotType == wantType)
+                return slot;
+        }
+
+        return null;
+    }
+
+    public int CountSlottedItem(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return 0;
+
+        string remapped = Inventory.RemapLegacyItemId(itemId);
+        int total = 0;
+        foreach (ActionBarSlotUI slot in GetSlots())
+        {
+            if (slot == null)
+                continue;
+            ActionBarAssignment action = slot.AssignedAction;
+            if (action == null || !action.IsItem || string.IsNullOrWhiteSpace(action.id))
+                continue;
+            if (string.Equals(Inventory.RemapLegacyItemId(action.id), remapped, System.StringComparison.OrdinalIgnoreCase))
+                total += slot.AssignedItemAmount;
+        }
+        return total;
+    }
+
+    public bool TryConsumeSlottedItem(string itemId, int amount = 1)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
+            return false;
+
+        string remapped = Inventory.RemapLegacyItemId(itemId);
+        foreach (ActionBarSlotUI slot in GetSlots())
+        {
+            if (slot == null)
+                continue;
+            ActionBarAssignment action = slot.AssignedAction;
+            if (action == null || !action.IsItem || string.IsNullOrWhiteSpace(action.id))
+                continue;
+            if (!string.Equals(Inventory.RemapLegacyItemId(action.id), remapped, System.StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (slot.AssignedItemAmount < amount)
+                continue;
+
+            return slot.TryConsumeStoredItem(amount);
+        }
+        return false;
     }
 
     /// <summary>Legacy API: rebinds by <b>slot list order</b> (same as <see cref="HotkeyBindId"/> for indices 0–6).</summary>

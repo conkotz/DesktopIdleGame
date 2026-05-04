@@ -16,9 +16,10 @@ MonoBehaviour:
   - itemId: cooked_fish
     costs:
     - type: 0
-      amount: 10
+      amount: 5
       itemId: 
     - type: 1
       amount: 1
       itemId: raw_fish
-    quantity: -1
+    defaultQuantity: -1
+  stockSaveKey: 

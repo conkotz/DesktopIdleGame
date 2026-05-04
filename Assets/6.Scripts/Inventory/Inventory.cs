@@ -9,11 +9,33 @@ public class Inventory : MonoBehaviour, ISaveable
 
     private void Awake()
     {
-        if (!itemDb)
-            itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
-
+        EnsureItemDatabaseRef();
         if (!itemDb)
             Debug.LogError("[Inventory] ItemDatabase not found. Item defs/values/tooltips will be NULL.");
+    }
+
+    private void EnsureItemDatabaseRef()
+    {
+        if (itemDb)
+            return;
+
+        itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        if (itemDb)
+            return;
+
+        itemDb = Resources.Load<ItemDatabase>("ItemDatabase");
+        if (itemDb)
+            return;
+
+        ItemDatabase[] loaded = Resources.FindObjectsOfTypeAll<ItemDatabase>();
+        for (int i = 0; i < loaded.Length; i++)
+        {
+            if (loaded[i] != null)
+            {
+                itemDb = loaded[i];
+                return;
+            }
+        }
     }
 
 
@@ -39,6 +61,7 @@ public class Inventory : MonoBehaviour, ISaveable
     {
         if (string.IsNullOrWhiteSpace(itemId)) return null;
 
+        EnsureItemDatabaseRef();
         if (!itemDb)
         {
             Debug.LogError("[Inventory] GetItemDef called but itemDb is NULL.");
@@ -450,6 +473,7 @@ public class Inventory : MonoBehaviour, ISaveable
     {
         if (data == null) return;
 
+        EnsureItemDatabaseRef();
         if (itemDb)
             itemDb.LoadRuntimeEnhancedItemsFrom(data);
 
@@ -469,6 +493,7 @@ public class Inventory : MonoBehaviour, ISaveable
         if (data.inventorySlots != null)
         {
             int n = Mathf.Min(_slots.Count, data.inventorySlots.Count);
+            bool canValidateDefs = itemDb != null;
             for (int i = 0; i < n; i++)
             {
                 var d = data.inventorySlots[i];
@@ -476,12 +501,16 @@ public class Inventory : MonoBehaviour, ISaveable
 
                 string id = RemapLegacyItemId(d.itemId);
 
-                // if still unknown, skip it (prevents broken slots)
-                if (GetItemDef(id) == null)
+                // If DB is ready and still unknown, skip broken id.
+                // If DB is not ready yet (scene init race), preserve raw slot data so items are not lost.
+                if (canValidateDefs && GetItemDef(id) == null)
                 {
                     Debug.LogWarning($"[Inventory] Unknown itemId '{d.itemId}' remapped to '{id}' but still not found. Clearing slot {i}.");
                     continue;
                 }
+
+                if (!canValidateDefs)
+                    Debug.LogWarning($"[Inventory] ItemDatabase unavailable during LoadFrom; preserving slot {i} item '{id}' without validation.");
 
                 _slots[i] = new Slot
                 {

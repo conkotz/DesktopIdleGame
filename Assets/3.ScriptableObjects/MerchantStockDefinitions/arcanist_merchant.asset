@@ -16,36 +16,37 @@ MonoBehaviour:
   - itemId: linen_hat
     costs:
     - type: 0
-      amount: 0
+      amount: 2000
       itemId: 
-    quantity: 1
+    defaultQuantity: 1
   - itemId: linen_robes
     costs:
     - type: 0
-      amount: 0
+      amount: 3000
       itemId: 
-    quantity: 1
+    defaultQuantity: 1
   - itemId: basic_focus
     costs:
     - type: 0
-      amount: 0
+      amount: 2000
       itemId: 
-    quantity: 1
+    defaultQuantity: 1
   - itemId: basic_lightning_wand
     costs:
     - type: 0
-      amount: 0
+      amount: 3000
       itemId: 
-    quantity: 1
+    defaultQuantity: 1
   - itemId: basic_fire_wand
     costs:
     - type: 0
-      amount: 0
+      amount: 3000
       itemId: 
-    quantity: 1
+    defaultQuantity: 1
   - itemId: basic_ice_wand
     costs:
     - type: 0
-      amount: 0
+      amount: 3000
       itemId: 
-    quantity: 1
+    defaultQuantity: 1
+  stockSaveKey: 

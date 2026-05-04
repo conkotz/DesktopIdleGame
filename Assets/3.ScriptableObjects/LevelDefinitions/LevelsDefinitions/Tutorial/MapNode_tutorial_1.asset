@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: tutorial_1
   displayName: Tutorial Level 1
-  description: Gather and learn the basics. Populate this map in the editor.
+  description: Gather and learn the basics.
   nodeType: 1
   enemyAggroMode: 1
   ignoreAggroRange: 0

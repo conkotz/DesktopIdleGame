@@ -82,7 +82,12 @@ MonoBehaviour:
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
-  loot: []
+  loot:
+  - item: {fileID: 11400000, guid: dd82c9333168f8d4fb45518f3c9cf6a9, type: 2}
+    amountMin: 15
+    amountMax: 20
+    dropChance: 1
+  lootAtMostOneDropPerTable: 0
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 2
   eliteLoot: []

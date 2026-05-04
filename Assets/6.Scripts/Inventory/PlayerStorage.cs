@@ -601,6 +601,20 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
         if (!itemDb)
             itemDb = FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        if (!itemDb)
+            itemDb = Resources.Load<ItemDatabase>("ItemDatabase");
+        if (!itemDb)
+        {
+            ItemDatabase[] loaded = Resources.FindObjectsOfTypeAll<ItemDatabase>();
+            for (int i = 0; i < loaded.Length; i++)
+            {
+                if (loaded[i] != null)
+                {
+                    itemDb = loaded[i];
+                    break;
+                }
+            }
+        }
 
         int count = data.storageSlotCount > 0 ? data.storageSlotCount : DefaultSlotCount;
         count = Mathf.Max(1, count);
@@ -616,17 +630,21 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (data.storageSlots != null)
         {
             int n = Mathf.Min(_slots.Count, data.storageSlots.Count);
+            bool canValidateDefs = itemDb != null;
             for (int i = 0; i < n; i++)
             {
                 var d = data.storageSlots[i];
                 if (string.IsNullOrWhiteSpace(d.itemId) || d.amount <= 0) continue;
 
                 string id = Inventory.RemapLegacyItemId(d.itemId);
-                if (GetItemDef(id) == null)
+                if (canValidateDefs && GetItemDef(id) == null)
                 {
                     Debug.LogWarning($"[PlayerStorage] Unknown itemId '{d.itemId}' remapped to '{id}' but still not found. Clearing storage slot {i}.");
                     continue;
                 }
+
+                if (!canValidateDefs)
+                    Debug.LogWarning($"[PlayerStorage] ItemDatabase unavailable during LoadFrom; preserving storage slot {i} item '{id}' without validation.");
 
                 _slots[i] = new Slot { itemId = id, amount = d.amount };
             }

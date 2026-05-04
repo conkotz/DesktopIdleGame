@@ -46,11 +46,23 @@ public class PlayerSave : MonoBehaviour, ISaveable
 
         if (stats != null && player != null)
         {
-            data.playerName = player.displayName;
-            data.playerCurrentHP = stats.HP;
+            data.playerName = string.IsNullOrWhiteSpace(player.displayName) ? "Adventurer" : player.displayName.Trim();
+            float hp = stats.HP;
+            if (float.IsNaN(hp) || float.IsInfinity(hp) || hp <= 0f)
+            {
+                Debug.LogWarning($"[PlayerSave] SaveInto: invalid HP ({hp}); clamping to a living value.");
+                hp = Mathf.Max(1f, stats.MaxHP);
+            }
+
+            data.playerCurrentHP = hp;
             // Energy/mana not persisted — always full on load (see LoadFrom / ApplyLoadedVitals).
             data.playerCurrentEnergy = -1f;
             data.playerCurrentMana = -1f;
+        }
+        else
+        {
+            Debug.LogWarning(
+                "[PlayerSave] SaveInto: CharacterStats or PlayerController missing — vitals may be corrected in SaveDataIntegrity.");
         }
     }
 
@@ -67,6 +79,12 @@ public class PlayerSave : MonoBehaviour, ISaveable
 
             // If HP was saved as 0 (e.g. edge-case/death snapshot), recover to a valid alive value on load.
             float hp = data.playerCurrentHP >= 0f ? data.playerCurrentHP : (stats ? stats.HP : 0f);
+            if (float.IsNaN(hp) || float.IsInfinity(hp))
+            {
+                Debug.LogWarning($"[PlayerSave] LoadFrom: invalid saved HP ({hp}); recovering from stats.");
+                hp = stats ? stats.HP : 0f;
+            }
+
             if (hp <= 0f && stats != null)
                 hp = Mathf.Max(1f, stats.MaxHP);
 

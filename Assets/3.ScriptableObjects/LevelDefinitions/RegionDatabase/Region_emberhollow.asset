@@ -20,3 +20,8 @@ MonoBehaviour:
   useRegionLock: 1
   prerequisiteCompletedNodeIds: []
   requireAllPrerequisites: 1
+  prerequisiteRewardClaimedQuestIds: []
+  requireAllPrerequisiteQuestRewards: 1
+  unlockAfterLeavingWorldRegionId: 
+  lockWhenAllNodesCompleted: []
+  hideFromRegionListsWhenLocked: 0

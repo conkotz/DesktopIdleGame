@@ -243,13 +243,14 @@ MonoBehaviour:
   oneWayDialogueQueueSaveId: 
   additionalConditionalDialogues:
   - condition: 0
-    completedQuestId: 
+    completedQuestId: tutorial_learning_ropes_2
     afterDeathRespawnMapNodeId: 
-    dialogue: 
+    dialogue: Thanks.
     onAcceptOutcome: 0
     teleportTargetNode: {fileID: 0}
     teleportMapNodeId: 
   questGiver: {fileID: 5839785130135361787}
+  debugLogPlainDialogueResolution: 0
 --- !u!114 &882000000000000003
 MonoBehaviour:
   m_ObjectHideFlags: 0

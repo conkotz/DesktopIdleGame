@@ -480,7 +480,7 @@ public class InventorySlotUI : MonoBehaviour,
         if ((def.IsFood || def.IsPotion) && slot.amount > 0)
         {
             ActionBarUI actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
-            if (actionBar != null && actionBar.TryAssignConsumableFromItemDefinition(def))
+            if (actionBar != null && actionBar.TryMoveConsumableFromInventorySlot(_slotIndex, slot.amount))
                 return;
         }
     }

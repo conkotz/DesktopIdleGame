@@ -1047,7 +1047,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
                 SpreadBaseOffset,
                 captured,
                 showAccept: true,
-                () => HandleSpreadQuestAccepted(captured),
+                () => HandleIndividualQuestAcceptedAndHide(captured, SpreadTryAcceptQuest),
                 autoCloseSeconds,
                 partOfMultiSpread: true,
                 stripAnchoredSpreadOffset: new Vector2(spreadStepPx * (i + 1), 0f));
@@ -1073,16 +1073,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
                 CollapsePlainHostLeavingQuestOffers();
                 return;
             }
-
-            bool dismissPlainHostEntirely =
-                _pinnedPlainHostForQuestSpread &&
-                ReferenceEquals(this, SpreadTemplate);
-
-            CloseAllMultiOfferBoxesTogether();
-
-            if (dismissPlainHostEntirely)
-                HideSolo(invokePlainDismissCallback: !suppressPlainDismissCallback);
-
+            // Multi-offer cards should close independently unless this is the plain host collapsing behavior above.
+            HideSolo(invokePlainDismissCallback: !suppressPlainDismissCallback);
             return;
         }
 
@@ -1125,6 +1117,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
     private void HideSolo(bool invokePlainDismissCallback = true)
     {
         ActiveMultiOfferBoxes.Remove(this);
+        if (ActiveMultiOfferBoxes.Count == 0)
+            ClearMultiOfferSpreadSessionState();
 
         if (_autoCloseRoutine != null)
         {
@@ -1170,6 +1164,18 @@ public class NPCDialogueBoxUI : MonoBehaviour
         Action cb = _plainHideOnceCallback;
         _plainHideOnceCallback = null;
         cb?.Invoke();
+    }
+
+    private static void ClearMultiOfferSpreadSessionState()
+    {
+        SpreadTemplate = null;
+        SpreadParent = null;
+        SpreadAnchor = null;
+        SpreadBaseOffset = Vector3.zero;
+        SpreadRefreshQuests = null;
+        SpreadTryAcceptQuest = null;
+        SpreadAutoCloseSeconds = 0f;
+        s_deferredStripMultiOpening = false;
     }
 
     private void OnDestroy()
@@ -1240,15 +1246,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         NPCDialogueBoxUI tpl = SpreadTemplate;
         if (tpl)
             tpl.Hide(suppressPlainDismissCallback);
-
-        SpreadTemplate = null;
-        SpreadParent = null;
-        SpreadAnchor = null;
-        SpreadBaseOffset = Vector3.zero;
-        SpreadRefreshQuests = null;
-        SpreadTryAcceptQuest = null;
-        SpreadAutoCloseSeconds = 0f;
-        s_deferredStripMultiOpening = false;
+        ClearMultiOfferSpreadSessionState();
     }
 
     private static void CloseAllMultiOfferBoxesTogether()
@@ -1494,7 +1492,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
                 baseOffset,
                 captured,
                 showAccept: true,
-                () => HandleSpreadQuestAccepted(captured),
+                () => HandleIndividualQuestAcceptedAndHide(captured, tryAcceptQuest),
                 autoCloseSeconds,
                 partOfMultiSpread: true,
                 stripAnchoredSpreadOffset: new Vector2(spreadStepPx * i, 0f));
@@ -1503,6 +1501,16 @@ public class NPCDialogueBoxUI : MonoBehaviour
         s_deferredStripMultiOpening = true;
 
         SortActiveMultiOfferBoxesLeftToRight();
+    }
+
+    private void HandleIndividualQuestAcceptedAndHide(
+        QuestDefinition quest,
+        Func<QuestDefinition, bool> tryAcceptQuest)
+    {
+        if (tryAcceptQuest == null || !tryAcceptQuest(quest))
+            return;
+
+        Hide();
     }
 
     private static void HandleSpreadQuestAccepted(QuestDefinition quest)

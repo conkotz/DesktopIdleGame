@@ -7,6 +7,8 @@ public class HUDView : MonoBehaviour
 {
     [Header("HUD Left Auto Fade")]
     [SerializeField] private bool fadeWhenPlayerOverlaps = true;
+    [Tooltip("Also lower alpha when a live enemy overlaps the HUD (same test as the player).")]
+    [SerializeField] private bool includeEnemiesInOverlapFade = true;
     [SerializeField, Range(0.1f, 1f)] private float overlapAlpha = 0.5f;
     [SerializeField] private Camera overlapCamera;
     [SerializeField] private string overlapCameraName = "StripCamera";
@@ -118,6 +120,9 @@ public class HUDView : MonoBehaviour
 
         RefreshPlayerRenderersIfNeeded();
         bool overlaps = IsPlayerSpriteOverHudRect();
+        if (!overlaps && includeEnemiesInOverlapFade)
+            overlaps = IsAnyLiveEnemyOverlappingHud();
+
         _selfCanvasGroup.alpha = overlaps ? overlapAlpha : 1f;
     }
 
@@ -139,6 +144,47 @@ public class HUDView : MonoBehaviour
             if (IsSpriteRendererOverHudRect(sr, cam))
                 return true;
         }
+
+        return false;
+    }
+
+    private bool IsAnyLiveEnemyOverlappingHud()
+    {
+        if (_selfRect == null)
+            return false;
+
+        Camera cam = ResolveOverlapCamera();
+        if (cam == null)
+            return false;
+
+        EnemyBaseController[] enemies =
+            FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            EnemyBaseController e = enemies[i];
+            if (e == null || e.IsDead || !e.gameObject.activeInHierarchy)
+                continue;
+
+            if (IsEnemyVisualOverHudRect(e, cam))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsEnemyVisualOverHudRect(EnemyBaseController enemy, Camera cam)
+    {
+        Collider2D col = enemy.GetComponentInChildren<Collider2D>(true);
+        if (col != null && col.enabled)
+        {
+            if (IsWorldBoundsOverHudRect(col.bounds, cam))
+                return true;
+        }
+
+        SpriteRenderer sr = enemy.GetComponentInChildren<SpriteRenderer>(true);
+        if (sr != null && sr.enabled && sr.sprite != null && sr.gameObject.activeInHierarchy)
+            return IsSpriteRendererOverHudRect(sr, cam);
 
         return false;
     }
@@ -203,7 +249,11 @@ public class HUDView : MonoBehaviour
 
     private bool IsSpriteRendererOverHudRect(SpriteRenderer sr, Camera cam)
     {
-        Bounds b = sr.bounds;
+        return IsWorldBoundsOverHudRect(sr.bounds, cam);
+    }
+
+    private bool IsWorldBoundsOverHudRect(Bounds b, Camera cam)
+    {
         Vector3 c = b.center;
         Vector3 e = b.extents;
 

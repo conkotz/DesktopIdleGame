@@ -186,7 +186,9 @@ public static class MapNodeInteractablesPreview
             Merchant m = merchants[i];
             if (!m)
                 continue;
-            string label = string.IsNullOrWhiteSpace(m.MerchantName) ? HumanizeUnityObjectName(m.gameObject.name) : m.MerchantName.Trim();
+            string label = ResolveInteractableDisplayLabel(m.gameObject, preferMerchantPersonName: true, m);
+            if (string.IsNullOrWhiteSpace(label))
+                label = HumanizeUnityObjectName(m.gameObject.name);
             add(label, weight);
         }
 
@@ -220,8 +222,44 @@ public static class MapNodeInteractablesPreview
             QuestGiver q = questGivers[i];
             if (!q || q.GetComponentInParent<Merchant>(true) != null)
                 continue;
-            add(HumanizeUnityObjectName(q.gameObject.name), weight);
+            string label = ResolveInteractableDisplayLabel(q.gameObject, preferMerchantPersonName: false, merchantForPersonName: null);
+            if (string.IsNullOrWhiteSpace(label))
+                label = HumanizeUnityObjectName(q.gameObject.name);
+            add(label, weight);
         }
+    }
+
+    /// <summary>
+    /// Matches <see cref="UnitOverheadUI"/> name resolution (enemy display name, else <see cref="CharacterStats.UnitDisplayName"/>).
+    /// Optionally uses a merchant's person name (inspector "Name") when present so the map preview matches world name labels.
+    /// </summary>
+    private static string ResolveInteractableDisplayLabel(GameObject anchor, bool preferMerchantPersonName, Merchant merchantForPersonName)
+    {
+        if (!anchor)
+            return null;
+
+        if (preferMerchantPersonName && merchantForPersonName != null)
+        {
+            string person = merchantForPersonName.CharacterDisplayName;
+            if (!string.IsNullOrWhiteSpace(person))
+                return person.Trim();
+            string role = merchantForPersonName.MerchantName;
+            if (!string.IsNullOrWhiteSpace(role))
+                return role.Trim();
+            return null;
+        }
+
+        EnemyBaseController enemy = anchor.GetComponentInParent<EnemyBaseController>(true);
+        if (enemy != null && !string.IsNullOrWhiteSpace(enemy.DisplayName))
+            return enemy.DisplayName.Trim();
+
+        CharacterStats stats = anchor.GetComponentInParent<CharacterStats>(true);
+        if (!stats)
+            stats = anchor.GetComponentInChildren<CharacterStats>(true);
+        if (stats != null && !string.IsNullOrWhiteSpace(stats.UnitDisplayName))
+            return stats.UnitDisplayName.Trim();
+
+        return null;
     }
 
     private static string HumanizeUnityObjectName(string raw)

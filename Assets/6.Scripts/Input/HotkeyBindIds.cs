@@ -52,6 +52,8 @@ public static class HotkeyBindIds
                 return "Open Level select";
             case HotkeyBindId.OpenQuestPage:
                 return "Open Quests";
+            case HotkeyBindId.SwapWeaponSet:
+                return "Swap Weapon Set";
             case HotkeyBindId.ZoomIn:
                 return "Zoom In";
             case HotkeyBindId.ZoomOut:

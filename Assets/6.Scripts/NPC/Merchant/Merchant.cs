@@ -29,6 +29,10 @@ public class Merchant : MonoBehaviour, ISaveable
     [SerializeField] private TMP_Text nameLabel;
 
     public string MerchantName => merchantName;
+    /// <summary>Inspector "Name" (e.g. person shown in bold above role on the world label).</summary>
+    public string CharacterDisplayName =>
+        string.IsNullOrWhiteSpace(characterName) ? "" : characterName.Trim();
+
     public MerchantStock Stock => stock;
     public string MerchantId => GetMerchantId();
 
@@ -299,6 +303,7 @@ public class Merchant : MonoBehaviour, ISaveable
         else
         {
             var inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+            int currentGold = wallet ? wallet.Gold : 0;
 
             foreach (var cost in entry.costs)
             {
@@ -307,19 +312,32 @@ public class Merchant : MonoBehaviour, ISaveable
                 switch (cost.type)
                 {
                     case MerchantStock.CostType.Gold:
-                        sb.AppendLine($"• {cost.amount} Gold");
+                    {
+                        bool canPay = wallet != null && currentGold >= cost.amount;
+                        string line = $"• {cost.amount} Gold";
+                        if (!canPay)
+                            line = $"<color=#FF6B6B>{line}</color>";
+                        sb.AppendLine(line);
                         break;
+                    }
 
                     case MerchantStock.CostType.Item:
+                    {
                         string itemName = cost.itemId;
+                        bool canPay = inv != null && !string.IsNullOrWhiteSpace(cost.itemId) &&
+                                      inv.GetTotalAmount(cost.itemId) >= cost.amount;
                         if (inv != null)
                         {
                             var def = inv.GetItemDef(cost.itemId);
                             if (def != null)
                                 itemName = def.displayName;
                         }
-                        sb.AppendLine($"• {cost.amount} {itemName}");
+                        string line = $"• {cost.amount} {itemName}";
+                        if (!canPay)
+                            line = $"<color=#FF6B6B>{line}</color>";
+                        sb.AppendLine(line);
                         break;
+                    }
 
                     default:
                         sb.AppendLine($"• {cost.amount}");

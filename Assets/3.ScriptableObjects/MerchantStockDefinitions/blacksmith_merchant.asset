@@ -14,29 +14,57 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
   items:
   - itemId: stone_sword
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: 1
   - itemId: stone_dagger
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: 1
   - itemId: poison_dagger
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: 1
   - itemId: stone_spear
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 1500
+      itemId: 
+    defaultQuantity: 1
   - itemId: knights_polearm
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 7500
+      itemId: 
+    defaultQuantity: 1
   - itemId: ghorrocks_mace
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 25000
+      itemId: 
+    defaultQuantity: 1
   - itemId: stone_shield
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: 1
   - itemId: stone_platebody
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: 1
   - itemId: stone_helmet
-    costs: []
-    quantity: 1
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: 1
+  stockSaveKey: 
