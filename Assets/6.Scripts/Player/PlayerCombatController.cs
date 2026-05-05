@@ -119,6 +119,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _pausedDpsSessionDuration;
     private float _lastCombatActivityTime = -999f;
     private float _lastHpForCombatEngageTrack = -1f;
+    private bool _dpsAutoResetEnabled = true;
 
     private readonly List<EnemyBaseController> _ailmentSpreadScratch = new List<EnemyBaseController>(16);
 
@@ -197,6 +198,59 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         DpsDamageBreakdown incoming = GetIncomingDpsBreakdown();
         return incoming.Total;
+    }
+
+    /// <summary>
+    /// Elapsed seconds since the current damage-tracking session began.
+    /// Returns 0 until any outgoing/incoming damage has been recorded, and resets to 0 when tracker values are cleared.
+    /// </summary>
+    public float GetDamageSessionElapsedSeconds()
+    {
+        if (_combatSessionStartTime < 0f)
+            return 0f;
+
+        if (_combatSessionDamageSum <= 0f && _incomingDamageSum.Total <= 0f)
+            return 0f;
+
+        if (_dpsTrackerPaused)
+            return Mathf.Max(0f, _pausedDpsSessionDuration);
+
+        return Mathf.Max(0f, Time.time - _combatSessionStartTime);
+    }
+
+    public float GetOutgoingTotalDamage()
+    {
+        return Mathf.Max(0f, _combatSessionDamageSum);
+    }
+
+    public DpsDamageBreakdown GetOutgoingTotalDamageBreakdown()
+    {
+        return _outgoingDamageSum;
+    }
+
+    public float GetIncomingTotalDamage()
+    {
+        return Mathf.Max(0f, _incomingDamageSum.Total);
+    }
+
+    public DpsDamageBreakdown GetIncomingTotalDamageBreakdown()
+    {
+        return _incomingDamageSum;
+    }
+
+    /// <summary>When false, combat DPS session values are never auto-cleared out of combat.</summary>
+    public void SetDpsAutoResetEnabled(bool enabled)
+    {
+        _dpsAutoResetEnabled = enabled;
+    }
+
+    /// <summary>Hard reset of current DPS/damage tracker values, even mid-combat.</summary>
+    public void ResetDpsTrackerNow()
+    {
+        _dpsTrackerPaused = false;
+        _pausedDpsSessionDuration = 0f;
+        ResetDpsSession();
+        _lastCombatActivityTime = Time.time;
     }
 
     private bool TryGetDpsSessionDuration(out float duration)
@@ -288,7 +342,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (_combatSessionStartTime < 0f)
                 _combatSessionStartTime = Time.time;
         }
-        else if (Time.time - _lastCombatActivityTime >= window)
+        else if (_dpsAutoResetEnabled && Time.time - _lastCombatActivityTime >= window)
         {
             ResetDpsSession();
         }

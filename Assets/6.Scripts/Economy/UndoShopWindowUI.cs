@@ -16,6 +16,9 @@ public class UndoShopWindowUI : MonoBehaviour
     [SerializeField] private Button undoButton;
     [SerializeField] private Button returnToShopButton;
     [SerializeField] private TMP_Text titleText;
+    [Header("Activation")]
+    [Tooltip("If true, closing this window also disables its GameObject so it can stay off in hierarchy by default.")]
+    [SerializeField] private bool disableGameObjectWhenClosed = true;
 
     [Header("Refs")]
     [SerializeField] private ShopUI shopUI;
@@ -33,6 +36,13 @@ public class UndoShopWindowUI : MonoBehaviour
     private int _selectedEntryId = -1;
 
     public bool IsOpen => panelRoot && panelRoot.activeInHierarchy;
+
+    /// <summary>Enable this window object for runtime use when it starts disabled in hierarchy.</summary>
+    public void EnsureWindowEnabledForUse()
+    {
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+    }
 
     private void Awake()
     {
@@ -102,10 +112,15 @@ public class UndoShopWindowUI : MonoBehaviour
             panelRoot.SetActive(false);
         _merchant = null;
         _selectedEntryId = -1;
+
+        if (disableGameObjectWhenClosed)
+            gameObject.SetActive(false);
     }
 
     public void OpenForMerchant(Merchant merchant)
     {
+        EnsureWindowEnabledForUse();
+
         if (!merchant || merchant.OnlyBuysStockedItems)
             return;
 

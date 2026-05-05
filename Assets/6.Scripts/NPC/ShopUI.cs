@@ -18,6 +18,9 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private Button buybackToggleButton;
     [Tooltip("Full-window undo grid; swaps with this shop when the Undo control is used.")]
     [SerializeField] private UndoShopWindowUI undoShopWindow;
+    [Header("Undo Window Activation")]
+    [Tooltip("Allows using an UndoShopWindow GameObject that starts disabled in hierarchy. Enabled automatically when opening Undo.")]
+    [SerializeField] private bool enableDisabledUndoWindowOnUse = true;
     [Header("Buy button visuals")]
     [SerializeField] private bool enableButtonTint = false;
     [SerializeField] private Image buy1xButtonImage;
@@ -604,8 +607,14 @@ public class ShopUI : MonoBehaviour
 
     private void ToggleBuybackPanel()
     {
+        if (!undoShopWindow)
+            undoShopWindow = FindFirstObjectByType<UndoShopWindowUI>(FindObjectsInactive.Include);
+
         if (!undoShopWindow || !_currentMerchant || _currentMerchant.OnlyBuysStockedItems)
             return;
+
+        if (enableDisabledUndoWindowOnUse)
+            undoShopWindow.EnsureWindowEnabledForUse();
 
         if (SaleUndoManager.Instance == null ||
             SaleUndoManager.Instance.GetUndoCountForMerchant(_currentMerchant.MerchantId) <= 0)

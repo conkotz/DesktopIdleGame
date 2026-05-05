@@ -1,10 +1,18 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using System.Collections;
 
 [DisallowMultipleComponent]
 public class DpsBreakdownTrackerUI : MonoBehaviour
 {
+    private enum MetricMode
+    {
+        Dps,
+        TotalDamage
+    }
+
     private static readonly string[] TrackerNameCandidates =
     {
         "DPS",
@@ -17,6 +25,9 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
     [Header("Refs")]
     [SerializeField] private PlayerCombatController combat;
+    [SerializeField] private Button resetButton;
+    [SerializeField] private Button dpsOrDamageButton;
+    [SerializeField] private TMP_Text dpsOrDamageButtonText;
 
     [Header("Outgoing")]
     [SerializeField] private TMP_Text outgoingTotalText;
@@ -36,11 +47,16 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     [SerializeField] private TMP_Text incomingBleedText;
     [SerializeField] private TMP_Text incomingPoisonText;
     [SerializeField] private TMP_Text incomingBurnText;
+    [SerializeField] private TMP_Text outgoingHeaderText;
+    [SerializeField] private TMP_Text incomingHeaderText;
+    [SerializeField] private TMP_Text elapsedTimeText;
 
     [Header("Refresh")]
     [SerializeField, Min(0.02f)] private float refreshInterval = 0.15f;
 
     private float _nextRefreshTime;
+    private MetricMode _mode = MetricMode.Dps;
+    private Coroutine _lateWireRoutine;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void RegisterAutoAttach()
@@ -155,7 +171,21 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     private void OnEnable()
     {
         ResolveReferences();
+        WireButtons();
+        if (_lateWireRoutine != null)
+            StopCoroutine(_lateWireRoutine);
+        _lateWireRoutine = StartCoroutine(CoWireButtonsAfterInitializers());
+        ApplyModeToTracker();
         Refresh();
+    }
+
+    private void OnDisable()
+    {
+        if (_lateWireRoutine != null)
+        {
+            StopCoroutine(_lateWireRoutine);
+            _lateWireRoutine = null;
+        }
     }
 
     private void Update()
@@ -172,35 +202,89 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         if (!combat)
             combat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
 
-        float outgoingTotal = combat ? combat.GetCurrentDps() : 0f;
-        float incomingTotal = combat ? combat.GetCurrentIncomingDps() : 0f;
-        DpsDamageBreakdown outgoing = combat ? combat.GetOutgoingDpsBreakdown() : default;
-        DpsDamageBreakdown incoming = combat ? combat.GetIncomingDpsBreakdown() : default;
+        RefreshElapsedTime();
 
-        SetLine(outgoingTotalText, "TotalDPS", outgoingTotal);
-        SetLine(outgoingPhysicalText, "Physical", outgoing.Physical);
-        SetLine(outgoingMagicText, "Magic", outgoing.Magic);
-        SetLine(outgoingCorruptionText, "Corruption", outgoing.Corruption);
-        SetLine(outgoingMinionText, "Minion", outgoing.Minion);
-        SetLine(outgoingBleedText, "Bleed", outgoing.Bleed);
-        SetLine(outgoingPoisonText, "Poison", outgoing.Poison);
-        SetLine(outgoingBurnText, "Burn", outgoing.Burn);
-
-        SetLine(incomingTotalText, "TotalDPS", incomingTotal);
-        SetLine(incomingPhysicalText, "Physical", incoming.Physical);
-        SetLine(incomingMagicText, "Magic", incoming.Magic);
-        SetLine(incomingCorruptionText, "Corruption", incoming.Corruption);
-        SetLine(incomingBleedText, "Bleed", incoming.Bleed);
-        SetLine(incomingPoisonText, "Poison", incoming.Poison);
-        SetLine(incomingBurnText, "Burn", incoming.Burn);
+        if (_mode == MetricMode.TotalDamage)
+            RefreshTotalDamage(combat);
+        else
+            RefreshDps(combat);
     }
 
-    private static void SetLine(TMP_Text text, string label, float dps)
+    private void RefreshElapsedTime()
+    {
+        if (!elapsedTimeText)
+            return;
+
+        float elapsed = combat ? combat.GetDamageSessionElapsedSeconds() : 0f;
+        int totalSeconds = Mathf.FloorToInt(elapsed);
+        int hours = totalSeconds / 3600;
+        int minutes = (totalSeconds % 3600) / 60;
+        int seconds = totalSeconds % 60;
+
+        elapsedTimeText.text = hours > 0
+            ? $"{hours}:{minutes:00}:{seconds:00}"
+            : $"{minutes}:{seconds:00}";
+    }
+
+    private void RefreshDps(PlayerCombatController currentCombat)
+    {
+        float outgoingTotal = currentCombat ? currentCombat.GetCurrentDps() : 0f;
+        float incomingTotal = currentCombat ? currentCombat.GetCurrentIncomingDps() : 0f;
+        DpsDamageBreakdown outgoing = currentCombat ? currentCombat.GetOutgoingDpsBreakdown() : default;
+        DpsDamageBreakdown incoming = currentCombat ? currentCombat.GetIncomingDpsBreakdown() : default;
+
+        SetLine(outgoingTotalText, "TotalDPS", outgoingTotal, isDps: true);
+        SetLine(outgoingPhysicalText, "Physical", outgoing.Physical, isDps: true);
+        SetLine(outgoingMagicText, "Magic", outgoing.Magic, isDps: true);
+        SetLine(outgoingCorruptionText, "Corruption", outgoing.Corruption, isDps: true);
+        SetLine(outgoingMinionText, "Minion", outgoing.Minion, isDps: true);
+        SetLine(outgoingBleedText, "Bleed", outgoing.Bleed, isDps: true);
+        SetLine(outgoingPoisonText, "Poison", outgoing.Poison, isDps: true);
+        SetLine(outgoingBurnText, "Burn", outgoing.Burn, isDps: true);
+
+        SetLine(incomingTotalText, "TotalDPS", incomingTotal, isDps: true);
+        SetLine(incomingPhysicalText, "Physical", incoming.Physical, isDps: true);
+        SetLine(incomingMagicText, "Magic", incoming.Magic, isDps: true);
+        SetLine(incomingCorruptionText, "Corruption", incoming.Corruption, isDps: true);
+        SetLine(incomingBleedText, "Bleed", incoming.Bleed, isDps: true);
+        SetLine(incomingPoisonText, "Poison", incoming.Poison, isDps: true);
+        SetLine(incomingBurnText, "Burn", incoming.Burn, isDps: true);
+    }
+
+    private void RefreshTotalDamage(PlayerCombatController currentCombat)
+    {
+        float outgoingTotal = currentCombat ? currentCombat.GetOutgoingTotalDamage() : 0f;
+        float incomingTotal = currentCombat ? currentCombat.GetIncomingTotalDamage() : 0f;
+        DpsDamageBreakdown outgoing = currentCombat ? currentCombat.GetOutgoingTotalDamageBreakdown() : default;
+        DpsDamageBreakdown incoming = currentCombat ? currentCombat.GetIncomingTotalDamageBreakdown() : default;
+
+        SetLine(outgoingTotalText, "Total Damage", outgoingTotal, isDps: false);
+        SetLine(outgoingPhysicalText, "Physical", outgoing.Physical, isDps: false);
+        SetLine(outgoingMagicText, "Magic", outgoing.Magic, isDps: false);
+        SetLine(outgoingCorruptionText, "Corruption", outgoing.Corruption, isDps: false);
+        SetLine(outgoingMinionText, "Minion", outgoing.Minion, isDps: false);
+        SetLine(outgoingBleedText, "Bleed", outgoing.Bleed, isDps: false);
+        SetLine(outgoingPoisonText, "Poison", outgoing.Poison, isDps: false);
+        SetLine(outgoingBurnText, "Burn", outgoing.Burn, isDps: false);
+
+        SetLine(incomingTotalText, "Total Damage", incomingTotal, isDps: false);
+        SetLine(incomingPhysicalText, "Physical", incoming.Physical, isDps: false);
+        SetLine(incomingMagicText, "Magic", incoming.Magic, isDps: false);
+        SetLine(incomingCorruptionText, "Corruption", incoming.Corruption, isDps: false);
+        SetLine(incomingBleedText, "Bleed", incoming.Bleed, isDps: false);
+        SetLine(incomingPoisonText, "Poison", incoming.Poison, isDps: false);
+        SetLine(incomingBurnText, "Burn", incoming.Burn, isDps: false);
+    }
+
+    private static void SetLine(TMP_Text text, string label, float value, bool isDps)
     {
         if (!text)
             return;
 
-        text.text = $"{label}: {dps:0.#} DPS";
+        if (isDps)
+            text.text = $"{label}: {value:0.#} DPS";
+        else
+            text.text = $"{label}: {Mathf.RoundToInt(Mathf.Max(0f, value))}";
     }
 
     private void ResolveReferences()
@@ -241,6 +325,120 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             incomingPoisonText = FindText(texts, "Incoming", "Poison");
         if (!incomingBurnText)
             incomingBurnText = FindText(texts, "Incoming", "Burn");
+        if (!outgoingHeaderText)
+            outgoingHeaderText = FindText(texts, "Outgoing", "HeaderLabel", "DPS");
+        if (!incomingHeaderText)
+            incomingHeaderText = FindText(texts, "Incoming", "HeaderLabel", "DPS");
+        if (!elapsedTimeText)
+            elapsedTimeText = FindText(texts, "", "ElapsedTimeText", "Elapsed Time", "Time");
+        if (!resetButton)
+            resetButton = FindButtonByName("Reset", "ResetButton");
+        if (!dpsOrDamageButton)
+            dpsOrDamageButton = FindButtonByName("DPSorDamageButton", "DpsOrDamageButton", "DmgButton", "DamageModeButton");
+        if (!dpsOrDamageButtonText && dpsOrDamageButton)
+            dpsOrDamageButtonText = dpsOrDamageButton.GetComponentInChildren<TMP_Text>(true);
+    }
+
+    private void WireButtons()
+    {
+        if (resetButton)
+        {
+            DisableConflictingButtonBehaviours(resetButton.gameObject);
+            // Own this button behavior so legacy/template listeners do not close/toggle the window.
+            resetButton.onClick.RemoveAllListeners();
+            resetButton.onClick.AddListener(OnResetClicked);
+        }
+
+        if (dpsOrDamageButton)
+        {
+            DisableConflictingButtonBehaviours(dpsOrDamageButton.gameObject);
+            // Own this button behavior so legacy/template listeners do not close/toggle the window.
+            dpsOrDamageButton.onClick.RemoveAllListeners();
+            dpsOrDamageButton.onClick.AddListener(OnToggleMetricModeClicked);
+        }
+    }
+
+    /// <summary>
+    /// Some UI scripts attach listeners in Start/late scene init, which can win on first open after map/login.
+    /// Re-apply our wiring on the next frames so reset/mode buttons never act like close/toggle.
+    /// </summary>
+    private IEnumerator CoWireButtonsAfterInitializers()
+    {
+        yield return null;
+        WireButtons();
+        yield return null;
+        WireButtons();
+    }
+
+    private static void DisableConflictingButtonBehaviours(GameObject go)
+    {
+        if (!go)
+            return;
+
+        UIWindowCloseButton close = go.GetComponent<UIWindowCloseButton>();
+        if (close) close.enabled = false;
+
+        FullDpsWindowToggleUI fullToggle = go.GetComponent<FullDpsWindowToggleUI>();
+        if (fullToggle) fullToggle.enabled = false;
+
+        ActivityWindowToggleUI activityToggle = go.GetComponent<ActivityWindowToggleUI>();
+        if (activityToggle) activityToggle.enabled = false;
+
+        WindowToggleUI genericToggle = go.GetComponent<WindowToggleUI>();
+        if (genericToggle) genericToggle.enabled = false;
+    }
+
+    private void OnResetClicked()
+    {
+        if (!combat)
+            combat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
+        combat?.ResetDpsTrackerNow();
+        Refresh();
+    }
+
+    private void OnToggleMetricModeClicked()
+    {
+        _mode = _mode == MetricMode.Dps ? MetricMode.TotalDamage : MetricMode.Dps;
+        ApplyModeToTracker();
+        Refresh();
+    }
+
+    private void ApplyModeToTracker()
+    {
+        if (!combat)
+            combat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
+
+        bool dpsMode = _mode == MetricMode.Dps;
+        combat?.SetDpsAutoResetEnabled(dpsMode);
+
+        if (outgoingHeaderText)
+            outgoingHeaderText.text = dpsMode ? "Outgoing DPS" : "Outgoing Total Damage";
+        if (incomingHeaderText)
+            incomingHeaderText.text = dpsMode ? "Incoming DPS" : "Incoming Total Damage";
+        if (dpsOrDamageButtonText)
+            dpsOrDamageButtonText.text = dpsMode ? "DMG" : "DPS";
+    }
+
+    private Button FindButtonByName(params string[] nameCandidates)
+    {
+        if (nameCandidates == null || nameCandidates.Length == 0)
+            return null;
+
+        Button[] buttons = GetComponentsInChildren<Button>(true);
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            Button b = buttons[i];
+            if (!b) continue;
+            for (int n = 0; n < nameCandidates.Length; n++)
+            {
+                string candidate = nameCandidates[n];
+                if (!string.IsNullOrWhiteSpace(candidate) &&
+                    b.name.IndexOf(candidate, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return b;
+            }
+        }
+
+        return null;
     }
 
     private static TMP_Text FindText(TMP_Text[] texts, string sectionName, params string[] candidates)

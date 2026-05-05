@@ -17,6 +17,8 @@ MonoBehaviour:
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
+  cannotRespawn: 0
+  doesNotContributeToRecommendedCombatPower: 0
   maxHealth: 50
   maxEnergy: 0
   maxMana: 0
@@ -60,12 +62,19 @@ MonoBehaviour:
   burnExplosionMultiplier: 0.5
   shockDuration: 5
   shockDamageTakenMultiplier: 0.15
+  deadlyAtCloseRange: 0
+  deadlyCloseRangeDistance: 3
+  deadlyCloseRangeTyplessDamage: 0
+  immuneToMeleeDamage: 0
+  immuneToRangedDamage: 0
+  immuneToMagicDamage: 0
   idleWanderEnabled: 1
   idleWanderSpeed: 2
   idleWanderMoveMinSec: 1
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
+  idleWanderMaxDistanceFromSpawn: 10
   grantCombatXp: 1
   dropGold: 1
   goldMin: 50
@@ -73,8 +82,17 @@ MonoBehaviour:
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
-  loot: []
+  loot:
+  - item: {fileID: 11400000, guid: 33d52687493f2194ca35df3d7ed16b64, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.05
+  lootAtMostOneDropPerTable: 0
   eliteLootHandling: 0
-  eliteLootChanceMultiplier: 2
-  eliteLoot: []
+  eliteLootChanceMultiplier: 3
+  eliteLoot:
+  - item: {fileID: 11400000, guid: 074fa9e1e331a964eabda14f761d6cd8, type: 2}
+    amountMin: 0
+    amountMax: 0
+    dropChance: 0.2
   designerNotes: 

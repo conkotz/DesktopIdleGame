@@ -181,7 +181,7 @@ public class SaleUndoManager : MonoBehaviour
             return false;
         }
 
-        int added = inventory.AddPartial(e.itemId, e.amount);
+        int added = inventory.AddPartial(e.itemId, e.amount, notifyItemGainPopup: false);
         if (added < e.amount)
         {
             if (added > 0) inventory.Remove(e.itemId, added);
@@ -191,8 +191,7 @@ public class SaleUndoManager : MonoBehaviour
             return false;
         }
 
-        var defUndo = inventory.GetItemDef(e.itemId);
-        string undoItemName = defUndo ? defUndo.displayName : e.itemId;
+        string undoItemName = ItemGainPopupNotifier.ResolveDisplayLabel(e.itemId, e.amount);
         GameLog.SaleUndoRestored(undoItemName, e.amount, e.gold);
 
         _entries.RemoveAt(idx);
