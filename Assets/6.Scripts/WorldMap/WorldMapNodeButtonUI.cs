@@ -10,6 +10,8 @@ public class WorldMapNodeButtonUI : MonoBehaviour
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text typeText;
     [SerializeField] private TMP_Text stateText;
+    [Tooltip("Optional. Shown when the player is currently in this map (gameplay session).")]
+    [SerializeField] private TMP_Text currentLocationText;
     [Tooltip("Optional overlay when this row is the selected node. Leave empty if you only use the Button for selection.")]
     [SerializeField] private GameObject selectedHighlight;
     [SerializeField] private CanvasGroup rowCanvasGroup;
@@ -84,7 +86,8 @@ public class WorldMapNodeButtonUI : MonoBehaviour
         bool selected,
         Action<MapNodeDefinition> onSelected,
         bool greyOutCompletedNonRepeatable = false,
-        bool unavailable = false)
+        bool unavailable = false,
+        bool playerAtThisMap = false)
     {
         _node = node;
         _onSelected = onSelected;
@@ -98,7 +101,15 @@ public class WorldMapNodeButtonUI : MonoBehaviour
             typeText.text = node ? node.nodeType.ToString() : "";
 
         if (stateText)
+        {
             stateText.text = stateLabel ?? "";
+            // Enterable maps use "Unlocked" — hide it; keep locks and other states visible.
+            bool hideState = string.Equals(stateText.text.Trim(), "Unlocked", StringComparison.OrdinalIgnoreCase);
+            stateText.gameObject.SetActive(!hideState);
+        }
+
+        if (currentLocationText)
+            currentLocationText.gameObject.SetActive(playerAtThisMap);
 
         RefreshVisuals(selected);
     }

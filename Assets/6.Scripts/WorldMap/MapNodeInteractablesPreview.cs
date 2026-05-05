@@ -222,6 +222,9 @@ public static class MapNodeInteractablesPreview
             QuestGiver q = questGivers[i];
             if (!q || q.GetComponentInParent<Merchant>(true) != null)
                 continue;
+            // Notice boards use QuestGiver but are already counted via NoticeBoard tag ("Notice Board").
+            if (IsNoticeBoardObject(q.gameObject))
+                continue;
             string label = ResolveInteractableDisplayLabel(q.gameObject, preferMerchantPersonName: false, merchantForPersonName: null);
             if (string.IsNullOrWhiteSpace(label))
                 label = HumanizeUnityObjectName(q.gameObject.name);
@@ -231,7 +234,7 @@ public static class MapNodeInteractablesPreview
 
     /// <summary>
     /// Matches <see cref="UnitOverheadUI"/> name resolution (enemy display name, else <see cref="CharacterStats.UnitDisplayName"/>).
-    /// Optionally uses a merchant's person name (inspector "Name") when present so the map preview matches world name labels.
+    /// Uses <see cref="NpcIdentity"/> when present. Optionally uses a merchant's person name when present so the map preview matches world labels.
     /// </summary>
     private static string ResolveInteractableDisplayLabel(GameObject anchor, bool preferMerchantPersonName, Merchant merchantForPersonName)
     {
@@ -247,6 +250,19 @@ public static class MapNodeInteractablesPreview
             if (!string.IsNullOrWhiteSpace(role))
                 return role.Trim();
             return null;
+        }
+
+        NpcIdentity npc = anchor.GetComponentInParent<NpcIdentity>(true);
+        if (!npc)
+            npc = anchor.GetComponentInChildren<NpcIdentity>(true);
+        if (npc != null)
+        {
+            string person = npc.CharacterDisplayName;
+            if (!string.IsNullOrWhiteSpace(person))
+                return person.Trim();
+            string r = npc.RoleDisplayLabel;
+            if (!string.IsNullOrWhiteSpace(r))
+                return r.Trim();
         }
 
         EnemyBaseController enemy = anchor.GetComponentInParent<EnemyBaseController>(true);
@@ -271,5 +287,19 @@ public static class MapNodeInteractablesPreview
             s = s.Substring(0, s.Length - "(Clone)".Length).Trim();
         s = s.Replace('_', ' ');
         return string.IsNullOrWhiteSpace(s) ? "NPC" : s.Trim();
+    }
+
+    private static bool IsNoticeBoardObject(GameObject go)
+    {
+        if (!go)
+            return false;
+        try
+        {
+            return go.CompareTag(NoticeBoardTag);
+        }
+        catch (UnityException)
+        {
+            return false;
+        }
     }
 }

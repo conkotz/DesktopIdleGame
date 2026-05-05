@@ -290,18 +290,18 @@ public class InventorySlotUI : MonoBehaviour,
         int goldGained = valuePerItem * removed;
         wallet.AddGold(goldGained);
 
-        string merchantId = null;
+        Merchant saleMerchant = null;
         int stockAdded = 0;
         if (MerchantClick.TryGetActiveMerchant(out var activeMerchant))
         {
+            saleMerchant = activeMerchant;
             activeMerchant.TryReplenishStockFromPlayerSale(slot.itemId, removed, out stockAdded);
-            merchantId = activeMerchant.MerchantId;
         }
 
         var spawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
         if (spawner) spawner.ShowGoldGained(goldGained);
 
-        SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, merchantId, stockAdded);
+        SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, saleMerchant, stockAdded);
         GameLog.SoldItem(soldItemName, removed, goldGained);
 
         eventData.Use();

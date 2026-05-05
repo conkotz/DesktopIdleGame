@@ -44,14 +44,13 @@ public class QuestListRowUI : MonoBehaviour
             rowCanvasGroup = GetComponent<CanvasGroup>();
     }
 
-    /// <param name="completed">True when a non-repeatable quest had its reward claimed (row is dimmed).</param>
+    /// <param name="rowCanvasAlpha"><see cref="CanvasGroup.alpha"/> for the row (1 = opaque; lower = washed / dimmed).</param>
     public void Bind(
         QuestDefinition quest,
         string subtitle,
         string statusLine,
         bool selected,
-        bool completed,
-        float completedAlpha,
+        float rowCanvasAlpha,
         Action<QuestDefinition> onClicked,
         bool tracked,
         Action<QuestDefinition> onTrackClicked,
@@ -79,7 +78,7 @@ public class QuestListRowUI : MonoBehaviour
         SetSelected(selected);
 
         if (rowCanvasGroup)
-            rowCanvasGroup.alpha = completed ? Mathf.Clamp01(completedAlpha) : 1f;
+            rowCanvasGroup.alpha = Mathf.Clamp01(rowCanvasAlpha);
 
         if (button)
         {

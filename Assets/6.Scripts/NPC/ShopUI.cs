@@ -16,6 +16,8 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private Button buy1xButton;
     [SerializeField] private Button buy50xButton;
     [SerializeField] private Button buybackToggleButton;
+    [Tooltip("Full-window undo grid; swaps with this shop when the Undo control is used.")]
+    [SerializeField] private UndoShopWindowUI undoShopWindow;
     [Header("Buy button visuals")]
     [SerializeField] private bool enableButtonTint = false;
     [SerializeField] private Image buy1xButtonImage;
@@ -122,10 +124,40 @@ public class ShopUI : MonoBehaviour
         if (!shopTooltip)
             shopTooltip = FindShopTooltip();
 
+        if (!undoShopWindow)
+            undoShopWindow = FindFirstObjectByType<UndoShopWindowUI>(FindObjectsInactive.Include);
+
         if (contentRoot)
             _shopGrid = contentRoot.GetComponent<GridLayoutGroup>();
 
         RefreshShopRaycastTargets();
+    }
+
+    private void OnEnable()
+    {
+        if (SaleUndoManager.Instance != null)
+            SaleUndoManager.Instance.EntriesChanged += OnSaleUndoEntriesChanged;
+    }
+
+    private void OnDisable()
+    {
+        if (SaleUndoManager.Instance != null)
+            SaleUndoManager.Instance.EntriesChanged -= OnSaleUndoEntriesChanged;
+
+        if (_shopGridLayoutRetry != null)
+        {
+            StopCoroutine(_shopGridLayoutRetry);
+            _shopGridLayoutRetry = null;
+        }
+
+        if (_currentMerchant != null)
+            _currentMerchant.StockChanged -= HandleMerchantStockChanged;
+    }
+
+    private void OnSaleUndoEntriesChanged()
+    {
+        if (IsOpen)
+            RefreshUndoSaleButtonState();
     }
 
     private void OnRectTransformDimensionsChange()
@@ -206,6 +238,7 @@ public class ShopUI : MonoBehaviour
 
         Rebuild(merchant);
         RefreshShopRaycastTargets();
+        RefreshUndoSaleButtonState();
     }
 
     public void Close()
@@ -472,18 +505,6 @@ public class ShopUI : MonoBehaviour
         Rebuild(merchant);
     }
 
-    private void OnDisable()
-    {
-        if (_shopGridLayoutRetry != null)
-        {
-            StopCoroutine(_shopGridLayoutRetry);
-            _shopGridLayoutRetry = null;
-        }
-
-        if (_currentMerchant != null)
-            _currentMerchant.StockChanged -= HandleMerchantStockChanged;
-    }
-
     private void OnDestroy()
     {
         if (_currentMerchant != null)
@@ -583,10 +604,33 @@ public class ShopUI : MonoBehaviour
 
     private void ToggleBuybackPanel()
     {
-        if (SaleUndoManager.Instance == null)
+        if (!undoShopWindow || !_currentMerchant || _currentMerchant.OnlyBuysStockedItems)
             return;
 
-        SaleUndoManager.Instance.ToggleUndoPanelVisibility();
+        if (SaleUndoManager.Instance == null ||
+            SaleUndoManager.Instance.GetUndoCountForMerchant(_currentMerchant.MerchantId) <= 0)
+            return;
+
+        Merchant m = _currentMerchant;
+        undoShopWindow.OpenForMerchant(m);
+        Close();
+    }
+
+    /// <summary>Updates Undo control visibility/interaction (full merchants only, when there are undo entries).</summary>
+    public void RefreshUndoSaleButtonState()
+    {
+        if (!buybackToggleButton)
+            return;
+
+        bool fullBuyer = _currentMerchant && !_currentMerchant.OnlyBuysStockedItems;
+        buybackToggleButton.gameObject.SetActive(fullBuyer);
+        if (!fullBuyer)
+            return;
+
+        int n = SaleUndoManager.Instance != null
+            ? SaleUndoManager.Instance.GetUndoCountForMerchant(_currentMerchant.MerchantId)
+            : 0;
+        buybackToggleButton.interactable = n > 0;
     }
 
     /// <summary>Left-click target behind item slots to clear selection.</summary>

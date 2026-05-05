@@ -171,6 +171,9 @@ public class MerchantClick : MonoBehaviour
         PositionShopUI();
     }
 
+    /// <summary>Re-pin the shop window next to the main menu (e.g. after returning from undo UI).</summary>
+    public void RepositionShopNextToMenu() => PositionShopUI();
+
     private void PositionShopUI()
     {
         if (!shopRect || !canvasRect)
@@ -210,6 +213,9 @@ public class MerchantClick : MonoBehaviour
     public static void ForceCloseMerchantMode()
     {
         MerchantModeOpen = false;
+
+        UndoShopWindowUI undoWin = FindFirstObjectByType<UndoShopWindowUI>(FindObjectsInactive.Include);
+        undoWin?.CloseWindow();
 
         if (_active != null)
         {

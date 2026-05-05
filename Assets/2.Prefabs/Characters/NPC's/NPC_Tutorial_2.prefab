@@ -47,6 +47,7 @@ GameObject:
   - component: {fileID: 882000000000000001}
   - component: {fileID: -5742210032571608364}
   - component: {fileID: 5025424248726190968}
+  - component: {fileID: 991000000000000002}
   m_Layer: 7
   m_Name: NPC_Tutorial_2
   m_TagString: NPC
@@ -273,6 +274,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HelperWhitelistInteractTarget
   interactionId: NPC_Tutorial_2
+--- !u!114 &991000000000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5214886831892509811}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8f4e2c91d0b4e6f8a1b3c5d7e9f0a2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcIdentity
+  characterName: Greggor
+  role: Combatant
+  nameLabel: {fileID: 0}
 --- !u!1 &6118185414367586614
 GameObject:
   m_ObjectHideFlags: 0

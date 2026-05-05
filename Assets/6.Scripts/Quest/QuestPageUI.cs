@@ -33,10 +33,13 @@ public class QuestPageUI : MonoBehaviour
     [SerializeField] private Transform questListParent;
     [SerializeField] private QuestListRowUI questRowPrefab;
     [Tooltip(
-        "Row dimming alpha for permanently completed quests, prerequisite-blocked quests, " +
-        "and quests not yet picked up from their source (NPC / notice board)—matches their background wash.")]
+        "Row dimming for prerequisite-blocked (Unavailable) and permanently completed quests — more transparent than “not yet obtained” rows.")]
     [Range(0.1f, 1f)]
     [SerializeField] private float completedRowAlpha = 0.45f;
+    [Tooltip(
+        "Row dimming for Available quests not yet picked up from a source — still slightly transparent, but more opaque than Unavailable rows.")]
+    [Range(0.1f, 1f)]
+    [SerializeField] private float availableNotObtainedRowAlpha = 0.78f;
     [Tooltip("Small section labels above each group: Current / Available / Unavailable (blocked by prereqs) / Complete.")]
     [SerializeField] private int questListGroupHeadingFontSize = 15;
     [SerializeField] private Color questListGroupHeadingColor = new Color32(120, 110, 98, 255);
@@ -540,13 +543,17 @@ public class QuestPageUI : MonoBehaviour
             string status = BuildQuestListStatus(q, qProg, amt);
             bool tracked = QuestTrackerState.IsTracked(q.questId);
             bool canAbandon = qProg != null && qProg.CanAbandonQuest(q);
+            float rowAlpha = 1f;
+            if (permanentlyDone || gated)
+                rowAlpha = completedRowAlpha;
+            else if (notPickedUp)
+                rowAlpha = availableNotObtainedRowAlpha;
             row.Bind(
                 q,
                 BuildQuestListTypeSubtitle(q),
                 status,
                 _selectedQuest == q,
-                permanentlyDone || gated || notPickedUp,
-                completedRowAlpha,
+                rowAlpha,
                 OnQuestClicked,
                 tracked,
                 OnTrackQuestClicked,

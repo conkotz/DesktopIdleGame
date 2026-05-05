@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 781000000000000001}
   - component: {fileID: 781000000000000002}
   - component: {fileID: 4181235982351577245}
+  - component: {fileID: -3861232571764350438}
   m_Layer: 7
   m_Name: NoticeBoard
   m_TagString: NoticeBoard
@@ -179,8 +180,13 @@ MonoBehaviour:
   dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
   nonQuestAutoCloseSeconds: 5
   openDialogueOnFirstSighting: 0
+  openDialogueAfterQuestAccepted: 0
+  openDialogueAfterQuestAcceptedQuestId: 
+  oneWayDialogueQueue: 0
+  oneWayDialogueQueueSaveId: 
   additionalConditionalDialogues: []
   questGiver: {fileID: 781000000000000001}
+  debugLogPlainDialogueResolution: 0
 --- !u!114 &4181235982351577245
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -204,6 +210,21 @@ MonoBehaviour:
   pulseWhenTargeted: 1
   pulseSpeed: 5
   pulseAmount: 0.015
+--- !u!114 &-3861232571764350438
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1301700847255990616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8f4e2c91d0b4e6f8a1b3c5d7e9f0a2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NpcIdentity
+  characterName: Notice Board
+  role: 
+  nameLabel: {fileID: 3979667164614100145}
 --- !u!1 &8147594713018466118
 GameObject:
   m_ObjectHideFlags: 0
@@ -310,7 +331,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Notice Board
+  m_text: <b>Notice Board</b>
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -343,7 +364,7 @@ MonoBehaviour:
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -354,7 +375,7 @@ MonoBehaviour:
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
-  m_TextWrappingMode: 1
+  m_TextWrappingMode: 0
   m_wordWrappingRatios: 0.4
   m_overflowMode: 0
   m_linkedTextComponent: {fileID: 0}
@@ -363,7 +384,7 @@ MonoBehaviour:
   m_ActiveFontFeatures: 6e72656b
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
-  m_isRichText: 0
+  m_isRichText: 1
   m_EmojiFallbackSupport: 1
   m_parseCtrlCharacters: 1
   m_isOrthographic: 0

@@ -510,6 +510,8 @@ public class LevelSelectPageUI : MonoBehaviour
             return;
         SkillsManager skills = FindSkillsManager();
 
+        string activeNodeId = ResolveActiveMapNodeIdForRegionUi();
+
         for (int i = 0; i < _selectedRegion.nodes.Count; i++)
         {
             MapNodeDefinition node = _selectedRegion.nodes[i];
@@ -525,7 +527,10 @@ public class LevelSelectPageUI : MonoBehaviour
             bool sel = _selectedNode && _selectedNode == node;
             bool greyOneShotDone = progress && node.IsPermanentlyCompleted(progress);
             bool unavailable = state == "Map locked" || state == "Skill locked";
-            row.Bind(node, state, sel, OnNodeSelected, greyOneShotDone, unavailable);
+            bool atThisMap = !string.IsNullOrWhiteSpace(activeNodeId) &&
+                !string.IsNullOrWhiteSpace(node.nodeId) &&
+                string.Equals(node.nodeId.Trim(), activeNodeId.Trim(), StringComparison.Ordinal);
+            row.Bind(node, state, sel, OnNodeSelected, greyOneShotDone, unavailable, atThisMap);
         }
     }
 
@@ -718,13 +723,7 @@ public class LevelSelectPageUI : MonoBehaviour
         var sb = new StringBuilder();
         sb.Append(n.BuildRequirementsDisplayText());
 
-        WorldMapProgressManager progress = FindProgressManager();
-        if (n.requiresMapUnlock && progress != null && !progress.IsNodeUnlocked(n.nodeId))
-        {
-            if (sb.Length > 0)
-                sb.AppendLine();
-            sb.Append("Map: Locked");
-        }
+        // Map lock is already shown in the State line (GetUiStateLabel → "Map locked"); do not repeat here.
 
         SkillsManager skills = FindSkillsManager();
         if (skills != null && n.HasSkillGates())
