@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Power Slash
   description: Primes your next hit to perform a powerful slash.
   icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
-  cooldown: 15
+  cooldown: 12
   energyCost: 30
   physicalDamageMultiplier: 1.5
   magicDamageMultiplier: 0
@@ -30,3 +30,4 @@ MonoBehaviour:
   requiredWeaponType: 1
   sourceSkill: 3
   unlockLevel: 5
+  minionSpawnDefinition: {fileID: 0}

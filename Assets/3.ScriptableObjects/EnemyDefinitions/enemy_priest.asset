@@ -17,18 +17,23 @@ MonoBehaviour:
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000013034572668, guid: 6814905bb3c3d7440b3306c02b2b222c, type: 3}
+  cannotRespawn: 0
+  doesNotContributeToRecommendedCombatPower: 0
   maxHealth: 80
   maxEnergy: 0
   maxMana: 0
   armor: 0
   magicResist: 0
+  corruptionResist: 0
   physBlockChance: 0
+  flatGuard: 0
+  maxGuardPercent: 0
   minPhysicalDamage: 0
   maxPhysicalDamage: 0
   minMagicDamage: 15
   maxMagicDamage: 20
-  minTrueDamage: 0
-  maxTrueDamage: 0
+  minCorruptionDamage: 0
+  maxCorruptionDamage: 0
   attackSpeed: 0.5
   moveSpeed: 1.5
   attackRange: 10
@@ -57,12 +62,20 @@ MonoBehaviour:
   burnExplosionMultiplier: 0.5
   shockDuration: 5
   shockDamageTakenMultiplier: 0.15
+  deadlyAtCloseRange: 0
+  deadlyCloseRangeDistance: 3
+  deadlyCloseRangeTyplessDamage: 0
+  immuneToMeleeDamage: 0
+  immuneToRangedDamage: 0
+  immuneToMagicDamage: 0
   idleWanderEnabled: 1
   idleWanderSpeed: 0.8
   idleWanderMoveMinSec: 1
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
   idleWanderIdleMaxSec: 8
+  idleWanderMaxDistanceFromSpawn: 10
+  grantCombatXp: 1
   dropGold: 1
   goldMin: 250
   goldMax: 300
@@ -70,7 +83,8 @@ MonoBehaviour:
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
   loot: []
+  lootAtMostOneDropPerTable: 0
   eliteLootHandling: 0
-  eliteLootChanceMultiplier: 2
+  eliteLootChanceMultiplier: 5
   eliteLoot: []
   designerNotes: 

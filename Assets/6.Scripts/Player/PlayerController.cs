@@ -2085,7 +2085,7 @@ public class PlayerController : MonoBehaviour
         bool blocked;
         float finalDamage = characterStats.TakeDamage(amount, type, out blocked, out float hpDamage);
         if (combat != null && finalDamage > 0f)
-            combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type));
+            combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type), attacker);
 
         AwardEnduranceXpFromIncomingDamage(preMitigatedDamage);
 

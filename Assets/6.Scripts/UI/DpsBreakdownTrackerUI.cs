@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Collections;
+using System.Text;
+using UnityEngine.EventSystems;
 
 [DisallowMultipleComponent]
 public class DpsBreakdownTrackerUI : MonoBehaviour
@@ -50,13 +52,17 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     [SerializeField] private TMP_Text outgoingHeaderText;
     [SerializeField] private TMP_Text incomingHeaderText;
     [SerializeField] private TMP_Text elapsedTimeText;
+    [SerializeField] private TMP_Text individualDamageDealersText;
 
     [Header("Refresh")]
     [SerializeField, Min(0.02f)] private float refreshInterval = 0.15f;
+    [Header("Debug")]
+    [SerializeField] private bool debugScrollDiagnostics = true;
 
     private float _nextRefreshTime;
     private MetricMode _mode = MetricMode.Dps;
     private Coroutine _lateWireRoutine;
+    private bool _loggedScrollDiagnostics;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void RegisterAutoAttach()
@@ -171,6 +177,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     private void OnEnable()
     {
         ResolveReferences();
+        EnsureScrollViewMasking();
         WireButtons();
         if (_lateWireRoutine != null)
             StopCoroutine(_lateWireRoutine);
@@ -194,6 +201,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             return;
 
         _nextRefreshTime = Time.unscaledTime + refreshInterval;
+        MaybeLogScrollDiagnostics();
         Refresh();
     }
 
@@ -203,6 +211,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             combat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
 
         RefreshElapsedTime();
+        RefreshIncomingDealerDamage(combat);
 
         if (_mode == MetricMode.TotalDamage)
             RefreshTotalDamage(combat);
@@ -224,6 +233,162 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         elapsedTimeText.text = hours > 0
             ? $"{hours}:{minutes:00}:{seconds:00}"
             : $"{minutes}:{seconds:00}";
+    }
+
+    private void RefreshIncomingDealerDamage(PlayerCombatController currentCombat)
+    {
+        if (!individualDamageDealersText)
+            return;
+
+        bool dpsMode = _mode == MetricMode.Dps;
+
+        if (!currentCombat)
+        {
+            individualDamageDealersText.text = dpsMode ? "No incoming DPS yet" : "No incoming damage yet";
+            return;
+        }
+
+        var entries = currentCombat.GetIncomingDamageByDealer();
+        if (entries == null || entries.Count == 0)
+        {
+            individualDamageDealersText.text = dpsMode ? "No incoming DPS yet" : "No incoming damage yet";
+            return;
+        }
+
+        float elapsed = Mathf.Max(0f, currentCombat.GetDamageSessionElapsedSeconds());
+        StringBuilder sb = new StringBuilder(128);
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var e = entries[i];
+            if (i > 0)
+                sb.AppendLine();
+            sb.Append(e.dealerName);
+            sb.Append(": ");
+            if (dpsMode)
+            {
+                float perSecond = elapsed > 0.001f ? Mathf.Max(0f, e.totalDamage) / elapsed : 0f;
+                sb.Append(perSecond.ToString("0.#"));
+                sb.Append(" DPS");
+            }
+            else
+            {
+                sb.Append(Mathf.RoundToInt(Mathf.Max(0f, e.totalDamage)));
+            }
+        }
+
+        individualDamageDealersText.text = sb.ToString();
+    }
+
+    private void EnsureScrollViewMasking()
+    {
+        if (!individualDamageDealersText)
+            return;
+
+        ScrollRect sr = individualDamageDealersText.GetComponentInParent<ScrollRect>(true);
+        if (!sr)
+            return;
+
+        // Ensure the DPS details scroller behaves consistently even if scene wiring drifts.
+        sr.vertical = true;
+        sr.horizontal = false;
+        sr.movementType = ScrollRect.MovementType.Clamped;
+
+        RectTransform viewport = sr.viewport;
+        if (viewport)
+        {
+            RectMask2D rectMask = viewport.GetComponent<RectMask2D>();
+            if (!rectMask)
+                viewport.gameObject.AddComponent<RectMask2D>();
+
+            viewport.anchorMin = Vector2.zero;
+            viewport.anchorMax = Vector2.one;
+        }
+
+        RectTransform content = sr.content;
+        if (!content)
+            return;
+
+        content.anchorMin = new Vector2(0f, 1f);
+        content.anchorMax = new Vector2(1f, 1f);
+        content.pivot = new Vector2(0f, 1f);
+
+        ContentSizeFitter fitter = content.GetComponent<ContentSizeFitter>();
+        if (!fitter)
+            fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        MaskableGraphic[] graphics = content.GetComponentsInChildren<MaskableGraphic>(true);
+        for (int i = 0; i < graphics.Length; i++)
+        {
+            MaskableGraphic g = graphics[i];
+            if (!g)
+                continue;
+            g.maskable = true;
+        }
+
+        CanvasGroup[] groups = content.GetComponentsInChildren<CanvasGroup>(true);
+        for (int i = 0; i < groups.Length; i++)
+        {
+            if (!groups[i])
+                continue;
+            if (!groups[i].blocksRaycasts)
+                continue;
+            // Text-only panels inside this scroll should not trap pointer wheel/drag from ScrollRect.
+            if (!groups[i].interactable)
+                groups[i].blocksRaycasts = false;
+        }
+
+        if (individualDamageDealersText)
+            individualDamageDealersText.raycastTarget = false;
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+        if (viewport)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(viewport);
+    }
+
+    private void MaybeLogScrollDiagnostics()
+    {
+        if (!debugScrollDiagnostics || _loggedScrollDiagnostics)
+            return;
+        if (!isActiveAndEnabled)
+            return;
+
+        ScrollRect sr = individualDamageDealersText
+            ? individualDamageDealersText.GetComponentInParent<ScrollRect>(true)
+            : GetComponentInChildren<ScrollRect>(true);
+
+        if (!sr)
+        {
+            Debug.Log("[FullDpsScrollDiag] No ScrollRect found.");
+            _loggedScrollDiagnostics = true;
+            return;
+        }
+
+        RectTransform viewport = sr.viewport;
+        RectTransform content = sr.content;
+
+        string viewportRect = viewport ? viewport.rect.ToString() : "null";
+        string contentRect = content ? content.rect.ToString() : "null";
+        string viewportAnchors = viewport ? $"min={viewport.anchorMin} max={viewport.anchorMax} pivot={viewport.pivot}" : "null";
+        string contentAnchors = content ? $"min={content.anchorMin} max={content.anchorMax} pivot={content.pivot}" : "null";
+        string vpSize = viewport ? $"w={viewport.rect.width:0.##},h={viewport.rect.height:0.##}" : "null";
+        string contentSize = content ? $"w={content.rect.width:0.##},h={content.rect.height:0.##}" : "null";
+
+        GameObject pointerOver = null;
+        if (EventSystem.current != null && Input.mousePresent)
+            pointerOver = EventSystem.current.currentSelectedGameObject;
+
+        Debug.Log(
+            $"[FullDpsScrollDiag] sr='{sr.name}' vertical={sr.vertical} horizontal={sr.horizontal} " +
+            $"norm={sr.verticalNormalizedPosition:0.###} velocity={sr.velocity} " +
+            $"viewport='{(viewport ? viewport.name : "null")}' {vpSize} anchors[{viewportAnchors}] rect={viewportRect} " +
+            $"content='{(content ? content.name : "null")}' {contentSize} anchors[{contentAnchors}] rect={contentRect} " +
+            $"children={(content ? content.childCount : -1)} pointerSelected='{(pointerOver ? pointerOver.name : "null")}'",
+            this
+        );
+
+        _loggedScrollDiagnostics = true;
     }
 
     private void RefreshDps(PlayerCombatController currentCombat)
@@ -331,6 +496,8 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             incomingHeaderText = FindText(texts, "Incoming", "HeaderLabel", "DPS");
         if (!elapsedTimeText)
             elapsedTimeText = FindText(texts, "", "ElapsedTimeText", "Elapsed Time", "Time");
+        if (!individualDamageDealersText)
+            individualDamageDealersText = FindText(texts, "Incoming", "IndividualDamageDealersText", "DamageDealersText", "Dealer");
         if (!resetButton)
             resetButton = FindButtonByName("Reset", "ResetButton");
         if (!dpsOrDamageButton)

@@ -130,8 +130,7 @@ public class SaveSlotMenuUI : MonoBehaviour
         _resumeClickFrame = -1;
         SetResumeButtonsInteractable(true);
 
-        if (bootstrapInputDiagnostics)
-            DumpBootstrapInputDiagnostics("sceneLoaded");
+        // Keep diagnostics opt-in via hotkey only; avoid automatic console spam on every Bootstrap load.
         RefreshSlotsFromDisk();
         RefreshUI();
     }

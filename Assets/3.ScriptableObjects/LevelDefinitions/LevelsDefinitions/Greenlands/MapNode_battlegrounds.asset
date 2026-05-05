@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MapNode_battlegrounds
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
   nodeId: battlegrounds
-  displayName: Battleground
+  displayName: Battlegrounds
   description: 'Combat level '
   nodeType: 0
   enemyAggroMode: 1
@@ -40,7 +40,7 @@ MonoBehaviour:
   biome: 0
   prefabGroups: []
   spawnGroupPlans:
-  - groupId: AllSpawns
+  - groupId: MiddleSpawns
     spawns:
     - spawnPointGroupId: 
       spawnPointName: 
@@ -50,7 +50,16 @@ MonoBehaviour:
       itemAmount: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
-      count: 8
+      count: 6
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 3
     shuffleSpawnPoints: 1
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0

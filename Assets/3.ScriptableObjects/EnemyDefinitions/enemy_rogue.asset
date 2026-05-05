@@ -89,10 +89,10 @@ MonoBehaviour:
     dropChance: 0.05
   lootAtMostOneDropPerTable: 0
   eliteLootHandling: 0
-  eliteLootChanceMultiplier: 3
+  eliteLootChanceMultiplier: 5
   eliteLoot:
   - item: {fileID: 11400000, guid: 074fa9e1e331a964eabda14f761d6cd8, type: 2}
     amountMin: 0
     amountMax: 0
-    dropChance: 0.2
+    dropChance: 0.3
   designerNotes: 

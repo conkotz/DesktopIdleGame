@@ -105,6 +105,6 @@ MonoBehaviour:
     dropChance: 0.03
   lootAtMostOneDropPerTable: 1
   eliteLootHandling: 0
-  eliteLootChanceMultiplier: 2
+  eliteLootChanceMultiplier: 5
   eliteLoot: []
   designerNotes: 

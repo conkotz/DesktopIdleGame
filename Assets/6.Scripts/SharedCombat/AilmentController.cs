@@ -657,7 +657,7 @@ public class AilmentController : MonoBehaviour
             if (combat == null)
                 combat = GetComponentInParent<PlayerCombatController>();
             if (combat != null && finalDamage > 0)
-                combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type));
+                combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type), source);
 
             if (showDotPopups && finalDamage > 0 && DamagePopupSystem.Instance != null)
             {

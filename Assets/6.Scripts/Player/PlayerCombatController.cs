@@ -5,6 +5,18 @@ using System.Linq;
 [DisallowMultipleComponent]
 public class PlayerCombatController : MonoBehaviour, ISaveable
 {
+    public readonly struct IncomingDealerDamageEntry
+    {
+        public readonly string dealerName;
+        public readonly float totalDamage;
+
+        public IncomingDealerDamageEntry(string dealerName, float totalDamage)
+        {
+            this.dealerName = dealerName;
+            this.totalDamage = totalDamage;
+        }
+    }
+
     private struct DamageSample
     {
         public float time;
@@ -120,6 +132,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _lastCombatActivityTime = -999f;
     private float _lastHpForCombatEngageTrack = -1f;
     private bool _dpsAutoResetEnabled = true;
+    private readonly Dictionary<string, float> _incomingDamageByDealer = new Dictionary<string, float>();
+    private readonly List<string> _incomingDealerOrder = new List<string>();
 
     private readonly List<EnemyBaseController> _ailmentSpreadScratch = new List<EnemyBaseController>(16);
 
@@ -236,6 +250,25 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     public DpsDamageBreakdown GetIncomingTotalDamageBreakdown()
     {
         return _incomingDamageSum;
+    }
+
+    public List<IncomingDealerDamageEntry> GetIncomingDamageByDealer()
+    {
+        List<IncomingDealerDamageEntry> entries = new List<IncomingDealerDamageEntry>(_incomingDealerOrder.Count);
+        for (int i = 0; i < _incomingDealerOrder.Count; i++)
+        {
+            string key = _incomingDealerOrder[i];
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+            if (!_incomingDamageByDealer.TryGetValue(key, out float total))
+                continue;
+            if (total <= 0f)
+                continue;
+
+            entries.Add(new IncomingDealerDamageEntry(key, total));
+        }
+
+        return entries;
     }
 
     /// <summary>When false, combat DPS session values are never auto-cleared out of combat.</summary>
@@ -1625,7 +1658,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         sm.AddXpFloat(skill, damageDealt * xpPerDamage, combatXpSource);
     }
 
-    public void RecordIncomingDamageForDps(float damageAmount, DpsDamageBucket bucket)
+    public void RecordIncomingDamageForDps(float damageAmount, DpsDamageBucket bucket, Transform source = null)
     {
         if (damageAmount <= 0f || _dpsTrackerPaused)
             return;
@@ -1633,6 +1666,62 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         MarkRecentCombatActivity();
         EnsureDpsSessionStarted();
         _incomingDamageSum.Add(bucket, damageAmount);
+        AddIncomingDealerDamage(source, damageAmount);
+    }
+
+    private void AddIncomingDealerDamage(Transform source, float amount)
+    {
+        if (amount <= 0f)
+            return;
+
+        string dealerName = ResolveIncomingDealerName(source);
+        if (string.IsNullOrWhiteSpace(dealerName))
+            return;
+
+        if (_incomingDamageByDealer.TryGetValue(dealerName, out float current))
+        {
+            _incomingDamageByDealer[dealerName] = current + amount;
+            return;
+        }
+
+        _incomingDamageByDealer[dealerName] = amount;
+        _incomingDealerOrder.Add(dealerName);
+    }
+
+    private static string ResolveIncomingDealerName(Transform source)
+    {
+        if (source == null)
+            return "Unknown";
+
+        EnemyBaseController enemy = source.GetComponentInParent<EnemyBaseController>();
+        if (!enemy)
+            enemy = source.GetComponentInChildren<EnemyBaseController>(true);
+
+        if (enemy)
+        {
+            string name = NormalizeEnemyTypeName(enemy.DisplayName);
+            if (!string.IsNullOrWhiteSpace(name))
+                return name;
+        }
+
+        CharacterStats sourceStats = source.GetComponentInParent<CharacterStats>();
+        if (sourceStats != null && !string.IsNullOrWhiteSpace(sourceStats.UnitDisplayName))
+            return sourceStats.UnitDisplayName.Trim();
+
+        return source.name.Replace("(Clone)", "").Trim();
+    }
+
+    private static string NormalizeEnemyTypeName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "";
+
+        string trimmed = value.Trim();
+        const string elitePrefix = "Elite ";
+        if (trimmed.StartsWith(elitePrefix, System.StringComparison.OrdinalIgnoreCase))
+            trimmed = trimmed.Substring(elitePrefix.Length).Trim();
+
+        return trimmed;
     }
 
     private void RecordDamageForDps(float damageAmount, DpsDamageBucket? bucket)
@@ -1684,6 +1773,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _combatSessionDamageSum = 0f;
         _outgoingDamageSum = default;
         _incomingDamageSum = default;
+        _incomingDamageByDealer.Clear();
+        _incomingDealerOrder.Clear();
         _pausedDpsSessionDuration = 0f;
     }
 

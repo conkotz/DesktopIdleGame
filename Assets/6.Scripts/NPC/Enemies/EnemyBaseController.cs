@@ -352,18 +352,18 @@ public class EnemyBaseController : MonoBehaviour
 
         OnHealthChanged?.Invoke(HP, MaxHP);
         SetMoving(false);
-        ResetIdleWanderCycle();
+        ResetIdleWanderCycle(startInMovePhase: true);
     }
 
-    private void ResetIdleWanderCycle()
+    private void ResetIdleWanderCycle(bool startInMovePhase = false)
     {
         if (!idleWanderEnabled || idleWanderSpeed <= 0f)
             return;
 
-        // Start in the idle (stand still) phase so the first move burst happens after a pause.
-        _idleWanderInMovePhase = false;
-        _idleWanderPhaseEndTime = Time.time +
-            UnityEngine.Random.Range(idleWanderIdleMinSec, idleWanderIdleMaxSec);
+        _idleWanderInMovePhase = startInMovePhase;
+        _idleWanderPhaseEndTime = Time.time + (_idleWanderInMovePhase
+            ? UnityEngine.Random.Range(idleWanderMoveMinSec, idleWanderMoveMaxSec)
+            : UnityEngine.Random.Range(idleWanderIdleMinSec, idleWanderIdleMaxSec));
         _idleWanderDirSign = UnityEngine.Random.value < 0.5f ? -1f : 1f;
     }
 
