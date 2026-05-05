@@ -46,17 +46,6 @@ public enum LevelBiome
     Custom
 }
 
-/// <summary>Named batch of prefabs to spawn (enemies, props, harvestables).</summary>
-[Serializable]
-public class EncounterPrefabGroup
-{
-    [Tooltip("Logical id for spawners: e.g. Enemies, Props, OreVeins, FishSpots.")]
-    public string groupId = "Default";
-
-    [Tooltip("Prefabs this group can instantiate.")]
-    public List<GameObject> prefabs = new();
-}
-
 /// <summary>Prefab + count for a spawn plan.</summary>
 [Serializable]
 public class SpawnPrefabCount
@@ -359,6 +348,30 @@ public class SkillLevelRequirement
     public int requiredLevel = 1;
 }
 
+/// <summary>
+/// Optional prerequisite map progression gate for entering a node.
+/// Supports requiring completion of another map, with optional kill-count progress on that map.
+/// </summary>
+[Serializable]
+public class PreviousMapCompletionRequirement
+{
+    [Tooltip("Turn this on to enforce this prerequisite row.")]
+    public bool enabled = true;
+
+    [Tooltip("MapNodeDefinition.nodeId that must satisfy this prerequisite.")]
+    public string requiredMapNodeId = "";
+
+    [Tooltip("If enabled, the required map must be marked completed.")]
+    public bool requireMapCompleted = true;
+
+    [Tooltip("If enabled, also require at least Required Enemy Kills On Map kills recorded on Required Map Node Id.")]
+    public bool requireEnemyKillsOnMap;
+
+    [Min(1)]
+    [Tooltip("Minimum cumulative enemy kills on Required Map Node Id when Require Enemy Kills On Map is enabled.")]
+    public int requiredEnemyKillsOnMap = 1;
+}
+
 [CreateAssetMenu(menuName = "Desktop Idle Game/World Map/Map Node Definition", fileName = "MapNode_")]
 public class MapNodeDefinition : ScriptableObject
 {
@@ -459,11 +472,13 @@ public class MapNodeDefinition : ScriptableObject
     [Tooltip("Environment key for lighting, music, skybox, ambient VFX.")]
     public LevelBiome biome = LevelBiome.None;
 
-    [Tooltip("Grouped prefabs for spawners (enemies, gathering nodes, town props, etc.).")]
-    public List<EncounterPrefabGroup> prefabGroups = new();
-
+    [Header("Spawn plans (GamePlay scene)")]
     [Tooltip("Concrete spawn plan: which prefabs to instantiate and how many, mapped to SpawnPointGroup ids in the scene.")]
     public List<LevelSpawnGroupPlan> spawnGroupPlans = new();
+
+    [Header("Unlock — Previous map completion")]
+    [Tooltip("Optional additional progression prerequisites. All enabled rows are required (AND).")]
+    public List<PreviousMapCompletionRequirement> requiredPreviousMapCompletions = new();
 
     [Header("Simple wave sequence (non-endurance combat)")]
     [Tooltip("Optional extra wave sequence for non-Endurance maps. Uses Endurance-style wave rows and spawns via LevelSpawnDirector.SpawnAdditionalGroupPlan.")]
@@ -526,6 +541,17 @@ public class MapNodeDefinition : ScriptableObject
     /// </summary>
     public bool HasRequirementsContent()
     {
+        if (requiredPreviousMapCompletions != null)
+        {
+            foreach (var req in requiredPreviousMapCompletions)
+            {
+                if (req == null || !req.enabled || string.IsNullOrWhiteSpace(req.requiredMapNodeId))
+                    continue;
+                if (req.requireMapCompleted || (req.requireEnemyKillsOnMap && req.requiredEnemyKillsOnMap > 0))
+                    return true;
+            }
+        }
+
         if (requiredSkillLevels != null)
         {
             foreach (var r in requiredSkillLevels)
@@ -539,6 +565,37 @@ public class MapNodeDefinition : ScriptableObject
             return true;
 
         return !string.IsNullOrWhiteSpace(unlockRequirementNotes);
+    }
+
+    public bool MeetsPreviousMapCompletionRequirements(WorldMapProgressManager progress)
+    {
+        if (requiredPreviousMapCompletions == null || requiredPreviousMapCompletions.Count == 0)
+            return true;
+        if (progress == null)
+            return false;
+
+        for (int i = 0; i < requiredPreviousMapCompletions.Count; i++)
+        {
+            PreviousMapCompletionRequirement req = requiredPreviousMapCompletions[i];
+            if (req == null || !req.enabled)
+                continue;
+
+            string requiredNodeId = req.requiredMapNodeId != null ? req.requiredMapNodeId.Trim() : "";
+            if (string.IsNullOrEmpty(requiredNodeId))
+                continue;
+
+            if (req.requireMapCompleted && !progress.IsNodeCompleted(requiredNodeId))
+                return false;
+
+            if (req.requireEnemyKillsOnMap && req.requiredEnemyKillsOnMap > 0)
+            {
+                int kills = progress.GetEnemyKillsOnNode(requiredNodeId);
+                if (kills < req.requiredEnemyKillsOnMap)
+                    return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -640,6 +697,8 @@ public class MapNodeDefinition : ScriptableObject
     {
         if (!IsMapProgressSatisfied(progress))
             return false;
+        if (!MeetsPreviousMapCompletionRequirements(progress))
+            return false;
         if (!MeetsSkillRequirements(skills))
             return false;
         if (!isRepeatable && progress != null && progress.IsNodeCompleted(nodeId))
@@ -654,6 +713,8 @@ public class MapNodeDefinition : ScriptableObject
     {
         if (!IsMapProgressSatisfied(progress))
             return "Map locked";
+        if (!MeetsPreviousMapCompletionRequirements(progress))
+            return "Progress locked";
         if (!MeetsSkillRequirements(skills))
             return "Skill locked";
         if (progress != null && progress.IsNodeCompleted(nodeId))
@@ -676,6 +737,25 @@ public class MapNodeDefinition : ScriptableObject
     public string BuildRequirementsDisplayText()
     {
         var sb = new StringBuilder();
+
+        if (requiredPreviousMapCompletions != null)
+        {
+            for (int i = 0; i < requiredPreviousMapCompletions.Count; i++)
+            {
+                PreviousMapCompletionRequirement req = requiredPreviousMapCompletions[i];
+                if (req == null || !req.enabled)
+                    continue;
+
+                string requiredNodeId = req.requiredMapNodeId != null ? req.requiredMapNodeId.Trim() : "";
+                if (string.IsNullOrEmpty(requiredNodeId))
+                    continue;
+
+                if (req.requireMapCompleted)
+                    sb.AppendLine($"Complete map: {requiredNodeId}");
+                if (req.requireEnemyKillsOnMap && req.requiredEnemyKillsOnMap > 0)
+                    sb.AppendLine($"Defeat {req.requiredEnemyKillsOnMap} enemies on: {requiredNodeId}");
+            }
+        }
 
         if (requiredSkillLevels != null)
         {
@@ -714,6 +794,26 @@ public class MapNodeDefinition : ScriptableObject
         NormalizeItemAmountsInPlans(spawnGroupPlans);
         NormalizeItemAmountsInWaves(simpleCombatWaves);
         NormalizeItemAmountsInWaves(enduranceWaves);
+        NormalizePreviousMapCompletionRequirements(requiredPreviousMapCompletions);
+    }
+
+    private static void NormalizePreviousMapCompletionRequirements(List<PreviousMapCompletionRequirement> requirements)
+    {
+        if (requirements == null)
+            return;
+
+        for (int i = 0; i < requirements.Count; i++)
+        {
+            PreviousMapCompletionRequirement req = requirements[i];
+            if (req == null)
+                continue;
+
+            if (!string.IsNullOrWhiteSpace(req.requiredMapNodeId))
+                req.requiredMapNodeId = req.requiredMapNodeId.Trim();
+
+            if (req.requireEnemyKillsOnMap)
+                req.requiredEnemyKillsOnMap = Mathf.Max(1, req.requiredEnemyKillsOnMap);
+        }
     }
 
     private static void NormalizeItemAmountsInPlans(List<LevelSpawnGroupPlan> plans)

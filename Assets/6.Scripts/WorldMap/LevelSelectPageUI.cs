@@ -54,6 +54,14 @@ public class LevelSelectPageUI : MonoBehaviour
     [SerializeField] private GameObject selectedNodeContainsRoot;
     [Tooltip("Shows merchants (Merchant Name), Storage, Notice Board, and quest NPCs inferred from MapNodeDefinition prefabs / spawn plans.")]
     [SerializeField] private TMP_Text selectedNodeContainsText;
+    [Tooltip("Optional NPC/interactables line text (e.g. NodeContainsNPCText). Hidden when empty.")]
+    [SerializeField] private TMP_Text selectedNodeContainsNpcText;
+    [Tooltip("Optional row root for NPC/interactables line. Hidden when line is empty.")]
+    [SerializeField] private GameObject selectedNodeContainsNpcRoot;
+    [Tooltip("Optional resources/enemies line text (e.g. NodeContainsResourcesEnemiesText). Hidden when empty.")]
+    [SerializeField] private TMP_Text selectedNodeContainsResourcesEnemiesText;
+    [Tooltip("Optional row root for resources/enemies line. Hidden when line is empty.")]
+    [SerializeField] private GameObject selectedNodeContainsResourcesEnemiesRoot;
     [SerializeField] private Button enterNodeButton;
 
     [Header("Right — Panel backgrounds (node type theme)")]
@@ -664,21 +672,42 @@ public class LevelSelectPageUI : MonoBehaviour
 
     private void RefreshNodeContainsSummary(MapNodeDefinition n)
     {
-        if (!selectedNodeContainsText && !selectedNodeContainsRoot)
+        bool hasLegacy = selectedNodeContainsText || selectedNodeContainsRoot;
+        bool hasSplit = selectedNodeContainsNpcText || selectedNodeContainsNpcRoot ||
+                        selectedNodeContainsResourcesEnemiesText || selectedNodeContainsResourcesEnemiesRoot;
+        if (!hasLegacy && !hasSplit)
             return;
 
-        string body = MapNodeInteractablesPreview.BuildSummary(n);
-        string line = string.IsNullOrEmpty(body) ? "" : $"Contains: {body}";
+        MapNodeInteractablesPreview.ContainsSummary split = MapNodeInteractablesPreview.BuildSplitSummary(n);
+        string npcLine = string.IsNullOrEmpty(split.npcsLine) ? "" : $"Contains: {split.npcsLine}";
+        string resourcesEnemiesLine = string.IsNullOrEmpty(split.resourcesEnemiesLine)
+            ? ""
+            : $"Contains: {split.resourcesEnemiesLine}";
+        string legacyLine = npcLine;
+
+        if (selectedNodeContainsNpcText)
+            selectedNodeContainsNpcText.text = npcLine;
+        if (selectedNodeContainsNpcRoot)
+            selectedNodeContainsNpcRoot.SetActive(!string.IsNullOrEmpty(npcLine));
+        else if (selectedNodeContainsNpcText)
+            selectedNodeContainsNpcText.gameObject.SetActive(!string.IsNullOrEmpty(npcLine));
+
+        if (selectedNodeContainsResourcesEnemiesText)
+            selectedNodeContainsResourcesEnemiesText.text = resourcesEnemiesLine;
+        if (selectedNodeContainsResourcesEnemiesRoot)
+            selectedNodeContainsResourcesEnemiesRoot.SetActive(!string.IsNullOrEmpty(resourcesEnemiesLine));
+        else if (selectedNodeContainsResourcesEnemiesText)
+            selectedNodeContainsResourcesEnemiesText.gameObject.SetActive(!string.IsNullOrEmpty(resourcesEnemiesLine));
 
         if (selectedNodeContainsText)
         {
-            selectedNodeContainsText.text = line;
+            selectedNodeContainsText.text = legacyLine;
             if (!selectedNodeContainsRoot)
-                selectedNodeContainsText.gameObject.SetActive(!string.IsNullOrEmpty(line));
+                selectedNodeContainsText.gameObject.SetActive(!string.IsNullOrEmpty(legacyLine));
         }
 
         if (selectedNodeContainsRoot)
-            selectedNodeContainsRoot.SetActive(!string.IsNullOrEmpty(line));
+            selectedNodeContainsRoot.SetActive(!string.IsNullOrEmpty(legacyLine));
     }
 
     private void ApplyPanelThemeColors(MapNodeDefinition n)

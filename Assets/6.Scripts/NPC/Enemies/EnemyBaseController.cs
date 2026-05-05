@@ -948,6 +948,16 @@ public class EnemyBaseController : MonoBehaviour
                 mgr.NotifyEnemyKilledForActiveMap(eid);
         }
 
+        WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        if (wmp != null)
+        {
+            string activeNodeId = ActiveLevelContext.Current != null ? ActiveLevelContext.Current.nodeId : "";
+            if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
+                activeNodeId = GameplayLevelBootstrapper.Instance.ActiveDefinition.nodeId ?? activeNodeId;
+            wmp.NotifyEnemyKilledOnNode(activeNodeId, 1);
+        }
+
         TryDropGold();
         TryDropLoot();
 

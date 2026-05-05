@@ -63,6 +63,9 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     private MetricMode _mode = MetricMode.Dps;
     private Coroutine _lateWireRoutine;
     private bool _loggedScrollDiagnostics;
+    private float _incomingPanelBasePreferredHeight = -1f;
+    private float _dealerTextBaseHeight = -1f;
+    private float _scrollContentBaseHeight = -1f;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void RegisterAutoAttach()
@@ -277,6 +280,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         }
 
         individualDamageDealersText.text = sb.ToString();
+        RefreshDealerPanelLayout();
     }
 
     private void EnsureScrollViewMasking()
@@ -308,6 +312,9 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         if (!content)
             return;
 
+        if (_scrollContentBaseHeight < 0f)
+            _scrollContentBaseHeight = Mathf.Max(1f, content.rect.height);
+
         content.anchorMin = new Vector2(0f, 1f);
         content.anchorMax = new Vector2(1f, 1f);
         content.pivot = new Vector2(0f, 1f);
@@ -317,6 +324,15 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             fitter = content.gameObject.AddComponent<ContentSizeFitter>();
         fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        HorizontalLayoutGroup hlg = content.GetComponent<HorizontalLayoutGroup>();
+        if (hlg)
+        {
+            hlg.childControlHeight = true;
+            hlg.childForceExpandHeight = false;
+            hlg.childControlWidth = true;
+            hlg.childForceExpandWidth = false;
+        }
 
         MaskableGraphic[] graphics = content.GetComponentsInChildren<MaskableGraphic>(true);
         for (int i = 0; i < graphics.Length; i++)
@@ -342,9 +358,53 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         if (individualDamageDealersText)
             individualDamageDealersText.raycastTarget = false;
 
+        RefreshDealerPanelLayout();
+
         LayoutRebuilder.ForceRebuildLayoutImmediate(content);
         if (viewport)
             LayoutRebuilder.ForceRebuildLayoutImmediate(viewport);
+    }
+
+    private void RefreshDealerPanelLayout()
+    {
+        if (!individualDamageDealersText)
+            return;
+
+        RectTransform incomingRt = individualDamageDealersText.transform.parent as RectTransform;
+        if (!incomingRt)
+            return;
+
+        // The scene currently has a local RectMask2D on IncomingDPS that clips dealer lines.
+        RectMask2D localMask = incomingRt.GetComponent<RectMask2D>();
+        if (localMask)
+            localMask.enabled = false;
+
+        LayoutElement incomingLe = incomingRt.GetComponent<LayoutElement>();
+        if (incomingLe && _incomingPanelBasePreferredHeight < 0f)
+            _incomingPanelBasePreferredHeight = Mathf.Max(1f, incomingLe.preferredHeight);
+        if (_incomingPanelBasePreferredHeight < 0f)
+            _incomingPanelBasePreferredHeight = Mathf.Max(1f, incomingRt.rect.height);
+
+        if (_dealerTextBaseHeight < 0f)
+            _dealerTextBaseHeight = Mathf.Max(24f, individualDamageDealersText.rectTransform.rect.height);
+
+        float availableWidth = Mathf.Max(120f, individualDamageDealersText.rectTransform.rect.width);
+        float dealerPreferred = Mathf.Max(
+            _dealerTextBaseHeight,
+            individualDamageDealersText.GetPreferredValues(individualDamageDealersText.text, availableWidth, 0f).y
+        );
+        float extraDealerHeight = Mathf.Max(0f, dealerPreferred - _dealerTextBaseHeight);
+        float wantedIncomingHeight = _incomingPanelBasePreferredHeight + extraDealerHeight;
+
+        if (incomingLe)
+            incomingLe.preferredHeight = wantedIncomingHeight;
+        individualDamageDealersText.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, dealerPreferred);
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(incomingRt);
+        if (incomingRt.parent is RectTransform parentRt)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(parentRt);
+        }
     }
 
     private void MaybeLogScrollDiagnostics()
@@ -497,7 +557,15 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         if (!elapsedTimeText)
             elapsedTimeText = FindText(texts, "", "ElapsedTimeText", "Elapsed Time", "Time");
         if (!individualDamageDealersText)
-            individualDamageDealersText = FindText(texts, "Incoming", "IndividualDamageDealersText", "DamageDealersText", "Dealer");
+            individualDamageDealersText = FindText(texts, "Incoming", "IndividualDamageDealersText");
+        if (!individualDamageDealersText)
+            individualDamageDealersText = FindText(texts, "Incoming", "IndividualDamage", "DealersText");
+        if (individualDamageDealersText != null &&
+            individualDamageDealersText.name.IndexOf("Header", System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            // Never bind the header label as the dynamic dealer-value output field.
+            individualDamageDealersText = null;
+        }
         if (!resetButton)
             resetButton = FindButtonByName("Reset", "ResetButton");
         if (!dpsOrDamageButton)

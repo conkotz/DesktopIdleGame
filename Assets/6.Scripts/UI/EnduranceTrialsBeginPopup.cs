@@ -16,6 +16,11 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
 
     [Tooltip("If unset, this GameObject is toggled.")]
     [SerializeField] private GameObject popupRoot;
+    [Header("Window order")]
+    [Tooltip("When true, this popup is automatically moved to the front the first time it opens for a trial/map load.")]
+    [SerializeField] private bool bringToFrontOnFirstOpen = true;
+    [Tooltip("Optional root to move to front. Leave empty to use Popup Root transform.")]
+    [SerializeField] private Transform bringToFrontRoot;
 
     [SerializeField] private Button beginButton;
     [Tooltip("Optional TMP on the Begin button. Pre-trial: Begin; completion: Finish.")]
@@ -67,6 +72,7 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
     private Coroutine _deferredLayoutCoroutine;
     private bool _completionSummaryDismissed;
     private bool _refreshedCompletionUi;
+    private string _frontAppliedNodeId;
 
     private void Awake()
     {
@@ -195,6 +201,7 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
                 _lastRefreshed = null;
                 _completionSummaryDismissed = false;
                 _refreshedCompletionUi = false;
+                _frontAppliedNodeId = null;
             }
 
             return;
@@ -205,6 +212,9 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
 
         bool becameVisible = !_wasWaitingForBeginVisible;
         _wasWaitingForBeginVisible = true;
+
+        if (becameVisible)
+            TryBringToFrontOnFirstOpen(active);
 
         if (active == null)
             return;
@@ -236,6 +246,28 @@ public class EnduranceTrialsBeginPopup : MonoBehaviour
             RefreshContent(active);
             ScheduleDeferredLayoutRebuild();
         }
+    }
+
+    private void TryBringToFrontOnFirstOpen(MapNodeDefinition active)
+    {
+        if (!bringToFrontOnFirstOpen)
+            return;
+
+        string nodeId = active != null && !string.IsNullOrWhiteSpace(active.nodeId)
+            ? active.nodeId.Trim()
+            : string.Empty;
+
+        // Only auto-promote once per node load/open cycle.
+        if (!string.IsNullOrEmpty(nodeId) && string.Equals(_frontAppliedNodeId, nodeId, System.StringComparison.Ordinal))
+            return;
+
+        Transform t = bringToFrontRoot != null
+            ? bringToFrontRoot
+            : (popupRoot != null ? popupRoot.transform : transform);
+        if (t != null && t.parent != null)
+            t.SetAsLastSibling();
+
+        _frontAppliedNodeId = nodeId;
     }
 
     /// <summary>Full content refresh when map progress updates while this trial is relevant (same path as tier buttons).</summary>

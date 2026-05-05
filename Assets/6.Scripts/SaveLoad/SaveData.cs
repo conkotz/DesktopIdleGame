@@ -25,6 +25,10 @@ public class SaveData
     [Tooltip("MapNodeDefinition.nodeId values the player has loaded in GamePlay at least once (entered map).")]
     public List<string> worldMapEnteredNodeIds = new();
 
+    [Tooltip("Parallel lists: MapNodeDefinition.nodeId -> cumulative enemy kills recorded on that map.")]
+    public List<string> worldMapEnemyKillNodeIds = new();
+    public List<int> worldMapEnemyKillTotals = new();
+
     [Header("Endurance trials")]
     [Tooltip("Parallel lists: MapNodeDefinition.nodeId → max selectable tier (1–5) for that trial.")]
     public List<string> enduranceTrialNodeIds = new();

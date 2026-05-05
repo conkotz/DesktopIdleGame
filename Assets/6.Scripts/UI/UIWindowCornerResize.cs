@@ -6,6 +6,8 @@ using UnityEngine.UI;
 public sealed class UIWindowCornerResize : MonoBehaviour
 {
     private static Sprite s_hitSprite;
+    private const float HandleVisibleAlpha = 0.35f;
+    private const float HandleHiddenAlpha = 0.001f;
 
     private const string ScalePrefsPrefix = "UI.WindowScale.";
 
@@ -23,7 +25,7 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     [SerializeField] private float handleSize = 28f;
     [SerializeField] private string memoryKey;
 
-    [Tooltip("When true, TopLeft / TopRight hit targets are not created (resize from bottom corners only).")]
+    [Tooltip("When true, TopLeft hit target is not created (resize from bottom corners only). TopRight is always omitted globally.")]
     [SerializeField] private bool omitTopCornerHandles;
 
     /// <summary>
@@ -140,19 +142,24 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         if (!_rect)
             return;
 
-        bool show = ToggleSettingsStore.Get(ToggleSettingId.ShowWindowResizeHandles);
+        bool showVisual = ToggleSettingsStore.Get(ToggleSettingId.ShowWindowResizeHandles);
 
         for (int i = 0; i < 4; i++)
         {
             var corner = (ResizeCorner)i;
-            if (omitTopCornerHandles &&
-                (corner == ResizeCorner.TopLeft || corner == ResizeCorner.TopRight))
+            if (corner == ResizeCorner.TopRight)
+                continue;
+            if (omitTopCornerHandles && corner == ResizeCorner.TopLeft)
                 continue;
 
             string handleName = $"ResizeHandle_{corner}";
             Transform t = _rect.Find(handleName);
             if (t)
-                t.gameObject.SetActive(show);
+            {
+                t.gameObject.SetActive(true); // Always interactive; toggle controls visual hint only.
+                if (t.TryGetComponent(out Image img))
+                    ApplyHandleVisual(img, showVisual);
+            }
         }
     }
 
@@ -234,14 +241,21 @@ public sealed class UIWindowCornerResize : MonoBehaviour
 
         EnsureHandle(ResizeCorner.BottomLeft);
         EnsureHandle(ResizeCorner.TopLeft);
-        EnsureHandle(ResizeCorner.TopRight);
         EnsureHandle(ResizeCorner.BottomRight);
     }
 
     private void EnsureHandle(ResizeCorner corner)
     {
-        if (omitTopCornerHandles &&
-            (corner == ResizeCorner.TopLeft || corner == ResizeCorner.TopRight))
+        if (corner == ResizeCorner.TopRight)
+        {
+            string topRightName = $"ResizeHandle_{corner}";
+            Transform oldTopRight = _rect.Find(topRightName);
+            if (oldTopRight)
+                Destroy(oldTopRight.gameObject);
+            return;
+        }
+
+        if (omitTopCornerHandles && corner == ResizeCorner.TopLeft)
         {
             string killName = $"ResizeHandle_{corner}";
             Transform old = _rect.Find(killName);
@@ -276,7 +290,10 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         ConfigureHandleRect(handleRect, corner);
 
         if (handleRect.TryGetComponent(out Image hitImage))
+        {
             ConfigureHitImage(hitImage);
+            ApplyHandleVisual(hitImage, ToggleSettingsStore.Get(ToggleSettingId.ShowWindowResizeHandles));
+        }
 
         UIWindowResizeHandle resizeHandle = handleRect.GetComponent<UIWindowResizeHandle>();
         resizeHandle.Configure(this, corner);
@@ -303,9 +320,20 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         image.sprite = GetOrCreateHitSprite();
         image.type = Image.Type.Simple;
         image.preserveAspect = false;
-        image.color = new Color(1f, 1f, 1f, 0.02f);
+        image.color = new Color(1f, 1f, 1f, HandleHiddenAlpha);
         image.raycastTarget = true;
         image.maskable = true;
+    }
+
+    private static void ApplyHandleVisual(Image image, bool showVisual)
+    {
+        if (!image)
+            return;
+
+        Color c = image.color;
+        c.a = showVisual ? HandleVisibleAlpha : HandleHiddenAlpha;
+        image.color = c;
+        image.raycastTarget = true;
     }
 
     private void ConfigureHandleRect(RectTransform handleRect, ResizeCorner corner)
@@ -317,19 +345,19 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         {
             case ResizeCorner.BottomLeft:
                 anchor = new Vector2(0f, 0f);
-                pivot = new Vector2(1f, 1f);
+                pivot = new Vector2(0f, 0f);
                 break;
             case ResizeCorner.TopLeft:
                 anchor = new Vector2(0f, 1f);
-                pivot = new Vector2(1f, 0f);
+                pivot = new Vector2(0f, 1f);
                 break;
             case ResizeCorner.TopRight:
                 anchor = new Vector2(1f, 1f);
-                pivot = new Vector2(0f, 0f);
+                pivot = new Vector2(1f, 1f);
                 break;
             default:
                 anchor = new Vector2(1f, 0f);
-                pivot = new Vector2(0f, 1f);
+                pivot = new Vector2(1f, 0f);
                 break;
         }
 

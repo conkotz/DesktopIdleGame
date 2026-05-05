@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 [DisallowMultipleComponent]
@@ -29,6 +30,8 @@ public class PlayerSpawnController : MonoBehaviour
 
     [Header("Fade")]
     [SerializeField] private float fadeDuration = 0.2f;
+    [SerializeField, Min(0f)] private float levelLoadScreenFadeSeconds = 1f;
+    [SerializeField, Min(0f)] private float levelLoadBlackHoldSeconds = 0.5f;
 
     [Header("Debug")]
     [SerializeField] private bool debugSnap = false;
@@ -37,6 +40,8 @@ public class PlayerSpawnController : MonoBehaviour
     private Coroutine _running;
 
     private readonly RaycastHit2D[] _castHits = new RaycastHit2D[16];
+    private const string GameplaySceneName = "GamePlay";
+    private const string LevelLoadFaderName = "LevelLoadFader";
 
     private void Awake()
     {
@@ -67,86 +72,119 @@ public class PlayerSpawnController : MonoBehaviour
     private IEnumerator SpawnAfterLoad(Scene loadedScene)
     {
         var playerController = GetComponent<PlayerController>();
-        if (playerController != null)
-            playerController.SetTeleportDamageImmune(true);
-
-        var combat = GetComponent<PlayerCombatController>();
-        if (combat != null)
-            combat.SetIdleCombatEnabled(false);
-
-        var levelTransition = GetComponent<PlayerLevelTransition>();
-        bool hideUntilScaleRestore = levelTransition != null && levelTransition.PendingScaleRestore;
-
-        bool doFade = fadeDuration > 0.001f;
-
-        // Hide until fade-in, or until teleport scale is restored (avoids a visible tiny player when fade is off).
-        if (doFade || hideUntilScaleRestore)
-            SetAlpha(0f);
-        else
-            SetAlpha(1f);
-
-        // Freeze physics so teleport + snap is clean
-        if (rb) rb.simulated = false;
-
-        // IMPORTANT: keep collider enabled so Cast snapping works
-        if (col) col.enabled = true;
-
-        // Wait for scene objects (spawn point/colliders) to exist
-        for (int i = 0; i < waitFramesAfterLoad; i++)
-            yield return null;
-
         bool isBootstrap = IsBootstrapScene(loadedScene);
-        string targetSpawnName = isBootstrap && !string.IsNullOrWhiteSpace(bootstrapSpawnPointName)
-            ? bootstrapSpawnPointName
-            : spawnPointName;
+        bool useScreenFade = !isBootstrap &&
+            loadedScene.IsValid() &&
+            loadedScene.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase) &&
+            levelLoadScreenFadeSeconds > 0.001f;
 
-        GameObject spawn = GameObject.Find(targetSpawnName);
-        if (spawn == null && isBootstrap && !string.Equals(targetSpawnName, spawnPointName, StringComparison.Ordinal))
-            spawn = GameObject.Find(spawnPointName);
+        CanvasGroup loadFader = useScreenFade ? GetOrCreateLevelLoadFader() : null;
 
-        if (spawn != null)
+        try
         {
-            transform.position = spawn.transform.position;
+            if (playerController != null)
+            {
+                playerController.SetTeleportDamageImmune(true);
+                playerController.SetMovementLocked(true);
+            }
+
+            if (loadFader != null)
+                loadFader.alpha = 1f;
+
+            var combat = GetComponent<PlayerCombatController>();
+            if (combat != null)
+                combat.SetIdleCombatEnabled(false);
+
+            var levelTransition = GetComponent<PlayerLevelTransition>();
+            bool hideUntilScaleRestore = levelTransition != null && levelTransition.PendingScaleRestore;
+
+            // When using full-screen load fade, avoid stacking the sprite fade on top
+            // (it can make the black phase feel much longer than configured).
+            bool doFade = !useScreenFade && fadeDuration > 0.001f;
+
+            // Hide until fade-in, or until teleport scale is restored (avoids a visible tiny player when fade is off).
+            if (doFade || hideUntilScaleRestore)
+                SetAlpha(0f);
+            else
+                SetAlpha(1f);
+
+            // Freeze physics so teleport + snap is clean
+            if (rb) rb.simulated = false;
+
+            // IMPORTANT: keep collider enabled so Cast snapping works
+            if (col) col.enabled = true;
+
+            // Wait for scene objects (spawn point/colliders) to exist
+            for (int i = 0; i < waitFramesAfterLoad; i++)
+                yield return null;
+
+            string targetSpawnName = isBootstrap && !string.IsNullOrWhiteSpace(bootstrapSpawnPointName)
+                ? bootstrapSpawnPointName
+                : spawnPointName;
+
+            GameObject spawn = GameObject.Find(targetSpawnName);
+            if (spawn == null && isBootstrap && !string.Equals(targetSpawnName, spawnPointName, StringComparison.Ordinal))
+                spawn = GameObject.Find(spawnPointName);
+
+            if (spawn != null)
+            {
+                transform.position = spawn.transform.position;
+            }
+            else if (!isBootstrap)
+            {
+                Debug.LogWarning($"[PlayerSpawnController] Missing spawn point '{targetSpawnName}' in scene. Player stays where it is.");
+            }
+
+            // Let transforms + physics settle
+            yield return null;
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForFixedUpdate();
+
+            // Restore full scale BEFORE ground snap. Snapping at teleport scale (~0.01) uses wrong collider bounds
+            // and places the root incorrectly relative to the ground.
+            levelTransition?.RestoreScaleAfterLevelChange();
+            Physics2D.SyncTransforms();
+
+            if (snapToGround)
+                SnapToGround_ColliderCast(!isBootstrap);
+
+            if (rb)
+                rb.position = transform.position;
+            Physics2D.SyncTransforms();
+
+            // Clear motion + re-enable physics
+            if (rb)
+            {
+                rb.linearVelocity = Vector2.zero;
+                rb.simulated = true;
+            }
+
+            // Fade in (optional)
+            if (doFade)
+                yield return FadeIn();
+            else
+                SetAlpha(1f);
+
+            if (loadFader != null)
+            {
+                if (levelLoadBlackHoldSeconds > 0f)
+                    yield return new WaitForSecondsRealtime(levelLoadBlackHoldSeconds);
+                yield return FadeCanvasGroup(loadFader, 1f, 0f, levelLoadScreenFadeSeconds);
+            }
         }
-        else if (!isBootstrap)
+        finally
         {
-            Debug.LogWarning($"[PlayerSpawnController] Missing spawn point '{targetSpawnName}' in scene. Player stays where it is.");
+            if (playerController != null)
+            {
+                playerController.SetTeleportDamageImmune(false);
+                playerController.SetMovementLocked(false);
+            }
+
+            if (loadFader != null)
+                loadFader.alpha = 0f;
+
+            _running = null;
         }
-
-        // Let transforms + physics settle
-        yield return null;
-        yield return new WaitForEndOfFrame();
-        yield return new WaitForFixedUpdate();
-
-        // Restore full scale BEFORE ground snap. Snapping at teleport scale (~0.01) uses wrong collider bounds
-        // and places the root incorrectly relative to the ground.
-        levelTransition?.RestoreScaleAfterLevelChange();
-        Physics2D.SyncTransforms();
-
-        if (snapToGround)
-            SnapToGround_ColliderCast(!isBootstrap);
-
-        if (rb)
-            rb.position = transform.position;
-        Physics2D.SyncTransforms();
-
-        // Clear motion + re-enable physics
-        if (rb)
-        {
-            rb.linearVelocity = Vector2.zero;
-            rb.simulated = true;
-        }
-
-        // Fade in (optional)
-        if (doFade)
-            yield return FadeIn();
-        else
-            SetAlpha(1f);
-
-        if (playerController != null)
-            playerController.SetTeleportDamageImmune(false);
-
-        _running = null;
     }
 
     /// <summary>
@@ -229,6 +267,57 @@ public class PlayerSpawnController : MonoBehaviour
             yield return null;
         }
         SetAlpha(1f);
+    }
+
+    private static IEnumerator FadeCanvasGroup(CanvasGroup cg, float from, float to, float duration)
+    {
+        if (cg == null)
+            yield break;
+
+        cg.alpha = from;
+        float dur = Mathf.Max(0.01f, duration);
+        float t = 0f;
+        while (t < dur)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            cg.alpha = Mathf.Lerp(from, to, k);
+            yield return null;
+        }
+        cg.alpha = to;
+    }
+
+    private static CanvasGroup GetOrCreateLevelLoadFader()
+    {
+        GameObject go = GameObject.Find(LevelLoadFaderName);
+        if (go == null)
+            go = new GameObject(LevelLoadFaderName, typeof(Canvas), typeof(CanvasGroup), typeof(Image));
+
+        Canvas canvas = go.GetComponent<Canvas>();
+        if (!canvas) canvas = go.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = short.MaxValue;
+
+        CanvasGroup cg = go.GetComponent<CanvasGroup>();
+        if (!cg) cg = go.AddComponent<CanvasGroup>();
+        cg.interactable = false;
+        cg.blocksRaycasts = false;
+
+        Image img = go.GetComponent<Image>();
+        if (!img) img = go.AddComponent<Image>();
+        img.color = Color.black;
+        img.raycastTarget = false;
+
+        RectTransform rt = go.transform as RectTransform;
+        if (rt != null)
+        {
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+
+        return cg;
     }
 
     private void SetAlpha(float alpha)

@@ -38,8 +38,13 @@ MonoBehaviour:
   connectedNodeIds: []
   nextNodeIds: []
   biome: 0
-  prefabGroups: []
   spawnGroupPlans: []
+  requiredPreviousMapCompletions:
+  - enabled: 0
+    requiredMapNodeId: 
+    requireMapCompleted: 0
+    requireEnemyKillsOnMap: 0
+    requiredEnemyKillsOnMap: 1
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 1
   simpleCombatWavesRequireQuestRewardClaimed: 0

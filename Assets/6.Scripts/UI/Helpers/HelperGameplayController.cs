@@ -3540,7 +3540,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         chromeTint.raycastTarget = true;
 
         UIDragWindow chromeDrag = chromeGo.AddComponent<UIDragWindow>();
-        chromeDrag.AttachWindow(_helperPanelRt, omitTopCornerHandles: true, counterHudCanvasScale: true);
+        chromeDrag.AttachWindow(_helperPanelRt, omitTopCornerHandles: false, counterHudCanvasScale: true);
         chromeDrag.SetRuntimeMemoryKey("HelperPopupWindow.Panel");
         chromeDrag.UsePlayerPrefsForAnchoredPosition(HelperPopupLayoutPrefs.PosX, HelperPopupLayoutPrefs.PosY);
 

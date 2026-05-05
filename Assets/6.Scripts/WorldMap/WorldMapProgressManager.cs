@@ -22,6 +22,8 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
     private readonly HashSet<string> _completed = new(StringComparer.Ordinal);
     /// <summary>Nodes the player has actually loaded in GamePlay at least once (see GameplayLevelBootstrapper).</summary>
     private readonly HashSet<string> _entered = new(StringComparer.Ordinal);
+    /// <summary>Total enemy kills credited per map node id (across this save).</summary>
+    private readonly Dictionary<string, int> _enemyKillsByNode = new(StringComparer.Ordinal);
 
     /// <summary>Highest endurance trial tier (1–5) selectable for this node; Tier I always implied. Unlocks when the player clears all waves at the current max tier.</summary>
     private readonly Dictionary<string, int> _enduranceMaxSelectableTier = new(StringComparer.Ordinal);
@@ -62,6 +64,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         _unlocked.Clear();
         _completed.Clear();
         _entered.Clear();
+        _enemyKillsByNode.Clear();
         _enduranceMaxSelectableTier.Clear();
 
         if (worldMap && !string.IsNullOrEmpty(worldMap.startingNodeId))
@@ -92,6 +95,30 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
     {
         if (string.IsNullOrEmpty(nodeId)) return false;
         return _entered.Contains(nodeId.Trim());
+    }
+
+    public int GetEnemyKillsOnNode(string nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId))
+            return 0;
+        if (_enemyKillsByNode.TryGetValue(nodeId.Trim(), out int kills))
+            return Mathf.Max(0, kills);
+        return 0;
+    }
+
+    public void NotifyEnemyKilledOnNode(string nodeId, int amount = 1)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId) || amount <= 0)
+            return;
+
+        string id = nodeId.Trim();
+        _enemyKillsByNode.TryGetValue(id, out int current);
+        int next = Mathf.Max(0, current + amount);
+        if (next == current)
+            return;
+
+        _enemyKillsByNode[id] = next;
+        ProgressChanged?.Invoke();
     }
 
     /// <summary>Call when GamePlay starts for a map node (persists for completion-label gates).</summary>
@@ -230,10 +257,16 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
             data.worldMapCompletedNodeIds = new List<string>();
         if (data.worldMapEnteredNodeIds == null)
             data.worldMapEnteredNodeIds = new List<string>();
+        if (data.worldMapEnemyKillNodeIds == null)
+            data.worldMapEnemyKillNodeIds = new List<string>();
+        if (data.worldMapEnemyKillTotals == null)
+            data.worldMapEnemyKillTotals = new List<int>();
 
         data.worldMapUnlockedNodeIds.Clear();
         data.worldMapCompletedNodeIds.Clear();
         data.worldMapEnteredNodeIds.Clear();
+        data.worldMapEnemyKillNodeIds.Clear();
+        data.worldMapEnemyKillTotals.Clear();
 
         foreach (string id in _unlocked)
         {
@@ -251,6 +284,17 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         {
             if (!string.IsNullOrEmpty(id))
                 data.worldMapEnteredNodeIds.Add(id);
+        }
+
+        foreach (var kv in _enemyKillsByNode)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key))
+                continue;
+            if (kv.Value <= 0)
+                continue;
+
+            data.worldMapEnemyKillNodeIds.Add(kv.Key);
+            data.worldMapEnemyKillTotals.Add(kv.Value);
         }
 
         if (data.enduranceTrialNodeIds == null)
@@ -277,6 +321,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         _unlocked.Clear();
         _completed.Clear();
         _entered.Clear();
+        _enemyKillsByNode.Clear();
         _enduranceMaxSelectableTier.Clear();
 
         if (worldMap && !string.IsNullOrEmpty(worldMap.startingNodeId))
@@ -317,6 +362,21 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
                     string id = data.worldMapEnteredNodeIds[i];
                     if (!string.IsNullOrEmpty(id))
                         _entered.Add(id.Trim());
+                }
+            }
+
+            if (data.worldMapEnemyKillNodeIds != null && data.worldMapEnemyKillTotals != null)
+            {
+                int n = Mathf.Min(data.worldMapEnemyKillNodeIds.Count, data.worldMapEnemyKillTotals.Count);
+                for (int i = 0; i < n; i++)
+                {
+                    string id = data.worldMapEnemyKillNodeIds[i];
+                    if (string.IsNullOrWhiteSpace(id))
+                        continue;
+                    int kills = Mathf.Max(0, data.worldMapEnemyKillTotals[i]);
+                    if (kills <= 0)
+                        continue;
+                    _enemyKillsByNode[id.Trim()] = kills;
                 }
             }
 

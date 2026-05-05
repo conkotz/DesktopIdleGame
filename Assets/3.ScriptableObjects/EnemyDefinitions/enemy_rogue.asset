@@ -72,8 +72,8 @@ MonoBehaviour:
   idleWanderSpeed: 2
   idleWanderMoveMinSec: 1
   idleWanderMoveMaxSec: 3
-  idleWanderIdleMinSec: 2
-  idleWanderIdleMaxSec: 8
+  idleWanderIdleMinSec: 1
+  idleWanderIdleMaxSec: 4
   idleWanderMaxDistanceFromSpawn: 10
   grantCombatXp: 1
   dropGold: 1

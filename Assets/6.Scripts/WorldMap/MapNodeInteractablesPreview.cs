@@ -11,31 +11,37 @@ public static class MapNodeInteractablesPreview
 {
     private const string NoticeBoardTag = "NoticeBoard";
 
+    public readonly struct ContainsSummary
+    {
+        public readonly string npcsLine;
+        public readonly string resourcesEnemiesLine;
+
+        public ContainsSummary(string npcsLine, string resourcesEnemiesLine)
+        {
+            this.npcsLine = npcsLine ?? "";
+            this.resourcesEnemiesLine = resourcesEnemiesLine ?? "";
+        }
+    }
+
     /// <summary>
     /// Comma-separated labels (e.g. <c>Fletcher, Chef, Storage, Notice Board</c>). Duplicate display names aggregate as <c>Rogue x2</c>.
     /// </summary>
     public static string BuildSummary(MapNodeDefinition node)
     {
+        ContainsSummary split = BuildSplitSummary(node);
+        return split.npcsLine;
+    }
+
+    public static ContainsSummary BuildSplitSummary(MapNodeDefinition node)
+    {
         if (node == null)
-            return "";
+            return new ContainsSummary("", "");
 
-        var tallies = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        var prefabsUsedInSpawnPlans = new HashSet<GameObject>();
+        var npcTallies = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var resourceEnemyTallies = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        void Add(string label, int amount)
-        {
-            if (string.IsNullOrWhiteSpace(label) || amount <= 0)
-                return;
-            string k = label.Trim();
-            tallies.TryGetValue(k, out int c);
-            tallies[k] = c + amount;
-        }
-
-        void RegisterSpawnPrefab(GameObject pfb)
-        {
-            if (pfb)
-                prefabsUsedInSpawnPlans.Add(pfb);
-        }
+        void AddNpc(string label, int amount) => AddTally(npcTallies, label, amount);
+        void AddResourceEnemy(string label, int amount) => AddTally(resourceEnemyTallies, label, amount);
 
         void AddSpawnList(List<SpawnPrefabCount> spawns)
         {
@@ -47,14 +53,32 @@ public static class MapNodeInteractablesPreview
                 SpawnPrefabCount row = spawns[i];
                 if (row == null || row.count < 1)
                     continue;
-                if (row.enemyDefinition != null || row.itemDefinition)
+
+                int weight = Mathf.Max(1, row.count);
+
+                if (row.enemyDefinition != null)
+                {
+                    string enemyName = ResolveEnemyDefinitionName(row.enemyDefinition);
+                    AddResourceEnemy(enemyName, weight);
                     continue;
+                }
+
+                if (row.itemDefinition != null)
+                {
+                    string itemName = ResolveItemDefinitionName(row.itemDefinition);
+                    AddResourceEnemy(itemName, weight);
+                    continue;
+                }
 
                 if (!row.TryResolveSpawnPrefab(out GameObject pfb, out _, node, logWarnings: false) || !pfb)
                     continue;
 
-                RegisterSpawnPrefab(pfb);
-                AddLabelsFromPrefab(pfb, Add, row.count);
+                bool hadNpcSignals = AddNpcLabelsFromPrefab(pfb, AddNpc, weight);
+                if (!hadNpcSignals)
+                {
+                    string resourceOrEnemyLabel = ResolveResourceEnemyLabelFromPrefab(pfb);
+                    AddResourceEnemy(resourceOrEnemyLabel, weight);
+                }
             }
         }
 
@@ -87,27 +111,24 @@ public static class MapNodeInteractablesPreview
             }
         }
 
-        if (node.prefabGroups != null)
-        {
-            for (int g = 0; g < node.prefabGroups.Count; g++)
-            {
-                EncounterPrefabGroup group = node.prefabGroups[g];
-                if (group?.prefabs == null)
-                    continue;
+        return new ContainsSummary(
+            BuildTalliesLine(npcTallies),
+            BuildTalliesLine(resourceEnemyTallies));
+    }
 
-                for (int i = 0; i < group.prefabs.Count; i++)
-                {
-                    GameObject pfb = group.prefabs[i];
-                    if (!pfb || prefabsUsedInSpawnPlans.Contains(pfb))
-                        continue;
-                    if (!PrefabLooksLikeInteractableFeature(pfb))
-                        continue;
-                    AddLabelsFromPrefab(pfb, Add, 1);
-                }
-            }
-        }
+    private static void AddTally(Dictionary<string, int> tallies, string label, int amount)
+    {
+        if (tallies == null || string.IsNullOrWhiteSpace(label) || amount <= 0)
+            return;
 
-        if (tallies.Count == 0)
+        string k = label.Trim();
+        tallies.TryGetValue(k, out int c);
+        tallies[k] = c + amount;
+    }
+
+    private static string BuildTalliesLine(Dictionary<string, int> tallies)
+    {
+        if (tallies == null || tallies.Count == 0)
             return "";
 
         var keys = new List<string>(tallies.Keys);
@@ -124,61 +145,53 @@ public static class MapNodeInteractablesPreview
         return string.Join(", ", parts);
     }
 
-    private static bool PrefabLooksLikeInteractableFeature(GameObject prefab)
+    private static string ResolveEnemyDefinitionName(EnemyDefinition enemyDefinition)
+    {
+        if (enemyDefinition == null)
+            return "";
+        if (!string.IsNullOrWhiteSpace(enemyDefinition.displayName))
+            return enemyDefinition.displayName.Trim();
+        return HumanizeUnityObjectName(enemyDefinition.name);
+    }
+
+    private static string ResolveItemDefinitionName(ItemDefinition itemDefinition)
+    {
+        if (itemDefinition == null)
+            return "";
+        if (!string.IsNullOrWhiteSpace(itemDefinition.displayName))
+            return itemDefinition.displayName.Trim();
+        return HumanizeUnityObjectName(itemDefinition.name);
+    }
+
+    private static string ResolveResourceEnemyLabelFromPrefab(GameObject prefab)
     {
         if (!prefab)
-            return false;
-        if (prefab.GetComponentInChildren<Merchant>(true))
-            return true;
-        if (prefab.GetComponentInChildren<StorageClick>(true))
-            return true;
-        if (HasNoticeBoardInHierarchy(prefab.transform))
-            return true;
-        if (HasQuestGiverWithoutMerchant(prefab))
-            return true;
-        return false;
+            return "";
+
+        EnemyBaseController enemy = prefab.GetComponentInChildren<EnemyBaseController>(true);
+        if (enemy != null && !string.IsNullOrWhiteSpace(enemy.DisplayName))
+            return enemy.DisplayName.Trim();
+
+        CharacterStats stats = prefab.GetComponentInChildren<CharacterStats>(true);
+        if (stats != null && !string.IsNullOrWhiteSpace(stats.UnitDisplayName))
+            return stats.UnitDisplayName.Trim();
+
+        return HumanizeUnityObjectName(prefab.name);
     }
 
-    private static bool HasQuestGiverWithoutMerchant(GameObject prefab)
-    {
-        QuestGiver[] qgs = prefab.GetComponentsInChildren<QuestGiver>(true);
-        for (int i = 0; i < qgs.Length; i++)
-        {
-            QuestGiver q = qgs[i];
-            if (q && q.GetComponentInParent<Merchant>(true) == null)
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool HasNoticeBoardInHierarchy(Transform root)
-    {
-        if (!root)
-            return false;
-
-        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
-        {
-            if (!t || !t.gameObject)
-                continue;
-            try
-            {
-                if (t.CompareTag(NoticeBoardTag))
-                    return true;
-            }
-            catch (UnityException)
-            {
-                return false;
-            }
-        }
-
-        return false;
-    }
-
-    private static void AddLabelsFromPrefab(GameObject prefab, Action<string, int> add, int weight)
+    private static bool AddNpcLabelsFromPrefab(GameObject prefab, Action<string, int> add, int weight)
     {
         if (!prefab || weight <= 0)
-            return;
+            return false;
+
+        bool addedAny = false;
+        void AddNpcLabel(string label, int amount)
+        {
+            if (string.IsNullOrWhiteSpace(label) || amount <= 0)
+                return;
+            add(label, amount);
+            addedAny = true;
+        }
 
         Merchant[] merchants = prefab.GetComponentsInChildren<Merchant>(true);
         for (int i = 0; i < merchants.Length; i++)
@@ -189,7 +202,7 @@ public static class MapNodeInteractablesPreview
             string label = ResolveInteractableDisplayLabel(m.gameObject, preferMerchantPersonName: true, m);
             if (string.IsNullOrWhiteSpace(label))
                 label = HumanizeUnityObjectName(m.gameObject.name);
-            add(label, weight);
+            AddNpcLabel(label, weight);
         }
 
         StorageClick[] storages = prefab.GetComponentsInChildren<StorageClick>(true);
@@ -198,7 +211,7 @@ public static class MapNodeInteractablesPreview
             StorageClick s = storages[i];
             if (!s || s.GetComponentInParent<Merchant>(true) != null)
                 continue;
-            add("Storage", weight);
+            AddNpcLabel("Storage", weight);
         }
 
         foreach (Transform t in prefab.GetComponentsInChildren<Transform>(true))
@@ -208,7 +221,7 @@ public static class MapNodeInteractablesPreview
             try
             {
                 if (t.CompareTag(NoticeBoardTag))
-                    add("Notice Board", weight);
+                    AddNpcLabel("Notice Board", weight);
             }
             catch (UnityException)
             {
@@ -228,8 +241,10 @@ public static class MapNodeInteractablesPreview
             string label = ResolveInteractableDisplayLabel(q.gameObject, preferMerchantPersonName: false, merchantForPersonName: null);
             if (string.IsNullOrWhiteSpace(label))
                 label = HumanizeUnityObjectName(q.gameObject.name);
-            add(label, weight);
+            AddNpcLabel(label, weight);
         }
+
+        return addedAny;
     }
 
     /// <summary>

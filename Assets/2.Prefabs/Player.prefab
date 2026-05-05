@@ -6061,6 +6061,7 @@ MonoBehaviour:
   rb: {fileID: 528797751873154347}
   col: {fileID: 4092479453765693464}
   spawnPointName: SpawnPoint_Player
+  bootstrapSpawnPointName: SpawnPoint_BootstrapPlayerPreview
   waitFramesAfterLoad: 2
   snapToGround: 1
   groundMask:
@@ -6068,7 +6069,9 @@ MonoBehaviour:
     m_Bits: 512
   castDistance: 5
   groundSkin: 0.05
-  fadeDuration: 3
+  fadeDuration: 1
+  levelLoadScreenFadeSeconds: 1
+  levelLoadBlackHoldSeconds: 0.5
   debugSnap: 0
 --- !u!114 &8305620475968429046
 MonoBehaviour:
@@ -6090,8 +6093,8 @@ MonoBehaviour:
   logsDef: {fileID: 11400000, guid: 60a88e1e810c3ee46a36fb6b840a76b3, type: 2}
   stoneChunkDef: {fileID: 11400000, guid: 30b1b02abfbe72445a66a849d7f7783c, type: 2}
   grantResourceAmount: 100
-  devDestroyerMaceDef: {fileID: 11400000, guid: 3cf41e30a68fc594f8b3da62f8d02bb7, type: 2}
   popupWorldOffset: {x: 0, y: 1.6, z: 0}
+  devDestroyerMaceDef: {fileID: 11400000, guid: 3cf41e30a68fc594f8b3da62f8d02bb7, type: 2}
 --- !u!114 &7897775695737928978
 MonoBehaviour:
   m_ObjectHideFlags: 0
