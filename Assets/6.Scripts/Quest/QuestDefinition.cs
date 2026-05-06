@@ -126,6 +126,11 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("In addition to objective progress, this map node id must be marked completed (e.g. Tutorial 1 cleared via level-select / menu flow).")]
     public string requiredCompletedMapNodeId = "";
 
+    [Header("Recommended location")]
+    [Tooltip("Optional map shown by the quest details Enter Map button. This does not restrict where objective progress can be earned.")]
+    [InspectorName("Optional Recommended Location")]
+    public MapNodeDefinition recommendedLocationNode;
+
     [Tooltip("All listed skills must meet their levels before this quest can be completed.")]
     public List<SkillLevelRequirement> requiredSkillLevels = new();
 

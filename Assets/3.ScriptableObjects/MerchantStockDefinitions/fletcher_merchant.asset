@@ -18,6 +18,9 @@ MonoBehaviour:
     - type: 0
       amount: 5
       itemId: 
+    - type: 1
+      amount: 1
+      itemId: splitwood_log
     defaultQuantity: -1
   - itemId: splitwood_swiftbow
     costs:

@@ -37,11 +37,11 @@ public static class MapNodeInteractablesPreview
         if (node == null)
             return new ContainsSummary("", "");
 
-        var npcTallies = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        var resourceEnemyTallies = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var npcOrder = new OrderedTallyAccumulator();
+        var resourceEnemyOrder = new OrderedTallyAccumulator();
 
-        void AddNpc(string label, int amount) => AddTally(npcTallies, label, amount);
-        void AddResourceEnemy(string label, int amount) => AddTally(resourceEnemyTallies, label, amount);
+        void AddNpc(string label, int amount) => npcOrder.Add(label, amount);
+        void AddResourceEnemy(string label, int amount) => resourceEnemyOrder.Add(label, amount);
 
         void AddSpawnList(List<SpawnPrefabCount> spawns)
         {
@@ -112,37 +112,49 @@ public static class MapNodeInteractablesPreview
         }
 
         return new ContainsSummary(
-            BuildTalliesLine(npcTallies),
-            BuildTalliesLine(resourceEnemyTallies));
+            npcOrder.BuildCommaSeparatedLine(),
+            resourceEnemyOrder.BuildCommaSeparatedLine());
     }
 
-    private static void AddTally(Dictionary<string, int> tallies, string label, int amount)
+    /// <summary>
+    /// Preserves first-seen order from spawn list iteration. Merges counts only when the same label repeats
+    /// consecutively (case-insensitive), matching row order in <see cref="MapNodeDefinition"/> plans.
+    /// </summary>
+    private sealed class OrderedTallyAccumulator
     {
-        if (tallies == null || string.IsNullOrWhiteSpace(label) || amount <= 0)
-            return;
+        private readonly List<(string label, int count)> _segments = new();
 
-        string k = label.Trim();
-        tallies.TryGetValue(k, out int c);
-        tallies[k] = c + amount;
-    }
-
-    private static string BuildTalliesLine(Dictionary<string, int> tallies)
-    {
-        if (tallies == null || tallies.Count == 0)
-            return "";
-
-        var keys = new List<string>(tallies.Keys);
-        keys.Sort(StringComparer.OrdinalIgnoreCase);
-
-        var parts = new List<string>(keys.Count);
-        for (int i = 0; i < keys.Count; i++)
+        public void Add(string label, int amount)
         {
-            string k = keys[i];
-            int n = tallies[k];
-            parts.Add(n > 1 ? $"{k} x{n}" : k);
+            if (string.IsNullOrWhiteSpace(label) || amount <= 0)
+                return;
+
+            string k = label.Trim();
+            if (_segments.Count > 0 &&
+                string.Equals(_segments[_segments.Count - 1].label, k, StringComparison.OrdinalIgnoreCase))
+            {
+                int i = _segments.Count - 1;
+                _segments[i] = (_segments[i].label, _segments[i].count + amount);
+                return;
+            }
+
+            _segments.Add((k, amount));
         }
 
-        return string.Join(", ", parts);
+        public string BuildCommaSeparatedLine()
+        {
+            if (_segments.Count == 0)
+                return "";
+
+            var parts = new List<string>(_segments.Count);
+            for (int i = 0; i < _segments.Count; i++)
+            {
+                (string label, int n) = _segments[i];
+                parts.Add(n > 1 ? $"{label} x{n}" : label);
+            }
+
+            return string.Join(", ", parts);
+        }
     }
 
     private static string ResolveEnemyDefinitionName(EnemyDefinition enemyDefinition)

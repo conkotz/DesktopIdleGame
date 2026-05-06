@@ -11,6 +11,7 @@ using UnityEngine.UI;
 public class QuestPageUI : MonoBehaviour
 {
     private static readonly Color QuestReadyGreen = new Color(0.82f, 0.96f, 0.82f, 1f);
+    private const string GameplaySceneName = "GamePlay";
 
     [Header("Theme — Region Buttons (match Level Select)")]
     [SerializeField] private Color regionUnlockedColor = new Color32(104, 111, 122, 255);
@@ -75,8 +76,8 @@ public class QuestPageUI : MonoBehaviour
     [Tooltip("Optional parent/root to show and hide with the assigned quest action button.")]
     [SerializeField] private GameObject questActionRowRoot;
 
-    [Header("Right — Go to quest map location")]
-    [Tooltip("Shown when the quest has Progress Map Node Id set and it exists on the world map. Opens Level select with that node focused.")]
+    [Header("Right — Recommended quest map")]
+    [Tooltip("Shown when the quest has Optional Recommended Location set. Enters that map directly.")]
     [SerializeField] private Button goToQuestLocationButton;
     [SerializeField] private TMP_Text goToQuestLocationButtonLabel;
 
@@ -111,6 +112,13 @@ public class QuestPageUI : MonoBehaviour
         if (QuestProgressManager.Instance != null)
             return QuestProgressManager.Instance;
         return FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+    }
+
+    private static SkillsManager FindSkillsManager()
+    {
+        if (SkillsManager.Instance != null)
+            return SkillsManager.Instance;
+        return FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
     }
 
     private static ItemDatabase _cachedItemDatabase;
@@ -1105,7 +1113,7 @@ public class QuestPageUI : MonoBehaviour
                 rewardsValueText.text = FormatRewardsLine(q, items);
         }
 
-        RefreshGoToQuestLocationButton(q);
+        RefreshGoToQuestLocationButton(q, qProg);
 
         RefreshQuestClaimButton(q, qProg);
 
@@ -1113,30 +1121,47 @@ public class QuestPageUI : MonoBehaviour
             LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
     }
 
-    private void RefreshGoToQuestLocationButton(QuestDefinition q)
+    private void RefreshGoToQuestLocationButton(QuestDefinition q, QuestProgressManager qProg)
     {
-        string nodeId = q != null && !string.IsNullOrWhiteSpace(q.progressMapNodeId) ? q.progressMapNodeId.Trim() : "";
-        MapNodeDefinition node = !string.IsNullOrEmpty(nodeId) && worldMap ? worldMap.FindNodeById(nodeId) : null;
-        bool show = q != null && node != null;
+        MapNodeDefinition node = q ? q.recommendedLocationNode : null;
+        bool questIsActive = q != null &&
+            qProg != null &&
+            qProg.IsQuestAccepted(q) &&
+            !qProg.IsPermanentlyComplete(q) &&
+            !qProg.CanClaimReward(q);
+        bool show = questIsActive && node != null;
 
         if (goToQuestLocationButton)
+        {
             goToQuestLocationButton.gameObject.SetActive(show);
+            goToQuestLocationButton.interactable = show && CanEnterRecommendedQuestLocation(node);
+        }
         if (show && goToQuestLocationButtonLabel)
-            goToQuestLocationButtonLabel.text = "Go to location ->";
+            goToQuestLocationButtonLabel.text = "Enter map ->";
     }
 
     private void OnGoToQuestLocationClicked()
     {
         QuestDefinition q = _selectedQuest;
-        if (!q || string.IsNullOrWhiteSpace(q.progressMapNodeId))
+        MapNodeDefinition node = q ? q.recommendedLocationNode : null;
+        if (!node)
             return;
 
-        string nodeId = q.progressMapNodeId.Trim();
-        if (worldMap && !worldMap.FindNodeById(nodeId))
+        if (!CanEnterRecommendedQuestLocation(node))
             return;
 
-        LevelSelectPageUI.SetPendingMapNodeFocus(nodeId);
-        MainMenuWindowUI.Resolve()?.OpenLevelSelectShow();
+        ActiveLevelContext.SetPendingLevel(node);
+        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
+    }
+
+    private bool CanEnterRecommendedQuestLocation(MapNodeDefinition node)
+    {
+        if (!node)
+            return false;
+
+        WorldMapProgressManager progress = FindWorldProgress();
+        SkillsManager skills = FindSkillsManager();
+        return node.CanEnter(progress, skills);
     }
 
     private void RefreshQuestClaimButton(QuestDefinition q, QuestProgressManager qProg)
@@ -1615,7 +1640,7 @@ public class QuestPageUI : MonoBehaviour
     {
         if (!goToQuestLocationButton && detailsContentRoot)
         {
-            Transform t = detailsContentRoot.Find("GoToQuestLocationButton");
+            Transform t = FindDetailsChildByAnyName("GoToQuestLocationButton", "EnterMapButton", "EnterMap", "Enter map");
             if (t)
                 goToQuestLocationButton = t.GetComponent<Button>();
         }
@@ -1628,6 +1653,38 @@ public class QuestPageUI : MonoBehaviour
 
         if (!goToQuestLocationButtonLabel)
             goToQuestLocationButtonLabel = goToQuestLocationButton.GetComponentInChildren<TMP_Text>(true);
+    }
+
+    private Transform FindDetailsChildByAnyName(params string[] names)
+    {
+        if (!detailsContentRoot || names == null)
+            return null;
+
+        for (int i = 0; i < names.Length; i++)
+        {
+            string n = names[i];
+            if (string.IsNullOrWhiteSpace(n))
+                continue;
+            Transform direct = detailsContentRoot.Find(n);
+            if (direct)
+                return direct;
+        }
+
+        Transform[] children = detailsContentRoot.GetComponentsInChildren<Transform>(true);
+        for (int c = 0; c < children.Length; c++)
+        {
+            Transform child = children[c];
+            if (!child)
+                continue;
+
+            for (int i = 0; i < names.Length; i++)
+            {
+                if (string.Equals(child.name, names[i], StringComparison.OrdinalIgnoreCase))
+                    return child;
+            }
+        }
+
+        return null;
     }
 
     private void EnsureQuestClaimWidgets()

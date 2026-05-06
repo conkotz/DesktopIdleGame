@@ -25,7 +25,8 @@ MonoBehaviour:
   equippedLocalRotationZ: 80
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A longbow made from splitwood. Can fire arrows from a long distance.
+  description: A longbow made from splitwood. Can fire arrows from a long distance
+    (Prioritises furthest enemy in auto battle).
   rarity: 1
   value: 150
   equipSlot: 1
@@ -33,7 +34,7 @@ MonoBehaviour:
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   weaponStats:
-    minPhysicalDamage: 35
+    minPhysicalDamage: 25
     maxPhysicalDamage: 45
     minFireDamage: 0
     maxFireDamage: 0

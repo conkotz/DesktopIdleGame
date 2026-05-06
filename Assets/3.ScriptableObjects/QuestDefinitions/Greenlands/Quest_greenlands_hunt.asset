@@ -43,6 +43,7 @@ MonoBehaviour:
   prerequisiteRewardClaimedQuestIds: []
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
+  recommendedLocationNode: {fileID: 11400000, guid: cfc0b92c2808e6e41bbfcc7de180cc2a, type: 2}
   requiredSkillLevels: []
   killEnemyIdFilter: 
   hideUntilMapNodeUnlockedId: 

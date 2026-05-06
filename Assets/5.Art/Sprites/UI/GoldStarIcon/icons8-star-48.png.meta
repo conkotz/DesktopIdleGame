@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 19a400fb2beceb4408f115036d477b43
+guid: e86c17c3324764849b3ae0de6ecfa8b1
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -2540250834521133883
-    second: Stone Helmet_0
+      213: -9160914273456606066
+    second: icons8-star-48_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 0
+    filterMode: 1
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -51,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 1550
+  spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -75,7 +75,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 0
+    textureCompression: 1
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Stone Helmet_0
+      name: icons8-star-48_0
       rect:
         serializedVersion: 2
-        x: 179
-        y: 437
-        width: 779
-        height: 825
-      alignment: 9
-      pivot: {x: 0.3108758, y: 0.1375378}
+        x: 0
+        y: 3
+        width: 48
+        height: 44
+      alignment: 0
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 5cc6af723573fbcd0800000000000000
-      internalID: -2540250834521133883
+      spriteID: e8430d04105edd080800000000000000
+      internalID: -9160914273456606066
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 41e32fcd0b0d93a49875680bf68bc15a
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Stone Helmet_0: -2540250834521133883
+      icons8-star-48_0: -9160914273456606066
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

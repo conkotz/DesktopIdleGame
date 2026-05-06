@@ -20,13 +20,13 @@ MonoBehaviour:
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
-  targetCount: 150
+  targetCount: 100
   objectiveId: splitwood_log
   specialObjectiveListText: 
   rewardGold: 250
-  rewardItem: {fileID: 11400000, guid: 48ca8504b7d8aa143a62f7b3d8b2f519, type: 2}
+  rewardItem: {fileID: 11400000, guid: dd82c9333168f8d4fb45518f3c9cf6a9, type: 2}
   rewardItemId: 
-  rewardItemQuantity: 1
+  rewardItemQuantity: 250
   additionalItemRewards: []
   rewardNotes: 
   grantIdleCombatUnlockOnRewardClaim: 0
@@ -43,6 +43,7 @@ MonoBehaviour:
   prerequisiteRewardClaimedQuestIds: []
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
+  recommendedLocationNode: {fileID: 11400000, guid: bd9148f386fcb4644a8c0b41179c8e24, type: 2}
   requiredSkillLevels: []
   killEnemyIdFilter: 
   hideUntilMapNodeUnlockedId: 

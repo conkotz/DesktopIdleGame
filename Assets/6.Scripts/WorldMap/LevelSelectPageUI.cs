@@ -679,7 +679,7 @@ public class LevelSelectPageUI : MonoBehaviour
             return;
 
         MapNodeInteractablesPreview.ContainsSummary split = MapNodeInteractablesPreview.BuildSplitSummary(n);
-        string npcLine = string.IsNullOrEmpty(split.npcsLine) ? "" : $"Contains: {split.npcsLine}";
+        string npcLine = string.IsNullOrEmpty(split.npcsLine) ? "" : $"Contains NPC's: {split.npcsLine}";
         string resourcesEnemiesLine = string.IsNullOrEmpty(split.resourcesEnemiesLine)
             ? ""
             : $"Contains: {split.resourcesEnemiesLine}";
