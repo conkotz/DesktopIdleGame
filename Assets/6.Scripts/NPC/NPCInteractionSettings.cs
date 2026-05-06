@@ -284,6 +284,8 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!questGiver)
             questGiver = GetComponent<QuestGiver>();
 
+        InvokeInteractionEffects();
+
         // Ready quest reward would return here with no visible dialogue in some setups — never steal the click when
         // post-death conditional dialogue still needs to show.
         bool deferRewardClaimForDeathDialogue =
@@ -371,6 +373,16 @@ public class NPCInteractionSettings : MonoBehaviour
         box.ShowAt(transform, transform, Vector3.zero, text, showAccept, onAccept, autoClose);
         RememberAutoPlainDialogueSignatureIfNeeded(text, showAccept);
         ApplyPlainDialoguePresentedSideEffects(box, winning, winningConditionalIndex);
+    }
+
+    private void InvokeInteractionEffects()
+    {
+        MonoBehaviour[] behaviours = GetComponents<MonoBehaviour>();
+        for (int i = 0; i < behaviours.Length; i++)
+        {
+            if (behaviours[i] is INPCInteractionEffect effect)
+                effect.OnNpcInteract(this);
+        }
     }
 
     private void ShowNormalDialogueOnly(bool replaceExistingThisNpcDialogue)

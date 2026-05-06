@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>Recent player sales (full-buy merchants only) for the undo window.</summary>
+/// <summary>Recent player sales for the undo window.</summary>
 public readonly struct SaleUndoSnapshot
 {
     public readonly int Id;
@@ -80,15 +80,13 @@ public class SaleUndoManager : MonoBehaviour
         if (!wallet) wallet = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
     }
 
-    /// <summary>
-    /// Records a sale for undo when <paramref name="merchant"/> is a full buyer (<see cref="Merchant.OnlyBuysStockedItems"/> is false).
-    /// </summary>
+    /// <summary>Records a sale for undo for the active merchant.</summary>
     public void RecordSale(string itemId, int amount, int gold, Merchant merchant, int stockAddedAmount = 0)
     {
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0 || gold <= 0)
             return;
 
-        if (merchant == null || merchant.OnlyBuysStockedItems)
+        if (merchant == null)
             return;
 
         if (!inventory || !wallet)

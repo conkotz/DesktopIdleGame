@@ -610,7 +610,7 @@ public class ShopUI : MonoBehaviour
         if (!undoShopWindow)
             undoShopWindow = FindFirstObjectByType<UndoShopWindowUI>(FindObjectsInactive.Include);
 
-        if (!undoShopWindow || !_currentMerchant || _currentMerchant.OnlyBuysStockedItems)
+        if (!undoShopWindow || !_currentMerchant)
             return;
 
         if (enableDisabledUndoWindowOnUse)
@@ -625,15 +625,15 @@ public class ShopUI : MonoBehaviour
         Close();
     }
 
-    /// <summary>Updates Undo control visibility/interaction (full merchants only, when there are undo entries).</summary>
+    /// <summary>Updates Undo control visibility/interaction for the current merchant.</summary>
     public void RefreshUndoSaleButtonState()
     {
         if (!buybackToggleButton)
             return;
 
-        bool fullBuyer = _currentMerchant && !_currentMerchant.OnlyBuysStockedItems;
-        buybackToggleButton.gameObject.SetActive(fullBuyer);
-        if (!fullBuyer)
+        bool hasMerchant = _currentMerchant;
+        buybackToggleButton.gameObject.SetActive(hasMerchant);
+        if (!hasMerchant)
             return;
 
         int n = SaleUndoManager.Instance != null

@@ -47,6 +47,8 @@ public class UnitOverheadUI : MonoBehaviour
         "Small fudge (canvas px) added when testing horizontal overlap. Keep low so stacks only form when UI actually overlaps.")]
     [FormerlySerializedAs("stackOverlapThresholdPx")]
     [SerializeField] private float stackHorizontalOverlapPaddingPx = 8f;
+    [Tooltip("How many canvas pixels two overhead labels may overlap horizontally before they stack vertically.")]
+    [SerializeField] private float stackAllowedOverlapBeforeStackPx = 20f;
     [SerializeField] private float stackVerticalSpacingPx = 56f;
     [Tooltip(
         "Optional minimum half-width (canvas px) for overlap tests. 0 = use measured rect + TMP bounds only. " +
@@ -223,6 +225,7 @@ public class UnitOverheadUI : MonoBehaviour
         Canvas.ForceUpdateCanvases();
 
         float padding = Mathf.Max(0f, candidates[0].stackHorizontalOverlapPaddingPx);
+        float allowedOverlap = Mathf.Max(0f, candidates[0].stackAllowedOverlapBeforeStackPx);
         float spacing = Mathf.Max(1f, candidates[0].stackVerticalSpacingPx);
 
         float minHalfW = Mathf.Max(0f, candidates[0].stackMinClusteringHalfWidthPx);
@@ -251,7 +254,7 @@ public class UnitOverheadUI : MonoBehaviour
                 continue;
             }
 
-            bool overlapsCluster = minX <= clusterMaxX + padding;
+            bool overlapsCluster = minX <= clusterMaxX + padding - allowedOverlap;
             if (overlapsCluster)
             {
                 cluster.Add(ui);

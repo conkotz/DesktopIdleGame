@@ -29,7 +29,7 @@ public class Merchant : MonoBehaviour, ISaveable
     [SerializeField] private TMP_Text nameLabel;
 
     public string MerchantName => merchantName;
-    /// <summary>When true, this merchant only buys items it stocks — sale undo is not used.</summary>
+    /// <summary>When true, this merchant only buys items it stocks.</summary>
     public bool OnlyBuysStockedItems => onlyBuysStockedItems;
     /// <summary>Inspector "Name" (e.g. person shown in bold above role on the world label).</summary>
     public string CharacterDisplayName =>

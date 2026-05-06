@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Full-window undo UI: grid of recent sales for the current full-buy merchant; bar Undo restores selection.
+/// Full-window undo UI: grid of recent sales for the current merchant; bar Undo restores selection.
 /// Swaps with <see cref="ShopUI"/> when opened from the shop Undo control.
 /// </summary>
 public class UndoShopWindowUI : MonoBehaviour
@@ -121,7 +121,7 @@ public class UndoShopWindowUI : MonoBehaviour
     {
         EnsureWindowEnabledForUse();
 
-        if (!merchant || merchant.OnlyBuysStockedItems)
+        if (!merchant)
             return;
 
         _merchant = merchant;

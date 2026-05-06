@@ -42,7 +42,7 @@ public class SaveSlotMenuUI : MonoBehaviour
     [SerializeField] private Button playerNameStartButton;
     [SerializeField] private Button playerNameCancelButton;
     [SerializeField] private TMP_Text playerNameErrorText;
-    [SerializeField, Min(3)] private int playerNameMaxLength = 8;
+    [SerializeField, Min(3)] private int playerNameMaxLength = 15;
 
     [Header("Diagnostics (optional)")]
     [Tooltip("F8 (or chosen key) dumps EventSystem / resume button state when Bootstrap loads. Off by default.")]
@@ -870,7 +870,7 @@ public class SaveSlotMenuUI : MonoBehaviour
 
         if (playerNameInputField)
         {
-            playerNameInputField.characterLimit = Mathf.Clamp(playerNameMaxLength, 3, 8);
+            playerNameInputField.characterLimit = Mathf.Clamp(playerNameMaxLength, 3, 15);
             playerNameInputField.onValueChanged.RemoveAllListeners();
             playerNameInputField.onValueChanged.AddListener(_ =>
             {
@@ -1298,7 +1298,7 @@ public class SaveSlotMenuUI : MonoBehaviour
             return false;
         }
 
-        int maxLen = Mathf.Clamp(playerNameMaxLength, 3, 8);
+        int maxLen = Mathf.Clamp(playerNameMaxLength, 3, 15);
         if (sanitizedName.Length > maxLen)
             sanitizedName = sanitizedName.Substring(0, maxLen);
 
