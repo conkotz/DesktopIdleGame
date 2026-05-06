@@ -86,6 +86,19 @@ public enum MagicAttackType
     Ice
 }
 
+/// <summary>
+/// Main-hand weapon archetype used for offhand support compatibility (arrows/bolts/runes/focus).
+/// </summary>
+public enum MainHandWeaponArchetype
+{
+    None,
+    Bow,
+    Crossbow,
+    Staff,
+    Wand,
+    Other
+}
+
 [System.Serializable]
 public struct WeaponStats
 {
@@ -136,6 +149,10 @@ public struct WeaponStats
     [Header("Skill Type")]
     public AttackSkill attackSkill;
 
+    [Header("Weapon Archetype")]
+    [Tooltip("Used to validate compatible offhand support types (Arrows/Bolts/Runes/Focus).")]
+    public MainHandWeaponArchetype mainHandArchetype;
+
     [Tooltip("Only when Attack Skill is Ranged. Swiftbow: default. Longbow: auto-battle targets the furthest enemy first.")]
     public RangedBowType rangedBowType;
 
@@ -180,6 +197,10 @@ public struct CombatSupportStats
 {
     [Header("Type")]
     public CombatSupportType supportType;
+
+    [Header("Main-hand Compatibility")]
+    [Tooltip("Optional explicit main-hand archetype requirement. If None, defaults by support type (Arrows=Bow, Bolts=Crossbow, Runes=Staff, Focus=Wand).")]
+    public MainHandWeaponArchetype requiredMainHandArchetype;
 
     [Header("Bonuses")]
     public float bonusPhysicalDamage;
@@ -881,6 +902,44 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public CombatSupportType SupportType =>
         IsCombatSupport ? combatSupportStats.supportType : CombatSupportType.None;
 
+    public MainHandWeaponArchetype MainHandArchetype
+    {
+        get
+        {
+            if (!IsWeapon)
+                return MainHandWeaponArchetype.None;
+            if (weaponStats.mainHandArchetype != MainHandWeaponArchetype.None)
+                return weaponStats.mainHandArchetype;
+            if (RequiresOffhandSupport)
+                return InferRequiredMainHandArchetypeFromSupportType(RequiredSupportType);
+            return MainHandWeaponArchetype.Other;
+        }
+    }
+
+    public MainHandWeaponArchetype SupportRequiredMainHandArchetype
+    {
+        get
+        {
+            if (!IsCombatSupport)
+                return MainHandWeaponArchetype.None;
+            if (combatSupportStats.requiredMainHandArchetype != MainHandWeaponArchetype.None)
+                return combatSupportStats.requiredMainHandArchetype;
+            return InferRequiredMainHandArchetypeFromSupportType(SupportType);
+        }
+    }
+
+    public static MainHandWeaponArchetype InferRequiredMainHandArchetypeFromSupportType(CombatSupportType supportType)
+    {
+        return supportType switch
+        {
+            CombatSupportType.Arrows => MainHandWeaponArchetype.Bow,
+            CombatSupportType.Bolts => MainHandWeaponArchetype.Crossbow,
+            CombatSupportType.Runes => MainHandWeaponArchetype.Staff,
+            CombatSupportType.Focus => MainHandWeaponArchetype.Wand,
+            _ => MainHandWeaponArchetype.None
+        };
+    }
+
     public bool HasUpgradeSlots => IsWeapon || IsArmor || IsTool;
 
     public int MaxUpgradeSlots
@@ -1374,7 +1433,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (SupportRangedPhysicalDamagePercent != 0f)
                 s += $"\n{FormatScalingCoefficientPercentLine(SupportRangedPhysicalDamagePercent, "Ranged physical")}";
             if (SupportMagicDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportMagicDamagePercent, "All magic")}";
+                s += $"\nMagic Damage {FormatSignedPercent01(SupportMagicDamagePercent)}";
             if (SupportFireDamagePercent != 0f)
                 s += $"\n{FormatScalingCoefficientPercentLine(SupportFireDamagePercent, "Fire skills")}";
             if (SupportIceDamagePercent != 0f)

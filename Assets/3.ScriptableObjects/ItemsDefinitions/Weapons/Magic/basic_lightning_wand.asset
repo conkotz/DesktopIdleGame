@@ -51,6 +51,7 @@ MonoBehaviour:
     handedness: 1
     attackRange: 12
     attackSkill: 2
+    mainHandArchetype: 4
     rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 8
@@ -62,6 +63,7 @@ MonoBehaviour:
     equipmentTier: 0
   combatSupportStats:
     supportType: 0
+    requiredMainHandArchetype: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
     bonusCorruptionDamage: 0

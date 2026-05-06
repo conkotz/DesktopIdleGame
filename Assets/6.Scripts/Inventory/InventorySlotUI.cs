@@ -931,7 +931,7 @@ public class InventorySlotUI : MonoBehaviour,
         {
             player.SendMessage(
                 "ShowPopup",
-                $"Requires {def.RequiredSupportType} in offhand.",
+                $"Cannot equip: requires {def.RequiredSupportType} in offhand.",
                 SendMessageOptions.DontRequireReceiver
             );
             return;
@@ -941,7 +941,7 @@ public class InventorySlotUI : MonoBehaviour,
         {
             player.SendMessage(
                 "ShowPopup",
-                $"Requires compatible main-hand weapon for {def.SupportType}.",
+                $"Cannot equip: requires compatible main-hand weapon for {def.SupportType}.",
                 SendMessageOptions.DontRequireReceiver
             );
             return;

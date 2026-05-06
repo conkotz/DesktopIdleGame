@@ -146,60 +146,35 @@ public class Merchant : MonoBehaviour, ISaveable
             return false;
         }
 
-        int bought = 0;
-        for (int i = 0; i < amount; i++)
+        if (!CanAfford(entry, amount))
         {
-            if (!CanAfford(entry))
-            {
-                if (bought > 0)
-                {
-                    ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
-                    SaveManager.Instance?.NotifyShopStockChanged();
-                }
-                GameLog.PurchaseFailed("Cannot afford", ResolveItemDisplayName(entry.itemId));
-                Debug.Log($"[Merchant] Cannot afford {itemId}.");
-                return false;
-            }
-
-            if (!inventory.CanAdd(entry.itemId, 1))
-            {
-                if (bought > 0)
-                {
-                    ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
-                    SaveManager.Instance?.NotifyShopStockChanged();
-                }
-                GameLog.InventoryFull(ResolveItemDisplayName(entry.itemId));
-                Debug.Log($"[Merchant] Inventory full, could not add {itemId}.");
-                return false;
-            }
-
-            SpendCosts(entry);
-
-            bool added = inventory.Add(entry.itemId, 1, null, notifyItemGainPopup: false);
-            if (!added)
-            {
-                if (bought > 0)
-                {
-                    ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
-                    SaveManager.Instance?.NotifyShopStockChanged();
-                }
-                GameLog.PurchaseFailed("Purchase failed", ResolveItemDisplayName(entry.itemId));
-                Debug.LogError($"[Merchant] Failed to add {itemId} after spending costs.");
-                return false;
-            }
-
-            bought++;
-
-            int current = GetQuantity(entry);
-            if (current > 0)
-                SetQuantity(entry, current - 1, persistToDisk: false);
+            GameLog.PurchaseFailed("Cannot afford", ResolveItemDisplayName(entry.itemId));
+            Debug.Log($"[Merchant] Cannot afford {amount}x {itemId}.");
+            return false;
         }
 
-        if (bought > 0)
+        if (!inventory.CanAdd(entry.itemId, amount))
         {
-            ItemGainPopupNotifier.Notify(entry.itemId, bought, purchased: true);
-            SaveManager.Instance?.NotifyShopStockChanged();
+            GameLog.InventoryFull(ResolveItemDisplayName(entry.itemId));
+            Debug.Log($"[Merchant] Inventory full, could not add {amount}x {itemId}.");
+            return false;
         }
+
+        SpendCosts(entry, amount);
+
+        bool added = inventory.Add(entry.itemId, amount, null, notifyItemGainPopup: false);
+        if (!added)
+        {
+            GameLog.PurchaseFailed("Purchase failed", ResolveItemDisplayName(entry.itemId));
+            Debug.LogError($"[Merchant] Failed to add {amount}x {itemId} after spending costs.");
+            return false;
+        }
+
+        if (available > 0)
+            SetQuantity(entry, available - amount, persistToDisk: false);
+
+        ItemGainPopupNotifier.Notify(entry.itemId, amount, purchased: true);
+        SaveManager.Instance?.NotifyShopStockChanged();
 
         Debug.Log($"[Merchant] Bought {amount}x {itemId}.");
         return true;
@@ -207,18 +182,25 @@ public class Merchant : MonoBehaviour, ISaveable
 
     public bool CanAfford(MerchantStock.Entry entry)
     {
+        return CanAfford(entry, 1);
+    }
+
+    public bool CanAfford(MerchantStock.Entry entry, int amount)
+    {
         if (entry == null) return false;
+        if (amount <= 0) return true;
         if (entry.costs == null) return true;
 
         for (int i = 0; i < entry.costs.Count; i++)
         {
             var cost = entry.costs[i];
             if (cost == null || cost.amount <= 0) continue;
+            int totalCostAmount = cost.amount * amount;
 
             switch (cost.type)
             {
                 case MerchantStock.CostType.Gold:
-                    if (!wallet || wallet.Gold < cost.amount)
+                    if (!wallet || wallet.Gold < totalCostAmount)
                         return false;
                     break;
 
@@ -226,7 +208,7 @@ public class Merchant : MonoBehaviour, ISaveable
                     if (!inventory || string.IsNullOrWhiteSpace(cost.itemId))
                         return false;
 
-                    if (inventory.GetTotalAmount(cost.itemId) < cost.amount)
+                    if (inventory.GetTotalAmount(cost.itemId) < totalCostAmount)
                         return false;
                     break;
             }
@@ -237,23 +219,29 @@ public class Merchant : MonoBehaviour, ISaveable
 
     private void SpendCosts(MerchantStock.Entry entry)
     {
-        if (entry == null || entry.costs == null) return;
+        SpendCosts(entry, 1);
+    }
+
+    private void SpendCosts(MerchantStock.Entry entry, int amountMultiplier)
+    {
+        if (entry == null || entry.costs == null || amountMultiplier <= 0) return;
 
         for (int i = 0; i < entry.costs.Count; i++)
         {
             var cost = entry.costs[i];
             if (cost == null || cost.amount <= 0) continue;
+            int totalCostAmount = cost.amount * amountMultiplier;
 
             switch (cost.type)
             {
                 case MerchantStock.CostType.Gold:
-                    if (!wallet.SpendGold(cost.amount))
-                        Debug.LogWarning($"[Merchant] Failed to spend {cost.amount} gold.");
+                    if (!wallet.SpendGold(totalCostAmount))
+                        Debug.LogWarning($"[Merchant] Failed to spend {totalCostAmount} gold.");
                     break;
 
                 case MerchantStock.CostType.Item:
-                    if (!inventory.Remove(cost.itemId, cost.amount))
-                        Debug.LogWarning($"[Merchant] Failed to remove {cost.amount}x {cost.itemId}.");
+                    if (!inventory.Remove(cost.itemId, totalCostAmount))
+                        Debug.LogWarning($"[Merchant] Failed to remove {totalCostAmount}x {cost.itemId}.");
                     break;
             }
         }

@@ -120,8 +120,12 @@ public class Inventory : MonoBehaviour, ISaveable
 
         int before = _slots.Count;
         EnsureSlotCount(before + amount);
-        if (_slots.Count != before)
+        int gained = _slots.Count - before;
+        if (gained > 0)
+        {
             OnInventoryChanged?.Invoke();
+            GameLog.Add($"Inventory expanded +{gained}");
+        }
     }
 
     public void EnsureSlotCount(int count)

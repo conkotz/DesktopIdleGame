@@ -277,7 +277,7 @@ MonoBehaviour:
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 0
+  m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -310,6 +310,7 @@ MonoBehaviour:
   idleColor: {r: 0.14338905, g: 0.15598601, b: 0.18490559, a: 1}
   hoverColor: {r: 0.6075471, g: 0.5120183, b: 0.3335777, a: 1}
   pressedColor: {r: 0.8792453, g: 0.86131334, b: 0.82781774, a: 1}
+  autoBattleNewLootColor: {r: 0.8509804, g: 0.74509805, b: 0.39215687, a: 1}
   showRarityBorder: 1
   commonBorder: {r: 0.54901963, g: 0.54901963, b: 0.54901963, a: 1}
   uncommonBorder: {r: 0.3137255, g: 0.78431374, b: 0.47058824, a: 1}

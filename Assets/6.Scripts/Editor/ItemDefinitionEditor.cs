@@ -347,6 +347,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty handedness = weaponStats.FindPropertyRelative("handedness");
         SerializedProperty attackRange = weaponStats.FindPropertyRelative("attackRange");
         SerializedProperty attackSkill = weaponStats.FindPropertyRelative("attackSkill");
+        SerializedProperty mainHandArchetype = weaponStats.FindPropertyRelative("mainHandArchetype");
         SerializedProperty rangedBowType = weaponStats.FindPropertyRelative("rangedBowType");
         SerializedProperty magicAttackType = weaponStats.FindPropertyRelative("magicAttackType");
         SerializedProperty manaCostPerAttack = weaponStats.FindPropertyRelative("manaCostPerAttack");
@@ -392,6 +393,8 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(handedness);
         EditorGUILayout.PropertyField(attackRange);
         EditorGUILayout.PropertyField(attackSkill);
+        if (mainHandArchetype != null)
+            EditorGUILayout.PropertyField(mainHandArchetype, new GUIContent("Main-hand Archetype"));
         if (attackSkill != null &&
             (AttackSkill)attackSkill.enumValueIndex == AttackSkill.Ranged &&
             rangedBowType != null)
@@ -490,6 +493,7 @@ public class ItemDefinitionEditor : Editor
         }
 
         SerializedProperty supportType = combatSupportStats.FindPropertyRelative("supportType");
+        SerializedProperty requiredMainHandArchetype = combatSupportStats.FindPropertyRelative("requiredMainHandArchetype");
 
         SerializedProperty bonusPhysicalDamage = combatSupportStats.FindPropertyRelative("bonusPhysicalDamage");
         SerializedProperty bonusMagicDamage = combatSupportStats.FindPropertyRelative("bonusMagicDamage");
@@ -513,6 +517,8 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.LabelField("Type", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(supportType);
+        if (requiredMainHandArchetype != null)
+            EditorGUILayout.PropertyField(requiredMainHandArchetype, new GUIContent("Required Main-hand Archetype"));
 
         EditorGUILayout.Space(6);
         EditorGUILayout.LabelField("Bonuses", EditorStyles.boldLabel);

@@ -218,6 +218,43 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         return def && def.itemKind == ItemKind.Armor && def.equipSlot == EquipSlot.OffHand;
     }
 
+    private MainHandWeaponArchetype GetMainHandArchetype(string itemId)
+    {
+        var def = GetDef(itemId);
+        return def ? def.MainHandArchetype : MainHandWeaponArchetype.None;
+    }
+
+    private MainHandWeaponArchetype GetSupportRequiredMainHandArchetype(string itemId)
+    {
+        var def = GetDef(itemId);
+        return def ? def.SupportRequiredMainHandArchetype : MainHandWeaponArchetype.None;
+    }
+
+    private static bool IsSupportArchetypeCompatible(MainHandWeaponArchetype supportReq, MainHandWeaponArchetype mainArchetype)
+    {
+        if (supportReq == MainHandWeaponArchetype.None)
+            return true;
+        if (mainArchetype == MainHandWeaponArchetype.None)
+            return false;
+        return supportReq == mainArchetype;
+    }
+
+    private bool IsMainHandCompatibleWithSupport(ItemDefinition mainDef, ItemDefinition supportDef)
+    {
+        if (!mainDef || !supportDef || !supportDef.IsCombatSupport)
+            return false;
+
+        if (mainDef.RequiresOffhandSupport)
+        {
+            if (supportDef.SupportType != mainDef.RequiredSupportType)
+                return false;
+        }
+
+        return IsSupportArchetypeCompatible(
+            supportDef.SupportRequiredMainHandArchetype,
+            mainDef.MainHandArchetype);
+    }
+
     // -------------------------
     // Compatibility helpers
     // -------------------------
@@ -278,11 +315,12 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (!offDef)
             return false;
 
+        // Supports are always equippable; incompatible main-hands are auto-unequipped in EquipOffHand.
+        if (offDef.IsCombatSupport && offDef.equipSlot == EquipSlot.OffHand)
+            return true;
+
         if (string.IsNullOrWhiteSpace(mainHandId))
         {
-            if (offDef.IsCombatSupport && offDef.equipSlot == EquipSlot.OffHand)
-                return true;
-
             if (offDef.itemKind == ItemKind.Armor && offDef.equipSlot == EquipSlot.OffHand)
                 return true;
 
@@ -300,8 +338,12 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
         if (mainDef.RequiresOffhandSupport)
         {
-            return offDef.IsCombatSupport &&
-                   offDef.SupportType == mainDef.RequiredSupportType;
+            if (!(offDef.IsCombatSupport && offDef.SupportType == mainDef.RequiredSupportType))
+                return false;
+
+            return IsSupportArchetypeCompatible(
+                offDef.SupportRequiredMainHandArchetype,
+                mainDef.MainHandArchetype);
         }
 
         if (mainDef.IsTwoHandedWeapon)
@@ -316,7 +358,11 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             return true;
 
         if (offDef.IsCombatSupport && offDef.equipSlot == EquipSlot.OffHand)
-            return true;
+        {
+            return IsSupportArchetypeCompatible(
+                offDef.SupportRequiredMainHandArchetype,
+                mainDef.MainHandArchetype);
+        }
 
         return false;
     }
@@ -369,6 +415,20 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         NotifyOffHandChanged();
 
         ReturnOrDrop(currentOffHand, currentAmount);
+
+        if (save)
+            RequestImmediateSave();
+    }
+
+    private void KickMainHandToInventoryOrDrop(bool save = true)
+    {
+        string currentMainHand = MainHandItemId;
+        if (string.IsNullOrWhiteSpace(currentMainHand))
+            return;
+
+        SetMainHandForSet(activeWeaponSetIndex, null);
+        NotifyMainHandChanged();
+        ReturnOrDrop(currentMainHand, 1);
 
         if (save)
             RequestImmediateSave();
@@ -472,6 +532,17 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         var nextDef = GetDef(next);
         string currentOff = OffHandItemId;
         int currentOffAmount = OffHandStackAmount;
+
+        // Supports may be equipped unarmed; if a wrong main-hand is equipped, auto-unequip it first.
+        if (!string.IsNullOrWhiteSpace(next) &&
+            nextDef != null &&
+            nextDef.IsCombatSupport &&
+            !string.IsNullOrWhiteSpace(MainHandItemId))
+        {
+            var mainDef = GetDef(MainHandItemId);
+            if (mainDef != null && !IsMainHandCompatibleWithSupport(mainDef, nextDef))
+                KickMainHandToInventoryOrDrop(save: false);
+        }
 
         if (!string.IsNullOrWhiteSpace(next) &&
             nextDef != null &&

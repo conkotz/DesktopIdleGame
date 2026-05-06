@@ -129,6 +129,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _nextAttackTime;
     private float _nextIdleScanTime;
     private float _nextLowManaPopupTime;
+    private float _nextSupportWeaponMismatchPopupTime;
     private float _combatSessionStartTime = -1f;
     private float _combatSessionDamageSum;
     private DpsDamageBreakdown _outgoingDamageSum;
@@ -416,6 +417,17 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
             if (isGathering)
                 return;
+        }
+
+        if (IsSupportEquippedWithoutCompatibleMainWeapon(out string supportMismatchMessage))
+        {
+            player.ClearActionOverride();
+            if (Time.time >= _nextSupportWeaponMismatchPopupTime)
+            {
+                player.ShowPopup(supportMismatchMessage);
+                _nextSupportWeaponMismatchPopupTime = Time.time + 0.4f;
+            }
+            return;
         }
 
         if (stats.AttacksPerSecond <= 0f || stats.MaxDamage <= 0)
@@ -723,6 +735,33 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (string.IsNullOrWhiteSpace(equipment.MainHandItemId)) return null;
 
         return inventory.GetItemDef(equipment.MainHandItemId);
+    }
+
+    private bool IsSupportEquippedWithoutCompatibleMainWeapon(out string message)
+    {
+        message = null;
+        EquipmentManager equipment = GetComponent<EquipmentManager>();
+        Inventory inv = GetComponent<Inventory>();
+        if (equipment == null || inv == null)
+            return false;
+
+        ItemDefinition support = equipment.GetOffHandDef();
+        if (!support || !support.IsCombatSupport)
+            return false;
+
+        ItemDefinition main = inv.GetItemDef(equipment.MainHandItemId);
+        MainHandWeaponArchetype required = support.SupportRequiredMainHandArchetype;
+        if (required == MainHandWeaponArchetype.None)
+            return false;
+
+        if (!main || !main.IsWeapon || main.MainHandArchetype != required)
+        {
+            string need = required.ToString();
+            message = $"Cannot attack: {support.SupportType} equipped requires a {need}. Equip a {need} or unequip the support.";
+            return true;
+        }
+
+        return false;
     }
 
     private bool IsRangedAttack()

@@ -37,6 +37,8 @@ public class InventoryGridUI : MonoBehaviour
     [SerializeField] private int minVisibleRows = 3;
 
     [Header("Layout Fit")]
+    [Tooltip("When true, runtime auto-fit will not overwrite GridLayoutGroup cell/constraint/axis settings. Use inspector values directly.")]
+    [SerializeField] private bool useManualGridLayoutSettings = false;
     [SerializeField] private bool squareCells = true;
     [SerializeField] private float minCellSize = 32f;
     [Tooltip("How many frames to retry sizing/layout if rect size isn't ready yet (build safety).")]
@@ -236,6 +238,12 @@ public class InventoryGridUI : MonoBehaviour
         if (!_grid) _grid = slotsGrid.GetComponent<GridLayoutGroup>();
         if (!_grid) return;
 
+        if (useManualGridLayoutSettings)
+        {
+            ApplyContentHeightForRows(GetTargetRowCountForCurrentGridSettings());
+            return;
+        }
+
         RectTransform fitRect = _resolvedViewport ? _resolvedViewport : slotsGrid;
         float w = fitRect.rect.width;
         float h = fitRect.rect.height;
@@ -417,6 +425,33 @@ public class InventoryGridUI : MonoBehaviour
         int totalSlots = Mathf.Max(1, GetTargetSlotCount());
         int safeColumns = Mathf.Max(1, columns);
         return Mathf.Max(1, Mathf.CeilToInt(totalSlots / (float)safeColumns));
+    }
+
+    private int GetTargetRowCountForCurrentGridSettings()
+    {
+        int totalSlots = Mathf.Max(1, GetTargetSlotCount());
+        int effectiveColumns = ResolveEffectiveColumnCount(totalSlots);
+        return Mathf.Max(1, Mathf.CeilToInt(totalSlots / (float)Mathf.Max(1, effectiveColumns)));
+    }
+
+    private int ResolveEffectiveColumnCount(int totalSlots)
+    {
+        if (_grid == null)
+            return Mathf.Max(1, columns);
+
+        switch (_grid.constraint)
+        {
+            case GridLayoutGroup.Constraint.FixedColumnCount:
+                return Mathf.Max(1, _grid.constraintCount);
+            case GridLayoutGroup.Constraint.FixedRowCount:
+            {
+                int rows = Mathf.Max(1, _grid.constraintCount);
+                return Mathf.Max(1, Mathf.CeilToInt(totalSlots / (float)rows));
+            }
+            default:
+                // Flexible constraint: use configured fallback so row estimation stays stable.
+                return Mathf.Max(1, columns);
+        }
     }
 
     private void ApplyContentHeightForRows(int rows)
