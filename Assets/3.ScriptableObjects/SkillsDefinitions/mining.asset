@@ -29,3 +29,43 @@ MonoBehaviour:
     rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
+  - requiredLevel: 1
+    title: Mining Minor I
+    description: +0.1 Gathering Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    miningMinorStatOption: 1
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 2
+    title: Mining Minor II
+    description: +2% Grit
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    miningMinorStatOption: 2
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 3
+    title: Mining Minor III
+    description: +2% Energy Efficiency
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    miningMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 4
+    title: Mining Minor IV
+    description: +2% Bonus Item Chance
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    miningMinorStatOption: 4
+    ability: {fileID: 0}
+    choices: []

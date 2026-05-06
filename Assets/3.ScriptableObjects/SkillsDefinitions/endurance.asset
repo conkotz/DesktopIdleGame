@@ -30,3 +30,43 @@ MonoBehaviour:
     rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
+  - requiredLevel: 1
+    title: Endurance Minor I
+    description: +2 Armour
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    enduranceMinorStatOption: 1
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 2
+    title: Endurance Minor II
+    description: +2 Magic Resist
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    enduranceMinorStatOption: 2
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 3
+    title: Endurance Minor III
+    description: +5 HP
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    enduranceMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 4
+    title: Endurance Minor IV
+    description: +1 HP Regen
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    enduranceMinorStatOption: 4
+    ability: {fileID: 0}
+    choices: []

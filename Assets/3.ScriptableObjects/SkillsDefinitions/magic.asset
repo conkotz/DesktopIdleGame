@@ -29,3 +29,43 @@ MonoBehaviour:
     rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
+  - requiredLevel: 1
+    title: Arcane Minor I
+    description: +3% Magic Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    magicMinorStatOption: 1
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 2
+    title: Arcane Minor II
+    description: +2% Crit Chance
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    magicMinorStatOption: 2
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 3
+    title: Arcane Minor III
+    description: +3% Cast Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    magicMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 4
+    title: Arcane Minor IV
+    description: +8% Crit Damage
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    magicMinorStatOption: 4
+    ability: {fileID: 0}
+    choices: []

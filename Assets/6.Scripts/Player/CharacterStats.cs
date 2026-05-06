@@ -306,6 +306,32 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private struct RangedMinorNodeBonuses
     {
         public float rangedDamagePercent;
+        public float rangedAttackSpeedPercent;
+        public float rangedCritChance;
+        public float rangedMoveSpeedPercent;
+    }
+
+    private struct SkillMinorNodeBonuses
+    {
+        public float gatherSpeedFlat;
+        public float gatherGrit;
+        public float gatherEnergyEfficiency;
+        public float gatherBonusItemChance;
+
+        public float enduranceArmorFlat;
+        public float enduranceMagicResistFlat;
+        public float enduranceHealthFlat;
+        public float enduranceLifeRegenFlat;
+
+        public float rangedDamagePercent;
+        public float rangedAttackSpeedPercent;
+        public float rangedCritChance;
+        public float rangedMoveSpeedPercent;
+
+        public float magicDamagePercent;
+        public float magicAttackSpeedPercent;
+        public float magicCritChance;
+        public float magicCritDamage;
     }
 
     private void Start()
@@ -413,7 +439,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // -------------------------
 
     // Defensive
-    public int MaxHP => baseMaxHP + GetEquippedBonusHealth();
+    public int MaxHP => baseMaxHP + GetEquippedBonusHealth() + Mathf.RoundToInt(GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceHealthFlat);
 
     /// <summary>
     /// Maximum natural guard: min(total flat, Max HP × (1 + total max-guard %)).
@@ -438,10 +464,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public int MaxMana => Mathf.Max(0, baseMaxMana + GetEquippedBonusMana());
     public int Armor =>
         baseArmor + GetEquippedArmor() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeArmor) +
+        Mathf.RoundToInt(GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceArmorFlat) +
         (buffController ? Mathf.RoundToInt(buffController.GetTotalMagnitude(ConsumableEffectType.ArmorBoost)) : 0);
 
     public int MagicResist =>
         baseMagicResist + GetEquippedMagicResist() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeMagicResist) +
+        Mathf.RoundToInt(GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceMagicResistFlat) +
         (buffController ? Mathf.RoundToInt(buffController.GetTotalMagnitude(ConsumableEffectType.MagicResistBoost)) : 0);
     public int CorruptionResist => baseCorruptionResist + GetEquippedCorruptionResist();
 
@@ -456,6 +484,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float TotalMoveSpeedPercent =>
         GearMoveSpeedPercent + TemporaryMoveSpeedPercent + GetActiveMeleeMinorBonuses().meleeMoveSpeedPercent +
+        GetActiveRangedMinorBonuses().rangedMoveSpeedPercent +
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MoveSpeed) : 0f);
 
     public float MoveSpeedMultiplier => Mathf.Max(0.1f, baseMoveSpeedMult * (1f + TotalMoveSpeedPercent));
@@ -478,7 +507,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
     // Displayed bonus/penalty relative to normal base speed
     public float MoveSpeedBonusPercent => MoveSpeedMultiplier - 1f;
 
-    public float LifeRegenPerSecond => Mathf.Max(0f, baseLifeRegen + GetEquippedLifeRegen() + GetActiveMeleeMinorBonuses().meleeLifeRegen);
+    public float LifeRegenPerSecond => Mathf.Max(
+        0f,
+        baseLifeRegen +
+        GetEquippedLifeRegen() +
+        GetActiveMeleeMinorBonuses().meleeLifeRegen +
+        GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceLifeRegenFlat);
     public float EnergyRegenPerSecond =>
         Mathf.Max(
             0f,
@@ -899,15 +933,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float AxeSpeedMult => GetToolSpeedMult(ToolType.Axe) * (1f + Mathf.Max(0f, bonusAxeSpeedMult));
     public float PickaxeSpeedMult => GetToolSpeedMult(ToolType.Pickaxe) * (1f + Mathf.Max(0f, bonusPickaxeSpeedMult));
     public float RodSpeedMult => GetToolSpeedMult(ToolType.FishingRod) * (1f + Mathf.Max(0f, bonusRodSpeedMult));
-    public float AxeGrit => GetToolGrit(ToolType.Axe);
-    public float PickaxeGrit => GetToolGrit(ToolType.Pickaxe);
-    public float RodGrit => GetToolGrit(ToolType.FishingRod);
-    public float AxeBonusFindChance => GetToolBonusFindChance(ToolType.Axe);
-    public float PickaxeBonusFindChance => GetToolBonusFindChance(ToolType.Pickaxe);
-    public float RodBonusFindChance => GetToolBonusFindChance(ToolType.FishingRod);
-    public float AxeStaminaEfficiency => GetToolStaminaEfficiency(ToolType.Axe);
-    public float PickaxeStaminaEfficiency => GetToolStaminaEfficiency(ToolType.Pickaxe);
-    public float RodStaminaEfficiency => GetToolStaminaEfficiency(ToolType.FishingRod);
+    public float AxeGrit => Mathf.Clamp01(GetToolGrit(ToolType.Axe));
+    public float PickaxeGrit => Mathf.Clamp01(GetToolGrit(ToolType.Pickaxe));
+    public float RodGrit => Mathf.Clamp01(GetToolGrit(ToolType.FishingRod));
+    public float AxeBonusFindChance => Mathf.Clamp01(GetToolBonusFindChance(ToolType.Axe));
+    public float PickaxeBonusFindChance => Mathf.Clamp01(GetToolBonusFindChance(ToolType.Pickaxe));
+    public float RodBonusFindChance => Mathf.Clamp01(GetToolBonusFindChance(ToolType.FishingRod));
+    public float AxeStaminaEfficiency => Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.Axe));
+    public float PickaxeStaminaEfficiency => Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.Pickaxe));
+    public float RodStaminaEfficiency => Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.FishingRod));
 
 
 
@@ -1133,25 +1167,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private float GetToolSpeedMult(ToolType type)
     {
         var def = GetToolDefFromToolbelt(type);
-        return def ? def.GatherSpeedMultiplier : 1f;
+        float baseValue = def ? def.GatherSpeedMultiplier : 1f;
+        SkillMinorNodeBonuses bonuses = GetGatherSkillMinorBonuses(type);
+        return Mathf.Max(0.1f, baseValue + bonuses.gatherSpeedFlat);
     }
 
     private float GetToolGrit(ToolType type)
     {
         var def = GetToolDefFromToolbelt(type);
-        return def ? def.GatheringGrit : 0f;
+        float baseValue = def ? def.GatheringGrit : 0f;
+        return baseValue + GetGatherSkillMinorBonuses(type).gatherGrit;
     }
 
     private float GetToolBonusFindChance(ToolType type)
     {
         var def = GetToolDefFromToolbelt(type);
-        return def ? def.BonusResourceFindChance : 0f;
+        float baseValue = def ? def.BonusResourceFindChance : 0f;
+        return baseValue + GetGatherSkillMinorBonuses(type).gatherBonusItemChance;
     }
 
     private float GetToolStaminaEfficiency(ToolType type)
     {
         var def = GetToolDefFromToolbelt(type);
-        return def ? def.StaminaEfficiency : 0f;
+        float baseValue = def ? def.StaminaEfficiency : 0f;
+        return baseValue + GetGatherSkillMinorBonuses(type).gatherEnergyEfficiency;
     }
 
     // -------------------------
@@ -1487,6 +1526,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         AttackSkill skill = GetCurrentAttackSkill();
         RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
+        SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
         float rangedGear = GetEquippedRangedPhysicalDamagePercent();
         float rangedSkill = rangedBonuses.rangedDamagePercent;
         float rangedTotalPct = rangedGear + rangedSkill;
@@ -1506,6 +1546,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             magicPct += meleeBonuses.meleeDamagePercent;
         if (skill == AttackSkill.Ranged)
             magicPct += rangedTotalPct;
+        if (skill == AttackSkill.Magic)
+            magicPct += skillBonuses.magicDamagePercent;
         float magicGearPctMult = 1f + Mathf.Max(0f, magicPct);
 
         float corrPct = GetEquippedCorruptionDamagePercent();
@@ -1562,7 +1604,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     /// <summary>Global magic % on attacks: gear, supports, and active <see cref="ConsumableEffectType.MagicDamageBoost"/>.</summary>
     public float GlobalMagicDamageBonusPercentPoints =>
-        (GetEquippedMagicDamagePercent() + (buffController ? buffController.MagicDamageBoostPercent : 0f)) * 100f;
+        (GetEquippedMagicDamagePercent() +
+         (buffController ? buffController.MagicDamageBoostPercent : 0f) +
+         GetActiveSkillMinorBonusesForCurrentAttack().magicDamagePercent) * 100f;
 
     /// <summary>Equipped corruption attack-split % (armor bonus + combat supports).</summary>
     public float GlobalCorruptionDamageBonusPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
@@ -1583,7 +1627,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// Ranged gear + ranged skill-tree % applied to all basic-attack damage (physical, magic, corruption) with a ranged weapon.
     /// </summary>
     public float RangedTotalDamageBonusPercentPoints =>
-        (GetEquippedRangedPhysicalDamagePercent() + GetUnlockedRangedMinorBonuses().rangedDamagePercent) * 100f;
+        (GetEquippedRangedPhysicalDamagePercent() +
+         GetUnlockedRangedMinorBonuses().rangedDamagePercent +
+         GetUnlockedSkillMinorBonuses(SkillType.Ranged).rangedDamagePercent) * 100f;
 
     /// <inheritdoc cref="RangedTotalDamageBonusPercentPoints"/>
     public float RangedPhysicalDamageBonusPercentPoints => RangedTotalDamageBonusPercentPoints;
@@ -1852,6 +1898,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
 
         float gearAtkSpeedPct = GetEquippedAttackSpeedPercent() + meleeBonuses.meleeAttackSpeedPercent;
+        RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
+        SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
+        gearAtkSpeedPct += rangedBonuses.rangedAttackSpeedPercent + skillBonuses.magicAttackSpeedPercent;
 
         if (buffController)
             gearAtkSpeedPct += buffController.GetTotalMagnitude(ConsumableEffectType.AttackSpeed);
@@ -1930,7 +1979,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (support)
             gearBonus += support.SupportCritChanceBonus;
 
-        return Mathf.Clamp01(baseCrit + gearBonus + meleeBonuses.meleeCritChance);
+        RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
+        SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
+        return Mathf.Clamp01(baseCrit + gearBonus + meleeBonuses.meleeCritChance + rangedBonuses.rangedCritChance + skillBonuses.magicCritChance);
     }
 
     private float GetCritMultiplier()
@@ -1965,7 +2016,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (support)
             gearBonus += support.SupportCritMultiplierBonus;
 
-        return Mathf.Max(1f, baseMult + gearBonus + meleeBonuses.meleeCritDamage);
+        SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
+        return Mathf.Max(1f, baseMult + gearBonus + meleeBonuses.meleeCritDamage + skillBonuses.magicCritDamage);
     }
 
     private MeleeMinorNodeBonuses GetActiveMeleeMinorBonuses()
@@ -1982,6 +2034,28 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return default;
 
         return GetUnlockedRangedMinorBonuses();
+    }
+
+    private SkillMinorNodeBonuses GetGatherSkillMinorBonuses(ToolType toolType)
+    {
+        SkillType skillType = toolType switch
+        {
+            ToolType.Pickaxe => SkillType.Mining,
+            ToolType.Axe => SkillType.Woodcutting,
+            ToolType.FishingRod => SkillType.Fishing,
+            _ => SkillType.Mining
+        };
+        return GetUnlockedSkillMinorBonuses(skillType);
+    }
+
+    private SkillMinorNodeBonuses GetActiveSkillMinorBonusesForCurrentAttack()
+    {
+        AttackSkill attackSkill = GetCurrentAttackSkill();
+        if (attackSkill == AttackSkill.Ranged)
+            return GetUnlockedSkillMinorBonuses(SkillType.Ranged);
+        if (attackSkill == AttackSkill.Magic)
+            return GetUnlockedSkillMinorBonuses(SkillType.Magic);
+        return default;
     }
 
     private MeleeMinorNodeBonuses GetUnlockedMeleeMinorBonuses()
@@ -2047,6 +2121,38 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 continue;
 
             ApplyRangedMinorOption(unlock.rangedMinorStatOption, ref total);
+        }
+
+        return total;
+    }
+
+    private SkillMinorNodeBonuses GetUnlockedSkillMinorBonuses(SkillType skillType)
+    {
+        if (!_ownerPlayer)
+            return default;
+
+        PreferRuntimeSkillsManager();
+        if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
+        if (!skillsManager || !skillDatabase)
+            return default;
+
+        SkillDefinition skillDef = skillDatabase.Get(skillType);
+        if (skillDef == null || skillDef.unlocks == null || skillDef.unlocks.Count == 0)
+            return default;
+
+        int skillLevel = skillsManager.GetLevel(skillType);
+        SkillMinorNodeBonuses total = default;
+        for (int i = 0; i < skillDef.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = skillDef.unlocks[i];
+            if (unlock == null)
+                continue;
+            if (unlock.unlockType != SkillUnlockType.MinorPassive)
+                continue;
+            if (unlock.requiredLevel > skillLevel)
+                continue;
+
+            ApplySkillSpecificMinorOption(skillType, unlock, ref total);
         }
 
         return total;
@@ -2197,6 +2303,71 @@ public class CharacterStats : MonoBehaviour, ISaveable
         {
             case RangedMinorNodeStatOption.RangedDamagePercent3:
                 total.rangedDamagePercent += 0.03f;
+                break;
+            case RangedMinorNodeStatOption.RangedAttackSpeedPercent3:
+                total.rangedAttackSpeedPercent += 0.03f;
+                break;
+            case RangedMinorNodeStatOption.RangedCritChancePercent2:
+                total.rangedCritChance += 0.02f;
+                break;
+            case RangedMinorNodeStatOption.RangedMoveSpeedPercent5:
+                total.rangedMoveSpeedPercent += 0.05f;
+                break;
+        }
+    }
+
+    private static void ApplySkillSpecificMinorOption(SkillType skillType, SkillUnlockDefinition unlock, ref SkillMinorNodeBonuses total)
+    {
+        switch (skillType)
+        {
+            case SkillType.Woodcutting:
+                switch (unlock.woodcuttingMinorStatOption)
+                {
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGatherSpeedFlat01: total.gatherSpeedFlat += 0.1f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent2: total.gatherGrit += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingEnergyEfficiencyPercent2: total.gatherEnergyEfficiency += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusItemChancePercent2: total.gatherBonusItemChance += 0.02f; break;
+                }
+                break;
+
+            case SkillType.Mining:
+                switch (unlock.miningMinorStatOption)
+                {
+                    case MiningMinorNodeStatOption.MiningGatherSpeedFlat01: total.gatherSpeedFlat += 0.1f; break;
+                    case MiningMinorNodeStatOption.MiningGritPercent2: total.gatherGrit += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningEnergyEfficiencyPercent2: total.gatherEnergyEfficiency += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningBonusItemChancePercent2: total.gatherBonusItemChance += 0.02f; break;
+                }
+                break;
+
+            case SkillType.Fishing:
+                switch (unlock.fishingMinorStatOption)
+                {
+                    case FishingMinorNodeStatOption.FishingGatherSpeedFlat01: total.gatherSpeedFlat += 0.1f; break;
+                    case FishingMinorNodeStatOption.FishingGritPercent2: total.gatherGrit += 0.02f; break;
+                    case FishingMinorNodeStatOption.FishingEnergyEfficiencyPercent2: total.gatherEnergyEfficiency += 0.02f; break;
+                    case FishingMinorNodeStatOption.FishingBonusItemChancePercent2: total.gatherBonusItemChance += 0.02f; break;
+                }
+                break;
+
+            case SkillType.Endurance:
+                switch (unlock.enduranceMinorStatOption)
+                {
+                    case EnduranceMinorNodeStatOption.EnduranceArmorFlat2: total.enduranceArmorFlat += 2f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceMagicResistFlat2: total.enduranceMagicResistFlat += 2f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceHealthFlat5: total.enduranceHealthFlat += 5f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceLifeRegenFlat1: total.enduranceLifeRegenFlat += 1f; break;
+                }
+                break;
+
+            case SkillType.Magic:
+                switch (unlock.magicMinorStatOption)
+                {
+                    case MagicMinorNodeStatOption.MagicDamagePercent3: total.magicDamagePercent += 0.03f; break;
+                    case MagicMinorNodeStatOption.MagicCritChancePercent2: total.magicCritChance += 0.02f; break;
+                    case MagicMinorNodeStatOption.MagicAttackSpeedPercent3: total.magicAttackSpeedPercent += 0.03f; break;
+                    case MagicMinorNodeStatOption.MagicCritDamagePercent8: total.magicCritDamage += 0.08f; break;
+                }
                 break;
         }
     }

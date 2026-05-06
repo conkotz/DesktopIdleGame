@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.Serialization;
 
 [System.Serializable]
 public class SkillUnlockDefinition
@@ -14,6 +15,18 @@ public class SkillUnlockDefinition
     public MeleeMinorNodeStatOption meleeMinorStatOption = MeleeMinorNodeStatOption.None;
     [Tooltip("Preset stat package for MinorPassive ranged nodes. Ignored for non-MinorPassive rows.")]
     public RangedMinorNodeStatOption rangedMinorStatOption = RangedMinorNodeStatOption.None;
+    [Tooltip("Preset stat package for MinorPassive woodcutting nodes. Ignored for non-MinorPassive rows.")]
+    public WoodcuttingMinorNodeStatOption woodcuttingMinorStatOption = WoodcuttingMinorNodeStatOption.None;
+    [Tooltip("Preset stat package for MinorPassive mining nodes. Ignored for non-MinorPassive rows.")]
+    public MiningMinorNodeStatOption miningMinorStatOption = MiningMinorNodeStatOption.None;
+    [Tooltip("Preset stat package for MinorPassive fishing nodes. Ignored for non-MinorPassive rows.")]
+    public FishingMinorNodeStatOption fishingMinorStatOption = FishingMinorNodeStatOption.None;
+    [Tooltip("Preset stat package for MinorPassive endurance nodes. Ignored for non-MinorPassive rows.")]
+    public EnduranceMinorNodeStatOption enduranceMinorStatOption = EnduranceMinorNodeStatOption.None;
+    [Tooltip("Preset stat package for MinorPassive magic nodes. Ignored for non-MinorPassive rows.")]
+    public MagicMinorNodeStatOption magicMinorStatOption = MagicMinorNodeStatOption.None;
+    [FormerlySerializedAs("skillMinorStatOption")]
+    [HideInInspector] public SkillMinorStatOption legacySkillMinorStatOption = SkillMinorStatOption.None;
 
     [Header("Optional refs")]
     public AbilityDefinition ability;

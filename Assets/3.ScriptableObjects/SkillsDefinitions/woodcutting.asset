@@ -29,12 +29,43 @@ MonoBehaviour:
     rangedMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
-  - requiredLevel: 2
-    title: 
-    description: Can chop basic wood trees
-    icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
+  - requiredLevel: 1
+    title: Woodcutting Minor I
+    description: +0.1 Gathering Speed
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 1
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 2
+    title: Woodcutting Minor II
+    description: +2% Grit
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 2
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 3
+    title: Woodcutting Minor III
+    description: +2% Energy Efficiency
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 3
+    ability: {fileID: 0}
+    choices: []
+  - requiredLevel: 4
+    title: Woodcutting Minor IV
+    description: +2% Bonus Item Chance
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+    unlockType: 0
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 4
     ability: {fileID: 0}
     choices: []

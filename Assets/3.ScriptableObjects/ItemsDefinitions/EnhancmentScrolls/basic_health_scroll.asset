@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: basic_health_scroll
   displayName: Basic Health Scroll
   displayNameSingular: 
-  icon: {fileID: 7995556455045366416, guid: c5b3a5523517f684ab255b6f32b45ca2, type: 3}
+  icon: {fileID: 8419143992342710197, guid: 04e8bfe3fb1ded947b39c734ed3a05be, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0

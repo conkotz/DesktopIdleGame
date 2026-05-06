@@ -743,6 +743,21 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         float vsShocked = 0f;
         float vsLowHp = 0f;
         float rangedDamage = 0f;
+        float gatherSpeedFlat = 0f;
+        float gatherGrit = 0f;
+        float gatherEnergyEfficiency = 0f;
+        float gatherBonusItemChance = 0f;
+        float enduranceArmor = 0f;
+        float enduranceMagicResist = 0f;
+        float enduranceHp = 0f;
+        float enduranceHpRegen = 0f;
+        float rangedAttackSpeed = 0f;
+        float rangedCritChance = 0f;
+        float rangedMoveSpeed = 0f;
+        float magicDamage = 0f;
+        float magicAttackSpeed = 0f;
+        float magicCritChance = 0f;
+        float magicCritDamage = 0f;
 
         foreach (var unlock in skill.unlocks)
         {
@@ -785,6 +800,66 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                     case RangedMinorNodeStatOption.RangedDamagePercent3:
                         rangedDamage += 0.03f;
                         break;
+                    case RangedMinorNodeStatOption.RangedAttackSpeedPercent3:
+                        rangedAttackSpeed += 0.03f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedCritChancePercent2:
+                        rangedCritChance += 0.02f;
+                        break;
+                    case RangedMinorNodeStatOption.RangedMoveSpeedPercent5:
+                        rangedMoveSpeed += 0.05f;
+                        break;
+                }
+            }
+
+            if (skill.skillType == SkillType.Woodcutting)
+            {
+                switch (unlock.woodcuttingMinorStatOption)
+                {
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGatherSpeedFlat01: gatherSpeedFlat += 0.1f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent2: gatherGrit += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingEnergyEfficiencyPercent2: gatherEnergyEfficiency += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusItemChancePercent2: gatherBonusItemChance += 0.02f; break;
+                }
+            }
+            else if (skill.skillType == SkillType.Mining)
+            {
+                switch (unlock.miningMinorStatOption)
+                {
+                    case MiningMinorNodeStatOption.MiningGatherSpeedFlat01: gatherSpeedFlat += 0.1f; break;
+                    case MiningMinorNodeStatOption.MiningGritPercent2: gatherGrit += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningEnergyEfficiencyPercent2: gatherEnergyEfficiency += 0.02f; break;
+                    case MiningMinorNodeStatOption.MiningBonusItemChancePercent2: gatherBonusItemChance += 0.02f; break;
+                }
+            }
+            else if (skill.skillType == SkillType.Fishing)
+            {
+                switch (unlock.fishingMinorStatOption)
+                {
+                    case FishingMinorNodeStatOption.FishingGatherSpeedFlat01: gatherSpeedFlat += 0.1f; break;
+                    case FishingMinorNodeStatOption.FishingGritPercent2: gatherGrit += 0.02f; break;
+                    case FishingMinorNodeStatOption.FishingEnergyEfficiencyPercent2: gatherEnergyEfficiency += 0.02f; break;
+                    case FishingMinorNodeStatOption.FishingBonusItemChancePercent2: gatherBonusItemChance += 0.02f; break;
+                }
+            }
+            else if (skill.skillType == SkillType.Endurance)
+            {
+                switch (unlock.enduranceMinorStatOption)
+                {
+                    case EnduranceMinorNodeStatOption.EnduranceArmorFlat2: enduranceArmor += 2f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceMagicResistFlat2: enduranceMagicResist += 2f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceHealthFlat5: enduranceHp += 5f; break;
+                    case EnduranceMinorNodeStatOption.EnduranceLifeRegenFlat1: enduranceHpRegen += 1f; break;
+                }
+            }
+            else if (skill.skillType == SkillType.Magic)
+            {
+                switch (unlock.magicMinorStatOption)
+                {
+                    case MagicMinorNodeStatOption.MagicDamagePercent3: magicDamage += 0.03f; break;
+                    case MagicMinorNodeStatOption.MagicAttackSpeedPercent3: magicAttackSpeed += 0.03f; break;
+                    case MagicMinorNodeStatOption.MagicCritChancePercent2: magicCritChance += 0.02f; break;
+                    case MagicMinorNodeStatOption.MagicCritDamagePercent8: magicCritDamage += 0.08f; break;
                 }
             }
         }
@@ -814,6 +889,36 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         else if (skill.skillType == SkillType.Ranged)
         {
             AppendPct(sb, rangedDamage, "Ranged Damage");
+            AppendPct(sb, rangedAttackSpeed, "Ranged Attack Speed");
+            AppendPct(sb, rangedCritChance, "Ranged Crit Chance");
+            AppendPct(sb, rangedMoveSpeed, "Ranged Move Speed");
+        }
+        else if (skill.skillType == SkillType.Magic)
+        {
+            AppendPct(sb, magicDamage, "Magic Damage");
+            AppendPct(sb, magicAttackSpeed, "Cast Speed");
+            AppendPct(sb, magicCritChance, "Crit Chance");
+            AppendPct(sb, magicCritDamage, "Crit Damage");
+        }
+        else if (skill.skillType == SkillType.Endurance)
+        {
+            AppendFlat(sb, enduranceArmor, "Armour");
+            AppendFlat(sb, enduranceMagicResist, "Magic Resist");
+            AppendFlat(sb, enduranceHp, "Max HP");
+            AppendFlat(sb, enduranceHpRegen, "HP Regen");
+        }
+        else if (skill.skillType == SkillType.Mining || skill.skillType == SkillType.Woodcutting || skill.skillType == SkillType.Fishing)
+        {
+            if (gatherSpeedFlat > 0f)
+            {
+                sb.Append("• +");
+                sb.Append(gatherSpeedFlat.ToString("0.##"));
+                sb.Append(" Gathering Speed");
+                sb.AppendLine();
+            }
+            AppendPct(sb, gatherGrit, "Grit");
+            AppendPct(sb, gatherEnergyEfficiency, "Energy Efficiency");
+            AppendPct(sb, gatherBonusItemChance, "Bonus Item Chance");
         }
 
         // Major passive conversion summary (currently Melee Lv10 Bloodletting branch).

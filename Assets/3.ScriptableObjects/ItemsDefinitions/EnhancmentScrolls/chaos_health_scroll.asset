@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: chaos_health_scroll
   displayName: Chaos Health Scroll
   displayNameSingular: 
-  icon: {fileID: -2196146746449846931, guid: 8c86b841d25e4e846b1108f9bf2df2fb, type: 3}
+  icon: {fileID: -1833520815334128739, guid: 9727e071c536dc7428e52e04c944d69b, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0

@@ -2606,13 +2606,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SaleUndoManager
   inventory: {fileID: 0}
   wallet: {fileID: 0}
-  undoPanel: {fileID: 0}
-  rowsRoot: {fileID: 0}
-  undoRowPrefab: {fileID: 0}
-  shopDockEdgePadding: 8
-  visibleMax: 4
   maxEntriesKept: 30
-  undoTimeoutSeconds: 10
 --- !u!114 &945330858
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3420,7 +3414,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2416199871598626844, guid: e893aefd93740714b999573b02916984, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2416199871598626845, guid: e893aefd93740714b999573b02916984, type: 3}
       propertyPath: m_Enabled
