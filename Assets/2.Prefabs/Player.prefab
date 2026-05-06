@@ -5889,7 +5889,7 @@ MonoBehaviour:
   magicProjectileFireDelay: 0
   idleCombatEnabled: 0
   idleRescanInterval: 0.25
-  idleAutoPickupIntervalSeconds: 5
+  idleAutoPickupIntervalSeconds: 30
   retaliationEnabled: 0
   actionBar: {fileID: 0}
   consumableController: {fileID: 0}

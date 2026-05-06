@@ -20,6 +20,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
 
     private readonly HashSet<string> _unlocked = new(StringComparer.Ordinal);
     private readonly HashSet<string> _completed = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _progressUnlockAnnounced = new(StringComparer.Ordinal);
     /// <summary>Nodes the player has actually loaded in GamePlay at least once (see GameplayLevelBootstrapper).</summary>
     private readonly HashSet<string> _entered = new(StringComparer.Ordinal);
     /// <summary>Total enemy kills credited per map node id (across this save).</summary>
@@ -66,6 +67,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         _entered.Clear();
         _enemyKillsByNode.Clear();
         _enduranceMaxSelectableTier.Clear();
+        _progressUnlockAnnounced.Clear();
 
         if (worldMap && !string.IsNullOrEmpty(worldMap.startingNodeId))
             _unlocked.Add(worldMap.startingNodeId);
@@ -77,6 +79,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         }
 
         ProgressChanged?.Invoke();
+        RefreshProgressUnlockAnnouncementBaseline();
     }
 
     public bool IsNodeUnlocked(string nodeId)
@@ -118,6 +121,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
             return;
 
         _enemyKillsByNode[id] = next;
+        TryAnnounceNewProgressUnlockedNodes();
         ProgressChanged?.Invoke();
     }
 
@@ -169,6 +173,8 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         string id = nodeId.Trim();
         if (!_unlocked.Add(id)) return;
         GameLog.LevelAvailable(ResolveNodeDisplayName(id));
+        // Node is already unlocked by map-story gate; don't duplicate a progress-lock unlock log for this id.
+        _progressUnlockAnnounced.Add(id);
         ProgressChanged?.Invoke();
     }
 
@@ -204,6 +210,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
             if (!_completed.Remove(nodeId)) return;
         }
 
+        TryAnnounceNewProgressUnlockedNodes();
         ProgressChanged?.Invoke();
     }
 
@@ -394,6 +401,62 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
             }
         }
 
+        RefreshProgressUnlockAnnouncementBaseline();
         ProgressChanged?.Invoke();
+    }
+
+    private void RefreshProgressUnlockAnnouncementBaseline()
+    {
+        _progressUnlockAnnounced.Clear();
+        if (worldMap == null || worldMap.regions == null)
+            return;
+
+        for (int r = 0; r < worldMap.regions.Count; r++)
+        {
+            RegionDefinition region = worldMap.regions[r];
+            if (region == null || region.nodes == null)
+                continue;
+
+            for (int n = 0; n < region.nodes.Count; n++)
+            {
+                MapNodeDefinition node = region.nodes[n];
+                if (node == null || string.IsNullOrWhiteSpace(node.nodeId))
+                    continue;
+
+                if (node.IsMapProgressSatisfied(this) && node.MeetsPreviousMapCompletionRequirements(this))
+                    _progressUnlockAnnounced.Add(node.nodeId.Trim());
+            }
+        }
+    }
+
+    private void TryAnnounceNewProgressUnlockedNodes()
+    {
+        if (worldMap == null || worldMap.regions == null)
+            return;
+
+        for (int r = 0; r < worldMap.regions.Count; r++)
+        {
+            RegionDefinition region = worldMap.regions[r];
+            if (region == null || region.nodes == null)
+                continue;
+
+            for (int n = 0; n < region.nodes.Count; n++)
+            {
+                MapNodeDefinition node = region.nodes[n];
+                if (node == null || string.IsNullOrWhiteSpace(node.nodeId))
+                    continue;
+
+                string nodeId = node.nodeId.Trim();
+                if (_progressUnlockAnnounced.Contains(nodeId))
+                    continue;
+                if (!node.IsMapProgressSatisfied(this))
+                    continue;
+                if (!node.MeetsPreviousMapCompletionRequirements(this))
+                    continue;
+
+                _progressUnlockAnnounced.Add(nodeId);
+                GameLog.LevelAvailable(ResolveNodeDisplayName(nodeId));
+            }
+        }
     }
 }

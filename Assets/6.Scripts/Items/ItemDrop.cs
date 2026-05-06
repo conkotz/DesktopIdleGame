@@ -24,6 +24,11 @@ public class ItemDrop : MonoBehaviour
     [Header("Click priority")]
     [Tooltip("Layers that compete for clicks (Pickup + Resource + NPC). Must include this object's layer.")]
     [SerializeField] private LayerMask interactMask = ~0;
+    [Header("Auto-battle vacuum")]
+    [SerializeField, Min(0.1f)] private float autoBattleVacuumSpeed = 9f;
+    [SerializeField, Min(0f)] private float autoBattleVacuumAcceleration = 18f;
+    [SerializeField, Min(0f)] private float autoBattleVacuumArcHeight = 1.25f;
+    [SerializeField, Min(0.01f)] private float autoBattleVacuumTouchEpsilon = 0.04f;
 
     public string ItemId { get; private set; }
     public int Amount { get; private set; }
@@ -33,6 +38,7 @@ public class ItemDrop : MonoBehaviour
     private Collider2D _col;
     private Rigidbody2D _rb;
     private Coroutine _launchRoutine;
+    private Coroutine _autoBattleVacuumRoutine;
 
     // Used by WorldClickPicker2D tie-breaker (newest drop wins)
     public int DropOrder { get; private set; }
@@ -245,5 +251,110 @@ public class ItemDrop : MonoBehaviour
         Amount = left;
         RefreshStackLabel();
         return false;
+    }
+
+    public void BeginAutoBattleVacuum(
+        Transform target,
+        Collider2D targetCollider,
+        Inventory inventory,
+        PlayerStorage storage = null)
+    {
+        if (target == null || inventory == null || Amount <= 0)
+            return;
+        if (_autoBattleVacuumRoutine != null)
+            return;
+
+        _autoBattleVacuumRoutine = StartCoroutine(
+            CoAutoBattleVacuum(target, targetCollider, inventory, storage));
+    }
+
+    private IEnumerator CoAutoBattleVacuum(
+        Transform target,
+        Collider2D targetCollider,
+        Inventory inventory,
+        PlayerStorage storage)
+    {
+        if (_launchRoutine != null)
+        {
+            StopCoroutine(_launchRoutine);
+            _launchRoutine = null;
+        }
+
+        if (!_rb)
+            _rb = GetComponent<Rigidbody2D>();
+        if (!_col)
+            _col = GetComponent<Collider2D>();
+
+        if (_rb)
+        {
+            _rb.linearVelocity = Vector2.zero;
+            _rb.angularVelocity = 0f;
+            _rb.gravityScale = 0f;
+            _rb.bodyType = RigidbodyType2D.Kinematic;
+        }
+        if (_col)
+            _col.isTrigger = true;
+
+        Vector3 startPos = transform.position;
+        Vector3 linearPos = startPos;
+        Vector3 initialTargetPoint = target.position;
+        if (targetCollider != null)
+            initialTargetPoint = targetCollider.ClosestPoint(startPos);
+        float initialDistance = Mathf.Max(0.001f, Vector3.Distance(startPos, initialTargetPoint));
+        float accelTime = 0f;
+        float currentArcHeight = Mathf.Max(0f, autoBattleVacuumArcHeight);
+
+        while (target != null && inventory != null && Amount > 0)
+        {
+            Vector3 targetPoint = target.position;
+            if (targetCollider != null)
+                targetPoint = targetCollider.ClosestPoint(linearPos);
+
+            accelTime += Time.deltaTime;
+            float speed = Mathf.Max(0.1f, autoBattleVacuumSpeed) + Mathf.Max(0f, autoBattleVacuumAcceleration) * accelTime;
+            float step = speed * Time.deltaTime;
+
+            linearPos = Vector3.MoveTowards(linearPos, targetPoint, step);
+
+            // Arc lift fades toward the end so pickups "snap" into the player cleanly.
+            float remaining = Vector3.Distance(linearPos, targetPoint);
+            float progress01 = 1f - Mathf.Clamp01(remaining / initialDistance);
+            float arcLift = Mathf.Sin(progress01 * Mathf.PI) * currentArcHeight;
+            Vector3 next = linearPos + Vector3.up * arcLift;
+
+            transform.position = next;
+            if (_rb)
+                _rb.position = next;
+
+            if (HasReachedAutoBattleVacuumPickupRange(targetCollider))
+            {
+                bool picked = TryPickup(inventory, storage, idleAutoBattleLoot: true);
+                if (!picked)
+                {
+                    // Inventory/storage constraints prevented full pickup; stop vacuuming this drop for now.
+                    break;
+                }
+            }
+
+            yield return null;
+        }
+
+        _autoBattleVacuumRoutine = null;
+    }
+
+    private bool HasReachedAutoBattleVacuumPickupRange(Collider2D targetCollider)
+    {
+        if (targetCollider == null)
+            return false;
+
+        if (_col != null)
+        {
+            ColliderDistance2D d = _col.Distance(targetCollider);
+            if (d.isOverlapped || d.distance <= autoBattleVacuumTouchEpsilon)
+                return true;
+        }
+
+        Vector3 closest = targetCollider.ClosestPoint(transform.position);
+        return (transform.position - closest).sqrMagnitude <= autoBattleVacuumTouchEpsilon * autoBattleVacuumTouchEpsilon;
     }
 }

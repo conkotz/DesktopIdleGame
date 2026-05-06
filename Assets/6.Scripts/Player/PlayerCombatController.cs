@@ -81,8 +81,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     [Tooltip("How often to rescan for a living enemy while idle (seconds). Closest by default; Longbow picks the furthest enemy first.")]
     [SerializeField] private float idleRescanInterval = 0.25f;
 
-    [Tooltip("While idle combat is on, every N seconds all dropped items on the scene are picked up (no walking).")]
-    [SerializeField, Min(0.5f)] private float idleAutoPickupIntervalSeconds = 5f;
+    [Tooltip("While idle combat is on, every N seconds all dropped items on the scene begin vacuuming to the player and are picked up on contact.")]
+    [SerializeField, Min(0.5f)] private float idleAutoPickupIntervalSeconds = 20f;
     private float _nextIdleAutoPickupTime;
     [Header("Retaliation")]
     [SerializeField] private bool retaliationEnabled = false;
@@ -130,6 +130,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _nextIdleScanTime;
     private float _nextLowManaPopupTime;
     private float _nextSupportWeaponMismatchPopupTime;
+    private bool _isClosingDistanceForAttack;
     private float _combatSessionStartTime = -1f;
     private float _combatSessionDamageSum;
     private DpsDamageBreakdown _outgoingDamageSum;
@@ -143,6 +144,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private readonly List<string> _incomingDealerOrder = new List<string>();
 
     private readonly List<EnemyBaseController> _ailmentSpreadScratch = new List<EnemyBaseController>(16);
+
 
     public float GetAttackCooldownSeconds()
     {
@@ -317,7 +319,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (!playerCol) playerCol = GetComponent<Collider2D>();
         TryResolveAutoConsumeRefs();
         if (idleCombatEnabled)
-            _nextIdleAutoPickupTime = Time.time + Mathf.Max(0.5f, idleAutoPickupIntervalSeconds);
+            _nextIdleAutoPickupTime = Time.time + idleAutoPickupIntervalSeconds;
     }
 
     private void OnEnable()
@@ -399,6 +401,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (clearTargetIfDead && _target.IsDead)
         {
+            _isClosingDistanceForAttack = false;
             ClearTargetInternal();
 
             if (player != null)
@@ -460,9 +463,13 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         float enemyHalf = HalfWidthX(_targetColCached);
 
         float gap = EdgeGapX(myX, enemyX, myHalf, enemyHalf);
+        bool shouldStartClosing = gap > myRange + stopSlack;
+        bool shouldKeepClosing = _isClosingDistanceForAttack && gap > myRange;
+        bool shouldCloseDistance = shouldStartClosing || shouldKeepClosing;
 
-        if (gap > myRange + stopSlack)
+        if (shouldCloseDistance)
         {
+            _isClosingDistanceForAttack = true;
             float desiredCenterDist = myRange + myHalf + enemyHalf;
             float desiredX = (myX < enemyX) ? (enemyX - desiredCenterDist) : (enemyX + desiredCenterDist);
 
@@ -471,6 +478,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return;
         }
 
+        _isClosingDistanceForAttack = false;
         player.StopMoveOnly();
 
         if (kiteAtRangeEdge)
@@ -491,7 +499,6 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (Time.time < _nextAttackTime)
         {
-            player.ClearActionOverride();
             return;
         }
 
@@ -1092,8 +1099,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return;
 
         const float spreadMinRadius = 3f;
+        const float spreadMaxRadius = 5f;
         float weaponRange = Mathf.Max(0f, stats.Range);
         float radius = Mathf.Max(spreadMinRadius, weaponRange) + rangePadding;
+        radius = Mathf.Min(spreadMaxRadius, radius);
         float r2 = radius * radius;
         Vector3 origin = originEnemy.transform.position;
 
@@ -1261,7 +1270,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             _nextIdleScanTime = 0f;
             _nextAutoConsumeTime = 0f;
             _nextAutoAbilityTime = 0f;
-            _nextIdleAutoPickupTime = Time.time + Mathf.Max(0.5f, idleAutoPickupIntervalSeconds);
+            _nextIdleAutoPickupTime = Time.time + idleAutoPickupIntervalSeconds;
             TickAutoConsumables();
             TickAutoAbilities();
             TickIdleCombatTargeting();
@@ -1279,7 +1288,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (!ToggleSettingsStore.Get(ToggleSettingId.AutoLootDuringAutoBattle))
             return;
         if (Time.time < _nextIdleAutoPickupTime) return;
-        _nextIdleAutoPickupTime = Time.time + Mathf.Max(0.5f, idleAutoPickupIntervalSeconds);
+        _nextIdleAutoPickupTime = Time.time + idleAutoPickupIntervalSeconds;
 
         PlayerStorage storage = null;
         if (player != null)
@@ -1292,7 +1301,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         {
             var d = drops[i];
             if (d != null)
-                d.TryPickup(inventory, storage, idleAutoBattleLoot: true);
+                d.BeginAutoBattleVacuum(transform, playerCol, inventory, storage);
         }
     }
 
@@ -1339,7 +1348,12 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 ? FindFurthestLivingEnemyWithinAttackRangeOrClosestFallback()
                 : FindClosestLivingEnemy();
 
-        // 2) Smart retarget: if a closer enemy appears while moving, switch.
+        // 2) Longbow smart-pick only applies when acquiring a target from idle.
+        // Once already engaged, keep current target stable.
+        if (ShouldIdlePickFurthestEnemyFirst())
+            return current;
+
+        // 3) Smart retarget: if a closer enemy appears while moving, switch.
         if (!idleAllowRetargetToCloserEnemy)
             return current;
 
@@ -1354,18 +1368,6 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         // Only switch when the new target is materially closer.
         if (closeD + Mathf.Max(0f, idleRetargetCloserByAtLeastUnits) < curD)
             return closest;
-
-        // If using longbow preference, still allow picking furthest *within range* when that does not increase travel.
-        if (ShouldIdlePickFurthestEnemyFirst())
-        {
-            EnemyBaseController furthestInRange = FindFurthestLivingEnemyWithinAttackRange();
-            if (furthestInRange != null && furthestInRange != current)
-            {
-                float furD = Mathf.Abs(furthestInRange.transform.position.x - myX);
-                if (furD <= curD + 0.001f)
-                    return furthestInRange;
-            }
-        }
 
         return current;
     }
@@ -1513,12 +1515,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private void SetTargetInternal(EnemyBaseController enemy)
     {
         _target = enemy;
+        _isClosingDistanceForAttack = false;
         _targetColCached = null;
         OnTargetChanged?.Invoke();
     }
 
     public void ClearTarget()
     {
+        _isClosingDistanceForAttack = false;
         ClearTargetInternal();
     }
 

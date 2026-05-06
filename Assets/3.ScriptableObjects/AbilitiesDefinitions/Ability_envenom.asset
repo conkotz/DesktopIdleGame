@@ -28,6 +28,7 @@ MonoBehaviour:
   lightningDamageMultiplier: 0
   poisonDamageMultiplier: 0
   bleedDamageMultiplier: 0
-  requiredWeaponType: 4
+  requiredWeaponType: 1
   sourceSkill: 3
   unlockLevel: 5
+  minionSpawnDefinition: {fileID: 0}

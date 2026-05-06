@@ -141,11 +141,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ItemDrop
   spriteRenderer: {fileID: 5024497530229310236}
-  lifetimeSeconds: 45
+  lifetimeSeconds: 180
   stackAmountText: {fileID: 5514351557533847846}
   interactMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  autoBattleVacuumSpeed: 30
+  autoBattleVacuumAcceleration: 18
+  autoBattleVacuumArcHeight: 1.25
+  autoBattleVacuumTouchEpsilon: 0.04
+  enableIdleFloat: 1
+  idleFloatAmplitudePixels: 3
+  idleFloatFrequencyHz: 0.9
+  idleFloatPixelsPerUnit: 5
 --- !u!222 &2829543890437140573
 CanvasRenderer:
   m_ObjectHideFlags: 0

@@ -116,10 +116,12 @@ public class EnemyBaseController : MonoBehaviour
     private float _nextEnemyAttackTime;
     private bool _hitQueued;
     private float _hitTime;
+    private bool _queuedHitCommitted;
 
     private bool _countedAlive;
     private bool _provoked;
     private bool _engaged;
+    private bool _isChasingForRange;
     private bool _isElite;
     private float _nextDeadlyCloseRangePulseTime;
     /// <summary>Display name without the Elite prefix; used for overhead rich text (red "Elite" + name).</summary>
@@ -436,6 +438,7 @@ public class EnemyBaseController : MonoBehaviour
         if (!shouldAggro)
         {
             _hitQueued = false;
+            _queuedHitCommitted = false;
             ClearEngagement();
             state = EnemyState.Idle;
             TickIdleWanderPhaseIfNeeded();
@@ -451,7 +454,8 @@ public class EnemyBaseController : MonoBehaviour
         if (state != EnemyState.Dead)
             FaceTargetX(player.position.x);
 
-        if (dist <= AttackRange)
+        bool shouldChaseForRange = ResolveShouldChaseForRange(dist);
+        if (!shouldChaseForRange)
         {
             state = EnemyState.Attacking;
             TryStartEnemyAttack();
@@ -466,10 +470,13 @@ public class EnemyBaseController : MonoBehaviour
         if (_hitQueued && Time.time >= _hitTime)
         {
             _hitQueued = false;
+            bool committedHit = _queuedHitCommitted;
+            _queuedHitCommitted = false;
 
             if (!IsPlayerValidAlive()) return;
 
-            if (!requireRangeOnHit || DistanceToPlayerX() <= AttackRange)
+            // If the attack windup already started, treat the hit as committed.
+            if (committedHit || !requireRangeOnHit || DistanceToPlayerX() <= AttackRange)
                 ApplyEnemyHitToPlayer();
         }
     }
@@ -490,7 +497,8 @@ public class EnemyBaseController : MonoBehaviour
         bool useDistanceAggro = LevelUsesDistanceAggro();
         bool shouldAggro = LevelIgnoresAggroRange() || _provoked || (useDistanceAggro && dist <= aggroRange);
 
-        if (shouldAggro && dist > AttackRange)
+        bool shouldChaseForRange = ResolveShouldChaseForRange(dist);
+        if (shouldAggro && shouldChaseForRange)
         {
             float dx = player.position.x - transform.position.x;
             float dir = Mathf.Sign(dx);
@@ -588,6 +596,20 @@ public class EnemyBaseController : MonoBehaviour
         _rb.linearVelocity = new Vector2(0f, _rb.linearVelocity.y);
     }
 
+    private bool ResolveShouldChaseForRange(float dist)
+    {
+        float attackRange = Mathf.Max(0f, AttackRange);
+        float chaseStart = attackRange + Mathf.Max(0f, engagePadding);
+        float chaseStop = attackRange;
+
+        if (_isChasingForRange)
+            _isChasingForRange = dist > chaseStop;
+        else
+            _isChasingForRange = dist > chaseStart;
+
+        return _isChasingForRange;
+    }
+
     /// <summary>
     /// When false (calm level), proximity does not trigger aggro — only <see cref="_provoked"/> (e.g. after taking damage).
     /// </summary>
@@ -662,6 +684,7 @@ public class EnemyBaseController : MonoBehaviour
         float windup = Mathf.Max(0f, enemyAttackWindup);
         _hitTime = Time.time + windup;
         _hitQueued = true;
+        _queuedHitCommitted = true;
 
         SetTriggerSafe(attackTrigger);
 
@@ -925,6 +948,7 @@ public class EnemyBaseController : MonoBehaviour
         _provoked = false;
         state = EnemyState.Dead;
         _hitQueued = false;
+        _queuedHitCommitted = false;
 
         ClearEngagement();
         StopHorizontal();

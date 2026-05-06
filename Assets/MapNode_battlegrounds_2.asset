@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Battlegrounds 2
   description: 'Combat level '
   nodeType: 0
-  enemyAggroMode: 2
+  enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
   enemyRespawnEnabled: 1
@@ -39,7 +39,7 @@ MonoBehaviour:
   nextNodeIds: []
   biome: 0
   spawnGroupPlans:
-  - groupId: MiddleSpawns
+  - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
       spawnPointName: 

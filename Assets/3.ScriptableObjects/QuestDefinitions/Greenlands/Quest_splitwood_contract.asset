@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
   questId: greenlands_splitwood_contract
   regionId: greenlands
-  displayName: Splitwood for the Robin
-  description: Gather splitwood logs for Robin. He will make you arrows.
+  displayName: Splitwood for Robin
+  description: Gather splitwood logs for Robin. He will make you arrows in return.
   details: 
   listCategoryLabel: Gathering
   listStatusOverride: 
@@ -30,6 +30,7 @@ MonoBehaviour:
   additionalItemRewards: []
   rewardNotes: 
   grantIdleCombatUnlockOnRewardClaim: 0
+  grantAdditionalInventorySlotsOnRewardClaim: 0
   repeatable: 0
   autoCompleteQuest: 0
   abandonable: 1
