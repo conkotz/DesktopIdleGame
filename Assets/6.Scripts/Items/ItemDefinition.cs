@@ -557,6 +557,10 @@ public enum EnhancementScrollTargetStat
     LifeSteal,
     MoveSpeed,
     UpgradeSlotReduction,
+    GatherSpeed,
+    GatheringGrit,
+    PoisonChance,
+    PoisonMultiplier,
 }
 
 public enum EnhancementScrollModifierKind
@@ -1205,6 +1209,20 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             case EnhancementScrollTargetStat.MoveSpeed:
                 return Mathf.Abs(bonusStats.moveSpeedPercent) > eps;
 
+            case EnhancementScrollTargetStat.GatherSpeed:
+                // Tool scrolls should be able to initialize stats from 0 on valid tool items.
+                return IsTool;
+
+            case EnhancementScrollTargetStat.GatheringGrit:
+                // Tool scrolls should be able to initialize stats from 0 on valid tool items.
+                return IsTool;
+
+            case EnhancementScrollTargetStat.PoisonChance:
+                return Mathf.Abs(bonusStats.poisonChance) > eps;
+
+            case EnhancementScrollTargetStat.PoisonMultiplier:
+                return Mathf.Abs(bonusStats.poisonMultiplier) > eps;
+
             case EnhancementScrollTargetStat.UpgradeSlotReduction:
                 return true;
 
@@ -1786,7 +1804,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             EnhancementScrollTargetStat.AttackSpeed => "Attack Speed",
             EnhancementScrollTargetStat.LifeSteal => "Life Steal",
             EnhancementScrollTargetStat.MoveSpeed => "Move Speed",
+            EnhancementScrollTargetStat.GatherSpeed => "Gather Speed",
+            EnhancementScrollTargetStat.GatheringGrit => "Gathering Grit",
             EnhancementScrollTargetStat.UpgradeSlotReduction => "Used Upgrade Slot",
+            EnhancementScrollTargetStat.PoisonChance => "Poison Chance",
+            EnhancementScrollTargetStat.PoisonMultiplier => "Poison Multi",
             _ => stat.ToString()
         };
     }

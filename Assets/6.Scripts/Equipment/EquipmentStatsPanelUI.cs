@@ -459,6 +459,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (rodGritText) rodGritText.text = $"Fishing Grit: {stats.RodGrit * 100f:0.#}%";
         if (rodBonusFindText) rodBonusFindText.text = $"Bonus Find: +{stats.RodBonusFindChance * 100f:0.#}%";
         if (rodStaminaEfficiencyText) rodStaminaEfficiencyText.text = $"Stamina Eff: +{stats.RodStaminaEfficiency * 100f:0.#}%";
+
+        EnsureToolStatLineTooltips();
     }
 
     private string GetCurrentMagicTypeLabel()
@@ -822,5 +824,57 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         // Fallback for unexpected/empty cases.
         return plainTypeLabel;
+    }
+
+    private void EnsureToolStatLineTooltips()
+    {
+        SharedTooltipUI tip = ResolveAilmentSharedTooltip();
+        if (!tip)
+            return;
+
+        void Wire(TMP_Text tmp, string title, string body)
+        {
+            if (!tmp)
+                return;
+
+            tmp.raycastTarget = true;
+
+            EquipmentAilmentLineTooltip ailmentOnly = tmp.GetComponent<EquipmentAilmentLineTooltip>();
+            if (ailmentOnly)
+                Destroy(ailmentOnly);
+
+            UIHoverTooltip hover = tmp.GetComponent<UIHoverTooltip>();
+            if (!hover)
+                hover = tmp.gameObject.AddComponent<UIHoverTooltip>();
+            hover.ConfigureForEquipmentStatsFixedCopy(tip, title, body);
+        }
+
+        const string speedBody =
+            "How quickly this tool performs gathering actions.\n\n" +
+            "Higher speed means faster gathering cycles and more resources over time.";
+        const string gritBody =
+            "Chance to double the base gather yield.\n\n" +
+            "Only doubles the main/base resource roll and does not duplicate bonus-find drops.";
+        const string bonusFindBody =
+            "Extra chance to find bonus resources while gathering with this tool.\n\n" +
+            "Applies per gather action and stacks with other bonus find sources.";
+        const string staminaEffBody =
+            "Reduces stamina/energy cost pressure while gathering.\n\n" +
+            "Higher efficiency lets you gather longer before running out of stamina.";
+
+        Wire(pickaxeSpeedText, "Mining Speed", speedBody);
+        Wire(pickaxeGritText, "Mining Grit", gritBody);
+        Wire(pickaxeBonusFindText, "Mining Bonus Find", bonusFindBody);
+        Wire(pickaxeStaminaEfficiencyText, "Mining Stamina Efficiency", staminaEffBody);
+
+        Wire(axeSpeedText, "Woodcut Speed", speedBody);
+        Wire(axeGritText, "Woodcut Grit", gritBody);
+        Wire(axeBonusFindText, "Woodcut Bonus Find", bonusFindBody);
+        Wire(axeStaminaEfficiencyText, "Woodcut Stamina Efficiency", staminaEffBody);
+
+        Wire(rodSpeedText, "Fishing Speed", speedBody);
+        Wire(rodGritText, "Fishing Grit", gritBody);
+        Wire(rodBonusFindText, "Fishing Bonus Find", bonusFindBody);
+        Wire(rodStaminaEfficiencyText, "Fishing Stamina Efficiency", staminaEffBody);
     }
 }

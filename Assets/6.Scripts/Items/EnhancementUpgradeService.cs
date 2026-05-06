@@ -278,6 +278,24 @@ public static class EnhancementUpgradeService
                 target.bonusStats.moveSpeedPercent = ApplyValue(target.bonusStats.moveSpeedPercent, value, percent);
                 break;
 
+            case EnhancementScrollTargetStat.GatherSpeed:
+                if (target.IsTool)
+                    target.toolStats.gatherSpeedMultiplier = ApplyValue(target.toolStats.gatherSpeedMultiplier, value, percent);
+                break;
+
+            case EnhancementScrollTargetStat.GatheringGrit:
+                if (target.IsTool)
+                    target.toolStats.gatheringGrit = Mathf.Clamp01(ApplyValue(target.toolStats.gatheringGrit, value, percent));
+                break;
+
+            case EnhancementScrollTargetStat.PoisonChance:
+                target.bonusStats.poisonChance = ApplyValue(target.bonusStats.poisonChance, value, percent);
+                break;
+
+            case EnhancementScrollTargetStat.PoisonMultiplier:
+                target.bonusStats.poisonMultiplier = ApplyValue(target.bonusStats.poisonMultiplier, value, percent);
+                break;
+
             case EnhancementScrollTargetStat.UpgradeSlotReduction:
                 int slotsToReduce = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(value)));
                 target.usedUpgradeSlots = Mathf.Clamp(

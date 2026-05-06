@@ -304,6 +304,42 @@ public static class GameTooltipTexts
                     "Rating that reduces corruption damage taken (shown with approximate reduction).";
                 return true;
 
+            case "PickaxeSpeedText":
+            case "AxeSpeedText":
+            case "RodSpeedText":
+                title = "Tool Speed";
+                description =
+                    "How quickly this tool performs gathering actions.\n\n" +
+                    "Higher speed means faster gathering cycles and more resources over time.";
+                return true;
+
+            case "PickaxeGritText":
+            case "AxeGritText":
+            case "RodGritText":
+                title = "Tool Grit";
+                description =
+                    "Chance to double the base gather yield.\n\n" +
+                    "Only doubles the main/base resource roll and does not duplicate bonus-find drops.";
+                return true;
+
+            case "PickaxeBonusFindText":
+            case "AxeBonusFindText":
+            case "RodBonusFindText":
+                title = "Bonus Find";
+                description =
+                    "Extra chance to find bonus resources while gathering.\n\n" +
+                    "Applies per gather action and stacks with other bonus find sources.";
+                return true;
+
+            case "PickaxeStaminaEfficiencyText":
+            case "AxeStaminaEfficiencyText":
+            case "RodStaminaEfficiencyText":
+                title = "Stamina Efficiency";
+                description =
+                    "Improves gathering stamina efficiency.\n\n" +
+                    "Higher efficiency lets you gather longer before running out of stamina.";
+                return true;
+
             case "StatsLHeaderLabel":
                 title = "Combat Power";
                 description =

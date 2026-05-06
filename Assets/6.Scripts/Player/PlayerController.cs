@@ -1547,15 +1547,21 @@ public class PlayerController : MonoBehaviour
         // ---- 1) MAIN yield first (this is the ONLY thing that grants XP) ----
         if (def.HasMainYield)
         {
-            int mainAmt = def.RollMainYieldAmount();
+            int baseMainAmt = def.RollMainYieldAmount();
+            int mainAmt = baseMainAmt;
+            bool gritProc = false;
             // Gathering Grit: doubles BASE yield only. Never duplicates bonus drops.
             if (mainAmt > 0 && UnityEngine.Random.value <= Mathf.Clamp01(_gatherGritChance))
+            {
                 mainAmt *= 2;
+                gritProc = true;
+            }
             if (mainAmt > 0)
             {
                 // Add main item
                 int added = inventory.AddPartial(def.YieldItemId, mainAmt);
                 int overflow = mainAmt - added;
+                int gritBonusAdded = gritProc ? Mathf.Clamp(added - baseMainAmt, 0, baseMainAmt) : 0;
 
                 if (overflow > 0)
                 {
@@ -1592,6 +1598,15 @@ public class PlayerController : MonoBehaviour
                     };
 
                     sm.AddXp(skill, def.xpPerTick, def.displayName);
+                }
+
+                if (gritBonusAdded > 0)
+                {
+                    ItemDefinition mainItemDef = inventory.GetItemDef(def.YieldItemId);
+                    string itemName = (mainItemDef != null && !string.IsNullOrWhiteSpace(mainItemDef.displayName))
+                        ? mainItemDef.displayName.Trim()
+                        : def.YieldItemId;
+                    GameLog.Add($"Grit triggered: +{gritBonusAdded} {itemName}", GameLog.ItemGainColor);
                 }
             }
         }

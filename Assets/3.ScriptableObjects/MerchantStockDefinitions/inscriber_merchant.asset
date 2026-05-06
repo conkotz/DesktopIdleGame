@@ -13,16 +13,82 @@ MonoBehaviour:
   m_Name: inscriber_merchant
   m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
   items:
+  - itemId: slot_reduction_scroll
+    costs:
+    - type: 0
+      amount: 20000
+      itemId: 
+    defaultQuantity: -1
   - itemId: basic_weapon_physical_scroll
     costs:
     - type: 0
       amount: 500
       itemId: 
     defaultQuantity: -1
-  - itemId: slot_reduction_scroll
+  - itemId: basic_weapon_poison_chance_scroll
     costs:
     - type: 0
-      amount: 20000
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_weapon_poison_multi_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_weapon_corruption_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_weapon_magic_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_weapon_crit_chance_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_weapon_crit_multi_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_tool_gather_speed_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_tool_grit_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_health_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_armour_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_movespeed_scroll
+    costs:
+    - type: 0
+      amount: 500
       itemId: 
     defaultQuantity: -1
   stockSaveKey: 
