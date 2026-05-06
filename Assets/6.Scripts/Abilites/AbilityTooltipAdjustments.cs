@@ -20,7 +20,7 @@ public static class AbilityTooltipAdjustments
             if (selected == 0)
                 physicalMultiplier += 0.25f;
             else if (selected == 1)
-                cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 5f);
+                cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 3f);
         }
     }
 }

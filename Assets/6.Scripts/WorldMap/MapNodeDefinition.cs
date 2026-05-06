@@ -734,7 +734,7 @@ public class MapNodeDefinition : ScriptableObject
         return "Unlocked";
     }
 
-    public string BuildRequirementsDisplayText()
+    public string BuildRequirementsDisplayText(WorldMapDefinition worldMap = null)
     {
         var sb = new StringBuilder();
 
@@ -750,10 +750,12 @@ public class MapNodeDefinition : ScriptableObject
                 if (string.IsNullOrEmpty(requiredNodeId))
                     continue;
 
+                string requiredDisplayName = ResolveRequirementNodeDisplayName(requiredNodeId, worldMap);
+
                 if (req.requireMapCompleted)
-                    sb.AppendLine($"Complete map: {requiredNodeId}");
+                    sb.AppendLine($"Complete the {requiredDisplayName} map.");
                 if (req.requireEnemyKillsOnMap && req.requiredEnemyKillsOnMap > 0)
-                    sb.AppendLine($"Defeat {req.requiredEnemyKillsOnMap} enemies on: {requiredNodeId}");
+                    sb.AppendLine($"Defeat {req.requiredEnemyKillsOnMap} enemies within the {requiredDisplayName}.");
             }
         }
 
@@ -787,6 +789,18 @@ public class MapNodeDefinition : ScriptableObject
         }
 
         return sb.ToString().Trim();
+    }
+
+    private static string ResolveRequirementNodeDisplayName(string requiredNodeId, WorldMapDefinition worldMap)
+    {
+        if (!string.IsNullOrWhiteSpace(requiredNodeId) && worldMap != null)
+        {
+            MapNodeDefinition requiredNode = worldMap.FindNodeById(requiredNodeId);
+            if (requiredNode != null && !string.IsNullOrWhiteSpace(requiredNode.displayName))
+                return requiredNode.displayName.Trim();
+        }
+
+        return requiredNodeId;
     }
 
     private void OnValidate()

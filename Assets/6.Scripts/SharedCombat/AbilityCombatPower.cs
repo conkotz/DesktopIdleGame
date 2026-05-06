@@ -281,8 +281,8 @@ public static class AbilityCombatPower
             float psAllM = def.GetEffectiveAllDamageMultiplier();
             float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
             float physEff = physMult <= 0f ? 1f : physMult;
-            float magEff = def.GetMagicHitScalingMultiplier();
-            float corrEff = def.GetCorruptionHitScalingMultiplier();
+            float magEff = physEff;
+            float corrEff = physEff;
             float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
             float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
             float physExtra = (avgPhys * physEff + ailmentBonus) * apM * psAllM - avgPhys;
@@ -448,7 +448,7 @@ public static class AbilityCombatPower
         }
         else if (selected == 1)
         {
-            cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 5f); // Relentless Flow
+            cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 3f); // Relentless Flow
         }
     }
 

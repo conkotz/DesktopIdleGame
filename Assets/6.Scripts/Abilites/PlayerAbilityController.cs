@@ -353,11 +353,12 @@ public class PlayerAbilityController : MonoBehaviour
                 return false;
 
             _powerSlashQueued = true;
-            float powerSlashPhysicalBonus = GetPowerSlashPhysicalMultiplierBonus();
-            float physCombo = def.physicalDamageMultiplier + powerSlashPhysicalBonus;
-            _queuedPowerSlashPhysicalMultiplier = physCombo <= 0f ? 1f : physCombo;
-            _queuedPowerSlashMagicMultiplier = def.GetMagicHitScalingMultiplier();
-            _queuedPowerSlashCorruptionMultiplier = def.GetCorruptionHitScalingMultiplier();
+            float powerSlashAnyTypeBonus = GetPowerSlashAnyTypeMultiplierBonus();
+            float allTypeCombo = def.physicalDamageMultiplier + powerSlashAnyTypeBonus;
+            float allTypeEff = allTypeCombo <= 0f ? 1f : allTypeCombo;
+            _queuedPowerSlashPhysicalMultiplier = allTypeEff;
+            _queuedPowerSlashMagicMultiplier = allTypeEff;
+            _queuedPowerSlashCorruptionMultiplier = allTypeEff;
             _queuedPowerSlashAllDamageMultiplier = def.GetEffectiveAllDamageMultiplier();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
@@ -1642,7 +1643,7 @@ public class PlayerAbilityController : MonoBehaviour
         _cooldownEndsById[def.abilityId] = Time.time + cd;
     }
 
-    private float GetPowerSlashPhysicalMultiplierBonus()
+    private float GetPowerSlashAnyTypeMultiplierBonus()
     {
         if (!skillsManager) skillsManager = SkillsManager.Instance;
         if (!skillsManager)
@@ -1661,7 +1662,7 @@ public class PlayerAbilityController : MonoBehaviour
             return 0f;
 
         int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
-        return selected == 1 ? 5f : 0f;
+        return selected == 1 ? 3f : 0f;
     }
 
     private void SpawnPowerSlashTrail()

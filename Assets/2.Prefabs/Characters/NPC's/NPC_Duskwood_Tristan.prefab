@@ -240,7 +240,7 @@ MonoBehaviour:
   openDialogueOnFirstSighting: 1
   openDialogueAfterQuestAccepted: 0
   openDialogueAfterQuestAcceptedQuestId: 
-  oneWayDialogueQueue: 0
+  oneWayDialogueQueue: 1
   oneWayDialogueQueueSaveId: 
   additionalConditionalDialogues:
   - condition: 1

@@ -67,12 +67,12 @@ MonoBehaviour:
     choices:
     - requiredLevel: 8
       title: Brutal Cut
-      description: +25% extra physical damage on Power Slash.
+      description: +25% extra damage on Power Slash.
       icon: {fileID: -809727694383032684, guid: 3fdd0875dbb17674c9abeae52e832828, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 8
       title: Relentless Flow
-      description: -5 seconds Power Slash cooldown.
+      description: -3 seconds Power Slash cooldown.
       icon: {fileID: -4127215080429908137, guid: 4597501a54f49e74bb23c8c362a57b64, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 5

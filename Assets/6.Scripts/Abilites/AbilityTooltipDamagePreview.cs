@@ -171,6 +171,11 @@ public static class AbilityTooltipDamagePreview
         float pEffTip = physMult > scalingEpsilon ? physMult : def.GetPhysicalHitScalingMultiplier();
         float mEffTip = magMult > scalingEpsilon ? magMult : def.GetMagicHitScalingMultiplier();
         float cEffTip = def.GetCorruptionHitScalingMultiplier();
+        if (IsPowerSlash(def))
+        {
+            mEffTip = pEffTip;
+            cEffTip = pEffTip;
+        }
 
         float tipAp = stats ? Mathf.Max(0f, stats.AbilityPower) : 0f;
         bool showApInEffects =
@@ -330,7 +335,7 @@ public static class AbilityTooltipDamagePreview
                 float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
                 float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
                 float physEff = physMult <= 0f ? 1f : physMult;
-                float magEff = def.GetMagicHitScalingMultiplier();
+                float magEff = physEff;
                 float physTotalNoAp = (avgPhys * physEff + ailmentBonus) * allM;
                 float magTotalNoAp = (avgMag * magEff + elementBonus) * allM;
                 physScaler = physTotalNoAp - avgPhys;
@@ -383,7 +388,12 @@ public static class AbilityTooltipDamagePreview
 
         if (hasWeaponScalingLines)
         {
-            if (showAllScaling)
+            if (IsPowerSlash(def))
+            {
+                body.AppendLine(S(
+                    $"Deals {pEffTip * 100f:0.#}% of your hit damage"));
+            }
+            else if (showAllScaling)
             {
                 body.AppendLine(S(
                     $"Deals {allM * 100f:0.#}% of your hit damage"));

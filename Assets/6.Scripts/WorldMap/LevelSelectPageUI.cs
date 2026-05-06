@@ -540,7 +540,7 @@ public class LevelSelectPageUI : MonoBehaviour
 
             bool sel = _selectedNode && _selectedNode == node;
             bool greyOneShotDone = progress && node.IsPermanentlyCompleted(progress);
-            bool unavailable = state == "Map locked" || state == "Skill locked";
+            bool unavailable = state == "Map locked" || state == "Skill locked" || state == "Progress locked";
             bool atThisMap = !string.IsNullOrWhiteSpace(activeNodeId) &&
                 !string.IsNullOrWhiteSpace(node.nodeId) &&
                 string.Equals(node.nodeId.Trim(), activeNodeId.Trim(), StringComparison.Ordinal);
@@ -619,7 +619,7 @@ public class LevelSelectPageUI : MonoBehaviour
             if (!regionUnlocked)
                 selectedNodeState.text = "State: Region locked";
             else if (n && progress)
-                selectedNodeState.text = $"State: {n.GetUiStateLabel(progress, skills)}";
+                selectedNodeState.text = BuildStateText(n, progress, skills);
             else if (n)
                 selectedNodeState.text = "State: Unlocked";
             else
@@ -821,7 +821,7 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         var sb = new StringBuilder();
-        sb.Append(n.BuildRequirementsDisplayText());
+        sb.Append(n.BuildRequirementsDisplayText(worldMap));
 
         // Map lock is already shown in the State line (GetUiStateLabel → "Map locked"); do not repeat here.
 
@@ -923,5 +923,49 @@ public class LevelSelectPageUI : MonoBehaviour
         if (ActiveLevelContext.Current != null)
             return ActiveLevelContext.Current.nodeId;
         return null;
+    }
+
+    private string BuildStateText(MapNodeDefinition node, WorldMapProgressManager progress, SkillsManager skills)
+    {
+        if (node == null)
+            return "";
+
+        string state = node.GetUiStateLabel(progress, skills);
+        if (!string.Equals(state, "Progress locked", StringComparison.Ordinal))
+            return $"State: {state}";
+
+        string progressText = BuildProgressLockDetails(node, progress);
+        if (string.IsNullOrEmpty(progressText))
+            return $"State: {state}";
+
+        return $"State: {state} ({progressText})";
+    }
+
+    private static string BuildProgressLockDetails(MapNodeDefinition node, WorldMapProgressManager progress)
+    {
+        if (node == null || progress == null || node.requiredPreviousMapCompletions == null)
+            return "";
+
+        for (int i = 0; i < node.requiredPreviousMapCompletions.Count; i++)
+        {
+            PreviousMapCompletionRequirement req = node.requiredPreviousMapCompletions[i];
+            if (req == null || !req.enabled || !req.requireEnemyKillsOnMap || req.requiredEnemyKillsOnMap <= 0)
+                continue;
+
+            string requiredNodeId = string.IsNullOrWhiteSpace(req.requiredMapNodeId) ? "" : req.requiredMapNodeId.Trim();
+            if (string.IsNullOrEmpty(requiredNodeId))
+                continue;
+
+            int requiredKills = Mathf.Max(1, req.requiredEnemyKillsOnMap);
+            int currentKills = Mathf.Max(0, progress.GetEnemyKillsOnNode(requiredNodeId));
+            if (currentKills >= requiredKills)
+                continue;
+
+            string currentKillLabel = currentKills == 1 ? "kill" : "kills";
+            string requiredKillLabel = requiredKills == 1 ? "kill" : "kills";
+            return $"{currentKills} {currentKillLabel} / {requiredKills} {requiredKillLabel}";
+        }
+
+        return "";
     }
 }

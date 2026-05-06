@@ -233,6 +233,9 @@ public class InventorySlotUI : MonoBehaviour,
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        if (_slotIndex < 0)
+            return;
+
         if (eventData.button != PointerEventData.InputButton.Left)
             return;
 
@@ -574,6 +577,9 @@ public class InventorySlotUI : MonoBehaviour,
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        if (_slotIndex < 0)
+            return;
+
         // Ctrl+click is used for sell (merchant) and stash (storage); don't start a drag.
         if (InputUtil.CtrlHeld() &&
             (MerchantClick.MerchantModeOpen || StorageUI.IsOpen))
@@ -670,6 +676,9 @@ public class InventorySlotUI : MonoBehaviour,
 
     public void OnDrop(PointerEventData eventData)
     {
+        if (_slotIndex < 0)
+            return;
+
         // Storage chest slot -> inventory slot
         if (InventoryDragState.HasDrag && InventoryDragState.Source == InventoryDragState.SourceKind.Storage)
         {

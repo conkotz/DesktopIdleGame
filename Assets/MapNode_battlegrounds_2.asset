@@ -1,0 +1,82 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
+  m_Name: MapNode_battlegrounds_2
+  m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
+  nodeId: battlegrounds_2
+  displayName: Battlegrounds 2
+  description: 'Combat level '
+  nodeType: 0
+  enemyAggroMode: 2
+  ignoreAggroRange: 0
+  respawnHereIfDied: 0
+  enemyRespawnEnabled: 1
+  enemyRespawnDelaySeconds: 10
+  eliteSpawnChance: 0.1
+  fallbackRecommendedCombatPower: 40
+  isRepeatable: 1
+  markCompletedWhenReturningToMenu: 0
+  completedLabelRequiresEnteredNodeId: 
+  mapUiUseClearedInsteadOfCompleted: 0
+  requiresMapUnlock: 0
+  icon: {fileID: 0}
+  requiredSkillLevels: []
+  combatSkillGateMode: 0
+  combatSingleSkill: 0
+  combatRequiredLevel: 1
+  unlockRequirementNotes: Be prepared to fight enemies. Should have food, potions
+    and combat gear.
+  connectedNodeIds: []
+  nextNodeIds: []
+  biome: 0
+  spawnGroupPlans:
+  - groupId: MiddleSpawns
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: 887a5292c260b2843b8e76ae0621615c, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 4
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 3
+    shuffleSpawnPoints: 1
+  requiredPreviousMapCompletions:
+  - enabled: 1
+    requiredMapNodeId: battlegrounds
+    requireMapCompleted: 0
+    requireEnemyKillsOnMap: 1
+    requiredEnemyKillsOnMap: 200
+  simpleCombatWaves: []
+  simpleCombatWavesAutoStartOnLevelEnter: 0
+  simpleCombatWavesRequireQuestRewardClaimed: 0
+  simpleCombatWavesRequiredQuestId: 
+  simpleCombatWavesRequireQuestAccepted: 0
+  simpleCombatWavesQuestAcceptedId: 
+  simpleCombatWavesRunOncePerSceneSession: 0
+  enduranceWaves: []
+  enduranceCompletionLoot: []
+  enduranceCompletionLootByTier: []
+  enduranceCompletionLootInterval: 0.5
+  contentDesignerNotes: 
+  sceneNamePlaceholder: 
+  encounterIdPlaceholder: 

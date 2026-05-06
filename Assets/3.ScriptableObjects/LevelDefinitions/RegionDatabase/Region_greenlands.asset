@@ -19,6 +19,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 268f98c476273384a896390c96aa7917, type: 2}
   - {fileID: 11400000, guid: bd9148f386fcb4644a8c0b41179c8e24, type: 2}
   - {fileID: 11400000, guid: cfc0b92c2808e6e41bbfcc7de180cc2a, type: 2}
+  - {fileID: 11400000, guid: d28a4067e0b103e40806120bbf79e956, type: 2}
   - {fileID: 11400000, guid: b83eca7b83cd6da489882cf699b56269, type: 2}
   - {fileID: 11400000, guid: f83a8af7a5e1fdb4e882e46df2afb3a7, type: 2}
   backgroundSprite: {fileID: 0}
