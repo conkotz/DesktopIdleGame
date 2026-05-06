@@ -1,0 +1,90 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4de60bca8597d954ea0c7c5a377a09cf, type: 3}
+  m_Name: enemy_bear
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
+  enemyId: enemy_bear
+  displayName: Bear
+  description: 
+  icon: {fileID: 0}
+  prefab: {fileID: 1000010755293042, guid: 00c865de41c02d149b4de09483082a24, type: 3}
+  cannotRespawn: 0
+  doesNotContributeToRecommendedCombatPower: 0
+  maxHealth: 400
+  maxEnergy: 0
+  maxMana: 0
+  armor: 75
+  magicResist: 0
+  corruptionResist: 0
+  physBlockChance: 0.1
+  flatGuard: 10
+  maxGuardPercent: 0
+  minPhysicalDamage: 25
+  maxPhysicalDamage: 35
+  minMagicDamage: 0
+  maxMagicDamage: 0
+  minCorruptionDamage: 0
+  maxCorruptionDamage: 0
+  attackSpeed: 0.2
+  moveSpeed: 2
+  attackRange: 3
+  critChance: 0.1
+  critMultiplier: 1.5
+  lifeRegenPerSecond: 3
+  energyRegenPerSecond: 0
+  manaRegenPerSecond: 1
+  abilityPower: 0
+  lifeSteal: 0
+  bleedChance: 1
+  bleedMultiplier: 0
+  bleedDuration: 5
+  poisonChance: 0
+  poisonMultiplier: 0
+  poisonDuration: 5
+  poisonMaxStacks: 3
+  magicAttackType: 0
+  burnChance: 0
+  chillChance: 0
+  shockChance: 0
+  chillDuration: 5
+  chillMaxStacks: 6
+  chillSlowPerStack: 0.15
+  burnHitsToExplode: 4
+  burnExplosionMultiplier: 0.5
+  shockDuration: 5
+  shockDamageTakenMultiplier: 0.15
+  deadlyAtCloseRange: 0
+  deadlyCloseRangeDistance: 3
+  deadlyCloseRangeTyplessDamage: 0
+  immuneToMeleeDamage: 0
+  immuneToRangedDamage: 0
+  immuneToMagicDamage: 0
+  idleWanderEnabled: 1
+  idleWanderSpeed: 1.5
+  idleWanderMoveMinSec: 1
+  idleWanderMoveMaxSec: 3
+  idleWanderIdleMinSec: 2
+  idleWanderIdleMaxSec: 8
+  idleWanderMaxDistanceFromSpawn: 10
+  grantCombatXp: 1
+  dropGold: 1
+  goldMin: 250
+  goldMax: 300
+  goldDropChance: 1
+  goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
+  eliteGoldMultiplier: 2
+  loot: []
+  lootAtMostOneDropPerTable: 1
+  eliteLootHandling: 0
+  eliteLootChanceMultiplier: 5
+  eliteLoot: []
+  designerNotes: 

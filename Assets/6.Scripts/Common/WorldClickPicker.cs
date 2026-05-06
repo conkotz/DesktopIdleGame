@@ -33,6 +33,8 @@ public static class WorldClickPicker2D
             if (!c) continue;
 
             var r = c.GetComponentInParent<SpriteRenderer>();
+            if (!r)
+                r = c.GetComponentInChildren<SpriteRenderer>(true);
             if (!r) continue;
 
             int layerValue = SortingLayer.GetLayerValueFromID(r.sortingLayerID);
