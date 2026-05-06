@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: basic_health_scroll
+  m_Name: chaos_weapon_physical_scroll
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 8
   maxStack: 5
-  itemId: basic_health_scroll
-  displayName: Basic Health Scroll
+  itemId: chaos_weapon_physical_scroll
+  displayName: Chaos Physical Scroll
   displayNameSingular: 
-  icon: {fileID: 7995556455045366416, guid: c5b3a5523517f684ab255b6f32b45ca2, type: 3}
+  icon: {fileID: -2196146746449846931, guid: 8c86b841d25e4e846b1108f9bf2df2fb, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,10 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A simple enhancement scroll that can add a small health bonus to gear.
-  rarity: 1
-  value: 20
+  description: A volatile chaos scroll that grants a high physical damage bonus,
+    but destroys the item on failed enhancement.
+  rarity: 2
+  value: 100
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -154,15 +155,15 @@ MonoBehaviour:
       duration: 0
       effectId: 
   enhancementScrollStats:
-    successChance: 0.5
-    targetStat: 3
+    successChance: 0.3
+    targetStat: 0
     modifierKind: 0
-    modifierValue: 5
+    modifierValue: 6
     consumeSlotOnFailure: 1
-    failureOutcome: 0
-    destroyChanceOnFailure: 0
-    cursed: 0
-    allowedGearTypes: 2
+    failureOutcome: 1
+    destroyChanceOnFailure: 0.5
+    cursed: 1
+    allowedGearTypes: 96
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

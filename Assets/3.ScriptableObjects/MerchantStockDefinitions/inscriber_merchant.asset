@@ -91,4 +91,28 @@ MonoBehaviour:
       amount: 500
       itemId: 
     defaultQuantity: -1
+  - itemId: chaos_health_scroll
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: chaos_weapon_physical_scroll
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: chaos_weapon_magic_scroll
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: chaos_weapon_corruption_scroll
+    costs:
+    - type: 0
+      amount: 2500
+      itemId: 
+    defaultQuantity: -1
   stockSaveKey: 

@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: basic_weapon_crit_multi_scroll
   displayName: Basic Weapon Crit Multi Scroll
   displayNameSingular: 
-  icon: {fileID: 21300000, guid: 1a691c7a4e44eea4db3f4fc37a5383f2, type: 3}
+  icon: {fileID: 7995556455045366416, guid: c5b3a5523517f684ab255b6f32b45ca2, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
