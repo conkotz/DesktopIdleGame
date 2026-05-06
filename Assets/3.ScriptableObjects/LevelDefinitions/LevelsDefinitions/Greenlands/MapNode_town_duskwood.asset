@@ -62,18 +62,18 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint22
+      spawnPointName: SpawnPoint20_Middle
       enemyDefinition: {fileID: 0}
-      prefab: {fileID: 5214886831892509811, guid: af740406239497f489350c9d8c4497ef, type: 3}
+      prefab: {fileID: 6284140584376777183, guid: 3c57c2ed11c6eca46913488254667548, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint20_Middle
+      spawnPointName: SpawnPoint22
       enemyDefinition: {fileID: 0}
-      prefab: {fileID: 6284140584376777183, guid: 3c57c2ed11c6eca46913488254667548, type: 3}
+      prefab: {fileID: 5214886831892509811, guid: af740406239497f489350c9d8c4497ef, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       respawnUntilSimpleWavesStart: 0
@@ -152,6 +152,7 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
     shuffleSpawnPoints: 0
+  requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 1
   simpleCombatWavesRequireQuestRewardClaimed: 0

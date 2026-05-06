@@ -103,12 +103,12 @@ TextureImporter:
       name: StoneDagger_0
       rect:
         serializedVersion: 2
-        x: 386
-        y: 437
-        width: 278
-        height: 793
+        x: 368
+        y: 446
+        width: 289
+        height: 744
       alignment: 9
-      pivot: {x: 0.48950592, y: 0.21304472}
+      pivot: {x: 0.5252371, y: 0.2510033}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 5587b97ef7e514c41b409d88cb44cfcc
+    spriteID: 4f661c9ec4fe8af46b92a38d17a1e6b8
     internalID: 0
     vertices: []
     indices: 

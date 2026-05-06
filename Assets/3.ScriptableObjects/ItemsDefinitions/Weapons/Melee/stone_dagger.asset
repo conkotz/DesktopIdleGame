@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: stone_dagger
   displayName: Stone Dagger
   displayNameSingular: 
-  icon: {fileID: 21300266, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
+  icon: {fileID: -272779336716711596, guid: 638bae797154eb446a0dc1b07ca8be57, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0

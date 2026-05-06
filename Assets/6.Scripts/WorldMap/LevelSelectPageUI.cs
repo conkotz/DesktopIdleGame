@@ -48,6 +48,11 @@ public class LevelSelectPageUI : MonoBehaviour
     [SerializeField] private TMP_Text selectedNodeRepeatable;
     [FormerlySerializedAs("detailDescriptionText")]
     [SerializeField] private TMP_Text selectedNodeDescription;
+    [Header("Right — Details Scroll (optional auto-resolve)")]
+    [Tooltip("Details ScrollRect that hosts node detail lines. If empty, resolved from details text parents.")]
+    [SerializeField] private ScrollRect detailsScrollRect;
+    [Tooltip("Content root under the details ScrollRect. If empty, resolved from details text parents.")]
+    [SerializeField] private RectTransform detailsContentRoot;
     [SerializeField] private GameObject selectedNodeRequirements;
     [SerializeField] private TMP_Text selectedNodeRequirementsText;
     [Tooltip("Optional row root (e.g. NodeContains). Hidden when the map node has no detected interactables.")]
@@ -78,6 +83,7 @@ public class LevelSelectPageUI : MonoBehaviour
     private RegionDefinition _selectedRegion;
     private MapNodeDefinition _selectedNode;
     private bool _selectionInitialized;
+    private string _lastDetailsNodeId;
 
     /// <summary>
     /// Consumed on next <see cref="OnEnable"/> (e.g. quest journal "Go to location"). Cleared after one attempt.
@@ -657,7 +663,14 @@ public class LevelSelectPageUI : MonoBehaviour
         RefreshRequirementsBlock(n);
         RefreshNodeContainsSummary(n);
 
-        bool hideEnter = n && progress && n.IsPermanentlyCompleted(progress);
+        string activeNodeId = ActiveLevelContext.ResolveActiveMapNodeIdForUi();
+        bool isCurrentMap =
+            n != null &&
+            !string.IsNullOrWhiteSpace(activeNodeId) &&
+            !string.IsNullOrWhiteSpace(n.nodeId) &&
+            string.Equals(n.nodeId.Trim(), activeNodeId.Trim(), StringComparison.Ordinal);
+
+        bool hideEnter = (n && progress && n.IsPermanentlyCompleted(progress)) || isCurrentMap;
         bool canEnter = n && n.CanEnter(progress, skills);
         if (enterNodeButton)
         {
@@ -667,7 +680,65 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         ApplyPanelThemeColors(n);
+        RefreshDetailsScrollLayout(n);
         PublishHudPreview();
+    }
+
+    private void RefreshDetailsScrollLayout(MapNodeDefinition node)
+    {
+        ResolveDetailsScrollRefs();
+
+        RectTransform content = detailsContentRoot;
+        if (content == null && detailsScrollRect != null)
+            content = detailsScrollRect.content;
+        if (content == null)
+            return;
+
+        // Rebuild multiple layers because detail sections toggle active/inactive per-node.
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+
+        RectTransform p = content.parent as RectTransform;
+        int guard = 0;
+        while (p != null && guard < 6)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(p);
+            p = p.parent as RectTransform;
+            guard++;
+        }
+        Canvas.ForceUpdateCanvases();
+
+        if (detailsScrollRect == null)
+            return;
+
+        string id = node != null ? node.nodeId : null;
+        bool changedNode = !string.Equals(_lastDetailsNodeId, id, StringComparison.Ordinal);
+        _lastDetailsNodeId = id;
+
+        // New selection: start at top; same selection: preserve current scroll.
+        if (changedNode)
+            detailsScrollRect.verticalNormalizedPosition = 1f;
+
+        detailsScrollRect.StopMovement();
+    }
+
+    private void ResolveDetailsScrollRefs()
+    {
+        if (!detailsScrollRect)
+        {
+            if (selectedNodeDescription)
+                detailsScrollRect = selectedNodeDescription.GetComponentInParent<ScrollRect>(true);
+            if (!detailsScrollRect && selectedNodeName)
+                detailsScrollRect = selectedNodeName.GetComponentInParent<ScrollRect>(true);
+        }
+
+        if (!detailsContentRoot)
+        {
+            if (detailsScrollRect)
+                detailsContentRoot = detailsScrollRect.content;
+            else if (selectedNodeDescription)
+                detailsContentRoot = selectedNodeDescription.rectTransform.parent as RectTransform;
+        }
     }
 
     private void RefreshNodeContainsSummary(MapNodeDefinition n)

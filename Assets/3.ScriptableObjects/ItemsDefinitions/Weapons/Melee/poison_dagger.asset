@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: poison_dagger
   displayName: Poison Dagger
   displayNameSingular: 
-  icon: {fileID: 2429764162891173159, guid: ecf728e1fa7e58b4daa478d6b5bfa468, type: 3}
+  icon: {fileID: -6081945528411395454, guid: 2cc924c8061a11e479bd28c5346d33bb, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0

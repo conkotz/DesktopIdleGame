@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: ecf728e1fa7e58b4daa478d6b5bfa468
+guid: 2cc924c8061a11e479bd28c5346d33bb
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 2429764162891173159
-    second: PoisonDagger_0
+      213: -6081945528411395454
+    second: PoisonStoneDagger_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: PoisonDagger_0
+      name: PoisonStoneDagger_0
       rect:
         serializedVersion: 2
-        x: 383
-        y: 469
-        width: 271
-        height: 779
+        x: 379
+        y: 451
+        width: 278
+        height: 790
       alignment: 9
-      pivot: {x: 0.5107654, y: 0.22661272}
+      pivot: {x: 0.5, y: 0.21564795}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 72d4a19f1a148b120800000000000000
-      internalID: 2429764162891173159
+      spriteID: 28a63c3f3c6989ba0800000000000000
+      internalID: -6081945528411395454
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 89fcce9861038c2459ff062e54686305
+    spriteID: 9338c30639484784b8427805644185ac
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      PoisonDagger_0: 2429764162891173159
+      PoisonStoneDagger_0: -6081945528411395454
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
