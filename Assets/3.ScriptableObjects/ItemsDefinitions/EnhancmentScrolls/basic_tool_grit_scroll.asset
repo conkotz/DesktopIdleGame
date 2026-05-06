@@ -157,7 +157,7 @@ MonoBehaviour:
     successChance: 0.5
     targetStat: 16
     modifierKind: 0
-    modifierValue: 0.01
+    modifierValue: 0.05
     consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
