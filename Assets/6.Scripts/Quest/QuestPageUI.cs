@@ -1150,8 +1150,29 @@ public class QuestPageUI : MonoBehaviour
         if (!CanEnterRecommendedQuestLocation(node))
             return;
 
+        if (IsAlreadyOnMap(node))
+        {
+            string label = !string.IsNullOrWhiteSpace(node.displayName) ? node.displayName.Trim() : node.nodeId;
+            GameLog.Add($"Already on map: {label}", GameLog.CannotMessageColor);
+            return;
+        }
+
         ActiveLevelContext.SetPendingLevel(node);
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
+    }
+
+    private static bool IsAlreadyOnMap(MapNodeDefinition node)
+    {
+        if (!node || string.IsNullOrWhiteSpace(node.nodeId))
+            return false;
+
+        string want = node.nodeId.Trim();
+        string active = ActiveLevelContext.ResolveActiveMapNodeIdForUi();
+        if (string.IsNullOrWhiteSpace(active))
+            return false;
+
+        // Match the locations-row marker comparison (ordinal, trimmed).
+        return string.Equals(want, active.Trim(), StringComparison.Ordinal);
     }
 
     private bool CanEnterRecommendedQuestLocation(MapNodeDefinition node)

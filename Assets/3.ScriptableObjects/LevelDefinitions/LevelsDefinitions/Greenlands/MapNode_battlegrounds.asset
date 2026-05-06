@@ -21,7 +21,7 @@ MonoBehaviour:
   respawnHereIfDied: 0
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 10
-  eliteSpawnChance: 0.15
+  eliteSpawnChance: 0.1
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
@@ -38,7 +38,6 @@ MonoBehaviour:
   connectedNodeIds: []
   nextNodeIds: []
   biome: 0
-  prefabGroups: []
   spawnGroupPlans:
   - groupId: MiddleSpawns
     spawns:
@@ -50,7 +49,7 @@ MonoBehaviour:
       itemAmount: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
-      count: 6
+      count: 4
     - spawnPointGroupId: 
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
@@ -61,6 +60,7 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 3
     shuffleSpawnPoints: 1
+  requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0
   simpleCombatWavesRequireQuestRewardClaimed: 0

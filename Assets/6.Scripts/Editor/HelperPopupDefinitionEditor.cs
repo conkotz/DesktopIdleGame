@@ -24,12 +24,18 @@ public sealed class HelperPopupDefinitionEditor : UnityEditor.Editor
         var triggerKind = (HelperActivationTrigger)Mathf.Clamp(
             activation.enumValueIndex,
             (int)HelperActivationTrigger.None,
-            (int)HelperActivationTrigger.QuestAccepted);
+            (int)HelperActivationTrigger.WorldItemDropped);
 
         if (triggerKind == HelperActivationTrigger.InventoryItemCountReached)
         {
             EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(HelperPopupDefinition.inventoryTriggerItemId)));
             EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(HelperPopupDefinition.inventoryTriggerItemCount)));
+        }
+
+        if (triggerKind == HelperActivationTrigger.WorldItemDropped)
+        {
+            EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(HelperPopupDefinition.worldDropTriggerItem)));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty(nameof(HelperPopupDefinition.worldDropTriggerItemId)));
         }
 
         if (triggerKind == HelperActivationTrigger.QuestGatherObjectiveReady)

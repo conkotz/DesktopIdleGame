@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -7,6 +8,12 @@ using UnityEngine.EventSystems;
 [RequireComponent(typeof(Collider2D))]
 public class ItemDrop : MonoBehaviour
 {
+    /// <summary>
+    /// Raised after <see cref="Init"/> (enemy drops, player drops, level-placed pickups, legacy spawns).
+    /// Argument is trimmed item id (not yet legacy-remapped — listeners should use <see cref="Inventory.RemapLegacyItemId"/>).
+    /// </summary>
+    public static event Action<string> OnWorldPickupSpawned;
+
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private float lifetimeSeconds = 30f;
 
@@ -52,6 +59,15 @@ public class ItemDrop : MonoBehaviour
 
         if (!disableAutoDespawn && lifetimeSeconds > 0f)
             Destroy(gameObject, lifetimeSeconds);
+
+        try
+        {
+            OnWorldPickupSpawned?.Invoke(ItemId);
+        }
+        catch (Exception)
+        {
+            // Never break loot spawning if a subscriber throws.
+        }
     }
 
     /// <summary>When set, fully picking up this drop marks the key in save data (one-time level spawn reward).</summary>

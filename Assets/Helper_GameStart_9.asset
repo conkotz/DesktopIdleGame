@@ -10,31 +10,26 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3d4549ab826df384b91e9e2da5b95c50, type: 3}
-  m_Name: Helper_GameStart_8
+  m_Name: Helper_GameStart_9
   m_EditorClassIdentifier: Assembly-CSharp::HelperPopupDefinition
-  helperId: first_item_enemy_drop_helper
-  title: Loot obtained
-  bodyText: 'The enemy has dropped an item, make sure you pick up anything on the
-    ground dropped by enemies as they will dissapear after some time.
+  helperId: first_duskwood_helper
+  title: Entered Greenlands
+  bodyText: 'You finished the tutorial and are now in a new region Greenlands. This
+    is the town Duskwood. Feel free to explore and see what is availble in this town.
 
-    During
-    auto battle, items will be automatically collected given you have enough space
-    in your inventory. If your inventory is full these items will appear in your
-    storage.'
-  activationTrigger: 8
-  requiredMapNodeId: tutorial_3
+'
+  activationTrigger: 1
+  requiredMapNodeId: duskwood
   inventoryTriggerItemId: 
   inventoryTriggerItemCount: 1
-  worldDropTriggerItem: {fileID: 11400000, guid: dd82c9333168f8d4fb45518f3c9cf6a9, type: 2}
-  worldDropTriggerItemId: 
   questGatherTriggerQuestId: 
-  questRewardClaimedTriggerQuestId: tutorial_aid_merlin
+  questRewardClaimedTriggerQuestId: 
   questAcceptedTriggerQuestId: tutorial_basic_combat
   skillLevelTriggerSkill: 1
   skillLevelTriggerMinimumNewLevel: 2
-  priority: 8
+  priority: 9
   showCloseButton: 1
-  darkenScreenAndLockGameplay: 0
+  darkenScreenAndLockGameplay: 1
   dismissModes: 8
   whitelistInteractEntries: []
   whitelistedInteractionIds: []

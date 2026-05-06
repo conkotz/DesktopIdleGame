@@ -10,37 +10,32 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
-  m_Name: Quest_fletchers_request
+  m_Name: Quest_greenlands_fishing_rod_intro
   m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
-  questId: greenlands_fletchers_request
+  questId: greenlands_fishing_rod_intro
   regionId: greenlands
-  displayName: Fletcher's request
-  description: 'Gather 50 splitwood logs for the fletcher in Green Grove.
-
-'
+  displayName: First Fishing Rod
+  description: Bring me a raw fish
   details: 
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
-  targetCount: 50
-  objectiveId: splitwood_log
+  targetCount: 1
+  objectiveId: raw_fish
   specialObjectiveListText: 
   rewardGold: 0
-  rewardItem: {fileID: 11400000, guid: 5b415bdca2253f847bbe0dd00a2f22c1, type: 2}
+  rewardItem: {fileID: 11400000, guid: 2f3f60e28977fc84183ed38434fd6551, type: 2}
   rewardItemId: 
   rewardItemQuantity: 1
-  additionalItemRewards:
-  - item: {fileID: 11400000, guid: dd82c9333168f8d4fb45518f3c9cf6a9, type: 2}
-    itemId: 
-    quantity: 50
+  additionalItemRewards: []
   rewardNotes: 
   grantIdleCombatUnlockOnRewardClaim: 0
   repeatable: 0
   autoCompleteQuest: 0
   abandonable: 1
   teleportPlayerToNodeIdOnCompletion: 
-  obtainLocationId: fletcher
-  obtainLocationDisplayName: Robin the Fletcher
+  obtainLocationId: chef
+  obtainLocationDisplayName: Garrick the Chef
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
   autoAcceptWhenPriorQuestRewardClaimed: 0
@@ -52,4 +47,4 @@ MonoBehaviour:
   requiredSkillLevels: []
   killEnemyIdFilter: 
   hideUntilMapNodeUnlockedId: 
-  sortOrder: 30
+  sortOrder: 15

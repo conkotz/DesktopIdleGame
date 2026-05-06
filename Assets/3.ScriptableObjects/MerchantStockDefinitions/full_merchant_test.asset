@@ -13,73 +13,85 @@ MonoBehaviour:
   m_Name: full_merchant_test
   m_EditorClassIdentifier: Assembly-CSharp::MerchantStock
   items:
-  - itemId: leather_boots
+  - itemId: wooden_rod
     costs:
     - type: 0
-      amount: 2500
+      amount: 300
       itemId: 
+    - type: 1
+      amount: 1
+      itemId: raw_fish
+    defaultQuantity: 1
+  - itemId: stone_axe
+    costs:
+    - type: 0
+      amount: 300
+      itemId: 
+    - type: 1
+      amount: 1
+      itemId: splitwood_log
+    defaultQuantity: 1
+  - itemId: stone_pickaxe
+    costs:
+    - type: 0
+      amount: 300
+      itemId: 
+    - type: 1
+      amount: 1
+      itemId: stone_chunk
     defaultQuantity: 1
   - itemId: crit_ring
     costs:
     - type: 0
       amount: 3000
       itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
     defaultQuantity: 1
   - itemId: vamp_ring
     costs:
     - type: 0
       amount: 3000
       itemId: 
-    defaultQuantity: 1
-  - itemId: sapphire_trinket
-    costs:
-    - type: 0
-      amount: 3000
-      itemId: 
-    defaultQuantity: 1
-  - itemId: wooden_rod
-    costs:
     - type: 1
-      amount: 1
-      itemId: raw_fish
-    - type: 0
-      amount: 300
-      itemId: 
-    defaultQuantity: 1
-  - itemId: stone_pickaxe
-    costs:
-    - type: 1
-      amount: 1
-      itemId: stone_chunk
-    - type: 0
-      amount: 300
-      itemId: 
-    defaultQuantity: 1
-  - itemId: stone_axe
-    costs:
-    - type: 1
-      amount: 1
-      itemId: splitwood_log
-    - type: 0
-      amount: 300
-      itemId: 
-    defaultQuantity: 1
-  - itemId: ability_power_pendant
-    costs:
-    - type: 0
-      amount: 3000
-      itemId: 
-    defaultQuantity: 1
-  - itemId: physical_damage_pendant
-    costs:
-    - type: 0
-      amount: 3000
-      itemId: 
+      amount: 3
+      itemId: gem_sapphire
     defaultQuantity: 1
   - itemId: bone_ring
     costs:
     - type: 0
       amount: 3000
       itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: ability_power_pendant
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: physical_damage_pendant
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
+    defaultQuantity: 1
+  - itemId: sapphire_trinket
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    - type: 1
+      amount: 3
+      itemId: gem_sapphire
     defaultQuantity: 1
   stockSaveKey: 

@@ -75,7 +75,7 @@ public static class GameTooltipTexts
             case "DMGSplitText":
                 title = "Damage breakdown";
                 description =
-                    "How your hit splits between Physical, Magic (elemental total), and Corruption.";
+                    "How your hit splits between Physical, Magic (elemental total), and Corruption (corruption damage cannot crit).";
                 return true;
 
             case "AttackSpdText":

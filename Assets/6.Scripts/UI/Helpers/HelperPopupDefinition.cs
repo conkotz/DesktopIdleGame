@@ -62,6 +62,14 @@ public sealed class HelperPopupDefinition : ScriptableObject
     [Min(1)] public int inventoryTriggerItemCount = 3;
 
     [Tooltip(
+        "When WorldItemDropped: world pickup must match this item (enemy drop, player drop, gather overflow, level pickup). " +
+        "If set, overrides World Drop Trigger Item Id.")]
+    public ItemDefinition worldDropTriggerItem;
+
+    [Tooltip("When WorldItemDropped: optional item id if you do not assign World Drop Trigger Item.")]
+    public string worldDropTriggerItemId = "";
+
+    [Tooltip(
         "When QuestGatherObjectiveReady: QuestDefinition.questId. GatherItem quests only — fires when the quest is accepted, " +
         "reward is not claimed yet, and live gather count (inventory + storage, same as tracker) >= target count.")]
     public string questGatherTriggerQuestId = "";
@@ -273,6 +281,14 @@ public sealed class HelperPopupDefinition : ScriptableObject
 
         return "Adventurer";
     }
+
+    /// <summary>Non-empty item id for <see cref="HelperActivationTrigger.WorldItemDropped"/> (asset wins over string).</summary>
+    public string GetResolvedWorldDropTriggerItemId()
+    {
+        if (worldDropTriggerItem != null && !string.IsNullOrWhiteSpace(worldDropTriggerItem.itemId))
+            return worldDropTriggerItem.itemId.Trim();
+        return string.IsNullOrWhiteSpace(worldDropTriggerItemId) ? string.Empty : worldDropTriggerItemId.Trim();
+    }
 }
 
 public enum HelperActivationTrigger
@@ -306,6 +322,13 @@ public enum HelperActivationTrigger
 
     /// <summary>Fires once when <see cref="QuestProgressManager.IsQuestAccepted"/> becomes true for <see cref="HelperPopupDefinition.questAcceptedTriggerQuestId"/>.</summary>
     QuestAccepted = 7,
+
+    /// <summary>
+    /// Fires once when a world pickup for <see cref="HelperPopupDefinition.worldDropTriggerItem"/> /
+    /// <see cref="HelperPopupDefinition.worldDropTriggerItemId"/> is spawned (see <see cref="ItemDrop.OnWorldPickupSpawned"/>).
+    /// Use <see cref="HelperPopupDefinition.requiredMapNodeId"/> to limit to a map.
+    /// </summary>
+    WorldItemDropped = 8,
 }
 
 [System.Flags]

@@ -40,4 +40,13 @@ MonoBehaviour:
       amount: 35
       itemId: splitwood_log
     defaultQuantity: 1
+  - itemId: leather_boots
+    costs:
+    - type: 0
+      amount: 4000
+      itemId: 
+    - type: 1
+      amount: 15
+      itemId: linen
+    defaultQuantity: 1
   stockSaveKey: 

@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: stone_sword
+  m_Name: linen
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 1
-  maxStack: 1
-  itemId: stone_sword
-  displayName: Stone Sword
+  itemKind: 0
+  maxStack: 999
+  itemId: linen
+  displayName: Linen
   displayNameSingular: 
-  icon: {fileID: 8645510945980340434, guid: e8e26fdf71506624392f2e67bdc0a397, type: 3}
+  icon: {fileID: -797834251415590911, guid: 97939027f09f16f46803f596e8ed70d9, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,16 +25,16 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic 1h sword made from stone
-  rarity: 1
-  value: 150
-  equipSlot: 1
-  handVisualKey: 1
+  description: A simple piece of linen
+  rarity: 0
+  value: 15
+  equipSlot: 0
+  handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   weaponStats:
-    minPhysicalDamage: 5
-    maxPhysicalDamage: 11
+    minPhysicalDamage: 0
+    maxPhysicalDamage: 0
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 0
@@ -45,11 +45,11 @@ MonoBehaviour:
     legacyMaxMagicDamage: 0
     minCorruptionDamage: 0
     maxCorruptionDamage: 0
-    attacksPerSecond: 0.8
-    critChance: 0.05
-    critMultiplier: 1.3
+    attacksPerSecond: 0
+    critChance: 0
+    critMultiplier: 0
     handedness: 0
-    attackRange: 2
+    attackRange: 0
     attackSkill: 0
     rangedBowType: 0
     magicAttackType: 0

@@ -44,6 +44,10 @@ public class AilmentController : MonoBehaviour
     private int burnDamagePerTick;
     private int burnTicksRemaining;
     private Transform burnDotSource;
+    private string _bleedDotDealerLabel = "";
+    private string _exclusiveBleedDotDealerLabel = "";
+    private string _poisonDotDealerLabel = "";
+    private string _burnDotDealerLabel = "";
     private Coroutine burnTickRoutine;
     private float shockExpireTime = -1f;
     private float shockDamageTakenMultiplier = 0f;
@@ -120,6 +124,10 @@ public class AilmentController : MonoBehaviour
         burnTicksRemaining = 0;
         burnTickRoutine = null;
         burnDotSource = null;
+        _bleedDotDealerLabel = "";
+        _exclusiveBleedDotDealerLabel = "";
+        _poisonDotDealerLabel = "";
+        _burnDotDealerLabel = "";
         shockExpireTime = -1f;
         shockDamageTakenMultiplier = 0f;
 
@@ -139,6 +147,8 @@ public class AilmentController : MonoBehaviour
         exclusiveBleedRoutine = null;
         bleedTickSchedule.Clear();
         exclusiveBleedTickSchedule.Clear();
+        _bleedDotDealerLabel = "";
+        _exclusiveBleedDotDealerLabel = "";
 
         if (hadBleed)
             OnAilmentsChanged?.Invoke();
@@ -156,6 +166,7 @@ public class AilmentController : MonoBehaviour
         poisonRoutine = null;
         poisonStacks.Clear();
         poisonBaseMaxStacks = 1;
+        _poisonDotDealerLabel = "";
 
         if (hadPoison)
             OnAilmentsChanged?.Invoke();
@@ -204,6 +215,7 @@ public class AilmentController : MonoBehaviour
         int tickCount = Mathf.Max(1, payload.ticks);
         int newBleedTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
 
+        _bleedDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
         RefreshBleedSchedule(newBleedTick, tickCount);
 
         if (bleedTickSchedule.Count > 0 && bleedRoutine == null)
@@ -228,6 +240,7 @@ public class AilmentController : MonoBehaviour
         int tickCount = Mathf.Max(1, payload.ticks);
         int newTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
 
+        _exclusiveBleedDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
         RefreshExclusiveBleedSchedule(newTick, tickCount);
 
         if (exclusiveBleedTickSchedule.Count > 0 && exclusiveBleedRoutine == null)
@@ -260,6 +273,14 @@ public class AilmentController : MonoBehaviour
             exclusiveBleedTickSchedule[i] = Mathf.Max(exclusiveBleedTickSchedule[i], newTickDamage);
     }
 
+    private static string ResolveDotDealerLabelForDps(Transform source)
+    {
+        string s = PlayerCombatController.ResolveIncomingDamageDealerDisplayName(source);
+        return string.IsNullOrWhiteSpace(s)
+            ? PlayerCombatController.IncomingDotDamageDealerFallback
+            : s.Trim();
+    }
+
     private IEnumerator BleedRoutine(Transform source)
     {
         while (!IsDead())
@@ -278,7 +299,7 @@ public class AilmentController : MonoBehaviour
             int tickDamage = bleedTickSchedule[0];
             bleedTickSchedule.RemoveAt(0);
 
-            ApplyBleedTick(tickDamage, source);
+            ApplyBleedTick(tickDamage, source, _bleedDotDealerLabel);
             OnAilmentsChanged?.Invoke();
         }
 
@@ -304,7 +325,7 @@ public class AilmentController : MonoBehaviour
             int tickDamage = exclusiveBleedTickSchedule[0];
             exclusiveBleedTickSchedule.RemoveAt(0);
 
-            ApplyBleedTick(tickDamage, source);
+            ApplyBleedTick(tickDamage, source, _exclusiveBleedDotDealerLabel);
             OnAilmentsChanged?.Invoke();
         }
 
@@ -312,9 +333,9 @@ public class AilmentController : MonoBehaviour
         OnAilmentsChanged?.Invoke();
     }
 
-    private void ApplyBleedTick(int damage, Transform source)
+    private void ApplyBleedTick(int damage, Transform source, string dealerLabelForDps)
     {
-        ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Bleed, source);
+        ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Bleed, source, dealerLabelForDps);
 
         if (debugLogs)
             Debug.Log($"[Ailments] Bleed tick: {damage}", this);
@@ -336,6 +357,8 @@ public class AilmentController : MonoBehaviour
         int tickDamage = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / ticks));
         poisonBaseMaxStacks = Mathf.Max(1, payload.maxStacks);
         int maxStacks = GetEffectivePoisonMaxStacks(poisonBaseMaxStacks);
+
+        _poisonDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
 
         while (poisonStacks.Count >= maxStacks)
             poisonStacks.RemoveAt(0);
@@ -425,7 +448,7 @@ public class AilmentController : MonoBehaviour
 
     private void ApplyPoisonTick(int damage, Transform source)
     {
-        ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Poison, source);
+        ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Poison, source, _poisonDotDealerLabel);
 
         if (debugLogs)
             Debug.Log($"[Ailments] Poison tick: {damage}", this);
@@ -496,6 +519,7 @@ public class AilmentController : MonoBehaviour
         if (IsDead()) return false;
         if (fireDamageDealt <= 0f) return false;
 
+        _burnDotDealerLabel = ResolveDotDealerLabelForDps(source);
         burnDotSource = source != null ? source : transform;
 
         bool hadBurn = burnStackCount > 0;
@@ -538,6 +562,8 @@ public class AilmentController : MonoBehaviour
         burnStackCount = 0;
         burnDamagePerTick = 0;
         burnTicksRemaining = 0;
+        burnDotSource = null;
+        _burnDotDealerLabel = "";
 
         if (had)
             OnAilmentsChanged?.Invoke();
@@ -563,7 +589,7 @@ public class AilmentController : MonoBehaviour
             burnTickRoutine = null;
         }
 
-        ApplyDotDamage(combustDamage, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource);
+        ApplyDotDamage(combustDamage, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource, _burnDotDealerLabel);
         OnAilmentsChanged?.Invoke();
     }
 
@@ -585,7 +611,7 @@ public class AilmentController : MonoBehaviour
 
             burnTicksRemaining--;
             if (burnDamagePerTick > 0)
-                ApplyDotDamage(burnDamagePerTick, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource);
+                ApplyDotDamage(burnDamagePerTick, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource, _burnDotDealerLabel);
 
             OnAilmentsChanged?.Invoke();
         }
@@ -635,7 +661,7 @@ public class AilmentController : MonoBehaviour
         return Mathf.Max(0.1f, 1f - slow);
     }
 
-    private void ApplyDotDamage(int damage, FloatingDamageTextUI.PopupDamageKind type, Transform source)
+    private void ApplyDotDamage(int damage, FloatingDamageTextUI.PopupDamageKind type, Transform source, string dealerLabelForDps)
     {
         damage = Mathf.Max(1, damage);
 
@@ -657,7 +683,7 @@ public class AilmentController : MonoBehaviour
             if (combat == null)
                 combat = GetComponentInParent<PlayerCombatController>();
             if (combat != null && finalDamage > 0)
-                combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type), source);
+                combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type), source, dealerLabelForDps);
 
             if (showDotPopups && finalDamage > 0 && DamagePopupSystem.Instance != null)
             {

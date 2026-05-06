@@ -33,6 +33,12 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     [Header("Targeting")]
     [SerializeField] private bool clearTargetIfDead = true;
 
+    [Header("Idle combat targeting")]
+    [Tooltip("When idle combat is enabled and a closer enemy appears, allow switching targets mid-route to reduce walking past new spawns.")]
+    [SerializeField] private bool idleAllowRetargetToCloserEnemy = true;
+    [Tooltip("Minimum X-distance improvement (world units) required before switching targets to avoid thrashing.")]
+    [SerializeField, Min(0f)] private float idleRetargetCloserByAtLeastUnits = 0.35f;
+
     [Header("Attack")]
     [Tooltip("Extra padding so range doesn't feel pixel-perfect.")]
     [SerializeField] private float rangePadding = 0.05f;
@@ -1256,15 +1262,15 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (Time.time < _nextIdleScanTime) return;
         _nextIdleScanTime = Time.time + Mathf.Max(0.05f, idleRescanInterval);
 
-        if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
-            return;
+        EnemyBaseController current = (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
+            ? _target
+            : null;
 
-        EnemyBaseController picked = ShouldIdlePickFurthestEnemyFirst()
-            ? FindFurthestLivingEnemy()
-            : FindClosestLivingEnemy();
+        EnemyBaseController picked = ResolveIdlePickedEnemy(current);
         if (picked != null)
         {
-            SetTargetInternal(picked);
+            if (current != picked)
+                SetTargetInternal(picked);
 
             if (debugLogs)
                 Debug.Log($"[Combat] Idle picked target: {picked.name}", this);
@@ -1284,6 +1290,96 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (def.weaponStats.attackSkill != AttackSkill.Ranged)
             return false;
         return def.weaponStats.rangedBowType == RangedBowType.Longbow;
+    }
+
+    private EnemyBaseController ResolveIdlePickedEnemy(EnemyBaseController current)
+    {
+        // 1) No valid current target: pick the best new one.
+        if (current == null)
+            return ShouldIdlePickFurthestEnemyFirst()
+                ? FindFurthestLivingEnemyWithinAttackRangeOrClosestFallback()
+                : FindClosestLivingEnemy();
+
+        // 2) Smart retarget: if a closer enemy appears while moving, switch.
+        if (!idleAllowRetargetToCloserEnemy)
+            return current;
+
+        EnemyBaseController closest = FindClosestLivingEnemy();
+        if (closest == null || closest == current)
+            return current;
+
+        float myX = transform.position.x;
+        float curD = Mathf.Abs(current.transform.position.x - myX);
+        float closeD = Mathf.Abs(closest.transform.position.x - myX);
+
+        // Only switch when the new target is materially closer.
+        if (closeD + Mathf.Max(0f, idleRetargetCloserByAtLeastUnits) < curD)
+            return closest;
+
+        // If using longbow preference, still allow picking furthest *within range* when that does not increase travel.
+        if (ShouldIdlePickFurthestEnemyFirst())
+        {
+            EnemyBaseController furthestInRange = FindFurthestLivingEnemyWithinAttackRange();
+            if (furthestInRange != null && furthestInRange != current)
+            {
+                float furD = Mathf.Abs(furthestInRange.transform.position.x - myX);
+                if (furD <= curD + 0.001f)
+                    return furthestInRange;
+            }
+        }
+
+        return current;
+    }
+
+    private float GetCurrentMaxAttackRangeUnits()
+    {
+        if (stats == null)
+            return 0f;
+        // Stats.Range is used elsewhere as the weapon's reach/range.
+        return Mathf.Max(0f, stats.Range);
+    }
+
+    private EnemyBaseController FindFurthestLivingEnemyWithinAttackRangeOrClosestFallback()
+    {
+        EnemyBaseController furthestInRange = FindFurthestLivingEnemyWithinAttackRange();
+        if (furthestInRange != null)
+            return furthestInRange;
+        return FindClosestLivingEnemy();
+    }
+
+    private EnemyBaseController FindFurthestLivingEnemyWithinAttackRange()
+    {
+        float maxRange = GetCurrentMaxAttackRangeUnits();
+        if (maxRange <= 0.0001f)
+            return null;
+
+        var enemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        if (enemies == null || enemies.Length == 0) return null;
+
+        float bestDist = -1f;
+        EnemyBaseController best = null;
+
+        float myX = transform.position.x;
+
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            var e = enemies[i];
+            if (!e) continue;
+            if (e.IsDead) continue;
+            if (!e.gameObject.activeInHierarchy) continue;
+
+            float d = Mathf.Abs(e.transform.position.x - myX);
+            if (d > maxRange)
+                continue;
+
+            if (d > bestDist)
+            {
+                bestDist = d;
+                best = e;
+            }
+        }
+
+        return best;
     }
 
     private EnemyBaseController FindClosestLivingEnemy()
@@ -1658,24 +1754,33 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         sm.AddXpFloat(skill, damageDealt * xpPerDamage, combatXpSource);
     }
 
-    public void RecordIncomingDamageForDps(float damageAmount, DpsDamageBucket bucket, Transform source = null)
+    public const string IncomingDotDamageDealerFallback = "Ailment/World";
+
+    public void RecordIncomingDamageForDps(
+        float damageAmount,
+        DpsDamageBucket bucket,
+        Transform source = null,
+        string dealerDisplayNameOverride = null)
     {
         if (damageAmount <= 0f || _dpsTrackerPaused)
             return;
 
+        string dealerName = !string.IsNullOrWhiteSpace(dealerDisplayNameOverride)
+            ? dealerDisplayNameOverride.Trim()
+            : ResolveIncomingDamageDealerDisplayName(source);
+
+        if (string.IsNullOrWhiteSpace(dealerName))
+            dealerName = IncomingDealerLabelForUnresolvedSource(bucket);
+
         MarkRecentCombatActivity();
         EnsureDpsSessionStarted();
         _incomingDamageSum.Add(bucket, damageAmount);
-        AddIncomingDealerDamage(source, damageAmount);
+        AddIncomingDealerDamageByName(dealerName, damageAmount);
     }
 
-    private void AddIncomingDealerDamage(Transform source, float amount)
+    private void AddIncomingDealerDamageByName(string dealerName, float amount)
     {
-        if (amount <= 0f)
-            return;
-
-        string dealerName = ResolveIncomingDealerName(source);
-        if (string.IsNullOrWhiteSpace(dealerName))
+        if (amount <= 0f || string.IsNullOrWhiteSpace(dealerName))
             return;
 
         if (_incomingDamageByDealer.TryGetValue(dealerName, out float current))
@@ -1688,10 +1793,13 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _incomingDealerOrder.Add(dealerName);
     }
 
-    private static string ResolveIncomingDealerName(Transform source)
+    /// <summary>
+    /// Display name for incoming DPS attribution (enemy display name, unit name, or object name). Null when <paramref name="source"/> is missing/destroyed.
+    /// </summary>
+    public static string ResolveIncomingDamageDealerDisplayName(Transform source)
     {
         if (source == null)
-            return "Unknown";
+            return null;
 
         EnemyBaseController enemy = source.GetComponentInParent<EnemyBaseController>();
         if (!enemy)
@@ -1709,6 +1817,16 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return sourceStats.UnitDisplayName.Trim();
 
         return source.name.Replace("(Clone)", "").Trim();
+    }
+
+    private static string IncomingDealerLabelForUnresolvedSource(DpsDamageBucket bucket)
+    {
+        return bucket switch
+        {
+            DpsDamageBucket.Bleed or DpsDamageBucket.Poison or DpsDamageBucket.Burn or DpsDamageBucket.Corruption
+                => IncomingDotDamageDealerFallback,
+            _ => "Unknown"
+        };
     }
 
     private static string NormalizeEnemyTypeName(string value)

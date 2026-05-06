@@ -114,7 +114,13 @@ public class GameLogWindowUI : MonoBehaviour
         if (row.TimestampText != null)
         {
             row.TimestampText.text = string.IsNullOrWhiteSpace(timeText) ? "" : timeText.Trim();
-            row.TimestampText.gameObject.SetActive(!string.IsNullOrWhiteSpace(row.TimestampText.text));
+            bool showTime = !string.IsNullOrWhiteSpace(row.TimestampText.text);
+            row.TimestampText.gameObject.SetActive(showTime);
+            if (showTime)
+            {
+                row.TimestampText.color = textColor;
+                row.TimestampText.faceColor = textColor;
+            }
         }
 
         TrimVisibleRowsToMax();

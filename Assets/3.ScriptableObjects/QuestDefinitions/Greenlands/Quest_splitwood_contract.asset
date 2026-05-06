@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
-  m_Name: Quest_greenlands_timber
+  m_Name: Quest_splitwood_contract
   m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
   questId: greenlands_splitwood_contract
   regionId: greenlands
-  displayName: Splitwood for the town
-  description: Gather splitwood logs for the builders.
+  displayName: Splitwood for the Robin
+  description: Gather splitwood logs for Robin. He will make you arrows.
   details: 
   listCategoryLabel: Gathering
   listStatusOverride: 
@@ -34,13 +34,14 @@ MonoBehaviour:
   autoCompleteQuest: 0
   abandonable: 1
   teleportPlayerToNodeIdOnCompletion: 
-  obtainLocationId: noticeboard
-  obtainLocationDisplayName: The Notice Board
+  obtainLocationId: fletcher
+  obtainLocationDisplayName: Robin the Fletcher
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
   autoAcceptWhenPriorQuestRewardClaimed: 0
   autoAcceptAfterPriorQuestId: 
-  prerequisiteRewardClaimedQuestIds: []
+  prerequisiteRewardClaimedQuestIds:
+  - greenlands_fletchers_request
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
   recommendedLocationNode: {fileID: 11400000, guid: bd9148f386fcb4644a8c0b41179c8e24, type: 2}

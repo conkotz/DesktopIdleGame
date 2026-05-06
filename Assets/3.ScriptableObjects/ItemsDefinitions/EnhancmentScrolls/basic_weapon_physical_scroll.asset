@@ -153,7 +153,7 @@ MonoBehaviour:
       duration: 0
       effectId: 
   enhancementScrollStats:
-    successChance: 0.8
+    successChance: 0.5
     targetStat: 0
     modifierKind: 0
     modifierValue: 2

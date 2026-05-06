@@ -227,10 +227,10 @@ TextureImporter:
       name: Ailments1_4
       rect:
         serializedVersion: 2
-        x: 448
-        y: 448
-        width: 141
-        height: 158
+        x: 423
+        y: 437
+        width: 186
+        height: 190
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}

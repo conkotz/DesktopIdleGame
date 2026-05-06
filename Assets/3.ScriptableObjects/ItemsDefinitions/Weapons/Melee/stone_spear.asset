@@ -16,52 +16,115 @@ MonoBehaviour:
   maxStack: 1
   itemId: stone_spear
   displayName: Stone Spear
+  displayNameSingular: 
   icon: {fileID: 21300134, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
   heldSprite: {fileID: 0}
+  equippedSprite: {fileID: 0}
+  useCustomEquippedPose: 0
+  equippedLocalOffset: {x: 0, y: 0}
+  equippedLocalRotationZ: 0
+  equippedFlipX: 0
+  equippedFlipY: 0
   description: A basic 1h spear made from stone
   rarity: 1
   value: 150
   equipSlot: 1
   handVisualKey: 1
+  usedUpgradeSlots: 0
+  successfulEnhancements: 0
   weaponStats:
-    minPhysicalDamage: 2
-    maxPhysicalDamage: 14
-    minMagicDamage: 0
-    maxMagicDamage: 0
-    minTrueDamage: 0
-    maxTrueDamage: 0
-    attacksPerSecond: 0.6
+    minPhysicalDamage: 4
+    maxPhysicalDamage: 24
+    minFireDamage: 0
+    maxFireDamage: 0
+    minIceDamage: 0
+    maxIceDamage: 0
+    minLightningDamage: 0
+    maxLightningDamage: 0
+    legacyMinMagicDamage: 0
+    legacyMaxMagicDamage: 0
+    minCorruptionDamage: 0
+    maxCorruptionDamage: 0
+    attacksPerSecond: 0.5
     critChance: 0.05
     critMultiplier: 1.5
-    handedness: 0
+    handedness: 1
     attackRange: 4
     attackSkill: 0
+    rangedBowType: 0
+    magicAttackType: 0
+    manaCostPerAttack: 0
+    magicAilmentApplyChance: 0
+    unusedLegacyWeaponBurnChance: 0
     canEquipInOffHand: 0
+    requiresOffhandSupport: 0
+    requiredSupportType: 0
+    equipmentTier: 0
+  combatSupportStats:
+    supportType: 0
+    bonusPhysicalDamage: 0
+    bonusMagicDamage: 0
+    bonusCorruptionDamage: 0
+    critChanceBonus: 0
+    critMultiplierBonus: 0
+    attackSpeedPercent: 0
+    physicalDamagePercent: 0
+    globalPhysicalDamagePercent: 0
+    rangedPhysicalDamagePercent: 0
+    magicDamagePercent: 0
+    fireDamagePercent: 0
+    iceDamagePercent: 0
+    coldDamagePercent: 0
+    corruptionDamagePercent: 0
+    consumableOnAttack: 0
+    consumeAmountPerAttack: 0
   toolStats:
     toolType: 0
-    gatherPower: 0
+    equipmentTier: 0
     gatherSpeedMultiplier: 0
+    gatheringGrit: 0
+    bonusResourceFindChance: 0
+    staminaEfficiency: 0
   armorStats:
+    equipmentTier: 0
     armor: 0
     magicResist: 0
+    corruptionResist: 0
     physBlockChance: 0
     bonusHealth: 0
     bonusEnergy: 0
+    flatGuard: 0
+    maxGuardPercent: 0
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
+    bonusMana: 0
     armor: 0
     magicResist: 0
+    corruptionResist: 0
     physBlockChance: 0
     lifeRegen: 0
     energyRegen: 0
+    manaRegen: 0
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
+    physicalDamagePercent: 0
+    globalPhysicalDamagePercent: 0
+    rangedPhysicalDamagePercent: 0
     magicDamage: 0
-    trueDamage: 0
+    magicDamagePercent: 0
+    fireSkillDamagePercent: 0
+    iceSkillDamagePercent: 0
+    lightningSkillDamagePercent: 0
+    corruptionDamagePercent: 0
+    corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
+    minionDamagePercent: 0
+    minionAttackSpeedPercent: 0
+    minionCritChance: 0
+    minionMaxLifePercent: 0
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackRangeBonus: 0
@@ -71,3 +134,36 @@ MonoBehaviour:
     poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
+    burnExplosionMultiplierBonus: 0
+    burnChance: 0
+    chillSlowPerStackBonus: 0
+    shockDamageTakenMultiplierBonus: 0
+  miscEffects:
+    enemyRespawnTimeReductionSeconds: 0
+  consumableStats:
+    consumableType: 0
+    healAmount: 0
+    energyAmount: 0
+    cooldownSeconds: 0
+    consumeOnUse: 0
+    grantedEffect:
+      effectType: 0
+      magnitude: 0
+      duration: 0
+      effectId: 
+  enhancementScrollStats:
+    successChance: 0
+    targetStat: 0
+    modifierKind: 0
+    modifierValue: 0
+    consumeSlotOnFailure: 0
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    cursed: 0
+    allowedGearTypes: 0
+  cookableStats:
+    isCookable: 0
+    cookedResultItemId: 
+    cookedResultAmount: 0
+    requiredCookingLevel: 0
+    cookingXp: 0

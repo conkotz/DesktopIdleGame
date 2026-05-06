@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: poison_dagger
   displayName: Poison Dagger
   displayNameSingular: 
-  icon: {fileID: 21300266, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
+  icon: {fileID: 2429764162891173159, guid: ecf728e1fa7e58b4daa478d6b5bfa468, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -45,7 +45,7 @@ MonoBehaviour:
     legacyMaxMagicDamage: 0
     minCorruptionDamage: 4
     maxCorruptionDamage: 8
-    attacksPerSecond: 1
+    attacksPerSecond: 0.9
     critChance: 0
     critMultiplier: 1
     handedness: 0
@@ -130,8 +130,8 @@ MonoBehaviour:
     attackRangeBonus: 0
     bleedChance: 0
     bleedMultiplier: 0
-    poisonChance: 0.5
-    poisonMultiplier: 0
+    poisonChance: 0.25
+    poisonMultiplier: 0.1
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0

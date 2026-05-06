@@ -298,8 +298,20 @@ public class UnitOverheadUI : MonoBehaviour
             return a.GetInstanceID().CompareTo(b.GetInstanceID());
         });
 
-        for (int k = 0; k < cluster.Count; k++)
-            cluster[k]._stackYOffset = k * spacing;
+        float minStep = Mathf.Max(1f, spacing);
+        cluster[0]._stackYOffset = 0f;
+
+        float prevHalfHeight = cluster[0].GetMeasuredCanvasHalfHeight();
+        float runningOffset = 0f;
+
+        for (int k = 1; k < cluster.Count; k++)
+        {
+            float currentHalfHeight = cluster[k].GetMeasuredCanvasHalfHeight();
+            float noOverlapStep = prevHalfHeight + currentHalfHeight + 2f;
+            runningOffset += Mathf.Max(minStep, noOverlapStep);
+            cluster[k]._stackYOffset = runningOffset;
+            prevHalfHeight = currentHalfHeight;
+        }
     }
 
     private static int GetStackRolePriority(UnitOverheadUI ui)
@@ -361,6 +373,35 @@ public class UnitOverheadUI : MonoBehaviour
         ExpandHorizontalSpanWithTmpMeshBounds(canvasRect, ref minX, ref maxX);
     }
 
+    private float GetMeasuredCanvasHalfHeight()
+    {
+        if (root == null)
+            return 24f;
+
+        if (canvasRect == null && parentCanvas != null)
+            canvasRect = parentCanvas.transform as RectTransform;
+        if (canvasRect == null)
+            return 24f;
+
+        float minY = float.MaxValue;
+        float maxY = float.MinValue;
+
+        root.GetWorldCorners(UnitOverheadUIWorkCorners);
+        for (int c = 0; c < 4; c++)
+        {
+            Vector3 local = canvasRect.InverseTransformPoint(UnitOverheadUIWorkCorners[c]);
+            if (local.y < minY) minY = local.y;
+            if (local.y > maxY) maxY = local.y;
+        }
+
+        ExpandVerticalSpanWithTmpMeshBounds(canvasRect, ref minY, ref maxY);
+
+        if (minY > maxY)
+            return 24f;
+
+        return Mathf.Max(4f, (maxY - minY) * 0.5f);
+    }
+
     /// <summary>
     /// Root rect can be bar-sized while TMP draws past it; <see cref="TMP_Text.textBounds"/> matches rendered glyphs.
     /// </summary>
@@ -389,6 +430,35 @@ public class UnitOverheadUI : MonoBehaviour
                 Vector3 canvasLocal = canvasRt.InverseTransformPoint(world);
                 if (canvasLocal.x < minX) minX = canvasLocal.x;
                 if (canvasLocal.x > maxX) maxX = canvasLocal.x;
+            }
+        }
+    }
+
+    private void ExpandVerticalSpanWithTmpMeshBounds(RectTransform canvasRt, ref float minY, ref float maxY)
+    {
+        TMP_Text[] tmps = root.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < tmps.Length; i++)
+        {
+            TMP_Text tmp = tmps[i];
+            if (!tmp || !tmp.gameObject.activeInHierarchy)
+                continue;
+
+            tmp.ForceMeshUpdate();
+            Bounds b = tmp.textBounds;
+            Vector3 c = b.center;
+            Vector3 e = b.extents;
+            if (e.x < 1e-6f && e.y < 1e-6f && e.z < 1e-6f)
+                continue;
+
+            for (int ix = -1; ix <= 1; ix += 2)
+            for (int iy = -1; iy <= 1; iy += 2)
+            for (int iz = -1; iz <= 1; iz += 2)
+            {
+                Vector3 localCorner = c + new Vector3(ix * e.x, iy * e.y, iz * e.z);
+                Vector3 world = tmp.transform.TransformPoint(localCorner);
+                Vector3 canvasLocal = canvasRt.InverseTransformPoint(world);
+                if (canvasLocal.y < minY) minY = canvasLocal.y;
+                if (canvasLocal.y > maxY) maxY = canvasLocal.y;
             }
         }
     }

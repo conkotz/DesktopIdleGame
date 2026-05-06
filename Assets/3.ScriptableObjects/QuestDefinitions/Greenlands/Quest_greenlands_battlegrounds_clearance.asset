@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
-  m_Name: Quest_greenlands_hunt
+  m_Name: Quest_greenlands_battlegrounds_clearance
   m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
   questId: greenlands_battlegrounds_clearance
   regionId: greenlands

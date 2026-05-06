@@ -11,6 +11,20 @@ public class SharedTooltipUI : MonoBehaviour
     [Header("Text")]
     [SerializeField] private TMP_Text nameText;
 
+    [Header("Enhancement (gear upgrade stars)")]
+    [Tooltip("Parent for a row of star Images (e.g. Content/EnhancementSlots). Add a HorizontalLayoutGroup in the editor.")]
+    [SerializeField] private RectTransform enhancementIconsRow;
+
+    [Tooltip("Optional: legacy single-star or extra UI under Content/EnhancementSuccess — hidden when the star row is used.")]
+    [SerializeField] private GameObject enhancementLegacySuccessRoot;
+
+    [SerializeField] private Sprite enhancementStarEmptySprite;
+    [SerializeField] private Sprite enhancementStarFilledSprite;
+
+    [SerializeField] private Color enhancementStarColor = Color.white;
+
+    [SerializeField] private float enhancementStarCellSize = 18f;
+
     [Tooltip("Smaller title for plain-text tooltips (e.g. stats panel hovers). When used, NameText is hidden.")]
     [SerializeField] private TMP_Text statsOnlyNameText;
 
@@ -91,6 +105,7 @@ public class SharedTooltipUI : MonoBehaviour
 
         ConfigureTooltipContentForDynamicWidth();
         ResolveOptionalSplitStatsTextRefs();
+        ResolveEnhancementRowRefs();
 
         if (canvasGroup)
         {
@@ -207,6 +222,7 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         BindTooltipStats(def);
+        BindEnhancementDisplay(def);
 
         if (hasShopBlock)
         {
@@ -297,6 +313,7 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         BindTooltipStats(def);
+        BindEnhancementDisplay(def);
 
         if (descriptionText)
         {
@@ -382,6 +399,7 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         ClearTooltipStatsFields();
+        ClearEnhancementDisplay();
 
         if (customValueText)
         {
@@ -567,6 +585,115 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (rarityBorder)
             rarityBorder.color = defaultBorderColor;
+
+        ClearEnhancementDisplay();
+    }
+
+    private void ResolveEnhancementRowRefs()
+    {
+        if (!tooltipLayoutRoot)
+            return;
+
+        if (!enhancementIconsRow)
+            enhancementIconsRow = tooltipLayoutRoot.Find("EnhancementSlots") as RectTransform;
+
+        if (!enhancementLegacySuccessRoot)
+        {
+            Transform t = tooltipLayoutRoot.Find("EnhancementSuccess");
+            if (t)
+                enhancementLegacySuccessRoot = t.gameObject;
+        }
+    }
+
+    private void BindEnhancementDisplay(ItemDefinition def)
+    {
+        ResolveEnhancementRowRefs();
+
+        if (enhancementLegacySuccessRoot)
+            enhancementLegacySuccessRoot.SetActive(false);
+
+        if (!enhancementIconsRow)
+            return;
+
+        if (!def || !def.HasUpgradeSlots || def.MaxUpgradeSlots <= 0)
+        {
+            enhancementIconsRow.gameObject.SetActive(false);
+            return;
+        }
+
+        if (!enhancementStarEmptySprite || !enhancementStarFilledSprite)
+        {
+            enhancementIconsRow.gameObject.SetActive(false);
+            return;
+        }
+
+        int max = def.MaxUpgradeSlots;
+        int filled = Mathf.Clamp(def.SuccessfulEnhancements, 0, max);
+
+        EnsureEnhancementStarChildCount(max);
+        for (int i = 0; i < max; i++)
+        {
+            Transform star = enhancementIconsRow.GetChild(i);
+            star.gameObject.SetActive(true);
+            Image img = star.GetComponent<Image>();
+            if (!img)
+                img = star.gameObject.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+            img.sprite = i < filled ? enhancementStarFilledSprite : enhancementStarEmptySprite;
+            img.color = enhancementStarColor;
+        }
+
+        for (int i = max; i < enhancementIconsRow.childCount; i++)
+            enhancementIconsRow.GetChild(i).gameObject.SetActive(false);
+
+        enhancementIconsRow.gameObject.SetActive(true);
+    }
+
+    private void EnsureEnhancementStarChildCount(int count)
+    {
+        if (!enhancementIconsRow || count <= 0)
+            return;
+
+        float size = Mathf.Max(4f, enhancementStarCellSize);
+
+        while (enhancementIconsRow.childCount < count)
+        {
+            GameObject go = new GameObject("EnhancementStar", typeof(RectTransform), typeof(Image));
+            RectTransform rt = (RectTransform)go.transform;
+            rt.SetParent(enhancementIconsRow, false);
+
+            Image img = go.GetComponent<Image>();
+            img.raycastTarget = false;
+            img.preserveAspect = true;
+
+            LayoutElement le = go.AddComponent<LayoutElement>();
+            le.minWidth = size;
+            le.minHeight = size;
+            le.preferredWidth = size;
+            le.preferredHeight = size;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            Transform t = enhancementIconsRow.GetChild(i);
+            LayoutElement le = t.GetComponent<LayoutElement>();
+            if (!le)
+                le = t.gameObject.AddComponent<LayoutElement>();
+            le.minWidth = size;
+            le.minHeight = size;
+            le.preferredWidth = size;
+            le.preferredHeight = size;
+        }
+    }
+
+    private void ClearEnhancementDisplay()
+    {
+        if (enhancementIconsRow)
+            enhancementIconsRow.gameObject.SetActive(false);
+
+        if (enhancementLegacySuccessRoot)
+            enhancementLegacySuccessRoot.SetActive(false);
     }
 
     private void ClearTooltipStatsFields()

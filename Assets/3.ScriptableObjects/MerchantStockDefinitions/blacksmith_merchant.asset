@@ -18,53 +18,83 @@ MonoBehaviour:
     - type: 0
       amount: 2500
       itemId: 
-    defaultQuantity: 1
+    - type: 1
+      amount: 10
+      itemId: stone_chunk
+    defaultQuantity: 2
   - itemId: stone_dagger
     costs:
     - type: 0
       amount: 2500
       itemId: 
-    defaultQuantity: 1
+    - type: 1
+      amount: 8
+      itemId: stone_chunk
+    defaultQuantity: 2
   - itemId: poison_dagger
     costs:
     - type: 0
       amount: 2500
       itemId: 
-    defaultQuantity: 1
+    - type: 1
+      amount: 3
+      itemId: stone_chunk
+    - type: 1
+      amount: 5
+      itemId: vial_poison
+    defaultQuantity: 3
   - itemId: stone_spear
     costs:
     - type: 0
       amount: 1500
       itemId: 
-    defaultQuantity: 1
+    - type: 1
+      amount: 5
+      itemId: stone_chunk
+    defaultQuantity: 2
   - itemId: knights_polearm
     costs:
     - type: 0
       amount: 7500
       itemId: 
+    - type: 1
+      amount: 25
+      itemId: stone_chunk
     defaultQuantity: 1
   - itemId: ghorrocks_mace
     costs:
     - type: 0
       amount: 25000
       itemId: 
+    - type: 1
+      amount: 50
+      itemId: stone_chunk
     defaultQuantity: 1
   - itemId: stone_shield
     costs:
     - type: 0
       amount: 2500
       itemId: 
+    - type: 1
+      amount: 40
+      itemId: stone_chunk
     defaultQuantity: 1
   - itemId: stone_platebody
     costs:
     - type: 0
       amount: 2500
       itemId: 
+    - type: 1
+      amount: 50
+      itemId: stone_chunk
     defaultQuantity: 1
   - itemId: stone_helmet
     costs:
     - type: 0
       amount: 2500
       itemId: 
+    - type: 1
+      amount: 30
+      itemId: stone_chunk
     defaultQuantity: 1
   stockSaveKey: 

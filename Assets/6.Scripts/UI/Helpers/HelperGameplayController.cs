@@ -844,6 +844,14 @@ public sealed class HelperGameplayController : MonoBehaviour
                     $"[HelperGameplayController] Helper '{d.helperId}' uses Skill Level Reached with Minimum New Level below 2 — clamp in inspector.",
                     d);
             }
+
+            if (d.activationTrigger == HelperActivationTrigger.WorldItemDropped &&
+                string.IsNullOrWhiteSpace(d.GetResolvedWorldDropTriggerItemId()))
+            {
+                Debug.LogWarning(
+                    $"[HelperGameplayController] Helper '{d.helperId}' uses World Item Dropped but no item is set (assign World Drop Trigger Item or Item Id).",
+                    d);
+            }
         }
     }
 #else
@@ -879,6 +887,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         }
 
         UnsubscribeInventoryHelpers();
+        UnsubscribeWorldDropHelpers();
         UnsubscribeQuestProgressHelpers();
         UnsubscribeSkillsHelpers();
 
@@ -895,6 +904,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         _player ??= FindFirstObjectByType<PlayerController>(FindObjectsInactive.Exclude);
 
         SubscribeInventoryHelpers();
+        SubscribeWorldDropHelpers();
         SubscribeQuestProgressHelpers();
         SubscribeSkillsHelpers();
 
@@ -1550,6 +1560,75 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         _inventoryForHelpers.OnInventoryChanged -= HandleInventoryChangedForHelpers;
         _inventoryForHelpers = null;
+    }
+
+    private void SubscribeWorldDropHelpers()
+    {
+        UnsubscribeWorldDropHelpers();
+        ItemDrop.OnWorldPickupSpawned += HandleWorldPickupSpawnedForHelpers;
+    }
+
+    private void UnsubscribeWorldDropHelpers()
+    {
+        ItemDrop.OnWorldPickupSpawned -= HandleWorldPickupSpawnedForHelpers;
+    }
+
+    private void HandleWorldPickupSpawnedForHelpers(string spawnedItemId)
+    {
+        EvaluateWorldItemDroppedHelpers(spawnedItemId);
+    }
+
+    private void EvaluateWorldItemDroppedHelpers(string spawnedItemId)
+    {
+        if (!HelpersPermittedBySettings() ||
+            definitions == null ||
+            definitions.Length == 0)
+            return;
+
+        if (!HelperProgressStore.IsHydratedFromSave)
+            return;
+
+        if (string.IsNullOrWhiteSpace(spawnedItemId))
+            return;
+
+        string remappedSpawned = Inventory.RemapLegacyItemId(spawnedItemId.Trim());
+        MapNodeDefinition activeMap = ResolveActiveMapForHelpers();
+
+        var candidates = new List<HelperPopupDefinition>();
+        for (int i = 0; i < definitions.Length; i++)
+        {
+            HelperPopupDefinition d = definitions[i];
+            if (!d ||
+                string.IsNullOrWhiteSpace(d.helperId) ||
+                d.activationTrigger != HelperActivationTrigger.WorldItemDropped ||
+                HelperProgressStore.WasDismissed(d.helperId))
+                continue;
+
+            string want = d.GetResolvedWorldDropTriggerItemId();
+            if (string.IsNullOrWhiteSpace(want))
+                continue;
+
+            want = Inventory.RemapLegacyItemId(want);
+            if (!string.Equals(want, remappedSpawned, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (!MapNodeMatchesOptional(d, activeMap))
+                continue;
+
+            candidates.Add(d);
+        }
+
+        candidates.Sort(static (a, b) =>
+        {
+            int c = a.priority.CompareTo(b.priority);
+            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
+        });
+
+        if (candidates.Count > 0)
+        {
+            EnqueueDeferredSortedCandidates(candidates);
+            ShowPopup(candidates[0]);
+        }
     }
 
     private void HandleInventoryChangedForHelpers()

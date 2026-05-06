@@ -1284,7 +1284,8 @@ public class EnemyBaseController : MonoBehaviour
             if (stack <= 0)
                 return;
 
-            dm.SpawnAtWorldPosition(won.item.itemId.Trim(), stack, won.item.icon, spawnBase);
+            // Match player-drop behavior: align to ground so loot doesn't hover if the anchor is above the floor.
+            dm.SpawnAtWorldPosition(won.item.itemId.Trim(), stack, won.item.icon, spawnBase, alignToGround: true);
             return;
         }
 
@@ -1306,7 +1307,8 @@ public class EnemyBaseController : MonoBehaviour
             if (stack <= 0)
                 continue;
 
-            dm.SpawnAtWorldPosition(e.item.itemId.Trim(), stack, e.item.icon, spawnBase);
+            // Match player-drop behavior: align to ground so loot doesn't hover if the anchor is above the floor.
+            dm.SpawnAtWorldPosition(e.item.itemId.Trim(), stack, e.item.icon, spawnBase, alignToGround: true);
         }
     }
 

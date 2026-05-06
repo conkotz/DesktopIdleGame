@@ -10,6 +10,19 @@ public static class ActiveLevelContext
     public static MapNodeDefinition Current { get; private set; }
 
     /// <summary>
+    /// Same "active map" marker used by the locations list UI: prefer the currently playing map (bootstrapper),
+    /// else fall back to the pending/current static context.
+    /// </summary>
+    public static string ResolveActiveMapNodeIdForUi()
+    {
+        if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
+            return GameplayLevelBootstrapper.Instance.ActiveDefinition.nodeId;
+        if (Current != null)
+            return Current.nodeId;
+        return null;
+    }
+
+    /// <summary>
     /// Call from level select (or tests) immediately before loading the gameplay scene.
     /// </summary>
     /// <param name="logToConsole">Set false when restoring from save to avoid noisy duplicate logs.</param>

@@ -156,9 +156,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestGiver
   locationId: noticeboard
-  questId: greenlands_clear_fields
-  additionalQuestIds:
-  - greenlands_splitwood_contract
+  questId: greenlands_battlegrounds_clearance
+  additionalQuestIds: []
   exclamationMarkPrefab: {fileID: 0}
   exclamationMarkLocalOffset: {x: 0, y: 0.75, z: 0}
   generatedExclamationMarkSize: 0.2

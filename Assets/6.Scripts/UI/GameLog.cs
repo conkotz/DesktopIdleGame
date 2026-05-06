@@ -236,7 +236,8 @@ public static class GameLog
     }
 
     /// <summary>
-    /// Default activity lines use <see cref="DefaultTextColor"/>; these patterns are shown in <see cref="CannotMessageColor"/> instead.
+    /// Default activity lines use <see cref="DefaultTextColor"/>; blocked / failure popups (Cannot, Not enough…, cooldown, etc.)
+    /// are shown in <see cref="CannotMessageColor"/> instead.
     /// </summary>
     private static bool ShouldUseBlockedOrNegativeLogColor(string m)
     {
@@ -244,8 +245,22 @@ public static class GameLog
             return false;
 
         if (m.StartsWith("Cannot", StringComparison.OrdinalIgnoreCase) ||
+            m.StartsWith("Can't ", StringComparison.OrdinalIgnoreCase) ||
             m.StartsWith("Item not available", StringComparison.OrdinalIgnoreCase) ||
-            m.StartsWith("Ability not available", StringComparison.OrdinalIgnoreCase))
+            m.StartsWith("Ability not available", StringComparison.OrdinalIgnoreCase) ||
+            m.StartsWith("Ability cant", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (m.StartsWith("Not enough", StringComparison.OrdinalIgnoreCase) ||
+            m.StartsWith("Could not ", StringComparison.OrdinalIgnoreCase) ||
+            m.StartsWith("Inventory full", StringComparison.OrdinalIgnoreCase) ||
+            m.StartsWith("Requires level", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (m.IndexOf(" on cooldown", StringComparison.OrdinalIgnoreCase) >= 0)
+            return true;
+
+        if (m.IndexOf("Fatigued", StringComparison.OrdinalIgnoreCase) >= 0)
             return true;
 
         if (m.StartsWith("This Region is locked", StringComparison.OrdinalIgnoreCase))

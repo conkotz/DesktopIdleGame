@@ -209,6 +209,15 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         if (!button || !button.interactable || _shop == null || _merchant == null || _entry == null)
             return;
 
+        bool ctrlHeld = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        if (ctrlHeld)
+        {
+            // Quick-buy shortcut: Ctrl+click buys 1x immediately from this slot.
+            _shop.NotifySlotSelected(this);
+            _shop.TryBuy(_merchant, _entry, 1);
+            return;
+        }
+
         _shop.NotifySlotSelected(this);
     }
 

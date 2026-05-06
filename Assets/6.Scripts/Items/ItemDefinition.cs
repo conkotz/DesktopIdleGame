@@ -1307,7 +1307,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             string speed = $"{aps:0.##} atk/s";
             float critChancePct = Mathf.Clamp01(weaponStats.critChance + bonusStats.critChanceBonus) * 100f;
-            float critMultPct = Mathf.Max(0f, weaponStats.critMultiplier + bonusStats.critMultiplierBonus) * 100f;
+            // Crit multiplier is stored as 1.00 = +0% (aka 100%). Show bonus over baseline: 1.30 -> +30%.
+            float critMultBonusPct =
+                (Mathf.Max(0f, weaponStats.critMultiplier + bonusStats.critMultiplierBonus) - 1f) * 100f;
 
             string range = $"{AttackRange:0.##}";
 
@@ -1318,7 +1320,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             string extras = BuildBonusLines(
                 includeDefense: false,
                 omitBurnBonuses: true,
-                omitAilmentChanceBonuses: true);
+                omitAilmentChanceBonuses: true,
+                omitAilmentMultiplierBonuses: true);
 
             string s = "";
 
@@ -1337,8 +1340,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             s +=
                 $"Speed: {speed}\n" +
-                $"Crit Chance: {critChancePct:0.#}%\n" +
-                $"Crit Multi: {critMultPct:0.#}%\n" +
+                $"Crit Chance: {FormatSignedPercent100WithPlus(critChancePct)}\n" +
+                $"Crit Multi: {FormatSignedPercent100WithPlus(critMultBonusPct)}\n" +
                 $"{BuildWeaponAilmentsLine()}\n" +
                 $"Range: {range}" +
                 dual;
@@ -1538,10 +1541,16 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return $"{fraction * 100f:0.#}% {label}";
     }
 
+    private static string FormatSignedPercent100WithPlus(float value)
+    {
+        return $"{value:+0.#;-0.#;0}%";
+    }
+
     private string BuildBonusLines(
         bool includeDefense,
         bool omitBurnBonuses = false,
-        bool omitAilmentChanceBonuses = false)
+        bool omitAilmentChanceBonuses = false,
+        bool omitAilmentMultiplierBonuses = false)
     {
         string s = "";
 
@@ -1595,15 +1604,15 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (!omitAilmentChanceBonuses && bonusStats.bleedChance != 0f)
             s += $"Bleed Chance: {FormatSignedPercent01(bonusStats.bleedChance)}\n";
-        if (bonusStats.bleedMultiplier != 0f)
+        if (!omitAilmentMultiplierBonuses && bonusStats.bleedMultiplier != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.bleedMultiplier, "Bleed Damage")}\n";
 
         if (!omitAilmentChanceBonuses && bonusStats.poisonChance != 0f)
             s += $"Poison Chance: {FormatSignedPercent01(bonusStats.poisonChance)}\n";
-        if (bonusStats.poisonMultiplier != 0f)
+        if (!omitAilmentMultiplierBonuses && bonusStats.poisonMultiplier != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.poisonMultiplier, "Poison Damage")}\n";
-        if (bonusStats.poisonDurationBonus != 0f) s += $"Poison Duration: {FormatSignedNumber(bonusStats.poisonDurationBonus)}s\n";
-        if (bonusStats.poisonMaxStacksBonus != 0) s += $"Poison Max Stacks: {FormatSignedInt(bonusStats.poisonMaxStacksBonus)}\n";
+        if (!omitAilmentMultiplierBonuses && bonusStats.poisonDurationBonus != 0f) s += $"Poison Duration: {FormatSignedNumber(bonusStats.poisonDurationBonus)}s\n";
+        if (!omitAilmentMultiplierBonuses && bonusStats.poisonMaxStacksBonus != 0) s += $"Poison Max Stacks: {FormatSignedInt(bonusStats.poisonMaxStacksBonus)}\n";
         if (!omitBurnBonuses)
         {
             if (!omitAilmentChanceBonuses && bonusStats.burnChance != 0f)
@@ -1629,21 +1638,34 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     private string BuildWeaponAilmentsLine()
     {
-        string ailments = "";
+        // Weapon tooltips want explicit "Chance" / "Multi" wording and no "Ailments:" prefix.
+        // Keep this block directly under crit lines (see BuildTooltipMainStatsText weapon path).
+        string block = "";
 
+        // Elemental ailment apply chance for magic weapons (Burn/Chill/Shock based on magic type).
         if (weaponStats.attackSkill == AttackSkill.Magic && MagicAilmentApplyChance > 0f)
-            AppendInlineListItem(ref ailments, $"{GetMagicAilmentName()} {MagicAilmentApplyChance * 100f:0.#}%");
+            block += $"{GetMagicAilmentName()} Chance: {MagicAilmentApplyChance * 100f:0.#}%\n";
 
+        // Physical/corruption ailment chances (bonuses).
         if (bonusStats.bleedChance != 0f)
-            AppendInlineListItem(ref ailments, $"Bleed {FormatSignedPercent01(bonusStats.bleedChance)}");
+            block += $"Bleed Chance: {FormatSignedPercent01(bonusStats.bleedChance)}\n";
         if (bonusStats.poisonChance != 0f)
-            AppendInlineListItem(ref ailments, $"Poison {FormatSignedPercent01(bonusStats.poisonChance)}");
+            block += $"Poison Chance: {FormatSignedPercent01(bonusStats.poisonChance)}\n";
         if (bonusStats.burnChance != 0f)
-            AppendInlineListItem(ref ailments, $"Burn {FormatSignedPercent01(bonusStats.burnChance)}");
+            block += $"Burn Chance: {FormatSignedPercent01(bonusStats.burnChance)}\n";
 
-        return string.IsNullOrWhiteSpace(ailments)
-            ? "Ailments: None"
-            : $"Ailments: {ailments}";
+        // Multipliers / scaling for weapons.
+        if (bonusStats.bleedMultiplier != 0f)
+            block += $"Bleed Multi: {FormatSignedPercent100WithPlus(bonusStats.bleedMultiplier * 100f)}\n";
+        if (bonusStats.poisonMultiplier != 0f)
+            block += $"Poison Multi: {FormatSignedPercent100WithPlus(bonusStats.poisonMultiplier * 100f)}\n";
+
+        if (bonusStats.poisonDurationBonus != 0f)
+            block += $"Poison Duration: {FormatSignedNumber(bonusStats.poisonDurationBonus)}s\n";
+        if (bonusStats.poisonMaxStacksBonus != 0)
+            block += $"Poison Max Stacks: {FormatSignedInt(bonusStats.poisonMaxStacksBonus)}\n";
+
+        return block.TrimEnd('\n');
     }
 
     private string GetMagicAilmentName()

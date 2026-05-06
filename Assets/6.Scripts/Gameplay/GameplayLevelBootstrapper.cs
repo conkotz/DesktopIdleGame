@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -89,8 +90,10 @@ public class GameplayLevelBootstrapper : MonoBehaviour
             SaveManager.Instance.RehydrateMerchantStocksFromSave();
             SaveManager.Instance.ScheduleMerchantRehydrateFrames(2);
             SaveManager.Instance.RehydrateNpcDialogueStoresFromDiskPreferFile();
+            // Saving here runs before default-order components' Start() (e.g. ActionBarUI). A save would snapshot an
+            // empty action bar and overwrite SaveManager's in-memory payload, so food/potion slots never rehydrate.
             if (markedNodeEntered)
-                SaveManager.Instance.Save();
+                StartCoroutine(CoSaveAfterGameplaySaveablesStart());
         }
 
         if (FindFirstObjectByType<HelperGameplayController>(FindObjectsInactive.Include) == null)
@@ -104,6 +107,14 @@ public class GameplayLevelBootstrapper : MonoBehaviour
         if (!string.IsNullOrWhiteSpace(node.displayName))
             return node.displayName;
         return node.nodeId;
+    }
+
+    private static IEnumerator CoSaveAfterGameplaySaveablesStart()
+    {
+        yield return null;
+        yield return null;
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.Save();
     }
 
 }
