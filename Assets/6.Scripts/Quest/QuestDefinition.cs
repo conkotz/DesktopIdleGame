@@ -78,6 +78,10 @@ public class QuestDefinition : ScriptableObject
         "Can be enabled on multiple quests; any one claimed is enough to unlock.")]
     public bool grantIdleCombatUnlockOnRewardClaim;
 
+    [Min(0)]
+    [Tooltip("Additional inventory slots granted when this quest reward is claimed (e.g. 1, 4, 8).")]
+    public int grantAdditionalInventorySlotsOnRewardClaim;
+
     [Header("Rules")]
     [Tooltip("If false, rewards can only be claimed once; the quest stays COMPLETE in the list.")]
     public bool repeatable;

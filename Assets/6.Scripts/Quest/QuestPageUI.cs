@@ -1395,6 +1395,8 @@ public class QuestPageUI : MonoBehaviour
 
         if (q.grantIdleCombatUnlockOnRewardClaim)
             parts.Add("Unlocks Auto Battle");
+        if (q.grantAdditionalInventorySlotsOnRewardClaim > 0)
+            parts.Add($"+{q.grantAdditionalInventorySlotsOnRewardClaim} Inventory Slots");
 
         return parts.Count > 0 ? string.Join(" / ", parts) : "—";
     }

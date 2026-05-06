@@ -484,8 +484,25 @@ public class QuestTrackerWindowUI : MonoBehaviour
         ItemDefinition item = db ? db.Get(q.objectiveId.Trim()) : null;
         string singular = item && !string.IsNullOrWhiteSpace(item.displayName)
             ? item.displayName.Trim()
-            : q.objectiveId.Trim();
+            : FormatTrackerItemIdFallback(q.objectiveId.Trim());
         return $"{c}/{t} {PluralizeTrackerUnit(singular, t)}";
+    }
+
+    private static string FormatTrackerItemIdFallback(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return "";
+
+        string[] parts = raw.Trim().Split('_');
+        for (int i = 0; i < parts.Length; i++)
+        {
+            string p = parts[i];
+            if (string.IsNullOrEmpty(p))
+                continue;
+            parts[i] = char.ToUpperInvariant(p[0]) + (p.Length > 1 ? p.Substring(1).ToLowerInvariant() : "");
+        }
+
+        return string.Join(" ", parts);
     }
 
     private static string FormatTrackerEnemyIdFallback(string raw)

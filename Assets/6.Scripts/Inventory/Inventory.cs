@@ -6,10 +6,12 @@ public class Inventory : MonoBehaviour, ISaveable
 {
     [SerializeField] private ItemDatabase itemDb;
     [SerializeField] private int defaultMaxStack = 99;
+    [SerializeField, Min(1)] private int startingSlotCount = 24;
 
     private void Awake()
     {
         EnsureItemDatabaseRef();
+        EnsureSlotCount(startingSlotCount);
         if (!itemDb)
             Debug.LogError("[Inventory] ItemDatabase not found. Item defs/values/tooltips will be NULL.");
     }
@@ -106,6 +108,21 @@ public class Inventory : MonoBehaviour, ISaveable
     public event Action OnInventoryFull;
 
     public int SlotCount => _slots.Count;
+
+    /// <summary>
+    /// Increase inventory capacity by <paramref name="amount"/> slots.
+    /// Never shrinks capacity.
+    /// </summary>
+    public void UnlockAdditionalSlots(int amount)
+    {
+        if (amount <= 0)
+            return;
+
+        int before = _slots.Count;
+        EnsureSlotCount(before + amount);
+        if (_slots.Count != before)
+            OnInventoryChanged?.Invoke();
+    }
 
     public void EnsureSlotCount(int count)
     {

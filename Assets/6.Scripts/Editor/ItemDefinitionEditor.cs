@@ -312,7 +312,7 @@ public class ItemDefinitionEditor : Editor
             DrawBonusBlockIfPresent("Bonus Stats", show: false);
         }
 
-        if (kind != ItemKind.EnhancementScroll)
+        if (kind == ItemKind.Consumable)
             DrawCookableStatsBlock();
 
         serializedObject.ApplyModifiedProperties();

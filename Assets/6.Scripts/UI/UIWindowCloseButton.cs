@@ -42,6 +42,14 @@ public class UIWindowCloseButton : MonoBehaviour
             return;
         }
 
+        // Shop close must fully exit merchant mode; otherwise inventory sell hotpath can remain enabled.
+        ShopUI shopUi = targetWindow.GetComponent<ShopUI>() ?? targetWindow.GetComponentInParent<ShopUI>(true);
+        if (shopUi != null)
+        {
+            MerchantClick.ForceCloseMerchantMode();
+            return;
+        }
+
         if (disableInsteadOfHide)
         {
             CanvasGroup cg = targetWindow.GetComponent<CanvasGroup>();

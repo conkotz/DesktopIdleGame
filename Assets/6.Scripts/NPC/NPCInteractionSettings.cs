@@ -924,6 +924,8 @@ public class NPCInteractionSettings : MonoBehaviour
 
         if (quest.grantIdleCombatUnlockOnRewardClaim)
             parts.Add("Unlocks Auto Battle");
+        if (quest.grantAdditionalInventorySlotsOnRewardClaim > 0)
+            parts.Add($"+{quest.grantAdditionalInventorySlotsOnRewardClaim} Inventory Slots");
 
         return parts.Count > 0 ? string.Join(" / ", parts) : "-";
     }

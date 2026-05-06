@@ -21,6 +21,8 @@ public class InventoryGridUI : MonoBehaviour
     [SerializeField] private RectTransform slotsGrid;
     [SerializeField] private InventorySlotUI slotPrefab;
     [SerializeField] private SharedTooltipUI tooltip;
+    [SerializeField] private ScrollRect inventoryScrollRect;
+    [SerializeField] private RectTransform scrollContentRoot;
 
     [Header("Tooltip Docking")]
     [SerializeField] private RectTransform tooltipAnchor;
@@ -32,7 +34,7 @@ public class InventoryGridUI : MonoBehaviour
 
     [Header("Hard Grid Size")]
     [SerializeField] private int columns = 8;
-    [SerializeField] private int rows = 3;
+    [SerializeField] private int minVisibleRows = 3;
 
     [Header("Layout Fit")]
     [SerializeField] private bool squareCells = true;
@@ -71,8 +73,10 @@ public class InventoryGridUI : MonoBehaviour
     private bool _dirty;
 
     private Canvas _rootCanvas;
+    private RectTransform _resolvedViewport;
+    private RectTransform _resolvedContent;
 
-    private int TotalSlots => Mathf.Max(1, columns) * Mathf.Max(1, rows);
+    private int TotalSlots => GetTargetSlotCount();
 
     private void Awake()
     {
@@ -86,6 +90,11 @@ public class InventoryGridUI : MonoBehaviour
         if (!_grid && slotsGrid) _grid = slotsGrid.GetComponent<GridLayoutGroup>();
 
         _rootCanvas = GetComponentInParent<Canvas>();
+
+        if (!inventoryScrollRect && slotsGrid)
+            inventoryScrollRect = slotsGrid.GetComponentInParent<ScrollRect>(true);
+
+        EnsureScrollViewportClipping();
 
         if (!inventoryPanelRect)
             inventoryPanelRect = transform as RectTransform;
@@ -110,6 +119,8 @@ public class InventoryGridUI : MonoBehaviour
 
     private void OnEnable()
     {
+        EnsureScrollViewportClipping();
+
         if (inventory != null)
             inventory.OnInventoryChanged += MarkDirty;
 
@@ -152,7 +163,7 @@ public class InventoryGridUI : MonoBehaviour
 
     private IEnumerator DeferredRefresh()
     {
-        EnsurePoolSize();
+        EnsurePoolSize(TotalSlots);
 
         for (int i = 0; i < Mathf.Max(1, layoutRetryFrames); i++)
         {
@@ -200,13 +211,9 @@ public class InventoryGridUI : MonoBehaviour
         }
     }
 
-    private void EnsurePoolSize()
+    private void EnsurePoolSize(int needed)
     {
         if (!slotsGrid || !slotPrefab) return;
-
-        int needed = TotalSlots;
-
-        if (inventory) inventory.EnsureSlotCount(needed);
 
         while (_slotPool.Count < needed)
         {
@@ -223,25 +230,31 @@ public class InventoryGridUI : MonoBehaviour
 
     private void ApplyGridFit()
     {
+        EnsureScrollViewportClipping();
+
         if (!slotsGrid) return;
         if (!_grid) _grid = slotsGrid.GetComponent<GridLayoutGroup>();
         if (!_grid) return;
 
-        float w = slotsGrid.rect.width;
-        float h = slotsGrid.rect.height;
+        RectTransform fitRect = _resolvedViewport ? _resolvedViewport : slotsGrid;
+        float w = fitRect.rect.width;
+        float h = fitRect.rect.height;
         if (w <= 1f || h <= 1f) return;
 
         columns = Mathf.Max(1, columns);
-        rows = Mathf.Max(1, rows);
+        minVisibleRows = Mathf.Max(1, minVisibleRows);
+        int rowCount = GetTargetRowCount();
+        int fitRows = Mathf.Max(minVisibleRows, 1);
 
         _grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         _grid.constraintCount = columns;
+        _grid.startAxis = GridLayoutGroup.Axis.Horizontal;
 
         float usableW = w - _grid.padding.left - _grid.padding.right - _grid.spacing.x * (columns - 1);
-        float usableH = h - _grid.padding.top - _grid.padding.bottom - _grid.spacing.y * (rows - 1);
+        float usableH = h - _grid.padding.top - _grid.padding.bottom - _grid.spacing.y * (fitRows - 1);
 
         float cellW = usableW / columns;
-        float cellH = usableH / rows;
+        float cellH = usableH / fitRows;
 
         float cell = cellW;
         cell = Mathf.Min(cell, cellH);
@@ -256,15 +269,18 @@ public class InventoryGridUI : MonoBehaviour
                 Mathf.Max(minCellSize, Mathf.Floor(cellW)),
                 Mathf.Max(minCellSize, Mathf.Floor(cellH))
             );
+
+        ApplyContentHeightForRows(rowCount);
     }
 
     public void Rebuild()
     {
         if (!inventory || !slotsGrid || !slotPrefab) return;
-        EnsurePoolSize();
-
         int totalSlots = TotalSlots;
         inventory.EnsureSlotCount(totalSlots);
+        EnsurePoolSize(totalSlots);
+
+        ApplyGridFit();
 
         bool allFilterActive = _activeFilter == InventoryViewFilter.All;
         List<int> visibleSourceSlots = allFilterActive ? null : BuildFilteredSourceSlotList(totalSlots);
@@ -386,5 +402,148 @@ public class InventoryGridUI : MonoBehaviour
 
         if (button.targetGraphic != null)
             button.targetGraphic.color = active ? filterButtonActiveColor : filterButtonInactiveColor;
+    }
+
+    private int GetTargetSlotCount()
+    {
+        if (inventory != null && inventory.SlotCount > 0)
+            return inventory.SlotCount;
+
+        return Mathf.Max(1, columns) * Mathf.Max(1, minVisibleRows);
+    }
+
+    private int GetTargetRowCount()
+    {
+        int totalSlots = Mathf.Max(1, GetTargetSlotCount());
+        int safeColumns = Mathf.Max(1, columns);
+        return Mathf.Max(1, Mathf.CeilToInt(totalSlots / (float)safeColumns));
+    }
+
+    private void ApplyContentHeightForRows(int rows)
+    {
+        if (_grid == null)
+            return;
+
+        rows = Mathf.Max(1, rows);
+        float height =
+            _grid.padding.top +
+            _grid.padding.bottom +
+            (_grid.cellSize.y * rows) +
+            (_grid.spacing.y * Mathf.Max(0, rows - 1));
+
+        RectTransform content = _resolvedContent ? _resolvedContent : slotsGrid;
+        if (!content)
+            return;
+
+        Vector2 size = content.sizeDelta;
+        size.y = Mathf.Max(0f, height);
+        content.sizeDelta = size;
+    }
+
+    /// <summary>
+    /// Ensures inventory slots are clipped to the visible scroll viewport, even if scene wiring misses the mask component.
+    /// </summary>
+    private void EnsureScrollViewportClipping()
+    {
+        if (!inventoryScrollRect && slotsGrid)
+            inventoryScrollRect = slotsGrid.GetComponentInParent<ScrollRect>(true);
+        if (!inventoryScrollRect)
+            return;
+
+        _resolvedViewport = inventoryScrollRect.viewport;
+        if (!_resolvedViewport)
+            _resolvedViewport = FindViewportChild(inventoryScrollRect.transform);
+        if (!_resolvedViewport)
+            _resolvedViewport = inventoryScrollRect.transform as RectTransform;
+        if (!_resolvedViewport)
+            return;
+
+        NormalizeViewportRectTransform();
+
+        if (_resolvedViewport.GetComponent<RectMask2D>() == null)
+            _resolvedViewport.gameObject.AddComponent<RectMask2D>();
+
+        NormalizeScrollContentWiring();
+    }
+
+    /// <summary>
+    /// Some scene setups end up with a viewport anchored as a point (size 0), which breaks clipping.
+    /// Force a sane stretch-to-parent viewport only when clearly invalid.
+    /// </summary>
+    private void NormalizeViewportRectTransform()
+    {
+        if (_resolvedViewport == null)
+            return;
+
+        bool invalidSize = _resolvedViewport.rect.width <= 1f || _resolvedViewport.rect.height <= 1f;
+        bool pointAnchored = Mathf.Approximately(_resolvedViewport.anchorMin.x, _resolvedViewport.anchorMax.x) &&
+                             Mathf.Approximately(_resolvedViewport.anchorMin.y, _resolvedViewport.anchorMax.y);
+        if (!invalidSize && !pointAnchored)
+            return;
+
+        _resolvedViewport.anchorMin = Vector2.zero;
+        _resolvedViewport.anchorMax = Vector2.one;
+        _resolvedViewport.pivot = new Vector2(0.5f, 0.5f);
+        _resolvedViewport.anchoredPosition = Vector2.zero;
+        _resolvedViewport.sizeDelta = Vector2.zero;
+        _resolvedViewport.offsetMin = Vector2.zero;
+        _resolvedViewport.offsetMax = Vector2.zero;
+    }
+
+    /// <summary>
+    /// Keeps ScrollRect content wiring deterministic so clipping/scrolling target the same rect.
+    /// </summary>
+    private void NormalizeScrollContentWiring()
+    {
+        if (inventoryScrollRect == null || _resolvedViewport == null || slotsGrid == null)
+            return;
+
+        _resolvedContent = scrollContentRoot;
+        if (!_resolvedContent)
+            _resolvedContent = inventoryScrollRect.content;
+        if (!_resolvedContent)
+            _resolvedContent = slotsGrid.parent as RectTransform;
+        if (!_resolvedContent)
+            _resolvedContent = slotsGrid;
+
+        if (_resolvedContent.parent != _resolvedViewport)
+            _resolvedContent.SetParent(_resolvedViewport, false);
+
+        if (slotsGrid.parent != _resolvedContent)
+            slotsGrid.SetParent(_resolvedContent, false);
+
+        if (inventoryScrollRect.content != _resolvedContent)
+            inventoryScrollRect.content = _resolvedContent;
+
+        // Content: top-pinned, stretch width to viewport.
+        _resolvedContent.anchorMin = new Vector2(0f, 1f);
+        _resolvedContent.anchorMax = new Vector2(1f, 1f);
+        _resolvedContent.pivot = new Vector2(0.5f, 1f);
+        _resolvedContent.anchoredPosition = new Vector2(0f, 0f);
+        Vector2 contentSize = _resolvedContent.sizeDelta;
+        contentSize.x = 0f;
+        _resolvedContent.sizeDelta = contentSize;
+
+        // Slots grid: child of content, also stretch-width top pinned.
+        slotsGrid.anchorMin = new Vector2(0f, 1f);
+        slotsGrid.anchorMax = new Vector2(1f, 1f);
+        slotsGrid.pivot = new Vector2(0.5f, 1f);
+        slotsGrid.anchoredPosition = new Vector2(0f, 0f);
+        Vector2 size = slotsGrid.sizeDelta;
+        size.x = 0f;
+        slotsGrid.sizeDelta = size;
+    }
+
+    private static RectTransform FindViewportChild(Transform root)
+    {
+        if (root == null)
+            return null;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform c = root.GetChild(i);
+            if (string.Equals(c.name, "Viewport", System.StringComparison.OrdinalIgnoreCase))
+                return c as RectTransform;
+        }
+        return null;
     }
 }

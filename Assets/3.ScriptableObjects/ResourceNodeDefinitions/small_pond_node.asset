@@ -25,10 +25,12 @@ MonoBehaviour:
   useRandomInterval: 1
   minInterval: 10
   maxInterval: 20
-  bonusDrops: []
+  bonusDrops:
+  - item: {fileID: 11400000, guid: 1fdefa701728e7446be45115912a8999, type: 2}
+    chance: 0.05
+    amountMin: 1
+    amountMax: 1
   requiresTool: 1
   requiredTool: 4
   missingToolMessage: No rod found in toolbelt
   energyCostPerSwing: 30
-  requiredGatherPower: 0
-  enforcePowerGate: 0

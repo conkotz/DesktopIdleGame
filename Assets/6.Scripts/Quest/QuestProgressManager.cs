@@ -1051,6 +1051,12 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     private void GrantRewards(QuestDefinition q)
     {
+        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        int slotsToGrant = Mathf.Max(0, q.grantAdditionalInventorySlotsOnRewardClaim);
+        if (slotsToGrant > 0 && inv)
+            inv.UnlockAdditionalSlots(slotsToGrant);
+
         if (q.rewardGold > 0)
         {
             CurrencyWallet w = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
@@ -1067,7 +1073,6 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (stacks.Count == 0)
             return;
 
-        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
         PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
         if (!inv)
             return;

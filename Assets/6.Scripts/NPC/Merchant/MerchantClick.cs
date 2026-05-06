@@ -122,11 +122,15 @@ public class MerchantClick : MonoBehaviour
             return;
         }
 
-        if (MerchantModeOpen && _active == this)
+        if (MerchantModeOpen && _active == this && shopUI.IsOpen)
         {
             PositionShopUI();
             return;
         }
+
+        // Recover from stale merchant mode (e.g. window was closed through a generic close button path).
+        if (MerchantModeOpen && !shopUI.IsOpen)
+            ForceCloseMerchantMode();
 
         StorageClick.ForceCloseStorageMode();
 

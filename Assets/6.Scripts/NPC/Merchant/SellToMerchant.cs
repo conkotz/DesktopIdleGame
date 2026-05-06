@@ -26,7 +26,8 @@ public class SellToMerchant : MonoBehaviour, IPointerClickHandler
         if (eventData.button != PointerEventData.InputButton.Left)
             return;
 
-        if (!MerchantClick.MerchantModeOpen)
+        // Selling requires active merchant mode and an open shop window.
+        if (!MerchantClick.MerchantModeOpen || !MerchantClick.IsShopOpen)
             return;
 
         bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);

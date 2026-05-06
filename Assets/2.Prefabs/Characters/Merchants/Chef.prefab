@@ -449,7 +449,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::QuestGiver
   locationId: chef
   questId: greenlands_fishing_rod_intro
-  additionalQuestIds: []
+  additionalQuestIds:
+  - greenlands_golden_fish
   exclamationMarkPrefab: {fileID: 0}
   exclamationMarkLocalOffset: {x: 0, y: 0.75, z: 0}
   generatedExclamationMarkSize: 0.2
