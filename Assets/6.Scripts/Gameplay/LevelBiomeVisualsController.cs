@@ -9,6 +9,10 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     public static LevelBiomeVisualsController Instance { get; private set; }
 
     private const string FloorVisualsName = "FloorVisuals";
+    private const string WorldVisualsName = "WorldVisuals";
+    private const string BackgroundVisualsName = "BackgroundVisuals";
+    private const string DefaultSkyVisualName = "DefaultSkyVisual";
+    private const string CaveBackgroundName = "CaveBackground";
     private const string StripCanvasName = "StripUICanvas";
     private const string OverlayName = "BiomeCaveOverlay";
 
@@ -27,6 +31,13 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     [SerializeField] private Color dungeonInteriorFloorTint = new Color(0.33f, 0.31f, 0.34f, 1f);
     [SerializeField] private Color tundraFloorTint = new Color(0.70f, 0.76f, 0.80f, 1f);
     [SerializeField] private Color customFloorTint = new Color(0.56f, 0.46f, 0.60f, 1f);
+
+    [Header("Visual Hierarchy (optional overrides)")]
+    [SerializeField] private Transform worldVisualsRoot;
+    [SerializeField] private string floorVisualsPath = "FloorVisuals";
+    [SerializeField] private string backgroundVisualsPath = "BackgroundVisuals";
+    [SerializeField] private string defaultBackgroundObjectName = DefaultSkyVisualName;
+    [SerializeField] private string caveBackgroundObjectName = CaveBackgroundName;
 
     [Header("Cave Overlay")]
     [SerializeField, Min(0f)] private float caveOverlayBaseAlpha = 0.2f;
@@ -157,6 +168,7 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
         _activeBiome = def != null ? def.biome : LevelBiome.None;
         Color tint = ResolveFloorTint(_activeBiome);
         ApplyFloorTintToScene(tint);
+        ApplyBackgroundVisualForBiome(_activeBiome);
         EnsureCaveOverlayState(_activeBiome == LevelBiome.Cave);
     }
 
@@ -179,8 +191,23 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
         };
     }
 
-    private static void ApplyFloorTintToScene(Color tint)
+    private void ApplyFloorTintToScene(Color tint)
     {
+        Transform floorRoot = ResolveFloorVisualsRoot();
+        if (floorRoot != null)
+        {
+            SpriteRenderer[] renderers = floorRoot.GetComponentsInChildren<SpriteRenderer>(true);
+            for (int r = 0; r < renderers.Length; r++)
+            {
+                SpriteRenderer sr = renderers[r];
+                if (!sr)
+                    continue;
+                sr.color = tint;
+            }
+            return;
+        }
+
+        // Fallback for legacy scenes without the WorldVisuals/FloorVisuals folder layout.
         Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
         for (int i = 0; i < all.Length; i++)
         {
@@ -199,6 +226,73 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
                 sr.color = tint;
             }
         }
+    }
+
+    private void ApplyBackgroundVisualForBiome(LevelBiome biome)
+    {
+        Transform backgroundRoot = ResolveBackgroundVisualsRoot();
+        if (backgroundRoot == null)
+            return;
+
+        string defaultName = string.IsNullOrWhiteSpace(defaultBackgroundObjectName)
+            ? DefaultSkyVisualName
+            : defaultBackgroundObjectName.Trim();
+        string caveName = string.IsNullOrWhiteSpace(caveBackgroundObjectName)
+            ? CaveBackgroundName
+            : caveBackgroundObjectName.Trim();
+
+        Transform defaultBg = backgroundRoot.Find(defaultName);
+        Transform caveBg = backgroundRoot.Find(caveName);
+        Transform selected = biome == LevelBiome.Cave && caveBg != null ? caveBg : defaultBg;
+        if (selected == null)
+            return;
+
+        for (int i = 0; i < backgroundRoot.childCount; i++)
+        {
+            Transform child = backgroundRoot.GetChild(i);
+            if (child == null)
+                continue;
+            child.gameObject.SetActive(child == selected);
+        }
+    }
+
+    private Transform ResolveWorldVisualsRoot()
+    {
+        if (worldVisualsRoot != null)
+            return worldVisualsRoot;
+
+        Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
+        for (int i = 0; i < all.Length; i++)
+        {
+            Transform t = all[i];
+            if (!t || t.hideFlags != HideFlags.None || !t.gameObject.scene.IsValid())
+                continue;
+            if (string.Equals(t.name, WorldVisualsName, System.StringComparison.OrdinalIgnoreCase))
+            {
+                worldVisualsRoot = t;
+                return worldVisualsRoot;
+            }
+        }
+
+        return null;
+    }
+
+    private Transform ResolveFloorVisualsRoot()
+    {
+        Transform worldRoot = ResolveWorldVisualsRoot();
+        string path = string.IsNullOrWhiteSpace(floorVisualsPath) ? "FloorVisuals" : floorVisualsPath.Trim();
+        if (worldRoot == null || string.IsNullOrWhiteSpace(path))
+            return null;
+        return worldRoot.Find(path);
+    }
+
+    private Transform ResolveBackgroundVisualsRoot()
+    {
+        Transform worldRoot = ResolveWorldVisualsRoot();
+        string path = string.IsNullOrWhiteSpace(backgroundVisualsPath) ? "BackgroundVisuals" : backgroundVisualsPath.Trim();
+        if (worldRoot == null || string.IsNullOrWhiteSpace(path))
+            return null;
+        return worldRoot.Find(path);
     }
 
     private void EnsureCaveOverlayState(bool enabled)
