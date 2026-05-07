@@ -13,9 +13,6 @@ public enum NpcDialogueConditionKind
         "After the player dies and respawns (scene reload), or when loading a save with this flag still set. " +
         "When After Death Respawn Map Node Id is set, it must match the map where the player died (not the map you are on when the NPC speaks). Cleared when this dialogue is shown.")]
     AfterDeathAndRespawn = 1,
-
-    [Tooltip("Shows only while the player has any silk. Accept sells all silk for 50 gold each.")]
-    BuysAllSilk = 2,
 }
 
 public enum NpcDialogueOutcomeKind
@@ -23,6 +20,8 @@ public enum NpcDialogueOutcomeKind
     None = 0,
     [Tooltip("Loads GamePlay with the chosen map node (same flow as quest reward teleport).")]
     TeleportToMapNode = 1,
+    [Tooltip("Removes all of the configured item id from player inventory and grants gold per item.")]
+    BuyAllItems = 2,
 }
 
 [Serializable]
@@ -50,13 +49,18 @@ public class NpcConditionalDialogueEntry
 
     [Tooltip("Used when Teleport Target Node is empty. Must match MapNodeDefinition.nodeId (e.g. duskwood).")]
     public string teleportMapNodeId = "";
+
+    [Tooltip("For Buy All Items: ItemDefinition.itemId to purchase from player inventory.")]
+    public string buyAllItemId = "";
+
+    [Min(1)]
+    [Tooltip("For Buy All Items: gold paid per item removed from inventory.")]
+    public int buyAllGoldPerItem = 50;
 }
 
 public class NPCInteractionSettings : MonoBehaviour
 {
     private const string GameplaySceneName = "GamePlay";
-    private const string SilkItemId = "silk";
-    private const int SilkGoldPerUnit = 50;
 
     [Header("Dialogue")]
     [TextArea(2, 6)]
@@ -707,9 +711,6 @@ public class NPCInteractionSettings : MonoBehaviour
 
     private static Action BuildAcceptActionOrNull(NpcConditionalDialogueEntry e)
     {
-        if (e.condition == NpcDialogueConditionKind.BuysAllSilk)
-            return BuyAllSilkFromPlayer;
-
         switch (e.onAcceptOutcome)
         {
             case NpcDialogueOutcomeKind.TeleportToMapNode:
@@ -719,6 +720,14 @@ public class NPCInteractionSettings : MonoBehaviour
                     return null;
                 MapNodeDefinition captured = node;
                 return () => TeleportPlayerToMapNode(captured);
+            }
+            case NpcDialogueOutcomeKind.BuyAllItems:
+            {
+                string itemId = string.IsNullOrWhiteSpace(e.buyAllItemId) ? "" : e.buyAllItemId.Trim();
+                int goldPerItem = Mathf.Max(1, e.buyAllGoldPerItem);
+                if (string.IsNullOrWhiteSpace(itemId))
+                    return null;
+                return () => BuyAllItemsFromPlayer(itemId, goldPerItem);
             }
             default:
                 return null;
@@ -780,11 +789,6 @@ public class NPCInteractionSettings : MonoBehaviour
                 string cur = ResolveActiveMapNodeIdForNpcConditions();
                 return !string.IsNullOrEmpty(cur) &&
                        string.Equals(cur, need, StringComparison.OrdinalIgnoreCase);
-            case NpcDialogueConditionKind.BuysAllSilk:
-            {
-                Inventory inv = ResolvePlayerInventoryForNpcConditions();
-                return inv != null && inv.GetTotalAmount(SilkItemId) > 0;
-            }
             default:
                 return false;
         }
@@ -806,28 +810,31 @@ public class NPCInteractionSettings : MonoBehaviour
     private static CurrencyWallet ResolveCurrencyWalletForNpcConditions() =>
         FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
 
-    private static void BuyAllSilkFromPlayer()
+    private static void BuyAllItemsFromPlayer(string itemId, int goldPerItem)
     {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return;
+
         Inventory inv = ResolvePlayerInventoryForNpcConditions();
         CurrencyWallet wallet = ResolveCurrencyWalletForNpcConditions();
         if (inv == null || wallet == null)
             return;
 
-        int silkCount = inv.GetTotalAmount(SilkItemId);
-        if (silkCount <= 0)
+        int itemCount = inv.GetTotalAmount(itemId);
+        if (itemCount <= 0)
             return;
 
-        if (!inv.Remove(SilkItemId, silkCount))
+        if (!inv.Remove(itemId, itemCount))
             return;
 
-        int goldEarned = silkCount * SilkGoldPerUnit;
+        int goldEarned = itemCount * Mathf.Max(1, goldPerItem);
         wallet.AddGold(goldEarned);
 
-        ItemDefinition silkDef = inv.GetItemDef(SilkItemId);
-        string silkName = silkDef && !string.IsNullOrWhiteSpace(silkDef.displayName)
-            ? silkDef.displayName.Trim()
-            : "Silk";
-        GameLog.SoldItem(silkName, silkCount, goldEarned);
+        ItemDefinition def = inv.GetItemDef(itemId);
+        string itemName = def && !string.IsNullOrWhiteSpace(def.displayName)
+            ? def.displayName.Trim()
+            : FormatItemIdAsName(itemId);
+        GameLog.SoldItem(itemName, itemCount, goldEarned);
     }
 
     private static string ResolveActiveMapNodeIdForNpcConditions() =>

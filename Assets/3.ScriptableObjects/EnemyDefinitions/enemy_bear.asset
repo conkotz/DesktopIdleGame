@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
   enemyId: enemy_bear
   displayName: Bear
+  isBossEnemy: 1
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010755293042, guid: 00c865de41c02d149b4de09483082a24, type: 3}

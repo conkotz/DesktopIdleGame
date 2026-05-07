@@ -58,6 +58,8 @@ public static class HotkeyBindIds
                 return "Zoom In";
             case HotkeyBindId.ZoomOut:
                 return "Zoom Out";
+            case HotkeyBindId.ReturnToTown:
+                return "Return to Town";
             default:
                 return id.ToString();
         }

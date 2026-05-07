@@ -39,28 +39,28 @@ MonoBehaviour:
   nextNodeIds: []
   biome: 0
   spawnGroupPlans:
-  - groupId: MiddleSpawns
+  - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
       spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 6db01b26b24bad24bb757a286586614d, type: 2}
+      enemyDefinition: {fileID: 11400000, guid: 173c71a94c3294249993cfc7b76051c9, type: 2}
       prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 12
+      portalTargetMapNodeId: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint67
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 8347273920747777605, guid: a0bba137548b65543be76ed5f1317dd0, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint67
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 8347273920747777605, guid: 1d359e69b63b58e4a94ec38646014fa6, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: bear_den
     shuffleSpawnPoints: 1
   requiredPreviousMapCompletions: []
   simpleCombatWaves: []

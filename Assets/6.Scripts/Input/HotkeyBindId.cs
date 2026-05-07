@@ -20,4 +20,5 @@ public enum HotkeyBindId
     SwapWeaponSet = 12,
     ZoomIn = 13,
     ZoomOut = 14,
+    ReturnToTown = 15,
 }

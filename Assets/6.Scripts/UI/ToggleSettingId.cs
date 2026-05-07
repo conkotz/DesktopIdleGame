@@ -20,4 +20,9 @@ public enum ToggleSettingId
     /// When false, each gain logs as its own line.
     /// </summary>
     GroupRepeatedActivityLogItemGains = 8,
+
+    /// <summary>
+    /// When true, disable non-essential strip screen overlay visuals (e.g. biome cave dark/flicker overlay).
+    /// </summary>
+    DisableScreenOverlayVisuals = 9,
 }

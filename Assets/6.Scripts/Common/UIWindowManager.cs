@@ -54,6 +54,8 @@ public class UIWindowManager : MonoBehaviour
             menu.ToggleLevelSelect();
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenQuestPage))
             menu.ToggleQuest();
+        else if (WasHotkeyPressedThisFrame(HotkeyBindId.ReturnToTown))
+            PlayerController.TryReturnToTownViaHotkey();
     }
 
     private static bool WasHotkeyPressedThisFrame(HotkeyBindId id)

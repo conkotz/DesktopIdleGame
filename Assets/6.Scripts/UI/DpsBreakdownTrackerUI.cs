@@ -4,6 +4,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Collections;
 using System.Text;
+using System.Collections.Generic;
 using UnityEngine.EventSystems;
 
 [DisallowMultipleComponent]
@@ -66,6 +67,8 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     private float _incomingPanelBasePreferredHeight = -1f;
     private float _dealerTextBaseHeight = -1f;
     private float _scrollContentBaseHeight = -1f;
+    private Transform _resolvedTrackerRoot;
+    private static readonly Dictionary<int, DpsBreakdownTrackerUI> RootOwnerById = new();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void RegisterAutoAttach()
@@ -76,6 +79,12 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
     private static void AutoAttachToTrackerWindows()
     {
+        // If a tracker already exists in the scene (manually placed), do not auto-attach extras.
+        DpsBreakdownTrackerUI[] existing =
+            FindObjectsByType<DpsBreakdownTrackerUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (existing != null && existing.Length > 0)
+            return;
+
         Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
         for (int i = 0; i < all.Length; i++)
         {
@@ -179,6 +188,15 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
     private void OnEnable()
     {
+        _resolvedTrackerRoot = ResolveTrackerRoot(transform);
+        int rootId = _resolvedTrackerRoot ? _resolvedTrackerRoot.GetInstanceID() : transform.GetInstanceID();
+        if (RootOwnerById.TryGetValue(rootId, out DpsBreakdownTrackerUI owner) && owner != null && owner != this)
+        {
+            enabled = false;
+            return;
+        }
+        RootOwnerById[rootId] = this;
+
         ResolveReferences();
         EnsureScrollViewMasking();
         WireButtons();
@@ -191,6 +209,10 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
     private void OnDisable()
     {
+        int rootId = _resolvedTrackerRoot ? _resolvedTrackerRoot.GetInstanceID() : transform.GetInstanceID();
+        if (RootOwnerById.TryGetValue(rootId, out DpsBreakdownTrackerUI owner) && owner == this)
+            RootOwnerById.Remove(rootId);
+
         if (_lateWireRoutine != null)
         {
             StopCoroutine(_lateWireRoutine);
@@ -570,8 +592,8 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             resetButton = FindButtonByName("Reset", "ResetButton");
         if (!dpsOrDamageButton)
             dpsOrDamageButton = FindButtonByName("DPSorDamageButton", "DpsOrDamageButton", "DmgButton", "DamageModeButton");
-        if (!dpsOrDamageButtonText && dpsOrDamageButton)
-            dpsOrDamageButtonText = dpsOrDamageButton.GetComponentInChildren<TMP_Text>(true);
+        if (dpsOrDamageButton)
+            dpsOrDamageButtonText = ResolveModeButtonLabel(dpsOrDamageButton);
     }
 
     private void WireButtons()
@@ -673,6 +695,34 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             }
         }
 
+        // Fallback for scenes where button object names drift but visible labels stay stable.
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            Button b = buttons[i];
+            if (!b)
+                continue;
+
+            TMP_Text[] labels = b.GetComponentsInChildren<TMP_Text>(true);
+            for (int j = 0; j < labels.Length; j++)
+            {
+                TMP_Text label = labels[j];
+                if (!label || string.IsNullOrWhiteSpace(label.text))
+                    continue;
+
+                string body = label.text;
+                bool looksLikeDpsDamageToggle =
+                    body.IndexOf("dps", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    body.IndexOf("damage", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                if (looksLikeDpsDamageToggle)
+                    return b;
+
+                bool looksLikeReset =
+                    body.IndexOf("reset", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                if (looksLikeReset)
+                    return b;
+            }
+        }
+
         return null;
     }
 
@@ -696,6 +746,28 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         }
 
         return firstKeywordMatch;
+    }
+
+    private static TMP_Text ResolveModeButtonLabel(Button button)
+    {
+        if (!button)
+            return null;
+
+        TMP_Text[] labels = button.GetComponentsInChildren<TMP_Text>(true);
+        TMP_Text fallback = null;
+        for (int i = 0; i < labels.Length; i++)
+        {
+            TMP_Text t = labels[i];
+            if (!t)
+                continue;
+            fallback ??= t;
+            string n = t.name ?? string.Empty;
+            if (n.IndexOf("close", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                continue;
+            return t;
+        }
+
+        return fallback;
     }
 
     private static bool ContainsAny(string value, string[] candidates)

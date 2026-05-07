@@ -706,7 +706,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (!slot.CanAccept(action))
                 continue;
 
-            if (abilityController.TryUseAbility(action.id, showLockedFeedback: false, allowSoulforgedRecastWhileActive: false))
+            if (abilityController.TryUseAbility(
+                    action.id,
+                    showLockedFeedback: false,
+                    allowSoulforgedRecastWhileActive: false,
+                    requireCrescentSlashTargetInFacingLane: true))
                 break;
         }
     }

@@ -18,6 +18,7 @@ public static class ToggleSettingsStore
     /// <summary>Inverted naming from before ShowHelpPopups; migrated once.</summary>
     private const string LegacyHideHelpPopupsKey = "Settings.HideHelpPopups";
     private const string GroupRepeatedActivityLogItemGainsKey = "Settings.GroupRepeatedActivityLogItemGains";
+    private const string DisableScreenOverlayVisualsKey = "Settings.DisableScreenOverlayVisuals";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -41,6 +42,8 @@ public static class ToggleSettingsStore
             ToggleSettingId.ShowHelpPopups => GetShowHelpPopups(),
             ToggleSettingId.GroupRepeatedActivityLogItemGains =>
                 PlayerPrefs.GetInt(GroupRepeatedActivityLogItemGainsKey, 0) != 0,
+            ToggleSettingId.DisableScreenOverlayVisuals =>
+                PlayerPrefs.GetInt(DisableScreenOverlayVisualsKey, 0) != 0,
             _ => false
         };
     }
@@ -116,6 +119,9 @@ public static class ToggleSettingsStore
             case ToggleSettingId.GroupRepeatedActivityLogItemGains:
                 PlayerPrefs.SetInt(GroupRepeatedActivityLogItemGainsKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.DisableScreenOverlayVisuals:
+                PlayerPrefs.SetInt(DisableScreenOverlayVisualsKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -138,6 +144,7 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(ShowHelpPopupsKey);
         PlayerPrefs.DeleteKey(LegacyHideHelpPopupsKey);
         PlayerPrefs.DeleteKey(GroupRepeatedActivityLogItemGainsKey);
+        PlayerPrefs.DeleteKey(DisableScreenOverlayVisualsKey);
         PlayerPrefs.Save();
 
         UIWindowCornerResize.RefreshAllHandlesVisibility();
@@ -160,6 +167,8 @@ public static class ToggleSettingsStore
             ToggleSettingId.ShowHelpPopups => "Enable help feature",
             ToggleSettingId.GroupRepeatedActivityLogItemGains =>
                 "Show repeated actions as grouped in activity log",
+            ToggleSettingId.DisableScreenOverlayVisuals =>
+                "Disable screen overlay visuals",
             _ => setting.ToString()
         };
     }

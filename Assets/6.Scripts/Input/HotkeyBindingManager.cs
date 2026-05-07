@@ -79,6 +79,7 @@ public sealed class HotkeyBindingManager : MonoBehaviour
             HotkeyBindId.SwapWeaponSet => KeyCode.Tab,
             HotkeyBindId.ZoomIn => KeyCode.UpArrow,
             HotkeyBindId.ZoomOut => KeyCode.DownArrow,
+            HotkeyBindId.ReturnToTown => KeyCode.None,
             _ => KeyCode.None
         };
     }

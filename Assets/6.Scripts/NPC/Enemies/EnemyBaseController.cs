@@ -633,9 +633,9 @@ public class EnemyBaseController : MonoBehaviour
             // Always range-based per enemy unless Ignore Aggro Range is enabled.
             LevelEnemyAggroMode.Aggressive => inEnemyAggroRange,
 
-            // Calm until player aggression: before trigger behaves like calm retaliation;
-            // after trigger it behaves like aggressive range-based detection.
-            LevelEnemyAggroMode.CalmUntilPlayerAggressive => playerTriggeredMapAggro ? inEnemyAggroRange : _provoked,
+            // Calm until player aggression: always retaliates when personally provoked (damaged),
+            // and after map trigger also aggroes by this enemy's own aggroRange.
+            LevelEnemyAggroMode.CalmUntilPlayerAggressive => _provoked || (playerTriggeredMapAggro && inEnemyAggroRange),
 
             // Calm mode remains retaliation-only.
             _ => _provoked

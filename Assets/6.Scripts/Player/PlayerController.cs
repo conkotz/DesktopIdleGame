@@ -2362,6 +2362,31 @@ public class PlayerController : MonoBehaviour
         return map.FindNodeById(map.startingNodeId);
     }
 
+    /// <summary>
+    /// Hotkey action: travel to the town node for the region the player is currently in.
+    /// Returns false when no valid town destination can be resolved.
+    /// </summary>
+    public static bool TryReturnToTownViaHotkey()
+    {
+        PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player != null && player.IsDead)
+            return false;
+
+        MapNodeDefinition destination = ResolveRegionTownRespawnNode();
+        if (destination == null)
+            return false;
+
+        string townName = !string.IsNullOrWhiteSpace(destination.displayName) ? destination.displayName.Trim() : destination.nodeId;
+        if (!string.IsNullOrWhiteSpace(townName))
+            GameLog.Add($"Returning to town: {townName}");
+        else
+            GameLog.Add("Returning to town");
+
+        ActiveLevelContext.SetPendingLevel(destination, logToConsole: false);
+        PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
+        return true;
+    }
+
     private static MapNodeDefinition FindTownNodeInRegion(RegionDefinition region)
     {
         if (region == null || region.nodes == null)

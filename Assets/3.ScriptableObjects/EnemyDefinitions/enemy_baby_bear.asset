@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
   enemyId: enemy_baby_bear
   displayName: Baby Bear
+  isBossEnemy: 0
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010755293042, guid: bb8b9e3eccba9a04fb733e1dd81624ac, type: 3}
@@ -84,9 +85,9 @@ MonoBehaviour:
   eliteGoldMultiplier: 2
   loot:
   - item: {fileID: 11400000, guid: 462df72db7793674e8880e18d7ba181c, type: 2}
-    amountMin: 15
-    amountMax: 25
-    dropChance: 1
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.3
   lootAtMostOneDropPerTable: 1
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 5

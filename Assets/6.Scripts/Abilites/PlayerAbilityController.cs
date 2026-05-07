@@ -257,7 +257,11 @@ public class PlayerAbilityController : MonoBehaviour
     /// When false (e.g. idle auto-abilities), an active Soulforged Weapon minion does not receive recast/retarget — use fails so other bar abilities can run.
     /// Manual bar use keeps default true (player can recast while the summon is up).
     /// </param>
-    public bool TryUseAbility(string abilityId, bool showLockedFeedback = true, bool allowSoulforgedRecastWhileActive = true)
+    public bool TryUseAbility(
+        string abilityId,
+        bool showLockedFeedback = true,
+        bool allowSoulforgedRecastWhileActive = true,
+        bool requireCrescentSlashTargetInFacingLane = false)
     {
         AbilityDefinition def = GetAbilityDefinition(abilityId);
         if (!def)
@@ -321,7 +325,8 @@ public class PlayerAbilityController : MonoBehaviour
                 return false;
         }
 
-        if (def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
+        bool isCrescentSlash = string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase);
+        if (!isCrescentSlash && def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
         {
             player.ShowPopup("Not enough energy.");
             return false;
@@ -392,12 +397,16 @@ public class PlayerAbilityController : MonoBehaviour
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
         }
-        if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
+        if (isCrescentSlash)
         {
+            if (requireCrescentSlashTargetInFacingLane && !CanHitAnyEnemyWithCrescentSlash())
+                return false;
+
             bool castNow = combat != null && combat.TryConsumeAttackCycleForAbilityCast();
             if (castNow)
             {
-                ExecuteCrescentSlashCast(def);
+                if (!ExecuteCrescentSlashCast(def, requireCrescentSlashTargetInFacingLane))
+                    return false;
             }
             else
             {
@@ -611,6 +620,29 @@ public class PlayerAbilityController : MonoBehaviour
         float reach = GetWhirlwindBaseRange() + 6f;
         SpawnCrescentSlashVfx(reach);
 
+        List<(EnemyBaseController enemy, float dist)> forwardHits = CollectCrescentSlashForwardHits(reach);
+
+        forwardHits.Sort((a, b) => a.dist.CompareTo(b.dist));
+        int cap = penetrating ? forwardHits.Count : Mathf.Min(3, forwardHits.Count);
+        for (int i = 0; i < cap; i++)
+        {
+            EnemyBaseController target = forwardHits[i].enemy;
+            if (!target || target.IsDead)
+                continue;
+
+            ApplyCrescentSlashSingleTargetHit(target, def, elementalCrescent);
+        }
+    }
+
+    private bool CanHitAnyEnemyWithCrescentSlash()
+    {
+        float reach = GetWhirlwindBaseRange() + 6f;
+        List<(EnemyBaseController enemy, float dist)> forwardHits = CollectCrescentSlashForwardHits(reach);
+        return forwardHits.Count > 0;
+    }
+
+    private List<(EnemyBaseController enemy, float dist)> CollectCrescentSlashForwardHits(float reach)
+    {
         EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         List<(EnemyBaseController enemy, float dist)> forwardHits = new List<(EnemyBaseController enemy, float dist)>(allEnemies.Length);
         float facing = GetCombatFacingSign();
@@ -633,16 +665,7 @@ public class PlayerAbilityController : MonoBehaviour
             forwardHits.Add((enemy, forwardDist));
         }
 
-               forwardHits.Sort((a, b) => a.dist.CompareTo(b.dist));
-        int cap = penetrating ? forwardHits.Count : Mathf.Min(3, forwardHits.Count);
-        for (int i = 0; i < cap; i++)
-        {
-            EnemyBaseController target = forwardHits[i].enemy;
-            if (!target || target.IsDead)
-                continue;
-
-            ApplyCrescentSlashSingleTargetHit(target, def, elementalCrescent);
-        }
+        return forwardHits;
     }
 
     /// <summary>
@@ -1226,6 +1249,8 @@ public class PlayerAbilityController : MonoBehaviour
     {
         if (!_crescentSlashQueued)
             return;
+        if (!CanHitAnyEnemyWithCrescentSlash())
+            return;
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
         if (combat == null || !combat.TryConsumeAttackCycleForAbilityCast())
@@ -1238,7 +1263,7 @@ public class PlayerAbilityController : MonoBehaviour
             return;
         }
 
-        ExecuteCrescentSlashCast(def);
+        ExecuteCrescentSlashCast(def, requireTargetInFacingLane: true);
     }
 
     /// <summary>
@@ -1248,6 +1273,8 @@ public class PlayerAbilityController : MonoBehaviour
     {
         if (!_crescentSlashQueued)
             return false;
+        if (!CanHitAnyEnemyWithCrescentSlash())
+            return false;
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
         if (combat == null || !combat.TryConsumeAttackCycleForAbilityCast())
@@ -1260,16 +1287,23 @@ public class PlayerAbilityController : MonoBehaviour
             return false;
         }
 
-        ExecuteCrescentSlashCast(def);
-        return true;
+        return ExecuteCrescentSlashCast(def, requireTargetInFacingLane: true);
     }
 
-    private void ExecuteCrescentSlashCast(AbilityDefinition def)
+    private bool ExecuteCrescentSlashCast(AbilityDefinition def, bool requireTargetInFacingLane = false)
     {
+        if (!def || player == null)
+            return false;
+        if (requireTargetInFacingLane && !CanHitAnyEnemyWithCrescentSlash())
+            return false;
+        if (def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
+            return false;
+
         _crescentSlashQueued = false;
         TryUseCrescentSlash(def);
         player?.TriggerAttackAnim();
         StartCooldown(def);
+        return true;
     }
 
     private float GetCombatFacingSign()
