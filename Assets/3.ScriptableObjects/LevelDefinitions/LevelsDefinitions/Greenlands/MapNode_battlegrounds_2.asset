@@ -51,6 +51,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 4
+      portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
@@ -60,6 +61,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 3
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
   requiredPreviousMapCompletions:
   - enabled: 1

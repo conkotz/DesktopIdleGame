@@ -38,7 +38,7 @@ MonoBehaviour:
     and combat gear.
   connectedNodeIds: []
   nextNodeIds: []
-  biome: 0
+  biome: 6
   spawnGroupPlans:
   - groupId: AllSpawns
     spawns:
@@ -51,6 +51,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 20
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
   requiredPreviousMapCompletions: []
   simpleCombatWaves: []

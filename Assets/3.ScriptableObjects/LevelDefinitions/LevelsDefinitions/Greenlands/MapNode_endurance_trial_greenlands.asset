@@ -25,6 +25,7 @@ MonoBehaviour:
   fallbackRecommendedCombatPower: 100
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
+  entranceOnlyAccess: 0
   completedLabelRequiresEnteredNodeId: 
   mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 0
@@ -37,7 +38,7 @@ MonoBehaviour:
     skill level of 10 is recommended. Potions and food are also highly recommended. '
   connectedNodeIds: []
   nextNodeIds: []
-  biome: 0
+  biome: 9
   spawnGroupPlans: []
   requiredPreviousMapCompletions:
   - enabled: 0
@@ -64,6 +65,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
@@ -78,6 +80,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 2
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
@@ -92,6 +95,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 3
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
@@ -106,6 +110,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 2
+      portalTargetMapNodeId: 
     - spawnPointGroupId: EnduranceTrialRightOnly
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: d7a3617d921a47e4c9582e173fe3e45f, type: 2}
@@ -115,6 +120,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
@@ -129,6 +135,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 3
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
@@ -143,6 +150,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 2
+      portalTargetMapNodeId: 
     - spawnPointGroupId: MiddleSpawns
       spawnPointName: 
       enemyDefinition: {fileID: 11400000, guid: 887a5292c260b2843b8e76ae0621615c, type: 2}
@@ -152,6 +160,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []
@@ -166,6 +175,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
     repeatThisWave: 0
     _legacyGroupPlans: []

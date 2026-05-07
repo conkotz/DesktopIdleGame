@@ -25,6 +25,7 @@ MonoBehaviour:
   fallbackRecommendedCombatPower: 1
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
+  entranceOnlyAccess: 0
   completedLabelRequiresEnteredNodeId: 
   mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 0
@@ -37,13 +38,7 @@ MonoBehaviour:
   connectedNodeIds: []
   nextNodeIds:
   - 
-  biome: 0
-  prefabGroups:
-  - groupId: Resources
-    prefabs:
-    - {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-    - {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
-    - {fileID: 6165540910069784205, guid: 3f7498b5e783df94ba16c5b9d0d75259, type: 3}
+  biome: 1
   spawnGroupPlans:
   - groupId: AllSpawns
     spawns:
@@ -56,6 +51,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint26
       enemyDefinition: {fileID: 0}
@@ -65,6 +61,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint42
       enemyDefinition: {fileID: 0}
@@ -74,6 +71,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint48
       enemyDefinition: {fileID: 0}
@@ -83,6 +81,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint56
       enemyDefinition: {fileID: 0}
@@ -92,7 +91,9 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 0
+  requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 1
   simpleCombatWavesRequireQuestRewardClaimed: 0

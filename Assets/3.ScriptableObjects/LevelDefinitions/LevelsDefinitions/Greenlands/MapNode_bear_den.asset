@@ -37,7 +37,7 @@ MonoBehaviour:
   unlockRequirementNotes: ' '
   connectedNodeIds: []
   nextNodeIds: []
-  biome: 0
+  biome: 6
   spawnGroupPlans:
   - groupId: MiddleSpawns
     spawns:
