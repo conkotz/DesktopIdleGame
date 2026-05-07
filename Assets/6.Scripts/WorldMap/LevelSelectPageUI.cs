@@ -561,31 +561,50 @@ public class LevelSelectPageUI : MonoBehaviour
         string activeNodeId = ResolveActiveMapNodeIdForRegionUi();
         List<MapNodeDefinition> filteredInRegionOrder = BuildFilteredRegionNodes(_selectedRegion);
 
-        var unlocked = new List<MapNodeDefinition>(filteredInRegionOrder.Count);
+        var unlockedAvailable = new List<MapNodeDefinition>(filteredInRegionOrder.Count);
+        var unlockedCleared = new List<MapNodeDefinition>(filteredInRegionOrder.Count);
         var locked = new List<MapNodeDefinition>(filteredInRegionOrder.Count);
         for (int i = 0; i < filteredInRegionOrder.Count; i++)
         {
             MapNodeDefinition node = filteredInRegionOrder[i];
-            // Section grouping reflects progression/requirements lock only.
-            // Entrance-only maps are still "Unlocked" but cannot be entered from this menu.
-            bool isLocked = progress != null && !node.CanEnter(progress, skills);
+            string state = progress ? node.GetUiStateLabel(progress, skills) : "Unlocked";
+            bool isLocked =
+                string.Equals(state, "Map locked", StringComparison.Ordinal) ||
+                string.Equals(state, "Skill locked", StringComparison.Ordinal) ||
+                string.Equals(state, "Progress locked", StringComparison.Ordinal);
             if (isLocked)
+            {
                 locked.Add(node);
+                continue;
+            }
+
+            bool atThisMap = !string.IsNullOrWhiteSpace(activeNodeId) &&
+                !string.IsNullOrWhiteSpace(node.nodeId) &&
+                string.Equals(node.nodeId.Trim(), activeNodeId.Trim(), StringComparison.OrdinalIgnoreCase);
+            bool isCleared = IsNodeClearedForList(node, progress, atThisMap);
+            if (isCleared)
+                unlockedCleared.Add(node);
             else
-                unlocked.Add(node);
+                unlockedAvailable.Add(node);
         }
 
-        MoveTownNodesToFront(unlocked);
+        MoveTownNodesToFront(unlockedAvailable);
+        MoveTownNodesToFront(unlockedCleared);
         MoveTownNodesToFront(locked);
 
         // Keep selection valid for current filter/sectioned list.
         if (_selectedNode == null || !filteredInRegionOrder.Contains(_selectedNode))
-            _selectedNode = unlocked.Count > 0 ? unlocked[0] : (locked.Count > 0 ? locked[0] : null);
+            _selectedNode = unlockedAvailable.Count > 0
+                ? unlockedAvailable[0]
+                : (unlockedCleared.Count > 0 ? unlockedCleared[0] : (locked.Count > 0 ? locked[0] : null));
 
-        if (unlocked.Count > 0)
+        if (unlockedAvailable.Count > 0 || unlockedCleared.Count > 0)
         {
             AddNodeSectionHeader("Unlocked");
-            SpawnNodeRows(unlocked, progress, skills, activeNodeId);
+            if (unlockedAvailable.Count > 0)
+                SpawnNodeRows(unlockedAvailable, progress, skills, activeNodeId);
+            if (unlockedCleared.Count > 0)
+                SpawnNodeRows(unlockedCleared, progress, skills, activeNodeId);
         }
 
         if (locked.Count > 0)
@@ -630,12 +649,16 @@ public class LevelSelectPageUI : MonoBehaviour
                 ? node.GetUiStateLabel(progress, skills)
                 : "Unlocked";
 
-            bool sel = _selectedNode && _selectedNode == node;
-            bool greyOneShotDone = progress && node.IsPermanentlyCompleted(progress);
-            bool unavailable = state == "Map locked" || state == "Skill locked" || state == "Progress locked";
             bool atThisMap = !string.IsNullOrWhiteSpace(activeNodeId) &&
                 !string.IsNullOrWhiteSpace(node.nodeId) &&
-                string.Equals(node.nodeId.Trim(), activeNodeId.Trim(), StringComparison.Ordinal);
+                string.Equals(node.nodeId.Trim(), activeNodeId.Trim(), StringComparison.OrdinalIgnoreCase);
+            bool oneShotCleared = IsNodeClearedForList(node, progress, atThisMap);
+            if (oneShotCleared)
+                state = "Cleared";
+
+            bool sel = _selectedNode && _selectedNode == node;
+            bool greyOneShotDone = oneShotCleared;
+            bool unavailable = !node.CanEnterFromLevelMenu(progress, skills);
             row.Bind(node, state, sel, OnNodeSelected, greyOneShotDone, unavailable, atThisMap);
         }
     }
@@ -1139,7 +1162,16 @@ public class LevelSelectPageUI : MonoBehaviour
         if (node == null)
             return "";
 
+        string activeNodeId = ResolveActiveMapNodeIdForRegionUi();
+        bool atThisMap = !string.IsNullOrWhiteSpace(activeNodeId) &&
+            !string.IsNullOrWhiteSpace(node.nodeId) &&
+            string.Equals(node.nodeId.Trim(), activeNodeId.Trim(), StringComparison.OrdinalIgnoreCase);
+        if (IsNodeClearedForList(node, progress, atThisMap))
+            return "State: Cleared";
+
         string entranceNote = node.entranceOnlyAccess ? " (Can only be accessed from its entrance)" : "";
+        if (node.entranceOnlyAccess && node.CanEnter(progress, skills))
+            return $"State: Locked from menu{entranceNote}";
         string state = node.GetUiStateLabel(progress, skills);
         if (!string.Equals(state, "Progress locked", StringComparison.Ordinal))
             return $"State: {state}{entranceNote}";
@@ -1149,6 +1181,20 @@ public class LevelSelectPageUI : MonoBehaviour
             return $"State: {state}{entranceNote}";
 
         return $"State: {state} ({progressText}){entranceNote}";
+    }
+
+    private static bool IsNodeClearedForList(
+        MapNodeDefinition node,
+        WorldMapProgressManager progress,
+        bool atThisMap)
+    {
+        if (node == null || progress == null || node.isRepeatable)
+            return false;
+        if (!progress.IsNodeCompleted(node.nodeId))
+            return false;
+        if (atThisMap)
+            return false;
+        return true;
     }
 
     private static string BuildProgressLockDetails(MapNodeDefinition node, WorldMapProgressManager progress)

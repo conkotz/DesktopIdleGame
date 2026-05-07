@@ -8,13 +8,13 @@ using UnityEngine.Serialization;
 /// </summary>
 public enum EnemyEliteLootHandling
 {
-    [Tooltip("Always roll the base loot table. When elite, multiply each row's drop chance by Elite Loot Chance Multiplier (capped at 1).")]
+    [Tooltip("Always roll the base loot table. When elite, multiply each base row's drop chance by Elite Loot Chance Multiplier (capped at 1). Elite Loot rows (if any) also roll for elites at their own unscaled chances.")]
     ScaleBaseLootChances = 0,
 
     [Tooltip("Non-elite: base table only. Elite: only rows under Elite Loot (base table ignored for item drops).")]
     EliteLootTableOnly = 1,
 
-    [Tooltip("Roll the base table (elite: chances scaled). If elite, also roll Elite Loot rows.")]
+    [Tooltip("Roll the base table (elite: chances scaled). If elite, also roll Elite Loot rows at their own unscaled chances.")]
     ScaledBasePlusExtraEliteEntries = 2,
 }
 
@@ -342,7 +342,7 @@ public class EnemyDefinition : ScriptableObject
     public EnemyEliteLootHandling eliteLootHandling = EnemyEliteLootHandling.ScaleBaseLootChances;
 
     [Min(0f)]
-    [Tooltip("When handling scales base chances and this enemy is Elite: effective chance = min(1, row.dropChance × this).")]
+    [Tooltip("When handling scales base chances and this enemy is Elite: effective chance = min(1, baseRow.dropChance × this). This does not scale Elite Loot row chances.")]
     public float eliteLootChanceMultiplier = 2f;
 
     [Tooltip("Used when handling is Elite Table Only (elite only) or Scaled Base + Extra (elite only).")]

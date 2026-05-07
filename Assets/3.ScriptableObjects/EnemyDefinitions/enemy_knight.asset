@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
   enemyId: enemy_knight
   displayName: Knight
+  isBossEnemy: 0
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
@@ -114,5 +115,9 @@ MonoBehaviour:
   lootAtMostOneDropPerTable: 1
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 5
-  eliteLoot: []
+  eliteLoot:
+  - item: {fileID: 11400000, guid: 6c03eb97d12298f4586bf53d54b712c8, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.1
   designerNotes: 

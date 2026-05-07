@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 [RequireComponent(typeof(Collider2D))]
 public class MerchantClick : MonoBehaviour
@@ -11,6 +12,10 @@ public class MerchantClick : MonoBehaviour
     [Header("Shop UI")]
     [SerializeField] private ShopUI shopUI;
     [SerializeField] private Merchant merchant; // on self or parent
+    [SerializeField] private PlayerController player;
+    [Tooltip("Extra padding added on top of merchant collider half-width when checking arrival.")]
+    [SerializeField] private float openWhenWithinXDistance = 0.15f;
+    [SerializeField] private Collider2D merchantCollider;
 
     [Header("Shop Positioning")]
     [Tooltip("Pinned to the right edge of the main menu (Character) window; flips to the left if it would leave the canvas.")]
@@ -24,6 +29,8 @@ public class MerchantClick : MonoBehaviour
 
     // Tracks which merchant is currently "active" for shop mode and switching merchants.
     private static MerchantClick _active;
+    private static MerchantClick _pendingOpen;
+    private Coroutine _openWhenArrivedRoutine;
 
     private void Awake()
     {
@@ -51,8 +58,14 @@ public class MerchantClick : MonoBehaviour
             if (!merchant) merchant = GetComponentInParent<Merchant>();
         }
 
+        if (!merchantCollider)
+            merchantCollider = GetComponent<Collider2D>() ?? GetComponentInChildren<Collider2D>(true);
+
         if (!shopRect && shopUI)
             shopRect = shopUI.GetComponent<RectTransform>();
+
+        if (!player)
+            player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
 
         if (!canvasRect && shopRect)
         {
@@ -128,6 +141,48 @@ public class MerchantClick : MonoBehaviour
             return;
         }
 
+        CancelPendingOpen();
+
+        if (player != null)
+        {
+            float merchantX = transform.position.x;
+            player.MoveToPointX(merchantX);
+            _pendingOpen = this;
+            _openWhenArrivedRoutine = StartCoroutine(CoOpenWhenArrived());
+            return;
+        }
+
+        OpenNow();
+    }
+
+    private IEnumerator CoOpenWhenArrived()
+    {
+        while (_pendingOpen == this)
+        {
+            if (player == null || player.IsDead)
+            {
+                _pendingOpen = null;
+                yield break;
+            }
+
+            float dx = Mathf.Abs(player.transform.position.x - transform.position.x);
+            float halfWidth = merchantCollider != null ? merchantCollider.bounds.extents.x : 0f;
+            float requiredDistance = Mathf.Max(0.01f, halfWidth + Mathf.Max(0f, openWhenWithinXDistance));
+            if (dx <= requiredDistance)
+            {
+                _pendingOpen = null;
+                OpenNow();
+                yield break;
+            }
+
+            yield return null;
+        }
+    }
+
+    private void OpenNow()
+    {
+        CacheRefs();
+
         // Recover from stale merchant mode (e.g. window was closed through a generic close button path).
         if (MerchantModeOpen && !shopUI.IsOpen)
             ForceCloseMerchantMode();
@@ -192,6 +247,7 @@ public class MerchantClick : MonoBehaviour
 
     private void CloseOnlyMerchantMode()
     {
+        CancelPendingOpen();
         MerchantModeOpen = false;
 
         if (_active == this)
@@ -216,6 +272,7 @@ public class MerchantClick : MonoBehaviour
     /// </summary>
     public static void ForceCloseMerchantMode()
     {
+        CancelPendingOpen();
         MerchantModeOpen = false;
 
         UndoShopWindowUI undoWin = FindFirstObjectByType<UndoShopWindowUI>(FindObjectsInactive.Include);
@@ -232,5 +289,19 @@ public class MerchantClick : MonoBehaviour
     {
         merchant = _active != null ? _active.merchant : null;
         return merchant != null;
+    }
+
+    public static void CancelPendingOpen()
+    {
+        if (_pendingOpen == null)
+            return;
+
+        if (_pendingOpen._openWhenArrivedRoutine != null)
+        {
+            _pendingOpen.StopCoroutine(_pendingOpen._openWhenArrivedRoutine);
+            _pendingOpen._openWhenArrivedRoutine = null;
+        }
+
+        _pendingOpen = null;
     }
 }

@@ -21,16 +21,26 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     [Header("Active Weapon Set")]
     [SerializeField] private int activeWeaponSetIndex = 0; // 0 = set 1, 1 = set 2
 
-    [Header("Other Equipped Item IDs (saved)")]
-    [SerializeField] private string helmetItemId;
-    [SerializeField] private string bodyItemId;
-    [SerializeField] private string bootsItemId;
-    [SerializeField] private string trinketItemId;
-    [SerializeField] private string pendantItemId;
-    [SerializeField] private string ring1ItemId;
-    [SerializeField] private string ring2ItemId;
+    [Header("Gear Set 1 (saved)")]
+    [SerializeField] private string helmet1ItemId;
+    [SerializeField] private string body1ItemId;
+    [SerializeField] private string boots1ItemId;
+    [SerializeField] private string trinket1ItemId;
+    [SerializeField] private string pendant1ItemId;
+    [SerializeField] private string ring11ItemId;
+    [SerializeField] private string ring21ItemId;
+
+    [Header("Gear Set 2 (saved)")]
+    [SerializeField] private string helmet2ItemId;
+    [SerializeField] private string body2ItemId;
+    [SerializeField] private string boots2ItemId;
+    [SerializeField] private string trinket2ItemId;
+    [SerializeField] private string pendant2ItemId;
+    [SerializeField] private string ring12ItemId;
+    [SerializeField] private string ring22ItemId;
 
     public event Action<EquipmentUISlotType, string> OnUISlotChanged;
+    public event Action<int> OnActiveSetChanged;
 
     // Events used by UI + equippers
     public event Action<string> OnMainHandChanged;
@@ -44,8 +54,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     public string OffHandItemId => GetOffHandForSet(activeWeaponSetIndex);
     public int OffHandStackAmount => GetOffHandStackForSet(activeWeaponSetIndex);
 
-    public string BodyItemId => bodyItemId;
-    public string HelmetItemId => helmetItemId;
+    public string BodyItemId => GetBodyForSet(activeWeaponSetIndex);
+    public string HelmetItemId => GetHelmetForSet(activeWeaponSetIndex);
     public Inventory Inventory => inventory;
 
     // Tool visual override (NOT saved - temporary)
@@ -58,6 +68,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     public bool HideBothHandsOverride => _hideBothHandsOverride;
 
     public bool ForceUnarmed { get; private set; }
+    private bool _suppressSaveForSetSwap;
+    private bool _suppressGearSlotUiEventsForSetSwap;
 
     [Header("Auto-Return Kicked Items")]
     [Tooltip("When 2H rules auto-unequip the other slot, return that item to inventory (or drop if full).")]
@@ -93,6 +105,48 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     }
 
     private int InactiveWeaponSetIndex => activeWeaponSetIndex == 0 ? 1 : 0;
+
+    private string GetHelmetForSet(int setIndex)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        return setIndex == 0 ? helmet1ItemId : helmet2ItemId;
+    }
+
+    private string GetBodyForSet(int setIndex)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        return setIndex == 0 ? body1ItemId : body2ItemId;
+    }
+
+    private string GetBootsForSet(int setIndex)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        return setIndex == 0 ? boots1ItemId : boots2ItemId;
+    }
+
+    private string GetTrinketForSet(int setIndex)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        return setIndex == 0 ? trinket1ItemId : trinket2ItemId;
+    }
+
+    private string GetPendantForSet(int setIndex)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        return setIndex == 0 ? pendant1ItemId : pendant2ItemId;
+    }
+
+    private string GetRing1ForSet(int setIndex)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        return setIndex == 0 ? ring11ItemId : ring12ItemId;
+    }
+
+    private string GetRing2ForSet(int setIndex)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        return setIndex == 0 ? ring21ItemId : ring22ItemId;
+    }
 
     private string GetMainHandForSet(int setIndex)
     {
@@ -139,6 +193,62 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         }
     }
 
+    private void SetHelmetForSet(int setIndex, string itemId)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
+        if (setIndex == 0) helmet1ItemId = next;
+        else helmet2ItemId = next;
+    }
+
+    private void SetBodyForSet(int setIndex, string itemId)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
+        if (setIndex == 0) body1ItemId = next;
+        else body2ItemId = next;
+    }
+
+    private void SetBootsForSet(int setIndex, string itemId)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
+        if (setIndex == 0) boots1ItemId = next;
+        else boots2ItemId = next;
+    }
+
+    private void SetTrinketForSet(int setIndex, string itemId)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
+        if (setIndex == 0) trinket1ItemId = next;
+        else trinket2ItemId = next;
+    }
+
+    private void SetPendantForSet(int setIndex, string itemId)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
+        if (setIndex == 0) pendant1ItemId = next;
+        else pendant2ItemId = next;
+    }
+
+    private void SetRing1ForSet(int setIndex, string itemId)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
+        if (setIndex == 0) ring11ItemId = next;
+        else ring12ItemId = next;
+    }
+
+    private void SetRing2ForSet(int setIndex, string itemId)
+    {
+        setIndex = NormalizeSetIndex(setIndex);
+        string next = string.IsNullOrWhiteSpace(itemId) ? null : itemId;
+        if (setIndex == 0) ring21ItemId = next;
+        else ring22ItemId = next;
+    }
+
     public string GetMainHandItemIdForSet(int setIndex) => GetMainHandForSet(setIndex);
     public string GetOffHandItemIdForSet(int setIndex) => GetOffHandForSet(setIndex);
     public int GetOffHandStackAmountForSet(int setIndex) => GetOffHandStackForSet(setIndex);
@@ -170,6 +280,25 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     {
         NotifyMainHandChanged();
         NotifyOffHandChanged();
+        OnActiveSetChanged?.Invoke(activeWeaponSetIndex);
+    }
+
+    private void NotifyGearSlotsChanged()
+    {
+        if (_suppressGearSlotUiEventsForSetSwap)
+        {
+            OnVisualsChanged?.Invoke();
+            return;
+        }
+
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Helmet, GetHelmetForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Body, GetBodyForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Boots, GetBootsForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Trinket, GetTrinketForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Pendant, GetPendantForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring1, GetRing1ForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring2, GetRing2ForSet(activeWeaponSetIndex));
+        OnVisualsChanged?.Invoke();
     }
 
     // -------------------------
@@ -629,14 +758,14 @@ public class EquipmentManager : MonoBehaviour, ISaveable
             EquipSlot.MainHand => MainHandItemId,
             EquipSlot.OffHand => OffHandItemId,
 
-            EquipSlot.Helmet => helmetItemId,
-            EquipSlot.Body => bodyItemId,
-            EquipSlot.Boots => bootsItemId,
+            EquipSlot.Helmet => GetHelmetForSet(activeWeaponSetIndex),
+            EquipSlot.Body => GetBodyForSet(activeWeaponSetIndex),
+            EquipSlot.Boots => GetBootsForSet(activeWeaponSetIndex),
 
-            EquipSlot.Trinket => trinketItemId,
-            EquipSlot.Pendant => pendantItemId,
+            EquipSlot.Trinket => GetTrinketForSet(activeWeaponSetIndex),
+            EquipSlot.Pendant => GetPendantForSet(activeWeaponSetIndex),
 
-            EquipSlot.Ring => index == 0 ? ring1ItemId : ring2ItemId,
+            EquipSlot.Ring => index == 0 ? GetRing1ForSet(activeWeaponSetIndex) : GetRing2ForSet(activeWeaponSetIndex),
 
             _ => null
         };
@@ -649,40 +778,40 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         switch (slot)
         {
             case EquipSlot.Helmet:
-                helmetItemId = next;
-                OnUISlotChanged?.Invoke(EquipmentUISlotType.Helmet, helmetItemId);
+                SetHelmetForSet(activeWeaponSetIndex, next);
+                OnUISlotChanged?.Invoke(EquipmentUISlotType.Helmet, GetHelmetForSet(activeWeaponSetIndex));
                 break;
 
             case EquipSlot.Body:
-                bodyItemId = next;
-                OnUISlotChanged?.Invoke(EquipmentUISlotType.Body, bodyItemId);
+                SetBodyForSet(activeWeaponSetIndex, next);
+                OnUISlotChanged?.Invoke(EquipmentUISlotType.Body, GetBodyForSet(activeWeaponSetIndex));
                 break;
 
             case EquipSlot.Boots:
-                bootsItemId = next;
-                OnUISlotChanged?.Invoke(EquipmentUISlotType.Boots, bootsItemId);
+                SetBootsForSet(activeWeaponSetIndex, next);
+                OnUISlotChanged?.Invoke(EquipmentUISlotType.Boots, GetBootsForSet(activeWeaponSetIndex));
                 break;
 
             case EquipSlot.Trinket:
-                trinketItemId = next;
-                OnUISlotChanged?.Invoke(EquipmentUISlotType.Trinket, trinketItemId);
+                SetTrinketForSet(activeWeaponSetIndex, next);
+                OnUISlotChanged?.Invoke(EquipmentUISlotType.Trinket, GetTrinketForSet(activeWeaponSetIndex));
                 break;
 
             case EquipSlot.Pendant:
-                pendantItemId = next;
-                OnUISlotChanged?.Invoke(EquipmentUISlotType.Pendant, pendantItemId);
+                SetPendantForSet(activeWeaponSetIndex, next);
+                OnUISlotChanged?.Invoke(EquipmentUISlotType.Pendant, GetPendantForSet(activeWeaponSetIndex));
                 break;
 
             case EquipSlot.Ring:
                 if (index == 0)
                 {
-                    ring1ItemId = next;
-                    OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring1, ring1ItemId);
+                    SetRing1ForSet(activeWeaponSetIndex, next);
+                    OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring1, GetRing1ForSet(activeWeaponSetIndex));
                 }
                 else
                 {
-                    ring2ItemId = next;
-                    OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring2, ring2ItemId);
+                    SetRing2ForSet(activeWeaponSetIndex, next);
+                    OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring2, GetRing2ForSet(activeWeaponSetIndex));
                 }
                 break;
         }
@@ -721,9 +850,19 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     // -------------------------
     public void ToggleWeaponSet()
     {
-        activeWeaponSetIndex = activeWeaponSetIndex == 0 ? 1 : 0;
-        NotifyWeaponSetChanged();
-        RequestImmediateSave();
+        _suppressSaveForSetSwap = true;
+        _suppressGearSlotUiEventsForSetSwap = true;
+        try
+        {
+            activeWeaponSetIndex = activeWeaponSetIndex == 0 ? 1 : 0;
+            NotifyWeaponSetChanged();
+            NotifyGearSlotsChanged();
+        }
+        finally
+        {
+            _suppressGearSlotUiEventsForSetSwap = false;
+            _suppressSaveForSetSwap = false;
+        }
     }
 
     public void SetActiveWeaponSet(int setIndex)
@@ -732,9 +871,19 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         if (activeWeaponSetIndex == next)
             return;
 
-        activeWeaponSetIndex = next;
-        NotifyWeaponSetChanged();
-        RequestImmediateSave();
+        _suppressSaveForSetSwap = true;
+        _suppressGearSlotUiEventsForSetSwap = true;
+        try
+        {
+            activeWeaponSetIndex = next;
+            NotifyWeaponSetChanged();
+            NotifyGearSlotsChanged();
+        }
+        finally
+        {
+            _suppressGearSlotUiEventsForSetSwap = false;
+            _suppressSaveForSetSwap = false;
+        }
     }
 
     // -------------------------
@@ -862,14 +1011,22 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
         data.activeWeaponSetIndex = activeWeaponSetIndex;
 
-        data.equippedHelmetItemId = helmetItemId;
-        data.equippedBodyItemId = bodyItemId;
-        data.equippedBootsItemId = bootsItemId;
+        data.equippedHelmetItemId = helmet1ItemId;
+        data.equippedBodyItemId = body1ItemId;
+        data.equippedBootsItemId = boots1ItemId;
 
-        data.equippedTrinketItemId = trinketItemId;
-        data.equippedPendantItemId = pendantItemId;
-        data.equippedRing1ItemId = ring1ItemId;
-        data.equippedRing2ItemId = ring2ItemId;
+        data.equippedTrinketItemId = trinket1ItemId;
+        data.equippedPendantItemId = pendant1ItemId;
+        data.equippedRing1ItemId = ring11ItemId;
+        data.equippedRing2ItemId = ring21ItemId;
+
+        data.equippedHelmet2ItemId = helmet2ItemId;
+        data.equippedBody2ItemId = body2ItemId;
+        data.equippedBoots2ItemId = boots2ItemId;
+        data.equippedTrinket2ItemId = trinket2ItemId;
+        data.equippedPendant2ItemId = pendant2ItemId;
+        data.equippedRing12ItemId = ring12ItemId;
+        data.equippedRing22ItemId = ring22ItemId;
     }
 
     public void LoadFrom(SaveData data)
@@ -896,27 +1053,35 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
         activeWeaponSetIndex = NormalizeSetIndex(data?.activeWeaponSetIndex ?? 0);
 
-        helmetItemId = string.IsNullOrWhiteSpace(data?.equippedHelmetItemId) ? null : data.equippedHelmetItemId;
-        bodyItemId = string.IsNullOrWhiteSpace(data?.equippedBodyItemId) ? null : data.equippedBodyItemId;
-        bootsItemId = string.IsNullOrWhiteSpace(data?.equippedBootsItemId) ? null : data.equippedBootsItemId;
+        helmet1ItemId = string.IsNullOrWhiteSpace(data?.equippedHelmetItemId) ? null : data.equippedHelmetItemId;
+        body1ItemId = string.IsNullOrWhiteSpace(data?.equippedBodyItemId) ? null : data.equippedBodyItemId;
+        boots1ItemId = string.IsNullOrWhiteSpace(data?.equippedBootsItemId) ? null : data.equippedBootsItemId;
 
-        trinketItemId = string.IsNullOrWhiteSpace(data?.equippedTrinketItemId) ? null : data.equippedTrinketItemId;
-        pendantItemId = string.IsNullOrWhiteSpace(data?.equippedPendantItemId) ? null : data.equippedPendantItemId;
-        ring1ItemId = string.IsNullOrWhiteSpace(data?.equippedRing1ItemId) ? null : data.equippedRing1ItemId;
-        ring2ItemId = string.IsNullOrWhiteSpace(data?.equippedRing2ItemId) ? null : data.equippedRing2ItemId;
+        trinket1ItemId = string.IsNullOrWhiteSpace(data?.equippedTrinketItemId) ? null : data.equippedTrinketItemId;
+        pendant1ItemId = string.IsNullOrWhiteSpace(data?.equippedPendantItemId) ? null : data.equippedPendantItemId;
+        ring11ItemId = string.IsNullOrWhiteSpace(data?.equippedRing1ItemId) ? null : data.equippedRing1ItemId;
+        ring21ItemId = string.IsNullOrWhiteSpace(data?.equippedRing2ItemId) ? null : data.equippedRing2ItemId;
+
+        helmet2ItemId = string.IsNullOrWhiteSpace(data?.equippedHelmet2ItemId) ? null : data.equippedHelmet2ItemId;
+        body2ItemId = string.IsNullOrWhiteSpace(data?.equippedBody2ItemId) ? null : data.equippedBody2ItemId;
+        boots2ItemId = string.IsNullOrWhiteSpace(data?.equippedBoots2ItemId) ? null : data.equippedBoots2ItemId;
+        trinket2ItemId = string.IsNullOrWhiteSpace(data?.equippedTrinket2ItemId) ? null : data.equippedTrinket2ItemId;
+        pendant2ItemId = string.IsNullOrWhiteSpace(data?.equippedPendant2ItemId) ? null : data.equippedPendant2ItemId;
+        ring12ItemId = string.IsNullOrWhiteSpace(data?.equippedRing12ItemId) ? null : data.equippedRing12ItemId;
+        ring22ItemId = string.IsNullOrWhiteSpace(data?.equippedRing22ItemId) ? null : data.equippedRing22ItemId;
 
         EnforceWeaponSetCompatibility(0);
         EnforceWeaponSetCompatibility(1);
 
         NotifyWeaponSetChanged();
 
-        OnUISlotChanged?.Invoke(EquipmentUISlotType.Helmet, helmetItemId);
-        OnUISlotChanged?.Invoke(EquipmentUISlotType.Body, bodyItemId);
-        OnUISlotChanged?.Invoke(EquipmentUISlotType.Boots, bootsItemId);
-        OnUISlotChanged?.Invoke(EquipmentUISlotType.Trinket, trinketItemId);
-        OnUISlotChanged?.Invoke(EquipmentUISlotType.Pendant, pendantItemId);
-        OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring1, ring1ItemId);
-        OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring2, ring2ItemId);
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Helmet, GetHelmetForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Body, GetBodyForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Boots, GetBootsForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Trinket, GetTrinketForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Pendant, GetPendantForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring1, GetRing1ForSet(activeWeaponSetIndex));
+        OnUISlotChanged?.Invoke(EquipmentUISlotType.Ring2, GetRing2ForSet(activeWeaponSetIndex));
 
         OnVisualsChanged?.Invoke();
     }
@@ -952,9 +1117,12 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     // -------------------------
     private void RequestImmediateSave()
     {
+        if (_suppressSaveForSetSwap)
+            return;
         if (SaveManager.Instance != null)
             SaveManager.Instance.Save();
     }
+
 
     // -------------------------
     // Equip validation
@@ -1020,8 +1188,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
 
         if (slot == EquipSlot.Ring)
         {
-            if (index == 0) ring1ItemId = next;
-            else ring2ItemId = next;
+            if (index == 0) SetRing1ForSet(activeWeaponSetIndex, next);
+            else SetRing2ForSet(activeWeaponSetIndex, next);
 
             OnUISlotChanged?.Invoke(index == 0 ? EquipmentUISlotType.Ring1 : EquipmentUISlotType.Ring2, next);
             RequestImmediateSave();
@@ -1081,8 +1249,8 @@ public class EquipmentManager : MonoBehaviour, ISaveable
         return GetDef(OffHandItemId);
     }
 
-    public string GetRing1ItemId() => ring1ItemId;
-    public string GetRing2ItemId() => ring2ItemId;
+    public string GetRing1ItemId() => GetRing1ForSet(activeWeaponSetIndex);
+    public string GetRing2ItemId() => GetRing2ForSet(activeWeaponSetIndex);
 
     public void SetRing1(string itemId) => SetEquippedItemId(EquipSlot.Ring, itemId, 0);
     public void SetRing2(string itemId) => SetEquippedItemId(EquipSlot.Ring, itemId, 1);

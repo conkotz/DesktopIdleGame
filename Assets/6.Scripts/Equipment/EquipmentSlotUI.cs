@@ -69,6 +69,7 @@ public class EquipmentSlotUI : MonoBehaviour,
     private Action<string> _offCb;
     private Action<int, string> _toolCb;
     private Action<EquipmentUISlotType, string> _uiSlotCb;
+    private Action<int> _activeSetCb;
 
     private Canvas _rootCanvas;
     private GameObject _dragIconGO;
@@ -236,12 +237,14 @@ public class EquipmentSlotUI : MonoBehaviour,
             if (uiSlot == slotType)
                 RefreshFromState();
         };
+        _activeSetCb ??= _ => RefreshFromState();
 
         Unsubscribe();
 
         equipment.OnMainHandChanged += _mainCb;
         equipment.OnOffHandChanged += _offCb;
         equipment.OnUISlotChanged += _uiSlotCb;
+        equipment.OnActiveSetChanged += _activeSetCb;
 
         if (toolbelt != null)
             toolbelt.OnToolSlotChanged += _toolCb;
@@ -256,6 +259,7 @@ public class EquipmentSlotUI : MonoBehaviour,
             if (_mainCb != null) equipment.OnMainHandChanged -= _mainCb;
             if (_offCb != null) equipment.OnOffHandChanged -= _offCb;
             if (_uiSlotCb != null) equipment.OnUISlotChanged -= _uiSlotCb;
+            if (_activeSetCb != null) equipment.OnActiveSetChanged -= _activeSetCb;
         }
 
         if (toolbelt != null)

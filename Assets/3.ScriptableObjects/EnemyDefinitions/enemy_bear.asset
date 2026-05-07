@@ -78,17 +78,25 @@ MonoBehaviour:
   idleWanderMaxDistanceFromSpawn: 10
   grantCombatXp: 1
   dropGold: 1
-  goldMin: 250
-  goldMax: 300
+  goldMin: 400
+  goldMax: 500
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
   loot:
   - item: {fileID: 11400000, guid: 462df72db7793674e8880e18d7ba181c, type: 2}
-    amountMin: 15
-    amountMax: 25
+    amountMin: 3
+    amountMax: 5
     dropChance: 1
-  lootAtMostOneDropPerTable: 1
+  - item: {fileID: 11400000, guid: 462df72db7793674e8880e18d7ba181c, type: 2}
+    amountMin: 3
+    amountMax: 5
+    dropChance: 0.7
+  - item: {fileID: 11400000, guid: 462df72db7793674e8880e18d7ba181c, type: 2}
+    amountMin: 3
+    amountMax: 5
+    dropChance: 0.4
+  lootAtMostOneDropPerTable: 0
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 5
   eliteLoot: []

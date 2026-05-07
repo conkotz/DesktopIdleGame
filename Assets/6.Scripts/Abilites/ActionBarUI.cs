@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -118,6 +119,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     [Header("Saved State (backing fields)")]
     private List<SavedSlotState> savedSlots = new();
+    private List<SavedSlotState> secondarySavedSlots = new();
+    [SerializeField] private int activeCombatLoadoutSetIndex = 0; // 0 = set 1, 1 = set 2
+    private bool suppressSaveForLoadoutSwap;
     private bool pendingSavedStateApply;
     private float nextSavedStateApplyTime;
     private int savedStateApplyAttempts;
@@ -165,6 +169,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
 
         SyncHotkeysFromManager();
+        EquipmentManager equipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
+        if (equipment != null)
+            activeCombatLoadoutSetIndex = equipment.ActiveWeaponSetIndex == 1 ? 1 : 0;
     }
 
     private void SyncHotkeysFromManager()
@@ -300,7 +307,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     {
         CaptureSlotsToSavedState();
 
-        if (SaveManager.Instance != null)
+        if (!suppressSaveForLoadoutSwap && SaveManager.Instance != null)
             SaveManager.Instance.Save();
 
         NotifyPlayerStatsCombatPowerRelevantChange();
@@ -356,6 +363,171 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 id = action.id,
                 amount = action.IsItem ? binding.slot.AssignedItemAmount : 0
             });
+        }
+    }
+
+    private static SavedSlotState CloneSavedState(SavedSlotState src)
+    {
+        if (src == null)
+            return null;
+
+        return new SavedSlotState
+        {
+            slotIndex = src.slotIndex,
+            kind = src.kind,
+            id = src.id,
+            amount = src.amount
+        };
+    }
+
+    private SavedSlotState CaptureSlotState(ActionBarSlotUI slot)
+    {
+        if (slot == null)
+            return null;
+
+        ActionBarAssignment action = slot.AssignedAction;
+        if (action == null || !action.IsAssigned)
+            return null;
+
+        return new SavedSlotState
+        {
+            slotIndex = slot.SlotIndex,
+            kind = (int)action.kind,
+            id = action.id,
+            amount = action.IsItem ? slot.AssignedItemAmount : 0
+        };
+    }
+
+    private bool IsLoadoutAbilitySlot(ActionBarSlotUI slot)
+    {
+        if (slot == null || slot.SlotType != ActionBarSlotType.Ability)
+            return false;
+
+        int abilityOrdinal = 0;
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            ActionBarSlotUI candidate = slotBindings[i]?.slot;
+            if (candidate == null || candidate.SlotType != ActionBarSlotType.Ability)
+                continue;
+            if (candidate == slot)
+                return abilityOrdinal < 5;
+            abilityOrdinal++;
+        }
+
+        return false;
+    }
+
+    private bool IsLoadoutPotionSlot(ActionBarSlotUI slot)
+    {
+        if (slot == null || slot.SlotType != ActionBarSlotType.Potion)
+            return false;
+
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            ActionBarSlotUI candidate = slotBindings[i]?.slot;
+            if (candidate == null || candidate.SlotType != ActionBarSlotType.Potion)
+                continue;
+            return candidate == slot;
+        }
+
+        return false;
+    }
+
+    private bool IsSwappableCombatLoadoutSlot(ActionBarSlotUI slot)
+    {
+        return IsLoadoutAbilitySlot(slot) || IsLoadoutPotionSlot(slot);
+    }
+
+    private void ApplySavedStateToSlot(ActionBarSlotUI slot, SavedSlotState state)
+    {
+        if (slot == null)
+            return;
+
+        if (state == null)
+        {
+            slot.ClearAssignment(false);
+            return;
+        }
+
+        ActionBarAssignment assignment = ResolveAssignment(state.kind, state.id);
+        if (assignment == null || !assignment.IsAssigned)
+        {
+            slot.ClearAssignment(false);
+            return;
+        }
+
+        slot.Assign(assignment, false);
+        if (assignment.IsItem)
+        {
+            int savedAmount = Mathf.Max(0, state.amount);
+            if (savedAmount <= 0)
+                savedAmount = 1;
+            slot.SetAssignedItemAmountFromSave(savedAmount, notify: false);
+        }
+    }
+
+    public void ToggleCombatLoadoutSet()
+    {
+        int nextSet = activeCombatLoadoutSetIndex == 0 ? 1 : 0;
+        SetCombatLoadoutSet(nextSet);
+    }
+
+    public void SetCombatLoadoutSet(int setIndex)
+    {
+        int nextSet = setIndex == 1 ? 1 : 0;
+        if (nextSet == activeCombatLoadoutSetIndex)
+            return;
+
+        ResolveCoreRefs();
+        suppressSaveForLoadoutSwap = true;
+        try
+        {
+
+            var swappableSlots = slotBindings
+            .Select(b => b?.slot)
+            .Where(s => s != null && IsSwappableCombatLoadoutSlot(s))
+            .ToList();
+            if (swappableSlots.Count <= 0)
+                return;
+
+            var currentBySlotIndex = new Dictionary<int, SavedSlotState>();
+            for (int i = 0; i < swappableSlots.Count; i++)
+            {
+                ActionBarSlotUI slot = swappableSlots[i];
+                currentBySlotIndex[slot.SlotIndex] = CaptureSlotState(slot);
+            }
+
+            var secondaryBySlotIndex = new Dictionary<int, SavedSlotState>();
+            for (int i = 0; i < secondarySavedSlots.Count; i++)
+            {
+                SavedSlotState entry = secondarySavedSlots[i];
+                if (entry == null)
+                    continue;
+                secondaryBySlotIndex[entry.slotIndex] = entry;
+            }
+
+            secondarySavedSlots.Clear();
+            for (int i = 0; i < swappableSlots.Count; i++)
+            {
+                ActionBarSlotUI slot = swappableSlots[i];
+                currentBySlotIndex.TryGetValue(slot.SlotIndex, out SavedSlotState currentState);
+                if (currentState != null)
+                    secondarySavedSlots.Add(CloneSavedState(currentState));
+            }
+
+            for (int i = 0; i < swappableSlots.Count; i++)
+            {
+                ActionBarSlotUI slot = swappableSlots[i];
+                secondaryBySlotIndex.TryGetValue(slot.SlotIndex, out SavedSlotState secondaryState);
+                ApplySavedStateToSlot(slot, secondaryState);
+            }
+
+            CaptureSlotsToSavedState();
+            activeCombatLoadoutSetIndex = nextSet;
+        }
+        finally
+        {
+            suppressSaveForLoadoutSwap = false;
         }
     }
 
@@ -569,6 +741,14 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         data.actionBarKinds.Clear();
         data.actionBarIds.Clear();
         data.actionBarItemAmounts.Clear();
+        data.actionBarSecondarySlotIndexes ??= new List<int>();
+        data.actionBarSecondaryKinds ??= new List<int>();
+        data.actionBarSecondaryIds ??= new List<string>();
+        data.actionBarSecondaryItemAmounts ??= new List<int>();
+        data.actionBarSecondarySlotIndexes.Clear();
+        data.actionBarSecondaryKinds.Clear();
+        data.actionBarSecondaryIds.Clear();
+        data.actionBarSecondaryItemAmounts.Clear();
 
         for (int i = 0; i < savedSlots.Count; i++)
         {
@@ -577,11 +757,23 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             data.actionBarIds.Add(savedSlots[i].id);
             data.actionBarItemAmounts.Add(Mathf.Max(0, savedSlots[i].amount));
         }
+
+        for (int i = 0; i < secondarySavedSlots.Count; i++)
+        {
+            SavedSlotState e = secondarySavedSlots[i];
+            if (e == null)
+                continue;
+            data.actionBarSecondarySlotIndexes.Add(e.slotIndex);
+            data.actionBarSecondaryKinds.Add(e.kind);
+            data.actionBarSecondaryIds.Add(e.id);
+            data.actionBarSecondaryItemAmounts.Add(Mathf.Max(0, e.amount));
+        }
     }
 
     public void LoadFrom(SaveData data)
     {
         savedSlots.Clear();
+        secondarySavedSlots.Clear();
 
         if (data == null)
             return;
@@ -601,6 +793,25 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 id = data.actionBarIds[i],
                 amount = data.actionBarItemAmounts != null && i < data.actionBarItemAmounts.Count
                     ? Mathf.Max(0, data.actionBarItemAmounts[i])
+                    : 0
+            });
+        }
+
+        int secondaryCount = Mathf.Min(
+            data.actionBarSecondarySlotIndexes != null ? data.actionBarSecondarySlotIndexes.Count : 0,
+            data.actionBarSecondaryKinds != null ? data.actionBarSecondaryKinds.Count : 0,
+            data.actionBarSecondaryIds != null ? data.actionBarSecondaryIds.Count : 0
+        );
+
+        for (int i = 0; i < secondaryCount; i++)
+        {
+            secondarySavedSlots.Add(new SavedSlotState
+            {
+                slotIndex = data.actionBarSecondarySlotIndexes[i],
+                kind = data.actionBarSecondaryKinds[i],
+                id = data.actionBarSecondaryIds[i],
+                amount = data.actionBarSecondaryItemAmounts != null && i < data.actionBarSecondaryItemAmounts.Count
+                    ? Mathf.Max(0, data.actionBarSecondaryItemAmounts[i])
                     : 0
             });
         }

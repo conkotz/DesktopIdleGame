@@ -42,6 +42,7 @@ public class WorldMapNodeButtonUI : MonoBehaviour
     private Action<MapNodeDefinition> _onSelected;
     private bool _greyedOut;
     private bool _unavailable;
+    private string _stateLabel = "";
     public MapNodeDefinition Node => _node;
 
     private void Awake()
@@ -93,6 +94,7 @@ public class WorldMapNodeButtonUI : MonoBehaviour
         _onSelected = onSelected;
         _greyedOut = greyOutCompletedNonRepeatable;
         _unavailable = unavailable;
+        _stateLabel = stateLabel ?? "";
 
         if (nameText)
             nameText.text = node ? node.displayName : "—";
@@ -122,59 +124,19 @@ public class WorldMapNodeButtonUI : MonoBehaviour
     private void RefreshVisuals(bool selected)
     {
         ApplyNodeTypeTheme(_node, selected);
-        if (_greyedOut)
-            ApplyRetiredNonRepeatableDimming();
         if (rowCanvasGroup)
         {
-            rowCanvasGroup.alpha = _unavailable ? Mathf.Clamp01(unavailableAlpha) : 1f;
+            bool isLockState =
+                string.Equals(_stateLabel.Trim(), "Map locked", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(_stateLabel.Trim(), "Skill locked", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(_stateLabel.Trim(), "Progress locked", StringComparison.OrdinalIgnoreCase);
+            bool dimByUnavailable = _unavailable && (_greyedOut || isLockState);
+            rowCanvasGroup.alpha = dimByUnavailable ? Mathf.Clamp01(unavailableAlpha) : 1f;
             rowCanvasGroup.interactable = true;
             rowCanvasGroup.blocksRaycasts = true;
         }
         if (selectedHighlight)
             selectedHighlight.SetActive(selected);
-    }
-
-    private void ApplyRetiredNonRepeatableDimming()
-    {
-        const float iconMul = 0.52f;
-        const float rowMul = 0.62f;
-
-        if (colourIcon)
-        {
-            Color t = ResolveNodeTypeColor(_node);
-            colourIcon.color = new Color(t.r * iconMul, t.g * iconMul, t.b * iconMul, t.a);
-        }
-
-        Image rowBg = GetRowBackgroundImage();
-        if (rowBg)
-        {
-            Color b = rowBackgroundColor;
-            rowBg.color = new Color(b.r * rowMul, b.g * rowMul, b.b * rowMul, b.a);
-        }
-
-        if (button)
-        {
-            ColorBlock cb = button.colors;
-            cb.normalColor = Dim(cb.normalColor, iconMul);
-            cb.highlightedColor = Dim(cb.highlightedColor, iconMul);
-            cb.selectedColor = Dim(cb.selectedColor, iconMul);
-            cb.pressedColor = Dim(cb.pressedColor, iconMul);
-            button.colors = cb;
-            if (button.targetGraphic)
-                button.targetGraphic.color = Dim(button.targetGraphic.color, iconMul);
-        }
-
-        if (nameText)
-            nameText.color = new Color(0.52f, 0.53f, 0.56f, 0.88f);
-        if (typeText)
-            typeText.color = new Color(0.45f, 0.46f, 0.48f, 0.72f);
-        if (stateText)
-            stateText.color = new Color(0.48f, 0.49f, 0.51f, 0.78f);
-    }
-
-    private static Color Dim(Color c, float m)
-    {
-        return new Color(c.r * m, c.g * m, c.b * m, c.a);
     }
 
     private void ApplyNodeTypeTheme(MapNodeDefinition node, bool selected)

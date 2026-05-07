@@ -55,16 +55,6 @@ MonoBehaviour:
       count: 1
       portalTargetMapNodeId: green_grove
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint1
-      enemyDefinition: {fileID: 11400000, guid: 6db01b26b24bad24bb757a286586614d, type: 2}
-      prefab: {fileID: 0}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-    - spawnPointGroupId: 
       spawnPointName: SpawnPoint4
       enemyDefinition: {fileID: 11400000, guid: 018988b4e6f49f843a83603a5d29913b, type: 2}
       prefab: {fileID: 0}

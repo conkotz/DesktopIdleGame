@@ -22,6 +22,10 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private Transform debuffContainer;
     [SerializeField] private GameObject debuffIconPrefab;
 
+    [Header("Colors")]
+    [Tooltip("Applied only to enemy overhead HP bars. Player overhead bars keep their prefab color.")]
+    [SerializeField] private Color enemyHpFillColor = new(1f, 0.42f, 0.2f, 1f);
+
     [Header("Debuff Sprites")]
     [SerializeField] private Sprite bleedIcon;
     [SerializeField] private Sprite poisonIcon;
@@ -71,6 +75,7 @@ public class UnitOverheadUI : MonoBehaviour
     private static readonly List<UnitOverheadUI> s_instances = new();
     private static bool s_canvasCallbackSubscribed;
     private static int s_lastStackResolveFrame = -1;
+    private static readonly Dictionary<int, int> s_lastAssignedStackLaneByUiId = new();
 
     private PlayerCombatController _playerCombatCache;
     private Image _clickBackingImage;
@@ -212,6 +217,27 @@ public class UnitOverheadUI : MonoBehaviour
 
     private static void ResolveStackingForCanvasGroup(List<UnitOverheadUI> candidates)
     {
+        var activeIds = new HashSet<int>(candidates.Count);
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            UnitOverheadUI ui = candidates[i];
+            if (ui != null)
+                activeIds.Add(ui.GetInstanceID());
+        }
+
+        if (s_lastAssignedStackLaneByUiId.Count > 0)
+        {
+            var stale = new List<int>();
+            foreach (int id in s_lastAssignedStackLaneByUiId.Keys)
+            {
+                if (!activeIds.Contains(id))
+                    stale.Add(id);
+            }
+
+            for (int i = 0; i < stale.Count; i++)
+                s_lastAssignedStackLaneByUiId.Remove(stale[i]);
+        }
+
         for (int i = 0; i < candidates.Count; i++)
             candidates[i]._stackYOffset = 0f;
 
@@ -274,14 +300,33 @@ public class UnitOverheadUI : MonoBehaviour
                 }
             }
 
-            int laneIndex = -1;
-            for (int lane = 0; lane < laneLastMaxX.Count; lane++)
+            int preferredLane = 0;
+            int uiId = ui.GetInstanceID();
+            if (s_lastAssignedStackLaneByUiId.TryGetValue(uiId, out int rememberedLane))
+                preferredLane = Mathf.Max(0, rememberedLane);
+
+            bool IsLaneAvailable(int lane)
             {
+                if (lane < 0 || lane >= laneLastMaxX.Count)
+                    return true;
                 bool laneOverlaps = minX <= laneLastMaxX[lane] + padding - allowedOverlap;
-                if (!laneOverlaps)
+                return !laneOverlaps;
+            }
+
+            int laneIndex = -1;
+            if (preferredLane < laneLastMaxX.Count && IsLaneAvailable(preferredLane))
+            {
+                laneIndex = preferredLane;
+            }
+            else
+            {
+                for (int lane = 0; lane < laneLastMaxX.Count; lane++)
                 {
-                    laneIndex = lane;
-                    break;
+                    if (IsLaneAvailable(lane))
+                    {
+                        laneIndex = lane;
+                        break;
+                    }
                 }
             }
 
@@ -300,6 +345,7 @@ public class UnitOverheadUI : MonoBehaviour
                 laneIndex += 1;
 
             ui._stackYOffset = laneIndex * spacing;
+            s_lastAssignedStackLaneByUiId[uiId] = laneIndex;
         }
 
         for (int i = 0; i < candidates.Count; i++)
@@ -532,6 +578,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void RefreshAll()
     {
+        ApplyHpFillColorByOwner();
         HandleNameChanged(string.Empty);
 
         if (characterStats != null)
@@ -777,6 +824,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void HandleEnemyHpChanged(int current, int max)
     {
+        ApplyHpFillColorByOwner();
         float fill = max > 0 ? (float)current / max : 0f;
 
         if (hpFill != null)
@@ -787,6 +835,13 @@ public class UnitOverheadUI : MonoBehaviour
             hpValueText.text = $"{current}/{max}";
             hpValueText.gameObject.SetActive(ToggleSettingsStore.Get(ToggleSettingId.ShowOverheadHealthGuardNumbers));
         }
+    }
+
+    private void ApplyHpFillColorByOwner()
+    {
+        if (hpFill == null || enemy == null)
+            return;
+        hpFill.color = enemyHpFillColor;
     }
 
     public void RefreshDebuffIcons()

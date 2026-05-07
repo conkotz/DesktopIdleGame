@@ -25,6 +25,7 @@ MonoBehaviour:
   fallbackRecommendedCombatPower: 1
   isRepeatable: 0
   markCompletedWhenReturningToMenu: 1
+  entranceOnlyAccess: 0
   completedLabelRequiresEnteredNodeId: tutorial_2
   mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 1
@@ -38,7 +39,6 @@ MonoBehaviour:
   nextNodeIds:
   - tutorial_2
   biome: 0
-  prefabGroups: []
   spawnGroupPlans:
   - groupId: AllSpawns
     spawns:
@@ -51,6 +51,17 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint-6
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint8
       enemyDefinition: {fileID: 0}
@@ -60,15 +71,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint16
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
+      portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint22
       enemyDefinition: {fileID: 0}
@@ -78,6 +81,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint27
       enemyDefinition: {fileID: 0}
@@ -87,6 +91,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint35
       enemyDefinition: {fileID: 0}
@@ -96,6 +101,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint41
       enemyDefinition: {fileID: 0}
@@ -105,6 +111,7 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 0
   - groupId: AllSpawns
     spawns:
@@ -117,7 +124,9 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 0
+  requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 1
   simpleCombatWavesRequireQuestRewardClaimed: 0

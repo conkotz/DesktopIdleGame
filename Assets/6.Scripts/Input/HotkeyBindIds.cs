@@ -53,7 +53,7 @@ public static class HotkeyBindIds
             case HotkeyBindId.OpenQuestPage:
                 return "Open Quests";
             case HotkeyBindId.SwapWeaponSet:
-                return "Swap Weapon Set";
+                return "Swap Gear Set";
             case HotkeyBindId.ZoomIn:
                 return "Zoom In";
             case HotkeyBindId.ZoomOut:

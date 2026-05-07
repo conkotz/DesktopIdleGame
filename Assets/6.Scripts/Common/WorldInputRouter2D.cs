@@ -117,6 +117,10 @@ public class WorldInputRouter2D : MonoBehaviour
         if (winnerCol == null)
             return;
 
+        // Any world interaction while shop is open exits shop mode first.
+        MerchantClick.ForceCloseMerchantMode();
+        MerchantClick.CancelPendingOpen();
+
         var portal = winnerCol.GetComponentInParent<MapNodePortalTeleporter>();
         if (portal != null)
         {

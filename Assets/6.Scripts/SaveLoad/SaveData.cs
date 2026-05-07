@@ -106,6 +106,15 @@ public class SaveData
     public string equippedRing1ItemId;
     public string equippedRing2ItemId;
 
+    public string equippedHelmet2ItemId;
+    public string equippedBody2ItemId;
+    public string equippedBoots2ItemId;
+
+    public string equippedTrinket2ItemId;
+    public string equippedPendant2ItemId;
+    public string equippedRing12ItemId;
+    public string equippedRing22ItemId;
+
     [Header("Toolbelt")]
     public List<string> toolbeltItemIds = new();
 
@@ -136,6 +145,10 @@ public class SaveData
     public List<int> actionBarKinds = new();
     public List<string> actionBarIds = new();
     public List<int> actionBarItemAmounts = new();
+    public List<int> actionBarSecondarySlotIndexes = new();
+    public List<int> actionBarSecondaryKinds = new();
+    public List<string> actionBarSecondaryIds = new();
+    public List<int> actionBarSecondaryItemAmounts = new();
 
     [Header("Quests")]
     [Tooltip("Parallel lists: QuestDefinition.questId → current objective amount.")]

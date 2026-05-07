@@ -48,7 +48,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fcc4e7ba91df4eceb0f64194f88cfc85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCDialogueBoxUI
-  fixedSize: {x: 225, y: 225}
+  fixedSize: {x: 170, y: 190}
   worldScale: 0.015
   viewportPadding: 0.02
   questOfferCardSpacing: 10
@@ -56,6 +56,7 @@ MonoBehaviour:
   typewriterCharactersPerSecond: 34
   dialogueText: {fileID: 0}
   acceptButton: {fileID: 0}
+  npcDialogueLocalOffset: {x: 1.2, y: 0.5, z: 0}
   pinDialogueInWorldWhenStripPresent: 0
   stripWorldDialogueSortingOrder: 800
   stripWorldDialogueSortingLayer: 

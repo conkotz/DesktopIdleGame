@@ -6,6 +6,7 @@ using UnityEngine.Serialization;
 
 public class EquipmentStatsPanelUI : MonoBehaviour
 {
+    private bool _refreshQueued;
     private static readonly Color BleedAilmentColor = new Color(0.996f, 0.361f, 0.361f);
     private static readonly Color PoisonAilmentColor = new Color(0.298f, 0.686f, 0.314f);
     private static readonly Color BurnAilmentColor = new Color(1f, 0.478f, 0.137f);
@@ -187,6 +188,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             equipment.OnMainHandChanged += HandleRefresh;
             equipment.OnOffHandChanged += HandleRefresh;
             equipment.OnUISlotChanged += HandleUISlotChanged;
+            equipment.OnActiveSetChanged += HandleActiveSetChanged;
         }
 
         if (toolbelt != null)
@@ -205,6 +207,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             equipment.OnMainHandChanged -= HandleRefresh;
             equipment.OnOffHandChanged -= HandleRefresh;
             equipment.OnUISlotChanged -= HandleUISlotChanged;
+            equipment.OnActiveSetChanged -= HandleActiveSetChanged;
         }
 
         if (toolbelt != null)
@@ -214,9 +217,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             stats.OnStatsChanged -= HandleStatsChanged;
     }
 
-    private void HandleRefresh(string _) => Refresh();
-    private void HandleUISlotChanged(EquipmentUISlotType _, string __) => Refresh();
-    private void HandleToolChanged(int _, string __) => Refresh();
+    private void HandleRefresh(string _) => QueueRefresh();
+    private void HandleUISlotChanged(EquipmentUISlotType _, string __) => QueueRefresh();
+    private void HandleToolChanged(int _, string __) => QueueRefresh();
+    private void HandleActiveSetChanged(int _) => QueueRefresh();
 
     private static string FormatSignedPercentFrom01(float value01)
     {
@@ -231,7 +235,20 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
     private void HandleStatsChanged()
     {
+        QueueRefresh();
+    }
+
+    private void LateUpdate()
+    {
+        if (!_refreshQueued)
+            return;
+        _refreshQueued = false;
         Refresh();
+    }
+
+    private void QueueRefresh()
+    {
+        _refreshQueued = true;
     }
 
     public void Refresh()

@@ -886,6 +886,13 @@ public class SaveManager : MonoBehaviour
         if (!string.IsNullOrWhiteSpace(data.equippedPendantItemId)) count++;
         if (!string.IsNullOrWhiteSpace(data.equippedRing1ItemId)) count++;
         if (!string.IsNullOrWhiteSpace(data.equippedRing2ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedHelmet2ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedBody2ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedBoots2ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedTrinket2ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedPendant2ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedRing12ItemId)) count++;
+        if (!string.IsNullOrWhiteSpace(data.equippedRing22ItemId)) count++;
         return count;
     }
 

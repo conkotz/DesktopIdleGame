@@ -1264,6 +1264,8 @@ public class EnemyBaseController : MonoBehaviour
         {
             case EnemyEliteLootHandling.ScaleBaseLootChances:
                 RollEnemyLootTable(definition.loot, eliteChanceMul, singlePick);
+                if (_isElite)
+                    RollEnemyLootTable(definition.eliteLoot, 1f, singlePick);
                 break;
             case EnemyEliteLootHandling.EliteLootTableOnly:
                 if (_isElite)

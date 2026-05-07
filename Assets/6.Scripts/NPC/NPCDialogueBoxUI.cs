@@ -5,6 +5,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// Strip dialogue: <see cref="RenderMode.ScreenSpaceOverlay"/> on <c>StripUICanvas</c> (same parent as <see cref="EnemyOverheadUISpawner"/> overheads),
@@ -13,6 +14,7 @@ using UnityEngine.UI;
 [DefaultExecutionOrder(120)]
 public class NPCDialogueBoxUI : MonoBehaviour
 {
+    private static readonly Vector3 DefaultNpcFollowOffset = new(1.95f, 0.5f, 0f);
     private static NPCDialogueBoxUI _activeBox;
     private static readonly List<NPCDialogueBoxUI> ActiveMultiOfferBoxes = new();
     private static bool BulkClosingMultiOfferGroup;
@@ -175,6 +177,9 @@ public class NPCDialogueBoxUI : MonoBehaviour
     [SerializeField] private Button acceptButton;
 
     [Header("Strip UI")]
+    [Tooltip("Default world offset from NPC collider top-right for dialogue follow point. NPCInteractionSettings can override this per-NPC.")]
+    [FormerlySerializedAs("dialogueLocalOffset")]
+    [SerializeField] private Vector3 npcDialogueLocalOffset = new(1.95f, 0.5f, 0f);
     [Tooltip(
         "If on, parents under the NPC with a World Space Canvas (strip camera). If off (default), parents under StripUICanvas like overhead HP bars — readable at all zoom levels and draws on top via sibling order.")]
     [SerializeField] private bool pinDialogueInWorldWhenStripPresent = false;
@@ -208,6 +213,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
     private Coroutine _autoCloseRoutine;
 
     private GameObject _singleModeScrollRoot;
+    private RectTransform _singleModeScrollRect;
     private TMP_Text _questOfferHeaderText;
     private TMP_Text _singleTitleText;
     private TMP_Text _singleRewardText;
@@ -221,6 +227,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
     }
 
     private readonly List<ActiveTypewriter> _activeTypewriters = new();
+
+    public Vector3 GetNpcDialogueLocalOffset() => npcDialogueLocalOffset;
+
+    public static Vector3 GetDefaultNpcDialogueLocalOffset() => DefaultNpcFollowOffset;
 
     private void Awake()
     {
@@ -1598,7 +1608,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         {
             Canvas.ForceUpdateCanvases();
 
-            Bounds box = RectTransformUtility.CalculateRelativeRectTransformBounds(canvasRoot, _rectTransform);
+            Bounds box = CalculateRectBoundsRelative(_stripProjectionRectRt, _rectTransform);
             Bounds frame = RectTransformUtility.CalculateRelativeRectTransformBounds(canvasRoot, _stripUiClampFrameRt);
 
             float padFrac = Mathf.Clamp01(viewportPadding);
@@ -1852,7 +1862,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
                 if (!box || !box._rectTransform || box._stripProjectionRectRt != canvasRoot)
                     continue;
 
-                Bounds boxB = RectTransformUtility.CalculateRelativeRectTransformBounds(canvasRoot, box._rectTransform);
+                Bounds boxB = CalculateRectBoundsRelative(canvasRoot, box._rectTransform);
                 if (!hasUnion)
                 {
                     union = boxB;
@@ -1900,6 +1910,42 @@ public class NPCDialogueBoxUI : MonoBehaviour
                     box._rectTransform.anchoredPosition += delta;
             }
         }
+    }
+
+    /// <summary>
+    /// Returns bounds from RectTransform corners only (ignores scrolling child-content bounds).
+    /// Prevents panel drift while ScrollRect content moves.
+    /// </summary>
+    private static Bounds CalculateRectBoundsRelative(RectTransform root, RectTransform rect)
+    {
+        if (!root || !rect)
+            return new Bounds();
+
+        Vector3[] corners = new Vector3[4];
+        rect.GetWorldCorners(corners);
+
+        Vector3 p = root.InverseTransformPoint(corners[0]);
+        float minX = p.x, maxX = p.x;
+        float minY = p.y, maxY = p.y;
+        float minZ = p.z, maxZ = p.z;
+
+        for (int i = 1; i < 4; i++)
+        {
+            p = root.InverseTransformPoint(corners[i]);
+            minX = Mathf.Min(minX, p.x);
+            maxX = Mathf.Max(maxX, p.x);
+            minY = Mathf.Min(minY, p.y);
+            maxY = Mathf.Max(maxY, p.y);
+            minZ = Mathf.Min(minZ, p.z);
+            maxZ = Mathf.Max(maxZ, p.z);
+        }
+
+        Vector3 center = new((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, (minZ + maxZ) * 0.5f);
+        Vector3 size = new(
+            Mathf.Max(0.0001f, maxX - minX),
+            Mathf.Max(0.0001f, maxY - minY),
+            Mathf.Max(0.0001f, maxZ - minZ));
+        return new Bounds(center, size);
     }
 
     /// <summary>
@@ -1987,10 +2033,12 @@ public class NPCDialogueBoxUI : MonoBehaviour
     private const float DialogueViewportMaskMinAlpha = 0.02f;
 
     private const float DialogueQuestHeaderFontSize = 15f;
-    private const float DialogueQuestTitleFontSize = 18f;
+    private const float DialogueQuestTitleFontSize = 15f;
     private const float DialogueBodyFontSize = 16f;
     private const float DialogueQuestRewardFontSize = 14f;
     private const float DialogueChromeButtonLabelFontSize = 15f;
+    private const float DialogueScrollBottomInsetWithAccept = 45f;
+    private const float DialogueScrollBottomInsetWithoutAccept = 12f;
 
     private void ApplyDialogueScrollTypography()
     {
@@ -2002,6 +2050,16 @@ public class NPCDialogueBoxUI : MonoBehaviour
             dialogueText.fontSize = DialogueBodyFontSize;
         if (_singleRewardText)
             _singleRewardText.fontSize = DialogueQuestRewardFontSize;
+    }
+
+    private void ApplyScrollBottomInsetForAcceptButton(bool showAccept)
+    {
+        if (_singleModeScrollRect == null)
+            return;
+
+        Vector2 min = _singleModeScrollRect.offsetMin;
+        min.y = showAccept ? DialogueScrollBottomInsetWithAccept : DialogueScrollBottomInsetWithoutAccept;
+        _singleModeScrollRect.offsetMin = min;
     }
 
     /// <summary>Single flat panel read: outer root carries the tint; scroll/image fills stay visually flat; viewport keeps low alpha only for masking.</summary>
@@ -2065,7 +2123,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         scrollRt.anchorMin = new Vector2(0f, 0f);
         scrollRt.anchorMax = new Vector2(1f, 1f);
         scrollRt.offsetMin = new Vector2(10f, 45f);
-        scrollRt.offsetMax = new Vector2(-10f, -35f);
+        scrollRt.offsetMax = new Vector2(-10f, -20f);
         Image scrollBg = scrollGo.GetComponent<Image>();
         scrollBg.color =
             new Color(DialoguePanelBackdrop.r, DialoguePanelBackdrop.g, DialoguePanelBackdrop.b, 0f);
@@ -2235,15 +2293,4 @@ public class NPCDialogueBoxUI : MonoBehaviour
         RectTransform textRt = textGo.GetComponent<RectTransform>();
         textRt.anchorMin = Vector2.zero;
         textRt.anchorMax = Vector2.one;
-        textRt.offsetMin = Vector2.zero;
-        textRt.offsetMax = Vector2.zero;
-
-        TMP_Text tmp = textGo.GetComponent<TMP_Text>();
-        tmp.text = label;
-        tmp.fontSize = DialogueChromeButtonLabelFontSize;
-        tmp.color = new Color(0.12f, 0.1f, 0.08f, 1f);
-        tmp.alignment = TextAlignmentOptions.Center;
-
-        return rt;
-    }
-}
+ 

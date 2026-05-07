@@ -1179,6 +1179,10 @@ public class PlayerController : MonoBehaviour
             UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
             return;
 
+        // World clicks should always exit shop mode.
+        MerchantClick.ForceCloseMerchantMode();
+        MerchantClick.CancelPendingOpen();
+
         if (!_cam)
             _cam = Camera.main;
 

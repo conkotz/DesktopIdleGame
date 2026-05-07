@@ -233,7 +233,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
   dialogue: Please collect spider silk for me
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
-  dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
+  useDialogueLocalOffsetOverride: 0
+  dialogueLocalOffsetOverride: {x: 1.95, y: 0.5, z: 0}
   nonQuestAutoCloseSeconds: 3
   openDialogueOnFirstSighting: 0
   openDialogueAfterQuestAccepted: 0

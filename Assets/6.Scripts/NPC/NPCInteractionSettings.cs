@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public enum NpcDialogueConditionKind
 {
@@ -66,8 +67,12 @@ public class NPCInteractionSettings : MonoBehaviour
     [TextArea(2, 6)]
     [SerializeField] private string dialogue = "howdy";
     [SerializeField] private NPCDialogueBoxUI dialogueBoxPrefab;
-    [Tooltip("World offset from the top-right of this object's Collider2D bounds.")]
-    [SerializeField] private Vector3 dialogueLocalOffset = new(1.95f, 0.5f, 0f);
+    [Tooltip("When enabled, this NPC uses a custom dialogue follow offset instead of the Dialogue Box default offset.")]
+    [SerializeField] private bool useDialogueLocalOffsetOverride = false;
+    [Tooltip("Per-NPC override for dialogue follow offset from collider top-right.")]
+    [ShowWhenTrue(nameof(useDialogueLocalOffsetOverride))]
+    [FormerlySerializedAs("dialogueLocalOffset")]
+    [SerializeField] private Vector3 dialogueLocalOffsetOverride = new(1.95f, 0.5f, 0f);
     [SerializeField] private float nonQuestAutoCloseSeconds = 5f;
     [Tooltip("When enabled, shows dialogue the first time this NPC is on-screen, then re-opens automatically when conditional dialogue changes (e.g. after a quest completes).")]
     [SerializeField] private bool openDialogueOnFirstSighting;
@@ -840,16 +845,27 @@ public class NPCInteractionSettings : MonoBehaviour
     private static string ResolveActiveMapNodeIdForNpcConditions() =>
         NpcPostDeathRespawnDialogueStore.ResolveCurrentGameplayMapNodeId();
 
-    /// <summary>World point for dialogue follow each frame — uses collider bounds + <see cref="dialogueLocalOffset"/> so NPC hover scale cannot drift the pivot.</summary>
+    /// <summary>World point for dialogue follow each frame — uses collider bounds + resolved dialogue offset so NPC hover scale cannot drift the pivot.</summary>
     public Vector3 GetDialogueFollowWorldPoint()
     {
         Collider2D col = ResolveInteractCollider2D();
-        Vector3 pivot = dialogueLocalOffset;
+        Vector3 pivot = ResolveDialogueLocalOffset();
         if (!col)
             return transform.position + pivot;
 
         Bounds b = col.bounds;
         return new Vector3(b.max.x + pivot.x, b.max.y + pivot.y, transform.position.z + pivot.z);
+    }
+
+    private Vector3 ResolveDialogueLocalOffset()
+    {
+        if (useDialogueLocalOffsetOverride)
+            return dialogueLocalOffsetOverride;
+        if (_activeDialogue != null)
+            return _activeDialogue.GetNpcDialogueLocalOffset();
+        if (dialogueBoxPrefab != null)
+            return dialogueBoxPrefab.GetNpcDialogueLocalOffset();
+        return NPCDialogueBoxUI.GetDefaultNpcDialogueLocalOffset();
     }
 
     private Collider2D ResolveInteractCollider2D()
@@ -921,7 +937,7 @@ public class NPCInteractionSettings : MonoBehaviour
     public static string BuildQuestOfferTitleHtml(QuestDefinition quest)
     {
         string questName = string.IsNullOrWhiteSpace(quest.displayName) ? "Quest" : quest.displayName.Trim();
-        return $"<size=115%><b><color=#FFD66B>{questName}</color></b></size>";
+        return $"<size=100%><b><color=#FFD66B>{questName}</color></b></size>";
     }
 
     public static string GetQuestOfferDescriptionPlain(QuestDefinition quest)

@@ -19,13 +19,14 @@ MonoBehaviour:
     need either a focus or runes and for ranged weapon, they will require arrows.
     \n\nMaigc attacks will consume mana to cast but they will also provide elemental
     ailments based on their. This ice weapon adds chill upon hitting enemies which
-    causes them to move slower per stack. \n\nTry hitting 'Tab' and equipping the
-    magic weapon on your secondary weapon set. This makes switching between two styles
-    easy."
+    causes them to move slower per stack. \n\nHitting 'Tab' and equipping the magic
+    weapon on your secondary gear set. This makes switching between two styles easy."
   activationTrigger: 3
   requiredMapNodeId: tutorial_3
   inventoryTriggerItemId: basic_ice_wand
   inventoryTriggerItemCount: 1
+  worldDropTriggerItem: {fileID: 0}
+  worldDropTriggerItemId: 
   questGatherTriggerQuestId: 
   questRewardClaimedTriggerQuestId: tutorial_aid_merlin
   questAcceptedTriggerQuestId: tutorial_basic_combat

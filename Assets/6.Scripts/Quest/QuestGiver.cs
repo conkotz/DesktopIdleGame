@@ -136,21 +136,21 @@ public class QuestGiver : MonoBehaviour
         if (_manager == null)
             return null;
 
-        QuestDefinition quest = FindAvailableQuestById(questId);
+        QuestDefinition quest = FindAvailableNonRestockQuestById(questId);
         if (quest)
             return quest;
 
         if (additionalQuestIds == null)
-            return _manager.FindFirstAcceptableQuestAtLocation(locationId);
+            return FindFirstAcceptableNonRestockQuestAtLocation();
 
         for (int i = 0; i < additionalQuestIds.Count; i++)
         {
-            quest = FindAvailableQuestById(additionalQuestIds[i]);
+            quest = FindAvailableNonRestockQuestById(additionalQuestIds[i]);
             if (quest)
                 return quest;
         }
 
-        return _manager.FindFirstAcceptableQuestAtLocation(locationId);
+        return FindFirstAcceptableNonRestockQuestAtLocation();
     }
 
     /// <summary>
@@ -219,6 +219,8 @@ public class QuestGiver : MonoBehaviour
         {
             if (!q || string.IsNullOrWhiteSpace(q.questId))
                 return;
+            if (IsShopRestockQuest(q))
+                return;
             string id = q.questId.Trim();
             if (seen.Contains(id))
                 return;
@@ -228,11 +230,11 @@ public class QuestGiver : MonoBehaviour
 
         TryBindManager();
 
-        TryAdd(FindAvailableQuestById(questId));
+        TryAdd(FindAvailableNonRestockQuestById(questId));
         if (additionalQuestIds != null)
         {
             for (int i = 0; i < additionalQuestIds.Count; i++)
-                TryAdd(FindAvailableQuestById(additionalQuestIds[i]));
+                TryAdd(FindAvailableNonRestockQuestById(additionalQuestIds[i]));
         }
 
         if (_manager != null && !string.IsNullOrWhiteSpace(locationId))
@@ -267,6 +269,31 @@ public class QuestGiver : MonoBehaviour
 
         return quest;
     }
+
+    private QuestDefinition FindAvailableNonRestockQuestById(string id)
+    {
+        QuestDefinition quest = FindAvailableQuestById(id);
+        return IsShopRestockQuest(quest) ? null : quest;
+    }
+
+    private QuestDefinition FindFirstAcceptableNonRestockQuestAtLocation()
+    {
+        if (_manager == null || string.IsNullOrWhiteSpace(locationId))
+            return null;
+
+        _manager.CollectAcceptableQuestsAtLocation(locationId, _scratchLocationQuests);
+        for (int i = 0; i < _scratchLocationQuests.Count; i++)
+        {
+            QuestDefinition q = _scratchLocationQuests[i];
+            if (!IsShopRestockQuest(q))
+                return q;
+        }
+
+        return null;
+    }
+
+    private static bool IsShopRestockQuest(QuestDefinition quest) =>
+        quest != null && quest.restockMerchantStockOnRewardClaim;
 
     private QuestDefinition FindClaimableQuestById(string id)
     {
