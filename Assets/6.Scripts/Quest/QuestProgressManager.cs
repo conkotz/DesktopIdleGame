@@ -340,7 +340,19 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     /// Regional quest journal eligibility. Includes undiscovered quest-giver offers so the list can show where to obtain them.
     /// Map visibility gates still use <see cref="QuestDefinition.IsShownInQuestList"/>.
     /// </summary>
-    public bool IsQuestVisibleInList(QuestDefinition q) => q != null;
+    public bool IsQuestVisibleInList(QuestDefinition q)
+    {
+        if (q == null)
+            return false;
+
+        if (!q.hideFromQuestJournalUnlessAccepted)
+            return true;
+
+        if (IsPermanentlyComplete(q))
+            return false;
+
+        return IsQuestAccepted(q);
+    }
 
     public bool CanAcceptQuest(QuestDefinition q, string giverLocationId = null)
     {
@@ -688,12 +700,25 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
         GrantRewards(q);
 
+        if (q.restockMerchantStockOnRewardClaim)
+            TryResetMerchantStockFromQuestReward(q);
+
         if (q.repeatable)
         {
             if (q.objectiveKind != QuestObjectiveKind.GatherItem)
                 SetProgress(q.questId, 0);
             else
                 ProgressChanged?.Invoke();
+
+            // Hidden repeatables (e.g. shop restock) should leave the quest list after claim.
+            // They can be accepted again from their source action (Restock button).
+            if (q.hideFromQuestJournalUnlessAccepted && !string.IsNullOrWhiteSpace(q.questId))
+            {
+                string id = q.questId.Trim();
+                _acceptedQuestIds.Remove(id);
+                QuestTrackerState.UntrackQuest(id);
+                ProgressChanged?.Invoke();
+            }
         }
         else
         {
@@ -1109,6 +1134,131 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         }
 
         AutoBattleLootHighlight.RefreshLootHighlightUIs();
+    }
+
+    private void TryResetMerchantStockFromQuestReward(QuestDefinition q)
+    {
+        if (q == null || !q.restockMerchantStockOnRewardClaim)
+            return;
+
+        string key = q.restockMerchantStockSaveKey != null ? q.restockMerchantStockSaveKey.Trim() : "";
+        if (string.IsNullOrEmpty(key))
+            return;
+
+        Merchant[] merchants = FindObjectsByType<Merchant>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < merchants.Length; i++)
+        {
+            Merchant m = merchants[i];
+            if (m == null || m.Stock == null)
+                continue;
+            if (!string.Equals(m.Stock.StockSaveKey, key, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            m.ResetStockToDefaults(persistToDisk: true);
+            return;
+        }
+    }
+
+    /// <summary>
+    /// Accepts the first restock quest bound to this merchant stock key.
+    /// Returns true when accepted now, false otherwise and sets a user-facing message.
+    /// </summary>
+    public bool TryAcceptShopRestockQuest(string merchantStockSaveKey, out string message)
+    {
+        message = "No restock quest configured.";
+        if (string.IsNullOrWhiteSpace(merchantStockSaveKey))
+            return false;
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null || all.Count == 0)
+            return false;
+
+        string stockKey = merchantStockSaveKey.Trim();
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition q = all[i];
+            if (!q || !q.restockMerchantStockOnRewardClaim)
+                continue;
+            if (!string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (IsPermanentlyComplete(q))
+            {
+                message = "This restock quest is complete.";
+                return false;
+            }
+
+            if (IsQuestAccepted(q))
+            {
+                message = "Restock quest already active.";
+                return false;
+            }
+
+            if (!TryAcceptQuest(q, q.obtainLocationId))
+            {
+                message = "Cannot accept restock quest right now.";
+                return false;
+            }
+
+            message = $"Quest accepted: {q.displayName}";
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>True when a restock quest for this merchant stock key is currently accepted and not permanently complete.</summary>
+    public bool HasActiveShopRestockQuest(string merchantStockSaveKey)
+    {
+        if (string.IsNullOrWhiteSpace(merchantStockSaveKey))
+            return false;
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null || all.Count == 0)
+            return false;
+
+        string stockKey = merchantStockSaveKey.Trim();
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition q = all[i];
+            if (!q || !q.restockMerchantStockOnRewardClaim)
+                continue;
+            if (!string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (IsPermanentlyComplete(q))
+                continue;
+            if (IsQuestAccepted(q))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>True when at least one restock quest is configured for this merchant stock save key.</summary>
+    public bool HasShopRestockQuestConfigured(string merchantStockSaveKey)
+    {
+        if (string.IsNullOrWhiteSpace(merchantStockSaveKey))
+            return false;
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null || all.Count == 0)
+            return false;
+
+        string stockKey = merchantStockSaveKey.Trim();
+        for (int i = 0; i < all.Count; i++)
+        {
+            QuestDefinition q = all[i];
+            if (!q || !q.restockMerchantStockOnRewardClaim)
+                continue;
+            if (!string.Equals(q.restockMerchantStockSaveKey?.Trim(), stockKey, StringComparison.OrdinalIgnoreCase))
+                continue;
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>Call from enemy death; applies kill credit to active kill quests for the current map node.</summary>

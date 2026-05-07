@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
+  m_Name: Quest_restock_arcanist
+  m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
+  questId: greenlands_restock_arcanist
+  regionId: greenlands
+  displayName: Shop Restock - Arcanist
+  description: Bring me 50 linen
+  details: Gather and hand in 50 linen to refresh the arcanist stock back to default.
+  listCategoryLabel: Restock
+  listStatusOverride: 
+  objectiveKind: 2
+  targetCount: 50
+  objectiveId: linen
+  specialObjectiveListText: 
+  rewardGold: 0
+  rewardItem: {fileID: 0}
+  rewardItemId: 
+  rewardItemQuantity: 1
+  additionalItemRewards: []
+  rewardNotes: Restocks the arcanist inventory.
+  grantIdleCombatUnlockOnRewardClaim: 0
+  grantAdditionalInventorySlotsOnRewardClaim: 0
+  restockMerchantStockOnRewardClaim: 1
+  restockMerchantStockSaveKey: arcanist_merchant
+  repeatable: 1
+  autoCompleteQuest: 0
+  abandonable: 1
+  teleportPlayerToNodeIdOnCompletion: 
+  obtainLocationId: arcanist
+  obtainLocationDisplayName: Kaelis the Arcanist
+  progressMapNodeId: 
+  killProgressOnlyOnProgressMap: 0
+  autoAcceptWhenPriorQuestRewardClaimed: 0
+  autoAcceptAfterPriorQuestId: 
+  prerequisiteRewardClaimedQuestIds: []
+  requireAllPrerequisiteQuests: 1
+  requiredCompletedMapNodeId: 
+  recommendedLocationNode: {fileID: 0}
+  requiredSkillLevels: []
+  killEnemyIdFilter: 
+  hideUntilMapNodeUnlockedId: 
+  hideFromQuestJournalUnlessAccepted: 1
+  sortOrder: 982

@@ -548,6 +548,15 @@ public class Merchant : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>Resets this merchant's runtime stock quantities to the MerchantStock default values.</summary>
+    public void ResetStockToDefaults(bool persistToDisk = true)
+    {
+        InitializeRuntimeStockFromDefaults();
+        StockChanged?.Invoke(this);
+        if (persistToDisk && SaveManager.Instance != null)
+            SaveManager.Instance.NotifyShopStockChanged();
+    }
+
     private void EnsureRuntimeStockCapacity()
     {
         if (stock == null || stock.Items == null) return;

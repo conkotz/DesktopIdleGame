@@ -1449,7 +1449,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (supAllPhys != 0f)
                 s += $"\n{FormatScalingCoefficientPercentLine(supAllPhys, "All physical")}";
             if (SupportRangedPhysicalDamagePercent != 0f)
-                s += $"\n{FormatScalingCoefficientPercentLine(SupportRangedPhysicalDamagePercent, "Ranged physical")}";
+                s += $"\nRanged Dmg: {FormatSignedPercent01(SupportRangedPhysicalDamagePercent)}";
             if (SupportMagicDamagePercent != 0f)
                 s += $"\nMagic Damage {FormatSignedPercent01(SupportMagicDamagePercent)}";
             if (SupportFireDamagePercent != 0f)
@@ -1649,7 +1649,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (allPhysPct != 0f)
             s += $"{FormatScalingCoefficientPercentLine(allPhysPct, "All physical")}\n";
         if (bonusStats.rangedPhysicalDamagePercent != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.rangedPhysicalDamagePercent, "Ranged physical")}\n";
+            s += $"Ranged Dmg: {FormatSignedPercent01(bonusStats.rangedPhysicalDamagePercent)}\n";
         if (bonusStats.magicDamage != 0f) s += $"Magic Damage: {FormatSignedNumber(bonusStats.magicDamage)}\n";
         if (bonusStats.magicDamagePercent != 0f)
             s += $"Magic Dmg: {FormatSignedPercent01(bonusStats.magicDamagePercent)}\n";

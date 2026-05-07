@@ -82,6 +82,11 @@ public class QuestDefinition : ScriptableObject
     [Tooltip("Additional inventory slots granted when this quest reward is claimed (e.g. 1, 4, 8).")]
     public int grantAdditionalInventorySlotsOnRewardClaim;
 
+    [Tooltip("When true, claiming this quest reward resets one merchant stock back to default quantities.")]
+    public bool restockMerchantStockOnRewardClaim;
+    [Tooltip("MerchantStock save key (usually the MerchantStock asset name, e.g. blacksmith_merchant).")]
+    public string restockMerchantStockSaveKey = "";
+
     [Header("Rules")]
     [Tooltip("If false, rewards can only be claimed once; the quest stays COMPLETE in the list.")]
     public bool repeatable;
@@ -146,6 +151,8 @@ public class QuestDefinition : ScriptableObject
     [Header("Quest list visibility")]
     [Tooltip("If set, this quest is omitted from the quest list until WorldMapProgressManager unlocks this MapNodeDefinition.nodeId (e.g. tutorial_2). Prerequisites still control Locked vs Available once visible.")]
     public string hideUntilMapNodeUnlockedId = "";
+    [Tooltip("When true, quest only appears while accepted (Current) and is hidden when not accepted or one-time complete.")]
+    public bool hideFromQuestJournalUnlessAccepted;
 
     [Header("Ordering")]
     public int sortOrder;

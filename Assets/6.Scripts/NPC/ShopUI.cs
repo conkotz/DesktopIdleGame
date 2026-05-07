@@ -16,6 +16,8 @@ public class ShopUI : MonoBehaviour
     [SerializeField] private Button buy1xButton;
     [SerializeField] private Button buy50xButton;
     [SerializeField] private Button buybackToggleButton;
+    [SerializeField] private Button restockButton;
+    [SerializeField] private TMP_Text restockButtonLabel;
     [Tooltip("Full-window undo grid; swaps with this shop when the Undo control is used.")]
     [SerializeField] private UndoShopWindowUI undoShopWindow;
     [Header("Undo Window Activation")]
@@ -69,6 +71,7 @@ public class ShopUI : MonoBehaviour
     private Coroutine _shopGridLayoutRetry;
     private Merchant _currentMerchant;
     private string _selectedShopItemId;
+    private QuestProgressManager _questProgressEventsTarget;
 
     public bool IsOpen => panelRoot != null && panelRoot.activeInHierarchy;
     /// <summary>Root <see cref="RectTransform"/> of the shop chrome (same as serialized panel root).</summary>
@@ -102,6 +105,23 @@ public class ShopUI : MonoBehaviour
             buybackToggleButton.onClick.RemoveAllListeners();
             buybackToggleButton.onClick.AddListener(ToggleBuybackPanel);
         }
+
+        if (!restockButton && panelRoot)
+        {
+            Transform t = panelRoot.transform.Find("HeaderDragWindow/RestockShop");
+            if (!t)
+                t = panelRoot.transform.Find("RestockShop");
+            if (t)
+                restockButton = t.GetComponent<Button>();
+        }
+
+        if (restockButton)
+        {
+            restockButton.onClick.RemoveAllListeners();
+            restockButton.onClick.AddListener(OnRestockClicked);
+        }
+        if (!restockButtonLabel && restockButton)
+            restockButtonLabel = restockButton.GetComponentInChildren<TMP_Text>(true);
 
         if (!buy1xButtonImage && buy1xButton)
             buy1xButtonImage = buy1xButton.GetComponent<Image>();
@@ -140,12 +160,14 @@ public class ShopUI : MonoBehaviour
     {
         if (SaleUndoManager.Instance != null)
             SaleUndoManager.Instance.EntriesChanged += OnSaleUndoEntriesChanged;
+        TrySubscribeQuestProgress();
     }
 
     private void OnDisable()
     {
         if (SaleUndoManager.Instance != null)
             SaleUndoManager.Instance.EntriesChanged -= OnSaleUndoEntriesChanged;
+        UnsubscribeQuestProgress();
 
         if (_shopGridLayoutRetry != null)
         {
@@ -242,6 +264,7 @@ public class ShopUI : MonoBehaviour
         Rebuild(merchant);
         RefreshShopRaycastTargets();
         RefreshUndoSaleButtonState();
+        RefreshRestockButtonState();
     }
 
     public void Close()
@@ -252,6 +275,8 @@ public class ShopUI : MonoBehaviour
 
         if (panelRoot)
             panelRoot.SetActive(false);
+
+        RefreshRestockButtonState();
     }
 
     /// <summary>Called by <see cref="ShopSlotUI"/> when the player selects a purchasable item.</summary>
@@ -506,6 +531,7 @@ public class ShopUI : MonoBehaviour
             return;
 
         Rebuild(merchant);
+        RefreshRestockButtonState();
     }
 
     private void OnDestroy()
@@ -623,6 +649,84 @@ public class ShopUI : MonoBehaviour
         Merchant m = _currentMerchant;
         undoShopWindow.OpenForMerchant(m);
         Close();
+    }
+
+    private void OnRestockClicked()
+    {
+        if (_currentMerchant == null || _currentMerchant.Stock == null)
+            return;
+
+        QuestProgressManager qpm = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (qpm == null)
+            return;
+
+        if (qpm.TryAcceptShopRestockQuest(_currentMerchant.Stock.StockSaveKey, out string msg))
+        {
+            if (!string.IsNullOrWhiteSpace(msg))
+                GameLog.Add(msg);
+            MainMenuWindowUI.Resolve()?.OpenQuestShow();
+            RefreshRestockButtonState();
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(msg))
+            GameLog.Add(msg, GameLog.CannotMessageColor);
+        RefreshRestockButtonState();
+    }
+
+    private void TrySubscribeQuestProgress()
+    {
+        QuestProgressManager qpm = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        if (qpm == null || qpm == _questProgressEventsTarget)
+            return;
+
+        UnsubscribeQuestProgress();
+        _questProgressEventsTarget = qpm;
+        _questProgressEventsTarget.ProgressChanged += HandleQuestProgressChanged;
+    }
+
+    private void UnsubscribeQuestProgress()
+    {
+        if (_questProgressEventsTarget == null)
+            return;
+        _questProgressEventsTarget.ProgressChanged -= HandleQuestProgressChanged;
+        _questProgressEventsTarget = null;
+    }
+
+    private void HandleQuestProgressChanged()
+    {
+        if (!isActiveAndEnabled)
+            return;
+        RefreshRestockButtonState();
+    }
+
+    private void RefreshRestockButtonState()
+    {
+        if (!restockButton)
+            return;
+
+        if (_currentMerchant == null || _currentMerchant.Stock == null)
+        {
+            restockButton.gameObject.SetActive(false);
+            return;
+        }
+
+        QuestProgressManager qpm = QuestProgressManager.Instance ??
+            FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
+        bool hasConfiguredQuest = qpm != null && qpm.HasShopRestockQuestConfigured(_currentMerchant.Stock.StockSaveKey);
+        restockButton.gameObject.SetActive(hasConfiguredQuest);
+        if (!hasConfiguredQuest)
+            return;
+
+        bool inProgress = false;
+        if (qpm != null)
+            inProgress = qpm.HasActiveShopRestockQuest(_currentMerchant.Stock.StockSaveKey);
+
+        restockButton.interactable = !inProgress;
+        if (restockButtonLabel != null)
+            restockButtonLabel.text = inProgress ? "Restock: In Progress" : "Restock";
     }
 
     /// <summary>Updates Undo control visibility/interaction for the current merchant.</summary>

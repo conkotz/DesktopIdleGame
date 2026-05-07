@@ -553,8 +553,16 @@ public class PlayerController : MonoBehaviour
 
         if (!_attackLocked && animator)
         {
+            float walkDeadzone = clickArriveThreshold;
+            if (combat != null &&
+                combat.CurrentTarget != null &&
+                !combat.CurrentTarget.IsDead)
+            {
+                walkDeadzone = Mathf.Max(0.001f, combatArriveThreshold);
+            }
+
             bool shouldLookWalking =
-                (state == State.MoveToPoint && Mathf.Abs(transform.position.x - moveTargetX) > clickArriveThreshold) ||
+                (state == State.MoveToPoint && Mathf.Abs(transform.position.x - moveTargetX) > walkDeadzone) ||
                 (state == State.MoveToTarget) ||
                 (state == State.MoveToPickup);
 
@@ -692,6 +700,10 @@ public class PlayerController : MonoBehaviour
     private void TriggerHurtAnim()
     {
         if (!animator || _isDead)
+            return;
+
+        // Let attack clips finish; hurt must not cut them short.
+        if (_attackLocked)
             return;
 
         bool isMoving =
@@ -1335,7 +1347,18 @@ public class PlayerController : MonoBehaviour
         MoveToX(moveTargetX, GetMoveSpeed());
 
         float dist = Mathf.Abs(transform.position.x - moveTargetX);
-        if (dist <= clickArriveThreshold)
+        // Combat runs before this script: MoveToPointX_Combat can set MoveToPoint and we move in the same frame.
+        // Using the wide click threshold here makes us ReturnToIdle immediately while still chasing a moving
+        // enemy (tiny steps), so presentation stays Fighting/idle while the transform keeps moving = sliding.
+        float arrive = clickArriveThreshold;
+        if (combat != null &&
+            combat.CurrentTarget != null &&
+            !combat.CurrentTarget.IsDead)
+        {
+            arrive = Mathf.Max(0.001f, combatArriveThreshold);
+        }
+
+        if (dist <= arrive)
             ReturnToIdle();
     }
 

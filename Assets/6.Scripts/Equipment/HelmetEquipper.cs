@@ -11,6 +11,7 @@ public class HelmetEquipper : MonoBehaviour
     [Header("Renderers")]
     [SerializeField] private SpriteRenderer helmetRenderer;
     [SerializeField] private SpriteRenderer baseHeadRenderer;
+    [SerializeField] private bool hideBaseHeadWhenHelmetEquipped = false;
 
     [Header("Auto-find (optional)")]
     [SerializeField] private string helmetRendererObjectName = "Helmet";
@@ -78,7 +79,7 @@ public class HelmetEquipper : MonoBehaviour
         helmetRenderer.enabled = true;
 
         if (baseHeadRenderer)
-            baseHeadRenderer.enabled = false;
+            baseHeadRenderer.enabled = !hideBaseHeadWhenHelmetEquipped;
     }
 
     private void ApplyNone()

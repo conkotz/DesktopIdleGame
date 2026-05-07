@@ -131,6 +131,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _nextLowManaPopupTime;
     private float _nextSupportWeaponMismatchPopupTime;
     private bool _isClosingDistanceForAttack;
+    private bool _attackBufferedFromRange;
     private float _combatSessionStartTime = -1f;
     private float _combatSessionDamageSum;
     private DpsDamageBreakdown _outgoingDamageSum;
@@ -402,6 +403,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (clearTargetIfDead && _target.IsDead)
         {
             _isClosingDistanceForAttack = false;
+            _attackBufferedFromRange = false;
             ClearTargetInternal();
 
             if (player != null)
@@ -463,15 +465,18 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         float enemyHalf = HalfWidthX(_targetColCached);
 
         float gap = EdgeGapX(myX, enemyX, myHalf, enemyHalf);
+        if (gap <= myRange)
+            _attackBufferedFromRange = true;
+        float desiredCenterDist = myRange + myHalf + enemyHalf;
+        float desiredX = (myX < enemyX) ? (enemyX - desiredCenterDist) : (enemyX + desiredCenterDist);
+        bool attackReadyThisFrame = Time.time >= _nextAttackTime;
         bool shouldStartClosing = gap > myRange + stopSlack;
         bool shouldKeepClosing = _isClosingDistanceForAttack && gap > myRange;
-        bool shouldCloseDistance = shouldStartClosing || shouldKeepClosing;
+        bool shouldCloseDistance = !_attackBufferedFromRange && (shouldStartClosing || shouldKeepClosing);
 
         if (shouldCloseDistance)
         {
             _isClosingDistanceForAttack = true;
-            float desiredCenterDist = myRange + myHalf + enemyHalf;
-            float desiredX = (myX < enemyX) ? (enemyX - desiredCenterDist) : (enemyX + desiredCenterDist);
 
             player.ClearActionOverride();
             player.MoveToPointX_Combat(desiredX);
@@ -479,14 +484,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         _isClosingDistanceForAttack = false;
-        player.StopMoveOnly();
-
         if (kiteAtRangeEdge)
-        {
-            float desiredCenterDist = myRange + myHalf + enemyHalf;
-            float desiredX = (myX < enemyX) ? (enemyX - desiredCenterDist) : (enemyX + desiredCenterDist);
             player.MoveToPointX_Combat(desiredX);
-        }
+        else
+            player.StopMoveOnly();
 
         if (faceTargetWhenAttacking)
             player.FaceTargetX(enemyX);
@@ -504,6 +505,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (IsMagicAttack() && !TrySpendManaForMagicAttack())
         {
+            _attackBufferedFromRange = false;
             player.ClearActionOverride();
             if (Time.time >= _nextLowManaPopupTime)
             {
@@ -514,6 +516,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         _nextAttackTime = Time.time + cooldown;
+        _attackBufferedFromRange = false;
 
         player.SetActionOverride(PlayerController.PlayerAction.Fighting);
 
@@ -524,6 +527,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (rolled.IsEmpty)
         {
+            _attackBufferedFromRange = false;
             player.ClearActionOverride();
             return;
         }
@@ -1516,6 +1520,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         _target = enemy;
         _isClosingDistanceForAttack = false;
+        _attackBufferedFromRange = false;
         _targetColCached = null;
         OnTargetChanged?.Invoke();
     }
@@ -1523,6 +1528,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     public void ClearTarget()
     {
         _isClosingDistanceForAttack = false;
+        _attackBufferedFromRange = false;
         ClearTargetInternal();
     }
 

@@ -21,7 +21,7 @@ MonoBehaviour:
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: -4105419757516580593, guid: 45755d12b7b0d8a4c92020e2f91fc299, type: 3}
   useCustomEquippedPose: 0
-  equippedLocalOffset: {x: 0, y: 0}
+  equippedLocalOffset: {x: 0, y: 0.2}
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
