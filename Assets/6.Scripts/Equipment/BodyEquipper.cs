@@ -27,6 +27,9 @@ public class BodyEquipper : MonoBehaviour
 
     private void Awake()
     {
+        if (!Application.isPlaying)
+            return;
+
         if (!equipment) equipment = GetComponentInParent<EquipmentManager>();
         if (!inventory) inventory = equipment ? equipment.Inventory : GetComponentInParent<Inventory>();
 
@@ -44,6 +47,9 @@ public class BodyEquipper : MonoBehaviour
 
     private void OnEnable()
     {
+        if (!Application.isPlaying)
+            return;
+
         if (!equipment) return;
         _cb ??= Refresh;
         equipment.OnVisualsChanged += _cb;

@@ -25,6 +25,9 @@ public class ToolSocketEquipper : MonoBehaviour
 
     private void Awake()
     {
+        if (!Application.isPlaying)
+            return;
+
         if (!equipment) equipment = GetComponentInParent<EquipmentManager>();
         if (!inventory) inventory = equipment ? equipment.Inventory : GetComponentInParent<Inventory>();
 
@@ -36,6 +39,9 @@ public class ToolSocketEquipper : MonoBehaviour
 
     private void OnEnable()
     {
+        if (!Application.isPlaying)
+            return;
+
         if (!equipment) return;
 
         _cb ??= Refresh;
@@ -46,6 +52,9 @@ public class ToolSocketEquipper : MonoBehaviour
 
     private void OnDisable()
     {
+        if (!Application.isPlaying)
+            return;
+
         if (equipment != null && _cb != null)
             equipment.OnVisualsChanged -= _cb;
 

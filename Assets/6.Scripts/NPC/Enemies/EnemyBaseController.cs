@@ -131,6 +131,7 @@ public class EnemyBaseController : MonoBehaviour
     private const float EliteVisualScale = 1.3f;
     private const float DeadlyCloseRangePulseIntervalSeconds = 1f;
     private static readonly Color EliteSpriteColorTint = new Color(1f, 0.72f, 0.72f, 1f);
+    private const string BossPrefixRichText = "<size=125%><color=#FF2B2B><b>Boss</b></color></size>";
 
     private CurrencyWallet _wallet;
     private GoldPopupSpawner _goldPopupSpawner;
@@ -186,13 +187,19 @@ public class EnemyBaseController : MonoBehaviour
         OnNameChanged?.Invoke(displayName);
     }
 
-    /// <summary>TMP rich text: red "Elite" prefix when elite, else plain <see cref="DisplayName"/>.</summary>
+    /// <summary>TMP rich text prefixes: Boss (bigger red), Elite (red), then core display name.</summary>
     public string GetRichTextDisplayNameForOverhead()
     {
-        if (!_isElite)
-            return displayName;
         string core = string.IsNullOrEmpty(_nameCoreForUi) ? displayName : _nameCoreForUi;
-        return $"<color=#FF5C5C>Elite</color> {core}";
+        bool isBoss = definition != null && definition.isBossEnemy;
+
+        if (isBoss && _isElite)
+            return $"{BossPrefixRichText} <color=#FF5C5C>Elite</color> {core}";
+        if (isBoss)
+            return $"{BossPrefixRichText} {core}";
+        if (_isElite)
+            return $"<color=#FF5C5C>Elite</color> {core}";
+        return core;
     }
 
     /// <summary>

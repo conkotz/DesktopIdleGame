@@ -29,6 +29,9 @@ public class RangedAttackVisualController : MonoBehaviour
 
     private void Awake()
     {
+        if (!Application.isPlaying)
+            return;
+
         if (!animator)
             animator = GetComponentInChildren<Animator>();
 
@@ -55,6 +58,9 @@ public class RangedAttackVisualController : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (!Application.isPlaying)
+            return;
+
         if (!animator) return;
 
         bool shouldUseAttackProps = IsInOrTransitioningFromRangedAttack();

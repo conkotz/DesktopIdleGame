@@ -106,7 +106,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 
+  m_text: Bear Den
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -333,8 +333,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 59144c916a032ea4184e9ab853139175, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MapNodePortalTeleporter
-  targetMap: {fileID: 0}
-  targetMapNodeId: 
+  targetMap: {fileID: 11400000, guid: e78127e16d6bb394d9aee351d7dd847a, type: 2}
+  targetMapNodeId: bear_den
   nameLabel: {fileID: 3760902187889514044}
   gameplaySceneName: GamePlay
   cooldownSeconds: 0.75

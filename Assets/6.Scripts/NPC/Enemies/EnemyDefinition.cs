@@ -64,6 +64,9 @@ public class EnemyDefinition : ScriptableObject
     [Tooltip("Shown in overhead UI and tooltips.")]
     public string displayName = "Enemy";
 
+    [Tooltip("Marks this enemy as a boss for overhead naming/UI treatment.")]
+    public bool isBossEnemy = false;
+
     [TextArea(2, 6)]
     [Tooltip("Longer description for journals / bestiary / tooltips.")]
     public string description = "";

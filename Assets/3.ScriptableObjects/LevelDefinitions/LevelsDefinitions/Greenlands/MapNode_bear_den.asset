@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
-  m_Name: MapNode_hunting_grounds
+  m_Name: MapNode_bear_den
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
-  nodeId: hunting_grounds
-  displayName: Hunting Grounds
-  description: A green field with enemies
+  nodeId: bear_den
+  displayName: Bear Den
+  description: A big bear inhabits this area. Stay out!
   nodeType: 0
-  enemyAggroMode: 1
-  ignoreAggroRange: 0
+  enemyAggroMode: 0
+  ignoreAggroRange: 1
   respawnHereIfDied: 0
   enemyRespawnEnabled: 1
-  enemyRespawnDelaySeconds: 15
-  eliteSpawnChance: 0.05
+  enemyRespawnDelaySeconds: 30
+  eliteSpawnChance: 0
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
@@ -31,10 +31,10 @@ MonoBehaviour:
   requiresMapUnlock: 0
   icon: {fileID: 0}
   requiredSkillLevels: []
-  combatSkillGateMode: 0
+  combatSkillGateMode: 2
   combatSingleSkill: 0
-  combatRequiredLevel: 1
-  unlockRequirementNotes: 
+  combatRequiredLevel: 15
+  unlockRequirementNotes: ' '
   connectedNodeIds: []
   nextNodeIds: []
   biome: 0
@@ -51,18 +51,13 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint67
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 8347273920747777605, guid: 1d359e69b63b58e4a94ec38646014fa6, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: bear_den
     shuffleSpawnPoints: 1
-  requiredPreviousMapCompletions: []
+  requiredPreviousMapCompletions:
+  - enabled: 1
+    requiredMapNodeId: hunting_grounds
+    requireMapCompleted: 0
+    requireEnemyKillsOnMap: 1
+    requiredEnemyKillsOnMap: 150
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0
   simpleCombatWavesRequireQuestRewardClaimed: 0

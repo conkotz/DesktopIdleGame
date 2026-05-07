@@ -13,6 +13,9 @@ public enum NpcDialogueConditionKind
         "After the player dies and respawns (scene reload), or when loading a save with this flag still set. " +
         "When After Death Respawn Map Node Id is set, it must match the map where the player died (not the map you are on when the NPC speaks). Cleared when this dialogue is shown.")]
     AfterDeathAndRespawn = 1,
+
+    [Tooltip("Shows only while the player has any silk. Accept sells all silk for 50 gold each.")]
+    BuysAllSilk = 2,
 }
 
 public enum NpcDialogueOutcomeKind
@@ -52,6 +55,8 @@ public class NpcConditionalDialogueEntry
 public class NPCInteractionSettings : MonoBehaviour
 {
     private const string GameplaySceneName = "GamePlay";
+    private const string SilkItemId = "silk";
+    private const int SilkGoldPerUnit = 50;
 
     [Header("Dialogue")]
     [TextArea(2, 6)]
@@ -702,6 +707,9 @@ public class NPCInteractionSettings : MonoBehaviour
 
     private static Action BuildAcceptActionOrNull(NpcConditionalDialogueEntry e)
     {
+        if (e.condition == NpcDialogueConditionKind.BuysAllSilk)
+            return BuyAllSilkFromPlayer;
+
         switch (e.onAcceptOutcome)
         {
             case NpcDialogueOutcomeKind.TeleportToMapNode:
@@ -772,9 +780,54 @@ public class NPCInteractionSettings : MonoBehaviour
                 string cur = ResolveActiveMapNodeIdForNpcConditions();
                 return !string.IsNullOrEmpty(cur) &&
                        string.Equals(cur, need, StringComparison.OrdinalIgnoreCase);
+            case NpcDialogueConditionKind.BuysAllSilk:
+            {
+                Inventory inv = ResolvePlayerInventoryForNpcConditions();
+                return inv != null && inv.GetTotalAmount(SilkItemId) > 0;
+            }
             default:
                 return false;
         }
+    }
+
+    private static Inventory ResolvePlayerInventoryForNpcConditions()
+    {
+        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (inv != null)
+            return inv;
+
+        GameObject taggedPlayer = GameObject.FindGameObjectWithTag("Player");
+        if (taggedPlayer)
+            return taggedPlayer.GetComponentInChildren<Inventory>(true);
+
+        return null;
+    }
+
+    private static CurrencyWallet ResolveCurrencyWalletForNpcConditions() =>
+        FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
+
+    private static void BuyAllSilkFromPlayer()
+    {
+        Inventory inv = ResolvePlayerInventoryForNpcConditions();
+        CurrencyWallet wallet = ResolveCurrencyWalletForNpcConditions();
+        if (inv == null || wallet == null)
+            return;
+
+        int silkCount = inv.GetTotalAmount(SilkItemId);
+        if (silkCount <= 0)
+            return;
+
+        if (!inv.Remove(SilkItemId, silkCount))
+            return;
+
+        int goldEarned = silkCount * SilkGoldPerUnit;
+        wallet.AddGold(goldEarned);
+
+        ItemDefinition silkDef = inv.GetItemDef(SilkItemId);
+        string silkName = silkDef && !string.IsNullOrWhiteSpace(silkDef.displayName)
+            ? silkDef.displayName.Trim()
+            : "Silk";
+        GameLog.SoldItem(silkName, silkCount, goldEarned);
     }
 
     private static string ResolveActiveMapNodeIdForNpcConditions() =>
