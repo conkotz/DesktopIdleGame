@@ -246,8 +246,7 @@ MonoBehaviour:
   - condition: 1
     completedQuestId: 
     afterDeathRespawnMapNodeId: 
-    dialogue: Oh.. you died I thought you were strong. I can fully restore you if
-      you need to be healed.
+    dialogue: I can fully restore you if you need to be healed.
     onAcceptOutcome: 0
     teleportTargetNode: {fileID: 0}
     teleportMapNodeId: 

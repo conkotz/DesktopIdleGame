@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: leather_boots
+  m_Name: leather
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 3
-  maxStack: 1
-  itemId: leather_boots
-  displayName: Leather Boots
+  itemKind: 0
+  maxStack: 999
+  itemId: leather
+  displayName: Leather
   displayNameSingular: 
-  icon: {fileID: 768876921360127840, guid: 4f943cabe82a77243a79501022363e70, type: 3}
+  icon: {fileID: -6306190053144719101, guid: b6216b701f28ed84ea6c1f7085f0c4bf, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,10 +25,10 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A tattered pair of leather boots
-  rarity: 1
-  value: 200
-  equipSlot: 5
+  description: A raw leather hide
+  rarity: 0
+  value: 40
+  equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
@@ -90,11 +90,11 @@ MonoBehaviour:
   armorStats:
     equipmentTier: 0
     armor: 0
-    magicResist: 5
+    magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
-    bonusHealth: 30
-    bonusEnergy: 10
+    bonusHealth: 0
+    bonusEnergy: 0
     flatGuard: 0
     maxGuardPercent: 0
   bonusStats:
@@ -109,7 +109,7 @@ MonoBehaviour:
     energyRegen: 0
     manaRegen: 0
     lifeSteal: 0
-    moveSpeedPercent: 0.3
+    moveSpeedPercent: 0
     physicalDamage: 0
     physicalDamagePercent: 0
     globalPhysicalDamagePercent: 0

@@ -10,25 +10,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: leather_boots
+  m_Name: leather_tunic
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 3
   maxStack: 1
-  itemId: leather_boots
-  displayName: Leather Boots
+  itemId: leather_tunic
+  displayName: Leather Tunic
   displayNameSingular: 
-  icon: {fileID: 768876921360127840, guid: 4f943cabe82a77243a79501022363e70, type: 3}
+  icon: {fileID: 5833478467453748231, guid: 476a4ab79c01fd449b450de10a392b6a, type: 3}
   heldSprite: {fileID: 0}
-  equippedSprite: {fileID: 0}
+  equippedSprite: {fileID: 5833478467453748231, guid: 476a4ab79c01fd449b450de10a392b6a, type: 3}
   useCustomEquippedPose: 0
   equippedLocalOffset: {x: 0, y: 0}
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A tattered pair of leather boots
+  description: A basic leather tunic
   rarity: 1
-  value: 200
-  equipSlot: 5
+  value: 250
+  equipSlot: 4
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
@@ -90,11 +90,11 @@ MonoBehaviour:
   armorStats:
     equipmentTier: 0
     armor: 0
-    magicResist: 5
-    corruptionResist: 0
+    magicResist: 15
+    corruptionResist: 5
     physBlockChance: 0
-    bonusHealth: 30
-    bonusEnergy: 10
+    bonusHealth: 15
+    bonusEnergy: 25
     flatGuard: 0
     maxGuardPercent: 0
   bonusStats:
@@ -109,11 +109,11 @@ MonoBehaviour:
     energyRegen: 0
     manaRegen: 0
     lifeSteal: 0
-    moveSpeedPercent: 0.3
+    moveSpeedPercent: 0.05
     physicalDamage: 0
     physicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
-    rangedPhysicalDamagePercent: 0
+    rangedPhysicalDamagePercent: 0.05
     magicDamage: 0
     magicDamagePercent: 0
     fireSkillDamagePercent: 0

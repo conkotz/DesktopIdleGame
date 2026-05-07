@@ -41,6 +41,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private LayerMask interactableMask;
 
     [SerializeField] private float clickArriveThreshold = 0.05f;
+    [Tooltip("Small combat-only arrival epsilon so micro-adjusts still happen to enter attack range.")]
+    [SerializeField, Min(0.001f)] private float combatArriveThreshold = 0.005f;
 
     [Header("Stats")]
     [SerializeField] private CharacterStats characterStats;
@@ -1266,8 +1268,9 @@ public class PlayerController : MonoBehaviour
 
         float clamped = Mathf.Clamp(x, min, max);
 
-        // ✅ already basically there? don't enter MoveToPoint state
-        if (Mathf.Abs(transform.position.x - clamped) <= clickArriveThreshold)
+        // Use a tighter combat epsilon than click movement so we still micro-step into attack range.
+        float combatSnap = Mathf.Max(0.001f, combatArriveThreshold);
+        if (Mathf.Abs(transform.position.x - clamped) <= combatSnap)
         {
             // If combat is spamming this every frame, force Idle so we can idle between attacks.
             if (state == State.MoveToPoint)

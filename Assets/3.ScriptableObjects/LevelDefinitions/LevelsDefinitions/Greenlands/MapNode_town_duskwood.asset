@@ -44,6 +44,15 @@ MonoBehaviour:
   - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint-5
+      enemyDefinition: {fileID: 11400000, guid: f6611819e32b6e9478fc65ed42cbf05b, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
       spawnPointName: SpawnPoint1
       enemyDefinition: {fileID: 11400000, guid: 6db01b26b24bad24bb757a286586614d, type: 2}
       prefab: {fileID: 0}

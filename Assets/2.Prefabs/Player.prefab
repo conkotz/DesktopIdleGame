@@ -5735,6 +5735,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 448
   clickArriveThreshold: 0.05
+  combatArriveThreshold: 0.005
   characterStats: {fileID: 4199332309700179123}
   ailments: {fileID: 0}
   abilityController: {fileID: 0}
@@ -5868,6 +5869,8 @@ MonoBehaviour:
   stats: {fileID: 4199332309700179123}
   playerCol: {fileID: 4092479453765693464}
   clearTargetIfDead: 1
+  idleAllowRetargetToCloserEnemy: 1
+  idleRetargetCloserByAtLeastUnits: 0.35
   rangePadding: 0.05
   stopSlack: 0.04
   allowAttackingWhileGathering: 0
@@ -5918,6 +5921,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Inventory
   itemDb: {fileID: 11400000, guid: 44935afdef73eaf49a6beae8b4c71810, type: 2}
   defaultMaxStack: 99
+  startingSlotCount: 24
 --- !u!114 &7722334455667788990
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6560,6 +6564,10 @@ PrefabInstance:
     - target: {fileID: 1541645750442524315, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       propertyPath: m_Offset.y
       value: -0.021580607
+      objectReference: {fileID: 0}
+    - target: {fileID: 2168572550426202371, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
+      propertyPath: m_SortingOrder
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 2445480816099707413, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       propertyPath: m_SortingOrder

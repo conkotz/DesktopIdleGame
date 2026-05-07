@@ -10,38 +10,38 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4de60bca8597d954ea0c7c5a377a09cf, type: 3}
-  m_Name: enemy_bear
+  m_Name: enemy_spider
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
-  enemyId: enemy_bear
-  displayName: Bear
+  enemyId: enemy_spider
+  displayName: Spider
   description: 
   icon: {fileID: 0}
-  prefab: {fileID: 1000010755293042, guid: 00c865de41c02d149b4de09483082a24, type: 3}
+  prefab: {fileID: 1000010755293042, guid: 46fa6b1031ed7554893e23e710014016, type: 3}
   cannotRespawn: 0
   doesNotContributeToRecommendedCombatPower: 0
-  maxHealth: 5
+  maxHealth: 40
   maxEnergy: 0
   maxMana: 0
-  armor: 75
+  armor: 0
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
-  flatGuard: 10
+  flatGuard: 0
   maxGuardPercent: 0
-  minPhysicalDamage: 25
-  maxPhysicalDamage: 35
+  minPhysicalDamage: 0
+  maxPhysicalDamage: 0
   minMagicDamage: 0
   maxMagicDamage: 0
-  minCorruptionDamage: 0
-  maxCorruptionDamage: 0
-  attackSpeed: 0.2
-  moveSpeed: 2
-  attackRange: 3
-  critChance: 0.1
-  critMultiplier: 1.5
-  lifeRegenPerSecond: 3
+  minCorruptionDamage: 4
+  maxCorruptionDamage: 6
+  attackSpeed: 0.5
+  moveSpeed: 3
+  attackRange: 1.5
+  critChance: 0
+  critMultiplier: 1
+  lifeRegenPerSecond: 0
   energyRegenPerSecond: 0
-  manaRegenPerSecond: 1
+  manaRegenPerSecond: 0
   abilityPower: 0
   lifeSteal: 0
   bleedChance: 1
@@ -73,20 +73,16 @@ MonoBehaviour:
   idleWanderMoveMinSec: 1
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
-  idleWanderIdleMaxSec: 8
+  idleWanderIdleMaxSec: 3
   idleWanderMaxDistanceFromSpawn: 10
   grantCombatXp: 1
   dropGold: 1
-  goldMin: 250
-  goldMax: 300
+  goldMin: 25
+  goldMax: 35
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
-  loot:
-  - item: {fileID: 11400000, guid: 462df72db7793674e8880e18d7ba181c, type: 2}
-    amountMin: 15
-    amountMax: 25
-    dropChance: 1
+  loot: []
   lootAtMostOneDropPerTable: 1
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 5
