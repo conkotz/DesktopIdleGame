@@ -162,6 +162,15 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
     - spawnPointGroupId: 
+      spawnPointName: SpawnPoint60
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: 2acb8fdfa6f931d40ab8e25c157f32df, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
       spawnPointName: SpawnPoint65
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 8347273920747777605, guid: 12a9ea852bcc9e94a9f7df77a7c17fd8, type: 3}

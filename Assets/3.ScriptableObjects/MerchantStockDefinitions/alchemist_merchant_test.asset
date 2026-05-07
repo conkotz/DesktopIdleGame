@@ -43,4 +43,13 @@ MonoBehaviour:
       amount: 500
       itemId: 
     defaultQuantity: -1
+  - itemId: poison_resistance_potion
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    - type: 1
+      amount: 5
+      itemId: vial_poison
+    defaultQuantity: -1
   stockSaveKey: 

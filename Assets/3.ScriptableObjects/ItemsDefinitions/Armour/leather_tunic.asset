@@ -91,7 +91,7 @@ MonoBehaviour:
     equipmentTier: 0
     armor: 0
     magicResist: 15
-    corruptionResist: 5
+    corruptionResist: 10
     physBlockChance: 0
     bonusHealth: 15
     bonusEnergy: 25

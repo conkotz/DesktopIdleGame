@@ -34,7 +34,7 @@ MonoBehaviour:
   successfulEnhancements: 0
   weaponStats:
     minPhysicalDamage: 5
-    maxPhysicalDamage: 11
+    maxPhysicalDamage: 9
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 0
@@ -45,12 +45,13 @@ MonoBehaviour:
     legacyMaxMagicDamage: 0
     minCorruptionDamage: 0
     maxCorruptionDamage: 0
-    attacksPerSecond: 0.8
+    attacksPerSecond: 0.7
     critChance: 0.05
     critMultiplier: 1.3
     handedness: 0
     attackRange: 2
     attackSkill: 0
+    mainHandArchetype: 0
     rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
@@ -62,6 +63,7 @@ MonoBehaviour:
     equipmentTier: 0
   combatSupportStats:
     supportType: 0
+    requiredMainHandArchetype: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
     bonusCorruptionDamage: 0

@@ -51,6 +51,7 @@ MonoBehaviour:
     handedness: 0
     attackRange: 0
     attackSkill: 0
+    mainHandArchetype: 0
     rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
@@ -62,6 +63,7 @@ MonoBehaviour:
     equipmentTier: 0
   combatSupportStats:
     supportType: 0
+    requiredMainHandArchetype: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
     bonusCorruptionDamage: 0
@@ -148,7 +150,7 @@ MonoBehaviour:
     consumeOnUse: 1
     grantedEffect:
       effectType: 6
-      magnitude: 200
+      magnitude: 100
       duration: 30
       effectId: 
   enhancementScrollStats:

@@ -117,6 +117,13 @@ public class WorldInputRouter2D : MonoBehaviour
         if (winnerCol == null)
             return;
 
+        var portal = winnerCol.GetComponentInParent<MapNodePortalTeleporter>();
+        if (portal != null)
+        {
+            portal.OnClickedByPlayer(player);
+            return;
+        }
+
         var drop = winnerCol.GetComponentInParent<ItemDrop>();
         if (drop != null)
         {

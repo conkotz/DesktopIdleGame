@@ -12,41 +12,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
   m_Name: Quest_greenlands_silk_bag
   m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
-  questId: greenlands_splitwood_contract
+  questId: greenlands_silk_bag
   regionId: greenlands
-  displayName: Splitwood for Robin
-  description: Gather splitwood logs for Robin. He will make you arrows in return.
-  details: 
+  displayName: Make a Silk bag
+  description: Bring me 150 pieces of silk and ill make you a silk bag.
+  details: Spiders deal corruption damage and can poison. Poison resist or corruption
+    resistance is advised.
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
-  targetCount: 100
-  objectiveId: splitwood_log
+  targetCount: 150
+  objectiveId: spider_silk
   specialObjectiveListText: 
-  rewardGold: 250
-  rewardItem: {fileID: 11400000, guid: dd82c9333168f8d4fb45518f3c9cf6a9, type: 2}
+  rewardGold: 1000
+  rewardItem: {fileID: 0}
   rewardItemId: 
-  rewardItemQuantity: 250
+  rewardItemQuantity: 1
   additionalItemRewards: []
   rewardNotes: 
   grantIdleCombatUnlockOnRewardClaim: 0
-  grantAdditionalInventorySlotsOnRewardClaim: 0
+  grantAdditionalInventorySlotsOnRewardClaim: 4
+  restockMerchantStockOnRewardClaim: 0
+  restockMerchantStockSaveKey: 
   repeatable: 0
   autoCompleteQuest: 0
   abandonable: 1
   teleportPlayerToNodeIdOnCompletion: 
-  obtainLocationId: fletcher
-  obtainLocationDisplayName: Robin the Fletcher
+  obtainLocationId: npc_duskwood_erel
+  obtainLocationDisplayName: Erel the Spider Trader
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
   autoAcceptWhenPriorQuestRewardClaimed: 0
   autoAcceptAfterPriorQuestId: 
-  prerequisiteRewardClaimedQuestIds:
-  - greenlands_fletchers_request
+  prerequisiteRewardClaimedQuestIds: []
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
-  recommendedLocationNode: {fileID: 11400000, guid: bd9148f386fcb4644a8c0b41179c8e24, type: 2}
+  recommendedLocationNode: {fileID: 0}
   requiredSkillLevels: []
   killEnemyIdFilter: 
   hideUntilMapNodeUnlockedId: 
+  hideFromQuestJournalUnlessAccepted: 0
   sortOrder: 20

@@ -44,13 +44,14 @@ MonoBehaviour:
     legacyMinMagicDamage: 0
     legacyMaxMagicDamage: 0
     minCorruptionDamage: 4
-    maxCorruptionDamage: 8
+    maxCorruptionDamage: 7
     attacksPerSecond: 0.9
     critChance: 0
     critMultiplier: 1
     handedness: 0
     attackRange: 1.2
     attackSkill: 0
+    mainHandArchetype: 0
     rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
@@ -62,6 +63,7 @@ MonoBehaviour:
     equipmentTier: 0
   combatSupportStats:
     supportType: 0
+    requiredMainHandArchetype: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
     bonusCorruptionDamage: 0

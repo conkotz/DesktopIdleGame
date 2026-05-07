@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 5613807137671369408}
   - component: {fileID: 8747681271539130883}
   m_Layer: 7
-  m_Name: SpiderCaveEntrance
+  m_Name: BearDenEntrance
   m_TagString: Cave
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -83,7 +83,7 @@ SpriteRenderer:
   m_SortingLayer: 1
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -6554640010792854403, guid: 7c874d2f4591e334aaaa5de54a2a2956, type: 3}
+  m_Sprite: {fileID: 5862318929820728961, guid: c8251a0f9e35b0648902b16c10402f2c, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -127,17 +127,17 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0.02552864, y: -0.018021822}
+  m_Offset: {x: 0.02552867, y: -0.10150859}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.48720172, y: 0.36600104}
-    oldSize: {x: 3.645, y: 1.55}
+    pivot: {x: 0.5, y: 0.5}
+    oldSize: {x: 3.455, y: 1.435}
     newSize: {x: 15.26, y: 10.24}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1.0700893, y: 1.0374873}
+  m_Size: {x: 1.0700893, y: 1.2044609}
   m_EdgeRadius: 0
 --- !u!114 &8747681271539130883
 MonoBehaviour:
@@ -151,9 +151,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 59144c916a032ea4184e9ab853139175, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MapNodePortalTeleporter
-  targetMap: {fileID: 11400000, guid: 616c8679b7aa0f240833f30fb8cd152e, type: 2}
-  targetMapNodeId: spider_lair
+  targetMap: {fileID: 0}
+  targetMapNodeId: 
   gameplaySceneName: GamePlay
   cooldownSeconds: 0.75
   logWhenBlocked: 1
   blockedMessage: You cannot enter this area yet.
+  arriveDistanceX: 0.08

@@ -89,13 +89,13 @@ MonoBehaviour:
     staminaEfficiency: 0
   armorStats:
     equipmentTier: 0
-    armor: 20
+    armor: 10
     magicResist: 0
     corruptionResist: 0
     physBlockChance: 0
-    bonusHealth: 25
+    bonusHealth: 15
     bonusEnergy: 0
-    flatGuard: 0
+    flatGuard: 10
     maxGuardPercent: 0
   bonusStats:
     bonusHealth: 0
