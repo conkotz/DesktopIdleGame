@@ -10,22 +10,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
-  m_Name: MapNode_battlegrounds_2
+  m_Name: MapNode_hunting_grounds
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
-  nodeId: battlegrounds_2
-  displayName: Battlegrounds 2
-  description: 'Combat level '
+  nodeId: hunting_grounds
+  displayName: Hunting Grounds
+  description: A green field with enemies
   nodeType: 0
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 15
-  eliteSpawnChance: 0.5
+  eliteSpawnChance: 0.05
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
-  entranceOnlyAccess: 0
+  entranceOnlyAccess: 1
   completedLabelRequiresEnteredNodeId: 
   mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 0
@@ -40,33 +40,19 @@ MonoBehaviour:
   nextNodeIds: []
   biome: 0
   spawnGroupPlans:
-  - groupId: AllSpawns
+  - groupId: MiddleSpawns
     spawns:
     - spawnPointGroupId: 
       spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 887a5292c260b2843b8e76ae0621615c, type: 2}
+      enemyDefinition: {fileID: 11400000, guid: 173c71a94c3294249993cfc7b76051c9, type: 2}
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
-      count: 4
-    - spawnPointGroupId: 
-      spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
-      prefab: {fileID: 0}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 3
+      count: 12
     shuffleSpawnPoints: 1
-  requiredPreviousMapCompletions:
-  - enabled: 1
-    requiredMapNodeId: battlegrounds
-    requireMapCompleted: 0
-    requireEnemyKillsOnMap: 1
-    requiredEnemyKillsOnMap: 200
+  requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0
   simpleCombatWavesRequireQuestRewardClaimed: 0

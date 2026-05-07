@@ -10,26 +10,26 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4de60bca8597d954ea0c7c5a377a09cf, type: 3}
-  m_Name: enemy_bear
+  m_Name: enemy_baby_bear
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
-  enemyId: enemy_bear
-  displayName: Bear
+  enemyId: enemy_baby_bear
+  displayName: Baby Bear
   description: 
   icon: {fileID: 0}
-  prefab: {fileID: 1000010755293042, guid: 00c865de41c02d149b4de09483082a24, type: 3}
+  prefab: {fileID: 1000010755293042, guid: bb8b9e3eccba9a04fb733e1dd81624ac, type: 3}
   cannotRespawn: 0
   doesNotContributeToRecommendedCombatPower: 0
-  maxHealth: 450
+  maxHealth: 120
   maxEnergy: 0
   maxMana: 0
-  armor: 75
+  armor: 30
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
   flatGuard: 10
   maxGuardPercent: 0
-  minPhysicalDamage: 25
-  maxPhysicalDamage: 35
+  minPhysicalDamage: 16
+  maxPhysicalDamage: 21
   minMagicDamage: 0
   maxMagicDamage: 0
   minCorruptionDamage: 0

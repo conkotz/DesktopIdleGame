@@ -115,8 +115,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4279577324
-  m_fontColor: {r: 0.9245283, g: 0.16470589, b: 0.08198643, a: 1}
+    rgba: 4279613676
+  m_fontColor: {r: 0.9254902, g: 0.7217244, b: 0.08235295, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -194,7 +194,7 @@ GameObject:
   - component: {fileID: 5613807137671369408}
   - component: {fileID: 8747681271539130883}
   m_Layer: 7
-  m_Name: BearDenEntrance
+  m_Name: SignPost
   m_TagString: Cave
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -265,7 +265,7 @@ SpriteRenderer:
   m_SortingLayer: 1
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 5862318929820728961, guid: c8251a0f9e35b0648902b16c10402f2c, type: 3}
+  m_Sprite: {fileID: 2836359569476543981, guid: f887a732079dc80409a18876a65799bf, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -309,17 +309,17 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0.02552867, y: -0.10150859}
+  m_Offset: {x: 0.018707216, y: -0.012588024}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 3.455, y: 1.435}
+    oldSize: {x: 1.0030769, y: 1.943077}
     newSize: {x: 15.26, y: 10.24}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1.0700893, y: 1.2044609}
+  m_Size: {x: 0.8649125, y: 1.9021657}
   m_EdgeRadius: 0
 --- !u!114 &8747681271539130883
 MonoBehaviour:
@@ -334,7 +334,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MapNodePortalTeleporter
   targetMap: {fileID: 0}
-  targetMapNodeId: 
+  targetMapNodeId: hunting_grounds
   nameLabel: {fileID: 3760902187889514044}
   gameplaySceneName: GamePlay
   cooldownSeconds: 0.75

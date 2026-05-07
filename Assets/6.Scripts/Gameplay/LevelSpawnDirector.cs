@@ -554,6 +554,8 @@ public class LevelSpawnDirector : MonoBehaviour
                 if (!inst)
                     continue;
 
+                ApplySpawnRowOverrides(inst, entry);
+
                 collectRoots?.Add(inst);
 
                 if (alignSpawnPointToColliderBottom)
@@ -978,6 +980,25 @@ public class LevelSpawnDirector : MonoBehaviour
         if (entry != null && !string.IsNullOrWhiteSpace(entry.spawnPointGroupId))
             return entry.spawnPointGroupId.Trim();
         return plan.groupId != null ? plan.groupId.Trim() : string.Empty;
+    }
+
+    private static void ApplySpawnRowOverrides(GameObject instance, SpawnPrefabCount entry)
+    {
+        if (instance == null || entry == null)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(entry.portalTargetMapNodeId))
+        {
+            MapNodePortalTeleporter[] portals = instance.GetComponentsInChildren<MapNodePortalTeleporter>(true);
+            string nodeId = entry.portalTargetMapNodeId.Trim();
+            for (int i = 0; i < portals.Length; i++)
+            {
+                MapNodePortalTeleporter portal = portals[i];
+                if (portal == null)
+                    continue;
+                portal.SetTargetMapNodeId(nodeId, clearTargetMapAsset: true);
+            }
+        }
     }
 
     private GroupSpawnCursor GetOrCreateGroupCursor(

@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 
 /// <summary>
 /// Click-to-enter portal that loads <c>GamePlay</c> with <see cref="ActiveLevelContext"/> set to the target <see cref="MapNodeDefinition"/>.
@@ -15,6 +16,8 @@ public class MapNodePortalTeleporter : MonoBehaviour
 
     [Tooltip("Used when Target Map is null. Must match MapNodeDefinition.nodeId on the world map.")]
     [SerializeField] private string targetMapNodeId = "";
+    [Tooltip("Optional world-space label to show the assigned map display name.")]
+    [SerializeField] private TMP_Text nameLabel;
 
     [Tooltip("Gameplay scene to load (same as Level Select).")]
     [SerializeField] private string gameplaySceneName = "GamePlay";
@@ -43,6 +46,15 @@ public class MapNodePortalTeleporter : MonoBehaviour
         var c = GetComponent<Collider2D>();
         if (c)
             c.isTrigger = true;
+
+        if (!nameLabel)
+            nameLabel = GetComponentInChildren<TMP_Text>(true);
+        RefreshNameLabel();
+    }
+
+    private void OnValidate()
+    {
+        RefreshNameLabel();
     }
 #endif
 
@@ -51,6 +63,8 @@ public class MapNodePortalTeleporter : MonoBehaviour
         _col = GetComponent<Collider2D>();
         if (_col == null)
             Debug.LogError("[MapNodePortalTeleporter] Missing Collider2D.", this);
+
+        RefreshNameLabel();
     }
 
     private void Update()
@@ -156,5 +170,33 @@ public class MapNodePortalTeleporter : MonoBehaviour
             return null;
 
         return map.FindNodeById(targetMapNodeId.Trim());
+    }
+
+    /// <summary>
+    /// Runtime/configuration hook for spawn-row overrides so one prefab can route to different maps per spawn plan row.
+    /// </summary>
+    public void SetTargetMapNodeId(string nodeId, bool clearTargetMapAsset = true)
+    {
+        targetMapNodeId = string.IsNullOrWhiteSpace(nodeId) ? "" : nodeId.Trim();
+        if (clearTargetMapAsset)
+            targetMap = null;
+        RefreshNameLabel();
+    }
+
+    private void RefreshNameLabel()
+    {
+        if (!nameLabel)
+            return;
+
+        MapNodeDefinition node = ResolveTarget();
+        if (node == null)
+        {
+            nameLabel.text = "";
+            return;
+        }
+
+        nameLabel.text = string.IsNullOrWhiteSpace(node.displayName)
+            ? node.nodeId
+            : node.displayName.Trim();
     }
 }

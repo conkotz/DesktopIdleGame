@@ -106,9 +106,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Spider Lair
-
-'
+  m_text: Spider Lair
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -337,6 +335,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MapNodePortalTeleporter
   targetMap: {fileID: 11400000, guid: 616c8679b7aa0f240833f30fb8cd152e, type: 2}
   targetMapNodeId: spider_lair
+  nameLabel: {fileID: 4175952197952072599}
   gameplaySceneName: GamePlay
   cooldownSeconds: 0.75
   logWhenBlocked: 1

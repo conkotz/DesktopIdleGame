@@ -20,19 +20,20 @@ MonoBehaviour:
   ignoreAggroRange: 0
   respawnHereIfDied: 0
   enemyRespawnEnabled: 1
-  enemyRespawnDelaySeconds: 10
-  eliteSpawnChance: 0.1
+  enemyRespawnDelaySeconds: 15
+  eliteSpawnChance: 0.5
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
+  entranceOnlyAccess: 0
   completedLabelRequiresEnteredNodeId: 
   mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 0
   icon: {fileID: 0}
   requiredSkillLevels: []
-  combatSkillGateMode: 0
+  combatSkillGateMode: 2
   combatSingleSkill: 0
-  combatRequiredLevel: 1
+  combatRequiredLevel: 10
   unlockRequirementNotes: Be prepared to fight enemies. Should have food, potions
     and combat gear.
   connectedNodeIds: []

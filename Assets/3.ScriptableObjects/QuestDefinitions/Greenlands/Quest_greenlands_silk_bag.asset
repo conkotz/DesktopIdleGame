@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
   questId: greenlands_silk_bag
   regionId: greenlands
-  displayName: Make a Silk bag
+  displayName: Gather Silk
   description: Bring me 150 pieces of silk and ill make you a silk bag.
   details: Spiders deal corruption damage and can poison. Poison resist or corruption
     resistance is advised.

@@ -83,6 +83,10 @@ public class SpawnPrefabCount
     [Tooltip("How many pickups to place for this row (each uses spawn point selection like enemy count).")]
     public int count = 1;
 
+    [Header("Per-spawn instance overrides (optional)")]
+    [Tooltip("When set and this row spawns a prefab with MapNodePortalTeleporter, override that instance destination node id.")]
+    public string portalTargetMapNodeId = "";
+
     /// <summary>
     /// Resolves which prefab to instantiate: <see cref="enemyDefinition"/> first, then <see cref="prefab"/>.
     /// When the definition has no prefab, falls back to <see cref="prefab"/> if set.
