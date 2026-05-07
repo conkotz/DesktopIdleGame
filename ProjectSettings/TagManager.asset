@@ -11,6 +11,7 @@ TagManager:
   - Resource
   - Storage
   - NoticeBoard
+  - Cave
   layers:
   - Default
   - TransparentFX

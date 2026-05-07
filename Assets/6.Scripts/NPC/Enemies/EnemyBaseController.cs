@@ -120,6 +120,7 @@ public class EnemyBaseController : MonoBehaviour
 
     private bool _countedAlive;
     private bool _provoked;
+    private bool _mapAggroTriggeredForSession;
     private bool _engaged;
     private bool _isChasingForRange;
     private bool _isElite;
@@ -343,6 +344,7 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         _provoked = false;
+        _mapAggroTriggeredForSession = false;
         ClearEngagement();
     }
 
@@ -432,8 +434,7 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         float dist = DistanceToPlayerX();
-        bool useDistanceAggro = LevelUsesDistanceAggro();
-        bool shouldAggro = LevelIgnoresAggroRange() || _provoked || (useDistanceAggro && dist <= aggroRange);
+        bool shouldAggro = ResolveShouldAggro(dist);
 
         if (!shouldAggro)
         {
@@ -494,8 +495,7 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         float dist = DistanceToPlayerX();
-        bool useDistanceAggro = LevelUsesDistanceAggro();
-        bool shouldAggro = LevelIgnoresAggroRange() || _provoked || (useDistanceAggro && dist <= aggroRange);
+        bool shouldAggro = ResolveShouldAggro(dist);
 
         bool shouldChaseForRange = ResolveShouldChaseForRange(dist);
         if (shouldAggro && shouldChaseForRange)
@@ -610,21 +610,28 @@ public class EnemyBaseController : MonoBehaviour
         return _isChasingForRange;
     }
 
-    /// <summary>
-    /// When false (calm level), proximity does not trigger aggro — only <see cref="_provoked"/> (e.g. after taking damage).
-    /// </summary>
-    private static bool LevelUsesDistanceAggro()
+    private bool ResolveShouldAggro(float distanceToPlayerX)
     {
-        MapNodeDefinition def = ActiveLevelContext.Current;
-        if (def == null && GameplayLevelBootstrapper.Instance != null)
-            def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
-        if (def == null)
+        if (LevelIgnoresAggroRange())
             return true;
-        return def.enemyAggroMode switch
+
+        MapNodeDefinition def = GetActiveMapNodeDefinition();
+        LevelEnemyAggroMode mode = def != null ? def.enemyAggroMode : LevelEnemyAggroMode.Aggressive;
+        bool playerTriggeredWaveAggro = def != null && LevelAggroState.IsWaveAggroLatched(def);
+        bool playerTriggeredMapAggro = playerTriggeredWaveAggro || _mapAggroTriggeredForSession;
+        bool inEnemyAggroRange = distanceToPlayerX <= aggroRange;
+
+        return mode switch
         {
-            LevelEnemyAggroMode.Aggressive => true,
-            LevelEnemyAggroMode.CalmUntilPlayerAggressive => LevelAggroState.IsWaveAggroLatched(def),
-            _ => false,
+            // Always range-based per enemy unless Ignore Aggro Range is enabled.
+            LevelEnemyAggroMode.Aggressive => inEnemyAggroRange,
+
+            // Calm until player aggression: before trigger behaves like calm retaliation;
+            // after trigger it behaves like aggressive range-based detection.
+            LevelEnemyAggroMode.CalmUntilPlayerAggressive => playerTriggeredMapAggro ? inEnemyAggroRange : _provoked,
+
+            // Calm mode remains retaliation-only.
+            _ => _provoked
         };
     }
 
@@ -634,10 +641,16 @@ public class EnemyBaseController : MonoBehaviour
     /// </summary>
     private static bool LevelIgnoresAggroRange()
     {
+        MapNodeDefinition def = GetActiveMapNodeDefinition();
+        return def != null && def.ignoreAggroRange;
+    }
+
+    private static MapNodeDefinition GetActiveMapNodeDefinition()
+    {
         MapNodeDefinition def = ActiveLevelContext.Current;
         if (def == null && GameplayLevelBootstrapper.Instance != null)
             def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
-        return def != null && def.ignoreAggroRange;
+        return def;
     }
 
     private void ResolvePlayer()
@@ -1493,8 +1506,9 @@ public class EnemyBaseController : MonoBehaviour
         string activeNodeId = string.IsNullOrWhiteSpace(def.nodeId) ? string.Empty : def.nodeId.Trim();
         if (!string.Equals(activeNodeId, nodeId.Trim(), StringComparison.Ordinal))
             return;
-
-        _provoked = true;
+        // Mark this enemy as "player aggression triggered on this map" so it can
+        // switch to normal range-based aggro without forcing hard aggro at any distance.
+        _mapAggroTriggeredForSession = true;
     }
 
     private void OnDrawGizmosSelected()

@@ -1182,7 +1182,7 @@ public class QuestPageUI : MonoBehaviour
 
         WorldMapProgressManager progress = FindWorldProgress();
         SkillsManager skills = FindSkillsManager();
-        return node.CanEnter(progress, skills);
+        return node.CanEnterFromLevelMenu(progress, skills);
     }
 
     private void RefreshQuestClaimButton(QuestDefinition q, QuestProgressManager qProg)

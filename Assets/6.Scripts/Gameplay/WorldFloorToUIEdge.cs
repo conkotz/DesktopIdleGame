@@ -61,6 +61,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
     [Header("Runtime Followers")]
     [SerializeField] private bool moveRuntimeActorsWithFloor = true;
     [SerializeField] private bool moveItemDropsWithFloor = true;
+    [SerializeField] private bool moveCavesWithFloor = true;
 
     [Tooltip("Gathering props (trees/rocks) should stay on the lane but not be parented under worldRoot — they're nudged here like enemies to avoid hierarchy/collider jitter.")]
     [SerializeField] private bool moveResourceNodesWithFloor = true;
@@ -446,6 +447,9 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         MoveAllByDelta(moved, FindObjectsByType<Merchant>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
         MoveAllByDelta(moved, FindObjectsByType<StorageClick>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
         MoveAllByDelta(moved, FindObjectsByType<NPCInteractionSettings>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
+
+        if (moveCavesWithFloor)
+            MoveTaggedByDelta(moved, "Cave", deltaY);
     }
 
     private void MoveAllByDelta<T>(HashSet<Transform> moved, T[] components, float deltaY) where T : Component
@@ -486,6 +490,28 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         {
             rb.position = position;
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+        }
+    }
+
+    private void MoveTaggedByDelta(HashSet<Transform> moved, string tagName, float deltaY)
+    {
+        if (string.IsNullOrWhiteSpace(tagName))
+            return;
+
+        GameObject[] tagged = GameObject.FindGameObjectsWithTag(tagName);
+        for (int i = 0; i < tagged.Length; i++)
+        {
+            GameObject go = tagged[i];
+            if (!go || !go.activeInHierarchy)
+                continue;
+
+            Transform t = go.transform;
+            if (t == worldRoot || t.IsChildOf(worldRoot))
+                continue;
+            if (!moved.Add(t))
+                continue;
+
+            MoveTransformY(t, deltaY);
         }
     }
 }

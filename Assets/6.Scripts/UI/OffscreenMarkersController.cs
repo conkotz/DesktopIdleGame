@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Spawns stacked <see cref="OffscreenMarkerView"/> rows for objects tagged Enemy, NPC, Resource, Storage, and NoticeBoard
+/// Spawns stacked <see cref="OffscreenMarkerView"/> rows for objects tagged Enemy, NPC, Resource, Storage, NoticeBoard, and Cave
 /// that are outside the gameplay camera. One row per category with aggregated counts.
 /// </summary>
 [DisallowMultipleComponent]
@@ -13,6 +13,7 @@ public class OffscreenMarkersController : MonoBehaviour
     private const string ResourceTag = "Resource";
     private const string StorageTag = "Storage";
     private const string NoticeBoardTag = "NoticeBoard";
+    private const string CaveTag = "Cave";
 
     private enum OffscreenKind
     {
@@ -20,7 +21,8 @@ public class OffscreenMarkersController : MonoBehaviour
         Npc,
         Resource,
         Storage,
-        NoticeBoard
+        NoticeBoard,
+        Cave
     }
 
     private struct Aggregate
@@ -75,6 +77,7 @@ public class OffscreenMarkersController : MonoBehaviour
     [SerializeField] private Color resourceColor = new Color(0.35f, 0.95f, 0.45f, 1f);
     [SerializeField] private Color storageColor = new Color(0.95f, 0.72f, 0.2f, 1f);
     [SerializeField] private Color noticeBoardColor = new Color(0.85f, 0.5f, 1f, 1f);
+    [SerializeField] private Color caveColor = new Color(0.78f, 0.65f, 0.46f, 1f);
 
     private readonly List<OffscreenMarkerView> _pool = new();
 
@@ -158,12 +161,14 @@ public class OffscreenMarkersController : MonoBehaviour
             Aggregate resources = default;
             Aggregate storages = default;
             Aggregate noticeBoards = default;
+            Aggregate caves = default;
 
             CollectEnemies(ref enemies);
             CollectNpcs(ref npcs);
             CollectResources(ref resources);
             CollectTaggedWorldObjects(StorageTag, ref storages);
             CollectTaggedWorldObjects(NoticeBoardTag, ref noticeBoards);
+            CollectTaggedWorldObjects(CaveTag, ref caves);
 
             int need = 0;
             need += CountRowsForAggregate(enemies);
@@ -171,6 +176,7 @@ public class OffscreenMarkersController : MonoBehaviour
             need += CountRowsForAggregate(resources);
             need += CountRowsForAggregate(storages);
             need += CountRowsForAggregate(noticeBoards);
+            need += CountRowsForAggregate(caves);
 
             EnsurePoolSize(need);
             for (int i = 0; i < _pool.Count; i++)
@@ -182,6 +188,7 @@ public class OffscreenMarkersController : MonoBehaviour
             EmitRowsForAggregate(ref idx, OffscreenKind.Resource, resources);
             EmitRowsForAggregate(ref idx, OffscreenKind.Storage, storages);
             EmitRowsForAggregate(ref idx, OffscreenKind.NoticeBoard, noticeBoards);
+            EmitRowsForAggregate(ref idx, OffscreenKind.Cave, caves);
 
             _activeMarkerRows = need;
         }
@@ -391,6 +398,9 @@ public class OffscreenMarkersController : MonoBehaviour
                 break;
             case OffscreenKind.NoticeBoard:
                 row.Apply(noticeBoardColor, $"Notice board {count}x", dockLeft);
+                break;
+            case OffscreenKind.Cave:
+                row.Apply(caveColor, $"Cave {count}x", dockLeft);
                 break;
         }
     }

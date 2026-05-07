@@ -45,11 +45,10 @@ GameObject:
   - component: {fileID: 4127917735906593618}
   - component: {fileID: 5839785130135361787}
   - component: {fileID: 882000000000000001}
-  - component: {fileID: 882000000000000003}
-  - component: {fileID: 7893700048708277677}
-  - component: {fileID: 991000000000000001}
+  - component: {fileID: -5742210032571608364}
+  - component: {fileID: 991000000000000003}
   m_Layer: 7
-  m_Name: NPC_Tutorial_1
+  m_Name: NPC_Duskwood_Erel
   m_TagString: NPC
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -213,10 +212,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 057b23ef544f434baada2bf6cb93395a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestGiver
-  locationId: npc_tutorial_1
-  questId: tutorial_learning_ropes_1
-  additionalQuestIds:
-  - tutorial_learning_ropes_2
+  locationId: npc_duskwood_erel
+  questId: 
+  additionalQuestIds: []
   exclamationMarkPrefab: {fileID: 0}
   exclamationMarkLocalOffset: {x: 0, y: 0.75, z: 0}
   generatedExclamationMarkSize: 0.2
@@ -233,39 +231,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2c4bea5f3a242b18ce2439cc1e295b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
-  dialogue: Complete my quest and talk to me again.
+  dialogue: 
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
   dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
   nonQuestAutoCloseSeconds: 5
-  openDialogueOnFirstSighting: 0
-  openDialogueAfterQuestAccepted: 1
-  openDialogueAfterQuestAcceptedQuestId: tutorial_learning_ropes_1
-  oneWayDialogueQueue: 0
+  openDialogueOnFirstSighting: 1
+  openDialogueAfterQuestAccepted: 0
+  openDialogueAfterQuestAcceptedQuestId: 
+  oneWayDialogueQueue: 1
   oneWayDialogueQueueSaveId: 
-  additionalConditionalDialogues:
-  - condition: 0
-    completedQuestId: tutorial_learning_ropes_2
-    afterDeathRespawnMapNodeId: 
-    dialogue: Thanks.
-    onAcceptOutcome: 0
-    teleportTargetNode: {fileID: 0}
-    teleportMapNodeId: 
+  additionalConditionalDialogues: []
   questGiver: {fileID: 5839785130135361787}
-  debugLogPlainDialogueResolution: 0
---- !u!114 &882000000000000003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5214886831892509811}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f3e2d1c0b9a88766554433221100ffee, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HelperWhitelistInteractTarget
-  interactionId: NPC_Tutorial_1
---- !u!114 &7893700048708277677
+  debugLogPlainDialogueResolution: 1
+--- !u!114 &-5742210032571608364
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -284,7 +262,7 @@ MonoBehaviour:
   playerTag: Player
   playerOverride: {fileID: 0}
   unmirrorUiRoots: []
---- !u!114 &991000000000000001
+--- !u!114 &991000000000000003
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -296,8 +274,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8f4e2c91d0b4e6f8a1b3c5d7e9f0a2b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NpcIdentity
-  characterName: Ivan
-  role: Lumberjack
+  characterName: Erel
+  role: Silk Trader
   nameLabel: {fileID: 3195782117559173001}
 --- !u!1 &6118185414367586614
 GameObject:
@@ -329,7 +307,7 @@ Transform:
   m_LocalScale: {x: 1.25, y: 1.25, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 7085498007313542548}
+  - {fileID: 6470774315569793923}
   m_Father: {fileID: 7053704570091792237}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &6790236300947833752
@@ -497,9 +475,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: '<b>Ivan</b>
+  m_text: '<b>Erel</b>
 
-    <size=85%>Lumberjack</size>'
+    <size=85%>Silk Trader</size>'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -574,7 +552,7 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 4395583072354246891}
   m_maskType: 0
---- !u!1001 &7087129901576055588
+--- !u!1001 &6468008027378953887
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -582,107 +560,57 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 7238531382057603648}
     m_Modifications:
-    - target: {fileID: 1000010854855540, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 1000013261649242, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_Name
-      value: Peasant(backup)
+      value: Merchant
       objectReference: {fileID: 0}
-    - target: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_LocalPosition.y
       value: -1.58
       objectReference: {fileID: 0}
-    - target: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_LocalPosition.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_LocalRotation.w
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_LocalRotation.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_LocalRotation.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_LocalRotation.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    - target: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 212000010422911958, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayer
-      value: 4
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000010422911958, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayerID
-      value: 713773537
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000012153660448, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayer
-      value: 4
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000012153660448, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayerID
-      value: 713773537
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000012516139366, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayer
-      value: 4
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000012516139366, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayerID
-      value: 713773537
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000013063219618, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayer
-      value: 4
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000013063219618, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayerID
-      value: 713773537
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000013144291688, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayer
-      value: 4
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000013144291688, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayerID
-      value: 713773537
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000013236170232, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayer
-      value: 4
-      objectReference: {fileID: 0}
-    - target: {fileID: 212000013236170232, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-      propertyPath: m_SortingLayerID
-      value: 713773537
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects:
-    - {fileID: 1000012621010656, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-    - {fileID: 1000012264916826, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
+    m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
---- !u!4 &7085498007313542548 stripped
+  m_SourcePrefab: {fileID: 100100000, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
+--- !u!4 &6470774315569793923 stripped
 Transform:
-  m_CorrespondingSourceObject: {fileID: 4000010464396976, guid: c18c5ded2843ad849b05f5d3b6453281, type: 3}
-  m_PrefabInstance: {fileID: 7087129901576055588}
+  m_CorrespondingSourceObject: {fileID: 4000010300450076, guid: 7d908ba845b1044e6829ed5fb7c4be10, type: 3}
+  m_PrefabInstance: {fileID: 6468008027378953887}
   m_PrefabAsset: {fileID: 0}

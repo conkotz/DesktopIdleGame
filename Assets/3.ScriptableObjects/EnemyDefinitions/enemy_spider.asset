@@ -47,7 +47,7 @@ MonoBehaviour:
   bleedChance: 1
   bleedMultiplier: 0
   bleedDuration: 5
-  poisonChance: 0
+  poisonChance: 1
   poisonMultiplier: 0
   poisonDuration: 5
   poisonMaxStacks: 3
@@ -82,7 +82,11 @@ MonoBehaviour:
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
-  loot: []
+  loot:
+  - item: {fileID: 11400000, guid: 5e7fbe652bd639140b83bab13fdebfb7, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.1
   lootAtMostOneDropPerTable: 1
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 5

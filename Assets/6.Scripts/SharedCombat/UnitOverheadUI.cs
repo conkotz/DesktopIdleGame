@@ -240,37 +240,67 @@ public class UnitOverheadUI : MonoBehaviour
 
         spans.Sort((a, b) => a.minX.CompareTo(b.minX));
 
-        var cluster = new List<UnitOverheadUI>();
-        float clusterMaxX = float.NegativeInfinity;
-
+        // Player compact HP bar(s) are fixed anchors: never move them.
+        var fixedBaselineSpans = new List<(float minX, float maxX)>(2);
         for (int i = 0; i < spans.Count; i++)
         {
-            (float minX, float maxX, UnitOverheadUI ui) = spans[i];
-
-            if (cluster.Count == 0)
+            if (IsFixedPlayerBaseline(spans[i].ui))
             {
-                cluster.Add(ui);
-                clusterMaxX = maxX;
-                continue;
-            }
-
-            bool overlapsCluster = minX <= clusterMaxX + padding - allowedOverlap;
-            if (overlapsCluster)
-            {
-                cluster.Add(ui);
-                if (maxX > clusterMaxX)
-                    clusterMaxX = maxX;
-            }
-            else
-            {
-                ApplyVerticalOffsetsToCluster(cluster, spacing);
-                cluster.Clear();
-                cluster.Add(ui);
-                clusterMaxX = maxX;
+                spans[i].ui._stackYOffset = 0f;
+                fixedBaselineSpans.Add((spans[i].minX, spans[i].maxX));
             }
         }
 
-        ApplyVerticalOffsetsToCluster(cluster, spacing);
+        // Assign to the lowest available "lane" that does not horizontally overlap.
+        // This avoids transitive chaining (A overlaps B, B overlaps C) from forcing C
+        // onto higher rows when A and C could share the same baseline row.
+        var laneLastMaxX = new List<float>(8);
+        for (int i = 0; i < spans.Count; i++)
+        {
+            (float minX, float maxX, UnitOverheadUI ui) = spans[i];
+            if (IsFixedPlayerBaseline(ui))
+                continue;
+
+            bool overlapsFixedBaseline = false;
+            for (int f = 0; f < fixedBaselineSpans.Count; f++)
+            {
+                (float fixedMinX, float fixedMaxX) = fixedBaselineSpans[f];
+                bool overlaps = minX <= fixedMaxX + padding - allowedOverlap &&
+                                maxX >= fixedMinX - padding + allowedOverlap;
+                if (overlaps)
+                {
+                    overlapsFixedBaseline = true;
+                    break;
+                }
+            }
+
+            int laneIndex = -1;
+            for (int lane = 0; lane < laneLastMaxX.Count; lane++)
+            {
+                bool laneOverlaps = minX <= laneLastMaxX[lane] + padding - allowedOverlap;
+                if (!laneOverlaps)
+                {
+                    laneIndex = lane;
+                    break;
+                }
+            }
+
+            if (laneIndex < 0)
+            {
+                laneIndex = laneLastMaxX.Count;
+                laneLastMaxX.Add(maxX);
+            }
+            else
+            {
+                laneLastMaxX[laneIndex] = maxX;
+            }
+
+            // Keep player baseline fixed at y=0; anything overlapping that baseline starts above it.
+            if (overlapsFixedBaseline)
+                laneIndex += 1;
+
+            ui._stackYOffset = laneIndex * spacing;
+        }
 
         for (int i = 0; i < candidates.Count; i++)
             candidates[i].ApplyStackedPosition();
@@ -285,53 +315,9 @@ public class UnitOverheadUI : MonoBehaviour
         maxX = center + half;
     }
 
-    private static void ApplyVerticalOffsetsToCluster(List<UnitOverheadUI> cluster, float spacing)
+    private static bool IsFixedPlayerBaseline(UnitOverheadUI ui)
     {
-        if (cluster == null || cluster.Count == 0)
-            return;
-
-        cluster.Sort((a, b) =>
-        {
-            int roleCmp = GetStackRolePriority(a).CompareTo(GetStackRolePriority(b));
-            if (roleCmp != 0)
-                return roleCmp;
-            return a.GetInstanceID().CompareTo(b.GetInstanceID());
-        });
-
-        float minStep = Mathf.Max(1f, spacing);
-        cluster[0]._stackYOffset = 0f;
-
-        float prevHalfHeight = cluster[0].GetMeasuredCanvasHalfHeight();
-        float runningOffset = 0f;
-
-        for (int k = 1; k < cluster.Count; k++)
-        {
-            float currentHalfHeight = cluster[k].GetMeasuredCanvasHalfHeight();
-            float noOverlapStep = prevHalfHeight + currentHalfHeight + 2f;
-            runningOffset += Mathf.Max(minStep, noOverlapStep);
-            cluster[k]._stackYOffset = runningOffset;
-            prevHalfHeight = currentHalfHeight;
-        }
-    }
-
-    private static int GetStackRolePriority(UnitOverheadUI ui)
-    {
-        if (ui == null)
-            return int.MaxValue;
-
-        // Player compact HP bar should always be the lowest bar in the stack.
-        if (ui._hpBarOnlyLayout && ui.enemy == null)
-            return 0;
-
-        // Enemy bars stack above player.
-        if (ui.enemy != null)
-            return 1;
-
-        // Any other compact/world bar.
-        if (ui._hpBarOnlyLayout)
-            return 2;
-
-        return 3;
+        return ui != null && ui._hpBarOnlyLayout && ui.enemy == null;
     }
 
     private bool ShouldUseOverlapStacking()

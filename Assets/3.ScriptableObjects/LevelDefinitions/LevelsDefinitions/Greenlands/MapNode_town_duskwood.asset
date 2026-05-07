@@ -28,6 +28,7 @@ MonoBehaviour:
   fallbackRecommendedCombatPower: 1
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
+  entranceOnlyAccess: 0
   completedLabelRequiresEnteredNodeId: 
   mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 0
@@ -43,15 +44,6 @@ MonoBehaviour:
   spawnGroupPlans:
   - groupId: AllSpawns
     spawns:
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint-5
-      enemyDefinition: {fileID: 11400000, guid: f6611819e32b6e9478fc65ed42cbf05b, type: 2}
-      prefab: {fileID: 0}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
     - spawnPointGroupId: 
       spawnPointName: SpawnPoint1
       enemyDefinition: {fileID: 11400000, guid: 6db01b26b24bad24bb757a286586614d, type: 2}
@@ -164,6 +156,15 @@ MonoBehaviour:
       spawnPointName: SpawnPoint41
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 1301700847255990616, guid: f94a1f33a820505499ed9c36ae0b6bc9, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint65
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 8347273920747777605, guid: 12a9ea852bcc9e94a9f7df77a7c17fd8, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       respawnUntilSimpleWavesStart: 0

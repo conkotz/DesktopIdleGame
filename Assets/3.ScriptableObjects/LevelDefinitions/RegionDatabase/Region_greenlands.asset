@@ -22,6 +22,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d28a4067e0b103e40806120bbf79e956, type: 2}
   - {fileID: 11400000, guid: b83eca7b83cd6da489882cf699b56269, type: 2}
   - {fileID: 11400000, guid: f83a8af7a5e1fdb4e882e46df2afb3a7, type: 2}
+  - {fileID: 11400000, guid: 616c8679b7aa0f240833f30fb8cd152e, type: 2}
   backgroundSprite: {fileID: 0}
   useRegionLock: 1
   prerequisiteCompletedNodeIds:

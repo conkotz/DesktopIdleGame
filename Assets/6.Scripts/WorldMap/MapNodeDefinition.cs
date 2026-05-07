@@ -424,6 +424,13 @@ public class MapNodeDefinition : ScriptableObject
     [Tooltip("When true, opening Level Select or Quests from the in-game main menu marks this node completed (for 'finish the level' quest gates).")]
     public bool markCompletedWhenReturningToMenu;
 
+    [Header("Travel — in-world entrances")]
+    [Tooltip(
+        "When true, this map cannot be entered from the Locations menu Teleport button or the quest journal Enter map button. " +
+        "Use an in-scene MapNodePortalTeleporter, NPC dialogue, or other scripted travel. " +
+        "Quest reward teleports and save/load are unaffected.")]
+    public bool entranceOnlyAccess;
+
     [Header("Map UI — completion label")]
     [Tooltip(
         "Optional MapNodeDefinition.nodeId. When set, level select shows \"Completed\" and one-shot retired styling only after " +
@@ -704,6 +711,14 @@ public class MapNodeDefinition : ScriptableObject
         if (!isRepeatable && progress != null && progress.IsNodeCompleted(nodeId))
             return false;
         return true;
+    }
+
+    /// <summary>
+    /// Locations list Teleport and quest journal Enter map — false when <see cref="entranceOnlyAccess"/> (use portals / scripted travel).
+    /// </summary>
+    public bool CanEnterFromLevelMenu(WorldMapProgressManager progress, SkillsManager skills)
+    {
+        return CanEnter(progress, skills) && !entranceOnlyAccess;
     }
 
     /// <summary>

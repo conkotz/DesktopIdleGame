@@ -671,12 +671,12 @@ public class LevelSelectPageUI : MonoBehaviour
             string.Equals(n.nodeId.Trim(), activeNodeId.Trim(), StringComparison.Ordinal);
 
         bool hideEnter = (n && progress && n.IsPermanentlyCompleted(progress)) || isCurrentMap;
-        bool canEnter = n && n.CanEnter(progress, skills);
+        bool canEnterFromMenu = n && n.CanEnterFromLevelMenu(progress, skills);
         if (enterNodeButton)
         {
             enterNodeButton.gameObject.SetActive(!hideEnter);
             if (!hideEnter)
-                enterNodeButton.interactable = canEnter;
+                enterNodeButton.interactable = canEnterFromMenu;
         }
 
         ApplyPanelThemeColors(n);
@@ -860,9 +860,9 @@ public class LevelSelectPageUI : MonoBehaviour
         }
 
         SkillsManager skills = FindSkillsManager();
-        if (!_selectedNode.CanEnter(progress, skills))
+        if (!_selectedNode.CanEnterFromLevelMenu(progress, skills))
         {
-            Debug.LogWarning($"[LevelSelectPageUI] Enter blocked (map and/or skills): {_selectedNode.nodeId}");
+            Debug.LogWarning($"[LevelSelectPageUI] Enter blocked (map/skills or entrance-only): {_selectedNode.nodeId}");
             return;
         }
 
@@ -930,15 +930,16 @@ public class LevelSelectPageUI : MonoBehaviour
         if (node == null)
             return "";
 
+        string entranceNote = node.entranceOnlyAccess ? " (Can only be accessed from its entrance)" : "";
         string state = node.GetUiStateLabel(progress, skills);
         if (!string.Equals(state, "Progress locked", StringComparison.Ordinal))
-            return $"State: {state}";
+            return $"State: {state}{entranceNote}";
 
         string progressText = BuildProgressLockDetails(node, progress);
         if (string.IsNullOrEmpty(progressText))
-            return $"State: {state}";
+            return $"State: {state}{entranceNote}";
 
-        return $"State: {state} ({progressText})";
+        return $"State: {state} ({progressText}){entranceNote}";
     }
 
     private static string BuildProgressLockDetails(MapNodeDefinition node, WorldMapProgressManager progress)

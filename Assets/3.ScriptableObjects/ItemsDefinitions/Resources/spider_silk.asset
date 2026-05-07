@@ -10,25 +10,25 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: leather_hat
+  m_Name: spider_silk
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 3
-  maxStack: 1
-  itemId: leather_hat
-  displayName: Leather Hat
+  itemKind: 0
+  maxStack: 999
+  itemId: spider_silk
+  displayName: Spider Silk
   displayNameSingular: 
-  icon: {fileID: -4105419757516580593, guid: 45755d12b7b0d8a4c92020e2f91fc299, type: 3}
+  icon: {fileID: -8055432636635209200, guid: 469b003bcd3cb6e4ab532fa828ef235a, type: 3}
   heldSprite: {fileID: 0}
-  equippedSprite: {fileID: -4105419757516580593, guid: 45755d12b7b0d8a4c92020e2f91fc299, type: 3}
+  equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
-  equippedLocalOffset: {x: 0.05, y: 0.34}
+  equippedLocalOffset: {x: 0, y: 0}
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A basic leather hat
-  rarity: 1
-  value: 220
-  equipSlot: 3
+  description: A bit of spiders silk
+  rarity: 0
+  value: 25
+  equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
@@ -90,11 +90,11 @@ MonoBehaviour:
   armorStats:
     equipmentTier: 0
     armor: 0
-    magicResist: 10
-    corruptionResist: 5
+    magicResist: 0
+    corruptionResist: 0
     physBlockChance: 0
-    bonusHealth: 10
-    bonusEnergy: 20
+    bonusHealth: 0
+    bonusEnergy: 0
     flatGuard: 0
     maxGuardPercent: 0
   bonusStats:
@@ -109,11 +109,11 @@ MonoBehaviour:
     energyRegen: 0
     manaRegen: 0
     lifeSteal: 0
-    moveSpeedPercent: 0.03
+    moveSpeedPercent: 0
     physicalDamage: 0
     physicalDamagePercent: 0
     globalPhysicalDamagePercent: 0
-    rangedPhysicalDamagePercent: 0.03
+    rangedPhysicalDamagePercent: 0
     magicDamage: 0
     magicDamagePercent: 0
     fireSkillDamagePercent: 0
