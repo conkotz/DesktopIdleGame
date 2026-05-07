@@ -82,7 +82,39 @@ MonoBehaviour:
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
-  loot: []
+  loot:
+  - item: {fileID: 11400000, guid: 14c020211ed068a438c903ebe5154ed7, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.01
+  - item: {fileID: 11400000, guid: a197f0b628ce61444915b2b725bf4471, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.01
+  - item: {fileID: 11400000, guid: 2a964c230e999f844b1231d773c15b93, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.01
+  - item: {fileID: 11400000, guid: b28a737f9d9ae5642bece067520a27b1, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.03
+  - item: {fileID: 11400000, guid: cd9db7201efb43441ba64c2fee08d1dd, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.01
+  - item: {fileID: 11400000, guid: f070229b85766474aa2e0b7f3e24d69b, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.01
+  - item: {fileID: 11400000, guid: 6c3e9d2a8f1b4c7da0e2f5b9c1d6a3e8, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.01
+  - item: {fileID: 11400000, guid: 0642be359adbe8c4093d2d7379da6ca8, type: 2}
+    amountMin: 1
+    amountMax: 1
+    dropChance: 0.2
   lootAtMostOneDropPerTable: 0
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 5

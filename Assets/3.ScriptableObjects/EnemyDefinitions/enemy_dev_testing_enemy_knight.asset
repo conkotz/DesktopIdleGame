@@ -10,26 +10,26 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4de60bca8597d954ea0c7c5a377a09cf, type: 3}
-  m_Name: enemy_knight
+  m_Name: enemy_dev_testing_enemy_knight
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
-  enemyId: enemy_knight
+  enemyId: dev_testing_enemy_knight
   displayName: Knight
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
   cannotRespawn: 0
   doesNotContributeToRecommendedCombatPower: 0
-  maxHealth: 200
+  maxHealth: 1000
   maxEnergy: 0
   maxMana: 0
-  armor: 75
+  armor: 0
   magicResist: 0
   corruptionResist: 0
-  physBlockChance: 0.1
-  flatGuard: 10
+  physBlockChance: 0
+  flatGuard: 0
   maxGuardPercent: 0
-  minPhysicalDamage: 12
-  maxPhysicalDamage: 16
+  minPhysicalDamage: 1
+  maxPhysicalDamage: 1
   minMagicDamage: 0
   maxMagicDamage: 0
   minCorruptionDamage: 0
@@ -86,28 +86,20 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: ce545810005a2d94eb99c83180d7c433, type: 2}
     amountMin: 1
     amountMax: 1
-    dropChance: 0.03
+    dropChance: 0.05
   - item: {fileID: 11400000, guid: 5c81fc352dab3d64ebc3f41d63015ddd, type: 2}
     amountMin: 1
     amountMax: 1
-    dropChance: 0.03
+    dropChance: 0.04
   - item: {fileID: 11400000, guid: b3a17782af5716744a93c10e9418bf17, type: 2}
     amountMin: 1
     amountMax: 1
-    dropChance: 0.03
+    dropChance: 0.1
   - item: {fileID: 11400000, guid: dd82c9333168f8d4fb45518f3c9cf6a9, type: 2}
     amountMin: 10
     amountMax: 25
-    dropChance: 0.05
+    dropChance: 0.2
   - item: {fileID: 11400000, guid: 866174f124f25fe47b77fbc9e4058445, type: 2}
-    amountMin: 1
-    amountMax: 1
-    dropChance: 0.05
-  - item: {fileID: 11400000, guid: f2d3e4a5b6c748d9a0e1f2b3c4d5e6f7, type: 2}
-    amountMin: 1
-    amountMax: 1
-    dropChance: 0.03
-  - item: {fileID: 11400000, guid: 9536ae07a3934b44d87ba09eaf2037d5, type: 2}
     amountMin: 1
     amountMax: 1
     dropChance: 0.03

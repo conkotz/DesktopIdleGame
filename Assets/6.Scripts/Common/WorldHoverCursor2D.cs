@@ -9,7 +9,7 @@ public class WorldHoverCursor2D : MonoBehaviour
     {
         None,
         Npc,
-        Resource,
+        Enter,
         Mining,
         Woodcutting,
         Fishing,
@@ -30,11 +30,12 @@ public class WorldHoverCursor2D : MonoBehaviour
     [SerializeField] private string npcTag = "NPC";
     [SerializeField] private string resourceTag = "Resource";
     [SerializeField] private string enemyTag = "Enemy";
+    [SerializeField] private string enterTag = "Cave";
 
     [Header("Cursor Sprites")]
     [SerializeField] private Sprite npcCursor;
-    [Tooltip("Fallback used for tagged Resource objects that do not have a ResourceNode component.")]
-    [SerializeField] private Sprite resourceCursor;
+    [Tooltip("Generic enter/interact cursor (currently used for Cave tag).")]
+    [SerializeField] private Sprite enterCursor;
     [SerializeField] private Sprite miningCursor;
     [SerializeField] private Sprite woodcuttingCursor;
     [SerializeField] private Sprite fishingCursor;
@@ -45,7 +46,7 @@ public class WorldHoverCursor2D : MonoBehaviour
     [SerializeField] private Vector2 normalizedHotspot = Vector2.zero;
 
     private Texture2D _npcTexture;
-    private Texture2D _resourceTexture;
+    private Texture2D _enterTexture;
     private Texture2D _miningTexture;
     private Texture2D _woodcuttingTexture;
     private Texture2D _fishingTexture;
@@ -74,7 +75,7 @@ public class WorldHoverCursor2D : MonoBehaviour
     private void OnDestroy()
     {
         ClearGeneratedTexture(ref _npcTexture);
-        ClearGeneratedTexture(ref _resourceTexture);
+        ClearGeneratedTexture(ref _enterTexture);
         ClearGeneratedTexture(ref _miningTexture);
         ClearGeneratedTexture(ref _woodcuttingTexture);
         ClearGeneratedTexture(ref _fishingTexture);
@@ -118,10 +119,13 @@ public class WorldHoverCursor2D : MonoBehaviour
             return GetResourceCursorType(resourceNode.ActionType);
 
         if (HasTagInParents(hit.transform, resourceTag))
-            return HoverCursorType.Resource;
+            return HoverCursorType.None;
 
         if (HasTagInParents(hit.transform, npcTag))
             return HoverCursorType.Npc;
+
+        if (HasTagInParents(hit.transform, enterTag))
+            return HoverCursorType.Enter;
 
         return HoverCursorType.None;
     }
@@ -137,7 +141,7 @@ public class WorldHoverCursor2D : MonoBehaviour
             case NodeAction.Fishing:
                 return HoverCursorType.Fishing;
             default:
-                return HoverCursorType.Resource;
+                return HoverCursorType.None;
         }
     }
 
@@ -183,14 +187,14 @@ public class WorldHoverCursor2D : MonoBehaviour
         {
             case HoverCursorType.Npc:
                 return _npcTexture;
-            case HoverCursorType.Resource:
-                return _resourceTexture;
+            case HoverCursorType.Enter:
+                return _enterTexture;
             case HoverCursorType.Mining:
-                return _miningTexture ? _miningTexture : _resourceTexture;
+                return _miningTexture;
             case HoverCursorType.Woodcutting:
-                return _woodcuttingTexture ? _woodcuttingTexture : _resourceTexture;
+                return _woodcuttingTexture;
             case HoverCursorType.Fishing:
-                return _fishingTexture ? _fishingTexture : _resourceTexture;
+                return _fishingTexture;
             case HoverCursorType.Enemy:
                 return _enemyTexture;
             default:
@@ -208,14 +212,14 @@ public class WorldHoverCursor2D : MonoBehaviour
     private void RebuildCursorTextures()
     {
         ClearGeneratedTexture(ref _npcTexture);
-        ClearGeneratedTexture(ref _resourceTexture);
+        ClearGeneratedTexture(ref _enterTexture);
         ClearGeneratedTexture(ref _miningTexture);
         ClearGeneratedTexture(ref _woodcuttingTexture);
         ClearGeneratedTexture(ref _fishingTexture);
         ClearGeneratedTexture(ref _enemyTexture);
 
         _npcTexture = BuildCursorTexture(npcCursor);
-        _resourceTexture = BuildCursorTexture(resourceCursor);
+        _enterTexture = BuildCursorTexture(enterCursor);
         _miningTexture = BuildCursorTexture(miningCursor);
         _woodcuttingTexture = BuildCursorTexture(woodcuttingCursor);
         _fishingTexture = BuildCursorTexture(fishingCursor);

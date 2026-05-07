@@ -33,6 +33,11 @@ public class LevelSelectPageUI : MonoBehaviour
     [Header("Center — Nodes")]
     [SerializeField] private Transform nodeListParent;
     [SerializeField] private WorldMapNodeButtonUI nodeButtonPrefab;
+    [Header("Center — Node Filters (optional)")]
+    [SerializeField] private Button filterAllButton;
+    [SerializeField] private Button filterCombatButton;
+    [SerializeField] private Button filterGatheringButton;
+    [SerializeField] private Button filterOtherButton;
 
     [Header("Right — Details")]
     [FormerlySerializedAs("detailNameText")]
@@ -79,6 +84,17 @@ public class LevelSelectPageUI : MonoBehaviour
     private readonly List<GameObject> _regionRows = new();
     private readonly List<RegionDefinition> _regionRowRegions = new();
     private readonly List<WorldMapNodeButtonUI> _nodeButtons = new();
+    private readonly List<GameObject> _nodeSectionRows = new();
+
+    private enum NodeListFilter
+    {
+        All,
+        Combat,
+        Gathering,
+        Other
+    }
+
+    private NodeListFilter _nodeListFilter = NodeListFilter.All;
 
     private RegionDefinition _selectedRegion;
     private MapNodeDefinition _selectedNode;
@@ -113,12 +129,30 @@ public class LevelSelectPageUI : MonoBehaviour
     {
         if (enterNodeButton)
             enterNodeButton.onClick.AddListener(OnEnterNodeClicked);
+
+        if (filterAllButton)
+            filterAllButton.onClick.AddListener(() => OnNodeFilterClicked(NodeListFilter.All));
+        if (filterCombatButton)
+            filterCombatButton.onClick.AddListener(() => OnNodeFilterClicked(NodeListFilter.Combat));
+        if (filterGatheringButton)
+            filterGatheringButton.onClick.AddListener(() => OnNodeFilterClicked(NodeListFilter.Gathering));
+        if (filterOtherButton)
+            filterOtherButton.onClick.AddListener(() => OnNodeFilterClicked(NodeListFilter.Other));
     }
 
     private void OnDestroy()
     {
         if (enterNodeButton)
             enterNodeButton.onClick.RemoveListener(OnEnterNodeClicked);
+
+        if (filterAllButton)
+            filterAllButton.onClick.RemoveAllListeners();
+        if (filterCombatButton)
+            filterCombatButton.onClick.RemoveAllListeners();
+        if (filterGatheringButton)
+            filterGatheringButton.onClick.RemoveAllListeners();
+        if (filterOtherButton)
+            filterOtherButton.onClick.RemoveAllListeners();
     }
 
     private void OnEnable()
@@ -525,11 +559,69 @@ public class LevelSelectPageUI : MonoBehaviour
         SkillsManager skills = FindSkillsManager();
 
         string activeNodeId = ResolveActiveMapNodeIdForRegionUi();
+        List<MapNodeDefinition> filteredInRegionOrder = BuildFilteredRegionNodes(_selectedRegion);
 
-        for (int i = 0; i < _selectedRegion.nodes.Count; i++)
+        var unlocked = new List<MapNodeDefinition>(filteredInRegionOrder.Count);
+        var locked = new List<MapNodeDefinition>(filteredInRegionOrder.Count);
+        for (int i = 0; i < filteredInRegionOrder.Count; i++)
         {
-            MapNodeDefinition node = _selectedRegion.nodes[i];
-            if (!node) continue;
+            MapNodeDefinition node = filteredInRegionOrder[i];
+            // Section grouping reflects progression/requirements lock only.
+            // Entrance-only maps are still "Unlocked" but cannot be entered from this menu.
+            bool isLocked = progress != null && !node.CanEnter(progress, skills);
+            if (isLocked)
+                locked.Add(node);
+            else
+                unlocked.Add(node);
+        }
+
+        MoveTownNodesToFront(unlocked);
+        MoveTownNodesToFront(locked);
+
+        // Keep selection valid for current filter/sectioned list.
+        if (_selectedNode == null || !filteredInRegionOrder.Contains(_selectedNode))
+            _selectedNode = unlocked.Count > 0 ? unlocked[0] : (locked.Count > 0 ? locked[0] : null);
+
+        if (unlocked.Count > 0)
+        {
+            AddNodeSectionHeader("Unlocked");
+            SpawnNodeRows(unlocked, progress, skills, activeNodeId);
+        }
+
+        if (locked.Count > 0)
+        {
+            AddNodeSectionHeader("Locked");
+            SpawnNodeRows(locked, progress, skills, activeNodeId);
+        }
+
+        RefreshFilterButtonVisuals();
+    }
+
+    private void ClearNodeButtons()
+    {
+        for (int i = 0; i < _nodeButtons.Count; i++)
+        {
+            if (_nodeButtons[i])
+                Destroy(_nodeButtons[i].gameObject);
+        }
+
+        _nodeButtons.Clear();
+
+        for (int i = 0; i < _nodeSectionRows.Count; i++)
+        {
+            if (_nodeSectionRows[i])
+                Destroy(_nodeSectionRows[i]);
+        }
+        _nodeSectionRows.Clear();
+    }
+
+    private void SpawnNodeRows(List<MapNodeDefinition> nodes, WorldMapProgressManager progress, SkillsManager skills, string activeNodeId)
+    {
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            MapNodeDefinition node = nodes[i];
+            if (!node)
+                continue;
 
             WorldMapNodeButtonUI row = Instantiate(nodeButtonPrefab, nodeListParent);
             _nodeButtons.Add(row);
@@ -548,15 +640,132 @@ public class LevelSelectPageUI : MonoBehaviour
         }
     }
 
-    private void ClearNodeButtons()
+    private List<MapNodeDefinition> BuildFilteredRegionNodes(RegionDefinition region)
     {
-        for (int i = 0; i < _nodeButtons.Count; i++)
+        var result = new List<MapNodeDefinition>();
+        if (region == null || region.nodes == null)
+            return result;
+
+        for (int i = 0; i < region.nodes.Count; i++)
         {
-            if (_nodeButtons[i])
-                Destroy(_nodeButtons[i].gameObject);
+            MapNodeDefinition node = region.nodes[i];
+            if (!node)
+                continue;
+            if (!PassesNodeFilter(node))
+                continue;
+            result.Add(node);
         }
 
-        _nodeButtons.Clear();
+        return result;
+    }
+
+    private bool PassesNodeFilter(MapNodeDefinition node)
+    {
+        if (node == null)
+            return false;
+
+        return _nodeListFilter switch
+        {
+            NodeListFilter.All => true,
+            NodeListFilter.Combat => node.nodeType == MapNodeType.Combat,
+            NodeListFilter.Gathering => node.nodeType == MapNodeType.Gathering,
+            NodeListFilter.Other => node.nodeType != MapNodeType.Combat && node.nodeType != MapNodeType.Gathering,
+            _ => true
+        };
+    }
+
+    private static void MoveTownNodesToFront(List<MapNodeDefinition> list)
+    {
+        if (list == null || list.Count <= 1)
+            return;
+
+        var towns = new List<MapNodeDefinition>(2);
+        var nonTowns = new List<MapNodeDefinition>(list.Count);
+        for (int i = 0; i < list.Count; i++)
+        {
+            MapNodeDefinition n = list[i];
+            if (n != null && n.nodeType == MapNodeType.Town)
+                towns.Add(n);
+            else
+                nonTowns.Add(n);
+        }
+
+        list.Clear();
+        list.AddRange(towns);
+        list.AddRange(nonTowns);
+    }
+
+    private void AddNodeSectionHeader(string label)
+    {
+        if (nodeListParent == null || string.IsNullOrWhiteSpace(label))
+            return;
+
+        GameObject go = new GameObject($"Section_{label}", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        go.transform.SetParent(nodeListParent, false);
+        _nodeSectionRows.Add(go);
+
+        RectTransform rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 0.5f);
+        rt.anchorMax = new Vector2(1f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+
+        LayoutElement le = go.GetComponent<LayoutElement>();
+        le.preferredHeight = 24f;
+        le.minHeight = 24f;
+
+        Image bg = go.GetComponent<Image>();
+        bg.color = new Color32(186, 178, 156, 255);
+        bg.raycastTarget = false;
+
+        GameObject textGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+        textGo.transform.SetParent(go.transform, false);
+        RectTransform textRt = textGo.GetComponent<RectTransform>();
+        textRt.anchorMin = Vector2.zero;
+        textRt.anchorMax = Vector2.one;
+        textRt.offsetMin = new Vector2(10f, 0f);
+        textRt.offsetMax = new Vector2(-10f, 0f);
+
+        TMP_Text text = textGo.GetComponent<TextMeshProUGUI>();
+        text.text = label;
+        text.alignment = TextAlignmentOptions.MidlineLeft;
+        text.fontSize = 20f;
+        text.fontStyle = FontStyles.Bold;
+        text.color = new Color32(70, 70, 70, 255);
+        text.raycastTarget = false;
+    }
+
+    private void OnNodeFilterClicked(NodeListFilter filter)
+    {
+        if (_nodeListFilter == filter)
+            return;
+        _nodeListFilter = filter;
+        RebuildNodeList();
+        RefreshDetails();
+    }
+
+    private void RefreshFilterButtonVisuals()
+    {
+        ApplyFilterButtonSelected(filterAllButton, _nodeListFilter == NodeListFilter.All);
+        ApplyFilterButtonSelected(filterCombatButton, _nodeListFilter == NodeListFilter.Combat);
+        ApplyFilterButtonSelected(filterGatheringButton, _nodeListFilter == NodeListFilter.Gathering);
+        ApplyFilterButtonSelected(filterOtherButton, _nodeListFilter == NodeListFilter.Other);
+    }
+
+    private static void ApplyFilterButtonSelected(Button b, bool selected)
+    {
+        if (!b)
+            return;
+
+        ColorBlock cb = b.colors;
+        Color normal = selected ? new Color32(216, 206, 176, 255) : new Color32(238, 238, 238, 255);
+        cb.normalColor = normal;
+        cb.highlightedColor = normal;
+        cb.selectedColor = normal;
+        cb.pressedColor = normal;
+        cb.colorMultiplier = 1f;
+        b.colors = cb;
+        if (b.targetGraphic)
+            b.targetGraphic.color = normal;
     }
 
     private void OnNodeSelected(MapNodeDefinition node)
@@ -670,7 +879,7 @@ public class LevelSelectPageUI : MonoBehaviour
             !string.IsNullOrWhiteSpace(n.nodeId) &&
             string.Equals(n.nodeId.Trim(), activeNodeId.Trim(), StringComparison.Ordinal);
 
-        bool hideEnter = (n && progress && n.IsPermanentlyCompleted(progress)) || isCurrentMap;
+        bool hideEnter = (n && progress && n.IsPermanentlyCompleted(progress)) || isCurrentMap || (n && n.entranceOnlyAccess);
         bool canEnterFromMenu = n && n.CanEnterFromLevelMenu(progress, skills);
         if (enterNodeButton)
         {

@@ -25,6 +25,7 @@ MonoBehaviour:
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0
+  entranceOnlyAccess: 0
   completedLabelRequiresEnteredNodeId: 
   mapUiUseClearedInsteadOfCompleted: 0
   requiresMapUnlock: 0
@@ -37,20 +38,20 @@ MonoBehaviour:
   connectedNodeIds: []
   nextNodeIds: []
   biome: 0
-  prefabGroups: []
   spawnGroupPlans:
   - groupId: MiddleSpawns
     spawns:
     - spawnPointGroupId: 
       spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 7e6b106f91c9ae9418354137850a7278, type: 2}
+      enemyDefinition: {fileID: 11400000, guid: 7eedc76586678f2489b0d2d3777cd723, type: 2}
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
       itemAmount: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
-      count: 8
+      count: 12
     shuffleSpawnPoints: 1
+  requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0
   simpleCombatWavesRequireQuestRewardClaimed: 0
