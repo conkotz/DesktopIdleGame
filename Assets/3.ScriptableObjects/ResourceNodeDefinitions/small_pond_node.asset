@@ -23,8 +23,8 @@ MonoBehaviour:
   yieldAmountMax: 1
   ratePerSecond: 1
   useRandomInterval: 1
-  minInterval: 10
-  maxInterval: 20
+  minInterval: 6
+  maxInterval: 13
   bonusDrops:
   - item: {fileID: 11400000, guid: 1fdefa701728e7446be45115912a8999, type: 2}
     chance: 0.05

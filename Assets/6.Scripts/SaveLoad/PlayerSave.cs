@@ -10,6 +10,8 @@ public class PlayerSave : MonoBehaviour, ISaveable
     private bool _hasPendingVitals;
     private float _pendingHp = -1f;
     private string _pendingName;
+    private bool _hasPendingWorldPosition;
+    private Vector3 _pendingWorldPosition;
 
     private void Awake()
     {
@@ -22,6 +24,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
         if (!_hasPendingVitals)
         {
             ApplyPendingName();
+            ApplyPendingWorldPosition();
             return;
         }
 
@@ -33,6 +36,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
         stats.SnapGuardToNaturalCapOnSessionLoad();
         _hasPendingVitals = false;
         ApplyPendingName();
+        ApplyPendingWorldPosition();
     }
 
     public void SaveInto(SaveData data)
@@ -58,6 +62,18 @@ public class PlayerSave : MonoBehaviour, ISaveable
             // Energy/mana not persisted — always full on load (see LoadFrom / ApplyLoadedVitals).
             data.playerCurrentEnergy = -1f;
             data.playerCurrentMana = -1f;
+
+            Vector3 pos = transform.position;
+            bool validPos =
+                !float.IsNaN(pos.x) && !float.IsNaN(pos.y) && !float.IsNaN(pos.z) &&
+                !float.IsInfinity(pos.x) && !float.IsInfinity(pos.y) && !float.IsInfinity(pos.z);
+            data.hasSavedPlayerWorldPosition = validPos;
+            if (validPos)
+            {
+                data.playerWorldPosX = pos.x;
+                data.playerWorldPosY = pos.y;
+                data.playerWorldPosZ = pos.z;
+            }
         }
         else
         {
@@ -92,7 +108,12 @@ public class PlayerSave : MonoBehaviour, ISaveable
             _hasPendingVitals = true;
         }
 
+        _hasPendingWorldPosition = data.hasSavedPlayerWorldPosition;
+        if (_hasPendingWorldPosition)
+            _pendingWorldPosition = new Vector3(data.playerWorldPosX, data.playerWorldPosY, data.playerWorldPosZ);
+
         ApplyPendingName();
+        ApplyPendingWorldPosition();
     }
 
     private void ApplyPendingName()
@@ -105,5 +126,18 @@ public class PlayerSave : MonoBehaviour, ISaveable
 
         player.SetDisplayName(_pendingName.Trim());
         _pendingName = null;
+    }
+
+    private void ApplyPendingWorldPosition()
+    {
+        if (!_hasPendingWorldPosition)
+            return;
+
+        transform.position = _pendingWorldPosition;
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+            rb.position = _pendingWorldPosition;
+
+        _hasPendingWorldPosition = false;
     }
 }

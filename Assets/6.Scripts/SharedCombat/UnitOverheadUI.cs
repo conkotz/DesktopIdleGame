@@ -54,6 +54,8 @@ public class UnitOverheadUI : MonoBehaviour
     [Tooltip("How many canvas pixels two overhead labels may overlap horizontally before they stack vertically.")]
     [SerializeField] private float stackAllowedOverlapBeforeStackPx = 20f;
     [SerializeField] private float stackVerticalSpacingPx = 56f;
+    [Tooltip("When enemy overheads overlap the player's fixed HP baseline, lift them by this many canvas pixels.")]
+    [SerializeField] private float stackPlayerBaselineLiftPx = 30f;
     [Tooltip(
         "Optional minimum half-width (canvas px) for overlap tests. 0 = use measured rect + TMP bounds only. " +
         "Increase slightly if very narrow layouts fail to stack when enemies stand on the same spot.")]
@@ -68,6 +70,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     /// <summary>Cached <see cref="SliderSettingId.OverheadHpBarResize"/>; multiplied into root scale alongside <see cref="_externalScale"/>.</summary>
     private float _overheadBarResizeSlider = 1f;
+    private Vector3 _additionalWorldOffset = Vector3.zero;
 
     /// <summary>Cached <see cref="SliderSettingId.HudResize"/>; dividing undoes CanvasScaler HUD growth so overhead size follows overhead slider only.</summary>
     private float _hudResizeSlider = 1f;
@@ -157,6 +160,11 @@ public class UnitOverheadUI : MonoBehaviour
             ApplyDirectPosition();
         else
             ApplyStackedPosition();
+    }
+
+    public void SetAdditionalWorldOffset(Vector3 offset)
+    {
+        _additionalWorldOffset = offset;
     }
 
     private void ApplyHpBarOnlyVisuals()
@@ -253,6 +261,7 @@ public class UnitOverheadUI : MonoBehaviour
         float padding = Mathf.Max(0f, candidates[0].stackHorizontalOverlapPaddingPx);
         float allowedOverlap = Mathf.Max(0f, candidates[0].stackAllowedOverlapBeforeStackPx);
         float spacing = Mathf.Max(1f, candidates[0].stackVerticalSpacingPx);
+        float baselineHysteresisPx = Mathf.Max(6f, allowedOverlap * 0.5f);
 
         float minHalfW = Mathf.Max(0f, candidates[0].stackMinClusteringHalfWidthPx);
 
@@ -305,6 +314,24 @@ public class UnitOverheadUI : MonoBehaviour
             if (s_lastAssignedStackLaneByUiId.TryGetValue(uiId, out int rememberedLane))
                 preferredLane = Mathf.Max(0, rememberedLane);
 
+            // Prevent rapid 0<->1 lane thrash when an enemy hovers on the player's baseline edge.
+            // If this UI was already above baseline, keep it above until it's clearly separated.
+            if (!overlapsFixedBaseline && preferredLane > 0 && fixedBaselineSpans.Count > 0)
+            {
+                for (int f = 0; f < fixedBaselineSpans.Count; f++)
+                {
+                    (float fixedMinX, float fixedMaxX) = fixedBaselineSpans[f];
+                    bool nearBaseline =
+                        minX <= fixedMaxX + padding - allowedOverlap + baselineHysteresisPx &&
+                        maxX >= fixedMinX - padding + allowedOverlap - baselineHysteresisPx;
+                    if (nearBaseline)
+                    {
+                        overlapsFixedBaseline = true;
+                        break;
+                    }
+                }
+            }
+
             bool IsLaneAvailable(int lane)
             {
                 if (lane < 0 || lane >= laneLastMaxX.Count)
@@ -340,12 +367,13 @@ public class UnitOverheadUI : MonoBehaviour
                 laneLastMaxX[laneIndex] = maxX;
             }
 
-            // Keep player baseline fixed at y=0; anything overlapping that baseline starts above it.
-            if (overlapsFixedBaseline)
-                laneIndex += 1;
+            // Keep player baseline fixed at y=0; overlapping enemies get a smaller dedicated lift.
+            // Store remembered lane without baseline lift so overlap-edge transitions do not thrash lane memory.
+            int rememberedLaneToStore = laneIndex;
+            float baselineLift = overlapsFixedBaseline ? Mathf.Max(0f, ui.stackPlayerBaselineLiftPx) : 0f;
 
-            ui._stackYOffset = laneIndex * spacing;
-            s_lastAssignedStackLaneByUiId[uiId] = laneIndex;
+            ui._stackYOffset = laneIndex * spacing + baselineLift;
+            s_lastAssignedStackLaneByUiId[uiId] = rememberedLaneToStore;
         }
 
         for (int i = 0; i < candidates.Count; i++)
@@ -622,7 +650,7 @@ public class UnitOverheadUI : MonoBehaviour
         if (canvasRect == null)
             canvasRect = parentCanvas.transform as RectTransform;
 
-        Vector3 worldPos = followTarget.position + worldOffset;
+        Vector3 worldPos = followTarget.position + worldOffset + _additionalWorldOffset;
         Vector3 screenPos = targetCamera.WorldToScreenPoint(worldPos);
 
         // WorldToScreenPoint z <= 0 often means "behind" the camera, but orthographic 2D setups can edge-case;

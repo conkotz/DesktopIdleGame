@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public enum NodeAction
 {
@@ -44,6 +45,80 @@ public class ResourceNode : MonoBehaviour
     public float EnergyCostPerSwing => definition ? Mathf.Max(0f, definition.energyCostPerSwing) : 0f;
 
     public bool UseLevelRequirement => definition && definition.useLevelRequirement;
+
+    [Header("Name Label Visibility")]
+    [Tooltip("Hide name label object(s) while player stands on this node.")]
+    [SerializeField] private bool hideNameLabelsWhenPlayerOverlaps = true;
+    [Tooltip("Optional explicit label roots; when empty, children containing 'NameLabel' in their name are auto-detected.")]
+    [SerializeField] private List<GameObject> nameLabelRoots = new();
+
+    private PlayerController _player;
+    private Collider2D _nodeCollider;
+    private bool _nameLabelsHidden;
+
+    private void Awake()
+    {
+        _nodeCollider = GetComponent<Collider2D>() ?? GetComponentInChildren<Collider2D>();
+        if (nameLabelRoots == null)
+            nameLabelRoots = new List<GameObject>();
+        if (nameLabelRoots.Count == 0)
+            AutoCollectNameLabelRoots();
+    }
+
+    private void Update()
+    {
+        if (!hideNameLabelsWhenPlayerOverlaps || nameLabelRoots == null || nameLabelRoots.Count == 0)
+            return;
+
+        if (_player == null)
+            _player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (_player == null)
+            return;
+
+        bool overlap = IsPlayerOverlappingNode();
+        if (overlap == _nameLabelsHidden)
+            return;
+
+        _nameLabelsHidden = overlap;
+        for (int i = 0; i < nameLabelRoots.Count; i++)
+        {
+            GameObject go = nameLabelRoots[i];
+            if (go != null)
+                go.SetActive(!overlap);
+        }
+    }
+
+    private bool IsPlayerOverlappingNode()
+    {
+        if (_player == null)
+            return false;
+
+        if (_nodeCollider != null)
+            return _nodeCollider.bounds.Contains(_player.transform.position);
+
+        float dx = Mathf.Abs(_player.transform.position.x - transform.position.x);
+        return dx <= interactRange;
+    }
+
+    private void AutoCollectNameLabelRoots()
+    {
+        Transform[] children = GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < children.Length; i++)
+        {
+            Transform t = children[i];
+            if (t == null || t == transform)
+                continue;
+            if (t.gameObject == null)
+                continue;
+            string n = t.name;
+            if (string.IsNullOrWhiteSpace(n))
+                continue;
+            if (n.IndexOf("NameLabel", System.StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+            if (!nameLabelRoots.Contains(t.gameObject))
+                nameLabelRoots.Add(t.gameObject);
+        }
+    }
 
     private void OnDrawGizmosSelected()
     {

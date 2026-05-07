@@ -49,6 +49,11 @@ public class SaveData
     public float playerCurrentEnergy = -1f;
     [Tooltip("Legacy; not restored on load. Mana refills to max when loading.")]
     public float playerCurrentMana = -1f;
+    [Tooltip("When true, playerWorldPosX/Y/Z stores the last known world position to restore on save-load resume.")]
+    public bool hasSavedPlayerWorldPosition = false;
+    public float playerWorldPosX = 0f;
+    public float playerWorldPosY = 0f;
+    public float playerWorldPosZ = 0f;
 
     [Header("Currency")]
     public int gold = 0;
@@ -161,6 +166,9 @@ public class SaveData
 
     [Tooltip("QuestDefinition.questId values accepted from quest givers.")]
     public List<string> acceptedQuestIds = new();
+
+    [Tooltip("Ordered QuestDefinition.questId entries currently tracked in the quest tracker window.")]
+    public List<string> trackedQuestIds = new();
 
     [Header("Merchant Stock")]
     public List<MerchantStockSave> merchantStocks = new();

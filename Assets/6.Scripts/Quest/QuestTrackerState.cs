@@ -81,4 +81,28 @@ public static class QuestTrackerState
         if (changed)
             Changed?.Invoke();
     }
+
+    public static void ReplaceTrackedQuestIds(IEnumerable<string> orderedQuestIds)
+    {
+        TrackedQuestIds.Clear();
+
+        if (orderedQuestIds != null)
+        {
+            foreach (string raw in orderedQuestIds)
+            {
+                if (string.IsNullOrWhiteSpace(raw))
+                    continue;
+
+                string id = raw.Trim();
+                if (TrackedQuestIds.Contains(id))
+                    continue;
+
+                TrackedQuestIds.Add(id);
+                if (TrackedQuestIds.Count >= MaxTrackedQuestCount)
+                    break;
+            }
+        }
+
+        Changed?.Invoke();
+    }
 }

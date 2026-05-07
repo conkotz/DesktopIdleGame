@@ -1251,6 +1251,8 @@ public class SaveManager : MonoBehaviour
             data.questProgressAmounts = new List<int>();
         if (data.acceptedQuestIds == null)
             data.acceptedQuestIds = new List<string>();
+        if (data.trackedQuestIds == null)
+            data.trackedQuestIds = new List<string>();
 
         if (data.enduranceTrialNodeIds == null)
             data.enduranceTrialNodeIds = new List<string>();

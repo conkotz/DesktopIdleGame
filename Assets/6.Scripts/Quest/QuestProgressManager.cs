@@ -1325,6 +1325,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             data.questRewardClaimedIds = new List<string>();
         if (data.acceptedQuestIds == null)
             data.acceptedQuestIds = new List<string>();
+        if (data.trackedQuestIds == null)
+            data.trackedQuestIds = new List<string>();
 
         data.questProgressIds.Clear();
         data.questProgressAmounts.Clear();
@@ -1353,6 +1355,26 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         {
             if (!string.IsNullOrEmpty(id))
                 data.acceptedQuestIds.Add(id);
+        }
+
+        data.trackedQuestIds.Clear();
+        IReadOnlyList<string> tracked = QuestTrackerState.OrderedTrackedQuestIds;
+        for (int i = 0; i < tracked.Count; i++)
+        {
+            string id = tracked[i];
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+
+            string trimmed = id.Trim();
+            QuestDefinition def = FindQuestDefinition(trimmed);
+            if (!def)
+                continue;
+            if (IsPermanentlyComplete(def))
+                continue;
+
+            data.trackedQuestIds.Add(trimmed);
+            if (data.trackedQuestIds.Count >= QuestTrackerState.MaxTrackedQuestCount)
+                break;
         }
     }
 
@@ -1395,6 +1417,36 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         }
 
         LoadAcceptedQuestIds(data);
+
+        if (data?.trackedQuestIds != null)
+        {
+            var restoredTracked = new List<string>(Mathf.Min(data.trackedQuestIds.Count, QuestTrackerState.MaxTrackedQuestCount));
+            for (int i = 0; i < data.trackedQuestIds.Count; i++)
+            {
+                string id = data.trackedQuestIds[i];
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+
+                string trimmed = id.Trim();
+                QuestDefinition def = FindQuestDefinition(trimmed);
+                if (!def)
+                    continue;
+                if (IsPermanentlyComplete(def))
+                    continue;
+
+                restoredTracked.Add(trimmed);
+                if (restoredTracked.Count >= QuestTrackerState.MaxTrackedQuestCount)
+                    break;
+            }
+
+            QuestTrackerState.ReplaceTrackedQuestIds(restoredTracked);
+            if (restoredTracked.Count > 0)
+                QuestTrackerWindowUI.EnsureWindowOpenAfterTrack();
+        }
+        else
+        {
+            QuestTrackerState.ReplaceTrackedQuestIds(null);
+        }
 
         ApplyTutorialStoryUnlocksForExistingSaves();
 

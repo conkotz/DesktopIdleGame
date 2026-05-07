@@ -19,7 +19,7 @@ MonoBehaviour:
       amount: 300
       itemId: 
     - type: 1
-      amount: 1
+      amount: 5
       itemId: raw_fish
     defaultQuantity: 1
   - itemId: stone_axe
@@ -28,7 +28,7 @@ MonoBehaviour:
       amount: 300
       itemId: 
     - type: 1
-      amount: 1
+      amount: 30
       itemId: splitwood_log
     defaultQuantity: 1
   - itemId: stone_pickaxe
@@ -37,7 +37,7 @@ MonoBehaviour:
       amount: 300
       itemId: 
     - type: 1
-      amount: 1
+      amount: 5
       itemId: stone_chunk
     defaultQuantity: 1
   - itemId: crit_ring

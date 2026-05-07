@@ -19,6 +19,8 @@ public class EnemyOverheadUISpawner : MonoBehaviour
     [SerializeField] private Camera stripCamera;
     [Tooltip("Hide name, combat profile, and debuffs — only the HP bar (e.g. player overhead).")]
     [SerializeField] private bool hpBarOnly;
+    [Tooltip("Extra vertical world offset added for elite enemy overheads.")]
+    [SerializeField] private float eliteOverheadExtraYOffset = 0.12f;
 
     private UnitOverheadUI overheadInstance;
 
@@ -153,6 +155,11 @@ public class EnemyOverheadUISpawner : MonoBehaviour
             stripCamera,
             hpBarOnly
         );
+
+        if (enemy != null && enemy.IsElite)
+            overheadInstance.SetAdditionalWorldOffset(new Vector3(0f, Mathf.Max(0f, eliteOverheadExtraYOffset), 0f));
+        else
+            overheadInstance.SetAdditionalWorldOffset(Vector3.zero);
 
         if (hpBarOnly)
             PlaceUnderLeftHud();

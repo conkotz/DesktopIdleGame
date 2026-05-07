@@ -189,7 +189,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool allowGatherWithoutTool = true;
 
     [Tooltip("Multiplier applied when missing the required tool. 0.3 = 70% slower.")]
-    [SerializeField, Range(0.05f, 1f)] private float missingToolSpeedMultiplier = 0.3f;
+    [SerializeField, Range(0.05f, 1f)] private float missingToolSpeedMultiplier = 0.2f;
 
     [SerializeField] private PlayerCombatState combatState;
     public bool InCombat => combatState && combatState.InCombat;

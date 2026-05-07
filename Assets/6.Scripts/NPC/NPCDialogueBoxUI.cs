@@ -995,6 +995,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         _plainDialogueMode = true;
 
         _onAccept = onAccept;
+        ApplyScrollBottomInsetForAcceptButton(showAccept);
         if (acceptButton)
         {
             acceptButton.gameObject.SetActive(showAccept);
@@ -1333,6 +1334,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         ConfigureSingleScrollTextsForQuestOffer(quest);
 
         _onAccept = onAccept;
+        ApplyScrollBottomInsetForAcceptButton(showAccept);
         if (acceptButton)
         {
             acceptButton.gameObject.SetActive(showAccept);
@@ -1958,7 +1960,10 @@ public class NPCDialogueBoxUI : MonoBehaviour
         {
             Transform scroll = transform.Find("DialogueScrollView");
             if (scroll)
+            {
                 _singleModeScrollRoot = scroll.gameObject;
+                _singleModeScrollRect = scroll as RectTransform;
+            }
         }
 
         if (_singleModeScrollRoot)
@@ -2122,8 +2127,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
         RectTransform scrollRt = scrollGo.GetComponent<RectTransform>();
         scrollRt.anchorMin = new Vector2(0f, 0f);
         scrollRt.anchorMax = new Vector2(1f, 1f);
-        scrollRt.offsetMin = new Vector2(10f, 45f);
-        scrollRt.offsetMax = new Vector2(-10f, -20f);
+        scrollRt.offsetMin = new Vector2(10f, DialogueScrollBottomInsetWithAccept);
+        scrollRt.offsetMax = new Vector2(-10f, -24f);
         Image scrollBg = scrollGo.GetComponent<Image>();
         scrollBg.color =
             new Color(DialoguePanelBackdrop.r, DialoguePanelBackdrop.g, DialoguePanelBackdrop.b, 0f);
@@ -2181,6 +2186,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
         scroll.movementType = ScrollRect.MovementType.Clamped;
 
         _singleModeScrollRoot = scrollGo;
+        _singleModeScrollRect = scrollRt;
 
         RectTransform acceptRt = CreateButton("AcceptButton", "Accept", _rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-45f, 22f), new Vector2(80f, 30f), out acceptButton);
         acceptRt.gameObject.SetActive(false);
@@ -2293,4 +2299,15 @@ public class NPCDialogueBoxUI : MonoBehaviour
         RectTransform textRt = textGo.GetComponent<RectTransform>();
         textRt.anchorMin = Vector2.zero;
         textRt.anchorMax = Vector2.one;
- 
+        textRt.offsetMin = Vector2.zero;
+        textRt.offsetMax = Vector2.zero;
+
+        TMP_Text tmp = textGo.GetComponent<TMP_Text>();
+        tmp.text = label;
+        tmp.fontSize = DialogueChromeButtonLabelFontSize;
+        tmp.color = new Color(0.12f, 0.1f, 0.08f, 1f);
+        tmp.alignment = TextAlignmentOptions.Center;
+
+        return rt;
+    }
+}

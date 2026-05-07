@@ -694,9 +694,21 @@ public class NPCInteractionSettings : MonoBehaviour
     {
         if (!allowBaseWhenOneWayHasNoMatchingConditional || !skipBase || !string.IsNullOrWhiteSpace(text))
             return;
-        // One-way mode after a conditional has been shown: never resurrect the base line here (matches inspector tooltip).
+        // One-way mode after a conditional has been shown: do not resurrect base dialogue.
+        // Manual click fallback should replay the last shown one-way conditional line if possible.
         if (oneWayDialogueQueue)
+        {
+            int replayIdx = GetHighestOneWayConditionalPresented();
+            if (additionalConditionalDialogues != null &&
+                replayIdx >= 0 &&
+                replayIdx < additionalConditionalDialogues.Count)
+            {
+                NpcConditionalDialogueEntry replay = additionalConditionalDialogues[replayIdx];
+                if (replay != null && !string.IsNullOrWhiteSpace(replay.dialogue))
+                    text = replay.dialogue.Trim();
+            }
             return;
+        }
         if (string.IsNullOrWhiteSpace(dialogue))
             return;
         text = dialogue.Trim();

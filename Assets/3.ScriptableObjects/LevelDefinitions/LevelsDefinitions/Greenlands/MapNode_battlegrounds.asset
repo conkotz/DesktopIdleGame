@@ -31,9 +31,9 @@ MonoBehaviour:
   requiresMapUnlock: 0
   icon: {fileID: 0}
   requiredSkillLevels: []
-  combatSkillGateMode: 2
+  combatSkillGateMode: 0
   combatSingleSkill: 0
-  combatRequiredLevel: 10
+  combatRequiredLevel: 1
   unlockRequirementNotes: Be prepared to fight enemies. Should have food, potions
     and combat gear.
   connectedNodeIds: []

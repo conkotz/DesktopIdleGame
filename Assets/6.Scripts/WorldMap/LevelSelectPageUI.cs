@@ -1170,8 +1170,6 @@ public class LevelSelectPageUI : MonoBehaviour
             return "State: Cleared";
 
         string entranceNote = node.entranceOnlyAccess ? " (Can only be accessed from its entrance)" : "";
-        if (node.entranceOnlyAccess && node.CanEnter(progress, skills))
-            return $"State: Locked from menu{entranceNote}";
         string state = node.GetUiStateLabel(progress, skills);
         if (!string.Equals(state, "Progress locked", StringComparison.Ordinal))
             return $"State: {state}{entranceNote}";
