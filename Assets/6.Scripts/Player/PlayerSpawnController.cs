@@ -42,6 +42,7 @@ public class PlayerSpawnController : MonoBehaviour
     private readonly RaycastHit2D[] _castHits = new RaycastHit2D[16];
     private const string GameplaySceneName = "GamePlay";
     private const string LevelLoadFaderName = "LevelLoadFader";
+    private static readonly string[] PreferredGroundNameTokens = { "floor", "signpost" };
 
     private void Awake()
     {
@@ -317,11 +318,38 @@ public class PlayerSpawnController : MonoBehaviour
 
             if (hitCount > 0)
             {
-                // pick closest hit
-                RaycastHit2D best = _castHits[0];
-                for (int i = 1; i < hitCount; i++)
-                    if (_castHits[i].distance < best.distance)
-                        best = _castHits[i];
+                // Pick closest preferred ground first (Floor / SignPost), then closest fallback.
+                RaycastHit2D best = default;
+                bool haveBest = false;
+                bool bestPreferred = false;
+                for (int i = 0; i < hitCount; i++)
+                {
+                    RaycastHit2D hit = _castHits[i];
+                    if (hit.collider == null)
+                        continue;
+
+                    bool preferred = IsPreferredGroundCollider(hit.collider);
+                    if (!haveBest)
+                    {
+                        best = hit;
+                        haveBest = true;
+                        bestPreferred = preferred;
+                        continue;
+                    }
+
+                    if (preferred && !bestPreferred)
+                    {
+                        best = hit;
+                        bestPreferred = true;
+                        continue;
+                    }
+
+                    if (preferred == bestPreferred && hit.distance < best.distance)
+                        best = hit;
+                }
+
+                if (!haveBest)
+                    continue;
 
                 // Unity reports free space along the cast until contact. We want the collider to end up
                 // `groundSkin` above the surface. Single form: deltaY = groundSkin - distance.
@@ -353,6 +381,40 @@ public class PlayerSpawnController : MonoBehaviour
 
         if (logFailureWarning)
             Debug.LogWarning("[PlayerSpawnController] SnapToGround failed (no ground hit). Check groundMask + colliders.");
+    }
+
+    private static bool IsPreferredGroundCollider(Collider2D c)
+    {
+        if (c == null)
+            return false;
+
+        string n = c.name ?? "";
+        if (ContainsPreferredGroundToken(n))
+            return true;
+
+        Transform t = c.transform;
+        while (t != null)
+        {
+            if (ContainsPreferredGroundToken(t.name))
+                return true;
+            t = t.parent;
+        }
+
+        return false;
+    }
+
+    private static bool ContainsPreferredGroundToken(string raw)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return false;
+
+        string lower = raw.ToLowerInvariant();
+        for (int i = 0; i < PreferredGroundNameTokens.Length; i++)
+        {
+            if (lower.Contains(PreferredGroundNameTokens[i]))
+                return true;
+        }
+        return false;
     }
 
     private IEnumerator FadeIn()

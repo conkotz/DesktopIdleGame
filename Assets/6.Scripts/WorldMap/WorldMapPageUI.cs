@@ -847,9 +847,17 @@ public class WorldMapPageUI : MonoBehaviour
             return;
 
         SkillsManager skills = FindSkillsManager();
-        // Keep graph topology visible regardless of list filter.
-        // Filter buttons should affect the Locations list, not map connectivity lines.
-        List<MapNodeDefinition> graphNodes = _selectedRegion.nodes ?? new List<MapNodeDefinition>();
+        // Graph follows current filter selection: hide non-filtered nodes.
+        List<MapNodeDefinition> graphNodes = BuildFilteredRegionNodes(_selectedRegion);
+        if (graphNodes.Count == 0)
+            return;
+        var graphNodeIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < graphNodes.Count; i++)
+        {
+            if (!graphNodes[i] || string.IsNullOrWhiteSpace(graphNodes[i].nodeId))
+                continue;
+            graphNodeIds.Add(graphNodes[i].nodeId.Trim());
+        }
 
         string activeNodeId = ResolveActiveMapNodeIdForRegionUi();
         var nodesById = new Dictionary<string, WorldMapGraphNodeUI>(StringComparer.OrdinalIgnoreCase);
@@ -863,7 +871,9 @@ public class WorldMapPageUI : MonoBehaviour
             if (string.IsNullOrEmpty(id)) continue;
 
             MapNodeDefinition node = _selectedRegion.FindNodeById(id);
-            if (!node || !graphNodes.Contains(node)) continue;
+            if (!node) continue;
+            string nodeId = node.nodeId?.Trim() ?? "";
+            if (string.IsNullOrEmpty(nodeId) || !graphNodeIds.Contains(nodeId)) continue;
 
             RectTransform anchorRt = anchor.transform as RectTransform;
             if (!anchorRt) continue;

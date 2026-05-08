@@ -7,6 +7,7 @@ public class PlayerSave : MonoBehaviour, ISaveable
     [SerializeField] private int xp = 0;
     [SerializeField] private CharacterStats stats;
     [SerializeField] private PlayerController player;
+    [SerializeField] private bool logSuspiciousWorldPositionSaves;
 
     private bool _hasPendingVitals;
     private float _pendingHp = -1f;
@@ -122,9 +123,12 @@ public class PlayerSave : MonoBehaviour, ISaveable
                 if (!usedPreviousGood)
                     data.hasSavedPlayerWorldPosition = false;
 
-                Debug.LogWarning(
-                    $"[PlayerSave] Ignored suspicious player world position x={pos.x:F3} while saving (scene='{active.name}'). " +
-                    (usedPreviousGood ? "Reused previous valid saved position." : "No prior valid position; world-position restore disabled for this save."));
+                if (logSuspiciousWorldPositionSaves)
+                {
+                    Debug.LogWarning(
+                        $"[PlayerSave] Ignored suspicious player world position x={pos.x:F3} while saving (scene='{active.name}'). " +
+                        (usedPreviousGood ? "Reused previous valid saved position." : "No prior valid position; world-position restore disabled for this save."));
+                }
             }
             else
             {
