@@ -12,4 +12,12 @@ MemoryCaptures/
 *.sln
 Build/
 Builds/
-TESTBUILD/
+TESTBUILD/PreRleaseBuild/ 
+PreReleaseBuild/ 
+Builds/ 
+*.zip 
+*.exe 
+*_Data/ 
+PreReleaseBuild/ 
+ 
+ 

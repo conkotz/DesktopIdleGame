@@ -619,18 +619,26 @@ public class EnemyBaseController : MonoBehaviour
 
     private bool ResolveShouldAggro(float distanceToPlayerX)
     {
-        if (LevelIgnoresAggroRange())
-            return true;
-
         MapNodeDefinition def = GetActiveMapNodeDefinition();
         LevelEnemyAggroMode mode = def != null ? def.enemyAggroMode : LevelEnemyAggroMode.Aggressive;
         bool playerTriggeredWaveAggro = def != null && LevelAggroState.IsWaveAggroLatched(def);
         bool playerTriggeredMapAggro = playerTriggeredWaveAggro || _mapAggroTriggeredForSession;
         bool inEnemyAggroRange = distanceToPlayerX <= aggroRange;
+        bool ignoreRange = LevelIgnoresAggroRange(def);
+
+        if (ignoreRange)
+        {
+            return mode switch
+            {
+                LevelEnemyAggroMode.Aggressive => true,
+                // Same latch/provoke rules as ranged aggro; distance gate removed once triggered.
+                LevelEnemyAggroMode.CalmUntilPlayerAggressive => _provoked || playerTriggeredMapAggro,
+                _ => _provoked
+            };
+        }
 
         return mode switch
         {
-            // Always range-based per enemy unless Ignore Aggro Range is enabled.
             LevelEnemyAggroMode.Aggressive => inEnemyAggroRange,
 
             // Calm until player aggression: always retaliates when personally provoked (damaged),
@@ -644,11 +652,13 @@ public class EnemyBaseController : MonoBehaviour
 
     /// <summary>
     /// When the active <see cref="MapNodeDefinition"/> sets <see cref="MapNodeDefinition.ignoreAggroRange"/>,
-    /// enemies always engage the player (skips proximity check). Overrides Calm for that level.
+    /// enemies skip the horizontal distance gate once they would aggro. Aggressive mode commits from anywhere;
+    /// Calm remains retaliation-only; CalmUntilPlayerAggressive still requires map/player provocation first.
     /// </summary>
-    private static bool LevelIgnoresAggroRange()
+    private static bool LevelIgnoresAggroRange(MapNodeDefinition def)
     {
-        MapNodeDefinition def = GetActiveMapNodeDefinition();
+        if (def == null)
+            def = GetActiveMapNodeDefinition();
         return def != null && def.ignoreAggroRange;
     }
 

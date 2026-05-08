@@ -533,5 +533,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ToggleSettingsRowUI
   settingId: 0
+  invertMeaningForUi: 0
   settingNameText: {fileID: 0}
   toggle: {fileID: 0}

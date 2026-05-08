@@ -52,9 +52,12 @@ public class SkillTreeViewUI : MonoBehaviour
     private readonly List<TMP_Text> spawnedLevelLabels = new();
     private readonly List<TMP_Text> spawnedTierRowLabels = new();
     private readonly Dictionary<string, SkillTreeNodeUI> nodeLookup = new();
+    private readonly Dictionary<string, int> unlockLevelByNodeId = new();
     private readonly Dictionary<int, float> rowYByLevel = new();
     private readonly Dictionary<string, string> tooltipTitleByNodeId = new();
     private readonly Dictionary<string, string> tooltipBodyByNodeId = new();
+    // Legacy: previously used TryGetNodeLevel(nodeId) which doesn't work for choice nodes (id begins with parent spine id).
+    // Kept only to avoid noisy diffs; new highlight uses unlockLevelByNodeId.
     private readonly Dictionary<string, int> nodeLevelById = new();
     private readonly Dictionary<string, RowDef> rowDefBySpineNodeId = new();
     private readonly List<float> layoutRowY = new();
@@ -74,6 +77,9 @@ public class SkillTreeViewUI : MonoBehaviour
     private SkillDefinition _lastBuiltSkill;
     private float choiceChangeUnlockedAt;
     private bool isCombatStateSubscribed;
+    private readonly HashSet<int> _pendingUnlockGlowLevels = new();
+
+    public event System.Action<int> UnlockGlowAcknowledgedByHover;
 
     private readonly struct AbilityTierPickMeta
     {
@@ -213,7 +219,45 @@ public class SkillTreeViewUI : MonoBehaviour
         SpawnConnectors(rows);
         RefreshAbilityTierLayoutAndVisibility();
         RefreshChoiceBranchVisibility();
+        ApplyPendingUnlockGlowLevels();
         _lastBuiltSkill = selectedSkill;
+    }
+
+    /// <summary>
+    /// Pulses the newly-unlocked nodes for a specific unlock level (clears when hovered).
+    /// </summary>
+    public void HighlightNewUnlocksAtLevel(int unlockLevel)
+    {
+        if (unlockLevelByNodeId.Count == 0 || nodeLookup.Count == 0)
+            return;
+
+        _pendingUnlockGlowLevels.Add(unlockLevel);
+
+        foreach (var kv in unlockLevelByNodeId)
+        {
+            if (kv.Value != unlockLevel)
+                continue;
+            if (!nodeLookup.TryGetValue(kv.Key, out SkillTreeNodeUI node) || node == null)
+                continue;
+            if (!node.gameObject.activeInHierarchy)
+                continue;
+            node.ShowUnlockGlow();
+        }
+    }
+
+    public void ClearPendingUnlockGlowLevel(int unlockLevel)
+    {
+        _pendingUnlockGlowLevels.Remove(unlockLevel);
+    }
+
+    public void SetPendingUnlockGlowLevels(IEnumerable<int> unlockLevels)
+    {
+        _pendingUnlockGlowLevels.Clear();
+        if (unlockLevels == null)
+            return;
+
+        foreach (int lvl in unlockLevels)
+            _pendingUnlockGlowLevels.Add(lvl);
     }
 
     /// <summary>
@@ -578,6 +622,7 @@ public class SkillTreeViewUI : MonoBehaviour
             BuildTooltipCopy(row.level, row.type, row.unlock, unlocked, out string mainTitle, out string mainBody);
             Sprite mainIcon = ResolveUnlockNodeIcon(row.unlock, selectedSkill);
             SpawnNode(spineId, new Vector2(x, y), row.type, mainTitle, mainBody, unlocked, mainIcon);
+            unlockLevelByNodeId[spineId] = row.level;
             spineLayoutXBySpineId[spineId] = x;
             rowDefBySpineNodeId[spineId] = row;
         }
@@ -659,6 +704,7 @@ public class SkillTreeViewUI : MonoBehaviour
                     unlocked,
                     choiceIcon
                 );
+                unlockLevelByNodeId[choiceNodeId] = choiceUnlockLevel;
                 choiceMetaByNodeId[choiceNodeId] =
                     new ChoiceNodeMeta(parentSpineId, row.level, choiceIndex, choiceUnlockLevel, offsetX, choiceY);
             }
@@ -829,6 +875,7 @@ public class SkillTreeViewUI : MonoBehaviour
         spawnedLevelLabels.Clear();
         spawnedTierRowLabels.Clear();
         nodeLookup.Clear();
+        unlockLevelByNodeId.Clear();
         rowYByLevel.Clear();
         rowDefBySpineNodeId.Clear();
         layoutRowY.Clear();
@@ -922,16 +969,35 @@ public class SkillTreeViewUI : MonoBehaviour
         node.SetSelected(false);
         node.SetClick(() => OnNodeClicked(nodeId, node));
         node.SetHover(
-            () => ShowTooltip(nodeId, node.transform),
+            () => HandleNodeHover(nodeId, node.transform),
             HideTooltip
         );
 
         spawnedNodes.Add(node);
         nodeLookup[nodeId] = node;
-        if (TryGetNodeLevel(nodeId, out int nodeLevel))
-            nodeLevelById[nodeId] = nodeLevel;
+        // Note: choice node ids do not start with their unlock level; store explicit unlock levels instead.
         tooltipTitleByNodeId[nodeId] = string.IsNullOrWhiteSpace(tooltipTitle) ? "Node" : tooltipTitle;
         tooltipBodyByNodeId[nodeId] = tooltipBody ?? string.Empty;
+    }
+
+    private void HandleNodeHover(string nodeId, Transform anchor)
+    {
+        if (!string.IsNullOrWhiteSpace(nodeId) && unlockLevelByNodeId.TryGetValue(nodeId, out int lvl))
+        {
+            if (_pendingUnlockGlowLevels.Remove(lvl))
+                UnlockGlowAcknowledgedByHover?.Invoke(lvl);
+        }
+
+        ShowTooltip(nodeId, anchor);
+    }
+
+    private void ApplyPendingUnlockGlowLevels()
+    {
+        if (_pendingUnlockGlowLevels.Count == 0)
+            return;
+
+        foreach (int lvl in _pendingUnlockGlowLevels)
+            HighlightNewUnlocksAtLevel(lvl);
     }
 
     private void SpawnConnector(string from, string to)

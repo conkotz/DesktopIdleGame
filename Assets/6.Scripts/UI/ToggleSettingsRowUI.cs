@@ -6,6 +6,8 @@ using UnityEngine.UI;
 public class ToggleSettingsRowUI : MonoBehaviour
 {
     [SerializeField] private ToggleSettingId settingId = ToggleSettingId.ShowPlayerHealthBarOutOfCombat;
+    [Tooltip("When true, the Toggle is bound to the inverse of the stored setting (e.g. Show X vs Disable X).")]
+    [SerializeField] private bool invertMeaningForUi;
     [SerializeField] private TMP_Text settingNameText;
     [SerializeField] private Toggle toggle;
 
@@ -43,7 +45,10 @@ public class ToggleSettingsRowUI : MonoBehaviour
         if (settingNameText)
             settingNameText.text = ToggleSettingsStore.GetDisplayName(settingId);
         if (toggle)
-            toggle.isOn = ToggleSettingsStore.Get(settingId);
+        {
+            bool stored = ToggleSettingsStore.Get(settingId);
+            toggle.isOn = invertMeaningForUi ? !stored : stored;
+        }
 
         _refreshing = false;
     }
@@ -53,7 +58,7 @@ public class ToggleSettingsRowUI : MonoBehaviour
         if (_refreshing)
             return;
 
-        ToggleSettingsStore.Set(settingId, value);
+        ToggleSettingsStore.Set(settingId, invertMeaningForUi ? !value : value);
     }
 
     private void OnSettingChanged(ToggleSettingId changedSetting, bool _)

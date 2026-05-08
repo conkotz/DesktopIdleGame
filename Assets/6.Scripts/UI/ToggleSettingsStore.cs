@@ -168,7 +168,7 @@ public static class ToggleSettingsStore
             ToggleSettingId.GroupRepeatedActivityLogItemGains =>
                 "Show repeated actions as grouped in activity log",
             ToggleSettingId.DisableScreenOverlayVisuals =>
-                "Disable screen overlay visuals",
+                "Show screen overlay visuals",
             _ => setting.ToString()
         };
     }

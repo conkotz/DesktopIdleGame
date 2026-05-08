@@ -17,7 +17,7 @@ MonoBehaviour:
   bodyText: 'You have reached level 5 in a skill, at this level an ability is unlocked.
     View your Skills and Abilities tab select it. '
   activationTrigger: 5
-  requiredMapNodeId: duskwood
+  requiredMapNodeId: 
   inventoryTriggerItemId: 
   inventoryTriggerItemCount: 1
   worldDropTriggerItem: {fileID: 0}

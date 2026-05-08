@@ -1,13 +1,14 @@
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 /// <summary>
 /// One row in the Skills &amp; Abilities left panel: icon, name, level, selection, click.
 /// </summary>
-public class SkillListEntryUI : MonoBehaviour
+public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
 {
     [Header("Row")]
     [Tooltip("Skill icon.")]
@@ -37,6 +38,8 @@ public class SkillListEntryUI : MonoBehaviour
 
     private SkillDefinition _definition;
     private Action<SkillDefinition> _onClicked;
+    private UIPulseGlowOverlay _unlockGlow;
+    private Action<SkillDefinition> _onHoverAcknowledge;
 
     public SkillDefinition Definition => _definition;
 
@@ -59,15 +62,43 @@ public class SkillListEntryUI : MonoBehaviour
         }
     }
 
+    public void ShowUnlockGlow()
+    {
+        RectTransform rt = transform as RectTransform;
+        if (!rt)
+            rt = GetComponent<RectTransform>();
+        if (!rt)
+            return;
+
+        _unlockGlow = UIPulseGlowOverlay.Show(rt);
+    }
+
+    public void ClearUnlockGlow()
+    {
+        if (_unlockGlow != null)
+            _unlockGlow.Clear();
+        _unlockGlow = null;
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        // Remove the "new unlock" highlight as soon as the player acknowledges it.
+        ClearUnlockGlow();
+        if (_definition != null)
+            _onHoverAcknowledge?.Invoke(_definition);
+    }
+
     public void Setup(
         SkillDefinition definition,
         int level,
         float progress01,
         bool selected,
-        Action<SkillDefinition> onClicked)
+        Action<SkillDefinition> onClicked,
+        Action<SkillDefinition> onHoverAcknowledge = null)
     {
         _definition = definition;
         _onClicked = onClicked;
+        _onHoverAcknowledge = onHoverAcknowledge;
 
         if (!_definition)
             return;

@@ -74,8 +74,24 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
     private Color _defaultLockedOverlayColor = new Color(0f, 0f, 0f, 0.92f);
     private Color _unlockedOutlineEffect = Color.black;
     private bool _cachedUnlockedOutline;
+    private UIPulseGlowOverlay _unlockGlow;
 
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
+
+    public void ShowUnlockGlow()
+    {
+        RectTransform rt = RectTransform;
+        if (!rt)
+            return;
+        _unlockGlow = UIPulseGlowOverlay.Show(rt);
+    }
+
+    public void ClearUnlockGlow()
+    {
+        if (_unlockGlow != null)
+            _unlockGlow.Clear();
+        _unlockGlow = null;
+    }
 
     private void Awake()
     {
@@ -170,6 +186,7 @@ public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExit
 
     public void OnPointerEnter(PointerEventData eventData)
     {
+        ClearUnlockGlow();
         onHoverEnter?.Invoke();
     }
 

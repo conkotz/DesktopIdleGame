@@ -21,7 +21,7 @@ MonoBehaviour:
   respawnHereIfDied: 0
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 15
-  eliteSpawnChance: 0.5
+  eliteSpawnChance: 0.1
   fallbackRecommendedCombatPower: 40
   isRepeatable: 1
   markCompletedWhenReturningToMenu: 0

@@ -17,6 +17,55 @@ public static class SaveSlotManager
     }
 
     /// <summary>
+    /// How <see cref="PlayerSpawnController"/> should place the player when the GamePlay scene loads.
+    /// Resume-from-save uses world coords from <see cref="SaveData"/>; level transitions use <c>SpawnPoint_Player</c>.
+    /// </summary>
+    public enum GameplaySpawnDisposition
+    {
+        DefaultSpawnPoint = 0,
+        RestoreSavedWorldPositionIfAvailable = 1,
+    }
+
+    private static GameplaySpawnDisposition _pendingGameplaySpawnDisposition = GameplaySpawnDisposition.DefaultSpawnPoint;
+    private static bool _skipApplySavedWorldPositionFromSaveOnce;
+
+    public static void SetPendingGameplaySpawnDisposition(GameplaySpawnDisposition disposition)
+    {
+        _pendingGameplaySpawnDisposition = disposition;
+    }
+
+    /// <summary>Clears spawn disposition and one-shot skip flags (e.g. when entering Bootstrap).</summary>
+    public static void ResetGameplaySpawnSessionFlags()
+    {
+        _pendingGameplaySpawnDisposition = GameplaySpawnDisposition.DefaultSpawnPoint;
+        _skipApplySavedWorldPositionFromSaveOnce = false;
+    }
+
+    public static GameplaySpawnDisposition ConsumePendingGameplaySpawnDisposition()
+    {
+        GameplaySpawnDisposition v = _pendingGameplaySpawnDisposition;
+        _pendingGameplaySpawnDisposition = GameplaySpawnDisposition.DefaultSpawnPoint;
+        return v;
+    }
+
+    /// <summary>
+    /// When true, the next <see cref="PlayerSave.LoadFrom"/> must not teleport from saved world coordinates
+    /// (level transition already placed the player at <c>SpawnPoint_Player</c>).
+    /// </summary>
+    public static void MarkSkipApplySavedWorldPositionFromSaveOnce()
+    {
+        _skipApplySavedWorldPositionFromSaveOnce = true;
+    }
+
+    public static bool ConsumeSkipApplySavedWorldPositionFromSaveOnce()
+    {
+        if (!_skipApplySavedWorldPositionFromSaveOnce)
+            return false;
+        _skipApplySavedWorldPositionFromSaveOnce = false;
+        return true;
+    }
+
+    /// <summary>
     /// Runtime-only flag set by BootMenu to tell gameplay bootstrap whether to start fresh or load a save.
     /// This should be consumed (cleared) once the gameplay scene decides its path.
     /// </summary>

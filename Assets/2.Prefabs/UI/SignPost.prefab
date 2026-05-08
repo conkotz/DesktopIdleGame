@@ -195,7 +195,7 @@ GameObject:
   - component: {fileID: 8747681271539130883}
   m_Layer: 7
   m_Name: SignPost
-  m_TagString: Cave
+  m_TagString: SignPost
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

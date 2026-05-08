@@ -74,6 +74,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     private SkillDefinition _selectedSkill;
     private Coroutine _deferredRefreshRoutine;
     private bool _loggedMissingRefs;
+    private readonly Dictionary<SkillType, SkillListEntryUI> _entryBySkillType = new();
+    private readonly HashSet<SkillType> _pendingEntryGlowBySkill = new();
+    private readonly Dictionary<SkillType, HashSet<int>> _pendingTreeGlowLevelsBySkill = new();
+    private bool _skillsEventsSubscribed;
 
     private void Awake()
     {
@@ -90,6 +94,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         ValidateRefsOnce();
         EnsureCenterTreeReference();
         EnsureRightPanelLayoutConfigured();
+        TrySubscribeSkillsEvents();
+        HookTreeGlowAcknowledge();
     }
 
     private void OnEnable()
@@ -98,22 +104,28 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (!abilityDatabase)
             abilityDatabase = AbilityDatabase.LoadDefault();
         EnsureCenterTreeReference();
+        HookTreeGlowAcknowledge();
 
         SelectFirstSkillIfNeeded();
         EnsureRightPanelLayoutConfigured();
         RebuildSkillList();
         RefreshView();
-        TrySubscribeSkillsEvents();
+        ReplayPendingGlowForVisibleUi();
     }
 
     private void OnDisable()
     {
-        TryUnsubscribeSkillsEvents();
         if (_deferredRefreshRoutine != null)
         {
             StopCoroutine(_deferredRefreshRoutine);
             _deferredRefreshRoutine = null;
         }
+    }
+
+    private void OnDestroy()
+    {
+        TryUnsubscribeSkillsEvents();
+        UnhookTreeGlowAcknowledge();
     }
 
     private void LateUpdate()
@@ -163,6 +175,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void TrySubscribeSkillsEvents()
     {
+        if (_skillsEventsSubscribed)
+            return;
+
         TryUnsubscribeSkillsEvents();
         PreferRuntimeSkillsManager();
         if (!skillsManager) return;
@@ -171,6 +186,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         skillsManager.OnSkillLevelDecreased += HandleSkillsLevelUp;
         skillsManager.OnSkillChoiceSelectionChanged += HandleSkillChoiceSelectionChanged;
         skillsManager.OnSkillAbilityRowPickChanged += HandleSkillAbilityRowPickChanged;
+        _skillsEventsSubscribed = true;
     }
 
     private void TryUnsubscribeSkillsEvents()
@@ -180,6 +196,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         skillsManager.OnSkillLevelDecreased -= HandleSkillsLevelUp;
         skillsManager.OnSkillChoiceSelectionChanged -= HandleSkillChoiceSelectionChanged;
         skillsManager.OnSkillAbilityRowPickChanged -= HandleSkillAbilityRowPickChanged;
+        _skillsEventsSubscribed = false;
     }
 
     /// <summary>
@@ -188,6 +205,20 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     /// </summary>
     private void HandleSkillsLevelUp(SkillType type, int newLevel)
     {
+        _pendingEntryGlowBySkill.Add(type);
+        if (!_pendingTreeGlowLevelsBySkill.TryGetValue(type, out HashSet<int> levels))
+        {
+            levels = new HashSet<int>();
+            _pendingTreeGlowLevelsBySkill[type] = levels;
+        }
+        levels.Add(newLevel);
+
+        if (_entryBySkillType.TryGetValue(type, out SkillListEntryUI entry) && entry != null)
+            entry.ShowUnlockGlow();
+
+        if (_selectedSkill != null && _selectedSkill.skillType == type && centerSkillTreeView != null)
+            centerSkillTreeView.HighlightNewUnlocksAtLevel(newLevel);
+
         ScheduleDeferredProgressRefresh();
     }
 
@@ -351,6 +382,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         ClearChildren(gatheringContent);
         ClearChildren(combatContent);
+        _entryBySkillType.Clear();
 
         PopulateColumn(gatheringContent, SkillCategory.Gathering);
         PopulateColumn(combatContent, SkillCategory.Combat);
@@ -369,7 +401,11 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             int level = skillsManager ? skillsManager.GetLevel(skill.skillType) : 1;
             float progress01 = skillsManager ? skillsManager.GetProgress01(skill.skillType) : 0f;
             bool selected = skill == _selectedSkill;
-            entry.Setup(skill, level, progress01, selected, OnSkillEntryClicked);
+            entry.Setup(skill, level, progress01, selected, OnSkillEntryClicked, HandleSkillEntryGlowAcknowledgedByHover);
+
+            _entryBySkillType[skill.skillType] = entry;
+            if (_pendingEntryGlowBySkill.Contains(skill.skillType))
+                entry.ShowUnlockGlow();
         }
     }
 
@@ -451,12 +487,75 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         {
             if (!centerSkillTreeView.RefreshProgressIfSameSkill(_selectedSkill, level))
                 centerSkillTreeView.SetSkill(_selectedSkill);
+
+            if (_pendingTreeGlowLevelsBySkill.TryGetValue(_selectedSkill.skillType, out HashSet<int> levels) && levels != null)
+            {
+                centerSkillTreeView.SetPendingUnlockGlowLevels(levels);
+                foreach (int lvl in levels)
+                    centerSkillTreeView.HighlightNewUnlocksAtLevel(lvl);
+            }
+            else
+            {
+                centerSkillTreeView.SetPendingUnlockGlowLevels(null);
+            }
         }
 
         if (rightUnlocksText)
             rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager);
 
         RefreshAbilitiesPanel(_selectedSkill, level);
+    }
+
+    private void HandleSkillEntryGlowAcknowledgedByHover(SkillDefinition def)
+    {
+        if (def == null)
+            return;
+        _pendingEntryGlowBySkill.Remove(def.skillType);
+    }
+
+    private void HookTreeGlowAcknowledge()
+    {
+        EnsureCenterTreeReference();
+        if (centerSkillTreeView == null)
+            return;
+        centerSkillTreeView.UnlockGlowAcknowledgedByHover -= HandleTreeGlowAcknowledgedByHover;
+        centerSkillTreeView.UnlockGlowAcknowledgedByHover += HandleTreeGlowAcknowledgedByHover;
+    }
+
+    private void UnhookTreeGlowAcknowledge()
+    {
+        if (centerSkillTreeView == null)
+            return;
+        centerSkillTreeView.UnlockGlowAcknowledgedByHover -= HandleTreeGlowAcknowledgedByHover;
+    }
+
+    private void HandleTreeGlowAcknowledgedByHover(int unlockLevel)
+    {
+        if (_selectedSkill == null)
+            return;
+
+        if (_pendingTreeGlowLevelsBySkill.TryGetValue(_selectedSkill.skillType, out HashSet<int> levels) && levels != null)
+            levels.Remove(unlockLevel);
+    }
+
+    private void ReplayPendingGlowForVisibleUi()
+    {
+        foreach (var kv in _entryBySkillType)
+        {
+            if (kv.Value == null)
+                continue;
+            if (_pendingEntryGlowBySkill.Contains(kv.Key))
+                kv.Value.ShowUnlockGlow();
+        }
+
+        if (_selectedSkill == null || centerSkillTreeView == null)
+            return;
+        if (!_pendingTreeGlowLevelsBySkill.TryGetValue(_selectedSkill.skillType, out HashSet<int> levels) || levels == null)
+            return;
+
+        centerSkillTreeView.SetPendingUnlockGlowLevels(levels);
+        foreach (int lvl in levels)
+            centerSkillTreeView.HighlightNewUnlocksAtLevel(lvl);
     }
 
     private void RefreshAbilitiesPanel(SkillDefinition skill, int level)

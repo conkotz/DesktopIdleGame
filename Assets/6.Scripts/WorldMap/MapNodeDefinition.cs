@@ -397,7 +397,7 @@ public class MapNodeDefinition : ScriptableObject
     [Tooltip("Aggressive: normal proximity aggro. Calm: enemies only retaliate when hit. CalmUntilPlayerAggressive: starts calm, then first player hit enables proximity aggro for all active enemies.")]
     public LevelEnemyAggroMode enemyAggroMode = LevelEnemyAggroMode.Aggressive;
 
-    [Tooltip("When true, spawned enemies ignore aggro range and always chase/attack the player (no distance gate). Use for endurance trials / waves so every enemy commits immediately.")]
+    [Tooltip("When true, enemies skip horizontal aggro distance once they would aggro (Aggressive: commit from anywhere). Calm until provoked modes still require being hit or map-wide aggression before committing.")]
     public bool ignoreAggroRange;
 
     [Tooltip("When true, death respawns the player back onto this same map instead of the region town fallback.")]

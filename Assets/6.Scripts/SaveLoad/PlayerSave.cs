@@ -108,9 +108,16 @@ public class PlayerSave : MonoBehaviour, ISaveable
             _hasPendingVitals = true;
         }
 
-        _hasPendingWorldPosition = data.hasSavedPlayerWorldPosition;
-        if (_hasPendingWorldPosition)
-            _pendingWorldPosition = new Vector3(data.playerWorldPosX, data.playerWorldPosY, data.playerWorldPosZ);
+        if (SaveSlotManager.ConsumeSkipApplySavedWorldPositionFromSaveOnce())
+        {
+            _hasPendingWorldPosition = false;
+        }
+        else
+        {
+            _hasPendingWorldPosition = data.hasSavedPlayerWorldPosition;
+            if (_hasPendingWorldPosition)
+                _pendingWorldPosition = new Vector3(data.playerWorldPosX, data.playerWorldPosY, data.playerWorldPosZ);
+        }
 
         ApplyPendingName();
         ApplyPendingWorldPosition();

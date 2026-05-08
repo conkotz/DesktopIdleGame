@@ -49,7 +49,7 @@ public class SaveData
     public float playerCurrentEnergy = -1f;
     [Tooltip("Legacy; not restored on load. Mana refills to max when loading.")]
     public float playerCurrentMana = -1f;
-    [Tooltip("When true, playerWorldPosX/Y/Z stores the last known world position to restore on save-load resume.")]
+    [Tooltip("When true, playerWorldPosX/Y/Z restores standing location after choosing Continue / Load Game. Changing maps via level select still uses SpawnPoint_Player in each scene.")]
     public bool hasSavedPlayerWorldPosition = false;
     public float playerWorldPosX = 0f;
     public float playerWorldPosY = 0f;

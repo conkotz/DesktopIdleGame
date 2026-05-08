@@ -12,6 +12,7 @@ TagManager:
   - Storage
   - NoticeBoard
   - Cave
+  - SignPost
   layers:
   - Default
   - TransparentFX

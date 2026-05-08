@@ -23,7 +23,7 @@ public static class HotkeyBindIds
     public static bool IsActionBarBind(HotkeyBindId id) =>
         id >= HotkeyBindId.ActionBar1 && id <= HotkeyBindId.ActionBar7;
 
-    /// <summary>Human-readable row title for the hotkey settings UI (matches action bar slot order: abilities 1–5, then food, potion).</summary>
+    /// <summary>Human-readable row title for the hotkey settings UI (matches action bar slot order: abilities 1–5, then potion, food).</summary>
     public static string GetSettingsRowLabel(HotkeyBindId id)
     {
         switch (id)
@@ -39,9 +39,9 @@ public static class HotkeyBindIds
             case HotkeyBindId.ActionBar5:
                 return "Ability Slot 5";
             case HotkeyBindId.ActionBar6:
-                return "Food Slot";
-            case HotkeyBindId.ActionBar7:
                 return "Potion Slot";
+            case HotkeyBindId.ActionBar7:
+                return "Food Slot";
             case HotkeyBindId.CloseAllWindows:
                 return "Close All Windows";
             case HotkeyBindId.OpenCharacterPage:

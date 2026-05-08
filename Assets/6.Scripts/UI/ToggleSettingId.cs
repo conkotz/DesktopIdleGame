@@ -22,7 +22,8 @@ public enum ToggleSettingId
     GroupRepeatedActivityLogItemGains = 8,
 
     /// <summary>
-    /// When true, disable non-essential strip screen overlay visuals (e.g. biome cave dark/flicker overlay).
+    /// Stored preference: when true, non-essential strip screen overlay visuals are off (e.g. biome cave overlay).
+    /// Settings UI may label this as &quot;Show screen overlay visuals&quot; and invert the checkbox.
     /// </summary>
     DisableScreenOverlayVisuals = 9,
 }

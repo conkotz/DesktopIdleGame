@@ -146,6 +146,7 @@ public class SaveManager : MonoBehaviour
 
         if (scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
         {
+            SaveSlotManager.ResetGameplaySpawnSessionFlags();
             RefreshSaveSlots();
             StartCoroutine(CoRefreshSaveSlotMenusAfterBootstrapLoad());
         }
@@ -173,7 +174,11 @@ public class SaveManager : MonoBehaviour
             // Critical: if bootstrap explicitly requested resume/new game, do not skip init.
             // Previously this early-return swallowed pending start intent and load/apply never ran.
             if (!hasExplicitStartRequest)
+            {
+                SaveSlotManager.SetPendingGameplaySpawnDisposition(SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
+                SaveSlotManager.MarkSkipApplySavedWorldPositionFromSaveOnce();
                 return;
+            }
         }
 
         // Safe fallback if something loads gameplay without going through the Bootstrap UI buttons.
@@ -186,6 +191,7 @@ public class SaveManager : MonoBehaviour
 
         if (pendingMode == SaveSlotManager.SlotStartMode.NewGame)
         {
+            SaveSlotManager.SetPendingGameplaySpawnDisposition(SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
             _hasPendingLoad = false;
             _didFinalApplyForCurrentLoad = true;
             ResetAllSaveablesToDefaults();
@@ -198,9 +204,13 @@ public class SaveManager : MonoBehaviour
             if (HasSave())
             {
                 Load();
+                RestoreActiveMapFromSaveData(_lastLoadedData);
+                SaveSlotManager.SetPendingGameplaySpawnDisposition(
+                    SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable);
             }
             else
             {
+                SaveSlotManager.SetPendingGameplaySpawnDisposition(SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
                 _hasPendingLoad = false;
                 _didFinalApplyForCurrentLoad = true;
                 ResetAllSaveablesToDefaults();

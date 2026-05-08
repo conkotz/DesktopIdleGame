@@ -69,6 +69,21 @@ public class PlayerSpawnController : MonoBehaviour
     private static bool IsBootstrapScene(Scene scene) =>
         scene.IsValid() && scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase);
 
+    private static bool SavedWorldPositionMatchesActiveMap(SaveData saveData)
+    {
+        if (saveData == null || string.IsNullOrWhiteSpace(saveData.activeMapNodeId))
+            return true;
+
+        MapNodeDefinition cur = ActiveLevelContext.Current;
+        if (cur == null || string.IsNullOrWhiteSpace(cur.nodeId))
+            return true;
+
+        return string.Equals(
+            saveData.activeMapNodeId.Trim(),
+            cur.nodeId.Trim(),
+            StringComparison.Ordinal);
+    }
+
     private IEnumerator SpawnAfterLoad(Scene loadedScene)
     {
         var playerController = GetComponent<PlayerController>();
@@ -126,7 +141,32 @@ public class PlayerSpawnController : MonoBehaviour
             if (spawn == null && isBootstrap && !string.Equals(targetSpawnName, spawnPointName, StringComparison.Ordinal))
                 spawn = GameObject.Find(spawnPointName);
 
-            if (spawn != null)
+            if (!isBootstrap &&
+                loadedScene.IsValid() &&
+                loadedScene.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase))
+            {
+                SaveSlotManager.GameplaySpawnDisposition disposition =
+                    SaveSlotManager.ConsumePendingGameplaySpawnDisposition();
+
+                if (disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable &&
+                    SaveManager.Instance != null &&
+                    SaveManager.Instance.TryGetLastLoadedData(out SaveData saveData) &&
+                    saveData.hasSavedPlayerWorldPosition &&
+                    SavedWorldPositionMatchesActiveMap(saveData))
+                {
+                    Vector3 p = new Vector3(saveData.playerWorldPosX, saveData.playerWorldPosY, saveData.playerWorldPosZ);
+                    transform.position = p;
+                }
+                else if (spawn != null)
+                {
+                    transform.position = spawn.transform.position;
+                }
+                else
+                {
+                    Debug.LogWarning($"[PlayerSpawnController] Missing spawn point '{targetSpawnName}' in scene. Player stays where it is.");
+                }
+            }
+            else if (spawn != null)
             {
                 transform.position = spawn.transform.position;
             }
