@@ -79,6 +79,24 @@ public class OffscreenMarkersController : MonoBehaviour
     [SerializeField] private Color noticeBoardColor = new Color(0.85f, 0.5f, 1f, 1f);
     [SerializeField] private Color caveColor = new Color(0.78f, 0.65f, 0.46f, 1f);
 
+    [Header("Marker label font sizes")]
+    [Tooltip("When enabled, marker rows use the per-type font sizes below.")]
+    [SerializeField] private bool overrideMarkerLabelFontSizes;
+    [SerializeField] [Min(1f)] private float enemyLabelFontSize = 16f;
+    [SerializeField] [Min(1f)] private float npcLabelFontSize = 16f;
+    [SerializeField] [Min(1f)] private float resourceLabelFontSize = 16f;
+    [SerializeField] [Min(1f)] private float storageLabelFontSize = 16f;
+    [SerializeField] [Min(1f)] private float noticeBoardLabelFontSize = 16f;
+    [SerializeField] [Min(1f)] private float caveLabelFontSize = 16f;
+
+    [Header("Marker label names")]
+    [SerializeField] private string enemyLabelName = "Enemy";
+    [SerializeField] private string npcLabelName = "NPC";
+    [SerializeField] private string resourceLabelName = "Resources";
+    [SerializeField] private string storageLabelName = "Storage";
+    [SerializeField] private string noticeBoardLabelName = "Notice board";
+    [SerializeField] private string caveLabelName = "Cave";
+
     private readonly List<OffscreenMarkerView> _pool = new();
 
     private float _nextRefreshTime;
@@ -385,24 +403,69 @@ public class OffscreenMarkersController : MonoBehaviour
         switch (kind)
         {
             case OffscreenKind.Enemy:
-                row.Apply(enemyColor, $"Enemy {count}x", dockLeft);
+                row.Apply(enemyColor, $"{ResolveLabelName(OffscreenKind.Enemy)} {count}x", dockLeft, ResolveLabelFontSizeOverride(OffscreenKind.Enemy));
                 break;
             case OffscreenKind.Npc:
-                row.Apply(npcColor, $"NPC {count}x", dockLeft);
+                row.Apply(npcColor, $"{ResolveLabelName(OffscreenKind.Npc)} {count}x", dockLeft, ResolveLabelFontSizeOverride(OffscreenKind.Npc));
                 break;
             case OffscreenKind.Resource:
-                row.Apply(resourceColor, $"Resources {count}x", dockLeft);
+                row.Apply(resourceColor, $"{ResolveLabelName(OffscreenKind.Resource)} {count}x", dockLeft, ResolveLabelFontSizeOverride(OffscreenKind.Resource));
                 break;
             case OffscreenKind.Storage:
-                row.Apply(storageColor, $"Storage {count}x", dockLeft);
+                row.Apply(storageColor, $"{ResolveLabelName(OffscreenKind.Storage)} {count}x", dockLeft, ResolveLabelFontSizeOverride(OffscreenKind.Storage));
                 break;
             case OffscreenKind.NoticeBoard:
-                row.Apply(noticeBoardColor, $"Notice board {count}x", dockLeft);
+                row.Apply(noticeBoardColor, $"{ResolveLabelName(OffscreenKind.NoticeBoard)} {count}x", dockLeft, ResolveLabelFontSizeOverride(OffscreenKind.NoticeBoard));
                 break;
             case OffscreenKind.Cave:
-                row.Apply(caveColor, $"Cave {count}x", dockLeft);
+                row.Apply(caveColor, $"{ResolveLabelName(OffscreenKind.Cave)} {count}x", dockLeft, ResolveLabelFontSizeOverride(OffscreenKind.Cave));
                 break;
         }
+    }
+
+    private float ResolveLabelFontSizeOverride(OffscreenKind kind)
+    {
+        if (!overrideMarkerLabelFontSizes)
+            return -1f;
+
+        return kind switch
+        {
+            OffscreenKind.Enemy => enemyLabelFontSize,
+            OffscreenKind.Npc => npcLabelFontSize,
+            OffscreenKind.Resource => resourceLabelFontSize,
+            OffscreenKind.Storage => storageLabelFontSize,
+            OffscreenKind.NoticeBoard => noticeBoardLabelFontSize,
+            OffscreenKind.Cave => caveLabelFontSize,
+            _ => -1f
+        };
+    }
+
+    private string ResolveLabelName(OffscreenKind kind)
+    {
+        string raw = kind switch
+        {
+            OffscreenKind.Enemy => enemyLabelName,
+            OffscreenKind.Npc => npcLabelName,
+            OffscreenKind.Resource => resourceLabelName,
+            OffscreenKind.Storage => storageLabelName,
+            OffscreenKind.NoticeBoard => noticeBoardLabelName,
+            OffscreenKind.Cave => caveLabelName,
+            _ => string.Empty
+        };
+
+        if (!string.IsNullOrWhiteSpace(raw))
+            return raw.Trim();
+
+        return kind switch
+        {
+            OffscreenKind.Enemy => "Enemy",
+            OffscreenKind.Npc => "NPC",
+            OffscreenKind.Resource => "Resources",
+            OffscreenKind.Storage => "Storage",
+            OffscreenKind.NoticeBoard => "Notice board",
+            OffscreenKind.Cave => "Cave",
+            _ => "Marker"
+        };
     }
 
     private bool IsOffCamera(Vector3 worldPos)

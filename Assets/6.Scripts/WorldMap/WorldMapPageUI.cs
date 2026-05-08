@@ -18,6 +18,14 @@ public class WorldMapPageUI : MonoBehaviour
     [Header("Regions (dropdown)")]
     [SerializeField] private TMP_Dropdown regionDropdown;
     [SerializeField] private TMP_Text regionNameLabel;
+    [Header("Dropdown Theme (optional)")]
+    [SerializeField] private Image regionDropdownBackground;
+    [SerializeField] private Color regionDropdownBackgroundColor = new Color32(228, 217, 190, 255);
+    [SerializeField] private Color regionDropdownTextColor = new Color32(78, 67, 53, 255);
+    [SerializeField] private Color regionDropdownItemBackgroundColor = new Color32(239, 231, 208, 255);
+    [SerializeField] private Color regionDropdownItemHighlightColor = new Color32(216, 206, 176, 255);
+    [SerializeField] private Color regionDropdownArrowColor = new Color32(120, 108, 88, 255);
+    [SerializeField] private Color regionDropdownCheckmarkColor = new Color32(120, 108, 88, 255);
 
     [Header("Locations (left)")]
     [SerializeField] private Transform nodeListParent;
@@ -99,6 +107,24 @@ public class WorldMapPageUI : MonoBehaviour
         }
     }
 
+    private readonly struct GraphNodeVisualState
+    {
+        public readonly string StateLabel;
+        public readonly bool AtThisMap;
+        public readonly bool OneShotCleared;
+        public readonly bool Selected;
+        public readonly bool Unavailable;
+
+        public GraphNodeVisualState(string stateLabel, bool atThisMap, bool oneShotCleared, bool selected, bool unavailable)
+        {
+            StateLabel = stateLabel;
+            AtThisMap = atThisMap;
+            OneShotCleared = oneShotCleared;
+            Selected = selected;
+            Unavailable = unavailable;
+        }
+    }
+
     private void Awake()
     {
         if (returnToListButton)
@@ -163,6 +189,8 @@ public class WorldMapPageUI : MonoBehaviour
         ResolveDefaults();
 
         ApplyOrRestoreSelection();
+        ApplyDropdownTheme();
+        ApplyAnchorRegionVisibility();
         RebuildRegionsDropdown();
         RebuildNodeList();
         RefreshDetails();
@@ -259,6 +287,9 @@ public class WorldMapPageUI : MonoBehaviour
             if (!r) continue;
             if (!r.ShouldListInRegionPicker(progress, ResolveActiveMapNodeIdForRegionUi(), worldMap))
                 continue;
+            // Keep dropdown clean: show only currently available/unlocked regions.
+            if (!IsRegionAvailable(r, progress))
+                continue;
             _regions.Add(r);
         }
 
@@ -275,14 +306,14 @@ public class WorldMapPageUI : MonoBehaviour
             for (int i = 0; i < _regions.Count; i++)
             {
                 RegionDefinition r = _regions[i];
-                bool unlocked = IsRegionAvailable(r, progress);
-                options.Add(unlocked ? r.displayName : $"{r.displayName} (Locked)");
+                options.Add(r.displayName);
             }
             regionDropdown.AddOptions(options);
             int idx = Mathf.Max(0, _regions.IndexOf(_selectedRegion));
             regionDropdown.SetValueWithoutNotify(idx);
         }
 
+        ApplyDropdownTheme();
         RefreshDropdownCaption();
     }
 
@@ -319,6 +350,7 @@ public class WorldMapPageUI : MonoBehaviour
         LevelSelectSharedState.SelectedNodeId = _selectedNode ? _selectedNode.nodeId : "";
 
         RefreshDropdownCaption();
+        ApplyAnchorRegionVisibility();
         RebuildNodeList();
         RefreshDetails();
         RebuildGraph();
@@ -521,6 +553,7 @@ public class WorldMapPageUI : MonoBehaviour
 
         // Rebuild rows so the Locations panel and graph stay visually in sync after graph clicks.
         RebuildRegionsDropdown();
+        ApplyAnchorRegionVisibility();
         RebuildNodeList();
         RefreshNodeSelectionVisuals();
         RefreshDetails();
@@ -842,7 +875,8 @@ public class WorldMapPageUI : MonoBehaviour
         if (!_selectedRegion || _selectedRegion.nodes == null || !IsRegionAvailable(_selectedRegion, progress))
             return;
 
-        WorldMapNodeAnchor[] anchors = CollectAnchorsForSelectedRegion();
+        AnchorRegionPolicy anchorPolicy = BuildAnchorRegionPolicy();
+        WorldMapNodeAnchor[] anchors = anchorPolicy.Anchors;
         if (anchors == null || anchors.Length == 0)
             return;
 
@@ -862,6 +896,7 @@ public class WorldMapPageUI : MonoBehaviour
         string activeNodeId = ResolveActiveMapNodeIdForRegionUi();
         var nodesById = new Dictionary<string, WorldMapGraphNodeUI>(StringComparer.OrdinalIgnoreCase);
 
+        int spawnedCount = 0;
         for (int i = 0; i < anchors.Length; i++)
         {
             WorldMapNodeAnchor anchor = anchors[i];
@@ -886,20 +921,50 @@ public class WorldMapPageUI : MonoBehaviour
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = GetLocalPos(nodesRoot, anchorRt);
 
-            string state = progress ? node.GetUiStateLabel(progress, skills) : "Unlocked";
-            bool atThisMap = !string.IsNullOrWhiteSpace(activeNodeId) &&
-                !string.IsNullOrWhiteSpace(node.nodeId) &&
-                string.Equals(node.nodeId.Trim(), activeNodeId.Trim(), StringComparison.OrdinalIgnoreCase);
-            bool oneShotCleared = progress != null && !node.isRepeatable && progress.IsNodeCompleted(node.nodeId) && !atThisMap;
-            if (oneShotCleared) state = "Cleared";
-
-            bool sel = _selectedNode && _selectedNode == node;
-            bool unavailable = !node.CanEnterFromLevelMenu(progress, skills);
-            nodeUi.Bind(node, state, sel, OnNodeSelected, oneShotCleared, unavailable, nodeRowPrefab);
+            GraphNodeVisualState visual = BuildGraphNodeVisualState(node, progress, skills, activeNodeId);
+            nodeUi.Bind(node, visual.StateLabel, visual.Selected, OnNodeSelected, visual.OneShotCleared, visual.Unavailable, nodeRowPrefab, visual.AtThisMap);
 
             string dictKey = node.nodeId?.Trim() ?? "";
             if (!string.IsNullOrEmpty(dictKey))
                 nodesById[dictKey] = nodeUi;
+            spawnedCount++;
+        }
+
+        // Fallback for regions without valid anchor-id mapping (e.g. tutorial setup):
+        // still render filtered nodes in a simple grid layout so map is always usable.
+        if (spawnedCount == 0 && graphNodes.Count > 0)
+        {
+            const float spacingX = 180f;
+            const float spacingY = 140f;
+            int columns = Mathf.Max(2, Mathf.CeilToInt(Mathf.Sqrt(graphNodes.Count)));
+            int rows = Mathf.CeilToInt(graphNodes.Count / (float)columns);
+            float startX = -((columns - 1) * spacingX) * 0.5f;
+            float startY = ((rows - 1) * spacingY) * 0.5f;
+
+            for (int i = 0; i < graphNodes.Count; i++)
+            {
+                MapNodeDefinition node = graphNodes[i];
+                if (!node) continue;
+
+                int col = i % columns;
+                int row = i / columns;
+                Vector2 pos = new Vector2(startX + col * spacingX, startY - row * spacingY);
+
+                WorldMapGraphNodeUI nodeUi = Instantiate(nodePrefab, nodesRoot);
+                _spawnedNodes.Add(nodeUi);
+
+                RectTransform rt = nodeUi.RectTransform;
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.pivot = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = pos;
+
+                GraphNodeVisualState visual = BuildGraphNodeVisualState(node, progress, skills, activeNodeId);
+                nodeUi.Bind(node, visual.StateLabel, visual.Selected, OnNodeSelected, visual.OneShotCleared, visual.Unavailable, nodeRowPrefab, visual.AtThisMap);
+
+                string dictKey = node.nodeId?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(dictKey))
+                    nodesById[dictKey] = nodeUi;
+            }
         }
 
         if (connectorPrefab && connectorsRoot)
@@ -922,6 +987,59 @@ public class WorldMapPageUI : MonoBehaviour
         _connectorsDirty = true;
     }
 
+    private void ApplyDropdownTheme()
+    {
+        if (!regionDropdown)
+            return;
+
+        if (regionDropdownBackground)
+            regionDropdownBackground.color = regionDropdownBackgroundColor;
+        else if (regionDropdown.targetGraphic is Image targetImage)
+            targetImage.color = regionDropdownBackgroundColor;
+
+        if (regionDropdown.captionText)
+            regionDropdown.captionText.color = regionDropdownTextColor;
+
+        if (regionNameLabel)
+            regionNameLabel.color = regionDropdownTextColor;
+
+        Image arrow = regionDropdown.transform.Find("Arrow")?.GetComponent<Image>();
+        if (arrow)
+            arrow.color = regionDropdownArrowColor;
+
+        if (regionDropdown.template)
+        {
+            Image templateBg = regionDropdown.template.GetComponent<Image>();
+            if (templateBg)
+                templateBg.color = regionDropdownItemBackgroundColor;
+
+            TMP_Text[] texts = regionDropdown.template.GetComponentsInChildren<TMP_Text>(true);
+            for (int i = 0; i < texts.Length; i++)
+            {
+                if (texts[i])
+                    texts[i].color = regionDropdownTextColor;
+            }
+
+            Toggle[] toggles = regionDropdown.template.GetComponentsInChildren<Toggle>(true);
+            for (int i = 0; i < toggles.Length; i++)
+            {
+                Toggle t = toggles[i];
+                if (!t) continue;
+                ColorBlock cb = t.colors;
+                cb.normalColor = regionDropdownItemBackgroundColor;
+                cb.highlightedColor = regionDropdownItemHighlightColor;
+                cb.selectedColor = regionDropdownItemHighlightColor;
+                cb.pressedColor = regionDropdownItemHighlightColor;
+                cb.colorMultiplier = 1f;
+                t.colors = cb;
+
+                Image check = t.graphic as Image;
+                if (check)
+                    check.color = regionDropdownCheckmarkColor;
+            }
+        }
+    }
+
     private static Vector2 GetLocalPos(RectTransform parent, RectTransform child)
     {
         Vector3 world = child.position;
@@ -929,25 +1047,63 @@ public class WorldMapPageUI : MonoBehaviour
         return new Vector2(local.x, local.y);
     }
 
-    private WorldMapNodeAnchor[] CollectAnchorsForSelectedRegion()
+    private GraphNodeVisualState BuildGraphNodeVisualState(MapNodeDefinition node, WorldMapProgressManager progress, SkillsManager skills, string activeNodeId)
     {
-        if (!anchorsRoot || _selectedRegion == null)
-            return Array.Empty<WorldMapNodeAnchor>();
+        string state = progress ? node.GetUiStateLabel(progress, skills) : "Unlocked";
+        bool atThisMap = !string.IsNullOrWhiteSpace(activeNodeId) &&
+            !string.IsNullOrWhiteSpace(node.nodeId) &&
+            string.Equals(node.nodeId.Trim(), activeNodeId.Trim(), StringComparison.OrdinalIgnoreCase);
+        bool oneShotCleared = progress != null && !node.isRepeatable && progress.IsNodeCompleted(node.nodeId) && !atThisMap;
+        if (oneShotCleared)
+            state = "Cleared";
 
-        string rid = _selectedRegion.regionId?.Trim() ?? "";
+        bool sel = _selectedNode && _selectedNode == node;
+        bool unavailable = !node.CanEnterFromLevelMenu(progress, skills);
+        return new GraphNodeVisualState(state, atThisMap, oneShotCleared, sel, unavailable);
+    }
+
+    private readonly struct AnchorRegionPolicy
+    {
+        public readonly Transform ContainerRoot;
+        public readonly WorldMapNodeAnchor[] Anchors;
+        public readonly string SelectedRegionNorm;
+
+        public AnchorRegionPolicy(Transform containerRoot, WorldMapNodeAnchor[] anchors, string selectedRegionNorm)
+        {
+            ContainerRoot = containerRoot;
+            Anchors = anchors ?? Array.Empty<WorldMapNodeAnchor>();
+            SelectedRegionNorm = selectedRegionNorm ?? string.Empty;
+        }
+    }
+
+    private AnchorRegionPolicy BuildAnchorRegionPolicy()
+    {
+        if (!anchorsRoot)
+            return new AnchorRegionPolicy(null, Array.Empty<WorldMapNodeAnchor>(), string.Empty);
+
+        Transform containerRoot = ResolveAnchorContainerRoot();
+        string selectedRid = _selectedRegion != null ? (_selectedRegion.regionId ?? "").Trim() : "";
+        string selectedNorm = LevelSelectSharedState.Norm(selectedRid);
+
+        if (_selectedRegion == null)
+            return new AnchorRegionPolicy(containerRoot, Array.Empty<WorldMapNodeAnchor>(), selectedNorm);
+
         WorldMapRegionAnchorGroup[] groups = anchorsRoot.GetComponentsInChildren<WorldMapRegionAnchorGroup>(true);
         if (groups.Length > 0)
         {
             for (int i = 0; i < groups.Length; i++)
             {
                 WorldMapRegionAnchorGroup g = groups[i];
-                if (!g) continue;
-                if (string.Equals(g.ResolveTrimmedRegionId(), rid, StringComparison.OrdinalIgnoreCase))
-                    return g.GetComponentsInChildren<WorldMapNodeAnchor>(true);
+                if (!g)
+                    continue;
+                if (string.Equals(g.ResolveTrimmedRegionId(), selectedRid, StringComparison.OrdinalIgnoreCase))
+                    return new AnchorRegionPolicy(containerRoot, g.GetComponentsInChildren<WorldMapNodeAnchor>(true), selectedNorm);
             }
-            return Array.Empty<WorldMapNodeAnchor>();
+            // Region group exists elsewhere but selected region has no matching group;
+            // fall back to all anchors and let node-id matching filter valid ones.
         }
-        return anchorsRoot.GetComponentsInChildren<WorldMapNodeAnchor>(true);
+
+        return new AnchorRegionPolicy(containerRoot, anchorsRoot.GetComponentsInChildren<WorldMapNodeAnchor>(true), selectedNorm);
     }
 
     private static string EdgeKey(string a, string b)
@@ -974,7 +1130,8 @@ public class WorldMapPageUI : MonoBehaviour
             if (!usedEdges.Add(key)) return;
 
             SkillTreeConnectorUI conn = Instantiate(connectorPrefab, connectorsRoot);
-            conn.SetPositions(fromUi, toUi, trimToNodeEdges: false, pixelSnap: true);
+            conn.SetUseMeshLineRenderer(true);
+            conn.SetPositions(fromUi, toUi, trimToNodeEdges: false, pixelSnap: false);
             _edges.Add(new Edge(conn, fromUi, toUi));
         }
 
@@ -1006,7 +1163,7 @@ public class WorldMapPageUI : MonoBehaviour
         {
             Edge e = _edges[i];
             if (e.connector && e.from && e.to)
-                e.connector.SetPositions(e.from, e.to, trimToNodeEdges: false, pixelSnap: true);
+                e.connector.SetPositions(e.from, e.to, trimToNodeEdges: false, pixelSnap: false);
         }
     }
 
@@ -1074,6 +1231,7 @@ public class WorldMapPageUI : MonoBehaviour
     private void OnProgressChanged()
     {
         RebuildRegionsDropdown();
+        ApplyAnchorRegionVisibility();
         RebuildNodeList();
         RefreshDetails();
         RebuildGraph();
@@ -1092,6 +1250,64 @@ public class WorldMapPageUI : MonoBehaviour
         if (ActiveLevelContext.Current != null)
             return ActiveLevelContext.Current.nodeId;
         return null;
+    }
+
+    private void ApplyAnchorRegionVisibility()
+    {
+        AnchorRegionPolicy policy = BuildAnchorRegionPolicy();
+        if (policy.ContainerRoot == null)
+            return;
+        // Deterministic rule: toggle top-level region containers directly.
+        // This avoids partial WorldMapRegionAnchorGroup setups leaving stale folders visible.
+        for (int i = 0; i < policy.ContainerRoot.childCount; i++)
+        {
+            Transform child = policy.ContainerRoot.GetChild(i);
+            if (!child)
+                continue;
+
+            string folderNorm = LevelSelectSharedState.Norm(child.name);
+            bool show = string.IsNullOrEmpty(policy.SelectedRegionNorm) ||
+                        string.Equals(folderNorm, policy.SelectedRegionNorm, StringComparison.OrdinalIgnoreCase);
+            if (child.gameObject.activeSelf != show)
+                child.gameObject.SetActive(show);
+        }
+    }
+
+    private Transform ResolveAnchorContainerRoot()
+    {
+        if (!anchorsRoot)
+            return null;
+
+        // Preferred: anchorsRoot already points at the container that has per-region child folders.
+        if (HasLikelyRegionContainers(anchorsRoot))
+            return anchorsRoot;
+
+        // Common miswire: anchorsRoot points at one region folder. Use parent so sibling regions can be toggled.
+        Transform p = anchorsRoot.parent;
+        if (p != null && HasLikelyRegionContainers(p))
+            return p;
+
+        return anchorsRoot;
+    }
+
+    private static bool HasLikelyRegionContainers(Transform root)
+    {
+        if (!root || root.childCount == 0)
+            return false;
+
+        int containerLike = 0;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform c = root.GetChild(i);
+            if (!c)
+                continue;
+
+            // Region containers usually have child anchors underneath.
+            if (c.childCount > 0)
+                containerLike++;
+        }
+
+        return containerLike >= 2;
     }
 }
 

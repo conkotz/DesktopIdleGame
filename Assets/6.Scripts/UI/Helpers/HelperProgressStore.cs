@@ -33,6 +33,9 @@ public static class HelperProgressStore
         return DismissedThisSave.Contains(helperId.Trim());
     }
 
+    /// <summary>True when this save/session has any helper ids marked dismissed (i.e. previously seen).</summary>
+    public static bool HasAnyDismissed() => DismissedThisSave.Count > 0;
+
     public static void MarkDismissed(string helperId)
     {
         if (string.IsNullOrWhiteSpace(helperId))

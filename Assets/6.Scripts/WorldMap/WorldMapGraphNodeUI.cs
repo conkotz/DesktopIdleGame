@@ -15,6 +15,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
     [SerializeField] private CanvasGroup rootCanvasGroup;
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text cpHintText;
+    [Tooltip("Optional icon shown when player is currently in this map node.")]
+    [SerializeField] private GameObject currentLocationIcon;
     [Range(0.1f, 1f)]
     [SerializeField] private float unavailableAlpha = 0.45f;
 
@@ -63,7 +65,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
         Action<MapNodeDefinition> onSelected,
         bool greyOutCompletedNonRepeatable,
         bool unavailable,
-        WorldMapNodeButtonUI themePaletteSource)
+        WorldMapNodeButtonUI themePaletteSource,
+        bool playerAtThisMap = false)
     {
         _node = node;
         _onSelected = onSelected;
@@ -114,6 +117,9 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
                 }
             }
         }
+
+        if (currentLocationIcon)
+            currentLocationIcon.SetActive(playerAtThisMap);
 
         if (lockedOverlay)
         {

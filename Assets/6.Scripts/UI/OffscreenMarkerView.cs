@@ -16,6 +16,7 @@ public class OffscreenMarkerView : MonoBehaviour
     [SerializeField] private RectTransform labelRect;
 
     private Vector3 _initialLocalScale = Vector3.one;
+    private float _baseLabelFontSize = 16f;
 
     /// <summary>Set from <see cref="Apply"/>; used to pin this row to the left or right screen edge.</summary>
     public bool DockedLeft { get; private set; }
@@ -26,6 +27,7 @@ public class OffscreenMarkerView : MonoBehaviour
         if (!arrowImage) arrowImage = transform.Find("Arrow")?.GetComponent<Image>();
         if (!label) label = transform.Find("Text")?.GetComponent<TextMeshProUGUI>();
         if (!labelRect && label) labelRect = label.rectTransform;
+        if (label) _baseLabelFontSize = label.fontSize;
 
         _initialLocalScale = transform.localScale;
         ApplyNonInteractiveDefaults();
@@ -40,7 +42,7 @@ public class OffscreenMarkerView : MonoBehaviour
 
     /// <param name="rgb">Color without alpha; alpha is forced to <see cref="DefaultAlpha"/> on images.</param>
     /// <param name="flipX">True when the group is off-screen to the left (mirror on X).</param>
-    public void Apply(Color rgb, string text, bool flipX)
+    public void Apply(Color rgb, string text, bool flipX, float labelFontSizeOverride = -1f)
     {
         DockedLeft = flipX;
         ApplyNonInteractiveDefaults();
@@ -50,7 +52,11 @@ public class OffscreenMarkerView : MonoBehaviour
         if (circleImage) circleImage.color = c;
         if (arrowImage) arrowImage.color = c;
 
-        if (label) label.text = text;
+        if (label)
+        {
+            label.text = text;
+            label.fontSize = labelFontSizeOverride > 0.01f ? labelFontSizeOverride : _baseLabelFontSize;
+        }
 
         float mag = Mathf.Max(0.01f, Mathf.Abs(_initialLocalScale.x));
         float sx = flipX ? -mag : mag;
@@ -68,6 +74,7 @@ public class OffscreenMarkerView : MonoBehaviour
     private void OnValidate()
     {
         if (!labelRect && label) labelRect = label.rectTransform;
+        if (label) _baseLabelFontSize = label.fontSize;
     }
 #endif
 }

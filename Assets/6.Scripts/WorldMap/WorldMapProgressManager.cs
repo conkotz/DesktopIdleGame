@@ -172,10 +172,43 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         if (string.IsNullOrEmpty(nodeId)) return;
         string id = nodeId.Trim();
         if (!_unlocked.Add(id)) return;
-        GameLog.LevelAvailable(ResolveNodeDisplayName(id));
+        if (!ShouldSuppressLevelAvailableLog(id))
+            GameLog.LevelAvailable(ResolveNodeDisplayName(id));
         // Node is already unlocked by map-story gate; don't duplicate a progress-lock unlock log for this id.
         _progressUnlockAnnounced.Add(id);
         ProgressChanged?.Invoke();
+    }
+
+    private bool ShouldSuppressLevelAvailableLog(string nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId) || worldMap == null)
+            return false;
+
+        RegionDefinition nodeRegion = worldMap.FindRegionContainingNode(nodeId);
+        if (nodeRegion == null || !string.Equals(nodeRegion.regionId, "tutorial", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // Suppress tutorial unlock spam once the run has clearly moved beyond tutorial.
+        bool doneTutorialCore = HasEnteredNode("tutorial_3") || IsNodeCompleted("tutorial_3");
+        bool movedBeyondTutorial = HasEnteredOutsideWorldRegion("tutorial", worldMap);
+        if (doneTutorialCore && movedBeyondTutorial)
+            return true;
+
+        // Additional safeguard: if current active map is already non-tutorial, never emit tutorial level-available spam.
+        string activeNodeId = null;
+        if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
+            activeNodeId = GameplayLevelBootstrapper.Instance.ActiveDefinition.nodeId;
+        else if (ActiveLevelContext.Current != null)
+            activeNodeId = ActiveLevelContext.Current.nodeId;
+
+        if (!string.IsNullOrWhiteSpace(activeNodeId))
+        {
+            RegionDefinition activeRegion = worldMap.FindRegionContainingNode(activeNodeId.Trim());
+            if (activeRegion != null && !string.Equals(activeRegion.regionId, "tutorial", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     public void LockNode(string nodeId)
@@ -455,7 +488,8 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
                     continue;
 
                 _progressUnlockAnnounced.Add(nodeId);
-                GameLog.LevelAvailable(ResolveNodeDisplayName(nodeId));
+                if (!ShouldSuppressLevelAvailableLog(nodeId))
+                    GameLog.LevelAvailable(ResolveNodeDisplayName(nodeId));
             }
         }
     }

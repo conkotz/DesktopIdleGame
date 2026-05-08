@@ -216,6 +216,10 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private const float ExpandedFooterNavHeight = 34f;
 
+    [Header("Footer nav layout")]
+    [Tooltip("How far the helper history footer nav buttons are inset from the left/right edges.")]
+    [SerializeField] private float historyFooterButtonEdgeInset = 18f;
+
     /// <summary>Last non–header-only helper panel height (preserves resize across minimize).</summary>
     private Vector2 _lastExpandedPanelSizeDelta;
 
@@ -1051,6 +1055,10 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (_sessionMessageHistory.Count == 0)
             return false;
 
+        // If this save has never seen/dismissed any helper yet, treat history as stale/noise.
+        if (!HelperProgressStore.HasAnyDismissed())
+            return false;
+
         int idx = _sessionMessageHistory.Count - 1;
         HelperDisplayedMessageSnap snap = _sessionMessageHistory[idx];
         if (!string.IsNullOrWhiteSpace(snap.HelperId) && HelperProgressStore.WasDismissed(snap.HelperId))
@@ -1344,6 +1352,15 @@ public sealed class HelperGameplayController : MonoBehaviour
         return false;
     }
 
+    private static int CompareHelperOrder(HelperPopupDefinition a, HelperPopupDefinition b)
+    {
+        if (a == null && b == null) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+        int c = a.priority.CompareTo(b.priority);
+        return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
+    }
+
     private void EnqueueDeferredSortedCandidates(List<HelperPopupDefinition> sorted, int skipFirstSorted = 1)
     {
         if (sorted == null || sorted.Count <= skipFirstSorted)
@@ -1363,6 +1380,26 @@ public sealed class HelperGameplayController : MonoBehaviour
 
             _pendingHelperQueue.Enqueue(d);
         }
+    }
+
+    private void PrunePendingQueueToTrigger(HelperActivationTrigger trigger)
+    {
+        if (_pendingHelperQueue.Count == 0)
+            return;
+
+        var kept = new Queue<HelperPopupDefinition>(_pendingHelperQueue.Count);
+        while (_pendingHelperQueue.Count > 0)
+        {
+            HelperPopupDefinition q = _pendingHelperQueue.Dequeue();
+            if (!q)
+                continue;
+            if (q.activationTrigger != trigger)
+                continue;
+            kept.Enqueue(q);
+        }
+
+        while (kept.Count > 0)
+            _pendingHelperQueue.Enqueue(kept.Dequeue());
     }
 
     private void TryDrainPendingHelperQueue()
@@ -1460,16 +1497,21 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (enabled)
         {
             LoadMessageHistoryFromPlayerPrefs();
-            if (_sessionMessageHistory.Count > 0 &&
-                (_overlayRoot == null || !_overlayRoot.activeSelf) &&
+            if (!HelperProgressStore.HasAnyDismissed())
+            {
+                // No known previously seen helpers for this save: avoid reviving stale history text.
+                _sessionMessageHistory.Clear();
+                _historyViewIndex = 0;
+                ClearPersistedHelperMessageHistoryKey();
+                PresentMinimizedAwaitingFuturePopups();
+                return;
+            }
+            // Re-enabling help should not resurrect stale history popups.
+            // Keep helper shell minimized and wait for fresh gameplay-triggered helpers.
+            if ((_overlayRoot == null || !_overlayRoot.activeSelf) &&
                 _activeDefinition == null)
-            {
-                PresentSessionHistoryOverlayExpanded();
-            }
-            else
-            {
-                TryPresentSessionHistoryWhenOverlayHidden();
-            }
+                PresentMinimizedAwaitingFuturePopups();
+
             return;
         }
 
@@ -1481,6 +1523,32 @@ public sealed class HelperGameplayController : MonoBehaviour
             HideOverlayCompletely(true, purgeMessageHistory: false);
         else
             SyncMovementLockFromSettings();
+    }
+
+    private void PresentMinimizedAwaitingFuturePopups()
+    {
+        EnsureViewBuilt();
+        if (_overlayRoot == null)
+            return;
+
+        _activeDefinition = null;
+        _activeUsesWorldWhitelistRouting = false;
+        _whitelistStagedModalReleased = false;
+
+        RestoreWhitelistUiTargetCanvases();
+        StopBodyTypewriterAndClear();
+        ClearWhitelistGlowOverlays();
+        ClearWhitelistPresentationTints();
+
+        ApplyLoadedHelperLayout();
+        TransitionToCollapsedStripeLayout();
+        if (_helperCloseButtonRoot)
+            _helperCloseButtonRoot.SetActive(true);
+
+        _overlayRoot.transform.SetAsLastSibling();
+        _overlayRoot.SetActive(true);
+        ApplyDarkenModalPresentation();
+        ApplyHelperTipTextScale();
     }
 
     private IEnumerator EvaluateMapEntryNextFrame(MapNodeDefinition node, bool isFirstVisitThisEntry)
@@ -1517,14 +1585,11 @@ public sealed class HelperGameplayController : MonoBehaviour
             }
         }
 
-        candidates.Sort(static (a, b) =>
-        {
-            int c = a.priority.CompareTo(b.priority);
-            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
-        });
+        candidates.Sort(CompareHelperOrder);
 
         if (candidates.Count > 0)
         {
+            PrunePendingQueueToTrigger(candidates[0].activationTrigger);
             EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
         }
@@ -1618,14 +1683,11 @@ public sealed class HelperGameplayController : MonoBehaviour
             candidates.Add(d);
         }
 
-        candidates.Sort(static (a, b) =>
-        {
-            int c = a.priority.CompareTo(b.priority);
-            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
-        });
+        candidates.Sort(CompareHelperOrder);
 
         if (candidates.Count > 0)
         {
+            PrunePendingQueueToTrigger(candidates[0].activationTrigger);
             EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
         }
@@ -1748,14 +1810,11 @@ public sealed class HelperGameplayController : MonoBehaviour
             }
         }
 
-        candidates.Sort(static (a, b) =>
-        {
-            int c = a.priority.CompareTo(b.priority);
-            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
-        });
+        candidates.Sort(CompareHelperOrder);
 
         if (candidates.Count > 0)
         {
+            PrunePendingQueueToTrigger(candidates[0].activationTrigger);
             EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
         }
@@ -1797,14 +1856,11 @@ public sealed class HelperGameplayController : MonoBehaviour
             candidates.Add(d);
         }
 
-        candidates.Sort(static (a, b) =>
-        {
-            int c = a.priority.CompareTo(b.priority);
-            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
-        });
+        candidates.Sort(CompareHelperOrder);
 
         if (candidates.Count > 0)
         {
+            PrunePendingQueueToTrigger(candidates[0].activationTrigger);
             EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
         }
@@ -1860,14 +1916,11 @@ public sealed class HelperGameplayController : MonoBehaviour
             candidates.Add(d);
         }
 
-        candidates.Sort(static (a, b) =>
-        {
-            int c = a.priority.CompareTo(b.priority);
-            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
-        });
+        candidates.Sort(CompareHelperOrder);
 
         if (candidates.Count > 0)
         {
+            PrunePendingQueueToTrigger(candidates[0].activationTrigger);
             EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
         }
@@ -1909,14 +1962,11 @@ public sealed class HelperGameplayController : MonoBehaviour
             candidates.Add(d);
         }
 
-        candidates.Sort(static (a, b) =>
-        {
-            int c = a.priority.CompareTo(b.priority);
-            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
-        });
+        candidates.Sort(CompareHelperOrder);
 
         if (candidates.Count > 0)
         {
+            PrunePendingQueueToTrigger(candidates[0].activationTrigger);
             EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
         }
@@ -1963,14 +2013,11 @@ public sealed class HelperGameplayController : MonoBehaviour
             candidates.Add(d);
         }
 
-        candidates.Sort(static (a, b) =>
-        {
-            int c = a.priority.CompareTo(b.priority);
-            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
-        });
+        candidates.Sort(CompareHelperOrder);
 
         if (candidates.Count > 0)
         {
+            PrunePendingQueueToTrigger(candidates[0].activationTrigger);
             EnqueueDeferredSortedCandidates(candidates);
             ShowPopup(candidates[0]);
         }
@@ -2018,11 +2065,7 @@ public sealed class HelperGameplayController : MonoBehaviour
             candidates.Add(d);
         }
 
-        candidates.Sort(static (a, b) =>
-        {
-            int c = a.priority.CompareTo(b.priority);
-            return c != 0 ? c : string.CompareOrdinal(a.helperId, b.helperId);
-        });
+        candidates.Sort(CompareHelperOrder);
 
         if (candidates.Count > 0)
         {
@@ -3515,6 +3558,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         _prevHistoryButton = _expandedPanelRoot.transform.Find("FooterNav/HistoryPrevButton")?.GetComponent<Button>();
         _nextHistoryButton = _expandedPanelRoot.transform.Find("FooterNav/HistoryNextButton")?.GetComponent<Button>();
+        ApplyHistoryFooterButtonInsets();
         _titleText = _expandedPanelRoot.transform.Find("TitleText")?.GetComponent<TMP_Text>();
         _bodyText = FindHelperBodyUnderExpanded(expandedTf)?.GetComponent<TMP_Text>();
 
@@ -3537,6 +3581,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     {
         if (_overlayRoot != null)
         {
+            ApplyHistoryFooterButtonInsets();
             ApplyHelperTitleLeftInsetFromBodyLayout();
             EnsureHelperWindowFocus();
             ApplyHelperTipTextScale();
@@ -3727,6 +3772,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         _prevHistoryButton = prevBt;
         _nextHistoryButton = nextBt;
+        ApplyHistoryFooterButtonInsets();
         prevBt.gameObject.SetActive(false);
         nextBt.gameObject.SetActive(false);
 
@@ -4519,6 +4565,33 @@ public sealed class HelperGameplayController : MonoBehaviour
     {
         Transform t = buttonRoot ? buttonRoot.transform.Find("Label") : null;
         return t ? t.GetComponent<TMP_Text>() : null;
+    }
+
+    private void ApplyHistoryFooterButtonInsets()
+    {
+        float inset = Mathf.Max(0f, historyFooterButtonEdgeInset);
+
+        if (_prevHistoryButton)
+        {
+            RectTransform prevRt = _prevHistoryButton.transform as RectTransform;
+            if (prevRt)
+            {
+                Vector2 p = prevRt.anchoredPosition;
+                p.x = inset;
+                prevRt.anchoredPosition = p;
+            }
+        }
+
+        if (_nextHistoryButton)
+        {
+            RectTransform nextRt = _nextHistoryButton.transform as RectTransform;
+            if (nextRt)
+            {
+                Vector2 p = nextRt.anchoredPosition;
+                p.x = -inset;
+                nextRt.anchoredPosition = p;
+            }
+        }
     }
 
     private RectTransform ResolveOverlayParent()
