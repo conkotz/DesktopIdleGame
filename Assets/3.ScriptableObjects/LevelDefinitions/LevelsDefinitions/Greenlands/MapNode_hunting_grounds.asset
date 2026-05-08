@@ -36,7 +36,8 @@ MonoBehaviour:
   combatRequiredLevel: 15
   unlockRequirementNotes: 
   connectedNodeIds: []
-  nextNodeIds: []
+  nextNodeIds:
+  - bear_den
   biome: 0
   spawnGroupPlans:
   - groupId: AllSpawns

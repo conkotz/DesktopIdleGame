@@ -141,21 +141,70 @@ public class PlayerSpawnController : MonoBehaviour
             if (spawn == null && isBootstrap && !string.Equals(targetSpawnName, spawnPointName, StringComparison.Ordinal))
                 spawn = GameObject.Find(spawnPointName);
 
+            bool restoredFromSavedWorldPosition = false;
+
             if (!isBootstrap &&
                 loadedScene.IsValid() &&
                 loadedScene.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase))
             {
                 SaveSlotManager.GameplaySpawnDisposition disposition =
                     SaveSlotManager.ConsumePendingGameplaySpawnDisposition();
+                bool requestedSavedRestore =
+                    disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable;
 
-                if (disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable &&
+                if (requestedSavedRestore &&
                     SaveManager.Instance != null &&
                     SaveManager.Instance.TryGetLastLoadedData(out SaveData saveData) &&
                     saveData.hasSavedPlayerWorldPosition &&
                     SavedWorldPositionMatchesActiveMap(saveData))
                 {
-                    Vector3 p = new Vector3(saveData.playerWorldPosX, saveData.playerWorldPosY, saveData.playerWorldPosZ);
-                    transform.position = p;
+                    // Restore saved X only. Keep Y/Z from spawn/current flow and let ground snap place player on floor.
+                    Vector3 basePos = spawn != null ? spawn.transform.position : transform.position;
+                    // Always anchor to scene spawn first so stale previous-scene transform cannot leak through.
+                    transform.position = basePos;
+                    float savedX = saveData.playerWorldPosX;
+                    bool savedXValidForMap = true;
+                    if (WorldBounds.Instance != null)
+                    {
+                        float left = WorldBounds.Instance.Left;
+                        float right = WorldBounds.Instance.Right;
+                        // If save contains an impossible X for this map (e.g. bootstrap/UI-space value),
+                        // ignore it instead of clamping to an edge spawn.
+                        if (savedX < left - 1f || savedX > right + 1f)
+                            savedXValidForMap = false;
+                    }
+
+                    if (savedXValidForMap)
+                    {
+                        float x = savedX;
+                        if (WorldBounds.Instance != null)
+                            x = Mathf.Clamp(x, WorldBounds.Instance.Left, WorldBounds.Instance.Right);
+                        transform.position = new Vector3(x, basePos.y, basePos.z);
+                        restoredFromSavedWorldPosition = true;
+                    }
+
+                    if (debugSnap)
+                    {
+                        string curId = ActiveLevelContext.Current != null ? (ActiveLevelContext.Current.nodeId ?? "") : "";
+                        string saveId = saveData.activeMapNodeId ?? "";
+                        Debug.Log($"[SpawnDebug] APPLY_SAVED_X curMap='{curId}' saveMap='{saveId}' savedX={saveData.playerWorldPosX:F3} valid={savedXValidForMap} baseY={basePos.y:F3} finalX={transform.position.x:F3}");
+                    }
+                }
+                else if (requestedSavedRestore &&
+                         SaveManager.Instance != null &&
+                         SaveManager.Instance.TryGetLastLoadedData(out SaveData dbgData))
+                {
+                    if (spawn != null)
+                        transform.position = spawn.transform.position;
+
+                    if (debugSnap)
+                    {
+                        string curId = ActiveLevelContext.Current != null ? (ActiveLevelContext.Current.nodeId ?? "") : "";
+                        string saveId = dbgData != null ? (dbgData.activeMapNodeId ?? "") : "";
+                        bool hasPos = dbgData != null && dbgData.hasSavedPlayerWorldPosition;
+                        bool mapOk = dbgData != null && SavedWorldPositionMatchesActiveMap(dbgData);
+                        Debug.Log($"[SpawnDebug] SKIP_SAVED_X curMap='{curId}' saveMap='{saveId}' hasPos={hasPos} mapOk={mapOk}");
+                    }
                 }
                 else if (spawn != null)
                 {
@@ -185,12 +234,19 @@ public class PlayerSpawnController : MonoBehaviour
             levelTransition?.RestoreScaleAfterLevelChange();
             Physics2D.SyncTransforms();
 
-            if (snapToGround)
+            bool shouldSnapToGround = snapToGround ||
+                                      restoredFromSavedWorldPosition ||
+                                      (loadedScene.IsValid() &&
+                                       loadedScene.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase));
+            if (shouldSnapToGround)
                 SnapToGround_ColliderCast(!isBootstrap);
 
             if (rb)
                 rb.position = transform.position;
             Physics2D.SyncTransforms();
+
+            if (debugSnap)
+                Debug.Log($"[SpawnDebug] AFTER_SNAP pos=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3}) restoredX={restoredFromSavedWorldPosition}");
 
             // Clear motion + re-enable physics
             if (rb)
@@ -198,6 +254,9 @@ public class PlayerSpawnController : MonoBehaviour
                 rb.linearVelocity = Vector2.zero;
                 rb.simulated = true;
             }
+
+            if (debugSnap)
+                Debug.Log($"[SpawnDebug] FINAL pos=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3})");
 
             // Fade in (optional)
             if (doFade)
@@ -359,6 +418,7 @@ public class PlayerSpawnController : MonoBehaviour
 
         return cg;
     }
+
 
     private void SetAlpha(float alpha)
     {

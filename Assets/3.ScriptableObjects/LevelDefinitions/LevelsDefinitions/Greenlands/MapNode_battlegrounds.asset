@@ -37,7 +37,8 @@ MonoBehaviour:
   unlockRequirementNotes: Be prepared to fight enemies. Should have food, potions
     and combat gear.
   connectedNodeIds: []
-  nextNodeIds: []
+  nextNodeIds:
+  - battlegrounds_2
   biome: 0
   spawnGroupPlans:
   - groupId: MiddleSpawns

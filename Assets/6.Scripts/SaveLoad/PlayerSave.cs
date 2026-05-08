@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlayerSave : MonoBehaviour, ISaveable
 {
@@ -67,12 +68,73 @@ public class PlayerSave : MonoBehaviour, ISaveable
             bool validPos =
                 !float.IsNaN(pos.x) && !float.IsNaN(pos.y) && !float.IsNaN(pos.z) &&
                 !float.IsInfinity(pos.x) && !float.IsInfinity(pos.y) && !float.IsInfinity(pos.z);
-            data.hasSavedPlayerWorldPosition = validPos;
-            if (validPos)
+
+            // Guard against writing UI/bootstrap-space coordinates into gameplay world save.
+            // If this trips, keep the last known good world position (when available) instead of poisoning save.
+            Scene active = SceneManager.GetActiveScene();
+            bool isGameplayScene = active.IsValid() &&
+                                   active.name.Equals("GamePlay", System.StringComparison.OrdinalIgnoreCase);
+            bool outOfGameplayBounds = false;
+            if (isGameplayScene && validPos && WorldBounds.Instance != null)
             {
-                data.playerWorldPosX = pos.x;
-                data.playerWorldPosY = pos.y;
-                data.playerWorldPosZ = pos.z;
+                float left = WorldBounds.Instance.Left;
+                float right = WorldBounds.Instance.Right;
+                outOfGameplayBounds = pos.x < left - 1f || pos.x > right + 1f;
+            }
+
+            if (outOfGameplayBounds)
+            {
+                bool usedPreviousGood = false;
+                if (SaveManager.Instance != null &&
+                    SaveManager.Instance.TryGetLastLoadedData(out SaveData prev) &&
+                    prev != null &&
+                    prev.hasSavedPlayerWorldPosition)
+                {
+                    bool prevMapOk = true;
+                    if (!string.IsNullOrWhiteSpace(prev.activeMapNodeId) &&
+                        ActiveLevelContext.Current != null &&
+                        !string.IsNullOrWhiteSpace(ActiveLevelContext.Current.nodeId))
+                    {
+                        prevMapOk = string.Equals(
+                            prev.activeMapNodeId.Trim(),
+                            ActiveLevelContext.Current.nodeId.Trim(),
+                            System.StringComparison.Ordinal);
+                    }
+
+                    bool prevBoundsOk = true;
+                    if (WorldBounds.Instance != null)
+                    {
+                        float left = WorldBounds.Instance.Left;
+                        float right = WorldBounds.Instance.Right;
+                        prevBoundsOk = prev.playerWorldPosX >= left - 1f && prev.playerWorldPosX <= right + 1f;
+                    }
+
+                    if (prevMapOk && prevBoundsOk)
+                    {
+                        data.hasSavedPlayerWorldPosition = true;
+                        data.playerWorldPosX = prev.playerWorldPosX;
+                        data.playerWorldPosY = prev.playerWorldPosY;
+                        data.playerWorldPosZ = prev.playerWorldPosZ;
+                        usedPreviousGood = true;
+                    }
+                }
+
+                if (!usedPreviousGood)
+                    data.hasSavedPlayerWorldPosition = false;
+
+                Debug.LogWarning(
+                    $"[PlayerSave] Ignored suspicious player world position x={pos.x:F3} while saving (scene='{active.name}'). " +
+                    (usedPreviousGood ? "Reused previous valid saved position." : "No prior valid position; world-position restore disabled for this save."));
+            }
+            else
+            {
+                data.hasSavedPlayerWorldPosition = validPos;
+                if (validPos)
+                {
+                    data.playerWorldPosX = pos.x;
+                    data.playerWorldPosY = pos.y;
+                    data.playerWorldPosZ = pos.z;
+                }
             }
         }
         else
@@ -139,6 +201,15 @@ public class PlayerSave : MonoBehaviour, ISaveable
     {
         if (!_hasPendingWorldPosition)
             return;
+
+        // GamePlay world-position restore + floor snap is handled by PlayerSpawnController.
+        // Applying here as well can overwrite the snapped Y on first load.
+        Scene active = SceneManager.GetActiveScene();
+        if (active.IsValid() && active.name.Equals("GamePlay", System.StringComparison.OrdinalIgnoreCase))
+        {
+            _hasPendingWorldPosition = false;
+            return;
+        }
 
         transform.position = _pendingWorldPosition;
         Rigidbody2D rb = GetComponent<Rigidbody2D>();

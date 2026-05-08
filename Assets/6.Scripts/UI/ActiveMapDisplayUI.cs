@@ -53,7 +53,7 @@ public class ActiveMapDisplayUI : MonoBehaviour
         if (!label)
             return;
 
-        MapNodeDefinition preview = LevelSelectPageUI.HudPreviewSelection;
+        MapNodeDefinition preview = LevelSelectSharedState.HudPreviewSelection;
         MapNodeDefinition def = preview;
         if (!def)
         {

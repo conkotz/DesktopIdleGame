@@ -6010,6 +6010,7 @@ MonoBehaviour:
   inventory: {fileID: 0}
   helmetRenderer: {fileID: 3726236092069126016}
   baseHeadRenderer: {fileID: 3413519781405379345}
+  hideBaseHeadWhenHelmetEquipped: 0
   helmetRendererObjectName: Helmet
   baseHeadRendererObjectName: Head
 --- !u!114 &3587197683521536344
@@ -6076,7 +6077,7 @@ MonoBehaviour:
   fadeDuration: 1
   levelLoadScreenFadeSeconds: 1
   levelLoadBlackHoldSeconds: 0.5
-  debugSnap: 0
+  debugSnap: 1
 --- !u!114 &8305620475968429046
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6238,6 +6239,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WeaponSetSwapInput
   equipment: {fileID: 0}
+  actionBar: {fileID: 0}
 --- !u!114 &966196259100907935
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6258,13 +6260,20 @@ MonoBehaviour:
   offHand2ItemId: 
   offHand2StackAmount: 0
   activeWeaponSetIndex: 0
-  helmetItemId: 
-  bodyItemId: 
-  bootsItemId: 
-  trinketItemId: 
-  pendantItemId: 
-  ring1ItemId: 
-  ring2ItemId: 
+  helmet1ItemId: 
+  body1ItemId: 
+  boots1ItemId: 
+  trinket1ItemId: 
+  pendant1ItemId: 
+  ring11ItemId: 
+  ring21ItemId: 
+  helmet2ItemId: 
+  body2ItemId: 
+  boots2ItemId: 
+  trinket2ItemId: 
+  pendant2ItemId: 
+  ring12ItemId: 
+  ring22ItemId: 
   mainHandVisualRoot: {fileID: 0}
   offHandVisualRoot: {fileID: 0}
   autoReturnKickedItems: 1
@@ -6289,6 +6298,8 @@ MonoBehaviour:
   meleeColor: {r: 0.95, g: 0.2, b: 0.2, a: 1}
   rangedColor: {r: 0.1, g: 0.5, b: 0.1, a: 1}
   magicColor: {r: 0.1, g: 0.2, b: 0.7, a: 1}
+  logUnlockedSkillTreeNodesOnLevelUp: 1
+  skillDatabase: {fileID: 0}
 --- !u!114 &6203984249307556777
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6351,6 +6362,7 @@ MonoBehaviour:
   stripCanvas: {fileID: 0}
   stripCamera: {fileID: 0}
   hpBarOnly: 1
+  eliteOverheadExtraYOffset: 0.12
 --- !u!1 &7830489794965648568
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,5 +1,13 @@
 using UnityEngine;
 
+/// <summary>Endpoints for <see cref="SkillTreeConnectorUI"/> line placement (skill tree nodes, world map nodes, etc.).</summary>
+public interface ITreeConnectorEndpoint
+{
+    RectTransform RectTransform { get; }
+    float GetVisualHalfWidth();
+    float GetVisualHalfHeight();
+}
+
 public class SkillTreeConnectorUI : MonoBehaviour
 {
     [SerializeField] private RectTransform rectTransform;
@@ -7,6 +15,21 @@ public class SkillTreeConnectorUI : MonoBehaviour
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
 
     public void SetPositions(SkillTreeNodeUI from, SkillTreeNodeUI to)
+    {
+        SetPositions((ITreeConnectorEndpoint)from, to, trimToNodeEdges: true, pixelSnap: false);
+    }
+
+    public void SetPositions(ITreeConnectorEndpoint from, ITreeConnectorEndpoint to)
+    {
+        SetPositions(from, to, trimToNodeEdges: true, pixelSnap: false);
+    }
+
+    public void SetPositions(ITreeConnectorEndpoint from, ITreeConnectorEndpoint to, bool trimToNodeEdges)
+    {
+        SetPositions(from, to, trimToNodeEdges, pixelSnap: false);
+    }
+
+    public void SetPositions(ITreeConnectorEndpoint from, ITreeConnectorEndpoint to, bool trimToNodeEdges, bool pixelSnap)
     {
         if (from == null || to == null)
             return;
@@ -20,18 +43,29 @@ public class SkillTreeConnectorUI : MonoBehaviour
         if (length <= 0.001f)
             return;
 
-        Vector2 dir = delta / length;
-
-        Vector2 start = a + dir * GetEdgeDistance(from.GetVisualHalfWidth(), from.GetVisualHalfHeight(), dir);
-        Vector2 end = b - dir * GetEdgeDistance(to.GetVisualHalfWidth(), to.GetVisualHalfHeight(), -dir);
+        Vector2 start = a;
+        Vector2 end = b;
+        if (trimToNodeEdges)
+        {
+            Vector2 dir = delta / length;
+            start = a + dir * GetEdgeDistance(from.GetVisualHalfWidth(), from.GetVisualHalfHeight(), dir);
+            end = b - dir * GetEdgeDistance(to.GetVisualHalfWidth(), to.GetVisualHalfHeight(), -dir);
+        }
         Vector2 seg = end - start;
         float segLen = seg.magnitude;
         if (segLen <= 0.001f)
             return;
 
         float angle = Mathf.Atan2(seg.y, seg.x) * Mathf.Rad2Deg;
-        RectTransform.anchoredPosition = start + seg * 0.5f;
-        RectTransform.sizeDelta = new Vector2(segLen, RectTransform.sizeDelta.y);
+        Vector2 pos = start + seg * 0.5f;
+        float len = segLen;
+        if (pixelSnap)
+        {
+            pos = new Vector2(Mathf.Round(pos.x), Mathf.Round(pos.y));
+            len = Mathf.Max(1f, Mathf.Round(segLen));
+        }
+        RectTransform.anchoredPosition = pos;
+        RectTransform.sizeDelta = new Vector2(len, RectTransform.sizeDelta.y);
         RectTransform.localRotation = Quaternion.Euler(0f, 0f, angle);
     }
 

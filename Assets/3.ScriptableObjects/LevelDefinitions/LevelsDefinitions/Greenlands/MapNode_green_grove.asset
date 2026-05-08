@@ -36,8 +36,7 @@ MonoBehaviour:
   combatRequiredLevel: 1
   unlockRequirementNotes: Reccomended to have tools (axe, pickaxe. fishing rod)
   connectedNodeIds: []
-  nextNodeIds:
-  - 
+  nextNodeIds: []
   biome: 1
   spawnGroupPlans:
   - groupId: AllSpawns

@@ -4,7 +4,7 @@ using UnityEngine.Serialization;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class SkillTreeNodeUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
+public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
     /// <summary>Minimum gap between node edge and the inner edge of the side labels (pixels).</summary>
     private const float SideLabelPadding = 2f;

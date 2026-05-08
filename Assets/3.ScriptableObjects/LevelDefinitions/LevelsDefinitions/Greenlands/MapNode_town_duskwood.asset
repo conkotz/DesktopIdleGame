@@ -39,7 +39,11 @@ MonoBehaviour:
   combatRequiredLevel: 1
   unlockRequirementNotes: 
   connectedNodeIds: []
-  nextNodeIds: []
+  nextNodeIds:
+  - battlegrounds
+  - green_grove
+  - hunting_grounds
+  - spider_lair
   biome: 0
   spawnGroupPlans:
   - groupId: AllSpawns

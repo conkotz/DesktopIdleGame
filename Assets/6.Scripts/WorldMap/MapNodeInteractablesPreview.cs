@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 /// <summary>
@@ -13,13 +14,15 @@ public static class MapNodeInteractablesPreview
 
     public readonly struct ContainsSummary
     {
-        public readonly string npcsLine;
-        public readonly string resourcesEnemiesLine;
+        public readonly string npcMerchantsLine;
+        public readonly string enemiesLine;
+        public readonly string otherLine;
 
-        public ContainsSummary(string npcsLine, string resourcesEnemiesLine)
+        public ContainsSummary(string npcMerchantsLine, string enemiesLine, string otherLine)
         {
-            this.npcsLine = npcsLine ?? "";
-            this.resourcesEnemiesLine = resourcesEnemiesLine ?? "";
+            this.npcMerchantsLine = npcMerchantsLine ?? "";
+            this.enemiesLine = enemiesLine ?? "";
+            this.otherLine = otherLine ?? "";
         }
     }
 
@@ -29,19 +32,21 @@ public static class MapNodeInteractablesPreview
     public static string BuildSummary(MapNodeDefinition node)
     {
         ContainsSummary split = BuildSplitSummary(node);
-        return split.npcsLine;
+        return split.npcMerchantsLine;
     }
 
     public static ContainsSummary BuildSplitSummary(MapNodeDefinition node)
     {
         if (node == null)
-            return new ContainsSummary("", "");
+            return new ContainsSummary("", "", "");
 
-        var npcOrder = new OrderedTallyAccumulator();
-        var resourceEnemyOrder = new OrderedTallyAccumulator();
+        var npcMerchantOrder = new OrderedTallyAccumulator();
+        var enemyOrder = new OrderedTallyAccumulator();
+        var otherOrder = new OrderedTallyAccumulator();
 
-        void AddNpc(string label, int amount) => npcOrder.Add(label, amount);
-        void AddResourceEnemy(string label, int amount) => resourceEnemyOrder.Add(label, amount);
+        void AddNpcMerchant(string label, int amount) => npcMerchantOrder.Add(label, amount);
+        void AddEnemy(string label, int amount) => enemyOrder.Add(label, amount);
+        void AddOther(string label, int amount) => otherOrder.Add(label, amount);
 
         void AddSpawnList(List<SpawnPrefabCount> spawns)
         {
@@ -59,25 +64,27 @@ public static class MapNodeInteractablesPreview
                 if (row.enemyDefinition != null)
                 {
                     string enemyName = ResolveEnemyDefinitionName(row.enemyDefinition);
-                    AddResourceEnemy(enemyName, weight);
+                    AddEnemy(enemyName, weight);
                     continue;
                 }
 
                 if (row.itemDefinition != null)
                 {
                     string itemName = ResolveItemDefinitionName(row.itemDefinition);
-                    AddResourceEnemy(itemName, weight);
+                    AddOther(itemName, weight);
                     continue;
                 }
 
                 if (!row.TryResolveSpawnPrefab(out GameObject pfb, out _, node, logWarnings: false) || !pfb)
                     continue;
 
-                bool hadNpcSignals = AddNpcLabelsFromPrefab(pfb, AddNpc, weight);
-                if (!hadNpcSignals)
+                bool hadCategorizedSignals = AddCategorizedLabelsFromPrefab(pfb, AddNpcMerchant, AddOther, weight);
+                if (!hadCategorizedSignals)
                 {
-                    string resourceOrEnemyLabel = ResolveResourceEnemyLabelFromPrefab(pfb);
-                    AddResourceEnemy(resourceOrEnemyLabel, weight);
+                    if (TryResolveEnemyLabelFromPrefab(pfb, out string enemyLabel))
+                        AddEnemy(enemyLabel, weight);
+                    else
+                        AddOther(HumanizeUnityObjectName(pfb.name), weight);
                 }
             }
         }
@@ -112,8 +119,9 @@ public static class MapNodeInteractablesPreview
         }
 
         return new ContainsSummary(
-            npcOrder.BuildCommaSeparatedLine(),
-            resourceEnemyOrder.BuildCommaSeparatedLine());
+            npcMerchantOrder.BuildCommaSeparatedLine(),
+            enemyOrder.BuildCommaSeparatedLine(),
+            otherOrder.BuildCommaSeparatedLine());
     }
 
     /// <summary>
@@ -175,33 +183,51 @@ public static class MapNodeInteractablesPreview
         return HumanizeUnityObjectName(itemDefinition.name);
     }
 
-    private static string ResolveResourceEnemyLabelFromPrefab(GameObject prefab)
+    private static bool TryResolveEnemyLabelFromPrefab(GameObject prefab, out string label)
     {
+        label = "";
         if (!prefab)
-            return "";
+            return false;
 
         EnemyBaseController enemy = prefab.GetComponentInChildren<EnemyBaseController>(true);
         if (enemy != null && !string.IsNullOrWhiteSpace(enemy.DisplayName))
-            return enemy.DisplayName.Trim();
+        {
+            label = enemy.DisplayName.Trim();
+            return true;
+        }
 
         CharacterStats stats = prefab.GetComponentInChildren<CharacterStats>(true);
         if (stats != null && !string.IsNullOrWhiteSpace(stats.UnitDisplayName))
-            return stats.UnitDisplayName.Trim();
+        {
+            label = stats.UnitDisplayName.Trim();
+            return true;
+        }
 
-        return HumanizeUnityObjectName(prefab.name);
+        return false;
     }
 
-    private static bool AddNpcLabelsFromPrefab(GameObject prefab, Action<string, int> add, int weight)
+    private static bool AddCategorizedLabelsFromPrefab(
+        GameObject prefab,
+        Action<string, int> addNpcMerchant,
+        Action<string, int> addOther,
+        int weight)
     {
         if (!prefab || weight <= 0)
             return false;
 
         bool addedAny = false;
-        void AddNpcLabel(string label, int amount)
+        void AddNpcMerchantLabel(string label, int amount)
         {
             if (string.IsNullOrWhiteSpace(label) || amount <= 0)
                 return;
-            add(label, amount);
+            addNpcMerchant(label, amount);
+            addedAny = true;
+        }
+        void AddOtherLabel(string label, int amount)
+        {
+            if (string.IsNullOrWhiteSpace(label) || amount <= 0)
+                return;
+            addOther(label, amount);
             addedAny = true;
         }
 
@@ -214,7 +240,7 @@ public static class MapNodeInteractablesPreview
             string label = ResolveInteractableDisplayLabel(m.gameObject, preferMerchantPersonName: true, m);
             if (string.IsNullOrWhiteSpace(label))
                 label = HumanizeUnityObjectName(m.gameObject.name);
-            AddNpcLabel(label, weight);
+            AddNpcMerchantLabel(label, weight);
         }
 
         StorageClick[] storages = prefab.GetComponentsInChildren<StorageClick>(true);
@@ -223,7 +249,7 @@ public static class MapNodeInteractablesPreview
             StorageClick s = storages[i];
             if (!s || s.GetComponentInParent<Merchant>(true) != null)
                 continue;
-            AddNpcLabel("Storage", weight);
+            AddOtherLabel("Storage", weight);
         }
 
         foreach (Transform t in prefab.GetComponentsInChildren<Transform>(true))
@@ -233,7 +259,7 @@ public static class MapNodeInteractablesPreview
             try
             {
                 if (t.CompareTag(NoticeBoardTag))
-                    AddNpcLabel("Notice Board", weight);
+                    AddOtherLabel("Notice Board", weight);
             }
             catch (UnityException)
             {
@@ -253,7 +279,7 @@ public static class MapNodeInteractablesPreview
             string label = ResolveInteractableDisplayLabel(q.gameObject, preferMerchantPersonName: false, merchantForPersonName: null);
             if (string.IsNullOrWhiteSpace(label))
                 label = HumanizeUnityObjectName(q.gameObject.name);
-            AddNpcLabel(label, weight);
+            AddNpcMerchantLabel(label, weight);
         }
 
         return addedAny;
@@ -313,7 +339,35 @@ public static class MapNodeInteractablesPreview
         if (s.EndsWith("(Clone)", StringComparison.Ordinal))
             s = s.Substring(0, s.Length - "(Clone)".Length).Trim();
         s = s.Replace('_', ' ');
-        return string.IsNullOrWhiteSpace(s) ? "NPC" : s.Trim();
+
+        // Split camel/pascal case and number transitions.
+        s = Regex.Replace(s, "([a-z])([A-Z])", "$1 $2");
+        s = Regex.Replace(s, "([A-Z]+)([A-Z][a-z])", "$1 $2");
+        s = Regex.Replace(s, "([A-Za-z])(\\d)", "$1 $2");
+        s = Regex.Replace(s, "(\\d)([A-Za-z])", "$1 $2");
+        s = Regex.Replace(s, "\\s+", " ").Trim();
+
+        // Canonical cleanups for common interactable names.
+        s = s.Replace(" Entrace", " Entrance", StringComparison.OrdinalIgnoreCase);
+        s = s.Replace("Sign Post", "Signpost", StringComparison.OrdinalIgnoreCase);
+
+        if (string.IsNullOrWhiteSpace(s))
+            return "NPC";
+
+        // Keep readable title casing for object-name fallbacks.
+        string[] words = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        for (int i = 0; i < words.Length; i++)
+        {
+            string w = words[i];
+            if (w.Length <= 1)
+            {
+                words[i] = w.ToUpperInvariant();
+                continue;
+            }
+            words[i] = char.ToUpperInvariant(w[0]) + w.Substring(1).ToLowerInvariant();
+        }
+
+        return string.Join(" ", words);
     }
 
     private static bool IsNoticeBoardObject(GameObject go)
