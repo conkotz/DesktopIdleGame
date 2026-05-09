@@ -466,8 +466,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (pickaxeStaminaEfficiencyText) pickaxeStaminaEfficiencyText.text = $"Stamina Eff: +{stats.PickaxeStaminaEfficiency * 100f:0.#}%";
 
         if (axeTitleText) axeTitleText.text = "Axe";
-        if (axeSpeedText) axeSpeedText.text = $"Woodcut Speed: {stats.AxeSpeedMult:0.##}x";
-        if (axeGritText) axeGritText.text = $"Woodcut Grit: {stats.AxeGrit * 100f:0.#}%";
+        if (axeSpeedText) axeSpeedText.text = $"Woodcutting Speed: {stats.AxeSpeedMult:0.##}x";
+        if (axeGritText) axeGritText.text = $"Woodcutting Grit: {stats.AxeGrit * 100f:0.#}%";
         if (axeBonusFindText) axeBonusFindText.text = $"Bonus Find: +{stats.AxeBonusFindChance * 100f:0.#}%";
         if (axeStaminaEfficiencyText) axeStaminaEfficiencyText.text = $"Stamina Eff: +{stats.AxeStaminaEfficiency * 100f:0.#}%";
 
@@ -884,10 +884,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(pickaxeBonusFindText, "Mining Bonus Find", bonusFindBody);
         Wire(pickaxeStaminaEfficiencyText, "Mining Stamina Efficiency", staminaEffBody);
 
-        Wire(axeSpeedText, "Woodcut Speed", speedBody);
-        Wire(axeGritText, "Woodcut Grit", gritBody);
-        Wire(axeBonusFindText, "Woodcut Bonus Find", bonusFindBody);
-        Wire(axeStaminaEfficiencyText, "Woodcut Stamina Efficiency", staminaEffBody);
+        Wire(axeSpeedText, "Woodcutting Speed", speedBody);
+        Wire(axeGritText, "Woodcutting Grit", gritBody);
+        Wire(axeBonusFindText, "Woodcutting Bonus Find", bonusFindBody);
+        Wire(axeStaminaEfficiencyText, "Woodcutting Stamina Efficiency", staminaEffBody);
 
         Wire(rodSpeedText, "Fishing Speed", speedBody);
         Wire(rodGritText, "Fishing Grit", gritBody);

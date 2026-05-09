@@ -6,7 +6,6 @@ public enum WoodcuttingMinorNodeStatOption
     WoodcuttingEnergyEfficiencyPercent2 = 3,
     WoodcuttingBonusItemChancePercent2 = 4,
 
-    // New authored woodcutting nodes
     WoodcuttingSpeedPercent2 = 10,
     WoodcuttingSpeedPercent3 = 11,
     WoodcuttingSpeedPercent4 = 12,
@@ -16,6 +15,8 @@ public enum WoodcuttingMinorNodeStatOption
     WoodcuttingBonusFindPercent1 = 16,
     WoodcuttingBonusFindPercent3 = 17,
     WoodcuttingExtraLogChancePercent2 = 18,
+
+    // Retained for serialized data compatibility; not used by current woodcutting skill asset.
     WoodcuttingSteadySwingSpeedPercent2Above80Energy = 19,
     WoodcuttingCritRestoreEnergy1 = 20,
     WoodcuttingMomentumAfter3SuccessSpeedPercent2For5s = 21,
@@ -39,7 +40,15 @@ public enum WoodcuttingMinorNodeStatOption
     WoodcuttingBonusRewardBonusFindsPlusOneChance15 = 39,
     WoodcuttingTirelessSmallChanceNoStaminaCost = 40,
     WoodcuttingForestFlowContinuousSpeedPercent3RecoveryPercent3 = 41,
-    WoodcuttingMasterGathererSmallChanceDoubleResources = 42
+    WoodcuttingMasterGathererSmallChanceDoubleResources = 42,
+
+    WoodcuttingStaminaEfficiencyPercent3 = 43,
+    WoodcuttingGritPercent4 = 44,
+    WoodcuttingBonusFindPercent6 = 45,
+    WoodcuttingCritRestoreEnergy10OnGrit = 46,
+    WoodcuttingBonusXpChancePercent2 = 47,
+    WoodcuttingNoStaminaSwingChancePercent3 = 48,
+    WoodcuttingFrenzyAfterGritSpeedPercent5Duration7s = 49
 }
 
 public enum MiningMinorNodeStatOption

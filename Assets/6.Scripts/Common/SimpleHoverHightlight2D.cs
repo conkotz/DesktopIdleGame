@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -39,8 +41,19 @@ public class SimpleHoverHighlight2D : MonoBehaviour
     {
         _baseScale = transform.localScale;
 
-        // Grab ALL sprite renderers under this object (Body, Head, arms, legs, etc)
-        _renderers = GetComponentsInChildren<SpriteRenderer>(true);
+        // Grab sprite renderers; skip runtime depletion overlays (built by ResourceNode).
+        SpriteRenderer[] all = GetComponentsInChildren<SpriteRenderer>(true);
+        var filtered = new List<SpriteRenderer>(all.Length);
+        for (int i = 0; i < all.Length; i++)
+        {
+            SpriteRenderer r = all[i];
+            if (!r) continue;
+            if (r.gameObject.name.StartsWith(ResourceNode.RuntimeDepletionOverlayPrefix, StringComparison.Ordinal))
+                continue;
+            filtered.Add(r);
+        }
+
+        _renderers = filtered.ToArray();
 
         _baseColors = new Color[_renderers.Length];
         for (int i = 0; i < _renderers.Length; i++)

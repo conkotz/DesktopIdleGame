@@ -42,6 +42,8 @@ public static class GameLog
     public static readonly Color GoldColor = new Color(1f, 0.82f, 0.2f, 1f);
     /// <summary>Activity log color for lines starting with "Cannot" (blocked actions).</summary>
     public static readonly Color CannotMessageColor = new Color(0.95f, 0.28f, 0.28f, 1f);
+    /// <summary>Resource entered depleted state (reduced yield until regen).</summary>
+    public static readonly Color ResourceDepletedColor = new Color(0.92f, 0.22f, 0.22f, 1f);
     public static readonly Color QuestCompleteColor = new Color(0.82f, 0.96f, 0.82f, 1f);
     public static readonly Color LevelAvailableColor = new Color(0.35f, 0.8f, 1f, 1f);
     public static readonly Color RegionUnlockedColor = new Color(0.45f, 1f, 0.45f, 1f);

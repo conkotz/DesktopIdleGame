@@ -39,6 +39,8 @@ public class SkillTreeViewUI : MonoBehaviour
     [Tooltip("Extra Y offset for choices that use an explicit requiredLevel (eg. Lv8). 0 keeps them exactly on that row.")]
     [SerializeField] private float explicitChoiceRowYOffset = 0f;
     [SerializeField] private bool showAllLevelLabels = true;
+    [Tooltip("Left column (combat / non-gathering skills): show Lv labels every N levels, plus Lv1. 0 = show a label for every tier. Gathering skills (woodcutting, fishing, mining) always use Lv1, Lv5, Lv10, … Lv50.")]
+    [SerializeField] private int levelLabelShowEveryNLevels = 5;
     [Tooltip("Horizontal gap between nodes that share the same required level (e.g. major passive + unlock).")]
     [SerializeField] private float sameLevelNodeGap = 28f;
     [Tooltip("Center-to-center spacing for multiple Ability unlocks at the same level (symmetric around the vertical spine).")]
@@ -511,6 +513,27 @@ public class SkillTreeViewUI : MonoBehaviour
         return tierStart;
     }
 
+    private static bool IsGatheringSkillSelected(SkillDefinition skill) =>
+        skill != null &&
+        (skill.skillType == SkillType.Woodcutting ||
+         skill.skillType == SkillType.Fishing ||
+         skill.skillType == SkillType.Mining);
+
+    /// <summary>
+    /// Gathering skills always show Lv1, Lv5, Lv10, … Lv50 on the left. Other skills use <see cref="levelLabelShowEveryNLevels"/>.
+    /// </summary>
+    private bool ShouldShowLeftLevelNumber(int tierLevel)
+    {
+        if (IsGatheringSkillSelected(selectedSkill))
+            return tierLevel == 1 || tierLevel % 5 == 0;
+
+        if (levelLabelShowEveryNLevels <= 0)
+            return true;
+
+        int n = Mathf.Max(1, levelLabelShowEveryNLevels);
+        return tierLevel == 1 || tierLevel % n == 0;
+    }
+
     private void SpawnLevelColumnLabels(List<RowDef> rows)
     {
         if (levelsRoot == null || levelRowLabelPrefab == null)
@@ -533,16 +556,19 @@ public class SkillTreeViewUI : MonoBehaviour
                     continue;
             }
 
-            var t = Instantiate(levelRowLabelPrefab, levelsRoot);
-            t.text = $"Lv{tierLevel}";
-            t.alignment = TextAlignmentOptions.MidlineRight;
+            if (ShouldShowLeftLevelNumber(tierLevel))
+            {
+                var t = Instantiate(levelRowLabelPrefab, levelsRoot);
+                t.text = $"Lv{tierLevel}";
+                t.alignment = TextAlignmentOptions.MidlineRight;
 
-            RectTransform rt = t.rectTransform;
-            rt.anchorMin = new Vector2(0f, 1f);
-            rt.anchorMax = new Vector2(0f, 1f);
-            rt.pivot = new Vector2(1f, 0.5f);
-            rt.anchoredPosition = new Vector2(0f, layoutRowY[labelIndex]);
-            spawnedLevelLabels.Add(t);
+                RectTransform rt = t.rectTransform;
+                rt.anchorMin = new Vector2(0f, 1f);
+                rt.anchorMax = new Vector2(0f, 1f);
+                rt.pivot = new Vector2(1f, 0.5f);
+                rt.anchoredPosition = new Vector2(0f, layoutRowY[labelIndex]);
+                spawnedLevelLabels.Add(t);
+            }
 
             string tierCaption = TierRowCaptionForSkillLevel(tierLevel);
             if (levelTierRowLabelPrefab != null && !string.IsNullOrEmpty(tierCaption))

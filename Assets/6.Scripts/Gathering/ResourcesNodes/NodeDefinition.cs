@@ -60,7 +60,16 @@ public class NodeDefinition : ScriptableObject
     [Tooltip("Energy drained on each gather swing for this node. 0 disables energy cost.")]
     [Min(0f)] public float energyCostPerSwing = 30f;
 
+    [Header("Depletion (Optional)")]
+    [Tooltip("Successful main gather ticks (counted once per tick, before yield bonuses) before this node becomes depleted. 0 = infinite / no depletion.")]
+    [Min(0)] public int depletionGatherCount = 0;
+    [Tooltip("Seconds after depletion until the node is gatherable again. 0 = stays depleted until the scene reloads.")]
+    [Min(0f)] public float depletionRegenSeconds = 60f;
+    [Tooltip("Per-item chance / weight while depleted (stochastic rolls). 0.3 ≈ 70% fewer resources on average.")]
+    [Range(0f, 1f)] public float depletedYieldMultiplier = 0.3f;
+
     public string YieldItemId => yieldItem ? yieldItem.itemId : string.Empty;
+    public bool UsesDepletion => depletionGatherCount > 0;
 
     public float GetNextInterval()
     {
