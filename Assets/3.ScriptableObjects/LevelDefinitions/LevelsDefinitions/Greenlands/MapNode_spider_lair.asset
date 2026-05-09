@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Spider Lair
   description: A dark cave filled with spiders.. why would you want to go here.
   nodeType: 0
-  enemyAggroMode: 2
+  enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
   enemyRespawnEnabled: 1

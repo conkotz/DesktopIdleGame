@@ -208,6 +208,45 @@ public class PlayerController : MonoBehaviour
     private float _gatherGritChance;
     private float _gatherBonusFindChance;
     private float _gatherStaminaEfficiency;
+    private WoodcuttingRuntimeBonuses _woodcuttingBonuses;
+    private int _woodcuttingSuccessfulGatherCount;
+    private int _woodcuttingSwingCount;
+    private float _woodcuttingMomentumAfter3Until;
+    private float _woodcuttingFrenzyUntil;
+    private float _woodcuttingContinuousGatherSeconds;
+    private bool _woodcuttingResolvingDoubleSwing;
+
+    private struct WoodcuttingRuntimeBonuses
+    {
+        public float speedPercent;
+        public float staminaEfficiency;
+        public float gritChance;
+        public float bonusFindChance;
+        public float extraLogChance;
+        public float steadySwingSpeedPercentAbove80Energy;
+        public bool critRestore1Energy;
+        public bool momentumAfter3Speed2For5s;
+        public float uncommonRareFindChance;
+        public float baseYieldPercent;
+        public float gatherRecoveryPercent;
+        public float critYieldPercent;
+        public bool highTierStaminaDrainReduction;
+        public float duplicateRareChance;
+        public bool tirelessEvery12thSwingFree;
+        public float bonusXpChance;
+        public bool momentumContinuous15s;
+        public bool heavyHitCritRollTwice;
+        public float materialFindChance;
+        public bool momentumConsecutiveStacks;
+        public bool rareFindImprovedRarityRolls;
+        public bool frenzyAfterCrit;
+        public float doubleSwingChance;
+        public bool treasureFindRareIncreased;
+        public bool bonusFindsPlusOneChance15;
+        public float tirelessNoStaminaChance;
+        public bool forestFlowContinuous;
+        public float masterGathererDoubleChance;
+    }
 
     [Header("Future Stamina Integration")]
     [Tooltip("Base stamina cost per successful gather tick. Hook to stamina system later.")]
@@ -904,6 +943,7 @@ public class PlayerController : MonoBehaviour
         _gatherGritChance = 0f;
         _gatherBonusFindChance = 0f;
         _gatherStaminaEfficiency = 0f;
+        ResetWoodcuttingRuntimeState(clearBonuses: true);
 
         if (!requireToolForGathering || !node.RequiresTool)
         {
@@ -937,10 +977,7 @@ public class PlayerController : MonoBehaviour
             _gatherToolItemId = toolItemId;
 
             var toolDef = inventory ? inventory.GetItemDef(toolItemId) : null;
-            _gatherSpeedMultiplier = toolDef ? toolDef.GatherSpeedMultiplier : 1f;
-            _gatherGritChance = toolDef ? toolDef.GatheringGrit : 0f;
-            _gatherBonusFindChance = toolDef ? toolDef.BonusResourceFindChance : 0f;
-            _gatherStaminaEfficiency = toolDef ? toolDef.StaminaEfficiency : 0f;
+            ApplyGatherCoreStatsFromCharacterAndTool(node.ActionType, toolDef);
 
             bool debuffed = _gatherSpeedMultiplier < 0.999f;
             OnGatherDebuffChanged?.Invoke(debuffed, _gatherSpeedMultiplier);
@@ -976,6 +1013,7 @@ public class PlayerController : MonoBehaviour
         }
 
         targetNode = node;
+        ApplyWoodcuttingSkillRuntimeBonusesIfNeeded(node);
         _pickupTarget = null;
         state = State.MoveToTarget;
 
@@ -1442,10 +1480,7 @@ public class PlayerController : MonoBehaviour
         {
             _gatherToolItemId = toolItemId;
             var toolDef = inventory ? inventory.GetItemDef(toolItemId) : null;
-            _gatherSpeedMultiplier = toolDef ? toolDef.GatherSpeedMultiplier : 1f;
-            _gatherGritChance = toolDef ? toolDef.GatheringGrit : 0f;
-            _gatherBonusFindChance = toolDef ? toolDef.BonusResourceFindChance : 0f;
-            _gatherStaminaEfficiency = toolDef ? toolDef.StaminaEfficiency : 0f;
+            ApplyGatherCoreStatsFromCharacterAndTool(targetNode.ActionType, toolDef);
 
             bool debuffed = _gatherSpeedMultiplier < 0.999f;
             OnGatherDebuffChanged?.Invoke(debuffed, _gatherSpeedMultiplier);
@@ -1508,6 +1543,17 @@ public class PlayerController : MonoBehaviour
         if (!inventory) { ReturnToIdle(); return; }
         if (targetNode.Definition == null) return;
 
+        if (targetNode.ActionType == NodeAction.Woodcutting && characterStats != null)
+        {
+            float recoveryPerSecond = 0f;
+            if (_woodcuttingBonuses.gatherRecoveryPercent > 0f)
+                recoveryPerSecond += characterStats.EnergyRegenPerSecond * _woodcuttingBonuses.gatherRecoveryPercent;
+            if (_woodcuttingBonuses.forestFlowContinuous && _woodcuttingContinuousGatherSeconds >= 0.1f)
+                recoveryPerSecond += characterStats.EnergyRegenPerSecond * 0.03f;
+            if (recoveryPerSecond > 0f)
+                characterStats.AddEnergy(recoveryPerSecond * Time.deltaTime);
+        }
+
         // Only “swing” the gather animation once every N seconds while gathering
         if (animator && Time.time >= _nextGatherAnimTime)
         {
@@ -1534,7 +1580,8 @@ public class PlayerController : MonoBehaviour
             if (_nextGatherInterval <= 0f)
                 _nextGatherInterval = targetNode.GetNextInterval();
 
-            _gatherTimer += Time.deltaTime * _gatherSpeedMultiplier;
+            _gatherTimer += Time.deltaTime * GetEffectiveGatherSpeedMultiplier();
+            _woodcuttingContinuousGatherSeconds += Time.deltaTime;
 
             if (_gatherTimer >= _nextGatherInterval)
             {
@@ -1555,7 +1602,8 @@ public class PlayerController : MonoBehaviour
         float rate = targetNode.RatePerSecond;
         if (rate <= 0f) return;
 
-        _accumItems += rate * Time.deltaTime * _gatherSpeedMultiplier;
+        _accumItems += rate * Time.deltaTime * GetEffectiveGatherSpeedMultiplier();
+        _woodcuttingContinuousGatherSeconds += Time.deltaTime;
         int gained = Mathf.FloorToInt(_accumItems);
 
         if (gained > 0)
@@ -1573,6 +1621,7 @@ public class PlayerController : MonoBehaviour
 
         var def = targetNode.Definition;
         _ = GetEffectiveGatherStaminaCostPerTick(); // Reserved for stamina spend integration.
+        bool isWoodcutting = targetNode.ActionType == NodeAction.Woodcutting;
 
         // ---- 1) MAIN yield first (this is the ONLY thing that grants XP) ----
         if (def.HasMainYield)
@@ -1580,12 +1629,40 @@ public class PlayerController : MonoBehaviour
             int baseMainAmt = def.RollMainYieldAmount();
             int mainAmt = baseMainAmt;
             bool gritProc = false;
+            if (isWoodcutting && _woodcuttingBonuses.heavyHitCritRollTwice)
+            {
+                int reroll = def.RollMainYieldAmount();
+                baseMainAmt = Mathf.Max(baseMainAmt, reroll);
+                mainAmt = baseMainAmt;
+            }
+
+            if (isWoodcutting && _woodcuttingBonuses.baseYieldPercent > 0f)
+                mainAmt = Mathf.Max(1, Mathf.RoundToInt(mainAmt * (1f + _woodcuttingBonuses.baseYieldPercent)));
+
+            if (isWoodcutting && _woodcuttingBonuses.extraLogChance > 0f &&
+                UnityEngine.Random.value <= _woodcuttingBonuses.extraLogChance)
+                mainAmt += 1;
+
             // Gathering Grit: doubles BASE yield only. Never duplicates bonus drops.
             if (mainAmt > 0 && UnityEngine.Random.value <= Mathf.Clamp01(_gatherGritChance))
             {
                 mainAmt *= 2;
                 gritProc = true;
             }
+
+            if (isWoodcutting && gritProc)
+            {
+                if (_woodcuttingBonuses.critYieldPercent > 0f)
+                    mainAmt = Mathf.Max(1, Mathf.RoundToInt(mainAmt * (1f + _woodcuttingBonuses.critYieldPercent)));
+                if (_woodcuttingBonuses.critRestore1Energy && characterStats != null)
+                    characterStats.AddEnergy(1f);
+                if (_woodcuttingBonuses.frenzyAfterCrit)
+                    _woodcuttingFrenzyUntil = Time.time + 3f;
+            }
+
+            if (isWoodcutting && _woodcuttingBonuses.masterGathererDoubleChance > 0f &&
+                UnityEngine.Random.value <= _woodcuttingBonuses.masterGathererDoubleChance)
+                mainAmt *= 2;
             if (mainAmt > 0)
             {
                 // Add main item
@@ -1628,6 +1705,9 @@ public class PlayerController : MonoBehaviour
                     };
 
                     sm.AddXp(skill, def.xpPerTick, def.displayName);
+                    if (isWoodcutting && _woodcuttingBonuses.bonusXpChance > 0f &&
+                        UnityEngine.Random.value <= _woodcuttingBonuses.bonusXpChance)
+                        sm.AddXp(skill, 1, def.displayName);
                 }
 
                 if (gritBonusAdded > 0)
@@ -1646,7 +1726,7 @@ public class PlayerController : MonoBehaviour
         // Bonus Resource Find Chance scales ONLY bonus roll chances:
         // effectiveChance = baseChance * (1 + bonusFindChance)
         // Base yield amount is intentionally unaffected.
-        def.PreviewDrops(_drops, _gatherBonusFindChance);
+        def.PreviewDrops(_drops, _gatherBonusFindChance + GetWoodcuttingRuntimeBonusFindChance());
 
         // PreviewDrops includes main too, so we must ignore index 0 main OR skip matching itemId
         // Easiest: process ONLY entries that are NOT the main yield itemId
@@ -1657,6 +1737,38 @@ public class PlayerController : MonoBehaviour
 
             // Skip main yield because we already handled it above
             if (d.itemId == def.YieldItemId) continue;
+
+            if (isWoodcutting && _woodcuttingBonuses.masterGathererDoubleChance > 0f &&
+                UnityEngine.Random.value <= _woodcuttingBonuses.masterGathererDoubleChance)
+                d.amount *= 2;
+
+            if (isWoodcutting && _woodcuttingBonuses.bonusFindsPlusOneChance15 &&
+                UnityEngine.Random.value <= 0.15f)
+                d.amount += 1;
+
+            ItemDefinition bonusItemDef = inventory.GetItemDef(d.itemId);
+            if (isWoodcutting && bonusItemDef != null)
+            {
+                if (bonusItemDef.rarity >= ItemRarity.Uncommon &&
+                    _woodcuttingBonuses.uncommonRareFindChance > 0f &&
+                    UnityEngine.Random.value <= _woodcuttingBonuses.uncommonRareFindChance)
+                    d.amount += 1;
+
+                if (_woodcuttingBonuses.rareFindImprovedRarityRolls &&
+                    bonusItemDef.rarity >= ItemRarity.Uncommon &&
+                    UnityEngine.Random.value <= 0.05f)
+                    d.amount += 1;
+
+                if (bonusItemDef.rarity >= ItemRarity.Rare &&
+                    _woodcuttingBonuses.duplicateRareChance > 0f &&
+                    UnityEngine.Random.value <= _woodcuttingBonuses.duplicateRareChance)
+                    d.amount *= 2;
+
+                if (bonusItemDef.rarity >= ItemRarity.Rare &&
+                    _woodcuttingBonuses.treasureFindRareIncreased &&
+                    UnityEngine.Random.value <= 0.05f)
+                    d.amount += 1;
+            }
 
             int added = inventory.AddPartial(d.itemId, d.amount);
             int overflow = d.amount - added;
@@ -1683,6 +1795,30 @@ public class PlayerController : MonoBehaviour
                 ShowPopup("Inventory Full!");
             }
         }
+
+        if (isWoodcutting && _woodcuttingBonuses.materialFindChance > 0f && def.HasMainYield &&
+            UnityEngine.Random.value <= _woodcuttingBonuses.materialFindChance)
+        {
+            _ = inventory.AddPartial(def.YieldItemId, 1);
+        }
+
+        if (isWoodcutting)
+        {
+            _woodcuttingSuccessfulGatherCount++;
+            if (_woodcuttingBonuses.momentumAfter3Speed2For5s && _woodcuttingSuccessfulGatherCount >= 3)
+            {
+                _woodcuttingSuccessfulGatherCount = 0;
+                _woodcuttingMomentumAfter3Until = Time.time + 5f;
+            }
+
+            if (_woodcuttingBonuses.doubleSwingChance > 0f && !_woodcuttingResolvingDoubleSwing &&
+                UnityEngine.Random.value <= _woodcuttingBonuses.doubleSwingChance)
+            {
+                _woodcuttingResolvingDoubleSwing = true;
+                DoOneGatherTick();
+                _woodcuttingResolvingDoubleSwing = false;
+            }
+        }
     }
 
     private void ReturnToIdle(bool keepFatigueGatherProgress = false)
@@ -1694,6 +1830,7 @@ public class PlayerController : MonoBehaviour
         _gatherGritChance = 0f;
         _gatherBonusFindChance = 0f;
         _gatherStaminaEfficiency = 0f;
+        ResetWoodcuttingRuntimeState(clearBonuses: true);
         OnGatherDebuffChanged?.Invoke(false, 1f);
 
         targetNode = null;
@@ -1725,15 +1862,195 @@ public class PlayerController : MonoBehaviour
     private bool TrySpendGatherEnergyOnSwing(NodeDefinition def)
     {
         if (def == null || characterStats == null) return true;
+        if (targetNode && targetNode.ActionType == NodeAction.Woodcutting)
+            _woodcuttingSwingCount++;
 
         // Energy model:
         // Node defines energy cost directly per gather swing.
         // Tool stamina efficiency reduces that swing cost.
         float baseCostPerSwing = Mathf.Max(0f, def.energyCostPerSwing);
         float spendPerSwing = Mathf.Max(0f, baseCostPerSwing * (1f - Mathf.Clamp01(_gatherStaminaEfficiency)));
+
+        if (targetNode && targetNode.ActionType == NodeAction.Woodcutting)
+        {
+            if (_woodcuttingBonuses.highTierStaminaDrainReduction &&
+                targetNode.RequiredLevel >= 20)
+                spendPerSwing *= 0.9f;
+
+            if (_woodcuttingBonuses.tirelessEvery12thSwingFree && _woodcuttingSwingCount > 0 &&
+                _woodcuttingSwingCount % 12 == 0)
+                spendPerSwing = 0f;
+            else if (_woodcuttingBonuses.tirelessNoStaminaChance > 0f &&
+                     UnityEngine.Random.value <= _woodcuttingBonuses.tirelessNoStaminaChance)
+                spendPerSwing = 0f;
+        }
+
         if (spendPerSwing <= 0f) return true;
 
         return characterStats.SpendEnergy(spendPerSwing);
+    }
+
+    private float GetEffectiveGatherSpeedMultiplier()
+    {
+        float mult = _gatherSpeedMultiplier;
+        if (targetNode == null || targetNode.ActionType != NodeAction.Woodcutting)
+            return mult;
+
+        float bonus = _woodcuttingBonuses.speedPercent;
+        if (_woodcuttingBonuses.steadySwingSpeedPercentAbove80Energy > 0f &&
+            MaxEnergy > 0f && (Energy / MaxEnergy) >= 0.8f)
+            bonus += _woodcuttingBonuses.steadySwingSpeedPercentAbove80Energy;
+        if (_woodcuttingBonuses.momentumAfter3Speed2For5s && Time.time < _woodcuttingMomentumAfter3Until)
+            bonus += 0.02f;
+        if (_woodcuttingBonuses.frenzyAfterCrit && Time.time < _woodcuttingFrenzyUntil)
+            bonus += 0.05f;
+        if (_woodcuttingBonuses.momentumContinuous15s && _woodcuttingContinuousGatherSeconds >= 15f)
+            bonus += 0.02f;
+        if (_woodcuttingBonuses.forestFlowContinuous && _woodcuttingContinuousGatherSeconds >= 0.1f)
+            bonus += 0.03f;
+        if (_woodcuttingBonuses.momentumConsecutiveStacks)
+        {
+            int stacks = Mathf.Clamp(_woodcuttingSuccessfulGatherCount, 0, 10);
+            bonus += 0.005f * stacks;
+        }
+
+        return Mathf.Max(0.05f, mult * (1f + bonus));
+    }
+
+    private float GetWoodcuttingRuntimeBonusFindChance()
+    {
+        if (targetNode == null || targetNode.ActionType != NodeAction.Woodcutting)
+            return 0f;
+
+        float bonus = _woodcuttingBonuses.bonusFindChance;
+        if (_woodcuttingBonuses.momentumContinuous15s && _woodcuttingContinuousGatherSeconds >= 15f)
+            bonus += 0.02f;
+        return bonus;
+    }
+
+    private void ResetWoodcuttingRuntimeState(bool clearBonuses)
+    {
+        if (clearBonuses)
+            _woodcuttingBonuses = default;
+        _woodcuttingSuccessfulGatherCount = 0;
+        _woodcuttingSwingCount = 0;
+        _woodcuttingMomentumAfter3Until = 0f;
+        _woodcuttingFrenzyUntil = 0f;
+        _woodcuttingContinuousGatherSeconds = 0f;
+        _woodcuttingResolvingDoubleSwing = false;
+    }
+
+    private void ApplyWoodcuttingSkillRuntimeBonusesIfNeeded(ResourceNode node)
+    {
+        ResetWoodcuttingRuntimeState(clearBonuses: true);
+        if (node == null || node.ActionType != NodeAction.Woodcutting)
+            return;
+
+        SkillsManager sm = SkillsManager.Instance;
+        SkillDatabase db = SkillDatabase.LoadDefault();
+        SkillDefinition woodcutting = db != null ? db.Get(SkillType.Woodcutting) : null;
+        if (woodcutting == null || sm == null)
+            return;
+
+        int level = sm.GetLevel(SkillType.Woodcutting);
+        List<SkillUnlockDefinition> unlocks = woodcutting.unlocks;
+        if (unlocks == null)
+            return;
+
+        WoodcuttingRuntimeBonuses b = default;
+        for (int i = 0; i < unlocks.Count; i++)
+        {
+            SkillUnlockDefinition u = unlocks[i];
+            if (u == null || u.unlockType != SkillUnlockType.MinorPassive || u.requiredLevel > level)
+                continue;
+
+            switch (u.woodcuttingMinorStatOption)
+            {
+                case WoodcuttingMinorNodeStatOption.WoodcuttingSpeedPercent2:
+                case WoodcuttingMinorNodeStatOption.WoodcuttingSpeedPercent3:
+                case WoodcuttingMinorNodeStatOption.WoodcuttingSpeedPercent4:
+                case WoodcuttingMinorNodeStatOption.WoodcuttingStaminaEfficiencyPercent2:
+                case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent1:
+                case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent2:
+                case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent3:
+                case WoodcuttingMinorNodeStatOption.WoodcuttingBonusFindPercent1:
+                case WoodcuttingMinorNodeStatOption.WoodcuttingBonusItemChancePercent2:
+                case WoodcuttingMinorNodeStatOption.WoodcuttingBonusFindPercent3:
+                    // Core gather stats now come from CharacterStats (AxeSpeedMult/AxeGrit/AxeBonusFindChance/AxeStaminaEfficiency)
+                    // so tooltip + runtime share one source of truth and avoid double-applying.
+                    break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingExtraLogChancePercent2: b.extraLogChance += 0.02f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingSteadySwingSpeedPercent2Above80Energy: b.steadySwingSpeedPercentAbove80Energy += 0.02f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingCritRestoreEnergy1: b.critRestore1Energy = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingMomentumAfter3SuccessSpeedPercent2For5s: b.momentumAfter3Speed2For5s = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingRareFindUncommonChancePercent2: b.uncommonRareFindChance += 0.02f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingYieldPercent2: b.baseYieldPercent += 0.02f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingYieldPercent3: b.baseYieldPercent += 0.03f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingRecoveryPercent5: b.gatherRecoveryPercent += 0.05f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingCriticalYieldPercent5: b.critYieldPercent += 0.05f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingHighTierStaminaDrainReduction: b.highTierStaminaDrainReduction = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingDuplicateRareSmallChance: b.duplicateRareChance += 0.06f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingTirelessEvery12thSwingFree: b.tirelessEvery12thSwingFree = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingBonusXpSmallChance: b.bonusXpChance += 0.08f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingMomentumContinuous15sSpeedPercent2BonusFindPercent2: b.momentumContinuous15s = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingHeavyHitCritRollMainYieldTwiceKeepHigher: b.heavyHitCritRollTwice = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingMaterialFindSmallChance: b.materialFindChance += 0.05f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingMomentumConsecutiveSpeedStacks: b.momentumConsecutiveStacks = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingRareFindImprovedRarityRolls: b.rareFindImprovedRarityRolls = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingFrenzyAfterCritSpeedPercent5For3s: b.frenzyAfterCrit = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingDoubleSwingSmallChance: b.doubleSwingChance += 0.05f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingTreasureFindRareIncreased: b.treasureFindRareIncreased = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingBonusRewardBonusFindsPlusOneChance15: b.bonusFindsPlusOneChance15 = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingTirelessSmallChanceNoStaminaCost: b.tirelessNoStaminaChance += 0.06f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingForestFlowContinuousSpeedPercent3RecoveryPercent3: b.forestFlowContinuous = true; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingMasterGathererSmallChanceDoubleResources: b.masterGathererDoubleChance += 0.06f; break;
+                case WoodcuttingMinorNodeStatOption.WoodcuttingGatherSpeedFlat01:
+                case WoodcuttingMinorNodeStatOption.WoodcuttingEnergyEfficiencyPercent2:
+                    break;
+            }
+        }
+
+        _woodcuttingBonuses = b;
+    }
+
+    private void ApplyGatherCoreStatsFromCharacterAndTool(NodeAction actionType, ItemDefinition toolDef)
+    {
+        if (characterStats == null)
+        {
+            _gatherSpeedMultiplier = toolDef ? toolDef.GatherSpeedMultiplier : 1f;
+            _gatherGritChance = toolDef ? toolDef.GatheringGrit : 0f;
+            _gatherBonusFindChance = toolDef ? toolDef.BonusResourceFindChance : 0f;
+            _gatherStaminaEfficiency = toolDef ? toolDef.StaminaEfficiency : 0f;
+            return;
+        }
+
+        switch (actionType)
+        {
+            case NodeAction.Woodcutting:
+                _gatherSpeedMultiplier = Mathf.Max(0.05f, characterStats.AxeSpeedMult);
+                _gatherGritChance = Mathf.Clamp01(characterStats.AxeGrit);
+                _gatherBonusFindChance = Mathf.Max(0f, characterStats.AxeBonusFindChance);
+                _gatherStaminaEfficiency = Mathf.Clamp01(characterStats.AxeStaminaEfficiency);
+                break;
+            case NodeAction.Mining:
+                _gatherSpeedMultiplier = Mathf.Max(0.05f, characterStats.PickaxeSpeedMult);
+                _gatherGritChance = Mathf.Clamp01(characterStats.PickaxeGrit);
+                _gatherBonusFindChance = Mathf.Max(0f, characterStats.PickaxeBonusFindChance);
+                _gatherStaminaEfficiency = Mathf.Clamp01(characterStats.PickaxeStaminaEfficiency);
+                break;
+            case NodeAction.Fishing:
+                _gatherSpeedMultiplier = Mathf.Max(0.05f, characterStats.RodSpeedMult);
+                _gatherGritChance = Mathf.Clamp01(characterStats.RodGrit);
+                _gatherBonusFindChance = Mathf.Max(0f, characterStats.RodBonusFindChance);
+                _gatherStaminaEfficiency = Mathf.Clamp01(characterStats.RodStaminaEfficiency);
+                break;
+            default:
+                _gatherSpeedMultiplier = toolDef ? toolDef.GatherSpeedMultiplier : 1f;
+                _gatherGritChance = toolDef ? toolDef.GatheringGrit : 0f;
+                _gatherBonusFindChance = toolDef ? toolDef.BonusResourceFindChance : 0f;
+                _gatherStaminaEfficiency = toolDef ? toolDef.StaminaEfficiency : 0f;
+                break;
+        }
     }
 
     private void ClearFatigueGatherProgress()

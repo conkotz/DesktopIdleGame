@@ -2324,9 +2324,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 switch (unlock.woodcuttingMinorStatOption)
                 {
                     case WoodcuttingMinorNodeStatOption.WoodcuttingGatherSpeedFlat01: total.gatherSpeedFlat += 0.1f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingSpeedPercent2: total.gatherSpeedFlat += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingSpeedPercent3: total.gatherSpeedFlat += 0.03f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingSpeedPercent4: total.gatherSpeedFlat += 0.04f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingSteadySwingSpeedPercent2Above80Energy: total.gatherSpeedFlat += 0.02f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent2: total.gatherGrit += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent1: total.gatherGrit += 0.01f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent3: total.gatherGrit += 0.03f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingEnergyEfficiencyPercent2: total.gatherEnergyEfficiency += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingStaminaEfficiencyPercent2: total.gatherEnergyEfficiency += 0.02f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingBonusItemChancePercent2: total.gatherBonusItemChance += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusFindPercent1: total.gatherBonusItemChance += 0.01f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusFindPercent3: total.gatherBonusItemChance += 0.03f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingRareFindUncommonChancePercent2: total.gatherBonusItemChance += 0.02f; break;
                 }
                 break;
 

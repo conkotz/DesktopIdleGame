@@ -857,6 +857,26 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         float gatherGrit = 0f;
         float gatherEnergyEfficiency = 0f;
         float gatherBonusItemChance = 0f;
+        float gatherExtraLogChance = 0f;
+        float gatherYieldPercent = 0f;
+        float gatherStaminaRecoveryPercent = 0f;
+        float gatherCritYieldPercent = 0f;
+        float gatherBonusXpChance = 0f;
+        float gatherNoStaminaChance = 0f;
+        bool gatherCritRestoreStamina1 = false;
+        bool gatherMomentumAfter3 = false;
+        bool gatherHighTierDrainReduction = false;
+        bool gatherEvery12thFree = false;
+        bool gatherContinuous15sBuff = false;
+        bool gatherHeavyHit = false;
+        bool gatherConsecutiveMomentum = false;
+        bool gatherRareFindImprovedRolls = false;
+        bool gatherFrenzyAfterCrit = false;
+        bool gatherDoubleSwing = false;
+        bool gatherTreasureFind = false;
+        bool gatherBonusFindPlusOne = false;
+        bool gatherForestFlow = false;
+        bool gatherMasterGatherer = false;
         float enduranceArmor = 0f;
         float enduranceMagicResist = 0f;
         float enduranceHp = 0f;
@@ -930,6 +950,39 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                     case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent2: gatherGrit += 0.02f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingEnergyEfficiencyPercent2: gatherEnergyEfficiency += 0.02f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingBonusItemChancePercent2: gatherBonusItemChance += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingSpeedPercent2: gatherSpeedFlat += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingSpeedPercent3: gatherSpeedFlat += 0.03f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingSpeedPercent4: gatherSpeedFlat += 0.04f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingStaminaEfficiencyPercent2: gatherEnergyEfficiency += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent1: gatherGrit += 0.01f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent3: gatherGrit += 0.03f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusFindPercent1: gatherBonusItemChance += 0.01f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusFindPercent3: gatherBonusItemChance += 0.03f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingExtraLogChancePercent2: gatherExtraLogChance += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingSteadySwingSpeedPercent2Above80Energy: gatherSpeedFlat += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingCritRestoreEnergy1: gatherCritRestoreStamina1 = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingMomentumAfter3SuccessSpeedPercent2For5s: gatherMomentumAfter3 = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingRareFindUncommonChancePercent2: gatherBonusItemChance += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingYieldPercent2: gatherYieldPercent += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingYieldPercent3: gatherYieldPercent += 0.03f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingRecoveryPercent5: gatherStaminaRecoveryPercent += 0.05f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingCriticalYieldPercent5: gatherCritYieldPercent += 0.05f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingHighTierStaminaDrainReduction: gatherHighTierDrainReduction = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingDuplicateRareSmallChance: gatherBonusItemChance += 0.06f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingTirelessEvery12thSwingFree: gatherEvery12thFree = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusXpSmallChance: gatherBonusXpChance += 0.08f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingMomentumContinuous15sSpeedPercent2BonusFindPercent2: gatherContinuous15sBuff = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingHeavyHitCritRollMainYieldTwiceKeepHigher: gatherHeavyHit = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingMaterialFindSmallChance: gatherBonusItemChance += 0.05f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingMomentumConsecutiveSpeedStacks: gatherConsecutiveMomentum = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingRareFindImprovedRarityRolls: gatherRareFindImprovedRolls = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingFrenzyAfterCritSpeedPercent5For3s: gatherFrenzyAfterCrit = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingDoubleSwingSmallChance: gatherDoubleSwing = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingTreasureFindRareIncreased: gatherTreasureFind = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusRewardBonusFindsPlusOneChance15: gatherBonusFindPlusOne = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingTirelessSmallChanceNoStaminaCost: gatherNoStaminaChance += 0.06f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingForestFlowContinuousSpeedPercent3RecoveryPercent3: gatherForestFlow = true; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingMasterGathererSmallChanceDoubleResources: gatherMasterGatherer = true; break;
                 }
             }
             else if (skill.skillType == SkillType.Mining)
@@ -1019,16 +1072,47 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
         else if (skill.skillType == SkillType.Mining || skill.skillType == SkillType.Woodcutting || skill.skillType == SkillType.Fishing)
         {
+            bool isWoodcuttingSkill = skill.skillType == SkillType.Woodcutting;
             if (gatherSpeedFlat > 0f)
             {
                 sb.Append("• +");
                 sb.Append(gatherSpeedFlat.ToString("0.##"));
-                sb.Append(" Gathering Speed");
+                sb.Append(isWoodcuttingSkill ? " Woodcutting Speed" : " Gathering Speed");
                 sb.AppendLine();
             }
-            AppendPct(sb, gatherGrit, "Grit");
-            AppendPct(sb, gatherEnergyEfficiency, "Energy Efficiency");
-            AppendPct(sb, gatherBonusItemChance, "Bonus Item Chance");
+            if (isWoodcuttingSkill)
+            {
+                AppendPct(sb, gatherGrit, "Woodcutting Grit");
+                AppendPct(sb, gatherEnergyEfficiency, "Woodcutting Stamina Efficiency");
+                AppendPct(sb, gatherBonusItemChance, "Woodcutting Bonus Find Chance");
+                AppendPct(sb, gatherExtraLogChance, "Woodcutting Chance for +1 Extra Log");
+                AppendPct(sb, gatherYieldPercent, "Woodcutting Base Resource Yield");
+                AppendPct(sb, gatherStaminaRecoveryPercent, "Woodcutting Stamina Recovery While Gathering");
+                AppendPct(sb, gatherCritYieldPercent, "Woodcutting Crit Resource Yield");
+                AppendPct(sb, gatherBonusXpChance, "Woodcutting Bonus XP Chance");
+                AppendPct(sb, gatherNoStaminaChance, "Woodcutting No-Stamina Swing Chance");
+
+                if (gatherCritRestoreStamina1) sb.AppendLine("• Woodcutting Crits restore +1 stamina");
+                if (gatherMomentumAfter3) sb.AppendLine("• After 3 successful woodcutting gathers: +2% Woodcutting Speed for 5s");
+                if (gatherHighTierDrainReduction) sb.AppendLine("• -10% Woodcutting stamina drain on high-tier trees");
+                if (gatherEvery12thFree) sb.AppendLine("• Every 12th woodcutting swing costs 0 stamina");
+                if (gatherContinuous15sBuff) sb.AppendLine("• After 15s continuous woodcutting: +2% Woodcutting Speed, +2% Woodcutting Bonus Find Chance");
+                if (gatherHeavyHit) sb.AppendLine("• Woodcutting crits roll main yield twice and keep higher result");
+                if (gatherConsecutiveMomentum) sb.AppendLine("• Consecutive woodcutting stacks: +0.5% Woodcutting Speed per stack (max +5%)");
+                if (gatherRareFindImprovedRolls) sb.AppendLine("• Woodcutting rare-find improved roll: 5% chance for +1 extra uncommon+ item");
+                if (gatherFrenzyAfterCrit) sb.AppendLine("• After a woodcutting crit: +5% Woodcutting Speed for 3s");
+                if (gatherDoubleSwing) sb.AppendLine("• 5% chance to instantly repeat a woodcutting gather");
+                if (gatherTreasureFind) sb.AppendLine("• 5% increased chance to find rare woodcutting treasures");
+                if (gatherBonusFindPlusOne) sb.AppendLine("• Woodcutting Bonus Finds: 15% chance to grant +1 additional item");
+                if (gatherForestFlow) sb.AppendLine("• While continuously woodcutting: +3% Woodcutting Speed, +3% Woodcutting stamina recovery");
+                if (gatherMasterGatherer) sb.AppendLine("• 6% chance to double woodcutting gathered resources");
+            }
+            else
+            {
+                AppendPct(sb, gatherGrit, "Grit");
+                AppendPct(sb, gatherEnergyEfficiency, "Energy Efficiency");
+                AppendPct(sb, gatherBonusItemChance, "Bonus Item Chance");
+            }
         }
 
         // Major passive conversion summary (currently Melee Lv10 Bloodletting branch).

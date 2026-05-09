@@ -14,7 +14,8 @@ public class SkillTreeViewUI : MonoBehaviour
     [Tooltip(
         "Wide rect for tier captions (e.g. SkillTreeRoot). If empty, uses Levels Root’s parent so labels sit on the panel’s right edge, not inside the narrow Lv column.")]
     [SerializeField] private RectTransform levelTierRowLabelsRoot;
-    [SerializeField] private float levelTierLabelRightInset = 12f;
+    [SerializeField] private float levelTierLabelRightInset = 22f;
+    [SerializeField] private float levelTierLabelExtraRightPaddingPx = 10f;
     [SerializeField] private SkillTreeNodeUI nodePrefab;
     [SerializeField] private SkillTreeConnectorUI connectorPrefab;
     [SerializeField] private SharedTooltipUI sharedTooltip;
@@ -558,7 +559,7 @@ public class SkillTreeViewUI : MonoBehaviour
                     rtt.anchorMax = new Vector2(1f, 1f);
                     rtt.pivot = new Vector2(1f, 0.5f);
                     float tierY = ResolveTierLabelAnchoredY(tierParent, layoutRowY[labelIndex]);
-                    float inset = Mathf.Max(0f, levelTierLabelRightInset);
+                    float inset = Mathf.Max(0f, levelTierLabelRightInset) + Mathf.Max(0f, levelTierLabelExtraRightPaddingPx);
                     rtt.anchoredPosition = new Vector2(-inset, tierY);
                     spawnedTierRowLabels.Add(tr);
                 }
