@@ -101,6 +101,8 @@ public struct SplitDamageRange
 [DisallowMultipleComponent]
 public class CharacterStats : MonoBehaviour, ISaveable
 {
+    /// <summary>Skill levels above this grant additive post-cap bonuses (UI + stats).</summary>
+    public const int SkillPostCapThresholdLevel = 50;
 
     [SerializeField] private PlayerBuffController buffController;
 
@@ -321,9 +323,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float woodcuttingBaseYieldBonus;
         public int woodcuttingForestFlowStacks;
         public int woodcuttingFrenzyStacks;
-        public float woodcuttingGritCritEnergyRestore;
+        /// <summary>Fraction of max stamina restored when Woodcutting Grit procs (e.g. 0.15 = +15%).</summary>
+        public float woodcuttingGritProcRestoreStaminaFraction;
         public float woodcuttingBonusXpChance;
         public float woodcuttingNoStaminaSwingChance;
+        /// <summary>Chance (0–1) per tick that woodcutting does not increment depletion on the node.</summary>
+        public float woodcuttingChanceNotToCountTowardTreeDepletion;
 
         public float enduranceArmorFlat;
         public float enduranceMagicResistFlat;
@@ -955,9 +960,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float AxeWoodcuttingBaseYieldBonus => Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingBaseYieldBonus);
     public int AxeWoodcuttingForestFlowStacks => Mathf.Max(0, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingForestFlowStacks);
     public int AxeWoodcuttingFrenzyStacks => Mathf.Max(0, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingFrenzyStacks);
-    public float AxeWoodcuttingGritCritEnergyRestore => Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingGritCritEnergyRestore);
+    public float AxeWoodcuttingGritProcRestoreStaminaFraction =>
+        Mathf.Clamp01(GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingGritProcRestoreStaminaFraction);
     public float AxeWoodcuttingBonusXpChance => Mathf.Min(1f, Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingBonusXpChance));
     public float AxeWoodcuttingNoStaminaSwingChance => Mathf.Min(1f, Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingNoStaminaSwingChance));
+    public float AxeWoodcuttingChanceNotToCountTowardTreeDepletion =>
+        Mathf.Clamp01(GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingChanceNotToCountTowardTreeDepletion);
 
     // -------------------------
     // Combat Power
@@ -2105,6 +2113,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         ApplyLevel10BloodlettingBranch(meleeLevel, ref total);
 
+        int pastCap = Mathf.Max(0, meleeLevel - SkillPostCapThresholdLevel);
+        if (pastCap > 0)
+            total.meleeDamagePercent += pastCap * 0.01f;
+
         return total;
     }
 
@@ -2137,6 +2149,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
             ApplyRangedMinorOption(unlock.rangedMinorStatOption, ref total);
         }
 
+        int pastCapR = Mathf.Max(0, rangedLevel - SkillPostCapThresholdLevel);
+        if (pastCapR > 0)
+            total.rangedDamagePercent += pastCapR * 0.01f;
+
         return total;
     }
 
@@ -2167,6 +2183,26 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 continue;
 
             ApplySkillSpecificMinorOption(skillType, unlock, ref total);
+        }
+
+        int pastCap = Mathf.Max(0, skillLevel - SkillPostCapThresholdLevel);
+        if (pastCap > 0)
+        {
+            switch (skillType)
+            {
+                case SkillType.Magic:
+                    total.magicDamagePercent += pastCap * 0.01f;
+                    break;
+                case SkillType.Endurance:
+                    total.enduranceHealthFlat += pastCap * 5f;
+                    total.enduranceArmorFlat += pastCap * 1f;
+                    break;
+                case SkillType.Woodcutting:
+                case SkillType.Mining:
+                case SkillType.Fishing:
+                    total.gatherSpeedFlat += pastCap * 0.01f;
+                    break;
+            }
         }
 
         return total;
@@ -2357,11 +2393,22 @@ public class CharacterStats : MonoBehaviour, ISaveable
                     case WoodcuttingMinorNodeStatOption.WoodcuttingStaminaEfficiencyPercent3: total.gatherEnergyEfficiency += 0.03f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent4: total.gatherGrit += 0.04f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingBonusFindPercent6: total.gatherBonusItemChance += 0.06f; break;
-                    case WoodcuttingMinorNodeStatOption.WoodcuttingCritRestoreEnergy10OnGrit: total.woodcuttingGritCritEnergyRestore += 10f; break;
-                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusXpChancePercent2: total.woodcuttingBonusXpChance += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingCritRestoreEnergy10OnGrit:
+                        total.woodcuttingGritProcRestoreStaminaFraction += 0.07f;
+                        break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGritProcRestoresMaxStaminaPercent7:
+                        total.woodcuttingGritProcRestoreStaminaFraction += 0.07f;
+                        break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGritProcRestoresMaxStaminaPercent8:
+                        total.woodcuttingGritProcRestoreStaminaFraction += 0.08f;
+                        break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusXpChancePercent2: total.woodcuttingBonusXpChance += 0.04f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingNoStaminaSwingChancePercent3: total.woodcuttingNoStaminaSwingChance += 0.03f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingFrenzyAfterGritSpeedPercent5Duration7s: total.woodcuttingFrenzyStacks += 1; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingForestFlowContinuousSpeedPercent3RecoveryPercent3: total.woodcuttingForestFlowStacks += 1; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingChanceNotToCountTowardTreeDepletionPercent10:
+                        total.woodcuttingChanceNotToCountTowardTreeDepletion += 0.10f;
+                        break;
                 }
                 break;
 

@@ -37,12 +37,12 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 2
     title: Chopping Speed 1
-    description: +3% Woodcutting Speed
+    description: +2% Woodcutting Speed
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 11
+    woodcuttingMinorStatOption: 10
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -67,12 +67,12 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 4
     title: Chopping Grit 1
-    description: +2% Woodcutting Grit Chance
+    description: +1% Woodcutting Grit Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 2
+    woodcuttingMinorStatOption: 14
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -97,12 +97,12 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 6
     title: Chopping Bonus Find 1
-    description: +2% Bonus Find Chance
+    description: +1% Woodcutting Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 4
+    woodcuttingMinorStatOption: 16
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -112,12 +112,12 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 7
     title: Chopping Speed 2
-    description: +3% Woodcutting Speed
+    description: +2% Woodcutting Speed
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 11
+    woodcuttingMinorStatOption: 10
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -142,12 +142,12 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 9
     title: Chopping Grit Restore 1
-    description: Woodcutting Grit procs restore +10 stamina
+    description: Woodcutting Grit procs restore +7% stamina
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 46
+    woodcuttingMinorStatOption: 51
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -172,7 +172,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 11
     title: Chopping Bonus Find 2
-    description: +2% Bonus Find Chance
+    description: +2% Woodcutting Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -217,7 +217,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 14
     title: Chopping Bonus XP 1
-    description: 2% chance for bonus woodcutting XP
+    description: +4% chance to double XP gained from Woodcutting
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -231,9 +231,9 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 15
-    title: Placeholder Major Passive
-    description: Placeholder major passive slot for woodcutting.
-    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    title: Woodcutting Specialization
+    description: Choose your major woodcutting passive and enhancement. All branches unlock at level 15.
+    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -244,7 +244,37 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
-    choices: []
+    choices:
+    - requiredLevel: 0
+      title: Conservationist — Sustainable Harvest
+      description: "Successful chops have 15% chance to not count toward tree depletion. When that triggers, restore 10% max stamina."
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 0
+      title: Conservationist — Ancient Preservation
+      description: Successful chops have 25% chance to not count toward tree depletion (stacks with other depletion-skip bonuses).
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 0
+      title: Heavy Swing — Controlled Force
+      description: "When Gathering Grit procs: 40% chance to gather +1 additional main resource, and +10% Bonus Find Chance for that swing's bonus drops."
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 0
+      title: Heavy Swing — Crushing Swing
+      description: When Gathering Grit procs, 50% chance to gather +1 additional main resource (includes the base Heavy Swing proc).
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 0
+      title: Flow State — Lasting Focus
+      description: "After 15 seconds of continuous woodcutting on the same tree, enter Flow State: +10% Chopping Speed and +10% Stamina Efficiency. Flow lasts 5 seconds after you stop gathering."
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 0
+      title: Flow State — Deep Focus
+      description: "After 15 seconds of continuous woodcutting on the same tree, enter Flow State: +10% Chopping Speed, +10% Stamina Efficiency, and +10% Gathering Grit Chance."
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
   - requiredLevel: 16
     title: Chopping Grit 3
     description: +2% Woodcutting Grit Chance
@@ -277,7 +307,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 18
     title: Chopping Bonus Find 3
-    description: +2% Bonus Find Chance
+    description: +2% Woodcutting Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -292,7 +322,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 19
     title: Chopping Tireless Swing 1
-    description: 3% chance for swings to cost no stamina
+    description: +3% Woodcutting No-Stamina Swing Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -321,13 +351,13 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 21
-    title: Chopping Grit 4
-    description: +2% Woodcutting Grit Chance
+    title: Chopping Tree Conservation 1
+    description: +10% Woodcutting chance not to count toward tree depletion
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 2
+    woodcuttingMinorStatOption: 50
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -352,7 +382,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 23
     title: Chopping Bonus Find 4
-    description: +2% Bonus Find Chance
+    description: +2% Woodcutting Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -427,12 +457,12 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 28
     title: Chopping Grit Restore 2
-    description: Woodcutting Grit procs restore +10 stamina
+    description: Woodcutting Grit procs restore +8% stamina
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 46
+    woodcuttingMinorStatOption: 52
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -457,7 +487,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 30
     title: Chopping Bonus Find 5
-    description: +2% Bonus Find Chance
+    description: +2% Woodcutting Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -471,13 +501,13 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 31
-    title: Chopping Speed 7
-    description: +3% Woodcutting Speed
+    title: Chopping Forest Flow 1
+    description: 'While continuously woodcutting (after 15 seconds): +3% Woodcutting Speed, +3% Woodcutting Stamina Efficiency'
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 11
+    woodcuttingMinorStatOption: 41
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -486,13 +516,13 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 32
-    title: Chopping Forest Flow 1
-    description: 'After 15 seconds on the same tree: +3% Woodcutting Speed, +3% Woodcutting Stamina Efficiency while chopping it'
+    title: Chopping Tree Conservation 2
+    description: +10% Woodcutting chance not to count toward tree depletion
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 41
+    woodcuttingMinorStatOption: 50
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -517,7 +547,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 34
     title: Chopping Bonus XP 2
-    description: 2% chance for bonus woodcutting XP
+    description: +4% chance to double XP gained from Woodcutting
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -577,7 +607,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 38
     title: Chopping Bonus Find 6
-    description: +2% Bonus Find Chance
+    description: +2% Woodcutting Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -592,7 +622,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 39
     title: Chopping Tireless Swing 2
-    description: 3% chance for swings to cost no stamina
+    description: +3% Woodcutting No-Stamina Swing Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -652,7 +682,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 43
     title: Chopping Bonus Find 7
-    description: +2% Bonus Find Chance
+    description: +2% Woodcutting Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -667,7 +697,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 44
     title: Chopping Forest Flow 2
-    description: 'After 15 seconds on the same tree: +3% Woodcutting Speed, +3% Woodcutting Stamina Efficiency while chopping it'
+    description: 'While continuously woodcutting (after 15 seconds): +3% Woodcutting Speed, +3% Woodcutting Stamina Efficiency'
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -696,13 +726,13 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 46
-    title: Chopping Speed 10
-    description: +3% Woodcutting Speed
+    title: Chopping Tree Conservation 3
+    description: +10% Woodcutting chance not to count toward tree depletion
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 11
+    woodcuttingMinorStatOption: 50
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -727,7 +757,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 48
     title: Chopping Bonus Find 8
-    description: +6% Bonus Find Chance
+    description: +6% Woodcutting Bonus Find Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0

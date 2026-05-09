@@ -591,7 +591,19 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (panel.TryGetComponent(out UIWindowCornerResize rz))
             rz.ForgetPersistedScaleAndResetToBase();
 
-        HelperPopupLayoutPrefs.Save(pos, sz, headerOnlyLayout: false);
+        // Match "help enabled" minimized chrome — not an empty expanded panel (see ResetHelperPanelLayoutToInspectorDefaults).
+        Transform expandedTf = panel.Find("ExpandedPresentation");
+        if (expandedTf)
+            expandedTf.gameObject.SetActive(false);
+        panel.sizeDelta = new Vector2(sz.x, ExpandedHeaderStripHeight);
+        Transform titleGo = chrome ? chrome.Find("ChromeTitle") : null;
+        if (titleGo)
+            titleGo.gameObject.SetActive(true);
+        Transform glyphTr = chrome ? chrome.Find("MinimizeStripeButton/Label") : null;
+        if (glyphTr && glyphTr.TryGetComponent(out TMP_Text gTmp))
+            gTmp.text = "+";
+
+        HelperPopupLayoutPrefs.Save(pos, sz, headerOnlyLayout: true);
         UIWindowPositionMemory.Save("HelperPopupWindow.Panel", pos);
     }
 
@@ -605,15 +617,6 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         _helperPanelRt.anchoredPosition = pos;
         _helperPanelRt.sizeDelta = sz;
-        _lastExpandedPanelSizeDelta = Vector2.zero;
-
-        if (_expandedPanelRoot)
-        {
-            _expandedPanelRoot.SetActive(true);
-            RefreshChromeCollapsedVisuals(false);
-        }
-
-        _layoutTrackSize = sz;
 
         Transform chrome = _helperPanelRt.Find("TopChromeStrip");
         if (chrome && chrome.TryGetComponent(out UIDragWindow dw))
@@ -622,8 +625,27 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (_helperPanelRt.TryGetComponent(out UIWindowCornerResize rz))
             rz.ForgetPersistedScaleAndResetToBase();
 
-        HelperPopupLayoutPrefs.Save(pos, sz, headerOnlyLayout: false);
-        UIWindowPositionMemory.Save("HelperPopupWindow.Panel", pos);
+        // Global settings reset runs after toggle prefs reload; leaving ExpandedPresentation active with no
+        // active helper looks like an empty full window. Use the same collapsed stripe as PresentMinimizedAwaitingFuturePopups.
+        if (_expandedPanelRoot)
+        {
+            if (HelpersPermittedBySettings())
+                TransitionToCollapsedStripeLayout();
+            else
+            {
+                _expandedPanelRoot.SetActive(false);
+                RefreshChromeCollapsedVisuals(true);
+                _helperPanelRt.sizeDelta = new Vector2(sz.x, ExpandedHeaderStripHeight);
+                SaveHelperLayoutSnapshot();
+            }
+        }
+        else
+        {
+            HelperPopupLayoutPrefs.Save(pos, sz, headerOnlyLayout: true);
+            UIWindowPositionMemory.Save("HelperPopupWindow.Panel", pos);
+        }
+
+        _layoutTrackSize = _helperPanelRt.sizeDelta;
     }
 
     /// <summary>
@@ -3723,7 +3745,8 @@ public sealed class HelperGameplayController : MonoBehaviour
         chromeTint.raycastTarget = true;
 
         UIDragWindow chromeDrag = chromeGo.AddComponent<UIDragWindow>();
-        chromeDrag.AttachWindow(_helperPanelRt, omitTopCornerHandles: false, counterHudCanvasScale: true);
+        // Bottom-right scale handle sits on the title strip beside +/- / close; omit so it does not cover those controls.
+        chromeDrag.AttachWindow(_helperPanelRt, omitTopCornerHandles: false, counterHudCanvasScale: true, omitBottomRightCornerHandle: true);
         chromeDrag.SetRuntimeMemoryKey("HelperPopupWindow.Panel");
         chromeDrag.UsePlayerPrefsForAnchoredPosition(HelperPopupLayoutPrefs.PosX, HelperPopupLayoutPrefs.PosY);
 

@@ -57,8 +57,8 @@ public class NodeDefinition : ScriptableObject
     public string missingToolMessage = "No tool available in toolbelt.";
 
     [Header("Energy Cost")]
-    [Tooltip("Energy drained on each gather swing for this node. 0 disables energy cost.")]
-    [Min(0f)] public float energyCostPerSwing = 30f;
+    [Tooltip("Percent of maximum energy spent per gather swing (e.g. 10 = 10%). Cost scales with max energy so a bigger pool does not give more swings per full bar; raise stamina efficiency to reduce cost.")]
+    [Range(0f, 100f)] public float energyCostPercentOfMaxPerSwing = 10f;
 
     [Header("Depletion (Optional)")]
     [Tooltip("Successful main gather ticks (counted once per tick, before yield bonuses) before this node becomes depleted. 0 = infinite / no depletion.")]

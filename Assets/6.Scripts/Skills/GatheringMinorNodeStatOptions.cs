@@ -45,10 +45,16 @@ public enum WoodcuttingMinorNodeStatOption
     WoodcuttingStaminaEfficiencyPercent3 = 43,
     WoodcuttingGritPercent4 = 44,
     WoodcuttingBonusFindPercent6 = 45,
+    /// <summary>Legacy: treated as +7% max stamina restored on grit proc.</summary>
     WoodcuttingCritRestoreEnergy10OnGrit = 46,
+    /// <summary>+4% chance (per node) to roll duplicate Woodcutting XP on a gather tick.</summary>
     WoodcuttingBonusXpChancePercent2 = 47,
     WoodcuttingNoStaminaSwingChancePercent3 = 48,
-    WoodcuttingFrenzyAfterGritSpeedPercent5Duration7s = 49
+    WoodcuttingFrenzyAfterGritSpeedPercent5Duration7s = 49,
+    /// <summary>+10% chance this woodcutting tick does not count toward the tree depletion cap.</summary>
+    WoodcuttingChanceNotToCountTowardTreeDepletionPercent10 = 50,
+    WoodcuttingGritProcRestoresMaxStaminaPercent7 = 51,
+    WoodcuttingGritProcRestoresMaxStaminaPercent8 = 52
 }
 
 public enum MiningMinorNodeStatOption

@@ -28,6 +28,9 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     [Tooltip("When true, TopLeft hit target is not created (resize from bottom corners only). TopRight is always omitted globally.")]
     [SerializeField] private bool omitTopCornerHandles;
 
+    [Tooltip("When true, BottomRight hit target is not created (e.g. helper title bar: avoid handle over close/minimize).")]
+    [SerializeField] private bool omitBottomRightCornerHandle;
+
     /// <summary>
     /// Divides authored local scale by <see cref="SliderSettingId.HudResize"/> each frame-ish so apparent size stays constant while the HUD canvas scaler changes.
     /// </summary>
@@ -43,12 +46,13 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     private float _resizeStartScaleMultiplier = 1f;
 
     public static UIWindowCornerResize EnsureOn(RectTransform window) =>
-        EnsureOn(window, false, false);
+        EnsureOn(window, false, false, false);
 
     public static UIWindowCornerResize EnsureOn(
         RectTransform window,
         bool omitTopCornerHandles,
-        bool counterHudCanvasScale)
+        bool counterHudCanvasScale,
+        bool omitBottomRightCornerHandle = false)
     {
         if (!window)
             return null;
@@ -60,6 +64,7 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         resize.targetWindow = window;
         resize.omitTopCornerHandles = omitTopCornerHandles;
         resize.counterHudCanvasScale = counterHudCanvasScale;
+        resize.omitBottomRightCornerHandle = omitBottomRightCornerHandle;
         resize.ResolveTarget();
         resize.EnsureHandles();
         resize.RefreshHandlesActive();
@@ -150,6 +155,8 @@ public sealed class UIWindowCornerResize : MonoBehaviour
             if (corner == ResizeCorner.TopRight)
                 continue;
             if (omitTopCornerHandles && corner == ResizeCorner.TopLeft)
+                continue;
+            if (omitBottomRightCornerHandle && corner == ResizeCorner.BottomRight)
                 continue;
 
             string handleName = $"ResizeHandle_{corner}";
@@ -256,6 +263,16 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         }
 
         if (omitTopCornerHandles && corner == ResizeCorner.TopLeft)
+        {
+            string killName = $"ResizeHandle_{corner}";
+            Transform old = _rect.Find(killName);
+            if (old)
+                Destroy(old.gameObject);
+
+            return;
+        }
+
+        if (omitBottomRightCornerHandle && corner == ResizeCorner.BottomRight)
         {
             string killName = $"ResizeHandle_{corner}";
             Transform old = _rect.Find(killName);

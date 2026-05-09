@@ -88,6 +88,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         if (abilityListPadding == null)
             abilityListPadding = new RectOffset(0, 0, 0, 0);
+
+        if (rightUnlocksText)
+            rightUnlocksText.richText = true;
         if (!abilityDatabase)
             abilityDatabase = AbilityDatabase.LoadDefault();
 
@@ -859,11 +862,12 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         float gatherBonusItemChance = 0f;
         float gatherExtraLogChance = 0f;
         float gatherYieldPercent = 0f;
-        float woodcuttingGritCritEnergyRestore = 0f;
+        float woodcuttingGritProcRestoreStaminaFraction = 0f;
         float woodcuttingBonusXpChance = 0f;
         float woodcuttingNoStaminaSwingChance = 0f;
         int woodcuttingFrenzyStacks = 0;
         int woodcuttingForestFlowStacks = 0;
+        float woodcuttingChanceNotToCountTowardTreeDepletion = 0f;
         float enduranceArmor = 0f;
         float enduranceMagicResist = 0f;
         float enduranceHp = 0f;
@@ -951,11 +955,22 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                     case WoodcuttingMinorNodeStatOption.WoodcuttingStaminaEfficiencyPercent3: gatherEnergyEfficiency += 0.03f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingGritPercent4: gatherGrit += 0.04f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingBonusFindPercent6: gatherBonusItemChance += 0.06f; break;
-                    case WoodcuttingMinorNodeStatOption.WoodcuttingCritRestoreEnergy10OnGrit: woodcuttingGritCritEnergyRestore += 10f; break;
-                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusXpChancePercent2: woodcuttingBonusXpChance += 0.02f; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingCritRestoreEnergy10OnGrit:
+                        woodcuttingGritProcRestoreStaminaFraction += 0.07f;
+                        break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGritProcRestoresMaxStaminaPercent7:
+                        woodcuttingGritProcRestoreStaminaFraction += 0.07f;
+                        break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingGritProcRestoresMaxStaminaPercent8:
+                        woodcuttingGritProcRestoreStaminaFraction += 0.08f;
+                        break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingBonusXpChancePercent2: woodcuttingBonusXpChance += 0.04f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingNoStaminaSwingChancePercent3: woodcuttingNoStaminaSwingChance += 0.03f; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingFrenzyAfterGritSpeedPercent5Duration7s: woodcuttingFrenzyStacks += 1; break;
                     case WoodcuttingMinorNodeStatOption.WoodcuttingForestFlowContinuousSpeedPercent3RecoveryPercent3: woodcuttingForestFlowStacks += 1; break;
+                    case WoodcuttingMinorNodeStatOption.WoodcuttingChanceNotToCountTowardTreeDepletionPercent10:
+                        woodcuttingChanceNotToCountTowardTreeDepletion += 0.10f;
+                        break;
                 }
             }
             else if (skill.skillType == SkillType.Mining)
@@ -1065,15 +1080,22 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                 AppendPct(sb, gatherBonusItemChance, "Woodcutting Bonus Find Chance");
                 AppendPct(sb, gatherExtraLogChance, "Woodcutting Chance for +1 Extra Main Resource");
                 AppendPct(sb, gatherYieldPercent, "Woodcutting Base Resource Yield");
-                if (woodcuttingGritCritEnergyRestore > 0f)
+                if (woodcuttingGritProcRestoreStaminaFraction > 0f)
                 {
                     sb.Append("• Woodcutting Grit procs restore +");
-                    sb.Append(Mathf.RoundToInt(woodcuttingGritCritEnergyRestore));
-                    sb.Append(" stamina");
+                    sb.Append(Mathf.RoundToInt(woodcuttingGritProcRestoreStaminaFraction * 100f));
+                    sb.Append("% stamina");
                     sb.AppendLine();
                 }
-                AppendPct(sb, woodcuttingBonusXpChance, "Woodcutting Bonus XP Chance");
+                if (woodcuttingBonusXpChance > 0f)
+                {
+                    sb.Append("• +");
+                    sb.Append(Mathf.RoundToInt(woodcuttingBonusXpChance * 100f));
+                    sb.Append("% chance to double XP gained from Woodcutting");
+                    sb.AppendLine();
+                }
                 AppendPct(sb, woodcuttingNoStaminaSwingChance, "Woodcutting No-Stamina Swing Chance");
+                AppendPct(sb, woodcuttingChanceNotToCountTowardTreeDepletion, "Woodcutting chance not to count toward tree depletion");
                 if (woodcuttingFrenzyStacks > 0)
                 {
                     int pct = 5 * woodcuttingFrenzyStacks;
@@ -1102,6 +1124,37 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             }
         }
 
+        if (skill.skillType == SkillType.Woodcutting && currentLevel >= PlayerController.WoodcuttingMajorPassiveSourceLevel)
+        {
+            SkillUnlockDefinition major15 = null;
+            if (skill.unlocks != null)
+            {
+                for (int i = 0; i < skill.unlocks.Count; i++)
+                {
+                    SkillUnlockDefinition u = skill.unlocks[i];
+                    if (u != null && u.requiredLevel == PlayerController.WoodcuttingMajorPassiveSourceLevel &&
+                        u.unlockType == SkillUnlockType.MajorPassive)
+                    {
+                        major15 = u;
+                        break;
+                    }
+                }
+            }
+
+            if (major15 != null && major15.choices != null && major15.choices.Count > 0)
+            {
+                sb.AppendLine("• Woodcutting Major Passive (Lv15)");
+                int pick = skillManager != null
+                    ? skillManager.GetSkillChoiceSelection(SkillType.Woodcutting, PlayerController.WoodcuttingMajorPassiveSourceLevel, -1)
+                    : -1;
+                if (pick >= 0 && pick < major15.choices.Count && major15.choices[pick] != null &&
+                    !string.IsNullOrWhiteSpace(major15.choices[pick].title))
+                    sb.AppendLine("   - " + major15.choices[pick].title.Trim());
+                else
+                    sb.AppendLine("   - (not selected)");
+            }
+        }
+
         // Major passive conversion summary (currently Melee Lv10 Bloodletting branch).
         if (skill.skillType == SkillType.Melee && currentLevel >= 10)
         {
@@ -1126,6 +1179,60 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                 sb.AppendLine("   - Base Effect");
                 sb.AppendLine("     +10% Melee Bleed Chance");
                 sb.AppendLine("     +10% Melee Damage to Bleeding Targets");
+            }
+        }
+
+        int levelsPastCap = Mathf.Max(0, currentLevel - CharacterStats.SkillPostCapThresholdLevel);
+        if (levelsPastCap > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("<b>Passive Bonuses Past 50</b>");
+            switch (skill.skillType)
+            {
+                case SkillType.Melee:
+                    sb.Append("• +");
+                    sb.Append(levelsPastCap);
+                    sb.Append("% Melee Damage");
+                    sb.AppendLine();
+                    break;
+                case SkillType.Ranged:
+                    sb.Append("• +");
+                    sb.Append(levelsPastCap);
+                    sb.Append("% Ranged Damage");
+                    sb.AppendLine();
+                    break;
+                case SkillType.Magic:
+                    sb.Append("• +");
+                    sb.Append(levelsPastCap);
+                    sb.Append("% Magic Damage");
+                    sb.AppendLine();
+                    break;
+                case SkillType.Endurance:
+                    sb.Append("• +");
+                    sb.Append(Mathf.RoundToInt(levelsPastCap * 5f));
+                    sb.Append(" Max HP, +");
+                    sb.Append(levelsPastCap);
+                    sb.Append(" Armour");
+                    sb.AppendLine();
+                    break;
+                case SkillType.Woodcutting:
+                    sb.Append("• +");
+                    sb.Append(levelsPastCap);
+                    sb.Append("% Woodcutting Speed");
+                    sb.AppendLine();
+                    break;
+                case SkillType.Mining:
+                    sb.Append("• +");
+                    sb.Append(levelsPastCap);
+                    sb.Append("% Mining Speed");
+                    sb.AppendLine();
+                    break;
+                case SkillType.Fishing:
+                    sb.Append("• +");
+                    sb.Append(levelsPastCap);
+                    sb.Append("% Fishing Speed");
+                    sb.AppendLine();
+                    break;
             }
         }
 

@@ -49,12 +49,12 @@ public static class ToggleSettingsStore
     }
 
     /// <summary>
-    /// New key prefers show-out-of-combat (default ON). Migrates legacy &quot;hide&quot; prefs by inverting once.
+    /// Show health bar out of combat. Default OFF for new installs. Migrates legacy &quot;hide&quot; prefs by inverting once.
     /// </summary>
     private static bool GetShowPlayerHealthBarOutOfCombat()
     {
         if (PlayerPrefs.HasKey(ShowPlayerHealthBarOutOfCombatKey))
-            return PlayerPrefs.GetInt(ShowPlayerHealthBarOutOfCombatKey, 1) != 0;
+            return PlayerPrefs.GetInt(ShowPlayerHealthBarOutOfCombatKey, 0) != 0;
 
         if (PlayerPrefs.HasKey(LegacyHidePlayerHealthBarOutOfCombatKey))
         {
@@ -62,7 +62,7 @@ public static class ToggleSettingsStore
             return !legacyHidePrimaryMeaningWasOn;
         }
 
-        return true;
+        return false;
     }
 
     private static bool GetShowHelpPopups()

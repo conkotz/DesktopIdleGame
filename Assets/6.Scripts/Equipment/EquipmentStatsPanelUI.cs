@@ -7,6 +7,7 @@ using UnityEngine.Serialization;
 public class EquipmentStatsPanelUI : MonoBehaviour
 {
     private bool _refreshQueued;
+    private int _woodcuttingToolsLiveStamp = int.MinValue;
     private static readonly Color BleedAilmentColor = new Color(0.996f, 0.361f, 0.361f);
     private static readonly Color PoisonAilmentColor = new Color(0.298f, 0.686f, 0.314f);
     private static readonly Color BurnAilmentColor = new Color(1f, 0.478f, 0.137f);
@@ -240,10 +241,13 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (!_refreshQueued)
-            return;
-        _refreshQueued = false;
-        Refresh();
+        if (_refreshQueued)
+        {
+            _refreshQueued = false;
+            Refresh();
+        }
+
+        PollWoodcuttingToolsLiveRefresh();
     }
 
     private void QueueRefresh()
@@ -459,6 +463,32 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         // -------------------------
         // Tools
         // -------------------------
+        PopulateGatheringToolsSection();
+
+        if (player != null)
+            _woodcuttingToolsLiveStamp = player.GetWoodcuttingStatsPanelStamp();
+
+        EnsureToolStatLineTooltips();
+    }
+
+    private void PollWoodcuttingToolsLiveRefresh()
+    {
+        if (!player || !stats)
+            return;
+
+        int stamp = player.GetWoodcuttingStatsPanelStamp();
+        if (stamp == _woodcuttingToolsLiveStamp)
+            return;
+
+        _woodcuttingToolsLiveStamp = stamp;
+        PopulateGatheringToolsSection();
+    }
+
+    private void PopulateGatheringToolsSection()
+    {
+        if (!stats)
+            return;
+
         if (pickaxeTitleText) pickaxeTitleText.text = "Pickaxe";
         if (pickaxeSpeedText) pickaxeSpeedText.text = $"Mining Speed: {stats.PickaxeSpeedMult:0.##}x";
         if (pickaxeGritText) pickaxeGritText.text = $"Mining Grit: {stats.PickaxeGrit * 100f:0.#}%";
@@ -466,18 +496,47 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (pickaxeStaminaEfficiencyText) pickaxeStaminaEfficiencyText.text = $"Stamina Eff: +{stats.PickaxeStaminaEfficiency * 100f:0.#}%";
 
         if (axeTitleText) axeTitleText.text = "Axe";
-        if (axeSpeedText) axeSpeedText.text = $"Woodcutting Speed: {stats.AxeSpeedMult:0.##}x";
-        if (axeGritText) axeGritText.text = $"Woodcutting Grit: {stats.AxeGrit * 100f:0.#}%";
+
+        float baseAxeSpeed = stats.AxeSpeedMult;
+        if (axeSpeedText)
+        {
+            float displayAxeSpeed = baseAxeSpeed;
+            if (player != null &&
+                player.TryGetWoodcuttingLiveBuffInfo(out float frenSpd, out float ffSpd, out _, out float majSpd, out _) &&
+                (frenSpd > 0f || ffSpd > 0f || majSpd > 0f))
+                displayAxeSpeed = baseAxeSpeed * (1f + frenSpd + ffSpd + majSpd);
+
+            axeSpeedText.richText = false;
+            axeSpeedText.text = $"Woodcutting Speed: {displayAxeSpeed:0.##}x";
+        }
+
+        if (axeGritText)
+        {
+            float grit = stats.AxeGrit;
+            if (player != null && player.TryGetWoodcuttingMajorFlowDeepFocusGritBonus(out float add))
+                grit = Mathf.Clamp01(grit + add);
+            axeGritText.text = $"Woodcutting Grit: {grit * 100f:0.#}%";
+        }
         if (axeBonusFindText) axeBonusFindText.text = $"Bonus Find: +{stats.AxeBonusFindChance * 100f:0.#}%";
-        if (axeStaminaEfficiencyText) axeStaminaEfficiencyText.text = $"Stamina Eff: +{stats.AxeStaminaEfficiency * 100f:0.#}%";
+
+        float baseAxeStam = stats.AxeStaminaEfficiency;
+        if (axeStaminaEfficiencyText)
+        {
+            float displayAxeStam = baseAxeStam;
+            if (player != null &&
+                player.TryGetWoodcuttingLiveBuffInfo(out _, out _, out float ffStam, out _, out float majStam) &&
+                (ffStam > 0f || majStam > 0f))
+                displayAxeStam = Mathf.Clamp01(baseAxeStam + ffStam + majStam);
+
+            axeStaminaEfficiencyText.richText = false;
+            axeStaminaEfficiencyText.text = $"Stamina Eff: +{displayAxeStam * 100f:0.#}%";
+        }
 
         if (rodTitleText) rodTitleText.text = "Rod";
         if (rodSpeedText) rodSpeedText.text = $"Fishing Speed: {stats.RodSpeedMult:0.##}x";
         if (rodGritText) rodGritText.text = $"Fishing Grit: {stats.RodGrit * 100f:0.#}%";
         if (rodBonusFindText) rodBonusFindText.text = $"Bonus Find: +{stats.RodBonusFindChance * 100f:0.#}%";
         if (rodStaminaEfficiencyText) rodStaminaEfficiencyText.text = $"Stamina Eff: +{stats.RodStaminaEfficiency * 100f:0.#}%";
-
-        EnsureToolStatLineTooltips();
     }
 
     private string GetCurrentMagicTypeLabel()

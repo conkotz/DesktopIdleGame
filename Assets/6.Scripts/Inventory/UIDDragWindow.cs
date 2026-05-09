@@ -57,17 +57,19 @@ public class UIDragWindow : MonoBehaviour, IBeginDragHandler, IDragHandler, IEnd
     /// Use when adding <see cref="UIDragWindow"/> from code — sets the movable panel (e.g. handle on header, window is outer panel).
     /// </summary>
     public void AttachWindow(RectTransform targetWindow) =>
-        AttachWindow(targetWindow, false, false);
+        AttachWindow(targetWindow, false, false, false);
 
     /// <param name="omitTopCornerHandles">Forwarded to <see cref="UIWindowCornerResize"/> on the movable window.</param>
     /// <param name="counterHudCanvasScale">Keeps authored size stable when HUD canvas applies <see cref="SliderSettingId.HudResize"/>.</param>
+    /// <param name="omitBottomRightCornerHandle">Forwarded to <see cref="UIWindowCornerResize"/> (e.g. helper chrome strip).</param>
     public void AttachWindow(
         RectTransform targetWindow,
         bool omitTopCornerHandles,
-        bool counterHudCanvasScale)
+        bool counterHudCanvasScale,
+        bool omitBottomRightCornerHandle = false)
     {
         window = targetWindow ? targetWindow : transform as RectTransform;
-        UIWindowCornerResize.EnsureOn(window, omitTopCornerHandles, counterHudCanvasScale);
+        UIWindowCornerResize.EnsureOn(window, omitTopCornerHandles, counterHudCanvasScale, omitBottomRightCornerHandle);
     }
 
     private void OnEnable()

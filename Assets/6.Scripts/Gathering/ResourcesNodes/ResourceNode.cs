@@ -53,7 +53,7 @@ public class ResourceNode : MonoBehaviour
     public bool RequiresTool => definition && definition.requiresTool && definition.requiredTool != ToolKey.None;
     public ToolKey RequiredTool => definition ? definition.requiredTool : ToolKey.None;
     public string MissingToolMessage => definition ? definition.missingToolMessage : "Put the required tool in your toolbelt.";
-    public float EnergyCostPerSwing => definition ? Mathf.Max(0f, definition.energyCostPerSwing) : 0f;
+    public float EnergyCostPercentOfMaxPerSwing => definition ? Mathf.Max(0f, definition.energyCostPercentOfMaxPerSwing) : 0f;
 
     public bool UseLevelRequirement => definition && definition.useLevelRequirement;
 
@@ -159,7 +159,8 @@ public class ResourceNode : MonoBehaviour
     /// <summary>
     /// Call once at the start of a main-yield gather tick, before any yield bonuses are applied.
     /// </summary>
-    public void NotifyGatherTickBeforeBonuses()
+    /// <param name="countTowardDepletionCap">When false, this successful gather tick does not increment depletion progress (e.g. Tree Conservation).</param>
+    public void NotifyGatherTickBeforeBonuses(bool countTowardDepletionCap = true)
     {
         _applyDepletedYieldPenaltyThisTick = false;
         if (definition == null || !definition.UsesDepletion)
@@ -171,7 +172,8 @@ public class ResourceNode : MonoBehaviour
             return;
         }
 
-        _gathersSinceRegen++;
+        if (countTowardDepletionCap)
+            _gathersSinceRegen++;
         if (_gathersSinceRegen >= definition.depletionGatherCount)
             _applyDepletedYieldPenaltyThisTick = true;
     }

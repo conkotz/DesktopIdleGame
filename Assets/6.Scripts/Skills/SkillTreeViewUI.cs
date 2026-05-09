@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -348,16 +349,18 @@ public class SkillTreeViewUI : MonoBehaviour
 
     private List<RowDef> BuildRows(List<SkillUnlockDefinition> unlocks)
     {
-        var sorted = new List<SkillUnlockDefinition>();
+        var sorted = new List<(SkillUnlockDefinition u, int origIdx)>();
         for (int i = 0; i < unlocks.Count; i++)
             if (unlocks[i] != null)
-                sorted.Add(unlocks[i]);
+                sorted.Add((unlocks[i], i));
 
         sorted.Sort((a, b) =>
         {
-            int c = a.requiredLevel.CompareTo(b.requiredLevel);
+            int c = a.u.requiredLevel.CompareTo(b.u.requiredLevel);
             if (c != 0) return c;
-            return TierHorizontalSortOrder(a.unlockType).CompareTo(TierHorizontalSortOrder(b.unlockType));
+            c = TierHorizontalSortOrder(a.u.unlockType).CompareTo(TierHorizontalSortOrder(b.u.unlockType));
+            if (c != 0) return c;
+            return a.origIdx.CompareTo(b.origIdx);
         });
 
         var rows = new List<RowDef>(sorted.Count);
@@ -365,7 +368,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
         for (int i = 0; i < sorted.Count; i++)
         {
-            SkillUnlockDefinition u = sorted[i];
+            SkillUnlockDefinition u = sorted[i].u;
             if (u == null || u.requiredLevel <= 0)
             {
                 if (stopAfterFirstMissingUnlock) break;
@@ -552,8 +555,11 @@ public class SkillTreeViewUI : MonoBehaviour
             {
                 while (labelIndex < idx && rows[labelIndex].type == SkillTreeNodeVisualType.MinorPassive)
                     labelIndex++;
-                if (labelIndex >= idx)
+                // Tiers that are only minor passives (common on gathering “Skip” levels) still need Lv5/Lv10/… labels.
+                if (labelIndex >= idx && !ShouldShowLeftLevelNumber(tierLevel))
                     continue;
+                if (labelIndex >= idx)
+                    labelIndex = tierStart;
             }
 
             if (ShouldShowLeftLevelNumber(tierLevel))
@@ -639,13 +645,10 @@ public class SkillTreeViewUI : MonoBehaviour
             {
                 1 => "Unlock",
                 5 => "Ability",
-                10 => "Skip",
+                10 or 20 or 30 or 40 => "",
                 15 => "Major Passive",
-                20 => "Skip",
                 25 => "Ability",
-                30 => "Skip",
                 35 => "Major Passive",
-                40 => "Skip",
                 45 => "Ability",
                 50 => "Capstone",
                 _ => ""
