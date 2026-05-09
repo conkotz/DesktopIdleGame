@@ -1030,6 +1030,56 @@ public sealed class HelperGameplayController : MonoBehaviour
             _historyViewIndex = _sessionMessageHistory.Count - 1;
     }
 
+    /// <summary>
+    /// When help was off (or history was cleared), the expanded panel has nothing to render.
+    /// Seed a single history entry from <see cref="definitions"/>[0] (first assigned slot) so reopen/expand always shows content.
+    /// Does not call <see cref="HelperProgressStore.MarkDismissed"/> — gameplay triggers for that helper id can still run later.
+    /// </summary>
+    private bool TrySeedSessionHistoryFromFirstDefinition()
+    {
+        if (_sessionMessageHistory.Count > 0)
+            return false;
+
+        HelperPopupDefinition def = GetWelcomeSeedDefinition();
+        if (!def)
+            return false;
+
+        CharacterStats stats = ResolvePlayerCharacterStats();
+        string substitutedTitle =
+            HelperPopupDefinition.ApplyRuntimeSubstitutions(def.title ?? string.Empty, stats);
+        string substitutedBody =
+            HelperPopupDefinition.ApplyRuntimeSubstitutions(def.bodyText ?? string.Empty, stats);
+
+        if (string.IsNullOrWhiteSpace(substitutedTitle) && string.IsNullOrWhiteSpace(substitutedBody))
+            return false;
+
+        _sessionMessageHistory.Add(new HelperDisplayedMessageSnap
+        {
+            HelperId = string.IsNullOrWhiteSpace(def.helperId) ? string.Empty : def.helperId.Trim(),
+            TitlePlain = substitutedTitle.Trim(),
+            BodyPlain = substitutedBody,
+        });
+        _historyViewIndex = _sessionMessageHistory.Count - 1;
+        SaveMessageHistoryToPlayerPrefs();
+        return true;
+    }
+
+    /// <summary>Prefer index 0; if unassigned, use the first non-null definition in the array.</summary>
+    private HelperPopupDefinition GetWelcomeSeedDefinition()
+    {
+        if (definitions == null || definitions.Length == 0)
+            return null;
+        if (definitions[0])
+            return definitions[0];
+        for (int i = 1; i < definitions.Length; i++)
+        {
+            if (definitions[i])
+                return definitions[i];
+        }
+
+        return null;
+    }
+
     private void TryPresentSessionHistoryWhenOverlayHidden()
     {
         if (!HelpersPermittedBySettings() || _sessionMessageHistory.Count == 0)
@@ -1503,11 +1553,18 @@ public sealed class HelperGameplayController : MonoBehaviour
                 _sessionMessageHistory.Clear();
                 _historyViewIndex = 0;
                 ClearPersistedHelperMessageHistoryKey();
-                PresentMinimizedAwaitingFuturePopups();
+                TrySeedSessionHistoryFromFirstDefinition();
+                if (_sessionMessageHistory.Count > 0)
+                    PresentSessionHistoryOverlayExpanded();
+                else
+                    PresentMinimizedAwaitingFuturePopups();
                 return;
             }
             // Re-enabling help should not resurrect stale history popups.
-            // Keep helper shell minimized and wait for fresh gameplay-triggered helpers.
+            // If there is no saved history yet, seed element 0 so expand/minimize is never an empty panel.
+            if (_sessionMessageHistory.Count == 0)
+                TrySeedSessionHistoryFromFirstDefinition();
+
             if ((_overlayRoot == null || !_overlayRoot.activeSelf) &&
                 _activeDefinition == null)
                 PresentMinimizedAwaitingFuturePopups();
@@ -2548,6 +2605,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         TransitionToExpandedPresentationLayout();
         RaiseWhitelistUiTargetCanvasesForActiveOverlay();
+        if (_sessionMessageHistory.Count == 0)
+            TrySeedSessionHistoryFromFirstDefinition();
         ApplyDisplayedHistoryIndexToPanel(_historyViewIndex, startTypewriterFresh: false);
 
         RefreshWhitelistPresentationEmphasis();

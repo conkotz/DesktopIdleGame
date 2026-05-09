@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -36,10 +37,18 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
     [SerializeField] private Color normalColor = new Color(0.02f, 0.02f, 0.04f, 0.52f);
     [SerializeField] private Color selectedColor = new Color(0.07f, 0.09f, 0.13f, 0.58f);
 
+    [Header("Level-up highlight")]
+    [Tooltip("Row background pulses toward this colour while a new level unlock is pending (very obvious on the strip).")]
+    [SerializeField] private Color unlockPulsePeakColor = new Color(0.92f, 0.78f, 0.18f, 0.92f);
+
     private SkillDefinition _definition;
     private Action<SkillDefinition> _onClicked;
     private UIPulseGlowOverlay _unlockGlow;
     private Action<SkillDefinition> _onHoverAcknowledge;
+    private bool _selected;
+    private bool _unlockRowPulseActive;
+    private Coroutine _unlockRowPulseCo;
+    private bool _deferUnlockGlowUntilActive;
 
     public SkillDefinition Definition => _definition;
 
@@ -62,22 +71,73 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
         }
     }
 
+    private void OnEnable()
+    {
+        if (_deferUnlockGlowUntilActive && isActiveAndEnabled)
+        {
+            _deferUnlockGlowUntilActive = false;
+            ShowUnlockGlow();
+        }
+    }
+
     public void ShowUnlockGlow()
     {
+        if (!isActiveAndEnabled)
+        {
+            _deferUnlockGlowUntilActive = true;
+            return;
+        }
+
         RectTransform rt = transform as RectTransform;
         if (!rt)
             rt = GetComponent<RectTransform>();
         if (!rt)
             return;
 
+        _deferUnlockGlowUntilActive = false;
         _unlockGlow = UIPulseGlowOverlay.Show(rt);
+
+        StopUnlockRowPulseCoroutine();
+        _unlockRowPulseActive = true;
+        _unlockRowPulseCo = StartCoroutine(UnlockRowPulseRoutine());
     }
 
     public void ClearUnlockGlow()
     {
+        _deferUnlockGlowUntilActive = false;
+        StopUnlockRowPulseCoroutine();
         if (_unlockGlow != null)
             _unlockGlow.Clear();
         _unlockGlow = null;
+
+        if (selectionBackground)
+        {
+            selectionBackground.gameObject.SetActive(true);
+            selectionBackground.color = _selected ? selectedColor : normalColor;
+        }
+    }
+
+    private void StopUnlockRowPulseCoroutine()
+    {
+        _unlockRowPulseActive = false;
+        if (_unlockRowPulseCo != null)
+        {
+            StopCoroutine(_unlockRowPulseCo);
+            _unlockRowPulseCo = null;
+        }
+    }
+
+    private IEnumerator UnlockRowPulseRoutine()
+    {
+        float t = 0f;
+        while (_unlockRowPulseActive && selectionBackground)
+        {
+            t += Time.unscaledDeltaTime * Mathf.PI * 2.6f;
+            float s = (Mathf.Sin(t) + 1f) * 0.5f;
+            Color from = _selected ? selectedColor : normalColor;
+            selectionBackground.color = Color.Lerp(from, unlockPulsePeakColor, s);
+            yield return null;
+        }
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -139,6 +199,10 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
 
     public void SetSelected(bool isSelected)
     {
+        _selected = isSelected;
+        if (_unlockRowPulseActive)
+            return;
+
         if (!selectionBackground)
             return;
         selectionBackground.gameObject.SetActive(true);
@@ -147,6 +211,9 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
 
     private void HandleClicked()
     {
+        ClearUnlockGlow();
+        if (_definition != null)
+            _onHoverAcknowledge?.Invoke(_definition);
         if (_definition != null)
             _onClicked?.Invoke(_definition);
     }

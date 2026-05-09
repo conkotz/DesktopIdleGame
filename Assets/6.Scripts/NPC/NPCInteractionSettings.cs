@@ -73,6 +73,12 @@ public class NPCInteractionSettings : MonoBehaviour
     [ShowWhenTrue(nameof(useDialogueLocalOffsetOverride))]
     [FormerlySerializedAs("dialogueLocalOffset")]
     [SerializeField] private Vector3 dialogueLocalOffsetOverride = new(1.95f, 0.5f, 0f);
+    [Tooltip(
+        "Optional child Transform (e.g. empty at speech bubble corner). When set, the bottom-left corner of the dialogue box is placed at this world point (strip + world-pin paths). Stays aligned with the sprite when zooming; no offset required.")]
+    [SerializeField] private Transform dialogueFollowWorldAnchor;
+    [Tooltip(
+        "Optional extra nudge after viewport projection (0–1 per axis). Usually leave at zero when using Dialogue Follow World Anchor.")]
+    [SerializeField] private Vector2 dialogueFollowViewportOffset = Vector2.zero;
     [SerializeField] private float nonQuestAutoCloseSeconds = 5f;
     [Tooltip("When enabled, shows dialogue the first time this NPC is on-screen, then re-opens automatically when conditional dialogue changes (e.g. after a quest completes).")]
     [SerializeField] private bool openDialogueOnFirstSighting;
@@ -860,6 +866,14 @@ public class NPCInteractionSettings : MonoBehaviour
     /// <summary>World point for dialogue follow each frame — uses collider bounds + resolved dialogue offset so NPC hover scale cannot drift the pivot.</summary>
     public Vector3 GetDialogueFollowWorldPoint()
     {
+        if (dialogueFollowWorldAnchor != null)
+        {
+            if (useDialogueLocalOffsetOverride)
+                return dialogueFollowWorldAnchor.position +
+                       dialogueFollowWorldAnchor.TransformVector(dialogueLocalOffsetOverride);
+            return dialogueFollowWorldAnchor.position;
+        }
+
         Collider2D col = ResolveInteractCollider2D();
         Vector3 pivot = ResolveDialogueLocalOffset();
         if (!col)
@@ -868,6 +882,12 @@ public class NPCInteractionSettings : MonoBehaviour
         Bounds b = col.bounds;
         return new Vector3(b.max.x + pivot.x, b.max.y + pivot.y, transform.position.z + pivot.z);
     }
+
+    /// <summary>Viewport-space nudge applied in <see cref="NPCDialogueBoxUI"/> after <see cref="Camera.WorldToViewportPoint"/> — stable across ortho zoom.</summary>
+    public Vector2 GetDialogueFollowViewportOffset() => dialogueFollowViewportOffset;
+
+    /// <summary>When set, <see cref="NPCDialogueBoxUI"/> uses pivot bottom-left so the box attaches at the follow point.</summary>
+    public bool HasDialogueFollowWorldAnchor => dialogueFollowWorldAnchor;
 
     private Vector3 ResolveDialogueLocalOffset()
     {

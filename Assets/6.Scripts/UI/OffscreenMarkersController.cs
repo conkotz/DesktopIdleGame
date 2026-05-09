@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,6 +9,9 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class OffscreenMarkersController : MonoBehaviour
 {
+    /// <summary>Gameplay singleton — controller may live on <c>WorldManager</c> instead of the player.</summary>
+    public static OffscreenMarkersController Instance { get; private set; }
+
     private const string EnemyTag = "Enemy";
     private const string NpcTag = "NPC";
     private const string ResourceTag = "Resource";
@@ -104,7 +108,17 @@ public class OffscreenMarkersController : MonoBehaviour
 
     private void Awake()
     {
-        if (!markerContainer) markerContainer = GetComponent<RectTransform>();
+        if (Instance != null && Instance != this)
+        {
+            Debug.LogWarning(
+                "[OffscreenMarkersController] Only one instance is supported — destroying duplicate component.",
+                this);
+            Destroy(this);
+            return;
+        }
+
+        Instance = this;
+        ResolveMarkerContainer();
         ResolveWorldCamera();
 
         if (markerContainer && stretchContainerHorizontally)
@@ -116,6 +130,69 @@ public class OffscreenMarkersController : MonoBehaviour
             markerContainer.offsetMin = new Vector2(0f, yMin);
             markerContainer.offsetMax = new Vector2(0f, yMax);
         }
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
+    /// <summary>
+    /// When the controller is on a non-UI object (e.g. WorldManager), assign <see cref="markerContainer"/> in the Inspector
+    /// or add a child/descendant RectTransform named OffscreenMarkerContainer or MarkerContainer.
+    /// </summary>
+    private void ResolveMarkerContainer()
+    {
+        if (markerContainer)
+            return;
+
+        if (TryGetComponent(out RectTransform selfRt))
+        {
+            markerContainer = selfRt;
+            return;
+        }
+
+        // Immediate children (common setup)
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform c = transform.GetChild(i);
+            if (!c)
+                continue;
+            if (TryMatchMarkerContainerName(c.name) && c.TryGetComponent(out RectTransform rtChild))
+            {
+                markerContainer = rtChild;
+                return;
+            }
+        }
+
+        // Any descendant (controller under scene root; UI nested deeper)
+        RectTransform[] rects = GetComponentsInChildren<RectTransform>(true);
+        for (int i = 0; i < rects.Length; i++)
+        {
+            RectTransform rt = rects[i];
+            if (!rt || rt.gameObject == gameObject)
+                continue;
+            if (TryMatchMarkerContainerName(rt.name))
+            {
+                markerContainer = rt;
+                return;
+            }
+        }
+
+        Debug.LogWarning(
+            "[OffscreenMarkersController] Marker Container is not set and no child named OffscreenMarkerContainer / MarkerContainer was found. " +
+            "Assign a RectTransform (e.g. full-width strip under StripUICanvas).",
+            this);
+    }
+
+    private static bool TryMatchMarkerContainerName(string objectName)
+    {
+        if (string.IsNullOrWhiteSpace(objectName))
+            return false;
+        string n = objectName.Trim();
+        return string.Equals(n, "OffscreenMarkerContainer", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(n, "MarkerContainer", StringComparison.OrdinalIgnoreCase);
     }
 
     private void OnEnable()
@@ -139,7 +216,7 @@ public class OffscreenMarkersController : MonoBehaviour
     /// <see cref="RuntimeCanvasScaleController"/> scales the whole HUD canvas via <see cref="SliderSettingId.HudResize"/>.
     /// Counter-scale the marker stack so arrows stay authoring size while strip HUD scales.
     /// </summary>
-    private void ApplyMarkersIndependentOfHudResize()
+    public void ApplyMarkersIndependentOfHudResize()
     {
         if (!markerContainer)
             return;

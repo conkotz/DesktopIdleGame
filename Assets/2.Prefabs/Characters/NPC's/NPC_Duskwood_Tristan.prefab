@@ -71,6 +71,7 @@ Transform:
   - {fileID: 5657450656003079448}
   - {fileID: 7238531382057603648}
   - {fileID: 6690756805502218501}
+  - {fileID: 4552480674425863797}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &954824350829144391
@@ -235,7 +236,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
   dialogue: 'Welcome to Duskwood. '
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
-  dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
+  useDialogueLocalOffsetOverride: 0
+  dialogueLocalOffsetOverride: {x: 1.95, y: 0.5, z: 0}
+  dialogueFollowWorldAnchor: {fileID: 4552480674425863797}
+  dialogueFollowViewportOffset: {x: 0, y: 0}
   nonQuestAutoCloseSeconds: 3
   openDialogueOnFirstSighting: 1
   openDialogueAfterQuestAccepted: 0
@@ -250,6 +254,8 @@ MonoBehaviour:
     onAcceptOutcome: 0
     teleportTargetNode: {fileID: 0}
     teleportMapNodeId: 
+    buyAllItemId: 
+    buyAllGoldPerItem: 50
   questGiver: {fileID: 5839785130135361787}
   debugLogPlainDialogueResolution: 1
 --- !u!114 &-5742210032571608364
@@ -579,6 +585,37 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 4395583072354246891}
   m_maskType: 0
+--- !u!1 &9028923087895085358
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4552480674425863797}
+  m_Layer: 7
+  m_Name: DialogueAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4552480674425863797
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9028923087895085358}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.48, y: -0.33, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7053704570091792237}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &7374151298560051907
 PrefabInstance:
   m_ObjectHideFlags: 0

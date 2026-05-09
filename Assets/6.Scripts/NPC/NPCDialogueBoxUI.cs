@@ -327,6 +327,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
             TeardownNpcDialogueRootCanvasComponents();
             _stripWorldFollowActive = false;
             transform.SetParent(interactionOwner, false);
+            ApplyStripDialogueRectPivotForNpcFollow();
             if (_npcStripFollowPivotSource)
                 transform.position = _npcStripFollowPivotSource.GetDialogueFollowWorldPoint();
             else
@@ -360,7 +361,7 @@ public class NPCDialogueBoxUI : MonoBehaviour
             transform.SetParent(interactionOwner, false);
             ConfigureStripWorldFollowCanvas(stripGameplayCam);
             _rectTransform.anchorMin = _rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            _rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            ApplyStripDialogueRectPivotForNpcFollow();
             ApplyStripWorldFollowScale();
             RefreshStripWorldFollowWorldPosition();
 
@@ -384,8 +385,24 @@ public class NPCDialogueBoxUI : MonoBehaviour
         ApplyStripPresentationLocalScale();
 
         _rectTransform.anchorMin = _rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-        _rectTransform.pivot = new Vector2(0.5f, 0.5f);
+        ApplyStripDialogueRectPivotForNpcFollow();
         // Strip position + clamps run after activation and content/layout in FinalizeStripOverlayOpen (same frame/strip order as LateUpdate).
+    }
+
+    /// <summary>
+    /// When <see cref="NPCInteractionSettings.HasDialogueFollowWorldAnchor"/> is true, the follow world point is the bottom-left of this rect.
+    /// Otherwise uses center pivot (collider-based follow).
+    /// </summary>
+    private void ApplyStripDialogueRectPivotForNpcFollow()
+    {
+        if (_rectTransform == null)
+            _rectTransform = transform as RectTransform;
+        if (!_rectTransform)
+            return;
+
+        bool bottomLeftAtFollow =
+            _npcStripFollowPivotSource && _npcStripFollowPivotSource.HasDialogueFollowWorldAnchor;
+        _rectTransform.pivot = bottomLeftAtFollow ? new Vector2(0f, 0f) : new Vector2(0.5f, 0.5f);
     }
 
     /// <summary>
@@ -527,6 +544,13 @@ public class NPCDialogueBoxUI : MonoBehaviour
             return;
 
         Vector3 vpRaw = cam.WorldToViewportPoint(worldPt);
+        if (_npcStripFollowPivotSource != null)
+        {
+            Vector2 vpo = _npcStripFollowPivotSource.GetDialogueFollowViewportOffset();
+            vpRaw.x += vpo.x;
+            vpRaw.y += vpo.y;
+        }
+
         if (cam.orthographic ? vpRaw.z < 0f : vpRaw.z <= 0f)
             return;
 

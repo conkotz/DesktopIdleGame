@@ -101,6 +101,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     private void OnEnable()
     {
         PreferRuntimeSkillsManager();
+        TrySubscribeSkillsEvents();
         if (!abilityDatabase)
             abilityDatabase = AbilityDatabase.LoadDefault();
         EnsureCenterTreeReference();
@@ -134,6 +135,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             return;
 
         PreferRuntimeSkillsManager();
+        TrySubscribeSkillsEvents();
         if (!skillsManager)
             return;
 
@@ -205,6 +207,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     /// </summary>
     private void HandleSkillsLevelUp(SkillType type, int newLevel)
     {
+        // Same frame: SkillsManager already appended to cold-start; take ownership into this instance so tab
+        // switches do not re-inject stale cold-start rows for this notification.
+        SkillsAbilitiesColdStartLevelUpGlow.ConsumeBecauseLiveUiHandled(type);
+
         _pendingEntryGlowBySkill.Add(type);
         if (!_pendingTreeGlowLevelsBySkill.TryGetValue(type, out HashSet<int> levels))
         {
@@ -267,6 +273,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         yield return null;
         _deferredRefreshRoutine = null;
         RefreshEntryLevelsAndView();
+        // Re-apply unlock pulse after layout/tree refresh so it isn't lost the frame after level-up.
+        ReplayPendingGlowForVisibleUi();
     }
 
     private void RefreshEntryLevelsAndView()
@@ -379,6 +387,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         if (!gatheringContent && !combatContent)
             return;
+
+        // Level-ups can happen while this tab is still inactive; SkillsManager buffers those in cold-start storage.
+        SkillsAbilitiesColdStartLevelUpGlow.MergeInto(_pendingEntryGlowBySkill, _pendingTreeGlowLevelsBySkill);
 
         ClearChildren(gatheringContent);
         ClearChildren(combatContent);

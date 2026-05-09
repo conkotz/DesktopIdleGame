@@ -13,7 +13,7 @@ public sealed class UIPulseGlowOverlay : MonoBehaviour
 
     [Header("Pulse")]
     [SerializeField] private Color glowTint = new Color(1f, 0.93f, 0.42f, 1f);
-    [SerializeField, Range(0f, 1f)] private float pulseAlphaMin = 0f;
+    [SerializeField, Range(0f, 1f)] private float pulseAlphaMin = 0.22f;
     [SerializeField, Range(0f, 1f)] private float pulseAlphaMax = 0.74f;
     [SerializeField] private float pulseSpeed = 2.8f;
 
@@ -108,8 +108,8 @@ public sealed class UIPulseGlowOverlay : MonoBehaviour
         _rootRt.anchoredPosition = Vector2.zero;
         _rootRt.sizeDelta = Vector2.zero;
         _rootRt.SetAsLastSibling();
-        RectMask2D clip = _rootRt.gameObject.AddComponent<RectMask2D>();
-        clip.padding = Vector4.zero;
+        // Intentionally no RectMask2D here — on nested canvases / some strip layouts it can clip the
+        // pulse to nothing so the unlock read as "broken".
 
         // Halo (optional)
         if (haloPadding > 0f)

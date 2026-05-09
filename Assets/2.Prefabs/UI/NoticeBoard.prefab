@@ -35,6 +35,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 6567681578057083310}
   - {fileID: 5099355509253083663}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -176,7 +177,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCInteractionSettings
   dialogue: No new quests right now. Check again later!
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
-  dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
+  useDialogueLocalOffsetOverride: 0
+  dialogueLocalOffsetOverride: {x: 1.95, y: 0.5, z: 0}
+  dialogueFollowWorldAnchor: {fileID: 6567681578057083310}
+  dialogueFollowViewportOffset: {x: 0, y: 0}
   nonQuestAutoCloseSeconds: 5
   openDialogueOnFirstSighting: 0
   openDialogueAfterQuestAccepted: 0
@@ -224,6 +228,37 @@ MonoBehaviour:
   characterName: Notice Board
   role: 
   nameLabel: {fileID: 3979667164614100145}
+--- !u!1 &2690790343970341782
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6567681578057083310}
+  m_Layer: 7
+  m_Name: DialogueAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6567681578057083310
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2690790343970341782}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -26.913826, y: 0.46242574, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 910297117738696117}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &8147594713018466118
 GameObject:
   m_ObjectHideFlags: 0

@@ -192,6 +192,7 @@ public class WorldMapPageUI : MonoBehaviour
         ApplyDropdownTheme();
         ApplyAnchorRegionVisibility();
         RebuildRegionsDropdown();
+        ApplyDefaultSelectionToActiveMapIfPossible();
         RebuildNodeList();
         RefreshDetails();
         RebuildGraph();
@@ -272,6 +273,53 @@ public class WorldMapPageUI : MonoBehaviour
 
         if (!_selectedNode && _selectedRegion && _selectedRegion.nodes is { Count: > 0 })
             _selectedNode = _selectedRegion.nodes[0];
+    }
+
+    /// <summary>
+    /// When opening the world map, prefer the region/node matching the current gameplay level (same sources as
+    /// <see cref="ResolveActiveMapNodeIdForRegionUi"/>). Runs after <see cref="RebuildRegionsDropdown"/> so the
+    /// owning region is only chosen when it appears in the dropdown.
+    /// </summary>
+    private void ApplyDefaultSelectionToActiveMapIfPossible()
+    {
+        if (!worldMap || _regions.Count == 0)
+            return;
+
+        MapNodeDefinition active = null;
+        if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
+            active = GameplayLevelBootstrapper.Instance.ActiveDefinition;
+        else if (ActiveLevelContext.Current != null)
+            active = ActiveLevelContext.Current;
+
+        if (active == null || string.IsNullOrWhiteSpace(active.nodeId))
+            return;
+
+        RegionDefinition owning = worldMap.FindRegionContainingNode(active.nodeId.Trim());
+        if (!owning || !_regions.Contains(owning))
+            return;
+
+        MapNodeDefinition nodeInList = owning.FindNodeById(active.nodeId.Trim());
+        if (!nodeInList)
+            return;
+
+        WorldMapProgressManager progress = FindProgressManager();
+        if (!IsRegionAvailable(owning, progress))
+            return;
+
+        _selectedRegion = owning;
+        _selectedNode = nodeInList;
+        LevelSelectSharedState.SelectedRegionId = owning.regionId ?? "";
+        LevelSelectSharedState.SelectedNodeId = nodeInList.nodeId ?? "";
+
+        if (regionDropdown)
+        {
+            int idx = _regions.IndexOf(_selectedRegion);
+            if (idx >= 0)
+                regionDropdown.SetValueWithoutNotify(idx);
+        }
+
+        RefreshDropdownCaption();
+        ApplyAnchorRegionVisibility();
     }
 
     private void RebuildRegionsDropdown()
@@ -682,7 +730,11 @@ public class WorldMapPageUI : MonoBehaviour
 
         MapNodeInteractablesPreview.ContainsSummary split = MapNodeInteractablesPreview.BuildSplitSummary(n);
         string npcLine = string.IsNullOrEmpty(split.npcMerchantsLine) ? "" : $"Contains NPC's/Merchants: {split.npcMerchantsLine}";
-        string enemiesLine = string.IsNullOrEmpty(split.enemiesLine) ? "" : $"Contains Enemies: {split.enemiesLine}";
+        string enemiesLine = string.IsNullOrEmpty(split.enemiesLine)
+            ? ""
+            : split.useSingularEnemyContainsPrefix
+                ? $"Contains enemy: {split.enemiesLine}"
+                : $"Contains Enemies: {split.enemiesLine}";
         string otherLine = string.IsNullOrEmpty(split.otherLine) ? "" : $"Contains Other: {split.otherLine}";
 
         if (selectedNodeContainsNpcMerchantsText)

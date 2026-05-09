@@ -297,6 +297,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
 
             p.xp -= req;
             p.level += 1;
+            SkillsAbilitiesColdStartLevelUpGlow.Append(type, p.level);
             OnLevelUp?.Invoke(type, p.level);
         }
     }
@@ -348,6 +349,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
             var p = Get(t);
             p.level++;
             p.xp = 0;
+            SkillsAbilitiesColdStartLevelUpGlow.Append(t, p.level);
             OnLevelUp?.Invoke(t, p.level);
         }
     }

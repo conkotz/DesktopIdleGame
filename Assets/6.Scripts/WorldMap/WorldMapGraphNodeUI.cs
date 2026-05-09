@@ -12,6 +12,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
     [SerializeField] private Button button;
     [SerializeField] private GameObject selectedBorder;
     [SerializeField] private GameObject lockedOverlay;
+    [Tooltip("Shown when this node’s UI state is Cleared (non-repeatable map completed). Assign or place child named ClearedOverlay.")]
+    [SerializeField] private GameObject clearedOverlay;
     [SerializeField] private CanvasGroup rootCanvasGroup;
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text cpHintText;
@@ -41,6 +43,12 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
             rootCanvasGroup = GetComponent<CanvasGroup>();
             if (!rootCanvasGroup)
                 rootCanvasGroup = gameObject.AddComponent<CanvasGroup>();
+        }
+        if (!clearedOverlay)
+        {
+            Transform t = transform.Find("ClearedOverlay");
+            if (t)
+                clearedOverlay = t.gameObject;
         }
         if (button)
             button.onClick.AddListener(OnClick);
@@ -128,6 +136,13 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
                 string.Equals(_stateLabel.Trim(), "Skill locked", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(_stateLabel.Trim(), "Progress locked", StringComparison.OrdinalIgnoreCase);
             lockedOverlay.SetActive(lockedVisual);
+        }
+
+        if (clearedOverlay)
+        {
+            bool cleared =
+                string.Equals(_stateLabel.Trim(), "Cleared", StringComparison.OrdinalIgnoreCase);
+            clearedOverlay.SetActive(cleared);
         }
 
         if (button)

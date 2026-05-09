@@ -275,6 +275,37 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_renderer: {fileID: 2896072067076551810}
   m_maskType: 0
+--- !u!1 &1109882317012956138
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8571033626532209627}
+  m_Layer: 7
+  m_Name: DialogueAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8571033626532209627
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1109882317012956138}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.48, y: -0.33, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8302037132637242208}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2240485527361661371
 GameObject:
   m_ObjectHideFlags: 0
@@ -314,6 +345,7 @@ Transform:
   - {fileID: 6205385427723264448}
   - {fileID: 5879601320447025001}
   - {fileID: 1096126419719829772}
+  - {fileID: 8571033626532209627}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &1993137487720808259
@@ -437,6 +469,9 @@ MonoBehaviour:
   merchantModeBanner: {fileID: 0}
   shopUI: {fileID: 0}
   merchant: {fileID: 0}
+  player: {fileID: 0}
+  openWhenWithinXDistance: 0.15
+  merchantCollider: {fileID: 0}
   shopRect: {fileID: 0}
   canvasRect: {fileID: 0}
   pinGap: 8
@@ -517,11 +552,19 @@ MonoBehaviour:
   dialogue: I stock a wide range of items! I'll also buy yours if you have anything
     good
   dialogueBoxPrefab: {fileID: 885210001001000003, guid: b0c765afdd1042d4b58de9f94e0a2397, type: 3}
-  dialogueLocalOffset: {x: 1.95, y: 0.5, z: 0}
+  useDialogueLocalOffsetOverride: 0
+  dialogueLocalOffsetOverride: {x: 1.95, y: 0.5, z: 0}
+  dialogueFollowWorldAnchor: {fileID: 8571033626532209627}
+  dialogueFollowViewportOffset: {x: 0, y: 0}
   nonQuestAutoCloseSeconds: 5
   openDialogueOnFirstSighting: 0
+  openDialogueAfterQuestAccepted: 0
+  openDialogueAfterQuestAcceptedQuestId: 
+  oneWayDialogueQueue: 0
+  oneWayDialogueQueueSaveId: 
   additionalConditionalDialogues: []
   questGiver: {fileID: 0}
+  debugLogPlainDialogueResolution: 0
 --- !u!1 &4761147117411399375
 GameObject:
   m_ObjectHideFlags: 0

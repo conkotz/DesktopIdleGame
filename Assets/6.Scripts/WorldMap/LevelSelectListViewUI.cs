@@ -697,7 +697,11 @@ public class LevelSelectListViewUI : MonoBehaviour
 
         MapNodeInteractablesPreview.ContainsSummary split = MapNodeInteractablesPreview.BuildSplitSummary(n);
         string npcLine = string.IsNullOrEmpty(split.npcMerchantsLine) ? "" : $"Contains NPC's/Merchants: {split.npcMerchantsLine}";
-        string enemiesLine = string.IsNullOrEmpty(split.enemiesLine) ? "" : $"Contains Enemies: {split.enemiesLine}";
+        string enemiesLine = string.IsNullOrEmpty(split.enemiesLine)
+            ? ""
+            : split.useSingularEnemyContainsPrefix
+                ? $"Contains enemy: {split.enemiesLine}"
+                : $"Contains Enemies: {split.enemiesLine}";
         string otherLine = string.IsNullOrEmpty(split.otherLine) ? "" : $"Contains Other: {split.otherLine}";
 
         if (selectedNodeContainsNpcMerchantsText)

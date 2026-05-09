@@ -17,12 +17,19 @@ public static class MapNodeInteractablesPreview
         public readonly string npcMerchantsLine;
         public readonly string enemiesLine;
         public readonly string otherLine;
+        /// <summary>When true, UI uses &quot;Contains enemy:&quot; instead of &quot;Contains Enemies:&quot; (endurance trial summary).</summary>
+        public readonly bool useSingularEnemyContainsPrefix;
 
-        public ContainsSummary(string npcMerchantsLine, string enemiesLine, string otherLine)
+        public ContainsSummary(
+            string npcMerchantsLine,
+            string enemiesLine,
+            string otherLine,
+            bool useSingularEnemyContainsPrefix = false)
         {
             this.npcMerchantsLine = npcMerchantsLine ?? "";
             this.enemiesLine = enemiesLine ?? "";
             this.otherLine = otherLine ?? "";
+            this.useSingularEnemyContainsPrefix = useSingularEnemyContainsPrefix;
         }
     }
 
@@ -118,10 +125,55 @@ public static class MapNodeInteractablesPreview
             }
         }
 
+        string enemies = enemyOrder.BuildCommaSeparatedLine();
+        bool singularEnemyPrefix = false;
+
+        if (node.nodeType == MapNodeType.EnduranceTrial)
+        {
+            enemies = "Endurance trial waves";
+            singularEnemyPrefix = true;
+        }
+        else if (HasSimpleCombatWaveSpawns(node))
+            enemies = enemyOrder.BuildCommaSeparatedWavesLine();
+
         return new ContainsSummary(
             npcMerchantOrder.BuildCommaSeparatedLine(),
-            enemyOrder.BuildCommaSeparatedLine(),
-            otherOrder.BuildCommaSeparatedLine());
+            enemies,
+            otherOrder.BuildCommaSeparatedLine(),
+            singularEnemyPrefix);
+    }
+
+    /// <summary>True when <see cref="MapNodeDefinition.simpleCombatWaves"/> has at least one counted spawn row.</summary>
+    private static bool HasSimpleCombatWaveSpawns(MapNodeDefinition node)
+    {
+        if (node?.simpleCombatWaves == null || node.simpleCombatWaves.Count == 0)
+            return false;
+
+        for (int w = 0; w < node.simpleCombatWaves.Count; w++)
+        {
+            EnduranceWavePlan wave = node.simpleCombatWaves[w];
+            if (wave == null)
+                continue;
+            wave.EnsureReady();
+            if (wave.spawns == null)
+                continue;
+            for (int i = 0; i < wave.spawns.Count; i++)
+            {
+                if (SpawnRowCountsForPreview(wave.spawns[i], node))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool SpawnRowCountsForPreview(SpawnPrefabCount row, MapNodeDefinition node)
+    {
+        if (row == null || row.count < 1)
+            return false;
+        if (row.enemyDefinition || row.itemDefinition)
+            return true;
+        return row.TryResolveSpawnPrefab(out GameObject pfb, out _, node, logWarnings: false) && pfb;
     }
 
     /// <summary>
@@ -159,6 +211,23 @@ public static class MapNodeInteractablesPreview
             {
                 (string label, int n) = _segments[i];
                 parts.Add(n > 1 ? $"{label} x{n}" : label);
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        /// <summary>Simple combat wave maps: show <c>Name (waves)</c> instead of counts.</summary>
+        public string BuildCommaSeparatedWavesLine()
+        {
+            if (_segments.Count == 0)
+                return "";
+
+            var parts = new List<string>(_segments.Count);
+            for (int i = 0; i < _segments.Count; i++)
+            {
+                (string label, _) = _segments[i];
+                if (!string.IsNullOrWhiteSpace(label))
+                    parts.Add($"{label.Trim()} (waves)");
             }
 
             return string.Join(", ", parts);
