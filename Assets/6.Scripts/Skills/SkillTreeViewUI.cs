@@ -595,9 +595,36 @@ public class SkillTreeViewUI : MonoBehaviour
         return rowYInLevelsRootSpace;
     }
 
-    /// <summary>Display names for the standard skill-tree milestone rows (matches typical Lv 1/5/10… spine).</summary>
-    private static string TierRowCaptionForSkillLevel(int level)
+    /// <summary>
+    /// Display names for the right-side tier row labels.
+    /// Combat skills keep the existing mapping; gathering skills (woodcutting/fishing/mining) use the authored schedule.
+    /// </summary>
+    private string TierRowCaptionForSkillLevel(int level)
     {
+        bool isGatheringSkill = selectedSkill != null &&
+            (selectedSkill.skillType == SkillType.Woodcutting ||
+             selectedSkill.skillType == SkillType.Fishing ||
+             selectedSkill.skillType == SkillType.Mining);
+
+        if (isGatheringSkill)
+        {
+            return level switch
+            {
+                1 => "Unlock",
+                5 => "Ability",
+                10 => "Skip",
+                15 => "Major Passive",
+                20 => "Skip",
+                25 => "Ability",
+                30 => "Skip",
+                35 => "Major Passive",
+                40 => "Skip",
+                45 => "Ability",
+                50 => "Capstone",
+                _ => ""
+            };
+        }
+
         return level switch
         {
             1 => "Unlock",

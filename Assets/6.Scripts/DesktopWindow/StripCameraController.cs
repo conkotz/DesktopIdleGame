@@ -61,6 +61,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     private static bool _sessionOrthoActive;
 
     private static float _sessionBaseOrthoSize;
+    private static bool _ignoreSavedZoomOnceOnGameplayEntry;
 
     /// <summary>
     /// First strip <see cref="Camera.aspect"/> we see during play (after lane bounds exist).
@@ -124,8 +125,12 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         if (Application.isPlaying && persistStripLayout)
             TryLoadSavedLayoutQuiet();
 
-        if (Application.isPlaying && _sessionOrthoActive)
-            baseOrthoSize = _sessionBaseOrthoSize;
+        if (Application.isPlaying)
+        {
+            // Requirement: on game load, zoom always starts at default (prefab baseline).
+            // After the player has a session zoom (keyboard / slider), keep it across level changes.
+            baseOrthoSize = _sessionOrthoActive ? _sessionBaseOrthoSize : DefaultOrthoBaseline;
+        }
 
         Apply(force: true);
     }
@@ -183,7 +188,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         if (_sessionOrthoActive)
             baseOrthoSize = _sessionBaseOrthoSize;
         else
-            ApplyZoomFromLastLoadedSaveDataIfAny();
+            baseOrthoSize = DefaultOrthoBaseline;
 
         Apply(force: true);
     }
@@ -374,6 +379,16 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     {
         _sessionOrthoActive = false;
         _sessionLaneZoomBaselineStripAspect = -1f;
+    }
+
+    /// <summary>
+    /// Forces the next <see cref="LoadFrom"/> (save apply) to ignore <see cref="SaveData.stripCameraZoomMultiplier"/> and
+    /// snap to <see cref="DefaultOrthoBaseline"/> instead. Also clears session zoom so the baseline wins.
+    /// </summary>
+    public static void IgnoreSavedZoomOnceOnNextGameplayLoad()
+    {
+        _ignoreSavedZoomOnceOnGameplayEntry = true;
+        ClearSessionOrthoZoomState();
     }
 
     private void CapturePrefabBaselineSnapshotFromSerializedFields()
@@ -582,6 +597,14 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     {
         if (data == null)
             return;
+
+        if (_ignoreSavedZoomOnceOnGameplayEntry)
+        {
+            _ignoreSavedZoomOnceOnGameplayEntry = false;
+            baseOrthoSize = DefaultOrthoBaseline;
+            Apply(force: true);
+            return;
+        }
 
         if (data.stripCameraZoomMultiplier <= 0.0001f)
             return;

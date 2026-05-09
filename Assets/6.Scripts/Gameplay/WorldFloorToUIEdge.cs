@@ -447,6 +447,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         MoveAllByDelta(moved, FindObjectsByType<Merchant>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
         MoveAllByDelta(moved, FindObjectsByType<StorageClick>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
         MoveAllByDelta(moved, FindObjectsByType<NPCInteractionSettings>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
+        MoveAllByDelta(moved, FindObjectsByType<MapNodePortalTeleporter>(FindObjectsInactive.Exclude, FindObjectsSortMode.None), deltaY);
 
         if (moveCavesWithFloor)
             MoveTaggedByDelta(moved, "Cave", deltaY);

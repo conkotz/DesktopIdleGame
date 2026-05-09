@@ -187,7 +187,13 @@ public class SaveManager : MonoBehaviour
 
         HelperProgressStore.ResetHydrationForNewSession();
 
+        bool firstGameplayInitThisSession = !_didInitialLoadOrCreate;
         _didInitialLoadOrCreate = true;
+
+        // Requirement: when entering gameplay from login/new session, start at Default Zoom (100%) even if save had another zoom.
+        // Do NOT re-apply this on subsequent level transitions; those should keep current player zoom.
+        if (firstGameplayInitThisSession)
+            StripCameraController.IgnoreSavedZoomOnceOnNextGameplayLoad();
 
         if (pendingMode == SaveSlotManager.SlotStartMode.NewGame)
         {

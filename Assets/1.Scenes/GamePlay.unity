@@ -44729,7 +44729,7 @@ Transform:
   m_GameObject: {fileID: 999888770}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.8696494, z: 0}
+  m_LocalPosition: {x: 0, y: 0.437217, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -46241,6 +46241,7 @@ GameObject:
   - component: {fileID: 1044983568}
   - component: {fileID: 1044983569}
   - component: {fileID: 1044983570}
+  - component: {fileID: 1044983571}
   m_Layer: 0
   m_Name: WorldManager
   m_TagString: Untagged
@@ -46516,6 +46517,52 @@ MonoBehaviour:
   inactiveBackgroundColor: {r: 1, g: 1, b: 1, a: 0.45}
   activeTextColor: {r: 0.12, g: 0.1, b: 0.05, a: 1}
   inactiveTextColor: {r: 1, g: 1, b: 1, a: 0.85}
+--- !u!114 &1044983571
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1044983554}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5d4e3f2a1b84738a1b2c3d4e5f67891, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::OffscreenMarkersController
+  markerPrefab: {fileID: 381264759182736450, guid: 3ca41d913d50859408e5a2f247f53d34, type: 3}
+  markerContainer: {fileID: 2042090762}
+  worldCamera: {fileID: 414385169}
+  viewportMargin: 0.02
+  stackSpacingPixels: 6
+  edgePaddingPixels: 6
+  markerHorizontalBleedPadding: 2
+  centerToOuterTipReferencePixels: 23
+  alignStackFromTop: 1
+  firstRowInsetFromTopPixels: 8
+  stackVerticalOffsetPixels: -50
+  stretchContainerHorizontally: 1
+  shiftLeftMarkersIntoStripView: 0
+  leftClampScreenInsetPixels: 0
+  refreshInterval: 0.08
+  enemyColor: {r: 1, g: 0, b: 0, a: 1}
+  npcColor: {r: 0.35, g: 0.6, b: 1, a: 1}
+  resourceColor: {r: 0.35, g: 0.95, b: 0.45, a: 1}
+  storageColor: {r: 0.95, g: 0.72, b: 0.2, a: 1}
+  noticeBoardColor: {r: 0.85, g: 0.5, b: 1, a: 1}
+  caveColor: {r: 0.55, g: 0.9, b: 1, a: 1}
+  overrideMarkerLabelFontSizes: 1
+  enemyLabelFontSize: 12
+  npcLabelFontSize: 12
+  resourceLabelFontSize: 9
+  storageLabelFontSize: 12
+  noticeBoardLabelFontSize: 12
+  caveLabelFontSize: 14
+  enemyLabelName: Enemy
+  npcLabelName: NPC
+  resourceLabelName: Resource
+  storageLabelName: Storage
+  noticeBoardLabelName: Notice board
+  caveLabelName: Cave
 --- !u!1 &1046578828
 GameObject:
   m_ObjectHideFlags: 0
@@ -61229,88 +61276,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2047187991}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1358094315
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1358094316}
-  - component: {fileID: 1358094317}
-  m_Layer: 5
-  m_Name: OffscreenMarkersController
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &1358094316
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1358094315}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 2042090762}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 1, y: 0.5}
-  m_AnchorMax: {x: 1, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 100, y: 100}
-  m_Pivot: {x: 1, y: 0.5}
---- !u!114 &1358094317
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1358094315}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c5d4e3f2a1b84738a1b2c3d4e5f67891, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::OffscreenMarkersController
-  markerPrefab: {fileID: 381264759182736450, guid: 3ca41d913d50859408e5a2f247f53d34, type: 3}
-  markerContainer: {fileID: 1358094316}
-  worldCamera: {fileID: 414385169}
-  viewportMargin: 0.02
-  stackSpacingPixels: 6
-  edgePaddingPixels: 6
-  markerHorizontalBleedPadding: 2
-  centerToOuterTipReferencePixels: 23
-  alignStackFromTop: 1
-  firstRowInsetFromTopPixels: 8
-  stackVerticalOffsetPixels: 50
-  stretchContainerHorizontally: 1
-  shiftLeftMarkersIntoStripView: 0
-  leftClampScreenInsetPixels: 0
-  refreshInterval: 0.08
-  enemyColor: {r: 1, g: 0, b: 0, a: 1}
-  npcColor: {r: 0.35, g: 0.6, b: 1, a: 1}
-  resourceColor: {r: 0.35, g: 0.95, b: 0.45, a: 1}
-  storageColor: {r: 0.95, g: 0.72, b: 0.2, a: 1}
-  noticeBoardColor: {r: 0.85, g: 0.5, b: 1, a: 1}
-  caveColor: {r: 0.55, g: 0.9, b: 1, a: 1}
-  overrideMarkerLabelFontSizes: 1
-  enemyLabelFontSize: 16
-  npcLabelFontSize: 16
-  resourceLabelFontSize: 9
-  storageLabelFontSize: 16
-  noticeBoardLabelFontSize: 16
-  caveLabelFontSize: 16
-  enemyLabelName: Enemy
-  npcLabelName: NPC
-  resourceLabelName: Resource
-  storageLabelName: Storage
-  noticeBoardLabelName: Notice board
-  caveLabelName: Cave
 --- !u!1 &1359820216
 GameObject:
   m_ObjectHideFlags: 0
@@ -93046,6 +93011,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2041091447}
+  - component: {fileID: 2041091448}
   m_Layer: 0
   m_Name: WorldVisuals
   m_TagString: Untagged
@@ -93070,6 +93036,29 @@ Transform:
   - {fileID: 35174182}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2041091448
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2041091446}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d00ddce964342e7448e6cebf719ba8ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FloorVisualZoomNudger
+  targetCamera: {fileID: 414385169}
+  floorVisuals: {fileID: 2028410078}
+  stripCameraController: {fileID: 414385172}
+  captureBaselineOnStart: 1
+  baselineLocalPosition: {x: 0, y: 0, z: 0}
+  baselineOrthoSize: 0
+  stepPercent: 10
+  useDiscreteSteps: 0
+  zoomOutPixelsPerStep: 4
+  zoomInPixelsPerStep: 16
+  smoothHz: 50
 --- !u!1 &2041692388
 GameObject:
   m_ObjectHideFlags: 0
@@ -93140,7 +93129,6 @@ RectTransform:
   - {fileID: 1039092199}
   - {fileID: 265969955}
   - {fileID: 395888640}
-  - {fileID: 1358094316}
   - {fileID: 596495616}
   - {fileID: 1998343933}
   m_Father: {fileID: 300103154}
@@ -94166,7 +94154,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1564207547}
   m_HandleRect: {fileID: 1564207546}
   m_Direction: 2
-  m_Value: 1
+  m_Value: 0
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
