@@ -231,10 +231,10 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 15
-    title: Woodcutting Specialization
-    description: Choose your major woodcutting passive and enhancement. All branches unlock at level 15.
-    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
-    unlockType: 3
+    title: Conservationist
+    description: Successful chops can skip contributing toward tree depletion. Enhancements unlock at level 18.
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
@@ -246,34 +246,64 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices:
     - requiredLevel: 0
-      title: Conservationist — Sustainable Harvest
-      description: "Successful chops have 15% chance to not count toward tree depletion. When that triggers, restore 10% max stamina."
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      title: Sustainable Harvest
+      description: Successful chops have 15% chance to not count toward tree depletion. When that triggers, restore 10% max stamina.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 0
-      title: Conservationist — Ancient Preservation
+      title: Ancient Preservation
       description: Successful chops have 25% chance to not count toward tree depletion (stacks with other depletion-skip bonuses).
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+  - requiredLevel: 15
+    title: Heavy Swing
+    description: Gathering Grit can grant bonus main resources. Enhancements unlock at level 18.
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 0
+      title: Controlled Force
+      description: When Gathering Grit procs, 40% chance to gather +1 additional main resource, and +10% Bonus Find Chance for that swing's bonus drops.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 0
-      title: Heavy Swing — Controlled Force
-      description: "When Gathering Grit procs: 40% chance to gather +1 additional main resource, and +10% Bonus Find Chance for that swing's bonus drops."
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      title: Crushing Swing
+      description: When Gathering Grit procs, 50% chance to gather +1 additional main resource.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+  - requiredLevel: 15
+    title: Flow State
+    description: Sustained woodcutting grants Flow State bonuses. Enhancements unlock at level 18.
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 0
+      title: Lasting Focus
+      description: After 15 seconds of continuous woodcutting on the same tree, enter Flow State (+10% Chopping Speed, +10% Stamina Efficiency). Flow lasts 5 seconds after you stop gathering.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 0
-      title: Heavy Swing — Crushing Swing
-      description: When Gathering Grit procs, 50% chance to gather +1 additional main resource (includes the base Heavy Swing proc).
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
-      ability: {fileID: 0}
-    - requiredLevel: 0
-      title: Flow State — Lasting Focus
-      description: "After 15 seconds of continuous woodcutting on the same tree, enter Flow State: +10% Chopping Speed and +10% Stamina Efficiency. Flow lasts 5 seconds after you stop gathering."
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
-      ability: {fileID: 0}
-    - requiredLevel: 0
-      title: Flow State — Deep Focus
-      description: "After 15 seconds of continuous woodcutting on the same tree, enter Flow State: +10% Chopping Speed, +10% Stamina Efficiency, and +10% Gathering Grit Chance."
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      title: Deep Focus
+      description: After 15 seconds of continuous woodcutting on the same tree, enter Flow State (+10% Chopping Speed, +10% Stamina Efficiency, +10% Gathering Grit Chance).
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 16
     title: Chopping Grit 3

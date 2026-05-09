@@ -1124,34 +1124,34 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             }
         }
 
-        if (skill.skillType == SkillType.Woodcutting && currentLevel >= PlayerController.WoodcuttingMajorPassiveSourceLevel)
+        if (skill.skillType == SkillType.Woodcutting && currentLevel >= PlayerController.WoodcuttingMajorPassiveSourceLevel &&
+            skill.unlocks != null && skillManager != null)
         {
-            SkillUnlockDefinition major15 = null;
-            if (skill.unlocks != null)
+            var majors15 = new List<(SkillUnlockDefinition u, int idx)>();
+            for (int i = 0; i < skill.unlocks.Count; i++)
             {
-                for (int i = 0; i < skill.unlocks.Count; i++)
-                {
-                    SkillUnlockDefinition u = skill.unlocks[i];
-                    if (u != null && u.requiredLevel == PlayerController.WoodcuttingMajorPassiveSourceLevel &&
-                        u.unlockType == SkillUnlockType.MajorPassive)
-                    {
-                        major15 = u;
-                        break;
-                    }
-                }
+                SkillUnlockDefinition u = skill.unlocks[i];
+                if (u != null && u.requiredLevel == PlayerController.WoodcuttingMajorPassiveSourceLevel &&
+                    u.unlockType == SkillUnlockType.Ability)
+                    majors15.Add((u, i));
             }
 
-            if (major15 != null && major15.choices != null && major15.choices.Count > 0)
+            if (majors15.Count > 0)
             {
+                majors15.Sort((a, b) => a.idx.CompareTo(b.idx));
+                int rowPick = skillManager.GetSkillAbilityRowPick(SkillType.Woodcutting, PlayerController.WoodcuttingMajorPassiveSourceLevel, -1);
+                int enh = skillManager.GetSkillChoiceSelection(SkillType.Woodcutting, PlayerController.WoodcuttingMajorPassiveSourceLevel, -1);
                 sb.AppendLine("• Woodcutting Major Passive (Lv15)");
-                int pick = skillManager != null
-                    ? skillManager.GetSkillChoiceSelection(SkillType.Woodcutting, PlayerController.WoodcuttingMajorPassiveSourceLevel, -1)
-                    : -1;
-                if (pick >= 0 && pick < major15.choices.Count && major15.choices[pick] != null &&
-                    !string.IsNullOrWhiteSpace(major15.choices[pick].title))
-                    sb.AppendLine("   - " + major15.choices[pick].title.Trim());
+                if (rowPick >= 0 && rowPick < majors15.Count && !string.IsNullOrWhiteSpace(majors15[rowPick].u.title))
+                {
+                    sb.AppendLine("   - " + majors15[rowPick].u.title.Trim());
+                    SkillUnlockDefinition committed = majors15[rowPick].u;
+                    if (enh >= 0 && committed.choices != null && enh < committed.choices.Count &&
+                        committed.choices[enh] != null && !string.IsNullOrWhiteSpace(committed.choices[enh].title))
+                        sb.AppendLine("   - " + committed.choices[enh].title.Trim());
+                }
                 else
-                    sb.AppendLine("   - (not selected)");
+                    sb.AppendLine("   - (major not selected)");
             }
         }
 
