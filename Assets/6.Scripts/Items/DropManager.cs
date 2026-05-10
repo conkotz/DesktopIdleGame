@@ -149,7 +149,7 @@ public class DropManager : MonoBehaviour
         return true;
     }
 
-    public void Spawn(string itemId, int amount, Sprite icon)
+    public void Spawn(string itemId, int amount, Sprite icon, string sourceName = null)
     {
         ResolveAnchor(forceRefresh: true);
 
@@ -164,7 +164,8 @@ public class DropManager : MonoBehaviour
             amount,
             icon,
             dropAnchor.position,
-            alignToGround: alignPlayerDropsToGround);
+            alignToGround: alignPlayerDropsToGround,
+            sourceName: sourceName);
     }
 
     /// <summary>
@@ -177,7 +178,8 @@ public class DropManager : MonoBehaviour
         Sprite icon,
         Vector3 worldPosition,
         bool clampToDropFrame = false,
-        bool alignToGround = false)
+        bool alignToGround = false,
+        string sourceName = null)
     {
         if (!worldDropPrefab || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
             return;
@@ -193,6 +195,8 @@ public class DropManager : MonoBehaviour
         Vector3 instantiatePosition = hasGround ? worldPosition : spawnPos;
         var drop = Instantiate(worldDropPrefab, instantiatePosition, Quaternion.identity);
         drop.Init(itemId, amount, icon);
+        if (!string.IsNullOrWhiteSpace(sourceName))
+            drop.SetSourceName(sourceName);
 
         if (hasGround)
         {

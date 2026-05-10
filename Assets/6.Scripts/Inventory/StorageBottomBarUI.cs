@@ -1,25 +1,76 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Bottom bar for the storage window: "Store all" into <see cref="PlayerStorage"/> and used/total slot label.
+/// Bottom bar for the storage window: "Store all" into <see cref="PlayerStorage"/>, used/total slot label, and the
+/// total combined value of all stored items. Also drives the StoreAll button's visibility — it lives in the
+/// inventory window now but should only be shown while the storage window (this component) is open.
 /// </summary>
 public class StorageBottomBarUI : MonoBehaviour
 {
     [SerializeField] private Button storeAllButton;
     [SerializeField] private TMP_Text spaceText;
+    [Tooltip("Optional. Renders the combined value of all items currently in storage (mirrors the inventory total value label).")]
+    [SerializeField] private TMP_Text totalValueText;
     [SerializeField] private PlayerStorage storage;
     [SerializeField] private StorageGridUI gridUi;
 
+    [Tooltip("Numeric format passed to int.ToString. Default groups thousands.")]
+    [SerializeField] private string totalValueNumberFormat = "N0";
+    [Tooltip("Suffix appended after the formatted total (e.g. 'g' for gold).")]
+    [SerializeField] private string totalValueSuffix = "g";
+
     private Inventory _inventory;
+    private string _totalValuePrefix;
+
+    /// <summary>
+    /// At scene load BottomBarOfStorage is inactive (storage window starts closed) which means our OnEnable hasn't run
+    /// yet, but the StoreAll button now lives under the inventory window and would otherwise show as soon as the
+    /// inventory opens. This hook proactively hides the button until storage is actually opened.
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void HideStoreAllAtSceneLoad()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoadedHideStoreAll;
+        SceneManager.sceneLoaded += OnSceneLoadedHideStoreAll;
+        ApplyHideStoreAllForCurrentScene();
+    }
+
+    private static void OnSceneLoadedHideStoreAll(Scene scene, LoadSceneMode mode) =>
+        ApplyHideStoreAllForCurrentScene();
+
+    private static void ApplyHideStoreAllForCurrentScene()
+    {
+        StorageBottomBarUI[] all = FindObjectsByType<StorageBottomBarUI>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            StorageBottomBarUI bar = all[i];
+            if (bar == null || bar.storeAllButton == null)
+                continue;
+            // If the storage window is currently open, leave the button alone — OnEnable already showed it.
+            if (bar.gameObject.activeInHierarchy)
+                continue;
+            GameObject btn = bar.storeAllButton.gameObject;
+            if (btn.activeSelf)
+                btn.SetActive(false);
+        }
+    }
 
     private void Awake()
     {
         if (!storeAllButton)
             storeAllButton = GetComponentInChildren<Button>(true);
         if (!spaceText)
-            spaceText = GetComponentInChildren<TMP_Text>(true);
+            spaceText = ResolveTextByNameContains("Space") ?? GetComponentInChildren<TMP_Text>(true);
+        if (!totalValueText)
+            totalValueText = ResolveTextByNameContains("Value") ?? ResolveTextByNameContains("Total");
+
+        if (totalValueText != null)
+            _totalValuePrefix = totalValueText.text ?? string.Empty;
 
         if (storeAllButton != null)
             storeAllButton.onClick.AddListener(OnStoreAllClicked);
@@ -32,19 +83,39 @@ public class StorageBottomBarUI : MonoBehaviour
             _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
 
         if (storage != null)
-            storage.OnStorageChanged += RefreshSpaceLabel;
+            storage.OnStorageChanged += HandleStorageOrInventoryChanged;
         if (_inventory != null)
-            _inventory.OnInventoryChanged += RefreshSpaceLabel;
+            _inventory.OnInventoryChanged += HandleStorageOrInventoryChanged;
 
+        SetStoreAllButtonVisible(true);
         RefreshSpaceLabel();
+        RefreshTotalValueLabel();
     }
 
     private void OnDisable()
     {
         if (storage != null)
-            storage.OnStorageChanged -= RefreshSpaceLabel;
+            storage.OnStorageChanged -= HandleStorageOrInventoryChanged;
         if (_inventory != null)
-            _inventory.OnInventoryChanged -= RefreshSpaceLabel;
+            _inventory.OnInventoryChanged -= HandleStorageOrInventoryChanged;
+
+        SetStoreAllButtonVisible(false);
+    }
+
+    /// <summary>The StoreAll button now lives in the inventory window; mirror this component's enabled state to it.</summary>
+    private void SetStoreAllButtonVisible(bool visible)
+    {
+        if (storeAllButton == null)
+            return;
+        GameObject go = storeAllButton.gameObject;
+        if (go.activeSelf != visible)
+            go.SetActive(visible);
+    }
+
+    private void HandleStorageOrInventoryChanged()
+    {
+        RefreshSpaceLabel();
+        RefreshTotalValueLabel();
     }
 
     private void ResolveStorage()
@@ -86,5 +157,84 @@ public class StorageBottomBarUI : MonoBehaviour
         }
 
         spaceText.text = $"{used}/{n}";
+    }
+
+    /// <summary>Renders the prefix authored on the field plus the combined item value of every stored stack.</summary>
+    private void RefreshTotalValueLabel()
+    {
+        if (!totalValueText)
+            return;
+
+        ResolveStorage();
+        if (_inventory == null)
+            _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        int total = ComputeStorageTotalValue();
+        string formatted = total.ToString(string.IsNullOrEmpty(totalValueNumberFormat) ? "N0" : totalValueNumberFormat);
+        string body = formatted + (totalValueSuffix ?? string.Empty);
+
+        string prefix = _totalValuePrefix ?? string.Empty;
+        bool needsSpace = prefix.Length > 0 && !prefix.EndsWith(" ") && !prefix.EndsWith("\t");
+        totalValueText.text = needsSpace ? prefix + " " + body : prefix + body;
+    }
+
+    private int ComputeStorageTotalValue()
+    {
+        if (storage == null)
+            return 0;
+
+        int total = 0;
+        int n = storage.SlotCount;
+        for (int i = 0; i < n; i++)
+        {
+            PlayerStorage.Slot s = storage.GetSlot(i);
+            if (s.IsEmpty) continue;
+
+            int unitValue = ResolveItemUnitValue(s.itemId);
+            if (unitValue <= 0) continue;
+
+            total += unitValue * Mathf.Max(0, s.amount);
+        }
+
+        return total;
+    }
+
+    /// <summary>
+    /// Looks up the ItemDefinition.value for a stored item. Tries <see cref="PlayerStorage.GetItemDef"/> first
+    /// (uses the storage's own ItemDatabase reference), then falls back to the player <see cref="Inventory"/> so the
+    /// total never reads as zero just because one path's database reference happened to be null at the moment.
+    /// </summary>
+    private int ResolveItemUnitValue(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return 0;
+
+        if (storage != null)
+        {
+            ItemDefinition def = storage.GetItemDef(itemId);
+            if (def != null)
+                return Mathf.Max(0, def.value);
+        }
+
+        if (_inventory != null)
+            return _inventory.GetItemValue(itemId);
+
+        return 0;
+    }
+
+    private TMP_Text ResolveTextByNameContains(string namePart)
+    {
+        if (string.IsNullOrWhiteSpace(namePart))
+            return null;
+
+        TMP_Text[] all = GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < all.Length; i++)
+        {
+            TMP_Text t = all[i];
+            if (t == null) continue;
+            if (t.gameObject.name.IndexOf(namePart, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                return t;
+        }
+        return null;
     }
 }

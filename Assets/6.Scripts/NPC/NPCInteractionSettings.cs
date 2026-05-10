@@ -83,6 +83,26 @@ public class NPCInteractionSettings : MonoBehaviour
     [Tooltip("When enabled, shows dialogue the first time this NPC is on-screen, then re-opens automatically when conditional dialogue changes (e.g. after a quest completes).")]
     [SerializeField] private bool openDialogueOnFirstSighting;
 
+    [Header("Click-to-walk arrival (dialogue + quest box)")]
+    [Tooltip(
+        "When on, clicking this NPC moves the player to it first (same as Merchant Click). " +
+        "Dialogue and quest offers only appear once the player is within Open When Within X Distance of the NPC's collider.")]
+    [SerializeField] private bool walkPlayerToNpcOnClick = true;
+
+    [Tooltip("Extra padding added on top of the NPC collider half-width when checking arrival on click (mirrors MerchantClick).")]
+    [ShowWhenTrue(nameof(walkPlayerToNpcOnClick))]
+    [SerializeField, Min(0f)] private float openWhenWithinXDistance = 0.15f;
+
+    [Header("Auto-reopen proximity gate (does NOT affect first sighting)")]
+    [Tooltip(
+        "When on, dialogues that auto-open due to quest progress changes or after-quest-accepted require the player to be within Auto Reopen Range Units before they appear. " +
+        "First-sighting auto-open is unaffected.")]
+    [SerializeField] private bool requirePlayerProximityForAutoReopen = true;
+
+    [Tooltip("Maximum 2D distance (world units) from this NPC at which auto-reopen dialogues will appear. Used only when Require Player Proximity For Auto Reopen is on.")]
+    [ShowWhenTrue(nameof(requirePlayerProximityForAutoReopen))]
+    [SerializeField, Min(0.1f)] private float autoReopenRangeUnits = 2.5f;
+
     [Tooltip(
         "When enabled, opens this NPC's resolved plain dialogue when the quest below becomes accepted (edge only — " +
         "does not fire on load if it was already accepted). For quests with no obtain location, the game treats them as always accepted; use a giver-based quest id.")]
@@ -117,6 +137,13 @@ public class NPCInteractionSettings : MonoBehaviour
     private string _lastAutoPlainDialogueSignature = "";
     private QuestProgressManager _boundQuestProgress;
 
+    /// <summary>True when a quest-driven auto-reopen wanted to fire but the player was out of range; Update polls until proximity is satisfied.</summary>
+    private bool _pendingProximityAutoReopen;
+    private static PlayerController s_cachedPlayerForProximity;
+
+    private Coroutine _interactWhenArrivedRoutine;
+    private static NPCInteractionSettings _pendingInteract;
+
     private bool _watchQuestAcceptedBaselineReady;
     private bool _watchQuestAcceptedWasAccepted;
 
@@ -150,6 +177,14 @@ public class NPCInteractionSettings : MonoBehaviour
     {
         StopDeferredQuestAcceptedPlainDialogue();
         TryUnsubscribeQuestProgressForAutoDialogue();
+
+        if (_pendingInteract == this)
+            CancelPendingInteract();
+        else if (_interactWhenArrivedRoutine != null)
+        {
+            StopCoroutine(_interactWhenArrivedRoutine);
+            _interactWhenArrivedRoutine = null;
+        }
     }
 
     private void Update()
@@ -160,16 +195,65 @@ public class NPCInteractionSettings : MonoBehaviour
         if (NeedsQuestProgressSubscription() && _boundQuestProgress == null)
             TrySubscribeQuestProgressForAutoDialogue();
 
-        if (!openDialogueOnFirstSighting || _hasOpenedOnFirstSighting)
+        // First-sighting path is unaffected by the proximity gate (per design).
+        if (openDialogueOnFirstSighting && !_hasOpenedOnFirstSighting)
+        {
+            Camera cam = Camera.main;
+            if (cam && IsVisibleInCameraViewport(cam))
+            {
+                // Do not set _hasOpenedOnFirstSighting here — only after a successful ShowAt inside ShowNormalDialogueOnly,
+                // otherwise one empty resolve (e.g. save / death-pending not hydrated yet) permanently skips auto dialogue.
+                ShowNormalDialogueOnly(false);
+            }
+        }
+
+        // Quest-driven auto-reopen that was deferred because the player was too far: retry once they enter range.
+        if (_pendingProximityAutoReopen && IsPlayerWithinAutoReopenRange())
+            TryFlushPendingProximityAutoReopen();
+    }
+
+    private void TryFlushPendingProximityAutoReopen()
+    {
+        _pendingProximityAutoReopen = false;
+
+        TryGetResolvedPlainDialogue(
+            out string text,
+            out bool showAccept,
+            out _,
+            out _,
+            out _,
+            allowBaseWhenOneWayHasNoMatchingConditional: false);
+        if (string.IsNullOrWhiteSpace(text))
             return;
 
-        Camera cam = Camera.main;
-        if (!cam || !IsVisibleInCameraViewport(cam))
+        string sig = BuildPlainDialogueSignature(text, showAccept);
+        if (sig == _lastAutoPlainDialogueSignature)
             return;
 
-        // Do not set _hasOpenedOnFirstSighting here — only after a successful ShowAt inside ShowNormalDialogueOnly,
-        // otherwise one empty resolve (e.g. save / death-pending not hydrated yet) permanently skips auto dialogue.
-        ShowNormalDialogueOnly(false);
+        ShowNormalDialogueOnly(true);
+    }
+
+    /// <summary>True when the proximity gate is satisfied (or disabled). Cached player ref re-resolves on demand.</summary>
+    private bool IsPlayerWithinAutoReopenRange()
+    {
+        if (!requirePlayerProximityForAutoReopen)
+            return true;
+
+        if (s_cachedPlayerForProximity == null)
+            s_cachedPlayerForProximity = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (s_cachedPlayerForProximity == null)
+            return false;
+
+        Vector3 npcPos = transform.position;
+        Collider2D col = ResolveInteractCollider2D();
+        if (col != null)
+            npcPos = col.bounds.center;
+
+        Vector3 playerPos = s_cachedPlayerForProximity.transform.position;
+        float dx = playerPos.x - npcPos.x;
+        float dy = playerPos.y - npcPos.y;
+        float radius = Mathf.Max(0.1f, autoReopenRangeUnits);
+        return dx * dx + dy * dy <= radius * radius;
     }
 
     private bool HasConditionalDialogues() =>
@@ -301,8 +385,100 @@ public class NPCInteractionSettings : MonoBehaviour
 
     public void Interact()
     {
+        if (!walkPlayerToNpcOnClick)
+        {
+            InteractNow();
+            return;
+        }
+
+        PlayerController player = ResolveCachedPlayer();
+        if (player == null || player.IsDead)
+        {
+            InteractNow();
+            return;
+        }
+
+        if (IsPlayerWithinNpcArrivalRange(player))
+        {
+            InteractNow();
+            return;
+        }
+
+        // Same UX as MerchantClick: walk the player horizontally to the NPC, defer the dialogue/quest box until arrival.
+        CancelPendingInteract();
+        _pendingInteract = this;
+        player.MoveToPointX(transform.position.x);
+        _interactWhenArrivedRoutine = StartCoroutine(CoInteractWhenArrived(player));
+    }
+
+    private IEnumerator CoInteractWhenArrived(PlayerController player)
+    {
+        while (_pendingInteract == this)
+        {
+            if (player == null || player.IsDead)
+            {
+                _interactWhenArrivedRoutine = null;
+                if (_pendingInteract == this)
+                    _pendingInteract = null;
+                yield break;
+            }
+
+            if (IsPlayerWithinNpcArrivalRange(player))
+            {
+                _interactWhenArrivedRoutine = null;
+                if (_pendingInteract == this)
+                    _pendingInteract = null;
+                InteractNow();
+                yield break;
+            }
+
+            yield return null;
+        }
+
+        _interactWhenArrivedRoutine = null;
+    }
+
+    private bool IsPlayerWithinNpcArrivalRange(PlayerController player)
+    {
+        if (player == null)
+            return false;
+
+        Collider2D col = ResolveInteractCollider2D();
+        float halfWidth = col != null ? col.bounds.extents.x : 0f;
+        float dx = Mathf.Abs(player.transform.position.x - transform.position.x);
+        float requiredDistance = Mathf.Max(0.01f, halfWidth + Mathf.Max(0f, openWhenWithinXDistance));
+        return dx <= requiredDistance;
+    }
+
+    private static PlayerController ResolveCachedPlayer()
+    {
+        if (s_cachedPlayerForProximity == null)
+            s_cachedPlayerForProximity = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        return s_cachedPlayerForProximity;
+    }
+
+    /// <summary>Cancel a pending walk-then-interact (e.g. when the player clicks elsewhere). Mirrors <see cref="MerchantClick.CancelPendingOpen"/>.</summary>
+    public static void CancelPendingInteract()
+    {
+        if (_pendingInteract == null)
+            return;
+
+        if (_pendingInteract._interactWhenArrivedRoutine != null)
+        {
+            _pendingInteract.StopCoroutine(_pendingInteract._interactWhenArrivedRoutine);
+            _pendingInteract._interactWhenArrivedRoutine = null;
+        }
+
+        _pendingInteract = null;
+    }
+
+    private void InteractNow()
+    {
         if (!questGiver)
             questGiver = GetComponent<QuestGiver>();
+
+        // Player has arrived (or walk was disabled): drop any pending proximity-gated auto-reopen.
+        _pendingProximityAutoReopen = false;
 
         InvokeInteractionEffects();
 
@@ -441,6 +617,7 @@ public class NPCInteractionSettings : MonoBehaviour
             autoClose);
         if (openDialogueOnFirstSighting)
             _hasOpenedOnFirstSighting = true;
+        _pendingProximityAutoReopen = false;
         RememberAutoPlainDialogueSignatureIfNeeded(text, showAccept);
         ApplyPlainDialoguePresentedSideEffects(box, winning, winningConditionalIndex);
     }
@@ -584,6 +761,13 @@ public class NPCInteractionSettings : MonoBehaviour
         if (sig == _lastAutoPlainDialogueSignature)
             return;
 
+        if (!IsPlayerWithinAutoReopenRange())
+        {
+            // Defer until the player walks up to this NPC; Update will retry each frame.
+            _pendingProximityAutoReopen = true;
+            return;
+        }
+
         ShowNormalDialogueOnly(true);
     }
 
@@ -635,6 +819,14 @@ public class NPCInteractionSettings : MonoBehaviour
     {
         yield return null;
         _deferredQuestAcceptedPlainDialogueRoutine = null;
+
+        if (!IsPlayerWithinAutoReopenRange())
+        {
+            // The accepted quest could be sourced from a different NPC; wait until the player reaches *this* NPC.
+            _pendingProximityAutoReopen = true;
+            yield break;
+        }
+
         ShowNormalDialogueOnly(true);
     }
 

@@ -32,6 +32,8 @@ public class ItemDrop : MonoBehaviour
 
     public string ItemId { get; private set; }
     public int Amount { get; private set; }
+    /// <summary>Optional human-readable origin used by the session tracker (e.g. "Splitwood Tree", "Spider").</summary>
+    public string SourceName { get; private set; }
 
     private string _levelOneShotPickupClaimKey;
 
@@ -80,6 +82,15 @@ public class ItemDrop : MonoBehaviour
     public void SetLevelOneShotPickupClaimKey(string saveKey)
     {
         _levelOneShotPickupClaimKey = string.IsNullOrWhiteSpace(saveKey) ? null : saveKey.Trim();
+    }
+
+    /// <summary>
+    /// Tags the drop with the gameplay event that produced it so <see cref="SessionTrackerData"/> can attribute
+    /// the loot to a source (e.g. enemy display name) once the player picks it up.
+    /// </summary>
+    public void SetSourceName(string sourceName)
+    {
+        SourceName = string.IsNullOrWhiteSpace(sourceName) ? null : sourceName.Trim();
     }
 
     public void SnapVisualBottomToWorldY(float worldY, float skin = 0.01f)
@@ -208,6 +219,9 @@ public class ItemDrop : MonoBehaviour
         List<int> invTouched = idleAutoBattleLoot ? new List<int>(4) : null;
         int added = inv.AddPartial(ItemId, Amount, null, true, invTouched);
         int left = Amount - added;
+
+        if (added > 0)
+            SessionTrackerData.Instance?.RegisterLootGain(SourceName, ItemId, added);
 
         if (idleAutoBattleLoot && invTouched != null)
         {

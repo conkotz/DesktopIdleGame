@@ -1341,7 +1341,7 @@ public class EnemyBaseController : MonoBehaviour
                 return;
 
             // Match player-drop behavior: align to ground so loot doesn't hover if the anchor is above the floor.
-            dm.SpawnAtWorldPosition(won.item.itemId.Trim(), stack, won.item.icon, spawnBase, alignToGround: true);
+            dm.SpawnAtWorldPosition(won.item.itemId.Trim(), stack, won.item.icon, spawnBase, alignToGround: true, sourceName: ResolveLootSourceName());
             return;
         }
 
@@ -1364,8 +1364,18 @@ public class EnemyBaseController : MonoBehaviour
                 continue;
 
             // Match player-drop behavior: align to ground so loot doesn't hover if the anchor is above the floor.
-            dm.SpawnAtWorldPosition(e.item.itemId.Trim(), stack, e.item.icon, spawnBase, alignToGround: true);
+            dm.SpawnAtWorldPosition(e.item.itemId.Trim(), stack, e.item.icon, spawnBase, alignToGround: true, sourceName: ResolveLootSourceName());
         }
+    }
+
+    private string ResolveLootSourceName()
+    {
+        if (definition == null || string.IsNullOrWhiteSpace(definition.displayName))
+            return null;
+
+        string core = definition.displayName.Trim();
+        // Elites get their own row in the session tracker so the player can see how often elite loot rolls land.
+        return _isElite ? $"Elite {core}" : core;
     }
 
     private Transform ResolveDropLootAnchor()

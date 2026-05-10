@@ -250,6 +250,9 @@ public class PlayerController : MonoBehaviour
     [Tooltip("Pre-mitigation damage per 1 Endurance XP. Example: 10 means 10 damage = 1 XP.")]
     [SerializeField, Min(0.01f)] private float enduranceDamagePerXp = 10f;
 
+    /// <summary>Endurance XP awarded per point of pre-mitigation damage taken (e.g. 1 / damagePerXp).</summary>
+    public float EnduranceXpPerDamage => 1f / Mathf.Max(0.01f, enduranceDamagePerXp);
+
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private ToolbeltManager toolbelt;
 
@@ -1690,6 +1693,9 @@ public class PlayerController : MonoBehaviour
                 int added = inventory.AddPartial(def.YieldItemId, mainAmt);
                 int overflow = mainAmt - added;
 
+                if (added > 0)
+                    SessionTrackerData.Instance?.RegisterLootGain(def.displayName, def.YieldItemId, added);
+
                 if (overflow > 0)
                 {
                     if (dropOverflowToGround)
@@ -1698,7 +1704,7 @@ public class PlayerController : MonoBehaviour
                         Sprite icon = itemDef ? itemDef.icon : null;
 
                         if (DropManager.Instance != null)
-                            DropManager.Instance.Spawn(def.YieldItemId, overflow, icon);
+                            DropManager.Instance.Spawn(def.YieldItemId, overflow, icon, def.displayName);
                         else if (worldDropPrefab != null)
                         {
                             float scatterX = UnityEngine.Random.Range(-dropScatterRadius, dropScatterRadius);
@@ -1706,6 +1712,7 @@ public class PlayerController : MonoBehaviour
 
                             var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
                             drop.Init(def.YieldItemId, overflow, icon);
+                            drop.SetSourceName(def.displayName);
                         }
                     }
 
@@ -1774,6 +1781,9 @@ public class PlayerController : MonoBehaviour
             int added = inventory.AddPartial(d.itemId, bonusAmt);
             int overflow = bonusAmt - added;
 
+            if (added > 0)
+                SessionTrackerData.Instance?.RegisterLootGain(def.displayName, d.itemId, added);
+
             if (overflow > 0)
             {
                 if (dropOverflowToGround)
@@ -1782,7 +1792,7 @@ public class PlayerController : MonoBehaviour
                     Sprite icon = itemDef ? itemDef.icon : null;
 
                     if (DropManager.Instance != null)
-                        DropManager.Instance.Spawn(d.itemId, overflow, icon);
+                        DropManager.Instance.Spawn(d.itemId, overflow, icon, def.displayName);
                     else if (worldDropPrefab != null)
                     {
                         float scatterX = UnityEngine.Random.Range(-dropScatterRadius, dropScatterRadius);
@@ -1790,6 +1800,7 @@ public class PlayerController : MonoBehaviour
 
                         var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
                         drop.Init(d.itemId, overflow, icon);
+                        drop.SetSourceName(def.displayName);
                     }
                 }
 

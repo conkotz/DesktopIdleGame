@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
   enemyId: enemy_rogue
   displayName: Rogue
+  isBossEnemy: 0
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
@@ -94,7 +95,7 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: 5e7fbe652bd639140b83bab13fdebfb7, type: 2}
     amountMin: 1
     amountMax: 1
-    dropChance: 0.01
+    dropChance: 0.05
   - item: {fileID: 11400000, guid: 074fa9e1e331a964eabda14f761d6cd8, type: 2}
     amountMin: 1
     amountMax: 1

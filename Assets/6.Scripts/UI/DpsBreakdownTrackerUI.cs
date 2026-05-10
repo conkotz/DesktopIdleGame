@@ -641,6 +641,9 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         ActivityWindowToggleUI activityToggle = go.GetComponent<ActivityWindowToggleUI>();
         if (activityToggle) activityToggle.enabled = false;
 
+        TrackerWindowToggleUI trackerToggle = go.GetComponent<TrackerWindowToggleUI>();
+        if (trackerToggle) trackerToggle.enabled = false;
+
         WindowToggleUI genericToggle = go.GetComponent<WindowToggleUI>();
         if (genericToggle) genericToggle.enabled = false;
     }

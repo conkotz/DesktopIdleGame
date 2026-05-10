@@ -40,6 +40,12 @@ MonoBehaviour:
       amount: 5
       itemId: stone_chunk
     defaultQuantity: 1
+  - itemId: iron_axe
+    costs:
+    - type: 0
+      amount: 3000
+      itemId: 
+    defaultQuantity: 1
   - itemId: crit_ring
     costs:
     - type: 0

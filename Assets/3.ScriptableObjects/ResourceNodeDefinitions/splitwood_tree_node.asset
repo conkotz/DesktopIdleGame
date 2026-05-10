@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 225d4c1aca51d1641b49131edf107d33, type: 3}
   m_Name: splitwood_tree_node
   m_EditorClassIdentifier: Assembly-CSharp::NodeDefinition
-  displayName: Tree
+  displayName: Splitwood Tree
   actionType: 1
   gatherPlayerAction: 3
   useLevelRequirement: 1

@@ -3,29 +3,28 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(Button))]
-public class FullDpsWindowToggleUI : MonoBehaviour
+public class TrackerWindowToggleUI : MonoBehaviour
 {
     private static readonly string[] ButtonNameCandidates =
     {
-        "ToggleFullDPSButton",
-        "ToggleFullDpsButton",
-        "ToggleFullDamageButton",
-        "ToggleFullDamageBreakdownButton"
+        "ToggleTrackerButton",
+        "ToggleSessionTrackerButton",
+        "ToggleXpLootTrackerButton"
     };
 
     private static readonly string[] WindowNameCandidates =
     {
-        "FullDPSWindow",
-        "FullDpsWindow",
-        "FullDamageBreakdownWindow"
+        "TrackerWindow",
+        "SessionTrackerWindow",
+        "XpLootTrackerWindow"
     };
 
-    [SerializeField] private GameObject fullDpsWindow;
-    [SerializeField] private string fullDpsWindowName = "FullDPSWindow";
+    [SerializeField] private GameObject trackerWindow;
+    [SerializeField] private string trackerWindowName = "TrackerWindow";
 
     private Button _button;
 
-    // Persisted across scene loads so the full damage breakdown stays open after the player changes level.
+    // Persisted across scene loads so that opening the tracker stays open after the player changes level.
     private static bool s_persistedOpen;
     private static bool s_persistedOpenSet;
 
@@ -56,8 +55,8 @@ public class FullDpsWindowToggleUI : MonoBehaviour
             if (!t.GetComponent<Button>())
                 continue;
 
-            if (!t.GetComponent<FullDpsWindowToggleUI>())
-                t.gameObject.AddComponent<FullDpsWindowToggleUI>();
+            if (!t.GetComponent<TrackerWindowToggleUI>())
+                t.gameObject.AddComponent<TrackerWindowToggleUI>();
         }
     }
 
@@ -103,7 +102,7 @@ public class FullDpsWindowToggleUI : MonoBehaviour
         GameObject window = ResolveWindow();
         if (window == null)
         {
-            Debug.LogWarning($"[{nameof(FullDpsWindowToggleUI)}] Could not find DPS window '{fullDpsWindowName}'.", this);
+            Debug.LogWarning($"[{nameof(TrackerWindowToggleUI)}] Could not find tracker window '{trackerWindowName}'.", this);
             return;
         }
 
@@ -133,14 +132,14 @@ public class FullDpsWindowToggleUI : MonoBehaviour
 
     private static GameObject FindWindowAnywhere()
     {
-        FullDpsWindowToggleUI[] toggles = FindObjectsByType<FullDpsWindowToggleUI>(
+        TrackerWindowToggleUI[] toggles = FindObjectsByType<TrackerWindowToggleUI>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
         for (int i = 0; i < toggles.Length; i++)
         {
-            FullDpsWindowToggleUI t = toggles[i];
-            if (t != null && t.fullDpsWindow != null)
-                return t.fullDpsWindow;
+            TrackerWindowToggleUI t = toggles[i];
+            if (t != null && t.trackerWindow != null)
+                return t.trackerWindow;
         }
 
         for (int i = 0; i < WindowNameCandidates.Length; i++)
@@ -155,31 +154,31 @@ public class FullDpsWindowToggleUI : MonoBehaviour
 
     private GameObject ResolveWindow()
     {
-        if (fullDpsWindow != null)
-            return fullDpsWindow;
+        if (trackerWindow != null)
+            return trackerWindow;
 
-        FullDpsWindowToggleUI[] toggles = FindObjectsByType<FullDpsWindowToggleUI>(
+        TrackerWindowToggleUI[] toggles = FindObjectsByType<TrackerWindowToggleUI>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
         for (int i = 0; i < toggles.Length; i++)
         {
-            FullDpsWindowToggleUI t = toggles[i];
-            if (t != null && t.fullDpsWindow != null)
+            TrackerWindowToggleUI t = toggles[i];
+            if (t != null && t.trackerWindow != null)
             {
-                fullDpsWindow = t.fullDpsWindow;
-                return fullDpsWindow;
+                trackerWindow = t.trackerWindow;
+                return trackerWindow;
             }
         }
 
-        fullDpsWindow = FindSceneObjectByName(fullDpsWindowName);
-        if (fullDpsWindow != null)
-            return fullDpsWindow;
+        trackerWindow = FindSceneObjectByName(trackerWindowName);
+        if (trackerWindow != null)
+            return trackerWindow;
 
         for (int i = 0; i < WindowNameCandidates.Length; i++)
         {
-            fullDpsWindow = FindSceneObjectByName(WindowNameCandidates[i]);
-            if (fullDpsWindow != null)
-                return fullDpsWindow;
+            trackerWindow = FindSceneObjectByName(WindowNameCandidates[i]);
+            if (trackerWindow != null)
+                return trackerWindow;
         }
 
         return null;

@@ -158,12 +158,11 @@ public class XPBarUI : MonoBehaviour
         fill.fillAmount = sm.GetProgress01(skill);
         fill.color = GetColorForSkill(skill);
 
-        // Label: "Mining level: 9 80/489 (Stone deposit - 2xp)" — source after cur/req; omit when no context.
+        // Label: "Mining level: 9 80/489" — the per-source breakdown lives in the session tracker window now.
         if (label != null)
         {
             string skillName = SkillLabel(skill);
-            string tail = BuildActiveSourceTail(FormatXpSourceDisplay(sm.ActiveSource), sm.ActiveSourceXpPerGain);
-            label.text = $"{skillName} level: {lvl} {cur}/{req}{tail}";
+            label.text = $"{skillName} level: {lvl} {cur}/{req}";
         }
     }
 

@@ -121,6 +121,9 @@ public class WorldInputRouter2D : MonoBehaviour
         MerchantClick.ForceCloseMerchantMode();
         MerchantClick.CancelPendingOpen();
 
+        // Drop any pending walk-then-interact from a previous NPC click; the new click decides what to do.
+        NPCInteractionSettings.CancelPendingInteract();
+
         var portal = winnerCol.GetComponentInParent<MapNodePortalTeleporter>();
         if (portal != null)
         {

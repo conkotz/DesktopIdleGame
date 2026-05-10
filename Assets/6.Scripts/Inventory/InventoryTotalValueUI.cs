@@ -21,6 +21,9 @@ public class InventoryTotalValueUI : MonoBehaviour
     [Tooltip("Numeric format passed to int.ToString. Default groups thousands.")]
     [SerializeField] private string numberFormat = "N0";
 
+    [Tooltip("Suffix appended after the formatted number (e.g. 'g' for gold).")]
+    [SerializeField] private string valueSuffix = "g";
+
     private string _prefix;
     private bool _subscribed;
 
@@ -78,10 +81,11 @@ public class InventoryTotalValueUI : MonoBehaviour
 
         int value = ResolveDisplayedValue();
         string formatted = value.ToString(string.IsNullOrEmpty(numberFormat) ? "N0" : numberFormat);
+        string body = formatted + (valueSuffix ?? string.Empty);
 
         string prefix = _prefix ?? string.Empty;
         bool needsSpace = prefix.Length > 0 && !prefix.EndsWith(" ") && !prefix.EndsWith("\t");
-        label.text = needsSpace ? prefix + " " + formatted : prefix + formatted;
+        label.text = needsSpace ? prefix + " " + body : prefix + body;
     }
 
     private int ResolveDisplayedValue()

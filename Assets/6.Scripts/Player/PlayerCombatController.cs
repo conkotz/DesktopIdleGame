@@ -109,6 +109,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     [SerializeField]
     private string combatXpSource = "Combat";
 
+    /// <summary>Combat XP awarded per point of damage dealt (Melee / Ranged / Magic).</summary>
+    public float XpPerDamage => Mathf.Max(0f, xpPerDamage);
+
     [Header("Debug")]
     [SerializeField] private bool debugLogs = false;
 
