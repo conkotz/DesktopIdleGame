@@ -561,6 +561,7 @@ public enum EnhancementScrollTargetStat
     GatheringGrit,
     PoisonChance,
     PoisonMultiplier,
+    StaminaEfficiency,
 }
 
 public enum EnhancementScrollModifierKind
@@ -1217,6 +1218,10 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 // Tool scrolls should be able to initialize stats from 0 on valid tool items.
                 return IsTool;
 
+            case EnhancementScrollTargetStat.StaminaEfficiency:
+                // Tool scrolls should be able to initialize stats from 0 on valid tool items.
+                return IsTool;
+
             case EnhancementScrollTargetStat.PoisonChance:
                 return Mathf.Abs(bonusStats.poisonChance) > eps;
 
@@ -1779,11 +1784,29 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             return $"-{slots} Used Upgrade Slot{(slots == 1 ? "" : "s")}";
         }
 
-        string value = enhancementScrollStats.modifierKind == EnhancementScrollModifierKind.Percent
+        // Stats stored as 0..1 fractions read more naturally as percentages in the tooltip
+        // (e.g. "+6% Stamina Efficiency" instead of "+0.06 Stamina Efficiency"). Gather Speed is
+        // an additive multiplier modifier (e.g. +0.15x), so we leave it in flat form.
+        bool displayAsPercent = enhancementScrollStats.modifierKind == EnhancementScrollModifierKind.Percent ||
+            IsPercentDisplayedScrollStat(enhancementScrollStats.targetStat);
+
+        string value = displayAsPercent
             ? FormatSignedPercent01(enhancementScrollStats.modifierValue)
             : FormatSignedNumber(enhancementScrollStats.modifierValue);
 
         return $"{value} {GetEnhancementScrollTargetStatDisplayName(enhancementScrollStats.targetStat)}";
+    }
+
+    private static bool IsPercentDisplayedScrollStat(EnhancementScrollTargetStat stat)
+    {
+        switch (stat)
+        {
+            case EnhancementScrollTargetStat.GatheringGrit:
+            case EnhancementScrollTargetStat.StaminaEfficiency:
+                return true;
+            default:
+                return false;
+        }
     }
 
     public static string GetEnhancementScrollTargetStatDisplayName(EnhancementScrollTargetStat stat)
@@ -1806,6 +1829,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             EnhancementScrollTargetStat.MoveSpeed => "Move Speed",
             EnhancementScrollTargetStat.GatherSpeed => "Gather Speed",
             EnhancementScrollTargetStat.GatheringGrit => "Gathering Grit",
+            EnhancementScrollTargetStat.StaminaEfficiency => "Stamina Efficiency",
             EnhancementScrollTargetStat.UpgradeSlotReduction => "Used Upgrade Slot",
             EnhancementScrollTargetStat.PoisonChance => "Poison Chance",
             EnhancementScrollTargetStat.PoisonMultiplier => "Poison Multi",

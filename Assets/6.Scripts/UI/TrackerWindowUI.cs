@@ -196,7 +196,7 @@ public class TrackerWindowUI : MonoBehaviour
                 fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             });
 
-            EnsureComponent<VerticalLayoutGroup>(content.gameObject, vlg =>
+            EnsureVerticalLayoutGroupIfPossible(content.gameObject, vlg =>
             {
                 vlg.childControlHeight = true;
                 vlg.childControlWidth = true;
@@ -269,6 +269,27 @@ public class TrackerWindowUI : MonoBehaviour
             existing = go.AddComponent<T>();
         if (existing != null)
             configure?.Invoke(existing);
+    }
+
+    /// <summary>
+    /// Adds and configures a <see cref="VerticalLayoutGroup"/>, but only if the GameObject doesn't already have a
+    /// different <see cref="LayoutGroup"/> (Unity allows only one LayoutGroup per GameObject — adding a second one
+    /// logs a warning and is rejected). When a non-vertical LayoutGroup is already present we leave it alone.
+    /// </summary>
+    private static void EnsureVerticalLayoutGroupIfPossible(GameObject go, Action<VerticalLayoutGroup> configure)
+    {
+        if (go == null)
+            return;
+
+        LayoutGroup existing = go.GetComponent<LayoutGroup>();
+        if (existing != null && existing is not VerticalLayoutGroup)
+            return;
+
+        VerticalLayoutGroup vlg = existing as VerticalLayoutGroup;
+        if (vlg == null)
+            vlg = go.AddComponent<VerticalLayoutGroup>();
+        if (vlg != null)
+            configure?.Invoke(vlg);
     }
 
     private static void DisableRaycastTargetsUnder(RectTransform root)

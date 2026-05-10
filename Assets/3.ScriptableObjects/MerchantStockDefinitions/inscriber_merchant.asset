@@ -61,18 +61,6 @@ MonoBehaviour:
       amount: 500
       itemId: 
     defaultQuantity: -1
-  - itemId: basic_tool_gather_speed_scroll
-    costs:
-    - type: 0
-      amount: 500
-      itemId: 
-    defaultQuantity: -1
-  - itemId: basic_tool_grit_scroll
-    costs:
-    - type: 0
-      amount: 500
-      itemId: 
-    defaultQuantity: -1
   - itemId: basic_health_scroll
     costs:
     - type: 0
@@ -86,6 +74,24 @@ MonoBehaviour:
       itemId: 
     defaultQuantity: -1
   - itemId: basic_movespeed_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_tool_gather_speed_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_tool_grit_scroll
+    costs:
+    - type: 0
+      amount: 500
+      itemId: 
+    defaultQuantity: -1
+  - itemId: basic_tool_stamina_efficiency_scroll
     costs:
     - type: 0
       amount: 500

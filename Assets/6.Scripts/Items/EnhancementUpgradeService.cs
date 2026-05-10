@@ -288,6 +288,11 @@ public static class EnhancementUpgradeService
                     target.toolStats.gatheringGrit = Mathf.Clamp01(ApplyValue(target.toolStats.gatheringGrit, value, percent));
                 break;
 
+            case EnhancementScrollTargetStat.StaminaEfficiency:
+                if (target.IsTool)
+                    target.toolStats.staminaEfficiency = Mathf.Clamp01(ApplyValue(target.toolStats.staminaEfficiency, value, percent));
+                break;
+
             case EnhancementScrollTargetStat.PoisonChance:
                 target.bonusStats.poisonChance = ApplyValue(target.bonusStats.poisonChance, value, percent);
                 break;

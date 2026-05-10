@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: wildwood_log
+  m_Name: basic_tool_stamina_efficiency_scroll
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 0
-  maxStack: 999
-  itemId: wildwood_log
-  displayName: Wildwood Logs
-  displayNameSingular: Splitwood Log
-  icon: {fileID: 9082801165128689192, guid: 5e5134584b229fe448fe55aa7182e889, type: 3}
+  itemKind: 8
+  maxStack: 5
+  itemId: basic_tool_stamina_efficiency_scroll
+  displayName: Basic Tool Stamina Efficiency Scroll
+  displayNameSingular: 
+  icon: {fileID: 8419143992342710197, guid: 04e8bfe3fb1ded947b39c734ed3a05be, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,10 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A wildwood log
-  rarity: 0
-  value: 90
+  description: A simple enhancement scroll that can add a small stamina efficiency
+    bonus to a tool.
+  rarity: 1
+  value: 20
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -154,15 +155,15 @@ MonoBehaviour:
       duration: 0
       effectId: 
   enhancementScrollStats:
-    successChance: 0
-    targetStat: 0
+    successChance: 0.5
+    targetStat: 19
     modifierKind: 0
-    modifierValue: 0
-    consumeSlotOnFailure: 0
+    modifierValue: 0.06
+    consumeSlotOnFailure: 1
     failureOutcome: 0
     destroyChanceOnFailure: 0
     cursed: 0
-    allowedGearTypes: 0
+    allowedGearTypes: 16
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

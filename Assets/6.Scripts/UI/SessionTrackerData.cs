@@ -42,8 +42,15 @@ public class SessionTrackerData : MonoBehaviour
     public event Action OnDataChanged;
     public event Action OnSessionReset;
 
+    /// <summary>
+    /// Unscaled time captured the first time the player gains XP or loot after session start / reset.
+    /// The timer intentionally stays paused at 0 until the first action so opening the tracker window
+    /// while idle does not pollute per-hour rates with idle time.
+    /// </summary>
     public float SessionStartUnscaledTime { get; private set; }
-    public float ElapsedSeconds => Mathf.Max(0f, Time.unscaledTime - SessionStartUnscaledTime);
+    /// <summary>True once the first XP or loot gain has been recorded for this session.</summary>
+    public bool HasStartedTimer { get; private set; }
+    public float ElapsedSeconds => HasStartedTimer ? Mathf.Max(0f, Time.unscaledTime - SessionStartUnscaledTime) : 0f;
 
     public int TotalXp { get; private set; }
     public int TotalLootValue { get; private set; }
@@ -80,6 +87,12 @@ public class SessionTrackerData : MonoBehaviour
         return Instance;
     }
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void EnsureTrackerExistsForClosedWindow()
+    {
+        EnsureInstance();
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -90,6 +103,7 @@ public class SessionTrackerData : MonoBehaviour
 
         Instance = this;
         SessionStartUnscaledTime = Time.unscaledTime;
+        HasStartedTimer = false;
     }
 
     private void OnEnable()
@@ -143,6 +157,8 @@ public class SessionTrackerData : MonoBehaviour
         if (amount <= 0)
             return;
 
+        EnsureTimerStarted();
+
         // Combat skills share generic source strings ("Combat", "Defence") so we key by the skill name itself
         // ("Ranged", "Endurance"). Gathering skills carry per-node sources ("Splitwood Tree") and stay grouped by source.
         string key = ResolveXpDisplayName(skill, source);
@@ -191,6 +207,8 @@ public class SessionTrackerData : MonoBehaviour
         if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
             return;
 
+        EnsureTimerStarted();
+
         string key = NormaliseSource(source);
         if (!_lootBySource.TryGetValue(key, out LootSourceEntry entry))
         {
@@ -216,7 +234,7 @@ public class SessionTrackerData : MonoBehaviour
         OnDataChanged?.Invoke();
     }
 
-    /// <summary>Clears all accumulated XP/loot and restarts the elapsed-time clock.</summary>
+    /// <summary>Clears all accumulated XP/loot and pauses the elapsed-time clock until the next XP/loot gain.</summary>
     public void ResetSession()
     {
         _xpBySource.Clear();
@@ -227,9 +245,19 @@ public class SessionTrackerData : MonoBehaviour
         TotalLootValue = 0;
         TotalLootItemCount = 0;
         SessionStartUnscaledTime = Time.unscaledTime;
+        HasStartedTimer = false;
 
         OnSessionReset?.Invoke();
         OnDataChanged?.Invoke();
+    }
+
+    /// <summary>Captures the unscaled-time anchor on the first XP or loot gain so the timer only counts active play.</summary>
+    private void EnsureTimerStarted()
+    {
+        if (HasStartedTimer)
+            return;
+        SessionStartUnscaledTime = Time.unscaledTime;
+        HasStartedTimer = true;
     }
 
     /// <summary>Resolves the per-unit gold value of an item using <see cref="Inventory.GetItemValue"/> when possible, falling back to <see cref="ItemDatabase"/>.</summary>

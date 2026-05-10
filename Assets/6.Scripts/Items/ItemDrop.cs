@@ -221,7 +221,7 @@ public class ItemDrop : MonoBehaviour
         int left = Amount - added;
 
         if (added > 0)
-            SessionTrackerData.Instance?.RegisterLootGain(SourceName, ItemId, added);
+            SessionTrackerData.EnsureInstance().RegisterLootGain(SourceName, ItemId, added);
 
         if (idleAutoBattleLoot && invTouched != null)
         {

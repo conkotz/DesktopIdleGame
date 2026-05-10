@@ -1009,6 +1009,14 @@ public class PlayerController : MonoBehaviour
 
         targetNode = node;
         ApplyWoodcuttingSkillRuntimeBonusesIfNeeded(node);
+        // Lasting Focus: if Flow State was active when the previous gather stopped and we're still inside
+        // the 5s linger window, seed continuous time on this new tree so Flow stays active through the
+        // entire resumed gather instead of dropping in the gap between linger expiry and the next 15s ramp.
+        if (node != null && node.ActionType == NodeAction.Woodcutting &&
+            IsWoodcuttingMajorFlowLingerSelected() && Time.time < _woodcuttingFlowLingerUntil)
+        {
+            _woodcuttingContinuousGatherSeconds = WoodcuttingForestFlowContinuousSecondsThreshold;
+        }
         _pickupTarget = null;
         state = State.MoveToTarget;
 
@@ -1171,6 +1179,7 @@ public class PlayerController : MonoBehaviour
     public void CancelAction()
     {
         ClearFatigueGatherProgress();
+        CaptureWoodcuttingFlowLingerOnGatherStop();
 
         _gatherSpeedMultiplier = 1f;
         OnGatherDebuffChanged?.Invoke(false, 1f);
@@ -1275,6 +1284,7 @@ public class PlayerController : MonoBehaviour
     {
         if (state == State.Gather || state == State.MoveToTarget || state == State.MoveToPickup)
         {
+            CaptureWoodcuttingFlowLingerOnGatherStop();
             targetNode = null;
             _pickupTarget = null;
 
@@ -1292,6 +1302,8 @@ public class PlayerController : MonoBehaviour
     public void MoveToPointX(float x)
     {
         if (_isDead) return;
+
+        CaptureWoodcuttingFlowLingerOnGatherStop();
 
         targetNode = null;
         _pickupTarget = null;
@@ -1694,7 +1706,7 @@ public class PlayerController : MonoBehaviour
                 int overflow = mainAmt - added;
 
                 if (added > 0)
-                    SessionTrackerData.Instance?.RegisterLootGain(def.displayName, def.YieldItemId, added);
+                    SessionTrackerData.EnsureInstance().RegisterLootGain(def.displayName, def.YieldItemId, added);
 
                 if (overflow > 0)
                 {
@@ -1782,7 +1794,7 @@ public class PlayerController : MonoBehaviour
             int overflow = bonusAmt - added;
 
             if (added > 0)
-                SessionTrackerData.Instance?.RegisterLootGain(def.displayName, d.itemId, added);
+                SessionTrackerData.EnsureInstance().RegisterLootGain(def.displayName, d.itemId, added);
 
             if (overflow > 0)
             {
@@ -1836,15 +1848,7 @@ public class PlayerController : MonoBehaviour
         if (!keepFatigueGatherProgress)
             ClearFatigueGatherProgress();
 
-        bool wasWoodGather = state == State.Gather && targetNode && targetNode.ActionType == NodeAction.Woodcutting;
-        float contSnap = _woodcuttingContinuousGatherSeconds;
-        if (wasWoodGather)
-        {
-            if (IsWoodcuttingMajorFlowLingerSelected() && contSnap >= WoodcuttingForestFlowContinuousSecondsThreshold)
-                _woodcuttingFlowLingerUntil = Time.time + 5f;
-            else
-                _woodcuttingFlowLingerUntil = 0f;
-        }
+        CaptureWoodcuttingFlowLingerOnGatherStop();
 
         _gatherSpeedMultiplier = 1f;
         _gatherGritChance = 0f;
@@ -2043,6 +2047,28 @@ public class PlayerController : MonoBehaviour
         return IsWoodcuttingMajorFlowLingerSelected() && Time.time < _woodcuttingFlowLingerUntil;
     }
 
+    /// <summary>
+    /// Called from every code path that ends a woodcutting gather (ReturnToIdle, CancelAction, MoveToPointX, etc.).
+    /// Captures the Lasting Focus 5s linger when Flow State was active, so the buff persists across click-to-move
+    /// and other interrupts instead of dropping the moment the player leaves the Gather state.
+    /// </summary>
+    private void CaptureWoodcuttingFlowLingerOnGatherStop()
+    {
+        bool wasWoodGather = state == State.Gather && targetNode && targetNode.ActionType == NodeAction.Woodcutting;
+        if (!wasWoodGather)
+            return;
+
+        if (IsWoodcuttingMajorFlowLingerSelected() &&
+            _woodcuttingContinuousGatherSeconds >= WoodcuttingForestFlowContinuousSecondsThreshold)
+        {
+            _woodcuttingFlowLingerUntil = Time.time + 5f;
+        }
+        else
+        {
+            _woodcuttingFlowLingerUntil = 0f;
+        }
+    }
+
     private bool IsWoodcuttingMajorFlowStateSelected()
     {
         return GetWoodcuttingLevel15RowPick() == 2;
@@ -2062,6 +2088,10 @@ public class PlayerController : MonoBehaviour
     {
         SkillsManager sm = SkillsManager.Instance;
         if (sm == null) return -1;
+        // Hard-gate the Lv35 row by the actual unlocked level so legacy/stale commits below 35 cannot
+        // leak hidden-drop or bonus-find bonuses into earlier levels.
+        if (!sm.IsLevelUnlocked(SkillType.Woodcutting, WoodcuttingLv35MajorPassiveSourceLevel))
+            return -1;
         int pick = sm.GetSkillAbilityRowPick(SkillType.Woodcutting, WoodcuttingLv35MajorPassiveSourceLevel, -1);
         if (pick < 0 || pick > 1)
             return -1;

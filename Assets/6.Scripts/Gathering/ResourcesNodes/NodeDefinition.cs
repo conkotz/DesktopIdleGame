@@ -57,7 +57,7 @@ public class NodeDefinition : ScriptableObject
     }
 
     [Header("Hidden Drops (Independent Rolls, 0% Base by Default)")]
-    [Tooltip("Same rules as bonus drops (scaled by Bonus Resource Find Chance). Default chance is 0 until set on this node.")]
+    [Tooltip("Separate from bonus drops. Not scaled by Bonus Resource Find Chance or bonus drop amount modifiers; only hidden-drop-specific bonuses should affect this.")]
     public HiddenDrop[] hiddenDrops;
 
     [Header("Tool Requirement (Optional)")]
@@ -115,7 +115,7 @@ public class NodeDefinition : ScriptableObject
     }
 
     /// <summary>
-    /// Rolls drops with a multiplier applied to bonus and hidden drop chances (not main yield).
+    /// Rolls drops with a multiplier applied to bonus drop chances only (not main yield or hidden drops).
     /// Formula: effectiveChance = baseChance * (1 + bonusFindChanceMultiplier)
     /// </summary>
     public void PreviewDrops(List<Drop> outDrops, float bonusFindChanceMultiplier)
@@ -126,7 +126,7 @@ public class NodeDefinition : ScriptableObject
     /// <summary>
     /// Same as <see cref="PreviewDrops(List{Drop}, float)"/> with extra woodcutting major-passive hooks:
     /// Forest's Favor adds a chance to grant +1 to each bonus drop, and Ancient Lumbercraft adds a flat
-    /// chance bonus to hidden drops plus a chance to double their amount.
+    /// chance bonus to hidden drops plus a chance to double their amount. Bonus find chance never affects hidden drops.
     /// </summary>
     public void PreviewDrops(List<Drop> outDrops, float bonusFindChanceMultiplier, GatherDropContext ctx)
     {
@@ -148,7 +148,10 @@ public class NodeDefinition : ScriptableObject
                 if (string.IsNullOrWhiteSpace(b.item.itemId)) continue;
 
                 float effectiveChance = Mathf.Clamp01(b.chance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
-                if (UnityEngine.Random.value <= effectiveChance)
+                // Strict zero-floor: never roll if chance is non-positive (avoids the Random.value == 0 corner case
+                // that would otherwise let a 0% drop fire on rare ties).
+                if (effectiveChance <= 0f) continue;
+                if (UnityEngine.Random.value < effectiveChance)
                 {
                     int amt = UnityEngine.Random.Range(b.amountMin, b.amountMax + 1);
                     if (ctx.bonusDropExtraOneChance > 0f && UnityEngine.Random.value < ctx.bonusDropExtraOneChance)
@@ -165,9 +168,11 @@ public class NodeDefinition : ScriptableObject
                 if (h == null || h.item == null) continue;
                 if (string.IsNullOrWhiteSpace(h.item.itemId)) continue;
 
-                float baseChance = h.chance + Mathf.Max(0f, ctx.hiddenChanceFlatBonus);
-                float effectiveHiddenChance = Mathf.Clamp01(baseChance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
-                if (UnityEngine.Random.value <= effectiveHiddenChance)
+                float effectiveHiddenChance = Mathf.Clamp01(h.chance + Mathf.Max(0f, ctx.hiddenChanceFlatBonus));
+                // Strict zero-floor: never roll if chance is non-positive. Hidden drops should require an
+                // explicit non-zero base or a hidden-specific bonus (e.g. Ancient Lumbercraft).
+                if (effectiveHiddenChance <= 0f) continue;
+                if (UnityEngine.Random.value < effectiveHiddenChance)
                 {
                     int amt = UnityEngine.Random.Range(h.amountMin, h.amountMax + 1);
                     if (ctx.hiddenDoubleAmountChance > 0f && UnityEngine.Random.value < ctx.hiddenDoubleAmountChance)
@@ -184,7 +189,7 @@ public class NodeDefinition : ScriptableObject
     /// </summary>
     public struct GatherDropContext
     {
-        /// <summary>Flat chance added to each hidden drop's base chance before the bonus-find multiplier (e.g. Ancient Lumbercraft).</summary>
+        /// <summary>Flat chance added to each hidden drop's base chance (e.g. Ancient Lumbercraft). Hidden-only — not affected by Bonus Resource Find Chance.</summary>
         public float hiddenChanceFlatBonus;
 
         /// <summary>Chance to double each successful hidden drop's amount (Treasure Hunter).</summary>
@@ -220,7 +225,8 @@ public class NodeDefinition : ScriptableObject
                 if (string.IsNullOrWhiteSpace(b.item.itemId)) continue;
 
                 float effectiveChance = Mathf.Clamp01(b.chance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
-                if (UnityEngine.Random.value <= effectiveChance)
+                if (effectiveChance <= 0f) continue;
+                if (UnityEngine.Random.value < effectiveChance)
                 {
                     int amt = UnityEngine.Random.Range(b.amountMin, b.amountMax + 1);
                     inventory.Add(b.item.itemId, amt);
@@ -235,8 +241,9 @@ public class NodeDefinition : ScriptableObject
                 if (h == null || h.item == null) continue;
                 if (string.IsNullOrWhiteSpace(h.item.itemId)) continue;
 
-                float effectiveHiddenChance = Mathf.Clamp01(h.chance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
-                if (UnityEngine.Random.value <= effectiveHiddenChance)
+                float effectiveHiddenChance = Mathf.Clamp01(h.chance);
+                if (effectiveHiddenChance <= 0f) continue;
+                if (UnityEngine.Random.value < effectiveHiddenChance)
                 {
                     int amt = UnityEngine.Random.Range(h.amountMin, h.amountMax + 1);
                     inventory.Add(h.item.itemId, amt);
