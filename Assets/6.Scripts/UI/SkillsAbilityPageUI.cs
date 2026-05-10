@@ -47,6 +47,13 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     [Tooltip("Center skill tree renderer (data-driven from selected SkillDefinition).")]
     [SerializeField] private SkillTreeViewUI centerSkillTreeView;
 
+    [Tooltip("Clears branch picks for the selected skill’s tree and rebuilds the center tree. Assign after moving the button in the layout.")]
+    [SerializeField] private Button resetSkillTreeButton;
+
+    [Tooltip(
+        "If the reset button sits visually above a ScrollRect but appears earlier in the hierarchy, the scroll view can steal raycasts (no hover/click). Adds a small nested Canvas + GraphicRaycaster on the button so it sorts above sibling UI.")]
+    [SerializeField] private bool ensureResetTreeButtonRaycastsAboveSiblings = true;
+
     [Header("Right panel")]
     [FormerlySerializedAs("unlocksText")]
     [Tooltip("Unlock list from SkillDefinition.unlocks (display-only).")]
@@ -99,6 +106,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         EnsureRightPanelLayoutConfigured();
         TrySubscribeSkillsEvents();
         HookTreeGlowAcknowledge();
+        HookResetSkillTreeButton();
     }
 
     private void OnEnable()
@@ -109,6 +117,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             abilityDatabase = AbilityDatabase.LoadDefault();
         EnsureCenterTreeReference();
         HookTreeGlowAcknowledge();
+        HookResetSkillTreeButton();
 
         SelectFirstSkillIfNeeded();
         EnsureRightPanelLayoutConfigured();
@@ -119,6 +128,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void OnDisable()
     {
+        UnhookResetSkillTreeButton();
         if (_deferredRefreshRoutine != null)
         {
             StopCoroutine(_deferredRefreshRoutine);
@@ -130,6 +140,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     {
         TryUnsubscribeSkillsEvents();
         UnhookTreeGlowAcknowledge();
+        UnhookResetSkillTreeButton();
     }
 
     private void LateUpdate()
@@ -152,6 +163,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     {
         if (SkillsManager.Instance != null)
             skillsManager = SkillsManager.Instance;
+        else if (!skillsManager)
+            skillsManager = FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
     }
 
     /// <summary>Logs missing required references once (Awake only — not per-frame).</summary>
@@ -541,6 +554,62 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (centerSkillTreeView == null)
             return;
         centerSkillTreeView.UnlockGlowAcknowledgedByHover -= HandleTreeGlowAcknowledgedByHover;
+    }
+
+    private void HookResetSkillTreeButton()
+    {
+        if (!resetSkillTreeButton)
+            return;
+        if (ensureResetTreeButtonRaycastsAboveSiblings)
+            EnsureResetTreeButtonRaycastsAboveNeighbors();
+
+        resetSkillTreeButton.onClick.RemoveListener(HandleResetSkillTreeClicked);
+        resetSkillTreeButton.onClick.AddListener(HandleResetSkillTreeClicked);
+    }
+
+    /// <summary>
+    /// ScrollRects / large Image siblings that are later in the hierarchy draw on top and receive pointer hits first.
+    /// A nested Canvas with override sorting keeps this button interactive without changing layout sibling order.
+    /// </summary>
+    private void EnsureResetTreeButtonRaycastsAboveNeighbors()
+    {
+        GameObject go = resetSkillTreeButton.gameObject;
+
+        var canvas = go.GetComponent<Canvas>();
+        if (canvas == null)
+            canvas = go.AddComponent<Canvas>();
+
+        canvas.overrideSorting = true;
+        Canvas root = go.GetComponentInParent<Canvas>()?.rootCanvas;
+        int baseOrder = root != null ? root.sortingOrder : 0;
+        canvas.sortingOrder = baseOrder + 25;
+
+        if (go.GetComponent<GraphicRaycaster>() == null)
+            go.AddComponent<GraphicRaycaster>();
+    }
+
+    private void UnhookResetSkillTreeButton()
+    {
+        if (!resetSkillTreeButton)
+            return;
+        resetSkillTreeButton.onClick.RemoveListener(HandleResetSkillTreeClicked);
+    }
+
+    private void HandleResetSkillTreeClicked()
+    {
+        PreferRuntimeSkillsManager();
+        EnsureCenterTreeReference();
+        if (centerSkillTreeView == null)
+            return;
+
+        // Ensure the tree is showing the same skill as this page (serialized tree skill can be stale before first refresh).
+        if (_selectedSkill != null)
+            centerSkillTreeView.SetSkill(_selectedSkill);
+
+        centerSkillTreeView.OnResetSkillTreeButtonClicked();
+
+        // Re-sync title, unlocks, and abilities list with cleared tree state (tree alone does not refresh the right column).
+        RefreshView();
     }
 
     private void HandleTreeGlowAcknowledgedByHover(int unlockLevel)
@@ -1127,38 +1196,31 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (skill.skillType == SkillType.Woodcutting && currentLevel >= PlayerController.WoodcuttingMajorPassiveSourceLevel &&
             skill.unlocks != null && skillManager != null)
         {
-            var majors15 = new List<(SkillUnlockDefinition u, int idx)>();
-            for (int i = 0; i < skill.unlocks.Count; i++)
-            {
-                SkillUnlockDefinition u = skill.unlocks[i];
-                if (u != null && u.requiredLevel == PlayerController.WoodcuttingMajorPassiveSourceLevel &&
-                    u.unlockType == SkillUnlockType.Ability)
-                    majors15.Add((u, i));
-            }
+            AppendWoodcuttingMajorPassiveSummary(
+                sb,
+                skill,
+                skillManager,
+                PlayerController.WoodcuttingMajorPassiveSourceLevel,
+                level => PlayerController.WoodcuttingLevel15ChoiceSpineId(level),
+                AppendWoodcuttingLevel15EffectLines);
+        }
 
-            if (majors15.Count > 0)
-            {
-                majors15.Sort((a, b) => a.idx.CompareTo(b.idx));
-                int rowPick = skillManager.GetSkillAbilityRowPick(SkillType.Woodcutting, PlayerController.WoodcuttingMajorPassiveSourceLevel, -1);
-                int enh = skillManager.GetSkillChoiceSelection(SkillType.Woodcutting, PlayerController.WoodcuttingMajorPassiveSourceLevel, -1);
-                sb.AppendLine("• Woodcutting Major Passive (Lv15)");
-                if (rowPick >= 0 && rowPick < majors15.Count && !string.IsNullOrWhiteSpace(majors15[rowPick].u.title))
-                {
-                    sb.AppendLine("   - " + majors15[rowPick].u.title.Trim());
-                    SkillUnlockDefinition committed = majors15[rowPick].u;
-                    if (enh >= 0 && committed.choices != null && enh < committed.choices.Count &&
-                        committed.choices[enh] != null && !string.IsNullOrWhiteSpace(committed.choices[enh].title))
-                        sb.AppendLine("   - " + committed.choices[enh].title.Trim());
-                }
-                else
-                    sb.AppendLine("   - (major not selected)");
-            }
+        if (skill.skillType == SkillType.Woodcutting && currentLevel >= PlayerController.WoodcuttingLv35MajorPassiveSourceLevel &&
+            skill.unlocks != null && skillManager != null)
+        {
+            AppendWoodcuttingMajorPassiveSummary(
+                sb,
+                skill,
+                skillManager,
+                PlayerController.WoodcuttingLv35MajorPassiveSourceLevel,
+                level => PlayerController.WoodcuttingLevel35ChoiceSpineId(level),
+                AppendWoodcuttingLevel35EffectLines);
         }
 
         // Major passive conversion summary (currently Melee Lv10 Bloodletting branch).
         if (skill.skillType == SkillType.Melee && currentLevel >= 10)
         {
-            sb.AppendLine("• Bloodletting (Major Passive)");
+            sb.AppendLine("• Bloodletting (Major Passive) (Lv10)");
             int selected = skillManager != null ? skillManager.GetSkillChoiceSelection(SkillType.Melee, 10, -1) : -1;
             if (selected == 0)
             {
@@ -1260,5 +1322,129 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         sb.Append("% ");
         sb.Append(label);
         sb.AppendLine();
+    }
+
+    private static void AppendWoodcuttingMajorPassiveSummary(
+        StringBuilder sb,
+        SkillDefinition skill,
+        SkillsManager skillManager,
+        int sourceLevel,
+        System.Func<int, string> choiceSpineIdResolver,
+        System.Action<StringBuilder, string, string> appendEffectLines)
+    {
+        var majors = new List<(SkillUnlockDefinition u, int idx)>();
+        for (int i = 0; i < skill.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition u = skill.unlocks[i];
+            if (u != null && u.requiredLevel == sourceLevel &&
+                (u.unlockType == SkillUnlockType.MajorPassive || u.unlockType == SkillUnlockType.Ability))
+                majors.Add((u, i));
+        }
+
+        if (majors.Count <= 0)
+            return;
+
+        majors.Sort((a, b) => a.idx.CompareTo(b.idx));
+        int rowPick = skillManager.GetSkillAbilityRowPick(skill.skillType, sourceLevel, -1);
+        int enh = rowPick >= 0 && rowPick < majors.Count
+            ? skillManager.GetSkillChoiceSelection(skill.skillType, choiceSpineIdResolver(rowPick), -1)
+            : -1;
+
+        if (rowPick >= 0 && rowPick < majors.Count && !string.IsNullOrWhiteSpace(majors[rowPick].u.title))
+        {
+            SkillUnlockDefinition committed = majors[rowPick].u;
+            string majorTitle = committed.title.Trim();
+            sb.AppendLine($"• {majorTitle} (Major Passive) (Lv{sourceLevel})");
+
+            string enhancementTitle = enh >= 0 && committed.choices != null && enh < committed.choices.Count &&
+                                      committed.choices[enh] != null && !string.IsNullOrWhiteSpace(committed.choices[enh].title)
+                ? committed.choices[enh].title.Trim()
+                : null;
+
+            if (!string.IsNullOrWhiteSpace(enhancementTitle))
+                sb.AppendLine($"   - {enhancementTitle} (Enhancement)");
+            else
+                sb.AppendLine("   - Base Effect");
+
+            appendEffectLines?.Invoke(sb, majorTitle, enhancementTitle);
+        }
+        else
+        {
+            sb.AppendLine($"• Woodcutting Major Passive (Lv{sourceLevel})");
+            sb.AppendLine("   - (major not selected)");
+        }
+    }
+
+    private static void AppendWoodcuttingLevel35EffectLines(StringBuilder sb, string majorTitle, string enhancementTitle)
+    {
+        if (string.IsNullOrWhiteSpace(majorTitle))
+            return;
+
+        if (string.Equals(majorTitle, "Ancient Lumbercraft", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int hiddenChance = 2;
+            bool experiencedGatherer = string.Equals(enhancementTitle, "Experienced Gatherer", System.StringComparison.OrdinalIgnoreCase);
+            bool treasureHunter = string.Equals(enhancementTitle, "Treasure Hunter", System.StringComparison.OrdinalIgnoreCase);
+            if (experiencedGatherer)
+                hiddenChance += 2;
+            sb.AppendLine($"     +{hiddenChance}% Hidden Resource Chance");
+            if (treasureHunter)
+                sb.AppendLine("     +15% chance for Hidden Resources to double");
+            return;
+        }
+
+        if (string.Equals(majorTitle, "Forest's Favor", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int extraItemChance = 25;
+            bool richHarvest = string.Equals(enhancementTitle, "Rich Harvest", System.StringComparison.OrdinalIgnoreCase);
+            bool hiddenRiches = string.Equals(enhancementTitle, "Hidden Riches", System.StringComparison.OrdinalIgnoreCase);
+            if (hiddenRiches)
+                extraItemChance += 10;
+            sb.AppendLine($"     +{extraItemChance}% Bonus Find Extra Item Chance");
+            if (richHarvest)
+                sb.AppendLine("     +10% Bonus Find Chance");
+        }
+    }
+
+    private static void AppendWoodcuttingLevel15EffectLines(StringBuilder sb, string majorTitle, string enhancementTitle)
+    {
+        if (string.IsNullOrWhiteSpace(majorTitle))
+            return;
+
+        if (string.Equals(majorTitle, "Conservationist", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int skipChance = 15;
+            bool sustainableHarvest = string.Equals(enhancementTitle, "Sustainable Harvest", System.StringComparison.OrdinalIgnoreCase);
+            bool ancientPreservation = string.Equals(enhancementTitle, "Ancient Preservation", System.StringComparison.OrdinalIgnoreCase);
+            if (ancientPreservation)
+                skipChance += 10;
+            sb.AppendLine($"     +{skipChance}% Tree Depletion Skip Chance");
+            if (sustainableHarvest)
+                sb.AppendLine("     +10% Max Stamina restored when tree depletion is skipped");
+            return;
+        }
+
+        if (string.Equals(majorTitle, "Heavy Swing", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int extraResourceChance = 40;
+            bool controlledForce = string.Equals(enhancementTitle, "Controlled Force", System.StringComparison.OrdinalIgnoreCase);
+            bool crushingSwing = string.Equals(enhancementTitle, "Crushing Swing", System.StringComparison.OrdinalIgnoreCase);
+            if (crushingSwing)
+                extraResourceChance += 10;
+            sb.AppendLine($"     +{extraResourceChance}% Extra Resource Chance when Woodcutting Grit procs");
+            if (controlledForce)
+                sb.AppendLine("     +10% Bonus Find Chance when Woodcutting Grit procs");
+            return;
+        }
+
+        if (string.Equals(majorTitle, "Flow State", System.StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine("     +10% Chopping Speed while Flow is active");
+            sb.AppendLine("     +10% Stamina Efficiency while Flow is active");
+            if (string.Equals(enhancementTitle, "Lasting Focus", System.StringComparison.OrdinalIgnoreCase))
+                sb.AppendLine("     Flow lasts 5 seconds after you stop gathering");
+            else if (string.Equals(enhancementTitle, "Deep Focus", System.StringComparison.OrdinalIgnoreCase))
+                sb.AppendLine("     +10% Woodcutting Grit Chance while Flow is active");
+        }
     }
 }

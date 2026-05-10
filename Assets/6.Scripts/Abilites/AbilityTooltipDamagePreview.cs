@@ -128,11 +128,11 @@ public static class AbilityTooltipDamagePreview
     private static bool IsSoulforgedWeapon(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
-    private static int GetMeleeSkillRow15Choice(SkillsManager skillsManager)
+    private static int GetMeleeLv15BranchChoice(SkillsManager skillsManager, int slot012)
     {
         if (skillsManager == null)
             return -1;
-        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, $"Lv15_{Mathf.Clamp(slot012, 0, 7)}", -1);
     }
 
     private static int GetMeleeSkillRow5Choice(SkillsManager skillsManager)
@@ -215,7 +215,7 @@ public static class AbilityTooltipDamagePreview
         }
         else if (IsCleavingStrikes(def))
         {
-            int cleaveSel = GetMeleeSkillRow15Choice(skillsManager);
+            int cleaveSel = GetMeleeLv15BranchChoice(skillsManager, 1);
             if (cleaveSel == 0)
                 body.AppendLine(O("+2 nearby enemies per strike (5s, 3 hits); 40% reduced damage on cleaved hits."));
             else if (cleaveSel == 1)
@@ -225,7 +225,7 @@ public static class AbilityTooltipDamagePreview
         }
         else if (IsCrescentSlash(def))
         {
-            int crescentSel = GetMeleeSkillRow15Choice(skillsManager);
+            int crescentSel = GetMeleeLv15BranchChoice(skillsManager, 2);
 
             float avgPhys = stats
                 ? (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f
@@ -315,7 +315,7 @@ public static class AbilityTooltipDamagePreview
                     body.AppendLine(O("Base hit damage"));
             }
 
-            int wwEnhance = GetMeleeSkillRow15Choice(skillsManager);
+            int wwEnhance = GetMeleeLv15BranchChoice(skillsManager, 0);
             if (wwEnhance == 0)
                 body.AppendLine(O("Twin Cyclone: hits each enemy a second time for 20% of the first wave."));
         }

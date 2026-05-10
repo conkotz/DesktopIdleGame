@@ -215,6 +215,15 @@ public class PlayerController : MonoBehaviour
 
     private const float WoodcuttingForestFlowContinuousSecondsThreshold = 15f;
     public const int WoodcuttingMajorPassiveSourceLevel = 15;
+    public const int WoodcuttingLv35MajorPassiveSourceLevel = 35;
+
+    /// <summary>Spine id segment for the Lv15 ability row pick (0–2) used with <see cref="SkillsManager.GetSkillChoiceSelection"/> string overload.</summary>
+    public static string WoodcuttingLevel15ChoiceSpineId(int abilityRowPick) =>
+        $"Lv{WoodcuttingMajorPassiveSourceLevel}_{Mathf.Clamp(abilityRowPick, 0, 2)}";
+
+    /// <summary>Spine id segment for the Lv35 major-passive row pick (0–1) used with <see cref="SkillsManager.GetSkillChoiceSelection"/> string overload.</summary>
+    public static string WoodcuttingLevel35ChoiceSpineId(int abilityRowPick) =>
+        $"Lv{WoodcuttingLv35MajorPassiveSourceLevel}_{Mathf.Clamp(abilityRowPick, 0, 1)}";
     private const float WoodcuttingFrenzyDurationSeconds = 7f;
 
     private struct WoodcuttingRuntimeBonuses
@@ -1528,14 +1537,14 @@ public class PlayerController : MonoBehaviour
 
         if (targetNode.ActionType == NodeAction.Woodcutting)
         {
-            float forestFlowBefore = _woodcuttingContinuousGatherSeconds;
+            float woodcuttingContinuousBefore = _woodcuttingContinuousGatherSeconds;
             _woodcuttingContinuousGatherSeconds += Time.deltaTime;
-            if (_woodcuttingBonuses.forestFlowStacks > 0 &&
-                forestFlowBefore < WoodcuttingForestFlowContinuousSecondsThreshold &&
+            if (IsWoodcuttingMajorFlowStateSelected() &&
+                woodcuttingContinuousBefore < WoodcuttingForestFlowContinuousSecondsThreshold &&
                 _woodcuttingContinuousGatherSeconds >= WoodcuttingForestFlowContinuousSecondsThreshold)
             {
                 GameLog.Add(
-                    "Forest Flow: woodcutting speed and stamina efficiency bonus active (15s on the same tree).",
+                    "Flow State: woodcutting speed and stamina efficiency bonus active (15s on the same tree).",
                     GameLog.LevelAvailableColor);
             }
         }
@@ -1619,21 +1628,26 @@ public class PlayerController : MonoBehaviour
         if (def.HasMainYield)
         {
             bool countTowardDepletion = true;
-            int wc15 = GetWoodcuttingLevel15EffectIndex();
+            int woodcuttingMajorPick = GetWoodcuttingLevel15RowPick();
+            int woodcuttingMajorEnhancement = GetWoodcuttingLevel15EnhancementIndex(woodcuttingMajorPick);
             if (isWoodcutting && def.UsesDepletion && characterStats != null)
             {
                 float skipP = Mathf.Clamp01(characterStats.AxeWoodcuttingChanceNotToCountTowardTreeDepletion);
-                if (wc15 == 0)
-                    skipP = Mathf.Clamp01(skipP + 0.15f);
-                else if (wc15 == 1)
-                    skipP = Mathf.Clamp01(skipP + 0.25f);
+                if (woodcuttingMajorPick == 0)
+                {
+                    skipP += 0.15f;
+                    if (woodcuttingMajorEnhancement == 1)
+                        skipP += 0.10f;
+                    skipP = Mathf.Clamp01(skipP);
+                }
                 if (skipP > 0f && UnityEngine.Random.value < skipP)
                     countTowardDepletion = false;
             }
 
             targetNode.NotifyGatherTickBeforeBonuses(countTowardDepletion);
 
-            if (isWoodcutting && !countTowardDepletion && wc15 == 0 && characterStats != null)
+            if (isWoodcutting && !countTowardDepletion && woodcuttingMajorPick == 0 &&
+                woodcuttingMajorEnhancement == 0 && characterStats != null)
             {
                 float restore = 0.10f * Mathf.Max(1f, characterStats.MaxEnergy);
                 characterStats.AddEnergy(restore);
@@ -1650,7 +1664,7 @@ public class PlayerController : MonoBehaviour
                 mainAmt += 1;
 
             float gritRoll = Mathf.Clamp01(_gatherGritChance);
-            if (isWoodcutting && wc15 == 5 && IsWoodcuttingMajorFlowBuffActive())
+            if (isWoodcutting && IsWoodcuttingMajorFlowDeepFocusSelected() && IsWoodcuttingMajorFlowBuffActive())
                 gritRoll = Mathf.Clamp01(gritRoll + 0.10f);
 
             // Gathering Grit: doubles BASE yield only. Never duplicates bonus drops.
@@ -1660,9 +1674,9 @@ public class PlayerController : MonoBehaviour
                 gritProc = true;
             }
 
-            if (isWoodcutting && gritProc && (wc15 == 2 || wc15 == 3))
+            if (isWoodcutting && gritProc && woodcuttingMajorPick == 1)
             {
-                float heavyExtraChance = wc15 == 3 ? 0.50f : 0.40f;
+                float heavyExtraChance = woodcuttingMajorEnhancement == 1 ? 0.50f : 0.40f;
                 if (UnityEngine.Random.value < heavyExtraChance)
                     mainAmt += 1;
             }
@@ -1734,9 +1748,13 @@ public class PlayerController : MonoBehaviour
         // effectiveChance = baseChance * (1 + bonusFindChance)
         // Base yield amount is intentionally unaffected.
         float bonusFindForRoll = _gatherBonusFindChance;
-        if (isWoodcutting && gritProc && GetWoodcuttingLevel15EffectIndex() == 2)
+        if (isWoodcutting && gritProc && GetWoodcuttingLevel15RowPick() == 1 &&
+            GetWoodcuttingLevel15EnhancementIndex(1) == 0)
             bonusFindForRoll += 0.10f;
-        def.PreviewDrops(_drops, bonusFindForRoll);
+        if (isWoodcutting)
+            bonusFindForRoll += GetWoodcuttingLevel35BonusFindAdd();
+        var dropCtx = isWoodcutting ? BuildWoodcuttingLevel35DropContext() : default;
+        def.PreviewDrops(_drops, bonusFindForRoll, dropCtx);
 
         // PreviewDrops includes main too, so we must ignore index 0 main OR skip matching itemId
         // Easiest: process ONLY entries that are NOT the main yield itemId
@@ -1809,10 +1827,9 @@ public class PlayerController : MonoBehaviour
 
         bool wasWoodGather = state == State.Gather && targetNode && targetNode.ActionType == NodeAction.Woodcutting;
         float contSnap = _woodcuttingContinuousGatherSeconds;
-        int wcFx = GetWoodcuttingLevel15EffectIndex();
         if (wasWoodGather)
         {
-            if (wcFx == 4 && contSnap >= WoodcuttingForestFlowContinuousSecondsThreshold)
+            if (IsWoodcuttingMajorFlowLingerSelected() && contSnap >= WoodcuttingForestFlowContinuousSecondsThreshold)
                 _woodcuttingFlowLingerUntil = Time.time + 5f;
             else
                 _woodcuttingFlowLingerUntil = 0f;
@@ -1950,7 +1967,7 @@ public class PlayerController : MonoBehaviour
     public bool TryGetWoodcuttingMajorFlowDeepFocusGritBonus(out float additiveGritChance)
     {
         additiveGritChance = 0f;
-        if (GetWoodcuttingLevel15EffectIndex() != 5)
+        if (!IsWoodcuttingMajorFlowDeepFocusSelected())
             return false;
         if (!IsWoodcuttingMajorFlowBuffActive())
             return false;
@@ -1973,31 +1990,119 @@ public class PlayerController : MonoBehaviour
             Mathf.RoundToInt(majStam * 1000f),
             _woodcuttingBonuses.forestFlowStacks,
             _woodcuttingBonuses.frenzyStacks,
-            GetWoodcuttingLevel15EffectIndex());
+            GetWoodcuttingLevel15BuildStamp());
         return HashCode.Combine(h0, h1, Mathf.RoundToInt(_woodcuttingFlowLingerUntil * 100f));
     }
 
-    /// <summary>Lv15 row pick (0–2) + Lv18 enhancement (0–1) → combined build index 0–5; -1 if not fully committed.</summary>
-    private int GetWoodcuttingLevel15EffectIndex()
+    private int GetWoodcuttingLevel15RowPick()
     {
         SkillsManager sm = SkillsManager.Instance;
         if (sm == null) return -1;
         int pick = sm.GetSkillAbilityRowPick(SkillType.Woodcutting, WoodcuttingMajorPassiveSourceLevel, -1);
-        int enh = sm.GetSkillChoiceSelection(SkillType.Woodcutting, WoodcuttingMajorPassiveSourceLevel, -1);
-        if (pick < 0 || pick > 2 || enh < 0 || enh > 1)
+        if (pick < 0 || pick > 2)
             return -1;
-        return pick * 2 + enh;
+        return pick;
+    }
+
+    private int GetWoodcuttingLevel15EnhancementIndex(int rowPick)
+    {
+        if (rowPick < 0 || rowPick > 2)
+            return -1;
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null) return -1;
+        int enh = sm.GetSkillChoiceSelection(SkillType.Woodcutting, WoodcuttingLevel15ChoiceSpineId(rowPick), -1);
+        if (enh < 0 || enh > 1)
+            return -1;
+        return enh;
+    }
+
+    private int GetWoodcuttingLevel15BuildStamp()
+    {
+        int pick = GetWoodcuttingLevel15RowPick();
+        return HashCode.Combine(pick, GetWoodcuttingLevel15EnhancementIndex(pick));
     }
 
     private bool IsWoodcuttingMajorFlowBuffActive()
     {
-        int c = GetWoodcuttingLevel15EffectIndex();
-        if (c != 4 && c != 5)
+        if (!IsWoodcuttingMajorFlowStateSelected())
             return false;
         if (state == State.Gather && targetNode && targetNode.ActionType == NodeAction.Woodcutting &&
             _woodcuttingContinuousGatherSeconds >= WoodcuttingForestFlowContinuousSecondsThreshold)
             return true;
-        return c == 4 && Time.time < _woodcuttingFlowLingerUntil;
+        return IsWoodcuttingMajorFlowLingerSelected() && Time.time < _woodcuttingFlowLingerUntil;
+    }
+
+    private bool IsWoodcuttingMajorFlowStateSelected()
+    {
+        return GetWoodcuttingLevel15RowPick() == 2;
+    }
+
+    private bool IsWoodcuttingMajorFlowLingerSelected()
+    {
+        return GetWoodcuttingLevel15RowPick() == 2 && GetWoodcuttingLevel15EnhancementIndex(2) == 0;
+    }
+
+    private bool IsWoodcuttingMajorFlowDeepFocusSelected()
+    {
+        return GetWoodcuttingLevel15RowPick() == 2 && GetWoodcuttingLevel15EnhancementIndex(2) == 1;
+    }
+
+    private int GetWoodcuttingLevel35RowPick()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null) return -1;
+        int pick = sm.GetSkillAbilityRowPick(SkillType.Woodcutting, WoodcuttingLv35MajorPassiveSourceLevel, -1);
+        if (pick < 0 || pick > 1)
+            return -1;
+        return pick;
+    }
+
+    private int GetWoodcuttingLevel35EnhancementIndex(int rowPick)
+    {
+        if (rowPick < 0 || rowPick > 1)
+            return -1;
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null) return -1;
+        int enh = sm.GetSkillChoiceSelection(SkillType.Woodcutting, WoodcuttingLevel35ChoiceSpineId(rowPick), -1);
+        if (enh < 0 || enh > 1)
+            return -1;
+        return enh;
+    }
+
+    /// <summary>Builds the woodcutting Lv35 major-passive context applied to bonus and hidden drops.</summary>
+    private NodeDefinition.GatherDropContext BuildWoodcuttingLevel35DropContext()
+    {
+        var ctx = default(NodeDefinition.GatherDropContext);
+        int pick35 = GetWoodcuttingLevel35RowPick();
+        if (pick35 < 0)
+            return ctx;
+
+        int enh35 = GetWoodcuttingLevel35EnhancementIndex(pick35);
+
+        if (pick35 == 0)
+        {
+            ctx.hiddenChanceFlatBonus = 0.02f;
+            if (enh35 == 0)
+                ctx.hiddenChanceFlatBonus += 0.02f;
+            else if (enh35 == 1)
+                ctx.hiddenDoubleAmountChance = 0.15f;
+        }
+        else if (pick35 == 1)
+        {
+            ctx.bonusDropExtraOneChance = 0.25f;
+            if (enh35 == 1)
+                ctx.bonusDropExtraOneChance += 0.10f;
+        }
+        return ctx;
+    }
+
+    /// <summary>Lv35 Forest's Favor / Rich Harvest adds +10% Bonus Find Chance to gather rolls.</summary>
+    private float GetWoodcuttingLevel35BonusFindAdd()
+    {
+        int pick35 = GetWoodcuttingLevel35RowPick();
+        if (pick35 != 1)
+            return 0f;
+        return GetWoodcuttingLevel35EnhancementIndex(pick35) == 0 ? 0.10f : 0f;
     }
 
     private void ResetWoodcuttingRuntimeState(bool clearBonuses)

@@ -21,8 +21,8 @@ MonoBehaviour:
   listSortOrder: 0
   unlocks:
   - requiredLevel: 1
-    title: Chop Wood
-    description: Can chop splitwood trees
+    title: Low Tier Trees
+    description: Can chop Splitwood trees
     icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -232,9 +232,12 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 15
     title: Conservationist
-    description: Successful chops can skip contributing toward tree depletion. Enhancements unlock at level 18.
+    description: 'Successful chops have 15% chance to not count toward tree depletion.
+
+      +15%
+      Tree Depletion Skip Chance'
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
-    unlockType: 1
+    unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
@@ -247,19 +250,19 @@ MonoBehaviour:
     choices:
     - requiredLevel: 0
       title: Sustainable Harvest
-      description: Successful chops have 15% chance to not count toward tree depletion. When that triggers, restore 10% max stamina.
+      description: +10% max stamina restored when tree depletion is skipped.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 0
       title: Ancient Preservation
-      description: Successful chops have 25% chance to not count toward tree depletion (stacks with other depletion-skip bonuses).
+      description: +10% Tree Depletion Skip Chance.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Heavy Swing
-    description: Gathering Grit can grant bonus main resources. Enhancements unlock at level 18.
+    description: When Woodcutting Grit procs, 40% chance to gain an extra resource.
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
-    unlockType: 1
+    unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
@@ -272,19 +275,25 @@ MonoBehaviour:
     choices:
     - requiredLevel: 0
       title: Controlled Force
-      description: When Gathering Grit procs, 40% chance to gather +1 additional main resource, and +10% Bonus Find Chance for that swing's bonus drops.
+      description: +10% Bonus Find Chance when Woodcutting Grit procs.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 0
       title: Crushing Swing
-      description: When Gathering Grit procs, 50% chance to gather +1 additional main resource.
+      description: +10% extra resource chance when Woodcutting Grit procs.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Flow State
-    description: Sustained woodcutting grants Flow State bonuses. Enhancements unlock at level 18.
+    description: 'After 15 seconds of continuous woodcutting on the same tree, you
+      enter Flow State.
+
+      +10% Chopping Speed while Flow is active
+
+      +10%
+      Stamina Efficiency while Flow is active'
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
-    unlockType: 1
+    unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
@@ -297,12 +306,12 @@ MonoBehaviour:
     choices:
     - requiredLevel: 0
       title: Lasting Focus
-      description: After 15 seconds of continuous woodcutting on the same tree, enter Flow State (+10% Chopping Speed, +10% Stamina Efficiency). Flow lasts 5 seconds after you stop gathering.
+      description: Flow lasts 5 seconds after you stop gathering.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 0
       title: Deep Focus
-      description: After 15 seconds of continuous woodcutting on the same tree, enter Flow State (+10% Chopping Speed, +10% Stamina Efficiency, +10% Gathering Grit Chance).
+      description: +10% Woodcutting Grit Chance while Flow is active.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 16
@@ -366,13 +375,13 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 20
-    title: Chopping Efficiency 4
-    description: +2% Woodcutting Stamina Efficiency
-    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
-    unlockType: 0
+    title: Medium Tier Trees
+    description: Can chop Wildwood trees
+    icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
+    unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 13
+    woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -532,7 +541,8 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 31
     title: Chopping Forest Flow 1
-    description: 'While continuously woodcutting (after 15 seconds): +3% Woodcutting Speed, +3% Woodcutting Stamina Efficiency'
+    description: 'While continuously woodcutting (after 15 seconds): +3% Woodcutting
+      Speed, +3% Woodcutting Stamina Efficiency'
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -591,8 +601,8 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 35
-    title: Placeholder Major Passive
-    description: Placeholder major passive slot for woodcutting.
+    title: Ancient Lumbercraft
+    description: Trees have a 2% chance to reveal hidden resources.
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -604,7 +614,42 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
-    choices: []
+    choices:
+    - requiredLevel: 0
+      title: Experienced Gatherer
+      description: +2% chance to reveal hidden resources.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 0
+      title: Treasure Hunter
+      description: Hidden resources have 15% chance to double.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+  - requiredLevel: 35
+    title: Forest's Favor
+    description: Bonus Finds have a 25% chance to grant +1 additional items.
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    choices:
+    - requiredLevel: 0
+      title: Rich Harvest
+      description: +10% Bonus Find Chance.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 0
+      title: Hidden Riches
+      description: +10% chance for Bonus Finds to grant +1 additional items.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
   - requiredLevel: 36
     title: Chopping Speed 8
     description: +3% Woodcutting Speed
@@ -666,13 +711,13 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 40
-    title: Chopping Grit 7
-    description: +2% Woodcutting Grit Chance
-    icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
-    unlockType: 0
+    title: Chop High Tier Trees
+    description: Can chop Hardwood Trees
+    icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
+    unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 2
+    woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
@@ -727,7 +772,8 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 44
     title: Chopping Forest Flow 2
-    description: 'While continuously woodcutting (after 15 seconds): +3% Woodcutting Speed, +3% Woodcutting Stamina Efficiency'
+    description: 'While continuously woodcutting (after 15 seconds): +3% Woodcutting
+      Speed, +3% Woodcutting Stamina Efficiency'
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0

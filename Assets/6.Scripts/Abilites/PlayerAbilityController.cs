@@ -857,12 +857,15 @@ public class PlayerAbilityController : MonoBehaviour
         if (skillsManager == null)
             return -1;
 
-        // Primary key: source unlock level (Lv15).
-        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, WhirlwindChoiceSourceLevel, -1);
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv15_0", -1);
         if (selected >= 0)
             return selected;
 
-        // Compatibility fallback: some earlier data/UI setups may key by choice unlock row (Lv18).
+        // Legacy level-only keys (pre spine-disambiguation).
+        selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, WhirlwindChoiceSourceLevel, -1);
+        if (selected >= 0)
+            return selected;
+
         selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, WhirlwindChoiceSourceLevel + 3, -1);
         return selected;
     }
@@ -1609,7 +1612,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!skillsManager)
             return -1;
 
-        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv15_1", -1);
     }
 
     private int GetCrescentSlashSelectedChoice()
@@ -1619,7 +1622,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!skillsManager)
             return -1;
 
-        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv15_2", -1);
     }
 
     private int GetRendSelectedChoice()

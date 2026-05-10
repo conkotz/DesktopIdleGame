@@ -3,6 +3,13 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
+public enum SkillTreeTooltipChrome
+{
+    None,
+    /// <summary>Matches ability / enhancement tooltips: dark panel, visible frame, TMP rich text for orange value lines.</summary>
+    MajorPassivePanel
+}
+
 public class SharedTooltipUI : MonoBehaviour
 {
     [Header("UI")]
@@ -47,6 +54,12 @@ public class SharedTooltipUI : MonoBehaviour
     [SerializeField] private Color defaultBorderColor = new Color(1f, 1f, 1f, 0.25f);
     [SerializeField] private FlipInsideBounds flipInsideBounds;
 
+    [Header("Skill tree (major passive presentation)")]
+    [Tooltip("Optional root panel fill. If empty, uses an Image on this tooltip root when it is not RarityBorder.")]
+    [SerializeField] private Image skillTreePanelBackdrop;
+    [SerializeField] private Color skillTreeMajorBackdropColor = new Color(0.07f, 0.09f, 0.14f, 0.98f);
+    [SerializeField] private Color skillTreeMajorBorderColor = new Color(0.88f, 0.9f, 0.94f, 0.55f);
+
     [Tooltip("VLG + CSF tooltip box (e.g. child named Content). Rebuilt before flip positioning.")]
     [SerializeField] private RectTransform tooltipLayoutRoot;
 
@@ -83,6 +96,12 @@ public class SharedTooltipUI : MonoBehaviour
     private Vector4 _marginBaseMain;
     private bool _tooltipMarginBasesCaptured;
 
+    private SkillTreeTooltipChrome _activeSkillTreeChrome;
+    private Color _storedBorderColorForChrome;
+    private bool _capturedBorderColorForChrome;
+    private Color _storedBackdropColorForChrome;
+    private bool _capturedBackdropColorForChrome;
+
     private void Awake()
     {
         _rt = transform as RectTransform;
@@ -95,6 +114,13 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (!flipInsideBounds)
             flipInsideBounds = GetComponent<FlipInsideBounds>();
+
+        if (!skillTreePanelBackdrop)
+        {
+            var rootImg = GetComponent<Image>();
+            if (rootImg && rootImg != rarityBorder)
+                skillTreePanelBackdrop = rootImg;
+        }
 
         if (!tooltipLayoutRoot)
         {
@@ -176,6 +202,7 @@ public class SharedTooltipUI : MonoBehaviour
         if (!def || !canvasGroup || !nameText)
             return;
 
+        RestoreSkillTreeChromeIfNeeded();
         ResetTooltipSectionMargins();
 
         SetEquipmentCompactMode(false);
@@ -291,6 +318,7 @@ public class SharedTooltipUI : MonoBehaviour
         if (!def || !canvasGroup || !nameText)
             return;
 
+        RestoreSkillTreeChromeIfNeeded();
         ResetTooltipSectionMargins();
 
         SetEquipmentCompactMode(true);
@@ -338,10 +366,16 @@ public class SharedTooltipUI : MonoBehaviour
     /// <param name="useStatsDisplayHeader">
     /// When true and <see cref="statsOnlyNameText"/> is assigned, title goes there and <see cref="nameText"/> is hidden (stats / help hovers).
     /// </param>
-    public void ShowText(string title, string body, Color? titleColor = null, bool useStatsDisplayHeader = false)
+    public void ShowText(
+        string title,
+        string body,
+        Color? titleColor = null,
+        bool useStatsDisplayHeader = false,
+        SkillTreeTooltipChrome skillTreeChrome = SkillTreeTooltipChrome.None)
     {
         ResetTooltipSectionMargins();
 
+        RestoreSkillTreeChromeIfNeeded();
         SetEquipmentCompactMode(false);
 
         bool statsHeader = useStatsDisplayHeader && statsOnlyNameText;
@@ -396,6 +430,8 @@ public class SharedTooltipUI : MonoBehaviour
                 ? WithExtraBottomMargin(_marginBaseDescription, spacingAfterDescriptionPixels)
                 : _marginBaseDescription;
             descriptionText.gameObject.SetActive(hasBody);
+            if (hasBody && skillTreeChrome == SkillTreeTooltipChrome.MajorPassivePanel)
+                descriptionText.richText = true;
         }
 
         ClearTooltipStatsFields();
@@ -410,6 +446,9 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (rarityBorder)
             rarityBorder.color = defaultBorderColor;
+
+        if (skillTreeChrome == SkillTreeTooltipChrome.MajorPassivePanel)
+            ApplySkillTreeMajorPassiveChrome();
 
         RebuildTooltipLayoutNow();
 
@@ -526,6 +565,7 @@ public class SharedTooltipUI : MonoBehaviour
 
     public void Hide()
     {
+        RestoreSkillTreeChromeIfNeeded();
         ResetTooltipSectionMargins();
 
         RestoreDefaultParent();
@@ -587,6 +627,39 @@ public class SharedTooltipUI : MonoBehaviour
             rarityBorder.color = defaultBorderColor;
 
         ClearEnhancementDisplay();
+    }
+
+    private void ApplySkillTreeMajorPassiveChrome()
+    {
+        _activeSkillTreeChrome = SkillTreeTooltipChrome.MajorPassivePanel;
+        if (rarityBorder)
+        {
+            _storedBorderColorForChrome = rarityBorder.color;
+            _capturedBorderColorForChrome = true;
+            rarityBorder.color = skillTreeMajorBorderColor;
+        }
+
+        if (skillTreePanelBackdrop)
+        {
+            _storedBackdropColorForChrome = skillTreePanelBackdrop.color;
+            _capturedBackdropColorForChrome = true;
+            skillTreePanelBackdrop.color = skillTreeMajorBackdropColor;
+        }
+    }
+
+    private void RestoreSkillTreeChromeIfNeeded()
+    {
+        if (_activeSkillTreeChrome != SkillTreeTooltipChrome.MajorPassivePanel)
+            return;
+
+        if (rarityBorder && _capturedBorderColorForChrome)
+            rarityBorder.color = _storedBorderColorForChrome;
+        if (skillTreePanelBackdrop && _capturedBackdropColorForChrome)
+            skillTreePanelBackdrop.color = _storedBackdropColorForChrome;
+
+        _activeSkillTreeChrome = SkillTreeTooltipChrome.None;
+        _capturedBorderColorForChrome = false;
+        _capturedBackdropColorForChrome = false;
     }
 
     private void ResolveEnhancementRowRefs()
@@ -1015,7 +1088,8 @@ public class SharedTooltipUI : MonoBehaviour
         RectTransform heightRect = null,
         FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Right,
         Color? titleColor = null,
-        bool useStatsDisplayHeader = false)
+        bool useStatsDisplayHeader = false,
+        SkillTreeTooltipChrome skillTreeChrome = SkillTreeTooltipChrome.None)
     {
         if (!anchor)
         {
@@ -1036,7 +1110,7 @@ public class SharedTooltipUI : MonoBehaviour
             flipInsideBounds.SetPreferredSide(preferredSide);
         }
 
-        ShowText(title, body, titleColor, useStatsDisplayHeader);
+        ShowText(title, body, titleColor, useStatsDisplayHeader, skillTreeChrome);
         ApplyDockedTooltipScale();
     }
 

@@ -19,7 +19,7 @@ public class NodeDefinition : ScriptableObject
     [Min(1)] public int requiredLevel = 1;
 
     [Header("Experience")]
-[Tooltip("XP granted per successful gather tick (based on MAIN yield only; bonus drops do not grant XP).")]
+[Tooltip("XP granted per successful gather tick (based on MAIN yield only; bonus and hidden drops do not grant XP).")]
 [Min(0)] public int xpPerTick = 1;
 
     [Header("Main Yield (Guaranteed)")]
@@ -46,6 +46,19 @@ public class NodeDefinition : ScriptableObject
 
     [Header("Bonus Drops (Independent Rolls)")]
     public BonusDrop[] bonusDrops;
+
+    [Serializable]
+    public class HiddenDrop
+    {
+        public ItemDefinition item;
+        [Range(0f, 1f)] public float chance = 0f;
+        [Min(1)] public int amountMin = 1;
+        [Min(1)] public int amountMax = 1;
+    }
+
+    [Header("Hidden Drops (Independent Rolls, 0% Base by Default)")]
+    [Tooltip("Same rules as bonus drops (scaled by Bonus Resource Find Chance). Default chance is 0 until set on this node.")]
+    public HiddenDrop[] hiddenDrops;
 
     [Header("Tool Requirement (Optional)")]
     public bool requiresTool = false;
@@ -102,10 +115,20 @@ public class NodeDefinition : ScriptableObject
     }
 
     /// <summary>
-    /// Rolls drops with a multiplier applied ONLY to bonus drop chances.
+    /// Rolls drops with a multiplier applied to bonus and hidden drop chances (not main yield).
     /// Formula: effectiveChance = baseChance * (1 + bonusFindChanceMultiplier)
     /// </summary>
     public void PreviewDrops(List<Drop> outDrops, float bonusFindChanceMultiplier)
+    {
+        PreviewDrops(outDrops, bonusFindChanceMultiplier, default);
+    }
+
+    /// <summary>
+    /// Same as <see cref="PreviewDrops(List{Drop}, float)"/> with extra woodcutting major-passive hooks:
+    /// Forest's Favor adds a chance to grant +1 to each bonus drop, and Ancient Lumbercraft adds a flat
+    /// chance bonus to hidden drops plus a chance to double their amount.
+    /// </summary>
+    public void PreviewDrops(List<Drop> outDrops, float bonusFindChanceMultiplier, GatherDropContext ctx)
     {
         if (outDrops == null) return;
 
@@ -117,20 +140,58 @@ public class NodeDefinition : ScriptableObject
         }
 
         // Bonus drops (independent chance)
-        if (bonusDrops == null) return;
-
-        foreach (var b in bonusDrops)
+        if (bonusDrops != null)
         {
-            if (b == null || b.item == null) continue;
-            if (string.IsNullOrWhiteSpace(b.item.itemId)) continue;
-
-            float effectiveChance = Mathf.Clamp01(b.chance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
-            if (UnityEngine.Random.value <= effectiveChance)
+            foreach (var b in bonusDrops)
             {
-                int amt = UnityEngine.Random.Range(b.amountMin, b.amountMax + 1);
-                outDrops.Add(new Drop(b.item.itemId, amt));
+                if (b == null || b.item == null) continue;
+                if (string.IsNullOrWhiteSpace(b.item.itemId)) continue;
+
+                float effectiveChance = Mathf.Clamp01(b.chance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
+                if (UnityEngine.Random.value <= effectiveChance)
+                {
+                    int amt = UnityEngine.Random.Range(b.amountMin, b.amountMax + 1);
+                    if (ctx.bonusDropExtraOneChance > 0f && UnityEngine.Random.value < ctx.bonusDropExtraOneChance)
+                        amt += 1;
+                    outDrops.Add(new Drop(b.item.itemId, amt));
+                }
             }
         }
+
+        if (hiddenDrops != null)
+        {
+            foreach (var h in hiddenDrops)
+            {
+                if (h == null || h.item == null) continue;
+                if (string.IsNullOrWhiteSpace(h.item.itemId)) continue;
+
+                float baseChance = h.chance + Mathf.Max(0f, ctx.hiddenChanceFlatBonus);
+                float effectiveHiddenChance = Mathf.Clamp01(baseChance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
+                if (UnityEngine.Random.value <= effectiveHiddenChance)
+                {
+                    int amt = UnityEngine.Random.Range(h.amountMin, h.amountMax + 1);
+                    if (ctx.hiddenDoubleAmountChance > 0f && UnityEngine.Random.value < ctx.hiddenDoubleAmountChance)
+                        amt *= 2;
+                    outDrops.Add(new Drop(h.item.itemId, amt));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Optional per-roll modifiers for bonus and hidden drops (e.g. woodcutting Lv35 major passives).
+    /// All fields default to 0 so non-woodcutting callers stay unaffected.
+    /// </summary>
+    public struct GatherDropContext
+    {
+        /// <summary>Flat chance added to each hidden drop's base chance before the bonus-find multiplier (e.g. Ancient Lumbercraft).</summary>
+        public float hiddenChanceFlatBonus;
+
+        /// <summary>Chance to double each successful hidden drop's amount (Treasure Hunter).</summary>
+        public float hiddenDoubleAmountChance;
+
+        /// <summary>Chance to add +1 to each successful bonus drop's amount (Forest's Favor / Hidden Riches).</summary>
+        public float bonusDropExtraOneChance;
     }
 
     /// <summary>
@@ -151,18 +212,35 @@ public class NodeDefinition : ScriptableObject
             inventory.Add(yieldItem.itemId, amt);
         }
 
-        if (bonusDrops == null) return;
-
-        foreach (var b in bonusDrops)
+        if (bonusDrops != null)
         {
-            if (b == null || b.item == null) continue;
-            if (string.IsNullOrWhiteSpace(b.item.itemId)) continue;
-
-            float effectiveChance = Mathf.Clamp01(b.chance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
-            if (UnityEngine.Random.value <= effectiveChance)
+            foreach (var b in bonusDrops)
             {
-                int amt = UnityEngine.Random.Range(b.amountMin, b.amountMax + 1);
-                inventory.Add(b.item.itemId, amt);
+                if (b == null || b.item == null) continue;
+                if (string.IsNullOrWhiteSpace(b.item.itemId)) continue;
+
+                float effectiveChance = Mathf.Clamp01(b.chance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
+                if (UnityEngine.Random.value <= effectiveChance)
+                {
+                    int amt = UnityEngine.Random.Range(b.amountMin, b.amountMax + 1);
+                    inventory.Add(b.item.itemId, amt);
+                }
+            }
+        }
+
+        if (hiddenDrops != null)
+        {
+            foreach (var h in hiddenDrops)
+            {
+                if (h == null || h.item == null) continue;
+                if (string.IsNullOrWhiteSpace(h.item.itemId)) continue;
+
+                float effectiveHiddenChance = Mathf.Clamp01(h.chance * (1f + Mathf.Max(0f, bonusFindChanceMultiplier)));
+                if (UnityEngine.Random.value <= effectiveHiddenChance)
+                {
+                    int amt = UnityEngine.Random.Range(h.amountMin, h.amountMax + 1);
+                    inventory.Add(h.item.itemId, amt);
+                }
             }
         }
     }

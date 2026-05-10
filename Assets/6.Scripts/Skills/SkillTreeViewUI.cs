@@ -104,6 +104,9 @@ public class SkillTreeViewUI : MonoBehaviour
         public SkillTreeConnectorUI conn;
         public int upperLevel;
         public int lowerLevel;
+        /// <summary>When set, render between these explicit spine ids and skip anchor retargeting. Visibility still ties to endpoint nodes being active.</summary>
+        public string explicitFromId;
+        public string explicitToId;
     }
 
     private readonly struct ChoiceBranchConnectorRecord
@@ -195,6 +198,8 @@ public class SkillTreeViewUI : MonoBehaviour
     {
         if (SkillsManager.Instance != null)
             skillsManager = SkillsManager.Instance;
+        else if (!skillsManager)
+            skillsManager = FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
     }
 
     public void BuildForSelectedSkill()
@@ -287,7 +292,7 @@ public class SkillTreeViewUI : MonoBehaviour
             if (rowDefBySpineNodeId.TryGetValue(nodeId, out RowDef row))
             {
                 bool unlocked = row.level <= currentSkillLevel;
-                BuildTooltipCopy(row.level, row.type, row.unlock, unlocked, out string mainTitle, out string mainBody);
+                BuildTooltipCopy(row, unlocked, out string mainTitle, out string mainBody);
                 tooltipTitleByNodeId[nodeId] = string.IsNullOrWhiteSpace(mainTitle) ? "Node" : mainTitle;
                 tooltipBodyByNodeId[nodeId] = mainBody ?? string.Empty;
                 nodeUi.SetLocked(!unlocked);
@@ -302,7 +307,7 @@ public class SkillTreeViewUI : MonoBehaviour
                     ? choices[cm.choiceIndex]
                     : null;
                 bool unlocked = parentRow.level <= currentSkillLevel && cm.unlockLevel <= currentSkillLevel;
-                BuildChoiceTooltipCopy(cm.unlockLevel, choice, parentRow.unlock, unlocked, out string cTitle, out string cBody);
+                BuildChoiceTooltipCopy(cm.unlockLevel, choice, parentRow, unlocked, out string cTitle, out string cBody);
                 tooltipTitleByNodeId[nodeId] = string.IsNullOrWhiteSpace(cTitle) ? "Node" : cTitle;
                 tooltipBodyByNodeId[nodeId] = cBody ?? string.Empty;
                 nodeUi.SetLocked(!unlocked);
@@ -333,15 +338,28 @@ public class SkillTreeViewUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Assign to the Reset Tree button OnClick: clears <b>all</b> skills’ choice branches and multi-ability picks, then rebuilds this tree.
+    /// Some prefabs / Inspector entries use this shorter name by mistake — forwards to <see cref="OnResetSkillTreeButtonClicked"/>.
+    /// </summary>
+    public void OnResetSkillTreeButtonClick() => OnResetSkillTreeButtonClicked();
+
+    /// <summary>
+    /// Assign to the Reset Tree button OnClick: clears choice branches and multi-ability row picks for the <b>currently shown</b> skill only, then rebuilds this tree.
     /// </summary>
     public void OnResetSkillTreeButtonClicked()
     {
         PreferRuntimeSkillsManager();
-        if (!skillsManager)
-            skillsManager = SkillsManager.Instance;
-        if (skillsManager != null)
-            skillsManager.ResetAllSkillTreeSelections();
+        if (skillsManager == null)
+        {
+            Debug.LogWarning(
+                "[SkillTreeViewUI] Reset Tree: no SkillsManager found (Instance is null and none in scene). Progression will not clear until a SkillsManager exists.",
+                this);
+        }
+        else if (selectedSkill != null)
+        {
+            skillsManager.ResetSkillTreeSelectionsForSkill(selectedSkill.skillType);
+        }
+        else
+            Debug.LogWarning("[SkillTreeViewUI] Reset Tree: no skill selected on this tree; nothing to reset.", this);
 
         expandedChoiceBranchesBySourceLevel.Clear();
         BuildForSelectedSkill();
@@ -495,17 +513,30 @@ public class SkillTreeViewUI : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// True when a tier contains 2+ rows that are all the same multi-stack-eligible type
+    /// (Ability or MajorPassive). Drives the horizontal sibling spacing + row-pick collapse
+    /// shared between ability tiers and multi-major-passive tiers (e.g. Woodcutting Lv15).
+    /// </summary>
     private static bool TierIsMultiAbilityOnly(List<RowDef> rows, int tierStart, int tierEndInclusive)
     {
         int count = tierEndInclusive - tierStart + 1;
         if (count < 2)
             return false;
-        for (int i = tierStart; i <= tierEndInclusive; i++)
+        SkillTreeNodeVisualType first = rows[tierStart].type;
+        if (!IsMultiStackEligibleType(first))
+            return false;
+        for (int i = tierStart + 1; i <= tierEndInclusive; i++)
         {
-            if (rows[i].type != SkillTreeNodeVisualType.Ability)
+            if (rows[i].type != first)
                 return false;
         }
         return true;
+    }
+
+    private static bool IsMultiStackEligibleType(SkillTreeNodeVisualType type)
+    {
+        return type == SkillTreeNodeVisualType.Ability || type == SkillTreeNodeVisualType.MajorPassive;
     }
 
     private static int TierVerticalAnchorIndex(List<RowDef> rows, int tierStart, int tierEndInclusive)
@@ -676,7 +707,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
             string spineId = SpineNodeId(row);
             bool unlocked = row.level <= currentSkillLevel;
-            BuildTooltipCopy(row.level, row.type, row.unlock, unlocked, out string mainTitle, out string mainBody);
+            BuildTooltipCopy(row, unlocked, out string mainTitle, out string mainBody);
             Sprite mainIcon = ResolveUnlockNodeIcon(row.unlock, selectedSkill);
             SpawnNode(spineId, new Vector2(x, y), row.type, mainTitle, mainBody, unlocked, mainIcon);
             unlockLevelByNodeId[spineId] = row.level;
@@ -716,6 +747,37 @@ public class SkillTreeViewUI : MonoBehaviour
             }
         }
 
+        // Multi-major-passive tiers (e.g. Woodcutting Lv15) reuse the same row-pick + collapse
+        // pipeline as ability tiers. Single MajorPassive rows keep their normal toggle behavior.
+        for (int i = 0; i < rows.Count; i++)
+        {
+            if (rows[i].type != SkillTreeNodeVisualType.MajorPassive)
+                continue;
+
+            int g = i;
+            while (g > 0 && rows[g - 1].level == rows[i].level)
+                g--;
+            int e = i;
+            while (e + 1 < rows.Count && rows[e + 1].level == rows[i].level)
+                e++;
+
+            if (!TierIsMultiAbilityOnly(rows, g, e))
+            {
+                i = e;
+                continue;
+            }
+
+            int groupSize = e - g + 1;
+            for (int ord = 0; ord < groupSize; ord++)
+            {
+                int rowIdx = g + ord;
+                string sid = SpineNodeId(rows[rowIdx]);
+                abilityTierPickMetaBySpineId[sid] = new AbilityTierPickMeta(rows[rowIdx].level, ord, groupSize);
+            }
+
+            i = e;
+        }
+
         // Spawn choices using per-choice unlock levels.
         for (int i = 0; i < rows.Count; i++)
         {
@@ -749,7 +811,7 @@ public class SkillTreeViewUI : MonoBehaviour
                 float choiceY = targetY + yOffset;
                 float choiceX = parentX + offsetX;
                 bool unlocked = row.level <= currentSkillLevel && choiceUnlockLevel <= currentSkillLevel;
-                BuildChoiceTooltipCopy(choiceUnlockLevel, choice, row.unlock, unlocked, out string cTitle, out string cBody);
+                BuildChoiceTooltipCopy(choiceUnlockLevel, choice, row, unlocked, out string cTitle, out string cBody);
                 string choiceNodeId = ChoiceId(parentSpineId, choiceUnlockLevel, choiceIndex);
                 Sprite choiceIcon = ResolveChoiceNodeIcon(choice);
                 SpawnNode(
@@ -803,6 +865,10 @@ public class SkillTreeViewUI : MonoBehaviour
                     lowerLevel = rows[g1].level
                 });
             }
+
+            // Multi-stack tiers (Ability or MajorPassive groups of 2+) fan connectors out to each lateral row
+            // so the upper/lower spine reaches every node in the row, not just the middle anchor.
+            SpawnMultiStackFanConnectors(rows, g0, e0, g1, e1, anchorUp, anchorLow);
         }
 
         // Choices
@@ -824,6 +890,58 @@ public class SkillTreeViewUI : MonoBehaviour
         }
     }
 
+    private void SpawnMultiStackFanConnectors(
+        List<RowDef> rows,
+        int upperStart, int upperEndInclusive,
+        int lowerStart, int lowerEndInclusive,
+        int anchorUpIdx, int anchorLowIdx)
+    {
+        bool upperMulti = TierIsMultiAbilityOnly(rows, upperStart, upperEndInclusive);
+        bool lowerMulti = TierIsMultiAbilityOnly(rows, lowerStart, lowerEndInclusive);
+        if (!upperMulti && !lowerMulti)
+            return;
+
+        // Fans connect every non-anchor row in the multi-stack tier to the opposite tier's anchor.
+        // The anchor↔anchor connector spawned just before this method covers the central line.
+        if (lowerMulti)
+        {
+            string fromId = SpineNodeId(rows[anchorUpIdx]);
+            for (int li = lowerStart; li <= lowerEndInclusive; li++)
+            {
+                if (li == anchorLowIdx)
+                    continue;
+                string toId = SpineNodeId(rows[li]);
+                AddExplicitInterTierConnector(rows[upperStart].level, rows[lowerStart].level, fromId, toId);
+            }
+        }
+
+        if (upperMulti)
+        {
+            string toId = SpineNodeId(rows[anchorLowIdx]);
+            for (int ui = upperStart; ui <= upperEndInclusive; ui++)
+            {
+                if (ui == anchorUpIdx)
+                    continue;
+                string fromId = SpineNodeId(rows[ui]);
+                AddExplicitInterTierConnector(rows[upperStart].level, rows[lowerStart].level, fromId, toId);
+            }
+        }
+    }
+
+    private void AddExplicitInterTierConnector(int upperLevel, int lowerLevel, string fromId, string toId)
+    {
+        if (!TrySpawnConnectorInternal(fromId, toId, out var conn))
+            return;
+        interTierVerticalConnectors.Add(new InterTierVerticalRecord
+        {
+            conn = conn,
+            upperLevel = upperLevel,
+            lowerLevel = lowerLevel,
+            explicitFromId = fromId,
+            explicitToId = toId
+        });
+    }
+
     private static int ResolveChoiceUnlockLevel(int sourceLevel, SkillTreeNodeVisualType sourceType)
     {
         if (sourceType == SkillTreeNodeVisualType.CapstonePassive)
@@ -836,10 +954,19 @@ public class SkillTreeViewUI : MonoBehaviour
     private static string ChoiceId(string parentSpineNodeId, int unlockLevel, int index) =>
         $"{parentSpineNodeId}_ChoiceLv{unlockLevel}_{index}";
 
-    private static void BuildTooltipCopy(int level, SkillTreeNodeVisualType type, SkillUnlockDefinition unlock, bool isUnlocked, out string title, out string body)
+    private void BuildTooltipCopy(RowDef row, bool isUnlocked, out string title, out string body)
     {
+        int level = row.level;
+        SkillTreeNodeVisualType type = row.type;
+        SkillUnlockDefinition unlock = row.unlock;
+
         string unlockTitle = unlock != null && !string.IsNullOrWhiteSpace(unlock.title) ? unlock.title.Trim() : "Untitled";
         string desc = unlock != null && !string.IsNullOrWhiteSpace(unlock.description) ? unlock.description.Trim() : "No description yet.";
+        desc = BuildEffectiveWoodcuttingMajorPassiveDescription(row, desc);
+
+        bool useMajorPassivePresentation = ShouldUseMajorPassiveLinePresentation(row);
+        if (useMajorPassivePresentation)
+            desc = ApplyMajorPassiveValueLineMarkup(desc);
 
         if (unlock != null && unlock.unlockType == SkillUnlockType.Unlock)
         {
@@ -849,22 +976,224 @@ public class SkillTreeViewUI : MonoBehaviour
             return;
         }
 
-        string typeLabel = TypeLabel(type);
+        string typeLabel = useMajorPassivePresentation ? TypeLabel(SkillTreeNodeVisualType.MajorPassive) : TypeLabel(type);
         title = unlockTitle;
         body = $"{typeLabel} {BuildStatusLine(isUnlocked)}\nUnlocks at Lv{level}\n\n{desc}";
     }
 
-    private static void BuildChoiceTooltipCopy(int unlockLevel, SkillChoiceDefinition choice, SkillUnlockDefinition parentUnlock, bool isUnlocked, out string title, out string body)
+    private void BuildChoiceTooltipCopy(int unlockLevel, SkillChoiceDefinition choice, RowDef parentRow, bool isUnlocked, out string title, out string body)
     {
+        SkillUnlockDefinition parentUnlock = parentRow.unlock;
         string unlockTitle = choice != null && !string.IsNullOrWhiteSpace(choice.title)
             ? choice.title.Trim()
             : (parentUnlock != null && !string.IsNullOrWhiteSpace(parentUnlock.title) ? parentUnlock.title.Trim() : "Untitled");
         string desc = choice != null && !string.IsNullOrWhiteSpace(choice.description)
             ? choice.description.Trim()
             : "No description yet.";
+
+        if (ShouldUseMajorPassiveLinePresentation(parentRow))
+            desc = ApplyMajorPassiveValueLineMarkup(desc);
+
         string typeLabel = TypeLabel(SkillTreeNodeVisualType.Choice);
         title = unlockTitle;
         body = $"{typeLabel} {BuildStatusLine(isUnlocked)}\nUnlocks at Lv{unlockLevel}\n\n{desc}";
+    }
+
+    private string BuildEffectiveWoodcuttingMajorPassiveDescription(RowDef row, string fallbackDescription)
+    {
+        if (selectedSkill == null || selectedSkill.skillType != SkillType.Woodcutting)
+            return fallbackDescription;
+        if (row.unlock == null)
+            return fallbackDescription;
+        if (row.level != PlayerController.WoodcuttingMajorPassiveSourceLevel &&
+            row.level != PlayerController.WoodcuttingLv35MajorPassiveSourceLevel)
+            return fallbackDescription;
+
+        string title = !string.IsNullOrWhiteSpace(row.unlock.title) ? row.unlock.title.Trim() : string.Empty;
+        int selectedChoice = skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, SpineNodeId(row), -1)
+            : -1;
+        string selectedChoiceTitle = GetChoiceTitle(row.unlock, selectedChoice);
+
+        if (string.Equals(title, "Ancient Lumbercraft", StringComparison.OrdinalIgnoreCase))
+        {
+            int hiddenChance = 2;
+            bool experiencedGatherer = string.Equals(selectedChoiceTitle, "Experienced Gatherer", StringComparison.OrdinalIgnoreCase);
+            bool treasureHunter = string.Equals(selectedChoiceTitle, "Treasure Hunter", StringComparison.OrdinalIgnoreCase);
+            if (experiencedGatherer)
+                hiddenChance += 2;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Trees have a chance to reveal hidden resources.");
+            sb.AppendLine();
+            sb.Append("+");
+            sb.Append(hiddenChance);
+            sb.Append("% Hidden Resource Chance");
+            if (treasureHunter)
+            {
+                sb.AppendLine();
+                sb.Append("+15% chance for Hidden Resources to double");
+            }
+            return sb.ToString();
+        }
+
+        if (string.Equals(title, "Forest's Favor", StringComparison.OrdinalIgnoreCase))
+        {
+            int extraItemChance = 25;
+            bool richHarvest = string.Equals(selectedChoiceTitle, "Rich Harvest", StringComparison.OrdinalIgnoreCase);
+            bool hiddenRiches = string.Equals(selectedChoiceTitle, "Hidden Riches", StringComparison.OrdinalIgnoreCase);
+            if (hiddenRiches)
+                extraItemChance += 10;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Bonus Finds have a chance to grant +1 additional items.");
+            sb.AppendLine();
+            sb.Append("+");
+            sb.Append(extraItemChance);
+            sb.Append("% Bonus Find Extra Item Chance");
+            if (richHarvest)
+            {
+                sb.AppendLine();
+                sb.Append("+10% Bonus Find Chance");
+            }
+            return sb.ToString();
+        }
+
+        if (string.Equals(title, "Conservationist", StringComparison.OrdinalIgnoreCase))
+        {
+            int skipChance = 15;
+            bool sustainableHarvest = string.Equals(selectedChoiceTitle, "Sustainable Harvest", StringComparison.OrdinalIgnoreCase);
+            bool ancientPreservation = string.Equals(selectedChoiceTitle, "Ancient Preservation", StringComparison.OrdinalIgnoreCase);
+            if (ancientPreservation)
+                skipChance += 10;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Successful chops have a chance to not count toward tree depletion.");
+            sb.AppendLine();
+            sb.Append("+");
+            sb.Append(skipChance);
+            sb.Append("% Tree Depletion Skip Chance");
+            if (sustainableHarvest)
+            {
+                sb.AppendLine();
+                sb.Append("+10% Max Stamina restored when tree depletion is skipped");
+            }
+            return sb.ToString();
+        }
+
+        if (string.Equals(title, "Heavy Swing", StringComparison.OrdinalIgnoreCase))
+        {
+            int extraResourceChance = 40;
+            bool controlledForce = string.Equals(selectedChoiceTitle, "Controlled Force", StringComparison.OrdinalIgnoreCase);
+            bool crushingSwing = string.Equals(selectedChoiceTitle, "Crushing Swing", StringComparison.OrdinalIgnoreCase);
+            if (crushingSwing)
+                extraResourceChance += 10;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("When Woodcutting Grit procs:");
+            sb.AppendLine();
+            sb.Append("+");
+            sb.Append(extraResourceChance);
+            sb.Append("% Extra Resource Chance");
+            if (controlledForce)
+            {
+                sb.AppendLine();
+                sb.Append("+10% Bonus Find Chance when Woodcutting Grit procs");
+            }
+            return sb.ToString();
+        }
+
+        if (string.Equals(title, "Flow State", StringComparison.OrdinalIgnoreCase))
+        {
+            bool lastingFocus = string.Equals(selectedChoiceTitle, "Lasting Focus", StringComparison.OrdinalIgnoreCase);
+            bool deepFocus = string.Equals(selectedChoiceTitle, "Deep Focus", StringComparison.OrdinalIgnoreCase);
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("After 15 seconds of continuous woodcutting on the same tree, you enter Flow State.");
+            sb.AppendLine();
+            sb.AppendLine("+10% Chopping Speed while Flow is active");
+            sb.Append("+10% Stamina Efficiency while Flow is active");
+            if (lastingFocus)
+            {
+                sb.AppendLine();
+                sb.Append("Flow lasts 5 seconds after you stop gathering");
+            }
+            if (deepFocus)
+            {
+                sb.AppendLine();
+                sb.Append("+10% Woodcutting Grit Chance while Flow is active");
+            }
+            return sb.ToString();
+        }
+
+        return fallbackDescription;
+    }
+
+    private static string GetChoiceTitle(SkillUnlockDefinition unlock, int choiceIndex)
+    {
+        if (unlock == null || unlock.choices == null || choiceIndex < 0 || choiceIndex >= unlock.choices.Count)
+            return string.Empty;
+        SkillChoiceDefinition choice = unlock.choices[choiceIndex];
+        return choice != null && !string.IsNullOrWhiteSpace(choice.title) ? choice.title.Trim() : string.Empty;
+    }
+
+    private bool ShouldUseMajorPassiveLinePresentation(RowDef row)
+    {
+        if (row.unlock == null)
+            return false;
+        if (row.type == SkillTreeNodeVisualType.MajorPassive)
+            return true;
+        if (!IsGatheringSkillSelected(selectedSkill))
+            return false;
+        if (row.type != SkillTreeNodeVisualType.Ability)
+            return false;
+        if (GetNonNullChoices(row.unlock).Count <= 0)
+            return false;
+        return TierRowCaptionForSkillLevel(row.level) == "Major Passive";
+    }
+
+    /// <summary>Mirrors ability tooltip accents: lines that start with "+" after whitespace get orange markup (#FFB347).</summary>
+    private static string ApplyMajorPassiveValueLineMarkup(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return raw;
+        if (raw.IndexOf("<color=", StringComparison.OrdinalIgnoreCase) >= 0)
+            return raw;
+
+        const string orangeOpen = "<color=#FFB347>";
+        const string orangeClose = "</color>";
+        string norm = raw.Replace("\r\n", "\n");
+        var lines = norm.Split('\n');
+        var sb = new System.Text.StringBuilder(norm.Length + lines.Length * 32);
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (i > 0)
+                sb.Append('\n');
+            string line = lines[i];
+            int lead = 0;
+            while (lead < line.Length && line[lead] == ' ')
+                lead++;
+            if (lead >= line.Length)
+            {
+                sb.Append(line);
+                continue;
+            }
+
+            string trimmed = line.Substring(lead);
+            if (trimmed.StartsWith("+", StringComparison.Ordinal) ||
+                trimmed.StartsWith("Flow lasts", StringComparison.OrdinalIgnoreCase))
+            {
+                if (lead > 0)
+                    sb.Append(line, 0, lead);
+                sb.Append(orangeOpen);
+                sb.Append(trimmed);
+                sb.Append(orangeClose);
+            }
+            else
+                sb.Append(line);
+        }
+
+        return sb.ToString();
     }
 
     private static string BuildStatusLine(bool isUnlocked)
@@ -1091,9 +1420,9 @@ public class SkillTreeViewUI : MonoBehaviour
                 return;
             }
 
-            int current = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.sourceLevel, -1);
+            int current = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.parentSpineNodeId, -1);
             if (current != choiceMeta.choiceIndex)
-                skillsManager.SetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.sourceLevel, choiceMeta.choiceIndex);
+                skillsManager.SetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.parentSpineNodeId, choiceMeta.choiceIndex);
 
             expandedChoiceBranchesBySourceLevel.Remove(choiceMeta.sourceLevel);
             RefreshChoiceSelectionVisuals();
@@ -1192,24 +1521,45 @@ public class SkillTreeViewUI : MonoBehaviour
         if (!string.IsNullOrWhiteSpace(nodeId))
         {
             if (rowDefBySpineNodeId.TryGetValue(nodeId, out RowDef spineRow))
+            {
+                BuildTooltipCopy(spineRow, IsRowUnlocked(spineRow), out title, out body);
                 body = AppendChoiceTooltipState(spineRow, body);
+            }
             else if (choiceMetaByNodeId.TryGetValue(nodeId, out ChoiceNodeMeta cm)
                      && rowDefBySpineNodeId.TryGetValue(cm.parentSpineNodeId, out RowDef choiceParentRow))
                 body = AppendChoiceTooltipState(choiceParentRow, body);
         }
+        SkillTreeTooltipChrome chrome = SkillTreeTooltipChrome.None;
+        if (rowDefBySpineNodeId.TryGetValue(nodeId, out RowDef rowChrome) && ShouldUseMajorPassiveLinePresentation(rowChrome))
+            chrome = SkillTreeTooltipChrome.MajorPassivePanel;
+        else if (choiceMetaByNodeId.TryGetValue(nodeId, out ChoiceNodeMeta cmChrome)
+                 && rowDefBySpineNodeId.TryGetValue(cmChrome.parentSpineNodeId, out RowDef parentChrome)
+                 && ShouldUseMajorPassiveLinePresentation(parentChrome))
+            chrome = SkillTreeTooltipChrome.MajorPassivePanel;
+
         sharedTooltip.ShowTextAt(
             anchor,
             string.IsNullOrWhiteSpace(title) ? "Node" : title,
             string.IsNullOrWhiteSpace(body) ? "No node data yet." : body,
             measureRect: tooltipBoundsRect != null ? tooltipBoundsRect : nodesRoot,
             heightRect: tooltipBoundsRect != null ? tooltipBoundsRect : nodesRoot,
-            preferredSide: FlipInsideBounds.PreferredSide.Left
+            preferredSide: FlipInsideBounds.PreferredSide.Left,
+            titleColor: null,
+            useStatsDisplayHeader: false,
+            skillTreeChrome: chrome
         );
     }
 
     private void HideTooltip()
     {
         sharedTooltip?.Hide();
+    }
+
+    private bool IsRowUnlocked(RowDef row)
+    {
+        if (selectedSkill == null || skillsManager == null)
+            return false;
+        return skillsManager.IsLevelUnlocked(selectedSkill.skillType, row.level);
     }
 
     private static bool TryGetNodeLevel(string nodeId, out int level)
@@ -1229,7 +1579,7 @@ public class SkillTreeViewUI : MonoBehaviour
         if (choices.Count <= 0 || !selectedSkill || !skillsManager)
             return body;
 
-        int selectedChoice = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, row.level, -1);
+        int selectedChoice = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, SpineNodeId(row), -1);
         var sb = new System.Text.StringBuilder();
         if (!string.IsNullOrWhiteSpace(body))
             sb.Append(body.Trim());
@@ -1265,7 +1615,7 @@ public class SkillTreeViewUI : MonoBehaviour
                 continue;
 
             ChoiceNodeMeta meta = kv.Value;
-            int selectedChoice = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.sourceLevel, -1);
+            int selectedChoice = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.parentSpineNodeId, -1);
             node.SetSelected(selectedChoice == meta.choiceIndex);
         }
     }
@@ -1392,13 +1742,25 @@ public class SkillTreeViewUI : MonoBehaviour
         {
             if (iv.conn == null)
                 continue;
-            if (!TryGetTierRangeForLevel(iv.upperLevel, out int ug, out int ue))
-                continue;
-            if (!TryGetTierRangeForLevel(iv.lowerLevel, out int lg, out int le))
-                continue;
 
-            string fromId = ResolveTierDisplaySpineId(ug, ue);
-            string toId = ResolveTierDisplaySpineId(lg, le);
+            string fromId;
+            string toId;
+            bool hasExplicit = !string.IsNullOrEmpty(iv.explicitFromId) && !string.IsNullOrEmpty(iv.explicitToId);
+            if (hasExplicit)
+            {
+                fromId = iv.explicitFromId;
+                toId = iv.explicitToId;
+            }
+            else
+            {
+                if (!TryGetTierRangeForLevel(iv.upperLevel, out int ug, out int ue))
+                    continue;
+                if (!TryGetTierRangeForLevel(iv.lowerLevel, out int lg, out int le))
+                    continue;
+
+                fromId = ResolveTierDisplaySpineId(ug, ue);
+                toId = ResolveTierDisplaySpineId(lg, le);
+            }
             if (string.IsNullOrEmpty(fromId) || string.IsNullOrEmpty(toId))
                 continue;
             if (!nodeLookup.TryGetValue(fromId, out var a) || !nodeLookup.TryGetValue(toId, out var b) || a == null || b == null)
@@ -1424,7 +1786,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
             bool multiOk = ShouldExposeChoicesForMultiAbilityParent(rec.parentSpineId, rec.sourceLevel);
             bool passiveOk = !canQuery
-                || skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, rec.sourceLevel, -1) < 0
+                || skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, rec.parentSpineId, -1) < 0
                 || expandedChoiceBranchesBySourceLevel.Contains(rec.sourceLevel);
             rec.conn.gameObject.SetActive(multiOk && passiveOk);
         }
@@ -1437,7 +1799,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
             bool multiOk = ShouldExposeChoicesForMultiAbilityParent(meta.parentSpineNodeId, meta.sourceLevel);
             bool passiveOk = !canQuery
-                || skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.sourceLevel, -1) < 0
+                || skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.parentSpineNodeId, -1) < 0
                 || expandedChoiceBranchesBySourceLevel.Contains(meta.sourceLevel);
             node.gameObject.SetActive(multiOk && passiveOk);
         }

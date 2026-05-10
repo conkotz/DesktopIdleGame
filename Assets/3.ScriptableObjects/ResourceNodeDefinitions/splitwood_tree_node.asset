@@ -26,9 +26,15 @@ MonoBehaviour:
   minInterval: 2
   maxInterval: 4
   bonusDrops: []
+  hiddenDrops:
+  - item: {fileID: 11400000, guid: 1b5992d9e7642894e86332337394a6d5, type: 2}
+    chance: 0
+    amountMin: 1
+    amountMax: 1
   requiresTool: 1
   requiredTool: 3
   missingToolMessage: No axe found in toolbelt
   energyCostPercentOfMaxPerSwing: 10
   depletionGatherCount: 25
   depletionRegenSeconds: 60
+  depletedYieldMultiplier: 0.3

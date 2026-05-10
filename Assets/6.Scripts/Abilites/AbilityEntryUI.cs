@@ -205,7 +205,7 @@ public class AbilityEntryUI : MonoBehaviour,
 
         if (string.Equals(def.abilityId, AbilityCombatPower.WhirlwindAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv15_0", -1);
             return BuildActiveEnhancementLine(def, selected);
         }
 
@@ -223,13 +223,13 @@ public class AbilityEntryUI : MonoBehaviour,
 
         if (string.Equals(def.abilityId, "cleaving_strikes", System.StringComparison.OrdinalIgnoreCase))
         {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv15_1", -1);
             return BuildActiveEnhancementLine(def, selected);
         }
 
         if (string.Equals(def.abilityId, "crescent_slash", System.StringComparison.OrdinalIgnoreCase))
         {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv15_2", -1);
             return BuildActiveEnhancementLine(def, selected);
         }
 

@@ -136,9 +136,15 @@ public class SkillsManager : MonoBehaviour, ISaveable
         return list;
     }
 
-    private static string BuildChoiceKey(SkillType skillType, int sourceLevel)
+    private static string BuildChoiceKeyLegacyLevel(SkillType skillType, int sourceLevel)
     {
         return $"{skillType}:{Mathf.Max(1, sourceLevel)}";
+    }
+
+    /// <summary>Choice storage keyed by the parent spine node id (e.g. <c>Lv15_2</c>) so multiple branches at the same level do not collide.</summary>
+    public static string BuildChoiceKeyFromParentSpine(SkillType skillType, string parentSpineNodeId)
+    {
+        return $"{skillType}:{parentSpineNodeId}";
     }
 
     /// <summary>
@@ -146,7 +152,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
     /// </summary>
     public void SetSkillChoiceSelection(SkillType skillType, int sourceLevel, int choiceIndex)
     {
-        string key = BuildChoiceKey(skillType, sourceLevel);
+        string key = BuildChoiceKeyLegacyLevel(skillType, sourceLevel);
         int src = Mathf.Max(1, sourceLevel);
 
         if (choiceIndex < 0)
@@ -165,10 +171,77 @@ public class SkillsManager : MonoBehaviour, ISaveable
         OnSkillChoiceSelectionChanged?.Invoke(skillType, src, clamped);
     }
 
+    /// <summary>
+    /// Sets the active choice for a specific parent spine row (preferred for multi-branch levels like Woodcutting Lv15).
+    /// </summary>
+    public void SetSkillChoiceSelection(SkillType skillType, string parentSpineNodeId, int choiceIndex)
+    {
+        if (string.IsNullOrWhiteSpace(parentSpineNodeId))
+            return;
+
+        string key = BuildChoiceKeyFromParentSpine(skillType, parentSpineNodeId.Trim());
+        int src = 1;
+        if (TryParseSourceLevelFromChoiceStorageKey(key, out int parsedLvl))
+            src = parsedLvl;
+
+        if (choiceIndex < 0)
+        {
+            bool removed = _skillChoiceSelections.Remove(key);
+            if (parentSpineNodeId.IndexOf('_') > 0 && TryParseSourceLevelFromChoiceStorageKey(key, out int lvlLeg))
+                removed |= _skillChoiceSelections.Remove(BuildChoiceKeyLegacyLevel(skillType, lvlLeg));
+            if (!removed)
+                return;
+            OnSkillChoiceSelectionChanged?.Invoke(skillType, src, -1);
+            return;
+        }
+
+        int clamped = Mathf.Max(0, choiceIndex);
+        if (_skillChoiceSelections.TryGetValue(key, out int existing) && existing == clamped)
+            return;
+
+        // Remove legacy shared-level key so old saves / UI paths cannot return the wrong branch's pick.
+        if (TryParseSourceLevelFromChoiceStorageKey(key, out int lvlForLegacy) && parentSpineNodeId.IndexOf('_') > 0)
+            _skillChoiceSelections.Remove(BuildChoiceKeyLegacyLevel(skillType, lvlForLegacy));
+
+        _skillChoiceSelections[key] = clamped;
+        OnSkillChoiceSelectionChanged?.Invoke(skillType, src, clamped);
+    }
+
     public int GetSkillChoiceSelection(SkillType skillType, int sourceLevel, int defaultValue = -1)
     {
-        string key = BuildChoiceKey(skillType, sourceLevel);
-        return _skillChoiceSelections.TryGetValue(key, out int value) ? value : defaultValue;
+        string key = BuildChoiceKeyLegacyLevel(skillType, sourceLevel);
+        if (_skillChoiceSelections.TryGetValue(key, out int value))
+            return value;
+        // Spine keys (e.g. Melee:Lv15_1) — legacy callers pass level only; return first populated slot.
+        int lvl = Mathf.Max(1, sourceLevel);
+        for (int slot = 0; slot < 8; slot++)
+        {
+            string sk = BuildChoiceKeyFromParentSpine(skillType, $"Lv{lvl}_{slot}");
+            if (_skillChoiceSelections.TryGetValue(sk, out int v))
+                return v;
+        }
+
+        return defaultValue;
+    }
+
+    /// <summary>Reads the choice for a specific parent spine row, falling back to legacy level-only keys when present.</summary>
+    public int GetSkillChoiceSelection(SkillType skillType, string parentSpineNodeId, int defaultValue = -1)
+    {
+        if (string.IsNullOrWhiteSpace(parentSpineNodeId))
+            return defaultValue;
+
+        string spineKey = BuildChoiceKeyFromParentSpine(skillType, parentSpineNodeId.Trim());
+        if (_skillChoiceSelections.TryGetValue(spineKey, out int v))
+            return v;
+
+        if (TryParseSourceLevelFromChoiceStorageKey(spineKey, out int lvl))
+        {
+            string legacy = BuildChoiceKeyLegacyLevel(skillType, lvl);
+            if (_skillChoiceSelections.TryGetValue(legacy, out int legacyVal))
+                return legacyVal;
+        }
+
+        return defaultValue;
     }
 
     public void ClearAllSkillChoiceSelections()
@@ -183,14 +256,66 @@ public class SkillsManager : MonoBehaviour, ISaveable
 
     private void TryInvokeChoiceClearFromKey(string key)
     {
-        int idx = key.IndexOf(':');
-        if (idx <= 0 || idx >= key.Length - 1)
-            return;
-        if (!Enum.TryParse(key.Substring(0, idx), out SkillType st))
-            return;
-        if (!int.TryParse(key.Substring(idx + 1), out int lvl))
+        if (!TryParseChoiceEventFromStorageKey(key, out SkillType st, out int lvl))
             return;
         OnSkillChoiceSelectionChanged?.Invoke(st, Mathf.Max(1, lvl), -1);
+    }
+
+    private static bool TryParseChoiceEventFromStorageKey(string key, out SkillType skillType, out int sourceLevel)
+    {
+        skillType = default;
+        sourceLevel = 1;
+        int idx = key.IndexOf(':');
+        if (idx <= 0 || idx >= key.Length - 1)
+            return false;
+        if (!Enum.TryParse(key.Substring(0, idx), out skillType))
+            return false;
+        string rest = key.Substring(idx + 1);
+        if (int.TryParse(rest, out int legacyLvl))
+        {
+            sourceLevel = Mathf.Max(1, legacyLvl);
+            return true;
+        }
+
+        // Spine id: "Lv15_2" → event level 15
+        if (rest.Length >= 4 && rest.StartsWith("Lv", StringComparison.Ordinal))
+        {
+            int u = rest.IndexOf('_');
+            if (u > 2 && int.TryParse(rest.Substring(2, u - 2), out int spineLvl))
+            {
+                sourceLevel = Mathf.Max(1, spineLvl);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Parses level from keys like <c>Melee:Lv10_0</c> or legacy <c>Melee:10</c>.</summary>
+    public static bool TryParseSourceLevelFromChoiceStorageKey(string key, out int level)
+    {
+        level = 1;
+        int idx = key.IndexOf(':');
+        if (idx <= 0 || idx >= key.Length - 1)
+            return false;
+        string rest = key.Substring(idx + 1);
+        if (int.TryParse(rest, out int legacyLvl))
+        {
+            level = Mathf.Max(1, legacyLvl);
+            return true;
+        }
+
+        if (rest.Length >= 4 && rest.StartsWith("Lv", StringComparison.Ordinal))
+        {
+            int u = rest.IndexOf('_');
+            if (u > 2 && int.TryParse(rest.Substring(2, u - 2), out int spineLvl))
+            {
+                level = Mathf.Max(1, spineLvl);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Clears every passive-branch choice and every multi-ability row pick (global reset).</summary>
@@ -198,6 +323,31 @@ public class SkillsManager : MonoBehaviour, ISaveable
     {
         ClearAllSkillChoiceSelections();
         ClearAllSkillAbilityRowPicks();
+    }
+
+    /// <summary>Clears passive-branch choices for one skill only (keys are prefixed with <c>SkillType:</c>).</summary>
+    public void ClearSkillChoiceSelectionsForSkill(SkillType skillType)
+    {
+        string prefix = $"{skillType}:";
+        var toRemove = new List<string>();
+        foreach (var kv in _skillChoiceSelections)
+        {
+            if (kv.Key.StartsWith(prefix, StringComparison.Ordinal))
+                toRemove.Add(kv.Key);
+        }
+
+        foreach (string k in toRemove)
+        {
+            _skillChoiceSelections.Remove(k);
+            TryInvokeChoiceClearFromKey(k);
+        }
+    }
+
+    /// <summary>Clears choice branches and multi-ability row picks for a single skill (used by Reset Tree on the skill tree UI).</summary>
+    public void ResetSkillTreeSelectionsForSkill(SkillType skillType)
+    {
+        ClearSkillChoiceSelectionsForSkill(skillType);
+        ClearSkillAbilityRowPicksForSkill(skillType);
     }
 
     private static string BuildAbilityRowKey(SkillType skillType, int requiredLevel)

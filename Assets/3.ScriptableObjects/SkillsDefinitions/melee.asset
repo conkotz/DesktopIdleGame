@@ -58,7 +58,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 5
     title: Power Slash
-    description: Primes your next hit to perform a powerful slash.
+    description: Primes your next melee hit to deal 150% of your rolled damage on Physical, Magic, and Corruption (before other modifiers). Costs 30 Energy, 12s cooldown. Brutal Cut increases that to 175%; Relentless Flow reduces cooldown by 3s (9s).
     icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -77,8 +77,7 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Rend
-    description: Primes your next hit with guaranteed Bleed and extended duration
-      on that application. Exclusive while active.
+    description: Primes your next hit to apply 100% guaranteed exclusive Bleed with +3s duration versus your normal bleed window. Costs 30 Energy, 10s cooldown. Exclusive while active.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -98,8 +97,7 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Envenom
-    description: Primes your next hit. If the hit deals Corruption damage, apply
-      Poison at 100% chance at max stacks.
+    description: Primes your next hit. If the hit deals Corruption damage, apply Poison at 100% chance at max stacks. Costs 30 Energy, 10s cooldown.
     icon: {fileID: -3106849600663172003, guid: eac4dfbab0ba6ba47923ad2fffa2615c, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -236,8 +234,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 15
     title: Whirlwind
-    description: Spin in a wide arc, striking all enemies within your weapon range
-      from you (minimum 3 range, or your weapon range if longer).
+    description: Spin in a wide arc, striking all enemies within your weapon range from you (minimum 3 range, or your weapon range if longer). Each hit deals 80% of your rolled Physical, Magic, and Corruption damage (before crit). Costs 35 Energy, 5s cooldown. Twin Cyclone adds a second wave at 20% damage.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -257,9 +254,7 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Cleaving Strikes
-    description: Empower your melee basic attacks causing each hit to also strike
-      additional nearby enemies within your weapon range from you (minimum 3 range,
-      or your weapon range if longer).
+    description: Empower your melee basics to also strike additional nearby enemies within your weapon range from you (minimum 3 range, or your weapon range if longer). Cleave hits deal 60% of the same rolled weapon damage. Costs 45 Energy, 20s cooldown. Base buff lasts 7s or 4 primary hits with +1 extra target per swing; enhancements change duration, hit budget, and extra targets (see below).
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -278,8 +273,7 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Crescent Slash
-    description: Unleash a wave which travels outward and strikes enemies in front
-      of you.
+    description: Unleash a wave which travels outward and strikes enemies in front of you. Each hit uses 120% of rolled Physical damage and 100% of rolled Magic and Corruption (plus usual scaling). Costs 25 Energy, 12s cooldown.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -509,9 +503,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 35
     title: Soulforged Weapon
-    description: Summon a soulforged copy of your main-hand weapon to strike at foes.
-      This weapon will stay attached to the enemy unless commanded to swap targets
-      or return to you if out of enemy range.
+    description: Summon a soulforged copy of your main-hand weapon to strike at foes. Costs 10 Energy, 45s cooldown. This weapon stays attached to the enemy unless commanded to swap targets or return to you if out of enemy range.
     icon: {fileID: -8860823726366746541, guid: 2e15a983e647ec142bfdadc1698f81bc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0

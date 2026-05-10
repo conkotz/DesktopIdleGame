@@ -469,7 +469,7 @@ public static class AbilityCombatPower
         }
     }
 
-    /// <summary>Matches <see cref="PlayerAbilityController"/> choice keying (Lv15 row, Lv18 fallback).</summary>
+    /// <summary>Matches <see cref="PlayerAbilityController"/> choice keying (spine Lv15_0, then legacy keys).</summary>
     private static int GetWhirlwindSelectedChoiceForCombatPower()
     {
         const int whirlwindSourceLevel = 15;
@@ -477,7 +477,11 @@ public static class AbilityCombatPower
         if (sm == null)
             return -1;
 
-        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, whirlwindSourceLevel, -1);
+        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, "Lv15_0", -1);
+        if (selected >= 0)
+            return selected;
+
+        selected = sm.GetSkillChoiceSelection(SkillType.Melee, whirlwindSourceLevel, -1);
         if (selected >= 0)
             return selected;
 
@@ -508,7 +512,7 @@ public static class AbilityCombatPower
         if (sm == null)
             return -1;
 
-        return sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+        return sm.GetSkillChoiceSelection(SkillType.Melee, "Lv15_1", -1);
     }
 
     private static int GetCrescentSlashSelectedChoiceForCombatPower()
@@ -517,6 +521,6 @@ public static class AbilityCombatPower
         if (sm == null)
             return -1;
 
-        return sm.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+        return sm.GetSkillChoiceSelection(SkillType.Melee, "Lv15_2", -1);
     }
 }

@@ -10,13 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: trial_ancient_bark
+  m_Name: ancient_bark
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 0
   maxStack: 5
-  itemId: trial_relic_tier5
-  displayName: Relic (Tier 5)
-  icon: {fileID: -3042995069832434783, guid: 4f5f2bff5b42ffb40a0d33c5ffe6d207, type: 3}
+  itemId: ancient_bark
+  displayName: Ancient Bark
+  displayNameSingular: 
+  icon: {fileID: -3930445278726117110, guid: b9d6c5ae3470d2c49a2b3c92896da0ac, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -24,58 +25,85 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: 'An ancient relic obtained from completing an endurance trial '
-  rarity: 4
-  value: 20000
+  description: A peice of rare ancient bark.
+  rarity: 3
+  value: 7500
   equipSlot: 0
   handVisualKey: 0
+  usedUpgradeSlots: 0
+  successfulEnhancements: 0
   weaponStats:
     minPhysicalDamage: 0
     maxPhysicalDamage: 0
-    minMagicDamage: 0
-    maxMagicDamage: 0
-    minTrueDamage: 0
-    maxTrueDamage: 0
+    minFireDamage: 0
+    maxFireDamage: 0
+    minIceDamage: 0
+    maxIceDamage: 0
+    minLightningDamage: 0
+    maxLightningDamage: 0
+    legacyMinMagicDamage: 0
+    legacyMaxMagicDamage: 0
+    minCorruptionDamage: 0
+    maxCorruptionDamage: 0
     attacksPerSecond: 0
     critChance: 0
     critMultiplier: 0
     handedness: 0
     attackRange: 0
     attackSkill: 0
+    mainHandArchetype: 0
+    rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
     magicAilmentApplyChance: 0
+    unusedLegacyWeaponBurnChance: 0
     canEquipInOffHand: 0
     requiresOffhandSupport: 0
     requiredSupportType: 0
+    equipmentTier: 0
   combatSupportStats:
     supportType: 0
+    requiredMainHandArchetype: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
-    bonusTrueDamage: 0
+    bonusCorruptionDamage: 0
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackSpeedPercent: 0
+    physicalDamagePercent: 0
+    globalPhysicalDamagePercent: 0
+    rangedPhysicalDamagePercent: 0
+    magicDamagePercent: 0
+    fireDamagePercent: 0
+    iceDamagePercent: 0
+    coldDamagePercent: 0
+    corruptionDamagePercent: 0
     consumableOnAttack: 0
     consumeAmountPerAttack: 0
   toolStats:
     toolType: 0
+    equipmentTier: 0
     gatherSpeedMultiplier: 0
     gatheringGrit: 0
     bonusResourceFindChance: 0
     staminaEfficiency: 0
   armorStats:
+    equipmentTier: 0
     armor: 0
     magicResist: 0
+    corruptionResist: 0
     physBlockChance: 0
     bonusHealth: 0
     bonusEnergy: 0
+    flatGuard: 0
+    maxGuardPercent: 0
   bonusStats:
     bonusHealth: 0
     bonusEnergy: 0
     bonusMana: 0
     armor: 0
     magicResist: 0
+    corruptionResist: 0
     physBlockChance: 0
     lifeRegen: 0
     energyRegen: 0
@@ -84,11 +112,21 @@ MonoBehaviour:
     moveSpeedPercent: 0
     physicalDamage: 0
     physicalDamagePercent: 0
+    globalPhysicalDamagePercent: 0
+    rangedPhysicalDamagePercent: 0
     magicDamage: 0
     magicDamagePercent: 0
-    trueDamage: 0
+    fireSkillDamagePercent: 0
+    iceSkillDamagePercent: 0
+    lightningSkillDamagePercent: 0
+    corruptionDamagePercent: 0
+    corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
+    minionDamagePercent: 0
+    minionAttackSpeedPercent: 0
+    minionCritChance: 0
+    minionMaxLifePercent: 0
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackRangeBonus: 0
@@ -99,8 +137,11 @@ MonoBehaviour:
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
+    burnChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+  miscEffects:
+    enemyRespawnTimeReductionSeconds: 0
   consumableStats:
     consumableType: 0
     healAmount: 0
@@ -112,6 +153,16 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+  enhancementScrollStats:
+    successChance: 0
+    targetStat: 0
+    modifierKind: 0
+    modifierValue: 0
+    consumeSlotOnFailure: 0
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    cursed: 0
+    allowedGearTypes: 0
   cookableStats:
     isCookable: 0
     cookedResultItemId: 
