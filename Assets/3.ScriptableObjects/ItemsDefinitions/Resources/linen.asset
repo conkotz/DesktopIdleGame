@@ -26,7 +26,7 @@ MonoBehaviour:
   equippedFlipX: 0
   equippedFlipY: 0
   description: A simple piece of linen
-  rarity: 0
+  rarity: 1
   value: 15
   equipSlot: 0
   handVisualKey: 0
@@ -51,6 +51,7 @@ MonoBehaviour:
     handedness: 0
     attackRange: 0
     attackSkill: 0
+    mainHandArchetype: 0
     rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
@@ -62,6 +63,7 @@ MonoBehaviour:
     equipmentTier: 0
   combatSupportStats:
     supportType: 0
+    requiredMainHandArchetype: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
     bonusCorruptionDamage: 0

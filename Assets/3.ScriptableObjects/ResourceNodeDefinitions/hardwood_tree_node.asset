@@ -10,21 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 225d4c1aca51d1641b49131edf107d33, type: 3}
-  m_Name: splitwood_tree_node
+  m_Name: hardwood_tree_node
   m_EditorClassIdentifier: Assembly-CSharp::NodeDefinition
-  displayName: Tree
+  displayName: Hardwood Tree
   actionType: 1
   gatherPlayerAction: 3
   useLevelRequirement: 1
-  requiredLevel: 1
-  xpPerTick: 5
-  yieldItem: {fileID: 11400000, guid: 60a88e1e810c3ee46a36fb6b840a76b3, type: 2}
+  requiredLevel: 20
+  xpPerTick: 15
+  yieldItem: {fileID: 11400000, guid: b027ef4e554e557409ea08d5c421984d, type: 2}
   yieldAmountMin: 1
   yieldAmountMax: 1
   ratePerSecond: 1
   useRandomInterval: 1
-  minInterval: 2
-  maxInterval: 4
+  minInterval: 15
+  maxInterval: 20
   bonusDrops:
   - item: {fileID: 11400000, guid: 8ba0be660a4597348907cc3ea2ad0c33, type: 2}
     chance: 0.05
@@ -38,7 +38,7 @@ MonoBehaviour:
   requiresTool: 1
   requiredTool: 3
   missingToolMessage: No axe found in toolbelt
-  energyCostPercentOfMaxPerSwing: 10
-  depletionGatherCount: 25
+  energyCostPercentOfMaxPerSwing: 50
+  depletionGatherCount: 20
   depletionRegenSeconds: 60
   depletedYieldMultiplier: 0.3

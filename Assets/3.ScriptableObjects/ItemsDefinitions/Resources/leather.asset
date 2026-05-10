@@ -26,7 +26,7 @@ MonoBehaviour:
   equippedFlipX: 0
   equippedFlipY: 0
   description: A raw leather hide
-  rarity: 0
+  rarity: 1
   value: 40
   equipSlot: 0
   handVisualKey: 0

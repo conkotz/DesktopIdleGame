@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: e87f9a8ce4a092d41a3cb2ab8f94c612
+guid: 5e5134584b229fe448fe55aa7182e889
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -542036637493289155
-    second: ChatGPT Image Feb 21, 2026, 01_04_27 AM_0
+      213: 9082801165128689192
+    second: WildwoodLogSprite_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -51,8 +51,8 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 750
-  spriteBorder: {x: 420, y: 337, z: 437, w: 281}
+  spritePixelsToUnits: 1050
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
   alphaIsTransparency: 1
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: ChatGPT Image Feb 21, 2026, 01_04_27 AM_0
+      name: WildwoodLogSprite_0
       rect:
         serializedVersion: 2
-        x: 423
-        y: 343
-        width: 673
-        height: 350
+        x: 228
+        y: 255
+        width: 1112
+        height: 537
       alignment: 9
-      pivot: {x: 0.4914688, y: 0.8116821}
-      border: {x: 2, y: 0, z: 0, w: 0}
+      pivot: {x: 0.50774485, y: 0.5160378}
+      border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: d3f17fecc8c4a78f0800000000000000
-      internalID: -542036637493289155
+      spriteID: 826eff479879c0e70800000000000000
+      internalID: 9082801165128689192
       vertices: []
       indices: 
       edges: []
@@ -125,8 +125,8 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 5e97eb03825dee720800000000000000
-    internalID: 1537655665
+    spriteID: fce60e6477ab33744a9da7d23c9391ce
+    internalID: 0
     vertices: []
     indices: 
     edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      ChatGPT Image Feb 21, 2026, 01_04_27 AM_0: -542036637493289155
+      WildwoodLogSprite_0: 9082801165128689192
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

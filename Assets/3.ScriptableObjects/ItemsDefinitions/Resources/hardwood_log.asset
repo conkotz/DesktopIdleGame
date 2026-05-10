@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: spider_silk
+  m_Name: hardwood_log
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 0
   maxStack: 999
-  itemId: spider_silk
-  displayName: Spider Silk
-  displayNameSingular: 
-  icon: {fileID: -8055432636635209200, guid: 469b003bcd3cb6e4ab532fa828ef235a, type: 3}
+  itemId: hardwood_log
+  displayName: Hardwood Logs
+  displayNameSingular: Splitwood Log
+  icon: {fileID: -764026750898743436, guid: 493ceb8862452954aaff3431faab874a, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A bit of spiders silk
-  rarity: 1
-  value: 25
+  description: A wildwood log
+  rarity: 0
+  value: 40
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
