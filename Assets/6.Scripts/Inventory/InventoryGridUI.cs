@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -69,6 +70,9 @@ public class InventoryGridUI : MonoBehaviour
     [SerializeField] private Color filterButtonInactiveColor = new Color32(180, 180, 180, 255);
 
     private InventoryViewFilter _activeFilter = InventoryViewFilter.All;
+
+    /// <summary>Fired whenever the active category filter changes. Listeners can recompute filter-aware UI (e.g. total value).</summary>
+    public event Action OnFilterChanged;
 
     private readonly List<InventorySlotUI> _slotPool = new List<InventorySlotUI>(64);
     private GridLayoutGroup _grid;
@@ -328,10 +332,47 @@ public class InventoryGridUI : MonoBehaviour
 
     private void SetFilter(InventoryViewFilter filter, bool rebuildNow = true)
     {
+        bool changed = _activeFilter != filter;
         _activeFilter = filter;
         ApplyFilterButtonVisuals();
         if (rebuildNow)
             Rebuild();
+        if (changed)
+            OnFilterChanged?.Invoke();
+    }
+
+    /// <summary>True when no category filter is active (i.e. every inventory item is visible).</summary>
+    public bool IsShowingAllItems => _activeFilter == InventoryViewFilter.All;
+
+    /// <summary>
+    /// Sums the value of every inventory slot that currently passes the active category filter.
+    /// Falls back to <see cref="Inventory.GetTotalInventoryValue"/> when the All filter is active.
+    /// </summary>
+    public int GetVisibleInventoryValue()
+    {
+        if (inventory == null)
+            return 0;
+
+        if (_activeFilter == InventoryViewFilter.All)
+            return inventory.GetTotalInventoryValue();
+
+        int total = 0;
+        int slotCount = inventory.SlotCount;
+        for (int i = 0; i < slotCount; i++)
+        {
+            var slot = inventory.GetSlot(i);
+            if (slot.IsEmpty)
+                continue;
+
+            ItemDefinition def = inventory.GetItemDef(slot.itemId);
+            if (!def && itemDb)
+                def = itemDb.Get(slot.itemId);
+            if (def == null || !PassesFilter(def))
+                continue;
+
+            total += inventory.GetSlotValue(i);
+        }
+        return total;
     }
 
     private void BindFilterButtons()
