@@ -29,6 +29,23 @@ public class DropManager : MonoBehaviour
 
     [Header("Ground alignment")]
     [SerializeField] private bool alignPlayerDropsToGround = true;
+
+    [Tooltip(
+        "Optional canonical floor reference (e.g. the Player root, or a FloorAnchor child in the level). " +
+        "When assigned, its world Y is used as the ground line for all drops so loot lands exactly on the same " +
+        "line the player and NPCs stand on. Leave empty to fall back to the physics raycast below.")]
+    [SerializeField] private Transform floorReference;
+
+    [Tooltip(
+        "Child name to search under PlayerController for the canonical floor anchor when Floor Reference is empty " +
+        "(any depth, exact match). If found, its world Y is used as the ground line. Leave empty to disable the lookup.")]
+    [SerializeField] private string floorReferenceChildName = "FloorAnchor";
+
+    [Tooltip(
+        "Extra adjustment applied to the resolved ground Y (negative pushes drops down, positive lifts them up). " +
+        "Tweak by ~ -0.05 to -0.20 if drops look slightly too high above the visual floor.")]
+    [SerializeField] private float floorYOffset = -0.15f;
+
     [SerializeField] private LayerMask groundMask;
     [SerializeField] private float groundCastDistance = 10f;
     [SerializeField] private float groundSkin = 0.01f;
@@ -37,6 +54,7 @@ public class DropManager : MonoBehaviour
     [SerializeField] private float landingJitterX = 0.5f;
 
     private PlayerController _player;
+    private Transform _floorReferenceAutoCache;
 
     private void Awake()
     {
@@ -68,6 +86,7 @@ public class DropManager : MonoBehaviour
     {
         // Player may persist, but references can still end up null after scene loads / re-instantiation.
         dropAnchor = null;
+        _floorReferenceAutoCache = null;
         ResolveAnchor();
     }
 
@@ -243,17 +262,82 @@ public class DropManager : MonoBehaviour
             drop.SnapVisualBottomToWorldY(groundY, groundSkin);
     }
 
+    /// <summary>
+    /// Resolves the canonical floor Y used for drop landing. Priority:
+    /// 1. <see cref="floorReference"/> (explicit, matches the player/NPC line exactly),
+    /// 2. <see cref="WorldFloorToUIEdge.Active"/>'s configured floor collider top — same line the
+    ///    lane alignment system uses, so loot snaps to the exact floor the player walks on,
+    /// 3. A child named <see cref="floorReferenceChildName"/> under the active player,
+    /// 4. A downward Physics2D raycast against <see cref="groundMask"/>.
+    /// <see cref="floorYOffset"/> is added to whichever source succeeds.
+    /// </summary>
     private bool TryFindGroundY(Vector3 origin, out float groundY)
     {
         groundY = 0f;
+
+        if (TryResolveFloorReferenceY(out float referenceY))
+        {
+            groundY = referenceY + floorYOffset;
+            return true;
+        }
 
         int mask = groundMask.value != 0 ? groundMask.value : Physics2D.AllLayers;
         RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, Mathf.Max(0.1f, groundCastDistance), mask);
         if (!hit.collider)
             return false;
 
-        groundY = hit.point.y;
+        groundY = hit.point.y + floorYOffset;
         return true;
+    }
+
+    private bool TryResolveFloorReferenceY(out float y)
+    {
+        if (floorReference != null)
+        {
+            y = floorReference.position.y;
+            return true;
+        }
+
+        // Lane-alignment system already knows the canonical floor (the Floor box collider under
+        // UILaneAlignment/Lane). Match its world top so drops sit on the same line the player walks on.
+        WorldFloorToUIEdge laneFloor = WorldFloorToUIEdge.Active;
+        if (laneFloor != null)
+        {
+            float laneTop = laneFloor.FloorTopWorldY;
+            if (!float.IsNaN(laneTop))
+            {
+                y = laneTop;
+                return true;
+            }
+        }
+
+        if (_floorReferenceAutoCache != null)
+        {
+            y = _floorReferenceAutoCache.position.y;
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(floorReferenceChildName))
+        {
+            if (_player == null)
+                _player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+
+            if (_player != null)
+            {
+                Transform anchor = FindDeepChild(_player.transform, floorReferenceChildName.Trim());
+                if (anchor != null)
+                {
+                    // Cache so subsequent drops avoid the recursive lookup. Stored separately from the
+                    // inspector field so we never overwrite a designer-assigned reference.
+                    _floorReferenceAutoCache = anchor;
+                    y = anchor.position.y;
+                    return true;
+                }
+            }
+        }
+
+        y = 0f;
+        return false;
     }
 
     private float GetOutwardScatterX(Vector3 worldPosition, bool usePlayerDirection)

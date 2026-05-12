@@ -16,6 +16,32 @@ using UnityEngine;
 [DefaultExecutionOrder(100)]
 public sealed class WorldFloorToUIEdge : MonoBehaviour
 {
+    /// <summary>
+    /// First-active instance found this frame. Auto-resolved on demand; cleared when the cached instance
+    /// is destroyed/disabled. Use this so other systems (e.g. <c>DropManager</c>) can read the canonical
+    /// floor top without doing their own raycasts.
+    /// </summary>
+    public static WorldFloorToUIEdge Active
+    {
+        get
+        {
+            if (s_active == null)
+                s_active = FindFirstObjectByType<WorldFloorToUIEdge>(FindObjectsInactive.Include);
+            return s_active;
+        }
+    }
+    private static WorldFloorToUIEdge s_active;
+
+    /// <summary>Floor collider configured in the inspector (or auto-resolved at startup). May be null in edit mode.</summary>
+    public BoxCollider2D FloorCollider => floorCollider;
+
+    /// <summary>
+    /// World-space top Y of the configured <see cref="floorCollider"/>. This is the line the lane visually rests on;
+    /// it's what player/NPC feet line up against and is the source of truth for item drop landing positions.
+    /// Returns <see cref="float.NaN"/> when no floor collider is wired so callers can fall back to their own logic.
+    /// </summary>
+    public float FloorTopWorldY => floorCollider ? floorCollider.bounds.max.y : float.NaN;
+
     private enum RectEdge
     {
         Top,
@@ -120,6 +146,7 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
 
     private void OnEnable()
     {
+        s_active = this;
         CacheReferences();
         ResetLatchAndSmooth();
         SnapshotScreenAndSourceFingerprint();
@@ -128,6 +155,8 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
 
     private void OnDisable()
     {
+        if (s_active == this)
+            s_active = null;
         _appliedOncePlaying = false;
     }
 

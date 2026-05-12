@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
   enemyId: enemy_archer
   displayName: Archer
+  isBossEnemy: 0
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
@@ -28,13 +29,13 @@ MonoBehaviour:
   physBlockChance: 0
   flatGuard: 0
   maxGuardPercent: 0
-  minPhysicalDamage: 28
-  maxPhysicalDamage: 35
+  minPhysicalDamage: 14
+  maxPhysicalDamage: 24
   minMagicDamage: 0
   maxMagicDamage: 0
   minCorruptionDamage: 0
   maxCorruptionDamage: 0
-  attackSpeed: 0.3
+  attackSpeed: 0.2
   moveSpeed: 2
   attackRange: 8
   critChance: 0
@@ -44,7 +45,7 @@ MonoBehaviour:
   manaRegenPerSecond: 1
   abilityPower: 0
   lifeSteal: 0
-  bleedChance: 0.5
+  bleedChance: 0.3
   bleedMultiplier: 0
   bleedDuration: 5
   poisonChance: 0

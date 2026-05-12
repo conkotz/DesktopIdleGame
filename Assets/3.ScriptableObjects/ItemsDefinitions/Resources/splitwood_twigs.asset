@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: bird_nest
+  m_Name: splitwood_twigs
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 5
-  maxStack: 10
-  itemId: bird_nest
-  displayName: Bird Nest
+  maxStack: 1000
+  itemId: splitwood_twigs
+  displayName: Splitwood Twigs
   displayNameSingular: 
-  icon: {fileID: -7668465502577052253, guid: 8182a66981d5b604bbf01b2be346ac61, type: 3}
+  icon: {fileID: 1061867769818082898, guid: 81cee94b93f5e99408eec78295015314, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A bird nest fallen from a tree.
-  rarity: 1
-  value: 3
+  description: Small twigs from a Splitwood tree
+  rarity: 0
+  value: 0
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -153,30 +153,10 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
-    openRequiredAmount: 1
+    openRequiredAmount: 5
     openableLoot:
-    - itemId: feather
-      chancePercent: 100
-      minAmount: 5
-      maxAmount: 15
     - itemId: splitwood_log
-      chancePercent: 20
-      minAmount: 1
-      maxAmount: 1
-    - itemId: leather
-      chancePercent: 15
-      minAmount: 1
-      maxAmount: 1
-    - itemId: gem_sapphire
-      chancePercent: 5
-      minAmount: 1
-      maxAmount: 1
-    - itemId: gem_emerald
-      chancePercent: 4
-      minAmount: 1
-      maxAmount: 1
-    - itemId: gem_ruby
-      chancePercent: 3
+      chancePercent: 100
       minAmount: 1
       maxAmount: 1
   enhancementScrollStats:

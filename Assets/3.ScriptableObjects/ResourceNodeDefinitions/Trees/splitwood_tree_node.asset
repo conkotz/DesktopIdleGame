@@ -30,6 +30,10 @@ MonoBehaviour:
     chance: 0.03
     amountMin: 1
     amountMax: 1
+  - item: {fileID: 11400000, guid: 2614107398a180b40a79a3d830b8bf55, type: 2}
+    chance: 0.1
+    amountMin: 1
+    amountMax: 3
   hiddenDrops:
   - item: {fileID: 11400000, guid: 1b5992d9e7642894e86332337394a6d5, type: 2}
     chance: 0

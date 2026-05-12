@@ -518,7 +518,14 @@ public class InventorySlotUI : MonoBehaviour,
         if (slot.IsEmpty || slot.amount <= 0)
             return;
 
-        // Empty table or a roll that produced nothing: don't silently delete the player's item.
+        int required = Mathf.Max(1, def.OpenRequiredAmount);
+        if (slot.amount < required)
+        {
+            GameLog.Add($"You need {required} {def.displayName} to open one ({slot.amount}/{required}).");
+            return;
+        }
+
+        // Empty table or a roll that produced nothing: don't silently delete the player's items.
         var rolled = def.RollOpenableLoot();
         if (rolled == null || rolled.Count == 0)
         {
@@ -526,7 +533,7 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
-        if (_inventory.RemoveAmountAtSlot(_slotIndex, 1) != 1)
+        if (_inventory.RemoveAmountAtSlot(_slotIndex, required) != required)
             return;
 
         // Use the opened item's display name as the loot source so the Tracker rolls everything from one open under

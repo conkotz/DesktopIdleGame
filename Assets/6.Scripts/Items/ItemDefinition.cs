@@ -571,6 +571,12 @@ public struct ConsumableStats
     public ConsumableGrantedEffect grantedEffect;
 
     [Header("Openable Loot Table (Consumable Type = Openable)")]
+    [Min(1)]
+    [Tooltip(
+        "Minimum amount of this item required in the stack to open it. " +
+        "When opened, that many will be consumed in one go (e.g. 5 Shards → 1 open consumes 5).")]
+    public int openRequiredAmount;
+
     [Tooltip(
         "Items that can be obtained when the player double-clicks this item to open it. " +
         "Each entry rolls independently using its own % chance.")]
@@ -1136,6 +1142,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             : System.Array.Empty<OpenableLootEntry>();
 
     /// <summary>
+    /// Minimum amount of this Openable item the player must have in a stack to open it (and the amount
+    /// consumed per open). Clamped to ≥ 1 so legacy/zero-initialised assets behave like classic single-open items.
+    /// </summary>
+    public int OpenRequiredAmount =>
+        IsOpenable ? Mathf.Max(1, consumableStats.openRequiredAmount) : 1;
+
+    /// <summary>
     /// Rolls each entry in <see cref="OpenableLootEntries"/> independently. Returns the list of (itemId, amount)
     /// rewards to grant. Empty list when no entries roll (player can still open the item — it just gives nothing).
     /// </summary>
@@ -1626,10 +1639,17 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             if (IsOpenable)
             {
+                int required = OpenRequiredAmount;
+                if (required > 1)
+                    s += $"\nRequires {required} to open";
+
                 string contents = BuildOpenableLootTooltipLines();
                 if (!string.IsNullOrEmpty(contents))
                     s += "\nContains:\n" + contents;
-                s += "\n<i>Double-click to open</i>";
+
+                s += required > 1
+                    ? $"\n<i>Double-click to open ({required} consumed)</i>"
+                    : "\n<i>Double-click to open</i>";
             }
 
             if (CanCook())

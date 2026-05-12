@@ -630,6 +630,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty consumeOnUse = consumableStats.FindPropertyRelative("consumeOnUse");
         SerializedProperty grantedEffect = consumableStats.FindPropertyRelative("grantedEffect");
         SerializedProperty openableLoot = consumableStats.FindPropertyRelative("openableLoot");
+        SerializedProperty openRequiredAmount = consumableStats.FindPropertyRelative("openRequiredAmount");
 
         EditorGUILayout.PropertyField(consumableType);
         EditorGUILayout.Space(4);
@@ -663,7 +664,7 @@ public class ItemDefinitionEditor : Editor
         }
         else
         {
-            DrawOpenableLootTable(openableLoot);
+            DrawOpenableLootTable(openableLoot, openRequiredAmount);
         }
 
         EditorGUILayout.HelpBox(
@@ -671,13 +672,30 @@ public class ItemDefinitionEditor : Editor
             "Food: usually instant healing.\n" +
             "Potion: can heal, restore energy, and/or apply a temporary effect.\n" +
             "Openable: double-click the item to open it. Each loot row rolls independently using its own % chance. " +
-            "1 of the source item is always consumed on open.",
+            "Required Amount To Open controls how many copies are consumed per open (e.g. 5 shards → 1 open).",
             MessageType.None
         );
     }
 
-    private static void DrawOpenableLootTable(SerializedProperty openableLoot)
+    private static void DrawOpenableLootTable(SerializedProperty openableLoot, SerializedProperty openRequiredAmount)
     {
+        EditorGUILayout.LabelField("Open Requirements", EditorStyles.boldLabel);
+
+        if (openRequiredAmount != null)
+        {
+            EditorGUILayout.PropertyField(
+                openRequiredAmount,
+                new GUIContent(
+                    "Required Amount To Open",
+                    "Minimum amount in the stack needed to open this item, and the amount consumed each open. " +
+                    "1 behaves like a normal lootbox; e.g. set to 5 for 'combine 5 Shards into a reward'."));
+
+            if (openRequiredAmount.intValue < 1)
+                openRequiredAmount.intValue = 1;
+
+            EditorGUILayout.Space(4);
+        }
+
         EditorGUILayout.LabelField("Loot Table", EditorStyles.boldLabel);
 
         if (openableLoot == null)
@@ -688,9 +706,15 @@ public class ItemDefinitionEditor : Editor
             return;
         }
 
+        int requiredAmount = openRequiredAmount != null ? Mathf.Max(1, openRequiredAmount.intValue) : 1;
+        string requiredAmountLine = requiredAmount > 1
+            ? $"\nThis item requires {requiredAmount} in a stack per open — that many are consumed at once."
+            : string.Empty;
+
         EditorGUILayout.HelpBox(
             "Each row is rolled independently when the player double-clicks the item.\n" +
-            "100% = guaranteed drop, 25% = rolls about 1 in 4 opens. Set Min/Max Amount for a stack range.",
+            "100% = guaranteed drop, 25% = rolls about 1 in 4 opens. Set Min/Max Amount for a stack range." +
+            requiredAmountLine,
             MessageType.Info);
 
         for (int i = 0; i < openableLoot.arraySize; i++)

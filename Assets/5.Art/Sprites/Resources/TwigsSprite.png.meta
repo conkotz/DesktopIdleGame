@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 97939027f09f16f46803f596e8ed70d9
+guid: 81cee94b93f5e99408eec78295015314
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -797834251415590911
-    second: LinenSprite_0
+      213: 1061867769818082898
+    second: TwigsSprite_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -51,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 900
+  spritePixelsToUnits: 850
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -75,7 +75,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: LinenSprite_0
+      name: TwigsSprite_0
       rect:
         serializedVersion: 2
-        x: 410
-        y: 254
-        width: 781
-        height: 577
+        x: 156
+        y: 371
+        width: 717
+        height: 352
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 108ebb6b9f58de4f0800000000000000
-      internalID: -797834251415590911
+      spriteID: 25e61725c138cbe00800000000000000
+      internalID: 1061867769818082898
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 36f9cc3d4bfc07145bc00a3a614a5e40
+    spriteID: 907e5c12aa0d978488da0082f066a3b3
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      LinenSprite_0: -797834251415590911
+      TwigsSprite_0: 1061867769818082898
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
