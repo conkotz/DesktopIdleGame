@@ -622,21 +622,47 @@ public class UnitOverheadUI : MonoBehaviour
         ApplyOverheadNumericLabelPreference();
     }
 
+    /// <summary>
+    /// Tiny anti-flicker tolerance (viewport units) so overhead UI doesn't pop on/off for floating-point jitter at the edge.
+    /// Kept very small on purpose — anything larger leaks UI into the desktop area below/above the strip.
+    /// </summary>
+    private const float OverheadViewportEdgeAntiFlickerMargin = 0.01f;
+
     private static bool IsOverheadWorldPointVisible(Camera cam, Vector3 worldPos, Vector3 screenPos)
     {
         if (cam == null)
             return screenPos.z > 0f;
 
+        // Strict-clip overhead UI to the strip camera's viewport so HP bars / nameplates can never draw outside the
+        // strip (e.g. into the transparent desktop area when the window covers the whole monitor and the strip is in
+        // the upper half of the screen). Previously this allowed a 20%-of-viewport overhang in every direction.
         if (cam.orthographic)
         {
             Vector3 vp = cam.WorldToViewportPoint(worldPos);
             if (vp.z < 0f)
                 return false;
-            const float margin = 0.2f;
-            return vp.x >= -margin && vp.x <= 1f + margin && vp.y >= -margin && vp.y <= 1f + margin;
+
+            float m = OverheadViewportEdgeAntiFlickerMargin;
+            if (vp.x < -m || vp.x > 1f + m || vp.y < -m || vp.y > 1f + m)
+                return false;
+        }
+        else if (screenPos.z <= 0f)
+        {
+            return false;
         }
 
-        return screenPos.z > 0f;
+        // Pixel-rect sanity check: the projected screen position must fall inside the strip camera's render area on
+        // the screen. This catches setups where the strip camera has a custom viewport rect (most of this game) and
+        // a tiny viewport-units margin would still land outside the strip in canvas pixels.
+        Rect pr = cam.pixelRect;
+        if (pr.width <= 0f || pr.height <= 0f)
+            return true;
+
+        float pixelMargin = Mathf.Max(pr.width, pr.height) * OverheadViewportEdgeAntiFlickerMargin;
+        return screenPos.x >= pr.xMin - pixelMargin &&
+               screenPos.x <= pr.xMax + pixelMargin &&
+               screenPos.y >= pr.yMin - pixelMargin &&
+               screenPos.y <= pr.yMax + pixelMargin;
     }
 
     private void ComputeBaseAnchoredAndVisibility()

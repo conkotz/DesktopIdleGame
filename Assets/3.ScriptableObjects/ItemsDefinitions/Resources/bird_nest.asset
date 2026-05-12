@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
   m_Name: bird_nest
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 0
+  itemKind: 5
   maxStack: 10
   itemId: bird_nest
   displayName: Bird Nest
@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: A bird nest fallen from a tree.
   rarity: 1
-  value: 80
+  value: 3
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -143,7 +143,7 @@ MonoBehaviour:
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
-    consumableType: 0
+    consumableType: 3
     healAmount: 0
     energyAmount: 0
     cooldownSeconds: 0
@@ -153,6 +153,27 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    openableLoot:
+    - itemId: leather
+      chancePercent: 15
+      minAmount: 1
+      maxAmount: 1
+    - itemId: splitwood_log
+      chancePercent: 20
+      minAmount: 1
+      maxAmount: 1
+    - itemId: gem_sapphire
+      chancePercent: 10
+      minAmount: 1
+      maxAmount: 1
+    - itemId: gem_ruby
+      chancePercent: 5
+      minAmount: 1
+      maxAmount: 1
+    - itemId: feather
+      chancePercent: 100
+      minAmount: 5
+      maxAmount: 15
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: splitwood_log
+  m_Name: hardwood_arrow
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 0
-  maxStack: 999
-  itemId: splitwood_log
-  displayName: Splitwood Logs
-  displayNameSingular: Splitwood Log
-  icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
+  itemKind: 7
+  maxStack: 99999
+  itemId: hardwood_arrow
+  displayName: Hardwood Arrows
+  displayNameSingular: 
+  icon: {fileID: 21300128, guid: 15b2d2faaecad4bfb9edc6585d94f509, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,16 +25,16 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A splitwood log
-  rarity: 0
-  value: 4
-  equipSlot: 0
+  description: A hardwood arrow
+  rarity: 1
+  value: 80
+  equipSlot: 2
   handVisualKey: 0
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   weaponStats:
-    minPhysicalDamage: 0
-    maxPhysicalDamage: 0
+    minPhysicalDamage: 25
+    maxPhysicalDamage: 30
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 0
@@ -45,12 +45,12 @@ MonoBehaviour:
     legacyMaxMagicDamage: 0
     minCorruptionDamage: 0
     maxCorruptionDamage: 0
-    attacksPerSecond: 0
-    critChance: 0
-    critMultiplier: 0
-    handedness: 0
-    attackRange: 0
-    attackSkill: 0
+    attacksPerSecond: 0.2
+    critChance: 0.05
+    critMultiplier: 1.5
+    handedness: 1
+    attackRange: 8
+    attackSkill: 1
     mainHandArchetype: 0
     rangedBowType: 0
     magicAttackType: 0
@@ -62,12 +62,12 @@ MonoBehaviour:
     requiredSupportType: 0
     equipmentTier: 0
   combatSupportStats:
-    supportType: 0
+    supportType: 1
     requiredMainHandArchetype: 0
-    bonusPhysicalDamage: 0
+    bonusPhysicalDamage: 6
     bonusMagicDamage: 0
     bonusCorruptionDamage: 0
-    critChanceBonus: 0
+    critChanceBonus: 0.05
     critMultiplierBonus: 0
     attackSpeedPercent: 0
     physicalDamagePercent: 0
@@ -78,8 +78,8 @@ MonoBehaviour:
     iceDamagePercent: 0
     coldDamagePercent: 0
     corruptionDamagePercent: 0
-    consumableOnAttack: 0
-    consumeAmountPerAttack: 0
+    consumableOnAttack: 1
+    consumeAmountPerAttack: 1
   toolStats:
     toolType: 0
     equipmentTier: 0

@@ -15,12 +15,12 @@ MonoBehaviour:
   items:
   - itemId: splitwood_arrow
     costs:
-    - type: 0
-      amount: 5
-      itemId: 
     - type: 1
       amount: 1
       itemId: splitwood_log
+    - type: 1
+      amount: 3
+      itemId: feather
     defaultQuantity: -1
   - itemId: splitwood_swiftbow
     costs:

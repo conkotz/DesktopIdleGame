@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: A stone chunk
   rarity: 0
-  value: 15
+  value: 18
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -51,6 +51,7 @@ MonoBehaviour:
     handedness: 0
     attackRange: 0
     attackSkill: 0
+    mainHandArchetype: 0
     rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
@@ -62,6 +63,7 @@ MonoBehaviour:
     equipmentTier: 0
   combatSupportStats:
     supportType: 0
+    requiredMainHandArchetype: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
     bonusCorruptionDamage: 0
@@ -151,6 +153,7 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    openableLoot: []
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

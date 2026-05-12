@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: A vial filled with a toxic substance
   rarity: 1
-  value: 40
+  value: 60
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -153,6 +153,7 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    openableLoot: []
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

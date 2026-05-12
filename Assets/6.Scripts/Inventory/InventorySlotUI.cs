@@ -480,12 +480,71 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
+        if (def.IsOpenable && slot.amount > 0)
+        {
+            TryOpenItemAtSlot(def);
+            return;
+        }
+
         if ((def.IsFood || def.IsPotion) && slot.amount > 0)
         {
             ActionBarUI actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
             if (actionBar != null && actionBar.TryMoveConsumableFromInventorySlot(_slotIndex, slot.amount))
                 return;
         }
+    }
+
+    /// <summary>
+    /// Opens one of an <see cref="ConsumableType.Openable"/> item from this slot: rolls the loot table and grants
+    /// the rewards into the inventory. Always consumes exactly 1 of the source item.
+    ///
+    /// Safety: only consumes the source if at least one reward will be added (an empty roll on an empty table is
+    /// otherwise pointless and silently destroys the item). Rolls are independent — see
+    /// <see cref="ItemDefinition.RollOpenableLoot"/>.
+    ///
+    /// Tracker: every successful reward is registered with <see cref="SessionTrackerData.RegisterLootGain"/> using
+    /// the source item's <see cref="ItemDefinition.displayName"/> as the source label, so the Tracker window's
+    /// gold section groups the rewards under the opened item (e.g. "Bird Nest → Feather x10, Leather x1").
+    /// </summary>
+    private void TryOpenItemAtSlot(ItemDefinition def)
+    {
+        if (def == null || _inventory == null)
+            return;
+
+        if (!def.IsOpenable)
+            return;
+
+        var slot = _inventory.GetSlot(_slotIndex);
+        if (slot.IsEmpty || slot.amount <= 0)
+            return;
+
+        // Empty table or a roll that produced nothing: don't silently delete the player's item.
+        var rolled = def.RollOpenableLoot();
+        if (rolled == null || rolled.Count == 0)
+        {
+            GameLog.Add($"{def.displayName} contained nothing this time.");
+            return;
+        }
+
+        if (_inventory.RemoveAmountAtSlot(_slotIndex, 1) != 1)
+            return;
+
+        // Use the opened item's display name as the loot source so the Tracker rolls everything from one open under
+        // a single row (e.g. "Bird Nest"). Fall back to itemId only when the displayName field is empty.
+        string trackerSource = !string.IsNullOrWhiteSpace(def.displayName) ? def.displayName : def.itemId;
+        SessionTrackerData tracker = SessionTrackerData.EnsureInstance();
+
+        for (int i = 0; i < rolled.Count; i++)
+        {
+            (string itemId, int amount) reward = rolled[i];
+            if (string.IsNullOrWhiteSpace(reward.itemId) || reward.amount <= 0)
+                continue;
+
+            _inventory.Add(reward.itemId, reward.amount);
+            tracker?.RegisterLootGain(trackerSource, reward.itemId, reward.amount);
+        }
+
+        _tooltip?.Hide();
     }
 
     public void SetTooltipDocking(

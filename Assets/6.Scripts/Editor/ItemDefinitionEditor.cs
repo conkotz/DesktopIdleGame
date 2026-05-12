@@ -629,33 +629,157 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty cooldownSeconds = consumableStats.FindPropertyRelative("cooldownSeconds");
         SerializedProperty consumeOnUse = consumableStats.FindPropertyRelative("consumeOnUse");
         SerializedProperty grantedEffect = consumableStats.FindPropertyRelative("grantedEffect");
+        SerializedProperty openableLoot = consumableStats.FindPropertyRelative("openableLoot");
 
         EditorGUILayout.PropertyField(consumableType);
         EditorGUILayout.Space(4);
 
-        EditorGUILayout.LabelField("Use", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(healAmount);
-        EditorGUILayout.PropertyField(energyAmount);
-        EditorGUILayout.PropertyField(cooldownSeconds);
-        EditorGUILayout.PropertyField(consumeOnUse);
+        ConsumableType selectedType = consumableType != null
+            ? (ConsumableType)consumableType.enumValueIndex
+            : ConsumableType.None;
 
-        if (healAmount != null && healAmount.intValue < 0) healAmount.intValue = 0;
-        if (energyAmount != null && energyAmount.intValue < 0) energyAmount.intValue = 0;
-        if (cooldownSeconds != null && cooldownSeconds.floatValue < 0f) cooldownSeconds.floatValue = 0f;
+        bool isOpenable = selectedType == ConsumableType.Openable;
 
-        if (consumableType != null && (ConsumableType)consumableType.enumValueIndex == ConsumableType.Potion)
+        // Heal / Energy / Granted Effect only matter for Food / Potion. Hiding them on Openable keeps the
+        // inspector focused on the loot table for that mode.
+        if (!isOpenable)
         {
-            EditorGUILayout.Space(6);
-            EditorGUILayout.LabelField("Granted Effect", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(grantedEffect, includeChildren: true);
+            EditorGUILayout.LabelField("Use", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(healAmount);
+            EditorGUILayout.PropertyField(energyAmount);
+            EditorGUILayout.PropertyField(cooldownSeconds);
+            EditorGUILayout.PropertyField(consumeOnUse);
+
+            if (healAmount != null && healAmount.intValue < 0) healAmount.intValue = 0;
+            if (energyAmount != null && energyAmount.intValue < 0) energyAmount.intValue = 0;
+            if (cooldownSeconds != null && cooldownSeconds.floatValue < 0f) cooldownSeconds.floatValue = 0f;
+
+            if (selectedType == ConsumableType.Potion)
+            {
+                EditorGUILayout.Space(6);
+                EditorGUILayout.LabelField("Granted Effect", EditorStyles.boldLabel);
+                EditorGUILayout.PropertyField(grantedEffect, includeChildren: true);
+            }
+        }
+        else
+        {
+            DrawOpenableLootTable(openableLoot);
         }
 
         EditorGUILayout.HelpBox(
             "Consumables can be assigned to the action bar and used by hotkey.\n\n" +
             "Food: usually instant healing.\n" +
-            "Potion: can heal, restore energy, and/or apply a temporary effect.",
+            "Potion: can heal, restore energy, and/or apply a temporary effect.\n" +
+            "Openable: double-click the item to open it. Each loot row rolls independently using its own % chance. " +
+            "1 of the source item is always consumed on open.",
             MessageType.None
         );
+    }
+
+    private static void DrawOpenableLootTable(SerializedProperty openableLoot)
+    {
+        EditorGUILayout.LabelField("Loot Table", EditorStyles.boldLabel);
+
+        if (openableLoot == null)
+        {
+            EditorGUILayout.HelpBox(
+                "openableLoot property missing — re-import the script.",
+                MessageType.Error);
+            return;
+        }
+
+        EditorGUILayout.HelpBox(
+            "Each row is rolled independently when the player double-clicks the item.\n" +
+            "100% = guaranteed drop, 25% = rolls about 1 in 4 opens. Set Min/Max Amount for a stack range.",
+            MessageType.Info);
+
+        for (int i = 0; i < openableLoot.arraySize; i++)
+        {
+            SerializedProperty entry = openableLoot.GetArrayElementAtIndex(i);
+            SerializedProperty itemId = entry.FindPropertyRelative("itemId");
+            SerializedProperty chancePercent = entry.FindPropertyRelative("chancePercent");
+            SerializedProperty minAmount = entry.FindPropertyRelative("minAmount");
+            SerializedProperty maxAmount = entry.FindPropertyRelative("maxAmount");
+
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    EditorGUILayout.LabelField($"Drop #{i + 1}", EditorStyles.miniBoldLabel, GUILayout.Width(60f));
+                    EditorGUILayout.LabelField(BuildOpenableRowPreview(itemId, chancePercent, minAmount, maxAmount), EditorStyles.miniLabel);
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button("✕", GUILayout.Width(22f)))
+                    {
+                        openableLoot.DeleteArrayElementAtIndex(i);
+                        return;
+                    }
+                }
+
+                EditorGUILayout.PropertyField(itemId, new GUIContent("Item ID"));
+                EditorGUILayout.PropertyField(chancePercent, new GUIContent("Chance %"));
+                EditorGUILayout.PropertyField(
+                    minAmount,
+                    new GUIContent("Min Amount", "Lowest quantity granted when this row rolls. Increase to drop multiple of this item per open."));
+                EditorGUILayout.PropertyField(
+                    maxAmount,
+                    new GUIContent("Max Amount", "Highest quantity granted when this row rolls. Set equal to Min for a fixed amount."));
+
+                if (chancePercent != null)
+                    chancePercent.floatValue = Mathf.Clamp(chancePercent.floatValue, 0f, 100f);
+                if (minAmount != null && minAmount.intValue < 1)
+                    minAmount.intValue = 1;
+                if (maxAmount != null && minAmount != null && maxAmount.intValue < minAmount.intValue)
+                    maxAmount.intValue = minAmount.intValue;
+
+                if (itemId != null && string.IsNullOrWhiteSpace(itemId.stringValue))
+                {
+                    EditorGUILayout.HelpBox(
+                        "Item ID is empty — this row will be skipped at runtime.",
+                        MessageType.Warning);
+                }
+            }
+
+            EditorGUILayout.Space(2);
+        }
+
+        if (GUILayout.Button("+ Add Drop"))
+        {
+            int newIndex = openableLoot.arraySize;
+            openableLoot.InsertArrayElementAtIndex(newIndex);
+            SerializedProperty added = openableLoot.GetArrayElementAtIndex(newIndex);
+            SerializedProperty addedItemId = added.FindPropertyRelative("itemId");
+            SerializedProperty addedChance = added.FindPropertyRelative("chancePercent");
+            SerializedProperty addedMin = added.FindPropertyRelative("minAmount");
+            SerializedProperty addedMax = added.FindPropertyRelative("maxAmount");
+            if (addedItemId != null) addedItemId.stringValue = string.Empty;
+            if (addedChance != null) addedChance.floatValue = 100f;
+            if (addedMin != null) addedMin.intValue = 1;
+            if (addedMax != null) addedMax.intValue = 1;
+        }
+    }
+
+    /// <summary>
+    /// Compact at-a-glance summary of a loot row drawn next to the "Drop #N" header. Helps see whether each row
+    /// produces a single item or a stack range, and at what % chance — without having to open every row.
+    /// </summary>
+    private static string BuildOpenableRowPreview(
+        SerializedProperty itemId,
+        SerializedProperty chancePercent,
+        SerializedProperty minAmount,
+        SerializedProperty maxAmount)
+    {
+        string id = itemId != null ? itemId.stringValue : string.Empty;
+        if (string.IsNullOrWhiteSpace(id))
+            id = "(no item)";
+
+        int lo = minAmount != null ? Mathf.Max(1, minAmount.intValue) : 1;
+        int hi = maxAmount != null ? Mathf.Max(lo, maxAmount.intValue) : lo;
+        float pct = chancePercent != null ? Mathf.Clamp(chancePercent.floatValue, 0f, 100f) : 100f;
+
+        string amountText = lo == hi ? (lo > 1 ? $" ×{lo}" : string.Empty) : $" ×{lo}-{hi}";
+        string chanceText = pct >= 99.9999f ? "100%" : $"{pct:0.#}%";
+
+        return $"→ {id}{amountText} @ {chanceText}";
     }
 
     private void DrawEnhancementScrollStatsBlock()

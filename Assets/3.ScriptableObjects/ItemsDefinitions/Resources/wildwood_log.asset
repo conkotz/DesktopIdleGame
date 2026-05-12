@@ -27,7 +27,7 @@ MonoBehaviour:
   equippedFlipY: 0
   description: A wildwood log
   rarity: 0
-  value: 90
+  value: 150
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -153,6 +153,7 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    openableLoot: []
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

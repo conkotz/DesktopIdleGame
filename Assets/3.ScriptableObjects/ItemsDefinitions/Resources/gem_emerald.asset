@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: splitwood_log
+  m_Name: gem_emerald
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 0
-  maxStack: 999
-  itemId: splitwood_log
-  displayName: Splitwood Logs
-  displayNameSingular: Splitwood Log
-  icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
+  maxStack: 99
+  itemId: gem_emerald
+  displayName: Ruby
+  displayNameSingular: 
+  icon: {fileID: -1553732255, guid: e7eb9518e7794b440a01e1f3a363f17d, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A splitwood log
-  rarity: 0
-  value: 4
+  description: A sapphire gem. Obtained with a small chance from mining stone chunks.
+  rarity: 1
+  value: 300
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0

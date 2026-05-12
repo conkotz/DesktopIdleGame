@@ -1,0 +1,402 @@
+fileFormatVersion: 2
+guid: 7e1d2abd68aea814a8566eae964bd28c
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -6945001556013784561
+    second: GemSpriteSheet_0
+  - first:
+      213: -7534516496587888937
+    second: GemSpriteSheet_1
+  - first:
+      213: -2176379822362671368
+    second: GemSpriteSheet_2
+  - first:
+      213: 296317598895340505
+    second: GemSpriteSheet_3
+  - first:
+      213: -8415265752551835511
+    second: GemSpriteSheet_4
+  - first:
+      213: 5074798424891137574
+    second: GemSpriteSheet_5
+  - first:
+      213: 3786729618274709733
+    second: GemSpriteSheet_6
+  - first:
+      213: 1573605905543863225
+    second: GemSpriteSheet_7
+  - first:
+      213: 7922862648527838064
+    second: GemSpriteSheet_8
+  - first:
+      213: 6824777452842450503
+    second: GemSpriteSheet_9
+  - first:
+      213: -9217452676276758142
+    second: GemSpriteSheet_10
+  - first:
+      213: -4981822539528456497
+    second: GemSpriteSheet_11
+  - first:
+      213: -2505368484471983071
+    second: GemSpriteSheet_12
+  - first:
+      213: -7431782514694483420
+    second: GemSpriteSheet_13
+  - first:
+      213: 6368701462343944410
+    second: GemSpriteSheet_14
+  - first:
+      213: -6898738118386293288
+    second: GemSpriteSheet_15
+  - first:
+      213: -3857669753791819927
+    second: GemSpriteSheet_16
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 0
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 450
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: GemSpriteSheet_0
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 543
+        width: 312
+        height: 320
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d245006285a57d34bb1bff4a9e237ac5
+      internalID: -6945001556013784561
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GemSpriteSheet_1
+      rect:
+        serializedVersion: 2
+        x: 341
+        y: 548
+        width: 309
+        height: 320
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e8237fa467cba774abd4eb0497df355b
+      internalID: -7534516496587888937
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GemSpriteSheet_2
+      rect:
+        serializedVersion: 2
+        x: 627
+        y: 547
+        width: 312
+        height: 320
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0545e150c2f92234fa872aa6a2b2c16a
+      internalID: -2176379822362671368
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GemSpriteSheet_3
+      rect:
+        serializedVersion: 2
+        x: 922
+        y: 550
+        width: 309
+        height: 320
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e7ebd2f4529915f4198d1eb6beff46c5
+      internalID: 296317598895340505
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GemSpriteSheet_4
+      rect:
+        serializedVersion: 2
+        x: 1214
+        y: 190
+        width: 320
+        height: 320
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: da8a84fabe522b94aaa95bb972f5c566
+      internalID: -8415265752551835511
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GemSpriteSheet_7
+      rect:
+        serializedVersion: 2
+        x: 1210
+        y: 556
+        width: 320
+        height: 320
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e1036a60e80402745815f8f1051c3e6d
+      internalID: 1573605905543863225
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GemSpriteSheet_8
+      rect:
+        serializedVersion: 2
+        x: 36
+        y: 193
+        width: 320
+        height: 320
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 03aff9f329e87ae4c814a9bc84f7df7e
+      internalID: 7922862648527838064
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GemSpriteSheet_9
+      rect:
+        serializedVersion: 2
+        x: 342
+        y: 196
+        width: 308
+        height: 320
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3d09432bb6c0ba944ba6e785e52e237c
+      internalID: 6824777452842450503
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GemSpriteSheet_10
+      rect:
+        serializedVersion: 2
+        x: 626
+        y: 216
+        width: 312
+        height: 320
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ec9326fe5f707fa44bd1b73a8588c4ba
+      internalID: -9217452676276758142
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GemSpriteSheet_11
+      rect:
+        serializedVersion: 2
+        x: 920
+        y: 206
+        width: 308
+        height: 320
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ba9c5a9480387394197cab5dfbcb2ea3
+      internalID: -4981822539528456497
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: cdffdf3b3f0f6e2448d9e34e6fd95d77
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":320.0,"y":320.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      GemSpriteSheet_0: -6945001556013784561
+      GemSpriteSheet_1: -7534516496587888937
+      GemSpriteSheet_10: -9217452676276758142
+      GemSpriteSheet_11: -4981822539528456497
+      GemSpriteSheet_2: -2176379822362671368
+      GemSpriteSheet_3: 296317598895340505
+      GemSpriteSheet_4: -8415265752551835511
+      GemSpriteSheet_5: 5074798424891137574
+      GemSpriteSheet_6: 3786729618274709733
+      GemSpriteSheet_7: 1573605905543863225
+      GemSpriteSheet_8: 7922862648527838064
+      GemSpriteSheet_9: 6824777452842450503
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

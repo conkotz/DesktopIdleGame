@@ -473,7 +473,38 @@ public enum ConsumableType
 {
     None,
     Food,
-    Potion
+    Potion,
+
+    /// <summary>
+    /// "Loot bag" / lootbox-style item. Double-clicking the item in the inventory rolls each entry in
+    /// <see cref="ConsumableStats.openableLoot"/> independently and grants the resulting items.
+    /// Always consumes 1 of the source item on use (regardless of <see cref="ConsumableStats.consumeOnUse"/>).
+    /// </summary>
+    Openable
+}
+
+/// <summary>
+/// One reward row for an <see cref="ConsumableType.Openable"/> item. Each entry rolls independently — a 100%
+/// row is guaranteed, a 25% row drops about a quarter of the time, and any combination of entries can hit on a
+/// single open.
+/// </summary>
+[System.Serializable]
+public struct OpenableLootEntry
+{
+    [Tooltip("Item ID to grant. Must exist in the ItemDatabase used by the Inventory.")]
+    public string itemId;
+
+    [Range(0f, 100f)]
+    [Tooltip("Independent roll chance in percent (0–100). 100 = always drops, 25 = ~1 in 4 opens.")]
+    public float chancePercent;
+
+    [Min(1)]
+    [Tooltip("Minimum amount granted when the entry rolls successfully. Defaults to 1.")]
+    public int minAmount;
+
+    [Min(1)]
+    [Tooltip("Maximum amount granted when the entry rolls successfully. Must be ≥ Min Amount.")]
+    public int maxAmount;
 }
 
 public enum ConsumableEffectType
@@ -538,6 +569,12 @@ public struct ConsumableStats
 
     [Header("Potion Effect")]
     public ConsumableGrantedEffect grantedEffect;
+
+    [Header("Openable Loot Table (Consumable Type = Openable)")]
+    [Tooltip(
+        "Items that can be obtained when the player double-clicks this item to open it. " +
+        "Each entry rolls independently using its own % chance.")]
+    public OpenableLootEntry[] openableLoot;
 }
 
 public enum EnhancementScrollTargetStat
@@ -1088,6 +1125,51 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public bool IsPotion =>
         IsConsumable && consumableStats.consumableType == ConsumableType.Potion;
 
+    /// <summary>True when this is an Openable consumable (loot-bag / lootbox style). See <see cref="ConsumableType.Openable"/>.</summary>
+    public bool IsOpenable =>
+        IsConsumable && consumableStats.consumableType == ConsumableType.Openable;
+
+    /// <summary>Configured loot table for an Openable item. Always non-null; empty for non-openables.</summary>
+    public OpenableLootEntry[] OpenableLootEntries =>
+        IsOpenable && consumableStats.openableLoot != null
+            ? consumableStats.openableLoot
+            : System.Array.Empty<OpenableLootEntry>();
+
+    /// <summary>
+    /// Rolls each entry in <see cref="OpenableLootEntries"/> independently. Returns the list of (itemId, amount)
+    /// rewards to grant. Empty list when no entries roll (player can still open the item — it just gives nothing).
+    /// </summary>
+    public System.Collections.Generic.List<(string itemId, int amount)> RollOpenableLoot()
+    {
+        var result = new System.Collections.Generic.List<(string itemId, int amount)>();
+
+        OpenableLootEntry[] entries = OpenableLootEntries;
+        if (entries.Length == 0)
+            return result;
+
+        for (int i = 0; i < entries.Length; i++)
+        {
+            OpenableLootEntry e = entries[i];
+            if (string.IsNullOrWhiteSpace(e.itemId))
+                continue;
+
+            float chance01 = Mathf.Clamp01(e.chancePercent / 100f);
+            if (chance01 <= 0f)
+                continue;
+
+            if (chance01 < 1f && Random.value > chance01)
+                continue;
+
+            int lo = Mathf.Max(1, e.minAmount);
+            int hi = Mathf.Max(lo, e.maxAmount);
+            int amount = lo == hi ? lo : Random.Range(lo, hi + 1);
+
+            result.Add((e.itemId.Trim(), amount));
+        }
+
+        return result;
+    }
+
     public float EnhancementScrollSuccessChance =>
         IsEnhancementScroll ? Mathf.Clamp01(enhancementScrollStats.successChance) : 0f;
 
@@ -1542,6 +1624,14 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (HasGrantedEffect)
                 s += $"\nEffect: {ConsumableEffectTooltip.Format(GrantedEffect)}";
 
+            if (IsOpenable)
+            {
+                string contents = BuildOpenableLootTooltipLines();
+                if (!string.IsNullOrEmpty(contents))
+                    s += "\nContains:\n" + contents;
+                s += "\n<i>Double-click to open</i>";
+            }
+
             if (CanCook())
                 s += "\nCookable: Yes";
 
@@ -1776,6 +1866,36 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return $"Enemy respawn: -{EnemyRespawnTimeReductionSeconds:0.#}s";
     }
 
+    /// <summary>Pretty per-row "• Item Name (chance%) ×min-max" listing for Openable item tooltips.</summary>
+    private string BuildOpenableLootTooltipLines()
+    {
+        OpenableLootEntry[] entries = OpenableLootEntries;
+        if (entries.Length == 0)
+            return string.Empty;
+
+        var sb = new System.Text.StringBuilder(64);
+        for (int i = 0; i < entries.Length; i++)
+        {
+            OpenableLootEntry e = entries[i];
+            if (string.IsNullOrWhiteSpace(e.itemId))
+                continue;
+
+            float chance = Mathf.Clamp(e.chancePercent, 0f, 100f);
+            int lo = Mathf.Max(1, e.minAmount);
+            int hi = Mathf.Max(lo, e.maxAmount);
+
+            string label = ItemGainPopupNotifier.ResolveDisplayLabel(e.itemId, hi);
+            string amountSuffix = lo == hi ? (lo > 1 ? $" ×{lo}" : "") : $" ×{lo}-{hi}";
+            string chanceText = chance >= 99.9999f ? "100%" : $"{chance:0.#}%";
+
+            if (sb.Length > 0)
+                sb.Append('\n');
+            sb.Append("• ").Append(label).Append(amountSuffix).Append(" (").Append(chanceText).Append(')');
+        }
+
+        return sb.ToString();
+    }
+
     private string FormatEnhancementScrollModifier()
     {
         if (enhancementScrollStats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
@@ -1952,6 +2072,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             if (UseCooldown > 0f)
                 s += $" • {UseCooldown:0.#}s CD";
+
+            if (IsOpenable)
+                s += $" • {OpenableLootEntries.Length} possible drop{(OpenableLootEntries.Length == 1 ? "" : "s")}";
 
             if (CanCook())
                 s += " • Cookable";

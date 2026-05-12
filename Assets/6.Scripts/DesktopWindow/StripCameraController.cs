@@ -508,12 +508,26 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>
+    /// Strip width / horizontal anchor are intentionally NOT restored from PlayerPrefs.
+    ///
+    /// Every cold load starts the strip at the prefab full-width baseline (typically <c>widthNormalized = 1</c>,
+    /// <c>leftNormalized = 0</c>). The user can still drag the right edge to shrink the strip during a session
+    /// (see <see cref="RightEdgeResizer"/>) and that change persists for the running session, but the next
+    /// launch returns to full width.
+    ///
+    /// Why: <see cref="GetEffectiveMaxOrthoSize"/> records the first observed strip aspect of the session as
+    /// <see cref="_sessionLaneZoomBaselineStripAspect"/> and bakes the lane-fit zoom-out ceiling from that. If
+    /// we restored a narrow saved width, the baseline aspect would be narrow on load and the lane-fit ortho
+    /// ceiling (<c>laneW / (2 × baselineAspect)</c>) would explode — making zoom-out behave wildly compared to
+    /// the prefab-tuned ceiling. Forcing full-width on load anchors that baseline correctly every time.
+    /// </summary>
     private void ApplyRectsFromSaved(SavedStripLayoutV2 s)
     {
         stripHeightPercent = s.stripHeightPercent;
         bottomNormalized = s.bottomNormalized;
-        leftNormalized = s.leftNormalized;
-        widthNormalized = s.widthNormalized;
+        leftNormalized = _prefabLeftNormalized;
+        widthNormalized = _prefabWidthNormalized;
     }
 
     private void SaveLayoutToPrefs(bool forceImmediate)
