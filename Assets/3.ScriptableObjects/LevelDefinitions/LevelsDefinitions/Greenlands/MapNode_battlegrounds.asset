@@ -64,6 +64,19 @@ MonoBehaviour:
       count: 3
       portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
+  - groupId: AllSpawns
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint67
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 8347273920747777605, guid: 1d359e69b63b58e4a94ec38646014fa6, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: battlegrounds_2
+    shuffleSpawnPoints: 0
   requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0

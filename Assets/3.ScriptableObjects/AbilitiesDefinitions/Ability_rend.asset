@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: rend
   displayName: Rend
+  tag: 1
   description: Primes your next hit with guaranteed Bleed and extended duration on
     that application. Exclusive while active.
   icon: {fileID: 4053483496676390279, guid: 23b4c584116042844ac4fd39f7196d9d, type: 3}

@@ -10,6 +10,13 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     [SerializeField] private TMP_Text stackText;
     [SerializeField] private TMP_Text timerText;
 
+    [Header("Active Overlay")]
+    [Tooltip("Optional overlay Image shown on top of the icon while the buff is active. " +
+             "Set Image Type = Filled (e.g. Radial 360) on this Image and the script will drive " +
+             "fillAmount = remaining / total so the wedge sweeps down as the buff expires. " +
+             "Hidden automatically when no duration is provided or the buff has ended.")]
+    [SerializeField] private Image activeOverlay;
+
     [Header("Tooltip")]
     [SerializeField] private SharedTooltipUI tooltip;
     [SerializeField] private RectTransform tooltipMeasureRect;
@@ -20,6 +27,7 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     private string _title;
     private string _body;
     private float _remainingSeconds;
+    private float _totalDurationSeconds;
     private bool _isPointerOver;
     private bool _hasValidData;
 
@@ -34,9 +42,11 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         RectTransform heightRect = null,
         FlipInsideBounds.PreferredSide side = FlipInsideBounds.PreferredSide.Right,
         int stacks = 0,
-        bool showStacks = false)
+        bool showStacks = false,
+        float totalDurationSeconds = 0f)
     {
         _hasValidData = sprite != null;
+        _totalDurationSeconds = Mathf.Max(0f, totalDurationSeconds);
 
         if (iconImage != null)
         {
@@ -95,7 +105,25 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
                 timerText.text = Mathf.CeilToInt(remainingSeconds).ToString();
         }
 
+        RefreshActiveOverlay();
         RefreshHoveredTooltip();
+    }
+
+    private void RefreshActiveOverlay()
+    {
+        if (activeOverlay == null)
+            return;
+
+        bool showOverlay = _totalDurationSeconds > 0f && _remainingSeconds > 0f;
+        activeOverlay.gameObject.SetActive(showOverlay);
+
+        if (!showOverlay)
+            return;
+
+        activeOverlay.raycastTarget = false;
+        float fill = Mathf.Clamp01(_remainingSeconds / _totalDurationSeconds);
+        if (activeOverlay.type == Image.Type.Filled)
+            activeOverlay.fillAmount = fill;
     }
 
     public void OnPointerEnter(PointerEventData eventData)

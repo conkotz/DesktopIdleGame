@@ -5079,7 +5079,7 @@ Transform:
   m_GameObject: {fileID: 4206316379986374380}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.02, y: 1.98, z: 0}
+  m_LocalPosition: {x: 0.02, y: 2.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5435,7 +5435,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: missing tool
+  m_text: XP
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -5444,8 +5444,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 1, g: 0, b: 0, a: 1}
+    rgba: 4294917888
+  m_fontColor: {r: 0, g: 0.24851942, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -6051,6 +6051,7 @@ MonoBehaviour:
   xp: 0
   stats: {fileID: 0}
   player: {fileID: 0}
+  logSuspiciousWorldPositionSaves: 0
 --- !u!114 &7054368553328441414
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6435,7 +6436,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3708798318114857305}
   m_Layer: 10
-  m_Name: ActionPopup
+  m_Name: XpPopup
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

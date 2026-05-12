@@ -27,16 +27,44 @@ public static class AbilityTooltipDamagePreview
     private const int SoulforgedWeaponIndefiniteChoiceIndex = 1;
     private const float SoulforgedWeaponSwarmDurationSeconds = 20f;
 
-    /// <summary>Rich-text tag line for minion summon abilities (prepend above description). Empty if not applicable.</summary>
+    /// <summary>Rich-text tag line for ability category (prepend above description). Empty if not applicable.</summary>
     public static string BuildAbilityTooltipTagLine(AbilityDefinition def, bool orangeMarkup)
     {
-        if (!def || !def.SpawnsMinionOnCast)
+        if (!def)
             return "";
 
-        const string tag = "Minion";
+        string tag = ResolveAbilityTagLabel(def);
+        if (string.IsNullOrEmpty(tag))
+            return "";
+
         return orangeMarkup
             ? $"<color=#FFB347>{tag}</color>"
             : $"<color=#B0C8DD>{tag}</color>";
+    }
+
+    /// <summary>
+    /// Reads the asset-driven <see cref="AbilityDefinition.tag"/>. Untagged assets fall back to
+    /// auto-detection so the historical "Minion" label keeps working until they are tagged manually.
+    /// </summary>
+    private static string ResolveAbilityTagLabel(AbilityDefinition def)
+    {
+        if (!def)
+            return null;
+
+        switch (def.tag)
+        {
+            case AbilityTag.Active:
+                return "Active";
+            case AbilityTag.Minion:
+                return "Minion";
+            case AbilityTag.Buff:
+                return "Buff";
+        }
+
+        // Legacy fallback for assets that haven't been tagged in the inspector yet.
+        if (def.SpawnsMinionOnCast)
+            return "Minion";
+        return null;
     }
 
     public static CharacterStats FindLocalPlayerStats()
@@ -128,6 +156,16 @@ public static class AbilityTooltipDamagePreview
     private static bool IsSoulforgedWeapon(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsLumberFrenzy(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.LumberFrenzyAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
+    private static int GetWoodcuttingSkillRow5Choice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, 5, -1);
+    }
+
     private static int GetMeleeLv15BranchChoice(SkillsManager skillsManager, int slot012)
     {
         if (skillsManager == null)
@@ -186,6 +224,14 @@ public static class AbilityTooltipDamagePreview
 
         var body = new StringBuilder();
         body.AppendLine(O("Effects:"));
+
+        if (IsLumberFrenzy(def))
+        {
+            AppendLumberFrenzyTooltipEffects(body, O, skillsManager);
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"{cooldown:0.#}s Cooldown"));
+            return body.ToString().TrimEnd();
+        }
 
         if (def.SpawnsMinionOnCast && def.minionSpawnDefinition)
         {
@@ -422,6 +468,25 @@ public static class AbilityTooltipDamagePreview
         body.AppendLine(O($"{def.energyCost:0.#} Energy • {cooldown:0.#}s Cooldown"));
 
         return body.ToString().TrimEnd();
+    }
+
+    private static void AppendLumberFrenzyTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager)
+    {
+        const float baseChoppingSpeedPct = 20f;
+        const float baseGritChancePct = 10f;
+        const float sturdyGripStaminaEffPct = 15f;
+        const float ironGritExtraGritPct = 5f;
+
+        int choice = GetWoodcuttingSkillRow5Choice(skillsManager);
+        float gritTotal = baseGritChancePct + (choice == 1 ? ironGritExtraGritPct : 0f);
+
+        body.AppendLine(O($"+{baseChoppingSpeedPct:0.#}% Woodcutting Speed"));
+        body.AppendLine(O($"+{gritTotal:0.#}% Woodcutting Grit Chance"));
+        if (choice == 0)
+            body.AppendLine(O($"+{sturdyGripStaminaEffPct:0.#}% Woodcutting Stamina Efficiency"));
     }
 
     private static void AppendMinionSpawnTooltipEffectsNoStats(

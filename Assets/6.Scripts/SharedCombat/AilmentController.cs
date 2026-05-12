@@ -68,6 +68,40 @@ public class AilmentController : MonoBehaviour
     public int ChillStacks => chillExpireTimes.Count;
     public float ChillSlowPercent => Mathf.Clamp01(GetChillSlowMultiplier()) * 100f;
 
+    /// <summary>Damage the next bleed tick will deal (sum of normal + exclusive bleed). Bleed ticks every 1s, so this is also damage/second.</summary>
+    public int BleedDamagePerSecond
+    {
+        get
+        {
+            int dps = 0;
+            if (bleedTickSchedule.Count > 0) dps += Mathf.Max(0, bleedTickSchedule[0]);
+            if (exclusiveBleedTickSchedule.Count > 0) dps += Mathf.Max(0, exclusiveBleedTickSchedule[0]);
+            return dps;
+        }
+    }
+
+    /// <summary>Total damage all active poison stacks will deal on the next tick (poison ticks every 1s).</summary>
+    public int PoisonDamagePerSecond
+    {
+        get
+        {
+            int dps = 0;
+            for (int i = 0; i < poisonStacks.Count; i++)
+            {
+                PoisonStack s = poisonStacks[i];
+                if (s != null && s.ticksRemaining > 0)
+                    dps += Mathf.Max(1, s.tickDamage);
+            }
+            return dps;
+        }
+    }
+
+    /// <summary>Damage burn will deal each tick (burn ticks every 1s).</summary>
+    public int BurnDamagePerSecond => HasBurn ? Mathf.Max(0, burnDamagePerTick) : 0;
+
+    /// <summary>Extra incoming damage % currently applied by shock (e.g. 25 means +25% damage taken).</summary>
+    public float ShockDamageTakenBonusPercent => HasShock ? Mathf.Max(0f, shockDamageTakenMultiplier) * 100f : 0f;
+
     [System.Serializable]
     private class PoisonStack
     {

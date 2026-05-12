@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
   abilityId: soulforged_weapon
   displayName: Soulforged Weapon
+  tag: 2
   description: 'Summon a soulforged copy of your main-hand weapon to strike at foes.
     This weapon will stay attached to the enemy unless commanded to swap targets
     or return to you if out of enemy range. '

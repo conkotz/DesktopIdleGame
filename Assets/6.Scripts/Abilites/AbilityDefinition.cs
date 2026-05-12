@@ -12,11 +12,25 @@ public enum AbilityWeaponRequirement
     MeleeOrRanged
 }
 
+/// <summary>
+/// High-level ability category displayed as a tag line above the description in tooltips
+/// (e.g. "Active", "Minion", "Buff"). <see cref="None"/> hides the tag line entirely.
+/// </summary>
+public enum AbilityTag
+{
+    None,
+    Active,
+    Minion,
+    Buff
+}
+
 [CreateAssetMenu(fileName = "Ability_", menuName = "Desktop Idle Game/Skills/Ability Definition")]
 public class AbilityDefinition : ScriptableObject
 {
     public string abilityId;
     public string displayName;
+    [Tooltip("High-level category label shown above the tooltip description (e.g. Active / Minion / Buff). None hides the label.")]
+    public AbilityTag tag = AbilityTag.None;
     [TextArea] public string description;
     public Sprite icon;
 

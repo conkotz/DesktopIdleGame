@@ -1,0 +1,368 @@
+fileFormatVersion: 2
+guid: 9e214b7b3fa6ce8419ed88f71a78f6db
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 7833019699177132139
+    second: BasicBuffSpriteSheet_0
+  - first:
+      213: 8345947794045695401
+    second: BasicBuffSpriteSheet_1
+  - first:
+      213: -5093544821362125572
+    second: BasicBuffSpriteSheet_2
+  - first:
+      213: -4334401179991724562
+    second: BasicBuffSpriteSheet_3
+  - first:
+      213: -5656774245818172649
+    second: BasicBuffSpriteSheet_4
+  - first:
+      213: 5949956039026681078
+    second: BasicBuffSpriteSheet_5
+  - first:
+      213: -6220946294094658289
+    second: BasicBuffSpriteSheet_6
+  - first:
+      213: 1321251032597909799
+    second: BasicBuffSpriteSheet_7
+  - first:
+      213: 5260518498809249298
+    second: BasicBuffSpriteSheet_8
+  - first:
+      213: -6755171919330248451
+    second: BasicBuffSpriteSheet_9
+  - first:
+      213: 5492801907210179834
+    second: BasicBuffSpriteSheet_10
+  - first:
+      213: -7912876860707935744
+    second: BasicBuffSpriteSheet_11
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: BasicBuffSpriteSheet_0
+      rect:
+        serializedVersion: 2
+        x: 273
+        y: 715
+        width: 260
+        height: 260
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b6017105ae974bc60800000000000000
+      internalID: 7833019699177132139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BasicBuffSpriteSheet_1
+      rect:
+        serializedVersion: 2
+        x: 614
+        y: 86
+        width: 301
+        height: 277
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9a57c0acc43c2d370800000000000000
+      internalID: 8345947794045695401
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BasicBuffSpriteSheet_2
+      rect:
+        serializedVersion: 2
+        x: 957
+        y: 81
+        width: 287
+        height: 283
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cf41e23c8f71059b0800000000000000
+      internalID: -5093544821362125572
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BasicBuffSpriteSheet_5
+      rect:
+        serializedVersion: 2
+        x: 620
+        y: 716
+        width: 260
+        height: 260
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6f420674e7d729250800000000000000
+      internalID: 5949956039026681078
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BasicBuffSpriteSheet_10
+      rect:
+        serializedVersion: 2
+        x: 270
+        y: 419
+        width: 260
+        height: 260
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af4d9d48b3a5a3c40800000000000000
+      internalID: 5492801907210179834
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BasicBuffSpriteSheet_11
+      rect:
+        serializedVersion: 2
+        x: 626
+        y: 416
+        width: 260
+        height: 260
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 00a681e5b60df2290800000000000000
+      internalID: -7912876860707935744
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BasicBuffSpriteSheet_12
+      rect:
+        serializedVersion: 2
+        x: 969
+        y: 412
+        width: 260
+        height: 260
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b0bf614ef160e7e43a331534899fa570
+      internalID: 1490307791
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BasicBuffSpriteSheet_13
+      rect:
+        serializedVersion: 2
+        x: 256
+        y: 86
+        width: 284
+        height: 270
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7b5d0bb2ff02ff444a320b0781c254ca
+      internalID: 1936486168
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BasicBuffSpriteSheet_14
+      rect:
+        serializedVersion: 2
+        x: 968
+        y: 719
+        width: 260
+        height: 260
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a98b65ceb1cc5df4d99583e7e8a09fe7
+      internalID: 1486886022
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5c396d593e4e94649977401b2fa9f009
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":260.0,"y":260.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      BasicBuffSpriteSheet_0: 7833019699177132139
+      BasicBuffSpriteSheet_1: 8345947794045695401
+      BasicBuffSpriteSheet_10: 5492801907210179834
+      BasicBuffSpriteSheet_11: -7912876860707935744
+      BasicBuffSpriteSheet_12: 1490307791
+      BasicBuffSpriteSheet_13: 1936486168
+      BasicBuffSpriteSheet_14: 1486886022
+      BasicBuffSpriteSheet_2: -5093544821362125572
+      BasicBuffSpriteSheet_3: -4334401179991724562
+      BasicBuffSpriteSheet_4: -5656774245818172649
+      BasicBuffSpriteSheet_5: 5949956039026681078
+      BasicBuffSpriteSheet_6: -6220946294094658289
+      BasicBuffSpriteSheet_7: 1321251032597909799
+      BasicBuffSpriteSheet_8: 5260518498809249298
+      BasicBuffSpriteSheet_9: -6755171919330248451
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

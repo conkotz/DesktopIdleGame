@@ -7,11 +7,6 @@ public class HUDPresenter : MonoBehaviour
     [SerializeField] private CharacterStats stats;
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private PlayerCombatController combat;
-    [SerializeField] private AilmentController ailments;
-    [SerializeField] private PlayerBuffController buffs;
-
-    private float _nextBuffRefreshTime;
-    [SerializeField] private float buffRefreshInterval = 0.2f;
 
     private void Awake()
     {
@@ -30,12 +25,6 @@ public class HUDPresenter : MonoBehaviour
         if (!combat && player)
             combat = player.GetComponent<PlayerCombatController>();
 
-        if (!ailments && player)
-            ailments = player.GetComponent<AilmentController>();
-
-        if (!buffs && player)
-            buffs = player.GetComponent<PlayerBuffController>();
-
         if (!stats)
             stats = FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Include);
 
@@ -44,12 +33,6 @@ public class HUDPresenter : MonoBehaviour
 
         if (!combat)
             combat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
-
-        if (!ailments)
-            ailments = FindFirstObjectByType<AilmentController>(FindObjectsInactive.Include);
-
-        if (!buffs)
-            buffs = FindFirstObjectByType<PlayerBuffController>(FindObjectsInactive.Include);
     }
 
     private void OnEnable()
@@ -72,12 +55,6 @@ public class HUDPresenter : MonoBehaviour
 
         if (combat != null)
             combat.OnTargetChanged += HandleCombatTargetChanged;
-
-        if (ailments != null)
-            ailments.OnAilmentsChanged += HandleAilmentsChanged;
-
-        if (buffs != null)
-            buffs.OnBuffsChanged += HandleBuffsChanged;
 
         if (stats != null)
         {
@@ -109,12 +86,6 @@ public class HUDPresenter : MonoBehaviour
         if (combat != null)
             combat.OnTargetChanged -= HandleCombatTargetChanged;
 
-        if (ailments != null)
-            ailments.OnAilmentsChanged -= HandleAilmentsChanged;
-
-        if (buffs != null)
-            buffs.OnBuffsChanged -= HandleBuffsChanged;
-
         if (stats != null)
         {
             stats.OnStatsChanged -= HandleStatsChangedForCombatPower;
@@ -133,12 +104,6 @@ public class HUDPresenter : MonoBehaviour
     {
         if (hud == null)
             return;
-
-        if (buffs != null && Time.time >= _nextBuffRefreshTime)
-        {
-            _nextBuffRefreshTime = Time.time + Mathf.Max(0.05f, buffRefreshInterval);
-            hud.UpdateBuffTimers(buffs);
-        }
 
         float cycle = 0f;
         float aps = stats ? stats.AttacksPerSecond : 0f;
@@ -178,18 +143,6 @@ public class HUDPresenter : MonoBehaviour
         HandleActionChanged(player.CurrentAction);
     }
 
-    private void HandleAilmentsChanged()
-    {
-        if (hud != null)
-            hud.RefreshDebuffs(ailments);
-    }
-
-    private void HandleBuffsChanged()
-    {
-        if (hud != null)
-            hud.RefreshBuffs(buffs);
-    }
-
     private void RefreshAll()
     {
         RefreshNameAndCombatPower();
@@ -204,8 +157,6 @@ public class HUDPresenter : MonoBehaviour
         hud.SetDps(combat != null ? combat.GetCurrentDps() : 0f);
         HandleActionChanged(player.CurrentAction);
         hud.SetGatherDebuff(false, 1f);
-        hud.RefreshDebuffs(ailments);
-        hud.RefreshBuffs(buffs);
     }
 
     private void RefreshNameAndCombatPower()

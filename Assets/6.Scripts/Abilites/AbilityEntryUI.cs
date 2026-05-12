@@ -239,6 +239,9 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
+        // Lumber Frenzy enhancements are rendered inline in the Effects section
+        // (see AbilityTooltipDamagePreview), so skip the trailing "Active Enhancement" line.
+
         return string.Empty;
     }
 

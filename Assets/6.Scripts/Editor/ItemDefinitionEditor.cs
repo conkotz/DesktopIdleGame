@@ -708,6 +708,24 @@ public class ItemDefinitionEditor : Editor
                     EditorGUILayout.LabelField($"Drop #{i + 1}", EditorStyles.miniBoldLabel, GUILayout.Width(60f));
                     EditorGUILayout.LabelField(BuildOpenableRowPreview(itemId, chancePercent, minAmount, maxAmount), EditorStyles.miniLabel);
                     GUILayout.FlexibleSpace();
+
+                    using (new EditorGUI.DisabledScope(i == 0))
+                    {
+                        if (GUILayout.Button(new GUIContent("▲", "Move this drop up in the list."), GUILayout.Width(22f)))
+                        {
+                            openableLoot.MoveArrayElement(i, i - 1);
+                            return;
+                        }
+                    }
+                    using (new EditorGUI.DisabledScope(i == openableLoot.arraySize - 1))
+                    {
+                        if (GUILayout.Button(new GUIContent("▼", "Move this drop down in the list."), GUILayout.Width(22f)))
+                        {
+                            openableLoot.MoveArrayElement(i, i + 1);
+                            return;
+                        }
+                    }
+
                     if (GUILayout.Button("✕", GUILayout.Width(22f)))
                     {
                         openableLoot.DeleteArrayElementAtIndex(i);

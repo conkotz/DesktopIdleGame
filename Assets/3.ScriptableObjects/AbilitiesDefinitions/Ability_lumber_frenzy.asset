@@ -10,16 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_cleaving_strikes
+  m_Name: Ability_lumber_frenzy
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: cleaving_strikes
-  displayName: Cleaving Strikes
-  tag: 1
-  description: Empower your melee basic attacks causing each hit to also strike additional
-    nearby enemies within your weapon range from you (minimum 3 range).
-  icon: {fileID: 1970096588046012890, guid: e4f6c452a92daed479d72fb292a28d34, type: 3}
-  cooldown: 20
-  energyCost: 45
+  abilityId: lumber_frenzy
+  displayName: Lumber Frenzy
+  tag: 3
+  description: Enter a focused chopping state for 20 seconds.
+  icon: {fileID: -2187047416192554098, guid: b78a90acb5575bd4ba76c6522ffef883, type: 3}
+  cooldown: 45
+  energyCost: 0
   physicalDamageMultiplier: 0
   magicDamageMultiplier: 0
   corruptionDamageMultiplier: 0
@@ -29,6 +28,7 @@ MonoBehaviour:
   lightningDamageMultiplier: 0
   poisonDamageMultiplier: 0
   bleedDamageMultiplier: 0
-  requiredWeaponType: 1
-  sourceSkill: 3
-  unlockLevel: 15
+  requiredWeaponType: 0
+  sourceSkill: 1
+  unlockLevel: 5
+  minionSpawnDefinition: {fileID: 0}

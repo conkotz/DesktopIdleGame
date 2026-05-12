@@ -105,6 +105,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public const int SkillPostCapThresholdLevel = 50;
 
     [SerializeField] private PlayerBuffController buffController;
+    private PlayerAbilityController _abilityControllerCache;
+    private bool _abilityControllerLookedUp;
 
     [Header("Vitals")]
     [SerializeField] private string unitDisplayName = "Adventurer";
@@ -942,18 +944,54 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     // Tools
-    public float AxeSpeedMult => GetToolSpeedMult(ToolType.Axe) * (1f + Mathf.Max(0f, bonusAxeSpeedMult));
+    public float AxeSpeedMult =>
+        GetToolSpeedMult(ToolType.Axe)
+        * (1f + Mathf.Max(0f, bonusAxeSpeedMult))
+        * (1f + GetLumberFrenzyChoppingSpeedBonus());
     public float PickaxeSpeedMult => GetToolSpeedMult(ToolType.Pickaxe) * (1f + Mathf.Max(0f, bonusPickaxeSpeedMult));
     public float RodSpeedMult => GetToolSpeedMult(ToolType.FishingRod) * (1f + Mathf.Max(0f, bonusRodSpeedMult));
-    public float AxeGrit => Mathf.Clamp01(GetToolGrit(ToolType.Axe));
+    public float AxeGrit => Mathf.Clamp01(GetToolGrit(ToolType.Axe) + GetLumberFrenzyGritChanceBonus());
     public float PickaxeGrit => Mathf.Clamp01(GetToolGrit(ToolType.Pickaxe));
     public float RodGrit => Mathf.Clamp01(GetToolGrit(ToolType.FishingRod));
     public float AxeBonusFindChance => Mathf.Clamp01(GetToolBonusFindChance(ToolType.Axe));
     public float PickaxeBonusFindChance => Mathf.Clamp01(GetToolBonusFindChance(ToolType.Pickaxe));
     public float RodBonusFindChance => Mathf.Clamp01(GetToolBonusFindChance(ToolType.FishingRod));
-    public float AxeStaminaEfficiency => Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.Axe));
+    public float AxeStaminaEfficiency =>
+        Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.Axe) + GetLumberFrenzyStaminaEfficiencyBonus());
     public float PickaxeStaminaEfficiency => Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.Pickaxe));
     public float RodStaminaEfficiency => Mathf.Clamp01(GetToolStaminaEfficiency(ToolType.FishingRod));
+
+    private PlayerAbilityController GetAbilityControllerLazy()
+    {
+        if (_abilityControllerCache)
+            return _abilityControllerCache;
+        if (_abilityControllerLookedUp)
+            return null;
+
+        _abilityControllerLookedUp = true;
+        _abilityControllerCache = GetComponent<PlayerAbilityController>();
+        if (!_abilityControllerCache && _ownerPlayer)
+            _abilityControllerCache = _ownerPlayer.GetComponent<PlayerAbilityController>();
+        return _abilityControllerCache;
+    }
+
+    private float GetLumberFrenzyChoppingSpeedBonus()
+    {
+        PlayerAbilityController ac = GetAbilityControllerLazy();
+        return ac ? ac.GetLumberFrenzyChoppingSpeedBonus() : 0f;
+    }
+
+    private float GetLumberFrenzyGritChanceBonus()
+    {
+        PlayerAbilityController ac = GetAbilityControllerLazy();
+        return ac ? ac.GetLumberFrenzyGritChanceBonus() : 0f;
+    }
+
+    private float GetLumberFrenzyStaminaEfficiencyBonus()
+    {
+        PlayerAbilityController ac = GetAbilityControllerLazy();
+        return ac ? ac.GetLumberFrenzyStaminaEfficiencyBonus() : 0f;
+    }
     /// <summary>Woodcutting skill nodes: chance per successful gather to add +1 main resource (before grit).</summary>
     public float AxeWoodcuttingExtraMainRollChance => Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingExtraMainRollChance);
     /// <summary>Woodcutting skill nodes: multiplier bonus applied to rolled main yield amount.</summary>

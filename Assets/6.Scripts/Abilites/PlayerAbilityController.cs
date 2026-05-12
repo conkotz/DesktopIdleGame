@@ -76,6 +76,15 @@ public class PlayerAbilityController : MonoBehaviour
     private const string EnvenomId = "envenom";
     private const string CleavingStrikesId = "cleaving_strikes";
     private const string CrescentSlashId = "crescent_slash";
+    private const string LumberFrenzyId = "lumber_frenzy";
+    private const float LumberFrenzyDurationSeconds = 20f;
+    private const float LumberFrenzyChoppingSpeedBonus = 0.20f;
+    private const float LumberFrenzyGritChanceBonus = 0.10f;
+    private const float LumberFrenzyStaminaEfficiencyEnhancementBonus = 0.15f;
+    private const float LumberFrenzyExtraGritEnhancementBonus = 0.05f;
+    private const int LumberFrenzyChoiceSourceLevel = 5;
+    private const int LumberFrenzyStaminaEnhancementChoiceIndex = 0;
+    private const int LumberFrenzyExtraGritEnhancementChoiceIndex = 1;
     private const int WhirlwindChoiceSourceLevel = 15;
     private const int SoulforgedWeaponChoiceSourceLevel = 35;
     private const int SoulforgedWeaponSwarmChoiceIndex = 0;
@@ -98,6 +107,12 @@ public class PlayerAbilityController : MonoBehaviour
     private bool _cleavingBuffActive;
     private int _lastSyncedCleavingHudStacks = int.MinValue;
     private float _lastSyncedCleavingHudEnd = float.NaN;
+    private bool _lumberFrenzyActive;
+    private float _lumberFrenzyEndsAt;
+    private float _lumberFrenzyDuration;
+    private float _lastSyncedLumberFrenzyHudEnd = float.NaN;
+    /// <summary>When the Lumber Frenzy buff expires, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
+    private AbilityDefinition _lumberFrenzyCooldownAbilityDef;
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
     private float _queuedPowerSlashMagicMultiplier = 1f;
     private float _queuedPowerSlashCorruptionMultiplier;
@@ -170,6 +185,8 @@ public class PlayerAbilityController : MonoBehaviour
         TryAutoReleaseQueuedCrescentSlash();
         CleanupCleavingStrikesIfExpired();
         SyncCleavingStrikesHudBuff();
+        CleanupLumberFrenzyIfExpired();
+        SyncLumberFrenzyHudBuff();
         CleanupSoulforgedWeaponIfUnavailable();
     }
 
@@ -304,6 +321,11 @@ public class PlayerAbilityController : MonoBehaviour
         if (IsOnCooldown(def.abilityId, out _))
             return false;
 
+        // Lumber Frenzy: block recast while the buff is still active; cooldown
+        // does not begin until the buff expires.
+        if (string.Equals(def.abilityId, LumberFrenzyId, StringComparison.OrdinalIgnoreCase) && _lumberFrenzyActive)
+            return false;
+
         if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
         {
             if (_powerSlashQueued)
@@ -393,6 +415,15 @@ public class PlayerAbilityController : MonoBehaviour
         {
             ActivateCleavingStrikesBuff();
             StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
+        }
+        if (string.Equals(def.abilityId, LumberFrenzyId, StringComparison.OrdinalIgnoreCase))
+        {
+            ActivateLumberFrenzyBuff();
+            // Cooldown is deferred to start when the buff expires (see CleanupLumberFrenzyIfExpired).
+            _lumberFrenzyCooldownAbilityDef = def;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -1550,6 +1581,105 @@ public class PlayerAbilityController : MonoBehaviour
         _lastSyncedCleavingHudStacks = displayStacks;
         _lastSyncedCleavingHudEnd = _cleavingBuffEndsAt;
         buffController.SetHudAbilityBuff(CleavingStrikesId, displayStacks, _cleavingBuffEndsAt, _cleavingBuffDuration);
+    }
+
+    private void ActivateLumberFrenzyBuff()
+    {
+        _lumberFrenzyActive = true;
+        _lumberFrenzyDuration = LumberFrenzyDurationSeconds;
+        _lumberFrenzyEndsAt = Time.time + _lumberFrenzyDuration;
+        _lastSyncedLumberFrenzyHudEnd = float.NaN;
+        SyncLumberFrenzyHudBuff();
+        stats?.NotifyStatsChanged();
+    }
+
+    private void CleanupLumberFrenzyIfExpired()
+    {
+        if (!_lumberFrenzyActive)
+            return;
+        if (Time.time < _lumberFrenzyEndsAt)
+            return;
+
+        _lumberFrenzyActive = false;
+        _lumberFrenzyEndsAt = 0f;
+        _lumberFrenzyDuration = 0f;
+
+        // Cooldown begins now (not on cast) so the player gets a 60s
+        // "downtime" after the 20s buff window finishes.
+        if (_lumberFrenzyCooldownAbilityDef)
+            StartCooldown(_lumberFrenzyCooldownAbilityDef);
+        _lumberFrenzyCooldownAbilityDef = null;
+
+        stats?.NotifyStatsChanged();
+    }
+
+    private void SyncLumberFrenzyHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!_lumberFrenzyActive)
+        {
+            if (!float.IsNaN(_lastSyncedLumberFrenzyHudEnd))
+            {
+                buffController.ClearHudAbilityBuff(LumberFrenzyId);
+                _lastSyncedLumberFrenzyHudEnd = float.NaN;
+            }
+
+            return;
+        }
+
+        if (Mathf.Approximately(_lastSyncedLumberFrenzyHudEnd, _lumberFrenzyEndsAt))
+            return;
+
+        _lastSyncedLumberFrenzyHudEnd = _lumberFrenzyEndsAt;
+        buffController.SetHudAbilityBuff(LumberFrenzyId, 1, _lumberFrenzyEndsAt, _lumberFrenzyDuration);
+    }
+
+    public bool IsLumberFrenzyActive
+    {
+        get
+        {
+            if (!_lumberFrenzyActive)
+                return false;
+            return Time.time < _lumberFrenzyEndsAt;
+        }
+    }
+
+    /// <summary>Additive chopping speed bonus from active Lumber Frenzy buff (0 when inactive).</summary>
+    public float GetLumberFrenzyChoppingSpeedBonus() =>
+        IsLumberFrenzyActive ? LumberFrenzyChoppingSpeedBonus : 0f;
+
+    /// <summary>Additive woodcutting grit chance bonus from active Lumber Frenzy buff, including Iron Grit enhancement (0 when inactive).</summary>
+    public float GetLumberFrenzyGritChanceBonus()
+    {
+        if (!IsLumberFrenzyActive)
+            return 0f;
+
+        float bonus = LumberFrenzyGritChanceBonus;
+        if (GetLumberFrenzySelectedChoice() == LumberFrenzyExtraGritEnhancementChoiceIndex)
+            bonus += LumberFrenzyExtraGritEnhancementBonus;
+        return bonus;
+    }
+
+    /// <summary>Additive woodcutting stamina efficiency bonus from active Lumber Frenzy buff, only when Sturdy Grip enhancement is selected (0 otherwise).</summary>
+    public float GetLumberFrenzyStaminaEfficiencyBonus()
+    {
+        if (!IsLumberFrenzyActive)
+            return 0f;
+        return GetLumberFrenzySelectedChoice() == LumberFrenzyStaminaEnhancementChoiceIndex
+            ? LumberFrenzyStaminaEfficiencyEnhancementBonus
+            : 0f;
+    }
+
+    private int GetLumberFrenzySelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, LumberFrenzyChoiceSourceLevel, -1);
     }
 
     /// <summary>

@@ -54,6 +54,8 @@ MonoBehaviour:
   hpValueText: {fileID: 3291566055742281897}
   debuffContainer: {fileID: 1338787723749142650}
   debuffIconPrefab: {fileID: 505960525889548960, guid: 543870abcecc8cb4ab20b0289962d544, type: 3}
+  debuffIconScale: 0.35
+  enemyHpFillColor: {r: 1, g: 0.42, b: 0.2, a: 1}
   bleedIcon: {fileID: 172900799495140964, guid: 83e010a88397715488e51b774e5e230a, type: 3}
   poisonIcon: {fileID: -1746807094529649936, guid: 83e010a88397715488e51b774e5e230a, type: 3}
   burnIcon: {fileID: -8088392421741576743, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
@@ -68,7 +70,9 @@ MonoBehaviour:
   targetCamera: {fileID: 0}
   enableOverlappingStack: 1
   stackHorizontalOverlapPaddingPx: 8
+  stackAllowedOverlapBeforeStackPx: 20
   stackVerticalSpacingPx: 56
+  stackPlayerBaselineLiftPx: 30
   stackMinClusteringHalfWidthPx: 0
 --- !u!1 &2733774353303313739
 GameObject:
@@ -810,7 +814,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -0.0000076293945, y: -18}
+  m_AnchoredPosition: {x: 0, y: -18}
   m_SizeDelta: {x: 0, y: 20}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &2955109612832309943

@@ -22,6 +22,13 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private Transform debuffContainer;
     [SerializeField] private GameObject debuffIconPrefab;
 
+    [Header("Debuff Icon Size")]
+    [Tooltip("Uniform scale applied to each spawned debuff icon (1 = prefab default, 0.5 = half). " +
+             "Drives transform.localScale on the icon root (which scales the inner Icon / overlay / stack text) " +
+             "and a LayoutElement so the container's Horizontal/Vertical Layout Group packs the scaled icons tightly. " +
+             "Use < 1 to shrink enemy overhead debuffs while the player's debuff bar keeps the prefab default.")]
+    [SerializeField, Min(0.05f)] private float debuffIconScale = 1f;
+
     [Header("Colors")]
     [Tooltip("Applied only to enemy overhead HP bars. Player overhead bars keep their prefab color.")]
     [SerializeField] private Color enemyHpFillColor = new(1f, 0.42f, 0.2f, 1f);
@@ -54,8 +61,6 @@ public class UnitOverheadUI : MonoBehaviour
     [Tooltip("How many canvas pixels two overhead labels may overlap horizontally before they stack vertically.")]
     [SerializeField] private float stackAllowedOverlapBeforeStackPx = 20f;
     [SerializeField] private float stackVerticalSpacingPx = 56f;
-    [Tooltip("When enemy overheads overlap the player's fixed HP baseline, lift them by this many canvas pixels.")]
-    [SerializeField] private float stackPlayerBaselineLiftPx = 30f;
     [Tooltip(
         "Optional minimum half-width (canvas px) for overlap tests. 0 = use measured rect + TMP bounds only. " +
         "Increase slightly if very narrow layouts fail to stack when enemies stand on the same spot.")]
@@ -261,7 +266,6 @@ public class UnitOverheadUI : MonoBehaviour
         float padding = Mathf.Max(0f, candidates[0].stackHorizontalOverlapPaddingPx);
         float allowedOverlap = Mathf.Max(0f, candidates[0].stackAllowedOverlapBeforeStackPx);
         float spacing = Mathf.Max(1f, candidates[0].stackVerticalSpacingPx);
-        float baselineHysteresisPx = Mathf.Max(6f, allowedOverlap * 0.5f);
 
         float minHalfW = Mathf.Max(0f, candidates[0].stackMinClusteringHalfWidthPx);
 
@@ -275,20 +279,17 @@ public class UnitOverheadUI : MonoBehaviour
 
         spans.Sort((a, b) => a.minX.CompareTo(b.minX));
 
-        // Player compact HP bar(s) are fixed anchors: never move them.
-        var fixedBaselineSpans = new List<(float minX, float maxX)>(2);
+        // Player compact HP bar(s) are fixed anchors: never move them and never let them affect
+        // enemy lane assignment — enemy bars stack purely among themselves.
         for (int i = 0; i < spans.Count; i++)
         {
             if (IsFixedPlayerBaseline(spans[i].ui))
-            {
                 spans[i].ui._stackYOffset = 0f;
-                fixedBaselineSpans.Add((spans[i].minX, spans[i].maxX));
-            }
         }
 
-        // Assign to the lowest available "lane" that does not horizontally overlap.
-        // This avoids transitive chaining (A overlaps B, B overlaps C) from forcing C
-        // onto higher rows when A and C could share the same baseline row.
+        // Assign each enemy bar to the lowest available "lane" that does not horizontally overlap
+        // any other enemy bar. This avoids transitive chaining (A overlaps B, B overlaps C) from
+        // forcing C onto higher rows when A and C could share the same baseline row.
         var laneLastMaxX = new List<float>(8);
         for (int i = 0; i < spans.Count; i++)
         {
@@ -296,41 +297,10 @@ public class UnitOverheadUI : MonoBehaviour
             if (IsFixedPlayerBaseline(ui))
                 continue;
 
-            bool overlapsFixedBaseline = false;
-            for (int f = 0; f < fixedBaselineSpans.Count; f++)
-            {
-                (float fixedMinX, float fixedMaxX) = fixedBaselineSpans[f];
-                bool overlaps = minX <= fixedMaxX + padding - allowedOverlap &&
-                                maxX >= fixedMinX - padding + allowedOverlap;
-                if (overlaps)
-                {
-                    overlapsFixedBaseline = true;
-                    break;
-                }
-            }
-
             int preferredLane = 0;
             int uiId = ui.GetInstanceID();
             if (s_lastAssignedStackLaneByUiId.TryGetValue(uiId, out int rememberedLane))
                 preferredLane = Mathf.Max(0, rememberedLane);
-
-            // Prevent rapid 0<->1 lane thrash when an enemy hovers on the player's baseline edge.
-            // If this UI was already above baseline, keep it above until it's clearly separated.
-            if (!overlapsFixedBaseline && preferredLane > 0 && fixedBaselineSpans.Count > 0)
-            {
-                for (int f = 0; f < fixedBaselineSpans.Count; f++)
-                {
-                    (float fixedMinX, float fixedMaxX) = fixedBaselineSpans[f];
-                    bool nearBaseline =
-                        minX <= fixedMaxX + padding - allowedOverlap + baselineHysteresisPx &&
-                        maxX >= fixedMinX - padding + allowedOverlap - baselineHysteresisPx;
-                    if (nearBaseline)
-                    {
-                        overlapsFixedBaseline = true;
-                        break;
-                    }
-                }
-            }
 
             bool IsLaneAvailable(int lane)
             {
@@ -367,13 +337,8 @@ public class UnitOverheadUI : MonoBehaviour
                 laneLastMaxX[laneIndex] = maxX;
             }
 
-            // Keep player baseline fixed at y=0; overlapping enemies get a smaller dedicated lift.
-            // Store remembered lane without baseline lift so overlap-edge transitions do not thrash lane memory.
-            int rememberedLaneToStore = laneIndex;
-            float baselineLift = overlapsFixedBaseline ? Mathf.Max(0f, ui.stackPlayerBaselineLiftPx) : 0f;
-
-            ui._stackYOffset = laneIndex * spacing + baselineLift;
-            s_lastAssignedStackLaneByUiId[uiId] = rememberedLaneToStore;
+            ui._stackYOffset = laneIndex * spacing;
+            s_lastAssignedStackLaneByUiId[uiId] = laneIndex;
         }
 
         for (int i = 0; i < candidates.Count; i++)
@@ -946,10 +911,52 @@ public class UnitOverheadUI : MonoBehaviour
                 image.sprite = sprite;
         }
 
+        ApplyDebuffIconSize(icon);
+
         spawnedDebuffIcons.Add(icon);
 
         foreach (Graphic g in icon.GetComponentsInChildren<Graphic>(true))
             g.raycastTarget = false;
+    }
+
+    private void ApplyDebuffIconSize(GameObject icon)
+    {
+        if (icon == null)
+            return;
+        if (debuffIconScale <= 0f || Mathf.Approximately(debuffIconScale, 1f))
+        {
+            // Still ensure we leave a clean scale of 1 (avoid leaking previous overrides if the prefab is reused).
+            if (icon != null && Mathf.Approximately(debuffIconScale, 1f))
+                icon.transform.localScale = Vector3.one;
+            return;
+        }
+
+        // Read the spawned icon's base size BEFORE we apply scale so the LayoutElement reflects the
+        // scaled visual size and the layout group packs icons tightly (no 50px slots around tiny icons).
+        Vector2 baseSize = Vector2.zero;
+        if (icon.transform is RectTransform rt)
+        {
+            baseSize = rt.rect.size;
+            if (baseSize.x <= 0f && rt.sizeDelta.x > 0f) baseSize.x = rt.sizeDelta.x;
+            if (baseSize.y <= 0f && rt.sizeDelta.y > 0f) baseSize.y = rt.sizeDelta.y;
+        }
+
+        float s = debuffIconScale;
+        icon.transform.localScale = new Vector3(s, s, 1f);
+
+        if (baseSize.x > 0f && baseSize.y > 0f)
+        {
+            LayoutElement le = icon.GetComponent<LayoutElement>();
+            if (le == null)
+                le = icon.AddComponent<LayoutElement>();
+
+            le.minWidth = baseSize.x * s;
+            le.minHeight = baseSize.y * s;
+            le.preferredWidth = baseSize.x * s;
+            le.preferredHeight = baseSize.y * s;
+            le.flexibleWidth = 0f;
+            le.flexibleHeight = 0f;
+        }
     }
 
     private void EnsureClickableBacking()

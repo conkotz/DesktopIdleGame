@@ -753,6 +753,106 @@ public class MapNodeDefinition : ScriptableObject
         return "Unlocked";
     }
 
+    /// <summary>
+    /// True when at least one enabled <see cref="PreviousMapCompletionRequirement"/> row
+    /// gates entry on an enemy kill count on another map.
+    /// </summary>
+    public bool HasKillsProgressRequirements()
+    {
+        if (requiredPreviousMapCompletions == null)
+            return false;
+
+        for (int i = 0; i < requiredPreviousMapCompletions.Count; i++)
+        {
+            PreviousMapCompletionRequirement req = requiredPreviousMapCompletions[i];
+            if (req == null || !req.enabled || !req.requireEnemyKillsOnMap)
+                continue;
+            if (req.requiredEnemyKillsOnMap <= 0)
+                continue;
+            if (string.IsNullOrWhiteSpace(req.requiredMapNodeId))
+                continue;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Build a single-line progress string suitable for inline messages (e.g. activity log):
+    /// <c>2 / 150 enemies defeated in Hunting Grounds</c>. Multiple kill gates are joined with
+    /// <c>", "</c>. Returns an empty string when there are no kill-count gates.
+    /// </summary>
+    public string BuildKillsProgressInlineText(WorldMapProgressManager progress, WorldMapDefinition worldMap = null)
+    {
+        if (requiredPreviousMapCompletions == null || requiredPreviousMapCompletions.Count == 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+
+        for (int i = 0; i < requiredPreviousMapCompletions.Count; i++)
+        {
+            PreviousMapCompletionRequirement req = requiredPreviousMapCompletions[i];
+            if (req == null || !req.enabled || !req.requireEnemyKillsOnMap)
+                continue;
+
+            int required = req.requiredEnemyKillsOnMap;
+            if (required <= 0)
+                continue;
+
+            string requiredNodeId = req.requiredMapNodeId != null ? req.requiredMapNodeId.Trim() : "";
+            if (string.IsNullOrEmpty(requiredNodeId))
+                continue;
+
+            string displayName = ResolveRequirementNodeDisplayName(requiredNodeId, worldMap);
+            int kills = progress != null ? progress.GetEnemyKillsOnNode(requiredNodeId) : 0;
+            int clamped = Mathf.Clamp(kills, 0, required);
+
+            if (sb.Length > 0)
+                sb.Append(", ");
+            sb.Append($"{clamped} / {required} enemies defeated in {displayName}");
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Build progress lines for any kill-count prerequisites on this node, e.g.
+    /// <c>Battlegrounds: 47 / 200 enemies defeated</c>. One line per active requirement.
+    /// Returns an empty string when there are no kill-count gates.
+    /// </summary>
+    public string BuildKillsProgressDisplayText(WorldMapProgressManager progress, WorldMapDefinition worldMap = null)
+    {
+        if (requiredPreviousMapCompletions == null || requiredPreviousMapCompletions.Count == 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+
+        for (int i = 0; i < requiredPreviousMapCompletions.Count; i++)
+        {
+            PreviousMapCompletionRequirement req = requiredPreviousMapCompletions[i];
+            if (req == null || !req.enabled || !req.requireEnemyKillsOnMap)
+                continue;
+
+            int required = req.requiredEnemyKillsOnMap;
+            if (required <= 0)
+                continue;
+
+            string requiredNodeId = req.requiredMapNodeId != null ? req.requiredMapNodeId.Trim() : "";
+            if (string.IsNullOrEmpty(requiredNodeId))
+                continue;
+
+            string displayName = ResolveRequirementNodeDisplayName(requiredNodeId, worldMap);
+            int kills = progress != null ? progress.GetEnemyKillsOnNode(requiredNodeId) : 0;
+            int clamped = Mathf.Clamp(kills, 0, required);
+
+            if (sb.Length > 0)
+                sb.AppendLine();
+            sb.Append($"{displayName}: {clamped} / {required} enemies defeated");
+        }
+
+        return sb.ToString();
+    }
+
     public string BuildRequirementsDisplayText(WorldMapDefinition worldMap = null)
     {
         var sb = new StringBuilder();

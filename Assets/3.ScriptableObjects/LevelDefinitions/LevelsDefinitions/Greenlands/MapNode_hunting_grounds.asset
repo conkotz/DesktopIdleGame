@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Hunting Grounds
   description: A green field with enemies
   nodeType: 0
-  enemyAggroMode: 1
+  enemyAggroMode: 2
   ignoreAggroRange: 0
   respawnHereIfDied: 0
   enemyRespawnEnabled: 1
@@ -52,8 +52,11 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 12
       portalTargetMapNodeId: 
+    shuffleSpawnPoints: 1
+  - groupId: AllSpawns
+    spawns:
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint67
+      spawnPointName: SpawnPoint30
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 8347273920747777605, guid: a0bba137548b65543be76ed5f1317dd0, type: 3}
       itemDefinition: {fileID: 0}
@@ -62,7 +65,7 @@ MonoBehaviour:
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
-    shuffleSpawnPoints: 1
+    shuffleSpawnPoints: 0
   requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0

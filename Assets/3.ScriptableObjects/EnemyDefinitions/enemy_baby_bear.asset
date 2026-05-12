@@ -20,32 +20,32 @@ MonoBehaviour:
   prefab: {fileID: 1000010755293042, guid: bb8b9e3eccba9a04fb733e1dd81624ac, type: 3}
   cannotRespawn: 0
   doesNotContributeToRecommendedCombatPower: 0
-  maxHealth: 120
+  maxHealth: 80
   maxEnergy: 0
   maxMana: 0
-  armor: 30
+  armor: 10
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
   flatGuard: 10
   maxGuardPercent: 0
-  minPhysicalDamage: 16
-  maxPhysicalDamage: 21
+  minPhysicalDamage: 8
+  maxPhysicalDamage: 18
   minMagicDamage: 0
   maxMagicDamage: 0
   minCorruptionDamage: 0
   maxCorruptionDamage: 0
   attackSpeed: 0.2
   moveSpeed: 2
-  attackRange: 3
+  attackRange: 1
   critChance: 0.1
   critMultiplier: 1.5
-  lifeRegenPerSecond: 3
+  lifeRegenPerSecond: 0
   energyRegenPerSecond: 0
   manaRegenPerSecond: 1
   abilityPower: 0
-  lifeSteal: 0
-  bleedChance: 1
+  lifeSteal: 0.1
+  bleedChance: 0.5
   bleedMultiplier: 0
   bleedDuration: 5
   poisonChance: 0
@@ -87,7 +87,11 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: 462df72db7793674e8880e18d7ba181c, type: 2}
     amountMin: 1
     amountMax: 1
-    dropChance: 0.3
+    dropChance: 0.8
+  - item: {fileID: 11400000, guid: 462df72db7793674e8880e18d7ba181c, type: 2}
+    amountMin: 2
+    amountMax: 2
+    dropChance: 0.2
   lootAtMostOneDropPerTable: 1
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 5

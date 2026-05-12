@@ -137,7 +137,14 @@ public class MapNodePortalTeleporter : MonoBehaviour
         if (!node.CanEnter(progress, skills))
         {
             if (logWhenBlocked && !string.IsNullOrWhiteSpace(blockedMessage))
-                GameLog.Add(blockedMessage.Trim(), GameLog.CannotMessageColor);
+            {
+                string line = blockedMessage.Trim();
+                WorldMapDefinition worldMap = progress != null ? progress.WorldMap : null;
+                string killsProgress = node.BuildKillsProgressInlineText(progress, worldMap);
+                if (!string.IsNullOrWhiteSpace(killsProgress))
+                    line = $"{line} {killsProgress}";
+                GameLog.Add(line, GameLog.CannotMessageColor);
+            }
             return;
         }
 

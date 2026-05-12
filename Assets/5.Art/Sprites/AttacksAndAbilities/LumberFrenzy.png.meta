@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: b6216b701f28ed84ea6c1f7085f0c4bf
+guid: b78a90acb5575bd4ba76c6522ffef883
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -6306190053144719101
-    second: Leather_0
+      213: -2187047416192554098
+    second: LumberFrenzy_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 0
+    filterMode: 1
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -51,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 950
+  spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -75,7 +75,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 0
+    textureCompression: 1
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Leather_0
+      name: LumberFrenzy_0
       rect:
         serializedVersion: 2
-        x: 213
-        y: 97
-        width: 1147
-        height: 824
+        x: 0
+        y: 0
+        width: 1254
+        height: 1254
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 301153cee89eb78a0800000000000000
-      internalID: -6306190053144719101
+      spriteID: e8b28e266fb06a1e0800000000000000
+      internalID: -2187047416192554098
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 545df94b0e6d3254bb557cde16ebef62
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Leather_0: -6306190053144719101
+      LumberFrenzy_0: -2187047416192554098
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

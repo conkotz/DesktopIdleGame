@@ -27,6 +27,12 @@ MonoBehaviour:
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 2
@@ -36,6 +42,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 1
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 3
@@ -45,6 +57,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 2
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 4
@@ -54,15 +72,28 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 5
     title: Power Slash
-    description: Primes your next melee hit to deal 150% of your rolled damage on Physical, Magic, and Corruption (before other modifiers). Costs 30 Energy, 12s cooldown. Brutal Cut increases that to 175%; Relentless Flow reduces cooldown by 3s (9s).
+    description: Primes your next melee hit to deal 150% of your rolled damage on
+      Physical, Magic, and Corruption (before other modifiers).
     icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: cef0107d3357c9b4e86a08e4b6e8a0a7, type: 2}
     choices:
     - requiredLevel: 8
@@ -77,11 +108,18 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Rend
-    description: Primes your next hit to apply 100% guaranteed exclusive Bleed with +3s duration versus your normal bleed window. Costs 30 Energy, 10s cooldown. Exclusive while active.
+    description: Primes your next hit to apply 100% guaranteed exclusive Bleed with
+      +3s duration versus your normal bleed window. Exclusive while active.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: 5f3b1c2d9a7e4b6c8d0e1f2a3b4c5d6e, type: 2}
     choices:
     - requiredLevel: 8
@@ -97,11 +135,18 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 5
     title: Envenom
-    description: Primes your next hit. If the hit deals Corruption damage, apply Poison at 100% chance at max stacks. Costs 30 Energy, 10s cooldown.
+    description: Primes your next hit. If the hit deals Corruption damage, apply
+      Poison at 100% chance at max stacks.
     icon: {fileID: -3106849600663172003, guid: eac4dfbab0ba6ba47923ad2fffa2615c, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: 9a1b2c3d4e5f60718293a4b5c6d7e8f9, type: 2}
     choices:
     - requiredLevel: 8
@@ -123,6 +168,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 4
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 7
@@ -132,6 +183,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 5
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 8
@@ -141,6 +198,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 9
@@ -150,6 +213,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 6
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 10
@@ -165,6 +234,12 @@ MonoBehaviour:
     unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 13
@@ -203,6 +278,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 1
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 12
@@ -212,6 +293,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 2
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 13
@@ -221,6 +308,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 14
@@ -230,15 +323,29 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 4
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 15
     title: Whirlwind
-    description: Spin in a wide arc, striking all enemies within your weapon range from you (minimum 3 range, or your weapon range if longer). Each hit deals 80% of your rolled Physical, Magic, and Corruption damage (before crit). Costs 35 Energy, 5s cooldown. Twin Cyclone adds a second wave at 20% damage.
+    description: Spin in a wide arc, striking all enemies within your weapon range
+      from you (minimum 3 range, or your weapon range if longer). Each hit deals
+      80% of your rolled Physical, Magic, and Corruption damage (before crit).
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: a3d2f6b31c9e4f2b8d1a6c7e9f0b1234, type: 2}
     choices:
     - requiredLevel: 18
@@ -254,11 +361,19 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Cleaving Strikes
-    description: Empower your melee basics to also strike additional nearby enemies within your weapon range from you (minimum 3 range, or your weapon range if longer). Cleave hits deal 60% of the same rolled weapon damage. Costs 45 Energy, 20s cooldown. Base buff lasts 7s or 4 primary hits with +1 extra target per swing; enhancements change duration, hit budget, and extra targets (see below).
+    description: Empower your melee basics to also strike additional nearby enemies
+      within your weapon range from you (minimum 3 range, or your weapon range if
+      longer). Cleave hits deal 60% of the same rolled weapon damage.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: 2c4fa8e5a0b54d4b91f6b62d0c9f4a11, type: 2}
     choices:
     - requiredLevel: 18
@@ -273,11 +388,19 @@ MonoBehaviour:
       ability: {fileID: 0}
   - requiredLevel: 15
     title: Crescent Slash
-    description: Unleash a wave which travels outward and strikes enemies in front of you. Each hit uses 120% of rolled Physical damage and 100% of rolled Magic and Corruption (plus usual scaling). Costs 25 Energy, 12s cooldown.
+    description: Unleash a wave which travels outward and strikes enemies in front
+      of you. Each hit uses 120% of rolled Physical damage and 100% of rolled Magic
+      and Corruption.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: 7e3bd07b5f7f4f82ad7a8f3d9c4b1d22, type: 2}
     choices:
     - requiredLevel: 18
@@ -298,6 +421,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 7
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 17
@@ -307,6 +436,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 8
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 18
@@ -316,6 +451,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 5
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 19
@@ -325,6 +466,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 18
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 20
@@ -334,6 +481,12 @@ MonoBehaviour:
     unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 25
@@ -353,6 +506,12 @@ MonoBehaviour:
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 21
@@ -362,6 +521,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 4
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 22
@@ -371,6 +536,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 23
@@ -380,6 +551,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 19
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 24
@@ -389,6 +566,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 10
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 25
@@ -398,6 +581,12 @@ MonoBehaviour:
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 30
@@ -417,6 +606,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 11
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 27
@@ -426,6 +621,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 12
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 28
@@ -435,6 +636,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 13
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 29
@@ -444,6 +651,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 14
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 30
@@ -453,6 +666,12 @@ MonoBehaviour:
     unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 35
@@ -472,6 +691,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 4
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 32
@@ -481,6 +706,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 33
@@ -490,6 +721,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 5
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 34
@@ -499,15 +736,29 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 10
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 35
     title: Soulforged Weapon
-    description: Summon a soulforged copy of your main-hand weapon to strike at foes. Costs 10 Energy, 45s cooldown. This weapon stays attached to the enemy unless commanded to swap targets or return to you if out of enemy range.
+    description: Summon a soulforged copy of your main-hand weapon to strike at foes.
+      This weapon stays attached to the enemy unless commanded to swap targets or
+      return to you if out of enemy range.
     icon: {fileID: -8860823726366746541, guid: 2e15a983e647ec142bfdadc1698f81bc, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: f8a7b6c5d4e3f2109a8b7c6d5e4f3021, type: 2}
     choices:
     - requiredLevel: 40
@@ -531,6 +782,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 15
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 37
@@ -540,6 +797,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 16
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 38
@@ -549,6 +812,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 17
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 39
@@ -558,6 +827,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 19
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 40
@@ -567,6 +842,12 @@ MonoBehaviour:
     unlockType: 3
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 45
@@ -586,6 +867,12 @@ MonoBehaviour:
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 41
@@ -595,6 +882,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 4
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 42
@@ -604,6 +897,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 43
@@ -613,6 +912,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 5
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 44
@@ -622,6 +927,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 10
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 45
@@ -631,6 +942,12 @@ MonoBehaviour:
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 50
@@ -650,6 +967,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 13
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 47
@@ -659,6 +982,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 17
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 48
@@ -668,6 +997,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 3
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 49
@@ -677,6 +1012,12 @@ MonoBehaviour:
     unlockType: 0
     meleeMinorStatOption: 6
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 50
@@ -686,6 +1027,12 @@ MonoBehaviour:
     unlockType: 4
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     choices:
     - requiredLevel: 50

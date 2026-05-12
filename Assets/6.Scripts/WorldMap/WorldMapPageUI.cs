@@ -48,6 +48,8 @@ public class WorldMapPageUI : MonoBehaviour
     [SerializeField] private RectTransform detailsContentRoot;
     [SerializeField] private GameObject selectedNodeRequirements;
     [SerializeField] private TMP_Text selectedNodeRequirementsText;
+    [Tooltip("Optional. Shows live progress for kill-count entry gates (e.g. '47 / 200 enemies defeated in Battlegrounds'). Hidden when the selected node has no kill requirement.")]
+    [SerializeField] private TMP_Text selectedNodeRequirementsCounterText;
     [FormerlySerializedAs("selectedNodeContainsNpcText")]
     [SerializeField] private TMP_Text selectedNodeContainsNpcMerchantsText;
     [FormerlySerializedAs("selectedNodeContainsResourcesEnemiesText")]
@@ -58,6 +60,7 @@ public class WorldMapPageUI : MonoBehaviour
     [Header("Details layout (dynamic height)")]
     [SerializeField] private float minDescriptionHeight = 24f;
     [SerializeField] private float minRequirementsHeight = 20f;
+    [SerializeField] private float minRequirementsCounterHeight = 20f;
     [SerializeField] private float minContainsLineHeight = 20f;
     [SerializeField] private float dynamicTextBottomPadding = 2f;
 
@@ -694,12 +697,17 @@ public class WorldMapPageUI : MonoBehaviour
 
     private void RefreshRequirementsBlock(MapNodeDefinition n)
     {
-        if (!selectedNodeRequirementsText && !selectedNodeRequirements)
+        if (!selectedNodeRequirementsText && !selectedNodeRequirements && !selectedNodeRequirementsCounterText)
             return;
         if (!n)
         {
             if (selectedNodeRequirementsText) selectedNodeRequirementsText.text = "";
             if (selectedNodeRequirements) selectedNodeRequirements.SetActive(false);
+            if (selectedNodeRequirementsCounterText)
+            {
+                selectedNodeRequirementsCounterText.text = "";
+                selectedNodeRequirementsCounterText.gameObject.SetActive(false);
+            }
             return;
         }
 
@@ -717,6 +725,27 @@ public class WorldMapPageUI : MonoBehaviour
             selectedNodeRequirementsText.text = hasAny ? $"Requirements: {combined}" : "";
         if (selectedNodeRequirements)
             selectedNodeRequirements.SetActive(hasAny);
+
+        RefreshRequirementsCounterBlock(n);
+    }
+
+    private void RefreshRequirementsCounterBlock(MapNodeDefinition n)
+    {
+        if (!selectedNodeRequirementsCounterText)
+            return;
+
+        if (!n || !n.HasKillsProgressRequirements())
+        {
+            selectedNodeRequirementsCounterText.text = "";
+            selectedNodeRequirementsCounterText.gameObject.SetActive(false);
+            return;
+        }
+
+        WorldMapProgressManager progress = FindProgressManager();
+        string counterText = n.BuildKillsProgressDisplayText(progress, worldMap);
+        bool hasAny = !string.IsNullOrWhiteSpace(counterText);
+        selectedNodeRequirementsCounterText.text = hasAny ? counterText : "";
+        selectedNodeRequirementsCounterText.gameObject.SetActive(hasAny);
     }
 
     private void RefreshNodeContainsSummary(MapNodeDefinition n)
@@ -797,6 +826,7 @@ public class WorldMapPageUI : MonoBehaviour
     {
         EnsureDynamicTextHeight(selectedNodeDescription, minDescriptionHeight);
         EnsureDynamicTextHeight(selectedNodeRequirementsText, minRequirementsHeight);
+        EnsureDynamicTextHeight(selectedNodeRequirementsCounterText, minRequirementsCounterHeight);
         EnsureDynamicTextHeight(selectedNodeContainsNpcMerchantsText, minContainsLineHeight);
         EnsureDynamicTextHeight(selectedNodeContainsEnemiesText, minContainsLineHeight);
         EnsureDynamicTextHeight(selectedNodeContainsOtherText, minContainsLineHeight);

@@ -81,9 +81,10 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 5
-    title: Placeholder Ability
-    description: Placeholder slot for future woodcutting ability.
-    icon: {fileID: 0}
+    title: Lumber Frenzy
+    description: Enter a focused chopping state for 20 seconds. +20% Chopping Speed
+      and +10% Woodcutting Grit Chance.
+    icon: {fileID: -2187047416192554098, guid: b78a90acb5575bd4ba76c6522ffef883, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -93,8 +94,18 @@ MonoBehaviour:
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    choices: []
+    ability: {fileID: 11400000, guid: 4d9f5a6c7b8e9012f3a4b5c6d7e8f901, type: 2}
+    choices:
+    - requiredLevel: 8
+      title: Sturdy Grip
+      description: +15% Woodcutting Stamina Efficiency during Lumber Frenzy.
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 8
+      title: Iron Grit
+      description: +5% Woodcutting Grit Chance during Lumber Frenzy.
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
   - requiredLevel: 6
     title: Chopping Bonus Find 1
     description: +1% Woodcutting Bonus Find Chance

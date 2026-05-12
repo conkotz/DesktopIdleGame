@@ -31,10 +31,12 @@ public class WorldHoverCursor2D : MonoBehaviour
     [SerializeField] private string resourceTag = "Resource";
     [SerializeField] private string enemyTag = "Enemy";
     [SerializeField] private string enterTag = "Cave";
+    [Tooltip("Tag for sign posts / readables. Shares the Enter cursor with Cave.")]
+    [SerializeField] private string signPostTag = "SignPost";
 
     [Header("Cursor Sprites")]
     [SerializeField] private Sprite npcCursor;
-    [Tooltip("Generic enter/interact cursor (currently used for Cave tag).")]
+    [Tooltip("Generic enter/interact cursor (used for Cave and SignPost tags).")]
     [SerializeField] private Sprite enterCursor;
     [SerializeField] private Sprite miningCursor;
     [SerializeField] private Sprite woodcuttingCursor;
@@ -125,6 +127,9 @@ public class WorldHoverCursor2D : MonoBehaviour
             return HoverCursorType.Npc;
 
         if (HasTagInParents(hit.transform, enterTag))
+            return HoverCursorType.Enter;
+
+        if (HasTagInParents(hit.transform, signPostTag))
             return HoverCursorType.Enter;
 
         return HoverCursorType.None;
