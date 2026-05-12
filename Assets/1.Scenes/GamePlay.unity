@@ -49261,7 +49261,7 @@ MonoBehaviour:
   enemyLabelFontSize: 12
   npcLabelFontSize: 12
   resourceLabelFontSize: 9
-  storageLabelFontSize: 12
+  storageLabelFontSize: 10
   noticeBoardLabelFontSize: 12
   caveLabelFontSize: 14
   enemyLabelName: Enemy

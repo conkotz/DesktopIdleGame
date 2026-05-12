@@ -145,8 +145,10 @@ public class MerchantClick : MonoBehaviour
 
         if (player != null)
         {
-            float merchantX = transform.position.x;
-            player.MoveToPointX(merchantX);
+            // Walk to the merchant's near collider edge (offset back by player half-width + padding) instead of the
+            // merchant's transform.position.x — otherwise the player overshoots into the merchant sprite before
+            // arrival registers.
+            player.MoveToPointX(ComputeApproachTargetX(player));
             _pendingOpen = this;
             _openWhenArrivedRoutine = StartCoroutine(CoOpenWhenArrived());
             return;
@@ -165,10 +167,7 @@ public class MerchantClick : MonoBehaviour
                 yield break;
             }
 
-            float dx = Mathf.Abs(player.transform.position.x - transform.position.x);
-            float halfWidth = merchantCollider != null ? merchantCollider.bounds.extents.x : 0f;
-            float requiredDistance = Mathf.Max(0.01f, halfWidth + Mathf.Max(0f, openWhenWithinXDistance));
-            if (dx <= requiredDistance)
+            if (IsPlayerWithinMerchantArrivalRange())
             {
                 _pendingOpen = null;
                 OpenNow();
@@ -177,6 +176,57 @@ public class MerchantClick : MonoBehaviour
 
             yield return null;
         }
+    }
+
+    /// <summary>
+    /// World-X the player should walk to so they stop at the nearest edge of the merchant's collider (not its center).
+    /// Falls back to <see cref="Transform.position"/> when the merchant collider is missing.
+    /// </summary>
+    private float ComputeApproachTargetX(PlayerController p)
+    {
+        if (merchantCollider == null)
+            return transform.position.x;
+
+        Bounds b = merchantCollider.bounds;
+        float playerX = p.transform.position.x;
+        bool approachFromLeft = playerX <= b.center.x;
+        float edgeX = approachFromLeft ? b.min.x : b.max.x;
+        float sign = approachFromLeft ? -1f : 1f;
+
+        // Walk flush against the merchant's near edge (no openWhenWithinXDistance baked in here — that field is the
+        // arrival tolerance, not the walk offset). Previously the player stopped a few px short of the collider so the
+        // proximity check still failed and the shop never opened.
+        float playerHalfWidth = ResolvePlayerColliderHalfWidth(p);
+        return edgeX + sign * playerHalfWidth;
+    }
+
+    private bool IsPlayerWithinMerchantArrivalRange()
+    {
+        if (player == null)
+            return false;
+
+        if (merchantCollider == null)
+        {
+            float dxCenter = Mathf.Abs(player.transform.position.x - transform.position.x);
+            return dxCenter <= Mathf.Max(0.01f, openWhenWithinXDistance);
+        }
+
+        Bounds b = merchantCollider.bounds;
+        float playerX = player.transform.position.x;
+        float edgeX = playerX <= b.center.x ? b.min.x : b.max.x;
+        float playerHalfWidth = ResolvePlayerColliderHalfWidth(player);
+        float gapBetweenBodies = Mathf.Abs(playerX - edgeX) - playerHalfWidth;
+        return gapBetweenBodies <= Mathf.Max(0.01f, openWhenWithinXDistance);
+    }
+
+    private static float ResolvePlayerColliderHalfWidth(PlayerController p)
+    {
+        if (p == null)
+            return 0f;
+        Collider2D pcol = p.GetComponent<Collider2D>();
+        if (!pcol)
+            pcol = p.GetComponentInChildren<Collider2D>(true);
+        return pcol != null ? pcol.bounds.extents.x : 0f;
     }
 
     private void OpenNow()

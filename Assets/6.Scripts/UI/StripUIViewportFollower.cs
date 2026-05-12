@@ -8,6 +8,9 @@ public sealed class StripUIViewportFollower : MonoBehaviour
     [SerializeField] private Camera stripCamera;
     [SerializeField] private RectTransform targetRect;
 
+    [Tooltip("When the strip camera is not assigned, auto-discover it from a StripCameraController in the scene. Lets runtime-created overlays (cave dimmer, helper modal dimmer) reuse this follower without scene wiring.")]
+    [SerializeField] private bool autoFindStripCamera = true;
+
     private Rect _lastRect = new Rect(float.NaN, float.NaN, float.NaN, float.NaN);
 
     /// <summary>
@@ -26,6 +29,7 @@ public sealed class StripUIViewportFollower : MonoBehaviour
     private void OnEnable()
     {
         CacheTarget();
+        CacheStripCamera();
         Apply(force: true);
     }
 
@@ -46,7 +50,21 @@ public sealed class StripUIViewportFollower : MonoBehaviour
     public void ForceApplyViewportAnchorsNow()
     {
         CacheTarget();
+        CacheStripCamera();
         Apply(force: true);
+    }
+
+    /// <summary>
+    /// Runtime wiring helper: assigns the strip camera (and optionally a non-self target rect) and snaps anchors immediately.
+    /// Used by runtime-created overlays (e.g. cave biome overlay, helper modal dimmer) so they only cover the strip viewport, not the whole canvas/screen.
+    /// </summary>
+    public void Bind(Camera stripCameraSource, RectTransform optionalTargetRect = null)
+    {
+        stripCamera = stripCameraSource;
+        if (optionalTargetRect)
+            targetRect = optionalTargetRect;
+        CacheTarget();
+        ForceApplyViewportAnchorsNow();
     }
 
     private void CacheTarget()
@@ -55,9 +73,20 @@ public sealed class StripUIViewportFollower : MonoBehaviour
             targetRect = transform as RectTransform;
     }
 
+    private void CacheStripCamera()
+    {
+        if (stripCamera || !autoFindStripCamera)
+            return;
+
+        StripCameraController ctrl = FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Include);
+        if (ctrl)
+            stripCamera = ctrl.GetComponent<Camera>();
+    }
+
     private void Apply(bool force)
     {
         CacheTarget();
+        CacheStripCamera();
 
         if (!stripCamera || !targetRect)
             return;

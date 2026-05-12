@@ -359,6 +359,27 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
         _caveOverlayImage.raycastTarget = false;
         _caveOverlayGroup.blocksRaycasts = false;
         _caveOverlayGroup.interactable = false;
+
+        // StripUICanvas renders Screen Space - Overlay (covers the full monitor), so anchors 0..1 above would darken the
+        // entire screen including the desktop area above the strip. We only want the strip darkened, so retarget the
+        // overlay's anchors to the strip camera's normalized viewport rect (matches the gameplay strip and resizes with it).
+        ConstrainOverlayToStripViewport(go);
+    }
+
+    private static void ConstrainOverlayToStripViewport(GameObject overlayGo)
+    {
+        if (!overlayGo)
+            return;
+
+        StripCameraController ctrl = Object.FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Include);
+        Camera stripCam = ctrl ? ctrl.GetComponent<Camera>() : null;
+        if (!stripCam)
+            return;
+
+        StripUIViewportFollower follower = overlayGo.GetComponent<StripUIViewportFollower>();
+        if (!follower)
+            follower = overlayGo.AddComponent<StripUIViewportFollower>();
+        follower.Bind(stripCam);
     }
 
     private void ResetCaveFlickerState()

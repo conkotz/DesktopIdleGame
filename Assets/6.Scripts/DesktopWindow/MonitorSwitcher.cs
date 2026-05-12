@@ -19,8 +19,22 @@ public class MonitorSwitcher : MonoBehaviour
     [SerializeField] private bool syncUnityResolutionToMonitor = true;
     [SerializeField] private bool useNativeWorkAreaPlacement = true;
     [SerializeField] private bool refreshTransparencyAfterMove = true;
+
+    [Tooltip(
+        "When on, the window is snapped to the entire monitor rect (covers the taskbar). " +
+        "When off, the window is sized to the Windows 'work area' (avoids the taskbar). " +
+        "Either way, BottomTaskbarReservedPixels exposes the bottom margin so the gameplay strip can stay above the taskbar.")]
+    [SerializeField] private bool coverEntireMonitorIncludingTaskbar = true;
+
     private int _index = 0;
 #pragma warning restore 0414
+
+    /// <summary>
+    /// Bottom margin (Windows px on the active monitor) reserved for the OS taskbar — i.e. <c>monitor.bottom - work.bottom</c>.
+    /// Updated each time we move to a monitor. Zero when no taskbar overlap was detected (e.g. taskbar on a side / different monitor) or before first snap.
+    /// Strip UI uses this to stop its bottom edge from sliding below the taskbar even when the game window covers the entire monitor.
+    /// </summary>
+    public static int BottomTaskbarReservedPixels { get; private set; }
 
     private void Awake()
     {
@@ -151,28 +165,42 @@ public class MonitorSwitcher : MonoBehaviour
 
     private void MoveToMonitor(MonitorRect target)
     {
-        RECT w = target.work;
+        RECT rect = coverEntireMonitorIncludingTaskbar ? target.monitor : target.work;
 
-        int workLeft = w.left;
-        int workTop = w.top;
-        int workRight = w.right;
-        int workBottom = w.bottom;
+        int left = rect.left;
+        int top = rect.top;
+        int right = rect.right;
+        int bottom = rect.bottom;
 
-        int workWidth = workRight - workLeft;
-        int workHeight = workBottom - workTop;
+        int width = right - left;
+        int height = bottom - top;
 
-        // Fill the monitor work area
+        // Record the bottom taskbar overlap so strip UI can stay above it even though the window now covers it.
+        int taskbarBottomReserved = 0;
+        if (coverEntireMonitorIncludingTaskbar &&
+            target.work.bottom < target.monitor.bottom)
+        {
+            taskbarBottomReserved = target.monitor.bottom - target.work.bottom;
+        }
+        BottomTaskbarReservedPixels = Mathf.Max(0, taskbarBottomReserved);
+
+        // Use FullScreenWindow when we're covering the whole monitor — keeps the OS from drawing a thin sub-pixel border
+        // that would otherwise show as an edge artifact on transparent windows.
+        FullScreenMode mode = coverEntireMonitorIncludingTaskbar
+            ? FullScreenMode.FullScreenWindow
+            : FullScreenMode.Windowed;
+
         if (syncUnityResolutionToMonitor)
-            Screen.SetResolution(workWidth, workHeight, FullScreenMode.Windowed);
+            Screen.SetResolution(width, height, mode);
 
-        uniWin.windowSize = new Vector2(workWidth, workHeight);
-        uniWin.windowPosition = new Vector2(workLeft, workTop);
+        uniWin.windowSize = new Vector2(width, height);
+        uniWin.windowPosition = new Vector2(left, top);
 
         if (useNativeWorkAreaPlacement)
-            ApplyNativeWindowRect(workLeft, workTop, workWidth, workHeight);
+            ApplyNativeWindowRect(left, top, width, height);
 
         RefreshTransparency();
-        StartCoroutine(ReapplyUniWindowRectNextFrame(workLeft, workTop, workWidth, workHeight));
+        StartCoroutine(ReapplyUniWindowRectNextFrame(left, top, width, height));
     }
 
     private IEnumerator ReapplyUniWindowRectNextFrame(int x, int y, int width, int height)

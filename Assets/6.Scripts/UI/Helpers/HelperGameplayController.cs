@@ -3616,6 +3616,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         Transform dim = _overlayRoot.transform.Find("Dimmer");
         _dimmerImage = dim ? dim.GetComponent<Image>() : null;
+        if (dim)
+            ConstrainDimmerToStripViewport(dim.gameObject);
 
         Transform glowHolderTf = _overlayRoot.transform.Find("WhitelistGlowOverlay/WhitelistGlowHolder");
         _whitelistGlowHolder = glowHolderTf as RectTransform;
@@ -3702,6 +3704,11 @@ public sealed class HelperGameplayController : MonoBehaviour
         dimImg.color = new Color(0f, 0f, 0f, 0f);
         dimImg.raycastTarget = true;
         _dimmerImage = dimImg;
+
+        // Helper modal lives under FullWindowCanvas/WindowsArea (covers the full monitor) so the dim Image with 0..1 anchors
+        // above would darken (and gobble clicks for) the entire screen. We only want the gameplay strip darkened/blocked,
+        // so retarget anchors to the strip camera's normalized viewport rect.
+        ConstrainDimmerToStripViewport(dimGo);
 
         GameObject glowLayerGo = CreateChild(_overlayRoot.transform, "WhitelistGlowOverlay");
         RectTransform glowLayerRt = glowLayerGo.GetComponent<RectTransform>();
@@ -4702,6 +4709,27 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         GameObject tagged = GameObject.FindGameObjectWithTag("UICanvas");
         return tagged ? tagged.transform as RectTransform : null;
+    }
+
+    /// <summary>
+    /// Attaches (or reuses) a <see cref="StripUIViewportFollower"/> on the dimmer GameObject so its anchors track the
+    /// strip camera's normalized viewport rect — keeps the helper modal dim limited to the gameplay strip area instead
+    /// of blacking out the entire monitor (and intercepting clicks on floating windows / panels above the strip).
+    /// </summary>
+    private static void ConstrainDimmerToStripViewport(GameObject dimGo)
+    {
+        if (!dimGo)
+            return;
+
+        StripCameraController ctrl = UnityEngine.Object.FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Include);
+        Camera stripCam = ctrl ? ctrl.GetComponent<Camera>() : null;
+        if (!stripCam)
+            return;
+
+        StripUIViewportFollower follower = dimGo.GetComponent<StripUIViewportFollower>();
+        if (!follower)
+            follower = dimGo.AddComponent<StripUIViewportFollower>();
+        follower.Bind(stripCam);
     }
 }
 

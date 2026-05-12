@@ -404,11 +404,48 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
         }
 
-        // Same UX as MerchantClick: walk the player horizontally to the NPC, defer the dialogue/quest box until arrival.
+        // Walk to the NPC's nearest collider edge (offset back by the player's own half-width + padding) instead of the
+        // NPC's transform.position.x — otherwise the player walks through the NPC sprite before the arrival check fires
+        // because MoveToPointX would keep targeting the NPC center.
         CancelPendingInteract();
         _pendingInteract = this;
-        player.MoveToPointX(transform.position.x);
+        player.MoveToPointX(ComputeApproachTargetX(player));
         _interactWhenArrivedRoutine = StartCoroutine(CoInteractWhenArrived(player));
+    }
+
+    /// <summary>
+    /// World-X the player should walk to so they stop at the nearest edge of the NPC's collider (not its center).
+    /// Side is chosen by the player's current X relative to the NPC center, then offset outward by player half-width + <see cref="openWhenWithinXDistance"/>.
+    /// Falls back to <see cref="Transform.position"/> when no interact collider can be resolved.
+    /// </summary>
+    private float ComputeApproachTargetX(PlayerController player)
+    {
+        Collider2D npcCol = ResolveInteractCollider2D();
+        if (npcCol == null || player == null)
+            return transform.position.x;
+
+        Bounds b = npcCol.bounds;
+        float playerX = player.transform.position.x;
+        bool approachFromLeft = playerX <= b.center.x;
+        float edgeX = approachFromLeft ? b.min.x : b.max.x;
+        float sign = approachFromLeft ? -1f : 1f;
+
+        // Walk the player's near edge right up to the NPC's near edge (no `openWhenWithinXDistance` gap baked in).
+        // The arrival check below still treats openWhenWithinXDistance as the tolerance — keeping it out of the walk
+        // target means the player can't undershoot past it (MoveToPointX has its own clickArriveThreshold snap),
+        // which previously left the player parked a few px short of the collider so the dialogue never opened.
+        float playerHalfWidth = ResolvePlayerColliderHalfWidth(player);
+        return edgeX + sign * playerHalfWidth;
+    }
+
+    private static float ResolvePlayerColliderHalfWidth(PlayerController player)
+    {
+        if (player == null)
+            return 0f;
+        Collider2D pcol = player.GetComponent<Collider2D>();
+        if (!pcol)
+            pcol = player.GetComponentInChildren<Collider2D>(true);
+        return pcol != null ? pcol.bounds.extents.x : 0f;
     }
 
     private IEnumerator CoInteractWhenArrived(PlayerController player)
@@ -443,11 +480,22 @@ public class NPCInteractionSettings : MonoBehaviour
         if (player == null)
             return false;
 
+        // Arrived = player's nearest body edge is within `openWhenWithinXDistance` of the NPC's nearest collider edge.
+        // Measured edge-to-edge (not center-to-center) so the player no longer needs to overlap the NPC for the dialogue to open,
+        // matching the approach point used by walk-to logic above.
         Collider2D col = ResolveInteractCollider2D();
-        float halfWidth = col != null ? col.bounds.extents.x : 0f;
-        float dx = Mathf.Abs(player.transform.position.x - transform.position.x);
-        float requiredDistance = Mathf.Max(0.01f, halfWidth + Mathf.Max(0f, openWhenWithinXDistance));
-        return dx <= requiredDistance;
+        if (col == null)
+        {
+            float dxCenter = Mathf.Abs(player.transform.position.x - transform.position.x);
+            return dxCenter <= Mathf.Max(0.01f, openWhenWithinXDistance);
+        }
+
+        Bounds b = col.bounds;
+        float playerX = player.transform.position.x;
+        float edgeX = playerX <= b.center.x ? b.min.x : b.max.x;
+        float playerHalfWidth = ResolvePlayerColliderHalfWidth(player);
+        float gapBetweenBodies = Mathf.Abs(playerX - edgeX) - playerHalfWidth;
+        return gapBetweenBodies <= Mathf.Max(0.01f, openWhenWithinXDistance);
     }
 
     private static PlayerController ResolveCachedPlayer()

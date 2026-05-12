@@ -542,11 +542,36 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         leftNormalized = Mathf.Clamp01(leftNormalized);
         widthNormalized = Mathf.Clamp(widthNormalized, 0.1f, 1f);
 
+        // When the game window covers the OS taskbar (see MonitorSwitcher.coverEntireMonitorIncludingTaskbar),
+        // keep the strip's bottom edge above the taskbar so the EXP bar / BotomGameBar / UI_Frame floor doesn't get
+        // hidden behind it. Player can still slide the strip up — only the lowest position is clamped.
+        float taskbarBottomMinNormalized = GetTaskbarBottomMinNormalized();
+        if (bottomNormalized < taskbarBottomMinNormalized)
+            bottomNormalized = taskbarBottomMinNormalized;
+
+        if (bottomNormalized + stripHeightPercent > 1f)
+            bottomNormalized = Mathf.Max(taskbarBottomMinNormalized, 1f - stripHeightPercent);
+
         minOrthoSize = Mathf.Max(0.01f, minOrthoSize);
 
         float hi = GetEffectiveMaxOrthoSize();
 
         baseOrthoSize = Mathf.Clamp(Mathf.Max(0.01f, baseOrthoSize), minOrthoSize, hi);
+    }
+
+    /// <summary>
+    /// Normalized (0..1 of screen height) bottom margin reserved for the OS taskbar. Zero when MonitorSwitcher
+    /// hasn't published a value yet (e.g. Editor, no taskbar overlap, taskbar on a side edge).
+    /// </summary>
+    private static float GetTaskbarBottomMinNormalized()
+    {
+        int reservedPx = MonitorSwitcher.BottomTaskbarReservedPixels;
+        if (reservedPx <= 0)
+            return 0f;
+        int screenH = Screen.height;
+        if (screenH <= 0)
+            return 0f;
+        return Mathf.Clamp01((float)reservedPx / screenH);
     }
 
     private void RememberCurrentState()
