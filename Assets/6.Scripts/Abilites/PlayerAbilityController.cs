@@ -85,6 +85,21 @@ public class PlayerAbilityController : MonoBehaviour
     private const int LumberFrenzyChoiceSourceLevel = 5;
     private const int LumberFrenzyStaminaEnhancementChoiceIndex = 0;
     private const int LumberFrenzyExtraGritEnhancementChoiceIndex = 1;
+
+    private const string CleavingChopId = "cleaving_chop";
+    /// <summary>Default Cleaving Chop buff duration in seconds (40s base, +5s with Prolonged Cleave enhancement).</summary>
+    private const float CleavingChopBaseDurationSeconds = 40f;
+    /// <summary>Bonus seconds added to Cleaving Chop duration when Prolonged Cleave is selected.</summary>
+    private const float CleavingChopProlongedDurationBonusSeconds = 5f;
+    /// <summary>Base world-units search radius for secondary tree strikes during Cleaving Chop.</summary>
+    private const float CleavingChopBaseRange = 10f;
+    /// <summary>Bonus range added to Cleaving Chop when Extended Reach is selected.</summary>
+    private const float CleavingChopExtendedReachRangeBonus = 4f;
+    /// <summary>Yield multiplier applied to each secondary tree gather while Cleaving Chop is active.</summary>
+    private const float CleavingChopSecondaryYieldEfficiency = 0.6f;
+    private const int CleavingChopChoiceSourceLevel = 25;
+    private const int CleavingChopExtendedReachChoiceIndex = 0;
+    private const int CleavingChopProlongedCleaveChoiceIndex = 1;
     private const int WhirlwindChoiceSourceLevel = 15;
     private const int SoulforgedWeaponChoiceSourceLevel = 35;
     private const int SoulforgedWeaponSwarmChoiceIndex = 0;
@@ -113,6 +128,27 @@ public class PlayerAbilityController : MonoBehaviour
     private float _lastSyncedLumberFrenzyHudEnd = float.NaN;
     /// <summary>When the Lumber Frenzy buff expires, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
     private AbilityDefinition _lumberFrenzyCooldownAbilityDef;
+
+    private bool _cleavingChopActive;
+    private float _cleavingChopEndsAt;
+    private float _cleavingChopDuration;
+    private float _lastSyncedCleavingChopHudEnd = float.NaN;
+    /// <summary>When the Cleaving Chop buff expires, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
+    private AbilityDefinition _cleavingChopCooldownAbilityDef;
+
+    [Header("Cleaving Chop range indicator")]
+    [Tooltip("Auto-spawned LineRenderer circle drawn around the player while Cleaving Chop is active.")]
+    [SerializeField] private bool cleavingChopShowRangeIndicator = true;
+    [SerializeField] private Color cleavingChopIndicatorColor = new Color(0.55f, 0.95f, 0.30f, 0.85f);
+    [SerializeField, Range(16, 128)] private int cleavingChopIndicatorSegments = 64;
+    [SerializeField, Min(0.005f)] private float cleavingChopIndicatorLineWidth = 0.14f;
+    [Tooltip("Sorting order on the indicator LineRenderer. Higher = draws over more sprites. Default 50 draws above the lane backgrounds.")]
+    [SerializeField] private int cleavingChopIndicatorSortingOrder = 50;
+    [Tooltip("Sorting layer for the indicator. Leave blank for the project's default layer.")]
+    [SerializeField] private string cleavingChopIndicatorSortingLayer = "";
+    private GameObject _cleavingChopIndicatorRoot;
+    private LineRenderer _cleavingChopIndicatorLine;
+    private float _cleavingChopIndicatorAppliedRadius = float.NaN;
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
     private float _queuedPowerSlashMagicMultiplier = 1f;
     private float _queuedPowerSlashCorruptionMultiplier;
@@ -187,6 +223,9 @@ public class PlayerAbilityController : MonoBehaviour
         SyncCleavingStrikesHudBuff();
         CleanupLumberFrenzyIfExpired();
         SyncLumberFrenzyHudBuff();
+        CleanupCleavingChopIfExpired();
+        SyncCleavingChopHudBuff();
+        UpdateCleavingChopRangeIndicator();
         CleanupSoulforgedWeaponIfUnavailable();
     }
 
@@ -326,6 +365,10 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(def.abilityId, LumberFrenzyId, StringComparison.OrdinalIgnoreCase) && _lumberFrenzyActive)
             return false;
 
+        // Cleaving Chop: same deferred-cooldown contract as Lumber Frenzy.
+        if (string.Equals(def.abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase) && _cleavingChopActive)
+            return false;
+
         if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
         {
             if (_powerSlashQueued)
@@ -424,6 +467,14 @@ public class PlayerAbilityController : MonoBehaviour
             ActivateLumberFrenzyBuff();
             // Cooldown is deferred to start when the buff expires (see CleanupLumberFrenzyIfExpired).
             _lumberFrenzyCooldownAbilityDef = def;
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
+        }
+        if (string.Equals(def.abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase))
+        {
+            ActivateCleavingChopBuff();
+            _cleavingChopCooldownAbilityDef = def;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -1680,6 +1731,203 @@ public class PlayerAbilityController : MonoBehaviour
             return -1;
 
         return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, LumberFrenzyChoiceSourceLevel, -1);
+    }
+
+    private void ActivateCleavingChopBuff()
+    {
+        _cleavingChopActive = true;
+        _cleavingChopDuration = CleavingChopBaseDurationSeconds + GetCleavingChopProlongedBonusSeconds();
+        _cleavingChopEndsAt = Time.time + _cleavingChopDuration;
+        _lastSyncedCleavingChopHudEnd = float.NaN;
+        SyncCleavingChopHudBuff();
+    }
+
+    private void CleanupCleavingChopIfExpired()
+    {
+        if (!_cleavingChopActive)
+            return;
+        if (Time.time < _cleavingChopEndsAt)
+            return;
+
+        _cleavingChopActive = false;
+        _cleavingChopEndsAt = 0f;
+        _cleavingChopDuration = 0f;
+
+        // Deferred cooldown: 60s timer starts when the buff window closes so the
+        // player gets a real downtime gap rather than ticking down during the buff.
+        if (_cleavingChopCooldownAbilityDef)
+            StartCooldown(_cleavingChopCooldownAbilityDef);
+        _cleavingChopCooldownAbilityDef = null;
+    }
+
+    private void SyncCleavingChopHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!_cleavingChopActive)
+        {
+            if (!float.IsNaN(_lastSyncedCleavingChopHudEnd))
+            {
+                buffController.ClearHudAbilityBuff(CleavingChopId);
+                _lastSyncedCleavingChopHudEnd = float.NaN;
+            }
+
+            return;
+        }
+
+        if (Mathf.Approximately(_lastSyncedCleavingChopHudEnd, _cleavingChopEndsAt))
+            return;
+
+        _lastSyncedCleavingChopHudEnd = _cleavingChopEndsAt;
+        buffController.SetHudAbilityBuff(CleavingChopId, 1, _cleavingChopEndsAt, _cleavingChopDuration);
+    }
+
+    /// <summary>True while the Cleaving Chop buff window is open (drives the secondary tree gather logic).</summary>
+    public bool IsCleavingChopActive
+    {
+        get
+        {
+            if (!_cleavingChopActive)
+                return false;
+            return Time.time < _cleavingChopEndsAt;
+        }
+    }
+
+    /// <summary>Search radius (world units) for secondary cleaving strikes, including Extended Reach. 0 when inactive.</summary>
+    public float GetCleavingChopRange()
+    {
+        if (!IsCleavingChopActive)
+            return 0f;
+
+        float range = CleavingChopBaseRange;
+        if (GetCleavingChopSelectedChoice() == CleavingChopExtendedReachChoiceIndex)
+            range += CleavingChopExtendedReachRangeBonus;
+        return range;
+    }
+
+    /// <summary>Yield multiplier applied to each secondary tree's main roll while the buff is active. 0 when inactive.</summary>
+    public float GetCleavingChopSecondaryYieldEfficiency() =>
+        IsCleavingChopActive ? CleavingChopSecondaryYieldEfficiency : 0f;
+
+    private float GetCleavingChopProlongedBonusSeconds() =>
+        GetCleavingChopSelectedChoice() == CleavingChopProlongedCleaveChoiceIndex
+            ? CleavingChopProlongedDurationBonusSeconds
+            : 0f;
+
+    private int GetCleavingChopSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, CleavingChopChoiceSourceLevel, -1);
+    }
+
+    /// <summary>
+    /// Shows/hides and rescales the in-world range circle that follows the player while Cleaving Chop is active.
+    /// The indicator is lazily spawned on first activation so no manual prefab wiring is required.
+    /// </summary>
+    private void UpdateCleavingChopRangeIndicator()
+    {
+        if (!cleavingChopShowRangeIndicator)
+        {
+            if (_cleavingChopIndicatorRoot != null && _cleavingChopIndicatorRoot.activeSelf)
+                _cleavingChopIndicatorRoot.SetActive(false);
+            return;
+        }
+
+        bool active = IsCleavingChopActive;
+        if (!active)
+        {
+            if (_cleavingChopIndicatorRoot != null && _cleavingChopIndicatorRoot.activeSelf)
+                _cleavingChopIndicatorRoot.SetActive(false);
+            _cleavingChopIndicatorAppliedRadius = float.NaN;
+            return;
+        }
+
+        EnsureCleavingChopIndicatorBuilt();
+        if (_cleavingChopIndicatorRoot == null || _cleavingChopIndicatorLine == null)
+            return;
+
+        if (!_cleavingChopIndicatorRoot.activeSelf)
+            _cleavingChopIndicatorRoot.SetActive(true);
+
+        float radius = Mathf.Max(0f, GetCleavingChopRange());
+        if (!Mathf.Approximately(_cleavingChopIndicatorAppliedRadius, radius))
+        {
+            RebuildCleavingChopIndicatorCircle(radius);
+            _cleavingChopIndicatorAppliedRadius = radius;
+        }
+    }
+
+    private void EnsureCleavingChopIndicatorBuilt()
+    {
+        if (_cleavingChopIndicatorRoot != null && _cleavingChopIndicatorLine != null)
+            return;
+
+        Transform existing = transform.Find("CleavingChopRangeIndicator");
+        if (existing != null)
+        {
+            _cleavingChopIndicatorRoot = existing.gameObject;
+            _cleavingChopIndicatorLine = existing.GetComponent<LineRenderer>();
+            if (_cleavingChopIndicatorLine == null)
+                _cleavingChopIndicatorLine = existing.gameObject.AddComponent<LineRenderer>();
+        }
+        else
+        {
+            _cleavingChopIndicatorRoot = new GameObject("CleavingChopRangeIndicator");
+            _cleavingChopIndicatorRoot.transform.SetParent(transform, false);
+            _cleavingChopIndicatorRoot.transform.localPosition = Vector3.zero;
+            _cleavingChopIndicatorRoot.transform.localRotation = Quaternion.identity;
+            _cleavingChopIndicatorRoot.transform.localScale = Vector3.one;
+            _cleavingChopIndicatorLine = _cleavingChopIndicatorRoot.AddComponent<LineRenderer>();
+        }
+
+        var lr = _cleavingChopIndicatorLine;
+        lr.useWorldSpace = false;
+        lr.loop = true;
+        // View alignment guarantees the ribbon faces the camera in both top-down and side-view setups so the
+        // circle is never edge-on (invisible) regardless of the player's local Z.
+        lr.alignment = LineAlignment.View;
+        lr.startWidth = cleavingChopIndicatorLineWidth;
+        lr.endWidth = cleavingChopIndicatorLineWidth;
+        lr.startColor = cleavingChopIndicatorColor;
+        lr.endColor = cleavingChopIndicatorColor;
+        lr.numCornerVertices = 2;
+        lr.numCapVertices = 0;
+        lr.sortingOrder = cleavingChopIndicatorSortingOrder;
+        if (!string.IsNullOrWhiteSpace(cleavingChopIndicatorSortingLayer))
+            lr.sortingLayerName = cleavingChopIndicatorSortingLayer;
+
+        // Freshly-added LineRenderers come with the legacy "Default-Line" material which renders pink (or
+        // invisible) under URP. Always replace with the project-wide Sprites/Default so vertex colors apply.
+        Shader spritesDefault = Shader.Find("Sprites/Default");
+        if (spritesDefault != null)
+            lr.material = new Material(spritesDefault) { color = Color.white };
+    }
+
+    private void RebuildCleavingChopIndicatorCircle(float radius)
+    {
+        if (_cleavingChopIndicatorLine == null)
+            return;
+
+        int segs = Mathf.Clamp(cleavingChopIndicatorSegments, 8, 256);
+        _cleavingChopIndicatorLine.positionCount = segs;
+        if (radius <= 0f)
+        {
+            for (int i = 0; i < segs; i++)
+                _cleavingChopIndicatorLine.SetPosition(i, Vector3.zero);
+            return;
+        }
+
+        float step = (Mathf.PI * 2f) / segs;
+        for (int i = 0; i < segs; i++)
+        {
+            float a = step * i;
+            _cleavingChopIndicatorLine.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, 0f));
+        }
     }
 
     /// <summary>

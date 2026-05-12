@@ -461,9 +461,10 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 25
-    title: Placeholder Ability
-    description: Placeholder slot for future woodcutting ability.
-    icon: {fileID: 0}
+    title: Cleaving Chop
+    description: Each chop also strikes nearby trees within range 10 for 40 seconds.
+      Secondary trees gather at 60% efficiency.
+    icon: {fileID: -2187047416192554098, guid: b78a90acb5575bd4ba76c6522ffef883, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -473,8 +474,18 @@ MonoBehaviour:
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    choices: []
+    ability: {fileID: 11400000, guid: 9e1d8c4b7a2f4032e5b6c7a8d9f01234, type: 2}
+    choices:
+    - requiredLevel: 28
+      title: Extended Reach
+      description: Cleaving Chop range increased by +4.
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 28
+      title: Prolonged Cleave
+      description: Cleaving Chop duration increased by +5 seconds.
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
   - requiredLevel: 26
     title: Chopping Speed 6
     description: +3% Woodcutting Speed

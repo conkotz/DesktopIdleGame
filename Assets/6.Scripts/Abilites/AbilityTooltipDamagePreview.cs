@@ -159,11 +159,21 @@ public static class AbilityTooltipDamagePreview
     private static bool IsLumberFrenzy(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.LumberFrenzyAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsCleavingChop(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.CleavingChopAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static int GetWoodcuttingSkillRow5Choice(SkillsManager skillsManager)
     {
         if (skillsManager == null)
             return -1;
         return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, 5, -1);
+    }
+
+    private static int GetWoodcuttingSkillRow25Choice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, 25, -1);
     }
 
     private static int GetMeleeLv15BranchChoice(SkillsManager skillsManager, int slot012)
@@ -228,6 +238,14 @@ public static class AbilityTooltipDamagePreview
         if (IsLumberFrenzy(def))
         {
             AppendLumberFrenzyTooltipEffects(body, O, skillsManager);
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"{cooldown:0.#}s Cooldown"));
+            return body.ToString().TrimEnd();
+        }
+
+        if (IsCleavingChop(def))
+        {
+            AppendCleavingChopTooltipEffects(body, O, skillsManager);
             body.AppendLine(string.Empty);
             body.AppendLine(O($"{cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
@@ -487,6 +505,28 @@ public static class AbilityTooltipDamagePreview
         body.AppendLine(O($"+{gritTotal:0.#}% Woodcutting Grit Chance"));
         if (choice == 0)
             body.AppendLine(O($"+{sturdyGripStaminaEffPct:0.#}% Woodcutting Stamina Efficiency"));
+    }
+
+    private static void AppendCleavingChopTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager)
+    {
+        // Numbers mirror PlayerAbilityController.CleavingChop* constants so the tooltip stays truthful.
+        const float baseDurationSec = 40f;
+        const float prolongedDurationBonusSec = 5f;
+        const float baseRange = 10f;
+        const float extendedReachRangeBonus = 4f;
+        const float secondaryYieldPct = 60f;
+
+        int choice = GetWoodcuttingSkillRow25Choice(skillsManager);
+        float duration = baseDurationSec + (choice == 1 ? prolongedDurationBonusSec : 0f);
+        float range = baseRange + (choice == 0 ? extendedReachRangeBonus : 0f);
+
+        body.AppendLine(O($"For {duration:0.#}s, chops strike nearby trees"));
+        body.AppendLine(O($"Cleave range: {range:0.#}"));
+        body.AppendLine(O($"Secondary trees gather at {secondaryYieldPct:0.#}% efficiency"));
+        body.AppendLine(O("Only logs are gathered from nearby trees"));
     }
 
     private static void AppendMinionSpawnTooltipEffectsNoStats(

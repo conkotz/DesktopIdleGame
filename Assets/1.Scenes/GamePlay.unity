@@ -49207,6 +49207,9 @@ MonoBehaviour:
   dropFrameInsetPixels: 1
   dropClampCamera: {fileID: 0}
   alignPlayerDropsToGround: 1
+  floorReference: {fileID: 1101752656}
+  floorReferenceChildName: FloorAnchor
+  floorYOffset: -0.05
   groundMask:
     serializedVersion: 2
     m_Bits: 512

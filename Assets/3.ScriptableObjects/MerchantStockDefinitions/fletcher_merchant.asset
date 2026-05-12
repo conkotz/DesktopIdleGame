@@ -30,7 +30,7 @@ MonoBehaviour:
     - type: 1
       amount: 6
       itemId: feather
-    defaultQuantity: -1
+    defaultQuantity: 1000
   - itemId: splitwood_swiftbow
     costs:
     - type: 0

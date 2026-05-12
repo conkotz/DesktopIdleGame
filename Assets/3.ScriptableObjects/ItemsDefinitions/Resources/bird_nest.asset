@@ -159,10 +159,10 @@ MonoBehaviour:
       chancePercent: 100
       minAmount: 5
       maxAmount: 15
-    - itemId: splitwood_log
-      chancePercent: 20
-      minAmount: 1
-      maxAmount: 1
+    - itemId: splitwood_twigs
+      chancePercent: 70
+      minAmount: 3
+      maxAmount: 7
     - itemId: leather
       chancePercent: 15
       minAmount: 1

@@ -1550,6 +1550,12 @@ public class PlayerController : MonoBehaviour
         if (!inventory) { ReturnToIdle(); return; }
         if (targetNode.Definition == null) return;
 
+        // Cleaving Chop fans out to nearby trees on each tree's OWN gather cadence; advance per-tree timers
+        // while the buff is up and the player is still in an active gather session. Called before the
+        // primary tree's own interval logic so the secondary trees don't lag a frame behind.
+        if (targetNode.ActionType == NodeAction.Woodcutting)
+            AdvanceCleavingChopSecondaryGathers(Time.deltaTime);
+
         if (targetNode.ActionType == NodeAction.Woodcutting)
         {
             float woodcuttingContinuousBefore = _woodcuttingContinuousGatherSeconds;
@@ -1824,6 +1830,241 @@ public class PlayerController : MonoBehaviour
             targetNode.NotifyGatherTickFinishedDepletionCheck();
     }
 
+    // ---- Cleaving Chop secondary gather timers ---------------------------------------------------
+    // Each in-range Woodcutting node accumulates its OWN gather progress while the buff is active, so a
+    // splitwood tree ticks on its (fast) interval while you're chopping a hardwood — the cleave isn't
+    // gated by the primary tree's pace. Timers are cleared whenever the buff or gather session ends.
+
+    private struct CleavingSecondaryTimer
+    {
+        public float accum;
+        public float nextInterval;
+    }
+
+    private readonly Dictionary<ResourceNode, CleavingSecondaryTimer> _cleavingSecondaryTimers = new();
+    private readonly List<ResourceNode> _cleavingSecondaryTimersScratch = new();
+    private readonly List<ResourceNode> _cleavingSecondaryNodeQueryBuf = new();
+    private float _cleavingSecondaryNodeQueryRefreshAt;
+    private const float CleavingSecondaryNodeQueryRefreshSeconds = 0.5f;
+
+    /// <summary>
+    /// Drives Cleaving Chop's per-tree gather timers. Called from <see cref="TickGather"/> so secondaries
+    /// only advance while the player is actively gathering — pausing for combat, fatigue, low energy, etc.
+    /// Each tree uses its own <see cref="ResourceNode.GetNextInterval"/> / <see cref="ResourceNode.RatePerSecond"/>,
+    /// so low-tier trees yield faster than the high-tier tree you're chopping.
+    /// </summary>
+    private void AdvanceCleavingChopSecondaryGathers(float deltaSeconds)
+    {
+        if (abilityController == null || !abilityController.IsCleavingChopActive)
+        {
+            ClearCleavingSecondaryTimers();
+            return;
+        }
+
+        if (targetNode == null || targetNode.ActionType != NodeAction.Woodcutting)
+            return;
+        if (inventory == null)
+            return;
+
+        float range = abilityController.GetCleavingChopRange();
+        if (range <= 0f)
+            return;
+
+        float efficiency = abilityController.GetCleavingChopSecondaryYieldEfficiency();
+        if (efficiency <= 0f)
+            return;
+
+        Vector3 origin = targetNode.transform.position;
+        float rangeSqr = range * range;
+        float speedMult = GetEffectiveGatherSpeedMultiplier();
+
+        RefreshCleavingSecondaryCandidatesIfNeeded(origin, rangeSqr);
+
+        // Advance every tracked tree's own timer and fire a secondary gather whenever its interval lapses.
+        _cleavingSecondaryTimersScratch.Clear();
+        _cleavingSecondaryTimersScratch.AddRange(_cleavingSecondaryTimers.Keys);
+        for (int i = 0; i < _cleavingSecondaryTimersScratch.Count; i++)
+        {
+            ResourceNode node = _cleavingSecondaryTimersScratch[i];
+            if (!IsValidCleavingSecondaryTarget(node, origin, rangeSqr))
+            {
+                _cleavingSecondaryTimers.Remove(node);
+                continue;
+            }
+
+            var nodeDef = node.Definition;
+            var entry = _cleavingSecondaryTimers[node];
+
+            if (nodeDef.useRandomInterval)
+            {
+                if (entry.nextInterval <= 0f)
+                    entry.nextInterval = node.GetNextInterval();
+
+                entry.accum += deltaSeconds * speedMult;
+                while (entry.accum >= entry.nextInterval && entry.nextInterval > 0f)
+                {
+                    entry.accum -= entry.nextInterval;
+                    DoOneCleavingSecondaryYield(node, efficiency);
+                    entry.nextInterval = node.GetNextInterval();
+                }
+            }
+            else
+            {
+                // Rate-per-second nodes: accumulate "items earned" using each tree's own rate.
+                float rate = nodeDef.ratePerSecond;
+                if (rate > 0f)
+                {
+                    entry.accum += rate * deltaSeconds * speedMult;
+                    int gained = Mathf.FloorToInt(entry.accum);
+                    if (gained > 0)
+                    {
+                        entry.accum -= gained;
+                        for (int g = 0; g < gained; g++)
+                            DoOneCleavingSecondaryYield(node, efficiency);
+                    }
+                }
+            }
+
+            _cleavingSecondaryTimers[node] = entry;
+        }
+    }
+
+    /// <summary>Reset timers when the buff drops or the gather session ends.</summary>
+    private void ClearCleavingSecondaryTimers()
+    {
+        if (_cleavingSecondaryTimers.Count > 0)
+            _cleavingSecondaryTimers.Clear();
+        _cleavingSecondaryNodeQueryRefreshAt = 0f;
+    }
+
+    /// <summary>
+    /// Re-scan the scene at most every <see cref="CleavingSecondaryNodeQueryRefreshSeconds"/> seconds so newly
+    /// spawned or revealed trees join the cleave, and de-pool any that left range / depleted.
+    /// </summary>
+    private void RefreshCleavingSecondaryCandidatesIfNeeded(Vector3 origin, float rangeSqr)
+    {
+        if (Time.time < _cleavingSecondaryNodeQueryRefreshAt)
+            return;
+        _cleavingSecondaryNodeQueryRefreshAt = Time.time + CleavingSecondaryNodeQueryRefreshSeconds;
+
+        _cleavingSecondaryNodeQueryBuf.Clear();
+        ResourceNode[] all = UnityEngine.Object.FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            ResourceNode node = all[i];
+            if (!IsValidCleavingSecondaryTarget(node, origin, rangeSqr))
+                continue;
+            _cleavingSecondaryNodeQueryBuf.Add(node);
+            if (!_cleavingSecondaryTimers.ContainsKey(node))
+                _cleavingSecondaryTimers.Add(node, default);
+        }
+    }
+
+    private bool IsValidCleavingSecondaryTarget(ResourceNode node, Vector3 origin, float rangeSqr)
+    {
+        if (!node || node == targetNode)
+            return false;
+        if (node.ActionType != NodeAction.Woodcutting)
+            return false;
+        if (node.IsDepleted)
+            return false;
+        if (node.Definition == null || !node.Definition.HasMainYield)
+            return false;
+
+        float dx = node.transform.position.x - origin.x;
+        float dy = node.transform.position.y - origin.y;
+        return dx * dx + dy * dy <= rangeSqr;
+    }
+
+    /// <summary>
+    /// Single secondary "swing" outcome for <paramref name="node"/>: rolls its own yield range, applies the
+    /// efficiency multiplier stochastically, then deposits to inventory or drops overflow to the floor.
+    /// Depletion DOES advance (same as a normal chop) so cleaved trees eventually run out, but bonus drops
+    /// and XP are intentionally skipped — secondaries only ever yield the tree's main log item.
+    /// </summary>
+    private void DoOneCleavingSecondaryYield(ResourceNode node, float efficiency)
+    {
+        if (!node || node.Definition == null || !node.Definition.HasMainYield)
+            return;
+        if (inventory == null)
+            return;
+
+        var nodeDef = node.Definition;
+
+        // Advance the cleaved tree's depletion counter (counts toward cap, may flag this tick as the
+        // "tipping" swing that applies the depleted-yield penalty before we even roll the amount).
+        node.NotifyGatherTickBeforeBonuses(countTowardDepletionCap: true);
+
+        int rolled = nodeDef.RollMainYieldAmount();
+        if (rolled <= 0)
+        {
+            node.NotifyGatherTickFinishedDepletionCheck();
+            return;
+        }
+
+        int secondaryAmt = RollCleavingChopSecondaryYield(rolled, efficiency);
+
+        if (node.ApplyDepletedYieldPenaltyThisTick)
+            secondaryAmt = RollDepletedGatherYield(secondaryAmt, nodeDef.depletedYieldMultiplier);
+
+        if (secondaryAmt <= 0)
+        {
+            node.NotifyGatherTickFinishedDepletionCheck();
+            return;
+        }
+
+        int added = inventory.AddPartial(nodeDef.YieldItemId, secondaryAmt);
+        int overflow = secondaryAmt - added;
+
+        if (added > 0)
+            SessionTrackerData.EnsureInstance().RegisterLootGain(nodeDef.displayName, nodeDef.YieldItemId, added);
+
+        if (overflow > 0 && dropOverflowToGround)
+        {
+            var itemDef = inventory.GetItemDef(nodeDef.YieldItemId);
+            Sprite icon = itemDef ? itemDef.icon : null;
+
+            if (DropManager.Instance != null)
+                DropManager.Instance.Spawn(nodeDef.YieldItemId, overflow, icon, nodeDef.displayName);
+            else if (worldDropPrefab != null)
+            {
+                float scatterX = UnityEngine.Random.Range(-dropScatterRadius, dropScatterRadius);
+                Vector3 spawnPos = node.transform.position + new Vector3(scatterX, 0.1f, 0f);
+
+                var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
+                drop.Init(nodeDef.YieldItemId, overflow, icon);
+                drop.SetSourceName(nodeDef.displayName);
+            }
+        }
+
+        // Final depletion check: matches the primary-tick contract — if this swing was the cap hit, the
+        // tree now flips to depleted (visual overlay, regen timer, etc.) and drops out of the cleave set
+        // automatically on the next IsValidCleavingSecondaryTarget filter.
+        node.NotifyGatherTickFinishedDepletionCheck();
+    }
+
+    /// <summary>
+    /// Stochastically reduce <paramref name="amount"/> by <paramref name="efficiency"/> (0..1). Same shape
+    /// as <see cref="RollDepletedGatherYield"/> so small main rolls (e.g. 1 log) average to the configured
+    /// efficiency instead of being clamped to 1.
+    /// </summary>
+    private static int RollCleavingChopSecondaryYield(int amount, float efficiency)
+    {
+        if (amount <= 0)
+            return 0;
+        float m = Mathf.Clamp01(efficiency);
+        if (m >= 1f)
+            return amount;
+        int sum = 0;
+        for (int i = 0; i < amount; i++)
+        {
+            if (UnityEngine.Random.value < m)
+                sum++;
+        }
+
+        return sum;
+    }
+
     /// <summary>
     /// Per-item stochastic yield while depleted so small base amounts (e.g. 1 log/tick) average to
     /// <paramref name="depletedMultiplier"/> of the raw roll instead of staying stuck at 1.
@@ -1855,6 +2096,7 @@ public class PlayerController : MonoBehaviour
         _gatherBonusFindChance = 0f;
         _gatherStaminaEfficiency = 0f;
         ResetWoodcuttingRuntimeState(clearBonuses: true);
+        ClearCleavingSecondaryTimers();
         OnGatherDebuffChanged?.Invoke(false, 1f);
 
         targetNode = null;
