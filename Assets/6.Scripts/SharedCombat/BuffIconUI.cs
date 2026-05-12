@@ -59,7 +59,10 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         {
             stackText.raycastTarget = false;
 
-            bool shouldShowStacks = showStacks && stacks > 0;
+            // Single-instance buffs (Lumber Frenzy, Cleaving Chop, Spectral Axe, Soulforged Weapon, …)
+            // pass stacks=1 just to keep the slot active. We only surface the count when it actually
+            // conveys information — i.e. multiple stacks like Cleaving Strikes' swing charges.
+            bool shouldShowStacks = showStacks && stacks > 1;
             stackText.gameObject.SetActive(shouldShowStacks);
 
             if (shouldShowStacks)

@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
+  m_Name: Ability_spectral_axe
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
+  abilityId: spectral_axe
+  displayName: Spectral Axe
+  tag: 2
+  description: Throws a spectral copy of your axe to chop a tree for 60 seconds.
+  icon: {fileID: -1363737838827872981, guid: 3481279890b9c434a82341e52f001c26, type: 3}
+  cooldown: 90
+  energyCost: 0
+  physicalDamageMultiplier: 0
+  magicDamageMultiplier: 0
+  corruptionDamageMultiplier: 0
+  allDamageMultiplier: 0
+  fireDamageMultiplier: 0
+  iceDamageMultiplier: 0
+  lightningDamageMultiplier: 0
+  poisonDamageMultiplier: 0
+  bleedDamageMultiplier: 0
+  requiredWeaponType: 0
+  sourceSkill: 1
+  unlockLevel: 25
+  minionSpawnDefinition: {fileID: 0}

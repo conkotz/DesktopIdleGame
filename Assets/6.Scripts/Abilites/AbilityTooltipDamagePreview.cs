@@ -162,18 +162,32 @@ public static class AbilityTooltipDamagePreview
     private static bool IsCleavingChop(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.CleavingChopAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsSpectralAxe(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.SpectralAxeAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static int GetWoodcuttingSkillRow5Choice(SkillsManager skillsManager)
     {
         if (skillsManager == null)
             return -1;
-        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, 5, -1);
+        // Lumber Frenzy is the only ability at Lv5 (slot 0). The spine-keyed read also falls back to
+        // the legacy "5" key so older saves keep working.
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv5_0", -1);
     }
 
-    private static int GetWoodcuttingSkillRow25Choice(SkillsManager skillsManager)
+    /// <summary>Returns the enhancement choice for Cleaving Chop (Woodcutting Lv25 slot 0).</summary>
+    private static int GetCleavingChopChoice(SkillsManager skillsManager)
     {
         if (skillsManager == null)
             return -1;
-        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, 25, -1);
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv25_0", -1);
+    }
+
+    /// <summary>Returns the enhancement choice for Spectral Axe (Woodcutting Lv25 slot 1).</summary>
+    private static int GetSpectralAxeChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv25_1", -1);
     }
 
     private static int GetMeleeLv15BranchChoice(SkillsManager skillsManager, int slot012)
@@ -246,6 +260,14 @@ public static class AbilityTooltipDamagePreview
         if (IsCleavingChop(def))
         {
             AppendCleavingChopTooltipEffects(body, O, skillsManager);
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"{cooldown:0.#}s Cooldown"));
+            return body.ToString().TrimEnd();
+        }
+
+        if (IsSpectralAxe(def))
+        {
+            AppendSpectralAxeTooltipEffects(body, O, skillsManager);
             body.AppendLine(string.Empty);
             body.AppendLine(O($"{cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
@@ -519,7 +541,7 @@ public static class AbilityTooltipDamagePreview
         const float extendedReachRangeBonus = 4f;
         const float secondaryYieldPct = 60f;
 
-        int choice = GetWoodcuttingSkillRow25Choice(skillsManager);
+        int choice = GetCleavingChopChoice(skillsManager);
         float duration = baseDurationSec + (choice == 1 ? prolongedDurationBonusSec : 0f);
         float range = baseRange + (choice == 0 ? extendedReachRangeBonus : 0f);
 
@@ -527,6 +549,31 @@ public static class AbilityTooltipDamagePreview
         body.AppendLine(O($"Cleave range: {range:0.#}"));
         body.AppendLine(O($"Secondary trees gather at {secondaryYieldPct:0.#}% efficiency"));
         body.AppendLine(O("Only logs are gathered from nearby trees"));
+    }
+
+    private static void AppendSpectralAxeTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager)
+    {
+        // Mirrors the constants in PlayerAbilityController.SpectralAxe* so tooltip stays truthful.
+        const float durationSec = 60f;
+        const float projectDistance = 5f;
+        const float yieldEfficiencyPct = 60f; // SpectralAxeYieldEfficiency * 100
+        const float areaRadius = 1.5f;        // SpectralAxeAreaRadius
+
+        // Phantom Harvest opens up bonus / hidden item drops on the same gather tick, so the
+        // "logs only" restriction no longer applies for that enhancement choice.
+        bool phantomHarvest = GetSpectralAxeChoice(skillsManager) == 0;
+
+        body.AppendLine(O($"Throws your axe {projectDistance:0.#} units forward"));
+        body.AppendLine(O($"Chops the closest tree within {areaRadius:0.#} units for {durationSec:0.#}s, then returns"));
+        body.AppendLine(O($"Gathers logs at {yieldEfficiencyPct:0.#}% efficiency"));
+        if (!phantomHarvest)
+            body.AppendLine(O("Only logs are gathered from that tree"));
+
+        // Enhancement-specific lines are emitted via the trailing "Active Enhancement: X (description)"
+        // pattern in AbilityEntryUI / FormatActiveEnhancementLine, matching Power Slash etc.
     }
 
     private static void AppendMinionSpawnTooltipEffectsNoStats(

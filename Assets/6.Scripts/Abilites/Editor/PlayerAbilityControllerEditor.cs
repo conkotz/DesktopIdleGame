@@ -21,6 +21,7 @@ public class PlayerAbilityControllerEditor : Editor
         "skillsManager",
         "equipment",
         "inventory",
+        "toolbelt",
         "buffController"
     };
 
@@ -58,6 +59,43 @@ public class PlayerAbilityControllerEditor : Editor
         "crescentSlashVfxDuration",
         "crescentSlashLineWidth",
         "crescentSlashCenterOffset"
+    };
+
+    private static readonly string[] CleavingChopFieldNames =
+    {
+        "cleavingChopShowRangeIndicator",
+        "cleavingChopIndicatorColor",
+        "cleavingChopIndicatorSegments",
+        "cleavingChopIndicatorLineWidth",
+        "cleavingChopIndicatorSortingOrder",
+        "cleavingChopIndicatorSortingLayer"
+    };
+
+    private static readonly string[] SpectralAxeFieldNames =
+    {
+        "spectralAxeTint",
+        "spectralAxeVisualLift",
+        "spectralAxeSpinDegreesPerSecond",
+        "spectralAxeSpinClockwise",
+        "spectralAxeTravelSpeedUnitsPerSecond",
+        "spectralAxeShowAreaIndicator",
+        "spectralAxeAreaIndicatorColor",
+        "spectralAxeAreaIndicatorSegments",
+        "spectralAxeAreaIndicatorLineWidth",
+        "spectralAxeAreaIndicatorSortingOrder",
+        "spectralAxeAreaIndicatorSortingLayer"
+    };
+
+    private static readonly string[] SpectralAxeTrailFieldNames =
+    {
+        "spectralAxeTrailLifetimeSeconds",
+        "spectralAxeTrailStartWidth",
+        "spectralAxeTrailEndWidth",
+        "spectralAxeTrailStartAlpha",
+        "spectralAxeTrailAnchorXFrac",
+        "spectralAxeTrailAnchorYFrac",
+        "spectralAxeTrailColorStart",
+        "spectralAxeTrailColorEnd"
     };
 
     private static bool GetFold(string key, bool defaultExpanded = true)
@@ -137,6 +175,13 @@ public class PlayerAbilityControllerEditor : Editor
                 EditorGUILayout.PropertyField(sf, true);
             EditorGUI.indentLevel--;
         }
+        EditorGUILayout.Space(2f);
+
+        DrawFoldoutPropertyBlock(serializedObject, "CleavingChopVfx", "Cleaving Chop VFX", CleavingChopFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(serializedObject, "SpectralAxeVfx", "Spectral Axe VFX", SpectralAxeFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(serializedObject, "SpectralAxeTrailVfx", "Spectral Axe Blue Trail", SpectralAxeTrailFieldNames);
 
         serializedObject.ApplyModifiedProperties();
     }

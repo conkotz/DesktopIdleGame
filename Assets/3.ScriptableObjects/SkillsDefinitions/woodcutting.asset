@@ -463,7 +463,7 @@ MonoBehaviour:
   - requiredLevel: 25
     title: Cleaving Chop
     description: Each chop also strikes nearby trees within range 10 for 40 seconds.
-      Secondary trees gather at 60% efficiency.
+      Secondary trees gather at 60% efficiency. Only logs are gathered.
     icon: {fileID: -2187047416192554098, guid: b78a90acb5575bd4ba76c6522ffef883, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -484,6 +484,34 @@ MonoBehaviour:
     - requiredLevel: 28
       title: Prolonged Cleave
       description: Cleaving Chop duration increased by +5 seconds.
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+  - requiredLevel: 25
+    title: Spectral Axe
+    description: Throws a spectral copy of your axe to chop a tree for you for 60
+      seconds. Only logs are gathered.
+    icon: {fileID: -1363737838827872981, guid: 3481279890b9c434a82341e52f001c26, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 6c2a4e1b3d75f041a8b2c3d4e5f60123, type: 2}
+    choices:
+    - requiredLevel: 28
+      title: Phantom Harvest
+      description: Spectral Axe can also gather bonus and hidden items based on your
+        chances.
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 28
+      title: Cleaving Flight
+      description: Spectral Axe yields a guaranteed log on the first tree it strikes
+        outbound and again on its return.
       icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 26

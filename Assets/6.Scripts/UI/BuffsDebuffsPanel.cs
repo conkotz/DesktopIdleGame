@@ -478,7 +478,10 @@ public class BuffsDebuffsPanel : MonoBehaviour
                     core = def.description;
             }
 
-            if (buff.displayStacks > 0)
+            // Only surface a "Swing charges: N" line for multi-stack buffs (Cleaving Strikes, etc.).
+            // Single-instance buffs (Lumber Frenzy, Cleaving Chop, Spectral Axe, Soulforged Weapon, …)
+            // pass displayStacks=1 just to keep the HUD slot alive — showing "1" is just noise.
+            if (buff.displayStacks > 1)
                 core += $"\n\nSwing charges: {buff.displayStacks}";
             return core;
         }

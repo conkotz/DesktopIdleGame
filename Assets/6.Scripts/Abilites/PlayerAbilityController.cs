@@ -28,6 +28,7 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField] private ActionBarUI actionBar;
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private Inventory inventory;
+    [SerializeField] private ToolbeltManager toolbelt;
     [SerializeField] private PlayerBuffController buffController;
 
     [Header("Global Cooldown")]
@@ -70,6 +71,13 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField] private SoulforgedWeaponMinionPresentation soulforgedWeaponMinionPresentation;
 
     private readonly Dictionary<string, float> _cooldownEndsById = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Cooldown end time per skill-tree row (skillType:Lv{requiredLevel}). When the tree is reset
+    /// and the player picks a different ability in the same row, the new ability inherits this
+    /// remaining cooldown so swapping isn't a free reset.
+    /// </summary>
+    private readonly Dictionary<string, float> _cooldownEndsByRowKey = new(StringComparer.OrdinalIgnoreCase);
     private const string PowerSlashId = "power_slash";
     private const string WhirlwindId = "whirlwind";
     private const string RendId = "rend";
@@ -85,6 +93,58 @@ public class PlayerAbilityController : MonoBehaviour
     private const int LumberFrenzyChoiceSourceLevel = 5;
     private const int LumberFrenzyStaminaEnhancementChoiceIndex = 0;
     private const int LumberFrenzyExtraGritEnhancementChoiceIndex = 1;
+
+    private const string SpectralAxeId = "spectral_axe";
+    /// <summary>Spectral Axe stays out for this long before returning. Cooldown starts after the return finishes.</summary>
+    private const float SpectralAxeBaseDurationSeconds = 60f;
+    /// <summary>How far in front of the player (world units, signed by facing) the axe parks while chopping.</summary>
+    private const float SpectralAxeProjectDistance = 5f;
+    /// <summary>Distance test for Cleaving Flight: counts as a "tree collision" when the axe passes within this radius.</summary>
+    private const float SpectralAxeTravelCollisionRadius = 0.7f;
+    /// <summary>Yield multiplier applied to each gather while Spectral Axe is active (matches Cleaving Chop's secondary efficiency).</summary>
+    private const float SpectralAxeYieldEfficiency = 0.6f;
+    /// <summary>Radius of the spectral axe's circular gather area (world units from the rotating point).</summary>
+    private const float SpectralAxeAreaRadius = 1.5f;
+    /// <summary>
+    /// Fallback cooldown applied when the axe parks but finds no tree inside its gather area.
+    /// Kept short on purpose so a missed cast is recoverable — long enough to discourage spam,
+    /// short enough to feel forgiving.
+    /// </summary>
+    private const float SpectralAxeMissedCastCooldownSeconds = 10f;
+
+    [Header("Spectral Axe VFX")]
+    [Tooltip("Blue hue tint applied to the cloned axe sprite. Alpha drives the translucency of the whole projectile.")]
+    [SerializeField] private Color spectralAxeTint = new Color(0.55f, 0.80f, 1f, 0.85f);
+    [Tooltip("Vertical offset added to the spinning axe so it floats at roughly chest height. Gather/targeting logic still uses ground-level positions, so this is purely cosmetic.")]
+    [SerializeField, Min(0f)] private float spectralAxeVisualLift = 1.2f;
+    [Tooltip("Continuous spin rate of the axe sprite while deployed (degrees per second).")]
+    [SerializeField, Min(0f)] private float spectralAxeSpinDegreesPerSecond = 720f;
+    [Tooltip("When true the axe spins clockwise (negative Z rotation in 2D); when false it spins counter-clockwise.")]
+    [SerializeField] private bool spectralAxeSpinClockwise = true;
+    [Tooltip("World units per second the axe travels along the outbound and return flight phases.")]
+    [SerializeField, Min(0.1f)] private float spectralAxeTravelSpeedUnitsPerSecond = 12f;
+
+    [Header("Spectral Axe Blue Trail")]
+    [Tooltip("Total lifetime of the blue trail behind the spinning axe. Lower = shorter wisp; higher = longer arc.")]
+    [SerializeField, Min(0.01f)] private float spectralAxeTrailLifetimeSeconds = 0.32f;
+    [Tooltip("Starting width of the trail ribbon at the anchor point on the axe.")]
+    [SerializeField, Min(0f)] private float spectralAxeTrailStartWidth = 0.18f;
+    [Tooltip("Final width of the trail ribbon as it fades out.")]
+    [SerializeField, Min(0f)] private float spectralAxeTrailEndWidth = 0f;
+    [Tooltip("Starting alpha of the trail ribbon at the anchor point. Final alpha is always 0.")]
+    [SerializeField, Range(0f, 1f)] private float spectralAxeTrailStartAlpha = 0.75f;
+    [Tooltip("Fraction of the axe sprite's width subtracted from center to place the trail at the back of the head. Negative = front edge.")]
+    [SerializeField] private float spectralAxeTrailAnchorXFrac = 0.28f;
+    [Tooltip("Fraction of the axe sprite's height added above center to place the trail near the top of the head. Higher = closer to the top edge.")]
+    [SerializeField] private float spectralAxeTrailAnchorYFrac = 0.55f;
+    [Tooltip("Trail color at the moment it leaves the axe.")]
+    [SerializeField] private Color spectralAxeTrailColorStart = new Color(0.45f, 0.78f, 1f);
+    [Tooltip("Trail color at the tail end as it dissipates.")]
+    [SerializeField] private Color spectralAxeTrailColorEnd = new Color(0.30f, 0.55f, 1f);
+
+    private const int SpectralAxeChoiceSourceLevel = 25;
+    private const int SpectralAxePhantomHarvestChoiceIndex = 0;
+    private const int SpectralAxeCleavingFlightChoiceIndex = 1;
 
     private const string CleavingChopId = "cleaving_chop";
     /// <summary>Default Cleaving Chop buff duration in seconds (40s base, +5s with Prolonged Cleave enhancement).</summary>
@@ -136,6 +196,24 @@ public class PlayerAbilityController : MonoBehaviour
     /// <summary>When the Cleaving Chop buff expires, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
     private AbilityDefinition _cleavingChopCooldownAbilityDef;
 
+    private bool _spectralAxeActive;
+    private float _spectralAxeEndsAt;
+    private float _spectralAxeDuration;
+    private float _lastSyncedSpectralAxeHudEnd = float.NaN;
+    /// <summary>When the Spectral Axe returns and despawns, this ability gets <see cref="StartCooldown"/>.</summary>
+    private AbilityDefinition _spectralAxeCooldownAbilityDef;
+    private Coroutine _spectralAxeRoutine;
+    private GameObject _spectralAxeProjectile;
+    /// <summary>Per-buff per-tree gather timer matching the secondary-chop pattern in PlayerController.</summary>
+    private float _spectralAxeGatherAccum;
+    private float _spectralAxeGatherNextInterval;
+    private ResourceNode _spectralAxeGatherTarget;
+    /// <summary>True when the axe parked but found no tree in its area → cooldown is overridden to <see cref="SpectralAxeMissedCastCooldownSeconds"/>.</summary>
+    private bool _spectralAxeMissedCast;
+    /// <summary>Visualizer rectangle showing the ±2 gather area around the rotating axe; lifecycle matches the projectile.</summary>
+    private GameObject _spectralAxeAreaIndicatorRoot;
+    private LineRenderer _spectralAxeAreaIndicatorLine;
+
     [Header("Cleaving Chop range indicator")]
     [Tooltip("Auto-spawned LineRenderer circle drawn around the player while Cleaving Chop is active.")]
     [SerializeField] private bool cleavingChopShowRangeIndicator = true;
@@ -149,6 +227,15 @@ public class PlayerAbilityController : MonoBehaviour
     private GameObject _cleavingChopIndicatorRoot;
     private LineRenderer _cleavingChopIndicatorLine;
     private float _cleavingChopIndicatorAppliedRadius = float.NaN;
+
+    [Header("Spectral Axe area indicator")]
+    [Tooltip("Auto-spawned LineRenderer circle drawn around the spectral axe while it's deployed (same style as Cleaving Chop).")]
+    [SerializeField] private bool spectralAxeShowAreaIndicator = true;
+    [SerializeField] private Color spectralAxeAreaIndicatorColor = new Color(0.55f, 0.95f, 0.30f, 0.85f);
+    [SerializeField, Range(16, 128)] private int spectralAxeAreaIndicatorSegments = 64;
+    [SerializeField, Min(0.005f)] private float spectralAxeAreaIndicatorLineWidth = 0.12f;
+    [SerializeField] private int spectralAxeAreaIndicatorSortingOrder = 50;
+    [SerializeField] private string spectralAxeAreaIndicatorSortingLayer = "";
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
     private float _queuedPowerSlashMagicMultiplier = 1f;
     private float _queuedPowerSlashCorruptionMultiplier;
@@ -168,6 +255,15 @@ public class PlayerAbilityController : MonoBehaviour
 
     /// <summary>When the Soulforged Weapon summon despawns, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
     private AbilityDefinition _soulforgedWeaponCooldownAbilityDef;
+
+    /// <summary>
+    /// HUD buff bookkeeping for Soulforged Weapon. Swarm variant uses a real countdown; the indefinite
+    /// variant parks <c>endsAt</c> in the past so <see cref="BuffIconUI"/> hides its timer/overlay.
+    /// </summary>
+    private float _soulforgedHudBuffEndsAt;
+    private float _soulforgedHudBuffDuration;
+    private float _lastSyncedSoulforgedHudEnd = float.NaN;
+    private int _lastSyncedSoulforgedHudStacks = int.MinValue;
 
     private static string s_pendingSoulforgedRestoreAbilityId;
 
@@ -198,6 +294,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!combat) combat = GetComponent<PlayerCombatController>();
         if (!equipment) equipment = GetComponent<EquipmentManager>();
         if (!inventory) inventory = GetComponent<Inventory>();
+        if (!toolbelt) toolbelt = GetComponent<ToolbeltManager>();
         if (!buffController) buffController = GetComponent<PlayerBuffController>();
         if (!abilityDatabase) abilityDatabase = AbilityDatabase.LoadDefault();
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
@@ -226,7 +323,9 @@ public class PlayerAbilityController : MonoBehaviour
         CleanupCleavingChopIfExpired();
         SyncCleavingChopHudBuff();
         UpdateCleavingChopRangeIndicator();
+        SyncSpectralAxeHudBuff();
         CleanupSoulforgedWeaponIfUnavailable();
+        SyncSoulforgedWeaponHudBuff();
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -246,6 +345,11 @@ public class PlayerAbilityController : MonoBehaviour
             minion.PersistAcrossSceneLoads();
             minion.ReturnHomeAfterSceneLoad();
         }
+
+        // PlayerBuffController is fresh in the new scene — force the next Soulforged HUD sync to
+        // re-push the buff entry instead of skipping because the cached "last synced" values match.
+        _lastSyncedSoulforgedHudEnd = float.NaN;
+        _lastSyncedSoulforgedHudStacks = int.MinValue;
     }
 
     private IEnumerator RestorePendingSoulforgedAfterSceneLoad()
@@ -273,11 +377,37 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.IsNullOrWhiteSpace(abilityId))
             return false;
 
-        if (!_cooldownEndsById.TryGetValue(abilityId, out float end))
+        bool found = false;
+        float end = 0f;
+
+        if (_cooldownEndsById.TryGetValue(abilityId, out float idEnd))
+        {
+            end = idEnd;
+            found = true;
+        }
+
+        // Row-keyed lookup: lets another ability in the same skill-tree row inherit the remaining
+        // cooldown when the player resets the tree and picks a different ability on that row.
+        string rowKey = BuildAbilityRowKey(GetAbilityDefinition(abilityId));
+        if (rowKey != null && _cooldownEndsByRowKey.TryGetValue(rowKey, out float rowEnd) && rowEnd > end)
+        {
+            end = rowEnd;
+            found = true;
+        }
+
+        if (!found)
             return false;
 
         remainingSeconds = Mathf.Max(0f, end - Time.time);
         return remainingSeconds > 0f;
+    }
+
+    /// <summary>Stable row key for cooldown sharing. Null when the ability isn't tied to a skill tree row.</summary>
+    private static string BuildAbilityRowKey(AbilityDefinition def)
+    {
+        if (def == null || def.unlockLevel <= 0)
+            return null;
+        return $"row:{def.sourceSkill}:Lv{def.unlockLevel}";
     }
 
     public float GetCooldownNormalized(string abilityId)
@@ -367,6 +497,10 @@ public class PlayerAbilityController : MonoBehaviour
 
         // Cleaving Chop: same deferred-cooldown contract as Lumber Frenzy.
         if (string.Equals(def.abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase) && _cleavingChopActive)
+            return false;
+
+        // Spectral Axe: deferred cooldown starts when the projectile returns. Block recast while deployed.
+        if (string.Equals(def.abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase) && _spectralAxeActive)
             return false;
 
         if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
@@ -475,6 +609,15 @@ public class PlayerAbilityController : MonoBehaviour
         {
             ActivateCleavingChopBuff();
             _cleavingChopCooldownAbilityDef = def;
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            return true;
+        }
+        if (string.Equals(def.abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryActivateSpectralAxe(def))
+                return false;
+            _spectralAxeCooldownAbilityDef = def;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             return true;
@@ -1822,7 +1965,19 @@ public class PlayerAbilityController : MonoBehaviour
         if (!skillsManager)
             return -1;
 
-        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, CleavingChopChoiceSourceLevel, -1);
+        // Spine-keyed: Cleaving Chop is the slot-0 ability at Woodcutting Lv25, sharing the row with
+        // Spectral Axe (slot 1). Using the legacy int "25" would silently return Spectral Axe's choice
+        // when Cleaving Chop has no enhancement picked but Spectral Axe does.
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv25_0", -1);
+    }
+
+    /// <summary>
+    /// True when the player's "Show screen overlay visuals" setting is ON. Drives whether ability range
+    /// gizmos (Cleaving Chop circle, Spectral Axe area, …) render. Gameplay is never gated on this.
+    /// </summary>
+    private static bool AreAbilityRangeIndicatorsEnabled()
+    {
+        return !ToggleSettingsStore.Get(ToggleSettingId.DisableScreenOverlayVisuals);
     }
 
     /// <summary>
@@ -1831,7 +1986,9 @@ public class PlayerAbilityController : MonoBehaviour
     /// </summary>
     private void UpdateCleavingChopRangeIndicator()
     {
-        if (!cleavingChopShowRangeIndicator)
+        // "Show screen overlay visuals" master toggle (Settings) suppresses every in-world ability range
+        // indicator. The buff itself keeps running — only the visualizer disappears.
+        if (!cleavingChopShowRangeIndicator || !AreAbilityRangeIndicatorsEnabled())
         {
             if (_cleavingChopIndicatorRoot != null && _cleavingChopIndicatorRoot.activeSelf)
                 _cleavingChopIndicatorRoot.SetActive(false);
@@ -1929,6 +2086,769 @@ public class PlayerAbilityController : MonoBehaviour
             _cleavingChopIndicatorLine.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, 0f));
         }
     }
+
+    // -------- Spectral Axe (level 25 row, multi-choice with Cleaving Chop) ----------------------------
+    //
+    // Cast contract:
+    //   • Spawn a blue-tinted clone of the equipped axe sprite at the player.
+    //   • Travel forward (player.FacingDirectionX × SpectralAxeProjectDistance), spinning the whole time.
+    //   • At the parked destination, scan the axe's own SpectralAxeAreaRadius circle for Woodcutting
+    //     trees (collider-edge distance), pick the CLOSEST single tree, and chop it at that tree's own
+    //     rate. Only logs are gathered.
+    //   • If NO tree is inside that circle on landing, log "No trees for spectral axe to gather from",
+    //     despawn the axe immediately, and apply SpectralAxeMissedCastCooldownSeconds instead of the
+    //     full ability cooldown.
+    //   • Phantom Harvest (choice 0): also rolls bonus + hidden drops via PreviewDrops using the
+    //     player's gather state (mirrors the primary tick's bonus rules).
+    //   • Cleaving Flight (choice 1): the first tree the axe passes within
+    //     SpectralAxeTravelCollisionRadius yields one guaranteed log on the outbound leg and again on
+    //     the return leg.
+    //   • Cooldown is deferred — it begins when the projectile finishes its return + despawn.
+
+    private bool TryActivateSpectralAxe(AbilityDefinition def)
+    {
+        if (_spectralAxeActive)
+            return false;
+        if (!player || !inventory)
+            return false;
+
+        // Spectral Axe is the toolbelt axe's spectral twin — no axe in toolbelt means there is
+        // nothing to project. Surface a clear activity-log line and bail before any state is mutated
+        // so neither the buff timer nor the deferred cooldown start.
+        if (!HasAxeInToolbelt())
+        {
+            GameLog.Add("Must have an axe in toolbelt to use this ability", GameLog.CannotMessageColor);
+            return false;
+        }
+
+        _spectralAxeActive = true;
+        _spectralAxeMissedCast = false;
+        _spectralAxeDuration = SpectralAxeBaseDurationSeconds;
+        _spectralAxeEndsAt = Time.time + _spectralAxeDuration;
+        _spectralAxeGatherAccum = 0f;
+        _spectralAxeGatherNextInterval = 0f;
+        _spectralAxeGatherTarget = null;
+        _lastSyncedSpectralAxeHudEnd = float.NaN;
+        SyncSpectralAxeHudBuff();
+
+        if (_spectralAxeRoutine != null)
+            StopCoroutine(_spectralAxeRoutine);
+        _spectralAxeRoutine = StartCoroutine(RunSpectralAxeRoutine(def));
+        return true;
+    }
+
+    /// <summary>Spawns the projectile, runs out → spin/chop → return → despawn, then starts the deferred cooldown.</summary>
+    private IEnumerator RunSpectralAxeRoutine(AbilityDefinition def)
+    {
+        Vector3 origin = transform.position;
+        float facing = player ? Mathf.Sign(player.FacingDirectionX == 0f ? 1f : player.FacingDirectionX) : 1f;
+        if (Mathf.Approximately(facing, 0f)) facing = 1f;
+
+        Vector3 destination = origin + new Vector3(facing * SpectralAxeProjectDistance, 0f, 0f);
+        // Visual lift: the projectile spins higher than the player's pivot so it reads as a chest-height
+        // axe, but gather/target queries still use the ground-level destination so collider checks against
+        // tree trunks remain accurate.
+        Vector3 visualLift = new Vector3(0f, spectralAxeVisualLift, 0f);
+
+        GameObject projectile = BuildSpectralAxeProjectile(origin + visualLift, facing);
+        if (projectile == null)
+        {
+            _spectralAxeActive = false;
+            FinishSpectralAxeAfterDespawn();
+            yield break;
+        }
+        _spectralAxeProjectile = projectile;
+
+        Transform projTr = projectile.transform;
+        float spinDeg = 0f;
+        // In Unity 2D, positive Z rotation reads as counter-clockwise on screen, so flipping sign
+        // when spectralAxeSpinClockwise is true gives an intuitive clockwise spin.
+        float spinSign = spectralAxeSpinClockwise ? -1f : 1f;
+        int outboundChoice = GetSpectralAxeSelectedChoice();
+        bool cleavingFlight = outboundChoice == SpectralAxeCleavingFlightChoiceIndex;
+        bool outboundLogAwarded = false;
+        bool inboundLogAwarded = false;
+
+        // Outbound travel
+        float travelDist = Mathf.Max(0.1f, SpectralAxeProjectDistance);
+        float travelTime = travelDist / Mathf.Max(0.1f, spectralAxeTravelSpeedUnitsPerSecond);
+        float t = 0f;
+        while (t < travelTime)
+        {
+            if (projectile == null) yield break;
+            t += Time.deltaTime;
+            float u = Mathf.Clamp01(t / travelTime);
+            Vector3 groundPos = Vector3.Lerp(origin, destination, u);
+            projTr.position = groundPos + visualLift;
+            spinDeg += spinSign * spectralAxeSpinDegreesPerSecond * Time.deltaTime;
+            projTr.rotation = Quaternion.Euler(0f, 0f, spinDeg);
+
+            if (cleavingFlight && !outboundLogAwarded)
+                outboundLogAwarded = TrySpectralAxeAwardTravelCollisionLog(groundPos);
+
+            yield return null;
+        }
+
+        // Snap to destination (visually lifted), then do the axe's OWN area check around its rotating
+        // point: a SpectralAxeAreaRadius circle in world space. We measure the area at the axe's
+        // lifted center so the green circle visualizer and the gather check are exactly the same
+        // region. Only the single CLOSEST overlapping tree is used.
+        Vector3 axeCenter = destination + visualLift;
+        projTr.position = axeCenter;
+
+        EnsureSpectralAxeAreaIndicatorBuilt();
+        UpdateSpectralAxeAreaIndicator(axeCenter);
+
+        _spectralAxeGatherTarget = FindClosestWoodcuttingNodeInAxeArea(axeCenter);
+
+        if (_spectralAxeGatherTarget == null)
+        {
+            // No tree under the axe → log, despawn, and apply the short missed-cast cooldown.
+            GameLog.Add("No trees for spectral axe to gather from", GameLog.CannotMessageColor);
+            _spectralAxeMissedCast = true;
+
+            DestroySpectralAxeAreaIndicator();
+            if (projectile != null)
+                Destroy(projectile);
+            _spectralAxeProjectile = null;
+
+            FinishSpectralAxeAfterDespawn();
+            yield break;
+        }
+
+        while (_spectralAxeActive && Time.time < _spectralAxeEndsAt)
+        {
+            if (projectile == null) yield break;
+
+            // Re-acquire only if the locked-in target depleted or got destroyed. We don't widen the
+            // search — the axe is fixed at this destination, so we only ever consider trees still
+            // inside its area.
+            if (_spectralAxeGatherTarget == null ||
+                _spectralAxeGatherTarget.IsDepleted ||
+                _spectralAxeGatherTarget.Definition == null)
+            {
+                _spectralAxeGatherTarget = FindClosestWoodcuttingNodeInAxeArea(axeCenter);
+                _spectralAxeGatherAccum = 0f;
+                _spectralAxeGatherNextInterval = 0f;
+            }
+
+            spinDeg += spinSign * spectralAxeSpinDegreesPerSecond * Time.deltaTime;
+            projTr.rotation = Quaternion.Euler(0f, 0f, spinDeg);
+            UpdateSpectralAxeAreaIndicator(axeCenter);
+
+            AdvanceSpectralAxeGatherTimer(Time.deltaTime);
+            yield return null;
+        }
+
+        DestroySpectralAxeAreaIndicator();
+
+        // Return leg — fly back to the player's current position (chases if the player moved).
+        Vector3 returnStart = projTr.position - visualLift; // strip lift so the lerp tracks ground positions
+        float returnTime = travelDist / Mathf.Max(0.1f, spectralAxeTravelSpeedUnitsPerSecond);
+        float rt = 0f;
+        while (rt < returnTime)
+        {
+            if (projectile == null) yield break;
+            rt += Time.deltaTime;
+            float u = Mathf.Clamp01(rt / returnTime);
+            Vector3 playerNow = transform.position;
+            Vector3 groundPos = Vector3.Lerp(returnStart, playerNow, u);
+            projTr.position = groundPos + visualLift;
+            spinDeg += spinSign * spectralAxeSpinDegreesPerSecond * Time.deltaTime;
+            projTr.rotation = Quaternion.Euler(0f, 0f, spinDeg);
+
+            if (cleavingFlight && !inboundLogAwarded)
+                inboundLogAwarded = TrySpectralAxeAwardTravelCollisionLog(groundPos);
+
+            yield return null;
+        }
+
+        if (projectile != null)
+            Destroy(projectile);
+        _spectralAxeProjectile = null;
+
+        FinishSpectralAxeAfterDespawn();
+    }
+
+    private void FinishSpectralAxeAfterDespawn()
+    {
+        _spectralAxeActive = false;
+        _spectralAxeEndsAt = 0f;
+        _spectralAxeDuration = 0f;
+        _spectralAxeGatherTarget = null;
+        _spectralAxeGatherAccum = 0f;
+        _spectralAxeGatherNextInterval = 0f;
+        _spectralAxeRoutine = null;
+
+        DestroySpectralAxeAreaIndicator();
+        SyncSpectralAxeHudBuff();
+
+        if (_spectralAxeCooldownAbilityDef)
+        {
+            if (_spectralAxeMissedCast)
+            {
+                // Missed cast (no tree under the axe) → short fixed cooldown so the player isn't punished
+                // with the full 90s but can't spam the cast across an empty field either.
+                float cd = Mathf.Max(0f, SpectralAxeMissedCastCooldownSeconds);
+                if (cd > 0f)
+                {
+                    float end = Time.time + cd;
+                    _cooldownEndsById[_spectralAxeCooldownAbilityDef.abilityId] = end;
+                    string rowKey = BuildAbilityRowKey(_spectralAxeCooldownAbilityDef);
+                    if (rowKey != null)
+                        _cooldownEndsByRowKey[rowKey] = end;
+                }
+            }
+            else
+            {
+                StartCooldown(_spectralAxeCooldownAbilityDef);
+            }
+        }
+        _spectralAxeCooldownAbilityDef = null;
+        _spectralAxeMissedCast = false;
+    }
+
+    private GameObject BuildSpectralAxeProjectile(Vector3 origin, float facing)
+    {
+        Sprite axeSprite = ResolveEquippedAxeSprite();
+        var go = new GameObject("SpectralAxeProjectile");
+        go.transform.position = origin;
+        go.transform.localScale = new Vector3(facing < 0f ? -1f : 1f, 1f, 1f);
+
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = axeSprite;
+        sr.color = spectralAxeTint;
+
+        // Borrow the player's sorting layer so the axe draws above the lane like a regular held tool.
+        SpriteRenderer playerSr = player ? player.GetComponentInChildren<SpriteRenderer>(true) : null;
+        if (playerSr != null)
+        {
+            sr.sortingLayerID = playerSr.sortingLayerID;
+            sr.sortingOrder = playerSr.sortingOrder + 8;
+        }
+        else
+        {
+            sr.sortingOrder = 50;
+        }
+
+        AttachSpectralAxeBlueTrail(go, sr, axeSprite);
+
+        return go;
+    }
+
+    /// <summary>
+    /// Spawns a child TrailRenderer pinned to the axe's top-back edge. Because the trail's transform is a
+    /// child of the spinning projectile, the trail sweeps a swooping arc as the axe rotates — visually
+    /// reinforcing its motion. Tinted blue with a fading alpha gradient so it reads as a spectral wake.
+    /// </summary>
+    private void AttachSpectralAxeBlueTrail(GameObject projectile, SpriteRenderer axeSr, Sprite axeSprite)
+    {
+        if (projectile == null || axeSr == null)
+            return;
+
+        // Anchor the trail roughly at the top-back of the axe head. We bias toward the upper-left of the
+        // (un-rotated) sprite so the visual matches the reference screenshot. Falls back to a small fixed
+        // offset when the sprite has no bounds info.
+        Vector2 size = axeSprite != null ? (Vector2)axeSprite.bounds.size : new Vector2(0.6f, 0.6f);
+        Vector3 anchor = new Vector3(-size.x * spectralAxeTrailAnchorXFrac, size.y * spectralAxeTrailAnchorYFrac, 0f);
+
+        var trailGo = new GameObject("SpectralAxeBlueTrail");
+        trailGo.transform.SetParent(projectile.transform, false);
+        trailGo.transform.localPosition = anchor;
+        trailGo.transform.localRotation = Quaternion.identity;
+        trailGo.transform.localScale = Vector3.one;
+
+        var trail = trailGo.AddComponent<TrailRenderer>();
+        trail.time = spectralAxeTrailLifetimeSeconds;
+        trail.startWidth = spectralAxeTrailStartWidth;
+        trail.endWidth = spectralAxeTrailEndWidth;
+        trail.minVertexDistance = 0.02f;
+        trail.autodestruct = false;
+        trail.emitting = true;
+        trail.numCornerVertices = 2;
+        trail.numCapVertices = 2;
+
+        // Sprites/Default lets the gradient's vertex colors actually show under URP — the legacy
+        // Default-Line material renders pink/invisible.
+        Shader spritesDefault = Shader.Find("Sprites/Default");
+        if (spritesDefault != null)
+            trail.material = new Material(spritesDefault) { color = Color.white };
+
+        var gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(spectralAxeTrailColorStart, 0f),
+                new GradientColorKey(spectralAxeTrailColorEnd, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(spectralAxeTrailStartAlpha, 0f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        trail.colorGradient = gradient;
+
+        // Render the trail just under the axe so the wake reads as "behind" the chopping head.
+        trail.sortingLayerID = axeSr.sortingLayerID;
+        trail.sortingOrder = axeSr.sortingOrder - 1;
+    }
+
+    /// <summary>
+    /// Returns true when at least one toolbelt slot is bound to an item whose <see cref="ItemDefinition.handVisualKey"/>
+    /// is <see cref="ToolKey.Axe"/>. Used as the activation gate for Spectral Axe — the ability projects
+    /// a copy of the toolbelt axe, so without one there is nothing to project.
+    /// </summary>
+    private bool HasAxeInToolbelt()
+    {
+        if (toolbelt == null && player != null)
+            toolbelt = player.GetComponent<ToolbeltManager>();
+        if (toolbelt == null || inventory == null)
+            return false;
+
+        for (int i = 0; i < ToolbeltManager.SlotCount; i++)
+        {
+            string id = toolbelt.GetToolItemId(i);
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+            ItemDefinition def = inventory.GetItemDef(id);
+            if (def != null && def.handVisualKey == ToolKey.Axe)
+                return true;
+        }
+        return false;
+    }
+
+    private Sprite ResolveEquippedAxeSprite()
+    {
+        // Prefer the player's toolbelt axe (the actual woodcutting tool) so Spectral Axe
+        // mirrors the woodcutting visual even when a weapon (e.g. bow) is the worn main-hand.
+        if (toolbelt == null && player != null)
+            toolbelt = player.GetComponent<ToolbeltManager>();
+
+        if (toolbelt != null && inventory != null)
+        {
+            for (int i = 0; i < ToolbeltManager.SlotCount; i++)
+            {
+                string id = toolbelt.GetToolItemId(i);
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+                ItemDefinition def = inventory.GetItemDef(id);
+                if (def == null)
+                    continue;
+                if (def.handVisualKey != ToolKey.Axe)
+                    continue;
+                if (def.icon != null)
+                    return def.icon;
+            }
+        }
+
+        // Fallback: the worn main-hand if it happens to be an axe (matches old behavior
+        // when no toolbelt is wired up).
+        if (equipment != null && inventory != null)
+        {
+            string visualId = equipment.VisualMainHandItemId;
+            if (!string.IsNullOrWhiteSpace(visualId))
+            {
+                ItemDefinition def = inventory.GetItemDef(visualId);
+                if (def != null && def.handVisualKey == ToolKey.Axe && def.icon != null)
+                    return def.icon;
+            }
+        }
+
+        // Final fallback: scan ToolSocket children for a SpriteRenderer (matches ToolSocketEquipper.axe binding).
+        if (player != null)
+        {
+            Transform[] children = player.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < children.Length; i++)
+            {
+                Transform t = children[i];
+                if (t == null) continue;
+                string n = t.name;
+                if (string.IsNullOrWhiteSpace(n)) continue;
+                if (n.IndexOf("Axe", StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
+                var sr = t.GetComponentInChildren<SpriteRenderer>(true);
+                if (sr != null && sr.sprite != null)
+                    return sr.sprite;
+            }
+        }
+
+        return null;
+    }
+
+    private ResourceNode FindClosestWoodcuttingNodeNear(Vector3 worldPos, float radius)
+    {
+        ResourceNode[] all = UnityEngine.Object.FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
+        ResourceNode best = null;
+        float bestSqr = radius * radius;
+        for (int i = 0; i < all.Length; i++)
+        {
+            ResourceNode node = all[i];
+            if (!node || node.ActionType != NodeAction.Woodcutting || node.IsDepleted)
+                continue;
+            if (node.Definition == null || !node.Definition.HasMainYield)
+                continue;
+
+            // Measure against the tree's collider edge (Bounds.ClosestPoint) so the test matches the
+            // visible trunk silhouette. Falls back to the transform pivot when no Collider2D is present.
+            Vector3 measureFrom = ResolveResourceNodeMeasurePoint(node, worldPos);
+            float dx = measureFrom.x - worldPos.x;
+            float dy = measureFrom.y - worldPos.y;
+            float d = dx * dx + dy * dy;
+            if (d < bestSqr)
+            {
+                bestSqr = d;
+                best = node;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Closest point on the node's first <see cref="Collider2D"/> to <paramref name="worldPos"/>; pivot fallback when no collider exists.</summary>
+    private static Vector3 ResolveResourceNodeMeasurePoint(ResourceNode node, Vector3 worldPos)
+    {
+        if (node == null)
+            return worldPos;
+
+        Collider2D col = node.GetComponent<Collider2D>();
+        if (col == null)
+            col = node.GetComponentInChildren<Collider2D>();
+        if (col != null && col.enabled)
+        {
+            Vector2 cp = col.bounds.ClosestPoint(new Vector2(worldPos.x, worldPos.y));
+            return new Vector3(cp.x, cp.y, node.transform.position.z);
+        }
+
+        return node.transform.position;
+    }
+
+    /// <summary>
+    /// Spectral Axe's OWN area scan, used in place of <see cref="FindClosestWoodcuttingNodeNear"/> once
+    /// the axe parks. Considers every Woodcutting tree whose collider edge sits within
+    /// <see cref="SpectralAxeAreaRadius"/> of <paramref name="axeCenter"/> (matching the green circle
+    /// visualizer), picks the closest one, and returns it. Returns null when no tree overlaps the circle.
+    /// </summary>
+    private ResourceNode FindClosestWoodcuttingNodeInAxeArea(Vector3 axeCenter)
+    {
+        float radius = SpectralAxeAreaRadius;
+        float radiusSqr = radius * radius;
+
+        ResourceNode[] all = UnityEngine.Object.FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
+        ResourceNode best = null;
+        float bestSqr = float.PositiveInfinity;
+        for (int i = 0; i < all.Length; i++)
+        {
+            ResourceNode node = all[i];
+            if (!node || node.ActionType != NodeAction.Woodcutting || node.IsDepleted)
+                continue;
+            if (node.Definition == null || !node.Definition.HasMainYield)
+                continue;
+
+            // Collider-edge distance: the tree counts as in-area when any point on its trunk collider is
+            // within the radius (off-pivot trees still register), falling back to the transform pivot
+            // when no Collider2D is present.
+            Vector3 measureFrom = ResolveResourceNodeMeasurePoint(node, axeCenter);
+            float dx = measureFrom.x - axeCenter.x;
+            float dy = measureFrom.y - axeCenter.y;
+            float d = dx * dx + dy * dy;
+            if (d > radiusSqr)
+                continue;
+
+            if (d < bestSqr)
+            {
+                bestSqr = d;
+                best = node;
+            }
+        }
+
+        return best;
+    }
+
+    private void EnsureSpectralAxeAreaIndicatorBuilt()
+    {
+        // Mirrors the Cleaving Chop gate — disabling "Show screen overlay visuals" hides this gizmo too,
+        // without affecting the spectral axe's targeting / gather logic which run from world data, not visuals.
+        if (!spectralAxeShowAreaIndicator || !AreAbilityRangeIndicatorsEnabled())
+        {
+            DestroySpectralAxeAreaIndicator();
+            return;
+        }
+
+        if (_spectralAxeAreaIndicatorRoot != null && _spectralAxeAreaIndicatorLine != null)
+            return;
+
+        _spectralAxeAreaIndicatorRoot = new GameObject("SpectralAxeAreaIndicator");
+        _spectralAxeAreaIndicatorLine = _spectralAxeAreaIndicatorRoot.AddComponent<LineRenderer>();
+
+        var lr = _spectralAxeAreaIndicatorLine;
+        lr.useWorldSpace = true;
+        lr.loop = true;
+        lr.alignment = LineAlignment.View;
+        lr.startWidth = spectralAxeAreaIndicatorLineWidth;
+        lr.endWidth = spectralAxeAreaIndicatorLineWidth;
+        lr.startColor = spectralAxeAreaIndicatorColor;
+        lr.endColor = spectralAxeAreaIndicatorColor;
+        lr.numCornerVertices = 2;
+        lr.numCapVertices = 0;
+        lr.sortingOrder = spectralAxeAreaIndicatorSortingOrder;
+        if (!string.IsNullOrWhiteSpace(spectralAxeAreaIndicatorSortingLayer))
+            lr.sortingLayerName = spectralAxeAreaIndicatorSortingLayer;
+
+        // Replace the legacy Default-Line material with Sprites/Default so vertex colors apply under URP.
+        Shader spritesDefault = Shader.Find("Sprites/Default");
+        if (spritesDefault != null)
+            lr.material = new Material(spritesDefault) { color = Color.white };
+    }
+
+    private void UpdateSpectralAxeAreaIndicator(Vector3 axeCenter)
+    {
+        if (_spectralAxeAreaIndicatorLine == null)
+            return;
+
+        // Draw a closed circle of radius SpectralAxeAreaRadius centered on the axe. Same shape pattern
+        // as Cleaving Chop's range indicator.
+        int segs = Mathf.Clamp(spectralAxeAreaIndicatorSegments, 8, 256);
+        if (_spectralAxeAreaIndicatorLine.positionCount != segs)
+            _spectralAxeAreaIndicatorLine.positionCount = segs;
+
+        float radius = SpectralAxeAreaRadius;
+        float step = (Mathf.PI * 2f) / segs;
+        for (int i = 0; i < segs; i++)
+        {
+            float a = step * i;
+            _spectralAxeAreaIndicatorLine.SetPosition(i, new Vector3(
+                axeCenter.x + Mathf.Cos(a) * radius,
+                axeCenter.y + Mathf.Sin(a) * radius,
+                axeCenter.z));
+        }
+    }
+
+    private void DestroySpectralAxeAreaIndicator()
+    {
+        if (_spectralAxeAreaIndicatorRoot != null)
+        {
+            Destroy(_spectralAxeAreaIndicatorRoot);
+            _spectralAxeAreaIndicatorRoot = null;
+        }
+        _spectralAxeAreaIndicatorLine = null;
+    }
+
+    /// <summary>
+    /// Cleaving Flight: scans for the first nearby Woodcutting tree and awards 1 guaranteed log from it.
+    /// Mirrors how secondary cleave drops are added (inventory + overflow → DropManager).
+    /// </summary>
+    private bool TrySpectralAxeAwardTravelCollisionLog(Vector3 axePos)
+    {
+        ResourceNode hit = FindClosestWoodcuttingNodeNear(axePos, SpectralAxeTravelCollisionRadius);
+        if (hit == null || hit.Definition == null || !hit.Definition.HasMainYield)
+            return false;
+
+        AddSpectralAxeLootToInventory(hit, 1, hit.transform.position);
+        return true;
+    }
+
+    /// <summary>Runs at the player's axe-speed × destination tree's own interval; mirrors Cleaving Chop's per-tree timer.</summary>
+    private void AdvanceSpectralAxeGatherTimer(float deltaSeconds)
+    {
+        if (_spectralAxeGatherTarget == null || _spectralAxeGatherTarget.Definition == null)
+            return;
+        if (inventory == null)
+            return;
+
+        var nodeDef = _spectralAxeGatherTarget.Definition;
+        float speedMult = stats ? Mathf.Max(0.01f, stats.AxeSpeedMult) : 1f;
+
+        if (nodeDef.useRandomInterval)
+        {
+            if (_spectralAxeGatherNextInterval <= 0f)
+                _spectralAxeGatherNextInterval = _spectralAxeGatherTarget.GetNextInterval();
+
+            _spectralAxeGatherAccum += deltaSeconds * speedMult;
+            while (_spectralAxeGatherAccum >= _spectralAxeGatherNextInterval && _spectralAxeGatherNextInterval > 0f)
+            {
+                _spectralAxeGatherAccum -= _spectralAxeGatherNextInterval;
+                DoOneSpectralAxeGather(_spectralAxeGatherTarget);
+                _spectralAxeGatherNextInterval = _spectralAxeGatherTarget.GetNextInterval();
+            }
+        }
+        else
+        {
+            float rate = nodeDef.ratePerSecond;
+            if (rate <= 0f)
+                return;
+
+            _spectralAxeGatherAccum += rate * deltaSeconds * speedMult;
+            int gained = Mathf.FloorToInt(_spectralAxeGatherAccum);
+            if (gained > 0)
+            {
+                _spectralAxeGatherAccum -= gained;
+                for (int g = 0; g < gained; g++)
+                    DoOneSpectralAxeGather(_spectralAxeGatherTarget);
+            }
+        }
+    }
+
+    private void DoOneSpectralAxeGather(ResourceNode node)
+    {
+        if (!node || node.Definition == null)
+            return;
+        if (inventory == null)
+            return;
+
+        var nodeDef = node.Definition;
+
+        // Spectral Axe counts toward the destination tree's depletion (same contract as Cleaving Chop).
+        node.NotifyGatherTickBeforeBonuses(countTowardDepletionCap: true);
+
+        int mainAmt = nodeDef.RollMainYieldAmount();
+        if (node.ApplyDepletedYieldPenaltyThisTick)
+            mainAmt = SpectralAxeRollDepletedYield(mainAmt, nodeDef.depletedYieldMultiplier);
+
+        // Match Cleaving Chop: spectral gathers yield at 60% efficiency (stochastic so small rolls
+        // like 1 log don't get stuck at 1; they average out to the efficiency over many ticks).
+        mainAmt = RollSpectralAxeEfficiencyYield(mainAmt, SpectralAxeYieldEfficiency);
+
+        if (mainAmt > 0)
+            AddSpectralAxeLootToInventory(node, mainAmt, node.transform.position);
+
+        // Phantom Harvest: also roll bonus + hidden drops using the player's bonus find chance,
+        // mirroring the bonus pass in PlayerController.DoOneGatherTick. Logs already paid out above.
+        if (GetSpectralAxeSelectedChoice() == SpectralAxePhantomHarvestChoiceIndex)
+            RollSpectralAxeBonusDrops(node, nodeDef);
+
+        node.NotifyGatherTickFinishedDepletionCheck();
+    }
+
+    /// <summary>
+    /// Phantom Harvest: scan the destination tree's drop table with the player's bonus find chance,
+    /// then deposit any non-main yields (bonus / hidden items). Subject to the same 60% efficiency
+    /// roll and depleted-yield penalty as the main log gather.
+    /// </summary>
+    private void RollSpectralAxeBonusDrops(ResourceNode node, NodeDefinition nodeDef)
+    {
+        if (node == null || nodeDef == null || inventory == null)
+            return;
+
+        float bonusFind = stats ? Mathf.Max(0f, stats.AxeBonusFindChance) : 0f;
+        var drops = new List<Drop>(8);
+        nodeDef.PreviewDrops(drops, bonusFind);
+
+        for (int i = 0; i < drops.Count; i++)
+        {
+            var d = drops[i];
+            if (string.IsNullOrWhiteSpace(d.itemId) || d.amount <= 0)
+                continue;
+            // Skip the main yield — already handled by DoOneSpectralAxeGather.
+            if (string.Equals(d.itemId, nodeDef.YieldItemId, StringComparison.Ordinal))
+                continue;
+
+            int bonusAmt = node.ApplyDepletedYieldPenaltyThisTick
+                ? SpectralAxeRollDepletedYield(d.amount, nodeDef.depletedYieldMultiplier)
+                : d.amount;
+            // Same 60% efficiency applies to bonus drops so the whole ability is consistently
+            // rate-limited like Cleaving Chop's secondaries.
+            bonusAmt = RollSpectralAxeEfficiencyYield(bonusAmt, SpectralAxeYieldEfficiency);
+            if (bonusAmt <= 0)
+                continue;
+
+            AddSpectralAxeLootToInventory(node, bonusAmt, node.transform.position, d.itemId);
+        }
+    }
+
+    /// <summary>
+    /// Stochastically reduce <paramref name="amount"/> by <paramref name="efficiency"/> (0..1). Matches the
+    /// shape of <c>PlayerController.RollCleavingChopSecondaryYield</c> so single-log rolls average to the
+    /// configured efficiency instead of clamping to 1.
+    /// </summary>
+    private static int RollSpectralAxeEfficiencyYield(int amount, float efficiency)
+    {
+        if (amount <= 0)
+            return 0;
+        float m = Mathf.Clamp01(efficiency);
+        if (m >= 1f)
+            return amount;
+        int sum = 0;
+        for (int i = 0; i < amount; i++)
+        {
+            if (UnityEngine.Random.value < m)
+                sum++;
+        }
+        return sum;
+    }
+
+    private void AddSpectralAxeLootToInventory(ResourceNode node, int amount, Vector3 worldDropPos, string overrideItemId = null)
+    {
+        if (amount <= 0 || node == null || node.Definition == null || inventory == null)
+            return;
+
+        string itemId = string.IsNullOrWhiteSpace(overrideItemId) ? node.Definition.YieldItemId : overrideItemId;
+        if (string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        int added = inventory.AddPartial(itemId, amount);
+        int overflow = amount - added;
+
+        if (added > 0)
+            SessionTrackerData.EnsureInstance().RegisterLootGain(node.Definition.displayName, itemId, added);
+
+        if (overflow > 0 && DropManager.Instance != null)
+        {
+            var itemDef = inventory.GetItemDef(itemId);
+            Sprite icon = itemDef ? itemDef.icon : null;
+            DropManager.Instance.Spawn(itemId, overflow, icon, node.Definition.displayName);
+        }
+    }
+
+    private static int SpectralAxeRollDepletedYield(int amount, float multiplier)
+    {
+        if (amount <= 0) return 0;
+        float m = Mathf.Clamp01(multiplier);
+        if (m >= 1f) return amount;
+        int sum = 0;
+        for (int i = 0; i < amount; i++)
+        {
+            if (UnityEngine.Random.value < m)
+                sum++;
+        }
+        return sum;
+    }
+
+    private void SyncSpectralAxeHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!_spectralAxeActive)
+        {
+            if (!float.IsNaN(_lastSyncedSpectralAxeHudEnd))
+            {
+                buffController.ClearHudAbilityBuff(SpectralAxeId);
+                _lastSyncedSpectralAxeHudEnd = float.NaN;
+            }
+            return;
+        }
+
+        if (Mathf.Approximately(_lastSyncedSpectralAxeHudEnd, _spectralAxeEndsAt))
+            return;
+
+        _lastSyncedSpectralAxeHudEnd = _spectralAxeEndsAt;
+        buffController.SetHudAbilityBuff(SpectralAxeId, 1, _spectralAxeEndsAt, _spectralAxeDuration);
+    }
+
+    private int GetSpectralAxeSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        // Spine-keyed: Spectral Axe is the slot-1 ability at Woodcutting Lv25, sharing the row with
+        // Cleaving Chop (slot 0).
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv25_1", -1);
+    }
+
+    /// <summary>True while the buff window is open. Surface for tooltips / status checks.</summary>
+    public bool IsSpectralAxeActive => _spectralAxeActive && Time.time < _spectralAxeEndsAt;
 
     /// <summary>
     /// Called on successful primary hit release. Returns whether cleaving is active and how many extra targets to attempt.
@@ -2055,7 +2975,12 @@ public class PlayerAbilityController : MonoBehaviour
         if (!def) return;
         float cd = Mathf.Max(0f, def.cooldown - GetPowerSlashCooldownReduction(def));
         if (cd <= 0f) return;
-        _cooldownEndsById[def.abilityId] = Time.time + cd;
+        float end = Time.time + cd;
+        _cooldownEndsById[def.abilityId] = end;
+
+        string rowKey = BuildAbilityRowKey(def);
+        if (rowKey != null)
+            _cooldownEndsByRowKey[rowKey] = end;
     }
 
     private float GetPowerSlashAnyTypeMultiplierBonus()
@@ -2371,7 +3296,65 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         _soulforgedWeaponCooldownAbilityDef = def;
+
+        // Mirror the swarm/indefinite split in the HUD buff bar. Swarm gets a real timer so the
+        // 20s overlay sweeps down; indefinite parks endsAt slightly in the past with duration=0 so
+        // BuffIconUI hides both the timer text and the radial overlay (the icon just persists).
+        if (swarm)
+        {
+            _soulforgedHudBuffDuration = SoulforgedWeaponSwarmDurationSeconds;
+            _soulforgedHudBuffEndsAt = Time.time + SoulforgedWeaponSwarmDurationSeconds;
+        }
+        else
+        {
+            _soulforgedHudBuffDuration = 0f;
+            _soulforgedHudBuffEndsAt = Time.time - 1f;
+        }
+        _lastSyncedSoulforgedHudEnd = float.NaN;
+        _lastSyncedSoulforgedHudStacks = int.MinValue;
+        SyncSoulforgedWeaponHudBuff();
+
         return true;
+    }
+
+    private void SyncSoulforgedWeaponHudBuff()
+    {
+        if (!buffController)
+            buffController = GetComponent<PlayerBuffController>();
+        if (!buffController)
+            return;
+
+        int liveCount = 0;
+        for (int i = 0; i < _activeSoulforgedWeaponMinions.Count; i++)
+        {
+            if (_activeSoulforgedWeaponMinions[i])
+                liveCount++;
+        }
+
+        if (liveCount <= 0)
+        {
+            if (!float.IsNaN(_lastSyncedSoulforgedHudEnd) || _lastSyncedSoulforgedHudStacks != int.MinValue)
+            {
+                buffController.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWeaponAbilityId);
+                _lastSyncedSoulforgedHudEnd = float.NaN;
+                _lastSyncedSoulforgedHudStacks = int.MinValue;
+            }
+            return;
+        }
+
+        // Only push to the controller when something visible actually changed — keeps the HUD from
+        // rebuilding every frame while the swarm timer ticks (the icon polls RemainingSeconds itself).
+        if (Mathf.Approximately(_lastSyncedSoulforgedHudEnd, _soulforgedHudBuffEndsAt) &&
+            _lastSyncedSoulforgedHudStacks == liveCount)
+            return;
+
+        _lastSyncedSoulforgedHudEnd = _soulforgedHudBuffEndsAt;
+        _lastSyncedSoulforgedHudStacks = liveCount;
+        buffController.SetHudAbilityBuff(
+            AbilityCombatPower.SoulforgedWeaponAbilityId,
+            liveCount,
+            _soulforgedHudBuffEndsAt,
+            _soulforgedHudBuffDuration);
     }
 
     private int GetSoulforgedWeaponSelectedChoice()
@@ -2535,6 +3518,7 @@ public class PlayerAbilityController : MonoBehaviour
 
     /// <summary>
     /// Owner death: immediately end active Soulforged Weapon summon and force ability cooldown.
+    /// Also tears down any deployed Spectral Axe so it doesn't keep gathering after the player dies.
     /// </summary>
     public void EndSoulforgedOnOwnerDeath()
     {
@@ -2554,6 +3538,46 @@ public class PlayerAbilityController : MonoBehaviour
 
         _soulforgedWeaponCooldownAbilityDef = null;
         _activeSoulforgedWeaponIsPersistent = false;
+
+        AbortSpectralAxe(awardCooldown: true);
+    }
+
+    /// <summary>
+    /// Force-cancel the current Spectral Axe deployment (kills coroutine + projectile). When
+    /// <paramref name="awardCooldown"/> is true the deferred cooldown still starts, mirroring how
+    /// Soulforged Weapon's cooldown sticks even if its owner dies mid-cast.
+    /// </summary>
+    private void AbortSpectralAxe(bool awardCooldown)
+    {
+        if (!_spectralAxeActive && _spectralAxeRoutine == null && _spectralAxeProjectile == null)
+            return;
+
+        if (_spectralAxeRoutine != null)
+            StopCoroutine(_spectralAxeRoutine);
+        _spectralAxeRoutine = null;
+
+        if (_spectralAxeProjectile != null)
+        {
+            Destroy(_spectralAxeProjectile);
+            _spectralAxeProjectile = null;
+        }
+
+        bool wasActive = _spectralAxeActive;
+        AbilityDefinition deferred = _spectralAxeCooldownAbilityDef;
+
+        _spectralAxeActive = false;
+        _spectralAxeEndsAt = 0f;
+        _spectralAxeDuration = 0f;
+        _spectralAxeGatherTarget = null;
+        _spectralAxeGatherAccum = 0f;
+        _spectralAxeGatherNextInterval = 0f;
+        _spectralAxeCooldownAbilityDef = null;
+        _spectralAxeMissedCast = false;
+        DestroySpectralAxeAreaIndicator();
+        SyncSpectralAxeHudBuff();
+
+        if (awardCooldown && wasActive && deferred != null)
+            StartCooldown(deferred);
     }
 
     /// <summary>

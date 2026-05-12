@@ -239,8 +239,26 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
-        // Lumber Frenzy enhancements are rendered inline in the Effects section
-        // (see AbilityTooltipDamagePreview), so skip the trailing "Active Enhancement" line.
+        // Woodcutting tree: each ability sits in its own spine row, so the choice is keyed by
+        // the spine ID rather than the level (e.g. Cleaving Chop and Spectral Axe share Lv25 and
+        // would otherwise collide on the legacy int key).
+        if (string.Equals(def.abilityId, AbilityCombatPower.LumberFrenzyAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv5_0", -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, AbilityCombatPower.CleavingChopAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv25_0", -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, AbilityCombatPower.SpectralAxeAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv25_1", -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
 
         return string.Empty;
     }

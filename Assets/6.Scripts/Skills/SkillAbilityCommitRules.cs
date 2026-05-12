@@ -49,21 +49,29 @@ public static class SkillAbilityCommitRules
         if (skill == null || skill.unlocks == null)
             return result;
 
-        var sorted = new List<SkillUnlockDefinition>();
+        // Pair each unlock with its original index so we can fall back to that as a stable
+        // tiebreaker. This must match SkillTreeViewUI.BuildRows ordering (level → unlockType
+        // horizontal order → original asset index); otherwise the visual ordinal saved via
+        // SetSkillAbilityRowPick won't match the index looked up here, and the wrong sibling
+        // will be reported as the picked ability (e.g. picking Spectral Axe equips Cleaving
+        // Chop because List<T>.Sort is not stable when the comparator returns 0).
+        var sorted = new List<(SkillUnlockDefinition u, int origIdx)>();
         for (int i = 0; i < skill.unlocks.Count; i++)
             if (skill.unlocks[i] != null)
-                sorted.Add(skill.unlocks[i]);
+                sorted.Add((skill.unlocks[i], i));
 
         sorted.Sort((a, b) =>
         {
-            int c = a.requiredLevel.CompareTo(b.requiredLevel);
+            int c = a.u.requiredLevel.CompareTo(b.u.requiredLevel);
             if (c != 0) return c;
-            return TierHorizontalSortOrderForUnlocks(a.unlockType).CompareTo(TierHorizontalSortOrderForUnlocks(b.unlockType));
+            c = TierHorizontalSortOrderForUnlocks(a.u.unlockType).CompareTo(TierHorizontalSortOrderForUnlocks(b.u.unlockType));
+            if (c != 0) return c;
+            return a.origIdx.CompareTo(b.origIdx);
         });
 
         for (int i = 0; i < sorted.Count; i++)
         {
-            SkillUnlockDefinition u = sorted[i];
+            SkillUnlockDefinition u = sorted[i].u;
             if (u.requiredLevel != requiredLevel || u.unlockType != SkillUnlockType.Ability || u.ability == null)
                 continue;
             result.Add(u.ability);

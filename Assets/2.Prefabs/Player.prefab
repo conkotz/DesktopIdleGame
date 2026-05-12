@@ -5652,6 +5652,7 @@ MonoBehaviour:
   actionBar: {fileID: 0}
   equipment: {fileID: 0}
   inventory: {fileID: 0}
+  toolbelt: {fileID: 0}
   buffController: {fileID: 0}
   globalCooldownSeconds: 1
   powerSlashTrailAnchor: {fileID: 7149526798742480501}
@@ -5708,6 +5709,30 @@ MonoBehaviour:
     spectralTint: {r: 0.7207546, g: 0.2104272, b: 0.18902804, a: 0.9}
     placeholderWeaponSprite: {fileID: -8860823726366746541, guid: 2e15a983e647ec142bfdadc1698f81bc, type: 3}
     spriteSortingOrder: 4
+  spectralAxeTint: {r: 0.55, g: 0.8, b: 1, a: 0.85}
+  spectralAxeVisualLift: 1.35
+  spectralAxeSpinDegreesPerSecond: 720
+  spectralAxeTravelSpeedUnitsPerSecond: 12
+  spectralAxeTrailLifetimeSeconds: 0.32
+  spectralAxeTrailStartWidth: 0.18
+  spectralAxeTrailEndWidth: 0
+  spectralAxeTrailStartAlpha: 0.75
+  spectralAxeTrailAnchorXFrac: 0.28
+  spectralAxeTrailAnchorYFrac: 0.65
+  spectralAxeTrailColorStart: {r: 0.45, g: 0.78, b: 1, a: 1}
+  spectralAxeTrailColorEnd: {r: 0.3, g: 0.55, b: 1, a: 1}
+  cleavingChopShowRangeIndicator: 1
+  cleavingChopIndicatorColor: {r: 0.55, g: 0.95, b: 0.3, a: 0.85}
+  cleavingChopIndicatorSegments: 64
+  cleavingChopIndicatorLineWidth: 0.14
+  cleavingChopIndicatorSortingOrder: 50
+  cleavingChopIndicatorSortingLayer: 
+  spectralAxeShowAreaIndicator: 1
+  spectralAxeAreaIndicatorColor: {r: 0.55, g: 0.95, b: 0.3, a: 0.85}
+  spectralAxeAreaIndicatorSegments: 64
+  spectralAxeAreaIndicatorLineWidth: 0.12
+  spectralAxeAreaIndicatorSortingOrder: 50
+  spectralAxeAreaIndicatorSortingLayer: 
 --- !u!114 &7462036414647869483
 MonoBehaviour:
   m_ObjectHideFlags: 0
