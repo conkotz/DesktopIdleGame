@@ -22,6 +22,15 @@ MonoBehaviour:
       amount: 3
       itemId: feather
     defaultQuantity: -1
+  - itemId: hardwood_arrow
+    costs:
+    - type: 1
+      amount: 1
+      itemId: hardwood_log
+    - type: 1
+      amount: 6
+      itemId: feather
+    defaultQuantity: -1
   - itemId: splitwood_swiftbow
     costs:
     - type: 0

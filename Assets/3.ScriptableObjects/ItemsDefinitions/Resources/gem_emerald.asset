@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: gem_emerald
   displayName: Ruby
   displayNameSingular: 
-  icon: {fileID: -1553732255, guid: e7eb9518e7794b440a01e1f3a363f17d, type: 3}
+  icon: {fileID: -2176379822362671368, guid: 7e1d2abd68aea814a8566eae964bd28c, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0

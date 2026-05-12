@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: gem_sapphire
   displayName: Sapphire
   displayNameSingular: 
-  icon: {fileID: 6528285954514067804, guid: 3bf62abd2c30aa444923c72a40ce2f3a, type: 3}
+  icon: {fileID: -7534516496587888937, guid: 7e1d2abd68aea814a8566eae964bd28c, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -153,6 +153,7 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    openableLoot: []
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

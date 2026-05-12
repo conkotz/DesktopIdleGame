@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: gem_ruby
   displayName: Ruby
   displayNameSingular: 
-  icon: {fileID: -867407036113289831, guid: e7eb9518e7794b440a01e1f3a363f17d, type: 3}
+  icon: {fileID: -6945001556013784561, guid: 7e1d2abd68aea814a8566eae964bd28c, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
