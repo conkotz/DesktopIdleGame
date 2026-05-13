@@ -667,12 +667,12 @@ MonoBehaviour:
     choices:
     - requiredLevel: 0
       title: Experienced Gatherer
-      description: +2% chance to reveal hidden resources.
+      description: +1% chance to reveal hidden resources.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 0
       title: Treasure Hunter
-      description: Hidden resources have 15% chance to double.
+      description: Hidden resources have 10% chance to double.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 35
@@ -925,8 +925,9 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 50
-    title: Capstone Placeholder
-    description: 
+    title: Bountiful Chop
+    description: Gather 1 extra log per your successful woodcutting action (does
+      not apply to cleaved chops or logs gained from Spectral Axe).
     icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
     unlockType: 4
     meleeMinorStatOption: 0
@@ -938,14 +939,4 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
-    choices:
-    - requiredLevel: 0
-      title: Placeholder 1
-      description: 
-      icon: {fileID: 0}
-      ability: {fileID: 0}
-    - requiredLevel: 0
-      title: Placeholder 2
-      description: 
-      icon: {fileID: 0}
-      ability: {fileID: 0}
+    choices: []

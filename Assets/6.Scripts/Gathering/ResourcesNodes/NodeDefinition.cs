@@ -192,7 +192,7 @@ public class NodeDefinition : ScriptableObject
         /// <summary>Flat chance added to each hidden drop's base chance (e.g. Ancient Lumbercraft). Hidden-only — not affected by Bonus Resource Find Chance.</summary>
         public float hiddenChanceFlatBonus;
 
-        /// <summary>Chance to double each successful hidden drop's amount (Treasure Hunter).</summary>
+        /// <summary>Chance to double each successful hidden drop's amount (Treasure Hunter, 10%).</summary>
         public float hiddenDoubleAmountChance;
 
         /// <summary>Chance to add +1 to each successful bonus drop's amount (Forest's Favor / Hidden Riches).</summary>

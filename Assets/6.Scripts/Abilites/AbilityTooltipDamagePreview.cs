@@ -107,12 +107,28 @@ public static class AbilityTooltipDamagePreview
     }
 
     /// <summary>
-    /// TMP rich-text line for ability tooltips. Empty when <see cref="AbilityWeaponRequirement.Any"/>.
-    /// Red when equipped weapon does not match; neutral or orange (action bar) when it does.
+    /// TMP rich-text line for ability tooltips. Empty when <see cref="AbilityWeaponRequirement.Any"/>
+    /// (Spectral Axe is an exception: it always shows a toolbelt-axe requirement line).
+    /// Red when the requirement is not met; neutral or orange (action bar) when it is.
     /// </summary>
     public static string BuildWeaponRequirementRichLine(AbilityDefinition def, CharacterStats stats, bool orangeWhenOk = false)
     {
-        if (def == null || def.requiredWeaponType == AbilityWeaponRequirement.Any)
+        if (def == null)
+            return "";
+
+        if (IsSpectralAxe(def))
+        {
+            var pac = Object.FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
+            bool axeOk = stats == null || (pac != null && pac.HasAxeInToolbelt());
+            const string axeRequirementText = "Required: Axe in toolbelt";
+            if (!axeOk)
+                return $"<color=#FF5C5C>{axeRequirementText}</color>";
+            if (orangeWhenOk)
+                return $"<color=#FFB347>{axeRequirementText}</color>";
+            return axeRequirementText;
+        }
+
+        if (def.requiredWeaponType == AbilityWeaponRequirement.Any)
             return "";
 
         string label = def.requiredWeaponType switch
@@ -250,6 +266,7 @@ public static class AbilityTooltipDamagePreview
         }
 
         float tipAp = stats ? Mathf.Max(0f, stats.AbilityPower) : 0f;
+        float energy = Mathf.Max(0f, def.energyCost);
         bool showApInEffects =
             !IsCleavingStrikes(def) && !IsRend(def) && !IsEnvenom(def) && !def.SpawnsMinionOnCast;
         int tooltipApBonus = showApInEffects && stats != null
@@ -263,7 +280,7 @@ public static class AbilityTooltipDamagePreview
         {
             AppendLumberFrenzyTooltipEffects(body, O, skillsManager);
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{cooldown:0.#}s Cooldown"));
+            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
         }
 
@@ -271,7 +288,7 @@ public static class AbilityTooltipDamagePreview
         {
             AppendAvatarOfTheForestTooltipEffects(body, O, skillsManager);
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{cooldown:0.#}s Cooldown (begins after the buff ends)"));
+            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown (begins after the buff ends)"));
             return body.ToString().TrimEnd();
         }
 
@@ -279,7 +296,7 @@ public static class AbilityTooltipDamagePreview
         {
             AppendCleavingChopTooltipEffects(body, O, skillsManager);
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{cooldown:0.#}s Cooldown"));
+            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
         }
 
@@ -287,7 +304,7 @@ public static class AbilityTooltipDamagePreview
         {
             AppendSpectralAxeTooltipEffects(body, O, skillsManager);
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{cooldown:0.#}s Cooldown"));
+            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
         }
 
@@ -299,7 +316,7 @@ public static class AbilityTooltipDamagePreview
                 AppendMinionSpawnTooltipEffectsNoStats(body, O, S, def, skillsManager);
 
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{def.energyCost:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
         }
 
@@ -523,7 +540,7 @@ public static class AbilityTooltipDamagePreview
         }
 
         body.AppendLine(string.Empty);
-        body.AppendLine(O($"{def.energyCost:0.#} Energy • {cooldown:0.#}s Cooldown"));
+        body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
 
         return body.ToString().TrimEnd();
     }

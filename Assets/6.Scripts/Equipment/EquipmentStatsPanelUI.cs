@@ -934,6 +934,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         const string bonusFindBody =
             "Extra chance to find bonus resources while gathering with this tool.\n\n" +
             "Applies per gather action and stacks with other bonus find sources.";
+        float hiddenRevealPct = player != null ? player.GetWoodcuttingHiddenRevealChanceFlatBonus() * 100f : 0f;
+        string axeBonusFindBody = bonusFindBody + "\n\n" +
+            "Hidden items can also be found with an independent chance to bonus find (base 0% chance).\n" +
+            $"+{hiddenRevealPct:0.#}% Chance to find hidden resources.";
         const string staminaEffBody =
             "Reduces stamina/energy cost pressure while gathering.\n\n" +
             "Higher efficiency lets you gather longer before running out of stamina.";
@@ -945,7 +949,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         Wire(axeSpeedText, "Woodcutting Speed", speedBody);
         Wire(axeGritText, "Woodcutting Grit", gritBody);
-        Wire(axeBonusFindText, "Woodcutting Bonus Find", bonusFindBody);
+        Wire(axeBonusFindText, "Woodcutting Bonus Find", axeBonusFindBody);
         Wire(axeStaminaEfficiencyText, "Woodcutting Stamina Efficiency", staminaEffBody);
 
         Wire(rodSpeedText, "Fishing Speed", speedBody);

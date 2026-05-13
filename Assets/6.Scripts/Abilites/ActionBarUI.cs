@@ -175,6 +175,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             activeCombatLoadoutSetIndex = equipment.ActiveWeaponSetIndex == 1 ? 1 : 0;
     }
 
+    /// <summary>Re-read hotkey manager and push labels to all slots (call after changing <see cref="ActionBarSlotUI"/> slot indices in the editor).</summary>
+    public void RefreshHotkeyLabels() => SyncHotkeysFromManager();
+
     private void SyncHotkeysFromManager()
     {
         HotkeyBindingManager mgr = HotkeyBindingManager.Instance;
@@ -185,12 +188,13 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             if (binding == null || binding.slot == null)
                 continue;
 
+            int hotkeyOrder = ResolveHotkeyOrderIndex(i, binding.slot);
             KeyCode k;
-            if (i < HotkeyBindIds.ActionBarSlotCount)
+            if (hotkeyOrder < HotkeyBindIds.ActionBarSlotCount)
             {
                 k = mgr != null
-                    ? mgr.GetBinding(HotkeyBindIds.FromActionBarOrder(i))
-                    : HotkeyBindingManager.GetDefaultKey(HotkeyBindIds.FromActionBarOrder(i));
+                    ? mgr.GetBinding(HotkeyBindIds.FromActionBarOrder(hotkeyOrder))
+                    : HotkeyBindingManager.GetDefaultKey(HotkeyBindIds.FromActionBarOrder(hotkeyOrder));
             }
             else
             {
@@ -200,6 +204,29 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             binding.currentKey = k;
             binding.slot.SetHotkeyLabel(HotkeyBindingManager.GetDisplayString(k));
         }
+    }
+
+    /// <summary>
+    /// Uses <see cref="ActionBarSlotUI.SlotIndex"/> for ActionBar1–7 when it is in range and unique among earlier bindings;
+    /// otherwise falls back to list order (preserves older scenes where every slot used slot index 0).
+    /// </summary>
+    private int ResolveHotkeyOrderIndex(int listIndex, ActionBarSlotUI slot)
+    {
+        if (slot == null)
+            return listIndex;
+
+        int s = slot.SlotIndex;
+        if (s < 0 || s >= HotkeyBindIds.ActionBarSlotCount)
+            return listIndex;
+
+        for (int j = 0; j < listIndex; j++)
+        {
+            ActionBarSlotUI earlier = slotBindings[j] != null ? slotBindings[j].slot : null;
+            if (earlier != null && earlier.SlotIndex == s)
+                return listIndex;
+        }
+
+        return s;
     }
 
     private void Update()
@@ -1039,7 +1066,11 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     /// <summary>Legacy API: rebinds by <b>slot list order</b> (same as <see cref="HotkeyBindId"/> for indices 0–6).</summary>
     public void RebindKey(ActionBarSlotUI slot, KeyCode newKey)
     {
-        int order = GetSlotOrderIndex(slot);
+        int listIndex = GetSlotOrderIndex(slot);
+        if (listIndex < 0)
+            return;
+
+        int order = ResolveHotkeyOrderIndex(listIndex, slot);
         if (order < 0 || order >= HotkeyBindIds.ActionBarSlotCount)
             return;
 

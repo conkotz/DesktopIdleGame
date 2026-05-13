@@ -712,7 +712,7 @@ MonoBehaviour:
   stackText: {fileID: 2324238273540163834}
   cooldownOverlay: {fileID: 8334774612213833545}
   activeOverlay: {fileID: 1475500290629877084}
-  activeTimerText: {fileID: 0}
+  activeTimerText: {fileID: 5947308579068822292}
   cooldownText: {fileID: 5096152902211164999}
   button: {fileID: 68836907606575591}
   defaultTitle: Ability 1

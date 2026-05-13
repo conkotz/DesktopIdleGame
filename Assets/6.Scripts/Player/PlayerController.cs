@@ -217,6 +217,8 @@ public class PlayerController : MonoBehaviour
     private const float WoodcuttingForestFlowContinuousSecondsThreshold = 15f;
     public const int WoodcuttingMajorPassiveSourceLevel = 15;
     public const int WoodcuttingLv35MajorPassiveSourceLevel = 35;
+    /// <summary>Woodcutting skill level at which the capstone passive unlocks (see woodcutting skill tree).</summary>
+    public const int WoodcuttingCapstonePassiveRequiredLevel = 50;
 
     /// <summary>Spine id segment for the Lv15 ability row pick (0–2) used with <see cref="SkillsManager.GetSkillChoiceSelection"/> string overload.</summary>
     public static string WoodcuttingLevel15ChoiceSpineId(int abilityRowPick) =>
@@ -1724,6 +1726,12 @@ public class PlayerController : MonoBehaviour
             if (targetNode.ApplyDepletedYieldPenaltyThisTick)
                 mainAmt = RollDepletedGatherYield(mainAmt, def.depletedYieldMultiplier);
 
+            // Lv50 Bountiful Chop: +1 main log only on THIS tick — the player's primary tree gather in DoOneGatherTick.
+            // Cleaving Chop secondaries use DoOneCleavingSecondaryYield; Spectral Axe uses DoOneSpectralAxeGather (no +1 there).
+            // Does not affect bonus-find or hidden rolls (those run in the second pass below).
+            if (isWoodcutting && mainAmt > 0 && IsWoodcuttingCapstoneBonusLogUnlocked())
+                mainAmt += 1;
+
             if (mainAmt > 0)
             {
                 // Add main item
@@ -2392,9 +2400,9 @@ public class PlayerController : MonoBehaviour
         {
             ctx.hiddenChanceFlatBonus = 0.02f;
             if (enh35 == 0)
-                ctx.hiddenChanceFlatBonus += 0.02f;
+                ctx.hiddenChanceFlatBonus += 0.01f;
             else if (enh35 == 1)
-                ctx.hiddenDoubleAmountChance = 0.15f;
+                ctx.hiddenDoubleAmountChance = 0.10f;
         }
         else if (pick35 == 1)
         {
@@ -2403,6 +2411,25 @@ public class PlayerController : MonoBehaviour
                 ctx.bonusDropExtraOneChance += 0.10f;
         }
         return ctx;
+    }
+
+    /// <summary>
+    /// Flat 0–1 chance added to each hidden-drop entry on woodcutting gathers (Ancient Lumbercraft + Experienced Gatherer).
+    /// Used by stats UI; matches <see cref="BuildWoodcuttingLevel35DropContext"/>.
+    /// </summary>
+    public float GetWoodcuttingHiddenRevealChanceFlatBonus()
+    {
+        return BuildWoodcuttingLevel35DropContext().hiddenChanceFlatBonus;
+    }
+
+    /// <summary>
+    /// Woodcutting Lv50 capstone (Bountiful Chop): +1 main log on the player's primary gather tick only
+    /// (see <see cref="DoOneGatherTick"/>). Not used by cleave secondaries or spectral axe gathers.
+    /// </summary>
+    private static bool IsWoodcuttingCapstoneBonusLogUnlocked()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        return sm != null && sm.IsLevelUnlocked(SkillType.Woodcutting, WoodcuttingCapstonePassiveRequiredLevel);
     }
 
     /// <summary>Lv35 Forest's Favor / Rich Harvest adds +10% Bonus Find Chance to gather rolls.</summary>

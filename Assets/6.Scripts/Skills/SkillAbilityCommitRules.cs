@@ -8,7 +8,8 @@ using UnityEngine;
 public static class SkillAbilityCommitRules
 {
     /// <summary>
-    /// Matches <see cref="SkillTreeViewUI"/> row ordering: multiple Ability unlocks at the same level require a row pick before listing in the panel.
+    /// Matches <see cref="SkillTreeViewUI"/> row ordering: ability unlocks at the same level share a row pick
+    /// (including a lone ability, which commits as index 0 on click).
     /// </summary>
     public static int TierHorizontalSortOrderForUnlocks(SkillUnlockType t)
     {
@@ -97,6 +98,8 @@ public static class SkillAbilityCommitRules
 
     /// <summary>
     /// Whether the abilities panel should list this ability (level already checked by caller).
+    /// Every ability tier row (including a single ability on the row) needs a committed row pick
+    /// so Reset Tree can clear the list until the player selects the node again.
     /// </summary>
     public static bool ShouldShowAbilityInRightPanel(SkillDefinition skill, AbilityDefinition ability, SkillsManager sm)
     {
@@ -114,11 +117,6 @@ public static class SkillAbilityCommitRules
         if (siblings.Count == 0)
             return true;
 
-        // Only one ability on this tier row: nothing to choose between — do not require a committed row pick.
-        // (Otherwise pick stays -1 until the player clicks the node, and the right-hand abilities list stays empty.)
-        if (siblings.Count == 1)
-            return IndexOfAbilityInSiblingList(siblings, ability) == 0;
-
         int pick = sm.GetSkillAbilityRowPick(skill.skillType, req, -1);
         if (pick < 0)
             return false;
@@ -127,6 +125,8 @@ public static class SkillAbilityCommitRules
         if (idx < 0)
             return false;
 
+        // Single-ability rows still need a committed pick (set to 0 when the player clicks the node)
+        // so Reset Tree clears the right-hand list until they select again — same as multi-sibling rows.
         return idx == pick;
     }
 

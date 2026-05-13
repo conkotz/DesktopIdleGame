@@ -25,9 +25,10 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A peice of rare ancient bark.
+  description: A peice of rare ancient bark. The merchant would be interested in
+    this.
   rarity: 3
-  value: 7500
+  value: 1500
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -153,6 +154,8 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    openRequiredAmount: 0
+    openableLoot: []
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

@@ -23,22 +23,22 @@ MonoBehaviour:
   yieldAmountMax: 1
   ratePerSecond: 1
   useRandomInterval: 1
-  minInterval: 30
-  maxInterval: 40
+  minInterval: 25
+  maxInterval: 35
   bonusDrops:
   - item: {fileID: 11400000, guid: 8ba0be660a4597348907cc3ea2ad0c33, type: 2}
     chance: 0.05
     amountMin: 1
-    amountMax: 2
+    amountMax: 3
   hiddenDrops:
   - item: {fileID: 11400000, guid: 1b5992d9e7642894e86332337394a6d5, type: 2}
     chance: 0
-    amountMin: 1
-    amountMax: 1
+    amountMin: 3
+    amountMax: 3
   requiresTool: 1
   requiredTool: 3
   missingToolMessage: No axe found in toolbelt
-  energyCostPercentOfMaxPerSwing: 40
+  energyCostPercentOfMaxPerSwing: 65
   depletionGatherCount: 15
   depletionRegenSeconds: 60
   depletedYieldMultiplier: 0.3

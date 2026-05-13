@@ -183,7 +183,7 @@ public class AbilityEntryUI : MonoBehaviour,
         if (!string.IsNullOrEmpty(tagLine))
             desc = $"{tagLine}\n\n{desc}";
 
-        string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, stats);
+        string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, stats, orangeWhenOk: true);
         string afterDesc = string.IsNullOrEmpty(weaponLine) ? "" : $"\n\n{weaponLine}";
 
         string choiceLine = BuildActiveEnhancementLineForAbility(def, skillsManager);

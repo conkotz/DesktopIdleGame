@@ -159,6 +159,10 @@ MonoBehaviour:
       chancePercent: 100
       minAmount: 1
       maxAmount: 1
+    - itemId: ancient_bark
+      chancePercent: 2
+      minAmount: 1
+      maxAmount: 1
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

@@ -1217,6 +1217,28 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                 AppendWoodcuttingLevel35EffectLines);
         }
 
+        if (skill.skillType == SkillType.Woodcutting && skill.unlocks != null)
+        {
+            SkillUnlockDefinition capstone = FindCapstonePassiveUnlockForSkill(skill, currentLevel);
+            if (capstone != null)
+            {
+                string capTitle = string.IsNullOrWhiteSpace(capstone.title) ? "Capstone" : capstone.title.Trim();
+                int capLv = Mathf.Max(1, capstone.requiredLevel);
+                sb.AppendLine($"• {capTitle} (Capstone) (Lv{capLv})");
+                if (!string.IsNullOrWhiteSpace(capstone.description))
+                {
+                    string[] parts = capstone.description.Trim().Split(
+                        new[] { '\r', '\n' },
+                        StringSplitOptions.RemoveEmptyEntries);
+                    for (int p = 0; p < parts.Length; p++)
+                        parts[p] = parts[p].Trim();
+                    string desc = string.Join(" ", parts);
+                    sb.Append("   ");
+                    sb.AppendLine(desc);
+                }
+            }
+        }
+
         // Major passive conversion summary (currently Melee Lv10 Bloodletting branch).
         if (skill.skillType == SkillType.Melee && currentLevel >= 10)
         {
@@ -1304,6 +1326,32 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         return sb.ToString();
     }
 
+    /// <summary>First capstone passive row at or below <paramref name="currentLevel"/> (e.g. Woodcutting Lv50 Bountiful Chop).</summary>
+    private static SkillUnlockDefinition FindCapstonePassiveUnlockForSkill(SkillDefinition skill, int currentLevel)
+    {
+        if (skill?.unlocks == null)
+            return null;
+
+        SkillUnlockDefinition best = null;
+        int bestLevel = int.MaxValue;
+        for (int i = 0; i < skill.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition u = skill.unlocks[i];
+            if (u == null || u.unlockType != SkillUnlockType.CapstonePassive)
+                continue;
+            int req = Mathf.Max(1, u.requiredLevel);
+            if (currentLevel < req)
+                continue;
+            if (req < bestLevel)
+            {
+                bestLevel = req;
+                best = u;
+            }
+        }
+
+        return best;
+    }
+
     private static void AppendFlat(StringBuilder sb, float value, string label)
     {
         if (value <= 0f) return;
@@ -1386,10 +1434,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             bool experiencedGatherer = string.Equals(enhancementTitle, "Experienced Gatherer", System.StringComparison.OrdinalIgnoreCase);
             bool treasureHunter = string.Equals(enhancementTitle, "Treasure Hunter", System.StringComparison.OrdinalIgnoreCase);
             if (experiencedGatherer)
-                hiddenChance += 2;
+                hiddenChance += 1;
             sb.AppendLine($"     +{hiddenChance}% Hidden Resource Chance");
             if (treasureHunter)
-                sb.AppendLine("     +15% chance for Hidden Resources to double");
+                sb.AppendLine("     +10% chance for Hidden Resources to double");
             return;
         }
 

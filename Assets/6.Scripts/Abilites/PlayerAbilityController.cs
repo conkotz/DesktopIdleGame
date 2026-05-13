@@ -2099,7 +2099,7 @@ public class PlayerAbilityController : MonoBehaviour
     /// is <see cref="ToolKey.Axe"/>. Used as the activation gate for Spectral Axe — the ability projects
     /// a copy of the toolbelt axe, so without one there is nothing to project.
     /// </summary>
-    private bool HasAxeInToolbelt()
+    public bool HasAxeInToolbelt()
     {
         if (toolbelt == null && player != null)
             toolbelt = player.GetComponent<ToolbeltManager>();

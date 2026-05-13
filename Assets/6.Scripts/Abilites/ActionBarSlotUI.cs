@@ -21,6 +21,7 @@ public class ActionBarSlotUI : MonoBehaviour,
 {
     [Header("Slot")]
     [SerializeField] private ActionBarSlotType slotType = ActionBarSlotType.Any;
+    [Tooltip("Stable id for save/load and (when 0–6) which ActionBar1–7 hotkey this row uses. Set 0,1,2… on each prefab instance so slots do not share the same key or save data.")]
     [SerializeField] private int slotIndex;
 
     [Header("UI")]
@@ -33,6 +34,7 @@ public class ActionBarSlotUI : MonoBehaviour,
     [SerializeField] private TMP_Text activeTimerText;
     [SerializeField] private TMP_Text cooldownText;
     [SerializeField] private Button button;
+    [Tooltip("Shown on the Label when this slot has no ability/item assigned. Change per prefab instance (e.g. Ability 1, Ability 2).")]
     [SerializeField] private string defaultTitle = "Empty";
 
     [Header("Display")]
@@ -131,6 +133,18 @@ public class ActionBarSlotUI : MonoBehaviour,
 
         SetAutoBattleBorderVisible(false);
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        SyncEmptySlotTitleDisplay();
+        if (Application.isPlaying || !gameObject.scene.IsValid())
+            return;
+        ActionBarUI bar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (bar != null)
+            bar.RefreshHotkeyLabels();
+    }
+#endif
 
     private void OnEnable()
     {
@@ -257,19 +271,7 @@ public class ActionBarSlotUI : MonoBehaviour,
     {
         bool hasAssigned = assignedAction != null && assignedAction.IsAssigned;
 
-        if (titleText != null)
-        {
-            if (hasAssigned)
-            {
-                // Hide the label entirely when something is slotted
-                titleText.gameObject.SetActive(false);
-            }
-            else
-            {
-                titleText.gameObject.SetActive(true);
-                titleText.text = string.IsNullOrWhiteSpace(defaultTitle) ? emptyLabel : defaultTitle;
-            }
-        }
+        SyncEmptySlotTitleDisplay();
 
         if (iconImage != null)
         {
@@ -279,6 +281,23 @@ public class ActionBarSlotUI : MonoBehaviour,
         }
 
         RefreshAutoBattleBorder();
+    }
+
+    /// <summary>Label for an empty slot: <see cref="defaultTitle"/> (or <see cref="emptyLabel"/> when blank).</summary>
+    private void SyncEmptySlotTitleDisplay()
+    {
+        if (titleText == null)
+            return;
+
+        bool hasAssigned = assignedAction != null && assignedAction.IsAssigned;
+        if (hasAssigned)
+        {
+            titleText.gameObject.SetActive(false);
+            return;
+        }
+
+        titleText.gameObject.SetActive(true);
+        titleText.text = string.IsNullOrWhiteSpace(defaultTitle) ? emptyLabel : defaultTitle;
     }
 
     public void SetStackText(int amount)

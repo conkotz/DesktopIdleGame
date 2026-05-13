@@ -1021,7 +1021,7 @@ public class SkillTreeViewUI : MonoBehaviour
             bool experiencedGatherer = string.Equals(selectedChoiceTitle, "Experienced Gatherer", StringComparison.OrdinalIgnoreCase);
             bool treasureHunter = string.Equals(selectedChoiceTitle, "Treasure Hunter", StringComparison.OrdinalIgnoreCase);
             if (experiencedGatherer)
-                hiddenChance += 2;
+                hiddenChance += 1;
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("Trees have a chance to reveal hidden resources.");
@@ -1032,7 +1032,7 @@ public class SkillTreeViewUI : MonoBehaviour
             if (treasureHunter)
             {
                 sb.AppendLine();
-                sb.Append("+15% chance for Hidden Resources to double");
+                sb.Append("+10% chance for Hidden Resources to double");
             }
             return sb.ToString();
         }
