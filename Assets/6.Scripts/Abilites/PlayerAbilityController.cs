@@ -2358,8 +2358,8 @@ public class PlayerAbilityController : MonoBehaviour
         if (mainAmt > 0)
             AddSpectralAxeLootToInventory(node, mainAmt, node.transform.position);
 
-        // Phantom Harvest: also roll bonus + hidden drops using the player's bonus find chance,
-        // mirroring the bonus pass in PlayerController.DoOneGatherTick. Logs already paid out above.
+        // Phantom Harvest: also roll bonus then hidden drops using the player's bonus find chance,
+        // mirroring the bonus pass in PlayerController.DoOneGatherTick (hidden only after a bonus proc).
         if (GetSpectralAxeSelectedChoice() == SpectralAxePhantomHarvestChoiceIndex)
             RollSpectralAxeBonusDrops(node, nodeDef);
 

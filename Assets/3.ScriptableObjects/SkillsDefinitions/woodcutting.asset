@@ -82,8 +82,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 5
     title: Lumber Frenzy
-    description: Enter a focused chopping state for 20 seconds. +20% Chopping Speed
-      and +10% Woodcutting Grit Chance.
+    description: Enter a focused chopping state. +20% Chopping Speed and +10% Woodcutting Grit Chance.
     icon: {fileID: -2187047416192554098, guid: b78a90acb5575bd4ba76c6522ffef883, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -652,7 +651,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 35
     title: Ancient Lumbercraft
-    description: Trees have a 2% chance to reveal hidden resources.
+    description: Hidden items can be found when a bonus item is discovered.
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -667,7 +666,7 @@ MonoBehaviour:
     choices:
     - requiredLevel: 0
       title: Experienced Gatherer
-      description: +1% chance to reveal hidden resources.
+      description: +5% additional chance to find hidden resources
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 0
@@ -838,10 +837,10 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 45
     title: Avatar of the Forest
-    description: Invoke forest power for a long woodcutting surge. While active,
-      your chops do not deplete trees, nearby trees slowly recover depletion, bonus
-      finds are doubled after all other bonuses, you spend no stamina on woodcutting
-      swings, and you chop faster.
+    description: Invoke forest power for a woodcutting surge. While active, your chops
+      do not deplete trees, nearby trees slowly recover depletion, bonus finds are doubled
+      after all other bonuses, you spend no stamina on woodcutting swings, and you chop
+      faster.
     icon: {fileID: 4266808884134915304, guid: 68bd1fe8266df974ca814370a67767d0, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0

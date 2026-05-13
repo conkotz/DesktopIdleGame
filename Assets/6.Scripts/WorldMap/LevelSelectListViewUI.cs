@@ -902,6 +902,8 @@ public class LevelSelectListViewUI : MonoBehaviour
         LevelSelectSharedState.LastPresentation = LevelSelectSharedState.Presentation.WorldMap;
         LevelSelectSharedState.SetHideRoots(hideWhenWorldMapActive);
         worldMapPresentationRoot.SetActive(true);
+        if (worldMapPresentationRoot.TryGetComponent<UIWindowFocus>(out UIWindowFocus mapFocus))
+            mapFocus.BringToFrontNow();
         if (listPresentationRoot)
             listPresentationRoot.SetActive(false);
         SetExtraRootsWorldMapVisibility(true);

@@ -15,7 +15,7 @@ MonoBehaviour:
   abilityId: lumber_frenzy
   displayName: Lumber Frenzy
   tag: 3
-  description: Enter a focused chopping state for 20 seconds.
+  description: Enter a focused chopping state.
   icon: {fileID: -2187047416192554098, guid: b78a90acb5575bd4ba76c6522ffef883, type: 3}
   cooldown: 45
   energyCost: 0

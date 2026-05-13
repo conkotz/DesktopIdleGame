@@ -572,7 +572,7 @@ public class ActionBarSlotUI : MonoBehaviour,
             desc = $"{tagLine}\n\n{desc}";
 
         CharacterStats previewStats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
-        string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, previewStats, orangeWhenOk: true);
+        string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, previewStats, accentWhenOk: true);
         string afterDesc = string.IsNullOrEmpty(weaponLine) ? "" : $"\n\n{weaponLine}";
 
         return $"{desc}{afterDesc}";
@@ -652,6 +652,17 @@ public class ActionBarSlotUI : MonoBehaviour,
             primedBackgroundImage.enabled = false;
             primedBackgroundImage.gameObject.SetActive(false);
         }
+    }
+
+    /// <summary>Assigns an ability from the skills list / palette; same swap rules as drag-drop onto this slot.</summary>
+    public bool TryPaletteAssignAbilityWithUniqueSwap(ActionBarAssignment incoming)
+    {
+        if (incoming == null || !incoming.IsAbility)
+            return false;
+        if (!CanAccept(incoming))
+            return false;
+        HandleAbilityDropWithUniqueSwap(incoming);
+        return true;
     }
 
     private void HandleAbilityDropWithUniqueSwap(ActionBarAssignment newAbilityAssignment)

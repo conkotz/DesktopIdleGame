@@ -474,6 +474,7 @@ public enum ConsumableType
     None,
     Food,
     Potion,
+    FishingBait,
 
     /// <summary>
     /// "Loot bag" / lootbox-style item. Double-clicking the item in the inventory rolls each entry in
@@ -481,6 +482,13 @@ public enum ConsumableType
     /// Always consumes 1 of the source item on use (regardless of <see cref="ConsumableStats.consumeOnUse"/>).
     /// </summary>
     Openable
+}
+
+public enum FishingBaitTier
+{
+    Basic = 0,
+    Improved = 1,
+    Advanced = 2
 }
 
 /// <summary>
@@ -569,6 +577,13 @@ public struct ConsumableStats
 
     [Header("Potion Effect")]
     public ConsumableGrantedEffect grantedEffect;
+
+    [Header("Fishing Bait (Consumable Type = FishingBait)")]
+    [Tooltip("Tier priority when auto-consuming bait while fishing. Higher tier is consumed first.")]
+    public FishingBaitTier baitTier;
+    [Min(0f)]
+    [Tooltip("Fishing speed bonus in percent while this bait is active for the swing (e.g. 2 = +2%).")]
+    public float fishingSpeedPercentBonus;
 
     [Header("Openable Loot Table (Consumable Type = Openable)")]
     [Min(1)]
@@ -1135,6 +1150,16 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public bool IsOpenable =>
         IsConsumable && consumableStats.consumableType == ConsumableType.Openable;
 
+    public bool IsFishingBait =>
+        IsConsumable && consumableStats.consumableType == ConsumableType.FishingBait;
+
+    public FishingBaitTier FishingBaitTier =>
+        IsFishingBait ? consumableStats.baitTier : global::FishingBaitTier.Basic;
+
+    /// <summary>0..1 additive fishing speed fraction from this bait (2 = +2%).</summary>
+    public float FishingBaitSpeedBonusFraction =>
+        IsFishingBait ? Mathf.Max(0f, consumableStats.fishingSpeedPercentBonus) / 100f : 0f;
+
     /// <summary>Configured loot table for an Openable item. Always non-null; empty for non-openables.</summary>
     public OpenableLootEntry[] OpenableLootEntries =>
         IsOpenable && consumableStats.openableLoot != null
@@ -1623,7 +1648,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (IsConsumable)
         {
-            string s = $"Consumable: {consumableStats.consumableType}";
+            string s = IsFishingBait
+                ? "Consumable: Used for fishing."
+                : $"Consumable: {consumableStats.consumableType}";
+
+            if (IsFishingBait)
+                s += $"\nFishing Speed: +{FishingBaitSpeedBonusFraction * 100f:0.#}%";
 
             if (HealAmount > 0)
                 s += $"\nHeals: {HealAmount}";

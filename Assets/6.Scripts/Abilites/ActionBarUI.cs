@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
@@ -40,6 +41,69 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             if (slotBindings[i] != null && slotBindings[i].slot != null)
                 yield return slotBindings[i].slot;
         }
+    }
+
+    /// <summary>
+    /// Puts an unlocked ability into the first empty ability-compatible slot (same ordering as <see cref="slotBindings"/>).
+    /// If the ability is already on the bar, returns true without moving it.
+    /// </summary>
+    public bool TryAssignAbilityToFirstEmptySlot(AbilityDefinition def)
+    {
+        if (def == null)
+            return false;
+
+        ResolveCoreRefs();
+
+        SkillDefinition skill = skillDatabase != null ? skillDatabase.Get(def.sourceSkill) : null;
+        if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
+            return false;
+
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            SlotBinding binding = slotBindings[i];
+            if (binding == null || binding.slot == null)
+                continue;
+
+            ActionBarSlotUI slot = binding.slot;
+            if (slot.SlotType != ActionBarSlotType.Ability && slot.SlotType != ActionBarSlotType.Any)
+                continue;
+
+            if (slot.AssignedAction != null && slot.AssignedAction.IsAssigned &&
+                slot.AssignedAction.IsAbility &&
+                string.Equals(slot.AssignedAction.id, def.abilityId, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        ActionBarAssignment assignment = ActionBarAssignment.CreateAbility(
+            def.abilityId,
+            def.displayName,
+            def.icon,
+            def.description ?? string.Empty);
+
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            SlotBinding binding = slotBindings[i];
+            if (binding == null || binding.slot == null)
+                continue;
+
+            ActionBarSlotUI slot = binding.slot;
+            if (slot.SlotType != ActionBarSlotType.Ability && slot.SlotType != ActionBarSlotType.Any)
+                continue;
+
+            if (slot.AssignedAction != null && slot.AssignedAction.IsAssigned)
+                continue;
+
+            if (!slot.CanAccept(assignment))
+                continue;
+
+            if (slot.TryPaletteAssignAbilityWithUniqueSwap(assignment))
+            {
+                NotifyPlayerStatsCombatPowerRelevantChange();
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

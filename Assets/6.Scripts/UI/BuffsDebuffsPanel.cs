@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -33,6 +34,10 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [SerializeField] private Sprite magicDamageBuffIcon;
     [SerializeField] private Sprite attackSpeedBuffIcon;
     [SerializeField] private Sprite defaultBuffIcon;
+
+    [Header("Woodcutting — Flow State HUD")]
+    [Tooltip("Icon for Lv15 Flow State while its bonus is active (no timer; cleared when Flow ends).")]
+    [SerializeField] private Sprite woodcuttingFlowStateHudIcon;
 
     [Header("Shared Tooltip")]
     [SerializeField] private RectTransform tooltipMeasureRect;
@@ -346,6 +351,13 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
     private Sprite GetBuffSpriteFromItem(PlayerBuffController.ActiveBuff buff)
     {
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, PlayerController.WoodcuttingFlowStateHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (woodcuttingFlowStateHudIcon != null)
+                return woodcuttingFlowStateHudIcon;
+        }
+
         if (buff.type == ConsumableEffectType.HudAbilityBuff && _abilityDatabase != null &&
             !string.IsNullOrWhiteSpace(buff.id))
         {
@@ -436,6 +448,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
+            if (string.Equals(buff.id, PlayerController.WoodcuttingFlowStateHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Flow State";
+
             if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))
             {
                 AbilityDefinition def = _abilityDatabase.Get(buff.id);
@@ -470,6 +485,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
+            if (string.Equals(buff.id, PlayerController.WoodcuttingFlowStateHudBuffId, StringComparison.OrdinalIgnoreCase))
+            {
+                return "Woodcutting speed and stamina efficiency bonus while Flow State is active " +
+                       "(15s on the same tree; Lasting Focus can extend briefly after you move).";
+            }
+
             string core = "Temporary ability effect.";
             if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))
             {

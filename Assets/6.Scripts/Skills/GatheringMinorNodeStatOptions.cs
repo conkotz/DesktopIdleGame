@@ -72,5 +72,26 @@ public enum FishingMinorNodeStatOption
     FishingGatherSpeedFlat01 = 1,
     FishingGritPercent2 = 2,
     FishingEnergyEfficiencyPercent2 = 3,
-    FishingBonusItemChancePercent2 = 4
+    FishingBonusItemChancePercent2 = 4,
+
+    FishingSpeedPercent2 = 10,
+    FishingSpeedPercent3 = 11,
+    FishingSpeedPercent4 = 12,
+    FishingStaminaEfficiencyPercent1 = 13,
+    FishingStaminaEfficiencyPercent3 = 14,
+    FishingGritPercent1 = 15,
+    FishingGritPercent3 = 16,
+    FishingBonusFindPercent1 = 17,
+    FishingBonusFindPercent3 = 18,
+    FishingBonusFindPercent5 = 19,
+
+    FishingGritRestoreStaminaFlat10 = 30,
+    FishingDoubleXpChancePercent3 = 31,
+    FishingNoStaminaSwingChancePercent3 = 32,
+    FishingFrenzyAfterGritSpeedPercent5Duration7s = 33,
+    FishingCalmWatersContinuousSpeedPercent3EfficiencyPercent3 = 34,
+    FishingBaitConservationChancePercent10 = 35,
+    FishingAutoCookChancePercent2 = 36,
+    FishingAutoCookChancePercent4 = 37,
+    FishingTreasureCatchChanceSmall = 38
 }

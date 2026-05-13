@@ -26,11 +26,13 @@ MonoBehaviour:
   rewardGold: 250
   rewardItem: {fileID: 11400000, guid: dd82c9333168f8d4fb45518f3c9cf6a9, type: 2}
   rewardItemId: 
-  rewardItemQuantity: 250
+  rewardItemQuantity: 100
   additionalItemRewards: []
   rewardNotes: 
   grantIdleCombatUnlockOnRewardClaim: 0
   grantAdditionalInventorySlotsOnRewardClaim: 0
+  restockMerchantStockOnRewardClaim: 0
+  restockMerchantStockSaveKey: 
   repeatable: 0
   autoCompleteQuest: 0
   abandonable: 1
@@ -49,4 +51,5 @@ MonoBehaviour:
   requiredSkillLevels: []
   killEnemyIdFilter: 
   hideUntilMapNodeUnlockedId: 
+  hideFromQuestJournalUnlessAccepted: 0
   sortOrder: 20

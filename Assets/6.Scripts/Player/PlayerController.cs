@@ -209,12 +209,25 @@ public class PlayerController : MonoBehaviour
     private float _gatherGritChance;
     private float _gatherBonusFindChance;
     private float _gatherStaminaEfficiency;
+    private float _activeFishingBaitSpeedBonusFraction;
     private WoodcuttingRuntimeBonuses _woodcuttingBonuses;
     private float _woodcuttingContinuousGatherSeconds;
     private float _woodcuttingFrenzyUntil;
     private float _woodcuttingFlowLingerUntil;
 
+    private FishingRuntimeBonuses _fishingBonuses;
+    private float _fishingContinuousGatherSeconds;
+    private float _fishingFrenzyUntil;
+
+    private PlayerBuffController _buffControllerCache;
+    private bool _woodcuttingFlowStateHudRegistered;
+
     private const float WoodcuttingForestFlowContinuousSecondsThreshold = 15f;
+    private const float FishingCalmWatersContinuousSecondsThreshold = 15f;
+    private const float FishingGritFrenzyDurationSeconds = 7f;
+
+    /// <summary>HUD buff strip id for Lv15 Flow State (assign icon on the Buffs / Debuffs panel).</summary>
+    public const string WoodcuttingFlowStateHudBuffId = "woodcutting_flow_state";
     public const int WoodcuttingMajorPassiveSourceLevel = 15;
     public const int WoodcuttingLv35MajorPassiveSourceLevel = 35;
     /// <summary>Woodcutting skill level at which the capstone passive unlocks (see woodcutting skill tree).</summary>
@@ -238,6 +251,12 @@ public class PlayerController : MonoBehaviour
         public float bonusXpChance;
         public float noStaminaSwingChance;
         public int forestFlowStacks;
+        public int frenzyStacks;
+    }
+
+    private struct FishingRuntimeBonuses
+    {
+        public int calmWatersStacks;
         public int frenzyStacks;
     }
 
@@ -287,6 +306,16 @@ public class PlayerController : MonoBehaviour
     private float _fatigueGatherSavedAccum;
 
     private readonly List<Drop> _drops = new List<Drop>(8);
+    private const string MissingFishingBaitPopupText = "Cannot fish due to no bait in inventory";
+
+    private enum GatherSwingSpendFailureReason
+    {
+        None = 0,
+        LowEnergy = 1,
+        MissingFishingBait = 2
+    }
+
+    private GatherSwingSpendFailureReason _lastGatherSwingSpendFailureReason;
 
     public ResourceNode CurrentTarget => targetNode;
     public PlayerAction CurrentAction => _action;
@@ -472,6 +501,7 @@ public class PlayerController : MonoBehaviour
 
         UpdateSpriteFlip();
         characterStats?.TickRegen(Time.deltaTime);
+        SyncWoodcuttingFlowStateHudBuffIfNeeded();
     }
 
     private void TickStateMachine()
@@ -908,6 +938,12 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
+        if (node.ActionType == NodeAction.Fishing && !HasAnyFishingBaitInInventory())
+        {
+            ShowPopup(MissingFishingBaitPopupText);
+            return;
+        }
+
         // =========================================================
         // ✅ IMMEDIATE XP DISPLAY SWITCH (BEFORE FIRST TICK)
         // =========================================================
@@ -941,7 +977,9 @@ public class PlayerController : MonoBehaviour
         _gatherGritChance = 0f;
         _gatherBonusFindChance = 0f;
         _gatherStaminaEfficiency = 0f;
+        _activeFishingBaitSpeedBonusFraction = 0f;
         ResetWoodcuttingRuntimeState(clearBonuses: true);
+        ResetFishingRuntimeState(clearBonuses: true);
         if (node.ActionType != NodeAction.Woodcutting)
             _woodcuttingFlowLingerUntil = 0f;
 
@@ -1014,6 +1052,7 @@ public class PlayerController : MonoBehaviour
 
         targetNode = node;
         ApplyWoodcuttingSkillRuntimeBonusesIfNeeded(node);
+        ApplyFishingSkillRuntimeBonusesIfNeeded(node);
         // Lasting Focus: if Flow State was active when the previous gather stopped and we're still inside
         // the 5s linger window, seed continuous time on this new tree so Flow stays active through the
         // entire resumed gather instead of dropping in the gap between linger expiry and the next 15s ramp.
@@ -1577,18 +1616,10 @@ public class PlayerController : MonoBehaviour
             AdvanceCleavingChopSecondaryGathers(Time.deltaTime);
 
         if (targetNode.ActionType == NodeAction.Woodcutting)
-        {
-            float woodcuttingContinuousBefore = _woodcuttingContinuousGatherSeconds;
             _woodcuttingContinuousGatherSeconds += Time.deltaTime;
-            if (IsWoodcuttingMajorFlowStateSelected() &&
-                woodcuttingContinuousBefore < WoodcuttingForestFlowContinuousSecondsThreshold &&
-                _woodcuttingContinuousGatherSeconds >= WoodcuttingForestFlowContinuousSecondsThreshold)
-            {
-                GameLog.Add(
-                    "Flow State: woodcutting speed and stamina efficiency bonus active (15s on the same tree).",
-                    GameLog.LevelAvailableColor);
-            }
-        }
+
+        if (targetNode.ActionType == NodeAction.Fishing)
+            _fishingContinuousGatherSeconds += Time.deltaTime;
 
         // Only “swing” the gather animation once every N seconds while gathering
         if (animator && Time.time >= _nextGatherAnimTime)
@@ -1596,7 +1627,10 @@ public class PlayerController : MonoBehaviour
             // Spend gather energy on the same cadence as gather swings for smoother feel.
             if (!TrySpendGatherEnergyOnSwing(targetNode.Definition))
             {
-                PauseGatherForLowEnergy();
+                if (_lastGatherSwingSpendFailureReason == GatherSwingSpendFailureReason.MissingFishingBait)
+                    StopFishingForMissingBait();
+                else
+                    PauseGatherForLowEnergy();
                 return;
             }
 
@@ -1663,6 +1697,7 @@ public class PlayerController : MonoBehaviour
         var def = targetNode.Definition;
         _ = GetEffectiveGatherStaminaCostPerTick(); // Reserved for stamina spend integration.
         bool isWoodcutting = targetNode.ActionType == NodeAction.Woodcutting;
+        bool isFishing = targetNode.ActionType == NodeAction.Fishing;
         bool gritProc = false;
 
         // ---- 1) MAIN yield first (this is the ONLY thing that grants XP) ----
@@ -1793,6 +1828,9 @@ public class PlayerController : MonoBehaviour
 
                 if (isWoodcutting && gritProc && _woodcuttingBonuses.frenzyStacks > 0)
                     _woodcuttingFrenzyUntil = Time.time + WoodcuttingFrenzyDurationSeconds;
+
+                if (isFishing && gritProc && characterStats != null && characterStats.RodFishingFrenzyStacks > 0)
+                    _fishingFrenzyUntil = Time.time + FishingGritFrenzyDurationSeconds;
             }
         }
 
@@ -2129,7 +2167,9 @@ public class PlayerController : MonoBehaviour
         _gatherGritChance = 0f;
         _gatherBonusFindChance = 0f;
         _gatherStaminaEfficiency = 0f;
+        _activeFishingBaitSpeedBonusFraction = 0f;
         ResetWoodcuttingRuntimeState(clearBonuses: true);
+        ResetFishingRuntimeState(clearBonuses: true);
         ClearCleavingSecondaryTimers();
         OnGatherDebuffChanged?.Invoke(false, 1f);
 
@@ -2161,6 +2201,7 @@ public class PlayerController : MonoBehaviour
 
     private bool TrySpendGatherEnergyOnSwing(NodeDefinition def)
     {
+        _lastGatherSwingSpendFailureReason = GatherSwingSpendFailureReason.None;
         if (def == null || characterStats == null) return true;
 
         // Energy model: node defines % of max energy per swing (stable swings per full bar as max energy grows).
@@ -2173,6 +2214,21 @@ public class PlayerController : MonoBehaviour
             abilityController != null && abilityController.IsAvatarOfTheForestActive)
             return true;
 
+        if (targetNode && targetNode.ActionType == NodeAction.Fishing)
+        {
+            if (!TryConsumeBestFishingBaitForSwing(out float baitSpeedBonusFraction))
+            {
+                _lastGatherSwingSpendFailureReason = GatherSwingSpendFailureReason.MissingFishingBait;
+                return false;
+            }
+
+            _activeFishingBaitSpeedBonusFraction = Mathf.Max(0f, baitSpeedBonusFraction);
+        }
+        else
+        {
+            _activeFishingBaitSpeedBonusFraction = 0f;
+        }
+
         float maxEnergy = Mathf.Max(1f, characterStats.MaxEnergy);
         float baseCostPerSwing = maxEnergy * pctOfMax;
         float staminaEfficiency = Mathf.Clamp01(_gatherStaminaEfficiency);
@@ -2184,6 +2240,11 @@ public class PlayerController : MonoBehaviour
         if (targetNode && targetNode.ActionType == NodeAction.Woodcutting && IsWoodcuttingMajorFlowBuffActive())
             staminaEfficiency = Mathf.Clamp01(staminaEfficiency + 0.10f);
 
+        if (targetNode && targetNode.ActionType == NodeAction.Fishing &&
+            _fishingBonuses.calmWatersStacks > 0 &&
+            _fishingContinuousGatherSeconds >= FishingCalmWatersContinuousSecondsThreshold)
+            staminaEfficiency = Mathf.Clamp01(staminaEfficiency + 0.03f * _fishingBonuses.calmWatersStacks);
+
         float spendPerSwing = Mathf.Max(0f, baseCostPerSwing * (1f - staminaEfficiency));
 
         if (targetNode && targetNode.ActionType == NodeAction.Woodcutting &&
@@ -2193,13 +2254,31 @@ public class PlayerController : MonoBehaviour
 
         if (spendPerSwing <= 0f) return true;
 
-        return characterStats.SpendEnergy(spendPerSwing);
+        bool spent = characterStats.SpendEnergy(spendPerSwing);
+        if (!spent)
+            _lastGatherSwingSpendFailureReason = GatherSwingSpendFailureReason.LowEnergy;
+        return spent;
     }
 
     private float GetEffectiveGatherSpeedMultiplier()
     {
         float mult = _gatherSpeedMultiplier;
-        if (targetNode == null || targetNode.ActionType != NodeAction.Woodcutting)
+        if (targetNode == null)
+            return Mathf.Max(0.05f, mult);
+
+        if (targetNode.ActionType == NodeAction.Fishing)
+        {
+            float fishMult = _gatherSpeedMultiplier * (1f + Mathf.Max(0f, _activeFishingBaitSpeedBonusFraction));
+            float fishBonus = 0f;
+            if (_fishingBonuses.calmWatersStacks > 0 &&
+                _fishingContinuousGatherSeconds >= FishingCalmWatersContinuousSecondsThreshold)
+                fishBonus += 0.03f * _fishingBonuses.calmWatersStacks;
+            if (_fishingBonuses.frenzyStacks > 0 && Time.time < _fishingFrenzyUntil)
+                fishBonus += 0.05f * _fishingBonuses.frenzyStacks;
+            return Mathf.Max(0.05f, fishMult * (1f + fishBonus));
+        }
+
+        if (targetNode.ActionType != NodeAction.Woodcutting)
             return Mathf.Max(0.05f, mult);
 
         float bonus = 0f;
@@ -2214,6 +2293,66 @@ public class PlayerController : MonoBehaviour
             bonus += abilityController.GetAvatarOfTheForestWoodcuttingSpeedBonusFraction();
 
         return Mathf.Max(0.05f, mult * (1f + bonus));
+    }
+
+    private bool HasAnyFishingBaitInInventory()
+    {
+        return TryGetBestFishingBaitItemId(out _, out _);
+    }
+
+    private bool TryConsumeBestFishingBaitForSwing(out float speedBonusFraction)
+    {
+        speedBonusFraction = 0f;
+        if (inventory == null)
+            return false;
+
+        if (!TryGetBestFishingBaitItemId(out string baitItemId, out ItemDefinition baitDef))
+            return false;
+
+        if (!inventory.Remove(baitItemId, 1))
+            return false;
+
+        speedBonusFraction = baitDef != null ? baitDef.FishingBaitSpeedBonusFraction : 0f;
+        return true;
+    }
+
+    private bool TryGetBestFishingBaitItemId(out string itemId, out ItemDefinition def)
+    {
+        itemId = null;
+        def = null;
+        if (inventory == null)
+            return false;
+
+        int bestTier = int.MinValue;
+        float bestSpeed = float.MinValue;
+        for (int i = 0; i < inventory.SlotCount; i++)
+        {
+            Inventory.Slot slot = inventory.GetSlot(i);
+            if (slot.IsEmpty || string.IsNullOrWhiteSpace(slot.itemId) || slot.amount <= 0)
+                continue;
+
+            ItemDefinition candidate = inventory.GetItemDef(slot.itemId);
+            if (candidate == null || !candidate.IsFishingBait)
+                continue;
+
+            int tier = (int)candidate.FishingBaitTier;
+            float speed = candidate.FishingBaitSpeedBonusFraction;
+            if (tier > bestTier || (tier == bestTier && speed > bestSpeed))
+            {
+                bestTier = tier;
+                bestSpeed = speed;
+                itemId = slot.itemId;
+                def = candidate;
+            }
+        }
+
+        return !string.IsNullOrWhiteSpace(itemId);
+    }
+
+    private void StopFishingForMissingBait()
+    {
+        ShowPopup(MissingFishingBaitPopupText);
+        ReturnToIdle();
     }
 
     /// <summary>For stats UI: speed fractions stack additively (then multiply sheet speed). Major Flow can apply briefly after stopping (Lv15 choice).</summary>
@@ -2291,6 +2430,53 @@ public class PlayerController : MonoBehaviour
         return HashCode.Combine(h0, h1, Mathf.RoundToInt(_woodcuttingFlowLingerUntil * 100f));
     }
 
+    /// <summary>Fishing Grit Frenzy + Calm Waters (continuous fishing): fractions for stats panel live display.</summary>
+    public bool TryGetFishingLiveBuffInfo(out float frenzySpeedFraction, out float calmWatersSpeedFraction, out float calmWatersStaminaEfficiencyAddFraction)
+    {
+        frenzySpeedFraction = 0f;
+        calmWatersSpeedFraction = 0f;
+        calmWatersStaminaEfficiencyAddFraction = 0f;
+
+        bool inFishGather = state == State.Gather && targetNode != null && targetNode.ActionType == NodeAction.Fishing;
+        bool any = false;
+        if (inFishGather)
+        {
+            if (_fishingBonuses.calmWatersStacks > 0 &&
+                _fishingContinuousGatherSeconds >= FishingCalmWatersContinuousSecondsThreshold)
+            {
+                float cw = 0.03f * _fishingBonuses.calmWatersStacks;
+                calmWatersSpeedFraction = cw;
+                calmWatersStaminaEfficiencyAddFraction = cw;
+                any = true;
+            }
+        }
+
+        if (_fishingBonuses.frenzyStacks > 0 && Time.time < _fishingFrenzyUntil)
+        {
+            frenzySpeedFraction = 0.05f * _fishingBonuses.frenzyStacks;
+            any = true;
+        }
+
+        return any;
+    }
+
+    /// <summary>Changes when fishing gather transient buffs change; used to refresh Rod stats without full sheet churn.</summary>
+    public int GetFishingStatsPanelStamp()
+    {
+        if (!TryGetFishingLiveBuffInfo(out float fren, out float calmSpd, out float calmStam))
+            return 0;
+
+        int h0 = HashCode.Combine(
+            Mathf.RoundToInt(fren * 1000f),
+            Mathf.RoundToInt(calmSpd * 1000f),
+            Mathf.RoundToInt(calmStam * 1000f));
+        int h1 = HashCode.Combine(
+            _fishingBonuses.calmWatersStacks,
+            _fishingBonuses.frenzyStacks,
+            Mathf.RoundToInt(_fishingFrenzyUntil * 100f));
+        return HashCode.Combine(h0, h1);
+    }
+
     private int GetWoodcuttingLevel15RowPick()
     {
         SkillsManager sm = SkillsManager.Instance;
@@ -2366,6 +2552,39 @@ public class PlayerController : MonoBehaviour
         return GetWoodcuttingLevel15RowPick() == 2 && GetWoodcuttingLevel15EnhancementIndex(2) == 1;
     }
 
+    private void SyncWoodcuttingFlowStateHudBuffIfNeeded()
+    {
+        if (!_buffControllerCache)
+            _buffControllerCache = GetComponent<PlayerBuffController>();
+        if (!_buffControllerCache)
+            return;
+
+        if (!IsWoodcuttingMajorFlowStateSelected())
+        {
+            if (_woodcuttingFlowStateHudRegistered)
+            {
+                _buffControllerCache.ClearHudAbilityBuff(WoodcuttingFlowStateHudBuffId);
+                _woodcuttingFlowStateHudRegistered = false;
+            }
+            return;
+        }
+
+        bool show = IsWoodcuttingMajorFlowBuffActive();
+        if (show == _woodcuttingFlowStateHudRegistered)
+            return;
+
+        if (show)
+        {
+            _buffControllerCache.SetHudAbilityBuff(WoodcuttingFlowStateHudBuffId, 1, 0f, 0f);
+            _woodcuttingFlowStateHudRegistered = true;
+        }
+        else
+        {
+            _buffControllerCache.ClearHudAbilityBuff(WoodcuttingFlowStateHudBuffId);
+            _woodcuttingFlowStateHudRegistered = false;
+        }
+    }
+
     private int GetWoodcuttingLevel35RowPick()
     {
         SkillsManager sm = SkillsManager.Instance;
@@ -2392,7 +2611,7 @@ public class PlayerController : MonoBehaviour
         return enh;
     }
 
-    /// <summary>Builds the woodcutting Lv35 major-passive context applied to bonus and hidden drops.</summary>
+    /// <summary>Builds the woodcutting Lv35 major-passive context applied to bonus and hidden drops (hidden rolls only after a bonus proc on the same tick).</summary>
     private NodeDefinition.GatherDropContext BuildWoodcuttingLevel35DropContext()
     {
         var ctx = default(NodeDefinition.GatherDropContext);
@@ -2404,9 +2623,9 @@ public class PlayerController : MonoBehaviour
 
         if (pick35 == 0)
         {
-            ctx.hiddenChanceFlatBonus = 0.02f;
+            ctx.hiddenChanceFlatBonus = 0.10f;
             if (enh35 == 0)
-                ctx.hiddenChanceFlatBonus += 0.01f;
+                ctx.hiddenChanceFlatBonus += 0.05f;
             else if (enh35 == 1)
                 ctx.hiddenDoubleAmountChance = 0.10f;
         }
@@ -2420,8 +2639,8 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>
-    /// Flat 0–1 chance added to each hidden-drop entry on woodcutting gathers (Ancient Lumbercraft + Experienced Gatherer).
-    /// Used by stats UI; matches <see cref="BuildWoodcuttingLevel35DropContext"/>.
+    /// Flat 0–1 chance added to each hidden-drop entry after a bonus drop succeeds on the same woodcutting tick
+    /// (Ancient Lumbercraft + Experienced Gatherer). Used by stats UI; matches <see cref="BuildWoodcuttingLevel35DropContext"/>.
     /// </summary>
     public float GetWoodcuttingHiddenRevealChanceFlatBonus()
     {
@@ -2472,6 +2691,30 @@ public class PlayerController : MonoBehaviour
                 noStaminaSwingChance = characterStats.AxeWoodcuttingNoStaminaSwingChance,
                 forestFlowStacks = characterStats.AxeWoodcuttingForestFlowStacks,
                 frenzyStacks = characterStats.AxeWoodcuttingFrenzyStacks
+            };
+        }
+    }
+
+    private void ResetFishingRuntimeState(bool clearBonuses)
+    {
+        if (clearBonuses)
+            _fishingBonuses = default;
+        _fishingContinuousGatherSeconds = 0f;
+        _fishingFrenzyUntil = 0f;
+    }
+
+    private void ApplyFishingSkillRuntimeBonusesIfNeeded(ResourceNode node)
+    {
+        ResetFishingRuntimeState(clearBonuses: true);
+        if (node == null || node.ActionType != NodeAction.Fishing)
+            return;
+
+        if (characterStats != null)
+        {
+            _fishingBonuses = new FishingRuntimeBonuses
+            {
+                calmWatersStacks = characterStats.RodFishingCalmWatersStacks,
+                frenzyStacks = characterStats.RodFishingFrenzyStacks
             };
         }
     }

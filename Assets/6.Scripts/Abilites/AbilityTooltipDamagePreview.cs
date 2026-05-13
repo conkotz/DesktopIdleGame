@@ -109,12 +109,14 @@ public static class AbilityTooltipDamagePreview
     /// <summary>
     /// TMP rich-text line for ability tooltips. Empty when <see cref="AbilityWeaponRequirement.Any"/>
     /// (Spectral Axe is an exception: it always shows a toolbelt-axe requirement line).
-    /// Red when the requirement is not met; neutral or orange (action bar) when it is.
+    /// Red when the requirement is not met; green when met and <paramref name="accentWhenOk"/> is true; otherwise plain text.
     /// </summary>
-    public static string BuildWeaponRequirementRichLine(AbilityDefinition def, CharacterStats stats, bool orangeWhenOk = false)
+    public static string BuildWeaponRequirementRichLine(AbilityDefinition def, CharacterStats stats, bool accentWhenOk = false)
     {
         if (def == null)
             return "";
+
+        const string okColor = "#55DD55";
 
         if (IsSpectralAxe(def))
         {
@@ -123,8 +125,8 @@ public static class AbilityTooltipDamagePreview
             const string axeRequirementText = "Required: Axe in toolbelt";
             if (!axeOk)
                 return $"<color=#FF5C5C>{axeRequirementText}</color>";
-            if (orangeWhenOk)
-                return $"<color=#FFB347>{axeRequirementText}</color>";
+            if (accentWhenOk)
+                return $"<color={okColor}>{axeRequirementText}</color>";
             return axeRequirementText;
         }
 
@@ -145,8 +147,8 @@ public static class AbilityTooltipDamagePreview
         if (!ok)
             return $"<color=#FF5C5C>{line}</color>";
 
-        if (orangeWhenOk)
-            return $"<color=#FFB347>{line}</color>";
+        if (accentWhenOk)
+            return $"<color={okColor}>{line}</color>";
 
         return line;
     }
@@ -216,6 +218,17 @@ public static class AbilityTooltipDamagePreview
         return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv50_0", -1);
     }
 
+    /// <summary>Mirrors active buff length in <c>PlayerAbilityController</c> (Lumber Frenzy).</summary>
+    private const float LumberFrenzyBuffDurationSecondsTooltip = 20f;
+
+    private static float GetAvatarOfTheForestTooltipDurationSeconds(SkillsManager skillsManager)
+    {
+        const float baseDurationSec = 90f;
+        const float durationEnhancementBonusSec = 30f;
+        int choice = GetAvatarOfTheForestChoice(skillsManager);
+        return baseDurationSec + (choice == 0 ? durationEnhancementBonusSec : 0f);
+    }
+
     private static int GetMeleeLv15BranchChoice(SkillsManager skillsManager, int slot012)
     {
         if (skillsManager == null)
@@ -280,6 +293,8 @@ public static class AbilityTooltipDamagePreview
         {
             AppendLumberFrenzyTooltipEffects(body, O, skillsManager);
             body.AppendLine(string.Empty);
+            body.AppendLine(O($"Duration: {LumberFrenzyBuffDurationSecondsTooltip:0.#}s"));
+            body.AppendLine(string.Empty);
             body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
         }
@@ -287,6 +302,9 @@ public static class AbilityTooltipDamagePreview
         if (IsAvatarOfTheForest(def))
         {
             AppendAvatarOfTheForestTooltipEffects(body, O, skillsManager);
+            float avatarDur = GetAvatarOfTheForestTooltipDurationSeconds(skillsManager);
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"Duration: {avatarDur:0.#}s"));
             body.AppendLine(string.Empty);
             body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown (begins after the buff ends)"));
             return body.ToString().TrimEnd();
@@ -591,18 +609,13 @@ public static class AbilityTooltipDamagePreview
         System.Func<string, string> O,
         SkillsManager skillsManager)
     {
-        const float baseDurationSec = 90f;
-        const float durationEnhancementBonusSec = 30f;
         const float baseRange = 10f;
         const float extendedReachRangeBonus = 4f;
         const float woodcuttingSpeedBonusPct = 10f;
 
-        int choice = GetAvatarOfTheForestChoice(skillsManager);
-        float duration = baseDurationSec + (choice == 0 ? durationEnhancementBonusSec : 0f);
         int cleaveEnh = GetCleavingChopChoice(skillsManager);
         float range = baseRange + (cleaveEnh == 0 ? extendedReachRangeBonus : 0f);
 
-        body.AppendLine(O($"For {duration:0.#}s:"));
         body.AppendLine(O("Woodcutting does not count toward tree depletion"));
         body.AppendLine(O($"Every 5s, woodcutting trees within {range:0.#} units regain 1 depletion"));
         body.AppendLine(O("Bonus find chance is doubled (applied after all other bonuses)"));

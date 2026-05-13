@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: splitwood_twigs
+  m_Name: advanced_fishing_bait
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 5
   maxStack: 1000
-  itemId: splitwood_twigs
-  displayName: Splitwood Twigs
+  itemId: advanced_fishing_bait
+  displayName: Advanced Fishing Bait
   displayNameSingular: 
-  icon: {fileID: 1061867769818082898, guid: 81cee94b93f5e99408eec78295015314, type: 3}
+  icon: {fileID: 5220705243704160690, guid: b4a01175ab404164b8129d9d426f78c5, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: Small twigs from a Splitwood tree
-  rarity: 0
-  value: 0
+  description: 'Advanced fishing bait used to catch fish '
+  rarity: 2
+  value: 15
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -143,7 +143,7 @@ MonoBehaviour:
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
-    consumableType: 4
+    consumableType: 3
     healAmount: 0
     energyAmount: 0
     cooldownSeconds: 0
@@ -154,7 +154,7 @@ MonoBehaviour:
       duration: 0
       effectId: 
     baitTier: 0
-    fishingSpeedPercentBonus: 0
+    fishingSpeedPercentBonus: 10
     openRequiredAmount: 5
     openableLoot:
     - itemId: splitwood_log

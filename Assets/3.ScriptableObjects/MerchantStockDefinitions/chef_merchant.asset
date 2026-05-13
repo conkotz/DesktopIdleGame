@@ -22,4 +22,10 @@ MonoBehaviour:
       amount: 1
       itemId: raw_fish
     defaultQuantity: -1
+  - itemId: basic_fishing_bait
+    costs:
+    - type: 0
+      amount: 2
+      itemId: 
+    defaultQuantity: -1
   stockSaveKey: 

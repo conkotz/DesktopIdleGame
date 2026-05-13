@@ -16,7 +16,7 @@ MonoBehaviour:
   regionId: greenlands
   displayName: First Fishing Rod
   description: Bring me a raw fish
-  details: 
+  details: Dont forget fishing bait.
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
@@ -27,9 +27,15 @@ MonoBehaviour:
   rewardItem: {fileID: 11400000, guid: 2f3f60e28977fc84183ed38434fd6551, type: 2}
   rewardItemId: 
   rewardItemQuantity: 1
-  additionalItemRewards: []
+  additionalItemRewards:
+  - item: {fileID: 11400000, guid: db6c9a9b32411bd4f9764e98c92660ad, type: 2}
+    itemId: 
+    quantity: 500
   rewardNotes: 
   grantIdleCombatUnlockOnRewardClaim: 0
+  grantAdditionalInventorySlotsOnRewardClaim: 0
+  restockMerchantStockOnRewardClaim: 0
+  restockMerchantStockSaveKey: 
   repeatable: 0
   autoCompleteQuest: 0
   abandonable: 1
@@ -47,4 +53,5 @@ MonoBehaviour:
   requiredSkillLevels: []
   killEnemyIdFilter: 
   hideUntilMapNodeUnlockedId: 
+  hideFromQuestJournalUnlessAccepted: 0
   sortOrder: 15

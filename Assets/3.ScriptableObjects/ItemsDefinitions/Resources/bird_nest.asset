@@ -143,7 +143,7 @@ MonoBehaviour:
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
-    consumableType: 3
+    consumableType: 4
     healAmount: 0
     energyAmount: 0
     cooldownSeconds: 0
@@ -153,6 +153,8 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    baitTier: 0
+    fishingSpeedPercentBonus: 0
     openRequiredAmount: 1
     openableLoot:
     - itemId: feather
@@ -163,6 +165,10 @@ MonoBehaviour:
       chancePercent: 70
       minAmount: 3
       maxAmount: 7
+    - itemId: basic_fishing_bait
+      chancePercent: 40
+      minAmount: 15
+      maxAmount: 25
     - itemId: leather
       chancePercent: 15
       minAmount: 1

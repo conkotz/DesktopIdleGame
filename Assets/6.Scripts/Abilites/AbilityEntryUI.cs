@@ -32,6 +32,8 @@ public class AbilityEntryUI : MonoBehaviour,
     private RectTransform _dragIconRT;
     private Image _dragIconImage;
 
+    private System.Action<AbilityDefinition> _onDoubleClickAssign;
+
     // Called by SkillsAbilitiesPageUI when creating runtime rows (no prefab).
     // Uses SendMessage to avoid making fields public.
     private void EditorAutoWire(object[] args)
@@ -75,6 +77,11 @@ public class AbilityEntryUI : MonoBehaviour,
         canvasGroup.alpha = unlocked ? 1f : 0.55f;
     }
 
+    public void SetDoubleClickAssignHandler(System.Action<AbilityDefinition> handler)
+    {
+        _onDoubleClickAssign = handler;
+    }
+
     public void SetTooltipDocking(RectTransform tooltipBoundsRect, FlipInsideBounds.PreferredSide preferredSide)
     {
         _tooltipBoundsRect = tooltipBoundsRect;
@@ -106,7 +113,13 @@ public class AbilityEntryUI : MonoBehaviour,
     public void OnPointerClick(PointerEventData eventData)
     {
         if (eventData.button != PointerEventData.InputButton.Left) return;
-        // placeholder for future: click-to-equip default slot
+        if (eventData.clickCount >= 2)
+        {
+            if (!_unlocked || _def == null)
+                return;
+            _onDoubleClickAssign?.Invoke(_def);
+            return;
+        }
     }
 
     public void OnBeginDrag(PointerEventData eventData)
@@ -183,7 +196,7 @@ public class AbilityEntryUI : MonoBehaviour,
         if (!string.IsNullOrEmpty(tagLine))
             desc = $"{tagLine}\n\n{desc}";
 
-        string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, stats, orangeWhenOk: true);
+        string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, stats, accentWhenOk: true);
         string afterDesc = string.IsNullOrEmpty(weaponLine) ? "" : $"\n\n{weaponLine}";
 
         string choiceLine = BuildActiveEnhancementLineForAbility(def, skillsManager);

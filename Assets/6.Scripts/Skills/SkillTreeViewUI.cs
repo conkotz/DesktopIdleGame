@@ -46,10 +46,6 @@ public class SkillTreeViewUI : MonoBehaviour
     [SerializeField] private float sameLevelNodeGap = 28f;
     [Tooltip("Center-to-center spacing for multiple Ability unlocks at the same level (symmetric around the vertical spine).")]
     [SerializeField] private float abilitySiblingSpacing = 140f;
-    [Header("Choice Selection Rules")]
-    [SerializeField] private PlayerController playerController;
-    [SerializeField] private PlayerCombatState playerCombatState;
-    [SerializeField] private float choiceChangePostCombatLockSeconds = 5f;
 
     private readonly List<SkillTreeNodeUI> spawnedNodes = new();
     private readonly List<SkillTreeConnectorUI> spawnedConnectors = new();
@@ -79,9 +75,8 @@ public class SkillTreeViewUI : MonoBehaviour
 
     private SkillTreeNodeUI selectedNode;
     private SkillDefinition _lastBuiltSkill;
-    private float choiceChangeUnlockedAt;
-    private bool isCombatStateSubscribed;
     private readonly HashSet<int> _pendingUnlockGlowLevels = new();
+    private readonly List<string> _abilityGroupSpineScratch = new();
 
     public event System.Action<int> UnlockGlowAcknowledgedByHover;
 
@@ -165,27 +160,8 @@ public class SkillTreeViewUI : MonoBehaviour
 
     private void Start()
     {
-        if (!playerController)
-            playerController = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-        ResolveCombatStateReference();
-        SubscribeCombatState();
         PreferRuntimeSkillsManager();
         BuildForSelectedSkill();
-    }
-
-    private void OnEnable()
-    {
-        SubscribeCombatState();
-    }
-
-    private void OnDisable()
-    {
-        UnsubscribeCombatState();
-    }
-
-    private void OnDestroy()
-    {
-        UnsubscribeCombatState();
     }
 
     public void SetSkill(SkillDefinition skill)
@@ -672,6 +648,19 @@ public class SkillTreeViewUI : MonoBehaviour
 
         if (isGatheringSkill)
         {
+            if (selectedSkill != null && selectedSkill.skillType == SkillType.Fishing)
+            {
+                return level switch
+                {
+                    1 => "Unlock",
+                    5 => "Ability",
+                    15 or 35 or 45 => "Major Passive",
+                    25 => "Ability",
+                    50 => "Capstone",
+                    _ => ""
+                };
+            }
+
             return level switch
             {
                 1 => "Unlock",
@@ -969,6 +958,16 @@ public class SkillTreeViewUI : MonoBehaviour
         if (useMajorPassivePresentation)
             desc = ApplyMajorPassiveValueLineMarkup(desc);
 
+        if (unlock != null && unlock.unlockType == SkillUnlockType.Ability && unlock.ability != null &&
+            selectedSkill != null && selectedSkill.skillType == SkillType.Woodcutting)
+        {
+            string aid = unlock.ability.abilityId;
+            if (string.Equals(aid, AbilityCombatPower.LumberFrenzyAbilityId, StringComparison.OrdinalIgnoreCase))
+                desc = StripWoodcuttingLumberFrenzyTreeDescriptionDuration(desc);
+            else if (string.Equals(aid, AbilityCombatPower.AvatarOfTheForestAbilityId, StringComparison.OrdinalIgnoreCase))
+                desc = StripAvatarTreeDescriptionLongWording(desc);
+        }
+
         if (unlock != null && unlock.unlockType == SkillUnlockType.Unlock)
         {
             title = unlockTitle;
@@ -1018,18 +1017,18 @@ public class SkillTreeViewUI : MonoBehaviour
 
         if (string.Equals(title, "Ancient Lumbercraft", StringComparison.OrdinalIgnoreCase))
         {
-            int hiddenChance = 2;
+            int hiddenChance = 10;
             bool experiencedGatherer = string.Equals(selectedChoiceTitle, "Experienced Gatherer", StringComparison.OrdinalIgnoreCase);
             bool treasureHunter = string.Equals(selectedChoiceTitle, "Treasure Hunter", StringComparison.OrdinalIgnoreCase);
             if (experiencedGatherer)
-                hiddenChance += 1;
+                hiddenChance += 5;
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Trees have a chance to reveal hidden resources.");
+            sb.AppendLine("Hidden items can be found when a bonus item is discovered.");
             sb.AppendLine();
             sb.Append("+");
             sb.Append(hiddenChance);
-            sb.Append("% Hidden Resource Chance");
+            sb.Append("% chance to find hidden resources");
             if (treasureHunter)
             {
                 sb.AppendLine();
@@ -1153,16 +1152,18 @@ public class SkillTreeViewUI : MonoBehaviour
         return TierRowCaptionForSkillLevel(row.level) == "Major Passive";
     }
 
-    /// <summary>Mirrors ability tooltip accents: lines that start with "+" after whitespace get orange markup (#FFB347).</summary>
-    private static string ApplyMajorPassiveValueLineMarkup(string raw)
+    /// <summary>Lines that start with "+" after whitespace get accent markup (green when an axe is in the toolbelt on Woodcutting).</summary>
+    private string ApplyMajorPassiveValueLineMarkup(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
             return raw;
         if (raw.IndexOf("<color=", StringComparison.OrdinalIgnoreCase) >= 0)
             return raw;
 
-        const string orangeOpen = "<color=#FFB347>";
-        const string orangeClose = "</color>";
+        bool greenAccent = selectedSkill != null && selectedSkill.skillType == SkillType.Woodcutting &&
+            UnityEngine.Object.FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include) is { } pac && pac.HasAxeInToolbelt();
+        string open = greenAccent ? "<color=#55DD55>" : "<color=#FFB347>";
+        const string close = "</color>";
         string norm = raw.Replace("\r\n", "\n");
         var lines = norm.Split('\n');
         var sb = new System.Text.StringBuilder(norm.Length + lines.Length * 32);
@@ -1186,15 +1187,35 @@ public class SkillTreeViewUI : MonoBehaviour
             {
                 if (lead > 0)
                     sb.Append(line, 0, lead);
-                sb.Append(orangeOpen);
+                sb.Append(open);
                 sb.Append(trimmed);
-                sb.Append(orangeClose);
+                sb.Append(close);
             }
             else
                 sb.Append(line);
         }
 
         return sb.ToString();
+    }
+
+    private static string StripWoodcuttingLumberFrenzyTreeDescriptionDuration(string desc)
+    {
+        if (string.IsNullOrWhiteSpace(desc))
+            return desc;
+        string d = desc;
+        d = d.Replace(" for 20 seconds.", ".", StringComparison.OrdinalIgnoreCase);
+        d = d.Replace(" for 20 seconds,", ",", StringComparison.OrdinalIgnoreCase);
+        d = d.Replace(" for 20 seconds", "", StringComparison.OrdinalIgnoreCase);
+        while (d.Contains("..", StringComparison.Ordinal))
+            d = d.Replace("..", ".", StringComparison.Ordinal);
+        return d.Trim();
+    }
+
+    private static string StripAvatarTreeDescriptionLongWording(string desc)
+    {
+        if (string.IsNullOrWhiteSpace(desc))
+            return desc;
+        return desc.Replace("for a long woodcutting surge", "for a woodcutting surge", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string BuildStatusLine(bool isUnlocked)
@@ -1355,6 +1376,7 @@ public class SkillTreeViewUI : MonoBehaviour
         node.SetLocked(!unlocked);
         node.SetSelected(false);
         node.SetClick(() => OnNodeClicked(nodeId, node));
+        node.SetRightClick(() => OnNodeRightClicked(nodeId, node));
         node.SetHover(
             () => HandleNodeHover(nodeId, node.transform),
             HideTooltip
@@ -1414,12 +1436,6 @@ public class SkillTreeViewUI : MonoBehaviour
         {
             if (!selectedSkill || !skillsManager)
                 return;
-            if (!CanChangeChoiceNow(out string reason))
-            {
-                if (playerController != null && !string.IsNullOrWhiteSpace(reason))
-                    playerController.ShowPopup(reason);
-                return;
-            }
 
             int current = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.parentSpineNodeId, -1);
             if (current != choiceMeta.choiceIndex)
@@ -1436,10 +1452,14 @@ public class SkillTreeViewUI : MonoBehaviour
         {
             if (!selectedSkill || !skillsManager)
                 return;
-            if (!CanChangeChoiceNow(out string reason))
+
+            if (selectedNode != node)
             {
-                if (playerController != null && !string.IsNullOrWhiteSpace(reason))
-                    playerController.ShowPopup(reason);
+                if (selectedNode != null)
+                    selectedNode.SetSelected(false);
+                selectedNode = node;
+                selectedNode.SetSelected(true);
+                ShowTooltip(nodeId, node.transform);
                 return;
             }
 
@@ -1490,10 +1510,13 @@ public class SkillTreeViewUI : MonoBehaviour
             if (spineToggleRow.type == SkillTreeNodeVisualType.MajorPassive
                 || spineToggleRow.type == SkillTreeNodeVisualType.CapstonePassive)
             {
-                if (!CanChangeChoiceNow(out string spineReason))
+                if (selectedNode != node)
                 {
-                    if (playerController != null && !string.IsNullOrWhiteSpace(spineReason))
-                        playerController.ShowPopup(spineReason);
+                    if (selectedNode != null)
+                        selectedNode.SetSelected(false);
+                    selectedNode = node;
+                    selectedNode.SetSelected(true);
+                    ShowTooltip(nodeId, node.transform);
                     return;
                 }
 
@@ -1510,6 +1533,59 @@ public class SkillTreeViewUI : MonoBehaviour
         selectedNode.SetSelected(true);
 
         ShowTooltip(nodeId, node.transform);
+    }
+
+    private void OnNodeRightClicked(string nodeId, SkillTreeNodeUI node)
+    {
+        if (node == null || node.IsLocked())
+            return;
+
+        PreferRuntimeSkillsManager();
+        if (selectedSkill == null || skillsManager == null)
+            return;
+
+        string spineTarget = nodeId;
+        if (choiceMetaByNodeId.TryGetValue(nodeId, out ChoiceNodeMeta cm))
+            spineTarget = cm.parentSpineNodeId;
+
+        if (string.IsNullOrEmpty(spineTarget) || !rowDefBySpineNodeId.ContainsKey(spineTarget))
+            return;
+
+        ResetCommittedSkillRowStateForSpine(spineTarget);
+    }
+
+    /// <summary>
+    /// Clears the ability-row pick (when this tier participates) and passive-branch choices for this spine row
+    /// (and sibling spines in the same multi-pick tier), matching per-row reset semantics used by the old Reset Tree flow.
+    /// </summary>
+    private void ResetCommittedSkillRowStateForSpine(string spineNodeId)
+    {
+        SkillType st = selectedSkill.skillType;
+
+        if (!rowDefBySpineNodeId.TryGetValue(spineNodeId, out RowDef row))
+            return;
+
+        int expandKeyLevel = row.level;
+
+        _abilityGroupSpineScratch.Clear();
+        if (abilityTierPickMetaBySpineId.TryGetValue(spineNodeId, out AbilityTierPickMeta tm))
+        {
+            foreach (var kv in abilityTierPickMetaBySpineId)
+            {
+                AbilityTierPickMeta m = kv.Value;
+                if (m.level == tm.level && m.groupSize == tm.groupSize)
+                    _abilityGroupSpineScratch.Add(kv.Key);
+            }
+
+            skillsManager.ClearSkillAbilityRowPickForLevel(st, tm.level);
+            for (int i = 0; i < _abilityGroupSpineScratch.Count; i++)
+                skillsManager.ClearSkillChoiceSelectionForParentSpine(st, _abilityGroupSpineScratch[i]);
+        }
+        else
+            skillsManager.ClearSkillChoiceSelectionForParentSpine(st, spineNodeId);
+
+        expandedChoiceBranchesBySourceLevel.Remove(expandKeyLevel);
+        BuildForSelectedSkill();
     }
 
     private void ShowTooltip(string nodeId, Transform anchor)
@@ -1733,6 +1809,8 @@ public class SkillTreeViewUI : MonoBehaviour
             int pick = canQuery ? skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, m.level, -1) : -1;
             // Ability glow: only the committed row pick (not merely unlocked). Multi-row uses collapsed spine; single-row has no collapse.
             bool abilitySelectedForGlow = pick == m.ordinal && (m.groupSize < 2 || collapsed);
+            if (!abilitySelectedForGlow && selectedNode == node)
+                abilitySelectedForGlow = true;
             node.SetSelected(abilitySelectedForGlow);
 
             float y = node.RectTransform.anchoredPosition.y;
@@ -1830,64 +1908,5 @@ public class SkillTreeViewUI : MonoBehaviour
                 continue;
             rec.conn.SetPositions(a, b);
         }
-    }
-
-    private bool CanChangeChoiceNow(out string reason)
-    {
-        reason = string.Empty;
-        if (!playerController)
-            return true;
-
-        if (playerController.InCombat)
-        {
-            reason = "Cannot change nodes during combat.";
-            return false;
-        }
-
-        float remaining = choiceChangeUnlockedAt - Time.time;
-        if (remaining > 0f)
-        {
-            reason = $"Cannot change nodes during combat. Wait {Mathf.CeilToInt(remaining)}s after combat.";
-            return false;
-        }
-
-        return true;
-    }
-
-    private void ResolveCombatStateReference()
-    {
-        if (!playerController)
-            playerController = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-        if (!playerCombatState && playerController)
-            playerCombatState = playerController.GetComponent<PlayerCombatState>();
-    }
-
-    private void SubscribeCombatState()
-    {
-        ResolveCombatStateReference();
-        if (isCombatStateSubscribed || playerCombatState == null)
-            return;
-
-        if (playerCombatState != null)
-        {
-            playerCombatState.OnCombatStateChanged += HandleCombatStateChanged;
-            isCombatStateSubscribed = true;
-        }
-    }
-
-    private void UnsubscribeCombatState()
-    {
-        if (!isCombatStateSubscribed || playerCombatState == null)
-            return;
-
-        if (playerCombatState != null)
-            playerCombatState.OnCombatStateChanged -= HandleCombatStateChanged;
-        isCombatStateSubscribed = false;
-    }
-
-    private void HandleCombatStateChanged(bool inCombat)
-    {
-        if (!inCombat)
-            choiceChangeUnlockedAt = Time.time + Mathf.Max(0f, choiceChangePostCombatLockSeconds);
     }
 }

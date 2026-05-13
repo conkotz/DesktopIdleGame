@@ -47,13 +47,6 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     [Tooltip("Center skill tree renderer (data-driven from selected SkillDefinition).")]
     [SerializeField] private SkillTreeViewUI centerSkillTreeView;
 
-    [Tooltip("Clears branch picks for the selected skill’s tree and rebuilds the center tree. Assign after moving the button in the layout.")]
-    [SerializeField] private Button resetSkillTreeButton;
-
-    [Tooltip(
-        "If the reset button sits visually above a ScrollRect but appears earlier in the hierarchy, the scroll view can steal raycasts (no hover/click). Adds a small nested Canvas + GraphicRaycaster on the button so it sorts above sibling UI.")]
-    [SerializeField] private bool ensureResetTreeButtonRaycastsAboveSiblings = true;
-
     [Header("Right panel")]
     [FormerlySerializedAs("unlocksText")]
     [Tooltip("Unlock list from SkillDefinition.unlocks (display-only).")]
@@ -106,7 +99,6 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         EnsureRightPanelLayoutConfigured();
         TrySubscribeSkillsEvents();
         HookTreeGlowAcknowledge();
-        HookResetSkillTreeButton();
     }
 
     private void OnEnable()
@@ -117,7 +109,6 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             abilityDatabase = AbilityDatabase.LoadDefault();
         EnsureCenterTreeReference();
         HookTreeGlowAcknowledge();
-        HookResetSkillTreeButton();
 
         SelectFirstSkillIfNeeded();
         EnsureRightPanelLayoutConfigured();
@@ -128,7 +119,6 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void OnDisable()
     {
-        UnhookResetSkillTreeButton();
         if (_deferredRefreshRoutine != null)
         {
             StopCoroutine(_deferredRefreshRoutine);
@@ -140,7 +130,6 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     {
         TryUnsubscribeSkillsEvents();
         UnhookTreeGlowAcknowledge();
-        UnhookResetSkillTreeButton();
     }
 
     private void LateUpdate()
@@ -556,62 +545,6 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         centerSkillTreeView.UnlockGlowAcknowledgedByHover -= HandleTreeGlowAcknowledgedByHover;
     }
 
-    private void HookResetSkillTreeButton()
-    {
-        if (!resetSkillTreeButton)
-            return;
-        if (ensureResetTreeButtonRaycastsAboveSiblings)
-            EnsureResetTreeButtonRaycastsAboveNeighbors();
-
-        resetSkillTreeButton.onClick.RemoveListener(HandleResetSkillTreeClicked);
-        resetSkillTreeButton.onClick.AddListener(HandleResetSkillTreeClicked);
-    }
-
-    /// <summary>
-    /// ScrollRects / large Image siblings that are later in the hierarchy draw on top and receive pointer hits first.
-    /// A nested Canvas with override sorting keeps this button interactive without changing layout sibling order.
-    /// </summary>
-    private void EnsureResetTreeButtonRaycastsAboveNeighbors()
-    {
-        GameObject go = resetSkillTreeButton.gameObject;
-
-        var canvas = go.GetComponent<Canvas>();
-        if (canvas == null)
-            canvas = go.AddComponent<Canvas>();
-
-        canvas.overrideSorting = true;
-        Canvas root = go.GetComponentInParent<Canvas>()?.rootCanvas;
-        int baseOrder = root != null ? root.sortingOrder : 0;
-        canvas.sortingOrder = baseOrder + 25;
-
-        if (go.GetComponent<GraphicRaycaster>() == null)
-            go.AddComponent<GraphicRaycaster>();
-    }
-
-    private void UnhookResetSkillTreeButton()
-    {
-        if (!resetSkillTreeButton)
-            return;
-        resetSkillTreeButton.onClick.RemoveListener(HandleResetSkillTreeClicked);
-    }
-
-    private void HandleResetSkillTreeClicked()
-    {
-        PreferRuntimeSkillsManager();
-        EnsureCenterTreeReference();
-        if (centerSkillTreeView == null)
-            return;
-
-        // Ensure the tree is showing the same skill as this page (serialized tree skill can be stale before first refresh).
-        if (_selectedSkill != null)
-            centerSkillTreeView.SetSkill(_selectedSkill);
-
-        centerSkillTreeView.OnResetSkillTreeButtonClicked();
-
-        // Re-sync title, unlocks, and abilities list with cleared tree state (tree alone does not refresh the right column).
-        RefreshView();
-    }
-
     private void HandleTreeGlowAcknowledgedByHover(int unlockLevel)
     {
         if (_selectedSkill == null)
@@ -689,6 +622,28 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             var row = CreateAbilityRow(rightAbilitiesListParent);
             row.Bind(a, unlocked: true, tooltip, canvas);
             row.SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Left);
+            row.SetDoubleClickAssignHandler(HandleAbilityDoubleClickAssignToActionBar);
+        }
+    }
+
+    private void HandleAbilityDoubleClickAssignToActionBar(AbilityDefinition def)
+    {
+        if (def == null)
+            return;
+
+        PreferRuntimeSkillsManager();
+        ActionBarUI bar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (bar == null)
+        {
+            if (player)
+                player.ShowPopup("No action bar found.");
+            return;
+        }
+
+        if (!bar.TryAssignAbilityToFirstEmptySlot(def))
+        {
+            if (player)
+                player.ShowPopup("No empty ability slot on the action bar.");
         }
     }
 
@@ -937,6 +892,14 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         int woodcuttingFrenzyStacks = 0;
         int woodcuttingForestFlowStacks = 0;
         float woodcuttingChanceNotToCountTowardTreeDepletion = 0f;
+        int fishingGritRestoreStacks = 0;
+        float fishingDoubleXpChance = 0f;
+        float fishingNoStaminaSwingChance = 0f;
+        int fishingFrenzyStacks = 0;
+        int fishingCalmWatersStacks = 0;
+        float fishingBaitConservationChance = 0f;
+        float fishingAutoCookChance = 0f;
+        int fishingTreasureMinorStacks = 0;
         float enduranceArmor = 0f;
         float enduranceMagicResist = 0f;
         float enduranceHp = 0f;
@@ -1060,6 +1023,25 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                     case FishingMinorNodeStatOption.FishingGritPercent2: gatherGrit += 0.02f; break;
                     case FishingMinorNodeStatOption.FishingEnergyEfficiencyPercent2: gatherEnergyEfficiency += 0.02f; break;
                     case FishingMinorNodeStatOption.FishingBonusItemChancePercent2: gatherBonusItemChance += 0.02f; break;
+                    case FishingMinorNodeStatOption.FishingSpeedPercent2: gatherSpeedFlat += 0.02f; break;
+                    case FishingMinorNodeStatOption.FishingSpeedPercent3: gatherSpeedFlat += 0.03f; break;
+                    case FishingMinorNodeStatOption.FishingSpeedPercent4: gatherSpeedFlat += 0.04f; break;
+                    case FishingMinorNodeStatOption.FishingStaminaEfficiencyPercent1: gatherEnergyEfficiency += 0.01f; break;
+                    case FishingMinorNodeStatOption.FishingStaminaEfficiencyPercent3: gatherEnergyEfficiency += 0.03f; break;
+                    case FishingMinorNodeStatOption.FishingGritPercent1: gatherGrit += 0.01f; break;
+                    case FishingMinorNodeStatOption.FishingGritPercent3: gatherGrit += 0.03f; break;
+                    case FishingMinorNodeStatOption.FishingBonusFindPercent1: gatherBonusItemChance += 0.01f; break;
+                    case FishingMinorNodeStatOption.FishingBonusFindPercent3: gatherBonusItemChance += 0.03f; break;
+                    case FishingMinorNodeStatOption.FishingBonusFindPercent5: gatherBonusItemChance += 0.05f; break;
+                    case FishingMinorNodeStatOption.FishingGritRestoreStaminaFlat10: fishingGritRestoreStacks++; break;
+                    case FishingMinorNodeStatOption.FishingDoubleXpChancePercent3: fishingDoubleXpChance += 0.03f; break;
+                    case FishingMinorNodeStatOption.FishingNoStaminaSwingChancePercent3: fishingNoStaminaSwingChance += 0.03f; break;
+                    case FishingMinorNodeStatOption.FishingFrenzyAfterGritSpeedPercent5Duration7s: fishingFrenzyStacks++; break;
+                    case FishingMinorNodeStatOption.FishingCalmWatersContinuousSpeedPercent3EfficiencyPercent3: fishingCalmWatersStacks++; break;
+                    case FishingMinorNodeStatOption.FishingBaitConservationChancePercent10: fishingBaitConservationChance += 0.10f; break;
+                    case FishingMinorNodeStatOption.FishingAutoCookChancePercent2: fishingAutoCookChance += 0.02f; break;
+                    case FishingMinorNodeStatOption.FishingAutoCookChancePercent4: fishingAutoCookChance += 0.04f; break;
+                    case FishingMinorNodeStatOption.FishingTreasureCatchChanceSmall: fishingTreasureMinorStacks++; break;
                 }
             }
             else if (skill.skillType == SkillType.Endurance)
@@ -1130,10 +1112,13 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         else if (skill.skillType == SkillType.Mining || skill.skillType == SkillType.Woodcutting || skill.skillType == SkillType.Fishing)
         {
             bool isWoodcuttingSkill = skill.skillType == SkillType.Woodcutting;
+            bool isFishingSkill = skill.skillType == SkillType.Fishing;
             if (gatherSpeedFlat > 0f)
             {
                 if (isWoodcuttingSkill)
                     AppendPct(sb, gatherSpeedFlat, "Woodcutting Speed");
+                else if (isFishingSkill)
+                    AppendPct(sb, gatherSpeedFlat, "Fishing Speed");
                 else
                 {
                     sb.Append("• +");
@@ -1187,9 +1172,57 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             }
             else
             {
-                AppendPct(sb, gatherGrit, "Grit");
-                AppendPct(sb, gatherEnergyEfficiency, "Energy Efficiency");
-                AppendPct(sb, gatherBonusItemChance, "Bonus Item Chance");
+                if (isFishingSkill)
+                {
+                    AppendPct(sb, gatherGrit, "Fishing Grit Chance");
+                    AppendPct(sb, gatherEnergyEfficiency, "Fishing Stamina Efficiency");
+                    AppendPct(sb, gatherBonusItemChance, "Fishing Bonus Find Chance");
+                    if (fishingGritRestoreStacks > 0)
+                    {
+                        int stamina = 10 * fishingGritRestoreStacks;
+                        sb.Append("• Fishing Grit catches restore +");
+                        sb.Append(stamina);
+                        sb.Append(" stamina");
+                        sb.AppendLine();
+                    }
+                    if (fishingDoubleXpChance > 0f)
+                    {
+                        sb.Append("• +");
+                        sb.Append(Mathf.RoundToInt(fishingDoubleXpChance * 100f));
+                        sb.Append("% chance to gain double Fishing XP");
+                        sb.AppendLine();
+                    }
+                    AppendPct(sb, fishingNoStaminaSwingChance, "chance for Fishing casts to cost no stamina");
+                    if (fishingFrenzyStacks > 0)
+                    {
+                        int frenzyPct = 5 * fishingFrenzyStacks;
+                        sb.Append("• After a Fishing Grit catch: +");
+                        sb.Append(frenzyPct);
+                        sb.Append("% Fishing Speed for 7 seconds");
+                        sb.AppendLine();
+                    }
+                    if (fishingCalmWatersStacks > 0)
+                    {
+                        int calmSp = 3 * fishingCalmWatersStacks;
+                        int calmSe = 3 * fishingCalmWatersStacks;
+                        sb.Append("• While continuously fishing: +");
+                        sb.Append(calmSp);
+                        sb.Append("% Fishing Speed, +");
+                        sb.Append(calmSe);
+                        sb.Append("% Fishing Stamina Efficiency");
+                        sb.AppendLine();
+                    }
+                    AppendPct(sb, fishingBaitConservationChance, "chance to not consume bait durability");
+                    AppendPct(sb, fishingAutoCookChance, "chance for caught fish to be automatically cooked");
+                    if (fishingTreasureMinorStacks > 0)
+                        sb.AppendLine("• Small chance to catch treasure while fishing");
+                }
+                else
+                {
+                    AppendPct(sb, gatherGrit, "Grit");
+                    AppendPct(sb, gatherEnergyEfficiency, "Energy Efficiency");
+                    AppendPct(sb, gatherBonusItemChance, "Bonus Item Chance");
+                }
             }
         }
 
@@ -1217,7 +1250,12 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                 AppendWoodcuttingLevel35EffectLines);
         }
 
-        if (skill.skillType == SkillType.Woodcutting && skill.unlocks != null)
+        if (skill.skillType == SkillType.Fishing && skill.unlocks != null)
+        {
+            AppendFishingMajorPassivePlaceholders(sb, skill, currentLevel);
+        }
+
+        if ((skill.skillType == SkillType.Woodcutting || skill.skillType == SkillType.Fishing) && skill.unlocks != null)
         {
             SkillUnlockDefinition capstone = FindCapstonePassiveUnlockForSkill(skill, currentLevel);
             if (capstone != null)
@@ -1326,6 +1364,23 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         return sb.ToString();
     }
 
+    private static void AppendFishingMajorPassivePlaceholders(StringBuilder sb, SkillDefinition skill, int currentLevel)
+    {
+        for (int i = 0; i < skill.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = skill.unlocks[i];
+            if (unlock == null || unlock.unlockType != SkillUnlockType.MajorPassive)
+                continue;
+            if (unlock.requiredLevel > currentLevel)
+                continue;
+
+            int lvl = Mathf.Max(1, unlock.requiredLevel);
+            string title = string.IsNullOrWhiteSpace(unlock.title) ? "Fishing Major Passive" : unlock.title.Trim();
+            sb.AppendLine($"• {title} (Major Passive) (Lv{lvl})");
+            sb.AppendLine("   - Base Effect");
+        }
+    }
+
     /// <summary>First capstone passive row at or below <paramref name="currentLevel"/> (e.g. Woodcutting Lv50 Bountiful Chop).</summary>
     private static SkillUnlockDefinition FindCapstonePassiveUnlockForSkill(SkillDefinition skill, int currentLevel)
     {
@@ -1430,12 +1485,12 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         if (string.Equals(majorTitle, "Ancient Lumbercraft", System.StringComparison.OrdinalIgnoreCase))
         {
-            int hiddenChance = 2;
+            int hiddenChance = 10;
             bool experiencedGatherer = string.Equals(enhancementTitle, "Experienced Gatherer", System.StringComparison.OrdinalIgnoreCase);
             bool treasureHunter = string.Equals(enhancementTitle, "Treasure Hunter", System.StringComparison.OrdinalIgnoreCase);
             if (experiencedGatherer)
-                hiddenChance += 1;
-            sb.AppendLine($"     +{hiddenChance}% Hidden Resource Chance");
+                hiddenChance += 5;
+            sb.AppendLine($"     +{hiddenChance}% chance to find hidden resources");
             if (treasureHunter)
                 sb.AppendLine("     +10% chance for Hidden Resources to double");
             return;

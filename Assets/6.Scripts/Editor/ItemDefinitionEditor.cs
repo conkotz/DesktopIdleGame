@@ -631,6 +631,8 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty grantedEffect = consumableStats.FindPropertyRelative("grantedEffect");
         SerializedProperty openableLoot = consumableStats.FindPropertyRelative("openableLoot");
         SerializedProperty openRequiredAmount = consumableStats.FindPropertyRelative("openRequiredAmount");
+        SerializedProperty baitTier = consumableStats.FindPropertyRelative("baitTier");
+        SerializedProperty fishingSpeedPercentBonus = consumableStats.FindPropertyRelative("fishingSpeedPercentBonus");
 
         EditorGUILayout.PropertyField(consumableType);
         EditorGUILayout.Space(4);
@@ -640,10 +642,21 @@ public class ItemDefinitionEditor : Editor
             : ConsumableType.None;
 
         bool isOpenable = selectedType == ConsumableType.Openable;
+        bool isFishingBait = selectedType == ConsumableType.FishingBait;
 
         // Heal / Energy / Granted Effect only matter for Food / Potion. Hiding them on Openable keeps the
         // inspector focused on the loot table for that mode.
-        if (!isOpenable)
+        if (isFishingBait)
+        {
+            EditorGUILayout.LabelField("Fishing Bait", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(baitTier);
+            EditorGUILayout.PropertyField(
+                fishingSpeedPercentBonus,
+                new GUIContent("Fishing Speed Bonus %", "Applied as +X% fishing speed while this bait is consumed for a swing."));
+            if (fishingSpeedPercentBonus != null && fishingSpeedPercentBonus.floatValue < 0f)
+                fishingSpeedPercentBonus.floatValue = 0f;
+        }
+        else if (!isOpenable)
         {
             EditorGUILayout.LabelField("Use", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(healAmount);
@@ -671,6 +684,7 @@ public class ItemDefinitionEditor : Editor
             "Consumables can be assigned to the action bar and used by hotkey.\n\n" +
             "Food: usually instant healing.\n" +
             "Potion: can heal, restore energy, and/or apply a temporary effect.\n" +
+            "Fishing Bait: consumed automatically while fishing; higher bait tier is prioritized first.\n" +
             "Openable: double-click the item to open it. Each loot row rolls independently using its own % chance. " +
             "Required Amount To Open controls how many copies are consumed per open (e.g. 5 shards → 1 open).",
             MessageType.None

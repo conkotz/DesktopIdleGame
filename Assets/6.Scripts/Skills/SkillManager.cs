@@ -409,6 +409,25 @@ public class SkillsManager : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>
+    /// Clears the committed sibling pick for one required level (fires <see cref="OnSkillAbilityRowPickChanged"/> with pick -1 if a pick existed).
+    /// Used when resetting a single skill-tree row without wiping the whole skill.
+    /// </summary>
+    public void ClearSkillAbilityRowPickForLevel(SkillType skillType, int requiredLevel)
+    {
+        string key = BuildAbilityRowKey(skillType, requiredLevel);
+        if (_skillAbilityRowPicks.Remove(key))
+            TryInvokeAbilityRowClearFromKey(key);
+    }
+
+    /// <summary>Clears the passive-branch choice for one parent spine row (same semantics as <see cref="SetSkillChoiceSelection"/> with a negative index).</summary>
+    public void ClearSkillChoiceSelectionForParentSpine(SkillType skillType, string parentSpineNodeId)
+    {
+        if (string.IsNullOrWhiteSpace(parentSpineNodeId))
+            return;
+        SetSkillChoiceSelection(skillType, parentSpineNodeId.Trim(), -1);
+    }
+
     private void TryInvokeAbilityRowClearFromKey(string key)
     {
         int idx = key.IndexOf(":abilityRow:", StringComparison.Ordinal);

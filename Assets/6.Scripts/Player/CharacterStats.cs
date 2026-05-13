@@ -325,6 +325,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float woodcuttingBaseYieldBonus;
         public int woodcuttingForestFlowStacks;
         public int woodcuttingFrenzyStacks;
+        public int fishingFrenzyStacks;
+        public int fishingCalmWatersStacks;
         /// <summary>Fraction of max stamina restored when Woodcutting Grit procs (e.g. 0.15 = +15%).</summary>
         public float woodcuttingGritProcRestoreStaminaFraction;
         public float woodcuttingBonusXpChance;
@@ -998,6 +1000,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float AxeWoodcuttingBaseYieldBonus => Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingBaseYieldBonus);
     public int AxeWoodcuttingForestFlowStacks => Mathf.Max(0, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingForestFlowStacks);
     public int AxeWoodcuttingFrenzyStacks => Mathf.Max(0, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingFrenzyStacks);
+    public int RodFishingFrenzyStacks => Mathf.Max(0, GetUnlockedSkillMinorBonuses(SkillType.Fishing).fishingFrenzyStacks);
+    public int RodFishingCalmWatersStacks => Mathf.Max(0, GetUnlockedSkillMinorBonuses(SkillType.Fishing).fishingCalmWatersStacks);
     public float AxeWoodcuttingGritProcRestoreStaminaFraction =>
         Mathf.Clamp01(GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingGritProcRestoreStaminaFraction);
     public float AxeWoodcuttingBonusXpChance => Mathf.Min(1f, Mathf.Max(0f, GetUnlockedSkillMinorBonuses(SkillType.Woodcutting).woodcuttingBonusXpChance));
@@ -2467,6 +2471,18 @@ public class CharacterStats : MonoBehaviour, ISaveable
                     case FishingMinorNodeStatOption.FishingGritPercent2: total.gatherGrit += 0.02f; break;
                     case FishingMinorNodeStatOption.FishingEnergyEfficiencyPercent2: total.gatherEnergyEfficiency += 0.02f; break;
                     case FishingMinorNodeStatOption.FishingBonusItemChancePercent2: total.gatherBonusItemChance += 0.02f; break;
+                    case FishingMinorNodeStatOption.FishingSpeedPercent2: total.gatherSpeedFlat += 0.02f; break;
+                    case FishingMinorNodeStatOption.FishingSpeedPercent3: total.gatherSpeedFlat += 0.03f; break;
+                    case FishingMinorNodeStatOption.FishingSpeedPercent4: total.gatherSpeedFlat += 0.04f; break;
+                    case FishingMinorNodeStatOption.FishingStaminaEfficiencyPercent1: total.gatherEnergyEfficiency += 0.01f; break;
+                    case FishingMinorNodeStatOption.FishingStaminaEfficiencyPercent3: total.gatherEnergyEfficiency += 0.03f; break;
+                    case FishingMinorNodeStatOption.FishingGritPercent1: total.gatherGrit += 0.01f; break;
+                    case FishingMinorNodeStatOption.FishingGritPercent3: total.gatherGrit += 0.03f; break;
+                    case FishingMinorNodeStatOption.FishingBonusFindPercent1: total.gatherBonusItemChance += 0.01f; break;
+                    case FishingMinorNodeStatOption.FishingBonusFindPercent3: total.gatherBonusItemChance += 0.03f; break;
+                    case FishingMinorNodeStatOption.FishingBonusFindPercent5: total.gatherBonusItemChance += 0.05f; break;
+                    case FishingMinorNodeStatOption.FishingFrenzyAfterGritSpeedPercent5Duration7s: total.fishingFrenzyStacks += 1; break;
+                    case FishingMinorNodeStatOption.FishingCalmWatersContinuousSpeedPercent3EfficiencyPercent3: total.fishingCalmWatersStacks += 1; break;
                 }
                 break;
 

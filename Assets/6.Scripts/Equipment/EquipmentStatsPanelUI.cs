@@ -7,7 +7,7 @@ using UnityEngine.Serialization;
 public class EquipmentStatsPanelUI : MonoBehaviour
 {
     private bool _refreshQueued;
-    private int _woodcuttingToolsLiveStamp = int.MinValue;
+    private int _gatheringToolLiveStamp = int.MinValue;
     private static readonly Color BleedAilmentColor = new Color(0.996f, 0.361f, 0.361f);
     private static readonly Color PoisonAilmentColor = new Color(0.298f, 0.686f, 0.314f);
     private static readonly Color BurnAilmentColor = new Color(1f, 0.478f, 0.137f);
@@ -247,7 +247,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             Refresh();
         }
 
-        PollWoodcuttingToolsLiveRefresh();
+        PollGatheringToolsLiveRefresh();
     }
 
     private void QueueRefresh()
@@ -466,21 +466,21 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         PopulateGatheringToolsSection();
 
         if (player != null)
-            _woodcuttingToolsLiveStamp = player.GetWoodcuttingStatsPanelStamp();
+            _gatheringToolLiveStamp = HashCode.Combine(player.GetWoodcuttingStatsPanelStamp(), player.GetFishingStatsPanelStamp());
 
         EnsureToolStatLineTooltips();
     }
 
-    private void PollWoodcuttingToolsLiveRefresh()
+    private void PollGatheringToolsLiveRefresh()
     {
         if (!player || !stats)
             return;
 
-        int stamp = player.GetWoodcuttingStatsPanelStamp();
-        if (stamp == _woodcuttingToolsLiveStamp)
+        int stamp = HashCode.Combine(player.GetWoodcuttingStatsPanelStamp(), player.GetFishingStatsPanelStamp());
+        if (stamp == _gatheringToolLiveStamp)
             return;
 
-        _woodcuttingToolsLiveStamp = stamp;
+        _gatheringToolLiveStamp = stamp;
         PopulateGatheringToolsSection();
     }
 
@@ -533,10 +533,35 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         }
 
         if (rodTitleText) rodTitleText.text = "Rod";
-        if (rodSpeedText) rodSpeedText.text = $"Fishing Speed: {stats.RodSpeedMult:0.##}x";
+
+        float baseRodSpeed = stats.RodSpeedMult;
+        if (rodSpeedText)
+        {
+            float displayRodSpeed = baseRodSpeed;
+            if (player != null &&
+                player.TryGetFishingLiveBuffInfo(out float frenSpd, out float calmSpd, out _) &&
+                (frenSpd > 0f || calmSpd > 0f))
+                displayRodSpeed = baseRodSpeed * (1f + frenSpd + calmSpd);
+
+            rodSpeedText.richText = false;
+            rodSpeedText.text = $"Fishing Speed: {displayRodSpeed:0.##}x";
+        }
+
         if (rodGritText) rodGritText.text = $"Fishing Grit: {stats.RodGrit * 100f:0.#}%";
         if (rodBonusFindText) rodBonusFindText.text = $"Bonus Find: +{stats.RodBonusFindChance * 100f:0.#}%";
-        if (rodStaminaEfficiencyText) rodStaminaEfficiencyText.text = $"Stamina Eff: +{stats.RodStaminaEfficiency * 100f:0.#}%";
+
+        float baseRodStam = stats.RodStaminaEfficiency;
+        if (rodStaminaEfficiencyText)
+        {
+            float displayRodStam = baseRodStam;
+            if (player != null &&
+                player.TryGetFishingLiveBuffInfo(out _, out _, out float calmStam) &&
+                calmStam > 0f)
+                displayRodStam = Mathf.Clamp01(baseRodStam + calmStam);
+
+            rodStaminaEfficiencyText.richText = false;
+            rodStaminaEfficiencyText.text = $"Stamina Eff: +{displayRodStam * 100f:0.#}%";
+        }
     }
 
     private string GetCurrentMagicTypeLabel()
@@ -935,9 +960,14 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             "Extra chance to find bonus resources while gathering with this tool.\n\n" +
             "Applies per gather action and stacks with other bonus find sources.";
         float hiddenRevealPct = player != null ? player.GetWoodcuttingHiddenRevealChanceFlatBonus() * 100f : 0f;
-        string axeBonusFindBody = bonusFindBody + "\n\n" +
-            "Hidden items can also be found with an independent chance to bonus find (base 0% chance).\n" +
-            $"+{hiddenRevealPct:0.#}% Chance to find hidden resources.";
+        bool axeInBelt = UnityEngine.Object.FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include) is { } pac &&
+                         pac.HasAxeInToolbelt();
+        string hiddenExplain =
+            "Hidden items can roll after a bonus resource proc on the same gather tick (base 0% chance before bonuses).";
+        string hiddenValueLine = $"+{hiddenRevealPct:0.#}% chance to find hidden resources.";
+        if (axeInBelt)
+            hiddenValueLine = $"<color=#55DD55>{hiddenValueLine}</color>";
+        string axeBonusFindBody = bonusFindBody + "\n\n" + hiddenExplain + "\n\n" + hiddenValueLine;
         const string staminaEffBody =
             "Reduces stamina/energy cost pressure while gathering.\n\n" +
             "Higher efficiency lets you gather longer before running out of stamina.";
