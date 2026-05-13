@@ -1298,6 +1298,13 @@ public class SaveManager : MonoBehaviour
         if (data.actionBarItemAmounts == null)
             data.actionBarItemAmounts = new List<int>();
 
+        if (data.actionBarGatherWoodcutting == null)
+            data.actionBarGatherWoodcutting = new SaveData.GatheringActionBarSaveBlock();
+        if (data.actionBarGatherMining == null)
+            data.actionBarGatherMining = new SaveData.GatheringActionBarSaveBlock();
+        if (data.actionBarGatherFishing == null)
+            data.actionBarGatherFishing = new SaveData.GatheringActionBarSaveBlock();
+
         MigrateLegacyWorldMapEnteredNodeIdsIfNeeded(data);
     }
 

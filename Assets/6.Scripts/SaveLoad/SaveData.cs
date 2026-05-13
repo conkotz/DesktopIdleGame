@@ -155,6 +155,24 @@ public class SaveData
     public List<string> actionBarSecondaryIds = new();
     public List<int> actionBarSecondaryItemAmounts = new();
 
+    [Serializable]
+    public class GatheringActionBarSaveBlock
+    {
+        public List<int> slotIndexes = new();
+        public List<int> kinds = new();
+        public List<string> ids = new();
+        public List<int> itemAmounts = new();
+    }
+
+    [Tooltip("Ability hotkeys 1–5 when the Woodcutting gathering strip is shown; independent of combat loadouts.")]
+    public GatheringActionBarSaveBlock actionBarGatherWoodcutting = new();
+
+    [Tooltip("Ability hotkeys 1–5 when the Mining gathering strip is shown.")]
+    public GatheringActionBarSaveBlock actionBarGatherMining = new();
+
+    [Tooltip("Ability hotkeys 1–5 when the Fishing gathering strip is shown.")]
+    public GatheringActionBarSaveBlock actionBarGatherFishing = new();
+
     [Header("Quests")]
     [Tooltip("Parallel lists: QuestDefinition.questId → current objective amount.")]
     public List<string> questProgressIds = new();

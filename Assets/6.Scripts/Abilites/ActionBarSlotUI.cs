@@ -78,6 +78,7 @@ public class ActionBarSlotUI : MonoBehaviour,
 
     private System.Action<ActionBarSlotUI> onPressed;
     private System.Action<ActionBarSlotUI> onAssignmentChanged;
+    private ActionBarUI actionBarOwner;
     private Vector3 originalScale;
     private bool isAutoBattleActive;
     private bool abilityWeaponCompatible = true;
@@ -179,10 +180,12 @@ public class ActionBarSlotUI : MonoBehaviour,
 
     public void Initialize(
         System.Action<ActionBarSlotUI> triggerCallback,
-        System.Action<ActionBarSlotUI> assignmentChangedCallback = null)
+        System.Action<ActionBarSlotUI> assignmentChangedCallback = null,
+        ActionBarUI ownerBar = null)
     {
         onPressed = triggerCallback;
         onAssignmentChanged = assignmentChangedCallback;
+        actionBarOwner = ownerBar;
 
         if (button != null)
         {
@@ -212,7 +215,24 @@ public class ActionBarSlotUI : MonoBehaviour,
             return true;
 
         if (newAssignment.kind == ActionBarAssignmentKind.Ability)
+        {
+            if (slotType != ActionBarSlotType.Ability && slotType != ActionBarSlotType.Any)
+                return false;
+
+            AbilityDefinition abilityDef = null;
+            if (abilityDatabase == null)
+                abilityDatabase = AbilityDatabase.LoadDefault();
+            if (abilityDatabase != null && !string.IsNullOrWhiteSpace(newAssignment.id))
+                abilityDef = abilityDatabase.Get(newAssignment.id);
+
+            if (actionBarOwner != null && !actionBarOwner.CanSlotAcceptGatheringAbility(abilityDef))
+                return false;
+
+            if (slotType == ActionBarSlotType.Any)
+                return true;
+
             return slotType == ActionBarSlotType.Ability;
+        }
 
         if (newAssignment.kind == ActionBarAssignmentKind.Item)
         {

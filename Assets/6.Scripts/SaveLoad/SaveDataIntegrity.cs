@@ -67,6 +67,7 @@ public static class SaveDataIntegrity
 
         EnsureInventorySlotsCoherent(data, logTag: $"write:{context}");
         EnsureStorageSlotsCoherent(data, logTag: $"write:{context}");
+        TrimGatheringActionBarBlocks(data);
     }
 
     /// <summary>Call after JSON deserialize (or new game template) and <see cref="SaveManager.NormalizeSaveDataLists"/>.</summary>
@@ -119,6 +120,7 @@ public static class SaveDataIntegrity
         EnsureStorageSlotsCoherent(data, logTag: $"load:{context}");
 
         TrimActionBarListsToMin(data);
+        TrimGatheringActionBarBlocks(data);
     }
 
     private static void EnsureInventorySlotsCoherent(SaveData data, string logTag)
@@ -177,6 +179,78 @@ public static class SaveDataIntegrity
             for (int i = 0; i < add; i++)
                 data.storageSlots.Add(default);
         }
+    }
+
+    private static void EnsureGatheringBlockLists(SaveData.GatheringActionBarSaveBlock block)
+    {
+        if (block == null)
+            return;
+
+        if (block.slotIndexes == null)
+            block.slotIndexes = new List<int>();
+        if (block.kinds == null)
+            block.kinds = new List<int>();
+        if (block.ids == null)
+            block.ids = new List<string>();
+        if (block.itemAmounts == null)
+            block.itemAmounts = new List<int>();
+    }
+
+    private static void TrimGatheringActionBarBlocks(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        if (data.actionBarGatherWoodcutting == null)
+            data.actionBarGatherWoodcutting = new SaveData.GatheringActionBarSaveBlock();
+        if (data.actionBarGatherMining == null)
+            data.actionBarGatherMining = new SaveData.GatheringActionBarSaveBlock();
+        if (data.actionBarGatherFishing == null)
+            data.actionBarGatherFishing = new SaveData.GatheringActionBarSaveBlock();
+
+        EnsureGatheringBlockLists(data.actionBarGatherWoodcutting);
+        EnsureGatheringBlockLists(data.actionBarGatherMining);
+        EnsureGatheringBlockLists(data.actionBarGatherFishing);
+
+        TrimGatheringBlockParallelLists(data.actionBarGatherWoodcutting, "gatherWood");
+        TrimGatheringBlockParallelLists(data.actionBarGatherMining, "gatherMining");
+        TrimGatheringBlockParallelLists(data.actionBarGatherFishing, "gatherFishing");
+    }
+
+    private static void TrimGatheringBlockParallelLists(SaveData.GatheringActionBarSaveBlock block, string label)
+    {
+        if (block == null)
+            return;
+
+        while (block.itemAmounts.Count < block.ids.Count)
+        {
+            int i = block.itemAmounts.Count;
+            int kind = (block.kinds != null && i < block.kinds.Count) ? block.kinds[i] : -1;
+            block.itemAmounts.Add(kind == (int)ActionBarAssignmentKind.Item ? 1 : 0);
+        }
+
+        int n = Mathf.Min(
+            block.slotIndexes.Count,
+            block.kinds.Count,
+            block.ids.Count,
+            block.itemAmounts.Count);
+        if (n == block.slotIndexes.Count &&
+            n == block.kinds.Count &&
+            n == block.ids.Count &&
+            n == block.itemAmounts.Count)
+            return;
+
+        Debug.LogWarning(
+            $"[SaveDataIntegrity] Gathering action bar '{label}' lists mismatched; trimming to {n}.");
+
+        while (block.slotIndexes.Count > n)
+            block.slotIndexes.RemoveAt(block.slotIndexes.Count - 1);
+        while (block.kinds.Count > n)
+            block.kinds.RemoveAt(block.kinds.Count - 1);
+        while (block.ids.Count > n)
+            block.ids.RemoveAt(block.ids.Count - 1);
+        while (block.itemAmounts.Count > n)
+            block.itemAmounts.RemoveAt(block.itemAmounts.Count - 1);
     }
 
     private static void TrimActionBarListsToMin(SaveData data)

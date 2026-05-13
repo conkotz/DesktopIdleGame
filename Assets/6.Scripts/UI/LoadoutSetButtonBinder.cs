@@ -189,6 +189,9 @@ public class LoadoutSetButtonBinder : MonoBehaviour
     private IEnumerator CoApplySet(int setIndex)
     {
         _swapInProgress = true;
+        if (_actionBar == null)
+            _actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        _actionBar?.ExitGatheringBarToCombat();
         _equipment.SetActiveWeaponSet(setIndex);
         RefreshVisuals();
         yield return null; // spread swap load across frames

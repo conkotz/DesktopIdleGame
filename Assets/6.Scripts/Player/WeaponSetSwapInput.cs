@@ -35,6 +35,9 @@ public class WeaponSetSwapInput : MonoBehaviour
     private IEnumerator CoSwapFullLoadout()
     {
         _swapInProgress = true;
+        if (!actionBar)
+            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        actionBar?.ExitGatheringBarToCombat();
         equipment.ToggleWeaponSet();
         yield return null; // spread swap load across frames
 

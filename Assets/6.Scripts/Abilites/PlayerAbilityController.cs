@@ -340,6 +340,187 @@ public class PlayerAbilityController : MonoBehaviour
         return remainingSeconds > 0f;
     }
 
+    /// <summary>
+    /// True when the ability has an active HUD buff row and/or a known lingering runtime state (used by the skill tree).
+    /// </summary>
+    public bool IsAbilityBuffOrLingeringActive(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return false;
+
+        if (IsOnCooldown(abilityId, out _))
+            return false;
+
+        if (buffController && buffController.IsHudAbilityBuffActive(abilityId))
+            return true;
+
+        if (string.Equals(abilityId, LumberFrenzyId, StringComparison.OrdinalIgnoreCase))
+            return IsLumberFrenzyActive;
+        if (string.Equals(abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase))
+            return IsCleavingChopActive;
+        if (string.Equals(abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase))
+            return IsAvatarOfTheForestActive;
+        if (string.Equals(abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase))
+            return IsSpectralAxeActive;
+        if (string.Equals(abilityId, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
+            return _cleavingBuffActive;
+        if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
+            return _activeSoulforgedWeaponMinions.Count > 0;
+
+        return false;
+    }
+
+    /// <summary>
+    /// When the skill tree row is reset while this ability is active, ends buff/lingering state and applies cooldown
+    /// the same way natural expiry would (Cleaving Strikes only clears its window — it already cooled down on cast).
+    /// </summary>
+    public void ForceEndLingeringAbilityForSkillTreeReset(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return;
+
+        if (string.Equals(abilityId, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndCleavingStrikesBuffEarly();
+            return;
+        }
+
+        if (string.Equals(abilityId, LumberFrenzyId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndLumberFrenzyEarly();
+            return;
+        }
+
+        if (string.Equals(abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndCleavingChopEarly();
+            return;
+        }
+
+        if (string.Equals(abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndAvatarOfTheForestEarly();
+            return;
+        }
+
+        if (string.Equals(abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_spectralAxeActive || _spectralAxeRoutine != null || _spectralAxeProjectile != null)
+                AbortSpectralAxe(awardCooldown: true);
+            return;
+        }
+
+        if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_activeSoulforgedWeaponMinions.Count > 0)
+                EndSoulforgedAndStartCooldown();
+            return;
+        }
+
+        ForceEndGenericHudAbilityBuffWithCooldown(abilityId);
+    }
+
+    /// <summary>Skill tree active overlay: seconds left on the HUD buff timer when applicable.</summary>
+    public bool TryGetAbilitySkillTreeActiveBuffTimer(string abilityId, out float remainingSecondsForDisplay)
+    {
+        remainingSecondsForDisplay = 0f;
+        if (!IsAbilityBuffOrLingeringActive(abilityId))
+            return false;
+
+        if (buffController != null &&
+            buffController.ShouldDisplayHudAbilityBuffCountdown(abilityId, out float rem))
+        {
+            remainingSecondsForDisplay = rem;
+            return true;
+        }
+
+        remainingSecondsForDisplay = 0f;
+        return true;
+    }
+
+    private void ForceEndCleavingStrikesBuffEarly()
+    {
+        if (!_cleavingBuffActive)
+            return;
+
+        _cleavingBuffActive = false;
+        _cleavingAdditionalTargets = 0;
+        _cleavingHitsRemaining = 0;
+        _cleavingBuffEndsAt = 0f;
+        _cleavingBuffDuration = 0f;
+        SyncCleavingStrikesHudBuff();
+    }
+
+    private void ForceEndLumberFrenzyEarly()
+    {
+        if (!_lumberFrenzyActive)
+            return;
+
+        _lumberFrenzyActive = false;
+        _lumberFrenzyEndsAt = 0f;
+        _lumberFrenzyDuration = 0f;
+
+        abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+
+        if (_lumberFrenzyCooldownAbilityDef)
+            StartCooldown(_lumberFrenzyCooldownAbilityDef);
+        _lumberFrenzyCooldownAbilityDef = null;
+
+        _lastSyncedLumberFrenzyHudEnd = float.NaN;
+        SyncLumberFrenzyHudBuff();
+        stats?.NotifyStatsChanged();
+    }
+
+    private void ForceEndCleavingChopEarly()
+    {
+        if (!IsCleavingChopActive)
+            return;
+
+        _cleavingChopActive = false;
+        _cleavingChopEndsAt = 0f;
+        _cleavingChopDuration = 0f;
+
+        if (_cleavingChopCooldownAbilityDef)
+            StartCooldown(_cleavingChopCooldownAbilityDef);
+        _cleavingChopCooldownAbilityDef = null;
+
+        _lastSyncedCleavingChopHudEnd = float.NaN;
+        SyncCleavingChopHudBuff();
+    }
+
+    private void ForceEndAvatarOfTheForestEarly()
+    {
+        if (!IsAvatarOfTheForestActive)
+            return;
+
+        _avatarOfForestActive = false;
+        _avatarOfForestEndsAt = 0f;
+        _avatarOfForestDuration = 0f;
+        _avatarOfForestReplenishAccum = 0f;
+
+        abilityVfx?.DestroyAvatarOfTheForestGlowVfx();
+
+        if (_avatarOfForestCooldownAbilityDef)
+            StartCooldown(_avatarOfForestCooldownAbilityDef);
+        _avatarOfForestCooldownAbilityDef = null;
+
+        _lastSyncedAvatarOfForestHudEnd = float.NaN;
+        SyncAvatarOfTheForestHudBuff();
+        stats?.NotifyStatsChanged();
+    }
+
+    private void ForceEndGenericHudAbilityBuffWithCooldown(string abilityId)
+    {
+        if (buffController == null || !buffController.IsHudAbilityBuffActive(abilityId))
+            return;
+
+        buffController.ClearHudAbilityBuff(abilityId);
+
+        AbilityDefinition def = GetAbilityDefinition(abilityId);
+        if (def != null && def.cooldown > 0f)
+            StartCooldown(def);
+    }
+
     /// <summary>Stable row key for cooldown sharing. Null when the ability isn't tied to a skill tree row.</summary>
     private static string BuildAbilityRowKey(AbilityDefinition def)
     {
@@ -1520,13 +1701,18 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (!_cleavingBuffActive)
         {
-            if (!float.IsNaN(_lastSyncedCleavingHudEnd) || _lastSyncedCleavingHudStacks != int.MinValue)
-            {
+            if (buffController.IsHudAbilityBuffActive(CleavingStrikesId))
                 buffController.ClearHudAbilityBuff(CleavingStrikesId);
-                _lastSyncedCleavingHudStacks = int.MinValue;
-                _lastSyncedCleavingHudEnd = float.NaN;
-            }
+            _lastSyncedCleavingHudStacks = int.MinValue;
+            _lastSyncedCleavingHudEnd = float.NaN;
+            return;
+        }
 
+        if (IsOnCooldown(CleavingStrikesId, out _))
+        {
+            buffController.ClearHudAbilityBuff(CleavingStrikesId);
+            _lastSyncedCleavingHudStacks = int.MinValue;
+            _lastSyncedCleavingHudEnd = float.NaN;
             return;
         }
 
@@ -1580,12 +1766,16 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (!_lumberFrenzyActive)
         {
-            if (!float.IsNaN(_lastSyncedLumberFrenzyHudEnd))
-            {
+            if (buffController.IsHudAbilityBuffActive(LumberFrenzyId))
                 buffController.ClearHudAbilityBuff(LumberFrenzyId);
-                _lastSyncedLumberFrenzyHudEnd = float.NaN;
-            }
+            _lastSyncedLumberFrenzyHudEnd = float.NaN;
+            return;
+        }
 
+        if (IsOnCooldown(LumberFrenzyId, out _))
+        {
+            buffController.ClearHudAbilityBuff(LumberFrenzyId);
+            _lastSyncedLumberFrenzyHudEnd = float.NaN;
             return;
         }
 
@@ -1639,12 +1829,16 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (!IsAvatarOfTheForestActive)
         {
-            if (!float.IsNaN(_lastSyncedAvatarOfForestHudEnd))
-            {
+            if (buffController.IsHudAbilityBuffActive(AvatarOfTheForestId))
                 buffController.ClearHudAbilityBuff(AvatarOfTheForestId);
-                _lastSyncedAvatarOfForestHudEnd = float.NaN;
-            }
+            _lastSyncedAvatarOfForestHudEnd = float.NaN;
+            return;
+        }
 
+        if (IsOnCooldown(AvatarOfTheForestId, out _))
+        {
+            buffController.ClearHudAbilityBuff(AvatarOfTheForestId);
+            _lastSyncedAvatarOfForestHudEnd = float.NaN;
             return;
         }
 
@@ -1812,12 +2006,16 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (!_cleavingChopActive)
         {
-            if (!float.IsNaN(_lastSyncedCleavingChopHudEnd))
-            {
+            if (buffController.IsHudAbilityBuffActive(CleavingChopId))
                 buffController.ClearHudAbilityBuff(CleavingChopId);
-                _lastSyncedCleavingChopHudEnd = float.NaN;
-            }
+            _lastSyncedCleavingChopHudEnd = float.NaN;
+            return;
+        }
 
+        if (IsOnCooldown(CleavingChopId, out _))
+        {
+            buffController.ClearHudAbilityBuff(CleavingChopId);
+            _lastSyncedCleavingChopHudEnd = float.NaN;
             return;
         }
 
@@ -2469,11 +2667,16 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (!_spectralAxeActive)
         {
-            if (!float.IsNaN(_lastSyncedSpectralAxeHudEnd))
-            {
+            if (buffController.IsHudAbilityBuffActive(SpectralAxeId))
                 buffController.ClearHudAbilityBuff(SpectralAxeId);
-                _lastSyncedSpectralAxeHudEnd = float.NaN;
-            }
+            _lastSyncedSpectralAxeHudEnd = float.NaN;
+            return;
+        }
+
+        if (IsOnCooldown(SpectralAxeId, out _))
+        {
+            buffController.ClearHudAbilityBuff(SpectralAxeId);
+            _lastSyncedSpectralAxeHudEnd = float.NaN;
             return;
         }
 
@@ -2619,11 +2822,92 @@ public class PlayerAbilityController : MonoBehaviour
         return CanUseWithEquippedWeapon(def);
     }
 
+    /// <summary>
+    /// When a cooldown is applied, any overlapping timed / lingering window for that ability must end so HUD and
+    /// gameplay cannot stay "active" while the ability is on cooldown (Cleaving Strikes is excluded: its hit window
+    /// intentionally overlaps its cast cooldown).
+    /// </summary>
+    private void TeardownLingeringAbilityStateBeforeCooldownWrite(AbilityDefinition def)
+    {
+        if (!def || string.IsNullOrWhiteSpace(def.abilityId))
+            return;
+
+        string id = def.abilityId;
+        if (string.Equals(id, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (string.Equals(id, LumberFrenzyId, StringComparison.OrdinalIgnoreCase) && _lumberFrenzyActive)
+        {
+            _lumberFrenzyActive = false;
+            _lumberFrenzyEndsAt = 0f;
+            _lumberFrenzyDuration = 0f;
+            abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+            _lumberFrenzyCooldownAbilityDef = null;
+            _lastSyncedLumberFrenzyHudEnd = float.NaN;
+            buffController?.ClearHudAbilityBuff(LumberFrenzyId);
+            stats?.NotifyStatsChanged();
+            return;
+        }
+
+        if (string.Equals(id, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase) && IsAvatarOfTheForestActive)
+        {
+            _avatarOfForestActive = false;
+            _avatarOfForestEndsAt = 0f;
+            _avatarOfForestDuration = 0f;
+            _avatarOfForestReplenishAccum = 0f;
+            abilityVfx?.DestroyAvatarOfTheForestGlowVfx();
+            _avatarOfForestCooldownAbilityDef = null;
+            _lastSyncedAvatarOfForestHudEnd = float.NaN;
+            buffController?.ClearHudAbilityBuff(AvatarOfTheForestId);
+            stats?.NotifyStatsChanged();
+            return;
+        }
+
+        if (string.Equals(id, CleavingChopId, StringComparison.OrdinalIgnoreCase) && IsCleavingChopActive)
+        {
+            _cleavingChopActive = false;
+            _cleavingChopEndsAt = 0f;
+            _cleavingChopDuration = 0f;
+            _cleavingChopCooldownAbilityDef = null;
+            _lastSyncedCleavingChopHudEnd = float.NaN;
+            buffController?.ClearHudAbilityBuff(CleavingChopId);
+            return;
+        }
+
+        if (string.Equals(id, SpectralAxeId, StringComparison.OrdinalIgnoreCase) &&
+            (_spectralAxeActive || _spectralAxeRoutine != null || _spectralAxeProjectile != null))
+        {
+            AbortSpectralAxe(awardCooldown: false);
+            return;
+        }
+
+        if (string.Equals(id, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase) &&
+            _activeSoulforgedWeaponMinions.Count > 0)
+        {
+            for (int i = _activeSoulforgedWeaponMinions.Count - 1; i >= 0; i--)
+            {
+                SoulforgedWeaponMinion minion = _activeSoulforgedWeaponMinions[i];
+                if (minion)
+                    minion.CancelAndDestroy();
+            }
+
+            _activeSoulforgedWeaponMinions.Clear();
+            _soulforgedWeaponCooldownAbilityDef = null;
+            _activeSoulforgedWeaponIsPersistent = false;
+            _lastSyncedSoulforgedHudEnd = float.NaN;
+            _lastSyncedSoulforgedHudStacks = int.MinValue;
+            buffController?.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWeaponAbilityId);
+        }
+    }
+
     private void StartCooldown(AbilityDefinition def)
     {
         if (!def) return;
         float cd = Mathf.Max(0f, def.cooldown - GetPowerSlashCooldownReduction(def) - GetAvatarOfTheForestCooldownReduction(def));
         if (cd <= 0f) return;
+
+        TeardownLingeringAbilityStateBeforeCooldownWrite(def);
+
         float end = Time.time + cd;
         _cooldownEndsById[def.abilityId] = end;
 
@@ -2825,12 +3109,18 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (liveCount <= 0)
         {
-            if (!float.IsNaN(_lastSyncedSoulforgedHudEnd) || _lastSyncedSoulforgedHudStacks != int.MinValue)
-            {
+            if (buffController.IsHudAbilityBuffActive(AbilityCombatPower.SoulforgedWeaponAbilityId))
                 buffController.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWeaponAbilityId);
-                _lastSyncedSoulforgedHudEnd = float.NaN;
-                _lastSyncedSoulforgedHudStacks = int.MinValue;
-            }
+            _lastSyncedSoulforgedHudEnd = float.NaN;
+            _lastSyncedSoulforgedHudStacks = int.MinValue;
+            return;
+        }
+
+        if (IsOnCooldown(AbilityCombatPower.SoulforgedWeaponAbilityId, out _))
+        {
+            buffController.ClearHudAbilityBuff(AbilityCombatPower.SoulforgedWeaponAbilityId);
+            _lastSyncedSoulforgedHudEnd = float.NaN;
+            _lastSyncedSoulforgedHudStacks = int.MinValue;
             return;
         }
 

@@ -29,6 +29,14 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     [SerializeField] private TMP_Text typeText;
     [SerializeField] private GameObject lockedOverlay;
     [SerializeField] private GameObject selectedGlow;
+    [Tooltip("Shown while the linked ability is on cooldown (driven by SkillTreeViewUI).")]
+    [SerializeField] private GameObject cooldownOverlay;
+    [Tooltip("Optional radial/vertical fill; uses Image.Type.Filled at runtime when assigned.")]
+    [SerializeField] private Image cooldownOverlayFillImage;
+    [SerializeField] private TMP_Text cooldownOverlayTimeText;
+    [Tooltip("Shown while the linked ability has an active timed buff / lingering effect (driven by SkillTreeViewUI).")]
+    [SerializeField] private GameObject activeBuffOverlay;
+    [SerializeField] private TMP_Text activeBuffOverlayTimeText;
     [SerializeField] private Button button;
     [SerializeField] private Color selectedOutlineColor = new Color(1f, 0.84f, 0.2f, 1f);
     [SerializeField] private float selectedBorderThickness = 4f;
@@ -239,6 +247,12 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
             button.interactable = !locked;
         }
 
+        if (locked && cooldownOverlay != null)
+            cooldownOverlay.SetActive(false);
+
+        if (locked && activeBuffOverlay != null)
+            activeBuffOverlay.SetActive(false);
+
         ApplySelectedOutlineFallback();
         RefreshLockedPresentation();
     }
@@ -314,6 +328,48 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     public bool IsSelected()
     {
         return isSelected;
+    }
+
+    /// <summary>Skill tree only: cooldown ring/text from <see cref="PlayerAbilityController"/>.</summary>
+    public void SetSkillTreeCooldownPresentation(bool visible, float normalizedCooldown01, float remainingSeconds)
+    {
+        if (cooldownOverlay != null)
+            cooldownOverlay.SetActive(visible && !isLocked);
+
+        if (cooldownOverlayFillImage != null)
+        {
+            bool showFill = visible && !isLocked && normalizedCooldown01 > 0f;
+            cooldownOverlayFillImage.enabled = showFill;
+            if (showFill)
+            {
+                if (cooldownOverlayFillImage.type != Image.Type.Filled)
+                    cooldownOverlayFillImage.type = Image.Type.Filled;
+                cooldownOverlayFillImage.fillAmount = Mathf.Clamp01(normalizedCooldown01);
+            }
+        }
+
+        if (cooldownOverlayTimeText != null)
+        {
+            cooldownOverlayTimeText.text =
+                visible && !isLocked && remainingSeconds >= 1f
+                    ? Mathf.CeilToInt(remainingSeconds).ToString()
+                    : string.Empty;
+        }
+    }
+
+    /// <summary>Skill tree only: active buff / lingering effect (cooldown overlay takes priority when both apply).</summary>
+    public void SetSkillTreeActiveBuffPresentation(bool visible, float buffRemainingSeconds)
+    {
+        if (activeBuffOverlay != null)
+            activeBuffOverlay.SetActive(visible && !isLocked);
+
+        if (activeBuffOverlayTimeText != null)
+        {
+            activeBuffOverlayTimeText.text =
+                visible && !isLocked && buffRemainingSeconds >= 1f
+                    ? Mathf.CeilToInt(buffRemainingSeconds).ToString()
+                    : string.Empty;
+        }
     }
 
     public void SetIcon(Sprite sprite, bool visible)

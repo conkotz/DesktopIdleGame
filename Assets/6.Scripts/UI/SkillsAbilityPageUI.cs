@@ -115,6 +115,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         RebuildSkillList();
         RefreshView();
         ReplayPendingGlowForVisibleUi();
+        // Layout / tree bootstrap order: one frame later matches level-up deferred refresh so center tree + ability rows match the selected skill on first open.
+        ScheduleDeferredProgressRefresh();
     }
 
     private void OnDisable()
@@ -321,16 +323,25 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (centerSkillTreeView) centerSkillTreeView.SetSkill(_selectedSkill);
         RefreshView();
         RefreshListSelection();
+
+        ActionBarUI gatherBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (gatherBar != null)
+        {
+            if (ActionBarUI.IsGatheringSkillType(skill.skillType))
+                gatherBar.ShowGatheringBarForSkill(skill.skillType, GatheringBarDriveKind.SkillsMenuSelection);
+            else
+                gatherBar.ExitGatheringBarToCombat();
+        }
     }
 
     private void EnsureCenterTreeReference()
     {
         if (centerSkillTreeView) return;
 
-        // Auto-resolve from this UI panel first, then anywhere in scene as fallback.
+        // Prefer a tree under this skills window — scene-wide lookup can bind the wrong SkillTreeViewUI when multiple exist.
         centerSkillTreeView = GetComponentInChildren<SkillTreeViewUI>(true);
-        if (!centerSkillTreeView)
-            centerSkillTreeView = FindFirstObjectByType<SkillTreeViewUI>(FindObjectsInactive.Include);
+        if (!centerSkillTreeView && transform.root != null)
+            centerSkillTreeView = transform.root.GetComponentInChildren<SkillTreeViewUI>(true);
     }
 
     private void OnSkillEntryClicked(SkillDefinition skill)
@@ -358,6 +369,18 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     {
         if (_selectedSkill != null) return;
         if (skillDatabase == null) return;
+
+        PreferRuntimeSkillsManager();
+
+        if (skillsManager != null)
+        {
+            SkillDefinition fromActiveXp = GetSkillByType(skillsManager.ActiveSkill);
+            if (fromActiveXp != null)
+            {
+                _selectedSkill = fromActiveXp;
+                return;
+            }
+        }
 
         _selectedSkill = GetSkillByType(SkillType.Melee)
                          ?? GetFirstSkillInCategory(SkillCategory.Combat)
@@ -438,8 +461,43 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             list.Add(s);
         }
 
-        list.Sort(CompareSkillOrder);
+        if (category == SkillCategory.Gathering)
+            list.Sort(CompareGatheringSkillRowOrder);
+        else
+            list.Sort(CompareSkillOrder);
         return list;
+    }
+
+    /// <summary>
+    /// Gathering column order: Woodcutting, Mining, Fishing (matches W/M/F action bar), then any other gathering skills by <see cref="SkillDefinition.listSortOrder"/>.
+    /// </summary>
+    private static int CompareGatheringSkillRowOrder(SkillDefinition a, SkillDefinition b)
+    {
+        if (a == null || b == null)
+            return 0;
+
+        int rowRank(SkillType t)
+        {
+            switch (t)
+            {
+                case SkillType.Woodcutting:
+                    return 0;
+                case SkillType.Mining:
+                    return 1;
+                case SkillType.Fishing:
+                    return 2;
+                default:
+                    return 100;
+            }
+        }
+
+        int ra = rowRank(a.skillType);
+        int rb = rowRank(b.skillType);
+        int byRow = ra.CompareTo(rb);
+        if (byRow != 0)
+            return byRow;
+
+        return CompareSkillOrder(a, b);
     }
 
     private static int CompareSkillOrder(SkillDefinition a, SkillDefinition b)
@@ -624,6 +682,12 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             row.SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Left);
             row.SetDoubleClickAssignHandler(HandleAbilityDoubleClickAssignToActionBar);
         }
+
+        if (rightAbilitiesListParent is RectTransform abilitiesListRt)
+        {
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(abilitiesListRt);
+        }
     }
 
     private void HandleAbilityDoubleClickAssignToActionBar(AbilityDefinition def)
@@ -639,6 +703,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                 player.ShowPopup("No action bar found.");
             return;
         }
+
+        if (ActionBarUI.IsGatheringSkillType(def.sourceSkill))
+            bar.ShowGatheringBarForSkill(def.sourceSkill, GatheringBarDriveKind.SkillsMenuSelection);
 
         if (!bar.TryAssignAbilityToFirstEmptySlot(def))
         {

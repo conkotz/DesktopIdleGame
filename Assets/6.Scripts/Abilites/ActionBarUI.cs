@@ -7,6 +7,19 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
+/// How <see cref="ActionBarUI.ShowGatheringBarForSkill"/> interacts with a player-pinned W/M/F strip.
+/// </summary>
+public enum GatheringBarDriveKind
+{
+    /// <summary>World / player action sync. Blocked while manual W/M/F lock is on, unless gather activity changes skill type.</summary>
+    AutomaticGameplay,
+    /// <summary>W/M/F bar buttons — persists until combat, Tab, skills, or a different gather activity.</summary>
+    ManualStripButton,
+    /// <summary>Skills UI — clears manual lock and follows the selected skill.</summary>
+    SkillsMenuSelection,
+}
+
+/// <summary>
 /// First <see cref="HotkeyBindIds.ActionBarSlotCount"/> slots use <see cref="HotkeyBindingManager"/> (list order =
 /// ActionBar1…7). Extra slots use <see cref="SlotBinding.defaultKey"/> only.
 /// </summary>
@@ -31,6 +44,180 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     }
 
     public IReadOnlyList<SlotBinding> SlotBindings => slotBindings;
+
+    public static bool IsGatheringSkillType(SkillType skillType) =>
+        skillType == SkillType.Woodcutting || skillType == SkillType.Mining || skillType == SkillType.Fishing;
+
+    public bool IsGatheringBarActive => gatheringUiActive;
+
+    public SkillType? CurrentGatheringBarSkill => gatheringUiActive ? gatheringSkillShown : (SkillType?)null;
+
+    public bool IsManualGatheringStripLocked => _manualGatheringStripLocked;
+
+    public bool CanSlotAcceptGatheringAbility(AbilityDefinition def)
+    {
+        // Gathering rows are layout presets only; any unlocked ability may be slotted (e.g. mobility while on a wood strip).
+        return true;
+    }
+
+    /// <summary>
+    /// Shows the saved gathering-only row for Wood/Mining/Fishing (abilities 1–5). Does not change equipment or consumable slots.
+    /// </summary>
+    /// <param name="skillType">Woodcutting, Mining, or Fishing.</param>
+    /// <param name="driveKind">
+    /// <see cref="GatheringBarDriveKind.ManualStripButton"/> pins the strip until combat, Tab, skills, or a different gather activity.
+    /// </param>
+    public void ShowGatheringBarForSkill(SkillType skillType, GatheringBarDriveKind driveKind = GatheringBarDriveKind.AutomaticGameplay)
+    {
+        if (!IsGatheringSkillType(skillType))
+            return;
+
+        switch (driveKind)
+        {
+            case GatheringBarDriveKind.ManualStripButton:
+                _manualGatheringStripLocked = true;
+                break;
+            case GatheringBarDriveKind.SkillsMenuSelection:
+                _manualGatheringStripLocked = false;
+                break;
+            case GatheringBarDriveKind.AutomaticGameplay:
+                if (_manualGatheringStripLocked)
+                {
+                    if (!gatheringUiActive)
+                    {
+                        _manualGatheringStripLocked = false;
+                    }
+                    else if (gatheringSkillShown == skillType)
+                    {
+                        ApplyGatheringStripTheme(skillType);
+                        return;
+                    }
+                    else
+                    {
+                        // Began gathering a different resource type — overrides a manual W/M/F choice.
+                        _manualGatheringStripLocked = false;
+                    }
+                }
+
+                break;
+        }
+
+        if (gatheringUiActive && gatheringSkillShown == skillType)
+        {
+            ApplyGatheringStripTheme(skillType);
+            return;
+        }
+
+        ResolveCoreRefs();
+
+        if (gatheringUiActive)
+            RebuildGatheringListFromUi(GetGatheringListForSkill(gatheringSkillShown));
+
+        if (!gatheringUiActive)
+        {
+            CaptureSlotsToSavedState();
+            frozenCombatFiveAbilities.Clear();
+            foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+            {
+                SavedSlotState cap = CaptureSlotState(slot);
+                if (cap != null)
+                    frozenCombatFiveAbilities.Add(CloneSavedState(cap));
+            }
+        }
+
+        gatheringUiActive = true;
+        gatheringSkillShown = skillType;
+        ApplyGatheringAbilityRowsToUi(GetGatheringListForSkill(skillType));
+        ApplyGatheringStripTheme(skillType);
+        NotifyPlayerStatsCombatPowerRelevantChange();
+    }
+
+    /// <summary>
+    /// Restores combat ability slots (set 1/2 + potion/food) on the action bar. Call before Tab weapon swap if needed.
+    /// </summary>
+    public void ExitGatheringBarToCombat()
+    {
+        _manualGatheringStripLocked = false;
+
+        if (!gatheringUiActive)
+            return;
+
+        RebuildGatheringListFromUi(GetGatheringListForSkill(gatheringSkillShown));
+        WriteCombatSavedSlotsFromFrozenAbilitiesAndRestOfBarFromUi();
+        gatheringUiActive = false;
+        frozenCombatFiveAbilities.Clear();
+        ApplySavedStateToSlots();
+        RestoreGatheringStripCombatTheme();
+        NotifyPlayerStatsCombatPowerRelevantChange();
+    }
+
+    private void CacheGatheringStripVisualDefaults()
+    {
+        if (_gatheringVisualDefaultsCached)
+            return;
+
+        if (actionBarBackgroundImage == null)
+            actionBarBackgroundImage = GetComponent<Image>();
+
+        if (actionBarBackgroundImage != null)
+            _combatBackgroundColor = actionBarBackgroundImage.color;
+
+        if (gatheringWoodSetGraphic != null)
+            _combatWoodGraphicColor = gatheringWoodSetGraphic.color;
+        if (gatheringMiningSetGraphic != null)
+            _combatMiningGraphicColor = gatheringMiningSetGraphic.color;
+        if (gatheringFishingSetGraphic != null)
+            _combatFishGraphicColor = gatheringFishingSetGraphic.color;
+
+        _gatheringVisualDefaultsCached = true;
+    }
+
+    private void ApplyGatheringStripTheme(SkillType active)
+    {
+        CacheGatheringStripVisualDefaults();
+
+        Color wT = skillColourWoodcutting;
+        Color mT = skillColourMining;
+        Color fT = skillColourFishing;
+
+        float bgBlend = Mathf.Clamp01(gatheringBackgroundTintStrength);
+        if (actionBarBackgroundImage != null)
+        {
+            Color main = active == SkillType.Woodcutting ? wT : active == SkillType.Mining ? mT : fT;
+            actionBarBackgroundImage.color = Color.Lerp(_combatBackgroundColor, main, bgBlend);
+        }
+
+        void PaintStripButton(Graphic g, Color theme, SkillType forSkill)
+        {
+            if (g == null)
+                return;
+
+            Color rgb = forSkill == active
+                ? theme
+                : Color.Lerp(theme, Color.gray, 0.55f);
+            float a = forSkill == active
+                ? Mathf.Clamp01(gatheringStripButtonActiveAlpha)
+                : Mathf.Clamp01(gatheringStripButtonInactiveAlpha);
+            g.color = new Color(rgb.r, rgb.g, rgb.b, a);
+        }
+
+        PaintStripButton(gatheringWoodSetGraphic, wT, SkillType.Woodcutting);
+        PaintStripButton(gatheringMiningSetGraphic, mT, SkillType.Mining);
+        PaintStripButton(gatheringFishingSetGraphic, fT, SkillType.Fishing);
+    }
+
+    private void RestoreGatheringStripCombatTheme()
+    {
+        CacheGatheringStripVisualDefaults();
+        if (actionBarBackgroundImage != null)
+            actionBarBackgroundImage.color = _combatBackgroundColor;
+        if (gatheringWoodSetGraphic != null)
+            gatheringWoodSetGraphic.color = _combatWoodGraphicColor;
+        if (gatheringMiningSetGraphic != null)
+            gatheringMiningSetGraphic.color = _combatMiningGraphicColor;
+        if (gatheringFishingSetGraphic != null)
+            gatheringFishingSetGraphic.color = _combatFishGraphicColor;
+    }
 
     public string GetHotkeyDisplayString(KeyCode key) => HotkeyBindingManager.GetDisplayString(key);
 
@@ -182,6 +369,44 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     [SerializeField] private SkillDatabase skillDatabase;
     [SerializeField] private SkillsManager skillsManager;
 
+    [Header("Gathering strip visuals (optional)")]
+    [Tooltip("e.g. ActionBarWindow Image — tinted toward the active gathering skill colour below; combat restores the cached color.")]
+    [SerializeField] private Image actionBarBackgroundImage;
+
+    [Tooltip("W / M / F strip controls (each button's Image or other Graphic). Tinted with the skill colours below.")]
+    [SerializeField] private Graphic gatheringWoodSetGraphic;
+
+    [SerializeField] private Graphic gatheringMiningSetGraphic;
+
+    [SerializeField] private Graphic gatheringFishingSetGraphic;
+
+    [Header("Gathering strip — selection buttons (optional)")]
+    [Tooltip("Assign WoodcuttingSetButton, MiningSetButton, FishingSetButton. Clicks are wired in code — leave each Button’s On Click () list empty.")]
+    [SerializeField] private Button gatheringWoodStripButton;
+
+    [SerializeField] private Button gatheringMiningStripButton;
+
+    [SerializeField] private Button gatheringFishingStripButton;
+
+    [Tooltip("Colours for the gathering strip (match your HUD / strip “Skill Colours”). Used for W/M/F and bar background tint.")]
+    [SerializeField] private Color skillColourMining = new Color(0.72f, 0.72f, 0.75f);
+
+    [SerializeField] private Color skillColourWoodcutting = new Color(0.22f, 0.78f, 0.28f);
+
+    [SerializeField] private Color skillColourFishing = new Color(0.28f, 0.62f, 0.98f);
+
+    [Tooltip("How strongly the bar background lerps toward the active gathering colour (0 = combat only).")]
+    [SerializeField, Range(0f, 1f)]
+    private float gatheringBackgroundTintStrength = 0.48f;
+
+    [Tooltip("W/M/F button alpha when this strip is the one shown (1 = fully opaque).")]
+    [SerializeField, Range(0f, 1f)]
+    private float gatheringStripButtonActiveAlpha = 1f;
+
+    [Tooltip("W/M/F button alpha for the two strips that are not selected.")]
+    [SerializeField, Range(0f, 1f)]
+    private float gatheringStripButtonInactiveAlpha = 0.42f;
+
     [Header("Saved State (backing fields)")]
     private List<SavedSlotState> savedSlots = new();
     private List<SavedSlotState> secondarySavedSlots = new();
@@ -190,6 +415,20 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     private bool pendingSavedStateApply;
     private float nextSavedStateApplyTime;
     private int savedStateApplyAttempts;
+
+    private readonly List<SavedSlotState> gatheringSlotsWoodcutting = new();
+    private readonly List<SavedSlotState> gatheringSlotsMining = new();
+    private readonly List<SavedSlotState> gatheringSlotsFishing = new();
+    private bool gatheringUiActive;
+    private SkillType gatheringSkillShown;
+    private readonly List<SavedSlotState> frozenCombatFiveAbilities = new();
+    private bool _manualGatheringStripLocked;
+
+    private bool _gatheringVisualDefaultsCached;
+    private Color _combatBackgroundColor = Color.white;
+    private Color _combatWoodGraphicColor = Color.white;
+    private Color _combatMiningGraphicColor = Color.white;
+    private Color _combatFishGraphicColor = Color.white;
 
     [Header("Debug")]
     [SerializeField] private bool debugLogs = false;
@@ -205,23 +444,66 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             if (binding == null || binding.slot == null)
                 continue;
 
-            binding.slot.Initialize(OnSlotTriggered, OnSlotAssignmentChanged);
+            binding.slot.Initialize(OnSlotTriggered, OnSlotAssignmentChanged, this);
         }
 
         SyncHotkeysFromManager();
+        CacheGatheringStripVisualDefaults();
     }
 
     private void OnEnable()
     {
         if (HotkeyBindingManager.Instance != null)
             HotkeyBindingManager.Instance.OnBindingsChanged += SyncHotkeysFromManager;
+
+        WireGatheringStripSelectionButtons();
     }
 
     private void OnDisable()
     {
+        UnwireGatheringStripSelectionButtons();
+
         if (HotkeyBindingManager.Instance != null)
             HotkeyBindingManager.Instance.OnBindingsChanged -= SyncHotkeysFromManager;
     }
+
+    private void WireGatheringStripSelectionButtons()
+    {
+        WireGatheringButton(gatheringWoodStripButton, OnGatheringWoodStripButtonClicked);
+        WireGatheringButton(gatheringMiningStripButton, OnGatheringMiningStripButtonClicked);
+        WireGatheringButton(gatheringFishingStripButton, OnGatheringFishStripButtonClicked);
+    }
+
+    private void UnwireGatheringStripSelectionButtons()
+    {
+        UnwireGatheringButton(gatheringWoodStripButton, OnGatheringWoodStripButtonClicked);
+        UnwireGatheringButton(gatheringMiningStripButton, OnGatheringMiningStripButtonClicked);
+        UnwireGatheringButton(gatheringFishingStripButton, OnGatheringFishStripButtonClicked);
+    }
+
+    private static void WireGatheringButton(Button button, UnityEngine.Events.UnityAction handler)
+    {
+        if (button == null || handler == null)
+            return;
+        button.onClick.RemoveListener(handler);
+        button.onClick.AddListener(handler);
+    }
+
+    private static void UnwireGatheringButton(Button button, UnityEngine.Events.UnityAction handler)
+    {
+        if (button == null || handler == null)
+            return;
+        button.onClick.RemoveListener(handler);
+    }
+
+    private void OnGatheringWoodStripButtonClicked() =>
+        ShowGatheringBarForSkill(SkillType.Woodcutting, GatheringBarDriveKind.ManualStripButton);
+
+    private void OnGatheringMiningStripButtonClicked() =>
+        ShowGatheringBarForSkill(SkillType.Mining, GatheringBarDriveKind.ManualStripButton);
+
+    private void OnGatheringFishStripButtonClicked() =>
+        ShowGatheringBarForSkill(SkillType.Fishing, GatheringBarDriveKind.ManualStripButton);
 
     private void Start()
     {
@@ -436,6 +718,13 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     private void CaptureSlotsToSavedState()
     {
+        if (gatheringUiActive)
+        {
+            RebuildGatheringListFromUi(GetGatheringListForSkill(gatheringSkillShown));
+            WriteCombatSavedSlotsFromFrozenAbilitiesAndRestOfBarFromUi();
+            return;
+        }
+
         savedSlots.Clear();
 
         for (int i = 0; i < slotBindings.Count; i++)
@@ -454,6 +743,116 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 kind = (int)action.kind,
                 id = action.id,
                 amount = action.IsItem ? binding.slot.AssignedItemAmount : 0
+            });
+        }
+    }
+
+    private List<SavedSlotState> GetGatheringListForSkill(SkillType skillType)
+    {
+        switch (skillType)
+        {
+            case SkillType.Woodcutting:
+                return gatheringSlotsWoodcutting;
+            case SkillType.Mining:
+                return gatheringSlotsMining;
+            case SkillType.Fishing:
+                return gatheringSlotsFishing;
+            default:
+                return gatheringSlotsWoodcutting;
+        }
+    }
+
+    private void RebuildGatheringListFromUi(List<SavedSlotState> target)
+    {
+        if (target == null)
+            return;
+
+        target.Clear();
+        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        {
+            SavedSlotState cap = CaptureSlotState(slot);
+            if (cap != null)
+                target.Add(CloneSavedState(cap));
+        }
+    }
+
+    private void ApplyGatheringAbilityRowsToUi(List<SavedSlotState> fromList)
+    {
+        var byIndex = new Dictionary<int, SavedSlotState>();
+        if (fromList != null)
+        {
+            for (int i = 0; i < fromList.Count; i++)
+            {
+                SavedSlotState e = fromList[i];
+                if (e == null || string.IsNullOrWhiteSpace(e.id))
+                    continue;
+                byIndex[e.slotIndex] = e;
+            }
+        }
+
+        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        {
+            if (byIndex.TryGetValue(slot.SlotIndex, out SavedSlotState st))
+                ApplySavedStateToSlot(slot, st);
+            else
+                slot.ClearAssignment(false);
+        }
+
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            ActionBarSlotUI s = slotBindings[i]?.slot;
+            if (s != null)
+                RefreshSlotRuntime(s);
+        }
+    }
+
+    private IEnumerable<ActionBarSlotUI> EnumerateFirstFiveLoadoutAbilitySlots()
+    {
+        int abilityOrdinal = 0;
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            ActionBarSlotUI slot = slotBindings[i]?.slot;
+            if (slot == null || slot.SlotType != ActionBarSlotType.Ability)
+                continue;
+
+            if (abilityOrdinal < 5)
+            {
+                yield return slot;
+                abilityOrdinal++;
+            }
+        }
+    }
+
+    private void WriteCombatSavedSlotsFromFrozenAbilitiesAndRestOfBarFromUi()
+    {
+        savedSlots.Clear();
+
+        for (int i = 0; i < frozenCombatFiveAbilities.Count; i++)
+        {
+            SavedSlotState e = frozenCombatFiveAbilities[i];
+            if (e != null)
+                savedSlots.Add(CloneSavedState(e));
+        }
+
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            ActionBarSlotUI slot = slotBindings[i]?.slot;
+            if (slot == null)
+                continue;
+
+            if (IsLoadoutAbilitySlot(slot))
+                continue;
+
+            ActionBarAssignment action = slot.AssignedAction;
+            if (action == null || !action.IsAssigned)
+                continue;
+
+            savedSlots.Add(new SavedSlotState
+            {
+                slotIndex = slot.SlotIndex,
+                kind = (int)action.kind,
+                id = action.id,
+                amount = action.IsItem ? slot.AssignedItemAmount : 0
             });
         }
     }
@@ -566,6 +965,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     public void SetCombatLoadoutSet(int setIndex)
     {
+        ExitGatheringBarToCombat();
+
         int nextSet = setIndex == 1 ? 1 : 0;
         if (nextSet == activeCombatLoadoutSetIndex)
             return;
@@ -741,7 +1142,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         {
             int abilityStackCount = 0;
             if (action.IsAbility && abilityController != null)
-                abilityStackCount = abilityController.GetAbilityStackCountDisplay(action.id);
+            {
+                if (!abilityController.IsOnCooldown(action.id, out _))
+                    abilityStackCount = abilityController.GetAbilityStackCountDisplay(action.id);
+            }
             slot.SetStackText(abilityStackCount);
 
             if (action.IsAbility)
@@ -773,11 +1177,15 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                     // Same red overlay as "not available" when skill-locked or wrong weapon type.
                     slot.SetNoStockVisual(abilityLocked || !weaponOk);
 
-                    bool buffHud = buffController != null && buffController.IsHudAbilityBuffActive(action.id);
+                    bool abilityCooldownActive = abilityController.IsOnCooldown(action.id, out _);
+                    bool buffHud = !abilityCooldownActive &&
+                                   buffController != null &&
+                                   buffController.IsHudAbilityBuffActive(action.id);
                     slot.SetAbilityBuffActiveOverlay(buffHud);
 
                     float buffRemain = 0f;
-                    bool showBuffTimer = buffController != null &&
+                    bool showBuffTimer = !abilityCooldownActive &&
+                                         buffController != null &&
                                          buffController.ShouldDisplayHudAbilityBuffCountdown(action.id, out buffRemain);
                     slot.SetAbilityBuffTimerDisplay(showBuffTimer, buffRemain);
                 }
@@ -882,12 +1290,28 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             data.actionBarSecondaryIds.Add(e.id);
             data.actionBarSecondaryItemAmounts.Add(Mathf.Max(0, e.amount));
         }
+
+        if (data.actionBarGatherWoodcutting == null)
+            data.actionBarGatherWoodcutting = new SaveData.GatheringActionBarSaveBlock();
+        if (data.actionBarGatherMining == null)
+            data.actionBarGatherMining = new SaveData.GatheringActionBarSaveBlock();
+        if (data.actionBarGatherFishing == null)
+            data.actionBarGatherFishing = new SaveData.GatheringActionBarSaveBlock();
+
+        WriteGatheringSaveBlock(data.actionBarGatherWoodcutting, gatheringSlotsWoodcutting);
+        WriteGatheringSaveBlock(data.actionBarGatherMining, gatheringSlotsMining);
+        WriteGatheringSaveBlock(data.actionBarGatherFishing, gatheringSlotsFishing);
     }
 
     public void LoadFrom(SaveData data)
     {
         savedSlots.Clear();
         secondarySavedSlots.Clear();
+        gatheringSlotsWoodcutting.Clear();
+        gatheringSlotsMining.Clear();
+        gatheringSlotsFishing.Clear();
+        gatheringUiActive = false;
+        frozenCombatFiveAbilities.Clear();
 
         if (data == null)
             return;
@@ -930,7 +1354,70 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             });
         }
 
+        ReadGatheringSaveBlock(data.actionBarGatherWoodcutting, gatheringSlotsWoodcutting);
+        ReadGatheringSaveBlock(data.actionBarGatherMining, gatheringSlotsMining);
+        ReadGatheringSaveBlock(data.actionBarGatherFishing, gatheringSlotsFishing);
+
         QueueSavedStateApply();
+    }
+
+    private static void WriteGatheringSaveBlock(SaveData.GatheringActionBarSaveBlock block, List<SavedSlotState> list)
+    {
+        if (block == null)
+            return;
+
+        block.slotIndexes ??= new List<int>();
+        block.kinds ??= new List<int>();
+        block.ids ??= new List<string>();
+        block.itemAmounts ??= new List<int>();
+
+        block.slotIndexes.Clear();
+        block.kinds.Clear();
+        block.ids.Clear();
+        block.itemAmounts.Clear();
+
+        if (list == null)
+            return;
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            SavedSlotState e = list[i];
+            if (e == null || string.IsNullOrWhiteSpace(e.id))
+                continue;
+            block.slotIndexes.Add(e.slotIndex);
+            block.kinds.Add(e.kind);
+            block.ids.Add(e.id);
+            block.itemAmounts.Add(Mathf.Max(0, e.amount));
+        }
+    }
+
+    private static void ReadGatheringSaveBlock(SaveData.GatheringActionBarSaveBlock block, List<SavedSlotState> target)
+    {
+        if (target == null)
+            return;
+
+        target.Clear();
+        if (block == null)
+            return;
+
+        int count = Mathf.Min(
+            block.slotIndexes != null ? block.slotIndexes.Count : 0,
+            block.kinds != null ? block.kinds.Count : 0,
+            block.ids != null ? block.ids.Count : 0,
+            block.itemAmounts != null ? block.itemAmounts.Count : 0);
+
+        for (int i = 0; i < count; i++)
+        {
+            target.Add(new SavedSlotState
+            {
+                slotIndex = block.slotIndexes[i],
+                kind = block.kinds[i],
+                id = block.ids[i],
+                amount = block.itemAmounts != null && i < block.itemAmounts.Count
+                    ? Mathf.Max(0, block.itemAmounts[i])
+                    : 0
+            });
+        }
     }
 
     private void QueueSavedStateApply()

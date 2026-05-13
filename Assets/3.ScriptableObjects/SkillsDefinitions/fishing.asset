@@ -23,7 +23,7 @@ MonoBehaviour:
   - requiredLevel: 1
     title: Catch fish
     description: Can catch fish from a small pond
-    icon: {fileID: -8401682335034606711, guid: e2fcfaa90bcc47f4ca87fa460995f03d, type: 3}
+    icon: {fileID: 21300000, guid: c0dcba85fedb859458e63d242e31bdc2, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -472,7 +472,8 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 31
     title: Fishing Calm Waters 1
-    description: 'While continuously fishing: +3% Fishing Speed, +3% Fishing Stamina Efficiency'
+    description: 'While continuously fishing: +3% Fishing Speed, +3% Fishing Stamina
+      Efficiency'
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0
@@ -667,7 +668,8 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 44
     title: Fishing Calm Waters 2
-    description: 'While continuously fishing: +3% Fishing Speed, +3% Fishing Stamina Efficiency'
+    description: 'While continuously fishing: +3% Fishing Speed, +3% Fishing Stamina
+      Efficiency'
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 0

@@ -25,6 +25,8 @@ public class SkillTreeViewUI : MonoBehaviour
     [Header("Data")]
     [SerializeField] private SkillDefinition selectedSkill;
     [SerializeField] private SkillsManager skillsManager;
+    [Tooltip("Optional; found at runtime if unset. Used for ability cooldown overlay and input lock.")]
+    [SerializeField] private PlayerAbilityController abilityController;
     [Tooltip("Optional one-line hint: Tier 1/2/3 gates at skill L1 / L20 / L40. Leave empty to hide.")]
     [SerializeField] private TMP_Text equipmentTierHint;
     [Tooltip("When true, stop rendering rows after the first invalid/missing unlock row.")]
@@ -161,7 +163,10 @@ public class SkillTreeViewUI : MonoBehaviour
     private void Start()
     {
         PreferRuntimeSkillsManager();
-        BuildForSelectedSkill();
+        // SkillsAbilitiesPageUI (and others) call SetSkill in OnEnable before this Start runs; do not rebuild from
+        // serialized selectedSkill and wipe the page-driven tree / ability rows on first open.
+        if (_lastBuiltSkill == null)
+            BuildForSelectedSkill();
     }
 
     public void SetSkill(SkillDefinition skill)
@@ -176,6 +181,188 @@ public class SkillTreeViewUI : MonoBehaviour
             skillsManager = SkillsManager.Instance;
         else if (!skillsManager)
             skillsManager = FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
+    }
+
+    private void ResolveAbilityController()
+    {
+        if (abilityController != null)
+            return;
+        abilityController = FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
+    }
+
+    private string ResolveCooldownAbilityId(RowDef row)
+    {
+        if (selectedSkill == null || skillsManager == null || row.unlock == null || row.unlock.ability == null)
+            return null;
+
+        string spine = SpineNodeId(row);
+        int enh = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, spine, -1);
+        List<SkillChoiceDefinition> choices = GetNonNullChoices(row.unlock);
+        if (enh >= 0 && enh < choices.Count)
+        {
+            SkillChoiceDefinition ch = choices[enh];
+            if (ch != null && ch.ability != null && !string.IsNullOrWhiteSpace(ch.ability.abilityId))
+                return ch.ability.abilityId;
+        }
+
+        return row.unlock.ability.abilityId;
+    }
+
+    private bool TryGetCommittedAbilityRowDefAtLevel(int level, out RowDef pickedRow)
+    {
+        pickedRow = default;
+        if (selectedSkill == null || skillsManager == null)
+            return false;
+
+        int pick = skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, level, -1);
+        if (pick < 0)
+            return false;
+
+        foreach (var kv in abilityTierPickMetaBySpineId)
+        {
+            AbilityTierPickMeta m = kv.Value;
+            if (m.level != level || m.ordinal != pick)
+                continue;
+            if (!rowDefBySpineNodeId.TryGetValue(kv.Key, out pickedRow))
+                return false;
+            return pickedRow.unlock != null && pickedRow.unlock.ability != null;
+        }
+
+        return false;
+    }
+
+    private bool IsRowLevelAbilityCooldownActive(int level)
+    {
+        ResolveAbilityController();
+        if (selectedSkill == null || skillsManager == null || abilityController == null)
+            return false;
+
+        if (!TryGetCommittedAbilityRowDefAtLevel(level, out RowDef pickedRow))
+            return false;
+
+        string id = ResolveCooldownAbilityId(pickedRow);
+        return !string.IsNullOrEmpty(id) && abilityController.IsOnCooldown(id, out _);
+    }
+
+    private bool IsRowLevelAbilityCooldownActiveForParentSpine(string parentSpineNodeId)
+    {
+        if (string.IsNullOrWhiteSpace(parentSpineNodeId) || !rowDefBySpineNodeId.TryGetValue(parentSpineNodeId, out RowDef row))
+            return false;
+        return IsRowLevelAbilityCooldownActive(row.level);
+    }
+
+    private bool ShouldBlockRightClickResetForSpine(string spineTarget)
+    {
+        ResolveAbilityController();
+        if (selectedSkill == null || skillsManager == null || abilityController == null ||
+            string.IsNullOrWhiteSpace(spineTarget))
+            return false;
+
+        return abilityTierPickMetaBySpineId.TryGetValue(spineTarget, out AbilityTierPickMeta m)
+            && IsRowLevelAbilityCooldownActive(m.level);
+    }
+
+    private void TryExpireCommittedAbilityLingeringStateForSkillTreeReset(string spineTarget)
+    {
+        ResolveAbilityController();
+        if (abilityController == null || selectedSkill == null || skillsManager == null)
+            return;
+        if (!abilityTierPickMetaBySpineId.TryGetValue(spineTarget, out AbilityTierPickMeta m))
+            return;
+        if (!TryGetCommittedAbilityRowDefAtLevel(m.level, out RowDef pickedRow))
+            return;
+
+        string aid = ResolveCooldownAbilityId(pickedRow);
+        if (string.IsNullOrEmpty(aid))
+            return;
+
+        if (abilityController.IsAbilityBuffOrLingeringActive(aid))
+            abilityController.ForceEndLingeringAbilityForSkillTreeReset(aid);
+    }
+
+    private void RefreshSkillTreeAbilityStatePresentation()
+    {
+        ResolveAbilityController();
+
+        for (int i = 0; i < spawnedNodes.Count; i++)
+        {
+            if (spawnedNodes[i] == null)
+                continue;
+            spawnedNodes[i].SetSkillTreeCooldownPresentation(false, 0f, 0f);
+            spawnedNodes[i].SetSkillTreeActiveBuffPresentation(false, 0f);
+        }
+
+        if (abilityController == null || selectedSkill == null || skillsManager == null)
+            return;
+
+        foreach (var kv in abilityTierPickMetaBySpineId)
+        {
+            if (!nodeLookup.TryGetValue(kv.Key, out SkillTreeNodeUI node) || node == null)
+                continue;
+
+            AbilityTierPickMeta m = kv.Value;
+            bool collapsed = IsAbilityTierCollapsed(m.level);
+            int pick = skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, m.level, -1);
+            bool committedThis = pick == m.ordinal && (m.groupSize < 2 || collapsed);
+            if (!committedThis || !rowDefBySpineNodeId.TryGetValue(kv.Key, out RowDef row))
+                continue;
+
+            string aid = ResolveCooldownAbilityId(row);
+            if (string.IsNullOrEmpty(aid))
+                continue;
+
+            if (abilityController.IsOnCooldown(aid, out float cdRem))
+            {
+                float norm = abilityController.GetCooldownNormalized(aid);
+                node.SetSkillTreeCooldownPresentation(true, norm, cdRem);
+                continue;
+            }
+
+            if (abilityController.IsAbilityBuffOrLingeringActive(aid))
+            {
+                abilityController.TryGetAbilitySkillTreeActiveBuffTimer(aid, out float buffRem);
+                node.SetSkillTreeActiveBuffPresentation(true, buffRem);
+            }
+        }
+
+        foreach (var kv in choiceMetaByNodeId)
+        {
+            if (!nodeLookup.TryGetValue(kv.Key, out SkillTreeNodeUI node) || node == null)
+                continue;
+
+            ChoiceNodeMeta meta = kv.Value;
+            int sel = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.parentSpineNodeId, -1);
+            if (sel != meta.choiceIndex)
+                continue;
+
+            if (!rowDefBySpineNodeId.TryGetValue(meta.parentSpineNodeId, out RowDef parentRow))
+                continue;
+
+            string aid = ResolveCooldownAbilityId(parentRow);
+            if (string.IsNullOrEmpty(aid))
+                continue;
+
+            if (abilityController.IsOnCooldown(aid, out float cdRem))
+            {
+                float norm = abilityController.GetCooldownNormalized(aid);
+                node.SetSkillTreeCooldownPresentation(true, norm, cdRem);
+                continue;
+            }
+
+            if (abilityController.IsAbilityBuffOrLingeringActive(aid))
+            {
+                abilityController.TryGetAbilitySkillTreeActiveBuffTimer(aid, out float buffRem);
+                node.SetSkillTreeActiveBuffPresentation(true, buffRem);
+            }
+        }
+    }
+
+    private void Update()
+    {
+        if (!isActiveAndEnabled || spawnedNodes.Count == 0)
+            return;
+
+        RefreshSkillTreeAbilityStatePresentation();
     }
 
     public void BuildForSelectedSkill()
@@ -1439,7 +1626,11 @@ public class SkillTreeViewUI : MonoBehaviour
 
             int current = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.parentSpineNodeId, -1);
             if (current != choiceMeta.choiceIndex)
+            {
+                if (IsRowLevelAbilityCooldownActiveForParentSpine(choiceMeta.parentSpineNodeId))
+                    return;
                 skillsManager.SetSkillChoiceSelection(selectedSkill.skillType, choiceMeta.parentSpineNodeId, choiceMeta.choiceIndex);
+            }
 
             expandedChoiceBranchesBySourceLevel.Remove(choiceMeta.sourceLevel);
             RefreshChoiceSelectionVisuals();
@@ -1478,6 +1669,9 @@ public class SkillTreeViewUI : MonoBehaviour
                     return;
                 }
 
+                if (pick >= 0 && pick != tierMeta.ordinal && IsRowLevelAbilityCooldownActive(tierMeta.level))
+                    return;
+
                 skillsManager.SetSkillAbilityRowPick(selectedSkill.skillType, tierMeta.level, tierMeta.ordinal);
             }
             else
@@ -1492,6 +1686,9 @@ public class SkillTreeViewUI : MonoBehaviour
                     ShowTooltip(nodeId, node.transform);
                     return;
                 }
+
+                if (pickOne >= 0 && pickOne != tierMeta.ordinal && IsRowLevelAbilityCooldownActive(tierMeta.level))
+                    return;
 
                 skillsManager.SetSkillAbilityRowPick(selectedSkill.skillType, tierMeta.level, 0);
             }
@@ -1550,6 +1747,11 @@ public class SkillTreeViewUI : MonoBehaviour
 
         if (string.IsNullOrEmpty(spineTarget) || !rowDefBySpineNodeId.ContainsKey(spineTarget))
             return;
+
+        if (ShouldBlockRightClickResetForSpine(spineTarget))
+            return;
+
+        TryExpireCommittedAbilityLingeringStateForSkillTreeReset(spineTarget);
 
         ResetCommittedSkillRowStateForSpine(spineTarget);
     }

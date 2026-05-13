@@ -2826,6 +2826,36 @@ public class PlayerController : MonoBehaviour
         return targetNode.Definition.gatherPlayerAction;
     }
 
+    private void SyncActionBarGatheringStripToAction(PlayerAction action)
+    {
+        ActionBarUI bar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (bar == null)
+            return;
+
+        switch (action)
+        {
+            case PlayerAction.Mining:
+                bar.ShowGatheringBarForSkill(SkillType.Mining);
+                break;
+            case PlayerAction.Woodcutting:
+                bar.ShowGatheringBarForSkill(SkillType.Woodcutting);
+                break;
+            case PlayerAction.Fishing:
+                bar.ShowGatheringBarForSkill(SkillType.Fishing);
+                break;
+            case PlayerAction.Walking:
+                // Keep the current gathering strip (or combat bar) while pathing to a node.
+                break;
+            case PlayerAction.Fighting:
+                // Combat always returns to weapon sets on the bar; gathering layout is hidden.
+                bar.ExitGatheringBarToCombat();
+                break;
+            default:
+                // Idle / Fatigued / etc.: do not clear a gathering strip chosen in town — W/M/F stay until combat or Tab/set swap.
+                break;
+        }
+    }
+
     private void SetAction(PlayerAction newAction, bool forceNotify = false)
     {
         // If action hasn't changed, we usually early-out.
@@ -2840,6 +2870,7 @@ public class PlayerController : MonoBehaviour
         _action = newAction;
 
         OnActionChanged?.Invoke(_action);
+        SyncActionBarGatheringStripToAction(_action);
         UpdateAnimatorFromAction();
     }
 
