@@ -168,7 +168,7 @@ public class WeaponSetPreviewSlotUI : MonoBehaviour, IPointerEnterHandler, IPoin
         return slotType switch
         {
             PreviewSlotType.MainHandInactive => "Main hand 2",
-            PreviewSlotType.OffHandInactive => "Main hand 2",
+            PreviewSlotType.OffHandInactive => "Offhand 2",
             _ => "Slot"
         };
     }

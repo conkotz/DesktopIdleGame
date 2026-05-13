@@ -26,7 +26,12 @@ public class ResourceNode : MonoBehaviour
     public NodeDefinition Definition => definition;
 
     [Header("Interaction")]
+    [Tooltip("Active work spot currently used by the player controller. If multiple work spots exist, this is set at click-time.")]
     public Transform workSpot;
+    [Tooltip("Optional: left-side work spot (e.g. WorkspotTreeLeft). If set (or auto-found), the closest of Left/Right is chosen at click-time.")]
+    [SerializeField] private Transform workSpotLeft;
+    [Tooltip("Optional: right-side work spot (e.g. WorkspotTreeRight). If set (or auto-found), the closest of Left/Right is chosen at click-time.")]
+    [SerializeField] private Transform workSpotRight;
     public float interactRange = 0.1f;
 
     /// <summary>
@@ -107,6 +112,7 @@ public class ResourceNode : MonoBehaviour
 
     private void Awake()
     {
+        AutoResolveWorkSpotsIfMissing();
         _nodeCollider = GetComponent<Collider2D>() ?? GetComponentInChildren<Collider2D>();
         if (nameLabelRoots == null)
             nameLabelRoots = new List<GameObject>();
@@ -125,6 +131,70 @@ public class ResourceNode : MonoBehaviour
         CacheDepletionTimerVisuals();
         SetRuntimeDepletionOverlaysActive(false);
         RefreshDepletionTimerDisplay();
+    }
+
+    /// <summary>
+    /// Chooses the best work spot for a player at <paramref name="playerWorldPos"/> and updates <see cref="workSpot"/>.
+    /// If both left and right are present, picks the closest. If neither is present, leaves <see cref="workSpot"/> as-is.
+    /// </summary>
+    public void ChooseClosestWorkSpot(Vector3 playerWorldPos)
+    {
+        AutoResolveWorkSpotsIfMissing();
+
+        Transform best = null;
+        float bestSqr = float.PositiveInfinity;
+
+        void Consider(Transform t)
+        {
+            if (!t) return;
+            float dx = t.position.x - playerWorldPos.x;
+            float dy = t.position.y - playerWorldPos.y;
+            float sqr = dx * dx + dy * dy;
+            if (sqr < bestSqr)
+            {
+                bestSqr = sqr;
+                best = t;
+            }
+        }
+
+        Consider(workSpotLeft);
+        Consider(workSpotRight);
+
+        // If no explicit left/right exists, fall back to any manually wired workSpot.
+        if (!best)
+            best = workSpot;
+
+        if (best)
+            workSpot = best;
+    }
+
+    private void AutoResolveWorkSpotsIfMissing()
+    {
+        // Keep inspector wiring. Only auto-find when missing.
+        if (workSpotLeft && workSpotRight)
+            return;
+
+        Transform[] children = GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < children.Length; i++)
+        {
+            Transform t = children[i];
+            if (!t) continue;
+            string n = t.name;
+            if (string.IsNullOrWhiteSpace(n)) continue;
+
+            if (!workSpotLeft && n.IndexOf("WorkspotTreeLeft", StringComparison.OrdinalIgnoreCase) >= 0)
+                workSpotLeft = t;
+            else if (!workSpotRight && n.IndexOf("WorkspotTreeRight", StringComparison.OrdinalIgnoreCase) >= 0)
+                workSpotRight = t;
+        }
+
+        // If legacy scenes only wired a single workSpot, treat it as left for closeness selection if right exists.
+        if (!workSpotLeft && workSpot)
+            workSpotLeft = workSpot;
+
+        // If there is exactly one explicit spot, keep workSpot consistent.
+        if (!workSpot && (workSpotLeft || workSpotRight))
+            workSpot = workSpotLeft ? workSpotLeft : workSpotRight;
     }
 
     private void Update()

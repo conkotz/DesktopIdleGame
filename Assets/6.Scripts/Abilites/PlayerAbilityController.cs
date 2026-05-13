@@ -2186,6 +2186,8 @@ public class PlayerAbilityController : MonoBehaviour
             ResourceNode node = all[i];
             if (!node || node.ActionType != NodeAction.Woodcutting || node.IsDepleted)
                 continue;
+            if (!CanGatherWoodcuttingNodeByLevel(node))
+                continue;
             if (node.Definition == null || !node.Definition.HasMainYield)
                 continue;
 
@@ -2242,6 +2244,8 @@ public class PlayerAbilityController : MonoBehaviour
             ResourceNode node = all[i];
             if (!node || node.ActionType != NodeAction.Woodcutting || node.IsDepleted)
                 continue;
+            if (!CanGatherWoodcuttingNodeByLevel(node))
+                continue;
             if (node.Definition == null || !node.Definition.HasMainYield)
                 continue;
 
@@ -2263,6 +2267,17 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         return best;
+    }
+
+    /// <summary>Level gate for woodcutting-only helper gathers (Spectral Axe / Cleaving Flight).</summary>
+    private bool CanGatherWoodcuttingNodeByLevel(ResourceNode node)
+    {
+        if (node == null || !node.UseLevelRequirement)
+            return true;
+
+        SkillsManager sm = skillsManager != null ? skillsManager : SkillsManager.Instance;
+        int lvl = sm != null ? sm.GetLevel(SkillType.Woodcutting) : 1;
+        return lvl >= node.RequiredLevel;
     }
 
     /// <summary>

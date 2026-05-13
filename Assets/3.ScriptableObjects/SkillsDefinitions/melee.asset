@@ -255,7 +255,7 @@ MonoBehaviour:
         You abandon
         blood loss in favor of toxic strikes, turning lingering wounds into deadly
         venom.'
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 13
       title: Hemorrhage
@@ -269,7 +269,7 @@ MonoBehaviour:
 
         Your strikes deepen open wounds, causing victims
         to bleed harder and longer.'
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 11
     title: Tempered Strikes III
@@ -492,12 +492,12 @@ MonoBehaviour:
     - requiredLevel: 25
       title: Major Passive II Choice A
       description: Placeholder melee choice.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 25
       title: Major Passive II Choice B
       description: Placeholder melee choice.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 20
     title: Skilled Melee Combat
@@ -577,7 +577,7 @@ MonoBehaviour:
   - requiredLevel: 25
     title: Ability Milestone III
     description: Placeholder ability milestone.
-    icon: {fileID: 0}
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -592,12 +592,12 @@ MonoBehaviour:
     - requiredLevel: 30
       title: Ability III Choice A
       description: Placeholder melee choice.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 30
       title: Ability III Choice B
       description: Placeholder melee choice.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 26
     title: Venom Edge I
@@ -677,12 +677,12 @@ MonoBehaviour:
     - requiredLevel: 35
       title: Major Passive III Choice A
       description: Placeholder melee choice.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 35
       title: Major Passive III Choice B
       description: Placeholder melee choice.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 31
     title: Brutal Momentum IV
@@ -767,13 +767,13 @@ MonoBehaviour:
         the original summon scaling, then further reduces inherited damage by 25%.
         Recast to collapse them onto your current target, or find new targets if
         you have none.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 40
       title: Indefinite
       description: 'Soulforged Weapon persists indefinitely, keeping its original
         behavior. '
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 36
     title: Storm Edge I
@@ -853,12 +853,12 @@ MonoBehaviour:
     - requiredLevel: 45
       title: Major Passive IV Choice A
       description: Placeholder melee choice.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 45
       title: Major Passive IV Choice B
       description: Placeholder melee choice.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 40
     title: Master Melee Combat
@@ -938,7 +938,7 @@ MonoBehaviour:
   - requiredLevel: 45
     title: Ability Milestone V
     description: Placeholder ability milestone.
-    icon: {fileID: 0}
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -953,12 +953,12 @@ MonoBehaviour:
     - requiredLevel: 50
       title: Ability V Choice A
       description: Placeholder melee choice.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
     - requiredLevel: 50
       title: Ability V Choice B
       description: Placeholder melee choice.
-      icon: {fileID: 0}
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
   - requiredLevel: 46
     title: Ailment Synergy II
@@ -1034,14 +1034,4 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
-    choices:
-    - requiredLevel: 50
-      title: Capstone Choice A
-      description: Placeholder melee choice.
-      icon: {fileID: 0}
-      ability: {fileID: 0}
-    - requiredLevel: 50
-      title: Capstone Choice B
-      description: Placeholder melee choice.
-      icon: {fileID: 0}
-      ability: {fileID: 0}
+    choices: []

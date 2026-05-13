@@ -676,7 +676,8 @@ public class SkillTreeViewUI : MonoBehaviour
             {
                 1 => "Unlock",
                 5 => "Ability",
-                10 or 20 or 30 or 40 => "",
+                10 or 30 => "",
+                20 or 40 => "Unlock",
                 15 => "Major Passive",
                 25 => "Ability",
                 35 => "Major Passive",

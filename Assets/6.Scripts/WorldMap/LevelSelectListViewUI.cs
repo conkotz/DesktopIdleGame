@@ -139,9 +139,11 @@ public class LevelSelectListViewUI : MonoBehaviour
 
         ResolveDefaults();
 
-        // Bottom-bar reopen: if last used view was WorldMap, immediately open it.
-        if (LevelSelectSharedState.LastPresentation == LevelSelectSharedState.Presentation.WorldMap &&
-            worldMapPresentationRoot != null)
+        // Default presentation on map-button open: world map first.
+        // But when WorldMapPageUI.ReturnToList() explicitly sets LastPresentation=List,
+        // stay in list view instead of immediately bouncing back to map.
+        if (worldMapPresentationRoot != null &&
+            LevelSelectSharedState.LastPresentation != LevelSelectSharedState.Presentation.List)
         {
             OpenWorldMapView();
             return;

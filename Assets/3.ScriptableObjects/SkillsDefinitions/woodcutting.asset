@@ -764,7 +764,7 @@ MonoBehaviour:
     title: Chop High Tier Trees
     description: Can chop Hardwood Trees
     icon: {fileID: 9082801165128689192, guid: 5e5134584b229fe448fe55aa7182e889, type: 3}
-    unlockType: 1
+    unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0

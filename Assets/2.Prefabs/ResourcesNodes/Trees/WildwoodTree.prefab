@@ -88,6 +88,22 @@ PrefabInstance:
       propertyPath: definition
       value: 
       objectReference: {fileID: 11400000, guid: f47d99e3510cc124ebab042cbd91c574, type: 2}
+    - target: {fileID: 6300920550991281722, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 1.08
+      objectReference: {fileID: 0}
+    - target: {fileID: 6300920550991281722, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1.22
+      objectReference: {fileID: 0}
+    - target: {fileID: 6659287007320831912, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -1.36
+      objectReference: {fileID: 0}
+    - target: {fileID: 6659287007320831912, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -1.2
+      objectReference: {fileID: 0}
     - target: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       propertyPath: m_Name
       value: WildwoodTree

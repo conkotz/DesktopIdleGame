@@ -338,6 +338,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         Color color = minorPassiveColor;
         Vector2 rootSize = GetVisualSize(type);
         bool showIcon = false;
+        bool forceColoredFillBackground = false;
 
         switch (type)
         {
@@ -353,6 +354,8 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
             case SkillTreeNodeVisualType.Unlock:
                 color = unlockColor;
                 showIcon = true;
+                // Keep unlock milestones on the original black inner fill for readability.
+                forceColoredFillBackground = true;
                 break;
 
             case SkillTreeNodeVisualType.Ability:
@@ -371,7 +374,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
                 break;
         }
 
-        _useColoredFillBackground = !showIcon;
+        _useColoredFillBackground = forceColoredFillBackground || !showIcon;
 
         RectTransform.sizeDelta = rootSize;
 

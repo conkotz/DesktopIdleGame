@@ -890,7 +890,9 @@ public class PlayerController : MonoBehaviour
             return; // IMPORTANT: don't set targetNode/state
         }
 
-        if (!node || !node.workSpot) return;
+        if (!node) return;
+        node.ChooseClosestWorkSpot(transform.position);
+        if (!node.workSpot) return;
 
         // Spam-clicking the same resource re-runs arrival logic: TickMoveToTarget zeros
         // _nextGatherAnimTime so the next TickGather spends energy again immediately.
@@ -1995,6 +1997,8 @@ public class PlayerController : MonoBehaviour
             return false;
         if (node.ActionType != NodeAction.Woodcutting)
             return false;
+        if (!MeetsNodeLevelRequirement(node))
+            return false;
         if (node.IsDepleted)
             return false;
         if (node.Definition == null || !node.Definition.HasMainYield)
@@ -2014,6 +2018,8 @@ public class PlayerController : MonoBehaviour
     private void DoOneCleavingSecondaryYield(ResourceNode node, float efficiency)
     {
         if (!node || node.Definition == null || !node.Definition.HasMainYield)
+            return;
+        if (!MeetsNodeLevelRequirement(node))
             return;
         if (inventory == null)
             return;

@@ -5734,7 +5734,7 @@ MonoBehaviour:
   spectralAxeTint: {r: 0.55, g: 0.8, b: 1, a: 0.85}
   spectralAxeVisualLift: 1.35
   spectralAxeSpinDegreesPerSecond: 720
-  spectralAxeSpinClockwise: 1
+  spectralAxeSpinClockwise: 0
   spectralAxeTravelSpeedUnitsPerSecond: 12
   spectralAxeTrailLifetimeSeconds: 0.32
   spectralAxeTrailStartWidth: 0.18
@@ -6622,6 +6622,10 @@ PrefabInstance:
     - target: {fileID: 400479236542542101, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       propertyPath: m_Sprite
       value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 400479236542542101, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
+      propertyPath: m_SortingOrder
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 400479236542542101, guid: 315058484cf2044ce8dcb608b4678ff6, type: 3}
       propertyPath: m_WasSpriteAssigned

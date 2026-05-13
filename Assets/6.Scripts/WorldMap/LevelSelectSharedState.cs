@@ -23,7 +23,7 @@ public static class LevelSelectSharedState
         Other
     }
 
-    public static Presentation LastPresentation { get; set; } = Presentation.List;
+    public static Presentation LastPresentation { get; set; } = Presentation.WorldMap;
 
     public static string SelectedRegionId { get; set; } = "";
     public static string SelectedNodeId { get; set; } = "";
