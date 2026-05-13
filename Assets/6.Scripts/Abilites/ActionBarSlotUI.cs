@@ -29,6 +29,8 @@ public class ActionBarSlotUI : MonoBehaviour,
     [SerializeField] private TMP_Text hotkeyText;
     [SerializeField] private TMP_Text stackText;
     [SerializeField] private Image cooldownOverlay;
+    [SerializeField] private GameObject activeOverlay;
+    [SerializeField] private TMP_Text activeTimerText;
     [SerializeField] private TMP_Text cooldownText;
     [SerializeField] private Button button;
     [SerializeField] private string defaultTitle = "Empty";
@@ -92,6 +94,26 @@ public class ActionBarSlotUI : MonoBehaviour,
 
         if (!tooltip)
             tooltip = FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
+
+        if (activeOverlay == null)
+        {
+            Transform t = transform.Find("ActiveOverlay");
+            if (t != null)
+                activeOverlay = t.gameObject;
+        }
+
+        if (activeTimerText == null)
+        {
+            Transform tTimer = transform.Find("ActiveTimerText");
+            if (tTimer != null)
+                activeTimerText = tTimer.GetComponent<TMP_Text>();
+        }
+
+        if (activeOverlay != null)
+            activeOverlay.SetActive(false);
+
+        if (activeTimerText != null)
+            activeTimerText.gameObject.SetActive(false);
 
         SyncTooltipReferenceFromPeerSlots();
 
@@ -157,6 +179,8 @@ public class ActionBarSlotUI : MonoBehaviour,
         RefreshUI();
         SetStackText(0);
         SetCooldownVisual(0f);
+        SetAbilityBuffActiveOverlay(false);
+        SetAbilityBuffTimerDisplay(false, 0f);
     }
 
     public void SetHotkeyLabel(string text)
@@ -214,6 +238,8 @@ public class ActionBarSlotUI : MonoBehaviour,
         RefreshUI();
         SetStackText(0);
         SetCooldownVisual(0f);
+        SetAbilityBuffActiveOverlay(false);
+        SetAbilityBuffTimerDisplay(false, 0f);
         tooltip?.Hide();
 
         if (notify)
@@ -286,6 +312,45 @@ public class ActionBarSlotUI : MonoBehaviour,
         primedBackgroundImage.color = primedBackgroundColor;
         primedBackgroundImage.enabled = primed;
         primedBackgroundImage.gameObject.SetActive(primed);
+    }
+
+    /// <summary>Shows when this slotted ability has an active timed / swing / minion buff (same source as the buff HUD strip).</summary>
+    public void SetAbilityBuffActiveOverlay(bool active)
+    {
+        if (activeOverlay == null)
+            return;
+
+        activeOverlay.SetActive(active);
+        if (active)
+            EnsureActiveBuffTimerDrawsAboveOverlay();
+    }
+
+    /// <summary>Countdown for the HUD ability buff window (hidden for indefinite minion buffs with no duration row).</summary>
+    public void SetAbilityBuffTimerDisplay(bool show, float remainingSeconds)
+    {
+        if (activeTimerText == null)
+            return;
+
+        activeTimerText.gameObject.SetActive(show);
+        if (!show)
+            return;
+
+        activeTimerText.text = Mathf.CeilToInt(Mathf.Max(0f, remainingSeconds)).ToString();
+        EnsureActiveBuffTimerDrawsAboveOverlay();
+    }
+
+    /// <summary>
+    /// UGUI draws siblings in hierarchy order — the active buff overlay must sort immediately before the timer so the
+    /// countdown paints crisply on top (without a nested Canvas). Call whenever either control is shown.
+    /// </summary>
+    private void EnsureActiveBuffTimerDrawsAboveOverlay()
+    {
+        if (activeTimerText == null || !activeTimerText.gameObject.activeSelf)
+            return;
+
+        if (activeOverlay != null && activeOverlay.gameObject.activeSelf)
+            activeOverlay.transform.SetAsLastSibling();
+        activeTimerText.transform.SetAsLastSibling();
     }
 
     public void SetNoStockVisual(bool noStock)

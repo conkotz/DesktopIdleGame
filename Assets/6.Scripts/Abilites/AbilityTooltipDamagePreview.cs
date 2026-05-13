@@ -165,6 +165,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsSpectralAxe(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SpectralAxeAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsAvatarOfTheForest(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.AvatarOfTheForestAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static int GetWoodcuttingSkillRow5Choice(SkillsManager skillsManager)
     {
         if (skillsManager == null)
@@ -188,6 +191,13 @@ public static class AbilityTooltipDamagePreview
         if (skillsManager == null)
             return -1;
         return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv25_1", -1);
+    }
+
+    private static int GetAvatarOfTheForestChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv50_0", -1);
     }
 
     private static int GetMeleeLv15BranchChoice(SkillsManager skillsManager, int slot012)
@@ -254,6 +264,14 @@ public static class AbilityTooltipDamagePreview
             AppendLumberFrenzyTooltipEffects(body, O, skillsManager);
             body.AppendLine(string.Empty);
             body.AppendLine(O($"{cooldown:0.#}s Cooldown"));
+            return body.ToString().TrimEnd();
+        }
+
+        if (IsAvatarOfTheForest(def))
+        {
+            AppendAvatarOfTheForestTooltipEffects(body, O, skillsManager);
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"{cooldown:0.#}s Cooldown (begins after the buff ends)"));
             return body.ToString().TrimEnd();
         }
 
@@ -549,6 +567,30 @@ public static class AbilityTooltipDamagePreview
         body.AppendLine(O($"Cleave range: {range:0.#}"));
         body.AppendLine(O($"Secondary trees gather at {secondaryYieldPct:0.#}% efficiency"));
         body.AppendLine(O("Only logs are gathered from nearby trees"));
+    }
+
+    private static void AppendAvatarOfTheForestTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager)
+    {
+        const float baseDurationSec = 90f;
+        const float durationEnhancementBonusSec = 30f;
+        const float baseRange = 10f;
+        const float extendedReachRangeBonus = 4f;
+        const float woodcuttingSpeedBonusPct = 10f;
+
+        int choice = GetAvatarOfTheForestChoice(skillsManager);
+        float duration = baseDurationSec + (choice == 0 ? durationEnhancementBonusSec : 0f);
+        int cleaveEnh = GetCleavingChopChoice(skillsManager);
+        float range = baseRange + (cleaveEnh == 0 ? extendedReachRangeBonus : 0f);
+
+        body.AppendLine(O($"For {duration:0.#}s:"));
+        body.AppendLine(O("Woodcutting does not count toward tree depletion"));
+        body.AppendLine(O($"Every 5s, woodcutting trees within {range:0.#} units regain 1 depletion"));
+        body.AppendLine(O("Bonus find chance is doubled (applied after all other bonuses)"));
+        body.AppendLine(O("Woodcutting stamina does not drain on gather swings"));
+        body.AppendLine(O($"+{woodcuttingSpeedBonusPct:0.#}% Woodcutting Speed"));
     }
 
     private static void AppendSpectralAxeTooltipEffects(

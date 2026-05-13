@@ -96,6 +96,17 @@ public class PlayerAbilityController : MonoBehaviour
     private const int CleavingChopChoiceSourceLevel = 25;
     private const int CleavingChopExtendedReachChoiceIndex = 0;
     private const int CleavingChopProlongedCleaveChoiceIndex = 1;
+
+    private const string AvatarOfTheForestId = "avatar_of_the_forest";
+    private const float AvatarOfTheForestBaseDurationSeconds = 90f;
+    private const float AvatarOfTheForestDurationEnhancementBonusSeconds = 30f;
+    private const float AvatarOfTheForestCooldownEnhancementReductionSeconds = 30f;
+    private const float AvatarOfTheForestReplenishIntervalSeconds = 5f;
+    /// <summary>Additive woodcutting gather-speed bonus while active (stacks in PlayerController speed bonus bracket).</summary>
+    private const float AvatarOfTheForestWoodcuttingSpeedBonusFraction = 0.10f;
+    private const int AvatarOfTheForestDurationEnhancementChoiceIndex = 0;
+    private const int AvatarOfTheForestCooldownEnhancementChoiceIndex = 1;
+
     private const int WhirlwindChoiceSourceLevel = 15;
     private const int SoulforgedWeaponChoiceSourceLevel = 35;
     private const int SoulforgedWeaponSwarmChoiceIndex = 0;
@@ -146,6 +157,14 @@ public class PlayerAbilityController : MonoBehaviour
     private ResourceNode _spectralAxeGatherTarget;
     /// <summary>True when the axe parked but found no tree in its area → cooldown is overridden to <see cref="SpectralAxeMissedCastCooldownSeconds"/>.</summary>
     private bool _spectralAxeMissedCast;
+
+    private bool _avatarOfForestActive;
+    private float _avatarOfForestEndsAt;
+    private float _avatarOfForestDuration;
+    private float _lastSyncedAvatarOfForestHudEnd = float.NaN;
+    /// <summary>When the Avatar buff expires, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
+    private AbilityDefinition _avatarOfForestCooldownAbilityDef;
+    private float _avatarOfForestReplenishAccum;
 
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
     private float _queuedPowerSlashMagicMultiplier = 1f;
@@ -224,6 +243,7 @@ public class PlayerAbilityController : MonoBehaviour
     {
         SceneManager.sceneLoaded -= HandleSceneLoaded;
         abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+        abilityVfx?.DestroyAvatarOfTheForestGlowVfx();
     }
 
     private void Update()
@@ -237,6 +257,10 @@ public class PlayerAbilityController : MonoBehaviour
         CleanupCleavingChopIfExpired();
         SyncCleavingChopHudBuff();
         abilityVfx?.UpdateCleavingChopRangeIndicator(IsCleavingChopActive, GetCleavingChopRange());
+        CleanupAvatarOfTheForestIfExpired();
+        abilityVfx?.UpdateAvatarOfTheForestGlowVfx(IsAvatarOfTheForestActive);
+        SyncAvatarOfTheForestHudBuff();
+        TickAvatarOfTheForestNearbyReplenish(Time.deltaTime);
         SyncSpectralAxeHudBuff();
         CleanupSoulforgedWeaponIfUnavailable();
         SyncSoulforgedWeaponHudBuff();
@@ -422,6 +446,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(def.abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase) && _cleavingChopActive)
             return false;
 
+        if (string.Equals(def.abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase) && IsAvatarOfTheForestActive)
+            return false;
+
         // Spectral Axe: deferred cooldown starts when the projectile returns. Block recast while deployed.
         if (string.Equals(def.abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase) && _spectralAxeActive)
             return false;
@@ -548,6 +575,15 @@ public class PlayerAbilityController : MonoBehaviour
             if (!TryActivateSpectralAxe(def))
                 return false;
             _spectralAxeCooldownAbilityDef = def;
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (string.Equals(def.abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase))
+        {
+            ActivateAvatarOfTheForestBuff();
+            _avatarOfForestCooldownAbilityDef = def;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -1560,6 +1596,139 @@ public class PlayerAbilityController : MonoBehaviour
         buffController.SetHudAbilityBuff(LumberFrenzyId, 1, _lumberFrenzyEndsAt, _lumberFrenzyDuration);
     }
 
+    private void ActivateAvatarOfTheForestBuff()
+    {
+        _avatarOfForestActive = true;
+        float dur = AvatarOfTheForestBaseDurationSeconds;
+        if (GetAvatarOfTheForestSelectedChoice() == AvatarOfTheForestDurationEnhancementChoiceIndex)
+            dur += AvatarOfTheForestDurationEnhancementBonusSeconds;
+        _avatarOfForestDuration = dur;
+        _avatarOfForestEndsAt = Time.time + dur;
+        _lastSyncedAvatarOfForestHudEnd = float.NaN;
+        _avatarOfForestReplenishAccum = 0f;
+        abilityVfx?.SpawnAvatarOfTheForestGlowVfx();
+        SyncAvatarOfTheForestHudBuff();
+        stats?.NotifyStatsChanged();
+    }
+
+    private void CleanupAvatarOfTheForestIfExpired()
+    {
+        if (!_avatarOfForestActive)
+            return;
+        if (Time.time < _avatarOfForestEndsAt)
+            return;
+
+        _avatarOfForestActive = false;
+        _avatarOfForestEndsAt = 0f;
+        _avatarOfForestDuration = 0f;
+        _avatarOfForestReplenishAccum = 0f;
+
+        abilityVfx?.DestroyAvatarOfTheForestGlowVfx();
+
+        if (_avatarOfForestCooldownAbilityDef)
+            StartCooldown(_avatarOfForestCooldownAbilityDef);
+        _avatarOfForestCooldownAbilityDef = null;
+
+        stats?.NotifyStatsChanged();
+    }
+
+    private void SyncAvatarOfTheForestHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!IsAvatarOfTheForestActive)
+        {
+            if (!float.IsNaN(_lastSyncedAvatarOfForestHudEnd))
+            {
+                buffController.ClearHudAbilityBuff(AvatarOfTheForestId);
+                _lastSyncedAvatarOfForestHudEnd = float.NaN;
+            }
+
+            return;
+        }
+
+        if (Mathf.Approximately(_lastSyncedAvatarOfForestHudEnd, _avatarOfForestEndsAt))
+            return;
+
+        _lastSyncedAvatarOfForestHudEnd = _avatarOfForestEndsAt;
+        buffController.SetHudAbilityBuff(AvatarOfTheForestId, 1, _avatarOfForestEndsAt, _avatarOfForestDuration);
+    }
+
+    private void TickAvatarOfTheForestNearbyReplenish(float deltaSeconds)
+    {
+        if (!IsAvatarOfTheForestActive || !player)
+            return;
+
+        _avatarOfForestReplenishAccum += deltaSeconds;
+        while (_avatarOfForestReplenishAccum >= AvatarOfTheForestReplenishIntervalSeconds)
+        {
+            _avatarOfForestReplenishAccum -= AvatarOfTheForestReplenishIntervalSeconds;
+            PulseAvatarOfTheForestReplenish();
+        }
+    }
+
+    private void PulseAvatarOfTheForestReplenish()
+    {
+        if (!player)
+            return;
+
+        Vector3 origin = player.transform.position;
+        float r = GetAvatarOfTheForestReplenishRadiusWorld();
+        float rSqr = r * r;
+        ResourceNode[] all = FindObjectsByType<ResourceNode>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            ResourceNode node = all[i];
+            if (!node || node.ActionType != NodeAction.Woodcutting || !node.UsesDepletion)
+                continue;
+
+            float dx = node.transform.position.x - origin.x;
+            float dy = node.transform.position.y - origin.y;
+            if (dx * dx + dy * dy > rSqr)
+                continue;
+
+            node.TryApplyAvatarOfForestReplenishOneStep();
+        }
+    }
+
+    private int GetAvatarOfTheForestSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv50_0", -1);
+    }
+
+    /// <summary>Active Avatar of the Forest buff window.</summary>
+    public bool IsAvatarOfTheForestActive
+    {
+        get
+        {
+            if (!_avatarOfForestActive)
+                return false;
+            return Time.time < _avatarOfForestEndsAt;
+        }
+    }
+
+    /// <summary>Final multiplier applied to woodcutting bonus-find rolls after all other bonuses (2 while active).</summary>
+    public float GetAvatarOfTheForestBonusFindFinalMultiplier() => IsAvatarOfTheForestActive ? 2f : 1f;
+
+    /// <summary>Additive fraction for woodcutting gather speed while active (applied in PlayerController).</summary>
+    public float GetAvatarOfTheForestWoodcuttingSpeedBonusFraction() =>
+        IsAvatarOfTheForestActive ? AvatarOfTheForestWoodcuttingSpeedBonusFraction : 0f;
+
+    /// <summary>Cleaving Chop range numbers (base + Extended Reach), even when Cleaving Chop is not active.</summary>
+    public float GetAvatarOfTheForestReplenishRadiusWorld()
+    {
+        float range = CleavingChopBaseRange;
+        if (GetCleavingChopSelectedChoice() == CleavingChopExtendedReachChoiceIndex)
+            range += CleavingChopExtendedReachRangeBonus;
+        return range;
+    }
+
     /// <summary>Active Lumber Frenzy orbit VFX instance (null when the buff is off or VFX failed to spawn).</summary>
     public Transform LumberFrenzyOrbitVfxTransform => abilityVfx != null ? abilityVfx.LumberFrenzyOrbitVfxTransform : null;
 
@@ -2160,8 +2329,8 @@ public class PlayerAbilityController : MonoBehaviour
 
         var nodeDef = node.Definition;
 
-        // Spectral Axe counts toward the destination tree's depletion (same contract as Cleaving Chop).
-        node.NotifyGatherTickBeforeBonuses(countTowardDepletionCap: true);
+        bool countTowardDepletion = !IsAvatarOfTheForestActive;
+        node.NotifyGatherTickBeforeBonuses(countTowardDepletion);
 
         int mainAmt = nodeDef.RollMainYieldAmount();
         if (node.ApplyDepletedYieldPenaltyThisTick)
@@ -2193,6 +2362,8 @@ public class PlayerAbilityController : MonoBehaviour
             return;
 
         float bonusFind = stats ? Mathf.Max(0f, stats.AxeBonusFindChance) : 0f;
+        if (IsAvatarOfTheForestActive)
+            bonusFind *= 2f;
         var drops = new List<Drop>(8);
         nodeDef.PreviewDrops(drops, bonusFind);
 
@@ -2436,7 +2607,7 @@ public class PlayerAbilityController : MonoBehaviour
     private void StartCooldown(AbilityDefinition def)
     {
         if (!def) return;
-        float cd = Mathf.Max(0f, def.cooldown - GetPowerSlashCooldownReduction(def));
+        float cd = Mathf.Max(0f, def.cooldown - GetPowerSlashCooldownReduction(def) - GetAvatarOfTheForestCooldownReduction(def));
         if (cd <= 0f) return;
         float end = Time.time + cd;
         _cooldownEndsById[def.abilityId] = end;
@@ -2466,6 +2637,21 @@ public class PlayerAbilityController : MonoBehaviour
 
         int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
         return selected == 1 ? 3f : 0f;
+    }
+
+    private float GetAvatarOfTheForestCooldownReduction(AbilityDefinition def)
+    {
+        if (def == null || !string.Equals(def.abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase))
+            return 0f;
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return 0f;
+
+        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv50_0", -1);
+        return selected == AvatarOfTheForestCooldownEnhancementChoiceIndex
+            ? AvatarOfTheForestCooldownEnhancementReductionSeconds
+            : 0f;
     }
 
     /// <summary>Resolves the assigned database or Resources default (same as runtime ability lookup).</summary>

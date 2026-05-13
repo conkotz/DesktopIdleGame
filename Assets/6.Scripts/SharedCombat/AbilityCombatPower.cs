@@ -21,6 +21,7 @@ public static class AbilityCombatPower
     public const string LumberFrenzyAbilityId = "lumber_frenzy";
     public const string CleavingChopAbilityId = "cleaving_chop";
     public const string SpectralAxeAbilityId = "spectral_axe";
+    public const string AvatarOfTheForestAbilityId = "avatar_of_the_forest";
 
     /// <summary>Second Twin Cyclone wave as a fraction of the first wave's scaled split (sync with Whirlwind runtime).</summary>
     public const float WhirlwindTwinCycloneSecondHitFraction = 0.2f;

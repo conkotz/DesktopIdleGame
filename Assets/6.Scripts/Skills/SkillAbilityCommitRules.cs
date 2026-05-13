@@ -31,8 +31,16 @@ public static class SkillAbilityCommitRules
         for (int i = 0; i < skill.unlocks.Count; i++)
         {
             SkillUnlockDefinition u = skill.unlocks[i];
-            if (u == null || u.unlockType != SkillUnlockType.Ability || u.ability == null)
+            if (u == null || u.ability == null)
                 continue;
+
+            // Capstone rows can carry a final ability while still using the CapstonePassive unlock type.
+            bool abilityLike =
+                u.unlockType == SkillUnlockType.Ability ||
+                u.unlockType == SkillUnlockType.CapstonePassive;
+            if (!abilityLike)
+                continue;
+
             if (u.ability == ability)
                 return u;
             if (!string.IsNullOrEmpty(ability.abilityId)
@@ -72,8 +80,15 @@ public static class SkillAbilityCommitRules
         for (int i = 0; i < sorted.Count; i++)
         {
             SkillUnlockDefinition u = sorted[i].u;
-            if (u.requiredLevel != requiredLevel || u.unlockType != SkillUnlockType.Ability || u.ability == null)
+            if (u.requiredLevel != requiredLevel || u.ability == null)
                 continue;
+
+            bool abilityLike =
+                u.unlockType == SkillUnlockType.Ability ||
+                u.unlockType == SkillUnlockType.CapstonePassive;
+            if (!abilityLike)
+                continue;
+
             result.Add(u.ability);
         }
 

@@ -122,6 +122,50 @@ public class PlayerBuffController : MonoBehaviour
             NotifyChanged();
     }
 
+    /// <summary>
+    /// True when the buff strip would show this ability (timed window, Cleaving Strikes swings remaining, Soulforged
+    /// minion count, etc.). Matches <see cref="SetHudAbilityBuff"/> rows with <see cref="ActiveBuff.displayStacks"/> &gt; 0.
+    /// </summary>
+    public bool IsHudAbilityBuffActive(string abilityId) => TryGetHudAbilityBuff(abilityId, out _);
+
+    /// <summary>HUD ability buff row for this id, if any (may be expired by clock while stacks remain, e.g. Cleaving Strikes).</summary>
+    public bool TryGetHudAbilityBuff(string abilityId, out ActiveBuff buff)
+    {
+        buff = null;
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return false;
+
+        for (int i = 0; i < activeBuffs.Count; i++)
+        {
+            ActiveBuff b = activeBuffs[i];
+            if (b.type != ConsumableEffectType.HudAbilityBuff)
+                continue;
+            if (!string.Equals(b.id, abilityId, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (b.displayStacks <= 0)
+                continue;
+            buff = b;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether a numeric countdown should be shown (matches <see cref="BuffIconUI"/> timer: needs a finite
+    /// <see cref="ActiveBuff.duration"/> window and positive <see cref="ActiveBuff.RemainingSeconds"/>).
+    /// Indefinite Soulforged minion uses <c>durationSeconds == 0</c> on the HUD row — no timer.
+    /// </summary>
+    public bool ShouldDisplayHudAbilityBuffCountdown(string abilityId, out float remainingSeconds)
+    {
+        remainingSeconds = 0f;
+        if (!TryGetHudAbilityBuff(abilityId, out ActiveBuff b))
+            return false;
+
+        remainingSeconds = b.RemainingSeconds;
+        return b.duration > 0f && remainingSeconds > 0f;
+    }
+
     public bool HasBuff(ConsumableEffectType type)
     {
         for (int i = 0; i < activeBuffs.Count; i++)

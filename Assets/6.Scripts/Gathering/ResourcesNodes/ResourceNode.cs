@@ -189,6 +189,33 @@ public class ResourceNode : MonoBehaviour
             EnterDepletedState();
     }
 
+    /// <summary>
+    /// Avatar of the Forest: recover one step of depletion progress (one "log" toward the cap), without activity-log spam.
+    /// Woodcutting depletion nodes only.
+    /// </summary>
+    public bool TryApplyAvatarOfForestReplenishOneStep()
+    {
+        if (definition == null || !definition.UsesDepletion || ActionType != NodeAction.Woodcutting)
+            return false;
+
+        if (_isDepleted)
+        {
+            _isDepleted = false;
+            _regenAtTime = float.PositiveInfinity;
+            int cap = Mathf.Max(1, definition.depletionGatherCount);
+            _gathersSinceRegen = Mathf.Max(0, cap - 1);
+            RestoreVisuals();
+            return true;
+        }
+
+        if (_gathersSinceRegen <= 0)
+            return false;
+
+        _gathersSinceRegen--;
+        RefreshDepletionTimerDisplay();
+        return true;
+    }
+
     private void EnterDepletedState()
     {
         if (_isDepleted)

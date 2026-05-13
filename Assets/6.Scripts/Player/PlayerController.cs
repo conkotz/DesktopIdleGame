@@ -1681,6 +1681,9 @@ public class PlayerController : MonoBehaviour
                     countTowardDepletion = false;
             }
 
+            if (isWoodcutting && def.UsesDepletion && abilityController != null && abilityController.IsAvatarOfTheForestActive)
+                countTowardDepletion = false;
+
             targetNode.NotifyGatherTickBeforeBonuses(countTowardDepletion);
 
             if (isWoodcutting && !countTowardDepletion && woodcuttingMajorPick == 0 &&
@@ -1794,6 +1797,8 @@ public class PlayerController : MonoBehaviour
             bonusFindForRoll += 0.10f;
         if (isWoodcutting)
             bonusFindForRoll += GetWoodcuttingLevel35BonusFindAdd();
+        if (isWoodcutting && abilityController != null)
+            bonusFindForRoll *= abilityController.GetAvatarOfTheForestBonusFindFinalMultiplier();
         var dropCtx = isWoodcutting ? BuildWoodcuttingLevel35DropContext() : default;
         def.PreviewDrops(_drops, bonusFindForRoll, dropCtx);
 
@@ -2007,9 +2012,8 @@ public class PlayerController : MonoBehaviour
 
         var nodeDef = node.Definition;
 
-        // Advance the cleaved tree's depletion counter (counts toward cap, may flag this tick as the
-        // "tipping" swing that applies the depleted-yield penalty before we even roll the amount).
-        node.NotifyGatherTickBeforeBonuses(countTowardDepletionCap: true);
+        bool countTowardDepletion = !(abilityController != null && abilityController.IsAvatarOfTheForestActive);
+        node.NotifyGatherTickBeforeBonuses(countTowardDepletion);
 
         int rolled = nodeDef.RollMainYieldAmount();
         if (rolled <= 0)
@@ -2151,6 +2155,10 @@ public class PlayerController : MonoBehaviour
         if (pctOfMax <= 0f)
             return true;
 
+        if (targetNode && targetNode.ActionType == NodeAction.Woodcutting &&
+            abilityController != null && abilityController.IsAvatarOfTheForestActive)
+            return true;
+
         float maxEnergy = Mathf.Max(1f, characterStats.MaxEnergy);
         float baseCostPerSwing = maxEnergy * pctOfMax;
         float staminaEfficiency = Mathf.Clamp01(_gatherStaminaEfficiency);
@@ -2188,6 +2196,8 @@ public class PlayerController : MonoBehaviour
             bonus += 0.05f * _woodcuttingBonuses.frenzyStacks;
         if (IsWoodcuttingMajorFlowBuffActive())
             bonus += 0.10f;
+        if (abilityController != null)
+            bonus += abilityController.GetAvatarOfTheForestWoodcuttingSpeedBonusFraction();
 
         return Mathf.Max(0.05f, mult * (1f + bonus));
     }

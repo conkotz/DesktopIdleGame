@@ -260,6 +260,12 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
+        if (string.Equals(def.abilityId, AbilityCombatPower.AvatarOfTheForestAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv50_0", -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
         return string.Empty;
     }
 

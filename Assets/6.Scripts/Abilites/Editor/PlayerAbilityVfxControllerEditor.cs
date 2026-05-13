@@ -14,7 +14,8 @@ public class PlayerAbilityVfxControllerEditor : Editor
     private static readonly string[] RefFieldNames =
     {
         "player",
-        "combat"
+        "combat",
+        "runtimeParticleMaterialTemplate"
     };
 
     private static readonly string[] PowerSlashFieldNames =
@@ -60,6 +61,19 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "lumberFrenzyOrbitRadius",
         "lumberFrenzySweepPeriodSeconds",
         "lumberFrenzyOrbitVfxColor"
+    };
+
+    private static readonly string[] AvatarOfTheForestVfxFieldNames =
+    {
+        "avatarOfForestGlowLocalOffset",
+        "avatarOfForestGlowColor",
+        "avatarOfForestGlowSphereRadius",
+        "avatarOfForestGlowConeAngle",
+        "avatarOfForestGlowEmissionRate",
+        "avatarOfForestParticleStartSizeMin",
+        "avatarOfForestParticleStartSizeMax",
+        "avatarOfForestTrailLifetime",
+        "avatarOfForestTrailWidth"
     };
 
     private static readonly string[] CleavingChopFieldNames =
@@ -150,13 +164,15 @@ public class PlayerAbilityVfxControllerEditor : Editor
 
         EditorGUILayout.Space(6f);
 
-        DrawFoldoutPropertyBlock(serializedObject, "PowerSlashVfx", "Power Slash VFX", PowerSlashFieldNames);
+        DrawFoldoutPropertyBlock(serializedObject, "PowerSlashVfx", "Power Slash (Melee) VFX", PowerSlashFieldNames);
         EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "WhirlwindVfx", "Whirlwind VFX", WhirlwindFieldNames);
+        DrawFoldoutPropertyBlock(serializedObject, "WhirlwindVfx", "Whirlwind (Melee) VFX", WhirlwindFieldNames);
         EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "CrescentSlashVfx", "Crescent Slash VFX", CrescentFieldNames);
+        DrawFoldoutPropertyBlock(serializedObject, "CrescentSlashVfx", "Crescent Slash (Melee) VFX", CrescentFieldNames);
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(serializedObject, "LumberFrenzyVfx", "Lumber Frenzy (Woodcutting Lv5) VFX", LumberFrenzyVfxFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(serializedObject, "AvatarOfTheForestVfx", "Avatar of the Forest (Woodcutting Lv45) VFX", AvatarOfTheForestVfxFieldNames);
         EditorGUILayout.Space(2f);
 
         bool sfOpen = GetFold("SoulforgedWeaponMinionVfx");
@@ -174,11 +190,11 @@ public class PlayerAbilityVfxControllerEditor : Editor
         }
         EditorGUILayout.Space(2f);
 
-        DrawFoldoutPropertyBlock(serializedObject, "CleavingChopVfx", "Cleaving Chop VFX", CleavingChopFieldNames);
+        DrawFoldoutPropertyBlock(serializedObject, "CleavingChopVfx", "Cleaving Chop (Woodcutting Lv25) VFX", CleavingChopFieldNames);
         EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "SpectralAxeVfx", "Spectral Axe VFX", SpectralAxeFieldNames);
+        DrawFoldoutPropertyBlock(serializedObject, "SpectralAxeVfx", "Spectral Axe (Woodcutting Lv25) VFX", SpectralAxeFieldNames);
         EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "SpectralAxeTrailVfx", "Spectral Axe Blue Trail", SpectralAxeTrailFieldNames);
+        DrawFoldoutPropertyBlock(serializedObject, "SpectralAxeTrailVfx", "Spectral Axe Blue Trail (Woodcutting Lv25)", SpectralAxeTrailFieldNames);
 
         serializedObject.ApplyModifiedProperties();
     }

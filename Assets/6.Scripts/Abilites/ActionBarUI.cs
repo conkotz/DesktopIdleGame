@@ -113,6 +113,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     [SerializeField] private ItemDatabase itemDatabase;
     [SerializeField] private PlayerConsumableController consumableController;
     [SerializeField] private PlayerAbilityController abilityController;
+    [SerializeField] private PlayerBuffController buffController;
     [SerializeField] private AbilityDatabase abilityDatabase;
     [SerializeField] private SkillDatabase skillDatabase;
     [SerializeField] private SkillsManager skillsManager;
@@ -640,6 +641,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             slot.SetPrimedVisual(false);
             slot.SetNoStockVisual(false);
             slot.SetAbilityWeaponCompatibility(true);
+            slot.SetAbilityBuffActiveOverlay(false);
+            slot.SetAbilityBuffTimerDisplay(false, 0f);
             return;
         }
 
@@ -678,6 +681,14 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                     slot.SetAbilityWeaponCompatibility(weaponOk);
                     // Same red overlay as "not available" when skill-locked or wrong weapon type.
                     slot.SetNoStockVisual(abilityLocked || !weaponOk);
+
+                    bool buffHud = buffController != null && buffController.IsHudAbilityBuffActive(action.id);
+                    slot.SetAbilityBuffActiveOverlay(buffHud);
+
+                    float buffRemain = 0f;
+                    bool showBuffTimer = buffController != null &&
+                                         buffController.ShouldDisplayHudAbilityBuffCountdown(action.id, out buffRemain);
+                    slot.SetAbilityBuffTimerDisplay(showBuffTimer, buffRemain);
                 }
                 else
                 {
@@ -690,6 +701,14 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                         weaponOkNoController = cs.IsAbilityUsableWithEquippedWeapon(abilityDef);
                     slot.SetAbilityWeaponCompatibility(weaponOkNoController);
                     slot.SetNoStockVisual(abilityLocked || !weaponOkNoController);
+
+                    bool buffHudNoAb = buffController != null && buffController.IsHudAbilityBuffActive(action.id);
+                    slot.SetAbilityBuffActiveOverlay(buffHudNoAb);
+
+                    float buffRemainNoAb = 0f;
+                    bool showBuffTimerNoAb = buffController != null &&
+                                             buffController.ShouldDisplayHudAbilityBuffCountdown(action.id, out buffRemainNoAb);
+                    slot.SetAbilityBuffTimerDisplay(showBuffTimerNoAb, buffRemainNoAb);
                 }
 
                 return;
@@ -699,6 +718,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             slot.SetPrimedVisual(false);
             slot.SetNoStockVisual(false);
             slot.SetAbilityWeaponCompatibility(true);
+            slot.SetAbilityBuffActiveOverlay(false);
+            slot.SetAbilityBuffTimerDisplay(false, 0f);
             return;
         }
 
@@ -708,6 +729,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                        (slot.SlotType == ActionBarSlotType.Food || slot.SlotType == ActionBarSlotType.Potion);
         slot.SetNoStockVisual(noStock);
         slot.SetAbilityWeaponCompatibility(true);
+        slot.SetAbilityBuffActiveOverlay(false);
+        slot.SetAbilityBuffTimerDisplay(false, 0f);
 
         if (consumableController != null)
         {
@@ -883,6 +906,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 playerAbilities = player.gameObject.AddComponent<PlayerAbilityController>();
             if (playerAbilities != null)
                 abilityController = playerAbilities;
+
+            var playerBuffs = player.GetComponent<PlayerBuffController>();
+            if (playerBuffs != null)
+                buffController = playerBuffs;
         }
 
         if (inventory == null)
@@ -896,6 +923,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         if (abilityController == null)
             abilityController = FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
+
+        if (buffController == null)
+            buffController = FindFirstObjectByType<PlayerBuffController>(FindObjectsInactive.Include);
 
         if (abilityDatabase == null)
             abilityDatabase = AbilityDatabase.LoadDefault();

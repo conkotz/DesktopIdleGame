@@ -388,7 +388,7 @@ MonoBehaviour:
   - requiredLevel: 20
     title: Medium Tier Trees
     description: Can chop Wildwood trees
-    icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
+    icon: {fileID: -764026750898743436, guid: 493ceb8862452954aaff3431faab874a, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -763,7 +763,7 @@ MonoBehaviour:
   - requiredLevel: 40
     title: Chop High Tier Trees
     description: Can chop Hardwood Trees
-    icon: {fileID: -542036637493289155, guid: e87f9a8ce4a092d41a3cb2ab8f94c612, type: 3}
+    icon: {fileID: 9082801165128689192, guid: 5e5134584b229fe448fe55aa7182e889, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -837,9 +837,12 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 45
-    title: Placeholder Ability
-    description: Placeholder slot for future woodcutting ability.
-    icon: {fileID: 0}
+    title: Avatar of the Forest
+    description: Invoke forest power for a long woodcutting surge. While active,
+      your chops do not deplete trees, nearby trees slowly recover depletion, bonus
+      finds are doubled after all other bonuses, you spend no stamina on woodcutting
+      swings, and you chop faster.
+    icon: {fileID: 4266808884134915304, guid: 68bd1fe8266df974ca814370a67767d0, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -849,8 +852,18 @@ MonoBehaviour:
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    choices: []
+    ability: {fileID: 11400000, guid: e4d3c2b1a0f9e8d7c6b5a4938271605f, type: 2}
+    choices:
+    - requiredLevel: 48
+      title: Heartwood Vigil
+      description: Avatar of the Forest lasts +30 seconds.
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 48
+      title: Greenbark Respite
+      description: After Avatar of the Forest ends, its cooldown is 30 seconds shorter.
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
   - requiredLevel: 46
     title: Chopping Tree Conservation 3
     description: +10% Woodcutting chance not to count toward tree depletion
@@ -912,8 +925,8 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 50
-    title: Placeholder Capstone
-    description: Placeholder capstone milestone for woodcutting.
+    title: Capstone Placeholder
+    description: 
     icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
     unlockType: 4
     meleeMinorStatOption: 0
@@ -925,4 +938,14 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
-    choices: []
+    choices:
+    - requiredLevel: 0
+      title: Placeholder 1
+      description: 
+      icon: {fileID: 0}
+      ability: {fileID: 0}
+    - requiredLevel: 0
+      title: Placeholder 2
+      description: 
+      icon: {fileID: 0}
+      ability: {fileID: 0}

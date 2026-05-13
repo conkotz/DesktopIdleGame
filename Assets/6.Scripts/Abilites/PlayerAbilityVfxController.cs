@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 /// <summary>
 /// World VFX for player abilities (trails, particles, range rings). Ability rules stay on <see cref="PlayerAbilityController"/>.
@@ -12,7 +13,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField] private PlayerController player;
     [SerializeField] private PlayerCombatController combat;
 
-    [Header("Power Slash VFX")]
+    [Header("Runtime particle material (optional)")]
+    [Tooltip("Optional override for runtime particle/trail materials. Leave empty to use Sprites/Default (tinted by particle color), then Resources/Vfx/AbilityVfx_ParticlesUnlit, then URP particle shaders.")]
+    [SerializeField] private Material runtimeParticleMaterialTemplate;
+
+    [Header("Power Slash (Melee) VFX")]
     [SerializeField] private Transform powerSlashTrailAnchor;
     [SerializeField] private string[] powerSlashAnchorNameCandidates = { "Weapon", "MainHandItem", "MainHand" };
     [SerializeField] private Color powerSlashTrailColor = new Color(1f, 0.88f, 0.22f, 0.95f);
@@ -27,7 +32,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0f)] private float powerSlashSecondSwipeDelay = 0.035f;
     [SerializeField] private float powerSlashSecondSwipeAngleOffset = 18f;
 
-    [Header("Whirlwind VFX")]
+    [Header("Whirlwind (Melee) VFX")]
     [SerializeField] private Color whirlingBladeColor = new Color(1f, 0.88f, 0.22f, 0.95f);
     [SerializeField, Min(0.01f)] private float whirlingBladeDuration = 0.22f;
     [SerializeField, Min(90f)] private float whirlingBladeSpinDegrees = 720f;
@@ -36,7 +41,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0f)] private float whirlingBladeUpwardDrift = 0.14f;
     [SerializeField, Min(0f)] private float whirlingBladeVerticalWave = 0.06f;
 
-    [Header("Crescent Slash VFX")]
+    [Header("Crescent Slash (Melee) VFX")]
     [SerializeField] private Color crescentSlashColor = new Color(0.55f, 0.95f, 1f, 0.9f);
     [SerializeField, Min(0.05f)] private float crescentSlashVfxDuration = 0.18f;
     [SerializeField, Min(0.01f)] private float crescentSlashLineWidth = 0.12f;
@@ -55,14 +60,14 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [Header("Soulforged Weapon Minion VFX")]
     [SerializeField] private SoulforgedWeaponMinionPresentation soulforgedWeaponMinionPresentation;
 
-    [Header("Spectral Axe VFX")]
+    [Header("Spectral Axe (Woodcutting Lv25) VFX")]
     [SerializeField] private Color spectralAxeTint = new Color(0.55f, 0.80f, 1f, 0.85f);
     [SerializeField, Min(0f)] private float spectralAxeVisualLift = 1.2f;
     [SerializeField, Min(0f)] private float spectralAxeSpinDegreesPerSecond = 720f;
     [SerializeField] private bool spectralAxeSpinClockwise = true;
     [SerializeField, Min(0.1f)] private float spectralAxeTravelSpeedUnitsPerSecond = 12f;
 
-    [Header("Spectral Axe Blue Trail")]
+    [Header("Spectral Axe Blue Trail (Woodcutting Lv25)")]
     [SerializeField, Min(0.01f)] private float spectralAxeTrailLifetimeSeconds = 0.32f;
     [SerializeField, Min(0f)] private float spectralAxeTrailStartWidth = 0.18f;
     [SerializeField, Min(0f)] private float spectralAxeTrailEndWidth = 0f;
@@ -72,7 +77,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField] private Color spectralAxeTrailColorStart = new Color(0.45f, 0.78f, 1f);
     [SerializeField] private Color spectralAxeTrailColorEnd = new Color(0.30f, 0.55f, 1f);
 
-    [Header("Cleaving Chop range indicator")]
+    [Header("Cleaving Chop range indicator (Woodcutting Lv25)")]
     [SerializeField] private bool cleavingChopShowRangeIndicator = true;
     [SerializeField] private Color cleavingChopIndicatorColor = new Color(0.55f, 0.95f, 0.30f, 0.85f);
     [SerializeField, Range(16, 128)] private int cleavingChopIndicatorSegments = 64;
@@ -82,13 +87,28 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [Tooltip("Optional sorting layer. Leave blank to match the player sprite layer.")]
     [SerializeField] private string cleavingChopIndicatorSortingLayer = "";
 
-    [Header("Spectral Axe area indicator")]
+    [Header("Spectral Axe area indicator (Woodcutting Lv25)")]
     [SerializeField] private bool spectralAxeShowAreaIndicator = true;
     [SerializeField] private Color spectralAxeAreaIndicatorColor = new Color(0.55f, 0.95f, 0.30f, 0.85f);
     [SerializeField, Range(16, 128)] private int spectralAxeAreaIndicatorSegments = 64;
     [SerializeField, Min(0.005f)] private float spectralAxeAreaIndicatorLineWidth = 0.12f;
     [SerializeField] private int spectralAxeAreaIndicatorSortingOrder = 50;
     [SerializeField] private string spectralAxeAreaIndicatorSortingLayer = "";
+
+    [Header("Avatar of the Forest (Woodcutting Lv45) VFX")]
+    [SerializeField] private Vector3 avatarOfForestGlowLocalOffset = new Vector3(0f, 0.18f, 0f);
+    [SerializeField] private Color avatarOfForestGlowColor = new Color(0.58f, 1f, 0.42f, 0.96f);
+    [Tooltip("Cone base radius at the feet; particles rise along the cone axis.")]
+    [SerializeField, Min(0.02f)] private float avatarOfForestGlowSphereRadius = 0.2f;
+    [SerializeField, Range(4f, 32f)] private float avatarOfForestGlowConeAngle = 14f;
+    [SerializeField, Min(4f)] private float avatarOfForestGlowEmissionRate = 32f;
+    [Tooltip("Random range for particle size when each particle is born (world units). Set min = max for uniform size.")]
+    [SerializeField, Min(0.001f)] private float avatarOfForestParticleStartSizeMin = 0.028f;
+    [SerializeField, Min(0.001f)] private float avatarOfForestParticleStartSizeMax = 0.052f;
+    [Tooltip("How long each particle's ribbon trail lasts (seconds).")]
+    [SerializeField, Min(0.02f)] private float avatarOfForestTrailLifetime = 0.16f;
+    [Tooltip("Trail width at the head (narrows along the trail).")]
+    [SerializeField, Min(0.004f)] private float avatarOfForestTrailWidth = 0.034f;
 
     private GameObject _cleavingChopIndicatorRoot;
     private LineRenderer _cleavingChopIndicatorLine;
@@ -100,6 +120,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private GameObject _lumberFrenzyAnchorRoot;
     private Transform _lumberFrenzySweepMotion;
     private GameObject _lumberFrenzyOrbitVfxRoot;
+
+    private GameObject _avatarOfForestGlowRoot;
+
+    private const string ResourcesUrParticleMaterialPath = "Vfx/AbilityVfx_ParticlesUnlit";
+    private static bool s_LoggedMissingUrParticleMaterial;
 
     public SoulforgedWeaponMinionPresentation SoulforgedWeaponMinionPresentation => soulforgedWeaponMinionPresentation;
 
@@ -150,6 +175,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     {
         DestroyLumberFrenzyOrbitVfx();
         DestroySpectralAxeAreaIndicator();
+        DestroyAvatarOfTheForestGlowVfx();
     }
 
     private static bool AreAbilityRangeIndicatorsEnabled() =>
@@ -650,15 +676,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         renderer.renderMode = ParticleSystemRenderMode.Billboard;
         if (!TryApplyPlayerSpriteSortingToRenderer(renderer, 10))
             renderer.sortingOrder = 19;
-        Shader particleShader = Shader.Find("Particles/Alpha Blended");
-        if (particleShader != null)
-            renderer.material = new Material(particleShader);
-        else
-        {
-            Shader fallback = Shader.Find("Sprites/Default");
-            if (fallback != null)
-                renderer.material = new Material(fallback);
-        }
+        ApplyRuntimeParticleMaterialIfNeeded(renderer);
 
         ps.Play(true);
     }
@@ -929,6 +947,283 @@ public class PlayerAbilityVfxController : MonoBehaviour
             Destroy(_spectralAxeAreaIndicatorRoot);
             _spectralAxeAreaIndicatorRoot = null;
             _spectralAxeAreaIndicatorLine = null;
+        }
+    }
+
+    public void SpawnAvatarOfTheForestGlowVfx()
+    {
+        DestroyAvatarOfTheForestGlowVfx();
+        Transform parent = player != null ? player.transform : transform;
+        if (parent == null)
+            return;
+
+        _avatarOfForestGlowRoot = new GameObject("AvatarOfTheForestGlow");
+        _avatarOfForestGlowRoot.transform.SetParent(parent, false);
+        _avatarOfForestGlowRoot.transform.localPosition = avatarOfForestGlowLocalOffset;
+        _avatarOfForestGlowRoot.transform.localRotation = Quaternion.identity;
+        _avatarOfForestGlowRoot.transform.localScale = Vector3.one;
+
+        GameObject emitterGO = new GameObject("ForestRadianceEmitter");
+        emitterGO.transform.SetParent(_avatarOfForestGlowRoot.transform, false);
+        emitterGO.transform.localPosition = Vector3.zero;
+
+        ParticleSystem ps = emitterGO.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        var main = ps.main;
+        main.playOnAwake = false;
+        main.loop = true;
+        main.duration = 1f;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.72f, 0.95f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0f);
+        float sizeMin = Mathf.Min(avatarOfForestParticleStartSizeMin, avatarOfForestParticleStartSizeMax);
+        float sizeMax = Mathf.Max(avatarOfForestParticleStartSizeMin, avatarOfForestParticleStartSizeMax);
+        sizeMin = Mathf.Max(0.001f, sizeMin);
+        sizeMax = Mathf.Max(sizeMin, sizeMax);
+        main.startSize = new ParticleSystem.MinMaxCurve(sizeMin, sizeMax);
+        main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+        main.startColor = avatarOfForestGlowColor;
+        main.simulationSpace = ParticleSystemSimulationSpace.Local;
+        main.gravityModifier = 0f;
+        main.maxParticles = 420;
+        main.simulationSpeed = 1f;
+
+        var emission = ps.emission;
+        emission.rateOverTime = avatarOfForestGlowEmissionRate;
+
+        var shape = ps.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Cone;
+        shape.angle = avatarOfForestGlowConeAngle;
+        shape.radius = Mathf.Max(0.02f, avatarOfForestGlowSphereRadius);
+        shape.arc = 360f;
+        shape.randomDirectionAmount = 0.06f;
+        shape.alignToDirection = false;
+
+        var vel = ps.velocityOverLifetime;
+        vel.enabled = true;
+        vel.space = ParticleSystemSimulationSpace.Local;
+        // Unity requires every velocity axis use the same MinMaxCurve mode (here: TwoCurves).
+        AnimationCurve rise = new AnimationCurve(
+            new Keyframe(0f, 0.22f, 0f, 0.45f),
+            new Keyframe(0.2f, 0.48f, 1.15f, 1.45f),
+            new Keyframe(0.48f, 1.05f, 1.7f, 1.95f),
+            new Keyframe(1f, 2.85f, 2.15f, 0f));
+        vel.y = new ParticleSystem.MinMaxCurve(1f, ScaleAnimationCurveValues(rise, 0.9f), ScaleAnimationCurveValues(rise, 1.1f));
+
+        AnimationCurve outPos = new AnimationCurve(
+            new Keyframe(0f, 0f, 0f, 0f),
+            new Keyframe(0.12f, 0.06f, 0.55f, 0.55f),
+            new Keyframe(1f, 0.62f, 0.95f, 0f));
+        AnimationCurve outNeg = new AnimationCurve(
+            new Keyframe(0f, 0f, 0f, 0f),
+            new Keyframe(0.12f, -0.06f, -0.55f, -0.55f),
+            new Keyframe(1f, -0.62f, -0.95f, 0f));
+        vel.x = new ParticleSystem.MinMaxCurve(1f, outNeg, outPos);
+
+        AnimationCurve outZPos = new AnimationCurve(
+            new Keyframe(0f, 0f, 0f, 0f),
+            new Keyframe(1f, 0.22f, 0.45f, 0f));
+        AnimationCurve outZNeg = new AnimationCurve(
+            new Keyframe(0f, 0f, 0f, 0f),
+            new Keyframe(1f, -0.22f, -0.45f, 0f));
+        vel.z = new ParticleSystem.MinMaxCurve(1f, outZNeg, outZPos);
+
+        var sol = ps.sizeOverLifetime;
+        sol.enabled = true;
+        AnimationCurve shrink = new AnimationCurve(
+            new Keyframe(0f, 1f, 0f, 0f),
+            new Keyframe(0.25f, 0.78f, -0.35f, -0.35f),
+            new Keyframe(1f, 0.12f, -0.4f, 0f));
+        sol.size = new ParticleSystem.MinMaxCurve(1f, shrink);
+
+        var trails = ps.trails;
+        trails.enabled = true;
+        trails.mode = ParticleSystemTrailMode.PerParticle;
+        trails.ratio = 1f;
+        float tLife = Mathf.Max(0.02f, avatarOfForestTrailLifetime);
+        trails.lifetime = new ParticleSystem.MinMaxCurve(tLife * 0.88f, tLife * 1.12f);
+        trails.minVertexDistance = 0.008f;
+        trails.worldSpace = false;
+        trails.dieWithParticles = true;
+        trails.sizeAffectsWidth = false;
+        trails.sizeAffectsLifetime = false;
+        trails.inheritParticleColor = true;
+        AnimationCurve trailW = new AnimationCurve(
+            new Keyframe(0f, 1f, 0f, 0f),
+            new Keyframe(0.35f, 0.55f, -0.8f, -0.8f),
+            new Keyframe(1f, 0.04f, -0.2f, 0f));
+        trails.widthOverTrail = new ParticleSystem.MinMaxCurve(Mathf.Max(0.004f, avatarOfForestTrailWidth), trailW);
+
+        Gradient trailTailFade = new Gradient();
+        trailTailFade.SetKeys(
+            new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+            new[]
+            {
+                new GradientAlphaKey(0.9f, 0f),
+                new GradientAlphaKey(0.35f, 0.5f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        trails.colorOverTrail = new ParticleSystem.MinMaxGradient(trailTailFade);
+
+        var col = ps.colorOverLifetime;
+        col.enabled = true;
+        Color c = avatarOfForestGlowColor;
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.Lerp(c, Color.white, 0.22f), 0f),
+                new GradientColorKey(c, 0.35f),
+                new GradientColorKey(Color.Lerp(c, new Color(0.2f, 0.75f, 0.35f), 0.5f), 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(Mathf.Clamp01(c.a), 0f),
+                new GradientAlphaKey(Mathf.Clamp01(c.a * 0.72f), 0.45f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        col.color = new ParticleSystem.MinMaxGradient(g);
+
+        ParticleSystemRenderer renderer = ps.GetComponent<ParticleSystemRenderer>();
+        renderer.renderMode = ParticleSystemRenderMode.Billboard;
+        if (!TryApplyPlayerSpriteSortingToRenderer(renderer, 12))
+            renderer.sortingOrder = 24;
+        ApplyRuntimeParticleMaterialIfNeeded(renderer);
+
+        ps.Play(true);
+    }
+
+    /// <summary>
+    /// Runtime-spawned particle renderers need a URP-safe material. By default we use <c>Sprites/Default</c> so
+    /// <see cref="ParticleSystem"/> vertex colors show (same idea as the first green VFX). Optional template /
+    /// Resources URP mat / <see cref="Shader.Find"/> are fallbacks.
+    /// </summary>
+    private void ApplyRuntimeParticleMaterialIfNeeded(ParticleSystemRenderer renderer)
+    {
+        if (renderer == null)
+            return;
+
+        Material mat = TryCreateRuntimeUrParticleMaterial();
+        if (mat == null)
+            return;
+
+        renderer.material = mat;
+        renderer.trailMaterial = mat;
+    }
+
+    private Material TryCreateRuntimeUrParticleMaterial()
+    {
+        if (runtimeParticleMaterialTemplate != null && runtimeParticleMaterialTemplate.shader != null)
+            return new Material(runtimeParticleMaterialTemplate);
+
+        // Tinted billboards: Sprites/Default respects ParticleSystem vertex colors (the original green look in URP 2D).
+        // URP Particles/Unlit can end up fully invisible with some trail + sheet setups; keep it as fallback below.
+        Shader spriteShader = Shader.Find("Sprites/Default");
+        if (spriteShader != null)
+        {
+            var spriteMat = new Material(spriteShader) { color = Color.white };
+            spriteMat.mainTexture = Texture2D.whiteTexture;
+            return spriteMat;
+        }
+
+        Material fromResources = Resources.Load<Material>(ResourcesUrParticleMaterialPath);
+        if (fromResources != null && fromResources.shader != null)
+            return new Material(fromResources);
+
+        Shader shader = TryResolveUrParticleShader();
+        if (shader == null)
+        {
+            if (!s_LoggedMissingUrParticleMaterial)
+            {
+                s_LoggedMissingUrParticleMaterial = true;
+                Debug.LogWarning(
+                    "PlayerAbilityVfxController: No particle material/shader available (Sprites/Default missing and no URP fallback). Assign Runtime Particle Material Template or keep Assets/Resources/Vfx/AbilityVfx_ParticlesUnlit.mat.");
+            }
+
+            return null;
+        }
+
+        return new Material(shader);
+    }
+
+    private static Shader TryResolveUrParticleShader()
+    {
+        try
+        {
+            foreach (ShaderPathID id in new[]
+                     {
+                         ShaderPathID.ParticlesUnlit,
+                         ShaderPathID.ParticlesSimpleLit,
+                         ShaderPathID.ParticlesLit
+                     })
+            {
+                string path = ShaderUtils.GetShaderPath(id);
+                if (string.IsNullOrEmpty(path))
+                    continue;
+                Shader s = Shader.Find(path);
+                if (s != null)
+                    return s;
+            }
+        }
+        catch (Exception)
+        {
+            // ShaderUtils / enum mismatch on unexpected URP versions — fall through to string paths.
+        }
+
+        foreach (string path in new[]
+                 {
+                     "Universal Render Pipeline/Particles/Unlit",
+                     "Universal Render Pipeline/Particles/Simple Lit",
+                     "Universal Render Pipeline/Particles/Lit",
+                     "Universal Render Pipeline/Unlit",
+                     "Universal Render Pipeline/Lit",
+                     "Universal Render Pipeline/2D/Sprite-Unlit-Default",
+                     "Sprites/Default",
+                     "Hidden/Internal-Colored"
+                 })
+        {
+            Shader s = Shader.Find(path);
+            if (s != null)
+                return s;
+        }
+
+        return null;
+    }
+
+    /// <summary>Vertical scale of keyframe values/tangents (keeps curve shape for MinMaxCurve TwoCurves).</summary>
+    private static AnimationCurve ScaleAnimationCurveValues(AnimationCurve source, float valueMultiplier)
+    {
+        if (source == null || source.length == 0)
+            return new AnimationCurve();
+
+        Keyframe[] keys = source.keys;
+        var scaled = new AnimationCurve();
+        for (int i = 0; i < keys.Length; i++)
+        {
+            Keyframe k = keys[i];
+            k.value *= valueMultiplier;
+            k.inTangent *= valueMultiplier;
+            k.outTangent *= valueMultiplier;
+            scaled.AddKey(k);
+        }
+
+        return scaled;
+    }
+
+    public void UpdateAvatarOfTheForestGlowVfx(bool buffActive)
+    {
+        if (!buffActive || _avatarOfForestGlowRoot == null)
+            return;
+        _avatarOfForestGlowRoot.transform.localPosition = avatarOfForestGlowLocalOffset;
+    }
+
+    public void DestroyAvatarOfTheForestGlowVfx()
+    {
+        if (_avatarOfForestGlowRoot != null)
+        {
+            Destroy(_avatarOfForestGlowRoot);
+            _avatarOfForestGlowRoot = null;
         }
     }
 }
