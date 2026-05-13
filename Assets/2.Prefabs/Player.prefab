@@ -5521,6 +5521,7 @@ GameObject:
   - component: {fileID: 753017158846464440}
   - component: {fileID: 1771682296187552649}
   - component: {fileID: 7966594728544107448}
+  - component: {fileID: 8811223344556677889}
   - component: {fileID: 7462036414647869483}
   - component: {fileID: 4199332309700179123}
   - component: {fileID: 343137512557904079}
@@ -5654,7 +5655,22 @@ MonoBehaviour:
   inventory: {fileID: 0}
   toolbelt: {fileID: 0}
   buffController: {fileID: 0}
+  abilityVfx: {fileID: 0}
   globalCooldownSeconds: 1
+--- !u!114 &8811223344556677889
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8f3a9c7124e48f1a2b3c4d5e6f70891, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAbilityVfxController
+  player: {fileID: 7462036414647869483}
+  combat: {fileID: 343137512557904079}
   powerSlashTrailAnchor: {fileID: 7149526798742480501}
   powerSlashAnchorNameCandidates:
   - Weapon
@@ -5682,6 +5698,11 @@ MonoBehaviour:
   crescentSlashVfxDuration: 0.4
   crescentSlashLineWidth: 1
   crescentSlashCenterOffset: {x: 0, y: 0.65, z: 0}
+  lumberFrenzyOrbitVfxPrefab: {fileID: 0}
+  lumberFrenzyOrbitVfxLocalOffset: {x: 0, y: 0, z: 0}
+  lumberFrenzyOrbitRadius: 0.88
+  lumberFrenzySweepPeriodSeconds: 0.95
+  lumberFrenzyOrbitVfxColor: {r: 0.35, g: 1, b: 0.45, a: 1}
   soulforgedWeaponMinionPresentation:
     attackRange: 6
     hitRadius: 0.42
@@ -5712,6 +5733,7 @@ MonoBehaviour:
   spectralAxeTint: {r: 0.55, g: 0.8, b: 1, a: 0.85}
   spectralAxeVisualLift: 1.35
   spectralAxeSpinDegreesPerSecond: 720
+  spectralAxeSpinClockwise: 1
   spectralAxeTravelSpeedUnitsPerSecond: 12
   spectralAxeTrailLifetimeSeconds: 0.32
   spectralAxeTrailStartWidth: 0.18

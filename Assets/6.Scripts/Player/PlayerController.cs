@@ -174,10 +174,11 @@ public class PlayerController : MonoBehaviour
     [Header("Popup (reserved; messages go to activity log only)")]
     [SerializeField] private GameObject actionPopup;
 
-    private const float ConsumableCooldownActivityLogIntervalSeconds = 5f;
     private const float RepeatedPopupActivityLogIntervalSeconds = 5f;
-    private float _nextFoodCooldownActivityLogTime;
-    private float _nextPotionCooldownActivityLogTime;
+    /// <summary>While true, duplicate "Food on cooldown …" lines are suppressed until latch resets.</summary>
+    private bool _foodConsumableUnusableActivityLogged;
+    /// <summary>While true, duplicate "Potions on cooldown …" lines are suppressed until latch resets.</summary>
+    private bool _potionConsumableUnusableActivityLogged;
     private readonly Dictionary<string, float> _nextActivityLogTimeByPopupMessage = new(StringComparer.OrdinalIgnoreCase);
 
     [Header("Tools Required (Gather)")]
@@ -1117,6 +1118,20 @@ public class PlayerController : MonoBehaviour
     // Popup feedback (activity log only; no floating copy above the player)
     // -------------------------
 
+    /// <summary>
+    /// Clears the "unusable" activity-log latch so the next blocked attempt (e.g. shared cooldown) can log again.
+    /// Call when a food/potion use succeeds, or from <see cref="PlayerConsumableController"/> when that item is off cooldown.
+    /// </summary>
+    public void ResetConsumableUnusableActivityLogLatchFor(ItemDefinition def)
+    {
+        if (def == null || !def.IsConsumable)
+            return;
+        if (def.IsFood)
+            _foodConsumableUnusableActivityLogged = false;
+        if (def.IsPotion)
+            _potionConsumableUnusableActivityLogged = false;
+    }
+
     private void ShowPopupInternal(string msg)
     {
         if (string.IsNullOrWhiteSpace(msg))
@@ -1138,11 +1153,21 @@ public class PlayerController : MonoBehaviour
     private bool ShouldLogPopupToActivity(string msg)
     {
         if (IsConsumableCooldownMessage(msg, "Food"))
-            return TryPassConsumableCooldownLogGate(ref _nextFoodCooldownActivityLogTime);
+        {
+            if (_foodConsumableUnusableActivityLogged)
+                return false;
+            _foodConsumableUnusableActivityLogged = true;
+            return true;
+        }
 
         if (IsConsumableCooldownMessage(msg, "Potions") ||
             IsConsumableCooldownMessage(msg, "Potion"))
-            return TryPassConsumableCooldownLogGate(ref _nextPotionCooldownActivityLogTime);
+        {
+            if (_potionConsumableUnusableActivityLogged)
+                return false;
+            _potionConsumableUnusableActivityLogged = true;
+            return true;
+        }
 
         return TryPassRepeatedPopupLogGate(msg);
     }
@@ -1151,15 +1176,6 @@ public class PlayerController : MonoBehaviour
     {
         return !string.IsNullOrWhiteSpace(msg) &&
                msg.StartsWith($"{consumableLabel} on cooldown", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool TryPassConsumableCooldownLogGate(ref float nextAllowedTime)
-    {
-        if (Time.unscaledTime < nextAllowedTime)
-            return false;
-
-        nextAllowedTime = Time.unscaledTime + ConsumableCooldownActivityLogIntervalSeconds;
-        return true;
     }
 
     private bool TryPassRepeatedPopupLogGate(string msg)

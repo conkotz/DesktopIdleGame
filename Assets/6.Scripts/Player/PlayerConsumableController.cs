@@ -45,7 +45,11 @@ public class PlayerConsumableController : MonoBehaviour
 
         string cooldownKey = GetCooldownKey(def);
 
-        if (IsOnCooldown(itemId, out float remaining))
+        bool onCooldown = IsOnCooldown(itemId, out float remaining);
+        if (!onCooldown)
+            player.ResetConsumableUnusableActivityLogLatchFor(def);
+
+        if (onCooldown)
         {
             string displayName = GetCooldownDisplayName(def);
             player.ShowPopup($"{displayName} on cooldown ({remaining:0.#}s)");
@@ -66,6 +70,8 @@ public class PlayerConsumableController : MonoBehaviour
 
         if (def.UseCooldown > 0f && !string.IsNullOrWhiteSpace(cooldownKey))
             cooldownEndTimes[cooldownKey] = Time.time + def.UseCooldown;
+
+        player.ResetConsumableUnusableActivityLogLatchFor(def);
 
         if (debugLogs)
             Debug.Log($"[Consumable] Used {def.displayName} (Cooldown Group: {cooldownKey})");

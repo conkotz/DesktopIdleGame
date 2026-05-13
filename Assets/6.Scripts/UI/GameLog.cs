@@ -47,6 +47,8 @@ public static class GameLog
     public static readonly Color QuestCompleteColor = new Color(0.82f, 0.96f, 0.82f, 1f);
     public static readonly Color LevelAvailableColor = new Color(0.35f, 0.8f, 1f, 1f);
     public static readonly Color RegionUnlockedColor = new Color(0.45f, 1f, 0.45f, 1f);
+    /// <summary>Player used an ability (action bar / combat).</summary>
+    public static readonly Color AbilityUsedColor = new Color(0.55f, 0.78f, 1f, 1f);
 
     private static readonly List<Entry> Entries = new();
 

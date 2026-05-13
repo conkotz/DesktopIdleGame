@@ -626,6 +626,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (count <= 0)
                 continue;
 
+            if (consumableController.IsOnCooldown(action.id, out _))
+                continue;
+
             if (missingHp < (float)def.HealAmount)
                 continue;
 

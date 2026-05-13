@@ -30,45 +30,11 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField] private Inventory inventory;
     [SerializeField] private ToolbeltManager toolbelt;
     [SerializeField] private PlayerBuffController buffController;
+    [SerializeField] private PlayerAbilityVfxController abilityVfx;
 
     [Header("Global Cooldown")]
     [SerializeField, Min(0f)] private float globalCooldownSeconds = 0.15f;
     private float _globalCooldownEndsAt;
-
-    // Power Slash VFX — grouped in Inspector via PlayerAbilityControllerEditor
-    [SerializeField] private Transform powerSlashTrailAnchor;
-    [SerializeField] private string[] powerSlashAnchorNameCandidates = { "Weapon", "MainHandItem", "MainHand" };
-    [SerializeField] private Color powerSlashTrailColor = new Color(1f, 0.88f, 0.22f, 0.95f);
-    [SerializeField, Min(0.01f)] private float powerSlashTrailTime = 0.18f;
-    [SerializeField, Min(0.01f)] private float powerSlashSwingDuration = 0.14f;
-    [SerializeField, Min(0.01f)] private float powerSlashTrailWidth = 0.4f;
-    [SerializeField] private Vector2 powerSlashAngleRange = new Vector2(155f, -30f);
-    [SerializeField] private Vector3 powerSlashLocalOffset = new Vector3(0.04f, 0.02f, 0f);
-    [SerializeField] private Vector2 powerSlashTipLocalOffset = new Vector2(0.52f, 0.06f);
-    [SerializeField, Min(0f)] private float powerSlashEdgeFollowSmoothing = 0.06f;
-    [SerializeField] private bool powerSlashUseDoubleSwipe = true;
-    [SerializeField, Min(0f)] private float powerSlashSecondSwipeDelay = 0.035f;
-    [SerializeField] private float powerSlashSecondSwipeAngleOffset = 18f;
-
-    // Whirlwind VFX — grouped in Inspector via PlayerAbilityControllerEditor
-    [SerializeField] private Color whirlingBladeColor = new Color(1f, 0.88f, 0.22f, 0.95f);
-    [SerializeField, Min(0.01f)] private float whirlingBladeDuration = 0.22f;
-    [SerializeField, Min(90f)] private float whirlingBladeSpinDegrees = 720f;
-    [SerializeField, Min(0.01f)] private float whirlingBladeLineWidth = 0.14f;
-    [SerializeField] private Vector3 whirlingBladeCenterOffset = new Vector3(0f, 0.65f, 0f);
-    [SerializeField, Min(0f)] private float whirlingBladeUpwardDrift = 0.14f;
-    [SerializeField, Min(0f)] private float whirlingBladeVerticalWave = 0.06f;
-
-    // Crescent Slash VFX — grouped in Inspector via PlayerAbilityControllerEditor
-    [SerializeField] private Color crescentSlashColor = new Color(0.55f, 0.95f, 1f, 0.9f);
-    [SerializeField, Min(0.05f)] private float crescentSlashVfxDuration = 0.18f;
-    [SerializeField, Min(0.01f)] private float crescentSlashLineWidth = 0.12f;
-    [SerializeField] private Vector3 crescentSlashCenterOffset = new Vector3(0f, 0.65f, 0f);
-
-    /// <summary>
-    /// Motion, attach, slash, and visuals for Soulforged Weapon minion (tune on Player prefab).
-    /// </summary>
-    [SerializeField] private SoulforgedWeaponMinionPresentation soulforgedWeaponMinionPresentation;
 
     private readonly Dictionary<string, float> _cooldownEndsById = new(StringComparer.OrdinalIgnoreCase);
 
@@ -111,36 +77,6 @@ public class PlayerAbilityController : MonoBehaviour
     /// short enough to feel forgiving.
     /// </summary>
     private const float SpectralAxeMissedCastCooldownSeconds = 10f;
-
-    [Header("Spectral Axe VFX")]
-    [Tooltip("Blue hue tint applied to the cloned axe sprite. Alpha drives the translucency of the whole projectile.")]
-    [SerializeField] private Color spectralAxeTint = new Color(0.55f, 0.80f, 1f, 0.85f);
-    [Tooltip("Vertical offset added to the spinning axe so it floats at roughly chest height. Gather/targeting logic still uses ground-level positions, so this is purely cosmetic.")]
-    [SerializeField, Min(0f)] private float spectralAxeVisualLift = 1.2f;
-    [Tooltip("Continuous spin rate of the axe sprite while deployed (degrees per second).")]
-    [SerializeField, Min(0f)] private float spectralAxeSpinDegreesPerSecond = 720f;
-    [Tooltip("When true the axe spins clockwise (negative Z rotation in 2D); when false it spins counter-clockwise.")]
-    [SerializeField] private bool spectralAxeSpinClockwise = true;
-    [Tooltip("World units per second the axe travels along the outbound and return flight phases.")]
-    [SerializeField, Min(0.1f)] private float spectralAxeTravelSpeedUnitsPerSecond = 12f;
-
-    [Header("Spectral Axe Blue Trail")]
-    [Tooltip("Total lifetime of the blue trail behind the spinning axe. Lower = shorter wisp; higher = longer arc.")]
-    [SerializeField, Min(0.01f)] private float spectralAxeTrailLifetimeSeconds = 0.32f;
-    [Tooltip("Starting width of the trail ribbon at the anchor point on the axe.")]
-    [SerializeField, Min(0f)] private float spectralAxeTrailStartWidth = 0.18f;
-    [Tooltip("Final width of the trail ribbon as it fades out.")]
-    [SerializeField, Min(0f)] private float spectralAxeTrailEndWidth = 0f;
-    [Tooltip("Starting alpha of the trail ribbon at the anchor point. Final alpha is always 0.")]
-    [SerializeField, Range(0f, 1f)] private float spectralAxeTrailStartAlpha = 0.75f;
-    [Tooltip("Fraction of the axe sprite's width subtracted from center to place the trail at the back of the head. Negative = front edge.")]
-    [SerializeField] private float spectralAxeTrailAnchorXFrac = 0.28f;
-    [Tooltip("Fraction of the axe sprite's height added above center to place the trail near the top of the head. Higher = closer to the top edge.")]
-    [SerializeField] private float spectralAxeTrailAnchorYFrac = 0.55f;
-    [Tooltip("Trail color at the moment it leaves the axe.")]
-    [SerializeField] private Color spectralAxeTrailColorStart = new Color(0.45f, 0.78f, 1f);
-    [Tooltip("Trail color at the tail end as it dissipates.")]
-    [SerializeField] private Color spectralAxeTrailColorEnd = new Color(0.30f, 0.55f, 1f);
 
     private const int SpectralAxeChoiceSourceLevel = 25;
     private const int SpectralAxePhantomHarvestChoiceIndex = 0;
@@ -210,32 +146,7 @@ public class PlayerAbilityController : MonoBehaviour
     private ResourceNode _spectralAxeGatherTarget;
     /// <summary>True when the axe parked but found no tree in its area → cooldown is overridden to <see cref="SpectralAxeMissedCastCooldownSeconds"/>.</summary>
     private bool _spectralAxeMissedCast;
-    /// <summary>Visualizer rectangle showing the ±2 gather area around the rotating axe; lifecycle matches the projectile.</summary>
-    private GameObject _spectralAxeAreaIndicatorRoot;
-    private LineRenderer _spectralAxeAreaIndicatorLine;
 
-    [Header("Cleaving Chop range indicator")]
-    [Tooltip("Auto-spawned LineRenderer circle drawn around the player while Cleaving Chop is active.")]
-    [SerializeField] private bool cleavingChopShowRangeIndicator = true;
-    [SerializeField] private Color cleavingChopIndicatorColor = new Color(0.55f, 0.95f, 0.30f, 0.85f);
-    [SerializeField, Range(16, 128)] private int cleavingChopIndicatorSegments = 64;
-    [SerializeField, Min(0.005f)] private float cleavingChopIndicatorLineWidth = 0.14f;
-    [Tooltip("Sorting order on the indicator LineRenderer. Higher = draws over more sprites. Default 50 draws above the lane backgrounds.")]
-    [SerializeField] private int cleavingChopIndicatorSortingOrder = 50;
-    [Tooltip("Sorting layer for the indicator. Leave blank for the project's default layer.")]
-    [SerializeField] private string cleavingChopIndicatorSortingLayer = "";
-    private GameObject _cleavingChopIndicatorRoot;
-    private LineRenderer _cleavingChopIndicatorLine;
-    private float _cleavingChopIndicatorAppliedRadius = float.NaN;
-
-    [Header("Spectral Axe area indicator")]
-    [Tooltip("Auto-spawned LineRenderer circle drawn around the spectral axe while it's deployed (same style as Cleaving Chop).")]
-    [SerializeField] private bool spectralAxeShowAreaIndicator = true;
-    [SerializeField] private Color spectralAxeAreaIndicatorColor = new Color(0.55f, 0.95f, 0.30f, 0.85f);
-    [SerializeField, Range(16, 128)] private int spectralAxeAreaIndicatorSegments = 64;
-    [SerializeField, Min(0.005f)] private float spectralAxeAreaIndicatorLineWidth = 0.12f;
-    [SerializeField] private int spectralAxeAreaIndicatorSortingOrder = 50;
-    [SerializeField] private string spectralAxeAreaIndicatorSortingLayer = "";
     private float _queuedPowerSlashPhysicalMultiplier = 1f;
     private float _queuedPowerSlashMagicMultiplier = 1f;
     private float _queuedPowerSlashCorruptionMultiplier;
@@ -296,6 +207,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!inventory) inventory = GetComponent<Inventory>();
         if (!toolbelt) toolbelt = GetComponent<ToolbeltManager>();
         if (!buffController) buffController = GetComponent<PlayerBuffController>();
+        if (!abilityVfx) abilityVfx = GetComponent<PlayerAbilityVfxController>();
         if (!abilityDatabase) abilityDatabase = AbilityDatabase.LoadDefault();
         if (!skillDatabase) skillDatabase = SkillDatabase.LoadDefault();
         if (!skillsManager) skillsManager = SkillsManager.Instance;
@@ -311,6 +223,7 @@ public class PlayerAbilityController : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= HandleSceneLoaded;
+        abilityVfx?.DestroyLumberFrenzyOrbitVfx();
     }
 
     private void Update()
@@ -319,10 +232,11 @@ public class PlayerAbilityController : MonoBehaviour
         CleanupCleavingStrikesIfExpired();
         SyncCleavingStrikesHudBuff();
         CleanupLumberFrenzyIfExpired();
+        abilityVfx?.UpdateLumberFrenzyOrbitVfx(IsLumberFrenzyActive);
         SyncLumberFrenzyHudBuff();
         CleanupCleavingChopIfExpired();
         SyncCleavingChopHudBuff();
-        UpdateCleavingChopRangeIndicator();
+        abilityVfx?.UpdateCleavingChopRangeIndicator(IsCleavingChopActive, GetCleavingChopRange());
         SyncSpectralAxeHudBuff();
         CleanupSoulforgedWeaponIfUnavailable();
         SyncSoulforgedWeaponHudBuff();
@@ -439,6 +353,14 @@ public class PlayerAbilityController : MonoBehaviour
         return Mathf.Clamp01(remaining / Mathf.Max(0.01f, globalCooldownSeconds));
     }
 
+    private void LogAbilityUsed(AbilityDefinition def)
+    {
+        if (!def)
+            return;
+        string label = string.IsNullOrWhiteSpace(def.displayName) ? def.abilityId : def.displayName.Trim();
+        GameLog.Add($"Ability used: {label}", GameLog.AbilityUsedColor);
+    }
+
     /// <param name="allowSoulforgedRecastWhileActive">
     /// When false (e.g. idle auto-abilities), an active Soulforged Weapon minion does not receive recast/retarget — use fails so other bar abilities can run.
     /// Manual bar use keeps default true (player can recast while the summon is up).
@@ -484,6 +406,7 @@ public class PlayerAbilityController : MonoBehaviour
             RecastActiveSoulforgedWeapons();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
 
@@ -548,6 +471,7 @@ public class PlayerAbilityController : MonoBehaviour
 
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
 
@@ -566,6 +490,7 @@ public class PlayerAbilityController : MonoBehaviour
             _queuedPowerSlashAllDamageMultiplier = def.GetEffectiveAllDamageMultiplier();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
 
@@ -576,6 +501,7 @@ public class PlayerAbilityController : MonoBehaviour
             _rendQueued = true;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
 
@@ -586,6 +512,7 @@ public class PlayerAbilityController : MonoBehaviour
             _envenomQueued = true;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
         if (string.Equals(def.abilityId, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
@@ -594,6 +521,7 @@ public class PlayerAbilityController : MonoBehaviour
             StartCooldown(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
         if (string.Equals(def.abilityId, LumberFrenzyId, StringComparison.OrdinalIgnoreCase))
@@ -603,6 +531,7 @@ public class PlayerAbilityController : MonoBehaviour
             _lumberFrenzyCooldownAbilityDef = def;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
         if (string.Equals(def.abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase))
@@ -611,6 +540,7 @@ public class PlayerAbilityController : MonoBehaviour
             _cleavingChopCooldownAbilityDef = def;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
         if (string.Equals(def.abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase))
@@ -620,6 +550,7 @@ public class PlayerAbilityController : MonoBehaviour
             _spectralAxeCooldownAbilityDef = def;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
         if (isCrescentSlash)
@@ -641,6 +572,7 @@ public class PlayerAbilityController : MonoBehaviour
 
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
 
@@ -653,6 +585,7 @@ public class PlayerAbilityController : MonoBehaviour
             StartCooldown(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
             return true;
         }
 
@@ -707,6 +640,7 @@ public class PlayerAbilityController : MonoBehaviour
         StartCooldown(def);
         if (globalCooldownSeconds > 0f)
             _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+        LogAbilityUsed(def);
         return true;
     }
 
@@ -792,7 +726,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         player?.TriggerAttackAnimVisualOnly();
-        SpawnWhirlwindVfx(radius);
+        abilityVfx?.SpawnWhirlwind(radius);
 
         if (targets.Count <= 0)
             return true; // ability cast still consumes resources/cooldown.
@@ -843,7 +777,7 @@ public class PlayerAbilityController : MonoBehaviour
         bool penetrating = selected == 1;
 
         float reach = GetWhirlwindBaseRange() + 6f;
-        SpawnCrescentSlashVfx(reach);
+        abilityVfx?.SpawnCrescentSlash(reach, GetCombatFacingSign());
 
         List<(EnemyBaseController enemy, float dist)> forwardHits = CollectCrescentSlashForwardHits(reach);
 
@@ -1016,7 +950,7 @@ public class PlayerAbilityController : MonoBehaviour
         yield return new WaitForSeconds(WhirlwindTwinCycloneSecondHitDelay);
 
         // Replay only the Whirlwind VFX; do not retrigger the attack animation on second wave.
-        SpawnWhirlwindVfx(radius);
+        abilityVfx?.SpawnWhirlwind(radius);
 
         if (targets == null || targets.Count == 0)
             yield break;
@@ -1224,200 +1158,6 @@ public class PlayerAbilityController : MonoBehaviour
         }
     }
 
-    private void SpawnWhirlwindVfx(float radius)
-    {
-        Transform anchor = ResolvePowerSlashAnchor();
-        Transform center = player != null ? player.transform : transform;
-        if (center == null)
-            return;
-
-        if (anchor == null)
-            anchor = center;
-
-        GameObject orbitGO = new GameObject("WhirlwindTrailEmitter");
-        orbitGO.transform.position = center.position + whirlingBladeCenterOffset;
-
-        TrailRenderer trail = orbitGO.AddComponent<TrailRenderer>();
-        trail.time = Mathf.Max(0.06f, whirlingBladeDuration * 0.75f);
-        trail.minVertexDistance = 0.003f;
-        trail.widthMultiplier = Mathf.Max(0.01f, whirlingBladeLineWidth);
-        trail.numCornerVertices = 4;
-        trail.numCapVertices = 4;
-        trail.alignment = LineAlignment.TransformZ;
-        trail.textureMode = LineTextureMode.Stretch;
-        trail.material = new Material(Shader.Find("Sprites/Default"));
-        trail.sortingOrder = 20;
-        trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        trail.receiveShadows = false;
-        trail.emitting = true;
-
-        Gradient gradient = new Gradient();
-        gradient.SetKeys(
-            new[]
-            {
-                new GradientColorKey(whirlingBladeColor, 0f),
-                new GradientColorKey(Color.Lerp(whirlingBladeColor, Color.white, 0.25f), 0.45f),
-                new GradientColorKey(whirlingBladeColor, 1f)
-            },
-            new[]
-            {
-                new GradientAlphaKey(whirlingBladeColor.a, 0f),
-                new GradientAlphaKey(Mathf.Clamp01(whirlingBladeColor.a * 0.85f), 0.4f),
-                new GradientAlphaKey(0f, 1f)
-            }
-        );
-        trail.colorGradient = gradient;
-
-        Vector2 startDir = ((Vector2)anchor.position - (Vector2)center.position).normalized;
-        if (startDir.sqrMagnitude <= 0.0001f)
-            startDir = Vector2.right * ((player != null && player.transform.localScale.x < 0f) ? -1f : 1f);
-
-        StartCoroutine(AnimateWhirlwindTrail(orbitGO.transform, trail, center, radius, startDir));
-    }
-
-    private void SpawnCrescentSlashVfx(float reach)
-    {
-        Transform center = player != null ? player.transform : transform;
-        if (center == null)
-            return;
-
-        Vector3 startPos = center.position + crescentSlashCenterOffset;
-        float facing = GetCombatFacingSign();
-        Vector3 dir = Vector3.right * facing;
-        // Main wave + two quick echoes for a fuller slash-wave look.
-        StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0f, 1f, 1f, 25));
-        StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0.045f, 0.92f, 0.62f, 24));
-        StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0.09f, 0.84f, 0.38f, 23));
-    }
-
-    private IEnumerator SpawnProjectedCrescentWaveAfterDelay(
-        Vector3 startPos,
-        Vector3 direction,
-        float reach,
-        float delay,
-        float reachScale,
-        float alphaScale,
-        int sortingOrder)
-    {
-        if (delay > 0f)
-            yield return new WaitForSeconds(delay);
-
-        GameObject arcGO = new GameObject("CrescentSlashArcVfx");
-        arcGO.transform.position = startPos;
-        LineRenderer line = arcGO.AddComponent<LineRenderer>();
-        line.material = new Material(Shader.Find("Sprites/Default"));
-        line.startWidth = crescentSlashLineWidth;
-        line.endWidth = crescentSlashLineWidth * 0.75f;
-        line.numCapVertices = 6;
-        line.numCornerVertices = 6;
-        line.textureMode = LineTextureMode.Stretch;
-        line.alignment = LineAlignment.TransformZ;
-        line.positionCount = 18;
-
-        Color c = new Color(crescentSlashColor.r, crescentSlashColor.g, crescentSlashColor.b, crescentSlashColor.a * Mathf.Clamp01(alphaScale));
-        line.startColor = c;
-        line.endColor = new Color(c.r, c.g, c.b, 0f);
-        line.sortingOrder = sortingOrder;
-
-        yield return AnimateProjectedCrescentVfx(line, arcGO, startPos, direction, reach * Mathf.Max(0.1f, reachScale), crescentSlashVfxDuration);
-    }
-
-    private IEnumerator AnimateProjectedCrescentVfx(
-        LineRenderer line,
-        GameObject owner,
-        Vector3 startPos,
-        Vector3 direction,
-        float reach,
-        float duration)
-    {
-        if (line == null || owner == null)
-            yield break;
-
-        float d = Mathf.Max(0.05f, duration);
-        float elapsed = 0f;
-        Color baseColor = line.startColor;
-        float visualRadius = Mathf.Clamp(reach * 0.22f, 0.9f, 2.8f);
-        float startDeg = -52f;
-        float endDeg = 52f;
-        Vector3 endPos = startPos + (direction.normalized * Mathf.Max(0.1f, reach));
-
-        while (elapsed < d && line != null)
-        {
-            float t = elapsed / d;
-            Vector3 center = Vector3.Lerp(startPos, endPos, t);
-            for (int i = 0; i < line.positionCount; i++)
-            {
-                float pt = i / Mathf.Max(1f, line.positionCount - 1f);
-                float deg = Mathf.Lerp(startDeg, endDeg, pt);
-                float rad = deg * Mathf.Deg2Rad;
-                Vector3 local = new Vector3(
-                    Mathf.Cos(rad) * visualRadius * Mathf.Sign(direction.x == 0f ? 1f : direction.x),
-                    Mathf.Sin(rad) * visualRadius,
-                    0f);
-                line.SetPosition(i, center + local);
-            }
-
-            float a = Mathf.Lerp(baseColor.a, 0f, t);
-            line.startColor = new Color(baseColor.r, baseColor.g, baseColor.b, a);
-            line.endColor = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        if (owner != null)
-            Destroy(owner);
-    }
-
-    private IEnumerator AnimateWhirlwindTrail(Transform emitter, TrailRenderer trail, Transform center, float radius, Vector2 startDir)
-    {
-        if (emitter == null || center == null)
-            yield break;
-
-        float duration = Mathf.Max(0.06f, whirlingBladeDuration);
-        float elapsed = 0f;
-
-        // Use effective attack range as the orbit size (includes +3 when Expansive is active).
-        // Keep the OUTER edge aligned to that range.
-        float width = Mathf.Max(0.01f, trail != null ? trail.widthMultiplier : whirlingBladeLineWidth);
-        // Use exact effective skill range for the trail orbit.
-        float visualRadius = Mathf.Max(0.05f, radius - (width * 0.5f));
-        float spinScale = Mathf.Clamp(Mathf.Abs(whirlingBladeSpinDegrees) / 720f, 0.25f, 2.5f);
-        while (elapsed < duration && emitter != null && center != null)
-        {
-            float t = elapsed / duration;
-            float x;
-            float y;
-            if (t < 0.5f)
-            {
-                // Pass 1: +X -> -X while dipping slightly down.
-                float p = t / 0.5f;
-                x = Mathf.Lerp(visualRadius, -visualRadius, p);
-                y = Mathf.Lerp(0f, -whirlingBladeUpwardDrift, p);
-                y += Mathf.Sin(p * Mathf.PI) * whirlingBladeVerticalWave * spinScale; // arc
-            }
-            else
-            {
-                // Pass 2: -X -> near +X while rising slightly up.
-                float p = (t - 0.5f) / 0.5f;
-                x = Mathf.Lerp(-visualRadius, visualRadius * 0.92f, p);
-                y = Mathf.Lerp(-whirlingBladeUpwardDrift, whirlingBladeUpwardDrift * 0.35f, p);
-                y += Mathf.Sin(p * Mathf.PI) * (whirlingBladeVerticalWave * 0.65f) * spinScale; // softer return arc
-            }
-
-            // Respect initial facing from anchor direction.
-            x *= Mathf.Sign(startDir.x == 0f ? 1f : startDir.x);
-            emitter.position = center.position + whirlingBladeCenterOffset + new Vector3(x, y, 0f);
-
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        if (trail != null)
-            trail.emitting = false;
-        if (emitter != null)
-            Destroy(emitter.gameObject, Mathf.Max(0.04f, whirlingBladeDuration * 0.6f));
-    }
-
     public bool TryConsumeQueuedAttackModifier(ref SplitDamage rolled)
     {
         if (rolled.IsEmpty)
@@ -1450,7 +1190,7 @@ public class PlayerAbilityController : MonoBehaviour
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
 
-            SpawnPowerSlashTrail();
+            abilityVfx?.SpawnPowerSlashTrail();
             return true;
         }
 
@@ -1534,21 +1274,8 @@ public class PlayerAbilityController : MonoBehaviour
         return true;
     }
 
-    private float GetCombatFacingSign()
-    {
-        // Player visuals are flipped on visualsRoot, not necessarily on player transform.
-        Transform anchor = ResolvePowerSlashAnchor();
-        if (anchor != null)
-        {
-            float sx = anchor.lossyScale.x;
-            if (Mathf.Abs(sx) > 0.0001f)
-                return -Mathf.Sign(sx);
-        }
-
-        if (player != null)
-            return Mathf.Sign(player.transform.localScale.x >= 0f ? 1f : -1f);
-        return 1f;
-    }
+    private float GetCombatFacingSign() =>
+        abilityVfx != null ? abilityVfx.GetCombatFacingSign() : (player != null ? Mathf.Sign(player.transform.localScale.x >= 0f ? 1f : -1f) : 1f);
 
     /// <summary>
     /// Called by <see cref="PlayerCombatController"/> after a hit lands, to apply queued on-hit logic that needs the target.
@@ -1783,6 +1510,7 @@ public class PlayerAbilityController : MonoBehaviour
         _lumberFrenzyDuration = LumberFrenzyDurationSeconds;
         _lumberFrenzyEndsAt = Time.time + _lumberFrenzyDuration;
         _lastSyncedLumberFrenzyHudEnd = float.NaN;
+        abilityVfx?.SpawnLumberFrenzyOrbitVfx();
         SyncLumberFrenzyHudBuff();
         stats?.NotifyStatsChanged();
     }
@@ -1797,6 +1525,8 @@ public class PlayerAbilityController : MonoBehaviour
         _lumberFrenzyActive = false;
         _lumberFrenzyEndsAt = 0f;
         _lumberFrenzyDuration = 0f;
+
+        abilityVfx?.DestroyLumberFrenzyOrbitVfx();
 
         // Cooldown begins now (not on cast) so the player gets a 60s
         // "downtime" after the 20s buff window finishes.
@@ -1829,6 +1559,9 @@ public class PlayerAbilityController : MonoBehaviour
         _lastSyncedLumberFrenzyHudEnd = _lumberFrenzyEndsAt;
         buffController.SetHudAbilityBuff(LumberFrenzyId, 1, _lumberFrenzyEndsAt, _lumberFrenzyDuration);
     }
+
+    /// <summary>Active Lumber Frenzy orbit VFX instance (null when the buff is off or VFX failed to spawn).</summary>
+    public Transform LumberFrenzyOrbitVfxTransform => abilityVfx != null ? abilityVfx.LumberFrenzyOrbitVfxTransform : null;
 
     public bool IsLumberFrenzyActive
     {
@@ -1971,122 +1704,6 @@ public class PlayerAbilityController : MonoBehaviour
         return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv25_0", -1);
     }
 
-    /// <summary>
-    /// True when the player's "Show screen overlay visuals" setting is ON. Drives whether ability range
-    /// gizmos (Cleaving Chop circle, Spectral Axe area, …) render. Gameplay is never gated on this.
-    /// </summary>
-    private static bool AreAbilityRangeIndicatorsEnabled()
-    {
-        return !ToggleSettingsStore.Get(ToggleSettingId.DisableScreenOverlayVisuals);
-    }
-
-    /// <summary>
-    /// Shows/hides and rescales the in-world range circle that follows the player while Cleaving Chop is active.
-    /// The indicator is lazily spawned on first activation so no manual prefab wiring is required.
-    /// </summary>
-    private void UpdateCleavingChopRangeIndicator()
-    {
-        // "Show screen overlay visuals" master toggle (Settings) suppresses every in-world ability range
-        // indicator. The buff itself keeps running — only the visualizer disappears.
-        if (!cleavingChopShowRangeIndicator || !AreAbilityRangeIndicatorsEnabled())
-        {
-            if (_cleavingChopIndicatorRoot != null && _cleavingChopIndicatorRoot.activeSelf)
-                _cleavingChopIndicatorRoot.SetActive(false);
-            return;
-        }
-
-        bool active = IsCleavingChopActive;
-        if (!active)
-        {
-            if (_cleavingChopIndicatorRoot != null && _cleavingChopIndicatorRoot.activeSelf)
-                _cleavingChopIndicatorRoot.SetActive(false);
-            _cleavingChopIndicatorAppliedRadius = float.NaN;
-            return;
-        }
-
-        EnsureCleavingChopIndicatorBuilt();
-        if (_cleavingChopIndicatorRoot == null || _cleavingChopIndicatorLine == null)
-            return;
-
-        if (!_cleavingChopIndicatorRoot.activeSelf)
-            _cleavingChopIndicatorRoot.SetActive(true);
-
-        float radius = Mathf.Max(0f, GetCleavingChopRange());
-        if (!Mathf.Approximately(_cleavingChopIndicatorAppliedRadius, radius))
-        {
-            RebuildCleavingChopIndicatorCircle(radius);
-            _cleavingChopIndicatorAppliedRadius = radius;
-        }
-    }
-
-    private void EnsureCleavingChopIndicatorBuilt()
-    {
-        if (_cleavingChopIndicatorRoot != null && _cleavingChopIndicatorLine != null)
-            return;
-
-        Transform existing = transform.Find("CleavingChopRangeIndicator");
-        if (existing != null)
-        {
-            _cleavingChopIndicatorRoot = existing.gameObject;
-            _cleavingChopIndicatorLine = existing.GetComponent<LineRenderer>();
-            if (_cleavingChopIndicatorLine == null)
-                _cleavingChopIndicatorLine = existing.gameObject.AddComponent<LineRenderer>();
-        }
-        else
-        {
-            _cleavingChopIndicatorRoot = new GameObject("CleavingChopRangeIndicator");
-            _cleavingChopIndicatorRoot.transform.SetParent(transform, false);
-            _cleavingChopIndicatorRoot.transform.localPosition = Vector3.zero;
-            _cleavingChopIndicatorRoot.transform.localRotation = Quaternion.identity;
-            _cleavingChopIndicatorRoot.transform.localScale = Vector3.one;
-            _cleavingChopIndicatorLine = _cleavingChopIndicatorRoot.AddComponent<LineRenderer>();
-        }
-
-        var lr = _cleavingChopIndicatorLine;
-        lr.useWorldSpace = false;
-        lr.loop = true;
-        // View alignment guarantees the ribbon faces the camera in both top-down and side-view setups so the
-        // circle is never edge-on (invisible) regardless of the player's local Z.
-        lr.alignment = LineAlignment.View;
-        lr.startWidth = cleavingChopIndicatorLineWidth;
-        lr.endWidth = cleavingChopIndicatorLineWidth;
-        lr.startColor = cleavingChopIndicatorColor;
-        lr.endColor = cleavingChopIndicatorColor;
-        lr.numCornerVertices = 2;
-        lr.numCapVertices = 0;
-        lr.sortingOrder = cleavingChopIndicatorSortingOrder;
-        if (!string.IsNullOrWhiteSpace(cleavingChopIndicatorSortingLayer))
-            lr.sortingLayerName = cleavingChopIndicatorSortingLayer;
-
-        // Freshly-added LineRenderers come with the legacy "Default-Line" material which renders pink (or
-        // invisible) under URP. Always replace with the project-wide Sprites/Default so vertex colors apply.
-        Shader spritesDefault = Shader.Find("Sprites/Default");
-        if (spritesDefault != null)
-            lr.material = new Material(spritesDefault) { color = Color.white };
-    }
-
-    private void RebuildCleavingChopIndicatorCircle(float radius)
-    {
-        if (_cleavingChopIndicatorLine == null)
-            return;
-
-        int segs = Mathf.Clamp(cleavingChopIndicatorSegments, 8, 256);
-        _cleavingChopIndicatorLine.positionCount = segs;
-        if (radius <= 0f)
-        {
-            for (int i = 0; i < segs; i++)
-                _cleavingChopIndicatorLine.SetPosition(i, Vector3.zero);
-            return;
-        }
-
-        float step = (Mathf.PI * 2f) / segs;
-        for (int i = 0; i < segs; i++)
-        {
-            float a = step * i;
-            _cleavingChopIndicatorLine.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, 0f));
-        }
-    }
-
     // -------- Spectral Axe (level 25 row, multi-choice with Cleaving Chop) ----------------------------
     //
     // Cast contract:
@@ -2145,12 +1762,14 @@ public class PlayerAbilityController : MonoBehaviour
         if (Mathf.Approximately(facing, 0f)) facing = 1f;
 
         Vector3 destination = origin + new Vector3(facing * SpectralAxeProjectDistance, 0f, 0f);
-        // Visual lift: the projectile spins higher than the player's pivot so it reads as a chest-height
-        // axe, but gather/target queries still use the ground-level destination so collider checks against
-        // tree trunks remain accurate.
-        Vector3 visualLift = new Vector3(0f, spectralAxeVisualLift, 0f);
+        float vLift = abilityVfx != null ? abilityVfx.SpectralAxeVisualLift : 1.2f;
+        float spinRate = abilityVfx != null ? abilityVfx.SpectralAxeSpinDegreesPerSecond : 720f;
+        bool spinCw = abilityVfx != null && abilityVfx.SpectralAxeSpinClockwise;
+        float travelSpeed = abilityVfx != null ? abilityVfx.SpectralAxeTravelSpeedUnitsPerSecond : 12f;
+        Vector3 visualLift = new Vector3(0f, vLift, 0f);
 
-        GameObject projectile = BuildSpectralAxeProjectile(origin + visualLift, facing);
+        Sprite axeSprite = ResolveEquippedAxeSprite();
+        GameObject projectile = abilityVfx != null ? abilityVfx.CreateSpectralAxeProjectile(origin + visualLift, facing, axeSprite) : null;
         if (projectile == null)
         {
             _spectralAxeActive = false;
@@ -2161,9 +1780,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         Transform projTr = projectile.transform;
         float spinDeg = 0f;
-        // In Unity 2D, positive Z rotation reads as counter-clockwise on screen, so flipping sign
-        // when spectralAxeSpinClockwise is true gives an intuitive clockwise spin.
-        float spinSign = spectralAxeSpinClockwise ? -1f : 1f;
+        float spinSign = spinCw ? -1f : 1f;
         int outboundChoice = GetSpectralAxeSelectedChoice();
         bool cleavingFlight = outboundChoice == SpectralAxeCleavingFlightChoiceIndex;
         bool outboundLogAwarded = false;
@@ -2171,7 +1788,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         // Outbound travel
         float travelDist = Mathf.Max(0.1f, SpectralAxeProjectDistance);
-        float travelTime = travelDist / Mathf.Max(0.1f, spectralAxeTravelSpeedUnitsPerSecond);
+        float travelTime = travelDist / Mathf.Max(0.1f, travelSpeed);
         float t = 0f;
         while (t < travelTime)
         {
@@ -2180,7 +1797,7 @@ public class PlayerAbilityController : MonoBehaviour
             float u = Mathf.Clamp01(t / travelTime);
             Vector3 groundPos = Vector3.Lerp(origin, destination, u);
             projTr.position = groundPos + visualLift;
-            spinDeg += spinSign * spectralAxeSpinDegreesPerSecond * Time.deltaTime;
+            spinDeg += spinSign * spinRate * Time.deltaTime;
             projTr.rotation = Quaternion.Euler(0f, 0f, spinDeg);
 
             if (cleavingFlight && !outboundLogAwarded)
@@ -2196,8 +1813,8 @@ public class PlayerAbilityController : MonoBehaviour
         Vector3 axeCenter = destination + visualLift;
         projTr.position = axeCenter;
 
-        EnsureSpectralAxeAreaIndicatorBuilt();
-        UpdateSpectralAxeAreaIndicator(axeCenter);
+        abilityVfx?.EnsureSpectralAxeAreaIndicatorBuilt();
+        abilityVfx?.UpdateSpectralAxeAreaIndicator(axeCenter, SpectralAxeAreaRadius);
 
         _spectralAxeGatherTarget = FindClosestWoodcuttingNodeInAxeArea(axeCenter);
 
@@ -2207,7 +1824,7 @@ public class PlayerAbilityController : MonoBehaviour
             GameLog.Add("No trees for spectral axe to gather from", GameLog.CannotMessageColor);
             _spectralAxeMissedCast = true;
 
-            DestroySpectralAxeAreaIndicator();
+            abilityVfx?.DestroySpectralAxeAreaIndicator();
             if (projectile != null)
                 Destroy(projectile);
             _spectralAxeProjectile = null;
@@ -2232,19 +1849,19 @@ public class PlayerAbilityController : MonoBehaviour
                 _spectralAxeGatherNextInterval = 0f;
             }
 
-            spinDeg += spinSign * spectralAxeSpinDegreesPerSecond * Time.deltaTime;
+            spinDeg += spinSign * spinRate * Time.deltaTime;
             projTr.rotation = Quaternion.Euler(0f, 0f, spinDeg);
-            UpdateSpectralAxeAreaIndicator(axeCenter);
+            abilityVfx?.UpdateSpectralAxeAreaIndicator(axeCenter, SpectralAxeAreaRadius);
 
             AdvanceSpectralAxeGatherTimer(Time.deltaTime);
             yield return null;
         }
 
-        DestroySpectralAxeAreaIndicator();
+        abilityVfx?.DestroySpectralAxeAreaIndicator();
 
         // Return leg — fly back to the player's current position (chases if the player moved).
         Vector3 returnStart = projTr.position - visualLift; // strip lift so the lerp tracks ground positions
-        float returnTime = travelDist / Mathf.Max(0.1f, spectralAxeTravelSpeedUnitsPerSecond);
+        float returnTime = travelDist / Mathf.Max(0.1f, travelSpeed);
         float rt = 0f;
         while (rt < returnTime)
         {
@@ -2254,7 +1871,7 @@ public class PlayerAbilityController : MonoBehaviour
             Vector3 playerNow = transform.position;
             Vector3 groundPos = Vector3.Lerp(returnStart, playerNow, u);
             projTr.position = groundPos + visualLift;
-            spinDeg += spinSign * spectralAxeSpinDegreesPerSecond * Time.deltaTime;
+            spinDeg += spinSign * spinRate * Time.deltaTime;
             projTr.rotation = Quaternion.Euler(0f, 0f, spinDeg);
 
             if (cleavingFlight && !inboundLogAwarded)
@@ -2280,7 +1897,7 @@ public class PlayerAbilityController : MonoBehaviour
         _spectralAxeGatherNextInterval = 0f;
         _spectralAxeRoutine = null;
 
-        DestroySpectralAxeAreaIndicator();
+        abilityVfx?.DestroySpectralAxeAreaIndicator();
         SyncSpectralAxeHudBuff();
 
         if (_spectralAxeCooldownAbilityDef)
@@ -2306,91 +1923,6 @@ public class PlayerAbilityController : MonoBehaviour
         }
         _spectralAxeCooldownAbilityDef = null;
         _spectralAxeMissedCast = false;
-    }
-
-    private GameObject BuildSpectralAxeProjectile(Vector3 origin, float facing)
-    {
-        Sprite axeSprite = ResolveEquippedAxeSprite();
-        var go = new GameObject("SpectralAxeProjectile");
-        go.transform.position = origin;
-        go.transform.localScale = new Vector3(facing < 0f ? -1f : 1f, 1f, 1f);
-
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = axeSprite;
-        sr.color = spectralAxeTint;
-
-        // Borrow the player's sorting layer so the axe draws above the lane like a regular held tool.
-        SpriteRenderer playerSr = player ? player.GetComponentInChildren<SpriteRenderer>(true) : null;
-        if (playerSr != null)
-        {
-            sr.sortingLayerID = playerSr.sortingLayerID;
-            sr.sortingOrder = playerSr.sortingOrder + 8;
-        }
-        else
-        {
-            sr.sortingOrder = 50;
-        }
-
-        AttachSpectralAxeBlueTrail(go, sr, axeSprite);
-
-        return go;
-    }
-
-    /// <summary>
-    /// Spawns a child TrailRenderer pinned to the axe's top-back edge. Because the trail's transform is a
-    /// child of the spinning projectile, the trail sweeps a swooping arc as the axe rotates — visually
-    /// reinforcing its motion. Tinted blue with a fading alpha gradient so it reads as a spectral wake.
-    /// </summary>
-    private void AttachSpectralAxeBlueTrail(GameObject projectile, SpriteRenderer axeSr, Sprite axeSprite)
-    {
-        if (projectile == null || axeSr == null)
-            return;
-
-        // Anchor the trail roughly at the top-back of the axe head. We bias toward the upper-left of the
-        // (un-rotated) sprite so the visual matches the reference screenshot. Falls back to a small fixed
-        // offset when the sprite has no bounds info.
-        Vector2 size = axeSprite != null ? (Vector2)axeSprite.bounds.size : new Vector2(0.6f, 0.6f);
-        Vector3 anchor = new Vector3(-size.x * spectralAxeTrailAnchorXFrac, size.y * spectralAxeTrailAnchorYFrac, 0f);
-
-        var trailGo = new GameObject("SpectralAxeBlueTrail");
-        trailGo.transform.SetParent(projectile.transform, false);
-        trailGo.transform.localPosition = anchor;
-        trailGo.transform.localRotation = Quaternion.identity;
-        trailGo.transform.localScale = Vector3.one;
-
-        var trail = trailGo.AddComponent<TrailRenderer>();
-        trail.time = spectralAxeTrailLifetimeSeconds;
-        trail.startWidth = spectralAxeTrailStartWidth;
-        trail.endWidth = spectralAxeTrailEndWidth;
-        trail.minVertexDistance = 0.02f;
-        trail.autodestruct = false;
-        trail.emitting = true;
-        trail.numCornerVertices = 2;
-        trail.numCapVertices = 2;
-
-        // Sprites/Default lets the gradient's vertex colors actually show under URP — the legacy
-        // Default-Line material renders pink/invisible.
-        Shader spritesDefault = Shader.Find("Sprites/Default");
-        if (spritesDefault != null)
-            trail.material = new Material(spritesDefault) { color = Color.white };
-
-        var gradient = new Gradient();
-        gradient.SetKeys(
-            new[]
-            {
-                new GradientColorKey(spectralAxeTrailColorStart, 0f),
-                new GradientColorKey(spectralAxeTrailColorEnd, 1f)
-            },
-            new[]
-            {
-                new GradientAlphaKey(spectralAxeTrailStartAlpha, 0f),
-                new GradientAlphaKey(0f, 1f)
-            });
-        trail.colorGradient = gradient;
-
-        // Render the trail just under the axe so the wake reads as "behind" the chopping head.
-        trail.sortingLayerID = axeSr.sortingLayerID;
-        trail.sortingOrder = axeSr.sortingOrder - 1;
     }
 
     /// <summary>
@@ -2562,75 +2094,6 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         return best;
-    }
-
-    private void EnsureSpectralAxeAreaIndicatorBuilt()
-    {
-        // Mirrors the Cleaving Chop gate — disabling "Show screen overlay visuals" hides this gizmo too,
-        // without affecting the spectral axe's targeting / gather logic which run from world data, not visuals.
-        if (!spectralAxeShowAreaIndicator || !AreAbilityRangeIndicatorsEnabled())
-        {
-            DestroySpectralAxeAreaIndicator();
-            return;
-        }
-
-        if (_spectralAxeAreaIndicatorRoot != null && _spectralAxeAreaIndicatorLine != null)
-            return;
-
-        _spectralAxeAreaIndicatorRoot = new GameObject("SpectralAxeAreaIndicator");
-        _spectralAxeAreaIndicatorLine = _spectralAxeAreaIndicatorRoot.AddComponent<LineRenderer>();
-
-        var lr = _spectralAxeAreaIndicatorLine;
-        lr.useWorldSpace = true;
-        lr.loop = true;
-        lr.alignment = LineAlignment.View;
-        lr.startWidth = spectralAxeAreaIndicatorLineWidth;
-        lr.endWidth = spectralAxeAreaIndicatorLineWidth;
-        lr.startColor = spectralAxeAreaIndicatorColor;
-        lr.endColor = spectralAxeAreaIndicatorColor;
-        lr.numCornerVertices = 2;
-        lr.numCapVertices = 0;
-        lr.sortingOrder = spectralAxeAreaIndicatorSortingOrder;
-        if (!string.IsNullOrWhiteSpace(spectralAxeAreaIndicatorSortingLayer))
-            lr.sortingLayerName = spectralAxeAreaIndicatorSortingLayer;
-
-        // Replace the legacy Default-Line material with Sprites/Default so vertex colors apply under URP.
-        Shader spritesDefault = Shader.Find("Sprites/Default");
-        if (spritesDefault != null)
-            lr.material = new Material(spritesDefault) { color = Color.white };
-    }
-
-    private void UpdateSpectralAxeAreaIndicator(Vector3 axeCenter)
-    {
-        if (_spectralAxeAreaIndicatorLine == null)
-            return;
-
-        // Draw a closed circle of radius SpectralAxeAreaRadius centered on the axe. Same shape pattern
-        // as Cleaving Chop's range indicator.
-        int segs = Mathf.Clamp(spectralAxeAreaIndicatorSegments, 8, 256);
-        if (_spectralAxeAreaIndicatorLine.positionCount != segs)
-            _spectralAxeAreaIndicatorLine.positionCount = segs;
-
-        float radius = SpectralAxeAreaRadius;
-        float step = (Mathf.PI * 2f) / segs;
-        for (int i = 0; i < segs; i++)
-        {
-            float a = step * i;
-            _spectralAxeAreaIndicatorLine.SetPosition(i, new Vector3(
-                axeCenter.x + Mathf.Cos(a) * radius,
-                axeCenter.y + Mathf.Sin(a) * radius,
-                axeCenter.z));
-        }
-    }
-
-    private void DestroySpectralAxeAreaIndicator()
-    {
-        if (_spectralAxeAreaIndicatorRoot != null)
-        {
-            Destroy(_spectralAxeAreaIndicatorRoot);
-            _spectralAxeAreaIndicatorRoot = null;
-        }
-        _spectralAxeAreaIndicatorLine = null;
     }
 
     /// <summary>
@@ -3005,178 +2468,6 @@ public class PlayerAbilityController : MonoBehaviour
         return selected == 1 ? 3f : 0f;
     }
 
-    private void SpawnPowerSlashTrail()
-    {
-        Transform anchor = ResolvePowerSlashAnchor();
-        if (anchor == null)
-            return;
-
-        SpawnSinglePowerSlashTrail(anchor, 0f, 0f);
-        if (powerSlashUseDoubleSwipe)
-            SpawnSinglePowerSlashTrail(anchor, powerSlashSecondSwipeAngleOffset, powerSlashSecondSwipeDelay);
-    }
-
-    private void SpawnSinglePowerSlashTrail(Transform anchor, float angleOffset, float delay)
-    {
-        GameObject slashGO = new GameObject("PowerSlashTrail");
-        slashGO.transform.SetParent(anchor, false);
-        slashGO.transform.localPosition = Vector3.zero;
-
-        TrailRenderer trail = slashGO.AddComponent<TrailRenderer>();
-        trail.time = Mathf.Max(0.01f, powerSlashTrailTime);
-        trail.minVertexDistance = 0.004f;
-        trail.widthMultiplier = Mathf.Max(0.01f, powerSlashTrailWidth);
-        trail.numCornerVertices = 4;
-        trail.numCapVertices = 4;
-        trail.alignment = LineAlignment.TransformZ;
-        trail.textureMode = LineTextureMode.Stretch;
-        trail.material = new Material(Shader.Find("Sprites/Default"));
-        trail.emitting = false;
-
-        AnimationCurve widthCurve = new AnimationCurve(
-            new Keyframe(0f, 0.95f),
-            new Keyframe(0.35f, 1f),
-            new Keyframe(1f, 0f)
-        );
-        trail.widthCurve = widthCurve;
-
-        Gradient gradient = new Gradient();
-        gradient.SetKeys(
-            new[]
-            {
-                new GradientColorKey(powerSlashTrailColor, 0f),
-                new GradientColorKey(Color.Lerp(powerSlashTrailColor, Color.white, 0.25f), 0.45f),
-                new GradientColorKey(powerSlashTrailColor, 1f)
-            },
-            new[]
-            {
-                new GradientAlphaKey(powerSlashTrailColor.a, 0f),
-                new GradientAlphaKey(Mathf.Clamp01(powerSlashTrailColor.a * 0.75f), 0.35f),
-                new GradientAlphaKey(Mathf.Clamp01(powerSlashTrailColor.a * 0.4f), 0.65f),
-                new GradientAlphaKey(0f, 1f)
-            }
-        );
-        trail.colorGradient = gradient;
-
-        StartCoroutine(AnimatePowerSlashTrail(
-            slashGO.transform,
-            anchor,
-            powerSlashSwingDuration,
-            trail.time + 0.08f,
-            angleOffset,
-            Mathf.Max(0f, delay)));
-    }
-
-    private IEnumerator AnimatePowerSlashTrail(
-        Transform slashTransform,
-        Transform anchor,
-        float swingDuration,
-        float lingerAfter,
-        float angleOffset,
-        float startDelay)
-    {
-        if (slashTransform == null || anchor == null)
-            yield break;
-
-        if (startDelay > 0f)
-            yield return new WaitForSeconds(startDelay);
-
-        float duration = Mathf.Max(0.01f, swingDuration);
-        float elapsed = 0f;
-
-        float facing = 1f;
-        EnemyBaseController target = combat != null ? combat.CurrentTarget : null;
-        if (target != null)
-            facing = target.transform.position.x >= transform.position.x ? 1f : -1f;
-        else if (player != null)
-            facing = player.transform.localScale.x >= 0f ? 1f : -1f;
-
-        float startAngle = powerSlashAngleRange.x;
-        float endAngle = powerSlashAngleRange.y;
-        Vector3 smoothWorldPos = slashTransform.position;
-        slashTransform.localPosition = powerSlashLocalOffset;
-        TrailRenderer trail = slashTransform.GetComponent<TrailRenderer>();
-        if (trail != null)
-            trail.Clear();
-
-        while (elapsed < duration && slashTransform != null && anchor != null)
-        {
-            float t = elapsed / duration;
-            float angle = Mathf.Lerp(startAngle, endAngle, t) + angleOffset;
-            float signedAngle = angle * facing;
-
-            Vector2 dir = new Vector2(Mathf.Cos(signedAngle * Mathf.Deg2Rad), Mathf.Sin(signedAngle * Mathf.Deg2Rad));
-            Vector3 tipLocal = powerSlashLocalOffset + new Vector3(
-                dir.x * powerSlashTipLocalOffset.x * facing,
-                dir.y * powerSlashTipLocalOffset.y,
-                0f);
-
-            Vector3 desiredWorld = anchor.TransformPoint(tipLocal);
-            float smooth = Mathf.Clamp01(powerSlashEdgeFollowSmoothing <= 0.0001f ? 1f : (Time.deltaTime / powerSlashEdgeFollowSmoothing));
-            smoothWorldPos = Vector3.Lerp(smoothWorldPos, desiredWorld, smooth);
-            slashTransform.position = smoothWorldPos;
-
-            if (trail != null && !trail.emitting && t >= 0.05f)
-                trail.emitting = true;
-
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        if (slashTransform != null)
-            Destroy(slashTransform.gameObject, Mathf.Max(0.05f, lingerAfter));
-    }
-
-    private Transform ResolvePowerSlashAnchor()
-    {
-        if (powerSlashTrailAnchor != null)
-            return powerSlashTrailAnchor;
-
-        MainHandEquipper mainHand = GetComponentInChildren<MainHandEquipper>(true);
-        if (mainHand != null)
-        {
-            Transform root = mainHand.transform.root;
-            Transform found = FindChildByCandidateName(root, powerSlashAnchorNameCandidates);
-            if (found != null)
-            {
-                powerSlashTrailAnchor = found;
-                return powerSlashTrailAnchor;
-            }
-        }
-
-        powerSlashTrailAnchor = FindChildByCandidateName(transform.root, powerSlashAnchorNameCandidates);
-        if (powerSlashTrailAnchor != null)
-            return powerSlashTrailAnchor;
-
-        return transform;
-    }
-
-    private static Transform FindChildByCandidateName(Transform root, string[] candidates)
-    {
-        if (root == null || candidates == null || candidates.Length == 0)
-            return null;
-
-        Transform[] all = root.GetComponentsInChildren<Transform>(true);
-        for (int i = 0; i < all.Length; i++)
-        {
-            Transform t = all[i];
-            if (t == null)
-                continue;
-
-            for (int c = 0; c < candidates.Length; c++)
-            {
-                string candidate = candidates[c];
-                if (string.IsNullOrWhiteSpace(candidate))
-                    continue;
-
-                if (string.Equals(t.name, candidate, StringComparison.OrdinalIgnoreCase))
-                    return t;
-            }
-        }
-
-        return null;
-    }
-
     /// <summary>Resolves the assigned database or Resources default (same as runtime ability lookup).</summary>
     public AbilityDatabase GetDatabaseOrDefault()
     {
@@ -3270,7 +2561,7 @@ public class PlayerAbilityController : MonoBehaviour
             if (!minion.Initialize(
                     _ownerStats,
                     md,
-                    soulforgedWeaponMinionPresentation,
+                    abilityVfx != null ? abilityVfx.SoulforgedWeaponMinionPresentation : default,
                     anchor,
                     weaponSprite,
                     attacker,
@@ -3573,7 +2864,7 @@ public class PlayerAbilityController : MonoBehaviour
         _spectralAxeGatherNextInterval = 0f;
         _spectralAxeCooldownAbilityDef = null;
         _spectralAxeMissedCast = false;
-        DestroySpectralAxeAreaIndicator();
+        abilityVfx?.DestroySpectralAxeAreaIndicator();
         SyncSpectralAxeHudBuff();
 
         if (awardCooldown && wasActive && deferred != null)
@@ -3589,8 +2880,9 @@ public class PlayerAbilityController : MonoBehaviour
         {
             if (abilityDef && abilityDef.icon)
                 return abilityDef.icon;
-            if (soulforgedWeaponMinionPresentation.placeholderWeaponSprite)
-                return soulforgedWeaponMinionPresentation.placeholderWeaponSprite;
+            if (abilityVfx != null &&
+                abilityVfx.SoulforgedWeaponMinionPresentation.placeholderWeaponSprite)
+                return abilityVfx.SoulforgedWeaponMinionPresentation.placeholderWeaponSprite;
             return null;
         }
 

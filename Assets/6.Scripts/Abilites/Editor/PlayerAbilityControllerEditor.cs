@@ -3,14 +3,12 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Foldout groups for ability VFX fields so the Player Ability Controller inspector stays compact.
+/// Foldout groups for ability refs + global cooldown. VFX lives on <see cref="PlayerAbilityVfxController"/>.
 /// </summary>
 [CustomEditor(typeof(PlayerAbilityController))]
 [CanEditMultipleObjects]
 public class PlayerAbilityControllerEditor : Editor
 {
-    private const string FoldPrefsRoot = "PlayerAbilityController.Foldouts.";
-
     private static readonly string[] RefFieldNames =
     {
         "player",
@@ -19,116 +17,13 @@ public class PlayerAbilityControllerEditor : Editor
         "abilityDatabase",
         "skillDatabase",
         "skillsManager",
+        "actionBar",
         "equipment",
         "inventory",
         "toolbelt",
-        "buffController"
+        "buffController",
+        "abilityVfx"
     };
-
-    private static readonly string[] PowerSlashFieldNames =
-    {
-        "powerSlashTrailAnchor",
-        "powerSlashAnchorNameCandidates",
-        "powerSlashTrailColor",
-        "powerSlashTrailTime",
-        "powerSlashSwingDuration",
-        "powerSlashTrailWidth",
-        "powerSlashAngleRange",
-        "powerSlashLocalOffset",
-        "powerSlashTipLocalOffset",
-        "powerSlashEdgeFollowSmoothing",
-        "powerSlashUseDoubleSwipe",
-        "powerSlashSecondSwipeDelay",
-        "powerSlashSecondSwipeAngleOffset"
-    };
-
-    private static readonly string[] WhirlwindFieldNames =
-    {
-        "whirlingBladeColor",
-        "whirlingBladeDuration",
-        "whirlingBladeSpinDegrees",
-        "whirlingBladeLineWidth",
-        "whirlingBladeCenterOffset",
-        "whirlingBladeUpwardDrift",
-        "whirlingBladeVerticalWave"
-    };
-
-    private static readonly string[] CrescentFieldNames =
-    {
-        "crescentSlashColor",
-        "crescentSlashVfxDuration",
-        "crescentSlashLineWidth",
-        "crescentSlashCenterOffset"
-    };
-
-    private static readonly string[] CleavingChopFieldNames =
-    {
-        "cleavingChopShowRangeIndicator",
-        "cleavingChopIndicatorColor",
-        "cleavingChopIndicatorSegments",
-        "cleavingChopIndicatorLineWidth",
-        "cleavingChopIndicatorSortingOrder",
-        "cleavingChopIndicatorSortingLayer"
-    };
-
-    private static readonly string[] SpectralAxeFieldNames =
-    {
-        "spectralAxeTint",
-        "spectralAxeVisualLift",
-        "spectralAxeSpinDegreesPerSecond",
-        "spectralAxeSpinClockwise",
-        "spectralAxeTravelSpeedUnitsPerSecond",
-        "spectralAxeShowAreaIndicator",
-        "spectralAxeAreaIndicatorColor",
-        "spectralAxeAreaIndicatorSegments",
-        "spectralAxeAreaIndicatorLineWidth",
-        "spectralAxeAreaIndicatorSortingOrder",
-        "spectralAxeAreaIndicatorSortingLayer"
-    };
-
-    private static readonly string[] SpectralAxeTrailFieldNames =
-    {
-        "spectralAxeTrailLifetimeSeconds",
-        "spectralAxeTrailStartWidth",
-        "spectralAxeTrailEndWidth",
-        "spectralAxeTrailStartAlpha",
-        "spectralAxeTrailAnchorXFrac",
-        "spectralAxeTrailAnchorYFrac",
-        "spectralAxeTrailColorStart",
-        "spectralAxeTrailColorEnd"
-    };
-
-    private static bool GetFold(string key, bool defaultExpanded = true)
-    {
-        return EditorPrefs.GetBool(FoldPrefsRoot + key, defaultExpanded);
-    }
-
-    private static void SetFold(string key, bool value)
-    {
-        EditorPrefs.SetBool(FoldPrefsRoot + key, value);
-    }
-
-    private static void DrawFoldoutPropertyBlock(SerializedObject so, string foldKey, string title, string[] fieldNames)
-    {
-        bool open = GetFold(foldKey);
-        bool newOpen = EditorGUILayout.Foldout(open, title, true);
-        if (newOpen != open)
-            SetFold(foldKey, newOpen);
-        open = newOpen;
-
-        if (!open)
-            return;
-
-        EditorGUI.indentLevel++;
-        foreach (string name in fieldNames)
-        {
-            SerializedProperty p = so.FindProperty(name);
-            if (p != null)
-                EditorGUILayout.PropertyField(p, true);
-        }
-
-        EditorGUI.indentLevel--;
-    }
 
     public override void OnInspectorGUI()
     {
@@ -152,36 +47,6 @@ public class PlayerAbilityControllerEditor : Editor
         SerializedProperty gcd = serializedObject.FindProperty("globalCooldownSeconds");
         if (gcd != null)
             EditorGUILayout.PropertyField(gcd);
-
-        EditorGUILayout.Space(6f);
-
-        DrawFoldoutPropertyBlock(serializedObject, "PowerSlashVfx", "Power Slash VFX", PowerSlashFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "WhirlwindVfx", "Whirlwind VFX", WhirlwindFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "CrescentSlashVfx", "Crescent Slash VFX", CrescentFieldNames);
-        EditorGUILayout.Space(2f);
-
-        bool sfOpen = GetFold("SoulforgedWeaponMinionVfx");
-        bool sfNew = EditorGUILayout.Foldout(sfOpen, "Soulforged Weapon Minion VFX", true);
-        if (sfNew != sfOpen)
-            SetFold("SoulforgedWeaponMinionVfx", sfNew);
-        sfOpen = sfNew;
-        if (sfOpen)
-        {
-            EditorGUI.indentLevel++;
-            SerializedProperty sf = serializedObject.FindProperty("soulforgedWeaponMinionPresentation");
-            if (sf != null)
-                EditorGUILayout.PropertyField(sf, true);
-            EditorGUI.indentLevel--;
-        }
-        EditorGUILayout.Space(2f);
-
-        DrawFoldoutPropertyBlock(serializedObject, "CleavingChopVfx", "Cleaving Chop VFX", CleavingChopFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "SpectralAxeVfx", "Spectral Axe VFX", SpectralAxeFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "SpectralAxeTrailVfx", "Spectral Axe Blue Trail", SpectralAxeTrailFieldNames);
 
         serializedObject.ApplyModifiedProperties();
     }

@@ -74,6 +74,8 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     private Color _defaultLockedOverlayColor = new Color(0f, 0f, 0f, 0.92f);
     private Color _unlockedOutlineEffect = Color.black;
     private bool _cachedUnlockedOutline;
+    /// <summary>When false, the inner <see cref="fillImage"/> is transparent (icon-only milestone nodes).</summary>
+    private bool _useColoredFillBackground = true;
     private UIPulseGlowOverlay _unlockGlow;
 
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
@@ -252,13 +254,23 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         }
 
         if (fillImage != null)
-            fillImage.color = isLocked ? LockedTintFill(_unlockedFillColor) : _unlockedFillColor;
+        {
+            if (_useColoredFillBackground)
+                fillImage.color = isLocked ? LockedTintFill(_unlockedFillColor) : _unlockedFillColor;
+            else
+                fillImage.color = new Color(0f, 0f, 0f, 0f);
+        }
 
         if (iconImage != null && iconImage.gameObject.activeSelf && iconImage.sprite != null)
             iconImage.color = isLocked ? LockedTintIcon(_unlockedIconColor) : _unlockedIconColor;
 
         if (_fillOutline != null)
-            _fillOutline.effectColor = isLocked ? LockedTintIcon(_unlockedOutlineEffect) : _unlockedOutlineEffect;
+        {
+            if (_useColoredFillBackground)
+                _fillOutline.effectColor = isLocked ? LockedTintIcon(_unlockedOutlineEffect) : _unlockedOutlineEffect;
+            else
+                _fillOutline.effectColor = new Color(_unlockedOutlineEffect.r, _unlockedOutlineEffect.g, _unlockedOutlineEffect.b, 0f);
+        }
 
         if (lockedOverlay != null)
         {
@@ -359,6 +371,8 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
                 break;
         }
 
+        _useColoredFillBackground = !showIcon;
+
         RectTransform.sizeDelta = rootSize;
 
         if (outerRingImage != null)
@@ -376,12 +390,22 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
 
         if (fillImage != null)
         {
-            fillImage.color = color;
             RectTransform rt = fillImage.rectTransform;
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = Vector2.zero;
             rt.sizeDelta = rootSize * 0.75f;
+
+            if (_useColoredFillBackground)
+            {
+                fillImage.color = color;
+                fillImage.raycastTarget = true;
+            }
+            else
+            {
+                fillImage.color = new Color(0f, 0f, 0f, 0f);
+                fillImage.raycastTarget = false;
+            }
         }
 
         if (iconImage != null)
@@ -540,7 +564,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
 
         selectedGlow.SetActive(showGlow);
         if (_fillOutline != null)
-            _fillOutline.enabled = !showGlow;
+            _fillOutline.enabled = _useColoredFillBackground && !showGlow;
     }
 
     /// <summary>

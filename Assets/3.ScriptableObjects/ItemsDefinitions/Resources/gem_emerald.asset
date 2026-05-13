@@ -15,7 +15,7 @@ MonoBehaviour:
   itemKind: 0
   maxStack: 99
   itemId: gem_emerald
-  displayName: Ruby
+  displayName: Emerald
   displayNameSingular: 
   icon: {fileID: -2176379822362671368, guid: 7e1d2abd68aea814a8566eae964bd28c, type: 3}
   heldSprite: {fileID: 0}
@@ -25,7 +25,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A sapphire gem. Obtained with a small chance from mining stone chunks.
+  description: An emerald gem. Obtained with a small chance from mining stone chunks.
   rarity: 1
   value: 300
   equipSlot: 0
@@ -153,6 +153,7 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    openRequiredAmount: 0
     openableLoot: []
   enhancementScrollStats:
     successChance: 0
