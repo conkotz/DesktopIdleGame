@@ -47,6 +47,10 @@ public class SkillTreeViewUI : MonoBehaviour
     [SerializeField] private int levelLabelShowEveryNLevels = 5;
     [Tooltip("Horizontal gap between nodes that share the same required level (e.g. major passive + unlock).")]
     [SerializeField] private float sameLevelNodeGap = 28f;
+    [Tooltip(
+        "Horizontal distance from the spine column (x = 0) to the **center** of the Minor Unlock nearest the spine. " +
+        "Minor Unlock nodes use this fixed column so they line up across rows regardless of neighbouring spine node width.")]
+    [SerializeField] private float minorUnlockSpineOffsetPixels = 72f;
     [Tooltip("Center-to-center spacing for multiple Ability unlocks at the same level (symmetric around the vertical spine).")]
     [SerializeField] private float abilitySiblingSpacing = 140f;
 
@@ -577,11 +581,12 @@ public class SkillTreeViewUI : MonoBehaviour
     {
         return t switch
         {
-            SkillUnlockType.MinorPassive => 0,
-            SkillUnlockType.MajorPassive => 1,
-            SkillUnlockType.Unlock => 2,
-            SkillUnlockType.Ability => 3,
-            SkillUnlockType.CapstonePassive => 4,
+            SkillUnlockType.MinorUnlock => 0,
+            SkillUnlockType.MinorPassive => 1,
+            SkillUnlockType.MajorPassive => 2,
+            SkillUnlockType.Unlock => 3,
+            SkillUnlockType.Ability => 4,
+            SkillUnlockType.CapstonePassive => 5,
             _ => 99
         };
     }
@@ -590,6 +595,7 @@ public class SkillTreeViewUI : MonoBehaviour
     {
         return u.unlockType switch
         {
+            SkillUnlockType.MinorUnlock => SkillTreeNodeVisualType.MinorUnlock,
             SkillUnlockType.MinorPassive => SkillTreeNodeVisualType.MinorPassive,
             SkillUnlockType.MajorPassive => SkillTreeNodeVisualType.MajorPassive,
             SkillUnlockType.Unlock => SkillTreeNodeVisualType.Unlock,
@@ -663,15 +669,52 @@ public class SkillTreeViewUI : MonoBehaviour
             }
             else
             {
-                float xPos = 0f;
+                var spineIdx = new System.Collections.Generic.List<int>(end - g + 1);
                 for (int i = g; i <= end; i++)
                 {
-                    layoutRowX[i] = xPos;
-                    if (i < end)
+                    if (rows[i].type != SkillTreeNodeVisualType.MinorUnlock)
+                        spineIdx.Add(i);
+                }
+
+                if (spineIdx.Count == 0)
+                {
+                    for (int i = g; i <= end; i++)
+                        layoutRowX[i] = 0f;
+                }
+                else
+                {
+                    float xPos = 0f;
+                    for (int j = 0; j < spineIdx.Count; j++)
                     {
-                        float halfA = SkillTreeNodeUI.GetVisualBoxSize(rows[i].type).x * 0.5f;
-                        float halfB = SkillTreeNodeUI.GetVisualBoxSize(rows[i + 1].type).x * 0.5f;
-                        xPos += halfA + Mathf.Max(0f, ScaledLayout(sameLevelNodeGap)) + halfB;
+                        int i = spineIdx[j];
+                        layoutRowX[i] = xPos;
+                        if (j + 1 < spineIdx.Count)
+                        {
+                            int i2 = spineIdx[j + 1];
+                            float halfA = SkillTreeNodeUI.GetVisualBoxSize(rows[i].type).x * 0.5f;
+                            float halfB = SkillTreeNodeUI.GetVisualBoxSize(rows[i2].type).x * 0.5f;
+                            xPos += halfA + Mathf.Max(0f, ScaledLayout(sameLevelNodeGap)) + halfB;
+                        }
+                    }
+
+                    float gap = Mathf.Max(0f, ScaledLayout(sameLevelNodeGap));
+
+                    var mus = new System.Collections.Generic.List<int>();
+                    for (int i = g; i <= end; i++)
+                    {
+                        if (rows[i].type == SkillTreeNodeVisualType.MinorUnlock)
+                            mus.Add(i);
+                    }
+
+                    // Fixed column from spine (x = 0): do not derive from the leftmost spine node's width.
+                    float columnAnchorX = -ScaledLayout(minorUnlockSpineOffsetPixels);
+                    float cx = columnAnchorX;
+                    for (int m = 0; m < mus.Count; m++)
+                    {
+                        int i = mus[m];
+                        float halfMu = SkillTreeNodeUI.GetVisualBoxSize(rows[i].type).x * 0.5f;
+                        layoutRowX[i] = cx;
+                        cx -= 2f * halfMu + gap;
                     }
                 }
             }
@@ -711,6 +754,13 @@ public class SkillTreeViewUI : MonoBehaviour
         int count = tierEndInclusive - tierStart + 1;
         if (TierIsMultiAbilityOnly(rows, tierStart, tierEndInclusive))
             return tierStart + (count - 1) / 2;
+
+        for (int i = tierStart; i <= tierEndInclusive; i++)
+        {
+            if (rows[i].type != SkillTreeNodeVisualType.MinorUnlock)
+                return i;
+        }
+
         return tierStart;
     }
 
@@ -751,7 +801,9 @@ public class SkillTreeViewUI : MonoBehaviour
             int labelIndex = tierStart;
             if (!showAllLevelLabels)
             {
-                while (labelIndex < idx && rows[labelIndex].type == SkillTreeNodeVisualType.MinorPassive)
+                while (labelIndex < idx &&
+                       (rows[labelIndex].type == SkillTreeNodeVisualType.MinorPassive ||
+                        rows[labelIndex].type == SkillTreeNodeVisualType.MinorUnlock))
                     labelIndex++;
                 // Tiers that are only minor passives (common on gathering “Skip” levels) still need Lv5/Lv10/… labels.
                 if (labelIndex >= idx && !ShouldShowLeftLevelNumber(tierLevel))
@@ -1185,6 +1237,14 @@ public class SkillTreeViewUI : MonoBehaviour
             return;
         }
 
+        if (unlock != null && unlock.unlockType == SkillUnlockType.MinorUnlock)
+        {
+            title = unlockTitle;
+            string minorUnlockLabel = TypeLabel(SkillTreeNodeVisualType.MinorUnlock);
+            body = $"{minorUnlockLabel} {BuildStatusLine(isUnlocked)}\nUnlocks at Lv{level}\n\n{desc}";
+            return;
+        }
+
         string typeLabel = useMajorPassivePresentation ? TypeLabel(SkillTreeNodeVisualType.MajorPassive) : TypeLabel(type);
         title = unlockTitle;
         body = $"{typeLabel} {BuildStatusLine(isUnlocked)}\nUnlocks at Lv{level}\n\n{desc}";
@@ -1469,6 +1529,7 @@ public class SkillTreeViewUI : MonoBehaviour
         return type switch
         {
             SkillTreeNodeVisualType.MinorPassive => "Minor Passive",
+            SkillTreeNodeVisualType.MinorUnlock => "Minor Unlock",
             SkillTreeNodeVisualType.MajorPassive => "Major Passive",
             SkillTreeNodeVisualType.Unlock => "Unlock",
             SkillTreeNodeVisualType.Ability => "Ability",
@@ -1557,6 +1618,13 @@ public class SkillTreeViewUI : MonoBehaviour
                 return sharedMinor;
             if (skill != null && skill.icon != null)
                 return skill.icon;
+        }
+
+        if (unlock.unlockType == SkillUnlockType.MinorUnlock)
+        {
+            if (skill != null && skill.icon != null)
+                return skill.icon;
+            return null;
         }
 
         if (unlock.ability != null)

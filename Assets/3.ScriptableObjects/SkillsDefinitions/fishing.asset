@@ -22,10 +22,26 @@ MonoBehaviour:
   listSortOrder: 0
   unlocks:
   - requiredLevel: 1
-    title: Catch fish
+    title: Pond Fishing
     description: Can catch fish from a small pond
     icon: {fileID: 21300000, guid: c0dcba85fedb859458e63d242e31bdc2, type: 3}
     unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 1
+    title: Fish
+    description: Can catch fish
+    icon: {fileID: -1402613075, guid: 49e1f504ff2f8b54fa766b60aed2de28, type: 3}
+    unlockType: 5
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
@@ -63,6 +79,22 @@ MonoBehaviour:
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 13
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 3
+    title: Perch
+    description: Can catch Perch
+    icon: {fileID: -4368617568662313061, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
+    unlockType: 5
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0

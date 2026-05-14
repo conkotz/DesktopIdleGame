@@ -159,6 +159,7 @@ public class PlayerLevelUpListener : MonoBehaviour
     {
         return type switch
         {
+            SkillUnlockType.MinorUnlock => "Minor Unlock",
             SkillUnlockType.MinorPassive => "Minor Passive",
             SkillUnlockType.MajorPassive => "Major Passive",
             SkillUnlockType.Unlock => "Unlock",

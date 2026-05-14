@@ -19,5 +19,8 @@ public enum SkillTreeNodeVisualType
     Choice,
 
     /// <summary>Final level 50 capstone passive.</summary>
-    CapstonePassive
+    CapstonePassive,
+
+    /// <summary>Small world unlock note (e.g. new fish). Sized between <see cref="MinorPassive"/> and milestone nodes; not on the vertical spine.</summary>
+    MinorUnlock
 }

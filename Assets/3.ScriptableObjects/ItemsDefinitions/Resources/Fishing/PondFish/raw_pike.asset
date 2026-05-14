@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: cooked_perch
+  m_Name: raw_pike
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 5
+  itemKind: 0
   maxStack: 999
-  itemId: cooked_perch
-  displayName: Cooked Perch
+  itemId: raw_pike
+  displayName: Raw Pike
   displayNameSingular: 
-  icon: {fileID: 4500040671782054076, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
+  icon: {fileID: -1286585359, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,8 +25,8 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A cooked Perch
-  rarity: 0
+  description: A raw pike which can be cooked.
+  rarity: 1
   value: 40
   equipSlot: 0
   handVisualKey: 0
@@ -143,11 +143,11 @@ MonoBehaviour:
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
-    consumableType: 1
-    healAmount: 40
+    consumableType: 0
+    healAmount: 0
     energyAmount: 0
-    cooldownSeconds: 20
-    consumeOnUse: 1
+    cooldownSeconds: 0
+    consumeOnUse: 0
     grantedEffect:
       effectType: 0
       magnitude: 0
@@ -157,9 +157,9 @@ MonoBehaviour:
     fishingSpeedPercentBonus: 0
     openRequiredAmount: 0
     openableLoot: []
-    foodEffectDurationSeconds: 20
-    foodEnableRegen: 1
-    foodRegenTotalHeal: 20
+    foodEffectDurationSeconds: 0
+    foodEnableRegen: 0
+    foodRegenTotalHeal: 0
     foodEnableSwiftness: 0
     foodSwiftnessPercentBonus: 0
     foodEnableOverheal: 0
@@ -178,7 +178,7 @@ MonoBehaviour:
     cursed: 0
     allowedGearTypes: 0
   cookableStats:
-    isCookable: 0
+    isCookable: 1
     cookedResultItemId: 
     cookedResultAmount: 1
     requiredCookingLevel: 0

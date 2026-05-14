@@ -15,11 +15,12 @@ public static class SkillAbilityCommitRules
     {
         return t switch
         {
-            SkillUnlockType.MinorPassive => 0,
-            SkillUnlockType.MajorPassive => 1,
-            SkillUnlockType.Unlock => 2,
-            SkillUnlockType.Ability => 3,
-            SkillUnlockType.CapstonePassive => 4,
+            SkillUnlockType.MinorUnlock => 0,
+            SkillUnlockType.MinorPassive => 1,
+            SkillUnlockType.MajorPassive => 2,
+            SkillUnlockType.Unlock => 3,
+            SkillUnlockType.Ability => 4,
+            SkillUnlockType.CapstonePassive => 5,
             _ => 99
         };
     }

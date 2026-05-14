@@ -350,7 +350,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::QuestGiver
   locationId: npc_greengrove_bill
   questId: greenlands_fishing_rod_intro
-  additionalQuestIds: []
+  additionalQuestIds:
+  - greenlands_fishing_part_1
+  - greenlands_fishing_part_2
   exclamationMarkPrefab: {fileID: 0}
   exclamationMarkLocalOffset: {x: 0, y: 0.75, z: 0}
   generatedExclamationMarkSize: 0.2

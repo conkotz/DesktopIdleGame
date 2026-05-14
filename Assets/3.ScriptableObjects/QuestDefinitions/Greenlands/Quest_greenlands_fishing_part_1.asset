@@ -10,24 +10,24 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 03aefacb43e5407ebbdd04759d9010ff, type: 3}
-  m_Name: Quest_greenlands_fishing_rod_intro
+  m_Name: Quest_greenlands_fishing_part_1
   m_EditorClassIdentifier: Assembly-CSharp::QuestDefinition
-  questId: greenlands_fishing_rod_intro
+  questId: greenlands_fishing_part_1
   regionId: greenlands
-  displayName: First Fishing Rod
-  description: 'Catch me a raw fish! '
-  details: It will be slow without a rod but atleast you doing need any bait if using
-    your bare hands!
+  displayName: Using a fishing rod
+  description: Bring me 3 more raw fish.
+  details: Now that you have a rod, you will need to use bait. Try searching nearby
+    for some worms.
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
-  targetCount: 1
+  targetCount: 3
   objectiveId: raw_fish
   specialObjectiveListText: 
   rewardGold: 0
-  rewardItem: {fileID: 11400000, guid: 2f3f60e28977fc84183ed38434fd6551, type: 2}
+  rewardItem: {fileID: 11400000, guid: db6c9a9b32411bd4f9764e98c92660ad, type: 2}
   rewardItemId: 
-  rewardItemQuantity: 1
+  rewardItemQuantity: 500
   additionalItemRewards: []
   rewardNotes: 
   grantIdleCombatUnlockOnRewardClaim: 0
@@ -44,8 +44,9 @@ MonoBehaviour:
   killProgressOnlyOnProgressMap: 0
   autoAcceptWhenPriorQuestRewardClaimed: 0
   autoAcceptAfterPriorQuestId: 
-  prerequisiteRewardClaimedQuestIds: []
-  requireAllPrerequisiteQuests: 0
+  prerequisiteRewardClaimedQuestIds:
+  - greenlands_fishing_rod_intro
+  requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
   recommendedLocationNode: {fileID: 11400000, guid: bd9148f386fcb4644a8c0b41179c8e24, type: 2}
   requiredSkillLevels: []

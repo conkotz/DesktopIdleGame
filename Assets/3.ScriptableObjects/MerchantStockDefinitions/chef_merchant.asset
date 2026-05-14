@@ -22,4 +22,22 @@ MonoBehaviour:
       amount: 1
       itemId: raw_fish
     defaultQuantity: -1
+  - itemId: cooked_perch
+    costs:
+    - type: 0
+      amount: 10
+      itemId: 
+    - type: 1
+      amount: 1
+      itemId: raw_perch
+    defaultQuantity: -1
+  - itemId: cooked_pike
+    costs:
+    - type: 0
+      amount: 15
+      itemId: 
+    - type: 1
+      amount: 1
+      itemId: raw_pike
+    defaultQuantity: -1
   stockSaveKey: 

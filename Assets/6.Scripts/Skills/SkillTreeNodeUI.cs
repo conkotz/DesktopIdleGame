@@ -49,6 +49,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     [Header("Colors")]
     [FormerlySerializedAs("minorColor")]
     [SerializeField] private Color minorPassiveColor = new Color(0.72f, 0.33f, 0.33f);
+    [SerializeField] private Color minorUnlockColor = new Color(0.28f, 0.55f, 0.72f);
     [FormerlySerializedAs("passiveColor")]
     [SerializeField] private Color majorPassiveColor = new Color(0.78f, 0.62f, 0.26f);
     [SerializeField] private Color unlockColor = Color.black;
@@ -58,12 +59,22 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     [FormerlySerializedAs("capstoneColor")]
     [SerializeField] private Color capstonePassiveColor = new Color(0.58f, 0.32f, 0.76f);
 
+    [Header("Minor node interaction")]
+    [Tooltip(
+        "Minor Passive / Minor Unlock: icon rect (and hover hitbox when unlocked) is this fraction of the inner fill. " +
+        "Smaller = tighter hover around the gem, less overlap with nodes above or beside.")]
+    [SerializeField]
+    [Range(0.15f, 1f)]
+    private float minorNodeIconBoxScale = 0.48f;
+
     [Header("Sizes")]
     /// <summary>Multiplier for <see cref="GetVisualSize"/>; layout code should scale serialized gaps via the same value.</summary>
     public const float NodeVisualScale = 1.5f;
 
     /// <summary>Filler spine nodes — kept small so milestone nodes read clearly.</summary>
     private static readonly Vector2 MINOR_PASSIVE_SIZE = new Vector2(18f, 18f);
+    /// <summary>Between <see cref="MINOR_PASSIVE_SIZE"/> and milestone nodes (55).</summary>
+    private static readonly Vector2 MINOR_UNLOCK_SIZE = new Vector2(36f, 36f);
     private static readonly Vector2 MILESTONE_SIZE = new Vector2(55f, 55f);
     private static readonly Vector2 MAJOR_PASSIVE_SIZE = MILESTONE_SIZE;
     private static readonly Vector2 UNLOCK_SIZE = MILESTONE_SIZE;
@@ -129,6 +140,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         Vector2 baseSize = type switch
         {
             SkillTreeNodeVisualType.MinorPassive => MINOR_PASSIVE_SIZE,
+            SkillTreeNodeVisualType.MinorUnlock => MINOR_UNLOCK_SIZE,
             SkillTreeNodeVisualType.MajorPassive => MAJOR_PASSIVE_SIZE,
             SkillTreeNodeVisualType.Unlock => UNLOCK_SIZE,
             SkillTreeNodeVisualType.Ability => ABILITY_SIZE,
@@ -282,6 +294,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
 
         RefreshSelectionChrome();
         RefreshLockedPresentation();
+        SyncButtonHitAndRaycasts();
     }
 
     private void RefreshLockedPresentation()
@@ -410,6 +423,8 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
             _unlockedIconColor = Color.white;
 
         RefreshLockedPresentation();
+        FitIconToNode();
+        SyncButtonHitAndRaycasts();
     }
 
     public void ApplyVisualType(SkillTreeNodeVisualType type)
@@ -427,6 +442,10 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         {
             case SkillTreeNodeVisualType.MinorPassive:
                 color = minorPassiveColor;
+                break;
+
+            case SkillTreeNodeVisualType.MinorUnlock:
+                color = minorUnlockColor;
                 break;
 
             case SkillTreeNodeVisualType.MajorPassive:
@@ -485,12 +504,10 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
             if (_useColoredFillBackground)
             {
                 fillImage.color = color;
-                fillImage.raycastTarget = true;
             }
             else
             {
                 fillImage.color = new Color(0f, 0f, 0f, 0f);
-                fillImage.raycastTarget = false;
             }
         }
 
@@ -528,6 +545,77 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
 
         // Side labels disabled for now (tooltips later).
         RefreshLockedPresentation();
+        SyncButtonHitAndRaycasts();
+    }
+
+    /// <summary>
+    /// Match the invisible <see cref="Button"/> rect to the hover target: inner fill for most nodes;
+    /// for unlocked Minor Passive / Minor Unlock, the shrunken <see cref="iconImage"/> box so the black
+    /// padding does not steal hover from neighbouring nodes (full fill when locked so the whole tile still tooltips).
+    /// </summary>
+    private void SyncButtonHitAndRaycasts()
+    {
+        if (button == null)
+            return;
+
+        RectTransform btnRt = button.transform as RectTransform;
+        if (btnRt == null || fillImage == null)
+            return;
+
+        RectTransform fillRt = fillImage.rectTransform;
+        bool tightMinorHover =
+            !isLocked &&
+            (appliedVisualType == SkillTreeNodeVisualType.MinorPassive ||
+             appliedVisualType == SkillTreeNodeVisualType.MinorUnlock);
+
+        if (tightMinorHover && iconImage != null && iconImage.gameObject.activeSelf)
+        {
+            RectTransform iconRt = iconImage.rectTransform;
+            btnRt.anchorMin = iconRt.anchorMin;
+            btnRt.anchorMax = iconRt.anchorMax;
+            btnRt.pivot = iconRt.pivot;
+            btnRt.anchoredPosition = iconRt.anchoredPosition;
+            btnRt.sizeDelta = iconRt.sizeDelta;
+        }
+        else if (tightMinorHover)
+        {
+            float s = Mathf.Clamp(minorNodeIconBoxScale, 0.15f, 1f);
+            btnRt.anchorMin = fillRt.anchorMin;
+            btnRt.anchorMax = fillRt.anchorMax;
+            btnRt.pivot = fillRt.pivot;
+            btnRt.anchoredPosition = fillRt.anchoredPosition;
+            btnRt.sizeDelta = fillRt.sizeDelta * s;
+        }
+        else
+        {
+            btnRt.anchorMin = fillRt.anchorMin;
+            btnRt.anchorMax = fillRt.anchorMax;
+            btnRt.pivot = fillRt.pivot;
+            btnRt.anchoredPosition = fillRt.anchoredPosition;
+            btnRt.sizeDelta = fillRt.sizeDelta;
+        }
+
+        fillImage.raycastTarget = false;
+        if (iconImage != null)
+            iconImage.raycastTarget = false;
+        if (outerRingImage != null)
+            outerRingImage.raycastTarget = false;
+
+        if (selectedBorderOverlay != null)
+        {
+            Image borderImg = selectedBorderOverlay.GetComponent<Image>();
+            if (borderImg != null)
+                borderImg.raycastTarget = false;
+        }
+
+        Image btnImg = button.GetComponent<Image>();
+        if (btnImg != null)
+        {
+            Color c = btnImg.color;
+            c.a = 0f;
+            btnImg.color = c;
+            btnImg.raycastTarget = true;
+        }
     }
 
     private void LayoutSideLabels(Vector2 rootSize, bool showSideLabels)
@@ -578,8 +666,13 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         iconRt.anchoredPosition = Vector2.zero;
 
         Vector2 baseSize = fillImage != null ? fillImage.rectTransform.sizeDelta : RectTransform.sizeDelta;
-        // Force full inner fill size so prefab/scene serialized overrides cannot shrink ability icons.
-        iconRt.sizeDelta = baseSize;
+        float boxScale = 1f;
+        if (appliedVisualType == SkillTreeNodeVisualType.MinorPassive ||
+            appliedVisualType == SkillTreeNodeVisualType.MinorUnlock)
+            boxScale = Mathf.Clamp(minorNodeIconBoxScale, 0.15f, 1f);
+
+        // Milestone nodes: full inner box. Minor nodes: smaller box so the gem reads in the padding and hover matches.
+        iconRt.sizeDelta = baseSize * boxScale;
         iconImage.preserveAspect = true;
     }
 
@@ -656,6 +749,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         switch (appliedVisualType)
         {
             case SkillTreeNodeVisualType.MinorPassive:
+            case SkillTreeNodeVisualType.MinorUnlock:
                 return isSelected && !isLocked;
 
             case SkillTreeNodeVisualType.MajorPassive:

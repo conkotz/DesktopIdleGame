@@ -481,10 +481,10 @@ public class QuestTrackerWindowUI : MonoBehaviour
 
         EnemyDatabase ed = Resources.Load<EnemyDatabase>("Databases/EnemyDatabase");
         EnemyDefinition def = ed ? ed.Get(id) : null;
-        string singular = def && !string.IsNullOrWhiteSpace(def.displayName)
+        string label = def && !string.IsNullOrWhiteSpace(def.displayName)
             ? def.displayName.Trim()
             : FormatTrackerEnemyIdFallback(id);
-        return $"{c}/{t} {PluralizeTrackerUnit(singular, t)}";
+        return $"{c}/{t} {label}";
     }
 
     private static string FormatGatherTrackerLine(QuestDefinition q, int c, int t)
@@ -494,10 +494,10 @@ public class QuestTrackerWindowUI : MonoBehaviour
 
         ItemDatabase db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
         ItemDefinition item = db ? db.Get(q.objectiveId.Trim()) : null;
-        string singular = item && !string.IsNullOrWhiteSpace(item.displayName)
+        string label = item && !string.IsNullOrWhiteSpace(item.displayName)
             ? item.displayName.Trim()
             : FormatTrackerItemIdFallback(q.objectiveId.Trim());
-        return $"{c}/{t} {PluralizeTrackerUnit(singular, t)}";
+        return $"{c}/{t} {label}";
     }
 
     private static string FormatTrackerItemIdFallback(string raw)
@@ -524,20 +524,6 @@ public class QuestTrackerWindowUI : MonoBehaviour
         if (raw.StartsWith("enemy_", System.StringComparison.Ordinal))
             raw = raw.Substring("enemy_".Length);
         return raw.Replace('_', ' ');
-    }
-
-    private static string PluralizeTrackerUnit(string singular, int count)
-    {
-        if (string.IsNullOrEmpty(singular))
-            return count == 1 ? "enemy" : "enemies";
-        if (count == 1)
-            return singular;
-        if (string.Equals(singular, "enemy", System.StringComparison.OrdinalIgnoreCase))
-            return "enemies";
-        char last = singular[^1];
-        if (char.ToLowerInvariant(last) == 's')
-            return singular;
-        return singular + "s";
     }
 
     private static Transform FindChildByName(Transform root, string childName)

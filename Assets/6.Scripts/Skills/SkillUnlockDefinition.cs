@@ -10,6 +10,9 @@ public class SkillUnlockDefinition
     [TextArea] public string description;
     public Sprite icon;
 
+    [Tooltip(
+        "Minor Passive: preset stat row. Minor Unlock: flavor only (e.g. new fish); use title + description; no stat options — gameplay is enforced in content (e.g. fishing nodes). " +
+        "Unlock / Ability / Major / Capstone: progression as before.")]
     public SkillUnlockType unlockType = SkillUnlockType.MinorPassive;
     [Tooltip("Preset stat package for MinorPassive melee nodes. Ignored for non-MinorPassive rows.")]
     public MeleeMinorNodeStatOption meleeMinorStatOption = MeleeMinorNodeStatOption.None;

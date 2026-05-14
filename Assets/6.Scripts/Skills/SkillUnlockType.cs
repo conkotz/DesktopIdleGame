@@ -10,5 +10,10 @@ public enum SkillUnlockType
     Ability,
     Unlock,
     MajorPassive,
-    CapstonePassive
+    CapstonePassive,
+
+    /// <summary>
+    /// Flavor / world unlock (e.g. new fish). No stat package; gameplay is driven elsewhere. Serialized as last value so existing assets keep their unlock types.
+    /// </summary>
+    MinorUnlock
 }
