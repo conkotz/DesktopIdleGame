@@ -15,9 +15,8 @@ MonoBehaviour:
   abilityId: envenom
   displayName: Envenom
   tag: 1
-  description: Primes your next hit. If the hit deals Corruption damage, apply Poison
-    at 100% chance at max stacks.
-  icon: {fileID: -3106849600663172003, guid: eac4dfbab0ba6ba47923ad2fffa2615c, type: 3}
+  tooltipBuffMinionDurationSeconds: 0
+  presentation: {fileID: 11400000, guid: 5cc4b28a5fb44960b8ce6610e9dcf239, type: 2}
   cooldown: 10
   energyCost: 30
   physicalDamageMultiplier: 0

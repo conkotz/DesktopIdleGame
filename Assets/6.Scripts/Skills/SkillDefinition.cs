@@ -15,6 +15,9 @@ public class SkillDefinition : ScriptableObject
     [TextArea(3, 10)]
     public string description;
 
+    [Tooltip("Optional centralized display copy for this skill header/body when wired.")]
+    public SkillsAndAbilityPresentationDefinition presentation;
+
     [Header("Visuals")]
     [Tooltip("Icon for list rows, category headers, and compact UI.")]
     public Sprite icon;

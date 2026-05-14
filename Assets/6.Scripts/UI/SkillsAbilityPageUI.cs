@@ -551,9 +551,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
 
         int level = skillsManager ? skillsManager.GetLevel(_selectedSkill.skillType) : 1;
-        string displayName = string.IsNullOrWhiteSpace(_selectedSkill.displayName)
-            ? _selectedSkill.skillType.ToString()
-            : _selectedSkill.displayName;
+        string displayName = SkillsAbilityPresentationResolver.ResolveSkillDisplayName(_selectedSkill);
+        if (string.IsNullOrWhiteSpace(displayName))
+            displayName = _selectedSkill.skillType.ToString();
 
         if (centerTitleText)
             centerTitleText.text = $"{displayName} (lv {level})";

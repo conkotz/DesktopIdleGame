@@ -95,13 +95,14 @@ public class AbilityEntryUI : MonoBehaviour,
         if (icon)
         {
             icon.gameObject.SetActive(true);
-            icon.enabled = def != null && def.icon != null;
-            icon.sprite = def ? def.icon : null;
+            Sprite spr = def ? SkillsAbilityPresentationResolver.ResolveAbilityIcon(def) : null;
+            icon.enabled = def != null && spr != null;
+            icon.sprite = spr;
             icon.preserveAspect = true;
         }
 
         if (nameText)
-            nameText.text = def ? def.displayName : "—";
+            nameText.text = def ? SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(def) : "—";
 
         if (reqText)
             reqText.text = def ? $"Lv {def.unlockLevel}" : "";
@@ -212,7 +213,7 @@ public class AbilityEntryUI : MonoBehaviour,
         Transform anchor = icon != null ? icon.transform : transform;
         _tooltip.ShowTextAt(
             anchor,
-            _def.displayName,
+            SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(_def),
             body,
             measureRect: measure,
             heightRect: measure,
@@ -247,7 +248,9 @@ public class AbilityEntryUI : MonoBehaviour,
         if (_rootCanvas == null)
             return;
 
-        AbilityDragState.BeginDrag(_def.abilityId, _def.icon, _def.displayName, _def.description);
+        string dragName = SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(_def);
+        string dragDesc = ResolveAbilityDragDescription(_def);
+        AbilityDragState.BeginDrag(_def.abilityId, SkillsAbilityPresentationResolver.ResolveAbilityIcon(_def), dragName, dragDesc);
         CreateDragIcon();
         UpdateDragIconPosition(eventData);
         if (canvasGroup) canvasGroup.blocksRaycasts = false;
@@ -276,7 +279,7 @@ public class AbilityEntryUI : MonoBehaviour,
         _dragIconRT = _dragIconGO.AddComponent<RectTransform>();
         _dragIconImage = _dragIconGO.AddComponent<Image>();
         _dragIconImage.raycastTarget = false;
-        _dragIconImage.sprite = _def != null ? _def.icon : null;
+        _dragIconImage.sprite = _def != null ? SkillsAbilityPresentationResolver.ResolveAbilityIcon(_def) : null;
         _dragIconImage.preserveAspect = true;
 
         _dragIconRT.sizeDelta = dragIconSize;
@@ -378,6 +381,12 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
+        if (string.Equals(def.abilityId, AbilityCombatPower.FishingFrenzyAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Fishing, "Lv5_0", -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
         if (string.Equals(def.abilityId, AbilityCombatPower.CleavingChopAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv25_0", -1);
@@ -392,7 +401,8 @@ public class AbilityEntryUI : MonoBehaviour,
 
         if (string.Equals(def.abilityId, AbilityCombatPower.AvatarOfTheForestAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv50_0", -1);
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Woodcutting, AbilityCombatPower.AvatarOfTheForestEnhancementParentSpineNodeId, -1);
             return BuildActiveEnhancementLine(def, selected);
         }
 
@@ -402,7 +412,21 @@ public class AbilityEntryUI : MonoBehaviour,
     private static string BuildAbilityDescription(AbilityDefinition def)
     {
         if (!def) return "No description.";
-        return string.IsNullOrWhiteSpace(def.description) ? "No description." : def.description.Trim();
+        string intro = SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def);
+        return string.IsNullOrWhiteSpace(intro) || intro == "No description." ? "No description." : intro;
+    }
+
+    private static string ResolveAbilityDragDescription(AbilityDefinition def)
+    {
+        if (!def)
+            return "Ability";
+
+        string intro = SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def);
+        if (!string.IsNullOrWhiteSpace(intro) && intro != "No description.")
+            return intro;
+
+        string fb = SkillsAbilityPresentationResolver.ResolveAbilityPrimaryDescription(def);
+        return string.IsNullOrWhiteSpace(fb) || fb == "No description." ? "Ability" : fb.Trim();
     }
 
     private static string BuildActiveEnhancementLine(AbilityDefinition def, int selectedIndex) =>

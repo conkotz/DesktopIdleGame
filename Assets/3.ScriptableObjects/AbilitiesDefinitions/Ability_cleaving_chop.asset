@@ -15,8 +15,8 @@ MonoBehaviour:
   abilityId: cleaving_chop
   displayName: Cleaving Chop
   tag: 3
-  description: Each chop also strikes nearby trees for 40 seconds.
-  icon: {fileID: -517532786427757951, guid: 6fe3fbf2e7435bc48823bb85eb229acd, type: 3}
+  tooltipBuffMinionDurationSeconds: 40
+  presentation: {fileID: 11400000, guid: bff1043f23054af9bf9c4a490d96f18b, type: 2}
   cooldown: 90
   energyCost: 0
   physicalDamageMultiplier: 0

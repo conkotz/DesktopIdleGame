@@ -31,6 +31,9 @@ public class SkillUnlockDefinition
     [Header("Optional refs")]
     public AbilityDefinition ability;
 
+    [Tooltip("Optional centralized copy for this unlock row (overrides title/description in UI when fields are set).")]
+    public SkillsAndAbilityPresentationDefinition presentation;
+
     [Header("Choices (optional, data-driven)")]
     [Tooltip("If this unlock creates branch choices, define them here. Empty = no choice nodes for this unlock.")]
     public List<SkillChoiceDefinition> choices = new();
@@ -55,4 +58,7 @@ public class SkillChoiceDefinition
     [Header("Optional refs")]
     [Tooltip("Optional ability linked to this choice.")]
     public AbilityDefinition ability;
+
+    [Tooltip("Optional centralized copy for this choice node.")]
+    public SkillsAndAbilityPresentationDefinition presentation;
 }

@@ -170,9 +170,12 @@ public class SkillListEntryUI : MonoBehaviour, IPointerEnterHandler
         }
 
         if (nameText)
-            nameText.text = string.IsNullOrWhiteSpace(_definition.displayName)
+        {
+            string name = SkillsAbilityPresentationResolver.ResolveSkillDisplayName(_definition);
+            nameText.text = string.IsNullOrWhiteSpace(name)
                 ? _definition.skillType.ToString()
-                : _definition.displayName;
+                : name;
+        }
 
         SetLevel(level);
         SetProgress(progress01);

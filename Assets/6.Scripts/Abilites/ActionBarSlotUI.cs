@@ -422,12 +422,14 @@ public class ActionBarSlotUI : MonoBehaviour,
                 return;
             }
 
-            Sprite incomingIcon = AbilityDragState.AbilityIcon ? AbilityDragState.AbilityIcon : abilityDef.icon;
+            Sprite incomingIcon = AbilityDragState.AbilityIcon
+                ? AbilityDragState.AbilityIcon
+                : SkillsAbilityPresentationResolver.ResolveAbilityIcon(abilityDef);
             string incomingName = string.IsNullOrWhiteSpace(AbilityDragState.AbilityDisplayName)
-                ? abilityDef.displayName
+                ? SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(abilityDef)
                 : AbilityDragState.AbilityDisplayName;
             string incomingDescription = string.IsNullOrWhiteSpace(AbilityDragState.AbilityDescription)
-                ? abilityDef.description
+                ? ResolveAbilityActionBarBodyText(abilityDef)
                 : AbilityDragState.AbilityDescription;
 
             ActionBarAssignment abilityAssignment = ActionBarAssignment.CreateAbility(
@@ -546,9 +548,12 @@ public class ActionBarSlotUI : MonoBehaviour,
             }
 
             AbilityDefinition def = GetAbilityDefinition(assignedAction.id);
+            string title = def != null
+                ? SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(def)
+                : (string.IsNullOrWhiteSpace(assignedAction.displayName) ? "Ability" : assignedAction.displayName);
             tooltip.SetAnchor(transform);
             tooltip.ShowText(
-                assignedAction.displayName,
+                title,
                 BuildAbilityActionBarTooltip(def, assignedAction)
             );
         }
@@ -587,7 +592,7 @@ public class ActionBarSlotUI : MonoBehaviour,
             return string.IsNullOrWhiteSpace(assignment?.description) ? "Ability" : assignment.description.Trim();
 
         string tagLine = AbilityTooltipDamagePreview.BuildAbilityTooltipTagLine(def, orangeMarkup: true);
-        string desc = string.IsNullOrWhiteSpace(assignment?.description) ? "Ability" : assignment.description.Trim();
+        string desc = ResolveAbilityActionBarBodyText(def, assignment);
         if (!string.IsNullOrEmpty(tagLine))
             desc = $"{tagLine}\n\n{desc}";
 
@@ -596,6 +601,31 @@ public class ActionBarSlotUI : MonoBehaviour,
         string afterDesc = string.IsNullOrEmpty(weaponLine) ? "" : $"\n\n{weaponLine}";
 
         return $"{desc}{afterDesc}";
+    }
+
+    /// <summary>Action bar body line: presentation/league intro when available, else stored assignment text, else legacy ability description.</summary>
+    private static string ResolveAbilityActionBarBodyText(AbilityDefinition def)
+    {
+        return ResolveAbilityActionBarBodyText(def, null);
+    }
+
+    private static string ResolveAbilityActionBarBodyText(AbilityDefinition def, ActionBarAssignment assignment)
+    {
+        if (def != null)
+        {
+            string intro = SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def);
+            if (!string.IsNullOrWhiteSpace(intro) && intro != "No description.")
+                return intro;
+        }
+
+        if (assignment != null && !string.IsNullOrWhiteSpace(assignment.description))
+            return assignment.description.Trim();
+
+        if (def != null && !string.IsNullOrWhiteSpace(def.presentation?.ShortDescription))
+            return def.presentation.ShortDescription.Trim();
+
+        string fb = SkillsAbilityPresentationResolver.ResolveAbilityPrimaryDescription(def);
+        return fb != "No description." ? fb.Trim() : "Ability";
     }
 
     private System.Collections.IEnumerator ClickFeedback()

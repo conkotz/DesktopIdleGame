@@ -19,9 +19,16 @@ public static class AbilityCombatPower
     public const string CrescentSlashAbilityId = "crescent_slash";
     public const string SoulforgedWeaponAbilityId = "soulforged_weapon";
     public const string LumberFrenzyAbilityId = "lumber_frenzy";
+    public const string FishingFrenzyAbilityId = "fishing_frenzy";
     public const string CleavingChopAbilityId = "cleaving_chop";
     public const string SpectralAxeAbilityId = "spectral_axe";
     public const string AvatarOfTheForestAbilityId = "avatar_of_the_forest";
+
+    /// <summary>
+    /// Parent spine node id where Avatar enhancement choices are stored (<see cref="SkillsManager.GetSkillChoiceSelection"/>).
+    /// Must match the Woodcutting skill-tree row for this ability (Lv45 slot 0 — not Lv50, which is a different node).
+    /// </summary>
+    public const string AvatarOfTheForestEnhancementParentSpineNodeId = "Lv45_0";
 
     /// <summary>
     /// Flat add to the effective woodcutting speed multiplier while Avatar of the Forest is active (e.g. 1.52x → 1.62x).
@@ -262,6 +269,8 @@ public static class AbilityCombatPower
                 {
                     mdps *= SoulforgedWeaponSwarmCount * SoulforgedWeaponSwarmDamageMultiplier;
                     summonDur = SoulforgedWeaponSwarmDurationSeconds;
+                    if (def.tooltipBuffMinionDurationSeconds > 0.01f)
+                        summonDur = def.tooltipBuffMinionDurationSeconds;
                 }
                 else if (selected == SoulforgedWeaponIndefiniteChoiceIndex)
                 {

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7a3d2c1b4094f6e8d5c4b3a29180765, type: 3}
+  m_Name: Presentation_ability_envenom
+  m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
+  notes: Presentation for envenom
+  displayNameOverride: Envenom
+  icon: {fileID: -3106849600663172003, guid: eac4dfbab0ba6ba47923ad2fffa2615c, type: 3}
+  shortDescription: Primes your next hit. If the hit deals Corruption damage, apply Poison at 100% chance at max stacks.
+  primaryDescriptionOverride: 
+  flavourText: 
+  abilityEffectLines: []
+  tooltipCategoryTagOverride: 

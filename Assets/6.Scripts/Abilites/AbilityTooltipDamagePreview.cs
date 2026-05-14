@@ -51,6 +51,10 @@ public static class AbilityTooltipDamagePreview
         if (!def)
             return null;
 
+        string fromPresentation = SkillsAbilityPresentationResolver.ResolveAbilityTooltipCategoryLabelOrNull(def);
+        if (!string.IsNullOrEmpty(fromPresentation))
+            return fromPresentation;
+
         switch (def.tag)
         {
             case AbilityTag.Active:
@@ -174,9 +178,6 @@ public static class AbilityTooltipDamagePreview
     private static bool IsSoulforgedWeapon(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsLumberFrenzy(AbilityDefinition def) =>
-        def && string.Equals(def.abilityId, AbilityCombatPower.LumberFrenzyAbilityId, System.StringComparison.OrdinalIgnoreCase);
-
     private static bool IsCleavingChop(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.CleavingChopAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -193,6 +194,13 @@ public static class AbilityTooltipDamagePreview
         // Lumber Frenzy is the only ability at Lv5 (slot 0). The spine-keyed read also falls back to
         // the legacy "5" key so older saves keep working.
         return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv5_0", -1);
+    }
+
+    private static int GetFishingSkillRow5Choice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+        return skillsManager.GetSkillChoiceSelection(SkillType.Fishing, "Lv5_0", -1);
     }
 
     /// <summary>Returns the enhancement choice for Cleaving Chop (Woodcutting Lv25 slot 0).</summary>
@@ -215,21 +223,11 @@ public static class AbilityTooltipDamagePreview
     {
         if (skillsManager == null)
             return -1;
-        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv50_0", -1);
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Woodcutting, AbilityCombatPower.AvatarOfTheForestEnhancementParentSpineNodeId, -1);
     }
-
-    /// <summary>Mirrors active buff length in <c>PlayerAbilityController</c> (Lumber Frenzy).</summary>
-    private const float LumberFrenzyBuffDurationSecondsTooltip = 20f;
 
     private const float SpectralAxeTooltipDurationSeconds = 60f;
-
-    private static float GetCleavingChopTooltipDurationSeconds(SkillsManager skillsManager)
-    {
-        const float baseDurationSec = 40f;
-        const float prolongedDurationBonusSec = 5f;
-        int choice = GetCleavingChopChoice(skillsManager);
-        return baseDurationSec + (choice == 1 ? prolongedDurationBonusSec : 0f);
-    }
 
     private static float GetCleavingStrikesTooltipDurationSeconds(SkillsManager skillsManager)
     {
@@ -253,30 +251,27 @@ public static class AbilityTooltipDamagePreview
             float fallback = def != null && def.minionSpawnDefinition != null
                 ? Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration)
                 : SoulforgedWeaponSwarmDurationSeconds;
-            body.AppendLine(O($"Duration: {fallback:0.#}s"));
+            float dur = GetTooltipBuffMinionDisplayDurationSeconds(def, fallback, 0f);
+            body.AppendLine(O($"Duration: {dur:0.#}s"));
             return;
         }
 
         int sel = skillsManager.GetSkillChoiceSelection(SkillType.Melee, SoulforgedWeaponChoiceSourceLevel, -1);
         if (sel == SoulforgedWeaponSwarmChoiceIndex)
-            body.AppendLine(O($"Duration: {SoulforgedWeaponSwarmDurationSeconds:0.#}s"));
+        {
+            float dur = GetTooltipBuffMinionDisplayDurationSeconds(def, SoulforgedWeaponSwarmDurationSeconds, 0f);
+            body.AppendLine(O($"Duration: {dur:0.#}s"));
+        }
         else if (sel == SoulforgedWeaponIndefiniteChoiceIndex)
             body.AppendLine(O("Duration: Until dismissed"));
         else
         {
-            float dur = def != null && def.minionSpawnDefinition != null
+            float fallback = def != null && def.minionSpawnDefinition != null
                 ? Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration)
                 : SoulforgedWeaponSwarmDurationSeconds;
+            float dur = GetTooltipBuffMinionDisplayDurationSeconds(def, fallback, 0f);
             body.AppendLine(O($"Duration: {dur:0.#}s"));
         }
-    }
-
-    private static float GetAvatarOfTheForestTooltipDurationSeconds(SkillsManager skillsManager)
-    {
-        const float baseDurationSec = 90f;
-        const float durationEnhancementBonusSec = 30f;
-        int choice = GetAvatarOfTheForestChoice(skillsManager);
-        return baseDurationSec + (choice == 0 ? durationEnhancementBonusSec : 0f);
     }
 
     private static int GetMeleeLv15BranchChoice(SkillsManager skillsManager, int slot012)
@@ -292,6 +287,53 @@ public static class AbilityTooltipDamagePreview
             return -1;
         return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
     }
+
+    /// <summary>
+    /// Inspector base duration for buff/minion tooltips (and Lumber runtime). When ~0, uses <paramref name="codeBaseSeconds"/>.
+    /// </summary>
+    private static float GetTooltipBuffMinionBaseDurationSeconds(AbilityDefinition def, float codeBaseSeconds)
+    {
+        if (def != null && def.tooltipBuffMinionDurationSeconds > 0.01f)
+            return def.tooltipBuffMinionDurationSeconds;
+        return codeBaseSeconds;
+    }
+
+    /// <summary>Displayed duration = max(0.1, base + additiveBonus) where base is asset or code default.</summary>
+    private static float GetTooltipBuffMinionDisplayDurationSeconds(
+        AbilityDefinition def,
+        float codeBaseSeconds,
+        float additiveBonusSeconds)
+    {
+        return Mathf.Max(0.1f, GetTooltipBuffMinionBaseDurationSeconds(def, codeBaseSeconds) + additiveBonusSeconds);
+    }
+
+    private static float GetAvatarOfTheForestDurationBonusSeconds(SkillsManager skillsManager)
+    {
+        const float durationEnhancementBonusSec = 30f;
+        return GetAvatarOfTheForestChoice(skillsManager) == 0 ? durationEnhancementBonusSec : 0f;
+    }
+
+    private static float GetCleavingChopDurationBonusSeconds(SkillsManager skillsManager)
+    {
+        const float prolongedDurationBonusSec = 5f;
+        return GetCleavingChopChoice(skillsManager) == 1 ? prolongedDurationBonusSec : 0f;
+    }
+
+    private static float GetCleavingStrikesDurationBonusSeconds(SkillsManager skillsManager)
+    {
+        const float strikesCodeBase = 5f;
+        float full = GetCleavingStrikesTooltipDurationSeconds(skillsManager);
+        return Mathf.Max(0f, full - strikesCodeBase);
+    }
+
+    private static bool IsLumberFrenzy(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.LumberFrenzyAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsFishingFrenzy(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.FishingFrenzyAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
+    private const float LumberFrenzyBuffDurationSecondsTooltip = 20f;
+    private const float FishingFrenzyBuffDurationSecondsTooltip = 20f;
 
     /// <summary>
     /// Compact tooltip: Effects, then optional Deals/Ability Power scaling lines, then Energy • Cooldown.
@@ -343,7 +385,19 @@ public static class AbilityTooltipDamagePreview
         {
             AppendLumberFrenzyTooltipEffects(body, O, skillsManager);
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"Duration: {LumberFrenzyBuffDurationSecondsTooltip:0.#}s"));
+            float lumberDur = GetTooltipBuffMinionDisplayDurationSeconds(def, LumberFrenzyBuffDurationSecondsTooltip, 0f);
+            body.AppendLine(O($"Duration: {lumberDur:0.#}s"));
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            return body.ToString().TrimEnd();
+        }
+
+        if (IsFishingFrenzy(def))
+        {
+            AppendFishingFrenzyTooltipEffects(body, O, skillsManager);
+            body.AppendLine(string.Empty);
+            float fishingDur = GetTooltipBuffMinionDisplayDurationSeconds(def, FishingFrenzyBuffDurationSecondsTooltip, 0f);
+            body.AppendLine(O($"Duration: {fishingDur:0.#}s"));
             body.AppendLine(string.Empty);
             body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
@@ -352,19 +406,22 @@ public static class AbilityTooltipDamagePreview
         if (IsAvatarOfTheForest(def))
         {
             AppendAvatarOfTheForestTooltipEffects(body, O, skillsManager);
-            float avatarDur = GetAvatarOfTheForestTooltipDurationSeconds(skillsManager);
+            const float avatarCodeBaseSeconds = 90f;
+            float avatarDur = GetTooltipBuffMinionDisplayDurationSeconds(
+                def, avatarCodeBaseSeconds, GetAvatarOfTheForestDurationBonusSeconds(skillsManager));
             body.AppendLine(string.Empty);
             body.AppendLine(O($"Duration: {avatarDur:0.#}s"));
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown (begins after the buff ends)"));
+            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
         }
 
         if (IsCleavingChop(def))
         {
-            AppendCleavingChopTooltipEffects(body, O, skillsManager);
+            AppendCleavingChopTooltipEffects(body, O, skillsManager, def);
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"Duration: {GetCleavingChopTooltipDurationSeconds(skillsManager):0.#}s"));
+            body.AppendLine(O(
+                $"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, 40f, GetCleavingChopDurationBonusSeconds(skillsManager)):0.#}s"));
             body.AppendLine(string.Empty);
             body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
@@ -372,9 +429,10 @@ public static class AbilityTooltipDamagePreview
 
         if (IsSpectralAxe(def))
         {
-            AppendSpectralAxeTooltipEffects(body, O, skillsManager);
+            AppendSpectralAxeTooltipEffects(body, O, skillsManager, def);
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"Duration: {SpectralAxeTooltipDurationSeconds:0.#}s"));
+            body.AppendLine(O(
+                $"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, SpectralAxeTooltipDurationSeconds, 0f):0.#}s"));
             body.AppendLine(string.Empty);
             body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();
@@ -617,7 +675,8 @@ public static class AbilityTooltipDamagePreview
         if (IsCleavingStrikes(def))
         {
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"Duration: {GetCleavingStrikesTooltipDurationSeconds(skillsManager):0.#}s"));
+            body.AppendLine(O(
+                $"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, 5f, GetCleavingStrikesDurationBonusSeconds(skillsManager)):0.#}s"));
         }
 
         body.AppendLine(string.Empty);
@@ -645,10 +704,30 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(O($"+{sturdyGripStaminaEffPct:0.#}% Woodcutting Stamina Efficiency"));
     }
 
-    private static void AppendCleavingChopTooltipEffects(
+    private static void AppendFishingFrenzyTooltipEffects(
         StringBuilder body,
         System.Func<string, string> O,
         SkillsManager skillsManager)
+    {
+        const float baseFishingSpeedPct = 20f;
+        const float baseGritChancePct = 10f;
+        const float sturdyGripStaminaEffPct = 15f;
+        const float ironGritExtraGritPct = 5f;
+
+        int choice = GetFishingSkillRow5Choice(skillsManager);
+        float gritTotal = baseGritChancePct + (choice == 1 ? ironGritExtraGritPct : 0f);
+
+        body.AppendLine(O($"+{baseFishingSpeedPct:0.#}% Fishing Speed"));
+        body.AppendLine(O($"+{gritTotal:0.#}% Fishing Grit Chance"));
+        if (choice == 0)
+            body.AppendLine(O($"+{sturdyGripStaminaEffPct:0.#}% Fishing Stamina Efficiency"));
+    }
+
+    private static void AppendCleavingChopTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager,
+        AbilityDefinition def)
     {
         // Numbers mirror PlayerAbilityController.CleavingChop* constants so the tooltip stays truthful.
         const float baseRange = 10f;
@@ -656,7 +735,7 @@ public static class AbilityTooltipDamagePreview
         const float secondaryYieldPct = 60f;
 
         int choice = GetCleavingChopChoice(skillsManager);
-        float duration = GetCleavingChopTooltipDurationSeconds(skillsManager);
+        float duration = GetTooltipBuffMinionDisplayDurationSeconds(def, 40f, GetCleavingChopDurationBonusSeconds(skillsManager));
         float range = baseRange + (choice == 0 ? extendedReachRangeBonus : 0f);
 
         body.AppendLine(O($"For {duration:0.#}s, chops strike nearby trees"));
@@ -687,7 +766,8 @@ public static class AbilityTooltipDamagePreview
     private static void AppendSpectralAxeTooltipEffects(
         StringBuilder body,
         System.Func<string, string> O,
-        SkillsManager skillsManager)
+        SkillsManager skillsManager,
+        AbilityDefinition def)
     {
         // Mirrors the constants in PlayerAbilityController.SpectralAxe* so tooltip stays truthful.
         const float projectDistance = 5f;
@@ -698,8 +778,10 @@ public static class AbilityTooltipDamagePreview
         // "logs only" restriction no longer applies for that enhancement choice.
         bool phantomHarvest = GetSpectralAxeChoice(skillsManager) == 0;
 
+        float spectralDur = GetTooltipBuffMinionDisplayDurationSeconds(def, SpectralAxeTooltipDurationSeconds, 0f);
+
         body.AppendLine(O($"Throws your axe {projectDistance:0.#} units forward"));
-        body.AppendLine(O($"Chops the closest tree within {areaRadius:0.#} units for {SpectralAxeTooltipDurationSeconds:0.#}s, then returns"));
+        body.AppendLine(O($"Chops the closest tree within {areaRadius:0.#} units for {spectralDur:0.#}s, then returns"));
         body.AppendLine(O($"Gathers logs at {yieldEfficiencyPct:0.#}% efficiency"));
         if (!phantomHarvest)
             body.AppendLine(O("Only logs are gathered from that tree"));

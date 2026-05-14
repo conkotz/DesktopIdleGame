@@ -263,9 +263,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         ActionBarAssignment assignment = ActionBarAssignment.CreateAbility(
             def.abilityId,
-            def.displayName,
-            def.icon,
-            def.description ?? string.Empty);
+            SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(def),
+            SkillsAbilityPresentationResolver.ResolveAbilityIcon(def),
+            SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def) ?? string.Empty);
 
         for (int i = 0; i < slotBindings.Count; i++)
         {
@@ -1111,9 +1111,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
                 return ActionBarAssignment.CreateAbility(
                     ability.abilityId,
-                    ability.displayName,
-                    ability.icon,
-                    ability.description
+                    SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(ability),
+                    SkillsAbilityPresentationResolver.ResolveAbilityIcon(ability),
+                    SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(ability) ?? string.Empty
                 );
         }
 

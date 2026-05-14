@@ -31,8 +31,14 @@ public class AbilityDefinition : ScriptableObject
     public string displayName;
     [Tooltip("High-level category label shown above the tooltip description (e.g. Active / Minion / Buff). None hides the label.")]
     public AbilityTag tag = AbilityTag.None;
-    [TextArea] public string description;
-    public Sprite icon;
+
+    [Tooltip("Buff / Minion: BASE seconds for the league tooltip Duration line (and Lumber Frenzy runtime when > 0). Enhancement bonuses from skill choices are added on top in AbilityTooltipDamagePreview. Use 0 to use the code default base for that ability.")]
+    [Min(0f)]
+    public float tooltipBuffMinionDurationSeconds;
+
+    [Header("Presentation (optional)")]
+    [Tooltip("Icon + wording (name, short line, optional prose). Effect bullets and scaling stay in AbilityTooltipDamagePreview for each abilityId.")]
+    public SkillsAndAbilityPresentationDefinition presentation;
 
     public float cooldown = 1f;
     [Min(0f)] public float energyCost = 0f;

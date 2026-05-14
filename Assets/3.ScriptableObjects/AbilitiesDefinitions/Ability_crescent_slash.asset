@@ -15,9 +15,8 @@ MonoBehaviour:
   abilityId: crescent_slash
   displayName: Crescent Slash
   tag: 1
-  description: Unleash a wave which travels outward and strikes enemies in front
-    of you.
-  icon: {fileID: -5474065623339692901, guid: 6cb34204da6e6044ab2e5eac89ba221e, type: 3}
+  tooltipBuffMinionDurationSeconds: 0
+  presentation: {fileID: 11400000, guid: 645979ce9e834722a48d9f45b4dfa914, type: 2}
   cooldown: 8
   energyCost: 35
   physicalDamageMultiplier: 1.2

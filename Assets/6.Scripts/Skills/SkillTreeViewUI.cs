@@ -1141,22 +1141,40 @@ public class SkillTreeViewUI : MonoBehaviour
         SkillTreeNodeVisualType type = row.type;
         SkillUnlockDefinition unlock = row.unlock;
 
-        string unlockTitle = unlock != null && !string.IsNullOrWhiteSpace(unlock.title) ? unlock.title.Trim() : "Untitled";
-        string desc = unlock != null && !string.IsNullOrWhiteSpace(unlock.description) ? unlock.description.Trim() : "No description yet.";
+        string unlockTitle = unlock != null
+            ? SkillsAbilityPresentationResolver.ResolveTreeUnlockTitle(unlock)
+            : "Untitled";
+        if (string.IsNullOrWhiteSpace(unlockTitle))
+            unlockTitle = "Untitled";
+
+        string desc;
+        if (unlock != null && unlock.unlockType == SkillUnlockType.Ability && unlock.ability != null)
+            desc = SkillsAbilityPresentationResolver.ResolveSkillTreeAbilityUnlockDescription(unlock);
+        else if (unlock != null && !string.IsNullOrWhiteSpace(unlock.description))
+            desc = unlock.description.Trim();
+        else
+            desc = "No description yet.";
         desc = BuildEffectiveWoodcuttingMajorPassiveDescription(row, desc);
 
         bool useMajorPassivePresentation = ShouldUseMajorPassiveLinePresentation(row);
         if (useMajorPassivePresentation)
             desc = ApplyMajorPassiveValueLineMarkup(desc);
 
-        if (unlock != null && unlock.unlockType == SkillUnlockType.Ability && unlock.ability != null &&
-            selectedSkill != null && selectedSkill.skillType == SkillType.Woodcutting)
+        if (unlock != null && unlock.unlockType == SkillUnlockType.Ability && unlock.ability != null && selectedSkill != null)
         {
             string aid = unlock.ability.abilityId;
-            if (string.Equals(aid, AbilityCombatPower.LumberFrenzyAbilityId, StringComparison.OrdinalIgnoreCase))
+            if (selectedSkill.skillType == SkillType.Woodcutting)
+            {
+                if (string.Equals(aid, AbilityCombatPower.LumberFrenzyAbilityId, StringComparison.OrdinalIgnoreCase))
+                    desc = StripWoodcuttingLumberFrenzyTreeDescriptionDuration(desc);
+                else if (string.Equals(aid, AbilityCombatPower.AvatarOfTheForestAbilityId, StringComparison.OrdinalIgnoreCase))
+                    desc = StripAvatarTreeDescriptionLongWording(desc);
+            }
+            else if (selectedSkill.skillType == SkillType.Fishing &&
+                string.Equals(aid, AbilityCombatPower.FishingFrenzyAbilityId, StringComparison.OrdinalIgnoreCase))
+            {
                 desc = StripWoodcuttingLumberFrenzyTreeDescriptionDuration(desc);
-            else if (string.Equals(aid, AbilityCombatPower.AvatarOfTheForestAbilityId, StringComparison.OrdinalIgnoreCase))
-                desc = StripAvatarTreeDescriptionLongWording(desc);
+            }
         }
 
         if (unlock != null && unlock.unlockType == SkillUnlockType.Unlock)
@@ -1175,12 +1193,28 @@ public class SkillTreeViewUI : MonoBehaviour
     private void BuildChoiceTooltipCopy(int unlockLevel, SkillChoiceDefinition choice, RowDef parentRow, bool isUnlocked, out string title, out string body)
     {
         SkillUnlockDefinition parentUnlock = parentRow.unlock;
-        string unlockTitle = choice != null && !string.IsNullOrWhiteSpace(choice.title)
-            ? choice.title.Trim()
-            : (parentUnlock != null && !string.IsNullOrWhiteSpace(parentUnlock.title) ? parentUnlock.title.Trim() : "Untitled");
-        string desc = choice != null && !string.IsNullOrWhiteSpace(choice.description)
-            ? choice.description.Trim()
-            : "No description yet.";
+
+        string unlockTitle;
+        if (choice != null)
+        {
+            string ct = SkillsAbilityPresentationResolver.ResolveChoiceTitle(choice);
+            unlockTitle = !string.IsNullOrWhiteSpace(ct)
+                ? ct
+                : (parentUnlock != null ? SkillsAbilityPresentationResolver.ResolveUnlockTitle(parentUnlock) : string.Empty);
+        }
+        else
+        {
+            unlockTitle = parentUnlock != null ? SkillsAbilityPresentationResolver.ResolveUnlockTitle(parentUnlock) : string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(unlockTitle))
+            unlockTitle = "Untitled";
+
+        string desc = choice != null
+            ? SkillsAbilityPresentationResolver.ResolveChoiceDescription(choice)
+            : string.Empty;
+        if (string.IsNullOrWhiteSpace(desc))
+            desc = "No description yet.";
 
         if (ShouldUseMajorPassiveLinePresentation(parentRow))
             desc = ApplyMajorPassiveValueLineMarkup(desc);
@@ -1525,8 +1559,12 @@ public class SkillTreeViewUI : MonoBehaviour
                 return skill.icon;
         }
 
-        if (unlock.ability != null && unlock.ability.icon != null)
-            return unlock.ability.icon;
+        if (unlock.ability != null)
+        {
+            Sprite spr = SkillsAbilityPresentationResolver.ResolveAbilityIcon(unlock.ability);
+            if (spr != null)
+                return spr;
+        }
         return null;
     }
 
@@ -1552,8 +1590,12 @@ public class SkillTreeViewUI : MonoBehaviour
             return null;
         if (choice.icon != null)
             return choice.icon;
-        if (choice.ability != null && choice.ability.icon != null)
-            return choice.ability.icon;
+        if (choice.ability != null)
+        {
+            Sprite spr = SkillsAbilityPresentationResolver.ResolveAbilityIcon(choice.ability);
+            if (spr != null)
+                return spr;
+        }
         return null;
     }
 

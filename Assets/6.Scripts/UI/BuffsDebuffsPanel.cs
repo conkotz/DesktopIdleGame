@@ -362,8 +362,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
             !string.IsNullOrWhiteSpace(buff.id))
         {
             AbilityDefinition adef = _abilityDatabase.Get(buff.id);
-            if (adef != null && adef.icon != null)
-                return adef.icon;
+            if (adef != null)
+            {
+                Sprite spr = SkillsAbilityPresentationResolver.ResolveAbilityIcon(adef);
+                if (spr != null)
+                    return spr;
+            }
         }
 
         if (inventory != null && !string.IsNullOrWhiteSpace(buff.id))
@@ -454,8 +458,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))
             {
                 AbilityDefinition def = _abilityDatabase.Get(buff.id);
-                if (def != null && !string.IsNullOrWhiteSpace(def.displayName))
-                    return def.displayName;
+                if (def != null)
+                {
+                    string name = SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(def);
+                    if (!string.IsNullOrWhiteSpace(name))
+                        return name;
+                }
             }
 
             return string.IsNullOrWhiteSpace(buff.id) ? "Ability" : buff.id;
@@ -492,8 +500,11 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))
             {
                 AbilityDefinition def = _abilityDatabase.Get(buff.id);
-                if (def != null && !string.IsNullOrWhiteSpace(def.description))
-                    core = def.description;
+                if (def != null)
+                {
+                    string resolved = SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def);
+                    core = resolved != "No description." ? resolved : core;
+                }
             }
 
             // Only surface a "Swing charges: N" line for multi-stack buffs (Cleaving Strikes, etc.).

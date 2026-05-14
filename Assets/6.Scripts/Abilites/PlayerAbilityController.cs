@@ -60,6 +60,16 @@ public class PlayerAbilityController : MonoBehaviour
     private const int LumberFrenzyStaminaEnhancementChoiceIndex = 0;
     private const int LumberFrenzyExtraGritEnhancementChoiceIndex = 1;
 
+    private const string FishingFrenzyId = "fishing_frenzy";
+    private const float FishingFrenzyDurationSeconds = 20f;
+    private const float FishingFrenzySpeedBonus = 0.20f;
+    private const float FishingFrenzyGritChanceBonus = 0.10f;
+    private const float FishingFrenzyStaminaEfficiencyEnhancementBonus = 0.15f;
+    private const float FishingFrenzyExtraGritEnhancementBonus = 0.05f;
+    private const int FishingFrenzyChoiceSourceLevel = 5;
+    private const int FishingFrenzyStaminaEnhancementChoiceIndex = 0;
+    private const int FishingFrenzyExtraGritEnhancementChoiceIndex = 1;
+
     private const string SpectralAxeId = "spectral_axe";
     /// <summary>Spectral Axe stays out for this long before returning. Cooldown starts after the return finishes.</summary>
     private const float SpectralAxeBaseDurationSeconds = 60f;
@@ -133,6 +143,13 @@ public class PlayerAbilityController : MonoBehaviour
     private float _lastSyncedLumberFrenzyHudEnd = float.NaN;
     /// <summary>When the Lumber Frenzy buff expires, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
     private AbilityDefinition _lumberFrenzyCooldownAbilityDef;
+
+    private bool _fishingFrenzyActive;
+    private float _fishingFrenzyEndsAt;
+    private float _fishingFrenzyDuration;
+    private float _lastSyncedFishingFrenzyHudEnd = float.NaN;
+    /// <summary>When the Fishing Frenzy buff expires, this ability gets <see cref="StartCooldown"/> (not on cast).</summary>
+    private AbilityDefinition _fishingFrenzyCooldownAbilityDef;
 
     private bool _cleavingChopActive;
     private float _cleavingChopEndsAt;
@@ -250,8 +267,10 @@ public class PlayerAbilityController : MonoBehaviour
         CleanupCleavingStrikesIfExpired();
         SyncCleavingStrikesHudBuff();
         CleanupLumberFrenzyIfExpired();
-        abilityVfx?.UpdateLumberFrenzyOrbitVfx(IsLumberFrenzyActive);
+        CleanupFishingFrenzyIfExpired();
+        abilityVfx?.UpdateLumberFrenzyOrbitVfx(_lumberFrenzyActive || _fishingFrenzyActive);
         SyncLumberFrenzyHudBuff();
+        SyncFishingFrenzyHudBuff();
         CleanupCleavingChopIfExpired();
         SyncCleavingChopHudBuff();
         abilityVfx?.UpdateCleavingChopRangeIndicator(IsCleavingChopActive, GetCleavingChopRange());
@@ -354,6 +373,8 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (string.Equals(abilityId, LumberFrenzyId, StringComparison.OrdinalIgnoreCase))
             return IsLumberFrenzyActive;
+        if (string.Equals(abilityId, FishingFrenzyId, StringComparison.OrdinalIgnoreCase))
+            return IsFishingFrenzyActive;
         if (string.Equals(abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase))
             return IsCleavingChopActive;
         if (string.Equals(abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase))
@@ -386,6 +407,12 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, LumberFrenzyId, StringComparison.OrdinalIgnoreCase))
         {
             ForceEndLumberFrenzyEarly();
+            return;
+        }
+
+        if (string.Equals(abilityId, FishingFrenzyId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndFishingFrenzyEarly();
             return;
         }
 
@@ -458,7 +485,8 @@ public class PlayerAbilityController : MonoBehaviour
         _lumberFrenzyEndsAt = 0f;
         _lumberFrenzyDuration = 0f;
 
-        abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+        if (!_fishingFrenzyActive)
+            abilityVfx?.DestroyLumberFrenzyOrbitVfx();
 
         if (_lumberFrenzyCooldownAbilityDef)
             StartCooldown(_lumberFrenzyCooldownAbilityDef);
@@ -621,6 +649,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(def.abilityId, LumberFrenzyId, StringComparison.OrdinalIgnoreCase) && _lumberFrenzyActive)
             return false;
 
+        if (string.Equals(def.abilityId, FishingFrenzyId, StringComparison.OrdinalIgnoreCase) && _fishingFrenzyActive)
+            return false;
+
         // Cleaving Chop: same deferred-cooldown contract as Lumber Frenzy.
         if (string.Equals(def.abilityId, CleavingChopId, StringComparison.OrdinalIgnoreCase) && _cleavingChopActive)
             return false;
@@ -735,6 +766,15 @@ public class PlayerAbilityController : MonoBehaviour
             ActivateLumberFrenzyBuff();
             // Cooldown is deferred to start when the buff expires (see CleanupLumberFrenzyIfExpired).
             _lumberFrenzyCooldownAbilityDef = def;
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (string.Equals(def.abilityId, FishingFrenzyId, StringComparison.OrdinalIgnoreCase))
+        {
+            ActivateFishingFrenzyBuff();
+            _fishingFrenzyCooldownAbilityDef = def;
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -1641,32 +1681,39 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void ActivateCleavingStrikesBuff()
     {
+        const float strikesCodeBaseSeconds = 5f;
         int selected = GetCleavingStrikesSelectedChoice();
         _cleavingBuffActive = true;
+        float fullChoiceDurationSeconds;
         if (selected == 0)
         {
             // Greater Cleave: primary + 2 extra targets per swing (cleave hits use reduced damage).
             _cleavingAdditionalTargets = 2;
             _cleavingHitsRemaining = 3;
-            _cleavingBuffDuration = 5f;
-            _cleavingBuffEndsAt = Time.time + _cleavingBuffDuration;
+            fullChoiceDurationSeconds = 5f;
         }
         else if (selected == 1)
         {
             // Lasting Momentum
             _cleavingAdditionalTargets = 1;
             _cleavingHitsRemaining = 6;
-            _cleavingBuffDuration = 10f;
-            _cleavingBuffEndsAt = Time.time + _cleavingBuffDuration;
+            fullChoiceDurationSeconds = 10f;
         }
         else
         {
             // Base (no Lv18 enhancement)
             _cleavingAdditionalTargets = 1;
             _cleavingHitsRemaining = 4;
-            _cleavingBuffDuration = 7f;
-            _cleavingBuffEndsAt = Time.time + _cleavingBuffDuration;
+            fullChoiceDurationSeconds = 7f;
         }
+
+        float baseDur = strikesCodeBaseSeconds;
+        AbilityDefinition strikesDef = GetAbilityDefinition(CleavingStrikesId);
+        if (strikesDef != null && strikesDef.tooltipBuffMinionDurationSeconds > 0.01f)
+            baseDur = strikesDef.tooltipBuffMinionDurationSeconds;
+        float additiveBonusSeconds = Mathf.Max(0f, fullChoiceDurationSeconds - strikesCodeBaseSeconds);
+        _cleavingBuffDuration = baseDur + additiveBonusSeconds;
+        _cleavingBuffEndsAt = Time.time + _cleavingBuffDuration;
 
         _lastSyncedCleavingHudStacks = int.MinValue;
         _lastSyncedCleavingHudEnd = float.NaN;
@@ -1727,10 +1774,15 @@ public class PlayerAbilityController : MonoBehaviour
     private void ActivateLumberFrenzyBuff()
     {
         _lumberFrenzyActive = true;
-        _lumberFrenzyDuration = LumberFrenzyDurationSeconds;
+        float dur = LumberFrenzyDurationSeconds;
+        AbilityDefinition lumberDef = GetAbilityDefinition(LumberFrenzyId);
+        if (lumberDef != null && lumberDef.tooltipBuffMinionDurationSeconds > 0.01f)
+            dur = lumberDef.tooltipBuffMinionDurationSeconds;
+        _lumberFrenzyDuration = dur;
         _lumberFrenzyEndsAt = Time.time + _lumberFrenzyDuration;
         _lastSyncedLumberFrenzyHudEnd = float.NaN;
-        abilityVfx?.SpawnLumberFrenzyOrbitVfx();
+        if (!_fishingFrenzyActive)
+            abilityVfx?.SpawnLumberFrenzyOrbitVfx();
         SyncLumberFrenzyHudBuff();
         stats?.NotifyStatsChanged();
     }
@@ -1746,7 +1798,8 @@ public class PlayerAbilityController : MonoBehaviour
         _lumberFrenzyEndsAt = 0f;
         _lumberFrenzyDuration = 0f;
 
-        abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+        if (!_fishingFrenzyActive)
+            abilityVfx?.DestroyLumberFrenzyOrbitVfx();
 
         // Cooldown begins now (not on cast) so the player gets a 60s
         // "downtime" after the 20s buff window finishes.
@@ -1784,10 +1837,98 @@ public class PlayerAbilityController : MonoBehaviour
         buffController.SetHudAbilityBuff(LumberFrenzyId, 1, _lumberFrenzyEndsAt, _lumberFrenzyDuration);
     }
 
+    private void ActivateFishingFrenzyBuff()
+    {
+        _fishingFrenzyActive = true;
+        float dur = FishingFrenzyDurationSeconds;
+        AbilityDefinition fishingDef = GetAbilityDefinition(FishingFrenzyId);
+        if (fishingDef != null && fishingDef.tooltipBuffMinionDurationSeconds > 0.01f)
+            dur = fishingDef.tooltipBuffMinionDurationSeconds;
+        _fishingFrenzyDuration = dur;
+        _fishingFrenzyEndsAt = Time.time + _fishingFrenzyDuration;
+        _lastSyncedFishingFrenzyHudEnd = float.NaN;
+        if (!_lumberFrenzyActive)
+            abilityVfx?.SpawnLumberFrenzyOrbitVfx();
+        SyncFishingFrenzyHudBuff();
+        stats?.NotifyStatsChanged();
+    }
+
+    private void CleanupFishingFrenzyIfExpired()
+    {
+        if (!_fishingFrenzyActive)
+            return;
+        if (Time.time < _fishingFrenzyEndsAt)
+            return;
+
+        _fishingFrenzyActive = false;
+        _fishingFrenzyEndsAt = 0f;
+        _fishingFrenzyDuration = 0f;
+
+        if (!_lumberFrenzyActive)
+            abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+
+        if (_fishingFrenzyCooldownAbilityDef)
+            StartCooldown(_fishingFrenzyCooldownAbilityDef);
+        _fishingFrenzyCooldownAbilityDef = null;
+
+        stats?.NotifyStatsChanged();
+    }
+
+    private void SyncFishingFrenzyHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!_fishingFrenzyActive)
+        {
+            if (buffController.IsHudAbilityBuffActive(FishingFrenzyId))
+                buffController.ClearHudAbilityBuff(FishingFrenzyId);
+            _lastSyncedFishingFrenzyHudEnd = float.NaN;
+            return;
+        }
+
+        if (IsOnCooldown(FishingFrenzyId, out _))
+        {
+            buffController.ClearHudAbilityBuff(FishingFrenzyId);
+            _lastSyncedFishingFrenzyHudEnd = float.NaN;
+            return;
+        }
+
+        if (Mathf.Approximately(_lastSyncedFishingFrenzyHudEnd, _fishingFrenzyEndsAt))
+            return;
+
+        _lastSyncedFishingFrenzyHudEnd = _fishingFrenzyEndsAt;
+        buffController.SetHudAbilityBuff(FishingFrenzyId, 1, _fishingFrenzyEndsAt, _fishingFrenzyDuration);
+    }
+
+    private void ForceEndFishingFrenzyEarly()
+    {
+        if (!_fishingFrenzyActive)
+            return;
+
+        _fishingFrenzyActive = false;
+        _fishingFrenzyEndsAt = 0f;
+        _fishingFrenzyDuration = 0f;
+
+        if (!_lumberFrenzyActive)
+            abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+
+        if (_fishingFrenzyCooldownAbilityDef)
+            StartCooldown(_fishingFrenzyCooldownAbilityDef);
+        _fishingFrenzyCooldownAbilityDef = null;
+
+        _lastSyncedFishingFrenzyHudEnd = float.NaN;
+        SyncFishingFrenzyHudBuff();
+        stats?.NotifyStatsChanged();
+    }
+
     private void ActivateAvatarOfTheForestBuff()
     {
         _avatarOfForestActive = true;
         float dur = AvatarOfTheForestBaseDurationSeconds;
+        AbilityDefinition avatarDef = GetAbilityDefinition(AvatarOfTheForestId);
+        if (avatarDef != null && avatarDef.tooltipBuffMinionDurationSeconds > 0.01f)
+            dur = avatarDef.tooltipBuffMinionDurationSeconds;
         if (GetAvatarOfTheForestSelectedChoice() == AvatarOfTheForestDurationEnhancementChoiceIndex)
             dur += AvatarOfTheForestDurationEnhancementBonusSeconds;
         _avatarOfForestDuration = dur;
@@ -1891,7 +2032,8 @@ public class PlayerAbilityController : MonoBehaviour
         if (!skillsManager)
             return -1;
 
-        return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv50_0", -1);
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Woodcutting, AbilityCombatPower.AvatarOfTheForestEnhancementParentSpineNodeId, -1);
     }
 
     /// <summary>Active Avatar of the Forest buff window.</summary>
@@ -1970,10 +2112,60 @@ public class PlayerAbilityController : MonoBehaviour
         return skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, LumberFrenzyChoiceSourceLevel, -1);
     }
 
+    public bool IsFishingFrenzyActive
+    {
+        get
+        {
+            if (!_fishingFrenzyActive)
+                return false;
+            return Time.time < _fishingFrenzyEndsAt;
+        }
+    }
+
+    /// <summary>Additive fishing speed bonus from active Fishing Frenzy buff (0 when inactive).</summary>
+    public float GetFishingFrenzySpeedBonus() =>
+        IsFishingFrenzyActive ? FishingFrenzySpeedBonus : 0f;
+
+    /// <summary>Additive fishing grit chance bonus from active Fishing Frenzy buff, including Iron Grit enhancement (0 when inactive).</summary>
+    public float GetFishingFrenzyGritChanceBonus()
+    {
+        if (!IsFishingFrenzyActive)
+            return 0f;
+
+        float bonus = FishingFrenzyGritChanceBonus;
+        if (GetFishingFrenzySelectedChoice() == FishingFrenzyExtraGritEnhancementChoiceIndex)
+            bonus += FishingFrenzyExtraGritEnhancementBonus;
+        return bonus;
+    }
+
+    /// <summary>Additive fishing stamina efficiency bonus from active Fishing Frenzy buff, only when Sturdy Grip enhancement is selected (0 otherwise).</summary>
+    public float GetFishingFrenzyStaminaEfficiencyBonus()
+    {
+        if (!IsFishingFrenzyActive)
+            return 0f;
+        return GetFishingFrenzySelectedChoice() == FishingFrenzyStaminaEnhancementChoiceIndex
+            ? FishingFrenzyStaminaEfficiencyEnhancementBonus
+            : 0f;
+    }
+
+    private int GetFishingFrenzySelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(SkillType.Fishing, FishingFrenzyChoiceSourceLevel, -1);
+    }
+
     private void ActivateCleavingChopBuff()
     {
         _cleavingChopActive = true;
-        _cleavingChopDuration = CleavingChopBaseDurationSeconds + GetCleavingChopProlongedBonusSeconds();
+        float baseDur = CleavingChopBaseDurationSeconds;
+        AbilityDefinition chopDef = GetAbilityDefinition(CleavingChopId);
+        if (chopDef != null && chopDef.tooltipBuffMinionDurationSeconds > 0.01f)
+            baseDur = chopDef.tooltipBuffMinionDurationSeconds;
+        _cleavingChopDuration = baseDur + GetCleavingChopProlongedBonusSeconds();
         _cleavingChopEndsAt = Time.time + _cleavingChopDuration;
         _lastSyncedCleavingChopHudEnd = float.NaN;
         SyncCleavingChopHudBuff();
@@ -2106,6 +2298,8 @@ public class PlayerAbilityController : MonoBehaviour
         _spectralAxeActive = true;
         _spectralAxeMissedCast = false;
         _spectralAxeDuration = SpectralAxeBaseDurationSeconds;
+        if (def != null && def.tooltipBuffMinionDurationSeconds > 0.01f)
+            _spectralAxeDuration = def.tooltipBuffMinionDurationSeconds;
         _spectralAxeEndsAt = Time.time + _spectralAxeDuration;
         _spectralAxeGatherAccum = 0f;
         _spectralAxeGatherNextInterval = 0f;
@@ -2839,10 +3033,25 @@ public class PlayerAbilityController : MonoBehaviour
             _lumberFrenzyActive = false;
             _lumberFrenzyEndsAt = 0f;
             _lumberFrenzyDuration = 0f;
-            abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+            if (!_fishingFrenzyActive)
+                abilityVfx?.DestroyLumberFrenzyOrbitVfx();
             _lumberFrenzyCooldownAbilityDef = null;
             _lastSyncedLumberFrenzyHudEnd = float.NaN;
             buffController?.ClearHudAbilityBuff(LumberFrenzyId);
+            stats?.NotifyStatsChanged();
+            return;
+        }
+
+        if (string.Equals(id, FishingFrenzyId, StringComparison.OrdinalIgnoreCase) && _fishingFrenzyActive)
+        {
+            _fishingFrenzyActive = false;
+            _fishingFrenzyEndsAt = 0f;
+            _fishingFrenzyDuration = 0f;
+            if (!_lumberFrenzyActive)
+                abilityVfx?.DestroyLumberFrenzyOrbitVfx();
+            _fishingFrenzyCooldownAbilityDef = null;
+            _lastSyncedFishingFrenzyHudEnd = float.NaN;
+            buffController?.ClearHudAbilityBuff(FishingFrenzyId);
             stats?.NotifyStatsChanged();
             return;
         }
@@ -2945,7 +3154,8 @@ public class PlayerAbilityController : MonoBehaviour
         if (!skillsManager)
             return 0f;
 
-        int selected = skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv50_0", -1);
+        int selected = skillsManager.GetSkillChoiceSelection(
+            SkillType.Woodcutting, AbilityCombatPower.AvatarOfTheForestEnhancementParentSpineNodeId, -1);
         return selected == AvatarOfTheForestCooldownEnhancementChoiceIndex
             ? AvatarOfTheForestCooldownEnhancementReductionSeconds
             : 0f;
@@ -3026,6 +3236,10 @@ public class PlayerAbilityController : MonoBehaviour
         _activeSoulforgedWeaponIsPersistent = indefinite;
         CleanupSoulforgedWeaponList();
 
+        float swarmDurationSeconds = SoulforgedWeaponSwarmDurationSeconds;
+        if (def != null && def.tooltipBuffMinionDurationSeconds > 0.01f)
+            swarmDurationSeconds = def.tooltipBuffMinionDurationSeconds;
+
         var occupiedTargets = new HashSet<int>();
 
         for (int i = 0; i < spawnCount; i++)
@@ -3049,7 +3263,7 @@ public class PlayerAbilityController : MonoBehaviour
                     weaponSprite,
                     attacker,
                     HandleSoulforgedWeaponReleased,
-                    swarm ? SoulforgedWeaponSwarmDurationSeconds : -1f,
+                    swarm ? swarmDurationSeconds : -1f,
                     indefinite,
                     swarm ? SoulforgedWeaponSwarmDamageMultiplier : 1f,
                     homeOffset,
@@ -3076,8 +3290,8 @@ public class PlayerAbilityController : MonoBehaviour
         // BuffIconUI hides both the timer text and the radial overlay (the icon just persists).
         if (swarm)
         {
-            _soulforgedHudBuffDuration = SoulforgedWeaponSwarmDurationSeconds;
-            _soulforgedHudBuffEndsAt = Time.time + SoulforgedWeaponSwarmDurationSeconds;
+            _soulforgedHudBuffDuration = swarmDurationSeconds;
+            _soulforgedHudBuffEndsAt = Time.time + swarmDurationSeconds;
         }
         else
         {
@@ -3361,14 +3575,15 @@ public class PlayerAbilityController : MonoBehaviour
     }
 
     /// <summary>
-    /// Visual only: held → equipped → item icon → <see cref="AbilityDefinition.icon"/> → minion placeholder. Does not copy weapon combat stats.
+    /// Visual only: held → equipped → item icon → ability presentation icon → minion placeholder. Does not copy weapon combat stats.
     /// </summary>
     private Sprite ResolveSoulforgedWeaponVisualSprite(MinionDefinition md, AbilityDefinition abilityDef)
     {
         Sprite FallbackAbilityOrPlaceholder()
         {
-            if (abilityDef && abilityDef.icon)
-                return abilityDef.icon;
+            Sprite abIcon = abilityDef ? SkillsAbilityPresentationResolver.ResolveAbilityIcon(abilityDef) : null;
+            if (abIcon)
+                return abIcon;
             if (abilityVfx != null &&
                 abilityVfx.SoulforgedWeaponMinionPresentation.placeholderWeaponSprite)
                 return abilityVfx.SoulforgedWeaponMinionPresentation.placeholderWeaponSprite;

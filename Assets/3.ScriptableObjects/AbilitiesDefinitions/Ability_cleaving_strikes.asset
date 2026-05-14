@@ -15,9 +15,8 @@ MonoBehaviour:
   abilityId: cleaving_strikes
   displayName: Cleaving Strikes
   tag: 1
-  description: Empower your melee basic attacks causing each hit to also strike additional
-    nearby enemies within your weapon range from you (minimum 3 range).
-  icon: {fileID: 1970096588046012890, guid: e4f6c452a92daed479d72fb292a28d34, type: 3}
+  tooltipBuffMinionDurationSeconds: 0
+  presentation: {fileID: 11400000, guid: daf5f69af91a4a6993cd2695b039930c, type: 2}
   cooldown: 20
   energyCost: 45
   physicalDamageMultiplier: 0

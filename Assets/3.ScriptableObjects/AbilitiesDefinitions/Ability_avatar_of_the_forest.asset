@@ -15,9 +15,8 @@ MonoBehaviour:
   abilityId: avatar_of_the_forest
   displayName: Avatar of the Forest
   tag: 3
-  description: "Become an avatar of living wood \u2014 empower your woodcutting with
-    forest magic."
-  icon: {fileID: 4266808884134915304, guid: 68bd1fe8266df974ca814370a67767d0, type: 3}
+  tooltipBuffMinionDurationSeconds: 90
+  presentation: {fileID: 11400000, guid: bf4803f8fcc9455fb8cfd402f4620b09, type: 2}
   cooldown: 180
   energyCost: 80
   physicalDamageMultiplier: 0

@@ -15,9 +15,8 @@ MonoBehaviour:
   abilityId: rend
   displayName: Rend
   tag: 1
-  description: Primes your next hit with guaranteed Bleed and extended duration on
-    that application. Exclusive while active.
-  icon: {fileID: 4053483496676390279, guid: 23b4c584116042844ac4fd39f7196d9d, type: 3}
+  tooltipBuffMinionDurationSeconds: 0
+  presentation: {fileID: 11400000, guid: 609d0ed007084495b5efcf630bf17bac, type: 2}
   cooldown: 10
   energyCost: 30
   physicalDamageMultiplier: 0

@@ -81,9 +81,9 @@ MonoBehaviour:
     ability: {fileID: 0}
     choices: []
   - requiredLevel: 5
-    title: Fishing Ability Placeholder
-    description: Placeholder ability row for fishing.
-    icon: {fileID: -2187047416192554098, guid: b78a90acb5575bd4ba76c6522ffef883, type: 3}
+    title: Fishing Frenzy
+    description: Enter a focused fishing state for 20 seconds. +20% Fishing Speed and +10% Fishing Grit Chance.
+    icon: {fileID: 2496065399271571601, guid: dcd9d27bab503c3438946deca0c2135e, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -93,8 +93,18 @@ MonoBehaviour:
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    choices: []
+    ability: {fileID: 11400000, guid: 9737b45f6d2efc92d46734c7726fcde1, type: 2}
+    choices:
+    - requiredLevel: 8
+      title: Sturdy Grip
+      description: +15% Fishing Stamina Efficiency during Fishing Frenzy.
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
+    - requiredLevel: 8
+      title: Iron Grit
+      description: +5% Fishing Grit Chance during Fishing Frenzy.
+      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      ability: {fileID: 0}
   - requiredLevel: 6
     title: Fishing Bonus Find 1
     description: +1% Bonus Find Chance

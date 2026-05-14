@@ -25,7 +25,8 @@ public static class AbilityTooltipAdjustments
 
         if (string.Equals(def.abilityId, AbilityCombatPower.AvatarOfTheForestAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Woodcutting, "Lv50_0", -1);
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Woodcutting, AbilityCombatPower.AvatarOfTheForestEnhancementParentSpineNodeId, -1);
             if (selected == 1)
                 cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 30f);
         }

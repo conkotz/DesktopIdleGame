@@ -1,0 +1,39 @@
+NEW ABILITY — AGENT CHECKLIST (repeat in this order)
+=====================================================
+
+1) Gameplay asset
+   - Duplicate an existing Ability_*.asset in Assets/3.ScriptableObjects/AbilitiesDefinitions/.
+   - Set abilityId (stable string), displayName, tag (None/Active/Minion/Buff), sourceSkill, unlockLevel.
+   - Set cooldown, energyCost, requiredWeaponType, scaling multipliers as designed.
+   - Buff/Minion: set tooltipBuffMinionDurationSeconds to the BASE duration in seconds (what the buff/minion lasts before any skill-tree enhancement adds time). Leave 0 or unset to use the code fallback in AbilityTooltipDamagePreview and PlayerAbilityController.
+
+2) Presentation asset
+   - Duplicate Presentation_ability_<similar>.asset → Presentation_ability_<newId>.asset (+ new .meta guid).
+   - Wire ability.presentation to this asset.
+   - Fill: icon (sprite), displayNameOverride (optional if same as displayName), shortDescription (league intro + buff bar one-liner).
+   - Optional: primaryDescriptionOverride for extra skill-tree prose; flavourText; tooltipCategoryTagOverride.
+
+3) Tooltip / effects (CODE — required for league “Effects:” block)
+   - Open AbilityTooltipDamagePreview.BuildAbilityTooltipStatsSection.
+   - If the ability needs a custom early-return block (Lumber Frenzy, Avatar, Cleaving Chop, Spectral Axe pattern), add `if (IsYourAbility(def)) { ... return body; }` after `body.AppendLine(O("Effects:"));`.
+   - Add `private static bool IsYourAbility(AbilityDefinition def) => string.Equals(def.abilityId, "your_id", OrdinalIgnoreCase);`
+   - Use GetTooltipBuffMinionDisplayDurationSeconds(def, codeBaseSeconds, additiveBonusSeconds) for any Duration: line (base from the asset when > 0, else codeBaseSeconds; bonuses from choices/enhancements add on top — see Avatar, Cleaving Chop, Cleaving Strikes in AbilityTooltipDamagePreview).
+   - For generic Active abilities that share the phys/magic/scaling path, ensure abilityId is handled in existing branches if special-cased (e.g. Power Slash).
+
+4) Runtime behaviour
+   - PlayerAbilityController (or relevant controller): cast logic, buff duration, cooldown pairing — read tooltipBuffMinionDurationSeconds as the base when > 0, then add the same enhancement seconds as the tooltip (see Lumber Frenzy, Avatar, Cleaving Chop, Spectral Axe, Cleaving Strikes, Soulforged swarm).
+
+5) Skill tree / unlocks
+   - SkillDefinition / SkillUnlockDefinition assets: reference this AbilityDefinition on the correct row; unlock.description can stay for non-ability rows; ability rows pull presentation via SkillsAbilityPresentationResolver.
+
+6) Action bar / UI
+   - ActionBarAssignment paths already use ResolveAbilityDisplayName / Icon / LeagueIntroParagraph.
+   - If a new UI lists abilities by id, ensure it uses the resolver for name + icon.
+
+7) Constants / IDs
+   - Add public const string YourAbilityId in AbilityCombatPower (or existing id hub) if other scripts compare by string.
+
+8) Smoke test in Editor
+   - Hover ability in skills page: tag, short intro, Effects, Duration (if buff/minion), Energy • Cooldown.
+   - Buff HUD row (if HudAbilityBuff): title + short line.
+   - Assign to action bar: icon + tooltip body.

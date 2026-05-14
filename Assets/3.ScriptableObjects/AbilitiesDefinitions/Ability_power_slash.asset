@@ -15,8 +15,8 @@ MonoBehaviour:
   abilityId: power_slash
   displayName: Power Slash
   tag: 1
-  description: Primes your next hit to perform a powerful slash.
-  icon: {fileID: 6341321559668158253, guid: 73c4fabd9fde3e24ba07130380cfebfc, type: 3}
+  tooltipBuffMinionDurationSeconds: 0
+  presentation: {fileID: 11400000, guid: 43db905413aa48c386063adcc9da4c0c, type: 2}
   cooldown: 10
   energyCost: 40
   physicalDamageMultiplier: 1.5
