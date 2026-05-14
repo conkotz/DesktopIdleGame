@@ -47,6 +47,7 @@ MonoBehaviour:
       prefab: {fileID: 6546315298902043643, guid: fe81c90d3d33aae49bdb093dc4b67cd8, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -57,6 +58,7 @@ MonoBehaviour:
       prefab: {fileID: 3575732909794473052, guid: 87e49f7619ae6b345b0b823772b1d8f1, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -67,6 +69,7 @@ MonoBehaviour:
       prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -77,6 +80,7 @@ MonoBehaviour:
       prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -87,6 +91,7 @@ MonoBehaviour:
       prefab: {fileID: 7126874587929216248, guid: 51e7c9c2e5f388141a486b8bbe03ff46, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -97,6 +102,18 @@ MonoBehaviour:
       prefab: {fileID: 6165540910069784205, guid: 3f7498b5e783df94ba16c5b9d0d75259, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint50
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 5214886831892509811, guid: 733c32ed02300b84f9fc0401c7804c2d, type: 3}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -107,6 +124,7 @@ MonoBehaviour:
       prefab: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -117,6 +135,18 @@ MonoBehaviour:
       prefab: {fileID: 1599336663878775552, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint61
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 11400000, guid: db6c9a9b32411bd4f9764e98c92660ad, type: 2}
+      itemAmount: 10
+      itemRespawnTimer: 10
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -127,6 +157,18 @@ MonoBehaviour:
       prefab: {fileID: 6165540910069784205, guid: 3f7498b5e783df94ba16c5b9d0d75259, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 1
+      portalTargetMapNodeId: 
+    - spawnPointGroupId: 
+      spawnPointName: SpawnPoint66
+      enemyDefinition: {fileID: 0}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 11400000, guid: db6c9a9b32411bd4f9764e98c92660ad, type: 2}
+      itemAmount: 10
+      itemRespawnTimer: 10
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1

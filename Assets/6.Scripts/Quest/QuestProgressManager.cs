@@ -739,6 +739,54 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         return true;
     }
 
+    /// <summary>
+    /// Dev/testing only: grants quest rewards and marks the quest complete without objective / journal gating.
+    /// Used by <see cref="DevTestingPanelUI"/> tutorial skip. Does not consume gather items.
+    /// </summary>
+    public void DevTestingForceCompleteQuestReward(
+        QuestDefinition q,
+        bool runTeleportAfterClaim,
+        bool suppressQuestCompleteLog = false,
+        bool skipSave = false)
+    {
+        if (q == null || string.IsNullOrWhiteSpace(q.questId))
+            return;
+
+        string id = q.questId.Trim();
+        if (IsRewardClaimed(id))
+            return;
+
+        if (!IsQuestAccepted(q) && RequiresQuestGiver(q))
+            _acceptedQuestIds.Add(id);
+
+        GrantRewards(q);
+        if (q.restockMerchantStockOnRewardClaim)
+            TryResetMerchantStockFromQuestReward(q);
+
+        if (q.repeatable)
+        {
+            if (q.objectiveKind != QuestObjectiveKind.GatherItem)
+                SetProgress(q.questId, 0);
+            ProgressChanged?.Invoke();
+            if (runTeleportAfterClaim)
+                TryTeleportPlayerAfterClaim(q);
+            return;
+        }
+
+        MarkRewardClaimed(id);
+        RecomputeIdleCombatUnlockedFromClaimedRewards();
+        DisableIdleCombatIfLocked();
+        if (!suppressQuestCompleteLog)
+            GameLog.QuestComplete(string.IsNullOrWhiteSpace(q.displayName) ? id : q.displayName);
+        ProgressChanged?.Invoke();
+        TutorialQuestAfterClaim.Invoke(q);
+        if (!skipSave && SaveManager.Instance != null)
+            SaveManager.Instance.Save();
+        TryAutoAcceptQuestsAfterPriorRewardClaimed(id);
+        if (runTeleportAfterClaim)
+            TryTeleportPlayerAfterClaim(q);
+    }
+
     private void RecomputeIdleCombatUnlockedFromClaimedRewards()
     {
         _idleCombatUnlocked = false;

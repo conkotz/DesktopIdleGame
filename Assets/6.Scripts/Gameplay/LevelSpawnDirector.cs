@@ -463,11 +463,15 @@ public class LevelSpawnDirector : MonoBehaviour
                 }
 
                 int stack = Mathf.Max(1, entry.itemAmount);
+                float itemRespawnSec = Mathf.Max(0f, entry.itemRespawnTimer);
+                bool respawnsAfterPickup = itemRespawnSec >= 0.01f;
 
                 for (int c = 0; c < entry.count; c++)
                 {
-                    string key = BuildLevelItemOneShotKey(saveDef, planIndexForSaveKeys, rowIdx, c, itemId, entry.levelOneShotPickupKey);
-                    if (LevelItemPickupSaveStore.IsClaimed(key))
+                    string key = respawnsAfterPickup
+                        ? null
+                        : BuildLevelItemOneShotKey(saveDef, planIndexForSaveKeys, rowIdx, c, itemId, entry.levelOneShotPickupKey);
+                    if (!respawnsAfterPickup && LevelItemPickupSaveStore.IsClaimed(key))
                         continue;
 
                     if (!TryResolveOneSpawnPoint(entry, plan, cursors, itemGid, itemPointGroup, out Transform p, out bool hadToReuse))
@@ -481,7 +485,14 @@ public class LevelSpawnDirector : MonoBehaviour
                         continue;
                     }
 
-                    dm.SpawnPlacedLevelPickup(entry.itemDefinition, stack, p.position, parent, alignSpawnPointToColliderBottom, key);
+                    dm.SpawnPlacedLevelPickup(
+                        entry.itemDefinition,
+                        stack,
+                        p.position,
+                        parent,
+                        alignSpawnPointToColliderBottom,
+                        key,
+                        itemRespawnSec);
 
                     if (preventOverlappingSpawns)
                         ReservePoint(p.position);
@@ -490,8 +501,9 @@ public class LevelSpawnDirector : MonoBehaviour
 
                     if (logSpawns)
                     {
+                        string keyLabel = key ?? "(none — respawns after pickup)";
                         Debug.Log(
-                            $"[LevelSpawnDirector] Spawned item '{itemId}' x{stack} at group '{itemGid}' point '{p.name}' pos={p.position} (one-shot key '{key}')",
+                            $"[LevelSpawnDirector] Spawned item '{itemId}' x{stack} at group '{itemGid}' point '{p.name}' pos={p.position} (one-shot key '{keyLabel}', respawnTimer={itemRespawnSec:F1}s)",
                             this);
                         if (hadToReuse)
                             Debug.LogWarning($"[LevelSpawnDirector] Group '{itemGid}' ran out of free spawn points; reusing a location. Add more points to avoid overlaps.", itemPointGroup);

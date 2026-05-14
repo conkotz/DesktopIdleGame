@@ -5947,6 +5947,7 @@ MonoBehaviour:
   magicProjectileSpeed: 14
   magicProjectileRotationOffset: 0
   magicProjectileFireDelay: 0
+  meleeHitImpactDelay: 0.12
   idleCombatEnabled: 0
   idleRescanInterval: 0.25
   idleAutoPickupIntervalSeconds: 30
@@ -6135,8 +6136,6 @@ MonoBehaviour:
   fadeDuration: 1
   levelLoadScreenFadeSeconds: 1
   levelLoadBlackHoldSeconds: 0.5
-  levelLoadFadeStripCameraObject: {fileID: 0}
-  levelLoadFadeViewAreaObject: {fileID: 0}
   debugSnap: 0
 --- !u!114 &8305620475968429046
 MonoBehaviour:
@@ -6145,7 +6144,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7288908651960985007}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e843e5d9f22ffff4fa257d2efe13a8e8, type: 3}
   m_Name: 

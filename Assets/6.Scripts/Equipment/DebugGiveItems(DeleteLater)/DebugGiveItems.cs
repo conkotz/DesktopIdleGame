@@ -88,6 +88,19 @@ public class DebugGiveItems : MonoBehaviour
         Debug.Log("[DebugGiveItems] F4: +1 dev_destroyer_mace.");
     }
 
+    /// <summary>Lets <see cref="DevTestingPanelUI"/> reuse the same serialized item refs as the F1/F4 hotkey setup.</summary>
+    public void ExportDevItemRefsForTestingPanel(
+        out ItemDefinition fish,
+        out ItemDefinition logs,
+        out ItemDefinition stone,
+        out ItemDefinition mace)
+    {
+        fish = fishDef;
+        logs = logsDef;
+        stone = stoneChunkDef;
+        mace = devDestroyerMaceDef;
+    }
+
     private void GrantAllSkillsPlusOneLevelWithFeedback()
     {
         SkillsManager sm = ResolveSkillsManager();

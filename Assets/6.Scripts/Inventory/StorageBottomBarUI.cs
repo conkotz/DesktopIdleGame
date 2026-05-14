@@ -11,7 +11,10 @@ using UnityEngine.UI;
 public class StorageBottomBarUI : MonoBehaviour
 {
     [SerializeField] private Button storeAllButton;
+    [Tooltip("If empty, a sibling named StorageSpaceText under the storage window is used (same pattern as StorageTotalValue).")]
     [SerializeField] private TMP_Text spaceText;
+    [Tooltip("Shown before used/total slot counts, e.g. \"Space:\" → \"Space: 12/72\".")]
+    [SerializeField] private string spaceCountPrefix = "Space:";
     [Tooltip(
         "Optional. Renders the combined value of all items in storage. If empty, a sibling named StorageTotalValue " +
         "under the same storage window (parent of BottomBarOfStorage) is used.")]
@@ -66,9 +69,10 @@ public class StorageBottomBarUI : MonoBehaviour
     {
         if (!storeAllButton)
             storeAllButton = GetComponentInChildren<Button>(true);
+        TryBindSiblingNamedText(ref spaceText, "StorageSpaceText");
         if (!spaceText)
             spaceText = ResolveTextByNameContains("Space") ?? GetComponentInChildren<TMP_Text>(true);
-        TryBindTotalValueText();
+        TryBindSiblingNamedText(ref totalValueText, "StorageTotalValue");
 
         if (totalValueText != null)
             _totalValuePrefix = totalValueText.text ?? string.Empty;
@@ -79,7 +83,8 @@ public class StorageBottomBarUI : MonoBehaviour
 
     private void OnEnable()
     {
-        TryBindTotalValueText();
+        TryBindSiblingNamedText(ref spaceText, "StorageSpaceText");
+        TryBindSiblingNamedText(ref totalValueText, "StorageTotalValue");
         if (totalValueText != null && string.IsNullOrEmpty(_totalValuePrefix))
             _totalValuePrefix = totalValueText.text ?? string.Empty;
 
@@ -161,7 +166,10 @@ public class StorageBottomBarUI : MonoBehaviour
             if (!storage.GetSlot(i).IsEmpty) used++;
         }
 
-        spaceText.text = $"{used}/{n}";
+        string label = string.IsNullOrWhiteSpace(spaceCountPrefix) ? "Space:" : spaceCountPrefix.Trim();
+        if (!label.EndsWith(":", System.StringComparison.Ordinal))
+            label += ":";
+        spaceText.text = $"{label} {used}/{n}";
     }
 
     /// <summary>Renders the prefix authored on the field plus the combined item value of every stored stack.</summary>
@@ -244,15 +252,14 @@ public class StorageBottomBarUI : MonoBehaviour
     }
 
     /// <summary>
-    /// <c>StorageTotalValue</c> usually lives next to <c>BottomBarOfStorage</c> under the storage window, so it is not a
-    /// descendant of this bar — resolve from <see cref="Transform.parent"/> when the inspector reference is unset.
+    /// Resolves <c>StorageSpaceText</c> / <c>StorageTotalValue</c> when they are siblings of <c>BottomBarOfStorage</c>, not descendants of this bar.
     /// </summary>
-    private void TryBindTotalValueText()
+    private void TryBindSiblingNamedText(ref TMP_Text field, string objectName)
     {
-        if (totalValueText != null)
+        if (field != null)
             return;
-
-        const string siblingName = "StorageTotalValue";
+        if (string.IsNullOrWhiteSpace(objectName))
+            return;
 
         for (Transform p = transform.parent; p != null; p = p.parent)
         {
@@ -262,12 +269,12 @@ public class StorageBottomBarUI : MonoBehaviour
                 if (ch == null || ch == transform || transform.IsChildOf(ch))
                     continue;
 
-                Transform hit = FindDeepNamedChild(ch, siblingName);
+                Transform hit = FindDeepNamedChild(ch, objectName);
                 if (hit == null)
                     continue;
 
-                totalValueText = hit.GetComponent<TMP_Text>() ?? hit.GetComponentInChildren<TMP_Text>(true);
-                if (totalValueText != null)
+                field = hit.GetComponent<TMP_Text>() ?? hit.GetComponentInChildren<TMP_Text>(true);
+                if (field != null)
                     return;
             }
         }

@@ -66,12 +66,20 @@ public class SpawnPrefabCount
     [Tooltip("Legacy / fallback prefab. Used when Enemy Definition is empty, or when the definition has no prefab but this field is set.")]
     public GameObject prefab;
 
-    [Tooltip("When set, spawns a world pickup at the same spawn points as enemies/NPCs (no despawn timer; one claim per save when fully picked up). Takes precedence over enemy/prefab for that row.")]
+    [Tooltip(
+        "When set, spawns a world pickup at the same spawn points as enemies/NPCs (no despawn timer). " +
+        "Takes precedence over enemy/prefab for that row. When Item Respawn Timer is 0, fully picking it up uses the one-shot save key (once per save). " +
+        "When Item Respawn Timer is greater than 0, the pickup respawns in place after that many seconds and does not use the one-shot claim.")]
     public ItemDefinition itemDefinition;
 
     [Min(1)]
     [Tooltip("Stack per pickup when Item Definition is assigned.")]
     public int itemAmount = 1;
+
+    [Min(0f)]
+    [Tooltip(
+        "Seconds after a full pickup before this world item respawns at the same spot. 0 = no respawn (one-time per save once picked up, using Level One Shot Pickup Key). Values > 0 ignore the one-shot key for persistence.")]
+    public float itemRespawnTimer;
 
     [Tooltip("When true, this enemy row can respawn even if Enemy Respawn Enabled is off, but only until Simple Combat Waves start on this map.")]
     public bool respawnUntilSimpleWavesStart;
@@ -267,6 +275,7 @@ public class EnduranceWavePlan : ISerializationCallbackReceiver
                     prefab = s.prefab,
                     itemDefinition = s.itemDefinition,
                     itemAmount = Mathf.Max(1, s.itemAmount),
+                    itemRespawnTimer = Mathf.Max(0f, s.itemRespawnTimer),
                     levelOneShotPickupKey = s.levelOneShotPickupKey,
                     count = s.count
                 });
@@ -993,6 +1002,9 @@ public class MapNodeDefinition : ScriptableObject
             row.itemAmount = row.itemDefinition != null
                 ? Mathf.Max(1, row.itemAmount)
                 : 0;
+
+            if (row.itemDefinition != null)
+                row.itemRespawnTimer = Mathf.Max(0f, row.itemRespawnTimer);
         }
     }
 }

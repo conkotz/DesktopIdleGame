@@ -15,8 +15,8 @@ MonoBehaviour:
   questId: greenlands_fishing_rod_intro
   regionId: greenlands
   displayName: First Fishing Rod
-  description: Bring me a raw fish
-  details: Dont forget fishing bait.
+  description: 'Catch me a raw fish! '
+  details: You will need fishing bait to catch fish.
   listCategoryLabel: Gathering
   listStatusOverride: 
   objectiveKind: 2
@@ -40,14 +40,14 @@ MonoBehaviour:
   autoCompleteQuest: 0
   abandonable: 1
   teleportPlayerToNodeIdOnCompletion: 
-  obtainLocationId: chef
-  obtainLocationDisplayName: Garrick the Chef
+  obtainLocationId: npc_greengrove_bill
+  obtainLocationDisplayName: Bill the Fisherman
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
   autoAcceptWhenPriorQuestRewardClaimed: 0
   autoAcceptAfterPriorQuestId: 
   prerequisiteRewardClaimedQuestIds: []
-  requireAllPrerequisiteQuests: 1
+  requireAllPrerequisiteQuests: 0
   requiredCompletedMapNodeId: 
   recommendedLocationNode: {fileID: 11400000, guid: bd9148f386fcb4644a8c0b41179c8e24, type: 2}
   requiredSkillLevels: []

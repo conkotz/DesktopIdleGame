@@ -37,6 +37,12 @@ public class ItemDrop : MonoBehaviour
 
     private string _levelOneShotPickupClaimKey;
 
+    private float _placedLevelRespawnDelay;
+    private ItemDefinition _placedLevelRespawnItemDef;
+    private int _placedLevelRespawnStack;
+    private Transform _placedLevelRespawnParent;
+    private bool _placedLevelRespawnAlignToGround;
+
     private Collider2D _col;
     private Rigidbody2D _rb;
     private Coroutine _launchRoutine;
@@ -82,6 +88,48 @@ public class ItemDrop : MonoBehaviour
     public void SetLevelOneShotPickupClaimKey(string saveKey)
     {
         _levelOneShotPickupClaimKey = string.IsNullOrWhiteSpace(saveKey) ? null : saveKey.Trim();
+    }
+
+    /// <summary>
+    /// Level-placed pickups: after a full pickup, respawn the same stack at the same world position after <paramref name="delaySeconds"/>.
+    /// </summary>
+    public void ConfigurePlacedLevelRespawn(
+        float delaySeconds,
+        ItemDefinition itemDef,
+        int stackAmount,
+        Transform parent,
+        bool alignToGround)
+    {
+        if (delaySeconds < 0.01f || !itemDef || stackAmount <= 0)
+        {
+            _placedLevelRespawnDelay = 0f;
+            _placedLevelRespawnItemDef = null;
+            return;
+        }
+
+        _placedLevelRespawnDelay = delaySeconds;
+        _placedLevelRespawnItemDef = itemDef;
+        _placedLevelRespawnStack = Mathf.Max(1, stackAmount);
+        _placedLevelRespawnParent = parent;
+        _placedLevelRespawnAlignToGround = alignToGround;
+    }
+
+    private void SchedulePlacedRespawnIfConfigured()
+    {
+        if (_placedLevelRespawnDelay < 0.01f || !_placedLevelRespawnItemDef)
+            return;
+
+        DropManager dm = DropManager.Instance;
+        if (!dm)
+            return;
+
+        dm.SchedulePlacedLevelPickupRespawn(
+            _placedLevelRespawnItemDef,
+            _placedLevelRespawnStack,
+            transform.position,
+            _placedLevelRespawnParent,
+            _placedLevelRespawnAlignToGround,
+            _placedLevelRespawnDelay);
     }
 
     /// <summary>
@@ -257,6 +305,8 @@ public class ItemDrop : MonoBehaviour
         {
             if (!string.IsNullOrEmpty(_levelOneShotPickupClaimKey))
                 SaveManager.Instance?.MarkLevelItemPickupOnceClaimed(_levelOneShotPickupClaimKey);
+
+            SchedulePlacedRespawnIfConfigured();
 
             Destroy(gameObject);
             return true;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -232,13 +233,17 @@ public class DropManager : MonoBehaviour
     /// <summary>
     /// Spawns a pickup at an exact world position (level spawn points). No horizontal scatter, no drop-frame clamp.
     /// </summary>
+    /// <param name="itemRespawnTimerSeconds">
+    /// When &gt;= ~0.01s, fully picking up this drop schedules another spawn at the same spot after this delay (no one-shot save claim).
+    /// </param>
     public void SpawnPlacedLevelPickup(
         ItemDefinition itemDef,
         int amount,
         Vector3 worldPosition,
         Transform parent,
         bool alignToGround,
-        string levelOneShotSaveKey)
+        string levelOneShotSaveKey,
+        float itemRespawnTimerSeconds = 0f)
     {
         if (!itemDef || amount <= 0)
             return;
@@ -253,13 +258,47 @@ public class DropManager : MonoBehaviour
         if (string.IsNullOrEmpty(itemId))
             return;
 
+        bool respawns = itemRespawnTimerSeconds >= 0.01f;
+        string keyToUse = respawns ? null : levelOneShotSaveKey;
+
         var drop = Instantiate(worldDropPrefab, worldPosition, Quaternion.identity, parent != null ? parent : null);
         drop.Init(itemId, amount, itemDef.icon, disableAutoDespawn: true);
-        if (!string.IsNullOrWhiteSpace(levelOneShotSaveKey))
-            drop.SetLevelOneShotPickupClaimKey(levelOneShotSaveKey);
+        if (!string.IsNullOrWhiteSpace(keyToUse))
+            drop.SetLevelOneShotPickupClaimKey(keyToUse);
+        if (respawns)
+            drop.ConfigurePlacedLevelRespawn(itemRespawnTimerSeconds, itemDef, amount, parent, alignToGround);
 
         if (alignToGround && TryFindGroundY(worldPosition, out float groundY))
             drop.SnapVisualBottomToWorldY(groundY, groundSkin);
+    }
+
+    internal void SchedulePlacedLevelPickupRespawn(
+        ItemDefinition itemDef,
+        int amount,
+        Vector3 worldPosition,
+        Transform parent,
+        bool alignToGround,
+        float delaySeconds)
+    {
+        if (!itemDef || amount <= 0 || delaySeconds < 0.01f)
+            return;
+        if (!isActiveAndEnabled)
+            return;
+        StartCoroutine(CoPlacedLevelPickupRespawn(itemDef, amount, worldPosition, parent, alignToGround, delaySeconds));
+    }
+
+    private IEnumerator CoPlacedLevelPickupRespawn(
+        ItemDefinition itemDef,
+        int amount,
+        Vector3 worldPosition,
+        Transform parent,
+        bool alignToGround,
+        float delaySeconds)
+    {
+        yield return new WaitForSeconds(delaySeconds);
+        if (!itemDef || amount <= 0)
+            yield break;
+        SpawnPlacedLevelPickup(itemDef, amount, worldPosition, parent, alignToGround, null, delaySeconds);
     }
 
     /// <summary>

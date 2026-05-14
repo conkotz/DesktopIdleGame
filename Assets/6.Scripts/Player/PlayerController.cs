@@ -940,7 +940,9 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        if (node.ActionType == NodeAction.Fishing && !HasAnyFishingBaitInInventory())
+        if (node.ActionType == NodeAction.Fishing &&
+            HasFishingRodInToolbelt() &&
+            !HasAnyFishingBaitInInventory())
         {
             ShowPopup(MissingFishingBaitPopupText);
             return;
@@ -1110,6 +1112,12 @@ public class PlayerController : MonoBehaviour
 
         return false;
     }
+
+    /// <summary>
+    /// True when any toolbelt slot holds an item whose <see cref="ItemDefinition.handVisualKey"/> is <see cref="ToolKey.FishingRod"/>.
+    /// Used for fishing-only rules (bait, gather swing vs idle presentation).
+    /// </summary>
+    private bool HasFishingRodInToolbelt() => TryFindToolInToolbelt(ToolKey.FishingRod, out _);
 
     public void ForceIdleAction()
     {
@@ -1643,8 +1651,10 @@ public class PlayerController : MonoBehaviour
                 return;
             }
 
-            // Fishing uses idle (or a future fishing clip); avoid chop/attack-style gather animation.
-            if (targetNode.ActionType != NodeAction.Fishing)
+            // Fishing with a rod in toolbelt: idle during ticks (no chop-style swing). Without a rod, use the gather swing like other skills.
+            bool hideFishingGatherSwing =
+                targetNode.ActionType == NodeAction.Fishing && HasFishingRodInToolbelt();
+            if (!hideFishingGatherSwing)
                 PlayState(gatherStateName, restart: true);
 
             _nextGatherAnimTime = Time.time + Mathf.Max(0.25f, gatherAnimDelaySeconds);
@@ -2274,13 +2284,21 @@ public class PlayerController : MonoBehaviour
 
         if (targetNode && targetNode.ActionType == NodeAction.Fishing)
         {
-            if (!TryConsumeBestFishingBaitForSwing(out float baitSpeedBonusFraction))
+            if (HasFishingRodInToolbelt())
             {
-                _lastGatherSwingSpendFailureReason = GatherSwingSpendFailureReason.MissingFishingBait;
-                return false;
-            }
+                if (!TryConsumeBestFishingBaitForSwing(out float baitSpeedBonusFraction))
+                {
+                    _lastGatherSwingSpendFailureReason = GatherSwingSpendFailureReason.MissingFishingBait;
+                    return false;
+                }
 
-            _activeFishingBaitSpeedBonusFraction = Mathf.Max(0f, baitSpeedBonusFraction);
+                _activeFishingBaitSpeedBonusFraction = Mathf.Max(0f, baitSpeedBonusFraction);
+            }
+            else
+            {
+                // No rod in toolbelt: unarmed-style fishing — no bait consumed; gather debuff still applies from missing tool path.
+                _activeFishingBaitSpeedBonusFraction = 0f;
+            }
         }
         else
         {
@@ -2953,12 +2971,14 @@ public class PlayerController : MonoBehaviour
         // here on a timer, or we re-enter gather every reassertCooldown and the swing looks
         // dozens of times faster than gatherAnimDelaySeconds. Only TickGather may drive gather replays.
         if (state == State.Gather &&
-            (action == PlayerAction.Mining || action == PlayerAction.Woodcutting))
+            (action == PlayerAction.Mining || action == PlayerAction.Woodcutting ||
+             (action == PlayerAction.Fishing && !HasFishingRodInToolbelt())))
             return;
 
         string expected =
             (action == PlayerAction.Walking) ? walkStateName :
             (action == PlayerAction.Mining || action == PlayerAction.Woodcutting) ? gatherStateName :
+            (action == PlayerAction.Fishing && state == State.Gather && !HasFishingRodInToolbelt()) ? gatherStateName :
             (action == PlayerAction.Fishing) ? idleStateName :
             idleStateName;
 
@@ -2993,6 +3013,15 @@ public class PlayerController : MonoBehaviour
         {
             if (state == State.Gather)
             {
+                if (!HasFishingRodInToolbelt())
+                {
+                    var gst = animator.GetCurrentAnimatorStateInfo(0);
+                    if (gst.IsName(gatherStateName))
+                        return;
+                    PlayState(gatherStateName, restart: true);
+                    return;
+                }
+
                 var st = animator.GetCurrentAnimatorStateInfo(0);
                 if (st.IsName(idleStateName))
                     return;

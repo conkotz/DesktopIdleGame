@@ -12,6 +12,7 @@ public sealed class SpawnPrefabCountDrawer : PropertyDrawer
         "prefab",
         "itemDefinition",
         "itemAmount",
+        "itemRespawnTimer",
         "respawnUntilSimpleWavesStart",
         "levelOneShotPickupKey",
         "portalTargetMapNodeId",

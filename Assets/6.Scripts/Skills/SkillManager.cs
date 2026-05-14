@@ -523,6 +523,34 @@ public class SkillsManager : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>Dev/testing: set every tracked skill to <paramref name="targetLevel"/> (clamped 1–<paramref name="maxLevel"/>), XP into level cleared.</summary>
+    public void DebugSetAllTrackedSkillsLevel(int targetLevel, int maxLevel = 50)
+    {
+        targetLevel = Mathf.Clamp(targetLevel, 1, Mathf.Max(1, maxLevel));
+        foreach (SkillType t in GetAllTrackedSkills())
+        {
+            var p = Get(t);
+            int old = p.level;
+            if (old == targetLevel)
+            {
+                p.xp = 0;
+                continue;
+            }
+
+            p.level = targetLevel;
+            p.xp = 0;
+            if (targetLevel > old)
+            {
+                SkillsAbilitiesColdStartLevelUpGlow.Append(t, p.level);
+                OnLevelUp?.Invoke(t, p.level);
+            }
+            else
+            {
+                OnSkillLevelDecreased?.Invoke(t, p.level);
+            }
+        }
+    }
+
     private SkillProgress Get(SkillType type)
     {
         if (_skills.TryGetValue(type, out var p) && p != null)
