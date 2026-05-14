@@ -577,6 +577,19 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (def.HasGrantedEffect)
             lines.Add($"<color=#FFB347>Effect: {ConsumableEffectTooltip.Format(def.GrantedEffect)}</color>");
 
+        if (def.HasFoodTimedBuffs)
+        {
+            string food = def.GetFoodTimedBuffSummaryText();
+            if (!string.IsNullOrWhiteSpace(food))
+            {
+                foreach (string part in food.Split('\n'))
+                {
+                    if (!string.IsNullOrWhiteSpace(part))
+                        lines.Add($"<color=#FFB347>{part}</color>");
+                }
+            }
+        }
+
         if (def.UseCooldown > 0f)
             lines.Add($"<color=#FFB347>Cooldown: {def.UseCooldown:0.#}s</color>");
 

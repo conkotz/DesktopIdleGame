@@ -12,7 +12,9 @@ public class StorageBottomBarUI : MonoBehaviour
 {
     [SerializeField] private Button storeAllButton;
     [SerializeField] private TMP_Text spaceText;
-    [Tooltip("Optional. Renders the combined value of all items currently in storage (mirrors the inventory total value label).")]
+    [Tooltip(
+        "Optional. Renders the combined value of all items in storage. If empty, a sibling named StorageTotalValue " +
+        "under the same storage window (parent of BottomBarOfStorage) is used.")]
     [SerializeField] private TMP_Text totalValueText;
     [SerializeField] private PlayerStorage storage;
     [SerializeField] private StorageGridUI gridUi;
@@ -66,8 +68,7 @@ public class StorageBottomBarUI : MonoBehaviour
             storeAllButton = GetComponentInChildren<Button>(true);
         if (!spaceText)
             spaceText = ResolveTextByNameContains("Space") ?? GetComponentInChildren<TMP_Text>(true);
-        if (!totalValueText)
-            totalValueText = ResolveTextByNameContains("Value") ?? ResolveTextByNameContains("Total");
+        TryBindTotalValueText();
 
         if (totalValueText != null)
             _totalValuePrefix = totalValueText.text ?? string.Empty;
@@ -78,6 +79,10 @@ public class StorageBottomBarUI : MonoBehaviour
 
     private void OnEnable()
     {
+        TryBindTotalValueText();
+        if (totalValueText != null && string.IsNullOrEmpty(_totalValuePrefix))
+            _totalValuePrefix = totalValueText.text ?? string.Empty;
+
         ResolveStorage();
         if (_inventory == null)
             _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
@@ -235,6 +240,52 @@ public class StorageBottomBarUI : MonoBehaviour
             if (t.gameObject.name.IndexOf(namePart, System.StringComparison.OrdinalIgnoreCase) >= 0)
                 return t;
         }
+        return null;
+    }
+
+    /// <summary>
+    /// <c>StorageTotalValue</c> usually lives next to <c>BottomBarOfStorage</c> under the storage window, so it is not a
+    /// descendant of this bar — resolve from <see cref="Transform.parent"/> when the inspector reference is unset.
+    /// </summary>
+    private void TryBindTotalValueText()
+    {
+        if (totalValueText != null)
+            return;
+
+        const string siblingName = "StorageTotalValue";
+
+        for (Transform p = transform.parent; p != null; p = p.parent)
+        {
+            for (int i = 0; i < p.childCount; i++)
+            {
+                Transform ch = p.GetChild(i);
+                if (ch == null || ch == transform || transform.IsChildOf(ch))
+                    continue;
+
+                Transform hit = FindDeepNamedChild(ch, siblingName);
+                if (hit == null)
+                    continue;
+
+                totalValueText = hit.GetComponent<TMP_Text>() ?? hit.GetComponentInChildren<TMP_Text>(true);
+                if (totalValueText != null)
+                    return;
+            }
+        }
+    }
+
+    private static Transform FindDeepNamedChild(Transform root, string wantedName)
+    {
+        if (root == null || string.IsNullOrEmpty(wantedName))
+            return null;
+        if (string.Equals(root.name, wantedName, System.StringComparison.OrdinalIgnoreCase))
+            return root;
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform found = FindDeepNamedChild(root.GetChild(i), wantedName);
+            if (found != null)
+                return found;
+        }
+
         return null;
     }
 }

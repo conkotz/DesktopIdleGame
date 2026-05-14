@@ -157,7 +157,76 @@ public class PlayerConsumableController : MonoBehaviour
         if (def.HasGrantedEffect)
             ApplyGrantedEffect(def);
 
+        if (def.HasFoodTimedBuffs)
+            ApplyFoodTimedBuffs(def);
+
         player.ShowPopup($"Used {def.displayName}");
+    }
+
+    private void ApplyFoodTimedBuffs(ItemDefinition def)
+    {
+        var buffController = GetComponent<PlayerBuffController>();
+        if (!buffController)
+        {
+            Debug.LogWarning("No PlayerBuffController found for food timed buffs.");
+            return;
+        }
+
+        ConsumableStats cs = def.consumableStats;
+        float duration = Mathf.Max(0.01f, cs.foodEffectDurationSeconds);
+        string itemId = def.itemId;
+
+        if (cs.foodEnableOverheal && cs.foodOverhealMaxAboveMaxHp > 0)
+        {
+            var overheal = new ConsumableGrantedEffect
+            {
+                effectType = ConsumableEffectType.FoodOverheal,
+                magnitude = cs.foodOverhealMaxAboveMaxHp,
+                duration = duration,
+                effectId = itemId
+            };
+            buffController.ApplyBuff(overheal);
+        }
+
+        if (cs.foodEnableRegen && cs.foodRegenTotalHeal > 0)
+        {
+            var hot = new ConsumableGrantedEffect
+            {
+                effectType = ConsumableEffectType.FoodHealOverTime,
+                magnitude = cs.foodRegenTotalHeal,
+                duration = duration,
+                effectId = itemId
+            };
+            buffController.ApplyBuff(hot);
+        }
+
+        if (cs.foodEnableSwiftness && cs.foodSwiftnessPercentBonus > 0f)
+        {
+            var swift = new ConsumableGrantedEffect
+            {
+                effectType = ConsumableEffectType.FoodMoveSpeed,
+                magnitude = cs.foodSwiftnessPercentBonus / 100f,
+                duration = duration,
+                effectId = itemId
+            };
+            buffController.ApplyBuff(swift);
+        }
+
+        if (cs.foodEnableFocused)
+        {
+            float mag = cs.foodFocusedDamageBonusFraction > 0f ? cs.foodFocusedDamageBonusFraction : 0.15f;
+            var focused = new ConsumableGrantedEffect
+            {
+                effectType = ConsumableEffectType.FoodFocused,
+                magnitude = mag,
+                duration = duration,
+                effectId = itemId
+            };
+            buffController.ApplyBuff(focused);
+        }
+
+        if (cs.foodEnableOverheal && cs.foodOverhealInstantHeal > 0)
+            player.Heal(cs.foodOverhealInstantHeal);
     }
 
     private void ApplyGrantedEffect(ItemDefinition def)
@@ -200,6 +269,10 @@ public class PlayerConsumableController : MonoBehaviour
             ConsumableEffectType.EnergyRegen => $"{itemName}: Energy Regen Up{durationText}",
             ConsumableEffectType.HealOverTime => $"{itemName}: Regeneration{durationText}",
             ConsumableEffectType.ManaRegenOverTime => $"{itemName}: Mana Regeneration{durationText}",
+            ConsumableEffectType.FoodHealOverTime => $"{itemName}: Food Regeneration{durationText}",
+            ConsumableEffectType.FoodMoveSpeed => $"{itemName}: Swiftness{durationText}",
+            ConsumableEffectType.FoodOverheal => $"{itemName}: Overheal{durationText}",
+            ConsumableEffectType.FoodFocused => $"{itemName}: Focused{durationText}",
             _ => $"{itemName}: {effect.effectType}{durationText}"
         };
     }

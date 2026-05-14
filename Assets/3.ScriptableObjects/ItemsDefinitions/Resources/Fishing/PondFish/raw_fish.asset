@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: feather
+  m_Name: raw_fish
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
   itemKind: 0
   maxStack: 999
-  itemId: feather
-  displayName: Feather
+  itemId: raw_fish
+  displayName: Raw Fish
   displayNameSingular: 
-  icon: {fileID: -6736306797507069733, guid: 4ac483fb04ab3494983eea16c1133724, type: 3}
+  icon: {fileID: -1402613075, guid: 49e1f504ff2f8b54fa766b60aed2de28, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A feather.
+  description: A raw fish which can be cooked.
   rarity: 0
-  value: 1
+  value: 15
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -178,8 +178,8 @@ MonoBehaviour:
     cursed: 0
     allowedGearTypes: 0
   cookableStats:
-    isCookable: 0
+    isCookable: 1
     cookedResultItemId: 
-    cookedResultAmount: 0
+    cookedResultAmount: 1
     requiredCookingLevel: 0
     cookingXp: 0

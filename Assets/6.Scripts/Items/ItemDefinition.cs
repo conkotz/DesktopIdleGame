@@ -550,6 +550,18 @@ public enum ConsumableEffectType
     PoisonImmunity,
     BleedImmunity,
 
+    /// <summary>Food HoT (distinct from <see cref="HealOverTime"/> so potion HoT is not replaced on the same strip row).</summary>
+    FoodHealOverTime,
+
+    /// <summary>Food move speed bonus; fraction like <see cref="MoveSpeed"/> (0.1 = +10%).</summary>
+    FoodMoveSpeed,
+
+    /// <summary>Flat HP allowed above <see cref="CharacterStats.MaxHP"/> while active (total ceiling = MaxHP + magnitude).</summary>
+    FoodOverheal,
+
+    /// <summary>Fraction added to basic-attack min/max split damage (0.15 = +15%).</summary>
+    FoodFocused,
+
     /// <summary>Ability-granted HUD buff only; excluded from consumable stat totals.</summary>
     HudAbilityBuff
 }
@@ -596,6 +608,42 @@ public struct ConsumableStats
         "Items that can be obtained when the player double-clicks this item to open it. " +
         "Each entry rolls independently using its own % chance.")]
     public OpenableLootEntry[] openableLoot;
+
+    [Header("Food timed buffs (Consumable Type = Food)")]
+    [Tooltip("How long enabled food buffs last. Re-using the food while a buff is active refreshes that buff type.")]
+    [Min(0f)]
+    public float foodEffectDurationSeconds;
+
+    public bool foodEnableRegen;
+    [Min(0)]
+    [Tooltip("Total HP restored evenly over Food Effect Duration (separate from instant Heal Amount).")]
+    public int foodRegenTotalHeal;
+
+    public bool foodEnableSwiftness;
+    [Min(0f)]
+    [Tooltip("Move speed bonus in percent of base (10 = +10%), stored as percent for readability.")]
+    public float foodSwiftnessPercentBonus;
+
+    public bool foodEnableOverheal;
+    [Min(0)]
+    [Tooltip("While active, max HP is effectively MaxHP + this value (UI can show e.g. 130/100).")]
+    public int foodOverhealMaxAboveMaxHp;
+    [Min(0)]
+    [Tooltip("Extra heal on eat that can use the overheal ceiling (0 = only raise cap + normal instant heal).")]
+    public int foodOverhealInstantHeal;
+
+    public bool foodEnableFocused;
+    [Range(0f, 2f)]
+    [Tooltip("Bonus to min and max basic-attack damage per lane. 0 uses 15% when Focused is enabled.")]
+    public float foodFocusedDamageBonusFraction;
+
+    /// <summary>True when any timed food buff should be applied (requires positive duration).</summary>
+    public bool HasAnyFoodTimedBuffConfigured =>
+        foodEffectDurationSeconds > 0.001f &&
+        ((foodEnableRegen && foodRegenTotalHeal > 0) ||
+         (foodEnableSwiftness && foodSwiftnessPercentBonus > 0f) ||
+         (foodEnableOverheal && foodOverhealMaxAboveMaxHp > 0) ||
+         foodEnableFocused);
 }
 
 public enum EnhancementScrollTargetStat
@@ -1373,6 +1421,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         consumableStats.grantedEffect.effectType != ConsumableEffectType.None &&
         consumableStats.grantedEffect.duration > 0f;
 
+    public bool HasFoodTimedBuffs =>
+        IsFood && consumableStats.HasAnyFoodTimedBuffConfigured;
+
     public ConsumableGrantedEffect GrantedEffect => consumableStats.grantedEffect;
 
     public bool IsCookable => cookableStats.isCookable;
@@ -1667,6 +1718,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (HasGrantedEffect)
                 s += $"\nEffect: {ConsumableEffectTooltip.Format(GrantedEffect)}";
 
+            if (HasFoodTimedBuffs)
+            {
+                string foodLines = GetFoodTimedBuffSummaryText();
+                if (!string.IsNullOrWhiteSpace(foodLines))
+                    s += "\n" + foodLines;
+            }
+
             if (IsOpenable)
             {
                 int required = OpenRequiredAmount;
@@ -1914,6 +1972,39 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (EnemyRespawnTimeReductionSeconds <= 0f)
             return string.Empty;
         return $"Enemy respawn: -{EnemyRespawnTimeReductionSeconds:0.#}s";
+    }
+
+    public string GetFoodTimedBuffSummaryText()
+    {
+        if (!HasFoodTimedBuffs)
+            return string.Empty;
+
+        ConsumableStats cs = consumableStats;
+        float dur = cs.foodEffectDurationSeconds;
+        string header = $"Food buffs ({dur:0.#}s):";
+        System.Text.StringBuilder sb = new System.Text.StringBuilder(160);
+        sb.Append(header);
+
+        if (cs.foodEnableRegen && cs.foodRegenTotalHeal > 0)
+            sb.Append($"\n• +{cs.foodRegenTotalHeal} HP over duration (regen)");
+
+        if (cs.foodEnableSwiftness && cs.foodSwiftnessPercentBonus > 0f)
+            sb.Append($"\n• +{cs.foodSwiftnessPercentBonus:0.#}% move speed");
+
+        if (cs.foodEnableOverheal && cs.foodOverhealMaxAboveMaxHp > 0)
+        {
+            sb.Append($"\n• Overheal cap +{cs.foodOverhealMaxAboveMaxHp} above max HP");
+            if (cs.foodOverhealInstantHeal > 0)
+                sb.Append($" (+{cs.foodOverhealInstantHeal} on use)");
+        }
+
+        if (cs.foodEnableFocused)
+        {
+            float f = cs.foodFocusedDamageBonusFraction > 0f ? cs.foodFocusedDamageBonusFraction : 0.15f;
+            sb.Append($"\n• Focused: +{f * 100f:0.#}% min/max hit");
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>Pretty per-row "• Item Name (chance%) ×min-max" listing for Openable item tooltips.</summary>

@@ -19,6 +19,10 @@ public static class ConsumableEffectTooltip
             ConsumableEffectType.EnergyRegen => $"+{effect.magnitude:0.##} Energy Regen for {dur}",
             ConsumableEffectType.EnergyRestore => $"+{effect.magnitude:0.##} Energy",
             ConsumableEffectType.HealOverTime => $"+{effect.magnitude:0.##} HP over {dur}",
+            ConsumableEffectType.FoodHealOverTime => $"+{effect.magnitude:0.##} HP (food) over {dur}",
+            ConsumableEffectType.FoodMoveSpeed => $"+{magPct} Move Speed (food) for {dur}",
+            ConsumableEffectType.FoodOverheal => $"+{effect.magnitude:0.##} max HP above max for {dur}",
+            ConsumableEffectType.FoodFocused => $"+{magPct} min/max hit (food) for {dur}",
             ConsumableEffectType.ManaRegenOverTime => $"+{effect.magnitude:0.##} Mana over {dur}",
             _ => $"{effect.effectType} for {dur}"
         };

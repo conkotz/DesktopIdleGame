@@ -674,6 +674,88 @@ public class ItemDefinitionEditor : Editor
                 EditorGUILayout.LabelField("Granted Effect", EditorStyles.boldLabel);
                 EditorGUILayout.PropertyField(grantedEffect, includeChildren: true);
             }
+            else if (selectedType == ConsumableType.Food)
+            {
+                EditorGUILayout.Space(6);
+                EditorGUILayout.LabelField("Timed Food Buffs", EditorStyles.boldLabel);
+                SerializedProperty foodEffectDurationSeconds =
+                    consumableStats.FindPropertyRelative("foodEffectDurationSeconds");
+                SerializedProperty foodEnableRegen = consumableStats.FindPropertyRelative("foodEnableRegen");
+                SerializedProperty foodRegenTotalHeal = consumableStats.FindPropertyRelative("foodRegenTotalHeal");
+                SerializedProperty foodEnableSwiftness = consumableStats.FindPropertyRelative("foodEnableSwiftness");
+                SerializedProperty foodSwiftnessPercentBonus =
+                    consumableStats.FindPropertyRelative("foodSwiftnessPercentBonus");
+                SerializedProperty foodEnableOverheal = consumableStats.FindPropertyRelative("foodEnableOverheal");
+                SerializedProperty foodOverhealMaxAboveMaxHp =
+                    consumableStats.FindPropertyRelative("foodOverhealMaxAboveMaxHp");
+                SerializedProperty foodOverhealInstantHeal =
+                    consumableStats.FindPropertyRelative("foodOverhealInstantHeal");
+                SerializedProperty foodEnableFocused = consumableStats.FindPropertyRelative("foodEnableFocused");
+                SerializedProperty foodFocusedDamageBonusFraction =
+                    consumableStats.FindPropertyRelative("foodFocusedDamageBonusFraction");
+
+                EditorGUILayout.PropertyField(
+                    foodEffectDurationSeconds,
+                    new GUIContent(
+                        "Effect Duration (s)",
+                        "How long enabled toggles last on the buff bar. Can be shorter or longer than cooldown; re-use refreshes each buff type."));
+
+                if (foodEffectDurationSeconds != null && foodEffectDurationSeconds.floatValue < 0f)
+                    foodEffectDurationSeconds.floatValue = 0f;
+
+                EditorGUILayout.Space(4);
+                EditorGUILayout.PropertyField(foodEnableRegen, new GUIContent("Regen (HoT)"));
+                if (foodEnableRegen != null && foodEnableRegen.boolValue)
+                    EditorGUILayout.PropertyField(
+                        foodRegenTotalHeal,
+                        new GUIContent(
+                            "Regen Total Heal",
+                            "Total HP restored evenly over Effect Duration (separate from instant Heal Amount above)."));
+                if (foodRegenTotalHeal != null && foodRegenTotalHeal.intValue < 0)
+                    foodRegenTotalHeal.intValue = 0;
+
+                EditorGUILayout.Space(4);
+                EditorGUILayout.PropertyField(foodEnableSwiftness, new GUIContent("Swiftness"));
+                if (foodEnableSwiftness != null && foodEnableSwiftness.boolValue)
+                    EditorGUILayout.PropertyField(
+                        foodSwiftnessPercentBonus,
+                        new GUIContent("Move Speed +%", "Percent bonus to move speed while active (e.g. 10 = +10%)."));
+                if (foodSwiftnessPercentBonus != null && foodSwiftnessPercentBonus.floatValue < 0f)
+                    foodSwiftnessPercentBonus.floatValue = 0f;
+
+                EditorGUILayout.Space(4);
+                EditorGUILayout.PropertyField(foodEnableOverheal, new GUIContent("Overheal"));
+                if (foodEnableOverheal != null && foodEnableOverheal.boolValue)
+                {
+                    EditorGUILayout.PropertyField(
+                        foodOverhealMaxAboveMaxHp,
+                        new GUIContent(
+                            "Max HP Above Max",
+                            "While active, effective max HP is MaxHP + this value (HP bar fill stays capped at real max)."));
+                    EditorGUILayout.PropertyField(
+                        foodOverhealInstantHeal,
+                        new GUIContent(
+                            "Instant Overheal Heal",
+                            "Extra heal on use that can use the overheal ceiling (0 = cap only)."));
+                }
+
+                if (foodOverhealMaxAboveMaxHp != null && foodOverhealMaxAboveMaxHp.intValue < 0)
+                    foodOverhealMaxAboveMaxHp.intValue = 0;
+                if (foodOverhealInstantHeal != null && foodOverhealInstantHeal.intValue < 0)
+                    foodOverhealInstantHeal.intValue = 0;
+
+                EditorGUILayout.Space(4);
+                EditorGUILayout.PropertyField(foodEnableFocused, new GUIContent("Focused"));
+                if (foodEnableFocused != null && foodEnableFocused.boolValue)
+                    EditorGUILayout.PropertyField(
+                        foodFocusedDamageBonusFraction,
+                        new GUIContent(
+                            "Min/Max Hit Bonus",
+                            "Fraction added to basic-attack min and max damage (0 = default +15%)."));
+
+                if (foodFocusedDamageBonusFraction != null && foodFocusedDamageBonusFraction.floatValue < 0f)
+                    foodFocusedDamageBonusFraction.floatValue = 0f;
+            }
         }
         else
         {
@@ -682,7 +764,7 @@ public class ItemDefinitionEditor : Editor
 
         EditorGUILayout.HelpBox(
             "Consumables can be assigned to the action bar and used by hotkey.\n\n" +
-            "Food: usually instant healing.\n" +
+            "Food: instant heal/energy (above) plus optional timed buffs (Regen, Swiftness, Overheal, Focused) when Effect Duration > 0.\n" +
             "Potion: can heal, restore energy, and/or apply a temporary effect.\n" +
             "Fishing Bait: consumed automatically while fishing; higher bait tier is prioritized first.\n" +
             "Openable: double-click the item to open it. Each loot row rolls independently using its own % chance. " +

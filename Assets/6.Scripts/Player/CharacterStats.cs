@@ -501,7 +501,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float TotalMoveSpeedPercent =>
         GearMoveSpeedPercent + TemporaryMoveSpeedPercent + GetActiveMeleeMinorBonuses().meleeMoveSpeedPercent +
         GetActiveRangedMinorBonuses().rangedMoveSpeedPercent +
-        (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MoveSpeed) : 0f);
+        (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MoveSpeed) : 0f) +
+        (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.FoodMoveSpeed) : 0f);
 
     public float MoveSpeedMultiplier => Mathf.Max(0.1f, baseMoveSpeedMult * (1f + TotalMoveSpeedPercent));
     public float FinalMoveSpeed => BaseMoveSpeed * MoveSpeedMultiplier;
@@ -1788,15 +1789,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
             mag *= magicDamageMult;
             corr *= corruptionDamageMult;
 
-            return new SplitDamage(
+            return ApplyFoodFocusedMultiplier(new SplitDamage(
                 Mathf.Max(0f, phys),
                 Mathf.Max(0f, mag),
                 Mathf.Max(0f, corr)
-            );
+            ));
         }
 
         if (mh.RequiresOffhandSupport && !HasRequiredOffHandSupport())
-            return SplitDamage.Zero;
+            return ApplyFoodFocusedMultiplier(SplitDamage.Zero);
 
         var ohWeapon = GetOffHandWeaponDef();
         var support = GetActiveOffHandSupportDef();
@@ -1832,11 +1833,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
         magMin *= magicDamageMult;
         corruptionMin *= corruptionDamageMult;
 
-        return new SplitDamage(
+        return ApplyFoodFocusedMultiplier(new SplitDamage(
             Mathf.Max(0f, physMin),
             Mathf.Max(0f, magMin),
             Mathf.Max(0f, corruptionMin)
-        );
+        ));
     }
 
     private SplitDamage GetMaxSplitDamage()
@@ -1860,15 +1861,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
             mag *= magicDamageMult;
             corr *= corruptionDamageMult;
 
-            return new SplitDamage(
+            return ApplyFoodFocusedMultiplier(new SplitDamage(
                 Mathf.Max(0f, phys),
                 Mathf.Max(0f, mag),
                 Mathf.Max(0f, corr)
-            );
+            ));
         }
 
         if (mh.RequiresOffhandSupport && !HasRequiredOffHandSupport())
-            return SplitDamage.Zero;
+            return ApplyFoodFocusedMultiplier(SplitDamage.Zero);
 
         var ohWeapon = GetOffHandWeaponDef();
         var support = GetActiveOffHandSupportDef();
@@ -1904,11 +1905,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
         magMax *= magicDamageMult;
         corruptionMax *= corruptionDamageMult;
 
-        return new SplitDamage(
+        return ApplyFoodFocusedMultiplier(new SplitDamage(
             Mathf.Max(0f, physMax),
             Mathf.Max(0f, magMax),
             Mathf.Max(0f, corruptionMax)
-        );
+        ));
     }
 
     private static void AddFlatDamageAcrossExistingLanes(
@@ -2952,7 +2953,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             _didInitialFill = true;
         }
 
-        currentHP = Mathf.Clamp(currentHP, 0f, newMaxHP);
+        float hpCap = GetHpSoftCapTotal();
+        currentHP = Mathf.Clamp(currentHP, 0f, hpCap);
         currentEnergy = Mathf.Clamp(currentEnergy, 0f, newMaxEnergy);
         currentMana = Mathf.Clamp(currentMana, 0f, newMaxMana);
         if (currentGuard < 0f)
@@ -3382,8 +3384,46 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         if (_isDead || amount <= 0f) return;
 
-        currentHP = Mathf.Clamp(currentHP + amount, 0f, MaxHP);
+        float cap = GetHpSoftCapTotal();
+        currentHP = Mathf.Clamp(currentHP + amount, 0f, cap);
         OnHPChanged?.Invoke(currentHP, MaxHP);
+    }
+
+    /// <summary>
+    /// Drops current HP if it exceeds <see cref="MaxHP"/> plus active <see cref="ConsumableEffectType.FoodOverheal"/> total.
+    /// Called when buff totals change (e.g. overheal buff expires).
+    /// </summary>
+    public void ClampHpToFoodOverhealCap()
+    {
+        float cap = GetHpSoftCapTotal();
+        if (currentHP <= cap + 0.0001f)
+            return;
+
+        currentHP = cap;
+        OnHPChanged?.Invoke(currentHP, MaxHP);
+    }
+
+    private float GetFoodOverhealBonusFlat()
+    {
+        return buffController ? Mathf.Max(0f, buffController.GetTotalMagnitude(ConsumableEffectType.FoodOverheal)) : 0f;
+    }
+
+    private float GetHpSoftCapTotal()
+    {
+        return Mathf.Max(1f, MaxHP + GetFoodOverhealBonusFlat());
+    }
+
+    private SplitDamage ApplyFoodFocusedMultiplier(SplitDamage sd)
+    {
+        float f = buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.FoodFocused) : 0f;
+        if (f <= 0f)
+            return sd;
+
+        float m = 1f + f;
+        return new SplitDamage(
+            Mathf.Max(0f, sd.physical * m),
+            Mathf.Max(0f, sd.magic * m),
+            Mathf.Max(0f, sd.corruptionDamage * m));
     }
 
     /// <returns>Damage that reached guard and/or HP after mitigation (for popups and combat totals). Use <paramref name="hpDamageDealt"/> for HP-only effects.</returns>
@@ -3472,7 +3512,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
 
         float hpLoss = damage;
-        currentHP = Mathf.Clamp(currentHP - hpLoss, 0f, MaxHP);
+        currentHP = Mathf.Max(0f, currentHP - hpLoss);
 
         ResolveOwnerEnemy();
         if (_ownerEnemy && (absorb > 0f || hpLoss > 0.0001f))

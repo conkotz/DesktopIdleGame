@@ -2695,33 +2695,15 @@ public class PlayerAbilityController : MonoBehaviour
         var nodeDef = _spectralAxeGatherTarget.Definition;
         float speedMult = stats ? Mathf.Max(0.01f, stats.AxeSpeedMult) : 1f;
 
-        if (nodeDef.useRandomInterval)
-        {
-            if (_spectralAxeGatherNextInterval <= 0f)
-                _spectralAxeGatherNextInterval = _spectralAxeGatherTarget.GetNextInterval();
+        if (_spectralAxeGatherNextInterval <= 0f)
+            _spectralAxeGatherNextInterval = _spectralAxeGatherTarget.GetNextInterval();
 
-            _spectralAxeGatherAccum += deltaSeconds * speedMult;
-            while (_spectralAxeGatherAccum >= _spectralAxeGatherNextInterval && _spectralAxeGatherNextInterval > 0f)
-            {
-                _spectralAxeGatherAccum -= _spectralAxeGatherNextInterval;
-                DoOneSpectralAxeGather(_spectralAxeGatherTarget);
-                _spectralAxeGatherNextInterval = _spectralAxeGatherTarget.GetNextInterval();
-            }
-        }
-        else
+        _spectralAxeGatherAccum += deltaSeconds * speedMult;
+        while (_spectralAxeGatherAccum >= _spectralAxeGatherNextInterval && _spectralAxeGatherNextInterval > 0f)
         {
-            float rate = nodeDef.ratePerSecond;
-            if (rate <= 0f)
-                return;
-
-            _spectralAxeGatherAccum += rate * deltaSeconds * speedMult;
-            int gained = Mathf.FloorToInt(_spectralAxeGatherAccum);
-            if (gained > 0)
-            {
-                _spectralAxeGatherAccum -= gained;
-                for (int g = 0; g < gained; g++)
-                    DoOneSpectralAxeGather(_spectralAxeGatherTarget);
-            }
+            _spectralAxeGatherAccum -= _spectralAxeGatherNextInterval;
+            DoOneSpectralAxeGather(_spectralAxeGatherTarget);
+            _spectralAxeGatherNextInterval = _spectralAxeGatherTarget.GetNextInterval();
         }
     }
 
@@ -2737,7 +2719,13 @@ public class PlayerAbilityController : MonoBehaviour
         bool countTowardDepletion = !IsAvatarOfTheForestActive;
         node.NotifyGatherTickBeforeBonuses(countTowardDepletion);
 
-        int mainAmt = nodeDef.RollMainYieldAmount();
+        int woodGatherLevel = SkillsManager.Instance != null
+            ? Mathf.Max(1, SkillsManager.Instance.GetLevel(SkillType.Woodcutting))
+            : 1;
+
+        var mainScratch = new Dictionary<string, int>(4);
+        nodeDef.RollMainYieldCounts(mainScratch, woodGatherLevel, null);
+        int mainAmt = NodeDefinition.SumMainYieldCounts(mainScratch);
         if (node.ApplyDepletedYieldPenaltyThisTick)
             mainAmt = SpectralAxeRollDepletedYield(mainAmt, nodeDef.depletedYieldMultiplier);
 
@@ -2746,7 +2734,7 @@ public class PlayerAbilityController : MonoBehaviour
         mainAmt = RollSpectralAxeEfficiencyYield(mainAmt, SpectralAxeYieldEfficiency);
 
         if (mainAmt > 0)
-            AddSpectralAxeLootToInventory(node, mainAmt, node.transform.position);
+            AddSpectralAxeLootToInventory(node, mainAmt, node.transform.position, nodeDef.GetPrimaryYieldItemIdForSkillLevel(woodGatherLevel));
 
         // Phantom Harvest: also roll bonus then hidden drops using the player's bonus find chance,
         // mirroring the bonus pass in PlayerController.DoOneGatherTick (hidden only after a bonus proc).
@@ -2769,8 +2757,11 @@ public class PlayerAbilityController : MonoBehaviour
         float bonusFind = stats ? Mathf.Max(0f, stats.AxeBonusFindChance) : 0f;
         if (IsAvatarOfTheForestActive)
             bonusFind *= 2f;
+        int woodGatherLevel = SkillsManager.Instance != null
+            ? Mathf.Max(1, SkillsManager.Instance.GetLevel(SkillType.Woodcutting))
+            : 1;
         var drops = new List<Drop>(8);
-        nodeDef.PreviewDrops(drops, bonusFind);
+        nodeDef.PreviewDrops(drops, bonusFind, default, woodGatherLevel);
 
         for (int i = 0; i < drops.Count; i++)
         {
@@ -2778,7 +2769,7 @@ public class PlayerAbilityController : MonoBehaviour
             if (string.IsNullOrWhiteSpace(d.itemId) || d.amount <= 0)
                 continue;
             // Skip the main yield — already handled by DoOneSpectralAxeGather.
-            if (string.Equals(d.itemId, nodeDef.YieldItemId, StringComparison.Ordinal))
+            if (nodeDef.IsMainYieldPoolItem(d.itemId))
                 continue;
 
             int bonusAmt = node.ApplyDepletedYieldPenaltyThisTick
@@ -2820,7 +2811,12 @@ public class PlayerAbilityController : MonoBehaviour
         if (amount <= 0 || node == null || node.Definition == null || inventory == null)
             return;
 
-        string itemId = string.IsNullOrWhiteSpace(overrideItemId) ? node.Definition.YieldItemId : overrideItemId;
+        string itemId = string.IsNullOrWhiteSpace(overrideItemId)
+            ? node.Definition.GetPrimaryYieldItemIdForSkillLevel(
+                SkillsManager.Instance != null
+                    ? Mathf.Max(1, SkillsManager.Instance.GetLevel(SkillType.Woodcutting))
+                    : 1)
+            : overrideItemId;
         if (string.IsNullOrWhiteSpace(itemId))
             return;
 

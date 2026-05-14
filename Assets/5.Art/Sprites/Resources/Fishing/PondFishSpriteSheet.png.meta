@@ -1,0 +1,400 @@
+fileFormatVersion: 2
+guid: e4fd2950110f2dd49b4592edb0b1b7c6
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 7169803691490265518
+    second: PondFishSpriteSheet_0
+  - first:
+      213: -2329832854445491010
+    second: PondFishSpriteSheet_1
+  - first:
+      213: 3714831161845115207
+    second: PondFishSpriteSheet_2
+  - first:
+      213: 4500040671782054076
+    second: PondFishSpriteSheet_3
+  - first:
+      213: 1461542073519705050
+    second: PondFishSpriteSheet_4
+  - first:
+      213: -4368617568662313061
+    second: PondFishSpriteSheet_5
+  - first:
+      213: 8904881469582496978
+    second: PondFishSpriteSheet_6
+  - first:
+      213: 5008961613366788524
+    second: PondFishSpriteSheet_7
+  - first:
+      213: 6357424647304257226
+    second: PondFishSpriteSheet_8
+  - first:
+      213: 3884975998541030643
+    second: PondFishSpriteSheet_9
+  - first:
+      213: 9148127152280611901
+    second: PondFishSpriteSheet_10
+  - first:
+      213: -8538149066105464793
+    second: PondFishSpriteSheet_11
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 650
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: PondFishSpriteSheet_1Cooked
+      rect:
+        serializedVersion: 2
+        x: 989
+        y: 808
+        width: 320
+        height: 140
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cb82164162b537e30800000000000000
+      internalID: 4500040671782054076
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PondFishSpriteSheet_1Perch
+      rect:
+        serializedVersion: 2
+        x: 225
+        y: 806
+        width: 320
+        height: 147
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b972a5c977d8f53c0800000000000000
+      internalID: -4368617568662313061
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PondFishSpriteSheet_2Bass
+      rect:
+        serializedVersion: 2
+        x: 227
+        y: 628
+        width: 320
+        height: 140
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3f4e4f156153ae530800000000000000
+      internalID: 3884975998541030643
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PondFishSpriteSheet_2Cooked
+      rect:
+        serializedVersion: 2
+        x: 996
+        y: 624
+        width: 320
+        height: 140
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f023406181e45194f95124af9b2e5c2b
+      internalID: -8538149066105464793
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PondFishSpriteSheet_3Pike
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 468
+        width: 410
+        height: 140
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5936b8a2749e0334b9408928076884ef
+      internalID: -1286585359
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PondFishSpriteSheet_3Cooked
+      rect:
+        serializedVersion: 2
+        x: 983
+        y: 475
+        width: 401
+        height: 140
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2a15810d09a91fe4398f06e4856618e5
+      internalID: -1815955803
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PondFishSpriteSheet_4Trout
+      rect:
+        serializedVersion: 2
+        x: 221
+        y: 331
+        width: 408
+        height: 140
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8fd0e360051754446890802edcfd0497
+      internalID: -475834597
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PondFishSpriteSheet_4Cooked
+      rect:
+        serializedVersion: 2
+        x: 987
+        y: 328
+        width: 410
+        height: 140
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: aeae5273a120b974c83abfc2a15aad1b
+      internalID: 1061934366
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PondFishSpriteSheet_5Catfish
+      rect:
+        serializedVersion: 2
+        x: 240
+        y: 165
+        width: 344
+        height: 140
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b2e6b0031413bc742b4180174d3bc37f
+      internalID: 745413504
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PondFishSpriteSheet_5Cooked
+      rect:
+        serializedVersion: 2
+        x: 1007
+        y: 168
+        width: 346
+        height: 140
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7c067d7b64bbc934d9040e447b8b00e3
+      internalID: 1079501923
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: e214810ba7a2d164fbaae0c7c57ba9cb
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":320.0,"y":140.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      PondFishSpriteSheet_0: 7169803691490265518
+      PondFishSpriteSheet_10: 1605482022
+      PondFishSpriteSheet_12: -1224031256
+      PondFishSpriteSheet_14: -1192147163
+      PondFishSpriteSheet_16: 1109977124
+      PondFishSpriteSheet_18: 2039157350
+      PondFishSpriteSheet_1Cooked: 4500040671782054076
+      PondFishSpriteSheet_1Perch: -4368617568662313061
+      PondFishSpriteSheet_20: -654479070
+      PondFishSpriteSheet_22: 810194542
+      PondFishSpriteSheet_24: 956364187
+      PondFishSpriteSheet_25: 235237348
+      PondFishSpriteSheet_26: 1129676584
+      PondFishSpriteSheet_27: -121954742
+      PondFishSpriteSheet_2Bass: 3884975998541030643
+      PondFishSpriteSheet_2Cooked: -8538149066105464793
+      PondFishSpriteSheet_3Cooked: -1815955803
+      PondFishSpriteSheet_3Pike: -1286585359
+      PondFishSpriteSheet_4Cooked: 1061934366
+      PondFishSpriteSheet_4Trout: -475834597
+      PondFishSpriteSheet_5Catfish: 745413504
+      PondFishSpriteSheet_5Cooked: 1079501923
+      PondFishSpriteSheet_6: 8904881469582496978
+      PondFishSpriteSheet_7: 5008961613366788524
+      PondFishSpriteSheet_8: 6357424647304257226
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

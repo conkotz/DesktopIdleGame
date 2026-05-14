@@ -44,11 +44,9 @@ public class ResourceNode : MonoBehaviour
     public string DisplayName => definition ? definition.displayName : "Resource";
     public NodeAction ActionType => definition ? definition.actionType : NodeAction.Woodcutting;
     public int RequiredLevel => definition ? definition.requiredLevel : 1;
-    public ItemDefinition YieldItem => definition ? definition.yieldItem : null;
-    public string YieldItemId => definition ? definition.YieldItemId : string.Empty;
+    public ItemDefinition YieldItem => definition ? definition.GetPrimaryMainYieldItem() : null;
+    public string YieldItemId => definition ? definition.PrimaryYieldItemId : string.Empty;
 
-    public bool UseRandomInterval => definition && definition.useRandomInterval;
-    public float RatePerSecond => definition ? definition.ratePerSecond : 0f;
     public float MinInterval => definition ? definition.minInterval : 0f;
     public float MaxInterval => definition ? definition.maxInterval : 0f;
 

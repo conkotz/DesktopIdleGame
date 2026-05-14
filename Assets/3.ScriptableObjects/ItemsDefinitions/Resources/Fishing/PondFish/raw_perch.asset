@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: cooked_fish
+  m_Name: raw_perch
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 5
+  itemKind: 0
   maxStack: 999
-  itemId: cooked_fish
-  displayName: Cooked Fish
+  itemId: raw_perch
+  displayName: Raw Perch
   displayNameSingular: 
-  icon: {fileID: -2970555329973835299, guid: 2d03f00e164da9749a6902f5be919895, type: 3}
+  icon: {fileID: -4368617568662313061, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,7 +25,7 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A cooked fish
+  description: A raw perch which can be cooked.
   rarity: 0
   value: 25
   equipSlot: 0
@@ -143,17 +143,30 @@ MonoBehaviour:
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
-    consumableType: 1
-    healAmount: 50
+    consumableType: 0
+    healAmount: 0
     energyAmount: 0
-    cooldownSeconds: 15
-    consumeOnUse: 1
+    cooldownSeconds: 0
+    consumeOnUse: 0
     grantedEffect:
       effectType: 0
       magnitude: 0
       duration: 0
       effectId: 
+    baitTier: 0
+    fishingSpeedPercentBonus: 0
+    openRequiredAmount: 0
     openableLoot: []
+    foodEffectDurationSeconds: 0
+    foodEnableRegen: 0
+    foodRegenTotalHeal: 0
+    foodEnableSwiftness: 0
+    foodSwiftnessPercentBonus: 0
+    foodEnableOverheal: 0
+    foodOverhealMaxAboveMaxHp: 0
+    foodOverhealInstantHeal: 0
+    foodEnableFocused: 0
+    foodFocusedDamageBonusFraction: 0
   enhancementScrollStats:
     successChance: 0
     targetStat: 0
@@ -165,7 +178,7 @@ MonoBehaviour:
     cursed: 0
     allowedGearTypes: 0
   cookableStats:
-    isCookable: 0
+    isCookable: 1
     cookedResultItemId: 
     cookedResultAmount: 1
     requiredCookingLevel: 0

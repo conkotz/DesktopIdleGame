@@ -306,6 +306,8 @@ public class PlayerController : MonoBehaviour
     private float _fatigueGatherSavedAccum;
 
     private readonly List<Drop> _drops = new List<Drop>(8);
+    private readonly Dictionary<string, int> _mainYieldScratch = new();
+    private readonly List<int> _fishingXpScratch = new(8);
     private const string MissingFishingBaitPopupText = "Cannot fish due to no bait in inventory";
 
     private enum GatherSwingSpendFailureReason
@@ -848,7 +850,7 @@ public class PlayerController : MonoBehaviour
         if (_pausedNode.Definition == null || _pausedNode.workSpot == null) return;
 
         _drops.Clear();
-        _pausedNode.Definition.PreviewDrops(_drops);
+        _pausedNode.Definition.PreviewDrops(_drops, 0f, default, GetGatherSkillLevel(_pausedNode.ActionType));
         if (_drops.Count == 0) return;
 
         string mainItemId = _drops[0].itemId;
@@ -962,9 +964,10 @@ public class PlayerController : MonoBehaviour
                 ? node.DisplayName
                 : node.name;
 
-            int xpHint = -1;
-            if (node.Definition != null && node.Definition.xpPerTick > 0)
-                xpHint = node.Definition.xpPerTick;
+            int skillLevel = sm.GetLevel(sk);
+            int xpHint = node.Definition != null ? node.Definition.GetBestMainYieldXpHint(skillLevel) : -1;
+            if (xpHint <= 0)
+                xpHint = -1;
 
             sm.SetActiveXpDisplay(sk, src, xpHint);
         }
@@ -1133,6 +1136,12 @@ public class PlayerController : MonoBehaviour
 
         int lvl = SkillsManager.Instance ? SkillsManager.Instance.GetLevel(skill) : 1;
         return lvl >= node.RequiredLevel;
+    }
+
+    private int GetGatherSkillLevel(NodeAction actionType)
+    {
+        SkillType skill = SkillFromNodeAction(actionType);
+        return SkillsManager.Instance ? Mathf.Max(1, SkillsManager.Instance.GetLevel(skill)) : 1;
     }
 
     private static SkillType SkillFromNodeAction(NodeAction a) => a switch
@@ -1431,7 +1440,7 @@ public class PlayerController : MonoBehaviour
             {
                 _accumItems = _fatigueGatherSavedAccum;
                 _gatherTimer = _fatigueGatherSavedTimer;
-                if (targetNode.UseRandomInterval && _fatigueGatherSavedInterval <= 0f)
+                if (_fatigueGatherSavedInterval <= 0f)
                     _nextGatherInterval = targetNode.GetNextInterval();
                 else
                     _nextGatherInterval = _fatigueGatherSavedInterval;
@@ -1647,46 +1656,22 @@ public class PlayerController : MonoBehaviour
         transform.position = pos;
         SyncPlayerRigidbody2DPosition();
 
-        if (targetNode.UseRandomInterval)
+        if (_nextGatherInterval <= 0f)
+            _nextGatherInterval = targetNode.GetNextInterval();
+
+        _gatherTimer += Time.deltaTime * GetEffectiveGatherSpeedMultiplier();
+
+        if (_gatherTimer >= _nextGatherInterval)
         {
-            if (_nextGatherInterval <= 0f)
-                _nextGatherInterval = targetNode.GetNextInterval();
+            DoOneGatherTick();
 
-            _gatherTimer += Time.deltaTime * GetEffectiveGatherSpeedMultiplier();
+            // AddPartial can synchronously invoke OnInventoryChanged (e.g. helper overlay locks movement →
+            // SetMovementLocked clears targetNode). Don't touch targetNode afterward.
+            if (!targetNode)
+                return;
 
-            if (_gatherTimer >= _nextGatherInterval)
-            {
-                DoOneGatherTick();
-
-                // AddPartial can synchronously invoke OnInventoryChanged (e.g. helper overlay locks movement →
-                // SetMovementLocked clears targetNode). Don't touch targetNode afterward.
-                if (!targetNode)
-                    return;
-
-                _gatherTimer = 0f;
-                _nextGatherInterval = targetNode.GetNextInterval();
-            }
-
-            return;
-        }
-
-        float rate = targetNode.RatePerSecond;
-        if (rate <= 0f) return;
-
-        _accumItems += rate * Time.deltaTime * GetEffectiveGatherSpeedMultiplier();
-        int gained = Mathf.FloorToInt(_accumItems);
-
-        if (gained > 0)
-        {
-            for (int i = 0; i < gained; i++)
-            {
-                DoOneGatherTick();
-
-                if (!targetNode)
-                    return;
-            }
-
-            _accumItems -= gained;
+            _gatherTimer = 0f;
+            _nextGatherInterval = targetNode.GetNextInterval();
         }
     }
 
@@ -1732,91 +1717,140 @@ public class PlayerController : MonoBehaviour
                 characterStats.AddEnergy(restore);
             }
 
-            int baseMainAmt = def.RollMainYieldAmount();
-            int mainAmt = baseMainAmt;
+            int gatherSkillLevel = GetGatherSkillLevel(def.actionType);
+            def.RollMainYieldCounts(_mainYieldScratch, gatherSkillLevel, isFishing ? _fishingXpScratch : null);
 
-            if (isWoodcutting && _woodcuttingBonuses.baseYieldPercent > 0f)
-                mainAmt = Mathf.Max(1, Mathf.RoundToInt(mainAmt * (1f + _woodcuttingBonuses.baseYieldPercent)));
-
-            if (isWoodcutting && _woodcuttingBonuses.extraLogChance > 0f &&
-                UnityEngine.Random.value <= _woodcuttingBonuses.extraLogChance)
-                mainAmt += 1;
+            bool woodSingle =
+                isWoodcutting &&
+                _mainYieldScratch.Count == 1;
 
             float gritRoll = Mathf.Clamp01(_gatherGritChance);
             if (isWoodcutting && IsWoodcuttingMajorFlowDeepFocusSelected() && IsWoodcuttingMajorFlowBuffActive())
                 gritRoll = Mathf.Clamp01(gritRoll + 0.10f);
 
-            // Gathering Grit: doubles BASE yield only. Never duplicates bonus drops.
-            if (mainAmt > 0 && UnityEngine.Random.value <= gritRoll)
+            bool mainYieldEligibleForXp = false;
+            int mainAmt = 0;
+            string mainItemId = null;
+
+            if (woodSingle)
             {
-                mainAmt *= 2;
-                gritProc = true;
-            }
-
-            if (isWoodcutting && gritProc && woodcuttingMajorPick == 1)
-            {
-                float heavyExtraChance = woodcuttingMajorEnhancement == 1 ? 0.50f : 0.40f;
-                if (UnityEngine.Random.value < heavyExtraChance)
-                    mainAmt += 1;
-            }
-
-            if (targetNode.ApplyDepletedYieldPenaltyThisTick)
-                mainAmt = RollDepletedGatherYield(mainAmt, def.depletedYieldMultiplier);
-
-            // Lv50 Bountiful Chop: +1 main log only on THIS tick — the player's primary tree gather in DoOneGatherTick.
-            // Cleaving Chop secondaries use DoOneCleavingSecondaryYield; Spectral Axe uses DoOneSpectralAxeGather (no +1 there).
-            // Does not affect bonus-find or hidden rolls (those run in the second pass below).
-            if (isWoodcutting && mainAmt > 0 && IsWoodcuttingCapstoneBonusLogUnlocked())
-                mainAmt += 1;
-
-            if (mainAmt > 0)
-            {
-                // Add main item
-                int added = inventory.AddPartial(def.YieldItemId, mainAmt);
-                int overflow = mainAmt - added;
-
-                if (added > 0)
-                    SessionTrackerData.EnsureInstance().RegisterLootGain(def.displayName, def.YieldItemId, added);
-
-                if (overflow > 0)
+                foreach (var kv in _mainYieldScratch)
                 {
-                    if (dropOverflowToGround)
-                    {
-                        var itemDef = inventory.GetItemDef(def.YieldItemId);
-                        Sprite icon = itemDef ? itemDef.icon : null;
-
-                        if (DropManager.Instance != null)
-                            DropManager.Instance.Spawn(def.YieldItemId, overflow, icon, def.displayName);
-                        else if (worldDropPrefab != null)
-                        {
-                            float scatterX = UnityEngine.Random.Range(-dropScatterRadius, dropScatterRadius);
-                            Vector3 spawnPos = transform.position + new Vector3(scatterX, 0.1f, 0f);
-
-                            var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
-                            drop.Init(def.YieldItemId, overflow, icon);
-                            drop.SetSourceName(def.displayName);
-                        }
-                    }
-
-                    ShowPopup("Inventory Full!");
+                    mainItemId = kv.Key;
+                    mainAmt = kv.Value;
+                    break;
                 }
 
+                if (isWoodcutting && _woodcuttingBonuses.baseYieldPercent > 0f)
+                    mainAmt = Mathf.Max(1, Mathf.RoundToInt(mainAmt * (1f + _woodcuttingBonuses.baseYieldPercent)));
+
+                if (isWoodcutting && _woodcuttingBonuses.extraLogChance > 0f &&
+                    UnityEngine.Random.value <= _woodcuttingBonuses.extraLogChance)
+                    mainAmt += 1;
+
+                // Gathering Grit: doubles BASE yield only. Never duplicates bonus drops.
+                if (mainAmt > 0 && UnityEngine.Random.value <= gritRoll)
+                {
+                    mainAmt *= 2;
+                    gritProc = true;
+                }
+
+                if (isWoodcutting && gritProc && woodcuttingMajorPick == 1)
+                {
+                    float heavyExtraChance = woodcuttingMajorEnhancement == 1 ? 0.50f : 0.40f;
+                    if (UnityEngine.Random.value < heavyExtraChance)
+                        mainAmt += 1;
+                }
+
+                if (targetNode.ApplyDepletedYieldPenaltyThisTick)
+                    mainAmt = RollDepletedGatherYield(mainAmt, def.depletedYieldMultiplier);
+
+                if (isWoodcutting && mainAmt > 0 && IsWoodcuttingCapstoneBonusLogUnlocked())
+                    mainAmt += 1;
+
+                mainYieldEligibleForXp = mainAmt > 0;
+
+                if (mainAmt > 0 && !string.IsNullOrWhiteSpace(mainItemId))
+                    TryDepositGatherMainLoot(mainItemId, mainAmt, def.displayName);
+            }
+            else
+            {
+                int totalBase = NodeDefinition.SumMainYieldCounts(_mainYieldScratch);
+                if (totalBase > 0 && UnityEngine.Random.value <= gritRoll)
+                {
+                    gritProc = true;
+                    string[] keys = new string[_mainYieldScratch.Count];
+                    int ki = 0;
+                    foreach (var k in _mainYieldScratch.Keys)
+                        keys[ki++] = k;
+                    for (int gi = 0; gi < keys.Length; gi++)
+                    {
+                        string k = keys[gi];
+                        _mainYieldScratch[k] *= 2;
+                    }
+
+                    if (isFishing && _fishingXpScratch.Count > 0)
+                    {
+                        int nXp = _fishingXpScratch.Count;
+                        for (int xi = 0; xi < nXp; xi++)
+                            _fishingXpScratch.Add(_fishingXpScratch[xi]);
+                    }
+                }
+
+                if (targetNode.ApplyDepletedYieldPenaltyThisTick)
+                {
+                    string[] keys = new string[_mainYieldScratch.Count];
+                    int ki = 0;
+                    foreach (var k in _mainYieldScratch.Keys)
+                        keys[ki++] = k;
+                    for (int gi = 0; gi < keys.Length; gi++)
+                    {
+                        string k = keys[gi];
+                        int v = _mainYieldScratch[k];
+                        _mainYieldScratch[k] = RollDepletedGatherYield(v, def.depletedYieldMultiplier);
+                    }
+                }
+
+                mainYieldEligibleForXp = NodeDefinition.SumMainYieldCounts(_mainYieldScratch) > 0;
+
+                foreach (var kv in _mainYieldScratch)
+                {
+                    if (kv.Value <= 0 || string.IsNullOrWhiteSpace(kv.Key))
+                        continue;
+                    TryDepositGatherMainLoot(kv.Key, kv.Value, def.displayName);
+                }
+            }
+
+            if (mainYieldEligibleForXp)
+            {
                 // ✅ XP ONLY for main yield tick
                 var sm = SkillsManager.Instance;
-                if (sm != null && def.xpPerTick > 0)
+                if (sm != null)
                 {
-                    SkillType skill = def.actionType switch
+                    if (isFishing && _fishingXpScratch.Count > 0)
                     {
-                        NodeAction.Mining => SkillType.Mining,
-                        NodeAction.Woodcutting => SkillType.Woodcutting,
-                        NodeAction.Fishing => SkillType.Fishing,
-                        _ => SkillType.Woodcutting
-                    };
+                        for (int xi = 0; xi < _fishingXpScratch.Count; xi++)
+                        {
+                            int xv = _fishingXpScratch[xi];
+                            if (xv > 0)
+                                sm.AddXp(SkillType.Fishing, xv, def.displayName);
+                        }
+                    }
+                    else if (!isFishing && def.xpPerTick > 0)
+                    {
+                        SkillType skill = def.actionType switch
+                        {
+                            NodeAction.Mining => SkillType.Mining,
+                            NodeAction.Woodcutting => SkillType.Woodcutting,
+                            NodeAction.Fishing => SkillType.Fishing,
+                            _ => SkillType.Woodcutting
+                        };
 
-                    sm.AddXp(skill, def.xpPerTick, def.displayName);
-                    if (isWoodcutting && _woodcuttingBonuses.bonusXpChance > 0f &&
-                        UnityEngine.Random.value < _woodcuttingBonuses.bonusXpChance)
                         sm.AddXp(skill, def.xpPerTick, def.displayName);
+                        if (isWoodcutting && _woodcuttingBonuses.bonusXpChance > 0f &&
+                            UnityEngine.Random.value < _woodcuttingBonuses.bonusXpChance)
+                            sm.AddXp(skill, def.xpPerTick, def.displayName);
+                    }
                 }
 
                 if (isWoodcutting && gritProc && characterStats != null &&
@@ -1848,7 +1882,7 @@ public class PlayerController : MonoBehaviour
         if (isWoodcutting && abilityController != null)
             bonusFindForRoll *= abilityController.GetAvatarOfTheForestBonusFindFinalMultiplier();
         var dropCtx = isWoodcutting ? BuildWoodcuttingLevel35DropContext() : default;
-        def.PreviewDrops(_drops, bonusFindForRoll, dropCtx);
+        def.PreviewDrops(_drops, bonusFindForRoll, dropCtx, GetGatherSkillLevel(def.actionType));
 
         // PreviewDrops includes main too, so we must ignore index 0 main OR skip matching itemId
         // Easiest: process ONLY entries that are NOT the main yield itemId
@@ -1857,8 +1891,8 @@ public class PlayerController : MonoBehaviour
             var d = _drops[i];
             if (string.IsNullOrWhiteSpace(d.itemId) || d.amount <= 0) continue;
 
-            // Skip main yield because we already handled it above
-            if (d.itemId == def.YieldItemId) continue;
+            // Skip main pool items because we already handled them above
+            if (def.IsMainYieldPoolItem(d.itemId)) continue;
 
             int bonusAmt = targetNode.ApplyDepletedYieldPenaltyThisTick
                 ? RollDepletedGatherYield(d.amount, def.depletedYieldMultiplier)
@@ -1919,8 +1953,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Drives Cleaving Chop's per-tree gather timers. Called from <see cref="TickGather"/> so secondaries
     /// only advance while the player is actively gathering — pausing for combat, fatigue, low energy, etc.
-    /// Each tree uses its own <see cref="ResourceNode.GetNextInterval"/> / <see cref="ResourceNode.RatePerSecond"/>,
-    /// so low-tier trees yield faster than the high-tier tree you're chopping.
+    /// Each tree uses its own <see cref="ResourceNode.GetNextInterval"/> random cadence.
     /// </summary>
     private void AdvanceCleavingChopSecondaryGathers(float deltaSeconds)
     {
@@ -1964,34 +1997,15 @@ public class PlayerController : MonoBehaviour
             var nodeDef = node.Definition;
             var entry = _cleavingSecondaryTimers[node];
 
-            if (nodeDef.useRandomInterval)
-            {
-                if (entry.nextInterval <= 0f)
-                    entry.nextInterval = node.GetNextInterval();
+            if (entry.nextInterval <= 0f)
+                entry.nextInterval = node.GetNextInterval();
 
-                entry.accum += deltaSeconds * speedMult;
-                while (entry.accum >= entry.nextInterval && entry.nextInterval > 0f)
-                {
-                    entry.accum -= entry.nextInterval;
-                    DoOneCleavingSecondaryYield(node, efficiency);
-                    entry.nextInterval = node.GetNextInterval();
-                }
-            }
-            else
+            entry.accum += deltaSeconds * speedMult;
+            while (entry.accum >= entry.nextInterval && entry.nextInterval > 0f)
             {
-                // Rate-per-second nodes: accumulate "items earned" using each tree's own rate.
-                float rate = nodeDef.ratePerSecond;
-                if (rate > 0f)
-                {
-                    entry.accum += rate * deltaSeconds * speedMult;
-                    int gained = Mathf.FloorToInt(entry.accum);
-                    if (gained > 0)
-                    {
-                        entry.accum -= gained;
-                        for (int g = 0; g < gained; g++)
-                            DoOneCleavingSecondaryYield(node, efficiency);
-                    }
-                }
+                entry.accum -= entry.nextInterval;
+                DoOneCleavingSecondaryYield(node, efficiency);
+                entry.nextInterval = node.GetNextInterval();
             }
 
             _cleavingSecondaryTimers[node] = entry;
@@ -2067,7 +2081,9 @@ public class PlayerController : MonoBehaviour
         bool countTowardDepletion = !(abilityController != null && abilityController.IsAvatarOfTheForestActive);
         node.NotifyGatherTickBeforeBonuses(countTowardDepletion);
 
-        int rolled = nodeDef.RollMainYieldAmount();
+        int woodGatherLevel = GetGatherSkillLevel(NodeAction.Woodcutting);
+        nodeDef.RollMainYieldCounts(_mainYieldScratch, woodGatherLevel, null);
+        int rolled = NodeDefinition.SumMainYieldCounts(_mainYieldScratch);
         if (rolled <= 0)
         {
             node.NotifyGatherTickFinishedDepletionCheck();
@@ -2085,26 +2101,33 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        int added = inventory.AddPartial(nodeDef.YieldItemId, secondaryAmt);
+        string yieldId = nodeDef.GetPrimaryYieldItemIdForSkillLevel(woodGatherLevel);
+        if (string.IsNullOrWhiteSpace(yieldId))
+        {
+            node.NotifyGatherTickFinishedDepletionCheck();
+            return;
+        }
+
+        int added = inventory.AddPartial(yieldId, secondaryAmt);
         int overflow = secondaryAmt - added;
 
         if (added > 0)
-            SessionTrackerData.EnsureInstance().RegisterLootGain(nodeDef.displayName, nodeDef.YieldItemId, added);
+            SessionTrackerData.EnsureInstance().RegisterLootGain(nodeDef.displayName, yieldId, added);
 
         if (overflow > 0 && dropOverflowToGround)
         {
-            var itemDef = inventory.GetItemDef(nodeDef.YieldItemId);
+            var itemDef = inventory.GetItemDef(yieldId);
             Sprite icon = itemDef ? itemDef.icon : null;
 
             if (DropManager.Instance != null)
-                DropManager.Instance.Spawn(nodeDef.YieldItemId, overflow, icon, nodeDef.displayName);
+                DropManager.Instance.Spawn(yieldId, overflow, icon, nodeDef.displayName);
             else if (worldDropPrefab != null)
             {
                 float scatterX = UnityEngine.Random.Range(-dropScatterRadius, dropScatterRadius);
                 Vector3 spawnPos = node.transform.position + new Vector3(scatterX, 0.1f, 0f);
 
                 var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
-                drop.Init(nodeDef.YieldItemId, overflow, icon);
+                drop.Init(yieldId, overflow, icon);
                 drop.SetSourceName(nodeDef.displayName);
             }
         }
@@ -2135,6 +2158,41 @@ public class PlayerController : MonoBehaviour
         }
 
         return sum;
+    }
+
+    private void TryDepositGatherMainLoot(string itemId, int amount, string sourceDisplayName)
+    {
+        if (amount <= 0 || string.IsNullOrWhiteSpace(itemId) || inventory == null)
+            return;
+
+        int added = inventory.AddPartial(itemId, amount);
+        int overflow = amount - added;
+
+        if (added > 0)
+            SessionTrackerData.EnsureInstance().RegisterLootGain(sourceDisplayName, itemId, added);
+
+        if (overflow <= 0)
+            return;
+
+        if (dropOverflowToGround)
+        {
+            var itemDef = inventory.GetItemDef(itemId);
+            Sprite icon = itemDef ? itemDef.icon : null;
+
+            if (DropManager.Instance != null)
+                DropManager.Instance.Spawn(itemId, overflow, icon, sourceDisplayName);
+            else if (worldDropPrefab != null)
+            {
+                float scatterX = UnityEngine.Random.Range(-dropScatterRadius, dropScatterRadius);
+                Vector3 spawnPos = transform.position + new Vector3(scatterX, 0.1f, 0f);
+
+                var drop = Instantiate(worldDropPrefab, spawnPos, Quaternion.identity);
+                drop.Init(itemId, overflow, icon);
+                drop.SetSourceName(sourceDisplayName);
+            }
+        }
+
+        ShowPopup("Inventory Full!");
     }
 
     /// <summary>

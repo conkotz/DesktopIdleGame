@@ -253,7 +253,9 @@ public class HUDView : MonoBehaviour
 
     public void SetHP(float current, float max)
     {
-        if (hpFill) hpFill.fillAmount = (max <= 0f) ? 0f : Mathf.Clamp01(current / max);
+        float displayMax = Mathf.Max(1f, max);
+        float fill = Mathf.Clamp01(Mathf.Min(current, max) / displayMax);
+        if (hpFill) hpFill.fillAmount = fill;
         if (hpValueText) hpValueText.text = $"{Mathf.RoundToInt(current)}/{Mathf.RoundToInt(max)}";
     }
 

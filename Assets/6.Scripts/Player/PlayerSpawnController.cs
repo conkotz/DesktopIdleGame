@@ -48,6 +48,10 @@ public class PlayerSpawnController : MonoBehaviour
     private const float StripLevelLoadFadeViewportBleedPixels = 2f;
     /// <summary>Same as <see cref="LevelBiomeVisualsController"/> cave overlay parent lookup.</summary>
     private const string StripUiCanvasObjectName = "StripUICanvas";
+    /// <summary>
+    /// When no tagged <c>FullWindowCanvas</c> is found (e.g. early load), use this nested fader order — below typical FullWindow (~10000), above strip HUD (~0).
+    /// </summary>
+    private const int StripLevelLoadFaderSortFallback = 9900;
     private static readonly string[] PreferredGroundNameTokens = { "floor", "signpost" };
 
     private void Awake()
@@ -565,8 +569,7 @@ public class PlayerSpawnController : MonoBehaviour
     }
 
     /// <summary>
-    /// Nested canvas so the fade sorts above other strip UI (helper modal uses ~15k; we go to max).
-    /// Matches the idea of <see cref="HelperGameplayController"/> nested canvas breakout for draw order.
+    /// Nested canvas so the fade sorts above strip HUD, but <b>below</b> the tagged <c>FullWindowCanvas</c> so map/menus stay visible during fades.
     /// </summary>
     private static void EnsureStripFadeTopCanvasSettings(GameObject fadeRoot)
     {
@@ -579,8 +582,27 @@ public class PlayerSpawnController : MonoBehaviour
 
         c.renderMode = RenderMode.ScreenSpaceOverlay;
         c.overrideSorting = true;
-        c.sortingOrder = short.MaxValue;
+        c.sortingOrder = ResolveStripLevelLoadFaderNestedCanvasSortOrder();
         c.pixelPerfect = false;
+    }
+
+    /// <summary>One step under the <c>FullWindowCanvas</c> tag root canvas so modal windows draw on top of the strip-constrained level-load fade.</summary>
+    private static int ResolveStripLevelLoadFaderNestedCanvasSortOrder()
+    {
+        GameObject tagged = GameObject.FindGameObjectWithTag("FullWindowCanvas");
+        if (tagged == null)
+            return StripLevelLoadFaderSortFallback;
+
+        Canvas fullWindow = tagged.GetComponent<Canvas>();
+        if (fullWindow == null)
+            return StripLevelLoadFaderSortFallback;
+
+        int fullOrder = fullWindow.sortingOrder;
+        if (fullOrder <= 0)
+            return StripLevelLoadFaderSortFallback;
+
+        // Leave headroom for rare nested canvases on the same root; stay strictly under the fullscreen stack.
+        return Mathf.Max(1, fullOrder - 100);
     }
 
     private static void BumpStripLevelLoadFaderToFront(CanvasGroup loadFader)

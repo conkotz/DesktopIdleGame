@@ -270,10 +270,6 @@ PrefabInstance:
       value: 0.88
       objectReference: {fileID: 0}
     - target: {fileID: 8837362159196156695, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
-      propertyPath: yieldItem
-      value: 
-      objectReference: {fileID: 11400000, guid: 26d3cf45f31e7c14fafe1948c442cd0e, type: 2}
-    - target: {fileID: 8837362159196156695, guid: 133ab72ffa5091c479ee7c613cb8f309, type: 3}
       propertyPath: actionType
       value: 2
       objectReference: {fileID: 0}

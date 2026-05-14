@@ -406,6 +406,10 @@ public class BuffsDebuffsPanel : MonoBehaviour
             ConsumableEffectType.PhysicalDamageBoost => "PhysicalDamageBoost",
             ConsumableEffectType.MagicDamageBoost => "MagicDamageBoost",
             ConsumableEffectType.AttackSpeed => "AttackSpeed",
+            ConsumableEffectType.FoodHealOverTime => "FoodRegen",
+            ConsumableEffectType.FoodMoveSpeed => "FoodSwiftness",
+            ConsumableEffectType.FoodOverheal => "FoodOverheal",
+            ConsumableEffectType.FoodFocused => "FoodFocused",
             _ => "Buff"
         };
     }
@@ -423,10 +427,14 @@ public class BuffsDebuffsPanel : MonoBehaviour
             ConsumableEffectType.MagicDamageBoost => $"+{pct:0.#}%",
             ConsumableEffectType.AttackSpeed => $"+{pct:0.#}%",
             ConsumableEffectType.MoveSpeed => $"+{pct:0.#}%",
+            ConsumableEffectType.FoodMoveSpeed => $"+{pct:0.#}%",
             ConsumableEffectType.AbilityDamageBoost => $"+{pct:0.#}%",
             ConsumableEffectType.DamageReduction => $"-{pct:0.#}%",
 
             ConsumableEffectType.HealOverTime =>
+                $"{(buff.duration > 0f ? buff.magnitude / buff.duration : 0f):0.#}/s",
+
+            ConsumableEffectType.FoodHealOverTime =>
                 $"{(buff.duration > 0f ? buff.magnitude / buff.duration : 0f):0.#}/s",
 
             ConsumableEffectType.ManaRegenOverTime =>
@@ -443,6 +451,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
             ConsumableEffectType.PoisonImmunity => "IMM",
             ConsumableEffectType.BleedImmunity => "IMM",
+
+            ConsumableEffectType.FoodOverheal => $"+{buff.magnitude:0}",
+            ConsumableEffectType.FoodFocused => $"+{pct:0.#}%",
 
             _ => ""
         };
@@ -475,9 +486,11 @@ public class BuffsDebuffsPanel : MonoBehaviour
             ConsumableEffectType.MagicDamageBoost => "Magic Damage Boost",
             ConsumableEffectType.AttackSpeed => "Attack Speed Boost",
             ConsumableEffectType.HealOverTime => "Regeneration",
+            ConsumableEffectType.FoodHealOverTime => "Food Regeneration",
             ConsumableEffectType.ManaRegenOverTime => "Mana Regeneration",
             ConsumableEffectType.EnergyRegen => "Energy Regeneration",
             ConsumableEffectType.MoveSpeed => "Move Speed",
+            ConsumableEffectType.FoodMoveSpeed => "Swiftness",
             ConsumableEffectType.AbilityDamageBoost => "Ability Power Boost",
             ConsumableEffectType.DefenseBoost => "Defence Boost",
             ConsumableEffectType.ArmorBoost => "Armour Boost",
@@ -485,6 +498,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
             ConsumableEffectType.DamageReduction => "Damage Reduction",
             ConsumableEffectType.PoisonImmunity => "Poison Immunity",
             ConsumableEffectType.BleedImmunity => "Bleed Immunity",
+            ConsumableEffectType.FoodOverheal => "Overheal",
+            ConsumableEffectType.FoodFocused => "Focused",
             _ => "Buff"
         };
     }
@@ -526,6 +541,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
             ConsumableEffectType.HealOverTime =>
                 $"Heals {(buff.duration > 0f ? buff.magnitude / buff.duration : 0f):0.#} HP per second",
 
+            ConsumableEffectType.FoodHealOverTime =>
+                $"Heals {(buff.duration > 0f ? buff.magnitude / buff.duration : 0f):0.#} HP per second (food)",
+
             ConsumableEffectType.ManaRegenOverTime =>
                 $"Restores {(buff.duration > 0f ? buff.magnitude / buff.duration : 0f):0.#} mana per second",
 
@@ -534,6 +552,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
             ConsumableEffectType.MoveSpeed =>
                 $"+{pct:0.#}% movement speed",
+
+            ConsumableEffectType.FoodMoveSpeed =>
+                $"+{pct:0.#}% movement speed (food)",
 
             ConsumableEffectType.AbilityDamageBoost =>
                 $"+{pct:0.#}% ability damage",
@@ -555,6 +576,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
             ConsumableEffectType.BleedImmunity =>
                 "Immune to bleed",
+
+            ConsumableEffectType.FoodOverheal =>
+                $"Effective max HP increased by {buff.magnitude:0} above your normal max",
+
+            ConsumableEffectType.FoodFocused =>
+                $"+{pct:0.#}% to basic-attack minimum and maximum damage",
 
             _ => "Temporary buff"
         };

@@ -18,11 +18,11 @@ MonoBehaviour:
   useLevelRequirement: 1
   requiredLevel: 1
   xpPerTick: 5
-  yieldItem: {fileID: 11400000, guid: 60a88e1e810c3ee46a36fb6b840a76b3, type: 2}
-  yieldAmountMin: 1
-  yieldAmountMax: 1
-  ratePerSecond: 1
-  useRandomInterval: 1
+  mainYieldEntries:
+  - item: {fileID: 11400000, guid: 60a88e1e810c3ee46a36fb6b840a76b3, type: 2}
+    itemRequiredLevel: 1
+    chancePercent: 100
+    xpPerTick: 0
   minInterval: 2
   maxInterval: 4
   bonusDrops:

@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: raw_fish
+  m_Name: cooked_perch
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 0
+  itemKind: 5
   maxStack: 999
-  itemId: raw_fish
-  displayName: Raw Fish
+  itemId: cooked_perch
+  displayName: Cooked Perch
   displayNameSingular: 
-  icon: {fileID: 3253238206631418633, guid: 6985879258b1b3448baebbcf4e516fc1, type: 3}
+  icon: {fileID: 4500040671782054076, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A raw fish
+  description: A cooked perch
   rarity: 0
-  value: 15
+  value: 40
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -51,6 +51,7 @@ MonoBehaviour:
     handedness: 0
     attackRange: 0
     attackSkill: 0
+    mainHandArchetype: 0
     rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
@@ -62,6 +63,7 @@ MonoBehaviour:
     equipmentTier: 0
   combatSupportStats:
     supportType: 0
+    requiredMainHandArchetype: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
     bonusCorruptionDamage: 0
@@ -141,16 +143,30 @@ MonoBehaviour:
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
-    consumableType: 0
-    healAmount: 0
+    consumableType: 1
+    healAmount: 40
     energyAmount: 0
-    cooldownSeconds: 0
-    consumeOnUse: 0
+    cooldownSeconds: 20
+    consumeOnUse: 1
     grantedEffect:
       effectType: 0
       magnitude: 0
       duration: 0
       effectId: 
+    baitTier: 0
+    fishingSpeedPercentBonus: 0
+    openRequiredAmount: 0
+    openableLoot: []
+    foodEffectDurationSeconds: 20
+    foodEnableRegen: 1
+    foodRegenTotalHeal: 20
+    foodEnableSwiftness: 0
+    foodSwiftnessPercentBonus: 0
+    foodEnableOverheal: 0
+    foodOverhealMaxAboveMaxHp: 0
+    foodOverhealInstantHeal: 0
+    foodEnableFocused: 0
+    foodFocusedDamageBonusFraction: 0
   enhancementScrollStats:
     successChance: 0
     targetStat: 0
@@ -162,7 +178,7 @@ MonoBehaviour:
     cursed: 0
     allowedGearTypes: 0
   cookableStats:
-    isCookable: 1
+    isCookable: 0
     cookedResultItemId: 
     cookedResultAmount: 1
     requiredCookingLevel: 0

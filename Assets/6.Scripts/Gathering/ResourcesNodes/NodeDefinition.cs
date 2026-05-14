@@ -19,19 +19,36 @@ public class NodeDefinition : ScriptableObject
     [Min(1)] public int requiredLevel = 1;
 
     [Header("Experience")]
-[Tooltip("XP granted per successful gather tick (based on MAIN yield only; bonus and hidden drops do not grant XP).")]
-[Min(0)] public int xpPerTick = 1;
+    [Tooltip(
+        "Woodcutting / Mining: XP granted per successful main-yield tick (after bonuses). " +
+        "Fishing: each main-yield entry has its own XP; if an entry's XP is 0, this value is used as fallback for that entry.")]
+    [Min(0)] public int xpPerTick = 1;
 
-    [Header("Main Yield (Guaranteed)")]
-    public ItemDefinition yieldItem;
-    [Min(1)] public int yieldAmountMin = 1;
-    [Min(1)] public int yieldAmountMax = 1;
+    [Serializable]
+    public class MainYieldEntry
+    {
+        public ItemDefinition item;
+        [Min(1)]
+        [Tooltip("Minimum skill level for this node's action type before this row can roll (node base requiredLevel still applies first).")]
+        public int itemRequiredLevel = 1;
+        [Min(0f)]
+        [Tooltip(
+            "Woodcutting / Mining: each eligible row rolls once; value is chance 0–100 (100 = always try). " +
+            "Fishing: relative weight among all level-eligible rows in one pick per tick (e.g. 70 vs 30 ⇒ 70% vs 30%); only one main fish per tick before multipliers.")]
+        public float chancePercent = 100f;
+        [Min(0)]
+        [Tooltip("Fishing only: XP for this item when it is the result of a successful roll. 0 = use the node's XP Per Tick as fallback. Ignored for woodcutting / mining.")]
+        public int xpPerTick = 0;
+    }
 
-    [Tooltip("Items gained per second (if not using random interval).")]
-    public float ratePerSecond = 1f;
+    [Header("Main Yield (rolled each gather tick)")]
+    [Tooltip(
+        "Woodcutting / Mining: each eligible entry rolls its chance independently (can yield multiple types). " +
+        "Fishing: exactly one main catch per tick, chosen at random weighted by each eligible row's Chance %.")]
+    public MainYieldEntry[] mainYieldEntries;
 
-    [Header("Optional: Random Gather Interval (Overrides ratePerSecond if enabled)")]
-    public bool useRandomInterval = false;
+    [Header("Gather Interval")]
+    [Tooltip("Random seconds between gather ticks (always used).")]
     public float minInterval = 5f;
     public float maxInterval = 10f;
 
@@ -81,17 +98,81 @@ public class NodeDefinition : ScriptableObject
     [Tooltip("Per-item chance / weight while depleted (stochastic rolls). 0.3 ≈ 70% fewer resources on average.")]
     [Range(0f, 1f)] public float depletedYieldMultiplier = 0.3f;
 
-    public string YieldItemId => yieldItem ? yieldItem.itemId : string.Empty;
     public bool UsesDepletion => depletionGatherCount > 0;
+
+    /// <summary>First main-yield item the player meets <see cref="MainYieldEntry.itemRequiredLevel"/> for (list order).</summary>
+    public string GetPrimaryYieldItemIdForSkillLevel(int gatherSkillLevel)
+    {
+        if (mainYieldEntries == null)
+            return string.Empty;
+
+        int gate = gatherSkillLevel;
+        for (int i = 0; i < mainYieldEntries.Length; i++)
+        {
+            MainYieldEntry e = mainYieldEntries[i];
+            if (e.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
+                continue;
+            if (gate < Mathf.Max(1, e.itemRequiredLevel))
+                continue;
+            return e.item.itemId;
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>First configured main-yield item id (ignores per-entry level; use <see cref="GetPrimaryYieldItemIdForSkillLevel"/> when skill matters).</summary>
+    public string PrimaryYieldItemId
+    {
+        get
+        {
+            if (mainYieldEntries == null)
+                return string.Empty;
+            for (int i = 0; i < mainYieldEntries.Length; i++)
+            {
+                MainYieldEntry e = mainYieldEntries[i];
+                if (e.item != null && !string.IsNullOrWhiteSpace(e.item.itemId))
+                    return e.item.itemId;
+            }
+
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Legacy name for <see cref="PrimaryYieldItemId"/> (single canonical id for woodcutting-style secondaries).</summary>
+    public string YieldItemId => PrimaryYieldItemId;
+
+    public ItemDefinition GetPrimaryMainYieldItem()
+    {
+        if (mainYieldEntries == null)
+            return null;
+        for (int i = 0; i < mainYieldEntries.Length; i++)
+        {
+            if (mainYieldEntries[i].item != null && !string.IsNullOrWhiteSpace(mainYieldEntries[i].item.itemId))
+                return mainYieldEntries[i].item;
+        }
+
+        return null;
+    }
+
+    public bool IsMainYieldPoolItem(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || mainYieldEntries == null)
+            return false;
+        for (int i = 0; i < mainYieldEntries.Length; i++)
+        {
+            ItemDefinition it = mainYieldEntries[i].item;
+            if (it != null && string.Equals(it.itemId, itemId, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
 
     public float GetNextInterval()
     {
-        if (!useRandomInterval)
-        {
-            if (ratePerSecond <= 0f) return float.MaxValue;
-            return 1f / ratePerSecond;
-        }
-        return UnityEngine.Random.Range(minInterval, maxInterval);
+        float lo = Mathf.Max(0.01f, minInterval);
+        float hi = Mathf.Max(lo, maxInterval);
+        return UnityEngine.Random.Range(lo, hi);
     }
 
     public string GetActionText()
@@ -106,12 +187,158 @@ public class NodeDefinition : ScriptableObject
     }
 
     /// <summary>
+    /// Woodcutting / Mining: rolls each eligible main-yield entry independently (chance 0–100). Each success adds 1.
+    /// Fishing: picks exactly one eligible row using <see cref="MainYieldEntry.chancePercent"/> as relative weights, adds 1 of that item,
+    /// and appends that row's XP to <paramref name="fishingXpPerSuccessOut"/> when non-null.
+    /// </summary>
+    public void RollMainYieldCounts(Dictionary<string, int> counts, int gatherSkillLevel, List<int> fishingXpPerSuccessOut)
+    {
+        if (counts == null)
+            return;
+        counts.Clear();
+        fishingXpPerSuccessOut?.Clear();
+        if (mainYieldEntries == null)
+            return;
+
+        if (actionType == NodeAction.Fishing)
+        {
+            if (TryPickWeightedFishingMainYield(gatherSkillLevel, out MainYieldEntry picked))
+            {
+                counts[picked.item.itemId] = 1;
+                if (fishingXpPerSuccessOut != null)
+                {
+                    int x = picked.xpPerTick > 0 ? picked.xpPerTick : xpPerTick;
+                    fishingXpPerSuccessOut.Add(Mathf.Max(0, x));
+                }
+            }
+
+            return;
+        }
+
+        for (int i = 0; i < mainYieldEntries.Length; i++)
+        {
+            MainYieldEntry e = mainYieldEntries[i];
+            if (e.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
+                continue;
+
+            if (gatherSkillLevel < Mathf.Max(1, e.itemRequiredLevel))
+                continue;
+
+            float p = Mathf.Clamp01(e.chancePercent / 100f);
+            if (p <= 0f)
+                continue;
+            if (UnityEngine.Random.value >= p)
+                continue;
+
+            string id = e.item.itemId;
+            counts.TryGetValue(id, out int c);
+            counts[id] = c + 1;
+        }
+    }
+
+    /// <summary>
+    /// One weighted random choice among fishing rows the player meets <see cref="MainYieldEntry.itemRequiredLevel"/> for.
+    /// <see cref="MainYieldEntry.chancePercent"/> is a relative weight (70 vs 30 ⇒ 70% / 30%). Rows with weight ≤ 0 are skipped.
+    /// </summary>
+    private bool TryPickWeightedFishingMainYield(int gatherSkillLevel, out MainYieldEntry picked)
+    {
+        picked = null;
+        float total = 0f;
+        for (int i = 0; i < mainYieldEntries.Length; i++)
+        {
+            MainYieldEntry e = mainYieldEntries[i];
+            if (e.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
+                continue;
+            if (gatherSkillLevel < Mathf.Max(1, e.itemRequiredLevel))
+                continue;
+            float w = Mathf.Max(0f, e.chancePercent);
+            if (w <= 0f)
+                continue;
+            total += w;
+        }
+
+        if (total <= 0f)
+            return false;
+
+        float roll = UnityEngine.Random.Range(0f, total);
+        float acc = 0f;
+        for (int i = 0; i < mainYieldEntries.Length; i++)
+        {
+            MainYieldEntry e = mainYieldEntries[i];
+            if (e.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
+                continue;
+            if (gatherSkillLevel < Mathf.Max(1, e.itemRequiredLevel))
+                continue;
+            float w = Mathf.Max(0f, e.chancePercent);
+            if (w <= 0f)
+                continue;
+            acc += w;
+            if (roll < acc)
+            {
+                picked = e;
+                return true;
+            }
+        }
+
+        // Fallback for float edge cases (roll ~= total).
+        for (int j = mainYieldEntries.Length - 1; j >= 0; j--)
+        {
+            MainYieldEntry e = mainYieldEntries[j];
+            if (e.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
+                continue;
+            if (gatherSkillLevel < Mathf.Max(1, e.itemRequiredLevel))
+                continue;
+            if (Mathf.Max(0f, e.chancePercent) <= 0f)
+                continue;
+            picked = e;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Highest main-yield XP the player can currently earn from this node (for HUD hint). Fishing uses per-row XP; wood/mining use <see cref="xpPerTick"/>.</summary>
+    public int GetBestMainYieldXpHint(int gatherSkillLevel)
+    {
+        if (actionType != NodeAction.Fishing)
+            return Mathf.Max(0, xpPerTick);
+
+        int best = 0;
+        if (mainYieldEntries == null)
+            return Mathf.Max(0, xpPerTick);
+
+        for (int i = 0; i < mainYieldEntries.Length; i++)
+        {
+            MainYieldEntry e = mainYieldEntries[i];
+            if (e.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
+                continue;
+            if (gatherSkillLevel < Mathf.Max(1, e.itemRequiredLevel))
+                continue;
+            int x = e.xpPerTick > 0 ? e.xpPerTick : xpPerTick;
+            best = Mathf.Max(best, Mathf.Max(0, x));
+        }
+
+        return Mathf.Max(best, Mathf.Max(0, xpPerTick));
+    }
+
+    /// <summary>Sum of all values in <paramref name="counts"/> (total main pieces this tick).</summary>
+    public static int SumMainYieldCounts(Dictionary<string, int> counts)
+    {
+        if (counts == null || counts.Count == 0)
+            return 0;
+        int s = 0;
+        foreach (var kv in counts)
+            s += kv.Value;
+        return s;
+    }
+
+    /// <summary>
     /// NEW: Roll drops into a list (no inventory mutation).
     /// PlayerController decides add vs drop-on-ground.
     /// </summary>
     public void PreviewDrops(List<Drop> outDrops)
     {
-        PreviewDrops(outDrops, 0f);
+        PreviewDrops(outDrops, 0f, default, int.MaxValue);
     }
 
     /// <summary>
@@ -121,7 +348,7 @@ public class NodeDefinition : ScriptableObject
     /// </summary>
     public void PreviewDrops(List<Drop> outDrops, float bonusFindChanceMultiplier)
     {
-        PreviewDrops(outDrops, bonusFindChanceMultiplier, default);
+        PreviewDrops(outDrops, bonusFindChanceMultiplier, default, int.MaxValue);
     }
 
     /// <summary>
@@ -130,16 +357,12 @@ public class NodeDefinition : ScriptableObject
     /// chance bonus to hidden drops plus a chance to double their amount. Bonus find chance never affects hidden drops.
     /// Hidden drops are rolled only if at least one bonus drop succeeded on this gather tick.
     /// </summary>
-    public void PreviewDrops(List<Drop> outDrops, float bonusFindChanceMultiplier, GatherDropContext ctx)
+    /// <param name="gatherSkillLevelForMainYield">Skill level for this node's action; main rows below their <see cref="MainYieldEntry.itemRequiredLevel"/> are skipped. Use <see cref="int.MaxValue"/> to preview all rows.</param>
+    public void PreviewDrops(List<Drop> outDrops, float bonusFindChanceMultiplier, GatherDropContext ctx, int gatherSkillLevelForMainYield = int.MaxValue)
     {
         if (outDrops == null) return;
 
-        // Main yield (guaranteed)
-        if (yieldItem != null && !string.IsNullOrWhiteSpace(yieldItem.itemId))
-        {
-            int amt = UnityEngine.Random.Range(yieldAmountMin, yieldAmountMax + 1);
-            outDrops.Add(new Drop(yieldItem.itemId, amt));
-        }
+        AppendMainYieldPreviewDrops(outDrops, gatherSkillLevelForMainYield);
 
         // Bonus drops (independent chance)
         bool anyBonusDropProc = false;
@@ -187,6 +410,34 @@ public class NodeDefinition : ScriptableObject
         }
     }
 
+    private void AppendMainYieldPreviewDrops(List<Drop> outDrops, int gatherSkillLevelForMainYield)
+    {
+        if (mainYieldEntries == null)
+            return;
+
+        if (actionType == NodeAction.Fishing)
+        {
+            if (TryPickWeightedFishingMainYield(gatherSkillLevelForMainYield, out MainYieldEntry picked))
+                outDrops.Add(new Drop(picked.item.itemId, 1));
+            return;
+        }
+
+        for (int i = 0; i < mainYieldEntries.Length; i++)
+        {
+            MainYieldEntry e = mainYieldEntries[i];
+            if (e.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
+                continue;
+            if (gatherSkillLevelForMainYield < Mathf.Max(1, e.itemRequiredLevel))
+                continue;
+            float p = Mathf.Clamp01(e.chancePercent / 100f);
+            if (p <= 0f)
+                continue;
+            if (UnityEngine.Random.value >= p)
+                continue;
+            outDrops.Add(new Drop(e.item.itemId, 1));
+        }
+    }
+
     /// <summary>
     /// Optional per-roll modifiers for bonus and hidden drops (e.g. woodcutting Lv35 major passives).
     /// All fields default to 0 so non-woodcutting callers stay unaffected.
@@ -208,17 +459,35 @@ public class NodeDefinition : ScriptableObject
     /// </summary>
     public void RollDrops(Inventory inventory)
     {
-        RollDrops(inventory, 0f);
+        RollDrops(inventory, 0f, int.MaxValue);
     }
 
-    public void RollDrops(Inventory inventory, float bonusFindChanceMultiplier)
+    public void RollDrops(Inventory inventory, float bonusFindChanceMultiplier, int gatherSkillLevel = int.MaxValue)
     {
         if (!inventory) return;
 
-        if (yieldItem != null && !string.IsNullOrWhiteSpace(yieldItem.itemId))
+        if (mainYieldEntries != null)
         {
-            int amt = UnityEngine.Random.Range(yieldAmountMin, yieldAmountMax + 1);
-            inventory.Add(yieldItem.itemId, amt);
+            if (actionType == NodeAction.Fishing)
+            {
+                if (TryPickWeightedFishingMainYield(gatherSkillLevel, out MainYieldEntry fp))
+                    inventory.Add(fp.item.itemId, 1);
+            }
+            else
+            {
+                for (int i = 0; i < mainYieldEntries.Length; i++)
+                {
+                    MainYieldEntry e = mainYieldEntries[i];
+                    if (e.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
+                        continue;
+                    if (gatherSkillLevel < Mathf.Max(1, e.itemRequiredLevel))
+                        continue;
+                    float p = Mathf.Clamp01(e.chancePercent / 100f);
+                    if (p <= 0f || UnityEngine.Random.value >= p)
+                        continue;
+                    inventory.Add(e.item.itemId, 1);
+                }
+            }
         }
 
         bool anyBonusDropProc = false;
@@ -258,9 +527,19 @@ public class NodeDefinition : ScriptableObject
         }
     }
 
-    public bool HasMainYield => yieldItem != null && !string.IsNullOrWhiteSpace(yieldItem.itemId);
-    public int RollMainYieldAmount()
+    public bool HasMainYield
     {
-        return UnityEngine.Random.Range(yieldAmountMin, yieldAmountMax + 1);
+        get
+        {
+            if (mainYieldEntries == null || mainYieldEntries.Length == 0)
+                return false;
+            for (int i = 0; i < mainYieldEntries.Length; i++)
+            {
+                if (mainYieldEntries[i].item != null && !string.IsNullOrWhiteSpace(mainYieldEntries[i].item.itemId))
+                    return true;
+            }
+
+            return false;
+        }
     }
 }

@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6afcc71e74e9fa4a9bc9e73453263b6, type: 3}
-  m_Name: feather
+  m_Name: cooked_fish
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  itemKind: 0
+  itemKind: 5
   maxStack: 999
-  itemId: feather
-  displayName: Feather
+  itemId: cooked_fish
+  displayName: Cooked Fish
   displayNameSingular: 
-  icon: {fileID: -6736306797507069733, guid: 4ac483fb04ab3494983eea16c1133724, type: 3}
+  icon: {fileID: 1529545934, guid: 49e1f504ff2f8b54fa766b60aed2de28, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -25,9 +25,9 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A feather.
+  description: A cooked fish
   rarity: 0
-  value: 1
+  value: 25
   equipSlot: 0
   handVisualKey: 0
   usedUpgradeSlots: 0
@@ -143,11 +143,11 @@ MonoBehaviour:
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
-    consumableType: 0
-    healAmount: 0
+    consumableType: 1
+    healAmount: 50
     energyAmount: 0
-    cooldownSeconds: 0
-    consumeOnUse: 0
+    cooldownSeconds: 15
+    consumeOnUse: 1
     grantedEffect:
       effectType: 0
       magnitude: 0
@@ -180,6 +180,6 @@ MonoBehaviour:
   cookableStats:
     isCookable: 0
     cookedResultItemId: 
-    cookedResultAmount: 0
+    cookedResultAmount: 1
     requiredCookingLevel: 0
     cookingXp: 0
