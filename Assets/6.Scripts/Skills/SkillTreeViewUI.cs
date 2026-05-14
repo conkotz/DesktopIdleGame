@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class SkillTreeViewUI : MonoBehaviour
 {
@@ -81,6 +82,9 @@ public class SkillTreeViewUI : MonoBehaviour
     private readonly List<string> _abilityGroupSpineScratch = new();
 
     public event System.Action<int> UnlockGlowAcknowledgedByHover;
+
+    /// <summary>Invoked with a passive-list highlight key (see <see cref="PassiveUnlocksLineHighlight"/>) or null to clear.</summary>
+    public event System.Action<string> PassiveUnlockLineHighlightChanged;
 
     private readonly struct AbilityTierPickMeta
     {
@@ -1480,6 +1484,7 @@ public class SkillTreeViewUI : MonoBehaviour
         nodeLevelById.Clear();
         choiceMetaByNodeId.Clear();
         selectedNode = null;
+        PassiveUnlockLineHighlightChanged?.Invoke(null);
     }
 
     private void RefreshEquipmentTierHint()
@@ -1621,6 +1626,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
         if (choiceMetaByNodeId.TryGetValue(nodeId, out ChoiceNodeMeta choiceMeta))
         {
+            PassiveUnlockLineHighlightChanged?.Invoke(null);
             if (!selectedSkill || !skillsManager)
                 return;
 
@@ -1641,17 +1647,14 @@ public class SkillTreeViewUI : MonoBehaviour
 
         if (abilityTierPickMetaBySpineId.TryGetValue(nodeId, out AbilityTierPickMeta tierMeta))
         {
+            PassiveUnlockLineHighlightChanged?.Invoke(null);
             if (!selectedSkill || !skillsManager)
                 return;
 
-            if (selectedNode != node)
+            if (selectedNode != null)
             {
-                if (selectedNode != null)
-                    selectedNode.SetSelected(false);
-                selectedNode = node;
-                selectedNode.SetSelected(true);
-                ShowTooltip(nodeId, node.transform);
-                return;
+                selectedNode.SetSelected(false);
+                selectedNode = null;
             }
 
             if (tierMeta.groupSize >= 2)
@@ -1660,10 +1663,6 @@ public class SkillTreeViewUI : MonoBehaviour
 
                 if (pick >= 0 && pick == tierMeta.ordinal)
                 {
-                    // Committed ability: never re-open the multi-ability row (reset only). Toggle this row's choice branch only.
-                    if (rowDefBySpineNodeId.TryGetValue(nodeId, out RowDef rowForChoices)
-                        && GetNonNullChoices(rowForChoices.unlock).Count > 0)
-                        ToggleExpandedChoiceBranchForSourceLevel(tierMeta.level);
                     RefreshAbilityTierLayoutAndVisibility();
                     ShowTooltip(nodeId, node.transform);
                     return;
@@ -1679,9 +1678,6 @@ public class SkillTreeViewUI : MonoBehaviour
                 int pickOne = skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, tierMeta.level, -1);
                 if (pickOne == 0)
                 {
-                    if (rowDefBySpineNodeId.TryGetValue(nodeId, out RowDef rowOne)
-                        && GetNonNullChoices(rowOne.unlock).Count > 0)
-                        ToggleExpandedChoiceBranchForSourceLevel(tierMeta.level);
                     RefreshAbilityTierLayoutAndVisibility();
                     ShowTooltip(nodeId, node.transform);
                     return;
@@ -1699,29 +1695,34 @@ public class SkillTreeViewUI : MonoBehaviour
             return;
         }
 
-        if (rowDefBySpineNodeId.TryGetValue(nodeId, out RowDef spineToggleRow)
-            && GetNonNullChoices(spineToggleRow.unlock).Count > 0
-            && selectedSkill
-            && skillsManager)
+        if (rowDefBySpineNodeId.TryGetValue(nodeId, out RowDef spineRow)
+            && spineRow.type == SkillTreeNodeVisualType.MinorPassive
+            && spineRow.unlock != null)
         {
-            if (spineToggleRow.type == SkillTreeNodeVisualType.MajorPassive
-                || spineToggleRow.type == SkillTreeNodeVisualType.CapstonePassive)
+            if (selectedNode == node)
             {
-                if (selectedNode != node)
-                {
-                    if (selectedNode != null)
-                        selectedNode.SetSelected(false);
-                    selectedNode = node;
-                    selectedNode.SetSelected(true);
-                    ShowTooltip(nodeId, node.transform);
-                    return;
-                }
-
-                ToggleExpandedChoiceBranchForSourceLevel(spineToggleRow.level);
-                ShowTooltip(nodeId, node.transform);
-                return;
+                selectedNode.SetSelected(false);
+                selectedNode = null;
+                PassiveUnlockLineHighlightChanged?.Invoke(null);
             }
+            else
+            {
+                if (selectedNode != null)
+                    selectedNode.SetSelected(false);
+                selectedNode = node;
+                selectedNode.SetSelected(true);
+                string label = null;
+                if (selectedSkill != null
+                    && PassiveUnlocksLineHighlight.TryGetLineLabel(selectedSkill, spineRow.unlock, out string hl))
+                    label = hl;
+                PassiveUnlockLineHighlightChanged?.Invoke(label);
+            }
+
+            ShowTooltip(nodeId, node.transform);
+            return;
         }
+
+        PassiveUnlockLineHighlightChanged?.Invoke(null);
 
         if (selectedNode != null)
             selectedNode.SetSelected(false);
@@ -1885,18 +1886,88 @@ public class SkillTreeViewUI : MonoBehaviour
 
     private void RefreshChoiceSelectionVisuals()
     {
-        if (!selectedSkill || !skillsManager)
-            return;
-
-        foreach (var kv in choiceMetaByNodeId)
+        if (selectedSkill && skillsManager)
         {
-            if (!nodeLookup.TryGetValue(kv.Key, out SkillTreeNodeUI node) || node == null)
+            foreach (var kv in choiceMetaByNodeId)
+            {
+                if (!nodeLookup.TryGetValue(kv.Key, out SkillTreeNodeUI node) || node == null)
+                    continue;
+
+                ChoiceNodeMeta meta = kv.Value;
+                int selectedChoice = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.parentSpineNodeId, -1);
+                node.SetSelected(selectedChoice == meta.choiceIndex);
+            }
+        }
+
+        RefreshEnhanceButtonVisibility();
+    }
+
+    private static bool SpineTypeSupportsEnhanceButton(SkillTreeNodeVisualType type)
+    {
+        return type == SkillTreeNodeVisualType.Ability
+            || type == SkillTreeNodeVisualType.MajorPassive
+            || type == SkillTreeNodeVisualType.CapstonePassive;
+    }
+
+    private bool ShouldShowEnhanceButtonForSpine(string spineNodeId, RowDef row, SkillTreeNodeUI node)
+    {
+        if (node == null || node.IsLocked())
+            return false;
+        if (!SpineTypeSupportsEnhanceButton(row.type))
+            return false;
+        if (GetNonNullChoices(row.unlock).Count <= 0)
+            return false;
+        if (selectedSkill == null || skillsManager == null)
+            return false;
+        if (skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, spineNodeId, -1) >= 0)
+            return false;
+        return ShouldExposeChoicesForMultiAbilityParent(spineNodeId, row.level);
+    }
+
+    private void RefreshEnhanceButtonVisibility()
+    {
+        foreach (var kv in nodeLookup)
+        {
+            SkillTreeNodeUI n = kv.Value;
+            if (n == null)
                 continue;
 
-            ChoiceNodeMeta meta = kv.Value;
-            int selectedChoice = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.parentSpineNodeId, -1);
-            node.SetSelected(selectedChoice == meta.choiceIndex);
+            if (!rowDefBySpineNodeId.TryGetValue(kv.Key, out RowDef row))
+            {
+                n.SetEnhanceControl(false, null);
+                continue;
+            }
+
+            if (ShouldShowEnhanceButtonForSpine(kv.Key, row, n))
+            {
+                string spineId = kv.Key;
+                n.SetEnhanceControl(true, () => OnEnhanceButtonClicked(spineId));
+            }
+            else
+                n.SetEnhanceControl(false, null);
         }
+    }
+
+    private void OnEnhanceButtonClicked(string spineNodeId)
+    {
+        if (!rowDefBySpineNodeId.TryGetValue(spineNodeId, out RowDef row))
+            return;
+        if (!SpineTypeSupportsEnhanceButton(row.type))
+            return;
+        if (GetNonNullChoices(row.unlock).Count <= 0)
+            return;
+        if (!nodeLookup.TryGetValue(spineNodeId, out SkillTreeNodeUI node) || node == null || node.IsLocked())
+            return;
+
+        PreferRuntimeSkillsManager();
+        if (selectedSkill == null || skillsManager == null)
+            return;
+        if (skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, spineNodeId, -1) >= 0)
+            return;
+        if (!ShouldExposeChoicesForMultiAbilityParent(spineNodeId, row.level))
+            return;
+
+        ToggleExpandedChoiceBranchForSourceLevel(row.level);
     }
 
     private bool TryGetTierRangeForLevel(int level, out int tierStart, out int tierEndInclusive)
@@ -1993,7 +2064,10 @@ public class SkillTreeViewUI : MonoBehaviour
     private void RefreshAbilityTierLayoutAndVisibility()
     {
         if (layoutRowsCache.Count == 0)
+        {
+            RefreshEnhanceButtonVisibility();
             return;
+        }
 
         bool canQuery = selectedSkill != null && skillsManager != null;
 
@@ -2011,8 +2085,6 @@ public class SkillTreeViewUI : MonoBehaviour
             int pick = canQuery ? skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, m.level, -1) : -1;
             // Ability glow: only the committed row pick (not merely unlocked). Multi-row uses collapsed spine; single-row has no collapse.
             bool abilitySelectedForGlow = pick == m.ordinal && (m.groupSize < 2 || collapsed);
-            if (!abilitySelectedForGlow && selectedNode == node)
-                abilitySelectedForGlow = true;
             node.SetSelected(abilitySelectedForGlow);
 
             float y = node.RectTransform.anchoredPosition.y;
@@ -2050,6 +2122,8 @@ public class SkillTreeViewUI : MonoBehaviour
             iv.conn.SetPositions(a, b);
             iv.conn.gameObject.SetActive(a.gameObject.activeInHierarchy && b.gameObject.activeInHierarchy);
         }
+
+        RefreshEnhanceButtonVisibility();
     }
 
     private void RefreshChoiceBranchVisibility()
@@ -2110,5 +2184,58 @@ public class SkillTreeViewUI : MonoBehaviour
                 continue;
             rec.conn.SetPositions(a, b);
         }
+    }
+
+    /// <summary>
+    /// Scrolls the nearest parent <see cref="ScrollRect"/> so a node on the given ability tier row is centered vertically in the viewport.
+    /// </summary>
+    public void ScrollAbilityTierRowIntoView(int requiredLevel)
+    {
+        ScrollRect scroll = GetComponentInParent<ScrollRect>();
+        if (scroll == null || scroll.content == null || nodesRoot == null)
+            return;
+
+        if (!rowYByLevel.TryGetValue(requiredLevel, out float rowY))
+            return;
+
+        SkillTreeNodeUI targetNode = null;
+        const float tol = 1f;
+        for (int i = 0; i < spawnedNodes.Count; i++)
+        {
+            SkillTreeNodeUI node = spawnedNodes[i];
+            if (node == null || !node.gameObject.activeInHierarchy)
+                continue;
+            if (Mathf.Abs(node.RectTransform.anchoredPosition.y - rowY) <= tol)
+            {
+                targetNode = node;
+                break;
+            }
+        }
+
+        if (targetNode == null)
+            return;
+
+        RectTransform content = scroll.content;
+        RectTransform viewport = scroll.viewport != null ? scroll.viewport : scroll.transform as RectTransform;
+        if (viewport == null)
+            return;
+
+        RectTransform target = targetNode.RectTransform;
+        Transform contentParent = content.parent;
+        if (contentParent == null)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+
+        Vector3 worldItem = target.TransformPoint(target.rect.center);
+        Vector3 worldViewCenter = viewport.TransformPoint(viewport.rect.center);
+        Vector3 worldDelta = worldItem - worldViewCenter;
+
+        Vector3 localDelta = contentParent.InverseTransformVector(worldDelta);
+
+        Vector2 next = content.anchoredPosition;
+        next.y -= localDelta.y;
+        content.anchoredPosition = next;
+        scroll.velocity = Vector2.zero;
     }
 }

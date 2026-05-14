@@ -280,6 +280,18 @@ public class QuestTrackerWindowUI : MonoBehaviour
         RectTransform contentParent = trackerContentRoot.parent as RectTransform;
         if (contentParent)
             LayoutRebuilder.ForceRebuildLayoutImmediate(contentParent);
+
+        SyncResizeHandlesToTrackerContent();
+    }
+
+    private void SyncResizeHandlesToTrackerContent()
+    {
+        if (!isActiveAndEnabled || !trackerContentRoot)
+            return;
+
+        UIWindowCornerResize resizer = GetComponent<UIWindowCornerResize>();
+        if (resizer != null)
+            resizer.SetBottomResizeHandleParent(trackerContentRoot);
     }
 
     private void ScheduleDeferredLayoutRebuild()

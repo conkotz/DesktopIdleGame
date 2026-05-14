@@ -102,8 +102,6 @@ public class PlayerAbilityController : MonoBehaviour
     private const float AvatarOfTheForestDurationEnhancementBonusSeconds = 30f;
     private const float AvatarOfTheForestCooldownEnhancementReductionSeconds = 30f;
     private const float AvatarOfTheForestReplenishIntervalSeconds = 5f;
-    /// <summary>Additive woodcutting gather-speed bonus while active (stacks in PlayerController speed bonus bracket).</summary>
-    private const float AvatarOfTheForestWoodcuttingSpeedBonusFraction = 0.10f;
     private const int AvatarOfTheForestDurationEnhancementChoiceIndex = 0;
     private const int AvatarOfTheForestCooldownEnhancementChoiceIndex = 1;
 
@@ -1910,9 +1908,9 @@ public class PlayerAbilityController : MonoBehaviour
     /// <summary>Final multiplier applied to woodcutting bonus-find rolls after all other bonuses (2 while active).</summary>
     public float GetAvatarOfTheForestBonusFindFinalMultiplier() => IsAvatarOfTheForestActive ? 2f : 1f;
 
-    /// <summary>Additive fraction for woodcutting gather speed while active (applied in PlayerController).</summary>
-    public float GetAvatarOfTheForestWoodcuttingSpeedBonusFraction() =>
-        IsAvatarOfTheForestActive ? AvatarOfTheForestWoodcuttingSpeedBonusFraction : 0f;
+    /// <summary>Flat add to effective woodcutting speed multiplier while active (see <see cref="AbilityCombatPower.AvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd"/>).</summary>
+    public float GetAvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd() =>
+        IsAvatarOfTheForestActive ? AbilityCombatPower.AvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd : 0f;
 
     /// <summary>Cleaving Chop range numbers (base + Extended Reach), even when Cleaving Chop is not active.</summary>
     public float GetAvatarOfTheForestReplenishRadiusWorld()

@@ -11,7 +11,11 @@ public sealed class StripUIViewportFollower : MonoBehaviour
     [Tooltip("When the strip camera is not assigned, auto-discover it from a StripCameraController in the scene. Lets runtime-created overlays (cave dimmer, helper modal dimmer) reuse this follower without scene wiring.")]
     [SerializeField] private bool autoFindStripCamera = true;
 
+    [Tooltip("Expands the rect beyond the strip camera viewport by this many canvas pixels per edge (negative offsetMin / positive offsetMax). Use 1–2 for black fades to hide fractional gaps next to strip bars.")]
+    [SerializeField, Min(0f)] private float viewportBleedPixels;
+
     private Rect _lastRect = new Rect(float.NaN, float.NaN, float.NaN, float.NaN);
+    private float _lastAppliedBleed = float.NaN;
 
     /// <summary>
     /// Rect whose anchors track <see cref="Camera.rect"/> — may differ from <see cref="Component.transform"/> when this component lives on a manager object.
@@ -67,6 +71,18 @@ public sealed class StripUIViewportFollower : MonoBehaviour
         ForceApplyViewportAnchorsNow();
     }
 
+    /// <summary>Per-edge bleed in canvas pixels beyond <see cref="Camera.rect"/> (covers sub-pixel gaps at strip boundaries).</summary>
+    public float ViewportBleedPixels
+    {
+        get => viewportBleedPixels;
+        set
+        {
+            viewportBleedPixels = Mathf.Max(0f, value);
+            if (isActiveAndEnabled)
+                Apply(force: true);
+        }
+    }
+
     private void CacheTarget()
     {
         if (!targetRect)
@@ -92,15 +108,17 @@ public sealed class StripUIViewportFollower : MonoBehaviour
             return;
 
         Rect rect = stripCamera.rect;
-        if (!force && Approximately(rect, _lastRect))
+        float bleed = viewportBleedPixels;
+        if (!force && Approximately(rect, _lastRect) && Mathf.Approximately(bleed, _lastAppliedBleed))
             return;
 
         targetRect.anchorMin = new Vector2(rect.xMin, rect.yMin);
         targetRect.anchorMax = new Vector2(rect.xMax, rect.yMax);
-        targetRect.offsetMin = Vector2.zero;
-        targetRect.offsetMax = Vector2.zero;
+        targetRect.offsetMin = new Vector2(-bleed, -bleed);
+        targetRect.offsetMax = new Vector2(bleed, bleed);
 
         _lastRect = rect;
+        _lastAppliedBleed = bleed;
     }
 
     private static bool Approximately(Rect a, Rect b)

@@ -23,6 +23,12 @@ public static class AbilityCombatPower
     public const string SpectralAxeAbilityId = "spectral_axe";
     public const string AvatarOfTheForestAbilityId = "avatar_of_the_forest";
 
+    /// <summary>
+    /// Flat add to the effective woodcutting speed multiplier while Avatar of the Forest is active (e.g. 1.52x → 1.62x).
+    /// Not multiplied into <c>sheet × (1 + Forest Flow + …)</c>; keep in sync with ability tooltip copy (+10%).
+    /// </summary>
+    public const float AvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd = 0.10f;
+
     /// <summary>Second Twin Cyclone wave as a fraction of the first wave's scaled split (sync with Whirlwind runtime).</summary>
     public const float WhirlwindTwinCycloneSecondHitFraction = 0.2f;
 

@@ -28,6 +28,8 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     [SerializeField] private TMP_Text levelText;
     [SerializeField] private TMP_Text typeText;
     [SerializeField] private GameObject lockedOverlay;
+    [Tooltip("Optional ornate frame (e.g. SelectedBorder under Fill). Toggled from selection rules; prefab handles layout.")]
+    [SerializeField] private GameObject selectedBorderOverlay;
     [SerializeField] private GameObject selectedGlow;
     [Tooltip("Shown while the linked ability is on cooldown (driven by SkillTreeViewUI).")]
     [SerializeField] private GameObject cooldownOverlay;
@@ -38,6 +40,8 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     [SerializeField] private GameObject activeBuffOverlay;
     [SerializeField] private TMP_Text activeBuffOverlayTimeText;
     [SerializeField] private Button button;
+    [Tooltip("Opens the enhancement choice branch for eligible nodes (wired by SkillTreeViewUI).")]
+    [SerializeField] private Button enhanceButton;
     [SerializeField] private Color selectedOutlineColor = new Color(1f, 0.84f, 0.2f, 1f);
     [SerializeField] private float selectedBorderThickness = 4f;
     [SerializeField] private float selectedGlowPaddingCompensation = 4f;
@@ -183,6 +187,26 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         }
     }
 
+    /// <summary>
+    /// Skill tree only: show the + control and route clicks to the view. Hidden when <paramref name="visible"/> is false.
+    /// </summary>
+    public void SetEnhanceControl(bool visible, UnityEngine.Events.UnityAction onEnhanceClicked)
+    {
+        if (enhanceButton == null)
+            return;
+
+        enhanceButton.onClick.RemoveAllListeners();
+        if (visible && onEnhanceClicked != null)
+        {
+            enhanceButton.gameObject.SetActive(true);
+            enhanceButton.onClick.AddListener(onEnhanceClicked);
+        }
+        else
+        {
+            enhanceButton.gameObject.SetActive(false);
+        }
+    }
+
     public void SetRightClick(System.Action onRightClick)
     {
         onRightClickAction = onRightClick;
@@ -230,7 +254,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     public void SetSelected(bool selected)
     {
         isSelected = selected;
-        ApplySelectedOutlineFallback();
+        RefreshSelectionChrome();
     }
 
     public void SetLocked(bool locked)
@@ -247,13 +271,16 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
             button.interactable = !locked;
         }
 
+        if (enhanceButton != null)
+            enhanceButton.interactable = !locked;
+
         if (locked && cooldownOverlay != null)
             cooldownOverlay.SetActive(false);
 
         if (locked && activeBuffOverlay != null)
             activeBuffOverlay.SetActive(false);
 
-        ApplySelectedOutlineFallback();
+        RefreshSelectionChrome();
         RefreshLockedPresentation();
     }
 
@@ -487,8 +514,6 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
             }
         }
 
-        UpdateSelectedGlowBorder();
-
         if (levelText != null)
         {
             levelText.gameObject.SetActive(false);
@@ -502,7 +527,6 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         }
 
         // Side labels disabled for now (tooltips later).
-        ApplySelectedOutlineFallback();
         RefreshLockedPresentation();
     }
 
@@ -559,89 +583,92 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         iconImage.preserveAspect = true;
     }
 
-    private void ApplySelectedOutlineFallback()
+    private void RefreshSelectionChrome()
     {
-        if (selectedGlow != null)
+        bool show = ShouldShowSelectedGlow();
+
+        if (selectedBorderOverlay != null)
+            selectedBorderOverlay.SetActive(show);
+
+        bool hasGlowObject = selectedGlow != null;
+        if (hasGlowObject)
         {
-            UpdateSelectedGlowBorder();
-            return;
+            RectTransform glowRt = selectedGlow.GetComponent<RectTransform>();
+            if (glowRt != null)
+            {
+                glowRt.anchorMin = glowRt.anchorMax = new Vector2(0.5f, 0.5f);
+                glowRt.pivot = new Vector2(0.5f, 0.5f);
+                glowRt.anchoredPosition = Vector2.zero;
+
+                Vector2 baseSize;
+                if (outerRingImage != null)
+                    baseSize = outerRingImage.rectTransform.sizeDelta;
+                else if (fillImage != null)
+                    baseSize = fillImage.rectTransform.sizeDelta;
+                else
+                    baseSize = RectTransform.sizeDelta;
+                float perSide = Mathf.Max(0f, selectedBorderThickness) + Mathf.Max(0f, selectedGlowPaddingCompensation);
+                float extra = perSide * 2f;
+                glowRt.sizeDelta = baseSize + new Vector2(extra, extra);
+            }
+
+            Image glowImage = selectedGlow.GetComponent<Image>();
+            if (glowImage != null)
+            {
+                glowImage.color = selectedOutlineColor;
+                glowImage.raycastTarget = false;
+                if (glowImage.type == Image.Type.Simple)
+                    glowImage.type = Image.Type.Sliced;
+            }
+
+            selectedGlow.SetActive(show);
         }
 
-        if (outerRingImage != null)
-        {
-            RectTransform rt = outerRingImage.rectTransform;
-            if (isSelected)
-            {
-                float extra = Mathf.Max(0f, selectedBorderThickness * 2f);
-                rt.sizeDelta = _baseOuterRingSize + new Vector2(extra, extra);
-            }
-            else
-            {
-                rt.sizeDelta = _baseOuterRingSize;
-            }
-        }
+        bool selectionOrnamentCoversFillOutline = show && (hasGlowObject || selectedBorderOverlay != null);
+        if (_fillOutline != null)
+            _fillOutline.enabled = _useColoredFillBackground && !selectionOrnamentCoversFillOutline;
+
+        if (!hasGlowObject)
+            ApplyOuterRingSelectionSizing(show);
     }
 
-    private void UpdateSelectedGlowBorder()
+    private void ApplyOuterRingSelectionSizing(bool showSelection)
     {
-        if (selectedGlow == null)
+        if (outerRingImage == null)
             return;
 
-        bool showGlow = ShouldShowSelectedGlow();
-
-        RectTransform glowRt = selectedGlow.GetComponent<RectTransform>();
-        if (glowRt != null)
+        RectTransform rt = outerRingImage.rectTransform;
+        if (showSelection)
         {
-            glowRt.anchorMin = glowRt.anchorMax = new Vector2(0.5f, 0.5f);
-            glowRt.pivot = new Vector2(0.5f, 0.5f);
-            glowRt.anchoredPosition = Vector2.zero;
-
-            // Match the *visible* node box:
-            // - prefer outer ring when present
-            // - otherwise use fill (common current prefab setup)
-            Vector2 baseSize;
-            if (outerRingImage != null)
-                baseSize = outerRingImage.rectTransform.sizeDelta;
-            else if (fillImage != null)
-                baseSize = fillImage.rectTransform.sizeDelta;
-            else
-                baseSize = RectTransform.sizeDelta;
-            // Some border sprites have internal inset/padding; compensate so border wraps outside the node.
-            float perSide = Mathf.Max(0f, selectedBorderThickness) + Mathf.Max(0f, selectedGlowPaddingCompensation);
-            float extra = perSide * 2f;
-            glowRt.sizeDelta = baseSize + new Vector2(extra, extra);
+            float extra = Mathf.Max(0f, selectedBorderThickness * 2f);
+            rt.sizeDelta = _baseOuterRingSize + new Vector2(extra, extra);
         }
-
-        Image glowImage = selectedGlow.GetComponent<Image>();
-        if (glowImage != null)
-        {
-            glowImage.color = selectedOutlineColor;
-            glowImage.raycastTarget = false;
-            if (glowImage.type == Image.Type.Simple)
-                glowImage.type = Image.Type.Sliced;
-        }
-
-        selectedGlow.SetActive(showGlow);
-        if (_fillOutline != null)
-            _fillOutline.enabled = _useColoredFillBackground && !showGlow;
+        else
+            rt.sizeDelta = _baseOuterRingSize;
     }
 
     /// <summary>
-    /// Choice / ability: glow only when <see cref="isSelected"/> (committed pick or active choice). Other milestones: glow when unlocked and/or tree-selected.
+    /// Minor passives: border only when this node is focused in the tree and unlocked (not merely because the tier exists).
+    /// Major passive / unlock / capstone: border whenever the node is unlocked at level. Ability / choice: committed or active pick.
     /// </summary>
     private bool ShouldShowSelectedGlow()
     {
         switch (appliedVisualType)
         {
-            case SkillTreeNodeVisualType.Choice:
-            case SkillTreeNodeVisualType.Ability:
-                return isSelected;
+            case SkillTreeNodeVisualType.MinorPassive:
+                return isSelected && !isLocked;
+
             case SkillTreeNodeVisualType.MajorPassive:
             case SkillTreeNodeVisualType.Unlock:
             case SkillTreeNodeVisualType.CapstonePassive:
-                return !isLocked || isSelected;
-            default:
+                return !isLocked;
+
+            case SkillTreeNodeVisualType.Choice:
+            case SkillTreeNodeVisualType.Ability:
                 return isSelected;
+
+            default:
+                return isSelected && !isLocked;
         }
     }
 }

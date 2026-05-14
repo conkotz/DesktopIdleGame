@@ -647,6 +647,7 @@ MonoBehaviour:
   levelText: {fileID: 3451455167035919970}
   typeText: {fileID: 3594428978921009824}
   lockedOverlay: {fileID: 7829962505556040931}
+  selectedBorderOverlay: {fileID: 6724881658191109502}
   selectedGlow: {fileID: 0}
   cooldownOverlay: {fileID: 0}
   cooldownOverlayFillImage: {fileID: 5836671857312761276}
@@ -654,6 +655,7 @@ MonoBehaviour:
   activeBuffOverlay: {fileID: 0}
   activeBuffOverlayTimeText: {fileID: 0}
   button: {fileID: 1358460105655363396}
+  enhanceButton: {fileID: 1020117043476905417}
   selectedOutlineColor: {r: 1, g: 0.92, b: 0.35, a: 1}
   selectedBorderThickness: 8
   selectedGlowPaddingCompensation: 8
@@ -842,7 +844,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:

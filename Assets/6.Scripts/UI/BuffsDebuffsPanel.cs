@@ -486,10 +486,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
             if (string.Equals(buff.id, PlayerController.WoodcuttingFlowStateHudBuffId, StringComparison.OrdinalIgnoreCase))
-            {
-                return "Woodcutting speed and stamina efficiency bonus while Flow State is active " +
-                       "(15s on the same tree; Lasting Focus can extend briefly after you move).";
-            }
+                return "Woodcutting speed and stamina efficiency bonus";
 
             string core = "Temporary ability effect.";
             if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))

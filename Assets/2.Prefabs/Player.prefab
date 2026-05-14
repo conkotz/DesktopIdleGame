@@ -6135,6 +6135,8 @@ MonoBehaviour:
   fadeDuration: 1
   levelLoadScreenFadeSeconds: 1
   levelLoadBlackHoldSeconds: 0.5
+  levelLoadFadeStripCameraObject: {fileID: 0}
+  levelLoadFadeViewAreaObject: {fileID: 0}
   debugSnap: 0
 --- !u!114 &8305620475968429046
 MonoBehaviour:

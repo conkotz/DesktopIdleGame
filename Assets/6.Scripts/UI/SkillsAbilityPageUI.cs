@@ -79,6 +79,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     private readonly Dictionary<SkillType, HashSet<int>> _pendingTreeGlowLevelsBySkill = new();
     private bool _skillsEventsSubscribed;
 
+    private string _passiveUnlockHighlightKey;
+
     private void Awake()
     {
         PreferRuntimeSkillsManager();
@@ -262,7 +264,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         int level = skillsManager ? skillsManager.GetLevel(_selectedSkill.skillType) : 1;
         if (rightUnlocksText)
-            rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager);
+            rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager, _passiveUnlockHighlightKey);
         RefreshAbilitiesPanel(_selectedSkill, level);
     }
 
@@ -319,6 +321,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (skill == null) return;
 
         _selectedSkill = skill;
+        _passiveUnlockHighlightKey = null;
         EnsureCenterTreeReference();
         if (centerSkillTreeView) centerSkillTreeView.SetSkill(_selectedSkill);
         RefreshView();
@@ -538,6 +541,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         if (_selectedSkill == null)
         {
+            _passiveUnlockHighlightKey = null;
             if (centerTitleText) centerTitleText.text = "No Skill Selected";
             if (centerSkillTreePlaceholderText) centerSkillTreePlaceholderText.text = "";
             if (centerSkillTreeView) centerSkillTreeView.SetSkill(null);
@@ -575,7 +579,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
 
         if (rightUnlocksText)
-            rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager);
+            rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager, _passiveUnlockHighlightKey);
 
         RefreshAbilitiesPanel(_selectedSkill, level);
     }
@@ -594,6 +598,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             return;
         centerSkillTreeView.UnlockGlowAcknowledgedByHover -= HandleTreeGlowAcknowledgedByHover;
         centerSkillTreeView.UnlockGlowAcknowledgedByHover += HandleTreeGlowAcknowledgedByHover;
+        centerSkillTreeView.PassiveUnlockLineHighlightChanged -= HandlePassiveUnlockLineHighlightChanged;
+        centerSkillTreeView.PassiveUnlockLineHighlightChanged += HandlePassiveUnlockLineHighlightChanged;
     }
 
     private void UnhookTreeGlowAcknowledge()
@@ -601,6 +607,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (centerSkillTreeView == null)
             return;
         centerSkillTreeView.UnlockGlowAcknowledgedByHover -= HandleTreeGlowAcknowledgedByHover;
+        centerSkillTreeView.PassiveUnlockLineHighlightChanged -= HandlePassiveUnlockLineHighlightChanged;
     }
 
     private void HandleTreeGlowAcknowledgedByHover(int unlockLevel)
@@ -610,6 +617,16 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         if (_pendingTreeGlowLevelsBySkill.TryGetValue(_selectedSkill.skillType, out HashSet<int> levels) && levels != null)
             levels.Remove(unlockLevel);
+    }
+
+    private void HandlePassiveUnlockLineHighlightChanged(string highlightKey)
+    {
+        _passiveUnlockHighlightKey = highlightKey;
+        if (!isActiveAndEnabled || _selectedSkill == null || rightUnlocksText == null)
+            return;
+
+        int level = skillsManager ? skillsManager.GetLevel(_selectedSkill.skillType) : 1;
+        rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager, _passiveUnlockHighlightKey);
     }
 
     private void ReplayPendingGlowForVisibleUi()
@@ -652,8 +669,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             return;
         }
 
-        var abilities = abilityDatabase ? abilityDatabase.GetBySkill(skill.skillType) : new List<AbilityDefinition>();
-        if (abilities.Count == 0)
+        PreferRuntimeSkillsManager();
+
+        var abilityTierLevels = CollectSortedAbilityTierLevels(skill);
+        if (abilityTierLevels.Count == 0)
         {
             if (rightAbilitiesText)
                 rightAbilitiesText.text = "No abilities yet";
@@ -661,10 +680,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             return;
         }
 
-        int availableInTreeCount = CountTotalAbilitiesAvailableInTree(skill, level);
+        int unlockedTiersCount = CountUnlockedAbilityTiers(skill, level);
         int selectedInTreeCount = CountTotalAbilitiesSelectedInTree(skill, level);
         if (rightAbilitiesText)
-            rightAbilitiesText.text = $"Abilities available: {availableInTreeCount}\nAbilities selected: {selectedInTreeCount}";
+            rightAbilitiesText.text = $"Abilities unlocked: {unlockedTiersCount}\nAbilities selected: {selectedInTreeCount}";
 
         ClearAbilityRows();
 
@@ -672,14 +691,48 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         var canvas = GetComponentInParent<Canvas>();
         RectTransform abilityPanelRect = rightAbilitiesText ? rightAbilitiesText.transform.parent as RectTransform : null;
 
-        foreach (var a in abilities)
+        for (int i = 0; i < abilityTierLevels.Count; i++)
         {
-            if (!a) continue;
-            if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, a, skillsManager))
+            int rowLevel = abilityTierLevels[i];
+            if (level < rowLevel)
                 continue;
-            var row = CreateAbilityRow(rightAbilitiesListParent);
-            row.Bind(a, unlocked: true, tooltip, canvas);
+
+            var siblings = SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(skill, rowLevel);
+            if (siblings == null || siblings.Count == 0)
+                continue;
+
+            int pick = skillsManager != null ? skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1) : -1;
+
+            AbilityEntryUI row = CreateAbilityRow(rightAbilitiesListParent);
             row.SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Left);
+
+            if (pick < 0)
+            {
+                int scrollLevel = rowLevel;
+                row.BindAvailableAbilityTier(rowLevel, tooltip, canvas, () =>
+                {
+                    if (centerSkillTreeView != null)
+                        centerSkillTreeView.ScrollAbilityTierRowIntoView(scrollLevel);
+                });
+                continue;
+            }
+
+            if (pick >= siblings.Count)
+                continue;
+
+            AbilityDefinition def = siblings[pick];
+            if (def == null)
+                continue;
+
+            if (skillsManager != null
+                && !SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
+                continue;
+
+            row.Bind(def, unlocked: true, tooltip, canvas, () =>
+            {
+                if (centerSkillTreeView != null)
+                    centerSkillTreeView.ScrollAbilityTierRowIntoView(Mathf.Max(1, def.unlockLevel));
+            });
             row.SetDoubleClickAssignHandler(HandleAbilityDoubleClickAssignToActionBar);
         }
 
@@ -739,19 +792,49 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         return go.transform;
     }
 
-    private int CountTotalAbilitiesAvailableInTree(SkillDefinition skill, int level)
+    /// <summary>Distinct ability tier rows (Lv5 / Lv25 / …) that have at least one ability sibling on the skill tree.</summary>
+    private static List<int> CollectSortedAbilityTierLevels(SkillDefinition skill)
     {
-        if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0)
-            return 0;
+        var candidate = new HashSet<int>();
+        if (skill?.unlocks == null)
+            return new List<int>();
 
-        int count = 0;
         for (int i = 0; i < skill.unlocks.Count; i++)
         {
             SkillUnlockDefinition unlock = skill.unlocks[i];
-            if (unlock == null || unlock.unlockType != SkillUnlockType.Ability || unlock.ability == null)
+            if (unlock == null || unlock.ability == null)
                 continue;
 
-            if (level >= Mathf.Max(1, unlock.requiredLevel))
+            bool abilityLike =
+                unlock.unlockType == SkillUnlockType.Ability ||
+                unlock.unlockType == SkillUnlockType.CapstonePassive;
+            if (!abilityLike)
+                continue;
+
+            candidate.Add(Mathf.Max(1, unlock.requiredLevel));
+        }
+
+        var result = new List<int>();
+        foreach (int rl in candidate)
+        {
+            if (SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(skill, rl).Count > 0)
+                result.Add(rl);
+        }
+
+        result.Sort();
+        return result;
+    }
+
+    private int CountUnlockedAbilityTiers(SkillDefinition skill, int playerLevel)
+    {
+        if (skill == null)
+            return 0;
+
+        var rows = CollectSortedAbilityTierLevels(skill);
+        int count = 0;
+        for (int i = 0; i < rows.Count; i++)
+        {
+            if (playerLevel >= rows[i])
                 count++;
         }
 
@@ -760,24 +843,16 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private int CountTotalAbilitiesSelectedInTree(SkillDefinition skill, int level)
     {
-        if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0 || skillsManager == null)
+        if (skill == null || skillsManager == null)
             return 0;
 
-        HashSet<int> abilityRowLevels = new HashSet<int>();
-        for (int i = 0; i < skill.unlocks.Count; i++)
-        {
-            SkillUnlockDefinition unlock = skill.unlocks[i];
-            if (unlock == null || unlock.unlockType != SkillUnlockType.Ability || unlock.ability == null)
-                continue;
-
-            int rowLevel = Mathf.Max(1, unlock.requiredLevel);
-            if (rowLevel <= level)
-                abilityRowLevels.Add(rowLevel);
-        }
-
+        var rowLevels = CollectSortedAbilityTierLevels(skill);
         int selectedRows = 0;
-        foreach (int rowLevel in abilityRowLevels)
+        for (int i = 0; i < rowLevels.Count; i++)
         {
+            int rowLevel = rowLevels[i];
+            if (level < rowLevel)
+                continue;
             if (skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1) >= 0)
                 selectedRows++;
         }
@@ -795,6 +870,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         go.transform.SetParent(parent, false);
         var rowBg = go.AddComponent<UnityEngine.UI.Image>();
         rowBg.color = new Color(1f, 1f, 1f, 0.02f); // transparent but raycastable
+
+        var rowBtn = go.AddComponent<UnityEngine.UI.Button>();
+        rowBtn.targetGraphic = rowBg;
+        rowBtn.transition = UnityEngine.UI.Selectable.Transition.None;
 
         var h = go.AddComponent<UnityEngine.UI.HorizontalLayoutGroup>();
         h.childAlignment = TextAnchor.MiddleLeft;
@@ -923,7 +1002,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             Destroy(rightAbilitiesListParent.GetChild(i).gameObject);
     }
 
-    private static string BuildUnlocksDisplay(SkillDefinition skill, int currentLevel, SkillsManager skillManager)
+    private static string BuildUnlocksDisplay(SkillDefinition skill, int currentLevel, SkillsManager skillManager, string passiveHighlightKey = null)
     {
         if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0)
             return "No unlocks yet.";
@@ -1134,47 +1213,49 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
 
         var sb = new StringBuilder();
+        void Pct(float value, string label) => AppendPct(sb, value, label, passiveHighlightKey);
+        void Flat(float value, string label) => AppendFlat(sb, value, label, passiveHighlightKey);
         if (skill.skillType == SkillType.Melee)
         {
-            AppendFlat(sb, minMeleeDamage, "Min Melee Damage");
-            AppendFlat(sb, maxMeleeDamage, "Max Melee Damage");
-            AppendPct(sb, meleeDamage, "Melee Damage");
-            AppendPct(sb, meleeAttackSpeed, "Melee Attack Speed");
-            AppendPct(sb, meleeMoveSpeed, "Melee Move Speed");
-            AppendPct(sb, meleeCritChance, "Melee Crit Chance");
-            AppendPct(sb, meleeCritDamage, "Melee Crit Damage");
-            AppendPct(sb, bleedChance, "Melee Bleed Chance");
-            AppendPct(sb, bleedDamage, "Melee Bleed Multiplier");
-            AppendPct(sb, poisonChance, "Melee Poison Chance");
-            AppendPct(sb, poisonDuration, "Melee Poison Duration");
-            AppendPct(sb, ailmentDamage, "Melee Bleed, Poison, Burn Multipliers");
-            AppendPct(sb, shockChance, "Melee Shock Chance");
-            AppendPct(sb, vsBleeding, "Melee Damage to Bleeding Enemies");
-            AppendPct(sb, vsPoisoned, "Melee Damage to Poisoned Enemies");
-            AppendPct(sb, vsShocked, "Melee Damage to Shocked Enemies");
-            AppendPct(sb, vsLowHp, "Melee Damage to Low HP Enemies (<35% HP)");
-            AppendPct(sb, lifeSteal, "Melee Lifesteal");
+            Flat(minMeleeDamage, "Min Melee Damage");
+            Flat(maxMeleeDamage, "Max Melee Damage");
+            Pct(meleeDamage, "Melee Damage");
+            Pct(meleeAttackSpeed, "Melee Attack Speed");
+            Pct(meleeMoveSpeed, "Melee Move Speed");
+            Pct(meleeCritChance, "Melee Crit Chance");
+            Pct(meleeCritDamage, "Melee Crit Damage");
+            Pct(bleedChance, "Melee Bleed Chance");
+            Pct(bleedDamage, "Melee Bleed Multiplier");
+            Pct(poisonChance, "Melee Poison Chance");
+            Pct(poisonDuration, "Melee Poison Duration");
+            Pct(ailmentDamage, "Melee Bleed, Poison, Burn Multipliers");
+            Pct(shockChance, "Melee Shock Chance");
+            Pct(vsBleeding, "Melee Damage to Bleeding Enemies");
+            Pct(vsPoisoned, "Melee Damage to Poisoned Enemies");
+            Pct(vsShocked, "Melee Damage to Shocked Enemies");
+            Pct(vsLowHp, "Melee Damage to Low HP Enemies (<35% HP)");
+            Pct(lifeSteal, "Melee Lifesteal");
         }
         else if (skill.skillType == SkillType.Ranged)
         {
-            AppendPct(sb, rangedDamage, "Ranged Damage");
-            AppendPct(sb, rangedAttackSpeed, "Ranged Attack Speed");
-            AppendPct(sb, rangedCritChance, "Ranged Crit Chance");
-            AppendPct(sb, rangedMoveSpeed, "Ranged Move Speed");
+            Pct(rangedDamage, "Ranged Damage");
+            Pct(rangedAttackSpeed, "Ranged Attack Speed");
+            Pct(rangedCritChance, "Ranged Crit Chance");
+            Pct(rangedMoveSpeed, "Ranged Move Speed");
         }
         else if (skill.skillType == SkillType.Magic)
         {
-            AppendPct(sb, magicDamage, "Magic Damage");
-            AppendPct(sb, magicAttackSpeed, "Cast Speed");
-            AppendPct(sb, magicCritChance, "Crit Chance");
-            AppendPct(sb, magicCritDamage, "Crit Damage");
+            Pct(magicDamage, "Magic Damage");
+            Pct(magicAttackSpeed, "Cast Speed");
+            Pct(magicCritChance, "Crit Chance");
+            Pct(magicCritDamage, "Crit Damage");
         }
         else if (skill.skillType == SkillType.Endurance)
         {
-            AppendFlat(sb, enduranceArmor, "Armour");
-            AppendFlat(sb, enduranceMagicResist, "Magic Resist");
-            AppendFlat(sb, enduranceHp, "Max HP");
-            AppendFlat(sb, enduranceHpRegen, "HP Regen");
+            Flat(enduranceArmor, "Armour");
+            Flat(enduranceMagicResist, "Magic Resist");
+            Flat(enduranceHp, "Max HP");
+            Flat(enduranceHpRegen, "HP Regen");
         }
         else if (skill.skillType == SkillType.Mining || skill.skillType == SkillType.Woodcutting || skill.skillType == SkillType.Fishing)
         {
@@ -1183,9 +1264,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             if (gatherSpeedFlat > 0f)
             {
                 if (isWoodcuttingSkill)
-                    AppendPct(sb, gatherSpeedFlat, "Woodcutting Speed");
+                    Pct(gatherSpeedFlat, "Woodcutting Speed");
                 else if (isFishingSkill)
-                    AppendPct(sb, gatherSpeedFlat, "Fishing Speed");
+                    Pct(gatherSpeedFlat, "Fishing Speed");
                 else
                 {
                     sb.Append("• +");
@@ -1196,54 +1277,49 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             }
             if (isWoodcuttingSkill)
             {
-                AppendPct(sb, gatherGrit, "Woodcutting Grit Chance");
-                AppendPct(sb, gatherEnergyEfficiency, "Woodcutting Stamina Efficiency");
-                AppendPct(sb, gatherBonusItemChance, "Woodcutting Bonus Find Chance");
-                AppendPct(sb, gatherExtraLogChance, "Woodcutting Chance for +1 Extra Main Resource");
-                AppendPct(sb, gatherYieldPercent, "Woodcutting Base Resource Yield");
+                Pct(gatherGrit, "Woodcutting Grit Chance");
+                Pct(gatherEnergyEfficiency, "Woodcutting Stamina Efficiency");
+                Pct(gatherBonusItemChance, "Woodcutting Bonus Find Chance");
+                Pct(gatherExtraLogChance, "Woodcutting Chance for +1 Extra Main Resource");
+                Pct(gatherYieldPercent, "Woodcutting Base Resource Yield");
                 if (woodcuttingGritProcRestoreStaminaFraction > 0f)
                 {
-                    sb.Append("• Woodcutting Grit procs restore +");
-                    sb.Append(Mathf.RoundToInt(woodcuttingGritProcRestoreStaminaFraction * 100f));
-                    sb.Append("% stamina");
-                    sb.AppendLine();
+                    string line = "• Woodcutting Grit procs restore +"
+                        + Mathf.RoundToInt(woodcuttingGritProcRestoreStaminaFraction * 100f)
+                        + "% stamina";
+                    AppendBuiltLineWithOptionalBold(sb, line, passiveHighlightKey);
                 }
                 if (woodcuttingBonusXpChance > 0f)
                 {
-                    sb.Append("• +");
-                    sb.Append(Mathf.RoundToInt(woodcuttingBonusXpChance * 100f));
-                    sb.Append("% chance to double XP gained from Woodcutting");
-                    sb.AppendLine();
+                    string line = "• +"
+                        + Mathf.RoundToInt(woodcuttingBonusXpChance * 100f)
+                        + "% chance to double XP gained from Woodcutting";
+                    AppendBuiltLineWithOptionalBold(sb, line, passiveHighlightKey);
                 }
-                AppendPct(sb, woodcuttingNoStaminaSwingChance, "Woodcutting No-Stamina Swing Chance");
-                AppendPct(sb, woodcuttingChanceNotToCountTowardTreeDepletion, "Woodcutting chance not to count toward tree depletion");
+                Pct(woodcuttingNoStaminaSwingChance, "Woodcutting No-Stamina Swing Chance");
+                Pct(woodcuttingChanceNotToCountTowardTreeDepletion, "Woodcutting chance not to count toward tree depletion");
                 if (woodcuttingFrenzyStacks > 0)
                 {
                     int pct = 5 * woodcuttingFrenzyStacks;
-                    sb.Append("• After a Woodcutting Grit proc: +");
-                    sb.Append(pct);
-                    sb.Append("% Woodcutting Speed for 7 seconds");
-                    sb.AppendLine();
+                    string line = "• After a Woodcutting Grit proc: +" + pct + "% Woodcutting Speed for 7 seconds";
+                    AppendBuiltLineWithOptionalBold(sb, line, passiveHighlightKey);
                 }
                 if (woodcuttingForestFlowStacks > 0)
                 {
                     int sp = 3 * woodcuttingForestFlowStacks;
                     int se = 3 * woodcuttingForestFlowStacks;
-                    sb.Append("• While continuously woodcutting (after 15 seconds): +");
-                    sb.Append(sp);
-                    sb.Append("% Woodcutting Speed, +");
-                    sb.Append(se);
-                    sb.Append("% Woodcutting Stamina Efficiency");
-                    sb.AppendLine();
+                    string line = "• While continuously woodcutting (after 15 seconds): +" + sp
+                        + "% Woodcutting Speed, +" + se + "% Woodcutting Stamina Efficiency";
+                    AppendBuiltLineWithOptionalBold(sb, line, passiveHighlightKey);
                 }
             }
             else
             {
                 if (isFishingSkill)
                 {
-                    AppendPct(sb, gatherGrit, "Fishing Grit Chance");
-                    AppendPct(sb, gatherEnergyEfficiency, "Fishing Stamina Efficiency");
-                    AppendPct(sb, gatherBonusItemChance, "Fishing Bonus Find Chance");
+                    Pct(gatherGrit, "Fishing Grit Chance");
+                    Pct(gatherEnergyEfficiency, "Fishing Stamina Efficiency");
+                    Pct(gatherBonusItemChance, "Fishing Bonus Find Chance");
                     if (fishingGritRestoreStacks > 0)
                     {
                         int stamina = 10 * fishingGritRestoreStacks;
@@ -1259,7 +1335,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                         sb.Append("% chance to gain double Fishing XP");
                         sb.AppendLine();
                     }
-                    AppendPct(sb, fishingNoStaminaSwingChance, "chance for Fishing casts to cost no stamina");
+                    Pct(fishingNoStaminaSwingChance, "chance for Fishing casts to cost no stamina");
                     if (fishingFrenzyStacks > 0)
                     {
                         int frenzyPct = 5 * fishingFrenzyStacks;
@@ -1279,16 +1355,16 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                         sb.Append("% Fishing Stamina Efficiency");
                         sb.AppendLine();
                     }
-                    AppendPct(sb, fishingBaitConservationChance, "chance to not consume bait durability");
-                    AppendPct(sb, fishingAutoCookChance, "chance for caught fish to be automatically cooked");
+                    Pct(fishingBaitConservationChance, "chance to not consume bait durability");
+                    Pct(fishingAutoCookChance, "chance for caught fish to be automatically cooked");
                     if (fishingTreasureMinorStacks > 0)
                         sb.AppendLine("• Small chance to catch treasure while fishing");
                 }
                 else
                 {
-                    AppendPct(sb, gatherGrit, "Grit");
-                    AppendPct(sb, gatherEnergyEfficiency, "Energy Efficiency");
-                    AppendPct(sb, gatherBonusItemChance, "Bonus Item Chance");
+                    Pct(gatherGrit, "Grit");
+                    Pct(gatherEnergyEfficiency, "Energy Efficiency");
+                    Pct(gatherBonusItemChance, "Bonus Item Chance");
                 }
             }
         }
@@ -1329,7 +1405,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             {
                 string capTitle = string.IsNullOrWhiteSpace(capstone.title) ? "Capstone" : capstone.title.Trim();
                 int capLv = Mathf.Max(1, capstone.requiredLevel);
-                sb.AppendLine($"• {capTitle} (Capstone) (Lv{capLv})");
+                sb.AppendLine($"<b>• {capTitle} (Capstone) (Lv{capLv})</b>");
                 if (!string.IsNullOrWhiteSpace(capstone.description))
                 {
                     string[] parts = capstone.description.Trim().Split(
@@ -1347,7 +1423,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         // Major passive conversion summary (currently Melee Lv10 Bloodletting branch).
         if (skill.skillType == SkillType.Melee && currentLevel >= 10)
         {
-            sb.AppendLine("• Bloodletting (Major Passive) (Lv10)");
+            sb.AppendLine("<b>• Bloodletting (Major Passive) (Lv10)</b>");
             int selected = skillManager != null ? skillManager.GetSkillChoiceSelection(SkillType.Melee, 10, -1) : -1;
             if (selected == 0)
             {
@@ -1443,7 +1519,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
             int lvl = Mathf.Max(1, unlock.requiredLevel);
             string title = string.IsNullOrWhiteSpace(unlock.title) ? "Fishing Major Passive" : unlock.title.Trim();
-            sb.AppendLine($"• {title} (Major Passive) (Lv{lvl})");
+            sb.AppendLine($"<b>• {title} (Major Passive) (Lv {lvl})</b>");
             sb.AppendLine("   - Base Effect");
         }
     }
@@ -1474,23 +1550,46 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         return best;
     }
 
-    private static void AppendFlat(StringBuilder sb, float value, string label)
+    private static void AppendBuiltLineWithOptionalBold(StringBuilder sb, string line, string passiveHighlightKey)
+    {
+        if (!string.IsNullOrEmpty(passiveHighlightKey)
+            && line.IndexOf(passiveHighlightKey, StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            sb.Append("<b>");
+            sb.Append(line);
+            sb.Append("</b>");
+        }
+        else
+            sb.Append(line);
+
+        sb.AppendLine();
+    }
+
+    private static void AppendFlat(StringBuilder sb, float value, string label, string passiveHighlightKey = null)
     {
         if (value <= 0f) return;
+        bool bold = !string.IsNullOrEmpty(passiveHighlightKey)
+            && string.Equals(label, passiveHighlightKey, StringComparison.Ordinal);
+        if (bold) sb.Append("<b>");
         sb.Append("• +");
         sb.Append(Mathf.RoundToInt(value));
         sb.Append(' ');
         sb.Append(label);
+        if (bold) sb.Append("</b>");
         sb.AppendLine();
     }
 
-    private static void AppendPct(StringBuilder sb, float value, string label)
+    private static void AppendPct(StringBuilder sb, float value, string label, string passiveHighlightKey = null)
     {
         if (value <= 0f) return;
+        bool bold = !string.IsNullOrEmpty(passiveHighlightKey)
+            && string.Equals(label, passiveHighlightKey, StringComparison.Ordinal);
+        if (bold) sb.Append("<b>");
         sb.Append("• +");
         sb.Append(Mathf.RoundToInt(value * 100f));
         sb.Append("% ");
         sb.Append(label);
+        if (bold) sb.Append("</b>");
         sb.AppendLine();
     }
 
@@ -1524,7 +1623,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         {
             SkillUnlockDefinition committed = majors[rowPick].u;
             string majorTitle = committed.title.Trim();
-            sb.AppendLine($"• {majorTitle} (Major Passive) (Lv{sourceLevel})");
+            sb.AppendLine($"<b>• {majorTitle} (Major Passive) (Lv {sourceLevel})</b>");
 
             string enhancementTitle = enh >= 0 && committed.choices != null && enh < committed.choices.Count &&
                                       committed.choices[enh] != null && !string.IsNullOrWhiteSpace(committed.choices[enh].title)
@@ -1540,7 +1639,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
         else
         {
-            sb.AppendLine($"• Woodcutting Major Passive (Lv{sourceLevel})");
+            sb.AppendLine($"<b>• Woodcutting Major Passive (Lv {sourceLevel})</b>");
             sb.AppendLine("   - (major not selected)");
         }
     }

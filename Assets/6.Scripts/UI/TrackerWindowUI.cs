@@ -189,6 +189,8 @@ public class TrackerWindowUI : MonoBehaviour
             content.anchorMin = new Vector2(0f, 1f);
             content.anchorMax = new Vector2(1f, 1f);
             content.pivot = new Vector2(0.5f, 1f);
+            // Left-top pivot (0,1) on authored prefabs shifts horizontal origin when height changes; keep centered.
+            content.anchoredPosition = new Vector2(0f, content.anchoredPosition.y);
 
             EnsureComponent<ContentSizeFitter>(content.gameObject, fitter =>
             {
@@ -258,6 +260,35 @@ public class TrackerWindowUI : MonoBehaviour
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         });
+
+        // Same GameObject: LayoutElement.preferredHeight + ContentSizeFitter.vertical PreferredSize fight each
+        // other; a fixed preferred height caps the section while rows need more space → overlap / "grows upward".
+        LayoutElement sectionLayout = section.GetComponent<LayoutElement>();
+        if (sectionLayout != null && sectionLayout.preferredHeight >= 0f)
+            sectionLayout.preferredHeight = -1f;
+
+        NormalizeVerticalStackChildren(section);
+    }
+
+    /// <summary>
+    /// Scene-authored rows mix bottom anchors (0,0) with top anchors (0,1) and hand-tuned positions. Under a
+    /// VerticalLayoutGroup that controls width/height, that yields wrong stacking when many TMP rows expand.
+    /// Normalize direct children to top-stretch rows so layout always grows downward.
+    /// </summary>
+    private static void NormalizeVerticalStackChildren(RectTransform section)
+    {
+        if (section == null)
+            return;
+
+        for (int i = 0; i < section.childCount; i++)
+        {
+            if (section.GetChild(i) is not RectTransform child)
+                continue;
+
+            child.anchorMin = new Vector2(0f, 1f);
+            child.anchorMax = new Vector2(1f, 1f);
+            child.pivot = new Vector2(0.5f, 1f);
+        }
     }
 
     private static void EnsureComponent<T>(GameObject go, Action<T> configure) where T : Component
@@ -357,12 +388,18 @@ public class TrackerWindowUI : MonoBehaviour
         if (_data == null)
             _data = SessionTrackerData.EnsureInstance();
 
+        if (!_scrollViewConfigured)
+            EnsureScrollViewMasking();
+
         int xpRowsBefore = _xpSourceRowSourceLabels.Count;
         int lootRowsBefore = _lootSourceRowSourceLabels.Count;
 
         RefreshElapsedTime();
         RefreshExperienceSection();
         RefreshLootSection();
+
+        NormalizeVerticalStackChildren(experienceSection);
+        NormalizeVerticalStackChildren(lootSection);
 
         bool grew = _xpSourceRowSourceLabels.Count > xpRowsBefore
                  || _lootSourceRowSourceLabels.Count > lootRowsBefore;
@@ -373,9 +410,6 @@ public class TrackerWindowUI : MonoBehaviour
             DisableRaycastsOnDynamicRows();
             ScheduleLayoutRebuild();
         }
-
-        if (!_scrollViewConfigured)
-            EnsureScrollViewMasking();
     }
 
     private void DisableRaycastsOnDynamicRows()

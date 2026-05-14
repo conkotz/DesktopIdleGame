@@ -75,6 +75,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     [Tooltip("Delay from attack start to magic bolt release (animation sync).")]
     [SerializeField, Min(0f)] private float magicProjectileFireDelay = 0f;
 
+    [Tooltip("Melee only: seconds after the attack anim starts before damage resolves (syncs hit to the downward swing). Ranged/magic unchanged.")]
+    [SerializeField, Min(0f)] private float meleeHitImpactDelay = 0.12f;
+
     [Header("Idle Combat (Auto Target)")]
     [SerializeField] private bool idleCombatEnabled = false;
 
@@ -547,7 +550,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
         else
         {
-            ResolveAttackHitNow(_target, rolled, wasCrit);
+            float meleeDelay = Mathf.Max(0f, meleeHitImpactDelay);
+            if (meleeDelay <= 0f)
+                ResolveAttackHitNow(_target, rolled, wasCrit);
+            else
+                StartCoroutine(ResolveAttackHitAfterDelay(_target, rolled, wasCrit, meleeDelay));
         }
     }
 

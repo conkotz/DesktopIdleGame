@@ -2289,10 +2289,12 @@ public class PlayerController : MonoBehaviour
             bonus += 0.05f * _woodcuttingBonuses.frenzyStacks;
         if (IsWoodcuttingMajorFlowBuffActive())
             bonus += 0.10f;
-        if (abilityController != null)
-            bonus += abilityController.GetAvatarOfTheForestWoodcuttingSpeedBonusFraction();
 
-        return Mathf.Max(0.05f, mult * (1f + bonus));
+        float speed = mult * (1f + bonus);
+        if (abilityController != null)
+            speed += abilityController.GetAvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd();
+
+        return Mathf.Max(0.05f, speed);
     }
 
     private bool HasAnyFishingBaitInInventory()
@@ -2355,7 +2357,11 @@ public class PlayerController : MonoBehaviour
         ReturnToIdle();
     }
 
-    /// <summary>For stats UI: speed fractions stack additively (then multiply sheet speed). Major Flow can apply briefly after stopping (Lv15 choice).</summary>
+    /// <summary>
+    /// For stats UI: Forest Flow / grit frenzy / Major Flow fractions stack additively, then multiply sheet axe speed.
+    /// Avatar of the Forest is shown as a flat +0.10 on that result (not inside the <c>(1 + Σ)</c> bracket); see
+    /// <see cref="EquipmentStatsPanelUI.PopulateGatheringToolsSection"/>. Major Flow can apply briefly after stopping (Lv15 choice).
+    /// </summary>
     public bool TryGetWoodcuttingLiveBuffInfo(
         out float frenzySpeedFraction,
         out float forestFlowSpeedFraction,
@@ -2414,14 +2420,18 @@ public class PlayerController : MonoBehaviour
     /// <summary>Changes when woodcutting gather transient buffs change; used to refresh tool stats without full sheet churn.</summary>
     public int GetWoodcuttingStatsPanelStamp()
     {
-        if (!TryGetWoodcuttingLiveBuffInfo(out float frenFrac, out float ffSpd, out float ffStam, out float majSpd, out float majStam))
-            return 0;
+        _ = TryGetWoodcuttingLiveBuffInfo(out float frenFrac, out float ffSpd, out float ffStam, out float majSpd, out float majStam);
+
+        float avatarSpd = abilityController != null ? abilityController.GetAvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd() : 0f;
+        float avatarBfMul = abilityController != null ? abilityController.GetAvatarOfTheForestBonusFindFinalMultiplier() : 1f;
 
         int h0 = HashCode.Combine(
             Mathf.RoundToInt(frenFrac * 1000f),
             Mathf.RoundToInt(ffSpd * 1000f),
             Mathf.RoundToInt(ffStam * 1000f),
-            Mathf.RoundToInt(majSpd * 1000f));
+            Mathf.RoundToInt(majSpd * 1000f),
+            Mathf.RoundToInt(avatarSpd * 1000f),
+            Mathf.RoundToInt(avatarBfMul * 1000f));
         int h1 = HashCode.Combine(
             Mathf.RoundToInt(majStam * 1000f),
             _woodcuttingBonuses.forestFlowStacks,

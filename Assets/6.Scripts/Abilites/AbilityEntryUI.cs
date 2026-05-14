@@ -16,12 +16,16 @@ public class AbilityEntryUI : MonoBehaviour,
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text reqText;
     [SerializeField] private CanvasGroup canvasGroup;
+    [Tooltip("Shown when the tier is unlocked but no ability is picked yet (e.g. green + row).")]
+    [SerializeField] private GameObject selectAbilityRoot;
+    [SerializeField] private Button selectButton;
 
     [Header("Drag")]
     [SerializeField] private Vector2 dragIconSize = new Vector2(48f, 48f);
 
     private AbilityDefinition _def;
     private bool _unlocked;
+    private bool _isAvailablePlaceholder;
 
     private SharedTooltipUI _tooltip;
     private Canvas _rootCanvas;
@@ -34,6 +38,32 @@ public class AbilityEntryUI : MonoBehaviour,
 
     private System.Action<AbilityDefinition> _onDoubleClickAssign;
 
+    private Outline _committedListRowOutline;
+    private Button _rowButton;
+
+    private void Awake()
+    {
+        _rowButton = GetComponent<Button>();
+        if (_rowButton != null)
+        {
+            Navigation n = _rowButton.navigation;
+            n.mode = Navigation.Mode.None;
+            _rowButton.navigation = n;
+        }
+
+        Image rootImage = GetComponent<Image>();
+        if (rootImage != null)
+        {
+            _committedListRowOutline = rootImage.GetComponent<Outline>();
+            if (_committedListRowOutline == null)
+                _committedListRowOutline = rootImage.gameObject.AddComponent<Outline>();
+            _committedListRowOutline.effectColor = new Color(1f, 1f, 1f, 0.95f);
+            _committedListRowOutline.effectDistance = new Vector2(2f, 2f);
+            _committedListRowOutline.useGraphicAlpha = false;
+            _committedListRowOutline.enabled = false;
+        }
+    }
+
     // Called by SkillsAbilitiesPageUI when creating runtime rows (no prefab).
     // Uses SendMessage to avoid making fields public.
     private void EditorAutoWire(object[] args)
@@ -45,8 +75,11 @@ public class AbilityEntryUI : MonoBehaviour,
         canvasGroup = args[3] as CanvasGroup;
     }
 
-    public void Bind(AbilityDefinition def, bool unlocked, SharedTooltipUI tooltip, Canvas rootCanvas)
+    public void Bind(AbilityDefinition def, bool unlocked, SharedTooltipUI tooltip, Canvas rootCanvas, System.Action onRowClickScrollToTree = null)
     {
+        ClearAbilityRowClickListeners();
+        _isAvailablePlaceholder = false;
+
         _def = def;
         _unlocked = unlocked;
         _tooltip = tooltip;
@@ -56,8 +89,12 @@ public class AbilityEntryUI : MonoBehaviour,
         if (_rootCanvas == null)
             _rootCanvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
 
+        if (selectAbilityRoot)
+            selectAbilityRoot.SetActive(false);
+
         if (icon)
         {
+            icon.gameObject.SetActive(true);
             icon.enabled = def != null && def.icon != null;
             icon.sprite = def ? def.icon : null;
             icon.preserveAspect = true;
@@ -75,6 +112,84 @@ public class AbilityEntryUI : MonoBehaviour,
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
 
         canvasGroup.alpha = unlocked ? 1f : 0.55f;
+
+        SetCommittedAbilityListRowOutline(true);
+        RegisterRootRowScrollClick(onRowClickScrollToTree);
+    }
+
+    /// <summary>
+    /// Right-panel row: skill level reached the tier but the player has not committed a tree pick for that row yet.
+    /// </summary>
+    public void BindAvailableAbilityTier(int rowLevel, SharedTooltipUI tooltip, Canvas rootCanvas, System.Action onSelectScrollTree)
+    {
+        ClearAbilityRowClickListeners();
+        _isAvailablePlaceholder = true;
+        _def = null;
+        _unlocked = false;
+        _tooltip = tooltip;
+        _rootCanvas = rootCanvas;
+        if (_rootCanvas == null)
+            _rootCanvas = GetComponentInParent<Canvas>();
+        if (_rootCanvas == null)
+            _rootCanvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+
+        if (selectAbilityRoot)
+            selectAbilityRoot.SetActive(selectButton != null);
+
+        if (icon)
+        {
+            icon.gameObject.SetActive(false);
+            icon.sprite = null;
+            icon.enabled = false;
+        }
+
+        if (nameText)
+            nameText.text = "Ability Available";
+
+        if (reqText)
+            reqText.text = $"Lv {rowLevel}";
+
+        if (!canvasGroup)
+            canvasGroup = GetComponent<CanvasGroup>();
+        if (!canvasGroup)
+            canvasGroup = gameObject.AddComponent<CanvasGroup>();
+
+        canvasGroup.alpha = 1f;
+        canvasGroup.blocksRaycasts = true;
+
+        if (selectButton != null)
+        {
+            selectButton.interactable = true;
+            if (onSelectScrollTree != null)
+                selectButton.onClick.AddListener(() => onSelectScrollTree());
+        }
+
+        SetCommittedAbilityListRowOutline(false);
+        RegisterRootRowScrollClick(onSelectScrollTree);
+    }
+
+    private void SetCommittedAbilityListRowOutline(bool enabled)
+    {
+        if (_committedListRowOutline != null)
+            _committedListRowOutline.enabled = enabled;
+    }
+
+    private void ClearAbilityRowClickListeners()
+    {
+        if (selectButton != null)
+            selectButton.onClick.RemoveAllListeners();
+        if (_rowButton != null)
+            _rowButton.onClick.RemoveAllListeners();
+    }
+
+    private void RegisterRootRowScrollClick(System.Action scrollAction)
+    {
+        if (_rowButton == null)
+            _rowButton = GetComponent<Button>();
+        if (_rowButton == null || scrollAction == null)
+            return;
+
+        _rowButton.onClick.AddListener(() => scrollAction());
     }
 
     public void SetDoubleClickAssignHandler(System.Action<AbilityDefinition> handler)
@@ -90,7 +205,7 @@ public class AbilityEntryUI : MonoBehaviour,
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (_tooltip == null || _def == null) return;
+        if (_isAvailablePlaceholder || _tooltip == null || _def == null) return;
 
         string body = BuildLeagueStyleTooltip(_def, SkillsManager.Instance, AbilityTooltipDamagePreview.FindLocalPlayerStats());
         RectTransform measure = _tooltipBoundsRect ? _tooltipBoundsRect : transform.root as RectTransform;
@@ -112,6 +227,8 @@ public class AbilityEntryUI : MonoBehaviour,
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        if (_isAvailablePlaceholder)
+            return;
         if (eventData.button != PointerEventData.InputButton.Left) return;
         if (eventData.clickCount >= 2)
         {
@@ -124,7 +241,7 @@ public class AbilityEntryUI : MonoBehaviour,
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (!_unlocked || _def == null) return;
+        if (_isAvailablePlaceholder || !_unlocked || _def == null) return;
         if (_rootCanvas == null)
             _rootCanvas = GetComponentInParent<Canvas>();
         if (_rootCanvas == null)

@@ -31,6 +31,12 @@ public sealed class UIWindowCornerResize : MonoBehaviour
     [Tooltip("When true, BottomRight hit target is not created (e.g. helper title bar: avoid handle over close/minimize).")]
     [SerializeField] private bool omitBottomRightCornerHandle;
 
+    [Tooltip(
+        "When set, BottomLeft/BottomRight handles are parented under this rect (anchors stay bottom-left / bottom-right of it). " +
+        "Use when the window root rect does not match the visual bottom of scroll/list content (e.g. quest tracker with preferred-height body). " +
+        "Resize still scales the target window.")]
+    [SerializeField] private RectTransform bottomResizeHandleParent;
+
     /// <summary>
     /// Divides authored local scale by <see cref="SliderSettingId.HudResize"/> each frame-ish so apparent size stays constant while the HUD canvas scaler changes.
     /// </summary>
@@ -73,6 +79,17 @@ public sealed class UIWindowCornerResize : MonoBehaviour
 
         resize.ApplyScale(remembered);
         return resize;
+    }
+
+    /// <summary>
+    /// Parents bottom corner hit targets under <paramref name="parent"/> so they track that rect's bottom edge (see <see cref="bottomResizeHandleParent"/>).
+    /// Pass null to parent them back on <see cref="targetWindow"/>.
+    /// </summary>
+    public void SetBottomResizeHandleParent(RectTransform parent)
+    {
+        bottomResizeHandleParent = parent;
+        EnsureHandles();
+        RefreshHandlesActive();
     }
 
     public static void ResetAllScalesToDefault()
@@ -160,7 +177,7 @@ public sealed class UIWindowCornerResize : MonoBehaviour
                 continue;
 
             string handleName = $"ResizeHandle_{corner}";
-            Transform t = _rect.Find(handleName);
+            Transform t = FindResizeHandleTransform(handleName);
             if (t)
             {
                 t.gameObject.SetActive(true); // Always interactive; toggle controls visual hint only.
@@ -256,7 +273,7 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         if (corner == ResizeCorner.TopRight)
         {
             string topRightName = $"ResizeHandle_{corner}";
-            Transform oldTopRight = _rect.Find(topRightName);
+            Transform oldTopRight = FindResizeHandleTransform(topRightName);
             if (oldTopRight)
                 Destroy(oldTopRight.gameObject);
             return;
@@ -265,7 +282,7 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         if (omitTopCornerHandles && corner == ResizeCorner.TopLeft)
         {
             string killName = $"ResizeHandle_{corner}";
-            Transform old = _rect.Find(killName);
+            Transform old = FindResizeHandleTransform(killName);
             if (old)
                 Destroy(old.gameObject);
 
@@ -275,7 +292,7 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         if (omitBottomRightCornerHandle && corner == ResizeCorner.BottomRight)
         {
             string killName = $"ResizeHandle_{corner}";
-            Transform old = _rect.Find(killName);
+            Transform old = FindResizeHandleTransform(killName);
             if (old)
                 Destroy(old.gameObject);
 
@@ -283,19 +300,22 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         }
 
         string handleName = $"ResizeHandle_{corner}";
-        Transform existing = _rect.Find(handleName);
+        Transform designatedParent = GetResizeHandleParent(corner);
+        Transform existing = FindResizeHandleTransform(handleName);
         RectTransform handleRect;
 
         if (existing)
         {
             handleRect = existing as RectTransform;
+            if (handleRect && handleRect.parent != designatedParent)
+                handleRect.SetParent(designatedParent, false);
         }
         else
         {
             GameObject handleObject = new GameObject(handleName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(LayoutElement), typeof(UIWindowResizeHandle));
             handleObject.layer = gameObject.layer;
             handleRect = handleObject.transform as RectTransform;
-            handleRect.SetParent(_rect, false);
+            handleRect.SetParent(designatedParent, false);
 
             Image image = handleObject.GetComponent<Image>();
             ConfigureHitImage(image);
@@ -315,6 +335,33 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         UIWindowResizeHandle resizeHandle = handleRect.GetComponent<UIWindowResizeHandle>();
         resizeHandle.Configure(this, corner);
         handleRect.SetAsLastSibling();
+    }
+
+    private Transform GetResizeHandleParent(ResizeCorner corner)
+    {
+        bool bottom = corner is ResizeCorner.BottomLeft or ResizeCorner.BottomRight;
+        if (bottom && bottomResizeHandleParent)
+            return bottomResizeHandleParent;
+        return _rect;
+    }
+
+    private Transform FindResizeHandleTransform(string handleName)
+    {
+        if (_rect)
+        {
+            Transform t = _rect.Find(handleName);
+            if (t)
+                return t;
+        }
+
+        if (bottomResizeHandleParent && bottomResizeHandleParent != _rect)
+        {
+            Transform t = bottomResizeHandleParent.Find(handleName);
+            if (t)
+                return t;
+        }
+
+        return null;
     }
 
     private static Sprite GetOrCreateHitSprite()

@@ -497,14 +497,19 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         if (axeTitleText) axeTitleText.text = "Axe";
 
+        PlayerAbilityController ability = null;
+        if (player != null)
+            ability = player.GetComponent<PlayerAbilityController>();
+
         float baseAxeSpeed = stats.AxeSpeedMult;
         if (axeSpeedText)
         {
-            float displayAxeSpeed = baseAxeSpeed;
-            if (player != null &&
-                player.TryGetWoodcuttingLiveBuffInfo(out float frenSpd, out float ffSpd, out _, out float majSpd, out _) &&
-                (frenSpd > 0f || ffSpd > 0f || majSpd > 0f))
-                displayAxeSpeed = baseAxeSpeed * (1f + frenSpd + ffSpd + majSpd);
+            float frenSpd = 0f, ffSpd = 0f, majSpd = 0f;
+            if (player != null)
+                player.TryGetWoodcuttingLiveBuffInfo(out frenSpd, out ffSpd, out _, out majSpd, out _);
+
+            float avatarFlat = ability != null ? ability.GetAvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd() : 0f;
+            float displayAxeSpeed = baseAxeSpeed * (1f + frenSpd + ffSpd + majSpd) + avatarFlat;
 
             axeSpeedText.richText = false;
             axeSpeedText.text = $"Woodcutting Speed: {displayAxeSpeed:0.##}x";
@@ -517,7 +522,12 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 grit = Mathf.Clamp01(grit + add);
             axeGritText.text = $"Woodcutting Grit: {grit * 100f:0.#}%";
         }
-        if (axeBonusFindText) axeBonusFindText.text = $"Bonus Find: +{stats.AxeBonusFindChance * 100f:0.#}%";
+        if (axeBonusFindText)
+        {
+            float avatarBfMul = ability != null ? ability.GetAvatarOfTheForestBonusFindFinalMultiplier() : 1f;
+            float displayBf = Mathf.Clamp01(stats.AxeBonusFindChance * avatarBfMul);
+            axeBonusFindText.text = $"Bonus Find: +{displayBf * 100f:0.#}%";
+        }
 
         float baseAxeStam = stats.AxeStaminaEfficiency;
         if (axeStaminaEfficiencyText)
