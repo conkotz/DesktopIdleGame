@@ -16,6 +16,10 @@ public class GoldPopupSpawner : MonoBehaviour
     [SerializeField] private Transform playerWorld;
     [SerializeField] private Vector3 worldOffset = new Vector3(0f, 1.2f, 0f);
 
+    [Header("Gathering XP anchor")]
+    [Tooltip("Extra world-space offset for +xp text vs gold (same base player anchor). E.g. slight -X / lower Y reads as behind the character in side view.")]
+    [SerializeField] private Vector3 gatheringXpAnchorExtraWorld = new Vector3(-0.18f, -0.22f, 0f);
+
     [Header("Stacking")]
     [Tooltip("Extra vertical offset per concurrent popup so simultaneous messages do not overlap.")]
     [SerializeField] private float stackVerticalSpacing = 30f;
@@ -30,10 +34,13 @@ public class GoldPopupSpawner : MonoBehaviour
     [Header("Colours")]
     [SerializeField] private Color defaultMessageColor = Color.white;
     [SerializeField] private Color levelUpColor = new Color(0.35f, 0.8f, 1f, 1f);
+    [Tooltip("Gathering skill XP popup (+N xp) at the same world anchor as gold gains.")]
+    [SerializeField] private Color gatheringXpTextColor = new Color(0.35f, 0.72f, 1f, 1f);
 
     private Camera _cam;
     private readonly List<bool> _stackSlotBusy = new List<bool>();
     private Canvas _topPopupCanvas;
+    private bool _subscribedXpGained;
 
     private void OnEnable()
     {
@@ -43,11 +50,17 @@ public class GoldPopupSpawner : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
+        UnsubscribeGatheringXpPopups();
     }
 
     private void Awake()
     {
         Rebind();
+    }
+
+    private void Start()
+    {
+        TrySubscribeGatheringXpPopups();
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -77,6 +90,112 @@ public class GoldPopupSpawner : MonoBehaviour
         }
 
         EnsureTopPopupCanvas();
+        TrySubscribeGatheringXpPopups();
+    }
+
+    private static bool IsGatheringSkill(SkillType skill) =>
+        skill == SkillType.Mining || skill == SkillType.Woodcutting || skill == SkillType.Fishing;
+
+    private void TrySubscribeGatheringXpPopups()
+    {
+        if (_subscribedXpGained)
+            return;
+        if (SkillsManager.Instance == null)
+            return;
+
+        SkillsManager.Instance.OnXpGained += HandleGatheringXpGained;
+        _subscribedXpGained = true;
+    }
+
+    private void UnsubscribeGatheringXpPopups()
+    {
+        if (!_subscribedXpGained)
+            return;
+        if (SkillsManager.Instance != null)
+            SkillsManager.Instance.OnXpGained -= HandleGatheringXpGained;
+        _subscribedXpGained = false;
+    }
+
+    private void HandleGatheringXpGained(SkillType skill, int amount, string _)
+    {
+        if (amount <= 0 || !IsGatheringSkill(skill))
+            return;
+
+        ShowGatheringXpGained(amount);
+    }
+
+    /// <summary>World anchor = player + same base offset as gold + optional extra for XP; motion matches gold gains (rise + fade).</summary>
+    public void ShowGatheringXpGained(int amount)
+    {
+        if (amount <= 0)
+            return;
+
+        if (!popupPrefab)
+            return;
+
+        if (!canvas || !playerWorld)
+            Rebind();
+
+        if (!canvas || !playerWorld)
+            return;
+
+        SpawnGatheringXpPopupAtWorld(playerWorld.position + worldOffset + gatheringXpAnchorExtraWorld, amount);
+    }
+
+    private void SpawnGatheringXpPopupAtWorld(Vector3 worldPos, int amount)
+    {
+        if (amount <= 0 || !popupPrefab)
+            return;
+
+        Rebind();
+
+        Camera cam = ResolveWorldProjectionCamera();
+        if (!cam)
+            return;
+
+        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
+        Canvas targetCanvas = GetPopupTargetCanvas();
+        if (targetCanvas == null)
+            return;
+        RectTransform canvasRect = targetCanvas.transform as RectTransform;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRect, screenPos, GetRectEventCamera(targetCanvas), out Vector2 localPoint))
+            return;
+
+        int slot = AcquireStackSlot();
+        Vector2 stackedLocal = localPoint + Vector2.up * (slot * stackVerticalSpacing);
+        var popup = Instantiate(popupPrefab, targetCanvas.transform);
+        BringPopupToFront(popup);
+        popup.PlayLocalTextWithGoldGainMotion(stackedLocal, $"+{amount} xp", gatheringXpTextColor, () => ReleaseStackSlot(slot));
+    }
+
+    private void SpawnTextPopupAtWorld(Vector3 worldPos, string text, Color color)
+    {
+        if (string.IsNullOrWhiteSpace(text) || !popupPrefab)
+            return;
+
+        Rebind();
+
+        Camera cam = ResolveWorldProjectionCamera();
+        if (!cam)
+            return;
+
+        Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(cam, worldPos);
+        Canvas targetCanvas = GetPopupTargetCanvas();
+        if (targetCanvas == null)
+            return;
+        RectTransform canvasRect = targetCanvas.transform as RectTransform;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRect, screenPos, GetRectEventCamera(targetCanvas), out Vector2 localPoint))
+            return;
+
+        int slot = AcquireStackSlot();
+        Vector2 stackedLocal = localPoint + Vector2.up * (slot * stackVerticalSpacing);
+        var popup = Instantiate(popupPrefab, targetCanvas.transform);
+        BringPopupToFront(popup);
+        popup.PlayLocalText(stackedLocal, text, color, applyGoldStroke: false, () => ReleaseStackSlot(slot));
     }
 
     public void ShowGoldGained(int amount, string sourceLine = null)

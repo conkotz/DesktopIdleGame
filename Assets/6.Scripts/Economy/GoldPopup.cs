@@ -88,6 +88,13 @@ public class GoldPopup : MonoBehaviour
         PlayLocalTextCore(startAnchoredPos, text, color, applyGoldStroke, onComplete, useGoldLegacyFade: false);
     }
 
+    /// <summary>Same rise/fade timing and scale as <see cref="PlayLocal"/> gold gains, for custom text/color (e.g. gathering XP).</summary>
+    public void PlayLocalTextWithGoldGainMotion(Vector2 startAnchoredPos, string text, Color color, Action onComplete)
+    {
+        ConfigureSourceLine(null);
+        PlayLocalTextCore(startAnchoredPos, text, color, applyGoldStroke: false, onComplete, useGoldLegacyFade: true);
+    }
+
     private void PlayLocalTextCore(Vector2 startAnchoredPos, string text, Color color, bool applyGoldStroke, Action onComplete, bool useGoldLegacyFade)
     {
         _onComplete = onComplete;

@@ -34,7 +34,7 @@ MonoBehaviour:
   - itemId: cooked_pike
     costs:
     - type: 0
-      amount: 15
+      amount: 10
       itemId: 
     - type: 1
       amount: 1

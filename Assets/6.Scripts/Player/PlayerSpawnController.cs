@@ -104,7 +104,7 @@ public class PlayerSpawnController : MonoBehaviour
             loadedScene.name.Equals(GameplaySceneName, StringComparison.OrdinalIgnoreCase) &&
             levelLoadScreenFadeSeconds > 0.001f;
 
-        CanvasGroup loadFader = useScreenFade ? GetOrCreateLevelLoadFader() : null;
+        CanvasGroup loadFader = useScreenFade ? CreateOrResolveGameplayBlackFade() : null;
 
         try
         {
@@ -117,7 +117,7 @@ public class PlayerSpawnController : MonoBehaviour
             if (loadFader != null)
             {
                 loadFader.alpha = 1f;
-                BumpStripLevelLoadFaderToFront(loadFader);
+                BringGameplayBlackFadeToFront(loadFader);
             }
 
             var combat = GetComponent<PlayerCombatController>();
@@ -280,7 +280,7 @@ public class PlayerSpawnController : MonoBehaviour
 
             if (loadFader != null)
             {
-                BumpStripLevelLoadFaderToFront(loadFader);
+                BringGameplayBlackFadeToFront(loadFader);
                 if (levelLoadBlackHoldSeconds > 0f)
                     yield return new WaitForSecondsRealtime(levelLoadBlackHoldSeconds);
                 yield return FadeCanvasGroup(loadFader, 1f, 0f, levelLoadScreenFadeSeconds);
@@ -462,7 +462,11 @@ public class PlayerSpawnController : MonoBehaviour
         cg.alpha = to;
     }
 
-    private CanvasGroup GetOrCreateLevelLoadFader()
+    /// <summary>
+    /// Single black overlay for level-load spawn fade and death → respawn scene reload.
+    /// Prefers the strip viewport–constrained fade when <c>StripUICanvas</c> exists; otherwise full-screen overlay (same as legacy level load fallback).
+    /// </summary>
+    public static CanvasGroup CreateOrResolveGameplayBlackFade()
     {
         Canvas stripCanvas = TryResolveStripUiCanvas();
         if (stripCanvas != null)
@@ -605,7 +609,8 @@ public class PlayerSpawnController : MonoBehaviour
         return Mathf.Max(1, fullOrder - 100);
     }
 
-    private static void BumpStripLevelLoadFaderToFront(CanvasGroup loadFader)
+    /// <summary>Ensures strip-hosted black fade draws above strip HUD (same as level-load spawn).</summary>
+    public static void BringGameplayBlackFadeToFront(CanvasGroup loadFader)
     {
         if (!loadFader)
             return;

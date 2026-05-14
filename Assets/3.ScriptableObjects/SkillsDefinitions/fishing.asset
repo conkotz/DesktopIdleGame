@@ -37,22 +37,6 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
-  - requiredLevel: 1
-    title: Fish
-    description: Can catch fish
-    icon: {fileID: -1402613075, guid: 49e1f504ff2f8b54fa766b60aed2de28, type: 3}
-    unlockType: 5
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
   - requiredLevel: 2
     title: Fishing Speed 1
     description: +2% Fishing Speed
@@ -79,22 +63,6 @@ MonoBehaviour:
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 13
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 3
-    title: Perch
-    description: Can catch Perch
-    icon: {fileID: -4368617568662313061, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
-    unlockType: 5
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
@@ -857,6 +825,54 @@ MonoBehaviour:
     description: Placeholder capstone row for fishing.
     icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
     unlockType: 4
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 1
+    title: Fish
+    description: "Can catch fish in ponds \n-Common-"
+    icon: {fileID: -1402613075, guid: 49e1f504ff2f8b54fa766b60aed2de28, type: 3}
+    unlockType: 5
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 3
+    title: Perch
+    description: "Can catch perch in ponds \n-Common-"
+    icon: {fileID: -4368617568662313061, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
+    unlockType: 5
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 8
+    title: Pike
+    description: "Can catch Pike in ponds \n-Uncommon-"
+    icon: {fileID: -1286585359, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}
+    unlockType: 5
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0

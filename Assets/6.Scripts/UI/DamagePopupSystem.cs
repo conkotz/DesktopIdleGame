@@ -4,6 +4,9 @@ public class DamagePopupSystem : MonoBehaviour
 {
     public static DamagePopupSystem Instance { get; private set; }
 
+    /// <summary>Prefab used for numeric damage; also exposes ailment presentation colors for HP tint / status labels.</summary>
+    public FloatingDamageTextUI PopupPrefab => popupPrefab;
+
     [Header("Refs")]
     [Tooltip("Fallback / legacy. Popups are parented under a high-sort overlay canvas at runtime so they draw above full-screen HUD canvases.")]
     [SerializeField] private Canvas canvas;
@@ -166,6 +169,44 @@ public class DamagePopupSystem : MonoBehaviour
             floater.InitBlocked(direction);
         else
             floater.Init(amount, kind, isCrit, isDot, direction);
+    }
+
+    /// <summary>Floating status text (e.g. "Poisoned") using the same overlay canvas as damage numbers.</summary>
+    public void SpawnAilmentStatus(Vector3 worldPos, string message, Color color, Vector3 direction)
+    {
+        if (!_worldProjectionCamera)
+            ResolveProjectionCameras();
+
+        EnsureDamageFxCanvas();
+
+        RectTransform rectForMath = _popupParentRect ? _popupParentRect : canvasRect;
+        if (!popupPrefab || !rectForMath || !_worldProjectionCamera) return;
+
+        Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(worldPos);
+
+        Canvas fxCanvas = rectForMath.GetComponent<Canvas>();
+        Camera eventCam = fxCanvas && fxCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? _rectTransformEventCamera
+            : null;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                rectForMath, screenPos, eventCam, out _))
+            return;
+
+        float xJitter = Random.Range(-popupXJitter, popupXJitter);
+        float yOffset = (_popupSpawnIndex % Mathf.Max(1, popupYOffsetCycle)) * popupYOffsetStep;
+        _popupSpawnIndex++;
+
+        var go = Instantiate(popupPrefab, rectForMath);
+        var floater = go.GetComponent<FloatingDamageTextUI>();
+        if (!floater)
+        {
+            Destroy(go);
+            return;
+        }
+
+        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, yOffset), _worldProjectionCamera, rectForMath, eventCam);
+        floater.InitAilmentStatus(message, color, direction);
     }
 
     public void Spawn(Vector3 worldPos, int amount, bool isCrit, Vector3 direction, bool blocked)

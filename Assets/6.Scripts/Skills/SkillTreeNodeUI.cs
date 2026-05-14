@@ -59,14 +59,6 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     [FormerlySerializedAs("capstoneColor")]
     [SerializeField] private Color capstonePassiveColor = new Color(0.58f, 0.32f, 0.76f);
 
-    [Header("Minor node interaction")]
-    [Tooltip(
-        "Minor Passive / Minor Unlock: icon rect (and hover hitbox when unlocked) is this fraction of the inner fill. " +
-        "Smaller = tighter hover around the gem, less overlap with nodes above or beside.")]
-    [SerializeField]
-    [Range(0.15f, 1f)]
-    private float minorNodeIconBoxScale = 0.48f;
-
     [Header("Sizes")]
     /// <summary>Multiplier for <see cref="GetVisualSize"/>; layout code should scale serialized gaps via the same value.</summary>
     public const float NodeVisualScale = 1.5f;
@@ -549,9 +541,8 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     }
 
     /// <summary>
-    /// Match the invisible <see cref="Button"/> rect to the hover target: inner fill for most nodes;
-    /// for unlocked Minor Passive / Minor Unlock, the shrunken <see cref="iconImage"/> box so the black
-    /// padding does not steal hover from neighbouring nodes (full fill when locked so the whole tile still tooltips).
+    /// Match the invisible <see cref="Button"/> rect to the inner <see cref="fillImage"/> box so hover/tooltips
+    /// do not use the full root padding. Decorative images do not enlarge the hit area.
     /// </summary>
     private void SyncButtonHitAndRaycasts()
     {
@@ -563,37 +554,11 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
             return;
 
         RectTransform fillRt = fillImage.rectTransform;
-        bool tightMinorHover =
-            !isLocked &&
-            (appliedVisualType == SkillTreeNodeVisualType.MinorPassive ||
-             appliedVisualType == SkillTreeNodeVisualType.MinorUnlock);
-
-        if (tightMinorHover && iconImage != null && iconImage.gameObject.activeSelf)
-        {
-            RectTransform iconRt = iconImage.rectTransform;
-            btnRt.anchorMin = iconRt.anchorMin;
-            btnRt.anchorMax = iconRt.anchorMax;
-            btnRt.pivot = iconRt.pivot;
-            btnRt.anchoredPosition = iconRt.anchoredPosition;
-            btnRt.sizeDelta = iconRt.sizeDelta;
-        }
-        else if (tightMinorHover)
-        {
-            float s = Mathf.Clamp(minorNodeIconBoxScale, 0.15f, 1f);
-            btnRt.anchorMin = fillRt.anchorMin;
-            btnRt.anchorMax = fillRt.anchorMax;
-            btnRt.pivot = fillRt.pivot;
-            btnRt.anchoredPosition = fillRt.anchoredPosition;
-            btnRt.sizeDelta = fillRt.sizeDelta * s;
-        }
-        else
-        {
-            btnRt.anchorMin = fillRt.anchorMin;
-            btnRt.anchorMax = fillRt.anchorMax;
-            btnRt.pivot = fillRt.pivot;
-            btnRt.anchoredPosition = fillRt.anchoredPosition;
-            btnRt.sizeDelta = fillRt.sizeDelta;
-        }
+        btnRt.anchorMin = fillRt.anchorMin;
+        btnRt.anchorMax = fillRt.anchorMax;
+        btnRt.pivot = fillRt.pivot;
+        btnRt.anchoredPosition = fillRt.anchoredPosition;
+        btnRt.sizeDelta = fillRt.sizeDelta;
 
         fillImage.raycastTarget = false;
         if (iconImage != null)
@@ -666,14 +631,20 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         iconRt.anchoredPosition = Vector2.zero;
 
         Vector2 baseSize = fillImage != null ? fillImage.rectTransform.sizeDelta : RectTransform.sizeDelta;
-        float boxScale = 1f;
-        if (appliedVisualType == SkillTreeNodeVisualType.MinorPassive ||
-            appliedVisualType == SkillTreeNodeVisualType.MinorUnlock)
-            boxScale = Mathf.Clamp(minorNodeIconBoxScale, 0.15f, 1f);
-
-        // Milestone nodes: full inner box. Minor nodes: smaller box so the gem reads in the padding and hover matches.
-        iconRt.sizeDelta = baseSize * boxScale;
-        iconImage.preserveAspect = true;
+        // Full inner fill size so prefab/scene serialized overrides cannot shrink ability icons.
+        if (appliedVisualType == SkillTreeNodeVisualType.MinorUnlock)
+        {
+            const float minorUnlockIconScale = 0.78f;
+            iconRt.sizeDelta = baseSize * minorUnlockIconScale;
+            iconImage.preserveAspect = true;
+        }
+        else
+        {
+            iconRt.sizeDelta = baseSize;
+            // Minor passive spine gems: fill the tile (non-square sprites stretch slightly instead of letterboxing).
+            bool minorPassive = appliedVisualType == SkillTreeNodeVisualType.MinorPassive;
+            iconImage.preserveAspect = !minorPassive;
+        }
     }
 
     private void RefreshSelectionChrome()

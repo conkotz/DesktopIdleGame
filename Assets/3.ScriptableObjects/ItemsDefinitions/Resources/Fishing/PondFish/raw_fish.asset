@@ -178,7 +178,7 @@ MonoBehaviour:
     cursed: 0
     allowedGearTypes: 0
   cookableStats:
-    isCookable: 1
+    isCookable: 0
     cookedResultItemId: 
     cookedResultAmount: 1
     requiredCookingLevel: 0

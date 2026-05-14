@@ -2031,6 +2031,9 @@ public class SkillTreeViewUI : MonoBehaviour
             return false;
         if (skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, spineNodeId, -1) >= 0)
             return false;
+        int playerSkillLevel = skillsManager.GetLevel(selectedSkill.skillType);
+        if (playerSkillLevel < row.level)
+            return false;
         return ShouldExposeChoicesForMultiAbilityParent(spineNodeId, row.level);
     }
 
@@ -2071,6 +2074,8 @@ public class SkillTreeViewUI : MonoBehaviour
 
         PreferRuntimeSkillsManager();
         if (selectedSkill == null || skillsManager == null)
+            return;
+        if (skillsManager.GetLevel(selectedSkill.skillType) < row.level)
             return;
         if (skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, spineNodeId, -1) >= 0)
             return;

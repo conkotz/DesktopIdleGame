@@ -739,6 +739,7 @@ public struct EnhancementScrollStats
 public struct CookableStats
 {
     [Header("Cooking")]
+    [Tooltip("When enabled, this item can be processed by the cooking system (configure result fields below).")]
     public bool isCookable;
 
     [Tooltip("Item ID this becomes after cooking.")]

@@ -52,6 +52,11 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField] private Color poisonColor = new Color32(85, 200, 90, 255);
     [SerializeField] private Color blockColor = new Color32(80, 170, 255, 255);
 
+    [Header("Ailment presentation (HP tint + first-apply status popups)")]
+    [SerializeField] private Color burnPresentationColor = new Color32(255, 140, 40, 255);
+    [SerializeField] private Color shockPresentationColor = new Color32(255, 190, 70, 255);
+    [SerializeField] private Color chillPresentationColor = new Color32(90, 160, 255, 255);
+
     private float _baseFontSize;
     private Coroutine _run;
 
@@ -63,6 +68,12 @@ public class FloatingDamageTextUI : MonoBehaviour
     private Camera _overlayEventCam;
 
     private bool HasWorldFollow => _parentRect != null && _worldCam != null;
+
+    public Color PoisonDamageColor => poisonColor;
+    public Color BleedDamageColor => bleedColor;
+    public Color BurnPresentationColor => burnPresentationColor;
+    public Color ShockPresentationColor => shockPresentationColor;
+    public Color ChillPresentationColor => chillPresentationColor;
 
     private void Awake()
     {
@@ -136,6 +147,22 @@ public class FloatingDamageTextUI : MonoBehaviour
 
         if (_run != null) StopCoroutine(_run);
         _run = StartCoroutine(Run(dir, visibleSeconds + fadeOutSeconds));
+    }
+
+    /// <summary>Short floating label (e.g. first application of an ailment). Uses the same motion as blocked/immune.</summary>
+    public void InitAilmentStatus(string message, Color color, Vector3 worldDirection)
+    {
+        if (!text) return;
+
+        text.text = message;
+        text.color = color;
+        text.fontSize = _baseFontSize;
+
+        Vector2 dir = BuildDirection(worldDirection);
+
+        if (_run != null) StopCoroutine(_run);
+        float life = visibleSeconds + fadeOutSeconds;
+        _run = StartCoroutine(Run(dir, life));
     }
 
     private Color GetDisplayColor(PopupDamageKind kind, bool isCrit)

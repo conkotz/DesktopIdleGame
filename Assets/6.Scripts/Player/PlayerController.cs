@@ -3653,9 +3653,10 @@ public class PlayerController : MonoBehaviour
 
     private IEnumerator CoFadeAndRespawnToTown()
     {
-        CanvasGroup fader = CreateRuntimeSceneFader();
+        CanvasGroup fader = PlayerSpawnController.CreateOrResolveGameplayBlackFade();
         if (fader != null)
         {
+            PlayerSpawnController.BringGameplayBlackFadeToFront(fader);
             fader.alpha = 0f;
             float t = 0f;
             float dur = Mathf.Max(0.01f, deathRespawnFadeSeconds);
@@ -3764,37 +3765,6 @@ public class PlayerController : MonoBehaviour
 
         return null;
     }
-
-    private static CanvasGroup CreateRuntimeSceneFader()
-    {
-        GameObject go = new GameObject("DeathRespawnFader", typeof(Canvas), typeof(CanvasGroup), typeof(Image));
-        Canvas canvas = go.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = short.MaxValue;
-
-        CanvasGroup cg = go.GetComponent<CanvasGroup>();
-        cg.interactable = false;
-        cg.blocksRaycasts = false;
-
-        Image img = go.GetComponent<Image>();
-        img.color = Color.black;
-        img.raycastTarget = false;
-
-        RectTransform rt = go.transform as RectTransform;
-        if (rt != null)
-        {
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-        }
-
-        return cg;
-    }
-
-
-   
-
 
     private float ApplyMitigation(float rawDamage, DamageType type, out bool blocked)
     {

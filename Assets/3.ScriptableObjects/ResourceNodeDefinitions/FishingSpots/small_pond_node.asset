@@ -27,6 +27,10 @@ MonoBehaviour:
     itemRequiredLevel: 3
     chancePercent: 30
     xpPerTick: 6
+  - item: {fileID: 11400000, guid: 58fab80df1dca2a49bb37bede0aa1eea, type: 2}
+    itemRequiredLevel: 8
+    chancePercent: 20
+    xpPerTick: 9
   minInterval: 6
   maxInterval: 13
   bonusDrops:

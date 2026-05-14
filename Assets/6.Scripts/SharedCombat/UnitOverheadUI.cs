@@ -30,7 +30,7 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField, Min(0.05f)] private float debuffIconScale = 1f;
 
     [Header("Colors")]
-    [Tooltip("Applied only to enemy overhead HP bars. Player overhead bars keep their prefab color.")]
+    [Tooltip("Enemy overhead HP fill tint. Player overhead uses prefab fill until an ailment overrides it (see code).")]
     [SerializeField] private Color enemyHpFillColor = new(1f, 0.42f, 0.2f, 1f);
 
     [Header("Debuff Sprites")]
@@ -92,6 +92,14 @@ public class UnitOverheadUI : MonoBehaviour
     private bool _vitalsVisible = true;
     private PlayerCombatState _playerCombatState;
 
+    private Color _playerHpFillCapturedBase = Color.white;
+    private bool _playerHpFillBaseCaptured;
+    private bool _wasPoisonForStatusPopup;
+    private bool _wasBleedForStatusPopup;
+    private bool _wasBurnForStatusPopup;
+    private bool _wasShockForStatusPopup;
+    private bool _wasChillForStatusPopup;
+
     /// <summary>True when the follow target is in the strip camera band this frame; used for overlap stacking (same idea as when the whole object was deactivated off-screen).</summary>
     private bool _worldBandVisible;
 
@@ -123,6 +131,7 @@ public class UnitOverheadUI : MonoBehaviour
         SliderSettingsStore.Changed -= HandleSliderSettingsChanged;
         s_instances.Remove(this);
         Unsubscribe();
+        ResetPlayerAilmentStatusPopupLatches();
     }
 
     private void LateUpdate()
@@ -133,6 +142,8 @@ public class UnitOverheadUI : MonoBehaviour
             ApplyDirectPosition();
         else
             ApplyStackedPosition();
+
+        EnsurePlayerOverheadDrawsAboveEnemyOverheads();
     }
 
     public void Bind(
@@ -155,6 +166,19 @@ public class UnitOverheadUI : MonoBehaviour
         canvasRect = canvas ? canvas.transform as RectTransform : null;
         _hpBarOnlyLayout = hpBarOnly;
         ResolvePlayerCombatState();
+
+        ResetPlayerAilmentStatusPopupLatches();
+        bool isPlayerOverhead =
+            stats != null &&
+            enemyController == null &&
+            stats.GetComponentInParent<PlayerController>() != null;
+        if (hpFill != null && isPlayerOverhead)
+        {
+            _playerHpFillCapturedBase = hpFill.color;
+            _playerHpFillBaseCaptured = true;
+        }
+        else
+            _playerHpFillBaseCaptured = false;
 
         ApplyHpBarOnlyVisuals();
         Subscribe();
@@ -357,6 +381,38 @@ public class UnitOverheadUI : MonoBehaviour
     private static bool IsFixedPlayerBaseline(UnitOverheadUI ui)
     {
         return ui != null && ui._hpBarOnlyLayout && ui.enemy == null;
+    }
+
+    /// <summary>
+    /// Player overheads share the strip canvas with enemies. Keep the player instance later in the sibling list so it
+    /// draws on top when overlapping (enemy UI otherwise wins by spawn order).
+    /// </summary>
+    private void EnsurePlayerOverheadDrawsAboveEnemyOverheads()
+    {
+        if (enemy != null || !gameObject.activeSelf)
+            return;
+        if (characterStats == null || characterStats.GetComponentInParent<PlayerController>() == null)
+            return;
+        if (parentCanvas == null)
+            return;
+
+        Transform strip = parentCanvas.transform;
+        int lastEnemyOverheadSibling = -1;
+        for (int i = 0; i < strip.childCount; i++)
+        {
+            UnitOverheadUI childUi = strip.GetChild(i).GetComponent<UnitOverheadUI>();
+            if (childUi != null && childUi.enemy != null)
+                lastEnemyOverheadSibling = i;
+        }
+
+        if (lastEnemyOverheadSibling < 0)
+            return;
+
+        int want = lastEnemyOverheadSibling + 1;
+        // Overhead instances are parented to the strip canvas (see EnemyOverheadUISpawner); sibling order is on this transform.
+        int cur = transform.GetSiblingIndex();
+        if (cur < want)
+            transform.SetSiblingIndex(want);
     }
 
     private bool ShouldUseOverlapStacking()
@@ -858,13 +914,139 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void ApplyHpFillColorByOwner()
     {
-        if (hpFill == null || enemy == null)
+        if (hpFill == null)
             return;
-        hpFill.color = enemyHpFillColor;
+
+        if (enemy != null)
+        {
+            hpFill.color = enemyHpFillColor;
+            return;
+        }
+
+        // Player: tint is driven by ailments in RefreshPlayerOverheadAilmentPresentation().
+        if (characterStats != null)
+            RefreshPlayerOverheadAilmentPresentation();
+    }
+
+    private void ResetPlayerAilmentStatusPopupLatches()
+    {
+        _wasPoisonForStatusPopup = false;
+        _wasBleedForStatusPopup = false;
+        _wasBurnForStatusPopup = false;
+        _wasShockForStatusPopup = false;
+        _wasChillForStatusPopup = false;
+    }
+
+    private static void GetAilmentPresentationColors(
+        out Color poison,
+        out Color bleed,
+        out Color burn,
+        out Color shock,
+        out Color chill)
+    {
+        poison = new Color32(85, 200, 90, 255);
+        bleed = new Color32(170, 35, 35, 255);
+        burn = new Color32(255, 140, 40, 255);
+        shock = new Color32(255, 190, 70, 255);
+        chill = new Color32(90, 160, 255, 255);
+
+        FloatingDamageTextUI p = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
+        if (p == null)
+            return;
+
+        poison = p.PoisonDamageColor;
+        bleed = p.BleedDamageColor;
+        burn = p.BurnPresentationColor;
+        shock = p.ShockPresentationColor;
+        chill = p.ChillPresentationColor;
+    }
+
+    private void RefreshPlayerOverheadAilmentPresentation()
+    {
+        if (hpFill == null || enemy != null || characterStats == null)
+            return;
+
+        if (characterStats.GetComponentInParent<PlayerController>() == null)
+            return;
+
+        GetAilmentPresentationColors(
+            out Color poisonColor,
+            out Color bleedColor,
+            out Color burnColor,
+            out Color shockColor,
+            out Color chillColor);
+
+        Color fill = _playerHpFillBaseCaptured ? _playerHpFillCapturedBase : hpFill.color;
+        if (ailments != null)
+        {
+            if (ailments.HasPoison)
+                fill = poisonColor;
+            else if (ailments.HasBleed)
+                fill = bleedColor;
+            else if (ailments.HasBurn)
+                fill = burnColor;
+            else if (ailments.HasShock)
+                fill = shockColor;
+            else if (ailments.HasChill)
+                fill = chillColor;
+        }
+
+        hpFill.color = fill;
+
+        if (ailments == null || DamagePopupSystem.Instance == null)
+            return;
+
+        TryPlayPlayerAilmentStatusAcquisition(
+            poisonColor,
+            bleedColor,
+            burnColor,
+            shockColor,
+            chillColor);
+    }
+
+    private void TryPlayPlayerAilmentStatusAcquisition(
+        Color poisonColor,
+        Color bleedColor,
+        Color burnColor,
+        Color shockColor,
+        Color chillColor)
+    {
+        Transform victim = followTarget != null ? followTarget : characterStats.transform;
+        PlayerController pc = characterStats.GetComponentInParent<PlayerController>();
+        DamagePopupAnchor anchor = victim.GetComponentInChildren<DamagePopupAnchor>(true);
+        Vector3 anchorPos = anchor ? anchor.WorldPos : victim.position;
+
+        void SpawnIfAcquired(bool activeNow, ref bool wasActive, string message, Color color)
+        {
+            if (activeNow && !wasActive)
+            {
+                Vector3 pos;
+                Vector3 dir;
+                if (pc != null)
+                    pc.GetIncomingDamagePopupPlacement(anchorPos, null, 0.35f, out pos, out dir);
+                else
+                {
+                    pos = anchorPos + Vector3.up * 0.6f;
+                    dir = Vector3.up;
+                }
+
+                DamagePopupSystem.Instance.SpawnAilmentStatus(pos, message, color, dir);
+            }
+
+            wasActive = activeNow;
+        }
+
+        SpawnIfAcquired(ailments.HasPoison, ref _wasPoisonForStatusPopup, "Poisoned", poisonColor);
+        SpawnIfAcquired(ailments.HasBleed, ref _wasBleedForStatusPopup, "bleeding", bleedColor);
+        SpawnIfAcquired(ailments.HasBurn, ref _wasBurnForStatusPopup, "Burnt", burnColor);
+        SpawnIfAcquired(ailments.HasShock, ref _wasShockForStatusPopup, "Shocked", shockColor);
+        SpawnIfAcquired(ailments.HasChill, ref _wasChillForStatusPopup, "Chilled", chillColor);
     }
 
     public void RefreshDebuffIcons()
     {
+        RefreshPlayerOverheadAilmentPresentation();
+
         ClearDebuffIcons();
 
         if (_hpBarOnlyLayout)

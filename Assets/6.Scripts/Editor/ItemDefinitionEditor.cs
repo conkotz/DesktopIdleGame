@@ -312,7 +312,7 @@ public class ItemDefinitionEditor : Editor
             DrawBonusBlockIfPresent("Bonus Stats", show: false);
         }
 
-        if (kind == ItemKind.Consumable)
+        if (kind == ItemKind.Resource || kind == ItemKind.Consumable)
             DrawCookableStatsBlock();
 
         serializedObject.ApplyModifiedProperties();
@@ -1035,13 +1035,17 @@ public class ItemDefinitionEditor : Editor
             return;
         }
 
+        EditorGUILayout.LabelField("Cooking", EditorStyles.boldLabel);
+
         SerializedProperty isCookable = cookableStats.FindPropertyRelative("isCookable");
         SerializedProperty cookedResultItemId = cookableStats.FindPropertyRelative("cookedResultItemId");
         SerializedProperty cookedResultAmount = cookableStats.FindPropertyRelative("cookedResultAmount");
         SerializedProperty requiredCookingLevel = cookableStats.FindPropertyRelative("requiredCookingLevel");
         SerializedProperty cookingXp = cookableStats.FindPropertyRelative("cookingXp");
 
-        EditorGUILayout.PropertyField(isCookable);
+        EditorGUILayout.PropertyField(
+            isCookable,
+            new GUIContent("Is Cookable", isCookable != null ? isCookable.tooltip : null));
 
         if (isCookable != null && isCookable.boolValue)
         {

@@ -1049,6 +1049,7 @@ public class SaveManager : MonoBehaviour
 
     private static void DestroyDeathRespawnFullScreenFaderIfAny()
     {
+        // Legacy: older builds used a dedicated full-screen "DeathRespawnFader". Death now shares strip/overlay fade from PlayerSpawnController.
         GameObject fader = GameObject.Find("DeathRespawnFader");
         if (fader != null)
             UnityEngine.Object.Destroy(fader);
