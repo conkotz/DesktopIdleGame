@@ -15,7 +15,7 @@ MonoBehaviour:
   abilityId: soulforged_weapon
   displayName: Soulforged Weapon
   tag: 2
-  tooltipBuffMinionDurationSeconds: 20
+  tooltipBuffMinionDurationSeconds: 0
   presentation: {fileID: 11400000, guid: 0e3eef73791f450096880e82bf6cb7e0, type: 2}
   cooldown: 45
   energyCost: 10
