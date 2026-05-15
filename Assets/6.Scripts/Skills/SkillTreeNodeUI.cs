@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -42,6 +43,8 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     [SerializeField] private Button button;
     [Tooltip("Opens the enhancement choice branch for eligible nodes (wired by SkillTreeViewUI).")]
     [SerializeField] private Button enhanceButton;
+    [Tooltip("Shown when the player meets the level gate but has not committed this row’s pick / enhancement (driven by SkillTreeViewUI).")]
+    [SerializeField] private GameObject notSelectedRoot;
     [SerializeField] private Color selectedOutlineColor = new Color(1f, 0.84f, 0.2f, 1f);
     [SerializeField] private float selectedBorderThickness = 4f;
     [SerializeField] private float selectedGlowPaddingCompensation = 4f;
@@ -101,6 +104,13 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     private bool _useColoredFillBackground = true;
     private UIPulseGlowOverlay _unlockGlow;
 
+    private const float NotSelectedFadeSeconds = 0.35f;
+    private const float NotSelectedHoldOpaqueSeconds = 2f;
+    private CanvasGroup _notSelectedCanvasGroup;
+    private Image _notSelectedImage;
+    private Color _notSelectedImageBaseColor = Color.white;
+    private Coroutine _notSelectedFlashRoutine;
+
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
 
     public void ShowUnlockGlow()
@@ -129,6 +139,111 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
 
         if (outerRingImage != null)
             _unlockedRingColor = outerRingImage.color;
+
+        CacheNotSelectedVisualDriver();
+    }
+
+    private void OnDisable()
+    {
+        SetNotSelectedPrompt(false);
+    }
+
+    private void CacheNotSelectedVisualDriver()
+    {
+        if (notSelectedRoot == null)
+            return;
+
+        _notSelectedCanvasGroup = notSelectedRoot.GetComponent<CanvasGroup>();
+        _notSelectedImage = notSelectedRoot.GetComponent<Image>();
+        if (_notSelectedImage != null)
+        {
+            _notSelectedImageBaseColor = _notSelectedImage.color;
+            _notSelectedImage.raycastTarget = false;
+        }
+    }
+
+    /// <summary>
+    /// Skill tree: pulse the optional <see cref="notSelectedRoot"/> while <paramref name="show"/> is true (alpha 0 → 1, hold, fade out, repeat).
+    /// </summary>
+    public void SetNotSelectedPrompt(bool show)
+    {
+        if (!show)
+        {
+            if (_notSelectedFlashRoutine != null)
+            {
+                StopCoroutine(_notSelectedFlashRoutine);
+                _notSelectedFlashRoutine = null;
+            }
+
+            ApplyNotSelectedAlpha(0f);
+            if (notSelectedRoot != null)
+                notSelectedRoot.SetActive(false);
+            return;
+        }
+
+        if (notSelectedRoot == null)
+            return;
+
+        if (_notSelectedCanvasGroup == null && _notSelectedImage == null)
+            CacheNotSelectedVisualDriver();
+        if (_notSelectedCanvasGroup == null && _notSelectedImage == null)
+            return;
+
+        notSelectedRoot.SetActive(true);
+        if (_notSelectedFlashRoutine == null)
+            _notSelectedFlashRoutine = StartCoroutine(NotSelectedFlashLoop());
+    }
+
+    private void ApplyNotSelectedAlpha(float a)
+    {
+        a = Mathf.Clamp01(a);
+        if (_notSelectedCanvasGroup != null)
+            _notSelectedCanvasGroup.alpha = a;
+        else if (_notSelectedImage != null)
+        {
+            Color c = _notSelectedImageBaseColor;
+            c.a = a * _notSelectedImageBaseColor.a;
+            _notSelectedImage.color = c;
+        }
+    }
+
+    private IEnumerator NotSelectedFlashLoop()
+    {
+        ApplyNotSelectedAlpha(0f);
+
+        while (true)
+        {
+            yield return FadeNotSelectedAlpha(0f, 1f, NotSelectedFadeSeconds);
+            float hold = 0f;
+            while (hold < NotSelectedHoldOpaqueSeconds)
+            {
+                hold += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            yield return FadeNotSelectedAlpha(1f, 0f, NotSelectedFadeSeconds);
+            yield return null;
+        }
+    }
+
+    private IEnumerator FadeNotSelectedAlpha(float from, float to, float duration)
+    {
+        if (duration <= 0.0001f)
+        {
+            ApplyNotSelectedAlpha(to);
+            yield break;
+        }
+
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / duration);
+            ApplyNotSelectedAlpha(Mathf.Lerp(from, to, u));
+            yield return null;
+        }
+
+        ApplyNotSelectedAlpha(to);
     }
 
     /// <summary>

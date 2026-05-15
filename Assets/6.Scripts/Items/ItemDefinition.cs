@@ -183,7 +183,7 @@ public struct WeaponStats
     public CombatSupportType requiredSupportType;
 
     [Header("Equipment Tier")]
-    [Tooltip("Shown as Tier 1–3; gate uses Attack Skill (Melee/Ranged/Magic) at L1 / L20 / L40.")]
+    [Tooltip("Shown as Tier 1–5; gate uses Attack Skill (Melee/Ranged/Magic) at L1 / L10 / L20 / L30 / L50.")]
     public EquipmentTierRank equipmentTier;
 
 }
@@ -244,7 +244,7 @@ public struct ToolStats
     public ToolType toolType;
 
     [Header("Equipment Tier")]
-    [Tooltip("Shown as Tier 1–3; gate is Woodcutting / Mining / Fishing by tool type at L1 / L20 / L40. Default Tier1 (enum 0).")]
+    [Tooltip("Shown as Tier 1–5; gate is Woodcutting / Mining / Fishing by tool type at L1 / L10 / L20 / L30 / L50. Default Tier1 (enum 0).")]
     public EquipmentTierRank equipmentTier;
 
     [Header("Gathering Speed")]
@@ -269,7 +269,7 @@ public struct ToolStats
 public struct ArmorStats
 {
     [Header("Equipment Tier")]
-    [Tooltip("Shown as Tier 1–3; future gate uses Endurance at L1 / L20 / L40.")]
+    [Tooltip("Shown as Tier 1–5; gate uses Endurance at L1 / L10 / L20 / L30 / L50.")]
     public EquipmentTierRank equipmentTier;
 
     [Header("Defence")]

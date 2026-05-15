@@ -600,7 +600,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6571173242894900460
 RectTransform:
   m_ObjectHideFlags: 0
@@ -732,6 +732,7 @@ MonoBehaviour:
   activeBuffOverlayTimeText: {fileID: 0}
   button: {fileID: 1358460105655363396}
   enhanceButton: {fileID: 1020117043476905417}
+  notSelectedRoot: {fileID: 4105890626785710634}
   selectedOutlineColor: {r: 1, g: 0.92, b: 0.35, a: 1}
   selectedBorderThickness: 8
   selectedGlowPaddingCompensation: 8

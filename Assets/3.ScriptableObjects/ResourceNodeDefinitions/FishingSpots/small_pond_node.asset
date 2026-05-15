@@ -22,15 +22,15 @@ MonoBehaviour:
   - item: {fileID: 11400000, guid: 26d3cf45f31e7c14fafe1948c442cd0e, type: 2}
     itemRequiredLevel: 1
     chancePercent: 70
-    xpPerTick: 4
+    xpPerTick: 10
   - item: {fileID: 11400000, guid: 88d5d0f7e3e9a8f48b31e28a9b9b66a4, type: 2}
     itemRequiredLevel: 3
     chancePercent: 50
-    xpPerTick: 6
+    xpPerTick: 14
   - item: {fileID: 11400000, guid: 58fab80df1dca2a49bb37bede0aa1eea, type: 2}
     itemRequiredLevel: 10
     chancePercent: 30
-    xpPerTick: 10
+    xpPerTick: 20
   minInterval: 6
   maxInterval: 13
   bonusDrops:

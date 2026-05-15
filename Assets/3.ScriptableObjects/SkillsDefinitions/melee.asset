@@ -636,13 +636,13 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices:
-    - requiredLevel: 30
+    - requiredLevel: 28
       title: Ability III Choice A
       description: Placeholder melee choice.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
-    - requiredLevel: 30
+    - requiredLevel: 28
       title: Ability III Choice B
       description: Placeholder melee choice.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
@@ -822,7 +822,7 @@ MonoBehaviour:
     ability: {fileID: 11400000, guid: f8a7b6c5d4e3f2109a8b7c6d5e4f3021, type: 2}
     presentation: {fileID: 0}
     choices:
-    - requiredLevel: 40
+    - requiredLevel: 38
       title: Swarm
       description: Summon 3 Soulforged Weapons for 20 seconds. Each weapon inherits
         the original summon scaling, then further reduces inherited damage by 25%.
@@ -831,7 +831,7 @@ MonoBehaviour:
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
-    - requiredLevel: 40
+    - requiredLevel: 38
       title: Indefinite
       description: 'Soulforged Weapon persists indefinitely, keeping its original
         behavior. '

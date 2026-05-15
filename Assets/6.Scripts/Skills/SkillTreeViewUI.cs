@@ -28,7 +28,7 @@ public class SkillTreeViewUI : MonoBehaviour
     [SerializeField] private SkillsManager skillsManager;
     [Tooltip("Optional; found at runtime if unset. Used for ability cooldown overlay and input lock.")]
     [SerializeField] private PlayerAbilityController abilityController;
-    [Tooltip("Optional one-line hint: Tier 1/2/3 gates at skill L1 / L20 / L40. Leave empty to hide.")]
+    [Tooltip("Optional one-line hint: Tier 1–5 gates at skill L1 / L10 / L20 / L30 / L50. Leave empty to hide.")]
     [SerializeField] private TMP_Text equipmentTierHint;
     [Tooltip("When true, stop rendering rows after the first invalid/missing unlock row.")]
     [SerializeField] private bool stopAfterFirstMissingUnlock = true;
@@ -832,14 +832,13 @@ public class SkillTreeViewUI : MonoBehaviour
                 spawnedLevelLabels.Add(t);
             }
 
-            string tierCaption = TierRowCaptionForSkillLevel(tierLevel);
+            string tierCaption = BuildTierRowCaptionForRowSpan(rows, tierStart, idx);
             if (levelTierRowLabelPrefab != null && !string.IsNullOrEmpty(tierCaption))
             {
                 RectTransform tierParent = ResolveLevelTierRowLabelParent();
                 if (tierParent != null)
                 {
                     var tr = Instantiate(levelTierRowLabelPrefab, tierParent);
-                    tr.text = tierCaption;
                     tr.alignment = TextAlignmentOptions.MidlineRight;
 
                     RectTransform rtt = tr.rectTransform;
@@ -849,6 +848,7 @@ public class SkillTreeViewUI : MonoBehaviour
                     float tierY = ResolveTierLabelAnchoredY(tierParent, layoutRowY[labelIndex]);
                     float inset = Mathf.Max(0f, levelTierLabelRightInset) + Mathf.Max(0f, levelTierLabelExtraRightPaddingPx);
                     rtt.anchoredPosition = new Vector2(-inset, tierY);
+                    ApplyTierRowLabelPreferredHeight(tr, tierCaption);
                     spawnedTierRowLabels.Add(tr);
                 }
             }
@@ -885,54 +885,84 @@ public class SkillTreeViewUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Display names for the right-side tier row labels.
-    /// Combat skills keep the existing mapping; gathering skills (woodcutting/fishing/mining) use the authored schedule.
+    /// Right-side tier caption: unique spine types on this skill level row (order preserved), excluding minor passives only.
     /// </summary>
-    private string TierRowCaptionForSkillLevel(int level)
+    private static string BuildTierRowCaptionForRowSpan(List<RowDef> rows, int tierStart, int tierEndExclusive)
     {
-        bool isGatheringSkill = selectedSkill != null &&
-            (selectedSkill.skillType == SkillType.Woodcutting ||
-             selectedSkill.skillType == SkillType.Fishing ||
-             selectedSkill.skillType == SkillType.Mining);
+        if (rows == null || tierStart < 0 || tierEndExclusive > rows.Count || tierStart >= tierEndExclusive)
+            return string.Empty;
 
-        if (isGatheringSkill)
+        var order = new List<SkillTreeNodeVisualType>();
+        for (int i = tierStart; i < tierEndExclusive; i++)
         {
-            if (selectedSkill != null && selectedSkill.skillType == SkillType.Fishing)
+            SkillTreeNodeVisualType t = rows[i].type;
+            if (t == SkillTreeNodeVisualType.MinorPassive)
+                continue;
+
+            bool dup = false;
+            for (int o = 0; o < order.Count; o++)
             {
-                return level switch
+                if (order[o] == t)
                 {
-                    1 => "Unlock",
-                    5 => "Ability",
-                    15 or 35 or 45 => "Major Passive",
-                    25 => "Ability",
-                    50 => "Capstone",
-                    _ => ""
-                };
+                    dup = true;
+                    break;
+                }
             }
 
-            return level switch
-            {
-                1 => "Unlock",
-                5 => "Ability",
-                10 or 30 => "",
-                20 or 40 => "Unlock",
-                15 => "Major Passive",
-                25 => "Ability",
-                35 => "Major Passive",
-                45 => "Ability",
-                50 => "Capstone",
-                _ => ""
-            };
+            if (!dup)
+                order.Add(t);
         }
 
-        return level switch
+        if (order.Count == 0)
+            return string.Empty;
+
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < order.Count; i++)
         {
-            1 => "Unlock",
-            5 or 15 or 25 or 35 or 45 => "Ability",
-            10 or 20 or 30 or 40 => "Major Passive",
-            50 => "Capstone",
-            _ => ""
-        };
+            if (i > 0)
+                sb.Append(" / ");
+            sb.Append(TypeLabel(order[i]));
+        }
+
+        return sb.ToString();
+    }
+
+    private static bool TierRowContainsType(List<RowDef> rows, int level, SkillTreeNodeVisualType match)
+    {
+        if (rows == null)
+            return false;
+        for (int i = 0; i < rows.Count; i++)
+        {
+            if (rows[i].level != level)
+                continue;
+            if (rows[i].type == match)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Keeps label width; grows height from wrapped TMP preferred size so multi-type rows stack vertically.
+    /// </summary>
+    private static void ApplyTierRowLabelPreferredHeight(TMP_Text label, string caption)
+    {
+        if (label == null)
+            return;
+
+        label.text = caption ?? string.Empty;
+        label.textWrappingMode = TextWrappingModes.Normal;
+        label.overflowMode = TextOverflowModes.Overflow;
+
+        RectTransform rt = label.rectTransform;
+        float fixedWidth = Mathf.Abs(rt.sizeDelta.x);
+        if (fixedWidth < 8f)
+            fixedWidth = 80f;
+
+        label.ForceMeshUpdate();
+        Vector2 pref = label.GetPreferredValues(caption, fixedWidth, 0f);
+        float h = Mathf.Max(pref.y, 18f);
+        rt.sizeDelta = new Vector2(fixedWidth, h);
     }
 
     private void SpawnRows(List<RowDef> rows, int currentSkillLevel)
@@ -1442,7 +1472,7 @@ public class SkillTreeViewUI : MonoBehaviour
             return false;
         if (GetNonNullChoices(row.unlock).Count <= 0)
             return false;
-        return TierRowCaptionForSkillLevel(row.level) == "Major Passive";
+        return TierRowContainsType(layoutRowsCache, row.level, SkillTreeNodeVisualType.MajorPassive);
     }
 
     /// <summary>Lines that start with "+" after whitespace get accent markup (green when an axe is in the toolbelt on Woodcutting).</summary>
@@ -2018,6 +2048,106 @@ public class SkillTreeViewUI : MonoBehaviour
         }
 
         RefreshEnhanceButtonVisibility();
+        RefreshNotSelectedPrompts();
+    }
+
+    private void RefreshNotSelectedPrompts()
+    {
+        if (nodeLookup.Count == 0)
+            return;
+
+        bool canQuery = selectedSkill != null && skillsManager != null;
+
+        foreach (var kv in nodeLookup)
+        {
+            SkillTreeNodeUI node = kv.Value;
+            if (node == null)
+                continue;
+
+            bool show = canQuery && ShouldShowNotSelectedPrompt(kv.Key, node);
+            node.SetNotSelectedPrompt(show);
+        }
+    }
+
+    private bool ShouldShowPassiveSpinePendingEnhancementChoice(string spineNodeId, RowDef row)
+    {
+        if (row.unlock == null)
+            return false;
+        List<SkillChoiceDefinition> choices = GetNonNullChoices(row.unlock);
+        if (choices.Count <= 0)
+            return false;
+        if (skillsManager == null || selectedSkill == null)
+            return false;
+
+        // Major / capstone / ability: base node can be unlocked (or row-pick committed) before enhancement rows exist.
+        // Only nudge with NotSelected once the earliest authored enhancement tier is reachable.
+        if (row.type == SkillTreeNodeVisualType.MajorPassive
+            || row.type == SkillTreeNodeVisualType.CapstonePassive
+            || row.type == SkillTreeNodeVisualType.Ability)
+        {
+            int playerLv = skillsManager.GetLevel(selectedSkill.skillType);
+            int minChoiceGate = int.MaxValue;
+            for (int i = 0; i < choices.Count; i++)
+            {
+                int gate = ResolveChoiceUnlockLevel(row.level, row.type, choices[i]);
+                if (gate < minChoiceGate)
+                    minChoiceGate = gate;
+            }
+
+            if (minChoiceGate != int.MaxValue && playerLv < minChoiceGate)
+                return false;
+        }
+
+        return skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, spineNodeId, -1) < 0;
+    }
+
+    private bool ShouldShowMajorPassiveNotSelected(string spineNodeId, RowDef row, AbilityTierPickMeta m)
+    {
+        if (m.groupSize < 2)
+            return ShouldShowPassiveSpinePendingEnhancementChoice(spineNodeId, row);
+
+        int pick = skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, m.level, -1);
+        if (pick >= 0 && pick != m.ordinal)
+            return false;
+        if (pick >= 0 && pick == m.ordinal)
+            return ShouldShowPassiveSpinePendingEnhancementChoice(spineNodeId, row);
+
+        return true;
+    }
+
+    private bool ShouldShowNotSelectedPrompt(string nodeId, SkillTreeNodeUI node)
+    {
+        if (node == null || node.IsLocked() || !node.gameObject.activeInHierarchy)
+            return false;
+
+        if (selectedSkill == null || skillsManager == null)
+            return false;
+
+        if (choiceMetaByNodeId.ContainsKey(nodeId))
+            return false;
+
+        if (abilityTierPickMetaBySpineId.TryGetValue(nodeId, out AbilityTierPickMeta m))
+        {
+            if (!rowDefBySpineNodeId.TryGetValue(nodeId, out RowDef row))
+                return false;
+            if (row.type == SkillTreeNodeVisualType.Ability)
+            {
+                if (!node.IsSelected())
+                    return true;
+                return ShouldShowPassiveSpinePendingEnhancementChoice(nodeId, row);
+            }
+            if (row.type == SkillTreeNodeVisualType.MajorPassive)
+                return ShouldShowMajorPassiveNotSelected(nodeId, row, m);
+            return false;
+        }
+
+        if (!rowDefBySpineNodeId.TryGetValue(nodeId, out RowDef rowSpine))
+            return false;
+
+        if (rowSpine.type == SkillTreeNodeVisualType.CapstonePassive || rowSpine.type == SkillTreeNodeVisualType.MajorPassive)
+            return ShouldShowPassiveSpinePendingEnhancementChoice(nodeId, rowSpine);
+
+        return false;
     }
 
     private static bool SpineTypeSupportsEnhanceButton(SkillTreeNodeVisualType type)
@@ -2189,6 +2319,7 @@ public class SkillTreeViewUI : MonoBehaviour
         if (layoutRowsCache.Count == 0)
         {
             RefreshEnhanceButtonVisibility();
+            RefreshNotSelectedPrompts();
             return;
         }
 
@@ -2247,6 +2378,7 @@ public class SkillTreeViewUI : MonoBehaviour
         }
 
         RefreshEnhanceButtonVisibility();
+        RefreshNotSelectedPrompts();
     }
 
     private void RefreshChoiceBranchVisibility()

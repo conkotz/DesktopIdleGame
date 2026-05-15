@@ -412,7 +412,7 @@ public class ItemDefinitionEditor : Editor
                 weaponEquipmentTier,
                 new GUIContent(
                     "Equipment Tier",
-                    "Tier 1–3 (display name is on the item). Gated by matching combat skill: L1 / L20 / L40."
+                    "Tier 1–5 (display name is on the item). Gated by matching combat skill: L1 / L10 / L20 / L30 / L50."
                 )
             );
         }
@@ -588,7 +588,7 @@ public class ItemDefinitionEditor : Editor
                 toolEquipmentTier,
                 new GUIContent(
                     "Equipment Tier",
-                    "Tier 1–3 (display name is on the item). Gated by Woodcutting / Mining / Fishing: L1 / L20 / L40."
+                    "Tier 1–5 (display name is on the item). Gated by Woodcutting / Mining / Fishing: L1 / L10 / L20 / L30 / L50."
                 )
             );
         }

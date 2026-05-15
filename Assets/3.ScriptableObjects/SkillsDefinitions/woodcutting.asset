@@ -716,13 +716,13 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices:
-    - requiredLevel: 0
+    - requiredLevel: 38
       title: Experienced Gatherer
       description: +5% additional chance to find hidden resources
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
-    - requiredLevel: 0
+    - requiredLevel: 38
       title: Treasure Hunter
       description: Hidden resources have 10% chance to double.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
@@ -744,13 +744,13 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices:
-    - requiredLevel: 0
+    - requiredLevel: 38
       title: Rich Harvest
       description: +10% Bonus Find Chance.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
-    - requiredLevel: 0
+    - requiredLevel: 38
       title: Hidden Riches
       description: +10% chance for Bonus Finds to grant +1 additional items.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
@@ -1002,6 +1002,96 @@ MonoBehaviour:
       not apply to cleaved chops or logs gained from Spectral Axe).
     icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
     unlockType: 4
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 1
+    title: Tier 1 Axes
+    description: 'Can equip tier 1 axes:
+
+      Stone Axe'
+    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 10
+    title: Tier 2 Axes
+    description: 'Can equip tier 2 axes:
+
+      Iron Axe'
+    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 20
+    title: Tier 3 Axes
+    description: 'Can equip tier 3 axes:
+
+      Steel Axe'
+    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 30
+    title: Tier 4 Axes
+    description: 'Can equip tier 4 axes:
+
+      Gold Axe'
+    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 40
+    title: Tier 5 Axes
+    description: 'Can equip tier 5 axes:
+
+      ??'
+    icon: {fileID: 1463132466482207086, guid: 79b46c32d401f0c499f5e901e7f5f1af, type: 3}
+    unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
