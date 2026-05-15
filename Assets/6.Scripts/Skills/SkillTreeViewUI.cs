@@ -626,7 +626,6 @@ public class SkillTreeViewUI : MonoBehaviour
         for (int i = 0; i < rows.Count; i++)
         {
             RowDef row = rows[i];
-            float currentHalf = SkillTreeNodeUI.GetVisualBoxSize(row.type).y * 0.5f;
             float y;
             if (i == 0)
             {
@@ -640,7 +639,14 @@ public class SkillTreeViewUI : MonoBehaviour
             {
                 RowDef prev = rows[i - 1];
                 float prevHalf = SkillTreeNodeUI.GetVisualBoxSize(prev.type).y * 0.5f;
-                y = layoutRowY[i - 1] - prevHalf - Mathf.Max(0f, ScaledLayout(rowGap)) - currentHalf;
+                // Use the same vertical anchor as connectors (skip lateral MinorUnlock when a spine passive exists).
+                // Otherwise the first row of a tier (often MinorUnlock before MinorPassive in sort order) inflates Y spacing.
+                int tierEnd = i;
+                while (tierEnd + 1 < rows.Count && rows[tierEnd + 1].level == rows[i].level)
+                    tierEnd++;
+                int anchorIdx = TierVerticalAnchorIndex(rows, i, tierEnd);
+                float lowerHalf = SkillTreeNodeUI.GetVisualBoxSize(rows[anchorIdx].type).y * 0.5f;
+                y = layoutRowY[i - 1] - prevHalf - Mathf.Max(0f, ScaledLayout(rowGap)) - lowerHalf;
             }
 
             layoutRowY.Add(y);
@@ -1025,7 +1031,7 @@ public class SkillTreeViewUI : MonoBehaviour
             for (int choiceIndex = 0; choiceIndex < choices.Count; choiceIndex++)
             {
                 SkillChoiceDefinition choice = choices[choiceIndex];
-                int choiceUnlockLevel = ResolveChoiceUnlockLevel(row.level, row.type);
+                int choiceUnlockLevel = ResolveChoiceUnlockLevel(row.level, row.type, choice);
                 if (!rowYByLevel.TryGetValue(choiceUnlockLevel, out float targetY))
                     continue; // no authored row at that level yet
 
@@ -1115,7 +1121,7 @@ public class SkillTreeViewUI : MonoBehaviour
             for (int choiceIndex = 0; choiceIndex < choices.Count; choiceIndex++)
             {
                 SkillChoiceDefinition choice = choices[choiceIndex];
-                int choiceUnlockLevel = ResolveChoiceUnlockLevel(row.level, row.type);
+                int choiceUnlockLevel = ResolveChoiceUnlockLevel(row.level, row.type, choice);
                 string choiceNodeId = ChoiceId(source, choiceUnlockLevel, choiceIndex);
                 if (TrySpawnConnectorInternal(source, choiceNodeId, out var branchConn))
                     choiceBranchConnectors.Add(new ChoiceBranchConnectorRecord(source, choiceNodeId, row.level, branchConn));
@@ -1175,11 +1181,13 @@ public class SkillTreeViewUI : MonoBehaviour
         });
     }
 
-    private static int ResolveChoiceUnlockLevel(int sourceLevel, SkillTreeNodeVisualType sourceType)
+    private static int ResolveChoiceUnlockLevel(int sourceLevel, SkillTreeNodeVisualType sourceType, SkillChoiceDefinition choice)
     {
         if (sourceType == SkillTreeNodeVisualType.CapstonePassive)
             return 50;
-        return sourceLevel + 3;
+        if (choice != null && choice.requiredLevel > 0)
+            return choice.requiredLevel;
+        return sourceLevel;
     }
 
     private static string SpineNodeId(RowDef row) => $"Lv{row.level}_{row.slotAtLevel}";
@@ -1368,11 +1376,11 @@ public class SkillTreeViewUI : MonoBehaviour
 
         if (string.Equals(title, "Heavy Swing", StringComparison.OrdinalIgnoreCase))
         {
-            int extraResourceChance = 40;
+            int extraResourceChance = 15;
             bool controlledForce = string.Equals(selectedChoiceTitle, "Controlled Force", StringComparison.OrdinalIgnoreCase);
             bool crushingSwing = string.Equals(selectedChoiceTitle, "Crushing Swing", StringComparison.OrdinalIgnoreCase);
             if (crushingSwing)
-                extraResourceChance += 10;
+                extraResourceChance += 5;
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("When Woodcutting Grit procs:");
@@ -2255,10 +2263,13 @@ public class SkillTreeViewUI : MonoBehaviour
                 continue;
 
             bool multiOk = ShouldExposeChoicesForMultiAbilityParent(rec.parentSpineId, rec.sourceLevel);
-            bool passiveOk = !canQuery
-                || skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, rec.parentSpineId, -1) < 0
-                || expandedChoiceBranchesBySourceLevel.Contains(rec.sourceLevel);
-            rec.conn.gameObject.SetActive(multiOk && passiveOk);
+            int sel = canQuery
+                ? skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, rec.parentSpineId, -1)
+                : -1;
+            bool branchExpanded = expandedChoiceBranchesBySourceLevel.Contains(rec.sourceLevel);
+            // Connectors: only while branch expanded and no pick yet; hide diagonals after a choice is committed.
+            bool connectorsOk = multiOk && (!canQuery || (sel < 0 && branchExpanded));
+            rec.conn.gameObject.SetActive(connectorsOk);
         }
 
         foreach (var kv in choiceMetaByNodeId)
@@ -2268,10 +2279,13 @@ public class SkillTreeViewUI : MonoBehaviour
                 continue;
 
             bool multiOk = ShouldExposeChoicesForMultiAbilityParent(meta.parentSpineNodeId, meta.sourceLevel);
-            bool passiveOk = !canQuery
-                || skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.parentSpineNodeId, -1) < 0
-                || expandedChoiceBranchesBySourceLevel.Contains(meta.sourceLevel);
-            node.gameObject.SetActive(multiOk && passiveOk);
+            int sel = canQuery
+                ? skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.parentSpineNodeId, -1)
+                : -1;
+            bool branchExpanded = expandedChoiceBranchesBySourceLevel.Contains(meta.sourceLevel);
+            // Choice nodes: same visibility as branch connectors (hide after a pick).
+            bool choiceNodeOk = multiOk && (!canQuery || (sel < 0 && branchExpanded));
+            node.gameObject.SetActive(choiceNodeOk);
         }
 
         SyncChoiceNodesAndBranchConnectorPositions();

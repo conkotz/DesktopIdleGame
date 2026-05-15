@@ -300,7 +300,10 @@ public class StorageSlotUI : MonoBehaviour,
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        if (_dragIconGO) Destroy(_dragIconGO);
+        InventoryDragIconPool.Hide();
+        _dragIconGO = null;
+        _dragIconRT = null;
+        _dragIconImage = null;
 
         if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
         {
@@ -473,15 +476,13 @@ public class StorageSlotUI : MonoBehaviour,
 
     private void CreateDragIcon()
     {
-        _dragIconGO = new GameObject("StorageDragIcon");
-        _dragIconGO.transform.SetParent(_rootCanvas.transform, false);
+        if (_rootCanvas == null)
+            return;
 
-        _dragIconRT = _dragIconGO.AddComponent<RectTransform>();
-        _dragIconImage = _dragIconGO.AddComponent<Image>();
-        _dragIconImage.raycastTarget = false;
-        _dragIconImage.sprite = _def.icon;
-        _dragIconImage.preserveAspect = true;
-        _dragIconRT.sizeDelta = new Vector2(48f, 48f);
+        InventoryDragIconPool.Show(_rootCanvas, _def != null ? _def.icon : null);
+        _dragIconGO = InventoryDragIconPool.GameObject;
+        _dragIconRT = InventoryDragIconPool.RectTransform;
+        _dragIconImage = InventoryDragIconPool.Image;
     }
 
     private void UpdateDragIconPosition(PointerEventData eventData)

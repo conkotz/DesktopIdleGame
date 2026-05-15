@@ -172,13 +172,18 @@ MonoBehaviour:
   fadeInSeconds: 0.08
   visibleSeconds: 0.45
   fadeOutSeconds: 0.5
-  critSizeMultiplier: 2.5
+  critSizeMultiplier: 1.5
   critExtraLifetime: 1
-  critBrightnessMultiplier: 1.2
-  dotSizeMultiplier: 0.95
+  critBrightnessMultiplier: 1.1
+  dotFontSizeSubtractPoints: 4
+  dotSizeMultiplier: 0.8
   physicalColor: {r: 0.8627451, g: 0.15686275, b: 0.15686275, a: 1}
   magicColor: {r: 0.3137255, g: 0.6666667, b: 1, a: 1}
   corruptionColor: {r: 0.4392157, g: 0.2509804, b: 0.7529412, a: 1}
+  typlessColor: {r: 1, g: 1, b: 1, a: 1}
   bleedColor: {r: 0.6666667, g: 0.13725491, b: 0.13725491, a: 1}
   poisonColor: {r: 0.33333334, g: 0.78431374, b: 0.3529412, a: 1}
   blockColor: {r: 0.3137255, g: 0.6666667, b: 1, a: 1}
+  burnPresentationColor: {r: 1, g: 0.54901963, b: 0.15686275, a: 1}
+  shockPresentationColor: {r: 1, g: 0.74509805, b: 0.27450982, a: 1}
+  chillPresentationColor: {r: 0.3529412, g: 0.627451, b: 1, a: 1}

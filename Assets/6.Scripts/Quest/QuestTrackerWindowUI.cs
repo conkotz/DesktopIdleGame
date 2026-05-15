@@ -37,6 +37,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
     private Inventory _inventory;
     private PlayerStorage _storage;
     private bool _isRefreshingRows;
+    private bool _trackerRowsDirty;
     private Coroutine _deferredLayoutRebuild;
 
     private readonly List<GameObject> _spawnedRows = new();
@@ -91,14 +92,14 @@ public class QuestTrackerWindowUI : MonoBehaviour
     {
         RememberWindowActiveState(true);
         ResolveReferences();
-        QuestTrackerState.Changed += RefreshRows;
+        QuestTrackerState.Changed += QueueTrackerRowsRefresh;
 
         if (_questProgress != null)
-            _questProgress.ProgressChanged += RefreshRows;
+            _questProgress.ProgressChanged += QueueTrackerRowsRefresh;
         if (_inventory != null)
-            _inventory.OnInventoryChanged += RefreshRows;
+            _inventory.OnInventoryChanged += QueueTrackerRowsRefresh;
         if (_storage != null)
-            _storage.OnStorageChanged += RefreshRows;
+            _storage.OnStorageChanged += QueueTrackerRowsRefresh;
 
         RefreshRows();
     }
@@ -111,14 +112,29 @@ public class QuestTrackerWindowUI : MonoBehaviour
             _deferredLayoutRebuild = null;
         }
 
-        QuestTrackerState.Changed -= RefreshRows;
+        QuestTrackerState.Changed -= QueueTrackerRowsRefresh;
 
         if (_questProgress != null)
-            _questProgress.ProgressChanged -= RefreshRows;
+            _questProgress.ProgressChanged -= QueueTrackerRowsRefresh;
         if (_inventory != null)
-            _inventory.OnInventoryChanged -= RefreshRows;
+            _inventory.OnInventoryChanged -= QueueTrackerRowsRefresh;
         if (_storage != null)
-            _storage.OnStorageChanged -= RefreshRows;
+            _storage.OnStorageChanged -= QueueTrackerRowsRefresh;
+
+        _trackerRowsDirty = false;
+    }
+
+    private void QueueTrackerRowsRefresh()
+    {
+        _trackerRowsDirty = true;
+    }
+
+    private void LateUpdate()
+    {
+        if (!_trackerRowsDirty)
+            return;
+        _trackerRowsDirty = false;
+        RefreshRows();
     }
 
     private void ResolveReferences()

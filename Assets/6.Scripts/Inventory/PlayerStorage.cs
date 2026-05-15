@@ -31,6 +31,42 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
     public event Action OnStorageChanged;
 
+    private int _batchChangeNotifyDepth;
+    private bool _batchChangeNotifyPending;
+
+    /// <summary>
+    /// Delays <see cref="OnStorageChanged"/> until <see cref="EndBatchChanges"/> so multi-step transfers
+    /// (store-all, withdraw-all) do not rebuild listeners once per partial stack.
+    /// </summary>
+    public void BeginBatchChanges() => _batchChangeNotifyDepth++;
+
+    public void EndBatchChanges()
+    {
+        if (_batchChangeNotifyDepth <= 0)
+        {
+            _batchChangeNotifyDepth = 0;
+            return;
+        }
+
+        _batchChangeNotifyDepth--;
+        if (_batchChangeNotifyDepth > 0)
+            return;
+
+        if (_batchChangeNotifyPending)
+        {
+            _batchChangeNotifyPending = false;
+            NotifyStorageChanged();
+        }
+    }
+
+    private void NotifyStorageChanged()
+    {
+        if (_batchChangeNotifyDepth > 0)
+            _batchChangeNotifyPending = true;
+        else
+            OnStorageChanged?.Invoke();
+    }
+
     private void Awake()
     {
         if (!itemDb)
@@ -113,7 +149,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             _slots[i] = s;
         }
 
-        OnStorageChanged?.Invoke();
+        NotifyStorageChanged();
         return amount == 0;
     }
 
@@ -121,7 +157,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (slotIndex < 0 || slotIndex >= _slots.Count) return;
         _slots[slotIndex] = newSlot;
-        OnStorageChanged?.Invoke();
+        NotifyStorageChanged();
     }
 
     public bool SwapSlots(int slotA, int slotB)
@@ -131,7 +167,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (slotA >= _slots.Count || slotB >= _slots.Count) return false;
 
         (_slots[slotA], _slots[slotB]) = (_slots[slotB], _slots[slotA]);
-        OnStorageChanged?.Invoke();
+        NotifyStorageChanged();
         return true;
     }
 
@@ -205,7 +241,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (merged.Count > _slots.Count)
             Debug.LogError($"[PlayerStorage] After sort/merge need {merged.Count} slots but only {_slots.Count} exist — overflow.");
 
-        OnStorageChanged?.Invoke();
+        NotifyStorageChanged();
     }
 
     public int RemoveAmountAtSlot(int slotIndex, int amount)
@@ -221,7 +257,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         if (s.amount <= 0) s.Clear();
 
         _slots[slotIndex] = s;
-        OnStorageChanged?.Invoke();
+        NotifyStorageChanged();
         return removed;
     }
 
@@ -249,7 +285,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
             _slots[fromSlot] = from;
             _slots[toSlot] = to;
-            OnStorageChanged?.Invoke();
+            NotifyStorageChanged();
             return move;
         }
 
@@ -267,7 +303,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
 
             _slots[fromSlot] = from;
             _slots[toSlot] = to;
-            OnStorageChanged?.Invoke();
+            NotifyStorageChanged();
             return add;
         }
 
@@ -294,7 +330,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             to.amount = amount;
             _slots[toStorageSlot] = to;
             inv.RemoveAmountAtSlot(fromInvSlot, amount);
-            OnStorageChanged?.Invoke();
+            NotifyStorageChanged();
             return amount;
         }
 
@@ -308,7 +344,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             to.amount += add;
             _slots[toStorageSlot] = to;
             inv.RemoveAmountAtSlot(fromInvSlot, add);
-            OnStorageChanged?.Invoke();
+            NotifyStorageChanged();
             return add;
         }
 
@@ -373,7 +409,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             itemId = a.IsEmpty ? null : a.itemId,
             amount = a.IsEmpty ? 0 : a.amount
         };
-        OnStorageChanged?.Invoke();
+        NotifyStorageChanged();
         return true;
     }
 
@@ -431,7 +467,7 @@ public class PlayerStorage : MonoBehaviour, ISaveable
         }
 
         if (movedTotal > 0)
-            OnStorageChanged?.Invoke();
+            NotifyStorageChanged();
 
         return movedTotal;
     }
@@ -494,15 +530,25 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (inv == null) return 0;
 
-        int total = 0;
-        int n = inv.SlotCount;
-        for (int i = 0; i < n; i++)
+        inv.BeginBatchChanges();
+        BeginBatchChanges();
+        try
         {
-            if (inv.GetSlot(i).IsEmpty) continue;
-            total += TryDepositAllFromInventorySlot(inv, i);
-        }
+            int total = 0;
+            int n = inv.SlotCount;
+            for (int i = 0; i < n; i++)
+            {
+                if (inv.GetSlot(i).IsEmpty) continue;
+                total += TryDepositAllFromInventorySlot(inv, i);
+            }
 
-        return total;
+            return total;
+        }
+        finally
+        {
+            inv.EndBatchChanges();
+            EndBatchChanges();
+        }
     }
 
     /// <summary>Removes up to <paramref name="amount"/> of <paramref name="itemId"/> across slots (for rollback after partial external deposit).</summary>
@@ -540,18 +586,28 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (inv == null) return 0;
 
-        int movedTotal = 0;
-
-        for (int i = 0; i < _slots.Count; i++)
+        inv.BeginBatchChanges();
+        BeginBatchChanges();
+        try
         {
-            var from = inv.GetSlot(invSlot);
-            if (from.IsEmpty) break;
+            int movedTotal = 0;
 
-            int moved = TryMoveFromInventoryToStorage(inv, invSlot, i, from.amount, null);
-            movedTotal += moved;
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                var from = inv.GetSlot(invSlot);
+                if (from.IsEmpty) break;
+
+                int moved = TryMoveFromInventoryToStorage(inv, invSlot, i, from.amount, null);
+                movedTotal += moved;
+            }
+
+            return movedTotal;
         }
-
-        return movedTotal;
+        finally
+        {
+            inv.EndBatchChanges();
+            EndBatchChanges();
+        }
     }
 
     /// <summary>Withdraw everything from a storage slot into inventory (double-click from storage).</summary>
@@ -559,19 +615,29 @@ public class PlayerStorage : MonoBehaviour, ISaveable
     {
         if (inv == null) return 0;
 
-        int movedTotal = 0;
-        int slotCount = inv.SlotCount;
-
-        for (int i = 0; i < slotCount; i++)
+        inv.BeginBatchChanges();
+        BeginBatchChanges();
+        try
         {
-            var from = _slots[storageSlot];
-            if (from.IsEmpty) break;
+            int movedTotal = 0;
+            int slotCount = inv.SlotCount;
 
-            int moved = TryMoveFromStorageToInventory(inv, storageSlot, i, from.amount, null);
-            movedTotal += moved;
+            for (int i = 0; i < slotCount; i++)
+            {
+                var from = _slots[storageSlot];
+                if (from.IsEmpty) break;
+
+                int moved = TryMoveFromStorageToInventory(inv, storageSlot, i, from.amount, null);
+                movedTotal += moved;
+            }
+
+            return movedTotal;
         }
-
-        return movedTotal;
+        finally
+        {
+            inv.EndBatchChanges();
+            EndBatchChanges();
+        }
     }
 
     public void SaveInto(SaveData data)
@@ -650,6 +716,6 @@ public class PlayerStorage : MonoBehaviour, ISaveable
             }
         }
 
-        OnStorageChanged?.Invoke();
+        NotifyStorageChanged();
     }
 }

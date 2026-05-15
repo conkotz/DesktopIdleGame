@@ -107,6 +107,42 @@ public class Inventory : MonoBehaviour, ISaveable
     public event Action OnInventoryChanged;
     public event Action OnInventoryFull;
 
+    private int _batchChangeNotifyDepth;
+    private bool _batchChangeNotifyPending;
+
+    /// <summary>
+    /// Delays <see cref="OnInventoryChanged"/> until the matching <see cref="EndBatchChanges"/> so bulk moves
+    /// (e.g. store-all) do not rebuild UI once per partial stack transfer.
+    /// </summary>
+    public void BeginBatchChanges() => _batchChangeNotifyDepth++;
+
+    public void EndBatchChanges()
+    {
+        if (_batchChangeNotifyDepth <= 0)
+        {
+            _batchChangeNotifyDepth = 0;
+            return;
+        }
+
+        _batchChangeNotifyDepth--;
+        if (_batchChangeNotifyDepth > 0)
+            return;
+
+        if (_batchChangeNotifyPending)
+        {
+            _batchChangeNotifyPending = false;
+            NotifyInventoryChanged();
+        }
+    }
+
+    private void NotifyInventoryChanged()
+    {
+        if (_batchChangeNotifyDepth > 0)
+            _batchChangeNotifyPending = true;
+        else
+            OnInventoryChanged?.Invoke();
+    }
+
     public int SlotCount => _slots.Count;
 
     /// <summary>
@@ -123,7 +159,7 @@ public class Inventory : MonoBehaviour, ISaveable
         int gained = _slots.Count - before;
         if (gained > 0)
         {
-            OnInventoryChanged?.Invoke();
+            NotifyInventoryChanged();
             GameLog.Add($"Inventory expanded +{gained}");
         }
     }
@@ -146,7 +182,7 @@ public class Inventory : MonoBehaviour, ISaveable
     {
         if (slotIndex < 0 || slotIndex >= _slots.Count) return;
         _slots[slotIndex] = newSlot;
-        OnInventoryChanged?.Invoke();
+        NotifyInventoryChanged();
     }
 
     public int GetTotalAmount(string itemId)
@@ -219,7 +255,7 @@ public class Inventory : MonoBehaviour, ISaveable
 
         if (addedTotal > 0)
         {
-            OnInventoryChanged?.Invoke();
+            NotifyInventoryChanged();
             if (notifyItemGainPopup)
                 ItemGainPopupNotifier.Notify(itemId, addedTotal);
         }
@@ -305,7 +341,7 @@ public class Inventory : MonoBehaviour, ISaveable
 
         bool overflow = amount > 0;
 
-        OnInventoryChanged?.Invoke();     
+        NotifyInventoryChanged();     
 
         if (overflow)
             OnInventoryFull?.Invoke();
@@ -337,7 +373,7 @@ public class Inventory : MonoBehaviour, ISaveable
             _slots[i] = s;
         }
 
-        OnInventoryChanged?.Invoke();
+        NotifyInventoryChanged();
         return true;
     }
 
@@ -350,7 +386,7 @@ public class Inventory : MonoBehaviour, ISaveable
 
         s.Clear();
         _slots[slotIndex] = s;
-        OnInventoryChanged?.Invoke();
+        NotifyInventoryChanged();
     }
 
     public bool SwapSlots(int slotA, int slotB)
@@ -360,7 +396,7 @@ public class Inventory : MonoBehaviour, ISaveable
         if (slotA >= _slots.Count || slotB >= _slots.Count) return false;
 
         (_slots[slotA], _slots[slotB]) = (_slots[slotB], _slots[slotA]);
-        OnInventoryChanged?.Invoke();
+        NotifyInventoryChanged();
         return true;
     }
 
@@ -406,7 +442,7 @@ public class Inventory : MonoBehaviour, ISaveable
         if (s.amount <= 0) s.Clear();
 
         _slots[slotIndex] = s;
-        OnInventoryChanged?.Invoke();
+        NotifyInventoryChanged();
 
         return removed;
     }
@@ -438,7 +474,7 @@ public class Inventory : MonoBehaviour, ISaveable
             _slots[fromSlot] = from;
             _slots[toSlot] = to;
 
-            OnInventoryChanged?.Invoke();
+            NotifyInventoryChanged();
             return move;
         }
 
@@ -458,7 +494,7 @@ public class Inventory : MonoBehaviour, ISaveable
             _slots[fromSlot] = from;
             _slots[toSlot] = to;
 
-            OnInventoryChanged?.Invoke();
+            NotifyInventoryChanged();
             return add;
         }
 
@@ -541,7 +577,7 @@ public class Inventory : MonoBehaviour, ISaveable
             }
         }
 
-        OnInventoryChanged?.Invoke();
+        NotifyInventoryChanged();
     }
 
     public bool IsCapacityFull()
@@ -782,6 +818,6 @@ public class Inventory : MonoBehaviour, ISaveable
         if (merged.Count > _slots.Count)
             Debug.LogError($"[Inventory] After sort/merge need {merged.Count} slots but only {_slots.Count} exist — save data may be invalid (overflowing stacks).");
 
-        OnInventoryChanged?.Invoke();
+        NotifyInventoryChanged();
     }
 }

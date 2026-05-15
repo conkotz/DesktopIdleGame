@@ -52,6 +52,16 @@ public class AilmentController : MonoBehaviour
     private float shockExpireTime = -1f;
     private float shockDamageTakenMultiplier = 0f;
 
+    /// <summary>Last known dealer world position for floating DoT when the dealer Transform is destroyed (e.g. enemy died).</summary>
+    private Vector3 _poisonDotDealerWorldPos;
+    private bool _hasPoisonDotDealerWorldPos;
+    private Vector3 _bleedDotDealerWorldPos;
+    private bool _hasBleedDotDealerWorldPos;
+    private Vector3 _exclusiveBleedDotDealerWorldPos;
+    private bool _hasExclusiveBleedDotDealerWorldPos;
+    private Vector3 _burnDotDealerWorldPos;
+    private bool _hasBurnDotDealerWorldPos;
+
     public event System.Action OnAilmentsChanged;
 
     public bool HasBleed => bleedTickSchedule.Count > 0 || bleedRoutine != null || exclusiveBleedTickSchedule.Count > 0 || exclusiveBleedRoutine != null;
@@ -130,6 +140,14 @@ public class AilmentController : MonoBehaviour
             playerBuffs = GetComponentInParent<PlayerBuffController>();
     }
 
+    private void ClearDotDealerWorldCaches()
+    {
+        _hasPoisonDotDealerWorldPos = false;
+        _hasBleedDotDealerWorldPos = false;
+        _hasExclusiveBleedDotDealerWorldPos = false;
+        _hasBurnDotDealerWorldPos = false;
+    }
+
     private void OnDisable()
     {
         ClearAllAilments();
@@ -164,6 +182,7 @@ public class AilmentController : MonoBehaviour
         _burnDotDealerLabel = "";
         shockExpireTime = -1f;
         shockDamageTakenMultiplier = 0f;
+        ClearDotDealerWorldCaches();
 
         OnAilmentsChanged?.Invoke();
     }
@@ -183,6 +202,8 @@ public class AilmentController : MonoBehaviour
         exclusiveBleedTickSchedule.Clear();
         _bleedDotDealerLabel = "";
         _exclusiveBleedDotDealerLabel = "";
+        _hasBleedDotDealerWorldPos = false;
+        _hasExclusiveBleedDotDealerWorldPos = false;
 
         if (hadBleed)
             OnAilmentsChanged?.Invoke();
@@ -201,6 +222,7 @@ public class AilmentController : MonoBehaviour
         poisonStacks.Clear();
         poisonBaseMaxStacks = 1;
         _poisonDotDealerLabel = "";
+        _hasPoisonDotDealerWorldPos = false;
 
         if (hadPoison)
             OnAilmentsChanged?.Invoke();
@@ -250,6 +272,12 @@ public class AilmentController : MonoBehaviour
         int newBleedTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
 
         _bleedDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
+        if (payload.source != null)
+        {
+            _bleedDotDealerWorldPos = payload.source.position;
+            _hasBleedDotDealerWorldPos = true;
+        }
+
         RefreshBleedSchedule(newBleedTick, tickCount);
 
         if (bleedTickSchedule.Count > 0 && bleedRoutine == null)
@@ -275,6 +303,12 @@ public class AilmentController : MonoBehaviour
         int newTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
 
         _exclusiveBleedDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
+        if (payload.source != null)
+        {
+            _exclusiveBleedDotDealerWorldPos = payload.source.position;
+            _hasExclusiveBleedDotDealerWorldPos = true;
+        }
+
         RefreshExclusiveBleedSchedule(newTick, tickCount);
 
         if (exclusiveBleedTickSchedule.Count > 0 && exclusiveBleedRoutine == null)
@@ -333,7 +367,13 @@ public class AilmentController : MonoBehaviour
             int tickDamage = bleedTickSchedule[0];
             bleedTickSchedule.RemoveAt(0);
 
-            ApplyBleedTick(tickDamage, source, _bleedDotDealerLabel);
+            if (source != null)
+            {
+                _bleedDotDealerWorldPos = source.position;
+                _hasBleedDotDealerWorldPos = true;
+            }
+
+            ApplyBleedTick(tickDamage, source, _bleedDotDealerLabel, exclusiveChannel: false);
             OnAilmentsChanged?.Invoke();
         }
 
@@ -359,7 +399,13 @@ public class AilmentController : MonoBehaviour
             int tickDamage = exclusiveBleedTickSchedule[0];
             exclusiveBleedTickSchedule.RemoveAt(0);
 
-            ApplyBleedTick(tickDamage, source, _exclusiveBleedDotDealerLabel);
+            if (source != null)
+            {
+                _exclusiveBleedDotDealerWorldPos = source.position;
+                _hasExclusiveBleedDotDealerWorldPos = true;
+            }
+
+            ApplyBleedTick(tickDamage, source, _exclusiveBleedDotDealerLabel, exclusiveChannel: true);
             OnAilmentsChanged?.Invoke();
         }
 
@@ -367,9 +413,13 @@ public class AilmentController : MonoBehaviour
         OnAilmentsChanged?.Invoke();
     }
 
-    private void ApplyBleedTick(int damage, Transform source, string dealerLabelForDps)
+    private void ApplyBleedTick(int damage, Transform source, string dealerLabelForDps, bool exclusiveChannel)
     {
-        ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Bleed, source, dealerLabelForDps);
+        Vector3? dealerWorldFallback = exclusiveChannel
+            ? (_hasExclusiveBleedDotDealerWorldPos ? (Vector3?)_exclusiveBleedDotDealerWorldPos : null)
+            : (_hasBleedDotDealerWorldPos ? (Vector3?)_bleedDotDealerWorldPos : null);
+
+        ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Bleed, source, dealerLabelForDps, dealerWorldFallback);
 
         if (debugLogs)
             Debug.Log($"[Ailments] Bleed tick: {damage}", this);
@@ -393,6 +443,12 @@ public class AilmentController : MonoBehaviour
         int maxStacks = GetEffectivePoisonMaxStacks(poisonBaseMaxStacks);
 
         _poisonDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
+
+        if (payload.source != null)
+        {
+            _poisonDotDealerWorldPos = payload.source.position;
+            _hasPoisonDotDealerWorldPos = true;
+        }
 
         while (poisonStacks.Count >= maxStacks)
             poisonStacks.RemoveAt(0);
@@ -439,7 +495,15 @@ public class AilmentController : MonoBehaviour
             }
 
             if (totalDamage > 0)
+            {
+                if (source != null)
+                {
+                    _poisonDotDealerWorldPos = source.position;
+                    _hasPoisonDotDealerWorldPos = true;
+                }
+
                 ApplyPoisonTick(totalDamage, source);
+            }
 
             OnAilmentsChanged?.Invoke();
         }
@@ -482,7 +546,8 @@ public class AilmentController : MonoBehaviour
 
     private void ApplyPoisonTick(int damage, Transform source)
     {
-        ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Poison, source, _poisonDotDealerLabel);
+        Vector3? dealerWorldFallback = _hasPoisonDotDealerWorldPos ? (Vector3?)_poisonDotDealerWorldPos : null;
+        ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Poison, source, _poisonDotDealerLabel, dealerWorldFallback);
 
         if (debugLogs)
             Debug.Log($"[Ailments] Poison tick: {damage}", this);
@@ -556,6 +621,17 @@ public class AilmentController : MonoBehaviour
         _burnDotDealerLabel = ResolveDotDealerLabelForDps(source);
         burnDotSource = source != null ? source : transform;
 
+        if (source != null)
+        {
+            _burnDotDealerWorldPos = source.position;
+            _hasBurnDotDealerWorldPos = true;
+        }
+        else
+        {
+            _burnDotDealerWorldPos = transform.position;
+            _hasBurnDotDealerWorldPos = true;
+        }
+
         bool hadBurn = burnStackCount > 0;
         if (hadBurn)
         {
@@ -598,6 +674,7 @@ public class AilmentController : MonoBehaviour
         burnTicksRemaining = 0;
         burnDotSource = null;
         _burnDotDealerLabel = "";
+        _hasBurnDotDealerWorldPos = false;
 
         if (had)
             OnAilmentsChanged?.Invoke();
@@ -623,7 +700,14 @@ public class AilmentController : MonoBehaviour
             burnTickRoutine = null;
         }
 
-        ApplyDotDamage(combustDamage, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource, _burnDotDealerLabel);
+        if (burnDotSource != null)
+        {
+            _burnDotDealerWorldPos = burnDotSource.position;
+            _hasBurnDotDealerWorldPos = true;
+        }
+
+        Vector3? burnDealerWorld = _hasBurnDotDealerWorldPos ? (Vector3?)_burnDotDealerWorldPos : null;
+        ApplyDotDamage(combustDamage, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource, _burnDotDealerLabel, burnDealerWorld);
         OnAilmentsChanged?.Invoke();
     }
 
@@ -645,7 +729,16 @@ public class AilmentController : MonoBehaviour
 
             burnTicksRemaining--;
             if (burnDamagePerTick > 0)
-                ApplyDotDamage(burnDamagePerTick, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource, _burnDotDealerLabel);
+            {
+                if (burnDotSource != null)
+                {
+                    _burnDotDealerWorldPos = burnDotSource.position;
+                    _hasBurnDotDealerWorldPos = true;
+                }
+
+                Vector3? burnDealerWorld = _hasBurnDotDealerWorldPos ? (Vector3?)_burnDotDealerWorldPos : null;
+                ApplyDotDamage(burnDamagePerTick, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource, _burnDotDealerLabel, burnDealerWorld);
+            }
 
             OnAilmentsChanged?.Invoke();
         }
@@ -695,13 +788,13 @@ public class AilmentController : MonoBehaviour
         return Mathf.Max(0.1f, 1f - slow);
     }
 
-    private void ApplyDotDamage(int damage, FloatingDamageTextUI.PopupDamageKind type, Transform source, string dealerLabelForDps)
+    private void ApplyDotDamage(int damage, FloatingDamageTextUI.PopupDamageKind type, Transform source, string dealerLabelForDps, Vector3? dotDealerWorldPositionFallback = null)
     {
         damage = Mathf.Max(1, damage);
 
         if (enemy != null)
         {
-            enemy.ApplyDirectDotDamage(damage, source, type, showDotPopups);
+            enemy.ApplyDirectDotDamage(damage, source, type, showDotPopups, dotDealerWorldPositionFallback);
             return;
         }
 
@@ -721,24 +814,38 @@ public class AilmentController : MonoBehaviour
 
             if (showDotPopups && finalDamage > 0 && DamagePopupSystem.Instance != null)
             {
-                var anchor = GetComponentInChildren<DamagePopupAnchor>(true);
-                Vector3 anchorPos = anchor ? anchor.WorldPos : transform.position;
-
                 PlayerController pc = GetComponent<PlayerController>();
+                if (pc == null)
+                    pc = GetComponentInParent<PlayerController>();
+
+                Transform popupOwner = pc != null ? pc.transform : transform;
+                var anchor = popupOwner.GetComponentInChildren<DamagePopupAnchor>(true);
+                Vector3 anchorPos = anchor ? anchor.WorldPos : popupOwner.position;
+
+                Vector3? dealerWorld = source != null ? source.position : dotDealerWorldPositionFallback;
+
                 Vector3 pos;
                 Vector3 dir;
-                if (pc != null)
+                if (pc != null && dealerWorld.HasValue)
+                    pc.GetIncomingDamagePopupPlacementFromDealerWorld(anchorPos, dealerWorld.Value, 0.35f, out pos, out dir);
+                else if (pc != null)
                     pc.GetIncomingDamagePopupPlacement(anchorPos, source, 0.35f, out pos, out dir);
+                else if (dealerWorld.HasValue)
+                {
+                    Vector3 dw = dealerWorld.Value;
+                    float towardAttackerX = Mathf.Sign(dw.x - popupOwner.position.x);
+                    if (towardAttackerX == 0f)
+                        towardAttackerX = 1f;
+                    pos = anchorPos + new Vector3(-towardAttackerX * 0.35f, 0f, 0f);
+                    dir = DamagePopupSystem.GetDriftDirectionForVictim(popupOwner, dw);
+                }
                 else
                 {
-                    pos = anchorPos;
-                    dir = source ? (transform.position - source.position).normalized : Vector3.up;
-                    if (source)
-                    {
-                        float toward = Mathf.Sign(source.position.x - transform.position.x);
-                        if (toward == 0f) toward = 1f;
-                        pos.x -= toward * 0.35f;
-                    }
+                    float towardAttackerX = source ? Mathf.Sign(source.position.x - popupOwner.position.x) : 0f;
+                    if (towardAttackerX == 0f)
+                        towardAttackerX = 1f;
+                    pos = anchorPos + new Vector3(-towardAttackerX * 0.35f, 0f, 0f);
+                    dir = source ? DamagePopupSystem.GetDriftDirectionForVictim(popupOwner, source) : Vector3.up;
                 }
 
                 DamagePopupSystem.Instance.Spawn(

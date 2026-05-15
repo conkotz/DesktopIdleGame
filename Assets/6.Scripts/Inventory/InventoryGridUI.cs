@@ -77,6 +77,19 @@ public class InventoryGridUI : MonoBehaviour
     private readonly List<InventorySlotUI> _slotPool = new List<InventorySlotUI>(64);
     private GridLayoutGroup _grid;
     private bool _dirty;
+    /// <summary>Coalesce <see cref="OnInventoryChanged"/> into one <see cref="Rebuild"/> per frame (same frame as the change, after Update).</summary>
+    private bool _pendingLateRebuild;
+    private readonly List<int> _filteredSourceSlotScratch = new List<int>(128);
+
+    /// <summary>Skip expensive <see cref="ApplyGridFit"/> when viewport + grid settings are unchanged since last rebuild.</summary>
+    private int _lastLayoutFitSignature = int.MinValue;
+
+    /// <summary>Skip per-slot <see cref="InventorySlotUI.Bind"/> when mapped inventory data for that grid cell is unchanged.</summary>
+    private int _lastInventorySlotCountForRebindCache = -1;
+    private int[] _rebindCacheSrcIdx;
+    private int[] _rebindCacheAmt;
+    private string[] _rebindCacheItemId;
+    private int[] _rebindCacheDefId;
 
     private Canvas _rootCanvas;
     private RectTransform _resolvedViewport;
@@ -141,28 +154,51 @@ public class InventoryGridUI : MonoBehaviour
 
     private void OnDisable()
     {
+        _pendingLateRebuild = false;
+
         if (inventory != null)
             inventory.OnInventoryChanged -= MarkDirty;
 
         UnbindFilterButtons();
+
+        if (_dirty && inventory != null)
+        {
+            _dirty = false;
+            Rebuild();
+        }
     }
 
-    private void MarkDirty() => _dirty = true;
-
-    private void Update()
+    private void MarkDirty()
     {
-        if (!_dirty) return;
+        _dirty = true;
+        if (!isActiveAndEnabled || !gameObject.activeInHierarchy)
+            return;
+        _pendingLateRebuild = true;
+    }
+
+    private void LateUpdate()
+    {
+        if (!_pendingLateRebuild)
+            return;
+        _pendingLateRebuild = false;
+
+        if (!isActiveAndEnabled || !_dirty || inventory == null)
+            return;
+
         _dirty = false;
         Rebuild();
     }
 
     private void OnRectTransformDimensionsChange()
     {
+        _lastLayoutFitSignature = int.MinValue;
         ApplyGridFit();
     }
 
     public void RefreshNow()
     {
+        _pendingLateRebuild = false;
+
         StopAllCoroutines();
         StartCoroutine(DeferredRefresh());
     }
@@ -182,6 +218,7 @@ public class InventoryGridUI : MonoBehaviour
 
         ApplyGridFit();
         Rebuild();
+        _dirty = false;
 
         // Extra layout settle pass before showing (prevents 1-frame wrong positions).
         yield return null;
@@ -292,10 +329,24 @@ public class InventoryGridUI : MonoBehaviour
         inventory.EnsureSlotCount(totalSlots);
         EnsurePoolSize(totalSlots);
 
-        ApplyGridFit();
+        InvalidateSlotRebindCacheIfInventorySlotCountChanged();
+
+        int layoutSig = ComputeInventoryGridLayoutSignature(totalSlots);
+        if (layoutSig != _lastLayoutFitSignature)
+        {
+            ApplyGridFit();
+            _lastLayoutFitSignature = layoutSig;
+        }
 
         bool allFilterActive = _activeFilter == InventoryViewFilter.All;
-        List<int> visibleSourceSlots = allFilterActive ? null : BuildFilteredSourceSlotList(totalSlots);
+        List<int> visibleSourceSlots = null;
+        if (!allFilterActive)
+        {
+            BuildFilteredSourceSlotListInto(totalSlots, _filteredSourceSlotScratch);
+            visibleSourceSlots = _filteredSourceSlotScratch;
+        }
+
+        EnsureRebindCacheCapacity(totalSlots);
 
         for (int i = 0; i < totalSlots; i++)
         {
@@ -307,12 +358,33 @@ public class InventoryGridUI : MonoBehaviour
             var s = hasMappedSource ? inventory.GetSlot(sourceSlotIndex) : default;
 
             int interactiveSlotIndex = hasMappedSource ? sourceSlotIndex : -1;
+            int cacheAmt = hasMappedSource ? s.amount : 0;
+            string cacheId = hasMappedSource ? s.itemId : null;
+
+            int defIdentity = 0;
+            ItemDefinition def = null;
+            if (hasMappedSource && !s.IsEmpty)
+            {
+                def = inventory.GetItemDef(s.itemId);
+                if (!def && itemDb) def = itemDb.Get(s.itemId);
+                defIdentity = def != null ? def.GetInstanceID() : 0;
+            }
+
+            if (interactiveSlotIndex == _rebindCacheSrcIdx[i] &&
+                cacheAmt == _rebindCacheAmt[i] &&
+                GridItemIdEquals(cacheId, _rebindCacheItemId[i]) &&
+                defIdentity == _rebindCacheDefId[i])
+            {
+                continue;
+            }
+
+            _rebindCacheSrcIdx[i] = interactiveSlotIndex;
+            _rebindCacheAmt[i] = cacheAmt;
+            _rebindCacheItemId[i] = cacheId;
+            _rebindCacheDefId[i] = defIdentity;
 
             if (hasMappedSource && !s.IsEmpty)
             {
-                ItemDefinition def = inventory.GetItemDef(s.itemId);
-                if (!def && itemDb) def = itemDb.Get(s.itemId);
-
                 slotUI.Bind(def, s.amount, s.itemId, tooltip, inventory, interactiveSlotIndex, inventoryPanelRect, _rootCanvas);
                 slotUI.SetTooltipDocking(tooltipAnchor, tooltipHeightRect, preferredSide);
             }
@@ -322,6 +394,96 @@ public class InventoryGridUI : MonoBehaviour
                 slotUI.SetTooltipDocking(tooltipAnchor, tooltipHeightRect, preferredSide);
             }
         }
+    }
+
+    private void InvalidateSlotRebindCacheIfInventorySlotCountChanged()
+    {
+        if (inventory == null)
+            return;
+
+        int n = inventory.SlotCount;
+        if (n == _lastInventorySlotCountForRebindCache)
+            return;
+
+        _lastInventorySlotCountForRebindCache = n;
+        ClearSlotRebindCache();
+    }
+
+    private void ClearSlotRebindCache()
+    {
+        if (_rebindCacheSrcIdx == null)
+            return;
+
+        for (int i = 0; i < _rebindCacheSrcIdx.Length; i++)
+        {
+            _rebindCacheSrcIdx[i] = int.MinValue;
+            _rebindCacheAmt[i] = int.MinValue;
+            _rebindCacheItemId[i] = null;
+            _rebindCacheDefId[i] = 0;
+        }
+    }
+
+    private void EnsureRebindCacheCapacity(int needed)
+    {
+        if (_rebindCacheSrcIdx != null && _rebindCacheSrcIdx.Length >= needed)
+            return;
+
+        int newCap = needed <= 0 ? 16 : Mathf.NextPowerOfTwo(Mathf.Max(needed, 16));
+        var src = new int[newCap];
+        var amt = new int[newCap];
+        var ids = new string[newCap];
+        var did = new int[newCap];
+        for (int i = 0; i < newCap; i++)
+        {
+            src[i] = int.MinValue;
+            amt[i] = int.MinValue;
+        }
+
+        if (_rebindCacheSrcIdx != null && _rebindCacheSrcIdx.Length > 0)
+        {
+            int copy = Mathf.Min(_rebindCacheSrcIdx.Length, newCap);
+            Array.Copy(_rebindCacheSrcIdx, src, copy);
+            Array.Copy(_rebindCacheAmt, amt, copy);
+            Array.Copy(_rebindCacheItemId, ids, copy);
+            if (_rebindCacheDefId != null && _rebindCacheDefId.Length >= copy)
+                Array.Copy(_rebindCacheDefId, did, copy);
+        }
+
+        _rebindCacheSrcIdx = src;
+        _rebindCacheAmt = amt;
+        _rebindCacheItemId = ids;
+        _rebindCacheDefId = did;
+    }
+
+    private static bool GridItemIdEquals(string a, string b) =>
+        string.IsNullOrEmpty(a) ? string.IsNullOrEmpty(b) : string.Equals(a, b, StringComparison.Ordinal);
+
+    private int ComputeInventoryGridLayoutSignature(int totalSlots)
+    {
+        HashCode hc = new HashCode();
+        hc.Add((int)_activeFilter);
+        hc.Add(totalSlots);
+        hc.Add(columns);
+        hc.Add(minVisibleRows);
+        hc.Add(useManualGridLayoutSettings);
+        hc.Add(squareCells);
+
+        if (slotsGrid != null)
+        {
+            if (useManualGridLayoutSettings)
+            {
+                hc.Add(Mathf.RoundToInt(slotsGrid.rect.width * 1000f));
+                hc.Add(Mathf.RoundToInt(slotsGrid.rect.height * 1000f));
+            }
+            else
+            {
+                RectTransform fitRect = _resolvedViewport != null ? _resolvedViewport : slotsGrid;
+                hc.Add(Mathf.RoundToInt(fitRect.rect.width * 1000f));
+                hc.Add(Mathf.RoundToInt(fitRect.rect.height * 1000f));
+            }
+        }
+
+        return hc.ToHashCode();
     }
 
     public void SetFilterAll() => SetFilter(InventoryViewFilter.All);
@@ -335,6 +497,12 @@ public class InventoryGridUI : MonoBehaviour
         bool changed = _activeFilter != filter;
         _activeFilter = filter;
         ApplyFilterButtonVisuals();
+        if (changed)
+        {
+            _lastLayoutFitSignature = int.MinValue;
+            ClearSlotRebindCache();
+        }
+
         if (rebuildNow)
             Rebuild();
         if (changed)
@@ -393,9 +561,9 @@ public class InventoryGridUI : MonoBehaviour
         if (consumablesFilterButton) consumablesFilterButton.onClick.RemoveListener(SetFilterConsumables);
     }
 
-    private List<int> BuildFilteredSourceSlotList(int totalSlots)
+    private void BuildFilteredSourceSlotListInto(int totalSlots, List<int> results)
     {
-        var results = new List<int>(totalSlots);
+        results.Clear();
         for (int sourceSlotIndex = 0; sourceSlotIndex < totalSlots; sourceSlotIndex++)
         {
             var sourceSlot = inventory.GetSlot(sourceSlotIndex);
@@ -411,8 +579,6 @@ public class InventoryGridUI : MonoBehaviour
             if (PassesFilter(def))
                 results.Add(sourceSlotIndex);
         }
-
-        return results;
     }
 
     private bool PassesFilter(ItemDefinition def)

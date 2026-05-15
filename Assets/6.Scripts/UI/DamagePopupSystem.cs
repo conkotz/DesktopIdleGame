@@ -121,6 +121,22 @@ public class DamagePopupSystem : MonoBehaviour
             _rectTransformEventCamera = null;
     }
 
+    /// <summary>Normalized world drift victim − dealer (same convention as direct hits and DoT ticks).</summary>
+    public static Vector3 GetDriftDirectionForVictim(Transform victim, Transform dealer)
+    {
+        if (!victim || !dealer) return Vector3.up;
+        Vector3 w = victim.position - dealer.position;
+        return w.sqrMagnitude > 1e-6f ? w.normalized : Vector3.up;
+    }
+
+    /// <summary>Same as <see cref="GetDriftDirectionForVictim(Transform, Transform)"/> but uses a world-space dealer position (e.g. last known pos after the dealer was destroyed).</summary>
+    public static Vector3 GetDriftDirectionForVictim(Transform victim, Vector3 dealerWorldPosition)
+    {
+        if (!victim) return Vector3.up;
+        Vector3 w = victim.position - dealerWorldPosition;
+        return w.sqrMagnitude > 1e-6f ? w.normalized : Vector3.up;
+    }
+
     public void Spawn(
         Vector3 worldPos,
         int amount,

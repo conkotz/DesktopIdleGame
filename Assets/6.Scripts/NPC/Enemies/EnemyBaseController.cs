@@ -99,6 +99,10 @@ public class EnemyBaseController : MonoBehaviour
     [Tooltip("Optional override. If null, we auto-resolve (prefer under visualsRoot, then under this enemy).")]
     [SerializeField] private DamagePopupAnchor damagePopupAnchor;
 
+    /// <summary>Last dealer world position for DoT popups when the dealer Transform was destroyed.</summary>
+    private Vector3 _damagePopupDealerLastWorldPos;
+    private bool _damagePopupDealerLastWorldPosValid;
+
     [Header("Loot drop (world pickup)")]
     [Tooltip("Where item loot from EnemyDefinition spawns. If null, auto-finds a descendant named DropAnchor, else uses this enemy's position.")]
     [SerializeField] private Transform dropLootAnchor;
@@ -841,6 +845,43 @@ public class EnemyBaseController : MonoBehaviour
         }
     }
 
+    /// <summary>World spawn position + drift for floating damage on this enemy (direct hits and DoT ticks share this).</summary>
+    private void GetDamagePopupSpawnForDealer(Transform dealer, Vector3? dealerWorldIfTransformMissing, out Vector3 worldPos, out Vector3 driftDir)
+    {
+        worldPos = damagePopupAnchor ? damagePopupAnchor.WorldPos : transform.position;
+        driftDir = Vector3.up;
+
+        Vector3 dealerPos = default;
+        bool haveDealer = false;
+
+        if (dealer != null)
+        {
+            dealerPos = dealer.position;
+            _damagePopupDealerLastWorldPos = dealerPos;
+            _damagePopupDealerLastWorldPosValid = true;
+            haveDealer = true;
+        }
+        else if (dealerWorldIfTransformMissing.HasValue)
+        {
+            dealerPos = dealerWorldIfTransformMissing.Value;
+            haveDealer = true;
+        }
+        else if (_damagePopupDealerLastWorldPosValid)
+        {
+            dealerPos = _damagePopupDealerLastWorldPos;
+            haveDealer = true;
+        }
+
+        if (!haveDealer)
+            return;
+
+        float dirX = Mathf.Sign(dealerPos.x - transform.position.x);
+        if (dirX == 0f)
+            dirX = 1f;
+        worldPos.x += dirX * 0.25f;
+        driftDir = DamagePopupSystem.GetDriftDirectionForVictim(transform, dealerPos);
+    }
+
     public int TakeDamage(int amount, DamageType type, bool wasCrit, Transform attacker, AttackSkill? attackSkillSource = null, DpsDamageBucket? dpsBucketOverride = null)
     {
         if (state == EnemyState.Dead || stats == null)
@@ -869,19 +910,7 @@ public class EnemyBaseController : MonoBehaviour
 
         if (DamagePopupSystem.Instance != null)
         {
-            Vector3 pos = damagePopupAnchor ? damagePopupAnchor.WorldPos : transform.position;
-
-            // Bias popups toward the impact side (attacker side) so they don't feel "behind" when facing flips.
-            if (attacker)
-            {
-                float dirX = Mathf.Sign(attacker.position.x - transform.position.x); // toward attacker
-                if (dirX == 0f) dirX = 1f;
-                pos.x += dirX * 0.25f;
-            }
-
-            Vector3 dir = attacker
-                ? (transform.position - attacker.position).normalized
-                : Vector3.up;
+            GetDamagePopupSpawnForDealer(attacker, null, out Vector3 pos, out Vector3 dir);
 
             FloatingDamageTextUI.PopupDamageKind popupKind = type switch
             {
@@ -912,7 +941,12 @@ public class EnemyBaseController : MonoBehaviour
         return finalDamage;
     }
 
-    public void ApplyDirectDotDamage(int finalDamage, Transform source, FloatingDamageTextUI.PopupDamageKind popupKind, bool showPopup)
+    public void ApplyDirectDotDamage(
+        int finalDamage,
+        Transform source,
+        FloatingDamageTextUI.PopupDamageKind popupKind,
+        bool showPopup,
+        Vector3? dotDealerWorldPositionFallback = null)
     {
         if (state == EnemyState.Dead || stats == null)
             return;
@@ -932,18 +966,7 @@ public class EnemyBaseController : MonoBehaviour
 
         if (showPopup && DamagePopupSystem.Instance != null)
         {
-            Vector3 pos = damagePopupAnchor ? damagePopupAnchor.WorldPos : transform.position;
-
-            if (source)
-            {
-                float dirX = Mathf.Sign(source.position.x - transform.position.x); // toward source
-                if (dirX == 0f) dirX = 1f;
-                pos.x += dirX * 0.25f;
-            }
-
-            Vector3 dir = source
-                ? (transform.position - source.position).normalized
-                : Vector3.up;
+            GetDamagePopupSpawnForDealer(source, dotDealerWorldPositionFallback, out Vector3 pos, out Vector3 dir);
 
             DamagePopupSystem.Instance.Spawn(
                 pos,
@@ -1486,15 +1509,7 @@ public class EnemyBaseController : MonoBehaviour
         if (DamagePopupSystem.Instance == null)
             return;
 
-        Vector3 pos = damagePopupAnchor ? damagePopupAnchor.WorldPos : transform.position;
-        if (attacker)
-        {
-            float dirX = Mathf.Sign(attacker.position.x - transform.position.x);
-            if (dirX == 0f) dirX = 1f;
-            pos.x += dirX * 0.25f;
-        }
-
-        Vector3 dir = attacker ? (transform.position - attacker.position).normalized : Vector3.up;
+        GetDamagePopupSpawnForDealer(attacker, null, out Vector3 pos, out Vector3 dir);
         DamagePopupSystem.Instance.Spawn(
             pos,
             0,

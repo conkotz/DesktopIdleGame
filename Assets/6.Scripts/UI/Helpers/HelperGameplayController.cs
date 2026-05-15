@@ -318,6 +318,8 @@ public sealed class HelperGameplayController : MonoBehaviour
     /// <summary>Snapshot before each <see cref="Inventory.OnInventoryChanged"/> callback for trigger math.</summary>
     private int _lastSeenInventoryTotalUnitsBeforeChange;
 
+    private bool _inventoryHelperEvalDeferred;
+
     private readonly List<SavedWhitelistUiElevation> _whitelistUiElevations = new(4);
 
     private readonly Vector3[] _uiWorldCornersScratch = new Vector3[4];
@@ -1704,6 +1706,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         _inventoryForHelpers.OnInventoryChanged -= HandleInventoryChangedForHelpers;
         _inventoryForHelpers = null;
+        _inventoryHelperEvalDeferred = false;
     }
 
     private void SubscribeWorldDropHelpers()
@@ -1774,6 +1777,15 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void HandleInventoryChangedForHelpers()
     {
+        _inventoryHelperEvalDeferred = true;
+    }
+
+    private void RunDeferredInventoryHelperEvaluation()
+    {
+        if (!_inventoryHelperEvalDeferred)
+            return;
+        _inventoryHelperEvalDeferred = false;
+
         if (!HelpersPermittedBySettings() ||
             _inventoryForHelpers == null ||
             definitions == null ||
@@ -2692,6 +2704,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void LateUpdate()
     {
+        RunDeferredInventoryHelperEvaluation();
         SyncAndPulseWhitelistGlow();
         TrackHelperLayoutSave();
         PulseHelperNewBadgeAlpha();

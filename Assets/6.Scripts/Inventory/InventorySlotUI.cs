@@ -159,15 +159,28 @@ public class InventorySlotUI : MonoBehaviour,
     RectTransform inventoryPanelRect,
     Canvas rootCanvas)
     {
-        _def = def;
-        _amount = amount;
-        _itemId = itemId;
-        _tooltip = tooltip;
+        bool sameVisual =
+            ReferenceEquals(_inventory, inventory) &&
+            _slotIndex == slotIndex &&
+            _amount == amount &&
+            ReferenceEquals(_def, def) &&
+            ItemIdEquals(_itemId, itemId);
 
+        _tooltip = tooltip;
         _inventory = inventory;
         _slotIndex = slotIndex;
         _inventoryPanelRect = inventoryPanelRect;
         _rootCanvas = rootCanvas;
+
+        if (sameVisual)
+        {
+            ApplySlotBackground();
+            return;
+        }
+
+        _def = def;
+        _amount = amount;
+        _itemId = itemId;
 
         if (icon)
         {
@@ -187,6 +200,9 @@ public class InventorySlotUI : MonoBehaviour,
 
         ApplySlotBackground();
     }
+
+    private static bool ItemIdEquals(string a, string b) =>
+        string.IsNullOrEmpty(a) ? string.IsNullOrEmpty(b) : string.Equals(a, b, System.StringComparison.Ordinal);
 
     private void RefreshRarityBorder(ItemDefinition def)
     {
@@ -681,7 +697,10 @@ public class InventorySlotUI : MonoBehaviour,
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        if (_dragIconGO) Destroy(_dragIconGO);
+        InventoryDragIconPool.Hide();
+        _dragIconGO = null;
+        _dragIconRT = null;
+        _dragIconImage = null;
 
         // If we dropped onto ANY UI element, do NOT drop to world.
         // Defer clearing drag state: OnDrop on the target may run after EndDrag on the source; clearing
@@ -968,15 +987,13 @@ public class InventorySlotUI : MonoBehaviour,
 
     private void CreateDragIcon()
     {
-        _dragIconGO = new GameObject("DragIcon");
-        _dragIconGO.transform.SetParent(_rootCanvas.transform, false);
+        if (_rootCanvas == null)
+            return;
 
-        _dragIconRT = _dragIconGO.AddComponent<RectTransform>();
-        _dragIconImage = _dragIconGO.AddComponent<Image>();
-        _dragIconImage.raycastTarget = false;
-        _dragIconImage.sprite = _def.icon;
-        _dragIconImage.preserveAspect = true;
-        _dragIconRT.sizeDelta = new Vector2(48f, 48f);
+        InventoryDragIconPool.Show(_rootCanvas, _def != null ? _def.icon : null);
+        _dragIconGO = InventoryDragIconPool.GameObject;
+        _dragIconRT = InventoryDragIconPool.RectTransform;
+        _dragIconImage = InventoryDragIconPool.Image;
     }
 
     private void ShowEquipFailPopup(ItemDefinition def, EquipSlot slot)

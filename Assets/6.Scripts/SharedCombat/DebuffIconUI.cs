@@ -29,6 +29,49 @@ public class DebuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     private bool _isPointerOver;
     private bool _hasValidData;
 
+    private Vector2 _stackAnchoredPositionDefault;
+    private Vector3 _stackLocalScaleDefault = Vector3.one;
+    private bool _stackLayoutDefaultsCaptured;
+
+    private void CaptureStackLayoutDefaultsIfNeeded()
+    {
+        if (_stackLayoutDefaultsCaptured || stackText == null)
+            return;
+
+        RectTransform rt = stackText.rectTransform;
+        _stackAnchoredPositionDefault = rt.anchoredPosition;
+        _stackLocalScaleDefault = rt.localScale;
+        _stackLayoutDefaultsCaptured = true;
+    }
+
+    private void Awake()
+    {
+        CaptureStackLayoutDefaultsIfNeeded();
+    }
+
+    /// <summary>
+    /// Used by <see cref="UnitOverheadUI"/> when the icon root is uniformly scaled: optionally counter-scale the stack
+    /// label and nudge its anchored position so numbers stay readable at small icon sizes.
+    /// </summary>
+    public void ApplyOverheadStackPresentation(
+        float iconRootUniformScale,
+        bool compensateIconScale,
+        float stackTextScaleMultiplier,
+        Vector2 anchoredPositionOffset)
+    {
+        if (stackText == null)
+            return;
+
+        CaptureStackLayoutDefaultsIfNeeded();
+
+        RectTransform rt = stackText.rectTransform;
+        float mult = Mathf.Max(0.01f, stackTextScaleMultiplier);
+        float iconS = Mathf.Max(0.0001f, iconRootUniformScale);
+        float factor = compensateIconScale ? mult / iconS : mult;
+        rt.localScale = _stackLocalScaleDefault * factor;
+        rt.anchoredPosition = _stackAnchoredPositionDefault + anchoredPositionOffset;
+    }
+
     public void SetData(
         Sprite sprite,
         int stacks,

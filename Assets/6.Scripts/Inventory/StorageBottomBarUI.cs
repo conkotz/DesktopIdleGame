@@ -29,6 +29,7 @@ public class StorageBottomBarUI : MonoBehaviour
 
     private Inventory _inventory;
     private string _totalValuePrefix;
+    private bool _labelsDirty;
 
     /// <summary>
     /// At scene load BottomBarOfStorage is inactive (storage window starts closed) which means our OnEnable hasn't run
@@ -98,6 +99,16 @@ public class StorageBottomBarUI : MonoBehaviour
             _inventory.OnInventoryChanged += HandleStorageOrInventoryChanged;
 
         SetStoreAllButtonVisible(true);
+        _labelsDirty = false;
+        RefreshSpaceLabel();
+        RefreshTotalValueLabel();
+    }
+
+    private void LateUpdate()
+    {
+        if (!_labelsDirty)
+            return;
+        _labelsDirty = false;
         RefreshSpaceLabel();
         RefreshTotalValueLabel();
     }
@@ -110,6 +121,7 @@ public class StorageBottomBarUI : MonoBehaviour
             _inventory.OnInventoryChanged -= HandleStorageOrInventoryChanged;
 
         SetStoreAllButtonVisible(false);
+        _labelsDirty = false;
     }
 
     /// <summary>The StoreAll button now lives in the inventory window; mirror this component's enabled state to it.</summary>
@@ -124,8 +136,7 @@ public class StorageBottomBarUI : MonoBehaviour
 
     private void HandleStorageOrInventoryChanged()
     {
-        RefreshSpaceLabel();
-        RefreshTotalValueLabel();
+        _labelsDirty = true;
     }
 
     private void ResolveStorage()
@@ -146,7 +157,7 @@ public class StorageBottomBarUI : MonoBehaviour
         if (_inventory == null || storage == null) return;
 
         storage.TryDepositEntireInventory(_inventory);
-        RefreshSpaceLabel();
+        _labelsDirty = true;
     }
 
     private void RefreshSpaceLabel()

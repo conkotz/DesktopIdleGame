@@ -26,6 +26,7 @@ public class InventoryTotalValueUI : MonoBehaviour
 
     private string _prefix;
     private bool _subscribed;
+    private bool _valueLabelDirty;
 
     private void Awake()
     {
@@ -42,7 +43,16 @@ public class InventoryTotalValueUI : MonoBehaviour
     private void OnEnable()
     {
         Subscribe();
-        Refresh();
+        _valueLabelDirty = false;
+        RefreshNow();
+    }
+
+    private void LateUpdate()
+    {
+        if (!_valueLabelDirty)
+            return;
+        _valueLabelDirty = false;
+        RefreshNow();
     }
 
     private void OnDisable()
@@ -59,9 +69,9 @@ public class InventoryTotalValueUI : MonoBehaviour
     {
         if (_subscribed) return;
         if (inventory != null)
-            inventory.OnInventoryChanged += Refresh;
+            inventory.OnInventoryChanged += QueueRefresh;
         if (inventoryGrid != null)
-            inventoryGrid.OnFilterChanged += Refresh;
+            inventoryGrid.OnFilterChanged += QueueRefresh;
         _subscribed = true;
     }
 
@@ -69,13 +79,16 @@ public class InventoryTotalValueUI : MonoBehaviour
     {
         if (!_subscribed) return;
         if (inventory != null)
-            inventory.OnInventoryChanged -= Refresh;
+            inventory.OnInventoryChanged -= QueueRefresh;
         if (inventoryGrid != null)
-            inventoryGrid.OnFilterChanged -= Refresh;
+            inventoryGrid.OnFilterChanged -= QueueRefresh;
         _subscribed = false;
+        _valueLabelDirty = false;
     }
 
-    private void Refresh()
+    private void QueueRefresh() => _valueLabelDirty = true;
+
+    private void RefreshNow()
     {
         if (!label) return;
 

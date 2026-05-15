@@ -29,6 +29,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     private QuestDatabase _resolvedDatabase;
     private bool _isAutoCompleteProcessing;
+    private bool _autoCompleteDeferred;
 
     private Inventory _autoInv;
     private SkillsManager _autoSkills;
@@ -107,6 +108,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     {
         UnbindPlayerDeathSignal();
         UnbindAutoCompleteSignals();
+        _autoCompleteDeferred = false;
     }
 
     private void ResolveQuestDatabase()
@@ -159,18 +161,26 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     private void HandleAutoCompleteSignalChanged()
     {
-        TryAutoCompleteEligibleQuests();
+        _autoCompleteDeferred = true;
     }
 
     private void HandleAutoCompleteSkillLevelUp(SkillType _, int __)
     {
-        TryAutoCompleteEligibleQuests();
+        _autoCompleteDeferred = true;
     }
 
     private void Update()
     {
         if (_playerDeathStats == null)
             TryBindPlayerDeathSignal();
+    }
+
+    private void LateUpdate()
+    {
+        if (!_autoCompleteDeferred)
+            return;
+        _autoCompleteDeferred = false;
+        TryAutoCompleteEligibleQuests();
     }
 
     private void TryBindPlayerDeathSignal()

@@ -34,12 +34,15 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField] private float fadeOutSeconds = 0.25f;
 
     [Header("Crit")]
-    [SerializeField] private float critSizeMultiplier = 2.5f;
+    [SerializeField] private float critSizeMultiplier = 1.85f;
     [SerializeField] private float critExtraLifetime = 1f;
-    [SerializeField, Range(1f, 2f)] private float critBrightnessMultiplier = 1.2f;
+    [SerializeField, Range(1f, 2f)] private float critBrightnessMultiplier = 1.15f;
 
-    [Header("DOT")]
-    [SerializeField] private float dotSizeMultiplier = 0.95f;
+    [Header("DOT (bleed / poison / burn ticks)")]
+    [SerializeField, Tooltip("TMP font size points removed after base size (about two default inspector steps).")]
+    private float dotFontSizeSubtractPoints = 4f;
+    [SerializeField, Tooltip("Applied after subtract; keep at 1 to size DoTs only via subtract.")]
+    private float dotSizeMultiplier = 1f;
 
     [Header("Colours")]
     [SerializeField] private Color physicalColor = new Color32(220, 40, 40, 255);
@@ -191,7 +194,10 @@ public class FloatingDamageTextUI : MonoBehaviour
         float size = _baseFontSize;
 
         if (isDot)
+        {
+            size = Mathf.Max(8f, size - Mathf.Max(0f, dotFontSizeSubtractPoints));
             size *= dotSizeMultiplier;
+        }
 
         if (isCrit)
             size *= critSizeMultiplier;

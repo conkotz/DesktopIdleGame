@@ -159,14 +159,14 @@ MonoBehaviour:
     openableLoot:
     - itemId: feather
       chancePercent: 100
-      minAmount: 5
+      minAmount: 3
       maxAmount: 15
     - itemId: splitwood_twigs
       chancePercent: 70
       minAmount: 3
       maxAmount: 7
     - itemId: basic_fishing_bait
-      chancePercent: 40
+      chancePercent: 20
       minAmount: 15
       maxAmount: 25
     - itemId: leather
@@ -185,6 +185,16 @@ MonoBehaviour:
       chancePercent: 3
       minAmount: 1
       maxAmount: 1
+    foodEffectDurationSeconds: 0
+    foodEnableRegen: 0
+    foodRegenTotalHeal: 0
+    foodEnableSwiftness: 0
+    foodSwiftnessPercentBonus: 0
+    foodEnableOverheal: 0
+    foodOverhealMaxAboveMaxHp: 0
+    foodOverhealInstantHeal: 0
+    foodEnableFocused: 0
+    foodFocusedDamageBonusFraction: 0
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

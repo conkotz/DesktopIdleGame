@@ -1695,11 +1695,11 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         if (string.Equals(majorTitle, "Heavy Swing", System.StringComparison.OrdinalIgnoreCase))
         {
-            int extraResourceChance = 40;
+            int extraResourceChance = 15;
             bool controlledForce = string.Equals(enhancementTitle, "Controlled Force", System.StringComparison.OrdinalIgnoreCase);
             bool crushingSwing = string.Equals(enhancementTitle, "Crushing Swing", System.StringComparison.OrdinalIgnoreCase);
             if (crushingSwing)
-                extraResourceChance += 10;
+                extraResourceChance += 5;
             sb.AppendLine($"     +{extraResourceChance}% Extra Resource Chance when Woodcutting Grit procs");
             if (controlledForce)
                 sb.AppendLine("     +10% Bonus Find Chance when Woodcutting Grit procs");

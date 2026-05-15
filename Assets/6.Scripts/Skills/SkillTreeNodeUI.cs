@@ -45,6 +45,14 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     [SerializeField] private Color selectedOutlineColor = new Color(1f, 0.84f, 0.2f, 1f);
     [SerializeField] private float selectedBorderThickness = 4f;
     [SerializeField] private float selectedGlowPaddingCompensation = 4f;
+    [Header("Minor passive selection chrome")]
+    [Tooltip("Thinner selection ring math for Minor Passive only so the ornate border does not read as a smaller inner tile.")]
+    [SerializeField] private float minorPassiveSelectedBorderThickness = 3.5f;
+    [SerializeField] private float minorPassiveSelectedGlowPaddingCompensation = 2f;
+    [Tooltip(
+        "When the selection border is visible on Minor Passive / Minor Unlock, scales fill + icon only (layout stays root×0.75). " +
+        "Default ~1/0.75 closes the gap between the black tile and the ornate border.")]
+    [SerializeField, Min(1f)] private float minorPassiveSelectionFillScaleWhenBorderShown = 1f / 0.75f;
 
     [Header("Colors")]
     [FormerlySerializedAs("minorColor")]
@@ -159,7 +167,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     public float GetVisualHalfHeight() => GetVisualBoxSize().y * 0.5f;
 
     /// <summary>
-    /// Static equivalent for layout pre-pass (matches ApplyVisualType Fill sizing: root * 0.75).
+    /// Static equivalent for layout pre-pass (matches ApplyVisualType fill sizing: root × 0.75).
     /// </summary>
     public static Vector2 GetVisualBoxSize(SkillTreeNodeVisualType type)
     {
@@ -422,6 +430,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     public void ApplyVisualType(SkillTreeNodeVisualType type)
     {
         appliedVisualType = type;
+        ResetMinorPassiveSelectionVisualBoost();
         if (_fillOutline == null && fillImage != null)
             _fillOutline = fillImage.GetComponent<Outline>();
 
@@ -540,6 +549,14 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         SyncButtonHitAndRaycasts();
     }
 
+    private void ResetMinorPassiveSelectionVisualBoost()
+    {
+        if (fillImage != null)
+            fillImage.rectTransform.localScale = Vector3.one;
+        if (iconImage != null)
+            iconImage.rectTransform.localScale = Vector3.one;
+    }
+
     /// <summary>
     /// Match the invisible <see cref="Button"/> rect to the inner <see cref="fillImage"/> box so hover/tooltips
     /// do not use the full root padding. Decorative images do not enlarge the hit area.
@@ -654,6 +671,25 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         if (selectedBorderOverlay != null)
             selectedBorderOverlay.SetActive(show);
 
+        bool minorPassive = appliedVisualType == SkillTreeNodeVisualType.MinorPassive;
+        bool minorSpine =
+            appliedVisualType == SkillTreeNodeVisualType.MinorPassive ||
+            appliedVisualType == SkillTreeNodeVisualType.MinorUnlock;
+        if (minorSpine && fillImage != null)
+        {
+            float boost = minorPassiveSelectionFillScaleWhenBorderShown;
+            // Prefabs that still store the old "no zoom" default (~1) get a sensible fill-in-border scale.
+            if (show && boost <= 1.02f)
+                boost = 1f / 0.75f;
+            float fillBoost = show ? Mathf.Max(1f, boost) : 1f;
+            fillImage.rectTransform.localScale = Vector3.one * fillBoost;
+            if (iconImage != null)
+                iconImage.rectTransform.localScale = Vector3.one * fillBoost;
+        }
+
+        float effBorderThickness = minorPassive ? minorPassiveSelectedBorderThickness : selectedBorderThickness;
+        float effGlowPad = minorPassive ? minorPassiveSelectedGlowPaddingCompensation : selectedGlowPaddingCompensation;
+
         bool hasGlowObject = selectedGlow != null;
         if (hasGlowObject)
         {
@@ -671,7 +707,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
                     baseSize = fillImage.rectTransform.sizeDelta;
                 else
                     baseSize = RectTransform.sizeDelta;
-                float perSide = Mathf.Max(0f, selectedBorderThickness) + Mathf.Max(0f, selectedGlowPaddingCompensation);
+                float perSide = Mathf.Max(0f, effBorderThickness) + Mathf.Max(0f, effGlowPad);
                 float extra = perSide * 2f;
                 glowRt.sizeDelta = baseSize + new Vector2(extra, extra);
             }
@@ -693,10 +729,13 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
             _fillOutline.enabled = _useColoredFillBackground && !selectionOrnamentCoversFillOutline;
 
         if (!hasGlowObject)
-            ApplyOuterRingSelectionSizing(show);
+            ApplyOuterRingSelectionSizing(show, effBorderThickness);
+
+        if (minorSpine)
+            SyncButtonHitAndRaycasts();
     }
 
-    private void ApplyOuterRingSelectionSizing(bool showSelection)
+    private void ApplyOuterRingSelectionSizing(bool showSelection, float thicknessForRing)
     {
         if (outerRingImage == null)
             return;
@@ -704,7 +743,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         RectTransform rt = outerRingImage.rectTransform;
         if (showSelection)
         {
-            float extra = Mathf.Max(0f, selectedBorderThickness * 2f);
+            float extra = Mathf.Max(0f, thicknessForRing * 2f);
             rt.sizeDelta = _baseOuterRingSize + new Vector2(extra, extra);
         }
         else
@@ -712,7 +751,7 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     }
 
     /// <summary>
-    /// Minor passives: border only when this node is focused in the tree and unlocked (not merely because the tier exists).
+    /// Minor passive / minor unlock: selection border/glow only when unlocked and those objects exist on the prefab.
     /// Major passive / unlock / capstone: border whenever the node is unlocked at level. Ability / choice: committed or active pick.
     /// </summary>
     private bool ShouldShowSelectedGlow()
@@ -721,7 +760,8 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         {
             case SkillTreeNodeVisualType.MinorPassive:
             case SkillTreeNodeVisualType.MinorUnlock:
-                return isSelected && !isLocked;
+                // Selection chrome (border/glow) optional on prefab; avoid driving fill scale with no art — it breaks vertical spacing vs locked rows.
+                return !isLocked && (selectedBorderOverlay != null || selectedGlow != null);
 
             case SkillTreeNodeVisualType.MajorPassive:
             case SkillTreeNodeVisualType.Unlock:

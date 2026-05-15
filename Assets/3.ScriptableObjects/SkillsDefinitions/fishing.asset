@@ -868,7 +868,7 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
-  - requiredLevel: 8
+  - requiredLevel: 10
     title: Pike
     description: "Can catch Pike in ponds \n-Uncommon-"
     icon: {fileID: -1286585359, guid: e4fd2950110f2dd49b4592edb0b1b7c6, type: 3}

@@ -15,6 +15,7 @@ MonoBehaviour:
   skillType: 1
   displayName: Woodcutting
   description: Gather wood resources used for crafting, upgrades, and progression.
+  presentation: {fileID: 0}
   icon: {fileID: 21300000, guid: f08c7189b552c224392fdfafb982438f, type: 3}
   themeColor: {r: 0.0199003, g: 0.24528301, b: 0.024891354, a: 1}
   category: 0
@@ -34,6 +35,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 2
     title: Chopping Speed 1
@@ -49,6 +51,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 3
     title: Chopping Efficiency 1
@@ -64,6 +67,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 4
     title: Chopping Grit 1
@@ -79,10 +83,12 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 5
     title: Lumber Frenzy
-    description: Enter a focused chopping state. +20% Chopping Speed and +10% Woodcutting Grit Chance.
+    description: Enter a focused chopping state. +20% Chopping Speed and +10% Woodcutting
+      Grit Chance.
     icon: {fileID: -2187047416192554098, guid: b78a90acb5575bd4ba76c6522ffef883, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -94,17 +100,20 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: 4d9f5a6c7b8e9012f3a4b5c6d7e8f901, type: 2}
+    presentation: {fileID: 0}
     choices:
     - requiredLevel: 8
       title: Sturdy Grip
       description: +15% Woodcutting Stamina Efficiency during Lumber Frenzy.
       icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
     - requiredLevel: 8
       title: Iron Grit
       description: +5% Woodcutting Grit Chance during Lumber Frenzy.
       icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 6
     title: Chopping Bonus Find 1
     description: +1% Woodcutting Bonus Find Chance
@@ -119,6 +128,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 7
     title: Chopping Speed 2
@@ -134,6 +144,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 8
     title: Chopping Efficiency 2
@@ -149,6 +160,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 9
     title: Chopping Grit Restore 1
@@ -164,6 +176,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 10
     title: Chopping Grit 2
@@ -179,6 +192,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 11
     title: Chopping Bonus Find 2
@@ -194,6 +208,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 12
     title: Chopping Speed 3
@@ -209,6 +224,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 13
     title: Chopping Efficiency 3
@@ -224,6 +240,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 14
     title: Chopping Bonus XP 1
@@ -239,6 +256,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 15
     title: Conservationist
@@ -257,20 +275,23 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices:
-    - requiredLevel: 0
+    - requiredLevel: 18
       title: Sustainable Harvest
       description: +10% max stamina restored when tree depletion is skipped.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
-    - requiredLevel: 0
+      presentation: {fileID: 0}
+    - requiredLevel: 18
       title: Ancient Preservation
       description: +10% Tree Depletion Skip Chance.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 15
     title: Heavy Swing
-    description: When Woodcutting Grit procs, 40% chance to gain an extra resource.
+    description: When Woodcutting Grit procs, 15% chance to gain an extra resource.
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -282,17 +303,20 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices:
-    - requiredLevel: 0
+    - requiredLevel: 18
       title: Controlled Force
       description: +10% Bonus Find Chance when Woodcutting Grit procs.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
-    - requiredLevel: 0
+      presentation: {fileID: 0}
+    - requiredLevel: 18
       title: Crushing Swing
-      description: +10% extra resource chance when Woodcutting Grit procs.
+      description: +5% extra resource chance when Woodcutting Grit procs.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 15
     title: Flow State
     description: 'After 15 seconds of continuous woodcutting on the same tree, you
@@ -313,17 +337,20 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices:
-    - requiredLevel: 0
+    - requiredLevel: 18
       title: Lasting Focus
       description: Flow lasts 5 seconds after you stop gathering.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
-    - requiredLevel: 0
+      presentation: {fileID: 0}
+    - requiredLevel: 18
       title: Deep Focus
       description: +10% Woodcutting Grit Chance while Flow is active.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 16
     title: Chopping Grit 3
     description: +2% Woodcutting Grit Chance
@@ -338,6 +365,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 17
     title: Chopping Speed 4
@@ -353,6 +381,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 18
     title: Chopping Bonus Find 3
@@ -368,6 +397,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 19
     title: Chopping Tireless Swing 1
@@ -383,6 +413,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 20
     title: Medium Tier Trees
@@ -398,6 +429,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 21
     title: Chopping Tree Conservation 1
@@ -413,6 +445,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 22
     title: Chopping Speed 5
@@ -428,6 +461,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 23
     title: Chopping Bonus Find 4
@@ -443,6 +477,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 24
     title: Chopping Frenzy 1
@@ -458,6 +493,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 25
     title: Cleaving Chop
@@ -474,17 +510,20 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: 9e1d8c4b7a2f4032e5b6c7a8d9f01234, type: 2}
+    presentation: {fileID: 0}
     choices:
     - requiredLevel: 28
       title: Extended Reach
       description: Cleaving Chop range increased by +4.
       icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
     - requiredLevel: 28
       title: Prolonged Cleave
       description: Cleaving Chop duration increased by +5 seconds.
       icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 25
     title: Spectral Axe
     description: Throws a spectral copy of your axe to chop a tree for you for 60
@@ -500,6 +539,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: 6c2a4e1b3d75f041a8b2c3d4e5f60123, type: 2}
+    presentation: {fileID: 0}
     choices:
     - requiredLevel: 28
       title: Phantom Harvest
@@ -507,12 +547,14 @@ MonoBehaviour:
         chances.
       icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
     - requiredLevel: 28
       title: Cleaving Flight
       description: Spectral Axe yields a guaranteed log on the first tree it strikes
         outbound and again on its return.
       icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 26
     title: Chopping Speed 6
     description: +3% Woodcutting Speed
@@ -527,6 +569,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 27
     title: Chopping Efficiency 5
@@ -542,6 +585,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 28
     title: Chopping Grit Restore 2
@@ -557,6 +601,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 29
     title: Chopping Grit 5
@@ -572,6 +617,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 30
     title: Chopping Bonus Find 5
@@ -587,6 +633,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 31
     title: Chopping Forest Flow 1
@@ -603,6 +650,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 32
     title: Chopping Tree Conservation 2
@@ -618,6 +666,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 33
     title: Chopping Grit 6
@@ -633,6 +682,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 34
     title: Chopping Bonus XP 2
@@ -648,6 +698,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 35
     title: Ancient Lumbercraft
@@ -663,17 +714,20 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices:
     - requiredLevel: 0
       title: Experienced Gatherer
       description: +5% additional chance to find hidden resources
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
     - requiredLevel: 0
       title: Treasure Hunter
       description: Hidden resources have 10% chance to double.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 35
     title: Forest's Favor
     description: Bonus Finds have a 25% chance to grant +1 additional items.
@@ -688,17 +742,20 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices:
     - requiredLevel: 0
       title: Rich Harvest
       description: +10% Bonus Find Chance.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
     - requiredLevel: 0
       title: Hidden Riches
       description: +10% chance for Bonus Finds to grant +1 additional items.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 36
     title: Chopping Speed 8
     description: +3% Woodcutting Speed
@@ -713,6 +770,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 37
     title: Chopping Efficiency 6
@@ -728,6 +786,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 38
     title: Chopping Bonus Find 6
@@ -743,6 +802,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 39
     title: Chopping Tireless Swing 2
@@ -758,6 +818,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 40
     title: Chop High Tier Trees
@@ -773,6 +834,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 41
     title: Chopping Speed 9
@@ -788,6 +850,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 42
     title: Chopping Frenzy 2
@@ -803,6 +866,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 43
     title: Chopping Bonus Find 7
@@ -818,6 +882,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 44
     title: Chopping Forest Flow 2
@@ -834,13 +899,14 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 45
     title: Avatar of the Forest
-    description: Invoke forest power for a woodcutting surge. While active, your chops
-      do not deplete trees, nearby trees slowly recover depletion, bonus finds are doubled
-      after all other bonuses, you spend no stamina on woodcutting swings, and you chop
-      faster.
+    description: Invoke forest power for a woodcutting surge. While active, your
+      chops do not deplete trees, nearby trees slowly recover depletion, bonus finds
+      are doubled after all other bonuses, you spend no stamina on woodcutting swings,
+      and you chop faster.
     icon: {fileID: 4266808884134915304, guid: 68bd1fe8266df974ca814370a67767d0, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -852,17 +918,20 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: e4d3c2b1a0f9e8d7c6b5a4938271605f, type: 2}
+    presentation: {fileID: 0}
     choices:
     - requiredLevel: 48
       title: Heartwood Vigil
       description: Avatar of the Forest lasts +30 seconds.
       icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
     - requiredLevel: 48
       title: Greenbark Respite
       description: After Avatar of the Forest ends, its cooldown is 30 seconds shorter.
       icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
       ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 46
     title: Chopping Tree Conservation 3
     description: +10% Woodcutting chance not to count toward tree depletion
@@ -877,6 +946,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 47
     title: Chopping Grit 8
@@ -892,6 +962,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 48
     title: Chopping Bonus Find 8
@@ -907,6 +978,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 49
     title: Chopping Efficiency 7
@@ -922,6 +994,7 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []
   - requiredLevel: 50
     title: Bountiful Chop
@@ -938,4 +1011,5 @@ MonoBehaviour:
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
+    presentation: {fileID: 0}
     choices: []

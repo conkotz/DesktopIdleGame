@@ -84,6 +84,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     [Tooltip("How often to rescan for a living enemy while idle (seconds). Closest by default; Longbow picks the furthest enemy first.")]
     [SerializeField] private float idleRescanInterval = 0.25f;
 
+    [Tooltip("Longbow idle auto-battle: if the player was damaged by an enemy within this window, prefer that enemy when acquiring a new target (before furthest-in-range).")]
+    [SerializeField, Min(0.1f)] private float longbowPrioritizeRecentAttackerSeconds = 2.5f;
+
     [Tooltip("While idle combat is on, every N seconds all dropped items on the scene begin vacuuming to the player and are picked up on contact.")]
     [SerializeField, Min(0.5f)] private float idleAutoPickupIntervalSeconds = 20f;
     private float _nextIdleAutoPickupTime;
@@ -151,6 +154,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private readonly List<string> _incomingDealerOrder = new List<string>();
 
     private readonly List<EnemyBaseController> _ailmentSpreadScratch = new List<EnemyBaseController>(16);
+
+    private EnemyBaseController _lastEnemyThatDamagedPlayer;
+    private float _lastEnemyThatDamagedPlayerTime = -999f;
 
 
     public float GetAttackCooldownSeconds()
@@ -471,13 +477,16 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         float enemyHalf = HalfWidthX(_targetColCached);
 
         float gap = EdgeGapX(myX, enemyX, myHalf, enemyHalf);
-        if (gap <= myRange)
+        // Same outer band as shouldStartClosing so we don't get stuck "closing" forever when the gap
+        // hovers just outside melee range (moving targets + float noise used to pin gap > myRange every frame).
+        float closeEnoughToSwing = myRange + stopSlack;
+        if (gap <= closeEnoughToSwing)
             _attackBufferedFromRange = true;
+
         float desiredCenterDist = myRange + myHalf + enemyHalf;
         float desiredX = (myX < enemyX) ? (enemyX - desiredCenterDist) : (enemyX + desiredCenterDist);
-        bool attackReadyThisFrame = Time.time >= _nextAttackTime;
-        bool shouldStartClosing = gap > myRange + stopSlack;
-        bool shouldKeepClosing = _isClosingDistanceForAttack && gap > myRange;
+        bool shouldStartClosing = gap > closeEnoughToSwing;
+        bool shouldKeepClosing = _isClosingDistanceForAttack && gap > closeEnoughToSwing;
         bool shouldCloseDistance = !_attackBufferedFromRange && (shouldStartClosing || shouldKeepClosing);
 
         if (shouldCloseDistance)
@@ -1350,6 +1359,48 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
     }
 
+    private void TryRememberEnemyDamageSourceForLongbowRetarget(Transform source)
+    {
+        if (source == null)
+            return;
+
+        EnemyBaseController enemy = source.GetComponentInParent<EnemyBaseController>();
+        if (!enemy)
+            enemy = source.GetComponentInChildren<EnemyBaseController>(true);
+
+        if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+            return;
+
+        _lastEnemyThatDamagedPlayer = enemy;
+        _lastEnemyThatDamagedPlayerTime = Time.time;
+    }
+
+    /// <summary>
+    /// Longbow idle acquisition: if the player was damaged by an enemy recently, prefer that enemy when it is still alive and in bow range.
+    /// </summary>
+    private EnemyBaseController TryPickLongbowIdleRecentAttackerInRange()
+    {
+        if (_lastEnemyThatDamagedPlayer == null)
+            return null;
+
+        if (Time.time - _lastEnemyThatDamagedPlayerTime > longbowPrioritizeRecentAttackerSeconds)
+            return null;
+
+        EnemyBaseController e = _lastEnemyThatDamagedPlayer;
+        if (e.IsDead || !e.gameObject.activeInHierarchy)
+            return null;
+
+        float maxRange = GetCurrentMaxAttackRangeUnits();
+        if (maxRange > 0.0001f)
+        {
+            float d = Mathf.Abs(e.transform.position.x - transform.position.x);
+            if (d > maxRange)
+                return null;
+        }
+
+        return e;
+    }
+
     /// <summary>Longbow + ranged: idle auto-battle targets the enemy farthest along X first; Swiftbow/other uses closest.</summary>
     private bool ShouldIdlePickFurthestEnemyFirst()
     {
@@ -1365,9 +1416,18 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         // 1) No valid current target: pick the best new one.
         if (current == null)
-            return ShouldIdlePickFurthestEnemyFirst()
-                ? FindFurthestLivingEnemyWithinAttackRangeOrClosestFallback()
-                : FindClosestLivingEnemy();
+        {
+            if (ShouldIdlePickFurthestEnemyFirst())
+            {
+                EnemyBaseController recentAttacker = TryPickLongbowIdleRecentAttackerInRange();
+                if (recentAttacker != null)
+                    return recentAttacker;
+
+                return FindFurthestLivingEnemyWithinAttackRangeOrClosestFallback();
+            }
+
+            return FindClosestLivingEnemy();
+        }
 
         // 2) Longbow smart-pick only applies when acquiring a target from idle.
         // Once already engaged, keep current target stable.
@@ -1842,6 +1902,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         EnsureDpsSessionStarted();
         _incomingDamageSum.Add(bucket, damageAmount);
         AddIncomingDealerDamageByName(dealerName, damageAmount);
+        TryRememberEnemyDamageSourceForLongbowRetarget(source);
     }
 
     private void AddIncomingDealerDamageByName(string dealerName, float amount)
@@ -1960,6 +2021,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _incomingDamageByDealer.Clear();
         _incomingDealerOrder.Clear();
         _pausedDpsSessionDuration = 0f;
+        _lastEnemyThatDamagedPlayer = null;
+        _lastEnemyThatDamagedPlayerTime = -999f;
     }
 
     private void TryResolveAutoConsumeRefs()

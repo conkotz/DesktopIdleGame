@@ -29,15 +29,53 @@ public class SkillDefinitionEditor : Editor
     private void DrawUnlockElement(Rect rect, int index, bool isActive, bool isFocused)
     {
         SerializedProperty element = _unlocksProp.GetArrayElementAtIndex(index);
+        GUIContent rowLabel = BuildUnlockRowLabel(element);
         rect.y += 2f;
         rect.height -= 4f;
-        EditorGUI.PropertyField(rect, element, true);
+        EditorGUI.PropertyField(rect, element, rowLabel, true);
     }
 
     private float GetUnlockElementHeight(int index)
     {
         SerializedProperty element = _unlocksProp.GetArrayElementAtIndex(index);
-        return EditorGUI.GetPropertyHeight(element, true) + 6f;
+        GUIContent rowLabel = BuildUnlockRowLabel(element);
+        return EditorGUI.GetPropertyHeight(element, rowLabel, true) + 6f;
+    }
+
+    /// <summary>
+    /// Foldout label for each unlock row (visible when the row is collapsed).
+    /// </summary>
+    private static GUIContent BuildUnlockRowLabel(SerializedProperty unlockElement)
+    {
+        if (unlockElement == null)
+            return new GUIContent("(invalid unlock)");
+
+        SerializedProperty typeProp = unlockElement.FindPropertyRelative("unlockType");
+        SerializedProperty titleProp = unlockElement.FindPropertyRelative("title");
+        SerializedProperty levelProp = unlockElement.FindPropertyRelative("requiredLevel");
+
+        int level = 0;
+        if (levelProp != null && levelProp.propertyType == SerializedPropertyType.Integer)
+            level = levelProp.intValue;
+
+        string typePart = "?";
+        if (typeProp != null && typeProp.propertyType == SerializedPropertyType.Enum)
+        {
+            string[] names = typeProp.enumDisplayNames;
+            int idx = typeProp.enumValueIndex;
+            if (names != null && idx >= 0 && idx < names.Length)
+                typePart = names[idx];
+            else if (typeProp.enumNames != null && idx >= 0 && idx < typeProp.enumNames.Length)
+                typePart = ObjectNames.NicifyVariableName(typeProp.enumNames[idx]);
+        }
+
+        string titlePart = titleProp != null && titleProp.propertyType == SerializedPropertyType.String
+            ? (titleProp.stringValue ?? string.Empty).Trim()
+            : string.Empty;
+        if (string.IsNullOrEmpty(titlePart))
+            titlePart = "(no title)";
+
+        return new GUIContent($"Lv{level} · [{typePart}] {titlePart}");
     }
 
     public override void OnInspectorGUI()

@@ -29,7 +29,13 @@ public class UnitOverheadUI : MonoBehaviour
              "Use < 1 to shrink enemy overhead debuffs while the player's debuff bar keeps the prefab default.")]
     [SerializeField, Min(0.05f)] private float debuffIconScale = 1f;
 
-    [Header("Colors")]
+    [Header("Debuff stack text (overhead)")]
+    [Tooltip("When the icon root is scaled down, counter-scale the stack TMP so it does not shrink with the icon.")]
+    [SerializeField] private bool debuffStackCompensateIconScale = true;
+    [Tooltip("Extra multiplier on stack text size after compensation (1 = match prefab readability when compensated).")]
+    [SerializeField, Min(0.01f)] private float debuffStackTextScale = 1f;
+    [Tooltip("Added to the StackText RectTransform anchoredPosition from the prefab (e.g. nudge away from the icon).")]
+    [SerializeField] private Vector2 debuffStackTextAnchoredPositionOffset = Vector2.zero;
     [Tooltip("Enemy overhead HP fill tint. Player overhead uses prefab fill until an ailment overrides it (see code).")]
     [SerializeField] private Color enemyHpFillColor = new(1f, 0.42f, 0.2f, 1f);
 
@@ -1105,16 +1111,14 @@ public class UnitOverheadUI : MonoBehaviour
     {
         if (icon == null)
             return;
-        if (debuffIconScale <= 0f || Mathf.Approximately(debuffIconScale, 1f))
-        {
-            // Still ensure we leave a clean scale of 1 (avoid leaking previous overrides if the prefab is reused).
-            if (icon != null && Mathf.Approximately(debuffIconScale, 1f))
-                icon.transform.localScale = Vector3.one;
-            return;
-        }
 
-        // Read the spawned icon's base size BEFORE we apply scale so the LayoutElement reflects the
-        // scaled visual size and the layout group packs icons tightly (no 50px slots around tiny icons).
+        float s = Mathf.Max(0.05f, debuffIconScale);
+
+        if (Mathf.Approximately(s, 1f))
+            icon.transform.localScale = Vector3.one;
+        else
+            icon.transform.localScale = new Vector3(s, s, 1f);
+
         Vector2 baseSize = Vector2.zero;
         if (icon.transform is RectTransform rt)
         {
@@ -1123,10 +1127,7 @@ public class UnitOverheadUI : MonoBehaviour
             if (baseSize.y <= 0f && rt.sizeDelta.y > 0f) baseSize.y = rt.sizeDelta.y;
         }
 
-        float s = debuffIconScale;
-        icon.transform.localScale = new Vector3(s, s, 1f);
-
-        if (baseSize.x > 0f && baseSize.y > 0f)
+        if (!Mathf.Approximately(s, 1f) && baseSize.x > 0f && baseSize.y > 0f)
         {
             LayoutElement le = icon.GetComponent<LayoutElement>();
             if (le == null)
@@ -1139,6 +1140,21 @@ public class UnitOverheadUI : MonoBehaviour
             le.flexibleWidth = 0f;
             le.flexibleHeight = 0f;
         }
+
+        ApplyDebuffStackPresentation(icon, s);
+    }
+
+    private void ApplyDebuffStackPresentation(GameObject icon, float appliedIconUniformScale)
+    {
+        DebuffIconUI iconUi = icon.GetComponent<DebuffIconUI>();
+        if (iconUi == null)
+            return;
+
+        iconUi.ApplyOverheadStackPresentation(
+            appliedIconUniformScale,
+            debuffStackCompensateIconScale,
+            debuffStackTextScale,
+            debuffStackTextAnchoredPositionOffset);
     }
 
     private void EnsureClickableBacking()

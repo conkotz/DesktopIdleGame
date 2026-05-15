@@ -1484,7 +1484,23 @@ public class PlayerController : MonoBehaviour
         }
 
         if (dist <= arrive)
-            ReturnToIdle();
+        {
+            // Combat micro-steps to a moving enemy: do not run full ReturnToIdle() (gather resets + weapon
+            // visual clears + forced Idle action) every time we hit the tight arrive threshold — that fights
+            // combat presentation and can leave you sliding in Fighting/idle without reaching attack logic.
+            if (combat != null &&
+                combat.CurrentTarget != null &&
+                !combat.CurrentTarget.IsDead)
+            {
+                state = State.Idle;
+            }
+            else
+            {
+                ReturnToIdle();
+            }
+
+            return;
+        }
     }
 
     // -------------------------
@@ -1767,7 +1783,7 @@ public class PlayerController : MonoBehaviour
 
                 if (isWoodcutting && gritProc && woodcuttingMajorPick == 1)
                 {
-                    float heavyExtraChance = woodcuttingMajorEnhancement == 1 ? 0.50f : 0.40f;
+                    float heavyExtraChance = woodcuttingMajorEnhancement == 1 ? 0.20f : 0.15f;
                     if (UnityEngine.Random.value < heavyExtraChance)
                         mainAmt += 1;
                 }
@@ -3345,9 +3361,8 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>
-    /// Spawn point and world drift for incoming damage popups. Always offsets horizontally away from the attacker
-    /// and drifts in that same world direction (flee the threat). Does not use sprite facing so it stays correct
-    /// even if <see cref="visualsRoot"/> scale and combat orientation disagree.
+    /// Spawn point and drift for incoming damage popups on the player. Matches <see cref="TakeDamage"/>:
+    /// anchor from this object’s hierarchy, horizontal offset away from the attacker in world X, drift = normalized (player − attacker).
     /// </summary>
     public void GetIncomingDamagePopupPlacement(
         Vector3 anchorWorldPos,
@@ -3362,14 +3377,28 @@ public class PlayerController : MonoBehaviour
         if (!attacker)
             return;
 
-        float towardAttackerX = Mathf.Sign(attacker.position.x - transform.position.x);
+        GetIncomingDamagePopupPlacementFromDealerWorld(anchorWorldPos, attacker.position, sideOffset, out spawnWorldPos, out driftWorldDir);
+    }
+
+    /// <summary>
+    /// Same horizontal offset and drift as <see cref="GetIncomingDamagePopupPlacement"/> but from a fixed world position
+    /// (used for DoT when the dealer <see cref="Transform"/> was destroyed, e.g. enemy died while poison still ticks).
+    /// </summary>
+    public void GetIncomingDamagePopupPlacementFromDealerWorld(
+        Vector3 anchorWorldPos,
+        Vector3 dealerWorldPosition,
+        float sideOffset,
+        out Vector3 spawnWorldPos,
+        out Vector3 driftWorldDir)
+    {
+        float towardAttackerX = Mathf.Sign(dealerWorldPosition.x - transform.position.x);
         if (towardAttackerX == 0f)
             towardAttackerX = 1f;
 
         spawnWorldPos = anchorWorldPos + new Vector3(-towardAttackerX * sideOffset, 0f, 0f);
 
-        Vector3 awayFromAttacker = transform.position - attacker.position;
-        driftWorldDir = awayFromAttacker.sqrMagnitude > 0.0001f ? awayFromAttacker.normalized : Vector3.up;
+        Vector3 away = transform.position - dealerWorldPosition;
+        driftWorldDir = away.sqrMagnitude > 0.0001f ? away.normalized : Vector3.up;
     }
 
     public void Heal(float amount)
