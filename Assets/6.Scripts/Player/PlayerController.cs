@@ -219,16 +219,30 @@ public class PlayerController : MonoBehaviour
     private float _fishingContinuousGatherSeconds;
     private float _fishingFrenzyUntil;
 
+    /// <summary>Lv15 Calm Waters (major): stacks built every 4s while fishing; +2% speed / +1% bonus find per stack.</summary>
+    private int _fishingCalmWatersMajorStacks;
+    private float _fishingCalmWatersMajorStackTimer;
+    /// <summary>Lasting Waters: Calm stacks that decay 1 per 2s after fishing stops until the next gather merges them.</summary>
+    private int _fishingCalmWatersLingerStacks;
+    private float _fishingCalmWatersNextLingerDecayAt;
+
     private PlayerBuffController _buffControllerCache;
     private bool _woodcuttingFlowStateHudRegistered;
+    private bool _fishingCalmWatersMajorHudRegistered;
+    private int _fishingCalmWatersMajorHudLastStacks = int.MinValue;
 
     private const float WoodcuttingForestFlowContinuousSecondsThreshold = 15f;
     private const float FishingCalmWatersContinuousSecondsThreshold = 15f;
     private const float FishingGritFrenzyDurationSeconds = 7f;
+    private const float FishingCalmWatersMajorStackIntervalSeconds = 4f;
+    private const float FishingCalmWatersLingerDecayIntervalSeconds = 2f;
 
     /// <summary>HUD buff strip id for Lv15 Flow State (assign icon on the Buffs / Debuffs panel).</summary>
     public const string WoodcuttingFlowStateHudBuffId = "woodcutting_flow_state";
+    /// <summary>HUD buff strip id for Lv15 Calm Waters major (stack count = Calm stacks).</summary>
+    public const string FishingCalmWatersMajorHudBuffId = "fishing_calm_waters_major";
     public const int WoodcuttingMajorPassiveSourceLevel = 15;
+    public const int FishingMajorPassiveSourceLevel = 15;
     public const int WoodcuttingLv35MajorPassiveSourceLevel = 35;
     /// <summary>Woodcutting skill level at which the capstone passive unlocks (see woodcutting skill tree).</summary>
     public const int WoodcuttingCapstonePassiveRequiredLevel = 50;
@@ -236,6 +250,10 @@ public class PlayerController : MonoBehaviour
     /// <summary>Spine id segment for the Lv15 ability row pick (0–2) used with <see cref="SkillsManager.GetSkillChoiceSelection"/> string overload.</summary>
     public static string WoodcuttingLevel15ChoiceSpineId(int abilityRowPick) =>
         $"Lv{WoodcuttingMajorPassiveSourceLevel}_{Mathf.Clamp(abilityRowPick, 0, 2)}";
+
+    /// <summary>Spine id segment for Fishing Lv15 major-passive row pick (0–2).</summary>
+    public static string FishingLevel15ChoiceSpineId(int abilityRowPick) =>
+        $"Lv{FishingMajorPassiveSourceLevel}_{Mathf.Clamp(abilityRowPick, 0, 2)}";
 
     /// <summary>Spine id segment for the Lv35 major-passive row pick (0–1) used with <see cref="SkillsManager.GetSkillChoiceSelection"/> string overload.</summary>
     public static string WoodcuttingLevel35ChoiceSpineId(int abilityRowPick) =>
@@ -504,6 +522,8 @@ public class PlayerController : MonoBehaviour
         UpdateSpriteFlip();
         characterStats?.TickRegen(Time.deltaTime);
         SyncWoodcuttingFlowStateHudBuffIfNeeded();
+        TickFishingCalmWatersLingerDecay();
+        SyncFishingCalmWatersMajorHudBuffIfNeeded();
     }
 
     private void TickStateMachine()
@@ -1256,6 +1276,8 @@ public class PlayerController : MonoBehaviour
     {
         ClearFatigueGatherProgress();
         CaptureWoodcuttingFlowLingerOnGatherStop();
+        CaptureFishingCalmWatersOnGatherStop();
+        ResetFishingRuntimeState(clearBonuses: true);
 
         _gatherSpeedMultiplier = 1f;
         OnGatherDebuffChanged?.Invoke(false, 1f);
@@ -1361,6 +1383,8 @@ public class PlayerController : MonoBehaviour
         if (state == State.Gather || state == State.MoveToTarget || state == State.MoveToPickup)
         {
             CaptureWoodcuttingFlowLingerOnGatherStop();
+            CaptureFishingCalmWatersOnGatherStop();
+            ResetFishingRuntimeState(clearBonuses: true);
             targetNode = null;
             _pickupTarget = null;
 
@@ -1380,6 +1404,8 @@ public class PlayerController : MonoBehaviour
         if (_isDead) return;
 
         CaptureWoodcuttingFlowLingerOnGatherStop();
+        CaptureFishingCalmWatersOnGatherStop();
+        ResetFishingRuntimeState(clearBonuses: true);
 
         targetNode = null;
         _pickupTarget = null;
@@ -1652,7 +1678,27 @@ public class PlayerController : MonoBehaviour
             _woodcuttingContinuousGatherSeconds += Time.deltaTime;
 
         if (targetNode.ActionType == NodeAction.Fishing)
+        {
             _fishingContinuousGatherSeconds += Time.deltaTime;
+
+            if (IsFishingMajorCalmWatersSelected() && IsFishingMajorLastingWatersSelected() && _fishingCalmWatersLingerStacks > 0)
+            {
+                _fishingCalmWatersMajorStacks = Mathf.Min(GetFishingCalmWatersMaxStacks(), _fishingCalmWatersLingerStacks);
+                _fishingCalmWatersLingerStacks = 0;
+            }
+
+            if (IsFishingMajorCalmWatersSelected())
+            {
+                _fishingCalmWatersMajorStackTimer += Time.deltaTime;
+                int maxStacks = GetFishingCalmWatersMaxStacks();
+                while (_fishingCalmWatersMajorStacks < maxStacks &&
+                       _fishingCalmWatersMajorStackTimer >= FishingCalmWatersMajorStackIntervalSeconds)
+                {
+                    _fishingCalmWatersMajorStackTimer -= FishingCalmWatersMajorStackIntervalSeconds;
+                    _fishingCalmWatersMajorStacks++;
+                }
+            }
+        }
 
         // Only “swing” the gather animation once every N seconds while gathering
         if (animator && Time.time >= _nextGatherAnimTime)
@@ -1710,6 +1756,8 @@ public class PlayerController : MonoBehaviour
         bool isWoodcutting = targetNode.ActionType == NodeAction.Woodcutting;
         bool isFishing = targetNode.ActionType == NodeAction.Fishing;
         bool gritProc = false;
+        int fishingMajorPick = GetFishingLevel15RowPick();
+        int fishingMajorEnhancement = GetFishingLevel15EnhancementIndex(fishingMajorPick);
 
         // ---- 1) MAIN yield first (this is the ONLY thing that grants XP) ----
         if (def.HasMainYield)
@@ -1717,18 +1765,34 @@ public class PlayerController : MonoBehaviour
             bool countTowardDepletion = true;
             int woodcuttingMajorPick = GetWoodcuttingLevel15RowPick();
             int woodcuttingMajorEnhancement = GetWoodcuttingLevel15EnhancementIndex(woodcuttingMajorPick);
-            if (isWoodcutting && def.UsesDepletion && characterStats != null)
+            if (def.UsesDepletion && characterStats != null)
             {
-                float skipP = Mathf.Clamp01(characterStats.AxeWoodcuttingChanceNotToCountTowardTreeDepletion);
-                if (woodcuttingMajorPick == 0)
+                if (isWoodcutting)
                 {
-                    skipP += 0.15f;
-                    if (woodcuttingMajorEnhancement == 1)
-                        skipP += 0.10f;
-                    skipP = Mathf.Clamp01(skipP);
+                    float skipP = Mathf.Clamp01(characterStats.AxeWoodcuttingChanceNotToCountTowardTreeDepletion);
+                    if (woodcuttingMajorPick == 0)
+                    {
+                        skipP += 0.15f;
+                        if (woodcuttingMajorEnhancement == 1)
+                            skipP += 0.10f;
+                        skipP = Mathf.Clamp01(skipP);
+                    }
+                    if (skipP > 0f && UnityEngine.Random.value < skipP)
+                        countTowardDepletion = false;
                 }
-                if (skipP > 0f && UnityEngine.Random.value < skipP)
-                    countTowardDepletion = false;
+                else if (isFishing)
+                {
+                    float skipP = 0f;
+                    if (fishingMajorPick == 0)
+                    {
+                        skipP += 0.15f;
+                        if (fishingMajorEnhancement == 1)
+                            skipP += 0.10f;
+                        skipP = Mathf.Clamp01(skipP);
+                    }
+                    if (skipP > 0f && UnityEngine.Random.value < skipP)
+                        countTowardDepletion = false;
+                }
             }
 
             if (isWoodcutting && def.UsesDepletion && abilityController != null && abilityController.IsAvatarOfTheForestActive)
@@ -1738,6 +1802,13 @@ public class PlayerController : MonoBehaviour
 
             if (isWoodcutting && !countTowardDepletion && woodcuttingMajorPick == 0 &&
                 woodcuttingMajorEnhancement == 0 && characterStats != null)
+            {
+                float restore = 0.10f * Mathf.Max(1f, characterStats.MaxEnergy);
+                characterStats.AddEnergy(restore);
+            }
+
+            if (isFishing && !countTowardDepletion && fishingMajorPick == 0 &&
+                fishingMajorEnhancement == 0 && characterStats != null)
             {
                 float restore = 0.10f * Mathf.Max(1f, characterStats.MaxEnergy);
                 characterStats.AddEnergy(restore);
@@ -1823,6 +1894,23 @@ public class PlayerController : MonoBehaviour
                     }
                 }
 
+                if (isFishing && gritProc && fishingMajorPick == 1)
+                {
+                    float poweredExtraChance = fishingMajorEnhancement == 1 ? 0.20f : 0.15f;
+                    if (UnityEngine.Random.value < poweredExtraChance)
+                    {
+                        foreach (var kv in _mainYieldScratch)
+                        {
+                            if (kv.Value <= 0 || string.IsNullOrWhiteSpace(kv.Key))
+                                continue;
+                            _mainYieldScratch[kv.Key] = kv.Value + 1;
+                            if (_fishingXpScratch.Count > 0)
+                                _fishingXpScratch.Add(_fishingXpScratch[_fishingXpScratch.Count - 1]);
+                            break;
+                        }
+                    }
+                }
+
                 if (targetNode.ApplyDepletedYieldPenaltyThisTick)
                 {
                     string[] keys = new string[_mainYieldScratch.Count];
@@ -1903,6 +1991,10 @@ public class PlayerController : MonoBehaviour
         if (isWoodcutting && gritProc && GetWoodcuttingLevel15RowPick() == 1 &&
             GetWoodcuttingLevel15EnhancementIndex(1) == 0)
             bonusFindForRoll += 0.10f;
+        if (isFishing && gritProc && fishingMajorPick == 1 && fishingMajorEnhancement == 0)
+            bonusFindForRoll += 0.10f;
+        if (isFishing && IsFishingMajorCalmWatersSelected() && _fishingCalmWatersMajorStacks > 0)
+            bonusFindForRoll += 0.01f * _fishingCalmWatersMajorStacks;
         if (isWoodcutting)
             bonusFindForRoll += GetWoodcuttingLevel35BonusFindAdd();
         if (isWoodcutting && abilityController != null)
@@ -2246,6 +2338,7 @@ public class PlayerController : MonoBehaviour
             ClearFatigueGatherProgress();
 
         CaptureWoodcuttingFlowLingerOnGatherStop();
+        CaptureFishingCalmWatersOnGatherStop();
 
         _gatherSpeedMultiplier = 1f;
         _gatherGritChance = 0f;
@@ -2365,6 +2458,8 @@ public class PlayerController : MonoBehaviour
             if (_fishingBonuses.calmWatersStacks > 0 &&
                 _fishingContinuousGatherSeconds >= FishingCalmWatersContinuousSecondsThreshold)
                 fishBonus += 0.03f * _fishingBonuses.calmWatersStacks;
+            if (IsFishingMajorCalmWatersSelected() && _fishingCalmWatersMajorStacks > 0)
+                fishBonus += 0.02f * _fishingCalmWatersMajorStacks;
             if (_fishingBonuses.frenzyStacks > 0 && Time.time < _fishingFrenzyUntil)
                 fishBonus += 0.05f * _fishingBonuses.frenzyStacks;
             return Mathf.Max(0.05f, fishMult * (1f + fishBonus));
@@ -2551,6 +2646,12 @@ public class PlayerController : MonoBehaviour
                 calmWatersStaminaEfficiencyAddFraction = cw;
                 any = true;
             }
+
+            if (IsFishingMajorCalmWatersSelected() && _fishingCalmWatersMajorStacks > 0)
+            {
+                calmWatersSpeedFraction += 0.02f * _fishingCalmWatersMajorStacks;
+                any = true;
+            }
         }
 
         if (_fishingBonuses.frenzyStacks > 0 && Time.time < _fishingFrenzyUntil)
@@ -2565,8 +2666,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>Changes when fishing gather transient buffs change; used to refresh Rod stats without full sheet churn.</summary>
     public int GetFishingStatsPanelStamp()
     {
-        if (!TryGetFishingLiveBuffInfo(out float fren, out float calmSpd, out float calmStam))
-            return 0;
+        _ = TryGetFishingLiveBuffInfo(out float fren, out float calmSpd, out float calmStam);
 
         int h0 = HashCode.Combine(
             Mathf.RoundToInt(fren * 1000f),
@@ -2576,7 +2676,12 @@ public class PlayerController : MonoBehaviour
             _fishingBonuses.calmWatersStacks,
             _fishingBonuses.frenzyStacks,
             Mathf.RoundToInt(_fishingFrenzyUntil * 100f));
-        return HashCode.Combine(h0, h1);
+        int h2 = HashCode.Combine(
+            _fishingCalmWatersMajorStacks,
+            _fishingCalmWatersLingerStacks,
+            GetFishingLevel15BuildStamp(),
+            Mathf.RoundToInt(_fishingCalmWatersMajorStackTimer * 1000f));
+        return HashCode.Combine(h0, h1, h2);
     }
 
     private int GetWoodcuttingLevel15RowPick()
@@ -2605,6 +2710,118 @@ public class PlayerController : MonoBehaviour
     {
         int pick = GetWoodcuttingLevel15RowPick();
         return HashCode.Combine(pick, GetWoodcuttingLevel15EnhancementIndex(pick));
+    }
+
+    private int GetFishingLevel15RowPick()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null) return -1;
+        int pick = sm.GetSkillAbilityRowPick(SkillType.Fishing, FishingMajorPassiveSourceLevel, -1);
+        if (pick < 0 || pick > 2)
+            return -1;
+        return pick;
+    }
+
+    private int GetFishingLevel15EnhancementIndex(int rowPick)
+    {
+        if (rowPick < 0 || rowPick > 2)
+            return -1;
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null) return -1;
+        int enh = sm.GetSkillChoiceSelection(SkillType.Fishing, FishingLevel15ChoiceSpineId(rowPick), -1);
+        if (enh < 0 || enh > 1)
+            return -1;
+        return enh;
+    }
+
+    private int GetFishingLevel15BuildStamp()
+    {
+        int pick = GetFishingLevel15RowPick();
+        return HashCode.Combine(pick, GetFishingLevel15EnhancementIndex(pick));
+    }
+
+    private bool IsFishingMajorCalmWatersSelected() => GetFishingLevel15RowPick() == 2;
+
+    private bool IsFishingMajorLastingWatersSelected() =>
+        GetFishingLevel15RowPick() == 2 && GetFishingLevel15EnhancementIndex(2) == 0;
+
+    private bool IsFishingMajorDeepWatersSelected() =>
+        GetFishingLevel15RowPick() == 2 && GetFishingLevel15EnhancementIndex(2) == 1;
+
+    private int GetFishingCalmWatersMaxStacks() => IsFishingMajorDeepWatersSelected() ? 7 : 5;
+
+    private int GetFishingCalmWatersHudDisplayStacks()
+    {
+        if (state == State.Gather && targetNode && targetNode.ActionType == NodeAction.Fishing)
+            return _fishingCalmWatersMajorStacks;
+        return _fishingCalmWatersLingerStacks;
+    }
+
+    private void CaptureFishingCalmWatersOnGatherStop()
+    {
+        bool wasFishGather = state == State.Gather && targetNode && targetNode.ActionType == NodeAction.Fishing;
+        if (!wasFishGather)
+            return;
+
+        if (IsFishingMajorCalmWatersSelected() && IsFishingMajorLastingWatersSelected())
+        {
+            _fishingCalmWatersLingerStacks = _fishingCalmWatersMajorStacks;
+            if (_fishingCalmWatersLingerStacks > 0)
+                _fishingCalmWatersNextLingerDecayAt = Time.time + FishingCalmWatersLingerDecayIntervalSeconds;
+        }
+        else
+            _fishingCalmWatersLingerStacks = 0;
+    }
+
+    private void TickFishingCalmWatersLingerDecay()
+    {
+        if (_fishingCalmWatersLingerStacks <= 0)
+            return;
+        if (state == State.Gather && targetNode && targetNode.ActionType == NodeAction.Fishing)
+            return;
+        if (Time.time < _fishingCalmWatersNextLingerDecayAt)
+            return;
+
+        _fishingCalmWatersLingerStacks--;
+        _fishingCalmWatersNextLingerDecayAt = Time.time + FishingCalmWatersLingerDecayIntervalSeconds;
+    }
+
+    private void SyncFishingCalmWatersMajorHudBuffIfNeeded()
+    {
+        if (!_buffControllerCache)
+            _buffControllerCache = GetComponent<PlayerBuffController>();
+        if (!_buffControllerCache)
+            return;
+
+        if (!IsFishingMajorCalmWatersSelected())
+        {
+            if (_fishingCalmWatersMajorHudRegistered)
+            {
+                _buffControllerCache.ClearHudAbilityBuff(FishingCalmWatersMajorHudBuffId);
+                _fishingCalmWatersMajorHudRegistered = false;
+                _fishingCalmWatersMajorHudLastStacks = int.MinValue;
+            }
+            return;
+        }
+
+        int stacks = GetFishingCalmWatersHudDisplayStacks();
+        if (stacks <= 0)
+        {
+            if (_fishingCalmWatersMajorHudRegistered)
+            {
+                _buffControllerCache.ClearHudAbilityBuff(FishingCalmWatersMajorHudBuffId);
+                _fishingCalmWatersMajorHudRegistered = false;
+                _fishingCalmWatersMajorHudLastStacks = int.MinValue;
+            }
+            return;
+        }
+
+        if (stacks == _fishingCalmWatersMajorHudLastStacks && _fishingCalmWatersMajorHudRegistered)
+            return;
+
+        _buffControllerCache.SetHudAbilityBuff(FishingCalmWatersMajorHudBuffId, stacks, 0f, 0f);
+        _fishingCalmWatersMajorHudRegistered = true;
+        _fishingCalmWatersMajorHudLastStacks = stacks;
     }
 
     private bool IsWoodcuttingMajorFlowBuffActive()
@@ -2803,6 +3020,8 @@ public class PlayerController : MonoBehaviour
             _fishingBonuses = default;
         _fishingContinuousGatherSeconds = 0f;
         _fishingFrenzyUntil = 0f;
+        _fishingCalmWatersMajorStacks = 0;
+        _fishingCalmWatersMajorStackTimer = 0f;
     }
 
     private void ApplyFishingSkillRuntimeBonusesIfNeeded(ResourceNode node)

@@ -44,7 +44,6 @@ MonoBehaviour:
   autoAcceptWhenPriorQuestRewardClaimed: 0
   autoAcceptAfterPriorQuestId: 
   prerequisiteRewardClaimedQuestIds:
-  - greenlands_fishing_rod_intro
   - greenlands_fishing_part_1
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 

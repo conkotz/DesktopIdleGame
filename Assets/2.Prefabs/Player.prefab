@@ -5734,7 +5734,7 @@ MonoBehaviour:
   spectralAxeTint: {r: 0.55, g: 0.8, b: 1, a: 0.85}
   spectralAxeVisualLift: 1.35
   spectralAxeSpinDegreesPerSecond: 720
-  spectralAxeSpinClockwise: 0
+  spectralAxeSpinClockwise: 1
   spectralAxeTravelSpeedUnitsPerSecond: 12
   spectralAxeTrailLifetimeSeconds: 0.32
   spectralAxeTrailStartWidth: 0.18
@@ -5750,7 +5750,7 @@ MonoBehaviour:
   cleavingChopIndicatorLineWidth: 0.14
   cleavingChopIndicatorSortingOrder: 50
   cleavingChopIndicatorSortingLayer: 
-  spectralAxeShowAreaIndicator: 1
+  spectralAxeShowAreaIndicator: 0
   spectralAxeAreaIndicatorColor: {r: 0.55, g: 0.95, b: 0.3, a: 0.85}
   spectralAxeAreaIndicatorSegments: 64
   spectralAxeAreaIndicatorLineWidth: 0.12
@@ -5950,6 +5950,7 @@ MonoBehaviour:
   meleeHitImpactDelay: 0.3
   idleCombatEnabled: 0
   idleRescanInterval: 0.25
+  longbowPrioritizeRecentAttackerSeconds: 2.5
   idleAutoPickupIntervalSeconds: 30
   retaliationEnabled: 0
   actionBar: {fileID: 0}

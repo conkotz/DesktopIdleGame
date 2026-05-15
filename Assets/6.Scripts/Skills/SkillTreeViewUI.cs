@@ -1244,7 +1244,7 @@ public class SkillTreeViewUI : MonoBehaviour
             desc = unlock.description.Trim();
         else
             desc = "No description yet.";
-        desc = BuildEffectiveWoodcuttingMajorPassiveDescription(row, desc);
+        desc = BuildEffectiveGatheringMajorPassiveDescription(row, desc);
 
         bool useMajorPassivePresentation = ShouldUseMajorPassiveLinePresentation(row);
         if (useMajorPassivePresentation)
@@ -1322,131 +1322,206 @@ public class SkillTreeViewUI : MonoBehaviour
         body = $"{typeLabel} {BuildStatusLine(isUnlocked)}\nUnlocks at Lv{unlockLevel}\n\n{desc}";
     }
 
-    private string BuildEffectiveWoodcuttingMajorPassiveDescription(RowDef row, string fallbackDescription)
+    private string BuildEffectiveGatheringMajorPassiveDescription(RowDef row, string fallbackDescription)
     {
-        if (selectedSkill == null || selectedSkill.skillType != SkillType.Woodcutting)
-            return fallbackDescription;
-        if (row.unlock == null)
-            return fallbackDescription;
-        if (row.level != PlayerController.WoodcuttingMajorPassiveSourceLevel &&
-            row.level != PlayerController.WoodcuttingLv35MajorPassiveSourceLevel)
+        if (selectedSkill == null || row.unlock == null)
             return fallbackDescription;
 
-        string title = !string.IsNullOrWhiteSpace(row.unlock.title) ? row.unlock.title.Trim() : string.Empty;
         int selectedChoice = skillsManager != null
             ? skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, SpineNodeId(row), -1)
             : -1;
         string selectedChoiceTitle = GetChoiceTitle(row.unlock, selectedChoice);
+        string title = !string.IsNullOrWhiteSpace(row.unlock.title) ? row.unlock.title.Trim() : string.Empty;
 
-        if (string.Equals(title, "Ancient Lumbercraft", StringComparison.OrdinalIgnoreCase))
+        if (selectedSkill.skillType == SkillType.Woodcutting)
         {
-            int hiddenChance = 10;
-            bool experiencedGatherer = string.Equals(selectedChoiceTitle, "Experienced Gatherer", StringComparison.OrdinalIgnoreCase);
-            bool treasureHunter = string.Equals(selectedChoiceTitle, "Treasure Hunter", StringComparison.OrdinalIgnoreCase);
-            if (experiencedGatherer)
-                hiddenChance += 5;
+            if (row.level != PlayerController.WoodcuttingMajorPassiveSourceLevel &&
+                row.level != PlayerController.WoodcuttingLv35MajorPassiveSourceLevel)
+                return fallbackDescription;
 
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Hidden items can be found when a bonus item is discovered.");
-            sb.AppendLine();
-            sb.Append("+");
-            sb.Append(hiddenChance);
-            sb.Append("% chance to find hidden resources");
-            if (treasureHunter)
+            if (string.Equals(title, "Ancient Lumbercraft", StringComparison.OrdinalIgnoreCase))
             {
+                int hiddenChance = 10;
+                bool experiencedGatherer = string.Equals(selectedChoiceTitle, "Experienced Gatherer", StringComparison.OrdinalIgnoreCase);
+                bool treasureHunter = string.Equals(selectedChoiceTitle, "Treasure Hunter", StringComparison.OrdinalIgnoreCase);
+                if (experiencedGatherer)
+                    hiddenChance += 5;
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Hidden items can be found when a bonus item is discovered.");
                 sb.AppendLine();
-                sb.Append("+10% chance for Hidden Resources to double");
+                sb.Append("+");
+                sb.Append(hiddenChance);
+                sb.Append("% chance to find hidden resources");
+                if (treasureHunter)
+                {
+                    sb.AppendLine();
+                    sb.Append("+10% chance for Hidden Resources to double");
+                }
+                return sb.ToString();
             }
-            return sb.ToString();
+
+            if (string.Equals(title, "Forest's Favor", StringComparison.OrdinalIgnoreCase))
+            {
+                int extraItemChance = 25;
+                bool richHarvest = string.Equals(selectedChoiceTitle, "Rich Harvest", StringComparison.OrdinalIgnoreCase);
+                bool hiddenRiches = string.Equals(selectedChoiceTitle, "Hidden Riches", StringComparison.OrdinalIgnoreCase);
+                if (hiddenRiches)
+                    extraItemChance += 10;
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Bonus Finds have a chance to grant +1 additional items.");
+                sb.AppendLine();
+                sb.Append("+");
+                sb.Append(extraItemChance);
+                sb.Append("% Bonus Find Extra Item Chance");
+                if (richHarvest)
+                {
+                    sb.AppendLine();
+                    sb.Append("+10% Bonus Find Chance");
+                }
+                return sb.ToString();
+            }
+
+            if (string.Equals(title, "Conservationist", StringComparison.OrdinalIgnoreCase))
+            {
+                int skipChance = 15;
+                bool sustainableHarvest = string.Equals(selectedChoiceTitle, "Sustainable Harvest", StringComparison.OrdinalIgnoreCase);
+                bool ancientPreservation = string.Equals(selectedChoiceTitle, "Ancient Preservation", StringComparison.OrdinalIgnoreCase);
+                if (ancientPreservation)
+                    skipChance += 10;
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Successful chops have a chance to not count toward tree depletion.");
+                sb.AppendLine();
+                sb.Append("+");
+                sb.Append(skipChance);
+                sb.Append("% Tree Depletion Skip Chance");
+                if (sustainableHarvest)
+                {
+                    sb.AppendLine();
+                    sb.Append("+10% Max Stamina restored when tree depletion is skipped");
+                }
+                return sb.ToString();
+            }
+
+            if (string.Equals(title, "Heavy Swing", StringComparison.OrdinalIgnoreCase))
+            {
+                int extraResourceChance = 15;
+                bool controlledForce = string.Equals(selectedChoiceTitle, "Controlled Force", StringComparison.OrdinalIgnoreCase);
+                bool crushingSwing = string.Equals(selectedChoiceTitle, "Crushing Swing", StringComparison.OrdinalIgnoreCase);
+                if (crushingSwing)
+                    extraResourceChance += 5;
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("When Woodcutting Grit procs:");
+                sb.AppendLine();
+                sb.Append("+");
+                sb.Append(extraResourceChance);
+                sb.Append("% Extra Resource Chance");
+                if (controlledForce)
+                {
+                    sb.AppendLine();
+                    sb.Append("+10% Bonus Find Chance when Woodcutting Grit procs");
+                }
+                return sb.ToString();
+            }
+
+            if (string.Equals(title, "Flow State", StringComparison.OrdinalIgnoreCase))
+            {
+                bool lastingFocus = string.Equals(selectedChoiceTitle, "Lasting Focus", StringComparison.OrdinalIgnoreCase);
+                bool deepFocus = string.Equals(selectedChoiceTitle, "Deep Focus", StringComparison.OrdinalIgnoreCase);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("After 15 seconds of continuous woodcutting on the same tree, you enter Flow State.");
+                sb.AppendLine();
+                sb.AppendLine("+10% Chopping Speed while Flow is active");
+                sb.Append("+10% Stamina Efficiency while Flow is active");
+                if (lastingFocus)
+                {
+                    sb.AppendLine();
+                    sb.Append("Flow lasts 5 seconds after you stop gathering");
+                }
+                if (deepFocus)
+                {
+                    sb.AppendLine();
+                    sb.Append("+10% Woodcutting Grit Chance while Flow is active");
+                }
+                return sb.ToString();
+            }
+
+            return fallbackDescription;
         }
 
-        if (string.Equals(title, "Forest's Favor", StringComparison.OrdinalIgnoreCase))
+        if (selectedSkill.skillType == SkillType.Fishing)
         {
-            int extraItemChance = 25;
-            bool richHarvest = string.Equals(selectedChoiceTitle, "Rich Harvest", StringComparison.OrdinalIgnoreCase);
-            bool hiddenRiches = string.Equals(selectedChoiceTitle, "Hidden Riches", StringComparison.OrdinalIgnoreCase);
-            if (hiddenRiches)
-                extraItemChance += 10;
+            if (row.level != PlayerController.FishingMajorPassiveSourceLevel)
+                return fallbackDescription;
 
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Bonus Finds have a chance to grant +1 additional items.");
-            sb.AppendLine();
-            sb.Append("+");
-            sb.Append(extraItemChance);
-            sb.Append("% Bonus Find Extra Item Chance");
-            if (richHarvest)
+            if (string.Equals(title, "Sustainable Catch", StringComparison.OrdinalIgnoreCase))
             {
+                int skipChance = 15;
+                bool tidalRecovery = string.Equals(selectedChoiceTitle, "Tidal Recovery", StringComparison.OrdinalIgnoreCase);
+                bool deepRuns = string.Equals(selectedChoiceTitle, "Deep Runs", StringComparison.OrdinalIgnoreCase);
+                if (deepRuns)
+                    skipChance += 10;
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Successful catches have a chance to not count toward spot depletion.");
                 sb.AppendLine();
-                sb.Append("+10% Bonus Find Chance");
+                sb.Append("+");
+                sb.Append(skipChance);
+                sb.Append("% Spot Depletion Skip Chance");
+                if (tidalRecovery)
+                {
+                    sb.AppendLine();
+                    sb.Append("+10% Max Stamina restored when a spot depletion skip triggers");
+                }
+                return sb.ToString();
             }
-            return sb.ToString();
-        }
 
-        if (string.Equals(title, "Conservationist", StringComparison.OrdinalIgnoreCase))
-        {
-            int skipChance = 15;
-            bool sustainableHarvest = string.Equals(selectedChoiceTitle, "Sustainable Harvest", StringComparison.OrdinalIgnoreCase);
-            bool ancientPreservation = string.Equals(selectedChoiceTitle, "Ancient Preservation", StringComparison.OrdinalIgnoreCase);
-            if (ancientPreservation)
-                skipChance += 10;
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Successful chops have a chance to not count toward tree depletion.");
-            sb.AppendLine();
-            sb.Append("+");
-            sb.Append(skipChance);
-            sb.Append("% Tree Depletion Skip Chance");
-            if (sustainableHarvest)
+            if (string.Equals(title, "Powered Reel", StringComparison.OrdinalIgnoreCase))
             {
+                int extraFishChance = 15;
+                bool tightLine = string.Equals(selectedChoiceTitle, "Tight Line", StringComparison.OrdinalIgnoreCase);
+                bool doubleHaul = string.Equals(selectedChoiceTitle, "Double Haul", StringComparison.OrdinalIgnoreCase);
+                if (doubleHaul)
+                    extraFishChance += 5;
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("When Fishing Grit procs:");
                 sb.AppendLine();
-                sb.Append("+10% Max Stamina restored when tree depletion is skipped");
+                sb.Append("+");
+                sb.Append(extraFishChance);
+                sb.Append("% Extra Fish Chance");
+                if (tightLine)
+                {
+                    sb.AppendLine();
+                    sb.Append("+10% Bonus Find Chance when Fishing Grit procs");
+                }
+                return sb.ToString();
             }
-            return sb.ToString();
-        }
 
-        if (string.Equals(title, "Heavy Swing", StringComparison.OrdinalIgnoreCase))
-        {
-            int extraResourceChance = 15;
-            bool controlledForce = string.Equals(selectedChoiceTitle, "Controlled Force", StringComparison.OrdinalIgnoreCase);
-            bool crushingSwing = string.Equals(selectedChoiceTitle, "Crushing Swing", StringComparison.OrdinalIgnoreCase);
-            if (crushingSwing)
-                extraResourceChance += 5;
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("When Woodcutting Grit procs:");
-            sb.AppendLine();
-            sb.Append("+");
-            sb.Append(extraResourceChance);
-            sb.Append("% Extra Resource Chance");
-            if (controlledForce)
+            if (string.Equals(title, "Calm Waters", StringComparison.OrdinalIgnoreCase))
             {
-                sb.AppendLine();
-                sb.Append("+10% Bonus Find Chance when Woodcutting Grit procs");
-            }
-            return sb.ToString();
-        }
+                bool lastingWaters = string.Equals(selectedChoiceTitle, "Lasting Waters", StringComparison.OrdinalIgnoreCase);
+                bool deepWaters = string.Equals(selectedChoiceTitle, "Deep Waters", StringComparison.OrdinalIgnoreCase);
+                int maxStacks = deepWaters ? 7 : 5;
 
-        if (string.Equals(title, "Flow State", StringComparison.OrdinalIgnoreCase))
-        {
-            bool lastingFocus = string.Equals(selectedChoiceTitle, "Lasting Focus", StringComparison.OrdinalIgnoreCase);
-            bool deepFocus = string.Equals(selectedChoiceTitle, "Deep Focus", StringComparison.OrdinalIgnoreCase);
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"Gain 1 Calm stack every 4 seconds while fishing the same spot (up to {maxStacks}).");
+                sb.AppendLine();
+                sb.AppendLine("+2% Fishing Speed per Calm stack");
+                sb.Append("+1% Bonus Find Chance per Calm stack");
+                if (lastingWaters)
+                {
+                    sb.AppendLine();
+                    sb.Append("Lasting Waters: lose 1 Calm stack every 2 seconds after you stop fishing");
+                }
+                return sb.ToString();
+            }
 
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("After 15 seconds of continuous woodcutting on the same tree, you enter Flow State.");
-            sb.AppendLine();
-            sb.AppendLine("+10% Chopping Speed while Flow is active");
-            sb.Append("+10% Stamina Efficiency while Flow is active");
-            if (lastingFocus)
-            {
-                sb.AppendLine();
-                sb.Append("Flow lasts 5 seconds after you stop gathering");
-            }
-            if (deepFocus)
-            {
-                sb.AppendLine();
-                sb.Append("+10% Woodcutting Grit Chance while Flow is active");
-            }
-            return sb.ToString();
+            return fallbackDescription;
         }
 
         return fallbackDescription;

@@ -39,6 +39,10 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [Tooltip("Icon for Lv15 Flow State while its bonus is active (no timer; cleared when Flow ends).")]
     [SerializeField] private Sprite woodcuttingFlowStateHudIcon;
 
+    [Header("Fishing — Calm Waters (Lv15 Major) HUD")]
+    [Tooltip("Icon for Fishing Lv15 Calm Waters stacks (shows stack count on the buff strip).")]
+    [SerializeField] private Sprite fishingCalmWatersMajorHudIcon;
+
     [Header("Shared Tooltip")]
     [SerializeField] private RectTransform tooltipMeasureRect;
     [SerializeField] private RectTransform tooltipHeightRect;
@@ -358,6 +362,15 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 return woodcuttingFlowStateHudIcon;
         }
 
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, PlayerController.FishingCalmWatersMajorHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (fishingCalmWatersMajorHudIcon != null)
+                return fishingCalmWatersMajorHudIcon;
+            if (woodcuttingFlowStateHudIcon != null)
+                return woodcuttingFlowStateHudIcon;
+        }
+
         if (buff.type == ConsumableEffectType.HudAbilityBuff && _abilityDatabase != null &&
             !string.IsNullOrWhiteSpace(buff.id))
         {
@@ -466,6 +479,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (string.Equals(buff.id, PlayerController.WoodcuttingFlowStateHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "Flow State";
 
+            if (string.Equals(buff.id, PlayerController.FishingCalmWatersMajorHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Calm Waters";
+
             if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))
             {
                 AbilityDefinition def = _abilityDatabase.Get(buff.id);
@@ -510,6 +526,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
         {
             if (string.Equals(buff.id, PlayerController.WoodcuttingFlowStateHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "Woodcutting speed and stamina efficiency bonus";
+
+            if (string.Equals(buff.id, PlayerController.FishingCalmWatersMajorHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Calm stacks grant Fishing Speed and Bonus Find Chance.";
 
             string core = "Temporary ability effect.";
             if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))

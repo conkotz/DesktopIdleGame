@@ -97136,6 +97136,7 @@ MonoBehaviour:
   attackSpeedBuffIcon: {fileID: 1486886022, guid: 9e214b7b3fa6ce8419ed88f71a78f6db, type: 3}
   defaultBuffIcon: {fileID: 7833019699177132139, guid: 9e214b7b3fa6ce8419ed88f71a78f6db, type: 3}
   woodcuttingFlowStateHudIcon: {fileID: -3978456015586843389, guid: d193f16b801078d4a95a5acc2646f0c4, type: 3}
+  fishingCalmWatersMajorHudIcon: {fileID: 58698299719405981, guid: dd2b43a4f5398ff4ea33ab98df21b638, type: 3}
   tooltipMeasureRect: {fileID: 0}
   tooltipHeightRect: {fileID: 0}
   tooltipPreferredSide: 1

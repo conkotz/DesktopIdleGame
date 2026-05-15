@@ -259,8 +259,11 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 15
-    title: Fishing Major Passive Placeholder
-    description: Placeholder major passive row for fishing.
+    title: Sustainable Catch
+    description: 'Successful catches have a 15% chance not to count toward spot depletion.
+
+      +15%
+      Spot Depletion Skip Chance'
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -273,7 +276,78 @@ MonoBehaviour:
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     presentation: {fileID: 0}
-    choices: []
+    choices:
+    - requiredLevel: 18
+      title: Tidal Recovery
+      description: +10% max stamina restored when a spot depletion skip triggers.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 18
+      title: Deep Runs
+      description: +10% Spot Depletion Skip Chance.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+  - requiredLevel: 15
+    title: Powered Reel
+    description: When Fishing Grit procs, 15% chance to gain an extra fish on the main catch roll.
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 18
+      title: Tight Line
+      description: +10% Bonus Find Chance when Fishing Grit procs.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 18
+      title: Double Haul
+      description: +5% extra fish chance when Fishing Grit procs.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+  - requiredLevel: 15
+    title: Calm Waters
+    description: 'While fishing the same spot, gain 1 Calm stack every 4 seconds (up to 5).
+
+      Each
+      stack: +2% Fishing Speed and +1% Bonus Find Chance.'
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 18
+      title: Lasting Waters
+      description: When you stop fishing, lose 1 Calm stack every 2 seconds instead of losing all stacks at once.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 18
+      title: Deep Waters
+      description: Max Calm stacks increased to 7.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 16
     title: Fishing Grit 3
     description: +2% Fishing Grit Chance
@@ -579,22 +653,6 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices: []
-  - requiredLevel: 35
-    title: Fishing Major Passive Placeholder 2
-    description: Placeholder major passive row for fishing.
-    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
-    unlockType: 3
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
   - requiredLevel: 36
     title: Fishing Speed 7
     description: +3% Fishing Speed
@@ -734,22 +792,6 @@ MonoBehaviour:
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
     fishingMinorStatOption: 34
-    enduranceMinorStatOption: 0
-    magicMinorStatOption: 0
-    legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
-    choices: []
-  - requiredLevel: 45
-    title: Fishing Major Passive Placeholder 3
-    description: Placeholder major passive row for fishing.
-    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
-    unlockType: 3
-    meleeMinorStatOption: 0
-    rangedMinorStatOption: 0
-    woodcuttingMinorStatOption: 0
-    miningMinorStatOption: 0
-    fishingMinorStatOption: 0
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0

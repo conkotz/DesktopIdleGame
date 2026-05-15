@@ -1393,9 +1393,17 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                 AppendWoodcuttingLevel35EffectLines);
         }
 
-        if (skill.skillType == SkillType.Fishing && skill.unlocks != null)
+        if (skill.skillType == SkillType.Fishing && currentLevel >= PlayerController.FishingMajorPassiveSourceLevel &&
+            skill.unlocks != null && skillManager != null)
         {
-            AppendFishingMajorPassivePlaceholders(sb, skill, currentLevel);
+            AppendWoodcuttingMajorPassiveSummary(
+                sb,
+                skill,
+                skillManager,
+                PlayerController.FishingMajorPassiveSourceLevel,
+                level => PlayerController.FishingLevel15ChoiceSpineId(level),
+                AppendFishingLevel15EffectLines,
+                "Fishing");
         }
 
         if ((skill.skillType == SkillType.Woodcutting || skill.skillType == SkillType.Fishing) && skill.unlocks != null)
@@ -1507,23 +1515,6 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         return sb.ToString();
     }
 
-    private static void AppendFishingMajorPassivePlaceholders(StringBuilder sb, SkillDefinition skill, int currentLevel)
-    {
-        for (int i = 0; i < skill.unlocks.Count; i++)
-        {
-            SkillUnlockDefinition unlock = skill.unlocks[i];
-            if (unlock == null || unlock.unlockType != SkillUnlockType.MajorPassive)
-                continue;
-            if (unlock.requiredLevel > currentLevel)
-                continue;
-
-            int lvl = Mathf.Max(1, unlock.requiredLevel);
-            string title = string.IsNullOrWhiteSpace(unlock.title) ? "Fishing Major Passive" : unlock.title.Trim();
-            sb.AppendLine($"<b>• {title} (Major Passive) (Lv {lvl})</b>");
-            sb.AppendLine("   - Base Effect");
-        }
-    }
-
     /// <summary>First capstone passive row at or below <paramref name="currentLevel"/> (e.g. Woodcutting Lv50 Bountiful Chop).</summary>
     private static SkillUnlockDefinition FindCapstonePassiveUnlockForSkill(SkillDefinition skill, int currentLevel)
     {
@@ -1599,7 +1590,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         SkillsManager skillManager,
         int sourceLevel,
         System.Func<int, string> choiceSpineIdResolver,
-        System.Action<StringBuilder, string, string> appendEffectLines)
+        System.Action<StringBuilder, string, string> appendEffectLines,
+        string unsetMajorSkillLabel = "Woodcutting")
     {
         var majors = new List<(SkillUnlockDefinition u, int idx)>();
         for (int i = 0; i < skill.unlocks.Count; i++)
@@ -1639,7 +1631,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
         else
         {
-            sb.AppendLine($"<b>• Woodcutting Major Passive (Lv {sourceLevel})</b>");
+            sb.AppendLine($"<b>• {unsetMajorSkillLabel} Major Passive (Lv {sourceLevel})</b>");
             sb.AppendLine("   - (major not selected)");
         }
     }
@@ -1714,6 +1706,48 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                 sb.AppendLine("     Flow lasts 5 seconds after you stop gathering");
             else if (string.Equals(enhancementTitle, "Deep Focus", System.StringComparison.OrdinalIgnoreCase))
                 sb.AppendLine("     +10% Woodcutting Grit Chance while Flow is active");
+        }
+    }
+
+    private static void AppendFishingLevel15EffectLines(StringBuilder sb, string majorTitle, string enhancementTitle)
+    {
+        if (string.IsNullOrWhiteSpace(majorTitle))
+            return;
+
+        if (string.Equals(majorTitle, "Sustainable Catch", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int skipChance = 15;
+            bool tidalRecovery = string.Equals(enhancementTitle, "Tidal Recovery", System.StringComparison.OrdinalIgnoreCase);
+            bool deepRuns = string.Equals(enhancementTitle, "Deep Runs", System.StringComparison.OrdinalIgnoreCase);
+            if (deepRuns)
+                skipChance += 10;
+            sb.AppendLine($"     +{skipChance}% Spot Depletion Skip Chance");
+            if (tidalRecovery)
+                sb.AppendLine("     +10% Max Stamina restored when a spot depletion skip triggers");
+            return;
+        }
+
+        if (string.Equals(majorTitle, "Powered Reel", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int extraFishChance = 15;
+            bool tightLine = string.Equals(enhancementTitle, "Tight Line", System.StringComparison.OrdinalIgnoreCase);
+            bool doubleHaul = string.Equals(enhancementTitle, "Double Haul", System.StringComparison.OrdinalIgnoreCase);
+            if (doubleHaul)
+                extraFishChance += 5;
+            sb.AppendLine($"     +{extraFishChance}% Extra Fish Chance when Fishing Grit procs");
+            if (tightLine)
+                sb.AppendLine("     +10% Bonus Find Chance when Fishing Grit procs");
+            return;
+        }
+
+        if (string.Equals(majorTitle, "Calm Waters", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int maxStacks = string.Equals(enhancementTitle, "Deep Waters", System.StringComparison.OrdinalIgnoreCase) ? 7 : 5;
+            sb.AppendLine($"     Gain Calm stacks every 4s while fishing (max {maxStacks})");
+            sb.AppendLine("     +2% Fishing Speed per Calm stack");
+            sb.AppendLine("     +1% Bonus Find Chance per Calm stack");
+            if (string.Equals(enhancementTitle, "Lasting Waters", System.StringComparison.OrdinalIgnoreCase))
+                sb.AppendLine("     Lose 1 Calm stack every 2s after you stop fishing");
         }
     }
 }
