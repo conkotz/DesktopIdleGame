@@ -49,11 +49,17 @@ public class SaveData
     public float playerCurrentEnergy = -1f;
     [Tooltip("Legacy; not restored on load. Mana refills to max when loading.")]
     public float playerCurrentMana = -1f;
-    [Tooltip("When true, playerWorldPosX/Y/Z restores standing location after choosing Continue / Load Game. Changing maps via level select still uses SpawnPoint_Player in each scene.")]
+    [Tooltip("When true, playerWorldPosX/Y/Z restores standing location after choosing Continue / Load Game. Per-map exit positions are preferred when available.")]
     public bool hasSavedPlayerWorldPosition = false;
     public float playerWorldPosX = 0f;
     public float playerWorldPosY = 0f;
     public float playerWorldPosZ = 0f;
+
+    [Tooltip("Parallel lists: last standing position when leaving each map (MapNodeDefinition.nodeId).")]
+    public List<string> mapExitPositionNodeIds = new();
+    public List<float> mapExitPositionX = new();
+    public List<float> mapExitPositionY = new();
+    public List<float> mapExitPositionZ = new();
 
     [Header("Currency")]
     public int gold = 0;

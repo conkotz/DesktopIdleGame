@@ -3800,7 +3800,7 @@ public class PlayerController : MonoBehaviour
         else
             GameLog.Add("Returning to town");
 
-        ActiveLevelContext.SetPendingLevel(destination, logToConsole: false);
+        MapTravelSession.BeginTravel(destination, MapTravelSession.EntryMethod.MapTeleport, logPendingLevel: false);
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
         return true;
     }
@@ -3936,6 +3936,9 @@ public class PlayerController : MonoBehaviour
 
         MainMenuWindowUI.CaptureOpenStateForSceneChange();
         GameplayRespawnHelperPersistence.MarkKeepHelperOverlayAcrossNextGameplayLoad();
+        MapTravelSession.ClearPendingEntryMethod();
+        SaveSlotManager.SetPendingGameplaySpawnDisposition(SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
+        SaveSlotManager.MarkSkipApplySavedWorldPositionFromSaveOnce();
         SaveManager.Instance?.SaveBeforeSceneTransition();
         SceneManager.LoadScene(GameplaySceneName, LoadSceneMode.Single);
     }

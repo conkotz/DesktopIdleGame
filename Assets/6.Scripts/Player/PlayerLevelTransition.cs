@@ -47,6 +47,7 @@ public class PlayerLevelTransition : MonoBehaviour
             t.BeginShrinkThenLoad(sceneName);
         else
         {
+            MapTravelSession.ApplyPendingSpawnDispositionBeforeSceneLoad();
             SaveManager.Instance?.SaveBeforeSceneTransition();
             SceneManager.LoadScene(sceneName);
         }
@@ -120,6 +121,7 @@ public class PlayerLevelTransition : MonoBehaviour
         // Avoid one visible frame at tiny scale before the scene swap; spawn flow fades in from alpha 0.
         HideAllSpriteAlphas();
 
+        MapTravelSession.ApplyPendingSpawnDispositionBeforeSceneLoad();
         SaveManager.Instance?.SaveBeforeSceneTransition();
         SceneManager.LoadScene(_pendingScene);
         _running = null;

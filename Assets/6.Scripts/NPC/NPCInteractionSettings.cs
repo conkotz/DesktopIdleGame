@@ -1027,7 +1027,7 @@ public class NPCInteractionSettings : MonoBehaviour
         if (!node)
             return;
 
-        ActiveLevelContext.SetPendingLevel(node, logToConsole: false);
+        MapTravelSession.BeginTravel(node, MapTravelSession.EntryMethod.InWorldEntrance, logPendingLevel: false);
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
     }
 

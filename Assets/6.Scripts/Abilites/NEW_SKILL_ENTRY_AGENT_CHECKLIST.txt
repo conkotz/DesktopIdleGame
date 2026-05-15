@@ -1,8 +1,10 @@
 NEW SKILL ENTRY — AGENT CHECKLIST
 ==================================
-Use this file as the primary guide when adding abilities, gathering passives, HUD buffs,
-or skill-tree rows. Work top-to-bottom for a new ability; jump to the section that matches
-your task for passives / majors / toggles only.
+Use this file when adding or editing skills and abilities (ability assets, passives tied to
+skills, HUD buff rows for abilities, tooltips, action bar). Work top-to-bottom for a new ability;
+jump to the section that matches your task.
+
+Do NOT use this file for map travel, save/load, quests, NPCs, or other systems — those live elsewhere.
 
 QUICK PICK — WHAT ARE YOU ADDING?
 ---------------------------------
@@ -236,12 +238,13 @@ REFERENCE — HUD ability buff ids (SetHudAbilityBuff abilityId)
   spectral_axe, soulforged_weapon
   Major passives (GatheringPassiveTooltipText): woodcutting_flow_state, fishing_calm_waters_major
 
-REFERENCE — key scripts
-  AbilityDefinition.cs          — tag enum, tooltipBuffMinionDurationSeconds
-  AbilityTooltipDamagePreview.cs — all tooltip builders
-  PlayerAbilityController.cs    — cast, buff sync, minions
-  PlayerBuffController.cs       — SetHudAbilityBuff / ActiveBuff.hudPersistActiveOverlay
-  BuffIconUI.cs                 — overlay, timer, Remaining line on hover
-  BuffsDebuffsPanel.cs          — spawns buff icons, TryBuildHudBuffTooltip
-  GatheringPassiveTooltipText.cs — gathering majors + frenzy constants
+REFERENCE — key scripts (skills & abilities only)
+  AbilityDefinition.cs           — tag enum, tooltipBuffMinionDurationSeconds
+  AbilityTooltipDamagePreview.cs — tooltip builders (Effects, HUD buff, action bar)
+  PlayerAbilityController.cs     — cast, buff sync, minions
+  PlayerBuffController.cs        — SetHudAbilityBuff / hudPersistActiveOverlay
+  BuffIconUI.cs                  — buff icon overlay, Remaining line on hover
+  BuffsDebuffsPanel.cs             — HUD buff strip tooltips
+  GatheringPassiveTooltipText.cs — gathering Lv15 majors + frenzy constants
+  AbilityCombatPower.cs          — stable abilityId string constants
   NEW_SKILL_ENTRY_AGENT_CHECKLIST.txt — this file

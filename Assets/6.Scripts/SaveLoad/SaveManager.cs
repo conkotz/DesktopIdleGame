@@ -175,8 +175,20 @@ public class SaveManager : MonoBehaviour
             // Previously this early-return swallowed pending start intent and load/apply never ran.
             if (!hasExplicitStartRequest)
             {
-                SaveSlotManager.SetPendingGameplaySpawnDisposition(SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
-                SaveSlotManager.MarkSkipApplySavedWorldPositionFromSaveOnce();
+                // MapTravelSession sets disposition before LoadScene; do not overwrite RestoreMapExit / RestoreSaved.
+                SaveSlotManager.GameplaySpawnDisposition pendingSpawn =
+                    SaveSlotManager.PeekPendingGameplaySpawnDisposition();
+                bool preserveTravelSpawn =
+                    pendingSpawn == SaveSlotManager.GameplaySpawnDisposition.RestoreMapExitPositionIfAvailable ||
+                    pendingSpawn == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable;
+
+                if (!preserveTravelSpawn)
+                {
+                    SaveSlotManager.SetPendingGameplaySpawnDisposition(
+                        SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
+                    SaveSlotManager.MarkSkipApplySavedWorldPositionFromSaveOnce();
+                }
+
                 return;
             }
         }
@@ -659,6 +671,7 @@ public class SaveManager : MonoBehaviour
         // Merchants only exist in the gameplay scene. Autosave / menu / world-map saves used to build an empty
         // merchantStocks list and wipe every vendor on disk. Seed from the last snapshot, then in-scene merchants overwrite.
         SeedMerchantStocksFromSnapshot(data, _lastLoadedData);
+        PlayerMapExitPositionStore.CopyFromSnapshot(data, _lastLoadedData);
 
         ISaveable[] saveablesRaw = FindSaveables();
         List<ISaveable> saveables = DedupeActionBarSaveables(saveablesRaw);
@@ -673,6 +686,9 @@ public class SaveManager : MonoBehaviour
         PermanentEnemyDeathSaveStore.WriteInto(data);
         NpcPostDeathRespawnDialogueStore.WriteInto(data);
         NpcOneWayDialogueQueueStore.WriteInto(data);
+
+        if (kind == SaveRequestKind.SceneTransition || kind == SaveRequestKind.ReturnToBootstrap)
+            TryRecordGameplayMapExitPosition(data);
 
         ApplyActiveMapToSaveData(data);
 
@@ -1165,16 +1181,71 @@ public class SaveManager : MonoBehaviour
             return;
 
         MapNodeDefinition def = null;
-        if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
-            def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
-        else if (ActiveLevelContext.Current != null)
+        // During scene transition ActiveLevelContext already holds the destination; bootstrapper is still the map being left.
+        if (ActiveLevelContext.Current != null)
             def = ActiveLevelContext.Current;
+        else if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
+            def = GameplayLevelBootstrapper.Instance.ActiveDefinition;
 
         if (def == null)
             return;
 
         data.activeMapNodeId = def.nodeId ?? "";
         data.activeMapDisplayName = def.displayName ?? "";
+    }
+
+    /// <summary>
+    /// Call when the player starts map-UI travel so the map being left keeps its standing position in memory
+    /// (written to disk on the next <see cref="SaveBeforeSceneTransition"/>).
+    /// </summary>
+    public void StageLeavingMapExitPosition()
+    {
+        if (_lastLoadedData == null)
+            return;
+
+        TryRecordGameplayMapExitPosition(_lastLoadedData);
+    }
+
+    private static void TryRecordGameplayMapExitPosition(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        Scene active = SceneManager.GetActiveScene();
+        if (!active.IsValid() || !active.name.Equals("GamePlay", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        MapNodeDefinition leaving = GameplayLevelBootstrapper.Instance != null
+            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+            : null;
+        if (leaving == null || string.IsNullOrWhiteSpace(leaving.nodeId))
+            return;
+
+        PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player == null)
+            return;
+
+        Vector3 pos = player.transform.position;
+        if (!IsValidGameplayWorldPosition(pos, out bool outOfBounds) || outOfBounds)
+            return;
+
+        PlayerMapExitPositionStore.RecordExitPosition(data, leaving.nodeId, pos);
+    }
+
+    private static bool IsValidGameplayWorldPosition(Vector3 pos, out bool outOfGameplayBounds)
+    {
+        outOfGameplayBounds = false;
+        if (float.IsNaN(pos.x) || float.IsNaN(pos.y) || float.IsNaN(pos.z) ||
+            float.IsInfinity(pos.x) || float.IsInfinity(pos.y) || float.IsInfinity(pos.z))
+            return false;
+
+        if (WorldBounds.Instance == null)
+            return true;
+
+        float left = WorldBounds.Instance.Left;
+        float right = WorldBounds.Instance.Right;
+        outOfGameplayBounds = pos.x < left - 1f || pos.x > right + 1f;
+        return !outOfGameplayBounds;
     }
 
     private static void RestoreActiveMapFromSaveData(SaveData data)
@@ -1289,6 +1360,8 @@ public class SaveManager : MonoBehaviour
 
         if (data.toolbeltItemIds == null)
             data.toolbeltItemIds = new List<string>();
+
+        PlayerMapExitPositionStore.EnsureLists(data);
 
         if (data.actionBarSlotIndexes == null)
             data.actionBarSlotIndexes = new List<int>();

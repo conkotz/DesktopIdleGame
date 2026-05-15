@@ -1157,7 +1157,7 @@ public class QuestPageUI : MonoBehaviour
             return;
         }
 
-        ActiveLevelContext.SetPendingLevel(node);
+        MapTravelSession.BeginTravel(node, MapTravelSession.EntryMethod.MapTeleport);
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
     }
 

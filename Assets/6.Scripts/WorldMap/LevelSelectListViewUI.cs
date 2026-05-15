@@ -878,9 +878,9 @@ public class LevelSelectListViewUI : MonoBehaviour
         if (!_selectedNode.CanEnterFromLevelMenu(progress, skills))
             return;
 
-        ActiveLevelContext.SetPendingLevel(_selectedNode);
         if (string.IsNullOrWhiteSpace(gameplaySceneName))
             return;
+        MapTravelSession.BeginTravel(_selectedNode, MapTravelSession.EntryMethod.MapTeleport);
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate(gameplaySceneName);
     }
 

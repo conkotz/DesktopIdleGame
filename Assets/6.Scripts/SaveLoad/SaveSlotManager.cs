@@ -23,7 +23,10 @@ public static class SaveSlotManager
     public enum GameplaySpawnDisposition
     {
         DefaultSpawnPoint = 0,
+        /// <summary>Continue / load game — per-map exit position, then legacy global coords, then spawn.</summary>
         RestoreSavedWorldPositionIfAvailable = 1,
+        /// <summary>Map UI teleport — per-map exit position for destination only, then spawn.</summary>
+        RestoreMapExitPositionIfAvailable = 2,
     }
 
     private static GameplaySpawnDisposition _pendingGameplaySpawnDisposition = GameplaySpawnDisposition.DefaultSpawnPoint;
@@ -40,6 +43,9 @@ public static class SaveSlotManager
         _pendingGameplaySpawnDisposition = GameplaySpawnDisposition.DefaultSpawnPoint;
         _skipApplySavedWorldPositionFromSaveOnce = false;
     }
+
+    public static GameplaySpawnDisposition PeekPendingGameplaySpawnDisposition() =>
+        _pendingGameplaySpawnDisposition;
 
     public static GameplaySpawnDisposition ConsumePendingGameplaySpawnDisposition()
     {

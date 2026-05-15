@@ -149,7 +149,7 @@ public class MapNodePortalTeleporter : MonoBehaviour
         }
 
         _nextAllowedTime = Time.time + Mathf.Max(0f, cooldownSeconds);
-        ActiveLevelContext.SetPendingLevel(node, logToConsole: false);
+        MapTravelSession.BeginTravel(node, MapTravelSession.EntryMethod.InWorldEntrance, logPendingLevel: false);
 
         if (string.IsNullOrWhiteSpace(gameplaySceneName))
         {

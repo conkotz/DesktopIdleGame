@@ -309,6 +309,8 @@ public static class SaveDataIntegrity
             data.skillAbilityRowPickValues,
             "skillAbilityRowPicks",
             padValue: 0);
+
+        PlayerMapExitPositionStore.RepairParallelLists(data);
     }
 
     /// <summary>Make parallel lists the same length (pad ints or trim excess values).</summary>

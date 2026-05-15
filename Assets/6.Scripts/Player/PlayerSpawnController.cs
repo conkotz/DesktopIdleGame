@@ -95,6 +95,59 @@ public class PlayerSpawnController : MonoBehaviour
             StringComparison.Ordinal);
     }
 
+    private static string ResolveDestinationMapNodeId()
+    {
+        if (ActiveLevelContext.Current != null && !string.IsNullOrWhiteSpace(ActiveLevelContext.Current.nodeId))
+            return ActiveLevelContext.Current.nodeId.Trim();
+        return null;
+    }
+
+    /// <summary>
+    /// Map teleport: per-map exit X only. Login resume: per-map exit, then legacy global coords. Invalid/missing → false.
+    /// </summary>
+    private static bool TryResolveSavedSpawnX(
+        SaveData saveData,
+        SaveSlotManager.GameplaySpawnDisposition disposition,
+        out float savedX)
+    {
+        savedX = 0f;
+        if (saveData == null)
+            return false;
+
+        string nodeId = ResolveDestinationMapNodeId();
+
+        if (disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreMapExitPositionIfAvailable ||
+            disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable)
+        {
+            if (!string.IsNullOrWhiteSpace(nodeId) &&
+                PlayerMapExitPositionStore.TryGetExitPosition(saveData, nodeId, out Vector3 exitPos))
+            {
+                savedX = exitPos.x;
+                return true;
+            }
+        }
+
+        if (disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable &&
+            saveData.hasSavedPlayerWorldPosition &&
+            SavedWorldPositionMatchesActiveMap(saveData))
+        {
+            savedX = saveData.playerWorldPosX;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsSavedXValidForCurrentMap(float savedX)
+    {
+        if (WorldBounds.Instance == null)
+            return true;
+
+        float left = WorldBounds.Instance.Left;
+        float right = WorldBounds.Instance.Right;
+        return savedX >= left - 1f && savedX <= right + 1f;
+    }
+
     private IEnumerator SpawnAfterLoad(Scene loadedScene)
     {
         var playerController = GetComponent<PlayerController>();
@@ -164,31 +217,19 @@ public class PlayerSpawnController : MonoBehaviour
                 SaveSlotManager.GameplaySpawnDisposition disposition =
                     SaveSlotManager.ConsumePendingGameplaySpawnDisposition();
                 bool requestedSavedRestore =
-                    disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable;
+                    disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable ||
+                    disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreMapExitPositionIfAvailable;
 
                 if (requestedSavedRestore &&
                     SaveManager.Instance != null &&
                     SaveManager.Instance.TryGetLastLoadedData(out SaveData saveData) &&
-                    saveData.hasSavedPlayerWorldPosition &&
-                    SavedWorldPositionMatchesActiveMap(saveData))
+                    TryResolveSavedSpawnX(saveData, disposition, out float savedX))
                 {
-                    // Restore saved X only. Keep Y/Z from spawn/current flow and let ground snap place player on floor.
+                    // Restore saved X only. Keep Y/Z from spawn and let ground snap place the player on the floor.
                     Vector3 basePos = spawn != null ? spawn.transform.position : transform.position;
-                    // Always anchor to scene spawn first so stale previous-scene transform cannot leak through.
                     transform.position = basePos;
-                    float savedX = saveData.playerWorldPosX;
-                    bool savedXValidForMap = true;
-                    if (WorldBounds.Instance != null)
-                    {
-                        float left = WorldBounds.Instance.Left;
-                        float right = WorldBounds.Instance.Right;
-                        // If save contains an impossible X for this map (e.g. bootstrap/UI-space value),
-                        // ignore it instead of clamping to an edge spawn.
-                        if (savedX < left - 1f || savedX > right + 1f)
-                            savedXValidForMap = false;
-                    }
 
-                    if (savedXValidForMap)
+                    if (IsSavedXValidForCurrentMap(savedX))
                     {
                         float x = savedX;
                         if (WorldBounds.Instance != null)
@@ -199,9 +240,9 @@ public class PlayerSpawnController : MonoBehaviour
 
                     if (debugSnap)
                     {
-                        string curId = ActiveLevelContext.Current != null ? (ActiveLevelContext.Current.nodeId ?? "") : "";
-                        string saveId = saveData.activeMapNodeId ?? "";
-                        Debug.Log($"[SpawnDebug] APPLY_SAVED_X curMap='{curId}' saveMap='{saveId}' savedX={saveData.playerWorldPosX:F3} valid={savedXValidForMap} baseY={basePos.y:F3} finalX={transform.position.x:F3}");
+                        string curId = ResolveDestinationMapNodeId() ?? "";
+                        Debug.Log(
+                            $"[SpawnDebug] APPLY_SAVED_X curMap='{curId}' disposition={disposition} savedX={savedX:F3} valid={restoredFromSavedWorldPosition} baseY={basePos.y:F3} finalX={transform.position.x:F3}");
                     }
                 }
                 else if (requestedSavedRestore &&
@@ -213,11 +254,9 @@ public class PlayerSpawnController : MonoBehaviour
 
                     if (debugSnap)
                     {
-                        string curId = ActiveLevelContext.Current != null ? (ActiveLevelContext.Current.nodeId ?? "") : "";
+                        string curId = ResolveDestinationMapNodeId() ?? "";
                         string saveId = dbgData != null ? (dbgData.activeMapNodeId ?? "") : "";
-                        bool hasPos = dbgData != null && dbgData.hasSavedPlayerWorldPosition;
-                        bool mapOk = dbgData != null && SavedWorldPositionMatchesActiveMap(dbgData);
-                        Debug.Log($"[SpawnDebug] SKIP_SAVED_X curMap='{curId}' saveMap='{saveId}' hasPos={hasPos} mapOk={mapOk}");
+                        Debug.Log($"[SpawnDebug] SKIP_SAVED_X curMap='{curId}' saveMap='{saveId}' disposition={disposition}");
                     }
                 }
                 else if (spawn != null)

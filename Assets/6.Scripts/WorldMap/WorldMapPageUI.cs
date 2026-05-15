@@ -909,7 +909,7 @@ public class WorldMapPageUI : MonoBehaviour
         if (!_selectedNode.CanEnterFromLevelMenu(progress, skills))
             return;
 
-        ActiveLevelContext.SetPendingLevel(_selectedNode);
+        MapTravelSession.BeginTravel(_selectedNode, MapTravelSession.EntryMethod.MapTeleport);
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate("GamePlay");
     }
 

@@ -902,7 +902,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             return;
         }
 
-        ActiveLevelContext.SetPendingLevel(target, logToConsole: false);
+        MapTravelSession.BeginTravel(target, MapTravelSession.EntryMethod.InWorldEntrance, logPendingLevel: false);
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
     }
 
