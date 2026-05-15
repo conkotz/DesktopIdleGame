@@ -28,6 +28,7 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     private string _body;
     private float _remainingSeconds;
     private float _totalDurationSeconds;
+    private bool _persistActiveOverlay;
     private bool _isPointerOver;
     private bool _hasValidData;
 
@@ -43,10 +44,12 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         FlipInsideBounds.PreferredSide side = FlipInsideBounds.PreferredSide.Right,
         int stacks = 0,
         bool showStacks = false,
-        float totalDurationSeconds = 0f)
+        float totalDurationSeconds = 0f,
+        bool persistActiveOverlay = false)
     {
         _hasValidData = sprite != null;
         _totalDurationSeconds = Mathf.Max(0f, totalDurationSeconds);
+        _persistActiveOverlay = persistActiveOverlay;
 
         if (iconImage != null)
         {
@@ -101,7 +104,7 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
 
         if (timerText != null)
         {
-            bool showTimer = remainingSeconds > 0f;
+            bool showTimer = !_persistActiveOverlay && remainingSeconds > 0f;
             timerText.gameObject.SetActive(showTimer);
 
             if (showTimer)
@@ -117,14 +120,17 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         if (activeOverlay == null)
             return;
 
-        bool showOverlay = _totalDurationSeconds > 0f && _remainingSeconds > 0f;
+        bool timedOverlay = _totalDurationSeconds > 0f && _remainingSeconds > 0f;
+        bool showOverlay = timedOverlay || _persistActiveOverlay;
         activeOverlay.gameObject.SetActive(showOverlay);
 
         if (!showOverlay)
             return;
 
         activeOverlay.raycastTarget = false;
-        float fill = Mathf.Clamp01(_remainingSeconds / _totalDurationSeconds);
+        float fill = _persistActiveOverlay
+            ? 1f
+            : Mathf.Clamp01(_remainingSeconds / _totalDurationSeconds);
         if (activeOverlay.type == Image.Type.Filled)
             activeOverlay.fillAmount = fill;
     }
@@ -152,13 +158,16 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     /// <summary>Omit "Remaining: …" when duration is over (e.g. Cleaving Strikes hit-charge tail); timer text already hidden in that case.</summary>
     private string BuildTooltipBodyWithOptionalRemaining()
     {
-        bool showRemaining = _remainingSeconds > 0f;
-        string remainingLine = showRemaining ? $"Remaining: {Mathf.CeilToInt(_remainingSeconds)}s" : "";
+        string remainingLine = null;
+        if (_persistActiveOverlay)
+            remainingLine = "Remaining: Until dismissed";
+        else if (_remainingSeconds > 0f)
+            remainingLine = $"Remaining: {Mathf.CeilToInt(_remainingSeconds)}s";
 
         if (string.IsNullOrWhiteSpace(_body))
-            return remainingLine;
+            return remainingLine ?? "";
 
-        if (!showRemaining)
+        if (string.IsNullOrEmpty(remainingLine))
             return _body;
 
         return $"{_body}\n{remainingLine}";

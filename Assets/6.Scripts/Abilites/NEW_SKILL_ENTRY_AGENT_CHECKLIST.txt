@@ -1,0 +1,247 @@
+NEW SKILL ENTRY — AGENT CHECKLIST
+==================================
+Use this file as the primary guide when adding abilities, gathering passives, HUD buffs,
+or skill-tree rows. Work top-to-bottom for a new ability; jump to the section that matches
+your task for passives / majors / toggles only.
+
+QUICK PICK — WHAT ARE YOU ADDING?
+---------------------------------
+  A) Timed ability buff     → tag Buff, fixed duration, HUD countdown + overlay sweep
+  B) Toggle ability buff    → tag Toggle Buff, on until player toggles off, HUD full overlay
+  C) Minion summon          → tag Minion (or None + minionSpawnDefinition), no fixed HUD timer
+                              unless swarm/timed variant (see Soulforged)
+  D) Active (instant/CD)    → tag Active, usually no HUD buff row
+  E) Gathering Lv15 major   → MajorPassive rows in .skill asset + GatheringPassiveTooltipText
+  F) Major passive HUD only → PlayerController *HudBuffId + TryGetHudBuffTooltip branch
+  G) Skill-tree row only    → SkillDefinition unlock, optional presentation, no new ability
+
+ABILITY TAGS (AbilityDefinition.tag)
+------------------------------------
+  None        — Hides category line in tooltips. Use when tag is obvious from effects.
+  Active      — Standard press-to-use ability (damage, utility, short CD).
+  Minion      — Spawns a minion from minionSpawnDefinition. Tooltip shows minion damage rules.
+  Buff        — Timed self-buff; shows in HUD buff strip while active; Duration on ability
+                tooltips (skills page / action bar). NOT duplicated on HUD buff hover.
+  Toggle Buff — Player turns on/off at will; stays active until toggled off. Same HUD strip
+                as Buff but use persist overlay (no numeric countdown). Tooltip: no fixed
+                Duration line on action bar; HUD hover shows "Remaining: Until dismissed".
+
+  Legacy: untagged assets with minionSpawnDefinition still show "Minion" in tooltips.
+
+WHEN TO USE BUFF vs MINION vs TOGGLE BUFF
+-----------------------------------------
+  Buff (timed)
+    • Fixed duration (e.g. Lumber Frenzy 20s).
+    • PlayerAbilityController: track _endsAt + _duration, Sync*HudBuff each activation.
+    • SetHudAbilityBuff(abilityId, stacks: 1, endTime, durationSeconds, persistOverlay: false).
+    • HUD: radial overlay sweeps down; icon shows ceil(remaining); tooltip body = effects only
+      + BuffIconUI appends "Remaining: Xs".
+
+  Toggle Buff
+    • No expiry until player toggles off (or forced end e.g. death, zone restriction).
+    • Cast handler: if active → deactivate + ClearHudAbilityBuff; else → activate +
+      SetHudAbilityBuff(abilityId, 1, endTime: 0, duration: 0, persistActiveOverlay: true).
+    • Action bar: IsHudAbilityBuffActive(abilityId) already lights slot while buff row exists.
+    • Do NOT use tooltipBuffMinionDurationSeconds for toggle abilities (leave 0).
+
+  Minion
+    • minionSpawnDefinition + runtime prefab. Cooldown often on dismiss, not cast.
+    • HUD optional: Soulforged Weapon pattern — live minion count as displayStacks;
+      swarm = timed overlay; indefinite = persist overlay; single timed = summonDuration.
+    • Remove duplicate "lingers for X seconds" prose — use Duration: line on ability tooltips only
+      (AppendSoulforgedWeaponDurationLine / GetTooltipBuffMinionDisplayDurationSeconds).
+
+  Active
+    • Typically no SetHudAbilityBuff unless you add a separate short-lived HUD row.
+
+NUMERIC TOOLTIPS (single source of truth)
+-----------------------------------------
+  Do NOT put final % or damage numbers in presentation shortDescription.
+
+  AbilityTooltipDamagePreview.cs
+    • BuildAbilityTooltipStatsSection — full "Effects:" for skills page / ability list.
+    • TryBuildHudBuffTooltip — HUD buff strip (includeDuration: FALSE → no "Duration:" in body).
+    • TryBuildActionBarCompactBody — action bar hover (short desc + effects; Duration when timed buff).
+
+  GatheringPassiveTooltipText.cs
+    • Woodcutting / Fishing Lv15 majors (skill tree + abilities panel bullets).
+    • HUD ids ONLY for major passives (not ability ids):
+        PlayerController.WoodcuttingFlowStateHudBuffId
+        PlayerController.FishingCalmWatersMajorHudBuffId
+    • Timed ability buffs (Lumber/Fishing Frenzy, etc.) use abilityId + AbilityTooltipDamagePreview.
+
+  CombineShortDescriptionWithBody — flavor line + numeric effects block.
+
+  Runtime must use the SAME constants as tooltips (GatheringPassiveTooltipText or shared consts
+  next to Append*TooltipEffects in AbilityTooltipDamagePreview / PlayerAbilityController).
+
+HUD BUFF STRIP (BuffsDebuffsPanel + BuffIconUI + PlayerBuffController)
+----------------------------------------------------------------------
+  Register: PlayerBuffController.SetHudAbilityBuff(abilityId, displayStacks, endTime, duration,
+            persistActiveOverlay = false).
+
+  abilityId MUST match AbilityDefinition.abilityId exactly.
+
+  Tooltip on hover:
+    • Title/body from TryBuildHudBuffTooltip (or GatheringPassiveTooltipText for major ids).
+    • Body has effect lines only — NO "Duration: Xs" (stripped via includeDuration: false).
+    • BuffIconUI appends "Remaining: Xs" OR "Remaining: Until dismissed" (persist overlay).
+
+  Icon visuals:
+    • Timed: activeOverlay fillAmount = remaining/total; timerText = ceil(remaining).
+    • Toggle / indefinite: persistActiveOverlay → full overlay, no icon timer.
+    • Stacks: pass displayStacks > 1 to show corner count (Cleaving Strikes charges, Soulforged swarm count).
+
+  Clear: ClearHudAbilityBuff(abilityId) when effect ends. Hide HUD row while on cooldown if your
+  ability uses that pattern (see SyncFishingFrenzyHudBuff).
+
+TOOLTIP TEXT SCALE
+------------------
+  • HUD buff strip tooltips: default scale (useHudTooltipScale: true).
+  • Skills ability list + skill tree: ShowTextAt(..., useHudTooltipScale: false) in AbilityEntryUI,
+    SkillTreeViewUI — matches action bar size (avoids 0.8× docked HUD scale).
+
+=====================================================================
+A) NEW ABILITY (full pipeline — repeat in order)
+=====================================================================
+
+1) Gameplay asset
+   - Duplicate Ability_*.asset in Assets/3.ScriptableObjects/AbilitiesDefinitions/.
+   - abilityId (stable string), displayName, sourceSkill, unlockLevel.
+   - tag: None | Active | Minion | Buff | Toggle Buff (see sections above).
+   - cooldown, energyCost, requiredWeaponType, scaling multipliers.
+   - Buff (timed): tooltipBuffMinionDurationSeconds = BASE seconds before skill-tree bonuses.
+     Leave 0 to use code fallback for that ability id.
+   - Toggle Buff: leave tooltipBuffMinionDurationSeconds at 0.
+   - Minion: assign minionSpawnDefinition, wire runtime prefab on MinionDefinition.
+
+2) Presentation asset
+   - Duplicate Presentation_ability_<similar> → Presentation_ability_<newId> (+ .meta).
+   - Wire ability.presentation.
+   - icon, displayNameOverride (optional), shortDescription = FLAVOR ONE-LINER ONLY.
+   - Optional: primaryDescriptionOverride, flavourText, tooltipCategoryTagOverride.
+   - Do NOT duplicate numeric effect lines in presentation assets.
+
+3) Tooltip / effects (CODE)
+   - AbilityTooltipDamagePreview.BuildAbilityTooltipStatsSection:
+       if (IsYourAbility(def)) { AppendYourEffects(...); Duration if timed buff/minion; return; }
+   - IsYourAbility: string.Equals(def.abilityId, "your_id", OrdinalIgnoreCase).
+   - Duration line: GetTooltipBuffMinionDisplayDurationSeconds(def, codeBase, additiveBonus).
+   - AbilityCombatPower.YourAbilityId for cross-script compares.
+   - Compact UI auto-wires after step 3 (TryBuildHudBuffTooltip / TryBuildActionBarCompactBody).
+
+4) Runtime (PlayerAbilityController unless gathering-only)
+   - Cast / toggle / minion spawn logic.
+   - Timed buff: _active flag, _endsAt, _duration, Cleanup*IfExpired, Sync*HudBuff.
+   - Toggle buff: toggle on/off, SetHudAbilityBuff(..., persistActiveOverlay: true) while on.
+   - Minion: spawn list, dismiss cooldown, SyncSoulforgedWeaponHudBuff as reference for HUD timing.
+   - Use tooltipBuffMinionDurationSeconds when > 0, then add same enhancement seconds as tooltip.
+
+5) Skill tree / unlocks
+   - SkillDefinition / SkillUnlockDefinition: wire AbilityDefinition on correct level row.
+   - Lv5 abilities: often two enhancement choices at Lv8 (pattern: Lumber/Fishing Frenzy).
+
+6) UI wiring
+   - ActionBarSlotUI → TryBuildActionBarCompactBody.
+   - BuffsDebuffsPanel → TryBuildHudBuffTooltip (+ optional custom icon in panel inspector).
+   - AbilityEntryUI → BuildLeagueStyleTooltip.
+   - SkillsAbilityPageUI → major passive bullets via GatheringPassiveTooltipText.
+
+7) IDs / constants
+   - AbilityCombatPower.*AbilityId
+   - Gathering: PlayerController.*ChoiceSpineId, *MajorPassiveSourceLevel, etc.
+
+8) Smoke test
+   - Skills page: tag line, flavor intro, Effects numbers, Duration (if timed), Energy • Cooldown.
+   - Action bar hover: short desc + numeric effects (timed buffs show Duration here).
+   - HUD buff strip: overlay + timer OR persist overlay; hover = effects + Remaining only.
+   - Cast/toggle from bar; values match tooltip.
+
+=====================================================================
+B) GATHERING SKILL — Lv15 MAJOR PASSIVE (three rows at same level)
+=====================================================================
+
+  - fishing.asset / woodcutting.asset: three unlockType MajorPassive at Lv15; two choices each at Lv18.
+  - GatheringPassiveTooltipText: constants + TryBuildSkillTreeMajorPassiveBody + Append*EffectLines.
+  - PlayerController: GetSkillAbilityRowPick + *Level15ChoiceSpineId; gameplay in DoOneGatherTick / TickGather.
+  - SkillsAbilityPageUI + SkillTreeViewUI: dynamic copy via BuildEffectiveGatheringMajorPassiveDescription.
+  - Optional HUD: new *HudBuffId in PlayerController, Sync*HudBuff, panel icon slot,
+    GatheringPassiveTooltipText.TryGetHudBuffTooltip branch (stack-based majors e.g. Calm Waters).
+
+=====================================================================
+C) GATHERING — Lv5 ABILITY BUFF (e.g. Lumber / Fishing Frenzy)
+=====================================================================
+
+  - tag = Buff on AbilityDefinition asset.
+  - Mirror existing frenzy: PlayerAbilityController Activate/Cleanup/Sync*HudBuff.
+  - Append*FrenzyEffectLines in AbilityTooltipDamagePreview + shared constants in GatheringPassiveTooltipText.
+  - Enhancement choices at Lv8 in .skill asset; read choice in tooltip + runtime.
+
+=====================================================================
+D) TOGGLE BUFF ABILITY (new tag)
+=====================================================================
+
+  Asset:
+    - tag = Toggle Buff.
+    - tooltipBuffMinionDurationSeconds = 0.
+
+  Runtime (PlayerAbilityController):
+    - On cast while OFF: apply effect, SetHudAbilityBuff(id, 1, 0f, 0f, persistActiveOverlay: true).
+    - On cast while ON: remove effect, ClearHudAbilityBuff(id).
+    - No Cleanup*IfExpired unless external force-end (death, zone, weapon swap).
+    - Cooldown: only if design requires (often 0 or GCD on toggle).
+
+  Tooltips:
+    - Action bar: effects via TryBuildActionBarCompactBody (no Duration line — tag Toggle Buff).
+    - HUD hover: "Remaining: Until dismissed" from BuffIconUI (not in body text).
+
+  UI:
+    - Buff strip shows icon with full active overlay while on.
+    - Action bar treats as active while IsHudAbilityBuffActive(id).
+
+=====================================================================
+E) MINION ABILITY (e.g. Soulforged Weapon)
+=====================================================================
+
+  - tag Minion; minionSpawnDefinition + combatConfig (inherit vs pure minion damage).
+  - No "This minion lingers for X seconds" in tooltips — use Duration: line only.
+  - Skill choice variants (swarm / indefinite / default timed): mirror in HUD + AppendSoulforgedWeaponDurationLine.
+  - SetHudAbilityBuff: swarm/timed → endTime + duration; indefinite → persistActiveOverlay.
+  - Cooldown on dismiss (not on cast) if following Soulforged pattern.
+
+=====================================================================
+F) SKILL-TREE ROW ONLY (no new ability asset)
+=====================================================================
+
+  - Edit .skill asset: level, unlockType, spine/choice ids, presentation on row.
+  - Passive stat: CharacterStats / PlayerController hook.
+  - Tooltip: SkillTreeViewUI existing paths or GatheringPassiveTooltipText for majors.
+
+REFERENCE — presentation assets (Assets/3.ScriptableObjects/Presentation/)
+  Presentation_ability_avatar_of_the_forest
+  Presentation_ability_cleaving_chop
+  Presentation_ability_cleaving_strikes
+  Presentation_ability_crescent_slash
+  Presentation_ability_envenom
+  Presentation_ability_fishing_frenzy
+  Presentation_ability_lumber_frenzy
+  Presentation_ability_power_slash
+  Presentation_ability_rend
+  Presentation_ability_soulforged_weapon
+  Presentation_ability_spectral_axe
+  Presentation_ability_whirlwind
+
+REFERENCE — HUD ability buff ids (SetHudAbilityBuff abilityId)
+  lumber_frenzy, fishing_frenzy, avatar_of_the_forest, cleaving_chop, cleaving_strikes,
+  spectral_axe, soulforged_weapon
+  Major passives (GatheringPassiveTooltipText): woodcutting_flow_state, fishing_calm_waters_major
+
+REFERENCE — key scripts
+  AbilityDefinition.cs          — tag enum, tooltipBuffMinionDurationSeconds
+  AbilityTooltipDamagePreview.cs — all tooltip builders
+  PlayerAbilityController.cs    — cast, buff sync, minions
+  PlayerBuffController.cs       — SetHudAbilityBuff / ActiveBuff.hudPersistActiveOverlay
+  BuffIconUI.cs                 — overlay, timer, Remaining line on hover
+  BuffsDebuffsPanel.cs          — spawns buff icons, TryBuildHudBuffTooltip
+  GatheringPassiveTooltipText.cs — gathering majors + frenzy constants
+  NEW_SKILL_ENTRY_AGENT_CHECKLIST.txt — this file

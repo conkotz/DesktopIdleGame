@@ -18,6 +18,9 @@ public class PlayerBuffController : MonoBehaviour
         /// <summary>Corner stack count for HUD (e.g. Cleaving Strikes swings). 0 = use potion-style value label only.</summary>
         public int displayStacks;
 
+        /// <summary>Full active overlay with no numeric countdown (e.g. indefinite Soulforged Weapon).</summary>
+        public bool hudPersistActiveOverlay;
+
         public float RemainingSeconds => Mathf.Max(0f, endTime - Time.time);
         public bool IsExpired => Time.time >= endTime;
     }
@@ -80,7 +83,12 @@ public class PlayerBuffController : MonoBehaviour
     }
 
     /// <summary>Registers or updates a timed ability buff for the HUD bar only (no consumable stat totals).</summary>
-    public void SetHudAbilityBuff(string abilityId, int displayStacks, float endTime, float durationSeconds)
+    public void SetHudAbilityBuff(
+        string abilityId,
+        int displayStacks,
+        float endTime,
+        float durationSeconds,
+        bool persistActiveOverlay = false)
     {
         if (string.IsNullOrWhiteSpace(abilityId))
             return;
@@ -103,7 +111,8 @@ public class PlayerBuffController : MonoBehaviour
             magnitude = 0f,
             endTime = endTime,
             duration = Mathf.Max(0f, durationSeconds),
-            displayStacks = displayStacks
+            displayStacks = displayStacks,
+            hudPersistActiveOverlay = persistActiveOverlay
         });
 
         NotifyChanged();
@@ -163,6 +172,9 @@ public class PlayerBuffController : MonoBehaviour
             return false;
 
         remainingSeconds = b.RemainingSeconds;
+        if (b.hudPersistActiveOverlay && b.displayStacks > 0)
+            return true;
+
         return b.duration > 0f && remainingSeconds > 0f;
     }
 

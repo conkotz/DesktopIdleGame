@@ -1667,87 +1667,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
     }
 
-    private static void AppendWoodcuttingLevel15EffectLines(StringBuilder sb, string majorTitle, string enhancementTitle)
-    {
-        if (string.IsNullOrWhiteSpace(majorTitle))
-            return;
+    private static void AppendWoodcuttingLevel15EffectLines(StringBuilder sb, string majorTitle, string enhancementTitle) =>
+        GatheringPassiveTooltipText.AppendMajorPassiveEffectLines(sb, SkillType.Woodcutting, majorTitle, enhancementTitle);
 
-        if (string.Equals(majorTitle, "Conservationist", System.StringComparison.OrdinalIgnoreCase))
-        {
-            int skipChance = 15;
-            bool sustainableHarvest = string.Equals(enhancementTitle, "Sustainable Harvest", System.StringComparison.OrdinalIgnoreCase);
-            bool ancientPreservation = string.Equals(enhancementTitle, "Ancient Preservation", System.StringComparison.OrdinalIgnoreCase);
-            if (ancientPreservation)
-                skipChance += 10;
-            sb.AppendLine($"     +{skipChance}% Tree Depletion Skip Chance");
-            if (sustainableHarvest)
-                sb.AppendLine("     +10% Max Stamina restored when tree depletion is skipped");
-            return;
-        }
-
-        if (string.Equals(majorTitle, "Heavy Swing", System.StringComparison.OrdinalIgnoreCase))
-        {
-            int extraResourceChance = 15;
-            bool controlledForce = string.Equals(enhancementTitle, "Controlled Force", System.StringComparison.OrdinalIgnoreCase);
-            bool crushingSwing = string.Equals(enhancementTitle, "Crushing Swing", System.StringComparison.OrdinalIgnoreCase);
-            if (crushingSwing)
-                extraResourceChance += 5;
-            sb.AppendLine($"     +{extraResourceChance}% Extra Resource Chance when Woodcutting Grit procs");
-            if (controlledForce)
-                sb.AppendLine("     +10% Bonus Find Chance when Woodcutting Grit procs");
-            return;
-        }
-
-        if (string.Equals(majorTitle, "Flow State", System.StringComparison.OrdinalIgnoreCase))
-        {
-            sb.AppendLine("     +10% Chopping Speed while Flow is active");
-            sb.AppendLine("     +10% Stamina Efficiency while Flow is active");
-            if (string.Equals(enhancementTitle, "Lasting Focus", System.StringComparison.OrdinalIgnoreCase))
-                sb.AppendLine("     Flow lasts 5 seconds after you stop gathering");
-            else if (string.Equals(enhancementTitle, "Deep Focus", System.StringComparison.OrdinalIgnoreCase))
-                sb.AppendLine("     +10% Woodcutting Grit Chance while Flow is active");
-        }
-    }
-
-    private static void AppendFishingLevel15EffectLines(StringBuilder sb, string majorTitle, string enhancementTitle)
-    {
-        if (string.IsNullOrWhiteSpace(majorTitle))
-            return;
-
-        if (string.Equals(majorTitle, "Sustainable Catch", System.StringComparison.OrdinalIgnoreCase))
-        {
-            int skipChance = 15;
-            bool tidalRecovery = string.Equals(enhancementTitle, "Tidal Recovery", System.StringComparison.OrdinalIgnoreCase);
-            bool deepRuns = string.Equals(enhancementTitle, "Deep Runs", System.StringComparison.OrdinalIgnoreCase);
-            if (deepRuns)
-                skipChance += 10;
-            sb.AppendLine($"     +{skipChance}% Spot Depletion Skip Chance");
-            if (tidalRecovery)
-                sb.AppendLine("     +10% Max Stamina restored when a spot depletion skip triggers");
-            return;
-        }
-
-        if (string.Equals(majorTitle, "Powered Reel", System.StringComparison.OrdinalIgnoreCase))
-        {
-            int extraFishChance = 15;
-            bool tightLine = string.Equals(enhancementTitle, "Tight Line", System.StringComparison.OrdinalIgnoreCase);
-            bool doubleHaul = string.Equals(enhancementTitle, "Double Haul", System.StringComparison.OrdinalIgnoreCase);
-            if (doubleHaul)
-                extraFishChance += 5;
-            sb.AppendLine($"     +{extraFishChance}% Extra Fish Chance when Fishing Grit procs");
-            if (tightLine)
-                sb.AppendLine("     +10% Bonus Find Chance when Fishing Grit procs");
-            return;
-        }
-
-        if (string.Equals(majorTitle, "Calm Waters", System.StringComparison.OrdinalIgnoreCase))
-        {
-            int maxStacks = string.Equals(enhancementTitle, "Deep Waters", System.StringComparison.OrdinalIgnoreCase) ? 7 : 5;
-            sb.AppendLine($"     Gain Calm stacks every 4s while fishing (max {maxStacks})");
-            sb.AppendLine("     +2% Fishing Speed per Calm stack");
-            sb.AppendLine("     +1% Bonus Find Chance per Calm stack");
-            if (string.Equals(enhancementTitle, "Lasting Waters", System.StringComparison.OrdinalIgnoreCase))
-                sb.AppendLine("     Lose 1 Calm stack every 2s after you stop fishing");
-        }
-    }
+    private static void AppendFishingLevel15EffectLines(StringBuilder sb, string majorTitle, string enhancementTitle) =>
+        GatheringPassiveTooltipText.AppendMajorPassiveEffectLines(sb, SkillType.Fishing, majorTitle, enhancementTitle);
 }

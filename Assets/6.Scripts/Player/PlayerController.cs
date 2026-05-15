@@ -234,8 +234,10 @@ public class PlayerController : MonoBehaviour
     private const float WoodcuttingForestFlowContinuousSecondsThreshold = 15f;
     private const float FishingCalmWatersContinuousSecondsThreshold = 15f;
     private const float FishingGritFrenzyDurationSeconds = 7f;
-    private const float FishingCalmWatersMajorStackIntervalSeconds = 4f;
-    private const float FishingCalmWatersLingerDecayIntervalSeconds = 2f;
+    private static float FishingCalmWatersMajorStackIntervalSeconds =>
+        GatheringPassiveTooltipText.FishingCalmWatersMajorStackIntervalSeconds;
+    private static float FishingCalmWatersLingerDecayIntervalSeconds =>
+        GatheringPassiveTooltipText.FishingCalmWatersMajorLingerDecaySeconds;
 
     /// <summary>HUD buff strip id for Lv15 Flow State (assign icon on the Buffs / Debuffs panel).</summary>
     public const string WoodcuttingFlowStateHudBuffId = "woodcutting_flow_state";
@@ -2748,7 +2750,8 @@ public class PlayerController : MonoBehaviour
     private bool IsFishingMajorDeepWatersSelected() =>
         GetFishingLevel15RowPick() == 2 && GetFishingLevel15EnhancementIndex(2) == 1;
 
-    private int GetFishingCalmWatersMaxStacks() => IsFishingMajorDeepWatersSelected() ? 7 : 5;
+    private int GetFishingCalmWatersMaxStacks() =>
+        GatheringPassiveTooltipText.GetFishingCalmWatersMaxStacks(IsFishingMajorDeepWatersSelected());
 
     private int GetFishingCalmWatersHudDisplayStacks()
     {

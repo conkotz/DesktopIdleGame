@@ -624,6 +624,10 @@ public class ActionBarSlotUI : MonoBehaviour,
 
     private static string ResolveAbilityActionBarBodyText(AbilityDefinition def, ActionBarAssignment assignment)
     {
+        if (def != null &&
+            AbilityTooltipDamagePreview.TryBuildActionBarCompactBody(def, SkillsManager.Instance, out string compactEffects))
+            return compactEffects;
+
         if (def != null)
         {
             string intro = SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def);

@@ -14,14 +14,16 @@ public enum AbilityWeaponRequirement
 
 /// <summary>
 /// High-level ability category displayed as a tag line above the description in tooltips
-/// (e.g. "Active", "Minion", "Buff"). <see cref="None"/> hides the tag line entirely.
+/// (e.g. "Active", "Minion", "Buff", "Toggle Buff"). <see cref="None"/> hides the tag line entirely.
 /// </summary>
 public enum AbilityTag
 {
     None,
     Active,
     Minion,
-    Buff
+    Buff,
+    [InspectorName("Toggle Buff")]
+    ToggleBuff
 }
 
 [CreateAssetMenu(fileName = "Ability_", menuName = "Desktop Idle Game/Skills/Ability Definition")]
@@ -29,7 +31,7 @@ public class AbilityDefinition : ScriptableObject
 {
     public string abilityId;
     public string displayName;
-    [Tooltip("High-level category label shown above the tooltip description (e.g. Active / Minion / Buff). None hides the label.")]
+    [Tooltip("High-level category label shown above the tooltip description (Active / Minion / Buff / Toggle Buff). None hides the label.")]
     public AbilityTag tag = AbilityTag.None;
 
     [Tooltip("Buff / Minion: BASE seconds for the league tooltip Duration line (and Lumber Frenzy runtime when > 0). Enhancement bonuses from skill choices are added on top in AbilityTooltipDamagePreview. Use 0 to use the code default base for that ability.")]

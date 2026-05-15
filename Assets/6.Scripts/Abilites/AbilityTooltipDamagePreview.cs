@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -63,6 +64,8 @@ public static class AbilityTooltipDamagePreview
                 return "Minion";
             case AbilityTag.Buff:
                 return "Buff";
+            case AbilityTag.ToggleBuff:
+                return "Toggle Buff";
         }
 
         // Legacy fallback for assets that haven't been tagged in the inspector yet.
@@ -73,7 +76,7 @@ public static class AbilityTooltipDamagePreview
 
     public static CharacterStats FindLocalPlayerStats()
     {
-        var player = Object.FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        var player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         if (player != null)
         {
             var s = player.GetComponent<CharacterStats>();
@@ -81,7 +84,7 @@ public static class AbilityTooltipDamagePreview
                 return s;
         }
 
-        return Object.FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Include);
+        return UnityEngine.Object.FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Include);
     }
 
     public static string FormatPhysSuffix(CharacterStats stats, float physicalMultiplier)
@@ -124,7 +127,7 @@ public static class AbilityTooltipDamagePreview
 
         if (IsSpectralAxe(def))
         {
-            var pac = Object.FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
+            var pac = UnityEngine.Object.FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
             bool axeOk = stats == null || (pac != null && pac.HasAxeInToolbelt());
             const string axeRequirementText = "Required: Axe in toolbelt";
             if (!axeOk)
@@ -333,7 +336,7 @@ public static class AbilityTooltipDamagePreview
         def && string.Equals(def.abilityId, AbilityCombatPower.FishingFrenzyAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
     private const float LumberFrenzyBuffDurationSecondsTooltip = 20f;
-    private const float FishingFrenzyBuffDurationSecondsTooltip = 20f;
+    private static float FishingFrenzyBuffDurationSecondsTooltip => GatheringPassiveTooltipText.FishingFrenzyDurationSeconds;
 
     /// <summary>
     /// Compact tooltip: Effects, then optional Deals/Ability Power scaling lines, then Energy • Cooldown.
@@ -685,23 +688,175 @@ public static class AbilityTooltipDamagePreview
         return body.ToString().TrimEnd();
     }
 
+    /// <summary>Presentation shortDescription / league intro (flavor line above numeric effects).</summary>
+    public static string ResolveAbilityShortDescription(AbilityDefinition def)
+    {
+        if (def == null)
+            return string.Empty;
+
+        string intro = SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def);
+        if (string.IsNullOrWhiteSpace(intro) || intro == "No description.")
+            return string.Empty;
+
+        return intro.Trim();
+    }
+
+    /// <summary>Short description, then a blank line, then effect lines (action bar / HUD).</summary>
+    public static string CombineShortDescriptionWithBody(AbilityDefinition def, string effectsBody)
+    {
+        string intro = ResolveAbilityShortDescription(def);
+        string effects = effectsBody?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrEmpty(intro))
+            return effects;
+        if (string.IsNullOrEmpty(effects))
+            return intro;
+
+        return intro + "\n\n" + effects;
+    }
+
+    /// <summary>
+    /// HUD buff strip + action bar: short description + numeric effects from
+    /// <see cref="BuildAbilityTooltipStatsSection"/>.
+    /// Major-passive HUD ids (Flow State, Calm Waters) use <see cref="GatheringPassiveTooltipText"/>.
+    /// </summary>
+    public static bool TryBuildHudBuffTooltip(
+        string buffId,
+        int displayStacks,
+        SkillsManager skillsManager,
+        AbilityDatabase abilityDatabase,
+        out string title,
+        out string body)
+    {
+        title = null;
+        body = null;
+        if (string.IsNullOrWhiteSpace(buffId))
+            return false;
+
+        if (GatheringPassiveTooltipText.TryGetHudBuffTooltip(buffId, displayStacks, skillsManager, out title, out body))
+            return true;
+
+        if (abilityDatabase == null)
+            return false;
+
+        AbilityDefinition def = abilityDatabase.Get(buffId);
+        if (def == null)
+            return false;
+
+        string effects = BuildCompactEffectsBody(def, skillsManager, includeDuration: false, displayStacks);
+        body = CombineShortDescriptionWithBody(def, effects);
+        if (string.IsNullOrWhiteSpace(body))
+            return false;
+
+        title = SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(def);
+        if (string.IsNullOrWhiteSpace(title))
+            title = buffId;
+        return true;
+    }
+
+    /// <summary>Action-bar hover: short description + effects block when available.</summary>
+    public static bool TryBuildActionBarCompactBody(AbilityDefinition def, SkillsManager skillsManager, out string body)
+    {
+        body = null;
+        if (def == null)
+            return false;
+
+        bool includeDuration = ShouldShowDurationInCompactUi(def);
+        string effects = BuildCompactEffectsBody(def, skillsManager, includeDuration, displayStacks: 0);
+        body = CombineShortDescriptionWithBody(def, effects);
+        return !string.IsNullOrWhiteSpace(body);
+    }
+
+    private static bool ShouldShowDurationInCompactUi(AbilityDefinition def)
+    {
+        if (!def)
+            return false;
+        if (def.tag == AbilityTag.Buff)
+            return true;
+        if (def.tag == AbilityTag.ToggleBuff)
+            return false;
+        return IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def) ||
+               IsCleavingChop(def) || IsSpectralAxe(def) || IsCleavingStrikes(def) ||
+               IsSoulforgedWeapon(def);
+    }
+
+    private static string BuildCompactEffectsBody(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        bool includeDuration,
+        int displayStacks)
+    {
+        if (def == null)
+            return string.Empty;
+
+        CharacterStats stats = FindLocalPlayerStats();
+        string full = BuildAbilityTooltipStatsSection(def, stats, skillsManager, orangeMarkup: false);
+        if (string.IsNullOrWhiteSpace(full))
+            return string.Empty;
+
+        string extracted = ExtractEffectLinesFromStatsSection(full, includeDuration);
+        if (string.IsNullOrWhiteSpace(extracted))
+            return string.Empty;
+
+        if (displayStacks > 1 &&
+            string.Equals(def.abilityId, AbilityCombatPower.CleavingStrikesAbilityId, StringComparison.OrdinalIgnoreCase))
+            return extracted + $"\n\nSwing charges: {displayStacks}";
+
+        return extracted;
+    }
+
+    /// <summary>Strips the Effects header and Energy/Cooldown footer from a stats-section string.</summary>
+    private static string ExtractEffectLinesFromStatsSection(string statsSection, bool includeDuration)
+    {
+        if (string.IsNullOrWhiteSpace(statsSection))
+            return string.Empty;
+
+        var lines = new List<string>();
+        foreach (string raw in statsSection.Split(new[] { '\r', '\n' }, StringSplitOptions.None))
+        {
+            string line = raw.Trim();
+            if (line.Length == 0)
+                continue;
+
+            if (string.Equals(StripRichText(line), "Effects:", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (line.Contains("Energy •", StringComparison.Ordinal))
+                break;
+
+            if (!includeDuration && StripRichText(line).StartsWith("Duration:", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            lines.Add(line);
+        }
+
+        while (lines.Count > 0 && string.IsNullOrWhiteSpace(lines[lines.Count - 1]))
+            lines.RemoveAt(lines.Count - 1);
+
+        return lines.Count == 0 ? string.Empty : string.Join("\n", lines);
+    }
+
+    private static string StripRichText(string line)
+    {
+        if (string.IsNullOrEmpty(line))
+            return line;
+        return line
+            .Replace("<color=#FFB347>", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("<color=#B0C8DD>", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("<color=#9DD4FF>", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("</color>", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Trim();
+    }
+
     private static void AppendLumberFrenzyTooltipEffects(
         StringBuilder body,
         System.Func<string, string> O,
         SkillsManager skillsManager)
     {
-        const float baseChoppingSpeedPct = 20f;
-        const float baseGritChancePct = 10f;
-        const float sturdyGripStaminaEffPct = 15f;
-        const float ironGritExtraGritPct = 5f;
-
-        int choice = GetWoodcuttingSkillRow5Choice(skillsManager);
-        float gritTotal = baseGritChancePct + (choice == 1 ? ironGritExtraGritPct : 0f);
-
-        body.AppendLine(O($"+{baseChoppingSpeedPct:0.#}% Woodcutting Speed"));
-        body.AppendLine(O($"+{gritTotal:0.#}% Woodcutting Grit Chance"));
-        if (choice == 0)
-            body.AppendLine(O($"+{sturdyGripStaminaEffPct:0.#}% Woodcutting Stamina Efficiency"));
+        var scratch = new StringBuilder();
+        GatheringPassiveTooltipText.AppendLumberFrenzyEffectLines(scratch, skillsManager);
+        foreach (string line in scratch.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            body.AppendLine(O(line));
     }
 
     private static void AppendFishingFrenzyTooltipEffects(
@@ -709,18 +864,10 @@ public static class AbilityTooltipDamagePreview
         System.Func<string, string> O,
         SkillsManager skillsManager)
     {
-        const float baseFishingSpeedPct = 20f;
-        const float baseGritChancePct = 10f;
-        const float sturdyGripStaminaEffPct = 15f;
-        const float ironGritExtraGritPct = 5f;
-
-        int choice = GetFishingSkillRow5Choice(skillsManager);
-        float gritTotal = baseGritChancePct + (choice == 1 ? ironGritExtraGritPct : 0f);
-
-        body.AppendLine(O($"+{baseFishingSpeedPct:0.#}% Fishing Speed"));
-        body.AppendLine(O($"+{gritTotal:0.#}% Fishing Grit Chance"));
-        if (choice == 0)
-            body.AppendLine(O($"+{sturdyGripStaminaEffPct:0.#}% Fishing Stamina Efficiency"));
+        var scratch = new StringBuilder();
+        GatheringPassiveTooltipText.AppendFishingFrenzyEffectLines(scratch, skillsManager);
+        foreach (string line in scratch.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            body.AppendLine(O(line));
     }
 
     private static void AppendCleavingChopTooltipEffects(
@@ -801,9 +948,6 @@ public static class AbilityTooltipDamagePreview
         if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
         {
             body.AppendLine(O(InheritMinionDamageRuleLine));
-            string lingerLine = BuildMinionLingerLine(def, skillsManager);
-            if (!string.IsNullOrEmpty(lingerLine))
-                body.AppendLine(O(lingerLine));
             body.AppendLine(string.Empty);
             body.AppendLine(S("+0 damage from Minion Damage" + DamageTimingSuffix()));
             body.AppendLine(S(InheritMinionDealsBonusScalingLine));
@@ -828,12 +972,7 @@ public static class AbilityTooltipDamagePreview
         string dmgSuffix = DamageTimingSuffix();
 
         if (cfg.damageSourceMode == MinionDamageSourceMode.InheritOwnerHitSplit)
-        {
             body.AppendLine(O(InheritMinionDamageRuleLine));
-            string lingerLine = BuildMinionLingerLine(def, skillsManager);
-            if (!string.IsNullOrEmpty(lingerLine))
-                body.AppendLine(O(lingerLine));
-        }
         else
         {
             SplitDamageRange basePre = cfg.pureMinionDamageSplitRange;
@@ -884,24 +1023,6 @@ public static class AbilityTooltipDamagePreview
         }
 
         AppendMinionModifierStatLines(body, S, stats, cfg.damageSourceMode);
-    }
-
-    private static string BuildMinionLingerLine(AbilityDefinition def, SkillsManager skillsManager)
-    {
-        float seconds = def != null && def.minionSpawnDefinition != null
-            ? Mathf.Max(0.1f, def.minionSpawnDefinition.summonDuration)
-            : 0f;
-
-        if (IsSoulforgedWeapon(def) && skillsManager != null)
-        {
-            int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, SoulforgedWeaponChoiceSourceLevel, -1);
-            if (selected == SoulforgedWeaponIndefiniteChoiceIndex)
-                return string.Empty;
-            if (selected == SoulforgedWeaponSwarmChoiceIndex)
-                seconds = SoulforgedWeaponSwarmDurationSeconds;
-        }
-
-        return $"This minion lingers for {seconds:0.#} seconds";
     }
 
     /// <summary>Flat damage from owner Minion Damage % on one hit (matches runtime × pre-hit base; inherit uses half scaling).</summary>

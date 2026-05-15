@@ -202,11 +202,11 @@ public class PlayerAbilityController : MonoBehaviour
     private AbilityDefinition _soulforgedWeaponCooldownAbilityDef;
 
     /// <summary>
-    /// HUD buff bookkeeping for Soulforged Weapon. Swarm variant uses a real countdown; the indefinite
-    /// variant parks <c>endsAt</c> in the past so <see cref="BuffIconUI"/> hides its timer/overlay.
+    /// HUD buff bookkeeping for Soulforged Weapon (swarm/timed countdown or indefinite full overlay).
     /// </summary>
     private float _soulforgedHudBuffEndsAt;
     private float _soulforgedHudBuffDuration;
+    private bool _soulforgedHudPersistOverlay;
     private float _lastSyncedSoulforgedHudEnd = float.NaN;
     private int _lastSyncedSoulforgedHudStacks = int.MinValue;
 
@@ -3281,18 +3281,26 @@ public class PlayerAbilityController : MonoBehaviour
 
         _soulforgedWeaponCooldownAbilityDef = def;
 
-        // Mirror the swarm/indefinite split in the HUD buff bar. Swarm gets a real timer so the
-        // 20s overlay sweeps down; indefinite parks endsAt slightly in the past with duration=0 so
-        // BuffIconUI hides both the timer text and the radial overlay (the icon just persists).
         if (swarm)
         {
             _soulforgedHudBuffDuration = swarmDurationSeconds;
             _soulforgedHudBuffEndsAt = Time.time + swarmDurationSeconds;
+            _soulforgedHudPersistOverlay = false;
+        }
+        else if (indefinite)
+        {
+            _soulforgedHudBuffDuration = 0f;
+            _soulforgedHudBuffEndsAt = 0f;
+            _soulforgedHudPersistOverlay = true;
         }
         else
         {
-            _soulforgedHudBuffDuration = 0f;
-            _soulforgedHudBuffEndsAt = Time.time - 1f;
+            float dur = md != null ? Mathf.Max(0.1f, md.summonDuration) : SoulforgedWeaponSwarmDurationSeconds;
+            if (def != null && def.tooltipBuffMinionDurationSeconds > 0.01f)
+                dur = def.tooltipBuffMinionDurationSeconds;
+            _soulforgedHudBuffDuration = dur;
+            _soulforgedHudBuffEndsAt = Time.time + dur;
+            _soulforgedHudPersistOverlay = false;
         }
         _lastSyncedSoulforgedHudEnd = float.NaN;
         _lastSyncedSoulforgedHudStacks = int.MinValue;
@@ -3344,7 +3352,8 @@ public class PlayerAbilityController : MonoBehaviour
             AbilityCombatPower.SoulforgedWeaponAbilityId,
             liveCount,
             _soulforgedHudBuffEndsAt,
-            _soulforgedHudBuffDuration);
+            _soulforgedHudBuffDuration,
+            _soulforgedHudPersistOverlay);
     }
 
     private int GetSoulforgedWeaponSelectedChoice()

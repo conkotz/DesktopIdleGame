@@ -244,7 +244,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 GetBuffBody(buff),
                 buff.displayStacks,
                 buff.displayStacks > 0,
-                buff.duration);
+                buff.duration,
+                buff.hudPersistActiveOverlay);
         }
     }
 
@@ -322,7 +323,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
         string body,
         int stacks = 0,
         bool showStacks = false,
-        float totalDurationSeconds = 0f)
+        float totalDurationSeconds = 0f,
+        bool persistActiveOverlay = false)
     {
         if (sprite == null)
             sprite = defaultBuffIcon;
@@ -347,7 +349,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 tooltipPreferredSide,
                 stacks,
                 showStacks,
-                totalDurationSeconds);
+                totalDurationSeconds,
+                persistActiveOverlay);
         }
 
         spawnedBuffIcons.Add(icon);
@@ -476,11 +479,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
-            if (string.Equals(buff.id, PlayerController.WoodcuttingFlowStateHudBuffId, StringComparison.OrdinalIgnoreCase))
-                return "Flow State";
-
-            if (string.Equals(buff.id, PlayerController.FishingCalmWatersMajorHudBuffId, StringComparison.OrdinalIgnoreCase))
-                return "Calm Waters";
+            if (AbilityTooltipDamagePreview.TryBuildHudBuffTooltip(
+                    buff.id, buff.displayStacks, SkillsManager.Instance, _abilityDatabase, out string hudTitle, out _))
+                return hudTitle;
 
             if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))
             {
@@ -524,11 +525,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
-            if (string.Equals(buff.id, PlayerController.WoodcuttingFlowStateHudBuffId, StringComparison.OrdinalIgnoreCase))
-                return "Woodcutting speed and stamina efficiency bonus";
-
-            if (string.Equals(buff.id, PlayerController.FishingCalmWatersMajorHudBuffId, StringComparison.OrdinalIgnoreCase))
-                return "Calm stacks grant Fishing Speed and Bonus Find Chance.";
+            if (AbilityTooltipDamagePreview.TryBuildHudBuffTooltip(
+                    buff.id, buff.displayStacks, SkillsManager.Instance, _abilityDatabase, out _, out string hudBody))
+                return hudBody;
 
             string core = "Temporary ability effect.";
             if (_abilityDatabase != null && !string.IsNullOrWhiteSpace(buff.id))
@@ -541,11 +540,6 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 }
             }
 
-            // Only surface a "Swing charges: N" line for multi-stack buffs (Cleaving Strikes, etc.).
-            // Single-instance buffs (Lumber Frenzy, Cleaving Chop, Spectral Axe, Soulforged Weapon, …)
-            // pass displayStacks=1 just to keep the HUD slot alive — showing "1" is just noise.
-            if (buff.displayStacks > 1)
-                core += $"\n\nSwing charges: {buff.displayStacks}";
             return core;
         }
 

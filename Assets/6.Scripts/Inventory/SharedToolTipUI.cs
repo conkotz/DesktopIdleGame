@@ -1089,7 +1089,8 @@ public class SharedTooltipUI : MonoBehaviour
         FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Right,
         Color? titleColor = null,
         bool useStatsDisplayHeader = false,
-        SkillTreeTooltipChrome skillTreeChrome = SkillTreeTooltipChrome.None)
+        SkillTreeTooltipChrome skillTreeChrome = SkillTreeTooltipChrome.None,
+        bool useHudTooltipScale = true)
     {
         if (!anchor)
         {
@@ -1099,7 +1100,7 @@ public class SharedTooltipUI : MonoBehaviour
 
         RestoreDefaultParent();
         transform.SetAsLastSibling();
-        _useHudTooltipScalePath = true;
+        _useHudTooltipScalePath = useHudTooltipScale;
         SetAnchor(anchor);
 
         if (flipInsideBounds)

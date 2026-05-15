@@ -217,8 +217,8 @@ public class AbilityEntryUI : MonoBehaviour,
             body,
             measureRect: measure,
             heightRect: measure,
-            preferredSide: _preferredSide
-        );
+            preferredSide: _preferredSide,
+            useHudTooltipScale: false);
     }
 
     public void OnPointerExit(PointerEventData eventData)
