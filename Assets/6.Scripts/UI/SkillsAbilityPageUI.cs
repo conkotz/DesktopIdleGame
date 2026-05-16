@@ -93,12 +93,26 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private string _passiveUnlockHighlightKey;
 
+    private SharedTooltipUI _cachedSharedTooltip;
+    private ActionBarUI _cachedActionBar;
+    private SkillDefinition _cachedAbilitiesPanelSkill;
+    private int _cachedAbilitiesPanelLevel = -1;
+    private int _cachedAbilitiesPanelFingerprint = int.MinValue;
+
+    private SkillDefinition _cachedUnlocksSkill;
+    private int _cachedUnlocksLevel = -1;
+    private string _cachedUnlocksHighlightKey;
+    private string _cachedUnlocksDisplayText;
+
     private void Awake()
     {
         PreferRuntimeSkillsManager();
 
         if (!player)
             player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+
+        _cachedSharedTooltip = FindBestSharedTooltip();
+        _cachedActionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
 
         if (abilityListPadding == null)
             abilityListPadding = new RectOffset(0, 0, 0, 0);
@@ -143,6 +157,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             _deferredRefreshRoutine = null;
         }
 
+        InvalidateAbilitiesPanelCache();
+        InvalidateUnlocksDisplayCache();
         SetDevCompletionBannerVisible(false);
     }
 
@@ -283,8 +299,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             return;
 
         int level = skillsManager ? skillsManager.GetLevel(_selectedSkill.skillType) : 1;
-        if (rightUnlocksText)
-            rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager, _passiveUnlockHighlightKey);
+        RefreshUnlocksDisplayText(_selectedSkill, level);
         RefreshAbilitiesPanel(_selectedSkill, level);
     }
 
@@ -358,13 +373,16 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         _selectedSkill = skill;
         _passiveUnlockHighlightKey = null;
+        InvalidateUnlocksDisplayCache();
         EnsureCenterTreeReference();
         if (centerSkillTreeView) centerSkillTreeView.SetSkill(_selectedSkill);
         RefreshView();
         RefreshListSelection();
         RefreshDevCompletionBanner();
 
-        ActionBarUI gatherBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        ActionBarUI gatherBar = _cachedActionBar;
+        if (gatherBar == null)
+            gatherBar = _cachedActionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         if (gatherBar != null)
         {
             if (ActionBarUI.IsGatheringSkillType(skill.skillType))
@@ -648,6 +666,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (_selectedSkill == null)
         {
             _passiveUnlockHighlightKey = null;
+            InvalidateUnlocksDisplayCache();
             if (centerTitleText) centerTitleText.text = "No Skill Selected";
             if (centerSkillTreePlaceholderText) centerSkillTreePlaceholderText.text = "";
             if (centerSkillTreeView) centerSkillTreeView.SetSkill(null);
@@ -684,8 +703,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             }
         }
 
-        if (rightUnlocksText)
-            rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager, _passiveUnlockHighlightKey);
+        RefreshUnlocksDisplayText(_selectedSkill, level);
 
         RefreshAbilitiesPanel(_selectedSkill, level);
         RefreshDevCompletionBanner();
@@ -729,11 +747,44 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     private void HandlePassiveUnlockLineHighlightChanged(string highlightKey)
     {
         _passiveUnlockHighlightKey = highlightKey;
-        if (!isActiveAndEnabled || _selectedSkill == null || rightUnlocksText == null)
+        if (!isActiveAndEnabled || _selectedSkill == null)
             return;
 
         int level = skillsManager ? skillsManager.GetLevel(_selectedSkill.skillType) : 1;
-        rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager, _passiveUnlockHighlightKey);
+        RefreshUnlocksDisplayText(_selectedSkill, level);
+    }
+
+    private void InvalidateUnlocksDisplayCache()
+    {
+        _cachedUnlocksSkill = null;
+        _cachedUnlocksLevel = -1;
+        _cachedUnlocksHighlightKey = null;
+        _cachedUnlocksDisplayText = null;
+    }
+
+    /// <summary>
+    /// Passive unlocks string is expensive on large trees; cache until skill, level, or tree highlight changes.
+    /// </summary>
+    private void RefreshUnlocksDisplayText(SkillDefinition skill, int level)
+    {
+        if (!rightUnlocksText)
+            return;
+
+        string highlightKey = _passiveUnlockHighlightKey;
+        if (skill == _cachedUnlocksSkill &&
+            level == _cachedUnlocksLevel &&
+            highlightKey == _cachedUnlocksHighlightKey &&
+            _cachedUnlocksDisplayText != null)
+        {
+            rightUnlocksText.text = _cachedUnlocksDisplayText;
+            return;
+        }
+
+        _cachedUnlocksDisplayText = BuildUnlocksDisplay(skill, level, skillsManager, highlightKey);
+        _cachedUnlocksSkill = skill;
+        _cachedUnlocksLevel = level;
+        _cachedUnlocksHighlightKey = highlightKey;
+        rightUnlocksText.text = _cachedUnlocksDisplayText;
     }
 
     private void ReplayPendingGlowForVisibleUi()
@@ -756,14 +807,58 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             centerSkillTreeView.HighlightNewUnlocksAtLevel(lvl);
     }
 
+    private void InvalidateAbilitiesPanelCache()
+    {
+        _cachedAbilitiesPanelSkill = null;
+        _cachedAbilitiesPanelLevel = -1;
+        _cachedAbilitiesPanelFingerprint = int.MinValue;
+    }
+
+    private void CommitAbilitiesPanelCache(SkillDefinition skill, int level, int fingerprint)
+    {
+        _cachedAbilitiesPanelSkill = skill;
+        _cachedAbilitiesPanelLevel = level;
+        _cachedAbilitiesPanelFingerprint = fingerprint;
+    }
+
+    private int ComputeAbilitiesPanelFingerprint(SkillDefinition skill, int level)
+    {
+        if (skill == null || skillsManager == null)
+            return 0;
+
+        unchecked
+        {
+            int h = ((int)skill.skillType * 397) ^ level;
+            List<int> tiers = CollectSortedAbilityTierLevels(skill);
+            for (int i = 0; i < tiers.Count; i++)
+            {
+                int rowLevel = tiers[i];
+                if (level < rowLevel)
+                    continue;
+                if (SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(skill, rowLevel).Count == 0)
+                    continue;
+                h = (h * 31) ^ (rowLevel * 17 + skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1));
+            }
+
+            return h;
+        }
+    }
+
     private void RefreshAbilitiesPanel(SkillDefinition skill, int level)
     {
         if (skill == null)
         {
+            InvalidateAbilitiesPanelCache();
             if (rightAbilitiesText) rightAbilitiesText.text = "";
             ClearAbilityRows();
             return;
         }
+
+        int fingerprint = ComputeAbilitiesPanelFingerprint(skill, level);
+        if (skill == _cachedAbilitiesPanelSkill &&
+            level == _cachedAbilitiesPanelLevel &&
+            fingerprint == _cachedAbilitiesPanelFingerprint)
+            return;
 
         // If no list parent is assigned, create a simple one under the abilities text's parent.
         if (!rightAbilitiesListParent)
@@ -773,6 +868,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         {
             if (rightAbilitiesText)
                 rightAbilitiesText.text = "Abilities\n(placeholder — drag/drop not implemented yet)";
+            CommitAbilitiesPanelCache(skill, level, fingerprint);
             return;
         }
 
@@ -784,6 +880,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             if (rightAbilitiesText)
                 rightAbilitiesText.text = "No abilities yet";
             ClearAbilityRows();
+            CommitAbilitiesPanelCache(skill, level, fingerprint);
             return;
         }
 
@@ -794,7 +891,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         ClearAbilityRows();
 
-        var tooltip = FindBestSharedTooltip();
+        SharedTooltipUI tooltip = _cachedSharedTooltip ??= FindBestSharedTooltip();
         var canvas = GetComponentInParent<Canvas>();
         RectTransform abilityPanelRect = rightAbilitiesText ? rightAbilitiesText.transform.parent as RectTransform : null;
 
@@ -843,6 +940,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             row.SetDoubleClickAssignHandler(HandleAbilityDoubleClickAssignToActionBar);
         }
 
+        CommitAbilitiesPanelCache(skill, level, fingerprint);
+
         if (rightAbilitiesListParent is RectTransform abilitiesListRt)
         {
             Canvas.ForceUpdateCanvases();
@@ -856,7 +955,9 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             return;
 
         PreferRuntimeSkillsManager();
-        ActionBarUI bar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        ActionBarUI bar = _cachedActionBar;
+        if (bar == null)
+            bar = _cachedActionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         if (bar == null)
         {
             if (player)

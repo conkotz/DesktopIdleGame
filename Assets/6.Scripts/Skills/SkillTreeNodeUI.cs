@@ -485,46 +485,79 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
         return isSelected;
     }
 
+    private bool _skillTreeCooldownVisible;
+    private float _skillTreeCooldownFill = -1f;
+    private int _skillTreeCooldownSecondsShown = -1;
+    private bool _skillTreeBuffVisible;
+    private int _skillTreeBuffSecondsShown = -1;
+
     /// <summary>Skill tree only: cooldown ring/text from <see cref="PlayerAbilityController"/>.</summary>
     public void SetSkillTreeCooldownPresentation(bool visible, float normalizedCooldown01, float remainingSeconds)
     {
+        bool show = visible && !isLocked;
+        int secondsShown = show && remainingSeconds >= 1f ? Mathf.CeilToInt(remainingSeconds) : -1;
+        float fill = show ? Mathf.Clamp01(normalizedCooldown01) : 0f;
+
+        // Only skip work while actively showing the same values. Never skip hiding — prefab defaults and
+        // stale UI must still be cleared when show is false (cache can be false before first apply).
+        if (show &&
+            _skillTreeCooldownVisible &&
+            Mathf.Approximately(_skillTreeCooldownFill, fill) &&
+            _skillTreeCooldownSecondsShown == secondsShown)
+            return;
+
+        _skillTreeCooldownVisible = show;
+        _skillTreeCooldownFill = fill;
+        _skillTreeCooldownSecondsShown = secondsShown;
+
         if (cooldownOverlay != null)
-            cooldownOverlay.SetActive(visible && !isLocked);
+            cooldownOverlay.SetActive(show);
 
         if (cooldownOverlayFillImage != null)
         {
-            bool showFill = visible && !isLocked && normalizedCooldown01 > 0f;
+            bool showFill = show && fill > 0f;
             cooldownOverlayFillImage.enabled = showFill;
             if (showFill)
             {
                 if (cooldownOverlayFillImage.type != Image.Type.Filled)
                     cooldownOverlayFillImage.type = Image.Type.Filled;
-                cooldownOverlayFillImage.fillAmount = Mathf.Clamp01(normalizedCooldown01);
+                cooldownOverlayFillImage.fillAmount = fill;
             }
         }
 
         if (cooldownOverlayTimeText != null)
-        {
-            cooldownOverlayTimeText.text =
-                visible && !isLocked && remainingSeconds >= 1f
-                    ? Mathf.CeilToInt(remainingSeconds).ToString()
-                    : string.Empty;
-        }
+            cooldownOverlayTimeText.text = secondsShown >= 1 ? secondsShown.ToString() : string.Empty;
     }
 
     /// <summary>Skill tree only: active buff / lingering effect (cooldown overlay takes priority when both apply).</summary>
     public void SetSkillTreeActiveBuffPresentation(bool visible, float buffRemainingSeconds)
     {
+        bool show = visible && !isLocked;
+        int secondsShown = show && buffRemainingSeconds >= 1f ? Mathf.CeilToInt(buffRemainingSeconds) : -1;
+
+        if (show &&
+            _skillTreeBuffVisible &&
+            _skillTreeBuffSecondsShown == secondsShown)
+            return;
+
+        _skillTreeBuffVisible = show;
+        _skillTreeBuffSecondsShown = secondsShown;
+
         if (activeBuffOverlay != null)
-            activeBuffOverlay.SetActive(visible && !isLocked);
+            activeBuffOverlay.SetActive(show);
 
         if (activeBuffOverlayTimeText != null)
-        {
-            activeBuffOverlayTimeText.text =
-                visible && !isLocked && buffRemainingSeconds >= 1f
-                    ? Mathf.CeilToInt(buffRemainingSeconds).ToString()
-                    : string.Empty;
-        }
+            activeBuffOverlayTimeText.text = secondsShown >= 1 ? secondsShown.ToString() : string.Empty;
+    }
+
+    /// <summary>Reset presentation caches when a node is spawned/reused so prefab defaults do not stick.</summary>
+    public void ResetSkillTreePresentationCache()
+    {
+        _skillTreeCooldownVisible = false;
+        _skillTreeCooldownFill = -1f;
+        _skillTreeCooldownSecondsShown = -1;
+        _skillTreeBuffVisible = false;
+        _skillTreeBuffSecondsShown = -1;
     }
 
     public void SetIcon(Sprite sprite, bool visible)

@@ -366,10 +366,63 @@ public class SkillTreeViewUI : MonoBehaviour
     }
 
     private float _nextSkillTreePresentationRefreshTime;
+    /// <summary>True after a refresh that showed cooldown/buff overlays; one more pass clears them when timers end.</summary>
+    private bool _lastRefreshHadActivePresentation;
+
+    /// <summary>True when a committed ability on this tree has a live cooldown or buff timer.</summary>
+    private bool AnyCommittedAbilityHasLivePresentation()
+    {
+        ResolveAbilityController();
+        if (abilityController == null || selectedSkill == null || skillsManager == null)
+            return false;
+
+        foreach (var kv in abilityTierPickMetaBySpineId)
+        {
+            AbilityTierPickMeta m = kv.Value;
+            bool collapsed = IsAbilityTierCollapsed(m.level);
+            int pick = skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, m.level, -1);
+            bool committedThis = pick == m.ordinal && (m.groupSize < 2 || collapsed);
+            if (!committedThis || !rowDefBySpineNodeId.TryGetValue(kv.Key, out RowDef row))
+                continue;
+
+            string aid = ResolveCooldownAbilityId(row);
+            if (string.IsNullOrEmpty(aid))
+                continue;
+
+            if (abilityController.IsOnCooldown(aid, out _) ||
+                abilityController.IsAbilityBuffOrLingeringActive(aid))
+                return true;
+        }
+
+        foreach (var kv in choiceMetaByNodeId)
+        {
+            ChoiceNodeMeta meta = kv.Value;
+            int sel = skillsManager.GetSkillChoiceSelection(selectedSkill.skillType, meta.parentSpineNodeId, -1);
+            if (sel != meta.choiceIndex)
+                continue;
+
+            if (!rowDefBySpineNodeId.TryGetValue(meta.parentSpineNodeId, out RowDef parentRow))
+                continue;
+
+            string aid = ResolveCooldownAbilityId(parentRow);
+            if (string.IsNullOrEmpty(aid))
+                continue;
+
+            if (abilityController.IsOnCooldown(aid, out _) ||
+                abilityController.IsAbilityBuffOrLingeringActive(aid))
+                return true;
+        }
+
+        return false;
+    }
 
     private void Update()
     {
         if (!isActiveAndEnabled || spawnedNodes.Count == 0)
+            return;
+
+        bool hasLivePresentation = AnyCommittedAbilityHasLivePresentation();
+        if (!hasLivePresentation && !_lastRefreshHadActivePresentation)
             return;
 
         if (Time.unscaledTime < _nextSkillTreePresentationRefreshTime)
@@ -377,6 +430,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
         _nextSkillTreePresentationRefreshTime = Time.unscaledTime + 0.1f;
         RefreshSkillTreeAbilityStatePresentation();
+        _lastRefreshHadActivePresentation = hasLivePresentation;
     }
 
     public void BuildForSelectedSkill()
@@ -407,6 +461,8 @@ public class SkillTreeViewUI : MonoBehaviour
         RefreshChoiceBranchVisibility();
         ApplyPendingUnlockGlowLevels();
         _lastBuiltSkill = selectedSkill;
+        RefreshSkillTreeAbilityStatePresentation();
+        _lastRefreshHadActivePresentation = AnyCommittedAbilityHasLivePresentation();
     }
 
     /// <summary>
@@ -1533,6 +1589,7 @@ public class SkillTreeViewUI : MonoBehaviour
         sharedTooltip?.Hide();
 
         _lastBuiltSkill = null;
+        _lastRefreshHadActivePresentation = false;
 
         foreach (var n in spawnedNodes)
             if (n != null) Destroy(n.gameObject);
@@ -1661,6 +1718,9 @@ public class SkillTreeViewUI : MonoBehaviour
         if (nodePrefab == null || nodesRoot == null) return;
 
         var node = Instantiate(nodePrefab, nodesRoot);
+        node.ResetSkillTreePresentationCache();
+        node.SetSkillTreeCooldownPresentation(false, 0f, 0f);
+        node.SetSkillTreeActiveBuffPresentation(false, 0f);
         node.RectTransform.anchoredPosition = pos;
         node.ApplyVisualType(type);
         node.SetIcon(iconSprite, iconSprite != null);

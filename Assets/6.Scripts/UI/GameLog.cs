@@ -8,7 +8,7 @@ using UnityEngine;
 /// </summary>
 public static class GameLog
 {
-    public const int MaxEntries = 150;
+    public const int MaxEntries = 75;
 
     public readonly struct Entry
     {
@@ -65,12 +65,24 @@ public static class GameLog
         Add(message, DefaultTextColor);
     }
 
+    /// <summary>Activity log lines that should not be stored or shown (e.g. per-cast ability spam).</summary>
+    public static bool ShouldShowInActivityLog(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return false;
+
+        return !message.Trim().StartsWith("Ability used:", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static void Add(string message, Color color)
     {
         if (string.IsNullOrWhiteSpace(message))
             return;
 
         string trimmed = message.Trim();
+        if (!ShouldShowInActivityLog(trimmed))
+            return;
+
         color = ResolveCannotLogColor(trimmed, color);
         System.DateTime timestampLocal = System.DateTime.Now;
         Entries.Add(new Entry(trimmed, color, timestampLocal));

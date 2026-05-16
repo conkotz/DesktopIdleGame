@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -94,6 +95,11 @@ public class QuestPageUI : MonoBehaviour
     private Inventory _subscribedInventory;
     private PlayerStorage _subscribedStorage;
     private bool _detailWidgetsBuilt;
+    private Coroutine _deferredUiLayoutRebuild;
+    private Coroutine _subscribeInventoryCoroutine;
+    private bool _orphanCompleteButtonsHidden;
+    private bool _pendingQuestListLayout;
+    private bool _pendingDetailsLayout;
 
     /// <summary>Set in <see cref="RebuildQuestList"/> so the claim button does not use a stale selection when the list is empty.</summary>
     private int _visibleQuestListCount;
@@ -141,6 +147,8 @@ public class QuestPageUI : MonoBehaviour
     private void OnEnable()
     {
         TrySubscribeQuestProgress();
+        if (_progressEventsTarget == null)
+            StartCoroutine(SubscribeQuestProgressWhenReadyRoutine());
         TrySubscribeWorldProgress();
         TrySubscribeInventoryAndStorage();
         QuestTrackerState.Changed += OnTrackedQuestChanged;
@@ -154,10 +162,30 @@ public class QuestPageUI : MonoBehaviour
         RebuildRegionList();
         RebuildQuestList();
         RefreshDetails();
+        StartSubscribeInventoryWhenReady();
+    }
+
+    private IEnumerator SubscribeQuestProgressWhenReadyRoutine()
+    {
+        while (isActiveAndEnabled && _progressEventsTarget == null)
+        {
+            TrySubscribeQuestProgress();
+            if (_progressEventsTarget != null)
+            {
+                if (!TryRefreshQuestListInPlace())
+                    RebuildQuestList();
+                RefreshDetails();
+                yield break;
+            }
+
+            yield return null;
+        }
     }
 
     private void OnDisable()
     {
+        StopSubscribeInventoryCoroutine();
+        StopDeferredUiLayoutRebuild();
         UnsubscribeQuestProgress();
         UnsubscribeWorldProgress();
         UnsubscribeInventoryAndStorage();
@@ -165,23 +193,82 @@ public class QuestPageUI : MonoBehaviour
         UnwireQuestFilterButtons();
     }
 
-    private void Update()
+    private void StartSubscribeInventoryWhenReady()
     {
-        if (_progressEventsTarget == null)
-        {
-            TrySubscribeQuestProgress();
-            if (_progressEventsTarget != null)
-            {
-                RebuildQuestList();
-                RefreshDetails();
-            }
-        }
+        if (_subscribedInventory && _subscribedStorage)
+            return;
 
-        if (TrySubscribeInventoryAndStorage())
+        StopSubscribeInventoryCoroutine();
+        _subscribeInventoryCoroutine = StartCoroutine(SubscribeInventoryWhenReadyRoutine());
+    }
+
+    private void StopSubscribeInventoryCoroutine()
+    {
+        if (_subscribeInventoryCoroutine == null)
+            return;
+        StopCoroutine(_subscribeInventoryCoroutine);
+        _subscribeInventoryCoroutine = null;
+    }
+
+    private IEnumerator SubscribeInventoryWhenReadyRoutine()
+    {
+        while (isActiveAndEnabled && (!_subscribedInventory || !_subscribedStorage))
         {
-            RebuildQuestList();
-            RefreshDetails();
+            if (TrySubscribeInventoryAndStorage())
+                yield break;
+            yield return null;
         }
+    }
+
+    private void StopDeferredUiLayoutRebuild()
+    {
+        if (_deferredUiLayoutRebuild == null)
+            return;
+        StopCoroutine(_deferredUiLayoutRebuild);
+        _deferredUiLayoutRebuild = null;
+        _pendingQuestListLayout = false;
+        _pendingDetailsLayout = false;
+    }
+
+    private void ScheduleUiLayoutRebuild(bool rebuildQuestList, bool rebuildDetails)
+    {
+        if (!isActiveAndEnabled)
+            return;
+        if (rebuildQuestList)
+            _pendingQuestListLayout = true;
+        if (rebuildDetails)
+            _pendingDetailsLayout = true;
+        if (!_pendingQuestListLayout && !_pendingDetailsLayout)
+            return;
+        if (_deferredUiLayoutRebuild != null)
+            return;
+        _deferredUiLayoutRebuild = StartCoroutine(DeferredUiLayoutRebuildRoutine());
+    }
+
+    private void ScheduleQuestListLayoutRebuild()
+    {
+        ScheduleUiLayoutRebuild(rebuildQuestList: true, rebuildDetails: false);
+    }
+
+    private void ScheduleDetailsLayoutRebuild()
+    {
+        ScheduleUiLayoutRebuild(rebuildQuestList: false, rebuildDetails: true);
+    }
+
+    private IEnumerator DeferredUiLayoutRebuildRoutine()
+    {
+        yield return null;
+        bool rebuildQuestList = _pendingQuestListLayout;
+        bool rebuildDetails = _pendingDetailsLayout;
+        _pendingQuestListLayout = false;
+        _pendingDetailsLayout = false;
+        _deferredUiLayoutRebuild = null;
+        if (!isActiveAndEnabled)
+            yield break;
+        if (rebuildQuestList && questListParent is RectTransform listRt)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(listRt);
+        if (rebuildDetails && detailsContentRoot is RectTransform detailsRt)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(detailsRt);
     }
 
     private void TrySubscribeQuestProgress()
@@ -208,7 +295,8 @@ public class QuestPageUI : MonoBehaviour
     {
         if (!isActiveAndEnabled)
             return;
-        RebuildQuestList();
+        if (!TryRefreshQuestListInPlace())
+            RebuildQuestList();
         RefreshDetails();
     }
 
@@ -290,7 +378,6 @@ public class QuestPageUI : MonoBehaviour
     {
         if (!isActiveAndEnabled)
             return;
-        RebuildQuestList();
         RefreshDetails();
     }
 
@@ -298,7 +385,8 @@ public class QuestPageUI : MonoBehaviour
     {
         if (!isActiveAndEnabled)
             return;
-        RebuildQuestList();
+        if (!TryRefreshQuestListInPlace())
+            RebuildQuestList();
         RefreshDetails();
     }
 
@@ -496,6 +584,121 @@ public class QuestPageUI : MonoBehaviour
         RefreshDetails();
     }
 
+    private bool TryCollectVisibleQuestsForRegion(out QuestProgressManager qProg, out WorldMapProgressManager mapProgress)
+    {
+        qProg = null;
+        mapProgress = null;
+        _scratchQuests.Clear();
+
+        if (!questDatabase || !_selectedRegion)
+            return false;
+
+        mapProgress = FindWorldProgress();
+        if (!IsRegionAvailable(_selectedRegion, mapProgress))
+            return false;
+
+        qProg = FindQuestProgress();
+        WorldMapProgressManager progress = mapProgress;
+        QuestProgressManager questProgress = qProg;
+        questDatabase.CollectForRegion(_selectedRegion.regionId, _scratchQuests);
+        _scratchQuests.RemoveAll(q => !q || !q.IsShownInQuestList(progress));
+        if (questProgress != null)
+            _scratchQuests.RemoveAll(q => !questProgress.IsQuestVisibleInList(q));
+        ApplyQuestListFilters(_scratchQuests, questProgress, progress);
+        if (_scratchQuests.Count == 0)
+            return false;
+
+        _scratchQuests.Sort((a, b) => CompareQuestRows(a, b, questProgress));
+        return true;
+    }
+
+    private static int CountQuestListGroupHeadingsNeeded(IReadOnlyList<QuestDefinition> quests, QuestProgressManager qProg)
+    {
+        if (quests == null || quests.Count == 0)
+            return 0;
+
+        int count = 0;
+        int prevGroup = -1;
+        for (int i = 0; i < quests.Count; i++)
+        {
+            QuestDefinition q = quests[i];
+            if (!q)
+                continue;
+            int group = (int)GetQuestJournalListGroup(q, qProg);
+            if (prevGroup != group)
+                count++;
+            prevGroup = group;
+        }
+
+        return count;
+    }
+
+    private void BindQuestListRow(QuestListRowUI row, QuestDefinition q, QuestProgressManager qProg)
+    {
+        if (!row || !q)
+            return;
+
+        int amt = qProg ? qProg.GetDisplayProgress(q) : 0;
+        bool permanentlyDone = qProg && qProg.IsPermanentlyComplete(q);
+        bool gated = qProg && qProg.IsQuestGatedByPrerequisites(q);
+        bool notPickedUp = qProg != null && IsQuestNotYetPickedUpAtSource(q, qProg);
+        string status = BuildQuestListStatus(q, qProg, amt);
+        bool tracked = QuestTrackerState.IsTracked(q.questId);
+        bool canAbandon = qProg != null && qProg.CanAbandonQuest(q);
+        float rowAlpha = 1f;
+        if (permanentlyDone || gated)
+            rowAlpha = completedRowAlpha;
+        else if (notPickedUp)
+            rowAlpha = availableNotObtainedRowAlpha;
+        row.Bind(
+            q,
+            BuildQuestListTypeSubtitle(q),
+            status,
+            _selectedQuest == q,
+            rowAlpha,
+            OnQuestClicked,
+            tracked,
+            OnTrackQuestClicked,
+            !permanentlyDone && qProg != null && qProg.IsQuestAccepted(q),
+            OnAbandonQuestClicked,
+            canAbandon);
+    }
+
+    /// <summary>Updates row labels without destroy/instantiate when the visible quest set and section headings are unchanged.</summary>
+    private bool TryRefreshQuestListInPlace()
+    {
+        if (!questListParent || !questRowPrefab || _questRows.Count == 0)
+            return false;
+
+        WorldMapProgressManager mapProgress = FindWorldProgress();
+        if (!IsRegionAvailable(_selectedRegion, mapProgress))
+            return false;
+
+        if (!TryCollectVisibleQuestsForRegion(out QuestProgressManager qProg, out _))
+            return false;
+
+        if (_scratchQuests.Count != _questRows.Count)
+            return false;
+
+        if (CountQuestListGroupHeadingsNeeded(_scratchQuests, qProg) != _questListGroupHeadings.Count)
+            return false;
+
+        for (int i = 0; i < _scratchQuests.Count; i++)
+        {
+            QuestDefinition q = _scratchQuests[i];
+            QuestListRowUI row = _questRows[i];
+            if (!q || row == null || row.BoundQuest != q)
+                return false;
+        }
+
+        for (int i = 0; i < _scratchQuests.Count; i++)
+            BindQuestListRow(_questRows[i], _scratchQuests[i], qProg);
+
+        _visibleQuestListCount = _questRows.Count;
+        RefreshQuestSelectionVisuals();
+        return true;
+    }
+
     private void RebuildQuestList()
     {
         ClearQuestRows();
@@ -512,21 +715,12 @@ public class QuestPageUI : MonoBehaviour
             return;
         }
 
-        QuestProgressManager qProg = FindQuestProgress();
-        _scratchQuests.Clear();
-        questDatabase.CollectForRegion(_selectedRegion.regionId, _scratchQuests);
-        _scratchQuests.RemoveAll(q => !q || !q.IsShownInQuestList(mapProgress));
-        if (qProg != null)
-            _scratchQuests.RemoveAll(q => !qProg.IsQuestVisibleInList(q));
-        ApplyQuestListFilters(_scratchQuests, qProg, mapProgress);
-        if (_scratchQuests.Count == 0)
+        if (!TryCollectVisibleQuestsForRegion(out QuestProgressManager qProg, out _))
         {
             _selectedQuest = null;
             RefreshDetails();
             return;
         }
-
-        _scratchQuests.Sort((a, b) => CompareQuestRows(a, b, qProg));
 
         int prevGroup = -1;
 
@@ -543,31 +737,7 @@ public class QuestPageUI : MonoBehaviour
 
             QuestListRowUI row = Instantiate(questRowPrefab, questListParent);
             _questRows.Add(row);
-
-            int amt = qProg && q ? qProg.GetDisplayProgress(q) : 0;
-            bool permanentlyDone = qProg && qProg.IsPermanentlyComplete(q);
-            bool gated = qProg && qProg.IsQuestGatedByPrerequisites(q);
-            bool notPickedUp = qProg != null && IsQuestNotYetPickedUpAtSource(q, qProg);
-            string status = BuildQuestListStatus(q, qProg, amt);
-            bool tracked = QuestTrackerState.IsTracked(q.questId);
-            bool canAbandon = qProg != null && qProg.CanAbandonQuest(q);
-            float rowAlpha = 1f;
-            if (permanentlyDone || gated)
-                rowAlpha = completedRowAlpha;
-            else if (notPickedUp)
-                rowAlpha = availableNotObtainedRowAlpha;
-            row.Bind(
-                q,
-                BuildQuestListTypeSubtitle(q),
-                status,
-                _selectedQuest == q,
-                rowAlpha,
-                OnQuestClicked,
-                tracked,
-                OnTrackQuestClicked,
-                !permanentlyDone && qProg != null && qProg.IsQuestAccepted(q),
-                OnAbandonQuestClicked,
-                canAbandon);
+            BindQuestListRow(row, q, qProg);
         }
 
         if (_selectedQuest != null && !_scratchQuests.Contains(_selectedQuest))
@@ -593,10 +763,7 @@ public class QuestPageUI : MonoBehaviour
             _visibleQuestListCount = _questRows.Count;
 
         RefreshQuestSelectionVisuals();
-
-        Canvas.ForceUpdateCanvases();
-        if (questListParent is RectTransform listRt)
-            LayoutRebuilder.ForceRebuildLayoutImmediate(listRt);
+        ScheduleQuestListLayoutRebuild();
     }
 
     private int CompareQuestRows(QuestDefinition a, QuestDefinition b, QuestProgressManager qProg)
@@ -871,28 +1038,11 @@ public class QuestPageUI : MonoBehaviour
         _questRows.RemoveAll(r => !r);
     }
 
-    private int CountActiveQuestRowsUnderListParent()
-    {
-        if (!questListParent)
-            return 0;
-        QuestListRowUI[] rows = questListParent.GetComponentsInChildren<QuestListRowUI>(true);
-        int n = 0;
-        for (int i = 0; i < rows.Length; i++)
-        {
-            QuestListRowUI row = rows[i];
-            if (row != null && row.gameObject.activeInHierarchy)
-                n++;
-        }
-        return n;
-    }
-
-    /// <summary>Whether the center list has no live rows (tracks list + hierarchy; do not use stale count fields).</summary>
+    /// <summary>Whether the center list has no live rows.</summary>
     private bool IsQuestCenterListEffectivelyEmpty()
     {
         RemoveDestroyedQuestRowRefs();
-        if (_questRows.Count > 0)
-            return false;
-        return CountActiveQuestRowsUnderListParent() == 0;
+        return _visibleQuestListCount <= 0 || _questRows.Count == 0;
     }
 
     /// <summary>Hides claim buttons whose label is still "Complete Quest" when inspector refs point at the wrong object.</summary>
@@ -1001,6 +1151,12 @@ public class QuestPageUI : MonoBehaviour
     private void RefreshDetails()
     {
         EnsureDetailWidgets();
+        if (!_orphanCompleteButtonsHidden)
+        {
+            HideOrphanCompleteQuestButtonsUnderDetails();
+            _orphanCompleteButtonsHidden = true;
+        }
+
         ResolveWorldMap();
         RemoveDestroyedQuestRowRefs();
         ItemDatabase items = FindItemDatabase();
@@ -1117,8 +1273,7 @@ public class QuestPageUI : MonoBehaviour
 
         RefreshQuestClaimButton(q, qProg);
 
-        if (detailsContentRoot is RectTransform rt)
-            LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+        ScheduleDetailsLayoutRebuild();
     }
 
     private void RefreshGoToQuestLocationButton(QuestDefinition q, QuestProgressManager qProg)
@@ -1187,9 +1342,6 @@ public class QuestPageUI : MonoBehaviour
 
     private void RefreshQuestClaimButton(QuestDefinition q, QuestProgressManager qProg)
     {
-        EnsureDetailWidgets();
-        RemoveDestroyedQuestRowRefs();
-
         bool questListEmpty = IsQuestCenterListEffectivelyEmpty();
         bool show = !questListEmpty && q != null && q.objectiveKind != QuestObjectiveKind.None;
 
@@ -1199,10 +1351,7 @@ public class QuestPageUI : MonoBehaviour
             questClaimButton.gameObject.SetActive(show);
 
         if (!show)
-        {
-            HideOrphanCompleteQuestButtonsUnderDetails();
             return;
-        }
 
         if (!questClaimButton)
             return;
@@ -1609,6 +1758,7 @@ public class QuestPageUI : MonoBehaviour
             tmp.textWrappingMode = TextWrappingModes.Normal;
             tmp.overflowMode = TextOverflowModes.Overflow;
             tmp.alignment = TextAlignmentOptions.TopLeft;
+            tmp.raycastTarget = false;
             return tmp;
         }
 

@@ -16,6 +16,8 @@ public class QuestListRowUI : MonoBehaviour
     [SerializeField] private GameObject selectedHighlight;
     [SerializeField] private CanvasGroup rowCanvasGroup;
 
+    public QuestDefinition BoundQuest { get; private set; }
+
     private void Awake()
     {
         if (!button)
@@ -42,6 +44,13 @@ public class QuestListRowUI : MonoBehaviour
 
         if (!rowCanvasGroup)
             rowCanvasGroup = GetComponent<CanvasGroup>();
+
+        if (titleText)
+            titleText.raycastTarget = false;
+        if (subtitleText)
+            subtitleText.raycastTarget = false;
+        if (statusText)
+            statusText.raycastTarget = false;
     }
 
     /// <param name="rowCanvasAlpha"><see cref="CanvasGroup.alpha"/> for the row (1 = opaque; lower = washed / dimmed).</param>
@@ -58,6 +67,8 @@ public class QuestListRowUI : MonoBehaviour
         Action<QuestDefinition> onAbandonClicked,
         bool showAbandonButton)
     {
+        BoundQuest = quest;
+
         if (titleText)
             titleText.text = quest ? quest.displayName : "";
 

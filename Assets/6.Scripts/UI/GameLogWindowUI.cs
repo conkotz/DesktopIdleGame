@@ -25,6 +25,7 @@ public class GameLogWindowUI : MonoBehaviour
     private const float ActivityRowVerticalPadding = 16f;
     private const float ActivityMessageFontSize = 24f;
     private const float ActivityTimestampFontSize = 16f;
+    private static readonly Color ActivityTimestampColor = new Color32(43, 33, 24, 255);
     private const int ActivityRowTextGroupLeftPadding = 10;
     /// <summary>Fixed width so the message column always starts at the same X for every row.</summary>
     private const float ActivityTimestampColumnWidth = 152f;
@@ -117,10 +118,7 @@ public class GameLogWindowUI : MonoBehaviour
             bool showTime = !string.IsNullOrWhiteSpace(row.TimestampText.text);
             row.TimestampText.gameObject.SetActive(showTime);
             if (showTime)
-            {
-                row.TimestampText.color = textColor;
-                row.TimestampText.faceColor = textColor;
-            }
+                ApplyActivityTimestampColor(row.TimestampText);
         }
 
         TrimVisibleRowsToMax();
@@ -145,6 +143,8 @@ public class GameLogWindowUI : MonoBehaviour
         for (int i = 0; i < history.Count; i++)
         {
             GameLog.Entry entry = history[i];
+            if (!GameLog.ShouldShowInActivityLog(entry.Message))
+                continue;
             AddLogInternal(entry.Message, entry.Color, GameLog.FormatClock(entry.TimestampLocal), false);
         }
 
@@ -495,6 +495,16 @@ public class GameLogWindowUI : MonoBehaviour
         timeText.fontSizeMax = ActivityTimestampFontSize;
         timeText.textWrappingMode = TextWrappingModes.NoWrap;
         timeText.alignment = TextAlignmentOptions.MidlineLeft;
+        ApplyActivityTimestampColor(timeText);
+    }
+
+    private static void ApplyActivityTimestampColor(TMP_Text timeText)
+    {
+        if (!timeText)
+            return;
+
+        timeText.color = ActivityTimestampColor;
+        timeText.faceColor = ActivityTimestampColor;
     }
 
     private void KeepNewestVisible()

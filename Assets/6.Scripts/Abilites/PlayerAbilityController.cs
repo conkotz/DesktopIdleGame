@@ -586,10 +586,7 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void LogAbilityUsed(AbilityDefinition def)
     {
-        if (!def)
-            return;
-        string label = string.IsNullOrWhiteSpace(def.displayName) ? def.abilityId : def.displayName.Trim();
-        GameLog.Add($"Ability used: {label}", GameLog.AbilityUsedColor);
+        // Intentionally not written to the activity log (reduces noise / FPS cost).
     }
 
     /// <param name="allowSoulforgedRecastWhileActive">
