@@ -11,10 +11,15 @@ using UnityEngine.UI;
 /// <summary>
 /// Dev bug / suggestion flow: opens a text entry panel, appends reports to a file on the desktop, then shows a thanks panel.
 /// Add alongside <see cref="DevTestingPanelUI"/> on the same root (e.g. DevTestingPanel) that contains <c>BugSuggestionReportPanel</c> and <c>ThanksPanel</c> children.
+/// Dev toolbar shortcuts F1–F7 (same order as RowGroup buttons with Hotkey labels) call into <see cref="DevTestingPanelUI"/>; suppressed while the bug report text field is focused.
 /// </summary>
 public class BugAndSuggestionReportUI : MonoBehaviour
 {
     public const string ReportFileName = "BugAndSuggestionsReport.txt";
+
+    [Header("Dev toolbar hotkeys (F1–F7)")]
+    [Tooltip("Defaults to a DevTestingPanelUI on this object, parent, or in the scene.")]
+    [SerializeField] private DevTestingPanelUI devTestingPanel;
 
     [Header("Panels (optional — resolved as children by name if unset)")]
     [SerializeField] private GameObject bugSuggestionReportPanel;
@@ -34,6 +39,7 @@ public class BugAndSuggestionReportUI : MonoBehaviour
     private void Awake()
     {
         TryResolveHierarchy();
+        CacheDevTestingPanel();
         CacheThanksTemplate();
 
         if (bugSuggestionReportPanel)
@@ -54,7 +60,52 @@ public class BugAndSuggestionReportUI : MonoBehaviour
     private void OnEnable()
     {
         TryResolveHierarchy();
+        CacheDevTestingPanel();
         WireThanksCloseButton();
+    }
+
+    private void Update()
+    {
+        CacheDevTestingPanel();
+        if (!devTestingPanel)
+            return;
+
+        if (ShouldSuppressDevHotkeys())
+            return;
+
+        // F1–F7 match RowGroup hotkey labels left-to-right after Report Bug: +1, −1, Min, Max, Resources, Gold, Dev Mace.
+
+        if (Input.GetKeyDown(KeyCode.F1))
+            devTestingPanel.DevTesting_ApplyPlusOneAllSkills();
+        else if (Input.GetKeyDown(KeyCode.F2))
+            devTestingPanel.DevTesting_ApplyMinusOneAllSkills();
+        else if (Input.GetKeyDown(KeyCode.F3))
+            devTestingPanel.DevTesting_ApplyMinLevelAllSkills();
+        else if (Input.GetKeyDown(KeyCode.F4))
+            devTestingPanel.DevTesting_ApplyMaxLevelAllSkills();
+        else if (Input.GetKeyDown(KeyCode.F5))
+            devTestingPanel.DevTesting_ApplyAddResourcePack();
+        else if (Input.GetKeyDown(KeyCode.F6))
+            devTestingPanel.DevTesting_ApplyAddGold();
+        else if (Input.GetKeyDown(KeyCode.F7))
+            devTestingPanel.DevTesting_ApplyDevWeapon();
+    }
+
+    private void CacheDevTestingPanel()
+    {
+        if (devTestingPanel)
+            return;
+        devTestingPanel = GetComponent<DevTestingPanelUI>();
+        if (!devTestingPanel)
+            devTestingPanel = GetComponentInParent<DevTestingPanelUI>();
+        if (!devTestingPanel)
+            devTestingPanel = FindFirstObjectByType<DevTestingPanelUI>(FindObjectsInactive.Include);
+    }
+
+    private bool ShouldSuppressDevHotkeys()
+    {
+        TryResolveHierarchy();
+        return reportInputField != null && reportInputField.isFocused;
     }
 
     /// <summary>Called from <see cref="DevTestingPanelUI"/> Report Bug button: open panel or hide it while keeping draft text.</summary>

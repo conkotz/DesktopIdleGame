@@ -2070,6 +2070,7 @@ GameObject:
   - component: {fileID: 7232171769423354665}
   - component: {fileID: 1616562719777693485}
   - component: {fileID: 4699955099431649133}
+  - component: {fileID: 3847562910483726150}
   m_Layer: 5
   m_Name: HUD_Left
   m_TagString: Untagged
@@ -2273,6 +2274,18 @@ MonoBehaviour:
   ailments: {fileID: 0}
   buffs: {fileID: 0}
   buffRefreshInterval: 0.2
+--- !u!114 &3847562910483726150
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8272868463627433404}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f2e8c1a9b4d6e30587091a2b3c4d5e6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HudLeftPanelScaleController
 --- !u!1 &8859967804197954999
 GameObject:
   m_ObjectHideFlags: 0

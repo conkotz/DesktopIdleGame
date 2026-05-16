@@ -407,6 +407,25 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     [SerializeField, Range(0f, 1f)]
     private float gatheringStripButtonInactiveAlpha = 0.42f;
 
+    [Header("Combat loadout set buttons (Set 1 / Set 2)")]
+    [Tooltip("Background / button colours while that weapon set is active. Tweaked by LoadoutSetButtonBinder.")]
+    [SerializeField]
+    private Color combatSetActiveBackgroundColor = new Color(0.97f, 0.82f, 0.34f, 1f);
+
+    [SerializeField]
+    private Color combatSetInactiveBackgroundColor = new Color(1f, 1f, 1f, 0.45f);
+
+    [SerializeField]
+    private Color combatSetActiveTextColor = new Color(0.12f, 0.10f, 0.05f, 1f);
+
+    [SerializeField]
+    private Color combatSetInactiveTextColor = new Color(1f, 1f, 1f, 0.85f);
+
+    internal Color CombatSetActiveBackgroundColor => combatSetActiveBackgroundColor;
+    internal Color CombatSetInactiveBackgroundColor => combatSetInactiveBackgroundColor;
+    internal Color CombatSetActiveTextColor => combatSetActiveTextColor;
+    internal Color CombatSetInactiveTextColor => combatSetInactiveTextColor;
+
     [Header("Saved State (backing fields)")]
     private List<SavedSlotState> savedSlots = new();
     private List<SavedSlotState> secondarySavedSlots = new();

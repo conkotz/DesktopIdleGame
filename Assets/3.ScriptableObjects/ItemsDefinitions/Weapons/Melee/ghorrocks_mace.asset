@@ -27,14 +27,14 @@ MonoBehaviour:
   equippedFlipY: 0
   description: A Legendary mace from lord Ghorrock
   rarity: 4
-  value: 5000
+  value: 12500
   equipSlot: 1
   handVisualKey: 1
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   weaponStats:
-    minPhysicalDamage: 34
-    maxPhysicalDamage: 48
+    minPhysicalDamage: 24
+    maxPhysicalDamage: 36
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 0
@@ -45,12 +45,13 @@ MonoBehaviour:
     legacyMaxMagicDamage: 0
     minCorruptionDamage: 8
     maxCorruptionDamage: 12
-    attacksPerSecond: 0.6
+    attacksPerSecond: 0.5
     critChance: 0.1
     critMultiplier: 1.5
     handedness: 0
     attackRange: 2
     attackSkill: 0
+    mainHandArchetype: 0
     rangedBowType: 0
     magicAttackType: 0
     manaCostPerAttack: 0
@@ -62,6 +63,7 @@ MonoBehaviour:
     equipmentTier: 2
   combatSupportStats:
     supportType: 0
+    requiredMainHandArchetype: 0
     bonusPhysicalDamage: 0
     bonusMagicDamage: 0
     bonusCorruptionDamage: 0
@@ -151,6 +153,20 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    baitTier: 0
+    fishingSpeedPercentBonus: 0
+    openRequiredAmount: 0
+    openableLoot: []
+    foodEffectDurationSeconds: 0
+    foodEnableRegen: 0
+    foodRegenTotalHeal: 0
+    foodEnableSwiftness: 0
+    foodSwiftnessPercentBonus: 0
+    foodEnableOverheal: 0
+    foodOverhealMaxAboveMaxHp: 0
+    foodOverhealInstantHeal: 0
+    foodEnableFocused: 0
+    foodFocusedDamageBonusFraction: 0
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

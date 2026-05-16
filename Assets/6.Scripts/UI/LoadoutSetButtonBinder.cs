@@ -17,7 +17,8 @@ public class LoadoutSetButtonBinder : MonoBehaviour
     [SerializeField] private string setOneButtonName = "SetOneButton";
     [SerializeField] private string setTwoButtonName = "SetTwoButton";
 
-    [Header("Visuals")]
+    [Header("Visuals (fallback if no ActionBarUI)")]
+    [Tooltip("Used only when ActionBarUI is missing. Prefer Action Bar UI → Combat loadout set buttons on ActionBarWindow.")]
     [SerializeField] private Color activeBackgroundColor = new Color(0.97f, 0.82f, 0.34f, 1f);
     [SerializeField] private Color inactiveBackgroundColor = new Color(1f, 1f, 1f, 0.45f);
     [SerializeField] private Color activeTextColor = new Color(0.12f, 0.10f, 0.05f, 1f);
@@ -212,8 +213,18 @@ public class LoadoutSetButtonBinder : MonoBehaviour
         if (buttons == null)
             return;
 
-        Color bg = active ? activeBackgroundColor : inactiveBackgroundColor;
-        Color txt = active ? activeTextColor : inactiveTextColor;
+        Color bg;
+        Color txt;
+        if (_actionBar != null)
+        {
+            bg = active ? _actionBar.CombatSetActiveBackgroundColor : _actionBar.CombatSetInactiveBackgroundColor;
+            txt = active ? _actionBar.CombatSetActiveTextColor : _actionBar.CombatSetInactiveTextColor;
+        }
+        else
+        {
+            bg = active ? activeBackgroundColor : inactiveBackgroundColor;
+            txt = active ? activeTextColor : inactiveTextColor;
+        }
 
         for (int i = 0; i < buttons.Count; i++)
         {

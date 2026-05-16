@@ -7,6 +7,7 @@ public static class SliderSettingsStore
     public const string WindowResizeKey = "ui.windowScaleMultiplier";
     public const string OverheadHpBarResizeKey = "ui.overheadHpBarScaleMultiplier";
     public const string TooltipResizeKey = "ui.tooltipScaleMultiplier";
+    public const string HudLeftResizeKey = "ui.hudLeftScaleMultiplier";
 
     public static event Action<SliderSettingId, float> Changed;
 
@@ -20,6 +21,8 @@ public static class SliderSettingsStore
                 PlayerPrefs.GetFloat(OverheadHpBarResizeKey, GetDefault(setting)),
             SliderSettingId.TooltipResize =>
                 PlayerPrefs.GetFloat(TooltipResizeKey, GetDefault(setting)),
+            SliderSettingId.HudLeftResize =>
+                PlayerPrefs.GetFloat(HudLeftResizeKey, GetDefault(setting)),
             _ => GetDefault(setting)
         };
 
@@ -46,6 +49,9 @@ public static class SliderSettingsStore
             case SliderSettingId.TooltipResize:
                 PlayerPrefs.SetFloat(TooltipResizeKey, clamped);
                 break;
+            case SliderSettingId.HudLeftResize:
+                PlayerPrefs.SetFloat(HudLeftResizeKey, clamped);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -58,6 +64,7 @@ public static class SliderSettingsStore
         PlayerPrefs.DeleteKey(WindowResizeKey);
         PlayerPrefs.DeleteKey(OverheadHpBarResizeKey);
         PlayerPrefs.DeleteKey(TooltipResizeKey);
+        PlayerPrefs.DeleteKey(HudLeftResizeKey);
         PlayerPrefs.Save();
 
         foreach (SliderSettingId id in Enum.GetValues(typeof(SliderSettingId)))
@@ -72,6 +79,7 @@ public static class SliderSettingsStore
             SliderSettingId.WindowResize => "Window resize",
             SliderSettingId.OverheadHpBarResize => "Overhead HP bar resize",
             SliderSettingId.TooltipResize => "Tooltip text size",
+            SliderSettingId.HudLeftResize => "Left HUD (bars) resize",
             _ => setting.ToString()
         };
     }
@@ -93,6 +101,7 @@ public static class SliderSettingsStore
             SliderSettingId.WindowResize => 1f,
             SliderSettingId.OverheadHpBarResize => 1f,
             SliderSettingId.TooltipResize => 1f,
+            SliderSettingId.HudLeftResize => 1f,
             _ => 0f
         };
     }
@@ -105,6 +114,7 @@ public static class SliderSettingsStore
             SliderSettingId.WindowResize => 0.75f,
             SliderSettingId.OverheadHpBarResize => 0.75f,
             SliderSettingId.TooltipResize => 0.75f,
+            SliderSettingId.HudLeftResize => 0.75f,
             _ => 0f
         };
     }
@@ -117,6 +127,7 @@ public static class SliderSettingsStore
             SliderSettingId.WindowResize => 1.25f,
             SliderSettingId.OverheadHpBarResize => 1.25f,
             SliderSettingId.TooltipResize => 1.25f,
+            SliderSettingId.HudLeftResize => 1.5f,
             _ => 1f
         };
     }

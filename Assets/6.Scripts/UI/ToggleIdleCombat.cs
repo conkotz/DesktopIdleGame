@@ -10,14 +10,16 @@ public class IdleCombatButton : MonoBehaviour
 {
     [SerializeField] private PlayerCombatController combat;
     [SerializeField] private TMP_Text label;
-    [SerializeField] private Image buttonImage;
+
+    [Tooltip("Image (or any Graphic) behind the name row — tinted green/red. Leave empty to use the Label text’s parent Graphic, or tint Label only.")]
+    [SerializeField] private Graphic nameLabelBackground;
 
     [Tooltip("Drawn above the button graphic while locked; disable Raycast Target on this image so clicks reach the button.")]
     [SerializeField] private Image lockTintOverlay;
 
     [Header("Colours")]
-    [SerializeField] private Color onColor = new Color(0.2f, 0.8f, 0.2f); // green
-    [SerializeField] private Color offColor = new Color(0.85f, 0.85f, 0.85f); // light grey
+    [SerializeField] private Color onColor = new Color(0.2f, 0.75f, 0.25f, 1f);
+    [SerializeField] private Color offColor = new Color(0.85f, 0.25f, 0.22f, 1f);
 
     [Tooltip(
         "Fallback activity log line when Auto Battle is locked but no quest grants idle unlock in the database. " +
@@ -34,8 +36,8 @@ public class IdleCombatButton : MonoBehaviour
         if (!label)
             label = GetComponentInChildren<TMP_Text>();
 
-        if (!buttonImage)
-            buttonImage = GetComponent<Image>();
+        if (!nameLabelBackground && label && label.transform.parent != null)
+            nameLabelBackground = label.transform.parent.GetComponent<Graphic>();
 
         if (!lockTintOverlay)
         {
@@ -131,7 +133,11 @@ public class IdleCombatButton : MonoBehaviour
         if (label)
             label.text = enabled ? "Auto Battle: ON" : "Auto Battle: OFF";
 
-        if (buttonImage)
-            buttonImage.color = enabled ? onColor : offColor;
+        Color c = enabled ? onColor : offColor;
+
+        if (nameLabelBackground)
+            nameLabelBackground.color = c;
+        else if (label)
+            label.color = c;
     }
 }

@@ -4,4 +4,5 @@ public enum SliderSettingId
     WindowResize = 1,
     OverheadHpBarResize = 2,
     TooltipResize = 3,
+    HudLeftResize = 4,
 }

@@ -120,14 +120,24 @@ public sealed class HelperGameplayController : MonoBehaviour
     [SerializeField] private Camera worldCameraForWhitelistGlow;
 
     [Tooltip("Glow colour; alpha is driven by the pulse (min/max below).")]
-    [SerializeField] private Color whitelistHelperTint = new Color(1f, 0.93f, 0.42f, 1f);
+    [SerializeField] private Color whitelistHelperTint = new Color(1f, 0.9f, 0.28f, 1f);
 
     [Tooltip("Alpha pulse extremes for the overlay glow (0 = fades to fully transparent).")]
-    [SerializeField] [Range(0f, 1f)] private float whitelistGlowPulseAlphaMin;
+    [SerializeField] [Range(0f, 1f)] private float whitelistGlowPulseAlphaMin = 0.32f;
 
-    [SerializeField] [Range(0f, 1f)] private float whitelistGlowPulseAlphaMax = 0.74f;
+    [SerializeField] [Range(0f, 1f)] private float whitelistGlowPulseAlphaMax = 0.92f;
 
-    [SerializeField] private float whitelistGlowPulseSpeed = 2.8f;
+    [SerializeField] private float whitelistGlowPulseSpeed = 3.4f;
+
+    [Tooltip(
+        "World whitelist glow only: scales the duplicate silhouette under the main glow (>1 adds a larger rim). " +
+        "Set to 1 to disable the extra layer.")]
+    [SerializeField] [Range(1f, 1.35f)]
+    private float whitelistWorldGlowHaloUniformScale = 1.14f;
+
+    [Tooltip("World halo alpha multiplier vs. main pulsing glow.")]
+    [SerializeField] [Range(0f, 1f)]
+    private float whitelistWorldGlowHaloAlphaScale = 0.62f;
 
     [Tooltip("When Glow Above Dimmer is off: tints world SpriteRenderers (mostly hidden under fullscreen dim).")]
     [SerializeField] [Range(0f, 1f)] private float whitelistHelperTintStrength = 0.42f;
@@ -136,11 +146,11 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     [Header("Whitelist UI glow (toolbar / buttons)")]
     [Tooltip("Soft outer pad (each side) behind the icon clone so UI targets read like the NPC pulse, not a flat panel fill.")]
-    [SerializeField] private float whitelistUiGlowHaloPadding = 14f;
+    [SerializeField] private float whitelistUiGlowHaloPadding = 18f;
 
-    [SerializeField] [Range(1f, 1.25f)] private float whitelistUiGlowHaloUniformScale = 1.09f;
+    [SerializeField] [Range(1f, 1.35f)] private float whitelistUiGlowHaloUniformScale = 1.14f;
 
-    [SerializeField] [Range(0.1f, 1f)] private float whitelistUiGlowHaloAlphaScale = 0.72f;
+    [SerializeField] [Range(0.1f, 1f)] private float whitelistUiGlowHaloAlphaScale = 0.86f;
 
     /// <summary>Single source for script default, reset-all-windows fallback, and new-game layout when no controller.</summary>
     private static readonly Vector2 kDefaultHelperPanelSize = new(800f, 800f);
@@ -193,8 +203,8 @@ public sealed class HelperGameplayController : MonoBehaviour
     private bool _activeUsesWorldWhitelistRouting;
 
     /// <summary>
-    /// After the first whitelist interact while staged emphasis is active, modal dim + movement lock are released
-    /// but <see cref="_activeDefinition"/> stays set until every whitelist glow/tint is cleared (click or hover rules).
+    /// While a staged whitelist helper is active: until the first valid whitelist interact, modal dim + movement stay on.
+    /// That interact then clears emphasis for <b>every</b> whitelisted id and completes the scripted dismiss.
     /// </summary>
     private bool _whitelistStagedModalReleased;
 
@@ -356,7 +366,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         public Graphic SourceGraphic;
         /// <summary>Foreground silhouette (matches NPC glow Image clone).</summary>
         public Image GlowImg;
-        /// <summary>Optional soft rim drawn under <see cref="GlowImg"/> for UI sources only.</summary>
+        /// <summary>Optional soft rim under <see cref="GlowImg"/> (UI) or scaled duplicate (world sprites).</summary>
         public Image GlowHaloImg;
     }
 
@@ -369,7 +379,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     private readonly List<WhitelistTintState> _whitelistPresentationTints = new();
 
     /// <summary>Call from <see cref="WorldInputRouter2D"/> after routing a click that hit a whitelist collider while blocking.</summary>
-    /// <param name="worldWinnerCollider">Collider used to clear only that target's whitelist glow (staged emphasis).</param>
+    /// <param name="worldWinnerCollider">Hit collider (staged whitelist dismiss clears glow/sort emphasis for <b>all</b> configured ids).</param>
     public static void NotifyWhitelistWorldRouteHandled(Collider2D worldWinnerCollider = null)
     {
         if (Instance == null || !ToggleSettingsStore.Get(ToggleSettingId.ShowHelpPopups))
@@ -468,7 +478,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     }
 
     /// <summary>
-    /// Staged whitelist: first interact lifts modal + unlock only; glows drop per target until none remain, then scripted dismiss completes.
+    /// True when the active helper uses modal dim + glow-above-dimmer whitelist emphasis (staged release on first valid whitelist interact).
     /// </summary>
     private bool ActiveHelperUsesStagedWhitelistEmphasisRelease()
     {
@@ -487,6 +497,10 @@ public sealed class HelperGameplayController : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Staged whitelist: first valid whitelist interact lifts modal + unlock, clears <b>all</b> whitelist glow/tint
+    /// emphasis (every configured id counts for visuals), then scripted dismiss completes.
+    /// </summary>
     private bool TryProgressStagedWhitelistInteractDismiss(
         string interactWhitelistIdMarker,
         Graphic whitelistUiGlowSource,
@@ -503,10 +517,9 @@ public sealed class HelperGameplayController : MonoBehaviour
             EnsureHelperModalOverlayDrawOrder();
         }
 
-        if (whitelistUiGlowSource)
-            RemoveWhitelistGlowLinkForSourceGraphic(whitelistUiGlowSource);
-        else if (whitelistWorldWinnerCollider)
-            RemoveWhitelistGlowLinksForWorldCollider(whitelistWorldWinnerCollider);
+        // Any completed whitelist interact removes emphasis from every configured target (not only the one clicked).
+        ClearWhitelistGlowOverlays();
+        ClearWhitelistPresentationTints();
 
         MaybeCompleteStagedWhitelistEmphasisDismiss();
         return true;
@@ -520,7 +533,10 @@ public sealed class HelperGameplayController : MonoBehaviour
         if (!ActiveHelperUsesStagedWhitelistEmphasisRelease())
             return;
 
-        if (_whitelistGlowLinks.Count > 0 || _whitelistPresentationTints.Count > 0)
+        bool presentationTintsBlockCompletion =
+            !whitelistGlowAboveDimmer && _whitelistPresentationTints.Count > 0;
+
+        if (_whitelistGlowLinks.Count > 0 || presentationTintsBlockCompletion)
             return;
 
         CompleteScriptedDismissLeaveExpanded();
@@ -558,6 +574,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
             _whitelistGlowLinks.RemoveAt(i);
         }
+
+        NormalizeWhitelistMarkerStripDrawOrder(marker);
 
         MaybeCompleteStagedWhitelistEmphasisDismiss();
     }
@@ -2317,6 +2335,79 @@ public sealed class HelperGameplayController : MonoBehaviour
         }
 
         _whitelistUiElevations.Clear();
+    }
+
+    /// <summary>
+    /// After helper whitelist emphasis, snap strip draw state back to normal (see
+    /// <see cref="NormalizeAllWhitelistMarkersStripDrawOrder"/>). NPC markers only get canvases reset when
+    /// clearly inflated; gatherables get a full world-canvas + main-sprite reset to match prefab defaults.
+    /// </summary>
+    private const int WorldWhitelistMarkerCanvasInflatedSortThreshold = 9000;
+
+    private static void NormalizeWhitelistMarkerStripDrawOrder(HelperWhitelistInteractTarget marker)
+    {
+        if (!marker)
+            return;
+
+        int uiLayerId = SortingLayer.NameToID("UI");
+        int interactablesLayerId = SortingLayer.NameToID("Interactables");
+        bool isResourceGatherable = marker.TryGetComponent(out ResourceNode _);
+
+        Canvas[] canvases = marker.GetComponentsInChildren<Canvas>(true);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Canvas c = canvases[i];
+            if (!c || c.renderMode != RenderMode.WorldSpace)
+                continue;
+
+            if (isResourceGatherable)
+            {
+                c.overrideSorting = false;
+                c.sortingLayerID = 0;
+                c.sortingOrder = 0;
+                continue;
+            }
+
+            bool inflatedSort = c.overrideSorting && c.sortingOrder >= WorldWhitelistMarkerCanvasInflatedSortThreshold;
+            bool uiSortingLayer = c.sortingLayerID == uiLayerId;
+            if (!inflatedSort && !uiSortingLayer)
+                continue;
+
+            c.overrideSorting = false;
+            c.sortingLayerID = 0;
+            c.sortingOrder = 0;
+        }
+
+        if (!isResourceGatherable)
+            return;
+
+        SpriteRenderer[] srs = marker.GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < srs.Length; i++)
+        {
+            SpriteRenderer sr = srs[i];
+            if (!sr ||
+                sr.gameObject.name.StartsWith(ResourceNode.RuntimeDepletionOverlayPrefix, StringComparison.Ordinal))
+                continue;
+
+            sr.sortingLayerID = interactablesLayerId;
+            sr.sortingOrder = 0;
+        }
+    }
+
+    /// <summary>
+    /// Clears whitelist glow-related draw/sort drift on every world marker — must not depend on
+    /// <see cref="_activeDefinition"/> (history overlay and other paths clear glow after def is already null).
+    /// </summary>
+    private static void NormalizeAllWhitelistMarkersStripDrawOrder()
+    {
+        HelperWhitelistInteractTarget[] markers =
+            FindObjectsByType<HelperWhitelistInteractTarget>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+
+        for (int i = 0; i < markers.Length; i++)
+        {
+            if (markers[i])
+                NormalizeWhitelistMarkerStripDrawOrder(markers[i]);
+        }
     }
 
     /// <summary>
@@ -4142,6 +4233,25 @@ public sealed class HelperGameplayController : MonoBehaviour
                 if (!sr || !sr.sprite)
                     continue;
 
+                Image haloImg = null;
+                RectTransform haloRt = null;
+                if (whitelistWorldGlowHaloUniformScale > 1.005f)
+                {
+                    GameObject haloGo = new GameObject("WhitelistGlowWorldHalo", typeof(RectTransform));
+                    haloRt = haloGo.GetComponent<RectTransform>();
+                    haloRt.SetParent(_whitelistGlowHolder, false);
+                    haloImg = haloGo.AddComponent<Image>();
+                    haloImg.sprite = sr.sprite;
+                    haloImg.raycastTarget = false;
+                    haloImg.preserveAspect = false;
+                    FitSpriteRendererOverlayRect(sr, haloRt, _whitelistGlowHolder, cam);
+                    Vector2 hs = haloRt.sizeDelta;
+                    haloRt.sizeDelta = hs * whitelistWorldGlowHaloUniformScale;
+                    Color hc0 = PulsedWhitelistGlowColor(0f);
+                    hc0.a *= whitelistWorldGlowHaloAlphaScale;
+                    haloImg.color = hc0;
+                }
+
                 GameObject go = new GameObject("WhitelistGlowSprite", typeof(RectTransform));
                 RectTransform rt = go.GetComponent<RectTransform>();
                 rt.SetParent(_whitelistGlowHolder, false);
@@ -4159,7 +4269,7 @@ public sealed class HelperGameplayController : MonoBehaviour
                     SourceSprite = sr,
                     SourceGraphic = null,
                     GlowImg = img,
-                    GlowHaloImg = null,
+                    GlowHaloImg = haloImg,
                 });
             }
         }
@@ -4386,18 +4496,14 @@ public sealed class HelperGameplayController : MonoBehaviour
 
     private void ClearWhitelistGlowOverlays()
     {
-        for (int i = 0; i < _whitelistGlowLinks.Count; i++)
+        _whitelistGlowLinks.Clear();
+        if (_whitelistGlowHolder)
         {
-            Image halo = _whitelistGlowLinks[i].GlowHaloImg;
-            if (halo)
-                Destroy(halo.gameObject);
-
-            Image g = _whitelistGlowLinks[i].GlowImg;
-            if (g)
-                Destroy(g.gameObject);
+            for (int i = _whitelistGlowHolder.childCount - 1; i >= 0; i--)
+                Destroy(_whitelistGlowHolder.GetChild(i).gameObject);
         }
 
-        _whitelistGlowLinks.Clear();
+        NormalizeAllWhitelistMarkersStripDrawOrder();
     }
 
     private void SyncAndPulseWhitelistGlow()
@@ -4447,6 +4553,15 @@ public sealed class HelperGameplayController : MonoBehaviour
                 }
 
                 FitSpriteRendererOverlayRect(link.SourceSprite, link.GlowImg.rectTransform, _whitelistGlowHolder, stripCam);
+
+                if (link.GlowHaloImg)
+                {
+                    RectTransform haloRt = link.GlowHaloImg.rectTransform;
+                    FitSpriteRendererOverlayRect(link.SourceSprite, haloRt, _whitelistGlowHolder, stripCam);
+                    Vector2 hs = haloRt.sizeDelta;
+                    haloRt.sizeDelta = hs * Mathf.Max(1f, whitelistWorldGlowHaloUniformScale);
+                    link.GlowHaloImg.sprite = link.SourceSprite.sprite;
+                }
             }
             else if (link.SourceGraphic)
             {
@@ -4488,7 +4603,9 @@ public sealed class HelperGameplayController : MonoBehaviour
             if (link.GlowHaloImg)
             {
                 Color haloC = glowCol;
-                haloC.a *= whitelistUiGlowHaloAlphaScale;
+                haloC.a *= link.SourceSprite
+                    ? whitelistWorldGlowHaloAlphaScale
+                    : whitelistUiGlowHaloAlphaScale;
                 link.GlowHaloImg.color = haloC;
             }
         }

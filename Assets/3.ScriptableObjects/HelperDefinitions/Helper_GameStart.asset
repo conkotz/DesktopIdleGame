@@ -54,5 +54,6 @@ MonoBehaviour:
   whitelistedInteractionIds:
   - NPC_Tutorial_1
   - UIButton_Settings
+  - splitwood_tree_node
   highlightWhitelistTargetsDuringHelper: 1
   highlightInventorySlotsForItem: {fileID: 0}

@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Temporary dev-only panel (delete for release). Wires RowGroup action buttons and a collapsible header.
-/// Mirrors hotkey behaviour from <see cref="DebugGiveItems"/> where applicable.
+/// Dev toolbar actions. Keyboard shortcuts (F1–F7) are handled on <see cref="BugAndSuggestionReportUI"/>.
 /// </summary>
 public class DevTestingPanelUI : MonoBehaviour
 {
@@ -71,13 +71,13 @@ public class DevTestingPanelUI : MonoBehaviour
 
         Bind(showHideButton, ToggleRowGroupClicked);
         Bind(reportBugButton, OnReportBugClicked);
-        Bind(maxLevelButton, OnMaxLevelClicked);
-        Bind(minLevelButton, OnMinLevelClicked);
-        Bind(plusLevelButton, OnPlusLevelClicked);
-        Bind(minusLevelButton, OnMinusLevelClicked);
-        Bind(addResourcesButton, OnAddResourcesClicked);
-        Bind(addGoldButton, OnAddGoldClicked);
-        Bind(devWeaponButton, OnDevWeaponClicked);
+        Bind(maxLevelButton, DevTesting_ApplyMaxLevelAllSkills);
+        Bind(minLevelButton, DevTesting_ApplyMinLevelAllSkills);
+        Bind(plusLevelButton, DevTesting_ApplyPlusOneAllSkills);
+        Bind(minusLevelButton, DevTesting_ApplyMinusOneAllSkills);
+        Bind(addResourcesButton, DevTesting_ApplyAddResourcePack);
+        Bind(addGoldButton, DevTesting_ApplyAddGold);
+        Bind(devWeaponButton, DevTesting_ApplyDevWeapon);
         Bind(skipTutorialButton, OnSkipTutorialClicked);
     }
 
@@ -130,7 +130,8 @@ public class DevTestingPanelUI : MonoBehaviour
         }
     }
 
-    private void OnMaxLevelClicked()
+    /// <summary>Same as MaxLevelButton (all tracked skills → 50).</summary>
+    public void DevTesting_ApplyMaxLevelAllSkills()
     {
         SkillsManager sm = ResolveSkillsManager();
         if (!sm)
@@ -143,7 +144,8 @@ public class DevTestingPanelUI : MonoBehaviour
         ShowPopup("DEBUG ALL SKILLS → 50", new Color(0.4f, 1f, 0.55f));
     }
 
-    private void OnMinLevelClicked()
+    /// <summary>Same as MinLevelButton (all tracked skills → 1).</summary>
+    public void DevTesting_ApplyMinLevelAllSkills()
     {
         SkillsManager sm = ResolveSkillsManager();
         if (!sm)
@@ -156,7 +158,8 @@ public class DevTestingPanelUI : MonoBehaviour
         ShowPopup("DEBUG ALL SKILLS → 1", new Color(0.85f, 0.55f, 0.35f));
     }
 
-    private void OnPlusLevelClicked()
+    /// <summary>Same as PlusLevelButton (+1 all skills).</summary>
+    public void DevTesting_ApplyPlusOneAllSkills()
     {
         SkillsManager sm = ResolveSkillsManager();
         if (!sm)
@@ -171,7 +174,8 @@ public class DevTestingPanelUI : MonoBehaviour
         ShowPopup("DEBUG +1 ALL SKILLS", Color.yellow);
     }
 
-    private void OnMinusLevelClicked()
+    /// <summary>Same as MinusLevelButton (−1 all skills).</summary>
+    public void DevTesting_ApplyMinusOneAllSkills()
     {
         SkillsManager sm = ResolveSkillsManager();
         if (!sm)
@@ -184,7 +188,8 @@ public class DevTestingPanelUI : MonoBehaviour
         ShowPopup("DEBUG -1 ALL SKILLS", new Color(0.85f, 0.55f, 0.35f));
     }
 
-    private void OnAddResourcesClicked()
+    /// <summary>Same as AddResourcesButton.</summary>
+    public void DevTesting_ApplyAddResourcePack()
     {
         Inventory inv = ResolveInventory();
         if (!inv)
@@ -203,7 +208,8 @@ public class DevTestingPanelUI : MonoBehaviour
         Debug.Log($"[DevTestingPanel] +{n} fish/logs/stone, +{m} linen/leather.");
     }
 
-    private void OnAddGoldClicked()
+    /// <summary>Same as AddGoldButton.</summary>
+    public void DevTesting_ApplyAddGold()
     {
         CurrencyWallet w = FindFirstObjectByType<CurrencyWallet>(FindObjectsInactive.Include);
         if (!w)
@@ -219,7 +225,8 @@ public class DevTestingPanelUI : MonoBehaviour
         Debug.Log($"[DevTestingPanel] +{g} gold.");
     }
 
-    private void OnDevWeaponClicked()
+    /// <summary>Same as DevWeapon / + dev mace.</summary>
+    public void DevTesting_ApplyDevWeapon()
     {
         Inventory inv = ResolveInventory();
         if (!inv)
