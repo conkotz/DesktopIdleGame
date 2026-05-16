@@ -20,6 +20,7 @@ public static class ToggleSettingsStore
     private const string GroupRepeatedActivityLogItemGainsKey = "Settings.GroupRepeatedActivityLogItemGains";
     private const string DisableScreenOverlayVisualsKey = "Settings.DisableScreenOverlayVisuals";
     private const string ExpandStripBackgroundKey = "Settings.ExpandStripBackground";
+    private const string ShowFpsKey = "Settings.ShowFps";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -48,6 +49,8 @@ public static class ToggleSettingsStore
             // Default off (0) → strip height 0.3333 via StripCameraController.
             ToggleSettingId.ExpandStripBackground =>
                 PlayerPrefs.GetInt(ExpandStripBackgroundKey, 0) != 0,
+            ToggleSettingId.ShowFps =>
+                PlayerPrefs.GetInt(ShowFpsKey, 0) != 0,
             _ => false
         };
     }
@@ -129,6 +132,9 @@ public static class ToggleSettingsStore
             case ToggleSettingId.ExpandStripBackground:
                 PlayerPrefs.SetInt(ExpandStripBackgroundKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.ShowFps:
+                PlayerPrefs.SetInt(ShowFpsKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -139,6 +145,9 @@ public static class ToggleSettingsStore
 
         if (setting == ToggleSettingId.ExpandStripBackground)
             FullWindowBackgroundPresenter.RefreshAllFromSettings();
+
+        if (setting == ToggleSettingId.ShowFps)
+            FpsDisplayText.RefreshAllFromSettings();
     }
 
     internal static void ClearAllStoredKeysAndReload()
@@ -156,10 +165,12 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(GroupRepeatedActivityLogItemGainsKey);
         PlayerPrefs.DeleteKey(DisableScreenOverlayVisualsKey);
         PlayerPrefs.DeleteKey(ExpandStripBackgroundKey);
+        PlayerPrefs.DeleteKey(ShowFpsKey);
         PlayerPrefs.Save();
 
         UIWindowCornerResize.RefreshAllHandlesVisibility();
         FullWindowBackgroundPresenter.RefreshAllFromSettings();
+        FpsDisplayText.RefreshAllFromSettings();
 
         foreach (ToggleSettingId id in Enum.GetValues(typeof(ToggleSettingId)))
             Changed?.Invoke(id, Get(id));
@@ -183,6 +194,8 @@ public static class ToggleSettingsStore
                 "Show screen overlay visuals",
             ToggleSettingId.ExpandStripBackground =>
                 "Expand background",
+            ToggleSettingId.ShowFps =>
+                "Show FPS",
             _ => setting.ToString()
         };
     }

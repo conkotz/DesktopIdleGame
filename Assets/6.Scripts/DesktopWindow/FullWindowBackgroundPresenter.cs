@@ -39,6 +39,8 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
     private UniversalAdditionalCameraData _stripUrp;
     private Coroutine _urpStackRoutine;
     private Coroutine _expandSideEffectsRoutine;
+    private bool _pendingUrpStackConfig;
+    private bool _pendingUrpStackExpanded;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void EnsurePresenterExists()
@@ -68,6 +70,7 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
         EnsureUrpCameraData();
         ToggleSettingsStore.Changed += HandleToggleChanged;
         ApplyExpandState(ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground));
+        FlushPendingDeferredWork();
     }
 
     private void OnDisable()
@@ -199,10 +202,30 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
             return;
         }
 
+        if (!isActiveAndEnabled)
+        {
+            _pendingUrpStackConfig = true;
+            _pendingUrpStackExpanded = expanded;
+            return;
+        }
+
         if (_urpStackRoutine != null)
             StopCoroutine(_urpStackRoutine);
 
         _urpStackRoutine = StartCoroutine(CoConfigureUrpCameraStackNextFrame(expanded));
+    }
+
+    private void FlushPendingDeferredWork()
+    {
+        if (!Application.isPlaying || !isActiveAndEnabled)
+            return;
+
+        if (_pendingUrpStackConfig)
+        {
+            bool expanded = _pendingUrpStackExpanded;
+            _pendingUrpStackConfig = false;
+            ScheduleUrpCameraStackConfiguration(expanded);
+        }
     }
 
     private IEnumerator CoConfigureUrpCameraStackNextFrame(bool expanded)
@@ -219,7 +242,7 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
 
     private void ScheduleExpandSideEffects()
     {
-        if (!Application.isPlaying)
+        if (!Application.isPlaying || !isActiveAndEnabled)
         {
             PlayerSpawnController.RefreshGameplayBlackFadeLayoutForExpandSetting();
             HelperGameplayController.RefreshDimmerLayoutForExpandSetting();

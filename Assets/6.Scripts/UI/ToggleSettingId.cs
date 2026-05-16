@@ -29,4 +29,7 @@ public enum ToggleSettingId
 
     /// <summary>When true, sky/background renders full-window; gameplay strip camera stays the same size.</summary>
     ExpandStripBackground = 10,
+
+    /// <summary>When true, the dev FPS counter (<see cref="FpsDisplayText"/>) is visible.</summary>
+    ShowFps = 11,
 }
