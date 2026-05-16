@@ -79,6 +79,14 @@ public class SimpleHoverHighlight2D : MonoBehaviour
 
     private void Update()
     {
+        bool dialogueActive = NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform);
+        if (!_hovered && !_targeted && !dialogueActive)
+        {
+            if (enableScale && (transform.localScale - _baseScale).sqrMagnitude > 0.0001f)
+                transform.localScale = _baseScale;
+            return;
+        }
+
         float mul = 1f;
         float darkenMul = 1f;
 
@@ -93,14 +101,14 @@ public class SimpleHoverHighlight2D : MonoBehaviour
             darkenMul = hoverDarkenMul;
         }
 
-        if (NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
+        if (dialogueActive)
         {
             mul = 1f;
             darkenMul = 1f;
         }
 
         float pulse = 0f;
-        if (NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
+        if (dialogueActive)
             pulse = 0f;
         else if (_targeted && pulseWhenTargeted)
             pulse = Mathf.Sin(Time.time * pulseSpeed) * pulseAmount;

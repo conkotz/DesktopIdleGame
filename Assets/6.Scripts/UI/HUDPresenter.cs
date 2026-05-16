@@ -143,7 +143,7 @@ public class HUDPresenter : MonoBehaviour
         HandleActionChanged(player.CurrentAction);
     }
 
-    private void RefreshAll()
+    public void RefreshAll()
     {
         RefreshNameAndCombatPower();
         hud.SetHP(player.HP, player.MaxHP);

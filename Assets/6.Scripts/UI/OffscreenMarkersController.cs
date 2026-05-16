@@ -105,6 +105,13 @@ public class OffscreenMarkersController : MonoBehaviour
 
     private float _nextRefreshTime;
     private int _activeMarkerRows;
+    private bool _markerLayoutDirty;
+
+    private static readonly List<int> s_layoutLeftOrder = new();
+    private static readonly List<int> s_layoutRightOrder = new();
+    private static float[] s_layoutHeights = System.Array.Empty<float>();
+    private static float[] s_layoutYByIndex = System.Array.Empty<float>();
+    private static readonly HashSet<int> s_collectSeenIds = new();
 
     private void Awake()
     {
@@ -198,12 +205,55 @@ public class OffscreenMarkersController : MonoBehaviour
     private void OnEnable()
     {
         SliderSettingsStore.Changed += OnSliderSettingsChanged;
+        ToggleSettingsStore.Changed += OnToggleSettingsChanged;
         ApplyMarkersIndependentOfHudResize();
+        ApplyVisibilityFromSettings();
     }
 
     private void OnDisable()
     {
         SliderSettingsStore.Changed -= OnSliderSettingsChanged;
+        ToggleSettingsStore.Changed -= OnToggleSettingsChanged;
+    }
+
+    public static void RefreshAllFromSettings()
+    {
+        if (Instance != null)
+        {
+            Instance.ApplyVisibilityFromSettings();
+            return;
+        }
+
+        OffscreenMarkersController[] controllers =
+            FindObjectsByType<OffscreenMarkersController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < controllers.Length; i++)
+        {
+            if (controllers[i])
+                controllers[i].ApplyVisibilityFromSettings();
+        }
+    }
+
+    private void OnToggleSettingsChanged(ToggleSettingId id, bool _)
+    {
+        if (id == ToggleSettingId.ShowOffscreenMarkers)
+            ApplyVisibilityFromSettings();
+    }
+
+    private void ApplyVisibilityFromSettings()
+    {
+        if (!ToggleSettingsStore.Get(ToggleSettingId.ShowOffscreenMarkers))
+            HideAllMarkers();
+    }
+
+    private void HideAllMarkers()
+    {
+        for (int i = 0; i < _pool.Count; i++)
+        {
+            if (_pool[i])
+                _pool[i].gameObject.SetActive(false);
+        }
+
+        _activeMarkerRows = 0;
     }
 
     private void OnSliderSettingsChanged(SliderSettingId id, float _)
@@ -240,6 +290,13 @@ public class OffscreenMarkersController : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (!ToggleSettingsStore.Get(ToggleSettingId.ShowOffscreenMarkers))
+        {
+            if (_activeMarkerRows > 0)
+                HideAllMarkers();
+            return;
+        }
+
         if (!markerPrefab || !markerContainer)
             return;
 
@@ -286,10 +343,14 @@ public class OffscreenMarkersController : MonoBehaviour
             EmitRowsForAggregate(ref idx, OffscreenKind.Cave, caves);
 
             _activeMarkerRows = need;
+            _markerLayoutDirty = true;
         }
 
-        if (_activeMarkerRows > 0)
+        if (_markerLayoutDirty && _activeMarkerRows > 0)
+        {
             LayoutStack(_activeMarkerRows);
+            _markerLayoutDirty = false;
+        }
     }
 
     private void EnsurePoolSize(int need)
@@ -307,22 +368,23 @@ public class OffscreenMarkersController : MonoBehaviour
         float halfParentH = markerContainer ? markerContainer.rect.height * 0.5f : 0f;
         if (halfParentH <= 0.01f) halfParentH = 50f;
 
-        var heights = new float[activeCount];
-        var leftOrder = new List<int>(activeCount);
-        var rightOrder = new List<int>(activeCount);
+        EnsureLayoutScratchSize(activeCount);
+
+        s_layoutLeftOrder.Clear();
+        s_layoutRightOrder.Clear();
         for (int i = 0; i < activeCount; i++)
         {
             RectTransform rt = _pool[i].transform as RectTransform;
-            heights[i] = rt ? rt.rect.height * Mathf.Abs(rt.lossyScale.y) : 0f;
+            s_layoutHeights[i] = rt ? rt.rect.height * Mathf.Abs(rt.lossyScale.y) : 0f;
             if (_pool[i].DockedLeft)
-                leftOrder.Add(i);
+                s_layoutLeftOrder.Add(i);
             else
-                rightOrder.Add(i);
+                s_layoutRightOrder.Add(i);
         }
 
-        var yByIndex = new float[activeCount];
-        ComputeSideStackY(leftOrder, heights, halfParentH, yByIndex);
-        ComputeSideStackY(rightOrder, heights, halfParentH, yByIndex);
+        System.Array.Clear(s_layoutYByIndex, 0, activeCount);
+        ComputeSideStackY(s_layoutLeftOrder, s_layoutHeights, halfParentH, s_layoutYByIndex);
+        ComputeSideStackY(s_layoutRightOrder, s_layoutHeights, halfParentH, s_layoutYByIndex);
 
         float stripLeftLocalX = 0f;
         bool haveStripLeft =
@@ -342,7 +404,7 @@ public class OffscreenMarkersController : MonoBehaviour
             rt.anchorMax = dockLeft ? new Vector2(0f, 0.5f) : new Vector2(1f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0.5f);
 
-            float h = heights[i];
+            float h = s_layoutHeights[i];
             float halfToTip = HorizontalCenterToOuterTip(rt) + markerHorizontalBleedPadding;
             float x = dockLeft ? edgePaddingPixels + halfToTip : -(edgePaddingPixels + halfToTip);
 
@@ -357,8 +419,17 @@ public class OffscreenMarkersController : MonoBehaviour
                     x = minXFromLeftAnchor;
             }
 
-            rt.anchoredPosition = new Vector2(x, yByIndex[i] + stackVerticalOffsetPixels);
+            rt.anchoredPosition = new Vector2(x, s_layoutYByIndex[i] + stackVerticalOffsetPixels);
         }
+    }
+
+    private static void EnsureLayoutScratchSize(int activeCount)
+    {
+        if (s_layoutHeights.Length < activeCount)
+            s_layoutHeights = new float[Mathf.NextPowerOfTwo(activeCount)];
+
+        if (s_layoutYByIndex.Length < activeCount)
+            s_layoutYByIndex = new float[Mathf.NextPowerOfTwo(activeCount)];
     }
 
     /// <summary>
@@ -573,7 +644,7 @@ public class OffscreenMarkersController : MonoBehaviour
 
     private void CollectTaggedWorldObjects(string unityTag, ref Aggregate agg)
     {
-        HashSet<int> seen = new HashSet<int>();
+        s_collectSeenIds.Clear();
         GameObject[] tagged = GameObject.FindGameObjectsWithTag(unityTag);
         for (int i = 0; i < tagged.Length; i++)
         {
@@ -582,7 +653,7 @@ public class OffscreenMarkersController : MonoBehaviour
 
             Vector3 p = go.transform.position;
             int id = go.GetInstanceID();
-            if (!seen.Add(id)) continue;
+            if (!s_collectSeenIds.Add(id)) continue;
             if (!IsOffCamera(p)) continue;
             Add(ref agg, p.x);
         }
@@ -590,7 +661,7 @@ public class OffscreenMarkersController : MonoBehaviour
 
     private void CollectEnemies(ref Aggregate agg)
     {
-        HashSet<int> seenEnemyRoots = new HashSet<int>();
+        s_collectSeenIds.Clear();
         GameObject[] tagged = GameObject.FindGameObjectsWithTag(EnemyTag);
 
         for (int i = 0; i < tagged.Length; i++)
@@ -602,7 +673,7 @@ public class OffscreenMarkersController : MonoBehaviour
             if (ebc && ebc.IsDead) continue;
 
             int dedupeId = ebc ? ebc.gameObject.GetInstanceID() : go.GetInstanceID();
-            if (!seenEnemyRoots.Add(dedupeId)) continue;
+            if (!s_collectSeenIds.Add(dedupeId)) continue;
 
             Vector3 p = ebc ? ebc.transform.position : go.transform.position;
             if (!IsOffCamera(p)) continue;
@@ -612,7 +683,7 @@ public class OffscreenMarkersController : MonoBehaviour
 
     private void CollectResources(ref Aggregate agg)
     {
-        HashSet<int> seen = new HashSet<int>();
+        s_collectSeenIds.Clear();
 
         GameObject[] tagged = GameObject.FindGameObjectsWithTag(ResourceTag);
         for (int i = 0; i < tagged.Length; i++)
@@ -623,7 +694,7 @@ public class OffscreenMarkersController : MonoBehaviour
             ResourceNode node = go.GetComponentInParent<ResourceNode>();
             Vector3 p = node && node.workSpot ? node.workSpot.position : go.transform.position;
             int id = node ? node.gameObject.GetInstanceID() : go.GetInstanceID();
-            TryAddResourceCandidate(ref agg, seen, p, id);
+            TryAddResourceCandidate(ref agg, p, id);
         }
 
         ResourceNode[] nodes = FindObjectsByType<ResourceNode>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
@@ -633,13 +704,13 @@ public class OffscreenMarkersController : MonoBehaviour
             if (!node.gameObject.activeInHierarchy) continue;
 
             Vector3 p = node.workSpot ? node.workSpot.position : node.transform.position;
-            TryAddResourceCandidate(ref agg, seen, p, node.gameObject.GetInstanceID());
+            TryAddResourceCandidate(ref agg, p, node.gameObject.GetInstanceID());
         }
     }
 
-    private void TryAddResourceCandidate(ref Aggregate agg, HashSet<int> seen, Vector3 worldPos, int dedupeId)
+    private void TryAddResourceCandidate(ref Aggregate agg, Vector3 worldPos, int dedupeId)
     {
-        if (!seen.Add(dedupeId)) return;
+        if (!s_collectSeenIds.Add(dedupeId)) return;
         if (!IsOffCamera(worldPos)) return;
         Add(ref agg, worldPos.x);
     }
@@ -647,23 +718,14 @@ public class OffscreenMarkersController : MonoBehaviour
     private void CollectNpcs(ref Aggregate agg)
     {
         // Per-GameObject ids — do NOT use transform.root or every NPC under the same folder counts once.
-        HashSet<int> seenNpcIds = new HashSet<int>();
+        s_collectSeenIds.Clear();
 
         GameObject[] tagged = GameObject.FindGameObjectsWithTag(NpcTag);
         for (int i = 0; i < tagged.Length; i++)
         {
             GameObject go = tagged[i];
             if (!go.activeInHierarchy) continue;
-            TryAddNpcCandidate(ref agg, seenNpcIds, go.transform.position, go.GetInstanceID());
-        }
-
-        NPCInteractionSettings[] dialogue =
-            FindObjectsByType<NPCInteractionSettings>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        for (int i = 0; i < dialogue.Length; i++)
-        {
-            NPCInteractionSettings npc = dialogue[i];
-            if (!npc || !npc.gameObject.activeInHierarchy) continue;
-            TryAddNpcCandidate(ref agg, seenNpcIds, npc.transform.position, npc.gameObject.GetInstanceID());
+            TryAddNpcCandidate(ref agg, go.transform.position, go.GetInstanceID());
         }
 
         Merchant[] merchants = FindObjectsByType<Merchant>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
@@ -671,13 +733,13 @@ public class OffscreenMarkersController : MonoBehaviour
         {
             Merchant m = merchants[i];
             if (!m || !m.gameObject.activeInHierarchy) continue;
-            TryAddNpcCandidate(ref agg, seenNpcIds, m.transform.position, m.gameObject.GetInstanceID());
+            TryAddNpcCandidate(ref agg, m.transform.position, m.gameObject.GetInstanceID());
         }
     }
 
-    private void TryAddNpcCandidate(ref Aggregate agg, HashSet<int> seenNpcIds, Vector3 worldPos, int dedupeId)
+    private void TryAddNpcCandidate(ref Aggregate agg, Vector3 worldPos, int dedupeId)
     {
-        if (!seenNpcIds.Add(dedupeId)) return;
+        if (!s_collectSeenIds.Add(dedupeId)) return;
         if (!IsOffCamera(worldPos)) return;
         Add(ref agg, worldPos.x);
     }

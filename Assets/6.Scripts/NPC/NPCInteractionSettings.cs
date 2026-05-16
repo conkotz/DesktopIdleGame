@@ -190,6 +190,19 @@ public class NPCInteractionSettings : MonoBehaviour
         }
     }
 
+    private float _nextFirstSightingCheckTime;
+    private float _nextProximityReopenCheckTime;
+
+    private static Camera s_viewportCheckCamera;
+    private static readonly Vector3[] s_viewportBoundsPoints = new Vector3[9];
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetNpcInteractionStatics()
+    {
+        s_viewportCheckCamera = null;
+        s_cachedPlayerForProximity = null;
+    }
+
     private void Update()
     {
         if (!Application.isPlaying)
@@ -199,10 +212,15 @@ public class NPCInteractionSettings : MonoBehaviour
             TrySubscribeQuestProgressForAutoDialogue();
 
         // First-sighting path is unaffected by the proximity gate (per design).
-        if (openDialogueOnFirstSighting && !_hasOpenedOnFirstSighting)
+        if (openDialogueOnFirstSighting && !_hasOpenedOnFirstSighting &&
+            Time.unscaledTime >= _nextFirstSightingCheckTime)
         {
-            Camera cam = Camera.main;
-            if (cam && IsVisibleInCameraViewport(cam))
+            _nextFirstSightingCheckTime = Time.unscaledTime + 0.25f;
+
+            if (!s_viewportCheckCamera)
+                s_viewportCheckCamera = Camera.main;
+
+            if (s_viewportCheckCamera && IsVisibleInCameraViewport(s_viewportCheckCamera))
             {
                 // Do not set _hasOpenedOnFirstSighting here — only after a successful ShowAt inside ShowNormalDialogueOnly,
                 // otherwise one empty resolve (e.g. save / death-pending not hydrated yet) permanently skips auto dialogue.
@@ -211,8 +229,12 @@ public class NPCInteractionSettings : MonoBehaviour
         }
 
         // Quest-driven auto-reopen that was deferred because the player was too far: retry once they enter range.
-        if (_pendingProximityAutoReopen && IsPlayerWithinAutoReopenRange())
-            TryFlushPendingProximityAutoReopen();
+        if (_pendingProximityAutoReopen && Time.unscaledTime >= _nextProximityReopenCheckTime)
+        {
+            _nextProximityReopenCheckTime = Time.unscaledTime + 0.2f;
+            if (IsPlayerWithinAutoReopenRange())
+                TryFlushPendingProximityAutoReopen();
+        }
     }
 
     private void TryFlushPendingProximityAutoReopen()
@@ -1306,22 +1328,19 @@ public class NPCInteractionSettings : MonoBehaviour
 
         Vector3 min = b.min;
         Vector3 max = b.max;
-        var points = new[]
-        {
-            new Vector3(min.x, min.y, min.z),
-            new Vector3(min.x, min.y, max.z),
-            new Vector3(min.x, max.y, min.z),
-            new Vector3(min.x, max.y, max.z),
-            new Vector3(max.x, min.y, min.z),
-            new Vector3(max.x, min.y, max.z),
-            new Vector3(max.x, max.y, min.z),
-            new Vector3(max.x, max.y, max.z),
-            b.center
-        };
+        s_viewportBoundsPoints[0] = new Vector3(min.x, min.y, min.z);
+        s_viewportBoundsPoints[1] = new Vector3(min.x, min.y, max.z);
+        s_viewportBoundsPoints[2] = new Vector3(min.x, max.y, min.z);
+        s_viewportBoundsPoints[3] = new Vector3(min.x, max.y, max.z);
+        s_viewportBoundsPoints[4] = new Vector3(max.x, min.y, min.z);
+        s_viewportBoundsPoints[5] = new Vector3(max.x, min.y, max.z);
+        s_viewportBoundsPoints[6] = new Vector3(max.x, max.y, min.z);
+        s_viewportBoundsPoints[7] = new Vector3(max.x, max.y, max.z);
+        s_viewportBoundsPoints[8] = b.center;
 
-        for (int i = 0; i < points.Length; i++)
+        for (int i = 0; i < s_viewportBoundsPoints.Length; i++)
         {
-            Vector3 vp = cam.WorldToViewportPoint(points[i]);
+            Vector3 vp = cam.WorldToViewportPoint(s_viewportBoundsPoints[i]);
             if (vp.z > 0f && vp.x >= 0f && vp.x <= 1f && vp.y >= 0f && vp.y <= 1f)
                 return true;
         }

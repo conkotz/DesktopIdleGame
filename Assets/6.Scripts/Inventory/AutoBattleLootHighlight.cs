@@ -9,6 +9,36 @@ public static class AutoBattleLootHighlight
 {
     private static readonly HashSet<int> InventorySlots = new HashSet<int>();
     private static readonly HashSet<int> StorageSlots = new HashSet<int>();
+    private static readonly List<InventorySlotUI> RegisteredInventorySlotUIs = new();
+    private static readonly List<StorageSlotUI> RegisteredStorageSlotUIs = new();
+
+    public static void RegisterInventorySlotUi(InventorySlotUI slotUi)
+    {
+        if (!slotUi || RegisteredInventorySlotUIs.Contains(slotUi))
+            return;
+        RegisteredInventorySlotUIs.Add(slotUi);
+    }
+
+    public static void UnregisterInventorySlotUi(InventorySlotUI slotUi)
+    {
+        if (!slotUi)
+            return;
+        RegisteredInventorySlotUIs.Remove(slotUi);
+    }
+
+    public static void RegisterStorageSlotUi(StorageSlotUI slotUi)
+    {
+        if (!slotUi || RegisteredStorageSlotUIs.Contains(slotUi))
+            return;
+        RegisteredStorageSlotUIs.Add(slotUi);
+    }
+
+    public static void UnregisterStorageSlotUi(StorageSlotUI slotUi)
+    {
+        if (!slotUi)
+            return;
+        RegisteredStorageSlotUIs.Remove(slotUi);
+    }
 
     public static void MarkInventorySlot(int index)
     {
@@ -68,18 +98,48 @@ public static class AutoBattleLootHighlight
     /// </summary>
     public static void RefreshLootHighlightUIs()
     {
-        InventorySlotUI[] inv = Object.FindObjectsByType<InventorySlotUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < inv.Length; i++)
-        {
-            if (inv[i])
-                inv[i].RefreshLootHighlightVisual();
-        }
+        if (InventorySlots.Count > 0)
+            RefreshMarkedInventorySlots();
 
-        StorageSlotUI[] st = Object.FindObjectsByType<StorageSlotUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < st.Length; i++)
+        if (StorageSlots.Count > 0)
+            RefreshMarkedStorageSlots();
+    }
+
+    private static void RefreshMarkedInventorySlots()
+    {
+        for (int m = 0; m < RegisteredInventorySlotUIs.Count; m++)
         {
-            if (st[i])
-                st[i].RefreshLootHighlightVisual();
+            InventorySlotUI ui = RegisteredInventorySlotUIs[m];
+            if (!ui)
+            {
+                RegisteredInventorySlotUIs.RemoveAt(m);
+                m--;
+                continue;
+            }
+
+            if (!IsInventorySlotMarked(ui.SlotIndex))
+                continue;
+
+            ui.RefreshLootHighlightVisual();
+        }
+    }
+
+    private static void RefreshMarkedStorageSlots()
+    {
+        for (int m = 0; m < RegisteredStorageSlotUIs.Count; m++)
+        {
+            StorageSlotUI ui = RegisteredStorageSlotUIs[m];
+            if (!ui)
+            {
+                RegisteredStorageSlotUIs.RemoveAt(m);
+                m--;
+                continue;
+            }
+
+            if (!IsStorageSlotMarked(ui.SlotIndex))
+                continue;
+
+            ui.RefreshLootHighlightVisual();
         }
     }
 }

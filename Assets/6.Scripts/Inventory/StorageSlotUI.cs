@@ -55,6 +55,8 @@ public class StorageSlotUI : MonoBehaviour,
     private string _itemId;
     private int _amount;
 
+    public int SlotIndex => _slotIndex;
+
     private GameObject _dragIconGO;
     private RectTransform _dragIconRT;
     private Image _dragIconImage;
@@ -88,6 +90,13 @@ public class StorageSlotUI : MonoBehaviour,
 
         if (!_inventory)
             _inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+
+        AutoBattleLootHighlight.RegisterStorageSlotUi(this);
+    }
+
+    private void OnDestroy()
+    {
+        AutoBattleLootHighlight.UnregisterStorageSlotUi(this);
     }
 
     public void Bind(

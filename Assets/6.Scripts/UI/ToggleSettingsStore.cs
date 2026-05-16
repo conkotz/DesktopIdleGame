@@ -21,6 +21,8 @@ public static class ToggleSettingsStore
     private const string DisableScreenOverlayVisualsKey = "Settings.DisableScreenOverlayVisuals";
     private const string ExpandStripBackgroundKey = "Settings.ExpandStripBackground";
     private const string ShowFpsKey = "Settings.ShowFps";
+    private const string MinimiseHudDisplayInTownKey = "Settings.MinimiseHudDisplayInTown";
+    private const string ShowOffscreenMarkersKey = "Settings.ShowOffscreenMarkers";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -51,6 +53,10 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(ExpandStripBackgroundKey, 0) != 0,
             ToggleSettingId.ShowFps =>
                 PlayerPrefs.GetInt(ShowFpsKey, 0) != 0,
+            ToggleSettingId.MinimiseHudDisplayInTown =>
+                PlayerPrefs.GetInt(MinimiseHudDisplayInTownKey, 0) != 0,
+            ToggleSettingId.ShowOffscreenMarkers =>
+                PlayerPrefs.GetInt(ShowOffscreenMarkersKey, 1) != 0,
             _ => false
         };
     }
@@ -135,6 +141,12 @@ public static class ToggleSettingsStore
             case ToggleSettingId.ShowFps:
                 PlayerPrefs.SetInt(ShowFpsKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.MinimiseHudDisplayInTown:
+                PlayerPrefs.SetInt(MinimiseHudDisplayInTownKey, value ? 1 : 0);
+                break;
+            case ToggleSettingId.ShowOffscreenMarkers:
+                PlayerPrefs.SetInt(ShowOffscreenMarkersKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -148,6 +160,12 @@ public static class ToggleSettingsStore
 
         if (setting == ToggleSettingId.ShowFps)
             FpsDisplayText.RefreshAllFromSettings();
+
+        if (setting == ToggleSettingId.MinimiseHudDisplayInTown)
+            HUDToggle.RefreshAllFromTownSetting();
+
+        if (setting == ToggleSettingId.ShowOffscreenMarkers)
+            OffscreenMarkersController.RefreshAllFromSettings();
     }
 
     internal static void ClearAllStoredKeysAndReload()
@@ -166,11 +184,15 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(DisableScreenOverlayVisualsKey);
         PlayerPrefs.DeleteKey(ExpandStripBackgroundKey);
         PlayerPrefs.DeleteKey(ShowFpsKey);
+        PlayerPrefs.DeleteKey(MinimiseHudDisplayInTownKey);
+        PlayerPrefs.DeleteKey(ShowOffscreenMarkersKey);
         PlayerPrefs.Save();
 
         UIWindowCornerResize.RefreshAllHandlesVisibility();
         FullWindowBackgroundPresenter.RefreshAllFromSettings();
         FpsDisplayText.RefreshAllFromSettings();
+        HUDToggle.RefreshAllFromTownSetting();
+        OffscreenMarkersController.RefreshAllFromSettings();
 
         foreach (ToggleSettingId id in Enum.GetValues(typeof(ToggleSettingId)))
             Changed?.Invoke(id, Get(id));
@@ -196,6 +218,10 @@ public static class ToggleSettingsStore
                 "Expand background",
             ToggleSettingId.ShowFps =>
                 "Show FPS",
+            ToggleSettingId.MinimiseHudDisplayInTown =>
+                "Minimise HUD Display in town",
+            ToggleSettingId.ShowOffscreenMarkers =>
+                "Show Offscreen Markers",
             _ => setting.ToString()
         };
     }

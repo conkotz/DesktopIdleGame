@@ -8,6 +8,8 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class UnitOverheadUI : MonoBehaviour
 {
+    private const string StripUiFrameObjectName = "UI_Frame";
+
     [Header("UI Refs")]
     [SerializeField] private RectTransform root;
     [SerializeField] private TMP_Text nameText;
@@ -92,6 +94,8 @@ public class UnitOverheadUI : MonoBehaviour
     private float _hudResizeSlider = 1f;
 
     private static readonly List<UnitOverheadUI> s_instances = new();
+    private static readonly Dictionary<int, List<UnitOverheadUI>> s_byCanvasScratch = new();
+    private static readonly List<List<UnitOverheadUI>> s_canvasListPool = new();
     private static bool s_canvasCallbackSubscribed;
     private static int s_lastStackResolveFrame = -1;
     private static readonly Dictionary<int, int> s_lastAssignedStackLaneByUiId = new();
@@ -208,6 +212,8 @@ public class UnitOverheadUI : MonoBehaviour
             ApplyDirectPosition();
         else
             ApplyStackedPosition();
+
+        EnsureDrawsBehindStripUiFrame();
     }
 
     public void SetAdditionalWorldOffset(Vector3 offset)
@@ -245,7 +251,15 @@ public class UnitOverheadUI : MonoBehaviour
 
     private static void ResolveEnemyOverheadStacking()
     {
-        var byCanvas = new Dictionary<int, List<UnitOverheadUI>>();
+        for (int i = s_instances.Count - 1; i >= 0; i--)
+        {
+            if (!s_instances[i])
+                s_instances.RemoveAt(i);
+        }
+
+        for (int i = 0; i < s_canvasListPool.Count; i++)
+            s_canvasListPool[i].Clear();
+        s_byCanvasScratch.Clear();
 
         for (int i = 0; i < s_instances.Count; i++)
         {
@@ -258,17 +272,31 @@ public class UnitOverheadUI : MonoBehaviour
                 continue;
 
             int canvasKey = ui.parentCanvas != null ? ui.parentCanvas.GetInstanceID() : 0;
-            if (!byCanvas.TryGetValue(canvasKey, out List<UnitOverheadUI> list))
+            if (!s_byCanvasScratch.TryGetValue(canvasKey, out List<UnitOverheadUI> list))
             {
-                list = new List<UnitOverheadUI>();
-                byCanvas[canvasKey] = list;
+                list = RentCanvasList();
+                s_byCanvasScratch[canvasKey] = list;
             }
 
             list.Add(ui);
         }
 
-        foreach (KeyValuePair<int, List<UnitOverheadUI>> kv in byCanvas)
-            ResolveStackingForCanvasGroup(kv.Value);
+        foreach (List<UnitOverheadUI> list in s_byCanvasScratch.Values)
+            ResolveStackingForCanvasGroup(list);
+    }
+
+    private static List<UnitOverheadUI> RentCanvasList()
+    {
+        for (int i = 0; i < s_canvasListPool.Count; i++)
+        {
+            List<UnitOverheadUI> list = s_canvasListPool[i];
+            if (list.Count == 0)
+                return list;
+        }
+
+        List<UnitOverheadUI> created = new List<UnitOverheadUI>(16);
+        s_canvasListPool.Add(created);
+        return created;
     }
 
     private static void ResolveStackingForCanvasGroup(List<UnitOverheadUI> candidates)
@@ -514,7 +542,7 @@ public class UnitOverheadUI : MonoBehaviour
 
     /// <summary>
     /// Player overheads share the strip canvas with enemies. Keep the player instance later in the sibling list so it
-    /// draws on top when overlapping (enemy UI otherwise wins by spawn order).
+    /// draws on top when overlapping (enemy UI otherwise wins by spawn order), but still before <see cref="StripUiFrameObjectName"/>.
     /// </summary>
     private void EnsurePlayerOverheadDrawsAboveEnemyOverheads()
     {
@@ -526,8 +554,13 @@ public class UnitOverheadUI : MonoBehaviour
             return;
 
         Transform strip = parentCanvas.transform;
+        int uiFrameSibling = TryGetStripUiFrameSiblingIndex(parentCanvas, out int uiFrameIndex)
+            ? uiFrameIndex
+            : strip.childCount;
+
         int lastEnemyOverheadSibling = -1;
-        for (int i = 0; i < strip.childCount; i++)
+        int scanCount = Mathf.Min(strip.childCount, uiFrameSibling);
+        for (int i = 0; i < scanCount; i++)
         {
             UnitOverheadUI childUi = strip.GetChild(i).GetComponent<UnitOverheadUI>();
             if (childUi != null && childUi.enemy != null)
@@ -537,11 +570,41 @@ public class UnitOverheadUI : MonoBehaviour
         if (lastEnemyOverheadSibling < 0)
             return;
 
-        int want = lastEnemyOverheadSibling + 1;
-        // Overhead instances are parented to the strip canvas (see EnemyOverheadUISpawner); sibling order is on this transform.
+        int want = Mathf.Min(lastEnemyOverheadSibling + 1, uiFrameSibling);
         int cur = transform.GetSiblingIndex();
         if (cur < want)
             transform.SetSiblingIndex(want);
+    }
+
+    /// <summary>
+    /// Overheads are parented to <c>StripUICanvas</c>. Keep them before <see cref="StripUiFrameObjectName"/> so HUD panels
+    /// (quick menu, windows, etc.) draw on top.
+    /// </summary>
+    private void EnsureDrawsBehindStripUiFrame()
+    {
+        if (parentCanvas == null)
+            return;
+
+        if (!TryGetStripUiFrameSiblingIndex(parentCanvas, out int uiFrameIndex))
+            return;
+
+        int selfIndex = transform.GetSiblingIndex();
+        if (selfIndex >= uiFrameIndex)
+            transform.SetSiblingIndex(uiFrameIndex);
+    }
+
+    private static bool TryGetStripUiFrameSiblingIndex(Canvas stripCanvas, out int uiFrameSiblingIndex)
+    {
+        uiFrameSiblingIndex = -1;
+        if (stripCanvas == null)
+            return false;
+
+        Transform uiFrame = stripCanvas.transform.Find(StripUiFrameObjectName);
+        if (uiFrame == null)
+            return false;
+
+        uiFrameSiblingIndex = uiFrame.GetSiblingIndex();
+        return true;
     }
 
     private bool ShouldUseOverlapStacking()

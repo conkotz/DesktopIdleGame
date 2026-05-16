@@ -64,7 +64,8 @@ public sealed class FacePlayerSpriteFlip : MonoBehaviour
 
     private void LateUpdate()
     {
-        ResolvePlayerTransform();
+        if (!_playerTf)
+            ResolvePlayerTransform();
 
         if (!flipTarget)
             return;
@@ -142,21 +143,7 @@ public sealed class FacePlayerSpriteFlip : MonoBehaviour
 
     private void ResolvePlayerTransform()
     {
-        if (playerOverride)
-        {
-            _playerTf = playerOverride.transform;
-            return;
-        }
-
-        GameObject tagged = GameObject.FindGameObjectWithTag(playerTag);
-        if (tagged)
-        {
-            _playerTf = tagged.transform;
-            return;
-        }
-
-        PlayerController pc = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Exclude);
-        _playerTf = pc ? pc.transform : null;
+        _playerTf = PlayerTransformCache.Resolve(playerTag, playerOverride);
     }
 
     /// <remarks>

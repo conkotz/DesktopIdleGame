@@ -28,6 +28,9 @@ public class DesktopOverlayClickThrough : MonoBehaviour
     [Tooltip("Disables UniWindowController automatic hit test so this script is the only driver for SetClickThrough.")]
     [SerializeField] private bool disableUniWinAutoHitTest = true;
 
+    [Tooltip("Max seconds between UI raycast refreshes when the pointer is still (0 = only on mouse move or button change).")]
+    [SerializeField, Min(0f)] private float uiRaycastRefreshInterval = 0.033f;
+
     [Header("Advanced")]
     [Tooltip("Rare: if enabled, only listed canvases capture the mouse outside the gameplay strip (or when there is no StripCamera, e.g. Bootstrap). When off (default), any UI raycast blocks click-through.")]
     [SerializeField] private bool allowlistOnlyOutsideStrip;
@@ -54,6 +57,19 @@ public class DesktopOverlayClickThrough : MonoBehaviour
 
     private bool _debugPrevInteractive;
     private bool _debugHadSample;
+
+    private StripCameraController _stripController;
+    private readonly List<RaycastResult> _raycastResults = new List<RaycastResult>(32);
+    private PointerEventData _pointerData;
+
+    private Vector2 _lastSampleMousePosition = new Vector2(float.NaN, float.NaN);
+    private float _nextUiRaycastRefreshTime;
+    private bool _cachedUiRaycastHit;
+    private bool _cachedAllowlistHit;
+
+    private Rect _cachedStripScreenRect;
+    private int _cachedScreenWidth = -1;
+    private int _cachedScreenHeight = -1;
 
     private void Awake()
     {
@@ -102,6 +118,8 @@ public class DesktopOverlayClickThrough : MonoBehaviour
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         stripCamera = null;
+        _stripController = null;
+        InvalidateHitTestCache();
         RebindStripCamera();
         ApplyWindowTopmostFromSettings();
     }
@@ -109,11 +127,34 @@ public class DesktopOverlayClickThrough : MonoBehaviour
     private void RebindStripCamera()
     {
         if (stripCamera)
+        {
+            CacheStripControllerFromCamera();
             return;
+        }
 
-        var go = GameObject.Find(stripCameraName);
-        if (go)
-            stripCamera = go.GetComponent<Camera>();
+        stripCamera = FindStripCameraByName(stripCameraName);
+        CacheStripControllerFromCamera();
+    }
+
+    private void CacheStripControllerFromCamera()
+    {
+        _stripController = stripCamera ? stripCamera.GetComponent<StripCameraController>() : null;
+    }
+
+    private static Camera FindStripCameraByName(string cameraName)
+    {
+        if (string.IsNullOrEmpty(cameraName))
+            return null;
+
+        Camera[] cameras = FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            Camera cam = cameras[i];
+            if (cam && string.Equals(cam.gameObject.name, cameraName, System.StringComparison.Ordinal))
+                return cam;
+        }
+
+        return null;
     }
 
     private void LateUpdate()
@@ -133,12 +174,9 @@ public class DesktopOverlayClickThrough : MonoBehaviour
         if (!stripCamera)
             RebindStripCamera();
 
-        bool inStrip = stripCamera && IsPointerInsideStrip();
-        bool noStripMode = !stripCamera;
-        bool overUi = IsPointerOverUIRaycast();
-        bool overAllowlist = allowlistOnlyOutsideStrip && IsPointerOverAllowlistedCanvasOnly();
+        RefreshHitTestCachesIfNeeded();
 
-        bool pointerInteractive = IsPointerInteractiveThisFrame();
+        bool pointerInteractive = IsPointerInteractiveFromCache();
 
         if (Input.GetMouseButtonDown(0))
             _dragLatch = pointerInteractive;
@@ -158,6 +196,159 @@ public class DesktopOverlayClickThrough : MonoBehaviour
         if (!debugLogging)
             return;
 
+        LogDebugState(interactive, clickThrough, pointerInteractive);
+    }
+
+    private void InvalidateHitTestCache()
+    {
+        _lastSampleMousePosition = new Vector2(float.NaN, float.NaN);
+        _nextUiRaycastRefreshTime = 0f;
+        _cachedScreenWidth = -1;
+        _cachedScreenHeight = -1;
+    }
+
+    private bool ShouldRefreshHitTestCaches()
+    {
+        Vector2 mouse = Input.mousePosition;
+        if (mouse != _lastSampleMousePosition)
+            return true;
+
+        if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonUp(0) ||
+            Input.GetMouseButtonDown(1) || Input.GetMouseButtonUp(1) ||
+            Input.GetMouseButtonDown(2) || Input.GetMouseButtonUp(2))
+            return true;
+
+        if (uiRaycastRefreshInterval > 0f && Time.unscaledTime >= _nextUiRaycastRefreshTime)
+            return true;
+
+        return Screen.width != _cachedScreenWidth || Screen.height != _cachedScreenHeight;
+    }
+
+    private void RefreshHitTestCachesIfNeeded()
+    {
+        if (!ShouldRefreshHitTestCaches())
+            return;
+
+        _lastSampleMousePosition = Input.mousePosition;
+        if (uiRaycastRefreshInterval > 0f)
+            _nextUiRaycastRefreshTime = Time.unscaledTime + uiRaycastRefreshInterval;
+
+        RefreshStripScreenRectCache();
+        RefreshUiRaycastCache();
+    }
+
+    private void RefreshStripScreenRectCache()
+    {
+        _cachedScreenWidth = Screen.width;
+        _cachedScreenHeight = Screen.height;
+
+        if (!stripCamera)
+        {
+            _cachedStripScreenRect = default;
+            return;
+        }
+
+        if (_stripController)
+        {
+            float w = _stripController.WidthNormalized * Screen.width;
+            float h = _stripController.StripHeightPercent * Screen.height;
+            float x = _stripController.LeftNormalized * Screen.width;
+            float y = _stripController.BottomNormalized * Screen.height;
+            _cachedStripScreenRect = new Rect(x, y, w, h);
+            return;
+        }
+
+        _cachedStripScreenRect = stripCamera.pixelRect;
+    }
+
+    private void RefreshUiRaycastCache()
+    {
+        if (!TryFillUiRaycastResults())
+        {
+            _cachedUiRaycastHit = false;
+            _cachedAllowlistHit = false;
+            return;
+        }
+
+        _cachedUiRaycastHit = _raycastResults.Count > 0;
+        _cachedAllowlistHit = ComputeAllowlistHitFromResults(_raycastResults);
+    }
+
+    private bool IsPointerInsideStripCached()
+    {
+        if (!stripCamera)
+            return false;
+
+        return _cachedStripScreenRect.Contains(Input.mousePosition);
+    }
+
+    private bool IsPointerInteractiveFromCache()
+    {
+        // Gameplay strip: always capture (world + HUD in strip rect).
+        if (stripCamera && IsPointerInsideStripCached())
+            return true;
+
+        // Expand background: full window is gameplay (sky extension), except real UI hits.
+        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+        {
+            if (!allowlistOnlyOutsideStrip)
+                return !_cachedUiRaycastHit;
+
+            return _cachedAllowlistHit;
+        }
+
+        // No strip (Bootstrap / menus) or outside strip: UI raycasts only.
+        if (!allowlistOnlyOutsideStrip)
+            return _cachedUiRaycastHit;
+
+        return _cachedAllowlistHit;
+    }
+
+    private bool ComputeAllowlistHitFromResults(List<RaycastResult> results)
+    {
+        if (outsideStripBlockingCanvases == null || outsideStripBlockingCanvases.Length == 0)
+            return false;
+
+        if (results == null || results.Count == 0)
+            return false;
+
+        for (int i = 0; i < results.Count; i++)
+        {
+            RaycastResult r = results[i];
+            for (int c = 0; c < outsideStripBlockingCanvases.Length; c++)
+            {
+                Canvas canvas = outsideStripBlockingCanvases[c];
+                if (!canvas)
+                    continue;
+
+                Transform hitT = r.gameObject.transform;
+                if (hitT == canvas.transform || hitT.IsChildOf(canvas.transform))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryFillUiRaycastResults()
+    {
+        _raycastResults.Clear();
+
+        if (EventSystem.current == null)
+            return false;
+
+        if (_pointerData == null)
+            _pointerData = new PointerEventData(EventSystem.current);
+        else
+            _pointerData.Reset();
+
+        _pointerData.position = Input.mousePosition;
+        EventSystem.current.RaycastAll(_pointerData, _raycastResults);
+        return true;
+    }
+
+    private void LogDebugState(bool interactive, bool clickThrough, bool pointerInteractive)
+    {
         bool clickDown = Input.GetMouseButtonDown(0);
         bool stateChanged = !_debugHadSample || interactive != _debugPrevInteractive;
         _debugHadSample = true;
@@ -166,9 +357,8 @@ public class DesktopOverlayClickThrough : MonoBehaviour
         if (!debugEveryFrame && !(clickDown || stateChanged))
             return;
 
-        TryGetUiRaycastResults(out List<RaycastResult> raycastResults);
-        if (raycastResults == null)
-            raycastResults = new List<RaycastResult>();
+        bool inStrip = stripCamera && IsPointerInsideStripCached();
+        bool noStripMode = !stripCamera;
 
         var sb = new StringBuilder(512);
         sb.Append("[DesktopOverlayClickThrough] ");
@@ -180,19 +370,19 @@ public class DesktopOverlayClickThrough : MonoBehaviour
         sb.Append(" inStrip=").Append(inStrip);
         sb.Append(" allowlistOnly=").Append(allowlistOnlyOutsideStrip);
         if (allowlistOnlyOutsideStrip)
-            sb.Append(" overAllowlisted=").Append(overAllowlist);
-        sb.Append(" uiRaycastHit=").Append(overUi);
+            sb.Append(" overAllowlisted=").Append(_cachedAllowlistHit);
+        sb.Append(" uiRaycastHit=").Append(_cachedUiRaycastHit);
         sb.Append(" pointerInteractive=").Append(pointerInteractive);
         sb.Append(" dragLatch=").Append(_dragLatch);
         sb.Append(" interactive=").Append(interactive);
         sb.Append(" clickThrough=").Append(clickThrough);
-        sb.Append(" hits=").Append(raycastResults.Count);
+        sb.Append(" hits=").Append(_raycastResults.Count);
         Debug.Log(sb.ToString());
 
-        int n = Mathf.Min(raycastResults.Count, debugMaxRaycastEntries);
+        int n = Mathf.Min(_raycastResults.Count, debugMaxRaycastEntries);
         for (int i = 0; i < n; i++)
         {
-            RaycastResult r = raycastResults[i];
+            RaycastResult r = _raycastResults[i];
             Canvas c = r.gameObject.GetComponentInParent<Canvas>();
             Graphic g = r.gameObject.GetComponent<Graphic>();
             string graphicType = g ? g.GetType().Name : "(no Graphic)";
@@ -204,95 +394,8 @@ public class DesktopOverlayClickThrough : MonoBehaviour
                 r.gameObject);
         }
 
-        if (raycastResults.Count > n)
-            Debug.Log($"  ... {raycastResults.Count - n} more (raise Debug Max Raycast Entries)");
-    }
-
-    private bool IsPointerInteractiveThisFrame()
-    {
-        // Gameplay strip: always capture (world + HUD in strip rect).
-        if (stripCamera && IsPointerInsideStrip())
-            return true;
-
-        // Expand background: full window is gameplay (sky extension), except real UI hits.
-        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
-        {
-            if (!allowlistOnlyOutsideStrip)
-                return !IsPointerOverUIRaycast();
-
-            return IsPointerOverAllowlistedCanvasOnly();
-        }
-
-        // No strip (Bootstrap / menus) or outside strip: UI raycasts only.
-        if (!allowlistOnlyOutsideStrip)
-            return IsPointerOverUIRaycast();
-
-        return IsPointerOverAllowlistedCanvasOnly();
-    }
-
-    private bool IsPointerOverAllowlistedCanvasOnly()
-    {
-        if (outsideStripBlockingCanvases == null || outsideStripBlockingCanvases.Length == 0)
-            return false;
-
-        if (!TryGetUiRaycastResults(out List<RaycastResult> results) || results.Count == 0)
-            return false;
-
-        foreach (var r in results)
-        {
-            foreach (var canvas in outsideStripBlockingCanvases)
-            {
-                if (!canvas)
-                    continue;
-                Transform hitT = r.gameObject.transform;
-                if (hitT == canvas.transform || hitT.IsChildOf(canvas.transform))
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Uses <see cref="StripCameraController"/> normalized rect when present, otherwise <see cref="Camera.pixelRect"/>.
-    /// </summary>
-    private bool IsPointerInsideStrip()
-    {
-        if (!stripCamera)
-            return false;
-
-        var ctrl = stripCamera.GetComponent<StripCameraController>();
-        if (ctrl)
-        {
-            float w = ctrl.WidthNormalized * Screen.width;
-            float h = ctrl.StripHeightPercent * Screen.height;
-            float x = ctrl.LeftNormalized * Screen.width;
-            float y = ctrl.BottomNormalized * Screen.height;
-            return new Rect(x, y, w, h).Contains(Input.mousePosition);
-        }
-
-        return stripCamera.pixelRect.Contains(Input.mousePosition);
-    }
-
-    private static bool TryGetUiRaycastResults(out List<RaycastResult> results)
-    {
-        results = null;
-        if (EventSystem.current == null)
-            return false;
-
-        var pointerData = new PointerEventData(EventSystem.current)
-        {
-            position = Input.mousePosition
-        };
-
-        results = new List<RaycastResult>();
-        EventSystem.current.RaycastAll(pointerData, results);
-        return true;
-    }
-
-    private static bool IsPointerOverUIRaycast()
-    {
-        return TryGetUiRaycastResults(out var results) && results.Count > 0;
+        if (_raycastResults.Count > n)
+            Debug.Log($"  ... {_raycastResults.Count - n} more (raise Debug Max Raycast Entries)");
     }
 
     private static string GetTransformPath(Transform t, int maxDepth = 8)

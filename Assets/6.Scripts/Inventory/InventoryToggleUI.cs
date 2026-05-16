@@ -10,6 +10,8 @@ public class InventoryToggleUI : MonoBehaviour
     [Header("Merchant Mode")]
     [SerializeField] private GameObject merchantModeBanner;
 
+    private float _nextMerchantBannerRefreshTime;
+
     private MainMenuWindowUI GetMenu()
     {
         if (mainMenuWindowUI != null)
@@ -43,11 +45,20 @@ public class InventoryToggleUI : MonoBehaviour
 
     private void Update()
     {
+        if (Time.unscaledTime < _nextMerchantBannerRefreshTime)
+            return;
+
+        _nextMerchantBannerRefreshTime = Time.unscaledTime + 0.15f;
+        RefreshMerchantModeBanner();
+    }
+
+    private void RefreshMerchantModeBanner()
+    {
         if (!merchantModeBanner)
-            merchantModeBanner = FindSceneObjectByName("MerchantModeBanner");
+            return;
 
         MainMenuWindowUI menu = GetMenu();
-        if (!merchantModeBanner || menu == null)
+        if (!menu)
             return;
 
         if (!shopUI)
@@ -106,6 +117,8 @@ public class InventoryToggleUI : MonoBehaviour
             if (merchantModeBanner && !MerchantClick.MerchantModeOpen)
                 merchantModeBanner.SetActive(false);
         }
+
+        _nextMerchantBannerRefreshTime = 0f;
     }
 
     public void Open()
@@ -117,6 +130,8 @@ public class InventoryToggleUI : MonoBehaviour
 
         if (merchantModeBanner && !MerchantClick.MerchantModeOpen)
             merchantModeBanner.SetActive(false);
+
+        _nextMerchantBannerRefreshTime = 0f;
     }
 
     public void Close()
@@ -129,6 +144,7 @@ public class InventoryToggleUI : MonoBehaviour
 
         MerchantClick.ForceCloseMerchantMode();
         if (merchantModeBanner) merchantModeBanner.SetActive(false);
+
+        _nextMerchantBannerRefreshTime = 0f;
     }
 }
-

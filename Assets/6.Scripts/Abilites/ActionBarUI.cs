@@ -594,6 +594,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         return s;
     }
 
+    private float _nextSlotRuntimeRefreshTime;
+
     private void Update()
     {
         // Allow action bar hotkeys even when windows are open.
@@ -602,6 +604,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                                HotkeySettingsRowUI.IsRebinding ||
                                IsTypingIntoInputField() ||
                                Time.frameCount == HotkeySettingsRowUI.SuppressActionBarHotkeyPollFrame;
+
+        bool refreshRuntime = Time.unscaledTime >= _nextSlotRuntimeRefreshTime;
+        if (refreshRuntime)
+            _nextSlotRuntimeRefreshTime = Time.unscaledTime + 0.1f;
 
         for (int i = 0; i < slotBindings.Count; i++)
         {
@@ -616,7 +622,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 binding.slot.Press();
             }
 
-            RefreshSlotRuntime(binding.slot);
+            if (refreshRuntime)
+                RefreshSlotRuntime(binding.slot);
         }
 
         TryApplyPendingSavedState();

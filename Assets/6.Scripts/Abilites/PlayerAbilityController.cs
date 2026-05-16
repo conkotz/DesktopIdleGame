@@ -966,11 +966,11 @@ public class PlayerAbilityController : MonoBehaviour
         float baseWeaponRange = GetWhirlwindHitRadius();
         float radius = baseWeaponRange + (expansiveWhirl ? WhirlwindRadiusBonus : 0f);
 
-        EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        List<EnemyBaseController> targets = new List<EnemyBaseController>(allEnemies.Length);
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        List<EnemyBaseController> targets = new List<EnemyBaseController>(allEnemies.Count);
         float ownerX = transform.position.x;
         float ownerHalf = GetOwnerHalfWidthX();
-        for (int i = 0; i < allEnemies.Length; i++)
+        for (int i = 0; i < allEnemies.Count; i++)
         {
             EnemyBaseController enemy = allEnemies[i];
             if (!enemy || enemy.IsDead)
@@ -1057,13 +1057,13 @@ public class PlayerAbilityController : MonoBehaviour
 
     private List<(EnemyBaseController enemy, float dist)> CollectCrescentSlashForwardHits(float reach)
     {
-        EnemyBaseController[] allEnemies = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        List<(EnemyBaseController enemy, float dist)> forwardHits = new List<(EnemyBaseController enemy, float dist)>(allEnemies.Length);
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        List<(EnemyBaseController enemy, float dist)> forwardHits = new List<(EnemyBaseController enemy, float dist)>(allEnemies.Count);
         float facing = GetCombatFacingSign();
         Vector3 origin = transform.position;
         float laneWidth = Mathf.Max(0.6f, reach * 0.35f);
 
-        for (int i = 0; i < allEnemies.Length; i++)
+        for (int i = 0; i < allEnemies.Count; i++)
         {
             EnemyBaseController enemy = allEnemies[i];
             if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)

@@ -5,6 +5,8 @@ using UnityEngine;
 /// </summary>
 public static class ItemGainPopupNotifier
 {
+    private static ItemDatabase s_itemDatabase;
+
     public static void Notify(string itemId, int amount, bool purchased = false)
     {
         if (amount <= 0 || string.IsNullOrWhiteSpace(itemId))
@@ -12,8 +14,7 @@ public static class ItemGainPopupNotifier
 
         itemId = itemId.Trim();
 
-        ItemDatabase db = Object.FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
-        ItemDefinition def = db ? db.Get(itemId) : null;
+        ItemDefinition def = ResolveItemDatabase()?.Get(itemId);
 
         string label = ResolveLabel(def, itemId, amount);
         if (purchased)
@@ -29,8 +30,7 @@ public static class ItemGainPopupNotifier
 
         itemId = itemId.Trim();
 
-        ItemDatabase db = Object.FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
-        ItemDefinition def = db ? db.Get(itemId) : null;
+        ItemDefinition def = ResolveItemDatabase()?.Get(itemId);
 
         string label = ResolveLabel(def, itemId, amount);
         GameLog.ItemLost(label, amount);
@@ -43,9 +43,17 @@ public static class ItemGainPopupNotifier
             return "item";
 
         itemId = itemId.Trim();
-        ItemDatabase db = Object.FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
-        ItemDefinition def = db ? db.Get(itemId) : null;
+        ItemDefinition def = ResolveItemDatabase()?.Get(itemId);
         return ResolveLabel(def, itemId, amount);
+    }
+
+    private static ItemDatabase ResolveItemDatabase()
+    {
+        if (s_itemDatabase)
+            return s_itemDatabase;
+
+        s_itemDatabase = Object.FindFirstObjectByType<ItemDatabase>(FindObjectsInactive.Include);
+        return s_itemDatabase;
     }
 
     private static string ResolveLabel(ItemDefinition def, string itemId, int amount)

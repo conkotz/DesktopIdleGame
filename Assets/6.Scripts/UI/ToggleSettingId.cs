@@ -32,4 +32,10 @@ public enum ToggleSettingId
 
     /// <summary>When true, the dev FPS counter (<see cref="FpsDisplayText"/>) is visible.</summary>
     ShowFps = 11,
+
+    /// <summary>When true, the left HUD collapses automatically on <see cref="MapNodeType.Town"/> nodes.</summary>
+    MinimiseHudDisplayInTown = 12,
+
+    /// <summary>When true (default), offscreen direction markers are shown.</summary>
+    ShowOffscreenMarkers = 13,
 }

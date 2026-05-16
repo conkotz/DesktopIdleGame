@@ -365,11 +365,17 @@ public class SkillTreeViewUI : MonoBehaviour
         }
     }
 
+    private float _nextSkillTreePresentationRefreshTime;
+
     private void Update()
     {
         if (!isActiveAndEnabled || spawnedNodes.Count == 0)
             return;
 
+        if (Time.unscaledTime < _nextSkillTreePresentationRefreshTime)
+            return;
+
+        _nextSkillTreePresentationRefreshTime = Time.unscaledTime + 0.1f;
         RefreshSkillTreeAbilityStatePresentation();
     }
 

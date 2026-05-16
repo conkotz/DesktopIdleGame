@@ -145,6 +145,7 @@ public class EnemyOverheadUISpawner : MonoBehaviour
 
         overheadInstance = Instantiate(overheadPrefab, stripCanvas.transform);
         overheadInstance.transform.localScale = Vector3.one;
+        PlaceOverheadBehindStripUiFrame(overheadInstance.transform);
 
         overheadInstance.Bind(
             characterStats,
@@ -163,6 +164,18 @@ public class EnemyOverheadUISpawner : MonoBehaviour
 
         if (hpBarOnly)
             PlaceUnderLeftHud();
+    }
+
+    private void PlaceOverheadBehindStripUiFrame(Transform overheadTransform)
+    {
+        if (overheadTransform == null || stripCanvas == null)
+            return;
+
+        Transform uiFrame = stripCanvas.transform.Find("UI_Frame");
+        if (uiFrame == null)
+            return;
+
+        overheadTransform.SetSiblingIndex(uiFrame.GetSiblingIndex());
     }
 
     private void PlaceUnderLeftHud()

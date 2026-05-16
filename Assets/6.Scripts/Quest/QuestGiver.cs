@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -40,8 +41,25 @@ public class QuestGiver : MonoBehaviour
     private void OnEnable()
     {
         TryBindManager();
-        TrySubscribeInventoryAndStorage();
+        if (!TrySubscribeInventoryAndStorage())
+            StartCoroutine(RetrySubscribeInventoryRoutine());
         RefreshExclamationMark();
+    }
+
+    private IEnumerator RetrySubscribeInventoryRoutine()
+    {
+        for (int i = 0; i < 90; i++)
+        {
+            yield return null;
+            if (!isActiveAndEnabled)
+                yield break;
+
+            if (TrySubscribeInventoryAndStorage())
+            {
+                RefreshExclamationMark();
+                yield break;
+            }
+        }
     }
 
     private void OnDisable()
@@ -61,9 +79,6 @@ public class QuestGiver : MonoBehaviour
             TryBindManager();
             RefreshExclamationMark();
         }
-
-        if (TrySubscribeInventoryAndStorage())
-            RefreshExclamationMark();
     }
 
     private void TryBindManager()

@@ -336,10 +336,14 @@ public class EnemyBaseController : MonoBehaviour
             AliveEnemyCount++;
             _countedAlive = true;
         }
+
+        CombatEnemyRegistry.Register(this);
     }
 
     private void OnDisable()
     {
+        CombatEnemyRegistry.Unregister(this);
+
         LevelAggroState.AggroPulseTriggered -= HandleAggroPulseTriggered;
 
         if (stats != null)
@@ -1002,6 +1006,8 @@ public class EnemyBaseController : MonoBehaviour
         state = EnemyState.Dead;
         _hitQueued = false;
         _queuedHitCommitted = false;
+
+        CombatEnemyRegistry.Unregister(this);
 
         ClearEngagement();
         StopHorizontal();

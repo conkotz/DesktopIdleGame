@@ -83,6 +83,8 @@ public class InventorySlotUI : MonoBehaviour,
     private string _itemId;
     private int _amount;
 
+    public int SlotIndex => _slotIndex;
+
     private GameObject _dragIconGO;
     private RectTransform _dragIconRT;
     private Image _dragIconImage;
@@ -122,6 +124,13 @@ public class InventorySlotUI : MonoBehaviour,
 
         if (!player)
             player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+
+        AutoBattleLootHighlight.RegisterInventorySlotUi(this);
+    }
+
+    private void OnDestroy()
+    {
+        AutoBattleLootHighlight.UnregisterInventorySlotUi(this);
     }
 
     public static class InputUtil

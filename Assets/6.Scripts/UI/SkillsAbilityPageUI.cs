@@ -159,19 +159,6 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         UnhookTreeGlowAcknowledge();
     }
 
-    private void LateUpdate()
-    {
-        if (!isActiveAndEnabled)
-            return;
-
-        PreferRuntimeSkillsManager();
-        TrySubscribeSkillsEvents();
-        if (!skillsManager)
-            return;
-
-        RefreshAllEntryLevels();
-    }
-
     /// <summary>
     /// Menu prefabs often serialize a scene SkillsManager; the real progression lives on <see cref="SkillsManager.Instance"/> (DontDestroyOnLoad).
     /// </summary>
@@ -218,6 +205,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         skillsManager.OnLevelUp += HandleSkillsLevelUp;
         skillsManager.OnSkillLevelDecreased += HandleSkillsLevelUp;
+        skillsManager.OnXpGained += HandleSkillsXpGained;
         skillsManager.OnSkillChoiceSelectionChanged += HandleSkillChoiceSelectionChanged;
         skillsManager.OnSkillAbilityRowPickChanged += HandleSkillAbilityRowPickChanged;
         _skillsEventsSubscribed = true;
@@ -228,6 +216,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (!skillsManager) return;
         skillsManager.OnLevelUp -= HandleSkillsLevelUp;
         skillsManager.OnSkillLevelDecreased -= HandleSkillsLevelUp;
+        skillsManager.OnXpGained -= HandleSkillsXpGained;
         skillsManager.OnSkillChoiceSelectionChanged -= HandleSkillChoiceSelectionChanged;
         skillsManager.OnSkillAbilityRowPickChanged -= HandleSkillAbilityRowPickChanged;
         _skillsEventsSubscribed = false;
@@ -237,6 +226,14 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     /// Refresh skills UI only when a level changes.
     /// This avoids rebuilding the tree every combat XP tick (which hides hover tooltips).
     /// </summary>
+    private void HandleSkillsXpGained(SkillType type, int amount, string source)
+    {
+        if (!isActiveAndEnabled || amount <= 0)
+            return;
+
+        RefreshEntryLevelForSkill(type);
+    }
+
     private void HandleSkillsLevelUp(SkillType type, int newLevel)
     {
         // Same frame: SkillsManager already appended to cold-start; take ownership into this instance so tab
@@ -318,6 +315,22 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void RefreshAllEntryLevels()
     {
+        RefreshEntryLevelsIn(gatheringContent);
+        RefreshEntryLevelsIn(combatContent);
+    }
+
+    private void RefreshEntryLevelForSkill(SkillType type)
+    {
+        if (!skillsManager)
+            return;
+
+        if (_entryBySkillType.TryGetValue(type, out SkillListEntryUI entry) && entry != null && entry.Definition != null)
+        {
+            entry.SetLevel(skillsManager.GetLevel(type));
+            entry.SetProgress(skillsManager.GetProgress01(type));
+            return;
+        }
+
         RefreshEntryLevelsIn(gatheringContent);
         RefreshEntryLevelsIn(combatContent);
     }
