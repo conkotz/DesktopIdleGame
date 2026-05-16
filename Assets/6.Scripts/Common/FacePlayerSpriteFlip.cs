@@ -1,5 +1,13 @@
 using UnityEngine;
 
+public enum FacePlayerMode
+{
+    [Tooltip("Face the player while they are within Face Player Range X.")]
+    WhenInRange = 0,
+    [Tooltip("Face only while dialogue or this merchant's shop is open (not while walk-to-click is pending).")]
+    WhenEngaged = 1,
+}
+
 /// <summary>
 /// Faces a 2D character toward the player using the same scale-x flip as <see cref="EnemyBaseController.FaceTargetX"/>.
 /// While the player is within <see cref="facePlayerRangeX"/>, facing updates only when they move to the opposite side
@@ -10,6 +18,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class FacePlayerSpriteFlip : MonoBehaviour
 {
+    [SerializeField] private FacePlayerMode faceMode = FacePlayerMode.WhenInRange;
+
     [Tooltip("Sprites to mirror (enemy visualsRoot analogue). Leave empty to use direct child named Visuals, else this transform.")]
     [SerializeField] private Transform flipTarget;
 
@@ -39,6 +49,8 @@ public sealed class FacePlayerSpriteFlip : MonoBehaviour
     /// <summary>Committed side: player left of this transform in X (same sign as dx = px - myX).</summary>
     private bool _latchedPlayerOnLeft;
 
+    private bool _wasEngaged;
+
     private void Awake()
     {
         if (!flipTarget)
@@ -60,11 +72,18 @@ public sealed class FacePlayerSpriteFlip : MonoBehaviour
         if (!_playerTf)
             return;
 
-        float distX = DistanceToPlayerX();
-        if (distX > facePlayerRangeX)
+        if (!ShouldUpdateFacing())
         {
+            if (faceMode == FacePlayerMode.WhenEngaged)
+                _wasEngaged = false;
             UnmirrorUiRoots();
             return;
+        }
+
+        if (faceMode == FacePlayerMode.WhenEngaged && !_wasEngaged)
+        {
+            _wasEngaged = true;
+            _hasLatchedSide = false;
         }
 
         float myX = transform.position.x;
@@ -95,6 +114,24 @@ public sealed class FacePlayerSpriteFlip : MonoBehaviour
         flipDeadZoneWorld = Mathf.Max(0f, flipDeadZoneWorld);
     }
 #endif
+
+    private bool ShouldUpdateFacing()
+    {
+        if (faceMode == FacePlayerMode.WhenEngaged)
+            return IsEngagedWithPlayer();
+
+        return DistanceToPlayerX() <= facePlayerRangeX;
+    }
+
+    private bool IsEngagedWithPlayer()
+    {
+        NPCInteractionSettings settings = GetComponentInParent<NPCInteractionSettings>();
+        if (settings != null)
+            return settings.IsEngagedWithPlayer();
+
+        MerchantClick merchant = GetComponentInParent<MerchantClick>();
+        return merchant != null && merchant.IsShopEngagedWithPlayer();
+    }
 
     private float DistanceToPlayerX()
     {

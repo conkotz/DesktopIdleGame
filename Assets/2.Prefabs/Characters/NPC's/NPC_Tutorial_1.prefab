@@ -222,6 +222,8 @@ MonoBehaviour:
   exclamationMarkLocalOffset: {x: 0, y: 0.75, z: 0}
   generatedExclamationMarkSize: 0.2
   exclamationMarkColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  markerSortingOrderOffset: 5
+  markerSortingLayerFallback: Characters
 --- !u!114 &882000000000000001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -513,9 +515,9 @@ MeshRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingLayerID: 713773537
+  m_SortingLayer: 4
+  m_SortingOrder: 3
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!114 &3195782117559173001

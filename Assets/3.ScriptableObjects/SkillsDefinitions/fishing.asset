@@ -105,13 +105,13 @@ MonoBehaviour:
     - requiredLevel: 8
       title: Sturdy Grip
       description: +15% Fishing Stamina Efficiency during Fishing Frenzy.
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 8
       title: Iron Grit
       description: +5% Fishing Grit Chance during Fishing Frenzy.
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 6
@@ -280,18 +280,19 @@ MonoBehaviour:
     - requiredLevel: 18
       title: Tidal Recovery
       description: +10% max stamina restored when a spot depletion skip triggers.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Deep Runs
       description: +10% Spot Depletion Skip Chance.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 15
     title: Powered Reel
-    description: When Fishing Grit procs, 15% chance to gain an extra fish on the main catch roll.
+    description: When Fishing Grit procs, 15% chance to gain an extra fish on the
+      main catch roll.
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -308,21 +309,21 @@ MonoBehaviour:
     - requiredLevel: 18
       title: Tight Line
       description: +10% Bonus Find Chance when Fishing Grit procs.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Double Haul
       description: +5% extra fish chance when Fishing Grit procs.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 15
     title: Calm Waters
-    description: 'While fishing the same spot, gain 1 Calm stack every 4 seconds (up to 5).
+    description: 'While fishing the same spot, gain 1 Calm stack every 4 seconds
+      (up to 5).
 
-      Each
-      stack: +2% Fishing Speed and +1% Bonus Find Chance.'
+      Each stack: +2% Fishing Speed and +1% Bonus Find Chance.'
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -338,14 +339,15 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Lasting Waters
-      description: When you stop fishing, lose 1 Calm stack every 2 seconds instead of losing all stacks at once.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      description: When you stop fishing, lose 1 Calm stack every 2 seconds instead
+        of losing all stacks at once.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Deep Waters
       description: Max Calm stacks increased to 7.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 16
@@ -495,7 +497,7 @@ MonoBehaviour:
   - requiredLevel: 25
     title: Fishing Ability Placeholder 2
     description: Placeholder ability row for fishing.
-    icon: {fileID: -2187047416192554098, guid: b78a90acb5575bd4ba76c6522ffef883, type: 3}
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0

@@ -25,6 +25,10 @@ public class QuestGiver : MonoBehaviour
     [SerializeField] private Vector3 exclamationMarkLocalOffset = new(0f, 0.75f, 0f);
     [SerializeField] private float generatedExclamationMarkSize = 0.2f;
     [SerializeField] private Color exclamationMarkColor = Color.yellow;
+    [Tooltip("Draws above the host sprite on the same sorting layer. Uses the host SpriteRenderer layer when present.")]
+    [SerializeField] private int markerSortingOrderOffset = 5;
+    [Tooltip("Used only when no SpriteRenderer is found on this object. NPC bodies use Characters.")]
+    [SerializeField] private string markerSortingLayerFallback = "Characters";
 
     private GameObject _exclamationMarkInstance;
     private QuestProgressManager _manager;
@@ -317,6 +321,7 @@ public class QuestGiver : MonoBehaviour
         if (_exclamationMarkInstance)
         {
             PositionExclamationMark();
+            ApplyMarkerRendererSorting();
             ApplyMarkerGlyph(claimable);
             _exclamationMarkInstance.SetActive(show);
         }
@@ -345,6 +350,7 @@ public class QuestGiver : MonoBehaviour
         if (exclamationMarkPrefab)
         {
             _exclamationMarkInstance = Instantiate(exclamationMarkPrefab, transform);
+            ApplyMarkerRendererSorting();
             return;
         }
 
@@ -360,6 +366,73 @@ public class QuestGiver : MonoBehaviour
         text.fontSize = 96;
 
         _exclamationMarkInstance = go;
+        ApplyMarkerRendererSorting();
+    }
+
+    private void ApplyMarkerRendererSorting()
+    {
+        if (!_exclamationMarkInstance)
+            return;
+
+        ResolveHostSpriteSorting(out int layerId, out int baseOrder);
+        int order = baseOrder + Mathf.Max(1, markerSortingOrderOffset);
+
+        MeshRenderer[] renderers = _exclamationMarkInstance.GetComponentsInChildren<MeshRenderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            MeshRenderer renderer = renderers[i];
+            if (!renderer)
+                continue;
+            renderer.sortingLayerID = layerId;
+            renderer.sortingOrder = order;
+        }
+    }
+
+    private void ResolveHostSpriteSorting(out int layerId, out int baseOrder)
+    {
+        SpriteRenderer hostSprite = FindPrimaryHostSpriteRenderer();
+        if (hostSprite)
+        {
+            layerId = hostSprite.sortingLayerID;
+            baseOrder = hostSprite.sortingOrder;
+            return;
+        }
+
+        layerId = ResolveFallbackMarkerSortingLayerId();
+        baseOrder = 0;
+    }
+
+    private SpriteRenderer FindPrimaryHostSpriteRenderer()
+    {
+        SpriteRenderer best = null;
+        SpriteRenderer[] sprites = GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < sprites.Length; i++)
+        {
+            SpriteRenderer sr = sprites[i];
+            if (!sr || !sr.gameObject.activeInHierarchy)
+                continue;
+            if (!best || sr.sortingOrder >= best.sortingOrder)
+                best = sr;
+        }
+
+        return best;
+    }
+
+    private int ResolveFallbackMarkerSortingLayerId()
+    {
+        if (!string.IsNullOrWhiteSpace(markerSortingLayerFallback))
+        {
+            int named = SortingLayer.NameToID(markerSortingLayerFallback.Trim());
+            if (named != 0)
+                return named;
+        }
+
+        int characters = SortingLayer.NameToID("Characters");
+        if (characters != 0)
+            return characters;
+
+        int interactables = SortingLayer.NameToID("Interactables");
+        return interactables != 0 ? interactables : 0;
     }
 
     private void PositionExclamationMark()

@@ -43,29 +43,31 @@ MonoBehaviour:
   - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
-      spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 173c71a94c3294249993cfc7b76051c9, type: 2}
-      prefab: {fileID: 0}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 12
-      portalTargetMapNodeId: 
-    shuffleSpawnPoints: 1
-  - groupId: AllSpawns
-    spawns:
-    - spawnPointGroupId: 
       spawnPointName: SpawnPoint30
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 8347273920747777605, guid: a0bba137548b65543be76ed5f1317dd0, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
       portalTargetMapNodeId: 
     shuffleSpawnPoints: 0
+  - groupId: AllSpawns
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: 173c71a94c3294249993cfc7b76051c9, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 12
+      portalTargetMapNodeId: 
+    shuffleSpawnPoints: 1
   requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0

@@ -389,6 +389,22 @@ public class NPCInteractionSettings : MonoBehaviour
         return quests.Count > 0;
     }
 
+    /// <summary>
+    /// True while this NPC's dialogue/quest box is open, or this object's merchant shop is open.
+    /// Used by <see cref="FacePlayerSpriteFlip"/> in <see cref="FacePlayerMode.WhenEngaged"/> mode.
+    /// </summary>
+    public bool IsEngagedWithPlayer()
+    {
+        if (NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
+            return true;
+
+        MerchantClick merchant = GetComponent<MerchantClick>();
+        if (!merchant)
+            merchant = GetComponentInChildren<MerchantClick>(true);
+
+        return merchant != null && merchant.IsShopEngagedWithPlayer();
+    }
+
     public void Interact()
     {
         if (!walkPlayerToNpcOnClick)

@@ -63,12 +63,17 @@ public class LevelSelectListViewUI : MonoBehaviour
     [SerializeField] private TMP_Text selectedNodeContainsEnemiesText;
     [FormerlySerializedAs("selectedNodeContainsText")]
     [SerializeField] private TMP_Text selectedNodeContainsOtherText;
+    [SerializeField] private TMP_Text selectedNodeEnterConditionText;
     [SerializeField] private Button enterNodeButton;
+    [SerializeField] private TMP_Text enterNodeButtonLabel;
+    [SerializeField] private string enterNodeEnabledText = "Enter map \u2192";
+    [SerializeField] private string enterNodeBlockedText = "Cant Teleport";
     [Header("Details layout (dynamic height)")]
     [SerializeField] private float minDescriptionHeight = 24f;
     [SerializeField] private float minRequirementsHeight = 20f;
     [SerializeField] private float minRequirementsCounterHeight = 20f;
     [SerializeField] private float minContainsLineHeight = 20f;
+    [SerializeField] private float minEnterConditionLineHeight = 20f;
     [SerializeField] private float dynamicTextBottomPadding = 2f;
 
     [Header("Presentation swap")]
@@ -97,6 +102,8 @@ public class LevelSelectListViewUI : MonoBehaviour
 
     private WorldMapProgressManager _progressEventsTarget;
     private SkillsManager _skillsLevelEventsTarget;
+
+    private readonly EnterNodeButtonPresenter.Cache _enterNodeButtonCache = new();
 
     private void Awake()
     {
@@ -634,13 +641,17 @@ public class LevelSelectListViewUI : MonoBehaviour
 
         RefreshRequirementsBlock(n);
         RefreshNodeContainsSummary(n);
+        RefreshEnterConditionText(n, regionUnlocked, progress, skills);
 
         bool canEnterFromMenu = n && n.CanEnterFromLevelMenu(progress, skills);
-        if (enterNodeButton)
-        {
-            enterNodeButton.gameObject.SetActive(n != null);
-            enterNodeButton.interactable = canEnterFromMenu;
-        }
+        EnterNodeButtonPresenter.Refresh(
+            enterNodeButton,
+            enterNodeButtonLabel,
+            _enterNodeButtonCache,
+            enterNodeEnabledText,
+            enterNodeBlockedText,
+            n != null,
+            canEnterFromMenu);
 
         ApplyPanelThemeColors(n);
         RefreshDetailsScrollLayout(n);
@@ -752,6 +763,27 @@ public class LevelSelectListViewUI : MonoBehaviour
         }
     }
 
+    private void RefreshEnterConditionText(
+        MapNodeDefinition n,
+        bool regionUnlocked,
+        WorldMapProgressManager progress,
+        SkillsManager skills)
+    {
+        if (!selectedNodeEnterConditionText)
+            return;
+
+        if (!n || !regionUnlocked)
+        {
+            selectedNodeEnterConditionText.text = "";
+            selectedNodeEnterConditionText.gameObject.SetActive(false);
+            return;
+        }
+
+        string line = n.GetEnterConditionDisplayText(progress, skills);
+        selectedNodeEnterConditionText.text = line;
+        selectedNodeEnterConditionText.gameObject.SetActive(!string.IsNullOrEmpty(line));
+    }
+
     private void RefreshDetailsScrollLayout(MapNodeDefinition node)
     {
         ResolveDetailsScrollRefs();
@@ -799,6 +831,7 @@ public class LevelSelectListViewUI : MonoBehaviour
         EnsureDynamicTextHeight(selectedNodeContainsNpcMerchantsText, minContainsLineHeight);
         EnsureDynamicTextHeight(selectedNodeContainsEnemiesText, minContainsLineHeight);
         EnsureDynamicTextHeight(selectedNodeContainsOtherText, minContainsLineHeight);
+        EnsureDynamicTextHeight(selectedNodeEnterConditionText, minEnterConditionLineHeight);
     }
 
     private void EnsureDynamicTextHeight(TMP_Text text, float minHeight)

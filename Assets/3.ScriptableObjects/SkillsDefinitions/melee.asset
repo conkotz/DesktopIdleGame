@@ -378,13 +378,13 @@ MonoBehaviour:
       title: Twin Cyclone
       description: "If Whirlwind hits an enemy, hit all enemies a second time for
         20% of the first attacks damage. \nCan apply on ailments."
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Expansive Whirl
       description: Increase Whirlwind radius by +3.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 15
@@ -408,13 +408,13 @@ MonoBehaviour:
     - requiredLevel: 18
       title: Greater Cleave
       description: Cleaving Strikes hits 2 enemies, but only for 5 seconds or 3 hits.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Lasting Momentum
       description: Cleaving Strikes lasts for 10 seconds or 6 hits.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 15
@@ -439,13 +439,13 @@ MonoBehaviour:
       title: Elemental Crescent
       description: Crescent Slash now converts 50% Physical to random element and
         applies the associated ailment.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Penetrating Crescent
       description: Crescent Slash now hits all enemies in its path.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 16
@@ -828,14 +828,14 @@ MonoBehaviour:
         the original summon scaling, then further reduces inherited damage by 25%.
         Recast to collapse them onto your current target, or find new targets if
         you have none.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 38
       title: Indefinite
       description: 'Soulforged Weapon persists indefinitely, keeping its original
         behavior. '
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 36

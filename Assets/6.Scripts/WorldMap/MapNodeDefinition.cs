@@ -734,6 +734,23 @@ public class MapNodeDefinition : ScriptableObject
         return CanEnter(progress, skills) && !entranceOnlyAccess;
     }
 
+    public const string EnterConditionTeleportAvailable = "Teleport to map available";
+    public const string EnterConditionUnavailable = "Unavailable until requirements are met";
+    public const string EnterConditionEntranceOnly =
+        "Access to map available only from entrance (teleport unavailable)";
+
+    /// <summary>Level select / world map details — how this node can be entered from the menu.</summary>
+    public string GetEnterConditionDisplayText(WorldMapProgressManager progress, SkillsManager skills)
+    {
+        if (!CanEnter(progress, skills))
+            return EnterConditionUnavailable;
+
+        if (entranceOnlyAccess)
+            return EnterConditionEntranceOnly;
+
+        return EnterConditionTeleportAvailable;
+    }
+
     /// <summary>
     /// Short label for list/detail: map/skill lock, Unlocked, Cleared (gated one-shot retired), or Completed.
     /// </summary>

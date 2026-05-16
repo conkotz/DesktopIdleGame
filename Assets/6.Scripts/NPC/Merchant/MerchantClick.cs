@@ -27,6 +27,13 @@ public class MerchantClick : MonoBehaviour
     public static bool MerchantModeOpen { get; private set; }
     public static bool IsShopOpen => _active != null && _active.shopUI != null && _active.shopUI.IsOpen;
 
+    /// <summary>True when this merchant's shop UI is open (not while the player is only walking toward them).</summary>
+    public bool IsShopEngagedWithPlayer()
+    {
+        CacheRefs();
+        return _active == this && shopUI != null && shopUI.IsOpen;
+    }
+
     // Tracks which merchant is currently "active" for shop mode and switching merchants.
     private static MerchantClick _active;
     private static MerchantClick _pendingOpen;

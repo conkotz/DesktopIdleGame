@@ -39,6 +39,14 @@ public class NpcIdentity : MonoBehaviour
         ApplyIdentityToLabel();
     }
 
+    public void RegisterNameLabel(TMP_Text label)
+    {
+        if (label)
+            nameLabel = label;
+    }
+
+    public void RefreshNameLabel() => ApplyIdentityToLabel();
+
     private void ApplyIdentityToLabel()
     {
         if (!nameLabel)
@@ -47,39 +55,7 @@ public class NpcIdentity : MonoBehaviour
         if (!nameLabel)
             return;
 
-        nameLabel.textWrappingMode = TextWrappingModes.NoWrap;
-        nameLabel.overflowMode = TextOverflowModes.Overflow;
-        nameLabel.alignment = TextAlignmentOptions.Center;
-        nameLabel.richText = true;
-        nameLabel.fontStyle = FontStyles.Normal;
-        nameLabel.text = BuildNameLabelText();
-    }
-
-    private string BuildNameLabelText()
-    {
-        string person = CharacterDisplayName;
-        string r = string.IsNullOrWhiteSpace(role) ? "" : role.Trim();
-
-        if (string.IsNullOrWhiteSpace(person))
-            return string.IsNullOrWhiteSpace(r)
-                ? ""
-                : $"<size=85%>{EscapeRichText(r)}</size>";
-
-        if (string.IsNullOrWhiteSpace(r))
-            return $"<b>{EscapeRichText(person)}</b>";
-
-        return $"<b>{EscapeRichText(person)}</b>\n<size=85%>{EscapeRichText(r)}</size>";
-    }
-
-    private static string EscapeRichText(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return "";
-
-        return value
-            .Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;");
+        NpcNameLabelFormatting.Apply(nameLabel, CharacterDisplayName, RoleDisplayLabel);
     }
 
     private TMP_Text FindNameLabel()

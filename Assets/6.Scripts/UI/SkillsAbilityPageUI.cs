@@ -71,6 +71,18 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     [Tooltip("Padding inside right abilities list content.")]
     [SerializeField] private RectOffset abilityListPadding;
 
+    [Header("Dev — completion progress banner (testers)")]
+    [SerializeField] private GameObject completionProgressBannerRoot;
+    [SerializeField] private Image completionProgressBannerBackground;
+    [SerializeField] private TMP_Text completionProgressText;
+    [Tooltip("Per-skill completion tier shown when that skill is selected. Update manually as you build content.")]
+    [SerializeField] private List<SkillDevCompletionEntry> skillDevCompletionTiers = new();
+    [SerializeField] private Color devTierVeryIncompleteColor = new Color(0.82f, 0.22f, 0.22f, 0.45f);
+    [SerializeField] private Color devTierPartiallyCompleteColor = new Color(0.22f, 0.42f, 0.88f, 0.45f);
+    [SerializeField] private Color devTierCompleteColor = new Color(0.22f, 0.72f, 0.32f, 0.45f);
+
+    private readonly Dictionary<SkillType, SkillDevCompletionTier> _devTierBySkill = new();
+
     private SkillDefinition _selectedSkill;
     private Coroutine _deferredRefreshRoutine;
     private bool _loggedMissingRefs;
@@ -99,6 +111,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         ValidateRefsOnce();
         EnsureCenterTreeReference();
         EnsureRightPanelLayoutConfigured();
+        RebuildDevCompletionTierLookup();
         TrySubscribeSkillsEvents();
         HookTreeGlowAcknowledge();
     }
@@ -117,6 +130,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         RebuildSkillList();
         RefreshView();
         ReplayPendingGlowForVisibleUi();
+        RefreshDevCompletionBanner();
         // Layout / tree bootstrap order: one frame later matches level-up deferred refresh so center tree + ability rows match the selected skill on first open.
         ScheduleDeferredProgressRefresh();
     }
@@ -128,7 +142,16 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             StopCoroutine(_deferredRefreshRoutine);
             _deferredRefreshRoutine = null;
         }
+
+        SetDevCompletionBannerVisible(false);
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        RebuildDevCompletionTierLookup();
+    }
+#endif
 
     private void OnDestroy()
     {
@@ -326,6 +349,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (centerSkillTreeView) centerSkillTreeView.SetSkill(_selectedSkill);
         RefreshView();
         RefreshListSelection();
+        RefreshDevCompletionBanner();
 
         ActionBarUI gatherBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         if (gatherBar != null)
@@ -355,6 +379,75 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             skillsManager.SetActiveXpDisplay(skill.skillType, "");
 
         SelectSkill(skill);
+    }
+
+    private void RebuildDevCompletionTierLookup()
+    {
+        _devTierBySkill.Clear();
+        if (skillDevCompletionTiers == null)
+            return;
+
+        for (int i = 0; i < skillDevCompletionTiers.Count; i++)
+        {
+            SkillDevCompletionEntry entry = skillDevCompletionTiers[i];
+            _devTierBySkill[entry.skill] = entry.tier;
+        }
+    }
+
+    private SkillDevCompletionTier GetDevCompletionTier(SkillType skillType)
+    {
+        if (_devTierBySkill.TryGetValue(skillType, out SkillDevCompletionTier tier))
+            return tier;
+        return SkillDevCompletionTier.VeryIncomplete;
+    }
+
+    private void RefreshDevCompletionBanner()
+    {
+        if (!completionProgressBannerRoot && !completionProgressBannerBackground && !completionProgressText)
+            return;
+
+        SetDevCompletionBannerVisible(true);
+
+        if (_selectedSkill == null)
+        {
+            ApplyDevCompletionTierPresentation(SkillDevCompletionTier.VeryIncomplete);
+            return;
+        }
+
+        ApplyDevCompletionTierPresentation(GetDevCompletionTier(_selectedSkill.skillType));
+    }
+
+    private void SetDevCompletionBannerVisible(bool visible)
+    {
+        if (completionProgressBannerRoot)
+            completionProgressBannerRoot.SetActive(visible);
+    }
+
+    private void ApplyDevCompletionTierPresentation(SkillDevCompletionTier tier)
+    {
+        Color background;
+        string message;
+        switch (tier)
+        {
+            case SkillDevCompletionTier.PartiallyComplete:
+                background = devTierPartiallyCompleteColor;
+                message = "Skill is partially complete";
+                break;
+            case SkillDevCompletionTier.Complete:
+                background = devTierCompleteColor;
+                message = "Skill is mostly complete";
+                break;
+            default:
+                background = devTierVeryIncompleteColor;
+                message = "Skill is very incomplete";
+                break;
+        }
+
+        if (completionProgressBannerBackground)
+            completionProgressBannerBackground.color = background;
+
+        if (completionProgressText)
+            completionProgressText.text = message;
     }
 
     private bool IsActionOccurring()
@@ -582,6 +675,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             rightUnlocksText.text = BuildUnlocksDisplay(_selectedSkill, level, skillsManager, _passiveUnlockHighlightKey);
 
         RefreshAbilitiesPanel(_selectedSkill, level);
+        RefreshDevCompletionBanner();
     }
 
     private void HandleSkillEntryGlowAcknowledgedByHover(SkillDefinition def)
@@ -1672,4 +1766,11 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private static void AppendFishingLevel15EffectLines(StringBuilder sb, string majorTitle, string enhancementTitle) =>
         GatheringPassiveTooltipText.AppendMajorPassiveEffectLines(sb, SkillType.Fishing, majorTitle, enhancementTitle);
+}
+
+[Serializable]
+public struct SkillDevCompletionEntry
+{
+    public SkillType skill;
+    public SkillDevCompletionTier tier;
 }

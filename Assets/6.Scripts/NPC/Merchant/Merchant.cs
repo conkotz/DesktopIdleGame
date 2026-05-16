@@ -59,41 +59,24 @@ public class Merchant : MonoBehaviour, ISaveable
         ApplyIdentityToLabel();
     }
 
+    public void RegisterNameLabel(TMP_Text label)
+    {
+        if (label)
+            nameLabel = label;
+    }
+
+    public void RefreshNameLabel() => ApplyIdentityToLabel();
+
     private void ApplyIdentityToLabel()
     {
         if (!nameLabel)
             nameLabel = FindNameLabel();
 
-        if (nameLabel)
-        {
-            nameLabel.textWrappingMode = TextWrappingModes.NoWrap;
-            nameLabel.overflowMode = TextOverflowModes.Overflow;
-            nameLabel.alignment = TextAlignmentOptions.Center;
-            nameLabel.richText = true;
-            nameLabel.fontStyle = FontStyles.Normal;
-            nameLabel.text = BuildNameLabelText();
-        }
-    }
+        if (!nameLabel)
+            return;
 
-    private string BuildNameLabelText()
-    {
-        string person = string.IsNullOrWhiteSpace(characterName) ? "" : characterName.Trim();
         string role = string.IsNullOrWhiteSpace(merchantName) ? "Merchant" : merchantName.Trim();
-
-        return string.IsNullOrWhiteSpace(person)
-            ? $"<size=85%>{EscapeRichText(role)}</size>"
-            : $"<b>{EscapeRichText(person)}</b>\n<size=85%>{EscapeRichText(role)}</size>";
-    }
-
-    private static string EscapeRichText(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-            return "";
-
-        return value
-            .Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;");
+        NpcNameLabelFormatting.Apply(nameLabel, CharacterDisplayName, role);
     }
 
     private TMP_Text FindNameLabel()
