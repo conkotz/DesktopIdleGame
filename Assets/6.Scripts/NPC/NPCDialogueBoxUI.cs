@@ -104,6 +104,31 @@ public class NPCDialogueBoxUI : MonoBehaviour
         box._plainDialogueMode &&
         (!ActiveMultiOfferBoxes.Contains(box) || box._pinnedPlainHostForQuestSpread);
 
+    /// <summary>Active plain-dialogue host for <paramref name="npcRoot"/> when one is open and eligible for stacked quest offers.</summary>
+    public static bool TryGetPlainDialogueHostForNpc(Transform npcRoot, out NPCDialogueBoxUI host)
+    {
+        host = null;
+        if (!npcRoot || !ActiveDialogueIsDescendantOf(npcRoot))
+            return false;
+
+        if (_activeBox != null && IsEligiblePlainHostForStackedQuestOffers(_activeBox))
+        {
+            host = _activeBox;
+            return true;
+        }
+
+        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+        {
+            NPCDialogueBoxUI box = ActiveMultiOfferBoxes[i];
+            if (!IsEligiblePlainHostForStackedQuestOffers(box))
+                continue;
+            host = box;
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>True when this NPC still has an active plain+quest spread session (expanded or collapsed dialogue host).</summary>
     public static bool HasPinnedPlainQuestSpreadForNpc(Transform npcRoot)
     {

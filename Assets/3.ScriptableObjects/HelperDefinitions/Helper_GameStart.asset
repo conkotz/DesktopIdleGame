@@ -20,19 +20,18 @@ MonoBehaviour:
 
 
     Interacting with
-    an object such as this tree will allow you to gather logs from it. You can still
-    gather items without any tools but it will be slow. Gathering and using abilities
-    will use energy, while combat will benefit from have mor energy, gathering will
-    require you too increase your stamina efficiency.
+    an object such as this Splitewood tree will allow you to gather logs from it.
+    You can gather items without any tools but it will be slow. Gathering and using
+    abilities will use energy, while combat will benefit from having more energy,
+    gathering will require you too increase your stamina efficiency.
 
 
-    The game world can be
-    zoomed in or out by using the up and down arrow keys if you ever lose track of
-    your surroundings.
+    The game
+    world can be zoomed in or out by using the up and down arrow keys.
 
 
-    These help popups can be disabled and more can be adjusted
-    in the settings.'
+    These
+    help popups can be disabled and more can be adjusted in the settings.'
   activationTrigger: 1
   requiredMapNodeId: tutorial_1
   inventoryTriggerItemId: 

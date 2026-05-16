@@ -47,18 +47,14 @@ public class WindowToggleUI : MonoBehaviour
             return;
         }
 
-        bool wasOpen = menu.IsOpen;
-        menu.ToggleCharacter();
-
-        if (_toolbarButton != null && wasOpen && !menu.IsOpen)
-            _toolbarButton.Select();
+        menu.SelectTab(MainMenuTabId.Character);
     }
 
     public void Open()
     {
         MainMenuWindowUI menu = GetMenu();
         if (menu == null) return;
-        menu.OpenCharacter();
+        menu.SelectTab(MainMenuTabId.Character);
     }
 
     public void Close()

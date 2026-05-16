@@ -85,6 +85,7 @@ public class PlayerController : MonoBehaviour
     private bool _isDead;
     private Coroutine _deathRoutine;
     private Coroutine _deathPoseRoutine;
+    private Coroutine _deathRespawnRoutine;
     private MapNodeDefinition _pendingDeathRespawnNode;
 
     [Header("Death Respawn Popup (optional; auto-resolved by name if empty)")]
@@ -3897,50 +3898,74 @@ public class PlayerController : MonoBehaviour
 
     private void OnDeathPopupRespawnClicked()
     {
+        if (_deathRespawnRoutine != null)
+            return;
+
         if (deathPopupButton)
             deathPopupButton.interactable = false;
-        StartCoroutine(CoFadeAndRespawnToTown());
+        _deathRespawnRoutine = StartCoroutine(CoFadeAndRespawnToTown());
     }
 
     private IEnumerator CoFadeAndRespawnToTown()
     {
-        CanvasGroup fader = PlayerSpawnController.CreateOrResolveGameplayBlackFade();
-        if (fader != null)
+        try
         {
-            PlayerSpawnController.BringGameplayBlackFadeToFront(fader);
-            fader.alpha = 0f;
-            float t = 0f;
-            float dur = Mathf.Max(0.01f, deathRespawnFadeSeconds);
-            while (t < dur)
+            if (deathPopupWindow)
+                deathPopupWindow.SetActive(false);
+
+            CanvasGroup fader = PlayerSpawnController.CreateOrResolveGameplayBlackFade();
+            if (fader != null)
             {
-                t += Time.unscaledDeltaTime;
-                float k = Mathf.Clamp01(t / dur);
-                fader.alpha = Mathf.Lerp(0f, 1f, k);
-                yield return null;
+                PlayerSpawnController.BringGameplayBlackFadeToFront(fader);
+                fader.alpha = 0f;
+                float t = 0f;
+                float dur = Mathf.Max(0.01f, deathRespawnFadeSeconds);
+                while (t < dur)
+                {
+                    t += Time.unscaledDeltaTime;
+                    float k = Mathf.Clamp01(t / dur);
+                    if (!fader)
+                        fader = PlayerSpawnController.CreateOrResolveGameplayBlackFade();
+                    if (fader)
+                    {
+                        PlayerSpawnController.BringGameplayBlackFadeToFront(fader);
+                        fader.alpha = Mathf.Lerp(0f, 1f, k);
+                    }
+
+                    yield return null;
+                }
+
+                if (!fader)
+                    fader = PlayerSpawnController.CreateOrResolveGameplayBlackFade();
+                if (fader)
+                    fader.alpha = 1f;
             }
-            fader.alpha = 1f;
+
+            if (characterStats != null)
+                characterStats.ReviveFull();
+
+            ResetDeathStateForRespawnLoad();
+
+            MapNodeDefinition respawnNode = _pendingDeathRespawnNode != null
+                ? _pendingDeathRespawnNode
+                : ResolveDeathRespawnNode();
+            if (respawnNode != null)
+                ActiveLevelContext.SetPendingLevel(respawnNode, logToConsole: false);
+            else
+                Debug.LogWarning("[Player] Respawn town node could not be resolved; loading current GamePlay context.", this);
+
+            MainMenuWindowUI.CaptureOpenStateForSceneChange();
+            GameplayRespawnHelperPersistence.MarkKeepHelperOverlayAcrossNextGameplayLoad();
+            MapTravelSession.ClearPendingEntryMethod();
+            SaveSlotManager.SetPendingGameplaySpawnDisposition(SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
+            SaveSlotManager.MarkSkipApplySavedWorldPositionFromSaveOnce();
+            SaveManager.Instance?.SaveBeforeSceneTransition();
+            SceneManager.LoadScene(GameplaySceneName, LoadSceneMode.Single);
         }
-
-        if (characterStats != null)
-            characterStats.ReviveFull();
-
-        ResetDeathStateForRespawnLoad();
-
-        MapNodeDefinition respawnNode = _pendingDeathRespawnNode != null
-            ? _pendingDeathRespawnNode
-            : ResolveDeathRespawnNode();
-        if (respawnNode != null)
-            ActiveLevelContext.SetPendingLevel(respawnNode, logToConsole: false);
-        else
-            Debug.LogWarning("[Player] Respawn town node could not be resolved; loading current GamePlay context.", this);
-
-        MainMenuWindowUI.CaptureOpenStateForSceneChange();
-        GameplayRespawnHelperPersistence.MarkKeepHelperOverlayAcrossNextGameplayLoad();
-        MapTravelSession.ClearPendingEntryMethod();
-        SaveSlotManager.SetPendingGameplaySpawnDisposition(SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
-        SaveSlotManager.MarkSkipApplySavedWorldPositionFromSaveOnce();
-        SaveManager.Instance?.SaveBeforeSceneTransition();
-        SceneManager.LoadScene(GameplaySceneName, LoadSceneMode.Single);
+        finally
+        {
+            _deathRespawnRoutine = null;
+        }
     }
 
     private void ResetDeathStateForRespawnLoad()

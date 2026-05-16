@@ -149,6 +149,9 @@ public class NPCInteractionSettings : MonoBehaviour
 
     private Coroutine _deferredQuestAcceptedPlainDialogueRoutine;
 
+    /// <summary>While set, <see cref="HandleQuestProgressChangedForAutoDialogue"/> skips — <see cref="InteractNow"/> presents lines after claim on the same click.</summary>
+    private bool _presentDialogueAfterClaimOnThisInteract;
+
     /// <summary>When <see cref="oneWayDialogueQueueSaveId"/> is empty, one-way progress is kept in memory for this run only.</summary>
     private bool _sessionOneWayConditionalConsumed;
 
@@ -331,7 +334,10 @@ public class NPCInteractionSettings : MonoBehaviour
 
         // While death/respawn dialogue is still pending, the After Death row must stay in the evaluation window even
         // if chain progress was written by an older build or the box was dismissed before pending was cleared correctly.
-        if (NpcPostDeathRespawnDialogueStore.IsPending && HasAfterDeathConditionalEntry())
+        // Skip that reset when a turn-in is ready — claim runs first and advances the queue to the next row.
+        if (NpcPostDeathRespawnDialogueStore.IsPending &&
+            HasAfterDeathConditionalEntry() &&
+            !HasClaimableQuestAtGiver())
             return 0;
 
         int highest = GetHighestOneWayConditionalPresented();
@@ -530,14 +536,28 @@ public class NPCInteractionSettings : MonoBehaviour
 
         InvokeInteractionEffects();
 
-        // Ready quest reward would return here with no visible dialogue in some setups — never steal the click when
-        // post-death conditional dialogue still needs to show.
-        bool deferRewardClaimForDeathDialogue =
-            NpcPostDeathRespawnDialogueStore.IsPending && HasAfterDeathConditionalEntry();
-        if (!deferRewardClaimForDeathDialogue &&
-            questGiver != null &&
-            questGiver.TryClaimFirstReadyQuestReward())
-            return;
+        bool dialogueAlreadyOpenForThisNpc = NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform);
+
+        _presentDialogueAfterClaimOnThisInteract = true;
+        try
+        {
+            InteractNowAfterClaimGate(dialogueAlreadyOpenForThisNpc);
+        }
+        finally
+        {
+            _presentDialogueAfterClaimOnThisInteract = false;
+        }
+    }
+
+    private void InteractNowAfterClaimGate(bool dialogueAlreadyOpenForThisNpc)
+    {
+        bool claimedRewardThisClick = false;
+        if (TryClaimReadyQuestRewardBeforeDialogue(dialogueAlreadyOpenForThisNpc, out bool claimed))
+        {
+            claimedRewardThisClick = claimed;
+            if (IsQuestClaimStartingMapTravel())
+                return;
+        }
 
         List<QuestDefinition> quests =
             questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>();
@@ -555,7 +575,7 @@ public class NPCInteractionSettings : MonoBehaviour
         if (quests.Count == 0 && string.IsNullOrWhiteSpace(interactResolved))
         {
             MaybeLogPlainDialogueTapDiagnostics(quests.Count, "empty plain resolve (early exit)");
-            if (_activeDialogue)
+            if (_activeDialogue && !claimedRewardThisClick)
                 _activeDialogue.Hide();
             return;
         }
@@ -569,12 +589,9 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
 
         if (quests.Count > 0 &&
-            _activeDialogue &&
-            _activeDialogue.gameObject.activeInHierarchy &&
-            NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform) &&
-            NPCDialogueBoxUI.IsEligiblePlainHostForStackedQuestOffers(_activeDialogue))
+            NPCDialogueBoxUI.TryGetPlainDialogueHostForNpc(transform, out NPCDialogueBoxUI plainHost))
         {
-            _activeDialogue.StackQuestOffersBesidePlainDialogue(
+            plainHost.StackQuestOffersBesidePlainDialogue(
                 quests,
                 () => questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>(),
                 q => questGiver != null && questGiver.TryAcceptQuest(q),
@@ -582,10 +599,27 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
         }
 
-        if (NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform))
+        if (dialogueAlreadyOpenForThisNpc)
         {
-            MaybeLogPlainDialogueTapDiagnostics(quests.Count, "blocked: ActiveDialogueIsDescendantOf(this NPC)");
-            return;
+            if (!claimedRewardThisClick &&
+                questGiver != null &&
+                questGiver.TryClaimFirstReadyQuestReward())
+            {
+                claimedRewardThisClick = true;
+                if (IsQuestClaimStartingMapTravel())
+                    return;
+            }
+
+            if (!claimedRewardThisClick)
+            {
+                MaybeLogPlainDialogueTapDiagnostics(quests.Count, "blocked: ActiveDialogueIsDescendantOf(this NPC)");
+                return;
+            }
+
+            if (_activeDialogue)
+                _activeDialogue.Hide(suppressPlainDismissCallback: true);
+            dialogueAlreadyOpenForThisNpc = false;
+            quests = questGiver ? questGiver.GetAllAvailableQuests() : new List<QuestDefinition>();
         }
 
         NPCDialogueBoxUI box = GetOrCreateDialogueBox();
@@ -630,6 +664,30 @@ public class NPCInteractionSettings : MonoBehaviour
     }
 
     private void ShowNormalDialogueOnly(bool replaceExistingThisNpcDialogue)
+    {
+        if (!questGiver)
+            questGiver = GetComponent<QuestGiver>();
+
+        bool dialogueOpen = NPCDialogueBoxUI.ActiveDialogueIsDescendantOf(transform);
+        _presentDialogueAfterClaimOnThisInteract = true;
+        try
+        {
+            if (TryClaimReadyQuestRewardBeforeDialogue(dialogueOpen, out bool claimed) && claimed)
+            {
+                if (IsQuestClaimStartingMapTravel())
+                    return;
+                replaceExistingThisNpcDialogue = true;
+            }
+
+            ShowNormalDialogueOnlyCore(replaceExistingThisNpcDialogue);
+        }
+        finally
+        {
+            _presentDialogueAfterClaimOnThisInteract = false;
+        }
+    }
+
+    private void ShowNormalDialogueOnlyCore(bool replaceExistingThisNpcDialogue)
     {
         TryGetResolvedPlainDialogue(
             out string text,
@@ -729,6 +787,62 @@ public class NPCInteractionSettings : MonoBehaviour
         return false;
     }
 
+    private static bool IsQuestClaimStartingMapTravel()
+    {
+        PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (!player)
+            return false;
+
+        PlayerLevelTransition transition = player.GetComponent<PlayerLevelTransition>();
+        return transition != null && transition.PendingScaleRestore;
+    }
+
+    private bool HasClaimableQuestAtGiver()
+    {
+        if (!questGiver)
+            questGiver = GetComponent<QuestGiver>();
+        return questGiver != null && questGiver.GetFirstClaimableQuestAtLocation() != null;
+    }
+
+    /// <summary>
+    /// When a turn-in is ready, claim before any plain dialogue (walk-to-arrive, first sighting, or click).
+    /// Post-death lines are only prioritized when there is nothing to claim.
+    /// </summary>
+    private bool ShouldDeferRewardClaimForPostDeathDialogue(bool dialogueAlreadyOpenForThisNpc)
+    {
+        if (dialogueAlreadyOpenForThisNpc || HasClaimableQuestAtGiver())
+            return false;
+
+        return NpcPostDeathRespawnDialogueStore.IsPending && HasAfterDeathConditionalEntry();
+    }
+
+    private bool TryClaimReadyQuestRewardBeforeDialogue(bool dialogueAlreadyOpenForThisNpc, out bool claimed)
+    {
+        claimed = false;
+        if (ShouldDeferRewardClaimForPostDeathDialogue(dialogueAlreadyOpenForThisNpc))
+            return false;
+
+        if (!questGiver)
+            questGiver = GetComponent<QuestGiver>();
+        if (questGiver == null || !questGiver.TryClaimFirstReadyQuestReward())
+            return false;
+
+        claimed = true;
+        SupersedePostDeathDialogueAfterQuestTurnIn();
+        return true;
+    }
+
+    /// <summary>
+    /// After a turn-in at this NPC, do not replay the after-death row — advance to the next one-way conditional.
+    /// </summary>
+    private void SupersedePostDeathDialogueAfterQuestTurnIn()
+    {
+        if (!HasAfterDeathConditionalEntry() || !NpcPostDeathRespawnDialogueStore.IsPending)
+            return;
+
+        NpcPostDeathRespawnDialogueStore.ClearPendingAndSave();
+    }
+
     private void MaybeLogPlainDialogueTapDiagnostics(int questOfferCount, string reason)
     {
         if (!debugLogPlainDialogueResolution)
@@ -788,6 +902,9 @@ public class NPCInteractionSettings : MonoBehaviour
     private void HandleQuestProgressChangedForAutoDialogue()
     {
         if (!Application.isPlaying)
+            return;
+
+        if (_presentDialogueAfterClaimOnThisInteract)
             return;
 
         HandleAfterQuestAcceptedDialogue();
@@ -911,10 +1028,14 @@ public class NPCInteractionSettings : MonoBehaviour
         }
 
         int minIndex = GetOneWayChainMinimumConditionalIndexForEvaluation();
+        bool skipAfterDeathWhileClaimReady = HasClaimableQuestAtGiver();
         for (int i = minIndex; i < additionalConditionalDialogues.Count; i++)
         {
             NpcConditionalDialogueEntry e = additionalConditionalDialogues[i];
             if (e == null || string.IsNullOrWhiteSpace(e.dialogue))
+                continue;
+            if (skipAfterDeathWhileClaimReady &&
+                e.condition == NpcDialogueConditionKind.AfterDeathAndRespawn)
                 continue;
             if (!EvaluateConditionalEntry(e, mgr))
                 continue;
@@ -925,6 +1046,8 @@ public class NPCInteractionSettings : MonoBehaviour
             onAccept = built;
             winningEntry = e;
             winningConditionalIndex = i;
+            if (oneWayDialogueQueue)
+                break;
         }
 
         ApplyOneWayManualInteractBaseFallback(

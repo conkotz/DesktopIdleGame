@@ -71,6 +71,11 @@ public class UnitOverheadUI : MonoBehaviour
         "Optional minimum half-width (canvas px) for overlap tests. 0 = use measured rect + TMP bounds only. " +
         "Increase slightly if very narrow layouts fail to stack when enemies stand on the same spot.")]
     [SerializeField] private float stackMinClusteringHalfWidthPx = 0f;
+    [Tooltip(
+        "When two overheads are this close in canvas X, keep the previous left/right order instead of re-sorting every frame.")]
+    [SerializeField] private float stackSortHysteresisPx = 16f;
+    [Tooltip("Minimum time a new vertical stack lane must stay valid before the bar moves to it (reduces swap flicker).")]
+    [SerializeField] private float stackLaneChangeCooldownSeconds = 0.4f;
 
     private RectTransform canvasRect;
     private readonly List<GameObject> spawnedDebuffIcons = new();
@@ -90,6 +95,14 @@ public class UnitOverheadUI : MonoBehaviour
     private static bool s_canvasCallbackSubscribed;
     private static int s_lastStackResolveFrame = -1;
     private static readonly Dictionary<int, int> s_lastAssignedStackLaneByUiId = new();
+    private static readonly Dictionary<int, int> s_lastSortRankByUiId = new();
+    private static readonly Dictionary<int, PendingStackLane> s_pendingStackLaneByUiId = new();
+
+    private struct PendingStackLane
+    {
+        public int lane;
+        public float sinceUnscaledTime;
+    }
 
     private PlayerCombatController _playerCombatCache;
     private Image _clickBackingImage;
@@ -268,18 +281,7 @@ public class UnitOverheadUI : MonoBehaviour
                 activeIds.Add(ui.GetInstanceID());
         }
 
-        if (s_lastAssignedStackLaneByUiId.Count > 0)
-        {
-            var stale = new List<int>();
-            foreach (int id in s_lastAssignedStackLaneByUiId.Keys)
-            {
-                if (!activeIds.Contains(id))
-                    stale.Add(id);
-            }
-
-            for (int i = 0; i < stale.Count; i++)
-                s_lastAssignedStackLaneByUiId.Remove(stale[i]);
-        }
+        PruneStaleStackState(activeIds);
 
         for (int i = 0; i < candidates.Count; i++)
             candidates[i]._stackYOffset = 0f;
@@ -307,7 +309,10 @@ public class UnitOverheadUI : MonoBehaviour
             spans.Add((minX, maxX, candidates[i]));
         }
 
-        spans.Sort((a, b) => a.minX.CompareTo(b.minX));
+        float sortHysteresisPx = Mathf.Max(0f, candidates[0].stackSortHysteresisPx);
+        spans.Sort((a, b) => CompareSpansForStableSort(a.minX, b.minX, a.ui, b.ui, sortHysteresisPx));
+        for (int i = 0; i < spans.Count; i++)
+            s_lastSortRankByUiId[spans[i].ui.GetInstanceID()] = i;
 
         // Player compact HP bar(s) are fixed anchors: never move them and never let them affect
         // enemy lane assignment — enemy bars stack purely among themselves.
@@ -358,21 +363,139 @@ public class UnitOverheadUI : MonoBehaviour
             }
 
             if (laneIndex < 0)
-            {
                 laneIndex = laneLastMaxX.Count;
-                laneLastMaxX.Add(maxX);
-            }
-            else
-            {
-                laneLastMaxX[laneIndex] = maxX;
-            }
 
-            ui._stackYOffset = laneIndex * spacing;
-            s_lastAssignedStackLaneByUiId[uiId] = laneIndex;
+            int committedLane = CommitStackLaneWithCooldown(
+                ui,
+                uiId,
+                laneIndex,
+                minX,
+                maxX,
+                laneLastMaxX,
+                padding,
+                allowedOverlap);
+
+            ui._stackYOffset = committedLane * spacing;
+            s_lastAssignedStackLaneByUiId[uiId] = committedLane;
+
+            if (committedLane >= laneLastMaxX.Count)
+                laneLastMaxX.Add(maxX);
+            else
+                laneLastMaxX[committedLane] = Mathf.Max(laneLastMaxX[committedLane], maxX);
         }
 
         for (int i = 0; i < candidates.Count; i++)
             candidates[i].ApplyStackedPosition();
+    }
+
+    private static void PruneStaleStackState(HashSet<int> activeIds)
+    {
+        if (s_lastAssignedStackLaneByUiId.Count == 0 &&
+            s_lastSortRankByUiId.Count == 0 &&
+            s_pendingStackLaneByUiId.Count == 0)
+            return;
+
+        var stale = new List<int>();
+        foreach (int id in s_lastAssignedStackLaneByUiId.Keys)
+        {
+            if (!activeIds.Contains(id))
+                stale.Add(id);
+        }
+
+        for (int i = 0; i < stale.Count; i++)
+        {
+            int id = stale[i];
+            s_lastAssignedStackLaneByUiId.Remove(id);
+            s_lastSortRankByUiId.Remove(id);
+            s_pendingStackLaneByUiId.Remove(id);
+        }
+    }
+
+    private static int CompareSpansForStableSort(
+        float minXA,
+        float minXB,
+        UnitOverheadUI uiA,
+        UnitOverheadUI uiB,
+        float hysteresisPx)
+    {
+        float dx = minXA - minXB;
+        if (Mathf.Abs(dx) <= hysteresisPx)
+        {
+            int idA = uiA.GetInstanceID();
+            int idB = uiB.GetInstanceID();
+            bool hasA = s_lastSortRankByUiId.TryGetValue(idA, out int rankA);
+            bool hasB = s_lastSortRankByUiId.TryGetValue(idB, out int rankB);
+            if (hasA && hasB)
+                return rankA.CompareTo(rankB);
+            return idA.CompareTo(idB);
+        }
+
+        return dx < 0f ? -1 : (dx > 0f ? 1 : 0);
+    }
+
+    private static int CommitStackLaneWithCooldown(
+        UnitOverheadUI ui,
+        int uiId,
+        int computedLane,
+        float minX,
+        float maxX,
+        List<float> laneLastMaxX,
+        float padding,
+        float allowedOverlap)
+    {
+        if (!s_lastAssignedStackLaneByUiId.TryGetValue(uiId, out int previousLane) || previousLane == computedLane)
+        {
+            s_pendingStackLaneByUiId.Remove(uiId);
+            return computedLane;
+        }
+
+        float cooldown = Mathf.Max(0f, ui.stackLaneChangeCooldownSeconds);
+        if (cooldown <= 0f)
+        {
+            s_pendingStackLaneByUiId.Remove(uiId);
+            return computedLane;
+        }
+
+        if (!s_pendingStackLaneByUiId.TryGetValue(uiId, out PendingStackLane pending) || pending.lane != computedLane)
+            pending = new PendingStackLane { lane = computedLane, sinceUnscaledTime = Time.unscaledTime };
+
+        s_pendingStackLaneByUiId[uiId] = pending;
+
+        bool previousLaneStillFits = IsStackLaneAvailable(
+            previousLane,
+            minX,
+            maxX,
+            laneLastMaxX,
+            padding,
+            allowedOverlap);
+
+        if (!previousLaneStillFits)
+        {
+            s_pendingStackLaneByUiId.Remove(uiId);
+            return computedLane;
+        }
+
+        if (Time.unscaledTime - pending.sinceUnscaledTime >= cooldown)
+        {
+            s_pendingStackLaneByUiId.Remove(uiId);
+            return computedLane;
+        }
+
+        return previousLane;
+    }
+
+    private static bool IsStackLaneAvailable(
+        int lane,
+        float minX,
+        float maxX,
+        List<float> laneLastMaxX,
+        float padding,
+        float allowedOverlap)
+    {
+        if (lane < 0 || lane >= laneLastMaxX.Count)
+            return true;
+
+        return minX > laneLastMaxX[lane] + padding - allowedOverlap;
     }
 
     private static void WidenSpanForClusterMerge(float anchorCanvasX, float minHalfWidth, ref float minX, ref float maxX)

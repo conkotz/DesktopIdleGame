@@ -884,6 +884,20 @@ public class LevelSelectListViewUI : MonoBehaviour
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate(gameplaySceneName);
     }
 
+    /// <summary>Level-select list (regions / locations). Used by main-menu Levels tab.</summary>
+    public void ShowListPresentation()
+    {
+        LevelSelectSharedState.LastPresentation = LevelSelectSharedState.Presentation.List;
+        SetExtraRootsWorldMapVisibility(false);
+        if (worldMapPresentationRoot)
+            worldMapPresentationRoot.SetActive(false);
+        if (listPresentationRoot)
+            listPresentationRoot.SetActive(true);
+    }
+
+    /// <summary>Full map graph view (<c>FullMapPage</c>). Used by main-menu World Map tab.</summary>
+    public void ShowWorldMapPresentation() => OpenWorldMapView();
+
     private void OpenWorldMapView()
     {
         if (!worldMapPresentationRoot)

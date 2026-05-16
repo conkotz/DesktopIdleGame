@@ -13,6 +13,7 @@ public class MainMenuWindowUI : MonoBehaviour
         Character,
         SkillsAbilities,
         LevelSelect,
+        LevelSelectWorldMap,
         Quest,
         Settings
     }
@@ -82,6 +83,7 @@ public class MainMenuWindowUI : MonoBehaviour
     [SerializeField] private string skillsTitle = "Skills & Abilities";
     [FormerlySerializedAs("worldMapTitle")]
     [SerializeField] private string levelSelectTitle = "Level select";
+    [SerializeField] private string worldMapTitle = "World Map";
     [SerializeField] private string questTitle = "Quests";
     [SerializeField] private string settingsTitle = "Settings";
 
@@ -98,8 +100,13 @@ public class MainMenuWindowUI : MonoBehaviour
     [SerializeField] private GameObject skillsAbilitiesPage;
     [FormerlySerializedAs("worldMapPage")]
     [SerializeField] private GameObject levelSelectPage;
+    [SerializeField] private GameObject fullMapPage;
     [SerializeField] private GameObject questPage;
     [SerializeField] private GameObject settingsPage;
+
+    [Header("Level select presentations (optional)")]
+    [Tooltip("LevelSelectListViewUI on LevelSelectPage — drives list vs FullMapPage.")]
+    [SerializeField] private LevelSelectListViewUI levelSelectListView;
 
     private GameObject currentPage;
     private Image _windowRootImage;
@@ -123,6 +130,63 @@ public class MainMenuWindowUI : MonoBehaviour
     }
 
     public GameObject CurrentPage => currentPage;
+
+    public GameObject LevelSelectPage => levelSelectPage;
+
+    public GameObject FullMapPage => fullMapPage;
+
+    /// <summary>Which main-menu tab is active while the window is open.</summary>
+    public MainMenuTabId GetActiveTab()
+    {
+        if (!IsOpen || !currentPage)
+            return MainMenuTabId.Character;
+
+        if (currentPage == characterPage)
+            return MainMenuTabId.Character;
+        if (currentPage == skillsAbilitiesPage)
+            return MainMenuTabId.Skills;
+        if (currentPage == questPage)
+            return MainMenuTabId.Quest;
+        if (fullMapPage && currentPage == fullMapPage)
+            return MainMenuTabId.WorldMap;
+        if (currentPage == levelSelectPage)
+            return MainMenuTabId.LevelSelect;
+
+        return MainMenuTabId.Character;
+    }
+
+    /// <summary>
+    /// Opens the requested tab. Re-clicking the active tab does nothing (menu stays open).
+    /// Title-bar tabs and bottom bag buttons should call this via <see cref="MainMenuWindowTabsUI"/>.
+    /// </summary>
+    public void SelectTab(MainMenuTabId tab)
+    {
+        if (IsOpen && GetActiveTab() == tab)
+        {
+            if (TryKeepOpenForHelperWhitelist(tab))
+                EnsureWindowInteractable();
+            return;
+        }
+
+        switch (tab)
+        {
+            case MainMenuTabId.Character:
+                OpenCharacterShow();
+                break;
+            case MainMenuTabId.Skills:
+                OpenSkillsAbilitiesShow();
+                break;
+            case MainMenuTabId.Quest:
+                OpenQuestShow();
+                break;
+            case MainMenuTabId.LevelSelect:
+                OpenLevelSelectListShow();
+                break;
+            case MainMenuTabId.WorldMap:
+                OpenWorldMapShow();
+                break;
+        }
+    }
 
     /// <summary>Outer menu shell used to pin merchant/storage windows beside the Character window.</summary>
     public RectTransform MenuWindowRect => mainMenuWindow != null ? mainMenuWindow.transform as RectTransform : null;
@@ -163,6 +227,8 @@ public class MainMenuWindowUI : MonoBehaviour
         }
 
         HideAllPages();
+        ResolveLevelSelectListView();
+        ResolveFullMapPage();
     }
 
     private void Start()
@@ -170,83 +236,53 @@ public class MainMenuWindowUI : MonoBehaviour
         RestorePersistedWindowState();
     }
 
-    public void ToggleCharacter()
-    {
-        TogglePage(characterPage);
-    }
+    public void ToggleCharacter() => SelectTab(MainMenuTabId.Character);
 
-    public void ToggleSkillsAbilities()
-    {
-        TogglePage(skillsAbilitiesPage);
-    }
+    public void ToggleSkillsAbilities() => SelectTab(MainMenuTabId.Skills);
 
-    public void OpenCharacter()
-    {
-        OpenPage(characterPage);
-    }
+    public void OpenCharacter() => SelectTab(MainMenuTabId.Character);
 
-    public void OpenSkillsAbilities()
-    {
-        OpenPage(skillsAbilitiesPage);
-    }
+    public void OpenSkillsAbilities() => SelectTab(MainMenuTabId.Skills);
 
-    public void ToggleLevelSelect()
-    {
-        TogglePage(levelSelectPage);
-    }
+    public void ToggleLevelSelect() => SelectTab(MainMenuTabId.LevelSelect);
 
-    public void OpenLevelSelect()
-    {
-        if (IsOpen && currentPage == levelSelectPage)
-        {
-            if (HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
-                    HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId))
-            {
-                EnsureWindowInteractable();
-                return;
-            }
+    public void OpenLevelSelect() => SelectTab(MainMenuTabId.LevelSelect);
 
-            Close();
-            return;
-        }
+    public void OpenLevelSelectShow() => SelectTab(MainMenuTabId.LevelSelect);
 
-        OpenPage(levelSelectPage);
-    }
-
-    /// <summary>Shows the main menu on Level select. Does not close the menu if that tab is already active (unlike <see cref="OpenLevelSelect"/> toggle).</summary>
-    public void OpenLevelSelectShow()
+    public void OpenLevelSelectListShow()
     {
         if (!levelSelectPage)
             return;
+
+        LevelSelectSharedState.LastPresentation = LevelSelectSharedState.Presentation.List;
         if (IsOpen && currentPage == levelSelectPage)
-            return;
-        OpenPage(levelSelectPage);
-    }
-
-    public void ToggleQuest()
-    {
-        TogglePage(questPage);
-    }
-
-    public void OpenQuest()
-    {
-        if (IsOpen && currentPage == questPage)
         {
-            if (HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
-                    HelperWhitelistUiInteractTarget.QuestToolbarWhitelistId))
-            {
-                EnsureWindowInteractable();
-                return;
-            }
-
-            Close();
+            ApplyLevelSelectPresentation();
+            RefreshHeaderTitle();
             return;
         }
 
-        OpenPage(questPage);
+        OpenPage(levelSelectPage);
+        ApplyLevelSelectPresentation();
     }
 
-    /// <summary>Shows the main menu on the Quests tab. Does not close the menu if the Quests tab is already active (unlike <see cref="OpenQuest"/> toggle).</summary>
+    public void OpenWorldMapShow()
+    {
+        ResolveFullMapPage();
+        if (!fullMapPage)
+            return;
+
+        if (IsOpen && currentPage == fullMapPage)
+            return;
+
+        OpenPage(fullMapPage);
+    }
+
+    public void ToggleQuest() => SelectTab(MainMenuTabId.Quest);
+
+    public void OpenQuest() => SelectTab(MainMenuTabId.Quest);
+
     public void OpenQuestShow()
     {
         if (!questPage)
@@ -254,6 +290,24 @@ public class MainMenuWindowUI : MonoBehaviour
         if (IsOpen && currentPage == questPage)
             return;
         OpenPage(questPage);
+    }
+
+    public void OpenCharacterShow()
+    {
+        if (!characterPage)
+            return;
+        if (IsOpen && currentPage == characterPage)
+            return;
+        OpenPage(characterPage);
+    }
+
+    public void OpenSkillsAbilitiesShow()
+    {
+        if (!skillsAbilitiesPage)
+            return;
+        if (IsOpen && currentPage == skillsAbilitiesPage)
+            return;
+        OpenPage(skillsAbilitiesPage);
     }
 
     public void ToggleSettings()
@@ -358,47 +412,79 @@ public class MainMenuWindowUI : MonoBehaviour
 
         if (IsOpen && currentPage == targetPage)
         {
-            if (characterPage != null &&
-                targetPage == characterPage &&
-                HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
-                    HelperWhitelistUiInteractTarget.CharacterToolbarWhitelistId))
-            {
-                EnsureWindowInteractable();
-                return;
-            }
-
-            if (questPage != null &&
-                targetPage == questPage &&
-                HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
-                    HelperWhitelistUiInteractTarget.QuestToolbarWhitelistId))
-            {
-                EnsureWindowInteractable();
-                return;
-            }
-
-            if (skillsAbilitiesPage != null &&
-                targetPage == skillsAbilitiesPage &&
-                HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
-                    HelperWhitelistUiInteractTarget.SkillsAbilityToolbarWhitelistId))
-            {
-                EnsureWindowInteractable();
-                return;
-            }
-
-            if (levelSelectPage != null &&
-                targetPage == levelSelectPage &&
-                HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(
-                    HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId))
-            {
-                EnsureWindowInteractable();
-                return;
-            }
-
-            Close();
+            EnsureWindowInteractable();
             return;
         }
 
         OpenPage(targetPage);
+    }
+
+    private bool TryKeepOpenForHelperWhitelist(MainMenuTabId tab)
+    {
+        string id = tab switch
+        {
+            MainMenuTabId.Character => HelperWhitelistUiInteractTarget.CharacterToolbarWhitelistId,
+            MainMenuTabId.Skills => HelperWhitelistUiInteractTarget.SkillsAbilityToolbarWhitelistId,
+            MainMenuTabId.Quest => HelperWhitelistUiInteractTarget.QuestToolbarWhitelistId,
+            MainMenuTabId.LevelSelect or MainMenuTabId.WorldMap =>
+                HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId,
+            _ => null
+        };
+
+        return !string.IsNullOrWhiteSpace(id) &&
+               HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(id);
+    }
+
+    private void ResolveLevelSelectListView()
+    {
+        if (levelSelectListView || !levelSelectPage)
+            return;
+        levelSelectListView = levelSelectPage.GetComponentInChildren<LevelSelectListViewUI>(true);
+    }
+
+    private void ResolveFullMapPage()
+    {
+        if (fullMapPage)
+            return;
+
+        if (mainMenuWindow)
+        {
+            Transform content = mainMenuWindow.transform.Find("ContentRoot");
+            if (content)
+            {
+                Transform t = content.Find("FullMapPage");
+                if (t)
+                    fullMapPage = t.gameObject;
+            }
+        }
+
+        if (!fullMapPage)
+        {
+            Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
+            for (int i = 0; i < all.Length; i++)
+            {
+                Transform t = all[i];
+                if (t == null || t.hideFlags != HideFlags.None || !t.gameObject.scene.IsValid())
+                    continue;
+                if (string.Equals(t.name, "FullMapPage", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    fullMapPage = t.gameObject;
+                    break;
+                }
+            }
+        }
+    }
+
+    private void ApplyLevelSelectPresentation()
+    {
+        ResolveLevelSelectListView();
+        if (!levelSelectListView)
+            return;
+
+        if (LevelSelectSharedState.LastPresentation == LevelSelectSharedState.Presentation.WorldMap)
+            levelSelectListView.ShowWorldMapPresentation();
+        else
+            levelSelectListView.ShowListPresentation();
     }
 
     private void OpenPage(GameObject targetPage)
@@ -462,6 +548,7 @@ public class MainMenuWindowUI : MonoBehaviour
         if (characterPage) characterPage.SetActive(false);
         if (skillsAbilitiesPage) skillsAbilitiesPage.SetActive(false);
         if (levelSelectPage) levelSelectPage.SetActive(false);
+        if (fullMapPage) fullMapPage.SetActive(false);
         if (questPage) questPage.SetActive(false);
         if (settingsPage) settingsPage.SetActive(false);
     }
@@ -474,6 +561,8 @@ public class MainMenuWindowUI : MonoBehaviour
             headerTitleText.text = characterTitle;
         else if (currentPage == skillsAbilitiesPage)
             headerTitleText.text = skillsTitle;
+        else if (fullMapPage && currentPage == fullMapPage)
+            headerTitleText.text = worldMapTitle;
         else if (currentPage == levelSelectPage)
             headerTitleText.text = levelSelectTitle;
         else if (currentPage == questPage)
@@ -497,7 +586,11 @@ public class MainMenuWindowUI : MonoBehaviour
         if (!page)
             page = characterPage;
         if (page)
+        {
             OpenPage(page);
+            if (page == levelSelectPage)
+                ApplyLevelSelectPresentation();
+        }
     }
 
     private void RememberOpenPage(GameObject page)
@@ -514,6 +607,9 @@ public class MainMenuWindowUI : MonoBehaviour
             return PersistedPage.SkillsAbilities;
         if (page == levelSelectPage)
             return PersistedPage.LevelSelect;
+        if (fullMapPage && page == fullMapPage)
+            return PersistedPage.LevelSelectWorldMap;
+
         if (page == questPage)
             return PersistedPage.Quest;
         if (page == settingsPage)
@@ -528,6 +624,7 @@ public class MainMenuWindowUI : MonoBehaviour
             PersistedPage.Character => characterPage,
             PersistedPage.SkillsAbilities => skillsAbilitiesPage,
             PersistedPage.LevelSelect => levelSelectPage,
+            PersistedPage.LevelSelectWorldMap => fullMapPage != null ? fullMapPage : levelSelectPage,
             PersistedPage.Quest => questPage,
             PersistedPage.Settings => settingsPage,
             _ => null

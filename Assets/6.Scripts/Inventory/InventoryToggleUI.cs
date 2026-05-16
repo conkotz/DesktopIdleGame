@@ -92,11 +92,7 @@ public class InventoryToggleUI : MonoBehaviour
             return;
         }
 
-        bool wasOpen = menu.IsOpen;
-        menu.ToggleCharacter();
-
-        if (_toolbarButton != null && wasOpen && !menu.IsOpen)
-            _toolbarButton.Select();
+        menu.SelectTab(MainMenuTabId.Character);
 
         bool isNowOpen = menu.IsOpen;
 
@@ -117,7 +113,7 @@ public class InventoryToggleUI : MonoBehaviour
         MainMenuWindowUI menu = GetMenu();
         if (menu == null) return;
 
-        menu.OpenCharacter();
+        menu.SelectTab(MainMenuTabId.Character);
 
         if (merchantModeBanner && !MerchantClick.MerchantModeOpen)
             merchantModeBanner.SetActive(false);

@@ -47,13 +47,13 @@ public class UIWindowManager : MonoBehaviour
             return;
 
         if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenCharacterPage))
-            menu.ToggleCharacter();
+            menu.SelectTab(MainMenuTabId.Character);
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenSkillsAbilities))
-            menu.ToggleSkillsAbilities();
+            menu.SelectTab(MainMenuTabId.Skills);
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenLevelSelect))
-            menu.ToggleLevelSelect();
+            menu.SelectTab(MainMenuTabId.LevelSelect);
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenQuestPage))
-            menu.ToggleQuest();
+            menu.SelectTab(MainMenuTabId.Quest);
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.ReturnToTown))
             PlayerController.TryReturnToTownViaHotkey();
     }

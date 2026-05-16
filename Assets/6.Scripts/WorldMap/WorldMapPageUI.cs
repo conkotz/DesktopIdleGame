@@ -7,8 +7,8 @@ using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 /// <summary>
-/// World Map view (dropdown regions + locations list + details + graph).
-/// Attach this to `FullMapPage`.
+/// World Map page (region dropdown + details + graph). Attach to <c>FullMapPage</c> under <c>MainMenuWindow</c>.
+/// Uses the main menu title bar like other pages — no separate title bar or locations list panel.
 /// </summary>
 public class WorldMapPageUI : MonoBehaviour
 {
@@ -26,15 +26,6 @@ public class WorldMapPageUI : MonoBehaviour
     [SerializeField] private Color regionDropdownItemHighlightColor = new Color32(216, 206, 176, 255);
     [SerializeField] private Color regionDropdownArrowColor = new Color32(120, 108, 88, 255);
     [SerializeField] private Color regionDropdownCheckmarkColor = new Color32(120, 108, 88, 255);
-
-    [Header("Locations (left)")]
-    [SerializeField] private Transform nodeListParent;
-    [SerializeField] private WorldMapNodeButtonUI nodeRowPrefab;
-    [Header("Filters (optional)")]
-    [SerializeField] private Button filterAllButton;
-    [SerializeField] private Button filterCombatButton;
-    [SerializeField] private Button filterGatheringButton;
-    [SerializeField] private Button filterOtherButton;
 
     [Header("Details (center)")]
     [SerializeField] private TMP_Text selectedNodeName;
@@ -64,6 +55,12 @@ public class WorldMapPageUI : MonoBehaviour
     [SerializeField] private float minContainsLineHeight = 20f;
     [SerializeField] private float dynamicTextBottomPadding = 2f;
 
+    [Header("Node type filters (map graph)")]
+    [SerializeField] private Button filterAllButton;
+    [SerializeField] private Button filterCombatButton;
+    [SerializeField] private Button filterGatheringButton;
+    [SerializeField] private Button filterOtherButton;
+
     [Header("Graph")]
     [SerializeField] private RectTransform nodesRoot;
     [SerializeField] private RectTransform connectorsRoot;
@@ -71,20 +68,15 @@ public class WorldMapPageUI : MonoBehaviour
     [SerializeField] private WorldMapGraphNodeUI nodePrefab;
     [SerializeField] private SkillTreeConnectorUI connectorPrefab;
 
-    [Header("Presentation swap")]
-    [SerializeField] private GameObject listPresentationRoot;
-    [SerializeField] private GameObject worldMapPresentationRoot;
+    [Header("Optional")]
+    [Tooltip("Optional. Used only for node-type panel tint colours on the details panel.")]
+    [SerializeField] private WorldMapNodeButtonUI panelThemePalette;
     [SerializeField] private Button returnToListButton;
-    [Tooltip("Optional extra roots to hide while world-map presentation is active (e.g. old list header bars).")]
-    [SerializeField] private GameObject[] hideWhenWorldMapActive;
 
     [Header("Theme — panel backgrounds (optional)")]
     [SerializeField] private Image detailsPanelBackgroundImage;
-    [SerializeField] private Image locationsPanelBackgroundImage;
 
     private readonly List<RegionDefinition> _regions = new();
-    private readonly List<WorldMapNodeButtonUI> _nodeRows = new();
-    private readonly List<GameObject> _nodeSectionRows = new();
     private readonly List<WorldMapGraphNodeUI> _spawnedNodes = new();
     private readonly List<Edge> _edges = new();
     private bool _connectorsDirty;
@@ -133,7 +125,7 @@ public class WorldMapPageUI : MonoBehaviour
         if (returnToListButton)
         {
             returnToListButton.onClick.RemoveAllListeners();
-            returnToListButton.onClick.AddListener(ReturnToList);
+            returnToListButton.onClick.AddListener(OnReturnToLevelSelectClicked);
         }
         if (enterNodeButton)
         {
@@ -145,26 +137,9 @@ public class WorldMapPageUI : MonoBehaviour
             regionDropdown.onValueChanged.RemoveAllListeners();
             regionDropdown.onValueChanged.AddListener(OnRegionDropdownChanged);
         }
-        if (filterAllButton)
-        {
-            filterAllButton.onClick.RemoveAllListeners();
-            filterAllButton.onClick.AddListener(() => OnFilterClicked(LevelSelectSharedState.NodeListFilter.All));
-        }
-        if (filterCombatButton)
-        {
-            filterCombatButton.onClick.RemoveAllListeners();
-            filterCombatButton.onClick.AddListener(() => OnFilterClicked(LevelSelectSharedState.NodeListFilter.Combat));
-        }
-        if (filterGatheringButton)
-        {
-            filterGatheringButton.onClick.RemoveAllListeners();
-            filterGatheringButton.onClick.AddListener(() => OnFilterClicked(LevelSelectSharedState.NodeListFilter.Gathering));
-        }
-        if (filterOtherButton)
-        {
-            filterOtherButton.onClick.RemoveAllListeners();
-            filterOtherButton.onClick.AddListener(() => OnFilterClicked(LevelSelectSharedState.NodeListFilter.Other));
-        }
+
+        ResolveFilterButtons();
+        WireFilterButtons();
     }
 
     private void OnDestroy()
@@ -175,51 +150,43 @@ public class WorldMapPageUI : MonoBehaviour
             enterNodeButton.onClick.RemoveAllListeners();
         if (regionDropdown)
             regionDropdown.onValueChanged.RemoveListener(OnRegionDropdownChanged);
-        if (filterAllButton) filterAllButton.onClick.RemoveAllListeners();
-        if (filterCombatButton) filterCombatButton.onClick.RemoveAllListeners();
-        if (filterGatheringButton) filterGatheringButton.onClick.RemoveAllListeners();
-        if (filterOtherButton) filterOtherButton.onClick.RemoveAllListeners();
+        UnwireFilterButtons();
     }
 
     private void OnEnable()
     {
-        LevelSelectSharedState.LastPresentation = LevelSelectSharedState.Presentation.WorldMap;
-        SetExtraRootsWorldMapVisibility(true);
-
         TrySubscribeProgressChanged();
         TrySubscribeSkillsLevelEvents();
 
         ResolveDefaults();
+        ResolveFilterButtons();
+        WireFilterButtons();
+
+        LevelSelectSharedState.Filter = LevelSelectSharedState.NodeListFilter.All;
 
         ApplyOrRestoreSelection();
         ApplyDropdownTheme();
         ApplyAnchorRegionVisibility();
         RebuildRegionsDropdown();
         ApplyDefaultSelectionToActiveMapIfPossible();
-        RebuildNodeList();
+        EnsureSelectedNodeMatchesFilter();
+        RefreshFilterButtonVisuals();
         RefreshDetails();
         RebuildGraph();
     }
 
     private void OnDisable()
     {
-        // Restore hidden roots first; this must happen even when we're being disabled externally.
-        SetExtraRootsWorldMapVisibility(false);
-
         UnsubscribeProgressChanged();
         UnsubscribeSkillsLevelEvents();
         LevelSelectSharedState.HudPreviewSelection = null;
 
         ClearGraph();
-        ClearNodeRows();
         _detailsLayoutStabilizeFrames = 0;
-
     }
 
     private void LateUpdate()
     {
-        EnsureClosedWhenMenuLeavesLevelSelect();
-
         if (_detailsLayoutStabilizeFrames > 0)
         {
             _detailsLayoutStabilizeFrames--;
@@ -230,23 +197,6 @@ public class WorldMapPageUI : MonoBehaviour
             return;
         _connectorsDirty = false;
         SyncConnectorRects();
-    }
-
-    private void EnsureClosedWhenMenuLeavesLevelSelect()
-    {
-        MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
-        bool menuOnLevelSelect =
-            menu != null &&
-            menu.IsOpen &&
-            listPresentationRoot != null &&
-            menu.CurrentPage == listPresentationRoot;
-        if (menuOnLevelSelect)
-            return;
-
-        // If user switched tabs or closed the main menu, hide world map and restore title/header roots.
-        SetExtraRootsWorldMapVisibility(false);
-        if (worldMapPresentationRoot && worldMapPresentationRoot.activeSelf)
-            worldMapPresentationRoot.SetActive(false);
     }
 
     private void ResolveDefaults()
@@ -400,92 +350,11 @@ public class WorldMapPageUI : MonoBehaviour
         LevelSelectSharedState.SelectedRegionId = _selectedRegion ? _selectedRegion.regionId : "";
         LevelSelectSharedState.SelectedNodeId = _selectedNode ? _selectedNode.nodeId : "";
 
+        EnsureSelectedNodeMatchesFilter();
         RefreshDropdownCaption();
         ApplyAnchorRegionVisibility();
-        RebuildNodeList();
         RefreshDetails();
         RebuildGraph();
-    }
-
-    private void RebuildNodeList()
-    {
-        ClearNodeRows();
-
-        WorldMapProgressManager progress = FindProgressManager();
-        if (!nodeListParent || !nodeRowPrefab || !_selectedRegion || _selectedRegion.nodes == null ||
-            !IsRegionAvailable(_selectedRegion, progress))
-            return;
-
-        SkillsManager skills = FindSkillsManager();
-        string activeNodeId = ResolveActiveMapNodeIdForRegionUi();
-
-        List<MapNodeDefinition> filtered = BuildFilteredRegionNodes(_selectedRegion);
-        var unlocked = new List<MapNodeDefinition>(filtered.Count);
-        var locked = new List<MapNodeDefinition>(filtered.Count);
-        for (int i = 0; i < filtered.Count; i++)
-        {
-            MapNodeDefinition node = filtered[i];
-            if (!node) continue;
-            string state = progress ? node.GetUiStateLabel(progress, skills) : "Unlocked";
-            bool isLocked =
-                string.Equals(state, "Map locked", StringComparison.Ordinal) ||
-                string.Equals(state, "Skill locked", StringComparison.Ordinal) ||
-                string.Equals(state, "Progress locked", StringComparison.Ordinal);
-            if (isLocked) locked.Add(node);
-            else unlocked.Add(node);
-        }
-
-        if (_selectedNode == null || !filtered.Contains(_selectedNode))
-            _selectedNode = unlocked.Count > 0 ? unlocked[0] : (locked.Count > 0 ? locked[0] : null);
-
-        if (unlocked.Count > 0)
-        {
-            AddSectionHeader("Unlocked");
-            SpawnRows(unlocked, progress, skills, activeNodeId);
-        }
-        if (locked.Count > 0)
-        {
-            AddSectionHeader("Locked");
-            SpawnRows(locked, progress, skills, activeNodeId);
-        }
-
-        RefreshFilterButtonVisuals();
-    }
-
-    private void OnFilterClicked(LevelSelectSharedState.NodeListFilter filter)
-    {
-        if (LevelSelectSharedState.Filter == filter)
-            return;
-
-        LevelSelectSharedState.Filter = filter;
-        RebuildNodeList();
-        RefreshDetails();
-        RebuildGraph();
-    }
-
-    private void RefreshFilterButtonVisuals()
-    {
-        ApplyFilterSelected(filterAllButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.All);
-        ApplyFilterSelected(filterCombatButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Combat);
-        ApplyFilterSelected(filterGatheringButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Gathering);
-        ApplyFilterSelected(filterOtherButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Other);
-    }
-
-    private static void ApplyFilterSelected(Button b, bool selected)
-    {
-        if (!b)
-            return;
-
-        ColorBlock cb = b.colors;
-        Color normal = selected ? new Color32(216, 206, 176, 255) : new Color32(238, 238, 238, 255);
-        cb.normalColor = normal;
-        cb.highlightedColor = normal;
-        cb.selectedColor = normal;
-        cb.pressedColor = normal;
-        cb.colorMultiplier = 1f;
-        b.colors = cb;
-        if (b.targetGraphic)
-            b.targetGraphic.color = normal;
     }
 
     private List<MapNodeDefinition> BuildFilteredRegionNodes(RegionDefinition region)
@@ -513,78 +382,122 @@ public class WorldMapPageUI : MonoBehaviour
         return result;
     }
 
-    private void ClearNodeRows()
+    private void ResolveFilterButtons()
     {
-        for (int i = 0; i < _nodeRows.Count; i++)
-        {
-            if (_nodeRows[i])
-                Destroy(_nodeRows[i].gameObject);
-        }
-        _nodeRows.Clear();
-
-        for (int i = 0; i < _nodeSectionRows.Count; i++)
-        {
-            if (_nodeSectionRows[i])
-                Destroy(_nodeSectionRows[i]);
-        }
-        _nodeSectionRows.Clear();
-    }
-
-    private void AddSectionHeader(string label)
-    {
-        if (!nodeListParent || string.IsNullOrWhiteSpace(label))
+        if (filterAllButton && filterCombatButton && filterGatheringButton && filterOtherButton)
             return;
 
-        GameObject go = new GameObject($"Section_{label}", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
-        go.transform.SetParent(nodeListParent, false);
-        _nodeSectionRows.Add(go);
+        Transform row = transform.Find("FilterNodeTypeButtonRow");
+        if (!row)
+        {
+            Transform[] all = GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i] && string.Equals(all[i].name, "FilterNodeTypeButtonRow", StringComparison.OrdinalIgnoreCase))
+                {
+                    row = all[i];
+                    break;
+                }
+            }
+        }
 
-        LayoutElement le = go.GetComponent<LayoutElement>();
-        le.preferredHeight = 24f;
-        le.minHeight = 24f;
+        if (!row)
+            return;
 
-        Image bg = go.GetComponent<Image>();
-        bg.color = new Color32(186, 178, 156, 255);
-        bg.raycastTarget = false;
-
-        GameObject textGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
-        textGo.transform.SetParent(go.transform, false);
-        RectTransform textRt = textGo.GetComponent<RectTransform>();
-        textRt.anchorMin = Vector2.zero;
-        textRt.anchorMax = Vector2.one;
-        textRt.offsetMin = new Vector2(10f, 0f);
-        textRt.offsetMax = new Vector2(-10f, 0f);
-        TMP_Text text = textGo.GetComponent<TextMeshProUGUI>();
-        text.text = label;
-        text.alignment = TextAlignmentOptions.MidlineLeft;
-        text.fontSize = 20f;
-        text.fontStyle = FontStyles.Bold;
-        text.color = new Color32(70, 70, 70, 255);
-        text.raycastTarget = false;
+        filterAllButton ??= FindButtonUnder(row, "AllButton");
+        filterCombatButton ??= FindButtonUnder(row, "CombatButton");
+        filterGatheringButton ??= FindButtonUnder(row, "GatheringButton");
+        filterOtherButton ??= FindButtonUnder(row, "OtherButton");
     }
 
-    private void SpawnRows(List<MapNodeDefinition> nodes, WorldMapProgressManager progress, SkillsManager skills, string activeNodeId)
+    private static Button FindButtonUnder(Transform root, string childName)
     {
-        for (int i = 0; i < nodes.Count; i++)
-        {
-            MapNodeDefinition node = nodes[i];
-            if (!node) continue;
+        if (!root || string.IsNullOrWhiteSpace(childName))
+            return null;
 
-            WorldMapNodeButtonUI row = Instantiate(nodeRowPrefab, nodeListParent);
-            _nodeRows.Add(row);
+        Transform t = root.Find(childName);
+        return t ? t.GetComponent<Button>() : null;
+    }
 
-            string state = progress ? node.GetUiStateLabel(progress, skills) : "Unlocked";
-            bool atThisMap = !string.IsNullOrWhiteSpace(activeNodeId) &&
-                !string.IsNullOrWhiteSpace(node.nodeId) &&
-                string.Equals(node.nodeId.Trim(), activeNodeId.Trim(), StringComparison.OrdinalIgnoreCase);
-            bool oneShotCleared = progress != null && !node.isRepeatable && progress.IsNodeCompleted(node.nodeId) && !atThisMap;
-            if (oneShotCleared)
-                state = "Cleared";
+    private void WireFilterButtons()
+    {
+        WireFilterButton(filterAllButton, LevelSelectSharedState.NodeListFilter.All);
+        WireFilterButton(filterCombatButton, LevelSelectSharedState.NodeListFilter.Combat);
+        WireFilterButton(filterGatheringButton, LevelSelectSharedState.NodeListFilter.Gathering);
+        WireFilterButton(filterOtherButton, LevelSelectSharedState.NodeListFilter.Other);
+    }
 
-            bool sel = _selectedNode && _selectedNode == node;
-            bool unavailable = !node.CanEnterFromLevelMenu(progress, skills);
-            row.Bind(node, state, sel, OnNodeSelected, oneShotCleared, unavailable, atThisMap);
-        }
+    private void UnwireFilterButtons()
+    {
+        UnwireFilterButton(filterAllButton, LevelSelectSharedState.NodeListFilter.All);
+        UnwireFilterButton(filterCombatButton, LevelSelectSharedState.NodeListFilter.Combat);
+        UnwireFilterButton(filterGatheringButton, LevelSelectSharedState.NodeListFilter.Gathering);
+        UnwireFilterButton(filterOtherButton, LevelSelectSharedState.NodeListFilter.Other);
+    }
+
+    private void WireFilterButton(Button button, LevelSelectSharedState.NodeListFilter filter)
+    {
+        if (!button)
+            return;
+        button.onClick.RemoveAllListeners();
+        button.onClick.AddListener(() => OnNodeFilterClicked(filter));
+    }
+
+    private void UnwireFilterButton(Button button, LevelSelectSharedState.NodeListFilter filter)
+    {
+        if (!button)
+            return;
+        button.onClick.RemoveAllListeners();
+    }
+
+    private void OnNodeFilterClicked(LevelSelectSharedState.NodeListFilter filter)
+    {
+        if (LevelSelectSharedState.Filter == filter)
+            return;
+
+        LevelSelectSharedState.Filter = filter;
+        EnsureSelectedNodeMatchesFilter();
+        RefreshFilterButtonVisuals();
+        RefreshDetails();
+        RebuildGraph();
+    }
+
+    private void EnsureSelectedNodeMatchesFilter()
+    {
+        if (!_selectedRegion)
+            return;
+
+        List<MapNodeDefinition> filtered = BuildFilteredRegionNodes(_selectedRegion);
+        if (_selectedNode != null && filtered.Contains(_selectedNode))
+            return;
+
+        _selectedNode = filtered.Count > 0 ? filtered[0] : null;
+        LevelSelectSharedState.SelectedNodeId = _selectedNode ? _selectedNode.nodeId : "";
+    }
+
+    private void RefreshFilterButtonVisuals()
+    {
+        ApplyFilterSelected(filterAllButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.All);
+        ApplyFilterSelected(filterCombatButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Combat);
+        ApplyFilterSelected(filterGatheringButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Gathering);
+        ApplyFilterSelected(filterOtherButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Other);
+    }
+
+    private static void ApplyFilterSelected(Button b, bool selected)
+    {
+        if (!b)
+            return;
+
+        ColorBlock cb = b.colors;
+        Color normal = selected ? new Color32(216, 206, 176, 255) : new Color32(238, 238, 238, 255);
+        cb.normalColor = normal;
+        cb.highlightedColor = normal;
+        cb.selectedColor = normal;
+        cb.pressedColor = normal;
+        cb.colorMultiplier = 1f;
+        b.colors = cb;
+        if (b.targetGraphic)
+            b.targetGraphic.color = normal;
     }
 
     private void OnNodeSelected(MapNodeDefinition node)
@@ -592,8 +505,6 @@ public class WorldMapPageUI : MonoBehaviour
         if (!node)
             return;
 
-        // Graph click should always drive the left Locations list selection too.
-        // If the clicked node belongs to a different region (future-proof), switch region first.
         RegionDefinition clickedRegion = worldMap ? worldMap.FindRegionContainingNode(node.nodeId) : null;
         if (clickedRegion != null && clickedRegion != _selectedRegion)
             _selectedRegion = clickedRegion;
@@ -602,23 +513,17 @@ public class WorldMapPageUI : MonoBehaviour
         LevelSelectSharedState.SelectedRegionId = _selectedRegion ? _selectedRegion.regionId : "";
         LevelSelectSharedState.SelectedNodeId = _selectedNode ? _selectedNode.nodeId : "";
 
-        // Rebuild rows so the Locations panel and graph stay visually in sync after graph clicks.
-        RebuildRegionsDropdown();
+        if (_selectedRegion != null && _regions.Contains(_selectedRegion) && regionDropdown)
+        {
+            int idx = _regions.IndexOf(_selectedRegion);
+            if (idx >= 0)
+                regionDropdown.SetValueWithoutNotify(idx);
+        }
+
+        RefreshDropdownCaption();
         ApplyAnchorRegionVisibility();
-        RebuildNodeList();
-        RefreshNodeSelectionVisuals();
         RefreshDetails();
         RebuildGraph();
-    }
-
-    private void RefreshNodeSelectionVisuals()
-    {
-        for (int i = 0; i < _nodeRows.Count; i++)
-        {
-            WorldMapNodeButtonUI row = _nodeRows[i];
-            if (!row) continue;
-            row.SetSelected(row.Node == _selectedNode);
-        }
     }
 
     private void RefreshDetails()
@@ -681,11 +586,13 @@ public class WorldMapPageUI : MonoBehaviour
 
     private void ApplyPanelThemeColors(MapNodeDefinition n)
     {
-        if (!nodeRowPrefab)
+        if (!detailsPanelBackgroundImage)
             return;
-        Color c = nodeRowPrefab.GetThemeColorForNode(n);
+
+        Color c = panelThemePalette != null
+            ? panelThemePalette.GetThemeColorForNode(n)
+            : detailsPanelBackgroundImage.color;
         SetImageColorPreserveAlpha(detailsPanelBackgroundImage, c);
-        SetImageColorPreserveAlpha(locationsPanelBackgroundImage, c);
     }
 
     private static void SetImageColorPreserveAlpha(Image img, Color rgb)
@@ -913,37 +820,11 @@ public class WorldMapPageUI : MonoBehaviour
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate("GamePlay");
     }
 
-    private void ReturnToList()
+    private void OnReturnToLevelSelectClicked()
     {
-        LevelSelectSharedState.LastPresentation = LevelSelectSharedState.Presentation.List;
-        SetExtraRootsWorldMapVisibility(false);
-        if (worldMapPresentationRoot)
-            worldMapPresentationRoot.SetActive(false);
-        if (listPresentationRoot)
-            listPresentationRoot.SetActive(true);
-    }
-
-    private void SetExtraRootsWorldMapVisibility(bool worldMapActive)
-    {
-        // 1) Local assignments on WorldMapPageUI
-        if (hideWhenWorldMapActive != null)
-        {
-            for (int i = 0; i < hideWhenWorldMapActive.Length; i++)
-            {
-                GameObject go = hideWhenWorldMapActive[i];
-                if (!go) continue;
-                go.SetActive(!worldMapActive);
-            }
-        }
-
-        // 2) Shared assignments captured from LevelSelectListViewUI
-        IReadOnlyList<GameObject> shared = LevelSelectSharedState.HideRoots;
-        for (int i = 0; i < shared.Count; i++)
-        {
-            GameObject go = shared[i];
-            if (!go) continue;
-            go.SetActive(!worldMapActive);
-        }
+        MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
+        if (menu != null)
+            menu.SelectTab(MainMenuTabId.LevelSelect);
     }
 
     private void RebuildGraph()
@@ -1004,7 +885,7 @@ public class WorldMapPageUI : MonoBehaviour
             rt.anchoredPosition = GetLocalPos(nodesRoot, anchorRt);
 
             GraphNodeVisualState visual = BuildGraphNodeVisualState(node, progress, skills, activeNodeId);
-            nodeUi.Bind(node, visual.StateLabel, visual.Selected, OnNodeSelected, visual.OneShotCleared, visual.Unavailable, nodeRowPrefab, visual.AtThisMap);
+            nodeUi.Bind(node, visual.StateLabel, visual.Selected, OnNodeSelected, visual.OneShotCleared, visual.Unavailable, panelThemePalette, visual.AtThisMap);
 
             string dictKey = node.nodeId?.Trim() ?? "";
             if (!string.IsNullOrEmpty(dictKey))
@@ -1041,7 +922,7 @@ public class WorldMapPageUI : MonoBehaviour
                 rt.anchoredPosition = pos;
 
                 GraphNodeVisualState visual = BuildGraphNodeVisualState(node, progress, skills, activeNodeId);
-                nodeUi.Bind(node, visual.StateLabel, visual.Selected, OnNodeSelected, visual.OneShotCleared, visual.Unavailable, nodeRowPrefab, visual.AtThisMap);
+                nodeUi.Bind(node, visual.StateLabel, visual.Selected, OnNodeSelected, visual.OneShotCleared, visual.Unavailable, panelThemePalette, visual.AtThisMap);
 
                 string dictKey = node.nodeId?.Trim() ?? "";
                 if (!string.IsNullOrEmpty(dictKey))
@@ -1314,7 +1195,8 @@ public class WorldMapPageUI : MonoBehaviour
     {
         RebuildRegionsDropdown();
         ApplyAnchorRegionVisibility();
-        RebuildNodeList();
+        EnsureSelectedNodeMatchesFilter();
+        RefreshFilterButtonVisuals();
         RefreshDetails();
         RebuildGraph();
     }

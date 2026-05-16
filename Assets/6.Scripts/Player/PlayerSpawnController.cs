@@ -49,9 +49,9 @@ public class PlayerSpawnController : MonoBehaviour
     /// <summary>Same as <see cref="LevelBiomeVisualsController"/> cave overlay parent lookup.</summary>
     private const string StripUiCanvasObjectName = "StripUICanvas";
     /// <summary>
-    /// When no tagged <c>FullWindowCanvas</c> is found (e.g. early load), use this nested fader order — below typical FullWindow (~10000), above strip HUD (~0).
+    /// Strip-constrained level-load / respawn black fade: above helper whitelist glow (~15k), FullWindow, and strip HUD.
     /// </summary>
-    private const int StripLevelLoadFaderSortFallback = 9900;
+    private const int StripLevelLoadFaderSortTopmost = 32767;
     private static readonly string[] PreferredGroundNameTokens = { "floor", "signpost" };
 
     private void Awake()
@@ -546,20 +546,25 @@ public class PlayerSpawnController : MonoBehaviour
         if (stripCanvas == null)
             return null;
 
-        DestroyStripCanvasFaderRoot();
-        DestroyStandaloneOverlayFaderRoot();
-
         Transform tDirect = stripCanvas.transform.Find(LevelLoadFaderName);
         GameObject go = tDirect ? tDirect.gameObject : FindDeepNamedChild(stripCanvas.transform, LevelLoadFaderName);
-        if (go == null)
-        {
-            go = new GameObject(LevelLoadFaderName, typeof(Image), typeof(CanvasGroup));
-            go.transform.SetParent(stripCanvas.transform, false);
-        }
-        else
-        {
-            go.transform.SetParent(stripCanvas.transform, false);
-        }
+        if (go != null)
+            return ApplyStripConstrainedLevelLoadFader(stripCanvas, go);
+
+        DestroyStripCanvasFaderRoot();
+        DestroyStandaloneOverlayFaderRoots();
+
+        go = new GameObject(LevelLoadFaderName, typeof(Image), typeof(CanvasGroup));
+        go.transform.SetParent(stripCanvas.transform, false);
+        return ApplyStripConstrainedLevelLoadFader(stripCanvas, go);
+    }
+
+    private static CanvasGroup ApplyStripConstrainedLevelLoadFader(Canvas stripCanvas, GameObject go)
+    {
+        if (stripCanvas == null || go == null)
+            return null;
+
+        go.transform.SetParent(stripCanvas.transform, false);
 
         Canvas legacyCamCanvas = go.GetComponent<Canvas>();
         if (legacyCamCanvas != null && legacyCamCanvas.renderMode == RenderMode.ScreenSpaceCamera)
@@ -586,9 +591,7 @@ public class PlayerSpawnController : MonoBehaviour
         img.raycastTarget = false;
 
         EnsureStripFadeTopCanvasSettings(go);
-
         ConstrainLevelLoadFaderToStripViewport(go);
-
         go.transform.SetAsLastSibling();
 
         return cg;
@@ -612,7 +615,7 @@ public class PlayerSpawnController : MonoBehaviour
     }
 
     /// <summary>
-    /// Nested canvas so the fade sorts above strip HUD, but <b>below</b> the tagged <c>FullWindowCanvas</c> so map/menus stay visible during fades.
+    /// Nested canvas so the fade sorts above strip HUD, helper whitelist glow, and modal windows during level transitions.
     /// </summary>
     private static void EnsureStripFadeTopCanvasSettings(GameObject fadeRoot)
     {
@@ -629,24 +632,8 @@ public class PlayerSpawnController : MonoBehaviour
         c.pixelPerfect = false;
     }
 
-    /// <summary>One step under the <c>FullWindowCanvas</c> tag root canvas so modal windows draw on top of the strip-constrained level-load fade.</summary>
-    private static int ResolveStripLevelLoadFaderNestedCanvasSortOrder()
-    {
-        GameObject tagged = GameObject.FindGameObjectWithTag("FullWindowCanvas");
-        if (tagged == null)
-            return StripLevelLoadFaderSortFallback;
-
-        Canvas fullWindow = tagged.GetComponent<Canvas>();
-        if (fullWindow == null)
-            return StripLevelLoadFaderSortFallback;
-
-        int fullOrder = fullWindow.sortingOrder;
-        if (fullOrder <= 0)
-            return StripLevelLoadFaderSortFallback;
-
-        // Leave headroom for rare nested canvases on the same root; stay strictly under the fullscreen stack.
-        return Mathf.Max(1, fullOrder - 100);
-    }
+    /// <summary>Topmost overlay order for strip-hosted black fade (covers helper glow, menus, strip HUD).</summary>
+    private static int ResolveStripLevelLoadFaderNestedCanvasSortOrder() => StripLevelLoadFaderSortTopmost;
 
     /// <summary>Ensures strip-hosted black fade draws above strip HUD (same as level-load spawn).</summary>
     public static void BringGameplayBlackFadeToFront(CanvasGroup loadFader)
@@ -666,20 +653,49 @@ public class PlayerSpawnController : MonoBehaviour
             UnityEngine.Object.Destroy(strip);
     }
 
-    private static void DestroyStandaloneOverlayFaderRoot()
+    /// <summary>
+    /// Removes only scene-root overlay faders. Strip-hosted <see cref="LevelLoadFaderName"/> children are kept
+    /// so death respawn fades are not destroyed mid-coroutine by a second resolve call.
+    /// </summary>
+    private static void DestroyStandaloneOverlayFaderRoots()
     {
-        GameObject go = GameObject.Find(LevelLoadFaderName);
-        if (go == null)
-            return;
+        for (int i = 0; i < 8; i++)
+        {
+            GameObject cand = GameObject.Find(LevelLoadFaderName);
+            if (cand == null)
+                break;
 
-        Canvas c = go.GetComponent<Canvas>();
-        if (c != null && c.renderMode == RenderMode.ScreenSpaceOverlay)
-            UnityEngine.Object.Destroy(go);
+            if (IsStripHostedLevelLoadFader(cand))
+                break;
+
+            Canvas c = cand.GetComponent<Canvas>();
+            if (c != null && c.renderMode == RenderMode.ScreenSpaceOverlay)
+                UnityEngine.Object.Destroy(cand);
+            else
+                UnityEngine.Object.Destroy(cand);
+        }
+    }
+
+    private static bool IsStripHostedLevelLoadFader(GameObject go)
+    {
+        if (!go)
+            return false;
+
+        Transform p = go.transform.parent;
+        while (p != null)
+        {
+            if (string.Equals(p.name, StripUiCanvasObjectName, StringComparison.OrdinalIgnoreCase))
+                return true;
+            p = p.parent;
+        }
+
+        return false;
     }
 
     private static CanvasGroup GetOrCreateLevelLoadFaderFullScreen()
     {
         DestroyStripCanvasFaderRoot();
+        DestroyStandaloneOverlayFaderRoots();
 
         // GameObject.Find is ambiguous if a strip-hosted fader shares this name — only reuse a true overlay root.
         GameObject go = null;
@@ -688,6 +704,12 @@ public class PlayerSpawnController : MonoBehaviour
             GameObject cand = GameObject.Find(LevelLoadFaderName);
             if (cand == null)
                 break;
+
+            if (IsStripHostedLevelLoadFader(cand))
+            {
+                UnityEngine.Object.Destroy(cand);
+                continue;
+            }
 
             Canvas c = cand.GetComponent<Canvas>();
             if (c != null && c.renderMode == RenderMode.ScreenSpaceOverlay)
