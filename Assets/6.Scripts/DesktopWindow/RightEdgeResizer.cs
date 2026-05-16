@@ -41,6 +41,9 @@ public class RightEdgeResizer : MonoBehaviour,
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        if (StripCameraController.IsStripLayoutLockedForExpandBackground)
+            return;
+
         if (!stripController) return;
 
         _startMouseX = eventData.position.x;
@@ -49,6 +52,9 @@ public class RightEdgeResizer : MonoBehaviour,
 
     public void OnDrag(PointerEventData eventData)
     {
+        if (StripCameraController.IsStripLayoutLockedForExpandBackground)
+            return;
+
         if (!stripController || Screen.width <= 0) return;
 
         float deltaNormalized = (eventData.position.x - _startMouseX) / Screen.width;

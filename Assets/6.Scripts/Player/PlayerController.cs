@@ -25,7 +25,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private bool restrictClicksToStrip = true;
 
     [SerializeField] private string stripCameraName = "StripCamera"; // your scene camera name
+    [SerializeField] private string fullCameraName = "FullCamera";
     private Camera _stripCam;
+    private Camera _fullWindowCam;
 
     [Tooltip("Set to Pickup layer")]
     [SerializeField] private LayerMask pickupMask;
@@ -1309,14 +1311,8 @@ public class PlayerController : MonoBehaviour
         if (!Input.GetMouseButtonDown(0))
             return;
 
-        if (restrictClicksToStrip)
-        {
-            if (!_stripCam) RebindCameras();
-            if (!_stripCam) return;
-
-            if (!_stripCam.pixelRect.Contains(Input.mousePosition))
-                return;
-        }
+        if (restrictClicksToStrip && !IsGameplayClickAllowedAtScreen(Input.mousePosition))
+            return;
 
         if (UnityEngine.EventSystems.EventSystem.current != null &&
             UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
@@ -1326,13 +1322,11 @@ public class PlayerController : MonoBehaviour
         MerchantClick.ForceCloseMerchantMode();
         MerchantClick.CancelPendingOpen();
 
-        if (!_cam)
-            _cam = Camera.main;
-
-        if (!_cam)
+        Camera clickCamera = ResolveWorldClickCamera();
+        if (!clickCamera)
             return;
 
-        Vector3 world = _cam.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 world = clickCamera.ScreenToWorldPoint(Input.mousePosition);
         world.z = 0f;
 
         Vector2 point = new Vector2(world.x, world.y);
@@ -4130,6 +4124,44 @@ public class PlayerController : MonoBehaviour
 
 
 
+    private bool IsGameplayClickAllowedAtScreen(Vector3 screenPos)
+    {
+        if (!restrictClicksToStrip)
+            return true;
+
+        if (!_stripCam)
+            RebindCameras();
+        if (!_stripCam)
+            return false;
+
+        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+            return true;
+
+        return _stripCam.pixelRect.Contains(screenPos);
+    }
+
+    private Camera ResolveWorldClickCamera()
+    {
+        if (!_stripCam)
+            RebindCameras();
+
+        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground) &&
+            _fullWindowCam &&
+            _stripCam &&
+            !_stripCam.pixelRect.Contains(Input.mousePosition))
+        {
+            return _fullWindowCam;
+        }
+
+        if (_stripCam)
+            return _stripCam;
+
+        if (!_cam)
+            _cam = Camera.main;
+
+        return _cam;
+    }
+
     // -------------------------
     // Scene Management
     // -------------------------
@@ -4147,6 +4179,9 @@ public class PlayerController : MonoBehaviour
 
         var go = GameObject.Find(stripCameraName);
         _stripCam = go ? go.GetComponent<Camera>() : null;
+
+        var fullGo = GameObject.Find(fullCameraName);
+        _fullWindowCam = fullGo ? fullGo.GetComponent<Camera>() : null;
 
         if (_stripCam == null)
         {

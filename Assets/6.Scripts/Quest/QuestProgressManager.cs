@@ -35,6 +35,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private SkillsManager _autoSkills;
     private WorldMapProgressManager _autoWorldMap;
     private CharacterStats _playerDeathStats;
+    private PlayerController _cachedPlayer;
 
     public event Action ProgressChanged;
 
@@ -196,6 +197,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (stats == null)
             return;
 
+        _cachedPlayer = player;
         _playerDeathStats = stats;
         _playerDeathStats.OnDied -= HandlePlayerDiedForQuestProgress;
         _playerDeathStats.OnDied += HandlePlayerDiedForQuestProgress;
@@ -208,6 +210,14 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
         _playerDeathStats.OnDied -= HandlePlayerDiedForQuestProgress;
         _playerDeathStats = null;
+        _cachedPlayer = null;
+    }
+
+    public bool IsPlayerAliveForQuestClaim()
+    {
+        if (_cachedPlayer == null)
+            TryBindPlayerDeathSignal();
+        return _cachedPlayer != null && !_cachedPlayer.IsDead;
     }
 
     private void HandlePlayerDiedForQuestProgress()
@@ -578,6 +588,14 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     public bool CanClaimReward(QuestDefinition q)
     {
+        if (!CanClaimRewardIgnoringPlayerAlive(q))
+            return false;
+        return IsPlayerAliveForQuestClaim();
+    }
+
+    /// <summary>Objective and turn-in rules satisfied; does not check whether the player is alive.</summary>
+    public bool CanClaimRewardIgnoringPlayerAlive(QuestDefinition q)
+    {
         if (!q || string.IsNullOrEmpty(q.questId) || q.objectiveKind == QuestObjectiveKind.None)
             return false;
         if (!IsQuestAccepted(q))
@@ -593,6 +611,20 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
             return false;
         if (!q.repeatable && IsRewardClaimed(q.questId))
             return false;
+        return true;
+    }
+
+    /// <summary>Ready to turn in except the player is dead (for journal button label).</summary>
+    public bool IsQuestBlockedOnlyByPlayerDeath(QuestDefinition q)
+    {
+        if (IsPlayerAliveForQuestClaim() || !CanClaimRewardIgnoringPlayerAlive(q))
+            return false;
+
+        if (q.objectiveKind != QuestObjectiveKind.GatherItem &&
+            HasItemRewardsToGrant(q) &&
+            !CanReceiveAllItemRewards(q))
+            return false;
+
         return true;
     }
 
@@ -681,6 +713,12 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     public bool TryClaimQuestReward(QuestDefinition q)
     {
+        if (!IsPlayerAliveForQuestClaim())
+        {
+            GameLog.Add("You must be alive to complete a quest.", GameLog.CannotMessageColor);
+            return false;
+        }
+
         if (!CanClaimReward(q))
             return false;
 

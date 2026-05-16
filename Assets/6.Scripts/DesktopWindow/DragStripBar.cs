@@ -22,6 +22,9 @@ public class DragStripBar : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        if (StripCameraController.IsStripLayoutLockedForExpandBackground)
+            return;
+
         if (!stripController) return;
 
         _startMouseY = eventData.position.y;
@@ -30,6 +33,9 @@ public class DragStripBar : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     public void OnDrag(PointerEventData eventData)
     {
+        if (StripCameraController.IsStripLayoutLockedForExpandBackground)
+            return;
+
         if (!stripController || Screen.height <= 0) return;
 
         // Pointer positions arrive in screen pixels, then immediately become normalized viewport movement.

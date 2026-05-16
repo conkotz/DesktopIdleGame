@@ -1256,6 +1256,15 @@ public class QuestPageUI : MonoBehaviour
             return;
         }
 
+        if (qProg != null && qProg.IsQuestBlockedOnlyByPlayerDeath(q))
+        {
+            SetQuestClaimButtonBackground(false);
+            if (questClaimButtonLabel)
+                questClaimButtonLabel.text = "Must be alive";
+            questClaimButton.interactable = false;
+            return;
+        }
+
         if (canClaim)
         {
             SetQuestClaimButtonBackground(true);

@@ -26,4 +26,7 @@ public enum ToggleSettingId
     /// Settings UI may label this as &quot;Show screen overlay visuals&quot; and invert the checkbox.
     /// </summary>
     DisableScreenOverlayVisuals = 9,
+
+    /// <summary>When true, sky/background renders full-window; gameplay strip camera stays the same size.</summary>
+    ExpandStripBackground = 10,
 }

@@ -40,7 +40,6 @@ public sealed class StripUIViewportFollower : MonoBehaviour
     private void OnValidate()
     {
         CacheTarget();
-        Apply(force: true);
     }
 
     private void LateUpdate()

@@ -1583,6 +1583,12 @@ public sealed class HelperGameplayController : MonoBehaviour
     /// </summary>
     private void OnToggleSettingsChanged(ToggleSettingId id, bool enabled)
     {
+        if (id == ToggleSettingId.ExpandStripBackground)
+        {
+            RefreshDimmerLayoutForExpandSetting();
+            return;
+        }
+
         if (id != ToggleSettingId.ShowHelpPopups)
             return;
 
@@ -3811,8 +3817,8 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         // Helper modal lives under FullWindowCanvas/WindowsArea (covers the full monitor) so the dim Image with 0..1 anchors
         // above would darken (and gobble clicks for) the entire screen. We only want the gameplay strip darkened/blocked,
-        // so retarget anchors to the strip camera's normalized viewport rect.
-        ConstrainDimmerToStripViewport(dimGo);
+        // so retarget anchors to the strip camera's normalized viewport rect (unless expand-background is on).
+        ApplyDimmerLayoutForExpandSetting(dimGo);
 
         GameObject glowLayerGo = CreateChild(_overlayRoot.transform, "WhitelistGlowOverlay");
         RectTransform glowLayerRt = glowLayerGo.GetComponent<RectTransform>();
@@ -4841,6 +4847,63 @@ public sealed class HelperGameplayController : MonoBehaviour
         return tagged ? tagged.transform as RectTransform : null;
     }
 
+    /// <summary>When expand-background is on, helper dim covers the full window; otherwise only the strip viewport.</summary>
+    public static void RefreshDimmerLayoutForExpandSetting()
+    {
+        if (Instance == null)
+            return;
+
+        if (Application.isPlaying)
+            Instance.StartCoroutine(Instance.CoRefreshDimmerLayoutNextFrame());
+        else
+            Instance.ApplyDimmerLayoutForExpandSetting();
+    }
+
+    private IEnumerator CoRefreshDimmerLayoutNextFrame()
+    {
+        yield return null;
+        ApplyDimmerLayoutForExpandSetting();
+    }
+
+    private void ApplyDimmerLayoutForExpandSetting()
+    {
+        if (!_dimmerImage)
+            return;
+
+        ApplyDimmerLayoutForExpandSetting(_dimmerImage.gameObject);
+    }
+
+    private static void ApplyDimmerLayoutForExpandSetting(GameObject dimGo)
+    {
+        if (!dimGo)
+            return;
+
+        RectTransform dimRt = dimGo.GetComponent<RectTransform>();
+        if (!dimRt)
+            return;
+
+        StripUIViewportFollower follower = dimGo.GetComponent<StripUIViewportFollower>();
+
+        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+        {
+            if (follower)
+                follower.enabled = false;
+
+            dimRt.anchorMin = Vector2.zero;
+            dimRt.anchorMax = Vector2.one;
+            dimRt.offsetMin = Vector2.zero;
+            dimRt.offsetMax = Vector2.zero;
+            return;
+        }
+
+        if (follower)
+            follower.enabled = true;
+        else
+            follower = dimGo.AddComponent<StripUIViewportFollower>();
+
+        ConstrainDimmerToStripViewport(dimGo);
+    }
+
     /// <summary>
     /// Attaches (or reuses) a <see cref="StripUIViewportFollower"/> on the dimmer GameObject so its anchors track the
     /// strip camera's normalized viewport rect — keeps the helper modal dim limited to the gameplay strip area instead
@@ -4859,6 +4922,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         StripUIViewportFollower follower = dimGo.GetComponent<StripUIViewportFollower>();
         if (!follower)
             follower = dimGo.AddComponent<StripUIViewportFollower>();
+        follower.enabled = true;
         follower.Bind(stripCam);
     }
 }

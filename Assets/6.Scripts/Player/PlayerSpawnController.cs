@@ -507,11 +507,43 @@ public class PlayerSpawnController : MonoBehaviour
     /// </summary>
     public static CanvasGroup CreateOrResolveGameplayBlackFade()
     {
+        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+            return GetOrCreateLevelLoadFaderFullScreen();
+
         Canvas stripCanvas = TryResolveStripUiCanvas();
         if (stripCanvas != null)
             return GetOrCreateStripConstrainedLevelLoadFader(stripCanvas);
 
         return GetOrCreateLevelLoadFaderFullScreen();
+    }
+
+    /// <summary>When expand-background is toggled, drop strip-hosted faders so the next fade uses the correct layout.</summary>
+    public static void RefreshGameplayBlackFadeLayoutForExpandSetting()
+    {
+        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+        {
+            DestroyStripCanvasFaderRoot();
+
+            GameObject stripHosted = FindSceneGameObjectByName(LevelLoadFaderName);
+            if (stripHosted != null && IsStripHostedLevelLoadFader(stripHosted))
+            {
+                if (Application.isPlaying)
+                    Destroy(stripHosted);
+                else
+                    DestroyImmediate(stripHosted);
+            }
+
+            return;
+        }
+
+        GameObject fullScreenRoot = FindSceneGameObjectByName(LevelLoadFaderName);
+        if (fullScreenRoot != null && !IsStripHostedLevelLoadFader(fullScreenRoot))
+        {
+            if (Application.isPlaying)
+                Destroy(fullScreenRoot);
+            else
+                DestroyImmediate(fullScreenRoot);
+        }
     }
 
     /// <summary>Matches <see cref="LevelBiomeVisualsController"/> strip canvas discovery (cave overlay parent).</summary>
@@ -648,7 +680,7 @@ public class PlayerSpawnController : MonoBehaviour
 
     private static void DestroyStripCanvasFaderRoot()
     {
-        GameObject strip = GameObject.Find(LevelLoadFaderStripCanvasName);
+        GameObject strip = FindSceneGameObjectByName(LevelLoadFaderStripCanvasName);
         if (strip != null)
             UnityEngine.Object.Destroy(strip);
     }
@@ -661,7 +693,7 @@ public class PlayerSpawnController : MonoBehaviour
     {
         for (int i = 0; i < 8; i++)
         {
-            GameObject cand = GameObject.Find(LevelLoadFaderName);
+            GameObject cand = FindSceneGameObjectByName(LevelLoadFaderName);
             if (cand == null)
                 break;
 
@@ -674,6 +706,25 @@ public class PlayerSpawnController : MonoBehaviour
             else
                 UnityEngine.Object.Destroy(cand);
         }
+    }
+
+    private static GameObject FindSceneGameObjectByName(string objectName)
+    {
+        if (string.IsNullOrEmpty(objectName))
+            return null;
+
+        Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
+        for (int i = 0; i < all.Length; i++)
+        {
+            Transform t = all[i];
+            if (!t || t.hideFlags != HideFlags.None || !t.gameObject.scene.IsValid())
+                continue;
+
+            if (string.Equals(t.name, objectName, StringComparison.Ordinal))
+                return t.gameObject;
+        }
+
+        return null;
     }
 
     private static bool IsStripHostedLevelLoadFader(GameObject go)
@@ -697,11 +748,11 @@ public class PlayerSpawnController : MonoBehaviour
         DestroyStripCanvasFaderRoot();
         DestroyStandaloneOverlayFaderRoots();
 
-        // GameObject.Find is ambiguous if a strip-hosted fader shares this name — only reuse a true overlay root.
+        // Name lookup can match inactive objects — only reuse a true overlay root.
         GameObject go = null;
         for (int i = 0; i < 8; i++)
         {
-            GameObject cand = GameObject.Find(LevelLoadFaderName);
+            GameObject cand = FindSceneGameObjectByName(LevelLoadFaderName);
             if (cand == null)
                 break;
 

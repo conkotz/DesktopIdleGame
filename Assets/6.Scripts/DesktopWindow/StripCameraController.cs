@@ -9,11 +9,13 @@ using UnityEngine.Serialization;
 [DefaultExecutionOrder(-200)]
 public sealed class StripCameraController : MonoBehaviour, ISaveable
 {
+    public const float StripHeightPercentNormal = 0.3333f;
+
     [SerializeField] private Camera stripCamera;
 
     [Header("Viewport")]
     [Range(0.1f, 1f)]
-    public float stripHeightPercent = 0.3f;
+    public float stripHeightPercent = StripHeightPercentNormal;
 
     [Tooltip("Bottom of the strip in normalized screen space. 0 = bottom, 1 = top.")]
     [Range(0f, 1f)]
@@ -69,6 +71,20 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     /// </summary>
     private static float _sessionLaneZoomBaselineStripAspect = -1f;
 
+    private static bool s_stripLayoutLockedForExpandBackground;
+
+    /// <summary>When expand-background is on, strip position/size cannot be changed (see <see cref="SetExpandBackgroundStripLayoutLocked"/>).</summary>
+    public static bool IsStripLayoutLockedForExpandBackground => s_stripLayoutLockedForExpandBackground;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void ApplyExpandStripLockFromSettingsAfterSceneLoad()
+    {
+        if (!Application.isPlaying)
+            return;
+
+        SyncStripLockToExpandBackgroundSetting();
+    }
+
     [Serializable]
     private struct SavedStripLayoutV2
     {
@@ -122,8 +138,8 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     private void OnEnable()
     {
         CacheCamera();
-        if (Application.isPlaying && persistStripLayout)
-            TryLoadSavedLayoutQuiet();
+        if (Application.isPlaying)
+            SyncStripLockToExpandBackgroundSetting();
 
         if (Application.isPlaying)
         {
@@ -242,7 +258,19 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     private void Update()
     {
         if (Application.isPlaying)
+        {
+            if (s_stripLayoutLockedForExpandBackground &&
+                !ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+            {
+                SyncStripLockToExpandBackgroundSetting();
+            }
+            else if (s_stripLayoutLockedForExpandBackground)
+            {
+                EnforceLockedBaselineLayoutIfNeeded();
+            }
+
             ClampInspectorValues();
+        }
 
         if (Application.isPlaying && enableKeyboardZoom)
             ApplyKeyboardOrthoZoom();
@@ -328,25 +356,130 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
 
     public void SetBottomNormalized(float value)
     {
+        if (s_stripLayoutLockedForExpandBackground)
+            return;
+
         bottomNormalized = value;
         Apply(force: true);
     }
 
     public void SetLeftNormalized(float value)
     {
+        if (s_stripLayoutLockedForExpandBackground)
+            return;
+
         leftNormalized = value;
         Apply(force: true);
     }
 
     public void SetWidthNormalized(float value)
     {
+        if (s_stripLayoutLockedForExpandBackground)
+            return;
+
         widthNormalized = value;
         Apply(force: true);
     }
 
     public void SetStripHeightPercent(float value)
     {
+        if (s_stripLayoutLockedForExpandBackground)
+            return;
+
         stripHeightPercent = value;
+        Apply(force: true);
+    }
+
+    /// <summary>Snap strip layout to the normal prefab baseline (used when expand-background locks the strip).</summary>
+    public void SnapToNormalStripLayoutForExpandLock()
+    {
+        ApplyPrefabBaselineSnapshot();
+        Apply(force: true);
+    }
+
+    /// <summary>Applies strip lock from <see cref="ToggleSettingId.ExpandStripBackground"/> (on = locked).</summary>
+    public static void SyncStripLockToExpandBackgroundSetting()
+    {
+        SetExpandBackgroundStripLayoutLocked(
+            ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground));
+    }
+
+    /// <summary>Locks or unlocks strip move/resize; when locking, snaps all strip cameras to the normal layout.</summary>
+    public static void SetExpandBackgroundStripLayoutLocked(bool locked)
+    {
+        bool stateChanged = s_stripLayoutLockedForExpandBackground != locked;
+        s_stripLayoutLockedForExpandBackground = locked;
+
+        StripCameraController[] controllers = UnityEngine.Object.FindObjectsByType<StripCameraController>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        if (locked && stateChanged)
+        {
+            for (int i = 0; i < controllers.Length; i++)
+            {
+                StripCameraController ctrl = controllers[i];
+                if (ctrl)
+                    ctrl.SnapToNormalStripLayoutForExpandLock();
+            }
+        }
+        else if (!locked && stateChanged)
+        {
+            for (int i = 0; i < controllers.Length; i++)
+            {
+                StripCameraController ctrl = controllers[i];
+                if (ctrl)
+                    ctrl.RestorePersistedStripLayoutIfAny();
+            }
+        }
+
+        SyncStripManipulatorInteractables(!locked);
+    }
+
+    private void RestorePersistedStripLayoutIfAny()
+    {
+        if (!persistStripLayout)
+            return;
+
+        TryLoadSavedLayoutQuiet();
+        Apply(force: true);
+    }
+
+    private static void SyncStripManipulatorInteractables(bool interactable)
+    {
+        DragStripBar[] dragBars = UnityEngine.Object.FindObjectsByType<DragStripBar>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        for (int i = 0; i < dragBars.Length; i++)
+        {
+            if (dragBars[i])
+                dragBars[i].enabled = interactable;
+        }
+
+        RightEdgeResizer[] resizers = UnityEngine.Object.FindObjectsByType<RightEdgeResizer>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        for (int i = 0; i < resizers.Length; i++)
+        {
+            if (resizers[i])
+                resizers[i].enabled = interactable;
+        }
+    }
+
+    private void EnforceLockedBaselineLayoutIfNeeded()
+    {
+        if (!s_stripLayoutLockedForExpandBackground)
+            return;
+
+        if (Mathf.Approximately(stripHeightPercent, _prefabStripHeightPercent) &&
+            Mathf.Approximately(bottomNormalized, _prefabBottomNormalized) &&
+            Mathf.Approximately(leftNormalized, _prefabLeftNormalized) &&
+            Mathf.Approximately(widthNormalized, _prefabWidthNormalized))
+        {
+            return;
+        }
+
+        ApplyPrefabBaselineSnapshot();
         Apply(force: true);
     }
 
@@ -394,7 +527,7 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     private void CapturePrefabBaselineSnapshotFromSerializedFields()
     {
         _prefabOrthoAtAwake = baseOrthoSize;
-        _prefabStripHeightPercent = stripHeightPercent;
+        _prefabStripHeightPercent = StripHeightPercentNormal;
         _prefabBottomNormalized = bottomNormalized;
         _prefabLeftNormalized = leftNormalized;
         _prefabWidthNormalized = widthNormalized;
@@ -457,6 +590,10 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
 
     private void TryLoadSavedLayoutQuiet()
     {
+        if (s_stripLayoutLockedForExpandBackground ||
+            ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+            return;
+
         if (!PlayerPrefs.HasKey(StripLayoutPrefsKey))
         {
             TryMigrateLegacyStripLayoutPrefsV1Quiet();
@@ -524,10 +661,25 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     /// </summary>
     private void ApplyRectsFromSaved(SavedStripLayoutV2 s)
     {
+        if (s_stripLayoutLockedForExpandBackground ||
+            ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+            return;
+
         stripHeightPercent = s.stripHeightPercent;
         bottomNormalized = s.bottomNormalized;
         leftNormalized = _prefabLeftNormalized;
         widthNormalized = _prefabWidthNormalized;
+
+        ClampSavedStripHeightForGameplayLayout();
+    }
+
+    private void ClampSavedStripHeightForGameplayLayout()
+    {
+        if (!Application.isPlaying)
+            return;
+
+        if (stripHeightPercent > StripHeightPercentNormal + 0.001f)
+            stripHeightPercent = StripHeightPercentNormal;
     }
 
     private void SaveLayoutToPrefs(bool forceImmediate)
@@ -613,7 +765,8 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             _sessionOrthoActive = true;
         }
 
-        if (Application.isPlaying && persistStripLayout && layoutChanged)
+        if (Application.isPlaying && persistStripLayout && layoutChanged &&
+            !s_stripLayoutLockedForExpandBackground)
             SaveLayoutToPrefs(forceImmediate: false);
 
         if (Application.isPlaying && layoutChanged)

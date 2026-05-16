@@ -19,6 +19,7 @@ public static class ToggleSettingsStore
     private const string LegacyHideHelpPopupsKey = "Settings.HideHelpPopups";
     private const string GroupRepeatedActivityLogItemGainsKey = "Settings.GroupRepeatedActivityLogItemGains";
     private const string DisableScreenOverlayVisualsKey = "Settings.DisableScreenOverlayVisuals";
+    private const string ExpandStripBackgroundKey = "Settings.ExpandStripBackground";
 
     public static event Action<ToggleSettingId, bool> Changed;
 
@@ -44,6 +45,9 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(GroupRepeatedActivityLogItemGainsKey, 0) != 0,
             ToggleSettingId.DisableScreenOverlayVisuals =>
                 PlayerPrefs.GetInt(DisableScreenOverlayVisualsKey, 0) != 0,
+            // Default off (0) → strip height 0.3333 via StripCameraController.
+            ToggleSettingId.ExpandStripBackground =>
+                PlayerPrefs.GetInt(ExpandStripBackgroundKey, 0) != 0,
             _ => false
         };
     }
@@ -122,6 +126,9 @@ public static class ToggleSettingsStore
             case ToggleSettingId.DisableScreenOverlayVisuals:
                 PlayerPrefs.SetInt(DisableScreenOverlayVisualsKey, value ? 1 : 0);
                 break;
+            case ToggleSettingId.ExpandStripBackground:
+                PlayerPrefs.SetInt(ExpandStripBackgroundKey, value ? 1 : 0);
+                break;
         }
 
         PlayerPrefs.Save();
@@ -129,6 +136,9 @@ public static class ToggleSettingsStore
 
         if (setting == ToggleSettingId.ShowWindowResizeHandles)
             UIWindowCornerResize.RefreshAllHandlesVisibility();
+
+        if (setting == ToggleSettingId.ExpandStripBackground)
+            FullWindowBackgroundPresenter.RefreshAllFromSettings();
     }
 
     internal static void ClearAllStoredKeysAndReload()
@@ -145,9 +155,11 @@ public static class ToggleSettingsStore
         PlayerPrefs.DeleteKey(LegacyHideHelpPopupsKey);
         PlayerPrefs.DeleteKey(GroupRepeatedActivityLogItemGainsKey);
         PlayerPrefs.DeleteKey(DisableScreenOverlayVisualsKey);
+        PlayerPrefs.DeleteKey(ExpandStripBackgroundKey);
         PlayerPrefs.Save();
 
         UIWindowCornerResize.RefreshAllHandlesVisibility();
+        FullWindowBackgroundPresenter.RefreshAllFromSettings();
 
         foreach (ToggleSettingId id in Enum.GetValues(typeof(ToggleSettingId)))
             Changed?.Invoke(id, Get(id));
@@ -169,6 +181,8 @@ public static class ToggleSettingsStore
                 "Show repeated actions as grouped in activity log",
             ToggleSettingId.DisableScreenOverlayVisuals =>
                 "Show screen overlay visuals",
+            ToggleSettingId.ExpandStripBackground =>
+                "Expand background",
             _ => setting.ToString()
         };
     }

@@ -214,6 +214,15 @@ public class DesktopOverlayClickThrough : MonoBehaviour
         if (stripCamera && IsPointerInsideStrip())
             return true;
 
+        // Expand background: full window is gameplay (sky extension), except real UI hits.
+        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+        {
+            if (!allowlistOnlyOutsideStrip)
+                return !IsPointerOverUIRaycast();
+
+            return IsPointerOverAllowlistedCanvasOnly();
+        }
+
         // No strip (Bootstrap / menus) or outside strip: UI raycasts only.
         if (!allowlistOnlyOutsideStrip)
             return IsPointerOverUIRaycast();
