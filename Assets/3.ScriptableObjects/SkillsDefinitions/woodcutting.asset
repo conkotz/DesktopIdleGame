@@ -923,13 +923,13 @@ MonoBehaviour:
     - requiredLevel: 48
       title: Heartwood Vigil
       description: Avatar of the Forest lasts +30 seconds.
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 48
       title: Greenbark Respite
       description: After Avatar of the Forest ends, its cooldown is 30 seconds shorter.
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 46

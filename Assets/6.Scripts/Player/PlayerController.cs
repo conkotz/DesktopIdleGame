@@ -3384,7 +3384,11 @@ public class PlayerController : MonoBehaviour
     {
         // fallback so you don't brick movement if stats is missing
         if (!characterStats) return 3f;
-        return characterStats.FinalMoveSpeed;
+
+        float speed = characterStats.FinalMoveSpeed;
+        if (PlayerSprintInput.ShouldApplyMoveSpeedBonus())
+            speed += PlayerSprintInput.SprintSpeedBonusFlat;
+        return speed;
     }
 
     private void UpdateSpriteFlip()

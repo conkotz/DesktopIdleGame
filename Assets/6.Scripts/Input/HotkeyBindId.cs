@@ -21,4 +21,5 @@ public enum HotkeyBindId
     ZoomIn = 13,
     ZoomOut = 14,
     ReturnToTown = 15,
+    Sprint = 16,
 }

@@ -5543,6 +5543,7 @@ GameObject:
   - component: {fileID: 97292717890627303}
   - component: {fileID: 2141707508347274369}
   - component: {fileID: -183894165544996772}
+  - component: {fileID: -284719365544996773}
   - component: {fileID: 966196259100907935}
   - component: {fileID: 2176292730521575066}
   - component: {fileID: 6203984249307556777}
@@ -6302,6 +6303,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponSetSwapInput
   equipment: {fileID: 0}
   actionBar: {fileID: 0}
+--- !u!114 &-284719365544996773
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c8e4f2a91bd5634081ef5a6d2c9b47e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerSprintInput
 --- !u!114 &966196259100907935
 MonoBehaviour:
   m_ObjectHideFlags: 0

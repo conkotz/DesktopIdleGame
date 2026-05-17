@@ -3209,7 +3209,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             }
         }
 
-        if (currentEnergy < maxEnergy && energyRegen > 0f)
+        if (currentEnergy < maxEnergy && energyRegen > 0f && !PlayerSprintInput.BlocksStaminaRegen)
         {
             float newEnergy = Mathf.Min(maxEnergy, currentEnergy + energyRegen * dt);
             if (!Mathf.Approximately(newEnergy, currentEnergy))

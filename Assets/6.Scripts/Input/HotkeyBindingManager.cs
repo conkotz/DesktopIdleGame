@@ -80,6 +80,7 @@ public sealed class HotkeyBindingManager : MonoBehaviour
             HotkeyBindId.ZoomIn => KeyCode.UpArrow,
             HotkeyBindId.ZoomOut => KeyCode.DownArrow,
             HotkeyBindId.ReturnToTown => KeyCode.None,
+            HotkeyBindId.Sprint => KeyCode.Space,
             _ => KeyCode.None
         };
     }
