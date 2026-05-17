@@ -13,7 +13,6 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
     private const string BackgroundVisualsName = "BackgroundVisuals";
     private const string DefaultSkyVisualName = "DefaultSkyVisual";
     private const string CaveBackgroundName = "CaveBackground";
-    private const string StripCanvasName = "StripUICanvas";
     private const string OverlayName = "BiomeCaveOverlay";
 
     private static readonly Color CaveOverlayColor = new Color(0f, 0f, 0f, 0.2f);
@@ -120,6 +119,7 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
         if (_bootstrapper != null)
             _bootstrapper.OnLevelStarted += HandleLevelStarted;
         ToggleSettingsStore.Changed += HandleToggleSettingsChanged;
+        GameplayScreenOverlayLayout.RegisterCoverageRefresh(RefreshCaveOverlayCoverage);
 
         ApplyBiomeVisuals(ResolveActiveDefinition());
     }
@@ -132,6 +132,13 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
         if (_bootstrapper != null)
             _bootstrapper.OnLevelStarted -= HandleLevelStarted;
         ToggleSettingsStore.Changed -= HandleToggleSettingsChanged;
+        GameplayScreenOverlayLayout.UnregisterCoverageRefresh(RefreshCaveOverlayCoverage);
+    }
+
+    private void RefreshCaveOverlayCoverage()
+    {
+        if (_caveOverlayImage != null)
+            GameplayScreenOverlayLayout.ApplyCoverage(_caveOverlayImage.gameObject);
     }
 
     private void Update()
@@ -148,10 +155,10 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
 
     private void HandleToggleSettingsChanged(ToggleSettingId id, bool _)
     {
-        if (id != ToggleSettingId.DisableScreenOverlayVisuals)
-            return;
-
-        EnsureCaveOverlayState(_activeBiome == LevelBiome.Cave);
+        if (id == ToggleSettingId.DisableScreenOverlayVisuals)
+            EnsureCaveOverlayState(_activeBiome == LevelBiome.Cave);
+        else if (id == ToggleSettingId.ExpandStripBackground && _caveOverlayImage != null)
+            GameplayScreenOverlayLayout.ApplyCoverage(_caveOverlayImage.gameObject);
     }
 
     private MapNodeDefinition ResolveActiveDefinition()
@@ -329,7 +336,7 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
         if (_caveOverlayImage != null && _caveOverlayGroup != null)
             return;
 
-        Canvas stripCanvas = ResolveStripCanvas();
+        Canvas stripCanvas = GameplayScreenOverlayLayout.TryResolveStripUiCanvas();
         if (stripCanvas == null)
             return;
 
@@ -360,26 +367,7 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
         _caveOverlayGroup.blocksRaycasts = false;
         _caveOverlayGroup.interactable = false;
 
-        // StripUICanvas renders Screen Space - Overlay (covers the full monitor), so anchors 0..1 above would darken the
-        // entire screen including the desktop area above the strip. We only want the strip darkened, so retarget the
-        // overlay's anchors to the strip camera's normalized viewport rect (matches the gameplay strip and resizes with it).
-        ConstrainOverlayToStripViewport(go);
-    }
-
-    private static void ConstrainOverlayToStripViewport(GameObject overlayGo)
-    {
-        if (!overlayGo)
-            return;
-
-        StripCameraController ctrl = Object.FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Include);
-        Camera stripCam = ctrl ? ctrl.GetComponent<Camera>() : null;
-        if (!stripCam)
-            return;
-
-        StripUIViewportFollower follower = overlayGo.GetComponent<StripUIViewportFollower>();
-        if (!follower)
-            follower = overlayGo.AddComponent<StripUIViewportFollower>();
-        follower.Bind(stripCam);
+        GameplayScreenOverlayLayout.ApplyCoverage(go);
     }
 
     private void ResetCaveFlickerState()
@@ -433,25 +421,4 @@ public sealed class LevelBiomeVisualsController : MonoBehaviour
         }
     }
 
-    private static Canvas ResolveStripCanvas()
-    {
-        Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
-        for (int i = 0; i < all.Length; i++)
-        {
-            Transform t = all[i];
-            if (!t || t.hideFlags != HideFlags.None || !t.gameObject.scene.IsValid())
-                continue;
-            if (!string.Equals(t.name, StripCanvasName, System.StringComparison.OrdinalIgnoreCase))
-                continue;
-            Canvas c = t.GetComponent<Canvas>();
-            if (c != null)
-                return c;
-        }
-
-        GameObject tagged = GameObject.FindGameObjectWithTag("UICanvas");
-        if (tagged != null)
-            return tagged.GetComponent<Canvas>();
-
-        return null;
-    }
 }

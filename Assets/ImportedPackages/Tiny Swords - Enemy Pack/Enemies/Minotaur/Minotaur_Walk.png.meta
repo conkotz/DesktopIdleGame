@@ -1,5 +1,12 @@
 fileFormatVersion: 2
 guid: ab2af0324e022405d84780c8f7c0cef7
+AssetOrigin:
+  serializedVersion: 1
+  productId: 352568
+  packageName: Tiny Swords - Enemy Pack
+  packageVersion: 1.0
+  assetPath: Assets/Tiny Swords - Enemy Pack/Enemies/Minotaur/Minotaur_Walk.png
+  uploadId: 844332
 TextureImporter:
   internalIDToNameTable:
   - first:
@@ -325,10 +332,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 352568
-  packageName: Tiny Swords - Enemy Pack
-  packageVersion: 1.0
-  assetPath: Assets/Tiny Swords - Enemy Pack/Enemies/Minotaur/Minotaur_Walk.png
-  uploadId: 844332

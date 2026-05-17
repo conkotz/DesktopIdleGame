@@ -35,6 +35,8 @@ public class MinimizeGameWindowButton : MonoBehaviour
 
     public void MinimizeApplicationWindow()
     {
+        QuickMenuPanelToggleUI.HideIfOpen();
+
 #if UNITY_EDITOR
         Debug.Log($"[{nameof(MinimizeGameWindowButton)}] Minimizes the player window in Windows/macOS standalone builds (not in the Editor).");
 #elif UNITY_STANDALONE_WIN

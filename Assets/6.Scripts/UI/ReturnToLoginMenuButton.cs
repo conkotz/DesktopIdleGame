@@ -78,6 +78,8 @@ public sealed class ReturnToLoginMenuButton : MonoBehaviour
 
     private void HandleClicked()
     {
+        QuickMenuPanelToggleUI.HideIfOpen();
+
         if (SaveManager.Instance == null)
         {
             Debug.LogWarning("[ReturnToLoginMenuButton] SaveManager.Instance is null; cannot save or return to login.");

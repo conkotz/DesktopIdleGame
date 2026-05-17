@@ -106,6 +106,9 @@ public class TrackerWindowToggleUI : MonoBehaviour
             return;
         }
 
+        if (window.activeSelf && UIWindowCloseButton.BlocksClose(window))
+            return;
+
         bool newState = !window.activeSelf;
         window.SetActive(newState);
         if (newState)

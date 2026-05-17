@@ -1011,9 +1011,10 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 45
-    title: Ability Milestone V
-    description: Placeholder ability milestone.
-    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    title: Final Severance
+    description: Channel for 2 seconds, then strike up to 8 enemies in a wide arc
+      for 150% of your rolled Physical, Magic, and Corruption damage.
+    icon: {fileID: 4260696762056017133, guid: 7c07aff2dfe89ca43bc68f26c8c593b8, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -1023,19 +1024,20 @@ MonoBehaviour:
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
-    presentation: {fileID: 0}
+    ability: {fileID: 11400000, guid: f1a2b3c4d5e6478990abcdef12345678, type: 2}
+    presentation: {fileID: 11400000, guid: f4e8d2c1b6a9473081f2e5d6c7b8a901, type: 2}
     choices:
-    - requiredLevel: 50
-      title: Ability V Choice A
-      description: Placeholder melee choice.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    - requiredLevel: 48
+      title: Worldbreaker
+      description: Enemies below 25% health take 50% extra damage.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
-    - requiredLevel: 50
-      title: Ability V Choice B
-      description: Placeholder melee choice.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    - requiredLevel: 48
+      title: Thousand Cuts
+      description: Each enemy is struck 4 times; each hit deals 30% of the ability's
+        scaled damage (bleeds, poisons, and on-hit effects apply per hit).
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 46

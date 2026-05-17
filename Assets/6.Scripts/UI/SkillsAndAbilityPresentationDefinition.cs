@@ -3,7 +3,9 @@ using UnityEngine;
 /// <summary>
 /// Centralized display copy for skills / abilities / passives (tooltips, lists, headers).
 /// Gameplay ScriptableObjects keep numeric rules; this asset holds wording and icons.
-/// League <b>Effects</b> / scaling lines stay in <see cref="AbilityTooltipDamagePreview"/> keyed by <see cref="AbilityDefinition.abilityId"/>.
+/// League tooltip layout (skills ability list): flavor shortDescription → blue scaling → Effects →
+/// Active Enhancement (green) → Required weapon (bottom). Numeric scaling/effects stay in
+/// <see cref="AbilityTooltipDamagePreview"/> keyed by <see cref="AbilityDefinition.abilityId"/>.
 /// </summary>
 [CreateAssetMenu(
     fileName = "Presentation_",
@@ -22,7 +24,7 @@ public sealed class SkillsAndAbilityPresentationDefinition : ScriptableObject
     [SerializeField] private Sprite icon;
 
     [Header("Descriptions")]
-    [Tooltip("Short line for league-style intro, action bar body, and buff HUD (Ability / buff bar).")]
+    [Tooltip("Flavor one-liner only (no % damage, range, or effect bullets). Shown at top of ability tooltips before blue scaling and Effects.")]
     [TextArea(2, 6)]
     [SerializeField] private string shortDescription;
 

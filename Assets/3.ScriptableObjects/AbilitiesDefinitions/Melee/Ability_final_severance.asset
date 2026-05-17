@@ -10,19 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_envenom
+  m_Name: Ability_final_severance
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: envenom
-  displayName: Envenom
+  abilityId: final_severance
+  displayName: Final Severance
   tag: 1
   tooltipBuffMinionDurationSeconds: 0
-  presentation: {fileID: 11400000, guid: 5cc4b28a5fb44960b8ce6610e9dcf239, type: 2}
-  cooldown: 10
-  energyCost: 30
-  physicalDamageMultiplier: 0
-  magicDamageMultiplier: 0
-  corruptionDamageMultiplier: 0
-  allDamageMultiplier: 0
+  presentation: {fileID: 11400000, guid: f4e8d2c1b6a9473081f2e5d6c7b8a901, type: 2}
+  cooldown: 60
+  energyCost: 50
+  weaponDamageMultiplier: 1.6
+  allDamageMultiplier: 1
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0
   lightningDamageMultiplier: 0
@@ -30,5 +28,5 @@ MonoBehaviour:
   bleedDamageMultiplier: 0
   requiredWeaponType: 1
   sourceSkill: 3
-  unlockLevel: 5
+  unlockLevel: 45
   minionSpawnDefinition: {fileID: 0}

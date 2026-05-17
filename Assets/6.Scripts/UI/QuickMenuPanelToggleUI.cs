@@ -10,7 +10,26 @@ public class QuickMenuPanelToggleUI : MonoBehaviour
     [SerializeField] private GameObject quickMenuPanel;
     [SerializeField] private string quickMenuPanelName = "QuickMenuPanel";
 
+    private static GameObject s_cachedPanel;
+
     private Button _button;
+
+    public static bool IsOpen
+    {
+        get
+        {
+            GameObject panel = ResolvePanelStatic();
+            return panel != null && panel.activeInHierarchy;
+        }
+    }
+
+    /// <summary>Hides the quick menu if it is currently open.</summary>
+    public static void HideIfOpen()
+    {
+        GameObject panel = ResolvePanelStatic();
+        if (panel != null && panel.activeSelf)
+            panel.SetActive(false);
+    }
 
     private void Awake()
     {
@@ -52,7 +71,21 @@ public class QuickMenuPanelToggleUI : MonoBehaviour
     private GameObject ResolvePanel()
     {
         if (quickMenuPanel != null)
+        {
+            s_cachedPanel = quickMenuPanel;
             return quickMenuPanel;
+        }
+
+        GameObject resolved = ResolvePanelStatic();
+        if (resolved != null)
+            quickMenuPanel = resolved;
+        return resolved;
+    }
+
+    private static GameObject ResolvePanelStatic()
+    {
+        if (s_cachedPanel != null)
+            return s_cachedPanel;
 
         QuickMenuPanelToggleUI[] toggles = FindObjectsByType<QuickMenuPanelToggleUI>(
             FindObjectsInactive.Include,
@@ -62,8 +95,8 @@ public class QuickMenuPanelToggleUI : MonoBehaviour
             QuickMenuPanelToggleUI t = toggles[i];
             if (t != null && t.quickMenuPanel != null)
             {
-                quickMenuPanel = t.quickMenuPanel;
-                return quickMenuPanel;
+                s_cachedPanel = t.quickMenuPanel;
+                return s_cachedPanel;
             }
         }
 
@@ -73,11 +106,11 @@ public class QuickMenuPanelToggleUI : MonoBehaviour
             Transform t = all[i];
             if (t == null || t.hideFlags != HideFlags.None || !t.gameObject.scene.IsValid())
                 continue;
-            if (t.name == quickMenuPanelName)
-            {
-                quickMenuPanel = t.gameObject;
-                return quickMenuPanel;
-            }
+            if (t.name != "QuickMenuPanel")
+                continue;
+
+            s_cachedPanel = t.gameObject;
+            return s_cachedPanel;
         }
 
         return null;

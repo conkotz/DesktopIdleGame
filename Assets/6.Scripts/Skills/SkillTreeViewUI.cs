@@ -270,6 +270,19 @@ public class SkillTreeViewUI : MonoBehaviour
             && IsRowLevelAbilityCooldownActive(m.level);
     }
 
+    private const float SkillUnlearnCooldownLogIntervalSeconds = 10f;
+    private const string SkillUnlearnCooldownLogMessage = "must wait for skill too be off cooldown";
+    private float _lastSkillUnlearnCooldownLogUnscaledTime = -999f;
+
+    private void TryLogSkillUnlearnCooldownBlocked()
+    {
+        if (Time.unscaledTime - _lastSkillUnlearnCooldownLogUnscaledTime < SkillUnlearnCooldownLogIntervalSeconds)
+            return;
+
+        _lastSkillUnlearnCooldownLogUnscaledTime = Time.unscaledTime;
+        GameLog.Add(SkillUnlearnCooldownLogMessage, GameLog.CannotMessageColor);
+    }
+
     private void TryExpireCommittedAbilityLingeringStateForSkillTreeReset(string spineTarget)
     {
         ResolveAbilityController();
@@ -1909,7 +1922,10 @@ public class SkillTreeViewUI : MonoBehaviour
             return;
 
         if (ShouldBlockRightClickResetForSpine(spineTarget))
+        {
+            TryLogSkillUnlearnCooldownBlocked();
             return;
+        }
 
         TryExpireCommittedAbilityLingeringStateForSkillTreeReset(spineTarget);
 

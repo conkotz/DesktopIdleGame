@@ -23,6 +23,18 @@ public static class AbilityCombatPower
     public const string CleavingChopAbilityId = "cleaving_chop";
     public const string SpectralAxeAbilityId = "spectral_axe";
     public const string AvatarOfTheForestAbilityId = "avatar_of_the_forest";
+    public const string FinalSeveranceAbilityId = "final_severance";
+
+    /// <summary>Enhancement choices for Final Severance (Melee Lv45 slot 0).</summary>
+    public const string FinalSeveranceEnhancementParentSpineNodeId = "Lv45_0";
+
+    public const float FinalSeveranceChannelSeconds = 2f;
+    public const float FinalSeveranceHitRangeHalfWidth = 25f;
+    public const int FinalSeveranceMaxTargets = 8;
+    public const float FinalSeveranceLowHealthThreshold = 0.25f;
+    public const float FinalSeveranceWorldbreakerBonusMultiplier = 1.5f;
+    public const int FinalSeveranceThousandCutsHitCount = 4;
+    public const float FinalSeveranceThousandCutsHitFraction = 0.3f;
 
     /// <summary>
     /// Parent spine node id where Avatar enhancement choices are stored (<see cref="SkillsManager.GetSkillChoiceSelection"/>).
@@ -283,9 +295,9 @@ public static class AbilityCombatPower
             return Mathf.Max(0f, mdps * (summonDur / cycleSeconds));
         }
 
-        float physMult = def.physicalDamageMultiplier;
+        float weaponMult = def.weaponDamageMultiplier;
         float cd = Mathf.Max(0.01f, def.cooldown);
-        ApplyPowerSlashChoiceAdjustments(def, ref physMult, ref cd);
+        ApplyPowerSlashChoiceAdjustments(def, ref weaponMult, ref cd);
         float extraHitFactor = 1f;
         ApplyWhirlwindChoiceAdjustments(def, ref cd, ref extraHitFactor);
         float critFactor = GetCritFactor(stats);
@@ -299,14 +311,12 @@ public static class AbilityCombatPower
         {
             float psAllM = def.GetEffectiveAllDamageMultiplier();
             float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
-            float physEff = physMult <= 0f ? 1f : physMult;
-            float magEff = physEff;
-            float corrEff = physEff;
+            float weaponEff = weaponMult <= 0f ? 1f : weaponMult;
             float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
             float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-            float physExtra = (avgPhys * physEff + ailmentBonus) * apM * psAllM - avgPhys;
-            float magExtra = (avgMag * magEff + elementBonus) * apM * psAllM - avgMag;
-            float corrExtra = (avgCorruption * corrEff) * apM * psAllM - avgCorruption;
+            float physExtra = (avgPhys * weaponEff + ailmentBonus) * apM * psAllM - avgPhys;
+            float magExtra = (avgMag * weaponEff + elementBonus) * apM * psAllM - avgMag;
+            float corrExtra = (avgCorruption * weaponEff) * apM * psAllM - avgCorruption;
             float rawBonus = physExtra + magExtra + corrExtra;
             float perEnhancedHit = rawBonus * critFactor;
             float aps = stats.AttacksPerSecond;
@@ -404,18 +414,16 @@ public static class AbilityCombatPower
         }
 
         // Default: instant cast (Whirlwind, Crescent Slash, etc.).
-        float pEff = def.GetPhysicalHitScalingMultiplier();
-        float mEff = def.GetMagicHitScalingMultiplier();
-        float cEff = def.GetCorruptionHitScalingMultiplier();
+        float wEff = def.GetWeaponHitScalingMultiplier();
         float allM = def.GetEffectiveAllDamageMultiplier();
         float elementBonusInstant = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float ailmentBonusInstant = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float apMInstant = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
         float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
         float raw =
-            (avgPhys * pEff + ailmentBonusInstant) * allM * apMInstant
-            + (avgMag * mEff * elemM + elementBonusInstant * elemM) * allM * apMInstant
-            + (avgCorruption * cEff) * allM * apMInstant;
+            (avgPhys * wEff + ailmentBonusInstant) * allM * apMInstant
+            + (avgMag * wEff * elemM + elementBonusInstant * elemM) * allM * apMInstant
+            + (avgCorruption * wEff) * allM * apMInstant;
         float perCast = raw * critFactor * Mathf.Max(1f, extraHitFactor);
         float dps = Mathf.Max(0f, perCast / cd);
 
@@ -451,7 +459,7 @@ public static class AbilityCombatPower
         return 1f + cc * (cm - 1f);
     }
 
-    private static void ApplyPowerSlashChoiceAdjustments(AbilityDefinition def, ref float physicalMultiplier, ref float cooldownSeconds)
+    private static void ApplyPowerSlashChoiceAdjustments(AbilityDefinition def, ref float weaponDamageMultiplier, ref float cooldownSeconds)
     {
         if (!def || !string.Equals(def.abilityId, PowerSlashAbilityId, StringComparison.OrdinalIgnoreCase))
             return;
@@ -463,7 +471,7 @@ public static class AbilityCombatPower
         int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
         if (selected == 0)
         {
-            physicalMultiplier += 0.25f; // Brutal Cut
+            weaponDamageMultiplier += 0.25f; // Brutal Cut
         }
         else if (selected == 1)
         {

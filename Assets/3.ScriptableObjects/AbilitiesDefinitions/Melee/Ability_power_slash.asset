@@ -19,10 +19,8 @@ MonoBehaviour:
   presentation: {fileID: 11400000, guid: 43db905413aa48c386063adcc9da4c0c, type: 2}
   cooldown: 10
   energyCost: 40
-  physicalDamageMultiplier: 1.5
-  magicDamageMultiplier: 0
-  corruptionDamageMultiplier: 0
-  allDamageMultiplier: 0
+  weaponDamageMultiplier: 1.5
+  allDamageMultiplier: 1
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0
   lightningDamageMultiplier: 0

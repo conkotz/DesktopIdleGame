@@ -79,22 +79,28 @@ public class UIWindowManager : MonoBehaviour
 
     public void CloseAllWindows()
     {
+        QuickMenuPanelToggleUI.HideIfOpen();
         MainMenuWindowUI.Resolve()?.Close();
 
         for (int i = _openWindows.Count - 1; i >= 0; i--)
         {
-            if (!_openWindows[i])
+            GameObject w = _openWindows[i];
+            if (!w)
+            {
+                _openWindows.RemoveAt(i);
+                continue;
+            }
+
+            if (w.GetComponentInParent<MainMenuWindowUI>(true) != null ||
+                w.GetComponentInChildren<MainMenuWindowUI>(true) != null)
                 continue;
 
-            if (_openWindows[i].GetComponentInParent<MainMenuWindowUI>(true) != null ||
-                _openWindows[i].GetComponentInChildren<MainMenuWindowUI>(true) != null)
+            if (UIWindowCloseButton.BlocksClose(w))
                 continue;
 
-            if (_openWindows[i])
-                _openWindows[i].SetActive(false);
+            w.SetActive(false);
+            _openWindows.RemoveAt(i);
         }
-
-        _openWindows.Clear();
     }
 
     private static bool IsTypingIntoInputField()

@@ -47,6 +47,20 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.01f)] private float crescentSlashLineWidth = 0.12f;
     [SerializeField] private Vector3 crescentSlashCenterOffset = new Vector3(0f, 0.65f, 0f);
 
+    [Header("Final Severance (Melee Lv45) VFX")]
+    [SerializeField] private Color finalSeveranceWindupStartColor = new Color(1f, 0.92f, 0.2f, 0.6f);
+    [SerializeField] private Color finalSeveranceWindupEndColor = new Color(1f, 0.82f, 0.12f, 0.6f);
+    [SerializeField] private Color finalSeveranceStrikeStartColor = new Color(1f, 0.18f, 0.05f, 1f);
+    [SerializeField] private Color finalSeveranceStrikeEndColor = new Color(0.55f, 0f, 0f, 0.9f);
+    [SerializeField, Min(0.05f)] private float finalSeveranceWindupVfxDuration = 0.42f;
+    [SerializeField, Min(0.05f)] private float finalSeveranceStrikeVfxDuration = 0.38f;
+    [SerializeField, Min(0.01f)] private float finalSeveranceLineWidth = 0.28f;
+    [SerializeField] private Vector3 finalSeveranceCenterOffset = new Vector3(0f, 0.75f, 0f);
+    [SerializeField] private float finalSeveranceDiagonalRise = 2.2f;
+    [SerializeField] private float finalSeveranceDiagonalDrop = 0.9f;
+    [SerializeField] private float finalSeveranceStrikeDiagonalRise = 3.1f;
+    [SerializeField] private float finalSeveranceStrikeDiagonalDrop = 1.35f;
+
     [Header("Lumber Frenzy (Woodcutting Lv5) VFX")]
     [Tooltip("Optional root prefab parented under a sweep driver while Lumber Frenzy is active. Leave empty to auto-spawn green sparks.")]
     [SerializeField] private GameObject lumberFrenzyOrbitVfxPrefab;
@@ -270,6 +284,170 @@ public class PlayerAbilityVfxController : MonoBehaviour
         StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0f, 1f, 1f, 14));
         StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0.045f, 0.92f, 0.62f, 13));
         StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0.09f, 0.84f, 0.38f, 12));
+    }
+
+    /// <summary>Wide yellow warning slash on button press (span matches gameplay half-reach).</summary>
+    public void SpawnFinalSeveranceChannelWindup(float halfReach, float combatFacingSign)
+    {
+        if (!TryGetFinalSeveranceSlashEndpoints(
+                halfReach,
+                combatFacingSign,
+                finalSeveranceDiagonalRise,
+                finalSeveranceDiagonalDrop,
+                out Vector3 start,
+                out Vector3 end))
+            return;
+
+        StartCoroutine(AnimateFinalSeveranceSlash(
+            start,
+            end,
+            finalSeveranceWindupVfxDuration,
+            finalSeveranceWindupStartColor,
+            finalSeveranceWindupEndColor,
+            widthScale: 1.55f,
+            revealInstantly: true,
+            fadeOut: true));
+        StartCoroutine(AnimateFinalSeveranceSlash(
+            start,
+            end,
+            finalSeveranceWindupVfxDuration * 0.88f,
+            finalSeveranceWindupStartColor,
+            finalSeveranceWindupEndColor,
+            widthScale: 1.15f,
+            startDelay: 0.03f,
+            revealInstantly: true,
+            fadeOut: true));
+    }
+
+    /// <summary>Epic red severing slash when channel completes and damage lands.</summary>
+    public void SpawnFinalSeveranceStrike(float halfReach, float combatFacingSign)
+    {
+        if (!TryGetFinalSeveranceSlashEndpoints(
+                halfReach,
+                combatFacingSign,
+                finalSeveranceStrikeDiagonalRise,
+                finalSeveranceStrikeDiagonalDrop,
+                out Vector3 start,
+                out Vector3 end))
+            return;
+
+        StartCoroutine(AnimateFinalSeveranceSlash(
+            start,
+            end,
+            finalSeveranceStrikeVfxDuration,
+            finalSeveranceStrikeStartColor,
+            finalSeveranceStrikeEndColor,
+            widthScale: 2.35f,
+            revealInstantly: true,
+            fadeOut: true,
+            flashIn: true));
+        StartCoroutine(AnimateFinalSeveranceSlash(
+            start,
+            end,
+            finalSeveranceStrikeVfxDuration * 0.9f,
+            finalSeveranceStrikeStartColor,
+            finalSeveranceStrikeEndColor,
+            widthScale: 1.75f,
+            startDelay: 0.04f,
+            revealInstantly: true,
+            fadeOut: true));
+        StartCoroutine(AnimateFinalSeveranceSlash(
+            start + Vector3.up * 0.22f,
+            end + Vector3.down * 0.14f,
+            finalSeveranceStrikeVfxDuration * 0.82f,
+            new Color(1f, 0.55f, 0.12f, 0.92f),
+            new Color(1f, 0.1f, 0.05f, 0.75f),
+            widthScale: 1.25f,
+            startDelay: 0.07f,
+            revealInstantly: true,
+            fadeOut: true));
+    }
+
+    private bool TryGetFinalSeveranceSlashEndpoints(
+        float halfReach,
+        float combatFacingSign,
+        float diagonalRise,
+        float diagonalDrop,
+        out Vector3 start,
+        out Vector3 end)
+    {
+        start = default;
+        end = default;
+
+        Transform center = player != null ? player.transform : transform;
+        if (center == null)
+            return false;
+
+        float sign = Mathf.Approximately(combatFacingSign, 0f) ? 1f : Mathf.Sign(combatFacingSign);
+        Vector3 mid = center.position + finalSeveranceCenterOffset;
+        float span = Mathf.Max(1f, halfReach);
+        start = mid + Vector3.right * (-span * sign) + Vector3.up * diagonalRise;
+        end = mid + Vector3.right * (span * sign) + Vector3.down * diagonalDrop;
+        return true;
+    }
+
+    private IEnumerator AnimateFinalSeveranceSlash(
+        Vector3 start,
+        Vector3 end,
+        float duration,
+        Color lineStartColor,
+        Color lineEndColor,
+        float widthScale = 1f,
+        float startDelay = 0f,
+        bool revealInstantly = false,
+        bool fadeOut = true,
+        bool flashIn = false)
+    {
+        if (startDelay > 0f)
+            yield return new WaitForSeconds(startDelay);
+
+        GameObject slashGo = new GameObject("FinalSeveranceSlashVfx");
+        LineRenderer line = slashGo.AddComponent<LineRenderer>();
+        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.positionCount = 2;
+        line.startWidth = finalSeveranceLineWidth * widthScale;
+        line.endWidth = finalSeveranceLineWidth * 0.55f * widthScale;
+        line.numCapVertices = 10;
+        line.numCornerVertices = 6;
+        line.textureMode = LineTextureMode.Stretch;
+        line.alignment = LineAlignment.TransformZ;
+        if (!TryApplyPlayerSpriteSortingToRenderer(line, 16))
+            line.sortingOrder = 24;
+
+        float d = Mathf.Max(0.05f, duration);
+        float t = 0f;
+        while (t < d)
+        {
+            if (line == null || slashGo == null)
+                yield break;
+
+            t += Time.deltaTime;
+            float u = Mathf.Clamp01(t / d);
+            float alphaMul = 1f;
+            if (fadeOut)
+                alphaMul = 1f - u;
+            if (flashIn && u < 0.12f)
+                alphaMul = Mathf.Max(alphaMul, 1f + (1f - u / 0.12f) * 0.35f);
+
+            Color c0 = lineStartColor;
+            Color c1 = lineEndColor;
+            if (!revealInstantly && u < 0.08f)
+            {
+                float grow = u / 0.08f;
+                alphaMul *= grow;
+            }
+
+            c0.a *= alphaMul;
+            c1.a *= alphaMul;
+            line.startColor = c0;
+            line.endColor = c1;
+            line.SetPosition(0, start);
+            line.SetPosition(1, end);
+            yield return null;
+        }
+
+        if (slashGo != null)
+            Destroy(slashGo);
     }
 
     private IEnumerator SpawnProjectedCrescentWaveAfterDelay(

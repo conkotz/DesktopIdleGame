@@ -436,6 +436,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 return;
         }
 
+        if (PlayerAbilityController.BlocksCombatActions)
+            return;
+
         if (IsSupportEquippedWithoutCompatibleMainWeapon(out string supportMismatchMessage))
         {
             player.ClearActionOverride();

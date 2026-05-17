@@ -791,6 +791,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         Instance = this;
 
         ToggleSettingsStore.Changed += OnToggleSettingsChanged;
+        GameplayScreenOverlayLayout.RegisterCoverageRefresh(RefreshDimmerLayoutForExpandSetting);
 
         RegisterProgressKeys();
         LogMisconfiguredDefinitions();
@@ -910,6 +911,7 @@ public sealed class HelperGameplayController : MonoBehaviour
 
         if (Instance == this)
         {
+            GameplayScreenOverlayLayout.UnregisterCoverageRefresh(RefreshDimmerLayoutForExpandSetting);
             StopStuckQueuedAdvanceCoroutine();
             _pendingHelperQueue.Clear();
 
@@ -3727,7 +3729,7 @@ public sealed class HelperGameplayController : MonoBehaviour
         Transform dim = _overlayRoot.transform.Find("Dimmer");
         _dimmerImage = dim ? dim.GetComponent<Image>() : null;
         if (dim)
-            ConstrainDimmerToStripViewport(dim.gameObject);
+            GameplayScreenOverlayLayout.ApplyCoverage(dim.gameObject);
 
         Transform glowHolderTf = _overlayRoot.transform.Find("WhitelistGlowOverlay/WhitelistGlowHolder");
         _whitelistGlowHolder = glowHolderTf as RectTransform;
@@ -4877,53 +4879,7 @@ public sealed class HelperGameplayController : MonoBehaviour
     {
         if (!dimGo)
             return;
-
-        RectTransform dimRt = dimGo.GetComponent<RectTransform>();
-        if (!dimRt)
-            return;
-
-        StripUIViewportFollower follower = dimGo.GetComponent<StripUIViewportFollower>();
-
-        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
-        {
-            if (follower)
-                follower.enabled = false;
-
-            dimRt.anchorMin = Vector2.zero;
-            dimRt.anchorMax = Vector2.one;
-            dimRt.offsetMin = Vector2.zero;
-            dimRt.offsetMax = Vector2.zero;
-            return;
-        }
-
-        if (follower)
-            follower.enabled = true;
-        else
-            follower = dimGo.AddComponent<StripUIViewportFollower>();
-
-        ConstrainDimmerToStripViewport(dimGo);
-    }
-
-    /// <summary>
-    /// Attaches (or reuses) a <see cref="StripUIViewportFollower"/> on the dimmer GameObject so its anchors track the
-    /// strip camera's normalized viewport rect — keeps the helper modal dim limited to the gameplay strip area instead
-    /// of blacking out the entire monitor (and intercepting clicks on floating windows / panels above the strip).
-    /// </summary>
-    private static void ConstrainDimmerToStripViewport(GameObject dimGo)
-    {
-        if (!dimGo)
-            return;
-
-        StripCameraController ctrl = UnityEngine.Object.FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Include);
-        Camera stripCam = ctrl ? ctrl.GetComponent<Camera>() : null;
-        if (!stripCam)
-            return;
-
-        StripUIViewportFollower follower = dimGo.GetComponent<StripUIViewportFollower>();
-        if (!follower)
-            follower = dimGo.AddComponent<StripUIViewportFollower>();
-        follower.enabled = true;
-        follower.Bind(stripCam);
+        GameplayScreenOverlayLayout.ApplyCoverage(dimGo);
     }
 }
 

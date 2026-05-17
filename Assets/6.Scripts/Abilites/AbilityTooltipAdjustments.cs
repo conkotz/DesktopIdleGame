@@ -8,7 +8,7 @@ public static class AbilityTooltipAdjustments
     public static void ApplySkillTreeChoices(
         AbilityDefinition def,
         SkillsManager skillsManager,
-        ref float physicalMultiplier,
+        ref float weaponDamageMultiplier,
         ref float cooldownSeconds)
     {
         if (!def || skillsManager == null)
@@ -18,7 +18,7 @@ public static class AbilityTooltipAdjustments
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
             if (selected == 0)
-                physicalMultiplier += 0.25f;
+                weaponDamageMultiplier += 0.25f;
             else if (selected == 1)
                 cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 3f);
         }

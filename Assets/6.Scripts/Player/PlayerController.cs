@@ -929,6 +929,38 @@ public class PlayerController : MonoBehaviour
         state = State.Idle;
     }
 
+    /// <summary>Locks movement and basic attacks for ability channel windows (e.g. Final Severance).</summary>
+    public void SetAbilityChannelLock(bool locked, float attackLockSeconds = 2f)
+    {
+        SetMovementLocked(locked, preserveGatherStateForUiModal: false);
+        if (locked)
+        {
+            _attackLocked = true;
+            _attackUnlockTime = Time.time + Mathf.Max(0.05f, attackLockSeconds);
+            SetActionOverride(PlayerAction.Fighting);
+        }
+        else
+        {
+            _attackLocked = false;
+            _attackUnlockTime = 0f;
+            ClearActionOverride();
+        }
+    }
+
+    /// <summary>Keeps attack presentation through channeled abilities (extends an existing attack lock).</summary>
+    public void ExtendAttackLockUntil(float unlockTime)
+    {
+        if (_isDead)
+            return;
+
+        _attackLocked = true;
+        _attackUnlockTime = Mathf.Max(_attackUnlockTime, unlockTime);
+        SetActionOverride(PlayerAction.Fighting);
+
+        float remaining = Mathf.Max(0.05f, unlockTime - Time.time);
+        ClearFightingOverrideSoon(remaining);
+    }
+
     public void SelectNode(ResourceNode node)
     {
         if (movementLocked)

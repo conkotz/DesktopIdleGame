@@ -312,17 +312,16 @@ public class AbilityEntryUI : MonoBehaviour,
         if (!def) return "";
 
         string tagLine = AbilityTooltipDamagePreview.BuildAbilityTooltipTagLine(def, orangeMarkup: false);
-        string desc = BuildAbilityDescription(def);
-        if (!string.IsNullOrEmpty(tagLine))
-            desc = $"{tagLine}\n\n{desc}";
-
         string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, stats, accentWhenOk: true);
-        string afterDesc = string.IsNullOrEmpty(weaponLine) ? "" : $"\n\n{weaponLine}";
-
+        string flavorDesc = BuildAbilityDescription(def);
+        string scalingSection = AbilityTooltipDamagePreview.BuildAbilityTooltipScalingSection(
+            def, stats, skillsManager, orangeMarkup: false);
+        string statsSection = AbilityTooltipDamagePreview.BuildAbilityTooltipStatsSection(
+            def, stats, skillsManager, orangeMarkup: false);
         string choiceLine = BuildActiveEnhancementLineForAbility(def, skillsManager);
-        string statsSection = AbilityTooltipDamagePreview.BuildAbilityTooltipStatsSection(def, stats, skillsManager, orangeMarkup: false);
 
-        return $"{desc}{afterDesc}\n\n{statsSection}{choiceLine}";
+        return AbilityTooltipDamagePreview.AssembleLeagueStyleAbilityTooltipBody(
+            tagLine, weaponLine, flavorDesc, scalingSection, statsSection, choiceLine);
     }
 
     private static string BuildActiveEnhancementLineForAbility(AbilityDefinition def, SkillsManager skillsManager)
@@ -369,6 +368,15 @@ public class AbilityEntryUI : MonoBehaviour,
         if (string.Equals(def.abilityId, "soulforged_weapon", System.StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 35, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, AbilityCombatPower.FinalSeveranceAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.FinalSeveranceEnhancementParentSpineNodeId, -1);
+            if (selected < 0)
+                selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 45, -1);
             return BuildActiveEnhancementLine(def, selected);
         }
 

@@ -44,12 +44,20 @@ public class PlayerAbilityController : MonoBehaviour
     /// remaining cooldown so swapping isn't a free reset.
     /// </summary>
     private readonly Dictionary<string, float> _cooldownEndsByRowKey = new(StringComparer.OrdinalIgnoreCase);
+
+    private static PlayerAbilityController _instance;
+    private bool _finalSeveranceChanneling;
+    private Coroutine _finalSeveranceRoutine;
+
+    /// <summary>True while Final Severance is channeling (movement/attacks paused).</summary>
+    public static bool BlocksCombatActions => _instance != null && _instance._finalSeveranceChanneling;
     private const string PowerSlashId = "power_slash";
     private const string WhirlwindId = "whirlwind";
     private const string RendId = "rend";
     private const string EnvenomId = "envenom";
     private const string CleavingStrikesId = "cleaving_strikes";
     private const string CrescentSlashId = "crescent_slash";
+    private const string FinalSeveranceId = "final_severance";
     private const string LumberFrenzyId = "lumber_frenzy";
     private const float LumberFrenzyDurationSeconds = 20f;
     private const float LumberFrenzyChoppingSpeedBonus = 0.20f;
@@ -181,9 +189,7 @@ public class PlayerAbilityController : MonoBehaviour
     private AbilityDefinition _avatarOfForestCooldownAbilityDef;
     private float _avatarOfForestReplenishAccum;
 
-    private float _queuedPowerSlashPhysicalMultiplier = 1f;
-    private float _queuedPowerSlashMagicMultiplier = 1f;
-    private float _queuedPowerSlashCorruptionMultiplier;
+    private float _queuedPowerSlashWeaponMultiplier = 1f;
     private float _queuedPowerSlashAllDamageMultiplier = 1f;
     private QueuedHitEffect _queuedConsumedThisHit;
     private int _queuedConsumedFrame = -1;
@@ -232,6 +238,7 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void Awake()
     {
+        _instance = this;
         if (!player) player = GetComponent<PlayerController>();
         if (!stats) stats = GetComponent<CharacterStats>();
         _ownerStats = stats;
@@ -256,6 +263,19 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void OnDisable()
     {
+        if (_instance == this)
+            _instance = null;
+
+        if (_finalSeveranceRoutine != null)
+        {
+            StopCoroutine(_finalSeveranceRoutine);
+            _finalSeveranceRoutine = null;
+        }
+
+        GameplayScreenOverlay.Hide(GameplayScreenOverlay.FinalSeveranceChannelId);
+        _finalSeveranceChanneling = false;
+        player?.SetAbilityChannelLock(false);
+
         SceneManager.sceneLoaded -= HandleSceneLoaded;
         abilityVfx?.DestroyLumberFrenzyOrbitVfx();
         abilityVfx?.DestroyAvatarOfTheForestGlowVfx();
@@ -613,6 +633,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (!player || !stats)
             return false;
 
+        if (_finalSeveranceChanneling)
+            return false;
+
         if (player.IsDead || stats.IsDead)
             return false;
 
@@ -682,7 +705,8 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         bool isCrescentSlash = string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase);
-        if (!isCrescentSlash && def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
+        bool isFinalSeverance = string.Equals(def.abilityId, FinalSeveranceId, StringComparison.OrdinalIgnoreCase);
+        if (!isCrescentSlash && !isFinalSeverance && def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
         {
             player.ShowPopup("Not enough energy.");
             return false;
@@ -716,11 +740,8 @@ public class PlayerAbilityController : MonoBehaviour
 
             _powerSlashQueued = true;
             float powerSlashAnyTypeBonus = GetPowerSlashAnyTypeMultiplierBonus();
-            float allTypeCombo = def.physicalDamageMultiplier + powerSlashAnyTypeBonus;
-            float allTypeEff = allTypeCombo <= 0f ? 1f : allTypeCombo;
-            _queuedPowerSlashPhysicalMultiplier = allTypeEff;
-            _queuedPowerSlashMagicMultiplier = allTypeEff;
-            _queuedPowerSlashCorruptionMultiplier = allTypeEff;
+            float weaponCombo = def.weaponDamageMultiplier + powerSlashAnyTypeBonus;
+            _queuedPowerSlashWeaponMultiplier = weaponCombo <= 0f ? 1f : weaponCombo;
             _queuedPowerSlashAllDamageMultiplier = def.GetEffectiveAllDamageMultiplier();
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
@@ -841,6 +862,31 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
+        if (isFinalSeverance)
+        {
+            if (_finalSeveranceChanneling || _finalSeveranceRoutine != null)
+                return false;
+
+            if (def.energyCost > 0f && stats.Energy < def.energyCost)
+            {
+                player.ShowPopup("Not enough energy.");
+                return false;
+            }
+
+            if (def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
+            {
+                player.ShowPopup("Not enough energy.");
+                return false;
+            }
+
+            _finalSeveranceRoutine = StartCoroutine(CoFinalSeverance(def));
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+
         EnemyBaseController target = combat != null ? combat.CurrentTarget : null;
         if (target == null || target.IsDead)
             return false;
@@ -854,18 +900,16 @@ public class PlayerAbilityController : MonoBehaviour
         float baseCorruption =
             (Mathf.Max(0f, stats.MinSplitDamage.corruptionDamage) + Mathf.Max(0f, stats.MaxSplitDamage.corruptionDamage)) * 0.5f;
         float allM = def.GetEffectiveAllDamageMultiplier();
-        float pM = def.GetPhysicalHitScalingMultiplier();
-        float mM = def.GetMagicHitScalingMultiplier();
-        float cM = def.GetCorruptionHitScalingMultiplier();
+        float wM = def.GetWeaponHitScalingMultiplier();
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
         float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
-        float physLine = basePhysical * pM + ailmentBonus;
-        float magLine = baseMagic * mM * elemM + elementBonus * elemM;
+        float physLine = basePhysical * wM + ailmentBonus;
+        float magLine = baseMagic * wM * elemM + elementBonus * elemM;
         float physPart = physLine * allM * apM;
         float magPart = magLine * allM * apM;
-        float corrPart = (baseCorruption * cM) * allM * apM;
+        float corrPart = (baseCorruption * wM) * allM * apM;
         float raw = Mathf.Max(0f, physPart + magPart + corrPart);
 
         bool wasCrit = false;
@@ -923,22 +967,20 @@ public class PlayerAbilityController : MonoBehaviour
         float baseCorruption = Mathf.Max(0f, baseRolled.corruptionDamage);
 
         float allM = def.GetEffectiveAllDamageMultiplier();
-        float pM = def.GetPhysicalHitScalingMultiplier();
-        float mM = def.GetMagicHitScalingMultiplier();
-        float cM = def.GetCorruptionHitScalingMultiplier();
+        float wM = def.GetWeaponHitScalingMultiplier();
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
         float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
 
-        float physLine = basePhysical * pM + ailmentBonus;
-        float magLine = baseMagic * mM * elemM + elementBonus * elemM;
+        float physLine = basePhysical * wM + ailmentBonus;
+        float magLine = baseMagic * wM * elemM + elementBonus * elemM;
         float physPart = physLine * allM * apM;
         float magPart = magLine * allM * apM;
-        float corruptionPart = (baseCorruption * cM) * allM * apM;
+        float corruptionPart = (baseCorruption * wM) * allM * apM;
 
         float fWeaponLightning = stats.GetMeleeMagicLightningFraction();
-        float weaponLightMag = baseMagic * mM * elemM * allM * apM * fWeaponLightning;
+        float weaponLightMag = baseMagic * wM * elemM * allM * apM * fWeaponLightning;
         float elemLightMag = stats.CurrentMagicAttackType == MagicAttackType.Lightning ? elementBonus * elemM * allM * apM : 0f;
         lightningMagicNonCrit = weaponLightMag + elemLightMag;
 
@@ -1017,6 +1059,157 @@ public class PlayerAbilityController : MonoBehaviour
             StartCoroutine(ApplyTwinCycloneSecondWave(secondWaveTargets, radius));
 
         return true;
+    }
+
+    private IEnumerator CoFinalSeverance(AbilityDefinition def)
+    {
+        _finalSeveranceChanneling = true;
+        GameplayScreenOverlay.Show(
+            GameplayScreenOverlay.FinalSeveranceChannelId,
+            GameplayScreenOverlay.FinalSeveranceChannelTint,
+            GameplayScreenOverlay.Spec.DefaultAbilityChannel);
+
+        try
+        {
+            float channelSeconds = AbilityCombatPower.FinalSeveranceChannelSeconds;
+            float halfReach = AbilityCombatPower.FinalSeveranceHitRangeHalfWidth;
+            float facing = GetCombatFacingSign();
+
+            abilityVfx?.SpawnFinalSeveranceChannelWindup(halfReach, facing);
+
+            if (player != null)
+            {
+                player.SetMovementLocked(true);
+                player.TriggerAttackAnim();
+                player.ExtendAttackLockUntil(Time.time + channelSeconds);
+            }
+
+            yield return new WaitForSeconds(channelSeconds);
+
+            if (player != null)
+                player.SetMovementLocked(false);
+
+            if (player == null || stats == null || def == null)
+                yield break;
+
+            if (player.IsDead || stats.IsDead)
+                yield break;
+
+            abilityVfx?.SpawnFinalSeveranceStrike(halfReach, facing);
+            player.TriggerAttackAnim();
+            ApplyFinalSeveranceHits(def);
+        }
+        finally
+        {
+            GameplayScreenOverlay.Hide(GameplayScreenOverlay.FinalSeveranceChannelId);
+            _finalSeveranceChanneling = false;
+            _finalSeveranceRoutine = null;
+        }
+    }
+
+    private void ApplyFinalSeveranceHits(AbilityDefinition def)
+    {
+        if (stats == null || def == null)
+            return;
+
+        List<EnemyBaseController> targets = CollectFinalSeveranceTargets();
+        if (targets.Count == 0)
+            return;
+
+        int selected = GetFinalSeveranceSelectedChoice();
+        bool worldbreaker = selected == 0;
+        bool thousandCuts = selected == 1;
+        int hitCount = thousandCuts ? AbilityCombatPower.FinalSeveranceThousandCutsHitCount : 1;
+        float hitFraction = thousandCuts ? AbilityCombatPower.FinalSeveranceThousandCutsHitFraction : 1f;
+
+        for (int t = 0; t < targets.Count; t++)
+        {
+            EnemyBaseController target = targets[t];
+            if (!target || target.IsDead)
+                continue;
+
+            BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+            float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+            SplitDamage rolled = new SplitDamage(
+                rolledNonCrit.physical * critMult,
+                rolledNonCrit.magic * critMult,
+                rolledNonCrit.corruptionDamage * critMult);
+            float lightningAfterCrit = lightningMagNonCrit * critMult;
+
+            if (worldbreaker && IsEnemyBelowFinalSeveranceHealthThreshold(target))
+            {
+                rolled *= AbilityCombatPower.FinalSeveranceWorldbreakerBonusMultiplier;
+                lightningAfterCrit *= AbilityCombatPower.FinalSeveranceWorldbreakerBonusMultiplier;
+            }
+
+            for (int h = 0; h < hitCount; h++)
+            {
+                if (!target || target.IsDead)
+                    break;
+
+                SplitDamage hit = rolled * hitFraction;
+                float lightningHit = lightningAfterCrit * hitFraction;
+                float frac = hit.magic > 1e-8f ? Mathf.Clamp01(lightningHit / hit.magic) : 0f;
+                DealtHit dealt = ApplySplitDamageToEnemy(target, hit, wasCrit, frac);
+                ApplyOnHitEffects(target, dealt);
+                if (player != null && dealt.Total > 0f)
+                    player.ApplyLifeSteal(dealt.Total);
+            }
+        }
+    }
+
+    private static bool IsEnemyBelowFinalSeveranceHealthThreshold(EnemyBaseController enemy)
+    {
+        if (enemy == null)
+            return false;
+
+        int maxHp = enemy.MaxHP;
+        if (maxHp <= 0)
+            return false;
+
+        return (float)enemy.HP / maxHp <= AbilityCombatPower.FinalSeveranceLowHealthThreshold;
+    }
+
+    private List<EnemyBaseController> CollectFinalSeveranceTargets()
+    {
+        var result = new List<EnemyBaseController>(AbilityCombatPower.FinalSeveranceMaxTargets);
+        float ownerX = transform.position.x;
+        float maxDist = AbilityCombatPower.FinalSeveranceHitRangeHalfWidth;
+
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        var scratch = new List<(EnemyBaseController enemy, float dist)>(allEnemies.Count);
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+
+            float dist = Mathf.Abs(enemy.transform.position.x - ownerX);
+            if (dist <= maxDist)
+                scratch.Add((enemy, dist));
+        }
+
+        scratch.Sort((a, b) => a.dist.CompareTo(b.dist));
+        int cap = Mathf.Min(AbilityCombatPower.FinalSeveranceMaxTargets, scratch.Count);
+        for (int i = 0; i < cap; i++)
+            result.Add(scratch[i].enemy);
+
+        return result;
+    }
+
+    private int GetFinalSeveranceSelectedChoice()
+    {
+        if (skillsManager == null)
+            skillsManager = SkillsManager.Instance;
+        if (skillsManager == null)
+            return -1;
+
+        int selected = skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee, AbilityCombatPower.FinalSeveranceEnhancementParentSpineNodeId, -1);
+        if (selected >= 0)
+            return selected;
+
+        return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 45, -1);
     }
 
     private void TryUseCrescentSlash(AbilityDefinition def)
@@ -1430,9 +1623,9 @@ public class PlayerAbilityController : MonoBehaviour
             float ailmentBonus = slashDef != null && stats != null ? AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(slashDef, stats) : 0f;
 
             // Mult scales the rolled basic hit (150% = 1.5× that swing), not an extra additive copy of it.
-            rolled.physical = (rolled.physical * _queuedPowerSlashPhysicalMultiplier + ailmentBonus) * apM * allM;
-            rolled.magic = (rolled.magic * _queuedPowerSlashMagicMultiplier + elementBonus) * apM * allM;
-            rolled.corruptionDamage = (rolled.corruptionDamage * _queuedPowerSlashCorruptionMultiplier) * apM * allM;
+            rolled.physical = (rolled.physical * _queuedPowerSlashWeaponMultiplier + ailmentBonus) * apM * allM;
+            rolled.magic = (rolled.magic * _queuedPowerSlashWeaponMultiplier + elementBonus) * apM * allM;
+            rolled.corruptionDamage = (rolled.corruptionDamage * _queuedPowerSlashWeaponMultiplier) * apM * allM;
             rolled.physical = Mathf.Max(0f, rolled.physical);
             rolled.magic = Mathf.Max(0f, rolled.magic);
 

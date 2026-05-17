@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
+  m_Name: Ability_soulforged_weapon
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
+  abilityId: soulforged_weapon
+  displayName: Soulforged Weapon
+  tag: 2
+  tooltipBuffMinionDurationSeconds: 0
+  presentation: {fileID: 11400000, guid: 0e3eef73791f450096880e82bf6cb7e0, type: 2}
+  cooldown: 45
+  energyCost: 10
+  weaponDamageMultiplier: 0
+  allDamageMultiplier: 0
+  fireDamageMultiplier: 0
+  iceDamageMultiplier: 0
+  lightningDamageMultiplier: 0
+  poisonDamageMultiplier: 0
+  bleedDamageMultiplier: 0
+  requiredWeaponType: 1
+  sourceSkill: 3
+  unlockLevel: 35
+  minionSpawnDefinition: {fileID: 11400000, guid: f40acea502b0ad6419011c0cf2e23bb5, type: 2}

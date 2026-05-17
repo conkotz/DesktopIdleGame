@@ -1,5 +1,12 @@
 fileFormatVersion: 2
 guid: 7b1b68fc4e4aa42fcb2470d12ab1c847
+AssetOrigin:
+  serializedVersion: 1
+  productId: 352568
+  packageName: Tiny Swords - Enemy Pack
+  packageVersion: 1.0
+  assetPath: Assets/Tiny Swords - Enemy Pack/Enemies/Lancer/Lancer_Attack.png
+  uploadId: 844332
 TextureImporter:
   internalIDToNameTable:
   - first:
@@ -346,10 +353,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 352568
-  packageName: Tiny Swords - Enemy Pack
-  packageVersion: 1.0
-  assetPath: Assets/Tiny Swords - Enemy Pack/Enemies/Lancer/Lancer_Attack.png
-  uploadId: 844332

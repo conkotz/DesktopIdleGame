@@ -10,18 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_rend
+  m_Name: Ability_envenom
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: rend
-  displayName: Rend
+  abilityId: envenom
+  displayName: Envenom
   tag: 1
   tooltipBuffMinionDurationSeconds: 0
-  presentation: {fileID: 11400000, guid: 609d0ed007084495b5efcf630bf17bac, type: 2}
+  presentation: {fileID: 11400000, guid: 5cc4b28a5fb44960b8ce6610e9dcf239, type: 2}
   cooldown: 10
   energyCost: 30
-  physicalDamageMultiplier: 0
-  magicDamageMultiplier: 0
-  corruptionDamageMultiplier: 0
+  weaponDamageMultiplier: 0
   allDamageMultiplier: 0
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0

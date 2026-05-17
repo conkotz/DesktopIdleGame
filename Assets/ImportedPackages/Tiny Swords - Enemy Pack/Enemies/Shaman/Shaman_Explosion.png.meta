@@ -1,5 +1,12 @@
 fileFormatVersion: 2
 guid: 5ed51c9b24a0b4d35ba62dadab19082f
+AssetOrigin:
+  serializedVersion: 1
+  productId: 352568
+  packageName: Tiny Swords - Enemy Pack
+  packageVersion: 1.0
+  assetPath: Assets/Tiny Swords - Enemy Pack/Enemies/Shaman/Shaman_Explosion.png
+  uploadId: 844332
 TextureImporter:
   internalIDToNameTable:
   - first:
@@ -441,10 +448,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 352568
-  packageName: Tiny Swords - Enemy Pack
-  packageVersion: 1.0
-  assetPath: Assets/Tiny Swords - Enemy Pack/Enemies/Shaman/Shaman_Explosion.png
-  uploadId: 844332

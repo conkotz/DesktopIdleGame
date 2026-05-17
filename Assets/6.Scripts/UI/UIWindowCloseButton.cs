@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,19 +11,76 @@ public class UIWindowCloseButton : MonoBehaviour
     [Header("Optional")]
     [SerializeField] private bool disableInsteadOfHide = false;
 
-    private Button _button;
+    [Header("Optional window lock")]
+    [Tooltip("When locked, this close button and ESC / toggle-close paths cannot dismiss the target window.")]
+    [SerializeField] private Button lockButton;
+    [SerializeField] private GameObject iconUnlocked;
+    [SerializeField] private GameObject iconLocked;
+    [SerializeField, Range(0.05f, 1f)] private float closeButtonLockedAlpha = 0.35f;
+
+    private readonly Dictionary<Graphic, float> _closeGraphicFullAlphas = new Dictionary<Graphic, float>();
+    private Button _closeButton;
+
+    public bool IsLocked { get; private set; }
+
+    /// <summary>True when a <see cref="UIWindowCloseButton"/> for this window has lock engaged.</summary>
+    public static bool BlocksClose(GameObject windowRoot)
+    {
+        if (!windowRoot)
+            return false;
+
+        UIWindowCloseButton[] closers = windowRoot.GetComponentsInChildren<UIWindowCloseButton>(true);
+        for (int i = 0; i < closers.Length; i++)
+        {
+            UIWindowCloseButton closer = closers[i];
+            if (closer != null && closer.IsLocked && closer.OwnsWindow(windowRoot))
+                return true;
+        }
+
+        return false;
+    }
 
     private void Awake()
     {
-        _button = GetComponent<Button>();
-        _button.onClick.RemoveListener(CloseWindow);
-        _button.onClick.AddListener(CloseWindow);
+        _closeButton = GetComponent<Button>();
+        _closeButton.onClick.RemoveListener(CloseWindow);
+        _closeButton.onClick.AddListener(CloseWindow);
+
+        ResolveLockButtonIfNeeded();
+        ResolveLockIconsIfNeeded();
+        CacheCloseGraphicAlphas();
+    }
+
+    private void Start()
+    {
+        EnsureLockButtonWired();
+        ApplyLockVisuals();
+    }
+
+    private void OnEnable()
+    {
+        EnsureLockButtonWired();
+        ApplyLockVisuals();
+    }
+
+    private void OnDestroy()
+    {
+        if (lockButton)
+            lockButton.onClick.RemoveListener(ToggleLock);
     }
 
     public void Configure(GameObject target, bool disableInstead = false)
     {
         targetWindow = target;
         disableInsteadOfHide = disableInstead;
+    }
+
+    public void ToggleLock() => SetLocked(!IsLocked);
+
+    public void SetLocked(bool locked)
+    {
+        IsLocked = locked;
+        ApplyLockVisuals();
     }
 
     public void CloseWindow()
@@ -33,8 +91,9 @@ public class UIWindowCloseButton : MonoBehaviour
             return;
         }
 
-        // Main menu uses CanvasGroup hide on the same GameObject; SetActive(false) disables MainMenuWindowUI and
-        // OpenPage could not reactivate the root (canvas-group path skipped SetActive). Prefer proper Close().
+        if (IsLocked)
+            return;
+
         MainMenuWindowUI menuUi = targetWindow.GetComponent<MainMenuWindowUI>();
         if (menuUi != null)
         {
@@ -42,7 +101,6 @@ public class UIWindowCloseButton : MonoBehaviour
             return;
         }
 
-        // Shop close must fully exit merchant mode; otherwise inventory sell hotpath can remain enabled.
         ShopUI shopUi = targetWindow.GetComponent<ShopUI>() ?? targetWindow.GetComponentInParent<ShopUI>(true);
         if (shopUi != null)
         {
@@ -74,5 +132,145 @@ public class UIWindowCloseButton : MonoBehaviour
             questTracker.RememberWindowClosedByUser();
 
         targetWindow.SetActive(false);
+    }
+
+    private bool OwnsWindow(GameObject windowRoot) =>
+        targetWindow != null && targetWindow == windowRoot;
+
+    private void EnsureLockButtonWired()
+    {
+        ResolveLockButtonIfNeeded();
+        if (!lockButton)
+            return;
+
+        UIWindowCloseButton mistakenClose = lockButton.GetComponent<UIWindowCloseButton>();
+        if (mistakenClose != null && mistakenClose != this)
+            Destroy(mistakenClose);
+
+        lockButton.onClick.RemoveListener(ToggleLock);
+        lockButton.onClick.AddListener(ToggleLock);
+
+        UIWindowLockButton lockUi = lockButton.GetComponent<UIWindowLockButton>();
+        if (lockUi == null)
+            lockUi = lockButton.gameObject.AddComponent<UIWindowLockButton>();
+        lockUi.Bind(this);
+    }
+
+    private void ResolveLockButtonIfNeeded()
+    {
+        if (lockButton)
+            return;
+
+        Transform search = transform.parent;
+        for (int depth = 0; depth < 4 && search != null; depth++)
+        {
+            Transform lockT = search.Find("LockButton");
+            if (lockT && lockT.TryGetComponent(out lockButton))
+                return;
+
+            search = search.parent;
+        }
+    }
+
+    private void ResolveLockIconsIfNeeded()
+    {
+        if (!lockButton)
+            return;
+
+        Transform lockRoot = lockButton.transform;
+        if (!iconUnlocked)
+        {
+            Transform t = lockRoot.Find("IconUnlocked");
+            if (t)
+                iconUnlocked = t.gameObject;
+        }
+
+        if (!iconLocked)
+        {
+            Transform t = lockRoot.Find("Iconlocked") ?? lockRoot.Find("IconLocked");
+            if (t)
+                iconLocked = t.gameObject;
+        }
+    }
+
+    private void CacheCloseGraphicAlphas()
+    {
+        if (_closeGraphicFullAlphas.Count > 0 || !_closeButton)
+            return;
+
+        Graphic[] graphics = _closeButton.GetComponentsInChildren<Graphic>(true);
+        for (int i = 0; i < graphics.Length; i++)
+        {
+            Graphic g = graphics[i];
+            if (g == null || _closeGraphicFullAlphas.ContainsKey(g))
+                continue;
+
+            _closeGraphicFullAlphas[g] = g.color.a;
+        }
+    }
+
+    private void ApplyLockVisuals()
+    {
+        ApplyLockIconState();
+        CacheCloseGraphicAlphas();
+        ApplyCloseButtonLockVisual();
+    }
+
+    private void ApplyLockIconState()
+    {
+        if (iconUnlocked)
+            iconUnlocked.SetActive(false);
+        if (iconLocked)
+            iconLocked.SetActive(false);
+
+        if (IsLocked)
+        {
+            if (iconLocked)
+                iconLocked.SetActive(true);
+        }
+        else if (iconUnlocked)
+        {
+            iconUnlocked.SetActive(true);
+        }
+    }
+
+    private void ApplyCloseButtonLockVisual()
+    {
+        if (!_closeButton)
+            return;
+
+        _closeButton.interactable = !IsLocked;
+
+        Graphic[] graphics = _closeButton.GetComponentsInChildren<Graphic>(true);
+        for (int i = 0; i < graphics.Length; i++)
+        {
+            Graphic g = graphics[i];
+            if (g == null)
+                continue;
+
+            if (!_closeGraphicFullAlphas.TryGetValue(g, out float fullAlpha))
+            {
+                fullAlpha = g.color.a;
+                _closeGraphicFullAlphas[g] = fullAlpha;
+            }
+
+            Color c = g.color;
+            c.a = IsLocked ? closeButtonLockedAlpha : fullAlpha;
+            g.color = c;
+        }
+
+        if (!IsLocked)
+        {
+            ColorBlock colors = _closeButton.colors;
+            _closeButton.colors = colors;
+            if (_closeButton.targetGraphic != null)
+            {
+                _closeButton.targetGraphic.CrossFadeColor(
+                    colors.normalColor,
+                    colors.fadeDuration,
+                    true,
+                    true);
+            }
+        }
     }
 }

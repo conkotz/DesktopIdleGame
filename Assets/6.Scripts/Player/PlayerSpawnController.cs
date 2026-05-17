@@ -46,8 +46,16 @@ public class PlayerSpawnController : MonoBehaviour
 
     /// <summary>Strip-constrained black fade: expand a few canvas pixels past the viewport so strip bars never peek through.</summary>
     private const float StripLevelLoadFadeViewportBleedPixels = 2f;
-    /// <summary>Same as <see cref="LevelBiomeVisualsController"/> cave overlay parent lookup.</summary>
-    private const string StripUiCanvasObjectName = "StripUICanvas";
+    private static bool s_registeredOverlayLayoutRefresh;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void RegisterOverlayLayoutRefresh()
+    {
+        if (s_registeredOverlayLayoutRefresh)
+            return;
+        s_registeredOverlayLayoutRefresh = true;
+        GameplayScreenOverlayLayout.RegisterCoverageRefresh(RefreshGameplayBlackFadeLayoutForExpandSetting);
+    }
     /// <summary>
     /// Strip-constrained level-load / respawn black fade: above helper whitelist glow (~15k), FullWindow, and strip HUD.
     /// </summary>
@@ -507,10 +515,12 @@ public class PlayerSpawnController : MonoBehaviour
     /// </summary>
     public static CanvasGroup CreateOrResolveGameplayBlackFade()
     {
-        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+        RegisterOverlayLayoutRefresh();
+
+        if (GameplayScreenOverlayLayout.CoversFullWindow)
             return GetOrCreateLevelLoadFaderFullScreen();
 
-        Canvas stripCanvas = TryResolveStripUiCanvas();
+        Canvas stripCanvas = GameplayScreenOverlayLayout.TryResolveStripUiCanvas();
         if (stripCanvas != null)
             return GetOrCreateStripConstrainedLevelLoadFader(stripCanvas);
 
@@ -520,11 +530,11 @@ public class PlayerSpawnController : MonoBehaviour
     /// <summary>When expand-background is toggled, drop strip-hosted faders so the next fade uses the correct layout.</summary>
     public static void RefreshGameplayBlackFadeLayoutForExpandSetting()
     {
-        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+        if (GameplayScreenOverlayLayout.CoversFullWindow)
         {
             DestroyStripCanvasFaderRoot();
 
-            GameObject stripHosted = FindSceneGameObjectByName(LevelLoadFaderName);
+            GameObject stripHosted = GameplayScreenOverlayLayout.FindSceneObjectByName(LevelLoadFaderName);
             if (stripHosted != null && IsStripHostedLevelLoadFader(stripHosted))
             {
                 if (Application.isPlaying)
@@ -536,7 +546,7 @@ public class PlayerSpawnController : MonoBehaviour
             return;
         }
 
-        GameObject fullScreenRoot = FindSceneGameObjectByName(LevelLoadFaderName);
+        GameObject fullScreenRoot = GameplayScreenOverlayLayout.FindSceneObjectByName(LevelLoadFaderName);
         if (fullScreenRoot != null && !IsStripHostedLevelLoadFader(fullScreenRoot))
         {
             if (Application.isPlaying)
@@ -544,29 +554,6 @@ public class PlayerSpawnController : MonoBehaviour
             else
                 DestroyImmediate(fullScreenRoot);
         }
-    }
-
-    /// <summary>Matches <see cref="LevelBiomeVisualsController"/> strip canvas discovery (cave overlay parent).</summary>
-    private static Canvas TryResolveStripUiCanvas()
-    {
-        Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
-        for (int i = 0; i < all.Length; i++)
-        {
-            Transform t = all[i];
-            if (!t || t.hideFlags != HideFlags.None || !t.gameObject.scene.IsValid())
-                continue;
-            if (!string.Equals(t.name, StripUiCanvasObjectName, StringComparison.OrdinalIgnoreCase))
-                continue;
-            Canvas c = t.GetComponent<Canvas>();
-            if (c != null)
-                return c;
-        }
-
-        GameObject tagged = GameObject.FindGameObjectWithTag("UICanvas");
-        if (tagged != null)
-            return tagged.GetComponent<Canvas>();
-
-        return null;
     }
 
     /// <summary>
@@ -579,7 +566,9 @@ public class PlayerSpawnController : MonoBehaviour
             return null;
 
         Transform tDirect = stripCanvas.transform.Find(LevelLoadFaderName);
-        GameObject go = tDirect ? tDirect.gameObject : FindDeepNamedChild(stripCanvas.transform, LevelLoadFaderName);
+        GameObject go = tDirect
+            ? tDirect.gameObject
+            : GameplayScreenOverlayLayout.FindDeepNamedChild(stripCanvas.transform, LevelLoadFaderName);
         if (go != null)
             return ApplyStripConstrainedLevelLoadFader(stripCanvas, go);
 
@@ -622,46 +611,11 @@ public class PlayerSpawnController : MonoBehaviour
         img.color = Color.black;
         img.raycastTarget = false;
 
-        EnsureStripFadeTopCanvasSettings(go);
-        ConstrainLevelLoadFaderToStripViewport(go);
+        GameplayScreenOverlayLayout.EnsureNestedOverlayCanvas(go, ResolveStripLevelLoadFaderNestedCanvasSortOrder());
+        GameplayScreenOverlayLayout.ApplyCoverage(go, StripLevelLoadFadeViewportBleedPixels);
         go.transform.SetAsLastSibling();
 
         return cg;
-    }
-
-    private static void ConstrainLevelLoadFaderToStripViewport(GameObject overlayGo)
-    {
-        if (!overlayGo)
-            return;
-
-        StripCameraController ctrl = UnityEngine.Object.FindFirstObjectByType<StripCameraController>(FindObjectsInactive.Include);
-        Camera stripCam = ctrl ? ctrl.GetComponent<Camera>() : null;
-        if (!stripCam)
-            return;
-
-        StripUIViewportFollower follower = overlayGo.GetComponent<StripUIViewportFollower>();
-        if (!follower)
-            follower = overlayGo.AddComponent<StripUIViewportFollower>();
-        follower.Bind(stripCam);
-        follower.ViewportBleedPixels = StripLevelLoadFadeViewportBleedPixels;
-    }
-
-    /// <summary>
-    /// Nested canvas so the fade sorts above strip HUD, helper whitelist glow, and modal windows during level transitions.
-    /// </summary>
-    private static void EnsureStripFadeTopCanvasSettings(GameObject fadeRoot)
-    {
-        if (!fadeRoot)
-            return;
-
-        Canvas c = fadeRoot.GetComponent<Canvas>();
-        if (!c)
-            c = fadeRoot.AddComponent<Canvas>();
-
-        c.renderMode = RenderMode.ScreenSpaceOverlay;
-        c.overrideSorting = true;
-        c.sortingOrder = ResolveStripLevelLoadFaderNestedCanvasSortOrder();
-        c.pixelPerfect = false;
     }
 
     /// <summary>Topmost overlay order for strip-hosted black fade (covers helper glow, menus, strip HUD).</summary>
@@ -673,14 +627,14 @@ public class PlayerSpawnController : MonoBehaviour
         if (!loadFader)
             return;
 
-        EnsureStripFadeTopCanvasSettings(loadFader.gameObject);
+        GameplayScreenOverlayLayout.EnsureNestedOverlayCanvas(loadFader.gameObject, ResolveStripLevelLoadFaderNestedCanvasSortOrder());
         loadFader.transform.SetAsLastSibling();
         Canvas.ForceUpdateCanvases();
     }
 
     private static void DestroyStripCanvasFaderRoot()
     {
-        GameObject strip = FindSceneGameObjectByName(LevelLoadFaderStripCanvasName);
+        GameObject strip = GameplayScreenOverlayLayout.FindSceneObjectByName(LevelLoadFaderStripCanvasName);
         if (strip != null)
             UnityEngine.Object.Destroy(strip);
     }
@@ -693,7 +647,7 @@ public class PlayerSpawnController : MonoBehaviour
     {
         for (int i = 0; i < 8; i++)
         {
-            GameObject cand = FindSceneGameObjectByName(LevelLoadFaderName);
+            GameObject cand = GameplayScreenOverlayLayout.FindSceneObjectByName(LevelLoadFaderName);
             if (cand == null)
                 break;
 
@@ -708,40 +662,8 @@ public class PlayerSpawnController : MonoBehaviour
         }
     }
 
-    private static GameObject FindSceneGameObjectByName(string objectName)
-    {
-        if (string.IsNullOrEmpty(objectName))
-            return null;
-
-        Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
-        for (int i = 0; i < all.Length; i++)
-        {
-            Transform t = all[i];
-            if (!t || t.hideFlags != HideFlags.None || !t.gameObject.scene.IsValid())
-                continue;
-
-            if (string.Equals(t.name, objectName, StringComparison.Ordinal))
-                return t.gameObject;
-        }
-
-        return null;
-    }
-
-    private static bool IsStripHostedLevelLoadFader(GameObject go)
-    {
-        if (!go)
-            return false;
-
-        Transform p = go.transform.parent;
-        while (p != null)
-        {
-            if (string.Equals(p.name, StripUiCanvasObjectName, StringComparison.OrdinalIgnoreCase))
-                return true;
-            p = p.parent;
-        }
-
-        return false;
-    }
+    private static bool IsStripHostedLevelLoadFader(GameObject go) =>
+        go && GameplayScreenOverlayLayout.IsUnderStripUiCanvas(go.transform);
 
     private static CanvasGroup GetOrCreateLevelLoadFaderFullScreen()
     {
@@ -752,7 +674,7 @@ public class PlayerSpawnController : MonoBehaviour
         GameObject go = null;
         for (int i = 0; i < 8; i++)
         {
-            GameObject cand = FindSceneGameObjectByName(LevelLoadFaderName);
+            GameObject cand = GameplayScreenOverlayLayout.FindSceneObjectByName(LevelLoadFaderName);
             if (cand == null)
                 break;
 
@@ -801,26 +723,6 @@ public class PlayerSpawnController : MonoBehaviour
 
         return cg;
     }
-
-    private static GameObject FindDeepNamedChild(Transform root, string childName)
-    {
-        if (root == null || string.IsNullOrEmpty(childName))
-            return null;
-
-        for (int i = 0; i < root.childCount; i++)
-        {
-            Transform c = root.GetChild(i);
-            if (c.name == childName)
-                return c.gameObject;
-
-            GameObject deeper = FindDeepNamedChild(c, childName);
-            if (deeper != null)
-                return deeper;
-        }
-
-        return null;
-    }
-
 
     private void SetAlpha(float alpha)
     {

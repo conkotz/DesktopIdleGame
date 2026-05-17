@@ -46,17 +46,13 @@ public class AbilityDefinition : ScriptableObject
     [Min(0f)] public float energyCost = 0f;
 
     [Header("Scaling")]
-    [Tooltip("Physical: >0 scales that portion of the hit (1.5 = 150% of rolled Physical). ≤0 leaves Physical at 100% of the hit.")]
-    public float physicalDamageMultiplier = 0f;
+    [Tooltip(
+        "Scales Physical, Magic, and Corruption portions of the weapon hit equally (1.5 = 150% of each rolled type). " +
+        "≤0 leaves each portion at 100% of the hit. Rend / Envenom / minions should stay at 0.")]
+    [FormerlySerializedAs("physicalDamageMultiplier")]
+    public float weaponDamageMultiplier = 0f;
 
-    [Tooltip("Magic: >0 scales rolled Magic. ≤0 leaves Magic at 100% of the hit.")]
-    [FormerlySerializedAs("magicalDamageMultiplier")]
-    public float magicDamageMultiplier = 0f;
-
-    [Tooltip("Corruption: >0 scales rolled Corruption. ≤0 leaves Corruption at 100% of the hit (no longer tied to Physical).")]
-    public float corruptionDamageMultiplier = 0f;
-
-    [Tooltip("Applied after per-type scaling: entire hit (all types combined) × this. 1 = no change. ≤0 treated as 1.")]
+    [Tooltip("Applied after weapon scaling: entire hit (all types combined) × this. 1 = no change. ≤0 treated as 1.")]
     public float allDamageMultiplier = 1f;
 
     /// <summary>All abilities use the same AP curve: ×(1 + AP×coef/100) with this coefficient (0.5 = +0.5% damage per AP).</summary>
@@ -94,19 +90,11 @@ public class AbilityDefinition : ScriptableObject
     /// <summary>True when casting should spawn a minion instead of the generic instant-hit damage pipeline.</summary>
     public bool SpawnsMinionOnCast => minionSpawnDefinition != null;
 
-    /// <summary>≤0 uses1 (legacy / Inspector0): no extra all-damage pass; phys/mag/corruption coeffs only.</summary>
+    /// <summary>≤0 uses 1 (legacy / Inspector 0): no extra all-damage pass; weapon coeff only.</summary>
     public float GetEffectiveAllDamageMultiplier() =>
         allDamageMultiplier <= 0f ? 1f : allDamageMultiplier;
 
-    /// <summary>&gt;0 scales rolled Physical; ≤0 keeps 100% of rolled Physical.</summary>
-    public float GetPhysicalHitScalingMultiplier() =>
-        physicalDamageMultiplier <= 0f ? 1f : physicalDamageMultiplier;
-
-    /// <summary>&gt;0 scales rolled Magic; ≤0 keeps 100% of rolled Magic.</summary>
-    public float GetMagicHitScalingMultiplier() =>
-        magicDamageMultiplier <= 0f ? 1f : magicDamageMultiplier;
-
-    /// <summary>&gt;0 scales rolled Corruption; ≤0 keeps 100% of rolled Corruption.</summary>
-    public float GetCorruptionHitScalingMultiplier() =>
-        corruptionDamageMultiplier <= 0f ? 1f : corruptionDamageMultiplier;
+    /// <summary>&gt;0 scales rolled Physical, Magic, and Corruption equally; ≤0 keeps 100% of each rolled type.</summary>
+    public float GetWeaponHitScalingMultiplier() =>
+        weaponDamageMultiplier <= 0f ? 1f : weaponDamageMultiplier;
 }

@@ -131,8 +131,7 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
 
         if (list.Length == 0)
         {
-            PlayerSpawnController.RefreshGameplayBlackFadeLayoutForExpandSetting();
-            HelperGameplayController.RefreshDimmerLayoutForExpandSetting();
+            GameplayScreenOverlayLayout.RefreshAllRegistered();
             return;
         }
 
@@ -244,8 +243,7 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
     {
         if (!Application.isPlaying || !isActiveAndEnabled)
         {
-            PlayerSpawnController.RefreshGameplayBlackFadeLayoutForExpandSetting();
-            HelperGameplayController.RefreshDimmerLayoutForExpandSetting();
+            GameplayScreenOverlayLayout.RefreshAllRegistered();
             return;
         }
 
@@ -263,8 +261,7 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
         if (!this)
             yield break;
 
-        PlayerSpawnController.RefreshGameplayBlackFadeLayoutForExpandSetting();
-        HelperGameplayController.RefreshDimmerLayoutForExpandSetting();
+        GameplayScreenOverlayLayout.RefreshAllRegistered();
     }
 
     private void ConfigureUrpCameraStack(bool expanded)

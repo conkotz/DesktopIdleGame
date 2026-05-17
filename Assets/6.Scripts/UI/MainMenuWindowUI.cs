@@ -312,6 +312,7 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public void ToggleSettings()
     {
+        QuickMenuPanelToggleUI.HideIfOpen();
         TogglePage(settingsPage);
     }
 
@@ -322,6 +323,9 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public void Close()
     {
+        if (mainMenuWindow && UIWindowCloseButton.BlocksClose(mainMenuWindow))
+            return;
+
         s_restoreOpen = false;
         s_restorePage = PersistedPage.None;
 

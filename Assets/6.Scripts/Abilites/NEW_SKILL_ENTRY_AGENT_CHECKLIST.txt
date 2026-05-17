@@ -103,6 +103,34 @@ TOOLTIP TEXT SCALE
   • Skills ability list + skill tree: ShowTextAt(..., useHudTooltipScale: false) in AbilityEntryUI,
     SkillTreeViewUI — matches action bar size (avoids 0.8× docked HUD scale).
 
+LEAGUE ABILITY TOOLTIP LAYOUT (skills page — DO NOT REORDER PER ABILITY)
+------------------------------------------------------------------------
+  Assembled by AbilityTooltipDamagePreview.AssembleLeagueStyleAbilityTooltipBody via AbilityEntryUI.
+
+  Order (top → bottom):
+    1) Tag line (Active / Minion / Buff) — BuildAbilityTooltipTagLine
+    2) Required weapon — BuildWeaponRequirementRichLine (green when met, red when not)
+    3) Flavor description — presentation shortDescription only (no numbers, no range)
+    4) Blue scaling block — BuildAbilityTooltipScalingSection
+    5) Effects block — BuildAbilityTooltipStatsSection
+         Starts with "Effects:" then orange numeric bullets, Duration, Energy • Cooldown.
+         Also append short gameplay effect lines for the committed enhancement (no choice name).
+    6) Active Enhancement — green footer via FormatActiveEnhancementLine (name + full choice description).
+         Keep this footer for ALL abilities with a committed choice; Effects may summarize the same upgrade.
+
+  Presentation assets (shortDescription):
+    • Flavor only. No "within X units", hit caps, % damage, or enhancement names.
+    • Put range, target count, channel time, and damage in AbilityTooltipDamagePreview.
+
+  Action bar / HUD compact hover:
+    • CombineShortDescriptionScalingAndEffects = intro + blue scaling + extracted effects.
+    • TryBuildActionBarCompactBody / TryBuildHudBuffTooltip already use this.
+
+  Enhancement choice styling:
+    • Effects (orange): short effect-only lines from AbilityTooltipDamagePreview (no enhancement name).
+    • Footer (green): "Active Enhancement: Title (full description)" — always show when a choice is committed.
+    • Skill tree choice rows: SkillTreeViewUI uses same green for selected enhancement.
+
 =====================================================================
 A) NEW ABILITY (full pipeline — repeat in order)
 =====================================================================
@@ -127,9 +155,13 @@ A) NEW ABILITY (full pipeline — repeat in order)
 3) Tooltip / effects (CODE)
    - AbilityTooltipDamagePreview.BuildAbilityTooltipStatsSection:
        if (IsYourAbility(def)) { AppendYourEffects(...); Duration if timed buff/minion; return; }
+   - Blue "Deals X% of your weapon damage": automatic via BuildAbilityTooltipScalingSection when weaponDamageMultiplier > 0
+   - AbilityDefinition: single weaponDamageMultiplier scales Physical/Magic/Corruption equally; leave at 0 for Rend/Envenom/minions
+     on the asset (or minion inherit rules). Do not append those inside Effects.
    - IsYourAbility: string.Equals(def.abilityId, "your_id", OrdinalIgnoreCase).
    - Duration line: GetTooltipBuffMinionDisplayDurationSeconds(def, codeBase, additiveBonus).
    - AbilityCombatPower.YourAbilityId for cross-script compares.
+   - AbilityEntryUI.BuildActiveEnhancementLineForAbility: add branch for enhancement at bottom (green).
    - Compact UI auto-wires after step 3 (TryBuildHudBuffTooltip / TryBuildActionBarCompactBody).
 
 4) Runtime (PlayerAbilityController unless gathering-only)
@@ -154,8 +186,8 @@ A) NEW ABILITY (full pipeline — repeat in order)
    - Gathering: PlayerController.*ChoiceSpineId, *MajorPassiveSourceLevel, etc.
 
 8) Smoke test
-   - Skills page: tag line, flavor intro, Effects numbers, Duration (if timed), Energy • Cooldown.
-   - Action bar hover: short desc + numeric effects (timed buffs show Duration here).
+   - Skills page: tag → flavor → blue scaling → Effects → green Active Enhancement → Required weapon.
+   - Action bar hover: short desc + scaling + numeric effects (timed buffs show Duration here).
    - HUD buff strip: overlay + timer OR persist overlay; hover = effects + Remaining only.
    - Cast/toggle from bar; values match tooltip.
 
@@ -232,6 +264,7 @@ REFERENCE — presentation assets (Assets/3.ScriptableObjects/Presentation/)
   Presentation_ability_soulforged_weapon
   Presentation_ability_spectral_axe
   Presentation_ability_whirlwind
+  Presentation_ability_final_severance
 
 REFERENCE — HUD ability buff ids (SetHudAbilityBuff abilityId)
   lumber_frenzy, fishing_frenzy, avatar_of_the_forest, cleaving_chop, cleaving_strikes,
