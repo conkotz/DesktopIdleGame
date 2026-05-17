@@ -3775,12 +3775,37 @@ public class PlayerController : MonoBehaviour
         return map.FindNodeById(map.startingNodeId);
     }
 
+    private const float ReturnToTownCooldownSeconds = 5f;
+    private static float _nextReturnToTownAllowedUnscaledTime;
+    private static bool _returnToTownTravelInProgress;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetReturnToTownTravelGate()
+    {
+        _nextReturnToTownAllowedUnscaledTime = 0f;
+        _returnToTownTravelInProgress = false;
+    }
+
+    /// <summary>Called when a return-to-town teleport finishes or is aborted before scene load.</summary>
+    public static void NotifyReturnToTownTravelFinished()
+    {
+        _returnToTownTravelInProgress = false;
+    }
+
+    public static bool IsReturnToTownTravelInProgress() => _returnToTownTravelInProgress;
+
     /// <summary>
-    /// Hotkey action: travel to the town node for the region the player is currently in.
-    /// Returns false when no valid town destination can be resolved.
+    /// Hotkey / UI action: travel to the town node for the region the player is currently in.
+    /// Returns false when blocked by cooldown, an in-progress teleport, or no valid destination.
     /// </summary>
     public static bool TryReturnToTownViaHotkey()
     {
+        if (_returnToTownTravelInProgress)
+            return false;
+
+        if (Time.unscaledTime < _nextReturnToTownAllowedUnscaledTime)
+            return false;
+
         PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         if (player != null && player.IsDead)
             return false;
@@ -3788,6 +3813,15 @@ public class PlayerController : MonoBehaviour
         MapNodeDefinition destination = ResolveRegionTownRespawnNode();
         if (destination == null)
             return false;
+
+        string destinationId = string.IsNullOrWhiteSpace(destination.nodeId) ? "" : destination.nodeId.Trim();
+        if (ActiveLevelContext.Current != null &&
+            !string.IsNullOrEmpty(destinationId) &&
+            string.Equals(ActiveLevelContext.Current.nodeId, destinationId, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        _returnToTownTravelInProgress = true;
+        _nextReturnToTownAllowedUnscaledTime = Time.unscaledTime + ReturnToTownCooldownSeconds;
 
         string townName = !string.IsNullOrWhiteSpace(destination.displayName) ? destination.displayName.Trim() : destination.nodeId;
         if (!string.IsNullOrWhiteSpace(townName))

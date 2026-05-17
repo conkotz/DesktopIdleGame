@@ -27,7 +27,12 @@ public class ActivityWindowToggleUI : MonoBehaviour
 
         window.SetActive(!window.activeSelf);
         if (window.activeSelf)
+        {
             window.transform.SetAsLastSibling();
+            GameLogWindowUI logUi = window.GetComponent<GameLogWindowUI>() ??
+                                    window.GetComponentInChildren<GameLogWindowUI>(true);
+            logUi?.FlushNow();
+        }
     }
 
     private GameObject ResolveWindow()

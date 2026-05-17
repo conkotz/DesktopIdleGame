@@ -32,8 +32,10 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private bool _autoCompleteDeferred;
 
     private Inventory _autoInv;
+    private PlayerStorage _autoStorage;
     private SkillsManager _autoSkills;
     private WorldMapProgressManager _autoWorldMap;
+    private bool _autoCompleteInventoryTriggered;
     private CharacterStats _playerDeathStats;
     private PlayerController _cachedPlayer;
 
@@ -125,9 +127,11 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         _autoInv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
         if (_autoInv != null)
         {
-            _autoInv.OnInventoryChanged -= HandleAutoCompleteSignalChanged;
-            _autoInv.OnInventoryChanged += HandleAutoCompleteSignalChanged;
+            _autoInv.OnInventoryChanged -= HandleInventoryAutoCompleteSignalChanged;
+            _autoInv.OnInventoryChanged += HandleInventoryAutoCompleteSignalChanged;
         }
+
+        _autoStorage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
 
         _autoSkills = SkillsManager.Instance ??
             FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
@@ -149,13 +153,14 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private void UnbindAutoCompleteSignals()
     {
         if (_autoInv != null)
-            _autoInv.OnInventoryChanged -= HandleAutoCompleteSignalChanged;
+            _autoInv.OnInventoryChanged -= HandleInventoryAutoCompleteSignalChanged;
         if (_autoSkills != null)
             _autoSkills.OnLevelUp -= HandleAutoCompleteSkillLevelUp;
         if (_autoWorldMap != null)
             _autoWorldMap.ProgressChanged -= HandleAutoCompleteSignalChanged;
 
         _autoInv = null;
+        _autoStorage = null;
         _autoSkills = null;
         _autoWorldMap = null;
     }
@@ -163,6 +168,12 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     private void HandleAutoCompleteSignalChanged()
     {
         _autoCompleteDeferred = true;
+    }
+
+    private void HandleInventoryAutoCompleteSignalChanged()
+    {
+        _autoCompleteDeferred = true;
+        _autoCompleteInventoryTriggered = true;
     }
 
     private void HandleAutoCompleteSkillLevelUp(SkillType _, int __)
@@ -180,8 +191,15 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     {
         if (!_autoCompleteDeferred)
             return;
+
+        bool fromInventory = _autoCompleteInventoryTriggered;
         _autoCompleteDeferred = false;
-        TryAutoCompleteEligibleQuests();
+        _autoCompleteInventoryTriggered = false;
+
+        if (fromInventory)
+            TryAutoCompleteGatherQuestsFromInventory();
+        else
+            TryAutoCompleteEligibleQuests();
     }
 
     private void TryBindPlayerDeathSignal()
@@ -283,11 +301,15 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (string.IsNullOrWhiteSpace(itemId))
             return 0;
         itemId = itemId.Trim();
-        Inventory inv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
-        PlayerStorage st = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
-        int n = inv ? inv.GetTotalAmount(itemId) : 0;
-        if (st)
-            n += st.GetTotalAmount(itemId);
+
+        if (_autoInv == null)
+            _autoInv = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (_autoStorage == null)
+            _autoStorage = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+
+        int n = _autoInv ? _autoInv.GetTotalAmount(itemId) : 0;
+        if (_autoStorage)
+            n += _autoStorage.GetTotalAmount(itemId);
         return n;
     }
 
@@ -942,6 +964,39 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
         MapTravelSession.BeginTravel(target, MapTravelSession.EntryMethod.InWorldEntrance, logPendingLevel: false);
         PlayerLevelTransition.LoadSceneWithEffectOrImmediate(GameplaySceneName);
+    }
+
+    private void TryAutoCompleteGatherQuestsFromInventory()
+    {
+        if (_isAutoCompleteProcessing)
+            return;
+
+        ResolveQuestDatabase();
+        IReadOnlyList<QuestDefinition> all = _resolvedDatabase != null ? _resolvedDatabase.All : null;
+        if (all == null || all.Count == 0)
+            return;
+
+        _isAutoCompleteProcessing = true;
+        try
+        {
+            for (int i = 0; i < all.Count; i++)
+            {
+                QuestDefinition q = all[i];
+                if (!q || !q.autoCompleteQuest || q.objectiveKind != QuestObjectiveKind.GatherItem)
+                    continue;
+                if (!CanClaimReward(q))
+                    continue;
+                if (HasItemRewardsToGrant(q) && !CanReceiveAllItemRewards(q))
+                    continue;
+
+                if (TryClaimQuestReward(q))
+                    break;
+            }
+        }
+        finally
+        {
+            _isAutoCompleteProcessing = false;
+        }
     }
 
     private void TryAutoCompleteEligibleQuests()

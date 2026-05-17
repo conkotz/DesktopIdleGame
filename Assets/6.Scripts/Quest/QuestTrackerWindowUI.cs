@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections;
 using TMPro;
@@ -36,11 +37,26 @@ public class QuestTrackerWindowUI : MonoBehaviour
     private QuestProgressManager _questProgress;
     private Inventory _inventory;
     private PlayerStorage _storage;
+    private ItemDatabase _itemDatabase;
     private bool _isRefreshingRows;
     private bool _trackerRowsDirty;
+    private bool _trackerStructureDirty;
     private Coroutine _deferredLayoutRebuild;
 
     private readonly List<GameObject> _spawnedRows = new();
+    private readonly Dictionary<string, TrackerRowWidgets> _rowsByQuestId = new(StringComparer.Ordinal);
+    private readonly List<string> _trackedQuestOrderScratch = new(8);
+    private readonly List<string> _progressTextScratch = new(8);
+    private bool _hasTrackedGatherQuest;
+
+    private struct TrackerRowWidgets
+    {
+        public GameObject Row;
+        public TMP_Text NameText;
+        public TMP_Text ProgressText;
+        public Image RowBg;
+        public Color DefaultRowColor;
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void AutoAttachToTrackerWindow()
@@ -92,15 +108,16 @@ public class QuestTrackerWindowUI : MonoBehaviour
     {
         RememberWindowActiveState(true);
         ResolveReferences();
-        QuestTrackerState.Changed += QueueTrackerRowsRefresh;
+        QuestTrackerState.Changed += QueueTrackerStructureRefresh;
 
         if (_questProgress != null)
-            _questProgress.ProgressChanged += QueueTrackerRowsRefresh;
+            _questProgress.ProgressChanged += QueueTrackerProgressRefresh;
         if (_inventory != null)
-            _inventory.OnInventoryChanged += QueueTrackerRowsRefresh;
+            _inventory.OnInventoryChanged += OnInventoryOrStorageChangedForTracker;
         if (_storage != null)
-            _storage.OnStorageChanged += QueueTrackerRowsRefresh;
+            _storage.OnStorageChanged += OnInventoryOrStorageChangedForTracker;
 
+        _trackerStructureDirty = true;
         RefreshRows();
     }
 
@@ -112,21 +129,36 @@ public class QuestTrackerWindowUI : MonoBehaviour
             _deferredLayoutRebuild = null;
         }
 
-        QuestTrackerState.Changed -= QueueTrackerRowsRefresh;
+        QuestTrackerState.Changed -= QueueTrackerStructureRefresh;
 
         if (_questProgress != null)
-            _questProgress.ProgressChanged -= QueueTrackerRowsRefresh;
+            _questProgress.ProgressChanged -= QueueTrackerProgressRefresh;
         if (_inventory != null)
-            _inventory.OnInventoryChanged -= QueueTrackerRowsRefresh;
+            _inventory.OnInventoryChanged -= OnInventoryOrStorageChangedForTracker;
         if (_storage != null)
-            _storage.OnStorageChanged -= QueueTrackerRowsRefresh;
+            _storage.OnStorageChanged -= OnInventoryOrStorageChangedForTracker;
 
         _trackerRowsDirty = false;
+        _trackerStructureDirty = false;
     }
 
-    private void QueueTrackerRowsRefresh()
+    private void QueueTrackerStructureRefresh()
+    {
+        _trackerStructureDirty = true;
+        _trackerRowsDirty = true;
+    }
+
+    private void QueueTrackerProgressRefresh()
     {
         _trackerRowsDirty = true;
+    }
+
+    private void OnInventoryOrStorageChangedForTracker()
+    {
+        if (!_hasTrackedGatherQuest)
+            return;
+
+        QueueTrackerProgressRefresh();
     }
 
     private void LateUpdate()
@@ -152,6 +184,9 @@ public class QuestTrackerWindowUI : MonoBehaviour
         if (!questDatabase)
             questDatabase = Resources.Load<QuestDatabase>("Databases/QuestDatabase_Main");
 
+        if (!_itemDatabase)
+            _itemDatabase = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+
         if (_questProgress == null)
             _questProgress = QuestProgressManager.Instance ?? FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
         if (_inventory == null)
@@ -167,17 +202,15 @@ public class QuestTrackerWindowUI : MonoBehaviour
         _isRefreshingRows = true;
 
         ResolveReferences();
-        ClearRows();
 
         if (!trackerContentRoot || !questDatabase)
         {
+            ClearRows();
             SetTrackerVisible(false);
             _isRefreshingRows = false;
             return;
         }
 
-        // Drop unknown ids and finished (reward claimed) non-repeatable quests only.
-        // Do not prune "gated" / unavailable — map/skills briefly unset during loads and would empty the tracker.
         QuestTrackerState.PruneMissing(id =>
         {
             QuestDefinition def = FindQuestDefinition(id);
@@ -187,6 +220,112 @@ public class QuestTrackerWindowUI : MonoBehaviour
             return !permanentlyDone;
         });
         QuestTrackerState.PruneToMaxCount();
+
+        CacheTrackedGatherQuestFlag();
+
+        bool structureDirty = _trackerStructureDirty;
+        _trackerStructureDirty = false;
+        _trackerRowsDirty = false;
+
+        if (structureDirty || !TryRefreshTrackedProgressInPlace())
+            RebuildAllRows();
+
+        _isRefreshingRows = false;
+    }
+
+    private void CacheTrackedGatherQuestFlag()
+    {
+        _hasTrackedGatherQuest = false;
+        IReadOnlyList<string> tracked = QuestTrackerState.OrderedTrackedQuestIds;
+        for (int i = 0; i < tracked.Count; i++)
+        {
+            QuestDefinition q = FindQuestDefinition(tracked[i]);
+            if (q != null && q.objectiveKind == QuestObjectiveKind.GatherItem)
+            {
+                _hasTrackedGatherQuest = true;
+                return;
+            }
+        }
+    }
+
+    private bool TryRefreshTrackedProgressInPlace()
+    {
+        if (_rowsByQuestId.Count == 0)
+            return false;
+
+        IReadOnlyList<string> tracked = QuestTrackerState.OrderedTrackedQuestIds;
+        if (tracked.Count != _rowsByQuestId.Count)
+            return false;
+
+        _trackedQuestOrderScratch.Clear();
+        _progressTextScratch.Clear();
+
+        for (int i = 0; i < tracked.Count; i++)
+        {
+            string questId = tracked[i];
+            if (!_rowsByQuestId.ContainsKey(questId))
+                return false;
+
+            _trackedQuestOrderScratch.Add(questId);
+
+            QuestDefinition q = FindQuestDefinition(questId);
+            if (!q)
+                return false;
+
+            int current = _questProgress != null ? _questProgress.GetDisplayProgress(q) : 0;
+            int target = Mathf.Max(1, q.targetCount);
+            _progressTextScratch.Add(FormatTrackerObjectiveProgress(q, current, target));
+        }
+
+        bool anyTextChanged = false;
+        bool anyVisualChanged = false;
+
+        for (int i = 0; i < _trackedQuestOrderScratch.Count; i++)
+        {
+            string questId = _trackedQuestOrderScratch[i];
+            TrackerRowWidgets widgets = _rowsByQuestId[questId];
+            if (!widgets.Row)
+                return false;
+
+            QuestDefinition q = FindQuestDefinition(questId);
+            if (!q)
+                return false;
+
+            int current = _questProgress != null ? _questProgress.GetDisplayProgress(q) : 0;
+            bool objectiveComplete = q.IsComplete(current);
+            string progress = _progressTextScratch[i];
+
+            if (widgets.ProgressText != null && widgets.ProgressText.text != progress)
+            {
+                widgets.ProgressText.text = progress;
+                anyTextChanged = true;
+            }
+
+            if (widgets.RowBg != null)
+            {
+                Color want = objectiveComplete ? trackerObjectiveCompleteRowColor : widgets.DefaultRowColor;
+                if (widgets.RowBg.color != want)
+                {
+                    widgets.RowBg.color = want;
+                    anyVisualChanged = true;
+                }
+            }
+        }
+
+        if (!anyTextChanged && !anyVisualChanged)
+            return true;
+
+        if (anyTextChanged)
+            RebuildTrackerLayoutImmediate();
+        else if (anyVisualChanged)
+            LayoutRebuilder.MarkLayoutForRebuild(trackerContentRoot);
+
+        return true;
+    }
+
+    private void RebuildAllRows()
+    {
+        ClearRows();
 
         IReadOnlyList<string> tracked = QuestTrackerState.OrderedTrackedQuestIds;
         int renderedCount = 0;
@@ -200,7 +339,6 @@ public class QuestTrackerWindowUI : MonoBehaviour
             int current = _questProgress != null ? _questProgress.GetDisplayProgress(q) : 0;
             int target = Mathf.Max(1, q.targetCount);
             bool objectiveComplete = q.IsComplete(current);
-
             string progress = FormatTrackerObjectiveProgress(q, current, target);
 
             CreateRow(q.questId, q.displayName, progress, objectiveComplete);
@@ -209,12 +347,12 @@ public class QuestTrackerWindowUI : MonoBehaviour
 
         RefreshTitle(renderedCount);
         SetTrackerVisible(renderedCount > 0);
-        RebuildTrackerLayoutImmediate();
 
         if (renderedCount > 0)
+        {
+            RebuildTrackerLayoutImmediate();
             ScheduleDeferredLayoutRebuild();
-
-        _isRefreshingRows = false;
+        }
     }
 
     private void ClearRows()
@@ -225,11 +363,14 @@ public class QuestTrackerWindowUI : MonoBehaviour
                 Destroy(_spawnedRows[i]);
         }
         _spawnedRows.Clear();
+        _rowsByQuestId.Clear();
+        _trackedQuestOrderScratch.Clear();
+        _progressTextScratch.Clear();
     }
 
     private void CreateRow(string questId, string questName, string progressText, bool objectiveComplete)
     {
-        if (!questTrackerRowPrefab)
+        if (!questTrackerRowPrefab || string.IsNullOrWhiteSpace(questId))
             return;
 
         GameObject row = Instantiate(questTrackerRowPrefab, trackerContentRoot);
@@ -249,19 +390,18 @@ public class QuestTrackerWindowUI : MonoBehaviour
         TMP_Text nameText = row.transform.Find(RowNameTextChild)?.GetComponent<TMP_Text>();
         TMP_Text progressDisplayText = row.transform.Find(RowProgressTextChild)?.GetComponent<TMP_Text>();
         Image rowBg = row.GetComponent<Image>();
+        Color defaultRowColor = rowBg != null ? rowBg.color : Color.white;
         if (rowBg != null && objectiveComplete)
             rowBg.color = trackerObjectiveCompleteRowColor;
         if (nameText)
         {
             nameText.text = questName;
             nameText.color = TrackerDefaultTextColor;
-            nameText.ForceMeshUpdate(true);
         }
         if (progressDisplayText)
         {
             progressDisplayText.text = progressText;
             progressDisplayText.color = TrackerDefaultTextColor;
-            progressDisplayText.ForceMeshUpdate(true);
         }
 
         Button rowButton = row.GetComponent<Button>();
@@ -273,6 +413,15 @@ public class QuestTrackerWindowUI : MonoBehaviour
         rowButton.transition = Selectable.Transition.None;
         rowButton.onClick.RemoveAllListeners();
         rowButton.onClick.AddListener(() => OnTrackedQuestRowClicked(questId));
+
+        _rowsByQuestId[questId.Trim()] = new TrackerRowWidgets
+        {
+            Row = row,
+            NameText = nameText,
+            ProgressText = progressDisplayText,
+            RowBg = rowBg,
+            DefaultRowColor = defaultRowColor
+        };
     }
 
     private void RebuildTrackerLayoutImmediate()
@@ -475,7 +624,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
         return fallback;
     }
 
-    private static string FormatTrackerObjectiveProgress(QuestDefinition q, int current, int target)
+    private string FormatTrackerObjectiveProgress(QuestDefinition q, int current, int target)
     {
         int c = Mathf.Clamp(current, 0, target);
         int t = Mathf.Max(1, target);
@@ -489,7 +638,7 @@ public class QuestTrackerWindowUI : MonoBehaviour
         };
     }
 
-    private static string FormatKillTrackerLine(QuestDefinition q, int c, int t)
+    private string FormatKillTrackerLine(QuestDefinition q, int c, int t)
     {
         string id = q.ResolveKillDisplayEnemyId();
         if (string.IsNullOrEmpty(id))
@@ -503,13 +652,12 @@ public class QuestTrackerWindowUI : MonoBehaviour
         return $"{c}/{t} {label}";
     }
 
-    private static string FormatGatherTrackerLine(QuestDefinition q, int c, int t)
+    private string FormatGatherTrackerLine(QuestDefinition q, int c, int t)
     {
         if (string.IsNullOrWhiteSpace(q.objectiveId))
             return $"{c}/{t} gathered";
 
-        ItemDatabase db = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
-        ItemDefinition item = db ? db.Get(q.objectiveId.Trim()) : null;
+        ItemDefinition item = _itemDatabase ? _itemDatabase.Get(q.objectiveId.Trim()) : null;
         string label = item && !string.IsNullOrWhiteSpace(item.displayName)
             ? item.displayName.Trim()
             : FormatTrackerItemIdFallback(q.objectiveId.Trim());

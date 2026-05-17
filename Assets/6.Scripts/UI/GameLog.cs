@@ -1,14 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Text;
 using UnityEngine;
 
 /// <summary>
-/// Runtime-only game log. Entries are kept in memory across scene changes, but are intentionally not saved.
+/// Runtime game log. Recent entries stay in memory for the activity UI; older lines are truncated
+/// and optionally appended to a rolling archive file under persistent data.
 /// </summary>
 public static class GameLog
 {
     public const int MaxEntries = 75;
+    private const long MaxArchiveFileBytes = 256 * 1024;
 
     public readonly struct Entry
     {
@@ -52,12 +56,23 @@ public static class GameLog
 
     private static readonly List<Entry> Entries = new();
 
+    /// <summary>Increments whenever in-memory history changes (add, merge, trim, clear).</summary>
+    public static int Revision { get; private set; }
+
+    /// <summary>Subscribe to batch-refresh the activity window instead of updating per log line.</summary>
+    public static event Action HistoryChanged;
+
     public static IReadOnlyList<Entry> History => Entries;
+
+    private static string ArchiveFilePath =>
+        Path.Combine(Application.persistentDataPath, "activity_log_archive.txt");
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeHistory()
     {
         Entries.Clear();
+        Revision = 0;
+        HistoryChanged = null;
     }
 
     public static void Add(string message)
@@ -87,10 +102,7 @@ public static class GameLog
         System.DateTime timestampLocal = System.DateTime.Now;
         Entries.Add(new Entry(trimmed, color, timestampLocal));
         TrimToMaxEntries();
-
-        GameLogWindowUI window = GameLogWindowUI.ResolveOrCreate();
-        if (window != null)
-            window.AddLog(trimmed, color, FormatClock(timestampLocal));
+        NotifyHistoryChanged();
     }
 
     private static void TrimToMaxEntries()
@@ -99,16 +111,89 @@ public static class GameLog
         if (overflow <= 0)
             return;
 
+        ArchiveTrimmedEntries(0, overflow);
         Entries.RemoveRange(0, overflow);
+    }
+
+    private static void ArchiveTrimmedEntries(int startIndex, int count)
+    {
+        if (count <= 0)
+            return;
+
+        try
+        {
+            var sb = new StringBuilder(count * 64);
+            for (int i = 0; i < count; i++)
+            {
+                Entry e = Entries[startIndex + i];
+                if (!ShouldShowInActivityLog(e.Message))
+                    continue;
+
+                sb.Append(e.TimestampLocal.ToString("O", CultureInfo.InvariantCulture));
+                sb.Append('\t');
+                sb.Append(e.Color.r.ToString(CultureInfo.InvariantCulture));
+                sb.Append(',');
+                sb.Append(e.Color.g.ToString(CultureInfo.InvariantCulture));
+                sb.Append(',');
+                sb.Append(e.Color.b.ToString(CultureInfo.InvariantCulture));
+                sb.Append(',');
+                sb.Append(e.Color.a.ToString(CultureInfo.InvariantCulture));
+                sb.Append('\t');
+                sb.AppendLine(e.Message);
+            }
+
+            if (sb.Length == 0)
+                return;
+
+            File.AppendAllText(ArchiveFilePath, sb.ToString());
+            TrimArchiveFileIfNeeded();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[{nameof(GameLog)}] Failed to archive trimmed activity log lines: {ex.Message}");
+        }
+    }
+
+    private static void TrimArchiveFileIfNeeded()
+    {
+        try
+        {
+            if (!File.Exists(ArchiveFilePath))
+                return;
+
+            var info = new FileInfo(ArchiveFilePath);
+            if (info.Length <= MaxArchiveFileBytes)
+                return;
+
+            // Keep the newest half of the archive file.
+            string[] lines = File.ReadAllLines(ArchiveFilePath);
+            int keepFrom = Mathf.Max(0, lines.Length / 2);
+            var kept = new StringBuilder();
+            for (int i = keepFrom; i < lines.Length; i++)
+            {
+                if (string.IsNullOrEmpty(lines[i]))
+                    continue;
+                kept.AppendLine(lines[i]);
+            }
+
+            File.WriteAllText(ArchiveFilePath, kept.ToString());
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[{nameof(GameLog)}] Failed to trim activity log archive: {ex.Message}");
+        }
+    }
+
+    private static void NotifyHistoryChanged()
+    {
+        Revision++;
+        HistoryChanged?.Invoke();
     }
 
     public static void Clear()
     {
         Entries.Clear();
-
-        GameLogWindowUI window = GameLogWindowUI.ResolveOrCreate();
-        if (window != null)
-            window.ClearLogs();
+        NotifyHistoryChanged();
     }
 
     public static void ItemGained(string itemName, int amount)
@@ -150,9 +235,7 @@ public static class GameLog
                     total,
                     repeatCount);
 
-                GameLogWindowUI window = GameLogWindowUI.ResolveOrCreate();
-                if (window != null)
-                    window.RebuildFromHistory();
+                NotifyHistoryChanged();
                 return;
             }
         }
@@ -165,10 +248,7 @@ public static class GameLog
             amount,
             1));
         TrimToMaxEntries();
-
-        GameLogWindowUI logWindow = GameLogWindowUI.ResolveOrCreate();
-        if (logWindow != null)
-            logWindow.AddLog(Entries[^1].Message, ItemGainColor, FormatClock(timestampLocal));
+        NotifyHistoryChanged();
     }
 
     private static string FormatStackedItemGain(string itemName, int amount, int repeatCount, bool purchased)

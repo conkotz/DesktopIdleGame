@@ -20,6 +20,8 @@ public class PlayerLevelTransition : MonoBehaviour
     /// <summary>True after shrink-until-load until <see cref="RestoreScaleAfterLevelChange"/> runs.</summary>
     public bool PendingScaleRestore => _pendingRestore;
 
+    public bool IsTransitionRunning => _running != null || _shrinking;
+
     private bool _shrinking;
     private float _elapsed;
     private float _dur;
@@ -44,12 +46,18 @@ public class PlayerLevelTransition : MonoBehaviour
         MainMenuWindowUI.CaptureOpenStateForSceneChange();
 
         if (t != null)
+        {
+            if (t.IsTransitionRunning)
+                return;
+
             t.BeginShrinkThenLoad(sceneName);
+        }
         else
         {
             MapTravelSession.ApplyPendingSpawnDispositionBeforeSceneLoad();
             SaveManager.Instance?.SaveBeforeSceneTransition();
             SceneManager.LoadScene(sceneName);
+            PlayerController.NotifyReturnToTownTravelFinished();
         }
     }
 
@@ -67,6 +75,8 @@ public class PlayerLevelTransition : MonoBehaviour
         var pc = GetComponent<PlayerController>();
         if (pc != null)
             pc.SetTeleportOutVisualsActive(false);
+
+        PlayerController.NotifyReturnToTownTravelFinished();
     }
 
     public void BeginShrinkThenLoad(string sceneName)
@@ -164,7 +174,10 @@ public class PlayerLevelTransition : MonoBehaviour
 
             // Aborted mid-shrink without scene load — release damage immunity so the player isn't stuck immune.
             if (abortedCoroutine)
+            {
                 pc.SetTeleportDamageImmune(false);
+                PlayerController.NotifyReturnToTownTravelFinished();
+            }
         }
     }
 
