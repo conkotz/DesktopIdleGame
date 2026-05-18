@@ -18,7 +18,7 @@ public class PlayerBuffController : MonoBehaviour
         /// <summary>Corner stack count for HUD (e.g. Cleaving Strikes swings). 0 = use potion-style value label only.</summary>
         public int displayStacks;
 
-        /// <summary>Full active overlay with no numeric countdown (e.g. indefinite Soulforged Weapon).</summary>
+        /// <summary>Indefinite HUD ability buff (e.g. Soulforged Weapon until dismissed): no radial overlay or action-bar timer.</summary>
         public bool hudPersistActiveOverlay;
 
         public float RemainingSeconds => Mathf.Max(0f, endTime - Time.time);
@@ -160,23 +160,32 @@ public class PlayerBuffController : MonoBehaviour
         return false;
     }
 
+    /// <summary>True for finite-duration HUD ability buffs (not indefinite / until-dismissed rows).</summary>
+    public static bool HasFiniteHudAbilityBuffDuration(ActiveBuff b) =>
+        b != null &&
+        b.type == ConsumableEffectType.HudAbilityBuff &&
+        !b.hudPersistActiveOverlay &&
+        b.duration > 0f;
+
     /// <summary>
-    /// Whether a numeric countdown should be shown (matches <see cref="BuffIconUI"/> timer: needs a finite
-    /// <see cref="ActiveBuff.duration"/> window and positive <see cref="ActiveBuff.RemainingSeconds"/>).
-    /// Indefinite Soulforged minion uses <c>durationSeconds == 0</c> on the HUD row — no timer.
+    /// Whether the radial overlay / action-bar active wedge should show (finite duration with time left only).
+    /// Indefinite buffs still appear in the buff strip icon list but without overlay bars or timers.
     /// </summary>
-    public bool ShouldDisplayHudAbilityBuffCountdown(string abilityId, out float remainingSeconds)
+    public bool ShouldDisplayHudAbilityBuffTimedPresentation(string abilityId, out float remainingSeconds)
     {
         remainingSeconds = 0f;
         if (!TryGetHudAbilityBuff(abilityId, out ActiveBuff b))
             return false;
+        if (!HasFiniteHudAbilityBuffDuration(b))
+            return false;
 
         remainingSeconds = b.RemainingSeconds;
-        if (b.hudPersistActiveOverlay && b.displayStacks > 0)
-            return true;
-
-        return b.duration > 0f && remainingSeconds > 0f;
+        return remainingSeconds > 0f;
     }
+
+    /// <summary>Whether a numeric countdown should be shown on the action bar or buff icon.</summary>
+    public bool ShouldDisplayHudAbilityBuffCountdown(string abilityId, out float remainingSeconds) =>
+        ShouldDisplayHudAbilityBuffTimedPresentation(abilityId, out remainingSeconds);
 
     public bool HasBuff(ConsumableEffectType type)
     {

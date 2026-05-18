@@ -732,12 +732,13 @@ public class SoulforgedWeaponMinion : MonoBehaviour
         int ic = Mathf.RoundToInt(c);
 
         Transform atk = _attackerTransform ? _attackerTransform : transform;
+        const string minionSourceLabel = PlayerCombatController.DefaultMinionOutgoingSourceLabel;
         if (ip > 0)
-            enemy.TakeDamage(ip, DamageType.Physical, crit, atk, null, DpsDamageBucket.Minion);
+            enemy.TakeDamage(ip, DamageType.Physical, crit, atk, null, DpsDamageBucket.Minion, outgoingDpsSourceLabel: minionSourceLabel);
         if (im > 0)
-            enemy.TakeDamage(im, DamageType.Magic, crit, atk, null, DpsDamageBucket.Minion);
+            enemy.TakeDamage(im, DamageType.Magic, crit, atk, null, DpsDamageBucket.Minion, outgoingDpsSourceLabel: minionSourceLabel);
         if (ic > 0)
-            enemy.TakeDamage(ic, DamageType.Corruption, false, atk, null, DpsDamageBucket.Minion);
+            enemy.TakeDamage(ic, DamageType.Corruption, false, atk, null, DpsDamageBucket.Minion, outgoingDpsSourceLabel: minionSourceLabel);
 
         MinionHitEffects.ApplyAilmentsFromOwnerWeapon(
             enemy,
@@ -746,7 +747,9 @@ public class SoulforgedWeaponMinion : MonoBehaviour
             ip,
             im,
             ic,
-            atk);
+            atk,
+            minionSourceLabel,
+            attributeOutgoingToMinion: true);
 
         if (debugLogs)
             Debug.Log($"[SoulforgedWeapon] Hit {enemy.name} p={ip} m={im} c={ic} crit={crit}", this);

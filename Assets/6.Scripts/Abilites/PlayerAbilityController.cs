@@ -48,6 +48,8 @@ public class PlayerAbilityController : MonoBehaviour
     private static PlayerAbilityController _instance;
     private bool _finalSeveranceChanneling;
     private Coroutine _finalSeveranceRoutine;
+    private Coroutine _executionersDescentRoutine;
+    private bool _executionersDescentTargetDiedDuringDescent;
 
     /// <summary>True while Final Severance is channeling (movement/attacks paused).</summary>
     public static bool BlocksCombatActions => _instance != null && _instance._finalSeveranceChanneling;
@@ -58,6 +60,8 @@ public class PlayerAbilityController : MonoBehaviour
     private const string CleavingStrikesId = "cleaving_strikes";
     private const string CrescentSlashId = "crescent_slash";
     private const string FinalSeveranceId = "final_severance";
+    private const string ExecutionersDescentId = "executioners_descent";
+    private const string ShadowStrikeId = "shadow_strike";
     private const string LumberFrenzyId = "lumber_frenzy";
     private const float LumberFrenzyDurationSeconds = 20f;
     private const float LumberFrenzyChoppingSpeedBonus = 0.20f;
@@ -236,6 +240,43 @@ public class PlayerAbilityController : MonoBehaviour
         public bool crescentPenetrating;
     }
 
+    /// <summary>Legacy fallback label for weapon swings (use <see cref="BuildSwingOutgoingAttribution"/> for DPS splits).</summary>
+    public string GetBasicAttackOutgoingDamageSourceLabel() => "Auto Attack";
+
+    /// <summary>
+    /// Captured at attack start (after queued modifiers). Power Slash splits auto vs bonus;
+    /// Rend/Envenom hits count as Auto Attack; plain swings are Auto Attack only.
+    /// </summary>
+    public PlayerCombatController.SwingOutgoingAttribution BuildSwingOutgoingAttribution(
+        SplitDamage preModifier,
+        SplitDamage postModifier)
+    {
+        if (_queuedConsumedThisHit == QueuedHitEffect.PowerSlash)
+        {
+            float preTotal = Mathf.Max(0f, preModifier.Total);
+            float postTotal = Mathf.Max(0f, postModifier.Total);
+            float bonusFraction = postTotal > preTotal + 1e-6f ? 1f - (preTotal / postTotal) : 0f;
+            return new PlayerCombatController.SwingOutgoingAttribution(
+                "Auto Attack",
+                GetAbilityOutgoingDamageSourceLabel(PowerSlashId),
+                bonusFraction);
+        }
+
+        return PlayerCombatController.SwingOutgoingAttribution.AutoAttackOnly;
+    }
+
+    public string GetAbilityOutgoingDamageSourceLabel(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return "Ability";
+
+        AbilityDefinition def = GetAbilityDefinition(abilityId);
+        if (def != null && !string.IsNullOrWhiteSpace(def.displayName))
+            return def.displayName.Trim();
+
+        return abilityId.Replace('_', ' ');
+    }
+
     private void Awake()
     {
         _instance = this;
@@ -272,6 +313,13 @@ public class PlayerAbilityController : MonoBehaviour
             _finalSeveranceRoutine = null;
         }
 
+        if (_executionersDescentRoutine != null)
+        {
+            StopCoroutine(_executionersDescentRoutine);
+            _executionersDescentRoutine = null;
+        }
+
+        abilityVfx?.StopExecutionersDescentVfx();
         GameplayScreenOverlay.Hide(GameplayScreenOverlay.FinalSeveranceChannelId);
         _finalSeveranceChanneling = false;
         player?.SetAbilityChannelLock(false);
@@ -465,22 +513,14 @@ public class PlayerAbilityController : MonoBehaviour
         ForceEndGenericHudAbilityBuffWithCooldown(abilityId);
     }
 
-    /// <summary>Skill tree active overlay: seconds left on the HUD buff timer when applicable.</summary>
+    /// <summary>Skill tree active overlay: only for finite-duration HUD buffs (not indefinite minion / until-dismissed).</summary>
     public bool TryGetAbilitySkillTreeActiveBuffTimer(string abilityId, out float remainingSecondsForDisplay)
     {
         remainingSecondsForDisplay = 0f;
-        if (!IsAbilityBuffOrLingeringActive(abilityId))
+        if (buffController == null)
             return false;
 
-        if (buffController != null &&
-            buffController.ShouldDisplayHudAbilityBuffCountdown(abilityId, out float rem))
-        {
-            remainingSecondsForDisplay = rem;
-            return true;
-        }
-
-        remainingSecondsForDisplay = 0f;
-        return true;
+        return buffController.ShouldDisplayHudAbilityBuffTimedPresentation(abilityId, out remainingSecondsForDisplay);
     }
 
     private void ForceEndCleavingStrikesBuffEarly()
@@ -706,7 +746,10 @@ public class PlayerAbilityController : MonoBehaviour
 
         bool isCrescentSlash = string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase);
         bool isFinalSeverance = string.Equals(def.abilityId, FinalSeveranceId, StringComparison.OrdinalIgnoreCase);
-        if (!isCrescentSlash && !isFinalSeverance && def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
+        bool isExecutionersDescent = string.Equals(def.abilityId, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase);
+        bool isShadowStrike = string.Equals(def.abilityId, ShadowStrikeId, StringComparison.OrdinalIgnoreCase);
+        if (!isCrescentSlash && !isFinalSeverance && !isExecutionersDescent && !isShadowStrike &&
+            def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
         {
             player.ShowPopup("Not enough energy.");
             return false;
@@ -887,6 +930,55 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
+        if (isShadowStrike)
+        {
+            if (!TryExecuteShadowStrike(def))
+            {
+                if (def.energyCost > 0f)
+                    player.AddEnergy(def.energyCost);
+                return false;
+            }
+
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+
+        if (isExecutionersDescent)
+        {
+            if (_executionersDescentRoutine != null)
+                return false;
+
+            EnemyBaseController descentTarget = ResolveExecutionersDescentTarget();
+            if (descentTarget == null)
+            {
+                player?.ShowPopup("No valid target.");
+                return false;
+            }
+
+            if (def.energyCost > 0f && stats.Energy < def.energyCost)
+            {
+                player.ShowPopup("Not enough energy.");
+                return false;
+            }
+
+            if (def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
+            {
+                player.ShowPopup("Not enough energy.");
+                return false;
+            }
+
+            _executionersDescentTargetDiedDuringDescent = false;
+            _executionersDescentRoutine = StartCoroutine(CoExecutionersDescent(def, descentTarget));
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+
         EnemyBaseController target = combat != null ? combat.CurrentTarget : null;
         if (target == null || target.IsDead)
             return false;
@@ -923,13 +1015,14 @@ public class PlayerAbilityController : MonoBehaviour
         int phys = Mathf.Max(0, Mathf.RoundToInt(physPart * critMult));
         int mag = Mathf.Max(0, Mathf.RoundToInt(magPart * critMult));
         int corr = Mathf.Max(0, Mathf.RoundToInt(corrPart * critMult));
+        string sourceLabel = GetAbilityOutgoingDamageSourceLabel(def.abilityId);
         int dealt = 0;
         if (phys > 0)
-            dealt += target.TakeDamage(phys, DamageType.Physical, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null);
+            dealt += target.TakeDamage(phys, DamageType.Physical, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null, outgoingDpsSourceLabel: sourceLabel);
         if (mag > 0)
-            dealt += target.TakeDamage(mag, DamageType.Magic, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null);
+            dealt += target.TakeDamage(mag, DamageType.Magic, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null, outgoingDpsSourceLabel: sourceLabel);
         if (corr > 0)
-            dealt += target.TakeDamage(corr, DamageType.Corruption, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null);
+            dealt += target.TakeDamage(corr, DamageType.Corruption, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null, outgoingDpsSourceLabel: sourceLabel);
 
         // Fire the attack anim as feedback, but do not modify basic attack cooldown timing.
         player.TriggerAttackAnim();
@@ -1045,7 +1138,7 @@ public class PlayerAbilityController : MonoBehaviour
             float lightningAfterCrit = lightningMagNonCrit * critMult;
             float firstFrac = firstHit.magic > 1e-8f ? Mathf.Clamp01(lightningAfterCrit / firstHit.magic) : 0f;
 
-            DealtHit dealt = ApplySplitDamageToEnemy(target, firstHit, wasCrit, firstFrac);
+            DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, firstHit, wasCrit, firstFrac);
             ApplyOnHitEffects(target, dealt);
             if (twinCyclone && secondWaveTargets != null)
             {
@@ -1150,7 +1243,7 @@ public class PlayerAbilityController : MonoBehaviour
                 SplitDamage hit = rolled * hitFraction;
                 float lightningHit = lightningAfterCrit * hitFraction;
                 float frac = hit.magic > 1e-8f ? Mathf.Clamp01(lightningHit / hit.magic) : 0f;
-                DealtHit dealt = ApplySplitDamageToEnemy(target, hit, wasCrit, frac);
+                DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, hit, wasCrit, frac);
                 ApplyOnHitEffects(target, dealt);
                 if (player != null && dealt.Total > 0f)
                     player.ApplyLifeSteal(dealt.Total);
@@ -1210,6 +1303,452 @@ public class PlayerAbilityController : MonoBehaviour
             return selected;
 
         return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 45, -1);
+    }
+
+    private IEnumerator CoExecutionersDescent(AbilityDefinition def, EnemyBaseController initialTarget)
+    {
+        float descentSeconds = AbilityCombatPower.ExecutionersDescentDescentSeconds;
+        Vector3 impactPoint = initialTarget != null ? initialTarget.transform.position : transform.position;
+        EnemyBaseController trackedTarget = initialTarget;
+        bool targetWasAliveAtCast = trackedTarget != null && !trackedTarget.IsDead;
+
+        abilityVfx?.BeginExecutionersDescent(trackedTarget, impactPoint, descentSeconds);
+
+        float elapsed = 0f;
+        while (elapsed < descentSeconds)
+        {
+            if (player == null || stats == null || def == null)
+                break;
+
+            if (player.IsDead || stats.IsDead)
+                break;
+
+            EnemyBaseController engaged = combat != null ? combat.GetPrimaryEngagedEnemy() : null;
+            if (engaged != null && !engaged.IsDead)
+                trackedTarget = engaged;
+
+            if (trackedTarget != null && !trackedTarget.IsDead)
+            {
+                impactPoint = trackedTarget.transform.position;
+                abilityVfx?.UpdateExecutionersDescent(trackedTarget, impactPoint, elapsed);
+            }
+            else
+            {
+                if (targetWasAliveAtCast && trackedTarget != null && trackedTarget.IsDead)
+                    _executionersDescentTargetDiedDuringDescent = true;
+
+                abilityVfx?.UpdateExecutionersDescent(null, impactPoint, elapsed);
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        try
+        {
+            if (player == null || stats == null || def == null)
+                yield break;
+
+            if (player.IsDead || stats.IsDead)
+                yield break;
+
+            abilityVfx?.SpawnExecutionersDescentImpactShockwave(impactPoint);
+
+            int selected = GetExecutionersDescentSelectedChoice();
+            bool executionersClaim = selected == 0;
+            bool sunderingImpact = selected == 1;
+
+            bool primaryTargetAlive = trackedTarget != null && !trackedTarget.IsDead;
+            if (primaryTargetAlive)
+            {
+                float armorMult = sunderingImpact ? 0f : 1f;
+                float mrMult = sunderingImpact ? 0f : 1f;
+                ApplyExecutionersDescentHit(
+                    trackedTarget,
+                    def,
+                    AbilityCombatPower.ExecutionersDescentPrimaryWeaponMultiplier,
+                    armorMult,
+                    mrMult);
+
+                if (trackedTarget.IsDead)
+                    _executionersDescentTargetDiedDuringDescent = true;
+            }
+
+            ApplyExecutionersDescentShockwave(
+                def,
+                impactPoint,
+                trackedTarget,
+                sunderingImpact);
+
+            if (executionersClaim && _executionersDescentTargetDiedDuringDescent)
+                ReduceAbilityCooldown(def, AbilityCombatPower.ExecutionersDescentClaimCooldownReductionFraction);
+        }
+        finally
+        {
+            abilityVfx?.StopExecutionersDescentVfx();
+            _executionersDescentRoutine = null;
+        }
+    }
+
+    private void ApplyExecutionersDescentHit(
+        EnemyBaseController target,
+        AbilityDefinition def,
+        float weaponDamageMultiplier,
+        float armorRatingMultiplier,
+        float magicResistRatingMultiplier)
+    {
+        if (!target || target.IsDead || stats == null || def == null)
+            return;
+
+        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        float scale = weaponDamageMultiplier / Mathf.Max(0.0001f, def.GetWeaponHitScalingMultiplier());
+        rolledNonCrit *= scale;
+        lightningMagNonCrit *= scale;
+
+        float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+        SplitDamage rolled = new SplitDamage(
+            rolledNonCrit.physical * critMult,
+            rolledNonCrit.magic * critMult,
+            rolledNonCrit.corruptionDamage * critMult);
+        float lightningAfterCrit = lightningMagNonCrit * critMult;
+        float frac = rolled.magic > 1e-8f ? Mathf.Clamp01(lightningAfterCrit / rolled.magic) : 0f;
+
+        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(
+            target,
+            def,
+            rolled,
+            wasCrit,
+            frac,
+            armorRatingMultiplier: armorRatingMultiplier,
+            magicResistRatingMultiplier: magicResistRatingMultiplier);
+        ApplyOnHitEffects(target, dealt);
+        if (player != null && dealt.Total > 0f)
+            player.ApplyLifeSteal(dealt.Total);
+    }
+
+    private void ApplyExecutionersDescentShockwave(
+        AbilityDefinition def,
+        Vector3 impactPoint,
+        EnemyBaseController primaryTarget,
+        bool sunderingImpact)
+    {
+        if (stats == null || def == null)
+            return;
+
+        float radius = AbilityCombatPower.ExecutionersDescentShockwaveRadius;
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+
+            float dx = Mathf.Abs(enemy.transform.position.x - impactPoint.x);
+            if (dx > radius)
+                continue;
+
+            ApplyExecutionersDescentHit(
+                enemy,
+                def,
+                AbilityCombatPower.ExecutionersDescentShockwaveWeaponMultiplier,
+                armorRatingMultiplier: 1f,
+                magicResistRatingMultiplier: 1f);
+
+            if (sunderingImpact)
+                ApplyExecutionersDescentSunderingDebuff(enemy);
+        }
+    }
+
+    private static void ApplyExecutionersDescentSunderingDebuff(EnemyBaseController enemy)
+    {
+        if (!enemy)
+            return;
+
+        EnemyCombatMitigationModifiers mods = enemy.GetComponent<EnemyCombatMitigationModifiers>();
+        if (!mods)
+            mods = enemy.gameObject.AddComponent<EnemyCombatMitigationModifiers>();
+
+        mods.ApplyArmorMrShred(
+            AbilityCombatPower.ExecutionersDescentSunderingArmorMrMultiplier,
+            AbilityCombatPower.ExecutionersDescentSunderingDebuffSeconds);
+    }
+
+    private bool TryExecuteShadowStrike(AbilityDefinition def)
+    {
+        if (!def || player == null || stats == null)
+            return false;
+
+        if (!TryResolveShadowStrikeTarget(out EnemyBaseController target))
+        {
+            player.ShowPopup("No enemy in range.");
+            return false;
+        }
+
+        TeleportPlayerToMeleeStrikePosition(target);
+        player.FaceTargetX(target.transform.position.x);
+        if (combat != null)
+            combat.SetTarget(target);
+
+        player.TriggerAttackAnim();
+        abilityVfx?.SpawnShadowStrikeBurst(target.transform.position);
+
+        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+        SplitDamage rolled = new SplitDamage(
+            rolledNonCrit.physical * critMult,
+            rolledNonCrit.magic * critMult,
+            rolledNonCrit.corruptionDamage * critMult);
+        float lightningAfterCrit = lightningMagNonCrit * critMult;
+        float frac = rolled.magic > 1e-8f ? Mathf.Clamp01(lightningAfterCrit / rolled.magic) : 0f;
+
+        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, rolled, wasCrit, frac);
+        ApplyOnHitEffects(target, dealt);
+        if (player != null && dealt.Total > 0f)
+            player.ApplyLifeSteal(dealt.Total);
+
+        ApplyShadowStrikeMark(target, def);
+        return true;
+    }
+
+    private bool TryResolveShadowStrikeTarget(out EnemyBaseController target)
+    {
+        target = null;
+        if (combat != null)
+        {
+            EnemyBaseController engaged = combat.GetPrimaryEngagedEnemy();
+            if (engaged != null && IsEnemyInShadowStrikeForwardArc(engaged, out float engagedDist))
+            {
+                target = engaged;
+                return true;
+            }
+        }
+
+        List<(EnemyBaseController enemy, float dist)> forwardHits =
+            CollectShadowStrikeForwardHits(AbilityCombatPower.ShadowStrikeForwardReach);
+        if (forwardHits.Count == 0)
+            return false;
+
+        forwardHits.Sort((a, b) => a.dist.CompareTo(b.dist));
+        target = forwardHits[0].enemy;
+        return target != null;
+    }
+
+    private bool IsEnemyInShadowStrikeForwardArc(EnemyBaseController enemy, out float forwardDistance)
+    {
+        forwardDistance = float.MaxValue;
+        if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+            return false;
+
+        float facing = GetCombatFacingSign();
+        Vector3 origin = transform.position;
+        float laneWidth = Mathf.Max(0.6f, AbilityCombatPower.ShadowStrikeForwardReach * 0.35f);
+        Vector3 to = enemy.transform.position - origin;
+        forwardDistance = to.x * facing;
+        if (forwardDistance <= 0f || forwardDistance > AbilityCombatPower.ShadowStrikeForwardReach)
+            return false;
+        if (Mathf.Abs(to.y) > laneWidth)
+            return false;
+        return true;
+    }
+
+    private List<(EnemyBaseController enemy, float dist)> CollectShadowStrikeForwardHits(float reach)
+    {
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        var forwardHits = new List<(EnemyBaseController enemy, float dist)>(allEnemies.Count);
+        float facing = GetCombatFacingSign();
+        Vector3 origin = transform.position;
+        float laneWidth = Mathf.Max(0.6f, reach * 0.35f);
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            Vector3 to = enemy.transform.position - origin;
+            float forwardDist = to.x * facing;
+            if (forwardDist <= 0f || forwardDist > reach)
+                continue;
+            if (Mathf.Abs(to.y) > laneWidth)
+                continue;
+
+            forwardHits.Add((enemy, forwardDist));
+        }
+
+        return forwardHits;
+    }
+
+    private void TeleportPlayerToMeleeStrikePosition(EnemyBaseController target)
+    {
+        if (!target || !player || stats == null)
+            return;
+
+        float myRange = Mathf.Max(0f, stats.Range);
+        if (combat != null)
+            myRange += combat.GetMeleeRangePadding();
+
+        Collider2D playerCol = player.GetComponent<Collider2D>();
+        Collider2D enemyCol = target.GetComponent<Collider2D>();
+        if (!enemyCol)
+            enemyCol = target.GetComponentInChildren<Collider2D>();
+
+        float myHalf = playerCol != null ? Mathf.Max(0f, playerCol.bounds.extents.x) : 0.25f;
+        float enemyHalf = enemyCol != null ? Mathf.Max(0f, enemyCol.bounds.extents.x) : 0.25f;
+        float desiredCenterDist = myRange + myHalf + enemyHalf;
+
+        float enemyX = target.transform.position.x;
+        float myX = player.transform.position.x;
+        float desiredX = myX < enemyX ? enemyX - desiredCenterDist : enemyX + desiredCenterDist;
+
+        Vector3 pos = player.transform.position;
+        pos.x = desiredX;
+        player.transform.position = pos;
+
+        Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+        if (rb)
+            rb.position = pos;
+    }
+
+    private void ApplyShadowStrikeMark(EnemyBaseController target, AbilityDefinition def)
+    {
+        if (!target || target.IsDead || def == null)
+            return;
+
+        int selected = GetShadowStrikeSelectedChoice();
+        if (selected < 0)
+            return;
+
+        EnemyShadowStrikeMarks marks = target.GetComponent<EnemyShadowStrikeMarks>();
+        if (!marks)
+            marks = target.gameObject.AddComponent<EnemyShadowStrikeMarks>();
+
+        EnemyShadowStrikeMarks.MarkKind kind = selected == 0
+            ? EnemyShadowStrikeMarks.MarkKind.LethalCrit
+            : EnemyShadowStrikeMarks.MarkKind.Execution;
+        marks.ApplyMark(kind, this, def);
+    }
+
+    private int GetShadowStrikeSelectedChoice()
+    {
+        if (skillsManager == null)
+            skillsManager = SkillsManager.Instance;
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee,
+            AbilityCombatPower.ShadowStrikeEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    public void ReduceAbilityCooldownBySeconds(AbilityDefinition def, float seconds)
+    {
+        if (!def || seconds <= 0f)
+            return;
+
+        if (!_cooldownEndsById.TryGetValue(def.abilityId, out float end))
+            return;
+
+        float remaining = end - Time.time;
+        if (remaining <= 0f)
+            return;
+
+        float newRemaining = Mathf.Max(0f, remaining - seconds);
+        _cooldownEndsById[def.abilityId] = Time.time + newRemaining;
+    }
+
+    private EnemyBaseController ResolveExecutionersDescentTarget()
+    {
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+
+        EnemyBaseController engaged = combat != null ? combat.GetPrimaryEngagedEnemy() : null;
+        if (engaged != null)
+            return engaged;
+
+        engaged = combat != null ? combat.FindClosestEnemyInAttackRange() : null;
+        if (engaged != null)
+            return engaged;
+
+        return FindClosestVisibleLivingEnemy();
+    }
+
+    private EnemyBaseController FindClosestVisibleLivingEnemy()
+    {
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        EnemyBaseController best = null;
+        float bestDist = float.MaxValue;
+        float ownerX = transform.position.x;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+            if (!IsEnemyVisibleInGameplayCamera(enemy))
+                continue;
+
+            float dist = Mathf.Abs(enemy.transform.position.x - ownerX);
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = enemy;
+            }
+        }
+
+        return best;
+    }
+
+    private static bool IsEnemyVisibleInGameplayCamera(EnemyBaseController enemy)
+    {
+        if (!enemy)
+            return false;
+
+        Camera cam = Camera.main;
+        if (!cam)
+            return true;
+
+        Collider2D col = enemy.GetComponent<Collider2D>();
+        if (!col)
+            col = enemy.GetComponentInChildren<Collider2D>();
+
+        Bounds b = col != null ? col.bounds : new Bounds(enemy.transform.position, Vector3.one * 0.5f);
+        Vector3 vp = cam.WorldToViewportPoint(b.center);
+        return vp.z > 0f && vp.x >= 0f && vp.x <= 1f && vp.y >= 0f && vp.y <= 1f;
+    }
+
+    private int GetExecutionersDescentSelectedChoice()
+    {
+        if (skillsManager == null)
+            skillsManager = SkillsManager.Instance;
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee,
+            AbilityCombatPower.ExecutionersDescentEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    private void ReduceAbilityCooldown(AbilityDefinition def, float reductionFraction)
+    {
+        if (!def || reductionFraction <= 0f)
+            return;
+
+        reductionFraction = Mathf.Clamp01(reductionFraction);
+        if (!_cooldownEndsById.TryGetValue(def.abilityId, out float end))
+            return;
+
+        float remaining = end - Time.time;
+        if (remaining <= 0f)
+            return;
+
+        float newEnd = Time.time + remaining * (1f - reductionFraction);
+        _cooldownEndsById[def.abilityId] = newEnd;
+
+        string rowKey = BuildAbilityRowKey(def);
+        if (rowKey != null)
+            _cooldownEndsByRowKey[rowKey] = newEnd;
     }
 
     private void TryUseCrescentSlash(AbilityDefinition def)
@@ -1297,7 +1836,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         float crescentFrac = hitForTarget.magic > 1e-8f ? Mathf.Clamp01(lightningMag / hitForTarget.magic) : 0f;
 
-        DealtHit dealt = ApplySplitDamageToEnemy(target, hitForTarget, wasCrit, crescentFrac);
+        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, hitForTarget, wasCrit, crescentFrac);
         ApplyOnHitEffects(target, dealt);
         if (hasConvertedDamage)
             ApplyElementalAilmentForCrescent(target, convertedElement, convertedDamage);
@@ -1412,7 +1951,10 @@ public class PlayerAbilityController : MonoBehaviour
             float crit2 = secondWasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
             float lightningSecond = secondLightningBase * crit2;
             float secondFrac = secondHit.magic > 1e-8f ? Mathf.Clamp01(lightningSecond / secondHit.magic) : 0f;
-            DealtHit dealtSecond = ApplySplitDamageToEnemy(target, secondHit, secondWasCrit, secondFrac);
+            AbilityDefinition whirlDef = GetAbilityDefinition(WhirlwindId);
+            DealtHit dealtSecond = whirlDef != null
+                ? ApplyAbilitySplitDamageToEnemy(target, whirlDef, secondHit, secondWasCrit, secondFrac)
+                : ApplySplitDamageToEnemy(target, secondHit, secondWasCrit, secondFrac);
             ApplyOnHitEffects(target, dealtSecond); // Re-triggers on-hit effects.
         }
     }
@@ -1489,7 +2031,14 @@ public class PlayerAbilityController : MonoBehaviour
         return edgeGapX <= Mathf.Max(0f, radius);
     }
 
-    private DealtHit ApplySplitDamageToEnemy(EnemyBaseController target, SplitDamage hit, bool wasCrit, float meleeMagicLightningFraction = -1f)
+    private DealtHit ApplySplitDamageToEnemy(
+        EnemyBaseController target,
+        SplitDamage hit,
+        bool wasCrit,
+        float meleeMagicLightningFraction = -1f,
+        float armorRatingMultiplier = 1f,
+        float magicResistRatingMultiplier = 1f,
+        string outgoingDamageSourceLabel = null)
     {
         DealtHit result = default;
         if (target == null || target.IsDead)
@@ -1503,16 +2052,66 @@ public class PlayerAbilityController : MonoBehaviour
         float phys = Mathf.Max(0f, hit.physical * cond);
         float mag = Mathf.Max(0f, hit.magic * cond);
         float corrRaw = Mathf.Max(0f, hit.corruptionDamage * cond);
+        string sourceLabel = outgoingDamageSourceLabel;
 
         if (phys > 0f)
-            result.physical = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(phys), DamageType.Physical, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null));
+        {
+            result.physical = Mathf.Max(0f, target.TakeDamage(
+                Mathf.RoundToInt(phys),
+                DamageType.Physical,
+                wasCrit,
+                transform,
+                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
+                dpsBucketOverride: null,
+                armorRatingMultiplier,
+                magicResistRatingMultiplier,
+                outgoingDpsSourceLabel: sourceLabel));
+        }
+
         if (mag > 0f)
-            result.magic = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(mag), DamageType.Magic, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null));
+        {
+            result.magic = Mathf.Max(0f, target.TakeDamage(
+                Mathf.RoundToInt(mag),
+                DamageType.Magic,
+                wasCrit,
+                transform,
+                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
+                dpsBucketOverride: null,
+                armorRatingMultiplier,
+                magicResistRatingMultiplier,
+                outgoingDpsSourceLabel: sourceLabel));
+        }
+
         if (corrRaw > 0f)
-            result.corruptionDamage = Mathf.Max(0f, target.TakeDamage(Mathf.RoundToInt(corrRaw), DamageType.Corruption, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null));
+        {
+            result.corruptionDamage = Mathf.Max(0f, target.TakeDamage(
+                Mathf.RoundToInt(corrRaw),
+                DamageType.Corruption,
+                wasCrit,
+                transform,
+                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
+                outgoingDpsSourceLabel: sourceLabel));
+        }
 
         return result;
     }
+
+    private DealtHit ApplyAbilitySplitDamageToEnemy(
+        EnemyBaseController target,
+        AbilityDefinition def,
+        SplitDamage hit,
+        bool wasCrit,
+        float meleeMagicLightningFraction = -1f,
+        float armorRatingMultiplier = 1f,
+        float magicResistRatingMultiplier = 1f) =>
+        ApplySplitDamageToEnemy(
+            target,
+            hit,
+            wasCrit,
+            meleeMagicLightningFraction,
+            armorRatingMultiplier,
+            magicResistRatingMultiplier,
+            def != null ? GetAbilityOutgoingDamageSourceLabel(def.abilityId) : null);
 
     private float GetConditionalMeleeDamageMultiplier(EnemyBaseController target)
     {

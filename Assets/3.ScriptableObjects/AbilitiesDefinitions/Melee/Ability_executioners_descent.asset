@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_final_severance
+  m_Name: Ability_executioners_descent
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: final_severance
-  displayName: Final Severance
+  abilityId: executioners_descent
+  displayName: Executioner's Descent
   tag: 1
   tooltipBuffMinionDurationSeconds: 0
-  presentation: {fileID: 11400000, guid: f4e8d2c1b6a9473081f2e5d6c7b8a901, type: 2}
+  presentation: {fileID: 11400000, guid: ed2345678901bc4def9876543210ab23, type: 2}
   cooldown: 50
-  energyCost: 50
-  weaponDamageMultiplier: 2
+  energyCost: 70
+  weaponDamageMultiplier: 4
   allDamageMultiplier: 1
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0

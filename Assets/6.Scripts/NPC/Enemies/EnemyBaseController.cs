@@ -886,7 +886,16 @@ public class EnemyBaseController : MonoBehaviour
         driftDir = DamagePopupSystem.GetDriftDirectionForVictim(transform, dealerPos);
     }
 
-    public int TakeDamage(int amount, DamageType type, bool wasCrit, Transform attacker, AttackSkill? attackSkillSource = null, DpsDamageBucket? dpsBucketOverride = null)
+    public int TakeDamage(
+        int amount,
+        DamageType type,
+        bool wasCrit,
+        Transform attacker,
+        AttackSkill? attackSkillSource = null,
+        DpsDamageBucket? dpsBucketOverride = null,
+        float armorRatingMultiplier = 1f,
+        float magicResistRatingMultiplier = 1f,
+        string outgoingDpsSourceLabel = null)
     {
         if (state == EnemyState.Dead || stats == null)
             return 0;
@@ -902,13 +911,27 @@ public class EnemyBaseController : MonoBehaviour
 
         float shockMult = _ailments != null ? _ailments.GetIncomingDamageMultiplier() : 1f;
         float scaledAmount = Mathf.Max(0f, amount * shockMult);
-        float applied = stats.TakeDamage(scaledAmount, type, out bool blocked, out float hpDamage);
+
+        if (wasCrit && scaledAmount > 0f)
+        {
+            EnemyShadowStrikeMarks shadowMarks = GetComponent<EnemyShadowStrikeMarks>();
+            if (shadowMarks != null)
+                scaledAmount *= shadowMarks.TryConsumeLethalCritDamageMultiplier();
+        }
+
+        float applied = stats.TakeDamage(
+            scaledAmount,
+            type,
+            out bool blocked,
+            out float hpDamage,
+            armorRatingMultiplier,
+            magicResistRatingMultiplier);
         int finalDamage = Mathf.RoundToInt(applied);
 
         if (blocked)
             wasCrit = false;
 
-        AwardCombatXpToSource(attacker, finalDamage, dpsBucketOverride ?? ToDpsBucket(type));
+        AwardCombatXpToSource(attacker, finalDamage, dpsBucketOverride ?? ToDpsBucket(type), outgoingDpsSourceLabel);
 
         OnDamaged?.Invoke(finalDamage, wasCrit);
 
@@ -950,7 +973,9 @@ public class EnemyBaseController : MonoBehaviour
         Transform source,
         FloatingDamageTextUI.PopupDamageKind popupKind,
         bool showPopup,
-        Vector3? dotDealerWorldPositionFallback = null)
+        Vector3? dotDealerWorldPositionFallback = null,
+        string outgoingDpsSourceLabel = null,
+        bool outgoingAttributeToMinion = false)
     {
         if (state == EnemyState.Dead || stats == null)
             return;
@@ -964,7 +989,11 @@ public class EnemyBaseController : MonoBehaviour
         float applied = stats.TakeDamageFromResolvedDot(finalDamage, out _);
         int dealt = Mathf.RoundToInt(applied);
 
-        AwardCombatXpToSource(source, dealt, ToDpsBucket(popupKind));
+        DpsDamageBucket bucket = ToDpsBucket(popupKind);
+        if (outgoingAttributeToMinion)
+            bucket = DpsDamageBucket.Minion;
+
+        AwardCombatXpToSource(source, dealt, bucket, outgoingDpsSourceLabel);
 
         OnDamaged?.Invoke(dealt, false);
 
@@ -1001,6 +1030,9 @@ public class EnemyBaseController : MonoBehaviour
     private void Die()
     {
         if (state == EnemyState.Dead) return;
+
+        EnemyShadowStrikeMarks shadowMarks = GetComponent<EnemyShadowStrikeMarks>();
+        shadowMarks?.NotifyEnemyDied();
 
         _provoked = false;
         state = EnemyState.Dead;
@@ -1426,7 +1458,11 @@ public class EnemyBaseController : MonoBehaviour
         return null;
     }
 
-    private void AwardCombatXpToSource(Transform source, float damageDealt, DpsDamageBucket bucket)
+    private void AwardCombatXpToSource(
+        Transform source,
+        float damageDealt,
+        DpsDamageBucket bucket,
+        string outgoingDpsSourceLabel = null)
     {
         if (source == null || damageDealt <= 0f)
             return;
@@ -1437,7 +1473,7 @@ public class EnemyBaseController : MonoBehaviour
 
         bool grantXp = definition == null || definition.grantCombatXp;
         if (combat != null)
-            combat.AwardCombatXp(damageDealt * (_isElite ? 2f : 1f), bucket, grantXp);
+            combat.AwardCombatXp(damageDealt * (_isElite ? 2f : 1f), bucket, grantXp, outgoingDpsSourceLabel);
     }
 
     private static DpsDamageBucket ToDpsBucket(DamageType type)

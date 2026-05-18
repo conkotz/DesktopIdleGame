@@ -24,9 +24,31 @@ public static class AbilityCombatPower
     public const string SpectralAxeAbilityId = "spectral_axe";
     public const string AvatarOfTheForestAbilityId = "avatar_of_the_forest";
     public const string FinalSeveranceAbilityId = "final_severance";
+    public const string ExecutionersDescentAbilityId = "executioners_descent";
+    public const string ShadowStrikeAbilityId = "shadow_strike";
+
+    /// <summary>Enhancement choices for Shadow Strike (Melee Lv25 slot 0).</summary>
+    public const string ShadowStrikeEnhancementParentSpineNodeId = "Lv25_0";
+
+    public const float ShadowStrikeForwardReach = 10f;
+    public const float ShadowStrikeLethalCritBonusFraction = 0.8f;
+    public const float ShadowStrikeExecutionMarkSeconds = 3f;
+    public const float ShadowStrikeExecutionCooldownRefundSeconds = 3f;
 
     /// <summary>Enhancement choices for Final Severance (Melee Lv45 slot 0).</summary>
     public const string FinalSeveranceEnhancementParentSpineNodeId = "Lv45_0";
+
+    /// <summary>Enhancement choices for Executioner's Descent (Melee Lv45 slot 1).</summary>
+    public const string ExecutionersDescentEnhancementParentSpineNodeId = "Lv45_1";
+
+    public const float ExecutionersDescentDescentSeconds = 3f;
+    public const float ExecutionersDescentPrimaryWeaponMultiplier = 2.5f;
+    public const float ExecutionersDescentShockwaveWeaponMultiplier = 0.75f;
+    public const float ExecutionersDescentShockwaveRadius = 5f;
+    public const float ExecutionersDescentClaimCooldownReductionFraction = 0.5f;
+    public const float ExecutionersDescentSunderingArmorMrMultiplier = 0.5f;
+    public const float ExecutionersDescentSunderingDebuffSeconds = 5f;
+    public const float ExecutionersDescentAxeSpawnHeight = 6f;
 
     public const float FinalSeveranceChannelSeconds = 2f;
     public const float FinalSeveranceHitRangeHalfWidth = 25f;

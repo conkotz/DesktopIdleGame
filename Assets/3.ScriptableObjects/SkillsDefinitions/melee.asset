@@ -621,9 +621,11 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 25
-    title: Ability Milestone III
-    description: Placeholder ability milestone.
-    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    title: Shadow Strike
+    description: Teleport to the closest enemy in front facing range of up to 10f
+      instantly inflicting a hit for 100% weapon damage (does not count as an auto
+      attack so swing timer is not used)
+    icon: {fileID: -1488180651229543465, guid: 3061848b5bbd3a64495e8ab44ded3443, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -633,19 +635,21 @@ MonoBehaviour:
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
+    ability: {fileID: 11400000, guid: d4e5f60718293a4b5c6d7e8f9a0b1c2d, type: 2}
     presentation: {fileID: 0}
     choices:
     - requiredLevel: 28
-      title: Ability III Choice A
-      description: Placeholder melee choice.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      title: Lethal Mark
+      description: Marks the target on hit. The next critical hit against that enemy
+        deals +80% critical damage, then the mark expires.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 28
-      title: Ability III Choice B
-      description: Placeholder melee choice.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      title: Shadow Execution
+      description: Marks the target on hit for 3 seconds. If the enemy dies while
+        this mark is active, Shadow Strike cooldown is reduced by 3 seconds.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 26
@@ -1037,6 +1041,38 @@ MonoBehaviour:
       title: Thousand Cuts
       description: Each enemy is struck 4 times; each hit deals 30% of the ability's
         scaled damage (bleeds, poisons, and on-hit effects apply per hit).
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+  - requiredLevel: 45
+    title: Executioner's Descent
+    description: After 3 seconds, a colossal axe crashes onto your target for massive
+      single-target damage and a shockwave around the impact.
+    icon: {fileID: -7408615019948734818, guid: 0a26734c4d6788f4ab834bea6605a9f0, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: a7e8d9c0b1f2436586970abcde12f304, type: 2}
+    presentation: {fileID: 11400000, guid: ed2345678901bc4def9876543210ab23, type: 2}
+    choices:
+    - requiredLevel: 48
+      title: Executioner's Claim
+      description: If the target dies from Executioner's Descent or during its descent,
+        cooldown is reduced by 50%.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 48
+      title: Sundering Impact
+      description: Primary target's armour and magic resist are ignored on the main
+        hit. Enemies hit by the shockwave (and the primary target) lose 50% armour
+        and magic resist for 5 seconds.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

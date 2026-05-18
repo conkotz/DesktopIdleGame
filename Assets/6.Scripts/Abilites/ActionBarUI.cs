@@ -1204,16 +1204,13 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                     slot.SetNoStockVisual(abilityLocked || !weaponOk);
 
                     bool abilityCooldownActive = abilityController.IsOnCooldown(action.id, out _);
-                    bool buffHud = !abilityCooldownActive &&
-                                   buffController != null &&
-                                   buffController.IsHudAbilityBuffActive(action.id);
-                    slot.SetAbilityBuffActiveOverlay(buffHud);
-
                     float buffRemain = 0f;
-                    bool showBuffTimer = !abilityCooldownActive &&
-                                         buffController != null &&
-                                         buffController.ShouldDisplayHudAbilityBuffCountdown(action.id, out buffRemain);
-                    slot.SetAbilityBuffTimerDisplay(showBuffTimer, buffRemain);
+                    bool buffTimedPresentation = !abilityCooldownActive &&
+                                                 buffController != null &&
+                                                 buffController.ShouldDisplayHudAbilityBuffTimedPresentation(
+                                                     action.id, out buffRemain);
+                    slot.SetAbilityBuffActiveOverlay(buffTimedPresentation);
+                    slot.SetAbilityBuffTimerDisplay(buffTimedPresentation, buffRemain);
                 }
                 else
                 {
@@ -1227,13 +1224,12 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                     slot.SetAbilityWeaponCompatibility(weaponOkNoController);
                     slot.SetNoStockVisual(abilityLocked || !weaponOkNoController);
 
-                    bool buffHudNoAb = buffController != null && buffController.IsHudAbilityBuffActive(action.id);
-                    slot.SetAbilityBuffActiveOverlay(buffHudNoAb);
-
                     float buffRemainNoAb = 0f;
-                    bool showBuffTimerNoAb = buffController != null &&
-                                             buffController.ShouldDisplayHudAbilityBuffCountdown(action.id, out buffRemainNoAb);
-                    slot.SetAbilityBuffTimerDisplay(showBuffTimerNoAb, buffRemainNoAb);
+                    bool buffTimedNoAb = buffController != null &&
+                                         buffController.ShouldDisplayHudAbilityBuffTimedPresentation(
+                                             action.id, out buffRemainNoAb);
+                    slot.SetAbilityBuffActiveOverlay(buffTimedNoAb);
+                    slot.SetAbilityBuffTimerDisplay(buffTimedNoAb, buffRemainNoAb);
                 }
 
                 return;

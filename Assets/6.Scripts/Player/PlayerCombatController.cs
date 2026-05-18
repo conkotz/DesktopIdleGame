@@ -17,6 +17,42 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
     }
 
+    public readonly struct OutgoingDamageSourceEntry
+    {
+        public readonly string sourceName;
+        public readonly float totalDamage;
+
+        public OutgoingDamageSourceEntry(string sourceName, float totalDamage)
+        {
+            this.sourceName = sourceName;
+            this.totalDamage = totalDamage;
+        }
+    }
+
+    /// <summary>How a basic-attack swing's dealt damage is split across outgoing DPS sources.</summary>
+    public readonly struct SwingOutgoingAttribution
+    {
+        public readonly string primarySource;
+        public readonly string bonusSource;
+        public readonly float bonusFraction;
+
+        public SwingOutgoingAttribution(string primarySource, string bonusSource, float bonusFraction)
+        {
+            this.primarySource = string.IsNullOrWhiteSpace(primarySource) ? "Auto Attack" : primarySource.Trim();
+            this.bonusSource = string.IsNullOrWhiteSpace(bonusSource) ? null : bonusSource.Trim();
+            this.bonusFraction = Mathf.Clamp01(bonusFraction);
+        }
+
+        public bool HasBonus =>
+            bonusFraction > 1e-6f && !string.IsNullOrWhiteSpace(bonusSource);
+
+        public static SwingOutgoingAttribution AutoAttackOnly =>
+            new SwingOutgoingAttribution("Auto Attack", null, 0f);
+    }
+
+    /// <summary>TakeDamage records XP only; swing outgoing DPS is applied after the full hit resolves.</summary>
+    public const string DeferredSwingOutgoingDpsLabel = "__deferred_swing_outgoing__";
+
     private struct DamageSample
     {
         public float time;
@@ -130,6 +166,55 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     public EnemyBaseController CurrentTarget => _target;
     public EnemyBaseController Target => _target;
+
+    /// <summary>Live combat target for ability aim (not gated on camera visibility).</summary>
+    public EnemyBaseController GetPrimaryEngagedEnemy()
+    {
+        if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
+            return _target;
+        return null;
+    }
+
+    /// <summary>Closest living enemy within current weapon attack range (edge-to-edge).</summary>
+    public EnemyBaseController FindClosestEnemyInAttackRange()
+    {
+        if (stats == null)
+            return null;
+
+        float myRange = Mathf.Max(0f, stats.Range) + rangePadding;
+        float closeEnoughToSwing = myRange + stopSlack;
+        float myX = transform.position.x;
+        float myHalf = HalfWidthX(playerCol);
+
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        EnemyBaseController best = null;
+        float bestDist = float.MaxValue;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            Collider2D enemyCol = enemy.GetComponent<Collider2D>();
+            if (!enemyCol)
+                enemyCol = enemy.GetComponentInChildren<Collider2D>();
+
+            float enemyHalf = HalfWidthX(enemyCol);
+            float gap = EdgeGapX(myX, enemy.transform.position.x, myHalf, enemyHalf);
+            if (gap > closeEnoughToSwing)
+                continue;
+
+            float dist = Mathf.Abs(enemy.transform.position.x - myX);
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = enemy;
+            }
+        }
+
+        return best;
+    }
     public bool IdleCombatEnabled => idleCombatEnabled;
     public bool RetaliationEnabled => retaliationEnabled;
     public float NextAttackTime => _nextAttackTime;
@@ -152,6 +237,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private bool _dpsAutoResetEnabled = true;
     private readonly Dictionary<string, float> _incomingDamageByDealer = new Dictionary<string, float>();
     private readonly List<string> _incomingDealerOrder = new List<string>();
+    private readonly Dictionary<string, float> _outgoingDamageBySource = new Dictionary<string, float>(System.StringComparer.OrdinalIgnoreCase);
+    private readonly List<string> _outgoingSourceOrder = new List<string>();
 
     private readonly List<EnemyBaseController> _ailmentSpreadScratch = new List<EnemyBaseController>(16);
 
@@ -290,6 +377,27 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             entries.Add(new IncomingDealerDamageEntry(key, total));
         }
 
+        return entries;
+    }
+
+    /// <summary>Outgoing damage grouped by ability / attack source (Auto Attack, Power Slash, etc.).</summary>
+    public List<OutgoingDamageSourceEntry> GetOutgoingDamageBySource()
+    {
+        var entries = new List<OutgoingDamageSourceEntry>(_outgoingSourceOrder.Count);
+        for (int i = 0; i < _outgoingSourceOrder.Count; i++)
+        {
+            string key = _outgoingSourceOrder[i];
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+            if (!_outgoingDamageBySource.TryGetValue(key, out float total))
+                continue;
+            if (total <= 0f)
+                continue;
+
+            entries.Add(new OutgoingDamageSourceEntry(key, total));
+        }
+
+        entries.Sort((a, b) => b.totalDamage.CompareTo(a.totalDamage));
         return entries;
     }
 
@@ -539,9 +647,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         player.SetActionOverride(PlayerController.PlayerAction.Fighting);
 
         SplitDamage rolled = stats.RollSplitAttackDamage(out bool wasCrit);
+        SplitDamage preQueuedModifier = rolled;
 
         if (abilityController != null)
             abilityController.TryConsumeQueuedAttackModifier(ref rolled);
+
+        SwingOutgoingAttribution swingAttribution = abilityController != null
+            ? abilityController.BuildSwingOutgoingAttribution(preQueuedModifier, rolled)
+            : SwingOutgoingAttribution.AutoAttackOnly;
 
         if (rolled.IsEmpty)
         {
@@ -554,19 +667,19 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (IsRangedAttack())
         {
-            HandleRangedAttack(_target, rolled, wasCrit);
+            HandleRangedAttack(_target, rolled, wasCrit, swingAttribution);
         }
         else if (IsMagicAttack())
         {
-            HandleMagicAttack(_target, rolled, wasCrit);
+            HandleMagicAttack(_target, rolled, wasCrit, swingAttribution);
         }
         else
         {
             float meleeDelay = Mathf.Max(0f, meleeHitImpactDelay);
             if (meleeDelay <= 0f)
-                ResolveAttackHitNow(_target, rolled, wasCrit);
+                ResolveAttackHitNow(_target, rolled, wasCrit, swingAttribution);
             else
-                StartCoroutine(ResolveAttackHitAfterDelay(_target, rolled, wasCrit, meleeDelay));
+                StartCoroutine(ResolveAttackHitAfterDelay(_target, rolled, wasCrit, meleeDelay, swingAttribution));
         }
     }
 
@@ -830,25 +943,38 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         return player.SpendMana(manaCost);
     }
 
-    private void HandleRangedAttack(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit)
+    private void HandleRangedAttack(
+        EnemyBaseController targetAtFireTime,
+        SplitDamage rolled,
+        bool wasCrit,
+        SwingOutgoingAttribution swingAttribution)
     {
         float fireDelay = Mathf.Max(0f, rangedProjectileFireDelay);
         if (fireDelay <= 0f)
         {
-            ResolveRangedAttackAtRelease(targetAtFireTime, rolled, wasCrit);
+            ResolveRangedAttackAtRelease(targetAtFireTime, rolled, wasCrit, swingAttribution);
             return;
         }
 
-        StartCoroutine(ResolveRangedAttackAfterFireDelay(targetAtFireTime, rolled, wasCrit, fireDelay));
+        StartCoroutine(ResolveRangedAttackAfterFireDelay(targetAtFireTime, rolled, wasCrit, fireDelay, swingAttribution));
     }
 
-    private System.Collections.IEnumerator ResolveRangedAttackAfterFireDelay(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit, float fireDelay)
+    private System.Collections.IEnumerator ResolveRangedAttackAfterFireDelay(
+        EnemyBaseController targetAtFireTime,
+        SplitDamage rolled,
+        bool wasCrit,
+        float fireDelay,
+        SwingOutgoingAttribution swingAttribution)
     {
         yield return new WaitForSeconds(fireDelay);
-        ResolveRangedAttackAtRelease(targetAtFireTime, rolled, wasCrit);
+        ResolveRangedAttackAtRelease(targetAtFireTime, rolled, wasCrit, swingAttribution);
     }
 
-    private void ResolveRangedAttackAtRelease(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit)
+    private void ResolveRangedAttackAtRelease(
+        EnemyBaseController targetAtFireTime,
+        SplitDamage rolled,
+        bool wasCrit,
+        SwingOutgoingAttribution swingAttribution)
     {
         if (targetAtFireTime == null || targetAtFireTime.IsDead)
             return;
@@ -860,43 +986,56 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (delay <= 0f)
         {
-            ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit);
+            ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution);
             return;
         }
 
-        StartCoroutine(ResolveAttackHitAfterDelay(targetAtFireTime, rolled, wasCrit, delay));
+        StartCoroutine(ResolveAttackHitAfterDelay(targetAtFireTime, rolled, wasCrit, delay, swingAttribution));
     }
 
-    private void HandleMagicAttack(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit)
+    private void HandleMagicAttack(
+        EnemyBaseController targetAtFireTime,
+        SplitDamage rolled,
+        bool wasCrit,
+        SwingOutgoingAttribution swingAttribution)
     {
         float fireDelay = Mathf.Max(0f, magicProjectileFireDelay);
         if (fireDelay <= 0f)
         {
-            ResolveMagicAttackAtRelease(targetAtFireTime, rolled, wasCrit);
+            ResolveMagicAttackAtRelease(targetAtFireTime, rolled, wasCrit, swingAttribution);
             return;
         }
 
-        StartCoroutine(ResolveMagicAttackAfterFireDelay(targetAtFireTime, rolled, wasCrit, fireDelay));
+        StartCoroutine(ResolveMagicAttackAfterFireDelay(targetAtFireTime, rolled, wasCrit, fireDelay, swingAttribution));
     }
 
-    private System.Collections.IEnumerator ResolveMagicAttackAfterFireDelay(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit, float fireDelay)
+    private System.Collections.IEnumerator ResolveMagicAttackAfterFireDelay(
+        EnemyBaseController targetAtFireTime,
+        SplitDamage rolled,
+        bool wasCrit,
+        float fireDelay,
+        SwingOutgoingAttribution swingAttribution)
     {
         yield return new WaitForSeconds(fireDelay);
-        ResolveMagicAttackAtRelease(targetAtFireTime, rolled, wasCrit);
+        ResolveMagicAttackAtRelease(targetAtFireTime, rolled, wasCrit, swingAttribution);
     }
 
-    private void ResolveMagicAttackAtRelease(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit)
+    private void ResolveMagicAttackAtRelease(
+        EnemyBaseController targetAtFireTime,
+        SplitDamage rolled,
+        bool wasCrit,
+        SwingOutgoingAttribution swingAttribution)
     {
         if (targetAtFireTime == null || targetAtFireTime.IsDead)
             return;
 
         if (!TrySpawnMagicProjectile(targetAtFireTime, out IMagicProjectileVisual bolt))
         {
-            ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit);
+            ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution);
             return;
         }
 
-        bolt.OnImpact += () => ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit);
+        bolt.OnImpact += () => ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution);
     }
 
     private bool TrySpawnRangedProjectile(EnemyBaseController targetAtFireTime, out float travelTime)
@@ -990,15 +1129,27 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     }
 
 
-    private System.Collections.IEnumerator ResolveAttackHitAfterDelay(EnemyBaseController targetAtFireTime, SplitDamage rolled, bool wasCrit, float delay)
+    private System.Collections.IEnumerator ResolveAttackHitAfterDelay(
+        EnemyBaseController targetAtFireTime,
+        SplitDamage rolled,
+        bool wasCrit,
+        float delay,
+        SwingOutgoingAttribution swingAttribution)
     {
         yield return new WaitForSeconds(delay);
-        ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit);
+        ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution);
     }
 
-    private void ResolveAttackHitNow(EnemyBaseController targetToHit, SplitDamage rolled, bool wasCrit)
+    private void ResolveAttackHitNow(
+        EnemyBaseController targetToHit,
+        SplitDamage rolled,
+        bool wasCrit,
+        SwingOutgoingAttribution swingAttribution = default)
     {
-        DamageResult dealt = ApplySplitDamageToTarget(targetToHit, rolled, wasCrit);
+        if (string.IsNullOrWhiteSpace(swingAttribution.primarySource))
+            swingAttribution = SwingOutgoingAttribution.AutoAttackOnly;
+
+        DamageResult dealt = ApplySplitDamageToTarget(targetToHit, rolled, wasCrit, null, swingAttribution);
         float totalDealt = dealt.Total;
         bool primaryHitSucceeded = totalDealt > 0f;
         var alreadyHit = new HashSet<EnemyBaseController>();
@@ -1116,7 +1267,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 secondaryHit.magic *= critMult;
             }
 
-            ApplySecondaryHitPipeline(e, secondaryHit, secondaryCrit, forceElementalAilment: false);
+            string cleaveLabel = abilityController != null
+                ? abilityController.GetAbilityOutgoingDamageSourceLabel(AbilityCombatPower.CleavingStrikesAbilityId)
+                : "Cleaving Strikes";
+            ApplySecondaryHitPipeline(e, secondaryHit, secondaryCrit, forceElementalAilment: false, cleaveLabel);
             alreadyHit.Add(e);
         }
     }
@@ -1237,9 +1391,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         return true;
     }
 
-    private void ApplySecondaryHitPipeline(EnemyBaseController target, SplitDamage rolled, bool wasCrit, bool forceElementalAilment)
+    private void ApplySecondaryHitPipeline(
+        EnemyBaseController target,
+        SplitDamage rolled,
+        bool wasCrit,
+        bool forceElementalAilment,
+        string outgoingDamageSourceLabel = null)
     {
-        DamageResult dealt = ApplySplitDamageToTarget(target, rolled, wasCrit);
+        DamageResult dealt = ApplySplitDamageToTarget(target, rolled, wasCrit, outgoingDamageSourceLabel);
         if (dealt.Total <= 0f)
             return;
 
@@ -1350,10 +1509,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         EnemyBaseController picked = ResolveIdlePickedEnemy(current);
         if (picked != null)
         {
+            bool acquiredNewTarget = current == null;
             if (current != picked)
                 SetTargetInternal(picked);
 
-            if (debugLogs)
+            if (debugLogs && acquiredNewTarget)
                 Debug.Log($"[Combat] Idle picked target: {picked.name}", this);
         }
         else
@@ -1642,11 +1802,22 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         public float Total => physical + magic + corruptionDamage;
     }
 
-    private DamageResult ApplySplitDamageToTarget(EnemyBaseController target, SplitDamage rolled, bool wasCrit)
+    private DamageResult ApplySplitDamageToTarget(
+        EnemyBaseController target,
+        SplitDamage rolled,
+        bool wasCrit,
+        string outgoingDamageSourceLabel = null,
+        SwingOutgoingAttribution swingAttribution = default)
     {
         DamageResult result = default;
         if (target == null || target.IsDead) return result;
         float conditionalDamageMult = GetConditionalMeleeDamageMultiplier(target);
+        bool isPlayerWeaponSwing = string.IsNullOrWhiteSpace(outgoingDamageSourceLabel);
+        bool deferSwingOutgoing = isPlayerWeaponSwing &&
+            (swingAttribution.HasBonus || HasAilmentConditionalDamageBonusOnTarget(target));
+        string sourceLabel = deferSwingOutgoing
+            ? DeferredSwingOutgoingDpsLabel
+            : ResolveOutgoingDamageSourceLabel(outgoingDamageSourceLabel, swingAttribution);
 
         if (rolled.physical > 0f)
         {
@@ -1655,8 +1826,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 DamageType.Physical,
                 wasCrit,
                 player.transform,
-                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null
-            );
+                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
+                dpsBucketOverride: null,
+                armorRatingMultiplier: 1f,
+                magicResistRatingMultiplier: 1f,
+                outgoingDpsSourceLabel: sourceLabel);
 
             result.physical = Mathf.Max(0f, dealt);
         }
@@ -1668,8 +1842,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 DamageType.Magic,
                 wasCrit,
                 player.transform,
-                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null
-            );
+                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
+                dpsBucketOverride: null,
+                armorRatingMultiplier: 1f,
+                magicResistRatingMultiplier: 1f,
+                outgoingDpsSourceLabel: sourceLabel);
 
             result.magic = Mathf.Max(0f, dealt);
         }
@@ -1682,27 +1859,62 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 DamageType.Corruption,
                 wasCrit,
                 player.transform,
-                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null
-            );
+                stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
+                outgoingDpsSourceLabel: sourceLabel);
 
             result.corruptionDamage = Mathf.Max(0f, dealt);
         }
 
+        if (deferSwingOutgoing)
+            RecordWeaponSwingOutgoingDamage(result.Total, target, swingAttribution);
+
         return result;
+    }
+
+    private bool HasAilmentConditionalDamageBonusOnTarget(EnemyBaseController target)
+    {
+        if (stats == null || target == null)
+            return false;
+
+        GetConditionalMeleeDamageMultiplierBreakdown(target, out _, out float bleedBonus, out float poisonBonus, out float shockBonus);
+        return bleedBonus > 0f || poisonBonus > 0f || shockBonus > 0f;
     }
 
     private float GetConditionalMeleeDamageMultiplier(EnemyBaseController target)
     {
-        if (stats == null || target == null)
-            return 1f;
+        GetConditionalMeleeDamageMultiplierBreakdown(
+            target,
+            out float lowHpBonus,
+            out float bleedBonus,
+            out float poisonBonus,
+            out float shockBonus);
+        return 1f + Mathf.Max(0f, lowHpBonus + bleedBonus + poisonBonus + shockBonus);
+    }
 
-        float bonus = 0f;
+    private void GetConditionalMeleeDamageMultiplierBreakdown(
+        EnemyBaseController target,
+        out float lowHpBonus,
+        out float bleedBonus,
+        out float poisonBonus,
+        out float shockBonus)
+    {
+        lowHpBonus = 0f;
+        bleedBonus = 0f;
+        poisonBonus = 0f;
+        shockBonus = 0f;
+
+        if (stats == null || target == null)
+            return;
+
         AilmentController ailments = target.GetComponent<AilmentController>();
         if (ailments != null)
         {
-            if (ailments.HasBleed) bonus += stats.MeleeDamageVsBleeding;
-            if (ailments.HasPoison) bonus += stats.MeleeDamageVsPoisoned;
-            if (ailments.HasShock) bonus += stats.MeleeDamageVsShocked;
+            if (ailments.HasBleed)
+                bleedBonus = Mathf.Max(0f, stats.MeleeDamageVsBleeding);
+            if (ailments.HasPoison)
+                poisonBonus = Mathf.Max(0f, stats.MeleeDamageVsPoisoned);
+            if (ailments.HasShock)
+                shockBonus = Mathf.Max(0f, stats.MeleeDamageVsShocked);
         }
 
         CharacterStats targetStats = target.GetComponent<CharacterStats>();
@@ -1710,10 +1922,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         {
             float hp01 = targetStats.HP / Mathf.Max(1f, targetStats.MaxHP);
             if (hp01 <= stats.MeleeLowHpThreshold01)
-                bonus += stats.MeleeDamageVsLowHp;
+                lowHpBonus = Mathf.Max(0f, stats.MeleeDamageVsLowHp);
         }
-
-        return 1f + Mathf.Max(0f, bonus);
     }
 
     private void TryApplyBleed(EnemyBaseController target, DamageResult dealt)
@@ -1867,10 +2077,15 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     public void AwardCombatXp(float damageDealt, DpsDamageBucket? bucket, bool grantXp)
     {
+        AwardCombatXp(damageDealt, bucket, grantXp, null);
+    }
+
+    public void AwardCombatXp(float damageDealt, DpsDamageBucket? bucket, bool grantXp, string outgoingDamageSourceLabel)
+    {
         if (damageDealt <= 0f)
             return;
 
-        RecordDamageForDps(damageDealt, bucket);
+        RecordDamageForDps(damageDealt, bucket, outgoingDamageSourceLabel);
 
         if (!grantXp || xpPerDamage <= 0f)
             return;
@@ -1972,16 +2187,152 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         return trimmed;
     }
 
-    private void RecordDamageForDps(float damageAmount, DpsDamageBucket? bucket)
+    private void RecordDamageForDps(float damageAmount, DpsDamageBucket? bucket, string outgoingDamageSourceLabel = null)
     {
         if (damageAmount <= 0f || _dpsTrackerPaused)
+            return;
+
+        if (string.Equals(outgoingDamageSourceLabel, DeferredSwingOutgoingDpsLabel, System.StringComparison.Ordinal))
             return;
 
         MarkRecentCombatActivity();
         EnsureDpsSessionStarted();
         _combatSessionDamageSum += damageAmount;
+
+        DpsDamageBucket effectiveBucket = ResolveEffectiveOutgoingBucket(bucket, outgoingDamageSourceLabel);
+        _outgoingDamageSum.Add(effectiveBucket, damageAmount);
+
+        string sourceLabel = ResolveOutgoingDamageSourceLabel(outgoingDamageSourceLabel, default, effectiveBucket);
+        AddOutgoingSourceDamage(sourceLabel, damageAmount);
+    }
+
+    private void RecordWeaponSwingOutgoingDamage(
+        float totalDealt,
+        EnemyBaseController target,
+        SwingOutgoingAttribution swingAttribution)
+    {
+        if (totalDealt <= 0f || _dpsTrackerPaused)
+            return;
+
+        GetConditionalMeleeDamageMultiplierBreakdown(
+            target,
+            out float lowHpBonus,
+            out float bleedBonus,
+            out float poisonBonus,
+            out float shockBonus);
+
+        float totalMult = 1f + lowHpBonus + bleedBonus + poisonBonus + shockBonus;
+        if (totalMult <= 1e-6f)
+            totalMult = 1f;
+
+        float powerSlashAmount = swingAttribution.HasBonus ? totalDealt * swingAttribution.bonusFraction : 0f;
+        float afterPowerSlash = totalDealt - powerSlashAmount;
+
+        float bleedAmount = bleedBonus > 0f ? afterPowerSlash * (bleedBonus / totalMult) : 0f;
+        float poisonAmount = poisonBonus > 0f ? afterPowerSlash * (poisonBonus / totalMult) : 0f;
+        float shockAmount = shockBonus > 0f ? afterPowerSlash * (shockBonus / totalMult) : 0f;
+        float autoAmount = afterPowerSlash - bleedAmount - poisonAmount - shockAmount;
+
+        if (autoAmount > 0f)
+            RecordDamageForDps(autoAmount, DpsDamageBucket.Physical, swingAttribution.primarySource);
+        if (powerSlashAmount > 0f)
+            RecordDamageForDps(powerSlashAmount, DpsDamageBucket.Physical, swingAttribution.bonusSource);
+        if (bleedAmount > 0f)
+            RecordDamageForDps(bleedAmount, DpsDamageBucket.Bleed, OutgoingBleedingSourceLabel);
+        if (poisonAmount > 0f)
+            RecordDamageForDps(poisonAmount, DpsDamageBucket.Poison, OutgoingPoisonSourceLabel);
+        if (shockAmount > 0f)
+            RecordDamageForDps(shockAmount, DpsDamageBucket.Physical, OutgoingShockSourceLabel);
+    }
+
+    private static DpsDamageBucket ResolveEffectiveOutgoingBucket(
+        DpsDamageBucket? bucket,
+        string outgoingDamageSourceLabel)
+    {
+        if (IsMinionOutgoingSource(outgoingDamageSourceLabel))
+            return DpsDamageBucket.Minion;
+
         if (bucket.HasValue)
-            _outgoingDamageSum.Add(bucket.Value, damageAmount);
+            return bucket.Value;
+
+        if (string.IsNullOrWhiteSpace(outgoingDamageSourceLabel))
+            return DpsDamageBucket.Physical;
+
+        if (string.Equals(outgoingDamageSourceLabel, OutgoingBleedingSourceLabel, System.StringComparison.OrdinalIgnoreCase))
+            return DpsDamageBucket.Bleed;
+        if (string.Equals(outgoingDamageSourceLabel, OutgoingPoisonSourceLabel, System.StringComparison.OrdinalIgnoreCase))
+            return DpsDamageBucket.Poison;
+        if (string.Equals(outgoingDamageSourceLabel, "Burning", System.StringComparison.OrdinalIgnoreCase))
+            return DpsDamageBucket.Burn;
+
+        return DpsDamageBucket.Physical;
+    }
+
+    public static bool IsMinionOutgoingSource(string outgoingDamageSourceLabel)
+    {
+        if (string.IsNullOrWhiteSpace(outgoingDamageSourceLabel))
+            return false;
+
+        return string.Equals(
+            outgoingDamageSourceLabel.Trim(),
+            DefaultMinionOutgoingSourceLabel,
+            System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    public const string OutgoingBleedingSourceLabel = "Bleeding";
+    public const string OutgoingPoisonSourceLabel = "Poison";
+    public const string OutgoingShockSourceLabel = "Shock";
+    public const string DefaultMinionOutgoingSourceLabel = "Soulforged Weapon";
+
+    private string ResolveOutgoingDamageSourceLabel(
+        string explicitLabel,
+        SwingOutgoingAttribution swingAttribution = default,
+        DpsDamageBucket? bucket = null)
+    {
+        if (string.Equals(explicitLabel, DeferredSwingOutgoingDpsLabel, System.StringComparison.Ordinal))
+            return explicitLabel;
+
+        if (!string.IsNullOrWhiteSpace(explicitLabel))
+            return explicitLabel.Trim();
+
+        string bucketLabel = OutgoingSourceLabelForBucket(bucket);
+        if (!string.IsNullOrWhiteSpace(bucketLabel))
+            return bucketLabel;
+
+        if (!string.IsNullOrWhiteSpace(swingAttribution.primarySource))
+            return swingAttribution.primarySource;
+
+        return "Auto Attack";
+    }
+
+    private static string OutgoingSourceLabelForBucket(DpsDamageBucket? bucket)
+    {
+        if (!bucket.HasValue)
+            return null;
+
+        return bucket.Value switch
+        {
+            DpsDamageBucket.Bleed => OutgoingBleedingSourceLabel,
+            DpsDamageBucket.Poison => OutgoingPoisonSourceLabel,
+            DpsDamageBucket.Burn => "Burning",
+            DpsDamageBucket.Minion => DefaultMinionOutgoingSourceLabel,
+            _ => null
+        };
+    }
+
+    private void AddOutgoingSourceDamage(string sourceName, float amount)
+    {
+        if (amount <= 0f || string.IsNullOrWhiteSpace(sourceName))
+            return;
+
+        if (_outgoingDamageBySource.TryGetValue(sourceName, out float current))
+        {
+            _outgoingDamageBySource[sourceName] = current + amount;
+            return;
+        }
+
+        _outgoingDamageBySource[sourceName] = amount;
+        _outgoingSourceOrder.Add(sourceName);
     }
 
     private void EnsureDpsSessionStarted()
@@ -2023,6 +2374,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _incomingDamageSum = default;
         _incomingDamageByDealer.Clear();
         _incomingDealerOrder.Clear();
+        _outgoingDamageBySource.Clear();
+        _outgoingSourceOrder.Clear();
         _pausedDpsSessionDuration = 0f;
         _lastEnemyThatDamagedPlayer = null;
         _lastEnemyThatDamagedPlayerTime = -999f;

@@ -209,10 +209,11 @@ public class AbilityEntryUI : MonoBehaviour,
         if (_isAvailablePlaceholder || _tooltip == null || _def == null) return;
 
         string body = BuildLeagueStyleTooltip(_def, SkillsManager.Instance, AbilityTooltipDamagePreview.FindLocalPlayerStats());
-        RectTransform measure = _tooltipBoundsRect ? _tooltipBoundsRect : transform.root as RectTransform;
-        Transform anchor = icon != null ? icon.transform : transform;
+        RectTransform rowRect = transform as RectTransform;
+        // Dock against the full row (not the icon) so the tooltip sits beside the list row, not over the name.
+        RectTransform measure = rowRect != null ? rowRect : (_tooltipBoundsRect ? _tooltipBoundsRect : transform.root as RectTransform);
         _tooltip.ShowTextAt(
-            anchor,
+            transform,
             SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(_def),
             body,
             measureRect: measure,
@@ -377,6 +378,20 @@ public class AbilityEntryUI : MonoBehaviour,
                 SkillType.Melee, AbilityCombatPower.FinalSeveranceEnhancementParentSpineNodeId, -1);
             if (selected < 0)
                 selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 45, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, AbilityCombatPower.ExecutionersDescentAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.ExecutionersDescentEnhancementParentSpineNodeId, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, AbilityCombatPower.ShadowStrikeAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.ShadowStrikeEnhancementParentSpineNodeId, -1);
             return BuildActiveEnhancementLine(def, selected);
         }
 

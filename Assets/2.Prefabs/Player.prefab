@@ -5700,6 +5700,37 @@ MonoBehaviour:
   crescentSlashVfxDuration: 0.4
   crescentSlashLineWidth: 1
   crescentSlashCenterOffset: {x: 0, y: 0.65, z: 0}
+  executionersDescentAxeSprite: {fileID: -4372073212737981870, guid: ef2c48cf71e24114ca066bfc9e27e039, type: 3}
+  executionersDescentMarkSprite: {fileID: 0}
+  executionersDescentShockwaveSprite: {fileID: 0}
+  executionersDescentAxeTint: {r: 0.9490196, g: 0.7474129, b: 0.18039213, a: 1}
+  executionersDescentMarkTint: {r: 1, g: 0.68447053, b: 0.07843137, a: 0.85}
+  executionersDescentShockwaveColor: {r: 1, g: 0.45, b: 0.12, a: 0.75}
+  executionersDescentAxeWorldScale: 1.7
+  executionersDescentMarkWorldScale: 0.9
+  executionersDescentMarkOffset: {x: 0, y: 0.35, z: 0}
+  executionersDescentHangHeightAboveTarget: 3
+  executionersDescentSpawnHeightAboveHang: 2
+  executionersDescentSpawnHoldSeconds: 1
+  executionersDescentDropDurationSeconds: 2
+  executionersDescentSortingLayer: Foreground
+  executionersDescentSortingOrder: 120
+  executionersDescentShockwaveDuration: 0.45
+  executionersDescentShockwaveMaxRadius: 5.5
+  executionersDescentShockwaveLineWidth: 0.22
+  executionersDescentShockwaveGroundOffset: 0.15
+  finalSeveranceWindupStartColor: {r: 1, g: 0.92, b: 0.2, a: 0.6}
+  finalSeveranceWindupEndColor: {r: 1, g: 0.82, b: 0.12, a: 0.6}
+  finalSeveranceStrikeStartColor: {r: 1, g: 0.18, b: 0.05, a: 1}
+  finalSeveranceStrikeEndColor: {r: 0.55, g: 0, b: 0, a: 0.9}
+  finalSeveranceWindupVfxDuration: 0.42
+  finalSeveranceStrikeVfxDuration: 0.38
+  finalSeveranceLineWidth: 0.28
+  finalSeveranceCenterOffset: {x: 0, y: 0.75, z: 0}
+  finalSeveranceDiagonalRise: 2.2
+  finalSeveranceDiagonalDrop: 0.9
+  finalSeveranceStrikeDiagonalRise: 3.1
+  finalSeveranceStrikeDiagonalDrop: 1.35
   lumberFrenzyOrbitVfxPrefab: {fileID: 0}
   lumberFrenzyOrbitVfxLocalOffset: {x: 0, y: 0, z: 0}
   lumberFrenzyOrbitRadius: 0.88
@@ -5782,6 +5813,7 @@ MonoBehaviour:
   movementLocked: 0
   restrictClicksToStrip: 1
   stripCameraName: StripCamera
+  fullCameraName: FullCamera
   pickupMask:
     serializedVersion: 2
     m_Bits: 128
@@ -6153,15 +6185,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e843e5d9f22ffff4fa257d2efe13a8e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DebugGiveItems
-  inventory: {fileID: 4615812802344899198}
-  levelUpEffect: {fileID: 0}
-  popupSpawner: {fileID: 0}
-  popupAnchor: {fileID: 0}
   fishDef: {fileID: 11400000, guid: 26d3cf45f31e7c14fafe1948c442cd0e, type: 2}
   logsDef: {fileID: 11400000, guid: 60a88e1e810c3ee46a36fb6b840a76b3, type: 2}
   stoneChunkDef: {fileID: 11400000, guid: 30b1b02abfbe72445a66a849d7f7783c, type: 2}
-  grantResourceAmount: 100
-  popupWorldOffset: {x: 0, y: 1.6, z: 0}
   devDestroyerMaceDef: {fileID: 11400000, guid: 3cf41e30a68fc594f8b3da62f8d02bb7, type: 2}
 --- !u!114 &7897775695737928978
 MonoBehaviour:
@@ -6315,6 +6341,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7c8e4f2a91bd5634081ef5a6d2c9b47e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerSprintInput
+  characterStats: {fileID: 0}
 --- !u!114 &966196259100907935
 MonoBehaviour:
   m_ObjectHideFlags: 0

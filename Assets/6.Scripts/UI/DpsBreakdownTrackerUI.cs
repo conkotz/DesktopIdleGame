@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using System.Collections;
 using System.Text;
@@ -38,9 +39,8 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     [SerializeField] private TMP_Text outgoingMagicText;
     [SerializeField] private TMP_Text outgoingCorruptionText;
     [SerializeField] private TMP_Text outgoingMinionText;
-    [SerializeField] private TMP_Text outgoingBleedText;
-    [SerializeField] private TMP_Text outgoingPoisonText;
-    [SerializeField] private TMP_Text outgoingBurnText;
+    [FormerlySerializedAs("outgoingBleedText")]
+    [SerializeField] private TMP_Text outgoingAilmentsText;
 
     [Header("Incoming")]
     [SerializeField] private TMP_Text incomingTotalText;
@@ -54,6 +54,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     [SerializeField] private TMP_Text incomingHeaderText;
     [SerializeField] private TMP_Text elapsedTimeText;
     [SerializeField] private TMP_Text individualDamageDealersText;
+    [SerializeField] private TMP_Text individualOutgoingDamageSourcesText;
 
     [Header("Refresh")]
     [SerializeField, Min(0.02f)] private float refreshInterval = 0.15f;
@@ -237,6 +238,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
         RefreshElapsedTime();
         RefreshIncomingDealerDamage(combat);
+        RefreshOutgoingDamageSources(combat);
 
         if (_mode == MetricMode.TotalDamage)
             RefreshTotalDamage(combat);
@@ -303,6 +305,51 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
         individualDamageDealersText.text = sb.ToString();
         RefreshDealerPanelLayout();
+    }
+
+    private void RefreshOutgoingDamageSources(PlayerCombatController currentCombat)
+    {
+        if (!individualOutgoingDamageSourcesText)
+            return;
+
+        bool dpsMode = _mode == MetricMode.Dps;
+
+        if (!currentCombat)
+        {
+            individualOutgoingDamageSourcesText.text = dpsMode ? "No outgoing DPS yet" : "No outgoing damage yet";
+            return;
+        }
+
+        List<PlayerCombatController.OutgoingDamageSourceEntry> entries = currentCombat.GetOutgoingDamageBySource();
+        if (entries == null || entries.Count == 0)
+        {
+            individualOutgoingDamageSourcesText.text = dpsMode ? "No outgoing DPS yet" : "No outgoing damage yet";
+            return;
+        }
+
+        float elapsed = Mathf.Max(0f, currentCombat.GetDamageSessionElapsedSeconds());
+        StringBuilder sb = new StringBuilder(128);
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var e = entries[i];
+            if (i > 0)
+                sb.AppendLine();
+            sb.Append(i + 1);
+            sb.Append(". ");
+            sb.Append(e.sourceName);
+            sb.Append(": ");
+            if (dpsMode)
+            {
+                float perSecond = elapsed > 0.001f ? Mathf.Max(0f, e.totalDamage) / elapsed : 0f;
+                sb.Append(perSecond.ToString("0.#"));
+            }
+            else
+            {
+                sb.Append(Mathf.RoundToInt(Mathf.Max(0f, e.totalDamage)));
+            }
+        }
+
+        individualOutgoingDamageSourcesText.text = sb.ToString();
     }
 
     private void EnsureScrollViewMasking()
@@ -475,9 +522,9 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
     private void RefreshDps(PlayerCombatController currentCombat)
     {
-        float outgoingTotal = currentCombat ? currentCombat.GetCurrentDps() : 0f;
-        float incomingTotal = currentCombat ? currentCombat.GetCurrentIncomingDps() : 0f;
         DpsDamageBreakdown outgoing = currentCombat ? currentCombat.GetOutgoingDpsBreakdown() : default;
+        float outgoingTotal = outgoing.Total;
+        float incomingTotal = currentCombat ? currentCombat.GetCurrentIncomingDps() : 0f;
         DpsDamageBreakdown incoming = currentCombat ? currentCombat.GetIncomingDpsBreakdown() : default;
 
         SetLine(outgoingTotalText, "TotalDPS", outgoingTotal, isDps: true);
@@ -485,9 +532,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         SetLine(outgoingMagicText, "Magic", outgoing.Magic, isDps: true);
         SetLine(outgoingCorruptionText, "Corruption", outgoing.Corruption, isDps: true);
         SetLine(outgoingMinionText, "Minion", outgoing.Minion, isDps: true);
-        SetLine(outgoingBleedText, "Bleed", outgoing.Bleed, isDps: true);
-        SetLine(outgoingPoisonText, "Poison", outgoing.Poison, isDps: true);
-        SetLine(outgoingBurnText, "Burn", outgoing.Burn, isDps: true);
+        SetLine(outgoingAilmentsText, "Ailments", GetCombinedAilmentDamage(outgoing), isDps: true);
 
         SetLine(incomingTotalText, "TotalDPS", incomingTotal, isDps: true);
         SetLine(incomingPhysicalText, "Physical", incoming.Physical, isDps: true);
@@ -500,9 +545,9 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
     private void RefreshTotalDamage(PlayerCombatController currentCombat)
     {
-        float outgoingTotal = currentCombat ? currentCombat.GetOutgoingTotalDamage() : 0f;
-        float incomingTotal = currentCombat ? currentCombat.GetIncomingTotalDamage() : 0f;
         DpsDamageBreakdown outgoing = currentCombat ? currentCombat.GetOutgoingTotalDamageBreakdown() : default;
+        float outgoingTotal = outgoing.Total;
+        float incomingTotal = currentCombat ? currentCombat.GetIncomingTotalDamage() : 0f;
         DpsDamageBreakdown incoming = currentCombat ? currentCombat.GetIncomingTotalDamageBreakdown() : default;
 
         SetLine(outgoingTotalText, "Total Damage", outgoingTotal, isDps: false);
@@ -510,9 +555,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         SetLine(outgoingMagicText, "Magic", outgoing.Magic, isDps: false);
         SetLine(outgoingCorruptionText, "Corruption", outgoing.Corruption, isDps: false);
         SetLine(outgoingMinionText, "Minion", outgoing.Minion, isDps: false);
-        SetLine(outgoingBleedText, "Bleed", outgoing.Bleed, isDps: false);
-        SetLine(outgoingPoisonText, "Poison", outgoing.Poison, isDps: false);
-        SetLine(outgoingBurnText, "Burn", outgoing.Burn, isDps: false);
+        SetLine(outgoingAilmentsText, "Ailments", GetCombinedAilmentDamage(outgoing), isDps: false);
 
         SetLine(incomingTotalText, "Total Damage", incomingTotal, isDps: false);
         SetLine(incomingPhysicalText, "Physical", incoming.Physical, isDps: false);
@@ -522,6 +565,9 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         SetLine(incomingPoisonText, "Poison", incoming.Poison, isDps: false);
         SetLine(incomingBurnText, "Burn", incoming.Burn, isDps: false);
     }
+
+    private static float GetCombinedAilmentDamage(DpsDamageBreakdown breakdown) =>
+        Mathf.Max(0f, breakdown.Bleed + breakdown.Poison + breakdown.Burn);
 
     private static void SetLine(TMP_Text text, string label, float value, bool isDps)
     {
@@ -551,12 +597,8 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             outgoingCorruptionText = FindText(texts, "Outgoing", "Corruption", "Corrupt");
         if (!outgoingMinionText)
             outgoingMinionText = FindText(texts, "Outgoing", "Minion");
-        if (!outgoingBleedText)
-            outgoingBleedText = FindText(texts, "Outgoing", "Bleed");
-        if (!outgoingPoisonText)
-            outgoingPoisonText = FindText(texts, "Outgoing", "Poison");
-        if (!outgoingBurnText)
-            outgoingBurnText = FindText(texts, "Outgoing", "Burn");
+        if (!outgoingAilmentsText)
+            outgoingAilmentsText = FindText(texts, "Outgoing", "Ailments", "Bleed", "Poison", "Burn");
 
         if (!incomingTotalText)
             incomingTotalText = FindText(texts, "Incoming", "TotalDPS", "Total DPS", "Total");
@@ -588,6 +630,17 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             // Never bind the header label as the dynamic dealer-value output field.
             individualDamageDealersText = null;
         }
+
+        if (!individualOutgoingDamageSourcesText)
+            individualOutgoingDamageSourcesText = FindText(texts, "Outgoing", "IndividualDamageSourceText", "DamageSource");
+        if (!individualOutgoingDamageSourcesText)
+            individualOutgoingDamageSourcesText = FindText(texts, "Outgoing", "IndividualDamageSource", "DamageSourceOutput");
+        if (individualOutgoingDamageSourcesText != null &&
+            individualOutgoingDamageSourcesText.name.IndexOf("Header", System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            individualOutgoingDamageSourcesText = null;
+        }
+
         if (!resetButton)
             resetButton = FindButtonByName("Reset", "ResetButton");
         if (!dpsOrDamageButton)

@@ -54,6 +54,54 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "crescentSlashCenterOffset"
     };
 
+    private static readonly string[] ShadowStrikeVfxFieldNames =
+    {
+        "shadowStrikeBurstColor",
+        "shadowStrikeBurstDuration",
+        "shadowStrikeBurstRadius",
+        "shadowStrikeBurstLineWidth",
+        "shadowStrikeBurstOffset"
+    };
+
+    private static readonly string[] ExecutionersDescentVfxFieldNames =
+    {
+        "executionersDescentAxeSprite",
+        "executionersDescentMarkSprite",
+        "executionersDescentShockwaveSprite",
+        "executionersDescentAxeTint",
+        "executionersDescentMarkTint",
+        "executionersDescentShockwaveColor",
+        "executionersDescentAxeWorldScale",
+        "executionersDescentMarkWorldScale",
+        "executionersDescentMarkOffset",
+        "executionersDescentHangHeightAboveTarget",
+        "executionersDescentSpawnHeightAboveHang",
+        "executionersDescentSpawnHoldSeconds",
+        "executionersDescentDropDurationSeconds",
+        "executionersDescentSortingLayer",
+        "executionersDescentSortingOrder",
+        "executionersDescentShockwaveDuration",
+        "executionersDescentShockwaveMaxRadius",
+        "executionersDescentShockwaveLineWidth",
+        "executionersDescentShockwaveGroundOffset"
+    };
+
+    private static readonly string[] FinalSeveranceVfxFieldNames =
+    {
+        "finalSeveranceWindupStartColor",
+        "finalSeveranceWindupEndColor",
+        "finalSeveranceStrikeStartColor",
+        "finalSeveranceStrikeEndColor",
+        "finalSeveranceWindupVfxDuration",
+        "finalSeveranceStrikeVfxDuration",
+        "finalSeveranceLineWidth",
+        "finalSeveranceCenterOffset",
+        "finalSeveranceDiagonalRise",
+        "finalSeveranceDiagonalDrop",
+        "finalSeveranceStrikeDiagonalRise",
+        "finalSeveranceStrikeDiagonalDrop"
+    };
+
     private static readonly string[] LumberFrenzyVfxFieldNames =
     {
         "lumberFrenzyOrbitVfxPrefab",
@@ -169,6 +217,24 @@ public class PlayerAbilityVfxControllerEditor : Editor
         DrawFoldoutPropertyBlock(serializedObject, "WhirlwindVfx", "Whirlwind (Melee) VFX", WhirlwindFieldNames);
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(serializedObject, "CrescentSlashVfx", "Crescent Slash (Melee) VFX", CrescentFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(
+            serializedObject,
+            "ShadowStrikeVfx",
+            "Shadow Strike (Melee Lv25) VFX",
+            ShadowStrikeVfxFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(
+            serializedObject,
+            "ExecutionersDescentVfx",
+            "Executioner's Descent (Melee Lv45) VFX",
+            ExecutionersDescentVfxFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(
+            serializedObject,
+            "FinalSeveranceVfx",
+            "Final Severance (Melee Lv45) VFX",
+            FinalSeveranceVfxFieldNames);
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(serializedObject, "LumberFrenzyVfx", "Lumber Frenzy (Woodcutting Lv5) VFX", LumberFrenzyVfxFieldNames);
         EditorGUILayout.Space(2f);

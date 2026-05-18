@@ -3427,13 +3427,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     /// <returns>Damage that reached guard and/or HP after mitigation (for popups and combat totals). Use <paramref name="hpDamageDealt"/> for HP-only effects.</returns>
-    public float TakeDamage(float amount, DamageType type, out bool blocked, out float hpDamageDealt)
+    public float TakeDamage(
+        float amount,
+        DamageType type,
+        out bool blocked,
+        out float hpDamageDealt,
+        float armorRatingMultiplier = 1f,
+        float magicResistRatingMultiplier = 1f)
     {
         blocked = false;
         hpDamageDealt = 0f;
         if (_isDead) return 0f;
 
-        float mitigated = ApplyMitigation(amount, type, out blocked);
+        float mitigated = ApplyMitigation(amount, type, out blocked, armorRatingMultiplier, magicResistRatingMultiplier);
         float totalToVitals = Mathf.Max(0f, mitigated);
         float remainder = totalToVitals;
         hpDamageDealt = ApplyDamageToGuardThenHp(ref remainder);
@@ -3538,7 +3544,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return damage * (1f - reduction01);
     }
 
-    private float ApplyMitigation(float rawDamage, DamageType type, out bool blocked)
+    private float ApplyMitigation(
+        float rawDamage,
+        DamageType type,
+        out bool blocked,
+        float armorRatingMultiplier = 1f,
+        float magicResistRatingMultiplier = 1f)
     {
         blocked = false;
 
@@ -3547,6 +3558,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         float defMult = GetConsumableDefenseBoostRatingMultiplier();
         float consumableDr = GetConsumableFlatDamageReductionFraction();
+        GetExternalMitigationRatingMultipliers(ref armorRatingMultiplier, ref magicResistRatingMultiplier);
 
         switch (type)
         {
@@ -3561,7 +3573,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
             case DamageType.Physical:
                 {
-                    float dmg = MitigateByRating(rawDamage, Armor * defMult);
+                    float armorRating = Armor * defMult * Mathf.Max(0f, armorRatingMultiplier);
+                    float dmg = MitigateByRating(rawDamage, armorRating);
 
                     if (PhysBlockChance > 0f && UnityEngine.Random.value < Mathf.Clamp01(PhysBlockChance))
                     {
@@ -3574,7 +3587,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
             case DamageType.Magic:
                 return ApplyFlatDamageTakenReduction(
-                    ApplyMeleeDamageReduction(MitigateByRating(rawDamage, MagicResist * defMult)),
+                    ApplyMeleeDamageReduction(MitigateByRating(
+                        rawDamage,
+                        MagicResist * defMult * Mathf.Max(0f, magicResistRatingMultiplier))),
                     consumableDr);
 
             default:
@@ -3586,6 +3601,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         float reduction = Mathf.Clamp01(GetActiveMeleeMinorBonuses().meleeDamageReduction);
         return incomingDamage * (1f - reduction);
+    }
+
+    private void GetExternalMitigationRatingMultipliers(ref float armorRatingMultiplier, ref float magicResistRatingMultiplier)
+    {
+        ResolveOwnerEnemy();
+        if (!_ownerEnemy)
+            return;
+
+        EnemyCombatMitigationModifiers mods = _ownerEnemy.GetComponent<EnemyCombatMitigationModifiers>();
+        if (!mods)
+            return;
+
+        armorRatingMultiplier *= mods.ArmorRatingMultiplier;
+        magicResistRatingMultiplier *= mods.MagicResistRatingMultiplier;
     }
 
     private static float MitigateByRating(float damage, float rating)

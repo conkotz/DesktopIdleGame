@@ -16,6 +16,10 @@ public class UnitOverheadUI : MonoBehaviour
     [Tooltip("Optional. Shows combat profile label (e.g. Glass Cannon, Deadly); color is set from the profile. Assign in the Inspector.")]
     [SerializeField] private TMP_Text combatProfileText;
     [SerializeField] private Image hpFill;
+    [Tooltip("Player overhead only — mana bar fill under HPBar/MpFill.")]
+    [SerializeField] private Image mpFill;
+    [Tooltip("Player overhead only — energy bar fill under HPBar/EnergyFill.")]
+    [SerializeField] private Image energyFill;
     [Tooltip("Optional; same bar stack as player/enemy HP.")]
     [SerializeField] private Image guardFill;
     [Tooltip("Optional. Shows current guard / natural cap.")]
@@ -47,11 +51,16 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private Sprite burnIcon;
     [SerializeField] private Sprite chillIcon;
     [SerializeField] private Sprite shockIcon;
+    [Tooltip("Shadow Strike — Lethal Mark (enhancement 1). Assign in inspector.")]
+    [SerializeField] private Sprite shadowStrikeLethalMarkIcon;
+    [Tooltip("Shadow Strike — Shadow Execution mark (enhancement 2). Assign in inspector.")]
+    [SerializeField] private Sprite shadowStrikeExecutionMarkIcon;
 
     [Header("Auto Bind")]
     [SerializeField] private CharacterStats characterStats;
     [SerializeField] private EnemyBaseController enemy;
     [SerializeField] private AilmentController ailments;
+    private EnemyShadowStrikeMarks _shadowStrikeMarks;
 
     [Header("Follow")]
     [SerializeField] private Transform followTarget;
@@ -135,6 +144,8 @@ public class UnitOverheadUI : MonoBehaviour
         if (!enemy) enemy = GetComponentInParent<EnemyBaseController>();
         if (!ailments) ailments = GetComponentInParent<AilmentController>();
 
+        ResolveResourceFillRefs();
+        ApplyPlayerResourceBarVisibility();
         EnsureClickableBacking();
     }
 
@@ -204,6 +215,7 @@ public class UnitOverheadUI : MonoBehaviour
             _playerHpFillBaseCaptured = false;
 
         ApplyHpBarOnlyVisuals();
+        ApplyPlayerResourceBarVisibility();
         Subscribe();
         RefreshAll();
         EnsureClickableBacking();
@@ -230,6 +242,49 @@ public class UnitOverheadUI : MonoBehaviour
             combatProfileText.gameObject.SetActive(showExtras);
         if (debuffContainer)
             debuffContainer.gameObject.SetActive(showExtras);
+    }
+
+    private void ResolveResourceFillRefs()
+    {
+        Transform searchRoot = root != null ? root : transform;
+        if (!mpFill)
+        {
+            Transform t = searchRoot.Find("OverheadUIRoot/HPBar/MpFill");
+            if (!t) t = searchRoot.Find("HPBar/MpFill");
+            if (!t) t = searchRoot.Find("MpFill");
+            if (t) mpFill = t.GetComponent<Image>();
+        }
+
+        if (!energyFill)
+        {
+            Transform t = searchRoot.Find("OverheadUIRoot/HPBar/EnergyFill");
+            if (!t) t = searchRoot.Find("HPBar/EnergyFill");
+            if (!t) t = searchRoot.Find("EnergyFill");
+            if (t) energyFill = t.GetComponent<Image>();
+        }
+    }
+
+    private bool IsPlayerOverhead() =>
+        enemy == null &&
+        characterStats != null &&
+        characterStats.GetComponentInParent<PlayerController>() != null;
+
+    private void ApplyPlayerResourceBarVisibility()
+    {
+        bool show = IsPlayerOverhead();
+        if (mpFill != null)
+            mpFill.gameObject.SetActive(show);
+        if (energyFill != null)
+            energyFill.gameObject.SetActive(show);
+    }
+
+    private void RefreshPlayerResourceBarFills()
+    {
+        if (!IsPlayerOverhead() || characterStats == null)
+            return;
+
+        HandleCharacterManaChanged(characterStats.Mana, characterStats.MaxMana);
+        HandleCharacterEnergyChanged(characterStats.Energy, characterStats.MaxEnergy);
     }
 
     private static void EnsureCanvasStackCallback()
@@ -745,6 +800,8 @@ public class UnitOverheadUI : MonoBehaviour
             characterStats.OnNameChanged += HandleNameChanged;
             characterStats.OnHPChanged += HandleCharacterHpChanged;
             characterStats.OnGuardChanged += HandleCharacterGuardChanged;
+            characterStats.OnManaChanged += HandleCharacterManaChanged;
+            characterStats.OnEnergyChanged += HandleCharacterEnergyChanged;
             characterStats.OnStatsChanged += HandleStatsChanged;
         }
 
@@ -759,6 +816,10 @@ public class UnitOverheadUI : MonoBehaviour
             ailments.OnAilmentsChanged += RefreshDebuffIcons;
         }
 
+        _shadowStrikeMarks = enemy != null ? enemy.GetComponent<EnemyShadowStrikeMarks>() : null;
+        if (_shadowStrikeMarks != null)
+            _shadowStrikeMarks.OnMarksChanged += RefreshDebuffIcons;
+
         ToggleSettingsStore.Changed += HandleToggleSettingChanged;
     }
 
@@ -771,6 +832,8 @@ public class UnitOverheadUI : MonoBehaviour
             characterStats.OnNameChanged -= HandleNameChanged;
             characterStats.OnHPChanged -= HandleCharacterHpChanged;
             characterStats.OnGuardChanged -= HandleCharacterGuardChanged;
+            characterStats.OnManaChanged -= HandleCharacterManaChanged;
+            characterStats.OnEnergyChanged -= HandleCharacterEnergyChanged;
             characterStats.OnStatsChanged -= HandleStatsChanged;
         }
 
@@ -784,6 +847,10 @@ public class UnitOverheadUI : MonoBehaviour
         {
             ailments.OnAilmentsChanged -= RefreshDebuffIcons;
         }
+
+        if (_shadowStrikeMarks != null)
+            _shadowStrikeMarks.OnMarksChanged -= RefreshDebuffIcons;
+        _shadowStrikeMarks = null;
     }
 
     private void HandleToggleSettingChanged(ToggleSettingId setting, bool _)
@@ -833,6 +900,8 @@ public class UnitOverheadUI : MonoBehaviour
 
         RefreshDebuffIcons();
         ApplyOverheadNumericLabelPreference();
+        ApplyPlayerResourceBarVisibility();
+        RefreshPlayerResourceBarFills();
     }
 
     /// <summary>
@@ -991,7 +1060,26 @@ public class UnitOverheadUI : MonoBehaviour
     {
         HandleNameChanged(string.Empty);
         if (characterStats != null)
+        {
             HandleCharacterGuardChanged(characterStats.Guard, characterStats.NaturalGuardCap);
+            RefreshPlayerResourceBarFills();
+        }
+    }
+
+    private void HandleCharacterManaChanged(float current, float max)
+    {
+        if (!IsPlayerOverhead() || mpFill == null)
+            return;
+
+        mpFill.fillAmount = max <= 0f ? 0f : Mathf.Clamp01(current / max);
+    }
+
+    private void HandleCharacterEnergyChanged(float current, float max)
+    {
+        if (!IsPlayerOverhead() || energyFill == null)
+            return;
+
+        energyFill.fillAmount = max <= 0f ? 0f : Mathf.Clamp01(current / max);
     }
 
     private void HandleNameChanged(string _)
@@ -1261,6 +1349,17 @@ public class UnitOverheadUI : MonoBehaviour
 
         if (ailments.HasShock)
             SpawnDebuffIcon(shockIcon, "Shock", 1);
+
+        EnemyShadowStrikeMarks marks = _shadowStrikeMarks != null
+            ? _shadowStrikeMarks
+            : enemy != null ? enemy.GetComponent<EnemyShadowStrikeMarks>() : null;
+        if (marks != null)
+        {
+            if (marks.HasLethalCritMark)
+                SpawnDebuffIcon(shadowStrikeLethalMarkIcon, "ShadowMarkLethal", 1);
+            if (marks.HasExecutionMark)
+                SpawnDebuffIcon(shadowStrikeExecutionMarkIcon, "ShadowMarkExecution", 1);
+        }
     }
 
     private void SpawnDebuffIcon(Sprite sprite, string iconName, int stacks)

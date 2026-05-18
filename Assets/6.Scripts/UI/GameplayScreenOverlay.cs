@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
@@ -21,6 +22,12 @@ public static class GameplayScreenOverlay
     static GameplayScreenOverlay()
     {
         GameplayScreenOverlayLayout.RegisterCoverageRefresh(RefreshAllVisible);
+        SceneManager.sceneUnloaded += OnSceneUnloaded;
+    }
+
+    private static void OnSceneUnloaded(Scene scene)
+    {
+        s_entries.Clear();
     }
 
     public struct Spec
@@ -49,7 +56,7 @@ public static class GameplayScreenOverlay
             spec = Spec.DefaultAbilityChannel;
 
         Entry entry = GetOrCreate(overlayId.Trim(), spec);
-        if (entry == null)
+        if (!IsEntryAlive(entry))
             return;
 
         entry.Visible = true;
@@ -68,8 +75,14 @@ public static class GameplayScreenOverlay
             return;
 
         string key = overlayId.Trim();
-        if (!s_entries.TryGetValue(key, out Entry entry) || entry == null)
+        if (!s_entries.TryGetValue(key, out Entry entry))
             return;
+
+        if (!IsEntryAlive(entry))
+        {
+            s_entries.Remove(key);
+            return;
+        }
 
         entry.Visible = false;
         entry.CanvasGroup.alpha = 0f;
@@ -82,7 +95,7 @@ public static class GameplayScreenOverlay
     {
         if (string.IsNullOrWhiteSpace(overlayId))
             return false;
-        return s_entries.TryGetValue(overlayId.Trim(), out Entry e) && e != null && e.Visible;
+        return s_entries.TryGetValue(overlayId.Trim(), out Entry e) && IsEntryAlive(e) && e.Visible;
     }
 
     public static void RefreshAllVisible()
@@ -91,7 +104,16 @@ public static class GameplayScreenOverlay
         for (int i = 0; i < keys.Count; i++)
         {
             string key = keys[i];
-            if (!s_entries.TryGetValue(key, out Entry entry) || entry == null || !entry.Visible)
+            if (!s_entries.TryGetValue(key, out Entry entry))
+                continue;
+
+            if (!IsEntryAlive(entry))
+            {
+                s_entries.Remove(key);
+                continue;
+            }
+
+            if (!entry.Visible)
                 continue;
 
             bool coversFull = GameplayScreenOverlayLayout.CoversFullWindow;
@@ -114,7 +136,7 @@ public static class GameplayScreenOverlay
 
     private static Entry GetOrCreate(string overlayId, Spec spec)
     {
-        if (s_entries.TryGetValue(overlayId, out Entry existing) && existing != null && existing.Root)
+        if (s_entries.TryGetValue(overlayId, out Entry existing) && IsEntryAlive(existing))
         {
             existing.Spec = spec;
             if (existing.LastCoversFullWindow != GameplayScreenOverlayLayout.CoversFullWindow)
@@ -129,6 +151,10 @@ public static class GameplayScreenOverlay
                     GameplayScreenOverlayLayout.EnsureNestedOverlayCanvas(existing.Root, spec.stripSortingOrder);
                 return existing;
             }
+        }
+        else if (s_entries.ContainsKey(overlayId))
+        {
+            s_entries.Remove(overlayId);
         }
 
         Entry created = CreateEntry(overlayId, spec);
@@ -208,6 +234,10 @@ public static class GameplayScreenOverlay
         if (entry?.Root)
             UnityEngine.Object.Destroy(entry.Root);
     }
+
+    /// <summary>Unity "fake null" after scene teardown — do not touch components without this check.</summary>
+    private static bool IsEntryAlive(Entry entry) =>
+        entry != null && entry.Root && entry.CanvasGroup && entry.Image;
 
     private sealed class Entry
     {

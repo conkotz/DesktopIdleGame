@@ -13,7 +13,9 @@ public static class MinionHitEffects
         float physicalDealt,
         float magicDealt,
         float corruptionDealt,
-        Transform source)
+        Transform source,
+        string outgoingDpsSourceLabel = null,
+        bool attributeOutgoingToMinion = false)
     {
         if (!target || target.IsDead)
             return;
@@ -24,8 +26,8 @@ public static class MinionHitEffects
 
         Transform src = source ? source : target.transform;
 
-        TryBleed(ailments, ownerSnap, stats, physicalDealt, src);
-        TryPoison(ailments, ownerSnap, stats, corruptionDealt, src);
+        TryBleed(ailments, ownerSnap, stats, physicalDealt, src, outgoingDpsSourceLabel, attributeOutgoingToMinion);
+        TryPoison(ailments, ownerSnap, stats, corruptionDealt, src, outgoingDpsSourceLabel, attributeOutgoingToMinion);
 
         float totalDealt = physicalDealt + magicDealt + corruptionDealt;
         if (ownerSnap.currentAttackAppliesAsFireForBurn && totalDealt > 0f && stats.AilmentChances.burnChance > 0f)
@@ -34,7 +36,9 @@ public static class MinionHitEffects
                 totalDealt,
                 stats.AilmentChances.burnChance,
                 ownerSnap.burnExplosionMultiplier,
-                src);
+                src,
+                outgoingDpsSourceLabel,
+                attributeOutgoingToMinion);
         }
 
         if (ownerSnap.currentAttackSkill == AttackSkill.Magic && magicDealt > 0f && stats.MagicAilmentApplyChance > 0f)
@@ -80,7 +84,9 @@ public static class MinionHitEffects
         in MinionOwnerWeaponSnapshot ownerSnap,
         in MinionRuntimeCombatStats stats,
         float physicalDealt,
-        Transform src)
+        Transform src,
+        string outgoingDpsSourceLabel,
+        bool attributeOutgoingToMinion)
     {
         if (physicalDealt <= 0f || stats.AilmentChances.bleedChance <= 0f)
             return;
@@ -95,7 +101,13 @@ public static class MinionHitEffects
         if (bleedTickDamage <= 0f) return;
 
         float totalBleedDamage = bleedTickDamage * ticks;
-        ailments.ApplyBleedFromHit(new BleedPayload(totalBleedDamage, duration, ticks, src));
+        ailments.ApplyBleedFromHit(new BleedPayload(
+            totalBleedDamage,
+            duration,
+            ticks,
+            src,
+            outgoingDpsSourceLabel,
+            attributeOutgoingToMinion));
     }
 
     private static void TryPoison(
@@ -103,7 +115,9 @@ public static class MinionHitEffects
         in MinionOwnerWeaponSnapshot ownerSnap,
         in MinionRuntimeCombatStats stats,
         float corruptionDealt,
-        Transform src)
+        Transform src,
+        string outgoingDpsSourceLabel,
+        bool attributeOutgoingToMinion)
     {
         if (corruptionDealt <= 0f || stats.AilmentChances.poisonChance <= 0f)
             return;
@@ -125,6 +139,8 @@ public static class MinionHitEffects
             duration,
             ticks,
             maxStacks,
-            src));
+            src,
+            outgoingDpsSourceLabel,
+            attributeOutgoingToMinion));
     }
 }

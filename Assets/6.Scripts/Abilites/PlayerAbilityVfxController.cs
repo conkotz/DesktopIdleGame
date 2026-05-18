@@ -47,6 +47,38 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.01f)] private float crescentSlashLineWidth = 0.12f;
     [SerializeField] private Vector3 crescentSlashCenterOffset = new Vector3(0f, 0.65f, 0f);
 
+    [Header("Executioner's Descent (Melee Lv45) VFX")]
+    [Tooltip("Assign the axe sprite in the inspector.")]
+    [SerializeField] private Sprite executionersDescentAxeSprite;
+    [SerializeField] private Sprite executionersDescentMarkSprite;
+    [SerializeField] private Sprite executionersDescentShockwaveSprite;
+    [SerializeField] private Color executionersDescentAxeTint = new Color(0.95f, 0.22f, 0.18f, 1f);
+    [SerializeField] private Color executionersDescentMarkTint = new Color(1f, 0.12f, 0.08f, 0.85f);
+    [SerializeField] private Color executionersDescentShockwaveColor = new Color(1f, 0.45f, 0.12f, 0.75f);
+    [SerializeField, Min(0.5f)] private float executionersDescentAxeWorldScale = 2.4f;
+    [SerializeField, Min(0.1f)] private float executionersDescentMarkWorldScale = 0.9f;
+    [SerializeField] private Vector3 executionersDescentMarkOffset = new Vector3(0f, 0.35f, 0f);
+    [Tooltip("World Y above the target root where the axe stops (higher = less buried in the ground).")]
+    [SerializeField, Min(0.5f)] private float executionersDescentHangHeightAboveTarget = 3.2f;
+    [Tooltip("Extra height above the hang point where the axe first appears.")]
+    [SerializeField, Min(0.5f)] private float executionersDescentSpawnHeightAboveHang = 5f;
+    [SerializeField, Min(0f)] private float executionersDescentSpawnHoldSeconds = 1.5f;
+    [SerializeField, Min(0.1f)] private float executionersDescentDropDurationSeconds = 1.5f;
+    [Tooltip("Sorting layer for axe / mark / shockwave (Foreground renders above Background clouds).")]
+    [SerializeField] private string executionersDescentSortingLayer = "Foreground";
+    [SerializeField] private int executionersDescentSortingOrder = 200;
+    [SerializeField, Min(0.05f)] private float executionersDescentShockwaveDuration = 0.45f;
+    [SerializeField, Min(0.5f)] private float executionersDescentShockwaveMaxRadius = 5.5f;
+    [SerializeField, Min(0.01f)] private float executionersDescentShockwaveLineWidth = 0.22f;
+    [SerializeField] private float executionersDescentShockwaveGroundOffset = 0.15f;
+
+    [Header("Shadow Strike (Melee Lv25) VFX")]
+    [SerializeField] private Color shadowStrikeBurstColor = new Color(0.35f, 0.15f, 0.55f, 0.9f);
+    [SerializeField, Min(0.05f)] private float shadowStrikeBurstDuration = 0.22f;
+    [SerializeField, Min(0.1f)] private float shadowStrikeBurstRadius = 1.1f;
+    [SerializeField, Min(0.01f)] private float shadowStrikeBurstLineWidth = 0.16f;
+    [SerializeField] private Vector3 shadowStrikeBurstOffset = new Vector3(0f, 0.5f, 0f);
+
     [Header("Final Severance (Melee Lv45) VFX")]
     [SerializeField] private Color finalSeveranceWindupStartColor = new Color(1f, 0.92f, 0.2f, 0.6f);
     [SerializeField] private Color finalSeveranceWindupEndColor = new Color(1f, 0.82f, 0.12f, 0.6f);
@@ -136,6 +168,13 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private GameObject _lumberFrenzyOrbitVfxRoot;
 
     private GameObject _avatarOfForestGlowRoot;
+
+    private GameObject _executionersDescentAxeRoot;
+    private SpriteRenderer _executionersDescentAxeRenderer;
+    private GameObject _executionersDescentMarkRoot;
+    private SpriteRenderer _executionersDescentMarkRenderer;
+    private Coroutine _executionersDescentShockwaveRoutine;
+    private float _executionersDescentTotalSeconds = 3f;
 
     private const string ResourcesUrParticleMaterialPath = "Vfx/AbilityVfx_ParticlesUnlit";
     private static bool s_LoggedMissingUrParticleMaterial;
@@ -574,6 +613,52 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
 
         x *= Mathf.Sign(startDirX == 0f ? 1f : startDirX);
+    }
+
+    public void SpawnShadowStrikeBurst(Vector3 targetWorldPosition)
+    {
+        Vector3 center = targetWorldPosition + shadowStrikeBurstOffset;
+        StartCoroutine(CoShadowStrikeBurst(center));
+    }
+
+    private IEnumerator CoShadowStrikeBurst(Vector3 center)
+    {
+        GameObject root = new GameObject("ShadowStrikeBurst");
+        LineRenderer ring = root.AddComponent<LineRenderer>();
+        ring.useWorldSpace = true;
+        ring.loop = true;
+        ring.positionCount = 24;
+        ring.widthMultiplier = shadowStrikeBurstLineWidth;
+        ring.material = new Material(Shader.Find("Sprites/Default"));
+        ring.startColor = shadowStrikeBurstColor;
+        ring.endColor = shadowStrikeBurstColor;
+        if (!TryApplyPlayerSpriteSortingToRenderer(ring, 12))
+            ring.sortingOrder = 24;
+
+        float duration = Mathf.Max(0.05f, shadowStrikeBurstDuration);
+        float maxRadius = Mathf.Max(0.1f, shadowStrikeBurstRadius);
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float radius = maxRadius * t;
+            float alpha = shadowStrikeBurstColor.a * (1f - t);
+            Color c = shadowStrikeBurstColor;
+            c.a = alpha;
+            ring.startColor = c;
+            ring.endColor = c;
+
+            for (int i = 0; i < ring.positionCount; i++)
+            {
+                float ang = i / (float)ring.positionCount * Mathf.PI * 2f;
+                ring.SetPosition(i, center + new Vector3(Mathf.Cos(ang) * radius, Mathf.Sin(ang) * radius * 0.35f, 0f));
+            }
+
+            yield return null;
+        }
+
+        Destroy(root);
     }
 
     public void SpawnPowerSlashTrail()
@@ -1402,6 +1487,257 @@ public class PlayerAbilityVfxController : MonoBehaviour
         {
             Destroy(_avatarOfForestGlowRoot);
             _avatarOfForestGlowRoot = null;
+        }
+    }
+
+    public void BeginExecutionersDescent(EnemyBaseController target, Vector3 targetWorld, float descentSeconds)
+    {
+        StopExecutionersDescentVfx();
+        _executionersDescentTotalSeconds = Mathf.Max(0.1f, descentSeconds);
+
+        EnsureExecutionersDescentVisuals();
+        if (_executionersDescentAxeRenderer != null)
+        {
+            _executionersDescentAxeRenderer.sprite = executionersDescentAxeSprite;
+            _executionersDescentAxeRenderer.color = executionersDescentAxeTint;
+            _executionersDescentAxeRenderer.enabled = executionersDescentAxeSprite != null;
+            _executionersDescentAxeRoot.transform.localScale = Vector3.one * executionersDescentAxeWorldScale;
+        }
+
+        EvaluateExecutionersDescentAxePose(targetWorld, 0f, out Vector3 axePos, out Vector3 hangPoint);
+        if (_executionersDescentAxeRoot != null)
+            _executionersDescentAxeRoot.transform.position = axePos;
+
+        SyncExecutionersDescentMark(target, hangPoint);
+    }
+
+    public void UpdateExecutionersDescent(EnemyBaseController target, Vector3 targetWorld, float elapsedSeconds)
+    {
+        if (_executionersDescentAxeRoot == null)
+            return;
+
+        EvaluateExecutionersDescentAxePose(targetWorld, elapsedSeconds, out Vector3 axePos, out Vector3 hangPoint);
+        _executionersDescentAxeRoot.transform.position = axePos;
+        SyncExecutionersDescentMark(target, hangPoint);
+    }
+
+    public void SpawnExecutionersDescentImpactShockwave(Vector3 targetWorld)
+    {
+        if (_executionersDescentShockwaveRoutine != null)
+            StopCoroutine(_executionersDescentShockwaveRoutine);
+
+        _executionersDescentShockwaveRoutine = StartCoroutine(CoExecutionersDescentImpactShockwave(targetWorld));
+    }
+
+    public void StopExecutionersDescentVfx()
+    {
+        if (_executionersDescentMarkRoot != null)
+        {
+            Destroy(_executionersDescentMarkRoot);
+            _executionersDescentMarkRoot = null;
+            _executionersDescentMarkRenderer = null;
+        }
+
+        if (_executionersDescentAxeRoot != null)
+        {
+            Destroy(_executionersDescentAxeRoot);
+            _executionersDescentAxeRoot = null;
+            _executionersDescentAxeRenderer = null;
+        }
+    }
+
+    private void EvaluateExecutionersDescentAxePose(
+        Vector3 targetWorld,
+        float elapsedSeconds,
+        out Vector3 axeWorldPosition,
+        out Vector3 hangWorldPosition)
+    {
+        hangWorldPosition = new Vector3(
+            targetWorld.x,
+            targetWorld.y + executionersDescentHangHeightAboveTarget,
+            targetWorld.z);
+
+        Vector3 spawnWorld = hangWorldPosition + Vector3.up * executionersDescentSpawnHeightAboveHang;
+
+        float holdSeconds = Mathf.Min(executionersDescentSpawnHoldSeconds, _executionersDescentTotalSeconds * 0.55f);
+        float dropDuration = Mathf.Max(
+            0.1f,
+            Mathf.Min(executionersDescentDropDurationSeconds, _executionersDescentTotalSeconds - holdSeconds));
+
+        if (elapsedSeconds <= holdSeconds)
+        {
+            axeWorldPosition = spawnWorld;
+            return;
+        }
+
+        float dropElapsed = elapsedSeconds - holdSeconds;
+        float dropT = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(dropElapsed / dropDuration));
+        axeWorldPosition = Vector3.Lerp(spawnWorld, hangWorldPosition, dropT);
+    }
+
+    private void SyncExecutionersDescentMark(EnemyBaseController target, Vector3 hangWorldPosition)
+    {
+        if (_executionersDescentMarkRoot == null)
+            return;
+
+        if (_executionersDescentMarkRenderer != null)
+        {
+            _executionersDescentMarkRenderer.sprite = executionersDescentMarkSprite;
+            _executionersDescentMarkRenderer.color = executionersDescentMarkTint;
+            _executionersDescentMarkRenderer.enabled = executionersDescentMarkSprite != null;
+        }
+
+        if (target != null)
+        {
+            if (_executionersDescentMarkRoot.transform.parent != target.transform)
+            {
+                _executionersDescentMarkRoot.transform.SetParent(target.transform, false);
+                _executionersDescentMarkRoot.transform.localPosition = executionersDescentMarkOffset;
+            }
+
+            _executionersDescentMarkRoot.transform.localScale = Vector3.one * executionersDescentMarkWorldScale;
+        }
+        else
+        {
+            _executionersDescentMarkRoot.transform.SetParent(null, true);
+            _executionersDescentMarkRoot.transform.position = hangWorldPosition;
+        }
+    }
+
+    private IEnumerator CoExecutionersDescentImpactShockwave(Vector3 targetWorld)
+    {
+        Vector3 groundCenter = new Vector3(
+            targetWorld.x,
+            targetWorld.y + executionersDescentShockwaveGroundOffset,
+            targetWorld.z);
+
+        GameObject root = new GameObject("ExecutionersDescentShockwave");
+        LineRenderer leftArc = CreateExecutionersDescentShockwaveArc(root.transform, true);
+        LineRenderer rightArc = CreateExecutionersDescentShockwaveArc(root.transform, false);
+
+        GameObject spriteGo = null;
+        SpriteRenderer spriteSr = null;
+        if (executionersDescentShockwaveSprite != null)
+        {
+            spriteGo = new GameObject("ExecutionersDescentShockwaveSprite");
+            spriteGo.transform.SetParent(root.transform, false);
+            spriteSr = spriteGo.AddComponent<SpriteRenderer>();
+            spriteSr.sprite = executionersDescentShockwaveSprite;
+            spriteSr.color = executionersDescentShockwaveColor;
+            ApplyExecutionersDescentSorting(spriteSr);
+            spriteGo.transform.position = groundCenter;
+        }
+
+        float duration = Mathf.Max(0.05f, executionersDescentShockwaveDuration);
+        float maxRadius = executionersDescentShockwaveMaxRadius;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            if (root == null)
+                yield break;
+
+            elapsed += Time.deltaTime;
+            float u = Mathf.Clamp01(elapsed / duration);
+            float radius = maxRadius * u;
+            float alpha = executionersDescentShockwaveColor.a * (1f - u);
+
+            RebuildExecutionersDescentShockwaveArc(leftArc, groundCenter, radius, true, alpha);
+            RebuildExecutionersDescentShockwaveArc(rightArc, groundCenter, radius, false, alpha);
+
+            if (spriteSr != null)
+            {
+                float scale = Mathf.Lerp(0.35f, 1.35f, u) * (maxRadius * 0.35f);
+                spriteGo.transform.position = groundCenter;
+                spriteGo.transform.localScale = new Vector3(scale, scale * 0.35f, 1f);
+                Color c = executionersDescentShockwaveColor;
+                c.a = alpha;
+                spriteSr.color = c;
+            }
+
+            yield return null;
+        }
+
+        if (root != null)
+            Destroy(root);
+
+        _executionersDescentShockwaveRoutine = null;
+    }
+
+    private LineRenderer CreateExecutionersDescentShockwaveArc(Transform parent, bool leftSide)
+    {
+        var go = new GameObject(leftSide ? "ShockwaveArcLeft" : "ShockwaveArcRight");
+        go.transform.SetParent(parent, false);
+        var lr = go.AddComponent<LineRenderer>();
+        lr.useWorldSpace = true;
+        lr.loop = false;
+        lr.alignment = LineAlignment.View;
+        lr.numCapVertices = 4;
+        lr.startWidth = executionersDescentShockwaveLineWidth;
+        lr.endWidth = executionersDescentShockwaveLineWidth * 0.65f;
+        Shader spritesDefault = Shader.Find("Sprites/Default");
+        if (spritesDefault != null)
+            lr.material = new Material(spritesDefault);
+        ApplyExecutionersDescentSorting(lr);
+        return lr;
+    }
+
+    private static void RebuildExecutionersDescentShockwaveArc(
+        LineRenderer lr,
+        Vector3 center,
+        float radius,
+        bool leftSide,
+        float alpha)
+    {
+        if (lr == null)
+            return;
+
+        const int segments = 14;
+        lr.positionCount = segments + 1;
+        float startAngle = leftSide ? Mathf.PI * 0.55f : -Mathf.PI * 0.45f;
+        float endAngle = leftSide ? Mathf.PI * 1.45f : Mathf.PI * 0.45f;
+        float step = (endAngle - startAngle) / segments;
+        float ySquash = 0.22f;
+
+        Color c = lr.startColor;
+        c.a = alpha;
+        lr.startColor = c;
+        lr.endColor = c;
+
+        for (int i = 0; i <= segments; i++)
+        {
+            float a = startAngle + step * i;
+            Vector3 p = center + new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius * ySquash, 0f);
+            lr.SetPosition(i, p);
+        }
+    }
+
+    private void ApplyExecutionersDescentSorting(Renderer renderer)
+    {
+        if (renderer == null)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(executionersDescentSortingLayer))
+            renderer.sortingLayerName = executionersDescentSortingLayer;
+
+        renderer.sortingOrder = executionersDescentSortingOrder;
+    }
+
+    private void EnsureExecutionersDescentVisuals()
+    {
+        if (_executionersDescentAxeRoot == null)
+        {
+            _executionersDescentAxeRoot = new GameObject("ExecutionersDescentAxeVfx");
+            _executionersDescentAxeRenderer = _executionersDescentAxeRoot.AddComponent<SpriteRenderer>();
+            ApplyExecutionersDescentSorting(_executionersDescentAxeRenderer);
+        }
+
+        if (_executionersDescentMarkRoot == null)
+        {
+            _executionersDescentMarkRoot = new GameObject("ExecutionersDescentMarkVfx");
+            _executionersDescentMarkRenderer = _executionersDescentMarkRoot.AddComponent<SpriteRenderer>();
+            ApplyExecutionersDescentSorting(_executionersDescentMarkRenderer);
+            _executionersDescentMarkRenderer.sortingOrder = executionersDescentSortingOrder - 1;
         }
     }
 }

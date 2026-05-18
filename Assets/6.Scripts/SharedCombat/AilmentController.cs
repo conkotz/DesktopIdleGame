@@ -48,6 +48,14 @@ public class AilmentController : MonoBehaviour
     private string _exclusiveBleedDotDealerLabel = "";
     private string _poisonDotDealerLabel = "";
     private string _burnDotDealerLabel = "";
+    private string _bleedOutgoingDpsSourceLabel;
+    private string _exclusiveBleedOutgoingDpsSourceLabel;
+    private string _poisonOutgoingDpsSourceLabel;
+    private string _burnOutgoingDpsSourceLabel;
+    private bool _bleedOutgoingAttributeToMinion;
+    private bool _exclusiveBleedOutgoingAttributeToMinion;
+    private bool _poisonOutgoingAttributeToMinion;
+    private bool _burnOutgoingAttributeToMinion;
     private Coroutine burnTickRoutine;
     private float shockExpireTime = -1f;
     private float shockDamageTakenMultiplier = 0f;
@@ -272,6 +280,8 @@ public class AilmentController : MonoBehaviour
         int newBleedTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
 
         _bleedDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
+        _bleedOutgoingDpsSourceLabel = payload.outgoingDpsSourceLabel;
+        _bleedOutgoingAttributeToMinion = payload.outgoingAttributeToMinion;
         if (payload.source != null)
         {
             _bleedDotDealerWorldPos = payload.source.position;
@@ -303,6 +313,8 @@ public class AilmentController : MonoBehaviour
         int newTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
 
         _exclusiveBleedDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
+        _exclusiveBleedOutgoingDpsSourceLabel = payload.outgoingDpsSourceLabel;
+        _exclusiveBleedOutgoingAttributeToMinion = payload.outgoingAttributeToMinion;
         if (payload.source != null)
         {
             _exclusiveBleedDotDealerWorldPos = payload.source.position;
@@ -373,7 +385,7 @@ public class AilmentController : MonoBehaviour
                 _hasBleedDotDealerWorldPos = true;
             }
 
-            ApplyBleedTick(tickDamage, source, _bleedDotDealerLabel, exclusiveChannel: false);
+            ApplyBleedTick(tickDamage, source, _bleedDotDealerLabel, exclusiveChannel: false, _bleedOutgoingDpsSourceLabel, _bleedOutgoingAttributeToMinion);
             OnAilmentsChanged?.Invoke();
         }
 
@@ -405,7 +417,7 @@ public class AilmentController : MonoBehaviour
                 _hasExclusiveBleedDotDealerWorldPos = true;
             }
 
-            ApplyBleedTick(tickDamage, source, _exclusiveBleedDotDealerLabel, exclusiveChannel: true);
+            ApplyBleedTick(tickDamage, source, _exclusiveBleedDotDealerLabel, exclusiveChannel: true, _exclusiveBleedOutgoingDpsSourceLabel, _exclusiveBleedOutgoingAttributeToMinion);
             OnAilmentsChanged?.Invoke();
         }
 
@@ -413,13 +425,26 @@ public class AilmentController : MonoBehaviour
         OnAilmentsChanged?.Invoke();
     }
 
-    private void ApplyBleedTick(int damage, Transform source, string dealerLabelForDps, bool exclusiveChannel)
+    private void ApplyBleedTick(
+        int damage,
+        Transform source,
+        string dealerLabelForDps,
+        bool exclusiveChannel,
+        string outgoingDpsSourceLabel,
+        bool outgoingAttributeToMinion)
     {
         Vector3? dealerWorldFallback = exclusiveChannel
             ? (_hasExclusiveBleedDotDealerWorldPos ? (Vector3?)_exclusiveBleedDotDealerWorldPos : null)
             : (_hasBleedDotDealerWorldPos ? (Vector3?)_bleedDotDealerWorldPos : null);
 
-        ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Bleed, source, dealerLabelForDps, dealerWorldFallback);
+        ApplyDotDamage(
+            damage,
+            FloatingDamageTextUI.PopupDamageKind.Bleed,
+            source,
+            dealerLabelForDps,
+            dealerWorldFallback,
+            outgoingDpsSourceLabel,
+            outgoingAttributeToMinion);
 
         if (debugLogs)
             Debug.Log($"[Ailments] Bleed tick: {damage}", this);
@@ -443,6 +468,8 @@ public class AilmentController : MonoBehaviour
         int maxStacks = GetEffectivePoisonMaxStacks(poisonBaseMaxStacks);
 
         _poisonDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
+        _poisonOutgoingDpsSourceLabel = payload.outgoingDpsSourceLabel;
+        _poisonOutgoingAttributeToMinion = payload.outgoingAttributeToMinion;
 
         if (payload.source != null)
         {
@@ -547,7 +574,14 @@ public class AilmentController : MonoBehaviour
     private void ApplyPoisonTick(int damage, Transform source)
     {
         Vector3? dealerWorldFallback = _hasPoisonDotDealerWorldPos ? (Vector3?)_poisonDotDealerWorldPos : null;
-        ApplyDotDamage(damage, FloatingDamageTextUI.PopupDamageKind.Poison, source, _poisonDotDealerLabel, dealerWorldFallback);
+        ApplyDotDamage(
+            damage,
+            FloatingDamageTextUI.PopupDamageKind.Poison,
+            source,
+            _poisonDotDealerLabel,
+            dealerWorldFallback,
+            _poisonOutgoingDpsSourceLabel,
+            _poisonOutgoingAttributeToMinion);
 
         if (debugLogs)
             Debug.Log($"[Ailments] Poison tick: {damage}", this);
@@ -613,12 +647,16 @@ public class AilmentController : MonoBehaviour
         float fireDamageDealt,
         float applyChance,
         float burnDamageMultiplier,
-        Transform source)
+        Transform source,
+        string outgoingDpsSourceLabel = null,
+        bool outgoingAttributeToMinion = false)
     {
         if (IsDead()) return false;
         if (fireDamageDealt <= 0f) return false;
 
         _burnDotDealerLabel = ResolveDotDealerLabelForDps(source);
+        _burnOutgoingDpsSourceLabel = outgoingDpsSourceLabel;
+        _burnOutgoingAttributeToMinion = outgoingAttributeToMinion;
         burnDotSource = source != null ? source : transform;
 
         if (source != null)
@@ -707,7 +745,14 @@ public class AilmentController : MonoBehaviour
         }
 
         Vector3? burnDealerWorld = _hasBurnDotDealerWorldPos ? (Vector3?)_burnDotDealerWorldPos : null;
-        ApplyDotDamage(combustDamage, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource, _burnDotDealerLabel, burnDealerWorld);
+        ApplyDotDamage(
+            combustDamage,
+            FloatingDamageTextUI.PopupDamageKind.Magic,
+            burnDotSource,
+            _burnDotDealerLabel,
+            burnDealerWorld,
+            _burnOutgoingDpsSourceLabel,
+            _burnOutgoingAttributeToMinion);
         OnAilmentsChanged?.Invoke();
     }
 
@@ -737,7 +782,14 @@ public class AilmentController : MonoBehaviour
                 }
 
                 Vector3? burnDealerWorld = _hasBurnDotDealerWorldPos ? (Vector3?)_burnDotDealerWorldPos : null;
-                ApplyDotDamage(burnDamagePerTick, FloatingDamageTextUI.PopupDamageKind.Magic, burnDotSource, _burnDotDealerLabel, burnDealerWorld);
+                ApplyDotDamage(
+                    burnDamagePerTick,
+                    FloatingDamageTextUI.PopupDamageKind.Magic,
+                    burnDotSource,
+                    _burnDotDealerLabel,
+                    burnDealerWorld,
+                    _burnOutgoingDpsSourceLabel,
+                    _burnOutgoingAttributeToMinion);
             }
 
             OnAilmentsChanged?.Invoke();
@@ -788,13 +840,27 @@ public class AilmentController : MonoBehaviour
         return Mathf.Max(0.1f, 1f - slow);
     }
 
-    private void ApplyDotDamage(int damage, FloatingDamageTextUI.PopupDamageKind type, Transform source, string dealerLabelForDps, Vector3? dotDealerWorldPositionFallback = null)
+    private void ApplyDotDamage(
+        int damage,
+        FloatingDamageTextUI.PopupDamageKind type,
+        Transform source,
+        string dealerLabelForDps,
+        Vector3? dotDealerWorldPositionFallback = null,
+        string outgoingDpsSourceLabel = null,
+        bool outgoingAttributeToMinion = false)
     {
         damage = Mathf.Max(1, damage);
 
         if (enemy != null)
         {
-            enemy.ApplyDirectDotDamage(damage, source, type, showDotPopups, dotDealerWorldPositionFallback);
+            enemy.ApplyDirectDotDamage(
+                damage,
+                source,
+                type,
+                showDotPopups,
+                dotDealerWorldPositionFallback,
+                outgoingDpsSourceLabel,
+                outgoingAttributeToMinion);
             return;
         }
 

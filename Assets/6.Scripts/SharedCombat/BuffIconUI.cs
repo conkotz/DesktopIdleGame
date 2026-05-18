@@ -11,10 +11,10 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
     [SerializeField] private TMP_Text timerText;
 
     [Header("Active Overlay")]
-    [Tooltip("Optional overlay Image shown on top of the icon while the buff is active. " +
+    [Tooltip("Optional overlay Image shown on top of the icon while a finite-duration buff is active. " +
              "Set Image Type = Filled (e.g. Radial 360) on this Image and the script will drive " +
              "fillAmount = remaining / total so the wedge sweeps down as the buff expires. " +
-             "Hidden automatically when no duration is provided or the buff has ended.")]
+             "Hidden for indefinite buffs and when duration has ended.")]
     [SerializeField] private Image activeOverlay;
 
     [Header("Tooltip")]
@@ -120,17 +120,14 @@ public class BuffIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
         if (activeOverlay == null)
             return;
 
-        bool timedOverlay = _totalDurationSeconds > 0f && _remainingSeconds > 0f;
-        bool showOverlay = timedOverlay || _persistActiveOverlay;
+        bool showOverlay = !_persistActiveOverlay && _totalDurationSeconds > 0f && _remainingSeconds > 0f;
         activeOverlay.gameObject.SetActive(showOverlay);
 
         if (!showOverlay)
             return;
 
         activeOverlay.raycastTarget = false;
-        float fill = _persistActiveOverlay
-            ? 1f
-            : Mathf.Clamp01(_remainingSeconds / _totalDurationSeconds);
+        float fill = Mathf.Clamp01(_remainingSeconds / _totalDurationSeconds);
         if (activeOverlay.type == Image.Type.Filled)
             activeOverlay.fillAmount = fill;
     }

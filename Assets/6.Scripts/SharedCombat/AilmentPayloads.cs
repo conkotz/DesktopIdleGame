@@ -7,13 +7,23 @@ public struct BleedPayload
     public float duration;
     public int ticks;
     public Transform source;
+    public string outgoingDpsSourceLabel;
+    public bool outgoingAttributeToMinion;
 
-    public BleedPayload(float totalDamage, float duration, int ticks, Transform source)
+    public BleedPayload(
+        float totalDamage,
+        float duration,
+        int ticks,
+        Transform source,
+        string outgoingDpsSourceLabel = null,
+        bool outgoingAttributeToMinion = false)
     {
         this.totalDamage = totalDamage;
         this.duration = duration;
         this.ticks = ticks;
         this.source = source;
+        this.outgoingDpsSourceLabel = outgoingDpsSourceLabel;
+        this.outgoingAttributeToMinion = outgoingAttributeToMinion;
     }
 }
 
@@ -25,14 +35,25 @@ public struct PoisonPayload
     public int ticks;
     public int maxStacks;
     public Transform source;
+    public string outgoingDpsSourceLabel;
+    public bool outgoingAttributeToMinion;
 
-    public PoisonPayload(float totalDamage, float duration, int ticks, int maxStacks, Transform source)
+    public PoisonPayload(
+        float totalDamage,
+        float duration,
+        int ticks,
+        int maxStacks,
+        Transform source,
+        string outgoingDpsSourceLabel = null,
+        bool outgoingAttributeToMinion = false)
     {
         this.totalDamage = totalDamage;
         this.duration = duration;
         this.ticks = ticks;
         this.maxStacks = maxStacks;
         this.source = source;
+        this.outgoingDpsSourceLabel = outgoingDpsSourceLabel;
+        this.outgoingAttributeToMinion = outgoingAttributeToMinion;
     }
 }
 

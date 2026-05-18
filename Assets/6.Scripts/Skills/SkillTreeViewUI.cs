@@ -339,11 +339,8 @@ public class SkillTreeViewUI : MonoBehaviour
                 continue;
             }
 
-            if (abilityController.IsAbilityBuffOrLingeringActive(aid))
-            {
-                abilityController.TryGetAbilitySkillTreeActiveBuffTimer(aid, out float buffRem);
+            if (abilityController.TryGetAbilitySkillTreeActiveBuffTimer(aid, out float buffRem))
                 node.SetSkillTreeActiveBuffPresentation(true, buffRem);
-            }
         }
 
         foreach (var kv in choiceMetaByNodeId)
@@ -370,11 +367,8 @@ public class SkillTreeViewUI : MonoBehaviour
                 continue;
             }
 
-            if (abilityController.IsAbilityBuffOrLingeringActive(aid))
-            {
-                abilityController.TryGetAbilitySkillTreeActiveBuffTimer(aid, out float buffRem);
+            if (abilityController.TryGetAbilitySkillTreeActiveBuffTimer(aid, out float buffRem))
                 node.SetSkillTreeActiveBuffPresentation(true, buffRem);
-            }
         }
     }
 

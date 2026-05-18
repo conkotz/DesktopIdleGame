@@ -164,6 +164,27 @@ public static class AbilityTooltipDamagePreview
     private static bool IsPowerSlash(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.PowerSlashAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Combat abilities that show full hit totals in Effects (weapon × mult + AP + bonuses),
+    /// not separate "+ bonus" damage lines over a basic attack.
+    /// </summary>
+    private static bool UsesCombinedTotalHitDamageTooltip(AbilityDefinition def)
+    {
+        if (!def)
+            return false;
+        if (def.SpawnsMinionOnCast && def.minionSpawnDefinition)
+            return false;
+        if (IsRend(def) || IsEnvenom(def) || IsCleavingStrikes(def))
+            return false;
+        if (IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def))
+            return false;
+        if (IsCleavingChop(def) || IsSpectralAxe(def))
+            return false;
+
+        const float scalingEpsilon = 0.0001f;
+        return def.weaponDamageMultiplier > scalingEpsilon;
+    }
+
     private static bool IsRend(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.RendAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -181,6 +202,12 @@ public static class AbilityTooltipDamagePreview
 
     private static bool IsFinalSeverance(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.FinalSeveranceAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsExecutionersDescent(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.ExecutionersDescentAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsShadowStrike(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.ShadowStrikeAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
     private static bool IsSoulforgedWeapon(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, System.StringComparison.OrdinalIgnoreCase);
@@ -299,6 +326,24 @@ public static class AbilityTooltipDamagePreview
             return selected;
 
         return skillsManager.GetSkillChoiceSelection(SkillType.Melee, 45, -1);
+    }
+
+    private static int GetExecutionersDescentBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee, AbilityCombatPower.ExecutionersDescentEnhancementParentSpineNodeId, -1);
+    }
+
+    private static int GetShadowStrikeBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee, AbilityCombatPower.ShadowStrikeEnhancementParentSpineNodeId, -1);
     }
 
     private static int GetMeleeSkillRow5Choice(SkillsManager skillsManager)
@@ -444,16 +489,7 @@ public static class AbilityTooltipDamagePreview
         AbilityTooltipAdjustments.ApplySkillTreeChoices(def, skillsManager, ref weaponMult, ref cooldown);
 
         float allM = def.GetEffectiveAllDamageMultiplier();
-        const float scalingEpsilon = 0.0001f;
-        float wEffTip = weaponMult > scalingEpsilon ? weaponMult : def.GetWeaponHitScalingMultiplier();
-
-        float tipAp = stats ? Mathf.Max(0f, stats.AbilityPower) : 0f;
         float energy = Mathf.Max(0f, def.energyCost);
-        bool showApInEffects =
-            !IsCleavingStrikes(def) && !IsRend(def) && !IsEnvenom(def) && !def.SpawnsMinionOnCast;
-        int tooltipApBonus = showApInEffects && stats != null
-            ? ComputeTooltipApBonusDamage(def, stats, wEffTip, allM)
-            : 0;
 
         var body = new StringBuilder();
         body.AppendLine(O("Effects:"));
@@ -560,29 +596,18 @@ public static class AbilityTooltipDamagePreview
         else if (IsCrescentSlash(def))
         {
             int crescentSel = GetMeleeLv15BranchChoice(skillsManager, 2);
-
-            WeaponScaledHitScalerPreview scalers = ComputeWeaponScaledHitScalers(stats, def, wEffTip, allM);
-            float physScaler = scalers.Phys;
-            float magScaler = scalers.Mag;
-            float corrScaler = scalers.Corruption;
+            string dmgSuffix = DamageTimingSuffix();
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
 
             if (crescentSel == 0)
             {
-                float ph = Mathf.Max(0f, physScaler);
+                float ph = Mathf.Max(0f, physHit);
                 float move = ph * 0.5f;
-                physScaler = ph - move;
-                magScaler += move;
+                physHit = ph - move;
+                magHit += move;
             }
 
-            string dmgSuffix = DamageTimingSuffix();
-            bool splitApInEffects = showApInEffects && tipAp > 0f;
-            AppendWeaponScaledHitScalerEffects(
-                body,
-                O,
-                new WeaponScaledHitScalerPreview(physScaler, magScaler, corrScaler),
-                dmgSuffix,
-                splitApInEffects,
-                tooltipApBonus);
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
 
             if (crescentSel == 1)
                 body.AppendLine(O("Hits all enemies."));
@@ -592,11 +617,9 @@ public static class AbilityTooltipDamagePreview
         else if (IsFinalSeverance(def))
         {
             string dmgSuffix = DamageTimingSuffix();
-            bool splitApInEffects = showApInEffects && tipAp > 0f;
             int fsEnhance = GetMeleeLv45BranchChoice(skillsManager);
             ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
 
-            // Standalone ability hit — show total damage dealt, not "+ bonus" over a basic attack.
             if (fsEnhance == 1)
             {
                 float frac = AbilityCombatPower.FinalSeveranceThousandCutsHitFraction;
@@ -604,12 +627,7 @@ public static class AbilityTooltipDamagePreview
                 AppendPerHitDamageEffectLines(body, O, physHit * frac, magHit * frac, corrHit * frac, hits, dmgSuffix);
             }
             else
-            {
                 AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
-            }
-
-            if (splitApInEffects && tooltipApBonus > 0)
-                body.AppendLine(O($"+{tooltipApBonus} damage from Ability Power{dmgSuffix}"));
 
             body.AppendLine(O($"Channel: {AbilityCombatPower.FinalSeveranceChannelSeconds:0.#}s"));
             body.AppendLine(O(
@@ -622,12 +640,59 @@ public static class AbilityTooltipDamagePreview
                 body.AppendLine(O($"50% extra damage to low health enemies (+{bonus})"));
             }
         }
+        else if (IsShadowStrike(def))
+        {
+            string dmgSuffix = DamageTimingSuffix();
+            int enhance = GetShadowStrikeBranchChoice(skillsManager);
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
+
+            body.AppendLine(O(
+                $"Teleports to the closest enemy up to {AbilityCombatPower.ShadowStrikeForwardReach:0.#} units ahead in your facing arc."));
+            body.AppendLine(O("Does not consume your auto-attack swing timer."));
+
+            if (enhance == 0)
+                body.AppendLine(O(
+                    $"Marks the target — the next critical hit deals +{AbilityCombatPower.ShadowStrikeLethalCritBonusFraction * 100f:0.#}% critical damage, then the mark expires."));
+            else if (enhance == 1)
+                body.AppendLine(O(
+                    $"Marks the target for {AbilityCombatPower.ShadowStrikeExecutionMarkSeconds:0.#}s — if they die while marked, cooldown is reduced by {AbilityCombatPower.ShadowStrikeExecutionCooldownRefundSeconds:0.#}s."));
+        }
+        else if (IsExecutionersDescent(def))
+        {
+            string dmgSuffix = DamageTimingSuffix();
+            int enhance = GetExecutionersDescentBranchChoice(skillsManager);
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
+
+            ComputeAverageAbilityHitSplit(
+                def,
+                stats,
+                AbilityCombatPower.ExecutionersDescentShockwaveWeaponMultiplier,
+                allM,
+                out float shockPhys,
+                out float shockMag,
+                out float shockCorr);
+            int shockTotal = Mathf.RoundToInt(shockPhys + shockMag + shockCorr);
+            body.AppendLine(O(
+                $"Shockwave: {shockTotal} damage to enemies within {AbilityCombatPower.ExecutionersDescentShockwaveRadius:0.#} units of the target"));
+            body.AppendLine(O(
+                $"Descent: {AbilityCombatPower.ExecutionersDescentDescentSeconds:0.#}s — locks onto a target, then impacts at their position"));
+
+            if (enhance == 0)
+                body.AppendLine(O("If the target dies during descent or from the impact, cooldown is reduced by 50%."));
+            else if (enhance == 1)
+            {
+                body.AppendLine(O("Main hit ignores armour and magic resist."));
+                body.AppendLine(O(
+                    $"Shockwave victims lose 50% armour and magic resist for {AbilityCombatPower.ExecutionersDescentSunderingDebuffSeconds:0.#}s."));
+            }
+        }
         else if (IsWhirlwind(def))
         {
-            WeaponScaledHitScalerPreview scalers = ComputeWeaponScaledHitScalers(stats, def, wEffTip, allM);
             string dmgSuffix = DamageTimingSuffix();
-            bool splitApInEffects = showApInEffects && tipAp > 0f;
-            AppendWeaponScaledHitScalerEffects(body, O, scalers, dmgSuffix, splitApInEffects, tooltipApBonus);
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
 
             int wwEnhance = GetMeleeLv15BranchChoice(skillsManager, 0);
             if (wwEnhance == 0)
@@ -636,12 +701,11 @@ public static class AbilityTooltipDamagePreview
                     $"Hits each enemy a second time for {AbilityCombatPower.WhirlwindTwinCycloneSecondHitFraction * 100f:0.#}% of the first wave."));
             }
         }
-        else
+        else if (UsesCombinedTotalHitDamageTooltip(def))
         {
-            WeaponScaledHitScalerPreview scalers = ComputeWeaponScaledHitScalers(stats, def, wEffTip, allM);
             string dmgSuffix = DamageTimingSuffix();
-            bool splitApInEffects = showApInEffects && tipAp > 0f;
-            AppendWeaponScaledHitScalerEffects(body, O, scalers, dmgSuffix, splitApInEffects, tooltipApBonus);
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
         }
 
         if (IsCleavingStrikes(def))
