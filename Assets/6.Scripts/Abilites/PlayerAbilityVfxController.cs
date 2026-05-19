@@ -38,6 +38,10 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(90f)] private float whirlingBladeSpinDegrees = 720f;
     [SerializeField, Min(0.01f)] private float whirlingBladeLineWidth = 0.14f;
     [SerializeField] private Vector3 whirlingBladeCenterOffset = new Vector3(0f, 0.65f, 0f);
+    [Tooltip("Number of staggered slash trails on the same horizontal orbit.")]
+    [SerializeField, Range(2, 6)] private int whirlingBladeSlashCount = 4;
+    [Tooltip("How flat the orbit is in side view (0 = pure left-right line, ~0.12 = subtle arc).")]
+    [SerializeField, Range(0f, 0.25f)] private float whirlingBladeOrbitVerticalScale = 0.08f;
     [SerializeField, Min(0f)] private float whirlingBladeUpwardDrift = 0.14f;
     [SerializeField, Min(0f)] private float whirlingBladeVerticalWave = 0.06f;
 
@@ -78,6 +82,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.1f)] private float shadowStrikeBurstRadius = 1.1f;
     [SerializeField, Min(0.01f)] private float shadowStrikeBurstLineWidth = 0.16f;
     [SerializeField] private Vector3 shadowStrikeBurstOffset = new Vector3(0f, 0.5f, 0f);
+    [Tooltip("Purple smoke puff left at the player's pre-teleport position.")]
+    [SerializeField] private Color shadowStrikeDepartSmokeColor = new Color(0.42f, 0.12f, 0.62f, 0.72f);
+    [SerializeField] private Vector3 shadowStrikeDepartSmokeOffset = new Vector3(0f, 0.45f, 0f);
+    [SerializeField, Min(0.5f)] private float shadowStrikeDepartSmokeLingerSeconds = 2f;
+    [SerializeField, Min(1)] private int shadowStrikeDepartSmokeBurstCount = 52;
+    [SerializeField, Min(0f)] private float shadowStrikeDepartSmokeWispEmitSeconds = 0.35f;
 
     [Header("Final Severance (Melee Lv45) VFX")]
     [SerializeField] private Color finalSeveranceWindupStartColor = new Color(1f, 0.92f, 0.2f, 0.6f);
@@ -156,6 +166,14 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [Tooltip("Trail width at the head (narrows along the trail).")]
     [SerializeField, Min(0.004f)] private float avatarOfForestTrailWidth = 0.034f;
 
+    [Header("Energy Infusion / Arcane Battery (Melee Lv25) VFX")]
+    [SerializeField] private Vector3 energyInfusionGlowLocalOffset = new Vector3(0f, 0.12f, 0f);
+    [SerializeField] private Color energyInfusionGlowColor = new Color(0.32f, 0.62f, 1f, 0.92f);
+    [SerializeField, Min(0.02f)] private float energyInfusionGlowSphereRadius = 0.42f;
+    [SerializeField, Min(4f)] private float energyInfusionGlowEmissionRate = 38f;
+    [SerializeField, Min(0.001f)] private float energyInfusionParticleStartSizeMin = 0.032f;
+    [SerializeField, Min(0.001f)] private float energyInfusionParticleStartSizeMax = 0.058f;
+
     private GameObject _cleavingChopIndicatorRoot;
     private LineRenderer _cleavingChopIndicatorLine;
     private float _cleavingChopIndicatorAppliedRadius = float.NaN;
@@ -168,6 +186,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private GameObject _lumberFrenzyOrbitVfxRoot;
 
     private GameObject _avatarOfForestGlowRoot;
+    private GameObject _energyInfusionGlowRoot;
 
     private GameObject _executionersDescentAxeRoot;
     private SpriteRenderer _executionersDescentAxeRenderer;
@@ -229,6 +248,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         DestroyLumberFrenzyOrbitVfx();
         DestroySpectralAxeAreaIndicator();
         DestroyAvatarOfTheForestGlowVfx();
+        DestroyEnergyInfusionGlowVfx();
     }
 
     private static bool AreAbilityRangeIndicatorsEnabled() =>
@@ -271,20 +291,52 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (anchor == null)
             anchor = center;
 
-        GameObject orbitGO = new GameObject("WhirlwindTrailEmitter");
-        orbitGO.transform.position = center.position + whirlingBladeCenterOffset;
+        Vector2 startDir = ((Vector2)anchor.position - (Vector2)center.position).normalized;
+        if (startDir.sqrMagnitude <= 0.0001f)
+            startDir = Vector2.right * ((player != null && player.transform.localScale.x < 0f) ? -1f : 1f);
 
-        TrailRenderer trail = orbitGO.AddComponent<TrailRenderer>();
+        int slashCount = Mathf.Clamp(whirlingBladeSlashCount, 2, 6);
+        var emitters = new Transform[slashCount];
+        var trails = new TrailRenderer[slashCount];
+        var phases = new float[slashCount];
+
+        GameObject root = new GameObject("WhirlwindBlades");
+        root.transform.position = center.position + whirlingBladeCenterOffset;
+
+        for (int i = 0; i < slashCount; i++)
+        {
+            phases[i] = (i / (float)slashCount) * Mathf.PI * 2f;
+            float widthScale = 0.82f + 0.18f * (1f - Mathf.Abs((i / (float)slashCount) - 0.5f) * 2f);
+
+            GameObject orbitGO = new GameObject($"WhirlwindSlash_{i}");
+            orbitGO.transform.SetParent(root.transform, false);
+            emitters[i] = orbitGO.transform;
+            trails[i] = CreateWhirlwindBladeTrail(orbitGO, widthScale, 10 + i);
+        }
+
+        StartCoroutine(AnimateWhirlwindBlades(
+            root,
+            emitters,
+            trails,
+            center,
+            radius,
+            startDir.x,
+            phases));
+    }
+
+    private TrailRenderer CreateWhirlwindBladeTrail(GameObject owner, float widthScale, int sortingOrderOffsetFromPlayer)
+    {
+        TrailRenderer trail = owner.AddComponent<TrailRenderer>();
         trail.time = Mathf.Max(0.06f, whirlingBladeDuration * 0.75f);
         trail.minVertexDistance = 0.003f;
-        trail.widthMultiplier = Mathf.Max(0.01f, whirlingBladeLineWidth);
+        trail.widthMultiplier = Mathf.Max(0.01f, whirlingBladeLineWidth * widthScale);
         trail.numCornerVertices = 4;
         trail.numCapVertices = 4;
         trail.alignment = LineAlignment.TransformZ;
         trail.textureMode = LineTextureMode.Stretch;
         trail.material = new Material(Shader.Find("Sprites/Default"));
-        if (!TryApplyPlayerSpriteSortingToRenderer(trail, 12))
-            trail.sortingOrder = 20;
+        if (!TryApplyPlayerSpriteSortingToRenderer(trail, sortingOrderOffsetFromPlayer))
+            trail.sortingOrder = 18 + sortingOrderOffsetFromPlayer;
         trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         trail.receiveShadows = false;
         trail.emitting = true;
@@ -304,12 +356,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
                 new GradientAlphaKey(0f, 1f)
             });
         trail.colorGradient = gradient;
-
-        Vector2 startDir = ((Vector2)anchor.position - (Vector2)center.position).normalized;
-        if (startDir.sqrMagnitude <= 0.0001f)
-            startDir = Vector2.right * ((player != null && player.transform.localScale.x < 0f) ? -1f : 1f);
-
-        StartCoroutine(AnimateWhirlwindTrail(orbitGO.transform, trail, center, radius, startDir));
+        return trail;
     }
 
     public void SpawnCrescentSlash(float reach, float combatFacingSign)
@@ -568,30 +615,83 @@ public class PlayerAbilityVfxController : MonoBehaviour
             Destroy(owner);
     }
 
-    private IEnumerator AnimateWhirlwindTrail(Transform emitter, TrailRenderer trail, Transform center, float radius, Vector2 startDir)
+    private IEnumerator AnimateWhirlwindBlades(
+        GameObject root,
+        Transform[] emitters,
+        TrailRenderer[] trails,
+        Transform center,
+        float radius,
+        float facingSignX,
+        float[] phases)
     {
-        if (emitter == null || center == null)
+        if (root == null || emitters == null || center == null)
             yield break;
 
         float duration = Mathf.Max(0.06f, whirlingBladeDuration);
         float elapsed = 0f;
-        float width = Mathf.Max(0.01f, trail != null ? trail.widthMultiplier : whirlingBladeLineWidth);
+        float width = Mathf.Max(0.01f, whirlingBladeLineWidth);
         float visualRadius = Mathf.Max(0.05f, radius - (width * 0.5f));
-        float spinScale = Mathf.Clamp(Mathf.Abs(whirlingBladeSpinDegrees) / 720f, 0.25f, 2.5f);
-        while (elapsed < duration && emitter != null && center != null)
+        float spinRad = Mathf.Abs(whirlingBladeSpinDegrees) * Mathf.Deg2Rad;
+        float facingSign = Mathf.Sign(facingSignX == 0f ? 1f : facingSignX);
+        int count = emitters.Length;
+
+        while (elapsed < duration && center != null)
         {
             float t = elapsed / duration;
-            EvaluateWhirlwindStyleSweep(t, visualRadius, spinScale, startDir.x, out float x, out float y);
-            emitter.position = center.position + whirlingBladeCenterOffset + new Vector3(x, y, 0f);
+            Vector3 basePos = center.position + whirlingBladeCenterOffset;
+
+            for (int i = 0; i < count; i++)
+            {
+                Transform emitter = emitters[i];
+                if (emitter == null)
+                    continue;
+
+                EvaluateWhirlwindHorizontalSlashOrbit(
+                    t,
+                    visualRadius,
+                    phases[i],
+                    spinRad,
+                    facingSign,
+                    out float x,
+                    out float y);
+                emitter.position = basePos + new Vector3(x, y, 0f);
+            }
 
             elapsed += Time.deltaTime;
             yield return null;
         }
 
-        if (trail != null)
-            trail.emitting = false;
-        if (emitter != null)
-            Destroy(emitter.gameObject, Mathf.Max(0.04f, whirlingBladeDuration * 0.6f));
+        if (trails != null)
+        {
+            for (int i = 0; i < trails.Length; i++)
+            {
+                if (trails[i] != null)
+                    trails[i].emitting = false;
+            }
+        }
+
+        if (root != null)
+            Destroy(root, Mathf.Max(0.04f, whirlingBladeDuration * 0.6f));
+    }
+
+    /// <summary>
+    /// Flat horizontal circle around the player (side-view orbit on X). Multiple slash trails use different phase offsets on the same path.
+    /// </summary>
+    private void EvaluateWhirlwindHorizontalSlashOrbit(
+        float normalizedTime,
+        float visualRadius,
+        float phaseOffset,
+        float spinRadians,
+        float facingSign,
+        out float x,
+        out float y)
+    {
+        float angle = phaseOffset + spinRadians * normalizedTime;
+        x = Mathf.Cos(angle) * visualRadius * facingSign;
+        float verticalScale = Mathf.Max(0f, whirlingBladeOrbitVerticalScale);
+        y = Mathf.Sin(angle) * visualRadius * verticalScale;
+        y += Mathf.Sin(angle * 2f) * whirlingBladeVerticalWave * 0.5f;
+        y += normalizedTime * whirlingBladeUpwardDrift * 0.2f;
     }
 
     /// <summary>Same horizontal figure-eight as Whirlwind: t in [0,1], x/y offset from sweep center.</summary>
@@ -615,10 +715,149 @@ public class PlayerAbilityVfxController : MonoBehaviour
         x *= Mathf.Sign(startDirX == 0f ? 1f : startDirX);
     }
 
+    /// <summary>Smoke puff at the player's departure point; lingers after teleport.</summary>
+    public void SpawnShadowStrikeDepartSmoke(Vector3 departureWorldPosition)
+    {
+        StartCoroutine(CoShadowStrikeDepartSmoke(departureWorldPosition + shadowStrikeDepartSmokeOffset));
+    }
+
     public void SpawnShadowStrikeBurst(Vector3 targetWorldPosition)
     {
         Vector3 center = targetWorldPosition + shadowStrikeBurstOffset;
         StartCoroutine(CoShadowStrikeBurst(center));
+    }
+
+    private IEnumerator CoShadowStrikeDepartSmoke(Vector3 center)
+    {
+        GameObject root = new GameObject("ShadowStrikeDepartSmoke");
+        root.transform.position = center;
+
+        ParticleSystem puff = CreateShadowStrikeDepartSmokeParticleSystem(root.transform, wispy: false);
+        ParticleSystem wisps = CreateShadowStrikeDepartSmokeParticleSystem(root.transform, wispy: true);
+
+        int burst = Mathf.Max(1, shadowStrikeDepartSmokeBurstCount);
+        puff.Emit(burst);
+        wisps.Emit(Mathf.Max(8, burst / 3));
+
+        float linger = Mathf.Max(0.5f, shadowStrikeDepartSmokeLingerSeconds);
+        float wispEmitWindow = Mathf.Min(linger * 0.5f, shadowStrikeDepartSmokeWispEmitSeconds);
+        float elapsed = 0f;
+        while (elapsed < linger)
+        {
+            elapsed += Time.deltaTime;
+            if (elapsed < wispEmitWindow && wisps != null)
+            {
+                var emission = wisps.emission;
+                emission.rateOverTime = 18f;
+            }
+            else if (wisps != null)
+            {
+                var emission = wisps.emission;
+                emission.rateOverTime = 0f;
+            }
+
+            yield return null;
+        }
+
+        if (puff != null)
+            puff.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        if (wisps != null)
+            wisps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        Destroy(root);
+    }
+
+    private ParticleSystem CreateShadowStrikeDepartSmokeParticleSystem(Transform parent, bool wispy)
+    {
+        string childName = wispy ? "ShadowStrikeDepartWisps" : "ShadowStrikeDepartPuff";
+        GameObject emitterGO = new GameObject(childName);
+        emitterGO.transform.SetParent(parent, false);
+        emitterGO.transform.localPosition = Vector3.zero;
+        emitterGO.transform.localRotation = Quaternion.identity;
+
+        ParticleSystem ps = emitterGO.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        var main = ps.main;
+        main.playOnAwake = false;
+        main.loop = false;
+        main.duration = Mathf.Max(0.5f, shadowStrikeDepartSmokeLingerSeconds);
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.gravityModifier = wispy ? -0.08f : -0.12f;
+
+        if (wispy)
+        {
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.9f, 1.6f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.35f, 1.1f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.28f);
+        }
+        else
+        {
+            main.startLifetime = new ParticleSystem.MinMaxCurve(1.2f, 2.1f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.15f, 0.75f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.28f, 0.58f);
+        }
+
+        Color core = shadowStrikeDepartSmokeColor;
+        Color edge = Color.Lerp(core, new Color(0.62f, 0.28f, 0.88f, core.a), 0.35f);
+        main.startColor = new ParticleSystem.MinMaxGradient(core, edge);
+
+        var emission = ps.emission;
+        emission.rateOverTime = 0f;
+
+        var shape = ps.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = wispy ? 0.22f : 0.38f;
+
+        var velocity = ps.velocityOverLifetime;
+        velocity.enabled = true;
+        velocity.space = ParticleSystemSimulationSpace.Local;
+        velocity.y = new ParticleSystem.MinMaxCurve(wispy ? 0.55f : 0.35f, wispy ? 1.2f : 0.85f);
+        velocity.x = new ParticleSystem.MinMaxCurve(-0.35f, 0.35f);
+        velocity.z = new ParticleSystem.MinMaxCurve(-0.12f, 0.12f);
+
+        var sizeOverLifetime = ps.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        AnimationCurve sizeCurve = new AnimationCurve(
+            new Keyframe(0f, wispy ? 0.45f : 0.55f),
+            new Keyframe(0.2f, 1f),
+            new Keyframe(1f, wispy ? 1.35f : 1.55f));
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, sizeCurve);
+
+        var colorOverLifetime = ps.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new[]
+            {
+                new GradientColorKey(core, 0f),
+                new GradientColorKey(edge, 0.35f),
+                new GradientColorKey(Color.Lerp(core, Color.black, 0.25f), 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(Mathf.Clamp01(core.a * (wispy ? 0.85f : 1f)), 0f),
+                new GradientAlphaKey(Mathf.Clamp01(core.a * 0.55f), 0.45f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        colorOverLifetime.color = new ParticleSystem.MinMaxGradient(g);
+
+        var noise = ps.noise;
+        noise.enabled = true;
+        noise.strength = wispy ? 0.22f : 0.35f;
+        noise.frequency = 0.65f;
+        noise.scrollSpeed = 0.35f;
+        noise.damping = true;
+
+        ParticleSystemRenderer renderer = ps.GetComponent<ParticleSystemRenderer>();
+        renderer.renderMode = ParticleSystemRenderMode.Billboard;
+        if (!TryApplyPlayerSpriteSortingToRenderer(renderer, wispy ? 9 : 11))
+            renderer.sortingOrder = wispy ? 20 : 22;
+        ApplyRuntimeParticleMaterialIfNeeded(renderer);
+
+        ps.Play(true);
+        return ps;
     }
 
     private IEnumerator CoShadowStrikeBurst(Vector3 center)
@@ -1487,6 +1726,119 @@ public class PlayerAbilityVfxController : MonoBehaviour
         {
             Destroy(_avatarOfForestGlowRoot);
             _avatarOfForestGlowRoot = null;
+        }
+    }
+
+    public void SpawnEnergyInfusionGlowVfx()
+    {
+        DestroyEnergyInfusionGlowVfx();
+        Transform parent = player != null ? player.transform : transform;
+        if (parent == null)
+            return;
+
+        _energyInfusionGlowRoot = new GameObject("EnergyInfusionGlow");
+        _energyInfusionGlowRoot.transform.SetParent(parent, false);
+        _energyInfusionGlowRoot.transform.localPosition = energyInfusionGlowLocalOffset;
+        _energyInfusionGlowRoot.transform.localRotation = Quaternion.identity;
+        _energyInfusionGlowRoot.transform.localScale = Vector3.one;
+
+        GameObject emitterGO = new GameObject("ArcaneBatteryEmitter");
+        emitterGO.transform.SetParent(_energyInfusionGlowRoot.transform, false);
+        emitterGO.transform.localPosition = Vector3.zero;
+
+        ParticleSystem ps = emitterGO.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        var main = ps.main;
+        main.playOnAwake = false;
+        main.loop = true;
+        main.duration = 1f;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.55f, 0.82f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.02f, 0.12f);
+        float sizeMin = Mathf.Max(0.001f, Mathf.Min(energyInfusionParticleStartSizeMin, energyInfusionParticleStartSizeMax));
+        float sizeMax = Mathf.Max(sizeMin, Mathf.Max(energyInfusionParticleStartSizeMin, energyInfusionParticleStartSizeMax));
+        main.startSize = new ParticleSystem.MinMaxCurve(sizeMin, sizeMax);
+        main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+        main.startColor = energyInfusionGlowColor;
+        main.simulationSpace = ParticleSystemSimulationSpace.Local;
+        main.gravityModifier = 0f;
+        main.maxParticles = 360;
+        main.simulationSpeed = 1f;
+
+        var emission = ps.emission;
+        emission.rateOverTime = energyInfusionGlowEmissionRate;
+
+        var shape = ps.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = Mathf.Max(0.08f, energyInfusionGlowSphereRadius * 0.55f);
+        shape.radiusThickness = 1f;
+        shape.randomDirectionAmount = 0.35f;
+
+        var vel = ps.velocityOverLifetime;
+        vel.enabled = true;
+        vel.space = ParticleSystemSimulationSpace.Local;
+        AnimationCurve pulseOut = new AnimationCurve(
+            new Keyframe(0f, 0f, 0f, 0f),
+            new Keyframe(0.35f, 0.18f, 0.6f, 0.6f),
+            new Keyframe(1f, 0.08f, -0.2f, 0f));
+        AnimationCurve pulseIn = new AnimationCurve(
+            new Keyframe(0f, 0f, 0f, 0f),
+            new Keyframe(0.35f, -0.18f, -0.6f, -0.6f),
+            new Keyframe(1f, -0.08f, 0.2f, 0f));
+        vel.x = new ParticleSystem.MinMaxCurve(1f, pulseIn, pulseOut);
+        vel.y = new ParticleSystem.MinMaxCurve(1f, pulseIn, pulseOut);
+        vel.z = new ParticleSystem.MinMaxCurve(1f, pulseIn, pulseOut);
+
+        var sol = ps.sizeOverLifetime;
+        sol.enabled = true;
+        AnimationCurve breathe = new AnimationCurve(
+            new Keyframe(0f, 0.85f, 0f, 0f),
+            new Keyframe(0.5f, 1.05f, 0f, 0f),
+            new Keyframe(1f, 0.75f, 0f, 0f));
+        sol.size = new ParticleSystem.MinMaxCurve(1f, breathe);
+
+        var col = ps.colorOverLifetime;
+        col.enabled = true;
+        Color c = energyInfusionGlowColor;
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.Lerp(c, Color.white, 0.35f), 0f),
+                new GradientColorKey(c, 0.4f),
+                new GradientColorKey(Color.Lerp(c, new Color(0.12f, 0.28f, 0.95f), 0.35f), 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(Mathf.Clamp01(c.a), 0f),
+                new GradientAlphaKey(Mathf.Clamp01(c.a * 0.65f), 0.55f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        col.color = new ParticleSystem.MinMaxGradient(g);
+
+        ParticleSystemRenderer renderer = ps.GetComponent<ParticleSystemRenderer>();
+        renderer.renderMode = ParticleSystemRenderMode.Billboard;
+        if (!TryApplyPlayerSpriteSortingToRenderer(renderer, 12))
+            renderer.sortingOrder = 24;
+        ApplyRuntimeParticleMaterialIfNeeded(renderer);
+
+        ps.Play(true);
+    }
+
+    public void UpdateEnergyInfusionGlowVfx(bool buffActive)
+    {
+        if (!buffActive || _energyInfusionGlowRoot == null)
+            return;
+        _energyInfusionGlowRoot.transform.localPosition = energyInfusionGlowLocalOffset;
+    }
+
+    public void DestroyEnergyInfusionGlowVfx()
+    {
+        if (_energyInfusionGlowRoot != null)
+        {
+            Destroy(_energyInfusionGlowRoot);
+            _energyInfusionGlowRoot = null;
         }
     }
 

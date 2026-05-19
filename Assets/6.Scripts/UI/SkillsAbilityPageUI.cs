@@ -908,7 +908,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             int pick = skillsManager != null ? skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1) : -1;
 
             AbilityEntryUI row = CreateAbilityRow(rightAbilitiesListParent);
-            row.SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Left);
+            row.SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Right);
 
             if (pick < 0)
             {

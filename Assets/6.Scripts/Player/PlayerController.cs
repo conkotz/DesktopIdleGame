@@ -3503,6 +3503,14 @@ public class PlayerController : MonoBehaviour
         ApplyVisualFlip(flip);
     }
 
+    /// <summary>
+    /// After teleport/dash snaps, prevents <see cref="UpdateSpriteFlip"/> from treating the jump as movement and flipping the sprite away from the target.
+    /// </summary>
+    public void SyncSpriteFlipTrackingToPosition()
+    {
+        _lastX = transform.position.x;
+    }
+
     private void FaceGatheringPoint()
     {
         if (!targetNode) return;

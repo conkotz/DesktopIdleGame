@@ -1,5 +1,6 @@
 using TMPro;
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -15,6 +16,9 @@ public enum ActionBarSlotType
 
 public class ActionBarSlotUI : MonoBehaviour,
     IDropHandler,
+    IBeginDragHandler,
+    IDragHandler,
+    IEndDragHandler,
     IPointerClickHandler,
     IPointerEnterHandler,
     IPointerExitHandler
@@ -68,8 +72,16 @@ public class ActionBarSlotUI : MonoBehaviour,
     [SerializeField] private int assignedItemAmount;
     [SerializeField] private AbilityDatabase abilityDatabase;
 
+    [Header("Ability Drag")]
+    [SerializeField] private Vector2 abilityDragIconSize = new Vector2(48f, 48f);
+
     private Inventory inventory;
     private bool isPointerOver;
+    private Canvas _rootCanvas;
+    private CanvasGroup _dragCanvasGroup;
+    private GameObject _abilityDragIconGO;
+    private RectTransform _abilityDragIconRT;
+    private Image _abilityDragIconImage;
 
     public ActionBarSlotType SlotType => slotType;
     public int SlotIndex => slotIndex;
@@ -337,9 +349,17 @@ public class ActionBarSlotUI : MonoBehaviour,
         }
 
         if (cooldownText != null)
+        {
+            if (secondsRemaining > 0.05f)
+            {
                 cooldownText.text = secondsRemaining >= 1f
-        ? Mathf.CeilToInt(secondsRemaining).ToString()
-        : "";
+                    ? Mathf.CeilToInt(secondsRemaining).ToString()
+                    : secondsRemaining.ToString("0.#");
+                cooldownText.transform.SetAsLastSibling();
+            }
+            else
+                cooldownText.text = string.Empty;
+        }
     }
 
     public void SetPrimedVisual(bool primed)
@@ -405,6 +425,98 @@ public class ActionBarSlotUI : MonoBehaviour,
     {
         abilityWeaponCompatible = canUseWithCurrentWeapon;
         RefreshAutoBattleBorder();
+    }
+
+    public void OnBeginDrag(PointerEventData eventData)
+    {
+        if (assignedAction == null || !assignedAction.IsAbility)
+            return;
+
+        if (_rootCanvas == null)
+            _rootCanvas = GetComponentInParent<Canvas>();
+        if (_rootCanvas == null)
+            return;
+
+        _dragCanvasGroup = GetComponent<CanvasGroup>();
+        if (_dragCanvasGroup == null)
+            _dragCanvasGroup = gameObject.AddComponent<CanvasGroup>();
+
+        AbilityDragState.BeginDrag(
+            assignedAction.id,
+            assignedAction.icon,
+            assignedAction.displayName,
+            assignedAction.description,
+            this);
+
+        CreateAbilityDragIcon();
+        UpdateAbilityDragIconPosition(eventData);
+        _dragCanvasGroup.blocksRaycasts = false;
+    }
+
+    public void OnDrag(PointerEventData eventData)
+    {
+        UpdateAbilityDragIconPosition(eventData);
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        DestroyAbilityDragIcon();
+        if (_dragCanvasGroup != null)
+            _dragCanvasGroup.blocksRaycasts = true;
+
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        {
+            StartCoroutine(CoDeferredEndAbilityDragFromBar());
+            return;
+        }
+
+        AbilityDragState.EndDrag();
+    }
+
+    private IEnumerator CoDeferredEndAbilityDragFromBar()
+    {
+        yield return null;
+        AbilityDragState.EndDrag();
+    }
+
+    private void CreateAbilityDragIcon()
+    {
+        DestroyAbilityDragIcon();
+        if (_rootCanvas == null || assignedAction == null)
+            return;
+
+        _abilityDragIconGO = new GameObject("ActionBarAbilityDragIcon");
+        _abilityDragIconGO.transform.SetParent(_rootCanvas.transform, false);
+
+        _abilityDragIconRT = _abilityDragIconGO.AddComponent<RectTransform>();
+        _abilityDragIconImage = _abilityDragIconGO.AddComponent<Image>();
+        _abilityDragIconImage.raycastTarget = false;
+        _abilityDragIconImage.sprite = assignedAction.icon;
+        _abilityDragIconImage.preserveAspect = true;
+        _abilityDragIconRT.sizeDelta = abilityDragIconSize;
+    }
+
+    private void UpdateAbilityDragIconPosition(PointerEventData eventData)
+    {
+        if (_abilityDragIconRT == null || _rootCanvas == null)
+            return;
+
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            _rootCanvas.transform as RectTransform,
+            eventData.position,
+            eventData.pressEventCamera,
+            out Vector2 localPoint);
+
+        _abilityDragIconRT.anchoredPosition = localPoint;
+    }
+
+    private void DestroyAbilityDragIcon()
+    {
+        if (_abilityDragIconGO != null)
+            Destroy(_abilityDragIconGO);
+        _abilityDragIconGO = null;
+        _abilityDragIconRT = null;
+        _abilityDragIconImage = null;
     }
 
     public void OnDrop(PointerEventData eventData)
@@ -740,6 +852,13 @@ public class ActionBarSlotUI : MonoBehaviour,
             return;
         }
 
+        ActionBarSlotUI dragSourceSlot = AbilityDragState.SourceActionBarSlot;
+        if (dragSourceSlot != null && dragSourceSlot != this)
+        {
+            SwapAbilityAssignmentsWithSlot(dragSourceSlot, newAbilityAssignment);
+            return;
+        }
+
         ActionBarSlotUI existingAbilitySlot = FindSlotWithAbilityId(newAbilityAssignment.id);
         if (existingAbilitySlot == null || existingAbilitySlot == this)
         {
@@ -747,19 +866,42 @@ public class ActionBarSlotUI : MonoBehaviour,
             return;
         }
 
-        ActionBarAssignment targetOldAssignment = assignedAction;
-        bool canSwapBack = existingAbilitySlot.CanAccept(targetOldAssignment, ResolveItemDefForAssignment(targetOldAssignment));
-
-        if (canSwapBack)
-        {
-            existingAbilitySlot.Assign(targetOldAssignment);
-        }
+        ActionBarAssignment displaced = CopyAbilityAssignment(assignedAction);
+        if (displaced != null && displaced.IsAssigned && existingAbilitySlot.CanAccept(displaced))
+            existingAbilitySlot.Assign(displaced);
         else
-        {
             existingAbilitySlot.ClearAssignment();
-        }
 
         Assign(newAbilityAssignment);
+    }
+
+    private void SwapAbilityAssignmentsWithSlot(ActionBarSlotUI otherSlot, ActionBarAssignment incomingToThis)
+    {
+        if (otherSlot == null || otherSlot == this)
+        {
+            Assign(incomingToThis);
+            return;
+        }
+
+        ActionBarAssignment displaced = CopyAbilityAssignment(assignedAction);
+        if (displaced != null && displaced.IsAssigned && otherSlot.CanAccept(displaced))
+            otherSlot.Assign(displaced);
+        else
+            otherSlot.ClearAssignment();
+
+        Assign(incomingToThis);
+    }
+
+    private static ActionBarAssignment CopyAbilityAssignment(ActionBarAssignment source)
+    {
+        if (source == null || !source.IsAssigned || !source.IsAbility)
+            return null;
+
+        return ActionBarAssignment.CreateAbility(
+            source.id,
+            source.displayName,
+            source.icon,
+            source.description);
     }
 
     private ActionBarSlotUI FindSlotWithAbilityId(string abilityId)
@@ -767,7 +909,9 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (string.IsNullOrWhiteSpace(abilityId))
             return null;
 
-        ActionBarUI actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        ActionBarUI actionBar = actionBarOwner != null
+            ? actionBarOwner
+            : FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         if (actionBar == null)
             return null;
 

@@ -215,6 +215,26 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         return best;
     }
+
+    /// <summary>True when edge-to-edge gap to <paramref name="enemy"/> is within current weapon attack reach.</summary>
+    public bool IsEnemyWithinAttackRange(EnemyBaseController enemy)
+    {
+        if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy || stats == null)
+            return false;
+
+        float closeEnoughToSwing = Mathf.Max(0f, stats.Range) + rangePadding + stopSlack;
+        float myX = transform.position.x;
+        float myHalf = HalfWidthX(playerCol);
+
+        Collider2D enemyCol = enemy.GetComponent<Collider2D>();
+        if (!enemyCol)
+            enemyCol = enemy.GetComponentInChildren<Collider2D>();
+
+        float enemyHalf = HalfWidthX(enemyCol);
+        float gap = EdgeGapX(myX, enemy.transform.position.x, myHalf, enemyHalf);
+        return gap <= closeEnoughToSwing;
+    }
+
     public bool IdleCombatEnabled => idleCombatEnabled;
     public bool RetaliationEnabled => retaliationEnabled;
     public float NextAttackTime => _nextAttackTime;
@@ -848,7 +868,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                     action.id,
                     showLockedFeedback: false,
                     allowSoulforgedRecastWhileActive: false,
-                    requireCrescentSlashTargetInFacingLane: true))
+                    requireCrescentSlashTargetInFacingLane: true,
+                    requireWhirlwindTargetInRadius: true))
                 break;
         }
     }

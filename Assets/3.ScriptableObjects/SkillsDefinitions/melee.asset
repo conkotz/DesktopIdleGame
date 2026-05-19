@@ -652,6 +652,36 @@ MonoBehaviour:
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 25
+    title: Energy Infusion
+    description: Continuously drain Mana to replenish Energy at a 1:1 rate while
+      active. Stays enabled until toggled off or Mana reaches 0.
+    icon: {fileID: -7230066151719279964, guid: 89459f466326a834d9ad57aa671fac6f, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: b7c8d9e0f1a2436586970ab12cd34ef0, type: 2}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 28
+      title: Efficient Conversion
+      description: Reduce Mana drain by 20% while maintaining full Energy restoration
+        efficiency.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 28
+      title: Overcharged
+      description: While Arcane Battery is active, gain 25% ability power.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 26
     title: Venom Edge I
     description: +5% Melee Poison Chance

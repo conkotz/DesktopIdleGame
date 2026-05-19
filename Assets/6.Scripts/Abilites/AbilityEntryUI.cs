@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -30,7 +31,7 @@ public class AbilityEntryUI : MonoBehaviour,
     private SharedTooltipUI _tooltip;
     private Canvas _rootCanvas;
     private RectTransform _tooltipBoundsRect;
-    private FlipInsideBounds.PreferredSide _preferredSide = FlipInsideBounds.PreferredSide.Left;
+    private FlipInsideBounds.PreferredSide _preferredSide = FlipInsideBounds.PreferredSide.Right;
 
     private GameObject _dragIconGO;
     private RectTransform _dragIconRT;
@@ -210,10 +211,10 @@ public class AbilityEntryUI : MonoBehaviour,
 
         string body = BuildLeagueStyleTooltip(_def, SkillsManager.Instance, AbilityTooltipDamagePreview.FindLocalPlayerStats());
         RectTransform rowRect = transform as RectTransform;
-        // Dock against the full row (not the icon) so the tooltip sits beside the list row, not over the name.
         RectTransform measure = rowRect != null ? rowRect : (_tooltipBoundsRect ? _tooltipBoundsRect : transform.root as RectTransform);
+        // Full row width + PreferredSide.Right → tooltip opens in the empty space to the right of the list entry (not on the icon).
         _tooltip.ShowTextAt(
-            transform,
+            measure != null ? measure : transform,
             SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(_def),
             body,
             measureRect: measure,
@@ -267,6 +268,20 @@ public class AbilityEntryUI : MonoBehaviour,
     {
         DestroyDragIcon();
         if (canvasGroup) canvasGroup.blocksRaycasts = true;
+
+        // OnDrop on the action bar may run after EndDrag; defer clearing so swaps still see the drag payload.
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        {
+            StartCoroutine(CoDeferredEndAbilityDrag());
+            return;
+        }
+
+        AbilityDragState.EndDrag();
+    }
+
+    private static IEnumerator CoDeferredEndAbilityDrag()
+    {
+        yield return null;
         AbilityDragState.EndDrag();
     }
 
@@ -392,6 +407,13 @@ public class AbilityEntryUI : MonoBehaviour,
         {
             int selected = skillsManager.GetSkillChoiceSelection(
                 SkillType.Melee, AbilityCombatPower.ShadowStrikeEnhancementParentSpineNodeId, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, AbilityCombatPower.EnergyInfusionAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.EnergyInfusionEnhancementParentSpineNodeId, -1);
             return BuildActiveEnhancementLine(def, selected);
         }
 

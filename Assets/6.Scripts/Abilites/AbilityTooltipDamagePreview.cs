@@ -209,6 +209,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsShadowStrike(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.ShadowStrikeAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsEnergyInfusion(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.EnergyInfusionAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsSoulforgedWeapon(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -344,6 +347,15 @@ public static class AbilityTooltipDamagePreview
 
         return skillsManager.GetSkillChoiceSelection(
             SkillType.Melee, AbilityCombatPower.ShadowStrikeEnhancementParentSpineNodeId, -1);
+    }
+
+    private static int GetEnergyInfusionBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee, AbilityCombatPower.EnergyInfusionEnhancementParentSpineNodeId, -1);
     }
 
     private static int GetMeleeSkillRow5Choice(SkillsManager skillsManager)
@@ -511,6 +523,25 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(string.Empty);
             float fishingDur = GetTooltipBuffMinionDisplayDurationSeconds(def, FishingFrenzyBuffDurationSecondsTooltip, 0f);
             body.AppendLine(O($"Duration: {fishingDur:0.#}s"));
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            return body.ToString().TrimEnd();
+        }
+
+        if (IsEnergyInfusion(def))
+        {
+            int enhance = GetEnergyInfusionBranchChoice(skillsManager);
+            body.AppendLine(O(
+                $"While active, drains Mana to restore Energy at {AbilityCombatPower.EnergyInfusionBaseManaDrainPerSecond:0.#} per second (1:1)."));
+            body.AppendLine(O("Stays on until toggled off or Mana reaches 0."));
+            if (enhance == 0)
+                body.AppendLine(O(
+                    $"Efficient Conversion: Mana drain reduced by {(1f - AbilityCombatPower.EnergyInfusionEfficientConversionManaMultiplier) * 100f:0.#}% (full Energy gain)."));
+            else if (enhance == 1)
+                body.AppendLine(O(
+                    $"Overcharged: +{(AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerMultiplier - 1f) * 100f:0.#}% ability power while active."));
+            body.AppendLine(string.Empty);
+            body.AppendLine(O("Duration: Toggle"));
             body.AppendLine(string.Empty);
             body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
             return body.ToString().TrimEnd();

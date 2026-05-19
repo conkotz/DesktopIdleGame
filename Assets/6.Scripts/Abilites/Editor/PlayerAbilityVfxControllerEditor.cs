@@ -42,6 +42,8 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "whirlingBladeSpinDegrees",
         "whirlingBladeLineWidth",
         "whirlingBladeCenterOffset",
+        "whirlingBladeSlashCount",
+        "whirlingBladeOrbitVerticalScale",
         "whirlingBladeUpwardDrift",
         "whirlingBladeVerticalWave"
     };
@@ -60,7 +62,12 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "shadowStrikeBurstDuration",
         "shadowStrikeBurstRadius",
         "shadowStrikeBurstLineWidth",
-        "shadowStrikeBurstOffset"
+        "shadowStrikeBurstOffset",
+        "shadowStrikeDepartSmokeColor",
+        "shadowStrikeDepartSmokeOffset",
+        "shadowStrikeDepartSmokeLingerSeconds",
+        "shadowStrikeDepartSmokeBurstCount",
+        "shadowStrikeDepartSmokeWispEmitSeconds"
     };
 
     private static readonly string[] ExecutionersDescentVfxFieldNames =
@@ -122,6 +129,16 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "avatarOfForestParticleStartSizeMax",
         "avatarOfForestTrailLifetime",
         "avatarOfForestTrailWidth"
+    };
+
+    private static readonly string[] EnergyInfusionVfxFieldNames =
+    {
+        "energyInfusionGlowLocalOffset",
+        "energyInfusionGlowColor",
+        "energyInfusionGlowSphereRadius",
+        "energyInfusionGlowEmissionRate",
+        "energyInfusionParticleStartSizeMin",
+        "energyInfusionParticleStartSizeMax"
     };
 
     private static readonly string[] CleavingChopFieldNames =
@@ -223,6 +240,12 @@ public class PlayerAbilityVfxControllerEditor : Editor
             "ShadowStrikeVfx",
             "Shadow Strike (Melee Lv25) VFX",
             ShadowStrikeVfxFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(
+            serializedObject,
+            "EnergyInfusionVfx",
+            "Energy Infusion / Arcane Battery (Melee Lv25) VFX",
+            EnergyInfusionVfxFieldNames);
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(
             serializedObject,

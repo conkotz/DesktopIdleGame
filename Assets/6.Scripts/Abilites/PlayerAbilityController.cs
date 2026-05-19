@@ -62,6 +62,7 @@ public class PlayerAbilityController : MonoBehaviour
     private const string FinalSeveranceId = "final_severance";
     private const string ExecutionersDescentId = "executioners_descent";
     private const string ShadowStrikeId = "shadow_strike";
+    private const string EnergyInfusionId = "energy_infusion";
     private const string LumberFrenzyId = "lumber_frenzy";
     private const float LumberFrenzyDurationSeconds = 20f;
     private const float LumberFrenzyChoppingSpeedBonus = 0.20f;
@@ -186,6 +187,7 @@ public class PlayerAbilityController : MonoBehaviour
     private bool _spectralAxeMissedCast;
 
     private bool _avatarOfForestActive;
+    private bool _energyInfusionActive;
     private float _avatarOfForestEndsAt;
     private float _avatarOfForestDuration;
     private float _lastSyncedAvatarOfForestHudEnd = float.NaN;
@@ -327,11 +329,13 @@ public class PlayerAbilityController : MonoBehaviour
         SceneManager.sceneLoaded -= HandleSceneLoaded;
         abilityVfx?.DestroyLumberFrenzyOrbitVfx();
         abilityVfx?.DestroyAvatarOfTheForestGlowVfx();
+        abilityVfx?.DestroyEnergyInfusionGlowVfx();
     }
 
     private void Update()
     {
         TryAutoReleaseQueuedCrescentSlash();
+        TickEnergyInfusion(Time.deltaTime);
         CleanupCleavingStrikesIfExpired();
         SyncCleavingStrikesHudBuff();
         CleanupLumberFrenzyIfExpired();
@@ -349,6 +353,7 @@ public class PlayerAbilityController : MonoBehaviour
         SyncSpectralAxeHudBuff();
         CleanupSoulforgedWeaponIfUnavailable();
         SyncSoulforgedWeaponHudBuff();
+        abilityVfx?.UpdateEnergyInfusionGlowVfx(_energyInfusionActive);
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -451,6 +456,8 @@ public class PlayerAbilityController : MonoBehaviour
             return IsSpectralAxeActive;
         if (string.Equals(abilityId, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
             return _cleavingBuffActive;
+        if (string.Equals(abilityId, EnergyInfusionId, StringComparison.OrdinalIgnoreCase))
+            return _energyInfusionActive;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
             return _activeSoulforgedWeaponMinions.Count > 0;
 
@@ -493,6 +500,12 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase))
         {
             ForceEndAvatarOfTheForestEarly();
+            return;
+        }
+
+        if (string.Equals(abilityId, EnergyInfusionId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndEnergyInfusionEarly(applyCooldown: true);
             return;
         }
 
@@ -574,6 +587,157 @@ public class PlayerAbilityController : MonoBehaviour
         SyncCleavingChopHudBuff();
     }
 
+    private bool TryHandleToggleAbilityUse(AbilityDefinition def)
+    {
+        if (def == null || def.tag != AbilityTag.ToggleBuff)
+            return false;
+
+        if (!string.Equals(def.abilityId, EnergyInfusionId, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (_energyInfusionActive)
+        {
+            ForceEndEnergyInfusionEarly(applyCooldown: false);
+            return true;
+        }
+
+        if (IsOnCooldown(def.abilityId, out _))
+            return false;
+
+        ActivateEnergyInfusion(def);
+        StartCooldown(def);
+        if (globalCooldownSeconds > 0f)
+            _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+        LogAbilityUsed(def);
+        return true;
+    }
+
+    private void ActivateEnergyInfusion(AbilityDefinition def)
+    {
+        _energyInfusionActive = true;
+        ApplyEnergyInfusionCombatModifiers();
+        abilityVfx?.SpawnEnergyInfusionGlowVfx();
+        SyncEnergyInfusionHudBuff();
+        stats?.NotifyStatsChanged();
+    }
+
+    private void ForceEndEnergyInfusionEarly(bool applyCooldown)
+    {
+        if (!_energyInfusionActive)
+            return;
+
+        _energyInfusionActive = false;
+        if (stats != null)
+            stats.CombatAbilityPowerMultiplier = 1f;
+
+        abilityVfx?.DestroyEnergyInfusionGlowVfx();
+        SyncEnergyInfusionHudBuff();
+
+        if (applyCooldown)
+        {
+            AbilityDefinition def = GetAbilityDefinition(EnergyInfusionId);
+            if (def != null && def.cooldown > 0f)
+                StartCooldown(def);
+        }
+
+        stats?.NotifyStatsChanged();
+    }
+
+    private void TickEnergyInfusion(float deltaTime)
+    {
+        if (!_energyInfusionActive || player == null || stats == null)
+            return;
+
+        if (player.IsDead || stats.IsDead)
+        {
+            ForceEndEnergyInfusionEarly(applyCooldown: false);
+            return;
+        }
+
+        if (deltaTime <= 0f)
+            return;
+
+        if (stats.Mana <= 0.001f)
+        {
+            ForceEndEnergyInfusionEarly(applyCooldown: false);
+            if (player != null)
+                player.ShowPopup("Out of mana.");
+            return;
+        }
+
+        float energyGain = AbilityCombatPower.EnergyInfusionBaseManaDrainPerSecond * deltaTime;
+        if (energyGain <= 0f)
+            return;
+
+        bool efficient = GetEnergyInfusionSelectedChoice() == 0;
+        float manaCost = efficient
+            ? energyGain * AbilityCombatPower.EnergyInfusionEfficientConversionManaMultiplier
+            : energyGain;
+
+        if (stats.Mana < manaCost)
+        {
+            manaCost = stats.Mana;
+            energyGain = efficient
+                ? manaCost / AbilityCombatPower.EnergyInfusionEfficientConversionManaMultiplier
+                : manaCost;
+        }
+
+        if (manaCost <= 0f)
+        {
+            ForceEndEnergyInfusionEarly(applyCooldown: false);
+            return;
+        }
+
+        if (!player.SpendMana(manaCost))
+        {
+            ForceEndEnergyInfusionEarly(applyCooldown: false);
+            return;
+        }
+
+        if (energyGain > 0f)
+            player.AddEnergy(energyGain);
+    }
+
+    private void ApplyEnergyInfusionCombatModifiers()
+    {
+        if (stats == null)
+            return;
+
+        int choice = GetEnergyInfusionSelectedChoice();
+        stats.CombatAbilityPowerMultiplier = choice == 1
+            ? AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerMultiplier
+            : 1f;
+    }
+
+    private void SyncEnergyInfusionHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!_energyInfusionActive)
+        {
+            if (buffController.IsHudAbilityBuffActive(EnergyInfusionId))
+                buffController.ClearHudAbilityBuff(EnergyInfusionId);
+            return;
+        }
+
+        buffController.SetHudAbilityBuff(EnergyInfusionId, 1, 0f, 0f, persistActiveOverlay: true);
+    }
+
+    private int GetEnergyInfusionSelectedChoice()
+    {
+        if (skillsManager == null)
+            skillsManager = SkillsManager.Instance;
+        if (skillsManager == null)
+            return -1;
+
+        int selected = skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee,
+            AbilityCombatPower.EnergyInfusionEnhancementParentSpineNodeId,
+            -1);
+        return selected;
+    }
+
     private void ForceEndAvatarOfTheForestEarly()
     {
         if (!IsAvatarOfTheForestActive)
@@ -649,6 +813,52 @@ public class PlayerAbilityController : MonoBehaviour
         // Intentionally not written to the activity log (reduces noise / FPS cost).
     }
 
+    /// <summary>Queued or target-gated abilities spend energy when they actually fire, not when the bar button is pressed.</summary>
+    private static bool AbilityDefersEnergyUntilActivated(AbilityDefinition def)
+    {
+        if (def == null || string.IsNullOrWhiteSpace(def.abilityId))
+            return false;
+
+        if (def.minionSpawnDefinition)
+            return true;
+
+        string id = def.abilityId;
+        return string.Equals(id, PowerSlashId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, RendId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, EnvenomId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, CrescentSlashId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, WhirlwindId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, FinalSeveranceId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, ShadowStrikeId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, EnergyInfusionId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public bool IsEnergyInfusionActive => _energyInfusionActive;
+
+    private bool TrySpendAbilityEnergy(AbilityDefinition def, bool showInsufficientFeedback = true)
+    {
+        if (def == null || def.energyCost <= 0f || player == null || stats == null)
+            return true;
+
+        if (stats.Energy < def.energyCost)
+        {
+            if (showInsufficientFeedback)
+                player.ShowPopup("Not enough energy.");
+            return false;
+        }
+
+        return player.SpendEnergy(def.energyCost);
+    }
+
+    private void RefundAbilityEnergy(AbilityDefinition def)
+    {
+        if (def == null || def.energyCost <= 0f || player == null)
+            return;
+
+        player.AddEnergy(def.energyCost);
+    }
+
     /// <param name="allowSoulforgedRecastWhileActive">
     /// When false (e.g. idle auto-abilities), an active Soulforged Weapon minion does not receive recast/retarget — use fails so other bar abilities can run.
     /// Manual bar use keeps default true (player can recast while the summon is up).
@@ -657,7 +867,8 @@ public class PlayerAbilityController : MonoBehaviour
         string abilityId,
         bool showLockedFeedback = true,
         bool allowSoulforgedRecastWhileActive = true,
-        bool requireCrescentSlashTargetInFacingLane = false)
+        bool requireCrescentSlashTargetInFacingLane = false,
+        bool requireWhirlwindTargetInRadius = false)
     {
         AbilityDefinition def = GetAbilityDefinition(abilityId);
         if (!def)
@@ -684,6 +895,12 @@ public class PlayerAbilityController : MonoBehaviour
             player.ShowPopup("Ability cant be used with this weapon");
             return false;
         }
+
+        if (!showLockedFeedback && def.tag == AbilityTag.ToggleBuff)
+            return false;
+
+        if (TryHandleToggleAbilityUse(def))
+            return true;
 
         if (globalCooldownSeconds > 0f && Time.time < _globalCooldownEndsAt)
             return false;
@@ -748,25 +965,21 @@ public class PlayerAbilityController : MonoBehaviour
         bool isFinalSeverance = string.Equals(def.abilityId, FinalSeveranceId, StringComparison.OrdinalIgnoreCase);
         bool isExecutionersDescent = string.Equals(def.abilityId, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase);
         bool isShadowStrike = string.Equals(def.abilityId, ShadowStrikeId, StringComparison.OrdinalIgnoreCase);
-        if (!isCrescentSlash && !isFinalSeverance && !isExecutionersDescent && !isShadowStrike &&
-            def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
-        {
-            player.ShowPopup("Not enough energy.");
+        if (!AbilityDefersEnergyUntilActivated(def) && !TrySpendAbilityEnergy(def, showLockedFeedback))
             return false;
-        }
 
         // Summon abilities: no current-target requirement (unlike the generic instant-hit block below).
         if (def.minionSpawnDefinition)
         {
             if (!def.minionSpawnDefinition.runtimePrefab)
-            {
-                player.AddEnergy(def.energyCost);
                 return false;
-            }
+
+            if (!TrySpendAbilityEnergy(def, showLockedFeedback))
+                return false;
 
             if (!TrySpawnSoulforgedWeaponMinion(def))
             {
-                player.AddEnergy(def.energyCost);
+                RefundAbilityEnergy(def);
                 return false;
             }
 
@@ -894,9 +1107,18 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
         {
+            if (requireWhirlwindTargetInRadius && !CanHitAnyEnemyWithWhirlwind())
+                return false;
+
+            if (!TrySpendAbilityEnergy(def, showLockedFeedback))
+                return false;
+
             bool usedWhirl = TryUseWhirlwind(def);
             if (!usedWhirl)
+            {
+                RefundAbilityEnergy(def);
                 return false;
+            }
 
             StartCooldown(def);
             if (globalCooldownSeconds > 0f)
@@ -910,17 +1132,8 @@ public class PlayerAbilityController : MonoBehaviour
             if (_finalSeveranceChanneling || _finalSeveranceRoutine != null)
                 return false;
 
-            if (def.energyCost > 0f && stats.Energy < def.energyCost)
-            {
-                player.ShowPopup("Not enough energy.");
+            if (!TrySpendAbilityEnergy(def, showLockedFeedback))
                 return false;
-            }
-
-            if (def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
-            {
-                player.ShowPopup("Not enough energy.");
-                return false;
-            }
 
             _finalSeveranceRoutine = StartCoroutine(CoFinalSeverance(def));
             StartCooldown(def);
@@ -932,12 +1145,17 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (isShadowStrike)
         {
-            if (!TryExecuteShadowStrike(def))
+            if (!TryResolveShadowStrikeTarget(out EnemyBaseController shadowTarget))
             {
-                if (def.energyCost > 0f)
-                    player.AddEnergy(def.energyCost);
+                if (showLockedFeedback)
+                    player.ShowPopup("No enemy in range.");
                 return false;
             }
+
+            if (!TrySpendAbilityEnergy(def, showLockedFeedback))
+                return false;
+
+            ExecuteShadowStrike(def, shadowTarget);
 
             StartCooldown(def);
             if (globalCooldownSeconds > 0f)
@@ -958,17 +1176,8 @@ public class PlayerAbilityController : MonoBehaviour
                 return false;
             }
 
-            if (def.energyCost > 0f && stats.Energy < def.energyCost)
-            {
-                player.ShowPopup("Not enough energy.");
+            if (!TrySpendAbilityEnergy(def, showLockedFeedback))
                 return false;
-            }
-
-            if (def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
-            {
-                player.ShowPopup("Not enough energy.");
-                return false;
-            }
 
             _executionersDescentTargetDiedDuringDescent = false;
             _executionersDescentRoutine = StartCoroutine(CoExecutionersDescent(def, descentTarget));
@@ -1093,10 +1302,8 @@ public class PlayerAbilityController : MonoBehaviour
         int selectedChoice = GetWhirlwindSelectedChoice();
         // Twin Cyclone (Lv18 choice index 0): second wave only when that upgrade is committed — not by default.
         bool twinCyclone = selectedChoice == 0;
-        bool expansiveWhirl = selectedChoice == 1;
 
-        float baseWeaponRange = GetWhirlwindHitRadius();
-        float radius = baseWeaponRange + (expansiveWhirl ? WhirlwindRadiusBonus : 0f);
+        float radius = GetWhirlwindEffectiveRadius();
 
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
         List<EnemyBaseController> targets = new List<EnemyBaseController>(allEnemies.Count);
@@ -1323,21 +1530,31 @@ public class PlayerAbilityController : MonoBehaviour
             if (player.IsDead || stats.IsDead)
                 break;
 
-            EnemyBaseController engaged = combat != null ? combat.GetPrimaryEngagedEnemy() : null;
-            if (engaged != null && !engaged.IsDead)
-                trackedTarget = engaged;
+            bool trackedValid = trackedTarget != null && !trackedTarget.IsDead &&
+                                IsEnemyWithinExecutionersDescentCastRange(trackedTarget);
 
-            if (trackedTarget != null && !trackedTarget.IsDead)
-            {
-                impactPoint = trackedTarget.transform.position;
-                abilityVfx?.UpdateExecutionersDescent(trackedTarget, impactPoint, elapsed);
-            }
-            else
+            if (!trackedValid)
             {
                 if (targetWasAliveAtCast && trackedTarget != null && trackedTarget.IsDead)
                     _executionersDescentTargetDiedDuringDescent = true;
 
-                abilityVfx?.UpdateExecutionersDescent(null, impactPoint, elapsed);
+                EnemyBaseController replacement = ResolveExecutionersDescentTargetInCastRange();
+                if (replacement != null)
+                {
+                    trackedTarget = replacement;
+                    impactPoint = trackedTarget.transform.position;
+                    abilityVfx?.UpdateExecutionersDescent(trackedTarget, impactPoint, elapsed);
+                }
+                else
+                {
+                    ApplyExecutionersDescentEarlyDetonateNoTargetsInRange(def, impactPoint, trackedTarget);
+                    yield break;
+                }
+            }
+            else
+            {
+                impactPoint = trackedTarget.transform.position;
+                abilityVfx?.UpdateExecutionersDescent(trackedTarget, impactPoint, elapsed);
             }
 
             elapsed += Time.deltaTime;
@@ -1352,42 +1569,66 @@ public class PlayerAbilityController : MonoBehaviour
             if (player.IsDead || stats.IsDead)
                 yield break;
 
-            abilityVfx?.SpawnExecutionersDescentImpactShockwave(impactPoint);
-
-            int selected = GetExecutionersDescentSelectedChoice();
-            bool executionersClaim = selected == 0;
-            bool sunderingImpact = selected == 1;
-
-            bool primaryTargetAlive = trackedTarget != null && !trackedTarget.IsDead;
-            if (primaryTargetAlive)
-            {
-                float armorMult = sunderingImpact ? 0f : 1f;
-                float mrMult = sunderingImpact ? 0f : 1f;
-                ApplyExecutionersDescentHit(
-                    trackedTarget,
-                    def,
-                    AbilityCombatPower.ExecutionersDescentPrimaryWeaponMultiplier,
-                    armorMult,
-                    mrMult);
-
-                if (trackedTarget.IsDead)
-                    _executionersDescentTargetDiedDuringDescent = true;
-            }
-
-            ApplyExecutionersDescentShockwave(
-                def,
-                impactPoint,
-                trackedTarget,
-                sunderingImpact);
-
-            if (executionersClaim && _executionersDescentTargetDiedDuringDescent)
-                ReduceAbilityCooldown(def, AbilityCombatPower.ExecutionersDescentClaimCooldownReductionFraction);
+            ApplyExecutionersDescentImpact(def, impactPoint, trackedTarget);
         }
         finally
         {
             abilityVfx?.StopExecutionersDescentVfx();
             _executionersDescentRoutine = null;
         }
+    }
+
+    private void ApplyExecutionersDescentImpact(
+        AbilityDefinition def,
+        Vector3 impactPoint,
+        EnemyBaseController trackedTarget)
+    {
+        abilityVfx?.SpawnExecutionersDescentImpactShockwave(impactPoint);
+
+        int selected = GetExecutionersDescentSelectedChoice();
+        bool executionersClaim = selected == 0;
+        bool sunderingImpact = selected == 1;
+
+        bool primaryTargetAlive = trackedTarget != null && !trackedTarget.IsDead &&
+                                  IsEnemyWithinExecutionersDescentCastRange(trackedTarget);
+        if (primaryTargetAlive)
+        {
+            float armorMult = sunderingImpact ? 0f : 1f;
+            float mrMult = sunderingImpact ? 0f : 1f;
+            ApplyExecutionersDescentHit(
+                trackedTarget,
+                def,
+                AbilityCombatPower.ExecutionersDescentPrimaryWeaponMultiplier,
+                armorMult,
+                mrMult);
+
+            if (trackedTarget.IsDead)
+                _executionersDescentTargetDiedDuringDescent = true;
+        }
+
+        ApplyExecutionersDescentShockwave(def, impactPoint, trackedTarget, sunderingImpact);
+
+        if (executionersClaim && _executionersDescentTargetDiedDuringDescent)
+            ReduceAbilityCooldown(def, AbilityCombatPower.ExecutionersDescentClaimCooldownReductionFraction);
+    }
+
+    private void ApplyExecutionersDescentEarlyDetonateNoTargetsInRange(
+        AbilityDefinition def,
+        Vector3 impactPoint,
+        EnemyBaseController lastTrackedTarget)
+    {
+        if (player == null || stats == null || def == null)
+            return;
+
+        if (player.IsDead || stats.IsDead)
+            return;
+
+        GameLog.Add(
+            "Executioner's Descent: no enemies in range — detonated early.",
+            GameLog.CannotMessageColor);
+
+        ApplyExecutionersDescentImpact(def, impactPoint, lastTrackedTarget);
+        SetAbilityCooldownSeconds(def, AbilityCombatPower.ExecutionersDescentNoTargetInRangeCooldownSeconds);
     }
 
     private void ApplyExecutionersDescentHit(
@@ -1473,23 +1714,22 @@ public class PlayerAbilityController : MonoBehaviour
             AbilityCombatPower.ExecutionersDescentSunderingDebuffSeconds);
     }
 
-    private bool TryExecuteShadowStrike(AbilityDefinition def)
+    private void ExecuteShadowStrike(AbilityDefinition def, EnemyBaseController target)
     {
-        if (!def || player == null || stats == null)
-            return false;
+        if (!def || player == null || stats == null || target == null || target.IsDead)
+            return;
 
-        if (!TryResolveShadowStrikeTarget(out EnemyBaseController target))
-        {
-            player.ShowPopup("No enemy in range.");
-            return false;
-        }
-
+        Vector3 departPosition = player.transform.position;
         TeleportPlayerToMeleeStrikePosition(target);
-        player.FaceTargetX(target.transform.position.x);
         if (combat != null)
             combat.SetTarget(target);
 
+        float enemyX = target.transform.position.x;
+        player.FaceTargetX(enemyX);
+        player.SyncSpriteFlipTrackingToPosition();
+
         player.TriggerAttackAnim();
+        abilityVfx?.SpawnShadowStrikeDepartSmoke(departPosition);
         abilityVfx?.SpawnShadowStrikeBurst(target.transform.position);
 
         BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
@@ -1507,7 +1747,6 @@ public class PlayerAbilityController : MonoBehaviour
             player.ApplyLifeSteal(dealt.Total);
 
         ApplyShadowStrikeMark(target, def);
-        return true;
     }
 
     private bool TryResolveShadowStrikeTarget(out EnemyBaseController target)
@@ -1597,8 +1836,14 @@ public class PlayerAbilityController : MonoBehaviour
         float desiredCenterDist = myRange + myHalf + enemyHalf;
 
         float enemyX = target.transform.position.x;
-        float myX = player.transform.position.x;
-        float desiredX = myX < enemyX ? enemyX - desiredCenterDist : enemyX + desiredCenterDist;
+        float facing = player.FacingDirectionX;
+        if (Mathf.Approximately(facing, 0f))
+            facing = GetCombatFacingSign();
+        if (Mathf.Approximately(facing, 0f))
+            facing = 1f;
+
+        // Land on the forward-arc side (same side you dashed from), then face the target.
+        float desiredX = enemyX - facing * desiredCenterDist;
 
         Vector3 pos = player.transform.position;
         pos.x = desiredX;
@@ -1657,20 +1902,44 @@ public class PlayerAbilityController : MonoBehaviour
         _cooldownEndsById[def.abilityId] = Time.time + newRemaining;
     }
 
-    private EnemyBaseController ResolveExecutionersDescentTarget()
+    private EnemyBaseController ResolveExecutionersDescentTarget() =>
+        ResolveExecutionersDescentTargetInCastRange();
+
+    private bool IsEnemyWithinExecutionersDescentCastRange(EnemyBaseController enemy)
     {
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
 
-        EnemyBaseController engaged = combat != null ? combat.GetPrimaryEngagedEnemy() : null;
-        if (engaged != null)
+        return combat != null && combat.IsEnemyWithinAttackRange(enemy);
+    }
+
+    private EnemyBaseController ResolveExecutionersDescentTargetInCastRange()
+    {
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null)
+            return null;
+
+        EnemyBaseController engaged = combat.GetPrimaryEngagedEnemy();
+        if (engaged != null && IsEnemyWithinExecutionersDescentCastRange(engaged))
             return engaged;
 
-        engaged = combat != null ? combat.FindClosestEnemyInAttackRange() : null;
-        if (engaged != null)
-            return engaged;
+        return combat.FindClosestEnemyInAttackRange();
+    }
 
-        return FindClosestVisibleLivingEnemy();
+    private void SetAbilityCooldownSeconds(AbilityDefinition def, float cooldownSeconds)
+    {
+        if (!def || cooldownSeconds <= 0f)
+            return;
+
+        TeardownLingeringAbilityStateBeforeCooldownWrite(def);
+
+        float end = Time.time + cooldownSeconds;
+        _cooldownEndsById[def.abilityId] = end;
+
+        string rowKey = BuildAbilityRowKey(def);
+        if (rowKey != null)
+            _cooldownEndsByRowKey[rowKey] = end;
     }
 
     private EnemyBaseController FindClosestVisibleLivingEnemy()
@@ -1782,6 +2051,35 @@ public class PlayerAbilityController : MonoBehaviour
         float reach = GetWhirlwindBaseRange() + 6f;
         List<(EnemyBaseController enemy, float dist)> forwardHits = CollectCrescentSlashForwardHits(reach);
         return forwardHits.Count > 0;
+    }
+
+    /// <summary>True when at least one live enemy is within Whirlwind AoE (edge gap &lt;= hit radius).</summary>
+    private bool CanHitAnyEnemyWithWhirlwind()
+    {
+        if (stats == null)
+            return false;
+
+        float radius = GetWhirlwindEffectiveRadius();
+        float ownerX = transform.position.x;
+        float ownerHalf = GetOwnerHalfWidthX();
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (enemy == null || enemy.IsDead)
+                continue;
+            if (IsEnemyWithinWhirlRange(enemy, radius, ownerX, ownerHalf, out _))
+                return true;
+        }
+
+        return false;
+    }
+
+    private float GetWhirlwindEffectiveRadius()
+    {
+        int selectedChoice = GetWhirlwindSelectedChoice();
+        bool expansiveWhirl = selectedChoice == 1;
+        return GetWhirlwindHitRadius() + (expansiveWhirl ? WhirlwindRadiusBonus : 0f);
     }
 
     private List<(EnemyBaseController enemy, float dist)> CollectCrescentSlashForwardHits(float reach)
@@ -2209,6 +2507,10 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (_powerSlashQueued)
         {
+            AbilityDefinition def = GetAbilityDefinition(PowerSlashId);
+            if (def != null && !TrySpendAbilityEnergy(def, showInsufficientFeedback: false))
+                return false;
+
             _powerSlashQueued = false;
             _queuedConsumedThisHit = QueuedHitEffect.PowerSlash;
             _queuedConsumedFrame = Time.frameCount;
@@ -2228,7 +2530,6 @@ public class PlayerAbilityController : MonoBehaviour
             rolled.physical = Mathf.Max(0f, rolled.physical);
             rolled.magic = Mathf.Max(0f, rolled.magic);
 
-            AbilityDefinition def = GetAbilityDefinition(PowerSlashId);
             if (def)
                 StartCooldown(def);
             if (globalCooldownSeconds > 0f)
@@ -2240,17 +2541,29 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (_rendQueued)
         {
+            AbilityDefinition def = GetAbilityDefinition(RendId);
+            if (def != null && !TrySpendAbilityEnergy(def, showInsufficientFeedback: false))
+                return false;
+
             _rendQueued = false;
             _queuedConsumedThisHit = QueuedHitEffect.Rend;
             _queuedConsumedFrame = Time.frameCount;
+            if (def)
+                StartCooldown(def);
             return true;
         }
 
         if (_envenomQueued)
         {
+            AbilityDefinition def = GetAbilityDefinition(EnvenomId);
+            if (def != null && !TrySpendAbilityEnergy(def, showInsufficientFeedback: false))
+                return false;
+
             _envenomQueued = false;
             _queuedConsumedThisHit = QueuedHitEffect.Envenom;
             _queuedConsumedFrame = Time.frameCount;
+            if (def)
+                StartCooldown(def);
             return true;
         }
 
@@ -2308,7 +2621,7 @@ public class PlayerAbilityController : MonoBehaviour
             return false;
         if (requireTargetInFacingLane && !CanHitAnyEnemyWithCrescentSlash())
             return false;
-        if (def.energyCost > 0f && !player.SpendEnergy(def.energyCost))
+        if (!TrySpendAbilityEnergy(def, showInsufficientFeedback: false))
             return false;
 
         _crescentSlashQueued = false;

@@ -26,11 +26,21 @@ public static class AbilityCombatPower
     public const string FinalSeveranceAbilityId = "final_severance";
     public const string ExecutionersDescentAbilityId = "executioners_descent";
     public const string ShadowStrikeAbilityId = "shadow_strike";
+    public const string EnergyInfusionAbilityId = "energy_infusion";
 
     /// <summary>Enhancement choices for Shadow Strike (Melee Lv25 slot 0).</summary>
     public const string ShadowStrikeEnhancementParentSpineNodeId = "Lv25_0";
 
-    public const float ShadowStrikeForwardReach = 10f;
+    /// <summary>Enhancement choices for Energy Infusion / Arcane Battery (Melee Lv25 slot 1).</summary>
+    public const string EnergyInfusionEnhancementParentSpineNodeId = "Lv25_1";
+
+    /// <summary>Mana drained per second at 1:1 conversion (before Efficient Conversion).</summary>
+    public const float EnergyInfusionBaseManaDrainPerSecond = 18f;
+
+    public const float EnergyInfusionEfficientConversionManaMultiplier = 0.8f;
+    public const float EnergyInfusionOverchargedAbilityPowerMultiplier = 1.25f;
+
+    public const float ShadowStrikeForwardReach = 15f;
     public const float ShadowStrikeLethalCritBonusFraction = 0.8f;
     public const float ShadowStrikeExecutionMarkSeconds = 3f;
     public const float ShadowStrikeExecutionCooldownRefundSeconds = 3f;
@@ -49,6 +59,8 @@ public static class AbilityCombatPower
     public const float ExecutionersDescentSunderingArmorMrMultiplier = 0.5f;
     public const float ExecutionersDescentSunderingDebuffSeconds = 5f;
     public const float ExecutionersDescentAxeSpawnHeight = 6f;
+    /// <summary>When descent loses all in-range targets, ability ends early with shockwave only and this fixed CD.</summary>
+    public const float ExecutionersDescentNoTargetInRangeCooldownSeconds = 10f;
 
     public const float FinalSeveranceChannelSeconds = 2f;
     public const float FinalSeveranceHitRangeHalfWidth = 25f;

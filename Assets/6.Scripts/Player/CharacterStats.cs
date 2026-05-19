@@ -560,12 +560,29 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// Multiplier applied to ability damage after weapon/skill multipliers: <c>1 + AbilityPower × coefficient / <see cref="AbilityPowerDamagePercentDivisor"/></c>.
     /// With <see cref="AbilityDefinition.StandardAbilityPowerCoefficient"/>: each AP adds +0.5% damage; 100 AP adds +50% (×1.5 total).
     /// </summary>
+    /// <summary>Combat-only multiplier on effective ability power (e.g. Energy Infusion Overcharged).</summary>
+    public float CombatAbilityPowerMultiplier
+    {
+        get => _combatAbilityPowerMultiplier;
+        set
+        {
+            float v = Mathf.Max(0f, value);
+            if (Mathf.Approximately(_combatAbilityPowerMultiplier, v))
+                return;
+            _combatAbilityPowerMultiplier = v;
+            NotifyStatsChanged();
+        }
+    }
+
+    private float _combatAbilityPowerMultiplier = 1f;
+
     public float GetAbilityPowerDamageMultiplier(float abilityPowerCoefficient)
     {
         float c = Mathf.Max(0f, abilityPowerCoefficient);
         if (c <= 0f)
             return 1f;
-        return 1f + AbilityPower * c / AbilityPowerDamagePercentDivisor;
+        float ap = AbilityPower * _combatAbilityPowerMultiplier;
+        return 1f + ap * c / AbilityPowerDamagePercentDivisor;
     }
 
     // Ailments

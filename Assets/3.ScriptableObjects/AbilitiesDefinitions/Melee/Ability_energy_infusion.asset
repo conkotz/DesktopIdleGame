@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_shadow_strike
+  m_Name: Ability_energy_infusion
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: shadow_strike
-  displayName: Shadow Strike
-  tag: 1
+  abilityId: energy_infusion
+  displayName: Energy Infusion
+  tag: 4
   tooltipBuffMinionDurationSeconds: 0
-  presentation: {fileID: 11400000, guid: e5f60718293a4b5c6d7e8f9a0b1c2d3e, type: 2}
-  cooldown: 12
-  energyCost: 25
-  weaponDamageMultiplier: 0.5
+  presentation: {fileID: 11400000, guid: c8d9e0f1a2b3457686970ab12cd34ef1, type: 2}
+  cooldown: 8
+  energyCost: 0
+  weaponDamageMultiplier: 0
   allDamageMultiplier: 1
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0

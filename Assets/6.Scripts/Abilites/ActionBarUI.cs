@@ -594,8 +594,6 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         return s;
     }
 
-    private float _nextSlotRuntimeRefreshTime;
-
     private void Update()
     {
         // Allow action bar hotkeys even when windows are open.
@@ -604,10 +602,6 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                                HotkeySettingsRowUI.IsRebinding ||
                                IsTypingIntoInputField() ||
                                Time.frameCount == HotkeySettingsRowUI.SuppressActionBarHotkeyPollFrame;
-
-        bool refreshRuntime = Time.unscaledTime >= _nextSlotRuntimeRefreshTime;
-        if (refreshRuntime)
-            _nextSlotRuntimeRefreshTime = Time.unscaledTime + 0.1f;
 
         for (int i = 0; i < slotBindings.Count; i++)
         {
@@ -622,8 +616,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 binding.slot.Press();
             }
 
-            if (refreshRuntime)
-                RefreshSlotRuntime(binding.slot);
+            RefreshSlotRuntime(binding.slot);
         }
 
         TryApplyPendingSavedState();
@@ -1185,17 +1178,32 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
                 if (abilityController != null)
                 {
+                    bool abilityOnCooldown = abilityController.IsOnCooldown(action.id, out float abilitySecs);
                     float abilityNorm = abilityController.GetCooldownNormalized(action.id);
-                    abilityController.IsOnCooldown(action.id, out float abilitySecs);
-
                     float gcdNorm = abilityController.GetGlobalCooldownNormalized();
                     abilityController.IsOnGlobalCooldown(out float gcdSecs);
 
-                    // Show whichever lockout is currently stronger/longer.
-                    if (abilityNorm >= gcdNorm)
-                        slot.SetCooldownVisual(abilityNorm, abilitySecs);
+                    // Ability CD drives overlay + timer; GCD only when the ability itself is not on cooldown.
+                    // (Previously picking max(norm) replaced a 6s/12s timer with the short GCD overlay.)
+                    float overlayNorm;
+                    float timerSeconds;
+                    if (abilityOnCooldown)
+                    {
+                        overlayNorm = abilityNorm;
+                        timerSeconds = abilitySecs;
+                    }
+                    else if (gcdNorm > 0f)
+                    {
+                        overlayNorm = gcdNorm;
+                        timerSeconds = gcdSecs;
+                    }
                     else
-                        slot.SetCooldownVisual(gcdNorm, gcdSecs);
+                    {
+                        overlayNorm = 0f;
+                        timerSeconds = 0f;
+                    }
+
+                    slot.SetCooldownVisual(overlayNorm, timerSeconds);
 
                     slot.SetPrimedVisual(abilityController.IsAbilityPrimed(action.id));
                     bool weaponOk = abilityController.CanUseAbilityWithCurrentWeapon(action.id);
