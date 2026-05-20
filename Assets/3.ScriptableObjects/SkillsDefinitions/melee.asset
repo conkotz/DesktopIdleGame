@@ -240,14 +240,11 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 10
-    title: Bloodletting
-    description: 'Your melee attacks are more likely to open deep wounds, and you
-      press the advantage against weakened foes.
+    title: Ailment Attunement
+    description: '+5% Bleed, Poison, Burn Ailment Chance
 
-      +10% Melee Bleed Chance
-
-      +10%
-      Melee Damage to Bleeding Targets'
+      +5% Melee Damage to enemies
+      affected by an ailment'
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -263,32 +260,25 @@ MonoBehaviour:
     choices:
     - requiredLevel: 13
       title: Venom Edge
-      description: 'Replaces Bloodletting bonuses with:
+      description: '+10% Melee Poison Chance
 
-        +10% Melee Poison
-        Chance
-
-        +10% Melee Damage to Poisoned Targets
-
-
-        You abandon
-        blood loss in favor of toxic strikes, turning lingering wounds into deadly
-        venom.'
+        +2 Poison Max Stacks'
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 13
-      title: Hemorrhage
-      description: 'Adds to Bloodletting:
+      title: Bloodletting
+      description: '+10% Melee Bleed Multiplier
 
-        +5% Melee Bleed Multiplier
+        +1s Melee Bleed Duration'
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 13
+      title: Infernal Catalyst
+      description: '+10% Burn Damage Multiplier
 
-        +1s
-        Melee Bleed Duration
-
-
-        Your strikes deepen open wounds, causing victims
-        to bleed harder and longer.'
+        -0.5s Burn Tick Rate'
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

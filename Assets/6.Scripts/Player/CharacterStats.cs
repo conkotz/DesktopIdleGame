@@ -301,7 +301,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float damageVsBleeding;
         public float damageVsPoisoned;
         public float damageVsShocked;
+        public float damageVsAilmented;
         public float damageVsLowHp;
+        public float meleeBurnChance;
+        public int poisonMaxStacksBonus;
+        public float burnTickIntervalReduction;
         /// <summary>Minion damage % (fraction). Phase 1: wired from skill options later; gear uses <see cref="BonusStats"/>.</summary>
         public float minionDamagePercent;
         public float minionAttackSpeedPercent;
@@ -679,7 +683,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float PoisonChance => Mathf.Clamp01(basePoisonChance + GetEquippedPoisonChance() + GetActiveMeleeMinorBonuses().meleePoisonChance);
     public float PoisonMultiplier => Mathf.Max(0f, basePoisonMultiplier + GetEquippedPoisonMultiplier() + GetActiveMeleeMinorBonuses().meleeAilmentDamage);
     public float PoisonDuration => Mathf.Max(0.1f, basePoisonDuration + GetEquippedPoisonDurationBonus() + GetActiveMeleeMinorBonuses().meleePoisonDuration);
-    public int PoisonMaxStacks => Mathf.Max(1, basePoisonMaxStacks + GetEquippedPoisonMaxStacksBonus());
+    public int PoisonMaxStacks => Mathf.Max(
+        1,
+        basePoisonMaxStacks + GetEquippedPoisonMaxStacksBonus() + GetActiveMeleeMinorBonuses().poisonMaxStacksBonus);
 
     public float BleedChancePercent => BleedChance * 100f;
     public float PoisonChancePercent => PoisonChance * 100f;
@@ -741,6 +747,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float MeleeShockChance => Mathf.Clamp01(GetActiveMeleeMinorBonuses().meleeShockChance);
     public float MeleeDamageVsBleeding => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsBleeding);
     public float MeleeDamageVsPoisoned => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsPoisoned);
+    public float MeleeDamageVsAilmented => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsAilmented);
+    public float BurnTickIntervalSeconds =>
+        Mathf.Max(
+            0.05f,
+            AilmentController.DefaultBurnTickIntervalSeconds -
+            GetActiveMeleeMinorBonuses().burnTickIntervalReduction);
     public float MeleeDamageVsShocked => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsShocked);
     public float MeleeDamageVsLowHp => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsLowHp);
     public float MeleeLowHpThreshold01 => LowHealthThreshold01;
@@ -1042,8 +1054,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float mult = Mathf.Max(0f, BurnExplosionMultiplier);
         float tick = Mathf.Max(1f, Mathf.Ceil(hit * burnFraction * mult));
         float applyPerSec = p * AttacksPerSecond;
-        float dotDps = tick * Mathf.Clamp(applyPerSec * 0.35f, 0f, 1f);
-        float combustDps = (tick * 10f) * (applyPerSec / Mathf.Max(1, combustStacks));
+        float tickInterval = Mathf.Max(0.05f, BurnTickIntervalSeconds);
+        float dotDps = tick * Mathf.Clamp(applyPerSec * 0.35f, 0f, 1f) / tickInterval;
+        const int combustTickWorth = 10;
+        float combustDps = (tick * combustTickWorth) * (applyPerSec / Mathf.Max(1, combustStacks));
         return dotDps + combustDps;
     }
 
@@ -1603,7 +1617,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (_ownerEnemy != null)
             return MagicAilmentApplyChance;
 
-        return Mathf.Clamp01(baseBurnChance + GetEquippedBurnChanceBonus() + GetMainHandWeaponBurnAdditive());
+        return Mathf.Clamp01(
+            baseBurnChance + GetEquippedBurnChanceBonus() + GetMainHandWeaponBurnAdditive() +
+            GetActiveMeleeMinorBonuses().meleeBurnChance);
     }
 
     private bool GetCurrentAttackAppliesAsFireForBurn()
@@ -1836,7 +1852,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public int BleedMaxStacks => 1;
 
     /// <summary>Burn DoT duration shown in UI (matches default burn tick window on targets).</summary>
-    public float BurnDotDurationSeconds => 15f;
+    public float BurnDotDurationSeconds => 5f * BurnTickIntervalSeconds;
 
     /// <summary>Chance to apply shock for stats panel: lightning magic hits use magic ailment chance; otherwise melee shock.</summary>
     public float ShockApplyChancePercentForStatsPanel
@@ -2289,7 +2305,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             ApplyMeleeMinorOption(unlock.meleeMinorStatOption, ref total);
         }
 
-        ApplyLevel10BloodlettingBranch(meleeLevel, ref total);
+        ApplyLevel10AilmentAttunementBranch(meleeLevel, ref total);
 
         int pastCap = Mathf.Max(0, meleeLevel - SkillPostCapThresholdLevel);
         if (pastCap > 0)
@@ -2386,36 +2402,35 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
-    private void ApplyLevel10BloodlettingBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
+    private void ApplyLevel10AilmentAttunementBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
     {
         if (meleeLevel < 10)
             return;
 
-        // Lv10 Melee major passive branch:
-        // default Bloodletting unless a conversion choice is selected.
+        // Lv10 Melee major passive: Ailment Attunement base + one Lv13 enhancement pick.
+        total.meleeBleedChance += 0.05f;
+        total.meleePoisonChance += 0.05f;
+        total.meleeBurnChance += 0.05f;
+        total.damageVsAilmented += 0.05f;
+
         int selected = skillsManager != null
             ? skillsManager.GetSkillChoiceSelection(SkillType.Melee, 10, -1)
             : -1;
 
-        if (selected == 0)
+        switch (selected)
         {
-            // Venom Edge: replace Bloodletting bleed package.
-            total.meleePoisonChance += 0.10f;
-            total.damageVsPoisoned += 0.10f;
-        }
-        else if (selected == 1)
-        {
-            // Hemorrhage: keep Bloodletting base and add deeper-bleed bonuses.
-            total.meleeBleedChance += 0.10f;
-            total.damageVsBleeding += 0.10f;
-            total.meleeBleedDamage += 0.05f;
-            total.meleeBleedDuration += 1f;
-        }
-        else
-        {
-            // Bloodletting default.
-            total.meleeBleedChance += 0.10f;
-            total.damageVsBleeding += 0.10f;
+            case 0:
+                total.meleePoisonChance += 0.10f;
+                total.poisonMaxStacksBonus += 2;
+                break;
+            case 1:
+                total.meleeBleedDamage += 0.10f;
+                total.meleeBleedDuration += 1f;
+                break;
+            case 2:
+                total.meleeAilmentDamage += 0.10f;
+                total.burnTickIntervalReduction += 0.5f;
+                break;
         }
     }
 

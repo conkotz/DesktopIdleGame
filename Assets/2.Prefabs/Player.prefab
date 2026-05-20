@@ -6364,7 +6364,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
-  burnDurationTicks: 15
+  burnDurationTicks: 5
   burnDamageFractionOfHitPerTick: 0.15
   burnCombustTicksWorth: 10
 --- !u!114 &-183894165544996772

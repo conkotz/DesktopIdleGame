@@ -1902,8 +1902,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (stats == null || target == null)
             return false;
 
-        GetConditionalMeleeDamageMultiplierBreakdown(target, out _, out float bleedBonus, out float poisonBonus, out float shockBonus);
-        return bleedBonus > 0f || poisonBonus > 0f || shockBonus > 0f;
+        GetConditionalMeleeDamageMultiplierBreakdown(
+            target,
+            out _,
+            out float bleedBonus,
+            out float poisonBonus,
+            out float shockBonus,
+            out float ailmentedBonus);
+        return bleedBonus > 0f || poisonBonus > 0f || shockBonus > 0f || ailmentedBonus > 0f;
     }
 
     private float GetConditionalMeleeDamageMultiplier(EnemyBaseController target)
@@ -1913,8 +1919,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             out float lowHpBonus,
             out float bleedBonus,
             out float poisonBonus,
-            out float shockBonus);
-        return 1f + Mathf.Max(0f, lowHpBonus + bleedBonus + poisonBonus + shockBonus);
+            out float shockBonus,
+            out float ailmentedBonus);
+        return 1f + Mathf.Max(0f, lowHpBonus + bleedBonus + poisonBonus + shockBonus + ailmentedBonus);
     }
 
     private void GetConditionalMeleeDamageMultiplierBreakdown(
@@ -1922,12 +1929,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         out float lowHpBonus,
         out float bleedBonus,
         out float poisonBonus,
-        out float shockBonus)
+        out float shockBonus,
+        out float ailmentedBonus)
     {
         lowHpBonus = 0f;
         bleedBonus = 0f;
         poisonBonus = 0f;
         shockBonus = 0f;
+        ailmentedBonus = 0f;
 
         if (stats == null || target == null)
             return;
@@ -1941,6 +1950,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 poisonBonus = Mathf.Max(0f, stats.MeleeDamageVsPoisoned);
             if (ailments.HasShock)
                 shockBonus = Mathf.Max(0f, stats.MeleeDamageVsShocked);
+            if (ailments.HasBleed || ailments.HasPoison || ailments.HasBurn)
+                ailmentedBonus = Mathf.Max(0f, stats.MeleeDamageVsAilmented);
         }
 
         CharacterStats targetStats = target.GetComponent<CharacterStats>();
@@ -2028,7 +2039,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 dealt.Total,
                 stats.BurnApplyChance,
                 stats.BurnExplosionMultiplier,
-                transform);
+                transform,
+                burnTickIntervalSeconds: stats.BurnTickIntervalSeconds);
             return;
         }
 
@@ -2251,9 +2263,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             out float lowHpBonus,
             out float bleedBonus,
             out float poisonBonus,
-            out float shockBonus);
+            out float shockBonus,
+            out float ailmentedBonus);
 
-        float totalMult = 1f + lowHpBonus + bleedBonus + poisonBonus + shockBonus;
+        float totalMult = 1f + lowHpBonus + bleedBonus + poisonBonus + shockBonus + ailmentedBonus;
         if (totalMult <= 1e-6f)
             totalMult = 1f;
 

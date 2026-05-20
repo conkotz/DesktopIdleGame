@@ -11,13 +11,15 @@ public class AilmentController : MonoBehaviour
     [SerializeField] private bool debugLogs = false;
 
     [Header("Burn")]
-    [Tooltip("Seconds of burn DoT before expiring if not refreshed by another fire hit.")]
-    [SerializeField, Min(1)] private int burnDurationTicks = 15;
+    public const float DefaultBurnTickIntervalSeconds = 3f;
+
+    [Tooltip("Number of burn damage ticks before expiring if not refreshed (× tick interval ≈ wall-clock duration).")]
+    [SerializeField, Min(1)] private int burnDurationTicks = 5;
     [Tooltip("Each burn tick deals this fraction of the applying fire hit (min 1/tick), before Burn Damage mult.")]
     [SerializeField, Range(0.01f, 1f)]
     [FormerlySerializedAs("burnTotalDamageFractionOfHit")]
     private float burnDamageFractionOfHitPerTick = 0.15f;
-    [Tooltip("Combust burst = current tick damage × this count (10s worth at 1 tick/s).")]
+    [Tooltip("Combust burst = current tick damage × this count (10× strongest tick; unchanged by tick interval).")]
     [SerializeField, Min(1)] private int burnCombustTicksWorth = 10;
     private const int BurnMaxStacks = 3;
 
@@ -43,6 +45,7 @@ public class AilmentController : MonoBehaviour
     private int burnStackCount;
     private int burnDamagePerTick;
     private int burnTicksRemaining;
+    private float _burnTickWaitSeconds = DefaultBurnTickIntervalSeconds;
     private Transform burnDotSource;
     private string _bleedDotDealerLabel = "";
     private string _exclusiveBleedDotDealerLabel = "";
@@ -649,7 +652,8 @@ public class AilmentController : MonoBehaviour
         float burnDamageMultiplier,
         Transform source,
         string outgoingDpsSourceLabel = null,
-        bool outgoingAttributeToMinion = false)
+        bool outgoingAttributeToMinion = false,
+        float burnTickIntervalSeconds = DefaultBurnTickIntervalSeconds)
     {
         if (IsDead()) return false;
         if (fireDamageDealt <= 0f) return false;
@@ -686,6 +690,7 @@ public class AilmentController : MonoBehaviour
         burnDamagePerTick = Mathf.Max(burnDamagePerTick, candidateTick);
         burnStackCount = Mathf.Min(BurnMaxStacks, burnStackCount + 1);
         burnTicksRemaining = Mathf.Max(1, burnDurationTicks);
+        _burnTickWaitSeconds = Mathf.Max(0.05f, burnTickIntervalSeconds);
 
         if (burnTickRoutine == null)
             burnTickRoutine = StartCoroutine(BurnTickRoutine());
@@ -758,11 +763,9 @@ public class AilmentController : MonoBehaviour
 
     private IEnumerator BurnTickRoutine()
     {
-        var wait = new WaitForSeconds(1f);
-
         while (!IsDead())
         {
-            yield return wait;
+            yield return new WaitForSeconds(Mathf.Max(0.05f, _burnTickWaitSeconds));
 
             if (burnStackCount <= 0 || burnTicksRemaining <= 0)
             {

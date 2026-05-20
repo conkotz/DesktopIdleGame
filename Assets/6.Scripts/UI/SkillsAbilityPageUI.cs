@@ -1735,30 +1735,30 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             }
         }
 
-        // Major passive conversion summary (currently Melee Lv10 Bloodletting branch).
+        // Major passive conversion summary (Melee Lv10 Ailment Attunement branch).
         if (skill.skillType == SkillType.Melee && currentLevel >= 10)
         {
-            sb.AppendLine("<b>• Bloodletting (Major Passive) (Lv10)</b>");
+            sb.AppendLine("<b>• Ailment Attunement (Major Passive) (Lv10)</b>");
+            sb.AppendLine("     +5% Bleed, Poison, Burn Ailment Chance");
+            sb.AppendLine("     +5% Melee Damage to enemies affected by an ailment");
             int selected = skillManager != null ? skillManager.GetSkillChoiceSelection(SkillType.Melee, 10, -1) : -1;
             if (selected == 0)
             {
                 sb.AppendLine("   - Venom Edge (Enhancement)");
                 sb.AppendLine("     +10% Melee Poison Chance");
-                sb.AppendLine("     +10% Melee Damage to Poisoned Targets");
+                sb.AppendLine("     +2 Poison Max Stacks");
             }
             else if (selected == 1)
             {
-                sb.AppendLine("   - Hemorrhage (Enhancement — adds to Bloodletting)");
-                sb.AppendLine("     +10% Melee Bleed Chance");
-                sb.AppendLine("     +10% Melee Damage to Bleeding Targets");
-                sb.AppendLine("     +5% Melee Bleed Multiplier");
+                sb.AppendLine("   - Bloodletting (Enhancement)");
+                sb.AppendLine("     +10% Melee Bleed Multiplier");
                 sb.AppendLine("     +1s Melee Bleed Duration");
             }
-            else
+            else if (selected == 2)
             {
-                sb.AppendLine("   - Base Effect");
-                sb.AppendLine("     +10% Melee Bleed Chance");
-                sb.AppendLine("     +10% Melee Damage to Bleeding Targets");
+                sb.AppendLine("   - Infernal Catalyst (Enhancement)");
+                sb.AppendLine("     +10% Burn Damage Multiplier");
+                sb.AppendLine("     -0.5s Burn Tick Rate");
             }
         }
 

@@ -2930,7 +2930,8 @@ public class PlayerAbilityController : MonoBehaviour
             fireDamageDealt,
             1f,
             stats.BurnExplosionMultiplier,
-            transform);
+            transform,
+            burnTickIntervalSeconds: stats.BurnTickIntervalSeconds);
     }
 
     private IEnumerator ApplyTwinCycloneSecondWave(List<(EnemyBaseController target, SplitDamage secondHitBase, float secondLightningMagNonCrit)> targets, float radius)
@@ -3129,6 +3130,8 @@ public class PlayerAbilityController : MonoBehaviour
             if (ailments.HasBleed) bonus += stats.MeleeDamageVsBleeding;
             if (ailments.HasPoison) bonus += stats.MeleeDamageVsPoisoned;
             if (ailments.HasShock) bonus += stats.MeleeDamageVsShocked;
+            if (ailments.HasBleed || ailments.HasPoison || ailments.HasBurn)
+                bonus += stats.MeleeDamageVsAilmented;
         }
 
         CharacterStats targetStats = target.GetComponent<CharacterStats>();
@@ -5613,7 +5616,8 @@ public class PlayerAbilityController : MonoBehaviour
             stats.BurnApplyChance,
             stats.BurnExplosionMultiplier,
             transform,
-            GetAbilityOutgoingDamageSourceLabel(FlameChargeId));
+            GetAbilityOutgoingDamageSourceLabel(FlameChargeId),
+            burnTickIntervalSeconds: stats.BurnTickIntervalSeconds);
     }
 
     private int GetFlameChargeSelectedChoice()

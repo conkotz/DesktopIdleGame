@@ -1536,6 +1536,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
             string trimmed = line.Substring(lead);
             if (trimmed.StartsWith("+", StringComparison.Ordinal) ||
+                IsMajorPassiveNegativeStatLine(trimmed) ||
                 trimmed.StartsWith("Flow lasts", StringComparison.OrdinalIgnoreCase))
             {
                 if (lead > 0)
@@ -1549,6 +1550,19 @@ public class SkillTreeViewUI : MonoBehaviour
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>Accent negative stat lines like "-0.5s Burn Tick Rate" (same colour as "+" bonuses).</summary>
+    private static bool IsMajorPassiveNegativeStatLine(string trimmed)
+    {
+        if (string.IsNullOrEmpty(trimmed) || trimmed[0] != '-')
+            return false;
+
+        if (trimmed.Length < 2)
+            return false;
+
+        char c = trimmed[1];
+        return char.IsDigit(c) || c == '.';
     }
 
     private static string StripWoodcuttingLumberFrenzyTreeDescriptionDuration(string desc)

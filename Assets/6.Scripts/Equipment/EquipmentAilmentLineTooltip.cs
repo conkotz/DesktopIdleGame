@@ -74,7 +74,7 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
         if (!tooltipPanel || !s)
             return;
 
-        if (!TryBuildTooltip(out string title, out string body) || string.IsNullOrWhiteSpace(body))
+        if (!TryBuildTooltip(s, out string title, out string body) || string.IsNullOrWhiteSpace(body))
             return;
 
         var flipper = tooltipPanel.GetComponent<FlipInsideBounds>();
@@ -102,7 +102,7 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
         tooltipPanel?.Hide();
     }
 
-    private bool TryBuildTooltip(out string title, out string body)
+    private bool TryBuildTooltip(CharacterStats stats, out string title, out string body)
     {
         title = "";
         body = "";
@@ -169,11 +169,16 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
 
             case LineId.BurnOverview:
                 title = GameTooltipTexts.BurnTitle;
-                body =
-                    "Damage over time from fire hits. Each burn tick uses 15% of your strongest recent fire hit's damage (before rounding to whole damage), " +
-                    "then your burn damage multiplier is applied (burn damage bonuses on your stats increase that strength).\n\n" +
-                    "Fire hits can add burn stacks. At max stacks, burn detonates as a heavy magic hit dealing 10 seconds worth of the strongest tick, then clears. " +
-                    "Landing fire damage again refreshes how long burn keeps ticking.";
+                {
+                    float tickSeconds = stats != null
+                        ? stats.BurnTickIntervalSeconds
+                        : AilmentController.DefaultBurnTickIntervalSeconds;
+                    string tickIntervalLabel = FormatBurnTickIntervalSeconds(tickSeconds);
+                    body =
+                        $"Fire Damage over time. Burn damage ticks occur every {tickIntervalLabel} seconds. Each tick uses 15% of your strongest recent fire hit's damage.\n\n" +
+                        "Fire hits can add burn stacks. At max stacks, burn detonates as a heavy magic hit dealing 10× the strongest tick damage, then clears. " +
+                        "Landing fire damage again refreshes how long burn keeps ticking.";
+                }
                 return true;
 
             case LineId.BurnChance:
@@ -247,5 +252,13 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
             default:
                 return false;
         }
+    }
+
+    private static string FormatBurnTickIntervalSeconds(float seconds)
+    {
+        float rounded = Mathf.Round(seconds * 10f) / 10f;
+        if (Mathf.Approximately(rounded, Mathf.Round(rounded)))
+            return Mathf.RoundToInt(rounded).ToString();
+        return rounded.ToString("0.#");
     }
 }
