@@ -206,11 +206,17 @@ public static class AbilityTooltipDamagePreview
     private static bool IsExecutionersDescent(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.ExecutionersDescentAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsBladestorm(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.BladestormAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsShadowStrike(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.ShadowStrikeAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
     private static bool IsEnergyInfusion(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.EnergyInfusionAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsBattleTrance(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.BattleTranceAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
     private static bool IsFlameCharge(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.FlameChargeAbilityId, System.StringComparison.OrdinalIgnoreCase);
@@ -343,6 +349,15 @@ public static class AbilityTooltipDamagePreview
             SkillType.Melee, AbilityCombatPower.ExecutionersDescentEnhancementParentSpineNodeId, -1);
     }
 
+    private static int GetBladestormBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee, AbilityCombatPower.BladestormEnhancementParentSpineNodeId, -1);
+    }
+
     private static int GetShadowStrikeBranchChoice(SkillsManager skillsManager)
     {
         if (skillsManager == null)
@@ -359,6 +374,15 @@ public static class AbilityTooltipDamagePreview
 
         return skillsManager.GetSkillChoiceSelection(
             SkillType.Melee, AbilityCombatPower.EnergyInfusionEnhancementParentSpineNodeId, -1);
+    }
+
+    private static int GetBattleTranceBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee, AbilityCombatPower.BattleTranceEnhancementParentSpineNodeId, -1);
     }
 
     private static int GetFlameChargeBranchChoice(SkillsManager skillsManager)
@@ -667,6 +691,17 @@ public static class AbilityTooltipDamagePreview
             return body.ToString().TrimEnd();
         }
 
+        if (IsBattleTrance(def))
+        {
+            AppendBattleTranceTooltipEffects(body, O, skillsManager);
+            float dur = GetTooltipBuffMinionDisplayDurationSeconds(def, AbilityCombatPower.BattleTranceBaseDurationSeconds, 0f);
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"Duration: {dur:0.#}s"));
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            return body.ToString().TrimEnd();
+        }
+
         if (IsAvatarOfTheForest(def))
         {
             AppendAvatarOfTheForestTooltipEffects(body, O, skillsManager);
@@ -754,9 +789,9 @@ public static class AbilityTooltipDamagePreview
             if (crescentSel == 0)
             {
                 float ph = Mathf.Max(0f, physHit);
-                float move = ph * 0.5f;
-                physHit = ph - move;
-                magHit += move;
+                physHit = 0f;
+                magHit += ph;
+                body.AppendLine(O("Converts 100% Physical to Fire and applies Burn."));
             }
 
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
@@ -809,6 +844,37 @@ public static class AbilityTooltipDamagePreview
             else if (enhance == 1)
                 body.AppendLine(O(
                     $"Marks the target for {AbilityCombatPower.ShadowStrikeExecutionMarkSeconds:0.#}s — if they die while marked, cooldown is reduced by {AbilityCombatPower.ShadowStrikeExecutionCooldownRefundSeconds:0.#}s."));
+        }
+        else if (IsBladestorm(def))
+        {
+            string dmgSuffix = DamageTimingSuffix();
+            int enhance = GetBladestormBranchChoice(skillsManager);
+            float channelSeconds = AbilityCombatPower.BladestormChannelSeconds;
+            float strikeRate = stats != null
+                ? Mathf.Max(0.05f, stats.AttacksPerSecond * AbilityCombatPower.BladestormAttackSpeedMultiplier)
+                : AbilityCombatPower.BladestormAttackSpeedMultiplier;
+            int strikeCount = Mathf.Max(1, Mathf.RoundToInt(strikeRate * channelSeconds));
+            float normalMult = AbilityCombatPower.BladestormNormalHitWeaponMultiplier;
+            float finaleMult = AbilityCombatPower.BladestormFinaleHitWeaponMultiplier;
+
+            ComputeAverageAbilityHitSplit(def, stats, normalMult, allM, out float normPhys, out float normMag, out float normCorr);
+            int perStrikeTotal = Mathf.RoundToInt(normPhys + normMag + normCorr);
+            body.AppendLine(O(
+                $"Relentless Execution: {channelSeconds:0.#}s channel — {strikeCount} strikes at {AbilityCombatPower.BladestormAttackSpeedMultiplier * 100f:0.#}% attack speed"));
+            body.AppendLine(O($"Each strike: {perStrikeTotal} total damage{dmgSuffix} (50% weapon damage)"));
+            body.AppendLine(O("Locks onto a single enemy in front of you for the duration."));
+            body.AppendLine(O(
+                $"Take {(1f - AbilityCombatPower.BladestormChannelDamageTakenMultiplier) * 100f:0.#}% reduced damage during Relentless Execution."));
+
+            if (enhance == 0)
+            {
+                ComputeAverageAbilityHitSplit(def, stats, finaleMult, allM, out float finPhys, out float finMag, out float finCorr);
+                int finaleTotal = Mathf.RoundToInt(finPhys + finMag + finCorr);
+                body.AppendLine(O(
+                    $"Finale: final strike {finaleTotal} total damage{dmgSuffix} (150% weapon damage)"));
+            }
+            else if (enhance == 1)
+                body.AppendLine(O("If the target dies during the combo, remaining strikes hit the nearest enemy."));
         }
         else if (IsExecutionersDescent(def))
         {
@@ -966,7 +1032,30 @@ public static class AbilityTooltipDamagePreview
         string scaling = BuildAbilityTooltipScalingSection(def, stats, skillsManager, orangeMarkup: false);
         string effects = BuildCompactEffectsBody(def, skillsManager, includeDuration, displayStacks: 0);
         body = CombineShortDescriptionScalingAndEffects(def, scaling, effects);
+
+        string costLine = BuildAbilityEnergyCooldownLine(def, skillsManager, orangeMarkup: false);
+        if (!string.IsNullOrWhiteSpace(costLine))
+            body = string.IsNullOrWhiteSpace(body) ? costLine : $"{body}\n\n{costLine}";
+
         return !string.IsNullOrWhiteSpace(body);
+    }
+
+    /// <summary>Footer line shared by ability list and action-bar tooltips.</summary>
+    public static string BuildAbilityEnergyCooldownLine(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        bool orangeMarkup)
+    {
+        if (!def)
+            return string.Empty;
+
+        string O(string line) => orangeMarkup ? $"<color=#FFB347>{line}</color>" : line;
+
+        float weaponMult = def.weaponDamageMultiplier;
+        float cooldown = Mathf.Max(0f, def.cooldown);
+        AbilityTooltipAdjustments.ApplySkillTreeChoices(def, skillsManager, ref weaponMult, ref cooldown);
+        float energy = Mathf.Max(0f, def.energyCost);
+        return O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown");
     }
 
     private static bool ShouldShowDurationInCompactUi(AbilityDefinition def)
@@ -1070,6 +1159,47 @@ public static class AbilityTooltipDamagePreview
         GatheringPassiveTooltipText.AppendFishingFrenzyEffectLines(scratch, skillsManager);
         foreach (string line in scratch.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
             body.AppendLine(O(line));
+    }
+
+    private static void AppendBattleTranceTooltipEffects(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager)
+    {
+        int enhance = GetBattleTranceBranchChoice(skillsManager);
+
+        float atkSpeed = AbilityCombatPower.BattleTranceBaseAttackSpeedBonus;
+        float cdr = AbilityCombatPower.BattleTranceBaseAbilityCooldownReduction;
+        float damageTaken = AbilityCombatPower.BattleTranceBaseDamageTakenMultiplier;
+        float moveSpeed = 0f;
+
+        if (enhance == 0)
+        {
+            atkSpeed += AbilityCombatPower.BattleTranceUnrelentingAttackSpeedBonus;
+            cdr += AbilityCombatPower.BattleTranceUnrelentingCooldownReductionBonus;
+            damageTaken = AbilityCombatPower.BattleTranceUnrelentingDamageTakenMultiplier;
+        }
+        else if (enhance == 1)
+        {
+            damageTaken = AbilityCombatPower.BattleTranceControlledDamageTakenMultiplier;
+            moveSpeed = AbilityCombatPower.BattleTranceControlledMoveSpeedBonus;
+        }
+
+        body.AppendLine(O("While active:"));
+        body.AppendLine(O($"+{cdr * 100f:0.#}% ability cooldown reduction"));
+        body.AppendLine(O($"+{atkSpeed * 100f:0.#}% attack speed"));
+        body.AppendLine(O(
+            $"+{(AbilityCombatPower.BattleTranceBaseMeleeDamageMultiplier - 1f) * 100f:0.#}% melee damage"));
+        body.AppendLine(O($"+{(damageTaken - 1f) * 100f:0.#}% damage taken"));
+
+        if (moveSpeed > 0.001f)
+            body.AppendLine(O($"+{moveSpeed * 100f:0.#}% movement speed"));
+
+        if (enhance == 2)
+        {
+            body.AppendLine(O(
+                $"Killing an enemy extends duration by {AbilityCombatPower.BattleTranceEndlessAssaultKillExtensionSeconds:0.#}s (up to +{AbilityCombatPower.BattleTranceEndlessAssaultMaxBonusDurationSeconds:0.#}s)."));
+        }
     }
 
     private static void AppendCleavingChopTooltipEffects(

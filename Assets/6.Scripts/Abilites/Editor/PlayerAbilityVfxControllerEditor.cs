@@ -81,16 +81,34 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "executionersDescentAxeWorldScale",
         "executionersDescentMarkWorldScale",
         "executionersDescentMarkOffset",
-        "executionersDescentHangHeightAboveTarget",
-        "executionersDescentSpawnHeightAboveHang",
+        "executionersDescentSpawnHeightAboveTarget",
         "executionersDescentSpawnHoldSeconds",
-        "executionersDescentDropDurationSeconds",
+        "executionersDescentMinimumHeightAboveTarget",
         "executionersDescentSortingLayer",
         "executionersDescentSortingOrder",
         "executionersDescentShockwaveDuration",
         "executionersDescentShockwaveMaxRadius",
         "executionersDescentShockwaveLineWidth",
         "executionersDescentShockwaveGroundOffset"
+    };
+
+    private static readonly string[] BladestormVfxFieldNames =
+    {
+        "bladestormStabColor",
+        "bladestormStabFadeSeconds",
+        "bladestormStabExtendSeconds",
+        "bladestormStabLineWidth",
+        "bladestormStabReach",
+        "bladestormStabEmitIntervalSeconds",
+        "bladestormStabVerticalHalfDegrees",
+        "bladestormStabOriginOffset",
+        "bladestormFinaleSlashColor",
+        "bladestormFinaleSlashDropHeight",
+        "bladestormFinaleSlashDepth",
+        "bladestormFinaleSlashLineWidth",
+        "bladestormFinaleSlashExtendSeconds",
+        "bladestormFinaleSlashFadeSeconds",
+        "bladestormFinaleSlashTargetYOffset"
     };
 
     private static readonly string[] FinalSeveranceVfxFieldNames =
@@ -113,9 +131,9 @@ public class PlayerAbilityVfxControllerEditor : Editor
     {
         "lumberFrenzyOrbitVfxPrefab",
         "lumberFrenzyOrbitVfxLocalOffset",
-        "lumberFrenzyOrbitRadius",
-        "lumberFrenzySweepPeriodSeconds",
-        "lumberFrenzyOrbitVfxColor"
+        "gatheringFrenzyBehindDistance",
+        "lumberFrenzyOrbitVfxColor",
+        "fishingFrenzyOrbitVfxColor"
     };
 
     private static readonly string[] AvatarOfTheForestVfxFieldNames =
@@ -139,6 +157,16 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "energyInfusionGlowEmissionRate",
         "energyInfusionParticleStartSizeMin",
         "energyInfusionParticleStartSizeMax"
+    };
+
+    private static readonly string[] BattleTranceVfxFieldNames =
+    {
+        "battleTranceGlowLocalOffset",
+        "battleTranceGlowColor",
+        "battleTranceGlowSphereRadius",
+        "battleTranceGlowEmissionRate",
+        "battleTranceParticleStartSizeMin",
+        "battleTranceParticleStartSizeMax"
     };
 
     private static readonly string[] FlameChargeVfxFieldNames =
@@ -267,9 +295,21 @@ public class PlayerAbilityVfxControllerEditor : Editor
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(
             serializedObject,
+            "BattleTranceVfx",
+            "Battle Trance (Melee Lv35) VFX",
+            BattleTranceVfxFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(
+            serializedObject,
             "FlameChargeVfx",
             "Flame Charge (Melee Lv25) VFX",
             FlameChargeVfxFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(
+            serializedObject,
+            "BladestormVfx",
+            "Bladestorm (Melee Lv45) VFX",
+            BladestormVfxFieldNames);
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(
             serializedObject,
@@ -283,7 +323,7 @@ public class PlayerAbilityVfxControllerEditor : Editor
             "Final Severance (Melee Lv45) VFX",
             FinalSeveranceVfxFieldNames);
         EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "LumberFrenzyVfx", "Lumber Frenzy (Woodcutting Lv5) VFX", LumberFrenzyVfxFieldNames);
+        DrawFoldoutPropertyBlock(serializedObject, "LumberFrenzyVfx", "Gathering Frenzy (Lumber / Fishing Lv5) VFX", LumberFrenzyVfxFieldNames);
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(serializedObject, "AvatarOfTheForestVfx", "Avatar of the Forest (Woodcutting Lv45) VFX", AvatarOfTheForestVfxFieldNames);
         EditorGUILayout.Space(2f);

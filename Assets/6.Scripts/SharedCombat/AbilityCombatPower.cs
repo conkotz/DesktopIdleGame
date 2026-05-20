@@ -25,9 +25,30 @@ public static class AbilityCombatPower
     public const string AvatarOfTheForestAbilityId = "avatar_of_the_forest";
     public const string FinalSeveranceAbilityId = "final_severance";
     public const string ExecutionersDescentAbilityId = "executioners_descent";
+    public const string BladestormAbilityId = "bladestorm";
     public const string ShadowStrikeAbilityId = "shadow_strike";
     public const string EnergyInfusionAbilityId = "energy_infusion";
     public const string FlameChargeAbilityId = "flame_charge";
+    public const string BattleTranceAbilityId = "battle_trance";
+
+    public const float BattleTranceBaseDurationSeconds = 10f;
+    public const float BattleTranceBaseAttackSpeedBonus = 0.15f;
+    public const float BattleTranceBaseAbilityCooldownReduction = 0.15f;
+    public const float BattleTranceBaseMeleeDamageMultiplier = 1.10f;
+    public const float BattleTranceBaseDamageTakenMultiplier = 1.10f;
+
+    public const float BattleTranceUnrelentingAttackSpeedBonus = 0.10f;
+    public const float BattleTranceUnrelentingCooldownReductionBonus = 0.05f;
+    public const float BattleTranceUnrelentingDamageTakenMultiplier = 1.15f;
+
+    public const float BattleTranceControlledDamageTakenMultiplier = 1.05f;
+    public const float BattleTranceControlledMoveSpeedBonus = 0.10f;
+
+    public const float BattleTranceEndlessAssaultKillExtensionSeconds = 1f;
+    public const float BattleTranceEndlessAssaultMaxBonusDurationSeconds = 10f;
+
+    /// <summary>Enhancement choices for Battle Trance (Melee Lv35 slot 1).</summary>
+    public const string BattleTranceEnhancementParentSpineNodeId = "Lv35_1";
 
     /// <summary>Enhancement choices for Shadow Strike (Melee Lv25 slot 0).</summary>
     public const string ShadowStrikeEnhancementParentSpineNodeId = "Lv25_0";
@@ -66,14 +87,30 @@ public static class AbilityCombatPower
     /// <summary>Enhancement choices for Executioner's Descent (Melee Lv45 slot 1).</summary>
     public const string ExecutionersDescentEnhancementParentSpineNodeId = "Lv45_1";
 
+    /// <summary>Enhancement choices for Bladestorm (Melee Lv45 slot 2).</summary>
+    public const string BladestormEnhancementParentSpineNodeId = "Lv45_2";
+
+    public const float BladestormChannelSeconds = 3f;
+    /// <summary>500% increased attack speed → 5× strike rate during the channel.</summary>
+    public const float BladestormAttackSpeedMultiplier = 5f;
+    public const float BladestormNormalHitWeaponMultiplier = 0.5f;
+    public const float BladestormFinaleHitWeaponMultiplier = 1.5f;
+    /// <summary>50% reduced incoming damage during the channel (0.5× damage taken).</summary>
+    public const float BladestormChannelDamageTakenMultiplier = 0.5f;
+    public const float BladestormForwardReach = 12f;
+
     public const float ExecutionersDescentDescentSeconds = 3f;
-    public const float ExecutionersDescentPrimaryWeaponMultiplier = 2.5f;
-    public const float ExecutionersDescentShockwaveWeaponMultiplier = 0.75f;
+    /// <summary>When the locked target dies mid-descent, the axe drops from its current position to the impact point over this duration.</summary>
+    public const float ExecutionersDescentTargetDiedRushSeconds = 0.5f;
+    /// <summary>Default shockwave weapon scale (primary hit uses <see cref="AbilityDefinition.weaponDamageMultiplier"/> on the asset).</summary>
+    public const float ExecutionersDescentShockwaveWeaponMultiplier = 3f;
     public const float ExecutionersDescentShockwaveRadius = 5f;
     public const float ExecutionersDescentClaimCooldownReductionFraction = 0.5f;
     public const float ExecutionersDescentSunderingArmorMrMultiplier = 0.5f;
     public const float ExecutionersDescentSunderingDebuffSeconds = 5f;
     public const float ExecutionersDescentAxeSpawnHeight = 6f;
+    /// <summary>Extra horizontal reach beyond melee weapon edge gap for casting and tracking during descent.</summary>
+    public const float ExecutionersDescentCastRangeBeyondMelee = 18f;
     /// <summary>When descent loses all in-range targets, ability ends early with shockwave only and this fixed CD.</summary>
     public const float ExecutionersDescentNoTargetInRangeCooldownSeconds = 10f;
 

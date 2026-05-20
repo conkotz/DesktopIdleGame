@@ -37,10 +37,6 @@ public class SkillTreeViewUI : MonoBehaviour
     [SerializeField] private float startY = -48f;
     [SerializeField] private float rowGap = 20f;
     [SerializeField] private float choiceOffsetX = 210f;
-    [Tooltip("Horizontal gap between enhancement nodes when 3 choices are authored (tighter than 2-choice spread).")]
-    [SerializeField] private float choiceOffsetXThreeChoices = 152f;
-    [Tooltip("Horizontal gap between enhancement nodes when 4 choices are authored.")]
-    [SerializeField] private float choiceOffsetXFourChoices = 118f;
     [SerializeField] private float choiceYOffset = -80f;
     [SerializeField] private float capstoneChoiceOffsetX = 210f;
     [SerializeField] private float capstoneChoiceYOffset = 0f;
@@ -1641,14 +1637,15 @@ public class SkillTreeViewUI : MonoBehaviour
     private float ResolveChoiceHorizontalStep(SkillTreeNodeVisualType rowType, int choiceCount)
     {
         bool capstone = rowType == SkillTreeNodeVisualType.CapstonePassive;
-        float baseTwo = ScaledLayout(capstone ? capstoneChoiceOffsetX : choiceOffsetX);
-        return choiceCount switch
-        {
-            <= 2 => baseTwo,
-            3 => ScaledLayout(capstone ? capstoneChoiceOffsetX * 0.72f : choiceOffsetXThreeChoices),
-            4 => ScaledLayout(capstone ? capstoneChoiceOffsetX * 0.55f : choiceOffsetXFourChoices),
-            _ => baseTwo * Mathf.Max(0.35f, 1.1f / choiceCount)
-        };
+        if (choiceCount <= 2)
+            return ScaledLayout(capstone ? capstoneChoiceOffsetX : choiceOffsetX);
+
+        // 3–4 enhancements: same center-to-center rhythm as spine / same-level rows (not the wide 2-choice fan).
+        Vector2 choiceBox = SkillTreeNodeUI.GetVisualBoxSize(SkillTreeNodeVisualType.Choice);
+        float step = choiceBox.x + Mathf.Max(0f, ScaledLayout(sameLevelNodeGap));
+        if (capstone)
+            step *= 0.85f;
+        return step;
     }
 
     private static string TypeLabel(SkillTreeNodeVisualType type)
@@ -2541,6 +2538,53 @@ public class SkillTreeViewUI : MonoBehaviour
                 continue;
             rec.conn.SetPositions(a, b);
         }
+    }
+
+    /// <summary>
+    /// Right-click from the abilities list: always scrolls to the tier; unlearns the committed pick when off cooldown.
+    /// </summary>
+    public void HandleAbilityListRowRightClick(int requiredLevel)
+    {
+        ScrollAbilityTierRowIntoView(requiredLevel);
+
+        PreferRuntimeSkillsManager();
+        if (selectedSkill == null || skillsManager == null)
+            return;
+
+        if (!TryResolveCommittedAbilitySpineAtLevel(requiredLevel, out string spineTarget))
+            return;
+
+        if (ShouldBlockRightClickResetForSpine(spineTarget))
+        {
+            TryLogSkillUnlearnCooldownBlocked();
+            return;
+        }
+
+        TryExpireCommittedAbilityLingeringStateForSkillTreeReset(spineTarget);
+        ResetCommittedSkillRowStateForSpine(spineTarget);
+    }
+
+    private bool TryResolveCommittedAbilitySpineAtLevel(int level, out string spineNodeId)
+    {
+        spineNodeId = null;
+        if (selectedSkill == null || skillsManager == null)
+            return false;
+
+        int pick = skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, level, -1);
+        if (pick < 0)
+            return false;
+
+        foreach (var kv in abilityTierPickMetaBySpineId)
+        {
+            AbilityTierPickMeta m = kv.Value;
+            if (m.level != level || m.ordinal != pick)
+                continue;
+
+            spineNodeId = kv.Key;
+            return !string.IsNullOrEmpty(spineNodeId) && rowDefBySpineNodeId.ContainsKey(spineNodeId);
+        }
+
+        return false;
     }
 
     /// <summary>

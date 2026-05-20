@@ -10,13 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e7a3d2c1b4094f6e8d5c4b3a29180765, type: 3}
-  m_Name: Presentation_ability_executioners_descent
+  m_Name: Presentation_ability_bladestorm
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
-  notes: Presentation for executioners_descent
-  displayNameOverride: Executioner's Descent
-  icon: {fileID: -7408615019948734818, guid: 0a26734c4d6788f4ab834bea6605a9f0, type: 3}
-  shortDescription: A colossal axe manifests above your target, they are marked for
-    execution. After a brief descent it crashes down with a devastating impact.
+  notes: Presentation for bladestorm
+  displayNameOverride: Bladestorm
+  icon: {fileID: -1046654900349753576, guid: 85f17a5fddf023048bd2cd564163a9f1, type: 3}
+  shortDescription: Unleash a devastating assault on a single enemy directly in front
+    of you, striking them with 500% increased attack speed over 3 seconds. Take 50%
+    reduced damage while channeling. During Relentless Execution, you remain locked
+    onto the target.
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: "Active \u2022 Ultimate"

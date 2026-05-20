@@ -305,10 +305,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         {
             if (!abilityController && player)
                 abilityController = player.GetComponent<PlayerAbilityController>();
-            float energyRegen = abilityController != null
+            float energyRegenPerSecond = abilityController != null
                 ? abilityController.GetDisplayedEnergyRegenPerSecond()
                 : stats.EnergyRegenPerSecond;
-            energyRegenText.text = $"Energy Regen: {energyRegen:0.##}/s";
+            float energyRegenPercent = stats.EnergyRegenBasePercentPerSecond;
+            energyRegenText.text = $"Energy Regen: {energyRegenPercent:0.#}% ({energyRegenPerSecond:0.##}/s)";
         }
         if (abilityPowerText)
         {
@@ -332,7 +333,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         // Offensive
         // -------------------------
         if (damageText)
-            damageText.text = $"Damage: {stats.MinDamage}-{stats.MaxDamage}";
+        {
+            bool meleeProfile = stats.CurrentAttackSkill == AttackSkill.Melee;
+            string damageLabel = meleeProfile ? "Melee Damage" : "Damage";
+            damageText.text = $"{damageLabel}: {stats.MinDamage}-{stats.MaxDamage}";
+        }
 
         if (damageSplitText)
         {

@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 0a26734c4d6788f4ab834bea6605a9f0
+guid: efbbcf5bf04528a47be779022ad595a7
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -7408615019948734818
-    second: ExecutionersDescent_0
+      213: -7588507058973284862
+    second: BattleTrance_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: ExecutionersDescent_0
+      name: BattleTrance_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
         width: 1254
-        height: 1225
+        height: 1254
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e96055254ef4f2990800000000000000
-      internalID: -7408615019948734818
+      spriteID: 2066a56190530b690800000000000000
+      internalID: -7588507058973284862
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: ba07db6ce1a72ef458bea465b309b7ac
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      ExecutionersDescent_0: -7408615019948734818
+      BattleTrance_0: -7588507058973284862
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

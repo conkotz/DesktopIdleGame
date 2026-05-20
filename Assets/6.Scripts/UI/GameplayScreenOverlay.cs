@@ -11,9 +11,13 @@ using UnityEngine.UI;
 public static class GameplayScreenOverlay
 {
     public const string FinalSeveranceChannelId = "final_severance_channel";
+    public const string BladestormChannelId = "bladestorm_channel";
 
     /// <summary>Slight red wash during Final Severance channel.</summary>
     public static readonly Color FinalSeveranceChannelTint = new Color(0.42f, 0.04f, 0.04f, 0.38f);
+
+    /// <summary>Muted steel wash during Bladestorm channel.</summary>
+    public static readonly Color BladestormChannelTint = new Color(0.55f, 0.58f, 0.65f, 0.32f);
 
     private const string RootNamePrefix = "GameplayScreenOverlay_";
 

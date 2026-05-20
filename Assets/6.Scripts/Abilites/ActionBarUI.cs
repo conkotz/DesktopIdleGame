@@ -294,6 +294,71 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     }
 
     /// <summary>
+    /// Clears the first five ability loadout slots and assigns <paramref name="abilitiesInOrder"/> top-to-bottom (slot 1, 2, …).
+    /// Extra slots stay empty. Does not change potion/food slots.
+    /// </summary>
+    public int ReplaceLoadoutAbilitiesInOrder(IReadOnlyList<AbilityDefinition> abilitiesInOrder)
+    {
+        if (abilitiesInOrder == null || abilitiesInOrder.Count == 0)
+            return 0;
+
+        ResolveCoreRefs();
+
+        var loadoutSlots = new List<ActionBarSlotUI>();
+        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+            loadoutSlots.Add(slot);
+
+        if (loadoutSlots.Count == 0)
+            return 0;
+
+        for (int i = 0; i < loadoutSlots.Count; i++)
+            loadoutSlots[i].ClearAssignment(false);
+
+        int assigned = 0;
+        int abilityIndex = 0;
+        for (int slotIndex = 0; slotIndex < loadoutSlots.Count; slotIndex++)
+        {
+            ActionBarSlotUI slot = loadoutSlots[slotIndex];
+            while (abilityIndex < abilitiesInOrder.Count)
+            {
+                AbilityDefinition def = abilitiesInOrder[abilityIndex++];
+                if (def == null || string.IsNullOrWhiteSpace(def.abilityId))
+                    continue;
+
+                SkillDefinition skill = skillDatabase != null ? skillDatabase.Get(def.sourceSkill) : null;
+                if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
+                    continue;
+
+                ActionBarAssignment assignment = ActionBarAssignment.CreateAbility(
+                    def.abilityId,
+                    SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(def),
+                    SkillsAbilityPresentationResolver.ResolveAbilityIcon(def),
+                    SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def) ?? string.Empty);
+
+                if (!slot.CanAccept(assignment))
+                    continue;
+
+                slot.Assign(assignment, false);
+                assigned++;
+                break;
+            }
+        }
+
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            ActionBarSlotUI s = slotBindings[i]?.slot;
+            if (s != null)
+                RefreshSlotRuntime(s);
+        }
+
+        CaptureSlotsToSavedState();
+        if (!suppressSaveForLoadoutSwap && SaveManager.Instance != null)
+            SaveManager.Instance.Save();
+        NotifyPlayerStatsCombatPowerRelevantChange();
+        return assigned;
+    }
+
+    /// <summary>
     /// Moves consumables from an inventory slot into the matching action-bar consumable slot.
     /// Same item stacks in-bar; different item swaps back into inventory.
     /// </summary>
@@ -476,6 +541,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             HotkeyBindingManager.Instance.OnBindingsChanged += SyncHotkeysFromManager;
 
         WireGatheringStripSelectionButtons();
+        ResolveCoreRefs();
+        if (skillsManager != null)
+            skillsManager.OnSkillAbilityRowPickChanged += HandleSkillAbilityRowPickChanged;
     }
 
     private void OnDisable()
@@ -484,6 +552,166 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         if (HotkeyBindingManager.Instance != null)
             HotkeyBindingManager.Instance.OnBindingsChanged -= SyncHotkeysFromManager;
+
+        if (skillsManager != null)
+            skillsManager.OnSkillAbilityRowPickChanged -= HandleSkillAbilityRowPickChanged;
+    }
+
+    private void HandleSkillAbilityRowPickChanged(SkillType skillType, int requiredLevel, int pickIndex)
+    {
+        if (pickIndex < 0)
+            return;
+
+        TryAutoEquipRowPickToStaleLoadoutSlot(skillType, requiredLevel, pickIndex);
+    }
+
+    /// <summary>
+    /// When a skill-tree row is re-committed, replace the matching loadout slot if it still shows an unlearned (red) ability.
+    /// </summary>
+    private bool TryAutoEquipRowPickToStaleLoadoutSlot(SkillType skillType, int requiredLevel, int pickIndex)
+    {
+        ResolveCoreRefs();
+        if (skillDatabase == null || skillsManager == null)
+            return false;
+
+        SkillDefinition skill = skillDatabase.Get(skillType);
+        if (skill == null)
+            return false;
+
+        List<AbilityDefinition> siblings = SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(skill, requiredLevel);
+        if (pickIndex < 0 || pickIndex >= siblings.Count)
+            return false;
+
+        AbilityDefinition def = siblings[pickIndex];
+        if (def == null || string.IsNullOrWhiteSpace(def.abilityId))
+            return false;
+
+        if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
+            return false;
+
+        int tierIndex = SkillAbilityCommitRules.GetAbilityTierLoadoutIndex(skill, requiredLevel);
+        if (tierIndex < 0)
+            return false;
+
+        if (IsGatheringSkillType(skillType))
+        {
+            if (gatheringUiActive && gatheringSkillShown == skillType)
+                return TryReplaceStaleLoadoutSlotAtTierIndex(tierIndex, def, skill);
+
+            return TryReplaceStaleSavedGatheringSlot(skillType, tierIndex, def, skill);
+        }
+
+        if (gatheringUiActive)
+            return TryReplaceStaleFrozenCombatSlotAtTierIndex(tierIndex, def, skill);
+
+        return TryReplaceStaleLoadoutSlotAtTierIndex(tierIndex, def, skill);
+    }
+
+    private bool TryReplaceStaleLoadoutSlotAtTierIndex(int tierIndex, AbilityDefinition def, SkillDefinition skill)
+    {
+        ActionBarSlotUI slot = GetLoadoutSlotAtTierIndex(tierIndex);
+        if (slot == null || !IsSlotStaleFromUnlearnedAbility(slot, skill))
+            return false;
+
+        ActionBarAssignment assignment = BuildAbilityAssignment(def);
+        if (!slot.CanAccept(assignment))
+            return false;
+
+        if (!slot.TryPaletteAssignAbilityWithUniqueSwap(assignment))
+            return false;
+
+        RefreshSlotRuntime(slot);
+        return true;
+    }
+
+    private bool TryReplaceStaleFrozenCombatSlotAtTierIndex(int tierIndex, AbilityDefinition def, SkillDefinition skill)
+    {
+        if (tierIndex < 0 || tierIndex >= frozenCombatFiveAbilities.Count)
+            return false;
+
+        SavedSlotState st = frozenCombatFiveAbilities[tierIndex];
+        if (st == null || string.IsNullOrWhiteSpace(st.id))
+            return false;
+
+        if (!IsSavedAbilityStaleFromUnlearn(st.id, skill))
+            return false;
+
+        st.id = def.abilityId;
+        st.kind = (int)ActionBarAssignmentKind.Ability;
+        st.amount = 0;
+        return true;
+    }
+
+    private bool TryReplaceStaleSavedGatheringSlot(SkillType skillType, int tierIndex, AbilityDefinition def, SkillDefinition skill)
+    {
+        List<SavedSlotState> list = GetGatheringListForSkill(skillType);
+        if (list == null || tierIndex < 0 || tierIndex >= list.Count)
+            return false;
+
+        SavedSlotState st = list[tierIndex];
+        if (st == null || string.IsNullOrWhiteSpace(st.id))
+            return false;
+
+        if (!IsSavedAbilityStaleFromUnlearn(st.id, skill))
+            return false;
+
+        st.id = def.abilityId;
+        st.kind = (int)ActionBarAssignmentKind.Ability;
+        st.amount = 0;
+        return true;
+    }
+
+    private ActionBarSlotUI GetLoadoutSlotAtTierIndex(int tierIndex)
+    {
+        if (tierIndex < 0)
+            return null;
+
+        int ordinal = 0;
+        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        {
+            if (ordinal == tierIndex)
+                return slot;
+            ordinal++;
+        }
+
+        return null;
+    }
+
+    private bool IsSlotStaleFromUnlearnedAbility(ActionBarSlotUI slot, SkillDefinition rowSkill)
+    {
+        if (slot == null || rowSkill == null)
+            return false;
+
+        ActionBarAssignment action = slot.AssignedAction;
+        if (action == null || !action.IsAssigned || !action.IsAbility)
+            return false;
+
+        return IsSavedAbilityStaleFromUnlearn(action.id, rowSkill);
+    }
+
+    private bool IsSavedAbilityStaleFromUnlearn(string abilityId, SkillDefinition rowSkill)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId) || rowSkill == null)
+            return false;
+
+        AbilityDefinition abilityDef = GetAbilityDefinition(abilityId);
+        if (abilityDef == null)
+            return false;
+
+        SkillDefinition abilitySkill = skillDatabase != null ? skillDatabase.Get(abilityDef.sourceSkill) : null;
+        if (abilitySkill == null || abilitySkill.skillType != rowSkill.skillType)
+            return false;
+
+        return !SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(abilitySkill, abilityDef, skillsManager);
+    }
+
+    private static ActionBarAssignment BuildAbilityAssignment(AbilityDefinition def)
+    {
+        return ActionBarAssignment.CreateAbility(
+            def.abilityId,
+            SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(def),
+            SkillsAbilityPresentationResolver.ResolveAbilityIcon(def),
+            SkillsAbilityPresentationResolver.ResolveAbilityLeagueIntroParagraph(def) ?? string.Empty);
     }
 
     private void WireGatheringStripSelectionButtons()

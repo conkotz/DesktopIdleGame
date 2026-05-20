@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
   notes: Presentation for avatar_of_the_forest
   displayNameOverride: Avatar of the Forest
-  icon: {fileID: 4266808884134915304, guid: 68bd1fe8266df974ca814370a67767d0, type: 3}
+  icon: {fileID: -7588507058973284862, guid: efbbcf5bf04528a47be779022ad595a7, type: 3}
   shortDescription: Become an avatar of living wood empower your woodcutting with
     forest magic.
   primaryDescriptionOverride: 

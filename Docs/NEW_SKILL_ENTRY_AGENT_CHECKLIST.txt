@@ -8,6 +8,51 @@ jump to the section that matches your task.
 
 Do NOT use this file for map travel, save/load, quests, NPCs, or other systems — those live elsewhere.
 
+UNITY .META GUID RULES (CRITICAL — read before creating assets)
+--------------------------------------------------------------
+  Every ScriptableObject needs a sibling file:  YourAsset.asset.meta
+  The .meta file MUST contain a line:  guid: <32 hex characters>
+
+  VALID (32 chars, lowercase hex only):
+    guid: b47a7e40c0ab4719a8b7c6d5e4f30101
+    guid: cef0107d3357c9b4e86a08e4b6e8a0a7
+
+  INVALID (Unity YAML parser fails — breaks ALL references):
+    guid: b47a7e40c0ab4719a8b7c6d5e4f3a01     ← 31 characters (one digit short)
+    guid: b47a7e40-c0ab-4719-a8b7-c6d5e4f3a01 ← dashes not allowed
+    guid: 00000000000000000000000000000000     ← never use placeholder zeros in .meta
+
+  Symptoms when GUID is wrong:
+    • Console: "cannot be extracted by the YAML Parser" on .meta
+    • Console: ".meta file does not have a valid GUID"
+    • Console: "Broken text PPtr ... guid 00000000..." in melee.asset or AbilityDatabase.asset
+    • Ability missing from database / skill tree shows Missing script
+
+  PREFERRED workflow (agents + humans):
+    1) Create the .asset in Unity (duplicate existing Ability_* or Presentation_*), OR
+       create .asset only → open Unity once → let Unity generate .meta automatically.
+    2) Copy the guid: line from the generated .meta (must be exactly 32 hex chars).
+    3) Wire references in other YAML files using that exact guid:
+         ability: {fileID: 11400000, guid: <paste 32-char guid here>, type: 2}
+         presentation: {fileID: 11400000, guid: <presentation .meta guid>, type: 2}
+         - {fileID: 11400000, guid: <paste>, type: 2}   (AbilityDatabase.asset list entry)
+
+  If you MUST hand-write a .meta GUID:
+    • Generate 32 random hex digits (0-9, a-f). Example Python:
+        python -c "import secrets; print(secrets.token_hex(16))"
+    • Verify length BEFORE committing:
+        python -c "g='yourguidhere'; print(len(g), len(g)==32)"
+    • Each new asset needs its OWN unique GUID (never reuse across files).
+
+  After adding assets, scan project (optional):
+    python -c "
+    import re, pathlib
+    for p in pathlib.Path('Assets').rglob('*.meta'):
+        m=re.search(r'^guid: ([^\r\n]+)', p.read_text(errors='ignore'), re.M)
+        if m and (len(m.group(1))!=32 or not re.fullmatch(r'[0-9a-fA-F]{32}', m.group(1))):
+            print('BAD', len(m.group(1)), p, m.group(1))
+    "
+
 QUICK PICK — WHAT ARE YOU ADDING?
 ---------------------------------
   A) Timed ability buff     → tag Buff, fixed duration, HUD countdown + overlay sweep
@@ -190,7 +235,8 @@ A) NEW ABILITY (full pipeline — repeat in order)
 =====================================================================
 
 1) Gameplay asset
-   - Duplicate Ability_*.asset in Assets/3.ScriptableObjects/AbilitiesDefinitions/.
+   - Duplicate Ability_*.asset in Assets/3.ScriptableObjects/AbilitiesDefinitions/
+     (preferred: duplicate in Unity so .meta GUID is valid — see UNITY .META GUID RULES).
    - abilityId (stable string), displayName, sourceSkill, unlockLevel.
    - tag: None | Active | Minion | Buff | Toggle Buff (see sections above).
    - cooldown, energyCost, requiredWeaponType, scaling multipliers.
@@ -200,8 +246,9 @@ A) NEW ABILITY (full pipeline — repeat in order)
    - Minion: assign minionSpawnDefinition, wire runtime prefab on MinionDefinition.
 
 2) Presentation asset
-   - Duplicate Presentation_ability_<similar> → Presentation_ability_<newId> (+ .meta).
-   - Wire ability.presentation.
+   - Duplicate Presentation_ability_<similar> → Presentation_ability_<newId> (+ .meta from Unity).
+   - Confirm Presentation_ability_<newId>.asset.meta guid is exactly 32 hex characters.
+   - Wire ability.presentation using the presentation asset's .meta guid (not the ability guid).
    - icon, displayNameOverride (optional), shortDescription = FLAVOR ONE-LINER ONLY.
    - Optional: primaryDescriptionOverride, flavourText, tooltipCategoryTagOverride.
    - Do NOT duplicate numeric effect lines in presentation assets.
@@ -242,7 +289,9 @@ A) NEW ABILITY (full pipeline — repeat in order)
 5) Skill tree / unlocks
    - SkillDefinition / SkillUnlockDefinition: wire AbilityDefinition on correct level row.
    - Lv5 abilities: often two enhancement choices at Lv8 (pattern: Lumber/Fishing Frenzy).
-   - Register ability in Resources/Databases/AbilityDatabase.asset (list entry with asset GUID).
+   - Register ability in Resources/Databases/AbilityDatabase.asset:
+       - {fileID: 11400000, guid: <Ability_*.asset.meta guid — 32 hex>, type: 2}
+     Same guid string as in melee.asset (or relevant .skill) ability: {fileID: ...} field.
    - Enhancement choices: parent spine id MUST match SkillTreeViewUI.SpineNodeId(row):
        Lv{requiredLevel}_{slotAtLevel}  e.g. Lv25_0, Lv45_1
      Add AbilityCombatPower.*EnhancementParentSpineNodeId constant; read via:
@@ -263,7 +312,8 @@ A) NEW ABILITY (full pipeline — repeat in order)
    - AbilityCombatPower.*EnhancementParentSpineNodeId when the row has Lv{N}_{slot} choices.
    - PlayerAbilityController: private const string YourAbilityId = "your_id" (mirror AbilityCombatPower).
    - Gathering: PlayerController.*ChoiceSpineId, *MajorPassiveSourceLevel, etc.
-   - Unity .meta GUID for new assets: exactly 32 hex chars (invalid length breaks YAML references).
+   - Unity GUIDs: see UNITY .META GUID RULES at top of this file — every new .asset + .meta pair;
+     every cross-reference in .skill / AbilityDatabase must use the exact 32-char guid from .meta.
 
 8) Smoke test
    - Skills page: tag → flavor → blue "Deals X% weapon damage" → Effects (full damage totals) →
@@ -481,7 +531,6 @@ L) DPS / OUTGOING DAMAGE ATTRIBUTION (if ability deals damage)
 M) COMMON MISTAKES (from recent melee abilities)
 =====================================================================
 
-  • Forgetting AbilityDatabase.asset entry → ability works in editor direct reference but not loaded at runtime.
   • Wrong enhancement spine id (e.g. using 25 instead of Lv25_0) → choice always -1, enhancements never apply.
   • Putting numeric ranges/% in presentation shortDescription → duplicates and drifts from tooltip code.
   • Removing blue "Deals X% weapon damage" when adding combined Effect totals → show BOTH scaling % and totals.
@@ -493,7 +542,10 @@ M) COMMON MISTAKES (from recent melee abilities)
   • Shadow Strike consuming attack cycle → breaks idle swing rhythm; never call TryConsumeAttackCycleForAbilityCast.
   • Lethal mark consumed on non-crit or zero damage → gate on wasCrit && finalDamage > 0 in TakeDamage.
   • Using ailments for ability-specific marks → use EnemyShadowStrikeMarks + overhead icons instead.
-  • Invalid ScriptableObject GUID in .asset/.meta → Unity breaks references; verify 32 hex characters.
+  • Invalid .meta GUID (not exactly 32 lowercase hex chars) → YAML parser errors, Broken PPtr,
+    ability/database links show 00000000... — see UNITY .META GUID RULES; never hand-type 31-char guids.
+  • Wiring presentation with ability's guid (or vice versa) → missing presentation icon/copy.
+  • Forgetting AbilityDatabase.asset entry → ability works in editor direct reference but not loaded at runtime.
 
 REFERENCE — presentation assets (Assets/3.ScriptableObjects/Presentation/)
   Presentation_ability_avatar_of_the_forest
@@ -511,14 +563,18 @@ REFERENCE — presentation assets (Assets/3.ScriptableObjects/Presentation/)
   Presentation_ability_final_severance
   Presentation_ability_executioners_descent
   Presentation_ability_shadow_strike
+  Presentation_ability_battle_trance
+  Presentation_ability_energy_infusion
+  Presentation_ability_flame_charge
 
 REFERENCE — ability assets (Assets/3.ScriptableObjects/AbilitiesDefinitions/)
   Melee/Ability_executioners_descent.asset   — executioners_descent (Lv45 slot 1)
   Melee/Ability_shadow_strike.asset          — shadow_strike (Lv25 slot 0)
+  Melee/Ability_battle_trance.asset          — battle_trance (Lv35 slot 1, timed Buff)
 
 REFERENCE — HUD ability buff ids (SetHudAbilityBuff abilityId)
   lumber_frenzy, fishing_frenzy, avatar_of_the_forest, cleaving_chop, cleaving_strikes,
-  spectral_axe, soulforged_weapon
+  spectral_axe, soulforged_weapon, battle_trance, energy_infusion
   Major passives (GatheringPassiveTooltipText): woodcutting_flow_state, fishing_calm_waters_major
 
 REFERENCE — key scripts (skills & abilities only)
@@ -544,6 +600,10 @@ REFERENCE — enhancement parent spine ids (Melee examples)
   Lv5_0 / Lv5_1 / Lv5_2   — three Lv5 abilities (Power Slash, Rend, Envenom) — legacy int "5" still used in places
   Lv15_0 / Lv15_1 / Lv15_2 — Lv15 branch abilities (Whirlwind, Cleaving Strikes, Crescent)
   Lv25_0                  — Shadow Strike (Ability Milestone III replacement)
-  Lv35                    — Soulforged Weapon (legacy int key)
+  Lv25_1                  — Energy Infusion
+  Lv25_2                  — Flame Charge
+  Lv35_0                  — Soulforged Weapon (Lv35 ability row slot 0)
+  Lv35_1                  — Battle Trance (3 enhancements at Lv38)
+  Lv35                    — Soulforged Weapon (legacy int key — prefer Lv35_0 for new code)
   Lv45_0                  — Final Severance
   Lv45_1                  — Executioner's Descent

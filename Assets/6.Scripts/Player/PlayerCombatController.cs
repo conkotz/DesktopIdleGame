@@ -1836,6 +1836,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         DamageResult result = default;
         if (target == null || target.IsDead) return result;
+
         float conditionalDamageMult = GetConditionalMeleeDamageMultiplier(target);
         bool isPlayerWeaponSwing = string.IsNullOrWhiteSpace(outgoingDamageSourceLabel);
         bool deferSwingOutgoing = isPlayerWeaponSwing &&

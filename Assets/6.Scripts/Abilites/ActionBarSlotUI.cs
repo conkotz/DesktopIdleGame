@@ -777,9 +777,17 @@ public class ActionBarSlotUI : MonoBehaviour,
                                       assignedAction != null &&
                                       assignedAction.IsAbility &&
                                       !abilityWeaponCompatible;
+        bool abilityEligibleForAuto = true;
+        if (hasAssigned && assignedAction != null && assignedAction.IsAbility)
+        {
+            AbilityDefinition def = GetAbilityDefinition(assignedAction.id);
+            abilityEligibleForAuto = PlayerAbilityController.CanAbilityBeUsedByAutoBattle(def);
+        }
+
         bool shouldShow = isAutoBattleActive &&
                           IsAutoUseSlotType() &&
                           !abilityBlockedByWeapon &&
+                          abilityEligibleForAuto &&
                           (showBorderWhenEmpty || hasAssigned);
         SetAutoBattleBorderVisible(shouldShow);
     }

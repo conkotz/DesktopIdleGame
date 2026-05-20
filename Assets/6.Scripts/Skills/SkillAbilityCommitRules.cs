@@ -164,4 +164,54 @@ public static class SkillAbilityCommitRules
         }
         return -1;
     }
+
+    /// <summary>Distinct ability tier rows (Lv5 / Lv25 / …) in panel / loadout order.</summary>
+    public static List<int> CollectSortedAbilityTierLevels(SkillDefinition skill)
+    {
+        var candidate = new HashSet<int>();
+        if (skill?.unlocks == null)
+            return new List<int>();
+
+        for (int i = 0; i < skill.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = skill.unlocks[i];
+            if (unlock == null || unlock.ability == null)
+                continue;
+
+            bool abilityLike =
+                unlock.unlockType == SkillUnlockType.Ability ||
+                unlock.unlockType == SkillUnlockType.CapstonePassive;
+            if (!abilityLike)
+                continue;
+
+            candidate.Add(Mathf.Max(1, unlock.requiredLevel));
+        }
+
+        var result = new List<int>();
+        foreach (int rl in candidate)
+        {
+            if (GetAbilitySiblingsOnSkillRow(skill, rl).Count > 0)
+                result.Add(rl);
+        }
+
+        result.Sort();
+        return result;
+    }
+
+    /// <summary>0-based loadout slot index for an ability tier row (matches auto-assign order).</summary>
+    public static int GetAbilityTierLoadoutIndex(SkillDefinition skill, int requiredLevel)
+    {
+        if (skill == null)
+            return -1;
+
+        List<int> tiers = CollectSortedAbilityTierLevels(skill);
+        int lvl = Mathf.Max(1, requiredLevel);
+        for (int i = 0; i < tiers.Count; i++)
+        {
+            if (tiers[i] == lvl)
+                return i;
+        }
+
+        return -1;
+    }
 }

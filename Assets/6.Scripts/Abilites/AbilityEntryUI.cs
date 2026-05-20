@@ -38,6 +38,8 @@ public class AbilityEntryUI : MonoBehaviour,
     private Image _dragIconImage;
 
     private System.Action<AbilityDefinition> _onDoubleClickAssign;
+    private System.Action<int> _onRightClickRow;
+    private int _rowLevel;
 
     private Outline _committedListRowOutline;
     private Button _rowButton;
@@ -117,6 +119,7 @@ public class AbilityEntryUI : MonoBehaviour,
 
         SetCommittedAbilityListRowOutline(true);
         RegisterRootRowScrollClick(onRowClickScrollToTree);
+        EnsureChildGraphicsIgnoreRaycasts();
     }
 
     /// <summary>
@@ -168,6 +171,23 @@ public class AbilityEntryUI : MonoBehaviour,
 
         SetCommittedAbilityListRowOutline(false);
         RegisterRootRowScrollClick(onSelectScrollTree);
+        EnsureChildGraphicsIgnoreRaycasts();
+    }
+
+    public void SetRowLevelContext(int rowLevel, System.Action<int> onRightClickRow)
+    {
+        _rowLevel = rowLevel;
+        _onRightClickRow = onRightClickRow;
+    }
+
+    private void EnsureChildGraphicsIgnoreRaycasts()
+    {
+        if (icon)
+            icon.raycastTarget = false;
+        if (nameText)
+            nameText.raycastTarget = false;
+        if (reqText)
+            reqText.raycastTarget = false;
     }
 
     private void SetCommittedAbilityListRowOutline(bool enabled)
@@ -230,6 +250,13 @@ public class AbilityEntryUI : MonoBehaviour,
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        if (eventData.button == PointerEventData.InputButton.Right)
+        {
+            _tooltip?.Hide();
+            _onRightClickRow?.Invoke(_rowLevel);
+            return;
+        }
+
         if (_isAvailablePlaceholder)
             return;
         if (eventData.button != PointerEventData.InputButton.Left) return;
@@ -403,6 +430,13 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
+        if (string.Equals(def.abilityId, AbilityCombatPower.BladestormAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.BladestormEnhancementParentSpineNodeId, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
         if (string.Equals(def.abilityId, AbilityCombatPower.ShadowStrikeAbilityId, System.StringComparison.OrdinalIgnoreCase))
         {
             int selected = skillsManager.GetSkillChoiceSelection(
@@ -421,6 +455,13 @@ public class AbilityEntryUI : MonoBehaviour,
         {
             int selected = skillsManager.GetSkillChoiceSelection(
                 SkillType.Melee, AbilityCombatPower.FlameChargeEnhancementParentSpineNodeId, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
+        if (string.Equals(def.abilityId, AbilityCombatPower.BattleTranceAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.BattleTranceEnhancementParentSpineNodeId, -1);
             return BuildActiveEnhancementLine(def, selected);
         }
 

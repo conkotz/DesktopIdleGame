@@ -249,8 +249,9 @@ public static class GameTooltipTexts
             case "EnergyRegenText":
                 title = "Energy Regeneration";
                 description =
-                    "Energy restored per second.\n\n" +
-                    "Higher regen lets you use stamina-heavy actions more often.";
+                    "Base regen restores 10% of your max energy per second.\n\n" +
+                    "The stat line also shows the resulting amount per second at your current max energy. " +
+                    "Increasing max energy increases how much you recover. Gear and buffs can add flat energy per second on top.";
                 return true;
 
             case "GuardFlatText":

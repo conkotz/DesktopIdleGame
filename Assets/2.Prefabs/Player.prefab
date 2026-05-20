@@ -5657,7 +5657,7 @@ MonoBehaviour:
   toolbelt: {fileID: 0}
   buffController: {fileID: 0}
   abilityVfx: {fileID: 0}
-  globalCooldownSeconds: 1
+  globalCooldownSeconds: 0.3
 --- !u!114 &8811223344556677889
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5708,13 +5708,12 @@ MonoBehaviour:
   executionersDescentAxeTint: {r: 0.9490196, g: 0.7474129, b: 0.18039213, a: 1}
   executionersDescentMarkTint: {r: 1, g: 0.68447053, b: 0.07843137, a: 0.85}
   executionersDescentShockwaveColor: {r: 1, g: 0.45, b: 0.12, a: 0.75}
-  executionersDescentAxeWorldScale: 1.7
+  executionersDescentAxeWorldScale: 1.5
   executionersDescentMarkWorldScale: 0.9
   executionersDescentMarkOffset: {x: 0, y: 0.35, z: 0}
-  executionersDescentHangHeightAboveTarget: 3
-  executionersDescentSpawnHeightAboveHang: 2
-  executionersDescentSpawnHoldSeconds: 1
-  executionersDescentDropDurationSeconds: 2
+  executionersDescentSpawnHeightAboveTarget: 4.8
+  executionersDescentSpawnHoldSeconds: 2
+  executionersDescentMinimumHeightAboveTarget: 2
   executionersDescentSortingLayer: Foreground
   executionersDescentSortingOrder: 120
   executionersDescentShockwaveDuration: 0.45
@@ -5731,6 +5730,21 @@ MonoBehaviour:
   shadowStrikeDepartSmokeLingerSeconds: 2
   shadowStrikeDepartSmokeBurstCount: 52
   shadowStrikeDepartSmokeWispEmitSeconds: 0.35
+  bladestormStabColor: {r: 1, g: 0.23685315, b: 0, a: 0.9}
+  bladestormStabFadeSeconds: 0.08
+  bladestormStabExtendSeconds: 0.1
+  bladestormStabLineWidth: 0.6
+  bladestormStabReach: 2
+  bladestormStabEmitIntervalSeconds: 0.2
+  bladestormStabVerticalHalfDegrees: 15
+  bladestormStabOriginOffset: {x: 0.8, y: 0.8, z: 0}
+  bladestormFinaleSlashColor: {r: 1, g: 0.72, b: 0.28, a: 0.95}
+  bladestormFinaleSlashDropHeight: 2.2
+  bladestormFinaleSlashDepth: 1.35
+  bladestormFinaleSlashLineWidth: 0.34
+  bladestormFinaleSlashExtendSeconds: 0.06
+  bladestormFinaleSlashFadeSeconds: 0.14
+  bladestormFinaleSlashTargetYOffset: 0.45
   finalSeveranceWindupStartColor: {r: 1, g: 0.92, b: 0.2, a: 0.6}
   finalSeveranceWindupEndColor: {r: 1, g: 0.82, b: 0.12, a: 0.6}
   finalSeveranceStrikeStartColor: {r: 1, g: 0.18, b: 0.05, a: 1}
@@ -5744,10 +5758,10 @@ MonoBehaviour:
   finalSeveranceStrikeDiagonalRise: 3.1
   finalSeveranceStrikeDiagonalDrop: 1.35
   lumberFrenzyOrbitVfxPrefab: {fileID: 0}
-  lumberFrenzyOrbitVfxLocalOffset: {x: 0, y: 0, z: 0}
-  lumberFrenzyOrbitRadius: 0.88
-  lumberFrenzySweepPeriodSeconds: 0.95
+  lumberFrenzyOrbitVfxLocalOffset: {x: 0, y: 1.5, z: 0}
+  gatheringFrenzyBehindDistance: 0.38
   lumberFrenzyOrbitVfxColor: {r: 0.35, g: 1, b: 0.45, a: 1}
+  fishingFrenzyOrbitVfxColor: {r: 0.32, g: 0.62, b: 1, a: 0.95}
   soulforgedWeaponMinionPresentation:
     attackRange: 6
     hitRadius: 0.42
@@ -5811,10 +5825,30 @@ MonoBehaviour:
   avatarOfForestTrailWidth: 0.044
   energyInfusionGlowLocalOffset: {x: 0, y: 1, z: 0}
   energyInfusionGlowColor: {r: 0.32, g: 0.62, b: 1, a: 0.92}
-  energyInfusionGlowSphereRadius: 2
+  energyInfusionGlowSphereRadius: 1
   energyInfusionGlowEmissionRate: 38
   energyInfusionParticleStartSizeMin: 0.032
   energyInfusionParticleStartSizeMax: 0.058
+  battleTranceGlowLocalOffset: {x: 0, y: 1, z: 0}
+  battleTranceGlowColor: {r: 1, g: 0.18, b: 0.12, a: 0.92}
+  battleTranceGlowSphereRadius: 2
+  battleTranceGlowEmissionRate: 38
+  battleTranceParticleStartSizeMin: 0.032
+  battleTranceParticleStartSizeMax: 0.058
+  flameChargePlayerGlowColor: {r: 1, g: 0.38, b: 0.12, a: 0.88}
+  flameChargePlayerGlowLocalOffset: {x: 0, y: 0.1, z: 0}
+  flameChargePlayerGlowRadius: 0.52
+  flameChargePlayerGlowEmissionRate: 72
+  flameChargeGroundFireColor: {r: 1, g: 0.32, b: 0.08, a: 0.92}
+  flameChargeGroundFireRadius: 1.05
+  flameChargeGroundFireEmissionRate: 48
+  flameChargeVolcanicBurstColor: {r: 1, g: 0.45, b: 0.1, a: 0.95}
+  flameChargeVolcanicBurstDuration: 0.35
+  flameChargeVolcanicBurstMaxRadius: 5.5
+  flameChargeGroundFloorYOffset: 0.1
+  flameChargeGroundTrailHeight: 0.14
+  flameChargeGroundSortingLayer: Foreground
+  flameChargeGroundSortingOrder: 42
 --- !u!114 &7462036414647869483
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5916,7 +5950,7 @@ MonoBehaviour:
   baseMoveSpeed: 2.5
   baseMoveSpeedMult: 1
   baseLifeRegen: 1
-  baseEnergyRegen: 10
+  baseEnergyRegenPercentPerSecond: 10
   baseManaRegen: 1
   baseMinPhysicalDamage: 0
   baseMaxPhysicalDamage: 0

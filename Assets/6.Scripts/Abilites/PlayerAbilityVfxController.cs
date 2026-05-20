@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// World VFX for player abilities (trails, particles, range rings). Ability rules stay on <see cref="PlayerAbilityController"/>.
@@ -63,12 +64,13 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.5f)] private float executionersDescentAxeWorldScale = 2.4f;
     [SerializeField, Min(0.1f)] private float executionersDescentMarkWorldScale = 0.9f;
     [SerializeField] private Vector3 executionersDescentMarkOffset = new Vector3(0f, 0.35f, 0f);
-    [Tooltip("World Y above the target root where the axe stops (higher = less buried in the ground).")]
-    [SerializeField, Min(0.5f)] private float executionersDescentHangHeightAboveTarget = 3.2f;
-    [Tooltip("Extra height above the hang point where the axe first appears.")]
-    [SerializeField, Min(0.5f)] private float executionersDescentSpawnHeightAboveHang = 5f;
+    [Tooltip("World Y above the target where the axe first appears and lingers during hang time.")]
+    [SerializeField, Min(0.1f)] private float executionersDescentSpawnHeightAboveTarget = 4.8f;
+    [Tooltip("Seconds the axe lingers at spawn height before descending.")]
     [SerializeField, Min(0f)] private float executionersDescentSpawnHoldSeconds = 1.5f;
-    [SerializeField, Min(0.1f)] private float executionersDescentDropDurationSeconds = 1.5f;
+    [Tooltip("Lowest world Y above the target the axe reaches before impact. Descent speed uses the remaining ability channel time.")]
+    [SerializeField, Min(0f), FormerlySerializedAs("executionersDescentHangHeightAboveTarget")]
+    private float executionersDescentMinimumHeightAboveTarget = 1.8f;
     [Tooltip("Sorting layer for axe / mark / shockwave (Foreground renders above Background clouds).")]
     [SerializeField] private string executionersDescentSortingLayer = "Foreground";
     [SerializeField] private int executionersDescentSortingOrder = 200;
@@ -90,6 +92,26 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(1)] private int shadowStrikeDepartSmokeBurstCount = 52;
     [SerializeField, Min(0f)] private float shadowStrikeDepartSmokeWispEmitSeconds = 0.35f;
 
+    [Header("Bladestorm (Melee Lv45) VFX")]
+    [SerializeField] private Color bladestormStabColor = new Color(0.92f, 0.95f, 1f, 0.9f);
+    [SerializeField, Min(0.02f)] private float bladestormStabFadeSeconds = 0.08f;
+    [SerializeField, Min(0.01f)] private float bladestormStabExtendSeconds = 0.045f;
+    [SerializeField, Min(0.01f)] private float bladestormStabLineWidth = 0.16f;
+    [SerializeField, Min(0.3f)] private float bladestormStabReach = 1.15f;
+    [Tooltip("How often a random outward stab line spawns during the channel.")]
+    [SerializeField, Min(0.05f)] private float bladestormStabEmitIntervalSeconds = 0.3f;
+    [Tooltip("Stabs fan up and down from the horizontal facing axis (± degrees pitch).")]
+    [SerializeField, Range(5f, 75f), FormerlySerializedAs("bladestormStabConeHalfDegrees")]
+    private float bladestormStabVerticalHalfDegrees = 35f;
+    [SerializeField] private Vector3 bladestormStabOriginOffset = new Vector3(0.12f, 0.55f, 0f);
+    [SerializeField] private Color bladestormFinaleSlashColor = new Color(1f, 0.72f, 0.28f, 0.95f);
+    [SerializeField, Min(0.3f)] private float bladestormFinaleSlashDropHeight = 2.2f;
+    [SerializeField, Min(0.2f)] private float bladestormFinaleSlashDepth = 1.35f;
+    [SerializeField, Min(0.01f)] private float bladestormFinaleSlashLineWidth = 0.34f;
+    [SerializeField, Min(0.01f)] private float bladestormFinaleSlashExtendSeconds = 0.06f;
+    [SerializeField, Min(0.02f)] private float bladestormFinaleSlashFadeSeconds = 0.14f;
+    [SerializeField] private float bladestormFinaleSlashTargetYOffset = 0.45f;
+
     [Header("Final Severance (Melee Lv45) VFX")]
     [SerializeField] private Color finalSeveranceWindupStartColor = new Color(1f, 0.92f, 0.2f, 0.6f);
     [SerializeField] private Color finalSeveranceWindupEndColor = new Color(1f, 0.82f, 0.12f, 0.6f);
@@ -104,15 +126,14 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField] private float finalSeveranceStrikeDiagonalRise = 3.1f;
     [SerializeField] private float finalSeveranceStrikeDiagonalDrop = 1.35f;
 
-    [Header("Lumber Frenzy (Woodcutting Lv5) VFX")]
-    [Tooltip("Optional root prefab parented under a sweep driver while Lumber Frenzy is active. Leave empty to auto-spawn green sparks.")]
+    [Header("Gathering Frenzy (Lumber / Fishing Lv5) VFX")]
+    [Tooltip("Optional root prefab parented behind the player while a gathering frenzy buff is active. Leave empty to auto-spawn sparks.")]
     [SerializeField] private GameObject lumberFrenzyOrbitVfxPrefab;
     [SerializeField] private Vector3 lumberFrenzyOrbitVfxLocalOffset = new Vector3(0f, 0.72f, 0f);
-    [Tooltip("Horizontal sweep radius (matches Whirlwind outer ring logic: attack range minus half trail width).")]
-    [SerializeField, Min(0.05f)] private float lumberFrenzyOrbitRadius = 0.88f;
-    [Tooltip("Seconds for one full horizontal figure-eight sweep (same path shape as Whirlwind).")]
-    [SerializeField, Min(0.08f)] private float lumberFrenzySweepPeriodSeconds = 0.95f;
+    [Tooltip("How far behind the player (opposite facing) the VFX sits. Does not sweep left/right.")]
+    [SerializeField, Min(0f)] private float gatheringFrenzyBehindDistance = 0.38f;
     [SerializeField] private Color lumberFrenzyOrbitVfxColor = new Color(0.35f, 1f, 0.45f, 1f);
+    [SerializeField] private Color fishingFrenzyOrbitVfxColor = new Color(0.32f, 0.62f, 1f, 0.95f);
 
     [Header("Soulforged Weapon Minion VFX")]
     [SerializeField] private SoulforgedWeaponMinionPresentation soulforgedWeaponMinionPresentation;
@@ -175,6 +196,14 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.001f)] private float energyInfusionParticleStartSizeMin = 0.032f;
     [SerializeField, Min(0.001f)] private float energyInfusionParticleStartSizeMax = 0.058f;
 
+    [Header("Battle Trance (Melee Lv35) VFX")]
+    [SerializeField] private Vector3 battleTranceGlowLocalOffset = new Vector3(0f, 0.12f, 0f);
+    [SerializeField] private Color battleTranceGlowColor = new Color(1f, 0.18f, 0.12f, 0.92f);
+    [SerializeField, Min(0.02f)] private float battleTranceGlowSphereRadius = 0.42f;
+    [SerializeField, Min(4f)] private float battleTranceGlowEmissionRate = 38f;
+    [SerializeField, Min(0.001f)] private float battleTranceParticleStartSizeMin = 0.032f;
+    [SerializeField, Min(0.001f)] private float battleTranceParticleStartSizeMax = 0.058f;
+
     [Header("Flame Charge (Melee Lv25) VFX")]
     [SerializeField] private Color flameChargePlayerGlowColor = new Color(1f, 0.38f, 0.12f, 0.88f);
     [SerializeField] private Vector3 flameChargePlayerGlowLocalOffset = new Vector3(0f, 0.1f, 0f);
@@ -200,11 +229,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private LineRenderer _spectralAxeAreaIndicatorLine;
 
     private GameObject _lumberFrenzyAnchorRoot;
-    private Transform _lumberFrenzySweepMotion;
     private GameObject _lumberFrenzyOrbitVfxRoot;
+    private ParticleSystem _gatheringFrenzyRuntimeParticles;
 
     private GameObject _avatarOfForestGlowRoot;
     private GameObject _energyInfusionGlowRoot;
+    private GameObject _battleTranceGlowRoot;
     private GameObject _flameChargePlayerGlowRoot;
     private Coroutine _flameChargeVolcanicBurstRoutine;
     private readonly List<GameObject> _activeFlameChargeDashTrailRoots = new();
@@ -215,6 +245,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private SpriteRenderer _executionersDescentMarkRenderer;
     private Coroutine _executionersDescentShockwaveRoutine;
     private float _executionersDescentTotalSeconds = 3f;
+    private Coroutine _bladestormStabSprayRoutine;
 
     private const string ResourcesUrParticleMaterialPath = "Vfx/AbilityVfx_ParticlesUnlit";
     private static bool s_LoggedMissingUrParticleMaterial;
@@ -229,7 +260,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     public bool SpectralAxeSpinClockwise => spectralAxeSpinClockwise;
     public float SpectralAxeTravelSpeedUnitsPerSecond => spectralAxeTravelSpeedUnitsPerSecond;
 
-    /// <summary>Whirlwind / combat facing from weapon scale; for Lumber Frenzy sweep use <see cref="GetLumberFrenzySweepMirrorSign"/> instead.</summary>
+    /// <summary>Whirlwind / combat facing from weapon scale.</summary>
     public float GetCombatFacingSign()
     {
         Transform anchor = ResolvePowerSlashAnchor();
@@ -243,17 +274,6 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (player != null)
             return Mathf.Sign(player.transform.localScale.x >= 0f ? 1f : -1f);
         return 1f;
-    }
-
-    /// <summary>
-    /// Mirror sign for the horizontal figure-eight only. Uses <see cref="PlayerController.FacingDirectionX"/> so weapon / gather
-    /// animation on the power-slash anchor does not jitter the Lumber Frenzy orbit.
-    /// </summary>
-    private float GetLumberFrenzySweepMirrorSign()
-    {
-        if (player != null && !Mathf.Approximately(player.FacingDirectionX, 0f))
-            return Mathf.Sign(player.FacingDirectionX);
-        return GetCombatFacingSign();
     }
 
     private void Awake()
@@ -270,8 +290,10 @@ public class PlayerAbilityVfxController : MonoBehaviour
         DestroySpectralAxeAreaIndicator();
         DestroyAvatarOfTheForestGlowVfx();
         DestroyEnergyInfusionGlowVfx();
+        DestroyBattleTranceGlowVfx();
         EndFlameChargePlayerGlow();
         DestroyAllFlameChargeDashTrailVfx();
+        EndBladestormStabSpray();
     }
 
     private static bool AreAbilityRangeIndicatorsEnabled() =>
@@ -1095,7 +1117,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         return null;
     }
 
-    public void SpawnLumberFrenzyOrbitVfx()
+    public void SpawnLumberFrenzyOrbitVfx(bool isFishingFrenzy = false)
     {
         DestroyLumberFrenzyOrbitVfx();
 
@@ -1103,52 +1125,62 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (followRoot == null)
             return;
 
-        _lumberFrenzyAnchorRoot = new GameObject("LumberFrenzyOrbitAnchor");
-        // Not parented under the player hierarchy: child bones / weapon / gather animation won't move this anchor.
-        // World position is driven each frame from the player root only (see UpdateLumberFrenzyOrbitVfx).
-        _lumberFrenzyAnchorRoot.transform.SetParent(null, false);
-        _lumberFrenzyAnchorRoot.transform.position = followRoot.TransformPoint(lumberFrenzyOrbitVfxLocalOffset);
-        _lumberFrenzyAnchorRoot.transform.rotation = Quaternion.identity;
-        _lumberFrenzyAnchorRoot.transform.localScale = Vector3.one;
+        Color vfxColor = isFishingFrenzy ? fishingFrenzyOrbitVfxColor : lumberFrenzyOrbitVfxColor;
 
-        var sweepGo = new GameObject("LumberFrenzySweepMotion");
-        sweepGo.transform.SetParent(_lumberFrenzyAnchorRoot.transform, false);
-        sweepGo.transform.localPosition = Vector3.zero;
-        sweepGo.transform.localRotation = Quaternion.identity;
-        sweepGo.transform.localScale = Vector3.one;
-        _lumberFrenzySweepMotion = sweepGo.transform;
+        _lumberFrenzyAnchorRoot = new GameObject(isFishingFrenzy ? "FishingFrenzyVfxAnchor" : "LumberFrenzyVfxAnchor");
+        _lumberFrenzyAnchorRoot.transform.SetParent(followRoot, false);
+        _lumberFrenzyAnchorRoot.transform.localRotation = Quaternion.identity;
+        _lumberFrenzyAnchorRoot.transform.localScale = Vector3.one;
+        SyncGatheringFrenzyAnchorLocalPosition();
 
         if (lumberFrenzyOrbitVfxPrefab != null)
         {
-            _lumberFrenzyOrbitVfxRoot = Instantiate(lumberFrenzyOrbitVfxPrefab, _lumberFrenzySweepMotion);
-            _lumberFrenzyOrbitVfxRoot.name = "LumberFrenzyOrbitVfx";
+            _lumberFrenzyOrbitVfxRoot = Instantiate(lumberFrenzyOrbitVfxPrefab, _lumberFrenzyAnchorRoot.transform);
+            _lumberFrenzyOrbitVfxRoot.name = isFishingFrenzy ? "FishingFrenzyOrbitVfx" : "LumberFrenzyOrbitVfx";
             Transform t = _lumberFrenzyOrbitVfxRoot.transform;
             t.localPosition = Vector3.zero;
             t.localRotation = Quaternion.identity;
             TryApplyPlayerSpriteSortingToHierarchy(t, 10);
+            ApplyGatheringFrenzyColorToHierarchy(t, vfxColor);
             return;
         }
 
-        CreateRuntimeLumberFrenzyOrbitParticles(_lumberFrenzySweepMotion);
+        CreateRuntimeGatheringFrenzyOrbitParticles(_lumberFrenzyAnchorRoot.transform, vfxColor);
     }
 
-    private void CreateRuntimeLumberFrenzyOrbitParticles(Transform parentMotion)
+    private void SyncGatheringFrenzyAnchorLocalPosition()
     {
-        _lumberFrenzyOrbitVfxRoot = new GameObject("LumberFrenzyOrbitVfx_Runtime");
+        if (_lumberFrenzyAnchorRoot == null)
+            return;
+
+        float facingX = 1f;
+        if (player != null && !Mathf.Approximately(player.FacingDirectionX, 0f))
+            facingX = Mathf.Sign(player.FacingDirectionX);
+        else if (player != null)
+            facingX = Mathf.Sign(player.transform.localScale.x >= 0f ? 1f : -1f);
+
+        float behindX = -facingX * gatheringFrenzyBehindDistance;
+        _lumberFrenzyAnchorRoot.transform.localPosition = new Vector3(
+            behindX + lumberFrenzyOrbitVfxLocalOffset.x,
+            lumberFrenzyOrbitVfxLocalOffset.y,
+            lumberFrenzyOrbitVfxLocalOffset.z);
+    }
+
+    private void CreateRuntimeGatheringFrenzyOrbitParticles(Transform parent, Color vfxColor)
+    {
+        _lumberFrenzyOrbitVfxRoot = new GameObject("GatheringFrenzyOrbitVfx_Runtime");
         Transform root = _lumberFrenzyOrbitVfxRoot.transform;
-        root.SetParent(parentMotion, false);
+        root.SetParent(parent, false);
         root.localPosition = Vector3.zero;
         root.localRotation = Quaternion.identity;
         root.localScale = Vector3.one;
 
-        GameObject emitterGO = new GameObject("GreenSparkEmitter");
+        GameObject emitterGO = new GameObject("GatheringFrenzySparkEmitter");
         emitterGO.transform.SetParent(root, false);
         emitterGO.transform.localPosition = Vector3.zero;
         emitterGO.transform.localRotation = Quaternion.identity;
 
         ParticleSystem ps = emitterGO.AddComponent<ParticleSystem>();
-        // AddComponent can begin simulating with default playOnAwake before we assign main; duration/lifetime
-        // changes are not allowed while playing.
         ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 
         var main = ps.main;
@@ -1158,7 +1190,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         main.startLifetime = 0.5f;
         main.startSpeed = new ParticleSystem.MinMaxCurve(0.15f, 0.55f);
         main.startSize = new ParticleSystem.MinMaxCurve(0.045f, 0.11f);
-        main.startColor = lumberFrenzyOrbitVfxColor;
+        main.startColor = vfxColor;
         main.simulationSpace = ParticleSystemSimulationSpace.Local;
         main.gravityModifier = 0f;
         main.maxParticles = 320;
@@ -1169,25 +1201,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
         var shape = ps.shape;
         shape.enabled = true;
         shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius = 0.06f;
+        shape.radius = 0.14f;
 
-        var col = ps.colorOverLifetime;
-        col.enabled = true;
-        Gradient g = new Gradient();
-        g.SetKeys(
-            new[]
-            {
-                new GradientColorKey(lumberFrenzyOrbitVfxColor, 0f),
-                new GradientColorKey(Color.Lerp(lumberFrenzyOrbitVfxColor, Color.white, 0.2f), 0.45f),
-                new GradientColorKey(lumberFrenzyOrbitVfxColor, 1f)
-            },
-            new[]
-            {
-                new GradientAlphaKey(Mathf.Clamp01(lumberFrenzyOrbitVfxColor.a), 0f),
-                new GradientAlphaKey(Mathf.Clamp01(lumberFrenzyOrbitVfxColor.a * 0.75f), 0.35f),
-                new GradientAlphaKey(0f, 1f)
-            });
-        col.color = new ParticleSystem.MinMaxGradient(g);
+        ApplyGatheringFrenzyParticleColorOverLifetime(ps, vfxColor);
 
         var sizeOverLifetime = ps.sizeOverLifetime;
         sizeOverLifetime.enabled = true;
@@ -1203,33 +1219,80 @@ public class PlayerAbilityVfxController : MonoBehaviour
             renderer.sortingOrder = 19;
         ApplyRuntimeParticleMaterialIfNeeded(renderer);
 
+        _gatheringFrenzyRuntimeParticles = ps;
         ps.Play(true);
     }
 
-    public void UpdateLumberFrenzyOrbitVfx(bool buffActive)
+    private static void ApplyGatheringFrenzyParticleColorOverLifetime(ParticleSystem ps, Color vfxColor)
     {
-        if (!buffActive || _lumberFrenzySweepMotion == null)
+        var col = ps.colorOverLifetime;
+        col.enabled = true;
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new[]
+            {
+                new GradientColorKey(vfxColor, 0f),
+                new GradientColorKey(Color.Lerp(vfxColor, Color.white, 0.2f), 0.45f),
+                new GradientColorKey(vfxColor, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(Mathf.Clamp01(vfxColor.a), 0f),
+                new GradientAlphaKey(Mathf.Clamp01(vfxColor.a * 0.75f), 0.35f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        col.color = new ParticleSystem.MinMaxGradient(g);
+    }
+
+    private void ApplyGatheringFrenzyColorToHierarchy(Transform root, Color vfxColor)
+    {
+        if (root == null)
             return;
 
-        Transform followRoot = player != null ? player.transform : transform;
-        if (followRoot != null && _lumberFrenzyAnchorRoot != null)
-            _lumberFrenzyAnchorRoot.transform.position = followRoot.TransformPoint(lumberFrenzyOrbitVfxLocalOffset);
+        ParticleSystem[] systems = root.GetComponentsInChildren<ParticleSystem>(true);
+        for (int i = 0; i < systems.Length; i++)
+        {
+            ParticleSystem ps = systems[i];
+            if (!ps)
+                continue;
 
-        float width = Mathf.Max(0.01f, whirlingBladeLineWidth * 0.85f);
-        float visualRadius = Mathf.Max(0.05f, lumberFrenzyOrbitRadius - (width * 0.5f));
-        float spinScale = Mathf.Clamp(Mathf.Abs(whirlingBladeSpinDegrees) / 720f, 0.25f, 2.5f);
+            var main = ps.main;
+            main.startColor = vfxColor;
+            ApplyGatheringFrenzyParticleColorOverLifetime(ps, vfxColor);
+        }
+    }
 
-        float sweepMirrorSign = GetLumberFrenzySweepMirrorSign();
+    private void ApplyGatheringFrenzyOrbitColor(Color vfxColor)
+    {
+        if (_gatheringFrenzyRuntimeParticles != null)
+        {
+            var main = _gatheringFrenzyRuntimeParticles.main;
+            main.startColor = vfxColor;
+            ApplyGatheringFrenzyParticleColorOverLifetime(_gatheringFrenzyRuntimeParticles, vfxColor);
+            return;
+        }
 
-        float period = Mathf.Max(0.08f, lumberFrenzySweepPeriodSeconds);
-        float t = (Time.time / period) % 1f;
-        EvaluateWhirlwindStyleSweep(t, visualRadius, spinScale, sweepMirrorSign, out float x, out float y);
-        _lumberFrenzySweepMotion.localPosition = whirlingBladeCenterOffset + new Vector3(x, y, 0f);
+        if (_lumberFrenzyOrbitVfxRoot != null)
+            ApplyGatheringFrenzyColorToHierarchy(_lumberFrenzyOrbitVfxRoot.transform, vfxColor);
+    }
+
+    public void UpdateLumberFrenzyOrbitVfx(bool lumberFrenzyActive, bool fishingFrenzyActive)
+    {
+        if (!lumberFrenzyActive && !fishingFrenzyActive)
+            return;
+        if (_lumberFrenzyAnchorRoot == null)
+            return;
+
+        SyncGatheringFrenzyAnchorLocalPosition();
+
+        bool useFishingColor = fishingFrenzyActive && !lumberFrenzyActive;
+        Color vfxColor = useFishingColor ? fishingFrenzyOrbitVfxColor : lumberFrenzyOrbitVfxColor;
+        ApplyGatheringFrenzyOrbitColor(vfxColor);
     }
 
     public void DestroyLumberFrenzyOrbitVfx()
     {
-        _lumberFrenzySweepMotion = null;
+        _gatheringFrenzyRuntimeParticles = null;
         _lumberFrenzyOrbitVfxRoot = null;
         if (_lumberFrenzyAnchorRoot != null)
         {
@@ -1865,6 +1928,119 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
     }
 
+    public void SpawnBattleTranceGlowVfx()
+    {
+        DestroyBattleTranceGlowVfx();
+        Transform parent = player != null ? player.transform : transform;
+        if (parent == null)
+            return;
+
+        _battleTranceGlowRoot = new GameObject("BattleTranceGlow");
+        _battleTranceGlowRoot.transform.SetParent(parent, false);
+        _battleTranceGlowRoot.transform.localPosition = battleTranceGlowLocalOffset;
+        _battleTranceGlowRoot.transform.localRotation = Quaternion.identity;
+        _battleTranceGlowRoot.transform.localScale = Vector3.one;
+
+        GameObject emitterGO = new GameObject("BattleTranceEmitter");
+        emitterGO.transform.SetParent(_battleTranceGlowRoot.transform, false);
+        emitterGO.transform.localPosition = Vector3.zero;
+
+        ParticleSystem ps = emitterGO.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        var main = ps.main;
+        main.playOnAwake = false;
+        main.loop = true;
+        main.duration = 1f;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.55f, 0.82f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.02f, 0.12f);
+        float sizeMin = Mathf.Max(0.001f, Mathf.Min(battleTranceParticleStartSizeMin, battleTranceParticleStartSizeMax));
+        float sizeMax = Mathf.Max(sizeMin, Mathf.Max(battleTranceParticleStartSizeMin, battleTranceParticleStartSizeMax));
+        main.startSize = new ParticleSystem.MinMaxCurve(sizeMin, sizeMax);
+        main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
+        main.startColor = battleTranceGlowColor;
+        main.simulationSpace = ParticleSystemSimulationSpace.Local;
+        main.gravityModifier = 0f;
+        main.maxParticles = 360;
+        main.simulationSpeed = 1f;
+
+        var emission = ps.emission;
+        emission.rateOverTime = battleTranceGlowEmissionRate;
+
+        var shape = ps.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = Mathf.Max(0.08f, battleTranceGlowSphereRadius * 0.55f);
+        shape.radiusThickness = 1f;
+        shape.randomDirectionAmount = 0.35f;
+
+        var vel = ps.velocityOverLifetime;
+        vel.enabled = true;
+        vel.space = ParticleSystemSimulationSpace.Local;
+        AnimationCurve pulseOut = new AnimationCurve(
+            new Keyframe(0f, 0f, 0f, 0f),
+            new Keyframe(0.35f, 0.18f, 0.6f, 0.6f),
+            new Keyframe(1f, 0.08f, -0.2f, 0f));
+        AnimationCurve pulseIn = new AnimationCurve(
+            new Keyframe(0f, 0f, 0f, 0f),
+            new Keyframe(0.35f, -0.18f, -0.6f, -0.6f),
+            new Keyframe(1f, -0.08f, 0.2f, 0f));
+        vel.x = new ParticleSystem.MinMaxCurve(1f, pulseIn, pulseOut);
+        vel.y = new ParticleSystem.MinMaxCurve(1f, pulseIn, pulseOut);
+        vel.z = new ParticleSystem.MinMaxCurve(1f, pulseIn, pulseOut);
+
+        var sol = ps.sizeOverLifetime;
+        sol.enabled = true;
+        AnimationCurve breathe = new AnimationCurve(
+            new Keyframe(0f, 0.85f, 0f, 0f),
+            new Keyframe(0.5f, 1.05f, 0f, 0f),
+            new Keyframe(1f, 0.75f, 0f, 0f));
+        sol.size = new ParticleSystem.MinMaxCurve(1f, breathe);
+
+        var col = ps.colorOverLifetime;
+        col.enabled = true;
+        Color c = battleTranceGlowColor;
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.Lerp(c, Color.white, 0.35f), 0f),
+                new GradientColorKey(c, 0.4f),
+                new GradientColorKey(Color.Lerp(c, new Color(0.55f, 0.05f, 0.05f), 0.35f), 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(Mathf.Clamp01(c.a), 0f),
+                new GradientAlphaKey(Mathf.Clamp01(c.a * 0.65f), 0.55f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        col.color = new ParticleSystem.MinMaxGradient(g);
+
+        ParticleSystemRenderer renderer = ps.GetComponent<ParticleSystemRenderer>();
+        renderer.renderMode = ParticleSystemRenderMode.Billboard;
+        if (!TryApplyPlayerSpriteSortingToRenderer(renderer, 12))
+            renderer.sortingOrder = 24;
+        ApplyRuntimeParticleMaterialIfNeeded(renderer);
+
+        ps.Play(true);
+    }
+
+    public void UpdateBattleTranceGlowVfx(bool buffActive)
+    {
+        if (!buffActive || _battleTranceGlowRoot == null)
+            return;
+        _battleTranceGlowRoot.transform.localPosition = battleTranceGlowLocalOffset;
+    }
+
+    public void DestroyBattleTranceGlowVfx()
+    {
+        if (_battleTranceGlowRoot != null)
+        {
+            Destroy(_battleTranceGlowRoot);
+            _battleTranceGlowRoot = null;
+        }
+    }
+
     public void BeginFlameChargePlayerGlow()
     {
         EndFlameChargePlayerGlow();
@@ -2071,6 +2247,188 @@ public class PlayerAbilityVfxController : MonoBehaviour
         renderer.sortingOrder = flameChargeGroundSortingOrder;
     }
 
+    public void BeginBladestormStabSpray(float channelSeconds, EnemyBaseController targetBias)
+    {
+        EndBladestormStabSpray();
+        if (player == null || channelSeconds <= 0f)
+            return;
+
+        _ = targetBias;
+        _bladestormStabSprayRoutine = StartCoroutine(CoBladestormStabSpray(channelSeconds));
+    }
+
+    public void EndBladestormStabSpray()
+    {
+        if (_bladestormStabSprayRoutine == null)
+            return;
+
+        StopCoroutine(_bladestormStabSprayRoutine);
+        _bladestormStabSprayRoutine = null;
+    }
+
+    private IEnumerator CoBladestormStabSpray(float channelSeconds)
+    {
+        float interval = Mathf.Max(0.05f, bladestormStabEmitIntervalSeconds);
+        float endTime = Time.time + channelSeconds;
+
+        while (Time.time < endTime)
+        {
+            if (player == null)
+                yield break;
+
+            SpawnBladestormRandomStab();
+            yield return new WaitForSeconds(interval);
+        }
+
+        _bladestormStabSprayRoutine = null;
+    }
+
+    private void SpawnBladestormRandomStab()
+    {
+        if (player == null)
+            return;
+
+        float facingX = GetCombatFacingSign();
+        Vector3 origin = player.transform.position + new Vector3(
+            bladestormStabOriginOffset.x * facingX,
+            bladestormStabOriginOffset.y,
+            bladestormStabOriginOffset.z);
+
+        // Flat horizontal axis in the facing direction; pitch up/down from that axis only.
+        float verticalHalf = Mathf.Max(5f, bladestormStabVerticalHalfDegrees);
+        float pitchDeg = UnityEngine.Random.Range(-verticalHalf, verticalHalf);
+        float angleDeg = facingX > 0f ? pitchDeg : 180f - pitchDeg;
+        float angleRad = angleDeg * Mathf.Deg2Rad;
+        Vector3 dir = new Vector3(Mathf.Cos(angleRad), Mathf.Sin(angleRad), 0f);
+        float reach = bladestormStabReach * UnityEngine.Random.Range(0.75f, 1.2f);
+        Vector3 end = origin + dir * reach;
+
+        StartCoroutine(CoBladestormStabLineExtend(origin, end));
+    }
+
+    public void SpawnBladestormFinaleDownwardSlash(Vector3 targetWorld)
+    {
+        Vector3 anchor = new Vector3(
+            targetWorld.x,
+            targetWorld.y + bladestormFinaleSlashTargetYOffset,
+            targetWorld.z);
+        Vector3 start = anchor + Vector3.up * bladestormFinaleSlashDropHeight;
+        Vector3 end = anchor - Vector3.up * bladestormFinaleSlashDepth;
+        StartCoroutine(CoBladestormFinaleDownwardSlash(start, end));
+    }
+
+    private IEnumerator CoBladestormFinaleDownwardSlash(Vector3 start, Vector3 end)
+    {
+        GameObject root = new GameObject("BladestormFinaleSlash");
+        LineRenderer lr = root.AddComponent<LineRenderer>();
+        lr.positionCount = 2;
+        lr.useWorldSpace = true;
+        lr.SetPosition(0, start);
+        lr.SetPosition(1, start);
+        lr.startWidth = bladestormFinaleSlashLineWidth;
+        lr.endWidth = bladestormFinaleSlashLineWidth * 0.18f;
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        Color tipColor = new Color(
+            bladestormFinaleSlashColor.r,
+            bladestormFinaleSlashColor.g,
+            bladestormFinaleSlashColor.b,
+            bladestormFinaleSlashColor.a * 0.2f);
+        lr.startColor = bladestormFinaleSlashColor;
+        lr.endColor = tipColor;
+        if (!TryApplyPlayerSpriteSortingToRenderer(lr, 18))
+            lr.sortingOrder = 28;
+
+        float extendSeconds = Mathf.Max(0.01f, bladestormFinaleSlashExtendSeconds);
+        float fadeSeconds = Mathf.Max(0.02f, bladestormFinaleSlashFadeSeconds);
+        float extendElapsed = 0f;
+        while (extendElapsed < extendSeconds)
+        {
+            extendElapsed += Time.deltaTime;
+            float u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(extendElapsed / extendSeconds));
+            Vector3 tip = Vector3.Lerp(start, end, u);
+            lr.SetPosition(0, start);
+            lr.SetPosition(1, tip);
+            float widthT = Mathf.Lerp(bladestormFinaleSlashLineWidth, bladestormFinaleSlashLineWidth * 0.35f, u);
+            lr.startWidth = widthT;
+            lr.endWidth = widthT * 0.12f;
+            yield return null;
+        }
+
+        lr.SetPosition(0, start);
+        lr.SetPosition(1, end);
+
+        float fadeElapsed = 0f;
+        while (fadeElapsed < fadeSeconds)
+        {
+            fadeElapsed += Time.deltaTime;
+            float u = Mathf.Clamp01(fadeElapsed / fadeSeconds);
+            float alpha = bladestormFinaleSlashColor.a * (1f - u);
+            Color c0 = bladestormFinaleSlashColor;
+            Color c1 = tipColor;
+            c0.a = alpha;
+            c1.a = alpha * 0.2f;
+            lr.startColor = c0;
+            lr.endColor = c1;
+            yield return null;
+        }
+
+        Destroy(root);
+    }
+
+    private IEnumerator CoBladestormStabLineExtend(Vector3 origin, Vector3 end)
+    {
+        GameObject root = new GameObject("BladestormStab");
+        LineRenderer lr = root.AddComponent<LineRenderer>();
+        lr.positionCount = 2;
+        lr.useWorldSpace = true;
+        lr.SetPosition(0, origin);
+        lr.SetPosition(1, origin);
+        lr.startWidth = bladestormStabLineWidth;
+        lr.endWidth = bladestormStabLineWidth * 0.2f;
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        Color tipColor = new Color(bladestormStabColor.r, bladestormStabColor.g, bladestormStabColor.b, 0.12f);
+        lr.startColor = bladestormStabColor;
+        lr.endColor = tipColor;
+        if (!TryApplyPlayerSpriteSortingToRenderer(lr, 14))
+            lr.sortingOrder = 24;
+
+        float extendSeconds = Mathf.Max(0.01f, bladestormStabExtendSeconds);
+        float fadeSeconds = Mathf.Max(0.02f, bladestormStabFadeSeconds);
+        float extendElapsed = 0f;
+        while (extendElapsed < extendSeconds)
+        {
+            extendElapsed += Time.deltaTime;
+            float u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(extendElapsed / extendSeconds));
+            Vector3 tip = Vector3.Lerp(origin, end, u);
+            lr.SetPosition(0, origin);
+            lr.SetPosition(1, tip);
+            float widthT = Mathf.Lerp(bladestormStabLineWidth, bladestormStabLineWidth * 0.25f, u);
+            lr.startWidth = widthT;
+            lr.endWidth = widthT * 0.15f;
+            yield return null;
+        }
+
+        lr.SetPosition(0, origin);
+        lr.SetPosition(1, end);
+
+        float fadeElapsed = 0f;
+        while (fadeElapsed < fadeSeconds)
+        {
+            fadeElapsed += Time.deltaTime;
+            float u = Mathf.Clamp01(fadeElapsed / fadeSeconds);
+            float alpha = bladestormStabColor.a * (1f - u);
+            Color c0 = bladestormStabColor;
+            c0.a = alpha;
+            Color c1 = tipColor;
+            c1.a = alpha * 0.15f;
+            lr.startColor = c0;
+            lr.endColor = c1;
+            yield return null;
+        }
+
+        Destroy(root);
+    }
+
     public void BeginExecutionersDescent(EnemyBaseController target, Vector3 targetWorld, float descentSeconds)
     {
         StopExecutionersDescentVfx();
@@ -2100,6 +2458,34 @@ public class PlayerAbilityVfxController : MonoBehaviour
         EvaluateExecutionersDescentAxePose(targetWorld, elapsedSeconds, out Vector3 axePos, out Vector3 hangPoint);
         _executionersDescentAxeRoot.transform.position = axePos;
         SyncExecutionersDescentMark(target, hangPoint);
+    }
+
+    public bool TryGetExecutionersDescentAxeWorldPosition(out Vector3 worldPosition)
+    {
+        if (_executionersDescentAxeRoot == null)
+        {
+            worldPosition = default;
+            return false;
+        }
+
+        worldPosition = _executionersDescentAxeRoot.transform.position;
+        return true;
+    }
+
+    public void SetExecutionersDescentAxeWorldPosition(Vector3 worldPosition)
+    {
+        if (_executionersDescentAxeRoot != null)
+            _executionersDescentAxeRoot.transform.position = worldPosition;
+    }
+
+    public void HideExecutionersDescentMark()
+    {
+        if (_executionersDescentMarkRoot == null)
+            return;
+
+        _executionersDescentMarkRoot.transform.SetParent(null, true);
+        if (_executionersDescentMarkRenderer != null)
+            _executionersDescentMarkRenderer.enabled = false;
     }
 
     public void SpawnExecutionersDescentImpactShockwave(Vector3 targetWorld)
@@ -2133,17 +2519,24 @@ public class PlayerAbilityVfxController : MonoBehaviour
         out Vector3 axeWorldPosition,
         out Vector3 hangWorldPosition)
     {
-        hangWorldPosition = new Vector3(
+        float spawnHeight = Mathf.Max(0.1f, executionersDescentSpawnHeightAboveTarget);
+        float minimumHeight = Mathf.Clamp(
+            executionersDescentMinimumHeightAboveTarget,
+            0f,
+            spawnHeight);
+
+        Vector3 spawnWorld = new Vector3(
             targetWorld.x,
-            targetWorld.y + executionersDescentHangHeightAboveTarget,
+            targetWorld.y + spawnHeight,
             targetWorld.z);
+        Vector3 minimumWorld = new Vector3(
+            targetWorld.x,
+            targetWorld.y + minimumHeight,
+            targetWorld.z);
+        hangWorldPosition = minimumWorld;
 
-        Vector3 spawnWorld = hangWorldPosition + Vector3.up * executionersDescentSpawnHeightAboveHang;
-
-        float holdSeconds = Mathf.Min(executionersDescentSpawnHoldSeconds, _executionersDescentTotalSeconds * 0.55f);
-        float dropDuration = Mathf.Max(
-            0.1f,
-            Mathf.Min(executionersDescentDropDurationSeconds, _executionersDescentTotalSeconds - holdSeconds));
+        float holdSeconds = Mathf.Clamp(executionersDescentSpawnHoldSeconds, 0f, _executionersDescentTotalSeconds);
+        float dropDuration = Mathf.Max(0.01f, _executionersDescentTotalSeconds - holdSeconds);
 
         if (elapsedSeconds <= holdSeconds)
         {
@@ -2153,7 +2546,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         float dropElapsed = elapsedSeconds - holdSeconds;
         float dropT = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(dropElapsed / dropDuration));
-        axeWorldPosition = Vector3.Lerp(spawnWorld, hangWorldPosition, dropT);
+        axeWorldPosition = Vector3.Lerp(spawnWorld, minimumWorld, dropT);
     }
 
     private void SyncExecutionersDescentMark(EnemyBaseController target, Vector3 hangWorldPosition)

@@ -437,8 +437,7 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Elemental Crescent
-      description: Crescent Slash now converts 50% Physical to random element and
-        applies the associated ailment.
+      description: Crescent Slash converts 100% Physical to Fire and applies Burn.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -904,6 +903,43 @@ MonoBehaviour:
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 35
+    title: Battle Trance
+    description: Enter a heightened combat state for 10 seconds.
+    icon: {fileID: -7588507058973284862, guid: efbbcf5bf04528a47be779022ad595a7, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: b47a7e40c0ab4719a8b7c6d5e4f30101, type: 2}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 38
+      title: Unrelenting
+      description: +10% attack speed and +5% cooldown reduction while active. Damage
+        taken increases to +15%.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 38
+      title: Controlled Aggression
+      description: Damage taken is only +5% while active. Additionally gain +10%
+        movement speed.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 38
+      title: Endless Assault
+      description: Killing an enemy extends Battle Trance duration by 1 second (up
+        to +10 seconds).
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 36
     title: Storm Edge I
     description: +5% Melee Shock Chance
@@ -1135,6 +1171,37 @@ MonoBehaviour:
       description: Primary target's armour and magic resist are ignored on the main
         hit. Enemies hit by the shockwave (and the primary target) lose 50% armour
         and magic resist for 5 seconds.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+  - requiredLevel: 45
+    title: Bladestorm
+    description: Channel Relentless Execution for 3 seconds, striking a single enemy
+      in front of you at 500% increased attack speed. Each hit deals 50% weapon damage.
+      Take 50% reduced damage during the channel.
+    icon: {fileID: -1046654900349753576, guid: 85f17a5fddf023048bd2cd564163a9f1, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: cbda24cebcebbed7473e26c0eb0fa328, type: 2}
+    presentation: {fileID: 11400000, guid: 2b2c1eec4b9cd2710a863de2e03a58a6, type: 2}
+    choices:
+    - requiredLevel: 48
+      title: Bladestorm Finale
+      description: The final strike deals 150% weapon damage.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 48
+      title: Endless Carnage
+      description: If the target dies during the combo, immediately perform the remaining
+        strikes against the nearest enemy.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

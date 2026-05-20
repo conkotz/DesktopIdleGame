@@ -56,6 +56,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     [Tooltip("Abilities section (placeholder until drag/drop).")]
     [SerializeField] private TMP_Text rightAbilitiesText;
 
+    [Header("Right panel — auto assign")]
+    [Tooltip("Assigns unlocked abilities from this panel (top to bottom) into action-bar slots 1–5, replacing existing abilities.")]
+    [SerializeField] private Button autoAssignAbilitiesButton;
+
     [Header("Right panel — abilities list (optional)")]
     [Tooltip("If set, abilities are shown as draggable entries. If empty, the placeholder TMP text is used.")]
     [SerializeField] private Transform rightAbilitiesListParent;
@@ -128,6 +132,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         RebuildDevCompletionTierLookup();
         TrySubscribeSkillsEvents();
         HookTreeGlowAcknowledge();
+        WireAutoAssignAbilitiesButton();
     }
 
     private void OnEnable()
@@ -147,10 +152,14 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         RefreshDevCompletionBanner();
         // Layout / tree bootstrap order: one frame later matches level-up deferred refresh so center tree + ability rows match the selected skill on first open.
         ScheduleDeferredProgressRefresh();
+        WireAutoAssignAbilitiesButton();
     }
 
     private void OnDisable()
     {
+        if (autoAssignAbilitiesButton != null)
+            autoAssignAbilitiesButton.onClick.RemoveListener(HandleAutoAssignAbilitiesToBarClicked);
+
         if (_deferredRefreshRoutine != null)
         {
             StopCoroutine(_deferredRefreshRoutine);
@@ -827,7 +836,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         unchecked
         {
             int h = ((int)skill.skillType * 397) ^ level;
-            List<int> tiers = CollectSortedAbilityTierLevels(skill);
+            List<int> tiers = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
             for (int i = 0; i < tiers.Count; i++)
             {
                 int rowLevel = tiers[i];
@@ -872,7 +881,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         PreferRuntimeSkillsManager();
 
-        var abilityTierLevels = CollectSortedAbilityTierLevels(skill);
+        var abilityTierLevels = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
         if (abilityTierLevels.Count == 0)
         {
             if (rightAbilitiesText)
@@ -907,6 +916,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
             AbilityEntryUI row = CreateAbilityRow(rightAbilitiesListParent);
             row.SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Right);
+            row.SetRowLevelContext(rowLevel, HandleAbilityRowRightClick);
 
             if (pick < 0)
             {
@@ -945,6 +955,131 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             Canvas.ForceUpdateCanvases();
             LayoutRebuilder.ForceRebuildLayoutImmediate(abilitiesListRt);
         }
+    }
+
+    private void HandleAbilityRowRightClick(int rowLevel)
+    {
+        if (centerSkillTreeView != null)
+            centerSkillTreeView.HandleAbilityListRowRightClick(rowLevel);
+
+        if (_selectedSkill == null)
+            return;
+
+        InvalidateAbilitiesPanelCache();
+        int level = skillsManager ? skillsManager.GetLevel(_selectedSkill.skillType) : 1;
+        RefreshAbilitiesPanel(_selectedSkill, level);
+    }
+
+    private void WireAutoAssignAbilitiesButton()
+    {
+        if (!autoAssignAbilitiesButton)
+        {
+            Transform found = transform.Find("AutoAssignAbilitiesButton");
+            if (!found)
+            {
+                Button[] buttons = GetComponentsInChildren<Button>(true);
+                for (int i = 0; i < buttons.Length; i++)
+                {
+                    if (buttons[i] != null &&
+                        buttons[i].name.IndexOf("AutoAssign", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        autoAssignAbilitiesButton = buttons[i];
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                autoAssignAbilitiesButton = found.GetComponent<Button>();
+            }
+        }
+
+        if (!autoAssignAbilitiesButton)
+            return;
+
+        autoAssignAbilitiesButton.onClick.RemoveListener(HandleAutoAssignAbilitiesToBarClicked);
+        autoAssignAbilitiesButton.onClick.AddListener(HandleAutoAssignAbilitiesToBarClicked);
+    }
+
+    private void HandleAutoAssignAbilitiesToBarClicked()
+    {
+        PreferRuntimeSkillsManager();
+        if (_selectedSkill == null)
+        {
+            if (player)
+                player.ShowPopup("Select a skill first.");
+            return;
+        }
+
+        if (skillsManager == null)
+        {
+            if (player)
+                player.ShowPopup("Skills not loaded.");
+            return;
+        }
+
+        int level = skillsManager.GetLevel(_selectedSkill.skillType);
+        List<AbilityDefinition> abilities = CollectUnlockedAbilitiesInPanelOrder(_selectedSkill, level);
+        if (abilities.Count == 0)
+        {
+            if (player)
+                player.ShowPopup("No unlocked abilities to assign.");
+            return;
+        }
+
+        ActionBarUI bar = _cachedActionBar;
+        if (bar == null)
+            bar = _cachedActionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (bar == null)
+        {
+            if (player)
+                player.ShowPopup("No action bar found.");
+            return;
+        }
+
+        if (ActionBarUI.IsGatheringSkillType(_selectedSkill.skillType))
+            bar.ShowGatheringBarForSkill(_selectedSkill.skillType, GatheringBarDriveKind.SkillsMenuSelection);
+        else
+            bar.ExitGatheringBarToCombat();
+
+        int assigned = bar.ReplaceLoadoutAbilitiesInOrder(abilities);
+        if (assigned <= 0 && player)
+            player.ShowPopup("Could not assign abilities to the action bar.");
+    }
+
+    /// <summary>Same order as the right-panel abilities list (tier rows top to bottom).</summary>
+    private List<AbilityDefinition> CollectUnlockedAbilitiesInPanelOrder(SkillDefinition skill, int playerLevel)
+    {
+        var result = new List<AbilityDefinition>();
+        if (skill == null || skillsManager == null)
+            return result;
+
+        List<int> abilityTierLevels = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
+        for (int i = 0; i < abilityTierLevels.Count; i++)
+        {
+            int rowLevel = abilityTierLevels[i];
+            if (playerLevel < rowLevel)
+                continue;
+
+            List<AbilityDefinition> siblings = SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(skill, rowLevel);
+            if (siblings == null || siblings.Count == 0)
+                continue;
+
+            int pick = skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1);
+            if (pick < 0 || pick >= siblings.Count)
+                continue;
+
+            AbilityDefinition def = siblings[pick];
+            if (def == null)
+                continue;
+
+            if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
+                continue;
+
+            result.Add(def);
+        }
+
+        return result;
     }
 
     private void HandleAbilityDoubleClickAssignToActionBar(AbilityDefinition def)
@@ -998,45 +1133,12 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         return go.transform;
     }
 
-    /// <summary>Distinct ability tier rows (Lv5 / Lv25 / …) that have at least one ability sibling on the skill tree.</summary>
-    private static List<int> CollectSortedAbilityTierLevels(SkillDefinition skill)
-    {
-        var candidate = new HashSet<int>();
-        if (skill?.unlocks == null)
-            return new List<int>();
-
-        for (int i = 0; i < skill.unlocks.Count; i++)
-        {
-            SkillUnlockDefinition unlock = skill.unlocks[i];
-            if (unlock == null || unlock.ability == null)
-                continue;
-
-            bool abilityLike =
-                unlock.unlockType == SkillUnlockType.Ability ||
-                unlock.unlockType == SkillUnlockType.CapstonePassive;
-            if (!abilityLike)
-                continue;
-
-            candidate.Add(Mathf.Max(1, unlock.requiredLevel));
-        }
-
-        var result = new List<int>();
-        foreach (int rl in candidate)
-        {
-            if (SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(skill, rl).Count > 0)
-                result.Add(rl);
-        }
-
-        result.Sort();
-        return result;
-    }
-
     private int CountUnlockedAbilityTiers(SkillDefinition skill, int playerLevel)
     {
         if (skill == null)
             return 0;
 
-        var rows = CollectSortedAbilityTierLevels(skill);
+        var rows = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
         int count = 0;
         for (int i = 0; i < rows.Count; i++)
         {
@@ -1052,7 +1154,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         if (skill == null || skillsManager == null)
             return 0;
 
-        var rowLevels = CollectSortedAbilityTierLevels(skill);
+        var rowLevels = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
         int selectedRows = 0;
         for (int i = 0; i < rowLevels.Count; i++)
         {
@@ -1097,6 +1199,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         var iconGO = new GameObject("Icon", typeof(RectTransform), typeof(UnityEngine.UI.Image));
         iconGO.transform.SetParent(go.transform, false);
         var icon = iconGO.GetComponent<UnityEngine.UI.Image>();
+        icon.raycastTarget = false;
         var iconRT = iconGO.GetComponent<RectTransform>();
         iconRT.sizeDelta = new Vector2(32f, 32f);
 
@@ -1105,12 +1208,14 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         var nameText = nameGO.GetComponent<TextMeshProUGUI>();
         nameText.fontSize = 18;
         nameText.alignment = TextAlignmentOptions.MidlineLeft;
+        nameText.raycastTarget = false;
 
         var reqGO = new GameObject("Req", typeof(RectTransform), typeof(TextMeshProUGUI));
         reqGO.transform.SetParent(go.transform, false);
         var reqText = reqGO.GetComponent<TextMeshProUGUI>();
         reqText.fontSize = 16;
         reqText.alignment = TextAlignmentOptions.MidlineRight;
+        reqText.raycastTarget = false;
 
         var entry = go.AddComponent<AbilityEntryUI>();
 

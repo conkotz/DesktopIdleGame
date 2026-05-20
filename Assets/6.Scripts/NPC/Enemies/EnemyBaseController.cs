@@ -1063,6 +1063,8 @@ public class EnemyBaseController : MonoBehaviour
                 mgr.NotifyEnemyKilledForActiveMap(eid);
         }
 
+        PlayerAbilityController.NotifyBattleTranceKillFromEnemyDeath();
+
         WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
             FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
         if (wmp != null)

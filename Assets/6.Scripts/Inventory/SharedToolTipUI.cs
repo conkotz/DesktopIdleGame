@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -83,6 +85,7 @@ public class SharedTooltipUI : MonoBehaviour
 
     private RectTransform _defaultParent;
     private RectTransform _rt;
+    private bool _restoreParentQueued;
 
     /// <summary>When parented to a slot/window, used to cancel that hierarchy's lossy scale so tooltip size follows <see cref="SliderSettingId.TooltipResize"/> only.</summary>
     private Transform _scaleAnchor;
@@ -1021,8 +1024,52 @@ public class SharedTooltipUI : MonoBehaviour
         if (_rt == null || _defaultParent == null)
             return;
 
+        if (_rt.parent == _defaultParent)
+        {
+            _restoreParentQueued = false;
+            return;
+        }
+
+        if (CanReparentTooltipNow())
+        {
+            _restoreParentQueued = false;
+            _rt.SetParent(_defaultParent, false);
+            return;
+        }
+
+        if (!_restoreParentQueued)
+        {
+            _restoreParentQueued = true;
+            SharedTooltipParentRestoreRunner.Enqueue(this);
+        }
+    }
+
+    /// <summary>Called next frame when the docked slot is no longer in OnDisable (avoids SetParent during deactivate).</summary>
+    internal void RestoreDefaultParentDeferred()
+    {
+        _restoreParentQueued = false;
+        if (_rt == null || _defaultParent == null)
+            return;
+
         if (_rt.parent != _defaultParent)
             _rt.SetParent(_defaultParent, false);
+    }
+
+    private bool CanReparentTooltipNow()
+    {
+        Transform walk = _rt.parent;
+        while (walk != null)
+        {
+            if (walk == _defaultParent)
+                return true;
+
+            if (!walk.gameObject.activeInHierarchy)
+                return false;
+
+            walk = walk.parent;
+        }
+
+        return true;
     }
 
     public void SetAnchor(Transform anchor)
@@ -1114,5 +1161,52 @@ public class SharedTooltipUI : MonoBehaviour
         ShowText(title, body, titleColor, useStatsDisplayHeader, skillTreeChrome);
         ApplyDockedTooltipScale();
     }
+}
 
+/// <summary>Flushes tooltip reparent after slot OnDisable completes (Unity forbids SetParent during deactivate).</summary>
+internal sealed class SharedTooltipParentRestoreRunner : MonoBehaviour
+{
+    private static SharedTooltipParentRestoreRunner _instance;
+    private static readonly List<SharedTooltipUI> Queue = new();
+    private static bool _flushScheduled;
+
+    public static void Enqueue(SharedTooltipUI tooltip)
+    {
+        if (!tooltip || Queue.Contains(tooltip))
+            return;
+
+        Queue.Add(tooltip);
+        EnsureInstance();
+
+        if (!_flushScheduled && _instance != null)
+        {
+            _flushScheduled = true;
+            _instance.StartCoroutine(_instance.FlushNextFrame());
+        }
+    }
+
+    private static void EnsureInstance()
+    {
+        if (_instance != null)
+            return;
+
+        var go = new GameObject("[SharedTooltipParentRestore]");
+        DontDestroyOnLoad(go);
+        _instance = go.AddComponent<SharedTooltipParentRestoreRunner>();
+    }
+
+    private IEnumerator FlushNextFrame()
+    {
+        yield return null;
+        _flushScheduled = false;
+
+        for (int i = 0; i < Queue.Count; i++)
+        {
+            SharedTooltipUI tip = Queue[i];
+            if (tip)
+                tip.RestoreDefaultParentDeferred();
+        }
+
+        Queue.Clear();
+    }
 }

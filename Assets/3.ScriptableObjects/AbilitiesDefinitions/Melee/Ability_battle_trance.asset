@@ -10,16 +10,16 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
-  m_Name: Ability_final_severance
+  m_Name: Ability_battle_trance
   m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
-  abilityId: final_severance
-  displayName: Final Severance
-  tag: 1
-  tooltipBuffMinionDurationSeconds: 0
-  presentation: {fileID: 11400000, guid: f4e8d2c1b6a9473081f2e5d6c7b8a901, type: 2}
-  cooldown: 50
+  abilityId: battle_trance
+  displayName: Battle Trance
+  tag: 3
+  tooltipBuffMinionDurationSeconds: 10
+  presentation: {fileID: 11400000, guid: c58b8f51d1bc4820a9c8d7e6f5a40202, type: 2}
+  cooldown: 30
   energyCost: 50
-  weaponDamageMultiplier: 4
+  weaponDamageMultiplier: 0
   allDamageMultiplier: 1
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0
@@ -28,5 +28,5 @@ MonoBehaviour:
   bleedDamageMultiplier: 0
   requiredWeaponType: 1
   sourceSkill: 3
-  unlockLevel: 45
+  unlockLevel: 35
   minionSpawnDefinition: {fileID: 0}

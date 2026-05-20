@@ -11,13 +11,6 @@ using UnityEngine.SceneManagement;
 [DisallowMultipleComponent]
 public class PlayerAbilityController : MonoBehaviour
 {
-    private enum CrescentConvertedElement
-    {
-        Fire,
-        Ice,
-        Lightning
-    }
-
     [Header("Refs")]
     [SerializeField] private PlayerController player;
     [SerializeField] private CharacterStats stats;
@@ -33,7 +26,7 @@ public class PlayerAbilityController : MonoBehaviour
     [SerializeField] private PlayerAbilityVfxController abilityVfx;
 
     [Header("Global Cooldown")]
-    [SerializeField, Min(0f)] private float globalCooldownSeconds = 0.15f;
+    [SerializeField, Min(0f)] private float globalCooldownSeconds = 0.3f;
     private float _globalCooldownEndsAt;
 
     private readonly Dictionary<string, float> _cooldownEndsById = new(StringComparer.OrdinalIgnoreCase);
@@ -48,12 +41,17 @@ public class PlayerAbilityController : MonoBehaviour
     private static PlayerAbilityController _instance;
     private bool _finalSeveranceChanneling;
     private Coroutine _finalSeveranceRoutine;
+    private bool _bladestormChanneling;
+    private Coroutine _bladestormRoutine;
+    private float _bladestormSavedCombatDamageTakenMultiplier = 1f;
+    private bool _bladestormCombatDamageTakenApplied;
     private Coroutine _executionersDescentRoutine;
     private bool _executionersDescentTargetDiedDuringDescent;
 
-    /// <summary>True while Final Severance is channeling (movement/attacks paused).</summary>
+    /// <summary>True while a channeled combat ability blocks normal attacks (Final Severance, Bladestorm, Flame Charge).</summary>
     public static bool BlocksCombatActions =>
-        _instance != null && (_instance._finalSeveranceChanneling || _instance._flameChargeRoutine != null);
+        _instance != null && (_instance._finalSeveranceChanneling || _instance._bladestormChanneling ||
+                              _instance._flameChargeRoutine != null);
     private const string PowerSlashId = "power_slash";
     private const string WhirlwindId = "whirlwind";
     private const string RendId = "rend";
@@ -62,8 +60,10 @@ public class PlayerAbilityController : MonoBehaviour
     private const string CrescentSlashId = "crescent_slash";
     private const string FinalSeveranceId = "final_severance";
     private const string ExecutionersDescentId = "executioners_descent";
+    private const string BladestormId = "bladestorm";
     private const string ShadowStrikeId = "shadow_strike";
     private const string EnergyInfusionId = "energy_infusion";
+    private const string BattleTranceId = "battle_trance";
     private const string FlameChargeId = "flame_charge";
     private const string LumberFrenzyId = "lumber_frenzy";
     private const float LumberFrenzyDurationSeconds = 20f;
@@ -145,6 +145,8 @@ public class PlayerAbilityController : MonoBehaviour
     private bool _rendQueued;
     private bool _envenomQueued;
     private bool _crescentSlashQueued;
+    /// <summary>True after energy is spent to prime Crescent Slash (matches Power Slash priming contract).</summary>
+    private bool _crescentSlashEnergyCommitted;
     private int _cleavingHitsRemaining;
     private int _cleavingAdditionalTargets;
     private float _cleavingBuffEndsAt;
@@ -191,6 +193,12 @@ public class PlayerAbilityController : MonoBehaviour
     private bool _avatarOfForestActive;
     private bool _energyInfusionActive;
     private bool _energyInfusionShownOutOfManaPopup;
+
+    private bool _battleTranceActive;
+    private float _battleTranceEndsAt;
+    private float _battleTranceDuration;
+    private float _battleTranceMaxEndsAt;
+    private float _lastSyncedBattleTranceHudEnd = float.NaN;
     private Coroutine _flameChargeRoutine;
     private float[] _flameChargePerChargeCooldownEnds = Array.Empty<float>();
     private int _flameChargeChargesMax;
@@ -333,18 +341,27 @@ public class PlayerAbilityController : MonoBehaviour
         if (_executionersDescentRoutine != null)
         {
             StopCoroutine(_executionersDescentRoutine);
-            _executionersDescentRoutine = null;
+            EndExecutionersDescentInstanceState();
         }
-
-        abilityVfx?.StopExecutionersDescentVfx();
+        else
+            abilityVfx?.StopExecutionersDescentVfx();
         GameplayScreenOverlay.Hide(GameplayScreenOverlay.FinalSeveranceChannelId);
         _finalSeveranceChanneling = false;
+        if (_bladestormRoutine != null)
+        {
+            StopCoroutine(_bladestormRoutine);
+            _bladestormRoutine = null;
+        }
+
+        EndBladestormInstanceState();
+        player?.SetTeleportDamageImmune(false);
         player?.SetAbilityChannelLock(false);
 
         SceneManager.sceneLoaded -= HandleSceneLoaded;
         abilityVfx?.DestroyLumberFrenzyOrbitVfx();
         abilityVfx?.DestroyAvatarOfTheForestGlowVfx();
         abilityVfx?.DestroyEnergyInfusionGlowVfx();
+        abilityVfx?.DestroyBattleTranceGlowVfx();
     }
 
     private void Update()
@@ -354,7 +371,7 @@ public class PlayerAbilityController : MonoBehaviour
         SyncCleavingStrikesHudBuff();
         CleanupLumberFrenzyIfExpired();
         CleanupFishingFrenzyIfExpired();
-        abilityVfx?.UpdateLumberFrenzyOrbitVfx(_lumberFrenzyActive || _fishingFrenzyActive);
+        abilityVfx?.UpdateLumberFrenzyOrbitVfx(_lumberFrenzyActive, _fishingFrenzyActive);
         SyncLumberFrenzyHudBuff();
         SyncFishingFrenzyHudBuff();
         CleanupCleavingChopIfExpired();
@@ -367,8 +384,11 @@ public class PlayerAbilityController : MonoBehaviour
         SyncSpectralAxeHudBuff();
         CleanupSoulforgedWeaponIfUnavailable();
         CleanupEnergyInfusionIfNotOnActionBar();
+        CleanupBattleTranceIfExpired();
+        SyncBattleTranceHudBuff();
         SyncSoulforgedWeaponHudBuff();
         abilityVfx?.UpdateEnergyInfusionGlowVfx(_energyInfusionActive);
+        abilityVfx?.UpdateBattleTranceGlowVfx(IsBattleTranceActive);
     }
 
     private void LateUpdate()
@@ -489,6 +509,8 @@ public class PlayerAbilityController : MonoBehaviour
             return _cleavingBuffActive;
         if (string.Equals(abilityId, EnergyInfusionId, StringComparison.OrdinalIgnoreCase))
             return _energyInfusionActive;
+        if (string.Equals(abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase))
+            return IsBattleTranceActive;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
             return _activeSoulforgedWeaponMinions.Count > 0;
 
@@ -537,6 +559,12 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, EnergyInfusionId, StringComparison.OrdinalIgnoreCase))
         {
             ForceEndEnergyInfusionEarly(applyCooldown: true);
+            return;
+        }
+
+        if (string.Equals(abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndBattleTranceEarly(applyCooldown: true);
             return;
         }
 
@@ -690,6 +718,156 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         stats?.NotifyStatsChanged();
+    }
+
+    public bool IsBattleTranceActive =>
+        _battleTranceActive && Time.time < _battleTranceEndsAt;
+
+    public static void NotifyBattleTranceKillFromEnemyDeath()
+    {
+        if (_instance == null || !_instance.IsBattleTranceActive)
+            return;
+
+        _instance.NotifyBattleTranceEnemyKilled();
+    }
+
+    private void NotifyBattleTranceEnemyKilled()
+    {
+        if (!IsBattleTranceActive)
+            return;
+
+        if (GetBattleTranceSelectedChoice() != 2)
+            return;
+
+        float newEnd = Mathf.Min(_battleTranceMaxEndsAt, _battleTranceEndsAt + AbilityCombatPower.BattleTranceEndlessAssaultKillExtensionSeconds);
+        if (newEnd <= _battleTranceEndsAt + 0.001f)
+            return;
+
+        _battleTranceEndsAt = newEnd;
+        _lastSyncedBattleTranceHudEnd = float.NaN;
+        SyncBattleTranceHudBuff();
+    }
+
+    private void ActivateBattleTranceBuff()
+    {
+        _battleTranceActive = true;
+        _battleTranceDuration = AbilityCombatPower.BattleTranceBaseDurationSeconds;
+        AbilityDefinition def = GetAbilityDefinition(BattleTranceId);
+        if (def != null && def.tooltipBuffMinionDurationSeconds > 0.01f)
+            _battleTranceDuration = def.tooltipBuffMinionDurationSeconds;
+
+        _battleTranceEndsAt = Time.time + _battleTranceDuration;
+        _battleTranceMaxEndsAt = _battleTranceEndsAt + AbilityCombatPower.BattleTranceEndlessAssaultMaxBonusDurationSeconds;
+        ApplyBattleTranceCombatModifiers();
+        abilityVfx?.SpawnBattleTranceGlowVfx();
+        _lastSyncedBattleTranceHudEnd = float.NaN;
+        SyncBattleTranceHudBuff();
+        stats?.NotifyStatsChanged();
+    }
+
+    private void ForceEndBattleTranceEarly(bool applyCooldown)
+    {
+        if (!_battleTranceActive && !IsBattleTranceActive)
+            return;
+
+        _battleTranceActive = false;
+        _battleTranceEndsAt = 0f;
+        _battleTranceDuration = 0f;
+        _battleTranceMaxEndsAt = 0f;
+        abilityVfx?.DestroyBattleTranceGlowVfx();
+        stats?.ClearBattleTranceCombatModifiers();
+        _lastSyncedBattleTranceHudEnd = float.NaN;
+        SyncBattleTranceHudBuff();
+
+        if (applyCooldown)
+        {
+            AbilityDefinition def = GetAbilityDefinition(BattleTranceId);
+            if (def != null && def.cooldown > 0f)
+                StartCooldown(def);
+        }
+
+        stats?.NotifyStatsChanged();
+    }
+
+    private void CleanupBattleTranceIfExpired()
+    {
+        if (!_battleTranceActive)
+            return;
+
+        if ((player != null && player.IsDead) || (stats != null && stats.IsDead))
+        {
+            ForceEndBattleTranceEarly(applyCooldown: false);
+            return;
+        }
+
+        if (Time.time < _battleTranceEndsAt)
+            return;
+
+        ForceEndBattleTranceEarly(applyCooldown: false);
+    }
+
+    private void SyncBattleTranceHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!IsBattleTranceActive)
+        {
+            if (buffController.IsHudAbilityBuffActive(BattleTranceId))
+                buffController.ClearHudAbilityBuff(BattleTranceId);
+            _lastSyncedBattleTranceHudEnd = float.NaN;
+            return;
+        }
+
+        if (Mathf.Approximately(_lastSyncedBattleTranceHudEnd, _battleTranceEndsAt))
+            return;
+
+        _lastSyncedBattleTranceHudEnd = _battleTranceEndsAt;
+        buffController.SetHudAbilityBuff(BattleTranceId, 1, _battleTranceEndsAt, _battleTranceDuration);
+    }
+
+    private void ApplyBattleTranceCombatModifiers()
+    {
+        if (stats == null)
+            return;
+
+        int choice = GetBattleTranceSelectedChoice();
+        float atkSpeed = AbilityCombatPower.BattleTranceBaseAttackSpeedBonus;
+        float cdr = AbilityCombatPower.BattleTranceBaseAbilityCooldownReduction;
+        float meleeDamage = AbilityCombatPower.BattleTranceBaseMeleeDamageMultiplier;
+        float damageTaken = AbilityCombatPower.BattleTranceBaseDamageTakenMultiplier;
+        float moveSpeed = 0f;
+
+        if (choice == 0)
+        {
+            atkSpeed += AbilityCombatPower.BattleTranceUnrelentingAttackSpeedBonus;
+            cdr += AbilityCombatPower.BattleTranceUnrelentingCooldownReductionBonus;
+            damageTaken = AbilityCombatPower.BattleTranceUnrelentingDamageTakenMultiplier;
+        }
+        else if (choice == 1)
+        {
+            damageTaken = AbilityCombatPower.BattleTranceControlledDamageTakenMultiplier;
+            moveSpeed = AbilityCombatPower.BattleTranceControlledMoveSpeedBonus;
+        }
+
+        stats.CombatMeleeDamageMultiplier = meleeDamage;
+        stats.CombatAttackSpeedPercentBonus = atkSpeed;
+        stats.CombatAbilityCooldownReductionFraction = cdr;
+        stats.CombatDamageTakenMultiplier = damageTaken;
+        stats.CombatMoveSpeedPercentBonus = moveSpeed;
+    }
+
+    private int GetBattleTranceSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee,
+            AbilityCombatPower.BattleTranceEnhancementParentSpineNodeId,
+            -1);
     }
 
     private void TickEnergyInfusion(float deltaTime)
@@ -889,7 +1067,8 @@ public class PlayerAbilityController : MonoBehaviour
                || string.Equals(id, ShadowStrikeId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, EnergyInfusionId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, FlameChargeId, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(id, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase);
+               || string.Equals(id, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, BladestormId, StringComparison.OrdinalIgnoreCase);
     }
 
     public bool IsEnergyInfusionActive => _energyInfusionActive;
@@ -937,6 +1116,21 @@ public class PlayerAbilityController : MonoBehaviour
         player.AddEnergy(def.energyCost);
     }
 
+    /// <summary>
+    /// Whether idle auto-battle may cast this ability (action bar border + <see cref="TryUseAbility"/> when feedback is off).
+    /// Extend here when more abilities are manual-only.
+    /// </summary>
+    public static bool CanAbilityBeUsedByAutoBattle(AbilityDefinition def)
+    {
+        if (def == null)
+            return false;
+
+        if (def.tag == AbilityTag.ToggleBuff)
+            return false;
+
+        return true;
+    }
+
     /// <param name="allowSoulforgedRecastWhileActive">
     /// When false (e.g. idle auto-abilities), an active Soulforged Weapon minion does not receive recast/retarget — use fails so other bar abilities can run.
     /// Manual bar use keeps default true (player can recast while the summon is up).
@@ -962,7 +1156,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!player || !stats)
             return false;
 
-        if (_finalSeveranceChanneling)
+        if (_finalSeveranceChanneling || _bladestormChanneling)
             return false;
 
         if (player.IsDead || stats.IsDead)
@@ -974,7 +1168,7 @@ public class PlayerAbilityController : MonoBehaviour
             return false;
         }
 
-        if (!showLockedFeedback && def.tag == AbilityTag.ToggleBuff)
+        if (!showLockedFeedback && !CanAbilityBeUsedByAutoBattle(def))
             return false;
 
         if (TryHandleToggleAbilityUse(def))
@@ -1014,6 +1208,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(def.abilityId, AvatarOfTheForestId, StringComparison.OrdinalIgnoreCase) && IsAvatarOfTheForestActive)
             return false;
 
+        if (string.Equals(def.abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase) && IsBattleTranceActive)
+            return false;
+
         // Spectral Axe: deferred cooldown starts when the projectile returns. Block recast while deployed.
         if (string.Equals(def.abilityId, SpectralAxeId, StringComparison.OrdinalIgnoreCase) && _spectralAxeActive)
             return false;
@@ -1042,6 +1239,7 @@ public class PlayerAbilityController : MonoBehaviour
         bool isCrescentSlash = string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase);
         bool isFinalSeverance = string.Equals(def.abilityId, FinalSeveranceId, StringComparison.OrdinalIgnoreCase);
         bool isExecutionersDescent = string.Equals(def.abilityId, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase);
+        bool isBladestorm = string.Equals(def.abilityId, BladestormId, StringComparison.OrdinalIgnoreCase);
         bool isShadowStrike = string.Equals(def.abilityId, ShadowStrikeId, StringComparison.OrdinalIgnoreCase);
         bool isFlameCharge = string.Equals(def.abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase);
         if (!AbilityDefersEnergyUntilActivated(def) && !TrySpendAbilityEnergy(def, showLockedFeedback))
@@ -1117,6 +1315,15 @@ public class PlayerAbilityController : MonoBehaviour
             LogAbilityUsed(def);
             return true;
         }
+        if (string.Equals(def.abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase))
+        {
+            ActivateBattleTranceBuff();
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
         if (string.Equals(def.abilityId, LumberFrenzyId, StringComparison.OrdinalIgnoreCase))
         {
             ActivateLumberFrenzyBuff();
@@ -1169,16 +1376,19 @@ public class PlayerAbilityController : MonoBehaviour
             if (requireCrescentSlashTargetInFacingLane && !CanHitAnyEnemyWithCrescentSlash())
                 return false;
 
-            bool castNow = combat != null && combat.TryConsumeAttackCycleForAbilityCast();
-            if (castNow)
-            {
-                if (!ExecuteCrescentSlashCast(def, requireCrescentSlashTargetInFacingLane))
-                    return false;
-            }
+            if (!TrySpendAbilityEnergy(def, showLockedFeedback))
+                return false;
+
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+
+            bool castNow = combat != null && combat.CanConsumeAttackCycleNow();
+            if (castNow && combat.TryConsumeAttackCycleForAbilityCast())
+                FireCrescentSlashImpact(def);
             else
             {
-                // Cadence is still cooling down: queue like Power Slash and fire on next eligible swing.
                 _crescentSlashQueued = true;
+                _crescentSlashEnergyCommitted = true;
             }
 
             if (globalCooldownSeconds > 0f)
@@ -1218,6 +1428,29 @@ public class PlayerAbilityController : MonoBehaviour
                 return false;
 
             _finalSeveranceRoutine = StartCoroutine(CoFinalSeverance(def));
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+
+        if (isBladestorm)
+        {
+            if (_bladestormChanneling || _bladestormRoutine != null)
+                return false;
+
+            if (!TryResolveBladestormTarget(out EnemyBaseController bladestormTarget))
+            {
+                if (showLockedFeedback)
+                    player?.ShowPopup("No enemy in front of you.");
+                return false;
+            }
+
+            if (!TrySpendAbilityEnergy(def, showLockedFeedback))
+                return false;
+
+            _bladestormRoutine = StartCoroutine(CoBladestorm(def, bladestormTarget));
             StartCooldown(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
@@ -1271,7 +1504,11 @@ public class PlayerAbilityController : MonoBehaviour
         if (isExecutionersDescent)
         {
             if (_executionersDescentRoutine != null)
+            {
+                if (showLockedFeedback)
+                    player?.ShowPopup("Executioner's Descent is still in progress.");
                 return false;
+            }
 
             EnemyBaseController descentTarget = ResolveExecutionersDescentTarget();
             if (descentTarget == null)
@@ -1468,6 +1705,7 @@ public class PlayerAbilityController : MonoBehaviour
     private IEnumerator CoFinalSeverance(AbilityDefinition def)
     {
         _finalSeveranceChanneling = true;
+        player?.SetTeleportDamageImmune(true);
         GameplayScreenOverlay.Show(
             GameplayScreenOverlay.FinalSeveranceChannelId,
             GameplayScreenOverlay.FinalSeveranceChannelTint,
@@ -1508,6 +1746,7 @@ public class PlayerAbilityController : MonoBehaviour
             GameplayScreenOverlay.Hide(GameplayScreenOverlay.FinalSeveranceChannelId);
             _finalSeveranceChanneling = false;
             _finalSeveranceRoutine = null;
+            player?.SetTeleportDamageImmune(false);
         }
     }
 
@@ -1574,6 +1813,297 @@ public class PlayerAbilityController : MonoBehaviour
         return (float)enemy.HP / maxHp >= AbilityCombatPower.FinalSeveranceWorldbreakerFullHealthThreshold01;
     }
 
+    private IEnumerator CoBladestorm(AbilityDefinition def, EnemyBaseController initialTarget)
+    {
+        _bladestormChanneling = true;
+        float channelSeconds = AbilityCombatPower.BladestormChannelSeconds;
+        int selected = GetBladestormSelectedChoice();
+        bool bladestormFinale = selected == 0;
+        bool endlessCarnage = selected == 1;
+
+        GameplayScreenOverlay.Show(
+            GameplayScreenOverlay.BladestormChannelId,
+            GameplayScreenOverlay.BladestormChannelTint,
+            GameplayScreenOverlay.Spec.DefaultAbilityChannel);
+
+        EnemyBaseController lockedTarget = initialTarget;
+        float attackRate = Mathf.Max(0.05f, stats.AttacksPerSecond * AbilityCombatPower.BladestormAttackSpeedMultiplier);
+        int totalStrikes = Mathf.Max(1, Mathf.RoundToInt(attackRate * channelSeconds));
+        float strikeInterval = channelSeconds / totalStrikes;
+        int strikesRemaining = totalStrikes;
+
+        if (player != null)
+        {
+            player.SetActionOverride(PlayerController.PlayerAction.Fighting);
+            player.ExtendAttackLockUntil(Time.time + channelSeconds + 0.25f);
+        }
+
+        abilityVfx?.BeginBladestormStabSpray(channelSeconds, initialTarget);
+        BeginBladestormCombatModifiers();
+
+        try
+        {
+            float channelEnd = Time.time + channelSeconds;
+            while (strikesRemaining > 0 && Time.time < channelEnd)
+            {
+                if (player == null || stats == null || def == null)
+                    yield break;
+
+                if (player.IsDead || stats.IsDead)
+                    yield break;
+
+                if (!TryKeepBladestormLockedOnTarget(ref lockedTarget, endlessCarnage))
+                    yield break;
+
+                MaintainBladestormTargetLock(lockedTarget);
+
+                bool isLastStrike = strikesRemaining == 1;
+                bool useFinale = bladestormFinale && isLastStrike;
+                float weaponMult = useFinale
+                    ? AbilityCombatPower.BladestormFinaleHitWeaponMultiplier
+                    : AbilityCombatPower.BladestormNormalHitWeaponMultiplier;
+
+                ApplyBladestormHit(lockedTarget, def, weaponMult);
+                if (useFinale)
+                    abilityVfx?.SpawnBladestormFinaleDownwardSlash(lockedTarget.transform.position);
+
+                player?.TriggerAttackAnim();
+
+                strikesRemaining--;
+                if (strikesRemaining <= 0)
+                    break;
+
+                yield return new WaitForSeconds(strikeInterval);
+            }
+        }
+        finally
+        {
+            EndBladestormInstanceState();
+        }
+    }
+
+    private void BeginBladestormCombatModifiers()
+    {
+        if (stats == null || _bladestormCombatDamageTakenApplied)
+            return;
+
+        _bladestormSavedCombatDamageTakenMultiplier = stats.CombatDamageTakenMultiplier;
+        stats.CombatDamageTakenMultiplier = AbilityCombatPower.BladestormChannelDamageTakenMultiplier;
+        _bladestormCombatDamageTakenApplied = true;
+    }
+
+    private void EndBladestormCombatModifiers()
+    {
+        if (!_bladestormCombatDamageTakenApplied || stats == null)
+            return;
+
+        stats.CombatDamageTakenMultiplier = _bladestormSavedCombatDamageTakenMultiplier;
+        _bladestormCombatDamageTakenApplied = false;
+    }
+
+    private void EndBladestormInstanceState()
+    {
+        abilityVfx?.EndBladestormStabSpray();
+        GameplayScreenOverlay.Hide(GameplayScreenOverlay.BladestormChannelId);
+        _bladestormChanneling = false;
+        _bladestormRoutine = null;
+        EndBladestormCombatModifiers();
+        player?.ClearActionOverride();
+    }
+
+    private bool TryKeepBladestormLockedOnTarget(ref EnemyBaseController lockedTarget, bool endlessCarnage)
+    {
+        if (lockedTarget != null && !lockedTarget.IsDead && lockedTarget.gameObject.activeInHierarchy &&
+            IsEnemyValidBladestormTarget(lockedTarget))
+            return true;
+
+        if (!endlessCarnage)
+            return false;
+
+        EnemyBaseController replacement = ResolveNearestBladestormRetarget();
+        if (replacement == null)
+            return false;
+
+        lockedTarget = replacement;
+        return true;
+    }
+
+    private void MaintainBladestormTargetLock(EnemyBaseController target)
+    {
+        if (!target || player == null)
+            return;
+
+        float enemyX = target.transform.position.x;
+        player.FaceTargetX(enemyX);
+
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null || stats == null)
+            return;
+
+        if (combat.IsEnemyWithinAttackRange(target))
+        {
+            player.StopMoveOnly();
+            return;
+        }
+
+        float myRange = Mathf.Max(0f, stats.Range) + combat.GetMeleeRangePadding();
+        Collider2D playerCol = player.GetComponent<Collider2D>();
+        Collider2D enemyCol = target.GetComponent<Collider2D>();
+        if (!enemyCol)
+            enemyCol = target.GetComponentInChildren<Collider2D>();
+
+        float myHalf = HalfWidthX(playerCol);
+        float enemyHalf = HalfWidthX(enemyCol);
+        float desiredCenterDist = myRange + myHalf + enemyHalf;
+        float myX = player.transform.position.x;
+        float desiredX = myX < enemyX ? enemyX - desiredCenterDist : enemyX + desiredCenterDist;
+        player.MoveToPointX_Combat(desiredX);
+    }
+
+    private static float HalfWidthX(Collider2D col) =>
+        col != null ? col.bounds.extents.x : 0.25f;
+
+    private bool TryResolveBladestormTarget(out EnemyBaseController target)
+    {
+        target = null;
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+
+        EnemyBaseController engaged = combat != null ? combat.GetPrimaryEngagedEnemy() : null;
+        if (IsEnemyValidBladestormTarget(engaged))
+        {
+            target = engaged;
+            return true;
+        }
+
+        List<(EnemyBaseController enemy, float dist)> forwardHits =
+            CollectBladestormForwardHits(AbilityCombatPower.BladestormForwardReach);
+        if (forwardHits.Count == 0)
+            return false;
+
+        forwardHits.Sort((a, b) => a.dist.CompareTo(b.dist));
+        target = forwardHits[0].enemy;
+        return target != null;
+    }
+
+    private EnemyBaseController ResolveNearestBladestormRetarget()
+    {
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        EnemyBaseController best = null;
+        float bestDist = float.MaxValue;
+        Vector3 origin = transform.position;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!IsEnemyValidBladestormTarget(enemy))
+                continue;
+
+            float dist = Vector3.Distance(origin, enemy.transform.position);
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = enemy;
+            }
+        }
+
+        return best;
+    }
+
+    private bool IsEnemyValidBladestormTarget(EnemyBaseController enemy)
+    {
+        if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+            return false;
+
+        if (combat != null && combat.IsEnemyWithinAttackRange(enemy))
+            return true;
+
+        return IsEnemyInBladestormForwardArc(enemy, out _);
+    }
+
+    private bool IsEnemyInBladestormForwardArc(EnemyBaseController enemy, out float forwardDistance)
+    {
+        forwardDistance = float.MaxValue;
+        if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+            return false;
+
+        float facing = GetCombatFacingSign();
+        Vector3 origin = transform.position;
+        float laneWidth = Mathf.Max(0.6f, AbilityCombatPower.BladestormForwardReach * 0.35f);
+        Vector3 to = enemy.transform.position - origin;
+        forwardDistance = to.x * facing;
+        if (forwardDistance <= 0f || forwardDistance > AbilityCombatPower.BladestormForwardReach)
+            return false;
+        if (Mathf.Abs(to.y) > laneWidth)
+            return false;
+        return true;
+    }
+
+    private List<(EnemyBaseController enemy, float dist)> CollectBladestormForwardHits(float reach)
+    {
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        var forwardHits = new List<(EnemyBaseController enemy, float dist)>(allEnemies.Count);
+        float facing = GetCombatFacingSign();
+        Vector3 origin = transform.position;
+        float laneWidth = Mathf.Max(0.6f, reach * 0.35f);
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            Vector3 to = enemy.transform.position - origin;
+            float forwardDist = to.x * facing;
+            if (forwardDist <= 0f || forwardDist > reach)
+                continue;
+            if (Mathf.Abs(to.y) > laneWidth)
+                continue;
+
+            forwardHits.Add((enemy, forwardDist));
+        }
+
+        return forwardHits;
+    }
+
+    private void ApplyBladestormHit(EnemyBaseController target, AbilityDefinition def, float weaponDamageMultiplier)
+    {
+        if (!target || target.IsDead || stats == null || def == null)
+            return;
+
+        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        float scale = weaponDamageMultiplier / Mathf.Max(0.0001f, def.GetWeaponHitScalingMultiplier());
+        rolledNonCrit *= scale;
+        lightningMagNonCrit *= scale;
+
+        float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+        SplitDamage rolled = new SplitDamage(
+            rolledNonCrit.physical * critMult,
+            rolledNonCrit.magic * critMult,
+            rolledNonCrit.corruptionDamage * critMult);
+        float lightningAfterCrit = lightningMagNonCrit * critMult;
+        float frac = rolled.magic > 1e-8f ? Mathf.Clamp01(lightningAfterCrit / rolled.magic) : 0f;
+
+        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, rolled, wasCrit, frac);
+        ApplyOnHitEffects(target, dealt);
+        if (player != null && dealt.Total > 0f)
+            player.ApplyLifeSteal(dealt.Total);
+    }
+
+    private int GetBladestormSelectedChoice()
+    {
+        if (skillsManager == null)
+            skillsManager = SkillsManager.Instance;
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee,
+            AbilityCombatPower.BladestormEnhancementParentSpineNodeId,
+            -1);
+    }
+
     private List<EnemyBaseController> CollectFinalSeveranceTargets()
     {
         var result = new List<EnemyBaseController>(AbilityCombatPower.FinalSeveranceMaxTargets);
@@ -1618,54 +2148,90 @@ public class PlayerAbilityController : MonoBehaviour
 
     private IEnumerator CoExecutionersDescent(AbilityDefinition def, EnemyBaseController initialTarget)
     {
-        float descentSeconds = AbilityCombatPower.ExecutionersDescentDescentSeconds;
-        Vector3 impactPoint = initialTarget != null ? initialTarget.transform.position : transform.position;
-        EnemyBaseController trackedTarget = initialTarget;
-        bool targetWasAliveAtCast = trackedTarget != null && !trackedTarget.IsDead;
-
-        abilityVfx?.BeginExecutionersDescent(trackedTarget, impactPoint, descentSeconds);
-
-        float elapsed = 0f;
-        while (elapsed < descentSeconds)
+        try
         {
-            if (player == null || stats == null || def == null)
-                break;
+            float descentSeconds = AbilityCombatPower.ExecutionersDescentDescentSeconds;
+            Vector3 impactPoint = initialTarget != null ? initialTarget.transform.position : transform.position;
+            EnemyBaseController trackedTarget = initialTarget;
+            bool targetWasAliveAtCast = trackedTarget != null && !trackedTarget.IsDead;
 
-            if (player.IsDead || stats.IsDead)
-                break;
+            abilityVfx?.BeginExecutionersDescent(trackedTarget, impactPoint, descentSeconds);
 
-            bool trackedValid = trackedTarget != null && !trackedTarget.IsDead &&
-                                IsEnemyWithinExecutionersDescentCastRange(trackedTarget);
-
-            if (!trackedValid)
+            float elapsed = 0f;
+            while (elapsed < descentSeconds)
             {
-                if (targetWasAliveAtCast && trackedTarget != null && trackedTarget.IsDead)
-                    _executionersDescentTargetDiedDuringDescent = true;
+                if (player == null || stats == null || def == null)
+                    yield break;
 
-                EnemyBaseController replacement = ResolveExecutionersDescentTargetInCastRange();
-                if (replacement != null)
+                if (player.IsDead || stats.IsDead)
+                    yield break;
+
+                bool trackedValid = trackedTarget != null && !trackedTarget.IsDead &&
+                                    IsEnemyWithinExecutionersDescentCastRange(trackedTarget);
+
+                if (!trackedValid)
                 {
-                    trackedTarget = replacement;
-                    impactPoint = trackedTarget.transform.position;
-                    abilityVfx?.UpdateExecutionersDescent(trackedTarget, impactPoint, elapsed);
+                    if (targetWasAliveAtCast && trackedTarget != null && trackedTarget.IsDead)
+                    {
+                        _executionersDescentTargetDiedDuringDescent = true;
+                        impactPoint = trackedTarget.transform.position;
+                        yield return CoExecutionersDescentRushToImpact(def, impactPoint, trackedTarget);
+                        yield break;
+                    }
+
+                    EnemyBaseController replacement = ResolveExecutionersDescentTargetInCastRange();
+                    if (replacement != null)
+                    {
+                        trackedTarget = replacement;
+                        impactPoint = trackedTarget.transform.position;
+                        abilityVfx?.UpdateExecutionersDescent(trackedTarget, impactPoint, elapsed);
+                    }
+                    else
+                    {
+                        ApplyExecutionersDescentEarlyDetonateNoTargetsInRange(def, impactPoint, trackedTarget);
+                        yield break;
+                    }
                 }
                 else
                 {
-                    ApplyExecutionersDescentEarlyDetonateNoTargetsInRange(def, impactPoint, trackedTarget);
-                    yield break;
+                    impactPoint = trackedTarget.transform.position;
+                    abilityVfx?.UpdateExecutionersDescent(trackedTarget, impactPoint, elapsed);
                 }
-            }
-            else
-            {
-                impactPoint = trackedTarget.transform.position;
-                abilityVfx?.UpdateExecutionersDescent(trackedTarget, impactPoint, elapsed);
+
+                elapsed += Time.deltaTime;
+                yield return null;
             }
 
-            elapsed += Time.deltaTime;
-            yield return null;
+            yield return FinishExecutionersDescentWithImpact(def, impactPoint, trackedTarget);
         }
+        finally
+        {
+            EndExecutionersDescentInstanceState();
+        }
+    }
 
-        try
+    private void EndExecutionersDescentInstanceState()
+    {
+        _executionersDescentRoutine = null;
+        _executionersDescentTargetDiedDuringDescent = false;
+        abilityVfx?.StopExecutionersDescentVfx();
+    }
+
+    private IEnumerator CoExecutionersDescentRushToImpact(
+        AbilityDefinition def,
+        Vector3 impactPoint,
+        EnemyBaseController trackedTarget)
+    {
+        float rushSeconds = AbilityCombatPower.ExecutionersDescentTargetDiedRushSeconds;
+        Vector3 endPos = impactPoint;
+        Vector3 startPos = endPos + Vector3.up * AbilityCombatPower.ExecutionersDescentAxeSpawnHeight;
+        if (abilityVfx != null && abilityVfx.TryGetExecutionersDescentAxeWorldPosition(out Vector3 axePos))
+            startPos = axePos;
+
+        abilityVfx?.HideExecutionersDescentMark();
+
+        float elapsed = 0f;
+        while (elapsed < rushSeconds)
         {
             if (player == null || stats == null || def == null)
                 yield break;
@@ -1673,13 +2239,28 @@ public class PlayerAbilityController : MonoBehaviour
             if (player.IsDead || stats.IsDead)
                 yield break;
 
-            ApplyExecutionersDescentImpact(def, impactPoint, trackedTarget);
+            elapsed += Time.deltaTime;
+            float u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / rushSeconds));
+            abilityVfx?.SetExecutionersDescentAxeWorldPosition(Vector3.Lerp(startPos, endPos, u));
+            yield return null;
         }
-        finally
-        {
-            abilityVfx?.StopExecutionersDescentVfx();
-            _executionersDescentRoutine = null;
-        }
+
+        abilityVfx?.SetExecutionersDescentAxeWorldPosition(endPos);
+        yield return FinishExecutionersDescentWithImpact(def, impactPoint, trackedTarget);
+    }
+
+    private IEnumerator FinishExecutionersDescentWithImpact(
+        AbilityDefinition def,
+        Vector3 impactPoint,
+        EnemyBaseController trackedTarget)
+    {
+        if (player == null || stats == null || def == null)
+            yield break;
+
+        if (player.IsDead || stats.IsDead)
+            yield break;
+
+        ApplyExecutionersDescentImpact(def, impactPoint, trackedTarget);
     }
 
     private void ApplyExecutionersDescentImpact(
@@ -1702,7 +2283,7 @@ public class PlayerAbilityController : MonoBehaviour
             ApplyExecutionersDescentHit(
                 trackedTarget,
                 def,
-                AbilityCombatPower.ExecutionersDescentPrimaryWeaponMultiplier,
+                def.GetWeaponHitScalingMultiplier(),
                 armorMult,
                 mrMult);
 
@@ -2009,26 +2590,75 @@ public class PlayerAbilityController : MonoBehaviour
     private EnemyBaseController ResolveExecutionersDescentTarget() =>
         ResolveExecutionersDescentTargetInCastRange();
 
+    private static bool IsExecutionersDescentTargetAlive(EnemyBaseController enemy) =>
+        enemy != null && !enemy.IsDead && enemy.gameObject.activeInHierarchy;
+
     private bool IsEnemyWithinExecutionersDescentCastRange(EnemyBaseController enemy)
     {
+        if (!IsExecutionersDescentTargetAlive(enemy))
+            return false;
+
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
 
-        return combat != null && combat.IsEnemyWithinAttackRange(enemy);
+        if (combat != null && combat.IsEnemyWithinAttackRange(enemy))
+            return true;
+
+        float maxHorizontal = GetExecutionersDescentMaxCastHorizontalDistance();
+        return Mathf.Abs(enemy.transform.position.x - transform.position.x) <= maxHorizontal;
+    }
+
+    private float GetExecutionersDescentMaxCastHorizontalDistance()
+    {
+        float meleeReach = stats != null ? Mathf.Max(0f, stats.Range) : 0f;
+        return meleeReach + AbilityCombatPower.ExecutionersDescentCastRangeBeyondMelee;
     }
 
     private EnemyBaseController ResolveExecutionersDescentTargetInCastRange()
     {
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
-        if (combat == null)
-            return null;
 
-        EnemyBaseController engaged = combat.GetPrimaryEngagedEnemy();
-        if (engaged != null && IsEnemyWithinExecutionersDescentCastRange(engaged))
+        EnemyBaseController engaged = combat != null ? combat.GetPrimaryEngagedEnemy() : null;
+        if (IsEnemyWithinExecutionersDescentCastRange(engaged))
             return engaged;
 
-        return combat.FindClosestEnemyInAttackRange();
+        if (combat != null)
+        {
+            EnemyBaseController inMelee = combat.FindClosestEnemyInAttackRange();
+            if (IsEnemyWithinExecutionersDescentCastRange(inMelee))
+                return inMelee;
+        }
+
+        return FindClosestEnemyWithinExecutionersDescentCastRange();
+    }
+
+    private EnemyBaseController FindClosestEnemyWithinExecutionersDescentCastRange()
+    {
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        EnemyBaseController best = null;
+        float bestDist = float.MaxValue;
+        float ownerX = transform.position.x;
+        float maxHorizontal = GetExecutionersDescentMaxCastHorizontalDistance();
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!IsExecutionersDescentTargetAlive(enemy))
+                continue;
+
+            float dist = Mathf.Abs(enemy.transform.position.x - ownerX);
+            if (dist > maxHorizontal)
+                continue;
+
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = enemy;
+            }
+        }
+
+        return best;
     }
 
     private void SetAbilityCooldownSeconds(AbilityDefinition def, float cooldownSeconds)
@@ -2227,21 +2857,18 @@ public class PlayerAbilityController : MonoBehaviour
             rolledNonCrit.physical * critMult,
             rolledNonCrit.magic * critMult,
             rolledNonCrit.corruptionDamage * critMult);
-        float lightningMag = lightningMagNonCrit * critMult;
-        CrescentConvertedElement convertedElement = CrescentConvertedElement.Lightning;
-        float convertedDamage = 0f;
-        bool hasConvertedDamage = elementalCrescent &&
-                                  TryApplyElementalConversionForCrescent(ref hitForTarget, out convertedElement, out convertedDamage);
+        float convertedFireDamage = 0f;
+        bool hasFireConversion = elementalCrescent &&
+                                   TryApplyFireConversionForCrescent(ref hitForTarget, out convertedFireDamage);
 
-        if (hasConvertedDamage && convertedElement == CrescentConvertedElement.Lightning)
-            lightningMag += convertedDamage;
-
-        float crescentFrac = hitForTarget.magic > 1e-8f ? Mathf.Clamp01(lightningMag / hitForTarget.magic) : 0f;
+        float crescentFrac = hitForTarget.magic > 1e-8f
+            ? Mathf.Clamp01(lightningMagNonCrit * critMult / hitForTarget.magic)
+            : 0f;
 
         DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, hitForTarget, wasCrit, crescentFrac);
         ApplyOnHitEffects(target, dealt);
-        if (hasConvertedDamage)
-            ApplyElementalAilmentForCrescent(target, convertedElement, convertedDamage);
+        if (hasFireConversion)
+            ApplyBurnForCrescent(target, convertedFireDamage);
 
         if (player != null && dealt.Total > 0f)
             player.ApplyLifeSteal(dealt.Total);
@@ -2263,72 +2890,36 @@ public class PlayerAbilityController : MonoBehaviour
     }
 
     /// <summary>
-    /// Convert 50% of physical into magic as the final split step for this hit.
-    /// Each call rolls its own element so multi-target hits can differ per enemy.
+    /// Convert all physical into magic as fire damage for this hit.
     /// </summary>
-    private static bool TryApplyElementalConversionForCrescent(
-        ref SplitDamage hit,
-        out CrescentConvertedElement element,
-        out float convertedDamage)
+    private static bool TryApplyFireConversionForCrescent(ref SplitDamage hit, out float convertedFireDamage)
     {
-        element = CrescentConvertedElement.Lightning;
-        convertedDamage = 0f;
+        convertedFireDamage = 0f;
 
         float physical = Mathf.Max(0f, hit.physical);
         if (physical <= 0f)
             return false;
 
-        convertedDamage = physical * 0.5f;
-        hit.physical = Mathf.Max(0f, physical - convertedDamage);
-        hit.magic = Mathf.Max(0f, hit.magic) + convertedDamage;
-
-        int roll = UnityEngine.Random.Range(0, 3);
-        element = roll switch
-        {
-            0 => CrescentConvertedElement.Fire,
-            1 => CrescentConvertedElement.Ice,
-            _ => CrescentConvertedElement.Lightning
-        };
+        convertedFireDamage = physical;
+        hit.physical = 0f;
+        hit.magic = Mathf.Max(0f, hit.magic) + convertedFireDamage;
         return true;
     }
 
-    private void ApplyElementalAilmentForCrescent(EnemyBaseController target, CrescentConvertedElement element, float convertedDamage)
+    private void ApplyBurnForCrescent(EnemyBaseController target, float fireDamageDealt)
     {
-        if (target == null || stats == null)
-            return;
-        if (convertedDamage <= 0f)
+        if (target == null || stats == null || fireDamageDealt <= 0f)
             return;
 
         AilmentController ailments = target.GetComponent<AilmentController>();
         if (ailments == null)
             return;
 
-        switch (element)
-        {
-            case CrescentConvertedElement.Fire:
-                ailments.TryApplyBurnFromFireHit(
-                    convertedDamage,
-                    1f,
-                    stats.BurnExplosionMultiplier,
-                    transform);
-                break;
-            case CrescentConvertedElement.Ice:
-                ailments.ApplyChillFromHit(new ChillPayload(
-                    duration: stats.ChillDuration,
-                    maxStacks: stats.ChillMaxStacks,
-                    slowPerStack: stats.ChillSlowPerStack,
-                    source: transform
-                ));
-                break;
-            case CrescentConvertedElement.Lightning:
-            default:
-                ailments.ApplyShockFromHit(new ShockPayload(
-                    duration: stats.ShockDuration,
-                    damageTakenMultiplier: stats.ShockDamageTakenMultiplier,
-                    source: transform
-                ));
-                break;
-        }
+        ailments.TryApplyBurnFromFireHit(
+            fireDamageDealt,
+            1f,
+            stats.BurnExplosionMultiplier,
+            transform);
     }
 
     private IEnumerator ApplyTwinCycloneSecondWave(List<(EnemyBaseController target, SplitDamage secondHitBase, float secondLightningMagNonCrit)> targets, float radius)
@@ -2674,23 +3265,7 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void TryAutoReleaseQueuedCrescentSlash()
     {
-        if (!_crescentSlashQueued)
-            return;
-        if (!CanHitAnyEnemyWithCrescentSlash())
-            return;
-        if (combat == null)
-            combat = GetComponent<PlayerCombatController>();
-        if (combat == null || !combat.TryConsumeAttackCycleForAbilityCast())
-            return;
-
-        AbilityDefinition def = GetAbilityDefinition(CrescentSlashId);
-        if (!def)
-        {
-            _crescentSlashQueued = false;
-            return;
-        }
-
-        ExecuteCrescentSlashCast(def, requireTargetInFacingLane: true);
+        TryReleaseQueuedCrescentSlash(requireTargetInFacingLane: true);
     }
 
     /// <summary>
@@ -2698,39 +3273,59 @@ public class PlayerAbilityController : MonoBehaviour
     /// </summary>
     public bool TryAutoReleaseQueuedCrescentSlashFromCadence()
     {
+        return TryReleaseQueuedCrescentSlash(requireTargetInFacingLane: true);
+    }
+
+    private bool TryReleaseQueuedCrescentSlash(bool requireTargetInFacingLane)
+    {
         if (!_crescentSlashQueued)
             return false;
-        if (!CanHitAnyEnemyWithCrescentSlash())
-            return false;
-        if (combat == null)
-            combat = GetComponent<PlayerCombatController>();
-        if (combat == null || !combat.TryConsumeAttackCycleForAbilityCast())
+        if (requireTargetInFacingLane && !CanHitAnyEnemyWithCrescentSlash())
             return false;
 
         AbilityDefinition def = GetAbilityDefinition(CrescentSlashId);
         if (!def)
         {
-            _crescentSlashQueued = false;
+            ClearCrescentSlashPrimeState();
             return false;
         }
 
-        return ExecuteCrescentSlashCast(def, requireTargetInFacingLane: true);
+        // Legacy queues from before pay-on-prime: spend now or drop the stale prime instead of eating attack cycles.
+        if (!_crescentSlashEnergyCommitted)
+        {
+            if (!TrySpendAbilityEnergy(def, showInsufficientFeedback: false))
+            {
+                ClearCrescentSlashPrimeState();
+                return false;
+            }
+
+            _crescentSlashEnergyCommitted = true;
+        }
+
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null || !combat.TryConsumeAttackCycleForAbilityCast())
+            return false;
+
+        FireCrescentSlashImpact(def);
+        return true;
     }
 
-    private bool ExecuteCrescentSlashCast(AbilityDefinition def, bool requireTargetInFacingLane = false)
+    private void FireCrescentSlashImpact(AbilityDefinition def)
     {
         if (!def || player == null)
-            return false;
-        if (requireTargetInFacingLane && !CanHitAnyEnemyWithCrescentSlash())
-            return false;
-        if (!TrySpendAbilityEnergy(def, showInsufficientFeedback: false))
-            return false;
+            return;
 
-        _crescentSlashQueued = false;
+        ClearCrescentSlashPrimeState();
         TryUseCrescentSlash(def);
-        player?.TriggerAttackAnim();
+        player.TriggerAttackAnim();
         StartCooldown(def);
-        return true;
+    }
+
+    private void ClearCrescentSlashPrimeState()
+    {
+        _crescentSlashQueued = false;
+        _crescentSlashEnergyCommitted = false;
     }
 
     private float GetCombatFacingSign() =>
@@ -2986,7 +3581,7 @@ public class PlayerAbilityController : MonoBehaviour
         _lumberFrenzyEndsAt = Time.time + _lumberFrenzyDuration;
         _lastSyncedLumberFrenzyHudEnd = float.NaN;
         if (!_fishingFrenzyActive)
-            abilityVfx?.SpawnLumberFrenzyOrbitVfx();
+            abilityVfx?.SpawnLumberFrenzyOrbitVfx(isFishingFrenzy: false);
         SyncLumberFrenzyHudBuff();
         stats?.NotifyStatsChanged();
     }
@@ -3052,7 +3647,7 @@ public class PlayerAbilityController : MonoBehaviour
         _fishingFrenzyEndsAt = Time.time + _fishingFrenzyDuration;
         _lastSyncedFishingFrenzyHudEnd = float.NaN;
         if (!_lumberFrenzyActive)
-            abilityVfx?.SpawnLumberFrenzyOrbitVfx();
+            abilityVfx?.SpawnLumberFrenzyOrbitVfx(isFishingFrenzy: true);
         SyncFishingFrenzyHudBuff();
         stats?.NotifyStatsChanged();
     }
@@ -4234,6 +4829,10 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(id, CleavingStrikesId, StringComparison.OrdinalIgnoreCase))
             return;
 
+        // Timed buff overlaps cast cooldown (same contract as Energy Infusion / Cleaving Strikes).
+        if (string.Equals(id, BattleTranceId, StringComparison.OrdinalIgnoreCase))
+            return;
+
         if (string.Equals(id, LumberFrenzyId, StringComparison.OrdinalIgnoreCase) && _lumberFrenzyActive)
         {
             _lumberFrenzyActive = false;
@@ -4317,6 +4916,8 @@ public class PlayerAbilityController : MonoBehaviour
     {
         if (!def) return;
         float cd = Mathf.Max(0f, def.cooldown - GetPowerSlashCooldownReduction(def) - GetAvatarOfTheForestCooldownReduction(def));
+        if (stats != null)
+            cd *= Mathf.Max(0.05f, 1f - stats.CombatAbilityCooldownReductionFraction);
         if (cd <= 0f) return;
 
         TeardownLingeringAbilityStateBeforeCooldownWrite(def);

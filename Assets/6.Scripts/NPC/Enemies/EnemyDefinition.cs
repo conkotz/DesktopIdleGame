@@ -172,7 +172,7 @@ public class EnemyDefinition : ScriptableObject
     public float lifeRegenPerSecond = 0f;
 
     [Min(0f)]
-    [Tooltip("Maps to CharacterStats baseEnergyRegen.")]
+    [Tooltip("Maps to CharacterStats baseEnergyRegenPercentPerSecond (% of max energy per second).")]
     public float energyRegenPerSecond = 10f;
 
     [Min(0f)]

@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e7a3d2c1b4094f6e8d5c4b3a29180765, type: 3}
-  m_Name: Presentation_ability_shadow_strike
+  m_Name: Presentation_ability_battle_trance
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
-  notes: Presentation for shadow_strike
-  displayNameOverride: Shadow Strike
-  icon: {fileID: -1488180651229543465, guid: 3061848b5bbd3a64495e8ab44ded3443, type: 3}
-  shortDescription: Blink through the shadows to strike a foe before they can react.
+  notes: Presentation for battle_trance
+  displayNameOverride: Battle Trance
+  icon: {fileID: -7588507058973284862, guid: efbbcf5bf04528a47be779022ad595a7, type: 3}
+  shortDescription: Enter a heightened combat state for 10 seconds.
   primaryDescriptionOverride: 
   flavourText: 
-  tooltipCategoryTagOverride: "Active \u2022 Movement"
+  tooltipCategoryTagOverride: 

@@ -171,7 +171,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float BaseMoveSpeed => baseMoveSpeed;
 
     [SerializeField] private float baseLifeRegen = 1f;
-    [SerializeField] private float baseEnergyRegen = 10f;
+    [Tooltip("Percent of max energy restored per second (10 = 10%/s). Gear and buffs can add flat /s on top.")]
+    [FormerlySerializedAs("baseEnergyRegen")]
+    [SerializeField] private float baseEnergyRegenPercentPerSecond = 10f;
     [SerializeField] private float baseManaRegen = 1f;
 
     [Header("Base Offense")]
@@ -500,7 +502,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float TotalMoveSpeedPercent =>
         GearMoveSpeedPercent + TemporaryMoveSpeedPercent + GetActiveMeleeMinorBonuses().meleeMoveSpeedPercent +
-        GetActiveRangedMinorBonuses().rangedMoveSpeedPercent +
+        GetActiveRangedMinorBonuses().rangedMoveSpeedPercent + CombatMoveSpeedPercentBonus +
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MoveSpeed) : 0f) +
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.FoodMoveSpeed) : 0f);
 
@@ -530,11 +532,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
         GetEquippedLifeRegen() +
         GetActiveMeleeMinorBonuses().meleeLifeRegen +
         GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceLifeRegenFlat);
+    /// <summary>Base energy regen rate as % of <see cref="MaxEnergy"/> per second (before flat bonuses).</summary>
+    public float EnergyRegenBasePercentPerSecond => Mathf.Max(0f, baseEnergyRegenPercentPerSecond);
+
+    private float GetBonusEnergyRegenFlatPerSecond() =>
+        GetEquippedEnergyRegen() +
+        GetActiveMeleeMinorBonuses().meleeEnergyRegen +
+        (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.EnergyRegen) : 0f);
+
+    /// <summary>Energy restored per second: (max energy × base %) + flat bonuses from gear, passives, and consumables.</summary>
     public float EnergyRegenPerSecond =>
-        Mathf.Max(
-            0f,
-            baseEnergyRegen + GetEquippedEnergyRegen() + GetActiveMeleeMinorBonuses().meleeEnergyRegen +
-            (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.EnergyRegen) : 0f));
+        Mathf.Max(0f, MaxEnergy * (EnergyRegenBasePercentPerSecond / 100f) + GetBonusEnergyRegenFlatPerSecond());
     public float ManaRegenPerSecond => Mathf.Max(0f, baseManaRegen + GetEquippedManaRegen());
     public float LifeSteal => Mathf.Clamp01(baseLifeSteal + GetEquippedLifeSteal() + GetActiveMeleeMinorBonuses().meleeLifeSteal);
 
@@ -575,6 +583,75 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     private float _combatAbilityPowerMultiplier = 1f;
+
+    /// <summary>Combat-only melee (physical) damage multiplier (e.g. Battle Trance +10%).</summary>
+    public float CombatMeleeDamageMultiplier
+    {
+        get => _combatMeleeDamageMultiplier;
+        set => SetCombatStatMultiplier(ref _combatMeleeDamageMultiplier, value);
+    }
+
+    /// <summary>Combat-only additive attack speed fraction (0.15 = +15%).</summary>
+    public float CombatAttackSpeedPercentBonus
+    {
+        get => _combatAttackSpeedPercentBonus;
+        set => SetCombatStatAdditive(ref _combatAttackSpeedPercentBonus, value);
+    }
+
+    /// <summary>Combat-only additive move speed fraction (0.10 = +10%).</summary>
+    public float CombatMoveSpeedPercentBonus
+    {
+        get => _combatMoveSpeedPercentBonus;
+        set => SetCombatStatAdditive(ref _combatMoveSpeedPercentBonus, value);
+    }
+
+    /// <summary>Combat-only incoming damage multiplier (1.10 = +10% damage taken).</summary>
+    public float CombatDamageTakenMultiplier
+    {
+        get => _combatDamageTakenMultiplier;
+        set => SetCombatStatMultiplier(ref _combatDamageTakenMultiplier, value);
+    }
+
+    /// <summary>Combat-only ability cooldown reduction fraction (0.15 = 15% CDR).</summary>
+    public float CombatAbilityCooldownReductionFraction
+    {
+        get => _combatAbilityCooldownReductionFraction;
+        set => SetCombatStatAdditive(ref _combatAbilityCooldownReductionFraction, value);
+    }
+
+    private float _combatMeleeDamageMultiplier = 1f;
+    private float _combatAttackSpeedPercentBonus;
+    private float _combatMoveSpeedPercentBonus;
+    private float _combatDamageTakenMultiplier = 1f;
+    private float _combatAbilityCooldownReductionFraction;
+
+    private void SetCombatStatMultiplier(ref float field, float value)
+    {
+        float v = Mathf.Max(0f, value);
+        if (Mathf.Approximately(field, v))
+            return;
+        field = v;
+        NotifyStatsChanged();
+    }
+
+    private void SetCombatStatAdditive(ref float field, float value)
+    {
+        float v = Mathf.Max(0f, value);
+        if (Mathf.Approximately(field, v))
+            return;
+        field = v;
+        NotifyStatsChanged();
+    }
+
+    public void ClearBattleTranceCombatModifiers()
+    {
+        _combatMeleeDamageMultiplier = 1f;
+        _combatAttackSpeedPercentBonus = 0f;
+        _combatMoveSpeedPercentBonus = 0f;
+        _combatDamageTakenMultiplier = 1f;
+        _combatAbilityCooldownReductionFraction = 0f;
+        NotifyStatsChanged();
+    }
 
     public float GetAbilityPowerDamageMultiplier(float abilityPowerCoefficient)
     {
@@ -1670,6 +1747,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         physicalDamageMult = physicalBuffMult * physicalGearPctMult;
         magicDamageMult = magicBuffMult * magicGearPctMult;
+
+        if (skill == AttackSkill.Melee && _combatMeleeDamageMultiplier > 1.001f)
+        {
+            physicalDamageMult *= _combatMeleeDamageMultiplier;
+            magicDamageMult *= _combatMeleeDamageMultiplier;
+            corruptionDamageMult *= _combatMeleeDamageMultiplier;
+        }
     }
 
     /// <summary>Total % increase to physical melee split (20 = +20%).</summary>
@@ -1730,7 +1814,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
         get
         {
             var m = GetUnlockedMeleeMinorBonuses();
-            return m.meleeDamagePercent * 100f;
+            float pts = m.meleeDamagePercent * 100f;
+            if (GetCurrentAttackSkill() == AttackSkill.Melee && _combatMeleeDamageMultiplier > 1.001f)
+                pts += (_combatMeleeDamageMultiplier - 1f) * 100f;
+            return pts;
         }
     }
 
@@ -2015,6 +2102,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         if (buffController)
             gearAtkSpeedPct += buffController.GetTotalMagnitude(ConsumableEffectType.AttackSpeed);
+
+        gearAtkSpeedPct += CombatAttackSpeedPercentBonus;
 
         var support = GetActiveOffHandSupportDef();
         if (support)
@@ -3090,7 +3179,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         unarmedCritMultiplier = Mathf.Max(1f, def.critMultiplier);
 
         baseLifeRegen = Mathf.Max(0f, def.lifeRegenPerSecond);
-        baseEnergyRegen = Mathf.Max(0f, def.energyRegenPerSecond);
+        baseEnergyRegenPercentPerSecond = Mathf.Max(0f, def.energyRegenPerSecond);
         baseManaRegen = Mathf.Max(0f, def.manaRegenPerSecond);
 
         baseBleedChance = Mathf.Clamp01(def.bleedChance);
@@ -3493,6 +3582,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float mitigated = ApplyFlatDamageTakenReduction(
             ApplyMeleeDamageReduction(Mathf.Max(0f, amount)),
             GetConsumableFlatDamageReductionFraction());
+        mitigated = ApplyFinalIncomingDamageMultipliers(mitigated);
         float totalToVitals = Mathf.Max(0f, mitigated);
         float remainder = totalToVitals;
         ApplyDamageToGuardThenHp(ref remainder);
@@ -3587,13 +3677,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         switch (type)
         {
             case DamageType.Typless:
-                // True untyped damage: no block chance, no mitigation, no reduction modifiers.
-                return rawDamage;
+                // No armor/MR/block; still affected by shock + Battle Trance damage-taken multipliers.
+                return ApplyFinalIncomingDamageMultipliers(rawDamage);
 
             case DamageType.Corruption:
-                return ApplyFlatDamageTakenReduction(
-                    ApplyMeleeDamageReduction(MitigateByRating(rawDamage, CorruptionResist * defMult)),
-                    consumableDr);
+                return ApplyFinalIncomingDamageMultipliers(
+                    ApplyFlatDamageTakenReduction(
+                        ApplyMeleeDamageReduction(MitigateByRating(rawDamage, CorruptionResist * defMult)),
+                        consumableDr));
 
             case DamageType.Physical:
                 {
@@ -3606,19 +3697,42 @@ public class CharacterStats : MonoBehaviour, ISaveable
                         return 0f;
                     }
 
-                    return ApplyFlatDamageTakenReduction(ApplyMeleeDamageReduction(dmg), consumableDr);
+                    return ApplyFinalIncomingDamageMultipliers(
+                        ApplyFlatDamageTakenReduction(ApplyMeleeDamageReduction(dmg), consumableDr));
                 }
 
             case DamageType.Magic:
-                return ApplyFlatDamageTakenReduction(
-                    ApplyMeleeDamageReduction(MitigateByRating(
-                        rawDamage,
-                        MagicResist * defMult * Mathf.Max(0f, magicResistRatingMultiplier))),
-                    consumableDr);
+                return ApplyFinalIncomingDamageMultipliers(
+                    ApplyFlatDamageTakenReduction(
+                        ApplyMeleeDamageReduction(MitigateByRating(
+                            rawDamage,
+                            MagicResist * defMult * Mathf.Max(0f, magicResistRatingMultiplier))),
+                        consumableDr));
 
             default:
-                return ApplyFlatDamageTakenReduction(ApplyMeleeDamageReduction(rawDamage), consumableDr);
+                return ApplyFinalIncomingDamageMultipliers(
+                    ApplyFlatDamageTakenReduction(ApplyMeleeDamageReduction(rawDamage), consumableDr));
         }
+    }
+
+    /// <summary>Shock (ailment) + combat buffs such as Battle Trance (+10% damage taken). Applied to all incoming damage.</summary>
+    private float ApplyFinalIncomingDamageMultipliers(float mitigatedDamage)
+    {
+        if (mitigatedDamage <= 0f)
+            return mitigatedDamage;
+
+        AilmentController ailments = GetComponent<AilmentController>();
+        if (ailments != null)
+            mitigatedDamage *= ailments.GetIncomingDamageMultiplier();
+
+        return ApplyCombatDamageTakenMultiplier(mitigatedDamage);
+    }
+
+    private float ApplyCombatDamageTakenMultiplier(float mitigatedDamage)
+    {
+        if (mitigatedDamage <= 0f || Mathf.Approximately(CombatDamageTakenMultiplier, 1f))
+            return mitigatedDamage;
+        return mitigatedDamage * CombatDamageTakenMultiplier;
     }
 
     private float ApplyMeleeDamageReduction(float incomingDamage)

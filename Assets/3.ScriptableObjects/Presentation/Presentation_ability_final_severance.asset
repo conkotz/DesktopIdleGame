@@ -19,4 +19,4 @@ MonoBehaviour:
     Physical, Magic, and Corruption damage.
   primaryDescriptionOverride: 
   flavourText: 
-  tooltipCategoryTagOverride: 
+  tooltipCategoryTagOverride: "Active \u2022 Ultimate"
