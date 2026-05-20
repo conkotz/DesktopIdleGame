@@ -1007,23 +1007,32 @@ public class PlayerAbilityController : MonoBehaviour
 
     public float GetCooldownNormalized(string abilityId)
     {
+        if (!IsOnCooldown(abilityId, out float remaining))
+            return 0f;
+
+        return GetCooldownNormalizedFromRemaining(abilityId, remaining);
+    }
+
+    /// <summary>Normalized CD fill when remaining seconds are already known (avoids duplicate cooldown lookups).</summary>
+    public float GetCooldownNormalizedFromRemaining(string abilityId, float remainingSeconds)
+    {
+        if (remainingSeconds <= 0f)
+            return 0f;
+
         var def = GetAbilityDefinition(abilityId);
-        if (!def || def.cooldown <= 0f)
+        if (!def)
             return 0f;
 
         if (string.Equals(abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase))
         {
-            if (!IsOnCooldown(abilityId, out float flameRemaining))
-                return 0f;
-
             float cd = GetFlameChargeCooldownDuration(def);
-            return Mathf.Clamp01(flameRemaining / Mathf.Max(0.01f, cd));
+            return Mathf.Clamp01(remainingSeconds / Mathf.Max(0.01f, cd));
         }
 
-        if (!IsOnCooldown(abilityId, out float remaining))
+        if (def.cooldown <= 0f)
             return 0f;
 
-        return Mathf.Clamp01(remaining / Mathf.Max(0.01f, def.cooldown));
+        return Mathf.Clamp01(remainingSeconds / Mathf.Max(0.01f, def.cooldown));
     }
 
     public bool IsOnGlobalCooldown(out float remainingSeconds)
@@ -2223,7 +2232,9 @@ public class PlayerAbilityController : MonoBehaviour
         EnemyBaseController trackedTarget)
     {
         float rushSeconds = AbilityCombatPower.ExecutionersDescentTargetDiedRushSeconds;
-        Vector3 endPos = impactPoint;
+        Vector3 endPos = abilityVfx != null
+            ? abilityVfx.ResolveExecutionersDescentMinimumImpactWorldPosition(impactPoint)
+            : impactPoint;
         Vector3 startPos = endPos + Vector3.up * AbilityCombatPower.ExecutionersDescentAxeSpawnHeight;
         if (abilityVfx != null && abilityVfx.TryGetExecutionersDescentAxeWorldPosition(out Vector3 axePos))
             startPos = axePos;

@@ -461,8 +461,12 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
             FindObjectsSortMode.None);
         for (int i = 0; i < resizers.Length; i++)
         {
-            if (resizers[i])
-                resizers[i].enabled = interactable;
+            RightEdgeResizer resizer = resizers[i];
+            if (!resizer)
+                continue;
+
+            resizer.enabled = interactable;
+            resizer.gameObject.SetActive(interactable);
         }
     }
 

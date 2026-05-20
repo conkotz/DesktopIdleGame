@@ -83,9 +83,9 @@ public class SkillTreeViewUI : MonoBehaviour
     /// <summary>Max authored enhancements per unlock (skill tree layout is tuned for up to four).</summary>
     public const int MaxEnhancementChoicesSupported = 4;
 
-    // Left → right slot order using 1-based enhancement labels: 2 = [1,2]; 3 = [3,1,2]; 4 = [3,1,2,4].
+    // Left → right slot order: 2 = [1,2]; 3 = [1,2,3] off-spine; 4 = [3,1,2,4] off-spine.
     private static readonly int[] EnhancementLayoutOrderTwo = { 0, 1 };
-    private static readonly int[] EnhancementLayoutOrderThree = { 2, 0, 1 };
+    private static readonly int[] EnhancementLayoutOrderThree = { 0, 1, 2 };
     private static readonly int[] EnhancementLayoutOrderFour = { 2, 0, 1, 3 };
 
     private SkillTreeNodeUI selectedNode;
@@ -1135,7 +1135,6 @@ public class SkillTreeViewUI : MonoBehaviour
             string parentSpineId = SpineNodeId(row);
             float parentX = layoutRowX[i];
             int[] layoutOrder = GetEnhancementChoiceLayoutOrder(choiceAssetIndices.Count);
-            float center = (layoutOrder.Length - 1) * 0.5f;
             float xStep = ResolveChoiceHorizontalStep(row.type, choiceAssetIndices.Count);
             for (int slot = 0; slot < layoutOrder.Length; slot++)
             {
@@ -1160,7 +1159,7 @@ public class SkillTreeViewUI : MonoBehaviour
                     yOffset = ScaledLayout(row.type == SkillTreeNodeVisualType.CapstonePassive ? capstoneChoiceYOffset : choiceYOffset);
                 }
 
-                float offsetX = (slot - center) * xStep;
+                float offsetX = GetEnhancementChoiceSlotOffsetMultiplier(choiceAssetIndices.Count, slot) * xStep;
                 float choiceY = targetY + yOffset;
                 float choiceX = parentX + offsetX;
                 bool unlocked = row.level <= currentSkillLevel && choiceUnlockLevel <= currentSkillLevel;
@@ -1611,7 +1610,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
     /// <summary>
     /// Maps authored choice count → left-to-right slot order (logical indices 0..n-1).
-    /// Two choices stay centered; three/four fan with the 3rd left and 4th right per design.
+    /// Two choices stay centered; three/four fan off the spine (see <see cref="GetEnhancementChoiceSlotOffsetMultiplier"/>).
     /// </summary>
     private static int[] GetEnhancementChoiceLayoutOrder(int authoredChoiceCount)
     {
@@ -1624,6 +1623,26 @@ public class SkillTreeViewUI : MonoBehaviour
             4 => EnhancementLayoutOrderFour,
             _ => BuildLinearEnhancementLayoutOrder(authoredChoiceCount)
         };
+    }
+
+    /// <summary>
+    /// Horizontal slot multipliers × <see cref="ResolveChoiceHorizontalStep"/>. Keeps 3–4 choices off the spine.
+    /// </summary>
+    private static float GetEnhancementChoiceSlotOffsetMultiplier(int choiceCount, int slotIndex)
+    {
+        if (choiceCount == 3)
+        {
+            return slotIndex switch
+            {
+                0 => -1.5f,
+                1 => -0.5f,
+                2 => 1.5f,
+                _ => slotIndex - 1f
+            };
+        }
+
+        float center = (choiceCount - 1) * 0.5f;
+        return slotIndex - center;
     }
 
     private static int[] BuildLinearEnhancementLayoutOrder(int count)

@@ -39,6 +39,12 @@ public class RightEdgeResizer : MonoBehaviour,
         SetHover(false);
     }
 
+    private void OnEnable()
+    {
+        if (StripCameraController.IsStripLayoutLockedForExpandBackground)
+            gameObject.SetActive(false);
+    }
+
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (StripCameraController.IsStripLayoutLockedForExpandBackground)

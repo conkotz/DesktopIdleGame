@@ -95,6 +95,16 @@ public class ActionBarSlotUI : MonoBehaviour,
     private bool isAutoBattleActive;
     private bool abilityWeaponCompatible = true;
     private float autoBattleDashPhase;
+    private int _lastStackAmount = int.MinValue;
+    private float _lastCooldownFill = -1f;
+    private bool _lastCooldownOverlayEnabled;
+    private string _lastCooldownText;
+    private bool _lastPrimed;
+    private bool _lastNoStock;
+    private bool _lastBuffOverlay;
+    private bool _lastBuffTimerVisible;
+    private int _lastBuffTimerSeconds = int.MinValue;
+    private bool _weaponCompatibilityInitialized;
     private RawImage topEdge;
     private RawImage rightEdge;
     private RawImage bottomEdge;
@@ -206,10 +216,61 @@ public class ActionBarSlotUI : MonoBehaviour,
         }
 
         RefreshUI();
+        ResetRuntimeVisualCache();
         SetStackText(0);
         SetCooldownVisual(0f);
+        SetPrimedVisual(false);
+        SetNoStockVisual(false);
+        SetAbilityWeaponCompatibility(true);
         SetAbilityBuffActiveOverlay(false);
         SetAbilityBuffTimerDisplay(false, 0f);
+    }
+
+    private void ResetRuntimeVisualCache()
+    {
+        _lastStackAmount = int.MinValue;
+        _lastCooldownFill = -1f;
+        _lastCooldownOverlayEnabled = false;
+        _lastCooldownText = null;
+        _lastPrimed = false;
+        _lastNoStock = false;
+        _lastBuffOverlay = false;
+        _lastBuffTimerVisible = false;
+        _lastBuffTimerSeconds = int.MinValue;
+        _weaponCompatibilityInitialized = false;
+        ApplyRuntimeVisualDefaults();
+    }
+
+    /// <summary>Clears transient slot overlays so dirty-check setters cannot leave stale visuals after assignment changes.</summary>
+    private void ApplyRuntimeVisualDefaults()
+    {
+        if (cooldownOverlay != null)
+        {
+            cooldownOverlay.enabled = false;
+            cooldownOverlay.fillAmount = 0f;
+        }
+
+        if (cooldownText != null)
+            cooldownText.text = string.Empty;
+
+        EnsurePrimedBackgroundExists();
+        if (primedBackgroundImage != null)
+        {
+            primedBackgroundImage.enabled = false;
+            primedBackgroundImage.gameObject.SetActive(false);
+        }
+
+        if (activeOverlay != null)
+            activeOverlay.SetActive(false);
+
+        if (activeTimerText != null)
+            activeTimerText.gameObject.SetActive(false);
+
+        if (noStockBackgroundImage != null)
+        {
+            noStockBackgroundImage.enabled = false;
+            noStockBackgroundImage.gameObject.SetActive(false);
+        }
     }
 
     public void SetHotkeyLabel(string text)
@@ -269,6 +330,14 @@ public class ActionBarSlotUI : MonoBehaviour,
         else if (assignedItemAmount <= 0)
             assignedItemAmount = 1;
         RefreshUI();
+        ResetRuntimeVisualCache();
+        SetStackText(0);
+        SetCooldownVisual(0f);
+        SetPrimedVisual(false);
+        SetNoStockVisual(false);
+        SetAbilityWeaponCompatibility(true);
+        SetAbilityBuffActiveOverlay(false);
+        SetAbilityBuffTimerDisplay(false, 0f);
 
         if (isPointerOver)
             ShowTooltip();
@@ -282,8 +351,12 @@ public class ActionBarSlotUI : MonoBehaviour,
         assignedAction = null;
         assignedItemAmount = 0;
         RefreshUI();
+        ResetRuntimeVisualCache();
         SetStackText(0);
         SetCooldownVisual(0f);
+        SetPrimedVisual(false);
+        SetNoStockVisual(false);
+        SetAbilityWeaponCompatibility(true);
         SetAbilityBuffActiveOverlay(false);
         SetAbilityBuffTimerDisplay(false, 0f);
         tooltip?.Hide();
@@ -334,7 +407,10 @@ public class ActionBarSlotUI : MonoBehaviour,
 
     public void SetStackText(int amount)
     {
-        if (stackText == null) return;
+        if (stackText == null || amount == _lastStackAmount)
+            return;
+
+        _lastStackAmount = amount;
         stackText.text = amount > 0 ? amount.ToString() : "";
     }
 
@@ -342,28 +418,41 @@ public class ActionBarSlotUI : MonoBehaviour,
     {
         normalizedRemaining = Mathf.Clamp01(normalizedRemaining);
 
-        if (cooldownOverlay != null)
+        bool overlayEnabled = normalizedRemaining > 0f;
+        if (cooldownOverlay != null &&
+            (overlayEnabled != _lastCooldownOverlayEnabled ||
+             !Mathf.Approximately(normalizedRemaining, _lastCooldownFill)))
         {
-            cooldownOverlay.enabled = normalizedRemaining > 0f;
+            _lastCooldownOverlayEnabled = overlayEnabled;
+            _lastCooldownFill = normalizedRemaining;
+            cooldownOverlay.enabled = overlayEnabled;
             cooldownOverlay.fillAmount = normalizedRemaining;
         }
 
         if (cooldownText != null)
         {
+            string nextText = string.Empty;
             if (secondsRemaining > 0.05f)
             {
-                cooldownText.text = secondsRemaining >= 1f
+                nextText = secondsRemaining >= 1f
                     ? Mathf.CeilToInt(secondsRemaining).ToString()
                     : secondsRemaining.ToString("0.#");
-                cooldownText.transform.SetAsLastSibling();
             }
-            else
-                cooldownText.text = string.Empty;
+
+            if (nextText != _lastCooldownText)
+            {
+                _lastCooldownText = nextText;
+                cooldownText.text = nextText;
+            }
         }
     }
 
     public void SetPrimedVisual(bool primed)
     {
+        if (primed == _lastPrimed)
+            return;
+
+        _lastPrimed = primed;
         EnsurePrimedBackgroundExists();
         if (primedBackgroundImage == null)
             return;
@@ -376,9 +465,10 @@ public class ActionBarSlotUI : MonoBehaviour,
     /// <summary>Shows when this slotted ability has an active timed / swing / minion buff (same source as the buff HUD strip).</summary>
     public void SetAbilityBuffActiveOverlay(bool active)
     {
-        if (activeOverlay == null)
+        if (activeOverlay == null || active == _lastBuffOverlay)
             return;
 
+        _lastBuffOverlay = active;
         activeOverlay.SetActive(active);
         if (active)
             EnsureActiveBuffTimerDrawsAboveOverlay();
@@ -390,11 +480,17 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (activeTimerText == null)
             return;
 
+        int displaySeconds = show ? Mathf.CeilToInt(Mathf.Max(0f, remainingSeconds)) : 0;
+        if (show == _lastBuffTimerVisible && (!show || displaySeconds == _lastBuffTimerSeconds))
+            return;
+
+        _lastBuffTimerVisible = show;
+        _lastBuffTimerSeconds = displaySeconds;
         activeTimerText.gameObject.SetActive(show);
         if (!show)
             return;
 
-        activeTimerText.text = Mathf.CeilToInt(Mathf.Max(0f, remainingSeconds)).ToString();
+        activeTimerText.text = displaySeconds.ToString();
         EnsureActiveBuffTimerDrawsAboveOverlay();
     }
 
@@ -414,15 +510,20 @@ public class ActionBarSlotUI : MonoBehaviour,
 
     public void SetNoStockVisual(bool noStock)
     {
-        if (noStockBackgroundImage == null)
+        if (noStockBackgroundImage == null || noStock == _lastNoStock)
             return;
 
+        _lastNoStock = noStock;
         noStockBackgroundImage.enabled = noStock;
         noStockBackgroundImage.gameObject.SetActive(noStock);
     }
 
     public void SetAbilityWeaponCompatibility(bool canUseWithCurrentWeapon)
     {
+        if (_weaponCompatibilityInitialized && canUseWithCurrentWeapon == abilityWeaponCompatible)
+            return;
+
+        _weaponCompatibilityInitialized = true;
         abilityWeaponCompatible = canUseWithCurrentWeapon;
         RefreshAutoBattleBorder();
     }

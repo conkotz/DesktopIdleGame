@@ -508,6 +508,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     private readonly List<SavedSlotState> frozenCombatFiveAbilities = new();
     private bool _manualGatheringStripLocked;
 
+    private readonly Dictionary<string, bool> _abilityUnlockCache = new(StringComparer.OrdinalIgnoreCase);
+
     private bool _gatheringVisualDefaultsCached;
     private Color _combatBackgroundColor = Color.white;
     private Color _combatWoodGraphicColor = Color.white;
@@ -542,8 +544,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         WireGatheringStripSelectionButtons();
         ResolveCoreRefs();
-        if (skillsManager != null)
-            skillsManager.OnSkillAbilityRowPickChanged += HandleSkillAbilityRowPickChanged;
+        SubscribeSkillUnlockCacheInvalidation();
     }
 
     private void OnDisable()
@@ -553,8 +554,51 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (HotkeyBindingManager.Instance != null)
             HotkeyBindingManager.Instance.OnBindingsChanged -= SyncHotkeysFromManager;
 
-        if (skillsManager != null)
-            skillsManager.OnSkillAbilityRowPickChanged -= HandleSkillAbilityRowPickChanged;
+        UnsubscribeSkillUnlockCacheInvalidation();
+    }
+
+    private void SubscribeSkillUnlockCacheInvalidation()
+    {
+        if (skillsManager == null)
+            return;
+
+        skillsManager.OnSkillAbilityRowPickChanged += HandleSkillAbilityRowPickChanged;
+        skillsManager.OnSkillAbilityRowPickChanged += HandleSkillUnlockCacheInvalidated;
+        skillsManager.OnSkillChoiceSelectionChanged += HandleSkillUnlockCacheInvalidated;
+        skillsManager.OnLevelUp += HandleSkillUnlockCacheInvalidated;
+        skillsManager.OnSkillLevelDecreased += HandleSkillUnlockCacheInvalidated;
+    }
+
+    private void UnsubscribeSkillUnlockCacheInvalidation()
+    {
+        if (skillsManager == null)
+            return;
+
+        skillsManager.OnSkillAbilityRowPickChanged -= HandleSkillAbilityRowPickChanged;
+        skillsManager.OnSkillAbilityRowPickChanged -= HandleSkillUnlockCacheInvalidated;
+        skillsManager.OnSkillChoiceSelectionChanged -= HandleSkillUnlockCacheInvalidated;
+        skillsManager.OnLevelUp -= HandleSkillUnlockCacheInvalidated;
+        skillsManager.OnSkillLevelDecreased -= HandleSkillUnlockCacheInvalidated;
+    }
+
+    private void HandleSkillUnlockCacheInvalidated(SkillType skillType, int _) => InvalidateAbilityUnlockCache();
+
+    private void HandleSkillUnlockCacheInvalidated(SkillType skillType, int _, int __) => InvalidateAbilityUnlockCache();
+
+    private void InvalidateAbilityUnlockCache() => _abilityUnlockCache.Clear();
+
+    private bool IsAbilityLockedOnBar(AbilityDefinition abilityDef)
+    {
+        if (abilityDef == null || string.IsNullOrWhiteSpace(abilityDef.abilityId))
+            return true;
+
+        if (_abilityUnlockCache.TryGetValue(abilityDef.abilityId, out bool cached))
+            return cached;
+
+        SkillDefinition skill = skillDatabase != null ? skillDatabase.Get(abilityDef.sourceSkill) : null;
+        bool locked = !SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, abilityDef, skillsManager);
+        _abilityUnlockCache[abilityDef.abilityId] = locked;
+        return locked;
     }
 
     private void HandleSkillAbilityRowPickChanged(SkillType skillType, int requiredLevel, int pickIndex)
@@ -926,6 +970,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     private void OnSlotAssignmentChanged(ActionBarSlotUI slot)
     {
+        InvalidateAbilityUnlockCache();
         CaptureSlotsToSavedState();
 
         if (!suppressSaveForLoadoutSwap && SaveManager.Instance != null)
@@ -1399,15 +1444,14 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             {
                 ResolveCoreRefs();
                 AbilityDefinition abilityDef = GetAbilityDefinition(action.id);
-                bool abilityLocked = abilityDef == null || !SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(
-                    skillDatabase != null ? skillDatabase.Get(abilityDef.sourceSkill) : null,
-                    abilityDef,
-                    skillsManager);
+                bool abilityLocked = IsAbilityLockedOnBar(abilityDef);
 
                 if (abilityController != null)
                 {
                     bool abilityOnCooldown = abilityController.IsOnCooldown(action.id, out float abilitySecs);
-                    float abilityNorm = abilityController.GetCooldownNormalized(action.id);
+                    float abilityNorm = abilityOnCooldown
+                        ? abilityController.GetCooldownNormalizedFromRemaining(action.id, abilitySecs)
+                        : 0f;
                     float gcdNorm = abilityController.GetGlobalCooldownNormalized();
                     abilityController.IsOnGlobalCooldown(out float gcdSecs);
 
@@ -1439,9 +1483,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                     // Same red overlay as "not available" when skill-locked or wrong weapon type.
                     slot.SetNoStockVisual(abilityLocked || !weaponOk);
 
-                    bool abilityCooldownActive = abilityController.IsOnCooldown(action.id, out _);
                     float buffRemain = 0f;
-                    bool buffTimedPresentation = !abilityCooldownActive &&
+                    bool buffTimedPresentation = !abilityOnCooldown &&
                                                  buffController != null &&
                                                  buffController.ShouldDisplayHudAbilityBuffTimedPresentation(
                                                      action.id, out buffRemain);

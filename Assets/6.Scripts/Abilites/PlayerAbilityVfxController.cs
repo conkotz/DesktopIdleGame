@@ -2478,6 +2478,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
             _executionersDescentAxeRoot.transform.position = worldPosition;
     }
 
+    public Vector3 ResolveExecutionersDescentMinimumImpactWorldPosition(Vector3 targetWorld) =>
+        ResolveExecutionersDescentMinimumWorldPosition(targetWorld);
+
     public void HideExecutionersDescentMark()
     {
         if (_executionersDescentMarkRoot == null)
@@ -2513,6 +2516,19 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
     }
 
+    private Vector3 ResolveExecutionersDescentMinimumWorldPosition(Vector3 targetWorld)
+    {
+        float spawnHeight = Mathf.Max(0.1f, executionersDescentSpawnHeightAboveTarget);
+        float minimumHeight = Mathf.Clamp(
+            executionersDescentMinimumHeightAboveTarget,
+            0f,
+            spawnHeight);
+        return new Vector3(
+            targetWorld.x,
+            targetWorld.y + minimumHeight,
+            targetWorld.z);
+    }
+
     private void EvaluateExecutionersDescentAxePose(
         Vector3 targetWorld,
         float elapsedSeconds,
@@ -2520,19 +2536,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
         out Vector3 hangWorldPosition)
     {
         float spawnHeight = Mathf.Max(0.1f, executionersDescentSpawnHeightAboveTarget);
-        float minimumHeight = Mathf.Clamp(
-            executionersDescentMinimumHeightAboveTarget,
-            0f,
-            spawnHeight);
 
         Vector3 spawnWorld = new Vector3(
             targetWorld.x,
             targetWorld.y + spawnHeight,
             targetWorld.z);
-        Vector3 minimumWorld = new Vector3(
-            targetWorld.x,
-            targetWorld.y + minimumHeight,
-            targetWorld.z);
+        Vector3 minimumWorld = ResolveExecutionersDescentMinimumWorldPosition(targetWorld);
         hangWorldPosition = minimumWorld;
 
         float holdSeconds = Mathf.Clamp(executionersDescentSpawnHoldSeconds, 0f, _executionersDescentTotalSeconds);
