@@ -636,9 +636,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private static void ClearChildren(Transform parent)
     {
-        if (!parent) return;
-        for (int i = parent.childCount - 1; i >= 0; i--)
-            Destroy(parent.GetChild(i).gameObject);
+        UiDestroyUtility.DestroyChildren(parent);
     }
 
     private void RefreshListSelection()
@@ -1203,11 +1201,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void ClearAbilityRows()
     {
-        if (!rightAbilitiesListParent)
-            return;
-
-        for (int i = rightAbilitiesListParent.childCount - 1; i >= 0; i--)
-            Destroy(rightAbilitiesListParent.GetChild(i).gameObject);
+        UiDestroyUtility.DestroyChildren(rightAbilitiesListParent);
     }
 
     private static string BuildUnlocksDisplay(SkillDefinition skill, int currentLevel, SkillsManager skillManager, string passiveHighlightKey = null)

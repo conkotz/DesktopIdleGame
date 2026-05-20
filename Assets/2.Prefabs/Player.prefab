@@ -5694,6 +5694,8 @@ MonoBehaviour:
   whirlingBladeSpinDegrees: 720
   whirlingBladeLineWidth: 0.14
   whirlingBladeCenterOffset: {x: 0, y: 0.65, z: 0}
+  whirlingBladeSlashCount: 4
+  whirlingBladeOrbitVerticalScale: 0.08
   whirlingBladeUpwardDrift: 0.14
   whirlingBladeVerticalWave: 0.06
   crescentSlashColor: {r: 0, g: 0.14033018, b: 0.3207547, a: 1}
@@ -5719,6 +5721,16 @@ MonoBehaviour:
   executionersDescentShockwaveMaxRadius: 5.5
   executionersDescentShockwaveLineWidth: 0.22
   executionersDescentShockwaveGroundOffset: 0.15
+  shadowStrikeBurstColor: {r: 0.35, g: 0.15, b: 0.55, a: 0.9}
+  shadowStrikeBurstDuration: 0.22
+  shadowStrikeBurstRadius: 1.1
+  shadowStrikeBurstLineWidth: 0.16
+  shadowStrikeBurstOffset: {x: 0, y: 0.5, z: 0}
+  shadowStrikeDepartSmokeColor: {r: 0.42, g: 0.12, b: 0.62, a: 0.72}
+  shadowStrikeDepartSmokeOffset: {x: 0, y: 0.45, z: 0}
+  shadowStrikeDepartSmokeLingerSeconds: 2
+  shadowStrikeDepartSmokeBurstCount: 52
+  shadowStrikeDepartSmokeWispEmitSeconds: 0.35
   finalSeveranceWindupStartColor: {r: 1, g: 0.92, b: 0.2, a: 0.6}
   finalSeveranceWindupEndColor: {r: 1, g: 0.82, b: 0.12, a: 0.6}
   finalSeveranceStrikeStartColor: {r: 1, g: 0.18, b: 0.05, a: 1}
@@ -5797,6 +5809,12 @@ MonoBehaviour:
   avatarOfForestParticleStartSizeMax: 0.15
   avatarOfForestTrailLifetime: 0.24
   avatarOfForestTrailWidth: 0.044
+  energyInfusionGlowLocalOffset: {x: 0, y: 1, z: 0}
+  energyInfusionGlowColor: {r: 0.32, g: 0.62, b: 1, a: 0.92}
+  energyInfusionGlowSphereRadius: 2
+  energyInfusionGlowEmissionRate: 38
+  energyInfusionParticleStartSizeMin: 0.032
+  energyInfusionParticleStartSizeMax: 0.058
 --- !u!114 &7462036414647869483
 MonoBehaviour:
   m_ObjectHideFlags: 0

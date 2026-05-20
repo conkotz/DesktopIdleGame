@@ -52,7 +52,8 @@ public class PlayerAbilityController : MonoBehaviour
     private bool _executionersDescentTargetDiedDuringDescent;
 
     /// <summary>True while Final Severance is channeling (movement/attacks paused).</summary>
-    public static bool BlocksCombatActions => _instance != null && _instance._finalSeveranceChanneling;
+    public static bool BlocksCombatActions =>
+        _instance != null && (_instance._finalSeveranceChanneling || _instance._flameChargeRoutine != null);
     private const string PowerSlashId = "power_slash";
     private const string WhirlwindId = "whirlwind";
     private const string RendId = "rend";
@@ -63,6 +64,7 @@ public class PlayerAbilityController : MonoBehaviour
     private const string ExecutionersDescentId = "executioners_descent";
     private const string ShadowStrikeId = "shadow_strike";
     private const string EnergyInfusionId = "energy_infusion";
+    private const string FlameChargeId = "flame_charge";
     private const string LumberFrenzyId = "lumber_frenzy";
     private const float LumberFrenzyDurationSeconds = 20f;
     private const float LumberFrenzyChoppingSpeedBonus = 0.20f;
@@ -188,6 +190,16 @@ public class PlayerAbilityController : MonoBehaviour
 
     private bool _avatarOfForestActive;
     private bool _energyInfusionActive;
+    private bool _energyInfusionShownOutOfManaPopup;
+    private Coroutine _flameChargeRoutine;
+    private float[] _flameChargePerChargeCooldownEnds = Array.Empty<float>();
+    private int _flameChargeChargesMax;
+    private bool _flameChargeChargesInitialized;
+    private int _flameChargeLastKnownMaxCharges;
+    private int _flameChargeCastCounter;
+    /// <summary>One trail damage tick per enemy per interval, even when multiple ground segments overlap.</summary>
+    private readonly Dictionary<EnemyBaseController, float> _flameChargeTrailEnemyNextTickAt = new();
+    private readonly List<EnemyBaseController> _flameChargeTrailScratchEnemies = new();
     private float _avatarOfForestEndsAt;
     private float _avatarOfForestDuration;
     private float _lastSyncedAvatarOfForestHudEnd = float.NaN;
@@ -246,8 +258,8 @@ public class PlayerAbilityController : MonoBehaviour
     public string GetBasicAttackOutgoingDamageSourceLabel() => "Auto Attack";
 
     /// <summary>
-    /// Captured at attack start (after queued modifiers). Power Slash splits auto vs bonus;
-    /// Rend/Envenom hits count as Auto Attack; plain swings are Auto Attack only.
+    /// Captured at attack start (after queued modifiers). When Power Slash fires, the entire swing's dealt
+    /// damage is credited to Power Slash; otherwise the swing is Auto Attack only.
     /// </summary>
     public PlayerCombatController.SwingOutgoingAttribution BuildSwingOutgoingAttribution(
         SplitDamage preModifier,
@@ -255,13 +267,16 @@ public class PlayerAbilityController : MonoBehaviour
     {
         if (_queuedConsumedThisHit == QueuedHitEffect.PowerSlash)
         {
-            float preTotal = Mathf.Max(0f, preModifier.Total);
-            float postTotal = Mathf.Max(0f, postModifier.Total);
-            float bonusFraction = postTotal > preTotal + 1e-6f ? 1f - (preTotal / postTotal) : 0f;
+            // Power Slash has no post-hit ConsumeQueuedHitEffects work; with melee impact delay the hit
+            // lands on a later frame so ConsumeQueuedHitEffects never clears this — clear now so the
+            // next swing is not still credited to Power Slash.
+            _queuedConsumedThisHit = QueuedHitEffect.None;
+            _queuedConsumedFrame = -1;
+
             return new PlayerCombatController.SwingOutgoingAttribution(
                 "Auto Attack",
                 GetAbilityOutgoingDamageSourceLabel(PowerSlashId),
-                bonusFraction);
+                1f);
         }
 
         return PlayerCombatController.SwingOutgoingAttribution.AutoAttackOnly;
@@ -335,7 +350,6 @@ public class PlayerAbilityController : MonoBehaviour
     private void Update()
     {
         TryAutoReleaseQueuedCrescentSlash();
-        TickEnergyInfusion(Time.deltaTime);
         CleanupCleavingStrikesIfExpired();
         SyncCleavingStrikesHudBuff();
         CleanupLumberFrenzyIfExpired();
@@ -352,8 +366,15 @@ public class PlayerAbilityController : MonoBehaviour
         TickAvatarOfTheForestNearbyReplenish(Time.deltaTime);
         SyncSpectralAxeHudBuff();
         CleanupSoulforgedWeaponIfUnavailable();
+        CleanupEnergyInfusionIfNotOnActionBar();
         SyncSoulforgedWeaponHudBuff();
         abilityVfx?.UpdateEnergyInfusionGlowVfx(_energyInfusionActive);
+    }
+
+    private void LateUpdate()
+    {
+        // After PlayerController.TickRegen so mana regen is converted in the same frame.
+        TickEnergyInfusion(Time.deltaTime);
     }
 
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -404,6 +425,16 @@ public class PlayerAbilityController : MonoBehaviour
         remainingSeconds = 0f;
         if (string.IsNullOrWhiteSpace(abilityId))
             return false;
+
+        if (string.Equals(abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase))
+        {
+            RefreshFlameChargeChargesFromSkillTree();
+            if (GetFlameChargeReadyChargeCount() > 0)
+                return false;
+
+            remainingSeconds = GetFlameChargeSoonestRechargingChargeRemaining();
+            return remainingSeconds > 0f;
+        }
 
         bool found = false;
         float end = 0f;
@@ -506,6 +537,22 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, EnergyInfusionId, StringComparison.OrdinalIgnoreCase))
         {
             ForceEndEnergyInfusionEarly(applyCooldown: true);
+            return;
+        }
+
+        if (string.Equals(abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_flameChargeRoutine != null)
+            {
+                StopCoroutine(_flameChargeRoutine);
+                _flameChargeRoutine = null;
+            }
+
+            abilityVfx?.EndFlameChargePlayerGlow();
+            player?.SetTeleportDamageImmune(false);
+            player?.SetMovementLocked(false);
+            _flameChargeChargesInitialized = false;
+            _flameChargePerChargeCooldownEnds = Array.Empty<float>();
             return;
         }
 
@@ -615,6 +662,7 @@ public class PlayerAbilityController : MonoBehaviour
     private void ActivateEnergyInfusion(AbilityDefinition def)
     {
         _energyInfusionActive = true;
+        _energyInfusionShownOutOfManaPopup = false;
         ApplyEnergyInfusionCombatModifiers();
         abilityVfx?.SpawnEnergyInfusionGlowVfx();
         SyncEnergyInfusionHudBuff();
@@ -627,6 +675,7 @@ public class PlayerAbilityController : MonoBehaviour
             return;
 
         _energyInfusionActive = false;
+        _energyInfusionShownOutOfManaPopup = false;
         if (stats != null)
             stats.CombatAbilityPowerMultiplier = 1f;
 
@@ -659,11 +708,16 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (stats.Mana <= 0.001f)
         {
-            ForceEndEnergyInfusionEarly(applyCooldown: false);
-            if (player != null)
+            if (!_energyInfusionShownOutOfManaPopup && player != null)
+            {
+                _energyInfusionShownOutOfManaPopup = true;
                 player.ShowPopup("Out of mana.");
+            }
+
             return;
         }
+
+        _energyInfusionShownOutOfManaPopup = false;
 
         float energyGain = AbilityCombatPower.EnergyInfusionBaseManaDrainPerSecond * deltaTime;
         if (energyGain <= 0f)
@@ -683,16 +737,10 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         if (manaCost <= 0f)
-        {
-            ForceEndEnergyInfusionEarly(applyCooldown: false);
             return;
-        }
 
         if (!player.SpendMana(manaCost))
-        {
-            ForceEndEnergyInfusionEarly(applyCooldown: false);
             return;
-        }
 
         if (energyGain > 0f)
             player.AddEnergy(energyGain);
@@ -785,6 +833,15 @@ public class PlayerAbilityController : MonoBehaviour
         if (!def || def.cooldown <= 0f)
             return 0f;
 
+        if (string.Equals(abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!IsOnCooldown(abilityId, out float flameRemaining))
+                return 0f;
+
+            float cd = GetFlameChargeCooldownDuration(def);
+            return Mathf.Clamp01(flameRemaining / Mathf.Max(0.01f, cd));
+        }
+
         if (!IsOnCooldown(abilityId, out float remaining))
             return 0f;
 
@@ -831,10 +888,31 @@ public class PlayerAbilityController : MonoBehaviour
                || string.Equals(id, FinalSeveranceId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, ShadowStrikeId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, EnergyInfusionId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, FlameChargeId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase);
     }
 
     public bool IsEnergyInfusionActive => _energyInfusionActive;
+
+    /// <summary>
+    /// Energy/s shown on the stats panel: natural regen plus Energy Infusion conversion when the buff is active.
+    /// </summary>
+    public float GetDisplayedEnergyRegenPerSecond()
+    {
+        if (stats == null)
+            return 0f;
+
+        float regen = stats.EnergyRegenPerSecond;
+        if (!_energyInfusionActive)
+            return regen;
+
+        float conversion = AbilityCombatPower.EnergyInfusionBaseManaDrainPerSecond;
+        if (stats.Mana > 0.001f)
+            return regen + conversion;
+
+        // At 0 mana, infusion converts incoming mana regen 1:1 (up to conversion throughput).
+        return regen + Mathf.Min(conversion, stats.ManaRegenPerSecond);
+    }
 
     private bool TrySpendAbilityEnergy(AbilityDefinition def, bool showInsufficientFeedback = true)
     {
@@ -965,6 +1043,7 @@ public class PlayerAbilityController : MonoBehaviour
         bool isFinalSeverance = string.Equals(def.abilityId, FinalSeveranceId, StringComparison.OrdinalIgnoreCase);
         bool isExecutionersDescent = string.Equals(def.abilityId, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase);
         bool isShadowStrike = string.Equals(def.abilityId, ShadowStrikeId, StringComparison.OrdinalIgnoreCase);
+        bool isFlameCharge = string.Equals(def.abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase);
         if (!AbilityDefersEnergyUntilActivated(def) && !TrySpendAbilityEnergy(def, showLockedFeedback))
             return false;
 
@@ -992,6 +1071,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
         {
             if (_powerSlashQueued)
+                return false;
+
+            if (!TrySpendAbilityEnergy(def, showLockedFeedback))
                 return false;
 
             _powerSlashQueued = true;
@@ -1158,6 +1240,28 @@ public class PlayerAbilityController : MonoBehaviour
             ExecuteShadowStrike(def, shadowTarget);
 
             StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+
+        if (isFlameCharge)
+        {
+            if (_flameChargeRoutine != null)
+                return false;
+
+            RefreshFlameChargeChargesFromSkillTree();
+            if (GetFlameChargeReadyChargeCount() <= 0)
+                return false;
+
+            if (!TrySpendAbilityEnergy(def, showLockedFeedback))
+                return false;
+
+            if (!TryStartFlameChargeChargeCooldown(def))
+                return false;
+
+            _flameChargeRoutine = StartCoroutine(CoFlameCharge(def));
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -1436,7 +1540,7 @@ public class PlayerAbilityController : MonoBehaviour
                 rolledNonCrit.corruptionDamage * critMult);
             float lightningAfterCrit = lightningMagNonCrit * critMult;
 
-            if (worldbreaker && IsEnemyBelowFinalSeveranceHealthThreshold(target))
+            if (worldbreaker && IsEnemyAtFullHealthForFinalSeveranceWorldbreaker(target))
             {
                 rolled *= AbilityCombatPower.FinalSeveranceWorldbreakerBonusMultiplier;
                 lightningAfterCrit *= AbilityCombatPower.FinalSeveranceWorldbreakerBonusMultiplier;
@@ -1458,7 +1562,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
     }
 
-    private static bool IsEnemyBelowFinalSeveranceHealthThreshold(EnemyBaseController enemy)
+    private static bool IsEnemyAtFullHealthForFinalSeveranceWorldbreaker(EnemyBaseController enemy)
     {
         if (enemy == null)
             return false;
@@ -1467,7 +1571,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (maxHp <= 0)
             return false;
 
-        return (float)enemy.HP / maxHp <= AbilityCombatPower.FinalSeveranceLowHealthThreshold;
+        return (float)enemy.HP / maxHp >= AbilityCombatPower.FinalSeveranceWorldbreakerFullHealthThreshold01;
     }
 
     private List<EnemyBaseController> CollectFinalSeveranceTargets()
@@ -2508,8 +2612,6 @@ public class PlayerAbilityController : MonoBehaviour
         if (_powerSlashQueued)
         {
             AbilityDefinition def = GetAbilityDefinition(PowerSlashId);
-            if (def != null && !TrySpendAbilityEnergy(def, showInsufficientFeedback: false))
-                return false;
 
             _powerSlashQueued = false;
             _queuedConsumedThisHit = QueuedHitEffect.PowerSlash;
@@ -4029,6 +4131,12 @@ public class PlayerAbilityController : MonoBehaviour
             return _cleavingHitsRemaining > 0 ? _cleavingHitsRemaining : 1;
         }
 
+        if (string.Equals(abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase))
+        {
+            RefreshFlameChargeChargesFromSkillTree();
+            return GetFlameChargeReadyChargeCount();
+        }
+
         return 0;
     }
 
@@ -4596,6 +4704,17 @@ public class PlayerAbilityController : MonoBehaviour
         return false;
     }
 
+    private void CleanupEnergyInfusionIfNotOnActionBar()
+    {
+        if (!_energyInfusionActive)
+            return;
+
+        if (IsAbilityAssignedToActionBar(EnergyInfusionId))
+            return;
+
+        ForceEndEnergyInfusionEarly(applyCooldown: true);
+    }
+
     private void EndSoulforgedAndStartCooldown()
     {
         AbilityDefinition cooldownDef = _soulforgedWeaponCooldownAbilityDef;
@@ -4718,8 +4837,364 @@ public class PlayerAbilityController : MonoBehaviour
         return FallbackAbilityOrPlaceholder();
     }
 
+    private void RefreshFlameChargeChargesFromSkillTree()
+    {
+        int choice = GetFlameChargeSelectedChoice();
+        int newMax = choice == 0 ? 2 : 1;
+
+        if (!_flameChargeChargesInitialized)
+        {
+            _flameChargeChargesMax = newMax;
+            _flameChargePerChargeCooldownEnds = CreateReadyFlameChargeCooldownArray(newMax);
+            _flameChargeLastKnownMaxCharges = newMax;
+            _flameChargeChargesInitialized = true;
+            return;
+        }
+
+        if (newMax > _flameChargeLastKnownMaxCharges)
+        {
+            float[] expanded = CreateReadyFlameChargeCooldownArray(newMax);
+            for (int i = 0; i < _flameChargePerChargeCooldownEnds.Length && i < expanded.Length; i++)
+                expanded[i] = _flameChargePerChargeCooldownEnds[i];
+            _flameChargePerChargeCooldownEnds = expanded;
+        }
+        else if (newMax < _flameChargePerChargeCooldownEnds.Length)
+        {
+            var trimmed = new float[newMax];
+            for (int i = 0; i < newMax; i++)
+                trimmed[i] = _flameChargePerChargeCooldownEnds[i];
+            _flameChargePerChargeCooldownEnds = trimmed;
+        }
+
+        _flameChargeChargesMax = newMax;
+        _flameChargeLastKnownMaxCharges = newMax;
+    }
+
+    private static float[] CreateReadyFlameChargeCooldownArray(int chargeCount)
+    {
+        if (chargeCount <= 0)
+            return Array.Empty<float>();
+
+        var slots = new float[chargeCount];
+        for (int i = 0; i < slots.Length; i++)
+            slots[i] = 0f;
+        return slots;
+    }
+
+    private int GetFlameChargeReadyChargeCount()
+    {
+        int ready = 0;
+        for (int i = 0; i < _flameChargePerChargeCooldownEnds.Length; i++)
+        {
+            if (Time.time >= _flameChargePerChargeCooldownEnds[i])
+                ready++;
+        }
+
+        return ready;
+    }
+
+    private float GetFlameChargeSoonestRechargingChargeRemaining()
+    {
+        float soonest = float.MaxValue;
+        for (int i = 0; i < _flameChargePerChargeCooldownEnds.Length; i++)
+        {
+            float remaining = _flameChargePerChargeCooldownEnds[i] - Time.time;
+            if (remaining > 0f && remaining < soonest)
+                soonest = remaining;
+        }
+
+        return soonest == float.MaxValue ? 0f : soonest;
+    }
+
+    private float GetFlameChargeCooldownDuration(AbilityDefinition def)
+    {
+        if (!def)
+            def = GetAbilityDefinition(FlameChargeId);
+        if (!def)
+            return 12f;
+
+        return Mathf.Max(0.01f, def.cooldown - GetPowerSlashCooldownReduction(def) - GetAvatarOfTheForestCooldownReduction(def));
+    }
+
+    private bool TryStartFlameChargeChargeCooldown(AbilityDefinition def)
+    {
+        if (def == null)
+            return false;
+
+        float cd = GetFlameChargeCooldownDuration(def);
+        if (cd <= 0f)
+            return true;
+
+        float end = Time.time + cd;
+        for (int i = 0; i < _flameChargePerChargeCooldownEnds.Length; i++)
+        {
+            if (Time.time < _flameChargePerChargeCooldownEnds[i])
+                continue;
+
+            _flameChargePerChargeCooldownEnds[i] = end;
+            return true;
+        }
+
+        return false;
+    }
+
+    private float GetScaledFlameChargeFlatFire(AbilityDefinition def, float flatAmount)
+    {
+        if (!def || !stats || flatAmount <= 0f)
+            return Mathf.Max(0f, flatAmount);
+
+        float scaled = flatAmount * def.GetEffectiveAllDamageMultiplier() * Mathf.Max(0f, def.fireDamageMultiplier);
+        if (stats.CurrentMagicAttackType == MagicAttackType.Fire)
+            scaled *= AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
+        return scaled;
+    }
+
+    private float GetFlameChargeTrailFlatFirePerTick(AbilityDefinition def)
+    {
+        _ = def;
+        float tickCount = AbilityCombatPower.FlameChargeTrailDurationSeconds /
+                          Mathf.Max(0.1f, AbilityCombatPower.FlameChargeTrailTickIntervalSeconds);
+        return AbilityCombatPower.FlameChargeTrailTotalFlatFireDamage / Mathf.Max(1f, tickCount);
+    }
+
+    private void PruneFlameChargeTrailEnemyTracking()
+    {
+        if (_flameChargeTrailEnemyNextTickAt.Count > 0)
+        {
+            _flameChargeTrailScratchEnemies.Clear();
+            foreach (KeyValuePair<EnemyBaseController, float> kv in _flameChargeTrailEnemyNextTickAt)
+            {
+                if (!kv.Key || kv.Key.IsDead)
+                    _flameChargeTrailScratchEnemies.Add(kv.Key);
+            }
+
+            for (int i = 0; i < _flameChargeTrailScratchEnemies.Count; i++)
+                _flameChargeTrailEnemyNextTickAt.Remove(_flameChargeTrailScratchEnemies[i]);
+        }
+
+    }
+
+    private bool TryConsumeFlameChargeTrailTickForEnemy(EnemyBaseController enemy, float tickIntervalSeconds)
+    {
+        if (!enemy)
+            return false;
+
+        float now = Time.time;
+        if (_flameChargeTrailEnemyNextTickAt.TryGetValue(enemy, out float nextAllowed) && now < nextAllowed)
+            return false;
+
+        _flameChargeTrailEnemyNextTickAt[enemy] = now + Mathf.Max(0.1f, tickIntervalSeconds);
+        return true;
+    }
+
+    private bool TryApplyFlameChargeBurnFromFireHit(EnemyBaseController enemy, float fireDamageDealt)
+    {
+        if (!enemy || stats == null || fireDamageDealt <= 0f || stats.BurnApplyChance <= 0f)
+            return false;
+
+        AilmentController ailments = enemy.GetComponent<AilmentController>();
+        if (ailments == null)
+            return false;
+
+        return ailments.TryApplyBurnFromFireHit(
+            fireDamageDealt,
+            stats.BurnApplyChance,
+            stats.BurnExplosionMultiplier,
+            transform,
+            GetAbilityOutgoingDamageSourceLabel(FlameChargeId));
+    }
+
+    private int GetFlameChargeSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee,
+            AbilityCombatPower.FlameChargeEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    private IEnumerator CoFlameCharge(AbilityDefinition def)
+    {
+        if (!def || player == null || stats == null)
+        {
+            _flameChargeRoutine = null;
+            yield break;
+        }
+
+        if (!abilityVfx)
+            abilityVfx = GetComponent<PlayerAbilityVfxController>();
+
+        int castId = ++_flameChargeCastCounter;
+        float facing = GetCombatFacingSign();
+        Vector3 start = player.transform.position;
+        float dashDist = AbilityCombatPower.FlameChargeDashDistance;
+        float dashDuration = Mathf.Max(0.05f, AbilityCombatPower.FlameChargeDashDurationSeconds);
+        Vector3 end = start + new Vector3(facing * dashDist, 0f, 0f);
+        int enhance = GetFlameChargeSelectedChoice();
+        bool volcanic = enhance == 1;
+        bool blockOverlappingTrails = enhance == 0;
+
+        player.SetMovementLocked(true);
+        player.SetTeleportDamageImmune(true);
+        player.TriggerAttackAnimVisualOnly();
+        abilityVfx?.BeginFlameChargePlayerGlow();
+        Vector3 trailStart = LaneGroundEffectPlacement.SnapWorldPointToLaneFloor(start, 0.1f);
+        Vector3 trailEnd = LaneGroundEffectPlacement.SnapWorldPointToLaneFloor(end, 0.1f);
+        abilityVfx?.SpawnFlameChargeDashTrailVisual(
+            trailStart,
+            trailEnd,
+            AbilityCombatPower.FlameChargeTrailDurationSeconds);
+
+        float traveled = 0f;
+        float nextTrailAt = 0f;
+
+        for (float t = 0f; t < dashDuration; t += Time.deltaTime)
+        {
+            float u = Mathf.Clamp01(t / dashDuration);
+            Vector3 pos = Vector3.Lerp(start, end, u);
+            player.transform.position = pos;
+
+            traveled = Vector3.Distance(start, pos);
+            while (traveled >= nextTrailAt)
+            {
+                TrySpawnFlameChargeTrailSegment(def, castId, start + new Vector3(facing * nextTrailAt, 0f, 0f), blockOverlappingTrails);
+                nextTrailAt += AbilityCombatPower.FlameChargeTrailSegmentSpacing;
+            }
+
+            yield return null;
+        }
+
+        player.transform.position = end;
+        while (traveled >= nextTrailAt - 0.001f)
+        {
+            TrySpawnFlameChargeTrailSegment(def, castId, start + new Vector3(facing * nextTrailAt, 0f, 0f), blockOverlappingTrails);
+            nextTrailAt += AbilityCombatPower.FlameChargeTrailSegmentSpacing;
+        }
+
+        if (volcanic)
+            ApplyFlameChargeVolcanicExplosion(def, end);
+
+        abilityVfx?.EndFlameChargePlayerGlow();
+        player.SetTeleportDamageImmune(false);
+        player.SetMovementLocked(false);
+        _flameChargeRoutine = null;
+    }
+
+    private void TrySpawnFlameChargeTrailSegment(
+        AbilityDefinition def,
+        int castId,
+        Vector3 worldPos,
+        bool blockOverlappingTrailsFromOtherDashes)
+    {
+        if (def == null)
+            return;
+
+        float radius = AbilityCombatPower.FlameChargeTrailRadius;
+        if (blockOverlappingTrailsFromOtherDashes && FlameChargeTrailSegment.WouldOverlapOtherDash(worldPos, radius, castId))
+            return;
+
+        float flatFirePerTick = GetFlameChargeTrailFlatFirePerTick(def);
+        FlameChargeTrailSegment.Spawn(
+            this,
+            def,
+            castId,
+            worldPos,
+            AbilityCombatPower.FlameChargeTrailDurationSeconds,
+            radius,
+            AbilityCombatPower.FlameChargeTrailTickIntervalSeconds,
+            flatFirePerTick,
+            visualRoot: null);
+    }
+
+    public void TickFlameChargeTrailSegmentDamage(
+        AbilityDefinition def,
+        Vector3 center,
+        float radius,
+        float flatFirePerTick)
+    {
+        if (def == null || stats == null || flatFirePerTick <= 0f)
+            return;
+
+        PruneFlameChargeTrailEnemyTracking();
+        float tickInterval = AbilityCombatPower.FlameChargeTrailTickIntervalSeconds;
+        IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            EnemyBaseController enemy = enemies[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+
+            float dx = Mathf.Abs(enemy.transform.position.x - center.x);
+            float dy = Mathf.Abs(enemy.transform.position.y - center.y);
+            if (dx > radius || dy > radius * 0.85f)
+                continue;
+
+            if (!TryConsumeFlameChargeTrailTickForEnemy(enemy, tickInterval))
+                continue;
+
+            ApplyFlameChargeFlatFireHit(def, enemy, flatFirePerTick, tryBurn: true);
+        }
+    }
+
+    private void ApplyFlameChargeVolcanicExplosion(AbilityDefinition def, Vector3 impactPoint)
+    {
+        if (def == null || stats == null)
+            return;
+
+        abilityVfx?.SpawnFlameChargeVolcanicBurst(impactPoint);
+
+        float radius = AbilityCombatPower.FlameChargeVolcanicExplosionRadius;
+        float flatFire = GetScaledFlameChargeFlatFire(def, AbilityCombatPower.FlameChargeVolcanicExplosionFlatFireDamage);
+        IReadOnlyList<EnemyBaseController> enemies = CombatEnemyRegistry.GetLiveEnemies();
+
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            EnemyBaseController enemy = enemies[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+
+            float dx = Mathf.Abs(enemy.transform.position.x - impactPoint.x);
+            float dy = Mathf.Abs(enemy.transform.position.y - impactPoint.y);
+            if (dx > radius || dy > radius)
+                continue;
+
+            SplitDamage fireHit = new SplitDamage(0f, flatFire, 0f);
+            DealtHit dealt = ApplyAbilitySplitDamageToEnemy(enemy, def, fireHit, false, 0f);
+            if (dealt.Total > 0f)
+                TryApplyFlameChargeBurnFromFireHit(enemy, dealt.magic);
+        }
+    }
+
+    private void ApplyFlameChargeFlatFireHit(
+        AbilityDefinition def,
+        EnemyBaseController enemy,
+        float flatFireAmount,
+        bool tryBurn)
+    {
+        if (!enemy || enemy.IsDead || def == null || stats == null || flatFireAmount <= 0f)
+            return;
+
+        SplitDamage fireHit = new SplitDamage(0f, flatFireAmount, 0f);
+        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(enemy, def, fireHit, false, 0f);
+        if (tryBurn && dealt.magic > 0f)
+            TryApplyFlameChargeBurnFromFireHit(enemy, dealt.magic);
+
+        if (player != null && dealt.Total > 0f)
+            player.ApplyLifeSteal(dealt.Total);
+    }
+
     private void OnDestroy()
     {
+        if (_flameChargeRoutine != null)
+        {
+            StopCoroutine(_flameChargeRoutine);
+            _flameChargeRoutine = null;
+        }
+
         if (_activeSoulforgedWeaponMinions.Count > 0 && _soulforgedWeaponCooldownAbilityDef)
             s_pendingSoulforgedRestoreAbilityId = _soulforgedWeaponCooldownAbilityDef.abilityId;
 

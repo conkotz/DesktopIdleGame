@@ -581,8 +581,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float c = Mathf.Max(0f, abilityPowerCoefficient);
         if (c <= 0f)
             return 1f;
+
         float ap = AbilityPower * _combatAbilityPowerMultiplier;
-        return 1f + ap * c / AbilityPowerDamagePercentDivisor;
+        float mult = 1f + ap * c / AbilityPowerDamagePercentDivisor;
+
+        // Energy Infusion Overcharged: +25% ability power. At 0 AP that is still +25% ability damage.
+        if (_combatAbilityPowerMultiplier > 1.001f && AbilityPower < 0.001f)
+            mult *= _combatAbilityPowerMultiplier;
+
+        return mult;
     }
 
     // Ailments

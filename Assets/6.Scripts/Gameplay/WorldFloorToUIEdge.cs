@@ -287,7 +287,15 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
         if (allowCanvasForce && (!Application.isPlaying || force || forceCanvasUpdateEveryFrame))
             Canvas.ForceUpdateCanvases();
 
-        float measuredRaw = GetSourceEdgeWorldY() + worldYOffset;
+        if (!TryGetSourceEdgeWorldY(out float sourceEdgeWorldY))
+        {
+            if (float.IsNaN(_latchedSourceWorldY))
+                return;
+
+            sourceEdgeWorldY = _latchedSourceWorldY - worldYOffset;
+        }
+
+        float measuredRaw = sourceEdgeWorldY + worldYOffset;
 
         if (worldCamera.orthographic)
         {
@@ -418,8 +426,12 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
             this);
     }
 
-    private float GetSourceEdgeWorldY()
+    private bool TryGetSourceEdgeWorldY(out float worldY)
     {
+        worldY = 0f;
+        if (!sourceRect)
+            return false;
+
         sourceRect.GetWorldCorners(_corners);
 
         float screenX = Mathf.Clamp(
@@ -451,11 +463,13 @@ public sealed class WorldFloorToUIEdge : MonoBehaviour
             float vx = (screenX - pr.xMin) / Mathf.Max(1e-4f, pr.width);
             float vy = (screenY - pr.yMin) / Mathf.Max(1e-4f, pr.height);
             Vector3 w = worldCamera.ViewportToWorldPoint(new Vector3(vx, vy, planeDistance));
-            return w.y;
+            worldY = w.y;
+            return true;
         }
 
         Vector3 worldPoint = worldCamera.ScreenToWorldPoint(new Vector3(screenX, screenY, planeDistance));
-        return worldPoint.y;
+        worldY = worldPoint.y;
+        return true;
     }
 
     private void MoveRuntimeFollowers(float deltaY)

@@ -212,6 +212,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsEnergyInfusion(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.EnergyInfusionAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsFlameCharge(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.FlameChargeAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsSoulforgedWeapon(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -358,6 +361,15 @@ public static class AbilityTooltipDamagePreview
             SkillType.Melee, AbilityCombatPower.EnergyInfusionEnhancementParentSpineNodeId, -1);
     }
 
+    private static int GetFlameChargeBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee, AbilityCombatPower.FlameChargeEnhancementParentSpineNodeId, -1);
+    }
+
     private static int GetMeleeSkillRow5Choice(SkillsManager skillsManager)
     {
         if (skillsManager == null)
@@ -444,12 +456,100 @@ public static class AbilityTooltipDamagePreview
             return scaling.ToString().TrimEnd();
         }
 
+        if (IsFlameCharge(def))
+        {
+            scaling.AppendLine(S("Scales with Fire damage"));
+            return scaling.ToString().TrimEnd();
+        }
+
         const float scalingEpsilon = 0.0001f;
         if (IsCleavingStrikes(def) || weaponMult <= scalingEpsilon)
             return string.Empty;
 
+        float allM = def.GetEffectiveAllDamageMultiplier();
         scaling.AppendLine(S($"Deals {weaponMult * 100f:0.#}% of your weapon damage"));
+        AppendAbilityTooltipBonusScalerLines(scaling, S, def, stats, weaponMult, allM);
         return scaling.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Blue lines under weapon-% scaling: ability power and elemental bonuses (hidden when zero).
+    /// </summary>
+    private static void AppendAbilityTooltipBonusScalerLines(
+        StringBuilder scaling,
+        Func<string, string> S,
+        AbilityDefinition def,
+        CharacterStats stats,
+        float weaponMult,
+        float allM)
+    {
+        if (!def || !stats)
+            return;
+
+        const float eps = 0.05f;
+        float wEff = weaponMult <= 0.0001f ? 1f : weaponMult;
+        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
+
+        float tipAvgPhys =
+            (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
+        float tipAvgMag =
+            (Mathf.Max(0f, stats.MinSplitDamage.magic) + Mathf.Max(0f, stats.MaxSplitDamage.magic)) * 0.5f;
+        float tipAvgCorr =
+            (Mathf.Max(0f, stats.MinSplitDamage.corruptionDamage) + Mathf.Max(0f, stats.MaxSplitDamage.corruptionDamage)) *
+            0.5f;
+
+        float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
+        float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
+
+        float linearWeaponScaled = Mathf.Max(0f,
+            tipAvgPhys * wEff * allM
+            + tipAvgMag * wEff * allM * elemM
+            + elementBonus * allM * elemM
+            + tipAvgCorr * wEff * allM
+            + ailmentBonus * allM);
+
+        int apBonus = Mathf.RoundToInt(linearWeaponScaled * Mathf.Max(0f, apM - 1f));
+        if (apBonus > 0)
+            scaling.AppendLine(S($"+{apBonus} damage from Ability Power"));
+
+        AppendElementBonusScalerLine(scaling, S, def, stats, allM, apM, eps);
+    }
+
+    private static void AppendElementBonusScalerLine(
+        StringBuilder scaling,
+        Func<string, string> S,
+        AbilityDefinition def,
+        CharacterStats stats,
+        float allM,
+        float apM,
+        float eps)
+    {
+        if (def.fireDamageMultiplier > eps && stats.CurrentMagicAttackType == MagicAttackType.Fire)
+        {
+            float amount = AbilityElementScaling.GetElementDamageBonus(def, stats)
+                * AbilityElementScaling.GetElementSkillDamageMultiplier(stats) * allM * apM;
+            if (amount >= eps)
+                scaling.AppendLine(S($"+{Mathf.RoundToInt(amount)} Fire damage"));
+            return;
+        }
+
+        if (def.iceDamageMultiplier > eps && stats.CurrentMagicAttackType == MagicAttackType.Ice)
+        {
+            float amount = AbilityElementScaling.GetElementDamageBonus(def, stats)
+                * AbilityElementScaling.GetElementSkillDamageMultiplier(stats) * allM * apM;
+            if (amount >= eps)
+                scaling.AppendLine(S($"+{Mathf.RoundToInt(amount)} Ice damage"));
+            return;
+        }
+
+        if (def.lightningDamageMultiplier > eps && stats.CurrentMagicAttackType == MagicAttackType.Lightning)
+        {
+            float amount = AbilityElementScaling.GetElementDamageBonus(def, stats)
+                * AbilityElementScaling.GetElementSkillDamageMultiplier(stats) * allM * apM;
+            if (amount >= eps)
+                scaling.AppendLine(S($"+{Mathf.RoundToInt(amount)} Lightning damage"));
+        }
     }
 
     /// <summary>
@@ -528,12 +628,32 @@ public static class AbilityTooltipDamagePreview
             return body.ToString().TrimEnd();
         }
 
+        if (IsFlameCharge(def))
+        {
+            int enhance = GetFlameChargeBranchChoice(skillsManager);
+            int charges = enhance == 0 ? 2 : 1;
+            body.AppendLine(O(
+                $"Charge forward {AbilityCombatPower.FlameChargeDashDistance:0.#} units (no dash damage). Leaves fire on the ground for {AbilityCombatPower.FlameChargeTrailDurationSeconds:0.#}s."));
+            body.AppendLine(O(
+                $"Trail: {AbilityCombatPower.FlameChargeTrailTotalFlatFireDamage:0.#} Fire damage over {AbilityCombatPower.FlameChargeTrailDurationSeconds:0.#}s to enemies inside (one tick per enemy)."));
+            if (enhance == 0)
+                body.AppendLine(O($"Double Ignition: {charges} charges (trail segments cannot overlap)."));
+            else if (enhance == 1)
+                body.AppendLine(O(
+                    $"Volcanic Rush: +{AbilityCombatPower.FlameChargeVolcanicExplosionFlatFireDamage:0.#} Fire explosion at dash end ({AbilityCombatPower.FlameChargeVolcanicExplosionRadius:0.#} radius, scales with Fire damage)."));
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, AbilityCombatPower.FlameChargeTrailDurationSeconds, 0f):0.#}s (trail)"));
+            body.AppendLine(string.Empty);
+            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            return body.ToString().TrimEnd();
+        }
+
         if (IsEnergyInfusion(def))
         {
             int enhance = GetEnergyInfusionBranchChoice(skillsManager);
             body.AppendLine(O(
                 $"While active, drains Mana to restore Energy at {AbilityCombatPower.EnergyInfusionBaseManaDrainPerSecond:0.#} per second (1:1)."));
-            body.AppendLine(O("Stays on until toggled off or Mana reaches 0."));
+            body.AppendLine(O("Stays on until toggled off. At 0 mana, normal mana regen continues and is converted to Energy."));
             if (enhance == 0)
                 body.AppendLine(O(
                     $"Efficient Conversion: Mana drain reduced by {(1f - AbilityCombatPower.EnergyInfusionEfficientConversionManaMultiplier) * 100f:0.#}% (full Energy gain)."));
@@ -609,9 +729,10 @@ public static class AbilityTooltipDamagePreview
         }
         else if (IsEnvenom(def))
         {
+            int envenomSel = GetMeleeSkillRow5Choice(skillsManager);
             body.AppendLine(O("100% poison on next hit if corruption damage is dealt."));
-            body.AppendLine(O("Apply max poison stacks"));
-            if (GetMeleeSkillRow5Choice(skillsManager) == 1)
+            body.AppendLine(O(envenomSel == 0 ? "Apply max poison stacks (+2)" : "Apply max poison stacks"));
+            if (envenomSel == 1)
                 body.AppendLine(O("Contagion Burst"));
         }
         else if (IsCleavingStrikes(def))
@@ -668,7 +789,7 @@ public static class AbilityTooltipDamagePreview
             {
                 float bonusMult = AbilityCombatPower.FinalSeveranceWorldbreakerBonusMultiplier - 1f;
                 int bonus = Mathf.RoundToInt((physHit + magHit + corrHit) * bonusMult);
-                body.AppendLine(O($"50% extra damage to low health enemies (+{bonus})"));
+                body.AppendLine(O($"20% bonus damage to enemies on full life (+{bonus})"));
             }
         }
         else if (IsShadowStrike(def))
@@ -1355,7 +1476,7 @@ public static class AbilityTooltipDamagePreview
         float tipAvgCorr =
             (Mathf.Max(0f, stats.MinSplitDamage.corruptionDamage) + Mathf.Max(0f, stats.MaxSplitDamage.corruptionDamage)) *
             0.5f;
-        float bonusPctNow = Mathf.Max(0f, stats.AbilityPower) * AbilityDefinition.StandardAbilityPowerCoefficient;
+        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
         float tipElemBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float tipElemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
         float linearWeaponScaled = Mathf.Max(0f,
@@ -1364,8 +1485,7 @@ public static class AbilityTooltipDamagePreview
             + tipElemBonus * allM * tipElemM
             + tipAvgCorr * wEffTip * allM);
 
-        return Mathf.RoundToInt(
-            linearWeaponScaled * bonusPctNow / CharacterStats.AbilityPowerDamagePercentDivisor);
+        return Mathf.RoundToInt(linearWeaponScaled * Mathf.Max(0f, apM - 1f));
     }
 
     /// <summary>Trailing green Active Enhancement line (skill-tree choice name + description).</summary>

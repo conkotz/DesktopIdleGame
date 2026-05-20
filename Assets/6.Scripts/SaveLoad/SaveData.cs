@@ -135,7 +135,7 @@ public class SaveData
     public string lastXpSource = "";
     [Tooltip("Choice selection keys in format 'SkillType:SourceLevel' (e.g. 'Melee:5').")]
     public List<string> skillChoiceSelectionKeys = new();
-    [Tooltip("Selected choice index per key; 0/1 for two-choice rows.")]
+    [Tooltip("Selected choice index per key (0-based index into the unlock's choices list; supports up to 4 enhancements).")]
     public List<int> skillChoiceSelectionValues = new();
 
     [Tooltip("Keys like 'Melee:abilityRow:5' → which sibling ability (0..n-1) is committed for that level tier.")]

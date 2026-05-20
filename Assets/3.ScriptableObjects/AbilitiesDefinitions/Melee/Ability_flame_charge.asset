@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
+  m_Name: Ability_flame_charge
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
+  abilityId: flame_charge
+  displayName: Flame Charge
+  tag: 1
+  tooltipBuffMinionDurationSeconds: 4
+  presentation: {fileID: 11400000, guid: f1a2b3c4d5e6789012345678abcd1234, type: 2}
+  cooldown: 12
+  energyCost: 30
+  weaponDamageMultiplier: 0
+  allDamageMultiplier: 1
+  fireDamageMultiplier: 1
+  iceDamageMultiplier: 0
+  lightningDamageMultiplier: 0
+  poisonDamageMultiplier: 0
+  bleedDamageMultiplier: 0
+  requiredWeaponType: 1
+  sourceSkill: 3
+  unlockLevel: 25
+  minionSpawnDefinition: {fileID: 0}

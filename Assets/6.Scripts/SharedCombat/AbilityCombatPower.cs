@@ -27,12 +27,27 @@ public static class AbilityCombatPower
     public const string ExecutionersDescentAbilityId = "executioners_descent";
     public const string ShadowStrikeAbilityId = "shadow_strike";
     public const string EnergyInfusionAbilityId = "energy_infusion";
+    public const string FlameChargeAbilityId = "flame_charge";
 
     /// <summary>Enhancement choices for Shadow Strike (Melee Lv25 slot 0).</summary>
     public const string ShadowStrikeEnhancementParentSpineNodeId = "Lv25_0";
 
     /// <summary>Enhancement choices for Energy Infusion / Arcane Battery (Melee Lv25 slot 1).</summary>
     public const string EnergyInfusionEnhancementParentSpineNodeId = "Lv25_1";
+
+    /// <summary>Enhancement choices for Flame Charge (Melee Lv25 slot 2).</summary>
+    public const string FlameChargeEnhancementParentSpineNodeId = "Lv25_2";
+
+    public const float FlameChargeDashDistance = 5f;
+    public const float FlameChargeDashDurationSeconds = 0.35f;
+    public const float FlameChargeTrailDurationSeconds = 4f;
+    public const float FlameChargeTrailRadius = 1.15f;
+    public const float FlameChargeTrailTickIntervalSeconds = 0.5f;
+    public const float FlameChargeTrailSegmentSpacing = 0.55f;
+    /// <summary>Total flat Fire damage per enemy standing in a trail segment (spread across <see cref="FlameChargeTrailDurationSeconds"/>).</summary>
+    public const float FlameChargeTrailTotalFlatFireDamage = 20f;
+    public const float FlameChargeVolcanicExplosionFlatFireDamage = 20f;
+    public const float FlameChargeVolcanicExplosionRadius = 5f;
 
     /// <summary>Mana drained per second at 1:1 conversion (before Efficient Conversion).</summary>
     public const float EnergyInfusionBaseManaDrainPerSecond = 18f;
@@ -65,8 +80,9 @@ public static class AbilityCombatPower
     public const float FinalSeveranceChannelSeconds = 2f;
     public const float FinalSeveranceHitRangeHalfWidth = 25f;
     public const int FinalSeveranceMaxTargets = 8;
-    public const float FinalSeveranceLowHealthThreshold = 0.25f;
-    public const float FinalSeveranceWorldbreakerBonusMultiplier = 1.5f;
+    /// <summary>Enemy HP / MaxHP must be at or above this to count as full life for Worldbreaker.</summary>
+    public const float FinalSeveranceWorldbreakerFullHealthThreshold01 = 0.999f;
+    public const float FinalSeveranceWorldbreakerBonusMultiplier = 1.2f;
     public const int FinalSeveranceThousandCutsHitCount = 4;
     public const float FinalSeveranceThousandCutsHitFraction = 0.3f;
 

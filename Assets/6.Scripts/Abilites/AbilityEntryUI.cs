@@ -417,6 +417,13 @@ public class AbilityEntryUI : MonoBehaviour,
             return BuildActiveEnhancementLine(def, selected);
         }
 
+        if (string.Equals(def.abilityId, AbilityCombatPower.FlameChargeAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.FlameChargeEnhancementParentSpineNodeId, -1);
+            return BuildActiveEnhancementLine(def, selected);
+        }
+
         // Woodcutting tree: each ability sits in its own spine row, so the choice is keyed by
         // the spine ID rather than the level (e.g. Cleaving Chop and Spectral Axe share Lv25 and
         // would otherwise collide on the legacy int key).

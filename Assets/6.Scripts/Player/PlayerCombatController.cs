@@ -46,6 +46,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         public bool HasBonus =>
             bonusFraction > 1e-6f && !string.IsNullOrWhiteSpace(bonusSource);
 
+        /// <summary>Entire swing damage (e.g. Power Slash) is credited to <see cref="bonusSource"/> only.</summary>
+        public bool AttributesEntireSwingToBonusSource =>
+            HasBonus && bonusFraction >= 0.999f;
+
         public static SwingOutgoingAttribution AutoAttackOnly =>
             new SwingOutgoingAttribution("Auto Attack", null, 0f);
     }
@@ -2234,6 +2238,12 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         if (totalDealt <= 0f || _dpsTrackerPaused)
             return;
+
+        if (swingAttribution.AttributesEntireSwingToBonusSource)
+        {
+            RecordDamageForDps(totalDealt, DpsDamageBucket.Physical, swingAttribution.bonusSource);
+            return;
+        }
 
         GetConditionalMeleeDamageMultiplierBreakdown(
             target,

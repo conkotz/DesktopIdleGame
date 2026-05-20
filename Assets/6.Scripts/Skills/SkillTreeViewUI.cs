@@ -37,6 +37,10 @@ public class SkillTreeViewUI : MonoBehaviour
     [SerializeField] private float startY = -48f;
     [SerializeField] private float rowGap = 20f;
     [SerializeField] private float choiceOffsetX = 210f;
+    [Tooltip("Horizontal gap between enhancement nodes when 3 choices are authored (tighter than 2-choice spread).")]
+    [SerializeField] private float choiceOffsetXThreeChoices = 152f;
+    [Tooltip("Horizontal gap between enhancement nodes when 4 choices are authored.")]
+    [SerializeField] private float choiceOffsetXFourChoices = 118f;
     [SerializeField] private float choiceYOffset = -80f;
     [SerializeField] private float capstoneChoiceOffsetX = 210f;
     [SerializeField] private float capstoneChoiceYOffset = 0f;
@@ -79,6 +83,14 @@ public class SkillTreeViewUI : MonoBehaviour
 
     /// <summary>Scales serialized layout distances to match <see cref="SkillTreeNodeUI.NodeVisualScale"/>.</summary>
     private static float ScaledLayout(float value) => value * SkillTreeNodeUI.NodeVisualScale;
+
+    /// <summary>Max authored enhancements per unlock (skill tree layout is tuned for up to four).</summary>
+    public const int MaxEnhancementChoicesSupported = 4;
+
+    // Left → right slot order using 1-based enhancement labels: 2 = [1,2]; 3 = [3,1,2]; 4 = [3,1,2,4].
+    private static readonly int[] EnhancementLayoutOrderTwo = { 0, 1 };
+    private static readonly int[] EnhancementLayoutOrderThree = { 2, 0, 1 };
+    private static readonly int[] EnhancementLayoutOrderFour = { 2, 0, 1, 3 };
 
     private SkillTreeNodeUI selectedNode;
     private SkillDefinition _lastBuiltSkill;
@@ -1120,21 +1132,27 @@ public class SkillTreeViewUI : MonoBehaviour
         for (int i = 0; i < rows.Count; i++)
         {
             RowDef row = rows[i];
-            List<SkillChoiceDefinition> choices = GetNonNullChoices(row.unlock);
-            if (choices.Count <= 0)
+            List<int> choiceAssetIndices = GetNonNullChoiceAssetIndices(row.unlock);
+            if (choiceAssetIndices.Count <= 0)
                 continue;
 
             string parentSpineId = SpineNodeId(row);
             float parentX = layoutRowX[i];
-            float center = (choices.Count - 1) * 0.5f;
-            for (int choiceIndex = 0; choiceIndex < choices.Count; choiceIndex++)
+            int[] layoutOrder = GetEnhancementChoiceLayoutOrder(choiceAssetIndices.Count);
+            float center = (layoutOrder.Length - 1) * 0.5f;
+            float xStep = ResolveChoiceHorizontalStep(row.type, choiceAssetIndices.Count);
+            for (int slot = 0; slot < layoutOrder.Length; slot++)
             {
-                SkillChoiceDefinition choice = choices[choiceIndex];
+                int logicalChoice = layoutOrder[slot];
+                if (logicalChoice < 0 || logicalChoice >= choiceAssetIndices.Count)
+                    continue;
+
+                int choiceIndex = choiceAssetIndices[logicalChoice];
+                SkillChoiceDefinition choice = row.unlock.choices[choiceIndex];
                 int choiceUnlockLevel = ResolveChoiceUnlockLevel(row.level, row.type, choice);
                 if (!rowYByLevel.TryGetValue(choiceUnlockLevel, out float targetY))
                     continue; // no authored row at that level yet
 
-                float xStep = ScaledLayout(row.type == SkillTreeNodeVisualType.CapstonePassive ? capstoneChoiceOffsetX : choiceOffsetX);
                 float yOffset;
                 if (choiceUnlockLevel != row.level)
                 {
@@ -1145,7 +1163,8 @@ public class SkillTreeViewUI : MonoBehaviour
                 {
                     yOffset = ScaledLayout(row.type == SkillTreeNodeVisualType.CapstonePassive ? capstoneChoiceYOffset : choiceYOffset);
                 }
-                float offsetX = (choiceIndex - center) * xStep;
+
+                float offsetX = (slot - center) * xStep;
                 float choiceY = targetY + yOffset;
                 float choiceX = parentX + offsetX;
                 bool unlocked = row.level <= currentSkillLevel && choiceUnlockLevel <= currentSkillLevel;
@@ -1213,13 +1232,15 @@ public class SkillTreeViewUI : MonoBehaviour
         for (int i = 0; i < rows.Count; i++)
         {
             RowDef row = rows[i];
-            List<SkillChoiceDefinition> choices = GetNonNullChoices(row.unlock);
-            if (choices.Count <= 0) continue;
+            List<int> choiceAssetIndices = GetNonNullChoiceAssetIndices(row.unlock);
+            if (choiceAssetIndices.Count <= 0)
+                continue;
 
             string source = SpineNodeId(row);
-            for (int choiceIndex = 0; choiceIndex < choices.Count; choiceIndex++)
+            for (int c = 0; c < choiceAssetIndices.Count; c++)
             {
-                SkillChoiceDefinition choice = choices[choiceIndex];
+                int choiceIndex = choiceAssetIndices[c];
+                SkillChoiceDefinition choice = row.unlock.choices[choiceIndex];
                 int choiceUnlockLevel = ResolveChoiceUnlockLevel(row.level, row.type, choice);
                 string choiceNodeId = ChoiceId(source, choiceUnlockLevel, choiceIndex);
                 if (TrySpawnConnectorInternal(source, choiceNodeId, out var branchConn))
@@ -1574,6 +1595,60 @@ public class SkillTreeViewUI : MonoBehaviour
             if (c != null) list.Add(c);
         }
         return list;
+    }
+
+    /// <summary>Indices into <see cref="SkillUnlockDefinition.choices"/> for non-null entries (preserves authored order).</summary>
+    private static List<int> GetNonNullChoiceAssetIndices(SkillUnlockDefinition unlock)
+    {
+        var indices = new List<int>();
+        if (unlock == null || unlock.choices == null)
+            return indices;
+
+        for (int i = 0; i < unlock.choices.Count; i++)
+        {
+            if (unlock.choices[i] != null)
+                indices.Add(i);
+        }
+
+        return indices;
+    }
+
+    /// <summary>
+    /// Maps authored choice count → left-to-right slot order (logical indices 0..n-1).
+    /// Two choices stay centered; three/four fan with the 3rd left and 4th right per design.
+    /// </summary>
+    private static int[] GetEnhancementChoiceLayoutOrder(int authoredChoiceCount)
+    {
+        return authoredChoiceCount switch
+        {
+            <= 0 => Array.Empty<int>(),
+            1 => new[] { 0 },
+            2 => EnhancementLayoutOrderTwo,
+            3 => EnhancementLayoutOrderThree,
+            4 => EnhancementLayoutOrderFour,
+            _ => BuildLinearEnhancementLayoutOrder(authoredChoiceCount)
+        };
+    }
+
+    private static int[] BuildLinearEnhancementLayoutOrder(int count)
+    {
+        var order = new int[count];
+        for (int i = 0; i < count; i++)
+            order[i] = i;
+        return order;
+    }
+
+    private float ResolveChoiceHorizontalStep(SkillTreeNodeVisualType rowType, int choiceCount)
+    {
+        bool capstone = rowType == SkillTreeNodeVisualType.CapstonePassive;
+        float baseTwo = ScaledLayout(capstone ? capstoneChoiceOffsetX : choiceOffsetX);
+        return choiceCount switch
+        {
+            <= 2 => baseTwo,
+            3 => ScaledLayout(capstone ? capstoneChoiceOffsetX * 0.72f : choiceOffsetXThreeChoices),
+            4 => ScaledLayout(capstone ? capstoneChoiceOffsetX * 0.55f : choiceOffsetXFourChoices),
+            _ => baseTwo * Mathf.Max(0.35f, 1.1f / choiceCount)
+        };
     }
 
     private static string TypeLabel(SkillTreeNodeVisualType type)

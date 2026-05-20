@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -174,6 +175,23 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.001f)] private float energyInfusionParticleStartSizeMin = 0.032f;
     [SerializeField, Min(0.001f)] private float energyInfusionParticleStartSizeMax = 0.058f;
 
+    [Header("Flame Charge (Melee Lv25) VFX")]
+    [SerializeField] private Color flameChargePlayerGlowColor = new Color(1f, 0.38f, 0.12f, 0.88f);
+    [SerializeField] private Vector3 flameChargePlayerGlowLocalOffset = new Vector3(0f, 0.1f, 0f);
+    [SerializeField, Min(0.02f)] private float flameChargePlayerGlowRadius = 0.52f;
+    [SerializeField, Min(4f)] private float flameChargePlayerGlowEmissionRate = 72f;
+    [SerializeField] private Color flameChargeGroundFireColor = new Color(1f, 0.32f, 0.08f, 0.92f);
+    [SerializeField, Min(0.04f)] private float flameChargeGroundFireRadius = 1.05f;
+    [SerializeField, Min(4f)] private float flameChargeGroundFireEmissionRate = 48f;
+    [SerializeField] private Color flameChargeVolcanicBurstColor = new Color(1f, 0.45f, 0.1f, 0.95f);
+    [SerializeField, Min(0.05f)] private float flameChargeVolcanicBurstDuration = 0.35f;
+    [SerializeField, Min(0.1f)] private float flameChargeVolcanicBurstMaxRadius = 5.5f;
+    [SerializeField, Min(0f)] private float flameChargeGroundFloorYOffset = 0.1f;
+    [SerializeField, Min(0.02f)] private float flameChargeGroundTrailHeight = 0.14f;
+    [Tooltip("Renders ground fire above the lane floor sprite.")]
+    [SerializeField] private string flameChargeGroundSortingLayer = "Foreground";
+    [SerializeField] private int flameChargeGroundSortingOrder = 42;
+
     private GameObject _cleavingChopIndicatorRoot;
     private LineRenderer _cleavingChopIndicatorLine;
     private float _cleavingChopIndicatorAppliedRadius = float.NaN;
@@ -187,6 +205,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
     private GameObject _avatarOfForestGlowRoot;
     private GameObject _energyInfusionGlowRoot;
+    private GameObject _flameChargePlayerGlowRoot;
+    private Coroutine _flameChargeVolcanicBurstRoutine;
+    private readonly List<GameObject> _activeFlameChargeDashTrailRoots = new();
 
     private GameObject _executionersDescentAxeRoot;
     private SpriteRenderer _executionersDescentAxeRenderer;
@@ -249,6 +270,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
         DestroySpectralAxeAreaIndicator();
         DestroyAvatarOfTheForestGlowVfx();
         DestroyEnergyInfusionGlowVfx();
+        EndFlameChargePlayerGlow();
+        DestroyAllFlameChargeDashTrailVfx();
     }
 
     private static bool AreAbilityRangeIndicatorsEnabled() =>
@@ -1840,6 +1863,212 @@ public class PlayerAbilityVfxController : MonoBehaviour
             Destroy(_energyInfusionGlowRoot);
             _energyInfusionGlowRoot = null;
         }
+    }
+
+    public void BeginFlameChargePlayerGlow()
+    {
+        EndFlameChargePlayerGlow();
+        Transform parent = player != null ? player.transform : transform;
+        if (parent == null)
+            return;
+
+        _flameChargePlayerGlowRoot = new GameObject("FlameChargePlayerGlow");
+        _flameChargePlayerGlowRoot.transform.SetParent(parent, false);
+        _flameChargePlayerGlowRoot.transform.localPosition = flameChargePlayerGlowLocalOffset;
+
+        GameObject emitterGO = new GameObject("FlameChargeBodyEmitter");
+        emitterGO.transform.SetParent(_flameChargePlayerGlowRoot.transform, false);
+        ParticleSystem ps = emitterGO.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        var main = ps.main;
+        main.playOnAwake = false;
+        main.loop = true;
+        main.duration = 1f;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.22f, 0.4f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.25f, 0.85f);
+        main.startSize = new ParticleSystem.MinMaxCurve(0.1f, 0.2f);
+        main.startColor = flameChargePlayerGlowColor;
+        main.simulationSpace = ParticleSystemSimulationSpace.Local;
+        main.gravityModifier = 0f;
+        main.maxParticles = 280;
+
+        var emission = ps.emission;
+        emission.enabled = true;
+        emission.rateOverTime = flameChargePlayerGlowEmissionRate;
+
+        var shape = ps.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = flameChargePlayerGlowRadius;
+
+        ParticleSystemRenderer renderer = ps.GetComponent<ParticleSystemRenderer>();
+        renderer.renderMode = ParticleSystemRenderMode.Billboard;
+        if (!TryApplyPlayerSpriteSortingToRenderer(renderer, 18))
+            renderer.sortingOrder = 32;
+        ApplyRuntimeParticleMaterialIfNeeded(renderer);
+        ps.Clear(true);
+        ps.Play(true);
+    }
+
+    public void SpawnFlameChargeDashTrailVisual(Vector3 start, Vector3 end, float durationSeconds)
+    {
+        StartCoroutine(CoFlameChargeDashTrailVisual(start, end, durationSeconds));
+    }
+
+    private void DestroyAllFlameChargeDashTrailVfx()
+    {
+        for (int i = _activeFlameChargeDashTrailRoots.Count - 1; i >= 0; i--)
+        {
+            GameObject root = _activeFlameChargeDashTrailRoots[i];
+            if (root)
+                Destroy(root);
+        }
+
+        _activeFlameChargeDashTrailRoots.Clear();
+    }
+
+    private IEnumerator CoFlameChargeDashTrailVisual(Vector3 start, Vector3 end, float durationSeconds)
+    {
+        float length = Mathf.Max(0.5f, Vector3.Distance(start, end));
+        Vector3 mid = (start + end) * 0.5f;
+        float emitSeconds = Mathf.Max(0.1f, durationSeconds);
+        const float maxParticleLifetime = 0.5f;
+        const float particleFadeBuffer = 0.12f;
+
+        GameObject root = null;
+        ParticleSystem ps = null;
+
+        try
+        {
+            root = new GameObject("FlameChargeDashTrail");
+            PlaceFlameChargeGroundEffect(root.transform, mid);
+            _activeFlameChargeDashTrailRoots.Add(root);
+
+            GameObject emitterGO = new GameObject("DashTrailEmitter");
+            emitterGO.transform.SetParent(root.transform, false);
+            emitterGO.transform.localPosition = Vector3.zero;
+
+            ps = emitterGO.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            var main = ps.main;
+            main.playOnAwake = false;
+            main.loop = true;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.25f, maxParticleLifetime);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.02f, 0.14f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.14f);
+            main.startColor = flameChargeGroundFireColor;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.gravityModifier = 0f;
+            main.maxParticles = 320;
+
+            var emission = ps.emission;
+            emission.enabled = true;
+            emission.rateOverTime = flameChargeGroundFireEmissionRate * 1.35f;
+
+            var shape = ps.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(length, flameChargeGroundTrailHeight, flameChargeGroundFireRadius * 0.11f);
+
+            ParticleSystemRenderer renderer = ps.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            ApplyFlameChargeGroundSorting(renderer);
+            ApplyRuntimeParticleMaterialIfNeeded(renderer);
+
+            ps.Clear(true);
+            ps.Play(true);
+
+            yield return new WaitForSeconds(emitSeconds);
+
+            if (ps)
+            {
+                var emissionModule = ps.emission;
+                emissionModule.enabled = false;
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+            }
+
+            yield return new WaitForSeconds(maxParticleLifetime + particleFadeBuffer);
+        }
+        finally
+        {
+            if (root)
+            {
+                _activeFlameChargeDashTrailRoots.Remove(root);
+                Destroy(root);
+            }
+        }
+    }
+
+    public void EndFlameChargePlayerGlow()
+    {
+        if (_flameChargePlayerGlowRoot != null)
+        {
+            Destroy(_flameChargePlayerGlowRoot);
+            _flameChargePlayerGlowRoot = null;
+        }
+    }
+
+    public void SpawnFlameChargeVolcanicBurst(Vector3 worldPosition)
+    {
+        if (_flameChargeVolcanicBurstRoutine != null)
+            StopCoroutine(_flameChargeVolcanicBurstRoutine);
+        _flameChargeVolcanicBurstRoutine = StartCoroutine(CoFlameChargeVolcanicBurst(worldPosition));
+    }
+
+    private IEnumerator CoFlameChargeVolcanicBurst(Vector3 worldPosition)
+    {
+        GameObject burstRoot = new GameObject("FlameChargeVolcanicBurst");
+        PlaceFlameChargeGroundEffect(burstRoot.transform, worldPosition);
+
+        GameObject ring = new GameObject("VolcanicRing");
+        ring.transform.SetParent(burstRoot.transform, false);
+        LineRenderer line = ring.AddComponent<LineRenderer>();
+        line.useWorldSpace = false;
+        line.loop = true;
+        line.positionCount = 48;
+        line.startWidth = 0.22f;
+        line.endWidth = 0.04f;
+        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.startColor = flameChargeVolcanicBurstColor;
+        line.endColor = new Color(flameChargeVolcanicBurstColor.r, flameChargeVolcanicBurstColor.g, flameChargeVolcanicBurstColor.b, 0f);
+        ApplyFlameChargeGroundSorting(line);
+
+        float duration = Mathf.Max(0.05f, flameChargeVolcanicBurstDuration);
+        float maxR = Mathf.Max(0.5f, flameChargeVolcanicBurstMaxRadius);
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float u = Mathf.Clamp01(t / duration);
+            float r = maxR * u;
+            for (int i = 0; i < line.positionCount; i++)
+            {
+                float ang = i / (float)line.positionCount * Mathf.PI * 2f;
+                line.SetPosition(i, new Vector3(Mathf.Cos(ang) * r, Mathf.Sin(ang) * r * 0.35f, 0f));
+            }
+
+            yield return null;
+        }
+
+        Destroy(burstRoot);
+        _flameChargeVolcanicBurstRoutine = null;
+    }
+
+    private void PlaceFlameChargeGroundEffect(Transform root, Vector3 worldPoint)
+    {
+        LaneGroundEffectPlacement.PlaceOnLaneFloor(root, worldPoint, flameChargeGroundFloorYOffset);
+    }
+
+    private void ApplyFlameChargeGroundSorting(Renderer renderer)
+    {
+        if (!renderer)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(flameChargeGroundSortingLayer))
+            renderer.sortingLayerName = flameChargeGroundSortingLayer;
+        renderer.sortingOrder = flameChargeGroundSortingOrder;
     }
 
     public void BeginExecutionersDescent(EnemyBaseController target, Vector3 targetWorld, float descentSeconds)

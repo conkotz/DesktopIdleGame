@@ -23,6 +23,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private Inventory inventory;
     [SerializeField] private ToolbeltManager toolbelt;
     [SerializeField] private PlayerController player;
+    [SerializeField] private PlayerAbilityController abilityController;
     [SerializeField] private TMP_Text statsHeaderText;
 
     // -------------------------
@@ -173,6 +174,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             if (!equipment) equipment = player.GetComponent<EquipmentManager>();
             if (!inventory) inventory = player.GetComponent<Inventory>();
             if (!toolbelt) toolbelt = player.GetComponent<ToolbeltManager>();
+            if (!abilityController) abilityController = player.GetComponent<PlayerAbilityController>();
         }
 
         // Fallbacks (kept for safety in unusual setup scenes).
@@ -196,7 +198,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             toolbelt.OnToolSlotChanged += HandleToolChanged;
 
         if (stats != null)
+        {
             stats.OnStatsChanged += HandleStatsChanged;
+            stats.OnManaChanged += HandleVitalsChangedForEnergyInfusionDisplay;
+            stats.OnEnergyChanged += HandleVitalsChangedForEnergyInfusionDisplay;
+        }
 
         Refresh();
     }
@@ -215,7 +221,17 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             toolbelt.OnToolSlotChanged -= HandleToolChanged;
 
         if (stats != null)
+        {
             stats.OnStatsChanged -= HandleStatsChanged;
+            stats.OnManaChanged -= HandleVitalsChangedForEnergyInfusionDisplay;
+            stats.OnEnergyChanged -= HandleVitalsChangedForEnergyInfusionDisplay;
+        }
+    }
+
+    private void HandleVitalsChangedForEnergyInfusionDisplay(float _, float __)
+    {
+        if (abilityController != null && abilityController.IsEnergyInfusionActive)
+            QueueRefresh();
     }
 
     private void HandleRefresh(string _) => QueueRefresh();
@@ -285,10 +301,21 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             moveSpeedText.text = $"Move Speed: {FormatSignedPercentFrom01(stats.MoveSpeedBonusPercent)}";
 
         if (lifeRegenText) lifeRegenText.text = $"Life Regen: {stats.LifeRegenPerSecond:0.##}/s";
-        if (energyRegenText) energyRegenText.text = $"Energy Regen: {stats.EnergyRegenPerSecond:0.##}/s";
+        if (energyRegenText)
+        {
+            if (!abilityController && player)
+                abilityController = player.GetComponent<PlayerAbilityController>();
+            float energyRegen = abilityController != null
+                ? abilityController.GetDisplayedEnergyRegenPerSecond()
+                : stats.EnergyRegenPerSecond;
+            energyRegenText.text = $"Energy Regen: {energyRegen:0.##}/s";
+        }
         if (abilityPowerText)
         {
             float ap = stats.AbilityPower;
+            float combatApMult = stats.CombatAbilityPowerMultiplier;
+            if (combatApMult > 1.001f)
+                ap *= combatApMult;
             float abilityPotionPct = stats.AbilityDamageBoostConsumablePercentPoints;
             abilityPowerText.text = abilityPotionPct > 0.001f
                 ? $"Ability Power: {ap:0.##} (abilities {abilityPotionPct:+0.#;-0.#;0}%)"

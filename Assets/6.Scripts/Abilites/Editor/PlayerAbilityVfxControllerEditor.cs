@@ -141,6 +141,24 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "energyInfusionParticleStartSizeMax"
     };
 
+    private static readonly string[] FlameChargeVfxFieldNames =
+    {
+        "flameChargePlayerGlowColor",
+        "flameChargePlayerGlowLocalOffset",
+        "flameChargePlayerGlowRadius",
+        "flameChargePlayerGlowEmissionRate",
+        "flameChargeGroundFireColor",
+        "flameChargeGroundFireRadius",
+        "flameChargeGroundFireEmissionRate",
+        "flameChargeVolcanicBurstColor",
+        "flameChargeVolcanicBurstDuration",
+        "flameChargeVolcanicBurstMaxRadius",
+        "flameChargeGroundFloorYOffset",
+        "flameChargeGroundTrailHeight",
+        "flameChargeGroundSortingLayer",
+        "flameChargeGroundSortingOrder"
+    };
+
     private static readonly string[] CleavingChopFieldNames =
     {
         "cleavingChopShowRangeIndicator",
@@ -246,6 +264,12 @@ public class PlayerAbilityVfxControllerEditor : Editor
             "EnergyInfusionVfx",
             "Energy Infusion / Arcane Battery (Melee Lv25) VFX",
             EnergyInfusionVfxFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(
+            serializedObject,
+            "FlameChargeVfx",
+            "Flame Charge (Melee Lv25) VFX",
+            FlameChargeVfxFieldNames);
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(
             serializedObject,

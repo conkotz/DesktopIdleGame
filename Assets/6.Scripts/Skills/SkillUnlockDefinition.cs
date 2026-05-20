@@ -38,7 +38,10 @@ public class SkillUnlockDefinition
     public SkillsAndAbilityPresentationDefinition presentation;
 
     [Header("Choices (optional, data-driven)")]
-    [Tooltip("If this unlock creates branch choices, define them here. Empty = no choice nodes for this unlock.")]
+    [Tooltip(
+        "Enhancement branch options (up to 4). Empty = no choice nodes. " +
+        "Skill tree layout: 2 = side by side; 3 = [3rd, 1st, 2nd] left→right; 4 = [3rd, 1st, 2nd, 4th]. " +
+        "Selection index matches list order (0 = first entry).")]
     public List<SkillChoiceDefinition> choices = new();
 }
 
