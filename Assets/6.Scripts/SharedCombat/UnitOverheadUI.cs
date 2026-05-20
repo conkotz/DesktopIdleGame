@@ -45,6 +45,16 @@ public class UnitOverheadUI : MonoBehaviour
     [Tooltip("Enemy overhead HP fill tint. Player overhead uses prefab fill until an ailment overrides it (see code).")]
     [SerializeField] private Color enemyHpFillColor = new(1f, 0.42f, 0.2f, 1f);
 
+    [Header("HP segment marks")]
+    [Tooltip("Ideal spacing between tick marks in HP (e.g. 50). On high max HP the interval auto-increases so the bar stays readable.")]
+    [SerializeField, Min(0)] private int hpSegmentHpInterval = 50;
+    [Tooltip("Never draw more than this many ticks on one bar (prevents 5000 HP / 50 = solid white bar).")]
+    [SerializeField, Range(4, 32)] private int hpSegmentMaxMarkCount = 12;
+    [Tooltip("Minimum canvas pixels between ticks; bumps interval when the bar is narrow.")]
+    [SerializeField, Min(0f)] private float hpSegmentMinSpacingPx = 8f;
+    [SerializeField, Min(0.5f)] private float hpSegmentLineWidthPx = 1f;
+    [SerializeField] private Color hpSegmentLineColor = new(1f, 1f, 1f, 0.22f);
+
     [Header("Debuff Sprites")]
     [SerializeField] private Sprite bleedIcon;
     [SerializeField] private Sprite poisonIcon;
@@ -90,6 +100,11 @@ public class UnitOverheadUI : MonoBehaviour
 
     private RectTransform canvasRect;
     private readonly List<GameObject> spawnedDebuffIcons = new();
+    private readonly List<Image> _hpSegmentLineImages = new();
+    private RectTransform _hpSegmentContainer;
+    private int _cachedHpSegmentMaxHp = -1;
+    private int _cachedHpSegmentEffectiveInterval = -1;
+    private static Sprite s_hpSegmentWhiteSprite;
 
     private Vector2 _stackBaseAnchored;
     private float _stackYOffset;
@@ -1063,6 +1078,7 @@ public class UnitOverheadUI : MonoBehaviour
         {
             HandleCharacterGuardChanged(characterStats.Guard, characterStats.NaturalGuardCap);
             RefreshPlayerResourceBarFills();
+            RefreshHpSegmentMarks(Mathf.RoundToInt(characterStats.MaxHP));
         }
     }
 
@@ -1134,6 +1150,8 @@ public class UnitOverheadUI : MonoBehaviour
         if (hpFill != null)
             hpFill.fillAmount = Mathf.Clamp01(fill);
 
+        RefreshHpSegmentMarks(Mathf.RoundToInt(max));
+
         if (hpValueText != null)
         {
             hpValueText.text = $"{Mathf.CeilToInt(current)}/{Mathf.CeilToInt(max)}";
@@ -1185,11 +1203,217 @@ public class UnitOverheadUI : MonoBehaviour
         if (hpFill != null)
             hpFill.fillAmount = Mathf.Clamp01(fill);
 
+        RefreshHpSegmentMarks(max);
+
         if (hpValueText != null)
         {
             hpValueText.text = $"{current}/{max}";
             hpValueText.gameObject.SetActive(ToggleSettingsStore.Get(ToggleSettingId.ShowOverheadHealthGuardNumbers));
         }
+    }
+
+    private static int CountHpSegmentMarks(int maxHp, int hpPerSegment)
+    {
+        if (maxHp <= 0 || hpPerSegment <= 0)
+            return 0;
+
+        int count = 0;
+        for (int hp = hpPerSegment; hp < maxHp; hp += hpPerSegment)
+            count++;
+        return count;
+    }
+
+    private int ResolveEffectiveHpSegmentInterval(int maxHp)
+    {
+        if (hpSegmentHpInterval <= 0 || maxHp <= 0)
+            return 0;
+
+        int interval = hpSegmentHpInterval;
+        int markCount = CountHpSegmentMarks(maxHp, interval);
+
+        while (markCount > hpSegmentMaxMarkCount && interval < maxHp)
+        {
+            interval += hpSegmentHpInterval;
+            markCount = CountHpSegmentMarks(maxHp, interval);
+        }
+
+        float barWidthPx = hpFill != null ? hpFill.rectTransform.rect.width : 0f;
+        if (barWidthPx > 1f && hpSegmentMinSpacingPx > 0f && markCount > 0)
+        {
+            float spacingPx = interval / (float)maxHp * barWidthPx;
+            while (spacingPx < hpSegmentMinSpacingPx && interval < maxHp)
+            {
+                interval += hpSegmentHpInterval;
+                markCount = CountHpSegmentMarks(maxHp, interval);
+                if (markCount <= 0)
+                    break;
+
+                spacingPx = interval / (float)maxHp * barWidthPx;
+            }
+        }
+
+        interval = SnapHpSegmentIntervalUp(interval);
+        while (CountHpSegmentMarks(maxHp, interval) > hpSegmentMaxMarkCount && interval < maxHp)
+            interval += hpSegmentHpInterval;
+
+        return interval;
+    }
+
+    /// <summary>Rounds up to a readable tick step without shrinking the interval (which would add more lines).</summary>
+    private static int SnapHpSegmentIntervalUp(int interval)
+    {
+        if (interval <= 50) return 50;
+        if (interval <= 100) return 100;
+        if (interval <= 250) return 250;
+        if (interval <= 500) return 500;
+        if (interval <= 1000) return 1000;
+        return Mathf.CeilToInt(interval / 1000f) * 1000;
+    }
+
+    private void RefreshHpSegmentMarks(int maxHp)
+    {
+        if (hpFill == null || hpSegmentHpInterval <= 0)
+        {
+            SetHpSegmentMarksActive(false);
+            return;
+        }
+
+        EnsureHpSegmentContainer();
+        if (_hpSegmentContainer == null)
+            return;
+
+        int effectiveInterval = ResolveEffectiveHpSegmentInterval(maxHp);
+        if (effectiveInterval <= 0)
+        {
+            SetHpSegmentMarksActive(false);
+            return;
+        }
+
+        int markCount = CountHpSegmentMarks(maxHp, effectiveInterval);
+        if (markCount > hpSegmentMaxMarkCount)
+        {
+            SetHpSegmentMarksActive(false);
+            return;
+        }
+
+        bool layoutChanged = _cachedHpSegmentMaxHp != maxHp || _cachedHpSegmentEffectiveInterval != effectiveInterval;
+        if (layoutChanged)
+        {
+            _cachedHpSegmentMaxHp = maxHp;
+            _cachedHpSegmentEffectiveInterval = effectiveInterval;
+            while (_hpSegmentLineImages.Count < markCount)
+                _hpSegmentLineImages.Add(CreateHpSegmentLine());
+        }
+
+        _hpSegmentContainer.gameObject.SetActive(true);
+
+        for (int i = 0; i < _hpSegmentLineImages.Count; i++)
+        {
+            Image line = _hpSegmentLineImages[i];
+            bool active = i < markCount;
+            line.gameObject.SetActive(active);
+            if (!active)
+                continue;
+
+            int hpAt = effectiveInterval * (i + 1);
+            float fraction = maxHp > 0 ? hpAt / (float)maxHp : 0f;
+            PositionHpSegmentLine(line.rectTransform, fraction, hpSegmentLineWidthPx);
+        }
+    }
+
+    private void SetHpSegmentMarksActive(bool active)
+    {
+        if (_hpSegmentContainer != null)
+            _hpSegmentContainer.gameObject.SetActive(active);
+
+        if (!active)
+        {
+            for (int i = 0; i < _hpSegmentLineImages.Count; i++)
+                _hpSegmentLineImages[i].gameObject.SetActive(false);
+        }
+    }
+
+    private void EnsureHpSegmentContainer()
+    {
+        if (_hpSegmentContainer != null)
+        {
+            PlaceHpSegmentContainerInBarStack();
+            return;
+        }
+
+        RectTransform fillRt = hpFill.rectTransform;
+        RectTransform track = fillRt.parent as RectTransform;
+        if (track == null)
+            return;
+
+        var go = new GameObject("HpSegmentMarks", typeof(RectTransform), typeof(CanvasRenderer));
+        _hpSegmentContainer = go.GetComponent<RectTransform>();
+        _hpSegmentContainer.SetParent(track, false);
+        _hpSegmentContainer.anchorMin = fillRt.anchorMin;
+        _hpSegmentContainer.anchorMax = fillRt.anchorMax;
+        _hpSegmentContainer.anchoredPosition = fillRt.anchoredPosition;
+        _hpSegmentContainer.sizeDelta = fillRt.sizeDelta;
+        _hpSegmentContainer.pivot = fillRt.pivot;
+        _hpSegmentContainer.localScale = Vector3.one;
+
+        var layoutElement = go.AddComponent<LayoutElement>();
+        layoutElement.ignoreLayout = true;
+
+        PlaceHpSegmentContainerInBarStack();
+    }
+
+    /// <summary>Draw ticks on top of the fill, under HP value text and other overlays.</summary>
+    private void PlaceHpSegmentContainerInBarStack()
+    {
+        if (_hpSegmentContainer == null || hpFill == null)
+            return;
+
+        int index = hpFill.rectTransform.GetSiblingIndex() + 1;
+        if (hpValueText != null)
+            index = Mathf.Min(index, hpValueText.rectTransform.GetSiblingIndex());
+
+        _hpSegmentContainer.SetSiblingIndex(index);
+    }
+
+    private Image CreateHpSegmentLine()
+    {
+        var go = new GameObject("Mark", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        var img = go.GetComponent<Image>();
+        img.raycastTarget = false;
+        img.sprite = GetHpSegmentWhiteSprite();
+        img.color = hpSegmentLineColor;
+        img.type = Image.Type.Simple;
+
+        RectTransform rt = img.rectTransform;
+        rt.SetParent(_hpSegmentContainer, false);
+        rt.localScale = Vector3.one;
+
+        var layoutElement = go.AddComponent<LayoutElement>();
+        layoutElement.ignoreLayout = true;
+        return img;
+    }
+
+    private static void PositionHpSegmentLine(RectTransform line, float fraction01, float lineWidthPx)
+    {
+        fraction01 = Mathf.Clamp01(fraction01);
+        line.anchorMin = new Vector2(fraction01, 0f);
+        line.anchorMax = new Vector2(fraction01, 1f);
+        line.pivot = new Vector2(0.5f, 0.5f);
+        line.anchoredPosition = Vector2.zero;
+        line.sizeDelta = new Vector2(lineWidthPx, 0f);
+    }
+
+    private static Sprite GetHpSegmentWhiteSprite()
+    {
+        if (s_hpSegmentWhiteSprite != null)
+            return s_hpSegmentWhiteSprite;
+
+        s_hpSegmentWhiteSprite = Sprite.Create(
+            Texture2D.whiteTexture,
+            new Rect(0f, 0f, 1f, 1f),
+            new Vector2(0.5f, 0.5f),
+            100f);
+        return s_hpSegmentWhiteSprite;
     }
 
     private void ApplyHpFillColorByOwner()

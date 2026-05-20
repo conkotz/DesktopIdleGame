@@ -61,6 +61,11 @@ MonoBehaviour:
   debuffStackTextScale: 0.6
   debuffStackTextAnchoredPositionOffset: {x: 30, y: -20}
   enemyHpFillColor: {r: 1, g: 0.42, b: 0.2, a: 1}
+  hpSegmentHpInterval: 50
+  hpSegmentMaxMarkCount: 12
+  hpSegmentMinSpacingPx: 8
+  hpSegmentLineWidthPx: 1
+  hpSegmentLineColor: {r: 0.15471691, g: 0.15033813, b: 0.15033813, a: 0.22}
   bleedIcon: {fileID: 172900799495140964, guid: 83e010a88397715488e51b774e5e230a, type: 3}
   poisonIcon: {fileID: -1746807094529649936, guid: 83e010a88397715488e51b774e5e230a, type: 3}
   burnIcon: {fileID: -8088392421741576743, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
