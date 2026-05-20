@@ -93,11 +93,39 @@ public class PlayerBuffController : MonoBehaviour
         if (string.IsNullOrWhiteSpace(abilityId))
             return;
 
+        for (int i = 0; i < activeBuffs.Count; i++)
+        {
+            ActiveBuff existing = activeBuffs[i];
+            if (existing.type != ConsumableEffectType.HudAbilityBuff ||
+                !string.Equals(existing.id, abilityId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (displayStacks <= 0)
+            {
+                activeBuffs.RemoveAt(i);
+                NotifyChanged();
+                return;
+            }
+
+            bool layoutChanged =
+                existing.displayStacks != displayStacks ||
+                existing.hudPersistActiveOverlay != persistActiveOverlay ||
+                !Mathf.Approximately(existing.duration, Mathf.Max(0f, durationSeconds));
+
+            existing.endTime = endTime;
+            existing.duration = Mathf.Max(0f, durationSeconds);
+            existing.displayStacks = displayStacks;
+            existing.hudPersistActiveOverlay = persistActiveOverlay;
+
+            if (layoutChanged)
+                NotifyChanged();
+            return;
+        }
+
         activeBuffs.RemoveAll(b =>
             b.type == ConsumableEffectType.HudAbilityBuff &&
             string.Equals(b.id, abilityId, StringComparison.OrdinalIgnoreCase));
 
-        // Cleaving Strikes (and similar) can outlast the duration until hit charges are spent — keep HUD while stacks > 0.
         if (displayStacks <= 0)
         {
             NotifyChanged();

@@ -55,6 +55,7 @@ public class SkillTreeViewUI : MonoBehaviour
     [SerializeField] private float abilitySiblingSpacing = 140f;
 
     private readonly List<SkillTreeNodeUI> spawnedNodes = new();
+    private readonly List<SkillTreeNodeUI> nodesWithLivePresentation = new();
     private readonly List<SkillTreeConnectorUI> spawnedConnectors = new();
     private readonly List<TMP_Text> spawnedLevelLabels = new();
     private readonly List<TMP_Text> spawnedTierRowLabels = new();
@@ -278,6 +279,7 @@ public class SkillTreeViewUI : MonoBehaviour
             && IsRowLevelAbilityCooldownActive(m.level);
     }
 
+    private const float SkillTreePresentationRefreshIntervalSeconds = 0.15f;
     private const float SkillUnlearnCooldownLogIntervalSeconds = 10f;
     private const string SkillUnlearnCooldownLogMessage = "must wait for skill too be off cooldown";
     private float _lastSkillUnlearnCooldownLogUnscaledTime = -999f;
@@ -313,13 +315,16 @@ public class SkillTreeViewUI : MonoBehaviour
     {
         ResolveAbilityController();
 
-        for (int i = 0; i < spawnedNodes.Count; i++)
+        for (int i = 0; i < nodesWithLivePresentation.Count; i++)
         {
-            if (spawnedNodes[i] == null)
+            SkillTreeNodeUI node = nodesWithLivePresentation[i];
+            if (node == null)
                 continue;
-            spawnedNodes[i].SetSkillTreeCooldownPresentation(false, 0f, 0f);
-            spawnedNodes[i].SetSkillTreeActiveBuffPresentation(false, 0f);
+            node.SetSkillTreeCooldownPresentation(false, 0f, 0f);
+            node.SetSkillTreeActiveBuffPresentation(false, 0f);
         }
+
+        nodesWithLivePresentation.Clear();
 
         if (abilityController == null || selectedSkill == null || skillsManager == null)
             return;
@@ -344,11 +349,15 @@ public class SkillTreeViewUI : MonoBehaviour
             {
                 float norm = abilityController.GetCooldownNormalized(aid);
                 node.SetSkillTreeCooldownPresentation(true, norm, cdRem);
+                nodesWithLivePresentation.Add(node);
                 continue;
             }
 
             if (abilityController.TryGetAbilitySkillTreeActiveBuffTimer(aid, out float buffRem))
+            {
                 node.SetSkillTreeActiveBuffPresentation(true, buffRem);
+                nodesWithLivePresentation.Add(node);
+            }
         }
 
         foreach (var kv in choiceMetaByNodeId)
@@ -372,11 +381,15 @@ public class SkillTreeViewUI : MonoBehaviour
             {
                 float norm = abilityController.GetCooldownNormalized(aid);
                 node.SetSkillTreeCooldownPresentation(true, norm, cdRem);
+                nodesWithLivePresentation.Add(node);
                 continue;
             }
 
             if (abilityController.TryGetAbilitySkillTreeActiveBuffTimer(aid, out float buffRem))
+            {
                 node.SetSkillTreeActiveBuffPresentation(true, buffRem);
+                nodesWithLivePresentation.Add(node);
+            }
         }
     }
 
@@ -443,7 +456,7 @@ public class SkillTreeViewUI : MonoBehaviour
         if (Time.unscaledTime < _nextSkillTreePresentationRefreshTime)
             return;
 
-        _nextSkillTreePresentationRefreshTime = Time.unscaledTime + 0.1f;
+        _nextSkillTreePresentationRefreshTime = Time.unscaledTime + SkillTreePresentationRefreshIntervalSeconds;
         RefreshSkillTreeAbilityStatePresentation();
         _lastRefreshHadActivePresentation = hasLivePresentation;
     }
@@ -1331,6 +1344,9 @@ public class SkillTreeViewUI : MonoBehaviour
             desc = "No description yet.";
         desc = BuildEffectiveGatheringMajorPassiveDescription(row, desc);
 
+        if (unlock != null && unlock.unlockType == SkillUnlockType.Ability && unlock.ability != null)
+            desc = ApplyMajorPassiveValueLineMarkup(desc);
+
         bool useMajorPassivePresentation = ShouldUseMajorPassiveLinePresentation(row);
         if (useMajorPassivePresentation)
             desc = ApplyMajorPassiveValueLineMarkup(desc);
@@ -1424,6 +1440,13 @@ public class SkillTreeViewUI : MonoBehaviour
             if (GatheringPassiveTooltipText.TryBuildSkillTreeMajorPassiveBody(
                     selectedSkill.skillType, title, selectedChoiceTitle, out string majorBody))
                 return majorBody;
+        }
+
+        if (selectedSkill.skillType == SkillType.Melee &&
+            row.unlock.unlockType == SkillUnlockType.MajorPassive)
+        {
+            if (MeleeMajorPassiveTooltipText.TryBuildSkillTreeBody(row.level, selectedChoice, out string meleeBody))
+                return meleeBody;
         }
 
         if (selectedSkill.skillType == SkillType.Woodcutting)
@@ -1702,6 +1725,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
         _lastBuiltSkill = null;
         _lastRefreshHadActivePresentation = false;
+        nodesWithLivePresentation.Clear();
 
         foreach (var n in spawnedNodes)
             if (n != null) Destroy(n.gameObject);

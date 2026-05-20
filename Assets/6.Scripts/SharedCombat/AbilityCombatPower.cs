@@ -47,6 +47,14 @@ public static class AbilityCombatPower
     public const float BattleTranceEndlessAssaultKillExtensionSeconds = 1f;
     public const float BattleTranceEndlessAssaultMaxBonusDurationSeconds = 10f;
 
+    /// <summary>Melee Lv30 major passive — Battle Engine.</summary>
+    public const int BattleEngineMajorPassiveLevel = 30;
+    public const float BattleEngineEnergyOnAbilityHit = 5f;
+    public const float BattleEngineRapidCastingCooldownReductionSeconds = 0.5f;
+    public const float BattleEngineOverloadCostPerStack = 0.10f;
+    public const float BattleEngineOverloadDamagePerStack = 0.05f;
+    public const int BattleEngineOverloadMaxStacks = 5;
+
     /// <summary>Enhancement choices for Battle Trance (Melee Lv35 slot 1).</summary>
     public const string BattleTranceEnhancementParentSpineNodeId = "Lv35_1";
 

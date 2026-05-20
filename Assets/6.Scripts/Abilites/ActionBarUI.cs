@@ -424,6 +424,12 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     [Header("Slots")]
     [SerializeField] private List<SlotBinding> slotBindings = new();
 
+    [Header("Runtime refresh")]
+    [Tooltip("How often ability cooldowns, GCD, and buff overlays refresh on the bar. Hotkeys still poll every frame.")]
+    [SerializeField, Min(0.02f)] private float slotRuntimeRefreshInterval = 0.1f;
+
+    private float _nextSlotRuntimeRefreshAt;
+
     [Header("Refs")]
     [SerializeField] private Inventory inventory;
     [SerializeField] private ItemDatabase itemDatabase;
@@ -433,6 +439,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     [SerializeField] private AbilityDatabase abilityDatabase;
     [SerializeField] private SkillDatabase skillDatabase;
     [SerializeField] private SkillsManager skillsManager;
+
+    private PlayerController _player;
 
     [Header("Gathering strip visuals (optional)")]
     [Tooltip("e.g. ActionBarWindow Image — tinted toward the active gathering skill colour below; combat restores the cached color.")]
@@ -875,6 +883,13 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                                IsTypingIntoInputField() ||
                                Time.frameCount == HotkeySettingsRowUI.SuppressActionBarHotkeyPollFrame;
 
+        bool refreshRuntimeVisuals = Time.time >= _nextSlotRuntimeRefreshAt;
+        if (refreshRuntimeVisuals)
+        {
+            _nextSlotRuntimeRefreshAt = Time.time + Mathf.Max(0.02f, slotRuntimeRefreshInterval);
+            ResolveCoreRefs();
+        }
+
         for (int i = 0; i < slotBindings.Count; i++)
         {
             SlotBinding binding = slotBindings[i];
@@ -888,7 +903,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 binding.slot.Press();
             }
 
-            RefreshSlotRuntime(binding.slot);
+            if (refreshRuntimeVisuals)
+                RefreshSlotRuntime(binding.slot);
         }
 
         TryApplyPendingSavedState();
@@ -1496,10 +1512,12 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                     slot.SetCooldownVisual(0f, 0f);
                     slot.SetPrimedVisual(false);
                     bool weaponOkNoController = true;
-                    var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-                    CharacterStats cs = player != null ? player.GetComponent<CharacterStats>() : null;
-                    if (cs != null && abilityDef != null)
-                        weaponOkNoController = cs.IsAbilityUsableWithEquippedWeapon(abilityDef);
+                    if (abilityDef != null && _player != null)
+                    {
+                        CharacterStats cs = _player.GetComponent<CharacterStats>();
+                        if (cs != null)
+                            weaponOkNoController = cs.IsAbilityUsableWithEquippedWeapon(abilityDef);
+                    }
                     slot.SetAbilityWeaponCompatibility(weaponOkNoController);
                     slot.SetNoStockVisual(abilityLocked || !weaponOkNoController);
 
@@ -1769,26 +1787,40 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     private void ResolveCoreRefs()
     {
-        var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
-        if (player != null)
+        if (_player == null)
+            _player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+
+        if (_player != null)
         {
-            var playerInventory = player.GetComponent<Inventory>();
-            if (playerInventory != null)
-                inventory = playerInventory;
+            if (inventory == null)
+            {
+                var playerInventory = _player.GetComponent<Inventory>();
+                if (playerInventory != null)
+                    inventory = playerInventory;
+            }
 
-            var playerConsumables = player.GetComponent<PlayerConsumableController>();
-            if (playerConsumables != null)
-                consumableController = playerConsumables;
+            if (consumableController == null)
+            {
+                var playerConsumables = _player.GetComponent<PlayerConsumableController>();
+                if (playerConsumables != null)
+                    consumableController = playerConsumables;
+            }
 
-            var playerAbilities = player.GetComponent<PlayerAbilityController>();
-            if (playerAbilities == null)
-                playerAbilities = player.gameObject.AddComponent<PlayerAbilityController>();
-            if (playerAbilities != null)
-                abilityController = playerAbilities;
+            if (abilityController == null)
+            {
+                var playerAbilities = _player.GetComponent<PlayerAbilityController>();
+                if (playerAbilities == null)
+                    playerAbilities = _player.gameObject.AddComponent<PlayerAbilityController>();
+                if (playerAbilities != null)
+                    abilityController = playerAbilities;
+            }
 
-            var playerBuffs = player.GetComponent<PlayerBuffController>();
-            if (playerBuffs != null)
-                buffController = playerBuffs;
+            if (buffController == null)
+            {
+                var playerBuffs = _player.GetComponent<PlayerBuffController>();
+                if (playerBuffs != null)
+                    buffController = playerBuffs;
+            }
         }
 
         if (inventory == null)

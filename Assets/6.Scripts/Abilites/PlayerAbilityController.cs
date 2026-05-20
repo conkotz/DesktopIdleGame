@@ -199,6 +199,15 @@ public class PlayerAbilityController : MonoBehaviour
     private float _battleTranceDuration;
     private float _battleTranceMaxEndsAt;
     private float _lastSyncedBattleTranceHudEnd = float.NaN;
+
+    private int _battleEngineCastSessionId;
+    private int _battleEngineEnergyGrantedSessionId = -1;
+    private string _battleEngineEnergyPendingAbilityId = "";
+    private int _battleEngineOverloadStacks;
+    private float _battleEngineOverloadEndsAt = -1f;
+    private int _lastSyncedOverloadHudStacks = int.MinValue;
+    private float _lastSyncedOverloadHudEnd = float.NaN;
+
     private Coroutine _flameChargeRoutine;
     private float[] _flameChargePerChargeCooldownEnds = Array.Empty<float>();
     private int _flameChargeChargesMax;
@@ -386,6 +395,9 @@ public class PlayerAbilityController : MonoBehaviour
         CleanupEnergyInfusionIfNotOnActionBar();
         CleanupBattleTranceIfExpired();
         SyncBattleTranceHudBuff();
+        TickBattleEngineOverloadExpiry();
+        if ((player != null && player.IsDead) || (stats != null && stats.IsDead))
+            ClearBattleEngineOverloadStacksIfAny();
         SyncSoulforgedWeaponHudBuff();
         abilityVfx?.UpdateEnergyInfusionGlowVfx(_energyInfusionActive);
         abilityVfx?.UpdateBattleTranceGlowVfx(IsBattleTranceActive);
@@ -1054,7 +1066,213 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void LogAbilityUsed(AbilityDefinition def)
     {
-        // Intentionally not written to the activity log (reduces noise / FPS cost).
+        ApplyBattleEngineOnAbilityCommitEffects(def, beginHitSession: true);
+    }
+
+    private void ApplyBattleEngineOnAbilityCommitEffects(AbilityDefinition def, bool beginHitSession)
+    {
+        if (def == null || stats == null || !stats.IsBattleEngineUnlocked())
+            return;
+
+        if (beginHitSession)
+            PrepareBattleEngineAbilityHitSession(def);
+
+        int pick = stats.GetBattleEngineEnhancementPick();
+        if (pick == 0)
+        {
+            ReduceOtherAbilityCooldownsBySeconds(
+                def,
+                AbilityCombatPower.BattleEngineRapidCastingCooldownReductionSeconds);
+        }
+        else if (pick == 1 && beginHitSession)
+        {
+            RefreshBattleEngineOverloadOnAbilityCast();
+        }
+    }
+
+    private void PrepareBattleEngineAbilityHitSession(AbilityDefinition def)
+    {
+        if (def == null || stats == null || !stats.IsBattleEngineUnlocked())
+            return;
+
+        _battleEngineCastSessionId++;
+        _battleEngineEnergyPendingAbilityId = def.abilityId ?? "";
+    }
+
+    private void TryGrantBattleEngineEnergyOnAbilityHit(AbilityDefinition def, bool dealtDamage)
+    {
+        if (!dealtDamage || def == null || player == null || stats == null || !stats.IsBattleEngineUnlocked())
+            return;
+
+        if (_battleEngineEnergyGrantedSessionId == _battleEngineCastSessionId)
+            return;
+
+        if (string.IsNullOrWhiteSpace(_battleEngineEnergyPendingAbilityId) ||
+            !string.Equals(def.abilityId, _battleEngineEnergyPendingAbilityId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        player.AddEnergy(AbilityCombatPower.BattleEngineEnergyOnAbilityHit);
+        _battleEngineEnergyGrantedSessionId = _battleEngineCastSessionId;
+    }
+
+    public void TryGrantBattleEngineEnergyForPendingAbilityHit()
+    {
+        if (string.IsNullOrWhiteSpace(_battleEngineEnergyPendingAbilityId))
+            return;
+
+        TryGrantBattleEngineEnergyOnAbilityHit(GetAbilityDefinition(_battleEngineEnergyPendingAbilityId), true);
+    }
+
+    private bool IsBattleEngineOverloadActive()
+    {
+        if (stats == null || stats.GetBattleEngineEnhancementPick() != 1)
+            return false;
+
+        return _battleEngineOverloadStacks > 0 && Time.time < _battleEngineOverloadEndsAt;
+    }
+
+    /// <summary>
+    /// Ability tooltip damage for the next cast (Overload adds a stack before hits resolve).
+    /// </summary>
+    public float GetTooltipAbilityDamageMultiplier()
+    {
+        if (stats == null || stats.GetBattleEngineEnhancementPick() != 1)
+            return 1f;
+
+        int stacks = IsBattleEngineOverloadActive() ? _battleEngineOverloadStacks : 0;
+        int stacksForDamage = Mathf.Min(
+            AbilityCombatPower.BattleEngineOverloadMaxStacks,
+            stacks + 1);
+        return 1f + stacksForDamage * AbilityCombatPower.BattleEngineOverloadDamagePerStack;
+    }
+
+    /// <summary>Ability tooltip energy for the next cast (uses active Overload stacks before the new stack is added).</summary>
+    public float GetTooltipAbilityEnergyCostMultiplier()
+    {
+        if (!IsBattleEngineOverloadActive())
+            return 1f;
+
+        return GetBattleEngineOverloadEnergyCostMultiplier();
+    }
+
+    private float GetBattleEngineOverloadDamageMultiplier()
+    {
+        if (!IsBattleEngineOverloadActive())
+            return 1f;
+
+        return 1f + _battleEngineOverloadStacks * AbilityCombatPower.BattleEngineOverloadDamagePerStack;
+    }
+
+    private float GetBattleEngineOverloadEnergyCostMultiplier()
+    {
+        if (!IsBattleEngineOverloadActive())
+            return 1f;
+
+        return 1f + _battleEngineOverloadStacks * AbilityCombatPower.BattleEngineOverloadCostPerStack;
+    }
+
+    private void RefreshBattleEngineOverloadOnAbilityCast()
+    {
+        if (stats == null || stats.GetBattleEngineEnhancementPick() != 1)
+            return;
+
+        _battleEngineOverloadStacks = Mathf.Min(
+            AbilityCombatPower.BattleEngineOverloadMaxStacks,
+            _battleEngineOverloadStacks + 1);
+        _battleEngineOverloadEndsAt = Time.time + CharacterStats.BattleEngineOverloadDurationSeconds;
+        SyncBattleEngineOverloadHudBuff();
+    }
+
+    private void TickBattleEngineOverloadExpiry()
+    {
+        if (_battleEngineOverloadStacks <= 0)
+            return;
+
+        if (Time.time < _battleEngineOverloadEndsAt)
+            return;
+
+        ClearBattleEngineOverloadStacksIfAny();
+    }
+
+    private void SyncBattleEngineOverloadHudBuff()
+    {
+        if (buffController == null)
+            return;
+
+        if (!IsBattleEngineOverloadActive())
+        {
+            if (_lastSyncedOverloadHudStacks != int.MinValue || !float.IsNaN(_lastSyncedOverloadHudEnd))
+            {
+                _lastSyncedOverloadHudStacks = int.MinValue;
+                _lastSyncedOverloadHudEnd = float.NaN;
+                buffController.ClearHudAbilityBuff(CharacterStats.BattleEngineOverloadHudBuffId);
+            }
+
+            return;
+        }
+
+        if (_lastSyncedOverloadHudStacks == _battleEngineOverloadStacks &&
+            Mathf.Approximately(_lastSyncedOverloadHudEnd, _battleEngineOverloadEndsAt))
+            return;
+
+        _lastSyncedOverloadHudStacks = _battleEngineOverloadStacks;
+        _lastSyncedOverloadHudEnd = _battleEngineOverloadEndsAt;
+        buffController.SetHudAbilityBuff(
+            CharacterStats.BattleEngineOverloadHudBuffId,
+            _battleEngineOverloadStacks,
+            _battleEngineOverloadEndsAt,
+            CharacterStats.BattleEngineOverloadDurationSeconds);
+    }
+
+    private void ClearBattleEngineOverloadStacksIfAny()
+    {
+        if (_battleEngineOverloadStacks <= 0 && _battleEngineOverloadEndsAt < 0f)
+            return;
+
+        _battleEngineOverloadStacks = 0;
+        _battleEngineOverloadEndsAt = -1f;
+        _lastSyncedOverloadHudStacks = int.MinValue;
+        _lastSyncedOverloadHudEnd = float.NaN;
+        buffController?.ClearHudAbilityBuff(CharacterStats.BattleEngineOverloadHudBuffId);
+    }
+
+    private void ReduceOtherAbilityCooldownsBySeconds(AbilityDefinition exceptDef, float seconds)
+    {
+        if (seconds <= 0f)
+            return;
+
+        string exceptId = exceptDef != null ? exceptDef.abilityId : null;
+        var abilityIds = new List<string>(_cooldownEndsById.Keys);
+        for (int i = 0; i < abilityIds.Count; i++)
+        {
+            string id = abilityIds[i];
+            if (!string.IsNullOrEmpty(exceptId) &&
+                string.Equals(id, exceptId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            ReduceStoredAbilityCooldownBySeconds(id, seconds);
+        }
+    }
+
+    private void ReduceStoredAbilityCooldownBySeconds(string abilityId, float seconds)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId) || seconds <= 0f)
+            return;
+
+        if (!_cooldownEndsById.TryGetValue(abilityId, out float end))
+            return;
+
+        float remaining = end - Time.time;
+        if (remaining <= 0f)
+            return;
+
+        float newEnd = Time.time + Mathf.Max(0f, remaining - seconds);
+        _cooldownEndsById[abilityId] = newEnd;
+
+        AbilityDefinition def = GetAbilityDefinition(abilityId);
+        string rowKey = BuildAbilityRowKey(def);
+        if (rowKey != null)
+            _cooldownEndsByRowKey[rowKey] = newEnd;
     }
 
     /// <summary>Queued or target-gated abilities spend energy when they actually fire, not when the bar button is pressed.</summary>
@@ -1107,14 +1325,19 @@ public class PlayerAbilityController : MonoBehaviour
         if (def == null || def.energyCost <= 0f || player == null || stats == null)
             return true;
 
-        if (stats.Energy < def.energyCost)
+        float costMultiplier = GetBattleEngineOverloadEnergyCostMultiplier();
+        int cost = Mathf.Max(0, Mathf.RoundToInt(def.energyCost * costMultiplier));
+        if (cost <= 0)
+            return true;
+
+        if (stats.Energy < cost)
         {
             if (showInsufficientFeedback)
                 player.ShowPopup("Not enough energy.");
             return false;
         }
 
-        return player.SpendEnergy(def.energyCost);
+        return player.SpendEnergy(cost);
     }
 
     private void RefundAbilityEnergy(AbilityDefinition def)
@@ -1556,12 +1779,15 @@ public class PlayerAbilityController : MonoBehaviour
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
         float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
+        float overloadMult = GetBattleEngineOverloadDamageMultiplier();
         float physLine = basePhysical * wM + ailmentBonus;
         float magLine = baseMagic * wM * elemM + elementBonus * elemM;
-        float physPart = physLine * allM * apM;
-        float magPart = magLine * allM * apM;
-        float corrPart = (baseCorruption * wM) * allM * apM;
+        float physPart = physLine * allM * apM * overloadMult;
+        float magPart = magLine * allM * apM * overloadMult;
+        float corrPart = (baseCorruption * wM) * allM * apM * overloadMult;
         float raw = Mathf.Max(0f, physPart + magPart + corrPart);
+
+        PrepareBattleEngineAbilityHitSession(def);
 
         bool wasCrit = false;
         float critMult = 1f;
@@ -1583,12 +1809,14 @@ public class PlayerAbilityController : MonoBehaviour
         if (corr > 0)
             dealt += target.TakeDamage(corr, DamageType.Corruption, wasCrit, transform, stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null, outgoingDpsSourceLabel: sourceLabel);
 
+        TryGrantBattleEngineEnergyOnAbilityHit(def, dealt > 0);
+
         // Fire the attack anim as feedback, but do not modify basic attack cooldown timing.
         player.TriggerAttackAnim();
         StartCooldown(def);
         if (globalCooldownSeconds > 0f)
             _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
-        LogAbilityUsed(def);
+        ApplyBattleEngineOnAbilityCommitEffects(def, beginHitSession: false);
         return true;
     }
 
@@ -3054,6 +3282,12 @@ public class PlayerAbilityController : MonoBehaviour
         result.meleeMagicLightningFraction = Mathf.Clamp01(meleeMagicLightningFraction);
 
         float cond = GetConditionalMeleeDamageMultiplier(target);
+        if (wasCrit && stats != null)
+        {
+            cond *= stats.GetPredatorsInstinctExecutionerCritDamageFactor(target, true);
+            stats.OnPlayerCritLanded();
+        }
+
         float phys = Mathf.Max(0f, hit.physical * cond);
         float mag = Mathf.Max(0f, hit.magic * cond);
         float corrRaw = Mathf.Max(0f, hit.corruptionDamage * cond);
@@ -3108,8 +3342,18 @@ public class PlayerAbilityController : MonoBehaviour
         bool wasCrit,
         float meleeMagicLightningFraction = -1f,
         float armorRatingMultiplier = 1f,
-        float magicResistRatingMultiplier = 1f) =>
-        ApplySplitDamageToEnemy(
+        float magicResistRatingMultiplier = 1f)
+    {
+        float overloadMult = GetBattleEngineOverloadDamageMultiplier();
+        if (overloadMult > 1f)
+        {
+            hit = new SplitDamage(
+                hit.physical * overloadMult,
+                hit.magic * overloadMult,
+                hit.corruptionDamage * overloadMult);
+        }
+
+        DealtHit dealt = ApplySplitDamageToEnemy(
             target,
             hit,
             wasCrit,
@@ -3117,6 +3361,9 @@ public class PlayerAbilityController : MonoBehaviour
             armorRatingMultiplier,
             magicResistRatingMultiplier,
             def != null ? GetAbilityOutgoingDamageSourceLabel(def.abilityId) : null);
+        TryGrantBattleEngineEnergyOnAbilityHit(def, dealt.Total > 0f);
+        return dealt;
+    }
 
     private float GetConditionalMeleeDamageMultiplier(EnemyBaseController target)
     {
@@ -3229,11 +3476,12 @@ public class PlayerAbilityController : MonoBehaviour
             AbilityDefinition slashDef = GetAbilityDefinition(PowerSlashId);
             float elementBonus = slashDef != null && stats != null ? AbilityElementScaling.GetElementDamageBonus(slashDef, stats) : 0f;
             float ailmentBonus = slashDef != null && stats != null ? AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(slashDef, stats) : 0f;
+            float overloadMult = GetBattleEngineOverloadDamageMultiplier();
 
             // Mult scales the rolled basic hit (150% = 1.5× that swing), not an extra additive copy of it.
-            rolled.physical = (rolled.physical * _queuedPowerSlashWeaponMultiplier + ailmentBonus) * apM * allM;
-            rolled.magic = (rolled.magic * _queuedPowerSlashWeaponMultiplier + elementBonus) * apM * allM;
-            rolled.corruptionDamage = (rolled.corruptionDamage * _queuedPowerSlashWeaponMultiplier) * apM * allM;
+            rolled.physical = ((rolled.physical * _queuedPowerSlashWeaponMultiplier + ailmentBonus) * apM * allM) * overloadMult;
+            rolled.magic = ((rolled.magic * _queuedPowerSlashWeaponMultiplier + elementBonus) * apM * allM) * overloadMult;
+            rolled.corruptionDamage = ((rolled.corruptionDamage * _queuedPowerSlashWeaponMultiplier) * apM * allM) * overloadMult;
             rolled.physical = Mathf.Max(0f, rolled.physical);
             rolled.magic = Mathf.Max(0f, rolled.magic);
 
@@ -3366,6 +3614,7 @@ public class PlayerAbilityController : MonoBehaviour
         {
             result.suppressDefaultBleed = true;
             TryApplyRendBleed(target, physicalDealt);
+            TryGrantBattleEngineEnergyOnAbilityHit(GetAbilityDefinition(RendId), physicalDealt > 0f);
 
             AbilityDefinition def = GetAbilityDefinition(RendId);
             if (def)
@@ -3377,6 +3626,9 @@ public class PlayerAbilityController : MonoBehaviour
         {
             result.suppressDefaultPoison = true;
             TryApplyEnvenomPoison(target, corruptionDealtPostMitigation);
+            TryGrantBattleEngineEnergyOnAbilityHit(
+                GetAbilityDefinition(EnvenomId),
+                corruptionDealtPostMitigation > 0f);
 
             AbilityDefinition def = GetAbilityDefinition(EnvenomId);
             if (def)
@@ -4931,7 +5183,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!def) return;
         float cd = Mathf.Max(0f, def.cooldown - GetPowerSlashCooldownReduction(def) - GetAvatarOfTheForestCooldownReduction(def));
         if (stats != null)
-            cd *= Mathf.Max(0.05f, 1f - stats.CombatAbilityCooldownReductionFraction);
+            cd *= Mathf.Max(0.05f, 1f - stats.FinalAbilityCooldownReductionFraction);
         if (cd <= 0f) return;
 
         TeardownLingeringAbilityStateBeforeCooldownWrite(def);

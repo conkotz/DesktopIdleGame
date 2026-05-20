@@ -135,11 +135,14 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public GameObject FullMapPage => fullMapPage;
 
-    /// <summary>Which main-menu tab is active while the window is open.</summary>
+    /// <summary>Which main-menu tab is highlighted. <see cref="MainMenuTabId.None"/> when Settings (no tab) is open.</summary>
     public MainMenuTabId GetActiveTab()
     {
         if (!IsOpen || !currentPage)
-            return MainMenuTabId.Character;
+            return MainMenuTabId.None;
+
+        if (settingsPage && currentPage == settingsPage)
+            return MainMenuTabId.None;
 
         if (currentPage == characterPage)
             return MainMenuTabId.Character;
@@ -152,7 +155,7 @@ public class MainMenuWindowUI : MonoBehaviour
         if (currentPage == levelSelectPage)
             return MainMenuTabId.LevelSelect;
 
-        return MainMenuTabId.Character;
+        return MainMenuTabId.None;
     }
 
     /// <summary>

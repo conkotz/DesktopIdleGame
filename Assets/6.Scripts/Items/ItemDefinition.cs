@@ -368,6 +368,9 @@ public struct BonusStats
     [Tooltip("Attack speed bonus (0.1 = +10% APS).")]
     public float attackSpeedPercent;
 
+    [Tooltip("Ability cooldown reduction (0.15 = 15% CDR on ability cooldowns).")]
+    public float abilityCooldownReductionFraction;
+
     [Header("Minion")]
     [Tooltip("Extra damage for your minions / summons (0.1 = +10%). Generic; works with inherited or internal minion base damage.")]
     public float minionDamagePercent;
@@ -438,6 +441,7 @@ public struct BonusStats
                corruptionDamagePercent != 0f ||
                corruptionDamage != 0f || abilityPower != 0f ||
                attackSpeedPercent != 0f ||
+               abilityCooldownReductionFraction != 0f ||
                minionDamagePercent != 0f || minionAttackSpeedPercent != 0f || minionCritChance != 0f ||
                minionMaxLifePercent != 0f ||
                critChanceBonus != 0f || critMultiplierBonus != 0f ||
@@ -1871,6 +1875,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         if (bonusStats.attackSpeedPercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.attackSpeedPercent, "Attack Speed")}\n";
+        if (bonusStats.abilityCooldownReductionFraction != 0f)
+            s += $"{FormatScalingCoefficientPercentLine(bonusStats.abilityCooldownReductionFraction, "Ability Cooldown Reduction")}\n";
         if (bonusStats.minionDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.minionDamagePercent, "Minion Damage")}\n";
         if (bonusStats.minionAttackSpeedPercent != 0f)

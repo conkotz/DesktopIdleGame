@@ -35,6 +35,10 @@ public class FlipInsideBounds : MonoBehaviour
     [SerializeField] private float rarityBorderWidth = 6f;
     [SerializeField] private float rarityBorderOutwardOffset = 6f;
 
+    [Header("Performance")]
+    [Tooltip("When set (e.g. SharedToolTipUI CanvasGroup), layout/dock work is skipped while alpha is ~0.")]
+    [SerializeField] private CanvasGroup visibilityGroup;
+
     private RectTransform ParentRect => panel ? panel.parent as RectTransform : null;
 
     public void SetPreferredSide(PreferredSide side) => preferredSide = side;
@@ -48,6 +52,9 @@ public class FlipInsideBounds : MonoBehaviour
 
     private void Awake()
     {
+        if (!visibilityGroup)
+            visibilityGroup = GetComponent<CanvasGroup>();
+
         if (!rarityBorderStrip && panel)
         {
             Transform t = panel.Find("RarityBorder");
@@ -58,6 +65,9 @@ public class FlipInsideBounds : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (visibilityGroup && visibilityGroup.alpha < 0.01f)
+            return;
+
         if (!panel || !boundsRect) return;
 
         var parent = ParentRect;

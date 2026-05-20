@@ -234,7 +234,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     private void Refresh()
     {
         if (!combat)
-            combat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
+            ResolveReferences();
 
         RefreshElapsedTime();
         RefreshIncomingDealerDamage(combat);

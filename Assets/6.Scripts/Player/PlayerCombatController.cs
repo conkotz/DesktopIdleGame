@@ -1187,6 +1187,12 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (totalDealt > 0f)
             TryConsumeOffHandSupportAmmo();
 
+        if (abilityController != null && totalDealt > 0f &&
+            swingAttribution.AttributesEntireSwingToBonusSource)
+        {
+            abilityController.TryGrantBattleEngineEnergyForPendingAbilityHit();
+        }
+
         bool suppressBleed = false;
         bool suppressPoison = false;
         bool triggerCrescentSlash = false;
@@ -1838,6 +1844,12 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (target == null || target.IsDead) return result;
 
         float conditionalDamageMult = GetConditionalMeleeDamageMultiplier(target);
+        if (wasCrit && stats != null)
+        {
+            conditionalDamageMult *= stats.GetPredatorsInstinctExecutionerCritDamageFactor(target, true);
+            stats.OnPlayerCritLanded();
+        }
+
         bool isPlayerWeaponSwing = string.IsNullOrWhiteSpace(outgoingDamageSourceLabel);
         bool deferSwingOutgoing = isPlayerWeaponSwing &&
             (swingAttribution.HasBonus || HasAilmentConditionalDamageBonusOnTarget(target));

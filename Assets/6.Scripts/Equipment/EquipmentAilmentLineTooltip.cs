@@ -193,7 +193,7 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
 
             case LineId.BurnDuration:
                 title = "Burn duration";
-                body = "How long burn keeps ticking each time it is refreshed by fire damage.";
+                body = "How long burn keeps ticking each time it is refreshed by fire damage (always 15 seconds). Faster tick rates add extra ticks within that window without changing combust damage.";
                 return true;
 
             case LineId.BurnStacks:

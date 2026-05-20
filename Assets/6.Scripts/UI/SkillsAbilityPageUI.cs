@@ -1762,6 +1762,45 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             }
         }
 
+        if (skill.skillType == SkillType.Melee && currentLevel >= CharacterStats.PredatorsInstinctMajorPassiveLevel)
+        {
+            sb.AppendLine("<b>• Predator's Instinct (Major Passive) (Lv20)</b>");
+            sb.AppendLine("     +5% Critical Chance");
+            sb.AppendLine("     +10% Critical Damage");
+            int selected20 = skillManager != null
+                ? skillManager.GetSkillChoiceSelection(SkillType.Melee, CharacterStats.PredatorsInstinctMajorPassiveLevel, -1)
+                : -1;
+            if (selected20 == 0)
+            {
+                sb.AppendLine("   - Executioner (Enhancement)");
+                sb.AppendLine("     Crits gain +30% Critical Damage vs enemies below 30% HP");
+            }
+            else if (selected20 == 1)
+            {
+                sb.AppendLine("   - Shadow Hunter (Enhancement)");
+                sb.AppendLine("     Crits grant +10% Attack Speed for 7 seconds");
+            }
+        }
+
+        if (skill.skillType == SkillType.Melee && currentLevel >= CharacterStats.BattleEngineMajorPassiveLevel)
+        {
+            sb.AppendLine("<b>• Battle Engine (Major Passive) (Lv30)</b>");
+            sb.AppendLine("     Gain 5 Energy when abilities hit enemies (once per cast)");
+            int selected30 = skillManager != null
+                ? skillManager.GetSkillChoiceSelection(SkillType.Melee, CharacterStats.BattleEngineMajorPassiveLevel, -1)
+                : -1;
+            if (selected30 == 0)
+            {
+                sb.AppendLine("   - Rapid Casting (Enhancement)");
+                sb.AppendLine("     Using an ability lowers your other cooldowns by 0.5 seconds");
+            }
+            else if (selected30 == 1)
+            {
+                sb.AppendLine("   - Overload (Enhancement)");
+                sb.AppendLine("     Using an ability adds +10% ability cost and +5% ability damage (max 5 stacks, 10s)");
+            }
+        }
+
         int levelsPastCap = Mathf.Max(0, currentLevel - CharacterStats.SkillPostCapThresholdLevel);
         if (levelsPastCap > 0)
         {

@@ -82,14 +82,20 @@ public class UIWindowManager : MonoBehaviour
         QuickMenuPanelToggleUI.HideIfOpen();
         MainMenuWindowUI.Resolve()?.Close();
 
-        for (int i = _openWindows.Count - 1; i >= 0; i--)
+        // Snapshot first — closing the menu (or any window) runs UIWindow.OnDisable → Unregister,
+        // which must not shrink _openWindows while we index into it.
+        GameObject[] snapshot = _openWindows.ToArray();
+        for (int i = 0; i < snapshot.Length; i++)
         {
-            GameObject w = _openWindows[i];
+            GameObject w = snapshot[i];
             if (!w)
             {
-                _openWindows.RemoveAt(i);
+                _openWindows.Remove(w);
                 continue;
             }
+
+            if (!_openWindows.Contains(w))
+                continue;
 
             if (w.GetComponentInParent<MainMenuWindowUI>(true) != null ||
                 w.GetComponentInChildren<MainMenuWindowUI>(true) != null)
@@ -99,7 +105,7 @@ public class UIWindowManager : MonoBehaviour
                 continue;
 
             w.SetActive(false);
-            _openWindows.RemoveAt(i);
+            _openWindows.Remove(w);
         }
     }
 

@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(Button))]
+[DefaultExecutionOrder(0)]
 public class UIWindowCloseButton : MonoBehaviour
 {
     [Header("Target")]
@@ -65,7 +66,11 @@ public class UIWindowCloseButton : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (lockButton)
+        if (!lockButton)
+            return;
+
+        UIWindowLockButton lockUi = lockButton.GetComponent<UIWindowLockButton>();
+        if (lockUi == null)
             lockButton.onClick.RemoveListener(ToggleLock);
     }
 
@@ -143,17 +148,12 @@ public class UIWindowCloseButton : MonoBehaviour
         if (!lockButton)
             return;
 
-        UIWindowCloseButton mistakenClose = lockButton.GetComponent<UIWindowCloseButton>();
-        if (mistakenClose != null && mistakenClose != this)
-            Destroy(mistakenClose);
-
-        lockButton.onClick.RemoveListener(ToggleLock);
-        lockButton.onClick.AddListener(ToggleLock);
-
         UIWindowLockButton lockUi = lockButton.GetComponent<UIWindowLockButton>();
         if (lockUi == null)
             lockUi = lockButton.gameObject.AddComponent<UIWindowLockButton>();
+
         lockUi.Bind(this);
+        lockUi.EnsureWired();
     }
 
     private void ResolveLockButtonIfNeeded()

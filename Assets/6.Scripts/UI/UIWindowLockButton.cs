@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
@@ -7,7 +6,8 @@ using UnityEngine.UI;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Button))]
-public sealed class UIWindowLockButton : MonoBehaviour, IPointerClickHandler
+[DefaultExecutionOrder(-50)]
+public sealed class UIWindowLockButton : MonoBehaviour
 {
     [SerializeField] private UIWindowCloseButton windowClose;
 
@@ -16,6 +16,13 @@ public sealed class UIWindowLockButton : MonoBehaviour, IPointerClickHandler
     public void Bind(UIWindowCloseButton closeController)
     {
         windowClose = closeController;
+    }
+
+    /// <summary>Called by <see cref="UIWindowCloseButton"/> after bind — owns the lock button click.</summary>
+    public void EnsureWired()
+    {
+        StripMistakenCloseComponent();
+        WireToggleOnly();
     }
 
     private void Awake()
@@ -29,22 +36,13 @@ public sealed class UIWindowLockButton : MonoBehaviour, IPointerClickHandler
 
     private void OnEnable()
     {
-        StripMistakenCloseComponent();
-        WireToggleOnly();
+        EnsureWired();
     }
 
     private void OnDisable()
     {
         if (_button)
             _button.onClick.RemoveListener(OnLockClicked);
-    }
-
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        if (eventData == null)
-            return;
-
-        eventData.Use();
     }
 
     private UIWindowCloseButton ResolveWindowCloseController()
@@ -65,8 +63,11 @@ public sealed class UIWindowLockButton : MonoBehaviour, IPointerClickHandler
     private void StripMistakenCloseComponent()
     {
         UIWindowCloseButton mistakenClose = GetComponent<UIWindowCloseButton>();
-        if (mistakenClose != null)
-            Destroy(mistakenClose);
+        if (mistakenClose == null)
+            return;
+
+        mistakenClose.enabled = false;
+        Destroy(mistakenClose);
     }
 
     private void WireToggleOnly()
@@ -76,12 +77,15 @@ public sealed class UIWindowLockButton : MonoBehaviour, IPointerClickHandler
         if (!_button)
             return;
 
-        _button.onClick.RemoveAllListeners();
+        _button.onClick.RemoveListener(OnLockClicked);
         _button.onClick.AddListener(OnLockClicked);
     }
 
     private void OnLockClicked()
     {
+        if (windowClose == null)
+            windowClose = ResolveWindowCloseController();
+
         if (windowClose != null)
             windowClose.ToggleLock();
     }

@@ -43,6 +43,14 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [Tooltip("Icon for Fishing Lv15 Calm Waters stacks (shows stack count on the buff strip).")]
     [SerializeField] private Sprite fishingCalmWatersMajorHudIcon;
 
+    [Header("Melee — Shadow Hunter (Lv20 Major) HUD")]
+    [Tooltip("Icon for Predator's Instinct Shadow Hunter attack speed after crits.")]
+    [SerializeField] private Sprite shadowHunterHudIcon;
+
+    [Header("Melee — Battle Engine Overload (Lv30 Major) HUD")]
+    [Tooltip("Icon for Battle Engine Overload stacks after ability casts.")]
+    [SerializeField] private Sprite battleEngineOverloadHudIcon;
+
     [Header("Shared Tooltip")]
     [SerializeField] private RectTransform tooltipMeasureRect;
     [SerializeField] private RectTransform tooltipHeightRect;
@@ -61,8 +69,22 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
     private readonly List<GameObject> spawnedDebuffIcons = new();
     private readonly List<GameObject> spawnedBuffIcons = new();
+    private readonly List<BuffIconUI> spawnedBuffIconUis = new();
+    private readonly List<BuffIconVisualSnapshot> buffIconSnapshots = new();
     private AbilityDatabase _abilityDatabase;
     private float _nextBuffTimerRefreshAt;
+
+    private struct BuffIconVisualSnapshot
+    {
+        public string key;
+        public int displayStacks;
+        public string valueLabel;
+        public string title;
+        public string body;
+        public Sprite sprite;
+        public float totalDurationSeconds;
+        public bool persistActiveOverlay;
+    }
 
     private void Awake()
     {
@@ -220,14 +242,30 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
     public void RefreshBuffs()
     {
-        ClearBuffs();
-
         if (buffs == null || buffContainer == null || buffIconPrefab == null)
+        {
+            ClearBuffs();
             return;
+        }
 
         IReadOnlyList<PlayerBuffController.ActiveBuff> activeBuffs = buffs.ActiveBuffs;
         if (activeBuffs == null || activeBuffs.Count == 0)
+        {
+            ClearBuffs();
             return;
+        }
+
+        while (spawnedBuffIcons.Count > activeBuffs.Count)
+        {
+            int last = spawnedBuffIcons.Count - 1;
+            if (spawnedBuffIcons[last] != null)
+                Destroy(spawnedBuffIcons[last]);
+            spawnedBuffIcons.RemoveAt(last);
+            if (spawnedBuffIconUis.Count > last)
+                spawnedBuffIconUis.RemoveAt(last);
+            if (buffIconSnapshots.Count > last)
+                buffIconSnapshots.RemoveAt(last);
+        }
 
         for (int i = 0; i < activeBuffs.Count; i++)
         {
@@ -235,18 +273,101 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (buff == null)
                 continue;
 
-            SpawnBuffIcon(
-                GetBuffSpriteFromItem(buff),
-                GetBuffIconKey(buff),
-                GetBuffValueLabel(buff),
-                buff.RemainingSeconds,
-                GetBuffTitle(buff),
-                GetBuffBody(buff),
-                buff.displayStacks,
-                buff.displayStacks > 0,
-                buff.duration,
-                buff.hudPersistActiveOverlay);
+            BuffIconVisualSnapshot snapshot = BuildBuffIconSnapshot(buff);
+            if (i >= spawnedBuffIcons.Count)
+            {
+                SpawnBuffIcon(snapshot, buff.RemainingSeconds);
+                continue;
+            }
+
+            if (!BuffIconSnapshotEquals(buffIconSnapshots[i], snapshot))
+                ApplyBuffIconSnapshot(i, snapshot, buff.RemainingSeconds);
         }
+    }
+
+    private BuffIconVisualSnapshot BuildBuffIconSnapshot(PlayerBuffController.ActiveBuff buff) =>
+        new BuffIconVisualSnapshot
+        {
+            key = GetBuffIconKey(buff),
+            displayStacks = buff.displayStacks,
+            valueLabel = GetBuffValueLabel(buff),
+            title = GetBuffTitle(buff),
+            body = GetBuffBody(buff),
+            sprite = GetBuffSpriteFromItem(buff),
+            totalDurationSeconds = buff.duration,
+            persistActiveOverlay = buff.hudPersistActiveOverlay
+        };
+
+    private static bool BuffIconSnapshotEquals(BuffIconVisualSnapshot a, BuffIconVisualSnapshot b) =>
+        a.key == b.key &&
+        a.displayStacks == b.displayStacks &&
+        a.valueLabel == b.valueLabel &&
+        a.title == b.title &&
+        a.body == b.body &&
+        a.sprite == b.sprite &&
+        Mathf.Approximately(a.totalDurationSeconds, b.totalDurationSeconds) &&
+        a.persistActiveOverlay == b.persistActiveOverlay;
+
+    private void ApplyBuffIconSnapshot(int index, BuffIconVisualSnapshot snapshot, float remainingSeconds)
+    {
+        if (index < 0 || index >= spawnedBuffIconUis.Count)
+            return;
+
+        BuffIconUI iconUI = spawnedBuffIconUis[index];
+        if (iconUI == null)
+            return;
+
+        iconUI.SetData(
+            snapshot.sprite != null ? snapshot.sprite : defaultBuffIcon,
+            snapshot.valueLabel,
+            remainingSeconds,
+            snapshot.title,
+            snapshot.body,
+            panelTooltip,
+            tooltipMeasureRect,
+            tooltipHeightRect,
+            tooltipPreferredSide,
+            snapshot.displayStacks,
+            snapshot.displayStacks > 0,
+            snapshot.totalDurationSeconds,
+            snapshot.persistActiveOverlay);
+
+        if (spawnedBuffIcons[index] != null)
+            spawnedBuffIcons[index].name = $"HUDBuff_{snapshot.key}";
+
+        buffIconSnapshots[index] = snapshot;
+    }
+
+    private void SpawnBuffIcon(BuffIconVisualSnapshot snapshot, float remainingSeconds)
+    {
+        if (snapshot.sprite == null && defaultBuffIcon == null)
+            return;
+
+        GameObject icon = Instantiate(buffIconPrefab, buffContainer);
+        icon.name = $"HUDBuff_{snapshot.key}";
+
+        BuffIconUI iconUI = icon.GetComponent<BuffIconUI>();
+        if (iconUI != null)
+        {
+            iconUI.SetData(
+                snapshot.sprite != null ? snapshot.sprite : defaultBuffIcon,
+                snapshot.valueLabel,
+                remainingSeconds,
+                snapshot.title,
+                snapshot.body,
+                panelTooltip,
+                tooltipMeasureRect,
+                tooltipHeightRect,
+                tooltipPreferredSide,
+                snapshot.displayStacks,
+                snapshot.displayStacks > 0,
+                snapshot.totalDurationSeconds,
+                snapshot.persistActiveOverlay);
+        }
+
+        spawnedBuffIcons.Add(icon);
+        spawnedBuffIconUis.Add(iconUI);
+        buffIconSnapshots.Add(snapshot);
     }
 
     private void UpdateBuffTimers()
@@ -258,13 +379,13 @@ public class BuffsDebuffsPanel : MonoBehaviour
         if (activeBuffs == null)
             return;
 
-        int count = Mathf.Min(activeBuffs.Count, spawnedBuffIcons.Count);
+        int count = Mathf.Min(activeBuffs.Count, spawnedBuffIconUis.Count);
         for (int i = 0; i < count; i++)
         {
-            if (spawnedBuffIcons[i] == null || activeBuffs[i] == null)
+            if (activeBuffs[i] == null)
                 continue;
 
-            BuffIconUI iconUI = spawnedBuffIcons[i].GetComponent<BuffIconUI>();
+            BuffIconUI iconUI = spawnedBuffIconUis[i];
             if (iconUI != null)
                 iconUI.UpdateTimer(activeBuffs[i].RemainingSeconds);
         }
@@ -288,6 +409,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 Destroy(spawnedBuffIcons[i]);
         }
         spawnedBuffIcons.Clear();
+        spawnedBuffIconUis.Clear();
+        buffIconSnapshots.Clear();
     }
 
     private void SpawnDebuffIcon(Sprite sprite, string iconName, int stacks, string title, string body)
@@ -314,48 +437,6 @@ public class BuffsDebuffsPanel : MonoBehaviour
         spawnedDebuffIcons.Add(icon);
     }
 
-    private void SpawnBuffIcon(
-        Sprite sprite,
-        string iconName,
-        string valueLabel,
-        float remainingSeconds,
-        string title,
-        string body,
-        int stacks = 0,
-        bool showStacks = false,
-        float totalDurationSeconds = 0f,
-        bool persistActiveOverlay = false)
-    {
-        if (sprite == null)
-            sprite = defaultBuffIcon;
-        if (sprite == null)
-            return;
-
-        GameObject icon = Instantiate(buffIconPrefab, buffContainer);
-        icon.name = $"HUDBuff_{iconName}";
-
-        BuffIconUI iconUI = icon.GetComponent<BuffIconUI>();
-        if (iconUI != null)
-        {
-            iconUI.SetData(
-                sprite,
-                valueLabel,
-                remainingSeconds,
-                title,
-                body,
-                panelTooltip,
-                tooltipMeasureRect,
-                tooltipHeightRect,
-                tooltipPreferredSide,
-                stacks,
-                showStacks,
-                totalDurationSeconds,
-                persistActiveOverlay);
-        }
-
-        spawnedBuffIcons.Add(icon);
-    }
-
     private Sprite GetBuffSpriteFromItem(PlayerBuffController.ActiveBuff buff)
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff &&
@@ -372,6 +453,24 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 return fishingCalmWatersMajorHudIcon;
             if (woodcuttingFlowStateHudIcon != null)
                 return woodcuttingFlowStateHudIcon;
+        }
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, CharacterStats.ShadowHunterHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (shadowHunterHudIcon != null)
+                return shadowHunterHudIcon;
+            if (attackSpeedBuffIcon != null)
+                return attackSpeedBuffIcon;
+        }
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (battleEngineOverloadHudIcon != null)
+                return battleEngineOverloadHudIcon;
+            if (attackSpeedBuffIcon != null)
+                return attackSpeedBuffIcon;
         }
 
         if (buff.type == ConsumableEffectType.HudAbilityBuff && _abilityDatabase != null &&
@@ -433,7 +532,15 @@ public class BuffsDebuffsPanel : MonoBehaviour
     private string GetBuffValueLabel(PlayerBuffController.ActiveBuff buff)
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
+        {
+            if (string.Equals(buff.id, CharacterStats.ShadowHunterHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return "+10%";
+
+            if (string.Equals(buff.id, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return MeleeMajorPassiveTooltipText.FormatOverloadValueLabel(buff.displayStacks);
+
             return "";
+        }
 
         float pct = buff.magnitude * 100f;
 
@@ -479,6 +586,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
+            if (string.Equals(buff.id, CharacterStats.ShadowHunterHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Shadow Hunter";
+
+            if (string.Equals(buff.id, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return MeleeMajorPassiveTooltipText.BattleEngineOverloadTitle;
+
             if (AbilityTooltipDamagePreview.TryBuildHudBuffTooltip(
                     buff.id, buff.displayStacks, SkillsManager.Instance, _abilityDatabase, out string hudTitle, out _))
                 return hudTitle;
@@ -525,6 +638,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
+            if (string.Equals(buff.id, CharacterStats.ShadowHunterHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return "+10% Attack Speed for 7 seconds. Refreshes when you land a critical hit.";
+
+            if (MeleeMajorPassiveTooltipText.TryGetHudBuffTooltip(buff.id, buff.displayStacks, out _, out string overloadBody))
+                return overloadBody;
+
             if (AbilityTooltipDamagePreview.TryBuildHudBuffTooltip(
                     buff.id, buff.displayStacks, SkillsManager.Instance, _abilityDatabase, out _, out string hudBody))
                 return hudBody;

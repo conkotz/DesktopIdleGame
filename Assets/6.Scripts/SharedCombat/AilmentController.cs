@@ -12,8 +12,11 @@ public class AilmentController : MonoBehaviour
 
     [Header("Burn")]
     public const float DefaultBurnTickIntervalSeconds = 3f;
+    public const float DefaultBurnWallClockDurationSeconds = 15f;
 
-    [Tooltip("Number of burn damage ticks before expiring if not refreshed (× tick interval ≈ wall-clock duration).")]
+    [Tooltip("Wall-clock seconds burn keeps ticking each refresh. Faster tick intervals add ticks within this window; combust is unchanged.")]
+    [SerializeField, Min(1f)] private float burnWallClockDurationSeconds = DefaultBurnWallClockDurationSeconds;
+    [Tooltip("Legacy prefab field (× 3s default interval). Ignored when Burn Wall Clock Duration Seconds is set.")]
     [SerializeField, Min(1)] private int burnDurationTicks = 5;
     [Tooltip("Each burn tick deals this fraction of the applying fire hit (min 1/tick), before Burn Damage mult.")]
     [SerializeField, Range(0.01f, 1f)]
@@ -44,7 +47,7 @@ public class AilmentController : MonoBehaviour
     private float chillSlowPerStack = 0.15f;
     private int burnStackCount;
     private int burnDamagePerTick;
-    private int burnTicksRemaining;
+    private float burnExpiresAt = -1f;
     private float _burnTickWaitSeconds = DefaultBurnTickIntervalSeconds;
     private Transform burnDotSource;
     private string _bleedDotDealerLabel = "";
@@ -184,7 +187,7 @@ public class AilmentController : MonoBehaviour
         chillExpireTimes.Clear();
         burnStackCount = 0;
         burnDamagePerTick = 0;
-        burnTicksRemaining = 0;
+        burnExpiresAt = -1f;
         burnTickRoutine = null;
         burnDotSource = null;
         _bleedDotDealerLabel = "";
@@ -677,7 +680,7 @@ public class AilmentController : MonoBehaviour
         bool hadBurn = burnStackCount > 0;
         if (hadBurn)
         {
-            burnTicksRemaining = Mathf.Max(1, burnDurationTicks);
+            RefreshBurnExpiryTimer();
             OnAilmentsChanged?.Invoke();
         }
 
@@ -689,7 +692,7 @@ public class AilmentController : MonoBehaviour
         int candidateTick = Mathf.Max(1, Mathf.CeilToInt(fireDamageDealt * fraction * mult));
         burnDamagePerTick = Mathf.Max(burnDamagePerTick, candidateTick);
         burnStackCount = Mathf.Min(BurnMaxStacks, burnStackCount + 1);
-        burnTicksRemaining = Mathf.Max(1, burnDurationTicks);
+        RefreshBurnExpiryTimer();
         _burnTickWaitSeconds = Mathf.Max(0.05f, burnTickIntervalSeconds);
 
         if (burnTickRoutine == null)
@@ -714,7 +717,7 @@ public class AilmentController : MonoBehaviour
         bool had = burnStackCount > 0;
         burnStackCount = 0;
         burnDamagePerTick = 0;
-        burnTicksRemaining = 0;
+        burnExpiresAt = -1f;
         burnDotSource = null;
         _burnDotDealerLabel = "";
         _hasBurnDotDealerWorldPos = false;
@@ -735,7 +738,7 @@ public class AilmentController : MonoBehaviour
 
         burnStackCount = 0;
         burnDamagePerTick = 0;
-        burnTicksRemaining = 0;
+        burnExpiresAt = -1f;
 
         if (burnTickRoutine != null)
         {
@@ -761,21 +764,32 @@ public class AilmentController : MonoBehaviour
         OnAilmentsChanged?.Invoke();
     }
 
+    private void RefreshBurnExpiryTimer()
+    {
+        burnExpiresAt = Time.time + GetBurnWallClockDurationSeconds();
+    }
+
+    private float GetBurnWallClockDurationSeconds()
+    {
+        if (burnWallClockDurationSeconds > 0f)
+            return burnWallClockDurationSeconds;
+
+        return Mathf.Max(1f, burnDurationTicks * DefaultBurnTickIntervalSeconds);
+    }
+
     private IEnumerator BurnTickRoutine()
     {
         while (!IsDead())
         {
             yield return new WaitForSeconds(Mathf.Max(0.05f, _burnTickWaitSeconds));
 
-            if (burnStackCount <= 0 || burnTicksRemaining <= 0)
+            if (burnStackCount <= 0)
             {
-                burnStackCount = 0;
                 burnDamagePerTick = 0;
-                burnTicksRemaining = 0;
+                burnExpiresAt = -1f;
                 break;
             }
 
-            burnTicksRemaining--;
             if (burnDamagePerTick > 0)
             {
                 if (burnDotSource != null)
@@ -796,6 +810,14 @@ public class AilmentController : MonoBehaviour
             }
 
             OnAilmentsChanged?.Invoke();
+
+            if (Time.time >= burnExpiresAt)
+            {
+                burnStackCount = 0;
+                burnDamagePerTick = 0;
+                burnExpiresAt = -1f;
+                break;
+            }
         }
 
         burnTickRoutine = null;

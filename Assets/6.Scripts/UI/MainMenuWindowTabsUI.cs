@@ -25,7 +25,7 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
     [SerializeField] private Color activeTabColor = new Color32(247, 225, 190, 255);
     [SerializeField] private Color inactiveTabColor = new Color32(168, 152, 118, 200);
 
-    private MainMenuTabId _lastVisualTab = (MainMenuTabId)(-1);
+    private MainMenuTabId _lastVisualTab = MainMenuTabId.None;
 
     private void Awake()
     {
@@ -49,9 +49,9 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
     {
         if (!mainMenu || !mainMenu.IsOpen)
         {
-            if (_lastVisualTab != (MainMenuTabId)(-1))
+            if (_lastVisualTab != MainMenuTabId.None)
             {
-                _lastVisualTab = (MainMenuTabId)(-1);
+                _lastVisualTab = MainMenuTabId.None;
                 ApplyDimmedToAll();
             }
             return;
@@ -77,7 +77,7 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
     {
         if (!mainMenu)
             return;
-        RefreshTabVisuals(mainMenu.IsOpen ? mainMenu.GetActiveTab() : (MainMenuTabId)(-1), force);
+        RefreshTabVisuals(mainMenu.IsOpen ? mainMenu.GetActiveTab() : MainMenuTabId.None, force);
     }
 
     private void RefreshTabVisuals(MainMenuTabId active, bool force = false)

@@ -55,6 +55,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text rangeText;
     [SerializeField] private TMP_Text critChanceText;
     [SerializeField] private TMP_Text critDamageText;
+    [SerializeField] private TMP_Text cooldownReductionText;
     [SerializeField] private TMP_Text lifeStealText;
 
     [Header("Minions (owner scaling — no DPS yet)")]
@@ -419,6 +420,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             float critBonusPct = stats.HasCrittableDirectDamage ? (stats.CritMultiplier - 1f) * 100f : 0f;
             critDamageText.text = $"Crit Damage: {critBonusPct:+0.#;-0.#;0}%";
         }
+
+        if (cooldownReductionText)
+            cooldownReductionText.text =
+                $"Cooldown Reduction: {stats.FinalAbilityCooldownReductionPercentPoints:0.#}%";
 
         if (lifeStealText)
         {

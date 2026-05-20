@@ -88,6 +88,32 @@ public static class AbilityTooltipDamagePreview
         return UnityEngine.Object.FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Include);
     }
 
+    public static PlayerAbilityController FindLocalPlayerAbilityController()
+    {
+        var player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player != null)
+        {
+            var pac = player.GetComponent<PlayerAbilityController>();
+            if (pac != null)
+                return pac;
+        }
+
+        return UnityEngine.Object.FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
+    }
+
+    private static void AppendTooltipEnergyCooldownFooter(
+        StringBuilder body,
+        System.Func<string, string> wrapLine,
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        CharacterStats stats,
+        PlayerAbilityController abilityController)
+    {
+        AbilityTooltipAdjustments.ResolveTooltipEnergyAndCooldown(
+            def, skillsManager, stats, abilityController, out float energy, out float cooldown);
+        body.AppendLine(wrapLine($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+    }
+
     public static string FormatPhysSuffix(CharacterStats stats, float physicalMultiplier)
     {
         if (stats == null)
@@ -620,12 +646,14 @@ public static class AbilityTooltipDamagePreview
 
         string O(string line) => orangeMarkup ? $"<color=#FFB347>{line}</color>" : line;
 
+        PlayerAbilityController abilityController = FindLocalPlayerAbilityController();
+        float liveDamageMultiplier = AbilityTooltipAdjustments.GetTooltipAbilityDamageMultiplier(abilityController);
+
         float weaponMult = def.weaponDamageMultiplier;
         float cooldown = Mathf.Max(0f, def.cooldown);
         AbilityTooltipAdjustments.ApplySkillTreeChoices(def, skillsManager, ref weaponMult, ref cooldown);
 
         float allM = def.GetEffectiveAllDamageMultiplier();
-        float energy = Mathf.Max(0f, def.energyCost);
 
         var body = new StringBuilder();
         body.AppendLine(O("Effects:"));
@@ -637,7 +665,7 @@ public static class AbilityTooltipDamagePreview
             float lumberDur = GetTooltipBuffMinionDisplayDurationSeconds(def, LumberFrenzyBuffDurationSecondsTooltip, 0f);
             body.AppendLine(O($"Duration: {lumberDur:0.#}s"));
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
         }
 
@@ -648,7 +676,7 @@ public static class AbilityTooltipDamagePreview
             float fishingDur = GetTooltipBuffMinionDisplayDurationSeconds(def, FishingFrenzyBuffDurationSecondsTooltip, 0f);
             body.AppendLine(O($"Duration: {fishingDur:0.#}s"));
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
         }
 
@@ -668,7 +696,7 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(string.Empty);
             body.AppendLine(O($"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, AbilityCombatPower.FlameChargeTrailDurationSeconds, 0f):0.#}s (trail)"));
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
         }
 
@@ -687,7 +715,7 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(string.Empty);
             body.AppendLine(O("Duration: Toggle"));
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
         }
 
@@ -698,7 +726,7 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(string.Empty);
             body.AppendLine(O($"Duration: {dur:0.#}s"));
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
         }
 
@@ -711,7 +739,7 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(string.Empty);
             body.AppendLine(O($"Duration: {avatarDur:0.#}s"));
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
         }
 
@@ -722,7 +750,7 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(O(
                 $"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, 40f, GetCleavingChopDurationBonusSeconds(skillsManager)):0.#}s"));
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
         }
 
@@ -733,7 +761,7 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(O(
                 $"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, SpectralAxeTooltipDurationSeconds, 0f):0.#}s"));
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
         }
 
@@ -751,7 +779,7 @@ public static class AbilityTooltipDamagePreview
             }
 
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+            AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
         }
 
@@ -784,7 +812,7 @@ public static class AbilityTooltipDamagePreview
         {
             int crescentSel = GetMeleeLv15BranchChoice(skillsManager, 2);
             string dmgSuffix = DamageTimingSuffix();
-            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
 
             if (crescentSel == 0)
             {
@@ -805,7 +833,7 @@ public static class AbilityTooltipDamagePreview
         {
             string dmgSuffix = DamageTimingSuffix();
             int fsEnhance = GetMeleeLv45BranchChoice(skillsManager);
-            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
 
             if (fsEnhance == 1)
             {
@@ -831,7 +859,7 @@ public static class AbilityTooltipDamagePreview
         {
             string dmgSuffix = DamageTimingSuffix();
             int enhance = GetShadowStrikeBranchChoice(skillsManager);
-            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
 
             body.AppendLine(O(
@@ -857,7 +885,7 @@ public static class AbilityTooltipDamagePreview
             float normalMult = AbilityCombatPower.BladestormNormalHitWeaponMultiplier;
             float finaleMult = AbilityCombatPower.BladestormFinaleHitWeaponMultiplier;
 
-            ComputeAverageAbilityHitSplit(def, stats, normalMult, allM, out float normPhys, out float normMag, out float normCorr);
+            ComputeAverageAbilityHitSplit(def, stats, normalMult, allM, out float normPhys, out float normMag, out float normCorr, liveDamageMultiplier);
             int perStrikeTotal = Mathf.RoundToInt(normPhys + normMag + normCorr);
             body.AppendLine(O(
                 $"Relentless Execution: {channelSeconds:0.#}s channel — {strikeCount} strikes at {AbilityCombatPower.BladestormAttackSpeedMultiplier * 100f:0.#}% attack speed"));
@@ -868,7 +896,7 @@ public static class AbilityTooltipDamagePreview
 
             if (enhance == 0)
             {
-                ComputeAverageAbilityHitSplit(def, stats, finaleMult, allM, out float finPhys, out float finMag, out float finCorr);
+                ComputeAverageAbilityHitSplit(def, stats, finaleMult, allM, out float finPhys, out float finMag, out float finCorr, liveDamageMultiplier);
                 int finaleTotal = Mathf.RoundToInt(finPhys + finMag + finCorr);
                 body.AppendLine(O(
                     $"Finale: final strike {finaleTotal} total damage{dmgSuffix} (150% weapon damage)"));
@@ -880,7 +908,7 @@ public static class AbilityTooltipDamagePreview
         {
             string dmgSuffix = DamageTimingSuffix();
             int enhance = GetExecutionersDescentBranchChoice(skillsManager);
-            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
 
             ComputeAverageAbilityHitSplit(
@@ -890,7 +918,8 @@ public static class AbilityTooltipDamagePreview
                 allM,
                 out float shockPhys,
                 out float shockMag,
-                out float shockCorr);
+                out float shockCorr,
+                liveDamageMultiplier);
             int shockTotal = Mathf.RoundToInt(shockPhys + shockMag + shockCorr);
             body.AppendLine(O(
                 $"Shockwave: {shockTotal} damage to enemies within {AbilityCombatPower.ExecutionersDescentShockwaveRadius:0.#} units of the target"));
@@ -909,7 +938,7 @@ public static class AbilityTooltipDamagePreview
         else if (IsWhirlwind(def))
         {
             string dmgSuffix = DamageTimingSuffix();
-            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
 
             int wwEnhance = GetMeleeLv15BranchChoice(skillsManager, 0);
@@ -922,7 +951,7 @@ public static class AbilityTooltipDamagePreview
         else if (UsesCombinedTotalHitDamageTooltip(def))
         {
             string dmgSuffix = DamageTimingSuffix();
-            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit);
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
         }
 
@@ -934,7 +963,7 @@ public static class AbilityTooltipDamagePreview
         }
 
         body.AppendLine(string.Empty);
-        body.AppendLine(O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+        AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
 
         return body.ToString().TrimEnd();
     }
@@ -1051,10 +1080,10 @@ public static class AbilityTooltipDamagePreview
 
         string O(string line) => orangeMarkup ? $"<color=#FFB347>{line}</color>" : line;
 
-        float weaponMult = def.weaponDamageMultiplier;
-        float cooldown = Mathf.Max(0f, def.cooldown);
-        AbilityTooltipAdjustments.ApplySkillTreeChoices(def, skillsManager, ref weaponMult, ref cooldown);
-        float energy = Mathf.Max(0f, def.energyCost);
+        CharacterStats stats = FindLocalPlayerStats();
+        PlayerAbilityController abilityController = FindLocalPlayerAbilityController();
+        AbilityTooltipAdjustments.ResolveTooltipEnergyAndCooldown(
+            def, skillsManager, stats, abilityController, out float energy, out float cooldown);
         return O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown");
     }
 
@@ -1185,21 +1214,61 @@ public static class AbilityTooltipDamagePreview
             moveSpeed = AbilityCombatPower.BattleTranceControlledMoveSpeedBonus;
         }
 
+        AppendBattleTranceEffectLines(body, O, cdr, atkSpeed, damageTaken, moveSpeed, enhance);
+    }
+
+    private static void AppendBattleTranceBaseTooltipEffects(StringBuilder body, System.Func<string, string> O)
+    {
+        AppendBattleTranceEffectLines(
+            body,
+            O,
+            AbilityCombatPower.BattleTranceBaseAbilityCooldownReduction,
+            AbilityCombatPower.BattleTranceBaseAttackSpeedBonus,
+            AbilityCombatPower.BattleTranceBaseDamageTakenMultiplier,
+            0f,
+            enhancePick: -1);
+    }
+
+    private static void AppendBattleTranceEffectLines(
+        StringBuilder body,
+        System.Func<string, string> O,
+        float cdr,
+        float atkSpeed,
+        float damageTakenMultiplier,
+        float moveSpeed,
+        int enhancePick)
+    {
         body.AppendLine(O("While active:"));
         body.AppendLine(O($"+{cdr * 100f:0.#}% ability cooldown reduction"));
         body.AppendLine(O($"+{atkSpeed * 100f:0.#}% attack speed"));
         body.AppendLine(O(
             $"+{(AbilityCombatPower.BattleTranceBaseMeleeDamageMultiplier - 1f) * 100f:0.#}% melee damage"));
-        body.AppendLine(O($"+{(damageTaken - 1f) * 100f:0.#}% damage taken"));
+        body.AppendLine(O($"+{(damageTakenMultiplier - 1f) * 100f:0.#}% damage taken"));
 
         if (moveSpeed > 0.001f)
             body.AppendLine(O($"+{moveSpeed * 100f:0.#}% movement speed"));
 
-        if (enhance == 2)
+        if (enhancePick == 2)
         {
             body.AppendLine(O(
                 $"Killing an enemy extends duration by {AbilityCombatPower.BattleTranceEndlessAssaultKillExtensionSeconds:0.#}s (up to +{AbilityCombatPower.BattleTranceEndlessAssaultMaxBonusDurationSeconds:0.#}s)."));
         }
+    }
+
+    /// <summary>Skill tree spine rows: flavor line plus base combat effects (no enhancement pick).</summary>
+    public static bool TryBuildSkillTreeAbilityEffectsAppendix(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        out string appendix)
+    {
+        appendix = null;
+        if (!IsBattleTrance(def))
+            return false;
+
+        var body = new StringBuilder();
+        AppendBattleTranceBaseTooltipEffects(body, s => s);
+        appendix = body.ToString().TrimEnd();
+        return !string.IsNullOrWhiteSpace(appendix);
     }
 
     private static void AppendCleavingChopTooltipEffects(
@@ -1731,7 +1800,8 @@ public static class AbilityTooltipDamagePreview
         float allM,
         out float physHit,
         out float magHit,
-        out float corrHit)
+        out float corrHit,
+        float liveDamageMultiplier = 1f)
     {
         physHit = 0f;
         magHit = 0f;
@@ -1750,14 +1820,15 @@ public static class AbilityTooltipDamagePreview
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
         float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
         float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
+        float dmgMult = Mathf.Max(0f, liveDamageMultiplier);
 
         float physLine = avgPhys * wEff + ailmentBonus;
         float magLine = avgMag * wEff * elemM + elementBonus * elemM;
         float corrLine = avgCorr * wEff;
 
-        physHit = physLine * allM * apM;
-        magHit = magLine * allM * apM;
-        corrHit = corrLine * allM * apM;
+        physHit = physLine * allM * apM * dmgMult;
+        magHit = magLine * allM * apM * dmgMult;
+        corrHit = corrLine * allM * apM * dmgMult;
     }
 
     private static void AppendPerHitDamageEffectLines(

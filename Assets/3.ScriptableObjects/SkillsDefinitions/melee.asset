@@ -243,8 +243,8 @@ MonoBehaviour:
     title: Ailment Attunement
     description: '+5% Bleed, Poison, Burn Ailment Chance
 
-      +5% Melee Damage to enemies
-      affected by an ailment'
+      +5% Melee Damage
+      to enemies affected by an ailment'
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -502,8 +502,10 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 20
-    title: Major Passive II
-    description: Placeholder major passive milestone.
+    title: Predator's Instinct
+    description: '+5% Critical Chance
+
+      +10% Critical Damage'
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -517,15 +519,15 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices:
-    - requiredLevel: 25
-      title: Major Passive II Choice A
-      description: Placeholder melee choice.
+    - requiredLevel: 23
+      title: Executioner
+      description: Crits gain 30% critical damage against enemies below 30% HP.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
-    - requiredLevel: 25
-      title: Major Passive II Choice B
-      description: Placeholder melee choice.
+    - requiredLevel: 23
+      title: Shadow Hunter
+      description: Crits grant 10% Attack Speed for 7 seconds.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -768,8 +770,8 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 30
-    title: Major Passive III
-    description: Placeholder major passive milestone.
+    title: Battle Engine
+    description: Gain 5 Energy when abilities hit enemies.
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -783,15 +785,16 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices:
-    - requiredLevel: 35
-      title: Major Passive III Choice A
-      description: Placeholder melee choice.
+    - requiredLevel: 33
+      title: Rapid Casting
+      description: Using an ability lowers your other cooldowns by 0.5 seconds.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
-    - requiredLevel: 35
-      title: Major Passive III Choice B
-      description: Placeholder melee choice.
+    - requiredLevel: 33
+      title: Overload
+      description: Using an ability increases the cost of all abilities by 10% and
+        increases their damage by 5% (max stacks 5).
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -895,7 +898,19 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 35
     title: Battle Trance
-    description: Enter a heightened combat state for 10 seconds.
+    description: 'Enter a heightened combat state for 10 seconds.
+
+      While active:
+
+      +15%
+      ability cooldown reduction
+
+      +15% attack speed
+
+      +10% melee damage
+
+      +10%
+      damage taken'
     icon: {fileID: -7588507058973284862, guid: efbbcf5bf04528a47be779022ad595a7, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0

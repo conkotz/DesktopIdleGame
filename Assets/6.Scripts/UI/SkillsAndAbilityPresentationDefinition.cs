@@ -133,6 +133,17 @@ public static class SkillsAbilityPresentationResolver
         if (unlock?.ability != null)
         {
             string fromAbility = ResolveAbilitySkillTreeBodyFromPresentation(unlock.ability);
+
+            if (AbilityTooltipDamagePreview.TryBuildSkillTreeAbilityEffectsAppendix(
+                    unlock.ability,
+                    SkillsManager.Instance,
+                    out string effectsAppendix))
+            {
+                fromAbility = string.IsNullOrWhiteSpace(fromAbility)
+                    ? effectsAppendix
+                    : $"{fromAbility.TrimEnd()}\n\n{effectsAppendix}";
+            }
+
             if (!string.IsNullOrWhiteSpace(fromAbility))
                 return fromAbility;
         }

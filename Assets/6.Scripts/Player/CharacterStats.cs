@@ -217,6 +217,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private float baseBurnExplosionMultiplier = 1f;
     [Tooltip("Additive burn tick multiplier from skills, buffs, and passives (added after character base and gear).")]
     [SerializeField] private float bonusBurnDamageMultiplier = 0f;
+    [Tooltip("Additive ability cooldown reduction from passives and buffs (0.15 = 15% CDR). Stacks with gear and combat modifiers.")]
+    [SerializeField] private float bonusAbilityCooldownReductionFraction = 0f;
     [SerializeField] private float baseShockDuration = 5f;
     [SerializeField, Range(0f, 1f)] private float baseShockDamageTakenMultiplier = 0.15f;
 
@@ -271,6 +273,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private const float combatPowerGuardHealthEquivalentWeight = 0.70f;
 
     private const float LowHealthThreshold01 = 0.35f;
+    public const float PredatorsInstinctExecutionerHpThreshold01 = 0.30f;
+    public const int PredatorsInstinctMajorPassiveLevel = 20;
+    public const int BattleEngineMajorPassiveLevel = 30;
+    public const string BattleEngineOverloadHudBuffId = "BattleEngine_Overload";
+    public const float BattleEngineOverloadDurationSeconds = 10f;
+    public const string ShadowHunterHudBuffId = "PredatorsInstinct_ShadowHunter";
+    public const float ShadowHunterAttackSpeedBonus = 0.10f;
+    public const float ShadowHunterAttackSpeedDurationSeconds = 7f;
 
     private const float GuardOutOfCombatSecondsBeforeRegen = 10f;
     private const float GuardRegenOrDecayPerSecondFraction = 0.10f;
@@ -306,6 +316,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float meleeBurnChance;
         public int poisonMaxStacksBonus;
         public float burnTickIntervalReduction;
+        /// <summary>Additive crit damage vs enemies at or below <see cref="PredatorsInstinctExecutionerHpThreshold01"/> (Executioner).</summary>
+        public float critDamageVsLowHpBelow30;
         /// <summary>Minion damage % (fraction). Phase 1: wired from skill options later; gear uses <see cref="BonusStats"/>.</summary>
         public float minionDamagePercent;
         public float minionAttackSpeedPercent;
@@ -382,6 +394,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (_ownerPlayer)
             _playerCombatState = _ownerPlayer.GetComponent<PlayerCombatState>();
         ResolveOwnerEnemy();
+    }
+
+    private void Update()
+    {
+        TickShadowHunterBuffExpiry();
+    }
+
+    private void TickShadowHunterBuffExpiry()
+    {
+        if (_shadowHunterAttackSpeedEndsAt <= 0f || Time.time < _shadowHunterAttackSpeedEndsAt)
+            return;
+
+        _shadowHunterAttackSpeedEndsAt = -1f;
+        if (buffController)
+            buffController.ClearHudAbilityBuff(ShadowHunterHudBuffId);
+        NotifyStatsChanged();
+    }
+
+    private float GetShadowHunterAttackSpeedBonusFraction()
+    {
+        if (_shadowHunterAttackSpeedEndsAt <= 0f || Time.time >= _shadowHunterAttackSpeedEndsAt)
+            return 0f;
+
+        return ShadowHunterAttackSpeedBonus;
     }
 
     private void OnEnable()
@@ -623,11 +659,38 @@ public class CharacterStats : MonoBehaviour, ISaveable
         set => SetCombatStatAdditive(ref _combatAbilityCooldownReductionFraction, value);
     }
 
+    /// <summary>Always-on ability CDR from passives/buffs (excludes temporary combat modifiers).</summary>
+    public float BonusAbilityCooldownReductionFraction
+    {
+        get => bonusAbilityCooldownReductionFraction;
+        set
+        {
+            float v = Mathf.Max(0f, value);
+            if (Mathf.Approximately(bonusAbilityCooldownReductionFraction, v))
+                return;
+            bonusAbilityCooldownReductionFraction = v;
+            NotifyStatsChanged();
+        }
+    }
+
+    /// <summary>Total ability cooldown reduction from gear, passives, and active combat modifiers (0.15 = 15%).</summary>
+    public float FinalAbilityCooldownReductionFraction =>
+        Mathf.Max(
+            0f,
+            GetEquippedAbilityCooldownReductionFraction() +
+            bonusAbilityCooldownReductionFraction +
+            _combatAbilityCooldownReductionFraction);
+
+    /// <summary>UI: ability cooldown reduction as percentage points (15 = 15%).</summary>
+    public float FinalAbilityCooldownReductionPercentPoints =>
+        FinalAbilityCooldownReductionFraction * 100f;
+
     private float _combatMeleeDamageMultiplier = 1f;
     private float _combatAttackSpeedPercentBonus;
     private float _combatMoveSpeedPercentBonus;
     private float _combatDamageTakenMultiplier = 1f;
     private float _combatAbilityCooldownReductionFraction;
+    private float _shadowHunterAttackSpeedEndsAt = -1f;
 
     private void SetCombatStatMultiplier(ref float field, float value)
     {
@@ -1526,6 +1589,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
+    private float GetEquippedAbilityCooldownReductionFraction()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+        {
+            if (def == null) continue;
+            total += def.bonusStats.abilityCooldownReductionFraction;
+        }
+        return total;
+    }
+
     private float GetEquippedMinionDamagePercent()
     {
         float total = 0f;
@@ -1851,8 +1925,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Bleed is a single-stack DoT in the current combat model.</summary>
     public int BleedMaxStacks => 1;
 
-    /// <summary>Burn DoT duration shown in UI (matches default burn tick window on targets).</summary>
-    public float BurnDotDurationSeconds => 5f * BurnTickIntervalSeconds;
+    /// <summary>Burn DoT duration shown in UI (fixed wall-clock window; tick rate does not shorten it).</summary>
+    public float BurnDotDurationSeconds => AilmentController.DefaultBurnWallClockDurationSeconds;
 
     /// <summary>Chance to apply shock for stats panel: lightning magic hits use magic ailment chance; otherwise melee shock.</summary>
     public float ShockApplyChancePercentForStatsPanel
@@ -2120,6 +2194,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             gearAtkSpeedPct += buffController.GetTotalMagnitude(ConsumableEffectType.AttackSpeed);
 
         gearAtkSpeedPct += CombatAttackSpeedPercentBonus;
+        gearAtkSpeedPct += GetShadowHunterAttackSpeedBonusFraction();
 
         var support = GetActiveOffHandSupportDef();
         if (support)
@@ -2306,6 +2381,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
 
         ApplyLevel10AilmentAttunementBranch(meleeLevel, ref total);
+        ApplyLevel20PredatorsInstinctBranch(meleeLevel, ref total);
 
         int pastCap = Mathf.Max(0, meleeLevel - SkillPostCapThresholdLevel);
         if (pastCap > 0)
@@ -2432,6 +2508,97 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 total.burnTickIntervalReduction += 0.5f;
                 break;
         }
+    }
+
+    private void ApplyLevel20PredatorsInstinctBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
+    {
+        if (meleeLevel < PredatorsInstinctMajorPassiveLevel)
+            return;
+
+        total.meleeCritChance += 0.05f;
+        total.meleeCritDamage += 0.10f;
+
+        int selected = skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(SkillType.Melee, PredatorsInstinctMajorPassiveLevel, -1)
+            : -1;
+
+        if (selected == 0)
+            total.critDamageVsLowHpBelow30 += 0.30f;
+    }
+
+    public bool IsPredatorsInstinctUnlocked()
+    {
+        return skillsManager != null &&
+               skillsManager.GetLevel(SkillType.Melee) >= PredatorsInstinctMajorPassiveLevel;
+    }
+
+    public int GetPredatorsInstinctEnhancementPick()
+    {
+        if (!IsPredatorsInstinctUnlocked())
+            return -1;
+
+        return skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(SkillType.Melee, PredatorsInstinctMajorPassiveLevel, -1)
+            : -1;
+    }
+
+    public bool IsBattleEngineUnlocked()
+    {
+        return skillsManager != null &&
+               skillsManager.GetLevel(SkillType.Melee) >= BattleEngineMajorPassiveLevel;
+    }
+
+    public int GetBattleEngineEnhancementPick()
+    {
+        if (!IsBattleEngineUnlocked())
+            return -1;
+
+        return skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(SkillType.Melee, BattleEngineMajorPassiveLevel, -1)
+            : -1;
+    }
+
+    /// <summary>
+    /// Scales already-crit damage when Executioner applies (adds +30% crit damage vs targets at or below 30% HP).
+    /// </summary>
+    public float GetPredatorsInstinctExecutionerCritDamageFactor(EnemyBaseController target, bool wasCrit)
+    {
+        if (!wasCrit || target == null)
+            return 1f;
+
+        float bonus = GetActiveMeleeMinorBonuses().critDamageVsLowHpBelow30;
+        if (bonus <= 0f)
+            return 1f;
+
+        CharacterStats targetStats = target.GetComponent<CharacterStats>();
+        if (targetStats == null || targetStats.MaxHP <= 0f)
+            return 1f;
+
+        float hp01 = targetStats.HP / Mathf.Max(1f, targetStats.MaxHP);
+        if (hp01 > PredatorsInstinctExecutionerHpThreshold01)
+            return 1f;
+
+        float critMult = Mathf.Max(1f, CritMultiplier);
+        return (critMult + bonus) / critMult;
+    }
+
+    public void OnPlayerCritLanded()
+    {
+        if (GetPredatorsInstinctEnhancementPick() != 1)
+            return;
+
+        if (!buffController)
+            buffController = GetComponent<PlayerBuffController>();
+        if (!buffController)
+            return;
+
+        _shadowHunterAttackSpeedEndsAt = Time.time + ShadowHunterAttackSpeedDurationSeconds;
+        buffController.SetHudAbilityBuff(
+            ShadowHunterHudBuffId,
+            1,
+            _shadowHunterAttackSpeedEndsAt,
+            ShadowHunterAttackSpeedDurationSeconds);
+        NotifyStatsChanged();
     }
 
     private static void ApplyMeleeMinorOption(MeleeMinorNodeStatOption option, ref MeleeMinorNodeBonuses total)
