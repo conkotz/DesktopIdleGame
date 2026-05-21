@@ -25,6 +25,9 @@ public class HotkeySettingsRowUI : MonoBehaviour
     [Tooltip("Shown while waiting for a key.")]
     [SerializeField] private string listeningPrompt = "Press any key…";
 
+    private static readonly Color KeyButtonImageColor = Color.white;
+    private static readonly Color KeyButtonTextColor = new(0.22f, 0.16f, 0.12f, 1f);
+
     private bool _listening;
     private Coroutine _deferredFocusCoroutine;
     private static KeyCode[] _keyScanOrder;
@@ -199,6 +202,7 @@ public class HotkeySettingsRowUI : MonoBehaviour
             mgr.OnBindingsChanged += RefreshDisplay;
 
         ApplyActionLabelFromBindId();
+        ApplyNeutralRebindButtonStyle();
         RefreshDisplay();
     }
 
@@ -349,12 +353,50 @@ public class HotkeySettingsRowUI : MonoBehaviour
         if (listeningText != null)
             listeningText.gameObject.SetActive(false);
 
+        ApplyNeutralRebindButtonStyle();
+
         if (mgr == null || currentKeyText == null)
             return;
 
         KeyCode k = mgr.GetBinding(bindId);
         string s = HotkeyBindingManager.GetDisplayString(k);
         currentKeyText.text = string.IsNullOrEmpty(s) ? "(unbound)" : s;
+    }
+
+    /// <summary>
+    /// All hotkey rows share the same neutral white key button (not action-bar food/potion colors).
+    /// </summary>
+    private void ApplyNeutralRebindButtonStyle()
+    {
+        if (rebindButton == null)
+            return;
+
+        Image target = rebindButton.targetGraphic as Image;
+        if (target != null)
+            target.color = KeyButtonImageColor;
+
+        Image[] images = rebindButton.GetComponentsInChildren<Image>(true);
+        for (int i = 0; i < images.Length; i++)
+        {
+            Image img = images[i];
+            if (img == null)
+                continue;
+            if (listeningText != null && img.gameObject == listeningText.gameObject)
+                continue;
+            img.color = KeyButtonImageColor;
+        }
+
+        ColorBlock colors = rebindButton.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(0.96f, 0.96f, 0.96f, 1f);
+        colors.pressedColor = new Color(0.78f, 0.78f, 0.78f, 1f);
+        colors.selectedColor = Color.white;
+        colors.disabledColor = new Color(0.78f, 0.78f, 0.78f, 0.5f);
+        colors.colorMultiplier = 1f;
+        rebindButton.colors = colors;
+
+        if (currentKeyText != null)
+            currentKeyText.color = KeyButtonTextColor;
     }
 
     /// <summary>Optional: set from code; overrides automatic labels until next <see cref="ApplyActionLabelFromBindId"/>.</summary>
@@ -386,6 +428,7 @@ public class HotkeySettingsRowUI : MonoBehaviour
     private void OnValidate()
     {
         ApplyActionLabelFromBindId();
+        ApplyNeutralRebindButtonStyle();
     }
 #endif
 }

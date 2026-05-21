@@ -120,6 +120,24 @@ public class MapNodePortalTeleporter : MonoBehaviour
         player.MoveToPointX(arrivalX);
     }
 
+    /// <summary>Cancels a pending walk-to-portal started by <see cref="OnClickedByPlayer"/>.</summary>
+    public static void CancelPendingApproachForPlayer(PlayerController player)
+    {
+        if (player == null)
+            return;
+
+        var portals = Object.FindObjectsByType<MapNodePortalTeleporter>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 0; i < portals.Length; i++)
+        {
+            MapNodePortalTeleporter p = portals[i];
+            if (p != null && p._pendingEnter && p._pendingPlayer == player)
+            {
+                p._pendingEnter = false;
+                p._pendingPlayer = null;
+            }
+        }
+    }
+
     private void TryEnterNow()
     {
         MapNodeDefinition node = ResolveTarget();

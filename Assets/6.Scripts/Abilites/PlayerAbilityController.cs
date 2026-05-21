@@ -1644,6 +1644,201 @@ public class PlayerAbilityController : MonoBehaviour
         return true;
     }
 
+    private const string NoTargetsInRangeLogMessage = "No targets in range";
+    private const float NoTargetsInRangeLogCooldownSeconds = 3f;
+    private static float _nextNoTargetsInRangeLogTime = -999f;
+
+    /// <summary>
+    /// Keyboard movement mode: pick the closest valid enemy for this ability, set combat target, or block the cast.
+    /// </summary>
+    public bool TryPrepareKeyboardModeAbilityTarget(string abilityId)
+    {
+        if (!PlayerMovementSettingsStore.UsesKeyboardMovement())
+            return true;
+
+        AbilityDefinition def = GetAbilityDefinition(abilityId);
+        if (!def || !def.RequiresKeyboardRangeCheckToActivate())
+            return true;
+
+        if (TryFindKeyboardModeAbilityTarget(def, out EnemyBaseController target))
+        {
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+            combat?.SetTarget(target);
+            return true;
+        }
+
+        LogNoTargetsInRangeThrottled();
+        return false;
+    }
+
+    private static void LogNoTargetsInRangeThrottled()
+    {
+        if (Time.time < _nextNoTargetsInRangeLogTime)
+            return;
+
+        _nextNoTargetsInRangeLogTime = Time.time + NoTargetsInRangeLogCooldownSeconds;
+        GameLog.Add(NoTargetsInRangeLogMessage, GameLog.CannotMessageColor);
+    }
+
+    private bool TryFindKeyboardModeAbilityTarget(AbilityDefinition def, out EnemyBaseController target)
+    {
+        target = null;
+        if (!def)
+            return false;
+
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+
+        string id = def.abilityId;
+
+        if (string.Equals(id, WhirlwindId, StringComparison.OrdinalIgnoreCase))
+            return TryFindClosestEnemyInWhirlwindRadius(out target);
+
+        if (string.Equals(id, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
+            return TryFindClosestEnemyInCrescentSlashArc(out target);
+
+        if (string.Equals(id, ShadowStrikeId, StringComparison.OrdinalIgnoreCase))
+            return TryFindClosestEnemyInShadowStrikeArc(out target);
+
+        if (string.Equals(id, BladestormId, StringComparison.OrdinalIgnoreCase))
+            return TryFindClosestBladestormTarget(out target);
+
+        if (string.Equals(id, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase))
+        {
+            target = FindClosestEnemyWithinExecutionersDescentCastRange();
+            return target != null;
+        }
+
+        if (string.Equals(id, FinalSeveranceId, StringComparison.OrdinalIgnoreCase))
+            return TryFindClosestEnemyInFinalSeveranceRange(out target);
+
+        if (combat != null)
+        {
+            target = combat.FindClosestEnemyInAttackRange();
+            if (target != null)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool TryFindClosestEnemyInWhirlwindRadius(out EnemyBaseController target)
+    {
+        target = null;
+        if (stats == null)
+            return false;
+
+        float radius = GetWhirlwindEffectiveRadius();
+        float ownerX = transform.position.x;
+        float ownerHalf = GetOwnerHalfWidthX();
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        float bestDist = float.MaxValue;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (enemy == null || enemy.IsDead)
+                continue;
+
+            if (!IsEnemyWithinWhirlRange(enemy, radius, ownerX, ownerHalf, out float edgeGap))
+                continue;
+
+            if (edgeGap < bestDist)
+            {
+                bestDist = edgeGap;
+                target = enemy;
+            }
+        }
+
+        return target != null;
+    }
+
+    private bool TryFindClosestEnemyInCrescentSlashArc(out EnemyBaseController target)
+    {
+        target = PickClosestForwardArcEnemy(
+            CollectCrescentSlashForwardHits(GetWhirlwindBaseRange() + 6f));
+        return target != null;
+    }
+
+    private bool TryFindClosestEnemyInShadowStrikeArc(out EnemyBaseController target)
+    {
+        target = PickClosestForwardArcEnemy(
+            CollectShadowStrikeForwardHits(AbilityCombatPower.ShadowStrikeForwardReach));
+        return target != null;
+    }
+
+    private bool TryFindClosestBladestormTarget(out EnemyBaseController target)
+    {
+        target = null;
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        float ownerX = transform.position.x;
+        EnemyBaseController best = null;
+        float bestDist = float.MaxValue;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!IsEnemyValidBladestormTarget(enemy))
+                continue;
+
+            float dist = Mathf.Abs(enemy.transform.position.x - ownerX);
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = enemy;
+            }
+        }
+
+        if (best != null)
+        {
+            target = best;
+            return true;
+        }
+
+        target = PickClosestForwardArcEnemy(
+            CollectBladestormForwardHits(AbilityCombatPower.BladestormForwardReach));
+        return target != null;
+    }
+
+    private bool TryFindClosestEnemyInFinalSeveranceRange(out EnemyBaseController target)
+    {
+        target = null;
+        float ownerX = transform.position.x;
+        float maxDist = AbilityCombatPower.FinalSeveranceHitRangeHalfWidth;
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        float bestDist = float.MaxValue;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+
+            float dist = Mathf.Abs(enemy.transform.position.x - ownerX);
+            if (dist > maxDist)
+                continue;
+
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                target = enemy;
+            }
+        }
+
+        return target != null;
+    }
+
+    private static EnemyBaseController PickClosestForwardArcEnemy(
+        List<(EnemyBaseController enemy, float dist)> forwardHits)
+    {
+        if (forwardHits == null || forwardHits.Count == 0)
+            return null;
+
+        forwardHits.Sort((a, b) => a.dist.CompareTo(b.dist));
+        return forwardHits[0].enemy;
+    }
+
     /// <param name="allowSoulforgedRecastWhileActive">
     /// When false (e.g. idle auto-abilities), an active Soulforged Weapon minion does not receive recast/retarget — use fails so other bar abilities can run.
     /// Manual bar use keeps default true (player can recast while the summon is up).

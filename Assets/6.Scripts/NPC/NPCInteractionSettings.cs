@@ -442,15 +442,13 @@ public class NPCInteractionSettings : MonoBehaviour
             return;
         }
 
-        if (IsPlayerWithinNpcArrivalRange(player))
+        if (IsPlayerWithinNpcArrivalRange(player) ||
+            WorldInteractRouter.IsPlayerWithinImmediateInteractRange(player, ResolveInteractCollider2D()))
         {
             InteractNow();
             return;
         }
 
-        // Walk to the NPC's nearest collider edge (offset back by the player's own half-width + padding) instead of the
-        // NPC's transform.position.x — otherwise the player walks through the NPC sprite before the arrival check fires
-        // because MoveToPointX would keep targeting the NPC center.
         CancelPendingInteract();
         _pendingInteract = this;
         player.MoveToPointX(ComputeApproachTargetX(player));

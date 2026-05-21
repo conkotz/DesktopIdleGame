@@ -29,3 +29,4 @@ MonoBehaviour:
   requiredWeaponType: 1
   sourceSkill: 3
   unlockLevel: 15
+  requireRangeCheckToActivate: 0

@@ -133,6 +133,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         TrySubscribeSkillsEvents();
         HookTreeGlowAcknowledge();
         WireAutoAssignAbilitiesButton();
+        WireResetTreeButton();
     }
 
     private void OnEnable()
@@ -153,6 +154,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         // Layout / tree bootstrap order: one frame later matches level-up deferred refresh so center tree + ability rows match the selected skill on first open.
         ScheduleDeferredProgressRefresh();
         WireAutoAssignAbilitiesButton();
+        WireResetTreeButton();
     }
 
     private void OnDisable()
@@ -409,6 +411,12 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         centerSkillTreeView = GetComponentInChildren<SkillTreeViewUI>(true);
         if (!centerSkillTreeView && transform.root != null)
             centerSkillTreeView = transform.root.GetComponentInChildren<SkillTreeViewUI>(true);
+    }
+
+    private void WireResetTreeButton()
+    {
+        EnsureCenterTreeReference();
+        centerSkillTreeView?.WireResetTreeButton();
     }
 
     private void OnSkillEntryClicked(SkillDefinition skill)

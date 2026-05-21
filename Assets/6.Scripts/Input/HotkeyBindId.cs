@@ -22,4 +22,7 @@ public enum HotkeyBindId
     ZoomOut = 14,
     ReturnToTown = 15,
     Sprint = 16,
+    MoveLeft = 17,
+    MoveRight = 18,
+    Interact = 19,
 }

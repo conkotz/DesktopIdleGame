@@ -62,6 +62,12 @@ public static class HotkeyBindIds
                 return "Return to Town";
             case HotkeyBindId.Sprint:
                 return "Sprint";
+            case HotkeyBindId.MoveLeft:
+                return "Move Left (keyboard)";
+            case HotkeyBindId.MoveRight:
+                return "Move Right (keyboard)";
+            case HotkeyBindId.Interact:
+                return "Interact";
             default:
                 return id.ToString();
         }

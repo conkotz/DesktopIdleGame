@@ -79,6 +79,7 @@ public class UIWindowManager : MonoBehaviour
 
     public void CloseAllWindows()
     {
+        NPCDialogueBoxUI.DismissAllActive();
         QuickMenuPanelToggleUI.HideIfOpen();
         MainMenuWindowUI.Resolve()?.Close();
 

@@ -14,6 +14,7 @@ public static class GlobalUserSettings
         ToggleSettingsStore.ClearAllStoredKeysAndReload();
         SliderSettingsStore.ClearAllStoredKeysAndReload();
         DropdownSettingsStore.ClearAllStoredKeysAndReload();
+        PlayerMovementSettingsStore.ClearStoredKeyAndReload();
         HotkeyBindingManager.ResetPersistedBindingsToDefaults();
         StripCameraController.FactoryResetStoredStripLayoutAcrossApp();
 

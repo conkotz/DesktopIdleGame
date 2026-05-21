@@ -33,6 +33,10 @@ public class SkillTreeViewUI : MonoBehaviour
     [Tooltip("When true, stop rendering rows after the first invalid/missing unlock row.")]
     [SerializeField] private bool stopAfterFirstMissingUnlock = true;
 
+    [Header("Reset Tree")]
+    [Tooltip("Optional. Auto-finds a child named ResetTreeButton under SkillsAbilitiesPageUI when unset.")]
+    [SerializeField] private Button resetTreeButton;
+
     [Header("Layout")]
     [SerializeField] private float startY = -48f;
     [SerializeField] private float rowGap = 20f;
@@ -177,6 +181,16 @@ public class SkillTreeViewUI : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        WireResetTreeButton();
+    }
+
+    private void OnDisable()
+    {
+        UnwireResetTreeButton();
+    }
+
     private void Start()
     {
         PreferRuntimeSkillsManager();
@@ -184,6 +198,46 @@ public class SkillTreeViewUI : MonoBehaviour
         // serialized selectedSkill and wipe the page-driven tree / ability rows on first open.
         if (_lastBuiltSkill == null)
             BuildForSelectedSkill();
+    }
+
+    /// <summary>
+    /// Binds <see cref="resetTreeButton"/> (or a descendant named ResetTreeButton) to <see cref="OnResetSkillTreeButtonClicked"/>.
+    /// Called from this component and <see cref="SkillsAbilitiesPageUI"/>.
+    /// </summary>
+    public void WireResetTreeButton()
+    {
+        if (!resetTreeButton)
+            resetTreeButton = FindResetTreeButtonInHierarchy();
+
+        if (!resetTreeButton)
+            return;
+
+        resetTreeButton.onClick.RemoveListener(OnResetSkillTreeButtonClicked);
+        resetTreeButton.onClick.AddListener(OnResetSkillTreeButtonClicked);
+    }
+
+    private void UnwireResetTreeButton()
+    {
+        if (!resetTreeButton)
+            return;
+
+        resetTreeButton.onClick.RemoveListener(OnResetSkillTreeButtonClicked);
+    }
+
+    private Button FindResetTreeButtonInHierarchy()
+    {
+        var page = GetComponentInParent<SkillsAbilitiesPageUI>(true);
+        Transform scope = page != null ? page.transform : transform;
+
+        Button[] buttons = scope.GetComponentsInChildren<Button>(true);
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            Button btn = buttons[i];
+            if (btn != null && btn.name == "ResetTreeButton")
+                return btn;
+        }
+
+        return null;
     }
 
     public void SetSkill(SkillDefinition skill)
@@ -632,11 +686,14 @@ public class SkillTreeViewUI : MonoBehaviour
     public void OnResetSkillTreeButtonClick() => OnResetSkillTreeButtonClicked();
 
     /// <summary>
-    /// Assign to the Reset Tree button OnClick: clears choice branches and multi-ability row picks for the <b>currently shown</b> skill only, then rebuilds this tree.
+    /// Reset Tree button: clears every committed pick on the active skill tree — multi-ability rows, major passives,
+    /// capstones, and enhancement branches — then rebuilds the tree. Skill level / XP are unchanged.
     /// </summary>
     public void OnResetSkillTreeButtonClicked()
     {
         PreferRuntimeSkillsManager();
+        bool clearedAny = false;
+
         if (skillsManager == null)
         {
             Debug.LogWarning(
@@ -646,12 +703,24 @@ public class SkillTreeViewUI : MonoBehaviour
         else if (selectedSkill != null)
         {
             skillsManager.ResetSkillTreeSelectionsForSkill(selectedSkill.skillType);
+            clearedAny = true;
+            SaveManager.Instance?.Save();
         }
         else
             Debug.LogWarning("[SkillTreeViewUI] Reset Tree: no skill selected on this tree; nothing to reset.", this);
 
+        if (selectedNode != null)
+        {
+            selectedNode.SetSelected(false);
+            selectedNode = null;
+        }
+
         expandedChoiceBranchesBySourceLevel.Clear();
+        PassiveUnlockLineHighlightChanged?.Invoke(null);
         BuildForSelectedSkill();
+
+        if (clearedAny && selectedSkill != null)
+            GameLog.Add($"Reset {selectedSkill.displayName} skill tree selections.");
     }
 
     private List<RowDef> BuildRows(List<SkillUnlockDefinition> unlocks)

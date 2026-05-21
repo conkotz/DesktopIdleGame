@@ -32,3 +32,4 @@ MonoBehaviour:
   sourceSkill: 3
   unlockLevel: 45
   minionSpawnDefinition: {fileID: 0}
+  requireRangeCheckToActivate: 1

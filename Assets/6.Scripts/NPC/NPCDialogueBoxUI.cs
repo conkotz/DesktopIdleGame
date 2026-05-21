@@ -67,6 +67,56 @@ public class NPCDialogueBoxUI : MonoBehaviour
 
     private static readonly Vector3[] sHudClampCornerScratch = new Vector3[4];
 
+    /// <summary>True while any NPC dialogue or quest-offer panel is open.</summary>
+    public static bool HasAnyActiveDialogue =>
+        (_activeBox != null && _activeBox.gameObject.activeInHierarchy) || ActiveMultiOfferBoxes.Count > 0;
+
+    /// <summary>Closes all NPC plain dialogue and quest-offer panels (e.g. Escape / switch to another NPC).</summary>
+    public static void DismissAllActive()
+    {
+        NPCInteractionSettings.CancelPendingInteract();
+        MerchantClick.ForceCloseMerchantMode();
+
+        if (!HasAnyActiveDialogue)
+            return;
+
+        BulkClosingMultiOfferGroup = true;
+        try
+        {
+            var boxes = new List<NPCDialogueBoxUI>(ActiveMultiOfferBoxes.Count + 1);
+            if (_activeBox != null)
+                boxes.Add(_activeBox);
+
+            for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+            {
+                NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+                if (b == null || boxes.Contains(b))
+                    continue;
+                boxes.Add(b);
+            }
+
+            ActiveMultiOfferBoxes.Clear();
+            ClearMultiOfferSpreadSessionState();
+            _activeBox = null;
+
+            for (int i = boxes.Count - 1; i >= 0; i--)
+            {
+                NPCDialogueBoxUI b = boxes[i];
+                if (!b)
+                    continue;
+
+                if (b._spawnedAsOfferClone)
+                    Destroy(b.gameObject);
+                else
+                    b.HideSolo(invokePlainDismissCallback: false);
+            }
+        }
+        finally
+        {
+            BulkClosingMultiOfferGroup = false;
+        }
+    }
+
     /// <summary>True when this instance is the active dialogue and is nested under <paramref name="ancestor"/> (e.g. NPC hover scale should not move the box).</summary>
     public static bool ActiveDialogueIsDescendantOf(Transform ancestor)
     {

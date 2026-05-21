@@ -610,12 +610,17 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             _isClosingDistanceForAttack = true;
 
             player.ClearActionOverride();
-            player.MoveToPointX_Combat(desiredX);
+            if (!player.IsManualKeyboardSteering)
+                player.MoveToPointX_Combat(desiredX);
+            else
+                player.StopMoveOnly();
             return;
         }
 
         _isClosingDistanceForAttack = false;
-        if (kiteAtRangeEdge)
+        if (player.IsManualKeyboardSteering)
+            player.StopMoveOnly();
+        else if (kiteAtRangeEdge)
             player.MoveToPointX_Combat(desiredX);
         else
             player.StopMoveOnly();

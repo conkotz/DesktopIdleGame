@@ -5689,6 +5689,10 @@ MonoBehaviour:
   powerSlashUseDoubleSwipe: 1
   powerSlashSecondSwipeDelay: 0.035
   powerSlashSecondSwipeAngleOffset: 18
+  parrySlashColor: {r: 1, g: 0.82, b: 0.15, a: 0.95}
+  parrySlashLineWidth: 0.1
+  parrySlashDuration: 0.2
+  parrySlashHeightOffset: {x: 0, y: 0.55, z: 0}
   whirlingBladeColor: {r: 0.9169811, g: 0.48521498, b: 0.08131714, a: 1}
   whirlingBladeDuration: 0.22
   whirlingBladeSpinDegrees: 720
@@ -5713,7 +5717,7 @@ MonoBehaviour:
   executionersDescentMarkOffset: {x: 0, y: 0.35, z: 0}
   executionersDescentSpawnHeightAboveTarget: 4.8
   executionersDescentSpawnHoldSeconds: 2
-  executionersDescentMinimumHeightAboveTarget: 2
+  executionersDescentMinimumHeightAboveTarget: 1.3
   executionersDescentSortingLayer: Foreground
   executionersDescentSortingOrder: 120
   executionersDescentShockwaveDuration: 0.45

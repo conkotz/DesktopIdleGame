@@ -152,7 +152,14 @@ public class MerchantClick : MonoBehaviour
 
         if (player != null)
         {
-            // Walk to the merchant's near collider edge (offset back by player half-width + padding) instead of the
+            if (IsPlayerWithinMerchantArrivalRange() ||
+                WorldInteractRouter.IsPlayerWithinImmediateInteractRange(player, merchantCollider))
+            {
+                OpenNow();
+                return;
+            }
+
+            // Walk to the merchant's near collider edge (offset back by player half-width) instead of the
             // merchant's transform.position.x — otherwise the player overshoots into the merchant sprite before
             // arrival registers.
             player.MoveToPointX(ComputeApproachTargetX(player));

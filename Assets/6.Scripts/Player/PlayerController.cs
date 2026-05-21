@@ -113,6 +113,10 @@ public class PlayerController : MonoBehaviour
     private float _lastX;
     public float FacingDirectionX { get; private set; } = 1f;
 
+    private bool _keyboardManualMoveThisFrame;
+    public bool UsesKeyboardMovement => PlayerMovementSettingsStore.UsesKeyboardMovement();
+    public bool IsManualKeyboardSteering => _keyboardManualMoveThisFrame;
+
     private Rigidbody2D _rb;
 
     private bool _suppressSpriteFlipForTeleport;
@@ -521,6 +525,9 @@ public class PlayerController : MonoBehaviour
         if (clickToMoveEnabled)
             HandleClickToMove();
 
+        PollKeyboardSteeringInput();
+        TryInteractHotkey();
+
         TickStateMachine();
         ApplyActionPresentation();
 
@@ -529,6 +536,14 @@ public class PlayerController : MonoBehaviour
         SyncWoodcuttingFlowStateHudBuffIfNeeded();
         TickFishingCalmWatersLingerDecay();
         SyncFishingCalmWatersMajorHudBuffIfNeeded();
+    }
+
+    private void LateUpdate()
+    {
+        if (_isDead)
+            return;
+
+        ApplyKeyboardMovementDelta();
     }
 
     private void TickStateMachine()
@@ -600,6 +615,7 @@ public class PlayerController : MonoBehaviour
     private void ApplyActionPresentation()
     {
         bool isMoving =
+            _keyboardManualMoveThisFrame ||
             state == State.MoveToPoint ||
             state == State.MoveToTarget ||
             state == State.MoveToPickup;
@@ -623,6 +639,10 @@ public class PlayerController : MonoBehaviour
         {
             SetAction(PlayerAction.Fighting);
         }
+        else if (_keyboardManualMoveThisFrame)
+        {
+            SetAction(PlayerAction.Walking);
+        }
         else
         {
             switch (state)
@@ -643,29 +663,6 @@ public class PlayerController : MonoBehaviour
                 case State.Gather:
                     SetAction(GetGatherAction());
                     break;
-            }
-        }
-
-        if (!_attackLocked && animator)
-        {
-            float walkDeadzone = clickArriveThreshold;
-            if (combat != null &&
-                combat.CurrentTarget != null &&
-                !combat.CurrentTarget.IsDead)
-            {
-                walkDeadzone = Mathf.Max(0.001f, combatArriveThreshold);
-            }
-
-            bool shouldLookWalking =
-                (state == State.MoveToPoint && Mathf.Abs(transform.position.x - moveTargetX) > walkDeadzone) ||
-                (state == State.MoveToTarget) ||
-                (state == State.MoveToPickup);
-
-            if (shouldLookWalking)
-            {
-                var st = animator.GetCurrentAnimatorStateInfo(0);
-                if (!st.IsName(walkStateName))
-                    PlayState(walkStateName, restart: false);
             }
         }
     }
@@ -903,6 +900,156 @@ public class PlayerController : MonoBehaviour
     // Click / Movement
     // -------------------------
 
+    private void PollKeyboardSteeringInput()
+    {
+        _keyboardManualMoveThisFrame = false;
+
+        if (!UsesKeyboardMovement || movementLocked || _isDead)
+            return;
+
+        if (!CanPollKeyboardMovementInput())
+            return;
+
+        bool left = IsKeyboardMoveLeftHeld();
+        bool right = IsKeyboardMoveRightHeld();
+        if (!left && !right)
+            return;
+
+        float dir = 0f;
+        if (left)
+            dir -= 1f;
+        if (right)
+            dir += 1f;
+        if (Mathf.Abs(dir) < 0.01f)
+            return;
+
+        _keyboardManualMoveThisFrame = true;
+        CancelAutoMovementFromKeyboardSteering();
+    }
+
+    private void ApplyKeyboardMovementDelta()
+    {
+        if (!_keyboardManualMoveThisFrame)
+            return;
+
+        bool left = IsKeyboardMoveLeftHeld();
+        bool right = IsKeyboardMoveRightHeld();
+        float dir = 0f;
+        if (left)
+            dir -= 1f;
+        if (right)
+            dir += 1f;
+        if (Mathf.Abs(dir) < 0.01f)
+            return;
+
+        float speed = GetMoveSpeed();
+        Vector3 pos = transform.position;
+        pos.x += dir * speed * Time.deltaTime;
+        GetClampXMinMax(out float min, out float max);
+        pos.x = Mathf.Clamp(pos.x, min, max);
+        transform.position = pos;
+        SyncPlayerRigidbody2DPosition();
+        FaceTargetX(pos.x + dir);
+    }
+
+    private void CancelAutoMovementFromKeyboardSteering()
+    {
+        NPCInteractionSettings.CancelPendingInteract();
+        MapNodePortalTeleporter.CancelPendingApproachForPlayer(this);
+
+        if (state == State.Gather || state == State.MoveToTarget || state == State.MoveToPickup)
+            InterruptWorkIfNeeded();
+        else if (state == State.MoveToPoint)
+            StopMoveOnly();
+    }
+
+    private void TryInteractHotkey()
+    {
+        if (!WasInteractHotkeyPressedThisFrame())
+            return;
+
+        if (movementLocked || _isDead)
+            return;
+
+        if (!CanPollWorldInteractHotkey())
+            return;
+
+        float px = transform.position.x;
+        float py = transform.position.y;
+        LayerMask combinedMask = pickupMask | interactableMask | enemyMask;
+
+        if (!WorldInteractRouter.TryFindClosestRoutableCollider(
+                px,
+                py,
+                combinedMask,
+                WorldInteractRouter.InteractHotkeyHalfRangeX,
+                out Collider2D winner))
+            return;
+
+        WorldInteractRouter.RouteInteract(winner, this);
+    }
+
+    private static bool CanPollKeyboardMovementInput()
+    {
+        if (HotkeySettingsRowUI.IsRebinding)
+            return false;
+        if (HelperGameplayController.BlocksStripGameplay)
+            return false;
+        return !IsTypingIntoInputField();
+    }
+
+    private static bool CanPollWorldInteractHotkey()
+    {
+        if (HotkeySettingsRowUI.IsRebinding)
+            return false;
+        if (HelperGameplayController.BlocksStripGameplay)
+            return false;
+        if (IsTypingIntoInputField())
+            return false;
+
+        if (UnityEngine.EventSystems.EventSystem.current != null &&
+            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+            return false;
+
+        return true;
+    }
+
+    private static bool IsTypingIntoInputField()
+    {
+        if (UnityEngine.EventSystems.EventSystem.current == null)
+            return false;
+
+        GameObject selected = UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject;
+        if (selected == null)
+            return false;
+
+        return selected.GetComponent<TMP_InputField>() != null ||
+               selected.GetComponent<InputField>() != null;
+    }
+
+    private bool IsKeyboardMoveLeftHeld()
+    {
+        KeyCode key = HotkeyBindingManager.Instance != null
+            ? HotkeyBindingManager.Instance.GetBinding(HotkeyBindId.MoveLeft)
+            : HotkeyBindingManager.GetDefaultKey(HotkeyBindId.MoveLeft);
+        return key != KeyCode.None && Input.GetKey(key);
+    }
+
+    private bool IsKeyboardMoveRightHeld()
+    {
+        KeyCode key = HotkeyBindingManager.Instance != null
+            ? HotkeyBindingManager.Instance.GetBinding(HotkeyBindId.MoveRight)
+            : HotkeyBindingManager.GetDefaultKey(HotkeyBindId.MoveRight);
+        return key != KeyCode.None && Input.GetKey(key);
+    }
+
+    private static bool WasInteractHotkeyPressedThisFrame()
+    {
+        KeyCode key = HotkeyBindingManager.Instance != null
+            ? HotkeyBindingManager.Instance.GetBinding(HotkeyBindId.Interact)
+            : HotkeyBindingManager.GetDefaultKey(HotkeyBindId.Interact);
+        return key != KeyCode.None && Input.GetKeyDown(key);
+    }
 
     /// <param name="preserveGatherStateForUiModal">
     /// When true and the player is gathering a resource (<see cref="State.Gather"/> with a valid
@@ -1071,7 +1218,7 @@ public class PlayerController : MonoBehaviour
             _gatherTimer = 0f;
             _nextGatherInterval = 0f;
 
-            SetAction(PlayerAction.Walking, false); // or just SetAction(PlayerAction.Walking);
+            SetAction(PlayerAction.Walking, false);
             return;
         }
 
@@ -1387,11 +1534,10 @@ public class PlayerController : MonoBehaviour
                 if (AnyEnemyOnMap || InCombat)
                 {
                     ShowPopup("Can't gather while enemies are on the map!");
-                    MoveToPointX(world.x);   // move toward it
-                    return;                  // don't consume click further
+                    MoveToPointX(world.x);
+                    return;
                 }
 
-                // Not in combat: gather normally
                 SelectNode(node);
                 return;
             }
@@ -1404,10 +1550,10 @@ public class PlayerController : MonoBehaviour
 
         InterruptWorkIfNeeded();
 
-        // clicking empty space cancels target combat
         combat?.ClearTarget();
 
-        MoveToPointX(world.x);
+        if (!UsesKeyboardMovement)
+            MoveToPointX(world.x);
     }
 
     private void InterruptWorkIfNeeded()
@@ -1488,6 +1634,9 @@ public class PlayerController : MonoBehaviour
         if (movementLocked)
             return;
 
+        if (_keyboardManualMoveThisFrame)
+            return;
+
         if (!targetNode) { ReturnToIdle(); return; }
 
         float targetX = targetNode.workSpot.position.x;
@@ -1527,6 +1676,9 @@ public class PlayerController : MonoBehaviour
 
     private void TickMoveToPoint()
     {
+        if (_keyboardManualMoveThisFrame)
+            return;
+
         MoveToX(moveTargetX, GetMoveSpeed());
 
         float dist = Mathf.Abs(transform.position.x - moveTargetX);
@@ -1588,14 +1740,17 @@ public class PlayerController : MonoBehaviour
 
         _pickupTarget = drop;
         state = State.MoveToPickup;
-
         SetAction(PlayerAction.Walking, true);
+
         equipment?.ClearMainHandVisualOverride();
     }
 
     private void TickMoveToPickup()
     {
         if (movementLocked)
+            return;
+
+        if (_keyboardManualMoveThisFrame)
             return;
 
         if (_pickupTarget == null)
@@ -3268,7 +3423,10 @@ public class PlayerController : MonoBehaviour
         if (_attackLocked) return;
 
         // Moving
-        if (state == State.MoveToPoint || state == State.MoveToTarget || state == State.MoveToPickup)
+        if (_keyboardManualMoveThisFrame ||
+            state == State.MoveToPoint ||
+            state == State.MoveToTarget ||
+            state == State.MoveToPickup)
         {
             PlayState(walkStateName, restart: false);
             return;

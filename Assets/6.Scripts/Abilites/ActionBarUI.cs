@@ -947,6 +947,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                     return;
                 }
 
+                if (!abilityController.TryPrepareKeyboardModeAbilityTarget(action.id))
+                    return;
+
                 bool usedAbility = abilityController.TryUseAbility(action.id);
 
                 if (debugLogs)

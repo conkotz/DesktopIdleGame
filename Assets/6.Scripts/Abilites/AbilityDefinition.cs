@@ -26,6 +26,15 @@ public enum AbilityTag
     ToggleBuff
 }
 
+/// <summary>
+/// Keyboard movement mode only (see <see cref="AbilityDefinition.requireRangeCheckToActivate"/>).
+/// </summary>
+public enum AbilityRequireRangeCheckToActivate
+{
+    No,
+    Yes
+}
+
 [CreateAssetMenu(fileName = "Ability_", menuName = "Desktop Idle Game/Skills/Ability Definition")]
 public class AbilityDefinition : ScriptableObject
 {
@@ -83,6 +92,16 @@ public class AbilityDefinition : ScriptableObject
 
     public SkillType sourceSkill;
     public int unlockLevel = 1;
+
+    [Header("Keyboard Input")]
+    [Tooltip(
+        "Keyboard movement mode only. Yes: action-bar use requires a valid enemy in this ability's range, auto-targets the closest, and blocks with \"No targets in range\" when none. " +
+        "No: the ability can be used without an enemy (e.g. Flame Charge, buffs). Mouse movement mode is unchanged.")]
+    public AbilityRequireRangeCheckToActivate requireRangeCheckToActivate = AbilityRequireRangeCheckToActivate.No;
+
+    /// <summary>True when <see cref="requireRangeCheckToActivate"/> is Yes (keyboard-mode range gate).</summary>
+    public bool RequiresKeyboardRangeCheckToActivate() =>
+        requireRangeCheckToActivate == AbilityRequireRangeCheckToActivate.Yes;
 
     [Header("Summon (optional)")]
     [Tooltip(

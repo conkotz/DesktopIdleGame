@@ -21,6 +21,10 @@ public class StorageClick : MonoBehaviour
 
     private static StorageClick _active;
 
+    /// <summary>True when this chest last opened <see cref="StorageUI"/> and it is still open.</summary>
+    public static bool IsActiveInstance(StorageClick click) =>
+        click != null && _active == click && StorageUI.IsOpen;
+
     private void Awake()
     {
         CacheRefs();
@@ -69,6 +73,7 @@ public class StorageClick : MonoBehaviour
         }
 
         MerchantClick.ForceCloseMerchantMode();
+        NPCDialogueBoxUI.DismissAllActive();
 
         MainMenuWindowUI menu = mainMenuWindowUI != null ? mainMenuWindowUI : MainMenuWindowUI.Resolve();
         if (menu != null)

@@ -114,62 +114,10 @@ public class WorldInputRouter2D : MonoBehaviour
 
     private void RouteWorldClick(Collider2D winnerCol)
     {
-        if (winnerCol == null)
+        if (winnerCol == null || !player)
             return;
 
-        // Any world interaction while shop is open exits shop mode first.
-        MerchantClick.ForceCloseMerchantMode();
-        MerchantClick.CancelPendingOpen();
-
-        // Drop any pending walk-then-interact from a previous NPC click; the new click decides what to do.
-        NPCInteractionSettings.CancelPendingInteract();
-
-        var portal = winnerCol.GetComponentInParent<MapNodePortalTeleporter>();
-        if (portal != null)
-        {
-            portal.OnClickedByPlayer(player);
-            return;
-        }
-
-        var drop = winnerCol.GetComponentInParent<ItemDrop>();
-        if (drop != null)
-        {
-            player.RequestPickup(drop);
-            return;
-        }
-
-        var node = winnerCol.GetComponentInParent<ResourceNode>();
-        if (node != null)
-        {
-            player.SelectNode(node);
-            return;
-        }
-
-        NPCInteractionSettings npc = winnerCol.GetComponentInParent<NPCInteractionSettings>();
-        MerchantClick merchant = winnerCol.GetComponentInParent<MerchantClick>();
-
-        if (merchant != null)
-        {
-            if (npc != null)
-                npc.Interact();
-
-            merchant.Open();
-            return;
-        }
-
-        if (npc != null)
-        {
-            npc.Interact();
-            return;
-        }
-
-        QuestGiver questGiverOnly = winnerCol.GetComponentInParent<QuestGiver>();
-        if (questGiverOnly != null && questGiverOnly.TryClaimFirstReadyQuestReward())
-            return;
-
-        var storage = winnerCol.GetComponentInParent<StorageClick>();
-        if (storage != null)
-            storage.Open();
+        WorldInteractRouter.RouteInteract(winnerCol, player);
     }
 
     private Collider2D PickWinnerUnderMouse()
