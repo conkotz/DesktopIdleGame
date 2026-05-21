@@ -55,6 +55,14 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [Tooltip("Icon for Ashen Rebirth damage immunity after proc.")]
     [SerializeField] private Sprite ashenRebirthHudIcon;
 
+    [Header("Melee — Tactician Duality (Lv30 Major) HUD")]
+    [Tooltip("Icon for Duality after swapping weapon sets (8 second window).")]
+    [SerializeField] private Sprite tacticianDualityHudIcon;
+
+    [Header("Movement — Sprint HUD")]
+    [Tooltip("Icon while sprinting (hold sprint key while moving). Falls back to attack speed icon.")]
+    [SerializeField] private Sprite sprintHudIcon;
+
     [Header("Shared Tooltip")]
     [SerializeField] private RectTransform tooltipMeasureRect;
     [SerializeField] private RectTransform tooltipHeightRect;
@@ -486,6 +494,24 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 return magicDamageBuffIcon;
         }
 
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, CharacterStats.TacticianDualityHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (tacticianDualityHudIcon != null)
+                return tacticianDualityHudIcon;
+            if (attackSpeedBuffIcon != null)
+                return attackSpeedBuffIcon;
+        }
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, PlayerSprintInput.SprintHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (sprintHudIcon != null)
+                return sprintHudIcon;
+            if (attackSpeedBuffIcon != null)
+                return attackSpeedBuffIcon;
+        }
+
         if (buff.type == ConsumableEffectType.HudAbilityBuff && _abilityDatabase != null &&
             !string.IsNullOrWhiteSpace(buff.id))
         {
@@ -552,6 +578,16 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (string.Equals(buff.id, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return MeleeMajorPassiveTooltipText.FormatOverloadValueLabel(buff.displayStacks);
 
+            if (string.Equals(buff.id, CharacterStats.TacticianDualityHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return "×3";
+
+            if (string.Equals(buff.id, PlayerSprintInput.SprintHudBuffId, StringComparison.OrdinalIgnoreCase))
+            {
+                CharacterStats playerStats = player != null ? player.GetComponent<CharacterStats>() : null;
+                float baseSpeed = playerStats != null ? playerStats.FinalMoveSpeed : 0f;
+                return $"+{PlayerSprintInput.GetSprintBonusPercentOfBase(baseSpeed):0.#}%";
+            }
+
             return "";
         }
 
@@ -605,6 +641,12 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (string.Equals(buff.id, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return MeleeMajorPassiveTooltipText.BattleEngineOverloadTitle;
 
+            if (string.Equals(buff.id, CharacterStats.TacticianDualityHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return MeleeMajorPassiveTooltipText.TacticianDualityHudBuffTitle;
+
+            if (string.Equals(buff.id, PlayerSprintInput.SprintHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return "Sprint";
+
             if (AbilityTooltipDamagePreview.TryBuildHudBuffTooltip(
                     buff.id, buff.displayStacks, SkillsManager.Instance, _abilityDatabase, out string hudTitle, out _))
                 return hudTitle;
@@ -653,6 +695,16 @@ public class BuffsDebuffsPanel : MonoBehaviour
         {
             if (string.Equals(buff.id, CharacterStats.ShadowHunterHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "+10% Attack Speed for 7 seconds. Refreshes when you land a critical hit.";
+
+            if (string.Equals(buff.id, PlayerSprintInput.SprintHudBuffId, StringComparison.OrdinalIgnoreCase))
+            {
+                CharacterStats playerStats = player != null ? player.GetComponent<CharacterStats>() : null;
+                float baseSpeed = playerStats != null ? playerStats.FinalMoveSpeed : 0f;
+                float sprintSpeed = PlayerSprintInput.ApplySprintBonus(baseSpeed);
+                return
+                    $"Adds +{PlayerSprintInput.SprintSpeedBonusFlat:0.#} move speed while moving ({baseSpeed:0.#} → {sprintSpeed:0.#}). " +
+                    "Costs 20% max energy per second and pauses energy regen.";
+            }
 
             if (MeleeMajorPassiveTooltipText.TryGetHudBuffTooltip(buff.id, buff.displayStacks, out _, out string overloadBody))
                 return overloadBody;

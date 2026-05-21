@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -103,6 +104,8 @@ public static class WorldInteractRouter
                 combat.SetTarget(enemyClick.GetEnemy());
             return;
         }
+
+        ApplyCombatTargetWhenInteractingNonEnemy(player);
 
         var portal = winnerCol.GetComponentInParent<MapNodePortalTeleporter>();
         if (portal != null)
@@ -225,6 +228,93 @@ public static class WorldInteractRouter
         col.CompareTag("NoticeBoard") &&
         (col.GetComponentInParent<NPCInteractionSettings>() != null ||
          col.GetComponentInParent<QuestGiver>() != null);
+
+    /// <summary>
+    /// Interact hotkey with nothing routable in range: engage closest enemy within ±<see cref="InteractHotkeyHalfRangeX"/>,
+    /// or disengage the current target when it is outside that band.
+    /// </summary>
+    public static void ApplyCombatTargetForInteractHotkeyMiss(PlayerController player)
+    {
+        if (!player)
+            return;
+
+        PlayerCombatController combat = player.GetComponent<PlayerCombatController>();
+        if (combat == null)
+            return;
+
+        float playerX = player.transform.position.x;
+
+        EnemyBaseController closestInInteractRange = FindClosestEnemyInInteractRange(playerX);
+        if (closestInInteractRange != null)
+        {
+            combat.SetTarget(closestInInteractRange);
+            return;
+        }
+
+        EnemyBaseController current = combat.CurrentTarget;
+        if (current == null || current.IsDead || !current.gameObject.activeInHierarchy)
+            return;
+
+        float dx = Mathf.Abs(current.transform.position.x - playerX);
+        if (dx > InteractHotkeyHalfRangeX + 0.0001f)
+            combat.ClearTarget();
+    }
+
+    /// <summary>
+    /// Non-enemy interact (NPC, storage, notice board, etc.): drop a far-away combat target, keep one still in weapon range,
+    /// or retarget the closest enemy within interact range (±<see cref="InteractHotkeyHalfRangeX"/>).
+    /// </summary>
+    private static void ApplyCombatTargetWhenInteractingNonEnemy(PlayerController player)
+    {
+        if (!player)
+            return;
+
+        PlayerCombatController combat = player.GetComponent<PlayerCombatController>();
+        if (combat == null)
+            return;
+
+        EnemyBaseController current = combat.CurrentTarget;
+        if (current != null && !current.IsDead && current.gameObject.activeInHierarchy &&
+            combat.IsEnemyWithinAttackRange(current))
+            return;
+
+        EnemyBaseController closestInInteractRange = FindClosestEnemyInInteractRange(player.transform.position.x);
+        if (closestInInteractRange != null)
+        {
+            combat.SetTarget(closestInInteractRange);
+            return;
+        }
+
+        if (current != null && !current.IsDead && current.gameObject.activeInHierarchy)
+            combat.ClearTarget();
+    }
+
+    private static EnemyBaseController FindClosestEnemyInInteractRange(float playerX)
+    {
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        EnemyBaseController best = null;
+        float bestDx = float.MaxValue;
+        float maxDx = InteractHotkeyHalfRangeX;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            float dx = Mathf.Abs(enemy.transform.position.x - playerX);
+            if (dx > maxDx + 0.0001f)
+                continue;
+
+            if (dx < bestDx)
+            {
+                bestDx = dx;
+                best = enemy;
+            }
+        }
+
+        return best;
+    }
 
     private static float GetRoutableCenterX(Collider2D col)
     {

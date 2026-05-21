@@ -48,6 +48,7 @@ public class AilmentController : MonoBehaviour
     private int burnStackCount;
     private int burnDamagePerTick;
     private float burnExpiresAt = -1f;
+    private float burnLastApplicationAt = -1f;
     private float _burnTickWaitSeconds = DefaultBurnTickIntervalSeconds;
     private Transform burnDotSource;
     private string _bleedDotDealerLabel = "";
@@ -281,6 +282,7 @@ public class AilmentController : MonoBehaviour
         burnStackCount = 0;
         burnDamagePerTick = 0;
         burnExpiresAt = -1f;
+        burnLastApplicationAt = -1f;
         burnTickRoutine = null;
         burnDotSource = null;
         _bleedDotDealerLabel = "";
@@ -799,7 +801,8 @@ public class AilmentController : MonoBehaviour
     }
 
     /// <summary>
-    /// Fire hits: refresh 15s timer while burning. Successful rolls add a stack (max 3); tick damage uses the strongest hit (bleed-style).
+    /// Fire hits: successful burn rolls add a stack (max 3) and refresh the 15s sustain window.
+    /// Burn falls off if no new burn application lands within that window. Tick damage uses the strongest hit (bleed-style).
     /// At 3 stacks, combust for tick damage × 10, then clear.
     /// </summary>
     public bool TryApplyBurnFromFireHit(
@@ -831,11 +834,6 @@ public class AilmentController : MonoBehaviour
         }
 
         bool hadBurn = burnStackCount > 0;
-        if (hadBurn)
-        {
-            RefreshBurnExpiryTimer();
-            OnAilmentsChanged?.Invoke();
-        }
 
         if (UnityEngine.Random.value > Mathf.Clamp01(applyChance))
             return false;
@@ -878,6 +876,7 @@ public class AilmentController : MonoBehaviour
         burnStackCount = 0;
         burnDamagePerTick = 0;
         burnExpiresAt = -1f;
+        burnLastApplicationAt = -1f;
         burnDotSource = null;
         _burnDotDealerLabel = "";
         _hasBurnDotDealerWorldPos = false;
@@ -899,6 +898,7 @@ public class AilmentController : MonoBehaviour
         burnStackCount = 0;
         burnDamagePerTick = 0;
         burnExpiresAt = -1f;
+        burnLastApplicationAt = -1f;
 
         if (burnTickRoutine != null)
         {
@@ -924,9 +924,20 @@ public class AilmentController : MonoBehaviour
         OnAilmentsChanged?.Invoke();
     }
 
-    private void RefreshBurnExpiryTimer()
+    private void RecordBurnApplicationSustain()
     {
-        burnExpiresAt = Time.time + GetBurnWallClockDurationSeconds();
+        burnLastApplicationAt = Time.time;
+        burnExpiresAt = burnLastApplicationAt + GetBurnWallClockDurationSeconds();
+    }
+
+    private void RefreshBurnExpiryTimer() => RecordBurnApplicationSustain();
+
+    private bool IsBurnExpiredFromLackOfApplications()
+    {
+        if (burnLastApplicationAt < 0f)
+            return burnExpiresAt > 0f && Time.time >= burnExpiresAt;
+
+        return Time.time >= burnLastApplicationAt + GetBurnWallClockDurationSeconds();
     }
 
     private float GetBurnWallClockDurationSeconds()
@@ -947,6 +958,16 @@ public class AilmentController : MonoBehaviour
             {
                 burnDamagePerTick = 0;
                 burnExpiresAt = -1f;
+                burnLastApplicationAt = -1f;
+                break;
+            }
+
+            if (IsBurnExpiredFromLackOfApplications())
+            {
+                burnStackCount = 0;
+                burnDamagePerTick = 0;
+                burnExpiresAt = -1f;
+                burnLastApplicationAt = -1f;
                 break;
             }
 
@@ -970,14 +991,6 @@ public class AilmentController : MonoBehaviour
             }
 
             OnAilmentsChanged?.Invoke();
-
-            if (Time.time >= burnExpiresAt)
-            {
-                burnStackCount = 0;
-                burnDamagePerTick = 0;
-                burnExpiresAt = -1f;
-                break;
-            }
         }
 
         burnTickRoutine = null;

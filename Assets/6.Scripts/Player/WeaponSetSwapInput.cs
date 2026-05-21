@@ -6,6 +6,7 @@ public class WeaponSetSwapInput : MonoBehaviour
 {
     [SerializeField] private EquipmentManager equipment;
     [SerializeField] private ActionBarUI actionBar;
+    [SerializeField] private CharacterStats characterStats;
     private bool _swapInProgress;
 
     private void Awake()
@@ -14,6 +15,8 @@ public class WeaponSetSwapInput : MonoBehaviour
             equipment = FindFirstObjectByType<EquipmentManager>();
         if (!actionBar)
             actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (!characterStats)
+            characterStats = FindFirstObjectByType<CharacterStats>();
     }
 
     private void Update()
@@ -39,11 +42,17 @@ public class WeaponSetSwapInput : MonoBehaviour
             actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         actionBar?.ExitGatheringBarToCombat();
         equipment.ToggleWeaponSet();
+        if (characterStats)
+            characterStats.NotifyWeaponSetSwapped();
         yield return null; // spread swap load across frames
 
         if (!actionBar)
             actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         actionBar?.SetCombatLoadoutSet(equipment.ActiveWeaponSetIndex);
+
+        // Gear slot UI events are suppressed during swap; refresh panels after loadout bar catches up.
+        characterStats?.NotifyStatsChanged();
+
         _swapInProgress = false;
     }
 }

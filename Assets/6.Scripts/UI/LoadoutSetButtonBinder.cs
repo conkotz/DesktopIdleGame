@@ -26,6 +26,7 @@ public class LoadoutSetButtonBinder : MonoBehaviour
 
     private EquipmentManager _equipment;
     private ActionBarUI _actionBar;
+    private CharacterStats _characterStats;
     private readonly List<Button> _setOneButtons = new();
     private readonly List<Button> _setTwoButtons = new();
     private bool _swapInProgress;
@@ -74,6 +75,8 @@ public class LoadoutSetButtonBinder : MonoBehaviour
             _equipment = FindFirstObjectByType<EquipmentManager>(FindObjectsInactive.Include);
         if (_actionBar == null)
             _actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (_characterStats == null && _equipment != null)
+            _characterStats = _equipment.GetComponent<CharacterStats>();
     }
 
     private void RebuildButtonsAndWire()
@@ -194,9 +197,11 @@ public class LoadoutSetButtonBinder : MonoBehaviour
             _actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         _actionBar?.ExitGatheringBarToCombat();
         _equipment.SetActiveWeaponSet(setIndex);
+        _characterStats?.NotifyWeaponSetSwapped();
         RefreshVisuals();
         yield return null; // spread swap load across frames
         _actionBar?.SetCombatLoadoutSet(setIndex);
+        _characterStats?.NotifyStatsChanged();
         RefreshVisuals();
         _swapInProgress = false;
     }

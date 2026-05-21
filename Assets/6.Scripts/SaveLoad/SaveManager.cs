@@ -8,6 +8,9 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class SaveManager : MonoBehaviour
 {
@@ -37,6 +40,19 @@ public class SaveManager : MonoBehaviour
     [Header("Debug")]
     [Tooltip("Logs non-critical save flow messages (staged load, ApplyToPlayer summary, slot metadata, force-apply). Warnings for real problems stay on.")]
     [SerializeField] private bool verboseInfoLogs;
+
+#if UNITY_EDITOR
+    private static bool _editorIsExitingPlayMode;
+
+    [InitializeOnLoadMethod]
+    private static void RegisterEditorPlayModeHooks()
+    {
+        EditorApplication.playModeStateChanged += state =>
+        {
+            _editorIsExitingPlayMode = state == PlayModeStateChange.ExitingPlayMode;
+        };
+    }
+#endif
 
     private int GetSafeActiveSlot()
     {
@@ -241,6 +257,7 @@ public class SaveManager : MonoBehaviour
         PermanentEnemyDeathSaveStore.ApplyFromSaveData(_lastLoadedData);
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
+        UIWindowLockStore.ApplyFromSaveData(_lastLoadedData);
 
         var player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
         _ = player;
@@ -401,6 +418,7 @@ public class SaveManager : MonoBehaviour
         PermanentEnemyDeathSaveStore.ApplyFromSaveData(data);
         NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(data);
         NpcOneWayDialogueQueueStore.ApplyFromSaveData(data);
+        UIWindowLockStore.ApplyFromSaveData(data);
     }
 
     /// <summary>
@@ -526,6 +544,11 @@ public class SaveManager : MonoBehaviour
 
     private void OnApplicationQuit()
     {
+#if UNITY_EDITOR
+        // Stopping Play Mode fires OnApplicationQuit and would overwrite persistent slot JSON.
+        if (_editorIsExitingPlayMode)
+            return;
+#endif
         RequestSave(SaveRequestKind.AppQuit, immediate: true);
     }
 
@@ -577,6 +600,10 @@ public class SaveManager : MonoBehaviour
     {
         if (!HasSave())
             return;
+#if UNITY_EDITOR
+        if (_editorIsExitingPlayMode)
+            return;
+#endif
 
         try
         {
@@ -655,6 +682,14 @@ public class SaveManager : MonoBehaviour
     private void ExecuteSave(SaveRequestKind kind)
     {
         if (_isApplyingSaveData) return;
+#if UNITY_EDITOR
+        if (_editorIsExitingPlayMode)
+        {
+            if (verboseInfoLogs)
+                Debug.Log($"[SaveManager] Skipping disk save ({kind}) — Editor is exiting Play Mode.");
+            return;
+        }
+#endif
         if (!IsRuntimeReadyForSave(out string readinessReason))
             return;
 
@@ -678,6 +713,8 @@ public class SaveManager : MonoBehaviour
         foreach (var s in saveables)
             s.SaveInto(data);
 
+        SeedActionBarFromSnapshot(data, _lastLoadedData);
+
         EnsurePlayerStorageInSaveData(data);
 
         HelperProgressStore.WriteDismissedInto(data);
@@ -686,6 +723,7 @@ public class SaveManager : MonoBehaviour
         PermanentEnemyDeathSaveStore.WriteInto(data);
         NpcPostDeathRespawnDialogueStore.WriteInto(data);
         NpcOneWayDialogueQueueStore.WriteInto(data);
+        UIWindowLockStore.WriteInto(data);
 
         if (kind == SaveRequestKind.SceneTransition || kind == SaveRequestKind.ReturnToBootstrap)
             TryRecordGameplayMapExitPosition(data);
@@ -822,13 +860,13 @@ public class SaveManager : MonoBehaviour
         int currentStorageFilled = CountFilledSlots(current.storageSlots);
         int currentEquipFilled = CountFilledEquipIds(current);
         int currentToolbeltFilled = CountFilledIds(current.toolbeltItemIds);
-        int currentActionBarFilled = CountFilledActionBarItems(current);
+        int currentActionBarFilled = CountFilledActionBarAssignments(current);
 
         int prevInvFilled = CountFilledSlots(previous.inventorySlots);
         int prevStorageFilled = CountFilledSlots(previous.storageSlots);
         int prevEquipFilled = CountFilledEquipIds(previous);
         int prevToolbeltFilled = CountFilledIds(previous.toolbeltItemIds);
-        int prevActionBarFilled = CountFilledActionBarItems(previous);
+        int prevActionBarFilled = CountFilledActionBarAssignments(previous);
 
         bool previousHadProgress =
             prevInvFilled > 0 ||
@@ -884,7 +922,10 @@ public class SaveManager : MonoBehaviour
         return count;
     }
 
-    private static int CountFilledActionBarItems(SaveData data)
+    private static int CountFilledActionBarItems(SaveData data) =>
+        CountFilledActionBarAssignments(data, itemsOnly: true);
+
+    private static int CountFilledActionBarAssignments(SaveData data, bool itemsOnly = false)
     {
         if (data == null || data.actionBarKinds == null || data.actionBarIds == null)
             return 0;
@@ -893,12 +934,63 @@ public class SaveManager : MonoBehaviour
         int count = 0;
         for (int i = 0; i < n; i++)
         {
-            if (data.actionBarKinds[i] != (int)ActionBarAssignmentKind.Item)
+            if (itemsOnly && data.actionBarKinds[i] != (int)ActionBarAssignmentKind.Item)
                 continue;
             if (!string.IsNullOrWhiteSpace(data.actionBarIds[i]))
                 count++;
         }
         return count;
+    }
+
+    /// <summary>
+    /// Scene transitions can serialize a duplicate empty <see cref="ActionBarUI"/> before the live bar is ready.
+    /// Keep the last good bar snapshot when the current payload has no assignments.
+    /// </summary>
+    private static void SeedActionBarFromSnapshot(SaveData dest, SaveData source)
+    {
+        if (dest == null || source == null)
+            return;
+        if (CountFilledActionBarAssignments(dest) > 0)
+            return;
+        if (CountFilledActionBarAssignments(source) <= 0)
+            return;
+
+        CopyActionBarLists(dest, source);
+    }
+
+    private static void CopyActionBarLists(SaveData dest, SaveData source)
+    {
+        dest.actionBarSlotIndexes = CloneIntList(source.actionBarSlotIndexes);
+        dest.actionBarKinds = CloneIntList(source.actionBarKinds);
+        dest.actionBarIds = CloneStringList(source.actionBarIds);
+        dest.actionBarItemAmounts = CloneIntList(source.actionBarItemAmounts);
+        dest.actionBarSecondarySlotIndexes = CloneIntList(source.actionBarSecondarySlotIndexes);
+        dest.actionBarSecondaryKinds = CloneIntList(source.actionBarSecondaryKinds);
+        dest.actionBarSecondaryIds = CloneStringList(source.actionBarSecondaryIds);
+        dest.actionBarSecondaryItemAmounts = CloneIntList(source.actionBarSecondaryItemAmounts);
+        dest.actionBarGatherWoodcutting = CloneGatheringActionBarBlock(source.actionBarGatherWoodcutting);
+        dest.actionBarGatherMining = CloneGatheringActionBarBlock(source.actionBarGatherMining);
+        dest.actionBarGatherFishing = CloneGatheringActionBarBlock(source.actionBarGatherFishing);
+    }
+
+    private static List<int> CloneIntList(List<int> src) =>
+        src != null ? new List<int>(src) : new List<int>();
+
+    private static List<string> CloneStringList(List<string> src) =>
+        src != null ? new List<string>(src) : new List<string>();
+
+    private static SaveData.GatheringActionBarSaveBlock CloneGatheringActionBarBlock(SaveData.GatheringActionBarSaveBlock src)
+    {
+        if (src == null)
+            return new SaveData.GatheringActionBarSaveBlock();
+
+        return new SaveData.GatheringActionBarSaveBlock
+        {
+            slotIndexes = CloneIntList(src.slotIndexes),
+            kinds = CloneIntList(src.kinds),
+            ids = CloneStringList(src.ids),
+            itemAmounts = CloneIntList(src.itemAmounts)
+        };
     }
 
     private static int CountFilledEquipIds(SaveData data)
@@ -1332,6 +1424,10 @@ public class SaveManager : MonoBehaviour
             data.npcOneWayConditionalDialogueConsumedKeys = new List<string>();
         if (data.npcOneWayDialogueChainProgressRows == null)
             data.npcOneWayDialogueChainProgressRows = new List<NpcOneWayDialogueChainProgressRow>();
+        if (data.uiWindowLockKeys == null)
+            data.uiWindowLockKeys = new List<string>();
+        if (data.uiWindowLockLocked == null)
+            data.uiWindowLockLocked = new List<int>();
 
         if (data.questProgressIds == null)
             data.questProgressIds = new List<string>();
@@ -1732,6 +1828,7 @@ public class SaveManager : MonoBehaviour
             PermanentEnemyDeathSaveStore.ApplyFromSaveData(_lastLoadedData);
             NpcPostDeathRespawnDialogueStore.ApplyFromSaveData(_lastLoadedData);
             NpcOneWayDialogueQueueStore.ApplyFromSaveData(_lastLoadedData);
+            UIWindowLockStore.ApplyFromSaveData(_lastLoadedData);
         }
         finally
         {

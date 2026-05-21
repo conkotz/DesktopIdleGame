@@ -37,18 +37,16 @@ public static class MinionHitEffects
             attributeOutgoingToMinion,
             ownerSnap.ownerTransform);
 
-        float totalDealt = physicalDealt + magicDealt + corruptionDealt;
-        if (ownerSnap.currentAttackAppliesAsFireForBurn && totalDealt > 0f && stats.AilmentChances.burnChance > 0f)
+        if (ownerSnap.currentAttackAppliesAsFireForBurn && magicDealt > 0f && stats.AilmentChances.burnChance > 0f)
         {
             ailments.TryApplyBurnFromFireHit(
-                totalDealt,
+                magicDealt,
                 stats.AilmentChances.burnChance,
                 ownerSnap.burnExplosionMultiplier,
                 src,
                 outgoingDpsSourceLabel,
                 attributeOutgoingToMinion);
         }
-
         if (ownerSnap.currentAttackSkill == AttackSkill.Magic && magicDealt > 0f && stats.MagicAilmentApplyChance > 0f)
         {
             if (Random.value <= stats.MagicAilmentApplyChance)

@@ -280,8 +280,15 @@ public static class GameTooltipTexts
             case "BlockText":
                 title = "Block Chance";
                 description =
-                    "Chance to fully block incoming physical hits.\n\n" +
-                    "Blocked attacks may deal no damage depending on rules; check shields and talents.";
+                    "Chance to partially block incoming physical hits.\n\n" +
+                    "When block succeeds, damage is reduced by your Block Mitigation % instead of being negated entirely.";
+                return true;
+
+            case "BlockMitigationText":
+                title = "Block Mitigation";
+                description =
+                    "Percent of physical damage prevented when a block succeeds.\n\n" +
+                    "Base mitigation is 70%. Talents and gear can raise it (e.g. Tactician Secondary Specialist with a shield).";
                 return true;
 
             case "MovespeedText":

@@ -2556,6 +2556,32 @@ public class SkillTreeViewUI : MonoBehaviour
         }
     }
 
+    public bool TryGetNodeIndicatorSprites(out Sprite notSelected, out Sprite enhance)
+    {
+        notSelected = null;
+        enhance = null;
+        if (nodePrefab == null)
+            return false;
+
+        return nodePrefab.TryGetIndicatorSprites(out notSelected, out enhance);
+    }
+
+    /// <summary>Scrolls to a tier and expands its enhancement branch (used by the major passives list).</summary>
+    public void OpenEnhancementBranchForTier(int sourceLevel)
+    {
+        if (selectedSkill == null || skillsManager == null)
+            return;
+
+        PreferRuntimeSkillsManager();
+        if (skillsManager.GetLevel(selectedSkill.skillType) < sourceLevel)
+            return;
+
+        ToggleExpandedChoiceBranchForSourceLevel(sourceLevel);
+        ScrollAbilityTierRowIntoView(sourceLevel);
+        RefreshEnhanceButtonVisibility();
+        RefreshNotSelectedPrompts();
+    }
+
     private void OnEnhanceButtonClicked(string spineNodeId)
     {
         if (!rowDefBySpineNodeId.TryGetValue(spineNodeId, out RowDef row))

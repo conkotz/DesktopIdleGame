@@ -177,7 +177,7 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
                     body =
                         $"Fire Damage over time. Burn damage ticks occur every {tickIntervalLabel} seconds. Each tick uses 15% of your strongest recent fire hit's damage.\n\n" +
                         "Fire hits can add burn stacks. At max stacks, burn detonates as a heavy magic hit dealing 10× the strongest tick damage, then clears. " +
-                        "Landing fire damage again refreshes how long burn keeps ticking.";
+                        "Each successful burn application refreshes how long burn keeps ticking.";
                 }
                 return true;
 
@@ -193,7 +193,7 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
 
             case LineId.BurnDuration:
                 title = "Burn duration";
-                body = "How long burn keeps ticking each time it is refreshed by fire damage (always 15 seconds). Faster tick rates add extra ticks within that window without changing combust damage.";
+                body = "How long burn keeps ticking after each successful burn application (always 15 seconds). Burn falls off if no new burn stack lands in that window. Faster tick rates add extra ticks within that window without changing combust damage.";
                 return true;
 
             case LineId.BurnStacks:

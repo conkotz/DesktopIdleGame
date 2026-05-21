@@ -309,6 +309,11 @@ public static class SaveDataIntegrity
             data.skillAbilityRowPickValues,
             "skillAbilityRowPicks",
             padValue: 0);
+        PadOrTrimStringIntLists(
+            data.uiWindowLockKeys,
+            data.uiWindowLockLocked,
+            "uiWindowLock",
+            padValue: 0);
 
         PlayerMapExitPositionStore.RepairParallelLists(data);
     }

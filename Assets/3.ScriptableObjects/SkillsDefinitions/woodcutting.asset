@@ -280,13 +280,13 @@ MonoBehaviour:
     - requiredLevel: 18
       title: Sustainable Harvest
       description: +10% max stamina restored when tree depletion is skipped.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Ancient Preservation
       description: +10% Tree Depletion Skip Chance.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 15
@@ -308,13 +308,13 @@ MonoBehaviour:
     - requiredLevel: 18
       title: Controlled Force
       description: +10% Bonus Find Chance when Woodcutting Grit procs.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Crushing Swing
       description: +5% extra resource chance when Woodcutting Grit procs.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 15
@@ -342,13 +342,13 @@ MonoBehaviour:
     - requiredLevel: 18
       title: Lasting Focus
       description: Flow lasts 5 seconds after you stop gathering.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Deep Focus
       description: +10% Woodcutting Grit Chance while Flow is active.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 16
@@ -499,7 +499,7 @@ MonoBehaviour:
     title: Cleaving Chop
     description: Each chop also strikes nearby trees within range 10 for 40 seconds.
       Secondary trees gather at 60% efficiency. Only logs are gathered.
-    icon: {fileID: -2187047416192554098, guid: b78a90acb5575bd4ba76c6522ffef883, type: 3}
+    icon: {fileID: -517532786427757951, guid: 6fe3fbf2e7435bc48823bb85eb229acd, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
@@ -515,13 +515,13 @@ MonoBehaviour:
     - requiredLevel: 28
       title: Extended Reach
       description: Cleaving Chop range increased by +4.
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 28
       title: Prolonged Cleave
       description: Cleaving Chop duration increased by +5 seconds.
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 25
@@ -545,14 +545,14 @@ MonoBehaviour:
       title: Phantom Harvest
       description: Spectral Axe can also gather bonus and hidden items based on your
         chances.
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 28
       title: Cleaving Flight
       description: Spectral Axe yields a guaranteed log on the first tree it strikes
         outbound and again on its return.
-      icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 26
@@ -719,13 +719,13 @@ MonoBehaviour:
     - requiredLevel: 38
       title: Experienced Gatherer
       description: +5% additional chance to find hidden resources
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 38
       title: Treasure Hunter
       description: Hidden resources have 10% chance to double.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 35

@@ -164,6 +164,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     [SerializeField] private int baseMagicResist = 0;
     [SerializeField] private int baseCorruptionResist = 0;
     [SerializeField, Range(0f, 1f)] private float basePhysBlockChance = 0f;
+    [SerializeField, Range(0f, 1f)] private float basePhysBlockMitigation = AbilityCombatPower.BasePhysBlockMitigation;
 
     [Header("Base Utility")]
     [SerializeField] private float baseMoveSpeed = 3f;
@@ -279,6 +280,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public const int PhoenixSoulMajorPassiveLevel = AbilityCombatPower.PhoenixSoulMajorPassiveLevel;
     public const int MasterOfVenomsMajorPassiveLevel = AbilityCombatPower.PhoenixSoulMajorPassiveLevel;
     public const string BattleEngineOverloadHudBuffId = "BattleEngine_Overload";
+    public const string TacticianDualityHudBuffId = "Tactician_Duality";
     public const string PhoenixSoulAshenRebirthImmunityHudBuffId = "phoenix_soul_ashen_rebirth";
     public const float BattleEngineOverloadDurationSeconds = 10f;
     public const string ShadowHunterHudBuffId = "PredatorsInstinct_ShadowHunter";
@@ -402,6 +404,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private void Update()
     {
         TickShadowHunterBuffExpiry();
+        SyncTacticianDualityHudBuff();
     }
 
     private void TickShadowHunterBuffExpiry()
@@ -540,6 +543,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float PhysBlockChance => Mathf.Clamp01(
         basePhysBlockChance + GetEquippedPhysBlockChance() + GetTacticianPhysBlockChanceBonus());
     public float PhysBlockChancePercent => PhysBlockChance * 100f;
+
+    public float PhysBlockMitigationFraction => Mathf.Clamp01(
+        basePhysBlockMitigation + GetTacticianPhysBlockMitigationBonus());
+    public float PhysBlockMitigationPercent => PhysBlockMitigationFraction * 100f;
+
+    private float _lastWeaponSetSwapTime = -999f;
+    private bool _tacticianDualityHudBuffWasActive;
+    private int _secondarySpecialistMeleeHitCounter;
 
     // Utility / sustain
     public float GearMoveSpeedPercent => GetEquippedMoveSpeedPercent();
@@ -1233,8 +1244,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         {
             float damageTakenMultiplier = 100f / (100f + Mathf.Max(0f, Armor));
 
-            // Physical block is chance to take 0 damage, so expected damage taken is reduced by (1 - blockChance)
-            damageTakenMultiplier *= Mathf.Max(0.05f, 1f - PhysBlockChance);
+            damageTakenMultiplier *= Mathf.Max(0.05f, 1f - PhysBlockChance * PhysBlockMitigationFraction);
 
             return CombatPowerDefenseHealthPool / Mathf.Max(0.01f, damageTakenMultiplier);
         }
@@ -1704,18 +1714,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (_ownerEnemy != null)
             return MagicAilmentApplyChance;
 
+        if (!GetCurrentAttackAppliesAsFireForBurn())
+            return 0f;
+
         return Mathf.Clamp01(
             baseBurnChance + GetEquippedBurnChanceBonus() + GetMainHandWeaponBurnAdditive() +
             GetActiveMeleeMinorBonuses().meleeBurnChance + GetTacticianBurnChanceBonus());
     }
 
+    /// <summary>True when the equipped main-hand weapon is a fire magic weapon (burn only rolls on fire damage dealt).</summary>
     private bool GetCurrentAttackAppliesAsFireForBurn()
     {
         var mh = GetMainHandWeaponDef();
-        if (mh != null && mh.IsWeapon && mh.weaponStats.magicAttackType == MagicAttackType.Fire)
-            return true;
-
-        return GetCurrentMagicAttackType() == MagicAttackType.Fire;
+        return mh != null && mh.IsWeapon
+            && mh.weaponStats.attackSkill == AttackSkill.Magic
+            && mh.weaponStats.magicAttackType == MagicAttackType.Fire;
     }
 
     private float GetEquippedBurnChanceBonus()
@@ -2691,72 +2704,175 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return off != null && off.IsArmor && off.equipSlot == EquipSlot.OffHand;
     }
 
-    private bool IsTacticianTwoHandedEnhancementActive() =>
-        IsTacticianMajorPassiveActive() &&
-        GetTacticianEnhancementPick() == 0 &&
-        IsMainHandTwoHandedWeaponEquipped();
-
-    private bool IsTacticianOneHandedBaseActive() =>
-        IsTacticianMajorPassiveActive() &&
-        IsMainHandOneHandedWeaponEquipped() &&
-        !IsTacticianTwoHandedEnhancementActive();
-
-    private bool IsTacticianShieldEnhancementActive() =>
-        IsTacticianMajorPassiveActive() &&
-        GetTacticianEnhancementPick() == 1 &&
-        HasShieldEquipped();
-
-    public float GetTacticianAttackSpeedPercent()
+    public void NotifyWeaponSetSwapped()
     {
-        return IsTacticianOneHandedBaseActive() ? AbilityCombatPower.TacticianOneHandedAttackSpeedPercent : 0f;
+        _lastWeaponSetSwapTime = Time.time;
+        SyncTacticianDualityHudBuff();
+        // Always refresh stat UIs (weapon + per-set armour differ); SyncTacticianDualityHudBuff may also notify.
+        NotifyStatsChanged();
     }
 
+    private void SyncTacticianDualityHudBuff()
+    {
+        bool shouldBeActive = GetTacticianEnhancementPick() == AbilityCombatPower.TacticianEnhancementDuality
+            && IsRecentWeaponSwapForTactician();
+
+        if (shouldBeActive)
+        {
+            if (!buffController)
+                buffController = GetComponent<PlayerBuffController>();
+
+            if (buffController)
+            {
+                float endTime = _lastWeaponSetSwapTime + AbilityCombatPower.TacticianDualityRecentSwapSeconds;
+                buffController.SetHudAbilityBuff(
+                    TacticianDualityHudBuffId,
+                    1,
+                    endTime,
+                    AbilityCombatPower.TacticianDualityRecentSwapSeconds);
+            }
+        }
+        else if (buffController && _tacticianDualityHudBuffWasActive)
+        {
+            buffController.ClearHudAbilityBuff(TacticianDualityHudBuffId);
+        }
+
+        if (shouldBeActive != _tacticianDualityHudBuffWasActive)
+        {
+            _tacticianDualityHudBuffWasActive = shouldBeActive;
+            NotifyStatsChanged();
+        }
+    }
+
+    private bool IsTacticianOneHandedBonusesActive() => IsTacticianApplyingOneHandedWeaponBonuses;
+
+    private bool IsTacticianTwoHandedBonusesActive() => IsTacticianApplyingTwoHandedWeaponBonuses;
+
+    public bool IsTacticianApplyingOneHandedWeaponBonuses =>
+        IsTacticianMajorPassiveActive() && IsMainHandOneHandedWeaponEquipped();
+
+    public bool IsTacticianApplyingTwoHandedWeaponBonuses =>
+        IsTacticianMajorPassiveActive() && IsMainHandTwoHandedWeaponEquipped();
+
+    public bool IsTacticianApplyingSecondarySpecialistShieldBonuses =>
+        IsTacticianMajorPassiveActive() &&
+        GetTacticianEnhancementPick() == AbilityCombatPower.TacticianEnhancementBulwark &&
+        HasShieldEquipped() &&
+        IsMainHandOneHandedWeaponEquipped();
+
+    /// <summary>Legacy name; use <see cref="IsTacticianApplyingSecondarySpecialistShieldBonuses"/>.</summary>
+    public bool IsTacticianApplyingBulwarkBonuses => IsTacticianApplyingSecondarySpecialistShieldBonuses;
+
+    public bool IsDualWieldingOneHandedWeapons() =>
+        IsMainHandOneHandedWeaponEquipped() && HasOffHandOneHandedWeaponEquipped();
+
+    public bool HasOffHandOneHandedWeaponEquipped() => GetOffHandWeaponDef() != null;
+
+    public bool IsTacticianApplyingSecondarySpecialistDualWieldBonus =>
+        IsTacticianMajorPassiveActive() &&
+        GetTacticianEnhancementPick() == AbilityCombatPower.TacticianEnhancementBulwark &&
+        IsDualWieldingOneHandedWeapons();
+
+    private bool IsTacticianSecondarySpecialistShieldActive() => IsTacticianApplyingSecondarySpecialistShieldBonuses;
+
+    /// <summary>Every Nth successful melee hit while dual wielding procs a duplicate hit (Secondary Specialist).</summary>
+    public bool TryConsumeSecondarySpecialistDualWieldDoubleHit()
+    {
+        if (!IsTacticianApplyingSecondarySpecialistDualWieldBonus)
+            return false;
+
+        _secondarySpecialistMeleeHitCounter++;
+        return _secondarySpecialistMeleeHitCounter % AbilityCombatPower.TacticianSecondarySpecialistDualWieldHitInterval == 0;
+    }
+
+    private float GetTacticianBonusMultiplier()
+    {
+        if (!IsTacticianMajorPassiveActive())
+            return 1f;
+
+        int pick = GetTacticianEnhancementPick();
+        if (pick == AbilityCombatPower.TacticianEnhancementPerfectForm)
+            return 2f;
+
+        if (pick == AbilityCombatPower.TacticianEnhancementDuality && IsRecentWeaponSwapForTactician())
+            return 3f;
+
+        return 1f;
+    }
+
+    private bool IsRecentWeaponSwapForTactician() =>
+        Time.time - _lastWeaponSetSwapTime <= AbilityCombatPower.TacticianDualityRecentSwapSeconds;
+
+    public bool IsRecentWeaponSwapForTacticianDuality() =>
+        IsTacticianMajorPassiveActive() &&
+        GetTacticianEnhancementPick() == AbilityCombatPower.TacticianEnhancementDuality &&
+        IsRecentWeaponSwapForTactician();
+
+    public float GetTacticianAttackSpeedPercent() =>
+        IsTacticianOneHandedBonusesActive()
+            ? AbilityCombatPower.TacticianOneHandedAttackSpeedPercent * GetTacticianBonusMultiplier()
+            : 0f;
+
     public float GetTacticianPoisonChanceBonus() =>
-        IsTacticianOneHandedBaseActive() ? AbilityCombatPower.TacticianOneHandedPoisonChance : 0f;
+        IsTacticianOneHandedBonusesActive()
+            ? AbilityCombatPower.TacticianOneHandedPoisonChance * GetTacticianBonusMultiplier()
+            : 0f;
 
     public float GetTacticianBurnChanceBonus() =>
-        IsTacticianOneHandedBaseActive() ? AbilityCombatPower.TacticianOneHandedBurnChance : 0f;
+        IsTacticianOneHandedBonusesActive()
+            ? AbilityCombatPower.TacticianOneHandedBurnChance * GetTacticianBonusMultiplier()
+            : 0f;
 
     public float GetTacticianCritChanceBonus() =>
-        IsTacticianOneHandedBaseActive() ? AbilityCombatPower.TacticianOneHandedCritChance : 0f;
+        IsTacticianOneHandedBonusesActive()
+            ? AbilityCombatPower.TacticianOneHandedCritChance * GetTacticianBonusMultiplier()
+            : 0f;
 
     public float GetTacticianBleedMultiplierBonus() =>
-        IsTacticianTwoHandedEnhancementActive() ? AbilityCombatPower.TacticianTwoHandedBleedMultiplierBonus : 0f;
+        IsTacticianTwoHandedBonusesActive()
+            ? AbilityCombatPower.TacticianTwoHandedBleedMultiplierBonus * GetTacticianBonusMultiplier()
+            : 0f;
 
     public float GetTacticianPhysBlockChanceBonus()
     {
+        float mult = GetTacticianBonusMultiplier();
         float total = 0f;
-        if (IsTacticianTwoHandedEnhancementActive())
-            total += AbilityCombatPower.TacticianTwoHandedBlockChance;
-        if (IsTacticianShieldEnhancementActive())
-            total += AbilityCombatPower.TacticianShieldBlockChanceBonus;
+        if (IsTacticianTwoHandedBonusesActive())
+            total += AbilityCombatPower.TacticianTwoHandedBlockChance * mult;
+        if (IsTacticianSecondarySpecialistShieldActive())
+            total += AbilityCombatPower.TacticianShieldBlockChanceBonus * mult;
         return total;
     }
 
+    public float GetTacticianPhysBlockMitigationBonus() =>
+        IsTacticianSecondarySpecialistShieldActive() ? AbilityCombatPower.TacticianShieldBlockMitigationBonus : 0f;
+
     public int GetTacticianFlatArmorBonus() =>
-        IsTacticianShieldEnhancementActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
+        IsTacticianSecondarySpecialistShieldActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
 
     public int GetTacticianFlatMagicResistBonus() =>
-        IsTacticianShieldEnhancementActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
+        IsTacticianSecondarySpecialistShieldActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
 
     public int GetTacticianFlatCorruptionResistBonus() =>
-        IsTacticianShieldEnhancementActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
+        IsTacticianSecondarySpecialistShieldActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
 
     /// <summary>Multiplier applied to enemy armour rating on outgoing physical hits (lower = more penetration).</summary>
     public float GetTacticianOutgoingArmorRatingMultiplier()
     {
-        if (!IsTacticianTwoHandedEnhancementActive())
+        if (!IsTacticianTwoHandedBonusesActive())
             return 1f;
 
-        return Mathf.Clamp01(1f - AbilityCombatPower.TacticianTwoHandedArmorPenetration);
+        float pen = AbilityCombatPower.TacticianTwoHandedArmorPenetration * GetTacticianBonusMultiplier();
+        return Mathf.Clamp01(1f - pen);
     }
 
     public void TryApplyTacticianStunOnEnemyHit(EnemyBaseController enemy)
     {
-        if (!IsTacticianTwoHandedEnhancementActive() || enemy == null || enemy.IsDead)
+        if (!IsTacticianTwoHandedBonusesActive() || enemy == null || enemy.IsDead)
             return;
 
-        enemy.TryApplyStun(AbilityCombatPower.TacticianStunDurationSeconds, AbilityCombatPower.TacticianTwoHandedStunChance);
+        float chance = AbilityCombatPower.TacticianTwoHandedStunChance * GetTacticianBonusMultiplier();
+        enemy.TryApplyStun(AbilityCombatPower.TacticianStunDurationSeconds, chance);
     }
 
     private int GetMeleeLevel40MajorPassiveRowPick()
@@ -3643,6 +3759,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         baseArmor = Mathf.Max(0, def.armor);
         baseMagicResist = Mathf.Max(0, def.magicResist);
         basePhysBlockChance = Mathf.Clamp01(def.physBlockChance);
+        basePhysBlockMitigation = Mathf.Clamp01(def.physBlockMitigation);
 
         baseMinPhysicalDamage = 0f;
         baseMaxPhysicalDamage = 0f;
@@ -4195,7 +4312,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
                     if (PhysBlockChance > 0f && UnityEngine.Random.value < Mathf.Clamp01(PhysBlockChance))
                     {
                         blocked = true;
-                        return 0f;
+                        dmg *= 1f - PhysBlockMitigationFraction;
                     }
 
                     return ApplyFinalIncomingDamageMultipliers(

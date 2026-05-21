@@ -212,6 +212,13 @@ public class SaveData
     [Tooltip("StripCamera orthographicSize ÷ prefab baseline (HUD \"Zoom %\"). 0 = legacy/unset; use scene default.")]
     public float stripCameraZoomMultiplier;
 
+    [Header("UI window lock")]
+    [Tooltip("Parallel keys: window id (usually GameObject name, see UIWindowCloseButton.persistenceWindowId).")]
+    public List<string> uiWindowLockKeys = new();
+
+    [Tooltip("1 = locked (cannot close via X / ESC / toggle), 0 = unlocked.")]
+    public List<int> uiWindowLockLocked = new();
+
     [Header("Helpers / Tutorial popups")]
     [Tooltip("HelperPopupDefinition.helperId values dismissed for this character (do not replay until New Game clears the save).")]
     public List<string> dismissedHelperIds = new();

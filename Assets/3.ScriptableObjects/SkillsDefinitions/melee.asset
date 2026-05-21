@@ -830,8 +830,9 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 30
     title: Tactician
-    description: 'With a one-handed weapon: +15% attack speed, +10% poison and burn
-      chance, +5% critical strike chance.'
+    description: 'When wielding certain melee weapons: 1H — +5% attack speed, +5% poison
+      and burn chance, +5% crit. 2H — +5% bleed multi, armour pen, stun chance, and
+      block.'
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -846,17 +847,22 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices:
     - requiredLevel: 33
-      title: Two-Handed Weapons
-      description: 'While wielding a two-handed weapon (replaces one-handed bonuses):
-        +15% bleed multiplier, 25% armour penetration, 25% chance to stun, 10% chance
-        to block.'
+      title: Perfect Form
+      description: All Tactician bonuses are doubled.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 33
-      title: Shield
-      description: 'While a shield is equipped in the off hand (adds): +5% block chance,
-        +10 armour, magic resist, and corruption resist.'
+      title: Secondary Specialist
+      description: 'Shield + 1H: one-handed bonuses plus +5% block, +10 resists, +10%
+        block mitigation. Dual wield 1H off-hand: every fifth hit hits twice.'
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 33
+      title: Duality
+      description: All bonuses from Tactician are tripled for 8 seconds after swapping
+        weapons.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

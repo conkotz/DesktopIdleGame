@@ -115,6 +115,10 @@ public class EnemyDefinition : ScriptableObject
     [Tooltip("Maps to CharacterStats basePhysBlockChance.")]
     public float physBlockChance = 0f;
 
+    [Range(0f, 1f)]
+    [Tooltip("Fraction of physical damage prevented when block succeeds. Default 70%.")]
+    public float physBlockMitigation = AbilityCombatPower.BasePhysBlockMitigation;
+
     [Header("Guard (same rules as player armor)")]
     [Min(0)]
     [Tooltip("Flat guard pool cap contribution; replenish cap is min(this, Max HP × (1 + Max Guard %))).")]

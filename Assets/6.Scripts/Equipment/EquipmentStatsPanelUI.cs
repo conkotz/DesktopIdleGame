@@ -37,6 +37,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text mrText;
     [SerializeField] private TMP_Text corruptionResistText;
     [SerializeField] private TMP_Text blockText;
+    [SerializeField] private TMP_Text blockMitigationText;
     [SerializeField] private TMP_Text guardFlatText;
     [SerializeField] private TMP_Text maxGuardPercentText;
 
@@ -206,6 +207,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             stats.OnEnergyChanged += HandleVitalsChangedForEnergyInfusionDisplay;
         }
 
+        PlayerSprintInput.SprintStateChanged += HandleSprintStateChanged;
+
         Refresh();
     }
 
@@ -228,7 +231,11 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             stats.OnManaChanged -= HandleVitalsChangedForEnergyInfusionDisplay;
             stats.OnEnergyChanged -= HandleVitalsChangedForEnergyInfusionDisplay;
         }
+
+        PlayerSprintInput.SprintStateChanged -= HandleSprintStateChanged;
     }
+
+    private void HandleSprintStateChanged(bool _) => QueueRefresh();
 
     private void HandleVitalsChangedForEnergyInfusionDisplay(float _, float __)
     {
@@ -239,7 +246,12 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     private void HandleRefresh(string _) => QueueRefresh();
     private void HandleUISlotChanged(EquipmentUISlotType _, string __) => QueueRefresh();
     private void HandleToolChanged(int _, string __) => QueueRefresh();
-    private void HandleActiveSetChanged(int _) => QueueRefresh();
+    private void HandleActiveSetChanged(int _)
+    {
+        // Weapon swap can suppress per-slot UI events; repaint immediately and again next frame.
+        Refresh();
+        QueueRefresh();
+    }
 
     private static string FormatSignedPercentFrom01(float value01)
     {
@@ -250,6 +262,23 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     private static string FormatSignedPercentPoints(float percentPoints)
     {
         return $"{percentPoints:+0.#;-0.#;0}%";
+    }
+
+    private static string BuildMoveSpeedLine(CharacterStats characterStats)
+    {
+        if (characterStats == null)
+            return "Move Speed: —";
+
+        string basePct = FormatSignedPercentFrom01(characterStats.MoveSpeedBonusPercent);
+        float baseSpeed = characterStats.FinalMoveSpeed;
+
+        if (!PlayerSprintInput.ShouldApplyMoveSpeedBonus() && !PlayerSprintInput.IsSprinting)
+            return $"Move Speed: {basePct} ({baseSpeed:0.#})";
+
+        float sprintingSpeed = PlayerSprintInput.ApplySprintBonus(baseSpeed);
+        float sprintPct = PlayerSprintInput.GetSprintBonusPercentOfBase(baseSpeed);
+        return
+            $"Move Speed: {basePct} ({baseSpeed:0.#} → {sprintingSpeed:0.#}, +{sprintPct:0.#}% sprint)";
     }
 
     private void HandleStatsChanged()
@@ -290,6 +319,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (corruptionResistText)
             corruptionResistText.text = $"Corr Res: {stats.CorruptionResist} ({stats.CorruptionReductionFromResistPercent:0.#}% Corr DR)";
         if (blockText) blockText.text = $"Phys Block: {stats.PhysBlockChancePercent:0.#}%";
+        if (blockMitigationText)
+            blockMitigationText.text = $"Block Mitigation: {stats.PhysBlockMitigationPercent:0.#}%";
 
         if (guardFlatText)
             guardFlatText.text = $"Guard (flat): {stats.GearFlatGuardSum}";
@@ -301,7 +332,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         }
 
         if (moveSpeedText)
-            moveSpeedText.text = $"Move Speed: {FormatSignedPercentFrom01(stats.MoveSpeedBonusPercent)}";
+            moveSpeedText.text = BuildMoveSpeedLine(stats);
 
         if (lifeRegenText) lifeRegenText.text = $"Life Regen: {stats.LifeRegenPerSecond:0.##}/s";
         if (energyRegenText)

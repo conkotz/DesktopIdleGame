@@ -15,6 +15,8 @@ public class UIWindowCloseButton : MonoBehaviour
     [Header("Optional window lock")]
     [Tooltip("When locked, this close button and ESC / toggle-close paths cannot dismiss the target window.")]
     [SerializeField] private Button lockButton;
+    [Tooltip("Save-slot key for lock state. Empty = target window name (e.g. GameActivityWindow, MainMenuWindow).")]
+    [SerializeField] private string persistenceWindowId;
     [SerializeField] private GameObject iconUnlocked;
     [SerializeField] private GameObject iconLocked;
     [SerializeField, Range(0.05f, 1f)] private float closeButtonLockedAlpha = 0.35f;
@@ -23,6 +25,9 @@ public class UIWindowCloseButton : MonoBehaviour
     private Button _closeButton;
 
     public bool IsLocked { get; private set; }
+
+    /// <summary>Key used in <see cref="SaveData.uiWindowLockKeys"/> for this window.</summary>
+    public string PersistenceWindowId => ResolvePersistenceWindowId();
 
     /// <summary>True when a <see cref="UIWindowCloseButton"/> for this window has lock engaged.</summary>
     public static bool BlocksClose(GameObject windowRoot)
@@ -56,12 +61,14 @@ public class UIWindowCloseButton : MonoBehaviour
     {
         EnsureLockButtonWired();
         ApplyLockVisuals();
+        UIWindowLockStore.ApplyToCloseButton(this);
     }
 
     private void OnEnable()
     {
         EnsureLockButtonWired();
         ApplyLockVisuals();
+        UIWindowLockStore.ApplyToCloseButton(this);
     }
 
     private void OnDestroy()
@@ -80,12 +87,31 @@ public class UIWindowCloseButton : MonoBehaviour
         disableInsteadOfHide = disableInstead;
     }
 
-    public void ToggleLock() => SetLocked(!IsLocked);
+    public void ToggleLock() => SetLocked(!IsLocked, persist: true);
 
-    public void SetLocked(bool locked)
+    public void SetLocked(bool locked) => SetLocked(locked, persist: false);
+
+    /// <summary>Apply saved lock state without writing back to the save file.</summary>
+    public void SetLockedFromPersistence(bool locked) => SetLocked(locked, persist: false);
+
+    private void SetLocked(bool locked, bool persist)
     {
         IsLocked = locked;
         ApplyLockVisuals();
+
+        if (persist)
+            UIWindowLockStore.Record(ResolvePersistenceWindowId(), locked);
+    }
+
+    private string ResolvePersistenceWindowId()
+    {
+        if (!string.IsNullOrWhiteSpace(persistenceWindowId))
+            return persistenceWindowId.Trim();
+
+        if (targetWindow != null)
+            return targetWindow.name;
+
+        return name;
     }
 
     public void CloseWindow()

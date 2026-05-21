@@ -10,9 +10,37 @@ public static class MeleeMajorPassiveTooltipText
 {
     public const int AilmentAttunementMajorPassiveLevel = 10;
     public const string BattleEngineOverloadTitle = "Overload";
+    public const string TacticianDualityHudBuffTitle = "Duality";
+
+    /// <summary>Yellow accent for weapon bonuses currently applied (equipped loadout).</summary>
+    private const string TacticianActiveColor = "#FFEB3B";
+
+    public static string BuildTacticianPerfectFormDescription() => "All Tactician bonuses are doubled.";
+
+    public static string BuildTacticianSecondarySpecialistDescription()
+    {
+        return
+            "While using a one-handed weapon with a shield, also gain the one-handed bonuses plus:\n" +
+            $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianShieldBlockChanceBonus * 100f)}% block chance\n" +
+            $"+{AbilityCombatPower.TacticianShieldFlatResistBonus} armour, magic resist, and corruption resist\n" +
+            $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianShieldBlockMitigationBonus * 100f)}% block mitigation\n" +
+            "While dual wielding (a one-handed weapon in the off-hand slot), every fifth hit hits twice.";
+    }
+
+    public static string BuildTacticianDualityDescription() =>
+        "All bonuses from Tactician are tripled for 8 seconds after swapping weapons.";
+
+    public static string BuildTacticianDualityHudBody() => BuildTacticianDualityDescription();
 
     /// <summary>Skill-tree body from parent spine id (e.g. Lv40_0, Lv40_1).</summary>
-    public static bool TryBuildSkillTreeBody(string parentSpineNodeId, int selectedChoice, out string body)
+    public static bool TryBuildSkillTreeBody(string parentSpineNodeId, int selectedChoice, out string body) =>
+        TryBuildSkillTreeBody(parentSpineNodeId, selectedChoice, ResolvePlayerStatsForTooltip(), out body);
+
+    public static bool TryBuildSkillTreeBody(
+        string parentSpineNodeId,
+        int selectedChoice,
+        CharacterStats stats,
+        out string body)
     {
         body = null;
         if (string.IsNullOrWhiteSpace(parentSpineNodeId))
@@ -29,7 +57,7 @@ public static class MeleeMajorPassiveTooltipText
             case "Lv30_0":
                 return TryBuildBattleEngineBody(selectedChoice, out body);
             case AbilityCombatPower.TacticianMajorPassiveSpineNodeId:
-                return TryBuildTacticianBody(selectedChoice, out body);
+                return TryBuildTacticianBody(selectedChoice, stats, out body);
             case AbilityCombatPower.PhoenixSoulEnhancementParentSpineNodeId:
                 return TryBuildPhoenixSoulBody(selectedChoice, out body);
             case AbilityCombatPower.MasterOfVenomsEnhancementParentSpineNodeId:
@@ -56,12 +84,21 @@ public static class MeleeMajorPassiveTooltipText
             return true;
         }
 
-        if (!string.Equals(buffId, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase))
-            return false;
+        if (string.Equals(buffId, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            title = BattleEngineOverloadTitle;
+            body = BuildOverloadHudBody(Mathf.Max(0, displayStacks));
+            return true;
+        }
 
-        title = BattleEngineOverloadTitle;
-        body = BuildOverloadHudBody(Mathf.Max(0, displayStacks));
-        return true;
+        if (string.Equals(buffId, CharacterStats.TacticianDualityHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            title = TacticianDualityHudBuffTitle;
+            body = BuildTacticianDualityHudBody();
+            return true;
+        }
+
+        return false;
     }
 
     public static string BuildOverloadHudBody(int currentStacks)
@@ -128,23 +165,21 @@ public static class MeleeMajorPassiveTooltipText
 
         if (string.Equals(parentSpineNodeId, AbilityCombatPower.TacticianMajorPassiveSpineNodeId, StringComparison.Ordinal))
         {
-            if (choiceIndex == 0)
+            if (choiceIndex == AbilityCombatPower.TacticianEnhancementPerfectForm)
             {
-                body =
-                    "While wielding a two-handed weapon (replaces one-handed bonuses):\n" +
-                    "+15% bleed multiplier\n" +
-                    "25% armour penetration\n" +
-                    "25% chance to stun enemies\n" +
-                    "10% chance to block attacks";
+                body = BuildTacticianPerfectFormDescription();
                 return true;
             }
 
-            if (choiceIndex == 1)
+            if (choiceIndex == AbilityCombatPower.TacticianEnhancementBulwark)
             {
-                body =
-                    "While a shield is equipped in the off hand (adds):\n" +
-                    "+5% block chance\n" +
-                    "+10 armour, magic resist, and corruption resist";
+                body = BuildTacticianSecondarySpecialistDescription();
+                return true;
+            }
+
+            if (choiceIndex == AbilityCombatPower.TacticianEnhancementDuality)
+            {
+                body = BuildTacticianDualityDescription();
                 return true;
             }
         }
@@ -223,24 +258,97 @@ public static class MeleeMajorPassiveTooltipText
         return true;
     }
 
-    private static bool TryBuildTacticianBody(int selectedChoice, out string body)
+    private static CharacterStats ResolvePlayerStatsForTooltip()
     {
+        PlayerController player = UnityEngine.Object.FindFirstObjectByType<PlayerController>();
+        return player != null ? player.GetComponent<CharacterStats>() : null;
+    }
+
+    private static void AppendTacticianSecondarySpecialistLines(StringBuilder sb, bool specialistActive)
+    {
+        foreach (string line in BuildTacticianSecondarySpecialistDescription().Split('\n'))
+        {
+            if (!string.IsNullOrWhiteSpace(line))
+                AppendTacticianColoredLine(sb, line.Trim(), specialistActive);
+        }
+    }
+
+    private static void AppendTacticianColoredLine(StringBuilder sb, string text, bool highlightActive)
+    {
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        if (highlightActive)
+            sb.Append("<color=").Append(TacticianActiveColor).Append(">");
+
+        sb.Append(text);
+
+        if (highlightActive)
+            sb.Append("</color>");
+
+        sb.AppendLine();
+    }
+
+    private static bool TryBuildTacticianBody(int selectedChoice, CharacterStats stats, out string body)
+    {
+        bool oneHandActive = stats != null && stats.IsTacticianApplyingOneHandedWeaponBonuses;
+        bool twoHandActive = stats != null && stats.IsTacticianApplyingTwoHandedWeaponBonuses;
+
         var sb = new StringBuilder();
-        sb.AppendLine("While wielding a one-handed weapon:");
-        sb.Append("+");
-        sb.Append(Mathf.RoundToInt(AbilityCombatPower.TacticianOneHandedAttackSpeedPercent * 100f));
-        sb.AppendLine("% attack speed");
-        sb.Append("+");
-        sb.Append(Mathf.RoundToInt(AbilityCombatPower.TacticianOneHandedPoisonChance * 100f));
-        sb.Append(" poison and ");
-        sb.Append(Mathf.RoundToInt(AbilityCombatPower.TacticianOneHandedBurnChance * 100f));
-        sb.AppendLine(" burn chance");
-        sb.Append("+");
-        sb.Append(Mathf.RoundToInt(AbilityCombatPower.TacticianOneHandedCritChance * 100f));
-        sb.AppendLine("% critical strike chance");
-        AppendEnhancementLines(sb, selectedChoice, AbilityCombatPower.TacticianMajorPassiveSpineNodeId);
+        AppendTacticianColoredLine(sb, "When wielding certain melee weapons, gain:", false);
+        AppendTacticianColoredLine(sb, "One-handed:", oneHandActive);
+        AppendTacticianColoredLine(sb,
+            $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianOneHandedAttackSpeedPercent * 100f)}% attack speed",
+            oneHandActive);
+        AppendTacticianColoredLine(sb,
+            $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianOneHandedPoisonChance * 100f)} poison and " +
+            $"{Mathf.RoundToInt(AbilityCombatPower.TacticianOneHandedBurnChance * 100f)} burn chance",
+            oneHandActive);
+        AppendTacticianColoredLine(sb,
+            $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianOneHandedCritChance * 100f)}% critical strike chance",
+            oneHandActive);
+        AppendTacticianColoredLine(sb, "Two-handed:", twoHandActive);
+        AppendTacticianColoredLine(sb,
+            $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianTwoHandedBleedMultiplierBonus * 100f)}% bleed multiplier",
+            twoHandActive);
+        AppendTacticianColoredLine(sb,
+            $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianTwoHandedArmorPenetration * 100f)}% armour penetration",
+            twoHandActive);
+        AppendTacticianColoredLine(sb,
+            $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianTwoHandedStunChance * 100f)}% chance to stun",
+            twoHandActive);
+        AppendTacticianColoredLine(sb,
+            $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianTwoHandedBlockChance * 100f)}% block chance",
+            twoHandActive);
+        AppendTacticianEnhancementLines(sb, selectedChoice, stats);
         body = sb.ToString();
         return true;
+    }
+
+    private static void AppendTacticianEnhancementLines(StringBuilder sb, int selectedChoice, CharacterStats stats)
+    {
+        if (sb == null || selectedChoice < 0)
+            return;
+
+        if (sb.Length > 0 && sb[sb.Length - 1] != '\n')
+            sb.AppendLine();
+
+        bool specialistActive = stats != null && stats.IsTacticianApplyingSecondarySpecialistShieldBonuses;
+        bool dualWieldActive = stats != null && stats.IsTacticianApplyingSecondarySpecialistDualWieldBonus;
+        bool dualityActive = stats != null && stats.IsRecentWeaponSwapForTacticianDuality();
+
+        switch (selectedChoice)
+        {
+            case AbilityCombatPower.TacticianEnhancementPerfectForm:
+                AppendTacticianColoredLine(sb, BuildTacticianPerfectFormDescription(), false);
+                break;
+            case AbilityCombatPower.TacticianEnhancementBulwark:
+                AppendTacticianSecondarySpecialistLines(sb, specialistActive || dualWieldActive);
+                break;
+            case AbilityCombatPower.TacticianEnhancementDuality:
+                AppendTacticianColoredLine(sb, BuildTacticianDualityDescription(), dualityActive);
+                break;
+        }
     }
 
     private static bool TryBuildPhoenixSoulBody(int selectedChoice, out string body)
@@ -325,14 +433,12 @@ public static class MeleeMajorPassiveTooltipText
                 break;
 
             case AbilityCombatPower.TacticianMajorPassiveSpineNodeId:
-                if (selectedChoice == 0)
-                {
-                    sb.AppendLine("Two-Handed: +15% bleed multiplier, 25% armour penetration, 25% stun chance, 10% block.");
-                }
-                else if (selectedChoice == 1)
-                {
-                    sb.AppendLine("Shield: +5% block, +10 armour, magic resist, and corruption resist.");
-                }
+                if (selectedChoice == AbilityCombatPower.TacticianEnhancementPerfectForm)
+                    sb.AppendLine(BuildTacticianPerfectFormDescription());
+                else if (selectedChoice == AbilityCombatPower.TacticianEnhancementBulwark)
+                    sb.AppendLine(BuildTacticianSecondarySpecialistDescription());
+                else if (selectedChoice == AbilityCombatPower.TacticianEnhancementDuality)
+                    sb.AppendLine(BuildTacticianDualityDescription());
                 break;
 
             case AbilityCombatPower.PhoenixSoulEnhancementParentSpineNodeId:

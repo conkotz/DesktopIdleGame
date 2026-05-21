@@ -58,17 +58,30 @@ public static class AbilityCombatPower
     /// <summary>Melee Lv30 major passive — Tactician (skill tree slot 1 at level 30).</summary>
     public const string TacticianMajorPassiveSpineNodeId = "Lv30_1";
     public const string BattleEngineEnhancementParentSpineNodeId = "Lv30_0";
-    public const float TacticianOneHandedAttackSpeedPercent = 0.15f;
-    public const float TacticianOneHandedPoisonChance = 0.10f;
-    public const float TacticianOneHandedBurnChance = 0.10f;
+
+    /// <summary>Fraction of physical damage prevented when a block succeeds (player and enemies).</summary>
+    public const float BasePhysBlockMitigation = 0.70f;
+
+    public const float TacticianOneHandedAttackSpeedPercent = 0.05f;
+    public const float TacticianOneHandedPoisonChance = 0.05f;
+    public const float TacticianOneHandedBurnChance = 0.05f;
     public const float TacticianOneHandedCritChance = 0.05f;
-    public const float TacticianTwoHandedBleedMultiplierBonus = 0.15f;
-    public const float TacticianTwoHandedArmorPenetration = 0.25f;
-    public const float TacticianTwoHandedStunChance = 0.25f;
-    public const float TacticianTwoHandedBlockChance = 0.10f;
+    public const float TacticianTwoHandedBleedMultiplierBonus = 0.05f;
+    public const float TacticianTwoHandedArmorPenetration = 0.05f;
+    public const float TacticianTwoHandedStunChance = 0.05f;
+    public const float TacticianTwoHandedBlockChance = 0.05f;
     public const float TacticianShieldBlockChanceBonus = 0.05f;
     public const int TacticianShieldFlatResistBonus = 10;
+    public const float TacticianShieldBlockMitigationBonus = 0.10f;
     public const float TacticianStunDurationSeconds = 1.5f;
+    public const float TacticianDualityRecentSwapSeconds = 8f;
+
+    public const int TacticianEnhancementPerfectForm = 0;
+    /// <summary>Skill-tree index; displayed as Secondary Specialist.</summary>
+    public const int TacticianEnhancementBulwark = 1;
+    public const int TacticianEnhancementDuality = 2;
+    public const int TacticianSecondarySpecialistDualWieldHitInterval = 5;
+    public const string TacticianSecondarySpecialistDoubleHitSourceLabel = "Secondary Specialist";
 
     /// <summary>Melee Lv10 major passive — Parry (skill tree slot 1 at level 10).</summary>
     public const string ParryMajorPassiveSpineNodeId = "Lv10_1";

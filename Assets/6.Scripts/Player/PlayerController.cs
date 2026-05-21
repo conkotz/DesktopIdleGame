@@ -517,6 +517,8 @@ public class PlayerController : MonoBehaviour
         if (_isDead)
             return;
 
+        PlayerSprintInput.PollSprintKey();
+
         if (_attackLocked && Time.time >= _attackUnlockTime)
         {
             _attackLocked = false;
@@ -536,12 +538,6 @@ public class PlayerController : MonoBehaviour
         SyncWoodcuttingFlowStateHudBuffIfNeeded();
         TickFishingCalmWatersLingerDecay();
         SyncFishingCalmWatersMajorHudBuffIfNeeded();
-    }
-
-    private void LateUpdate()
-    {
-        if (_isDead)
-            return;
 
         ApplyKeyboardMovementDelta();
     }
@@ -984,7 +980,10 @@ public class PlayerController : MonoBehaviour
                 combinedMask,
                 WorldInteractRouter.InteractHotkeyHalfRangeX,
                 out Collider2D winner))
+        {
+            WorldInteractRouter.ApplyCombatTargetForInteractHotkeyMiss(this);
             return;
+        }
 
         WorldInteractRouter.RouteInteract(winner, this);
     }
@@ -1007,10 +1006,8 @@ public class PlayerController : MonoBehaviour
         if (IsTypingIntoInputField())
             return false;
 
-        if (UnityEngine.EventSystems.EventSystem.current != null &&
-            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
-            return false;
-
+        // Do not gate on IsPointerOverGameObject — a dialogue/shop panel often covers the strip while
+        // the mouse rests on it, which would block the Interact key even though it is a keyboard bind.
         return true;
     }
 
@@ -3578,10 +3575,7 @@ public class PlayerController : MonoBehaviour
         // fallback so you don't brick movement if stats is missing
         if (!characterStats) return 3f;
 
-        float speed = characterStats.FinalMoveSpeed;
-        if (PlayerSprintInput.ShouldApplyMoveSpeedBonus())
-            speed += PlayerSprintInput.SprintSpeedBonusFlat;
-        return speed;
+        return PlayerSprintInput.ApplySprintBonus(characterStats.FinalMoveSpeed);
     }
 
     private void UpdateSpriteFlip()
@@ -4302,7 +4296,8 @@ public class PlayerController : MonoBehaviour
                     if (blockChance > 0f && UnityEngine.Random.value < Mathf.Clamp01(blockChance))
                     {
                         blocked = true;
-                        return 0f; // ✅ block = 0 damage
+                        float mitigation = characterStats ? characterStats.PhysBlockMitigationFraction : AbilityCombatPower.BasePhysBlockMitigation;
+                        dmg *= 1f - mitigation;
                     }
 
                     return dmg;

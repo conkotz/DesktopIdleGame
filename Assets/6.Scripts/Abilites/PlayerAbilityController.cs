@@ -1706,7 +1706,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (string.Equals(id, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase))
         {
-            target = FindClosestEnemyWithinExecutionersDescentCastRange();
+            target = ResolveExecutionersDescentTargetInCastRange();
             return target != null;
         }
 
@@ -2996,17 +2996,26 @@ public class PlayerAbilityController : MonoBehaviour
                         yield break;
                     }
 
-                    EnemyBaseController replacement = ResolveExecutionersDescentTargetInCastRange();
-                    if (replacement != null)
+                    if (trackedTarget != null && !trackedTarget.IsDead)
                     {
-                        trackedTarget = replacement;
                         impactPoint = trackedTarget.transform.position;
                         abilityVfx?.UpdateExecutionersDescent(trackedTarget, impactPoint, elapsed);
                     }
                     else
                     {
-                        ApplyExecutionersDescentEarlyDetonateNoTargetsInRange(def, impactPoint, trackedTarget);
-                        yield break;
+                        EnemyBaseController replacement = ResolveExecutionersDescentTargetInCastRange(
+                            combat != null ? combat.CurrentTarget : null);
+                        if (replacement != null)
+                        {
+                            trackedTarget = replacement;
+                            impactPoint = trackedTarget.transform.position;
+                            abilityVfx?.UpdateExecutionersDescent(trackedTarget, impactPoint, elapsed);
+                        }
+                        else
+                        {
+                            ApplyExecutionersDescentEarlyDetonateNoTargetsInRange(def, impactPoint, trackedTarget);
+                            yield break;
+                        }
                     }
                 }
                 else
@@ -3448,27 +3457,27 @@ public class PlayerAbilityController : MonoBehaviour
         return meleeReach + AbilityCombatPower.ExecutionersDescentCastRangeBeyondMelee;
     }
 
-    private EnemyBaseController ResolveExecutionersDescentTargetInCastRange()
+    private EnemyBaseController ResolveExecutionersDescentTargetInCastRange(EnemyBaseController preferredTarget = null)
     {
         if (combat == null)
             combat = GetComponent<PlayerCombatController>();
 
-        EnemyBaseController engaged = combat != null ? combat.GetPrimaryEngagedEnemy() : null;
-        if (IsEnemyWithinExecutionersDescentCastRange(engaged))
-            return engaged;
+        EnemyBaseController current = preferredTarget;
+        if (current == null && combat != null)
+            current = combat.CurrentTarget;
 
-        if (combat != null)
-        {
-            EnemyBaseController inMelee = combat.FindClosestEnemyInAttackRange();
-            if (IsEnemyWithinExecutionersDescentCastRange(inMelee))
-                return inMelee;
-        }
+        if (IsEnemyWithinExecutionersDescentCastRange(current))
+            return current;
 
-        return FindClosestEnemyWithinExecutionersDescentCastRange();
+        return FindClosestEnemyWithinExecutionersDescentCastRange(current);
     }
 
-    private EnemyBaseController FindClosestEnemyWithinExecutionersDescentCastRange()
+    private EnemyBaseController FindClosestEnemyWithinExecutionersDescentCastRange(
+        EnemyBaseController preferredTarget = null)
     {
+        if (preferredTarget != null && IsEnemyWithinExecutionersDescentCastRange(preferredTarget))
+            return preferredTarget;
+
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
         EnemyBaseController best = null;
         float bestDist = float.MaxValue;
@@ -3917,6 +3926,7 @@ public class PlayerAbilityController : MonoBehaviour
                 armorRatingMultiplier,
                 magicResistRatingMultiplier,
                 outgoingDpsSourceLabel: sourceLabel));
+
         }
 
         if (corrRaw > 0f)
@@ -3962,6 +3972,7 @@ public class PlayerAbilityController : MonoBehaviour
             armorRatingMultiplier,
             magicResistRatingMultiplier,
             def != null ? GetAbilityOutgoingDamageSourceLabel(def.abilityId) : null);
+
         TryGrantBattleEngineEnergyOnAbilityHit(def, dealt.Total > 0f);
         return dealt;
     }

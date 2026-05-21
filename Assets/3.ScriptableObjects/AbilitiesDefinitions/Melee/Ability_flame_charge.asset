@@ -19,6 +19,8 @@ MonoBehaviour:
   presentation: {fileID: 11400000, guid: f1a2b3c4d5e6789012345678abcd1234, type: 2}
   cooldown: 12
   energyCost: 30
+  manaCost: 0
+  healthCost: 0
   weaponDamageMultiplier: 0
   allDamageMultiplier: 1
   fireDamageMultiplier: 1
@@ -26,8 +28,8 @@ MonoBehaviour:
   lightningDamageMultiplier: 0
   poisonDamageMultiplier: 0
   bleedDamageMultiplier: 0
-  requiredWeaponType: 1
+  requiredWeaponType: 0
   sourceSkill: 3
   unlockLevel: 25
-  minionSpawnDefinition: {fileID: 0}
   requireRangeCheckToActivate: 0
+  minionSpawnDefinition: {fileID: 0}

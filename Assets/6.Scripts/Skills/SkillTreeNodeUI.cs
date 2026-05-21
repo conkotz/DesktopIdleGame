@@ -317,6 +317,24 @@ public class SkillTreeNodeUI : MonoBehaviour, ITreeConnectorEndpoint, IPointerEn
     /// <summary>
     /// Skill tree only: show the + control and route clicks to the view. Hidden when <paramref name="visible"/> is false.
     /// </summary>
+    /// <summary>Sprites used by <see cref="MajorPassiveListEntryUI"/> when tree status rows are built at runtime.</summary>
+    public bool TryGetIndicatorSprites(out Sprite notSelected, out Sprite enhance)
+    {
+        notSelected = null;
+        enhance = null;
+        CacheNotSelectedVisualDriver();
+        if (_notSelectedImage != null)
+            notSelected = _notSelectedImage.sprite;
+        if (enhanceButton != null)
+        {
+            Image enhanceImage = enhanceButton.GetComponent<Image>();
+            if (enhanceImage != null)
+                enhance = enhanceImage.sprite;
+        }
+
+        return notSelected != null || enhance != null;
+    }
+
     public void SetEnhanceControl(bool visible, UnityEngine.Events.UnityAction onEnhanceClicked)
     {
         if (enhanceButton == null)

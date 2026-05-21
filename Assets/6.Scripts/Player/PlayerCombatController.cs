@@ -1352,6 +1352,35 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             abilityController.ApplyMeleeQueuedCrescentSlashExtraHit(targetToHit, crescentAppliesElemental);
             ApplyCrescentSlashSecondaryHits(targetToHit, crescentPenetrating, crescentAppliesElemental, alreadyHit);
         }
+
+        if (primaryHitSucceeded && stats != null && stats.TryConsumeSecondarySpecialistDualWieldDoubleHit())
+        {
+            var doubleHitAttribution = new SwingOutgoingAttribution(
+                AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel,
+                swingAttribution.bonusSource,
+                swingAttribution.bonusFraction);
+            DamageResult doubleDealt = ApplySplitDamageToTarget(
+                targetToHit,
+                rolled,
+                wasCrit,
+                AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel,
+                doubleHitAttribution);
+
+            if (doubleDealt.Total > 0f)
+                player.ApplyLifeSteal(doubleDealt.Total);
+
+            if (!suppressOnHitAilments)
+            {
+                if (!suppressBleed)
+                    TryApplyBleed(targetToHit, doubleDealt);
+                if (!suppressPoison)
+                    TryApplyPoison(targetToHit, doubleDealt);
+                TryApplyElementalMagicAilment(targetToHit, doubleDealt);
+                TryApplyMeleeShock(targetToHit, doubleDealt);
+            }
+
+            stats.TryApplyTacticianStunOnEnemyHit(targetToHit);
+        }
     }
 
     private void ApplyCleaveSecondaryHits(EnemyBaseController primaryTarget, int extraTargets, HashSet<EnemyBaseController> alreadyHit)
@@ -2191,10 +2220,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         var ailments = target.GetComponent<AilmentController>();
         if (ailments == null) return;
 
-        if (stats.CurrentAttackAppliesAsFireForBurn && dealt.Total > 0f)
+        float fireDamageDealt = dealt.magic;
+        if (stats.CurrentAttackAppliesAsFireForBurn && fireDamageDealt > 0f)
         {
             ailments.TryApplyBurnFromFireHit(
-                dealt.Total,
+                fireDamageDealt,
                 stats.BurnApplyChance,
                 stats.BurnExplosionMultiplier,
                 transform,

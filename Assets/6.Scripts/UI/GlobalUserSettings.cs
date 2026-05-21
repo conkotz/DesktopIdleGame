@@ -19,6 +19,7 @@ public static class GlobalUserSettings
         StripCameraController.FactoryResetStoredStripLayoutAcrossApp();
 
         UIWindowPositionMemory.ResetAllWindowsToAnchors();
+        UIWindowLockStore.ClearAll();
 
         PlayerPrefs.Save();
         RestoredDefaults?.Invoke();
