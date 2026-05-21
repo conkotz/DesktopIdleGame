@@ -14,6 +14,7 @@ public class FloatingDamageTextUI : MonoBehaviour
         Typless,
         Bleed,
         Poison,
+        PoisonCrit,
         Blocked,
         Immune
     }
@@ -44,6 +45,13 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField, Tooltip("Applied after subtract; keep at 1 to size DoTs only via subtract.")]
     private float dotSizeMultiplier = 1f;
 
+    [Header("Status labels (Blocked / Parry / ailments)")]
+    [SerializeField, Tooltip("TMP font size reduction for lingering status labels.")]
+    private float statusFontSizeSubtractPoints = 2f;
+    [SerializeField, Min(0.1f)] private float lingeringStatusLifetimeSeconds = 1.5f;
+    [SerializeField, Min(0.01f)] private float lingeringStatusFadeInSeconds = 0.08f;
+    [SerializeField, Min(0.01f)] private float lingeringStatusFadeOutSeconds = 0.2f;
+
     [Header("Colours")]
     [SerializeField] private Color physicalColor = new Color32(220, 40, 40, 255);
     [FormerlySerializedAs("magicalColor")]
@@ -53,7 +61,10 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField] private Color typlessColor = Color.white;
     [SerializeField] private Color bleedColor = new Color32(170, 35, 35, 255);
     [SerializeField] private Color poisonColor = new Color32(85, 200, 90, 255);
+    [SerializeField] private Color poisonCritColor = new Color32(130, 245, 145, 255);
+    [SerializeField, Min(1f)] private float poisonCritDotSizeMultiplier = 1.14f;
     [SerializeField] private Color blockColor = new Color32(80, 170, 255, 255);
+    [SerializeField] private Color parryColor = new Color32(255, 210, 40, 255);
 
     [Header("Ailment presentation (HP tint + first-apply status popups)")]
     [SerializeField] private Color burnPresentationColor = new Color32(255, 140, 40, 255);
@@ -106,13 +117,13 @@ public class FloatingDamageTextUI : MonoBehaviour
     {
         if (!text) return;
 
-        // DOTs should never crit visually
-        if (isDot)
+        bool isPoisonCritDot = isDot && kind == PopupDamageKind.PoisonCrit;
+        if (isDot && !isPoisonCritDot)
             isCrit = false;
 
         text.text = amount.ToString();
         text.color = GetDisplayColor(kind, isCrit);
-        text.fontSize = GetDisplayFontSize(isCrit, isDot);
+        text.fontSize = GetDisplayFontSize(kind, isCrit, isDot);
 
         float totalVisible = visibleSeconds + fadeOutSeconds;
         if (isCrit)
@@ -124,49 +135,42 @@ public class FloatingDamageTextUI : MonoBehaviour
         _run = StartCoroutine(Run(dir, totalVisible));
     }
 
-    public void InitBlocked(Vector3 worldDirection)
+    public void InitBlocked(Vector3 worldDirection = default)
     {
-        if (!text) return;
-
-        text.text = "Blocked";
-        text.color = blockColor;
-        text.fontSize = _baseFontSize;
-
-        Vector2 dir = BuildDirection(worldDirection);
-
-        if (_run != null) StopCoroutine(_run);
-        _run = StartCoroutine(Run(dir, visibleSeconds + fadeOutSeconds));
+        InitLingeringStatus("Blocked", blockColor);
     }
 
-    public void InitImmune(Vector3 worldDirection)
+    public void InitParry(Vector3 worldDirection = default, string label = "Parry")
     {
-        if (!text) return;
-
-        text.text = "Immune";
-        text.color = blockColor;
-        text.fontSize = _baseFontSize;
-
-        Vector2 dir = BuildDirection(worldDirection);
-
-        if (_run != null) StopCoroutine(_run);
-        _run = StartCoroutine(Run(dir, visibleSeconds + fadeOutSeconds));
+        string textLabel = string.IsNullOrWhiteSpace(label) ? "Parry" : label.Trim();
+        InitLingeringStatus(textLabel, parryColor);
     }
 
-    /// <summary>Short floating label (e.g. first application of an ailment). Uses the same motion as blocked/immune.</summary>
-    public void InitAilmentStatus(string message, Color color, Vector3 worldDirection)
+    public void InitImmune(Vector3 worldDirection = default)
+    {
+        InitLingeringStatus("Immune", blockColor);
+    }
+
+    /// <summary>Lingering label (ailments, Blocked, Parry) — pinned to anchor, no travel arc.</summary>
+    public void InitAilmentStatus(string message, Color color, Vector3 worldDirection = default)
+    {
+        InitLingeringStatus(message, color);
+    }
+
+    public void InitLingeringStatus(string message, Color color)
     {
         if (!text) return;
 
         text.text = message;
         text.color = color;
-        text.fontSize = _baseFontSize;
-
-        Vector2 dir = BuildDirection(worldDirection);
+        text.fontSize = GetStatusFontSize();
 
         if (_run != null) StopCoroutine(_run);
-        float life = visibleSeconds + fadeOutSeconds;
-        _run = StartCoroutine(Run(dir, life));
+        _run = StartCoroutine(RunLingering(lingeringStatusLifetimeSeconds));
     }
+
+    private float GetStatusFontSize() =>
+        Mathf.Max(8f, _baseFontSize - Mathf.Max(0f, statusFontSizeSubtractPoints));
 
     private Color GetDisplayColor(PopupDamageKind kind, bool isCrit)
     {
@@ -178,6 +182,7 @@ public class FloatingDamageTextUI : MonoBehaviour
             PopupDamageKind.Typless => typlessColor,
             PopupDamageKind.Bleed => bleedColor,
             PopupDamageKind.Poison => poisonColor,
+            PopupDamageKind.PoisonCrit => poisonCritColor,
             PopupDamageKind.Blocked => blockColor,
             PopupDamageKind.Immune => blockColor,
             _ => physicalColor
@@ -189,7 +194,7 @@ public class FloatingDamageTextUI : MonoBehaviour
         return c;
     }
 
-    private float GetDisplayFontSize(bool isCrit, bool isDot)
+    private float GetDisplayFontSize(PopupDamageKind kind, bool isCrit, bool isDot)
     {
         float size = _baseFontSize;
 
@@ -199,7 +204,9 @@ public class FloatingDamageTextUI : MonoBehaviour
             size *= dotSizeMultiplier;
         }
 
-        if (isCrit)
+        if (kind == PopupDamageKind.PoisonCrit)
+            size *= poisonCritDotSizeMultiplier;
+        else if (isCrit)
             size *= critSizeMultiplier;
 
         return size;
@@ -279,6 +286,49 @@ public class FloatingDamageTextUI : MonoBehaviour
                 group.alpha = 1f - fadeP;
             }
 
+            yield return null;
+        }
+
+        Destroy(gameObject);
+    }
+
+    private IEnumerator RunLingering(float lifeTime)
+    {
+        lifeTime = Mathf.Max(0.1f, lifeTime);
+        float fadeIn = Mathf.Clamp(lingeringStatusFadeInSeconds, 0.01f, lifeTime * 0.4f);
+        float fadeOut = Mathf.Clamp(lingeringStatusFadeOutSeconds, 0.01f, lifeTime * 0.4f);
+        float hold = Mathf.Max(0.05f, lifeTime - fadeIn - fadeOut);
+
+        group.alpha = 0f;
+
+        float t = 0f;
+        while (t < fadeIn)
+        {
+            t += Time.deltaTime;
+            group.alpha = Mathf.Clamp01(t / fadeIn);
+            if (HasWorldFollow)
+                rect.anchoredPosition = GetAnchorLocal() + _spawnJitter;
+            yield return null;
+        }
+
+        group.alpha = 1f;
+
+        float elapsed = 0f;
+        while (elapsed < hold)
+        {
+            elapsed += Time.deltaTime;
+            if (HasWorldFollow)
+                rect.anchoredPosition = GetAnchorLocal() + _spawnJitter;
+            yield return null;
+        }
+
+        t = 0f;
+        while (t < fadeOut)
+        {
+            t += Time.deltaTime;
+            group.alpha = 1f - Mathf.Clamp01(t / fadeOut);
+            if (HasWorldFollow)
+                rect.anchoredPosition = GetAnchorLocal() + _spawnJitter;
             yield return null;
         }
 

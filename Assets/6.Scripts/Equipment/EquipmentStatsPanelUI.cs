@@ -8,6 +8,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 {
     private bool _refreshQueued;
     private int _gatheringToolLiveStamp = int.MinValue;
+    private int _livingInfernoLiveStamp = int.MinValue;
     private static readonly Color BleedAilmentColor = new Color(0.996f, 0.361f, 0.361f);
     private static readonly Color PoisonAilmentColor = new Color(0.298f, 0.686f, 0.314f);
     private static readonly Color BurnAilmentColor = new Color(1f, 0.478f, 0.137f);
@@ -265,6 +266,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         }
 
         PollGatheringToolsLiveRefresh();
+        PollLivingInfernoLiveRefresh();
     }
 
     private void QueueRefresh()
@@ -519,6 +521,29 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         _gatheringToolLiveStamp = stamp;
         PopulateGatheringToolsSection();
+    }
+
+    private void PollLivingInfernoLiveRefresh()
+    {
+        if (!stats || stats.GetPhoenixSoulEnhancementPick() != 1)
+        {
+            _livingInfernoLiveStamp = int.MinValue;
+            return;
+        }
+
+        if (!abilityController && player)
+            abilityController = player.GetComponent<PlayerAbilityController>();
+        if (!abilityController)
+            return;
+
+        int stamp = HashCode.Combine(
+            abilityController.GetPhoenixLivingInfernoNearbyBurningCount(),
+            Mathf.RoundToInt(abilityController.GetPhoenixLivingInfernoMeleeDamageBonusFraction() * 1000f));
+        if (stamp == _livingInfernoLiveStamp)
+            return;
+
+        _livingInfernoLiveStamp = stamp;
+        QueueRefresh();
     }
 
     private void PopulateGatheringToolsSection()

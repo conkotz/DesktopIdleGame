@@ -28,6 +28,13 @@ public class DevTestingPanelUI : MonoBehaviour
     [SerializeField] private Button addGoldButton;
     [SerializeField] private Button devWeaponButton;
     [SerializeField] private Button skipTutorialButton;
+    [SerializeField] private Button resetCooldownsButton;
+    [Tooltip("Optional — child TMP showing On/Off. Auto-resolved from ResetCooldownsButton if unset.")]
+    [SerializeField] private TMP_Text resetCooldownsStatusText;
+
+    [Header("Reset cooldowns toggle")]
+    [SerializeField, Min(0.1f)] private float autoResetCooldownsIntervalSeconds = 2f;
+    [SerializeField] private Color resetCooldownsActiveColor = new Color(0.45f, 0.95f, 0.55f, 1f);
 
     [Header("Optional feedback (same as DebugGiveItems)")]
     [SerializeField] private LevelUpEffect levelUpEffect;
@@ -63,6 +70,12 @@ public class DevTestingPanelUI : MonoBehaviour
     private const string IdLeather = "leather";
     private const string IdDevMace = "dev_destroyer_mace";
 
+    private bool _autoResetCooldownsEnabled;
+    private float _nextAutoResetCooldownsTime;
+    private ColorBlock _resetCooldownsButtonDefaultColors;
+    private bool _resetCooldownsButtonColorsCaptured;
+    private bool _resetCooldownsCombinedStatusInOneLabel;
+
     private void Awake()
     {
         TryResolveRefsByName();
@@ -79,6 +92,10 @@ public class DevTestingPanelUI : MonoBehaviour
         Bind(addGoldButton, DevTesting_ApplyAddGold);
         Bind(devWeaponButton, DevTesting_ApplyDevWeapon);
         Bind(skipTutorialButton, OnSkipTutorialClicked);
+        Bind(resetCooldownsButton, OnResetCooldownsToggleClicked);
+        TryResolveResetCooldownsStatusText();
+        CaptureResetCooldownsButtonColors();
+        ApplyResetCooldownsButtonHighlight();
     }
 
     private void OnEnable()
@@ -90,6 +107,20 @@ public class DevTestingPanelUI : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
+        _autoResetCooldownsEnabled = false;
+        ApplyResetCooldownsButtonHighlight();
+    }
+
+    private void Update()
+    {
+        if (!_autoResetCooldownsEnabled)
+            return;
+
+        if (Time.unscaledTime < _nextAutoResetCooldownsTime)
+            return;
+
+        _nextAutoResetCooldownsTime = Time.unscaledTime + Mathf.Max(0.1f, autoResetCooldownsIntervalSeconds);
+        DevTesting_ClearAllCooldownsNow();
     }
 
     private void OnSceneLoaded(Scene _, LoadSceneMode __) =>
@@ -242,6 +273,108 @@ public class DevTestingPanelUI : MonoBehaviour
         Debug.Log($"[DevTestingPanel] +1 {id}.");
     }
 
+    private void OnResetCooldownsToggleClicked()
+    {
+        _autoResetCooldownsEnabled = !_autoResetCooldownsEnabled;
+        ApplyResetCooldownsButtonHighlight();
+
+        if (_autoResetCooldownsEnabled)
+        {
+            _nextAutoResetCooldownsTime = Time.unscaledTime;
+            DevTesting_ClearAllCooldownsNow();
+        }
+    }
+
+    private void DevTesting_ClearAllCooldownsNow()
+    {
+        PlayerAbilityController abilities = ResolvePlayerAbilityController();
+        if (!abilities)
+        {
+            Debug.LogWarning("[DevTestingPanel] No PlayerAbilityController — cannot reset cooldowns.");
+            return;
+        }
+
+        abilities.DevTesting_ClearAllAbilityCooldowns();
+    }
+
+    private void CaptureResetCooldownsButtonColors()
+    {
+        if (!resetCooldownsButton || _resetCooldownsButtonColorsCaptured)
+            return;
+
+        _resetCooldownsButtonDefaultColors = resetCooldownsButton.colors;
+        _resetCooldownsButtonColorsCaptured = true;
+    }
+
+    private void ApplyResetCooldownsButtonHighlight()
+    {
+        if (!resetCooldownsButton)
+            return;
+
+        CaptureResetCooldownsButtonColors();
+
+        ColorBlock colors = _resetCooldownsButtonDefaultColors;
+        if (_autoResetCooldownsEnabled)
+        {
+            Color on = resetCooldownsActiveColor;
+            colors.normalColor = on;
+            colors.highlightedColor = Color.Lerp(on, Color.white, 0.2f);
+            colors.selectedColor = on;
+            colors.pressedColor = Color.Lerp(on, Color.black, 0.15f);
+        }
+
+        resetCooldownsButton.colors = colors;
+        ApplyResetCooldownsStatusLabel();
+    }
+
+    private void TryResolveResetCooldownsStatusText()
+    {
+        if (resetCooldownsStatusText || !resetCooldownsButton)
+            return;
+
+        TMP_Text[] texts = resetCooldownsButton.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < texts.Length; i++)
+        {
+            TMP_Text t = texts[i];
+            if (!t)
+                continue;
+
+            string trimmed = t.text != null ? t.text.Trim() : string.Empty;
+            if (trimmed.Equals("Off", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Equals("On", StringComparison.OrdinalIgnoreCase))
+            {
+                resetCooldownsStatusText = t;
+                return;
+            }
+        }
+
+        if (texts.Length == 1 && texts[0] != null)
+        {
+            resetCooldownsStatusText = texts[0];
+            _resetCooldownsCombinedStatusInOneLabel = true;
+        }
+        else if (texts.Length > 1)
+        {
+            resetCooldownsStatusText = texts[texts.Length - 1];
+        }
+    }
+
+    private void ApplyResetCooldownsStatusLabel()
+    {
+        if (!resetCooldownsStatusText)
+            return;
+
+        if (_resetCooldownsCombinedStatusInOneLabel)
+        {
+            resetCooldownsStatusText.text = _autoResetCooldownsEnabled
+                ? "Reset Cooldowns\nOn"
+                : "Reset Cooldowns\nOff";
+            return;
+        }
+
+        resetCooldownsStatusText.text = _autoResetCooldownsEnabled ? "On" : "Off";
+    }
+
     private void OnSkipTutorialClicked()
     {
         QuestProgressManager qm = QuestProgressManager.Instance ??
@@ -346,7 +479,13 @@ public class DevTestingPanelUI : MonoBehaviour
         addGoldButton ??= FindButtonUnderRow("AddGoldButton");
         devWeaponButton ??= FindButtonUnderRow("DevWeapon");
         skipTutorialButton ??= FindButtonUnderRow("SkipTutorial");
+        resetCooldownsButton ??= FindButtonUnderRow("ResetCooldownsButton");
+        if (resetCooldownsButton)
+            TryResolveResetCooldownsStatusText();
     }
+
+    private static PlayerAbilityController ResolvePlayerAbilityController() =>
+        FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
 
     private Button FindButtonUnderRow(string childName)
     {

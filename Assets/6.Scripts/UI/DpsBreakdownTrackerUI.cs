@@ -722,7 +722,6 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             combat = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Include);
 
         bool dpsMode = _mode == MetricMode.Dps;
-        combat?.SetDpsAutoResetEnabled(dpsMode);
 
         if (outgoingHeaderText)
             outgoingHeaderText.text = dpsMode ? "Outgoing DPS" : "Outgoing Total Damage";

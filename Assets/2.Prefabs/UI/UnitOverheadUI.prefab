@@ -61,11 +61,12 @@ MonoBehaviour:
   debuffStackTextScale: 0.6
   debuffStackTextAnchoredPositionOffset: {x: 30, y: -20}
   enemyHpFillColor: {r: 1, g: 0.42, b: 0.2, a: 1}
+  hpSegmentMarksEnabled: 0
   hpSegmentHpInterval: 50
   hpSegmentMaxMarkCount: 12
   hpSegmentMinSpacingPx: 8
   hpSegmentLineWidthPx: 1
-  hpSegmentLineColor: {r: 0.15471691, g: 0.15033813, b: 0.15033813, a: 0.22}
+  hpSegmentLineColor: {r: 0.15471691, g: 0.15033813, b: 0.15033813, a: 0.78431374}
   bleedIcon: {fileID: 172900799495140964, guid: 83e010a88397715488e51b774e5e230a, type: 3}
   poisonIcon: {fileID: -1746807094529649936, guid: 83e010a88397715488e51b774e5e230a, type: 3}
   burnIcon: {fileID: -8088392421741576743, guid: 40b7955c7c201214aaa90ac2a4aabdfd, type: 3}
@@ -316,13 +317,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 12
-  m_fontSizeBase: 12
+  m_fontSize: 8
+  m_fontSizeBase: 8
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 1
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535

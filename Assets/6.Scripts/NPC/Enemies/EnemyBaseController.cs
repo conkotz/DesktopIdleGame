@@ -121,6 +121,7 @@ public class EnemyBaseController : MonoBehaviour
     private bool _hitQueued;
     private float _hitTime;
     private bool _queuedHitCommitted;
+    private float _stunnedUntil;
 
     private bool _countedAlive;
     private bool _provoked;
@@ -142,6 +143,7 @@ public class EnemyBaseController : MonoBehaviour
     private AilmentController _ailments;
 
     public bool IsDead => state == EnemyState.Dead;
+    public bool IsStunned => Time.time < _stunnedUntil;
     public int HP => stats ? Mathf.RoundToInt(stats.HP) : 0;
     public int MaxHP => stats ? stats.MaxHP : 0;
 
@@ -491,6 +493,9 @@ public class EnemyBaseController : MonoBehaviour
 
             if (!IsPlayerValidAlive()) return;
 
+            if (IsStunned)
+                return;
+
             // If the attack windup already started, treat the hit as committed.
             if (committedHit || !requireRangeOnHit || DistanceToPlayerX() <= AttackRange)
                 ApplyEnemyHitToPlayer();
@@ -707,8 +712,25 @@ public class EnemyBaseController : MonoBehaviour
         return Mathf.Abs(player.position.x - transform.position.x);
     }
 
+    public bool TryApplyStun(float durationSeconds, float chance01)
+    {
+        if (state == EnemyState.Dead || durationSeconds <= 0f)
+            return false;
+
+        if (UnityEngine.Random.value >= Mathf.Clamp01(chance01))
+            return false;
+
+        _stunnedUntil = Mathf.Max(_stunnedUntil, Time.time + durationSeconds);
+        _hitQueued = false;
+        _queuedHitCommitted = false;
+        return true;
+    }
+
     private void TryStartEnemyAttack()
     {
+        if (IsStunned)
+            return;
+
         float aps = Mathf.Max(0f, AttacksPerSecond);
         if (aps <= 0f)
             return;
@@ -736,6 +758,23 @@ public class EnemyBaseController : MonoBehaviour
             return;
 
         SplitDamage hit = stats.RollSplitAttackDamage(out bool wasCrit);
+        float neurotoxinMult = _ailments != null ? _ailments.GetOutgoingDamageMultiplier() : 1f;
+        if (neurotoxinMult < 0.999f)
+        {
+            hit.physical *= neurotoxinMult;
+            hit.magic *= neurotoxinMult;
+            hit.corruptionDamage *= neurotoxinMult;
+        }
+
+        if (_playerController != null)
+        {
+            PlayerCombatController combat = _playerController.GetComponent<PlayerCombatController>();
+            if (combat != null)
+                combat.TryProcessParryOnEnemyHit(this, ref hit, wasCrit);
+        }
+
+        if (hit.IsEmpty)
+            return;
 
         bool dealtAnyDamage = false;
 
@@ -886,6 +925,18 @@ public class EnemyBaseController : MonoBehaviour
         driftDir = DamagePopupSystem.GetDriftDirectionForVictim(transform, dealerPos);
     }
 
+    private void GetStatusPopupSpawnBehindDealer(Transform dealer, out Vector3 worldPos)
+    {
+        Vector3 anchorPos = damagePopupAnchor ? damagePopupAnchor.WorldPos : transform.position;
+        Vector3 dealerPos = dealer != null
+            ? dealer.position
+            : _damagePopupDealerLastWorldPosValid
+                ? _damagePopupDealerLastWorldPos
+                : anchorPos;
+
+        worldPos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
+    }
+
     public int TakeDamage(
         int amount,
         DamageType type,
@@ -937,7 +988,15 @@ public class EnemyBaseController : MonoBehaviour
 
         if (DamagePopupSystem.Instance != null)
         {
-            GetDamagePopupSpawnForDealer(attacker, null, out Vector3 pos, out Vector3 dir);
+            Vector3 pos;
+            Vector3 dir;
+            if (blocked)
+            {
+                GetStatusPopupSpawnBehindDealer(attacker, out pos);
+                dir = Vector3.up;
+            }
+            else
+                GetDamagePopupSpawnForDealer(attacker, null, out pos, out dir);
 
             FloatingDamageTextUI.PopupDamageKind popupKind = type switch
             {
@@ -975,7 +1034,8 @@ public class EnemyBaseController : MonoBehaviour
         bool showPopup,
         Vector3? dotDealerWorldPositionFallback = null,
         string outgoingDpsSourceLabel = null,
-        bool outgoingAttributeToMinion = false)
+        bool outgoingAttributeToMinion = false,
+        bool wasCrit = false)
     {
         if (state == EnemyState.Dead || stats == null)
             return;
@@ -1005,7 +1065,7 @@ public class EnemyBaseController : MonoBehaviour
                 pos,
                 dealt,
                 popupKind,
-                false,
+                wasCrit,
                 true,
                 dir,
                 false
@@ -1553,14 +1613,14 @@ public class EnemyBaseController : MonoBehaviour
         if (DamagePopupSystem.Instance == null)
             return;
 
-        GetDamagePopupSpawnForDealer(attacker, null, out Vector3 pos, out Vector3 dir);
+        GetStatusPopupSpawnBehindDealer(attacker, out Vector3 pos);
         DamagePopupSystem.Instance.Spawn(
             pos,
             0,
             FloatingDamageTextUI.PopupDamageKind.Immune,
             false,
             false,
-            dir,
+            Vector3.up,
             false
         );
     }

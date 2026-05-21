@@ -35,6 +35,8 @@ public struct PoisonPayload
     public int ticks;
     public int maxStacks;
     public Transform source;
+    [Tooltip("Player transform for Master of Venoms rules (defaults to source when null).")]
+    public Transform poisonMasteryOwner;
     public string outgoingDpsSourceLabel;
     public bool outgoingAttributeToMinion;
 
@@ -45,13 +47,15 @@ public struct PoisonPayload
         int maxStacks,
         Transform source,
         string outgoingDpsSourceLabel = null,
-        bool outgoingAttributeToMinion = false)
+        bool outgoingAttributeToMinion = false,
+        Transform poisonMasteryOwner = null)
     {
         this.totalDamage = totalDamage;
         this.duration = duration;
         this.ticks = ticks;
         this.maxStacks = maxStacks;
         this.source = source;
+        this.poisonMasteryOwner = poisonMasteryOwner ? poisonMasteryOwner : source;
         this.outgoingDpsSourceLabel = outgoingDpsSourceLabel;
         this.outgoingAttributeToMinion = outgoingAttributeToMinion;
     }

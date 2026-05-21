@@ -1,0 +1,277 @@
+fileFormatVersion: 2
+guid: 33df198e24b717b43b99976e8859045e
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -4453784588268070965
+    second: Phoenix_0
+  - first:
+      213: 2774680632780850282
+    second: Phoenix_1
+  - first:
+      213: -7162847911029854707
+    second: Phoenix_2
+  - first:
+      213: -9044002482298871080
+    second: Phoenix_3
+  - first:
+      213: -2116434511981202434
+    second: Phoenix_4
+  - first:
+      213: -2516983635409943500
+    second: Phoenix_5
+  - first:
+      213: 1041380993228145994
+    second: Phoenix_6
+  - first:
+      213: -6729754688978202746
+    second: Phoenix_7
+  - first:
+      213: 1800069533549871
+    second: Phoenix_8
+  - first:
+      213: -4683884945944043696
+    second: Phoenix_9
+  - first:
+      213: -995161341181351066
+    second: Phoenix_10
+  - first:
+      213: -1524071442673626182
+    second: Phoenix_11
+  - first:
+      213: -7027837965058309593
+    second: Phoenix_12
+  - first:
+      213: 850099122043215124
+    second: Phoenix_13
+  - first:
+      213: -3495143416719494161
+    second: Phoenix_14
+  - first:
+      213: 6727399815077481245
+    second: Phoenix_15
+  - first:
+      213: 7124713857227302049
+    second: Phoenix_16
+  - first:
+      213: -3673123488336809705
+    second: Phoenix_17
+  - first:
+      213: 7451791943028225694
+    second: Phoenix_18
+  - first:
+      213: 3446466287338950828
+    second: Phoenix_19
+  - first:
+      213: -8984902579289830064
+    second: Phoenix_20
+  - first:
+      213: 1758175790726150424
+    second: Phoenix_21
+  - first:
+      213: 1323787016060104673
+    second: Phoenix_22
+  - first:
+      213: 8158479753419733099
+    second: Phoenix_23
+  - first:
+      213: 2780581874007081662
+    second: Phoenix_24
+  - first:
+      213: -2577956413152883933
+    second: Phoenix_25
+  - first:
+      213: 2951760185318709907
+    second: Phoenix_26
+  - first:
+      213: 9207353424257147364
+    second: Phoenix_27
+  - first:
+      213: 2640706651678729911
+    second: Phoenix_28
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Phoenix_0
+      rect:
+        serializedVersion: 2
+        x: 29
+        y: 167
+        width: 989
+        height: 1207
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc71c2e938af032c0800000000000000
+      internalID: -4453784588268070965
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Phoenix_20
+      rect:
+        serializedVersion: 2
+        x: 21
+        y: 415
+        width: 12
+        height: 8
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 05d40fb45b63f4380800000000000000
+      internalID: -8984902579289830064
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 207f89dfb82f11c4fb88b769a2fa8de0
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      Phoenix_0: -4453784588268070965
+      Phoenix_1: 2774680632780850282
+      Phoenix_10: -995161341181351066
+      Phoenix_11: -1524071442673626182
+      Phoenix_12: -7027837965058309593
+      Phoenix_13: 850099122043215124
+      Phoenix_14: -3495143416719494161
+      Phoenix_15: 6727399815077481245
+      Phoenix_16: 7124713857227302049
+      Phoenix_17: -3673123488336809705
+      Phoenix_18: 7451791943028225694
+      Phoenix_19: 3446466287338950828
+      Phoenix_2: -7162847911029854707
+      Phoenix_20: -8984902579289830064
+      Phoenix_21: 1758175790726150424
+      Phoenix_22: 1323787016060104673
+      Phoenix_23: 8158479753419733099
+      Phoenix_24: 2780581874007081662
+      Phoenix_25: -2577956413152883933
+      Phoenix_26: 2951760185318709907
+      Phoenix_27: 9207353424257147364
+      Phoenix_28: 2640706651678729911
+      Phoenix_3: -9044002482298871080
+      Phoenix_4: -2116434511981202434
+      Phoenix_5: -2516983635409943500
+      Phoenix_6: 1041380993228145994
+      Phoenix_7: -6729754688978202746
+      Phoenix_8: 1800069533549871
+      Phoenix_9: -4683884945944043696
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

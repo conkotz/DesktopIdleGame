@@ -44,6 +44,10 @@ public class AbilityDefinition : ScriptableObject
 
     public float cooldown = 1f;
     [Min(0f)] public float energyCost = 0f;
+    [Tooltip("When > 0, the ability spends mana instead of energy (energy is ignored).")]
+    [Min(0f)] public float manaCost = 0f;
+    [Tooltip("When > 0, the ability spends health instead of energy or mana (highest priority).")]
+    [Min(0f)] public float healthCost = 0f;
 
     [Header("Scaling")]
     [Tooltip(
@@ -82,7 +86,7 @@ public class AbilityDefinition : ScriptableObject
 
     [Header("Summon (optional)")]
     [Tooltip(
-        "When set, this ability uses the summon path in PlayerAbilityController: energy on first spawn, SoulforgedWeaponMinion is spawned, " +
+        "When set, this ability uses the summon path in PlayerAbilityController: resource cost on first spawn, SoulforgedWeaponMinion is spawned, " +
         "and ability cooldown starts when the summon expires (recast while active only retargets). " +
         "Scaling fields above are not used for that path (damage comes from MinionDefinition / MinionCombatConfig + owner minion stats).")]
     public MinionDefinition minionSpawnDefinition;
@@ -97,4 +101,40 @@ public class AbilityDefinition : ScriptableObject
     /// <summary>&gt;0 scales rolled Physical, Magic, and Corruption equally; ≤0 keeps 100% of each rolled type.</summary>
     public float GetWeaponHitScalingMultiplier() =>
         weaponDamageMultiplier <= 0f ? 1f : weaponDamageMultiplier;
+
+    /// <summary>Which resource this ability spends. Health &gt; mana &gt; energy; only one applies.</summary>
+    public AbilityResourceCostType GetResourceCostType()
+    {
+        if (healthCost > 0f)
+            return AbilityResourceCostType.Health;
+        if (manaCost > 0f)
+            return AbilityResourceCostType.Mana;
+        if (energyCost > 0f)
+            return AbilityResourceCostType.Energy;
+        return AbilityResourceCostType.None;
+    }
+
+    /// <summary>Inspector cost for the active <see cref="GetResourceCostType"/> (0 when none).</summary>
+    public float GetBaseResourceCostAmount()
+    {
+        switch (GetResourceCostType())
+        {
+            case AbilityResourceCostType.Health:
+                return healthCost;
+            case AbilityResourceCostType.Mana:
+                return manaCost;
+            case AbilityResourceCostType.Energy:
+                return energyCost;
+            default:
+                return 0f;
+        }
+    }
+}
+
+public enum AbilityResourceCostType
+{
+    None,
+    Energy,
+    Mana,
+    Health
 }

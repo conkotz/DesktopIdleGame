@@ -27,7 +27,15 @@ public static class MinionHitEffects
         Transform src = source ? source : target.transform;
 
         TryBleed(ailments, ownerSnap, stats, physicalDealt, src, outgoingDpsSourceLabel, attributeOutgoingToMinion);
-        TryPoison(ailments, ownerSnap, stats, corruptionDealt, src, outgoingDpsSourceLabel, attributeOutgoingToMinion);
+        TryPoison(
+            ailments,
+            ownerSnap,
+            stats,
+            corruptionDealt,
+            src,
+            outgoingDpsSourceLabel,
+            attributeOutgoingToMinion,
+            ownerSnap.ownerTransform);
 
         float totalDealt = physicalDealt + magicDealt + corruptionDealt;
         if (ownerSnap.currentAttackAppliesAsFireForBurn && totalDealt > 0f && stats.AilmentChances.burnChance > 0f)
@@ -117,7 +125,8 @@ public static class MinionHitEffects
         float corruptionDealt,
         Transform src,
         string outgoingDpsSourceLabel,
-        bool attributeOutgoingToMinion)
+        bool attributeOutgoingToMinion,
+        Transform poisonMasteryOwner)
     {
         if (corruptionDealt <= 0f || stats.AilmentChances.poisonChance <= 0f)
             return;
@@ -141,6 +150,7 @@ public static class MinionHitEffects
             maxStacks,
             src,
             outgoingDpsSourceLabel,
-            attributeOutgoingToMinion));
+            attributeOutgoingToMinion,
+            poisonMasteryOwner));
     }
 }

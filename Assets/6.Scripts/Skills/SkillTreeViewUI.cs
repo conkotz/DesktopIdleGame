@@ -209,7 +209,21 @@ public class SkillTreeViewUI : MonoBehaviour
 
     private string ResolveCooldownAbilityId(RowDef row)
     {
-        if (selectedSkill == null || skillsManager == null || row.unlock == null || row.unlock.ability == null)
+        if (selectedSkill == null || skillsManager == null || row.unlock == null)
+            return null;
+
+        if (selectedSkill.skillType == SkillType.Melee
+            && row.type == SkillTreeNodeVisualType.MajorPassive
+            && string.Equals(SpineNodeId(row), AbilityCombatPower.PhoenixSoulEnhancementParentSpineNodeId, StringComparison.Ordinal))
+        {
+            int ashenEnh = skillsManager.GetSkillChoiceSelection(
+                selectedSkill.skillType, AbilityCombatPower.PhoenixSoulEnhancementParentSpineNodeId, -1);
+            if (ashenEnh == 0)
+                return PlayerAbilityController.PhoenixAshenRebirthSkillTreeCooldownId;
+            return null;
+        }
+
+        if (row.unlock.ability == null)
             return null;
 
         string spine = SpineNodeId(row);
@@ -404,6 +418,9 @@ public class SkillTreeViewUI : MonoBehaviour
         if (abilityController == null || selectedSkill == null || skillsManager == null)
             return false;
 
+        if (abilityController.IsOnCooldown(PlayerAbilityController.PhoenixAshenRebirthSkillTreeCooldownId, out _))
+            return true;
+
         foreach (var kv in abilityTierPickMetaBySpineId)
         {
             AbilityTierPickMeta m = kv.Value;
@@ -442,6 +459,17 @@ public class SkillTreeViewUI : MonoBehaviour
         }
 
         return false;
+    }
+
+    /// <summary>Immediate cooldown/buff overlay refresh (e.g. after Phoenix Soul — Ashen Rebirth procs).</summary>
+    public void RefreshSkillTreePresentationNow()
+    {
+        if (!isActiveAndEnabled || spawnedNodes.Count == 0)
+            return;
+
+        _nextSkillTreePresentationRefreshTime = 0f;
+        RefreshSkillTreeAbilityStatePresentation();
+        _lastRefreshHadActivePresentation = AnyCommittedAbilityHasLivePresentation();
     }
 
     private void Update()
@@ -568,7 +596,7 @@ public class SkillTreeViewUI : MonoBehaviour
                     ? choices[cm.choiceIndex]
                     : null;
                 bool unlocked = parentRow.level <= currentSkillLevel && cm.unlockLevel <= currentSkillLevel;
-                BuildChoiceTooltipCopy(cm.unlockLevel, choice, parentRow, unlocked, out string cTitle, out string cBody);
+                BuildChoiceTooltipCopy(cm.unlockLevel, choice, parentRow, cm.choiceIndex, unlocked, out string cTitle, out string cBody);
                 tooltipTitleByNodeId[nodeId] = string.IsNullOrWhiteSpace(cTitle) ? "Node" : cTitle;
                 tooltipBodyByNodeId[nodeId] = cBody ?? string.Empty;
                 nodeUi.SetLocked(!unlocked);
@@ -753,14 +781,54 @@ public class SkillTreeViewUI : MonoBehaviour
             while (end + 1 < rows.Count && rows[end + 1].level == rows[g].level)
                 end++;
 
-            if (TierIsMultiAbilityOnly(rows, g, end))
+            if (TryGetMultiStackSubrange(rows, g, end, out int msStart, out int msEnd))
             {
-                int n = end - g + 1;
+                int n = msEnd - msStart + 1;
                 float step = Mathf.Max(1f, ScaledLayout(abilitySiblingSpacing));
                 for (int k = 0; k < n; k++)
                 {
                     float t = k - (n - 1) * 0.5f;
-                    layoutRowX[g + k] = t * step;
+                    layoutRowX[msStart + k] = t * step;
+                }
+
+                // Mixed tiers (e.g. Melee Lv40: two majors + tier unlock) keep fan layout on majors only.
+                if (!TierIsMultiAbilityOnly(rows, g, end))
+                {
+                    float gap = Mathf.Max(0f, ScaledLayout(sameLevelNodeGap));
+                    float rightEdge = layoutRowX[msEnd]
+                        + SkillTreeNodeUI.GetVisualBoxSize(rows[msEnd].type).x * 0.5f;
+                    float xPos = rightEdge + gap;
+
+                    for (int i = g; i <= end; i++)
+                    {
+                        if (i >= msStart && i <= msEnd)
+                            continue;
+
+                        float half = SkillTreeNodeUI.GetVisualBoxSize(rows[i].type).x * 0.5f;
+                        xPos += half;
+                        layoutRowX[i] = xPos;
+                        xPos += half + gap;
+                    }
+
+                    var mus = new System.Collections.Generic.List<int>();
+                    for (int i = g; i <= end; i++)
+                    {
+                        if (rows[i].type == SkillTreeNodeVisualType.MinorUnlock)
+                            mus.Add(i);
+                    }
+
+                    if (mus.Count > 0)
+                    {
+                        float columnAnchorX = -ScaledLayout(minorUnlockSpineOffsetPixels);
+                        float cx = columnAnchorX;
+                        for (int m = 0; m < mus.Count; m++)
+                        {
+                            int muIdx = mus[m];
+                            float halfMu = SkillTreeNodeUI.GetVisualBoxSize(rows[muIdx].type).x * 0.5f;
+                            layoutRowX[muIdx] = cx;
+                            cx -= 2f * halfMu + gap;
+                        }
+                    }
                 }
             }
             else
@@ -820,9 +888,9 @@ public class SkillTreeViewUI : MonoBehaviour
     }
 
     /// <summary>
-    /// True when a tier contains 2+ rows that are all the same multi-stack-eligible type
-    /// (Ability or MajorPassive). Drives the horizontal sibling spacing + row-pick collapse
-    /// shared between ability tiers and multi-major-passive tiers (e.g. Woodcutting Lv15).
+    /// True when every row in the tier is the same multi-stack type (no unlock/minor siblings).
+    /// Layout-only; row-pick/collapse uses <see cref="TryGetMultiStackSubrange"/> via
+    /// <see cref="SkillTreeRowPickRules"/> so mixed tiers (e.g. melee Lv40) still pick-one + collapse.
     /// </summary>
     private static bool TierIsMultiAbilityOnly(List<RowDef> rows, int tierStart, int tierEndInclusive)
     {
@@ -840,16 +908,128 @@ public class SkillTreeViewUI : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Longest contiguous run within a tier of the same <see cref="IsMultiStackEligibleType"/>
+    /// (Ability or MajorPassive) with length >= 2. Drives symmetric fan layout even when the tier
+    /// also has unlock/minor nodes (e.g. Melee Lv40 majors + tier unlock).
+    /// </summary>
+    private static bool TryGetMultiStackSubrange(
+        List<RowDef> rows, int tierStart, int tierEndInclusive,
+        out int subStart, out int subEndInclusive)
+    {
+        subStart = -1;
+        subEndInclusive = -1;
+        int bestLen = 0;
+
+        for (int i = tierStart; i <= tierEndInclusive;)
+        {
+            if (!IsMultiStackEligibleType(rows[i].type))
+            {
+                i++;
+                continue;
+            }
+
+            int runStart = i;
+            SkillTreeNodeVisualType runType = rows[i].type;
+            while (i <= tierEndInclusive && rows[i].type == runType)
+                i++;
+
+            int runLen = i - runStart;
+            if (runLen >= 2 && runLen > bestLen)
+            {
+                bestLen = runLen;
+                subStart = runStart;
+                subEndInclusive = i - 1;
+            }
+        }
+
+        return bestLen >= 2;
+    }
+
     private static bool IsMultiStackEligibleType(SkillTreeNodeVisualType type)
     {
         return type == SkillTreeNodeVisualType.Ability || type == SkillTreeNodeVisualType.MajorPassive;
     }
 
+    /// <summary>
+    /// Registers <see cref="AbilityTierPickMeta"/> for every multi-stack row (2+ abilities or 2+ major passives
+    /// at the same level). Mixed tiers (e.g. melee Lv40 majors + tier unlock) only register the sibling group.
+    /// </summary>
+    private void RegisterMultiStackRowPickMeta(List<RowDef> rows)
+    {
+        int g = 0;
+        while (g < rows.Count)
+        {
+            int end = g;
+            while (end + 1 < rows.Count && rows[end + 1].level == rows[g].level)
+                end++;
+
+            if (TryGetMultiStackSubrange(rows, g, end, out int msStart, out int msEnd))
+            {
+                int groupSize = msEnd - msStart + 1;
+                SkillTreeNodeVisualType groupType = rows[msStart].type;
+                if (groupType == SkillTreeNodeVisualType.Ability || groupType == SkillTreeNodeVisualType.MajorPassive)
+                {
+                    for (int ord = 0; ord < groupSize; ord++)
+                    {
+                        int rowIdx = msStart + ord;
+                        string sid = SpineNodeId(rows[rowIdx]);
+                        abilityTierPickMetaBySpineId[sid] =
+                            new AbilityTierPickMeta(rows[rowIdx].level, ord, groupSize);
+                    }
+                }
+            }
+            else
+            {
+                // Single ability on a row still commits via pick index 0 (unchanged behaviour).
+                for (int k = g; k <= end; k++)
+                {
+                    if (rows[k].type != SkillTreeNodeVisualType.Ability)
+                        continue;
+
+                    string sid = SpineNodeId(rows[k]);
+                    abilityTierPickMetaBySpineId[sid] = new AbilityTierPickMeta(rows[k].level, 0, 1);
+                }
+            }
+
+            g = end + 1;
+        }
+    }
+
+    private bool TryGetMultiStackPickRangeForLevel(int level, out int msStart, out int msEnd)
+    {
+        msStart = -1;
+        msEnd = -1;
+        if (!TryGetTierRangeForLevel(level, out int g, out int e))
+            return false;
+        return TryGetMultiStackSubrange(layoutRowsCache, g, e, out msStart, out msEnd);
+    }
+
+    private string ResolveMultiStackPickedSpineId(int level)
+    {
+        if (!TryGetMultiStackPickRangeForLevel(level, out int msStart, out int msEnd))
+        {
+            if (!TryGetTierRangeForLevel(level, out int g, out int e))
+                return string.Empty;
+            int anchor = TierVerticalAnchorIndex(layoutRowsCache, g, e);
+            return SpineNodeId(layoutRowsCache[anchor]);
+        }
+
+        int pick = selectedSkill != null && skillsManager != null
+            ? skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, level, -1)
+            : -1;
+        int groupSize = msEnd - msStart + 1;
+        if (pick >= 0 && pick < groupSize)
+            return SpineNodeId(layoutRowsCache[msStart + pick]);
+
+        int anchorIdx = msStart + (groupSize - 1) / 2;
+        return SpineNodeId(layoutRowsCache[anchorIdx]);
+    }
+
     private static int TierVerticalAnchorIndex(List<RowDef> rows, int tierStart, int tierEndInclusive)
     {
-        int count = tierEndInclusive - tierStart + 1;
-        if (TierIsMultiAbilityOnly(rows, tierStart, tierEndInclusive))
-            return tierStart + (count - 1) / 2;
+        if (TryGetMultiStackSubrange(rows, tierStart, tierEndInclusive, out int msStart, out int msEnd))
+            return msStart + (msEnd - msStart) / 2;
 
         for (int i = tierStart; i <= tierEndInclusive; i++)
         {
@@ -1075,67 +1255,7 @@ public class SkillTreeViewUI : MonoBehaviour
         }
 
         abilityTierPickMetaBySpineId.Clear();
-        for (int i = 0; i < rows.Count; i++)
-        {
-            if (rows[i].type != SkillTreeNodeVisualType.Ability)
-                continue;
-
-            int g = i;
-            while (g > 0 && rows[g - 1].level == rows[i].level)
-                g--;
-            int e = i;
-            while (e + 1 < rows.Count && rows[e + 1].level == rows[i].level)
-                e++;
-
-            var abilityRowIndices = new List<int>();
-            for (int k = g; k <= e; k++)
-            {
-                if (rows[k].type == SkillTreeNodeVisualType.Ability)
-                    abilityRowIndices.Add(k);
-            }
-
-            int groupSize = abilityRowIndices.Count;
-            if (groupSize <= 0)
-                continue;
-
-            for (int ord = 0; ord < abilityRowIndices.Count; ord++)
-            {
-                int rowIdx = abilityRowIndices[ord];
-                string sid = SpineNodeId(rows[rowIdx]);
-                abilityTierPickMetaBySpineId[sid] = new AbilityTierPickMeta(rows[rowIdx].level, ord, groupSize);
-            }
-        }
-
-        // Multi-major-passive tiers (e.g. Woodcutting Lv15) reuse the same row-pick + collapse
-        // pipeline as ability tiers. Single MajorPassive rows keep their normal toggle behavior.
-        for (int i = 0; i < rows.Count; i++)
-        {
-            if (rows[i].type != SkillTreeNodeVisualType.MajorPassive)
-                continue;
-
-            int g = i;
-            while (g > 0 && rows[g - 1].level == rows[i].level)
-                g--;
-            int e = i;
-            while (e + 1 < rows.Count && rows[e + 1].level == rows[i].level)
-                e++;
-
-            if (!TierIsMultiAbilityOnly(rows, g, e))
-            {
-                i = e;
-                continue;
-            }
-
-            int groupSize = e - g + 1;
-            for (int ord = 0; ord < groupSize; ord++)
-            {
-                int rowIdx = g + ord;
-                string sid = SpineNodeId(rows[rowIdx]);
-                abilityTierPickMetaBySpineId[sid] = new AbilityTierPickMeta(rows[rowIdx].level, ord, groupSize);
-            }
-
-            i = e;
-        }
+        RegisterMultiStackRowPickMeta(rows);
 
         // Spawn choices using per-choice unlock levels.
         for (int i = 0; i < rows.Count; i++)
@@ -1176,7 +1296,7 @@ public class SkillTreeViewUI : MonoBehaviour
                 float choiceY = targetY + yOffset;
                 float choiceX = parentX + offsetX;
                 bool unlocked = row.level <= currentSkillLevel && choiceUnlockLevel <= currentSkillLevel;
-                BuildChoiceTooltipCopy(choiceUnlockLevel, choice, row, unlocked, out string cTitle, out string cBody);
+                BuildChoiceTooltipCopy(choiceUnlockLevel, choice, row, choiceIndex, unlocked, out string cTitle, out string cBody);
                 string choiceNodeId = ChoiceId(parentSpineId, choiceUnlockLevel, choiceIndex);
                 Sprite choiceIcon = ResolveChoiceNodeIcon(choice);
                 SpawnNode(
@@ -1263,8 +1383,8 @@ public class SkillTreeViewUI : MonoBehaviour
         int lowerStart, int lowerEndInclusive,
         int anchorUpIdx, int anchorLowIdx)
     {
-        bool upperMulti = TierIsMultiAbilityOnly(rows, upperStart, upperEndInclusive);
-        bool lowerMulti = TierIsMultiAbilityOnly(rows, lowerStart, lowerEndInclusive);
+        bool upperMulti = TryGetMultiStackSubrange(rows, upperStart, upperEndInclusive, out int uStart, out int uEnd);
+        bool lowerMulti = TryGetMultiStackSubrange(rows, lowerStart, lowerEndInclusive, out int lStart, out int lEnd);
         if (!upperMulti && !lowerMulti)
             return;
 
@@ -1273,7 +1393,7 @@ public class SkillTreeViewUI : MonoBehaviour
         if (lowerMulti)
         {
             string fromId = SpineNodeId(rows[anchorUpIdx]);
-            for (int li = lowerStart; li <= lowerEndInclusive; li++)
+            for (int li = lStart; li <= lEnd; li++)
             {
                 if (li == anchorLowIdx)
                     continue;
@@ -1285,7 +1405,7 @@ public class SkillTreeViewUI : MonoBehaviour
         if (upperMulti)
         {
             string toId = SpineNodeId(rows[anchorLowIdx]);
-            for (int ui = upperStart; ui <= upperEndInclusive; ui++)
+            for (int ui = uStart; ui <= uEnd; ui++)
             {
                 if (ui == anchorUpIdx)
                     continue;
@@ -1389,7 +1509,14 @@ public class SkillTreeViewUI : MonoBehaviour
         body = $"{typeLabel} {BuildStatusLine(isUnlocked)}\nUnlocks at Lv{level}\n\n{desc}";
     }
 
-    private void BuildChoiceTooltipCopy(int unlockLevel, SkillChoiceDefinition choice, RowDef parentRow, bool isUnlocked, out string title, out string body)
+    private void BuildChoiceTooltipCopy(
+        int unlockLevel,
+        SkillChoiceDefinition choice,
+        RowDef parentRow,
+        int choiceAssetIndex,
+        bool isUnlocked,
+        out string title,
+        out string body)
     {
         SkillUnlockDefinition parentUnlock = parentRow.unlock;
 
@@ -1409,11 +1536,21 @@ public class SkillTreeViewUI : MonoBehaviour
         if (string.IsNullOrWhiteSpace(unlockTitle))
             unlockTitle = "Untitled";
 
-        string desc = choice != null
-            ? SkillsAbilityPresentationResolver.ResolveChoiceDescription(choice)
-            : string.Empty;
-        if (string.IsNullOrWhiteSpace(desc))
-            desc = "No description yet.";
+        string desc;
+        if (selectedSkill != null && parentRow.unlock != null
+            && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(
+                SpineNodeId(parentRow), choiceAssetIndex, out string meleeChoiceBody))
+        {
+            desc = meleeChoiceBody;
+        }
+        else
+        {
+            desc = choice != null
+                ? SkillsAbilityPresentationResolver.ResolveChoiceDescription(choice)
+                : string.Empty;
+            if (string.IsNullOrWhiteSpace(desc))
+                desc = "No description yet.";
+        }
 
         if (ShouldUseMajorPassiveLinePresentation(parentRow))
             desc = ApplyMajorPassiveValueLineMarkup(desc);
@@ -1445,7 +1582,7 @@ public class SkillTreeViewUI : MonoBehaviour
         if (selectedSkill.skillType == SkillType.Melee &&
             row.unlock.unlockType == SkillUnlockType.MajorPassive)
         {
-            if (MeleeMajorPassiveTooltipText.TryBuildSkillTreeBody(row.level, selectedChoice, out string meleeBody))
+            if (MeleeMajorPassiveTooltipText.TryBuildSkillTreeBody(SpineNodeId(row), selectedChoice, out string meleeBody))
                 return meleeBody;
         }
 
@@ -1560,7 +1697,8 @@ public class SkillTreeViewUI : MonoBehaviour
             string trimmed = line.Substring(lead);
             if (trimmed.StartsWith("+", StringComparison.Ordinal) ||
                 IsMajorPassiveNegativeStatLine(trimmed) ||
-                trimmed.StartsWith("Flow lasts", StringComparison.OrdinalIgnoreCase))
+                trimmed.StartsWith("Flow lasts", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("On proc:", StringComparison.OrdinalIgnoreCase))
             {
                 if (lead > 0)
                     sb.Append(line, 0, lead);
@@ -2394,9 +2532,7 @@ public class SkillTreeViewUI : MonoBehaviour
     {
         if (selectedSkill == null || skillsManager == null)
             return false;
-        if (!TryGetTierRangeForLevel(level, out int g, out int e))
-            return false;
-        if (!TierIsMultiAbilityOnly(layoutRowsCache, g, e))
+        if (!TryGetMultiStackPickRangeForLevel(level, out _, out _))
             return false;
         int pick = skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, level, -1);
         // After a pick, the tier stays collapsed (siblings hidden) until Reset Tree clears the pick.
@@ -2408,19 +2544,7 @@ public class SkillTreeViewUI : MonoBehaviour
         if (layoutRowsCache.Count == 0 || tierStart < 0 || tierEndInclusive >= layoutRowsCache.Count)
             return string.Empty;
 
-        if (!TierIsMultiAbilityOnly(layoutRowsCache, tierStart, tierEndInclusive))
-            return SpineNodeId(layoutRowsCache[TierVerticalAnchorIndex(layoutRowsCache, tierStart, tierEndInclusive)]);
-
-        int count = tierEndInclusive - tierStart + 1;
-        int level = layoutRowsCache[tierStart].level;
-        int pick = selectedSkill != null && skillsManager != null
-            ? skillsManager.GetSkillAbilityRowPick(selectedSkill.skillType, level, -1)
-            : -1;
-        if (pick >= 0 && pick < count)
-            return SpineNodeId(layoutRowsCache[tierStart + pick]);
-
-        int anchor = TierVerticalAnchorIndex(layoutRowsCache, tierStart, tierEndInclusive);
-        return SpineNodeId(layoutRowsCache[anchor]);
+        return ResolveMultiStackPickedSpineId(layoutRowsCache[tierStart].level);
     }
 
     private float GetEffectiveSpineLayoutX(string spineId)
@@ -2440,9 +2564,7 @@ public class SkillTreeViewUI : MonoBehaviour
 
     private bool ShouldExposeChoicesForMultiAbilityParent(string parentSpineId, int sourceLevel)
     {
-        if (!TryGetTierRangeForLevel(sourceLevel, out int g, out int e))
-            return true;
-        if (!TierIsMultiAbilityOnly(layoutRowsCache, g, e))
+        if (!TryGetMultiStackPickRangeForLevel(sourceLevel, out int msStart, out int msEnd))
             return true;
         if (selectedSkill == null || skillsManager == null)
             return true;
@@ -2451,7 +2573,11 @@ public class SkillTreeViewUI : MonoBehaviour
         if (pick < 0)
             return false;
 
-        string pickedSpine = SpineNodeId(layoutRowsCache[g + pick]);
+        int groupSize = msEnd - msStart + 1;
+        if (pick < 0 || pick >= groupSize)
+            return false;
+
+        string pickedSpine = SpineNodeId(layoutRowsCache[msStart + pick]);
         return parentSpineId == pickedSpine;
     }
 

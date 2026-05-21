@@ -576,6 +576,7 @@ REFERENCE — HUD ability buff ids (SetHudAbilityBuff abilityId)
   lumber_frenzy, fishing_frenzy, avatar_of_the_forest, cleaving_chop, cleaving_strikes,
   spectral_axe, soulforged_weapon, battle_trance, energy_infusion
   Major passives (GatheringPassiveTooltipText): woodcutting_flow_state, fishing_calm_waters_major
+  Major passives (MeleeMajorPassiveTooltipText): BattleEngine_Overload, phoenix_soul_ashen_rebirth
 
 REFERENCE — key scripts (skills & abilities only)
   AbilityDefinition.cs           — tag enum, tooltipBuffMinionDurationSeconds
@@ -605,5 +606,7 @@ REFERENCE — enhancement parent spine ids (Melee examples)
   Lv35_0                  — Soulforged Weapon (Lv35 ability row slot 0)
   Lv35_1                  — Battle Trance (3 enhancements at Lv38)
   Lv35                    — Soulforged Weapon (legacy int key — prefer Lv35_0 for new code)
+  Lv40_0                  — Phoenix Soul (Melee major passive; choices at Lv43)
+  Lv40_1                  — Master of Venoms (second Lv40 major; choices at Lv43)
   Lv45_0                  — Final Severance
   Lv45_1                  — Executioner's Descent

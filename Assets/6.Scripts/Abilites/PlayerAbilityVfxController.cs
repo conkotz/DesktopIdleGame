@@ -34,6 +34,12 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0f)] private float powerSlashSecondSwipeDelay = 0.035f;
     [SerializeField] private float powerSlashSecondSwipeAngleOffset = 18f;
 
+    [Header("Parry (Melee Lv10) VFX")]
+    [SerializeField] private Color parrySlashColor = new Color(1f, 0.82f, 0.15f, 0.95f);
+    [SerializeField, Min(0.01f)] private float parrySlashLineWidth = 0.1f;
+    [SerializeField, Min(0.05f)] private float parrySlashDuration = 0.2f;
+    [SerializeField] private Vector3 parrySlashHeightOffset = new Vector3(0f, 0.55f, 0f);
+
     [Header("Whirlwind (Melee) VFX")]
     [SerializeField] private Color whirlingBladeColor = new Color(1f, 0.88f, 0.22f, 0.95f);
     [SerializeField, Min(0.01f)] private float whirlingBladeDuration = 0.22f;
@@ -204,6 +210,17 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.001f)] private float battleTranceParticleStartSizeMin = 0.032f;
     [SerializeField, Min(0.001f)] private float battleTranceParticleStartSizeMax = 0.058f;
 
+    [Header("Phoenix Soul — Ashen Rebirth (Melee Lv40) VFX")]
+    [SerializeField] private Sprite ashenRebirthPhoenixSprite;
+    [SerializeField] private Color ashenRebirthPhoenixTint = Color.white;
+    [SerializeField, Min(0.5f)] private float ashenRebirthPhoenixWorldScale = 1.5f;
+    [Tooltip("World Y above the player where the phoenix sprite appears.")]
+    [SerializeField, Min(0.1f)] private float ashenRebirthPhoenixSpawnHeightAbovePlayer = 4.8f;
+    [Tooltip("Seconds the phoenix stays visible above the player.")]
+    [SerializeField, Min(0f)] private float ashenRebirthPhoenixSpawnHoldSeconds = 2f;
+    [SerializeField] private string ashenRebirthPhoenixSortingLayer = "Foreground";
+    [SerializeField] private int ashenRebirthPhoenixSortingOrder = 120;
+
     [Header("Flame Charge (Melee Lv25) VFX")]
     [SerializeField] private Color flameChargePlayerGlowColor = new Color(1f, 0.38f, 0.12f, 0.88f);
     [SerializeField] private Vector3 flameChargePlayerGlowLocalOffset = new Vector3(0f, 0.1f, 0f);
@@ -237,6 +254,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private GameObject _battleTranceGlowRoot;
     private GameObject _flameChargePlayerGlowRoot;
     private Coroutine _flameChargeVolcanicBurstRoutine;
+    private GameObject _ashenRebirthPhoenixRoot;
+    private SpriteRenderer _ashenRebirthPhoenixRenderer;
+    private Coroutine _ashenRebirthPhoenixRoutine;
     private readonly List<GameObject> _activeFlameChargeDashTrailRoots = new();
 
     private GameObject _executionersDescentAxeRoot;
@@ -294,6 +314,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         EndFlameChargePlayerGlow();
         DestroyAllFlameChargeDashTrailVfx();
         EndBladestormStabSpray();
+        StopAshenRebirthPhoenixVfx();
     }
 
     private static bool AreAbilityRangeIndicatorsEnabled() =>
@@ -954,6 +975,55 @@ public class PlayerAbilityVfxController : MonoBehaviour
         SpawnSinglePowerSlashTrail(anchor, 0f, 0f);
         if (powerSlashUseDoubleSwipe)
             SpawnSinglePowerSlashTrail(anchor, powerSlashSecondSwipeAngleOffset, powerSlashSecondSwipeDelay);
+    }
+
+    /// <summary>Simple diagonal slash between player and attacker (default Parry feedback; no swing cadence).</summary>
+    public void SpawnParrySlashLine(Vector3 playerWorld, Vector3 enemyWorld)
+    {
+        StartCoroutine(CoParrySlashLine(playerWorld + parrySlashHeightOffset, enemyWorld + parrySlashHeightOffset));
+    }
+
+    private IEnumerator CoParrySlashLine(Vector3 playerPos, Vector3 enemyPos)
+    {
+        GameObject root = new GameObject("ParrySlash");
+        LineRenderer line = root.AddComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.positionCount = 2;
+        line.startWidth = parrySlashLineWidth;
+        line.endWidth = parrySlashLineWidth * 0.35f;
+        line.numCornerVertices = 2;
+        line.numCapVertices = 2;
+        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.startColor = parrySlashColor;
+        line.endColor = parrySlashColor;
+        if (!TryApplyPlayerSpriteSortingToRenderer(line, 12))
+            line.sortingOrder = 24;
+
+        Vector3 mid = (playerPos + enemyPos) * 0.5f;
+        Vector3 toEnemy = enemyPos - playerPos;
+        float span = Mathf.Max(0.35f, toEnemy.magnitude);
+        Vector3 dir = toEnemy.sqrMagnitude > 1e-6f ? toEnemy.normalized : Vector3.right;
+        Vector3 slashDir = (dir + Vector3.down * 0.85f).normalized;
+        Vector3 start = mid + slashDir * (span * 0.42f);
+        Vector3 end = mid - slashDir * (span * 0.42f);
+        line.SetPosition(0, start);
+        line.SetPosition(1, end);
+
+        float duration = Mathf.Max(0.05f, parrySlashDuration);
+        float elapsed = 0f;
+        Color baseColor = parrySlashColor;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = 1f - Mathf.Clamp01(elapsed / duration);
+            Color c = baseColor;
+            c.a *= alpha;
+            line.startColor = c;
+            line.endColor = c;
+            yield return null;
+        }
+
+        Destroy(root);
     }
 
     private void SpawnSinglePowerSlashTrail(Transform anchor, float angleOffset, float delay)
@@ -2186,6 +2256,84 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
     }
 
+    /// <summary>Phoenix Soul — Ashen Rebirth: sprite above the player (Executioner's Descent–style spawn hold).</summary>
+    public void SpawnAshenRebirthPhoenixVfx()
+    {
+        StopAshenRebirthPhoenixVfx();
+
+        if (ashenRebirthPhoenixSprite == null)
+            return;
+
+        EnsureAshenRebirthPhoenixVisual();
+        if (_ashenRebirthPhoenixRenderer == null || _ashenRebirthPhoenixRoot == null)
+            return;
+
+        _ashenRebirthPhoenixRenderer.sprite = ashenRebirthPhoenixSprite;
+        _ashenRebirthPhoenixRenderer.color = ashenRebirthPhoenixTint;
+        _ashenRebirthPhoenixRenderer.enabled = true;
+        _ashenRebirthPhoenixRoot.transform.localScale = Vector3.one * ashenRebirthPhoenixWorldScale;
+        _ashenRebirthPhoenixRoot.transform.position = ResolveAshenRebirthPhoenixWorldPosition();
+
+        float holdSeconds = Mathf.Max(0f, ashenRebirthPhoenixSpawnHoldSeconds);
+        _ashenRebirthPhoenixRoutine = StartCoroutine(CoAshenRebirthPhoenixHold(holdSeconds));
+    }
+
+    public void StopAshenRebirthPhoenixVfx()
+    {
+        if (_ashenRebirthPhoenixRoutine != null)
+        {
+            StopCoroutine(_ashenRebirthPhoenixRoutine);
+            _ashenRebirthPhoenixRoutine = null;
+        }
+
+        if (_ashenRebirthPhoenixRenderer != null)
+            _ashenRebirthPhoenixRenderer.enabled = false;
+    }
+
+    private Vector3 ResolveAshenRebirthPhoenixWorldPosition()
+    {
+        Transform root = player != null ? player.transform : transform;
+        return root.position + Vector3.up * ashenRebirthPhoenixSpawnHeightAbovePlayer;
+    }
+
+    private IEnumerator CoAshenRebirthPhoenixHold(float holdSeconds)
+    {
+        float elapsed = 0f;
+        while (elapsed < holdSeconds)
+        {
+            if (_ashenRebirthPhoenixRoot != null)
+                _ashenRebirthPhoenixRoot.transform.position = ResolveAshenRebirthPhoenixWorldPosition();
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        _ashenRebirthPhoenixRoutine = null;
+        if (_ashenRebirthPhoenixRenderer != null)
+            _ashenRebirthPhoenixRenderer.enabled = false;
+    }
+
+    private void ApplyAshenRebirthPhoenixSorting(Renderer renderer)
+    {
+        if (renderer == null)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(ashenRebirthPhoenixSortingLayer))
+            renderer.sortingLayerName = ashenRebirthPhoenixSortingLayer;
+
+        renderer.sortingOrder = ashenRebirthPhoenixSortingOrder;
+    }
+
+    private void EnsureAshenRebirthPhoenixVisual()
+    {
+        if (_ashenRebirthPhoenixRoot != null)
+            return;
+
+        _ashenRebirthPhoenixRoot = new GameObject("AshenRebirthPhoenixVfx");
+        _ashenRebirthPhoenixRenderer = _ashenRebirthPhoenixRoot.AddComponent<SpriteRenderer>();
+        ApplyAshenRebirthPhoenixSorting(_ashenRebirthPhoenixRenderer);
+    }
+
     public void SpawnFlameChargeVolcanicBurst(Vector3 worldPosition)
     {
         if (_flameChargeVolcanicBurstRoutine != null)
@@ -2448,6 +2596,29 @@ public class PlayerAbilityVfxController : MonoBehaviour
             _executionersDescentAxeRoot.transform.position = axePos;
 
         SyncExecutionersDescentMark(target, hangPoint);
+    }
+
+    /// <summary>
+    /// Executioner's Continuum — axe at the same lowest descent impact point (caller passes
+    /// <see cref="ResolveExecutionersDescentMinimumImpactWorldPosition"/> once). Fixed world position.
+    /// </summary>
+    public void BeginExecutionersDescentContinuum(Vector3 impactWorldPosition)
+    {
+        StopExecutionersDescentVfx();
+
+        EnsureExecutionersDescentVisuals();
+        if (_executionersDescentAxeRenderer != null)
+        {
+            _executionersDescentAxeRenderer.sprite = executionersDescentAxeSprite;
+            _executionersDescentAxeRenderer.color = executionersDescentAxeTint;
+            _executionersDescentAxeRenderer.enabled = executionersDescentAxeSprite != null;
+            _executionersDescentAxeRoot.transform.localScale = Vector3.one * executionersDescentAxeWorldScale;
+        }
+
+        if (_executionersDescentAxeRoot != null)
+            _executionersDescentAxeRoot.transform.position = impactWorldPosition;
+
+        HideExecutionersDescentMark();
     }
 
     public void UpdateExecutionersDescent(EnemyBaseController target, Vector3 targetWorld, float elapsedSeconds)

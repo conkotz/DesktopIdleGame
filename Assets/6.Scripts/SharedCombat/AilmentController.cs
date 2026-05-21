@@ -52,6 +52,8 @@ public class AilmentController : MonoBehaviour
     private Transform burnDotSource;
     private string _bleedDotDealerLabel = "";
     private string _exclusiveBleedDotDealerLabel = "";
+    private CharacterStats _poisonOwnerPlayerStats;
+    private bool _poisonNeurotoxinActive;
     private string _poisonDotDealerLabel = "";
     private string _burnDotDealerLabel = "";
     private string _bleedOutgoingDpsSourceLabel;
@@ -75,6 +77,10 @@ public class AilmentController : MonoBehaviour
     private bool _hasExclusiveBleedDotDealerWorldPos;
     private Vector3 _burnDotDealerWorldPos;
     private bool _hasBurnDotDealerWorldPos;
+    private Vector3 _shockDotDealerWorldPos;
+    private bool _hasShockDotDealerWorldPos;
+    private Vector3 _chillDotDealerWorldPos;
+    private bool _hasChillDotDealerWorldPos;
 
     public event System.Action OnAilmentsChanged;
 
@@ -154,12 +160,97 @@ public class AilmentController : MonoBehaviour
             playerBuffs = GetComponentInParent<PlayerBuffController>();
     }
 
+    private bool IsPlayerVictim => playerBuffs != null;
+
+    private void TrySpawnEnemyAilmentActivationPopup(string message, Color color, Transform source)
+    {
+        if (IsPlayerVictim || DamagePopupSystem.Instance == null || string.IsNullOrWhiteSpace(message))
+            return;
+
+        DamagePopupAnchor anchor = GetComponentInChildren<DamagePopupAnchor>(true);
+        Vector3 anchorPos = anchor != null ? anchor.WorldPos : transform.position;
+        Vector3 dealerPos = source != null ? source.position : transform.position;
+        Vector3 pos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
+        DamagePopupSystem.Instance.SpawnLingeringStatus(pos, message, color);
+    }
+
+    private static Color ResolveAilmentStatusColor(FloatingDamageTextUI prefab, System.Func<FloatingDamageTextUI, Color> pick, Color fallback)
+    {
+        if (prefab == null)
+            return fallback;
+        return pick(prefab);
+    }
+
+    /// <summary>World position of whoever applied this ailment (for player overhead status popups).</summary>
+    public bool TryGetStatusPopupDealerWorld(string statusMessage, out Vector3 dealerWorld)
+    {
+        dealerWorld = default;
+        if (string.IsNullOrWhiteSpace(statusMessage))
+            return false;
+
+        if (string.Equals(statusMessage, "Poisoned", System.StringComparison.OrdinalIgnoreCase) &&
+            _hasPoisonDotDealerWorldPos)
+        {
+            dealerWorld = _poisonDotDealerWorldPos;
+            return true;
+        }
+
+        if (string.Equals(statusMessage, "bleeding", System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (_hasBleedDotDealerWorldPos)
+            {
+                dealerWorld = _bleedDotDealerWorldPos;
+                return true;
+            }
+
+            if (_hasExclusiveBleedDotDealerWorldPos)
+            {
+                dealerWorld = _exclusiveBleedDotDealerWorldPos;
+                return true;
+            }
+        }
+
+        if (string.Equals(statusMessage, "Burnt", System.StringComparison.OrdinalIgnoreCase) &&
+            _hasBurnDotDealerWorldPos)
+        {
+            dealerWorld = _burnDotDealerWorldPos;
+            return true;
+        }
+
+        if (string.Equals(statusMessage, "Shocked", System.StringComparison.OrdinalIgnoreCase) &&
+            _hasShockDotDealerWorldPos)
+        {
+            dealerWorld = _shockDotDealerWorldPos;
+            return true;
+        }
+
+        if (string.Equals(statusMessage, "Chilled", System.StringComparison.OrdinalIgnoreCase) &&
+            _hasChillDotDealerWorldPos)
+        {
+            dealerWorld = _chillDotDealerWorldPos;
+            return true;
+        }
+
+        return false;
+    }
+
     private void ClearDotDealerWorldCaches()
     {
         _hasPoisonDotDealerWorldPos = false;
         _hasBleedDotDealerWorldPos = false;
         _hasExclusiveBleedDotDealerWorldPos = false;
         _hasBurnDotDealerWorldPos = false;
+        _hasShockDotDealerWorldPos = false;
+        _hasChillDotDealerWorldPos = false;
+    }
+
+    private static void CacheAilmentStatusDealerWorld(Transform source, ref Vector3 worldPos, ref bool hasWorldPos)
+    {
+        if (source == null)
+            return;
+
+        worldPos = source.position;
+        hasWorldPos = true;
     }
 
     private void OnDisable()
@@ -184,6 +275,8 @@ public class AilmentController : MonoBehaviour
         bleedTickSchedule.Clear();
         poisonStacks.Clear();
         poisonBaseMaxStacks = 1;
+        _poisonOwnerPlayerStats = null;
+        _poisonNeurotoxinActive = false;
         chillExpireTimes.Clear();
         burnStackCount = 0;
         burnDamagePerTick = 0;
@@ -235,6 +328,8 @@ public class AilmentController : MonoBehaviour
         poisonRoutine = null;
         poisonStacks.Clear();
         poisonBaseMaxStacks = 1;
+        _poisonOwnerPlayerStats = null;
+        _poisonNeurotoxinActive = false;
         _poisonDotDealerLabel = "";
         _hasPoisonDotDealerWorldPos = false;
 
@@ -294,10 +389,19 @@ public class AilmentController : MonoBehaviour
             _hasBleedDotDealerWorldPos = true;
         }
 
+        bool firstBleed = bleedTickSchedule.Count == 0 && exclusiveBleedTickSchedule.Count == 0;
+
         RefreshBleedSchedule(newBleedTick, tickCount);
 
         if (bleedTickSchedule.Count > 0 && bleedRoutine == null)
             bleedRoutine = StartCoroutine(BleedRoutine(payload.source));
+
+        if (firstBleed && bleedTickSchedule.Count > 0)
+        {
+            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
+            Color c = ResolveAilmentStatusColor(fx, f => f.BleedDamageColor, new Color32(170, 35, 35, 255));
+            TrySpawnEnemyAilmentActivationPopup("Bleeding", c, payload.source);
+        }
 
         OnAilmentsChanged?.Invoke();
     }
@@ -473,6 +577,18 @@ public class AilmentController : MonoBehaviour
         poisonBaseMaxStacks = Mathf.Max(1, payload.maxStacks);
         int maxStacks = GetEffectivePoisonMaxStacks(poisonBaseMaxStacks);
 
+        _poisonOwnerPlayerStats = CharacterStats.ResolvePoisonOwnerPlayerStats(payload.poisonMasteryOwner);
+        _poisonNeurotoxinActive = _poisonOwnerPlayerStats != null &&
+                                  _poisonOwnerPlayerStats.GetMasterOfVenomsEnhancementPick() == 0;
+
+        int stacksAfterApply = Mathf.Min(maxStacks, poisonStacks.Count + 1);
+        if (_poisonOwnerPlayerStats != null)
+        {
+            int tickReduction = _poisonOwnerPlayerStats.GetMasterOfVenomsLethalCompoundTickReduction(stacksAfterApply);
+            ticks = Mathf.Max(1, ticks - tickReduction);
+            tickDamage = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / ticks));
+        }
+
         _poisonDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
         _poisonOutgoingDpsSourceLabel = payload.outgoingDpsSourceLabel;
         _poisonOutgoingAttributeToMinion = payload.outgoingAttributeToMinion;
@@ -486,10 +602,18 @@ public class AilmentController : MonoBehaviour
         while (poisonStacks.Count >= maxStacks)
             poisonStacks.RemoveAt(0);
 
+        bool firstPoison = poisonStacks.Count == 0;
         poisonStacks.Add(new PoisonStack(tickDamage, ticks));
 
         if (poisonRoutine == null)
             poisonRoutine = StartCoroutine(PoisonRoutine(payload.source));
+
+        if (firstPoison)
+        {
+            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
+            Color c = ResolveAilmentStatusColor(fx, f => f.PoisonDamageColor, new Color32(85, 200, 90, 255));
+            TrySpawnEnemyAilmentActivationPopup("Poisoned", c, payload.source);
+        }
 
         OnAilmentsChanged?.Invoke();
     }
@@ -580,22 +704,42 @@ public class AilmentController : MonoBehaviour
     private void ApplyPoisonTick(int damage, Transform source)
     {
         Vector3? dealerWorldFallback = _hasPoisonDotDealerWorldPos ? (Vector3?)_poisonDotDealerWorldPos : null;
+
+        int finalDamage = damage;
+        bool wasCrit = false;
+        FloatingDamageTextUI.PopupDamageKind popupKind = FloatingDamageTextUI.PopupDamageKind.Poison;
+
+        if (_poisonOwnerPlayerStats != null && _poisonOwnerPlayerStats.MasterOfVenomsPoisonCanCriticallyStrike())
+        {
+            if (Random.value < Mathf.Clamp01(_poisonOwnerPlayerStats.CritChance))
+            {
+                wasCrit = true;
+                finalDamage = Mathf.Max(
+                    1,
+                    Mathf.RoundToInt(damage * _poisonOwnerPlayerStats.GetMasterOfVenomsPoisonCritDamageMultiplier()));
+                popupKind = FloatingDamageTextUI.PopupDamageKind.PoisonCrit;
+            }
+        }
+
         ApplyDotDamage(
-            damage,
-            FloatingDamageTextUI.PopupDamageKind.Poison,
+            finalDamage,
+            popupKind,
             source,
             _poisonDotDealerLabel,
             dealerWorldFallback,
             _poisonOutgoingDpsSourceLabel,
-            _poisonOutgoingAttributeToMinion);
+            _poisonOutgoingAttributeToMinion,
+            wasCrit);
 
         if (debugLogs)
-            Debug.Log($"[Ailments] Poison tick: {damage}", this);
+            Debug.Log($"[Ailments] Poison tick: {finalDamage} crit={wasCrit}", this);
     }
 
     public void ApplyChillFromHit(ChillPayload payload)
     {
         if (IsDead()) return;
+
+        CacheAilmentStatusDealerWorld(payload.source, ref _chillDotDealerWorldPos, ref _hasChillDotDealerWorldPos);
 
         float duration = Mathf.Max(0.1f, payload.duration);
         int maxStacks = Mathf.Max(1, payload.maxStacks);
@@ -603,6 +747,8 @@ public class AilmentController : MonoBehaviour
 
         float now = Time.time;
         PruneExpiredChillStacks(now);
+
+        bool firstChill = chillExpireTimes.Count == 0;
 
         if (chillExpireTimes.Count >= maxStacks)
             chillExpireTimes.RemoveAt(0);
@@ -617,6 +763,13 @@ public class AilmentController : MonoBehaviour
 
         if (chillRoutine == null)
             chillRoutine = StartCoroutine(ChillRoutine());
+
+        if (firstChill)
+        {
+            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
+            Color c = ResolveAilmentStatusColor(fx, f => f.ChillPresentationColor, new Color32(90, 160, 255, 255));
+            TrySpawnEnemyAilmentActivationPopup("Chilled", c, payload.source);
+        }
 
         OnAilmentsChanged?.Invoke();
     }
@@ -697,6 +850,13 @@ public class AilmentController : MonoBehaviour
 
         if (burnTickRoutine == null)
             burnTickRoutine = StartCoroutine(BurnTickRoutine());
+
+        if (!hadBurn)
+        {
+            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
+            Color c = ResolveAilmentStatusColor(fx, f => f.BurnPresentationColor, new Color32(255, 140, 40, 255));
+            TrySpawnEnemyAilmentActivationPopup("Burnt", c, source);
+        }
 
         OnAilmentsChanged?.Invoke();
 
@@ -828,14 +988,25 @@ public class AilmentController : MonoBehaviour
     {
         if (IsDead()) return;
 
+        CacheAilmentStatusDealerWorld(payload.source, ref _shockDotDealerWorldPos, ref _hasShockDotDealerWorldPos);
+
         float duration = Mathf.Max(0.1f, payload.duration);
         float incomingDamageBonus = Mathf.Max(0f, payload.damageTakenMultiplier);
+
+        bool firstShock = !HasShock;
 
         shockDamageTakenMultiplier = incomingDamageBonus;
         shockExpireTime = Time.time + duration;
 
         if (shockRoutine == null)
             shockRoutine = StartCoroutine(ShockRoutine());
+
+        if (firstShock)
+        {
+            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
+            Color c = ResolveAilmentStatusColor(fx, f => f.ShockPresentationColor, new Color32(255, 190, 70, 255));
+            TrySpawnEnemyAilmentActivationPopup("Shocked", c, payload.source);
+        }
 
         OnAilmentsChanged?.Invoke();
     }
@@ -862,7 +1033,22 @@ public class AilmentController : MonoBehaviour
     public float GetMoveSpeedMultiplier()
     {
         float slow = GetChillSlowMultiplier();
+        if (_poisonNeurotoxinActive && HasPoison && _poisonOwnerPlayerStats != null)
+        {
+            slow += Mathf.Clamp01(
+                _poisonOwnerPlayerStats.GetMasterOfVenomsNeurotoxinMoveSlowPerPoisonStack() * PoisonStacks);
+        }
+
         return Mathf.Max(0.1f, 1f - slow);
+    }
+
+    /// <summary>Outgoing damage multiplier while Neurotoxin poison is active (afflicted enemy deals less damage).</summary>
+    public float GetOutgoingDamageMultiplier()
+    {
+        if (_poisonNeurotoxinActive && HasPoison && _poisonOwnerPlayerStats != null)
+            return _poisonOwnerPlayerStats.GetMasterOfVenomsNeurotoxinOutgoingDamageMultiplier();
+
+        return 1f;
     }
 
     private void ApplyDotDamage(
@@ -872,7 +1058,8 @@ public class AilmentController : MonoBehaviour
         string dealerLabelForDps,
         Vector3? dotDealerWorldPositionFallback = null,
         string outgoingDpsSourceLabel = null,
-        bool outgoingAttributeToMinion = false)
+        bool outgoingAttributeToMinion = false,
+        bool wasCrit = false)
     {
         damage = Mathf.Max(1, damage);
 
@@ -885,7 +1072,8 @@ public class AilmentController : MonoBehaviour
                 showDotPopups,
                 dotDealerWorldPositionFallback,
                 outgoingDpsSourceLabel,
-                outgoingAttributeToMinion);
+                outgoingAttributeToMinion,
+                wasCrit);
             return;
         }
 
@@ -943,7 +1131,7 @@ public class AilmentController : MonoBehaviour
                     pos,
                     finalDamage,
                     type,
-                    false,
+                    wasCrit,
                     true,
                     dir,
                     false
@@ -958,6 +1146,7 @@ public class AilmentController : MonoBehaviour
         {
             FloatingDamageTextUI.PopupDamageKind.Bleed => DpsDamageBucket.Bleed,
             FloatingDamageTextUI.PopupDamageKind.Poison => DpsDamageBucket.Poison,
+            FloatingDamageTextUI.PopupDamageKind.PoisonCrit => DpsDamageBucket.Poison,
             FloatingDamageTextUI.PopupDamageKind.Magic => DpsDamageBucket.Burn,
             FloatingDamageTextUI.PopupDamageKind.Corruption => DpsDamageBucket.Corruption,
             _ => DpsDamageBucket.Physical

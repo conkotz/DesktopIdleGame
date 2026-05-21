@@ -109,9 +109,9 @@ public static class AbilityTooltipDamagePreview
         CharacterStats stats,
         PlayerAbilityController abilityController)
     {
-        AbilityTooltipAdjustments.ResolveTooltipEnergyAndCooldown(
-            def, skillsManager, stats, abilityController, out float energy, out float cooldown);
-        body.AppendLine(wrapLine($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown"));
+        AbilityTooltipAdjustments.ResolveTooltipResourceAndCooldown(
+            def, skillsManager, stats, abilityController, out float resourceCost, out string resourceLabel, out float cooldown);
+        body.AppendLine(wrapLine($"{resourceCost:0.#} {resourceLabel} • {cooldown:0.#}s Cooldown"));
     }
 
     public static string FormatPhysSuffix(CharacterStats stats, float physicalMultiplier)
@@ -513,12 +513,22 @@ public static class AbilityTooltipDamagePreview
         }
 
         const float scalingEpsilon = 0.0001f;
+
+        if (IsExecutionersDescent(def) && GetExecutionersDescentBranchChoice(skillsManager) == 2)
+        {
+            float shockMult = AbilityCombatPower.ExecutionersDescentContinuumShockwaveWeaponMultiplier;
+            float allM = def.GetEffectiveAllDamageMultiplier();
+            scaling.AppendLine(S($"Deals {shockMult * 100f:0.#}% of your weapon damage per shockwave"));
+            AppendAbilityTooltipBonusScalerLines(scaling, S, def, stats, shockMult, allM);
+            return scaling.ToString().TrimEnd();
+        }
+
         if (IsCleavingStrikes(def) || weaponMult <= scalingEpsilon)
             return string.Empty;
 
-        float allM = def.GetEffectiveAllDamageMultiplier();
+        float allDamageMult = def.GetEffectiveAllDamageMultiplier();
         scaling.AppendLine(S($"Deals {weaponMult * 100f:0.#}% of your weapon damage"));
-        AppendAbilityTooltipBonusScalerLines(scaling, S, def, stats, weaponMult, allM);
+        AppendAbilityTooltipBonusScalerLines(scaling, S, def, stats, weaponMult, allDamageMult);
         return scaling.ToString().TrimEnd();
     }
 
@@ -899,40 +909,67 @@ public static class AbilityTooltipDamagePreview
                 ComputeAverageAbilityHitSplit(def, stats, finaleMult, allM, out float finPhys, out float finMag, out float finCorr, liveDamageMultiplier);
                 int finaleTotal = Mathf.RoundToInt(finPhys + finMag + finCorr);
                 body.AppendLine(O(
-                    $"Finale: final strike {finaleTotal} total damage{dmgSuffix} (150% weapon damage)"));
+                    $"Finale: additional strike after the combo — {finaleTotal} total damage{dmgSuffix} (150% weapon damage)"));
             }
             else if (enhance == 1)
-                body.AppendLine(O("If the target dies during the combo, remaining strikes hit the nearest enemy."));
+                body.AppendLine(O(
+                    "If the target dies during the combo, remaining strikes hit the nearest enemy in range (auto-paths while channeling)."));
         }
         else if (IsExecutionersDescent(def))
         {
             string dmgSuffix = DamageTimingSuffix();
             int enhance = GetExecutionersDescentBranchChoice(skillsManager);
-            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
-            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
 
-            ComputeAverageAbilityHitSplit(
-                def,
-                stats,
-                AbilityCombatPower.ExecutionersDescentShockwaveWeaponMultiplier,
-                allM,
-                out float shockPhys,
-                out float shockMag,
-                out float shockCorr,
-                liveDamageMultiplier);
-            int shockTotal = Mathf.RoundToInt(shockPhys + shockMag + shockCorr);
-            body.AppendLine(O(
-                $"Shockwave: {shockTotal} damage to enemies within {AbilityCombatPower.ExecutionersDescentShockwaveRadius:0.#} units of the target"));
-            body.AppendLine(O(
-                $"Descent: {AbilityCombatPower.ExecutionersDescentDescentSeconds:0.#}s — locks onto a target, then impacts at their position"));
-
-            if (enhance == 0)
-                body.AppendLine(O("If the target dies during descent or from the impact, cooldown is reduced by 50%."));
-            else if (enhance == 1)
+            if (enhance == 2)
             {
-                body.AppendLine(O("Main hit ignores armour and magic resist."));
+                float continuumMult = AbilityCombatPower.ExecutionersDescentContinuumShockwaveWeaponMultiplier;
+                ComputeAverageAbilityHitSplit(
+                    def,
+                    stats,
+                    continuumMult,
+                    allM,
+                    out float shockPhys,
+                    out float shockMag,
+                    out float shockCorr,
+                    liveDamageMultiplier);
+
+                AppendAbilityTotalHitDamageEffects(body, O, shockPhys, shockMag, shockCorr, $"{dmgSuffix} per pulse");
                 body.AppendLine(O(
-                    $"Shockwave victims lose 50% armour and magic resist for {AbilityCombatPower.ExecutionersDescentSunderingDebuffSeconds:0.#}s."));
+                    $"Hits enemies within {AbilityCombatPower.ExecutionersDescentShockwaveRadius:0.#} units of the anchor"));
+                body.AppendLine(O(
+                    $"Continuum: axe anchors at impact height for {AbilityCombatPower.ExecutionersDescentContinuumDurationSeconds:0.#}s — no crash descent"));
+                body.AppendLine(O(
+                    $"Releases {AbilityCombatPower.GetExecutionersDescentContinuumShockwaveCount()} shockwaves every {AbilityCombatPower.ExecutionersDescentContinuumShockwaveIntervalSeconds:0.#}s"));
+            }
+            else
+            {
+                ComputeAverageAbilityHitSplit(
+                    def,
+                    stats,
+                    AbilityCombatPower.ExecutionersDescentShockwaveWeaponMultiplier,
+                    allM,
+                    out float shockPhys,
+                    out float shockMag,
+                    out float shockCorr,
+                    liveDamageMultiplier);
+                int shockTotal = Mathf.RoundToInt(shockPhys + shockMag + shockCorr);
+
+                ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
+                AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
+
+                body.AppendLine(O(
+                    $"Shockwave: {shockTotal} damage to enemies within {AbilityCombatPower.ExecutionersDescentShockwaveRadius:0.#} units of the target"));
+                body.AppendLine(O(
+                    $"Descent: {AbilityCombatPower.ExecutionersDescentDescentSeconds:0.#}s — locks onto a target, then impacts at their position"));
+
+                if (enhance == 0)
+                    body.AppendLine(O("If the target dies during descent or from the impact, cooldown is reduced by 50%."));
+                else if (enhance == 1)
+                {
+                    body.AppendLine(O("Main hit ignores armour and magic resist."));
+                    body.AppendLine(O(
+                        $"Shockwave victims lose 50% armour and magic resist for {AbilityCombatPower.ExecutionersDescentSunderingDebuffSeconds:0.#}s."));
+                }
             }
         }
         else if (IsWhirlwind(def))
@@ -1082,9 +1119,9 @@ public static class AbilityTooltipDamagePreview
 
         CharacterStats stats = FindLocalPlayerStats();
         PlayerAbilityController abilityController = FindLocalPlayerAbilityController();
-        AbilityTooltipAdjustments.ResolveTooltipEnergyAndCooldown(
-            def, skillsManager, stats, abilityController, out float energy, out float cooldown);
-        return O($"{energy:0.#} Energy • {cooldown:0.#}s Cooldown");
+        AbilityTooltipAdjustments.ResolveTooltipResourceAndCooldown(
+            def, skillsManager, stats, abilityController, out float resourceCost, out string resourceLabel, out float cooldown);
+        return O($"{resourceCost:0.#} {resourceLabel} • {cooldown:0.#}s Cooldown");
     }
 
     private static bool ShouldShowDurationInCompactUi(AbilityDefinition def)
@@ -1141,7 +1178,7 @@ public static class AbilityTooltipDamagePreview
             if (string.Equals(StripRichText(line), "Effects:", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            if (line.Contains("Energy •", StringComparison.Ordinal))
+            if (line.Contains(" Cooldown", StringComparison.Ordinal) && line.Contains("•", StringComparison.Ordinal))
                 break;
 
             if (!includeDuration && StripRichText(line).StartsWith("Duration:", StringComparison.OrdinalIgnoreCase))

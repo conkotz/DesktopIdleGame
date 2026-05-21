@@ -4,6 +4,7 @@
 /// </summary>
 public struct MinionOwnerWeaponSnapshot
 {
+    public UnityEngine.Transform ownerTransform;
     public bool currentAttackAppliesAsFireForBurn;
     public float burnExplosionMultiplier;
     public AttackSkill currentAttackSkill;
@@ -29,6 +30,7 @@ public struct MinionOwnerWeaponSnapshot
 
         return new MinionOwnerWeaponSnapshot
         {
+            ownerTransform = owner.transform,
             currentAttackAppliesAsFireForBurn = owner.CurrentAttackAppliesAsFireForBurn,
             burnExplosionMultiplier = owner.BurnExplosionMultiplier,
             currentAttackSkill = owner.CurrentAttackSkill,

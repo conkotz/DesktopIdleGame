@@ -51,6 +51,10 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [Tooltip("Icon for Battle Engine Overload stacks after ability casts.")]
     [SerializeField] private Sprite battleEngineOverloadHudIcon;
 
+    [Header("Melee — Phoenix Soul Ashen Rebirth (Lv40) HUD")]
+    [Tooltip("Icon for Ashen Rebirth damage immunity after proc.")]
+    [SerializeField] private Sprite ashenRebirthHudIcon;
+
     [Header("Shared Tooltip")]
     [SerializeField] private RectTransform tooltipMeasureRect;
     [SerializeField] private RectTransform tooltipHeightRect;
@@ -471,6 +475,15 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 return battleEngineOverloadHudIcon;
             if (attackSpeedBuffIcon != null)
                 return attackSpeedBuffIcon;
+        }
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, CharacterStats.PhoenixSoulAshenRebirthImmunityHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (ashenRebirthHudIcon != null)
+                return ashenRebirthHudIcon;
+            if (magicDamageBuffIcon != null)
+                return magicDamageBuffIcon;
         }
 
         if (buff.type == ConsumableEffectType.HudAbilityBuff && _abilityDatabase != null &&

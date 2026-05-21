@@ -5835,6 +5835,13 @@ MonoBehaviour:
   battleTranceGlowEmissionRate: 38
   battleTranceParticleStartSizeMin: 0.032
   battleTranceParticleStartSizeMax: 0.058
+  ashenRebirthPhoenixSprite: {fileID: -4453784588268070965, guid: 33df198e24b717b43b99976e8859045e, type: 3}
+  ashenRebirthPhoenixTint: {r: 1, g: 1, b: 1, a: 1}
+  ashenRebirthPhoenixWorldScale: 0.5
+  ashenRebirthPhoenixSpawnHeightAbovePlayer: 5
+  ashenRebirthPhoenixSpawnHoldSeconds: 2
+  ashenRebirthPhoenixSortingLayer: Foreground
+  ashenRebirthPhoenixSortingOrder: 120
   flameChargePlayerGlowColor: {r: 1, g: 0.38, b: 0.12, a: 0.88}
   flameChargePlayerGlowLocalOffset: {x: 0, y: 0.1, z: 0}
   flameChargePlayerGlowRadius: 0.52
@@ -5977,6 +5984,7 @@ MonoBehaviour:
   baseBurnHitsToExplode: 4
   baseBurnExplosionMultiplier: 1
   bonusBurnDamageMultiplier: 0
+  bonusAbilityCooldownReductionFraction: 0
   baseShockDuration: 5
   baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
@@ -6364,6 +6372,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
+  burnWallClockDurationSeconds: 15
   burnDurationTicks: 5
   burnDamageFractionOfHitPerTick: 0.15
   burnCombustTicksWorth: 10

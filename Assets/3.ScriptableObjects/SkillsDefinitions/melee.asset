@@ -282,6 +282,36 @@ MonoBehaviour:
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 10
+    title: Parry
+    description: 'When struck by a melee-range enemy (within 3 units), 15% chance
+      to parry: reduce that hit by 25% and deal that damage back to the attacker.'
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 13
+      title: Riposte
+      description: 'Parries no longer reduce incoming damage. On a successful parry,
+        perform a free melee auto attack (no swing delay; ailments cannot be applied).'
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 13
+      title: Improved Parry
+      description: Increase parry chance to 20%.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 11
     title: Tempered Strikes III
     description: +2 Min Melee Damage
@@ -798,6 +828,38 @@ MonoBehaviour:
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 30
+    title: Tactician
+    description: 'With a one-handed weapon: +15% attack speed, +10% poison and burn
+      chance, +5% critical strike chance.'
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 33
+      title: Two-Handed Weapons
+      description: 'While wielding a two-handed weapon (replaces one-handed bonuses):
+        +15% bleed multiplier, 25% armour penetration, 25% chance to stun, 10% chance
+        to block.'
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 33
+      title: Shield
+      description: 'While a shield is equipped in the off hand (adds): +5% block chance,
+        +10 armour, magic resist, and corruption resist.'
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 31
     title: Brutal Momentum IV
     description: +3% Melee Damage
@@ -1010,8 +1072,9 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 40
-    title: Major Passive IV
-    description: Placeholder major passive milestone.
+    title: Phoenix Soul
+    description: 'Burning nearby enemies restore 1 Life and 1 Energy every 3 seconds
+      (max 5 enemies).'
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -1025,15 +1088,47 @@ MonoBehaviour:
     ability: {fileID: 0}
     presentation: {fileID: 0}
     choices:
-    - requiredLevel: 45
-      title: Major Passive IV Choice A
-      description: Placeholder melee choice.
+    - requiredLevel: 43
+      title: Ashen Rebirth
+      description: 'On death, revive at 25% health and become immune to damage for
+        3 seconds (300 second cooldown).
+
+        On proc: 20 fire damage to nearby enemies and burn them.'
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
-    - requiredLevel: 45
-      title: Major Passive IV Choice B
-      description: Placeholder melee choice.
+    - requiredLevel: 43
+      title: Living Inferno
+      description: Gain 2% melee damage per burning enemy nearby (up to +10% at 5 enemies).
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+  - requiredLevel: 40
+    title: Master of Venoms
+    description: Poison can critically strike (dealing 50% of your critical damage).
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 43
+      title: Neurotoxin
+      description: Poisoned enemies deal 15% less damage. Poisons slow enemies by 3% movement
+        speed per stack.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 43
+      title: Lethal Compound
+      description: Poisons have 0.5s less duration per stack, +3 max poison stacks.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -1179,6 +1274,14 @@ MonoBehaviour:
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+    - requiredLevel: 48
+      title: Executioner's Continuum
+      description: The axe no longer crashes downward. It spawns at the impact point
+        and releases shockwaves every 2.5 seconds for 15 seconds. Each shockwave deals
+        70% weapon damage.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 45
     title: Bladestorm
     description: Channel Relentless Execution for 3 seconds, striking a single enemy
@@ -1199,7 +1302,8 @@ MonoBehaviour:
     choices:
     - requiredLevel: 48
       title: Bladestorm Finale
-      description: The final strike deals 150% weapon damage.
+      description: After the combo finishes, an additional strike deals 150% weapon
+        damage.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

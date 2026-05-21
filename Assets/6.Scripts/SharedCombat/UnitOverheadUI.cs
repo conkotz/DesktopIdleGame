@@ -46,6 +46,7 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private Color enemyHpFillColor = new(1f, 0.42f, 0.2f, 1f);
 
     [Header("HP segment marks")]
+    [SerializeField] private bool hpSegmentMarksEnabled = true;
     [Tooltip("Ideal spacing between tick marks in HP (e.g. 50). On high max HP the interval auto-increases so the bar stays readable.")]
     [SerializeField, Min(0)] private int hpSegmentHpInterval = 50;
     [Tooltip("Never draw more than this many ticks on one bar (prevents 5000 HP / 50 = solid white bar).")]
@@ -1272,6 +1273,12 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void RefreshHpSegmentMarks(int maxHp)
     {
+        if (!hpSegmentMarksEnabled)
+        {
+            SetHpSegmentMarksActive(false);
+            return;
+        }
+
         if (hpFill == null || hpSegmentHpInterval <= 0)
         {
             SetHpSegmentMarksActive(false);
@@ -1317,7 +1324,7 @@ public class UnitOverheadUI : MonoBehaviour
 
             int hpAt = effectiveInterval * (i + 1);
             float fraction = maxHp > 0 ? hpAt / (float)maxHp : 0f;
-            PositionHpSegmentLine(line.rectTransform, fraction, hpSegmentLineWidthPx);
+            PositionHpSegmentLine(line.rectTransform, _hpSegmentContainer, fraction, hpSegmentLineWidthPx);
         }
     }
 
@@ -1383,6 +1390,7 @@ public class UnitOverheadUI : MonoBehaviour
         img.sprite = GetHpSegmentWhiteSprite();
         img.color = hpSegmentLineColor;
         img.type = Image.Type.Simple;
+        img.preserveAspect = false;
 
         RectTransform rt = img.rectTransform;
         rt.SetParent(_hpSegmentContainer, false);
@@ -1393,14 +1401,30 @@ public class UnitOverheadUI : MonoBehaviour
         return img;
     }
 
-    private static void PositionHpSegmentLine(RectTransform line, float fraction01, float lineWidthPx)
+    private static void PositionHpSegmentLine(
+        RectTransform line,
+        RectTransform barRect,
+        float fraction01,
+        float lineWidthPx)
     {
         fraction01 = Mathf.Clamp01(fraction01);
+
+        if (barRect != null && barRect.rect.width > 0.001f)
+        {
+            Canvas canvas = line.GetComponentInParent<Canvas>();
+            float scale = canvas != null ? Mathf.Max(0.0001f, canvas.scaleFactor) : 1f;
+            float localX = fraction01 * barRect.rect.width;
+            float snappedLocalX = Mathf.Round(localX * scale) / scale;
+            fraction01 = Mathf.Clamp01(snappedLocalX / barRect.rect.width);
+        }
+
+        int widthPx = Mathf.Max(1, Mathf.RoundToInt(lineWidthPx));
+
         line.anchorMin = new Vector2(fraction01, 0f);
         line.anchorMax = new Vector2(fraction01, 1f);
         line.pivot = new Vector2(0.5f, 0.5f);
         line.anchoredPosition = Vector2.zero;
-        line.sizeDelta = new Vector2(lineWidthPx, 0f);
+        line.sizeDelta = new Vector2(widthPx, 0f);
     }
 
     private static Sprite GetHpSegmentWhiteSprite()
@@ -1408,11 +1432,20 @@ public class UnitOverheadUI : MonoBehaviour
         if (s_hpSegmentWhiteSprite != null)
             return s_hpSegmentWhiteSprite;
 
+        var tex = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+            hideFlags = HideFlags.HideAndDontSave
+        };
+        tex.SetPixel(0, 0, Color.white);
+        tex.Apply();
+
         s_hpSegmentWhiteSprite = Sprite.Create(
-            Texture2D.whiteTexture,
+            tex,
             new Rect(0f, 0f, 1f, 1f),
             new Vector2(0.5f, 0.5f),
-            100f);
+            1f);
         return s_hpSegmentWhiteSprite;
     }
 
@@ -1508,6 +1541,25 @@ public class UnitOverheadUI : MonoBehaviour
             chillColor);
     }
 
+    private static Vector3 ResolvePlayerAilmentStatusPopupWorldPos(
+        Vector3 anchorPos,
+        PlayerController pc,
+        AilmentController ailments,
+        string statusMessage)
+    {
+        if (ailments != null && ailments.TryGetStatusPopupDealerWorld(statusMessage, out Vector3 dealerWorld))
+            return DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerWorld);
+
+        if (pc != null)
+        {
+            PlayerCombatController combat = pc.GetComponent<PlayerCombatController>();
+            if (combat != null && combat.TryGetRecentIncomingDamageDealerWorld(8f, out dealerWorld))
+                return DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerWorld);
+        }
+
+        return anchorPos + Vector3.up * 0.85f;
+    }
+
     private void TryPlayPlayerAilmentStatusAcquisition(
         Color poisonColor,
         Color bleedColor,
@@ -1524,17 +1576,13 @@ public class UnitOverheadUI : MonoBehaviour
         {
             if (activeNow && !wasActive)
             {
-                Vector3 pos;
-                Vector3 dir;
-                if (pc != null)
-                    pc.GetIncomingDamagePopupPlacement(anchorPos, null, 0.35f, out pos, out dir);
-                else
-                {
-                    pos = anchorPos + Vector3.up * 0.6f;
-                    dir = Vector3.up;
-                }
+                Vector3 pos = ResolvePlayerAilmentStatusPopupWorldPos(
+                    anchorPos,
+                    pc,
+                    ailments,
+                    message);
 
-                DamagePopupSystem.Instance.SpawnAilmentStatus(pos, message, color, dir);
+                DamagePopupSystem.Instance.SpawnAilmentStatus(pos, message, color);
             }
 
             wasActive = activeNow;

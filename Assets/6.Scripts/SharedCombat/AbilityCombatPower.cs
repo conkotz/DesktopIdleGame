@@ -55,6 +55,60 @@ public static class AbilityCombatPower
     public const float BattleEngineOverloadDamagePerStack = 0.05f;
     public const int BattleEngineOverloadMaxStacks = 5;
 
+    /// <summary>Melee Lv30 major passive — Tactician (skill tree slot 1 at level 30).</summary>
+    public const string TacticianMajorPassiveSpineNodeId = "Lv30_1";
+    public const string BattleEngineEnhancementParentSpineNodeId = "Lv30_0";
+    public const float TacticianOneHandedAttackSpeedPercent = 0.15f;
+    public const float TacticianOneHandedPoisonChance = 0.10f;
+    public const float TacticianOneHandedBurnChance = 0.10f;
+    public const float TacticianOneHandedCritChance = 0.05f;
+    public const float TacticianTwoHandedBleedMultiplierBonus = 0.15f;
+    public const float TacticianTwoHandedArmorPenetration = 0.25f;
+    public const float TacticianTwoHandedStunChance = 0.25f;
+    public const float TacticianTwoHandedBlockChance = 0.10f;
+    public const float TacticianShieldBlockChanceBonus = 0.05f;
+    public const int TacticianShieldFlatResistBonus = 10;
+    public const float TacticianStunDurationSeconds = 1.5f;
+
+    /// <summary>Melee Lv10 major passive — Parry (skill tree slot 1 at level 10).</summary>
+    public const string ParryMajorPassiveSpineNodeId = "Lv10_1";
+    public const int ParryMajorPassiveLevel = 10;
+    public const float ParryMeleeRange = 3f;
+    public const float ParryBaseChance = 0.15f;
+    public const float ParryImprovedParryChance = 0.20f;
+    public const float ParryDamageReductionFraction = 0.25f;
+    public const string ParryRiposteOutgoingSourceLabel = "Parry — Riposte";
+    public const string ParryReflectOutgoingSourceLabel = "Parry";
+
+    /// <summary>Melee Lv40 major passive — Phoenix Soul.</summary>
+    public const int PhoenixSoulMajorPassiveLevel = 40;
+    public const float PhoenixSoulNearbyRadius = 10f;
+    public const int PhoenixSoulMaxNearbyBurningEnemies = 5;
+    public const float PhoenixSoulBurnRegenIntervalSeconds = 3f;
+    public const float PhoenixSoulLifePerBurningEnemy = 1f;
+    public const float PhoenixSoulEnergyPerBurningEnemy = 1f;
+    public const float PhoenixSoulLivingInfernoMeleeDamagePerBurningEnemy = 0.02f;
+    /// <summary>Cap at <see cref="PhoenixSoulMaxNearbyBurningEnemies"/> × per-enemy bonus (5 × 2% = 10%).</summary>
+    public const float PhoenixSoulLivingInfernoMaxMeleeDamageBonusFraction = 0.10f;
+    public const float PhoenixSoulAshenRebirthHealthFraction = 0.25f;
+    public const float PhoenixSoulAshenRebirthImmunitySeconds = 3f;
+    public const float PhoenixSoulAshenRebirthCooldownSeconds = 300f;
+    public const float PhoenixSoulAshenRebirthExplosionFlatFireDamage = 20f;
+    /// <summary>Guaranteed burn stack roll on Ashen Rebirth explosion fire hits.</summary>
+    public const float PhoenixSoulAshenRebirthExplosionBurnApplyChance = 1f;
+    public const float PhoenixSoulAshenRebirthPhoenixVfxDurationSeconds = 2f;
+
+    /// <summary>Melee Lv40 major passive — Master of Venoms (skill tree slot 1 at level 40).</summary>
+    public const string MasterOfVenomsEnhancementParentSpineNodeId = "Lv40_1";
+    public const float MasterOfVenomsPoisonCritFractionOfCritDamage = 0.5f;
+    public const float MasterOfVenomsNeurotoxinOutgoingDamageReduction = 0.15f;
+    public const float MasterOfVenomsNeurotoxinMoveSlowPerPoisonStack = 0.03f;
+    public const float MasterOfVenomsLethalCompoundDurationReductionPerStackSeconds = 0.5f;
+    public const int MasterOfVenomsLethalCompoundMaxStacksBonus = 3;
+
+    /// <summary>Phoenix Soul major passive spine (slot 0 at level 40).</summary>
+    public const string PhoenixSoulEnhancementParentSpineNodeId = "Lv40_0";
+
     /// <summary>Enhancement choices for Battle Trance (Melee Lv35 slot 1).</summary>
     public const string BattleTranceEnhancementParentSpineNodeId = "Lv35_1";
 
@@ -106,6 +160,8 @@ public static class AbilityCombatPower
     /// <summary>50% reduced incoming damage during the channel (0.5× damage taken).</summary>
     public const float BladestormChannelDamageTakenMultiplier = 0.5f;
     public const float BladestormForwardReach = 12f;
+    /// <summary>Max seconds to walk into melee range before Bladestorm channel begins.</summary>
+    public const float BladestormApproachTimeoutSeconds = 8f;
 
     public const float ExecutionersDescentDescentSeconds = 3f;
     /// <summary>When the locked target dies mid-descent, the axe drops from its current position to the impact point over this duration.</summary>
@@ -121,6 +177,20 @@ public static class AbilityCombatPower
     public const float ExecutionersDescentCastRangeBeyondMelee = 18f;
     /// <summary>When descent loses all in-range targets, ability ends early with shockwave only and this fixed CD.</summary>
     public const float ExecutionersDescentNoTargetInRangeCooldownSeconds = 10f;
+    /// <summary>Executioner's Continuum — axe lingers at cast position and pulses shockwaves.</summary>
+    public const float ExecutionersDescentContinuumDurationSeconds = 15f;
+    public const float ExecutionersDescentContinuumShockwaveIntervalSeconds = 2.5f;
+    /// <summary>Continuum shockwave hits use 70% weapon damage (base descent shockwave stays at 300%).</summary>
+    public const float ExecutionersDescentContinuumShockwaveWeaponMultiplier = 0.7f;
+
+    public static int GetExecutionersDescentContinuumShockwaveCount()
+    {
+        float interval = ExecutionersDescentContinuumShockwaveIntervalSeconds;
+        if (interval <= 0.0001f)
+            return 1;
+
+        return Mathf.FloorToInt(ExecutionersDescentContinuumDurationSeconds / interval) + 1;
+    }
 
     public const float FinalSeveranceChannelSeconds = 2f;
     public const float FinalSeveranceHitRangeHalfWidth = 25f;

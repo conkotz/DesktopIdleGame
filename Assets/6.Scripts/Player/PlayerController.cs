@@ -581,6 +581,9 @@ public class PlayerController : MonoBehaviour
 
     private void HandleStatsDied()
     {
+        if (abilityController != null && abilityController.TryTriggerPhoenixAshenRebirth())
+            return;
+
         Die();
     }
 

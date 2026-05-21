@@ -276,7 +276,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public const float PredatorsInstinctExecutionerHpThreshold01 = 0.30f;
     public const int PredatorsInstinctMajorPassiveLevel = 20;
     public const int BattleEngineMajorPassiveLevel = 30;
+    public const int PhoenixSoulMajorPassiveLevel = AbilityCombatPower.PhoenixSoulMajorPassiveLevel;
+    public const int MasterOfVenomsMajorPassiveLevel = AbilityCombatPower.PhoenixSoulMajorPassiveLevel;
     public const string BattleEngineOverloadHudBuffId = "BattleEngine_Overload";
+    public const string PhoenixSoulAshenRebirthImmunityHudBuffId = "phoenix_soul_ashen_rebirth";
     public const float BattleEngineOverloadDurationSeconds = 10f;
     public const string ShadowHunterHudBuffId = "PredatorsInstinct_ShadowHunter";
     public const float ShadowHunterAttackSpeedBonus = 0.10f;
@@ -522,16 +525,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public int MaxMana => Mathf.Max(0, baseMaxMana + GetEquippedBonusMana());
     public int Armor =>
         baseArmor + GetEquippedArmor() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeArmor) +
+        GetTacticianFlatArmorBonus() +
         Mathf.RoundToInt(GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceArmorFlat) +
         (buffController ? Mathf.RoundToInt(buffController.GetTotalMagnitude(ConsumableEffectType.ArmorBoost)) : 0);
 
     public int MagicResist =>
         baseMagicResist + GetEquippedMagicResist() + Mathf.RoundToInt(GetActiveMeleeMinorBonuses().meleeMagicResist) +
+        GetTacticianFlatMagicResistBonus() +
         Mathf.RoundToInt(GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceMagicResistFlat) +
         (buffController ? Mathf.RoundToInt(buffController.GetTotalMagnitude(ConsumableEffectType.MagicResistBoost)) : 0);
-    public int CorruptionResist => baseCorruptionResist + GetEquippedCorruptionResist();
+    public int CorruptionResist =>
+        baseCorruptionResist + GetEquippedCorruptionResist() + GetTacticianFlatCorruptionResistBonus();
 
-    public float PhysBlockChance => Mathf.Clamp01(basePhysBlockChance + GetEquippedPhysBlockChance());
+    public float PhysBlockChance => Mathf.Clamp01(
+        basePhysBlockChance + GetEquippedPhysBlockChance() + GetTacticianPhysBlockChanceBonus());
     public float PhysBlockChancePercent => PhysBlockChance * 100f;
 
     // Utility / sustain
@@ -737,13 +744,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     // Ailments
-    public float BleedChance => Mathf.Clamp01(baseBleedChance + GetEquippedBleedChance() + GetActiveMeleeMinorBonuses().meleeBleedChance);
-    public float BleedMultiplier => Mathf.Max(0f, baseBleedMultiplier + GetEquippedBleedMultiplier() + GetActiveMeleeMinorBonuses().meleeBleedDamage + GetActiveMeleeMinorBonuses().meleeAilmentDamage);
+    public float BleedChance => Mathf.Clamp01(
+        baseBleedChance + GetEquippedBleedChance() + GetActiveMeleeMinorBonuses().meleeBleedChance);
+    public float BleedMultiplier => Mathf.Max(
+        0f,
+        baseBleedMultiplier + GetEquippedBleedMultiplier() + GetActiveMeleeMinorBonuses().meleeBleedDamage +
+        GetActiveMeleeMinorBonuses().meleeAilmentDamage + GetTacticianBleedMultiplierBonus());
 
     public float BleedBaseDuration => Mathf.Max(1f, baseBleedDuration);
     public float BleedDuration => Mathf.Max(1f, baseBleedDuration + GetEquippedBleedDurationBonus() + GetActiveMeleeMinorBonuses().meleeBleedDuration);
 
-    public float PoisonChance => Mathf.Clamp01(basePoisonChance + GetEquippedPoisonChance() + GetActiveMeleeMinorBonuses().meleePoisonChance);
+    public float PoisonChance => Mathf.Clamp01(
+        basePoisonChance + GetEquippedPoisonChance() + GetActiveMeleeMinorBonuses().meleePoisonChance +
+        GetTacticianPoisonChanceBonus());
     public float PoisonMultiplier => Mathf.Max(0f, basePoisonMultiplier + GetEquippedPoisonMultiplier() + GetActiveMeleeMinorBonuses().meleeAilmentDamage);
     public float PoisonDuration => Mathf.Max(0.1f, basePoisonDuration + GetEquippedPoisonDurationBonus() + GetActiveMeleeMinorBonuses().meleePoisonDuration);
     public int PoisonMaxStacks => Mathf.Max(
@@ -1693,7 +1706,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         return Mathf.Clamp01(
             baseBurnChance + GetEquippedBurnChanceBonus() + GetMainHandWeaponBurnAdditive() +
-            GetActiveMeleeMinorBonuses().meleeBurnChance);
+            GetActiveMeleeMinorBonuses().meleeBurnChance + GetTacticianBurnChanceBonus());
     }
 
     private bool GetCurrentAttackAppliesAsFireForBurn()
@@ -1778,12 +1791,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (forWeaponAttackSkill == AttackSkill.Ranged)
             rangedSkillTree = GetActiveRangedMinorBonuses().rangedDamagePercent;
 
-        return GetAdditivePhysicalPercentForWeaponStyle(
+        float physical = GetAdditivePhysicalPercentForWeaponStyle(
             forWeaponAttackSkill,
             GetEquippedGlobalPhysicalDamagePercent(),
             GetEquippedRangedPhysicalDamagePercent(),
             rangedSkillTree,
             melee);
+
+        if (forWeaponAttackSkill == AttackSkill.Melee)
+        {
+            PlayerAbilityController ac = GetAbilityControllerLazy();
+            if (ac != null)
+                physical += ac.GetPhoenixLivingInfernoMeleeDamageBonusFraction();
+        }
+
+        return physical;
     }
 
     /// <summary>Uses <see cref="CurrentAttackSkill"/> (main-hand weapon).</summary>
@@ -1899,6 +1921,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>
     /// Melee skill-tree % bonus to all damage on your melee attack split (physical, magic, corruption). Shown for unlocked passives; applies only with a <see cref="AttackSkill.Melee"/> weapon.
     /// </summary>
+    /// <summary>Living Inferno — +2% melee per burning enemy nearby (max 10% at 5 enemies).</summary>
+    public float PhoenixLivingInfernoMeleeDamageBonusPercentPoints
+    {
+        get
+        {
+            if (GetPhoenixSoulEnhancementPick() != 1 || GetCurrentAttackSkill() != AttackSkill.Melee)
+                return 0f;
+
+            PlayerAbilityController ac = GetAbilityControllerLazy();
+            return ac != null ? ac.GetPhoenixLivingInfernoMeleeDamageBonusFraction() * 100f : 0f;
+        }
+    }
+
     public float MeleePhysicalConditionalBonusPercentPoints
     {
         get
@@ -1907,6 +1942,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             float pts = m.meleeDamagePercent * 100f;
             if (GetCurrentAttackSkill() == AttackSkill.Melee && _combatMeleeDamageMultiplier > 1.001f)
                 pts += (_combatMeleeDamageMultiplier - 1f) * 100f;
+            pts += PhoenixLivingInfernoMeleeDamageBonusPercentPoints;
             return pts;
         }
     }
@@ -2195,6 +2231,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         gearAtkSpeedPct += CombatAttackSpeedPercentBonus;
         gearAtkSpeedPct += GetShadowHunterAttackSpeedBonusFraction();
+        gearAtkSpeedPct += GetTacticianAttackSpeedPercent();
 
         var support = GetActiveOffHandSupportDef();
         if (support)
@@ -2272,7 +2309,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         RangedMinorNodeBonuses rangedBonuses = GetActiveRangedMinorBonuses();
         SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
-        return Mathf.Clamp01(baseCrit + gearBonus + meleeBonuses.meleeCritChance + rangedBonuses.rangedCritChance + skillBonuses.magicCritChance);
+        return Mathf.Clamp01(
+            baseCrit + gearBonus + meleeBonuses.meleeCritChance + GetTacticianCritChanceBonus() +
+            rangedBonuses.rangedCritChance + skillBonuses.magicCritChance);
     }
 
     private float GetCritMultiplier()
@@ -2380,8 +2419,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
             ApplyMeleeMinorOption(unlock.meleeMinorStatOption, ref total);
         }
 
-        ApplyLevel10AilmentAttunementBranch(meleeLevel, ref total);
+        if (IsAilmentAttunementMajorPassiveActive())
+            ApplyLevel10AilmentAttunementBranch(meleeLevel, ref total);
         ApplyLevel20PredatorsInstinctBranch(meleeLevel, ref total);
+        ApplyLevel40MasterOfVenomsBranch(meleeLevel, ref total);
 
         int pastCap = Mathf.Max(0, meleeLevel - SkillPostCapThresholdLevel);
         if (pastCap > 0)
@@ -2478,9 +2519,45 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
 
+    public int GetMeleeLevel10MajorPassiveRowPick()
+    {
+        if (skillsManager == null || skillsManager.GetLevel(SkillType.Melee) < AbilityCombatPower.ParryMajorPassiveLevel)
+            return -1;
+
+        return SkillTreeRowPickRules.GetCommittedRowPick(
+            skillsManager, SkillType.Melee, AbilityCombatPower.ParryMajorPassiveLevel, -1, maxOrdinalInclusive: 1);
+    }
+
+    public bool IsAilmentAttunementMajorPassiveActive() =>
+        GetMeleeLevel10MajorPassiveRowPick() == 0;
+
+    public bool IsParryMajorPassiveActive() =>
+        GetMeleeLevel10MajorPassiveRowPick() == 1;
+
+    public int GetParryEnhancementPick()
+    {
+        if (!IsParryMajorPassiveActive())
+            return -1;
+
+        return skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.ParryMajorPassiveSpineNodeId, -1)
+            : -1;
+    }
+
+    public float GetParryChanceFraction()
+    {
+        if (!IsParryMajorPassiveActive())
+            return 0f;
+
+        return GetParryEnhancementPick() == 1
+            ? AbilityCombatPower.ParryImprovedParryChance
+            : AbilityCombatPower.ParryBaseChance;
+    }
+
     private void ApplyLevel10AilmentAttunementBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
     {
-        if (meleeLevel < 10)
+        if (meleeLevel < AbilityCombatPower.ParryMajorPassiveLevel)
             return;
 
         // Lv10 Melee major passive: Ailment Attunement base + one Lv13 enhancement pick.
@@ -2490,7 +2567,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         total.damageVsAilmented += 0.05f;
 
         int selected = skillsManager != null
-            ? skillsManager.GetSkillChoiceSelection(SkillType.Melee, 10, -1)
+            ? skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv10_0", -1)
             : -1;
 
         switch (selected)
@@ -2508,6 +2585,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 total.burnTickIntervalReduction += 0.5f;
                 break;
         }
+    }
+
+    private void ApplyLevel40MasterOfVenomsBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
+    {
+        if (meleeLevel < MasterOfVenomsMajorPassiveLevel)
+            return;
+
+        if (GetMasterOfVenomsEnhancementPick() == 1)
+            total.poisonMaxStacksBonus += AbilityCombatPower.MasterOfVenomsLethalCompoundMaxStacksBonus;
     }
 
     private void ApplyLevel20PredatorsInstinctBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
@@ -2542,20 +2628,241 @@ public class CharacterStats : MonoBehaviour, ISaveable
             : -1;
     }
 
-    public bool IsBattleEngineUnlocked()
+    public int GetMeleeLevel30MajorPassiveRowPick()
     {
-        return skillsManager != null &&
-               skillsManager.GetLevel(SkillType.Melee) >= BattleEngineMajorPassiveLevel;
+        if (skillsManager == null || skillsManager.GetLevel(SkillType.Melee) < BattleEngineMajorPassiveLevel)
+            return -1;
+
+        return SkillTreeRowPickRules.GetCommittedRowPick(
+            skillsManager, SkillType.Melee, BattleEngineMajorPassiveLevel, -1, maxOrdinalInclusive: 1);
     }
+
+    public bool IsBattleEngineMajorPassiveActive() =>
+        GetMeleeLevel30MajorPassiveRowPick() == 0;
+
+    public bool IsTacticianMajorPassiveActive() =>
+        GetMeleeLevel30MajorPassiveRowPick() == 1;
+
+    public bool IsBattleEngineUnlocked() =>
+        skillsManager != null &&
+        skillsManager.GetLevel(SkillType.Melee) >= BattleEngineMajorPassiveLevel &&
+        IsBattleEngineMajorPassiveActive();
 
     public int GetBattleEngineEnhancementPick()
     {
-        if (!IsBattleEngineUnlocked())
+        if (!IsBattleEngineMajorPassiveActive())
             return -1;
 
         return skillsManager != null
-            ? skillsManager.GetSkillChoiceSelection(SkillType.Melee, BattleEngineMajorPassiveLevel, -1)
+            ? skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.BattleEngineEnhancementParentSpineNodeId, -1)
             : -1;
+    }
+
+    public int GetTacticianEnhancementPick()
+    {
+        if (!IsTacticianMajorPassiveActive())
+            return -1;
+
+        return skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.TacticianMajorPassiveSpineNodeId, -1)
+            : -1;
+    }
+
+    public bool IsMainHandOneHandedWeaponEquipped()
+    {
+        ItemDefinition mh = GetMainHandWeaponDef();
+        return mh != null && mh.weaponStats.handedness == Handedness.OneHanded;
+    }
+
+    public bool IsMainHandTwoHandedWeaponEquipped()
+    {
+        ItemDefinition mh = GetMainHandWeaponDef();
+        return mh != null && mh.weaponStats.handedness == Handedness.TwoHanded;
+    }
+
+    public bool HasShieldEquipped()
+    {
+        if (!equipment)
+            equipment = GetComponent<EquipmentManager>();
+
+        ItemDefinition off = GetDef(equipment ? equipment.OffHandItemId : null);
+        return off != null && off.IsArmor && off.equipSlot == EquipSlot.OffHand;
+    }
+
+    private bool IsTacticianTwoHandedEnhancementActive() =>
+        IsTacticianMajorPassiveActive() &&
+        GetTacticianEnhancementPick() == 0 &&
+        IsMainHandTwoHandedWeaponEquipped();
+
+    private bool IsTacticianOneHandedBaseActive() =>
+        IsTacticianMajorPassiveActive() &&
+        IsMainHandOneHandedWeaponEquipped() &&
+        !IsTacticianTwoHandedEnhancementActive();
+
+    private bool IsTacticianShieldEnhancementActive() =>
+        IsTacticianMajorPassiveActive() &&
+        GetTacticianEnhancementPick() == 1 &&
+        HasShieldEquipped();
+
+    public float GetTacticianAttackSpeedPercent()
+    {
+        return IsTacticianOneHandedBaseActive() ? AbilityCombatPower.TacticianOneHandedAttackSpeedPercent : 0f;
+    }
+
+    public float GetTacticianPoisonChanceBonus() =>
+        IsTacticianOneHandedBaseActive() ? AbilityCombatPower.TacticianOneHandedPoisonChance : 0f;
+
+    public float GetTacticianBurnChanceBonus() =>
+        IsTacticianOneHandedBaseActive() ? AbilityCombatPower.TacticianOneHandedBurnChance : 0f;
+
+    public float GetTacticianCritChanceBonus() =>
+        IsTacticianOneHandedBaseActive() ? AbilityCombatPower.TacticianOneHandedCritChance : 0f;
+
+    public float GetTacticianBleedMultiplierBonus() =>
+        IsTacticianTwoHandedEnhancementActive() ? AbilityCombatPower.TacticianTwoHandedBleedMultiplierBonus : 0f;
+
+    public float GetTacticianPhysBlockChanceBonus()
+    {
+        float total = 0f;
+        if (IsTacticianTwoHandedEnhancementActive())
+            total += AbilityCombatPower.TacticianTwoHandedBlockChance;
+        if (IsTacticianShieldEnhancementActive())
+            total += AbilityCombatPower.TacticianShieldBlockChanceBonus;
+        return total;
+    }
+
+    public int GetTacticianFlatArmorBonus() =>
+        IsTacticianShieldEnhancementActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
+
+    public int GetTacticianFlatMagicResistBonus() =>
+        IsTacticianShieldEnhancementActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
+
+    public int GetTacticianFlatCorruptionResistBonus() =>
+        IsTacticianShieldEnhancementActive() ? AbilityCombatPower.TacticianShieldFlatResistBonus : 0;
+
+    /// <summary>Multiplier applied to enemy armour rating on outgoing physical hits (lower = more penetration).</summary>
+    public float GetTacticianOutgoingArmorRatingMultiplier()
+    {
+        if (!IsTacticianTwoHandedEnhancementActive())
+            return 1f;
+
+        return Mathf.Clamp01(1f - AbilityCombatPower.TacticianTwoHandedArmorPenetration);
+    }
+
+    public void TryApplyTacticianStunOnEnemyHit(EnemyBaseController enemy)
+    {
+        if (!IsTacticianTwoHandedEnhancementActive() || enemy == null || enemy.IsDead)
+            return;
+
+        enemy.TryApplyStun(AbilityCombatPower.TacticianStunDurationSeconds, AbilityCombatPower.TacticianTwoHandedStunChance);
+    }
+
+    private int GetMeleeLevel40MajorPassiveRowPick()
+    {
+        if (skillsManager == null || skillsManager.GetLevel(SkillType.Melee) < PhoenixSoulMajorPassiveLevel)
+            return -1;
+
+        return SkillTreeRowPickRules.GetCommittedRowPick(
+            skillsManager, SkillType.Melee, PhoenixSoulMajorPassiveLevel, -1, maxOrdinalInclusive: 1);
+    }
+
+    public bool IsPhoenixSoulUnlocked() => GetMeleeLevel40MajorPassiveRowPick() == 0;
+
+    public int GetPhoenixSoulEnhancementPick()
+    {
+        if (!IsPhoenixSoulUnlocked())
+            return -1;
+
+        return skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.PhoenixSoulEnhancementParentSpineNodeId, -1)
+            : -1;
+    }
+
+    public bool IsMasterOfVenomsUnlocked() => GetMeleeLevel40MajorPassiveRowPick() == 1;
+
+    public int GetMasterOfVenomsEnhancementPick()
+    {
+        if (!IsMasterOfVenomsUnlocked())
+            return -1;
+
+        return skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.MasterOfVenomsEnhancementParentSpineNodeId, -1)
+            : -1;
+    }
+
+    public bool MasterOfVenomsPoisonCanCriticallyStrike() => IsMasterOfVenomsUnlocked();
+
+    /// <summary>Poison crit multiplier: 1 + (CritMultiplier − 1) × 50%.</summary>
+    public float GetMasterOfVenomsPoisonCritDamageMultiplier()
+    {
+        if (!MasterOfVenomsPoisonCanCriticallyStrike())
+            return 1f;
+
+        float critMult = Mathf.Max(1f, CritMultiplier);
+        float bonus = critMult - 1f;
+        return 1f + bonus * AbilityCombatPower.MasterOfVenomsPoisonCritFractionOfCritDamage;
+    }
+
+    public float GetMasterOfVenomsNeurotoxinOutgoingDamageMultiplier() =>
+        GetMasterOfVenomsEnhancementPick() == 0
+            ? 1f - AbilityCombatPower.MasterOfVenomsNeurotoxinOutgoingDamageReduction
+            : 1f;
+
+    public float GetMasterOfVenomsNeurotoxinMoveSlowPerPoisonStack() =>
+        GetMasterOfVenomsEnhancementPick() == 0
+            ? AbilityCombatPower.MasterOfVenomsNeurotoxinMoveSlowPerPoisonStack
+            : 0f;
+
+    public int GetMasterOfVenomsLethalCompoundMaxStacksBonus() =>
+        GetMasterOfVenomsEnhancementPick() == 1
+            ? AbilityCombatPower.MasterOfVenomsLethalCompoundMaxStacksBonus
+            : 0;
+
+    /// <summary>Reduces poison stack duration (ticks) when Lethal Compound is active.</summary>
+    public int GetMasterOfVenomsLethalCompoundTickReduction(int stacksOnTargetIncludingNew)
+    {
+        if (GetMasterOfVenomsEnhancementPick() != 1 || stacksOnTargetIncludingNew <= 0)
+            return 0;
+
+        return Mathf.FloorToInt(
+            AbilityCombatPower.MasterOfVenomsLethalCompoundDurationReductionPerStackSeconds *
+            stacksOnTargetIncludingNew);
+    }
+
+    /// <summary>Resolves player stats that own a poison application (player or minion owner).</summary>
+    public static CharacterStats ResolvePoisonOwnerPlayerStats(Transform source)
+    {
+        if (!source)
+            return null;
+
+        var pc = source.GetComponent<PlayerController>();
+        if (!pc)
+            pc = source.GetComponentInParent<PlayerController>();
+        if (pc != null)
+        {
+            CharacterStats ownerStats = pc.GetComponent<CharacterStats>();
+            if (ownerStats)
+                return ownerStats;
+        }
+
+        return null;
+    }
+
+    /// <summary>Revives the player after Phoenix Soul — Ashen Rebirth (does not restore energy/mana).</summary>
+    public bool TryReviveFromPhoenixSoul(float healthFraction01)
+    {
+        if (!_ownerPlayer)
+            return false;
+
+        _isDead = false;
+        float fraction = Mathf.Clamp01(healthFraction01);
+        currentHP = Mathf.Max(1f, MaxHP * fraction);
+        OnHPChanged?.Invoke(currentHP, MaxHP);
+        return true;
     }
 
     /// <summary>
@@ -3664,6 +3971,18 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         currentMana = Mathf.Clamp(currentMana - amount, 0f, MaxMana);
         OnManaChanged?.Invoke(currentMana, MaxMana);
+        return true;
+    }
+
+    /// <summary>Flat HP paid to cast an ability; does not apply mitigation or trigger death.</summary>
+    public bool SpendHealthForAbilityCost(float amount)
+    {
+        if (_isDead) return false;
+        if (amount <= 0f) return true;
+        if (currentHP < amount) return false;
+
+        currentHP = Mathf.Max(0f, currentHP - amount);
+        OnHPChanged?.Invoke(currentHP, MaxHP);
         return true;
     }
 

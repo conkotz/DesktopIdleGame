@@ -25,6 +25,11 @@ public class DamagePopupSystem : MonoBehaviour
     [SerializeField] private float popupXJitter = 8f;
     [SerializeField] private int popupYOffsetCycle = 4;
 
+    public const float LingeringStatusLifetimeSeconds = 1.5f;
+    [SerializeField] private float statusPopupSideOffset = 0.35f;
+    [SerializeField] private float statusPopupYOffset = 0.55f;
+    [SerializeField] private float statusPopupXJitter = 3f;
+
     private int _popupSpawnIndex = 0;
 
     private Camera _worldProjectionCamera;
@@ -137,6 +142,26 @@ public class DamagePopupSystem : MonoBehaviour
         return w.sqrMagnitude > 1e-6f ? w.normalized : Vector3.up;
     }
 
+    /// <summary>World spawn for lingering status labels — on the victim, offset away from the dealer (behind the victim in side view).</summary>
+    public static Vector3 GetWorldPosBehindVictim(
+        Vector3 victimAnchor,
+        Vector3 dealerWorld,
+        float sideOffset = float.NaN,
+        float yOffset = float.NaN)
+    {
+        DamagePopupSystem sys = Instance;
+        if (float.IsNaN(sideOffset))
+            sideOffset = sys != null ? sys.statusPopupSideOffset : 0.35f;
+        if (float.IsNaN(yOffset))
+            yOffset = sys != null ? sys.statusPopupYOffset : 0.55f;
+
+        float awayFromDealerX = Mathf.Sign(victimAnchor.x - dealerWorld.x);
+        if (Mathf.Approximately(awayFromDealerX, 0f))
+            awayFromDealerX = 1f;
+
+        return victimAnchor + new Vector3(awayFromDealerX * sideOffset, yOffset, 0f);
+    }
+
     public void Spawn(
         Vector3 worldPos,
         int amount,
@@ -165,9 +190,19 @@ public class DamagePopupSystem : MonoBehaviour
                 rectForMath, screenPos, eventCam, out _))
             return;
 
-        float xJitter = Random.Range(-popupXJitter, popupXJitter);
-        float yOffset = (_popupSpawnIndex % Mathf.Max(1, popupYOffsetCycle)) * popupYOffsetStep;
-        _popupSpawnIndex++;
+        bool isLingeringStatus =
+            blocked ||
+            kind == FloatingDamageTextUI.PopupDamageKind.Blocked ||
+            kind == FloatingDamageTextUI.PopupDamageKind.Immune;
+
+        float xJitter = isLingeringStatus
+            ? Random.Range(-statusPopupXJitter, statusPopupXJitter)
+            : Random.Range(-popupXJitter, popupXJitter);
+        float yOffset = isLingeringStatus
+            ? 0f
+            : (_popupSpawnIndex % Mathf.Max(1, popupYOffsetCycle)) * popupYOffsetStep;
+        if (!isLingeringStatus)
+            _popupSpawnIndex++;
 
         var go = Instantiate(popupPrefab, rectForMath);
         var floater = go.GetComponent<FloatingDamageTextUI>();
@@ -187,8 +222,8 @@ public class DamagePopupSystem : MonoBehaviour
             floater.Init(amount, kind, isCrit, isDot, direction);
     }
 
-    /// <summary>Floating status text (e.g. "Poisoned") using the same overlay canvas as damage numbers.</summary>
-    public void SpawnAilmentStatus(Vector3 worldPos, string message, Color color, Vector3 direction)
+    /// <summary>Lingering status text (ailments, Blocked, Parry) — pinned in place, no travel arc.</summary>
+    public void SpawnLingeringStatus(Vector3 worldPos, string message, Color color)
     {
         if (!_worldProjectionCamera)
             ResolveProjectionCameras();
@@ -196,7 +231,8 @@ public class DamagePopupSystem : MonoBehaviour
         EnsureDamageFxCanvas();
 
         RectTransform rectForMath = _popupParentRect ? _popupParentRect : canvasRect;
-        if (!popupPrefab || !rectForMath || !_worldProjectionCamera) return;
+        if (!popupPrefab || !rectForMath || !_worldProjectionCamera)
+            return;
 
         Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(worldPos);
 
@@ -209,9 +245,7 @@ public class DamagePopupSystem : MonoBehaviour
                 rectForMath, screenPos, eventCam, out _))
             return;
 
-        float xJitter = Random.Range(-popupXJitter, popupXJitter);
-        float yOffset = (_popupSpawnIndex % Mathf.Max(1, popupYOffsetCycle)) * popupYOffsetStep;
-        _popupSpawnIndex++;
+        float xJitter = Random.Range(-statusPopupXJitter, statusPopupXJitter);
 
         var go = Instantiate(popupPrefab, rectForMath);
         var floater = go.GetComponent<FloatingDamageTextUI>();
@@ -221,8 +255,51 @@ public class DamagePopupSystem : MonoBehaviour
             return;
         }
 
-        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, yOffset), _worldProjectionCamera, rectForMath, eventCam);
-        floater.InitAilmentStatus(message, color, direction);
+        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, 0f), _worldProjectionCamera, rectForMath, eventCam);
+        floater.InitLingeringStatus(message, color);
+    }
+
+    /// <summary>Floating status text (e.g. "Poisoned") using the same overlay canvas as damage numbers.</summary>
+    public void SpawnAilmentStatus(Vector3 worldPos, string message, Color color, Vector3 direction = default)
+    {
+        SpawnLingeringStatus(worldPos, message, color);
+    }
+
+    /// <summary>Parry / Riposte on the player (incoming-damage placement), separate colour from Blocked.</summary>
+    public void SpawnParry(Vector3 worldPos, Vector3 direction = default, bool riposteLabel = false)
+    {
+        if (!_worldProjectionCamera)
+            ResolveProjectionCameras();
+
+        EnsureDamageFxCanvas();
+
+        RectTransform rectForMath = _popupParentRect ? _popupParentRect : canvasRect;
+        if (!popupPrefab || !rectForMath || !_worldProjectionCamera)
+            return;
+
+        Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(worldPos);
+
+        Canvas fxCanvas = rectForMath.GetComponent<Canvas>();
+        Camera eventCam = fxCanvas && fxCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? _rectTransformEventCamera
+            : null;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                rectForMath, screenPos, eventCam, out _))
+            return;
+
+        float xJitter = Random.Range(-statusPopupXJitter, statusPopupXJitter);
+
+        var go = Instantiate(popupPrefab, rectForMath);
+        var floater = go.GetComponent<FloatingDamageTextUI>();
+        if (!floater)
+        {
+            Destroy(go);
+            return;
+        }
+
+        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, 0f), _worldProjectionCamera, rectForMath, eventCam);
+        floater.InitParry(direction, riposteLabel ? "Riposte" : "Parry");
     }
 
     public void Spawn(Vector3 worldPos, int amount, bool isCrit, Vector3 direction, bool blocked)

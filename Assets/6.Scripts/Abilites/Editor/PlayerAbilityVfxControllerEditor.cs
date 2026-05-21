@@ -169,6 +169,17 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "battleTranceParticleStartSizeMax"
     };
 
+    private static readonly string[] AshenRebirthVfxFieldNames =
+    {
+        "ashenRebirthPhoenixSprite",
+        "ashenRebirthPhoenixTint",
+        "ashenRebirthPhoenixWorldScale",
+        "ashenRebirthPhoenixSpawnHeightAbovePlayer",
+        "ashenRebirthPhoenixSpawnHoldSeconds",
+        "ashenRebirthPhoenixSortingLayer",
+        "ashenRebirthPhoenixSortingOrder"
+    };
+
     private static readonly string[] FlameChargeVfxFieldNames =
     {
         "flameChargePlayerGlowColor",
@@ -298,6 +309,12 @@ public class PlayerAbilityVfxControllerEditor : Editor
             "BattleTranceVfx",
             "Battle Trance (Melee Lv35) VFX",
             BattleTranceVfxFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(
+            serializedObject,
+            "AshenRebirthVfx",
+            "Phoenix Soul — Ashen Rebirth (Melee Lv40) VFX",
+            AshenRebirthVfxFieldNames);
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(
             serializedObject,

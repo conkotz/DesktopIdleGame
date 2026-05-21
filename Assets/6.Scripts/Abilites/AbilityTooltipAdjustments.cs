@@ -33,17 +33,19 @@ public static class AbilityTooltipAdjustments
     }
 
     /// <summary>
-    /// Energy and cooldown shown in tooltips — mirrors <see cref="PlayerAbilityController"/> spend/cooldown rules.
+    /// Resource cost and cooldown shown in tooltips — mirrors <see cref="PlayerAbilityController"/> spend/cooldown rules.
     /// </summary>
-    public static void ResolveTooltipEnergyAndCooldown(
+    public static void ResolveTooltipResourceAndCooldown(
         AbilityDefinition def,
         SkillsManager skillsManager,
         CharacterStats stats,
         PlayerAbilityController abilityController,
-        out float energy,
+        out float resourceCost,
+        out string resourceLabel,
         out float cooldownSeconds)
     {
-        energy = 0f;
+        resourceCost = 0f;
+        resourceLabel = "Energy";
         cooldownSeconds = 0f;
         if (!def)
             return;
@@ -52,15 +54,42 @@ public static class AbilityTooltipAdjustments
         cooldownSeconds = Mathf.Max(0f, def.cooldown);
         ApplySkillTreeChoices(def, skillsManager, ref weaponMult, ref cooldownSeconds);
 
-        energy = Mathf.Max(0f, def.energyCost);
-        if (abilityController != null && energy > 0f)
+        switch (def.GetResourceCostType())
         {
-            float costMult = abilityController.GetTooltipAbilityEnergyCostMultiplier();
-            energy = Mathf.Max(0f, Mathf.Round(energy * costMult));
+            case AbilityResourceCostType.Health:
+                resourceLabel = "Health";
+                resourceCost = Mathf.Max(0f, def.healthCost);
+                break;
+            case AbilityResourceCostType.Mana:
+                resourceLabel = "Mana";
+                resourceCost = Mathf.Max(0f, def.manaCost);
+                break;
+            case AbilityResourceCostType.Energy:
+                resourceLabel = "Energy";
+                resourceCost = Mathf.Max(0f, def.energyCost);
+                if (abilityController != null && resourceCost > 0f)
+                {
+                    float costMult = abilityController.GetTooltipAbilityEnergyCostMultiplier();
+                    resourceCost = Mathf.Max(0f, Mathf.Round(resourceCost * costMult));
+                }
+                break;
         }
 
         if (stats != null)
             cooldownSeconds *= Mathf.Max(0.05f, 1f - stats.FinalAbilityCooldownReductionFraction);
+    }
+
+    /// <summary>Legacy name — <paramref name="energy"/> is the resolved resource amount (energy, mana, or health).</summary>
+    public static void ResolveTooltipEnergyAndCooldown(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        CharacterStats stats,
+        PlayerAbilityController abilityController,
+        out float energy,
+        out float cooldownSeconds)
+    {
+        ResolveTooltipResourceAndCooldown(
+            def, skillsManager, stats, abilityController, out energy, out _, out cooldownSeconds);
     }
 
     public static float GetTooltipAbilityDamageMultiplier(PlayerAbilityController abilityController)

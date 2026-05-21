@@ -258,7 +258,6 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _pausedDpsSessionDuration;
     private float _lastCombatActivityTime = -999f;
     private float _lastHpForCombatEngageTrack = -1f;
-    private bool _dpsAutoResetEnabled = true;
     private readonly Dictionary<string, float> _incomingDamageByDealer = new Dictionary<string, float>();
     private readonly List<string> _incomingDealerOrder = new List<string>();
     private readonly Dictionary<string, float> _outgoingDamageBySource = new Dictionary<string, float>(System.StringComparer.OrdinalIgnoreCase);
@@ -425,13 +424,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         return entries;
     }
 
-    /// <summary>When false, combat DPS session values are never auto-cleared out of combat.</summary>
-    public void SetDpsAutoResetEnabled(bool enabled)
-    {
-        _dpsAutoResetEnabled = enabled;
-    }
-
-    /// <summary>Hard reset of current DPS/damage tracker values, even mid-combat.</summary>
+    /// <summary>Hard reset of current DPS/damage tracker values (Damage Meter Reset button only).</summary>
     public void ResetDpsTrackerNow()
     {
         _dpsTrackerPaused = false;
@@ -451,9 +444,6 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             duration = Mathf.Max(0.001f, _pausedDpsSessionDuration);
             return duration > 0f;
         }
-
-        if (!IsCombatEngaged())
-            return false;
 
         duration = Mathf.Max(0.001f, Time.time - _combatSessionStartTime);
         return duration > 0f;
@@ -519,20 +509,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (!player || !stats) return;
         if (_dpsTrackerPaused) return;
 
-        float window = Mathf.Max(0.1f, dpsResetOutOfCombatSeconds);
-
         if (IsProximityCombatEngaged())
             _lastCombatActivityTime = Time.time;
 
-        if (IsCombatEngaged())
-        {
-            if (_combatSessionStartTime < 0f)
-                _combatSessionStartTime = Time.time;
-        }
-        else if (_dpsAutoResetEnabled && Time.time - _lastCombatActivityTime >= window)
-        {
-            ResetDpsSession();
-        }
+        if (IsCombatEngaged() && _combatSessionStartTime < 0f)
+            _combatSessionStartTime = Time.time;
 
         if (idleCombatEnabled)
         {
@@ -1159,17 +1140,152 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         SplitDamage rolled,
         bool wasCrit,
         float delay,
-        SwingOutgoingAttribution swingAttribution)
+        SwingOutgoingAttribution swingAttribution,
+        bool suppressOnHitAilments = false)
     {
         yield return new WaitForSeconds(delay);
-        ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution);
+        ResolveAttackHitNow(targetAtFireTime, rolled, wasCrit, swingAttribution, suppressOnHitAilments);
+    }
+
+    /// <summary>
+    /// Melee Lv10 Parry — roll on incoming enemy hit; default reduces damage and reflects a portion;
+    /// Riposte enhancement performs a free auto attack without advancing swing cadence.
+    /// </summary>
+    public bool TryProcessParryOnEnemyHit(EnemyBaseController attacker, ref SplitDamage incomingHit, bool incomingWasCrit)
+    {
+        if (attacker == null || stats == null || player == null || incomingHit.IsEmpty)
+            return false;
+
+        if (!stats.IsParryMajorPassiveActive())
+            return false;
+
+        if (!IsAttackerWithinParryRange(attacker))
+            return false;
+
+        if (UnityEngine.Random.value >= stats.GetParryChanceFraction())
+            return false;
+
+        SpawnParrySlashVfx(attacker);
+        ShowParryDamagePopup(attacker != null ? attacker.transform : null);
+
+        if (stats.GetParryEnhancementPick() == 0)
+        {
+            TryPerformParryRiposteAttack(attacker);
+            return true;
+        }
+
+        SplitDamage original = incomingHit;
+        float reflectFrac = AbilityCombatPower.ParryDamageReductionFraction;
+        SplitDamage reflected = BuildParryReflectDamage(original, reflectFrac);
+        incomingHit = original * (1f - reflectFrac);
+        ApplyParryReflectDamage(attacker, reflected, incomingWasCrit);
+        return true;
+    }
+
+    private void ShowParryDamagePopup(Transform attacker)
+    {
+        if (player == null || DamagePopupSystem.Instance == null)
+            return;
+
+        var anchor = player.GetComponentInChildren<DamagePopupAnchor>(true);
+        Vector3 anchorPos = anchor ? anchor.WorldPos : player.transform.position;
+        player.GetIncomingDamagePopupPlacement(anchorPos, attacker, 0.35f, out Vector3 pos, out Vector3 dir);
+        bool riposteLabel = stats != null && stats.GetParryEnhancementPick() == 0;
+        DamagePopupSystem.Instance.SpawnParry(pos, dir, riposteLabel);
+    }
+
+    private bool TryPerformParryRiposteAttack(EnemyBaseController attacker)
+    {
+        if (attacker == null || attacker.IsDead || stats == null || player == null)
+            return false;
+
+        if (IsRangedAttack() || IsMagicAttack())
+            return false;
+
+        SplitDamage rolled = stats.RollSplitAttackDamage(out bool wasCrit);
+        if (rolled.IsEmpty)
+            return false;
+
+        var swingAttribution = new SwingOutgoingAttribution(
+            AbilityCombatPower.ParryRiposteOutgoingSourceLabel, null, 0f);
+
+        player.TriggerAttackAnim();
+
+        float meleeDelay = Mathf.Max(0f, meleeHitImpactDelay);
+        if (meleeDelay <= 0f)
+            ResolveAttackHitNow(attacker, rolled, wasCrit, swingAttribution, suppressOnHitAilments: true);
+        else
+            StartCoroutine(ResolveAttackHitAfterDelay(attacker, rolled, wasCrit, meleeDelay, swingAttribution, true));
+
+        return true;
+    }
+
+    private static SplitDamage BuildParryReflectDamage(SplitDamage original, float reflectFrac)
+    {
+        float Lane(float amount) =>
+            amount > 0f ? Mathf.Max(1f, Mathf.Ceil(amount * reflectFrac - 1e-6f)) : 0f;
+
+        return new SplitDamage(
+            Lane(original.physical),
+            Lane(original.magic),
+            Lane(original.corruptionDamage));
+    }
+
+    private void ApplyParryReflectDamage(EnemyBaseController attacker, SplitDamage reflected, bool wasCrit)
+    {
+        if (attacker == null || attacker.IsDead || reflected.IsEmpty)
+            return;
+
+        var swingAttribution = new SwingOutgoingAttribution(AbilityCombatPower.ParryReflectOutgoingSourceLabel, null, 0f);
+        ApplySplitDamageToTarget(attacker, reflected, wasCrit, AbilityCombatPower.ParryReflectOutgoingSourceLabel, swingAttribution);
+    }
+
+    private bool IsAttackerWithinParryRange(EnemyBaseController enemy)
+    {
+        if (enemy == null || player == null)
+            return false;
+
+        Vector3 origin = player.transform.position;
+        float radius = AbilityCombatPower.ParryMeleeRange;
+        float dx = Mathf.Abs(enemy.transform.position.x - origin.x);
+        float dy = Mathf.Abs(enemy.transform.position.y - origin.y);
+        return dx <= radius && dy <= radius;
+    }
+
+    private void SpawnParrySlashVfx(EnemyBaseController attacker)
+    {
+        if (attacker == null || player == null)
+            return;
+
+        PlayerAbilityVfxController vfx = ResolveAbilityVfx();
+        if (vfx == null)
+            return;
+
+        vfx.SpawnParrySlashLine(player.transform.position, attacker.transform.position);
+    }
+
+    private PlayerAbilityVfxController _abilityVfxCached;
+
+    private PlayerAbilityVfxController ResolveAbilityVfx()
+    {
+        if (_abilityVfxCached != null)
+            return _abilityVfxCached;
+
+        if (abilityController != null)
+            _abilityVfxCached = abilityController.GetComponent<PlayerAbilityVfxController>();
+
+        if (_abilityVfxCached == null && player != null)
+            _abilityVfxCached = player.GetComponent<PlayerAbilityVfxController>();
+
+        return _abilityVfxCached;
     }
 
     private void ResolveAttackHitNow(
         EnemyBaseController targetToHit,
         SplitDamage rolled,
         bool wasCrit,
-        SwingOutgoingAttribution swingAttribution = default)
+        SwingOutgoingAttribution swingAttribution = default,
+        bool suppressOnHitAilments = false)
     {
         if (string.IsNullOrWhiteSpace(swingAttribution.primarySource))
             swingAttribution = SwingOutgoingAttribution.AutoAttackOnly;
@@ -1208,12 +1324,15 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             crescentPenetrating = queued.crescentPenetrating;
         }
 
-        if (!suppressBleed)
-            TryApplyBleed(targetToHit, dealt);
-        if (!suppressPoison)
-            TryApplyPoison(targetToHit, dealt);
-        TryApplyElementalMagicAilment(targetToHit, dealt);
-        TryApplyMeleeShock(targetToHit, dealt);
+        if (!suppressOnHitAilments)
+        {
+            if (!suppressBleed)
+                TryApplyBleed(targetToHit, dealt);
+            if (!suppressPoison)
+                TryApplyPoison(targetToHit, dealt);
+            TryApplyElementalMagicAilment(targetToHit, dealt);
+            TryApplyMeleeShock(targetToHit, dealt);
+        }
 
         if (primaryHitSucceeded && abilityController != null &&
             abilityController.TryConsumeCleavingExtraTargetsOnSuccessfulHit(out int cleaveExtraTargets) &&
@@ -1569,6 +1688,23 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _lastEnemyThatDamagedPlayerTime = Time.time;
     }
 
+    /// <summary>Recent enemy that damaged the player (for ailment status popup placement).</summary>
+    public bool TryGetRecentIncomingDamageDealerWorld(float maxAgeSeconds, out Vector3 dealerWorld)
+    {
+        dealerWorld = default;
+        if (_lastEnemyThatDamagedPlayer == null)
+            return false;
+
+        if (Time.time - _lastEnemyThatDamagedPlayerTime > Mathf.Max(0.1f, maxAgeSeconds))
+            return false;
+
+        if (_lastEnemyThatDamagedPlayer.IsDead || !_lastEnemyThatDamagedPlayer.gameObject.activeInHierarchy)
+            return false;
+
+        dealerWorld = _lastEnemyThatDamagedPlayer.transform.position;
+        return true;
+    }
+
     /// <summary>
     /// Longbow idle acquisition: if the player was damaged by an enemy recently, prefer that enemy when it is still alive and in bow range.
     /// </summary>
@@ -1857,6 +1993,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             ? DeferredSwingOutgoingDpsLabel
             : ResolveOutgoingDamageSourceLabel(outgoingDamageSourceLabel, swingAttribution);
 
+        float armorRatingMultiplier = stats != null ? stats.GetTacticianOutgoingArmorRatingMultiplier() : 1f;
+
         if (rolled.physical > 0f)
         {
             int dealt = target.TakeDamage(
@@ -1866,7 +2004,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 player.transform,
                 stats != null ? stats.CurrentAttackSkill : (AttackSkill?)null,
                 dpsBucketOverride: null,
-                armorRatingMultiplier: 1f,
+                armorRatingMultiplier: armorRatingMultiplier,
                 magicResistRatingMultiplier: 1f,
                 outgoingDpsSourceLabel: sourceLabel);
 
@@ -1905,6 +2043,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (deferSwingOutgoing)
             RecordWeaponSwingOutgoingDamage(result.Total, target, swingAttribution);
+
+        if (stats != null && result.physical > 0f)
+            stats.TryApplyTacticianStunOnEnemyHit(target);
 
         return result;
     }
@@ -2030,8 +2171,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             duration,
             ticks,
             maxStacks,
-            transform
-        );
+            transform,
+            poisonMasteryOwner: transform);
 
         var ailments = target.GetComponent<AilmentController>();
         if (ailments != null)
@@ -2413,6 +2554,17 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         _dpsTrackerPaused = true;
+    }
+
+    /// <summary>Restores DPS timing after death was prevented (e.g. Phoenix Soul — Ashen Rebirth).</summary>
+    public void UnpauseDpsTracker()
+    {
+        if (!_dpsTrackerPaused)
+            return;
+
+        _dpsTrackerPaused = false;
+        if (_combatSessionStartTime >= 0f)
+            _combatSessionStartTime = Time.time - _pausedDpsSessionDuration;
     }
 
     public void ResetDpsTrackerForRespawn()

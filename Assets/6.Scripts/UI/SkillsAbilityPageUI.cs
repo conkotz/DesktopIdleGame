@@ -1735,13 +1735,17 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             }
         }
 
-        // Major passive conversion summary (Melee Lv10 Ailment Attunement branch).
-        if (skill.skillType == SkillType.Melee && currentLevel >= 10)
+        if (skill.skillType == SkillType.Melee
+            && currentLevel >= AbilityCombatPower.ParryMajorPassiveLevel
+            && SkillTreeRowPickRules.IsMajorPassiveRowActive(
+                skill, skillManager, AbilityCombatPower.ParryMajorPassiveLevel, majorOrdinal: 0))
         {
             sb.AppendLine("<b>• Ailment Attunement (Major Passive) (Lv10)</b>");
             sb.AppendLine("     +5% Bleed, Poison, Burn Ailment Chance");
             sb.AppendLine("     +5% Melee Damage to enemies affected by an ailment");
-            int selected = skillManager != null ? skillManager.GetSkillChoiceSelection(SkillType.Melee, 10, -1) : -1;
+            int selected = skillManager != null
+                ? skillManager.GetSkillChoiceSelection(SkillType.Melee, "Lv10_0", -1)
+                : -1;
             if (selected == 0)
             {
                 sb.AppendLine("   - Venom Edge (Enhancement)");
@@ -1759,6 +1763,37 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                 sb.AppendLine("   - Infernal Catalyst (Enhancement)");
                 sb.AppendLine("     +10% Burn Damage Multiplier");
                 sb.AppendLine("     -0.5s Burn Tick Rate");
+            }
+        }
+
+        if (skill.skillType == SkillType.Melee
+            && currentLevel >= AbilityCombatPower.ParryMajorPassiveLevel
+            && SkillTreeRowPickRules.IsMajorPassiveRowActive(
+                skill, skillManager, AbilityCombatPower.ParryMajorPassiveLevel, majorOrdinal: 1))
+        {
+            sb.AppendLine("<b>• Parry (Major Passive) (Lv10)</b>");
+            sb.Append("     ");
+            sb.Append(Mathf.RoundToInt(AbilityCombatPower.ParryBaseChance * 100f));
+            sb.Append("% chance to parry melee-range hits (within ");
+            sb.Append(AbilityCombatPower.ParryMeleeRange.ToString("0.#"));
+            sb.Append(" units): reduce hit by ");
+            sb.Append(Mathf.RoundToInt(AbilityCombatPower.ParryDamageReductionFraction * 100f));
+            sb.AppendLine("% and reflect that damage");
+            int parryEnh = skillManager != null
+                ? skillManager.GetSkillChoiceSelection(
+                    SkillType.Melee, AbilityCombatPower.ParryMajorPassiveSpineNodeId, -1)
+                : -1;
+            if (parryEnh == 0)
+            {
+                sb.AppendLine("   - Riposte (Enhancement)");
+                sb.AppendLine("     Free melee auto attack on parry (no damage reduction, no swing delay)");
+            }
+            else if (parryEnh == 1)
+            {
+                sb.AppendLine("   - Improved Parry (Enhancement)");
+                sb.Append("     Parry chance increased to ");
+                sb.Append(Mathf.RoundToInt(AbilityCombatPower.ParryImprovedParryChance * 100f));
+                sb.AppendLine("%");
             }
         }
 
@@ -1782,12 +1817,16 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             }
         }
 
-        if (skill.skillType == SkillType.Melee && currentLevel >= CharacterStats.BattleEngineMajorPassiveLevel)
+        if (skill.skillType == SkillType.Melee
+            && currentLevel >= CharacterStats.BattleEngineMajorPassiveLevel
+            && SkillTreeRowPickRules.IsMajorPassiveRowActive(
+                skill, skillManager, CharacterStats.BattleEngineMajorPassiveLevel, majorOrdinal: 0))
         {
             sb.AppendLine("<b>• Battle Engine (Major Passive) (Lv30)</b>");
             sb.AppendLine("     Gain 5 Energy when abilities hit enemies (once per cast)");
             int selected30 = skillManager != null
-                ? skillManager.GetSkillChoiceSelection(SkillType.Melee, CharacterStats.BattleEngineMajorPassiveLevel, -1)
+                ? skillManager.GetSkillChoiceSelection(
+                    SkillType.Melee, AbilityCombatPower.BattleEngineEnhancementParentSpineNodeId, -1)
                 : -1;
             if (selected30 == 0)
             {
@@ -1798,6 +1837,77 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             {
                 sb.AppendLine("   - Overload (Enhancement)");
                 sb.AppendLine("     Using an ability adds +10% ability cost and +5% ability damage (max 5 stacks, 10s)");
+            }
+        }
+
+        if (skill.skillType == SkillType.Melee
+            && currentLevel >= CharacterStats.BattleEngineMajorPassiveLevel
+            && SkillTreeRowPickRules.IsMajorPassiveRowActive(
+                skill, skillManager, CharacterStats.BattleEngineMajorPassiveLevel, majorOrdinal: 1))
+        {
+            sb.AppendLine("<b>• Tactician (Major Passive) (Lv30)</b>");
+            sb.AppendLine("     One-handed: +15% attack speed, +10% poison/burn chance, +5% crit chance");
+            int tacticianEnh = skillManager != null
+                ? skillManager.GetSkillChoiceSelection(
+                    SkillType.Melee, AbilityCombatPower.TacticianMajorPassiveSpineNodeId, -1)
+                : -1;
+            if (tacticianEnh == 0)
+            {
+                sb.AppendLine("   - Two-Handed Weapons (Enhancement)");
+                sb.AppendLine("     Two-handed: +15% bleed mult., 25% armour pen., 25% stun, 10% block");
+            }
+            else if (tacticianEnh == 1)
+            {
+                sb.AppendLine("   - Shield (Enhancement)");
+                sb.AppendLine("     With shield: +5% block, +10 armour, magic resist, corruption resist");
+            }
+        }
+
+        if (skill.skillType == SkillType.Melee
+            && currentLevel >= CharacterStats.PhoenixSoulMajorPassiveLevel
+            && SkillTreeRowPickRules.IsMajorPassiveRowActive(
+                skill, skillManager, CharacterStats.PhoenixSoulMajorPassiveLevel, majorOrdinal: 0))
+        {
+            sb.AppendLine("<b>• Phoenix Soul (Major Passive) (Lv40)</b>");
+            sb.AppendLine("     Burning nearby enemies restore 1 Life and 1 Energy every 3 seconds (max 5 enemies)");
+            int selected40 = skillManager != null
+                ? skillManager.GetSkillChoiceSelection(
+                    SkillType.Melee, AbilityCombatPower.PhoenixSoulEnhancementParentSpineNodeId, -1)
+                : -1;
+            if (selected40 == 0)
+            {
+                sb.AppendLine("   - Ashen Rebirth (Enhancement)");
+                sb.AppendLine("     On death, revive at 25% health with 3 seconds of damage immunity (300s cooldown)");
+                sb.AppendLine("     On proc: 20 fire damage to nearby enemies and burn them");
+            }
+            else if (selected40 == 1)
+            {
+                sb.AppendLine("   - Living Inferno (Enhancement)");
+                sb.AppendLine("     +2% melee damage per burning enemy nearby (up to +10% at 5 enemies)");
+            }
+        }
+
+        if (skill.skillType == SkillType.Melee
+            && currentLevel >= CharacterStats.MasterOfVenomsMajorPassiveLevel
+            && SkillTreeRowPickRules.IsMajorPassiveRowActive(
+                skill, skillManager, CharacterStats.MasterOfVenomsMajorPassiveLevel, majorOrdinal: 1))
+        {
+            sb.AppendLine("<b>• Master of Venoms (Major Passive) (Lv40)</b>");
+            sb.AppendLine("     Poison can critically strike (50% of your critical damage)");
+            int selectedVenoms = skillManager != null
+                ? skillManager.GetSkillChoiceSelection(
+                    SkillType.Melee, AbilityCombatPower.MasterOfVenomsEnhancementParentSpineNodeId, -1)
+                : -1;
+            if (selectedVenoms == 0)
+            {
+                sb.AppendLine("   - Neurotoxin (Enhancement)");
+                sb.AppendLine("     Poisoned enemies deal 15% less damage");
+                sb.AppendLine("     +3% movement speed slow per poison stack");
+            }
+            else if (selectedVenoms == 1)
+            {
+                sb.AppendLine("   - Lethal Compound (Enhancement)");
+                sb.AppendLine("     Poisons have 0.5s less duration per stack, +3 max poison stacks");
             }
         }
 
