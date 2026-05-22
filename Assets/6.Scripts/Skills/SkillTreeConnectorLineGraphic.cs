@@ -19,6 +19,13 @@ public sealed class SkillTreeConnectorLineGraphic : MaskableGraphic
         SetVerticesDirty();
     }
 
+    /// <summary>Disable soft edge fade (recommended under RectMask2D scroll views to avoid flicker).</summary>
+    public void SetFeatherPixels(float pixels)
+    {
+        featherPixels = Mathf.Max(0f, pixels);
+        SetVerticesDirty();
+    }
+
     protected override void OnPopulateMesh(VertexHelper vh)
     {
         vh.Clear();
