@@ -1234,7 +1234,7 @@ public class AilmentController : MonoBehaviour
 
     ☠️ FUTURE IDEAS
     - Curse: reduces stats
-    - Stun: disables actions
+    - Stun: handled on <see cref="EnemyBaseController"/> (action lockout + status popup)
     - Weaken: reduces outgoing damage
     - Armor break: reduces armor only
 */

@@ -109,6 +109,13 @@ public static class GameTooltipTexts
                     "Applies to hit damage and does not apply to ailments.";
                 return true;
 
+            case "StunChanceText":
+                title = "Stun chance";
+                description =
+                    "Chance on hit to stun enemies for 3 seconds.\n\n" +
+                    "Stunned enemies cannot move, attack, or regenerate.";
+                return true;
+
             case "AbilityPowerText":
                 title = "Ability Power";
                 description = "Scales your abilities to do bonus damage (This does not apply to minions).";

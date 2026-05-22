@@ -94,21 +94,16 @@ public class PlayerAbilityVfxControllerEditor : Editor
 
     private static readonly string[] BladestormVfxFieldNames =
     {
-        "bladestormStabColor",
-        "bladestormStabFadeSeconds",
-        "bladestormStabExtendSeconds",
-        "bladestormStabLineWidth",
-        "bladestormStabReach",
-        "bladestormStabEmitIntervalSeconds",
-        "bladestormStabVerticalHalfDegrees",
-        "bladestormStabOriginOffset",
-        "bladestormFinaleSlashColor",
-        "bladestormFinaleSlashDropHeight",
-        "bladestormFinaleSlashDepth",
-        "bladestormFinaleSlashLineWidth",
-        "bladestormFinaleSlashExtendSeconds",
-        "bladestormFinaleSlashFadeSeconds",
-        "bladestormFinaleSlashTargetYOffset"
+        "bladestormHitSlashColor",
+        "bladestormHitSlashLineWidth",
+        "bladestormHitSlashDuration",
+        "bladestormHitSlashCenterOffset",
+        "bladestormHitSlashSpawnJitter",
+        "bladestormHitSlashAngleJitterDegrees",
+        "bladestormHitSlashHalfLength",
+        "bladestormFinaleSlashWidthScale",
+        "bladestormFinaleSlashDurationScale",
+        "bladestormFinaleSlashLengthScale"
     };
 
     private static readonly string[] FinalSeveranceVfxFieldNames =

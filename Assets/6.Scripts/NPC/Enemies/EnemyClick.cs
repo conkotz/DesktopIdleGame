@@ -11,5 +11,11 @@ public class EnemyClick : MonoBehaviour
     }
 
     /// <summary>Called by PlayerController when this enemy is clicked.</summary>
-    public EnemyBaseController GetEnemy() => enemy;
+    public EnemyBaseController GetEnemy()
+    {
+        if (!enemy || enemy.GetComponentInParent<PlayerController>() != null)
+            return null;
+
+        return enemy;
+    }
 }

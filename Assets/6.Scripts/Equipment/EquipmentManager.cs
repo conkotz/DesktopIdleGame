@@ -71,6 +71,12 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     private bool _suppressSaveForSetSwap;
     private bool _suppressGearSlotUiEventsForSetSwap;
 
+    public const float WeaponSetSwapCooldownSeconds = 5f;
+    private float _weaponSetSwapLockedUntilUnscaled = -999f;
+    private bool _weaponSetSwapCooldownBlockedLogged;
+
+    public bool IsWeaponSetSwapOnCooldown => Time.unscaledTime < _weaponSetSwapLockedUntilUnscaled;
+
     [Header("Auto-Return Kicked Items")]
     [Tooltip("When 2H rules auto-unequip the other slot, return that item to inventory (or drop if full).")]
     [SerializeField] private bool autoReturnKickedItems = true;
@@ -848,34 +854,67 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     // -------------------------
     // Weapon set swap
     // -------------------------
-    public void ToggleWeaponSet()
+    /// <summary>Returns false while the post-swap cooldown is active (logs once per cooldown window).</summary>
+    public bool TryToggleWeaponSet()
     {
-        _suppressSaveForSetSwap = true;
-        _suppressGearSlotUiEventsForSetSwap = true;
-        try
-        {
-            activeWeaponSetIndex = activeWeaponSetIndex == 0 ? 1 : 0;
-            NotifyWeaponSetChanged();
-            NotifyGearSlotsChanged();
-        }
-        finally
-        {
-            _suppressGearSlotUiEventsForSetSwap = false;
-            _suppressSaveForSetSwap = false;
-        }
+        if (!CanPerformWeaponSetSwap())
+            return false;
+
+        ApplyWeaponSetSwap(activeWeaponSetIndex == 0 ? 1 : 0);
+        BeginWeaponSetSwapCooldown();
+        return true;
     }
 
-    public void SetActiveWeaponSet(int setIndex)
+    /// <summary>Returns true if already on that set; false if blocked by cooldown (logs once per cooldown window).</summary>
+    public bool TrySetActiveWeaponSet(int setIndex)
     {
         int next = NormalizeSetIndex(setIndex);
         if (activeWeaponSetIndex == next)
+            return true;
+
+        if (!CanPerformWeaponSetSwap())
+            return false;
+
+        ApplyWeaponSetSwap(next);
+        BeginWeaponSetSwapCooldown();
+        return true;
+    }
+
+    private bool CanPerformWeaponSetSwap()
+    {
+        if (!IsWeaponSetSwapOnCooldown)
+            return true;
+
+        TryLogWeaponSetSwapBlockedOnce();
+        return false;
+    }
+
+    private void TryLogWeaponSetSwapBlockedOnce()
+    {
+        if (_weaponSetSwapCooldownBlockedLogged)
             return;
 
+        _weaponSetSwapCooldownBlockedLogged = true;
+        float remaining = Mathf.Max(0.1f, _weaponSetSwapLockedUntilUnscaled - Time.unscaledTime);
+        int seconds = Mathf.CeilToInt(remaining);
+        GameLog.Add(
+            $"Cannot swap gear sets yet ({seconds}s remaining).",
+            GameLog.CannotMessageColor);
+    }
+
+    private void BeginWeaponSetSwapCooldown()
+    {
+        _weaponSetSwapCooldownBlockedLogged = false;
+        _weaponSetSwapLockedUntilUnscaled = Time.unscaledTime + WeaponSetSwapCooldownSeconds;
+    }
+
+    private void ApplyWeaponSetSwap(int nextSetIndex)
+    {
         _suppressSaveForSetSwap = true;
         _suppressGearSlotUiEventsForSetSwap = true;
         try
         {
-            activeWeaponSetIndex = next;
+            activeWeaponSetIndex = NormalizeSetIndex(nextSetIndex);
             NotifyWeaponSetChanged();
             NotifyGearSlotsChanged();
         }

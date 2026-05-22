@@ -1999,6 +1999,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>Tactician two-handed: chance on hit to stun enemies (matches <see cref="TryApplyTacticianStunOnEnemyHit"/>).</summary>
+    public float StunChancePercentForStatsPanel =>
+        IsTacticianTwoHandedBonusesActive()
+            ? AbilityCombatPower.TacticianTwoHandedStunChance * GetTacticianBonusMultiplier() * 100f
+            : 0f;
+
     /// <summary>Fraction added to multiplier for abilities keyed to <see cref="CurrentMagicAttackType"/> (e.g. 0.2 = +20%).</summary>
     public float ElementSkillDamageScalingFractionForCurrentType() =>
         ElementSkillDamageScalingFractionFor(CurrentMagicAttackType);
@@ -2695,6 +2701,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return mh != null && mh.weaponStats.handedness == Handedness.TwoHanded;
     }
 
+    /// <summary>Two-handed melee main hand (excludes bows and other ranged 2H weapons).</summary>
+    public bool IsMainHandTwoHandedMeleeWeaponEquipped()
+    {
+        ItemDefinition mh = GetMainHandWeaponDef();
+        return mh != null &&
+               mh.weaponStats.handedness == Handedness.TwoHanded &&
+               mh.weaponStats.attackSkill == AttackSkill.Melee;
+    }
+
     public bool HasShieldEquipped()
     {
         if (!equipment)
@@ -2752,7 +2767,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         IsTacticianMajorPassiveActive() && IsMainHandOneHandedWeaponEquipped();
 
     public bool IsTacticianApplyingTwoHandedWeaponBonuses =>
-        IsTacticianMajorPassiveActive() && IsMainHandTwoHandedWeaponEquipped();
+        IsTacticianMajorPassiveActive() && IsMainHandTwoHandedMeleeWeaponEquipped();
 
     public bool IsTacticianApplyingSecondarySpecialistShieldBonuses =>
         IsTacticianMajorPassiveActive() &&
@@ -2872,7 +2887,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return;
 
         float chance = AbilityCombatPower.TacticianTwoHandedStunChance * GetTacticianBonusMultiplier();
-        enemy.TryApplyStun(AbilityCombatPower.TacticianStunDurationSeconds, chance);
+        enemy.TryApplyStun(AbilityCombatPower.TacticianStunDurationSeconds, chance, transform);
     }
 
     private int GetMeleeLevel40MajorPassiveRowPick()

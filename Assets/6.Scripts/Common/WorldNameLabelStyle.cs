@@ -1,5 +1,9 @@
+using System;
 using TMPro;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
 /// Shared styling for world-space <c>NameLabel</c> TextMeshPro plates (outline + sorting).
@@ -14,7 +18,7 @@ public static class WorldNameLabelStyle
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void StyleNameLabelsInLoadedScene()
     {
-        TMP_Text[] labels = Object.FindObjectsByType<TMP_Text>(
+        TMP_Text[] labels = UnityEngine.Object.FindObjectsByType<TMP_Text>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None);
 
@@ -43,17 +47,37 @@ public static class WorldNameLabelStyle
         if (!CanMutateTextMaterial(label))
             return;
 
-        label.outlineWidth = DefaultOutlineWidth;
-        label.outlineColor = DefaultOutlineColor;
-        label.UpdateMeshPadding();
+        try
+        {
+            label.outlineWidth = DefaultOutlineWidth;
+            label.outlineColor = DefaultOutlineColor;
+            label.UpdateMeshPadding();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[WorldNameLabelStyle] Skipped outline on '{label.name}': {ex.Message}", label);
+        }
     }
 
     /// <summary>
     /// Outline / padding create a material instance via <c>renderer.material</c>.
-    /// Only safe during play mode — skip in the editor to avoid material leaks and console spam.
+    /// Only safe on scene instances during play — never prefab assets.
     /// </summary>
-    private static bool CanMutateTextMaterial(TMP_Text label) =>
-        Application.isPlaying && label;
+    private static bool CanMutateTextMaterial(TMP_Text label)
+    {
+        if (!Application.isPlaying || !label)
+            return false;
+
+        if (!label.gameObject.scene.IsValid())
+            return false;
+
+#if UNITY_EDITOR
+        if (PrefabUtility.IsPartOfPrefabAsset(label))
+            return false;
+#endif
+
+        return true;
+    }
 
     private static void ApplySorting(TMP_Text label, SpriteRenderer host)
     {

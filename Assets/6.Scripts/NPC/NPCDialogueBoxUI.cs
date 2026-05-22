@@ -71,6 +71,55 @@ public class NPCDialogueBoxUI : MonoBehaviour
     public static bool HasAnyActiveDialogue =>
         (_activeBox != null && _activeBox.gameObject.activeInHierarchy) || ActiveMultiOfferBoxes.Count > 0;
 
+    /// <summary>
+    /// While NPC / quest dialogue is open: first Interact completes any in-progress typewriter text (same as clicking the panel);
+    /// a second Interact accepts the quest when an offer panel is showing and text is already fully revealed.
+    /// </summary>
+    public static bool TryConsumeInteractHotkey()
+    {
+        if (!HasAnyActiveDialogue)
+            return false;
+
+        var boxes = new List<NPCDialogueBoxUI>(ActiveMultiOfferBoxes.Count + 1);
+        CollectActiveDialogueBoxes(boxes);
+
+        bool anyTyping = false;
+        for (int i = 0; i < boxes.Count; i++)
+        {
+            if (boxes[i] != null && boxes[i].HasActiveTypewriters)
+                anyTyping = true;
+        }
+
+        if (anyTyping)
+        {
+            for (int i = 0; i < boxes.Count; i++)
+                boxes[i]?.CompleteAllTypewriters();
+            return true;
+        }
+
+        for (int i = 0; i < boxes.Count; i++)
+        {
+            if (boxes[i] != null && boxes[i].TryAcceptQuestOfferFromInteract())
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void CollectActiveDialogueBoxes(List<NPCDialogueBoxUI> into)
+    {
+        into.Clear();
+        if (_activeBox != null && _activeBox.gameObject.activeInHierarchy && !into.Contains(_activeBox))
+            into.Add(_activeBox);
+
+        for (int i = 0; i < ActiveMultiOfferBoxes.Count; i++)
+        {
+            NPCDialogueBoxUI b = ActiveMultiOfferBoxes[i];
+            if (b != null && b.gameObject.activeInHierarchy && !into.Contains(b))
+                into.Add(b);
+        }
+    }
+
     /// <summary>Closes all NPC plain dialogue and quest-offer panels (e.g. Escape / switch to another NPC).</summary>
     public static void DismissAllActive()
     {
@@ -302,6 +351,8 @@ public class NPCDialogueBoxUI : MonoBehaviour
     }
 
     private readonly List<ActiveTypewriter> _activeTypewriters = new();
+
+    private bool HasActiveTypewriters => _activeTypewriters.Count > 0;
 
     public Vector3 GetNpcDialogueLocalOffset() => npcDialogueLocalOffset;
 
@@ -1695,6 +1746,19 @@ public class NPCDialogueBoxUI : MonoBehaviour
     {
         _onAccept?.Invoke();
         Hide();
+    }
+
+    /// <summary>Quest-offer panel only — plain greeting lines have no accept step on Interact.</summary>
+    private bool TryAcceptQuestOfferFromInteract()
+    {
+        if (_plainDialogueMode || _onAccept == null)
+            return false;
+
+        if (acceptButton == null || !acceptButton.gameObject.activeInHierarchy || !acceptButton.interactable)
+            return false;
+
+        HandleAcceptClicked();
+        return true;
     }
 
     /// <summary>Keeps dialogue rect inside <see cref="_stripUiClampFrameRt"/> (UI strip band) using canvas-root-relative bounds.</summary>

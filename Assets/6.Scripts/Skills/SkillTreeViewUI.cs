@@ -2368,12 +2368,11 @@ public class SkillTreeViewUI : MonoBehaviour
         var sb = new System.Text.StringBuilder();
         if (!string.IsNullOrWhiteSpace(body))
             sb.Append(body.Trim());
-        if (selectedChoice >= 0 && selectedChoice < choices.Count)
+        if (selectedChoice >= 0 && row.unlock != null)
         {
-            sb.Append("\n\nActive Enhancement: ");
-            sb.Append("<color=#33CC66>");
-            sb.Append(!string.IsNullOrWhiteSpace(choices[selectedChoice].title) ? choices[selectedChoice].title.Trim() : $"Option {selectedChoice + 1}");
-            sb.Append("</color>");
+            string activeLine = SkillUnlockPanelTooltipBuilder.FormatActiveEnhancementLine(row.unlock, selectedChoice);
+            if (!string.IsNullOrEmpty(activeLine))
+                sb.Append(activeLine);
         }
         sb.Append("\n\nEnhancements:");
         for (int i = 0; i < choices.Count; i++)

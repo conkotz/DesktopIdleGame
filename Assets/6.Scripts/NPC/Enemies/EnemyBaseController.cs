@@ -436,6 +436,9 @@ public class EnemyBaseController : MonoBehaviour
         if (state == EnemyState.Dead)
             return;
 
+        if (HandleStunnedCombatLockout())
+            return;
+
         // Same vitals regen as the player (life/energy/mana); base stats apply to enemies too.
         if (stats)
             stats.TickRegen(Time.deltaTime);
@@ -506,6 +509,13 @@ public class EnemyBaseController : MonoBehaviour
     {
         if (state == EnemyState.Dead || !_rb)
             return;
+
+        if (IsStunned)
+        {
+            StopHorizontal();
+            EnforceWorldBoundsX();
+            return;
+        }
 
         if (!IsPlayerValidAlive())
         {
@@ -712,7 +722,7 @@ public class EnemyBaseController : MonoBehaviour
         return Mathf.Abs(player.position.x - transform.position.x);
     }
 
-    public bool TryApplyStun(float durationSeconds, float chance01)
+    public bool TryApplyStun(float durationSeconds, float chance01, Transform source = null)
     {
         if (state == EnemyState.Dead || durationSeconds <= 0f)
             return false;
@@ -723,7 +733,43 @@ public class EnemyBaseController : MonoBehaviour
         _stunnedUntil = Mathf.Max(_stunnedUntil, Time.time + durationSeconds);
         _hitQueued = false;
         _queuedHitCommitted = false;
+        if (_rb)
+            StopHorizontal();
+        SetMoving(false);
+        TrySpawnStunStatusPopup(source);
         return true;
+    }
+
+    private bool HandleStunnedCombatLockout()
+    {
+        if (!IsStunned)
+            return false;
+
+        _hitQueued = false;
+        _queuedHitCommitted = false;
+        SetMoving(false);
+        if (_rb)
+            StopHorizontal();
+
+        return true;
+    }
+
+    private void TrySpawnStunStatusPopup(Transform source)
+    {
+        if (DamagePopupSystem.Instance == null)
+            return;
+
+        DamagePopupAnchor anchor = GetComponentInChildren<DamagePopupAnchor>(true);
+        Vector3 anchorPos = anchor != null ? anchor.WorldPos : transform.position;
+        Vector3 dealerPos = source != null ? source.position : transform.position;
+        Vector3 pos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
+
+        Color color = new Color32(38, 22, 12, 255);
+        FloatingDamageTextUI prefab = DamagePopupSystem.Instance.PopupPrefab;
+        if (prefab != null)
+            color = prefab.StunPresentationColor;
+
+        DamagePopupSystem.Instance.SpawnLingeringStatus(pos, "Stunned", color);
     }
 
     private void TryStartEnemyAttack()

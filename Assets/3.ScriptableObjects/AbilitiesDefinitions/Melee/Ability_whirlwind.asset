@@ -19,6 +19,8 @@ MonoBehaviour:
   presentation: {fileID: 11400000, guid: ea0811c54ec34a70b72307f14a91c384, type: 2}
   cooldown: 5
   energyCost: 35
+  manaCost: 0
+  healthCost: 0
   weaponDamageMultiplier: 0.8
   allDamageMultiplier: 1
   fireDamageMultiplier: 0
@@ -29,5 +31,6 @@ MonoBehaviour:
   requiredWeaponType: 1
   sourceSkill: 3
   unlockLevel: 15
+  requireRangeCheckToActivate: 0
+  setsTargetOnHit: 0
   minionSpawnDefinition: {fileID: 0}
-  requireRangeCheckToActivate: 1

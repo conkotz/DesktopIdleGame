@@ -201,6 +201,8 @@ public class HotkeySettingsRowUI : MonoBehaviour
         if (mgr != null)
             mgr.OnBindingsChanged += RefreshDisplay;
 
+        GlobalUserSettings.RestoredDefaults += OnGlobalRestoredDefaults;
+
         ApplyActionLabelFromBindId();
         ApplyNeutralRebindButtonStyle();
         RefreshDisplay();
@@ -217,9 +219,13 @@ public class HotkeySettingsRowUI : MonoBehaviour
         if (mgr != null)
             mgr.OnBindingsChanged -= RefreshDisplay;
 
+        GlobalUserSettings.RestoredDefaults -= OnGlobalRestoredDefaults;
+
         if (_listening)
             StopListening();
     }
+
+    private void OnGlobalRestoredDefaults() => RefreshDisplay();
 
     private void Update()
     {
@@ -353,14 +359,21 @@ public class HotkeySettingsRowUI : MonoBehaviour
         if (listeningText != null)
             listeningText.gameObject.SetActive(false);
 
-        ApplyNeutralRebindButtonStyle();
-
         if (mgr == null || currentKeyText == null)
+        {
+            ApplyRowVisualStyle();
             return;
+        }
 
         KeyCode k = mgr.GetBinding(bindId);
         string s = HotkeyBindingManager.GetDisplayString(k);
         currentKeyText.text = string.IsNullOrEmpty(s) ? "(unbound)" : s;
+        ApplyRowVisualStyle();
+    }
+
+    private void ApplyRowVisualStyle()
+    {
+        ApplyNeutralRebindButtonStyle();
     }
 
     /// <summary>

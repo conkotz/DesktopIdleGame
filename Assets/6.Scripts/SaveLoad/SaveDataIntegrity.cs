@@ -65,8 +65,8 @@ public static class SaveDataIntegrity
             data.gold = GoldSoftCeiling;
         }
 
-        EnsureInventorySlotsCoherent(data, logTag: $"write:{context}");
-        EnsureStorageSlotsCoherent(data, logTag: $"write:{context}");
+        EnsureInventorySlotsCoherent(data, logTag: $"write:{context}", allowEmptyPadding: false);
+        EnsureStorageSlotsCoherent(data, logTag: $"write:{context}", allowEmptyPadding: false);
         TrimGatheringActionBarBlocks(data);
     }
 
@@ -123,7 +123,7 @@ public static class SaveDataIntegrity
         TrimGatheringActionBarBlocks(data);
     }
 
-    private static void EnsureInventorySlotsCoherent(SaveData data, string logTag)
+    private static void EnsureInventorySlotsCoherent(SaveData data, string logTag, bool allowEmptyPadding = true)
     {
         if (data.inventorySlots == null)
             data.inventorySlots = new List<SaveData.InventorySlotData>();
@@ -135,6 +135,9 @@ public static class SaveDataIntegrity
 
         if (data.inventorySlots.Count == 0 && want > 0)
         {
+            if (!allowEmptyPadding)
+                return;
+
             Debug.LogWarning(
                 $"[SaveDataIntegrity] ({logTag}): inventorySlots empty but inventorySlotCount={want}; padding empty slots.");
             for (int i = 0; i < want; i++)
@@ -152,7 +155,7 @@ public static class SaveDataIntegrity
         }
     }
 
-    private static void EnsureStorageSlotsCoherent(SaveData data, string logTag)
+    private static void EnsureStorageSlotsCoherent(SaveData data, string logTag, bool allowEmptyPadding = true)
     {
         if (data.storageSlots == null)
             data.storageSlots = new List<SaveData.InventorySlotData>();
@@ -164,6 +167,9 @@ public static class SaveDataIntegrity
 
         if (data.storageSlots.Count == 0 && want > 0)
         {
+            if (!allowEmptyPadding)
+                return;
+
             Debug.LogWarning(
                 $"[SaveDataIntegrity] ({logTag}): storageSlots empty but storageSlotCount={want}; padding empty slots.");
             for (int i = 0; i < want; i++)

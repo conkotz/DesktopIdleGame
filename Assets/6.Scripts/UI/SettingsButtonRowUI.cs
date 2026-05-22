@@ -28,7 +28,6 @@ public class SettingsButtonRowUI : MonoBehaviour
         }
 
         GlobalUserSettings.RestoredDefaults += OnGlobalRestoredDefaults;
-        PlayerMovementSettingsStore.Changed += OnPlayerMovementModeChanged;
         RefreshDisplay();
     }
 
@@ -38,12 +37,9 @@ public class SettingsButtonRowUI : MonoBehaviour
             button.onClick.RemoveListener(RunAction);
 
         GlobalUserSettings.RestoredDefaults -= OnGlobalRestoredDefaults;
-        PlayerMovementSettingsStore.Changed -= OnPlayerMovementModeChanged;
     }
 
     private void OnGlobalRestoredDefaults() => RefreshDisplay();
-
-    private void OnPlayerMovementModeChanged(PlayerMovementMode _) => RefreshDisplay();
 
     public void RefreshDisplay()
     {
@@ -69,11 +65,6 @@ public class SettingsButtonRowUI : MonoBehaviour
 
             case SettingsButtonActionId.FactoryResetAllSettings:
                 GlobalUserSettings.RestoreAllToDefaults();
-                break;
-
-            case SettingsButtonActionId.PlayerMovementMode:
-                PlayerMovementSettingsStore.ToggleMode();
-                RefreshDisplay();
                 break;
         }
     }
@@ -165,16 +156,12 @@ public class SettingsButtonRowUI : MonoBehaviour
             SettingsButtonActionId.SwapGameScreen => "Change game screen",
             SettingsButtonActionId.FactoryResetAllSettings =>
                 "Reset to defaults(toggles, sliders, hotkeys, window positions)",
-            SettingsButtonActionId.PlayerMovementMode => "Player Movement Mode",
             _ => id.ToString()
         };
     }
 
     private static string GetButtonLabel(SettingsButtonActionId id)
     {
-        if (id == SettingsButtonActionId.PlayerMovementMode)
-            return PlayerMovementSettingsStore.GetButtonLabel(PlayerMovementSettingsStore.GetMode());
-
         return id switch
         {
             SettingsButtonActionId.ReturnAllWindowsToAnchorPoints => "Reset",

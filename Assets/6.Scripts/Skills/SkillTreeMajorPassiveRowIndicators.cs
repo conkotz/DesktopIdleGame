@@ -51,7 +51,8 @@ public static class SkillTreeMajorPassiveRowIndicators
 
         bool pendingEnhancement = sm.GetSkillChoiceSelection(skill.skillType, spineId, -1) < 0;
         showNotSelectedPrompt = pendingEnhancement;
-        showEnhanceButton = pendingEnhancement;
+        // List rows use the not-selected prompt only; enhancement is picked on the skill tree.
+        showEnhanceButton = false;
         return true;
     }
 

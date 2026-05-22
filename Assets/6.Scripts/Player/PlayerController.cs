@@ -114,8 +114,32 @@ public class PlayerController : MonoBehaviour
     public float FacingDirectionX { get; private set; } = 1f;
 
     private bool _keyboardManualMoveThisFrame;
-    public bool UsesKeyboardMovement => PlayerMovementSettingsStore.UsesKeyboardMovement();
+    private bool _moveToPointFromPlayerInput;
     public bool IsManualKeyboardSteering => _keyboardManualMoveThisFrame;
+    public bool IsPerformingAttackAnimation => _attackLocked;
+    /// <summary>Keyboard hold or player click-to-move while repositioning in combat.</summary>
+    public bool IsPlayerSteeringMovement =>
+        _keyboardManualMoveThisFrame ||
+        (_moveToPointFromPlayerInput && state == State.MoveToPoint);
+
+    /// <summary>True when recent horizontal motion is away from the current combat target.</summary>
+    public bool IsMovingAwayFromCombatTarget()
+    {
+        if (combat == null)
+            return false;
+
+        EnemyBaseController target = combat.CurrentTarget;
+        if (target == null || target.IsDead)
+            return false;
+
+        float dx = transform.position.x - _lastX;
+        if (Mathf.Abs(dx) <= flipDeadzone)
+            return false;
+
+        float targetX = target.transform.position.x;
+        float myX = transform.position.x;
+        return dx > 0f && targetX < myX || dx < 0f && targetX > myX;
+    }
 
     private Rigidbody2D _rb;
 
@@ -611,7 +635,7 @@ public class PlayerController : MonoBehaviour
     private void ApplyActionPresentation()
     {
         bool isMoving =
-            _keyboardManualMoveThisFrame ||
+            IsPlayerSteeringMovement ||
             state == State.MoveToPoint ||
             state == State.MoveToTarget ||
             state == State.MoveToPickup;
@@ -701,6 +725,7 @@ public class PlayerController : MonoBehaviour
 
         _attackLocked = true;
         _attackUnlockTime = Time.time + duration;
+        TryFaceCombatTargetDuringAttack();
 
         SetActionOverride(PlayerAction.Fighting);
         ClearFightingOverrideSoon(duration);
@@ -900,7 +925,7 @@ public class PlayerController : MonoBehaviour
     {
         _keyboardManualMoveThisFrame = false;
 
-        if (!UsesKeyboardMovement || movementLocked || _isDead)
+        if (movementLocked || _isDead)
             return;
 
         if (!CanPollKeyboardMovementInput())
@@ -920,6 +945,7 @@ public class PlayerController : MonoBehaviour
             return;
 
         _keyboardManualMoveThisFrame = true;
+        NotifyPlayerInitiatedMovement();
         CancelAutoMovementFromKeyboardSteering();
     }
 
@@ -968,6 +994,9 @@ public class PlayerController : MonoBehaviour
             return;
 
         if (!CanPollWorldInteractHotkey())
+            return;
+
+        if (NPCDialogueBoxUI.TryConsumeInteractHotkey())
             return;
 
         float px = transform.position.x;
@@ -1084,6 +1113,7 @@ public class PlayerController : MonoBehaviour
         {
             _attackLocked = true;
             _attackUnlockTime = Time.time + Mathf.Max(0.05f, attackLockSeconds);
+            TryFaceCombatTargetDuringAttack();
             SetActionOverride(PlayerAction.Fighting);
         }
         else
@@ -1102,6 +1132,7 @@ public class PlayerController : MonoBehaviour
 
         _attackLocked = true;
         _attackUnlockTime = Mathf.Max(_attackUnlockTime, unlockTime);
+        TryFaceCombatTargetDuringAttack();
         SetActionOverride(PlayerAction.Fighting);
 
         float remaining = Mathf.Max(0.05f, unlockTime - Time.time);
@@ -1515,11 +1546,12 @@ public class PlayerController : MonoBehaviour
 
         if (winner != null)
         {
-            // Enemy click = always allowed (sets target)
             var enemyClick = winner.GetComponentInParent<EnemyClick>();
             if (enemyClick != null && combat != null)
             {
-                combat.SetTarget(enemyClick.GetEnemy());
+                EnemyBaseController clickedEnemy = enemyClick.GetEnemy();
+                if (clickedEnemy != null)
+                    combat.EngageTargetFromPlayerInput(clickedEnemy);
                 return;
             }
 
@@ -1531,26 +1563,23 @@ public class PlayerController : MonoBehaviour
                 if (AnyEnemyOnMap || InCombat)
                 {
                     ShowPopup("Can't gather while enemies are on the map!");
-                    MoveToPointX(world.x);
+                    MoveToPointX(world.x, fromPlayerInput: true);
                     return;
                 }
+            }
 
-                SelectNode(node);
+            if (WorldInteractRouter.IsRoutableCollider(winner))
+            {
+                WorldInteractRouter.RouteInteract(winner, this);
                 return;
             }
 
-            // Optional: pickups etc. (leave as-is)
-            // If you want pickups also to pass through during combat, handle similarly here.
-
-            return; // other interactables consume click
+            return;
         }
 
         InterruptWorkIfNeeded();
 
-        combat?.ClearTarget();
-
-        if (!UsesKeyboardMovement)
-            MoveToPointX(world.x);
+        MoveToPointX(world.x, fromPlayerInput: true);
     }
 
     private void InterruptWorkIfNeeded()
@@ -1574,9 +1603,35 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    public void MoveToPointX(float x)
+    /// <summary>
+    /// Player chose to move (click-to-move or keyboard). Stops combat chase, clears interact focus, cancels walk-to NPC/merchant.
+    /// </summary>
+    public void NotifyPlayerInitiatedMovement()
+    {
+        combat?.NotifyPlayerInitiatedMovement();
+        PlayerWorldInteractFocus.ClearForPlayer(this);
+        NPCInteractionSettings.CancelPendingInteract();
+        MerchantClick.CancelPendingOpen();
+    }
+
+    /// <summary>Clears manual repositioning so combat can chase the clicked enemy into range.</summary>
+    public void PrepareForCombatEngageInput()
+    {
+        InterruptWorkIfNeeded();
+        _moveToPointFromPlayerInput = false;
+        if (state == State.MoveToPoint)
+            StopMoveOnly();
+        PlayerWorldInteractFocus.ClearForPlayer(this);
+        NPCInteractionSettings.CancelPendingInteract();
+        MerchantClick.CancelPendingOpen();
+    }
+
+    public void MoveToPointX(float x, bool fromPlayerInput = false)
     {
         if (_isDead) return;
+
+        if (fromPlayerInput)
+            NotifyPlayerInitiatedMovement();
 
         CaptureWoodcuttingFlowLingerOnGatherStop();
         CaptureFishingCalmWatersOnGatherStop();
@@ -1592,6 +1647,7 @@ public class PlayerController : MonoBehaviour
         GetClampXMinMax(out float min, out float max);
 
         moveTargetX = Mathf.Clamp(x, min, max);
+        _moveToPointFromPlayerInput = fromPlayerInput;
         state = State.MoveToPoint;
 
         equipment?.ClearMainHandVisualOverride();
@@ -1623,7 +1679,10 @@ public class PlayerController : MonoBehaviour
     public void StopMoveOnly()
     {
         if (state == State.MoveToPoint)
+        {
+            _moveToPointFromPlayerInput = false;
             state = State.Idle;
+        }
     }
 
     private void TickMoveToTarget()
@@ -2536,6 +2595,7 @@ public class PlayerController : MonoBehaviour
 
         targetNode = null;
         _pickupTarget = null;
+        _moveToPointFromPlayerInput = false;
         state = State.Idle;
 
         _accumItems = 0f;
@@ -3584,23 +3644,40 @@ public class PlayerController : MonoBehaviour
             return;
 
         float currentX = transform.position.x;
-        // ✅ Combat facing override
+
+        if (_attackLocked && TryFaceCombatTargetDuringAttack())
+        {
+            _lastX = currentX;
+            return;
+        }
+
+        if (state == State.MoveToPoint && _moveToPointFromPlayerInput)
+        {
+            bool faceLeft = moveTargetX < currentX;
+            bool flip = faceLeft;
+            if (invertFlip) flip = !flip;
+            ApplyVisualFlip(flip);
+            _lastX = currentX;
+            return;
+        }
+
         if (combat != null)
         {
-            var target = combat.CurrentTarget;
+            EnemyBaseController target = combat.CurrentTarget;
 
-            if (target != null && !target.IsDead)
+            if (target != null && !target.IsDead &&
+                !IsPlayerSteeringMovement &&
+                !IsMovingAwayFromCombatTarget() &&
+                !(state == State.MoveToPoint && _moveToPointFromPlayerInput))
             {
-                float targetX = target.transform.position.x;          
-
+                float targetX = target.transform.position.x;
                 bool faceLeft = targetX < currentX;
-
                 bool flip = faceLeft;
                 if (invertFlip) flip = !flip;
 
                 ApplyVisualFlip(flip);
                 _lastX = currentX;
-                return; // IMPORTANT: skip normal movement-based flip
+                return;
             }
         }
 
@@ -3656,6 +3733,20 @@ public class PlayerController : MonoBehaviour
         if (invertFlip) flip = !flip;
 
         ApplyVisualFlip(flip);
+    }
+
+    /// <summary>Faces the current combat target while an attack clip is playing (overrides movement-facing).</summary>
+    private bool TryFaceCombatTargetDuringAttack()
+    {
+        if (combat == null)
+            return false;
+
+        EnemyBaseController target = combat.CurrentTarget;
+        if (target == null || target.IsDead)
+            return false;
+
+        FaceTargetX(target.transform.position.x);
+        return true;
     }
 
     /// <summary>

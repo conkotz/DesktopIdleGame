@@ -27,9 +27,18 @@ public enum AbilityTag
 }
 
 /// <summary>
-/// Keyboard movement mode only (see <see cref="AbilityDefinition.requireRangeCheckToActivate"/>).
+/// When Yes, action-bar use requires a valid enemy in range (see <see cref="AbilityDefinition.requireRangeCheckToActivate"/>).
 /// </summary>
 public enum AbilityRequireRangeCheckToActivate
+{
+    No,
+    Yes
+}
+
+/// <summary>
+/// When Yes, using the ability sets the hit enemy as combat target (see <see cref="AbilityDefinition.setsTargetOnHit"/>).
+/// </summary>
+public enum AbilitySetsTargetOnHit
 {
     No,
     Yes
@@ -93,15 +102,23 @@ public class AbilityDefinition : ScriptableObject
     public SkillType sourceSkill;
     public int unlockLevel = 1;
 
-    [Header("Keyboard Input")]
+    [Header("Combat Targeting")]
     [Tooltip(
-        "Keyboard movement mode only. Yes: action-bar use requires a valid enemy in this ability's range, auto-targets the closest, and blocks with \"No targets in range\" when none. " +
-        "No: the ability can be used without an enemy (e.g. Flame Charge, buffs). Mouse movement mode is unchanged.")]
+        "Yes: action-bar use requires a valid enemy in this ability's range, auto-targets the closest, and blocks with \"No targets in range\" when none. " +
+        "No: the ability can be used without an enemy (e.g. Flame Charge, buffs).")]
     public AbilityRequireRangeCheckToActivate requireRangeCheckToActivate = AbilityRequireRangeCheckToActivate.No;
 
-    /// <summary>True when <see cref="requireRangeCheckToActivate"/> is Yes (keyboard-mode range gate).</summary>
+    /// <summary>True when <see cref="requireRangeCheckToActivate"/> is Yes.</summary>
     public bool RequiresKeyboardRangeCheckToActivate() =>
         requireRangeCheckToActivate == AbilityRequireRangeCheckToActivate.Yes;
+
+    [Tooltip(
+        "Yes: using the ability on an enemy sets them as the combat target (action-bar prep and channel locks like Bladestorm). " +
+        "No: the ability can still require range to cast but does not change the player's target (e.g. Whirlwind).")]
+    public AbilitySetsTargetOnHit setsTargetOnHit = AbilitySetsTargetOnHit.Yes;
+
+    /// <summary>True when <see cref="setsTargetOnHit"/> is Yes.</summary>
+    public bool SetsTargetOnHit() => setsTargetOnHit == AbilitySetsTargetOnHit.Yes;
 
     [Header("Summon (optional)")]
     [Tooltip(

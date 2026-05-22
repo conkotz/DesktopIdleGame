@@ -99,24 +99,17 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0f)] private float shadowStrikeDepartSmokeWispEmitSeconds = 0.35f;
 
     [Header("Bladestorm (Melee Lv45) VFX")]
-    [SerializeField] private Color bladestormStabColor = new Color(0.92f, 0.95f, 1f, 0.9f);
-    [SerializeField, Min(0.02f)] private float bladestormStabFadeSeconds = 0.08f;
-    [SerializeField, Min(0.01f)] private float bladestormStabExtendSeconds = 0.045f;
-    [SerializeField, Min(0.01f)] private float bladestormStabLineWidth = 0.16f;
-    [SerializeField, Min(0.3f)] private float bladestormStabReach = 1.15f;
-    [Tooltip("How often a random outward stab line spawns during the channel.")]
-    [SerializeField, Min(0.05f)] private float bladestormStabEmitIntervalSeconds = 0.3f;
-    [Tooltip("Stabs fan up and down from the horizontal facing axis (± degrees pitch).")]
-    [SerializeField, Range(5f, 75f), FormerlySerializedAs("bladestormStabConeHalfDegrees")]
-    private float bladestormStabVerticalHalfDegrees = 35f;
-    [SerializeField] private Vector3 bladestormStabOriginOffset = new Vector3(0.12f, 0.55f, 0f);
-    [SerializeField] private Color bladestormFinaleSlashColor = new Color(1f, 0.72f, 0.28f, 0.95f);
-    [SerializeField, Min(0.3f)] private float bladestormFinaleSlashDropHeight = 2.2f;
-    [SerializeField, Min(0.2f)] private float bladestormFinaleSlashDepth = 1.35f;
-    [SerializeField, Min(0.01f)] private float bladestormFinaleSlashLineWidth = 0.34f;
-    [SerializeField, Min(0.01f)] private float bladestormFinaleSlashExtendSeconds = 0.06f;
-    [SerializeField, Min(0.02f)] private float bladestormFinaleSlashFadeSeconds = 0.14f;
-    [SerializeField] private float bladestormFinaleSlashTargetYOffset = 0.45f;
+    [Tooltip("Yellow diagonal slash over the target on each Relentless Execution hit (parry-style).")]
+    [SerializeField] private Color bladestormHitSlashColor = new Color(1f, 0.88f, 0.18f, 1f);
+    [SerializeField, Min(0.01f)] private float bladestormHitSlashLineWidth = 0.17f;
+    [SerializeField, Min(0.05f)] private float bladestormHitSlashDuration = 0.22f;
+    [SerializeField] private Vector3 bladestormHitSlashCenterOffset = new Vector3(0f, 0.55f, 0f);
+    [SerializeField] private Vector2 bladestormHitSlashSpawnJitter = new Vector2(0.22f, 0.18f);
+    [SerializeField, Range(0f, 60f)] private float bladestormHitSlashAngleJitterDegrees = 28f;
+    [SerializeField, Min(0.1f)] private float bladestormHitSlashHalfLength = 0.52f;
+    [SerializeField, Min(1f)] private float bladestormFinaleSlashWidthScale = 1.5f;
+    [SerializeField, Min(1f)] private float bladestormFinaleSlashDurationScale = 1.2f;
+    [SerializeField, Min(1f)] private float bladestormFinaleSlashLengthScale = 1.25f;
 
     [Header("Final Severance (Melee Lv45) VFX")]
     [SerializeField] private Color finalSeveranceWindupStartColor = new Color(1f, 0.92f, 0.2f, 0.6f);
@@ -265,7 +258,6 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private SpriteRenderer _executionersDescentMarkRenderer;
     private Coroutine _executionersDescentShockwaveRoutine;
     private float _executionersDescentTotalSeconds = 3f;
-    private Coroutine _bladestormStabSprayRoutine;
 
     private const string ResourcesUrParticleMaterialPath = "Vfx/AbilityVfx_ParticlesUnlit";
     private static bool s_LoggedMissingUrParticleMaterial;
@@ -313,7 +305,6 @@ public class PlayerAbilityVfxController : MonoBehaviour
         DestroyBattleTranceGlowVfx();
         EndFlameChargePlayerGlow();
         DestroyAllFlameChargeDashTrailVfx();
-        EndBladestormStabSpray();
         StopAshenRebirthPhoenixVfx();
     }
 
@@ -980,25 +971,93 @@ public class PlayerAbilityVfxController : MonoBehaviour
     /// <summary>Simple diagonal slash between player and attacker (default Parry feedback; no swing cadence).</summary>
     public void SpawnParrySlashLine(Vector3 playerWorld, Vector3 enemyWorld)
     {
-        StartCoroutine(CoParrySlashLine(playerWorld + parrySlashHeightOffset, enemyWorld + parrySlashHeightOffset));
+        Vector3 height = parrySlashHeightOffset;
+        SpawnDiagonalMeleeSlashLine(
+            playerWorld + height,
+            enemyWorld + height,
+            parrySlashColor,
+            parrySlashLineWidth,
+            parrySlashDuration,
+            sortingOrderBump: 12,
+            objectName: "ParrySlash");
     }
 
-    private IEnumerator CoParrySlashLine(Vector3 playerPos, Vector3 enemyPos)
+    /// <summary>Parry-style yellow slash on each Relentless Execution (Bladestorm) hit.</summary>
+    public void SpawnBladestormHitSlash(Vector3 playerWorld, Vector3 enemyWorld)
     {
-        GameObject root = new GameObject("ParrySlash");
-        LineRenderer line = root.AddComponent<LineRenderer>();
-        line.useWorldSpace = true;
-        line.positionCount = 2;
-        line.startWidth = parrySlashLineWidth;
-        line.endWidth = parrySlashLineWidth * 0.35f;
-        line.numCornerVertices = 2;
-        line.numCapVertices = 2;
-        line.material = new Material(Shader.Find("Sprites/Default"));
-        line.startColor = parrySlashColor;
-        line.endColor = parrySlashColor;
-        if (!TryApplyPlayerSpriteSortingToRenderer(line, 12))
-            line.sortingOrder = 24;
+        SpawnBladestormSlashOverEnemy(
+            playerWorld,
+            enemyWorld,
+            bladestormHitSlashLineWidth,
+            bladestormHitSlashDuration,
+            bladestormHitSlashHalfLength,
+            sortingOrderBump: 16,
+            objectName: "BladestormHitSlash");
+    }
 
+    /// <summary>Larger finale slash (same style as channel hits).</summary>
+    public void SpawnBladestormFinaleSlash(Vector3 playerWorld, Vector3 enemyWorld)
+    {
+        SpawnBladestormSlashOverEnemy(
+            playerWorld,
+            enemyWorld,
+            bladestormHitSlashLineWidth * bladestormFinaleSlashWidthScale,
+            bladestormHitSlashDuration * bladestormFinaleSlashDurationScale,
+            bladestormHitSlashHalfLength * bladestormFinaleSlashLengthScale,
+            sortingOrderBump: 18,
+            objectName: "BladestormFinaleSlash");
+    }
+
+    private void SpawnBladestormSlashOverEnemy(
+        Vector3 playerWorld,
+        Vector3 enemyWorld,
+        float lineWidth,
+        float durationSeconds,
+        float halfLength,
+        int sortingOrderBump,
+        string objectName)
+    {
+        Vector3 center = enemyWorld + bladestormHitSlashCenterOffset;
+        if (bladestormHitSlashSpawnJitter.x > 0f)
+            center.x += UnityEngine.Random.Range(-bladestormHitSlashSpawnJitter.x, bladestormHitSlashSpawnJitter.x);
+        if (bladestormHitSlashSpawnJitter.y > 0f)
+            center.y += UnityEngine.Random.Range(-bladestormHitSlashSpawnJitter.y, bladestormHitSlashSpawnJitter.y);
+
+        float facingX = enemyWorld.x - playerWorld.x;
+        if (Mathf.Abs(facingX) < 0.01f)
+            facingX = player != null ? GetCombatFacingSign() : 1f;
+        facingX = Mathf.Sign(facingX);
+
+        // Default slash leans toward the player (readable chop on the target).
+        float baseAngleDeg = facingX > 0f ? -48f : -132f;
+        float jitter = Mathf.Max(0f, bladestormHitSlashAngleJitterDegrees);
+        float angleDeg = baseAngleDeg + UnityEngine.Random.Range(-jitter, jitter);
+        float angleRad = angleDeg * Mathf.Deg2Rad;
+        Vector3 slashDir = new Vector3(Mathf.Cos(angleRad), Mathf.Sin(angleRad), 0f);
+
+        float halfLen = Mathf.Max(0.1f, halfLength) * UnityEngine.Random.Range(0.88f, 1.12f);
+        Vector3 start = center + slashDir * halfLen;
+        Vector3 end = center - slashDir * halfLen;
+
+        StartCoroutine(CoMeleeSlashSegment(
+            start,
+            end,
+            bladestormHitSlashColor,
+            lineWidth,
+            durationSeconds,
+            sortingOrderBump,
+            objectName));
+    }
+
+    private void SpawnDiagonalMeleeSlashLine(
+        Vector3 playerPos,
+        Vector3 enemyPos,
+        Color color,
+        float lineWidth,
+        float durationSeconds,
+        int sortingOrderBump,
+        string objectName)
+    {
         Vector3 mid = (playerPos + enemyPos) * 0.5f;
         Vector3 toEnemy = enemyPos - playerPos;
         float span = Mathf.Max(0.35f, toEnemy.magnitude);
@@ -1006,12 +1065,41 @@ public class PlayerAbilityVfxController : MonoBehaviour
         Vector3 slashDir = (dir + Vector3.down * 0.85f).normalized;
         Vector3 start = mid + slashDir * (span * 0.42f);
         Vector3 end = mid - slashDir * (span * 0.42f);
+
+        StartCoroutine(CoMeleeSlashSegment(
+            start, end, color, lineWidth, durationSeconds, sortingOrderBump, objectName));
+    }
+
+    private IEnumerator CoMeleeSlashSegment(
+        Vector3 start,
+        Vector3 end,
+        Color color,
+        float lineWidth,
+        float durationSeconds,
+        int sortingOrderBump,
+        string objectName)
+    {
+        GameObject root = new GameObject(string.IsNullOrWhiteSpace(objectName) ? "MeleeSlash" : objectName);
+        LineRenderer line = root.AddComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.positionCount = 2;
+        float width = Mathf.Max(0.01f, lineWidth);
+        line.startWidth = width;
+        line.endWidth = width * 0.35f;
+        line.numCornerVertices = 2;
+        line.numCapVertices = 2;
+        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.startColor = color;
+        line.endColor = color;
+        if (!TryApplyPlayerSpriteSortingToRenderer(line, sortingOrderBump))
+            line.sortingOrder = 24 + sortingOrderBump;
+
         line.SetPosition(0, start);
         line.SetPosition(1, end);
 
-        float duration = Mathf.Max(0.05f, parrySlashDuration);
+        float duration = Mathf.Max(0.05f, durationSeconds);
         float elapsed = 0f;
-        Color baseColor = parrySlashColor;
+        Color baseColor = color;
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
@@ -2393,188 +2481,6 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (!string.IsNullOrWhiteSpace(flameChargeGroundSortingLayer))
             renderer.sortingLayerName = flameChargeGroundSortingLayer;
         renderer.sortingOrder = flameChargeGroundSortingOrder;
-    }
-
-    public void BeginBladestormStabSpray(float channelSeconds, EnemyBaseController targetBias)
-    {
-        EndBladestormStabSpray();
-        if (player == null || channelSeconds <= 0f)
-            return;
-
-        _ = targetBias;
-        _bladestormStabSprayRoutine = StartCoroutine(CoBladestormStabSpray(channelSeconds));
-    }
-
-    public void EndBladestormStabSpray()
-    {
-        if (_bladestormStabSprayRoutine == null)
-            return;
-
-        StopCoroutine(_bladestormStabSprayRoutine);
-        _bladestormStabSprayRoutine = null;
-    }
-
-    private IEnumerator CoBladestormStabSpray(float channelSeconds)
-    {
-        float interval = Mathf.Max(0.05f, bladestormStabEmitIntervalSeconds);
-        float endTime = Time.time + channelSeconds;
-
-        while (Time.time < endTime)
-        {
-            if (player == null)
-                yield break;
-
-            SpawnBladestormRandomStab();
-            yield return new WaitForSeconds(interval);
-        }
-
-        _bladestormStabSprayRoutine = null;
-    }
-
-    private void SpawnBladestormRandomStab()
-    {
-        if (player == null)
-            return;
-
-        float facingX = GetCombatFacingSign();
-        Vector3 origin = player.transform.position + new Vector3(
-            bladestormStabOriginOffset.x * facingX,
-            bladestormStabOriginOffset.y,
-            bladestormStabOriginOffset.z);
-
-        // Flat horizontal axis in the facing direction; pitch up/down from that axis only.
-        float verticalHalf = Mathf.Max(5f, bladestormStabVerticalHalfDegrees);
-        float pitchDeg = UnityEngine.Random.Range(-verticalHalf, verticalHalf);
-        float angleDeg = facingX > 0f ? pitchDeg : 180f - pitchDeg;
-        float angleRad = angleDeg * Mathf.Deg2Rad;
-        Vector3 dir = new Vector3(Mathf.Cos(angleRad), Mathf.Sin(angleRad), 0f);
-        float reach = bladestormStabReach * UnityEngine.Random.Range(0.75f, 1.2f);
-        Vector3 end = origin + dir * reach;
-
-        StartCoroutine(CoBladestormStabLineExtend(origin, end));
-    }
-
-    public void SpawnBladestormFinaleDownwardSlash(Vector3 targetWorld)
-    {
-        Vector3 anchor = new Vector3(
-            targetWorld.x,
-            targetWorld.y + bladestormFinaleSlashTargetYOffset,
-            targetWorld.z);
-        Vector3 start = anchor + Vector3.up * bladestormFinaleSlashDropHeight;
-        Vector3 end = anchor - Vector3.up * bladestormFinaleSlashDepth;
-        StartCoroutine(CoBladestormFinaleDownwardSlash(start, end));
-    }
-
-    private IEnumerator CoBladestormFinaleDownwardSlash(Vector3 start, Vector3 end)
-    {
-        GameObject root = new GameObject("BladestormFinaleSlash");
-        LineRenderer lr = root.AddComponent<LineRenderer>();
-        lr.positionCount = 2;
-        lr.useWorldSpace = true;
-        lr.SetPosition(0, start);
-        lr.SetPosition(1, start);
-        lr.startWidth = bladestormFinaleSlashLineWidth;
-        lr.endWidth = bladestormFinaleSlashLineWidth * 0.18f;
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-        Color tipColor = new Color(
-            bladestormFinaleSlashColor.r,
-            bladestormFinaleSlashColor.g,
-            bladestormFinaleSlashColor.b,
-            bladestormFinaleSlashColor.a * 0.2f);
-        lr.startColor = bladestormFinaleSlashColor;
-        lr.endColor = tipColor;
-        if (!TryApplyPlayerSpriteSortingToRenderer(lr, 18))
-            lr.sortingOrder = 28;
-
-        float extendSeconds = Mathf.Max(0.01f, bladestormFinaleSlashExtendSeconds);
-        float fadeSeconds = Mathf.Max(0.02f, bladestormFinaleSlashFadeSeconds);
-        float extendElapsed = 0f;
-        while (extendElapsed < extendSeconds)
-        {
-            extendElapsed += Time.deltaTime;
-            float u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(extendElapsed / extendSeconds));
-            Vector3 tip = Vector3.Lerp(start, end, u);
-            lr.SetPosition(0, start);
-            lr.SetPosition(1, tip);
-            float widthT = Mathf.Lerp(bladestormFinaleSlashLineWidth, bladestormFinaleSlashLineWidth * 0.35f, u);
-            lr.startWidth = widthT;
-            lr.endWidth = widthT * 0.12f;
-            yield return null;
-        }
-
-        lr.SetPosition(0, start);
-        lr.SetPosition(1, end);
-
-        float fadeElapsed = 0f;
-        while (fadeElapsed < fadeSeconds)
-        {
-            fadeElapsed += Time.deltaTime;
-            float u = Mathf.Clamp01(fadeElapsed / fadeSeconds);
-            float alpha = bladestormFinaleSlashColor.a * (1f - u);
-            Color c0 = bladestormFinaleSlashColor;
-            Color c1 = tipColor;
-            c0.a = alpha;
-            c1.a = alpha * 0.2f;
-            lr.startColor = c0;
-            lr.endColor = c1;
-            yield return null;
-        }
-
-        Destroy(root);
-    }
-
-    private IEnumerator CoBladestormStabLineExtend(Vector3 origin, Vector3 end)
-    {
-        GameObject root = new GameObject("BladestormStab");
-        LineRenderer lr = root.AddComponent<LineRenderer>();
-        lr.positionCount = 2;
-        lr.useWorldSpace = true;
-        lr.SetPosition(0, origin);
-        lr.SetPosition(1, origin);
-        lr.startWidth = bladestormStabLineWidth;
-        lr.endWidth = bladestormStabLineWidth * 0.2f;
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-        Color tipColor = new Color(bladestormStabColor.r, bladestormStabColor.g, bladestormStabColor.b, 0.12f);
-        lr.startColor = bladestormStabColor;
-        lr.endColor = tipColor;
-        if (!TryApplyPlayerSpriteSortingToRenderer(lr, 14))
-            lr.sortingOrder = 24;
-
-        float extendSeconds = Mathf.Max(0.01f, bladestormStabExtendSeconds);
-        float fadeSeconds = Mathf.Max(0.02f, bladestormStabFadeSeconds);
-        float extendElapsed = 0f;
-        while (extendElapsed < extendSeconds)
-        {
-            extendElapsed += Time.deltaTime;
-            float u = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(extendElapsed / extendSeconds));
-            Vector3 tip = Vector3.Lerp(origin, end, u);
-            lr.SetPosition(0, origin);
-            lr.SetPosition(1, tip);
-            float widthT = Mathf.Lerp(bladestormStabLineWidth, bladestormStabLineWidth * 0.25f, u);
-            lr.startWidth = widthT;
-            lr.endWidth = widthT * 0.15f;
-            yield return null;
-        }
-
-        lr.SetPosition(0, origin);
-        lr.SetPosition(1, end);
-
-        float fadeElapsed = 0f;
-        while (fadeElapsed < fadeSeconds)
-        {
-            fadeElapsed += Time.deltaTime;
-            float u = Mathf.Clamp01(fadeElapsed / fadeSeconds);
-            float alpha = bladestormStabColor.a * (1f - u);
-            Color c0 = bladestormStabColor;
-            c0.a = alpha;
-            Color c1 = tipColor;
-            c1.a = alpha * 0.15f;
-            lr.startColor = c0;
-            lr.endColor = c1;
-            yield return null;
-        }
-
-        Destroy(root);
     }
 
     public void BeginExecutionersDescent(EnemyBaseController target, Vector3 targetWorld, float descentSeconds)

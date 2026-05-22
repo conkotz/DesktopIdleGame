@@ -54391,7 +54391,7 @@ Transform:
   m_GameObject: {fileID: 999888770}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 4.6264095, z: 0}
+  m_LocalPosition: {x: 0, y: 3.293073, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -108356,7 +108356,7 @@ MonoBehaviour:
   battleEngineOverloadHudIcon: {fileID: 7320906411373716286, guid: a17a2ef74729dfa4d87c062ba89e97d2, type: 3}
   ashenRebirthHudIcon: {fileID: -4453784588268070965, guid: 33df198e24b717b43b99976e8859045e, type: 3}
   tacticianDualityHudIcon: {fileID: -4346618920386859694, guid: 369297b8e67607f4abb6bc089c2c266b, type: 3}
-  sprintHudIcon: {fileID: 0}
+  sprintHudIcon: {fileID: -7703584424226310029, guid: 9e05bde386f8e0044ac6bdf2d98b7c37, type: 3}
   tooltipMeasureRect: {fileID: 0}
   tooltipHeightRect: {fileID: 0}
   tooltipPreferredSide: 1

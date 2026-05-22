@@ -88,6 +88,7 @@ public static class WorldInteractRouter
 
         StorageClick targetStorage = winnerCol.GetComponentInParent<StorageClick>();
         DismissPreviousInteractUiForNewTarget(winnerCol, targetStorage);
+        PlayerWorldInteractFocus.TrySetFocusFromCollider(player, winnerCol);
 
         StorageClick storage = targetStorage;
         if (storage != null)
@@ -99,9 +100,14 @@ public static class WorldInteractRouter
         var enemyClick = winnerCol.GetComponentInParent<EnemyClick>();
         if (enemyClick != null)
         {
-            PlayerCombatController combat = player.GetComponent<PlayerCombatController>();
-            if (combat != null)
-                combat.SetTarget(enemyClick.GetEnemy());
+            EnemyBaseController clickedEnemy = enemyClick.GetEnemy();
+            if (clickedEnemy != null)
+            {
+                PlayerCombatController combat = player.GetComponent<PlayerCombatController>();
+                if (combat != null)
+                    combat.EngageTargetFromPlayerInput(clickedEnemy);
+            }
+
             return;
         }
 
@@ -182,6 +188,9 @@ public static class WorldInteractRouter
             NPCDialogueBoxUI.DismissAllActive();
     }
 
+    /// <summary>World transform used for interact focus icon and dialogue dismiss grouping.</summary>
+    public static Transform ResolveInteractFocusRoot(Collider2D col) => GetInteractDismissRoot(col);
+
     private static Transform GetInteractDismissRoot(Collider2D col)
     {
         if (!col)
@@ -203,10 +212,13 @@ public static class WorldInteractRouter
         if (questGiver)
             return questGiver.transform;
 
+        if (IsNoticeBoardCollider(col))
+            return col.transform;
+
         return col.transform;
     }
 
-    private static bool IsRoutableCollider(Collider2D col)
+    public static bool IsRoutableCollider(Collider2D col)
     {
         if (!col)
             return false;

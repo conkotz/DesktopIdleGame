@@ -342,14 +342,32 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             {
                 float perSecond = elapsed > 0.001f ? Mathf.Max(0f, e.totalDamage) / elapsed : 0f;
                 sb.Append(perSecond.ToString("0.#"));
+                sb.Append(" DPS");
             }
             else
             {
                 sb.Append(Mathf.RoundToInt(Mathf.Max(0f, e.totalDamage)));
             }
+
+            sb.Append(FormatOutgoingSourceHitUseSuffix(e));
         }
 
         individualOutgoingDamageSourcesText.text = sb.ToString();
+    }
+
+    private static string FormatOutgoingSourceHitUseSuffix(PlayerCombatController.OutgoingDamageSourceEntry entry)
+    {
+        if (entry.hitCount <= 0 && entry.useCount <= 0)
+            return "";
+
+        if (entry.tracksUses)
+        {
+            return entry.hitCount > 0
+                ? $" ({entry.hitCount} hits, {entry.useCount} uses)"
+                : $" ({entry.useCount} uses)";
+        }
+
+        return entry.hitCount > 0 ? $" ({entry.hitCount} hits)" : "";
     }
 
     private void EnsureScrollViewMasking()

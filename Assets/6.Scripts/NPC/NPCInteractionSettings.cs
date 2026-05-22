@@ -144,6 +144,9 @@ public class NPCInteractionSettings : MonoBehaviour
     private Coroutine _interactWhenArrivedRoutine;
     private static NPCInteractionSettings _pendingInteract;
 
+    /// <summary>NPC the player is walking to interact with (shows target indicator until arrival).</summary>
+    public static NPCInteractionSettings PendingInteract => _pendingInteract;
+
     private bool _watchQuestAcceptedBaselineReady;
     private bool _watchQuestAcceptedWasAccepted;
 

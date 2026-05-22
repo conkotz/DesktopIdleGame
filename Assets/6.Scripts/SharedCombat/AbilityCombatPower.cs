@@ -73,7 +73,7 @@ public static class AbilityCombatPower
     public const float TacticianShieldBlockChanceBonus = 0.05f;
     public const int TacticianShieldFlatResistBonus = 10;
     public const float TacticianShieldBlockMitigationBonus = 0.10f;
-    public const float TacticianStunDurationSeconds = 1.5f;
+    public const float TacticianStunDurationSeconds = 3f;
     public const float TacticianDualityRecentSwapSeconds = 8f;
 
     public const int TacticianEnhancementPerfectForm = 0;

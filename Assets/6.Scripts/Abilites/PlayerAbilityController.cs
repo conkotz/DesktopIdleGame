@@ -464,7 +464,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!IsAbilityAllowedBySkillProgress(def) || !CanUseWithEquippedWeapon(def))
             yield break;
 
-        TrySpawnSoulforgedWeaponMinion(def);
+        TrySpawnSoulforgedWeaponMinion(def, recordDamageMeterSummonUse: false);
     }
 
     /// <summary>Dev testing — clears action-bar ability cooldowns, GCD, and Flame Charge charge timers.</summary>
@@ -1110,6 +1110,13 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void LogAbilityUsed(AbilityDefinition def)
     {
+        if (def != null && !def.SpawnsMinionOnCast)
+        {
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+            combat?.RecordOutgoingSourceUse(GetAbilityOutgoingDamageSourceLabel(def.abilityId));
+        }
+
         ApplyBattleEngineOnAbilityCommitEffects(def, beginHitSession: true);
     }
 
@@ -1649,13 +1656,10 @@ public class PlayerAbilityController : MonoBehaviour
     private static float _nextNoTargetsInRangeLogTime = -999f;
 
     /// <summary>
-    /// Keyboard movement mode: pick the closest valid enemy for this ability, set combat target, or block the cast.
+    /// Pick the closest valid enemy for this ability, set combat target, or block the cast when range check applies.
     /// </summary>
     public bool TryPrepareKeyboardModeAbilityTarget(string abilityId)
     {
-        if (!PlayerMovementSettingsStore.UsesKeyboardMovement())
-            return true;
-
         AbilityDefinition def = GetAbilityDefinition(abilityId);
         if (!def || !def.RequiresKeyboardRangeCheckToActivate())
             return true;
@@ -1664,7 +1668,8 @@ public class PlayerAbilityController : MonoBehaviour
         {
             if (combat == null)
                 combat = GetComponent<PlayerCombatController>();
-            combat?.SetTarget(target);
+            if (def.SetsTargetOnHit())
+                combat?.SetTargetIfNone(target);
             return true;
         }
 
@@ -1679,6 +1684,23 @@ public class PlayerAbilityController : MonoBehaviour
 
         _nextNoTargetsInRangeLogTime = Time.time + NoTargetsInRangeLogCooldownSeconds;
         GameLog.Add(NoTargetsInRangeLogMessage, GameLog.CannotMessageColor);
+    }
+
+    private EnemyBaseController GetPreferredCombatEngagedEnemy()
+    {
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        return combat != null ? combat.GetPrimaryEngagedEnemy() : null;
+    }
+
+    private bool TryPreferEngagedEnemy(System.Func<EnemyBaseController, bool> isValid, out EnemyBaseController target)
+    {
+        target = GetPreferredCombatEngagedEnemy();
+        if (target != null && isValid(target))
+            return true;
+
+        target = null;
+        return false;
     }
 
     private bool TryFindKeyboardModeAbilityTarget(AbilityDefinition def, out EnemyBaseController target)
@@ -1715,6 +1737,18 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (combat != null)
         {
+            EnemyBaseController engaged = combat.GetPrimaryEngagedEnemy();
+            if (engaged != null)
+            {
+                if (combat.IsEnemyWithinAttackRange(engaged))
+                {
+                    target = engaged;
+                    return true;
+                }
+
+                return false;
+            }
+
             target = combat.FindClosestEnemyInAttackRange();
             if (target != null)
                 return true;
@@ -1732,6 +1766,15 @@ public class PlayerAbilityController : MonoBehaviour
         float radius = GetWhirlwindEffectiveRadius();
         float ownerX = transform.position.x;
         float ownerHalf = GetOwnerHalfWidthX();
+
+        EnemyBaseController engaged = GetPreferredCombatEngagedEnemy();
+        if (engaged != null &&
+            IsEnemyWithinWhirlRange(engaged, radius, ownerX, ownerHalf, out _))
+        {
+            target = engaged;
+            return true;
+        }
+
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
         float bestDist = float.MaxValue;
 
@@ -1756,20 +1799,23 @@ public class PlayerAbilityController : MonoBehaviour
 
     private bool TryFindClosestEnemyInCrescentSlashArc(out EnemyBaseController target)
     {
-        target = PickClosestForwardArcEnemy(
+        target = PickPreferredForwardArcEnemy(
             CollectCrescentSlashForwardHits(GetWhirlwindBaseRange() + 6f));
         return target != null;
     }
 
     private bool TryFindClosestEnemyInShadowStrikeArc(out EnemyBaseController target)
     {
-        target = PickClosestForwardArcEnemy(
+        target = PickPreferredForwardArcEnemy(
             CollectShadowStrikeForwardHits(AbilityCombatPower.ShadowStrikeForwardReach));
         return target != null;
     }
 
     private bool TryFindClosestBladestormTarget(out EnemyBaseController target)
     {
+        if (TryPreferEngagedEnemy(IsEnemyValidBladestormTarget, out target))
+            return true;
+
         target = null;
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
         float ownerX = transform.position.x;
@@ -1796,16 +1842,28 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
-        target = PickClosestForwardArcEnemy(
+        target = PickPreferredForwardArcEnemy(
             CollectBladestormForwardHits(AbilityCombatPower.BladestormForwardReach));
         return target != null;
     }
 
     private bool TryFindClosestEnemyInFinalSeveranceRange(out EnemyBaseController target)
     {
-        target = null;
         float ownerX = transform.position.x;
         float maxDist = AbilityCombatPower.FinalSeveranceHitRangeHalfWidth;
+
+        EnemyBaseController engaged = GetPreferredCombatEngagedEnemy();
+        if (engaged != null && !engaged.IsDead)
+        {
+            float engagedDist = Mathf.Abs(engaged.transform.position.x - ownerX);
+            if (engagedDist <= maxDist)
+            {
+                target = engaged;
+                return true;
+            }
+        }
+
+        target = null;
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
         float bestDist = float.MaxValue;
 
@@ -1829,11 +1887,21 @@ public class PlayerAbilityController : MonoBehaviour
         return target != null;
     }
 
-    private static EnemyBaseController PickClosestForwardArcEnemy(
+    private EnemyBaseController PickPreferredForwardArcEnemy(
         List<(EnemyBaseController enemy, float dist)> forwardHits)
     {
         if (forwardHits == null || forwardHits.Count == 0)
             return null;
+
+        EnemyBaseController engaged = GetPreferredCombatEngagedEnemy();
+        if (engaged != null)
+        {
+            for (int i = 0; i < forwardHits.Count; i++)
+            {
+                if (forwardHits[i].enemy == engaged)
+                    return engaged;
+            }
+        }
 
         forwardHits.Sort((a, b) => a.dist.CompareTo(b.dist));
         return forwardHits[0].enemy;
@@ -2574,11 +2642,6 @@ public class PlayerAbilityController : MonoBehaviour
             _bladestormChanneling = true;
             float channelSeconds = AbilityCombatPower.BladestormChannelSeconds;
 
-            GameplayScreenOverlay.Show(
-                GameplayScreenOverlay.BladestormChannelId,
-                GameplayScreenOverlay.BladestormChannelTint,
-                GameplayScreenOverlay.Spec.DefaultAbilityChannel);
-
             float attackRate = Mathf.Max(0.05f, stats.AttacksPerSecond * AbilityCombatPower.BladestormAttackSpeedMultiplier);
             int totalStrikes = Mathf.Max(1, Mathf.RoundToInt(attackRate * channelSeconds));
             float strikeInterval = channelSeconds / totalStrikes;
@@ -2590,7 +2653,6 @@ public class PlayerAbilityController : MonoBehaviour
                 player.ExtendAttackLockUntil(Time.time + channelSeconds + 0.5f);
             }
 
-            abilityVfx?.BeginBladestormStabSpray(channelSeconds, lockedTarget);
             BeginBladestormCombatModifiers();
 
             float channelEnd = Time.time + channelSeconds;
@@ -2627,8 +2689,7 @@ public class PlayerAbilityController : MonoBehaviour
             {
                 ApplyBladestormChannelMovementLock(endlessCarnage, lockedTarget);
                 MaintainBladestormTargetLock(lockedTarget, allowPathing: false);
-                ApplyBladestormHit(lockedTarget, def, AbilityCombatPower.BladestormFinaleHitWeaponMultiplier);
-                abilityVfx?.SpawnBladestormFinaleDownwardSlash(lockedTarget.transform.position);
+                ApplyBladestormHit(lockedTarget, def, AbilityCombatPower.BladestormFinaleHitWeaponMultiplier, isFinale: true);
                 player?.TriggerAttackAnim();
             }
         }
@@ -2674,8 +2735,6 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void EndBladestormInstanceState()
     {
-        abilityVfx?.EndBladestormStabSpray();
-        GameplayScreenOverlay.Hide(GameplayScreenOverlay.BladestormChannelId);
         _bladestormChanneling = false;
         _bladestormRoutine = null;
         EndBladestormCombatModifiers();
@@ -2713,7 +2772,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (combat == null || stats == null)
             return;
 
-        combat.SetTarget(target);
+        AbilityDefinition bladestormDef = GetAbilityDefinition(BladestormId);
+        if (bladestormDef == null || bladestormDef.SetsTargetOnHit())
+            combat.SetTargetIfNone(target);
 
         if (combat.IsEnemyWithinAttackRange(target))
         {
@@ -2766,6 +2827,10 @@ public class PlayerAbilityController : MonoBehaviour
 
     private EnemyBaseController ResolveNearestBladestormRetarget()
     {
+        EnemyBaseController engaged = GetPreferredCombatEngagedEnemy();
+        if (IsEnemyValidBladestormTarget(engaged))
+            return engaged;
+
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
         EnemyBaseController best = null;
         float bestDist = float.MaxValue;
@@ -2844,7 +2909,11 @@ public class PlayerAbilityController : MonoBehaviour
         return forwardHits;
     }
 
-    private void ApplyBladestormHit(EnemyBaseController target, AbilityDefinition def, float weaponDamageMultiplier)
+    private void ApplyBladestormHit(
+        EnemyBaseController target,
+        AbilityDefinition def,
+        float weaponDamageMultiplier,
+        bool isFinale = false)
     {
         if (!target || target.IsDead || stats == null || def == null)
             return;
@@ -2865,7 +2934,23 @@ public class PlayerAbilityController : MonoBehaviour
         DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, rolled, wasCrit, frac);
         ApplyOnHitEffects(target, dealt);
         if (player != null && dealt.Total > 0f)
+        {
             player.ApplyLifeSteal(dealt.Total);
+            SpawnBladestormHitSlashVfx(target, isFinale);
+        }
+    }
+
+    private void SpawnBladestormHitSlashVfx(EnemyBaseController target, bool isFinale)
+    {
+        if (abilityVfx == null || player == null || target == null)
+            return;
+
+        Vector3 playerPos = player.transform.position;
+        Vector3 enemyPos = target.transform.position;
+        if (isFinale)
+            abilityVfx.SpawnBladestormFinaleSlash(playerPos, enemyPos);
+        else
+            abilityVfx.SpawnBladestormHitSlash(playerPos, enemyPos);
     }
 
     private int GetBladestormSelectedChoice()
@@ -3249,8 +3334,8 @@ public class PlayerAbilityController : MonoBehaviour
 
         Vector3 departPosition = player.transform.position;
         TeleportPlayerToMeleeStrikePosition(target);
-        if (combat != null)
-            combat.SetTarget(target);
+        if (combat != null && def.SetsTargetOnHit())
+            combat.SetTargetIfNone(target);
 
         float enemyX = target.transform.position.x;
         player.FaceTargetX(enemyX);
@@ -3349,6 +3434,10 @@ public class PlayerAbilityController : MonoBehaviour
     {
         if (!target || !player || stats == null)
             return;
+
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        combat?.NotifyPlayerTeleported();
 
         float myRange = Mathf.Max(0f, stats.Range);
         if (combat != null)
@@ -5907,7 +5996,7 @@ public class PlayerAbilityController : MonoBehaviour
         };
     }
 
-    private bool TrySpawnSoulforgedWeaponMinion(AbilityDefinition def)
+    private bool TrySpawnSoulforgedWeaponMinion(AbilityDefinition def, bool recordDamageMeterSummonUse = true)
     {
         MinionDefinition md = def.minionSpawnDefinition;
         if (!md || !md.runtimePrefab || !_ownerStats || !player)
@@ -5996,6 +6085,13 @@ public class PlayerAbilityController : MonoBehaviour
         _lastSyncedSoulforgedHudEnd = float.NaN;
         _lastSyncedSoulforgedHudStacks = int.MinValue;
         SyncSoulforgedWeaponHudBuff();
+
+        if (recordDamageMeterSummonUse)
+        {
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+            combat?.RecordOutgoingSourceUse(PlayerCombatController.DefaultMinionOutgoingSourceLabel);
+        }
 
         return true;
     }
@@ -6510,8 +6606,15 @@ public class PlayerAbilityController : MonoBehaviour
         if (!abilityVfx)
             abilityVfx = GetComponent<PlayerAbilityVfxController>();
 
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+
         int castId = ++_flameChargeCastCounter;
-        float facing = GetCombatFacingSign();
+        float facing = player.FacingDirectionX;
+        if (Mathf.Approximately(facing, 0f))
+            facing = GetCombatFacingSign();
+        if (Mathf.Approximately(facing, 0f))
+            facing = 1f;
         Vector3 start = player.transform.position;
         float dashDist = AbilityCombatPower.FlameChargeDashDistance;
         float dashDuration = Mathf.Max(0.05f, AbilityCombatPower.FlameChargeDashDurationSeconds);

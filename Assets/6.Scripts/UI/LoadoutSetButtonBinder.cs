@@ -187,7 +187,11 @@ public class LoadoutSetButtonBinder : MonoBehaviour
         if (_equipment == null)
             return;
 
-        StartCoroutine(CoApplySet(setIndex == 1 ? 1 : 0));
+        int targetSet = setIndex == 1 ? 1 : 0;
+        if (!_equipment.TrySetActiveWeaponSet(targetSet))
+            return;
+
+        StartCoroutine(CoApplySet(targetSet));
     }
 
     private IEnumerator CoApplySet(int setIndex)
@@ -196,7 +200,6 @@ public class LoadoutSetButtonBinder : MonoBehaviour
         if (_actionBar == null)
             _actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         _actionBar?.ExitGatheringBarToCombat();
-        _equipment.SetActiveWeaponSet(setIndex);
         _characterStats?.NotifyWeaponSetSwapped();
         RefreshVisuals();
         yield return null; // spread swap load across frames

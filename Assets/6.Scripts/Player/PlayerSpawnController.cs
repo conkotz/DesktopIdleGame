@@ -319,6 +319,9 @@ public class PlayerSpawnController : MonoBehaviour
             if (debugSnap)
                 Debug.Log($"[SpawnDebug] FINAL pos=({transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3})");
 
+            if (combat != null)
+                combat.NotifyPlayerTeleported();
+
             // Fade in (optional)
             if (doFade)
                 yield return FadeIn();

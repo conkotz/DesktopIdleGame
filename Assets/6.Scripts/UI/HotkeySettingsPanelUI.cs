@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -22,6 +23,7 @@ public class HotkeySettingsPanelUI : MonoBehaviour
 
     private void Awake()
     {
+        EnsureMovementSectionHeaderDimming();
         RebuildRowCache();
     }
 
@@ -29,7 +31,15 @@ public class HotkeySettingsPanelUI : MonoBehaviour
     {
         RebuildRowCache();
         RefreshAll();
+        GlobalUserSettings.RestoredDefaults += OnGlobalRestoredDefaults;
     }
+
+    private void OnDisable()
+    {
+        GlobalUserSettings.RestoredDefaults -= OnGlobalRestoredDefaults;
+    }
+
+    private void OnGlobalRestoredDefaults() => RefreshAll();
 
     /// <summary>Call if you add/remove row objects at runtime.</summary>
     public void RebuildRowCache()
@@ -86,6 +96,31 @@ public class HotkeySettingsPanelUI : MonoBehaviour
         {
             if (_cachedRows[i] != null)
                 _cachedRows[i].RefreshDisplay();
+        }
+
+        HotkeySettingsMovementSectionUI[] sections =
+            GetComponentsInChildren<HotkeySettingsMovementSectionUI>(includeInactive);
+        for (int i = 0; i < sections.Length; i++)
+        {
+            if (sections[i] != null)
+                sections[i].RefreshHeader();
+        }
+    }
+
+    private void EnsureMovementSectionHeaderDimming()
+    {
+        if (GetComponentInChildren<HotkeySettingsMovementSectionUI>(includeInactive) != null)
+            return;
+
+        Transform[] all = GetComponentsInChildren<Transform>(includeInactive);
+        for (int i = 0; i < all.Length; i++)
+        {
+            Transform t = all[i];
+            if (t == null || !string.Equals(t.name, "CategoryMovement", StringComparison.Ordinal))
+                continue;
+
+            t.gameObject.AddComponent<HotkeySettingsMovementSectionUI>();
+            return;
         }
     }
 

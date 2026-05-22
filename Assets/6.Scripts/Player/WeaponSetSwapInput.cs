@@ -30,8 +30,13 @@ public class WeaponSetSwapInput : MonoBehaviour
 
         if (swapKey != KeyCode.None && Input.GetKeyDown(swapKey))
         {
-            if (!_swapInProgress)
-                StartCoroutine(CoSwapFullLoadout());
+            if (_swapInProgress)
+                return;
+
+            if (!equipment.TryToggleWeaponSet())
+                return;
+
+            StartCoroutine(CoSwapFullLoadout());
         }
     }
 
@@ -41,7 +46,6 @@ public class WeaponSetSwapInput : MonoBehaviour
         if (!actionBar)
             actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
         actionBar?.ExitGatheringBarToCombat();
-        equipment.ToggleWeaponSet();
         if (characterStats)
             characterStats.NotifyWeaponSetSwapped();
         yield return null; // spread swap load across frames

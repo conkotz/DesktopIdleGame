@@ -70,6 +70,9 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField] private Color burnPresentationColor = new Color32(255, 140, 40, 255);
     [SerializeField] private Color shockPresentationColor = new Color32(255, 190, 70, 255);
     [SerializeField] private Color chillPresentationColor = new Color32(90, 160, 255, 255);
+    [SerializeField] private Color stunPresentationColor = new Color32(38, 22, 12, 255);
+    [SerializeField] private Color stunPresentationOutlineColor = new Color32(255, 232, 200, 255);
+    [SerializeField, Range(0f, 0.5f)] private float stunPresentationOutlineWidth = 0.28f;
 
     private float _baseFontSize;
     private Coroutine _run;
@@ -88,6 +91,7 @@ public class FloatingDamageTextUI : MonoBehaviour
     public Color BurnPresentationColor => burnPresentationColor;
     public Color ShockPresentationColor => shockPresentationColor;
     public Color ChillPresentationColor => chillPresentationColor;
+    public Color StunPresentationColor => stunPresentationColor;
 
     private void Awake()
     {
@@ -164,9 +168,26 @@ public class FloatingDamageTextUI : MonoBehaviour
         text.text = message;
         text.color = color;
         text.fontSize = GetStatusFontSize();
+        ApplyStunStatusOutlineIfNeeded(message);
 
         if (_run != null) StopCoroutine(_run);
         _run = StartCoroutine(RunLingering(lingeringStatusLifetimeSeconds));
+    }
+
+    private void ApplyStunStatusOutlineIfNeeded(string message)
+    {
+        if (!text)
+            return;
+
+        bool isStun = string.Equals(message, "Stunned", System.StringComparison.OrdinalIgnoreCase);
+        if (isStun)
+        {
+            text.outlineWidth = stunPresentationOutlineWidth;
+            text.outlineColor = stunPresentationOutlineColor;
+            return;
+        }
+
+        text.outlineWidth = 0f;
     }
 
     private float GetStatusFontSize() =>

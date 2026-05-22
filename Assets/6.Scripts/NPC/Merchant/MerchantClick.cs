@@ -37,6 +37,10 @@ public class MerchantClick : MonoBehaviour
     // Tracks which merchant is currently "active" for shop mode and switching merchants.
     private static MerchantClick _active;
     private static MerchantClick _pendingOpen;
+
+    /// <summary>Merchant the player is walking to open (shows target indicator until arrival).</summary>
+    public static MerchantClick PendingOpen => _pendingOpen;
+
     private Coroutine _openWhenArrivedRoutine;
 
     private void Awake()

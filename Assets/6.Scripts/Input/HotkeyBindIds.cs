@@ -23,6 +23,10 @@ public static class HotkeyBindIds
     public static bool IsActionBarBind(HotkeyBindId id) =>
         id >= HotkeyBindId.ActionBar1 && id <= HotkeyBindId.ActionBar7;
 
+    /// <summary>Move left/right keyboard binds (always active alongside mouse click-to-move).</summary>
+    public static bool IsKeyboardMovementOnlyBind(HotkeyBindId id) =>
+        id == HotkeyBindId.MoveLeft || id == HotkeyBindId.MoveRight;
+
     /// <summary>Human-readable row title for the hotkey settings UI (matches action bar slot order: abilities 1–5, then potion, food).</summary>
     public static string GetSettingsRowLabel(HotkeyBindId id)
     {

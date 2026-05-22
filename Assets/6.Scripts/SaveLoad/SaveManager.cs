@@ -478,11 +478,21 @@ public class SaveManager : MonoBehaviour
             ActiveLevelContext.SetPendingLevel(node, logToConsole: false);
     }
 
+    private static void EnsureInventoryInSaveData(SaveData data)
+    {
+        if (data == null)
+            return;
+
+        Inventory inv = PickCanonicalInventoryForSave();
+        if (inv != null)
+            inv.SaveInto(data);
+    }
+
     private static void EnsurePlayerStorageInSaveData(SaveData data)
     {
         if (data == null) return;
 
-        var ps = FindFirstObjectByType<PlayerStorage>(FindObjectsInactive.Include);
+        PlayerStorage ps = PickCanonicalPlayerStorageForSave();
         if (ps != null)
             ps.SaveInto(data);
     }
@@ -710,12 +720,20 @@ public class SaveManager : MonoBehaviour
 
         ISaveable[] saveablesRaw = FindSaveables();
         List<ISaveable> saveables = DedupeActionBarSaveables(saveablesRaw);
+        saveables = DedupeInventorySaveables(saveables);
         foreach (var s in saveables)
             s.SaveInto(data);
 
         SeedActionBarFromSnapshot(data, _lastLoadedData);
 
+        EnsureInventoryInSaveData(data);
         EnsurePlayerStorageInSaveData(data);
+
+        if (data.inventorySlotCount > 0 && (data.inventorySlots == null || data.inventorySlots.Count == 0))
+        {
+            Debug.LogError(
+                $"[SaveManager] Save ({kind}) aborted snapshot: inventory rows missing after SaveInto (count={data.inventorySlotCount}).");
+        }
 
         HelperProgressStore.WriteDismissedInto(data);
         HelperProgressStore.WriteNewBadgeSuppressedInto(data);
@@ -1697,6 +1715,103 @@ public class SaveManager : MonoBehaviour
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// Multiple <see cref="Inventory"/> components (shell + scene) can overwrite with an empty grid and wipe items on disk.
+    /// </summary>
+    private static List<ISaveable> DedupeInventorySaveables(List<ISaveable> list)
+    {
+        if (list == null)
+            return list;
+
+        var inventories = list.OfType<Inventory>().ToList();
+        if (inventories.Count <= 1)
+            return list;
+
+        Inventory keep = PickCanonicalInventoryForSave(inventories);
+        for (int i = list.Count - 1; i >= 0; i--)
+        {
+            if (list[i] is Inventory inv && inv != keep)
+                list.RemoveAt(i);
+        }
+
+        return list;
+    }
+
+    private static Inventory PickCanonicalInventoryForSave(List<Inventory> inventories = null)
+    {
+        if (inventories == null || inventories.Count == 0)
+        {
+            inventories = FindObjectsByType<Inventory>(FindObjectsInactive.Include, FindObjectsSortMode.None)?.ToList();
+            if (inventories == null || inventories.Count == 0)
+                return null;
+        }
+
+        Scene active = SceneManager.GetActiveScene();
+        PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        Transform playerRoot = player != null ? player.transform : null;
+
+        Inventory best = null;
+        int bestScore = -1;
+
+        for (int i = 0; i < inventories.Count; i++)
+        {
+            Inventory inv = inventories[i];
+            if (!inv)
+                continue;
+
+            int score = Mathf.Max(0, inv.SlotCount);
+            if (playerRoot != null && inv.transform.IsChildOf(playerRoot))
+                score += 10000;
+            if (inv.gameObject.scene == active)
+                score += 1000;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = inv;
+            }
+        }
+
+        return best != null ? best : inventories[0];
+    }
+
+    private static PlayerStorage PickCanonicalPlayerStorageForSave()
+    {
+        PlayerStorage[] all = FindObjectsByType<PlayerStorage>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (all == null || all.Length == 0)
+            return null;
+        if (all.Length == 1)
+            return all[0];
+
+        Scene active = SceneManager.GetActiveScene();
+        PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        Transform playerRoot = player != null ? player.transform : null;
+
+        PlayerStorage best = null;
+        int bestScore = -1;
+
+        for (int i = 0; i < all.Length; i++)
+        {
+            PlayerStorage ps = all[i];
+            if (!ps)
+                continue;
+
+            int score = Mathf.Max(0, ps.SlotCount);
+            if (playerRoot != null && ps.transform.IsChildOf(playerRoot))
+                score += 10000;
+            if (ps.gameObject.scene == active)
+                score += 1000;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = ps;
+            }
+        }
+
+        return best != null ? best : all[0];
     }
 
     private static ActionBarUI PickCanonicalActionBarForSave(List<ActionBarUI> bars)

@@ -1,0 +1,291 @@
+fileFormatVersion: 2
+guid: 360157d45aaa0064daef741b9791aa27
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 7825985611434124556
+    second: NodeIconsSpritesheet_0
+  - first:
+      213: -8104198669654541211
+    second: NodeIconsSpritesheet_1
+  - first:
+      213: 807647235099545214
+    second: NodeIconsSpritesheet_2
+  - first:
+      213: -7955698220803447714
+    second: NodeIconsSpritesheet_3
+  - first:
+      213: -2151248878345902785
+    second: NodeIconsSpritesheet_4
+  - first:
+      213: -2686813774774106832
+    second: NodeIconsSpritesheet_5
+  - first:
+      213: -6882562043513757323
+    second: NodeIconsSpritesheet_6
+  - first:
+      213: 6662161902671201001
+    second: NodeIconsSpritesheet_7
+  - first:
+      213: -1903709042277856436
+    second: NodeIconsSpritesheet_8
+  - first:
+      213: -328049637106689152
+    second: NodeIconsSpritesheet_9
+  - first:
+      213: -5015534997724599679
+    second: NodeIconsSpritesheet_10
+  - first:
+      213: 5266068710310019612
+    second: NodeIconsSpritesheet_11
+  - first:
+      213: -5438580283416297536
+    second: NodeIconsSpritesheet_12
+  - first:
+      213: -6716024623781330816
+    second: NodeIconsSpritesheet_13
+  - first:
+      213: 5334125799714334137
+    second: NodeIconsSpritesheet_14
+  - first:
+      213: 6266554026429799123
+    second: NodeIconsSpritesheet_15
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: NodeIconsSpritesheet_minor_passive
+      rect:
+        serializedVersion: 2
+        x: 368
+        y: 402
+        width: 215
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c0569d2237c7b9c60800000000000000
+      internalID: 7825985611434124556
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: NodeIconsSpritesheet_capstone
+      rect:
+        serializedVersion: 2
+        x: 1246
+        y: 402
+        width: 213
+        height: 215
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 56c3c027f3a188f80800000000000000
+      internalID: -8104198669654541211
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: NodeIconsSpritesheet_ability
+      rect:
+        serializedVersion: 2
+        x: 99
+        y: 402
+        width: 215
+        height: 216
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 18ae5163e7d356ab0800000000000000
+      internalID: -5015534997724599679
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: NodeIconsSpritesheet_major_passive
+      rect:
+        serializedVersion: 2
+        x: 662
+        y: 399
+        width: 214
+        height: 218
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 080ccbc0033ebc2a0800000000000000
+      internalID: -6716024623781330816
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: NodeIconsSpritesheet_unlock
+      rect:
+        serializedVersion: 2
+        x: 947
+        y: 401
+        width: 219
+        height: 214
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3da54277fa547f650800000000000000
+      internalID: 6266554026429799123
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: eed8f7bffe910114c9191fb17b942855
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      NodeIconsSpritesheet_11: 5266068710310019612
+      NodeIconsSpritesheet_12: -5438580283416297536
+      NodeIconsSpritesheet_14: 5334125799714334137
+      NodeIconsSpritesheet_2: 807647235099545214
+      NodeIconsSpritesheet_3: -7955698220803447714
+      NodeIconsSpritesheet_4: -2151248878345902785
+      NodeIconsSpritesheet_5: -2686813774774106832
+      NodeIconsSpritesheet_6: -6882562043513757323
+      NodeIconsSpritesheet_7: 6662161902671201001
+      NodeIconsSpritesheet_8: -1903709042277856436
+      NodeIconsSpritesheet_9: -328049637106689152
+      NodeIconsSpritesheet_ability: -5015534997724599679
+      NodeIconsSpritesheet_capstone: -8104198669654541211
+      NodeIconsSpritesheet_major_passive: -6716024623781330816
+      NodeIconsSpritesheet_minor_passive: 7825985611434124556
+      NodeIconsSpritesheet_unlock: 6266554026429799123
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

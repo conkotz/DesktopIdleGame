@@ -79,6 +79,15 @@ public class UnitOverheadUI : MonoBehaviour
     [SerializeField] private Canvas parentCanvas;
     [SerializeField] private Camera targetCamera;
 
+    [Header("Target marker (enemy)")]
+    [Tooltip("Optional anchor at the top of the overhead strip. When unset, one is created on OverheadUIRoot at runtime.")]
+    [SerializeField] private RectTransform targetMarkerAnchor;
+    [Tooltip("UIImage on the anchor (or a child). Auto-created at runtime if missing.")]
+    [SerializeField] private Image targetMarkerImage;
+    [Tooltip("Canvas pixels above the root top for the runtime anchor (only when Target Marker Anchor is auto-created).")]
+    [SerializeField] private float targetMarkerAnchorPaddingPx = 8f;
+    [SerializeField] private Vector2 targetMarkerImageSize = new Vector2(44f, 44f);
+
     [Header("Overlap stack (enemy overhead only)")]
     [Tooltip("When multiple enemy overheads project to nearby X positions on the strip canvas, stack them vertically.")]
     [SerializeField] private bool enableOverlappingStack = true;
@@ -151,6 +160,11 @@ public class UnitOverheadUI : MonoBehaviour
     /// <summary>True when the follow target is in the strip camera band this frame; used for overlap stacking (same idea as when the whole object was deactivated off-screen).</summary>
     private bool _worldBandVisible;
 
+    private Vector3 _targetMarkerWorldTop;
+    private bool _targetMarkerWorldTopValid;
+
+    private static UnitOverheadUI s_activeCombatTargetMarkerUi;
+
     private void Awake()
     {
         if (!root) root = transform as RectTransform;
@@ -163,6 +177,7 @@ public class UnitOverheadUI : MonoBehaviour
         ResolveResourceFillRefs();
         ApplyPlayerResourceBarVisibility();
         EnsureClickableBacking();
+        EnsureTargetMarkerAnchor();
     }
 
     private void OnEnable()
@@ -178,6 +193,10 @@ public class UnitOverheadUI : MonoBehaviour
 
     private void OnDisable()
     {
+        if (s_activeCombatTargetMarkerUi == this)
+            s_activeCombatTargetMarkerUi = null;
+
+        SetTargetMarkerVisible(false, null);
         SliderSettingsStore.Changed -= HandleSliderSettingsChanged;
         s_instances.Remove(this);
         Unsubscribe();
@@ -232,6 +251,9 @@ public class UnitOverheadUI : MonoBehaviour
 
         ApplyHpBarOnlyVisuals();
         ApplyPlayerResourceBarVisibility();
+        EnsureTargetMarkerAnchor();
+        if (enemy != null)
+            EnsureTargetMarkerGraphic();
         Subscribe();
         RefreshAll();
         EnsureClickableBacking();
@@ -809,6 +831,303 @@ public class UnitOverheadUI : MonoBehaviour
 
     private static readonly Vector3[] UnitOverheadUIWorkCorners = new Vector3[4];
 
+    /// <summary>
+    /// World position above the top of this enemy's strip overhead UI (name + HP bar), for world-space target markers.
+    /// Uses the same follow anchor + camera as the overhead bar, not UI rect world corners (those are off the gameplay plane).
+    /// </summary>
+    /// <summary>Shows the combat target marker on this enemy's overhead strip (canvas UI — moves with stack offset).</summary>
+    public static void SetCombatTargetMarkerForEnemy(EnemyBaseController enemyController, Sprite sprite, bool show)
+    {
+        if (!show || enemyController == null || !IsEnemyOverheadTarget(enemyController))
+        {
+            ClearCombatTargetMarker();
+            return;
+        }
+
+        if (s_activeCombatTargetMarkerUi != null && s_activeCombatTargetMarkerUi.enemy != enemyController)
+            s_activeCombatTargetMarkerUi.SetTargetMarkerVisible(false, null);
+
+        UnitOverheadUI match = FindOverheadForEnemy(enemyController);
+        if (match == null)
+            return;
+
+        match.SetTargetMarkerVisible(true, sprite);
+        s_activeCombatTargetMarkerUi = match;
+    }
+
+    public static void ClearCombatTargetMarker()
+    {
+        if (s_activeCombatTargetMarkerUi != null)
+        {
+            s_activeCombatTargetMarkerUi.SetTargetMarkerVisible(false, null);
+            s_activeCombatTargetMarkerUi = null;
+        }
+    }
+
+    public static bool TryGetWorldPointAboveEnemyOverhead(
+        EnemyBaseController enemyController,
+        float extraWorldUp,
+        out Vector3 worldPosition)
+    {
+        worldPosition = default;
+        if (!enemyController)
+            return false;
+
+        UnitOverheadUI match = FindOverheadForEnemy(enemyController);
+        if (match != null && match.TryComputeWorldPointAboveOverhead(extraWorldUp, out worldPosition))
+            return true;
+
+        Collider2D col = enemyController.GetComponentInChildren<Collider2D>();
+        if (!col)
+            return false;
+
+        Bounds b = col.bounds;
+        worldPosition = new Vector3(
+            b.center.x,
+            b.max.y + 1.2f + extraWorldUp,
+            enemyController.transform.position.z);
+        return true;
+    }
+
+    private static UnitOverheadUI FindOverheadForEnemy(EnemyBaseController enemyController)
+    {
+        if (!enemyController)
+            return null;
+
+        for (int i = 0; i < s_instances.Count; i++)
+        {
+            UnitOverheadUI ui = s_instances[i];
+            if (ui != null && ui.enemy == enemyController && OverheadFollowsEnemy(ui, enemyController))
+                return ui;
+        }
+
+        return null;
+    }
+
+    private static bool IsEnemyOverheadTarget(EnemyBaseController enemyController)
+    {
+        if (!enemyController)
+            return false;
+
+        if (enemyController.GetComponent<PlayerController>() != null)
+            return false;
+
+        if (enemyController.GetComponentInParent<PlayerController>() != null)
+            return false;
+
+        return true;
+    }
+
+    private static bool OverheadFollowsEnemy(UnitOverheadUI ui, EnemyBaseController enemyController)
+    {
+        if (ui == null || !enemyController)
+            return false;
+
+        Transform ft = ui.followTarget != null ? ui.followTarget : ui.enemy != null ? ui.enemy.transform : null;
+        if (!ft)
+            return false;
+
+        return ft == enemyController.transform || ft.IsChildOf(enemyController.transform);
+    }
+
+    private bool TryComputeWorldPointAboveOverhead(float extraWorldUp, out Vector3 worldPosition)
+    {
+        worldPosition = default;
+        RefreshTargetMarkerWorldCache();
+
+        if (!_targetMarkerWorldTopValid)
+            return false;
+
+        worldPosition = _targetMarkerWorldTop + Vector3.up * extraWorldUp;
+        return true;
+    }
+
+    private void SetTargetMarkerVisible(bool visible, Sprite sprite)
+    {
+        if (enemy == null)
+        {
+            if (targetMarkerImage != null)
+                targetMarkerImage.enabled = false;
+            return;
+        }
+
+        EnsureTargetMarkerAnchor();
+        EnsureTargetMarkerGraphic();
+
+        if (targetMarkerImage == null)
+            return;
+
+        if (sprite != null)
+            targetMarkerImage.sprite = sprite;
+
+        bool show = visible && targetMarkerImage.sprite != null;
+        targetMarkerImage.enabled = show;
+
+        if (show && targetMarkerAnchor != null)
+            targetMarkerAnchor.SetAsLastSibling();
+    }
+
+    /// <summary>
+    /// Caches world-space top via strip camera screen projection (fallback if canvas marker is unused).
+    /// </summary>
+    private void RefreshTargetMarkerWorldCache()
+    {
+        _targetMarkerWorldTopValid = false;
+        if (root == null || !root.gameObject.activeInHierarchy || !root.gameObject.activeSelf)
+            return;
+
+        if (targetCamera == null)
+            return;
+
+        Transform ft = followTarget != null ? followTarget : enemy != null ? enemy.transform : null;
+        if (ft == null)
+            return;
+
+        if (!TryGetTargetMarkerScreenPoint(out Vector3 screenPoint))
+            return;
+
+        Vector3 world = targetCamera.ScreenToWorldPoint(screenPoint);
+        _targetMarkerWorldTop = new Vector3(world.x, world.y, ft.position.z);
+        _targetMarkerWorldTopValid = true;
+    }
+
+    private bool TryGetTargetMarkerScreenPoint(out Vector3 screenPoint)
+    {
+        screenPoint = default;
+        Transform ft = followTarget != null ? followTarget : enemy != null ? enemy.transform : null;
+        if (ft == null || targetCamera == null)
+            return false;
+
+        Canvas.ForceUpdateCanvases();
+
+        Vector3 baseWorld = ft.position + worldOffset + _additionalWorldOffset;
+        Vector3 baseScreen = targetCamera.WorldToScreenPoint(baseWorld);
+
+        float screenX = baseScreen.x;
+        float screenY = baseScreen.y;
+
+        if (targetMarkerAnchor != null && targetMarkerAnchor.gameObject.activeInHierarchy)
+        {
+            Vector3 anchorScreen = targetCamera.WorldToScreenPoint(targetMarkerAnchor.position);
+            screenX = anchorScreen.x;
+            screenY = anchorScreen.y;
+        }
+        else if (canvasRect != null)
+        {
+            root.GetWorldCorners(UnitOverheadUIWorkCorners);
+            float topY = Mathf.Max(UnitOverheadUIWorkCorners[1].y, UnitOverheadUIWorkCorners[2].y);
+            float centerX = (UnitOverheadUIWorkCorners[1].x + UnitOverheadUIWorkCorners[2].x) * 0.5f;
+            RefineTargetMarkerTopWithTmpWorld(nameText, ref topY);
+            RefineTargetMarkerTopWithTmpWorld(combatProfileText, ref topY);
+            RefineTargetMarkerTopWithTmpWorld(hpValueText, ref topY);
+            Vector3 topScreen = targetCamera.WorldToScreenPoint(new Vector3(centerX, topY, 0f));
+            screenX = topScreen.x;
+            screenY = topScreen.y;
+        }
+        else
+            return false;
+
+        screenPoint = new Vector3(screenX, screenY, baseScreen.z);
+        return true;
+    }
+
+    private static void RefineTargetMarkerTopWithTmpWorld(TMP_Text tmp, ref float topY)
+    {
+        if (tmp == null || !tmp.gameObject.activeInHierarchy)
+            return;
+
+        tmp.ForceMeshUpdate();
+        Bounds bounds = tmp.textBounds;
+        if (bounds.size.sqrMagnitude < 0.0001f)
+            return;
+
+        Vector3 localTop = new Vector3(bounds.center.x, bounds.max.y, bounds.center.z);
+        float worldY = tmp.transform.TransformPoint(localTop).y;
+        if (worldY > topY)
+            topY = worldY;
+    }
+
+    private void EnsureTargetMarkerAnchor()
+    {
+        if (root == null)
+            return;
+
+        if (targetMarkerAnchor == null)
+        {
+            Transform existing = root.Find("TargetMarkerAnchor");
+            if (existing != null)
+                targetMarkerAnchor = existing as RectTransform;
+        }
+
+        if (enemy == null || targetMarkerAnchor != null)
+            return;
+
+        var go = new GameObject("TargetMarkerAnchor", typeof(RectTransform));
+        targetMarkerAnchor = go.GetComponent<RectTransform>();
+        targetMarkerAnchor.SetParent(root, false);
+        targetMarkerAnchor.anchorMin = new Vector2(0.5f, 1f);
+        targetMarkerAnchor.anchorMax = new Vector2(0.5f, 1f);
+        targetMarkerAnchor.pivot = new Vector2(0.5f, 0f);
+        targetMarkerAnchor.anchoredPosition = new Vector2(0f, targetMarkerAnchorPaddingPx);
+        targetMarkerAnchor.sizeDelta = Vector2.zero;
+    }
+
+    private void EnsureTargetMarkerGraphic()
+    {
+        if (enemy == null || targetMarkerAnchor == null)
+            return;
+
+        if (targetMarkerImage == null)
+            targetMarkerImage = targetMarkerAnchor.GetComponent<Image>();
+
+        if (targetMarkerImage == null)
+            targetMarkerImage = targetMarkerAnchor.GetComponentInChildren<Image>(true);
+
+        if (targetMarkerImage != null)
+        {
+            targetMarkerImage.raycastTarget = false;
+            return;
+        }
+
+        var go = new GameObject("TargetMarkerImage", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform rt = go.GetComponent<RectTransform>();
+        rt.SetParent(targetMarkerAnchor, false);
+        rt.anchorMin = new Vector2(0.5f, 0f);
+        rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = targetMarkerImageSize;
+
+        targetMarkerImage = go.GetComponent<Image>();
+        targetMarkerImage.raycastTarget = false;
+        targetMarkerImage.preserveAspect = true;
+        targetMarkerImage.enabled = false;
+    }
+
+    private void ExpandTopWithTmpMeshBounds(RectTransform canvasRt, ref float topLocalY)
+    {
+        if (nameText != null && nameText.rectTransform != null)
+            ExpandTmpTop(canvasRt, nameText, ref topLocalY);
+        if (combatProfileText != null && combatProfileText.rectTransform != null)
+            ExpandTmpTop(canvasRt, combatProfileText, ref topLocalY);
+    }
+
+    private static void ExpandTmpTop(RectTransform canvasRt, TMP_Text tmp, ref float topLocalY)
+    {
+        tmp.ForceMeshUpdate();
+        Bounds bounds = tmp.mesh.bounds;
+        if (bounds.size.sqrMagnitude < 0.0001f)
+            return;
+
+        Vector3 localCenter = tmp.rectTransform.localPosition + bounds.center;
+        Vector3 worldCenter = tmp.rectTransform.TransformPoint(localCenter);
+        Vector3 canvasLocal = canvasRt.InverseTransformPoint(worldCenter);
+        float halfH = bounds.extents.y * tmp.rectTransform.lossyScale.y;
+        float candidate = canvasLocal.y + halfH;
+        if (candidate > topLocalY)
+            topLocalY = candidate;
+    }
+
     private void Subscribe()
     {
         if (characterStats != null)
@@ -1029,19 +1348,27 @@ public class UnitOverheadUI : MonoBehaviour
     private void ApplyDirectPosition()
     {
         if (root == null || !root.gameObject.activeSelf)
+        {
+            _targetMarkerWorldTopValid = false;
             return;
+        }
 
         root.anchoredPosition = _stackBaseAnchored;
         ApplyCombinedRootScale();
+        RefreshTargetMarkerWorldCache();
     }
 
     private void ApplyStackedPosition()
     {
         if (root == null || !root.gameObject.activeSelf)
+        {
+            _targetMarkerWorldTopValid = false;
             return;
+        }
 
         root.anchoredPosition = _stackBaseAnchored + new Vector2(0f, _stackYOffset);
         ApplyCombinedRootScale();
+        RefreshTargetMarkerWorldCache();
     }
 
     public void SetExternalScale(float scale)
@@ -1745,13 +2072,16 @@ public class UnitOverheadUI : MonoBehaviour
         if (enemy == null || enemy.IsDead)
             return;
 
+        if (!IsEnemyOverheadTarget(enemy))
+            return;
+
         if (_playerCombatCache == null)
             _playerCombatCache = FindFirstObjectByType<PlayerCombatController>(FindObjectsInactive.Exclude);
 
         if (_playerCombatCache == null)
             return;
 
-        _playerCombatCache.SetTarget(enemy);
+        _playerCombatCache.EngageTargetFromPlayerInput(enemy);
     }
 
     private void ClearDebuffIcons()

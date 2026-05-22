@@ -30,10 +30,14 @@ public class PlayerSprintInput : MonoBehaviour
     [SerializeField] private CharacterStats characterStats;
     [SerializeField] private PlayerBuffController buffController;
 
+    [Tooltip("Keeps the sprint HUD icon visible briefly after sprint stops (e.g. direction change zeroes measured speed for a frame).")]
+    [SerializeField, Min(0f)] private float sprintHudIconHoldSeconds = 0.05f;
+
     private Vector3 _previousPosition;
     private bool _hasPreviousPosition;
     private float _lastHorizontalSpeed;
     private bool _sprintHudBuffRegistered;
+    private float _sprintHudShowUntil;
 
     private void Awake()
     {
@@ -72,40 +76,35 @@ public class PlayerSprintInput : MonoBehaviour
         _lastHorizontalSpeed = GetCurrentHorizontalSpeed();
         CapturePositionForNextFrame();
 
+        bool sprintActive = EvaluateSprintGameplayActive();
+        SetSprintActive(sprintActive);
+        RefreshSprintHudBuffGrace(sprintActive);
+    }
+
+    private bool EvaluateSprintGameplayActive()
+    {
         if (!_sprintKeyHeld)
-        {
-            SetSprintActive(false);
-            return;
-        }
+            return false;
 
         if (characterStats == null || characterStats.Energy <= 0f)
-        {
-            SetSprintActive(false);
-            return;
-        }
+            return false;
 
         if (_lastHorizontalSpeed <= MinMoveSpeedForSprint)
-        {
-            SetSprintActive(false);
-            return;
-        }
-
-        SetSprintActive(true);
+            return false;
 
         float maxEnergy = Mathf.Max(0f, characterStats.MaxEnergy);
         if (maxEnergy <= 0f)
-        {
-            SetSprintActive(false);
-            return;
-        }
+            return false;
 
         float drain = maxEnergy * SprintDrainMaxEnergyFractionPerSecond * Time.deltaTime;
         if (drain <= 0f)
-            return;
+            return true;
 
         drain = Mathf.Min(drain, characterStats.Energy);
         if (drain <= 0f || !characterStats.SpendEnergy(drain))
-            SetSprintActive(false);
+            return false;
+
+        return true;
     }
 
     /// <summary>
@@ -117,7 +116,14 @@ public class PlayerSprintInput : MonoBehaviour
             return false;
 
         CharacterStats stats = ResolveCharacterStats();
-        return stats != null && stats.Energy > 0f;
+        if (stats == null || stats.Energy <= 0f)
+            return false;
+
+        if (IsSprinting)
+            return true;
+
+        // Brief hold after the last sprint frame (direction changes can zero measured speed for a frame).
+        return _instance != null && Time.time < _instance._sprintHudShowUntil;
     }
 
     public static float ApplySprintBonus(float baseMoveSpeed)
@@ -151,9 +157,17 @@ public class PlayerSprintInput : MonoBehaviour
 
         IsSprinting = active;
         BlocksStaminaRegen = active;
-        SyncSprintHudBuff(active);
         SprintStateChanged?.Invoke(active);
         characterStats?.NotifyStatsChanged();
+    }
+
+    private void RefreshSprintHudBuffGrace(bool sprintGameplayActive)
+    {
+        if (sprintGameplayActive && sprintHudIconHoldSeconds > 0f)
+            _sprintHudShowUntil = Time.time + sprintHudIconHoldSeconds;
+
+        bool showHud = sprintGameplayActive || Time.time < _sprintHudShowUntil;
+        SyncSprintHudBuff(showHud);
     }
 
     private void SyncSprintHudBuff(bool active)

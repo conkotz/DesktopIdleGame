@@ -21,12 +21,30 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         public readonly string sourceName;
         public readonly float totalDamage;
+        public readonly int hitCount;
+        public readonly int useCount;
+        public readonly bool tracksUses;
 
-        public OutgoingDamageSourceEntry(string sourceName, float totalDamage)
+        public OutgoingDamageSourceEntry(
+            string sourceName,
+            float totalDamage,
+            int hitCount,
+            int useCount,
+            bool tracksUses)
         {
             this.sourceName = sourceName;
             this.totalDamage = totalDamage;
+            this.hitCount = hitCount;
+            this.useCount = useCount;
+            this.tracksUses = tracksUses;
         }
+    }
+
+    private struct OutgoingSourceCounter
+    {
+        public float totalDamage;
+        public int hitCount;
+        public int useCount;
     }
 
     /// <summary>How a basic-attack swing's dealt damage is split across outgoing DPS sources.</summary>
@@ -147,6 +165,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     private float _nextAutoConsumeTime;
     private float _nextAutoAbilityTime;
+    private int _autoBattleAbilityRoundRobinIndex = -1;
+    private bool _autoBattleDeferExtraFlameCharge;
+    private int _autoBattleNonFlameSlotsBeforeNextFlameCharge;
 
     [Header("Combat XP")]
     [SerializeField, Range(0f, 5f)]
@@ -180,7 +201,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     }
 
     /// <summary>Closest living enemy within current weapon attack range (edge-to-edge).</summary>
-    public EnemyBaseController FindClosestEnemyInAttackRange()
+    public EnemyBaseController FindClosestEnemyInAttackRange() =>
+        FindClosestEnemyInAttackRange(preferCurrentTarget: true);
+
+    /// <summary>
+    /// Living enemy in attack range. When <paramref name="preferCurrentTarget"/> is true and
+    /// <see cref="CurrentTarget"/> is in range, returns that enemy instead of a slightly closer one.
+    /// </summary>
+    public EnemyBaseController FindClosestEnemyInAttackRange(bool preferCurrentTarget)
     {
         if (stats == null)
             return null;
@@ -189,6 +217,19 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         float closeEnoughToSwing = myRange + stopSlack;
         float myX = transform.position.x;
         float myHalf = HalfWidthX(playerCol);
+
+        if (preferCurrentTarget &&
+            _target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
+        {
+            Collider2D currentCol = _target.GetComponent<Collider2D>();
+            if (!currentCol)
+                currentCol = _target.GetComponentInChildren<Collider2D>();
+
+            float currentHalf = HalfWidthX(currentCol);
+            float currentGap = EdgeGapX(myX, _target.transform.position.x, myHalf, currentHalf);
+            if (currentGap <= closeEnoughToSwing)
+                return _target;
+        }
 
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
         EnemyBaseController best = null;
@@ -260,7 +301,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _lastHpForCombatEngageTrack = -1f;
     private readonly Dictionary<string, float> _incomingDamageByDealer = new Dictionary<string, float>();
     private readonly List<string> _incomingDealerOrder = new List<string>();
-    private readonly Dictionary<string, float> _outgoingDamageBySource = new Dictionary<string, float>(System.StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, OutgoingSourceCounter> _outgoingSourceCounters =
+        new Dictionary<string, OutgoingSourceCounter>(System.StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _outgoingSourceOrder = new List<string>();
 
     private readonly List<EnemyBaseController> _ailmentSpreadScratch = new List<EnemyBaseController>(16);
@@ -412,16 +454,62 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             string key = _outgoingSourceOrder[i];
             if (string.IsNullOrWhiteSpace(key))
                 continue;
-            if (!_outgoingDamageBySource.TryGetValue(key, out float total))
+            if (!_outgoingSourceCounters.TryGetValue(key, out OutgoingSourceCounter counter))
                 continue;
-            if (total <= 0f)
+            if (counter.totalDamage <= 0f && counter.hitCount <= 0 && counter.useCount <= 0)
                 continue;
 
-            entries.Add(new OutgoingDamageSourceEntry(key, total));
+            entries.Add(new OutgoingDamageSourceEntry(
+                key,
+                counter.totalDamage,
+                counter.hitCount,
+                counter.useCount,
+                OutgoingSourceTracksUses(key)));
         }
 
         entries.Sort((a, b) => b.totalDamage.CompareTo(a.totalDamage));
         return entries;
+    }
+
+    /// <summary>
+    /// Records one activation of an ability or proc source (Bladestorm channel, Power Slash queue, etc.).
+    /// </summary>
+    public void RecordOutgoingSourceUse(string sourceName)
+    {
+        if (_dpsTrackerPaused || string.IsNullOrWhiteSpace(sourceName))
+            return;
+        if (!OutgoingSourceTracksUses(sourceName))
+            return;
+
+        MarkRecentCombatActivity();
+        EnsureDpsSessionStarted();
+        AddOutgoingSourceUse(sourceName.Trim());
+    }
+
+    /// <summary>Auto attacks, ailments, and minions only show hit counts on the damage meter.</summary>
+    public static bool OutgoingSourceTracksUses(string sourceName)
+    {
+        if (string.IsNullOrWhiteSpace(sourceName))
+            return false;
+
+        string label = sourceName.Trim();
+        if (string.Equals(label, "Auto Attack", System.StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (string.Equals(label, OutgoingBleedingSourceLabel, System.StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (string.Equals(label, OutgoingPoisonSourceLabel, System.StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (string.Equals(label, OutgoingShockSourceLabel, System.StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (string.Equals(label, "Burning", System.StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (string.Equals(label, DefaultMinionOutgoingSourceLabel, System.StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (IsMinionOutgoingSource(label))
+            return false;
+
+        return true;
     }
 
     /// <summary>Hard reset of current DPS/damage tracker values (Damage Meter Reset button only).</summary>
@@ -596,8 +684,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         // Same outer band as shouldStartClosing so we don't get stuck "closing" forever when the gap
         // hovers just outside melee range (moving targets + float noise used to pin gap > myRange every frame).
         float closeEnoughToSwing = myRange + stopSlack;
-        if (gap <= closeEnoughToSwing)
+        bool inAttackRange = gap <= closeEnoughToSwing;
+        if (inAttackRange)
             _attackBufferedFromRange = true;
+        else
+            _attackBufferedFromRange = false;
 
         float desiredCenterDist = myRange + myHalf + enemyHalf;
         float desiredX = (myX < enemyX) ? (enemyX - desiredCenterDist) : (enemyX + desiredCenterDist);
@@ -605,14 +696,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         bool shouldKeepClosing = _isClosingDistanceForAttack && gap > closeEnoughToSwing;
         bool shouldCloseDistance = !_attackBufferedFromRange && (shouldStartClosing || shouldKeepClosing);
 
-        if (shouldCloseDistance)
+        if (shouldCloseDistance && _combatChaseMovementEnabled)
         {
             _isClosingDistanceForAttack = true;
 
             player.ClearActionOverride();
-            if (!player.IsManualKeyboardSteering)
+            if (!player.IsPlayerSteeringMovement)
                 player.MoveToPointX_Combat(desiredX);
-            else
+            else if (player.IsManualKeyboardSteering)
                 player.StopMoveOnly();
             return;
         }
@@ -620,13 +711,23 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _isClosingDistanceForAttack = false;
         if (player.IsManualKeyboardSteering)
             player.StopMoveOnly();
-        else if (kiteAtRangeEdge)
+        else if (player.IsPlayerSteeringMovement)
+        {
+            // Click-to-move repositioning — keep MoveToPoint without combat overriding it.
+        }
+        else if (kiteAtRangeEdge && _combatChaseMovementEnabled)
             player.MoveToPointX_Combat(desiredX);
         else
             player.StopMoveOnly();
 
-        if (faceTargetWhenAttacking)
+        if (faceTargetWhenAttacking && inAttackRange)
             player.FaceTargetX(enemyX);
+
+        if (!inAttackRange)
+        {
+            player.ClearActionOverride();
+            return;
+        }
 
         float cooldown = 1f / Mathf.Max(0.01f, stats.AttacksPerSecond);
 
@@ -843,10 +944,24 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         var orderedSlots = actionBar
             .GetSlots()
             .Where(slot => slot != null)
-            .OrderBy(slot => slot.SlotIndex);
+            .OrderBy(slot => slot.SlotIndex)
+            .ToList();
 
-        foreach (var slot in orderedSlots)
+        if (orderedSlots.Count <= 0)
+            return;
+
+        int nonFlameSlots = 0;
+        for (int i = 0; i < orderedSlots.Count; i++)
         {
+            if (!IsFlameChargeActionBarSlot(orderedSlots[i]))
+                nonFlameSlots++;
+        }
+
+        int start = (_autoBattleAbilityRoundRobinIndex + 1 + orderedSlots.Count) % orderedSlots.Count;
+        for (int attempt = 0; attempt < orderedSlots.Count; attempt++)
+        {
+            int idx = (start + attempt) % orderedSlots.Count;
+            var slot = orderedSlots[idx];
             var action = slot.AssignedAction;
             if (action == null || !action.IsAssigned || !action.IsAbility)
                 continue;
@@ -854,14 +969,53 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (!slot.CanAccept(action))
                 continue;
 
-            if (abilityController.TryUseAbility(
-                    action.id,
-                    showLockedFeedback: false,
-                    allowSoulforgedRecastWhileActive: false,
-                    requireCrescentSlashTargetInFacingLane: true,
-                    requireWhirlwindTargetInRadius: true))
-                break;
+            if (_autoBattleDeferExtraFlameCharge && IsFlameChargeActionBarSlot(slot))
+                continue;
+
+            bool used = abilityController.TryUseAbility(
+                action.id,
+                showLockedFeedback: false,
+                allowSoulforgedRecastWhileActive: false,
+                requireCrescentSlashTargetInFacingLane: true,
+                requireWhirlwindTargetInRadius: true);
+
+            _autoBattleAbilityRoundRobinIndex = idx;
+
+            if (_autoBattleDeferExtraFlameCharge && !IsFlameChargeActionBarSlot(slot))
+            {
+                _autoBattleNonFlameSlotsBeforeNextFlameCharge--;
+                if (_autoBattleNonFlameSlotsBeforeNextFlameCharge <= 0)
+                    _autoBattleDeferExtraFlameCharge = false;
+            }
+
+            if (!used)
+                continue;
+
+            if (IsFlameChargeActionBarSlot(slot))
+            {
+                int readyCharges = abilityController.GetAbilityStackCountDisplay(AbilityCombatPower.FlameChargeAbilityId);
+                if (readyCharges > 0 && nonFlameSlots > 0)
+                {
+                    _autoBattleDeferExtraFlameCharge = true;
+                    _autoBattleNonFlameSlotsBeforeNextFlameCharge = nonFlameSlots;
+                }
+                else
+                    _autoBattleDeferExtraFlameCharge = false;
+            }
+
+            break;
         }
+    }
+
+    private static bool IsFlameChargeActionBarSlot(ActionBarSlotUI slot)
+    {
+        if (slot?.AssignedAction == null || !slot.AssignedAction.IsAbility)
+            return false;
+
+        return string.Equals(
+            slot.AssignedAction.id,
+            AbilityCombatPower.FlameChargeAbilityId,
+            System.StringComparison.OrdinalIgnoreCase);
     }
 
     private float GetCurrentHP()
@@ -1211,6 +1365,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (rolled.IsEmpty)
             return false;
 
+        RecordOutgoingSourceUse(AbilityCombatPower.ParryRiposteOutgoingSourceLabel);
+
         var swingAttribution = new SwingOutgoingAttribution(
             AbilityCombatPower.ParryRiposteOutgoingSourceLabel, null, 0f);
 
@@ -1355,6 +1511,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (primaryHitSucceeded && stats != null && stats.TryConsumeSecondarySpecialistDualWieldDoubleHit())
         {
+            RecordOutgoingSourceUse(AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel);
+
             var doubleHitAttribution = new SwingOutgoingAttribution(
                 AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel,
                 swingAttribution.bonusSource,
@@ -1638,6 +1796,13 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return;
 
         idleCombatEnabled = enabled;
+        if (!enabled)
+        {
+            _autoBattleDeferExtraFlameCharge = false;
+            _autoBattleNonFlameSlotsBeforeNextFlameCharge = 0;
+            _autoBattleAbilityRoundRobinIndex = -1;
+        }
+
         OnIdleCombatChanged?.Invoke(idleCombatEnabled);
 
         if (enabled)
@@ -1945,7 +2110,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     public void SetTarget(EnemyBaseController enemy)
     {
-        if (!enemy || enemy.IsDead)
+        if (!IsValidCombatTarget(enemy))
         {
             ClearTarget();
             return;
@@ -1957,12 +2122,105 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         SetTargetInternal(enemy);
     }
 
+    /// <summary>
+    /// Mouse or interact hotkey on an enemy: set/refresh target and resume auto-chase into attack range
+    /// (re-engages the same target after manual repositioning).
+    /// </summary>
+    public void EngageTargetFromPlayerInput(EnemyBaseController enemy)
+    {
+        if (!IsValidCombatTarget(enemy))
+        {
+            ClearTarget();
+            return;
+        }
+
+        if (!player)
+            player = GetComponent<PlayerController>();
+
+        player?.PrepareForCombatEngageInput();
+
+        if (_target == enemy)
+        {
+            _isClosingDistanceForAttack = false;
+            _attackBufferedFromRange = false;
+            _combatChaseMovementEnabled = true;
+            OnTargetChanged?.Invoke();
+            return;
+        }
+
+        SetTargetInternal(enemy);
+    }
+
+    /// <summary>
+    /// Sets combat target only when none is active (abilities with Sets Target On Hit should not retarget mid-fight).
+    /// </summary>
+    public void SetTargetIfNone(EnemyBaseController enemy)
+    {
+        if (!IsValidCombatTarget(enemy))
+            return;
+
+        if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
+            return;
+
+        SetTarget(enemy);
+    }
+
+    private bool _combatChaseMovementEnabled = true;
+
+    /// <summary>
+    /// Player moved manually (keyboard, click-to-move, etc.) while a combat target exists — keep target and auto-attack in range, but do not path into range.
+    /// </summary>
+    public void NotifyPlayerInitiatedMovement()
+    {
+        _combatChaseMovementEnabled = false;
+    }
+
+    /// <summary>Large position snaps (map travel, ability teleports, scene spawn) clear the current combat target.</summary>
+    public void NotifyPlayerTeleported()
+    {
+        ClearTarget();
+    }
+
+    private static bool IsValidCombatTarget(EnemyBaseController enemy, PlayerController owner)
+    {
+        if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+            return false;
+
+        if (!owner)
+            return true;
+
+        if (enemy.transform == owner.transform)
+            return false;
+
+        if (enemy.GetComponent<PlayerController>() != null)
+            return false;
+
+        if (enemy.GetComponentInParent<PlayerController>() == owner)
+            return false;
+
+        return true;
+    }
+
+    private bool IsValidCombatTarget(EnemyBaseController enemy)
+    {
+        if (!player)
+            player = GetComponent<PlayerController>();
+        return IsValidCombatTarget(enemy, player);
+    }
+
     private void SetTargetInternal(EnemyBaseController enemy)
     {
+        if (!IsValidCombatTarget(enemy))
+        {
+            ClearTargetInternal();
+            return;
+        }
+
         _target = enemy;
         _isClosingDistanceForAttack = false;
         _attackBufferedFromRange = false;
         _targetColCached = null;
+        _combatChaseMovementEnabled = true;
         OnTargetChanged?.Invoke();
     }
 
@@ -1977,6 +2235,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     {
         _target = null;
         _targetColCached = null;
+        _combatChaseMovementEnabled = true;
 
         if (player)
         {
@@ -2558,14 +2817,44 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (amount <= 0f || string.IsNullOrWhiteSpace(sourceName))
             return;
 
-        if (_outgoingDamageBySource.TryGetValue(sourceName, out float current))
+        string key = sourceName.Trim();
+        if (_outgoingSourceCounters.TryGetValue(key, out OutgoingSourceCounter counter))
         {
-            _outgoingDamageBySource[sourceName] = current + amount;
+            counter.totalDamage += amount;
+            counter.hitCount++;
+            _outgoingSourceCounters[key] = counter;
             return;
         }
 
-        _outgoingDamageBySource[sourceName] = amount;
-        _outgoingSourceOrder.Add(sourceName);
+        _outgoingSourceCounters[key] = new OutgoingSourceCounter
+        {
+            totalDamage = amount,
+            hitCount = 1,
+            useCount = 0
+        };
+        _outgoingSourceOrder.Add(key);
+    }
+
+    private void AddOutgoingSourceUse(string sourceName)
+    {
+        if (string.IsNullOrWhiteSpace(sourceName))
+            return;
+
+        string key = sourceName.Trim();
+        if (_outgoingSourceCounters.TryGetValue(key, out OutgoingSourceCounter counter))
+        {
+            counter.useCount++;
+            _outgoingSourceCounters[key] = counter;
+            return;
+        }
+
+        _outgoingSourceCounters[key] = new OutgoingSourceCounter
+        {
+            totalDamage = 0f,
+            hitCount = 0,
+            useCount = 1
+        };
+        _outgoingSourceOrder.Add(key);
     }
 
     private void EnsureDpsSessionStarted()
@@ -2618,7 +2907,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _incomingDamageSum = default;
         _incomingDamageByDealer.Clear();
         _incomingDealerOrder.Clear();
-        _outgoingDamageBySource.Clear();
+        _outgoingSourceCounters.Clear();
         _outgoingSourceOrder.Clear();
         _pausedDpsSessionDuration = 0f;
         _lastEnemyThatDamagedPlayer = null;

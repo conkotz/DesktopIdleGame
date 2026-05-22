@@ -31,5 +31,6 @@ MonoBehaviour:
   requiredWeaponType: 1
   sourceSkill: 3
   unlockLevel: 45
+  requireRangeCheckToActivate: 0
+  setsTargetOnHit: 1
   minionSpawnDefinition: {fileID: 0}
-  requireRangeCheckToActivate: 1

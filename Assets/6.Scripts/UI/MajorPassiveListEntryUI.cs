@@ -56,6 +56,9 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
     [SerializeField] private Color capstoneRowColor = new Color(0.38f, 0.24f, 0.1f, 0.95f);
 
+    [Tooltip("TMP rich-text hex for committed enhancement name beside the passive title.")]
+    [SerializeField] private string enhancementNameColorHex = "#55DD55";
+
 
 
     private SkillDefinition _skill;
@@ -466,7 +469,19 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
         if (nameText)
 
-            nameText.text = displayName;
+        {
+
+            nameText.richText = true;
+
+            string enhancementTitle = SkillUnlockPanelTooltipBuilder.TryResolveCommittedEnhancementTitle(
+
+                skill, unlock, SkillsManager.Instance);
+
+            nameText.text = SkillUnlockPanelTooltipBuilder.FormatPassiveNameWithEnhancement(
+
+                displayName, enhancementTitle, enhancementNameColorHex);
+
+        }
 
 
 

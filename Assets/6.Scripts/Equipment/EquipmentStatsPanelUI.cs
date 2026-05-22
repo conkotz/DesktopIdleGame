@@ -59,6 +59,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text critDamageText;
     [SerializeField] private TMP_Text cooldownReductionText;
     [SerializeField] private TMP_Text lifeStealText;
+    [SerializeField] private TMP_Text stunChanceText;
 
     [Header("Minions (owner scaling — no DPS yet)")]
     [Tooltip("Optional. Assign TMP in offence tab; wire GameObject names MinionDamageText / MinionAttackSpeedText / MinionCritChanceText / MinionMaxLifeText for hover copy.")]
@@ -308,6 +309,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (!stats) return;
 
         EnsureGuardStatTextRefs();
+        EnsureStunChanceTextRef();
 
         // -------------------------
         // Defensive
@@ -463,6 +465,9 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             float lsPct = Mathf.Clamp01(stats.LifeSteal) * 100f;
             lifeStealText.text = $"Life Steal: {lsPct:0.#}% of damage";
         }
+
+        if (stunChanceText)
+            stunChanceText.text = $"Stun Chance: {stats.StunChancePercentForStatsPanel:0.#}%";
 
         if (minionDamageText)
             minionDamageText.text =
@@ -715,6 +720,22 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                      (key.Equals("MaxGuardPercentText", StringComparison.OrdinalIgnoreCase) ||
                       key.Equals("MaxGuardText", StringComparison.OrdinalIgnoreCase)))
                 maxGuardPercentText = tmp;
+        }
+    }
+
+    private void EnsureStunChanceTextRef()
+    {
+        if (stunChanceText)
+            return;
+
+        foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
+        {
+            string key = GameTooltipTexts.NormalizeUiElementName(tmp.gameObject.name);
+            if (key.Equals("StunChanceText", StringComparison.OrdinalIgnoreCase))
+            {
+                stunChanceText = tmp;
+                return;
+            }
         }
     }
 

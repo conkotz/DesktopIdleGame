@@ -5550,6 +5550,8 @@ GameObject:
   - component: {fileID: 2976291199266507660}
   - component: {fileID: 2755516244557776269}
   - component: {fileID: 5821047392856102844}
+  - component: {fileID: 9083169161819440607}
+  - component: {fileID: 5922623881930885248}
   m_Layer: 10
   m_Name: Player
   m_TagString: Player
@@ -5734,21 +5736,16 @@ MonoBehaviour:
   shadowStrikeDepartSmokeLingerSeconds: 2
   shadowStrikeDepartSmokeBurstCount: 52
   shadowStrikeDepartSmokeWispEmitSeconds: 0.35
-  bladestormStabColor: {r: 1, g: 0.23685315, b: 0, a: 0.9}
-  bladestormStabFadeSeconds: 0.08
-  bladestormStabExtendSeconds: 0.1
-  bladestormStabLineWidth: 0.6
-  bladestormStabReach: 2
-  bladestormStabEmitIntervalSeconds: 0.2
-  bladestormStabVerticalHalfDegrees: 15
-  bladestormStabOriginOffset: {x: 0.8, y: 0.8, z: 0}
-  bladestormFinaleSlashColor: {r: 1, g: 0.72, b: 0.28, a: 0.95}
-  bladestormFinaleSlashDropHeight: 2.2
-  bladestormFinaleSlashDepth: 1.35
-  bladestormFinaleSlashLineWidth: 0.34
-  bladestormFinaleSlashExtendSeconds: 0.06
-  bladestormFinaleSlashFadeSeconds: 0.14
-  bladestormFinaleSlashTargetYOffset: 0.45
+  bladestormHitSlashColor: {r: 1, g: 0.88, b: 0.18, a: 1}
+  bladestormHitSlashLineWidth: 0.17
+  bladestormHitSlashDuration: 0.22
+  bladestormHitSlashCenterOffset: {x: 0, y: 0.7, z: 0}
+  bladestormHitSlashSpawnJitter: {x: 0.22, y: 0.18}
+  bladestormHitSlashAngleJitterDegrees: 28
+  bladestormHitSlashHalfLength: 0.52
+  bladestormFinaleSlashWidthScale: 1.5
+  bladestormFinaleSlashDurationScale: 1.2
+  bladestormFinaleSlashLengthScale: 1.25
   finalSeveranceWindupStartColor: {r: 1, g: 0.92, b: 0.2, a: 0.6}
   finalSeveranceWindupEndColor: {r: 1, g: 0.82, b: 0.12, a: 0.6}
   finalSeveranceStrikeStartColor: {r: 1, g: 0.18, b: 0.05, a: 1}
@@ -5958,6 +5955,7 @@ MonoBehaviour:
   baseMagicResist: 0
   baseCorruptionResist: 0
   basePhysBlockChance: 0
+  basePhysBlockMitigation: 0.7
   baseMoveSpeed: 2.5
   baseMoveSpeedMult: 1
   baseLifeRegen: 1
@@ -6394,6 +6392,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponSetSwapInput
   equipment: {fileID: 0}
   actionBar: {fileID: 0}
+  characterStats: {fileID: 0}
 --- !u!114 &-284719365544996773
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6407,6 +6406,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerSprintInput
   characterStats: {fileID: 0}
+  buffController: {fileID: 0}
+  sprintHudIconHoldSeconds: 0.28
 --- !u!114 &966196259100907935
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6530,6 +6531,38 @@ MonoBehaviour:
   stripCamera: {fileID: 0}
   hpBarOnly: 1
   eliteOverheadExtraYOffset: 0.12
+--- !u!114 &9083169161819440607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: faca7c99b016d05418b8440aef85998d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerWorldTargetIndicator
+  targetIconSprite: {fileID: 526639368345827865, guid: cb2607383de41d544b6522bfc3f17be8, type: 3}
+  iconWorldOffset: {x: 0, y: 0.6, z: 0}
+  iconWorldScale: 0.15
+  enemyOverheadIconExtraOffset: 0.15
+  sortingOrder: 120
+  player: {fileID: 0}
+  combat: {fileID: 0}
+  interactFocus: {fileID: 5922623881930885248}
+--- !u!114 &5922623881930885248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7288908651960985007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7ed28708524a824baa8889c36da474a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerWorldInteractFocus
 --- !u!1 &7830489794965648568
 GameObject:
   m_ObjectHideFlags: 0
