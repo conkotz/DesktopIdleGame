@@ -49,6 +49,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private const float ConnectorThickness = 2f;
     private const float ConnectorExtendSpine = 5f;
     private const float ConnectorExtendNode = 10f;
+    public const float ConnectorSpineOverlap = 2f;
 
     private static readonly Color ScrollbarTrackColor = new(0.38f, 0.32f, 0.26f, 1f);
     private static readonly Color ScrollbarHandleColor = new(0.72f, 0.64f, 0.48f, 1f);
@@ -79,7 +80,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private void EditorRebuild() => RebuildScaffold();
 #endif
 
-    public void RebuildScaffold()
+    public void RebuildScaffold(bool notifyHorizontalTree = true)
     {
         RectTransform container = transform as RectTransform;
         if (container == null)
@@ -111,7 +112,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
             BuildPlaceholderNodesInRows(unlockRow, spineRow, choiceRow, connectors);
         }
 
-        if (!buildPlaceholderNodes)
+        if (!buildPlaceholderNodes && notifyHorizontalTree)
         {
             var horizontal = container.GetComponent<HorizontalSkillTreeScaffoldUI>();
             horizontal?.OnScaffoldRebuilt(content);
@@ -175,11 +176,16 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
             DestroyImmediateSafe(connectorsLayer.GetChild(i).gameObject);
     }
 
-    public void DrawConnector(RectTransform connectorsLayer, Vector2 start, Vector2 end)
+    public void DrawConnector(
+        RectTransform connectorsLayer,
+        Vector2 start,
+        Vector2 end,
+        float extendBeyondStart = 0f,
+        float extendBeyondEnd = 0f)
     {
         if (connectorsLayer == null)
             return;
-        CreateConnector(connectorsLayer, start, end);
+        CreateConnector(connectorsLayer, start, end, extendBeyondStart, extendBeyondEnd);
     }
 
     /// <summary>
@@ -570,7 +576,12 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         img.raycastTarget = false;
     }
 
-    private static void CreateConnector(RectTransform connectorsLayer, Vector2 start, Vector2 end)
+    private static void CreateConnector(
+        RectTransform connectorsLayer,
+        Vector2 start,
+        Vector2 end,
+        float extendBeyondStart = ConnectorExtendSpine,
+        float extendBeyondEnd = ConnectorExtendNode)
     {
         Vector2 delta = end - start;
         float len = delta.magnitude;
@@ -578,8 +589,8 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
             return;
 
         Vector2 dir = delta / len;
-        Vector2 lineStart = start - dir * ConnectorExtendSpine;
-        Vector2 lineEnd = end + dir * ConnectorExtendNode;
+        Vector2 lineStart = start - dir * extendBeyondStart;
+        Vector2 lineEnd = end + dir * extendBeyondEnd;
 
         Vector2 seg = lineEnd - lineStart;
         float segLen = seg.magnitude;

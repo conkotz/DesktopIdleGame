@@ -29,17 +29,9 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         Selected
     }
 
+    /// <summary>Matches RootButton size on <c>SkillTimelineNodeUI</c> prefab; used by timeline layout math only.</summary>
     public const float StandardNodeButtonSize = 56f;
     public static readonly float StandardNodeHalfHeight = StandardNodeButtonSize * 0.5f;
-    public const float SpineDiamondSize = 17f;
-    public const float MinorPassiveIconDisplaySize = 28f;
-
-    private static readonly Vector2 StandardNodeSize = new(StandardNodeButtonSize, StandardNodeButtonSize);
-    private static readonly Vector2 StandardIconSize = new(42f, 42f);
-    private static readonly Vector2 MinorNodeSize = new(28f, 28f);
-    private static readonly Vector2 MinorIconSize = new(MinorPassiveIconDisplaySize, MinorPassiveIconDisplaySize);
-    private static readonly Vector2 StandardTypeDiamondSize = new(14f, 14f);
-    private static readonly Vector2 MinorTypeDiamondSize = new(10f, 10f);
 
     [Header("References")]
     [SerializeField] private RectTransform rectTransform;
@@ -191,8 +183,24 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
     {
         ApplyPreview(nodeType, state, displayName, minorPassiveLayout: false, hideNameLabel: false);
         EnableTimelineNodeBackground(nodeType);
-        ConfigureChoiceGroupNameLabel(displayName);
+        SetChildActive(nameLabelUnlocks, false);
         SetChildActive(selectedGlow, false);
+    }
+
+    /// <summary>Single node below the spine (no milestone group shell).</summary>
+    public void ApplyBelowSpineNodePreview(
+        SkillTimelineNodeType nodeType,
+        string displayName,
+        SkillTimelineNodeState state = SkillTimelineNodeState.Available,
+        bool capstoneScale = false)
+    {
+        ApplyPreview(nodeType, state, displayName, minorPassiveLayout: false, hideNameLabel: false);
+        EnableTimelineNodeBackground(nodeType);
+        SetChildActive(nameLabelUnlocks, false);
+        SetChildActive(selectedGlow, false);
+
+        if (capstoneScale && rectTransform != null)
+            rectTransform.localScale = Vector3.one * 1.12f;
     }
 
     /// <summary>Unlock row node: label above icon, centered on milestone X.</summary>
@@ -200,12 +208,11 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         string displayName,
         SkillTimelineNodeState state = SkillTimelineNodeState.Available)
     {
-        ApplyPreview(SkillTimelineNodeType.Unlock, state, displayName, minorPassiveLayout: false, hideNameLabel: false);
+        ApplyPreview(SkillTimelineNodeType.Unlock, state, displayName, minorPassiveLayout: false, hideNameLabel: true);
         EnableTimelineNodeBackground(SkillTimelineNodeType.Unlock);
-        ConfigureUnlockNameLabel(displayName);
     }
 
-    /// <summary>Small rotated diamond on the timeline spine (no card chrome).</summary>
+    /// <summary>Small minor icon on the timeline spine (no card chrome).</summary>
     public void ApplySpineDiamondPreview(SkillTimelineNodeState state = SkillTimelineNodeState.Available)
     {
         ApplyPreview(SkillTimelineNodeType.MinorPassive, state, string.Empty, minorPassiveLayout: false, spineDiamondOnly: true);
@@ -257,7 +264,6 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
             return;
         }
 
-        ApplyLayout(minorPassiveLayout);
         ApplyTypeVisuals(nodeType, minorPassiveLayout);
         ApplyStateVisuals(state);
         ApplyDisplayName(displayName, minorPassiveLayout, hideNameLabel);
@@ -265,19 +271,13 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
     private void ApplySpineDiamondOnlyPresentation(SkillTimelineNodeType nodeType, SkillTimelineNodeState state)
     {
-        Vector2 diamondSize = new(SpineDiamondSize, SpineDiamondSize);
-        SetSizeDeltaIfChanged(rectTransform, diamondSize);
-
         if (rootButton != null)
-        {
-            RectTransform buttonRt = rootButton.transform as RectTransform;
-            SetSizeDeltaIfChanged(buttonRt, diamondSize);
             rootButton.interactable = state != SkillTimelineNodeState.Locked;
-        }
 
         SetChildActive(background, false);
         SetChildActive(borderOutline, false);
         SetChildActive(icon, false);
+        SetChildActive(typeDiamond, false);
         SetChildActive(lockedOverlay, false);
         SetChildActive(selectedGlow, false);
         SetChildActive(checkmark, false);
@@ -290,8 +290,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
         Color accent = GetTypeColor(nodeType);
         Sprite typeSprite = GetTypeIconSprite(nodeType);
-        SetChildActive(typeDiamond, false);
-        ApplyMinorIconVisual(minorIcon, typeSprite, accent, diamondSize, rotateFallbackDiamond: false);
+        ApplyMinorIconVisual(minorIcon, typeSprite, accent, rotateFallbackDiamond: false);
     }
 
     private static void SetChildActive(Component component, bool active)
@@ -367,54 +366,6 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
             _baseIconColor = Color.white;
     }
 
-    private void ApplyLayout(bool minorPassiveLayout)
-    {
-        RectTransform buttonRt = rootButton != null ? rootButton.transform as RectTransform : null;
-        Vector2 nodeSize = minorPassiveLayout ? MinorNodeSize : StandardNodeSize;
-        Vector2 iconSize = minorPassiveLayout ? MinorIconSize : StandardIconSize;
-        Vector2 diamondSize = minorPassiveLayout ? MinorTypeDiamondSize : StandardTypeDiamondSize;
-
-        SetSizeDeltaIfChanged(buttonRt, nodeSize);
-
-        if (icon != null)
-        {
-            SetSizeDeltaIfChanged(icon.rectTransform, iconSize);
-            icon.gameObject.SetActive(!minorPassiveLayout || _appliedType != SkillTimelineNodeType.MinorPassive);
-        }
-
-        bool useMinorIcon = UsesMinorIconPresentation(_appliedType, minorPassiveLayout);
-        if (typeDiamond != null)
-        {
-            typeDiamond.gameObject.SetActive(!useMinorIcon);
-            if (!useMinorIcon)
-            {
-                RectTransform diamondRt = typeDiamond.rectTransform;
-                SetSizeDeltaIfChanged(diamondRt, diamondSize);
-                float diamondRotation = GetTypeIconSprite(_appliedType) != null ? 0f : 45f;
-                SetLocalZRotationIfChanged(diamondRt, diamondRotation);
-            }
-        }
-
-        if (minorIcon != null)
-        {
-            minorIcon.gameObject.SetActive(useMinorIcon);
-            if (useMinorIcon)
-                SetSizeDeltaIfChanged(minorIcon.rectTransform, iconSize);
-        }
-
-        if (selectedGlow != null && selectedGlow.TryGetComponent(out RectTransform glowRt))
-            SetSizeDeltaIfChanged(glowRt, minorPassiveLayout ? new Vector2(36f, 36f) : new Vector2(66f, 66f));
-    }
-
-    private static void SetSizeDeltaIfChanged(RectTransform rt, Vector2 size)
-    {
-        if (rt == null)
-            return;
-        if ((rt.sizeDelta - size).sqrMagnitude < 0.01f)
-            return;
-        rt.sizeDelta = size;
-    }
-
     private static void SetLocalZRotationIfChanged(RectTransform rt, float zDegrees)
     {
         if (rt == null)
@@ -450,12 +401,10 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
             }
         }
 
-        ApplyMinorIconVisual(
-            minorIcon,
-            typeSprite,
-            accent,
-            useMinorIcon ? MinorIconSize : Vector2.zero,
-            rotateFallbackDiamond: false);
+        if (useMinorIcon)
+            ApplyMinorIconVisual(minorIcon, typeSprite, accent, rotateFallbackDiamond: false);
+        else
+            SetChildActive(minorIcon, false);
 
         if (icon != null)
         {
@@ -473,18 +422,13 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         Image minorIconImage,
         Sprite typeSprite,
         Color accent,
-        Vector2 size,
         bool rotateFallbackDiamond)
     {
         if (minorIconImage == null)
             return;
 
-        minorIconImage.gameObject.SetActive(size.sqrMagnitude > 0.01f);
-        if (!minorIconImage.gameObject.activeSelf)
-            return;
-
+        minorIconImage.gameObject.SetActive(true);
         ApplyTypeIconImage(minorIconImage, typeSprite, accent);
-        SetSizeDeltaIfChanged(minorIconImage.rectTransform, size);
         float rotation = rotateFallbackDiamond && typeSprite == null ? 45f : 0f;
         SetLocalZRotationIfChanged(minorIconImage.rectTransform, rotation);
     }
@@ -564,63 +508,12 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         background.color = Color.Lerp(backgroundTint, accent, 0.18f);
     }
 
-    private void ConfigureChoiceGroupNameLabel(string displayName)
-    {
-        if (nameLabel == null)
-            return;
-
-        nameLabel.fontSize = 10f;
-        nameLabel.fontStyle = FontStyles.Normal;
-        nameLabel.alignment = TextAlignmentOptions.Center;
-        nameLabel.textWrappingMode = TextWrappingModes.Normal;
-        nameLabel.overflowMode = TextOverflowModes.Ellipsis;
-
-        float labelY = -(StandardNodeHalfHeight + 4f);
-        RectTransform labelRt = nameLabel.rectTransform;
-        labelRt.anchorMin = labelRt.anchorMax = new Vector2(0.5f, 0f);
-        labelRt.pivot = new Vector2(0.5f, 1f);
-        labelRt.anchoredPosition = new Vector2(0f, labelY);
-        labelRt.sizeDelta = new Vector2(76f, 26f);
-
-        ConfigureChoiceGroupLayoutElement();
-    }
-
-    private void ConfigureChoiceGroupLayoutElement()
-    {
-        if (!TryGetComponent(out LayoutElement layoutElement))
-            layoutElement = gameObject.AddComponent<LayoutElement>();
-
-        float height = StandardNodeButtonSize + 24f;
-        layoutElement.minWidth = 72f;
-        layoutElement.preferredWidth = 80f;
-        layoutElement.minHeight = height;
-        layoutElement.preferredHeight = height;
-        layoutElement.flexibleWidth = 0f;
-        layoutElement.flexibleHeight = 0f;
-    }
-
-    private void ConfigureUnlockNameLabel(string displayName)
-    {
-        if (nameLabelUnlocks == null)
-            return;
-
-        nameLabelUnlocks.fontSize = 11f;
-        nameLabelUnlocks.fontStyle = FontStyles.Bold;
-        nameLabelUnlocks.alignment = TextAlignmentOptions.Center;
-        nameLabelUnlocks.textWrappingMode = TextWrappingModes.Normal;
-        nameLabelUnlocks.overflowMode = TextOverflowModes.Ellipsis;
-
-        RectTransform labelRt = nameLabelUnlocks.rectTransform;
-        labelRt.sizeDelta = new Vector2(160f, 32f);
-        labelRt.anchoredPosition = new Vector2(0f, 34f);
-    }
-
     private void ApplyDisplayName(string displayName, bool minorPassiveLayout, bool hideNameLabel)
     {
         bool isUnlock = _appliedType == SkillTimelineNodeType.Unlock;
-        bool showAnyName = !hideNameLabel && !minorPassiveLayout && _appliedType != SkillTimelineNodeType.MinorPassive;
-        bool showUnlockLabel = showAnyName && isUnlock;
-        bool showStandardLabel = showAnyName && !isUnlock;
+        bool isMinorPassive = _appliedType == SkillTimelineNodeType.MinorPassive || minorPassiveLayout;
+        bool showStandardLabel = !hideNameLabel && !isMinorPassive && !isUnlock;
+        bool showUnlockLabel = isUnlock && !string.IsNullOrWhiteSpace(displayName);
         string text = string.IsNullOrWhiteSpace(displayName) ? "Node" : displayName;
 
         if (nameLabel != null)

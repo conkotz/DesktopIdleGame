@@ -34,7 +34,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: 0, y: -15}
+  m_AnchoredPosition: {x: 0, y: -10}
   m_SizeDelta: {x: 180, y: 14}
   m_Pivot: {x: 0.5, y: 0}
 --- !u!222 &7650275079025863568
@@ -712,6 +712,7 @@ MonoBehaviour:
   background: {fileID: 5261330952023328825}
   borderOutline: {fileID: 7708556005704284580}
   icon: {fileID: 4882513859267888720}
+  minorIcon: {fileID: 259501887726747979}
   typeDiamond: {fileID: 4355934900264028387}
   lockedOverlay: {fileID: 8291110638265149640}
   selectedGlow: {fileID: 2717680431227223174}

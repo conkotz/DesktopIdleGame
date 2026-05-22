@@ -82,7 +82,8 @@ public class SkillChoiceGroupUI : MonoBehaviour
         float groupAnchorY,
         string[] nodeNames,
         SkillTimelineNodeUI.SkillTimelineNodeType nodeType,
-        SkillTimelineNodeUI nodePrefab)
+        SkillTimelineNodeUI nodePrefab,
+        SkillTimelineNodeUI.SkillTimelineNodeState displayState = SkillTimelineNodeUI.SkillTimelineNodeState.Available)
     {
         EnsureHierarchy();
 
@@ -106,7 +107,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
 
         ClearNodes();
         ApplyChoiceHintLabel(count);
-        PopulateNodes(level, nodeNames, count, nodeType, nodePrefab);
+        PopulateNodes(level, nodeNames, count, nodeType, nodePrefab, displayState);
         RefreshConnectorLayout();
     }
 
@@ -136,7 +137,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
 
         Vector3 branchWorld = rectTransform.TransformPoint(new Vector3(branchCenterX, branchY, 0f));
         branchAttach = timelineContent.InverseTransformPoint(branchWorld);
-        spineAttach = new Vector2(branchAttach.x, spineY - stemSpineInset);
+        spineAttach = new Vector2(branchAttach.x, spineY);
         return true;
     }
 
@@ -163,7 +164,8 @@ public class SkillChoiceGroupUI : MonoBehaviour
         string[] nodeNames,
         int count,
         SkillTimelineNodeUI.SkillTimelineNodeType nodeType,
-        SkillTimelineNodeUI nodePrefab)
+        SkillTimelineNodeUI nodePrefab,
+        SkillTimelineNodeUI.SkillTimelineNodeState displayState)
     {
         if (nodePrefab == null || choiceNodesContainer == null)
             return;
@@ -181,7 +183,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
             nodeRt.localScale = Vector3.one;
             nodeRt.localRotation = Quaternion.identity;
 
-            node.ApplyChoiceGroupNodePreview(nodeType, nodeNames[i]);
+            node.ApplyChoiceGroupNodePreview(nodeType, nodeNames[i], displayState);
             _spawnedNodes.Add(node);
         }
     }
@@ -239,8 +241,6 @@ public class SkillChoiceGroupUI : MonoBehaviour
         {
             SetChoiceConnectorCount(0);
             branchLine.gameObject.SetActive(false);
-            if (stemLine != null)
-                stemLine.gameObject.SetActive(false);
             return;
         }
 
@@ -263,15 +263,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
         ApplyConnectorImage(branchLineImage);
 
         if (stemLine != null)
-        {
-            stemLine.gameObject.SetActive(true);
-            stemLine.anchorMin = stemLine.anchorMax = new Vector2(0.5f, 0f);
-            stemLine.pivot = new Vector2(0.5f, 0f);
-            stemLine.anchoredPosition = new Vector2(branchCenterX, branchY);
-            stemLine.sizeDelta = new Vector2(connectorThickness, centerStemAboveBranch);
-            stemLine.SetSiblingIndex(0);
-            ApplyConnectorImage(stemLineImage);
-        }
+            stemLine.gameObject.SetActive(false);
 
         SetChoiceConnectorCount(nodeBoundsList.Count);
         for (int i = 0; i < nodeBoundsList.Count; i++)
@@ -279,10 +271,14 @@ public class SkillChoiceGroupUI : MonoBehaviour
             Bounds nodeBounds = nodeBoundsList[i];
             float nodeCenterX = nodeBounds.center.x;
             float nodeTopY = nodeBounds.max.y - nodeConnectorEndInset;
-            float dropHeight = Mathf.Max(2f, branchY - nodeTopY);
+            float dropHeight = branchY - nodeTopY;
 
             RectTransform drop = _choiceConnectorLines[i];
-            drop.gameObject.SetActive(dropHeight > 0.5f);
+            bool showDrop = dropHeight > 0.5f;
+            drop.gameObject.SetActive(showDrop);
+            if (!showDrop)
+                continue;
+
             drop.anchorMin = drop.anchorMax = new Vector2(0.5f, 0.5f);
             drop.pivot = new Vector2(0.5f, 1f);
             drop.anchoredPosition = new Vector2(nodeCenterX, branchY);
@@ -343,7 +339,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
             if (!child.TryGetComponent(out SkillTimelineNodeUI _))
                 continue;
 
-            Bounds bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(choiceNodesContainer, child);
+            Bounds bounds = GetNodeChromeBoundsInContainer(child);
             nodeBoundsList.Add(bounds);
             if (!hasAny)
             {
@@ -360,6 +356,13 @@ public class SkillChoiceGroupUI : MonoBehaviour
         containerHeight = choiceNodesContainer.rect.height;
         branchY = unionBounds.max.y + branchAboveNodesGap;
         return hasAny && nodeBoundsList.Count >= MinChoiceCount;
+    }
+
+    private Bounds GetNodeChromeBoundsInContainer(Transform nodeTransform)
+    {
+        Transform chrome = nodeTransform.Find("RootButton");
+        RectTransform measure = chrome != null ? chrome as RectTransform : nodeTransform as RectTransform;
+        return RectTransformUtility.CalculateRelativeRectTransformBounds(choiceNodesContainer, measure);
     }
 
     private void SetChoiceConnectorCount(int count)
