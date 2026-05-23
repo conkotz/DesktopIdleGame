@@ -62325,6 +62325,8 @@ GameObject:
   - component: {fileID: 1050632462}
   - component: {fileID: 1050632464}
   - component: {fileID: 1050632463}
+  - component: {fileID: 1050632465}
+  - component: {fileID: 1050632466}
   m_Layer: 5
   m_Name: TimelineContainer
   m_TagString: Untagged
@@ -62391,6 +62393,47 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1050632461}
   m_CullTransparentMesh: 1
+--- !u!114 &1050632465
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1050632461}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f3c2a1e9b704d5f8e6a4c2d1b0e9f7a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SkillTimelineScaffoldUI
+  rebuildOnEnable: 1
+  buildPlaceholderNodes: 0
+--- !u!114 &1050632466
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1050632461}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4e8f1a2938475061a2b3c4d5e6f7089, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HorizontalSkillTreeScaffoldUI
+  timelineContent: {fileID: 103872271}
+  nodePrefab: {fileID: 8847291001002003001, guid: c9cffb8809b692548a64093070d6fb38, type: 3}
+  choiceGroupPrefab: {fileID: 9096304822609073138, guid: 0630a8c1e00801e4b88740e238903a83, type: 3}
+  timelineScaffold: {fileID: 1050632465}
+  skillsManager: {fileID: 0}
+  pixelsPerLevel: 90
+  timelineStartX: 120
+  spineY: 24
+  choiceRowY: -78
+  selectedSkill: {fileID: 0}
+  selectedSkillType: 3
+  skillDatabase: {fileID: 0}
+  generateOnStart: 0
+  useTestTimelineFallback: 0
+  verboseBuildLogs: 0
 --- !u!1 &1051582431
 GameObject:
   m_ObjectHideFlags: 0
@@ -122830,8 +122873,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAbilityPageNewUI
   skillDatabase: {fileID: 11400000, guid: e15e72bf42f3f0848900bcde97f7730c, type: 2}
   skillsManager: {fileID: 0}
-  skillTabBarRoot: {fileID: 0}
-  horizontalSkillTimeline: {fileID: 0}
+  skillTabBarRoot: {fileID: 1236636276}
+  horizontalSkillTimeline: {fileID: 1050632466}
   selectedSkillTitleText: {fileID: 0}
 --- !u!1 &2075293058
 GameObject:
