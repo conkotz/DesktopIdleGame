@@ -44,6 +44,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     [Header("Left — Summary")]
     [SerializeField] private Image skillIconImage;
     [SerializeField] private TMP_Text nameText;
+    [SerializeField] private TMP_Text levelReqText;
     [SerializeField] private TMP_Text typeText;
     [SerializeField] private TMP_Text unlockStateText;
     [SerializeField] private TMP_Text descriptionText;
@@ -72,15 +73,10 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     [SerializeField] private GameObject enhancementDetailRoot;
     [SerializeField] private TMP_Text enhancementDetailText;
     [SerializeField] private Button changeEnhancementButton;
-
-    [Header("Select skill (action bar)")]
-    [SerializeField] private Button selectSkillButton;
-    [SerializeField] private TMP_Text selectSkillButtonText;
+    [SerializeField] private Button collapseDetailsButton;
 
     private const string SelectEnhancementButtonLabel = "SELECT ENHANCEMENT";
     private const string ChangeEnhancementButtonLabel = "CHANGE ENHANCEMENT";
-    private const string SelectSkillButtonLabel = "Select Skill";
-    private const string UnselectSkillButtonLabel = "Unselect Skill";
 
     private static readonly Color EnhancementsLockedOverlayColor = new(0.72f, 0.1f, 0.08f, 0.48f);
 
@@ -91,7 +87,14 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     private bool _detailsInteriorExpanded;
     private Coroutine _deferredColumnsLayoutCo;
     private UnityEngine.Events.UnityAction _enhancementActionHandler;
-    private UnityEngine.Events.UnityAction _selectSkillHandler;
+    private UnityEngine.Events.UnityAction _collapseDetailsHandler;
+
+    /// <summary>Fired when the panel clears (no node selected).</summary>
+    public event System.Action DetailsDismissed;
+
+    public SkillTimelineNodeBinding CurrentBinding => _currentBinding;
+
+    public bool HasActiveDetails => _currentBinding != null;
 
     private void Awake()
     {
@@ -100,11 +103,16 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         ApplySectionDividerLayout();
         ApplyDetailsTypography();
         EnsureEnhancementsLockedOverlay();
-        EnsureSelectSkillButtonReference();
-        WireSelectSkillButton();
         WireEnhancementActionButton();
+        WireCollapseDetailsButton();
         RefreshColumnsLayout();
         ShowEmpty();
+    }
+
+    private void OnDisable()
+    {
+        if (collapseDetailsButton != null && _collapseDetailsHandler != null)
+            collapseDetailsButton.onClick.RemoveListener(_collapseDetailsHandler);
     }
 
     private void OnRectTransformDimensionsChange()
@@ -197,6 +205,9 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         }
     }
 
+    /// <summary>Clears the open node, collapses the bottom details column, and notifies listeners.</summary>
+    public void Dismiss() => ShowEmpty();
+
     public void ShowEmpty(string message = DefaultEmptyMessage)
     {
         _currentBinding = null;
@@ -205,7 +216,13 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         if (enhancementsSubtitleText != null)
             enhancementsSubtitleText.gameObject.SetActive(false);
         RefreshEnhancementActionButton(locked: true, committedIndex: -1);
-        RefreshSelectSkillButton(null);
+        DetailsDismissed?.Invoke();
+
+        if (levelReqText != null)
+        {
+            levelReqText.text = string.Empty;
+            levelReqText.gameObject.SetActive(false);
+        }
 
         if (emptyStateRoot != null)
             emptyStateRoot.SetActive(true);
@@ -221,6 +238,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         NotifyBottomPanelLayout(null);
         ApplyDetailsInteriorLayout(expanded: false);
         ScheduleDeferredColumnsLayout();
+        RefreshCollapseButtonVisible();
     }
 
     public void Show(SkillTimelineNodeBinding binding)
@@ -231,7 +249,14 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             return;
         }
 
+        bool switchingNode = !IsSameEnhancementBinding(_currentBinding, binding);
         _currentBinding = binding;
+
+        if (switchingNode)
+        {
+            _previewEnhancementIndex = -1;
+            _committedEnhancementIndex = -1;
+        }
 
         SkillsManager skillsManager = SkillsManager.Instance;
         if (skillsManager == null)
@@ -257,10 +282,18 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             skillIconImage.enabled = details.Icon != null;
         }
 
+        EnsureLevelReqTextReference();
+
         if (nameText != null)
-            nameText.text = string.IsNullOrWhiteSpace(details.LevelText)
-                ? details.Title
-                : $"{details.Title} {details.LevelText}";
+            nameText.text = details.Title ?? string.Empty;
+
+        if (levelReqText != null)
+        {
+            bool hasLevel = !string.IsNullOrWhiteSpace(details.LevelText);
+            levelReqText.gameObject.SetActive(hasLevel);
+            if (hasLevel)
+                levelReqText.text = details.LevelText;
+        }
 
         if (typeText != null)
             typeText.text = details.TypeLabel;
@@ -282,7 +315,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         NotifyBottomPanelLayout(binding);
         ApplyDetailsInteriorLayout(expandBottomBar);
         ScheduleDeferredColumnsLayout();
-        RefreshSelectSkillButton(ability);
+        RefreshCollapseButtonVisible();
     }
 
     private void ApplyDetailsInteriorLayout(bool expanded)
@@ -612,6 +645,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     private void ApplyDetailsTypography()
     {
         SetFontSize(nameText, FontNameTitle);
+        SetFontSize(levelReqText, FontMeta);
         SetFontSize(typeText, FontMeta);
         SetFontSize(unlockStateText, FontMeta);
         SetFontSize(descriptionText, FontBody);
@@ -826,9 +860,6 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             ? skillsManager.GetSkillChoiceSelection(binding.Skill.skillType, spineId, -1)
             : -1;
 
-        if (binding.IsChoiceNode && binding.ChoiceAssetIndex >= 0)
-            savedIndex = binding.ChoiceAssetIndex;
-
         _committedEnhancementIndex = savedIndex;
         _previewEnhancementIndex = savedIndex >= 0 ? savedIndex : -1;
 
@@ -877,8 +908,20 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
 
         if (_previewEnhancementIndex >= 0)
             SelectEnhancementButton(_previewEnhancementIndex, showDetail: true);
-        else if (visibleCount > 0)
-            SelectEnhancementButton(_spawnedEnhancementButtons[0].ChoiceIndex, showDetail: false);
+    }
+
+    private static bool IsSameEnhancementBinding(SkillTimelineNodeBinding a, SkillTimelineNodeBinding b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+        if (a == null || b == null)
+            return false;
+
+        return a.Skill == b.Skill
+            && ReferenceEquals(a.Unlock, b.Unlock)
+            && a.Level == b.Level
+            && a.SlotAtLevel == b.SlotAtLevel
+            && a.ChoiceAssetIndex == b.ChoiceAssetIndex;
     }
 
     private void RefreshEnhancementSubtitle(bool locked, int committedIndex, SkillUnlockDefinition unlock)
@@ -933,6 +976,52 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         changeEnhancementButton.onClick.AddListener(_enhancementActionHandler);
     }
 
+    private void WireCollapseDetailsButton()
+    {
+        if (collapseDetailsButton == null)
+            collapseDetailsButton = ResolveCollapseDetailsButton();
+
+        if (collapseDetailsButton == null)
+            return;
+
+        if (_collapseDetailsHandler != null)
+            collapseDetailsButton.onClick.RemoveListener(_collapseDetailsHandler);
+
+        _collapseDetailsHandler = HandleCollapseDetailsClicked;
+        collapseDetailsButton.onClick.AddListener(_collapseDetailsHandler);
+        RefreshCollapseButtonVisible();
+    }
+
+    private Button ResolveCollapseDetailsButton()
+    {
+        Transform detailsPanel = transform.parent;
+        if (detailsPanel != null && detailsPanel.parent != null)
+            detailsPanel = detailsPanel.parent;
+
+        if (detailsPanel == null)
+            return null;
+
+        Transform bar = detailsPanel.Find("ViewDetailsBar");
+        if (bar == null)
+            return null;
+
+        return bar.Find("CollapseButton")?.GetComponent<Button>();
+    }
+
+    private void HandleCollapseDetailsClicked()
+    {
+        if (!HasActiveDetails)
+            return;
+
+        ShowEmpty();
+    }
+
+    private void RefreshCollapseButtonVisible()
+    {
+        if (collapseDetailsButton != null)
+            collapseDetailsButton.gameObject.SetActive(HasActiveDetails);
+    }
+
     private void HandleEnhancementActionButtonClicked()
     {
         if (_currentBinding == null || _currentBinding.Unlock == null)
@@ -961,6 +1050,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             _previewEnhancementIndex);
 
         PopulateEnhancementCards(_currentBinding, skillsManager);
+        Show(_currentBinding);
     }
 
     private void HandleEnhancementButtonClicked(SkillNodeDetailsEnhancementCardUI button)
@@ -1013,88 +1103,20 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             enhancementDetailText.text = string.Empty;
     }
 
-    private void EnsureSelectSkillButtonReference()
+    private void EnsureLevelReqTextReference()
     {
-        if (selectSkillButton != null)
+        if (levelReqText != null)
             return;
 
-        Transform searchRoot = transform.parent;
-        for (int depth = 0; depth < 6 && searchRoot != null; depth++)
+        if (contentRoot != null)
         {
-            Transform found = searchRoot.Find("BottomPanelBar/DetailsPanel/SelectSkill");
-            if (found == null)
-                found = searchRoot.Find("DetailsPanel/SelectSkill");
-            if (found != null)
-            {
-                selectSkillButton = found.GetComponent<Button>();
-                break;
-            }
-
-            searchRoot = searchRoot.parent;
+            Transform nameBlock = contentRoot.transform.Find("ColumnsRoot/LeftSection/TopRow/NameBlock");
+            if (nameBlock != null)
+                levelReqText = nameBlock.Find("LevelReqText")?.GetComponent<TMP_Text>();
         }
 
-        if (selectSkillButtonText == null && selectSkillButton != null)
-            selectSkillButtonText = selectSkillButton.GetComponentInChildren<TMP_Text>(true);
-    }
-
-    private void WireSelectSkillButton()
-    {
-        EnsureSelectSkillButtonReference();
-        if (selectSkillButton == null)
-            return;
-
-        if (_selectSkillHandler != null)
-            selectSkillButton.onClick.RemoveListener(_selectSkillHandler);
-
-        _selectSkillHandler = HandleSelectSkillButtonClicked;
-        selectSkillButton.onClick.AddListener(_selectSkillHandler);
-    }
-
-    private void RefreshSelectSkillButton(AbilityDefinition ability)
-    {
-        EnsureSelectSkillButtonReference();
-        if (selectSkillButton == null)
-            return;
-
-        bool canToggle = ability != null && !string.IsNullOrWhiteSpace(ability.abilityId);
-        selectSkillButton.interactable = canToggle;
-        selectSkillButton.gameObject.SetActive(canToggle);
-
-        if (!canToggle)
-        {
-            if (selectSkillButtonText != null)
-                selectSkillButtonText.text = SelectSkillButtonLabel;
-            return;
-        }
-
-        ActionBarUI bar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
-        bool onBar = bar != null && bar.IsAbilityOnBar(ability.abilityId);
-        if (selectSkillButtonText != null)
-            selectSkillButtonText.text = onBar ? UnselectSkillButtonLabel : SelectSkillButtonLabel;
-    }
-
-    private void HandleSelectSkillButtonClicked()
-    {
-        AbilityDefinition ability = ResolveAbility(_currentBinding);
-        if (ability == null || string.IsNullOrWhiteSpace(ability.abilityId))
-            return;
-
-        ActionBarUI bar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
-        if (bar == null)
-            return;
-
-        if (bar.IsAbilityOnBar(ability.abilityId))
-        {
-            bar.TryClearAbilityFromBar(ability.abilityId);
-            RefreshSelectSkillButton(ability);
-            return;
-        }
-
-        if (ActionBarUI.IsGatheringSkillType(ability.sourceSkill))
-            bar.ShowGatheringBarForSkill(ability.sourceSkill, GatheringBarDriveKind.SkillsMenuSelection);
-
-        bar.TryAssignAbilityToFirstEmptySlot(ability);
-        RefreshSelectSkillButton(ability);
+        if (levelReqText == null)
+            levelReqText = transform.Find("LevelReqText")?.GetComponent<TMP_Text>();
     }
 
     /// <summary>Top-packs header + buttons; only the detail area grows (fixes stretched column on older prefabs).</summary>

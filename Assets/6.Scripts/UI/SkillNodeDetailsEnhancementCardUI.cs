@@ -13,9 +13,9 @@ public sealed class SkillNodeDetailsEnhancementCardUI : MonoBehaviour
     [SerializeField] private TMP_Text levelTagText;
     [SerializeField] private TMP_Text nameText;
 
-    private static readonly Color NormalFrame = new(0.15f, 0.13f, 0.11f, 0.35f);
-    private static readonly Color PreviewFrame = new(0.28f, 0.22f, 0.14f, 0.95f);
-    private static readonly Color CommittedFrame = new(0.14f, 0.24f, 0.16f, 0.95f);
+    private static readonly Color NormalFrame = new(0.15f, 0.13f, 0.11f, 1f);
+    private static readonly Color PreviewFrame = new(0.28f, 0.22f, 0.14f, 1f);
+    private static readonly Color CommittedFrame = new(0.14f, 0.24f, 0.16f, 1f);
     private static readonly Color PreviewBorder = new(0.75f, 0.62f, 0.32f, 1f);
     private static readonly Color CommittedBorder = new(0.35f, 0.85f, 0.45f, 1f);
     private static readonly Color NormalBorder = new(0.35f, 0.3f, 0.24f, 0.65f);

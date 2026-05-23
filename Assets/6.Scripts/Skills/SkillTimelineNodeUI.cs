@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -45,9 +46,12 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
     [SerializeField] private Image typeDiamond;
     [SerializeField] private GameObject lockedOverlay;
     [SerializeField] private GameObject selectedGlow;
+    [SerializeField] private GameObject notSelectedRoot;
     [SerializeField] private GameObject checkmark;
     [SerializeField] private TMP_Text nameLabel;
     [SerializeField] private TMP_Text nameLabelUnlocks;
+    [SerializeField] private Button selectSkillButton;
+    [SerializeField] private Button changeNodeButton;
 
     [Header("Type Icon Sprites")]
     [SerializeField] private Sprite abilityIconSprite;
@@ -62,7 +66,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
     [SerializeField] private Color majorPassiveColor = new(0.58f, 0.32f, 0.76f, 1f);
     [SerializeField] private Color unlockColor = new(0.95f, 0.78f, 0.22f, 1f);
     [SerializeField] private Color capstoneColor = new(0.78f, 0.22f, 0.22f, 1f);
-    [SerializeField] private Color backgroundTint = new(0.12f, 0.1f, 0.08f, 0.92f);
+    [SerializeField] private Color backgroundTint = new(0.12f, 0.1f, 0.08f, 1f);
     [Tooltip("When true, hides the dark node plate so icons/diamonds read clearly.")]
     [SerializeField] private bool hideHeavyBackground = false;
 
@@ -71,7 +75,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
     [SerializeField] private Color lockedDimMultiplier = new(0.35f, 0.35f, 0.35f, 1f);
     [SerializeField] private Color availableBorderColor = new(0.35f, 0.3f, 0.24f, 0.85f);
     [SerializeField] private Color selectedBorderColor = new(1f, 0.84f, 0.2f, 1f);
-    [SerializeField] private Color selectedGlowColor = new(1f, 0.84f, 0.2f, 0.45f);
+    [SerializeField] private Color selectedGlowColor = new(1f, 0.84f, 0.2f, 1f);
 
     [Header("Editor Preview")]
     [SerializeField] private bool applyPreviewInEditor = true;
@@ -100,6 +104,15 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
     private SkillTimelineNodeBinding _binding;
     private UnityAction _clickHandler;
+    private UnityAction _selectSkillHandler;
+    private UnityAction _changeNodeHandler;
+
+    private const float NotSelectedFadeSeconds = 0.35f;
+    private const float NotSelectedHoldOpaqueSeconds = 2f;
+    private CanvasGroup _notSelectedCanvasGroup;
+    private Image _notSelectedImage;
+    private Color _notSelectedImageBaseColor = Color.white;
+    private Coroutine _notSelectedFlashRoutine;
 
     private void Awake()
     {
@@ -126,15 +139,92 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
     private void OnDisable()
     {
         RemoveClickHandler();
+        RemoveSelectSkillHandler();
+        RemoveChangeNodeHandler();
+        SetNotSelectedPrompt(false);
 #if UNITY_EDITOR
         CancelDeferredEditorPreview();
 #endif
+    }
+
+    /// <summary>Row pick committed for this milestone (border highlight only).</summary>
+    public void ApplyRowPickSelectionVisual(bool selected)
+    {
+        EnsureReferences();
+        SkillTimelineNodeState state = selected
+            ? SkillTimelineNodeState.Selected
+            : _appliedState == SkillTimelineNodeState.Locked
+                ? SkillTimelineNodeState.Locked
+                : SkillTimelineNodeState.Available;
+        ApplyStateVisuals(state);
+    }
+
+    /// <summary>Pulses <see cref="notSelectedRoot"/> (same timing as <see cref="SkillTreeNodeUI"/>).</summary>
+    public void SetNotSelectedPrompt(bool show)
+    {
+        if (!show)
+        {
+            if (_notSelectedFlashRoutine != null)
+            {
+                StopCoroutine(_notSelectedFlashRoutine);
+                _notSelectedFlashRoutine = null;
+            }
+
+            ApplyNotSelectedAlpha(0f);
+            if (notSelectedRoot != null)
+                notSelectedRoot.SetActive(false);
+            return;
+        }
+
+        if (notSelectedRoot == null)
+            return;
+
+        if (_notSelectedCanvasGroup == null && _notSelectedImage == null)
+            CacheNotSelectedVisualDriver();
+        if (_notSelectedCanvasGroup == null && _notSelectedImage == null)
+            return;
+
+        notSelectedRoot.SetActive(true);
+        if (_notSelectedFlashRoutine == null && isActiveAndEnabled)
+            _notSelectedFlashRoutine = StartCoroutine(NotSelectedFlashLoop());
+    }
+
+    /// <summary><c>SelectNode</c> = committed/active label; <c>ChangeNode</c> = swap pick in this row.</summary>
+    public void ConfigureRowSelectionButtons(
+        bool showSelectNodeLabel,
+        bool showChangeNodeButton,
+        Action<SkillTimelineNodeUI> onChangeNode)
+    {
+        EnsureReferences();
+
+        if (selectSkillButton != null)
+        {
+            selectSkillButton.gameObject.SetActive(showSelectNodeLabel);
+            selectSkillButton.interactable = false;
+        }
+
+        if (changeNodeButton == null)
+            return;
+
+        RemoveChangeNodeHandler();
+
+        if (!showChangeNodeButton || onChangeNode == null || !Application.isPlaying)
+        {
+            changeNodeButton.gameObject.SetActive(false);
+            return;
+        }
+
+        changeNodeButton.gameObject.SetActive(true);
+        changeNodeButton.interactable = true;
+        _changeNodeHandler = () => onChangeNode(this);
+        changeNodeButton.onClick.AddListener(_changeNodeHandler);
     }
 
     /// <summary>Assigns unlock data used by the Current Selection panel (display only).</summary>
     public void Bind(SkillTimelineNodeBinding binding)
     {
         _binding = binding;
+        ApplyAbilityContentIconFromBinding(binding);
     }
 
     private void EnsureClickHandler()
@@ -162,7 +252,91 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         _clickHandler = null;
     }
 
+    private void RemoveSelectSkillHandler()
+    {
+        if (selectSkillButton == null || _selectSkillHandler == null)
+            return;
+
+        selectSkillButton.onClick.RemoveListener(_selectSkillHandler);
+        _selectSkillHandler = null;
+    }
+
+    private void RemoveChangeNodeHandler()
+    {
+        if (changeNodeButton == null || _changeNodeHandler == null)
+            return;
+
+        changeNodeButton.onClick.RemoveListener(_changeNodeHandler);
+        _changeNodeHandler = null;
+    }
+
     private void HandleRootButtonClicked() => Clicked?.Invoke(this);
+
+    private void CacheNotSelectedVisualDriver()
+    {
+        if (notSelectedRoot == null)
+            return;
+
+        _notSelectedCanvasGroup = notSelectedRoot.GetComponent<CanvasGroup>();
+        _notSelectedImage = notSelectedRoot.GetComponent<Image>();
+        if (_notSelectedImage != null)
+        {
+            _notSelectedImageBaseColor = _notSelectedImage.color;
+            _notSelectedImage.raycastTarget = false;
+        }
+    }
+
+    private void ApplyNotSelectedAlpha(float a)
+    {
+        a = Mathf.Clamp01(a);
+        if (_notSelectedCanvasGroup != null)
+            _notSelectedCanvasGroup.alpha = a;
+        else if (_notSelectedImage != null)
+        {
+            Color c = _notSelectedImageBaseColor;
+            c.a = a * _notSelectedImageBaseColor.a;
+            _notSelectedImage.color = c;
+        }
+    }
+
+    private IEnumerator NotSelectedFlashLoop()
+    {
+        ApplyNotSelectedAlpha(0f);
+
+        while (true)
+        {
+            yield return FadeNotSelectedAlpha(0f, 1f, NotSelectedFadeSeconds);
+            float hold = 0f;
+            while (hold < NotSelectedHoldOpaqueSeconds)
+            {
+                hold += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            yield return FadeNotSelectedAlpha(1f, 0f, NotSelectedFadeSeconds);
+            yield return null;
+        }
+    }
+
+    private IEnumerator FadeNotSelectedAlpha(float from, float to, float duration)
+    {
+        if (duration <= 0.0001f)
+        {
+            ApplyNotSelectedAlpha(to);
+            yield break;
+        }
+
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / duration);
+            ApplyNotSelectedAlpha(Mathf.Lerp(from, to, u));
+            yield return null;
+        }
+
+        ApplyNotSelectedAlpha(to);
+    }
 
 #if UNITY_EDITOR
     private void OnValidate()
@@ -236,9 +410,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         SkillTimelineNodeState state = SkillTimelineNodeState.Available)
     {
         ApplyPreview(nodeType, state, displayName, minorPassiveLayout: false, hideNameLabel: false);
-        EnableTimelineNodeBackground(nodeType);
         SetChildActive(nameLabelUnlocks, false);
-        SetChildActive(selectedGlow, false);
     }
 
     /// <summary>Single node below the spine (no milestone group shell).</summary>
@@ -249,9 +421,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         bool capstoneScale = false)
     {
         ApplyPreview(nodeType, state, displayName, minorPassiveLayout: false, hideNameLabel: false);
-        EnableTimelineNodeBackground(nodeType);
         SetChildActive(nameLabelUnlocks, false);
-        SetChildActive(selectedGlow, false);
 
         if (capstoneScale && rectTransform != null)
             rectTransform.localScale = Vector3.one * 1.12f;
@@ -263,7 +433,6 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         SkillTimelineNodeState state = SkillTimelineNodeState.Available)
     {
         ApplyPreview(SkillTimelineNodeType.Unlock, state, displayName, minorPassiveLayout: false, hideNameLabel: true);
-        EnableTimelineNodeBackground(SkillTimelineNodeType.Unlock);
     }
 
     /// <summary>Small minor icon on the timeline spine (no card chrome).</summary>
@@ -402,6 +571,23 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
                 selectedGlow = t.gameObject;
         }
 
+        if (notSelectedRoot == null)
+        {
+            Transform t = transform.Find("RootButton/NotSelected");
+            if (t != null)
+                notSelectedRoot = t.gameObject;
+        }
+
+        if (selectSkillButton == null)
+        {
+            selectSkillButton = transform.Find("SelectNode")?.GetComponent<Button>();
+            if (selectSkillButton == null)
+                selectSkillButton = transform.Find("SelectSkill")?.GetComponent<Button>();
+        }
+
+        if (changeNodeButton == null)
+            changeNodeButton = transform.Find("ChangeNode")?.GetComponent<Button>();
+
         if (checkmark == null)
         {
             Transform t = transform.Find("RootButton/Checkmark");
@@ -449,16 +635,13 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         bool useMinorIcon = UsesMinorIconPresentation(nodeType, minorPassiveLayout);
 
         if (background != null)
-        {
-            bool showPlate = !useMinorIcon && (!hideHeavyBackground || minorPassiveLayout);
-            background.gameObject.SetActive(showPlate);
-            if (showPlate)
-                background.color = Color.Lerp(backgroundTint, accent, minorPassiveLayout ? 0.35f : 0.18f);
-        }
+            background.gameObject.SetActive(false);
+
+        bool showTypeDiamond = !useMinorIcon && nodeType == SkillTimelineNodeType.Ability;
         if (typeDiamond != null)
         {
-            typeDiamond.gameObject.SetActive(!useMinorIcon);
-            if (!useMinorIcon)
+            typeDiamond.gameObject.SetActive(showTypeDiamond);
+            if (showTypeDiamond)
             {
                 ApplyTypeIconImage(typeDiamond, typeSprite, accent);
                 float diamondRotation = typeSprite != null ? 0f : 45f;
@@ -475,9 +658,62 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         {
             bool showIcon = !useMinorIcon && !minorPassiveLayout && nodeType != SkillTimelineNodeType.MinorPassive;
             icon.gameObject.SetActive(showIcon);
-            if (showIcon)
+            if (showIcon && nodeType != SkillTimelineNodeType.Ability)
                 ApplyTypeIconImage(icon, typeSprite, accent);
         }
+    }
+
+    private void ApplyAbilityContentIconFromBinding(SkillTimelineNodeBinding binding)
+    {
+        if (_appliedType != SkillTimelineNodeType.Ability)
+            return;
+
+        EnsureReferences();
+
+        Sprite typeSprite = GetTypeIconSprite(SkillTimelineNodeType.Ability);
+        if (typeDiamond != null)
+        {
+            typeDiamond.gameObject.SetActive(true);
+            ApplyTypeIconImage(typeDiamond, typeSprite, abilityColor);
+            float diamondRotation = typeSprite != null ? 0f : 45f;
+            SetLocalZRotationIfChanged(typeDiamond.rectTransform, diamondRotation);
+        }
+
+        Sprite contentIcon = ResolveAbilityContentIcon(binding);
+        if (icon == null)
+            return;
+
+        icon.gameObject.SetActive(true);
+        if (contentIcon != null)
+        {
+            ApplyTypeIconImage(icon, contentIcon, abilityColor);
+            _baseIconColor = Color.white;
+        }
+        else
+            ApplyTypeIconImage(icon, typeSprite, abilityColor);
+    }
+
+    private static Sprite ResolveAbilityContentIcon(SkillTimelineNodeBinding binding)
+    {
+        if (binding == null || binding.TimelineNodeType != SkillTimelineNodeType.Ability)
+            return null;
+
+        if (binding.Choice != null)
+        {
+            Sprite choiceIcon = SkillsAbilityPresentationResolver.ResolveChoiceIcon(binding.Choice);
+            if (choiceIcon != null)
+                return choiceIcon;
+        }
+
+        SkillUnlockDefinition unlock = binding.Unlock;
+        if (unlock?.ability != null)
+        {
+            Sprite abilityIcon = SkillsAbilityPresentationResolver.ResolveAbilityIcon(unlock.ability);
+            if (abilityIcon != null)
+                return abilityIcon;
+        }
+
+        return unlock?.icon;
     }
 
     private static bool UsesMinorIconPresentation(SkillTimelineNodeType nodeType, bool minorPassiveLayout) =>
@@ -535,10 +771,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         }
 
         if (selectedGlow != null)
-            selectedGlow.SetActive(selected);
-
-        if (selectedGlow != null && selectedGlow.TryGetComponent(out Image glowImg))
-            glowImg.color = selectedGlowColor;
+            selectedGlow.SetActive(false);
 
         if (checkmark != null)
             checkmark.SetActive(unlocked);
@@ -547,12 +780,6 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
             borderOutline.effectColor = selected ? selectedBorderColor : availableBorderColor;
 
         Color accent = GetTypeColor(_appliedType);
-        if (background != null && background.gameObject.activeSelf && !UsesMinorIconPresentation(_appliedType, _appliedMinorLayout))
-        {
-            Color normalBg = Color.Lerp(backgroundTint, accent, _appliedMinorLayout ? 0.35f : 0.18f);
-            background.color = locked ? MultiplyColor(normalBg, lockedDimMultiplier) : normalBg;
-        }
-
         if (icon != null && icon.gameObject.activeSelf)
             icon.color = locked ? MultiplyColor(_baseIconColor, lockedDimMultiplier) : _baseIconColor;
 
@@ -561,16 +788,6 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
         if (rootButton != null)
             rootButton.interactable = true;
-    }
-
-    private void EnableTimelineNodeBackground(SkillTimelineNodeType nodeType)
-    {
-        if (background == null || nodeType == SkillTimelineNodeType.MinorPassive)
-            return;
-
-        Color accent = GetTypeColor(nodeType);
-        background.gameObject.SetActive(true);
-        background.color = Color.Lerp(backgroundTint, accent, 0.18f);
     }
 
     private void ApplyDisplayName(string displayName, bool minorPassiveLayout, bool hideNameLabel)

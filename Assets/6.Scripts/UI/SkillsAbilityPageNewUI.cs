@@ -803,7 +803,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
         RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
-        SyncTimelineFromPageSelection();
+        RefreshTimelineAfterPickOrEnhancementChange();
     }
 
     private void HandleSkillChoiceSelectionChanged(SkillType type, int _, int __)
@@ -815,6 +815,16 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             return;
 
         RefreshActiveBonusesPanel();
-        SyncTimelineFromPageSelection();
+        RefreshTimelineAfterPickOrEnhancementChange();
+    }
+
+    private void RefreshTimelineAfterPickOrEnhancementChange()
+    {
+        EnsureHorizontalTimelineReference();
+        if (horizontalSkillTimeline == null)
+            return;
+
+        horizontalSkillTimeline.RefreshTimelineSelectionVisuals();
+        horizontalSkillTimeline.RefreshOpenDetailsAfterDataChange();
     }
 }

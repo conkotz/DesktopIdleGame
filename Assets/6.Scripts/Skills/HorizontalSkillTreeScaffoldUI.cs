@@ -30,7 +30,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     [SerializeField] private float pixelsPerLevel = 90f;
     [SerializeField] private float timelineStartX = 120f;
     [SerializeField] private float spineY = 24f;
-    [SerializeField] private float choiceRowY = -78f;
+    [SerializeField] private float choiceRowY = -54f;
 
     [Header("Skill selection (drives timeline + node details)")]
     [Tooltip("Primary skill tree to render. Assign directly, or leave empty and use Skill Type + Database.")]
@@ -54,6 +54,8 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
     private SkillDefinition _builtSkill;
     private bool _isBuilding;
+    private SkillTimelineNodeUI _detailsFocusedTimelineNode;
+    private float? _scrollRestoreAfterLayout;
     private readonly List<SkillTimelineNodeUI> _spawnedTimelineNodes = new();
 
     /// <summary>Inspector skill used by <see cref="BuildFromSelectedSkill"/>.</summary>
@@ -127,8 +129,10 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         _isBuilding = true;
         try
         {
+            float? savedScroll = CaptureTimelineScrollPosition();
+            SkillTimelineNodeBinding restoreDetailsBinding = CaptureOpenDetailsBinding();
             EnsureTimelineReady();
-            ClearSpawnedContent();
+            ClearSpawnedContent(dismissDetailsPanel: restoreDetailsBinding == null);
             _builtSkill = skill;
 
             if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0)
@@ -152,13 +156,35 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
             RefreshSkillLevelLabel(skill, playerLevel);
             RefreshSpineProgress(playerLevel);
+            BringSpineMinorNodesToFront();
+            RefreshRowSelectionVisuals();
+            _scrollRestoreAfterLayout = savedScroll;
+            RestoreTimelineScrollPosition(savedScroll);
             QueueDeferredConnectorRefresh();
+
+            if (restoreDetailsBinding != null)
+                RestoreOpenDetails(restoreDetailsBinding);
+
             return true;
         }
         finally
         {
             _isBuilding = false;
         }
+    }
+
+    /// <summary>Refreshes row pick / enhancement chrome without rebuilding the timeline.</summary>
+    public void RefreshTimelineSelectionVisuals() => RefreshRowSelectionVisuals();
+
+    /// <summary>Re-applies the open details panel after choice/enhancement data changes.</summary>
+    public void RefreshOpenDetailsAfterDataChange()
+    {
+        EnsureDetailsPanelReference();
+        SkillTimelineNodeBinding binding = detailsPanel != null ? detailsPanel.CurrentBinding : null;
+        if (binding == null)
+            return;
+
+        RestoreOpenDetails(binding);
     }
 
     /// <summary>Sets the inspector skill and rebuilds the timeline (display only).</summary>
@@ -267,6 +293,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         CacheRowContainers();
         BuildTimelineConnectors();
+        RefreshRowSelectionVisuals();
     }
 
     private void QueueDeferredConnectorRefresh()
@@ -293,17 +320,22 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             yield break;
 
         BuildTimelineConnectors();
+        RefreshRowSelectionVisuals();
+        RestoreTimelineScrollPosition(_scrollRestoreAfterLayout);
+        _scrollRestoreAfterLayout = null;
     }
 
     [ContextMenu("Clear Spawned Nodes")]
-    public void ClearSpawnedContent()
+    public void ClearSpawnedContent(bool dismissDetailsPanel = true)
     {
+        _detailsFocusedTimelineNode = null;
         UnregisterAllTimelineNodes();
         CacheRowContainers();
         ClearRowSpawnedContent(_unlockRow);
         ClearRowSpawnedContent(_spineRow);
         ClearRowSpawnedContent(_choiceRow);
-        detailsPanel?.ShowEmpty();
+        if (dismissDetailsPanel)
+            detailsPanel?.ShowEmpty();
     }
 
     private void RenderLevelGroup(
@@ -753,6 +785,35 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             timelineScaffold = GetComponent<SkillTimelineScaffoldUI>();
 
         timelineScaffold?.UpdateSpineProgress(playerLevel);
+        BringSpineMinorNodesToFront();
+    }
+
+    /// <summary>Keeps spine minor gems above spine line / progress chrome (stable sibling order).</summary>
+    private void BringSpineMinorNodesToFront()
+    {
+        if (_spineRow == null)
+            return;
+
+        Transform spineLine = _spineRow.Find("SpineLine");
+        Transform progress = _spineRow.Find("SpineProgressLine");
+        Transform ticks = _spineRow.Find("LevelTicks");
+
+        int index = 0;
+        if (spineLine != null)
+            spineLine.SetSiblingIndex(index++);
+        if (progress != null)
+            progress.SetSiblingIndex(index++);
+        if (ticks != null)
+            ticks.SetSiblingIndex(index++);
+
+        for (int i = 0; i < _spineRow.childCount; i++)
+        {
+            Transform child = _spineRow.GetChild(i);
+            if (child == spineLine || child == progress || child == ticks)
+                continue;
+            if (child.GetComponent<SkillTimelineNodeUI>() != null)
+                child.SetSiblingIndex(index++);
+        }
     }
 
     private static SkillTimelineNodeUI.SkillTimelineNodeState ResolveDisplayState(int unlockLevel, int playerLevel) =>
@@ -1009,6 +1070,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         node.Clicked -= HandleTimelineNodeClicked;
         node.Clicked += HandleTimelineNodeClicked;
+        node.ConfigureRowSelectionButtons(false, false, null);
         _spawnedTimelineNodes.Add(node);
     }
 
@@ -1029,21 +1091,304 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         if (detailsPanel == null || node == null)
             return;
 
+        float? savedScroll = CaptureTimelineScrollPosition();
+        _detailsFocusedTimelineNode = node;
         detailsPanel.Show(node.Binding);
+        RestoreTimelineScrollPosition(savedScroll);
+        RefreshRowSelectionButtons();
+    }
+
+    private void HandleChangeNodeClicked(SkillTimelineNodeUI node)
+    {
+        if (node?.Binding == null)
+            return;
+
+        PreferRuntimeSkillsManager();
+        if (skillsManager == null)
+            return;
+
+        float? savedScroll = CaptureTimelineScrollPosition();
+        SkillTimelineRowSelectionRules.CommitSelection(skillsManager, node.Binding);
+        RefreshRowSelectionVisuals();
+
+        EnsureDetailsPanelReference();
+        if (detailsPanel != null && node.Binding != null)
+            detailsPanel.Show(node.Binding);
+
+        RestoreTimelineScrollPosition(savedScroll);
+        RefreshRowSelectionButtons();
+    }
+
+    private void RefreshRowSelectionVisuals()
+    {
+        PreferRuntimeSkillsManager();
+        if (_builtSkill == null || skillsManager == null)
+        {
+            for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
+            {
+                SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
+                if (node == null)
+                    continue;
+                node.ApplyRowPickSelectionVisual(false);
+                node.SetNotSelectedPrompt(false);
+                node.ConfigureRowSelectionButtons(false, false, null);
+            }
+
+            return;
+        }
+
+        RefreshChoiceGroupRowVisuals();
+        RefreshStandaloneChoiceRowNodes();
+        RefreshRowSelectionButtons();
+    }
+
+    private void RefreshRowSelectionButtons()
+    {
+        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
+        {
+            SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
+            if (node == null)
+                continue;
+
+            node.ConfigureRowSelectionButtons(false, false, null);
+        }
+
+        if (_choiceRow == null || skillsManager == null)
+            return;
+
+        for (int g = 0; g < _choiceRow.childCount; g++)
+        {
+            if (!_choiceRow.GetChild(g).TryGetComponent(out SkillChoiceGroupUI group))
+                continue;
+
+            IReadOnlyList<SkillTimelineNodeUI> nodes = group.SpawnedNodes;
+            if (nodes == null || nodes.Count == 0)
+                continue;
+
+            var bindings = new SkillTimelineNodeBinding[nodes.Count];
+            for (int i = 0; i < nodes.Count; i++)
+                bindings[i] = nodes[i] != null ? nodes[i].Binding : null;
+
+            bool rowHasCommittedPick = RowHasCommittedSelection(bindings);
+            for (int i = 0; i < nodes.Count; i++)
+                ApplyRowSelectionButtonsForNode(nodes[i], bindings, rowHasCommittedPick);
+        }
+
+        for (int i = 0; i < _choiceRow.childCount; i++)
+        {
+            Transform child = _choiceRow.GetChild(i);
+            if (child.GetComponent<SkillChoiceGroupUI>() != null)
+                continue;
+
+            if (!child.TryGetComponent(out SkillTimelineNodeUI node))
+                continue;
+
+            SkillTimelineNodeBinding binding = node.Binding;
+            if (binding == null)
+                continue;
+
+            var bindings = new[] { binding };
+            ApplyRowSelectionButtonsForNode(node, bindings, RowHasCommittedSelection(bindings));
+        }
+    }
+
+    private void ApplyRowSelectionButtonsForNode(
+        SkillTimelineNodeUI node,
+        SkillTimelineNodeBinding[] groupBindings,
+        bool rowHasCommittedPick)
+    {
+        if (node?.Binding == null)
+            return;
+
+        SkillTimelineNodeBinding binding = node.Binding;
+        if (!SupportsRowSelectionChrome(binding))
+        {
+            node.ConfigureRowSelectionButtons(false, false, null);
+            return;
+        }
+
+        bool committed = SkillTimelineRowSelectionRules.IsNodeCommittedSelected(skillsManager, binding);
+        bool showSelectNode = committed;
+        bool showChangeNode = rowHasCommittedPick
+            && node == _detailsFocusedTimelineNode
+            && !committed
+            && binding.DisplayState != SkillTimelineNodeUI.SkillTimelineNodeState.Locked;
+
+        node.ConfigureRowSelectionButtons(showSelectNode, showChangeNode, HandleChangeNodeClicked);
+    }
+
+    private static bool SupportsRowSelectionChrome(SkillTimelineNodeBinding binding) =>
+        binding != null
+        && (SkillTimelineRowSelectionRules.IsSelectablePickNode(binding) || binding.IsChoiceNode);
+
+    private bool RowHasCommittedSelection(SkillTimelineNodeBinding[] groupBindings)
+    {
+        if (groupBindings == null || skillsManager == null)
+            return false;
+
+        for (int i = 0; i < groupBindings.Length; i++)
+        {
+            SkillTimelineNodeBinding binding = groupBindings[i];
+            if (binding != null && SkillTimelineRowSelectionRules.IsNodeCommittedSelected(skillsManager, binding))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void RefreshChoiceGroupRowVisuals()
+    {
+        if (_choiceRow == null)
+            return;
+
+        for (int g = 0; g < _choiceRow.childCount; g++)
+        {
+            if (!_choiceRow.GetChild(g).TryGetComponent(out SkillChoiceGroupUI group))
+                continue;
+
+            IReadOnlyList<SkillTimelineNodeUI> nodes = group.SpawnedNodes;
+            if (nodes == null || nodes.Count == 0)
+                continue;
+
+            var bindings = new SkillTimelineNodeBinding[nodes.Count];
+            for (int i = 0; i < nodes.Count; i++)
+                bindings[i] = nodes[i] != null ? nodes[i].Binding : null;
+
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                SkillTimelineNodeUI node = nodes[i];
+                if (node == null)
+                    continue;
+
+                ApplyRowVisualsForNode(node, bindings);
+            }
+        }
+    }
+
+    private void RefreshStandaloneChoiceRowNodes()
+    {
+        if (_choiceRow == null)
+            return;
+
+        for (int i = 0; i < _choiceRow.childCount; i++)
+        {
+            Transform child = _choiceRow.GetChild(i);
+            if (child.GetComponent<SkillChoiceGroupUI>() != null)
+                continue;
+
+            if (!child.TryGetComponent(out SkillTimelineNodeUI node))
+                continue;
+
+            SkillTimelineNodeBinding binding = node.Binding;
+            if (binding == null)
+                continue;
+
+            ApplyRowVisualsForNode(node, new[] { binding });
+        }
+    }
+
+    private void ApplyRowVisualsForNode(SkillTimelineNodeUI node, SkillTimelineNodeBinding[] groupBindings)
+    {
+        SkillTimelineNodeBinding binding = node.Binding;
+        if (!SupportsRowSelectionChrome(binding))
+        {
+            node.ApplyRowPickSelectionVisual(false);
+            node.SetNotSelectedPrompt(false);
+            node.ConfigureRowSelectionButtons(false, false, null);
+            return;
+        }
+
+        bool selected = SkillTimelineRowSelectionRules.IsNodeCommittedSelected(skillsManager, binding);
+        bool showNotSelected = SkillTimelineRowSelectionRules.ShouldShowNotSelectedPrompt(
+            skillsManager,
+            binding,
+            groupBindings);
+
+        node.ApplyRowPickSelectionVisual(selected);
+        node.SetNotSelectedPrompt(showNotSelected);
     }
 
     private void EnsureDetailsPanelReference()
     {
-        if (detailsPanel != null)
-            return;
-
-        detailsPanel = GetComponentInChildren<SkillNodeDetailsPanelUI>(true);
         if (detailsPanel == null)
         {
-            SkillsAbilityPageNewUI page = GetComponentInParent<SkillsAbilityPageNewUI>(true);
-            if (page != null)
-                detailsPanel = page.GetComponentInChildren<SkillNodeDetailsPanelUI>(true);
+            detailsPanel = GetComponentInChildren<SkillNodeDetailsPanelUI>(true);
+            if (detailsPanel == null)
+            {
+                SkillsAbilityPageNewUI page = GetComponentInParent<SkillsAbilityPageNewUI>(true);
+                if (page != null)
+                    detailsPanel = page.GetComponentInChildren<SkillNodeDetailsPanelUI>(true);
+            }
         }
+
+        WireDetailsPanelDismissed();
+    }
+
+    private void WireDetailsPanelDismissed()
+    {
+        if (detailsPanel == null)
+            return;
+
+        detailsPanel.DetailsDismissed -= HandleDetailsPanelDismissed;
+        detailsPanel.DetailsDismissed += HandleDetailsPanelDismissed;
+    }
+
+    private void HandleDetailsPanelDismissed()
+    {
+        _detailsFocusedTimelineNode = null;
+        RefreshRowSelectionButtons();
+    }
+
+    private SkillTimelineNodeBinding CaptureOpenDetailsBinding()
+    {
+        if (_detailsFocusedTimelineNode?.Binding != null)
+            return _detailsFocusedTimelineNode.Binding;
+
+        EnsureDetailsPanelReference();
+        return detailsPanel != null && detailsPanel.HasActiveDetails
+            ? detailsPanel.CurrentBinding
+            : null;
+    }
+
+    private void RestoreOpenDetails(SkillTimelineNodeBinding binding)
+    {
+        if (binding == null)
+            return;
+
+        EnsureDetailsPanelReference();
+        _detailsFocusedTimelineNode = FindTimelineNodeForBinding(binding);
+        detailsPanel?.Show(binding);
+        RefreshRowSelectionButtons();
+    }
+
+    private SkillTimelineNodeUI FindTimelineNodeForBinding(SkillTimelineNodeBinding binding)
+    {
+        if (binding == null)
+            return null;
+
+        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
+        {
+            SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
+            if (node?.Binding != null && BindingsMatch(node.Binding, binding))
+                return node;
+        }
+
+        return null;
+    }
+
+    private static bool BindingsMatch(SkillTimelineNodeBinding a, SkillTimelineNodeBinding b)
+    {
+        if (ReferenceEquals(a, b))
+            return true;
+        if (a == null || b == null)
+            return false;
+
+        return a.Skill == b.Skill
+            && ReferenceEquals(a.Unlock, b.Unlock)
+            && a.Level == b.Level
+            && a.SlotAtLevel == b.SlotAtLevel
+            && a.ChoiceAssetIndex == b.ChoiceAssetIndex
+            && ReferenceEquals(a.Choice, b.Choice);
     }
 
     private void PreferRuntimeSkillsManager()
@@ -1052,6 +1397,36 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             skillsManager = SkillsManager.Instance;
         else if (skillsManager == null)
             skillsManager = FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
+    }
+
+    private ScrollRect ResolveTimelineScrollRect()
+    {
+        if (timelineScaffold != null)
+        {
+            ScrollRect fromScaffold = timelineScaffold.GetComponentInChildren<ScrollRect>(true);
+            if (fromScaffold != null)
+                return fromScaffold;
+        }
+
+        return GetComponentInChildren<ScrollRect>(true);
+    }
+
+    private float? CaptureTimelineScrollPosition()
+    {
+        ScrollRect scroll = ResolveTimelineScrollRect();
+        return scroll != null ? scroll.horizontalNormalizedPosition : null;
+    }
+
+    private void RestoreTimelineScrollPosition(float? normalized)
+    {
+        if (!normalized.HasValue)
+            return;
+
+        ScrollRect scroll = ResolveTimelineScrollRect();
+        if (scroll == null)
+            return;
+
+        scroll.horizontalNormalizedPosition = normalized.Value;
     }
 
 #if UNITY_EDITOR
