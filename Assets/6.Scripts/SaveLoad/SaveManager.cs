@@ -162,6 +162,8 @@ public class SaveManager : MonoBehaviour
 
         if (scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase))
         {
+            HelperGameplayController.ForceHidePersistentOverlayForMenuNavigation();
+            RepairBootstrapUiAfterReturningFromGameplay();
             SaveSlotManager.ResetGameplaySpawnSessionFlags();
             RefreshSaveSlots();
             StartCoroutine(CoRefreshSaveSlotMenusAfterBootstrapLoad());
@@ -394,6 +396,7 @@ public class SaveManager : MonoBehaviour
         NormalizeSaveDataLists(data);
         AlignNewGameTemplateSlotCountsFromRuntime(data);
         SeedEmptyInventoryAndStorageRowsForNewGame(data);
+        CombatStarterAttackAbility.SeedDefaultActionBarAssignments(data);
         SaveDataIntegrity.RepairAfterJsonLoad(data, "NewGameTemplate");
 
         _isApplyingSaveData = true;

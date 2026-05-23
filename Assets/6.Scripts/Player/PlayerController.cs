@@ -542,6 +542,7 @@ public class PlayerController : MonoBehaviour
             return;
 
         PlayerSprintInput.PollSprintKey();
+        PlayerSprintInput.TickSprintDash();
 
         if (_attackLocked && Time.time >= _attackUnlockTime)
         {
@@ -951,6 +952,9 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyKeyboardMovementDelta()
     {
+        if (PlayerSprintInput.IsSprintDashing)
+            return;
+
         if (!_keyboardManualMoveThisFrame)
             return;
 
@@ -1532,6 +1536,20 @@ public class PlayerController : MonoBehaviour
         MerchantClick.ForceCloseMerchantMode();
         MerchantClick.CancelPendingOpen();
 
+        // Expanded sky / margins: horizontal move only — no strip targeting or interact.
+        if (IsExpandBackgroundOutsideStripClick(Input.mousePosition))
+        {
+            if (!_stripCam)
+                RebindCameras();
+            if (!_stripCam)
+                return;
+
+            Vector3 stripWorld = _stripCam.ScreenToWorldPoint(Input.mousePosition);
+            InterruptWorkIfNeeded();
+            MoveToPointX(stripWorld.x, fromPlayerInput: true);
+            return;
+        }
+
         Camera clickCamera = ResolveWorldClickCamera();
         if (!clickCamera)
             return;
@@ -1612,6 +1630,41 @@ public class PlayerController : MonoBehaviour
         PlayerWorldInteractFocus.ClearForPlayer(this);
         NPCInteractionSettings.CancelPendingInteract();
         MerchantClick.CancelPendingOpen();
+    }
+
+    /// <summary>Stops auto-movement when the player starts a sprint dash.</summary>
+    public void InterruptForSprintDash()
+    {
+        NotifyPlayerInitiatedMovement();
+        CancelAutoMovementFromKeyboardSteering();
+    }
+
+    /// <summary>Keyboard left/right if held, otherwise current facing.</summary>
+    public float ResolveSprintDashDirectionSign()
+    {
+        bool left = IsKeyboardMoveLeftHeld();
+        bool right = IsKeyboardMoveRightHeld();
+        if (left && !right)
+            return -1f;
+        if (right && !left)
+            return 1f;
+        return FacingDirectionX >= 0f ? 1f : -1f;
+    }
+
+    public float ClampWorldX(float x)
+    {
+        GetClampXMinMax(out float min, out float max);
+        return Mathf.Clamp(x, min, max);
+    }
+
+    public void SetHorizontalPositionForScriptedMove(float x, float faceDirectionSign)
+    {
+        Vector3 pos = transform.position;
+        pos.x = ClampWorldX(x);
+        transform.position = pos;
+        SyncPlayerRigidbody2DPosition();
+        if (Mathf.Abs(faceDirectionSign) > 0.01f)
+            FaceTargetX(pos.x + faceDirectionSign);
     }
 
     /// <summary>Clears manual repositioning so combat can chase the clicked enemy into range.</summary>
@@ -4463,6 +4516,21 @@ public class PlayerController : MonoBehaviour
             return true;
 
         return _stripCam.pixelRect.Contains(screenPos);
+    }
+
+    /// <summary>
+    /// Expand background: pointer is in sky or side margins (outside strip camera pixel rect).
+    /// Clicks here are move-only on X; strip interactions require clicking inside the strip viewport.
+    /// </summary>
+    private bool IsExpandBackgroundOutsideStripClick(Vector3 screenPos)
+    {
+        if (!ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+            return false;
+
+        if (!_stripCam)
+            RebindCameras();
+
+        return _stripCam != null && !_stripCam.pixelRect.Contains(screenPos);
     }
 
     private Camera ResolveWorldClickCamera()

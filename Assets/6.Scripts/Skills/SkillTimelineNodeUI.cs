@@ -101,8 +101,10 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
         if (Application.isPlaying)
             ApplyPresentation(previewNodeType, previewState, previewDisplayName, previewMinorPassiveLayout, spineDiamondOnly: false, hideNameLabel: false);
+#if UNITY_EDITOR
         else
             RequestEditorPreviewApply();
+#endif
     }
 
     private void OnDisable()
@@ -112,12 +114,14 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 #endif
     }
 
+#if UNITY_EDITOR
     private void OnValidate()
     {
         if (!applyPreviewInEditor)
             return;
         RequestEditorPreviewApply();
     }
+#endif
 
     [ContextMenu("Apply Editor Preview")]
     public void ApplyEditorPreviewFromInspector()

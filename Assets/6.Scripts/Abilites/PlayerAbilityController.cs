@@ -1673,8 +1673,43 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
-        LogNoTargetsInRangeThrottled();
+        HandleNoTargetsInRangeForStarterAttack(def);
         return false;
+    }
+
+    /// <summary>Combat starter Attack: engage closest enemy in weapon attack range (no ability damage or cooldown).</summary>
+    private bool TryUseCombatStarterAttack(AbilityDefinition def, bool showLockedFeedback)
+    {
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null)
+            return false;
+
+        if (TryFindKeyboardModeAbilityTarget(def, out EnemyBaseController target))
+        {
+            combat.EngageTargetFromPlayerInput(target);
+            return true;
+        }
+
+        HandleNoTargetsInRangeForStarterAttack(def);
+        return false;
+    }
+
+    private void HandleNoTargetsInRangeForStarterAttack(AbilityDefinition def)
+    {
+        if (!CombatStarterAttackAbility.IsCombatStarterAttack(def))
+        {
+            LogNoTargetsInRangeThrottled();
+            return;
+        }
+
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+
+        if (combat != null && combat.CurrentTarget != null)
+            combat.ClearTarget();
+
+        LogNoTargetsInRangeThrottled();
     }
 
     private static void LogNoTargetsInRangeThrottled()
@@ -1940,7 +1975,10 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (!CanUseWithEquippedWeapon(def))
         {
-            player.ShowPopup("Ability cant be used with this weapon");
+            if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
+                GameLog.Add(CombatStarterAttackAbility.WrongWeaponEquippedLogMessage, GameLog.CannotMessageColor);
+            else if (showLockedFeedback && player)
+                player.ShowPopup("Ability cant be used with this weapon");
             return false;
         }
 
@@ -1949,6 +1987,9 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (TryHandleToggleAbilityUse(def))
             return true;
+
+        if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
+            return TryUseCombatStarterAttack(def, showLockedFeedback);
 
         if (globalCooldownSeconds > 0f && Time.time < _globalCooldownEndsAt)
             return false;

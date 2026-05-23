@@ -340,7 +340,7 @@ public class LevelSpawnDirector : MonoBehaviour
         return $"levelItem:{node}:p{pi}:r{rowIndex}:i{instanceIndex}:{iid}";
     }
 
-    private static string BuildPermanentEnemyDeathKey(
+    public static string BuildPermanentEnemyDeathKey(
         MapNodeDefinition levelDef,
         int planIndex,
         int rowIndex,

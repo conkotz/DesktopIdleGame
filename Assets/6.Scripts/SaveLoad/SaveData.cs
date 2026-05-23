@@ -191,6 +191,10 @@ public class SaveData
     [Tooltip("QuestDefinition.questId values accepted from quest givers.")]
     public List<string> acceptedQuestIds = new();
 
+    [Tooltip(
+        "Quest ids that already ran Respawn Enemy On Quest Accepted (one-time spawn per save, even if the player was off-map when accepting).")]
+    public List<string> questAcceptedEnemyRespawnHandledIds = new();
+
     [Tooltip("Ordered QuestDefinition.questId entries currently tracked in the quest tracker window.")]
     public List<string> trackedQuestIds = new();
 

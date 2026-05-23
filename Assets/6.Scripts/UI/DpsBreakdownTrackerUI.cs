@@ -67,6 +67,8 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     private bool _loggedScrollDiagnostics;
     private float _incomingPanelBasePreferredHeight = -1f;
     private float _dealerTextBaseHeight = -1f;
+    private float _outgoingPanelBasePreferredHeight = -1f;
+    private float _outgoingSourceTextBaseHeight = -1f;
     private float _scrollContentBaseHeight = -1f;
     private Transform _resolvedTrackerRoot;
     private static readonly Dictionary<int, DpsBreakdownTrackerUI> RootOwnerById = new();
@@ -272,6 +274,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         if (!currentCombat)
         {
             individualDamageDealersText.text = dpsMode ? "No incoming DPS yet" : "No incoming damage yet";
+            RefreshDealerPanelLayout();
             return;
         }
 
@@ -279,6 +282,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         if (entries == null || entries.Count == 0)
         {
             individualDamageDealersText.text = dpsMode ? "No incoming DPS yet" : "No incoming damage yet";
+            RefreshDealerPanelLayout();
             return;
         }
 
@@ -317,6 +321,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         if (!currentCombat)
         {
             individualOutgoingDamageSourcesText.text = dpsMode ? "No outgoing DPS yet" : "No outgoing damage yet";
+            RefreshOutgoingPanelLayout();
             return;
         }
 
@@ -324,6 +329,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         if (entries == null || entries.Count == 0)
         {
             individualOutgoingDamageSourcesText.text = dpsMode ? "No outgoing DPS yet" : "No outgoing damage yet";
+            RefreshOutgoingPanelLayout();
             return;
         }
 
@@ -353,6 +359,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         }
 
         individualOutgoingDamageSourcesText.text = sb.ToString();
+        RefreshOutgoingPanelLayout();
     }
 
     private static string FormatOutgoingSourceHitUseSuffix(PlayerCombatController.OutgoingDamageSourceEntry entry)
@@ -372,10 +379,13 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
     private void EnsureScrollViewMasking()
     {
-        if (!individualDamageDealersText)
+        TMP_Text layoutAnchorText = individualDamageDealersText != null
+            ? individualDamageDealersText
+            : individualOutgoingDamageSourcesText;
+        if (!layoutAnchorText)
             return;
 
-        ScrollRect sr = individualDamageDealersText.GetComponentInParent<ScrollRect>(true);
+        ScrollRect sr = layoutAnchorText.GetComponentInParent<ScrollRect>(true);
         if (!sr)
             return;
 
@@ -444,8 +454,11 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
         if (individualDamageDealersText)
             individualDamageDealersText.raycastTarget = false;
+        if (individualOutgoingDamageSourcesText)
+            individualOutgoingDamageSourcesText.raycastTarget = false;
 
         RefreshDealerPanelLayout();
+        RefreshOutgoingPanelLayout();
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(content);
         if (viewport)
@@ -454,43 +467,89 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
     private void RefreshDealerPanelLayout()
     {
-        if (!individualDamageDealersText)
+        RefreshDetailTextPanelLayout(
+            individualDamageDealersText,
+            ref _incomingPanelBasePreferredHeight,
+            ref _dealerTextBaseHeight);
+    }
+
+    private void RefreshOutgoingPanelLayout()
+    {
+        RefreshDetailTextPanelLayout(
+            individualOutgoingDamageSourcesText,
+            ref _outgoingPanelBasePreferredHeight,
+            ref _outgoingSourceTextBaseHeight);
+    }
+
+    private void RefreshDetailTextPanelLayout(
+        TMP_Text detailText,
+        ref float panelBasePreferredHeight,
+        ref float textBaseHeight)
+    {
+        if (!detailText)
             return;
 
-        RectTransform incomingRt = individualDamageDealersText.transform.parent as RectTransform;
-        if (!incomingRt)
+        RectTransform panelRt = detailText.transform.parent as RectTransform;
+        if (!panelRt)
             return;
 
-        // The scene currently has a local RectMask2D on IncomingDPS that clips dealer lines.
-        RectMask2D localMask = incomingRt.GetComponent<RectMask2D>();
+        // Scene masks on these panels clip multi-line detail text.
+        RectMask2D localMask = panelRt.GetComponent<RectMask2D>();
         if (localMask)
             localMask.enabled = false;
 
-        LayoutElement incomingLe = incomingRt.GetComponent<LayoutElement>();
-        if (incomingLe && _incomingPanelBasePreferredHeight < 0f)
-            _incomingPanelBasePreferredHeight = Mathf.Max(1f, incomingLe.preferredHeight);
-        if (_incomingPanelBasePreferredHeight < 0f)
-            _incomingPanelBasePreferredHeight = Mathf.Max(1f, incomingRt.rect.height);
+        RectTransform textRt = detailText.rectTransform;
+        textRt.anchorMin = new Vector2(0f, 1f);
+        textRt.anchorMax = new Vector2(1f, 1f);
+        textRt.pivot = new Vector2(0f, 1f);
+        textRt.anchoredPosition = new Vector2(textRt.anchoredPosition.x, 0f);
 
-        if (_dealerTextBaseHeight < 0f)
-            _dealerTextBaseHeight = Mathf.Max(24f, individualDamageDealersText.rectTransform.rect.height);
-
-        float availableWidth = Mathf.Max(120f, individualDamageDealersText.rectTransform.rect.width);
-        float dealerPreferred = Mathf.Max(
-            _dealerTextBaseHeight,
-            individualDamageDealersText.GetPreferredValues(individualDamageDealersText.text, availableWidth, 0f).y
-        );
-        float extraDealerHeight = Mathf.Max(0f, dealerPreferred - _dealerTextBaseHeight);
-        float wantedIncomingHeight = _incomingPanelBasePreferredHeight + extraDealerHeight;
-
-        if (incomingLe)
-            incomingLe.preferredHeight = wantedIncomingHeight;
-        individualDamageDealersText.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, dealerPreferred);
-
-        LayoutRebuilder.ForceRebuildLayoutImmediate(incomingRt);
-        if (incomingRt.parent is RectTransform parentRt)
+        ContentSizeFitter textFitter = textRt.GetComponent<ContentSizeFitter>();
+        if (textFitter)
         {
+            textFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            textFitter.verticalFit = ContentSizeFitter.FitMode.Unconstrained;
+        }
+
+        LayoutElement panelLe = panelRt.GetComponent<LayoutElement>();
+        if (panelLe && panelBasePreferredHeight < 0f)
+            panelBasePreferredHeight = Mathf.Max(1f, panelLe.preferredHeight);
+        if (panelBasePreferredHeight < 0f)
+            panelBasePreferredHeight = Mathf.Max(1f, panelRt.rect.height);
+
+        if (textBaseHeight < 0f)
+            textBaseHeight = Mathf.Max(24f, textRt.rect.height);
+
+        float availableWidth = Mathf.Max(120f, textRt.rect.width);
+        detailText.ForceMeshUpdate();
+        float detailPreferred = Mathf.Max(
+            textBaseHeight,
+            detailText.GetPreferredValues(detailText.text, availableWidth, 0f).y);
+        float extraDetailHeight = Mathf.Max(0f, detailPreferred - textBaseHeight);
+        float wantedPanelHeight = panelBasePreferredHeight + extraDetailHeight;
+
+        if (panelLe)
+            panelLe.preferredHeight = wantedPanelHeight;
+
+        LayoutElement textLe = textRt.GetComponent<LayoutElement>();
+        if (!textLe)
+            textLe = textRt.gameObject.AddComponent<LayoutElement>();
+        textLe.minHeight = textBaseHeight;
+        textLe.preferredHeight = detailPreferred;
+
+        textRt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, detailPreferred);
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(textRt);
+        LayoutRebuilder.ForceRebuildLayoutImmediate(panelRt);
+        if (panelRt.parent is RectTransform parentRt)
             LayoutRebuilder.ForceRebuildLayoutImmediate(parentRt);
+
+        ScrollRect scrollRect = detailText.GetComponentInParent<ScrollRect>(true);
+        if (scrollRect != null && scrollRect.content is RectTransform contentRt)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(contentRt);
+            if (scrollRect.viewport is RectTransform viewportRt)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(viewportRt);
         }
     }
 

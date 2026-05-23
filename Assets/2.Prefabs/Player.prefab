@@ -6407,7 +6407,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerSprintInput
   characterStats: {fileID: 0}
   buffController: {fileID: 0}
-  sprintHudIconHoldSeconds: 0.28
+  sprintHudIconHoldSeconds: 0.01
 --- !u!114 &966196259100907935
 MonoBehaviour:
   m_ObjectHideFlags: 0

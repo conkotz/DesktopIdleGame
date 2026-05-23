@@ -42,10 +42,15 @@ public class WorldInputRouter2D : MonoBehaviour
         bool overUI =
             EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
 
+        bool expandOutsideStrip =
+            ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground) &&
+            stripCamera &&
+            !stripCamera.pixelRect.Contains(Input.mousePosition);
+
         Collider2D winnerCol = null;
-        if (!overUI)
+        if (!overUI && !expandOutsideStrip)
             winnerCol = PickWinnerUnderMouse();
-        else if (whitelistTutorialRoutesWorld && EventSystem.current != null)
+        else if (whitelistTutorialRoutesWorld && EventSystem.current != null && !expandOutsideStrip)
             winnerCol = PickWinnerUnderMouse();
 
         if (enableHoverHighlight)
@@ -79,6 +84,11 @@ public class WorldInputRouter2D : MonoBehaviour
             return;
 
         bool skipStripForWhitelist = HelperGameplayController.UsesWorldWhitelistRouting;
+
+        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground) &&
+            stripCamera &&
+            !stripCamera.pixelRect.Contains(Input.mousePosition))
+            return;
 
         if (restrictClicksToStrip && stripCamera && !skipStripForWhitelist &&
             !stripCamera.pixelRect.Contains(Input.mousePosition))

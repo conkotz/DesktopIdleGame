@@ -393,7 +393,9 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
     /// <summary>Snap strip layout to the normal prefab baseline (used when expand-background locks the strip).</summary>
     public void SnapToNormalStripLayoutForExpandLock()
     {
-        ApplyPrefabBaselineSnapshot();
+        float preservedOrtho = baseOrthoSize;
+        ApplyPrefabLayoutRectSnapshot();
+        baseOrthoSize = preservedOrtho;
         Apply(force: true);
     }
 
@@ -475,16 +477,28 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
         if (!s_stripLayoutLockedForExpandBackground)
             return;
 
+        float expectedBottom = GetLockedExpandBaselineBottomNormalized();
         if (Mathf.Approximately(stripHeightPercent, _prefabStripHeightPercent) &&
-            Mathf.Approximately(bottomNormalized, _prefabBottomNormalized) &&
+            Mathf.Approximately(bottomNormalized, expectedBottom) &&
             Mathf.Approximately(leftNormalized, _prefabLeftNormalized) &&
             Mathf.Approximately(widthNormalized, _prefabWidthNormalized))
         {
             return;
         }
 
-        ApplyPrefabBaselineSnapshot();
+        float preservedOrtho = baseOrthoSize;
+        ApplyPrefabLayoutRectSnapshot();
+        baseOrthoSize = preservedOrtho;
         Apply(force: true);
+    }
+
+    private float GetLockedExpandBaselineBottomNormalized()
+    {
+        float taskbarBottomMin = GetTaskbarBottomMinNormalized();
+        float bottom = Mathf.Max(_prefabBottomNormalized, taskbarBottomMin);
+        if (bottom + _prefabStripHeightPercent > 1f)
+            bottom = Mathf.Max(taskbarBottomMin, 1f - _prefabStripHeightPercent);
+        return bottom;
     }
 
     /// <summary>Deletes persisted strip rectangle prefs, clears session ortho zoom, and snaps all strip cameras back to prefab/script defaults.</summary>
@@ -539,11 +553,16 @@ public sealed class StripCameraController : MonoBehaviour, ISaveable
 
     private void ApplyPrefabBaselineSnapshot()
     {
+        ApplyPrefabLayoutRectSnapshot();
+        baseOrthoSize = _prefabOrthoAtAwake;
+    }
+
+    private void ApplyPrefabLayoutRectSnapshot()
+    {
         stripHeightPercent = _prefabStripHeightPercent;
         bottomNormalized = _prefabBottomNormalized;
         leftNormalized = _prefabLeftNormalized;
         widthNormalized = _prefabWidthNormalized;
-        baseOrthoSize = _prefabOrthoAtAwake;
     }
 
     private void CacheCamera()

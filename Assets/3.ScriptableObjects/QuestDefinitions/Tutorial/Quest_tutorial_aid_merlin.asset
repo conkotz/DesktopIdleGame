@@ -33,12 +33,15 @@ MonoBehaviour:
     quantity: 1
   - item: {fileID: 11400000, guid: 62f3f781aaffd6e46a32040a8b81664b, type: 2}
     itemId: 
-    quantity: 5
+    quantity: 15
   - item: {fileID: 11400000, guid: b28a737f9d9ae5642bece067520a27b1, type: 2}
     itemId: 
-    quantity: 2
+    quantity: 5
   rewardNotes: 
   grantIdleCombatUnlockOnRewardClaim: 0
+  grantAdditionalInventorySlotsOnRewardClaim: 0
+  restockMerchantStockOnRewardClaim: 0
+  restockMerchantStockSaveKey: 
   repeatable: 0
   autoCompleteQuest: 0
   abandonable: 0
@@ -47,13 +50,20 @@ MonoBehaviour:
   obtainLocationDisplayName: Merlin in Tutorial 3
   progressMapNodeId: 
   killProgressOnlyOnProgressMap: 0
+  respawnEnemyOnQuestAccepted: 0
+  respawnEnemyOnQuestAcceptedDefinition: {fileID: 0}
+  respawnEnemyOnQuestAcceptedMapNodeId: 
+  respawnEnemyOnQuestAcceptedSpawnPointName: 
+  respawnEnemyOnQuestAcceptedSpawnGroupId: AllSpawns
   autoAcceptWhenPriorQuestRewardClaimed: 0
   autoAcceptAfterPriorQuestId: 
   prerequisiteRewardClaimedQuestIds:
   - tutorial_basic_combat_2
   requireAllPrerequisiteQuests: 1
   requiredCompletedMapNodeId: 
+  recommendedLocationNode: {fileID: 0}
   requiredSkillLevels: []
   killEnemyIdFilter: 
   hideUntilMapNodeUnlockedId: tutorial_3
+  hideFromQuestJournalUnlessAccepted: 0
   sortOrder: 13

@@ -26,6 +26,18 @@ public static class PermanentEnemyDeathSaveStore
         SaveManager.Instance?.Save();
     }
 
+    /// <summary>Removes a cleared spawn slot so a one-time quest accept respawn can fill it again.</summary>
+    public static void ClearPermanentlyDead(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        if (!DeadKeys.Remove(key.Trim()))
+            return;
+
+        SaveManager.Instance?.Save();
+    }
+
     internal static void ApplyFromSaveData(SaveData data)
     {
         DeadKeys.Clear();

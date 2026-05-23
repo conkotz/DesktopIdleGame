@@ -6,7 +6,7 @@ using UnityEngine.Rendering.Universal;
 /// <summary>
 /// When <see cref="ToggleSettingId.ExpandStripBackground"/> is on, the strip uses the scene
 /// <see cref="FullSkyVisualName"/> with clouds hidden; <see cref="FullCamera"/> draws a clone with clouds only in
-/// the viewport above the strip. Collapsed: full-window black clear for desktop transparency.
+/// the viewport above the strip. Collapsed: full-window clear with alpha 0 for desktop transparency (UniWindow Alpha mode).
 /// </summary>
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(150)]
@@ -19,6 +19,9 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
     private const string CloudsFrontName = "CloudsFront";
     private const string FullSkyVisualCloneName = "FullSkyVisual_FullWindow";
     private const int BackgroundLayerFallbackIndex = 11;
+
+    /// <summary>Clear color for empty framebuffer pixels. Alpha must be 0 for UniWindow Alpha transparency.</summary>
+    private static readonly Color TransparentDesktopClearColor = new Color(0f, 0f, 0f, 0f);
 
     [SerializeField] private Camera fullCamera;
     [SerializeField] private Camera stripCamera;
@@ -169,7 +172,7 @@ public sealed class FullWindowBackgroundPresenter : MonoBehaviour
         {
             fullCamera.enabled = true;
             fullCamera.clearFlags = CameraClearFlags.SolidColor;
-            fullCamera.backgroundColor = Color.black;
+            fullCamera.backgroundColor = TransparentDesktopClearColor;
             fullCamera.cullingMask = expanded ? _backgroundLayerMask : 0;
             fullCamera.depth = -50;
 

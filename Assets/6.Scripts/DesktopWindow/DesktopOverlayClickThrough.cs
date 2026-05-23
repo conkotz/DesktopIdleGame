@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -10,8 +11,8 @@ using Kirurobo;
 /// Windows player: OS click-through when the pointer is not on the gameplay strip and not on interactive UI.
 /// <list type="bullet">
 /// <item>Strip region: always captures the mouse (world + strip HUD).</item>
-/// <item>Outside strip: EventSystem raycasts — any graphic with Raycast Target captures the mouse (menus, message bars, etc.).</item>
-/// <item>No raycast hit (outside strip, or scenes with no StripCamera e.g. Bootstrap): click-through to the desktop.</item>
+/// <item>Outside strip (normal): UI raycasts block click-through; empty areas pass through to the desktop.</item>
+/// <item>Expand background: UI and the sky band above the strip capture clicks; black margins pass through to the desktop/taskbar.</item>
 /// <item>Scenes without StripCamera use the same UI rules as “outside strip”: only real UI blocks click-through.</item>
 /// </list>
 /// For "empty" areas outside the strip, do not leave full-screen Images with Raycast Target on; use Raycast Target off or CanvasGroup blocksRaycasts off on purely visual fillers.
@@ -122,6 +123,9 @@ public class DesktopOverlayClickThrough : MonoBehaviour
         InvalidateHitTestCache();
         RebindStripCamera();
         ApplyWindowTopmostFromSettings();
+
+        if (IsBootstrapMenuScene(scene))
+            ForceMenuInteractive();
     }
 
     private void RebindStripCamera()
@@ -188,9 +192,14 @@ public class DesktopOverlayClickThrough : MonoBehaviour
         bool clickThrough = !interactive;
 
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
-        uniWin.SetClickThrough(clickThrough);
-        if (reapplyTopmostWhileClickThrough && clickThrough && ToggleSettingsStore.Get(ToggleSettingId.TopMostGameWindow))
-            uniWin.isTopmost = true;
+        if (IsBootstrapMenuSceneActive())
+            ForceMenuInteractive();
+        else
+        {
+            uniWin.SetClickThrough(clickThrough);
+            if (reapplyTopmostWhileClickThrough && clickThrough && ToggleSettingsStore.Get(ToggleSettingId.TopMostGameWindow))
+                uniWin.isTopmost = true;
+        }
 #endif
 
         if (!debugLogging)
@@ -274,6 +283,18 @@ public class DesktopOverlayClickThrough : MonoBehaviour
         _cachedAllowlistHit = ComputeAllowlistHitFromResults(_raycastResults);
     }
 
+    private bool IsPointerInsideExpandedSkyBandCached()
+    {
+        if (!stripCamera || _cachedStripScreenRect.width <= 0f || _cachedStripScreenRect.height <= 0f)
+            return false;
+
+        Vector2 mouse = Input.mousePosition;
+        if (mouse.y <= _cachedStripScreenRect.yMax)
+            return false;
+
+        return mouse.x >= _cachedStripScreenRect.xMin && mouse.x <= _cachedStripScreenRect.xMax;
+    }
+
     private bool IsPointerInsideStripCached()
     {
         if (!stripCamera)
@@ -288,16 +309,19 @@ public class DesktopOverlayClickThrough : MonoBehaviour
         if (stripCamera && IsPointerInsideStripCached())
             return true;
 
-        // Expand background: full window is gameplay (sky extension), except real UI hits.
+        // Expand background: sky above the strip is gameplay; UI always wins; black margins stay click-through.
         if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
         {
-            if (!allowlistOnlyOutsideStrip)
-                return !_cachedUiRaycastHit;
+            if (_cachedUiRaycastHit)
+                return true;
 
-            return _cachedAllowlistHit;
+            if (IsPointerInsideExpandedSkyBandCached())
+                return true;
+
+            return false;
         }
 
-        // No strip (Bootstrap / menus) or outside strip: UI raycasts only.
+        // Outside strip (normal): only interactive UI blocks desktop click-through.
         if (!allowlistOnlyOutsideStrip)
             return _cachedUiRaycastHit;
 
@@ -371,6 +395,9 @@ public class DesktopOverlayClickThrough : MonoBehaviour
         sb.Append(" allowlistOnly=").Append(allowlistOnlyOutsideStrip);
         if (allowlistOnlyOutsideStrip)
             sb.Append(" overAllowlisted=").Append(_cachedAllowlistHit);
+        sb.Append(" expandBg=").Append(ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground));
+        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+            sb.Append(" inExpandedSkyBand=").Append(IsPointerInsideExpandedSkyBandCached());
         sb.Append(" uiRaycastHit=").Append(_cachedUiRaycastHit);
         sb.Append(" pointerInteractive=").Append(pointerInteractive);
         sb.Append(" dragLatch=").Append(_dragLatch);
@@ -396,6 +423,23 @@ public class DesktopOverlayClickThrough : MonoBehaviour
 
         if (_raycastResults.Count > n)
             Debug.Log($"  ... {_raycastResults.Count - n} more (raise Debug Max Raycast Entries)");
+    }
+
+    private static bool IsBootstrapMenuScene(Scene scene) =>
+        scene.IsValid() && scene.isLoaded &&
+        scene.name.Equals("Bootstrap", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsBootstrapMenuSceneActive() => IsBootstrapMenuScene(SceneManager.GetActiveScene());
+
+    private void ForceMenuInteractive()
+    {
+        if (!uniWin)
+            uniWin = FindFirstObjectByType<UniWindowController>(FindObjectsInactive.Include);
+        if (!uniWin)
+            return;
+
+        uniWin.SetClickThrough(false);
+        _dragLatch = false;
     }
 
     private static string GetTransformPath(Transform t, int maxDepth = 8)

@@ -45,7 +45,6 @@ public class SkillChoiceGroupUI : MonoBehaviour
     [Header("Layout")]
     [SerializeField] private float nodeSpacing = DefaultNodeSpacing;
     [SerializeField] private float connectorThickness = 2f;
-    [SerializeField] private float stemSpineInset = 5f;
     [SerializeField] private float branchAboveNodesGap = 2f;
     [SerializeField] private float nodeConnectorEndInset = 0f;
     [SerializeField] private float centerStemAboveBranch = 2f;

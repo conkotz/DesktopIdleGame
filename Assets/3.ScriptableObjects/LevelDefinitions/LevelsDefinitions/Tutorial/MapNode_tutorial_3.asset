@@ -19,12 +19,13 @@ MonoBehaviour:
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 1
-  enemyRespawnEnabled: 0
+  enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 1
   eliteSpawnChance: 0
   fallbackRecommendedCombatPower: 1
   isRepeatable: 0
   markCompletedWhenReturningToMenu: 0
+  entranceOnlyAccess: 0
   completedLabelRequiresEnteredNodeId: 
   mapUiUseClearedInsteadOfCompleted: 1
   requiresMapUnlock: 1
@@ -37,7 +38,6 @@ MonoBehaviour:
   connectedNodeIds: []
   nextNodeIds: []
   biome: 0
-  prefabGroups: []
   spawnGroupPlans:
   - groupId: AllSpawns
     spawns:
@@ -47,9 +47,11 @@ MonoBehaviour:
       prefab: {fileID: 5214886831892509811, guid: 08ad5688c87ad9843bf9e91dc1f1296a, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 0
   - groupId: AllSpawns
     spawns:
@@ -59,10 +61,13 @@ MonoBehaviour:
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
+      portalTargetMapNodeId: 
     shuffleSpawnPoints: 1
+  requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 1
   simpleCombatWavesRequireQuestRewardClaimed: 0

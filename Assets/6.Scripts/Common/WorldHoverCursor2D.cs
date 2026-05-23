@@ -55,12 +55,35 @@ public class WorldHoverCursor2D : MonoBehaviour
     private Texture2D _enemyTexture;
     private HoverCursorType _currentType = HoverCursorType.None;
 
+    [SerializeField] private Camera stripCamera;
+
     private void Awake()
     {
         if (!cam)
             cam = Camera.main;
+        if (!stripCamera)
+        {
+            var go = GameObject.Find("StripCamera");
+            if (go)
+                stripCamera = go.GetComponent<Camera>();
+        }
 
         RebuildCursorTextures();
+    }
+
+    private bool IsExpandBackgroundOutsideStripHover()
+    {
+        if (!ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground))
+            return false;
+
+        if (!stripCamera)
+        {
+            var go = GameObject.Find("StripCamera");
+            if (go)
+                stripCamera = go.GetComponent<Camera>();
+        }
+
+        return stripCamera && !stripCamera.pixelRect.Contains(Input.mousePosition);
     }
 
     private void OnValidate()
@@ -107,6 +130,9 @@ public class WorldHoverCursor2D : MonoBehaviour
         {
             return HoverCursorType.None;
         }
+
+        if (IsExpandBackgroundOutsideStripHover())
+            return HoverCursorType.None;
 
         Vector3 world = cam.ScreenToWorldPoint(Input.mousePosition);
         Collider2D hit = WorldClickPicker2D.PickTopmostAtPoint(new Vector2(world.x, world.y), hoverMask);

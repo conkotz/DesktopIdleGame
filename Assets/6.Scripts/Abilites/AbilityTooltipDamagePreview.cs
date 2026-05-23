@@ -167,6 +167,17 @@ public static class AbilityTooltipDamagePreview
         if (def.requiredWeaponType == AbilityWeaponRequirement.Any)
             return "";
 
+        if (CombatStarterAttackAbility.IsMeleeStarterAttack(def))
+        {
+            const string meleeLine = "Required: Melee weapon or unarmed";
+            bool meleeOk = stats == null || CombatStarterAttackAbility.IsUsableWithEquippedWeapon(def, stats);
+            if (!meleeOk)
+                return $"<color=#FF5C5C>{meleeLine}</color>";
+            if (accentWhenOk)
+                return $"<color={okColor}>{meleeLine}</color>";
+            return meleeLine;
+        }
+
         string label = def.requiredWeaponType switch
         {
             AbilityWeaponRequirement.Melee => "Melee",
@@ -654,6 +665,9 @@ public static class AbilityTooltipDamagePreview
         if (!def)
             return "";
 
+        if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
+            return string.Empty;
+
         string O(string line) => orangeMarkup ? $"<color=#FFB347>{line}</color>" : line;
 
         PlayerAbilityController abilityController = FindLocalPlayerAbilityController();
@@ -1099,9 +1113,12 @@ public static class AbilityTooltipDamagePreview
         string effects = BuildCompactEffectsBody(def, skillsManager, includeDuration, displayStacks: 0);
         body = CombineShortDescriptionScalingAndEffects(def, scaling, effects);
 
-        string costLine = BuildAbilityEnergyCooldownLine(def, skillsManager, orangeMarkup: false);
-        if (!string.IsNullOrWhiteSpace(costLine))
-            body = string.IsNullOrWhiteSpace(body) ? costLine : $"{body}\n\n{costLine}";
+        if (!CombatStarterAttackAbility.IsCombatStarterAttack(def))
+        {
+            string costLine = BuildAbilityEnergyCooldownLine(def, skillsManager, orangeMarkup: false);
+            if (!string.IsNullOrWhiteSpace(costLine))
+                body = string.IsNullOrWhiteSpace(body) ? costLine : $"{body}\n\n{costLine}";
+        }
 
         return !string.IsNullOrWhiteSpace(body);
     }
@@ -1112,7 +1129,7 @@ public static class AbilityTooltipDamagePreview
         SkillsManager skillsManager,
         bool orangeMarkup)
     {
-        if (!def)
+        if (!def || CombatStarterAttackAbility.IsCombatStarterAttack(def))
             return string.Empty;
 
         string O(string line) => orangeMarkup ? $"<color=#FFB347>{line}</color>" : line;

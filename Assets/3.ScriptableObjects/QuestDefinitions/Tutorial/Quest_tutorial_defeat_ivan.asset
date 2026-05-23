@@ -47,4 +47,10 @@ MonoBehaviour:
   requiredSkillLevels: []
   killEnemyIdFilter: enemy_tutorial_ivan
   hideUntilMapNodeUnlockedId: tutorial_3
+  hideFromQuestJournalUnlessAccepted: 0
+  respawnEnemyOnQuestAccepted: 1
+  respawnEnemyOnQuestAcceptedDefinition: {fileID: 11400000, guid: a4d17577548723844bf438bc259b4c29, type: 2}
+  respawnEnemyOnQuestAcceptedMapNodeId: tutorial_3
+  respawnEnemyOnQuestAcceptedSpawnPointName: SpawnPoint35
+  respawnEnemyOnQuestAcceptedSpawnGroupId: AllSpawns
   sortOrder: 13

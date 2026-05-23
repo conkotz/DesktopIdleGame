@@ -116,6 +116,24 @@ public class QuestDefinition : ScriptableObject
         "Progress Map Node Id must be set. When false, an empty Progress Map Node Id lets kills on any map count (legacy / rare).")]
     public bool killProgressOnlyOnProgressMap;
 
+    [Header("Quest accept — enemy respawn")]
+    [Tooltip(
+        "When the quest is accepted, spawns this enemy once on the map below if they are not already alive there. " +
+        "Overrides EnemyDefinition.cannotRespawn for that single spawn; after they die, normal cannot-respawn rules apply.")]
+    public bool respawnEnemyOnQuestAccepted;
+
+    [Tooltip("Enemy to spawn (e.g. enemy_tutorial_ivan).")]
+    public EnemyDefinition respawnEnemyOnQuestAcceptedDefinition;
+
+    [Tooltip("Map node where the spawn runs (e.g. tutorial_3). If empty, uses Progress Map Node Id when set.")]
+    public string respawnEnemyOnQuestAcceptedMapNodeId = "";
+
+    [Tooltip("Spawn point name from the map spawn plan (e.g. SpawnPoint35).")]
+    public string respawnEnemyOnQuestAcceptedSpawnPointName = "";
+
+    [Tooltip("SpawnPointGroup group id (e.g. AllSpawns). Leave empty to use the plan default group.")]
+    public string respawnEnemyOnQuestAcceptedSpawnGroupId = "AllSpawns";
+
     [Header("Auto-accept after prior quest")]
     [Tooltip(
         "When enabled, after the quest below has had its reward claimed, this quest is accepted automatically " +

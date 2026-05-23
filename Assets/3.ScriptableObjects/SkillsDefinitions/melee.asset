@@ -34,7 +34,7 @@ MonoBehaviour:
     enduranceMinorStatOption: 0
     magicMinorStatOption: 0
     legacySkillMinorStatOption: 0
-    ability: {fileID: 0}
+    ability: {fileID: 11400000, guid: 342d49340c8d4613a6b37fa9ad19db39, type: 2}
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 2

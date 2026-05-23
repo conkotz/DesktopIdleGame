@@ -27,7 +27,7 @@ MonoBehaviour:
     unlockType: 2
     meleeMinorStatOption: 0
     rangedMinorStatOption: 0
-    ability: {fileID: 0}
+    ability: {fileID: 11400000, guid: a2d5864fad9249f1b8e199f7df2aca68, type: 2}
     choices: []
   - requiredLevel: 1
     title: Ranged Minor I

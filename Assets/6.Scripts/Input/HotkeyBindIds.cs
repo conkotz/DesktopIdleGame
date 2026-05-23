@@ -65,7 +65,7 @@ public static class HotkeyBindIds
             case HotkeyBindId.ReturnToTown:
                 return "Return to Town";
             case HotkeyBindId.Sprint:
-                return "Sprint";
+                return "Sprint/Dash";
             case HotkeyBindId.MoveLeft:
                 return "Move Left (keyboard)";
             case HotkeyBindId.MoveRight:

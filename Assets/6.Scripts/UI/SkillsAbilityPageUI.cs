@@ -1163,7 +1163,13 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         PreferRuntimeSkillsManager();
 
         var abilityTierLevels = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
-        if (abilityTierLevels.Count == 0)
+        bool hasStarterAttack = CombatStarterAttackAbility.TryGetCombatStarterAttackForSkill(skill, out AbilityDefinition starterAttack)
+            && starterAttack != null
+            && level >= Mathf.Max(1, starterAttack.unlockLevel)
+            && (skillsManager == null
+                || CombatStarterAttackAbility.IsCombatStarterAttackUnlockedForGameplay(skill, starterAttack, skillsManager));
+
+        if (abilityTierLevels.Count == 0 && !hasStarterAttack)
         {
             if (summaryText)
                 summaryText.text = "No abilities yet";
@@ -1174,6 +1180,12 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
         int unlockedTiersCount = CountUnlockedAbilityTiers(skill, level);
         int selectedInTreeCount = CountTotalAbilitiesSelectedInTree(skill, level);
+        if (hasStarterAttack)
+        {
+            unlockedTiersCount += 1;
+            selectedInTreeCount += 1;
+        }
+
         if (summaryText)
             summaryText.text = $"Abilities unlocked: {unlockedTiersCount}\nAbilities selected: {selectedInTreeCount}";
 
@@ -1182,6 +1194,15 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         SharedTooltipUI tooltip = _cachedSharedTooltip ??= FindBestSharedTooltip();
         var canvas = GetComponentInParent<Canvas>();
         RectTransform abilityPanelRect = summaryText ? summaryText.transform.parent as RectTransform : null;
+
+        if (hasStarterAttack)
+        {
+            AbilityEntryUI starterRow = CreateAbilityRow(listParent);
+            starterRow.SetTooltipDocking(abilityPanelRect, FlipInsideBounds.PreferredSide.Right);
+            starterRow.SetRowLevelContext(Mathf.Max(1, starterAttack.unlockLevel), HandleAbilityRowRightClick);
+            starterRow.Bind(starterAttack, unlocked: true, tooltip, canvas, null);
+            starterRow.SetDoubleClickAssignHandler(HandleAbilityDoubleClickAssignToActionBar);
+        }
 
         for (int i = 0; i < abilityTierLevels.Count; i++)
         {
@@ -1334,6 +1355,14 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         var result = new List<AbilityDefinition>();
         if (skill == null || skillsManager == null)
             return result;
+
+        if (CombatStarterAttackAbility.TryGetCombatStarterAttackForSkill(skill, out AbilityDefinition starter)
+            && starter != null
+            && playerLevel >= Mathf.Max(1, starter.unlockLevel)
+            && CombatStarterAttackAbility.IsCombatStarterAttackUnlockedForGameplay(skill, starter, skillsManager))
+        {
+            result.Add(starter);
+        }
 
         List<int> abilityTierLevels = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
         for (int i = 0; i < abilityTierLevels.Count; i++)

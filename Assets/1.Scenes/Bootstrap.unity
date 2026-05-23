@@ -3433,6 +3433,10 @@ PrefabInstance:
       value: 0.1
       objectReference: {fileID: 0}
     - target: {fileID: 2881264717139658640, guid: e893aefd93740714b999573b02916984, type: 3}
+      propertyPath: stripCamera
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 2881264717139658640, guid: e893aefd93740714b999573b02916984, type: 3}
       propertyPath: debugLogging
       value: 0
       objectReference: {fileID: 0}

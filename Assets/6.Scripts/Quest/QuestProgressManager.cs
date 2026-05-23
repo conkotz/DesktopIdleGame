@@ -43,6 +43,15 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
     public bool IsIdleCombatUnlocked => _idleCombatUnlocked;
 
+    public QuestDatabase QuestDatabase
+    {
+        get
+        {
+            ResolveQuestDatabase();
+            return _resolvedDatabase;
+        }
+    }
+
     /// <summary>
     /// Activity-log line when the player tries to use Auto Battle before any
     /// <see cref="QuestDefinition.grantIdleCombatUnlockOnRewardClaim"/> quest has had its reward claimed.
@@ -105,12 +114,14 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
     {
         BindAutoCompleteSignals();
         TryBindPlayerDeathSignal();
+        QuestAcceptedEnemyRespawnService.BindLifecycle();
     }
 
     private void OnDisable()
     {
         UnbindPlayerDeathSignal();
         UnbindAutoCompleteSignals();
+        QuestAcceptedEnemyRespawnService.UnbindLifecycle();
         _autoCompleteDeferred = false;
     }
 
@@ -434,6 +445,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
 
         MainMenuWindowUI.Resolve()?.OpenQuestShow();
         TryAutoCompleteEligibleQuests();
+        QuestAcceptedEnemyRespawnService.OnQuestAccepted(q);
 
         return true;
     }
@@ -1479,6 +1491,8 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (data.trackedQuestIds == null)
             data.trackedQuestIds = new List<string>();
 
+        QuestAcceptedEnemyRespawnService.SaveInto(data);
+
         data.questProgressIds.Clear();
         data.questProgressAmounts.Clear();
 
@@ -1538,6 +1552,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         if (data?.questProgressIds == null || data.questProgressAmounts == null)
         {
             LoadAcceptedQuestIds(data);
+            QuestAcceptedEnemyRespawnService.LoadFromSave(data);
             RecomputeIdleCombatUnlockedFromClaimedRewards();
             DisableIdleCombatIfLocked();
             ProgressChanged?.Invoke();
@@ -1568,6 +1583,7 @@ public class QuestProgressManager : MonoBehaviour, ISaveable
         }
 
         LoadAcceptedQuestIds(data);
+        QuestAcceptedEnemyRespawnService.LoadFromSave(data);
 
         if (data?.trackedQuestIds != null)
         {

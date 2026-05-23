@@ -36,6 +36,16 @@ public static class SkillAbilityCommitRules
             if (u == null || u.ability == null)
                 continue;
 
+            if (u.unlockType == SkillUnlockType.Unlock && CombatStarterAttackAbility.IsCombatStarterAttack(u.ability))
+            {
+                if (u.ability == ability)
+                    return u;
+                if (!string.IsNullOrEmpty(ability.abilityId)
+                    && string.Equals(u.ability.abilityId, ability.abilityId, System.StringComparison.OrdinalIgnoreCase))
+                    return u;
+                continue;
+            }
+
             // Capstone rows can carry a final ability while still using the CapstonePassive unlock type.
             bool abilityLike =
                 u.unlockType == SkillUnlockType.Ability ||
@@ -107,6 +117,9 @@ public static class SkillAbilityCommitRules
         if (skill == null || ability == null)
             return true;
         if (sm == null)
+            return true;
+
+        if (CombatStarterAttackAbility.IsCombatStarterAttackUnlockedForGameplay(skill, ability, sm))
             return true;
 
         SkillUnlockDefinition treeUnlock = FindAbilityUnlockOnSkill(skill, ability);

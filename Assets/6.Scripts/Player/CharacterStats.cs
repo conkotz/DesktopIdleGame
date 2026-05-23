@@ -1494,6 +1494,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return (def && def.IsWeapon) ? def : null;
     }
 
+    /// <summary>Equipped main-hand weapon, or null when unarmed / non-weapon / forced unarmed.</summary>
+    public ItemDefinition GetEquippedMainHandWeaponOrNull() => GetMainHandWeaponDef();
+
     /// <summary>
     /// Matches <see cref="PlayerAbilityController"/> weapon gating for abilities with
     /// <see cref="AbilityDefinition.requiredWeaponType"/>.
@@ -1502,6 +1505,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         if (def == null || def.requiredWeaponType == AbilityWeaponRequirement.Any)
             return true;
+
+        if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
+            return CombatStarterAttackAbility.IsUsableWithEquippedWeapon(def, this);
 
         if (!equipment)
             equipment = GetComponent<EquipmentManager>();

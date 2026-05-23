@@ -5,8 +5,9 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Hold-to-sprint: adds flat move speed while the key is held (during movement), drains 20% max stamina/s
-/// when actually moving, and blocks passive stamina regen during that drain.
+/// Sprint key: tap or hold start performs a short dash (cooldown), hold while moving adds flat move speed,
+/// costs 20% max stamina on dash start, then drains 15% max stamina/s while sprinting, and blocks passive
+/// stamina regen during sprint drain.
 /// </summary>
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(50)]
@@ -15,10 +16,14 @@ public class PlayerSprintInput : MonoBehaviour
     public const string SprintHudBuffId = "player_sprint";
 
     public const float SprintSpeedBonusFlat = 1.5f;
-    public const float SprintDrainMaxEnergyFractionPerSecond = 0.20f;
+    public const float SprintDashInitialCostMaxEnergyFraction = 0.20f;
+    public const float SprintDrainMaxEnergyFractionPerSecond = 0.15f;
     public const float MinMoveSpeedForSprint = 0.1f;
+    public const float SprintDashDistance = 1.5f;
+    public const float SprintDashCooldownSeconds = 5f;
 
     public static bool IsSprinting { get; private set; }
+    public static bool IsSprintDashing { get; private set; }
     public static event Action<bool> SprintStateChanged;
 
     /// <summary>While true, <see cref="CharacterStats.TickRegen"/> skips energy (stamina) regeneration.</summary>
@@ -26,18 +31,30 @@ public class PlayerSprintInput : MonoBehaviour
 
     private static PlayerSprintInput _instance;
     private static bool _sprintKeyHeld;
+    private static bool _sprintKeyDownThisFrame;
 
     [SerializeField] private CharacterStats characterStats;
     [SerializeField] private PlayerBuffController buffController;
+    [SerializeField] private PlayerController playerController;
 
     [Tooltip("Keeps the sprint HUD icon visible briefly after sprint stops (e.g. direction change zeroes measured speed for a frame).")]
-    [SerializeField, Min(0f)] private float sprintHudIconHoldSeconds = 0.05f;
+    [SerializeField, Min(0f)] private float sprintHudIconHoldSeconds = 0.01f;
+
+    [Tooltip("How long the sprint dash takes to travel its full distance.")]
+    [SerializeField, Min(0.01f)] private float sprintDashDurationSeconds = 0.12f;
 
     private Vector3 _previousPosition;
     private bool _hasPreviousPosition;
     private float _lastHorizontalSpeed;
     private bool _sprintHudBuffRegistered;
     private float _sprintHudShowUntil;
+    private bool _sprintGameplayActiveLastFrame;
+    private float _dashCooldownEndsAt;
+    private bool _isDashing;
+    private float _dashStartX;
+    private float _dashTargetX;
+    private float _dashEndTime;
+    private float _dashFaceDirectionSign;
 
     private void Awake()
     {
@@ -46,12 +63,17 @@ public class PlayerSprintInput : MonoBehaviour
             characterStats = GetComponent<CharacterStats>();
         if (!buffController)
             buffController = GetComponent<PlayerBuffController>();
+        if (!playerController)
+            playerController = GetComponent<PlayerController>();
     }
 
     private void OnDestroy()
     {
         if (_instance == this)
+        {
             _instance = null;
+            IsSprintDashing = false;
+        }
     }
 
     /// <summary>
@@ -60,6 +82,7 @@ public class PlayerSprintInput : MonoBehaviour
     public static void PollSprintKey()
     {
         _sprintKeyHeld = false;
+        _sprintKeyDownThisFrame = false;
 
         if (!CanPollSprintInput())
             return;
@@ -68,7 +91,108 @@ public class PlayerSprintInput : MonoBehaviour
             ? HotkeyBindingManager.Instance.GetBinding(HotkeyBindId.Sprint)
             : HotkeyBindingManager.GetDefaultKey(HotkeyBindId.Sprint);
 
-        _sprintKeyHeld = sprintKey != KeyCode.None && Input.GetKey(sprintKey);
+        if (sprintKey == KeyCode.None)
+            return;
+
+        _sprintKeyDownThisFrame = Input.GetKeyDown(sprintKey);
+        _sprintKeyHeld = Input.GetKey(sprintKey);
+    }
+
+    /// <summary>
+    /// Call from <see cref="PlayerController"/> immediately after <see cref="PollSprintKey"/> and before movement.
+    /// </summary>
+    public static void TickSprintDash()
+    {
+        if (_instance == null)
+            return;
+
+        _instance.TickSprintDashInternal();
+    }
+
+    private void TickSprintDashInternal()
+    {
+        if (_isDashing)
+        {
+            TickActiveDash();
+            return;
+        }
+
+        if (!_sprintKeyHeld)
+            return;
+
+        if (_sprintKeyDownThisFrame || Time.time >= _dashCooldownEndsAt)
+            TryStartDash();
+    }
+
+    private void TickActiveDash()
+    {
+        if (!playerController)
+            playerController = GetComponent<PlayerController>();
+
+        float duration = Mathf.Max(0.01f, sprintDashDurationSeconds);
+        float elapsed = duration - (_dashEndTime - Time.time);
+        float t = Mathf.Clamp01(elapsed / duration);
+        float eased = 1f - (1f - t) * (1f - t);
+        float x = Mathf.Lerp(_dashStartX, _dashTargetX, eased);
+
+        if (playerController != null)
+            playerController.SetHorizontalPositionForScriptedMove(x, _dashFaceDirectionSign);
+        else
+            transform.position = new Vector3(x, transform.position.y, transform.position.z);
+
+        if (t >= 1f)
+            EndDash();
+    }
+
+    private void TryStartDash()
+    {
+        if (Time.time < _dashCooldownEndsAt)
+            return;
+
+        if (!playerController)
+            playerController = GetComponent<PlayerController>();
+
+        if (playerController == null || playerController.IsDead || playerController.MovementLocked)
+            return;
+
+        if (!characterStats)
+            characterStats = GetComponent<CharacterStats>();
+
+        float maxEnergy = characterStats != null ? Mathf.Max(0f, characterStats.MaxEnergy) : 0f;
+        if (maxEnergy <= 0f)
+            return;
+
+        float dashCost = maxEnergy * SprintDashInitialCostMaxEnergyFraction;
+        if (dashCost <= 0f || characterStats.Energy < dashCost)
+            return;
+
+        float directionSign = playerController.ResolveSprintDashDirectionSign();
+        if (Mathf.Abs(directionSign) < 0.01f)
+            directionSign = 1f;
+
+        float startX = transform.position.x;
+        float targetX = playerController.ClampWorldX(startX + directionSign * SprintDashDistance);
+        if (Mathf.Abs(targetX - startX) < 0.001f)
+            return;
+
+        if (!characterStats.SpendEnergy(dashCost))
+            return;
+
+        playerController.InterruptForSprintDash();
+
+        _dashStartX = startX;
+        _dashTargetX = targetX;
+        _dashFaceDirectionSign = directionSign;
+        _dashEndTime = Time.time + Mathf.Max(0.01f, sprintDashDurationSeconds);
+        _dashCooldownEndsAt = Time.time + SprintDashCooldownSeconds;
+        _isDashing = true;
+        IsSprintDashing = true;
+    }
+
+    private void EndDash()
+    {
+        _isDashing = false;
+        IsSprintDashing = false;
     }
 
     private void LateUpdate()
@@ -163,8 +287,10 @@ public class PlayerSprintInput : MonoBehaviour
 
     private void RefreshSprintHudBuffGrace(bool sprintGameplayActive)
     {
-        if (sprintGameplayActive && sprintHudIconHoldSeconds > 0f)
+        if (!sprintGameplayActive && _sprintGameplayActiveLastFrame && sprintHudIconHoldSeconds > 0f)
             _sprintHudShowUntil = Time.time + sprintHudIconHoldSeconds;
+
+        _sprintGameplayActiveLastFrame = sprintGameplayActive;
 
         bool showHud = sprintGameplayActive || Time.time < _sprintHudShowUntil;
         SyncSprintHudBuff(showHud);

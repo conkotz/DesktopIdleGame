@@ -48,9 +48,9 @@ public static class ToggleSettingsStore
                 PlayerPrefs.GetInt(GroupRepeatedActivityLogItemGainsKey, 0) != 0,
             ToggleSettingId.DisableScreenOverlayVisuals =>
                 PlayerPrefs.GetInt(DisableScreenOverlayVisualsKey, 0) != 0,
-            // Default off (0) → strip height 0.3333 via StripCameraController.
+            // Default on (1) — expanded sky background for new installs and after settings reset.
             ToggleSettingId.ExpandStripBackground =>
-                PlayerPrefs.GetInt(ExpandStripBackgroundKey, 0) != 0,
+                PlayerPrefs.GetInt(ExpandStripBackgroundKey, 1) != 0,
             ToggleSettingId.ShowFps =>
                 PlayerPrefs.GetInt(ShowFpsKey, 0) != 0,
             ToggleSettingId.MinimiseHudDisplayInTown =>
