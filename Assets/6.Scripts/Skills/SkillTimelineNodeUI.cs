@@ -1,6 +1,8 @@
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Events;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -83,19 +85,33 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
     private bool _appliedMinorLayout;
     private Color _baseBackgroundColor = Color.white;
     private Color _baseIconColor = Color.white;
+    private Color _baseNameLabelColor = Color.white;
+    private Color _baseNameLabelUnlocksColor = Color.white;
 
 #if UNITY_EDITOR
     private bool _deferredPreviewQueued;
 #endif
 
+    public event Action<SkillTimelineNodeUI> Clicked;
+
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
     public Button RootButton => rootButton;
+    public SkillTimelineNodeBinding Binding => _binding;
 
-    private void Awake() => CacheBaseColors();
+    private SkillTimelineNodeBinding _binding;
+    private UnityAction _clickHandler;
+
+    private void Awake()
+    {
+        CacheBaseColors();
+        EnsureClickHandler();
+    }
 
     private void OnEnable()
     {
         CacheBaseColors();
+        EnsureClickHandler();
+
         if (!applyPreviewInEditor)
             return;
 
@@ -109,10 +125,44 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
     private void OnDisable()
     {
+        RemoveClickHandler();
 #if UNITY_EDITOR
         CancelDeferredEditorPreview();
 #endif
     }
+
+    /// <summary>Assigns unlock data used by the Current Selection panel (display only).</summary>
+    public void Bind(SkillTimelineNodeBinding binding)
+    {
+        _binding = binding;
+    }
+
+    private void EnsureClickHandler()
+    {
+        if (!Application.isPlaying)
+            return;
+
+        EnsureReferences();
+        if (rootButton == null)
+            return;
+
+        if (_clickHandler != null)
+            return;
+
+        _clickHandler = HandleRootButtonClicked;
+        rootButton.onClick.AddListener(_clickHandler);
+    }
+
+    private void RemoveClickHandler()
+    {
+        if (rootButton == null || _clickHandler == null)
+            return;
+
+        rootButton.onClick.RemoveListener(_clickHandler);
+        _clickHandler = null;
+    }
+
+    private void HandleRootButtonClicked() => Clicked?.Invoke(this);
 
 #if UNITY_EDITOR
     private void OnValidate()
@@ -134,14 +184,14 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
     private void AssignIconsFromNodeIconsSpritesheet()
     {
         const string sheetPath = "Assets/5.Art/Sprites/SkillsPageIcons/NodeIconsSpritesheet.png";
-        Object[] assets = AssetDatabase.LoadAllAssetsAtPath(sheetPath);
+        UnityEngine.Object[] assets = AssetDatabase.LoadAllAssetsAtPath(sheetPath);
         if (assets == null || assets.Length == 0)
         {
             Debug.LogWarning($"[SkillTimelineNodeUI] No assets at {sheetPath}", this);
             return;
         }
 
-        foreach (Object asset in assets)
+        foreach (UnityEngine.Object asset in assets)
         {
             if (asset is not Sprite sprite)
                 continue;
@@ -275,8 +325,10 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
     private void ApplySpineDiamondOnlyPresentation(SkillTimelineNodeType nodeType, SkillTimelineNodeState state)
     {
+        bool locked = state == SkillTimelineNodeState.Locked;
+
         if (rootButton != null)
-            rootButton.interactable = state != SkillTimelineNodeState.Locked;
+            rootButton.interactable = true;
 
         SetChildActive(background, false);
         SetChildActive(borderOutline, false);
@@ -295,6 +347,9 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         Color accent = GetTypeColor(nodeType);
         Sprite typeSprite = GetTypeIconSprite(nodeType);
         ApplyMinorIconVisual(minorIcon, typeSprite, accent, rotateFallbackDiamond: false);
+
+        if (minorIcon != null)
+            minorIcon.color = locked ? MultiplyColor(Color.white, lockedDimMultiplier) : Color.white;
     }
 
     private static void SetChildActive(Component component, bool active)
@@ -368,6 +423,12 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
         if (icon != null && icon.color.a > 0.01f)
             _baseIconColor = Color.white;
+
+        if (nameLabel != null)
+            _baseNameLabelColor = nameLabel.color;
+
+        if (nameLabelUnlocks != null)
+            _baseNameLabelUnlocksColor = nameLabelUnlocks.color;
     }
 
     private static void SetLocalZRotationIfChanged(RectTransform rt, float zDegrees)
@@ -499,7 +560,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
             minorIcon.color = locked ? MultiplyColor(Color.white, lockedDimMultiplier) : Color.white;
 
         if (rootButton != null)
-            rootButton.interactable = !locked;
+            rootButton.interactable = true;
     }
 
     private void EnableTimelineNodeBackground(SkillTimelineNodeType nodeType)
@@ -520,18 +581,30 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         bool showUnlockLabel = isUnlock && !string.IsNullOrWhiteSpace(displayName);
         string text = string.IsNullOrWhiteSpace(displayName) ? "Node" : displayName;
 
+        bool locked = _appliedState == SkillTimelineNodeState.Locked;
+
         if (nameLabel != null)
         {
             nameLabel.gameObject.SetActive(showStandardLabel);
             if (showStandardLabel)
+            {
                 nameLabel.text = text;
+                nameLabel.color = locked
+                    ? MultiplyColor(_baseNameLabelColor, lockedDimMultiplier)
+                    : _baseNameLabelColor;
+            }
         }
 
         if (nameLabelUnlocks != null)
         {
             nameLabelUnlocks.gameObject.SetActive(showUnlockLabel);
             if (showUnlockLabel)
+            {
                 nameLabelUnlocks.text = text;
+                nameLabelUnlocks.color = locked
+                    ? MultiplyColor(_baseNameLabelUnlocksColor, lockedDimMultiplier)
+                    : _baseNameLabelUnlocksColor;
+            }
         }
     }
 

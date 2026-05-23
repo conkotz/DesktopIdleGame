@@ -99,6 +99,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     private readonly Dictionary<SkillType, SkillDevCompletionTier> _devTierBySkill = new();
 
     private SkillDefinition _selectedSkill;
+    private bool _skipSelectionHubNotify;
     private Coroutine _deferredRefreshRoutine;
     private bool _loggedMissingRefs;
     private readonly Dictionary<SkillType, SkillListEntryUI> _entryBySkillType = new();
@@ -130,6 +131,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
     private SkillDefinition _cachedMajorPassivesSkill;
     private int _cachedMajorPassivesLevel = -1;
     private int _cachedMajorPassivesFingerprint = int.MinValue;
+
+    public SkillDefinition SelectedSkill => _selectedSkill;
+
+    public AbilityEntryUI AbilityEntryPrefab => abilityEntryPrefab;
 
     private void Awake()
     {
@@ -444,6 +449,31 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             else
                 gatherBar.ExitGatheringBarToCombat();
         }
+
+        if (!_skipSelectionHubNotify)
+            SkillsAbilityPageSelectionHub.NotifySelection(skill, this);
+    }
+
+    public void ApplySelectionFromOtherPage(SkillDefinition skill)
+    {
+        if (skill == null)
+            return;
+
+        if (_selectedSkill == skill)
+        {
+            RefreshListSelection();
+            return;
+        }
+
+        _skipSelectionHubNotify = true;
+        try
+        {
+            SelectSkill(skill);
+        }
+        finally
+        {
+            _skipSelectionHubNotify = false;
+        }
     }
 
     private void EnsureCenterTreeReference()
@@ -566,10 +596,23 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
 
     private void SelectFirstSkillIfNeeded()
     {
-        if (_selectedSkill != null) return;
-        if (skillDatabase == null) return;
+        if (_selectedSkill != null)
+            return;
+
+        if (skillDatabase == null)
+            return;
 
         PreferRuntimeSkillsManager();
+
+        if (SkillsAbilityPageSelectionHub.TryGetLastSkillType(out SkillType savedType))
+        {
+            SkillDefinition fromSaved = GetSkillByType(savedType);
+            if (fromSaved != null)
+            {
+                _selectedSkill = fromSaved;
+                return;
+            }
+        }
 
         if (skillsManager != null)
         {
@@ -1614,7 +1657,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         listLayout.flexibleWidth = 1f;
     }
 
-    private static string BuildMinorPassivesDisplay(SkillDefinition skill, int currentLevel)
+    public static string BuildMinorPassivesDisplay(SkillDefinition skill, int currentLevel)
     {
         if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0)
             return "No unlocks yet.";
@@ -2243,7 +2286,7 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         return h;
     }
 
-    private static void CollectMajorPassiveTierRows(
+    public static void CollectMajorPassiveTierRows(
         SkillDefinition skill,
         int playerLevel,
         SkillsManager sm,

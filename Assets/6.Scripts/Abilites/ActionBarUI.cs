@@ -293,6 +293,51 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         return false;
     }
 
+    /// <summary>Removes the first bar slot that holds <paramref name="abilityId"/>.</summary>
+    public bool TryClearAbilityFromBar(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return false;
+
+        foreach (ActionBarSlotUI slot in GetSlots())
+        {
+            if (slot == null || slot.AssignedAction == null || !slot.AssignedAction.IsAssigned)
+                continue;
+
+            if (!slot.AssignedAction.IsAbility)
+                continue;
+
+            if (!string.Equals(slot.AssignedAction.id, abilityId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            slot.ClearAssignment(notify: true);
+            NotifyPlayerStatsCombatPowerRelevantChange();
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool IsAbilityOnBar(string abilityId)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId))
+            return false;
+
+        foreach (ActionBarSlotUI slot in GetSlots())
+        {
+            if (slot == null || slot.AssignedAction == null || !slot.AssignedAction.IsAssigned)
+                continue;
+
+            if (!slot.AssignedAction.IsAbility)
+                continue;
+
+            if (string.Equals(slot.AssignedAction.id, abilityId, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Clears the first five ability loadout slots and assigns <paramref name="abilitiesInOrder"/> top-to-bottom (slot 1, 2, …).
     /// Extra slots stay empty. Does not change potion/food slots.

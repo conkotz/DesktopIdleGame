@@ -26,6 +26,11 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private const float SpineY = 24f;
     private const float TopRowY = 90f;
     private const float SpineLocalY = 0f;
+    private const float SpineProgressHeight = 6f;
+    private const float SpineMinorAboveSpinePadding = 6f;
+    private const float MilestoneLabelFontSize = 14f;
+    private const float MinorNodeLabelFontSize = 11f;
+    private const float GeneralNodeLabelFontSize = 13f;
     private const float UnlockRowHeight = 108f;
     private const float SpineRowHeight = 72f;
     private const float ChoiceRowHeight = 118f;
@@ -55,6 +60,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private static readonly Color ScrollbarHandleColor = new(0.72f, 0.64f, 0.48f, 1f);
 
     private static readonly Color SpineColor = new(0.18f, 0.14f, 0.11f, 1f);
+    private static readonly Color SpineProgressColor = new(0.85f, 0.72f, 0.35f, 1f);
     private static readonly Color TickColor = new(0.22f, 0.18f, 0.14f, 1f);
     private static readonly Color ConnectorColor = new(0.12f, 0.1f, 0.08f, 1f);
     private static readonly Color MinorPassiveColor = new(0.26f, 0.53f, 0.82f, 1f);
@@ -134,6 +140,27 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     }
 
     public float GetTimelineLevelX(int level) => XForLevel(level);
+
+    /// <summary>Local Y for spine minor nodes so diamonds sit above the progress strip.</summary>
+    public static float SpineMinorNodeLocalY =>
+        SpineLocalY + (SpineProgressHeight * 0.5f) + (MinorDiamondSize * 0.5f) + SpineMinorAboveSpinePadding;
+
+    /// <summary>Overlays a thicker golden progress strip on the spine up to <paramref name="playerLevel"/>.</summary>
+    public void UpdateSpineProgress(int playerLevel)
+    {
+        RectTransform container = transform as RectTransform;
+        if (container == null)
+            return;
+
+        RectTransform viewport = FindChildRect(container, "TimelineViewport");
+        RectTransform content = FindChildRect(viewport, "TimelineContent");
+        RectTransform spineRow = FindRow(content, SpineRowName);
+        if (spineRow == null)
+            return;
+
+        ClearSpineProgress(spineRow);
+        BuildSpineProgress(spineRow, playerLevel);
+    }
 
     public float TimelineSpineY => SpineY;
 
@@ -392,9 +419,19 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         for (int i = spineRow.childCount - 1; i >= 0; i--)
         {
             Transform child = spineRow.GetChild(i);
-            if (child.name == "SpineLine" || child.name == "LevelTicks")
+            if (child.name == "SpineLine" || child.name == "SpineProgressLine" || child.name == "LevelTicks")
                 DestroyImmediateSafe(child.gameObject);
         }
+    }
+
+    private static void ClearSpineProgress(RectTransform spineRow)
+    {
+        if (spineRow == null)
+            return;
+
+        Transform existing = spineRow.Find("SpineProgressLine");
+        if (existing != null)
+            DestroyImmediateSafe(existing.gameObject);
     }
 
     private static void BuildSpine(RectTransform root)
@@ -408,6 +445,24 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         spineRt.pivot = new Vector2(0f, 0.5f);
         var img = spine.gameObject.AddComponent<Image>();
         img.color = SpineColor;
+        img.raycastTarget = false;
+    }
+
+    private static void BuildSpineProgress(RectTransform root, int playerLevel)
+    {
+        float left = PaddingLeft;
+        float endX = XForLevel(Mathf.Clamp(playerLevel, 1, 50));
+        float width = endX - left;
+        if (width <= 0.5f)
+            return;
+
+        var progress = CreateRect(root, "SpineProgressLine", new Vector2(left, SpineLocalY), new Vector2(width, SpineProgressHeight));
+        var progressRt = (RectTransform)progress;
+        progressRt.anchorMin = progressRt.anchorMax = new Vector2(0f, 0.5f);
+        progressRt.pivot = new Vector2(0f, 0.5f);
+        progressRt.SetAsLastSibling();
+        var img = progress.gameObject.AddComponent<Image>();
+        img.color = SpineProgressColor;
         img.raycastTarget = false;
     }
 
@@ -502,7 +557,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         bg.raycastTarget = false;
 
         CreateDiamond(cardRt, "Icon", new Vector2(0f, 24f), 16f, UnlockColor);
-        CreateLabel(cardRt, title, new Vector2(0f, -6f), 11f, TextAlignmentOptions.Center);
+        CreateLabel(cardRt, title, new Vector2(0f, -6f), GeneralNodeLabelFontSize, TextAlignmentOptions.Center);
         float cardBottom = TopRowY - unlockCardH * 0.5f;
         CreateConnector(connectors, new Vector2(x, SpineY + 5f), new Vector2(x, cardBottom));
     }
@@ -510,9 +565,10 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private static void CreateMinorDiamond(RectTransform spineRow, int level, string label)
     {
         float x = XForLevel(level);
-        CreateDiamond(spineRow, $"Minor_Lv{level}", new Vector2(x, SpineLocalY), MinorDiamondSize, MinorPassiveColor);
+        float minorY = SpineMinorNodeLocalY;
+        CreateDiamond(spineRow, $"Minor_Lv{level}", new Vector2(x, minorY), MinorDiamondSize, MinorPassiveColor);
         if (!string.IsNullOrEmpty(label))
-            CreateLabel(spineRow, label, new Vector2(x, SpineLocalY - 14f), 9f, TextAlignmentOptions.Top);
+            CreateLabel(spineRow, label, new Vector2(x, minorY - 14f), MinorNodeLabelFontSize, TextAlignmentOptions.Top);
     }
 
     private static void CreateMajorNode(RectTransform choiceRow, RectTransform connectors, int level, string title, Color color)
@@ -520,7 +576,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         float x = XForLevel(level);
         const float majorGemSize = 22f;
         CreateDiamond(choiceRow, $"Major_Lv{level}", new Vector2(x, 0f), majorGemSize, color);
-        CreateLabel(choiceRow, title, new Vector2(x, -30f), 11f, TextAlignmentOptions.Top);
+        CreateLabel(choiceRow, title, new Vector2(x, -30f), GeneralNodeLabelFontSize, TextAlignmentOptions.Top);
         CreateConnector(connectors, new Vector2(x, SpineY - 5f), new Vector2(x, BottomRowY + majorGemSize * 0.5f));
     }
 
@@ -561,7 +617,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         bg.raycastTarget = false;
 
         CreateDiamond(cardRt, "Gem", new Vector2(0f, 24f), 15f, color);
-        CreateLabel(cardRt, title, new Vector2(0f, -8f), 11f, TextAlignmentOptions.Center);
+        CreateLabel(cardRt, title, new Vector2(0f, -8f), GeneralNodeLabelFontSize, TextAlignmentOptions.Center);
     }
 
     private static void CreateDiamond(RectTransform parent, string name, Vector2 anchoredPos, float size, Color color)
@@ -631,7 +687,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
 
         var tmp = go.GetComponent<TextMeshProUGUI>();
         tmp.text = text;
-        tmp.fontSize = 12f;
+        tmp.fontSize = MilestoneLabelFontSize;
         tmp.fontStyle = FontStyles.Bold;
         tmp.color = MilestoneLabelColor;
         tmp.alignment = TextAlignmentOptions.BottomLeft;

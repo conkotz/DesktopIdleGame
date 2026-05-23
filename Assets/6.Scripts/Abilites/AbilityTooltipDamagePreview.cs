@@ -35,7 +35,7 @@ public static class AbilityTooltipDamagePreview
         if (!def)
             return "";
 
-        string tag = ResolveAbilityTagLabel(def);
+        string tag = ResolveAbilityCategoryTagLabel(def);
         if (string.IsNullOrEmpty(tag))
             return "";
 
@@ -44,11 +44,39 @@ public static class AbilityTooltipDamagePreview
             : $"<color=#B0C8DD>{tag}</color>";
     }
 
+    /// <summary>Effect bullets for the skill details panel (no Effects header, no cost/cooldown footer).</summary>
+    public static string BuildAbilityTooltipEffectsSection(AbilityDefinition def, SkillsManager skillsManager)
+    {
+        return BuildCompactEffectsBody(def, skillsManager, includeDuration: true, displayStacks: 0);
+    }
+
+    /// <summary>Separate cost and cooldown lines for the details panel middle column.</summary>
+    public static bool TryGetDetailsPanelResourceLines(
+        AbilityDefinition def,
+        SkillsManager skillsManager,
+        out string costLine,
+        out string cooldownLine)
+    {
+        costLine = string.Empty;
+        cooldownLine = string.Empty;
+        if (!def || CombatStarterAttackAbility.IsCombatStarterAttack(def))
+            return false;
+
+        CharacterStats stats = FindLocalPlayerStats();
+        PlayerAbilityController abilityController = FindLocalPlayerAbilityController();
+        AbilityTooltipAdjustments.ResolveTooltipResourceAndCooldown(
+            def, skillsManager, stats, abilityController, out float resourceCost, out string resourceLabel, out float cooldown);
+
+        costLine = $"{resourceCost:0.#} {resourceLabel}";
+        cooldownLine = $"{cooldown:0.#}s";
+        return true;
+    }
+
     /// <summary>
     /// Reads the asset-driven <see cref="AbilityDefinition.tag"/>. Untagged assets fall back to
     /// auto-detection so the historical "Minion" label keeps working until they are tagged manually.
     /// </summary>
-    private static string ResolveAbilityTagLabel(AbilityDefinition def)
+    public static string ResolveAbilityCategoryTagLabel(AbilityDefinition def)
     {
         if (!def)
             return null;

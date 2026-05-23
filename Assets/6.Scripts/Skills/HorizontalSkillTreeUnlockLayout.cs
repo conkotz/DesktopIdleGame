@@ -187,6 +187,77 @@ public static class HorizontalSkillTreeUnlockLayout
             dest.Add(unlockTitle);
     }
 
+    public readonly struct BelowSpineSpawnEntry
+    {
+        public readonly SkillUnlockDefinition Unlock;
+        public readonly SkillChoiceDefinition Choice;
+        public readonly int ChoiceAssetIndex;
+
+        public BelowSpineSpawnEntry(SkillUnlockDefinition unlock, SkillChoiceDefinition choice, int choiceAssetIndex)
+        {
+            Unlock = unlock;
+            Choice = choice;
+            ChoiceAssetIndex = choiceAssetIndex;
+        }
+
+        public bool IsChoice => Choice != null || ChoiceAssetIndex >= 0;
+    }
+
+    /// <summary>Unlock rows to spawn below the spine for one milestone bucket.</summary>
+    public static void CollectBelowSpineMilestoneEntries(
+        IReadOnlyList<SortedUnlock> levelUnlocks,
+        SkillUnlockType bucketType,
+        List<BelowSpineSpawnEntry> dest)
+    {
+        if (levelUnlocks == null || dest == null)
+            return;
+
+        var siblings = new List<SkillUnlockDefinition>();
+        for (int i = 0; i < levelUnlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = levelUnlocks[i].Unlock;
+            if (unlock != null && MatchesBelowSpineBucket(unlock.unlockType, bucketType))
+                siblings.Add(unlock);
+        }
+
+        if (siblings.Count == 0)
+            return;
+
+        if (siblings.Count >= 2)
+        {
+            for (int i = 0; i < siblings.Count; i++)
+                dest.Add(new BelowSpineSpawnEntry(siblings[i], null, -1));
+            return;
+        }
+
+        SkillUnlockDefinition single = siblings[0];
+        if (!TryCollectSameLevelChoiceEntries(single, dest))
+            dest.Add(new BelowSpineSpawnEntry(single, null, -1));
+    }
+
+    private static bool TryCollectSameLevelChoiceEntries(SkillUnlockDefinition unlock, List<BelowSpineSpawnEntry> dest)
+    {
+        if (unlock?.choices == null || unlock.choices.Count == 0)
+            return false;
+
+        int milestoneLevel = unlock.requiredLevel;
+        int added = 0;
+        for (int i = 0; i < unlock.choices.Count; i++)
+        {
+            SkillChoiceDefinition choice = unlock.choices[i];
+            if (choice == null)
+                continue;
+
+            if (choice.requiredLevel > 0 && choice.requiredLevel != milestoneLevel)
+                continue;
+
+            dest.Add(new BelowSpineSpawnEntry(unlock, choice, i));
+            added++;
+        }
+
+        return added >= SkillChoiceGroupUI.MinChoiceCount;
+    }
+
     public static SkillTimelineNodeUI.SkillTimelineNodeType MapToTimelineNodeType(SkillUnlockType unlockType)
     {
         return unlockType switch

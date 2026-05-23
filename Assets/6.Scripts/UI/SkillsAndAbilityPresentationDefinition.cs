@@ -63,6 +63,23 @@ public static class SkillsAbilityPresentationResolver
         return null;
     }
 
+    public static Sprite ResolveChoiceIcon(SkillChoiceDefinition choice)
+    {
+        if (choice == null)
+            return null;
+
+        if (choice.icon != null)
+            return choice.icon;
+
+        if (choice.presentation != null && choice.presentation.Icon != null)
+            return choice.presentation.Icon;
+
+        if (choice.ability != null)
+            return ResolveAbilityIcon(choice.ability);
+
+        return null;
+    }
+
     public static string ResolveAbilityDisplayName(AbilityDefinition def)
     {
         if (def == null)

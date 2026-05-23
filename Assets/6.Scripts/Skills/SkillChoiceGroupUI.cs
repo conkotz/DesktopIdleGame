@@ -84,18 +84,42 @@ public class SkillChoiceGroupUI : MonoBehaviour
         SkillTimelineNodeUI nodePrefab,
         SkillTimelineNodeUI.SkillTimelineNodeState displayState = SkillTimelineNodeUI.SkillTimelineNodeState.Available)
     {
-        EnsureHierarchy();
-
         if (nodeNames == null || nodeNames.Length < MinChoiceCount)
         {
             Debug.LogWarning($"[SkillChoiceGroupUI] Lv{level} needs at least {MinChoiceCount} choices.", this);
             return;
         }
 
-        if (nodeNames.Length > MaxChoiceCount)
+        var entries = new HorizontalSkillTreeUnlockLayout.BelowSpineSpawnEntry[nodeNames.Length];
+        for (int i = 0; i < nodeNames.Length; i++)
+            entries[i] = new HorizontalSkillTreeUnlockLayout.BelowSpineSpawnEntry(null, null, -1);
+
+        Configure(level, milestoneLevelX, spineY, groupAnchorY, entries, nodeNames, nodeType, nodePrefab, displayState);
+    }
+
+    public void Configure(
+        int level,
+        float milestoneLevelX,
+        float spineY,
+        float groupAnchorY,
+        HorizontalSkillTreeUnlockLayout.BelowSpineSpawnEntry[] entries,
+        string[] displayNames,
+        SkillTimelineNodeUI.SkillTimelineNodeType nodeType,
+        SkillTimelineNodeUI nodePrefab,
+        SkillTimelineNodeUI.SkillTimelineNodeState displayState = SkillTimelineNodeUI.SkillTimelineNodeState.Available)
+    {
+        EnsureHierarchy();
+
+        if (entries == null || entries.Length < MinChoiceCount)
+        {
+            Debug.LogWarning($"[SkillChoiceGroupUI] Lv{level} needs at least {MinChoiceCount} choices.", this);
+            return;
+        }
+
+        if (entries.Length > MaxChoiceCount)
             Debug.LogWarning($"[SkillChoiceGroupUI] Lv{level} clamped to {MaxChoiceCount} choices.", this);
 
-        int count = Mathf.Clamp(nodeNames.Length, MinChoiceCount, MaxChoiceCount);
+        int count = Mathf.Clamp(entries.Length, MinChoiceCount, MaxChoiceCount);
 
         RectTransform rt = RectTransform;
         rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
@@ -106,7 +130,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
 
         ClearNodes();
         ApplyChoiceHintLabel(count);
-        PopulateNodes(level, nodeNames, count, nodeType, nodePrefab, displayState);
+        PopulateNodes(level, entries, displayNames, count, nodeType, nodePrefab, displayState);
         RefreshConnectorLayout();
     }
 
@@ -160,7 +184,8 @@ public class SkillChoiceGroupUI : MonoBehaviour
 
     private void PopulateNodes(
         int level,
-        string[] nodeNames,
+        HorizontalSkillTreeUnlockLayout.BelowSpineSpawnEntry[] entries,
+        string[] displayNames,
         int count,
         SkillTimelineNodeUI.SkillTimelineNodeType nodeType,
         SkillTimelineNodeUI nodePrefab,
@@ -182,9 +207,31 @@ public class SkillChoiceGroupUI : MonoBehaviour
             nodeRt.localScale = Vector3.one;
             nodeRt.localRotation = Quaternion.identity;
 
-            node.ApplyChoiceGroupNodePreview(nodeType, nodeNames[i], displayState);
+            string label = displayNames != null && i < displayNames.Length
+                ? displayNames[i]
+                : ResolveEntryLabel(entries[i]);
+            node.ApplyChoiceGroupNodePreview(nodeType, label, displayState);
             _spawnedNodes.Add(node);
         }
+    }
+
+    private static string ResolveEntryLabel(HorizontalSkillTreeUnlockLayout.BelowSpineSpawnEntry entry)
+    {
+        if (entry.Choice != null)
+        {
+            string title = SkillsAbilityPresentationResolver.ResolveChoiceTitle(entry.Choice);
+            if (!string.IsNullOrWhiteSpace(title))
+                return title;
+        }
+
+        if (entry.Unlock != null)
+        {
+            string unlockTitle = SkillsAbilityPresentationResolver.ResolveTreeUnlockTitle(entry.Unlock);
+            if (!string.IsNullOrWhiteSpace(unlockTitle))
+                return unlockTitle;
+        }
+
+        return "Node";
     }
 
     private void ApplyNodesContainerPreferredSize()
