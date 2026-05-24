@@ -559,21 +559,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SkillChoiceGroupUI
   rectTransform: {fileID: 8847291001002004002}
-  spineStemLine: {fileID: 8780202399443077843}
-  spineStemLineImage: {fileID: 9002635640945218806}
-  choiceLabel: {fileID: 3982891881527588122}
-  branchContainer: {fileID: 9083781768602242398}
-  horizontalBranchLine: {fileID: 8085842873385097002}
-  horizontalBranchLineImage: {fileID: 1148903862522341482}
-  labelBranchStem: {fileID: 5838503273426043193}
-  labelBranchStemImage: {fileID: 1908096405060086765}
-  nodesContainer: {fileID: 1851768127695597188}
+  connectorOverlay: {fileID: 9083781768602242398}
+  stemLine: {fileID: 8780202399443077843}
+  stemLineImage: {fileID: 9002635640945218806}
+  branchLine: {fileID: 8085842873385097002}
+  branchLineImage: {fileID: 1148903862522341482}
+  choiceNodesContainer: {fileID: 1851768127695597188}
   nodesLayout: {fileID: 4962259260180040722}
+  choiceHintLabel: {fileID: 0}
   nodeSpacing: 24
-  connectorThickness: 2
-  stemSpineInset: 5
-  labelAboveStemGap: 4
-  labelStemHeight: 20
+  connectorThickness: 4
   branchAboveNodesGap: 4
-  choiceLabelHeight: 18
   nodeConnectorEndInset: 2
+  centerStemAboveBranch: 2
+  majorCapstoneNodeLiftY: 16
+  capstoneExtraNodeLiftY: 4
+  showChoiceHintLabel: 0

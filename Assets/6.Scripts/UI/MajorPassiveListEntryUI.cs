@@ -30,6 +30,8 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
     [SerializeField] private TMP_Text nameText;
 
+    [SerializeField] private TMP_Text enhancementText;
+
     [SerializeField] private TMP_Text requiredLevelText;
 
     [SerializeField] private GameObject selectAbilityRoot;
@@ -55,9 +57,6 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
     [SerializeField] private Color normalRowColor = new Color(0.16862746f, 0.12941177f, 0.09411765f, 0.85f);
 
     [SerializeField] private Color capstoneRowColor = new Color(0.38f, 0.24f, 0.1f, 0.95f);
-
-    [Tooltip("TMP rich-text hex for committed enhancement name beside the passive title.")]
-    [SerializeField] private string enhancementNameColorHex = "#55DD55";
 
 
 
@@ -145,11 +144,28 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
         {
 
-            Transform t = transform.Find("RowGroup/NameText") ?? transform.Find("NameText");
+            Transform t = transform.Find("RowGroup/TextGroup/NameText")
+                ?? transform.Find("RowGroup/NameText")
+                ?? transform.Find("NameText");
 
             if (t != null)
 
                 nameText = t.GetComponent<TMP_Text>();
+
+        }
+
+
+
+        if (enhancementText == null)
+
+        {
+
+            Transform t = transform.Find("RowGroup/TextGroup/EnhancementText")
+                ?? transform.Find("EnhancementText");
+
+            if (t != null)
+
+                enhancementText = t.GetComponent<TMP_Text>();
 
         }
 
@@ -467,21 +483,11 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
 
 
-        if (nameText)
+        string enhancementTitle = SkillUnlockPanelTooltipBuilder.TryResolveCommittedEnhancementTitle(
 
-        {
+            skill, unlock, SkillsManager.Instance);
 
-            nameText.richText = true;
-
-            string enhancementTitle = SkillUnlockPanelTooltipBuilder.TryResolveCommittedEnhancementTitle(
-
-                skill, unlock, SkillsManager.Instance);
-
-            nameText.text = SkillUnlockPanelTooltipBuilder.FormatPassiveNameWithEnhancement(
-
-                displayName, enhancementTitle, enhancementNameColorHex);
-
-        }
+        ApplyPassiveNameAndEnhancement(displayName, enhancementTitle);
 
 
 
@@ -565,9 +571,7 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
 
 
-        if (nameText)
-
-            nameText.text = "Major Passive Available";
+        ApplyPassiveNameAndEnhancement("Major Passive Available", null);
 
 
 
@@ -685,9 +689,59 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
             nameText.raycastTarget = false;
 
+        if (enhancementText)
+
+            enhancementText.raycastTarget = false;
+
         if (requiredLevelText)
 
             requiredLevelText.raycastTarget = false;
+
+    }
+
+
+
+    private void ApplyPassiveNameAndEnhancement(string displayName, string enhancementTitle)
+
+    {
+
+        if (nameText != null)
+
+        {
+
+            nameText.richText = false;
+
+            nameText.text = string.IsNullOrWhiteSpace(displayName) ? "Major Passive" : displayName.Trim();
+
+        }
+
+
+
+        if (enhancementText == null)
+
+            return;
+
+
+
+        bool hasEnhancement = !string.IsNullOrWhiteSpace(enhancementTitle);
+
+        enhancementText.gameObject.SetActive(hasEnhancement);
+
+        if (!hasEnhancement)
+
+        {
+
+            enhancementText.text = string.Empty;
+
+            return;
+
+        }
+
+
+
+        enhancementText.richText = false;
+
+        enhancementText.text = enhancementTitle.Trim();
 
     }
 

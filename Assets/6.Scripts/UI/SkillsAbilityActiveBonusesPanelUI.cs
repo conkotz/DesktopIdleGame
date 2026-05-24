@@ -12,6 +12,16 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
     private const string MajorPassivesSectionName = "MajorPassivesUnlocksSection";
     private const string MajorPassivesContentName = "MajorPassivesContent";
     private const string MajorPassivesEmptyName = "MajorPassivesText";
+    private const string MajorPassivesHeaderName = "UnlocksHeader";
+    private const string MinorPassivesSectionName = "MinorPassiveUnlocksSection";
+    private const string MinorPassivesHeaderName = "MinorPassivesHeader";
+
+    private const float MajorHeaderFontSize = 28f;
+    private const float MajorEmptyFontSize = 22f;
+    private const float MinorContentFontSize = 18f;
+
+    private static readonly Color LightBonusesHeaderColor = new(0.95f, 0.92f, 0.86f, 1f);
+    private static readonly Color MinorBonusesBodyColor = new(0.82f, 0.78f, 0.72f, 1f);
 
     [SerializeField] private Transform scrollContent;
     [SerializeField] private TMP_Text minorPassiveContent;
@@ -96,7 +106,7 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
 
             if (availablePlaceholder[i])
             {
-                row.BindAvailableMajorPassiveTier(rowLevel, _tooltip, _rootCanvas, () => ScrollTimelineToLevel(rowLevel));
+                row.BindAvailableMajorPassiveTier(rowLevel, _tooltip, _rootCanvas, () => FocusMajorPassiveTier(skill, rowLevel));
                 _majorRows.Add(row);
                 continue;
             }
@@ -105,26 +115,35 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
             if (unlock == null)
                 continue;
 
-            row.Bind(skill, unlock, capstoneStyle: false, _tooltip, _rootCanvas, () => ScrollTimelineToLevel(rowLevel));
+            row.Bind(skill, unlock, capstoneStyle: false, _tooltip, _rootCanvas, () => FocusUnlock(skill, unlock, rowLevel));
 
             if (SkillTreeMajorPassiveRowIndicators.TryGet(skill, unlock, skillsManager,
                     out bool showNotSelected, out bool showEnhance))
             {
-                row.SetTreeStatusIndicators(showNotSelected, showEnhance, () =>
-                {
-                    // Enhancement branch selection is handled on the vertical tree; horizontal view scrolls to tier.
-                    ScrollTimelineToLevel(rowLevel);
-                });
+                row.SetTreeStatusIndicators(showNotSelected, showEnhance, () => FocusUnlock(skill, unlock, rowLevel));
             }
 
             _majorRows.Add(row);
         }
     }
 
-    private void ScrollTimelineToLevel(int rowLevel)
+    private void FocusMajorPassiveTier(SkillDefinition skill, int rowLevel)
     {
-        if (_horizontalTimeline != null)
-            _horizontalTimeline.ScrollToLevel(rowLevel);
+        if (_horizontalTimeline == null)
+            return;
+
+        _horizontalTimeline.ScrollToLevel(rowLevel);
+    }
+
+    private void FocusUnlock(SkillDefinition skill, SkillUnlockDefinition unlock, int rowLevel)
+    {
+        if (_horizontalTimeline == null || unlock == null)
+            return;
+
+        if (_horizontalTimeline.TryFocusUnlock(skill, unlock, rowLevel))
+            return;
+
+        _horizontalTimeline.ScrollToLevel(rowLevel);
     }
 
     private MajorPassiveListEntryUI CreateMajorPassiveRow()
@@ -197,6 +216,8 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         }
 
         EnsureMajorPassivesSection();
+        EnsureMinorPassivesSection();
+        ApplyBonusesTypography();
 
         if (majorPassiveEntryPrefab == null)
         {
@@ -253,20 +274,17 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         var headerGo = new GameObject("MajorPassivesHeader", typeof(RectTransform));
         headerGo.transform.SetParent(sectionRt, false);
         TMP_Text header = headerGo.AddComponent<TextMeshProUGUI>();
-        header.text = "Major Passives";
-        header.fontSize = 16;
-        header.fontStyle = FontStyles.Bold;
-        header.color = new Color(0.17f, 0.13f, 0.09f, 1f);
+        ApplyHeaderStyle(header, "Major Passives");
         header.alignment = TextAlignmentOptions.TopLeft;
         LayoutElement headerLayout = headerGo.AddComponent<LayoutElement>();
-        headerLayout.preferredHeight = 22f;
+        headerLayout.preferredHeight = 32f;
 
         var emptyGo = new GameObject(MajorPassivesEmptyName, typeof(RectTransform));
         emptyGo.transform.SetParent(sectionRt, false);
         TMP_Text empty = emptyGo.AddComponent<TextMeshProUGUI>();
         empty.text = "No major passives yet";
-        empty.fontSize = 13;
-        empty.color = new Color(0.55f, 0.5f, 0.45f, 1f);
+        ApplyEmptyStateStyle(empty);
+        empty.alignment = TextAlignmentOptions.TopLeft;
         empty.alignment = TextAlignmentOptions.TopLeft;
         LayoutElement emptyLayout = emptyGo.AddComponent<LayoutElement>();
         emptyLayout.preferredHeight = 20f;
@@ -284,5 +302,80 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         listGo.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         return sectionRt;
+    }
+
+    private void EnsureMinorPassivesSection()
+    {
+        if (scrollContent == null)
+            return;
+
+        Transform minorSection = scrollContent.Find(MinorPassivesSectionName);
+        if (minorSection == null)
+            return;
+
+        Transform header = minorSection.Find(MinorPassivesHeaderName);
+        if (header == null)
+        {
+            var headerGo = new GameObject(MinorPassivesHeaderName, typeof(RectTransform));
+            headerGo.transform.SetParent(minorSection, false);
+            headerGo.transform.SetAsFirstSibling();
+            TMP_Text headerText = headerGo.AddComponent<TextMeshProUGUI>();
+            ApplyHeaderStyle(headerText, "Minor Passives");
+            headerText.alignment = TextAlignmentOptions.TopLeft;
+            LayoutElement headerLayout = headerGo.AddComponent<LayoutElement>();
+            headerLayout.preferredHeight = 32f;
+        }
+    }
+
+    private void ApplyBonusesTypography()
+    {
+        if (scrollContent == null)
+            return;
+
+        Transform majorSection = scrollContent.Find(MajorPassivesSectionName);
+        if (majorSection != null)
+        {
+            TMP_Text majorHeader = majorSection.Find(MajorPassivesHeaderName)?.GetComponent<TMP_Text>()
+                ?? majorSection.Find("MajorPassivesHeader")?.GetComponent<TMP_Text>();
+            ApplyHeaderStyle(majorHeader, "Major Passives");
+
+            TMP_Text majorEmpty = majorSection.Find(MajorPassivesEmptyName)?.GetComponent<TMP_Text>();
+            ApplyEmptyStateStyle(majorEmpty);
+        }
+
+        Transform minorSection = scrollContent.Find(MinorPassivesSectionName);
+        if (minorSection != null)
+        {
+            TMP_Text minorHeader = minorSection.Find(MinorPassivesHeaderName)?.GetComponent<TMP_Text>();
+            ApplyHeaderStyle(minorHeader, "Minor Passives");
+        }
+
+        if (minorPassiveContent != null)
+        {
+            minorPassiveContent.fontSize = MinorContentFontSize;
+            minorPassiveContent.color = MinorBonusesBodyColor;
+        }
+    }
+
+    private static void ApplyHeaderStyle(TMP_Text text, string label)
+    {
+        if (text == null)
+            return;
+
+        if (!string.IsNullOrEmpty(label))
+            text.text = label;
+
+        text.fontSize = MajorHeaderFontSize;
+        text.fontStyle = FontStyles.Bold;
+        text.color = LightBonusesHeaderColor;
+    }
+
+    private static void ApplyEmptyStateStyle(TMP_Text text)
+    {
+        if (text == null)
+            return;
+
+        text.fontSize = MajorEmptyFontSize;
+        text.color = LightBonusesHeaderColor;
     }
 }

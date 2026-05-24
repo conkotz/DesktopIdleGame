@@ -414,12 +414,13 @@ MonoBehaviour:
   nodesLayout: {fileID: 7860138590647582018}
   choiceHintLabel: {fileID: 3376384682607108177}
   nodeSpacing: 40
-  connectorThickness: 2
-  stemSpineInset: 5
+  connectorThickness: 4
   branchAboveNodesGap: 6
   nodeConnectorEndInset: 2
   centerStemAboveBranch: 4
-  showChoiceHintLabel: 0
+  majorCapstoneNodeLiftY: 1
+  capstoneExtraNodeLiftY: 4
+  showChoiceHintLabel: 1
 --- !u!1 &8107511827677426795
 GameObject:
   m_ObjectHideFlags: 0

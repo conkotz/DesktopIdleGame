@@ -21,6 +21,8 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
     private Transform _rowsContainer;
     private SharedTooltipUI _tooltip;
     private Canvas _rootCanvas;
+    private HorizontalSkillTreeScaffoldUI _horizontalTimeline;
+    private SkillsAbilityBottomPanelLayoutUI _bottomPanelLayout;
 
     public AbilityEntryUI EntryPrefab => entryPrefab;
 
@@ -29,6 +31,20 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         if (prefab != null)
             entryPrefab = prefab;
     }
+
+    public void ConfigureTimeline(HorizontalSkillTreeScaffoldUI timeline)
+    {
+        _horizontalTimeline = timeline;
+    }
+
+    private void OnEnable()
+    {
+        EnsureReferences();
+        SubscribeBottomPanelLayout();
+        ApplyAbilityNameCompactLayout();
+    }
+
+    private void OnDisable() => UnsubscribeBottomPanelLayout();
 
     private void Awake() => EnsureReferences();
 
@@ -83,7 +99,7 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         _rootCanvas ??= GetComponentInParent<Canvas>();
 
         if (hasStarterAttack)
-            SpawnAbilityRow(starterAttack, true, skillsManager, null);
+            SpawnAbilityRow(starterAttack, true, skillsManager);
 
         for (int i = 0; i < abilityTierLevels.Count; i++)
         {
@@ -107,11 +123,12 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
                 && !SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
                 continue;
 
-            SpawnAbilityRow(def, true, skillsManager, null);
+            SpawnAbilityRow(def, true, skillsManager);
         }
 
         bool hasRows = _rows.Count > 0;
         SetPlaceholderVisible(!hasRows);
+        ApplyAbilityNameCompactLayout();
 
         if (rowsParent is RectTransform listRt)
         {
@@ -122,11 +139,7 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         }
     }
 
-    private void SpawnAbilityRow(
-        AbilityDefinition def,
-        bool unlocked,
-        SkillsManager skillsManager,
-        System.Action onScrollTree)
+    private void SpawnAbilityRow(AbilityDefinition def, bool unlocked, SkillsManager skillsManager)
     {
         Transform rowsParent = EnsureRowsContainer();
         if (rowsParent == null || entryPrefab == null || def == null)
@@ -134,9 +147,20 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
 
         AbilityEntryUI row = Instantiate(entryPrefab, rowsParent);
         row.gameObject.SetActive(true);
-        row.Bind(def, unlocked, _tooltip, _rootCanvas, onScrollTree);
+        row.Bind(def, unlocked, _tooltip, _rootCanvas, () => FocusAbilityInTimeline(def));
         row.SetDoubleClickAssignHandler(HandleDoubleClickAssign);
         _rows.Add(row);
+    }
+
+    private void FocusAbilityInTimeline(AbilityDefinition def)
+    {
+        if (def == null)
+            return;
+
+        if (_horizontalTimeline != null && _horizontalTimeline.TryFocusAbility(def))
+            return;
+
+        _horizontalTimeline?.ScrollToLevel(Mathf.Max(1, def.unlockLevel));
     }
 
     private void HandleDoubleClickAssign(AbilityDefinition def)
@@ -228,6 +252,57 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
 
         if (listContent is RectTransform contentRt)
             ConfigureListLayout(contentRt);
+
+        SubscribeBottomPanelLayout();
+    }
+
+    private void SubscribeBottomPanelLayout()
+    {
+        SkillsAbilityBottomPanelLayoutUI layout = ResolveBottomPanelLayout();
+        if (layout == _bottomPanelLayout)
+            return;
+
+        UnsubscribeBottomPanelLayout();
+        _bottomPanelLayout = layout;
+        if (_bottomPanelLayout != null)
+            _bottomPanelLayout.ExpandedChanged += OnBottomPanelExpandedChanged;
+    }
+
+    private void UnsubscribeBottomPanelLayout()
+    {
+        if (_bottomPanelLayout == null)
+            return;
+
+        _bottomPanelLayout.ExpandedChanged -= OnBottomPanelExpandedChanged;
+        _bottomPanelLayout = null;
+    }
+
+    private void OnBottomPanelExpandedChanged(bool expanded)
+    {
+        ApplyAbilityNameCompactLayout();
+    }
+
+    private void ApplyAbilityNameCompactLayout()
+    {
+        bool compact = _bottomPanelLayout != null && _bottomPanelLayout.IsExpanded;
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            if (_rows[i] != null)
+                _rows[i].SetNameLayoutCompact(compact);
+        }
+    }
+
+    private SkillsAbilityBottomPanelLayoutUI ResolveBottomPanelLayout()
+    {
+        Transform page = transform;
+        while (page != null && page.name != "SkillsAbilityPageNEW")
+            page = page.parent;
+
+        if (page == null)
+            return null;
+
+        Transform bar = page.Find("BottomPanelBar");
+        return bar != null ? bar.GetComponent<SkillsAbilityBottomPanelLayoutUI>() : null;
     }
 
     private Transform EnsureRowsContainer()

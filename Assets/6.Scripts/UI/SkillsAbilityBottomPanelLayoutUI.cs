@@ -34,6 +34,9 @@ public sealed class SkillsAbilityBottomPanelLayoutUI : MonoBehaviour
 
     public bool IsExpanded => _isExpanded;
 
+    /// <summary>Raised after <see cref="SetExpanded"/> applies layout (argument = expanded).</summary>
+    public event System.Action<bool> ExpandedChanged;
+
     private void Awake()
     {
         if (collapsedDetailsPreferredWidth < 1f)
@@ -66,6 +69,7 @@ public sealed class SkillsAbilityBottomPanelLayoutUI : MonoBehaviour
             LayoutRebuilder.ForceRebuildLayoutImmediate(bottomPanelBar);
 
         RefreshDetailsPanelColumns();
+        ExpandedChanged?.Invoke(_isExpanded);
     }
 
     private void RefreshDetailsPanelColumns()

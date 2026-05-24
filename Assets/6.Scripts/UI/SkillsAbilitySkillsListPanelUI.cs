@@ -93,6 +93,21 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
         entry.SetProgress(progress01);
     }
 
+    /// <summary>Updates every visible row from <see cref="SkillsManager"/> (e.g. after save load).</summary>
+    public void RefreshAllLevels()
+    {
+        PreferRuntimeSkillsManager();
+
+        if (_entryBySkillType.Count == 0)
+        {
+            RebuildList();
+            return;
+        }
+
+        foreach (SkillType skillType in _entryBySkillType.Keys)
+            RefreshLevelsForSkill(skillType);
+    }
+
     private void HandleEntryClicked(SkillDefinition skill)
     {
         _onSkillClicked?.Invoke(skill);

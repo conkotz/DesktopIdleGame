@@ -43,6 +43,9 @@ public class AbilityEntryUI : MonoBehaviour,
 
     private Outline _committedListRowOutline;
     private Button _rowButton;
+    private float _defaultNameFontSize = -1f;
+
+    [SerializeField] private float compactNameFontSize = 16f;
 
     private void Awake()
     {
@@ -105,7 +108,10 @@ public class AbilityEntryUI : MonoBehaviour,
         }
 
         if (nameText)
+        {
             nameText.text = def ? SkillsAbilityPresentationResolver.ResolveAbilityDisplayName(def) : "—";
+            CaptureDefaultNameFontSize();
+        }
 
         if (reqText)
             reqText.text = def ? $"Lv {def.unlockLevel}" : "";
@@ -217,6 +223,23 @@ public class AbilityEntryUI : MonoBehaviour,
     public void SetDoubleClickAssignHandler(System.Action<AbilityDefinition> handler)
     {
         _onDoubleClickAssign = handler;
+    }
+
+    public void SetNameLayoutCompact(bool compact)
+    {
+        if (nameText == null)
+            return;
+
+        CaptureDefaultNameFontSize();
+        nameText.fontSize = compact ? compactNameFontSize : _defaultNameFontSize;
+    }
+
+    private void CaptureDefaultNameFontSize()
+    {
+        if (nameText == null || _defaultNameFontSize >= 0f)
+            return;
+
+        _defaultNameFontSize = nameText.fontSize;
     }
 
     public void SetTooltipDocking(RectTransform tooltipBoundsRect, FlipInsideBounds.PreferredSide preferredSide)

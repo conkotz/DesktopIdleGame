@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -31,6 +32,11 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     [Header("Optional labels")]
     [SerializeField] private TMP_Text selectedSkillTitleText;
 
+    [Header("Details panel")]
+    [SerializeField] private SkillNodeDetailsPanelUI skillNodeDetailsPanel;
+    [Tooltip("Back arrow on ViewDetailsBar — collapses details and clears tree selection.")]
+    [SerializeField] private Button collapseDetailsButton;
+
     [Header("Bottom panels")]
     [SerializeField] private SkillsAbilityActiveAbilitiesListUI activeAbilitiesList;
     [SerializeField] private AbilityEntryUI abilityEntryPrefab;
@@ -49,6 +55,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private bool _skillsEventsSubscribed;
     private UnityEngine.Events.UnityAction _combatCategoryHandler;
     private UnityEngine.Events.UnityAction _gatheringCategoryHandler;
+    private Coroutine _deferredProgressionRefresh;
 
     // Per-skill tabs (Melee / Woodcutting) — brown selected style.
     private static readonly Color TabSelectedImageColor = new Color(0.36078432f, 0.26666668f, 0.12941177f, 1f);
@@ -77,6 +84,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         EnsureHorizontalTimelineReference();
         EnsureSkillLevelTextReference();
         EnsureBottomPanelReferences();
+        EnsureDetailsPanelReferences();
     }
 
     private void OnEnable()
@@ -84,6 +92,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         PreferRuntimeSkillsManager();
         RestoreCategoryModeFromPrefs();
         EnsureHierarchyReferences();
+        EnsureDetailsPanelReferences();
         WireCategoryModeButtons();
         ApplyCategoryMode(showOnly: true);
         WireSkillTabButtons();
@@ -97,10 +106,18 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
         if (_selectedSkill == null && skillDatabase != null)
             SelectSkill(GetDefaultSkillForMode(_categoryMode));
+
+        QueueDeferredProgressionRefresh();
     }
 
     private void OnDisable()
     {
+        if (_deferredProgressionRefresh != null)
+        {
+            StopCoroutine(_deferredProgressionRefresh);
+            _deferredProgressionRefresh = null;
+        }
+
         if (_selectedSkill != null)
             SkillsAbilityPageSelectionHub.SaveLastSkillType(_selectedSkill.skillType);
 
@@ -196,6 +213,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         SyncTimelineFromPageSelection();
         RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
+        RefreshSkillsListLevels();
         RefreshSkillsListSelection();
     }
 
@@ -356,11 +374,48 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             skillsListPanel.RefreshSelection(_selectedSkill);
     }
 
+    private void RefreshSkillsListLevels()
+    {
+        EnsureBottomPanelReferences();
+        if (skillsListPanel == null)
+            return;
+
+        PreferRuntimeSkillsManager();
+        skillsListPanel.Configure(skillDatabase, skillsManager, SelectSkill);
+        skillsListPanel.RefreshAllLevels();
+    }
+
     private void EnsureBottomPanelReferences()
     {
         EnsureActiveAbilitiesListReference();
         EnsureActiveBonusesPanelReference();
         EnsureSkillsListPanelReference();
+    }
+
+    private void EnsureDetailsPanelReferences()
+    {
+        if (skillNodeDetailsPanel == null)
+            skillNodeDetailsPanel = GetComponentInChildren<SkillNodeDetailsPanelUI>(true);
+
+        if (collapseDetailsButton == null)
+        {
+            Transform bar = transform.Find("BottomPanelBar/DetailsPanel/ViewDetailsBar");
+            if (bar == null)
+                bar = transform.Find("DetailsPanel/ViewDetailsBar");
+
+            if (bar != null)
+            {
+                string[] collapseNames = { "CollapseDetailsButton", "CollapseDetails", "CollapseButton" };
+                for (int i = 0; i < collapseNames.Length && collapseDetailsButton == null; i++)
+                    collapseDetailsButton = bar.Find(collapseNames[i])?.GetComponent<Button>();
+            }
+        }
+
+        if (collapseDetailsButton != null)
+            collapseDetailsButton.interactable = true;
+
+        if (skillNodeDetailsPanel != null && collapseDetailsButton != null)
+            skillNodeDetailsPanel.AssignCollapseDetailsButton(collapseDetailsButton);
     }
 
     private void EnsureActiveAbilitiesListReference()
@@ -387,6 +442,9 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             EnsureAbilityEntryPrefabReference();
             if (abilityEntryPrefab != null)
                 activeAbilitiesList.SetEntryPrefab(abilityEntryPrefab);
+
+            if (horizontalSkillTimeline != null)
+                activeAbilitiesList.ConfigureTimeline(horizontalSkillTimeline);
         }
     }
 
@@ -751,6 +809,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         skillsManager.OnXpGained += HandleSkillsXpGained;
         skillsManager.OnSkillAbilityRowPickChanged += HandleSkillAbilityRowPickChanged;
         skillsManager.OnSkillChoiceSelectionChanged += HandleSkillChoiceSelectionChanged;
+        skillsManager.OnSkillProgressionLoaded += HandleSkillProgressionLoaded;
         _skillsEventsSubscribed = true;
     }
 
@@ -764,7 +823,44 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         skillsManager.OnXpGained -= HandleSkillsXpGained;
         skillsManager.OnSkillAbilityRowPickChanged -= HandleSkillAbilityRowPickChanged;
         skillsManager.OnSkillChoiceSelectionChanged -= HandleSkillChoiceSelectionChanged;
+        skillsManager.OnSkillProgressionLoaded -= HandleSkillProgressionLoaded;
         _skillsEventsSubscribed = false;
+    }
+
+    private void HandleSkillProgressionLoaded()
+    {
+        if (!isActiveAndEnabled)
+            return;
+
+        ApplyProgressionRefreshToPage();
+    }
+
+    private void QueueDeferredProgressionRefresh()
+    {
+        if (_deferredProgressionRefresh != null)
+            StopCoroutine(_deferredProgressionRefresh);
+
+        _deferredProgressionRefresh = StartCoroutine(CoDeferredProgressionRefresh());
+    }
+
+    private IEnumerator CoDeferredProgressionRefresh()
+    {
+        yield return null;
+        _deferredProgressionRefresh = null;
+
+        if (!isActiveAndEnabled)
+            yield break;
+
+        ApplyProgressionRefreshToPage();
+    }
+
+    private void ApplyProgressionRefreshToPage()
+    {
+        RefreshPageLabels();
+        RefreshSkillsListLevels();
+        SyncTimelineFromPageSelection();
+        RefreshActiveAbilitiesList();
+        RefreshActiveBonusesPanel();
     }
 
     private void HandleSkillsLevelChanged(SkillType type, int _)

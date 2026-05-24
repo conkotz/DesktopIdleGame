@@ -23,10 +23,14 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private const float PaddingRight = 80f;
     /// <summary>TimelineContent Y for each row container (children use local X, local Y ≈ 0).</summary>
     private const float TimelineContentYOffset = -12f;
-    private const float SpineY = 24f;
-    private const float TopRowY = 90f;
+    private const float DefaultSpineRowY = 24f;
+    private const float DefaultUnlockRowY = 90f;
+    private const float DefaultChoiceRowY = -54f;
     private const float SpineLocalY = 0f;
-    private const float SpineProgressHeight = 6f;
+    /// <summary>Main spine track + milestone connectors + choice-group branch/drops (shared thickness).</summary>
+    public const float TimelineConnectorThickness = SkillTimelineLineStyle.LineThickness;
+    /// <summary>Gold progress overlay on the spine — slightly thicker than <see cref="TimelineConnectorThickness"/>.</summary>
+    public const float TimelineSpineProgressThickness = SkillTimelineLineStyle.ProgressThickness;
     private const float MilestoneLabelFontSize = 14f;
     private const float MinorNodeLabelFontSize = 11f;
     private const float GeneralNodeLabelFontSize = 13f;
@@ -35,7 +39,6 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private const float ChoiceRowHeight = 118f;
     private const float MilestoneLabelYOffset = 22f;
     private const float MilestoneLabelXOffset = 6f;
-    private const float BottomRowY = -54f;
     private const float MinorDiamondSize = 17f;
     private const float ChoiceCardWidth = 110f;
     private const float ChoiceCardHeight = 50f;
@@ -47,12 +50,11 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private const float LabeledTickHeight = 14f;
     private const float ChoiceMilestoneTickWidth = 3f;
     private const float ChoiceMilestoneTickHeight = 26f;
-    private const float HelperBarHeight = 60f;
-    private const float HorizontalScrollbarHeight = 18f;
+    private const float DefaultHelperBarHeight = 60f;
+    private const float DefaultHorizontalScrollbarHeight = 18f;
     private const float ScrollbarHandleMinWidth = 48f;
-    private const float ConnectorThickness = 2f;
     /// <summary>Vertical stems from the spine to milestone nodes (matches choice-group branch lines).</summary>
-    public const float MilestoneSpineConnectorThickness = ConnectorThickness;
+    public const float MilestoneSpineConnectorThickness = TimelineConnectorThickness;
     private const float ConnectorExtendSpine = 5f;
     private const float ConnectorExtendNode = 10f;
     public const float ConnectorSpineOverlap = 2f;
@@ -60,10 +62,8 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private static readonly Color ScrollbarTrackColor = new(0.38f, 0.32f, 0.26f, 1f);
     private static readonly Color ScrollbarHandleColor = new(0.72f, 0.64f, 0.48f, 1f);
 
-    private static readonly Color SpineColor = new(0.18f, 0.14f, 0.11f, 1f);
     private static readonly Color SpineProgressColor = new(0.85f, 0.72f, 0.35f, 1f);
     private static readonly Color TickColor = new(0.22f, 0.18f, 0.14f, 1f);
-    private static readonly Color ConnectorColor = new(0.12f, 0.1f, 0.08f, 1f);
     private static readonly Color MinorPassiveColor = new(0.26f, 0.53f, 0.82f, 1f);
     private static readonly Color AbilityColor = new(0.22f, 0.62f, 0.38f, 1f);
     private static readonly Color MajorPassiveColor = new(0.58f, 0.32f, 0.76f, 1f);
@@ -75,6 +75,16 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     [SerializeField] private bool rebuildOnEnable = true;
     [Tooltip("When false, only timeline chrome is built (spine, ticks, scroll). Use with HorizontalSkillTreeScaffoldUI prefab nodes.")]
     [SerializeField] private bool buildPlaceholderNodes = true;
+
+    [Header("Timeline rows (TimelineContent local Y)")]
+    [SerializeField] private float unlockRowAnchoredY = DefaultUnlockRowY;
+    [SerializeField] private float spineRowAnchoredY = DefaultSpineRowY;
+    [SerializeField] private float choiceRowAnchoredY = DefaultChoiceRowY;
+
+    [Header("Timeline chrome (HelperBar / scrollbar)")]
+    [Tooltip("Fallback height only. At runtime the HelperBar RectTransform height saved in the scene is used — resize HelperBar, save the scene, not the old 60 default here.")]
+    [SerializeField] private float helperBarHeight = DefaultHelperBarHeight;
+    [SerializeField] private float horizontalScrollbarHeight = DefaultHorizontalScrollbarHeight;
 
     private void OnEnable()
     {
@@ -105,9 +115,9 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         PrepareContentRect(content);
         ClearLegacyLayout(content);
 
-        RectTransform unlockRow = EnsureRow(content, UnlockRowName, TopRowY, UnlockRowHeight);
-        RectTransform spineRow = EnsureRow(content, SpineRowName, SpineY, SpineRowHeight);
-        RectTransform choiceRow = EnsureRow(content, ChoiceRowName, BottomRowY, ChoiceRowHeight);
+        RectTransform unlockRow = EnsureRow(content, UnlockRowName, unlockRowAnchoredY, UnlockRowHeight);
+        RectTransform spineRow = EnsureRow(content, SpineRowName, spineRowAnchoredY, SpineRowHeight);
+        RectTransform choiceRow = EnsureRow(content, ChoiceRowName, choiceRowAnchoredY, ChoiceRowHeight);
 
         ClearSpineChrome(spineRow);
         BuildSpine(spineRow);
@@ -162,11 +172,38 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         BuildSpineProgress(spineRow, playerLevel);
     }
 
-    public float TimelineSpineY => SpineY;
+    public float TimelineSpineY => spineRowAnchoredY;
 
-    public float TimelineUnlockRowY => TopRowY;
+    public float TimelineUnlockRowY => unlockRowAnchoredY;
 
-    public float TimelineChoiceRowY => BottomRowY;
+    public float TimelineChoiceRowY => choiceRowAnchoredY;
+
+    /// <summary>Updates row Y positions without clearing spawned timeline nodes. Called by <see cref="HorizontalSkillTreeScaffoldUI"/> before each build.</summary>
+    public void ApplyRowLayout(float spineRowY, float choiceRowY, float? unlockRowY = null)
+    {
+        spineRowAnchoredY = spineRowY;
+        choiceRowAnchoredY = choiceRowY;
+        if (unlockRowY.HasValue)
+            unlockRowAnchoredY = unlockRowY.Value;
+
+        RepositionTimelineRows();
+    }
+
+    private void RepositionTimelineRows()
+    {
+        RectTransform container = transform as RectTransform;
+        if (container == null)
+            return;
+
+        RectTransform viewport = FindChildRect(container, "TimelineViewport");
+        RectTransform content = FindChildRect(viewport, "TimelineContent");
+        if (content == null)
+            return;
+
+        EnsureRow(content, UnlockRowName, unlockRowAnchoredY, UnlockRowHeight);
+        EnsureRow(content, SpineRowName, spineRowAnchoredY, SpineRowHeight);
+        EnsureRow(content, ChoiceRowName, choiceRowAnchoredY, ChoiceRowHeight);
+    }
 
     public float TimelineChoiceSpread => DefaultChoiceSpread;
 
@@ -219,11 +256,13 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     /// <summary>
     /// Viewport = scrollable timeline only. Helper bar and scrollbar sit below it (not masked).
     /// </summary>
-    private static void EnsureTimelineChrome(RectTransform container, RectTransform viewport, RectTransform content)
+    private void EnsureTimelineChrome(RectTransform container, RectTransform viewport, RectTransform content)
     {
-        float bottomReserved = HelperBarHeight + HorizontalScrollbarHeight;
+        float helperHeight = ResolveHelperBarHeight(container);
+        float scrollbarHeight = horizontalScrollbarHeight;
+        float bottomReserved = helperHeight + scrollbarHeight;
 
-        EnsureHelperOutsideViewport(container, viewport);
+        EnsureHelperOutsideViewport(container, viewport, helperHeight);
 
         viewport.anchorMin = Vector2.zero;
         viewport.anchorMax = Vector2.one;
@@ -236,7 +275,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         if (scroll == null)
             scroll = container.gameObject.AddComponent<ScrollRect>();
 
-        Scrollbar hBar = EnsureHorizontalScrollbar(container);
+        Scrollbar hBar = EnsureHorizontalScrollbar(container, helperHeight, scrollbarHeight);
         scroll.content = content;
         scroll.viewport = viewport;
         scroll.horizontal = true;
@@ -246,9 +285,11 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         scroll.horizontalScrollbar = hBar;
         scroll.horizontalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
         scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+
+        EnsureChromeDrawOrder(container);
     }
 
-    private static void EnsureHelperOutsideViewport(RectTransform container, RectTransform viewport)
+    private void EnsureHelperOutsideViewport(RectTransform container, RectTransform viewport, float height)
     {
         RectTransform helper = FindChildRect(container, "HelperBar");
         if (helper == null)
@@ -257,23 +298,60 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         if (helper.parent != container)
             helper.SetParent(container, false);
 
-        helper.SetAsLastSibling();
+        Vector2 savedPos = helper.anchoredPosition;
+        float savedWidth = helper.sizeDelta.x;
+
         helper.anchorMin = new Vector2(0f, 0f);
         helper.anchorMax = new Vector2(1f, 0f);
         helper.pivot = new Vector2(0.5f, 0f);
-        helper.anchoredPosition = Vector2.zero;
-        helper.sizeDelta = new Vector2(0f, HelperBarHeight);
+        helper.anchoredPosition = savedPos;
+        helper.sizeDelta = new Vector2(savedWidth, height);
 
-        if (viewport.GetSiblingIndex() > helper.GetSiblingIndex())
+        if (viewport != null && viewport.GetSiblingIndex() > helper.GetSiblingIndex())
             viewport.SetAsFirstSibling();
     }
 
-    private static Scrollbar EnsureHorizontalScrollbar(RectTransform container)
+    /// <summary>Scene HelperBar height wins (saved in GamePlay). Inspector fallback used only when the rect has no height.</summary>
+    private float ResolveHelperBarHeight(RectTransform container)
+    {
+        RectTransform helper = FindChildRect(container, "HelperBar");
+        if (helper != null && helper.sizeDelta.y >= 1f)
+        {
+            helperBarHeight = helper.sizeDelta.y;
+            return helperBarHeight;
+        }
+
+        return Mathf.Max(1f, helperBarHeight);
+    }
+
+    /// <summary>SkillLevelPanel stays above the scroll viewport so Play mode does not visually cover the Melee label.</summary>
+    private static void EnsureChromeDrawOrder(RectTransform container)
+    {
+        if (container == null)
+            return;
+
+        RectTransform viewport = FindChildRect(container, "TimelineViewport");
+        Transform scrollbar = container.Find("TimelineScrollbarHorizontal");
+        RectTransform helper = FindChildRect(container, "HelperBar");
+        RectTransform skillLevelPanel = FindChildRect(container, "SkillLevelPanel");
+
+        int index = 0;
+        if (viewport != null)
+            viewport.SetSiblingIndex(index++);
+        if (scrollbar != null)
+            scrollbar.SetSiblingIndex(index++);
+        if (helper != null)
+            helper.SetSiblingIndex(index++);
+        if (skillLevelPanel != null)
+            skillLevelPanel.SetSiblingIndex(index++);
+    }
+
+    private Scrollbar EnsureHorizontalScrollbar(RectTransform container, float helperHeight, float scrollbarHeight)
     {
         Transform existing = container.Find("TimelineScrollbarHorizontal");
         if (existing != null && existing.TryGetComponent(out Scrollbar bar))
         {
-            LayoutScrollbar((RectTransform)existing);
+            LayoutScrollbar((RectTransform)existing, helperHeight, scrollbarHeight);
             if (existing.TryGetComponent(out Image trackImg))
                 StyleScrollbarChrome(trackImg, bar);
             return bar;
@@ -282,14 +360,14 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         var barGo = new GameObject("TimelineScrollbarHorizontal", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Scrollbar));
         var barRt = barGo.GetComponent<RectTransform>();
         barRt.SetParent(container, false);
-        LayoutScrollbar(barRt);
+        LayoutScrollbar(barRt, helperHeight, scrollbarHeight);
 
         var scrollbar = barGo.GetComponent<Scrollbar>();
         StyleScrollbarChrome(barGo.GetComponent<Image>(), scrollbar);
         return scrollbar;
     }
 
-    private static void LayoutScrollbar(RectTransform barRt)
+    private static void LayoutScrollbar(RectTransform barRt, float helperHeight, float scrollbarHeight)
     {
         if (barRt == null)
             return;
@@ -297,10 +375,21 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         barRt.anchorMin = new Vector2(0f, 0f);
         barRt.anchorMax = new Vector2(1f, 0f);
         barRt.pivot = new Vector2(0.5f, 0f);
-        barRt.sizeDelta = new Vector2(-12f, HorizontalScrollbarHeight);
-        barRt.anchoredPosition = new Vector2(0f, HelperBarHeight);
+        barRt.sizeDelta = new Vector2(-12f, scrollbarHeight);
+        barRt.anchoredPosition = new Vector2(0f, helperHeight);
         barRt.SetSiblingIndex(Mathf.Max(0, barRt.parent.childCount - 2));
     }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        RectTransform container = transform as RectTransform;
+        if (container == null)
+            return;
+
+        ResolveHelperBarHeight(container);
+    }
+#endif
 
     private static void StyleScrollbarChrome(Image trackImg, Scrollbar scrollbar)
     {
@@ -440,13 +529,12 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         float left = PaddingLeft;
         float right = ContentWidth - PaddingRight;
 
-        var spine = CreateRect(root, "SpineLine", new Vector2(left, SpineLocalY), new Vector2(right - left, 2f));
+        var spine = CreateRect(root, "SpineLine", new Vector2(left, SpineLocalY), new Vector2(right - left, TimelineConnectorThickness));
         var spineRt = (RectTransform)spine;
         spineRt.anchorMin = spineRt.anchorMax = new Vector2(0f, 0.5f);
         spineRt.pivot = new Vector2(0f, 0.5f);
-        var img = spine.gameObject.AddComponent<Image>();
-        img.color = SpineColor;
-        img.raycastTarget = false;
+        spineRt.SetAsFirstSibling();
+        SkillTimelineLineStyle.Apply(spine.gameObject.AddComponent<Image>());
     }
 
     private static void BuildSpineProgress(RectTransform root, int playerLevel)
@@ -457,7 +545,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         if (width <= 0.5f)
             return;
 
-        var progress = CreateRect(root, "SpineProgressLine", new Vector2(left, SpineLocalY), new Vector2(width, SpineProgressHeight));
+        var progress = CreateRect(root, "SpineProgressLine", new Vector2(left, SpineLocalY), new Vector2(width, TimelineSpineProgressThickness));
         var progressRt = (RectTransform)progress;
         progressRt.anchorMin = progressRt.anchorMax = new Vector2(0f, 0.5f);
         progressRt.pivot = new Vector2(0f, 0.5f);
@@ -505,7 +593,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         }
     }
 
-    private static void BuildPlaceholderNodesInRows(
+    private void BuildPlaceholderNodesInRows(
         RectTransform unlockRow,
         RectTransform spineRow,
         RectTransform choiceRow,
@@ -548,7 +636,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
             CreateMinorDiamond(spineRow, level, null);
     }
 
-    private static void CreateUnlockCard(RectTransform unlockRow, RectTransform connectors, int level, string title)
+    private void CreateUnlockCard(RectTransform unlockRow, RectTransform connectors, int level, string title)
     {
         float x = XForLevel(level);
         const float unlockCardH = 48f;
@@ -563,8 +651,8 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
 
         CreateDiamond(cardRt, "Icon", new Vector2(0f, 24f), 16f, UnlockColor);
         CreateLabel(cardRt, title, new Vector2(0f, -6f), GeneralNodeLabelFontSize, TextAlignmentOptions.Center);
-        float cardBottom = TopRowY - unlockCardH * 0.5f;
-        CreateConnector(connectors, new Vector2(x, SpineY + 5f), new Vector2(x, cardBottom), thickness: MilestoneSpineConnectorThickness);
+        float cardBottom = unlockRowAnchoredY - unlockCardH * 0.5f;
+        CreateConnector(connectors, new Vector2(x, spineRowAnchoredY + 5f), new Vector2(x, cardBottom), thickness: MilestoneSpineConnectorThickness);
     }
 
     private static void CreateMinorDiamond(RectTransform spineRow, int level, string label)
@@ -575,16 +663,16 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
             CreateLabel(spineRow, label, new Vector2(x, SpineLocalY - 14f), MinorNodeLabelFontSize, TextAlignmentOptions.Top);
     }
 
-    private static void CreateMajorNode(RectTransform choiceRow, RectTransform connectors, int level, string title, Color color)
+    private void CreateMajorNode(RectTransform choiceRow, RectTransform connectors, int level, string title, Color color)
     {
         float x = XForLevel(level);
         const float majorGemSize = 22f;
         CreateDiamond(choiceRow, $"Major_Lv{level}", new Vector2(x, 0f), majorGemSize, color);
         CreateLabel(choiceRow, title, new Vector2(x, -30f), GeneralNodeLabelFontSize, TextAlignmentOptions.Top);
-        CreateConnector(connectors, new Vector2(x, SpineY - 5f), new Vector2(x, BottomRowY + majorGemSize * 0.5f), thickness: MilestoneSpineConnectorThickness);
+        CreateConnector(connectors, new Vector2(x, spineRowAnchoredY - 5f), new Vector2(x, choiceRowAnchoredY + majorGemSize * 0.5f), thickness: MilestoneSpineConnectorThickness);
     }
 
-    private static void CreateChoiceGroup(
+    private void CreateChoiceGroup(
         RectTransform choiceRow,
         RectTransform connectors,
         int level,
@@ -605,7 +693,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
             float offsetX = start + i * spread;
             Vector2 nodePos = new Vector2(x + offsetX, 0f);
             CreateChoiceCard(choiceRow, level, i, nodePos, choices[i], nodeColor);
-            CreateConnector(connectors, new Vector2(x, SpineY - 5f), new Vector2(nodePos.x, BottomRowY + choiceTop), thickness: MilestoneSpineConnectorThickness);
+            CreateConnector(connectors, new Vector2(x, spineRowAnchoredY - 5f), new Vector2(nodePos.x, choiceRowAnchoredY + choiceTop), thickness: MilestoneSpineConnectorThickness);
         }
     }
 
@@ -642,7 +730,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         Vector2 end,
         float extendBeyondStart = ConnectorExtendSpine,
         float extendBeyondEnd = ConnectorExtendNode,
-        float thickness = ConnectorThickness)
+        float thickness = TimelineConnectorThickness)
     {
         Vector2 delta = end - start;
         float len = delta.magnitude;
@@ -658,23 +746,12 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         if (segLen <= 0.001f)
             return;
 
-        float lineThickness = Mathf.Max(2f, thickness);
-        Vector2 pos = lineStart + seg * 0.5f;
-        float angle = Mathf.Atan2(seg.y, seg.x) * Mathf.Rad2Deg;
+        float lineThickness = Mathf.Max(TimelineConnectorThickness, thickness);
 
         var go = new GameObject("Connector", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         var rt = go.GetComponent<RectTransform>();
         rt.SetParent(connectorsLayer, false);
-        rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = pos;
-        rt.sizeDelta = new Vector2(segLen, lineThickness);
-        rt.localRotation = Quaternion.Euler(0f, 0f, angle);
-
-        var img = go.GetComponent<Image>();
-        img.color = ConnectorColor;
-        img.raycastTarget = false;
-        img.maskable = true;
+        SkillTimelineLineStyle.ApplySegment(rt, lineStart, lineEnd, lineThickness);
 
         var renderer = go.GetComponent<CanvasRenderer>();
         renderer.cullTransparentMesh = false;

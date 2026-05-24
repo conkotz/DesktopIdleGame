@@ -62,6 +62,9 @@ public class SkillsManager : MonoBehaviour, ISaveable
     /// <summary>pickIndex is -1 when cleared; otherwise sibling index among multiple abilities at the same level.</summary>
     public event Action<SkillType, int, int> OnSkillAbilityRowPickChanged; // (skill, requiredLevel, pickIndex)
 
+    /// <summary>Fired after <see cref="LoadFrom"/> applies saved levels/XP (and related choice data) to runtime progression.</summary>
+    public event Action OnSkillProgressionLoaded;
+
     private void Awake()
     {
         if (Instance && Instance != this) { Destroy(gameObject); return; }
@@ -694,7 +697,7 @@ public class SkillsManager : MonoBehaviour, ISaveable
             }
         }
 
-        // ✅ Push UI refresh immediately after load
         OnActiveXpDisplayChanged?.Invoke(ActiveSkill, ActiveSource);
+        OnSkillProgressionLoaded?.Invoke();
     }
 }

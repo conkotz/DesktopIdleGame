@@ -26,11 +26,17 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     [SerializeField] private SkillsManager skillsManager;
     [SerializeField] private TMP_Text skillLevelText;
 
-    [Header("Layout (used when timelineScaffold is missing)")]
+    [Header("Layout")]
+    [Tooltip("Horizontal spacing per level when Timeline Scaffold is missing.")]
     [SerializeField] private float pixelsPerLevel = 90f;
     [SerializeField] private float timelineStartX = 120f;
+    [Tooltip("TimelineContent Y for SpineRow. Pushed to Timeline Scaffold on each build when assigned.")]
     [SerializeField] private float spineY = 24f;
+    [Tooltip("TimelineContent Y for ChoiceRow. Pushed to Timeline Scaffold on each build when assigned.")]
     [SerializeField] private float choiceRowY = -54f;
+    [Tooltip("Standalone major/capstone nodes (not in a choice group). Abilities are not moved.")]
+    [SerializeField] private float majorCapstoneStandaloneLiftY = 16f;
+    [SerializeField] private float capstoneStandaloneExtraLiftY = 4f;
 
     [Header("Skill selection (drives timeline + node details)")]
     [Tooltip("Primary skill tree to render. Assign directly, or leave empty and use Skill Type + Database.")]
@@ -105,6 +111,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         if (!HasSpawnedTimelineContent())
             return;
 
+        BringSpineMinorNodesToFront();
         QueueDeferredConnectorRefresh();
     }
 
@@ -320,6 +327,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             yield break;
 
         BuildTimelineConnectors();
+        BringSpineMinorNodesToFront();
         RefreshRowSelectionVisuals();
         RestoreTimelineScrollPosition(_scrollRestoreAfterLayout);
         _scrollRestoreAfterLayout = null;
@@ -443,6 +451,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         if (timelineScaffold != null)
         {
+            timelineScaffold.ApplyRowLayout(spineY, choiceRowY);
             CacheRowContainers();
             bool rowsMissing = _unlockRow == null || _spineRow == null || _choiceRow == null;
             if (rowsMissing)
@@ -735,9 +744,101 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         scroll.horizontalNormalizedPosition = normalized;
     }
 
-    private float SpineYPos => timelineScaffold != null ? timelineScaffold.TimelineSpineY : spineY;
+    /// <summary>
+    /// Scrolls to the ability tier, selects the matching timeline node, and opens the details panel.
+    /// </summary>
+    /// <summary>
+    /// Scrolls to the unlock tier, selects the matching timeline node, and opens the details panel.
+    /// </summary>
+    public bool TryFocusUnlock(SkillDefinition skill, SkillUnlockDefinition unlock, int level)
+    {
+        if (unlock == null)
+            return false;
 
-    private float ChoiceRowYPos => timelineScaffold != null ? timelineScaffold.TimelineChoiceRowY : choiceRowY;
+        EnsureDetailsPanelReference();
+        int scrollLevel = Mathf.Max(1, level > 0 ? level : unlock.requiredLevel);
+        ScrollToLevel(scrollLevel);
+
+        SkillTimelineNodeUI node = FindTimelineNodeForUnlock(unlock);
+        if (node == null)
+            return false;
+
+        HandleTimelineNodeClicked(node);
+        return true;
+    }
+
+    public bool TryFocusAbility(AbilityDefinition ability)
+    {
+        if (ability == null)
+            return false;
+
+        EnsureDetailsPanelReference();
+        int scrollLevel = Mathf.Max(1, ability.unlockLevel);
+        SkillTimelineNodeUI node = FindTimelineNodeForAbility(ability);
+        if (node?.Binding != null)
+            scrollLevel = Mathf.Max(1, node.Binding.Level);
+
+        ScrollToLevel(scrollLevel);
+        node = FindTimelineNodeForAbility(ability);
+        if (node == null)
+            return false;
+
+        HandleTimelineNodeClicked(node);
+        return true;
+    }
+
+    private SkillTimelineNodeUI FindTimelineNodeForUnlock(SkillUnlockDefinition unlock)
+    {
+        if (unlock == null || _spawnedTimelineNodes.Count == 0)
+            return null;
+
+        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
+        {
+            SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
+            if (node?.Binding?.Unlock == unlock)
+                return node;
+        }
+
+        return null;
+    }
+
+    private SkillTimelineNodeUI FindTimelineNodeForAbility(AbilityDefinition ability)
+    {
+        if (ability == null || _spawnedTimelineNodes.Count == 0)
+            return null;
+
+        string abilityId = ability.abilityId;
+        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
+        {
+            SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
+            if (node?.Binding == null)
+                continue;
+
+            SkillUnlockDefinition unlock = node.Binding.Unlock;
+            if (unlock?.ability == ability)
+                return node;
+
+            if (unlock?.ability != null
+                && !string.IsNullOrEmpty(abilityId)
+                && unlock.ability.abilityId == abilityId)
+                return node;
+
+            SkillChoiceDefinition choice = node.Binding.Choice;
+            if (choice?.ability == ability)
+                return node;
+
+            if (choice?.ability != null
+                && !string.IsNullOrEmpty(abilityId)
+                && choice.ability.abilityId == abilityId)
+                return node;
+        }
+
+        return null;
+    }
+
+    private float SpineYPos => spineY;
+
+    private float ChoiceRowYPos => choiceRowY;
 
     private int ResolvePlayerSkillLevel(SkillDefinition skill)
     {
@@ -937,7 +1038,8 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         SkillTimelineNodeUI.SkillTimelineNodeState state,
         bool capstoneScale)
     {
-        return SpawnNodeInRow(_choiceRow, new Vector2(x, 0f), $"ChoiceNode_Lv{level}_{slot}", node =>
+        float nodeY = ResolveStandaloneMajorCapstoneLiftY(nodeType);
+        return SpawnNodeInRow(_choiceRow, new Vector2(x, nodeY), $"ChoiceNode_Lv{level}_{slot}", node =>
         {
             node.ApplyBelowSpineNodePreview(nodeType, label, state, capstoneScale);
             BindTimelineNode(
@@ -950,6 +1052,17 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
                 nodeType,
                 state);
         });
+    }
+
+    private float ResolveStandaloneMajorCapstoneLiftY(SkillTimelineNodeUI.SkillTimelineNodeType nodeType)
+    {
+        if (nodeType == SkillTimelineNodeUI.SkillTimelineNodeType.MajorPassive)
+            return majorCapstoneStandaloneLiftY;
+
+        if (nodeType == SkillTimelineNodeUI.SkillTimelineNodeType.Capstone)
+            return majorCapstoneStandaloneLiftY + capstoneStandaloneExtraLiftY;
+
+        return 0f;
     }
 
     private SkillTimelineNodeUI SpawnNodeInRow(

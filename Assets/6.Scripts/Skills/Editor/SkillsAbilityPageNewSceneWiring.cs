@@ -172,6 +172,22 @@ public static class SkillsAbilityPageNewSceneWiring
         if (skillLevelText != null)
             pageSo.FindProperty("selectedSkillTitleText").objectReferenceValue = skillLevelText;
 
+        if (detailsPanel != null)
+            pageSo.FindProperty("skillNodeDetailsPanel").objectReferenceValue = detailsPanel;
+
+        Transform viewDetailsBar = page.transform.Find("BottomPanelBar/DetailsPanel/ViewDetailsBar");
+        if (viewDetailsBar != null)
+        {
+            Button collapseBtn = viewDetailsBar.Find("CollapseDetailsButton")?.GetComponent<Button>()
+                ?? viewDetailsBar.Find("CollapseDetails")?.GetComponent<Button>()
+                ?? viewDetailsBar.Find("CollapseButton")?.GetComponent<Button>();
+            if (collapseBtn != null)
+            {
+                collapseBtn.interactable = true;
+                pageSo.FindProperty("collapseDetailsButton").objectReferenceValue = collapseBtn;
+            }
+        }
+
         if (activeList != null)
             pageSo.FindProperty("activeAbilitiesList").objectReferenceValue = activeList;
         if (abilityEntryPrefab != null)
@@ -198,6 +214,15 @@ public static class SkillsAbilityPageNewSceneWiring
         }
 
         pageSo.ApplyModifiedPropertiesWithoutUndo();
+
+        if (detailsPanel != null)
+        {
+            SerializedObject detailsSo = new SerializedObject(detailsPanel);
+            SerializedProperty collapseProp = pageSo.FindProperty("collapseDetailsButton");
+            if (collapseProp != null && collapseProp.objectReferenceValue != null)
+                detailsSo.FindProperty("collapseDetailsButton").objectReferenceValue = collapseProp.objectReferenceValue;
+            detailsSo.ApplyModifiedPropertiesWithoutUndo();
+        }
 
         return true;
     }

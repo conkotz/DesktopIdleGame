@@ -104,9 +104,14 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         ApplyDetailsTypography();
         EnsureEnhancementsLockedOverlay();
         WireEnhancementActionButton();
-        WireCollapseDetailsButton();
         RefreshColumnsLayout();
         ShowEmpty();
+    }
+
+    private void OnEnable()
+    {
+        WireCollapseDetailsButton();
+        RefreshCollapseButtonVisible();
     }
 
     private void OnDisable()
@@ -976,6 +981,20 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         changeEnhancementButton.onClick.AddListener(_enhancementActionHandler);
     }
 
+    /// <summary>Inspector assignment from <see cref="SkillsAbilityPageNewUI"/> (preferred over auto-find).</summary>
+    public void AssignCollapseDetailsButton(Button button)
+    {
+        if (collapseDetailsButton != null
+            && collapseDetailsButton != button
+            && _collapseDetailsHandler != null)
+        {
+            collapseDetailsButton.onClick.RemoveListener(_collapseDetailsHandler);
+        }
+
+        collapseDetailsButton = button;
+        WireCollapseDetailsButton();
+    }
+
     private void WireCollapseDetailsButton()
     {
         if (collapseDetailsButton == null)
@@ -989,23 +1008,53 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
 
         _collapseDetailsHandler = HandleCollapseDetailsClicked;
         collapseDetailsButton.onClick.AddListener(_collapseDetailsHandler);
+        collapseDetailsButton.interactable = true;
         RefreshCollapseButtonVisible();
     }
 
     private Button ResolveCollapseDetailsButton()
     {
-        Transform detailsPanel = transform.parent;
-        if (detailsPanel != null && detailsPanel.parent != null)
-            detailsPanel = detailsPanel.parent;
+        if (collapseDetailsButton != null)
+            return collapseDetailsButton;
 
-        if (detailsPanel == null)
-            return null;
-
-        Transform bar = detailsPanel.Find("ViewDetailsBar");
+        Transform bar = FindViewDetailsBarTransform();
         if (bar == null)
             return null;
 
-        return bar.Find("CollapseButton")?.GetComponent<Button>();
+        string[] collapseNames =
+        {
+            "CollapseDetailsButton",
+            "CollapseDetails",
+            "CollapseButton"
+        };
+
+        for (int i = 0; i < collapseNames.Length; i++)
+        {
+            Button collapse = bar.Find(collapseNames[i])?.GetComponent<Button>();
+            if (collapse != null)
+                return collapse;
+        }
+
+        return null;
+    }
+
+    private Transform FindViewDetailsBarTransform()
+    {
+        Transform walk = transform;
+        for (int depth = 0; depth < 12 && walk != null; depth++)
+        {
+            Transform direct = walk.Find("ViewDetailsBar");
+            if (direct != null)
+                return direct;
+
+            walk = walk.parent;
+        }
+
+        SkillsAbilityPageNewUI page = GetComponentInParent<SkillsAbilityPageNewUI>(true);
+        if (page == null)
+            return null;
+
+        return page.transform.Find("BottomPanelBar/DetailsPanel/ViewDetailsBar");
     }
 
     private void HandleCollapseDetailsClicked()
