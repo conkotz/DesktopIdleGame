@@ -25,6 +25,12 @@ public static class MainMenuTabButtonAutoWire
             if (t == null || t.hideFlags != HideFlags.None || !t.gameObject.scene.IsValid())
                 continue;
 
+            if (!t.gameObject.activeInHierarchy)
+                continue;
+
+            if (!t.GetComponentInParent<MainMenuWindowUI>(true))
+                continue;
+
             if (!TryResolveTabId(t.name, out MainMenuTabId tabId))
                 continue;
 
@@ -35,6 +41,25 @@ public static class MainMenuTabButtonAutoWire
             if (!tab)
                 tab = t.gameObject.AddComponent<MainMenuTabButtonUI>();
             tab.SetTabId(tabId);
+        }
+
+        RefreshAllMenuTabVisualLists();
+    }
+
+    private static void RefreshAllMenuTabVisualLists()
+    {
+        MainMenuWindowUI[] menus = Object.FindObjectsByType<MainMenuWindowUI>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+        for (int i = 0; i < menus.Length; i++)
+        {
+            MainMenuWindowUI menu = menus[i];
+            if (!menu)
+                continue;
+
+            MainMenuWindowTabsUI tabsUi = menu.GetComponent<MainMenuWindowTabsUI>();
+            tabsUi?.RebuildTabButtonList();
+            tabsUi?.RefreshTabVisuals(force: true);
         }
     }
 

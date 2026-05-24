@@ -42,6 +42,9 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
 
     public void SetVisibleCategory(SkillCategory category)
     {
+        if (_visibleCategory == category && _rows.Count > 0)
+            return;
+
         _visibleCategory = category;
         RebuildList();
     }

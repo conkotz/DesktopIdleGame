@@ -59,6 +59,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private UnityEngine.Events.UnityAction _gatheringCategoryHandler;
     private UnityEngine.Events.UnityAction _resetTreeClickHandler;
     private Coroutine _deferredProgressionRefresh;
+    private Coroutine _deferredOpenRefresh;
 
     // Per-skill tabs (Melee / Woodcutting) — brown selected style.
     private static readonly Color TabSelectedImageColor = new Color(0.36078432f, 0.26666668f, 0.12941177f, 1f);
@@ -101,21 +102,20 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         ApplyCategoryMode(showOnly: true);
         WireSkillTabButtons();
         TrySubscribeSkillsEvents();
-        SelectFirstSkillIfNeeded();
-        RefreshPageLabels();
+        ResolveInitialSkillSelection();
         RefreshTabSelectionVisuals();
         RefreshCategoryModeButtonVisuals();
-        RefreshSkillsList();
-        RefreshActiveBonusesPanel();
-
-        if (_selectedSkill == null && skillDatabase != null)
-            SelectSkill(GetDefaultSkillForMode(_categoryMode));
-
-        QueueDeferredProgressionRefresh();
+        QueueDeferredOpenRefresh();
     }
 
     private void OnDisable()
     {
+        if (_deferredOpenRefresh != null)
+        {
+            StopCoroutine(_deferredOpenRefresh);
+            _deferredOpenRefresh = null;
+        }
+
         if (_deferredProgressionRefresh != null)
         {
             StopCoroutine(_deferredProgressionRefresh);
@@ -736,7 +736,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         }
     }
 
-    private void SelectFirstSkillIfNeeded()
+    /// <summary>Pick default tab/skill without rebuilding timeline or bottom panels (deferred on enable).</summary>
+    private void ResolveInitialSkillSelection()
     {
         if (skillDatabase == null)
             return;
@@ -769,23 +770,50 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
         if (_selectedSkill == null)
             _selectedSkill = GetDefaultSkillForMode(_categoryMode);
+    }
 
-        if (_selectedSkill != null)
+    private void QueueDeferredOpenRefresh()
+    {
+        if (_deferredOpenRefresh != null)
+            StopCoroutine(_deferredOpenRefresh);
+
+        _deferredOpenRefresh = StartCoroutine(CoDeferredOpenRefresh());
+    }
+
+    /// <summary>Spreads timeline/list rebuild across frames so opening the page does not hitch.</summary>
+    private IEnumerator CoDeferredOpenRefresh()
+    {
+        yield return null;
+        if (!isActiveAndEnabled)
         {
-            _skipSelectionHubNotify = true;
-            try
-            {
-                ApplyCategoryMode(showOnly: true);
-                WireSkillTabButtons();
-                RefreshView();
-                RefreshTabSelectionVisuals();
-                RefreshSkillsList();
-            }
-            finally
-            {
-                _skipSelectionHubNotify = false;
-            }
+            _deferredOpenRefresh = null;
+            yield break;
         }
+
+        WireSkillTabButtons();
+        RefreshSkillsList();
+        RefreshPageLabels();
+        RefreshTabSelectionVisuals();
+
+        yield return null;
+        if (!isActiveAndEnabled)
+        {
+            _deferredOpenRefresh = null;
+            yield break;
+        }
+
+        SyncTimelineFromPageSelection();
+
+        yield return null;
+        if (!isActiveAndEnabled)
+        {
+            _deferredOpenRefresh = null;
+            yield break;
+        }
+
+        RefreshActiveAbilitiesList();
+        RefreshActiveBonusesPanel();
+        _deferredOpenRefresh = null;
     }
 
     private SkillDefinition GetDefaultSkillForMode(SkillCategory mode)

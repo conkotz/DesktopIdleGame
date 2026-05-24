@@ -3,7 +3,6 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
-using TMPro;
 
 public class MainMenuWindowUI : MonoBehaviour
 {
@@ -77,16 +76,6 @@ public class MainMenuWindowUI : MonoBehaviour
     [Header("Root")]
     [SerializeField] private GameObject mainMenuWindow;
 
-    [Header("Header")]
-    [SerializeField] private TMP_Text headerTitleText;
-    [SerializeField] private string characterTitle = "Character";
-    [SerializeField] private string skillsTitle = "Skills & Abilities";
-    [FormerlySerializedAs("worldMapTitle")]
-    [SerializeField] private string levelSelectTitle = "Level select";
-    [SerializeField] private string worldMapTitle = "World Map";
-    [SerializeField] private string questTitle = "Quests";
-    [SerializeField] private string settingsTitle = "Settings";
-
     [Header("Optional UI gating")]
     [Tooltip("If set, we force this CanvasGroup to be interactable when opening pages (prevents first-open issues).")]
     [SerializeField] private CanvasGroup mainMenuCanvasGroup;
@@ -110,6 +99,7 @@ public class MainMenuWindowUI : MonoBehaviour
 
     private GameObject currentPage;
     private Image _windowRootImage;
+    private Transform _menuTabsBar;
 
     /// <summary>
     /// True when this script lives on the same object as <see cref="mainMenuWindow"/>.
@@ -206,6 +196,7 @@ public class MainMenuWindowUI : MonoBehaviour
             Debug.LogWarning("[MainMenuWindowUI] Multiple MainMenuWindowUI components in loaded scenes; the last Awake wins for Resolve().", this);
 
         s_instance = this;
+        ResolveSkillsAbilitiesPageReference();
 
         if (!mainMenuWindow)
             return;
@@ -262,7 +253,6 @@ public class MainMenuWindowUI : MonoBehaviour
         if (IsOpen && currentPage == levelSelectPage)
         {
             ApplyLevelSelectPresentation();
-            RefreshHeaderTitle();
             return;
         }
 
@@ -537,7 +527,6 @@ public class MainMenuWindowUI : MonoBehaviour
 
         targetPage.SetActive(true);
         currentPage = targetPage;
-        RefreshHeaderTitle();
 
         if (!_hideWindowWithCanvasGroup &&
             (!mainMenuWindow.activeSelf || !targetPage.activeSelf))
@@ -546,8 +535,9 @@ public class MainMenuWindowUI : MonoBehaviour
             HideAllPages();
             targetPage.SetActive(true);
             currentPage = targetPage;
-            RefreshHeaderTitle();
         }
+
+        BringMenuTabsBarToFront();
     }
 
     private void HideAllPages()
@@ -558,26 +548,48 @@ public class MainMenuWindowUI : MonoBehaviour
         if (fullMapPage) fullMapPage.SetActive(false);
         if (questPage) questPage.SetActive(false);
         if (settingsPage) settingsPage.SetActive(false);
+        HideLegacySkillsAbilitiesPage();
     }
 
-    private void RefreshHeaderTitle()
+    /// <summary>Hides the old in-menu skills page when <see cref="skillsAbilitiesPage"/> points at SkillsAbilityPageNEW.</summary>
+    private void HideLegacySkillsAbilitiesPage()
     {
-        if (!headerTitleText) return;
+        if (!mainMenuWindow)
+            return;
 
-        if (currentPage == characterPage)
-            headerTitleText.text = characterTitle;
-        else if (currentPage == skillsAbilitiesPage)
-            headerTitleText.text = skillsTitle;
-        else if (fullMapPage && currentPage == fullMapPage)
-            headerTitleText.text = worldMapTitle;
-        else if (currentPage == levelSelectPage)
-            headerTitleText.text = levelSelectTitle;
-        else if (currentPage == questPage)
-            headerTitleText.text = questTitle;
-        else if (currentPage == settingsPage)
-            headerTitleText.text = settingsTitle;
-        else
-            headerTitleText.text = "";
+        Transform legacy = mainMenuWindow.transform.Find("SkillsAbilityPage");
+        if (legacy != null && legacy.gameObject != skillsAbilitiesPage)
+            legacy.gameObject.SetActive(false);
+    }
+
+    /// <summary>Later siblings draw on top — keep the tab bar above page content (e.g. SkillsAbilityPageNEW).</summary>
+    private void BringMenuTabsBarToFront()
+    {
+        ResolveMenuTabsBar();
+        if (_menuTabsBar != null)
+            _menuTabsBar.SetAsLastSibling();
+    }
+
+    private void ResolveMenuTabsBar()
+    {
+        if (_menuTabsBar != null)
+            return;
+
+        if (mainMenuWindow != null)
+            _menuTabsBar = mainMenuWindow.transform.Find("MenuTabsBar");
+    }
+
+    /// <summary>Uses SkillsAbilityPageNEW when present; does not move or resize any UI.</summary>
+    private void ResolveSkillsAbilitiesPageReference()
+    {
+        if (skillsAbilitiesPage != null &&
+            string.Equals(skillsAbilitiesPage.name, "SkillsAbilityPageNEW", System.StringComparison.Ordinal))
+            return;
+
+        SkillsAbilityPageNewUI newPageUi =
+            FindFirstObjectByType<SkillsAbilityPageNewUI>(FindObjectsInactive.Include);
+        if (newPageUi != null)
+            skillsAbilitiesPage = newPageUi.gameObject;
     }
 
     private void RestorePersistedWindowState()

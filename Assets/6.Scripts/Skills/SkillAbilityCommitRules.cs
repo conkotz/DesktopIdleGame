@@ -114,17 +114,26 @@ public static class SkillAbilityCommitRules
     /// </summary>
     public static bool ShouldShowAbilityInRightPanel(SkillDefinition skill, AbilityDefinition ability, SkillsManager sm)
     {
-        if (skill == null || ability == null)
-            return true;
+        if (ability == null)
+            return false;
         if (sm == null)
             return true;
+
+        if (skill == null)
+        {
+            SkillDatabase db = SkillDatabase.LoadDefault();
+            skill = db != null ? db.Get(ability.sourceSkill) : null;
+        }
+
+        if (skill == null)
+            return CombatStarterAttackAbility.IsCombatStarterAttack(ability);
 
         if (CombatStarterAttackAbility.IsCombatStarterAttackUnlockedForGameplay(skill, ability, sm))
             return true;
 
         SkillUnlockDefinition treeUnlock = FindAbilityUnlockOnSkill(skill, ability);
         if (treeUnlock == null)
-            return true;
+            return false;
 
         int req = Mathf.Max(1, treeUnlock.requiredLevel);
         var siblings = GetAbilitySiblingsOnSkillRow(skill, req);
@@ -153,6 +162,12 @@ public static class SkillAbilityCommitRules
             return false;
         if (sm == null)
             return true;
+
+        if (skill == null)
+        {
+            SkillDatabase db = SkillDatabase.LoadDefault();
+            skill = db != null ? db.Get(ability.sourceSkill) : null;
+        }
 
         if (!sm.IsLevelUnlocked(ability.sourceSkill, Mathf.Max(1, ability.unlockLevel)))
             return false;

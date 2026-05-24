@@ -5,8 +5,8 @@ using UnityEngine;
 /// <summary>
 /// Estimates how much combat power action-bar abilities add, using the same building blocks as
 /// <see cref="PlayerAbilityController"/> (weapon-average physical hit, ability multipliers, AP, crit, cooldown).
-/// Only abilities currently assigned to the <see cref="ActionBarUI"/> count; duplicate slots with the same
-/// ability id share one cooldown, so each unique id is counted once.
+/// Only combat loadout abilities (action bar slots 1–5) count; starter Attack abilities are excluded (weapon DPS).
+/// Gathering-strip UI uses the frozen combat row. Duplicate ids share one cooldown estimate.
 /// </summary>
 public static class AbilityCombatPower
 {
@@ -249,12 +249,12 @@ public static class AbilityCombatPower
 
         bool log = logDiagnostics;
 
-        ActionBarUI bar = UnityEngine.Object.FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        ActionBarUI bar = ActionBarUI.FindForCharacterStats(stats);
         if (!bar)
         {
             if (log)
                 Debug.LogWarning(
-                    "[AbilityCombatPower] No ActionBarUI in loaded scenes (FindFirstObjectByType returned null). Ability DPS = 0.",
+                    "[AbilityCombatPower] No ActionBarUI in loaded scenes. Ability DPS = 0.",
                     stats);
             return 0f;
         }
@@ -279,79 +279,58 @@ public static class AbilityCombatPower
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         float total = 0f;
         int slotIndex = -1;
+        SkillDatabase skillDb = SkillDatabase.LoadDefault();
+        SkillsManager skillsMgr = SkillsManager.Instance;
 
-        foreach (ActionBarSlotUI slot in bar.GetSlots())
+        foreach (string abilityId in bar.EnumerateCombatLoadoutAbilityIdsForCombatPower())
         {
             slotIndex++;
-            if (!slot)
-            {
-                if (log)
-                    Debug.Log($"[AbilityCombatPower] slot[{slotIndex}]: (null ActionBarSlotUI)", stats);
+            if (string.IsNullOrWhiteSpace(abilityId))
                 continue;
-            }
 
-            ActionBarAssignment a = slot.AssignedAction;
-            if (a == null)
-            {
-                if (log)
-                    Debug.Log($"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: AssignedAction is null", stats);
-                continue;
-            }
-
-            if (!a.IsAssigned)
+            if (!seen.Add(abilityId))
             {
                 if (log)
                     Debug.Log(
-                        $"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: empty (kind={a.kind}, id='{a.id}')",
+                        $"[AbilityCombatPower] loadout[{slotIndex}]: duplicate id '{abilityId}' (skipped — already counted)",
                         stats);
                 continue;
             }
 
-            if (!a.IsAbility)
-            {
-                if (log)
-                    Debug.Log(
-                        $"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: not an ability (kind={a.kind}, id='{a.id}')",
-                        stats);
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(a.id))
-            {
-                if (log)
-                    Debug.LogWarning(
-                        $"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: IsAbility but id is blank",
-                        stats);
-                continue;
-            }
-
-            if (!seen.Add(a.id))
-            {
-                if (log)
-                    Debug.Log(
-                        $"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: duplicate id '{a.id}' (skipped — already counted)",
-                        stats);
-                continue;
-            }
-
-            AbilityDefinition def = ResolveAbilityDefinition(a.id, barDb, playerDb, out string resolution);
+            AbilityDefinition def = ResolveAbilityDefinition(abilityId, barDb, playerDb, out string resolution);
             if (!def)
             {
                 if (log)
                     Debug.LogWarning(
-                        $"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: could not resolve AbilityDefinition for id='{a.id}' (tried bar → player → FindDefinitionById).",
+                        $"[AbilityCombatPower] loadout[{slotIndex}]: could not resolve AbilityDefinition for id='{abilityId}'.",
                         stats);
                 continue;
             }
 
-            SkillDatabase skillDb = SkillDatabase.LoadDefault();
+            if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
+            {
+                if (log)
+                    Debug.Log(
+                        $"[AbilityCombatPower] loadout[{slotIndex}]: id='{abilityId}' skipped (starter attack — already in weapon DPS).",
+                        stats);
+                continue;
+            }
+
+            if (ActionBarUI.IsGatheringSkillType(def.sourceSkill))
+            {
+                if (log)
+                    Debug.Log(
+                        $"[AbilityCombatPower] loadout[{slotIndex}]: id='{abilityId}' skipped (gathering ability).",
+                        stats);
+                continue;
+            }
+
             SkillDefinition skillDef = skillDb != null ? skillDb.Get(def.sourceSkill) : null;
-            SkillsManager skillsMgr = SkillsManager.Instance;
             if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skillDef, def, skillsMgr))
             {
                 if (log)
                     Debug.Log(
-                        $"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: id='{a.id}' skipped (not committed / level-locked on skill tree).",
+                        $"[AbilityCombatPower] loadout[{slotIndex}]: id='{abilityId}' skipped (not committed / level-locked on skill tree).",
                         stats);
                 continue;
             }
@@ -360,7 +339,7 @@ public static class AbilityCombatPower
             {
                 if (log)
                     Debug.Log(
-                        $"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: id='{a.id}' skipped (wrong equipped weapon for {def.requiredWeaponType}).",
+                        $"[AbilityCombatPower] loadout[{slotIndex}]: id='{abilityId}' skipped (wrong equipped weapon for {def.requiredWeaponType}).",
                         stats);
                 continue;
             }
@@ -371,7 +350,7 @@ public static class AbilityCombatPower
             if (log)
             {
                 Debug.Log(
-                    $"[AbilityCombatPower] slot[{slotIndex}] index={slot.SlotIndex}: id='{a.id}' → def={def.displayName} ({def.abilityId}) " +
+                    $"[AbilityCombatPower] loadout[{slotIndex}]: id='{abilityId}' → def={def.displayName} ({def.abilityId}) " +
                     $"resolve={resolution}  estDps={dps:F4}",
                     stats);
             }
@@ -442,6 +421,10 @@ public static class AbilityCombatPower
     public static float EstimateAbilityDps(AbilityDefinition def, CharacterStats stats)
     {
         if (!def || !stats)
+            return 0f;
+
+        // Lv1 Attack abilities trigger weapon swings; direct weapon DPS already covers them.
+        if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
             return 0f;
 
         if (def.minionSpawnDefinition)

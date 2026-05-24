@@ -230,6 +230,77 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
     }
 
+    /// <summary>First five combat ability loadout slots (hotkeys 1–5). Excludes potion/food and extra bar slots.</summary>
+    public IEnumerable<ActionBarSlotUI> EnumerateCombatLoadoutAbilitySlots() => EnumerateFirstFiveLoadoutAbilitySlots();
+
+    /// <summary>
+    /// Ability ids on the combat loadout used for CP / DPS breakdown. While the gathering strip is shown, uses the
+    /// frozen combat row instead of the gathering abilities currently painted on the bar.
+    /// </summary>
+    public IEnumerable<string> EnumerateCombatLoadoutAbilityIdsForCombatPower()
+    {
+        if (gatheringUiActive)
+        {
+            for (int i = 0; i < frozenCombatFiveAbilities.Count; i++)
+            {
+                SavedSlotState st = frozenCombatFiveAbilities[i];
+                if (st == null || string.IsNullOrWhiteSpace(st.id))
+                    continue;
+                if (st.kind != (int)ActionBarAssignmentKind.Ability)
+                    continue;
+                yield return st.id;
+            }
+
+            yield break;
+        }
+
+        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        {
+            ActionBarAssignment a = slot != null ? slot.AssignedAction : null;
+            if (a == null || !a.IsAssigned || !a.IsAbility || string.IsNullOrWhiteSpace(a.id))
+                continue;
+            yield return a.id;
+        }
+    }
+
+    /// <summary>
+    /// Prefer the player's action bar when duplicates exist (persistent shell + scene UI). Matches save dedupe scoring.
+    /// </summary>
+    public static ActionBarUI FindForCharacterStats(CharacterStats stats)
+    {
+        ActionBarUI[] bars = FindObjectsByType<ActionBarUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        if (bars == null || bars.Length == 0)
+            return null;
+        if (bars.Length == 1)
+            return bars[0];
+
+        PlayerController player = stats != null
+            ? stats.GetComponent<PlayerController>() ?? stats.GetComponentInParent<PlayerController>()
+            : null;
+        Transform playerRoot = player != null ? player.transform : stats != null ? stats.transform : null;
+
+        ActionBarUI best = null;
+        int bestScore = -1;
+        for (int i = 0; i < bars.Length; i++)
+        {
+            ActionBarUI candidate = bars[i];
+            if (!candidate)
+                continue;
+
+            int score = candidate.ComputeSavePriorityScore();
+            if (playerRoot != null && candidate.transform.IsChildOf(playerRoot))
+                score += 10000;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = candidate;
+            }
+        }
+
+        return best != null ? best : bars[0];
+    }
+
     /// <summary>
     /// Puts an unlocked ability into the first empty ability-compatible slot (same ordering as <see cref="slotBindings"/>).
     /// If the ability is already on the bar, returns true without moving it.

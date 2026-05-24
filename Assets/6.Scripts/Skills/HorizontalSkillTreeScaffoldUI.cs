@@ -60,6 +60,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     [SerializeField] private bool verboseBuildLogs;
 
     private SkillDefinition _builtSkill;
+    private int _builtAtPlayerLevel = -1;
     private bool _isBuilding;
     private SkillTimelineNodeUI _detailsFocusedTimelineNode;
     private float? _scrollRestoreAfterLayout;
@@ -86,6 +87,15 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         EnsureDetailsPanelReference();
         CacheRowContainers();
+
+        // SkillsAbilityPageNewUI drives the first build when the page opens; avoid a duplicate full rebuild here.
+        if (GetComponentInParent<SkillsAbilityPageNewUI>(true) != null)
+        {
+            if (HasSpawnedTimelineContent())
+                QueueDeferredConnectorRefresh();
+            return;
+        }
+
         if (!BuildFromSelectedSkill() && useTestTimelineFallback && !HasSpawnedTimelineContent())
             GenerateTestTimeline();
         else
@@ -122,6 +132,13 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         if (_isBuilding)
             return false;
 
+        if (skill != null && skill == _builtSkill && HasSpawnedTimelineContent())
+        {
+            int playerLevel = ResolvePlayerSkillLevel(skill);
+            if (playerLevel == _builtAtPlayerLevel)
+                return RefreshBuiltTimeline(skill);
+        }
+
         if (timelineContent == null || nodePrefab == null)
         {
             Debug.LogWarning("[HorizontalSkillTreeScaffoldUI] timelineContent or nodePrefab is not assigned.", this);
@@ -141,12 +158,16 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             SkillTimelineNodeBinding restoreDetailsBinding = CaptureOpenDetailsBinding();
             EnsureTimelineReady();
             ClearSpawnedContent(dismissDetailsPanel: restoreDetailsBinding == null);
-            _builtSkill = skill;
-
             if (skill == null || skill.unlocks == null || skill.unlocks.Count == 0)
+            {
+                _builtSkill = skill;
+                _builtAtPlayerLevel = -1;
                 return false;
+            }
 
             int playerLevel = ResolvePlayerSkillLevel(skill);
+            _builtSkill = skill;
+            _builtAtPlayerLevel = playerLevel;
             List<HorizontalSkillTreeUnlockLayout.SortedUnlock> sorted =
                 HorizontalSkillTreeUnlockLayout.BuildSortedUnlocks(skill.unlocks);
             List<HorizontalSkillTreeUnlockLayout.LevelGroup> levelGroups =
@@ -183,6 +204,21 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
     /// <summary>Refreshes row pick / enhancement chrome without rebuilding the timeline.</summary>
     public void RefreshTimelineSelectionVisuals() => RefreshRowSelectionVisuals();
+
+    /// <summary>Updates level/spine/selection when <paramref name="skill"/> is already built (avoids destroy/instantiate hitch).</summary>
+    private bool RefreshBuiltTimeline(SkillDefinition skill)
+    {
+        if (skill == null || !HasSpawnedTimelineContent())
+            return false;
+
+        int playerLevel = ResolvePlayerSkillLevel(skill);
+        RefreshSkillLevelLabel(skill, playerLevel);
+        RefreshSpineProgress(playerLevel);
+        BringSpineMinorNodesToFront();
+        RefreshRowSelectionVisuals();
+        QueueDeferredConnectorRefresh();
+        return true;
+    }
 
     /// <summary>Clears focused node and details (e.g. after Reset Tree).</summary>
     public void DismissOpenDetails()

@@ -7,7 +7,8 @@ using UnityEngine.UI;
 /// <summary>
 /// Sprint key: tap or hold start performs a short dash (cooldown), hold while moving adds flat move speed,
 /// costs 20% max stamina on dash start, then drains 15% max stamina/s while sprinting, and blocks passive
-/// stamina regen during sprint drain.
+/// stamina regen during sprint drain. Depleting stamina enters exhaustion until energy recovers to
+/// <see cref="SprintExhaustionRecoveryMaxEnergyFraction"/> of max (sprint key can stay held).
 /// </summary>
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(50)]
@@ -22,7 +23,21 @@ public class PlayerSprintInput : MonoBehaviour
     public const float SprintDashDistance = 1.5f;
     public const float SprintDashCooldownSeconds = 5f;
 
+    /// <summary>
+    /// Extra max-stamina above <see cref="SprintDashInitialCostMaxEnergyFraction"/> required before sprint is allowed
+    /// again after exhaustion (small cushion so hold-sprint does not instantly re-empty after the first dash).
+    /// </summary>
+    public const float SprintExhaustionRecoveryBufferFraction = 0.08f;
+
+    /// <summary>
+    /// After depletion, sprint stays blocked until energy reaches at least dash cost + buffer (28% of max by default).
+    /// Must be ≥ dash cost or the player clears exhaustion but still cannot <see cref="TryStartDash"/>.
+    /// </summary>
+    public const float SprintExhaustionRecoveryMaxEnergyFraction =
+        SprintDashInitialCostMaxEnergyFraction + SprintExhaustionRecoveryBufferFraction;
+
     public static bool IsSprinting { get; private set; }
+    public static bool IsSprintExhausted { get; private set; }
     public static bool IsSprintDashing { get; private set; }
     public static event Action<bool> SprintStateChanged;
 
@@ -55,6 +70,7 @@ public class PlayerSprintInput : MonoBehaviour
     private float _dashTargetX;
     private float _dashEndTime;
     private float _dashFaceDirectionSign;
+    private bool _sprintExhausted;
 
     private void Awake()
     {
@@ -73,6 +89,7 @@ public class PlayerSprintInput : MonoBehaviour
         {
             _instance = null;
             IsSprintDashing = false;
+            IsSprintExhausted = false;
         }
     }
 
@@ -120,6 +137,9 @@ public class PlayerSprintInput : MonoBehaviour
         if (!_sprintKeyHeld)
             return;
 
+        if (IsSprintBlockedByExhaustionOrEmptyStamina())
+            return;
+
         if (_sprintKeyDownThisFrame || Time.time >= _dashCooldownEndsAt)
             TryStartDash();
     }
@@ -147,6 +167,9 @@ public class PlayerSprintInput : MonoBehaviour
     private void TryStartDash()
     {
         if (Time.time < _dashCooldownEndsAt)
+            return;
+
+        if (IsSprintBlockedByExhaustionOrEmptyStamina())
             return;
 
         if (!playerController)
@@ -177,6 +200,9 @@ public class PlayerSprintInput : MonoBehaviour
 
         if (!characterStats.SpendEnergy(dashCost))
             return;
+
+        if (characterStats.Energy <= 0f)
+            SetSprintExhausted(true);
 
         playerController.InterruptForSprintDash();
 
@@ -210,7 +236,12 @@ public class PlayerSprintInput : MonoBehaviour
         if (!_sprintKeyHeld)
             return false;
 
-        if (characterStats == null || characterStats.Energy <= 0f)
+        if (characterStats == null)
+            return false;
+
+        TickSprintExhaustionRecovery();
+
+        if (IsSprintBlockedByExhaustionOrEmptyStamina())
             return false;
 
         if (_lastHorizontalSpeed <= MinMoveSpeedForSprint)
@@ -226,7 +257,14 @@ public class PlayerSprintInput : MonoBehaviour
 
         drain = Mathf.Min(drain, characterStats.Energy);
         if (drain <= 0f || !characterStats.SpendEnergy(drain))
+        {
+            if (characterStats.Energy <= 0f)
+                SetSprintExhausted(true);
             return false;
+        }
+
+        if (characterStats.Energy <= 0f)
+            SetSprintExhausted(true);
 
         return true;
     }
@@ -237,6 +275,9 @@ public class PlayerSprintInput : MonoBehaviour
     public static bool ShouldApplyMoveSpeedBonus()
     {
         if (!_sprintKeyHeld)
+            return false;
+
+        if (IsSprintExhausted)
             return false;
 
         CharacterStats stats = ResolveCharacterStats();
@@ -282,7 +323,45 @@ public class PlayerSprintInput : MonoBehaviour
         IsSprinting = active;
         BlocksStaminaRegen = active;
         SprintStateChanged?.Invoke(active);
-        characterStats?.NotifyStatsChanged();
+    }
+
+    private bool IsSprintBlockedByExhaustionOrEmptyStamina()
+    {
+        if (characterStats == null)
+            return true;
+
+        TickSprintExhaustionRecovery();
+
+        if (_sprintExhausted)
+            return true;
+
+        return characterStats.Energy <= 0f;
+    }
+
+    private void TickSprintExhaustionRecovery()
+    {
+        if (!_sprintExhausted || characterStats == null)
+            return;
+
+        float maxEnergy = Mathf.Max(0f, characterStats.MaxEnergy);
+        if (maxEnergy <= 0f)
+        {
+            SetSprintExhausted(false);
+            return;
+        }
+
+        float threshold = maxEnergy * SprintExhaustionRecoveryMaxEnergyFraction;
+        if (characterStats.Energy >= threshold)
+            SetSprintExhausted(false);
+    }
+
+    private void SetSprintExhausted(bool exhausted)
+    {
+        if (_sprintExhausted == exhausted)
+            return;
+
+        _sprintExhausted = exhausted;
+        IsSprintExhausted = exhausted;
     }
 
     private void RefreshSprintHudBuffGrace(bool sprintGameplayActive)

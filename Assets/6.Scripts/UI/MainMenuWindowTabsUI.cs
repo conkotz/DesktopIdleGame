@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,6 +17,7 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
         public MainMenuTabId tabId = MainMenuTabId.Character;
         [Tooltip("Usually the tab Button's Image (target graphic).")]
         public Graphic graphic;
+        public TMP_Text label;
     }
 
     [SerializeField] private MainMenuWindowUI mainMenu;
@@ -24,6 +26,8 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
     [Header("Tab colours")]
     [SerializeField] private Color activeTabColor = new Color32(247, 225, 190, 255);
     [SerializeField] private Color inactiveTabColor = new Color32(168, 152, 118, 200);
+    [SerializeField] private Color activeTabTextColor = new Color(0.17254902f, 0.14117648f, 0.11372549f, 1f);
+    [SerializeField] private Color inactiveTabTextColor = new Color(0.6830188f, 0.63510895f, 0.5812103f, 1f);
 
     private MainMenuTabId _lastVisualTab = MainMenuTabId.None;
 
@@ -34,15 +38,22 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
         if (!mainMenu)
             mainMenu = MainMenuWindowUI.Resolve();
 
-        CollectTabButtonsFromChildren();
+        RebuildTabButtonList();
     }
 
     private void OnEnable()
     {
         if (!mainMenu)
             mainMenu = MainMenuWindowUI.Resolve();
-        CollectTabButtonsFromChildren();
+        RebuildTabButtonList();
         RefreshTabVisuals(force: true);
+    }
+
+    /// <summary>Refreshes tab button graphics after <see cref="MainMenuTabButtonUI"/> is added at runtime.</summary>
+    public void RebuildTabButtonList()
+    {
+        tabButtons.Clear();
+        CollectTabButtonsFromChildren();
     }
 
     private void LateUpdate()
@@ -95,6 +106,8 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
 
             bool isActive = entry.tabId == active;
             entry.graphic.color = isActive ? activeTabColor : inactiveTabColor;
+            if (entry.label != null)
+                entry.label.color = isActive ? activeTabTextColor : inactiveTabTextColor;
         }
     }
 
@@ -103,18 +116,31 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
         for (int i = 0; i < tabButtons.Count; i++)
         {
             TabButtonVisual entry = tabButtons[i];
-            if (entry != null && entry.graphic)
+            if (entry == null)
+                continue;
+
+            if (entry.graphic)
                 entry.graphic.color = inactiveTabColor;
+            if (entry.label != null)
+                entry.label.color = inactiveTabTextColor;
         }
     }
 
     private void CollectTabButtonsFromChildren()
     {
-        MainMenuTabButtonUI[] found = GetComponentsInChildren<MainMenuTabButtonUI>(true);
+        Transform searchRoot = ResolveMenuTabsSearchRoot();
+        MainMenuTabButtonUI[] found = searchRoot != null
+            ? searchRoot.GetComponentsInChildren<MainMenuTabButtonUI>(true)
+            : GetComponentsInChildren<MainMenuTabButtonUI>(true);
+
+        var seenTabIds = new System.Collections.Generic.HashSet<MainMenuTabId>();
         for (int i = 0; i < found.Length; i++)
         {
             MainMenuTabButtonUI tabBtn = found[i];
-            if (!tabBtn)
+            if (!tabBtn || !tabBtn.isActiveAndEnabled || !tabBtn.gameObject.activeInHierarchy)
+                continue;
+
+            if (!seenTabIds.Add(tabBtn.TabId))
                 continue;
 
             Graphic g = tabBtn.GetComponent<Graphic>();
@@ -128,12 +154,27 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
             if (!g)
                 continue;
 
+            TMP_Text label = tabBtn.GetComponentInChildren<TMP_Text>(true);
+
             tabButtons.Add(new TabButtonVisual
             {
                 tabId = tabBtn.TabId,
-                graphic = g
+                graphic = g,
+                label = label
             });
         }
+    }
+
+    private Transform ResolveMenuTabsSearchRoot()
+    {
+        Transform menuTabsBar = transform.Find("MenuTabsBar");
+        if (menuTabsBar != null && menuTabsBar.gameObject.activeInHierarchy)
+        {
+            Transform row = menuTabsBar.Find("MenuTabsRow");
+            return row != null && row.gameObject.activeInHierarchy ? row : menuTabsBar;
+        }
+
+        return null;
     }
 
     private int FindEntry(MainMenuTabId id)
