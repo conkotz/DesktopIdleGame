@@ -663,7 +663,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     }
 
     /// <summary>
-    /// When a skill-tree row is re-committed, replace the matching loadout slot if it still shows an unlearned (red) ability.
+    /// When a skill-tree row pick changes, replace the loadout slot that held another sibling on that tier (or a stale unlearned ability).
     /// </summary>
     private bool TryAutoEquipRowPickToStaleLoadoutSlot(SkillType skillType, int requiredLevel, int pickIndex)
     {
@@ -693,21 +693,22 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (IsGatheringSkillType(skillType))
         {
             if (gatheringUiActive && gatheringSkillShown == skillType)
-                return TryReplaceStaleLoadoutSlotAtTierIndex(tierIndex, def, skill);
+                return TryReplaceStaleLoadoutSlotAtTierIndex(tierIndex, def, skill, requiredLevel);
 
-            return TryReplaceStaleSavedGatheringSlot(skillType, tierIndex, def, skill);
+            return TryReplaceStaleSavedGatheringSlot(skillType, tierIndex, def, skill, requiredLevel);
         }
 
         if (gatheringUiActive)
-            return TryReplaceStaleFrozenCombatSlotAtTierIndex(tierIndex, def, skill);
+            return TryReplaceStaleFrozenCombatSlotAtTierIndex(tierIndex, def, skill, requiredLevel);
 
-        return TryReplaceStaleLoadoutSlotAtTierIndex(tierIndex, def, skill);
+        return TryReplaceStaleLoadoutSlotAtTierIndex(tierIndex, def, skill, requiredLevel);
     }
 
-    private bool TryReplaceStaleLoadoutSlotAtTierIndex(int tierIndex, AbilityDefinition def, SkillDefinition skill)
+    private bool TryReplaceStaleLoadoutSlotAtTierIndex(int tierIndex, AbilityDefinition def, SkillDefinition skill, int requiredLevel)
     {
-        ActionBarSlotUI slot = GetLoadoutSlotAtTierIndex(tierIndex);
-        if (slot == null || !IsSlotStaleFromUnlearnedAbility(slot, skill))
+        ActionBarSlotUI slot = FindLoadoutSlotHoldingRowSibling(skill, requiredLevel)
+            ?? GetLoadoutSlotAtTierIndex(tierIndex);
+        if (slot == null || !ShouldReplaceLoadoutSlotForRowPick(slot, skill, requiredLevel))
             return false;
 
         ActionBarAssignment assignment = BuildAbilityAssignment(def);
@@ -721,16 +722,20 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         return true;
     }
 
-    private bool TryReplaceStaleFrozenCombatSlotAtTierIndex(int tierIndex, AbilityDefinition def, SkillDefinition skill)
+    private bool TryReplaceStaleFrozenCombatSlotAtTierIndex(int tierIndex, AbilityDefinition def, SkillDefinition skill, int requiredLevel)
     {
-        if (tierIndex < 0 || tierIndex >= frozenCombatFiveAbilities.Count)
+        int frozenIndex = FindFrozenCombatSlotIndexHoldingRowSibling(skill, requiredLevel);
+        if (frozenIndex < 0)
+            frozenIndex = tierIndex;
+
+        if (frozenIndex < 0 || frozenIndex >= frozenCombatFiveAbilities.Count)
             return false;
 
-        SavedSlotState st = frozenCombatFiveAbilities[tierIndex];
+        SavedSlotState st = frozenCombatFiveAbilities[frozenIndex];
         if (st == null || string.IsNullOrWhiteSpace(st.id))
             return false;
 
-        if (!IsSavedAbilityStaleFromUnlearn(st.id, skill))
+        if (!ShouldReplaceSavedAbilityForRowPick(st.id, skill, requiredLevel))
             return false;
 
         st.id = def.abilityId;
@@ -739,17 +744,24 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         return true;
     }
 
-    private bool TryReplaceStaleSavedGatheringSlot(SkillType skillType, int tierIndex, AbilityDefinition def, SkillDefinition skill)
+    private bool TryReplaceStaleSavedGatheringSlot(SkillType skillType, int tierIndex, AbilityDefinition def, SkillDefinition skill, int requiredLevel)
     {
         List<SavedSlotState> list = GetGatheringListForSkill(skillType);
-        if (list == null || tierIndex < 0 || tierIndex >= list.Count)
+        if (list == null)
             return false;
 
-        SavedSlotState st = list[tierIndex];
+        int savedIndex = FindSavedGatheringSlotIndexHoldingRowSibling(list, skill, requiredLevel);
+        if (savedIndex < 0)
+            savedIndex = tierIndex;
+
+        if (savedIndex < 0 || savedIndex >= list.Count)
+            return false;
+
+        SavedSlotState st = list[savedIndex];
         if (st == null || string.IsNullOrWhiteSpace(st.id))
             return false;
 
-        if (!IsSavedAbilityStaleFromUnlearn(st.id, skill))
+        if (!ShouldReplaceSavedAbilityForRowPick(st.id, skill, requiredLevel))
             return false;
 
         st.id = def.abilityId;
@@ -774,7 +786,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         return null;
     }
 
-    private bool IsSlotStaleFromUnlearnedAbility(ActionBarSlotUI slot, SkillDefinition rowSkill)
+    private bool ShouldReplaceLoadoutSlotForRowPick(ActionBarSlotUI slot, SkillDefinition rowSkill, int requiredLevel)
     {
         if (slot == null || rowSkill == null)
             return false;
@@ -783,7 +795,91 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (action == null || !action.IsAssigned || !action.IsAbility)
             return false;
 
-        return IsSavedAbilityStaleFromUnlearn(action.id, rowSkill);
+        if (IsSavedAbilityStaleFromUnlearn(action.id, rowSkill))
+            return true;
+
+        return IsSavedAbilitySiblingOnRow(action.id, rowSkill, requiredLevel);
+    }
+
+    private bool ShouldReplaceSavedAbilityForRowPick(string abilityId, SkillDefinition rowSkill, int requiredLevel)
+    {
+        if (IsSavedAbilityStaleFromUnlearn(abilityId, rowSkill))
+            return true;
+
+        return IsSavedAbilitySiblingOnRow(abilityId, rowSkill, requiredLevel);
+    }
+
+    private static bool IsSavedAbilitySiblingOnRow(string abilityId, SkillDefinition rowSkill, int requiredLevel)
+    {
+        if (string.IsNullOrWhiteSpace(abilityId) || rowSkill == null)
+            return false;
+
+        List<AbilityDefinition> siblings = SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(rowSkill, requiredLevel);
+        if (siblings.Count < 2)
+            return false;
+
+        for (int i = 0; i < siblings.Count; i++)
+        {
+            AbilityDefinition sibling = siblings[i];
+            if (sibling == null)
+                continue;
+
+            if (string.Equals(sibling.abilityId, abilityId, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private ActionBarSlotUI FindLoadoutSlotHoldingRowSibling(SkillDefinition skill, int requiredLevel)
+    {
+        if (skill == null)
+            return null;
+
+        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        {
+            ActionBarAssignment action = slot?.AssignedAction;
+            if (action == null || !action.IsAssigned || !action.IsAbility)
+                continue;
+
+            if (IsSavedAbilitySiblingOnRow(action.id, skill, requiredLevel))
+                return slot;
+        }
+
+        return null;
+    }
+
+    private int FindFrozenCombatSlotIndexHoldingRowSibling(SkillDefinition skill, int requiredLevel)
+    {
+        for (int i = 0; i < frozenCombatFiveAbilities.Count; i++)
+        {
+            SavedSlotState st = frozenCombatFiveAbilities[i];
+            if (st == null || string.IsNullOrWhiteSpace(st.id))
+                continue;
+
+            if (IsSavedAbilitySiblingOnRow(st.id, skill, requiredLevel))
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static int FindSavedGatheringSlotIndexHoldingRowSibling(List<SavedSlotState> list, SkillDefinition skill, int requiredLevel)
+    {
+        if (list == null || skill == null)
+            return -1;
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            SavedSlotState st = list[i];
+            if (st == null || string.IsNullOrWhiteSpace(st.id))
+                continue;
+
+            if (IsSavedAbilitySiblingOnRow(st.id, skill, requiredLevel))
+                return i;
+        }
+
+        return -1;
     }
 
     private bool IsSavedAbilityStaleFromUnlearn(string abilityId, SkillDefinition rowSkill)

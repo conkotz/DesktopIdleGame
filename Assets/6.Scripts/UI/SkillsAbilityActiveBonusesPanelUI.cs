@@ -9,6 +9,9 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
 {
+    private const string CapstoneSectionName = "CapstoneUnlocksSection";
+    private const string CapstoneContentName = "CapstoneContent";
+    private const string CapstoneHeaderName = "CapstoneHeader";
     private const string MajorPassivesSectionName = "MajorPassivesUnlocksSection";
     private const string MajorPassivesContentName = "MajorPassivesContent";
     private const string MajorPassivesEmptyName = "MajorPassivesText";
@@ -25,15 +28,17 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
 
     [SerializeField] private Transform scrollContent;
     [SerializeField] private TMP_Text minorPassiveContent;
+    [SerializeField] private Transform capstoneSectionRoot;
+    [SerializeField] private Transform capstoneListContent;
     [SerializeField] private Transform majorPassivesListContent;
     [SerializeField] private GameObject majorPassivesEmptyText;
     [SerializeField] private MajorPassiveListEntryUI majorPassiveEntryPrefab;
-    [SerializeField] private float majorPassiveRowHeight = 40f;
+    [SerializeField] private float majorPassiveRowHeight = 48f;
     [SerializeField] private float rowSpacing = 6f;
 
     private HorizontalSkillTreeScaffoldUI _horizontalTimeline;
     private readonly List<MajorPassiveListEntryUI> _majorRows = new();
-    private SharedTooltipUI _tooltip;
+    private MajorPassiveListEntryUI _capstoneRow;
     private Canvas _rootCanvas;
 
     public void ConfigureTimeline(HorizontalSkillTreeScaffoldUI timeline)
@@ -45,17 +50,44 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
     {
         EnsureReferences();
         ClearMajorRows();
+        ClearCapstoneRow();
 
         if (skill == null)
         {
             SetMinorText("No unlocks yet.");
             SetMajorEmptyVisible(true);
+            SetCapstoneSectionVisible(false);
             return;
         }
 
         int level = skillsManager != null ? skillsManager.GetLevel(skill.skillType) : 1;
         SetMinorText(SkillsAbilitiesPageUI.BuildMinorPassivesDisplay(skill, level));
+        RefreshCapstoneRow(skill, level);
         RefreshMajorPassives(skill, level, skillsManager);
+    }
+
+    private void RefreshCapstoneRow(SkillDefinition skill, int level)
+    {
+        EnsureCapstoneSection();
+        SkillUnlockDefinition capstone = FindCapstonePassiveUnlockForSkill(skill, level);
+        bool showCapstone = capstone != null;
+        SetCapstoneSectionVisible(showCapstone);
+        if (!showCapstone)
+            return;
+
+        if (capstoneListContent == null || majorPassiveEntryPrefab == null)
+            return;
+
+        _rootCanvas ??= GetComponentInParent<Canvas>();
+        RightPanelMajorPassiveListUtil.EnsureListSpacing(capstoneListContent, rowSpacing);
+
+        _capstoneRow = CreateMajorPassiveRow(capstoneListContent);
+        if (_capstoneRow == null)
+            return;
+
+        int rowLevel = Mathf.Max(1, capstone.requiredLevel);
+        _capstoneRow.Bind(skill, capstone, capstoneStyle: true, tooltip: null, _rootCanvas,
+            () => FocusUnlock(skill, capstone, rowLevel));
     }
 
     private void RefreshMajorPassives(SkillDefinition skill, int level, SkillsManager skillsManager)
@@ -91,22 +123,19 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
             return;
 
         RightPanelMajorPassiveListUtil.EnsureListSpacing(majorPassivesListContent, rowSpacing);
-        _tooltip ??= FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
         _rootCanvas ??= GetComponentInParent<Canvas>();
-        RectTransform panelRect = majorPassivesListContent as RectTransform;
 
         for (int i = 0; i < tierLevels.Count; i++)
         {
             int rowLevel = tierLevels[i];
-            MajorPassiveListEntryUI row = CreateMajorPassiveRow();
+            MajorPassiveListEntryUI row = CreateMajorPassiveRow(majorPassivesListContent);
             if (row == null)
                 continue;
 
-            row.SetTooltipDocking(panelRect, FlipInsideBounds.PreferredSide.Right);
-
             if (availablePlaceholder[i])
             {
-                row.BindAvailableMajorPassiveTier(rowLevel, _tooltip, _rootCanvas, () => FocusMajorPassiveTier(skill, rowLevel));
+                row.BindAvailableMajorPassiveTier(rowLevel, tooltip: null, _rootCanvas,
+                    () => FocusMajorPassiveTier(skill, rowLevel));
                 _majorRows.Add(row);
                 continue;
             }
@@ -115,12 +144,16 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
             if (unlock == null)
                 continue;
 
-            row.Bind(skill, unlock, capstoneStyle: false, _tooltip, _rootCanvas, () => FocusUnlock(skill, unlock, rowLevel));
+            row.Bind(skill, unlock, capstoneStyle: false, tooltip: null, _rootCanvas,
+                () => FocusUnlock(skill, unlock, rowLevel));
 
             if (SkillTreeMajorPassiveRowIndicators.TryGet(skill, unlock, skillsManager,
                     out bool showNotSelected, out bool showEnhance))
             {
-                row.SetTreeStatusIndicators(showNotSelected, showEnhance, () => FocusUnlock(skill, unlock, rowLevel));
+                row.SetTreeStatusIndicators(
+                    showNotSelected && !row.ShowsNoEnhancementPlaceholder,
+                    showEnhance,
+                    () => FocusUnlock(skill, unlock, rowLevel));
             }
 
             _majorRows.Add(row);
@@ -146,12 +179,12 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         _horizontalTimeline.ScrollToLevel(rowLevel);
     }
 
-    private MajorPassiveListEntryUI CreateMajorPassiveRow()
+    private MajorPassiveListEntryUI CreateMajorPassiveRow(Transform parent)
     {
-        if (majorPassiveEntryPrefab == null || majorPassivesListContent == null)
+        if (majorPassiveEntryPrefab == null || parent == null)
             return null;
 
-        MajorPassiveListEntryUI row = Instantiate(majorPassiveEntryPrefab, majorPassivesListContent);
+        MajorPassiveListEntryUI row = Instantiate(majorPassiveEntryPrefab, parent);
         if (row.transform is RectTransform rt)
         {
             rt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, majorPassiveRowHeight);
@@ -177,6 +210,24 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
 
         if (majorPassivesListContent != null)
             RightPanelMajorPassiveListUtil.ClearRows(majorPassivesListContent);
+    }
+
+    private void ClearCapstoneRow()
+    {
+        if (_capstoneRow != null)
+        {
+            Destroy(_capstoneRow.gameObject);
+            _capstoneRow = null;
+        }
+
+        if (capstoneListContent != null)
+            RightPanelMajorPassiveListUtil.ClearRows(capstoneListContent);
+    }
+
+    private void SetCapstoneSectionVisible(bool visible)
+    {
+        if (capstoneSectionRoot != null)
+            capstoneSectionRoot.gameObject.SetActive(visible);
     }
 
     private void SetMinorText(string text)
@@ -215,6 +266,7 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
                 : scrollContent.GetComponentInChildren<TMP_Text>(true);
         }
 
+        EnsureCapstoneSection();
         EnsureMajorPassivesSection();
         EnsureMinorPassivesSection();
         ApplyBonusesTypography();
@@ -230,6 +282,60 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
             }
         }
 
+    }
+
+    private void EnsureCapstoneSection()
+    {
+        if (scrollContent == null)
+            return;
+
+        if (capstoneSectionRoot == null)
+            capstoneSectionRoot = scrollContent.Find(CapstoneSectionName);
+
+        if (capstoneSectionRoot == null)
+            capstoneSectionRoot = CreateCapstoneSection(scrollContent);
+
+        if (capstoneListContent == null && capstoneSectionRoot != null)
+            capstoneListContent = capstoneSectionRoot.Find(CapstoneContentName);
+    }
+
+    private static Transform CreateCapstoneSection(Transform scrollContentRoot)
+    {
+        var sectionGo = new GameObject(CapstoneSectionName, typeof(RectTransform));
+        var sectionRt = (RectTransform)sectionGo.transform;
+        sectionRt.SetParent(scrollContentRoot, false);
+        sectionRt.SetAsFirstSibling();
+
+        var sectionVlg = sectionGo.AddComponent<VerticalLayoutGroup>();
+        sectionVlg.spacing = 8;
+        sectionVlg.childAlignment = TextAnchor.UpperLeft;
+        sectionVlg.childControlWidth = true;
+        sectionVlg.childControlHeight = true;
+        sectionVlg.childForceExpandWidth = true;
+        sectionVlg.childForceExpandHeight = false;
+        sectionGo.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        var headerGo = new GameObject(CapstoneHeaderName, typeof(RectTransform));
+        headerGo.transform.SetParent(sectionRt, false);
+        TMP_Text header = headerGo.AddComponent<TextMeshProUGUI>();
+        ApplyHeaderStyle(header, "Capstone");
+        header.alignment = TextAlignmentOptions.TopLeft;
+        LayoutElement headerLayout = headerGo.AddComponent<LayoutElement>();
+        headerLayout.preferredHeight = 32f;
+
+        var listGo = new GameObject(CapstoneContentName, typeof(RectTransform));
+        listGo.transform.SetParent(sectionRt, false);
+        var listVlg = listGo.AddComponent<VerticalLayoutGroup>();
+        listVlg.spacing = 6;
+        listVlg.childAlignment = TextAnchor.UpperLeft;
+        listVlg.childControlWidth = true;
+        listVlg.childControlHeight = true;
+        listVlg.childForceExpandWidth = true;
+        listVlg.childForceExpandHeight = false;
+        listGo.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        sectionGo.SetActive(false);
+        return sectionRt;
     }
 
     private void EnsureMajorPassivesSection()
@@ -260,7 +366,10 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         var sectionGo = new GameObject(MajorPassivesSectionName, typeof(RectTransform));
         var sectionRt = (RectTransform)sectionGo.transform;
         sectionRt.SetParent(scrollContentRoot, false);
-        sectionRt.SetAsFirstSibling();
+
+        Transform capstone = scrollContentRoot.Find(CapstoneSectionName);
+        int siblingIndex = capstone != null ? capstone.GetSiblingIndex() + 1 : 0;
+        sectionRt.SetSiblingIndex(siblingIndex);
 
         var sectionVlg = sectionGo.AddComponent<VerticalLayoutGroup>();
         sectionVlg.spacing = 8;
@@ -332,6 +441,13 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         if (scrollContent == null)
             return;
 
+        Transform capstoneSection = scrollContent.Find(CapstoneSectionName);
+        if (capstoneSection != null)
+        {
+            TMP_Text capstoneHeader = capstoneSection.Find(CapstoneHeaderName)?.GetComponent<TMP_Text>();
+            ApplyHeaderStyle(capstoneHeader, "Capstone");
+        }
+
         Transform majorSection = scrollContent.Find(MajorPassivesSectionName);
         if (majorSection != null)
         {
@@ -377,5 +493,32 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
 
         text.fontSize = MajorEmptyFontSize;
         text.color = LightBonusesHeaderColor;
+    }
+
+    private static SkillUnlockDefinition FindCapstonePassiveUnlockForSkill(SkillDefinition skill, int currentLevel)
+    {
+        if (skill?.unlocks == null)
+            return null;
+
+        SkillUnlockDefinition best = null;
+        int bestLevel = int.MaxValue;
+        for (int i = 0; i < skill.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition u = skill.unlocks[i];
+            if (u == null || u.unlockType != SkillUnlockType.CapstonePassive)
+                continue;
+
+            int req = Mathf.Max(1, u.requiredLevel);
+            if (currentLevel < req)
+                continue;
+
+            if (req < bestLevel)
+            {
+                bestLevel = req;
+                best = u;
+            }
+        }
+
+        return best;
     }
 }

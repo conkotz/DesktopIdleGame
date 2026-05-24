@@ -19,7 +19,6 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
     private readonly List<AbilityEntryUI> _rows = new();
     private readonly List<GameObject> _placeholderRoots = new();
     private Transform _rowsContainer;
-    private SharedTooltipUI _tooltip;
     private Canvas _rootCanvas;
     private HorizontalSkillTreeScaffoldUI _horizontalTimeline;
     private SkillsAbilityBottomPanelLayoutUI _bottomPanelLayout;
@@ -89,17 +88,16 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         }
 
         if (summaryText != null)
-            summaryText.text = $"Abilities selected: {selectedInTreeCount}";
+            summaryText.text = $"Abilities unlocked: {unlockedTiersCount}\nAbilities selected: {selectedInTreeCount}";
 
         Transform rowsParent = EnsureRowsContainer();
         if (rowsParent == null)
             return;
 
-        _tooltip ??= FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
         _rootCanvas ??= GetComponentInParent<Canvas>();
 
         if (hasStarterAttack)
-            SpawnAbilityRow(starterAttack, true, skillsManager);
+            SpawnCommittedAbilityRow(skill, starterAttack, Mathf.Max(1, starterAttack.unlockLevel), skillsManager);
 
         for (int i = 0; i < abilityTierLevels.Count; i++)
         {
@@ -112,7 +110,14 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
                 continue;
 
             int pick = skillsManager != null ? skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1) : -1;
-            if (pick < 0 || pick >= siblings.Count)
+
+            if (pick < 0)
+            {
+                SpawnAvailableAbilityRow(rowLevel);
+                continue;
+            }
+
+            if (pick >= siblings.Count)
                 continue;
 
             AbilityDefinition def = siblings[pick];
@@ -123,7 +128,7 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
                 && !SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
                 continue;
 
-            SpawnAbilityRow(def, true, skillsManager);
+            SpawnCommittedAbilityRow(skill, def, rowLevel, skillsManager);
         }
 
         bool hasRows = _rows.Count > 0;
@@ -139,7 +144,11 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         }
     }
 
-    private void SpawnAbilityRow(AbilityDefinition def, bool unlocked, SkillsManager skillsManager)
+    private void SpawnCommittedAbilityRow(
+        SkillDefinition skill,
+        AbilityDefinition def,
+        int rowLevel,
+        SkillsManager skillsManager)
     {
         Transform rowsParent = EnsureRowsContainer();
         if (rowsParent == null || entryPrefab == null || def == null)
@@ -147,9 +156,42 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
 
         AbilityEntryUI row = Instantiate(entryPrefab, rowsParent);
         row.gameObject.SetActive(true);
-        row.Bind(def, unlocked, _tooltip, _rootCanvas, () => FocusAbilityInTimeline(def));
+        row.SetRowLevelContext(rowLevel, HandleAbilityRowRightClick);
+        row.Bind(def, unlocked: true, tooltip: null, _rootCanvas, () => FocusAbilityInTimeline(def));
         row.SetDoubleClickAssignHandler(HandleDoubleClickAssign);
+
+        bool showNotSelected = SkillTimelineRowSelectionRules.HasPendingAbilityEnhancementChoice(
+            skillsManager, skill, def);
+        row.SetNotSelectedPrompt(showNotSelected);
+
         _rows.Add(row);
+    }
+
+    private void SpawnAvailableAbilityRow(int rowLevel)
+    {
+        Transform rowsParent = EnsureRowsContainer();
+        if (rowsParent == null || entryPrefab == null)
+            return;
+
+        int scrollLevel = rowLevel;
+        AbilityEntryUI row = Instantiate(entryPrefab, rowsParent);
+        row.gameObject.SetActive(true);
+        row.SetRowLevelContext(rowLevel, HandleAbilityRowRightClick);
+        row.BindAvailableAbilityTier(rowLevel, tooltip: null, _rootCanvas, () => ScrollAbilityTierIntoView(scrollLevel));
+        _rows.Add(row);
+    }
+
+    private void HandleAbilityRowRightClick(int rowLevel)
+    {
+        ScrollAbilityTierIntoView(rowLevel);
+    }
+
+    private void ScrollAbilityTierIntoView(int rowLevel)
+    {
+        if (_horizontalTimeline == null)
+            return;
+
+        _horizontalTimeline.ScrollToLevel(Mathf.Max(1, rowLevel));
     }
 
     private void FocusAbilityInTimeline(AbilityDefinition def)

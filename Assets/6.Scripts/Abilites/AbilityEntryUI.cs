@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
@@ -20,6 +21,7 @@ public class AbilityEntryUI : MonoBehaviour,
     [Tooltip("Shown when the tier is unlocked but no ability is picked yet (e.g. green + row).")]
     [SerializeField] private GameObject selectAbilityRoot;
     [SerializeField] private Button selectButton;
+    [SerializeField] private GameObject notSelectedRoot;
 
     [Header("Drag")]
     [SerializeField] private Vector2 dragIconSize = new Vector2(48f, 48f);
@@ -46,6 +48,13 @@ public class AbilityEntryUI : MonoBehaviour,
     private float _defaultNameFontSize = -1f;
 
     [SerializeField] private float compactNameFontSize = 16f;
+
+    private const float NotSelectedFadeSeconds = 0.35f;
+    private const float NotSelectedHoldOpaqueSeconds = 2f;
+    private CanvasGroup _notSelectedCanvasGroup;
+    private Image _notSelectedImage;
+    private Color _notSelectedImageBaseColor = Color.white;
+    private Coroutine _notSelectedFlashRoutine;
 
     private void Awake()
     {
@@ -126,6 +135,7 @@ public class AbilityEntryUI : MonoBehaviour,
         SetCommittedAbilityListRowOutline(true);
         RegisterRootRowScrollClick(onRowClickScrollToTree);
         EnsureChildGraphicsIgnoreRaycasts();
+        SetNotSelectedPrompt(false);
     }
 
     /// <summary>
@@ -178,6 +188,117 @@ public class AbilityEntryUI : MonoBehaviour,
         SetCommittedAbilityListRowOutline(false);
         RegisterRootRowScrollClick(onSelectScrollTree);
         EnsureChildGraphicsIgnoreRaycasts();
+        SetNotSelectedPrompt(false);
+    }
+
+    private void OnDisable() => SetNotSelectedPrompt(false);
+
+    /// <summary>Pulses <see cref="notSelectedRoot"/> when enhancement choices are pending (matches timeline nodes).</summary>
+    public void SetNotSelectedPrompt(bool show)
+    {
+        EnsureNotSelectedReference();
+
+        if (!show)
+        {
+            if (_notSelectedFlashRoutine != null)
+            {
+                StopCoroutine(_notSelectedFlashRoutine);
+                _notSelectedFlashRoutine = null;
+            }
+
+            ApplyNotSelectedAlpha(0f);
+            if (notSelectedRoot != null)
+                notSelectedRoot.SetActive(false);
+            return;
+        }
+
+        if (notSelectedRoot == null)
+            return;
+
+        if (_notSelectedCanvasGroup == null && _notSelectedImage == null)
+            CacheNotSelectedVisualDriver();
+        if (_notSelectedCanvasGroup == null && _notSelectedImage == null)
+            return;
+
+        notSelectedRoot.SetActive(true);
+        if (_notSelectedFlashRoutine == null && isActiveAndEnabled)
+            _notSelectedFlashRoutine = StartCoroutine(NotSelectedFlashLoop());
+    }
+
+    private void EnsureNotSelectedReference()
+    {
+        if (notSelectedRoot != null)
+            return;
+
+        Transform t = transform.Find("RowGroup/NotSelected") ?? transform.Find("NotSelected");
+        if (t != null)
+            notSelectedRoot = t.gameObject;
+    }
+
+    private void CacheNotSelectedVisualDriver()
+    {
+        if (notSelectedRoot == null)
+            return;
+
+        _notSelectedCanvasGroup = notSelectedRoot.GetComponent<CanvasGroup>();
+        _notSelectedImage = notSelectedRoot.GetComponent<Image>();
+        if (_notSelectedImage != null)
+        {
+            _notSelectedImageBaseColor = _notSelectedImage.color;
+            _notSelectedImage.raycastTarget = false;
+        }
+    }
+
+    private void ApplyNotSelectedAlpha(float a)
+    {
+        a = Mathf.Clamp01(a);
+        if (_notSelectedCanvasGroup != null)
+            _notSelectedCanvasGroup.alpha = a;
+        else if (_notSelectedImage != null)
+        {
+            Color c = _notSelectedImageBaseColor;
+            c.a = a * _notSelectedImageBaseColor.a;
+            _notSelectedImage.color = c;
+        }
+    }
+
+    private IEnumerator NotSelectedFlashLoop()
+    {
+        ApplyNotSelectedAlpha(0f);
+
+        while (true)
+        {
+            yield return FadeNotSelectedAlpha(0f, 1f, NotSelectedFadeSeconds);
+            float hold = 0f;
+            while (hold < NotSelectedHoldOpaqueSeconds)
+            {
+                hold += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            yield return FadeNotSelectedAlpha(1f, 0f, NotSelectedFadeSeconds);
+            yield return null;
+        }
+    }
+
+    private IEnumerator FadeNotSelectedAlpha(float from, float to, float duration)
+    {
+        if (duration <= 0.0001f)
+        {
+            ApplyNotSelectedAlpha(to);
+            yield break;
+        }
+
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / duration);
+            ApplyNotSelectedAlpha(Mathf.Lerp(from, to, u));
+            yield return null;
+        }
+
+        ApplyNotSelectedAlpha(to);
     }
 
     public void SetRowLevelContext(int rowLevel, System.Action<int> onRightClickRow)

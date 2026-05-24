@@ -11,6 +11,9 @@ public static class AbilityDragState
     /// <summary>When dragging from an action-bar slot, the slot the ability came from (for swap-on-drop).</summary>
     public static ActionBarSlotUI SourceActionBarSlot { get; private set; }
 
+    /// <summary>True after a successful drop onto an action-bar slot this drag.</summary>
+    public static bool DropWasHandled { get; private set; }
+
     public static void BeginDrag(
         string abilityId,
         Sprite abilityIcon = null,
@@ -23,12 +26,16 @@ public static class AbilityDragState
         AbilityDisplayName = displayName;
         AbilityDescription = description;
         SourceActionBarSlot = sourceActionBarSlot;
+        DropWasHandled = false;
         HasDrag = !string.IsNullOrWhiteSpace(abilityId);
     }
+
+    public static void MarkDropHandled() => DropWasHandled = true;
 
     public static void EndDrag()
     {
         HasDrag = false;
+        DropWasHandled = false;
         AbilityId = null;
         AbilityIcon = null;
         AbilityDisplayName = null;

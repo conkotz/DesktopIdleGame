@@ -13,6 +13,9 @@ public static class SkillTimelineLineStyle
     /// <summary>Really dark brown — all dark timeline lines use this.</summary>
     public static readonly Color LineColor = new(0.1f, 0.075f, 0.055f, 1f);
 
+    /// <summary>Matches spine progress gold (<see cref="SkillTimelineScaffoldUI"/> progress strip).</summary>
+    public static readonly Color ProgressColor = new(0.85f, 0.72f, 0.35f, 1f);
+
     private static Sprite _lineSprite;
 
     public static Sprite LineSprite
@@ -31,7 +34,7 @@ public static class SkillTimelineLineStyle
         }
     }
 
-    public static void Apply(Image image)
+    public static void Apply(Image image, Color? colorOverride = null)
     {
         if (image == null)
             return;
@@ -39,43 +42,58 @@ public static class SkillTimelineLineStyle
         image.sprite = LineSprite;
         image.type = Image.Type.Simple;
         image.preserveAspect = false;
-        image.color = LineColor;
+        image.color = colorOverride ?? LineColor;
         image.raycastTarget = false;
         image.maskable = true;
         image.enabled = true;
     }
 
-    public static void ApplyHorizontalBar(RectTransform rt, float centerX, float centerY, float width)
+    public static void ApplyProgress(Image image) => Apply(image, ProgressColor);
+
+    public static void ApplyHorizontalBar(RectTransform rt, float centerX, float centerY, float width, bool useProgressColor = false)
     {
         if (rt == null)
             return;
 
-        float thickness = LineThickness;
+        ApplyHorizontalBarBetween(rt, centerX - width * 0.5f, centerX + width * 0.5f, centerY, useProgressColor);
+    }
+
+    /// <summary>Horizontal segment clipped exactly between two X positions (no center-pivot overhang).</summary>
+    public static void ApplyHorizontalBarBetween(RectTransform rt, float x0, float x1, float centerY, bool useProgressColor = false)
+    {
+        if (rt == null)
+            return;
+
+        float left = Mathf.Min(x0, x1);
+        float right = Mathf.Max(x0, x1);
+        float thickness = useProgressColor ? ProgressThickness : LineThickness;
+        float width = Mathf.Max(thickness, right - left);
+
         rt.localScale = Vector3.one;
         rt.localRotation = Quaternion.identity;
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = new Vector2(centerX, centerY);
-        rt.sizeDelta = new Vector2(Mathf.Max(thickness, width), thickness);
-        Apply(rt.GetComponent<Image>());
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.anchoredPosition = new Vector2(left, centerY);
+        rt.sizeDelta = new Vector2(width, thickness);
+        Apply(rt.GetComponent<Image>(), useProgressColor ? ProgressColor : null);
     }
 
-    public static void ApplyVerticalBar(RectTransform rt, float centerX, float topY, float height)
+    public static void ApplyVerticalBar(RectTransform rt, float centerX, float topY, float height, bool useProgressColor = false)
     {
         if (rt == null)
             return;
 
-        float thickness = LineThickness;
+        float thickness = useProgressColor ? ProgressThickness : LineThickness;
         rt.localScale = Vector3.one;
         rt.localRotation = Quaternion.identity;
         rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
         rt.pivot = new Vector2(0.5f, 1f);
         rt.anchoredPosition = new Vector2(centerX, topY);
         rt.sizeDelta = new Vector2(thickness, Mathf.Max(thickness, height));
-        Apply(rt.GetComponent<Image>());
+        Apply(rt.GetComponent<Image>(), useProgressColor ? ProgressColor : null);
     }
 
-    public static void ApplySegment(RectTransform rt, Vector2 lineStart, Vector2 lineEnd, float thickness)
+    public static void ApplySegment(RectTransform rt, Vector2 lineStart, Vector2 lineEnd, float thickness, bool useProgressColor = false)
     {
         if (rt == null)
             return;
@@ -116,6 +134,6 @@ public static class SkillTimelineLineStyle
             rt.sizeDelta = new Vector2(segLen, thickness);
         }
 
-        Apply(rt.GetComponent<Image>());
+        Apply(rt.GetComponent<Image>(), useProgressColor ? ProgressColor : null);
     }
 }

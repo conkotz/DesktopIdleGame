@@ -6,6 +6,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Milestone choice group for the horizontal skill timeline (visual scaffold only).
+/// Use the <see cref="MilestoneGroupUI"/> prefab. Per-type Y offsets are set on
+/// <see cref="HorizontalSkillTreeScaffoldUI"/> (Choice Group Layout), not here.
 /// Hierarchy: ConnectorOverlay (StemLine, BranchLine, ChoiceConnectorLines) + ChoiceNodesContainer.
 /// </summary>
 [DisallowMultipleComponent]
@@ -37,25 +39,39 @@ public class SkillChoiceGroupUI : MonoBehaviour
     [SerializeField] private float connectorThickness = SkillTimelineScaffoldUI.TimelineConnectorThickness;
     [SerializeField] private float branchAboveNodesGap = 2f;
     [SerializeField] private float nodeConnectorEndInset = 0f;
+    [Tooltip("How far each vertical drop extends down into the node chrome (below the branch).")]
+    [SerializeField] private float nodeConnectorReachIntoNode = 14f;
     [SerializeField] private float centerStemAboveBranch = 2f;
-    [Tooltip("Raises major / capstone nodes only (abilities unchanged). Tune in Play mode.")]
-    [SerializeField] private float majorCapstoneNodeLiftY = 16f;
-    [Tooltip("Extra lift for capstone groups on top of majorCapstoneNodeLiftY.")]
-    [SerializeField] private float capstoneExtraNodeLiftY = 4f;
     [Tooltip("Optional subtle hint above the branch. Off by default.")]
     [SerializeField] private bool showChoiceHintLabel;
 
     private SkillTimelineNodeUI.SkillTimelineNodeType _configuredNodeType;
+    private float _milestoneLevelX;
+    private float _choiceNodeOffsetY;
+
+    public SkillTimelineNodeUI.SkillTimelineNodeType ConfiguredNodeType => _configuredNodeType;
     private readonly List<SkillTimelineNodeUI> _spawnedNodes = new();
     private readonly List<RectTransform> _choiceConnectorLines = new();
     private readonly List<Image> _choiceConnectorImages = new();
 
     private float _lastBranchY;
     private float _lastBranchCenterX;
+    private int _connectorSelectionSlotIndex = -1;
+    private System.Action<SkillChoiceGroupUI> _afterConnectorLayout;
 
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
     public IReadOnlyList<SkillTimelineNodeUI> SpawnedNodes => _spawnedNodes;
     public int ChoiceCount => _spawnedNodes.Count;
+
+    public void SetAfterConnectorLayoutRefresh(System.Action<SkillChoiceGroupUI> callback) =>
+        _afterConnectorLayout = callback;
+
+    /// <summary>Gold connector path on branch + drop to the committed row pick (-1 = default lines).</summary>
+    public void SetConnectorSelectionHighlight(int committedSlotIndex)
+    {
+        _connectorSelectionSlotIndex = committedSlotIndex;
+        RefreshConnectorLayout();
+    }
 
     private void Awake() => EnsureHierarchy();
 
@@ -78,7 +94,8 @@ public class SkillChoiceGroupUI : MonoBehaviour
         string[] nodeNames,
         SkillTimelineNodeUI.SkillTimelineNodeType nodeType,
         SkillTimelineNodeUI nodePrefab,
-        SkillTimelineNodeUI.SkillTimelineNodeState displayState = SkillTimelineNodeUI.SkillTimelineNodeState.Available)
+        SkillTimelineNodeUI.SkillTimelineNodeState displayState = SkillTimelineNodeUI.SkillTimelineNodeState.Available,
+        float choiceNodeOffsetY = 0f)
     {
         if (nodeNames == null || nodeNames.Length < MinChoiceCount)
         {
@@ -90,7 +107,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
         for (int i = 0; i < nodeNames.Length; i++)
             entries[i] = new HorizontalSkillTreeUnlockLayout.BelowSpineSpawnEntry(null, null, -1);
 
-        Configure(level, milestoneLevelX, spineY, groupAnchorY, entries, nodeNames, nodeType, nodePrefab, displayState);
+        Configure(level, milestoneLevelX, spineY, groupAnchorY, entries, nodeNames, nodeType, nodePrefab, displayState, choiceNodeOffsetY);
     }
 
     public void Configure(
@@ -102,7 +119,8 @@ public class SkillChoiceGroupUI : MonoBehaviour
         string[] displayNames,
         SkillTimelineNodeUI.SkillTimelineNodeType nodeType,
         SkillTimelineNodeUI nodePrefab,
-        SkillTimelineNodeUI.SkillTimelineNodeState displayState = SkillTimelineNodeUI.SkillTimelineNodeState.Available)
+        SkillTimelineNodeUI.SkillTimelineNodeState displayState = SkillTimelineNodeUI.SkillTimelineNodeState.Available,
+        float choiceNodeOffsetY = 0f)
     {
         EnsureHierarchy();
 
@@ -120,15 +138,31 @@ public class SkillChoiceGroupUI : MonoBehaviour
         RectTransform rt = RectTransform;
         rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
         rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = new Vector2(milestoneLevelX, 0f);
         rt.localScale = Vector3.one;
         rt.localRotation = Quaternion.identity;
 
+        _milestoneLevelX = milestoneLevelX;
         _configuredNodeType = nodeType;
+        _choiceNodeOffsetY = choiceNodeOffsetY;
         ClearNodes();
         ApplyChoiceHintLabel(count);
         PopulateNodes(level, entries, displayNames, count, nodeType, nodePrefab, displayState);
+        ApplyGroupVerticalOffset();
         RefreshConnectorLayout();
+    }
+
+    /// <summary>Live refresh when <see cref="HorizontalSkillTreeScaffoldUI"/> choice group layout changes.</summary>
+    public void ApplyChoiceGroupVerticalOffset(float offsetY)
+    {
+        _choiceNodeOffsetY = offsetY;
+        ApplyGroupVerticalOffset();
+        RefreshConnectorLayout();
+    }
+
+    private void ApplyGroupVerticalOffset()
+    {
+        RectTransform rt = RectTransform;
+        rt.anchoredPosition = new Vector2(_milestoneLevelX, _choiceNodeOffsetY);
     }
 
     public void RefreshConnectorLayout()
@@ -142,45 +176,9 @@ public class SkillChoiceGroupUI : MonoBehaviour
         ApplyNodesContainerPreferredSize();
         LayoutRebuilder.ForceRebuildLayoutImmediate(choiceNodesContainer);
 
-        ApplyMajorCapstoneNodeLift();
         LayoutConnectors();
         LayoutChoiceHintLabel();
-    }
-
-    private bool UsesMajorCapstoneLift =>
-        _configuredNodeType == SkillTimelineNodeUI.SkillTimelineNodeType.MajorPassive
-        || _configuredNodeType == SkillTimelineNodeUI.SkillTimelineNodeType.Capstone;
-
-    private float ResolveMajorCapstoneLiftY()
-    {
-        if (!UsesMajorCapstoneLift)
-            return 0f;
-
-        float lift = majorCapstoneNodeLiftY;
-        if (_configuredNodeType == SkillTimelineNodeUI.SkillTimelineNodeType.Capstone)
-            lift += capstoneExtraNodeLiftY;
-
-        return lift;
-    }
-
-    /// <summary>Moves major/capstone gems up; branch + drops are rebuilt afterward so spine stems stay attached.</summary>
-    private void ApplyMajorCapstoneNodeLift()
-    {
-        float lift = ResolveMajorCapstoneLiftY();
-        if (lift <= 0f || _spawnedNodes.Count == 0)
-            return;
-
-        for (int i = 0; i < _spawnedNodes.Count; i++)
-        {
-            SkillTimelineNodeUI node = _spawnedNodes[i];
-            if (node == null)
-                continue;
-
-            RectTransform nodeRt = node.RectTransform;
-            Vector2 pos = nodeRt.anchoredPosition;
-            pos.y = lift;
-            nodeRt.anchoredPosition = pos;
-        }
+        _afterConnectorLayout?.Invoke(this);
     }
 
     /// <summary>Branch junction in timeline content space for the spine stem connector.</summary>
@@ -197,6 +195,13 @@ public class SkillChoiceGroupUI : MonoBehaviour
         spineAttach = new Vector2(branchAttach.x, spineY);
         return true;
     }
+
+    /// <summary>Extra length for the spine stem so gold continues through the horizontal branch.</summary>
+    public float GetSpineStemExtensionBelowBranch() =>
+        SkillTimelineLineStyle.LineThickness + branchAboveNodesGap + centerStemAboveBranch + SkillTimelineLineStyle.LineThickness;
+
+    private float GetSelectedDropTopOverlap() =>
+        SkillTimelineLineStyle.LineThickness + centerStemAboveBranch;
 
     public void ClearNodes()
     {
@@ -314,40 +319,51 @@ public class SkillChoiceGroupUI : MonoBehaviour
 
     private void LayoutConnectors()
     {
-        if (connectorOverlay == null || branchLine == null || choiceNodesContainer == null)
+        if (connectorOverlay == null || choiceNodesContainer == null)
             return;
 
-        if (!TryCollectNodeBoundsInContainer(out List<Bounds> nodeBoundsList, out _, out float containerWidth, out float containerHeight, out float branchY))
+        if (!TryCollectNodeBoundsInOverlay(out List<Bounds> nodeBoundsList, out _, out float containerWidth, out float containerHeight, out float branchY))
         {
             SetChoiceConnectorCount(0);
             HidePrefabConnectorLines();
+            if (branchLine != null)
+                branchLine.gameObject.SetActive(false);
+            if (stemLine != null)
+                stemLine.gameObject.SetActive(false);
             return;
         }
 
         AlignConnectorOverlay(containerWidth, containerHeight);
 
-        nodeBoundsList.Sort((a, b) => a.center.x.CompareTo(b.center.x));
-        float branchLeftX = nodeBoundsList[0].center.x;
-        float branchRightX = nodeBoundsList[nodeBoundsList.Count - 1].center.x;
-        float branchSpanWidth = Mathf.Max(SkillTimelineLineStyle.LineThickness, branchRightX - branchLeftX);
-        float branchCenterX = (branchLeftX + branchRightX) * 0.5f;
+        int nodeCount = nodeBoundsList.Count;
+        float junctionX = (nodeBoundsList[0].center.x + nodeBoundsList[nodeCount - 1].center.x) * 0.5f;
+        int selectedIndex = _connectorSelectionSlotIndex;
 
         _lastBranchY = branchY;
-        _lastBranchCenterX = branchCenterX;
+        _lastBranchCenterX = junctionX;
 
-        branchLine.gameObject.SetActive(true);
-        SkillTimelineLineStyle.ApplyHorizontalBar(branchLine, branchCenterX, branchY, branchSpanWidth);
+        int lineCount = nodeCount + Mathf.Max(0, nodeCount - 1);
+        SetChoiceConnectorCount(lineCount);
 
-        if (stemLine != null)
-            stemLine.gameObject.SetActive(false);
+        if (branchLine != null)
+            branchLine.gameObject.SetActive(false);
 
-        SetChoiceConnectorCount(nodeBoundsList.Count);
-        for (int i = 0; i < nodeBoundsList.Count; i++)
+        for (int i = 0; i < nodeCount - 1; i++)
+        {
+            RectTransform segment = _choiceConnectorLines[nodeCount + i];
+            float x0 = nodeBoundsList[i].center.x;
+            float x1 = nodeBoundsList[i + 1].center.x;
+            segment.gameObject.SetActive(true);
+            SkillTimelineLineStyle.ApplyHorizontalBarBetween(segment, x0, x1, branchY, useProgressColor: false);
+        }
+
+        for (int i = 0; i < nodeCount; i++)
         {
             Bounds nodeBounds = nodeBoundsList[i];
             float nodeCenterX = nodeBounds.center.x;
-            float nodeTopY = nodeBounds.max.y - nodeConnectorEndInset;
-            float dropHeight = branchY - nodeTopY;
+            bool isSelected = selectedIndex == i;
+            float nodeAttachY = nodeBounds.max.y - nodeConnectorReachIntoNode - nodeConnectorEndInset;
+            float dropHeight = branchY - nodeAttachY;
 
             RectTransform drop = _choiceConnectorLines[i];
             bool showDrop = dropHeight > 0.5f;
@@ -355,9 +371,50 @@ public class SkillChoiceGroupUI : MonoBehaviour
             if (!showDrop)
                 continue;
 
-            SkillTimelineLineStyle.ApplyVerticalBar(drop, nodeCenterX, branchY, dropHeight);
-            drop.SetAsLastSibling();
+            SkillTimelineLineStyle.ApplyVerticalBar(drop, nodeCenterX, branchY, dropHeight, isSelected);
         }
+
+        ApplySelectedPathHorizontal(nodeBoundsList, branchY, junctionX, selectedIndex);
+
+        for (int i = 0; i < lineCount; i++)
+        {
+            if (_choiceConnectorLines[i] == null)
+                continue;
+            _choiceConnectorLines[i].SetSiblingIndex(i);
+        }
+
+        if (stemLine != null && stemLine.gameObject.activeSelf)
+            stemLine.SetAsLastSibling();
+
+        if (selectedIndex >= 0 && selectedIndex < nodeCount)
+        {
+            RectTransform selectedDrop = _choiceConnectorLines[selectedIndex];
+            if (selectedDrop != null && selectedDrop.gameObject.activeSelf)
+                selectedDrop.SetAsLastSibling();
+        }
+    }
+
+    private void ApplySelectedPathHorizontal(
+        List<Bounds> nodeBoundsList,
+        float branchY,
+        float junctionX,
+        int selectedIndex)
+    {
+        if (stemLine == null)
+            return;
+
+        stemLine.gameObject.SetActive(false);
+
+        if (selectedIndex < 0 || selectedIndex >= nodeBoundsList.Count)
+            return;
+
+        float selectedX = nodeBoundsList[selectedIndex].center.x;
+        if (Mathf.Abs(selectedX - junctionX) <= SkillTimelineLineStyle.LineThickness * 0.5f)
+            return;
+
+        stemLine.gameObject.SetActive(true);
+        SkillTimelineLineStyle.ApplyHorizontalBarBetween(stemLine, junctionX, selectedX, branchY, useProgressColor: true);
+        stemLine.SetAsLastSibling();
     }
 
     private void HidePrefabConnectorLines()
@@ -388,10 +445,10 @@ public class SkillChoiceGroupUI : MonoBehaviour
         branchY = _lastBranchY;
         branchCenterX = _lastBranchCenterX;
         containerWidth = 0f;
-        if (!TryCollectNodeBoundsInContainer(out _, out _, out containerWidth, out _, out branchY))
+        if (!TryCollectNodeBoundsInOverlay(out _, out _, out containerWidth, out _, out branchY))
             return false;
 
-        if (TryCollectNodeBoundsInContainer(out List<Bounds> bounds, out _, out _, out _, out _))
+        if (TryCollectNodeBoundsInOverlay(out List<Bounds> bounds, out _, out _, out _, out _))
         {
             bounds.Sort((a, b) => a.center.x.CompareTo(b.center.x));
             branchCenterX = (bounds[0].center.x + bounds[bounds.Count - 1].center.x) * 0.5f;
@@ -400,7 +457,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
         return true;
     }
 
-    private bool TryCollectNodeBoundsInContainer(
+    private bool TryCollectNodeBoundsInOverlay(
         out List<Bounds> nodeBoundsList,
         out Bounds unionBounds,
         out float containerWidth,
@@ -413,7 +470,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
         containerHeight = 0f;
         branchY = 0f;
 
-        if (choiceNodesContainer == null)
+        if (choiceNodesContainer == null || connectorOverlay == null)
             return false;
 
         bool hasAny = false;
@@ -425,7 +482,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
             if (!child.TryGetComponent(out SkillTimelineNodeUI _))
                 continue;
 
-            Bounds bounds = GetNodeChromeBoundsInContainer(child);
+            Bounds bounds = GetNodeChromeBoundsInOverlay(child);
             nodeBoundsList.Add(bounds);
             if (!hasAny)
             {
@@ -444,11 +501,12 @@ public class SkillChoiceGroupUI : MonoBehaviour
         return hasAny && nodeBoundsList.Count >= MinChoiceCount;
     }
 
-    private Bounds GetNodeChromeBoundsInContainer(Transform nodeTransform)
+    private Bounds GetNodeChromeBoundsInOverlay(Transform nodeTransform)
     {
-        Transform chrome = nodeTransform.Find("RootButton");
-        RectTransform measure = chrome != null ? chrome as RectTransform : nodeTransform as RectTransform;
-        return RectTransformUtility.CalculateRelativeRectTransformBounds(choiceNodesContainer, measure);
+        if (nodeTransform is RectTransform nodeRt && connectorOverlay != null)
+            return RectTransformUtility.CalculateRelativeRectTransformBounds(connectorOverlay, nodeRt);
+
+        return default;
     }
 
     private void SetChoiceConnectorCount(int count)
@@ -588,6 +646,9 @@ public class SkillChoiceGroupUI : MonoBehaviour
             stemLine = CreateConnectorLineRect(connectorOverlay, "StemLine");
             stemLineImage = stemLine.GetComponent<Image>();
         }
+        else if (stemLineImage == null)
+            stemLineImage = stemLine.GetComponent<Image>();
+
         HidePrefabConnectorLines();
         ResetConnectorLineRect(branchLine);
         ResetConnectorLineRect(stemLine);

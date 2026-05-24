@@ -32,9 +32,15 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         Selected
     }
 
+    /// <summary>Ability / major passive milestone rows use Select / Selected / Change chrome.</summary>
+    public static bool UsesRowSelectionButtons(SkillTimelineNodeType nodeType) =>
+        nodeType == SkillTimelineNodeType.Ability || nodeType == SkillTimelineNodeType.MajorPassive;
+
     /// <summary>Matches RootButton size on <c>SkillTimelineNodeUI</c> prefab; used by timeline layout math only.</summary>
     public const float StandardNodeButtonSize = 56f;
     public static readonly float StandardNodeHalfHeight = StandardNodeButtonSize * 0.5f;
+    private const float DefaultNodeRootSize = 72f;
+    private const float NodeRootHeightWithSelectionChrome = 100f;
 
     [Header("References")]
     [SerializeField] private RectTransform rectTransform;
@@ -51,6 +57,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
     [SerializeField] private TMP_Text nameLabel;
     [SerializeField] private TMP_Text nameLabelUnlocks;
     [SerializeField] private Button selectSkillButton;
+    [SerializeField] private GameObject selectedNodeRoot;
     [SerializeField] private Button changeNodeButton;
 
     [Header("Type Icon Sprites")]
@@ -128,11 +135,13 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         if (!applyPreviewInEditor)
             return;
 
+        // Spawn code sets the real presentation per node type. Inspector preview here was
+        // re-running as Ability on every OnEnable and re-showing Select on minors/unlocks.
         if (Application.isPlaying)
-            ApplyPresentation(previewNodeType, previewState, previewDisplayName, previewMinorPassiveLayout, spineDiamondOnly: false, hideNameLabel: false);
+            return;
+
 #if UNITY_EDITOR
-        else
-            RequestEditorPreviewApply();
+        RequestEditorPreviewApply();
 #endif
     }
 
@@ -189,35 +198,85 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
             _notSelectedFlashRoutine = StartCoroutine(NotSelectedFlashLoop());
     }
 
-    /// <summary><c>SelectNode</c> = committed/active label; <c>ChangeNode</c> = swap pick in this row.</summary>
+    /// <summary>
+    /// <c>SelectNode</c> = pick this option when the row has no committed choice yet.
+    /// <c>SelectedNode</c> = this option is the committed pick.
+    /// <c>ChangeNode</c> = swap to this sibling while another option is already committed.
+    /// </summary>
     public void ConfigureRowSelectionButtons(
-        bool showSelectNodeLabel,
-        bool showChangeNodeButton,
+        bool showSelectButton,
+        bool showSelectedLabel,
+        bool showChangeButton,
+        Action<SkillTimelineNodeUI> onSelectNode,
         Action<SkillTimelineNodeUI> onChangeNode)
     {
         EnsureReferences();
+        SetRowSelectionChromeVisible(showSelectButton, showSelectedLabel, showChangeButton);
 
-        if (selectSkillButton != null)
+        RemoveSelectSkillHandler();
+        if (showSelectButton && onSelectNode != null && Application.isPlaying && selectSkillButton != null)
         {
-            selectSkillButton.gameObject.SetActive(showSelectNodeLabel);
-            selectSkillButton.interactable = false;
+            selectSkillButton.interactable = true;
+            _selectSkillHandler = () => onSelectNode(this);
+            selectSkillButton.onClick.AddListener(_selectSkillHandler);
         }
-
-        if (changeNodeButton == null)
-            return;
 
         RemoveChangeNodeHandler();
-
-        if (!showChangeNodeButton || onChangeNode == null || !Application.isPlaying)
+        if (showChangeButton && onChangeNode != null && Application.isPlaying && changeNodeButton != null)
         {
-            changeNodeButton.gameObject.SetActive(false);
-            return;
+            changeNodeButton.interactable = true;
+            _changeNodeHandler = () => onChangeNode(this);
+            changeNodeButton.onClick.AddListener(_changeNodeHandler);
         }
 
-        changeNodeButton.gameObject.SetActive(true);
-        changeNodeButton.interactable = true;
-        _changeNodeHandler = () => onChangeNode(this);
-        changeNodeButton.onClick.AddListener(_changeNodeHandler);
+        AdjustRootSizeForSelectionChrome(showSelectButton, showSelectedLabel, showChangeButton);
+        if (showSelectButton || showSelectedLabel || showChangeButton)
+            BringRowSelectionChromeToFront();
+    }
+
+    private void AdjustRootSizeForSelectionChrome(bool showSelect, bool showSelected, bool showChange)
+    {
+        RectTransform rt = RectTransform;
+        if (rt == null)
+            return;
+
+        bool expanded = showSelect || showSelected || showChange;
+        float height = expanded ? NodeRootHeightWithSelectionChrome : DefaultNodeRootSize;
+        rt.sizeDelta = new Vector2(DefaultNodeRootSize, height);
+    }
+
+    private void BringRowSelectionChromeToFront()
+    {
+        if (selectSkillButton != null)
+            selectSkillButton.transform.SetAsLastSibling();
+        if (selectedNodeRoot != null)
+            selectedNodeRoot.transform.SetAsLastSibling();
+        if (changeNodeButton != null)
+            changeNodeButton.transform.SetAsLastSibling();
+    }
+
+    private void SetRowSelectionChromeVisible(bool showSelect, bool showSelected, bool showChange)
+    {
+        GameObject selectGo = selectSkillButton != null
+            ? selectSkillButton.gameObject
+            : transform.Find("SelectNode")?.gameObject;
+        if (selectGo != null)
+            selectGo.SetActive(showSelect);
+
+        if (selectedNodeRoot != null)
+            selectedNodeRoot.SetActive(showSelected);
+        else
+        {
+            Transform selected = transform.Find("SelectedNode");
+            if (selected != null)
+                selected.gameObject.SetActive(showSelected);
+        }
+
+        GameObject changeGo = changeNodeButton != null
+            ? changeNodeButton.gameObject
+            : transform.Find("ChangeNode")?.gameObject;
+        if (changeGo != null)
+            changeGo.SetActive(showChange);
     }
 
     /// <summary>Assigns unlock data used by the Current Selection panel (display only).</summary>
@@ -490,6 +549,9 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         ApplyTypeVisuals(nodeType, minorPassiveLayout);
         ApplyStateVisuals(state);
         ApplyDisplayName(displayName, minorPassiveLayout, hideNameLabel);
+
+        if (!UsesRowSelectionButtons(nodeType))
+            SetRowSelectionChromeVisible(false, false, false);
     }
 
     private void ApplySpineDiamondOnlyPresentation(SkillTimelineNodeType nodeType, SkillTimelineNodeState state)
@@ -519,6 +581,8 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
         if (minorIcon != null)
             minorIcon.color = locked ? MultiplyColor(Color.white, lockedDimMultiplier) : Color.white;
+
+        SetRowSelectionChromeVisible(false, false, false);
     }
 
     private static void SetChildActive(Component component, bool active)
@@ -578,15 +642,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
                 notSelectedRoot = t.gameObject;
         }
 
-        if (selectSkillButton == null)
-        {
-            selectSkillButton = transform.Find("SelectNode")?.GetComponent<Button>();
-            if (selectSkillButton == null)
-                selectSkillButton = transform.Find("SelectSkill")?.GetComponent<Button>();
-        }
-
-        if (changeNodeButton == null)
-            changeNodeButton = transform.Find("ChangeNode")?.GetComponent<Button>();
+        ResolveSelectionChromeReferences();
 
         if (checkmark == null)
         {
@@ -600,6 +656,26 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
         if (nameLabelUnlocks == null)
             nameLabelUnlocks = transform.Find("NameLabelUnlocks")?.GetComponent<TMP_Text>();
+    }
+
+    private void ResolveSelectionChromeReferences()
+    {
+        Transform select = transform.Find("SelectNode");
+        if (select != null)
+            selectSkillButton = select.GetComponent<Button>();
+
+        if (selectSkillButton == null)
+            selectSkillButton = transform.Find("SelectSkill")?.GetComponent<Button>();
+
+        if (selectedNodeRoot == null)
+        {
+            Transform selected = transform.Find("SelectedNode");
+            if (selected != null)
+                selectedNodeRoot = selected.gameObject;
+        }
+
+        if (changeNodeButton == null)
+            changeNodeButton = transform.Find("ChangeNode")?.GetComponent<Button>();
     }
 
     private void CacheBaseColors()

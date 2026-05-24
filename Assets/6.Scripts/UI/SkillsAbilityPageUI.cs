@@ -1080,7 +1080,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             if (SkillTreeMajorPassiveRowIndicators.TryGet(skill, unlock, skillsManager,
                     out bool showNotSelected, out bool showEnhance))
             {
-                row.SetTreeStatusIndicators(showNotSelected, showEnhance, () =>
+                row.SetTreeStatusIndicators(
+                    showNotSelected && !row.ShowsNoEnhancementPlaceholder,
+                    showEnhance,
+                    () =>
                 {
                     if (centerSkillTreeView != null)
                         centerSkillTreeView.OpenEnhancementBranchForTier(rowLevel);
@@ -1291,6 +1294,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                     centerSkillTreeView.ScrollAbilityTierRowIntoView(Mathf.Max(1, def.unlockLevel));
             });
             row.SetDoubleClickAssignHandler(HandleAbilityDoubleClickAssignToActionBar);
+            row.SetNotSelectedPrompt(
+                SkillTimelineRowSelectionRules.HasPendingAbilityEnhancementChoice(skillsManager, skill, def));
         }
 
         CommitAbilitiesPanelCache(skill, level, fingerprint);

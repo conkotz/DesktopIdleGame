@@ -565,19 +565,57 @@ public class ActionBarSlotUI : MonoBehaviour,
         if (_dragCanvasGroup != null)
             _dragCanvasGroup.blocksRaycasts = true;
 
-        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        if (AbilityDragState.SourceActionBarSlot != this)
         {
-            StartCoroutine(CoDeferredEndAbilityDragFromBar());
+            AbilityDragState.EndDrag();
             return;
         }
+
+        if (!IsPointerOverActionBarDropTarget(eventData))
+        {
+            TryClearSourceSlotAfterMissedDrop();
+            AbilityDragState.EndDrag();
+            return;
+        }
+
+        StartCoroutine(CoDeferredEndAbilityDragFromBar(eventData));
+    }
+
+    private IEnumerator CoDeferredEndAbilityDragFromBar(PointerEventData eventData)
+    {
+        yield return null;
+
+        if (AbilityDragState.SourceActionBarSlot == this)
+            TryClearSourceSlotAfterMissedDrop(eventData);
 
         AbilityDragState.EndDrag();
     }
 
-    private IEnumerator CoDeferredEndAbilityDragFromBar()
+    private void TryClearSourceSlotAfterMissedDrop(PointerEventData eventData = null)
     {
-        yield return null;
-        AbilityDragState.EndDrag();
+        if (AbilityDragState.DropWasHandled)
+            return;
+
+        if (eventData != null && IsPointerOverActionBarDropTarget(eventData))
+            return;
+
+        ClearAssignment();
+    }
+
+    private static bool IsPointerOverActionBarDropTarget(PointerEventData eventData)
+    {
+        if (eventData == null || EventSystem.current == null)
+            return false;
+
+        var results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(eventData, results);
+        for (int i = 0; i < results.Count; i++)
+        {
+            if (results[i].gameObject.GetComponentInParent<ActionBarSlotUI>() != null)
+                return true;
+        }
+
+        return false;
     }
 
     private void CreateAbilityDragIcon()
@@ -656,6 +694,7 @@ public class ActionBarSlotUI : MonoBehaviour,
                 return;
 
             HandleAbilityDropWithUniqueSwap(abilityAssignment);
+            AbilityDragState.MarkDropHandled();
             AbilityDragState.EndDrag();
             return;
         }

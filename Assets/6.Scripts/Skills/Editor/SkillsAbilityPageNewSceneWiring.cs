@@ -64,7 +64,7 @@ public static class SkillsAbilityPageNewSceneWiring
             scaffold = timelineContainer.gameObject.AddComponent<SkillTimelineScaffoldUI>();
 
         SerializedObject scaffoldSo = new SerializedObject(scaffold);
-        scaffoldSo.FindProperty("rebuildOnEnable").boolValue = true;
+        scaffoldSo.FindProperty("rebuildOnEnable").boolValue = false;
         scaffoldSo.FindProperty("buildPlaceholderNodes").boolValue = false;
         scaffoldSo.ApplyModifiedPropertiesWithoutUndo();
 
@@ -79,7 +79,7 @@ public static class SkillsAbilityPageNewSceneWiring
         horizontalSo.FindProperty("timelineScaffold").objectReferenceValue = scaffold;
         horizontalSo.FindProperty("generateOnStart").boolValue = true;
         horizontalSo.FindProperty("useTestTimelineFallback").boolValue = false;
-        horizontalSo.FindProperty("rebuildOnInspectorChange").boolValue = true;
+        horizontalSo.FindProperty("rebuildOnInspectorChange").boolValue = false;
         if (page.SkillDatabase != null)
             horizontalSo.FindProperty("skillDatabase").objectReferenceValue = page.SkillDatabase;
 
@@ -168,6 +168,11 @@ public static class SkillsAbilityPageNewSceneWiring
             pageSo.FindProperty("gatheringCategoryButton").objectReferenceValue =
                 nodeToggle.Find("GatheringSkills")?.GetComponent<Button>();
         }
+
+        Transform topBar = page.transform.Find("TopBar");
+        if (topBar != null)
+            pageSo.FindProperty("resetTreeButton").objectReferenceValue =
+                topBar.Find("ResetTreeButton")?.GetComponent<Button>();
 
         if (skillLevelText != null)
             pageSo.FindProperty("selectedSkillTitleText").objectReferenceValue = skillLevelText;

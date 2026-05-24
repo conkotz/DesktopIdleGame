@@ -28,6 +28,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
     [Header("Timeline")]
     [SerializeField] private HorizontalSkillTreeScaffoldUI horizontalSkillTimeline;
+    [Tooltip("TopBar ResetTreeButton — clears all tree picks for the active skill tab.")]
+    [SerializeField] private Button resetTreeButton;
 
     [Header("Optional labels")]
     [SerializeField] private TMP_Text selectedSkillTitleText;
@@ -55,6 +57,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private bool _skillsEventsSubscribed;
     private UnityEngine.Events.UnityAction _combatCategoryHandler;
     private UnityEngine.Events.UnityAction _gatheringCategoryHandler;
+    private UnityEngine.Events.UnityAction _resetTreeClickHandler;
     private Coroutine _deferredProgressionRefresh;
 
     // Per-skill tabs (Melee / Woodcutting) — brown selected style.
@@ -94,6 +97,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         EnsureHierarchyReferences();
         EnsureDetailsPanelReferences();
         WireCategoryModeButtons();
+        WireResetTreeButton();
         ApplyCategoryMode(showOnly: true);
         WireSkillTabButtons();
         TrySubscribeSkillsEvents();
@@ -122,6 +126,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             SkillsAbilityPageSelectionHub.SaveLastSkillType(_selectedSkill.skillType);
 
         SaveCategoryModeToPrefs();
+        UnwireResetTreeButton();
         TryUnsubscribeSkillsEvents();
     }
 
@@ -513,6 +518,83 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             FindFirstObjectByType<SkillsAbilitiesPageUI>(FindObjectsInactive.Include);
         if (legacyPage != null && legacyPage.AbilityEntryPrefab != null)
             abilityEntryPrefab = legacyPage.AbilityEntryPrefab;
+    }
+
+    /// <summary>
+    /// Reset Tree: clears every committed pick on the active skill — ability rows, major passives,
+    /// capstones, and enhancement branches. Skill level / XP are unchanged.
+    /// </summary>
+    public void OnResetSkillTreeButtonClicked()
+    {
+        PreferRuntimeSkillsManager();
+        bool clearedAny = false;
+
+        if (skillsManager == null)
+        {
+            Debug.LogWarning(
+                "[SkillsAbilityPageNewUI] Reset Tree: no SkillsManager found. Progression will not clear until one exists.",
+                this);
+        }
+        else if (_selectedSkill != null)
+        {
+            skillsManager.ResetSkillTreeSelectionsForSkill(_selectedSkill.skillType);
+            clearedAny = true;
+            SaveManager.Instance?.Save();
+        }
+        else
+            Debug.LogWarning("[SkillsAbilityPageNewUI] Reset Tree: no skill selected; nothing to reset.", this);
+
+        EnsureHorizontalTimelineReference();
+        horizontalSkillTimeline?.DismissOpenDetails();
+
+        SyncTimelineFromPageSelection();
+        RefreshActiveAbilitiesList();
+        RefreshActiveBonusesPanel();
+
+        if (clearedAny && _selectedSkill != null)
+            GameLog.Add($"Reset {_selectedSkill.displayName} skill tree selections.");
+    }
+
+    private void WireResetTreeButton()
+    {
+        if (resetTreeButton == null)
+        {
+            Transform topBar = transform.Find("TopBar");
+            if (topBar != null)
+                resetTreeButton = topBar.Find("ResetTreeButton")?.GetComponent<Button>();
+        }
+
+        if (resetTreeButton == null)
+            resetTreeButton = FindChildButtonNamed("ResetTreeButton");
+
+        if (resetTreeButton == null)
+            return;
+
+        if (_resetTreeClickHandler == null)
+            _resetTreeClickHandler = OnResetSkillTreeButtonClicked;
+
+        resetTreeButton.onClick.RemoveListener(_resetTreeClickHandler);
+        resetTreeButton.onClick.AddListener(_resetTreeClickHandler);
+    }
+
+    private void UnwireResetTreeButton()
+    {
+        if (resetTreeButton == null || _resetTreeClickHandler == null)
+            return;
+
+        resetTreeButton.onClick.RemoveListener(_resetTreeClickHandler);
+    }
+
+    private Button FindChildButtonNamed(string leafName)
+    {
+        Button[] buttons = GetComponentsInChildren<Button>(true);
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            if (buttons[i] != null && buttons[i].name == leafName)
+                return buttons[i];
+        }
+
+        return null;
     }
 
     private void EnsureHierarchyReferences()
@@ -910,6 +992,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (_selectedSkill.skillType != type)
             return;
 
+        RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
         RefreshTimelineAfterPickOrEnhancementChange();
     }

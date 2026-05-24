@@ -56,7 +56,7 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
     [SerializeField] private Color normalRowColor = new Color(0.16862746f, 0.12941177f, 0.09411765f, 0.85f);
 
-    [SerializeField] private Color capstoneRowColor = new Color(0.38f, 0.24f, 0.1f, 0.95f);
+    [SerializeField] private Color capstoneRowColor = new Color(0.62f, 0.48f, 0.16f, 0.96f);
 
 
 
@@ -70,7 +70,17 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
     private bool _isCapstoneStyle;
 
+    private bool _showsNoEnhancementPlaceholder;
 
+    private Color _enhancementTextBaseColor = Color.white;
+
+    private bool _enhancementTextBaseColorCached;
+
+    private static readonly Color NoEnhancementPlaceholderColor = new(0.62f, 0.56f, 0.46f, 0.92f);
+
+    private const string NoEnhancementPlaceholderText = "No enhancement selected";
+
+    public bool ShowsNoEnhancementPlaceholder => _showsNoEnhancementPlaceholder;
 
     private SharedTooltipUI _tooltip;
 
@@ -131,6 +141,7 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
         AutoWireChildRefs();
 
         EnsureChildGraphicsIgnoreRaycasts();
+        EnsureTextGroupLayout();
 
     }
 
@@ -487,7 +498,14 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
             skill, unlock, SkillsManager.Instance);
 
-        ApplyPassiveNameAndEnhancement(displayName, enhancementTitle);
+        bool showNoEnhancementPlaceholder = false;
+        if (string.IsNullOrWhiteSpace(enhancementTitle) && skill != null && unlock != null)
+        {
+            SkillTreeMajorPassiveRowIndicators.TryGet(
+                skill, unlock, SkillsManager.Instance, out showNoEnhancementPlaceholder, out _);
+        }
+
+        ApplyPassiveNameAndEnhancement(displayName, enhancementTitle, showNoEnhancementPlaceholder);
 
 
 
@@ -701,9 +719,13 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
 
 
-    private void ApplyPassiveNameAndEnhancement(string displayName, string enhancementTitle)
+    private void ApplyPassiveNameAndEnhancement(
+        string displayName,
+        string enhancementTitle,
+        bool showNoEnhancementPlaceholder = false)
 
     {
+        _showsNoEnhancementPlaceholder = false;
 
         if (nameText != null)
 
@@ -711,37 +733,182 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
             nameText.richText = false;
 
+            nameText.enableWordWrapping = true;
+
+            nameText.overflowMode = TextOverflowModes.Overflow;
+
+            nameText.horizontalAlignment = HorizontalAlignmentOptions.Left;
+
             nameText.text = string.IsNullOrWhiteSpace(displayName) ? "Major Passive" : displayName.Trim();
 
         }
 
 
 
-        if (enhancementText == null)
-
-            return;
-
-
-
-        bool hasEnhancement = !string.IsNullOrWhiteSpace(enhancementTitle);
-
-        enhancementText.gameObject.SetActive(hasEnhancement);
-
-        if (!hasEnhancement)
+        if (enhancementText != null)
 
         {
+            if (!_enhancementTextBaseColorCached)
+            {
+                _enhancementTextBaseColor = enhancementText.color;
+                _enhancementTextBaseColorCached = true;
+            }
 
-            enhancementText.text = string.Empty;
+            bool hasEnhancement = !string.IsNullOrWhiteSpace(enhancementTitle);
 
-            return;
+            enhancementText.richText = false;
+
+            enhancementText.enableWordWrapping = true;
+
+            enhancementText.horizontalAlignment = HorizontalAlignmentOptions.Left;
+
+            LayoutElement enhancementLayout = enhancementText.GetComponent<LayoutElement>();
+            if (enhancementLayout == null)
+                enhancementLayout = enhancementText.gameObject.AddComponent<LayoutElement>();
+
+            if (hasEnhancement)
+
+            {
+                enhancementText.gameObject.SetActive(true);
+                enhancementText.fontStyle = FontStyles.Normal;
+                enhancementText.color = _enhancementTextBaseColor;
+                enhancementText.text = enhancementTitle.Trim();
+                enhancementLayout.minHeight = 16f;
+            }
+            else if (showNoEnhancementPlaceholder)
+            {
+                _showsNoEnhancementPlaceholder = true;
+                enhancementText.gameObject.SetActive(true);
+                enhancementText.fontStyle = FontStyles.Italic;
+                enhancementText.color = NoEnhancementPlaceholderColor;
+                enhancementText.text = NoEnhancementPlaceholderText;
+                enhancementLayout.minHeight = 16f;
+            }
+            else
+
+            {
+                enhancementText.gameObject.SetActive(false);
+                enhancementText.text = string.Empty;
+                enhancementLayout.minHeight = 0f;
+            }
 
         }
 
 
 
-        enhancementText.richText = false;
+        EnsureTextGroupLayout();
 
-        enhancementText.text = enhancementTitle.Trim();
+        RebuildTextGroupLayout();
+
+    }
+
+
+
+    private void EnsureTextGroupLayout()
+
+    {
+
+        Transform textGroup = transform.Find("RowGroup/TextGroup");
+
+        if (textGroup == null)
+
+            return;
+
+
+
+        VerticalLayoutGroup vlg = textGroup.GetComponent<VerticalLayoutGroup>();
+
+        if (vlg == null)
+
+            vlg = textGroup.gameObject.AddComponent<VerticalLayoutGroup>();
+
+
+
+        vlg.spacing = 2f;
+
+        vlg.padding = new RectOffset(0, 8, 0, 0);
+
+        vlg.childAlignment = TextAnchor.UpperLeft;
+
+        vlg.childControlWidth = true;
+
+        vlg.childControlHeight = true;
+
+        vlg.childForceExpandWidth = false;
+
+        vlg.childForceExpandHeight = false;
+
+
+
+        ConfigureTextForVerticalLayout(nameText);
+
+        ConfigureTextForVerticalLayout(enhancementText);
+
+    }
+
+
+
+    private static void ConfigureTextForVerticalLayout(TMP_Text text)
+
+    {
+
+        if (text == null)
+
+            return;
+
+
+
+        RectTransform rt = text.rectTransform;
+
+        rt.anchorMin = new Vector2(0f, 1f);
+
+        rt.anchorMax = new Vector2(1f, 1f);
+
+        rt.pivot = new Vector2(0f, 1f);
+
+        rt.anchoredPosition = Vector2.zero;
+
+        rt.sizeDelta = new Vector2(0f, rt.sizeDelta.y);
+
+
+
+        ContentSizeFitter fitter = rt.GetComponent<ContentSizeFitter>();
+
+        if (fitter == null)
+
+            fitter = rt.gameObject.AddComponent<ContentSizeFitter>();
+
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+
+
+        LayoutElement layout = rt.GetComponent<LayoutElement>();
+
+        if (layout == null)
+
+            layout = rt.gameObject.AddComponent<LayoutElement>();
+
+        layout.minHeight = Mathf.Max(16f, text.fontSize + 2f);
+
+        layout.preferredHeight = -1f;
+
+        layout.flexibleHeight = 0f;
+
+    }
+
+
+
+    private void RebuildTextGroupLayout()
+
+    {
+
+        Transform textGroup = transform.Find("RowGroup/TextGroup");
+
+        if (textGroup is RectTransform rt)
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
 
     }
 

@@ -5,13 +5,9 @@ using UnityEngine;
 /// <summary>Creates milestone choice group prefab under Assets/2.Prefabs/UI/SkillsAbilityNew/.</summary>
 public static class SkillChoiceGroupPrefabCreator
 {
-    private const string PrefabPath = "Assets/2.Prefabs/UI/SkillsAbilityNew/SkillChoiceGroupUI.prefab";
     private const string MilestonePrefabPath = "Assets/2.Prefabs/UI/SkillsAbilityNew/MilestoneGroupUI.prefab";
 
-    [MenuItem("Assets/Create/Skills/Skill Choice Group UI Prefab")]
-    public static void CreatePrefab() => SavePrefab("SkillChoiceGroupUI", typeof(SkillChoiceGroupUI), PrefabPath);
-
-    [MenuItem("Assets/Create/Skills/Milestone Group UI Prefab")]
+    [MenuItem("Assets/Create/Skills/Milestone Group UI Prefab (Choice Row)")]
     public static void CreateMilestonePrefab() => SavePrefab("MilestoneGroupUI", typeof(MilestoneGroupUI), MilestonePrefabPath);
 
     private static void SavePrefab(string rootName, System.Type componentType, string path)

@@ -34,9 +34,10 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     [SerializeField] private float spineY = 24f;
     [Tooltip("TimelineContent Y for ChoiceRow. Pushed to Timeline Scaffold on each build when assigned.")]
     [SerializeField] private float choiceRowY = -54f;
-    [Tooltip("Standalone major/capstone nodes (not in a choice group). Abilities are not moved.")]
-    [SerializeField] private float majorCapstoneStandaloneLiftY = 16f;
-    [SerializeField] private float capstoneStandaloneExtraLiftY = 4f;
+
+    [Header("Choice group node offsets (from spine baseline)")]
+    [Tooltip("Tune vertical position per milestone type. Abilities/minors/unlocks use 0 unless changed.")]
+    [SerializeField] private SkillTimelineChoiceGroupLayout choiceGroupLayout = SkillTimelineChoiceGroupLayout.Default;
 
     [Header("Skill selection (drives timeline + node details)")]
     [Tooltip("Primary skill tree to render. Assign directly, or leave empty and use Skill Type + Database.")]
@@ -49,7 +50,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     [SerializeField] private SkillDatabase skillDatabase;
 
     [Tooltip("When true, changing Selected Skill / Type / Database rebuilds the timeline in the Editor.")]
-    [SerializeField] private bool rebuildOnInspectorChange = true;
+    [SerializeField] private bool rebuildOnInspectorChange;
 
     [Header("Generation")]
     [SerializeField] private bool generateOnStart = true;
@@ -182,6 +183,15 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
     /// <summary>Refreshes row pick / enhancement chrome without rebuilding the timeline.</summary>
     public void RefreshTimelineSelectionVisuals() => RefreshRowSelectionVisuals();
+
+    /// <summary>Clears focused node and details (e.g. after Reset Tree).</summary>
+    public void DismissOpenDetails()
+    {
+        _detailsFocusedTimelineNode = null;
+        EnsureDetailsPanelReference();
+        detailsPanel?.ShowEmpty();
+        RefreshRowSelectionVisuals();
+    }
 
     /// <summary>Re-applies the open details panel after choice/enhancement data changes.</summary>
     public void RefreshOpenDetailsAfterDataChange()
@@ -418,6 +428,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
             SkillChoiceGroupUI group = Instantiate(choiceGroupPrefab, _choiceRow);
             group.name = $"ChoiceGroup_Lv{level}_{nodeType}";
+            group.SetAfterConnectorLayoutRefresh(RefreshRowSelectionButtonsForGroup);
             if (capstoneScale)
                 group.RectTransform.localScale = Vector3.one * 1.08f;
 
@@ -430,9 +441,11 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
                 labels,
                 nodeType,
                 nodePrefab,
-                state);
+                state,
+                choiceGroupLayout.GetNodeOffsetY(nodeType));
 
             RegisterChoiceGroupNodes(group, entries, level, nodeType, state);
+            RefreshRowSelectionButtonsForGroup(group);
             return;
         }
 
@@ -524,7 +537,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         SkillTimelineScaffoldUI.ClearConnectorChildren(connectors);
         RefreshChoiceGroupLayouts();
 
-        float spine = SpineYPos;
+        float spine = ResolveSpineConnectorY();
         ConnectAllUnlockNodes(connectors, spine);
         ConnectChoiceGroupsToSpine(connectors, spine);
         ConnectSingleChoiceRowNodesToSpine(connectors, spine);
@@ -557,12 +570,15 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             if (!group.TryGetSpineConnectorPoints(timelineContent, spineY, out Vector2 spineAttach, out Vector2 branchAttach))
                 continue;
 
+            bool highlightSpineStem = TryGetCommittedChoiceSlotIndex(group, out _);
+            float extendEnd = 0f;
             timelineScaffold.DrawConnector(
                 connectors,
                 spineAttach,
                 branchAttach,
                 extendBeyondStart: SkillTimelineScaffoldUI.ConnectorSpineOverlap,
-                extendBeyondEnd: 0f);
+                extendBeyondEnd: extendEnd,
+                useProgressColor: highlightSpineStem);
         }
     }
 
@@ -577,18 +593,23 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             if (child.GetComponent<SkillChoiceGroupUI>() != null)
                 continue;
 
-            if (!child.TryGetComponent(out SkillTimelineNodeUI _))
+            if (!child.TryGetComponent(out SkillTimelineNodeUI node))
                 continue;
 
             if (!TryGetBelowSpineNodeConnectorPoints(child, spineY, out Vector2 spineAttach, out Vector2 nodeAttach))
                 continue;
+
+            bool highlight = node.Binding != null
+                && skillsManager != null
+                && SkillTimelineRowSelectionRules.IsNodeCommittedSelected(skillsManager, node.Binding);
 
             timelineScaffold.DrawConnector(
                 connectors,
                 spineAttach,
                 nodeAttach,
                 extendBeyondStart: SkillTimelineScaffoldUI.ConnectorSpineOverlap,
-                extendBeyondEnd: 0f);
+                extendBeyondEnd: 0f,
+                useProgressColor: highlight);
         }
     }
 
@@ -840,6 +861,17 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
     private float ChoiceRowYPos => choiceRowY;
 
+    private float ResolveSpineConnectorY()
+    {
+        if (timelineScaffold != null && timelineContent != null)
+            return timelineScaffold.ResolveSpineLineYInContent(timelineContent);
+
+        if (timelineScaffold != null)
+            return timelineScaffold.TimelineSpineY;
+
+        return spineY;
+    }
+
     private int ResolvePlayerSkillLevel(SkillDefinition skill)
     {
         if (skill == null)
@@ -1023,7 +1055,9 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             ChoiceRowYPos,
             nodeNames,
             type,
-            nodePrefab);
+            nodePrefab,
+            SkillTimelineNodeUI.SkillTimelineNodeState.Available,
+            choiceGroupLayout.GetNodeOffsetY(type));
         return group;
     }
 
@@ -1038,7 +1072,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         SkillTimelineNodeUI.SkillTimelineNodeState state,
         bool capstoneScale)
     {
-        float nodeY = ResolveStandaloneMajorCapstoneLiftY(nodeType);
+        float nodeY = choiceGroupLayout.GetNodeOffsetY(nodeType);
         return SpawnNodeInRow(_choiceRow, new Vector2(x, nodeY), $"ChoiceNode_Lv{level}_{slot}", node =>
         {
             node.ApplyBelowSpineNodePreview(nodeType, label, state, capstoneScale);
@@ -1052,17 +1086,6 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
                 nodeType,
                 state);
         });
-    }
-
-    private float ResolveStandaloneMajorCapstoneLiftY(SkillTimelineNodeUI.SkillTimelineNodeType nodeType)
-    {
-        if (nodeType == SkillTimelineNodeUI.SkillTimelineNodeType.MajorPassive)
-            return majorCapstoneStandaloneLiftY;
-
-        if (nodeType == SkillTimelineNodeUI.SkillTimelineNodeType.Capstone)
-            return majorCapstoneStandaloneLiftY + capstoneStandaloneExtraLiftY;
-
-        return 0f;
     }
 
     private SkillTimelineNodeUI SpawnNodeInRow(
@@ -1183,7 +1206,6 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         node.Clicked -= HandleTimelineNodeClicked;
         node.Clicked += HandleTimelineNodeClicked;
-        node.ConfigureRowSelectionButtons(false, false, null);
         _spawnedTimelineNodes.Add(node);
     }
 
@@ -1211,7 +1233,11 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         RefreshRowSelectionButtons();
     }
 
-    private void HandleChangeNodeClicked(SkillTimelineNodeUI node)
+    private void HandleSelectNodeClicked(SkillTimelineNodeUI node) => CommitTimelineNodeSelection(node);
+
+    private void HandleChangeNodeClicked(SkillTimelineNodeUI node) => CommitTimelineNodeSelection(node);
+
+    private void CommitTimelineNodeSelection(SkillTimelineNodeUI node)
     {
         if (node?.Binding == null)
             return;
@@ -1220,12 +1246,17 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         if (skillsManager == null)
             return;
 
+        if (node.Binding.DisplayState == SkillTimelineNodeUI.SkillTimelineNodeState.Locked)
+            return;
+
         float? savedScroll = CaptureTimelineScrollPosition();
         SkillTimelineRowSelectionRules.CommitSelection(skillsManager, node.Binding);
+        SaveManager.Instance?.Save();
         RefreshRowSelectionVisuals();
 
         EnsureDetailsPanelReference();
-        if (detailsPanel != null && node.Binding != null)
+        _detailsFocusedTimelineNode = node;
+        if (detailsPanel != null)
             detailsPanel.Show(node.Binding);
 
         RestoreTimelineScrollPosition(savedScroll);
@@ -1244,18 +1275,81 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
                     continue;
                 node.ApplyRowPickSelectionVisual(false);
                 node.SetNotSelectedPrompt(false);
-                node.ConfigureRowSelectionButtons(false, false, null);
+                node.ConfigureRowSelectionButtons(false, false, false, null, null);
             }
 
             return;
         }
 
+        SuppressSelectionChromeOnNonPickNodes();
         RefreshChoiceGroupRowVisuals();
         RefreshStandaloneChoiceRowNodes();
         RefreshRowSelectionButtons();
+        RefreshConnectorSelectionHighlights();
     }
 
-    private void RefreshRowSelectionButtons()
+    private void RefreshConnectorSelectionHighlights()
+    {
+        if (_choiceRow == null)
+            return;
+
+        for (int i = 0; i < _choiceRow.childCount; i++)
+        {
+            if (!_choiceRow.GetChild(i).TryGetComponent(out SkillChoiceGroupUI group))
+                continue;
+
+            TryGetCommittedChoiceSlotIndex(group, out int slotIndex);
+            group.SetConnectorSelectionHighlight(slotIndex);
+        }
+
+        RefreshSpineChoiceGroupConnectors();
+    }
+
+    private void RefreshSpineChoiceGroupConnectors()
+    {
+        if (timelineScaffold == null || timelineContent == null || _choiceRow == null)
+            return;
+
+        RectTransform connectors = timelineScaffold.GetOrCreatePrefabConnectorsLayer(timelineContent);
+        if (connectors == null)
+            return;
+
+        float spineY = ResolveSpineConnectorY();
+        SkillTimelineScaffoldUI.ClearConnectorChildren(connectors);
+        ConnectAllUnlockNodes(connectors, spineY);
+        ConnectChoiceGroupsToSpine(connectors, spineY);
+        ConnectSingleChoiceRowNodesToSpine(connectors, spineY);
+    }
+
+    private bool TryGetCommittedChoiceSlotIndex(SkillChoiceGroupUI group, out int slotIndex)
+    {
+        slotIndex = -1;
+        if (group == null || skillsManager == null)
+            return false;
+
+        IReadOnlyList<SkillTimelineNodeUI> nodes = group.SpawnedNodes;
+        if (nodes == null)
+            return false;
+
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            SkillTimelineNodeUI node = nodes[i];
+            SkillTimelineNodeBinding binding = node != null ? node.Binding : null;
+            if (binding == null)
+                continue;
+
+            if (!SkillTimelineRowSelectionRules.IsNodeCommittedSelected(skillsManager, binding))
+                continue;
+
+            slotIndex = i;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Forces Select/Selected/Change hidden on unlock, minor, and capstone nodes.</summary>
+    private void SuppressSelectionChromeOnNonPickNodes()
     {
         for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
         {
@@ -1263,7 +1357,25 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             if (node == null)
                 continue;
 
-            node.ConfigureRowSelectionButtons(false, false, null);
+            SkillTimelineNodeBinding binding = node.Binding;
+            if (binding != null && SkillTimelineNodeUI.UsesRowSelectionButtons(binding.TimelineNodeType))
+                continue;
+
+            node.ConfigureRowSelectionButtons(false, false, false, null, null);
+        }
+    }
+
+    private void RefreshRowSelectionButtons()
+    {
+        PreferRuntimeSkillsManager();
+
+        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
+        {
+            SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
+            if (node == null)
+                continue;
+
+            node.ConfigureRowSelectionButtons(false, false, false, null, null);
         }
 
         if (_choiceRow == null || skillsManager == null)
@@ -1282,7 +1394,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             for (int i = 0; i < nodes.Count; i++)
                 bindings[i] = nodes[i] != null ? nodes[i].Binding : null;
 
-            bool rowHasCommittedPick = RowHasCommittedSelection(bindings);
+            bool rowHasCommittedPick = RowHasCommittedRowPick(bindings);
             for (int i = 0; i < nodes.Count; i++)
                 ApplyRowSelectionButtonsForNode(nodes[i], bindings, rowHasCommittedPick);
         }
@@ -1301,7 +1413,33 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
                 continue;
 
             var bindings = new[] { binding };
-            ApplyRowSelectionButtonsForNode(node, bindings, RowHasCommittedSelection(bindings));
+            ApplyRowSelectionButtonsForNode(node, bindings, RowHasCommittedRowPick(bindings));
+        }
+    }
+
+    /// <summary>Called after <see cref="SkillChoiceGroupUI"/> finishes connector layout so Select sits above lines.</summary>
+    public void RefreshRowSelectionButtonsForGroup(SkillChoiceGroupUI group)
+    {
+        PreferRuntimeSkillsManager();
+
+        if (group == null || skillsManager == null)
+            return;
+
+        IReadOnlyList<SkillTimelineNodeUI> nodes = group.SpawnedNodes;
+        if (nodes == null || nodes.Count == 0)
+            return;
+
+        var bindings = new SkillTimelineNodeBinding[nodes.Count];
+        for (int i = 0; i < nodes.Count; i++)
+            bindings[i] = nodes[i] != null ? nodes[i].Binding : null;
+
+        bool rowHasCommittedPick = RowHasCommittedRowPick(bindings);
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            SkillTimelineNodeUI node = nodes[i];
+            ApplyRowSelectionButtonsForNode(node, bindings, rowHasCommittedPick);
+            if (node != null && SupportsRowSelectionChrome(node.Binding))
+                node.RectTransform.SetAsLastSibling();
         }
     }
 
@@ -1316,33 +1454,68 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         SkillTimelineNodeBinding binding = node.Binding;
         if (!SupportsRowSelectionChrome(binding))
         {
-            node.ConfigureRowSelectionButtons(false, false, null);
+            node.ConfigureRowSelectionButtons(false, false, false, null, null);
             return;
         }
 
+        bool locked = binding.DisplayState == SkillTimelineNodeUI.SkillTimelineNodeState.Locked;
         bool committed = SkillTimelineRowSelectionRules.IsNodeCommittedSelected(skillsManager, binding);
-        bool showSelectNode = committed;
-        bool showChangeNode = rowHasCommittedPick
+        bool showSelect = !rowHasCommittedPick && !locked;
+        bool showSelected = committed;
+        bool showChange = rowHasCommittedPick
             && node == _detailsFocusedTimelineNode
             && !committed
-            && binding.DisplayState != SkillTimelineNodeUI.SkillTimelineNodeState.Locked;
+            && !locked;
 
-        node.ConfigureRowSelectionButtons(showSelectNode, showChangeNode, HandleChangeNodeClicked);
+        node.ConfigureRowSelectionButtons(
+            showSelect,
+            showSelected,
+            showChange,
+            HandleSelectNodeClicked,
+            HandleChangeNodeClicked);
     }
 
-    private static bool SupportsRowSelectionChrome(SkillTimelineNodeBinding binding) =>
-        binding != null
-        && (SkillTimelineRowSelectionRules.IsSelectablePickNode(binding) || binding.IsChoiceNode);
+    private static bool SupportsRowSelectionChrome(SkillTimelineNodeBinding binding)
+    {
+        if (binding == null || !SkillTimelineNodeUI.UsesRowSelectionButtons(binding.TimelineNodeType))
+            return false;
 
-    private bool RowHasCommittedSelection(SkillTimelineNodeBinding[] groupBindings)
+        if (!binding.IsChoiceNode)
+            return true;
+
+        // Enhancement branches (Lv 8+ on a Lv 5 ability) use the details panel — not timeline Select.
+        return binding.Choice == null || binding.Choice.requiredLevel <= binding.Level;
+    }
+
+    /// <summary>True when this milestone row already has an ability/major sibling pick (not enhancement sub-choices).</summary>
+    private bool RowHasCommittedRowPick(SkillTimelineNodeBinding[] groupBindings)
     {
         if (groupBindings == null || skillsManager == null)
             return false;
 
+        SkillTimelineNodeBinding anchor = null;
+        for (int i = 0; i < groupBindings.Length; i++)
+        {
+            if (groupBindings[i]?.Skill != null)
+            {
+                anchor = groupBindings[i];
+                break;
+            }
+        }
+
+        if (anchor == null)
+            return false;
+
+        if (skillsManager.GetSkillAbilityRowPick(anchor.Skill.skillType, anchor.Level, -1) >= 0)
+            return true;
+
         for (int i = 0; i < groupBindings.Length; i++)
         {
             SkillTimelineNodeBinding binding = groupBindings[i];
-            if (binding != null && SkillTimelineRowSelectionRules.IsNodeCommittedSelected(skillsManager, binding))
+            if (binding == null || !SupportsRowSelectionChrome(binding))
+                continue;
+
+            if (SkillTimelineRowSelectionRules.IsNodeCommittedSelected(skillsManager, binding))
                 return true;
         }
 
@@ -1402,12 +1575,15 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
     private void ApplyRowVisualsForNode(SkillTimelineNodeUI node, SkillTimelineNodeBinding[] groupBindings)
     {
-        SkillTimelineNodeBinding binding = node.Binding;
+        SkillTimelineNodeBinding binding = node?.Binding;
+        if (binding == null)
+            return;
+
         if (!SupportsRowSelectionChrome(binding))
         {
             node.ApplyRowPickSelectionVisual(false);
             node.SetNotSelectedPrompt(false);
-            node.ConfigureRowSelectionButtons(false, false, null);
+            node.ConfigureRowSelectionButtons(false, false, false, null, null);
             return;
         }
 
@@ -1542,8 +1718,47 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         scroll.horizontalNormalizedPosition = normalized.Value;
     }
 
+    /// <summary>Moves choice groups / standalone nodes per <see cref="choiceGroupLayout"/> (no connector destroy).</summary>
+    public void ApplyChoiceGroupLayoutOffsets()
+    {
+        CacheRowContainers();
+        if (_choiceRow == null)
+            return;
+
+        for (int i = 0; i < _choiceRow.childCount; i++)
+        {
+            Transform child = _choiceRow.GetChild(i);
+            if (child.TryGetComponent(out SkillChoiceGroupUI group))
+            {
+                group.ApplyChoiceGroupVerticalOffset(choiceGroupLayout.GetNodeOffsetY(group.ConfiguredNodeType));
+                continue;
+            }
+
+            if (!child.TryGetComponent(out SkillTimelineNodeUI node))
+                continue;
+
+            SkillTimelineNodeUI.SkillTimelineNodeType nodeType = node.Binding != null
+                ? node.Binding.TimelineNodeType
+                : SkillTimelineNodeUI.SkillTimelineNodeType.Ability;
+
+            float offsetY = choiceGroupLayout.GetNodeOffsetY(nodeType);
+            RectTransform rt = node.RectTransform;
+            Vector2 pos = rt.anchoredPosition;
+            pos.y = offsetY;
+            rt.anchoredPosition = pos;
+        }
+    }
+
+    /// <summary>Applies offsets and rebuilds spine connectors (not safe inside OnValidate — use deferred queue).</summary>
+    public void RefreshChoiceGroupLayoutOffsets()
+    {
+        ApplyChoiceGroupLayoutOffsets();
+        BuildTimelineConnectors();
+    }
+
 #if UNITY_EDITOR
     private bool _deferredInspectorRebuildQueued;
+    private bool _deferredLayoutOffsetRefreshQueued;
 
     private void OnValidate()
     {
@@ -1551,7 +1766,40 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             selectedSkillType = selectedSkill.skillType;
 
         AutoWireEditorReferences();
+
+        if (HasSpawnedTimelineContent())
+        {
+            QueueDeferredLayoutOffsetRefresh();
+            return;
+        }
+
         QueueInspectorRebuild();
+    }
+
+    private void QueueDeferredLayoutOffsetRefresh()
+    {
+        if (!isActiveAndEnabled)
+            return;
+
+        if (_deferredLayoutOffsetRefreshQueued)
+            return;
+
+        _deferredLayoutOffsetRefreshQueued = true;
+        UnityEditor.EditorApplication.delayCall += EditorDeferredLayoutOffsetRefresh;
+    }
+
+    private void EditorDeferredLayoutOffsetRefresh()
+    {
+        UnityEditor.EditorApplication.delayCall -= EditorDeferredLayoutOffsetRefresh;
+        _deferredLayoutOffsetRefreshQueued = false;
+
+        if (this == null || !isActiveAndEnabled)
+            return;
+
+        if (!HasSpawnedTimelineContent())
+            return;
+
+        RefreshChoiceGroupLayoutOffsets();
     }
 
     private void AutoWireEditorReferences()
@@ -1578,9 +1826,6 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         {
             SkillChoiceGroupUI loaded = UnityEditor.AssetDatabase.LoadAssetAtPath<SkillChoiceGroupUI>(
                 "Assets/2.Prefabs/UI/SkillsAbilityNew/MilestoneGroupUI.prefab");
-            if (loaded == null)
-                loaded = UnityEditor.AssetDatabase.LoadAssetAtPath<SkillChoiceGroupUI>(
-                    "Assets/2.Prefabs/UI/SkillsAbilityNew/SkillChoiceGroupUI.prefab");
             if (loaded != null)
                 choiceGroupPrefab = loaded;
         }

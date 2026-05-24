@@ -183,6 +183,33 @@ public static class SkillTimelineRowSelectionRules
         return ShouldShowPendingEnhancementChoice(skillsManager, binding);
     }
 
+    /// <summary>True when an ability row is committed but its enhancement sub-choice is still pending.</summary>
+    public static bool HasPendingAbilityEnhancementChoice(
+        SkillsManager skillsManager,
+        SkillDefinition skill,
+        AbilityDefinition ability)
+    {
+        if (skillsManager == null || skill == null || ability == null)
+            return false;
+
+        if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, ability, skillsManager))
+            return false;
+
+        SkillUnlockDefinition unlock = SkillAbilityCommitRules.FindAbilityUnlockOnSkill(skill, ability);
+        if (unlock == null)
+            return false;
+
+        var binding = new SkillTimelineNodeBinding
+        {
+            Skill = skill,
+            Unlock = unlock,
+            Level = Mathf.Max(1, unlock.requiredLevel),
+            TimelineNodeType = SkillTimelineNodeUI.SkillTimelineNodeType.Ability
+        };
+
+        return ShouldShowPendingEnhancementChoice(skillsManager, binding);
+    }
+
     private static bool ShouldShowPendingEnhancementChoice(SkillsManager skillsManager, SkillTimelineNodeBinding binding)
     {
         if (binding?.Unlock == null)

@@ -21,8 +21,8 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private const float ContentHeight = 300f;
     private const float PaddingLeft = 120f;
     private const float PaddingRight = 80f;
-    /// <summary>TimelineContent Y for each row container (children use local X, local Y ≈ 0).</summary>
-    private const float TimelineContentYOffset = -12f;
+    /// <summary>Fallback TimelineContent Y when not set in the inspector.</summary>
+    private const float DefaultTimelineContentYOffset = 4f;
     private const float DefaultSpineRowY = 24f;
     private const float DefaultUnlockRowY = 90f;
     private const float DefaultChoiceRowY = -54f;
@@ -72,14 +72,18 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     private static readonly Color LabelColor = new(0.95f, 0.92f, 0.86f, 1f);
     private static readonly Color MilestoneLabelColor = new(0.2f, 0.14f, 0.1f, 1f);
 
-    [SerializeField] private bool rebuildOnEnable = true;
+    [SerializeField] private bool rebuildOnEnable;
     [Tooltip("When false, only timeline chrome is built (spine, ticks, scroll). Use with HorizontalSkillTreeScaffoldUI prefab nodes.")]
     [SerializeField] private bool buildPlaceholderNodes = true;
 
     [Header("Timeline rows (TimelineContent local Y)")]
+    [Tooltip("Shifts unlock / spine / choice rows together (positive = up). Keeps spacing between rows.")]
+    [SerializeField] private float timelineRowsOffsetY = 12f;
     [SerializeField] private float unlockRowAnchoredY = DefaultUnlockRowY;
     [SerializeField] private float spineRowAnchoredY = DefaultSpineRowY;
     [SerializeField] private float choiceRowAnchoredY = DefaultChoiceRowY;
+    [Tooltip("Whole TimelineContent anchor Y (positive = shift tree up in viewport).")]
+    [SerializeField] private float timelineContentOffsetY = DefaultTimelineContentYOffset;
 
     [Header("Timeline chrome (HelperBar / scrollbar)")]
     [Tooltip("Fallback height only. At runtime the HelperBar RectTransform height saved in the scene is used — resize HelperBar, save the scene, not the old 60 default here.")]
@@ -178,13 +182,38 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
 
     public float TimelineChoiceRowY => choiceRowAnchoredY;
 
+    /// <summary>
+    /// Main spine line center Y in <paramref name="timelineContent"/> local space.
+    /// Uses the live SpineLine rect so row/content offsets stay aligned with cross-row connectors.
+    /// </summary>
+    public float ResolveSpineLineYInContent(RectTransform timelineContent)
+    {
+        if (timelineContent == null)
+            return spineRowAnchoredY + SpineMinorNodeLocalY;
+
+        RectTransform spineRow = FindRow(timelineContent, SpineRowName);
+        if (spineRow == null)
+            return spineRowAnchoredY + SpineMinorNodeLocalY;
+
+        Transform spineLine = spineRow.Find("SpineLine");
+        if (spineLine is RectTransform spineLineRt)
+        {
+            Vector3 worldCenter = spineLineRt.TransformPoint(spineLineRt.rect.center);
+            return timelineContent.InverseTransformPoint(worldCenter).y;
+        }
+
+        Vector3 rowPoint = spineRow.TransformPoint(new Vector3(0f, SpineMinorNodeLocalY, 0f));
+        return timelineContent.InverseTransformPoint(rowPoint).y;
+    }
+
     /// <summary>Updates row Y positions without clearing spawned timeline nodes. Called by <see cref="HorizontalSkillTreeScaffoldUI"/> before each build.</summary>
     public void ApplyRowLayout(float spineRowY, float choiceRowY, float? unlockRowY = null)
     {
-        spineRowAnchoredY = spineRowY;
-        choiceRowAnchoredY = choiceRowY;
+        float shift = timelineRowsOffsetY;
+        spineRowAnchoredY = spineRowY + shift;
+        choiceRowAnchoredY = choiceRowY + shift;
         if (unlockRowY.HasValue)
-            unlockRowAnchoredY = unlockRowY.Value;
+            unlockRowAnchoredY = unlockRowY.Value + shift;
 
         RepositionTimelineRows();
     }
@@ -246,11 +275,12 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         Vector2 end,
         float extendBeyondStart = 0f,
         float extendBeyondEnd = 0f,
-        float thickness = MilestoneSpineConnectorThickness)
+        float thickness = MilestoneSpineConnectorThickness,
+        bool useProgressColor = false)
     {
         if (connectorsLayer == null)
             return;
-        CreateConnector(connectorsLayer, start, end, extendBeyondStart, extendBeyondEnd, thickness);
+        CreateConnector(connectorsLayer, start, end, extendBeyondStart, extendBeyondEnd, thickness, useProgressColor);
     }
 
     /// <summary>
@@ -381,6 +411,8 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    private bool _deferredRowLayoutRefreshQueued;
+
     private void OnValidate()
     {
         RectTransform container = transform as RectTransform;
@@ -388,6 +420,42 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
             return;
 
         ResolveHelperBarHeight(container);
+        if (rebuildOnEnable)
+            QueueDeferredRowLayoutRefresh();
+    }
+
+    private void QueueDeferredRowLayoutRefresh()
+    {
+        if (!rebuildOnEnable || !isActiveAndEnabled || _deferredRowLayoutRefreshQueued)
+            return;
+
+        _deferredRowLayoutRefreshQueued = true;
+        UnityEditor.EditorApplication.delayCall += EditorDeferredRowLayoutRefresh;
+    }
+
+    private void EditorDeferredRowLayoutRefresh()
+    {
+        UnityEditor.EditorApplication.delayCall -= EditorDeferredRowLayoutRefresh;
+        _deferredRowLayoutRefreshQueued = false;
+
+        if (this == null || !isActiveAndEnabled)
+            return;
+
+        RectTransform container = transform as RectTransform;
+        if (container == null)
+            return;
+
+        RectTransform viewport = FindChildRect(container, "TimelineViewport");
+        RectTransform content = FindChildRect(viewport, "TimelineContent");
+        if (content == null)
+            return;
+
+        PrepareContentForAbsoluteNodes(content);
+        RepositionTimelineRows();
+
+        var horizontal = GetComponent<HorizontalSkillTreeScaffoldUI>();
+        if (horizontal != null)
+            horizontal.RefreshConnectorsOnly();
     }
 #endif
 
@@ -453,7 +521,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         scrollbar.size = Mathf.Clamp01(scrollbar.size <= 0.001f ? 0.2f : scrollbar.size);
     }
 
-    private static void PrepareContentRect(RectTransform content)
+    private void PrepareContentRect(RectTransform content)
     {
         if (content.TryGetComponent(out HorizontalLayoutGroup hlg))
             DestroyImmediateSafe(hlg);
@@ -462,7 +530,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
 
         content.anchorMin = content.anchorMax = new Vector2(0f, 0.5f);
         content.pivot = new Vector2(0f, 0.5f);
-        content.anchoredPosition = new Vector2(0f, TimelineContentYOffset);
+        content.anchoredPosition = new Vector2(0f, timelineContentOffsetY);
         content.sizeDelta = new Vector2(ContentWidth, ContentHeight);
     }
 
@@ -730,7 +798,8 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         Vector2 end,
         float extendBeyondStart = ConnectorExtendSpine,
         float extendBeyondEnd = ConnectorExtendNode,
-        float thickness = TimelineConnectorThickness)
+        float thickness = TimelineConnectorThickness,
+        bool useProgressColor = false)
     {
         Vector2 delta = end - start;
         float len = delta.magnitude;
@@ -751,7 +820,7 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         var go = new GameObject("Connector", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         var rt = go.GetComponent<RectTransform>();
         rt.SetParent(connectorsLayer, false);
-        SkillTimelineLineStyle.ApplySegment(rt, lineStart, lineEnd, lineThickness);
+        SkillTimelineLineStyle.ApplySegment(rt, lineStart, lineEnd, lineThickness, useProgressColor);
 
         var renderer = go.GetComponent<CanvasRenderer>();
         renderer.cullTransparentMesh = false;
