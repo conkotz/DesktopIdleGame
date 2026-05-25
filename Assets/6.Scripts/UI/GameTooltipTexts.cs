@@ -298,6 +298,18 @@ public static class GameTooltipTexts
                     "Base mitigation is 70%. Talents and gear can raise it (e.g. Tactician Secondary Specialist with a shield).";
                 return true;
 
+            case "ParryText":
+                title = "Parry";
+                description =
+                    "Reduce incoming damage by your parry mitigation amount and return that damage back to the attacker.";
+                return true;
+
+            case "ParryMitigationText":
+                title = "Parry Mitigation";
+                description =
+                    "The amount of incoming damage reduced, and the portion of that damage returned to the attacker.";
+                return true;
+
             case "MovespeedText":
                 title = "Movement Speed";
                 description =

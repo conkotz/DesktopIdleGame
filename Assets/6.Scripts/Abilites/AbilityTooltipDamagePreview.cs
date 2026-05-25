@@ -262,6 +262,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsCrescentSlash(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.CrescentSlashAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsCrusaderStrike(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.CrusaderStrikeAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsWhirlwind(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.WhirlwindAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -559,6 +562,14 @@ public static class AbilityTooltipDamagePreview
             float allM = def.GetEffectiveAllDamageMultiplier();
             scaling.AppendLine(S($"Deals {shockMult * 100f:0.#}% of your weapon damage per shockwave"));
             AppendAbilityTooltipBonusScalerLines(scaling, S, def, stats, shockMult, allM);
+            return scaling.ToString().TrimEnd();
+        }
+
+        if (IsCrusaderStrike(def))
+        {
+            scaling.AppendLine(S($"Cast 1: {AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier * 100f:0.#}% of your weapon damage"));
+            scaling.AppendLine(S($"Cast 2: {AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier * 100f:0.#}% of your weapon damage"));
+            scaling.AppendLine(S($"Cast 3: {AbilityCombatPower.CrusaderStrikeFinalHitWeaponMultiplier * 100f:0.#}% of your weapon damage"));
             return scaling.ToString().TrimEnd();
         }
 
@@ -881,6 +892,21 @@ public static class AbilityTooltipDamagePreview
             else
                 body.AppendLine(O("Hits 3 enemies."));
         }
+        else if (IsCrusaderStrike(def))
+        {
+            string dmgSuffix = DamageTimingSuffix();
+            float cast1 = ComputeAverageCrusaderStrikePhysicalHit(stats, AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier);
+            float cast2 = ComputeAverageCrusaderStrikePhysicalHit(stats, AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier);
+            float cast3 = ComputeAverageCrusaderStrikePhysicalHit(stats, AbilityCombatPower.CrusaderStrikeFinalHitWeaponMultiplier);
+
+            body.AppendLine(O("Each activation primes your next melee hit."));
+            body.AppendLine(O($"Next hit: {Mathf.RoundToInt(cast1)} Physical damage{dmgSuffix} (Cast 1)"));
+            body.AppendLine(O($"Next hit: {Mathf.RoundToInt(cast2)} Physical damage{dmgSuffix} (Cast 2)"));
+            body.AppendLine(O($"Next hit: {Mathf.RoundToInt(cast3)} Fire damage{dmgSuffix} (Cast 3)"));
+            body.AppendLine(O($"Casts 1 and 2 heal {AbilityCombatPower.CrusaderStrikeHealFractionOfMaxHealth * 100f:0.#}% of maximum health on hit."));
+            body.AppendLine(O("Combo buff: 1 stack after Cast 1, 2 stacks after Cast 2, hidden while Cast 3 is primed."));
+            body.AppendLine(O("Cooldown begins after the final strike."));
+        }
         else if (IsFinalSeverance(def))
         {
             string dmgSuffix = DamageTimingSuffix();
@@ -1019,12 +1045,23 @@ public static class AbilityTooltipDamagePreview
             string dmgSuffix = DamageTimingSuffix();
             ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
+            body.AppendLine(O("Holding the hotkey channels Whirlwind continuously while energy remains."));
 
             int wwEnhance = GetMeleeLv15BranchChoice(skillsManager, 0);
             if (wwEnhance == 0)
             {
+                float reducedCost = Mathf.Max(
+                    0f,
+                    Mathf.Max(0f, def.energyCost) - AbilityCombatPower.WhirlwindTwinCycloneChannelCostReductionPerSecond);
                 body.AppendLine(O(
-                    $"Hits each enemy a second time for {AbilityCombatPower.WhirlwindTwinCycloneSecondHitFraction * 100f:0.#}% of the first wave."));
+                    $"Channel cost is reduced to {reducedCost:0.#} Energy / s."));
+            }
+            else if (wwEnhance == 1)
+            {
+                body.AppendLine(O(
+                    $"+{AbilityCombatPower.WhirlwindExpansiveSizePerSecond:0.#} size per second while channeling."));
+                body.AppendLine(O(
+                    $"+{AbilityCombatPower.WhirlwindExpansiveDamagePerSecond * 100f:0.#}% damage per second while channeling."));
             }
         }
         else if (UsesCombinedTotalHitDamageTooltip(def))
@@ -1911,6 +1948,15 @@ public static class AbilityTooltipDamagePreview
         physHit = physLine * allM * apM * dmgMult;
         magHit = magLine * allM * apM * dmgMult;
         corrHit = corrLine * allM * apM * dmgMult;
+    }
+
+    private static float ComputeAverageCrusaderStrikePhysicalHit(CharacterStats stats, float weaponMult)
+    {
+        if (!stats)
+            return 0f;
+
+        float avgPhys = (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
+        return Mathf.Max(0f, avgPhys * Mathf.Max(0f, weaponMult));
     }
 
     private static void AppendPerHitDamageEffectLines(

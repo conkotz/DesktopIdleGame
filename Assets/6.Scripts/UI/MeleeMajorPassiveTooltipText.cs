@@ -196,7 +196,7 @@ public static class MeleeMajorPassiveTooltipText
 
             if (choiceIndex == 1)
             {
-                body = "Increase parry chance to 20%.";
+                body = "+5% additional parry chance.\n+15% parry mitigation.";
                 return true;
             }
         }
@@ -226,14 +226,9 @@ public static class MeleeMajorPassiveTooltipText
     private static bool TryBuildParryBody(int selectedChoice, out string body)
     {
         var sb = new StringBuilder();
-        sb.Append("When struck by a melee-range enemy (within ");
-        sb.Append(AbilityCombatPower.ParryMeleeRange.ToString("0.#"));
-        sb.Append(" units), ");
+        sb.Append("Gain ");
         sb.Append(Mathf.RoundToInt(AbilityCombatPower.ParryBaseChance * 100f));
-        sb.AppendLine("% chance to parry:");
-        sb.Append("Reduce that hit by ");
-        sb.Append(Mathf.RoundToInt(AbilityCombatPower.ParryDamageReductionFraction * 100f));
-        sb.AppendLine("% and deal that damage back to the attacker.");
+        sb.AppendLine("% parry chance.");
         AppendEnhancementLines(sb, selectedChoice, AbilityCombatPower.ParryMajorPassiveSpineNodeId);
         body = sb.ToString();
         return true;
@@ -412,9 +407,8 @@ public static class MeleeMajorPassiveTooltipText
                     sb.AppendLine("Riposte: free melee auto attack on parry (no damage reduction).");
                 else if (selectedChoice == 1)
                 {
-                    sb.Append("Parry chance increased to ");
-                    sb.Append(Mathf.RoundToInt(AbilityCombatPower.ParryImprovedParryChance * 100f));
-                    sb.AppendLine("%.");
+                    sb.AppendLine("+5% parry chance.");
+                    sb.AppendLine("+15% parry mitigation.");
                 }
                 break;
 

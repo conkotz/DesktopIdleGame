@@ -54,6 +54,29 @@ public static class AbilityTooltipAdjustments
         cooldownSeconds = Mathf.Max(0f, def.cooldown);
         ApplySkillTreeChoices(def, skillsManager, ref weaponMult, ref cooldownSeconds);
 
+        if (string.Equals(def.abilityId, AbilityCombatPower.WhirlwindAbilityId, System.StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = skillsManager != null
+                ? skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv15_0", -1)
+                : -1;
+            if (selected < 0 && skillsManager != null)
+                selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 15, -1);
+            if (selected < 0 && skillsManager != null)
+                selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 18, -1);
+
+            resourceLabel = "Energy / s";
+            resourceCost = Mathf.Max(0f, def.energyCost);
+            if (selected == 0)
+                resourceCost = Mathf.Max(0f, resourceCost - AbilityCombatPower.WhirlwindTwinCycloneChannelCostReductionPerSecond);
+            if (abilityController != null && resourceCost > 0f)
+            {
+                float costMult = abilityController.GetTooltipAbilityEnergyCostMultiplier();
+                resourceCost = Mathf.Max(0f, resourceCost * costMult);
+            }
+
+            return;
+        }
+
         switch (def.GetResourceCostType())
         {
             case AbilityResourceCostType.Health:

@@ -51,8 +51,10 @@ public class PlayerAbilityController : MonoBehaviour
     /// <summary>True while a channeled combat ability blocks normal attacks (Final Severance, Bladestorm, Flame Charge).</summary>
     public static bool BlocksCombatActions =>
         _instance != null && (_instance._finalSeveranceChanneling || _instance._bladestormChanneling ||
-                              _instance._bladestormRoutine != null || _instance._flameChargeRoutine != null);
+                              _instance._whirlwindChanneling || _instance._bladestormRoutine != null ||
+                              _instance._flameChargeRoutine != null);
     private const string PowerSlashId = "power_slash";
+    private const string CrusaderStrikeId = "crusader_strike";
     private const string WhirlwindId = "whirlwind";
     private const string RendId = "rend";
     private const string EnvenomId = "envenom";
@@ -138,9 +140,27 @@ public class PlayerAbilityController : MonoBehaviour
     private const float SoulforgedWeaponSwarmDamageMultiplier = 0.75f;
     private const float SoulforgedWeaponSwarmDurationSeconds = 20f;
     private const float SoulforgedWeaponSceneLoadActionBarGraceSeconds = 2f;
-    private static readonly float WhirlwindSecondHitMultiplier = AbilityCombatPower.WhirlwindTwinCycloneSecondHitFraction;
-    private const float WhirlwindTwinCycloneSecondHitDelay = 0.5f;
-    private const float WhirlwindRadiusBonus = 3f;
+    private const int WhirlwindMaxChannelStacks = 5;
+    private const int CrusaderStrikeFinalComboStep = 3;
+    private const float CrusaderStrikeFirstHitWeaponMultiplier = 1.1f;
+    private const float CrusaderStrikeSecondHitWeaponMultiplier = 1.2f;
+    private const float CrusaderStrikeFinalHitWeaponMultiplier = 1.5f;
+    private const float CrusaderStrikeHealFractionOfMaxHealth = 0.05f;
+    private bool _whirlwindChanneling;
+    private bool _whirlwindAutoChanneling;
+    private bool _whirlwindActionBarHeld;
+    private float _whirlwindChannelStartedAt;
+    private float _whirlwindNextTickAt;
+    private float _whirlwindNextVfxAt;
+    private readonly Dictionary<int, float> _whirlwindNextHitTimeByEnemyId = new();
+    private readonly HashSet<int> _whirlwindEnemiesInContactThisFrame = new();
+    private readonly List<int> _whirlwindContactRemovalBuffer = new();
+    private int _crusaderStrikeComboStep;
+    private int _crusaderStrikePrimedStage;
+    private bool _crusaderStrikeQueued;
+    private int _queuedCrusaderStrikeConsumedStage;
+    private bool _crusaderStrikeAttributionPending;
+    private int _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
     private bool _powerSlashQueued;
     private bool _rendQueued;
     private bool _envenomQueued;
@@ -266,13 +286,15 @@ public class PlayerAbilityController : MonoBehaviour
         PowerSlash,
         Rend,
         Envenom,
-        CrescentSlash
+        CrescentSlash,
+        CrusaderStrike
     }
 
     public struct QueuedHitEffectResult
     {
         public bool suppressDefaultBleed;
         public bool suppressDefaultPoison;
+        public bool suppressDefaultElementalMagicAilment;
         public bool triggerCrescentSlash;
         public bool crescentAppliesElemental;
         public bool crescentPenetrating;
@@ -300,6 +322,15 @@ public class PlayerAbilityController : MonoBehaviour
             return new PlayerCombatController.SwingOutgoingAttribution(
                 "Auto Attack",
                 GetAbilityOutgoingDamageSourceLabel(PowerSlashId),
+                1f);
+        }
+
+        if (_crusaderStrikeAttributionPending)
+        {
+            _crusaderStrikeAttributionPending = false;
+            return new PlayerCombatController.SwingOutgoingAttribution(
+                "Auto Attack",
+                GetAbilityOutgoingDamageSourceLabel(CrusaderStrikeId),
                 1f);
         }
 
@@ -370,6 +401,8 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         EndBladestormInstanceState();
+        ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: false);
+        ForceEndCrusaderStrikeCombo(applyCooldown: false);
         player?.SetTeleportDamageImmune(false);
         player?.SetAbilityChannelLock(false);
         if (_phoenixAshenRebirthImmunityRoutine != null)
@@ -390,6 +423,9 @@ public class PlayerAbilityController : MonoBehaviour
     private void Update()
     {
         TryAutoReleaseQueuedCrescentSlash();
+        TickWhirlwindChannel();
+        SyncWhirlwindHudBuff();
+        SyncCrusaderStrikeHudBuff();
         CleanupCleavingStrikesIfExpired();
         SyncCleavingStrikesHudBuff();
         CleanupLumberFrenzyIfExpired();
@@ -618,6 +654,12 @@ public class PlayerAbilityController : MonoBehaviour
             return;
         }
 
+        if (string.Equals(abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndCrusaderStrikeCombo(applyCooldown: false);
+            return;
+        }
+
         if (string.Equals(abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase))
         {
             if (_flameChargeRoutine != null)
@@ -659,6 +701,54 @@ public class PlayerAbilityController : MonoBehaviour
             return false;
 
         return buffController.ShouldDisplayHudAbilityBuffTimedPresentation(abilityId, out remainingSecondsForDisplay);
+    }
+
+    public bool TryGetForcedAutoBattleAbilityId(out string abilityId)
+    {
+        abilityId = null;
+        if (_crusaderStrikeComboStep <= 0 && !_crusaderStrikeQueued)
+            return false;
+        if (!_crusaderStrikeQueued && _crusaderStrikeComboStep >= CrusaderStrikeFinalComboStep)
+            return false;
+
+        abilityId = CrusaderStrikeId;
+        return true;
+    }
+
+    private void ForceEndCrusaderStrikeCombo(bool applyCooldown)
+    {
+        AbilityDefinition def = applyCooldown ? GetAbilityDefinition(CrusaderStrikeId) : null;
+        _crusaderStrikeComboStep = 0;
+        _crusaderStrikePrimedStage = 0;
+        _crusaderStrikeQueued = false;
+        _queuedCrusaderStrikeConsumedStage = 0;
+        _crusaderStrikeAttributionPending = false;
+        _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
+        if (buffController != null && buffController.IsHudAbilityBuffActive(CrusaderStrikeId))
+            buffController.ClearHudAbilityBuff(CrusaderStrikeId);
+        if (applyCooldown && def != null)
+            StartCooldown(def);
+    }
+
+    private void SyncCrusaderStrikeHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (_crusaderStrikeComboStep <= 0 || _crusaderStrikeComboStep >= CrusaderStrikeFinalComboStep)
+        {
+            if (buffController.IsHudAbilityBuffActive(CrusaderStrikeId))
+                buffController.ClearHudAbilityBuff(CrusaderStrikeId);
+            _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
+            return;
+        }
+
+        int stacks = Mathf.Clamp(_crusaderStrikeComboStep, 1, CrusaderStrikeFinalComboStep - 1);
+        if (_lastSyncedCrusaderStrikeHudStacks == stacks)
+            return;
+
+        _lastSyncedCrusaderStrikeHudStacks = stacks;
+        buffController.SetHudAbilityBuff(CrusaderStrikeId, stacks, 0f, 0f, persistActiveOverlay: true);
     }
 
     private void ForceEndCleavingStrikesBuffEarly()
@@ -1204,6 +1294,13 @@ public class PlayerAbilityController : MonoBehaviour
             return 1f;
 
         return GetBattleEngineOverloadEnergyCostMultiplier();
+    }
+
+    public void SetWhirlwindActionBarHeld(bool held)
+    {
+        _whirlwindActionBarHeld = held;
+        if (!held && _whirlwindChanneling && !_whirlwindAutoChanneling)
+            ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
     }
 
     private float GetBattleEngineOverloadDamageMultiplier()
@@ -1970,6 +2067,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (_finalSeveranceChanneling || _bladestormChanneling || _bladestormRoutine != null)
             return false;
 
+        if (_whirlwindChanneling && !string.Equals(abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
+            return false;
+
         if (player.IsDead || stats.IsDead)
             return false;
 
@@ -1987,6 +2087,8 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (TryHandleToggleAbilityUse(def))
             return true;
+
+        bool isWhirlwind = string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase);
 
         if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
             return TryUseCombatStarterAttack(def, showLockedFeedback);
@@ -2047,19 +2149,28 @@ public class PlayerAbilityController : MonoBehaviour
             if (_envenomQueued)
                 return false;
         }
+        if (string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_crusaderStrikeQueued)
+                return false;
+        }
         if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
         {
             if (_crescentSlashQueued)
                 return false;
         }
 
+        bool isCrusaderStrike = string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase);
         bool isCrescentSlash = string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase);
         bool isFinalSeverance = string.Equals(def.abilityId, FinalSeveranceId, StringComparison.OrdinalIgnoreCase);
         bool isExecutionersDescent = string.Equals(def.abilityId, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase);
         bool isBladestorm = string.Equals(def.abilityId, BladestormId, StringComparison.OrdinalIgnoreCase);
         bool isShadowStrike = string.Equals(def.abilityId, ShadowStrikeId, StringComparison.OrdinalIgnoreCase);
         bool isFlameCharge = string.Equals(def.abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase);
-        if (!AbilityDefersEnergyUntilActivated(def) && !TrySpendAbilityResourceCost(def, showLockedFeedback))
+        if (!isWhirlwind &&
+            !isCrusaderStrike &&
+            !AbilityDefersEnergyUntilActivated(def) &&
+            !TrySpendAbilityResourceCost(def, showLockedFeedback))
             return false;
 
         // Summon abilities: no current-target requirement (unlike the generic instant-hit block below).
@@ -2118,6 +2229,16 @@ public class PlayerAbilityController : MonoBehaviour
             if (_envenomQueued)
                 return false;
             _envenomQueued = true;
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (isCrusaderStrike)
+        {
+            if (!TryUseCrusaderStrike(def))
+                return false;
+
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -2214,22 +2335,17 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
-        if (string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
+        if (isWhirlwind)
         {
+            if (_whirlwindChanneling)
+                return true;
+
             if (requireWhirlwindTargetInRadius && !CanHitAnyEnemyWithWhirlwind())
                 return false;
 
-            if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
+            if (!TryStartWhirlwindChannel(def, showLockedFeedback, requireWhirlwindTargetInRadius))
                 return false;
 
-            bool usedWhirl = TryUseWhirlwind(def);
-            if (!usedWhirl)
-            {
-                RefundAbilityResourceCost(def);
-                return false;
-            }
-
-            StartCooldown(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -2466,69 +2582,108 @@ public class PlayerAbilityController : MonoBehaviour
 
     private bool TryUseWhirlwind(AbilityDefinition def)
     {
-        if (stats == null)
+        if (stats == null || def == null)
             return false;
 
-        int selectedChoice = GetWhirlwindSelectedChoice();
-        // Twin Cyclone (Lv18 choice index 0): second wave only when that upgrade is committed — not by default.
-        bool twinCyclone = selectedChoice == 0;
+        _whirlwindEnemiesInContactThisFrame.Clear();
 
-        float radius = GetWhirlwindEffectiveRadius();
+        float channelSeconds = GetWhirlwindChannelElapsedSeconds();
+        float radius = GetWhirlwindEffectiveRadius(channelSeconds);
+        float damageMultiplier = GetWhirlwindChannelDamageMultiplier(channelSeconds);
 
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
-        List<EnemyBaseController> targets = new List<EnemyBaseController>(allEnemies.Count);
         float ownerX = transform.position.x;
         float ownerHalf = GetOwnerHalfWidthX();
+        bool hadAnyTargetInRange = false;
         for (int i = 0; i < allEnemies.Count; i++)
         {
             EnemyBaseController enemy = allEnemies[i];
             if (!enemy || enemy.IsDead)
                 continue;
+
+            int enemyId = enemy.GetInstanceID();
             bool inRange = IsEnemyWithinWhirlRange(enemy, radius, ownerX, ownerHalf, out _);
-            if (inRange)
-                targets.Add(enemy);
-        }
-
-        player?.TriggerAttackAnimVisualOnly();
-        abilityVfx?.SpawnWhirlwind(radius);
-
-        if (targets.Count <= 0)
-            return true; // ability cast still consumes resources/cooldown.
-
-        List<(EnemyBaseController target, SplitDamage secondHitBase, float secondLightningMagNonCrit)> secondWaveTargets =
-            twinCyclone ? new List<(EnemyBaseController, SplitDamage, float)>(targets.Count) : null;
-
-        for (int i = 0; i < targets.Count; i++)
-        {
-            EnemyBaseController target = targets[i];
-            if (!target || target.IsDead)
+            if (!inRange)
                 continue;
 
-            BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
-            float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
-            SplitDamage rolled = new SplitDamage(
-                rolledNonCrit.physical * critMult,
-                rolledNonCrit.magic * critMult,
-                rolledNonCrit.corruptionDamage * critMult);
-            SplitDamage firstHit = rolled;
+            hadAnyTargetInRange = true;
+            _whirlwindEnemiesInContactThisFrame.Add(enemyId);
 
-            float lightningAfterCrit = lightningMagNonCrit * critMult;
-            float firstFrac = firstHit.magic > 1e-8f ? Mathf.Clamp01(lightningAfterCrit / firstHit.magic) : 0f;
+            if (_whirlwindNextHitTimeByEnemyId.TryGetValue(enemyId, out float nextHitAt) && Time.time + 0.0001f < nextHitAt)
+                continue;
 
-            DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, firstHit, wasCrit, firstFrac);
-            ApplyOnHitEffects(target, dealt);
-            if (twinCyclone && secondWaveTargets != null)
-            {
-                SplitDamage secondHitBase = rolledNonCrit * WhirlwindSecondHitMultiplier;
-                float secondLightningMagNonCrit = lightningMagNonCrit * WhirlwindSecondHitMultiplier;
-                secondWaveTargets.Add((target, secondHitBase, secondLightningMagNonCrit));
-            }
+            ApplyWhirlwindHitToTarget(enemy, def, damageMultiplier);
+            _whirlwindNextHitTimeByEnemyId[enemyId] = Time.time + AbilityCombatPower.WhirlwindChannelHitIntervalSeconds;
         }
 
-        if (twinCyclone && secondWaveTargets != null && secondWaveTargets.Count > 0)
-            StartCoroutine(ApplyTwinCycloneSecondWave(secondWaveTargets, radius));
+        CleanupWhirlwindContactCache();
+        if (!hadAnyTargetInRange)
+            return true;
 
         return true;
+    }
+
+    private void ApplyWhirlwindHitToTarget(EnemyBaseController target, AbilityDefinition def, float damageMultiplier)
+    {
+        if (target == null || target.IsDead || def == null || stats == null)
+            return;
+
+        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+        SplitDamage rolled = new SplitDamage(
+            rolledNonCrit.physical * critMult,
+            rolledNonCrit.magic * critMult,
+            rolledNonCrit.corruptionDamage * critMult);
+        SplitDamage firstHit = rolled * damageMultiplier;
+
+        float lightningAfterCrit = lightningMagNonCrit * critMult * damageMultiplier;
+        float firstFrac = firstHit.magic > 1e-8f ? Mathf.Clamp01(lightningAfterCrit / firstHit.magic) : 0f;
+
+        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, firstHit, wasCrit, firstFrac);
+        ApplyOnHitEffects(target, dealt);
+    }
+
+    private void CleanupWhirlwindContactCache()
+    {
+        if (_whirlwindNextHitTimeByEnemyId.Count == 0)
+            return;
+
+        _whirlwindContactRemovalBuffer.Clear();
+        foreach (int enemyId in _whirlwindNextHitTimeByEnemyId.Keys)
+        {
+            if (!_whirlwindEnemiesInContactThisFrame.Contains(enemyId))
+                _whirlwindContactRemovalBuffer.Add(enemyId);
+        }
+
+        for (int i = 0; i < _whirlwindContactRemovalBuffer.Count; i++)
+            _whirlwindNextHitTimeByEnemyId.Remove(_whirlwindContactRemovalBuffer[i]);
+    }
+
+    private bool TryUseCrusaderStrike(AbilityDefinition def)
+    {
+        if (def == null || stats == null)
+            return false;
+
+        if (_crusaderStrikeQueued)
+            return false;
+
+        if (!TrySpendAbilityResourceCost(def, showInsufficientFeedback: true))
+            return false;
+
+        int castStep = Mathf.Clamp(_crusaderStrikeComboStep + 1, 1, CrusaderStrikeFinalComboStep);
+        _crusaderStrikePrimedStage = castStep;
+        _crusaderStrikeQueued = true;
+        return true;
+    }
+
+    private static float GetCrusaderStrikeWeaponMultiplier(int castStep)
+    {
+        return castStep switch
+        {
+            1 => CrusaderStrikeFirstHitWeaponMultiplier,
+            2 => CrusaderStrikeSecondHitWeaponMultiplier,
+            _ => CrusaderStrikeFinalHitWeaponMultiplier
+        };
     }
 
     private IEnumerator CoFinalSeverance(AbilityDefinition def)
@@ -3782,11 +3937,17 @@ public class PlayerAbilityController : MonoBehaviour
         return false;
     }
 
-    private float GetWhirlwindEffectiveRadius()
+    private float GetWhirlwindEffectiveRadius(float channelSeconds = -1f)
     {
         int selectedChoice = GetWhirlwindSelectedChoice();
-        bool expansiveWhirl = selectedChoice == 1;
-        return GetWhirlwindHitRadius() + (expansiveWhirl ? WhirlwindRadiusBonus : 0f);
+        if (selectedChoice != 1)
+            return GetWhirlwindHitRadius();
+
+        if (channelSeconds < 0f)
+            channelSeconds = GetWhirlwindChannelElapsedSeconds();
+
+        return GetWhirlwindHitRadius() +
+               Mathf.Max(0f, channelSeconds) * AbilityCombatPower.WhirlwindExpansiveSizePerSecond;
     }
 
     private List<(EnemyBaseController enemy, float dist)> CollectCrescentSlashForwardHits(float reach)
@@ -3896,34 +4057,182 @@ public class PlayerAbilityController : MonoBehaviour
             burnTickIntervalSeconds: stats.BurnTickIntervalSeconds);
     }
 
-    private IEnumerator ApplyTwinCycloneSecondWave(List<(EnemyBaseController target, SplitDamage secondHitBase, float secondLightningMagNonCrit)> targets, float radius)
+    private bool TryStartWhirlwindChannel(
+        AbilityDefinition def,
+        bool showInsufficientFeedback,
+        bool autoBattleChannel)
     {
-        yield return new WaitForSeconds(WhirlwindTwinCycloneSecondHitDelay);
+        if (def == null || player == null || stats == null)
+            return false;
 
-        // Replay only the Whirlwind VFX; do not retrigger the attack animation on second wave.
+        _whirlwindChanneling = true;
+        _whirlwindAutoChanneling = autoBattleChannel;
+        _whirlwindChannelStartedAt = Time.time;
+        _whirlwindNextTickAt = Time.time + AbilityCombatPower.WhirlwindChannelHitIntervalSeconds;
+        _whirlwindNextVfxAt = Time.time + AbilityCombatPower.WhirlwindChannelVfxIntervalSeconds;
+        if (stats != null)
+            stats.AbilityChannelMoveSpeedMultiplier = 0.5f;
+
+        float channelSeconds = GetWhirlwindChannelElapsedSeconds();
+        float radius = GetWhirlwindEffectiveRadius(channelSeconds);
         abilityVfx?.SpawnWhirlwind(radius);
 
-        if (targets == null || targets.Count == 0)
-            yield break;
+        if (TrySpendWhirlwindChannelEnergy(def, showInsufficientFeedback) && TryUseWhirlwind(def))
+            return true;
 
-        for (int i = 0; i < targets.Count; i++)
+        ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: false);
+        return false;
+    }
+
+    private void TickWhirlwindChannel()
+    {
+        if (!_whirlwindChanneling)
+            return;
+
+        if (player == null || stats == null || player.IsDead || stats.IsDead)
         {
-            EnemyBaseController target = targets[i].target;
-            if (!target || target.IsDead)
-                continue;
-
-            SplitDamage secondHit = targets[i].secondHitBase;
-            float secondLightningBase = targets[i].secondLightningMagNonCrit;
-            bool secondWasCrit = TryRollIndependentCrit(ref secondHit);
-            float crit2 = secondWasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
-            float lightningSecond = secondLightningBase * crit2;
-            float secondFrac = secondHit.magic > 1e-8f ? Mathf.Clamp01(lightningSecond / secondHit.magic) : 0f;
-            AbilityDefinition whirlDef = GetAbilityDefinition(WhirlwindId);
-            DealtHit dealtSecond = whirlDef != null
-                ? ApplyAbilitySplitDamageToEnemy(target, whirlDef, secondHit, secondWasCrit, secondFrac)
-                : ApplySplitDamageToEnemy(target, secondHit, secondWasCrit, secondFrac);
-            ApplyOnHitEffects(target, dealtSecond); // Re-triggers on-hit effects.
+            ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: false);
+            return;
         }
+
+        AbilityDefinition def = GetAbilityDefinition(WhirlwindId);
+        if (!def || !IsAbilityAllowedBySkillProgress(def) || !CanUseWithEquippedWeapon(def))
+        {
+            ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: false);
+            return;
+        }
+
+        if (!_whirlwindAutoChanneling && !_whirlwindActionBarHeld)
+        {
+            ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+            return;
+        }
+
+        if (_whirlwindAutoChanneling && !CanHitAnyEnemyWithWhirlwind())
+        {
+            ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+            return;
+        }
+
+        float channelSeconds = GetWhirlwindChannelElapsedSeconds();
+        float currentRadius = GetWhirlwindEffectiveRadius(channelSeconds);
+        while (_whirlwindChanneling && Time.time >= _whirlwindNextVfxAt)
+        {
+            abilityVfx?.SpawnWhirlwind(currentRadius);
+            _whirlwindNextVfxAt += AbilityCombatPower.WhirlwindChannelVfxIntervalSeconds;
+        }
+
+        while (_whirlwindChanneling && Time.time >= _whirlwindNextTickAt)
+        {
+            if (_whirlwindAutoChanneling && !CanHitAnyEnemyWithWhirlwind())
+            {
+                ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+                return;
+            }
+
+            if (!TrySpendWhirlwindChannelEnergy(def, showInsufficientFeedback: false) || !TryUseWhirlwind(def))
+            {
+                ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+                return;
+            }
+
+            _whirlwindNextTickAt += AbilityCombatPower.WhirlwindChannelHitIntervalSeconds;
+        }
+    }
+
+    private bool TrySpendWhirlwindChannelEnergy(AbilityDefinition def, bool showInsufficientFeedback)
+    {
+        if (player == null || stats == null)
+            return false;
+
+        float cost = GetWhirlwindChannelEnergyCostPerTick(def);
+        if (cost <= 0f)
+            return true;
+
+        if (stats.Energy + 0.0001f < cost)
+        {
+            if (showInsufficientFeedback)
+                player.ShowPopup("Not enough energy.");
+            return false;
+        }
+
+        return player.SpendEnergy(cost);
+    }
+
+    private float GetWhirlwindChannelEnergyCostPerTick(AbilityDefinition def)
+    {
+        return GetWhirlwindChannelEnergyPerSecond(def) * AbilityCombatPower.WhirlwindChannelHitIntervalSeconds;
+    }
+
+    private float GetWhirlwindBaseChannelEnergyPerSecond(AbilityDefinition def)
+    {
+        if (def == null)
+            return 0f;
+
+        float baseCost = Mathf.Max(0f, def.energyCost);
+        if (GetWhirlwindSelectedChoice() == 0)
+            baseCost = Mathf.Max(0f, baseCost - AbilityCombatPower.WhirlwindTwinCycloneChannelCostReductionPerSecond);
+
+        return baseCost;
+    }
+
+    private float GetWhirlwindChannelEnergyPerSecond(AbilityDefinition def)
+    {
+        float baseCost = GetWhirlwindBaseChannelEnergyPerSecond(def);
+        return Mathf.Max(0f, baseCost * GetBattleEngineOverloadEnergyCostMultiplier());
+    }
+
+    private float GetWhirlwindChannelElapsedSeconds()
+    {
+        if (!_whirlwindChanneling)
+            return 0f;
+
+        return Mathf.Max(0f, Time.time - _whirlwindChannelStartedAt);
+    }
+
+    private float GetWhirlwindChannelDamageMultiplier(float channelSeconds)
+    {
+        if (GetWhirlwindSelectedChoice() != 1)
+            return 1f;
+
+        return 1f + Mathf.Max(0f, channelSeconds) * AbilityCombatPower.WhirlwindExpansiveDamagePerSecond;
+    }
+
+    private void SyncWhirlwindHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!_whirlwindChanneling)
+        {
+            if (buffController.IsHudAbilityBuffActive(WhirlwindId))
+                buffController.ClearHudAbilityBuff(WhirlwindId);
+            return;
+        }
+
+        int stacks = Mathf.Clamp(1 + Mathf.FloorToInt(GetWhirlwindChannelElapsedSeconds()), 1, WhirlwindMaxChannelStacks);
+        buffController.SetHudAbilityBuff(WhirlwindId, stacks, 0f, 0f, persistActiveOverlay: true);
+    }
+
+    private void ForceEndWhirlwindChannel(bool clearHeldState, bool applyCooldown)
+    {
+        AbilityDefinition def = applyCooldown ? GetAbilityDefinition(WhirlwindId) : null;
+        _whirlwindChanneling = false;
+        _whirlwindAutoChanneling = false;
+        _whirlwindChannelStartedAt = 0f;
+        _whirlwindNextTickAt = 0f;
+        _whirlwindNextVfxAt = 0f;
+        _whirlwindNextHitTimeByEnemyId.Clear();
+        _whirlwindEnemiesInContactThisFrame.Clear();
+        _whirlwindContactRemovalBuffer.Clear();
+        if (stats != null)
+            stats.AbilityChannelMoveSpeedMultiplier = 1f;
+        if (clearHeldState)
+            _whirlwindActionBarHeld = false;
+        if (buffController != null && buffController.IsHudAbilityBuffActive(WhirlwindId))
+            buffController.ClearHudAbilityBuff(WhirlwindId);
+        if (applyCooldown && def != null)
+            StartCooldown(def);
     }
 
     private float GetOwnerHalfWidthX()
@@ -4265,6 +4574,34 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
+        if (_crusaderStrikeQueued)
+        {
+            int castStep = Mathf.Clamp(_crusaderStrikePrimedStage, 1, CrusaderStrikeFinalComboStep);
+            float weaponMultiplier = GetCrusaderStrikeWeaponMultiplier(castStep);
+
+            _crusaderStrikeQueued = false;
+            _crusaderStrikePrimedStage = 0;
+            _queuedCrusaderStrikeConsumedStage = castStep;
+            _queuedConsumedThisHit = QueuedHitEffect.CrusaderStrike;
+            _queuedConsumedFrame = Time.frameCount;
+            _crusaderStrikeAttributionPending = true;
+
+            float scaledPhysical = Mathf.Max(0f, rolled.physical * weaponMultiplier);
+            if (castStep >= CrusaderStrikeFinalComboStep)
+            {
+                rolled.physical = 0f;
+                rolled.magic = scaledPhysical;
+                rolled.corruptionDamage = 0f;
+            }
+            else
+            {
+                rolled.physical = scaledPhysical;
+                rolled.magic = 0f;
+                rolled.corruptionDamage = 0f;
+            }
+            return true;
+        }
+
         return false;
     }
 
@@ -4340,16 +4677,22 @@ public class PlayerAbilityController : MonoBehaviour
     /// Called by <see cref="PlayerCombatController"/> after a hit lands, to apply queued on-hit logic that needs the target.
     /// Returns suppression flags for the default bleed/poison application.
     /// </summary>
-    public QueuedHitEffectResult ConsumeQueuedHitEffects(EnemyBaseController target, float physicalDealt, float corruptionDealtPostMitigation)
+    public QueuedHitEffectResult ConsumeQueuedHitEffects(
+        EnemyBaseController target,
+        float physicalDealt,
+        float corruptionDealtPostMitigation,
+        float magicDealtPostMitigation)
     {
         QueuedHitEffectResult result = default;
         if (target == null || target.IsDead)
             return result;
 
         // Melee resolves damage on the same frame as TryConsumeQueuedAttackModifier; ranged/projectile hits
-        // often land later, so Rend/Envenom must not require the same frame.
+        // often land later, so queued follow-up effects that need the landed hit must not require the same frame.
         bool requiresSameFrameAsConsume =
-            _queuedConsumedThisHit != QueuedHitEffect.Rend && _queuedConsumedThisHit != QueuedHitEffect.Envenom;
+            _queuedConsumedThisHit != QueuedHitEffect.Rend &&
+            _queuedConsumedThisHit != QueuedHitEffect.Envenom &&
+            _queuedConsumedThisHit != QueuedHitEffect.CrusaderStrike;
         if (requiresSameFrameAsConsume && _queuedConsumedFrame != Time.frameCount)
             return result;
 
@@ -4392,10 +4735,58 @@ public class PlayerAbilityController : MonoBehaviour
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
         }
+        else if (_queuedConsumedThisHit == QueuedHitEffect.CrusaderStrike)
+        {
+            int consumedStage = _queuedCrusaderStrikeConsumedStage;
+            if ((physicalDealt > 0f || magicDealtPostMitigation > 0f) && abilityVfx != null)
+                abilityVfx.SpawnCrusaderStrikeBeam(target.transform.position, consumedStage >= CrusaderStrikeFinalComboStep);
+
+            if (consumedStage == 1 || consumedStage == 2)
+            {
+                if (physicalDealt > 0f && player != null && stats != null)
+                    player.Heal(stats.MaxHP * CrusaderStrikeHealFractionOfMaxHealth);
+            }
+            else if (consumedStage >= CrusaderStrikeFinalComboStep)
+            {
+                result.suppressDefaultElementalMagicAilment = true;
+                TryApplyCrusaderStrikeFinalBurn(target, magicDealtPostMitigation);
+                _crusaderStrikeComboStep = 0;
+                _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
+                SyncCrusaderStrikeHudBuff();
+                AbilityDefinition def = GetAbilityDefinition(CrusaderStrikeId);
+                if (def)
+                    StartCooldown(def);
+            }
+            else
+            {
+                _crusaderStrikeComboStep = consumedStage;
+                _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
+                SyncCrusaderStrikeHudBuff();
+            }
+
+            _queuedCrusaderStrikeConsumedStage = 0;
+        }
 
         _queuedConsumedThisHit = QueuedHitEffect.None;
         _queuedConsumedFrame = -1;
         return result;
+    }
+
+    private void TryApplyCrusaderStrikeFinalBurn(EnemyBaseController target, float fireDamageDealt)
+    {
+        if (target == null || stats == null || fireDamageDealt <= 0f)
+            return;
+
+        AilmentController ailments = target.GetComponent<AilmentController>();
+        if (ailments == null)
+            return;
+
+        ailments.TryApplyBurnFromFireHit(
+            fireDamageDealt,
+            stats.BurnApplyChance,
+            stats.BurnExplosionMultiplier,
+            transform,
+            burnTickIntervalSeconds: stats.BurnTickIntervalSeconds);
     }
 
     private void TryApplyRendBleed(EnemyBaseController target, float physicalDealt)
@@ -5742,6 +6133,9 @@ public class PlayerAbilityController : MonoBehaviour
             return GetFlameChargeReadyChargeCount();
         }
 
+        if (string.Equals(abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
+            return _crusaderStrikeComboStep >= CrusaderStrikeFinalComboStep ? 0 : Mathf.Max(0, _crusaderStrikeComboStep);
+
         return 0;
     }
 
@@ -5813,6 +6207,8 @@ public class PlayerAbilityController : MonoBehaviour
             return _envenomQueued;
         if (string.Equals(abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return _crescentSlashQueued;
+        if (string.Equals(abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
+            return _crusaderStrikeQueued;
 
         return false;
     }
@@ -5893,6 +6289,18 @@ public class PlayerAbilityController : MonoBehaviour
             _cleavingChopCooldownAbilityDef = null;
             _lastSyncedCleavingChopHudEnd = float.NaN;
             buffController?.ClearHudAbilityBuff(CleavingChopId);
+            return;
+        }
+
+        if (string.Equals(id, WhirlwindId, StringComparison.OrdinalIgnoreCase) && _whirlwindChanneling)
+        {
+            ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: false);
+            return;
+        }
+
+        if (string.Equals(id, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase) && _crusaderStrikeComboStep > 0)
+        {
+            ForceEndCrusaderStrikeCombo(applyCooldown: false);
             return;
         }
 

@@ -815,7 +815,13 @@ public class EnemyBaseController : MonoBehaviour
         if (_playerController != null)
         {
             PlayerCombatController combat = _playerController.GetComponent<PlayerCombatController>();
-            if (combat != null)
+            CharacterStats playerStats = _playerController.GetComponent<CharacterStats>();
+            bool riposteParry = playerStats != null && playerStats.GetParryEnhancementPick() == 0;
+            bool reservedBlock = false;
+            if (playerStats != null && hit.physical > 0f)
+                reservedBlock = playerStats.TryReserveNextIncomingPhysicalBlock();
+
+            if (combat != null && (!reservedBlock || riposteParry))
                 combat.TryProcessParryOnEnemyHit(this, ref hit, wasCrit);
         }
 

@@ -40,6 +40,19 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.05f)] private float parrySlashDuration = 0.2f;
     [SerializeField] private Vector3 parrySlashHeightOffset = new Vector3(0f, 0.55f, 0f);
 
+    [Header("Crusader Strike (Melee) VFX")]
+    [SerializeField] private Color crusaderStrikeBeamOuterColor = new Color(1f, 0.7f, 0.16f, 0.9f);
+    [SerializeField] private Color crusaderStrikeBeamInnerColor = new Color(1f, 0.95f, 0.5f, 0.95f);
+    [SerializeField] private Color crusaderStrikeBeamFinalColor = new Color(1f, 0.5f, 0.08f, 0.95f);
+    [SerializeField, Min(0.05f)] private float crusaderStrikeBeamDuration = 0.18f;
+    [SerializeField, Min(0.1f)] private float crusaderStrikeBeamSkyHeight = 3.1f;
+    [SerializeField, Min(0f)] private float crusaderStrikeBeamBehindPlayerX = 1.15f;
+    [SerializeField, Min(0f)] private float crusaderStrikeBeamBehindPlayerY = 0.9f;
+    [SerializeField, Min(0.01f)] private float crusaderStrikeBeamOuterWidth = 0.18f;
+    [SerializeField, Min(0.005f)] private float crusaderStrikeBeamInnerWidth = 0.08f;
+    [SerializeField] private Vector3 crusaderStrikeBeamCenterOffset = new Vector3(0f, 0.55f, 0f);
+    [SerializeField, Min(0f)] private float crusaderStrikeBeamImpactFlareWidth = 0.65f;
+
     [Header("Whirlwind (Melee) VFX")]
     [SerializeField] private Color whirlingBladeColor = new Color(1f, 0.88f, 0.22f, 0.95f);
     [SerializeField, Min(0.01f)] private float whirlingBladeDuration = 0.22f;
@@ -52,6 +65,10 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Range(0f, 0.25f)] private float whirlingBladeOrbitVerticalScale = 0.08f;
     [SerializeField, Min(0f)] private float whirlingBladeUpwardDrift = 0.14f;
     [SerializeField, Min(0f)] private float whirlingBladeVerticalWave = 0.06f;
+    [SerializeField, Min(0f)] private float whirlingBladeSpawnVerticalJitter = 0.02f;
+    [SerializeField, Min(0f)] private float whirlingBladePerTrailVerticalCenterSpread = 0.08f;
+    [SerializeField, Range(0f, 1f)] private float whirlingBladePerTrailVerticalScaleJitter = 0.18f;
+    [SerializeField, Min(0f)] private float whirlingBladePerTrailTiltHeight = 3f;
 
     [Header("Crescent Slash (Melee) VFX")]
     [SerializeField] private Color crescentSlashColor = new Color(0.55f, 0.95f, 1f, 0.9f);
@@ -356,14 +373,25 @@ public class PlayerAbilityVfxController : MonoBehaviour
         var emitters = new Transform[slashCount];
         var trails = new TrailRenderer[slashCount];
         var phases = new float[slashCount];
+        var centerOffsetsY = new float[slashCount];
+        var verticalScaleMultipliers = new float[slashCount];
+        var tiltHeights = new float[slashCount];
 
         GameObject root = new GameObject("WhirlwindBlades");
-        root.transform.position = center.position + whirlingBladeCenterOffset;
+        float spawnYOffset = UnityEngine.Random.Range(-whirlingBladeSpawnVerticalJitter, whirlingBladeSpawnVerticalJitter);
+        root.transform.position = center.position + whirlingBladeCenterOffset + Vector3.up * spawnYOffset;
 
         for (int i = 0; i < slashCount; i++)
         {
-            phases[i] = (i / (float)slashCount) * Mathf.PI * 2f;
+            phases[i] = i / (float)slashCount;
             float widthScale = 0.82f + 0.18f * (1f - Mathf.Abs((i / (float)slashCount) - 0.5f) * 2f);
+            float lane = slashCount <= 1 ? 0f : ((i / (float)(slashCount - 1)) * 2f - 1f);
+            centerOffsetsY[i] =
+                lane * whirlingBladePerTrailVerticalCenterSpread * 0.35f
+                + Mathf.Sin((i + 1f) * 1.37f) * whirlingBladePerTrailVerticalCenterSpread * 0.18f;
+            verticalScaleMultipliers[i] =
+                1f + Mathf.Cos((i + 1f) * 1.11f) * whirlingBladePerTrailVerticalScaleJitter;
+            tiltHeights[i] = ResolveWhirlwindTrailTiltFactor(i) * whirlingBladePerTrailTiltHeight;
 
             GameObject orbitGO = new GameObject($"WhirlwindSlash_{i}");
             orbitGO.transform.SetParent(root.transform, false);
@@ -378,7 +406,10 @@ public class PlayerAbilityVfxController : MonoBehaviour
             center,
             radius,
             startDir.x,
-            phases));
+            phases,
+            centerOffsetsY,
+            verticalScaleMultipliers,
+            tiltHeights));
     }
 
     private TrailRenderer CreateWhirlwindBladeTrail(GameObject owner, float widthScale, int sortingOrderOffsetFromPlayer)
@@ -388,10 +419,17 @@ public class PlayerAbilityVfxController : MonoBehaviour
         trail.minVertexDistance = 0.003f;
         trail.widthMultiplier = Mathf.Max(0.01f, whirlingBladeLineWidth * widthScale);
         trail.numCornerVertices = 4;
-        trail.numCapVertices = 4;
+        trail.numCapVertices = 0;
         trail.alignment = LineAlignment.TransformZ;
         trail.textureMode = LineTextureMode.Stretch;
         trail.material = new Material(Shader.Find("Sprites/Default"));
+        trail.widthCurve = new AnimationCurve(
+            new Keyframe(0f, 0f),
+            new Keyframe(0.06f, 0.06f),
+            new Keyframe(0.2f, 1f),
+            new Keyframe(0.8f, 1f),
+            new Keyframe(0.94f, 0.06f),
+            new Keyframe(1f, 0f));
         if (!TryApplyPlayerSpriteSortingToRenderer(trail, sortingOrderOffsetFromPlayer))
             trail.sortingOrder = 18 + sortingOrderOffsetFromPlayer;
         trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -679,7 +717,10 @@ public class PlayerAbilityVfxController : MonoBehaviour
         Transform center,
         float radius,
         float facingSignX,
-        float[] phases)
+        float[] phases,
+        float[] centerOffsetsY,
+        float[] verticalScaleMultipliers,
+        float[] tiltHeights)
     {
         if (root == null || emitters == null || center == null)
             yield break;
@@ -688,7 +729,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         float elapsed = 0f;
         float width = Mathf.Max(0.01f, whirlingBladeLineWidth);
         float visualRadius = Mathf.Max(0.05f, radius - (width * 0.5f));
-        float spinRad = Mathf.Abs(whirlingBladeSpinDegrees) * Mathf.Deg2Rad;
+        float spinCycles = Mathf.Max(1f, Mathf.Abs(whirlingBladeSpinDegrees) / 360f);
         float facingSign = Mathf.Sign(facingSignX == 0f ? 1f : facingSignX);
         int count = emitters.Length;
 
@@ -707,8 +748,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
                     t,
                     visualRadius,
                     phases[i],
-                    spinRad,
+                    spinCycles,
                     facingSign,
+                    centerOffsetsY != null && i < centerOffsetsY.Length ? centerOffsetsY[i] : 0f,
+                    verticalScaleMultipliers != null && i < verticalScaleMultipliers.Length ? verticalScaleMultipliers[i] : 1f,
+                    tiltHeights != null && i < tiltHeights.Length ? tiltHeights[i] : 0f,
                     out float x,
                     out float y);
                 emitter.position = basePos + new Vector3(x, y, 0f);
@@ -732,41 +776,65 @@ public class PlayerAbilityVfxController : MonoBehaviour
     }
 
     /// <summary>
-    /// Flat horizontal circle around the player (side-view orbit on X). Multiple slash trails use different phase offsets on the same path.
+    /// Layered side-view sweep around the player. Each trail uses a different phase/arc so the stack reads as
+    /// overlapping cyclone motion instead of clean concentric rings.
     /// </summary>
     private void EvaluateWhirlwindHorizontalSlashOrbit(
         float normalizedTime,
         float visualRadius,
         float phaseOffset,
-        float spinRadians,
+        float spinCycles,
         float facingSign,
+        float centerOffsetY,
+        float verticalScaleMultiplier,
+        float tiltHeight,
         out float x,
         out float y)
     {
-        float angle = phaseOffset + spinRadians * normalizedTime;
-        x = Mathf.Cos(angle) * visualRadius * facingSign;
-        float verticalScale = Mathf.Max(0f, whirlingBladeOrbitVerticalScale);
-        y = Mathf.Sin(angle) * visualRadius * verticalScale;
-        y += Mathf.Sin(angle * 2f) * whirlingBladeVerticalWave * 0.5f;
-        y += normalizedTime * whirlingBladeUpwardDrift * 0.2f;
+        float t = Mathf.Repeat(normalizedTime * Mathf.Max(1f, spinCycles) + phaseOffset, 1f);
+        float angle = t * Mathf.PI * 2f;
+        float spinScale = Mathf.Max(0.2f, verticalScaleMultiplier);
+        float orbitArcScale = Mathf.Lerp(0.2f, 1f, Mathf.Clamp01(whirlingBladeOrbitVerticalScale / 0.25f));
+
+        x = Mathf.Cos(angle) * visualRadius * Mathf.Sign(facingSign == 0f ? 1f : facingSign);
+        y = Mathf.Sin(angle) * visualRadius * whirlingBladeOrbitVerticalScale * spinScale;
+        y += Mathf.Sin(angle * 2f) * whirlingBladeVerticalWave * 0.35f * spinScale * orbitArcScale;
+        y += Mathf.Sin(angle) * whirlingBladeUpwardDrift * 0.15f * orbitArcScale;
+        float xNorm = visualRadius > 0.0001f ? Mathf.Clamp(x / visualRadius, -1f, 1f) : 0f;
+        y += -xNorm * tiltHeight;
+        y += centerOffsetY;
+    }
+
+    private static float ResolveWhirlwindTrailTiltFactor(int index)
+    {
+        return index switch
+        {
+            0 => 0f,
+            1 => 1f,
+            2 => -1f,
+            3 => 0.5f,
+            4 => -0.5f,
+            _ => index % 2 == 0 ? -0.75f : 0.75f
+        };
     }
 
     /// <summary>Same horizontal figure-eight as Whirlwind: t in [0,1], x/y offset from sweep center.</summary>
     private void EvaluateWhirlwindStyleSweep(float t, float visualRadius, float spinScale, float startDirX, out float x, out float y)
     {
+        float orbitArcScale = Mathf.Lerp(0.2f, 1f, Mathf.Clamp01(whirlingBladeOrbitVerticalScale / 0.25f));
         if (t < 0.5f)
         {
             float p = t / 0.5f;
             x = Mathf.Lerp(visualRadius, -visualRadius, p);
-            y = Mathf.Lerp(0f, -whirlingBladeUpwardDrift, p);
-            y += Mathf.Sin(p * Mathf.PI) * whirlingBladeVerticalWave * spinScale;
+            y = Mathf.Lerp(0f, -whirlingBladeUpwardDrift * orbitArcScale, p);
+            y += Mathf.Sin(p * Mathf.PI) * whirlingBladeVerticalWave * spinScale * orbitArcScale;
         }
         else
         {
             float p = (t - 0.5f) / 0.5f;
             x = Mathf.Lerp(-visualRadius, visualRadius * 0.92f, p);
-            y = Mathf.Lerp(-whirlingBladeUpwardDrift, whirlingBladeUpwardDrift * 0.35f, p);
-            y += Mathf.Sin(p * Mathf.PI) * (whirlingBladeVerticalWave * 0.65f) * spinScale;
+            y = Mathf.Lerp(-whirlingBladeUpwardDrift * orbitArcScale, whirlingBladeUpwardDrift * 0.35f * orbitArcScale, p);
+            y += Mathf.Sin(p * Mathf.PI) * (whirlingBladeVerticalWave * 0.65f) * spinScale * orbitArcScale;
         }
 
         x *= Mathf.Sign(startDirX == 0f ? 1f : startDirX);
@@ -982,6 +1050,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
             objectName: "ParrySlash");
     }
 
+    public void SpawnCrusaderStrikeBeam(Vector3 enemyWorld, bool finalStrike)
+    {
+        StartCoroutine(CoCrusaderStrikeBeam(enemyWorld, finalStrike));
+    }
+
     /// <summary>Parry-style yellow slash on each Relentless Execution (Bladestorm) hit.</summary>
     public void SpawnBladestormHitSlash(Vector3 playerWorld, Vector3 enemyWorld)
     {
@@ -993,6 +1066,67 @@ public class PlayerAbilityVfxController : MonoBehaviour
             bladestormHitSlashHalfLength,
             sortingOrderBump: 16,
             objectName: "BladestormHitSlash");
+    }
+
+    private IEnumerator CoCrusaderStrikeBeam(Vector3 enemyWorld, bool finalStrike)
+    {
+        float facingSign = GetCombatFacingSign();
+        if (Mathf.Abs(facingSign) < 0.01f)
+            facingSign = 1f;
+
+        Vector3 playerWorld = player != null ? player.transform.position : transform.position;
+        Vector3 impact = enemyWorld + crusaderStrikeBeamCenterOffset;
+        Vector3 originBase =
+            playerWorld +
+            Vector3.right * (-facingSign * crusaderStrikeBeamBehindPlayerX) +
+            Vector3.up * crusaderStrikeBeamBehindPlayerY;
+
+        float duration = Mathf.Max(0.05f, crusaderStrikeBeamDuration);
+        Color coreColor = finalStrike ? crusaderStrikeBeamFinalColor : crusaderStrikeBeamInnerColor;
+        Color outerColor = finalStrike
+            ? Color.Lerp(crusaderStrikeBeamOuterColor, crusaderStrikeBeamFinalColor, 0.55f)
+            : crusaderStrikeBeamOuterColor;
+
+        GameObject root = new GameObject(finalStrike ? "CrusaderStrikeFinalBeam" : "CrusaderStrikeBeam");
+        LineRenderer outer = root.AddComponent<LineRenderer>();
+        LineRenderer inner = root.AddComponent<LineRenderer>();
+        LineRenderer flare = root.AddComponent<LineRenderer>();
+
+        ConfigureCrusaderBeamRenderer(outer, Mathf.Max(0.01f, crusaderStrikeBeamOuterWidth), outerColor, 18);
+        ConfigureCrusaderBeamRenderer(inner, Mathf.Max(0.005f, crusaderStrikeBeamInnerWidth), coreColor, 19);
+        ConfigureCrusaderBeamRenderer(flare, Mathf.Max(0.01f, crusaderStrikeBeamOuterWidth * 0.55f), coreColor, 20);
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float alpha = 1f - t;
+            float shrink = Mathf.Lerp(1f, 0.5f, t);
+            float skyDrop = Mathf.Lerp(crusaderStrikeBeamSkyHeight, crusaderStrikeBeamSkyHeight * 0.45f, t);
+            float lateralTighten = Mathf.Lerp(1f, 0.78f, t);
+            Vector3 origin =
+                originBase +
+                Vector3.right * (-facingSign * 0.35f * lateralTighten) +
+                Vector3.up * skyDrop;
+            Vector3 end = impact + Vector3.down * Mathf.Lerp(0.22f, 0.08f, t);
+
+            SetCrusaderBeamSegment(outer, origin, end, WithAlpha(outerColor, outerColor.a * alpha), crusaderStrikeBeamOuterWidth * shrink);
+            SetCrusaderBeamSegment(inner, origin, end, WithAlpha(coreColor, coreColor.a * alpha), crusaderStrikeBeamInnerWidth * shrink);
+
+            float flareHalfWidth = crusaderStrikeBeamImpactFlareWidth * Mathf.Lerp(1f, 0.35f, t);
+            Vector3 flareCenter = impact + Vector3.down * 0.18f;
+            SetCrusaderBeamSegment(
+                flare,
+                flareCenter + Vector3.left * flareHalfWidth,
+                flareCenter + Vector3.right * flareHalfWidth,
+                WithAlpha(coreColor, coreColor.a * alpha * 0.85f),
+                crusaderStrikeBeamInnerWidth * 0.8f * shrink);
+
+            yield return null;
+        }
+
+        Destroy(root);
     }
 
     /// <summary>Larger finale slash (same style as channel hits).</summary>
@@ -1068,6 +1202,43 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
         StartCoroutine(CoMeleeSlashSegment(
             start, end, color, lineWidth, durationSeconds, sortingOrderBump, objectName));
+    }
+
+    private void ConfigureCrusaderBeamRenderer(LineRenderer line, float width, Color color, int sortingOrderBump)
+    {
+        if (line == null)
+            return;
+
+        line.useWorldSpace = true;
+        line.positionCount = 2;
+        line.startWidth = width;
+        line.endWidth = width;
+        line.numCornerVertices = 2;
+        line.numCapVertices = 2;
+        line.material = new Material(Shader.Find("Sprites/Default"));
+        line.startColor = color;
+        line.endColor = color;
+        if (!TryApplyPlayerSpriteSortingToRenderer(line, sortingOrderBump))
+            line.sortingOrder = 24 + sortingOrderBump;
+    }
+
+    private static void SetCrusaderBeamSegment(LineRenderer line, Vector3 start, Vector3 end, Color color, float width)
+    {
+        if (line == null)
+            return;
+
+        line.startColor = color;
+        line.endColor = color;
+        line.startWidth = Mathf.Max(0.005f, width);
+        line.endWidth = Mathf.Max(0.005f, width);
+        line.SetPosition(0, start);
+        line.SetPosition(1, end);
+    }
+
+    private static Color WithAlpha(Color color, float alpha)
+    {
+        color.a = Mathf.Clamp01(alpha);
+        return color;
     }
 
     private IEnumerator CoMeleeSlashSegment(

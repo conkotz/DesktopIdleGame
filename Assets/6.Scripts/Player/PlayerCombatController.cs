@@ -957,6 +957,33 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 nonFlameSlots++;
         }
 
+        if (abilityController.TryGetForcedAutoBattleAbilityId(out string forcedAbilityId) &&
+            !string.IsNullOrWhiteSpace(forcedAbilityId))
+        {
+            for (int i = 0; i < orderedSlots.Count; i++)
+            {
+                var forcedSlot = orderedSlots[i];
+                var forcedAction = forcedSlot.AssignedAction;
+                if (forcedAction == null || !forcedAction.IsAssigned || !forcedAction.IsAbility)
+                    continue;
+                if (!string.Equals(forcedAction.id, forcedAbilityId, System.StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!forcedSlot.CanAccept(forcedAction))
+                    return;
+
+                bool forcedUsed = abilityController.TryUseAbility(
+                    forcedAction.id,
+                    showLockedFeedback: false,
+                    allowSoulforgedRecastWhileActive: false,
+                    requireCrescentSlashTargetInFacingLane: true,
+                    requireWhirlwindTargetInRadius: true);
+
+                if (forcedUsed)
+                    _autoBattleAbilityRoundRobinIndex = i;
+                return;
+            }
+        }
+
         int start = (_autoBattleAbilityRoundRobinIndex + 1 + orderedSlots.Count) % orderedSlots.Count;
         for (int attempt = 0; attempt < orderedSlots.Count; attempt++)
         {
@@ -1334,7 +1361,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         SplitDamage original = incomingHit;
-        float reflectFrac = AbilityCombatPower.ParryDamageReductionFraction;
+        float reflectFrac = stats.GetParryMitigationFraction();
         SplitDamage reflected = BuildParryReflectDamage(original, reflectFrac);
         incomingHit = original * (1f - reflectFrac);
         ApplyParryReflectDamage(attacker, reflected, incomingWasCrit);
@@ -1472,14 +1499,20 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         bool suppressBleed = false;
         bool suppressPoison = false;
+        bool suppressElementalMagicAilment = false;
         bool triggerCrescentSlash = false;
         bool crescentAppliesElemental = false;
         bool crescentPenetrating = false;
         if (abilityController != null)
         {
-            var queued = abilityController.ConsumeQueuedHitEffects(targetToHit, dealt.physical, dealt.corruptionDamage);
+            var queued = abilityController.ConsumeQueuedHitEffects(
+                targetToHit,
+                dealt.physical,
+                dealt.corruptionDamage,
+                dealt.magic);
             suppressBleed = queued.suppressDefaultBleed;
             suppressPoison = queued.suppressDefaultPoison;
+            suppressElementalMagicAilment = queued.suppressDefaultElementalMagicAilment;
             triggerCrescentSlash = queued.triggerCrescentSlash;
             crescentAppliesElemental = queued.crescentAppliesElemental;
             crescentPenetrating = queued.crescentPenetrating;
@@ -1491,7 +1524,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 TryApplyBleed(targetToHit, dealt);
             if (!suppressPoison)
                 TryApplyPoison(targetToHit, dealt);
-            TryApplyElementalMagicAilment(targetToHit, dealt);
+            if (!suppressElementalMagicAilment)
+                TryApplyElementalMagicAilment(targetToHit, dealt);
             TryApplyMeleeShock(targetToHit, dealt);
         }
 
@@ -1533,7 +1567,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                     TryApplyBleed(targetToHit, doubleDealt);
                 if (!suppressPoison)
                     TryApplyPoison(targetToHit, doubleDealt);
-                TryApplyElementalMagicAilment(targetToHit, doubleDealt);
+                if (!suppressElementalMagicAilment)
+                    TryApplyElementalMagicAilment(targetToHit, doubleDealt);
                 TryApplyMeleeShock(targetToHit, doubleDealt);
             }
 

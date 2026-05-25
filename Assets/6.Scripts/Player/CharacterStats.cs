@@ -272,6 +272,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private const float combatPowerCorruptionWeight = 0.2f;
     /// <summary>CP defense only: guard contributes as a discounted HP-equivalent pool.</summary>
     private const float combatPowerGuardHealthEquivalentWeight = 0.70f;
+    /// <summary>
+    /// CP defense only: parry is valued below block because it is conditional / melee-only, but it still deserves
+    /// some weight. The base floor keeps Riposte worth a little CP via its offensive payoff even though it drops
+    /// mitigation, while higher parry mitigation raises the contribution.
+    /// </summary>
+    private const float combatPowerParryRelativeToBlock = 0.75f;
+    private const float combatPowerParryOffenseEquivalentFloor = 0.20f;
 
     private const float LowHealthThreshold01 = 0.35f;
     public const float PredatorsInstinctExecutionerHpThreshold01 = 0.30f;
@@ -547,6 +554,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float PhysBlockMitigationFraction => Mathf.Clamp01(
         basePhysBlockMitigation + GetTacticianPhysBlockMitigationBonus());
     public float PhysBlockMitigationPercent => PhysBlockMitigationFraction * 100f;
+    private bool _forceNextPhysicalBlockSuccess;
 
     private float _lastWeaponSetSwapTime = -999f;
     private bool _tacticianDualityHudBuffWasActive;
@@ -564,7 +572,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MoveSpeed) : 0f) +
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.FoodMoveSpeed) : 0f);
 
-    public float MoveSpeedMultiplier => Mathf.Max(0.1f, baseMoveSpeedMult * (1f + TotalMoveSpeedPercent));
+    public float MoveSpeedMultiplier =>
+        Mathf.Max(0.1f, baseMoveSpeedMult * (1f + TotalMoveSpeedPercent) * _abilityChannelMoveSpeedMultiplier);
     public float FinalMoveSpeed => BaseMoveSpeed * MoveSpeedMultiplier;
 
     /// <summary>
@@ -663,6 +672,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
         set => SetCombatStatAdditive(ref _combatMoveSpeedPercentBonus, value);
     }
 
+    /// <summary>Combat-only multiplier for ability channel movement penalties (0.5 = 50% speed while channeling).</summary>
+    public float AbilityChannelMoveSpeedMultiplier
+    {
+        get => _abilityChannelMoveSpeedMultiplier;
+        set => SetCombatStatMultiplier(ref _abilityChannelMoveSpeedMultiplier, value);
+    }
+
     /// <summary>Combat-only incoming damage multiplier (1.10 = +10% damage taken).</summary>
     public float CombatDamageTakenMultiplier
     {
@@ -706,6 +722,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private float _combatMeleeDamageMultiplier = 1f;
     private float _combatAttackSpeedPercentBonus;
     private float _combatMoveSpeedPercentBonus;
+    private float _abilityChannelMoveSpeedMultiplier = 1f;
     private float _combatDamageTakenMultiplier = 1f;
     private float _combatAbilityCooldownReductionFraction;
     private float _shadowHunterAttackSpeedEndsAt = -1f;
@@ -1245,6 +1262,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
             float damageTakenMultiplier = 100f / (100f + Mathf.Max(0f, Armor));
 
             damageTakenMultiplier *= Mathf.Max(0.05f, 1f - PhysBlockChance * PhysBlockMitigationFraction);
+
+            float parryChance = GetParryChanceFraction();
+            if (parryChance > 0f)
+            {
+                float parryMitigationForCp = GetParryEnhancementPick() == 0 ? 0f : GetParryMitigationFraction();
+                float parryContribution = (combatPowerParryOffenseEquivalentFloor + parryMitigationForCp) * combatPowerParryRelativeToBlock;
+                damageTakenMultiplier *= Mathf.Max(0.05f, 1f - parryChance * parryContribution);
+            }
 
             return CombatPowerDefenseHealthPool / Mathf.Max(0.01f, damageTakenMultiplier);
         }
@@ -2570,15 +2595,28 @@ public class CharacterStats : MonoBehaviour, ISaveable
             : -1;
     }
 
+    public float GetParryMitigationFraction()
+    {
+        float mitigation = AbilityCombatPower.ParryDamageReductionFraction;
+        if (GetParryEnhancementPick() == 1)
+            mitigation += AbilityCombatPower.ParryImprovedMitigationBonus;
+        return Mathf.Clamp01(mitigation);
+    }
+
+    public float GetParryMitigationPercent() => GetParryMitigationFraction() * 100f;
+
     public float GetParryChanceFraction()
     {
         if (!IsParryMajorPassiveActive())
             return 0f;
 
-        return GetParryEnhancementPick() == 1
-            ? AbilityCombatPower.ParryImprovedParryChance
-            : AbilityCombatPower.ParryBaseChance;
+        float chance = AbilityCombatPower.ParryBaseChance;
+        if (GetParryEnhancementPick() == 1)
+            chance += AbilityCombatPower.ParryImprovedParryChanceBonus;
+        return Mathf.Clamp01(chance);
     }
+
+    public float GetParryChancePercent() => GetParryChanceFraction() * 100f;
 
     private void ApplyLevel10AilmentAttunementBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
     {
@@ -4208,6 +4246,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return totalToVitals;
     }
 
+    public bool TryReserveNextIncomingPhysicalBlock()
+    {
+        if (PhysBlockChance <= 0f)
+            return false;
+        if (UnityEngine.Random.value >= Mathf.Clamp01(PhysBlockChance))
+            return false;
+
+        _forceNextPhysicalBlockSuccess = true;
+        return true;
+    }
+
     /// <summary>
     /// Applies DoT (or other pre-resolved) damage: amount is already the intended tick total;
     /// only global melee damage reduction applies (no armor / MR / corruption resist).
@@ -4330,7 +4379,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
                     float armorRating = Armor * defMult * Mathf.Max(0f, armorRatingMultiplier);
                     float dmg = MitigateByRating(rawDamage, armorRating);
 
-                    if (PhysBlockChance > 0f && UnityEngine.Random.value < Mathf.Clamp01(PhysBlockChance))
+                    bool shouldBlock = _forceNextPhysicalBlockSuccess;
+                    _forceNextPhysicalBlockSuccess = false;
+
+                    if (!shouldBlock && PhysBlockChance > 0f && UnityEngine.Random.value < Mathf.Clamp01(PhysBlockChance))
+                        shouldBlock = true;
+
+                    if (shouldBlock)
                     {
                         blocked = true;
                         dmg *= 1f - PhysBlockMitigationFraction;

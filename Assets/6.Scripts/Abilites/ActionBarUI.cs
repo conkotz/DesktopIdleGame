@@ -1102,11 +1102,24 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             ResolveCoreRefs();
         }
 
+        bool whirlwindHeld = false;
         for (int i = 0; i < slotBindings.Count; i++)
         {
             SlotBinding binding = slotBindings[i];
             if (binding == null || binding.slot == null)
                 continue;
+
+            ActionBarAssignment action = binding.slot.AssignedAction;
+            bool boundWhirlwind = action != null &&
+                                  action.IsAbility &&
+                                  string.Equals(action.id, AbilityCombatPower.WhirlwindAbilityId, StringComparison.OrdinalIgnoreCase);
+            if (boundWhirlwind &&
+                !blockHotkeyPoll &&
+                binding.currentKey != KeyCode.None &&
+                Input.GetKey(binding.currentKey))
+            {
+                whirlwindHeld = true;
+            }
 
             if (!blockHotkeyPoll &&
                 binding.currentKey != KeyCode.None &&
@@ -1118,6 +1131,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             if (refreshRuntimeVisuals)
                 RefreshSlotRuntime(binding.slot);
         }
+
+        if (abilityController != null)
+            abilityController.SetWhirlwindActionBarHeld(whirlwindHeld);
 
         TryApplyPendingSavedState();
     }

@@ -12,6 +12,7 @@ public static class AbilityCombatPower
 {
     /// <summary>Matches <see cref="PlayerAbilityController"/> Power Slash id — attack-queued bonus, not raw / cooldown.</summary>
     public const string PowerSlashAbilityId = "power_slash";
+    public const string CrusaderStrikeAbilityId = "crusader_strike";
     public const string WhirlwindAbilityId = "whirlwind";
     public const string RendAbilityId = "rend";
     public const string EnvenomAbilityId = "envenom";
@@ -87,9 +88,10 @@ public static class AbilityCombatPower
     public const string ParryMajorPassiveSpineNodeId = "Lv10_1";
     public const int ParryMajorPassiveLevel = 10;
     public const float ParryMeleeRange = 3f;
-    public const float ParryBaseChance = 0.15f;
-    public const float ParryImprovedParryChance = 0.20f;
+    public const float ParryBaseChance = 0.20f;
+    public const float ParryImprovedParryChanceBonus = 0.05f;
     public const float ParryDamageReductionFraction = 0.25f;
+    public const float ParryImprovedMitigationBonus = 0.15f;
     public const string ParryRiposteOutgoingSourceLabel = "Parry — Riposte";
     public const string ParryReflectOutgoingSourceLabel = "Parry";
 
@@ -226,8 +228,16 @@ public static class AbilityCombatPower
     /// </summary>
     public const float AvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd = 0.10f;
 
-    /// <summary>Second Twin Cyclone wave as a fraction of the first wave's scaled split (sync with Whirlwind runtime).</summary>
-    public const float WhirlwindTwinCycloneSecondHitFraction = 0.2f;
+    public const float WhirlwindChannelHitIntervalSeconds = 0.5f;
+    public const float WhirlwindChannelVfxIntervalSeconds = 0.2f;
+    public const float WhirlwindTwinCycloneChannelCostReductionPerSecond = 5f;
+    public const float WhirlwindExpansiveSizePerSecond = 1f;
+    public const float WhirlwindExpansiveDamagePerSecond = 0.05f;
+    public const float CrusaderStrikeFirstHitWeaponMultiplier = 1.1f;
+    public const float CrusaderStrikeSecondHitWeaponMultiplier = 1.2f;
+    public const float CrusaderStrikeFinalHitWeaponMultiplier = 1.5f;
+    public const float CrusaderStrikeHealFractionOfMaxHealth = 0.05f;
+    public const float CrusaderStrikeComboTransitionSeconds = 0.6f;
 
     /// <summary>Cleaving Strikes secondary hits: fraction of rolled weapon split (sync with <see cref="PlayerAbilityController.BuildCleavingSecondarySplit"/>).</summary>
     public const float CleavingStrikesSecondaryHitWeaponDamageFraction = 0.6f;
@@ -459,8 +469,6 @@ public static class AbilityCombatPower
         float weaponMult = def.weaponDamageMultiplier;
         float cd = Mathf.Max(0.01f, def.cooldown);
         ApplyPowerSlashChoiceAdjustments(def, ref weaponMult, ref cd);
-        float extraHitFactor = 1f;
-        ApplyWhirlwindChoiceAdjustments(def, ref cd, ref extraHitFactor);
         float critFactor = GetCritFactor(stats);
 
         float avgPhys = (stats.MinSplitDamage.physical + stats.MaxSplitDamage.physical) * 0.5f;
@@ -574,6 +582,23 @@ public static class AbilityCombatPower
             return baseHit * cleaveExtraScale * procRate * uptime;
         }
 
+        if (string.Equals(def.abilityId, CrusaderStrikeAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            float crusaderAvgPhys = (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
+            if (crusaderAvgPhys <= 0f)
+                return 0f;
+
+            // Queued next-swing ability: base auto-attack DPS already counts the weapon hit, so CP only credits
+            // the extra damage gained over a normal physical swing across the 3-part combo.
+            float comboBonusScale =
+                Mathf.Max(0f, CrusaderStrikeFirstHitWeaponMultiplier - 1f) +
+                Mathf.Max(0f, CrusaderStrikeSecondHitWeaponMultiplier - 1f) +
+                Mathf.Max(0f, CrusaderStrikeFinalHitWeaponMultiplier - 1f);
+            float cycleSeconds = Mathf.Max(0.01f, cd + CrusaderStrikeComboTransitionSeconds);
+            float perCombo = crusaderAvgPhys * comboBonusScale * critFactor;
+            return Mathf.Max(0f, perCombo / cycleSeconds);
+        }
+
         // Default: instant cast (Whirlwind, Crescent Slash, etc.).
         float wEff = def.GetWeaponHitScalingMultiplier();
         float allM = def.GetEffectiveAllDamageMultiplier();
@@ -585,7 +610,7 @@ public static class AbilityCombatPower
             (avgPhys * wEff + ailmentBonusInstant) * allM * apMInstant
             + (avgMag * wEff * elemM + elementBonusInstant * elemM) * allM * apMInstant
             + (avgCorruption * wEff) * allM * apMInstant;
-        float perCast = raw * critFactor * Mathf.Max(1f, extraHitFactor);
+        float perCast = raw * critFactor;
         float dps = Mathf.Max(0f, perCast / cd);
 
         if (string.Equals(def.abilityId, CrescentSlashAbilityId, StringComparison.OrdinalIgnoreCase))
@@ -599,7 +624,7 @@ public static class AbilityCombatPower
         }
 
         if (string.Equals(def.abilityId, WhirlwindAbilityId, StringComparison.OrdinalIgnoreCase))
-            return dps * 1.08f; // Slight AoE coverage on top of per-target scaled damage (Twin Cyclone already in extraHitFactor).
+            return dps * 1.08f; // Slight AoE coverage on top of per-target scaled damage.
 
         return dps;
     }
@@ -638,42 +663,6 @@ public static class AbilityCombatPower
         {
             cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 3f); // Relentless Flow
         }
-    }
-
-    private static void ApplyWhirlwindChoiceAdjustments(AbilityDefinition def, ref float cooldownSeconds, ref float extraHitFactor)
-    {
-        if (!def || !string.Equals(def.abilityId, WhirlwindAbilityId, StringComparison.OrdinalIgnoreCase))
-            return;
-
-        int selected = GetWhirlwindSelectedChoiceForCombatPower();
-        if (selected == 0)
-        {
-            // Twin Cyclone: second wave damage fraction (matches runtime second hit).
-            extraHitFactor += WhirlwindTwinCycloneSecondHitFraction;
-        }
-        else if (selected == 1)
-        {
-            // Expansive Whirl: larger radius (coverage utility). Keep single-target CP neutral.
-        }
-    }
-
-    /// <summary>Matches <see cref="PlayerAbilityController"/> choice keying (spine Lv15_0, then legacy keys).</summary>
-    private static int GetWhirlwindSelectedChoiceForCombatPower()
-    {
-        const int whirlwindSourceLevel = 15;
-        SkillsManager sm = SkillsManager.Instance;
-        if (sm == null)
-            return -1;
-
-        int selected = sm.GetSkillChoiceSelection(SkillType.Melee, "Lv15_0", -1);
-        if (selected >= 0)
-            return selected;
-
-        selected = sm.GetSkillChoiceSelection(SkillType.Melee, whirlwindSourceLevel, -1);
-        if (selected >= 0)
-            return selected;
-
-        return sm.GetSkillChoiceSelection(SkillType.Melee, whirlwindSourceLevel + 3, -1);
     }
 
     private static int GetRendSelectedChoiceForCombatPower()

@@ -38,6 +38,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text corruptionResistText;
     [SerializeField] private TMP_Text blockText;
     [SerializeField] private TMP_Text blockMitigationText;
+    [SerializeField] private TMP_Text parryText;
+    [SerializeField] private TMP_Text parryMitigationText;
     [SerializeField] private TMP_Text guardFlatText;
     [SerializeField] private TMP_Text maxGuardPercentText;
 
@@ -309,6 +311,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (!stats) return;
 
         EnsureGuardStatTextRefs();
+        EnsureParryStatTextRefs();
         EnsureStunChanceTextRef();
 
         // -------------------------
@@ -323,6 +326,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (blockText) blockText.text = $"Phys Block: {stats.PhysBlockChancePercent:0.#}%";
         if (blockMitigationText)
             blockMitigationText.text = $"Block Mitigation: {stats.PhysBlockMitigationPercent:0.#}%";
+        if (parryText)
+            parryText.text = $"Parry: {stats.GetParryChancePercent():0.#}%";
+        if (parryMitigationText)
+            parryMitigationText.text = $"Parry Mitigation: {stats.GetParryMitigationPercent():0.#}%";
 
         if (guardFlatText)
             guardFlatText.text = $"Guard (flat): {stats.GearFlatGuardSum}";
@@ -505,6 +512,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         PopulateDetailedAilmentLines();
         EnsureOffenceBonusLineTooltips();
         BindAilmentLineTooltips();
+        EnsureParryStatTooltips();
 
         // -------------------------
         // DPS
@@ -736,6 +744,21 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 stunChanceText = tmp;
                 return;
             }
+        }
+    }
+
+    private void EnsureParryStatTextRefs()
+    {
+        if (parryText && parryMitigationText)
+            return;
+
+        foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
+        {
+            string key = GameTooltipTexts.NormalizeUiElementName(tmp.gameObject.name);
+            if (!parryText && key.Equals("ParryText", StringComparison.OrdinalIgnoreCase))
+                parryText = tmp;
+            else if (!parryMitigationText && key.Equals("ParryMitigationText", StringComparison.OrdinalIgnoreCase))
+                parryMitigationText = tmp;
         }
     }
 
@@ -1110,5 +1133,33 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Wire(rodGritText, "Fishing Grit", gritBody);
         Wire(rodBonusFindText, "Fishing Bonus Find", bonusFindBody);
         Wire(rodStaminaEfficiencyText, "Fishing Stamina Efficiency", staminaEffBody);
+    }
+
+    private void EnsureParryStatTooltips()
+    {
+        SharedTooltipUI tip = ResolveAilmentSharedTooltip();
+        if (!tip)
+            return;
+
+        void Wire(TMP_Text tmp, string key)
+        {
+            if (!tmp)
+                return;
+            if (!GameTooltipTexts.TryGetForUiElement(key, out string title, out string desc))
+                return;
+
+            tmp.raycastTarget = true;
+            EquipmentAilmentLineTooltip ailmentOnly = tmp.GetComponent<EquipmentAilmentLineTooltip>();
+            if (ailmentOnly)
+                Destroy(ailmentOnly);
+
+            UIHoverTooltip hover = tmp.GetComponent<UIHoverTooltip>();
+            if (!hover)
+                hover = tmp.gameObject.AddComponent<UIHoverTooltip>();
+            hover.ConfigureForEquipmentStatsFixedCopy(tip, title, desc);
+        }
+
+        Wire(parryText, "ParryText");
+        Wire(parryMitigationText, "ParryMitigationText");
     }
 }
