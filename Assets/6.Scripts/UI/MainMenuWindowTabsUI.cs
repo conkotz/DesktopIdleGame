@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Events;
 
 /// <summary>
 /// Shared tab selection for <see cref="MainMenuWindowUI"/> (title-bar tabs + bottom bag buttons).
@@ -22,6 +23,7 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
 
     [SerializeField] private MainMenuWindowUI mainMenu;
     private readonly List<TabButtonVisual> tabButtons = new();
+    private readonly List<ExplicitButtonBinding> _explicitButtonBindings = new();
 
     [Header("Tab colours")]
     [SerializeField] private Color activeTabColor = new Color32(247, 225, 190, 255);
@@ -29,7 +31,25 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
     [SerializeField] private Color activeTabTextColor = new Color(0.17254902f, 0.14117648f, 0.11372549f, 1f);
     [SerializeField] private Color inactiveTabTextColor = new Color(0.6830188f, 0.63510895f, 0.5812103f, 1f);
 
+    [Header("Optional MenuTabsBar Buttons")]
+    [Tooltip("Assign the top Character tab button here to wire it explicitly.")]
+    [SerializeField] private Button characterTabButton;
+    [Tooltip("Assign the top Skills and Abilities tab button here to wire it explicitly.")]
+    [SerializeField] private Button skillsTabButton;
+    [Tooltip("Assign the top Quest tab button here to wire it explicitly.")]
+    [SerializeField] private Button questTabButton;
+    [Tooltip("Assign the top Levels Select tab button here to wire it explicitly.")]
+    [SerializeField] private Button levelsSelectTabButton;
+    [Tooltip("Assign the top World Map tab button here to wire it explicitly.")]
+    [SerializeField] private Button worldMapTabButton;
+
     private MainMenuTabId _lastVisualTab = MainMenuTabId.None;
+
+    private sealed class ExplicitButtonBinding
+    {
+        public Button button;
+        public UnityAction handler;
+    }
 
     private void Awake()
     {
@@ -45,14 +65,21 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
     {
         if (!mainMenu)
             mainMenu = MainMenuWindowUI.Resolve();
+        WireExplicitButtons();
         RebuildTabButtonList();
         RefreshTabVisuals(force: true);
+    }
+
+    private void OnDisable()
+    {
+        UnwireExplicitButtons();
     }
 
     /// <summary>Refreshes tab button graphics after <see cref="MainMenuTabButtonUI"/> is added at runtime.</summary>
     public void RebuildTabButtonList()
     {
         tabButtons.Clear();
+        CollectExplicitAssignedButtons();
         CollectTabButtonsFromChildren();
     }
 
@@ -143,26 +170,74 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
             if (!seenTabIds.Add(tabBtn.TabId))
                 continue;
 
-            Graphic g = tabBtn.GetComponent<Graphic>();
-            if (!g)
-            {
-                Button b = tabBtn.GetComponent<Button>();
-                if (b)
-                    g = b.targetGraphic;
-            }
+            TryAddTabButtonVisual(tabBtn.TabId, tabBtn.GetComponent<Button>());
+        }
+    }
 
-            if (!g)
+    private void CollectExplicitAssignedButtons()
+    {
+        TryAddTabButtonVisual(MainMenuTabId.Character, characterTabButton);
+        TryAddTabButtonVisual(MainMenuTabId.Skills, skillsTabButton);
+        TryAddTabButtonVisual(MainMenuTabId.Quest, questTabButton);
+        TryAddTabButtonVisual(MainMenuTabId.LevelSelect, levelsSelectTabButton);
+        TryAddTabButtonVisual(MainMenuTabId.WorldMap, worldMapTabButton);
+    }
+
+    private void WireExplicitButtons()
+    {
+        UnwireExplicitButtons();
+        WireExplicitButton(characterTabButton, MainMenuTabId.Character);
+        WireExplicitButton(skillsTabButton, MainMenuTabId.Skills);
+        WireExplicitButton(questTabButton, MainMenuTabId.Quest);
+        WireExplicitButton(levelsSelectTabButton, MainMenuTabId.LevelSelect);
+        WireExplicitButton(worldMapTabButton, MainMenuTabId.WorldMap);
+    }
+
+    private void WireExplicitButton(Button button, MainMenuTabId tabId)
+    {
+        if (button == null)
+            return;
+
+        UnityAction handler = () => SelectTab(tabId);
+        button.onClick.RemoveListener(handler);
+        button.onClick.AddListener(handler);
+        _explicitButtonBindings.Add(new ExplicitButtonBinding
+        {
+            button = button,
+            handler = handler
+        });
+    }
+
+    private void UnwireExplicitButtons()
+    {
+        for (int i = 0; i < _explicitButtonBindings.Count; i++)
+        {
+            ExplicitButtonBinding binding = _explicitButtonBindings[i];
+            if (binding?.button == null || binding.handler == null)
                 continue;
 
-            TMP_Text label = tabBtn.GetComponentInChildren<TMP_Text>(true);
-
-            tabButtons.Add(new TabButtonVisual
-            {
-                tabId = tabBtn.TabId,
-                graphic = g,
-                label = label
-            });
+            binding.button.onClick.RemoveListener(binding.handler);
         }
+
+        _explicitButtonBindings.Clear();
+    }
+
+    private void TryAddTabButtonVisual(MainMenuTabId tabId, Button button)
+    {
+        if (button == null || FindEntry(tabId) >= 0)
+            return;
+
+        Graphic g = button.targetGraphic != null ? button.targetGraphic : button.GetComponent<Graphic>();
+        if (!g)
+            return;
+
+        TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
+        tabButtons.Add(new TabButtonVisual
+        {
+            tabId = tabId,
+            graphic = g,
+            label = label
+        });
     }
 
     private Transform ResolveMenuTabsSearchRoot()

@@ -154983,6 +154983,11 @@ MonoBehaviour:
   inactiveTabColor: {r: 0.65882355, g: 0.59607846, b: 0.4627451, a: 0.78431374}
   activeTabTextColor: {r: 0.17254902, g: 0.14117648, b: 0.11372549, a: 1}
   inactiveTabTextColor: {r: 0.6830188, g: 0.63510895, b: 0.5812103, a: 1}
+  characterTabButton: {fileID: 1387357761}
+  skillsTabButton: {fileID: 1417920685}
+  questTabButton: {fileID: 1407609878}
+  levelsSelectTabButton: {fileID: 2038081465}
+  worldMapTabButton: {fileID: 350507656}
 --- !u!1 &1221236918
 GameObject:
   m_ObjectHideFlags: 0
