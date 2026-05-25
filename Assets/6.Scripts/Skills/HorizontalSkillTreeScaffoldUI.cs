@@ -1802,14 +1802,6 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             selectedSkillType = selectedSkill.skillType;
 
         AutoWireEditorReferences();
-
-        if (HasSpawnedTimelineContent())
-        {
-            QueueDeferredLayoutOffsetRefresh();
-            return;
-        }
-
-        QueueInspectorRebuild();
     }
 
     private void QueueDeferredLayoutOffsetRefresh()

@@ -415,13 +415,8 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
 
     private void OnValidate()
     {
-        RectTransform container = transform as RectTransform;
-        if (container == null)
-            return;
-
-        ResolveHelperBarHeight(container);
-        if (rebuildOnEnable)
-            QueueDeferredRowLayoutRefresh();
+        // Preserve the scene exactly as saved when the project reopens.
+        // Editor-time row/layout refreshes are available via explicit rebuild tools/context menus instead.
     }
 
     private void QueueDeferredRowLayoutRefresh()

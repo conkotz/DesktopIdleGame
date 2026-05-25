@@ -21,7 +21,7 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
     }
 
     [SerializeField] private MainMenuWindowUI mainMenu;
-    [SerializeField] private List<TabButtonVisual> tabButtons = new();
+    private readonly List<TabButtonVisual> tabButtons = new();
 
     [Header("Tab colours")]
     [SerializeField] private Color activeTabColor = new Color32(247, 225, 190, 255);
@@ -188,11 +188,4 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
         return -1;
     }
 
-#if UNITY_EDITOR
-    private void OnValidate()
-    {
-        if (!mainMenu)
-            mainMenu = GetComponent<MainMenuWindowUI>();
-    }
-#endif
 }
