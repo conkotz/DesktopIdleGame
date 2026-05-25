@@ -607,7 +607,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
                 continue;
 
             bool highlightSpineStem = TryGetCommittedChoiceSlotIndex(group, out _);
-            float extendEnd = 0f;
+            float extendEnd = group.GetConnectorCornerOverlap();
             timelineScaffold.DrawConnector(
                 connectors,
                 spineAttach,

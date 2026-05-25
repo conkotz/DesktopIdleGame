@@ -26,7 +26,9 @@ public struct SkillTimelineChoiceGroupLayout
     public float GetNodeOffsetY(SkillTimelineNodeUI.SkillTimelineNodeType nodeType) =>
         nodeType switch
         {
-            SkillTimelineNodeUI.SkillTimelineNodeType.MajorPassive => majorPassiveNodeOffsetY,
+            // Keep major passive choice rows on the exact same baseline as ability rows so
+            // icon, title, and selection chrome line up across the tree.
+            SkillTimelineNodeUI.SkillTimelineNodeType.MajorPassive => abilityNodeOffsetY,
             SkillTimelineNodeUI.SkillTimelineNodeType.Capstone => capstoneNodeOffsetY,
             SkillTimelineNodeUI.SkillTimelineNodeType.Ability => abilityNodeOffsetY,
             _ => 0f

@@ -36,11 +36,25 @@ public class SkillChoiceGroupUI : MonoBehaviour
 
     [Header("Layout")]
     [SerializeField] private float nodeSpacing = DefaultNodeSpacing;
+#pragma warning disable CS0414 // Serialized for inspector/backward compatibility; runtime uses shared line style constants.
     [SerializeField] private float connectorThickness = SkillTimelineScaffoldUI.TimelineConnectorThickness;
+#pragma warning restore CS0414
     [SerializeField] private float branchAboveNodesGap = 2f;
     [SerializeField] private float nodeConnectorEndInset = 0f;
     [Tooltip("How far each vertical drop extends down into the node chrome (below the branch).")]
     [SerializeField] private float nodeConnectorReachIntoNode = 14f;
+    [Tooltip("Extra drop depth for major passive groups so the line tucks farther under the diamond/icon chrome.")]
+    [SerializeField] private float majorPassiveConnectorExtraReachIntoNode = 4f;
+    [Tooltip("Tiny horizontal overlap to hide 1 px seams where branch corners meet vertical drops.")]
+    [SerializeField] private float connectorCornerOverlap = 1f;
+    [Tooltip("Extra upward overlap so each vertical drop tucks slightly into the horizontal branch.")]
+    [SerializeField] private float connectorTopOverlap = 1f;
+    [Tooltip("Additional upward overlap for the selected gold connector only.")]
+    [SerializeField] private float selectedConnectorTopExtraOverlap = 2f;
+    [Tooltip("Additional downward reach for the selected gold connector so it tucks farther under the node.")]
+    [SerializeField] private float selectedConnectorExtraReachIntoNode = 5f;
+    [Tooltip("Extra horizontal overlap into the center junction for the selected gold branch only.")]
+    [SerializeField] private float selectedConnectorExtraJunctionOverlap = 1f;
     [SerializeField] private float centerStemAboveBranch = 2f;
     [Tooltip("Optional subtle hint above the branch. Off by default.")]
     [SerializeField] private bool showChoiceHintLabel;
@@ -203,6 +217,8 @@ public class SkillChoiceGroupUI : MonoBehaviour
     private float GetSelectedDropTopOverlap() =>
         SkillTimelineLineStyle.LineThickness + centerStemAboveBranch;
 
+    public float GetConnectorCornerOverlap() => connectorCornerOverlap;
+
     public void ClearNodes()
     {
         for (int i = _spawnedNodes.Count - 1; i >= 0; i--)
@@ -351,8 +367,8 @@ public class SkillChoiceGroupUI : MonoBehaviour
         for (int i = 0; i < nodeCount - 1; i++)
         {
             RectTransform segment = _choiceConnectorLines[nodeCount + i];
-            float x0 = nodeBoundsList[i].center.x;
-            float x1 = nodeBoundsList[i + 1].center.x;
+            float x0 = nodeBoundsList[i].center.x - connectorCornerOverlap;
+            float x1 = nodeBoundsList[i + 1].center.x + connectorCornerOverlap;
             segment.gameObject.SetActive(true);
             SkillTimelineLineStyle.ApplyHorizontalBarBetween(segment, x0, x1, branchY, useProgressColor: false);
         }
@@ -362,8 +378,9 @@ public class SkillChoiceGroupUI : MonoBehaviour
             Bounds nodeBounds = nodeBoundsList[i];
             float nodeCenterX = nodeBounds.center.x;
             bool isSelected = selectedIndex == i;
-            float nodeAttachY = nodeBounds.max.y - nodeConnectorReachIntoNode - nodeConnectorEndInset;
+            float nodeAttachY = nodeBounds.max.y - GetNodeConnectorReachIntoNode(isSelected) - nodeConnectorEndInset;
             float dropHeight = branchY - nodeAttachY;
+            float topOverlap = connectorTopOverlap + (isSelected ? selectedConnectorTopExtraOverlap : 0f);
 
             RectTransform drop = _choiceConnectorLines[i];
             bool showDrop = dropHeight > 0.5f;
@@ -371,7 +388,12 @@ public class SkillChoiceGroupUI : MonoBehaviour
             if (!showDrop)
                 continue;
 
-            SkillTimelineLineStyle.ApplyVerticalBar(drop, nodeCenterX, branchY, dropHeight, isSelected);
+            SkillTimelineLineStyle.ApplyVerticalBar(
+                drop,
+                nodeCenterX,
+                branchY + topOverlap,
+                dropHeight + topOverlap,
+                isSelected);
         }
 
         ApplySelectedPathHorizontal(nodeBoundsList, branchY, junctionX, selectedIndex);
@@ -412,9 +434,37 @@ public class SkillChoiceGroupUI : MonoBehaviour
         if (Mathf.Abs(selectedX - junctionX) <= SkillTimelineLineStyle.LineThickness * 0.5f)
             return;
 
+        float selectedHalfThickness = SkillTimelineLineStyle.ProgressThickness * 0.5f;
+        float x0;
+        float x1;
+        if (selectedX < junctionX)
+        {
+            x0 = selectedX + selectedHalfThickness - connectorCornerOverlap;
+            x1 = junctionX + connectorCornerOverlap + selectedConnectorExtraJunctionOverlap;
+        }
+        else
+        {
+            x0 = junctionX - connectorCornerOverlap - selectedConnectorExtraJunctionOverlap;
+            x1 = selectedX - selectedHalfThickness + connectorCornerOverlap;
+        }
+
+        if (x1 - x0 <= 0.25f)
+            return;
+
         stemLine.gameObject.SetActive(true);
-        SkillTimelineLineStyle.ApplyHorizontalBarBetween(stemLine, junctionX, selectedX, branchY, useProgressColor: true);
+        SkillTimelineLineStyle.ApplyHorizontalBarBetween(stemLine, x0, x1, branchY, useProgressColor: true);
         stemLine.SetAsLastSibling();
+    }
+
+    private float GetNodeConnectorReachIntoNode(bool isSelected = false)
+    {
+        float reach = nodeConnectorReachIntoNode;
+        if (_configuredNodeType == SkillTimelineNodeUI.SkillTimelineNodeType.MajorPassive)
+            reach += majorPassiveConnectorExtraReachIntoNode;
+        if (isSelected)
+            reach += selectedConnectorExtraReachIntoNode;
+
+        return reach;
     }
 
     private void HidePrefabConnectorLines()

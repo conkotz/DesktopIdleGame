@@ -74,8 +74,10 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
     [SerializeField] private Color unlockColor = new(0.95f, 0.78f, 0.22f, 1f);
     [SerializeField] private Color capstoneColor = new(0.78f, 0.22f, 0.22f, 1f);
     [SerializeField] private Color backgroundTint = new(0.12f, 0.1f, 0.08f, 1f);
+#pragma warning disable CS0414 // Kept serialized so existing prefab data stays intact if heavy background support is revisited.
     [Tooltip("When true, hides the dark node plate so icons/diamonds read clearly.")]
     [SerializeField] private bool hideHeavyBackground = false;
+#pragma warning restore CS0414
 
     [Header("State Colors")]
     [SerializeField] private Color lockedOverlayColor = new(0f, 0f, 0f, 0.72f);

@@ -733,7 +733,7 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
             nameText.richText = false;
 
-            nameText.enableWordWrapping = true;
+            nameText.textWrappingMode = TextWrappingModes.Normal;
 
             nameText.overflowMode = TextOverflowModes.Overflow;
 
@@ -758,7 +758,7 @@ public class MajorPassiveListEntryUI : MonoBehaviour,
 
             enhancementText.richText = false;
 
-            enhancementText.enableWordWrapping = true;
+            enhancementText.textWrappingMode = TextWrappingModes.Normal;
 
             enhancementText.horizontalAlignment = HorizontalAlignmentOptions.Left;
 
