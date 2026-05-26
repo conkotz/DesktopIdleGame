@@ -55,6 +55,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     [SerializeField] private TMP_Text elapsedTimeText;
     [SerializeField] private TMP_Text individualDamageDealersText;
     [SerializeField] private TMP_Text individualOutgoingDamageSourcesText;
+    [SerializeField] private TMP_Text individualIncomingHealingSourcesText;
 
     [Header("Refresh")]
     [SerializeField, Min(0.02f)] private float refreshInterval = 0.15f;
@@ -69,6 +70,8 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     private float _dealerTextBaseHeight = -1f;
     private float _outgoingPanelBasePreferredHeight = -1f;
     private float _outgoingSourceTextBaseHeight = -1f;
+    private float _healingPanelBasePreferredHeight = -1f;
+    private float _healingSourceTextBaseHeight = -1f;
     private float _scrollContentBaseHeight = -1f;
     private Transform _resolvedTrackerRoot;
     private static readonly Dictionary<int, DpsBreakdownTrackerUI> RootOwnerById = new();
@@ -241,6 +244,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         RefreshElapsedTime();
         RefreshIncomingDealerDamage(combat);
         RefreshOutgoingDamageSources(combat);
+        RefreshIncomingHealingSources(combat);
 
         if (_mode == MetricMode.TotalDamage)
             RefreshTotalDamage(combat);
@@ -362,6 +366,53 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         RefreshOutgoingPanelLayout();
     }
 
+    private void RefreshIncomingHealingSources(PlayerCombatController currentCombat)
+    {
+        if (!individualIncomingHealingSourcesText)
+            return;
+
+        bool dpsMode = _mode == MetricMode.Dps;
+
+        if (!currentCombat)
+        {
+            individualIncomingHealingSourcesText.text = dpsMode ? "No incoming healing yet" : "No incoming healing yet";
+            RefreshHealingPanelLayout();
+            return;
+        }
+
+        List<PlayerCombatController.IncomingHealingSourceEntry> entries = currentCombat.GetIncomingHealingBySource();
+        if (entries == null || entries.Count == 0)
+        {
+            individualIncomingHealingSourcesText.text = dpsMode ? "No incoming healing yet" : "No incoming healing yet";
+            RefreshHealingPanelLayout();
+            return;
+        }
+
+        float elapsed = Mathf.Max(0f, currentCombat.GetDamageSessionElapsedSeconds());
+        StringBuilder sb = new StringBuilder(128);
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var e = entries[i];
+            if (i > 0)
+                sb.AppendLine();
+            sb.Append(e.sourceName);
+            sb.Append(": ");
+            if (dpsMode)
+            {
+                float perSecond = elapsed > 0.001f ? Mathf.Max(0f, e.totalHealing) / elapsed : 0f;
+                sb.Append(perSecond.ToString("0.#"));
+                sb.Append(" HPS");
+            }
+            else
+            {
+                sb.Append(Mathf.RoundToInt(Mathf.Max(0f, e.totalHealing)));
+            }
+        }
+
+        individualIncomingHealingSourcesText.text = sb.ToString();
+        RefreshHealingPanelLayout();
+    }
+
     private static string FormatOutgoingSourceHitUseSuffix(PlayerCombatController.OutgoingDamageSourceEntry entry)
     {
         if (entry.hitCount <= 0 && entry.useCount <= 0)
@@ -456,9 +507,12 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             individualDamageDealersText.raycastTarget = false;
         if (individualOutgoingDamageSourcesText)
             individualOutgoingDamageSourcesText.raycastTarget = false;
+        if (individualIncomingHealingSourcesText)
+            individualIncomingHealingSourcesText.raycastTarget = false;
 
         RefreshDealerPanelLayout();
         RefreshOutgoingPanelLayout();
+        RefreshHealingPanelLayout();
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(content);
         if (viewport)
@@ -479,6 +533,14 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             individualOutgoingDamageSourcesText,
             ref _outgoingPanelBasePreferredHeight,
             ref _outgoingSourceTextBaseHeight);
+    }
+
+    private void RefreshHealingPanelLayout()
+    {
+        RefreshDetailTextPanelLayout(
+            individualIncomingHealingSourcesText,
+            ref _healingPanelBasePreferredHeight,
+            ref _healingSourceTextBaseHeight);
     }
 
     private void RefreshDetailTextPanelLayout(
@@ -718,6 +780,16 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             individualOutgoingDamageSourcesText = null;
         }
 
+        if (!individualIncomingHealingSourcesText)
+            individualIncomingHealingSourcesText = FindText(texts, "Healing", "IndividualHealingSourceText", "HealingSource");
+        if (!individualIncomingHealingSourcesText)
+            individualIncomingHealingSourcesText = FindText(texts, "", "IndividualHealingSourceText", "IndividualHealingSource");
+        if (individualIncomingHealingSourcesText != null &&
+            individualIncomingHealingSourcesText.name.IndexOf("Header", System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            individualIncomingHealingSourcesText = null;
+        }
+
         if (!resetButton)
             resetButton = FindButtonByName("Reset", "ResetButton");
         if (!dpsOrDamageButton)
@@ -805,7 +877,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         if (incomingHeaderText)
             incomingHeaderText.text = dpsMode ? "Incoming DPS" : "Incoming Total Damage";
         if (dpsOrDamageButtonText)
-            dpsOrDamageButtonText.text = dpsMode ? "DMG" : "DPS";
+            dpsOrDamageButtonText.text = dpsMode ? "Total" : "Per second";
     }
 
     private Button FindButtonByName(params string[] nameCandidates)

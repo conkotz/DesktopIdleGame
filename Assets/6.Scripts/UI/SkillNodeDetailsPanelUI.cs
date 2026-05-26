@@ -101,6 +101,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         ApplyPanelSize();
         ApplyFixedThirdColumnLayout();
         ApplySectionDividerLayout();
+        ApplySectionTextStackLayout();
         ApplyDetailsTypography();
         EnsureEnhancementsLockedOverlay();
         WireEnhancementActionButton();
@@ -131,6 +132,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     {
         ApplyDetailsInteriorLayout(_detailsInteriorExpanded);
         ApplySectionDividerLayout();
+        ApplySectionTextStackLayout();
         ConfigureEnhancementColumnLayout();
     }
 
@@ -645,6 +647,30 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             if (section.GetChild(i) is RectTransform divider)
                 PrepareVerticalLayoutDivider(divider);
         }
+    }
+
+    private void ApplySectionTextStackLayout()
+    {
+        ConfigureSectionTextStack(scalingSectionRoot);
+        ConfigureSectionTextStack(effectSectionRoot);
+        ConfigureSectionTextStack(costSectionRoot);
+        ConfigureSectionTextStack(cooldownSectionRoot);
+    }
+
+    private static void ConfigureSectionTextStack(GameObject sectionRoot)
+    {
+        if (sectionRoot == null)
+            return;
+
+        VerticalLayoutGroup vlg = sectionRoot.GetComponent<VerticalLayoutGroup>();
+        if (vlg == null)
+            return;
+
+        vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.childControlWidth = true;
+        vlg.childControlHeight = true;
+        vlg.childForceExpandWidth = true;
+        vlg.childForceExpandHeight = false;
     }
 
     private void ApplyDetailsTypography()

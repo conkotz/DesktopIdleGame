@@ -3961,10 +3961,10 @@ public class PlayerController : MonoBehaviour
         driftWorldDir = away.sqrMagnitude > 0.0001f ? away.normalized : Vector3.up;
     }
 
-    public void Heal(float amount)
+    public void Heal(float amount, string sourceLabel = null)
     {
         if (_isDead || !characterStats) return;
-        characterStats.Heal(amount);
+        characterStats.Heal(amount, sourceLabel);
     }
 
     public bool SpendEnergy(float amount)
@@ -4007,7 +4007,7 @@ public class PlayerController : MonoBehaviour
         float healAmount = postMitigationDamage * ls;
         if (healAmount <= 0f) return;
 
-        characterStats.Heal(healAmount);
+        characterStats.Heal(healAmount, PlayerCombatController.LeechHealingSourceLabel);
     }
 
     private void RecalculateMaxVitalsFromGear()

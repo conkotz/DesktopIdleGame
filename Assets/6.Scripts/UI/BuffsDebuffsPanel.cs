@@ -512,6 +512,19 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 return attackSpeedBuffIcon;
         }
 
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, PlayerAbilityController.CrusaderStrikeFireBalanceHudBuffId, StringComparison.OrdinalIgnoreCase) &&
+            _abilityDatabase != null)
+        {
+            AbilityDefinition crusader = _abilityDatabase.Get(AbilityCombatPower.CrusaderStrikeAbilityId);
+            if (crusader != null)
+            {
+                Sprite spr = SkillsAbilityPresentationResolver.ResolveAbilityIcon(crusader);
+                if (spr != null)
+                    return spr;
+            }
+        }
+
         if (buff.type == ConsumableEffectType.HudAbilityBuff && _abilityDatabase != null &&
             !string.IsNullOrWhiteSpace(buff.id))
         {
@@ -587,6 +600,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 float baseSpeed = playerStats != null ? playerStats.FinalMoveSpeed : 0f;
                 return $"+{PlayerSprintInput.GetSprintBonusPercentOfBase(baseSpeed):0.#}%";
             }
+
+            if (string.Equals(buff.id, PlayerAbilityController.CrusaderStrikeFireBalanceHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return "+30%";
 
             return "";
         }

@@ -21,6 +21,8 @@ public struct SplitDamage
     public float Total => physical + magic + corruptionDamage;
 
     public bool IsEmpty => physical <= 0f && magic <= 0f && corruptionDamage <= 0f;
+    /// <summary>Corruption-bearing hits cannot crit; only pure physical/magic packets are crit-eligible.</summary>
+    public bool CanCrit => corruptionDamage <= 0.0001f && (physical > 0.0001f || magic > 0.0001f);
 
     public static SplitDamage Zero => new SplitDamage(0f, 0f, 0f);
 
@@ -66,16 +68,17 @@ public struct SplitDamageRange
 
         wasCrit = false;
 
-        if (UnityEngine.Random.value < Mathf.Clamp01(critChance))
+        SplitDamage rolled = new SplitDamage(
+            Mathf.Max(0f, phys),
+            Mathf.Max(0f, mag),
+            Mathf.Max(0f, corr));
+
+        if (rolled.CanCrit && UnityEngine.Random.value < Mathf.Clamp01(critChance))
         {
             float crit = Mathf.Max(1f, critMultiplier);
-
-            if (phys > 0f || mag > 0f)
-            {
-                wasCrit = true;
-                phys *= crit;
-                mag *= crit;
-            }
+            wasCrit = true;
+            phys *= crit;
+            mag *= crit;
         }
 
         return new SplitDamage(
@@ -273,12 +276,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>CP defense only: guard contributes as a discounted HP-equivalent pool.</summary>
     private const float combatPowerGuardHealthEquivalentWeight = 0.70f;
     /// <summary>
-    /// CP defense only: parry is valued below block because it is conditional / melee-only, but it still deserves
-    /// some weight. The base floor keeps Riposte worth a little CP via its offensive payoff even though it drops
-    /// mitigation, while higher parry mitigation raises the contribution.
+    /// CP defense only: parry is melee-only and conditional, so it is modeled as an "effective reduction"
+    /// contribution rather than true mitigation. Riposte gets a flat offensive-equivalent value scaled by
+    /// parry chance, while Improved Parry scales harder as mitigation approaches 100%.
     /// </summary>
-    private const float combatPowerParryRelativeToBlock = 0.75f;
-    private const float combatPowerParryOffenseEquivalentFloor = 0.20f;
+    private const float combatPowerParryRiposteEquivalent = 0.55f;
+    private const float combatPowerParryMitigationContributionScale = 1.20f;
+    private const float combatPowerParryMaxContribution = 1.75f;
 
     private const float LowHealthThreshold01 = 0.35f;
     public const float PredatorsInstinctExecutionerHpThreshold01 = 0.30f;
@@ -610,7 +614,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Energy restored per second: (max energy × base %) + flat bonuses from gear, passives, and consumables.</summary>
     public float EnergyRegenPerSecond =>
         Mathf.Max(0f, MaxEnergy * (EnergyRegenBasePercentPerSecond / 100f) + GetBonusEnergyRegenFlatPerSecond());
-    public float ManaRegenPerSecond => Mathf.Max(0f, baseManaRegen + GetEquippedManaRegen());
+    public float ManaRegenPerSecond => Mathf.Max(0f, (baseManaRegen + GetEquippedManaRegen()) * _combatManaRegenMultiplier);
     public float LifeSteal => Mathf.Clamp01(baseLifeSteal + GetEquippedLifeSteal() + GetActiveMeleeMinorBonuses().meleeLifeSteal);
 
     // Offensive stats
@@ -635,7 +639,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// Multiplier applied to ability damage after weapon/skill multipliers: <c>1 + AbilityPower × coefficient / <see cref="AbilityPowerDamagePercentDivisor"/></c>.
     /// With <see cref="AbilityDefinition.StandardAbilityPowerCoefficient"/>: each AP adds +0.5% damage; 100 AP adds +50% (×1.5 total).
     /// </summary>
-    /// <summary>Combat-only multiplier on effective ability power (e.g. Energy Infusion Overcharged).</summary>
+    /// <summary>Combat-only multiplier on effective ability power from temporary combat effects.</summary>
     public float CombatAbilityPowerMultiplier
     {
         get => _combatAbilityPowerMultiplier;
@@ -650,6 +654,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     private float _combatAbilityPowerMultiplier = 1f;
+
+    /// <summary>Combat-only multiplier on mana regeneration (1.05 = +5% mana regen while active).</summary>
+    public float CombatManaRegenMultiplier
+    {
+        get => _combatManaRegenMultiplier;
+        set => SetCombatStatMultiplier(ref _combatManaRegenMultiplier, value);
+    }
 
     /// <summary>Combat-only melee (physical) damage multiplier (e.g. Battle Trance +10%).</summary>
     public float CombatMeleeDamageMultiplier
@@ -722,6 +733,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private float _combatMeleeDamageMultiplier = 1f;
     private float _combatAttackSpeedPercentBonus;
     private float _combatMoveSpeedPercentBonus;
+    private float _combatManaRegenMultiplier = 1f;
     private float _abilityChannelMoveSpeedMultiplier = 1f;
     private float _combatDamageTakenMultiplier = 1f;
     private float _combatAbilityCooldownReductionFraction;
@@ -755,17 +767,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
         NotifyStatsChanged();
     }
 
-    public float GetAbilityPowerDamageMultiplier(float abilityPowerCoefficient)
+    public float GetAbilityPowerDamageMultiplier(float abilityPowerCoefficient, float flatAbilityPowerBonus = 0f)
     {
         float c = Mathf.Max(0f, abilityPowerCoefficient);
         if (c <= 0f)
             return 1f;
 
-        float ap = AbilityPower * _combatAbilityPowerMultiplier;
+        float bonusAp = Mathf.Max(0f, flatAbilityPowerBonus);
+        float visibleAp = AbilityPower + bonusAp;
+        float ap = visibleAp * _combatAbilityPowerMultiplier;
         float mult = 1f + ap * c / AbilityPowerDamagePercentDivisor;
 
-        // Energy Infusion Overcharged: +25% ability power. At 0 AP that is still +25% ability damage.
-        if (_combatAbilityPowerMultiplier > 1.001f && AbilityPower < 0.001f)
+        // Preserve the "multiplier still matters at 0 AP" behavior for combat AP multipliers.
+        if (_combatAbilityPowerMultiplier > 1.001f && visibleAp < 0.001f)
             mult *= _combatAbilityPowerMultiplier;
 
         return mult;
@@ -998,6 +1012,67 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float avgM = AverageMagicHit;
         if (avgM <= 0f) return 0f;
         return Mathf.Clamp01(GetMeleeAverageWeaponLightningDamagePerHit() / avgM);
+    }
+
+    public float GetMeleeMagicFireFraction()
+    {
+        float avgM = AverageMagicHit;
+        if (avgM <= 0f) return 0f;
+        return Mathf.Clamp01(GetMeleeAverageWeaponFireDamagePerHit() / avgM);
+    }
+
+    public float GetMeleeWeaponPhysicalFraction()
+    {
+        float avgP = AveragePhysicalHit;
+        if (avgP <= 0f) return 0f;
+        return Mathf.Clamp01(GetMeleeAverageWeaponPhysicalDamagePerHit() / avgP);
+    }
+
+    public bool CurrentMeleeWeaponHasPhysicalOrFireDamage() =>
+        GetMeleeAverageWeaponPhysicalDamagePerHit() > 0.0001f ||
+        GetMeleeAverageWeaponFireDamagePerHit() > 0.0001f;
+
+    public float GetMeleeAverageWeaponPhysicalOrFireDamagePerHit() =>
+        Mathf.Max(0f, GetMeleeAverageWeaponPhysicalDamagePerHit() + GetMeleeAverageWeaponFireDamagePerHit());
+
+    private float GetMeleeAverageWeaponPhysicalDamagePerHit()
+    {
+        var mh = GetMainHandWeaponDef();
+        if (!mh) return 0f;
+        if (mh.RequiresOffhandSupport && !HasRequiredOffHandSupport()) return 0f;
+
+        GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out float physicalDamageMult, out _, out _);
+
+        float pMin = Mathf.Max(0f, mh.weaponStats.minPhysicalDamage);
+        float pMax = Mathf.Max(0f, mh.weaponStats.maxPhysicalDamage);
+        var oh = GetOffHandWeaponDef();
+        if (oh)
+        {
+            pMin = (Mathf.Max(0f, mh.weaponStats.minPhysicalDamage) + Mathf.Max(0f, oh.weaponStats.minPhysicalDamage)) * 0.5f;
+            pMax = (Mathf.Max(0f, mh.weaponStats.maxPhysicalDamage) + Mathf.Max(0f, oh.weaponStats.maxPhysicalDamage)) * 0.5f;
+        }
+
+        return ((pMin + pMax) * 0.5f) * physicalDamageMult;
+    }
+
+    private float GetMeleeAverageWeaponFireDamagePerHit()
+    {
+        var mh = GetMainHandWeaponDef();
+        if (!mh) return 0f;
+        if (mh.RequiresOffhandSupport && !HasRequiredOffHandSupport()) return 0f;
+
+        GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out _, out float magicDamageMult, out _);
+
+        float fMin = Mathf.Max(0f, mh.weaponStats.minFireDamage);
+        float fMax = Mathf.Max(0f, mh.weaponStats.maxFireDamage);
+        var oh = GetOffHandWeaponDef();
+        if (oh)
+        {
+            fMin = (Mathf.Max(0f, mh.weaponStats.minFireDamage) + Mathf.Max(0f, oh.weaponStats.minFireDamage)) * 0.5f;
+            fMax = (Mathf.Max(0f, mh.weaponStats.maxFireDamage) + Mathf.Max(0f, oh.weaponStats.maxFireDamage)) * 0.5f;
+        }
+
+        return ((fMin + fMax) * 0.5f) * magicDamageMult;
     }
 
     /// <summary>Average lightning from the equipped weapon(s) on a melee hit after <see cref="GetMeleeSplitDamageScalingMultipliers"/> magic mult.</summary>
@@ -1266,8 +1341,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
             float parryChance = GetParryChanceFraction();
             if (parryChance > 0f)
             {
-                float parryMitigationForCp = GetParryEnhancementPick() == 0 ? 0f : GetParryMitigationFraction();
-                float parryContribution = (combatPowerParryOffenseEquivalentFloor + parryMitigationForCp) * combatPowerParryRelativeToBlock;
+                float parryContribution;
+                if (GetParryEnhancementPick() == 0)
+                {
+                    // Riposte trades mitigation for a free hit, so keep its CP mostly static and chance-scaled.
+                    parryContribution = combatPowerParryRiposteEquivalent;
+                }
+                else
+                {
+                    float parryMitigationForCp = GetParryMitigationFraction();
+                    float mitigationCurve = parryMitigationForCp / Mathf.Max(0.05f, 1f - parryMitigationForCp);
+                    parryContribution = Mathf.Min(
+                        combatPowerParryMaxContribution,
+                        mitigationCurve * combatPowerParryMitigationContributionScale);
+                }
+
                 damageTakenMultiplier *= Mathf.Max(0.05f, 1f - parryChance * parryContribution);
             }
 
@@ -3033,9 +3121,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (!_ownerPlayer)
             return false;
 
+        float oldHp = currentHP;
         _isDead = false;
         float fraction = Mathf.Clamp01(healthFraction01);
         currentHP = Mathf.Max(1f, MaxHP * fraction);
+        float actualHealing = Mathf.Max(0f, currentHP - oldHp);
+        RecordIncomingHealingForDps(actualHealing, PlayerCombatController.PhoenixSoulHealingSourceLabel);
+        TryShowIncomingHealingPopup(actualHealing, PlayerCombatController.PhoenixSoulHealingSourceLabel);
         OnHPChanged?.Invoke(currentHP, MaxHP);
         return true;
     }
@@ -3650,17 +3742,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         wasCrit = false;
 
-        if (UnityEngine.Random.value < CritChance)
+        SplitDamage rolled = new SplitDamage(
+            Mathf.Max(0f, phys),
+            Mathf.Max(0f, mag),
+            Mathf.Max(0f, corr));
+
+        if (rolled.CanCrit && UnityEngine.Random.value < CritChance)
         {
             float crit = Mathf.Max(1f, CritMultiplier);
-
-            // Corruption damage never benefits from crit on basic attacks; only flag crit if phys/mag scaled.
-            if (phys > 0f || mag > 0f)
-            {
-                wasCrit = true;
-                phys *= crit;
-                mag *= crit;
-            }
+            wasCrit = true;
+            phys *= crit;
+            mag *= crit;
         }
 
         return new SplitDamage(
@@ -3979,11 +4071,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
         if (currentHP < maxHp && hpRegen > 0f)
         {
+            float oldHp = currentHP;
             float newHp = Mathf.Min(maxHp, currentHP + hpRegen * dt);
             if (!Mathf.Approximately(newHp, currentHP))
             {
                 currentHP = newHp;
                 hpChanged = true;
+                RecordIncomingHealingForDps(currentHP - oldHp, PlayerCombatController.HpRegenHealingSourceLabel);
             }
         }
 
@@ -4170,12 +4264,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
         OnManaChanged?.Invoke(currentMana, MaxMana);
     }
 
-    public void Heal(float amount)
+    public void Heal(float amount, string sourceLabel = null)
     {
         if (_isDead || amount <= 0f) return;
 
         float cap = GetHpSoftCapTotal();
+        float oldHp = currentHP;
         currentHP = Mathf.Clamp(currentHP + amount, 0f, cap);
+        float actualHealing = currentHP - oldHp;
+        if (actualHealing <= 0f)
+            return;
+
+        RecordIncomingHealingForDps(actualHealing, sourceLabel);
+        TryShowIncomingHealingPopup(actualHealing, sourceLabel);
         OnHPChanged?.Invoke(currentHP, MaxHP);
     }
 
@@ -4201,6 +4302,42 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private float GetHpSoftCapTotal()
     {
         return Mathf.Max(1f, MaxHP + GetFoodOverhealBonusFlat());
+    }
+
+    private void RecordIncomingHealingForDps(float amount, string sourceLabel)
+    {
+        if (amount <= 0f)
+            return;
+
+        ResolveOwnerEnemy();
+        if (!_ownerPlayer)
+            return;
+
+        PlayerCombatController pcc = _ownerPlayer.GetComponent<PlayerCombatController>();
+        if (pcc)
+            pcc.RecordIncomingHealingForDps(amount, sourceLabel);
+    }
+
+    private void TryShowIncomingHealingPopup(float amount, string sourceLabel)
+    {
+        if (amount <= 0f || !_ownerPlayer || DamagePopupSystem.Instance == null)
+            return;
+        if (!ShouldShowHealingPopupForSource(sourceLabel))
+            return;
+
+        int roundedAmount = Mathf.Max(1, Mathf.RoundToInt(amount));
+        DamagePopupSystem.Instance.SpawnHealingForPlayer(_ownerPlayer, roundedAmount);
+    }
+
+    private static bool ShouldShowHealingPopupForSource(string sourceLabel)
+    {
+        if (string.IsNullOrWhiteSpace(sourceLabel))
+            return false;
+
+        return string.Equals(sourceLabel, PlayerCombatController.CrusaderStrikeHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(sourceLabel, PlayerCombatController.PhoenixSoulHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(sourceLabel, PlayerCombatController.PotionHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(sourceLabel, PlayerCombatController.FoodHealingSourceLabel, StringComparison.OrdinalIgnoreCase);
     }
 
     private SplitDamage ApplyFoodFocusedMultiplier(SplitDamage sd)

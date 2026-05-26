@@ -640,10 +640,6 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     private Color _combatMiningGraphicColor = Color.white;
     private Color _combatFishGraphicColor = Color.white;
 
-    [Header("Debug")]
-    [SerializeField] private bool debugLogs = false;
-    [SerializeField] private bool debugEmptySlots = false;
-
     private void Awake()
     {
         ResolveCoreRefs();
@@ -1160,8 +1156,6 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         if (action == null || !action.IsAssigned)
         {
-            if (debugLogs && debugEmptySlots)
-                Debug.Log($"[ActionBar] {slot.SlotType} slot {slot.SlotIndex} is empty.");
             return;
         }
 
@@ -1170,30 +1164,19 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             case ActionBarAssignmentKind.Ability:
                 ResolveCoreRefs();
                 if (abilityController == null)
-                {
-                    Debug.LogWarning("[ActionBar] No PlayerAbilityController found.");
                     return;
-                }
 
                 if (!abilityController.TryPrepareKeyboardModeAbilityTarget(action.id))
                     return;
 
                 bool usedAbility = abilityController.TryUseAbility(action.id);
 
-                if (debugLogs)
-                    Debug.Log(usedAbility
-                        ? $"[ActionBar] Used ability '{action.displayName}'"
-                        : $"[ActionBar] Failed to use ability '{action.displayName}'");
-
                 RefreshSlotRuntime(slot);
                 break;
 
             case ActionBarAssignmentKind.Item:
                 if (consumableController == null)
-                {
-                    Debug.LogWarning("[ActionBar] No PlayerConsumableController found.");
                     return;
-                }
 
                 if (slot.AssignedItemAmount <= 0)
                 {
@@ -1202,13 +1185,6 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 }
 
                 bool used = consumableController.TryUseItem(action.id);
-
-                if (debugLogs)
-                {
-                    Debug.Log(used
-                        ? $"[ActionBar] Used item '{action.displayName}'"
-                        : $"[ActionBar] Failed to use item '{action.displayName}'");
-                }
 
                 RefreshSlotRuntime(slot);
                 break;
@@ -1224,13 +1200,6 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             SaveManager.Instance.Save();
 
         NotifyPlayerStatsCombatPowerRelevantChange();
-
-        if (debugLogs && slot != null)
-        {
-            string name = slot.AssignedAction != null && slot.AssignedAction.IsAssigned
-                ? slot.AssignedAction.displayName
-                : "Empty";
-        }
     }
 
     /// <summary>
@@ -1579,16 +1548,12 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             ActionBarSlotUI slot = GetSlotByIndex(saved.slotIndex);
             if (slot == null)
             {
-                if (debugLogs)
-                    Debug.LogWarning($"[ActionBar] No slot found for slotIndex={saved.slotIndex}");
                 continue;
             }
 
             ActionBarAssignment assignment = ResolveAssignment(saved.kind, saved.id);
             if (assignment == null || !assignment.IsAssigned)
             {
-                if (debugLogs)
-                    Debug.LogWarning($"[ActionBar] Failed to resolve slotIndex={saved.slotIndex} id={saved.id}");
                 unresolved++;
                 continue;
             }
@@ -1629,8 +1594,6 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 }
                 if (!def)
                 {
-                    if (debugLogs)
-                        Debug.LogWarning($"[ActionBar] Could not find ItemDefinition for '{id}' (remapped='{resolvedId}')");
                     return null;
                 }
 
@@ -1643,8 +1606,6 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 AbilityDefinition ability = GetAbilityDefinition(id);
                 if (!ability)
                 {
-                    if (debugLogs)
-                        Debug.LogWarning($"[ActionBar] Could not find AbilityDefinition for '{id}'");
                     return null;
                 }
 

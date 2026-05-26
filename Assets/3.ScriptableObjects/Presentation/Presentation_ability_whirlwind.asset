@@ -15,7 +15,7 @@ MonoBehaviour:
   notes: Presentation for whirlwind
   displayNameOverride: Whirlwind
   icon: {fileID: 1188567411443277773, guid: c3135ae013758b04caf9adc7364ae04c, type: 3}
-  shortDescription: Hold to channel a spinning cyclone that strikes all enemies in range.
+  shortDescription: Hold to channel a spinning cyclone that strikes all enemies in range. Move speed is reduced while channelling.
   primaryDescriptionOverride: 
   flavourText: 
   abilityEffectLines: []

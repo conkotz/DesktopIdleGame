@@ -33,6 +33,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [Header("Defensive Text")]
     [SerializeField] private TMP_Text hpText;
     [SerializeField] private TMP_Text energyText;
+    [SerializeField] private TMP_Text manaText;
     [SerializeField] private TMP_Text armorText;
     [SerializeField] private TMP_Text mrText;
     [SerializeField] private TMP_Text corruptionResistText;
@@ -47,6 +48,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [SerializeField] private TMP_Text moveSpeedText;
     [SerializeField] private TMP_Text lifeRegenText;
     [SerializeField] private TMP_Text energyRegenText;
+    [SerializeField] private TMP_Text manaRegenText;
     [SerializeField] private TMP_Text abilityPowerText;
 
     // -------------------------
@@ -319,6 +321,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         // -------------------------
         if (hpText) hpText.text = $"Max HP: {stats.MaxHP}";
         if (energyText) energyText.text = $"Energy: {stats.MaxEnergy}";
+        if (manaText) manaText.text = $"Mana: {stats.MaxMana}";
         if (armorText) armorText.text = $"Armour: {stats.Armor} ({stats.PhysicalReductionFromArmorPercent:0.#}% Phys DR)";
         if (mrText) mrText.text = $"Magic Res: {stats.MagicResist} ({stats.MagicReductionFromMrPercent:0.#}% Mag DR)";
         if (corruptionResistText)
@@ -344,6 +347,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             moveSpeedText.text = BuildMoveSpeedLine(stats);
 
         if (lifeRegenText) lifeRegenText.text = $"Life Regen: {stats.LifeRegenPerSecond:0.##}/s";
+        if (manaRegenText) manaRegenText.text = $"Mana Regen: {stats.ManaRegenPerSecond:0.##}/s";
         if (energyRegenText)
         {
             if (!abilityController && player)

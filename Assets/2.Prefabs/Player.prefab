@@ -5700,10 +5700,14 @@ MonoBehaviour:
   whirlingBladeSpinDegrees: 720
   whirlingBladeLineWidth: 0.14
   whirlingBladeCenterOffset: {x: 0, y: 0.65, z: 0}
-  whirlingBladeSlashCount: 4
-  whirlingBladeOrbitVerticalScale: 0.08
-  whirlingBladeUpwardDrift: 0.14
-  whirlingBladeVerticalWave: 0.06
+  whirlingBladeSlashCount: 5
+  whirlingBladeLaneBaseYOffsets: {x: 0.55, y: 0.18, z: -0.16, w: -0.42}
+  whirlingBladeFifthLaneBaseYOffset: -0.68
+  whirlingBladeLaneOrbitHeights: {x: 0.1, y: 0.08, z: 0.05, w: 0.035}
+  whirlingBladeFifthLaneOrbitHeight: 0.025
+  whirlingBladeSpawnVerticalJitter: 0.01
+  whirlingBladeMinYOffset: -0.8
+  whirlingBladeMaxYOffset: 0.75
   crescentSlashColor: {r: 0, g: 0.14033018, b: 0.3207547, a: 1}
   crescentSlashVfxDuration: 0.4
   crescentSlashLineWidth: 1

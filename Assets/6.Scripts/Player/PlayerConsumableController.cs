@@ -149,7 +149,7 @@ public class PlayerConsumableController : MonoBehaviour
     private void ApplyConsumable(ItemDefinition def)
     {
         if (def.HealAmount > 0)
-            player.Heal(def.HealAmount);
+            player.Heal(def.HealAmount, ResolveHealingSourceLabel(def));
 
         if (def.EnergyAmount > 0)
             player.AddEnergy(def.EnergyAmount);
@@ -226,7 +226,18 @@ public class PlayerConsumableController : MonoBehaviour
         }
 
         if (cs.foodEnableOverheal && cs.foodOverhealInstantHeal > 0)
-            player.Heal(cs.foodOverhealInstantHeal);
+            player.Heal(cs.foodOverhealInstantHeal, PlayerCombatController.FoodHealingSourceLabel);
+    }
+
+    private static string ResolveHealingSourceLabel(ItemDefinition def)
+    {
+        if (def == null)
+            return PlayerCombatController.GenericHealingSourceLabel;
+        if (def.IsFood)
+            return PlayerCombatController.FoodHealingSourceLabel;
+        if (def.IsPotion)
+            return PlayerCombatController.PotionHealingSourceLabel;
+        return PlayerCombatController.GenericHealingSourceLabel;
     }
 
     private void ApplyGrantedEffect(ItemDefinition def)

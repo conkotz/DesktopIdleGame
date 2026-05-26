@@ -43,9 +43,13 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "whirlingBladeLineWidth",
         "whirlingBladeCenterOffset",
         "whirlingBladeSlashCount",
-        "whirlingBladeOrbitVerticalScale",
-        "whirlingBladeUpwardDrift",
-        "whirlingBladeVerticalWave"
+        "whirlingBladeLaneBaseYOffsets",
+        "whirlingBladeFifthLaneBaseYOffset",
+        "whirlingBladeLaneOrbitHeights",
+        "whirlingBladeFifthLaneOrbitHeight",
+        "whirlingBladeSpawnVerticalJitter",
+        "whirlingBladeMinYOffset",
+        "whirlingBladeMaxYOffset"
     };
 
     private static readonly string[] CrescentFieldNames =

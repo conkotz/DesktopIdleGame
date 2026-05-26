@@ -21,7 +21,7 @@ MonoBehaviour:
   energyCost: 40
   manaCost: 0
   healthCost: 0
-  weaponDamageMultiplier: 1.75
+  weaponDamageMultiplier: 2
   allDamageMultiplier: 1
   fireDamageMultiplier: 0
   iceDamageMultiplier: 0

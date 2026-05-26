@@ -501,6 +501,8 @@ public class MainMenuWindowUI : MonoBehaviour
             return;
         }
 
+        bool wasOpen = IsOpen;
+
         // Already on this page: avoid HideAllPages / SetActive churn so child UIs (e.g. inventory grid) don't
         // OnDisable/OnEnable and replay hide-until-layout — fixes flicker when opening a shop while Character is visible.
         if (IsOpen && currentPage == targetPage)
@@ -521,6 +523,8 @@ public class MainMenuWindowUI : MonoBehaviour
         // Always activate the window root. UIWindowCloseButton (and similar) may SetActive(false) on this
         // GameObject; in canvas-group hide mode we previously skipped SetActive(true) and the menu could never reopen.
         mainMenuWindow.SetActive(true);
+        if (!wasOpen && mainMenuWindow.transform.parent != null)
+            mainMenuWindow.transform.SetAsLastSibling();
 
         EnsureWindowInteractable();
         HideAllPages();

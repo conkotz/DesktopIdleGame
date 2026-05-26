@@ -31,7 +31,7 @@ public class NPCHeal : MonoBehaviour, INPCInteractionEffect
         stats.RefreshVitalsFromStats(fillIfEmpty: false);
 
         if (restoreHP)
-            player.Heal(player.MaxHP);
+            player.Heal(player.MaxHP, PlayerCombatController.GenericHealingSourceLabel);
 
         if (restoreEnergy)
             player.AddEnergy(player.MaxEnergy);

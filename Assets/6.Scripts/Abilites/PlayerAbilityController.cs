@@ -55,6 +55,7 @@ public class PlayerAbilityController : MonoBehaviour
                               _instance._flameChargeRoutine != null);
     private const string PowerSlashId = "power_slash";
     private const string CrusaderStrikeId = "crusader_strike";
+    public const string CrusaderStrikeFireBalanceHudBuffId = "crusader_strike_fire_balance";
     private const string WhirlwindId = "whirlwind";
     private const string RendId = "rend";
     private const string EnvenomId = "envenom";
@@ -142,25 +143,32 @@ public class PlayerAbilityController : MonoBehaviour
     private const float SoulforgedWeaponSceneLoadActionBarGraceSeconds = 2f;
     private const int WhirlwindMaxChannelStacks = 5;
     private const int CrusaderStrikeFinalComboStep = 3;
-    private const float CrusaderStrikeFirstHitWeaponMultiplier = 1.1f;
-    private const float CrusaderStrikeSecondHitWeaponMultiplier = 1.2f;
-    private const float CrusaderStrikeFinalHitWeaponMultiplier = 1.5f;
-    private const float CrusaderStrikeHealFractionOfMaxHealth = 0.05f;
+    public const int CrusaderStrikeFireBalanceChoiceIndex = 0;
+    public const int CrusaderStrikeSacredRestorationChoiceIndex = 1;
+    private const float CrusaderStrikeFirstHitWeaponMultiplier = AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier;
+    private const float CrusaderStrikeSecondHitWeaponMultiplier = AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier;
+    private const float CrusaderStrikeFinalHitWeaponMultiplier = AbilityCombatPower.CrusaderStrikeFinalHitWeaponMultiplier;
+    private const float CrusaderStrikeComboTimeoutSeconds = 7f;
     private bool _whirlwindChanneling;
     private bool _whirlwindAutoChanneling;
     private bool _whirlwindActionBarHeld;
     private float _whirlwindChannelStartedAt;
+    private float _whirlwindLastTickAt;
     private float _whirlwindNextTickAt;
     private float _whirlwindNextVfxAt;
-    private readonly Dictionary<int, float> _whirlwindNextHitTimeByEnemyId = new();
+    private readonly Dictionary<int, float> _whirlwindLastHitTimeByEnemyId = new();
     private readonly HashSet<int> _whirlwindEnemiesInContactThisFrame = new();
     private readonly List<int> _whirlwindContactRemovalBuffer = new();
     private int _crusaderStrikeComboStep;
     private int _crusaderStrikePrimedStage;
     private bool _crusaderStrikeQueued;
     private int _queuedCrusaderStrikeConsumedStage;
-    private bool _crusaderStrikeAttributionPending;
+    private DpsDamageBucket? _crusaderStrikeAttributionBucketPending;
+    private float _crusaderStrikeComboTimeoutAt;
     private int _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
+    private float _crusaderStrikeFireBalanceBuffEndsAt;
+    private float _crusaderStrikeFireBalanceBuffDuration;
+    private float _lastSyncedCrusaderStrikeFireBalanceHudEnd = float.NaN;
     private bool _powerSlashQueued;
     private bool _rendQueued;
     private bool _envenomQueued;
@@ -212,7 +220,14 @@ public class PlayerAbilityController : MonoBehaviour
 
     private bool _avatarOfForestActive;
     private bool _energyInfusionActive;
-    private bool _energyInfusionShownOutOfManaPopup;
+    private int _lastAbilityResourceSpendHealth;
+    private int _lastAbilityResourceSpendMana;
+    private int _lastAbilityResourceSpendEnergy;
+    private string _lastAbilityResourceSpendAbilityId = "";
+    private bool _lastAbilityResourceSpendUsedEnergyInfusionMana;
+    private bool _queuedPowerSlashUsedEnergyInfusionMana;
+    private bool _crescentSlashUsedEnergyInfusionMana;
+    private bool _whirlwindUsedEnergyInfusionMana;
 
     private bool _battleTranceActive;
     private float _battleTranceEndsAt;
@@ -325,13 +340,15 @@ public class PlayerAbilityController : MonoBehaviour
                 1f);
         }
 
-        if (_crusaderStrikeAttributionPending)
+        if (_crusaderStrikeAttributionBucketPending.HasValue)
         {
-            _crusaderStrikeAttributionPending = false;
+            DpsDamageBucket bucket = _crusaderStrikeAttributionBucketPending ?? DpsDamageBucket.Physical;
+            _crusaderStrikeAttributionBucketPending = null;
             return new PlayerCombatController.SwingOutgoingAttribution(
                 "Auto Attack",
                 GetAbilityOutgoingDamageSourceLabel(CrusaderStrikeId),
-                1f);
+                1f,
+                bucket);
         }
 
         return PlayerCombatController.SwingOutgoingAttribution.AutoAttackOnly;
@@ -403,6 +420,7 @@ public class PlayerAbilityController : MonoBehaviour
         EndBladestormInstanceState();
         ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: false);
         ForceEndCrusaderStrikeCombo(applyCooldown: false);
+        ClearCrusaderStrikeFireBalanceBuff();
         player?.SetTeleportDamageImmune(false);
         player?.SetAbilityChannelLock(false);
         if (_phoenixAshenRebirthImmunityRoutine != null)
@@ -425,7 +443,10 @@ public class PlayerAbilityController : MonoBehaviour
         TryAutoReleaseQueuedCrescentSlash();
         TickWhirlwindChannel();
         SyncWhirlwindHudBuff();
+        CleanupCrusaderStrikeIfExpired();
         SyncCrusaderStrikeHudBuff();
+        CleanupCrusaderStrikeFireBalanceIfExpired();
+        SyncCrusaderStrikeFireBalanceHudBuff();
         CleanupCleavingStrikesIfExpired();
         SyncCleavingStrikesHudBuff();
         CleanupLumberFrenzyIfExpired();
@@ -706,13 +727,21 @@ public class PlayerAbilityController : MonoBehaviour
     public bool TryGetForcedAutoBattleAbilityId(out string abilityId)
     {
         abilityId = null;
-        if (_crusaderStrikeComboStep <= 0 && !_crusaderStrikeQueued)
+        bool crusaderBusy = IsCrusaderStrikeBusyThisAttack();
+        if (_crusaderStrikeComboStep <= 0 && !crusaderBusy)
             return false;
-        if (!_crusaderStrikeQueued && _crusaderStrikeComboStep >= CrusaderStrikeFinalComboStep)
+        if (!crusaderBusy && _crusaderStrikeComboStep >= CrusaderStrikeFinalComboStep)
             return false;
 
         abilityId = CrusaderStrikeId;
         return true;
+    }
+
+    private bool IsCrusaderStrikeBusyThisAttack()
+    {
+        return _crusaderStrikeQueued ||
+               _queuedConsumedThisHit == QueuedHitEffect.CrusaderStrike ||
+               _queuedCrusaderStrikeConsumedStage > 0;
     }
 
     private void ForceEndCrusaderStrikeCombo(bool applyCooldown)
@@ -722,12 +751,33 @@ public class PlayerAbilityController : MonoBehaviour
         _crusaderStrikePrimedStage = 0;
         _crusaderStrikeQueued = false;
         _queuedCrusaderStrikeConsumedStage = 0;
-        _crusaderStrikeAttributionPending = false;
+        _crusaderStrikeAttributionBucketPending = null;
+        _crusaderStrikeComboTimeoutAt = 0f;
         _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
         if (buffController != null && buffController.IsHudAbilityBuffActive(CrusaderStrikeId))
             buffController.ClearHudAbilityBuff(CrusaderStrikeId);
         if (applyCooldown && def != null)
             StartCooldown(def);
+    }
+
+    private void RefreshCrusaderStrikeComboTimeout()
+    {
+        _crusaderStrikeComboTimeoutAt = Time.time + CrusaderStrikeComboTimeoutSeconds;
+    }
+
+    private void CleanupCrusaderStrikeIfExpired()
+    {
+        bool comboActive = _crusaderStrikeQueued || _crusaderStrikeComboStep > 0;
+        if (!comboActive)
+        {
+            _crusaderStrikeComboTimeoutAt = 0f;
+            return;
+        }
+
+        if (_crusaderStrikeComboTimeoutAt <= 0f || Time.time < _crusaderStrikeComboTimeoutAt)
+            return;
+
+        ForceEndCrusaderStrikeCombo(applyCooldown: true);
     }
 
     private void SyncCrusaderStrikeHudBuff()
@@ -749,6 +799,102 @@ public class PlayerAbilityController : MonoBehaviour
 
         _lastSyncedCrusaderStrikeHudStacks = stacks;
         buffController.SetHudAbilityBuff(CrusaderStrikeId, stacks, 0f, 0f, persistActiveOverlay: true);
+    }
+
+    private int GetCrusaderStrikeSelectedChoice()
+    {
+        if (skillsManager == null)
+            skillsManager = SkillsManager.Instance;
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee,
+            AbilityCombatPower.CrusaderStrikeEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    private float GetCrusaderStrikeHealFraction() =>
+        GetCrusaderStrikeSelectedChoice() == CrusaderStrikeSacredRestorationChoiceIndex
+            ? AbilityCombatPower.CrusaderStrikeSacredRestorationHealFractionOfMaxHealth
+            : AbilityCombatPower.CrusaderStrikeHealFractionOfMaxHealth;
+
+    private bool IsCrusaderStrikeSecondCastFree()
+    {
+        if (GetCrusaderStrikeSelectedChoice() != CrusaderStrikeSacredRestorationChoiceIndex)
+            return false;
+
+        int nextCastStep = Mathf.Clamp(_crusaderStrikeComboStep + 1, 1, CrusaderStrikeFinalComboStep);
+        return nextCastStep == 2;
+    }
+
+    private bool HasCrusaderStrikeFireBalanceBuff() =>
+        _crusaderStrikeFireBalanceBuffEndsAt > Time.time &&
+        GetCrusaderStrikeSelectedChoice() == CrusaderStrikeFireBalanceChoiceIndex;
+
+    private void ActivateCrusaderStrikeFireBalanceBuff()
+    {
+        _crusaderStrikeFireBalanceBuffDuration = AbilityCombatPower.CrusaderStrikeFireBalanceBuffDurationSeconds;
+        _crusaderStrikeFireBalanceBuffEndsAt = Time.time + _crusaderStrikeFireBalanceBuffDuration;
+        _lastSyncedCrusaderStrikeFireBalanceHudEnd = float.NaN;
+        SyncCrusaderStrikeFireBalanceHudBuff();
+    }
+
+    private void ClearCrusaderStrikeFireBalanceBuff()
+    {
+        _crusaderStrikeFireBalanceBuffEndsAt = 0f;
+        _crusaderStrikeFireBalanceBuffDuration = 0f;
+        _lastSyncedCrusaderStrikeFireBalanceHudEnd = float.NaN;
+        buffController?.ClearHudAbilityBuff(CrusaderStrikeFireBalanceHudBuffId);
+    }
+
+    private void CleanupCrusaderStrikeFireBalanceIfExpired()
+    {
+        if (_crusaderStrikeFireBalanceBuffEndsAt <= 0f)
+            return;
+
+        if ((player != null && player.IsDead) || (stats != null && stats.IsDead) || Time.time >= _crusaderStrikeFireBalanceBuffEndsAt)
+            ClearCrusaderStrikeFireBalanceBuff();
+    }
+
+    private void SyncCrusaderStrikeFireBalanceHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (_crusaderStrikeFireBalanceBuffEndsAt <= Time.time || _crusaderStrikeFireBalanceBuffDuration <= 0f)
+        {
+            if (buffController.IsHudAbilityBuffActive(CrusaderStrikeFireBalanceHudBuffId))
+                buffController.ClearHudAbilityBuff(CrusaderStrikeFireBalanceHudBuffId);
+            _lastSyncedCrusaderStrikeFireBalanceHudEnd = float.NaN;
+            return;
+        }
+
+        if (Mathf.Abs(_lastSyncedCrusaderStrikeFireBalanceHudEnd - _crusaderStrikeFireBalanceBuffEndsAt) < 0.01f &&
+            buffController.IsHudAbilityBuffActive(CrusaderStrikeFireBalanceHudBuffId))
+            return;
+
+        _lastSyncedCrusaderStrikeFireBalanceHudEnd = _crusaderStrikeFireBalanceBuffEndsAt;
+        buffController.SetHudAbilityBuff(
+            CrusaderStrikeFireBalanceHudBuffId,
+            1,
+            _crusaderStrikeFireBalanceBuffEndsAt,
+            _crusaderStrikeFireBalanceBuffDuration);
+    }
+
+    public void ApplyActiveDamageConversions(ref SplitDamage hit)
+    {
+        if (!HasCrusaderStrikeFireBalanceBuff())
+            return;
+
+        float converted = Mathf.Max(0f, hit.physical) * AbilityCombatPower.CrusaderStrikeFireBalancePhysicalToFireFraction;
+        if (converted <= 0f)
+            return;
+
+        hit = new SplitDamage(
+            Mathf.Max(0f, hit.physical - converted),
+            Mathf.Max(0f, hit.magic + converted),
+            Mathf.Max(0f, hit.corruptionDamage));
     }
 
     private void ForceEndCleavingStrikesBuffEarly()
@@ -830,7 +976,6 @@ public class PlayerAbilityController : MonoBehaviour
     private void ActivateEnergyInfusion(AbilityDefinition def)
     {
         _energyInfusionActive = true;
-        _energyInfusionShownOutOfManaPopup = false;
         ApplyEnergyInfusionCombatModifiers();
         abilityVfx?.SpawnEnergyInfusionGlowVfx();
         SyncEnergyInfusionHudBuff();
@@ -843,9 +988,9 @@ public class PlayerAbilityController : MonoBehaviour
             return;
 
         _energyInfusionActive = false;
-        _energyInfusionShownOutOfManaPopup = false;
         if (stats != null)
-            stats.CombatAbilityPowerMultiplier = 1f;
+            stats.CombatManaRegenMultiplier = 1f;
+        _whirlwindUsedEnergyInfusionMana = false;
 
         abilityVfx?.DestroyEnergyInfusionGlowVfx();
         SyncEnergyInfusionHudBuff();
@@ -1018,50 +1163,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (player.IsDead || stats.IsDead)
         {
             ForceEndEnergyInfusionEarly(applyCooldown: false);
-            return;
         }
-
-        if (deltaTime <= 0f)
-            return;
-
-        if (stats.Mana <= 0.001f)
-        {
-            if (!_energyInfusionShownOutOfManaPopup && player != null)
-            {
-                _energyInfusionShownOutOfManaPopup = true;
-                player.ShowPopup("Out of mana.");
-            }
-
-            return;
-        }
-
-        _energyInfusionShownOutOfManaPopup = false;
-
-        float energyGain = AbilityCombatPower.EnergyInfusionBaseManaDrainPerSecond * deltaTime;
-        if (energyGain <= 0f)
-            return;
-
-        bool efficient = GetEnergyInfusionSelectedChoice() == 0;
-        float manaCost = efficient
-            ? energyGain * AbilityCombatPower.EnergyInfusionEfficientConversionManaMultiplier
-            : energyGain;
-
-        if (stats.Mana < manaCost)
-        {
-            manaCost = stats.Mana;
-            energyGain = efficient
-                ? manaCost / AbilityCombatPower.EnergyInfusionEfficientConversionManaMultiplier
-                : manaCost;
-        }
-
-        if (manaCost <= 0f)
-            return;
-
-        if (!player.SpendMana(manaCost))
-            return;
-
-        if (energyGain > 0f)
-            player.AddEnergy(energyGain);
     }
 
     private void ApplyEnergyInfusionCombatModifiers()
@@ -1070,8 +1172,8 @@ public class PlayerAbilityController : MonoBehaviour
             return;
 
         int choice = GetEnergyInfusionSelectedChoice();
-        stats.CombatAbilityPowerMultiplier = choice == 1
-            ? AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerMultiplier
+        stats.CombatManaRegenMultiplier = choice == 0
+            ? AbilityCombatPower.EnergyInfusionEfficientConversionManaRegenMultiplier
             : 1f;
     }
 
@@ -1102,6 +1204,41 @@ public class PlayerAbilityController : MonoBehaviour
             AbilityCombatPower.EnergyInfusionEnhancementParentSpineNodeId,
             -1);
         return selected;
+    }
+
+    private float GetEnergyInfusionFlatAbilityPowerBonus(AbilityDefinition def)
+    {
+        if (def == null || GetEnergyInfusionSelectedChoice() != 1)
+            return 0f;
+
+        if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
+            return _queuedPowerSlashUsedEnergyInfusionMana
+                ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
+                : 0f;
+
+        if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
+            return _crescentSlashUsedEnergyInfusionMana
+                ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
+                : 0f;
+
+        if (string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
+            return _whirlwindUsedEnergyInfusionMana
+                ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
+                : 0f;
+
+        return DidLastAbilitySpendUseEnergyInfusionMana(def)
+            ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
+            : 0f;
+    }
+
+    private float GetAbilityPowerDamageMultiplierForAbility(AbilityDefinition def)
+    {
+        if (stats == null)
+            return 1f;
+
+        return stats.GetAbilityPowerDamageMultiplier(
+            AbilityDefinition.StandardAbilityPowerCoefficient,
+            GetEnergyInfusionFlatAbilityPowerBonus(def));
     }
 
     private void ForceEndAvatarOfTheForestEarly()
@@ -1301,6 +1438,24 @@ public class PlayerAbilityController : MonoBehaviour
         _whirlwindActionBarHeld = held;
         if (!held && _whirlwindChanneling && !_whirlwindAutoChanneling)
             ForceEndWhirlwindChannel(clearHeldState: false, applyCooldown: true);
+    }
+
+    private static bool IsWhirlwindMobilityAbility(string abilityId)
+    {
+        return string.Equals(abilityId, ShadowStrikeId, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Whirlwind can coexist with a small set of mobility actions without dropping the channel.</summary>
+    private bool CanUseAbilityDuringWhirlwindChannel(string abilityId)
+    {
+        if (!_whirlwindChanneling)
+            return true;
+
+        if (string.Equals(abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return IsWhirlwindMobilityAbility(abilityId);
     }
 
     private float GetBattleEngineOverloadDamageMultiplier()
@@ -1529,7 +1684,7 @@ public class PlayerAbilityController : MonoBehaviour
         float lifeTotal = burningCount * AbilityCombatPower.PhoenixSoulLifePerBurningEnemy;
         float energyTotal = burningCount * AbilityCombatPower.PhoenixSoulEnergyPerBurningEnemy;
         if (lifeTotal > 0f)
-            stats.Heal(lifeTotal);
+            stats.Heal(lifeTotal, PlayerCombatController.PhoenixSoulHealingSourceLabel);
         if (energyTotal > 0f)
             player.AddEnergy(energyTotal);
     }
@@ -1638,30 +1793,18 @@ public class PlayerAbilityController : MonoBehaviour
 
     public bool IsEnergyInfusionActive => _energyInfusionActive;
 
-    /// <summary>
-    /// Energy/s shown on the stats panel: natural regen plus Energy Infusion conversion when the buff is active.
-    /// </summary>
+    /// <summary>Energy/s shown on the stats panel.</summary>
     public float GetDisplayedEnergyRegenPerSecond()
     {
-        if (stats == null)
-            return 0f;
-
-        float regen = stats.EnergyRegenPerSecond;
-        if (!_energyInfusionActive)
-            return regen;
-
-        float conversion = AbilityCombatPower.EnergyInfusionBaseManaDrainPerSecond;
-        if (stats.Mana > 0.001f)
-            return regen + conversion;
-
-        // At 0 mana, infusion converts incoming mana regen 1:1 (up to conversion throughput).
-        return regen + Mathf.Min(conversion, stats.ManaRegenPerSecond);
+        return stats != null ? stats.EnergyRegenPerSecond : 0f;
     }
 
     private bool TrySpendAbilityResourceCost(AbilityDefinition def, bool showInsufficientFeedback = true)
     {
         if (def == null || player == null || stats == null)
             return true;
+
+        ResetLastAbilityResourceSpend();
 
         switch (def.GetResourceCostType())
         {
@@ -1679,7 +1822,10 @@ public class PlayerAbilityController : MonoBehaviour
                     return false;
                 }
 
-                return stats.SpendHealthForAbilityCost(hpCost);
+                bool spentHealth = stats.SpendHealthForAbilityCost(hpCost);
+                if (spentHealth)
+                    RecordLastAbilityResourceSpend(def, hpCost, 0, 0, false);
+                return spentHealth;
             }
             case AbilityResourceCostType.Mana:
             {
@@ -1693,23 +1839,27 @@ public class PlayerAbilityController : MonoBehaviour
                     return false;
                 }
 
-                return player.SpendMana(manaCost);
+                bool spentMana = player.SpendMana(manaCost);
+                if (spentMana)
+                    RecordLastAbilityResourceSpend(def, 0, manaCost, 0, false);
+                return spentMana;
             }
             default:
             {
+                if (string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase) &&
+                    IsCrusaderStrikeSecondCastFree())
+                    return true;
+
                 float costMultiplier = GetBattleEngineOverloadEnergyCostMultiplier();
                 int energyCost = Mathf.Max(0, Mathf.RoundToInt(def.energyCost * costMultiplier));
                 if (energyCost <= 0)
                     return true;
 
-                if (stats.Energy < energyCost)
-                {
-                    if (showInsufficientFeedback)
-                        player.ShowPopup("Not enough energy.");
+                if (!TrySpendEnergyAbilityCost(def, energyCost, showInsufficientFeedback, out int energySpent, out int manaSpent))
                     return false;
-                }
 
-                return player.SpendEnergy(energyCost);
+                RecordLastAbilityResourceSpend(def, 0, manaSpent, energySpent, manaSpent > 0);
+                return true;
             }
         }
     }
@@ -1719,10 +1869,22 @@ public class PlayerAbilityController : MonoBehaviour
         if (def == null || player == null || stats == null)
             return;
 
+        if (LastAbilityResourceSpendMatches(def))
+        {
+            if (_lastAbilityResourceSpendHealth > 0)
+                stats.Heal(_lastAbilityResourceSpendHealth, PlayerCombatController.AbilityHealthRefundHealingSourceLabel);
+            if (_lastAbilityResourceSpendMana > 0)
+                player.AddMana(_lastAbilityResourceSpendMana);
+            if (_lastAbilityResourceSpendEnergy > 0)
+                player.AddEnergy(_lastAbilityResourceSpendEnergy);
+            ResetLastAbilityResourceSpend();
+            return;
+        }
+
         switch (def.GetResourceCostType())
         {
             case AbilityResourceCostType.Health:
-                stats.Heal(def.healthCost);
+                stats.Heal(def.healthCost, PlayerCombatController.AbilityHealthRefundHealingSourceLabel);
                 break;
             case AbilityResourceCostType.Mana:
                 player.AddMana(def.manaCost);
@@ -1731,6 +1893,117 @@ public class PlayerAbilityController : MonoBehaviour
                 player.AddEnergy(def.energyCost);
                 break;
         }
+    }
+
+    private bool TrySpendEnergyAbilityCost(
+        AbilityDefinition def,
+        int energyCost,
+        bool showInsufficientFeedback,
+        out int energySpent,
+        out int manaSpent)
+    {
+        energySpent = 0;
+        manaSpent = 0;
+        if (energyCost <= 0)
+            return true;
+
+        int manaCost = GetEnergyInfusionConvertedManaCost(def, energyCost);
+        if (manaCost > 0 && stats.Mana + 0.0001f >= manaCost)
+        {
+            int reducedEnergyCost = Mathf.Max(0, energyCost - manaCost);
+            if (stats.Energy + 0.0001f < reducedEnergyCost)
+            {
+                if (showInsufficientFeedback)
+                    player.ShowPopup("Not enough energy.");
+                return false;
+            }
+
+            if (manaCost > 0 && !player.SpendMana(manaCost))
+                return false;
+
+            if (reducedEnergyCost > 0 && !player.SpendEnergy(reducedEnergyCost))
+            {
+                if (manaCost > 0)
+                    player.AddMana(manaCost);
+                return false;
+            }
+
+            manaSpent = manaCost;
+            energySpent = reducedEnergyCost;
+            return true;
+        }
+
+        if (stats.Energy + 0.0001f < energyCost)
+        {
+            if (showInsufficientFeedback)
+                player.ShowPopup("Not enough energy.");
+            return false;
+        }
+
+        if (!player.SpendEnergy(energyCost))
+            return false;
+
+        energySpent = energyCost;
+        return true;
+    }
+
+    private int GetEnergyInfusionConvertedManaCost(AbilityDefinition def, int energyCost)
+    {
+        if (!ShouldUseEnergyInfusionForAbility(def) || energyCost <= 0)
+            return 0;
+
+        float manaFraction = AbilityCombatPower.EnergyInfusionBaseManaCostFraction;
+        int selectedChoice = GetEnergyInfusionSelectedChoice();
+        if (selectedChoice == 0)
+            manaFraction += AbilityCombatPower.EnergyInfusionEfficientConversionAdditionalManaCostFraction;
+        else if (selectedChoice == 1)
+            manaFraction = AbilityCombatPower.EnergyInfusionOverchargedManaCostFraction;
+
+        int manaCost = Mathf.RoundToInt(energyCost * Mathf.Clamp01(manaFraction));
+        return Mathf.Clamp(manaCost, 0, energyCost);
+    }
+
+    private bool ShouldUseEnergyInfusionForAbility(AbilityDefinition def)
+    {
+        return _energyInfusionActive &&
+               def != null &&
+               def.sourceSkill == SkillType.Melee &&
+               def.GetResourceCostType() == AbilityResourceCostType.Energy;
+    }
+
+    private void RecordLastAbilityResourceSpend(
+        AbilityDefinition def,
+        int healthSpent,
+        int manaSpent,
+        int energySpent,
+        bool usedEnergyInfusionMana)
+    {
+        _lastAbilityResourceSpendAbilityId = def != null ? def.abilityId ?? "" : "";
+        _lastAbilityResourceSpendHealth = Mathf.Max(0, healthSpent);
+        _lastAbilityResourceSpendMana = Mathf.Max(0, manaSpent);
+        _lastAbilityResourceSpendEnergy = Mathf.Max(0, energySpent);
+        _lastAbilityResourceSpendUsedEnergyInfusionMana = usedEnergyInfusionMana;
+    }
+
+    private void ResetLastAbilityResourceSpend()
+    {
+        _lastAbilityResourceSpendAbilityId = "";
+        _lastAbilityResourceSpendHealth = 0;
+        _lastAbilityResourceSpendMana = 0;
+        _lastAbilityResourceSpendEnergy = 0;
+        _lastAbilityResourceSpendUsedEnergyInfusionMana = false;
+    }
+
+    private bool LastAbilityResourceSpendMatches(AbilityDefinition def)
+    {
+        return def != null &&
+               !string.IsNullOrWhiteSpace(_lastAbilityResourceSpendAbilityId) &&
+               string.Equals(_lastAbilityResourceSpendAbilityId, def.abilityId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool DidLastAbilitySpendUseEnergyInfusionMana(AbilityDefinition def)
+    {
+        return LastAbilityResourceSpendMatches(def) && _lastAbilityResourceSpendUsedEnergyInfusionMana;
     }
 
     /// <summary>
@@ -1751,6 +2024,10 @@ public class PlayerAbilityController : MonoBehaviour
     private const string NoTargetsInRangeLogMessage = "No targets in range";
     private const float NoTargetsInRangeLogCooldownSeconds = 3f;
     private static float _nextNoTargetsInRangeLogTime = -999f;
+    private const string NoActiveTargetPrimedLogMessage = "No active target. Ability primed.";
+    private const float NoActiveTargetPrimedLogCooldownSeconds = 3f;
+    private static float _nextNoActiveTargetPrimedLogTime = -999f;
+    private const string NoDamageWithCurrentWeaponLogMessage = "Ability does no damage with this weapon";
 
     /// <summary>
     /// Pick the closest valid enemy for this ability, set combat target, or block the cast when range check applies.
@@ -1770,6 +2047,12 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
+        if (IsPrimingAbility(def))
+        {
+            LogNoActiveTargetPrimedThrottled();
+            return true;
+        }
+
         HandleNoTargetsInRangeForStarterAttack(def);
         return false;
     }
@@ -1782,11 +2065,28 @@ public class PlayerAbilityController : MonoBehaviour
         if (combat == null)
             return false;
 
+        EnemyBaseController currentTarget = combat.CurrentTarget;
+        bool hasLiveCurrentTarget =
+            currentTarget != null &&
+            !currentTarget.IsDead &&
+            currentTarget.gameObject.activeInHierarchy;
+
+        // Auto/idle battle should only use the slotted base Attack once to acquire a target.
+        // After that, normal chase/attack flow should continue without re-engaging every scan.
+        if (!showLockedFeedback && hasLiveCurrentTarget)
+            return false;
+
         if (TryFindKeyboardModeAbilityTarget(def, out EnemyBaseController target))
         {
+            if (!showLockedFeedback && target == currentTarget)
+                return false;
+
             combat.EngageTargetFromPlayerInput(target);
             return true;
         }
+
+        if (!showLockedFeedback)
+            return false;
 
         HandleNoTargetsInRangeForStarterAttack(def);
         return false;
@@ -1816,6 +2116,28 @@ public class PlayerAbilityController : MonoBehaviour
 
         _nextNoTargetsInRangeLogTime = Time.time + NoTargetsInRangeLogCooldownSeconds;
         GameLog.Add(NoTargetsInRangeLogMessage, GameLog.CannotMessageColor);
+    }
+
+    private static void LogNoActiveTargetPrimedThrottled()
+    {
+        if (Time.time < _nextNoActiveTargetPrimedLogTime)
+            return;
+
+        _nextNoActiveTargetPrimedLogTime = Time.time + NoActiveTargetPrimedLogCooldownSeconds;
+        GameLog.Add(NoActiveTargetPrimedLogMessage, GameLog.CannotMessageColor);
+    }
+
+    private static bool IsPrimingAbility(AbilityDefinition def)
+    {
+        if (def == null || string.IsNullOrWhiteSpace(def.abilityId))
+            return false;
+
+        string id = def.abilityId;
+        return string.Equals(id, PowerSlashId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, RendId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, EnvenomId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, CrescentSlashId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase);
     }
 
     private EnemyBaseController GetPreferredCombatEngagedEnemy()
@@ -1866,6 +2188,19 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (string.Equals(id, FinalSeveranceId, StringComparison.OrdinalIgnoreCase))
             return TryFindClosestEnemyInFinalSeveranceRange(out target);
+
+        if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
+        {
+            EnemyBaseController engaged = GetPreferredCombatEngagedEnemy();
+            if (engaged != null)
+            {
+                target = engaged;
+                return true;
+            }
+
+            target = combat != null ? combat.FindClosestLivingEnemyForEngage() : null;
+            return target != null;
+        }
 
         if (combat != null)
         {
@@ -2067,7 +2402,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (_finalSeveranceChanneling || _bladestormChanneling || _bladestormRoutine != null)
             return false;
 
-        if (_whirlwindChanneling && !string.Equals(abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
+        if (_whirlwindChanneling && !CanUseAbilityDuringWhirlwindChannel(abilityId))
             return false;
 
         if (player.IsDead || stats.IsDead)
@@ -2079,6 +2414,13 @@ public class PlayerAbilityController : MonoBehaviour
                 GameLog.Add(CombatStarterAttackAbility.WrongWeaponEquippedLogMessage, GameLog.CannotMessageColor);
             else if (showLockedFeedback && player)
                 player.ShowPopup("Ability cant be used with this weapon");
+            return false;
+        }
+
+        if (WouldAbilityDealNoDamageWithCurrentWeapon(def))
+        {
+            if (showLockedFeedback)
+                GameLog.Add(NoDamageWithCurrentWeaponLogMessage, GameLog.CannotMessageColor);
             return false;
         }
 
@@ -2151,7 +2493,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
         if (string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
         {
-            if (_crusaderStrikeQueued)
+            if (IsCrusaderStrikeBusyThisAttack())
                 return false;
         }
         if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
@@ -2207,6 +2549,7 @@ public class PlayerAbilityController : MonoBehaviour
             float weaponCombo = def.weaponDamageMultiplier + powerSlashAnyTypeBonus;
             _queuedPowerSlashWeaponMultiplier = weaponCombo <= 0f ? 1f : weaponCombo;
             _queuedPowerSlashAllDamageMultiplier = def.GetEffectiveAllDamageMultiplier();
+            _queuedPowerSlashUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -2316,6 +2659,8 @@ public class PlayerAbilityController : MonoBehaviour
 
             if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
                 return false;
+
+            _crescentSlashUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
 
             if (combat == null)
                 combat = GetComponent<PlayerCombatController>();
@@ -2485,7 +2830,7 @@ public class PlayerAbilityController : MonoBehaviour
         float wM = def.GetWeaponHitScalingMultiplier();
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        float apM = GetAbilityPowerDamageMultiplierForAbility(def);
         float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
         float overloadMult = GetBattleEngineOverloadDamageMultiplier();
         float physLine = basePhysical * wM + ailmentBonus;
@@ -2493,21 +2838,27 @@ public class PlayerAbilityController : MonoBehaviour
         float physPart = physLine * allM * apM * overloadMult;
         float magPart = magLine * allM * apM * overloadMult;
         float corrPart = (baseCorruption * wM) * allM * apM * overloadMult;
-        float raw = Mathf.Max(0f, physPart + magPart + corrPart);
 
         PrepareBattleEngineAbilityHitSession(def);
 
         bool wasCrit = false;
         float critMult = 1f;
-        if (raw > 0f && UnityEngine.Random.value < Mathf.Clamp01(stats.CritChance))
+        SplitDamage preCritHit = new SplitDamage(physPart, magPart, corrPart);
+        if (preCritHit.CanCrit && UnityEngine.Random.value < Mathf.Clamp01(stats.CritChance))
         {
             wasCrit = true;
             critMult = Mathf.Max(1f, stats.CritMultiplier);
         }
 
-        int phys = Mathf.Max(0, Mathf.RoundToInt(physPart * critMult));
-        int mag = Mathf.Max(0, Mathf.RoundToInt(magPart * critMult));
-        int corr = Mathf.Max(0, Mathf.RoundToInt(corrPart * critMult));
+        SplitDamage hit = new SplitDamage(
+            Mathf.Max(0f, physPart * critMult),
+            Mathf.Max(0f, magPart * critMult),
+            Mathf.Max(0f, corrPart * critMult));
+        ApplyActiveDamageConversions(ref hit);
+
+        int phys = Mathf.Max(0, Mathf.RoundToInt(hit.physical));
+        int mag = Mathf.Max(0, Mathf.RoundToInt(hit.magic));
+        int corr = Mathf.Max(0, Mathf.RoundToInt(hit.corruptionDamage));
         string sourceLabel = GetAbilityOutgoingDamageSourceLabel(def.abilityId);
         int dealt = 0;
         if (phys > 0)
@@ -2558,7 +2909,7 @@ public class PlayerAbilityController : MonoBehaviour
         float wM = def.GetWeaponHitScalingMultiplier();
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        float apM = GetAbilityPowerDamageMultiplierForAbility(def);
         float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
 
         float physLine = basePhysical * wM + ailmentBonus;
@@ -2575,8 +2926,7 @@ public class PlayerAbilityController : MonoBehaviour
         nonCritBase = new SplitDamage(physPart, magPart, corruptionPart);
 
         wasCrit = false;
-        float raw = physPart + magPart + corruptionPart;
-        if (raw > 0f && UnityEngine.Random.value < Mathf.Clamp01(stats.CritChance))
+        if (nonCritBase.CanCrit && UnityEngine.Random.value < Mathf.Clamp01(stats.CritChance))
             wasCrit = true;
     }
 
@@ -2609,11 +2959,12 @@ public class PlayerAbilityController : MonoBehaviour
             hadAnyTargetInRange = true;
             _whirlwindEnemiesInContactThisFrame.Add(enemyId);
 
-            if (_whirlwindNextHitTimeByEnemyId.TryGetValue(enemyId, out float nextHitAt) && Time.time + 0.0001f < nextHitAt)
+            if (_whirlwindLastHitTimeByEnemyId.TryGetValue(enemyId, out float lastHitAt) &&
+                Time.time + 0.0001f < lastHitAt + GetWhirlwindChannelHitIntervalSeconds())
                 continue;
 
             ApplyWhirlwindHitToTarget(enemy, def, damageMultiplier);
-            _whirlwindNextHitTimeByEnemyId[enemyId] = Time.time + AbilityCombatPower.WhirlwindChannelHitIntervalSeconds;
+            _whirlwindLastHitTimeByEnemyId[enemyId] = Time.time;
         }
 
         CleanupWhirlwindContactCache();
@@ -2645,18 +2996,18 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void CleanupWhirlwindContactCache()
     {
-        if (_whirlwindNextHitTimeByEnemyId.Count == 0)
+        if (_whirlwindLastHitTimeByEnemyId.Count == 0)
             return;
 
         _whirlwindContactRemovalBuffer.Clear();
-        foreach (int enemyId in _whirlwindNextHitTimeByEnemyId.Keys)
+        foreach (int enemyId in _whirlwindLastHitTimeByEnemyId.Keys)
         {
             if (!_whirlwindEnemiesInContactThisFrame.Contains(enemyId))
                 _whirlwindContactRemovalBuffer.Add(enemyId);
         }
 
         for (int i = 0; i < _whirlwindContactRemovalBuffer.Count; i++)
-            _whirlwindNextHitTimeByEnemyId.Remove(_whirlwindContactRemovalBuffer[i]);
+            _whirlwindLastHitTimeByEnemyId.Remove(_whirlwindContactRemovalBuffer[i]);
     }
 
     private bool TryUseCrusaderStrike(AbilityDefinition def)
@@ -2664,7 +3015,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (def == null || stats == null)
             return false;
 
-        if (_crusaderStrikeQueued)
+        if (IsCrusaderStrikeBusyThisAttack())
             return false;
 
         if (!TrySpendAbilityResourceCost(def, showInsufficientFeedback: true))
@@ -2673,6 +3024,7 @@ public class PlayerAbilityController : MonoBehaviour
         int castStep = Mathf.Clamp(_crusaderStrikeComboStep + 1, 1, CrusaderStrikeFinalComboStep);
         _crusaderStrikePrimedStage = castStep;
         _crusaderStrikeQueued = true;
+        RefreshCrusaderStrikeComboTimeout();
         return true;
     }
 
@@ -2684,6 +3036,41 @@ public class PlayerAbilityController : MonoBehaviour
             2 => CrusaderStrikeSecondHitWeaponMultiplier,
             _ => CrusaderStrikeFinalHitWeaponMultiplier
         };
+    }
+
+    private float GetCrusaderStrikeFinalFireScaling(AbilityDefinition def)
+    {
+        if (stats == null || def == null)
+            return 1f;
+
+        float firePortionScale = Mathf.Max(0f, def.fireDamageMultiplier);
+        float fireSkillBonus = Mathf.Max(0f, stats.ElementSkillDamageScalingFractionFor(MagicAttackType.Fire));
+        float scale = firePortionScale > 0f
+            ? 1f + fireSkillBonus * firePortionScale
+            : 1f;
+
+        if (GetCrusaderStrikeSelectedChoice() == CrusaderStrikeFireBalanceChoiceIndex)
+            scale *= AbilityCombatPower.CrusaderStrikeFireBalanceFinalStrikeFireMultiplier;
+
+        return scale;
+    }
+
+    private SplitDamage BuildCrusaderStrikeSplit(
+        SplitDamage rolled,
+        float weaponMultiplier,
+        bool finalStrike,
+        AbilityDefinition def)
+    {
+        if (stats == null || !stats.CurrentMeleeWeaponHasPhysicalOrFireDamage())
+            return SplitDamage.Zero;
+
+        float usablePhysical = Mathf.Max(0f, rolled.physical) * stats.GetMeleeWeaponPhysicalFraction();
+        float usableFire = Mathf.Max(0f, rolled.magic) * stats.GetMeleeMagicFireFraction();
+        float totalWeaponDamage = (usablePhysical + usableFire) * Mathf.Max(0f, weaponMultiplier);
+        if (finalStrike)
+            return new SplitDamage(0f, totalWeaponDamage * GetCrusaderStrikeFinalFireScaling(def), 0f);
+
+        return new SplitDamage(totalWeaponDamage, 0f, 0f);
     }
 
     private IEnumerator CoFinalSeverance(AbilityDefinition def)
@@ -3946,8 +4333,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (channelSeconds < 0f)
             channelSeconds = GetWhirlwindChannelElapsedSeconds();
 
+        float expansiveStages = GetWhirlwindExpansiveStageCount(channelSeconds);
         return GetWhirlwindHitRadius() +
-               Mathf.Max(0f, channelSeconds) * AbilityCombatPower.WhirlwindExpansiveSizePerSecond;
+               expansiveStages * AbilityCombatPower.WhirlwindExpansiveRangePerStage;
     }
 
     private List<(EnemyBaseController enemy, float dist)> CollectCrescentSlashForwardHits(float reach)
@@ -4068,10 +4456,11 @@ public class PlayerAbilityController : MonoBehaviour
         _whirlwindChanneling = true;
         _whirlwindAutoChanneling = autoBattleChannel;
         _whirlwindChannelStartedAt = Time.time;
-        _whirlwindNextTickAt = Time.time + AbilityCombatPower.WhirlwindChannelHitIntervalSeconds;
+        _whirlwindLastTickAt = Time.time;
+        _whirlwindNextTickAt = Time.time + GetWhirlwindChannelHitIntervalSeconds();
         _whirlwindNextVfxAt = Time.time + AbilityCombatPower.WhirlwindChannelVfxIntervalSeconds;
         if (stats != null)
-            stats.AbilityChannelMoveSpeedMultiplier = 0.5f;
+            stats.AbilityChannelMoveSpeedMultiplier = GetWhirlwindMoveSpeedMultiplier();
 
         float channelSeconds = GetWhirlwindChannelElapsedSeconds();
         float radius = GetWhirlwindEffectiveRadius(channelSeconds);
@@ -4122,7 +4511,9 @@ public class PlayerAbilityController : MonoBehaviour
             _whirlwindNextVfxAt += AbilityCombatPower.WhirlwindChannelVfxIntervalSeconds;
         }
 
-        while (_whirlwindChanneling && Time.time >= _whirlwindNextTickAt)
+        _whirlwindNextTickAt = _whirlwindLastTickAt + GetWhirlwindChannelHitIntervalSeconds();
+
+        while (_whirlwindChanneling && Time.time + 0.0001f >= _whirlwindNextTickAt)
         {
             if (_whirlwindAutoChanneling && !CanHitAnyEnemyWithWhirlwind())
             {
@@ -4136,8 +4527,11 @@ public class PlayerAbilityController : MonoBehaviour
                 return;
             }
 
-            _whirlwindNextTickAt += AbilityCombatPower.WhirlwindChannelHitIntervalSeconds;
+            _whirlwindLastTickAt = _whirlwindNextTickAt;
+            _whirlwindNextTickAt = _whirlwindLastTickAt + GetWhirlwindChannelHitIntervalSeconds();
         }
+
+        TryUseWhirlwind(def);
     }
 
     private bool TrySpendWhirlwindChannelEnergy(AbilityDefinition def, bool showInsufficientFeedback)
@@ -4145,23 +4539,33 @@ public class PlayerAbilityController : MonoBehaviour
         if (player == null || stats == null)
             return false;
 
-        float cost = GetWhirlwindChannelEnergyCostPerTick(def);
-        if (cost <= 0f)
-            return true;
-
-        if (stats.Energy + 0.0001f < cost)
+        int cost = Mathf.Max(0, Mathf.RoundToInt(GetWhirlwindChannelEnergyCostPerTick(def)));
+        if (cost <= 0)
         {
-            if (showInsufficientFeedback)
-                player.ShowPopup("Not enough energy.");
-            return false;
+            _whirlwindUsedEnergyInfusionMana = false;
+            return true;
         }
 
-        return player.SpendEnergy(cost);
+        ResetLastAbilityResourceSpend();
+        if (!TrySpendEnergyAbilityCost(def, cost, showInsufficientFeedback, out int energySpent, out int manaSpent))
+            return false;
+
+        RecordLastAbilityResourceSpend(def, 0, manaSpent, energySpent, manaSpent > 0);
+        _whirlwindUsedEnergyInfusionMana = manaSpent > 0;
+        return true;
     }
 
     private float GetWhirlwindChannelEnergyCostPerTick(AbilityDefinition def)
     {
-        return GetWhirlwindChannelEnergyPerSecond(def) * AbilityCombatPower.WhirlwindChannelHitIntervalSeconds;
+        return GetWhirlwindChannelEnergyPerSecond(def) * GetWhirlwindChannelHitIntervalSeconds();
+    }
+
+    private float GetWhirlwindChannelHitIntervalSeconds()
+    {
+        if (combat != null)
+            return Mathf.Max(0.01f, combat.GetAttackCooldownSeconds());
+
+        return 1f / Mathf.Max(0.01f, stats != null ? stats.AttacksPerSecond : 1f);
     }
 
     private float GetWhirlwindBaseChannelEnergyPerSecond(AbilityDefinition def)
@@ -4195,7 +4599,26 @@ public class PlayerAbilityController : MonoBehaviour
         if (GetWhirlwindSelectedChoice() != 1)
             return 1f;
 
-        return 1f + Mathf.Max(0f, channelSeconds) * AbilityCombatPower.WhirlwindExpansiveDamagePerSecond;
+        return 1f + GetWhirlwindExpansiveScalingSeconds(channelSeconds) * AbilityCombatPower.WhirlwindExpansiveDamagePerSecond;
+    }
+
+    private float GetWhirlwindMoveSpeedMultiplier()
+    {
+        float penalty = AbilityCombatPower.WhirlwindBaseMoveSpeedPenaltyFraction;
+        if (GetWhirlwindSelectedChoice() == 0)
+            penalty *= AbilityCombatPower.WhirlwindSustainedCycloneMoveSpeedPenaltyMultiplier;
+
+        return Mathf.Clamp01(1f - Mathf.Max(0f, penalty));
+    }
+
+    private static float GetWhirlwindExpansiveScalingSeconds(float channelSeconds)
+    {
+        return Mathf.Clamp(Mathf.Max(0f, channelSeconds), 0f, WhirlwindMaxChannelStacks - 1f);
+    }
+
+    private static int GetWhirlwindExpansiveStageCount(float channelSeconds)
+    {
+        return Mathf.Clamp(1 + Mathf.FloorToInt(Mathf.Max(0f, channelSeconds)), 1, WhirlwindMaxChannelStacks);
     }
 
     private void SyncWhirlwindHudBuff()
@@ -4220,9 +4643,11 @@ public class PlayerAbilityController : MonoBehaviour
         _whirlwindChanneling = false;
         _whirlwindAutoChanneling = false;
         _whirlwindChannelStartedAt = 0f;
+        _whirlwindLastTickAt = 0f;
         _whirlwindNextTickAt = 0f;
         _whirlwindNextVfxAt = 0f;
-        _whirlwindNextHitTimeByEnemyId.Clear();
+        _whirlwindUsedEnergyInfusionMana = false;
+        _whirlwindLastHitTimeByEnemyId.Clear();
         _whirlwindEnemiesInContactThisFrame.Clear();
         _whirlwindContactRemovalBuffer.Clear();
         if (stats != null)
@@ -4403,6 +4828,8 @@ public class PlayerAbilityController : MonoBehaviour
                 hit.corruptionDamage * overloadMult);
         }
 
+        ApplyActiveDamageConversions(ref hit);
+
         DealtHit dealt = ApplySplitDamageToEnemy(
             target,
             hit,
@@ -4447,7 +4874,7 @@ public class PlayerAbilityController : MonoBehaviour
     {
         if (stats == null)
             return false;
-        if (hit.physical <= 0f && hit.magic <= 0f)
+        if (!hit.CanCrit)
             return false;
 
         float critChance = Mathf.Clamp01(stats.CritChance);
@@ -4522,7 +4949,7 @@ public class PlayerAbilityController : MonoBehaviour
             _queuedConsumedFrame = Time.frameCount;
 
             float apM = stats != null
-                ? stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient)
+                ? GetAbilityPowerDamageMultiplierForAbility(def)
                 : 1f;
             float allM = _queuedPowerSlashAllDamageMultiplier;
             AbilityDefinition slashDef = GetAbilityDefinition(PowerSlashId);
@@ -4536,6 +4963,7 @@ public class PlayerAbilityController : MonoBehaviour
             rolled.corruptionDamage = ((rolled.corruptionDamage * _queuedPowerSlashWeaponMultiplier) * apM * allM) * overloadMult;
             rolled.physical = Mathf.Max(0f, rolled.physical);
             rolled.magic = Mathf.Max(0f, rolled.magic);
+            _queuedPowerSlashUsedEnergyInfusionMana = false;
 
             if (def)
                 StartCooldown(def);
@@ -4576,29 +5004,20 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (_crusaderStrikeQueued)
         {
+            AbilityDefinition def = GetAbilityDefinition(CrusaderStrikeId);
             int castStep = Mathf.Clamp(_crusaderStrikePrimedStage, 1, CrusaderStrikeFinalComboStep);
             float weaponMultiplier = GetCrusaderStrikeWeaponMultiplier(castStep);
+            bool finalStrike = castStep >= CrusaderStrikeFinalComboStep;
 
             _crusaderStrikeQueued = false;
             _crusaderStrikePrimedStage = 0;
             _queuedCrusaderStrikeConsumedStage = castStep;
             _queuedConsumedThisHit = QueuedHitEffect.CrusaderStrike;
             _queuedConsumedFrame = Time.frameCount;
-            _crusaderStrikeAttributionPending = true;
+            _crusaderStrikeAttributionBucketPending =
+                finalStrike ? DpsDamageBucket.Magic : DpsDamageBucket.Physical;
 
-            float scaledPhysical = Mathf.Max(0f, rolled.physical * weaponMultiplier);
-            if (castStep >= CrusaderStrikeFinalComboStep)
-            {
-                rolled.physical = 0f;
-                rolled.magic = scaledPhysical;
-                rolled.corruptionDamage = 0f;
-            }
-            else
-            {
-                rolled.physical = scaledPhysical;
-                rolled.magic = 0f;
-                rolled.corruptionDamage = 0f;
-            }
+            rolled = BuildCrusaderStrikeSplit(rolled, weaponMultiplier, finalStrike, def);
             return true;
         }
 
@@ -4642,6 +5061,7 @@ public class PlayerAbilityController : MonoBehaviour
             }
 
             _crescentSlashEnergyCommitted = true;
+            _crescentSlashUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
         }
 
         if (combat == null)
@@ -4668,6 +5088,7 @@ public class PlayerAbilityController : MonoBehaviour
     {
         _crescentSlashQueued = false;
         _crescentSlashEnergyCommitted = false;
+        _crescentSlashUsedEnergyInfusionMana = false;
     }
 
     private float GetCombatFacingSign() =>
@@ -4743,8 +5164,13 @@ public class PlayerAbilityController : MonoBehaviour
 
             if (consumedStage == 1 || consumedStage == 2)
             {
-                if (physicalDealt > 0f && player != null && stats != null)
-                    player.Heal(stats.MaxHP * CrusaderStrikeHealFractionOfMaxHealth);
+                _crusaderStrikeComboStep = consumedStage;
+                RefreshCrusaderStrikeComboTimeout();
+                _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
+                SyncCrusaderStrikeHudBuff();
+
+                if (consumedStage == 2 && physicalDealt > 0f && player != null && stats != null)
+                    player.Heal(stats.MaxHP * GetCrusaderStrikeHealFraction(), PlayerCombatController.CrusaderStrikeHealingSourceLabel);
             }
             else if (consumedStage >= CrusaderStrikeFinalComboStep)
             {
@@ -4753,15 +5179,11 @@ public class PlayerAbilityController : MonoBehaviour
                 _crusaderStrikeComboStep = 0;
                 _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
                 SyncCrusaderStrikeHudBuff();
+                if (GetCrusaderStrikeSelectedChoice() == CrusaderStrikeFireBalanceChoiceIndex)
+                    ActivateCrusaderStrikeFireBalanceBuff();
                 AbilityDefinition def = GetAbilityDefinition(CrusaderStrikeId);
                 if (def)
                     StartCooldown(def);
-            }
-            else
-            {
-                _crusaderStrikeComboStep = consumedStage;
-                _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
-                SyncCrusaderStrikeHudBuff();
             }
 
             _queuedCrusaderStrikeConsumedStage = 0;
@@ -6208,7 +6630,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return _crescentSlashQueued;
         if (string.Equals(abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
-            return _crusaderStrikeQueued;
+            return IsCrusaderStrikeBusyThisAttack();
 
         return false;
     }
@@ -6443,6 +6865,17 @@ public class PlayerAbilityController : MonoBehaviour
                 skill == AttackSkill.Melee || skill == AttackSkill.Ranged,
             _ => true
         };
+    }
+
+    private bool WouldAbilityDealNoDamageWithCurrentWeapon(AbilityDefinition def)
+    {
+        if (def == null || stats == null)
+            return false;
+
+        if (string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
+            return !stats.CurrentMeleeWeaponHasPhysicalOrFireDamage();
+
+        return false;
     }
 
     private bool TrySpawnSoulforgedWeaponMinion(AbilityDefinition def, bool recordDamageMeterSummonUse = true)

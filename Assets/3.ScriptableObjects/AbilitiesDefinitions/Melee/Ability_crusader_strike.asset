@@ -23,7 +23,7 @@ MonoBehaviour:
   healthCost: 0
   weaponDamageMultiplier: 1.1
   allDamageMultiplier: 1
-  fireDamageMultiplier: 0
+  fireDamageMultiplier: 1
   iceDamageMultiplier: 0
   lightningDamageMultiplier: 0
   poisonDamageMultiplier: 0

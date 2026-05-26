@@ -321,7 +321,7 @@ public class PlayerBuffController : MonoBehaviour
                     if (stats != null && buff.magnitude > 0f && buff.duration > 0f)
                     {
                         float healPerSecond = buff.magnitude / buff.duration;
-                        stats.Heal(healPerSecond * dt);
+                        stats.Heal(healPerSecond * dt, PlayerCombatController.PotionHealingSourceLabel);
                     }
                     break;
 
@@ -337,7 +337,7 @@ public class PlayerBuffController : MonoBehaviour
                     if (stats != null && buff.magnitude > 0f && buff.duration > 0f)
                     {
                         float healPerSecond = buff.magnitude / buff.duration;
-                        stats.Heal(healPerSecond * dt);
+                        stats.Heal(healPerSecond * dt, PlayerCombatController.FoodHealingSourceLabel);
                     }
                     break;
             }

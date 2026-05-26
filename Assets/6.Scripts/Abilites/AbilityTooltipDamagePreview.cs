@@ -567,9 +567,9 @@ public static class AbilityTooltipDamagePreview
 
         if (IsCrusaderStrike(def))
         {
-            scaling.AppendLine(S($"Cast 1: {AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier * 100f:0.#}% of your weapon damage"));
-            scaling.AppendLine(S($"Cast 2: {AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier * 100f:0.#}% of your weapon damage"));
-            scaling.AppendLine(S($"Cast 3: {AbilityCombatPower.CrusaderStrikeFinalHitWeaponMultiplier * 100f:0.#}% of your weapon damage"));
+            scaling.AppendLine(S($"Cast 1: {AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier * 100f:0.#}% of your weapon physical or Fire damage"));
+            scaling.AppendLine(S($"Cast 2: {AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier * 100f:0.#}% of your weapon physical or Fire damage"));
+            scaling.AppendLine(S($"Cast 3: {AbilityCombatPower.CrusaderStrikeFinalHitWeaponMultiplier * 100f:0.#}% of your weapon physical or Fire damage"));
             return scaling.ToString().TrimEnd();
         }
 
@@ -767,14 +767,14 @@ public static class AbilityTooltipDamagePreview
         {
             int enhance = GetEnergyInfusionBranchChoice(skillsManager);
             body.AppendLine(O(
-                $"While active, drains Mana to restore Energy at {AbilityCombatPower.EnergyInfusionBaseManaDrainPerSecond:0.#} per second (1:1)."));
-            body.AppendLine(O("Stays on until toggled off. At 0 mana, normal mana regen continues and is converted to Energy."));
+                $"While active, melee abilities that use Energy instead spend {AbilityCombatPower.EnergyInfusionBaseManaCostFraction * 100f:0.#}% Mana and {(1f - AbilityCombatPower.EnergyInfusionBaseManaCostFraction) * 100f:0.#}% Energy."));
+            body.AppendLine(O("If you do not have enough Mana for the converted portion, that ability uses its full Energy cost instead."));
             if (enhance == 0)
                 body.AppendLine(O(
-                    $"Efficient Conversion: Mana drain reduced by {(1f - AbilityCombatPower.EnergyInfusionEfficientConversionManaMultiplier) * 100f:0.#}% (full Energy gain)."));
+                    $"Efficient Conversion: use +{AbilityCombatPower.EnergyInfusionEfficientConversionAdditionalManaCostFraction * 100f:0.#}% additional Mana instead of Energy and gain +{(AbilityCombatPower.EnergyInfusionEfficientConversionManaRegenMultiplier - 1f) * 100f:0.#}% Mana regeneration while active."));
             else if (enhance == 1)
                 body.AppendLine(O(
-                    $"Overcharged: +{(AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerMultiplier - 1f) * 100f:0.#}% ability power while active."));
+                    $"Overcharged: abilities use {AbilityCombatPower.EnergyInfusionOverchargedManaCostFraction * 100f:0.#}% Mana instead of {AbilityCombatPower.EnergyInfusionBaseManaCostFraction * 100f:0.#}%, and if Mana is used that ability gains +{AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus:0.#} flat ability power."));
             body.AppendLine(string.Empty);
             body.AppendLine(O("Duration: Toggle"));
             body.AppendLine(string.Empty);
@@ -894,18 +894,21 @@ public static class AbilityTooltipDamagePreview
         }
         else if (IsCrusaderStrike(def))
         {
-            string dmgSuffix = DamageTimingSuffix();
-            float cast1 = ComputeAverageCrusaderStrikePhysicalHit(stats, AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier);
-            float cast2 = ComputeAverageCrusaderStrikePhysicalHit(stats, AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier);
-            float cast3 = ComputeAverageCrusaderStrikePhysicalHit(stats, AbilityCombatPower.CrusaderStrikeFinalHitWeaponMultiplier);
+            int crusaderChoice = GetCrusaderStrikeSelectedChoice(skillsManager);
+            float cast1 = ComputeAverageCrusaderStrikeWeaponHit(stats, AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier);
+            float cast2 = ComputeAverageCrusaderStrikeWeaponHit(stats, AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier);
+            float cast3 = ComputeAverageCrusaderStrikeWeaponHit(
+                stats,
+                AbilityCombatPower.CrusaderStrikeFinalHitWeaponMultiplier,
+                GetCrusaderStrikeFinalFireTooltipScale(def, stats, crusaderChoice));
+            float healAmount = stats != null
+                ? stats.MaxHP * GetCrusaderStrikeHealFraction(crusaderChoice)
+                : 0f;
+            int healPercent = Mathf.RoundToInt(GetCrusaderStrikeHealFraction(crusaderChoice) * 100f);
 
-            body.AppendLine(O("Each activation primes your next melee hit."));
-            body.AppendLine(O($"Next hit: {Mathf.RoundToInt(cast1)} Physical damage{dmgSuffix} (Cast 1)"));
-            body.AppendLine(O($"Next hit: {Mathf.RoundToInt(cast2)} Physical damage{dmgSuffix} (Cast 2)"));
-            body.AppendLine(O($"Next hit: {Mathf.RoundToInt(cast3)} Fire damage{dmgSuffix} (Cast 3)"));
-            body.AppendLine(O($"Casts 1 and 2 heal {AbilityCombatPower.CrusaderStrikeHealFractionOfMaxHealth * 100f:0.#}% of maximum health on hit."));
-            body.AppendLine(O("Combo buff: 1 stack after Cast 1, 2 stacks after Cast 2, hidden while Cast 3 is primed."));
-            body.AppendLine(O("Cooldown begins after the final strike."));
+            body.AppendLine(O($"Cast 1 - {Mathf.RoundToInt(cast1)} Physical damage on hit"));
+            body.AppendLine(O($"Cast 2 - {Mathf.RoundToInt(cast2)} Physical damage on hit, Heal {Mathf.RoundToInt(healAmount)}Hp ({healPercent}% max health)"));
+            body.AppendLine(O($"Cast 3 - {Mathf.RoundToInt(cast3)} Fire damage on hit (100% phys converted to fire)"));
         }
         else if (IsFinalSeverance(def))
         {
@@ -1046,6 +1049,8 @@ public static class AbilityTooltipDamagePreview
             ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
             body.AppendLine(O("Holding the hotkey channels Whirlwind continuously while energy remains."));
+            body.AppendLine(O(
+                $"Move speed is reduced by {AbilityCombatPower.WhirlwindBaseMoveSpeedPenaltyFraction * 100f:0.#}% while channelling."));
 
             int wwEnhance = GetMeleeLv15BranchChoice(skillsManager, 0);
             if (wwEnhance == 0)
@@ -1055,13 +1060,14 @@ public static class AbilityTooltipDamagePreview
                     Mathf.Max(0f, def.energyCost) - AbilityCombatPower.WhirlwindTwinCycloneChannelCostReductionPerSecond);
                 body.AppendLine(O(
                     $"Channel cost is reduced to {reducedCost:0.#} Energy / s."));
+                body.AppendLine(O("Move speed penalty is halved while using Whirlwind."));
             }
             else if (wwEnhance == 1)
             {
                 body.AppendLine(O(
-                    $"+{AbilityCombatPower.WhirlwindExpansiveSizePerSecond:0.#} size per second while channeling."));
+                    $"+{AbilityCombatPower.WhirlwindExpansiveRangePerStage:0.#} range per stage while channeling (up to 5 stacks)."));
                 body.AppendLine(O(
-                    $"+{AbilityCombatPower.WhirlwindExpansiveDamagePerSecond * 100f:0.#}% damage per second while channeling."));
+                    $"+{AbilityCombatPower.WhirlwindExpansiveDamagePerSecond * 100f:0.#}% damage per second while channeling (up to 5 stacks)."));
             }
         }
         else if (UsesCombinedTotalHitDamageTooltip(def))
@@ -1144,6 +1150,18 @@ public static class AbilityTooltipDamagePreview
 
         if (GatheringPassiveTooltipText.TryGetHudBuffTooltip(buffId, displayStacks, skillsManager, out title, out body))
             return true;
+
+        if (string.Equals(
+                buffId,
+                PlayerAbilityController.CrusaderStrikeFireBalanceHudBuffId,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            title = "Fire Balance";
+            body =
+                "30% of your physical damage is converted to fire.\n" +
+                "Final Strike gains +20% fire damage.";
+            return true;
+        }
 
         if (abilityDatabase == null)
             return false;
@@ -1950,14 +1968,56 @@ public static class AbilityTooltipDamagePreview
         corrHit = corrLine * allM * apM * dmgMult;
     }
 
-    private static float ComputeAverageCrusaderStrikePhysicalHit(CharacterStats stats, float weaponMult)
+    private static float ComputeAverageCrusaderStrikeWeaponHit(CharacterStats stats, float weaponMult)
+        => ComputeAverageCrusaderStrikeWeaponHit(stats, weaponMult, 1f);
+
+    private static float ComputeAverageCrusaderStrikeWeaponHit(CharacterStats stats, float weaponMult, float extraScale)
     {
         if (!stats)
             return 0f;
 
-        float avgPhys = (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
-        return Mathf.Max(0f, avgPhys * Mathf.Max(0f, weaponMult));
+        if (!stats.CurrentMeleeWeaponHasPhysicalOrFireDamage())
+            return 0f;
+
+        float avgUsableWeaponHit = stats.GetMeleeAverageWeaponPhysicalOrFireDamagePerHit();
+        return Mathf.Max(0f, avgUsableWeaponHit * Mathf.Max(0f, weaponMult) * Mathf.Max(0f, extraScale));
     }
+
+    private static float GetCrusaderStrikeFinalFireTooltipScale(
+        AbilityDefinition def,
+        CharacterStats stats,
+        int selectedChoice)
+    {
+        if (def == null || stats == null)
+            return 1f;
+
+        float firePortionScale = Mathf.Max(0f, def.fireDamageMultiplier);
+        float fireSkillBonus = Mathf.Max(0f, stats.ElementSkillDamageScalingFractionFor(MagicAttackType.Fire));
+        float scale = firePortionScale > 0f
+            ? 1f + fireSkillBonus * firePortionScale
+            : 1f;
+
+        if (selectedChoice == PlayerAbilityController.CrusaderStrikeFireBalanceChoiceIndex)
+            scale *= AbilityCombatPower.CrusaderStrikeFireBalanceFinalStrikeFireMultiplier;
+
+        return scale;
+    }
+
+    private static int GetCrusaderStrikeSelectedChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee,
+            AbilityCombatPower.CrusaderStrikeEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    private static float GetCrusaderStrikeHealFraction(int selectedChoice) =>
+        selectedChoice == PlayerAbilityController.CrusaderStrikeSacredRestorationChoiceIndex
+            ? AbilityCombatPower.CrusaderStrikeSacredRestorationHealFractionOfMaxHealth
+            : AbilityCombatPower.CrusaderStrikeHealFractionOfMaxHealth;
 
     private static void AppendPerHitDamageEffectLines(
         StringBuilder body,

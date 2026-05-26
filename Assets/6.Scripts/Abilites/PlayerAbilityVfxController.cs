@@ -48,10 +48,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.1f)] private float crusaderStrikeBeamSkyHeight = 3.1f;
     [SerializeField, Min(0f)] private float crusaderStrikeBeamBehindPlayerX = 1.15f;
     [SerializeField, Min(0f)] private float crusaderStrikeBeamBehindPlayerY = 0.9f;
-    [SerializeField, Min(0.01f)] private float crusaderStrikeBeamOuterWidth = 0.18f;
-    [SerializeField, Min(0.005f)] private float crusaderStrikeBeamInnerWidth = 0.08f;
+    [SerializeField, Min(0.02f)] private float crusaderStrikeBeamPointSize = 0.2f;
+    [SerializeField, Min(0.02f)] private float crusaderStrikeBeamTrailTime = 0.12f;
+    [SerializeField, Min(0.005f)] private float crusaderStrikeBeamTrailWidth = 0.12f;
     [SerializeField] private Vector3 crusaderStrikeBeamCenterOffset = new Vector3(0f, 0.55f, 0f);
-    [SerializeField, Min(0f)] private float crusaderStrikeBeamImpactFlareWidth = 0.65f;
+    [SerializeField, Min(1f)] private float crusaderStrikeBeamFinalSizeScale = 1.2f;
 
     [Header("Whirlwind (Melee) VFX")]
     [SerializeField] private Color whirlingBladeColor = new Color(1f, 0.88f, 0.22f, 0.95f);
@@ -60,15 +61,18 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.01f)] private float whirlingBladeLineWidth = 0.14f;
     [SerializeField] private Vector3 whirlingBladeCenterOffset = new Vector3(0f, 0.65f, 0f);
     [Tooltip("Number of staggered slash trails on the same horizontal orbit.")]
-    [SerializeField, Range(2, 6)] private int whirlingBladeSlashCount = 4;
-    [Tooltip("How flat the orbit is in side view (0 = pure left-right line, ~0.12 = subtle arc).")]
-    [SerializeField, Range(0f, 0.25f)] private float whirlingBladeOrbitVerticalScale = 0.08f;
-    [SerializeField, Min(0f)] private float whirlingBladeUpwardDrift = 0.14f;
-    [SerializeField, Min(0f)] private float whirlingBladeVerticalWave = 0.06f;
-    [SerializeField, Min(0f)] private float whirlingBladeSpawnVerticalJitter = 0.02f;
-    [SerializeField, Min(0f)] private float whirlingBladePerTrailVerticalCenterSpread = 0.08f;
-    [SerializeField, Range(0f, 1f)] private float whirlingBladePerTrailVerticalScaleJitter = 0.18f;
-    [SerializeField, Min(0f)] private float whirlingBladePerTrailTiltHeight = 3f;
+    [SerializeField, Range(2, 5)] private int whirlingBladeSlashCount = 5;
+    [Tooltip("Per-blade base Y offsets relative to the whirlwind center for blades 1-4. One blade should usually stay at 0.")]
+    [SerializeField] private Vector4 whirlingBladeLaneBaseYOffsets = new Vector4(0.55f, 0.18f, -0.16f, -0.42f);
+    [SerializeField] private float whirlingBladeFifthLaneBaseYOffset = -0.68f;
+    [Tooltip("Per-blade vertical orbit heights for blades 1-4. Higher values make that blade arc more above and below its base Y.")]
+    [SerializeField] private Vector4 whirlingBladeLaneOrbitHeights = new Vector4(0.10f, 0.08f, 0.05f, 0.035f);
+    [SerializeField] private float whirlingBladeFifthLaneOrbitHeight = 0.025f;
+    [SerializeField, Min(0f)] private float whirlingBladeSpawnVerticalJitter = 0.01f;
+    [Tooltip("Minimum local Y offset from the whirlwind center that blade trails can reach.")]
+    [SerializeField] private float whirlingBladeMinYOffset = -0.8f;
+    [Tooltip("Maximum local Y offset from the whirlwind center that blade trails can reach.")]
+    [SerializeField] private float whirlingBladeMaxYOffset = 0.75f;
 
     [Header("Crescent Slash (Melee) VFX")]
     [SerializeField] private Color crescentSlashColor = new Color(0.55f, 0.95f, 1f, 0.9f);
@@ -278,6 +282,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
     private const string ResourcesUrParticleMaterialPath = "Vfx/AbilityVfx_ParticlesUnlit";
     private static bool s_LoggedMissingUrParticleMaterial;
+    private static Sprite s_RuntimeCircleSprite;
 
     public SoulforgedWeaponMinionPresentation SoulforgedWeaponMinionPresentation => soulforgedWeaponMinionPresentation;
 
@@ -369,13 +374,13 @@ public class PlayerAbilityVfxController : MonoBehaviour
         if (startDir.sqrMagnitude <= 0.0001f)
             startDir = Vector2.right * ((player != null && player.transform.localScale.x < 0f) ? -1f : 1f);
 
-        int slashCount = Mathf.Clamp(whirlingBladeSlashCount, 2, 6);
+        int slashCount = Mathf.Clamp(whirlingBladeSlashCount, 2, 5);
         var emitters = new Transform[slashCount];
         var trails = new TrailRenderer[slashCount];
         var phases = new float[slashCount];
-        var centerOffsetsY = new float[slashCount];
-        var verticalScaleMultipliers = new float[slashCount];
-        var tiltHeights = new float[slashCount];
+        var laneBaseY = new float[slashCount];
+        var laneOrbitHeight = new float[slashCount];
+        var laneHorizontalScale = new float[slashCount];
 
         GameObject root = new GameObject("WhirlwindBlades");
         float spawnYOffset = UnityEngine.Random.Range(-whirlingBladeSpawnVerticalJitter, whirlingBladeSpawnVerticalJitter);
@@ -385,15 +390,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
         {
             phases[i] = i / (float)slashCount;
             float widthScale = 0.82f + 0.18f * (1f - Mathf.Abs((i / (float)slashCount) - 0.5f) * 2f);
-            float lane = slashCount <= 1 ? 0f : ((i / (float)(slashCount - 1)) * 2f - 1f);
-            centerOffsetsY[i] =
-                lane * whirlingBladePerTrailVerticalCenterSpread * 0.35f
-                + Mathf.Sin((i + 1f) * 1.37f) * whirlingBladePerTrailVerticalCenterSpread * 0.18f;
-            verticalScaleMultipliers[i] =
-                1f + Mathf.Cos((i + 1f) * 1.11f) * whirlingBladePerTrailVerticalScaleJitter;
-            tiltHeights[i] = ResolveWhirlwindTrailTiltFactor(i) * whirlingBladePerTrailTiltHeight;
+            laneBaseY[i] = GetWhirlwindBladeBaseY(i);
+            laneOrbitHeight[i] = GetWhirlwindBladeOrbitHeight(i);
+            laneHorizontalScale[i] = ResolveWhirlwindBladeHorizontalScale(i);
 
-            GameObject orbitGO = new GameObject($"WhirlwindSlash_{i}");
+            GameObject orbitGO = new GameObject($"WhirlwindBlade_{i}");
             orbitGO.transform.SetParent(root.transform, false);
             emitters[i] = orbitGO.transform;
             trails[i] = CreateWhirlwindBladeTrail(orbitGO, widthScale, 10 + i);
@@ -407,9 +408,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
             radius,
             startDir.x,
             phases,
-            centerOffsetsY,
-            verticalScaleMultipliers,
-            tiltHeights));
+            laneBaseY,
+            laneOrbitHeight,
+            laneHorizontalScale));
     }
 
     private TrailRenderer CreateWhirlwindBladeTrail(GameObject owner, float widthScale, int sortingOrderOffsetFromPlayer)
@@ -425,10 +426,10 @@ public class PlayerAbilityVfxController : MonoBehaviour
         trail.material = new Material(Shader.Find("Sprites/Default"));
         trail.widthCurve = new AnimationCurve(
             new Keyframe(0f, 0f),
-            new Keyframe(0.06f, 0.06f),
+            new Keyframe(0.05f, 0.015f),
             new Keyframe(0.2f, 1f),
             new Keyframe(0.8f, 1f),
-            new Keyframe(0.94f, 0.06f),
+            new Keyframe(0.95f, 0.015f),
             new Keyframe(1f, 0f));
         if (!TryApplyPlayerSpriteSortingToRenderer(trail, sortingOrderOffsetFromPlayer))
             trail.sortingOrder = 18 + sortingOrderOffsetFromPlayer;
@@ -718,9 +719,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
         float radius,
         float facingSignX,
         float[] phases,
-        float[] centerOffsetsY,
-        float[] verticalScaleMultipliers,
-        float[] tiltHeights)
+        float[] laneBaseY,
+        float[] laneOrbitHeight,
+        float[] laneHorizontalScale)
     {
         if (root == null || emitters == null || center == null)
             yield break;
@@ -750,9 +751,9 @@ public class PlayerAbilityVfxController : MonoBehaviour
                     phases[i],
                     spinCycles,
                     facingSign,
-                    centerOffsetsY != null && i < centerOffsetsY.Length ? centerOffsetsY[i] : 0f,
-                    verticalScaleMultipliers != null && i < verticalScaleMultipliers.Length ? verticalScaleMultipliers[i] : 1f,
-                    tiltHeights != null && i < tiltHeights.Length ? tiltHeights[i] : 0f,
+                    laneBaseY != null && i < laneBaseY.Length ? laneBaseY[i] : 0f,
+                    laneOrbitHeight != null && i < laneOrbitHeight.Length ? laneOrbitHeight[i] : 0f,
+                    laneHorizontalScale != null && i < laneHorizontalScale.Length ? laneHorizontalScale[i] : 1f,
                     out float x,
                     out float y);
                 emitter.position = basePos + new Vector3(x, y, 0f);
@@ -785,24 +786,68 @@ public class PlayerAbilityVfxController : MonoBehaviour
         float phaseOffset,
         float spinCycles,
         float facingSign,
-        float centerOffsetY,
-        float verticalScaleMultiplier,
-        float tiltHeight,
+        float laneBaseY,
+        float laneOrbitHeight,
+        float laneHorizontalScale,
         out float x,
         out float y)
     {
-        float t = Mathf.Repeat(normalizedTime * Mathf.Max(1f, spinCycles) + phaseOffset, 1f);
-        float angle = t * Mathf.PI * 2f;
-        float spinScale = Mathf.Max(0.2f, verticalScaleMultiplier);
-        float orbitArcScale = Mathf.Lerp(0.2f, 1f, Mathf.Clamp01(whirlingBladeOrbitVerticalScale / 0.25f));
+        float cycleT = Mathf.Repeat(normalizedTime * Mathf.Max(1f, spinCycles) + phaseOffset, 1f);
+        float angle = cycleT * Mathf.PI * 2f;
+        x = Mathf.Cos(angle) * visualRadius * Mathf.Max(0.1f, laneHorizontalScale) * Mathf.Sign(facingSign == 0f ? 1f : facingSign);
+        y = laneBaseY + Mathf.Sin(angle) * laneOrbitHeight;
+        y = Mathf.Clamp(y, Mathf.Min(whirlingBladeMinYOffset, whirlingBladeMaxYOffset), Mathf.Max(whirlingBladeMinYOffset, whirlingBladeMaxYOffset));
+    }
 
-        x = Mathf.Cos(angle) * visualRadius * Mathf.Sign(facingSign == 0f ? 1f : facingSign);
-        y = Mathf.Sin(angle) * visualRadius * whirlingBladeOrbitVerticalScale * spinScale;
-        y += Mathf.Sin(angle * 2f) * whirlingBladeVerticalWave * 0.35f * spinScale * orbitArcScale;
-        y += Mathf.Sin(angle) * whirlingBladeUpwardDrift * 0.15f * orbitArcScale;
-        float xNorm = visualRadius > 0.0001f ? Mathf.Clamp(x / visualRadius, -1f, 1f) : 0f;
-        y += -xNorm * tiltHeight;
-        y += centerOffsetY;
+    private float GetWhirlwindBladeBaseY(int index)
+    {
+        return index switch
+        {
+            0 => whirlingBladeLaneBaseYOffsets.x,
+            1 => whirlingBladeLaneBaseYOffsets.y,
+            2 => whirlingBladeLaneBaseYOffsets.z,
+            3 => whirlingBladeLaneBaseYOffsets.w,
+            _ => whirlingBladeFifthLaneBaseYOffset
+        };
+    }
+
+    private float GetWhirlwindBladeOrbitHeight(int index)
+    {
+        return Mathf.Abs(index switch
+        {
+            0 => whirlingBladeLaneOrbitHeights.x,
+            1 => whirlingBladeLaneOrbitHeights.y,
+            2 => whirlingBladeLaneOrbitHeights.z,
+            3 => whirlingBladeLaneOrbitHeights.w,
+            _ => whirlingBladeFifthLaneOrbitHeight
+        });
+    }
+
+    private static float GetWhirlwindBladeLaneValue(Vector4 values, int index)
+    {
+        return Mathf.Abs(index % 4) switch
+        {
+            0 => values.x,
+            1 => values.y,
+            2 => values.z,
+            _ => values.w
+        };
+    }
+
+    private static float ResolveWhirlwindBladeHorizontalScale(int bladeIndex)
+    {
+        if (bladeIndex < 0)
+            return 1f;
+
+        return bladeIndex switch
+        {
+            0 => 1f,
+            1 => 0.85f,
+            2 => 0.6f,
+            3 => 0.45f,
+            4 => 0.3f,
+            _ => 0.3f
+        };
     }
 
     private static float ResolveWhirlwindTrailTiltFactor(int index)
@@ -816,28 +861,6 @@ public class PlayerAbilityVfxController : MonoBehaviour
             4 => -0.5f,
             _ => index % 2 == 0 ? -0.75f : 0.75f
         };
-    }
-
-    /// <summary>Same horizontal figure-eight as Whirlwind: t in [0,1], x/y offset from sweep center.</summary>
-    private void EvaluateWhirlwindStyleSweep(float t, float visualRadius, float spinScale, float startDirX, out float x, out float y)
-    {
-        float orbitArcScale = Mathf.Lerp(0.2f, 1f, Mathf.Clamp01(whirlingBladeOrbitVerticalScale / 0.25f));
-        if (t < 0.5f)
-        {
-            float p = t / 0.5f;
-            x = Mathf.Lerp(visualRadius, -visualRadius, p);
-            y = Mathf.Lerp(0f, -whirlingBladeUpwardDrift * orbitArcScale, p);
-            y += Mathf.Sin(p * Mathf.PI) * whirlingBladeVerticalWave * spinScale * orbitArcScale;
-        }
-        else
-        {
-            float p = (t - 0.5f) / 0.5f;
-            x = Mathf.Lerp(-visualRadius, visualRadius * 0.92f, p);
-            y = Mathf.Lerp(-whirlingBladeUpwardDrift * orbitArcScale, whirlingBladeUpwardDrift * 0.35f * orbitArcScale, p);
-            y += Mathf.Sin(p * Mathf.PI) * (whirlingBladeVerticalWave * 0.65f) * spinScale * orbitArcScale;
-        }
-
-        x *= Mathf.Sign(startDirX == 0f ? 1f : startDirX);
     }
 
     /// <summary>Smoke puff at the player's departure point; lingers after teleport.</summary>
@@ -1087,14 +1110,19 @@ public class PlayerAbilityVfxController : MonoBehaviour
             ? Color.Lerp(crusaderStrikeBeamOuterColor, crusaderStrikeBeamFinalColor, 0.55f)
             : crusaderStrikeBeamOuterColor;
 
-        GameObject root = new GameObject(finalStrike ? "CrusaderStrikeFinalBeam" : "CrusaderStrikeBeam");
-        LineRenderer outer = root.AddComponent<LineRenderer>();
-        LineRenderer inner = root.AddComponent<LineRenderer>();
-        LineRenderer flare = root.AddComponent<LineRenderer>();
+        float sizeScale = finalStrike ? crusaderStrikeBeamFinalSizeScale : 1f;
+        GameObject root = new GameObject(finalStrike ? "CrusaderStrikeFinalBolt" : "CrusaderStrikeBolt");
+        root.transform.position = originBase + Vector3.up * crusaderStrikeBeamSkyHeight;
 
-        ConfigureCrusaderBeamRenderer(outer, Mathf.Max(0.01f, crusaderStrikeBeamOuterWidth), outerColor, 18);
-        ConfigureCrusaderBeamRenderer(inner, Mathf.Max(0.005f, crusaderStrikeBeamInnerWidth), coreColor, 19);
-        ConfigureCrusaderBeamRenderer(flare, Mathf.Max(0.01f, crusaderStrikeBeamOuterWidth * 0.55f), coreColor, 20);
+        SpriteRenderer sprite = root.AddComponent<SpriteRenderer>();
+        sprite.sprite = GetRuntimeCircleSprite();
+        sprite.color = coreColor;
+        root.transform.localScale = Vector3.one * Mathf.Max(0.02f, crusaderStrikeBeamPointSize * sizeScale);
+        if (!TryApplyPlayerSpriteSortingToRenderer(sprite, 20))
+            sprite.sortingOrder = 42;
+
+        TrailRenderer trail = root.AddComponent<TrailRenderer>();
+        ConfigureCrusaderBoltTrail(trail, outerColor, coreColor, sizeScale);
 
         float elapsed = 0f;
         while (elapsed < duration)
@@ -1102,27 +1130,29 @@ public class PlayerAbilityVfxController : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float alpha = 1f - t;
-            float shrink = Mathf.Lerp(1f, 0.5f, t);
-            float skyDrop = Mathf.Lerp(crusaderStrikeBeamSkyHeight, crusaderStrikeBeamSkyHeight * 0.45f, t);
-            float lateralTighten = Mathf.Lerp(1f, 0.78f, t);
+            float eased = 1f - Mathf.Pow(1f - t, 2.35f);
+            float lateralTighten = Mathf.Lerp(1f, 0.78f, eased);
             Vector3 origin =
                 originBase +
                 Vector3.right * (-facingSign * 0.35f * lateralTighten) +
-                Vector3.up * skyDrop;
-            Vector3 end = impact + Vector3.down * Mathf.Lerp(0.22f, 0.08f, t);
+                Vector3.up * crusaderStrikeBeamSkyHeight;
+            Vector3 pos = Vector3.Lerp(origin, impact, eased);
+            root.transform.position = pos;
+            sprite.color = WithAlpha(coreColor, coreColor.a * Mathf.Lerp(1f, 0.65f, t));
 
-            SetCrusaderBeamSegment(outer, origin, end, WithAlpha(outerColor, outerColor.a * alpha), crusaderStrikeBeamOuterWidth * shrink);
-            SetCrusaderBeamSegment(inner, origin, end, WithAlpha(coreColor, coreColor.a * alpha), crusaderStrikeBeamInnerWidth * shrink);
+            yield return null;
+        }
 
-            float flareHalfWidth = crusaderStrikeBeamImpactFlareWidth * Mathf.Lerp(1f, 0.35f, t);
-            Vector3 flareCenter = impact + Vector3.down * 0.18f;
-            SetCrusaderBeamSegment(
-                flare,
-                flareCenter + Vector3.left * flareHalfWidth,
-                flareCenter + Vector3.right * flareHalfWidth,
-                WithAlpha(coreColor, coreColor.a * alpha * 0.85f),
-                crusaderStrikeBeamInnerWidth * 0.8f * shrink);
-
+        trail.emitting = false;
+        float fadeTime = Mathf.Max(0.04f, crusaderStrikeBeamTrailTime * 0.55f);
+        float fadeElapsed = 0f;
+        Vector3 impactScale = Vector3.one * Mathf.Max(0.02f, crusaderStrikeBeamPointSize * sizeScale * 1.5f);
+        while (fadeElapsed < fadeTime)
+        {
+            fadeElapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(fadeElapsed / fadeTime);
+            sprite.color = WithAlpha(coreColor, coreColor.a * (1f - t));
+            root.transform.localScale = Vector3.Lerp(Vector3.one * Mathf.Max(0.02f, crusaderStrikeBeamPointSize * sizeScale), impactScale, t);
             yield return null;
         }
 
@@ -1204,41 +1234,100 @@ public class PlayerAbilityVfxController : MonoBehaviour
             start, end, color, lineWidth, durationSeconds, sortingOrderBump, objectName));
     }
 
-    private void ConfigureCrusaderBeamRenderer(LineRenderer line, float width, Color color, int sortingOrderBump)
+    private void ConfigureCrusaderBoltTrail(TrailRenderer trail, Color outerColor, Color coreColor, float sizeScale)
     {
-        if (line == null)
+        if (trail == null)
             return;
 
-        line.useWorldSpace = true;
-        line.positionCount = 2;
-        line.startWidth = width;
-        line.endWidth = width;
-        line.numCornerVertices = 2;
-        line.numCapVertices = 2;
-        line.material = new Material(Shader.Find("Sprites/Default"));
-        line.startColor = color;
-        line.endColor = color;
-        if (!TryApplyPlayerSpriteSortingToRenderer(line, sortingOrderBump))
-            line.sortingOrder = 24 + sortingOrderBump;
-    }
+        trail.time = Mathf.Max(0.02f, crusaderStrikeBeamTrailTime);
+        trail.minVertexDistance = 0.01f;
+        trail.widthMultiplier = Mathf.Max(0.01f, crusaderStrikeBeamTrailWidth * sizeScale);
+        trail.numCornerVertices = 3;
+        trail.numCapVertices = 1;
+        trail.alignment = LineAlignment.TransformZ;
+        trail.textureMode = LineTextureMode.Stretch;
+        trail.material = new Material(Shader.Find("Sprites/Default"));
+        trail.widthCurve = new AnimationCurve(
+            new Keyframe(0f, 0.95f),
+            new Keyframe(0.18f, 1f),
+            new Keyframe(1f, 0f));
+        if (!TryApplyPlayerSpriteSortingToRenderer(trail, 19))
+            trail.sortingOrder = 40;
+        trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        trail.receiveShadows = false;
+        trail.emitting = true;
 
-    private static void SetCrusaderBeamSegment(LineRenderer line, Vector3 start, Vector3 end, Color color, float width)
-    {
-        if (line == null)
-            return;
-
-        line.startColor = color;
-        line.endColor = color;
-        line.startWidth = Mathf.Max(0.005f, width);
-        line.endWidth = Mathf.Max(0.005f, width);
-        line.SetPosition(0, start);
-        line.SetPosition(1, end);
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(Color.Lerp(coreColor, Color.white, 0.35f), 0f),
+                new GradientColorKey(coreColor, 0.3f),
+                new GradientColorKey(outerColor, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(Mathf.Clamp01(coreColor.a), 0f),
+                new GradientAlphaKey(Mathf.Clamp01(coreColor.a * 0.9f), 0.18f),
+                new GradientAlphaKey(Mathf.Clamp01(outerColor.a * 0.4f), 0.62f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        trail.colorGradient = gradient;
+        trail.Clear();
     }
 
     private static Color WithAlpha(Color color, float alpha)
     {
         color.a = Mathf.Clamp01(alpha);
         return color;
+    }
+
+    private static Sprite GetRuntimeCircleSprite()
+    {
+        if (s_RuntimeCircleSprite != null)
+            return s_RuntimeCircleSprite;
+
+        const int size = 32;
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp,
+            name = "RuntimeCircleSprite"
+        };
+
+        Color clear = new Color(1f, 1f, 1f, 0f);
+        float radius = (size - 1) * 0.5f;
+        float radiusSq = radius * radius;
+        Vector2 center = new Vector2(radius, radius);
+        Color[] pixels = new Color[size * size];
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                Vector2 delta = new Vector2(x, y) - center;
+                float distSq = delta.sqrMagnitude;
+                if (distSq > radiusSq)
+                {
+                    pixels[y * size + x] = clear;
+                    continue;
+                }
+
+                float dist = Mathf.Sqrt(distSq);
+                float edgeAlpha = Mathf.Clamp01((radius - dist) / 1.35f);
+                pixels[y * size + x] = new Color(1f, 1f, 1f, edgeAlpha);
+            }
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply(false, true);
+
+        s_RuntimeCircleSprite = Sprite.Create(
+            texture,
+            new Rect(0f, 0f, size, size),
+            new Vector2(0.5f, 0.5f),
+            size);
+        return s_RuntimeCircleSprite;
     }
 
     private IEnumerator CoMeleeSlashSegment(

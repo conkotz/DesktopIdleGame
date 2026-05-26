@@ -16,7 +16,8 @@ public class FloatingDamageTextUI : MonoBehaviour
         Poison,
         PoisonCrit,
         Blocked,
-        Immune
+        Immune,
+        Healing
     }
 
     [Header("Refs")]
@@ -52,6 +53,10 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField, Min(0.01f)] private float lingeringStatusFadeInSeconds = 0.08f;
     [SerializeField, Min(0.01f)] private float lingeringStatusFadeOutSeconds = 0.2f;
 
+    [Header("Healing")]
+    [SerializeField, Tooltip("How far healing popups rise straight upward before fading.")]
+    private float healingRiseDistance = 42f;
+
     [Header("Colours")]
     [SerializeField] private Color physicalColor = new Color32(220, 40, 40, 255);
     [FormerlySerializedAs("magicalColor")]
@@ -65,6 +70,7 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField, Min(1f)] private float poisonCritDotSizeMultiplier = 1.14f;
     [SerializeField] private Color blockColor = new Color32(80, 170, 255, 255);
     [SerializeField] private Color parryColor = new Color32(255, 210, 40, 255);
+    [SerializeField] private Color healingColor = new Color32(100, 255, 140, 255);
 
     [Header("Ailment presentation (HP tint + first-apply status popups)")]
     [SerializeField] private Color burnPresentationColor = new Color32(255, 140, 40, 255);
@@ -155,6 +161,23 @@ public class FloatingDamageTextUI : MonoBehaviour
         InitLingeringStatus("Immune", blockColor);
     }
 
+    public void InitHealing(int amount)
+    {
+        if (!text)
+            return;
+
+        text.text = $"+{Mathf.Max(0, amount)}";
+        text.color = healingColor;
+        text.fontSize = _baseFontSize;
+        text.outlineWidth = 0f;
+
+        if (_run != null)
+            StopCoroutine(_run);
+
+        float totalVisible = visibleSeconds + fadeOutSeconds;
+        _run = StartCoroutine(RunVertical(Mathf.Max(8f, healingRiseDistance), totalVisible));
+    }
+
     /// <summary>Lingering label (ailments, Blocked, Parry) — pinned to anchor, no travel arc.</summary>
     public void InitAilmentStatus(string message, Color color, Vector3 worldDirection = default)
     {
@@ -206,6 +229,7 @@ public class FloatingDamageTextUI : MonoBehaviour
             PopupDamageKind.PoisonCrit => poisonCritColor,
             PopupDamageKind.Blocked => blockColor,
             PopupDamageKind.Immune => blockColor,
+            PopupDamageKind.Healing => healingColor,
             _ => physicalColor
         };
 
@@ -350,6 +374,50 @@ public class FloatingDamageTextUI : MonoBehaviour
             group.alpha = 1f - Mathf.Clamp01(t / fadeOut);
             if (HasWorldFollow)
                 rect.anchoredPosition = GetAnchorLocal() + _spawnJitter;
+            yield return null;
+        }
+
+        Destroy(gameObject);
+    }
+
+    private IEnumerator RunVertical(float riseDistance, float lifeTime)
+    {
+        riseDistance = Mathf.Max(0f, riseDistance);
+        lifeTime = Mathf.Max(0.1f, lifeTime);
+        Vector2 legacyStart = rect.anchoredPosition;
+        Vector2 legacyEnd = legacyStart + Vector2.up * riseDistance;
+        group.alpha = 0f;
+
+        float t = 0f;
+        while (t < fadeInSeconds)
+        {
+            t += Time.deltaTime;
+            group.alpha = Mathf.Clamp01(t / Mathf.Max(0.0001f, fadeInSeconds));
+            if (HasWorldFollow)
+                rect.anchoredPosition = GetAnchorLocal() + _spawnJitter;
+            yield return null;
+        }
+
+        group.alpha = 1f;
+
+        float elapsed = 0f;
+        while (elapsed < lifeTime)
+        {
+            elapsed += Time.deltaTime;
+            float p = Mathf.Clamp01(elapsed / Mathf.Max(0.0001f, lifeTime));
+            Vector2 anim = Vector2.up * Mathf.Lerp(0f, riseDistance, p);
+
+            if (HasWorldFollow)
+                rect.anchoredPosition = GetAnchorLocal() + _spawnJitter + anim;
+            else
+                rect.anchoredPosition = Vector2.Lerp(legacyStart, legacyEnd, p);
+
+            if (elapsed > lifeTime - fadeOutSeconds)
+            {
+                float fadeP = (elapsed - (lifeTime - fadeOutSeconds)) / Mathf.Max(0.0001f, fadeOutSeconds);
+                group.alpha = 1f - fadeP;
+            }
+
             yield return null;
         }
 

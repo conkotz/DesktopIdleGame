@@ -177,8 +177,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 5
     title: Crusader Strike
-    description: Unleash a holy three-part combo empowered by righteous flame. Each
-      strike grows stronger, culminating in a blazing final blow.
+    description: "Primes your next attack to unleash a holy three-part combo empowered by righteous flame. Each strike grows stronger, culminating in a blazing final blow.\n\nWeapon must have physical or fire damage."
     icon: {fileID: 6220961349511263976, guid: 9eb42a7d40bc61545943acf3ca4c9e87, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -191,7 +190,19 @@ MonoBehaviour:
     legacySkillMinorStatOption: 0
     ability: {fileID: 11400000, guid: 7d3f9b2c5e8a41d6b0c4f1a9276e3d58, type: 2}
     presentation: {fileID: 0}
-    choices: []
+    choices:
+    - requiredLevel: 8
+      title: Fire Balance
+      description: Casting Crusader Strike's full combo grants a 10 second buff that converts 30% of your physical damage to fire. Final Strike gains +20% fire damage.
+      icon: {fileID: 6220961349511263976, guid: 9eb42a7d40bc61545943acf3ca4c9e87, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 8
+      title: Sacred Restoration
+      description: Second Strike heals 10% of max health instead of 5% and costs no energy.
+      icon: {fileID: 6220961349511263976, guid: 9eb42a7d40bc61545943acf3ca4c9e87, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 6
     title: Brutal Momentum I
     description: +3% Melee Damage
@@ -397,7 +408,7 @@ MonoBehaviour:
     description: Hold to channel a spinning cyclone, striking all enemies within
       your weapon range from you (minimum 3 range, or your weapon range if longer).
       Each hit deals 80% of your rolled Physical, Magic, and Corruption damage
-      (before crit).
+      (before crit). Move speed is reduced while channelling.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -413,14 +424,15 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Sustained Cyclone
-      description: Reduce Whirlwind channel cost by 5 Energy per second.
+      description: Reduce Whirlwind channel cost by 5 Energy per second. Move speed
+        penalty is halved while using Whirlwind.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Expansive Whirl
-      description: While channeling Whirlwind, gain +1 size per second and +5%
-        damage per second.
+      description: While channeling Whirlwind, gain +0.1 range per stage and +5%
+        damage per second, up to 5 stacks.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -692,9 +704,9 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 25
     title: Energy Infusion
-    description: Continuously drain Mana to replenish Energy at a 1:1 rate while
-      active. Stays enabled until toggled off. At 0 mana, normal regen continues
-      and is converted to Energy.
+    description: All melee abilities which use Energy instead use 30% of their
+      Energy cost from Mana while active. So if an ability uses 100 Energy it
+      now uses 70 Energy and 30 Mana.
     icon: {fileID: -7230066151719279964, guid: 89459f466326a834d9ad57aa671fac6f, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -710,14 +722,15 @@ MonoBehaviour:
     choices:
     - requiredLevel: 28
       title: Efficient Conversion
-      description: Reduce Mana drain by 20% while maintaining full Energy restoration
-        efficiency.
+      description: Melee abilities use +10% additional Mana instead of Energy and
+        gain +5% Mana regeneration rate per second while active.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 28
       title: Overcharged
-      description: While Arcane Battery is active, gain 25% ability power.
+      description: Melee abilities use 20% of their Energy cost from Mana instead
+        of 30%, and if Mana is used that ability gains 30 flat ability power.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
   enemyId: enemy_target_dummy
   displayName: Target Dummy
+  isBossEnemy: 0
   description: 
   icon: {fileID: 0}
   prefab: {fileID: 1000010755293042, guid: 76c62dc4a8241d84bae25bfe76318ade, type: 3}
@@ -22,14 +23,15 @@ MonoBehaviour:
   maxHealth: 5000
   maxEnergy: 0
   maxMana: 0
-  armor: 0
+  armor: 100
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
+  physBlockMitigation: 0.7
   flatGuard: 0
   maxGuardPercent: 0
-  minPhysicalDamage: 1
-  maxPhysicalDamage: 1
+  minPhysicalDamage: 10
+  maxPhysicalDamage: 10
   minMagicDamage: 0
   maxMagicDamage: 0
   minCorruptionDamage: 0
@@ -83,6 +85,7 @@ MonoBehaviour:
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
   loot: []
+  lootAtMostOneDropPerTable: 0
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 2
   eliteLoot: []

@@ -136,6 +136,9 @@ public static class AbilityCombatPower
     /// <summary>Enhancement choices for Flame Charge (Melee Lv25 slot 2).</summary>
     public const string FlameChargeEnhancementParentSpineNodeId = "Lv25_2";
 
+    /// <summary>Enhancement choices for Crusader Strike (Melee Lv5 slot 3).</summary>
+    public const string CrusaderStrikeEnhancementParentSpineNodeId = "Lv5_3";
+
     public const float FlameChargeDashDistance = 5f;
     public const float FlameChargeDashDurationSeconds = 0.35f;
     public const float FlameChargeTrailDurationSeconds = 4f;
@@ -147,11 +150,12 @@ public static class AbilityCombatPower
     public const float FlameChargeVolcanicExplosionFlatFireDamage = 20f;
     public const float FlameChargeVolcanicExplosionRadius = 5f;
 
-    /// <summary>Mana drained per second at 1:1 conversion (before Efficient Conversion).</summary>
-    public const float EnergyInfusionBaseManaDrainPerSecond = 18f;
-
-    public const float EnergyInfusionEfficientConversionManaMultiplier = 0.8f;
-    public const float EnergyInfusionOverchargedAbilityPowerMultiplier = 1.25f;
+    /// <summary>Base share of a melee energy ability's cost that is paid with mana while Energy Infusion is active.</summary>
+    public const float EnergyInfusionBaseManaCostFraction = 0.30f;
+    public const float EnergyInfusionEfficientConversionAdditionalManaCostFraction = 0.10f;
+    public const float EnergyInfusionEfficientConversionManaRegenMultiplier = 1.05f;
+    public const float EnergyInfusionOverchargedManaCostFraction = 0.20f;
+    public const float EnergyInfusionOverchargedFlatAbilityPowerBonus = 30f;
 
     public const float ShadowStrikeForwardReach = 15f;
     public const float ShadowStrikeLethalCritBonusFraction = 0.8f;
@@ -228,15 +232,20 @@ public static class AbilityCombatPower
     /// </summary>
     public const float AvatarOfTheForestWoodcuttingSpeedMultiplierFlatAdd = 0.10f;
 
-    public const float WhirlwindChannelHitIntervalSeconds = 0.5f;
     public const float WhirlwindChannelVfxIntervalSeconds = 0.2f;
     public const float WhirlwindTwinCycloneChannelCostReductionPerSecond = 5f;
-    public const float WhirlwindExpansiveSizePerSecond = 1f;
+    public const float WhirlwindExpansiveRangePerStage = 0.1f;
     public const float WhirlwindExpansiveDamagePerSecond = 0.05f;
+    public const float WhirlwindBaseMoveSpeedPenaltyFraction = 0.25f;
+    public const float WhirlwindSustainedCycloneMoveSpeedPenaltyMultiplier = 0.5f;
     public const float CrusaderStrikeFirstHitWeaponMultiplier = 1.1f;
     public const float CrusaderStrikeSecondHitWeaponMultiplier = 1.2f;
     public const float CrusaderStrikeFinalHitWeaponMultiplier = 1.5f;
     public const float CrusaderStrikeHealFractionOfMaxHealth = 0.05f;
+    public const float CrusaderStrikeSacredRestorationHealFractionOfMaxHealth = 0.10f;
+    public const float CrusaderStrikeFireBalanceBuffDurationSeconds = 10f;
+    public const float CrusaderStrikeFireBalancePhysicalToFireFraction = 0.30f;
+    public const float CrusaderStrikeFireBalanceFinalStrikeFireMultiplier = 1.20f;
     public const float CrusaderStrikeComboTransitionSeconds = 0.6f;
 
     /// <summary>Cleaving Strikes secondary hits: fraction of rolled weapon split (sync with <see cref="PlayerAbilityController.BuildCleavingSecondarySplit"/>).</summary>
@@ -584,8 +593,8 @@ public static class AbilityCombatPower
 
         if (string.Equals(def.abilityId, CrusaderStrikeAbilityId, StringComparison.OrdinalIgnoreCase))
         {
-            float crusaderAvgPhys = (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
-            if (crusaderAvgPhys <= 0f)
+            float crusaderAvgWeapon = stats.GetMeleeAverageWeaponPhysicalOrFireDamagePerHit();
+            if (crusaderAvgWeapon <= 0f)
                 return 0f;
 
             // Queued next-swing ability: base auto-attack DPS already counts the weapon hit, so CP only credits
@@ -595,7 +604,13 @@ public static class AbilityCombatPower
                 Mathf.Max(0f, CrusaderStrikeSecondHitWeaponMultiplier - 1f) +
                 Mathf.Max(0f, CrusaderStrikeFinalHitWeaponMultiplier - 1f);
             float cycleSeconds = Mathf.Max(0.01f, cd + CrusaderStrikeComboTransitionSeconds);
-            float perCombo = crusaderAvgPhys * comboBonusScale * critFactor;
+            float fireSkillScale =
+                1f + Mathf.Max(0f, stats.ElementSkillDamageScalingFractionFor(MagicAttackType.Fire)) *
+                Mathf.Max(0f, def.fireDamageMultiplier);
+            if (GetCrusaderStrikeSelectedChoiceForCombatPower() == PlayerAbilityController.CrusaderStrikeFireBalanceChoiceIndex)
+                fireSkillScale *= CrusaderStrikeFireBalanceFinalStrikeFireMultiplier;
+            float finalHitPortion = crusaderAvgWeapon * CrusaderStrikeFinalHitWeaponMultiplier * (fireSkillScale - 1f);
+            float perCombo = crusaderAvgWeapon * comboBonusScale * critFactor + Mathf.Max(0f, finalHitPortion);
             return Mathf.Max(0f, perCombo / cycleSeconds);
         }
 
@@ -611,6 +626,12 @@ public static class AbilityCombatPower
             + (avgMag * wEff * elemM + elementBonusInstant * elemM) * allM * apMInstant
             + (avgCorruption * wEff) * allM * apMInstant;
         float perCast = raw * critFactor;
+        if (string.Equals(def.abilityId, WhirlwindAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            float aps = Mathf.Max(0.01f, stats.AttacksPerSecond);
+            return perCast * aps * 1.08f; // Slight AoE coverage on top of APS-scaled per-target damage.
+        }
+
         float dps = Mathf.Max(0f, perCast / cd);
 
         if (string.Equals(def.abilityId, CrescentSlashAbilityId, StringComparison.OrdinalIgnoreCase))
@@ -622,9 +643,6 @@ public static class AbilityCombatPower
                 aoeLift *= 1.04f; // Elemental Crescent: minor utility.
             return dps * aoeLift;
         }
-
-        if (string.Equals(def.abilityId, WhirlwindAbilityId, StringComparison.OrdinalIgnoreCase))
-            return dps * 1.08f; // Slight AoE coverage on top of per-target scaled damage.
 
         return dps;
     }
@@ -699,5 +717,14 @@ public static class AbilityCombatPower
             return -1;
 
         return sm.GetSkillChoiceSelection(SkillType.Melee, "Lv15_2", -1);
+    }
+
+    private static int GetCrusaderStrikeSelectedChoiceForCombatPower()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return -1;
+
+        return sm.GetSkillChoiceSelection(SkillType.Melee, CrusaderStrikeEnhancementParentSpineNodeId, -1);
     }
 }

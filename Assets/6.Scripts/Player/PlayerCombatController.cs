@@ -17,6 +17,18 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         }
     }
 
+    public readonly struct IncomingHealingSourceEntry
+    {
+        public readonly string sourceName;
+        public readonly float totalHealing;
+
+        public IncomingHealingSourceEntry(string sourceName, float totalHealing)
+        {
+            this.sourceName = sourceName;
+            this.totalHealing = totalHealing;
+        }
+    }
+
     public readonly struct OutgoingDamageSourceEntry
     {
         public readonly string sourceName;
@@ -53,12 +65,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         public readonly string primarySource;
         public readonly string bonusSource;
         public readonly float bonusFraction;
+        public readonly DpsDamageBucket? bonusBucket;
 
-        public SwingOutgoingAttribution(string primarySource, string bonusSource, float bonusFraction)
+        public SwingOutgoingAttribution(string primarySource, string bonusSource, float bonusFraction, DpsDamageBucket? bonusBucket = null)
         {
             this.primarySource = string.IsNullOrWhiteSpace(primarySource) ? "Auto Attack" : primarySource.Trim();
             this.bonusSource = string.IsNullOrWhiteSpace(bonusSource) ? null : bonusSource.Trim();
             this.bonusFraction = Mathf.Clamp01(bonusFraction);
+            this.bonusBucket = bonusBucket;
         }
 
         public bool HasBonus =>
@@ -204,6 +218,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     public EnemyBaseController FindClosestEnemyInAttackRange() =>
         FindClosestEnemyInAttackRange(preferCurrentTarget: true);
 
+    public EnemyBaseController FindClosestLivingEnemyForEngage() =>
+        FindClosestLivingEnemy();
+
     /// <summary>
     /// Living enemy in attack range. When <paramref name="preferCurrentTarget"/> is true and
     /// <see cref="CurrentTarget"/> is in range, returns that enemy instead of a slightly closer one.
@@ -295,12 +312,16 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _combatSessionDamageSum;
     private DpsDamageBreakdown _outgoingDamageSum;
     private DpsDamageBreakdown _incomingDamageSum;
+    private float _incomingHealingSum;
     private bool _dpsTrackerPaused;
     private float _pausedDpsSessionDuration;
     private float _lastCombatActivityTime = -999f;
     private float _lastHpForCombatEngageTrack = -1f;
     private readonly Dictionary<string, float> _incomingDamageByDealer = new Dictionary<string, float>();
     private readonly List<string> _incomingDealerOrder = new List<string>();
+    private readonly Dictionary<string, float> _incomingHealingBySource =
+        new Dictionary<string, float>(System.StringComparer.OrdinalIgnoreCase);
+    private readonly List<string> _incomingHealingSourceOrder = new List<string>();
     private readonly Dictionary<string, OutgoingSourceCounter> _outgoingSourceCounters =
         new Dictionary<string, OutgoingSourceCounter>(System.StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _outgoingSourceOrder = new List<string>();
@@ -397,7 +418,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (_combatSessionStartTime < 0f)
             return 0f;
 
-        if (_combatSessionDamageSum <= 0f && _incomingDamageSum.Total <= 0f)
+        if (_combatSessionDamageSum <= 0f && _incomingDamageSum.Total <= 0f && _incomingHealingSum <= 0f)
             return 0f;
 
         if (_dpsTrackerPaused)
@@ -471,6 +492,26 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         return entries;
     }
 
+    public List<IncomingHealingSourceEntry> GetIncomingHealingBySource()
+    {
+        var entries = new List<IncomingHealingSourceEntry>(_incomingHealingSourceOrder.Count);
+        for (int i = 0; i < _incomingHealingSourceOrder.Count; i++)
+        {
+            string key = _incomingHealingSourceOrder[i];
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+            if (!_incomingHealingBySource.TryGetValue(key, out float total))
+                continue;
+            if (total <= 0f)
+                continue;
+
+            entries.Add(new IncomingHealingSourceEntry(key, total));
+        }
+
+        entries.Sort((a, b) => b.totalHealing.CompareTo(a.totalHealing));
+        return entries;
+    }
+
     /// <summary>
     /// Records one activation of an ability or proc source (Bladestorm channel, Power Slash queue, etc.).
     /// </summary>
@@ -519,6 +560,17 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _pausedDpsSessionDuration = 0f;
         ResetDpsSession();
         _lastCombatActivityTime = Time.time;
+    }
+
+    public void RecordIncomingHealingForDps(float healingAmount, string sourceName)
+    {
+        if (_dpsTrackerPaused || healingAmount <= 0f)
+            return;
+
+        string label = string.IsNullOrWhiteSpace(sourceName) ? GenericHealingSourceLabel : sourceName.Trim();
+        EnsureDpsSessionStarted();
+        _incomingHealingSum += healingAmount;
+        AddIncomingHealingSource(label, healingAmount);
     }
 
     private bool TryGetDpsSessionDuration(out float duration)
@@ -761,7 +813,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         SplitDamage preQueuedModifier = rolled;
 
         if (abilityController != null)
+        {
             abilityController.TryConsumeQueuedAttackModifier(ref rolled);
+            abilityController.ApplyActiveDamageConversions(ref rolled);
+        }
 
         SwingOutgoingAttribution swingAttribution = abilityController != null
             ? abilityController.BuildSwingOutgoingAttribution(preQueuedModifier, rolled)
@@ -1395,7 +1450,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         RecordOutgoingSourceUse(AbilityCombatPower.ParryRiposteOutgoingSourceLabel);
 
         var swingAttribution = new SwingOutgoingAttribution(
-            AbilityCombatPower.ParryRiposteOutgoingSourceLabel, null, 0f);
+            AbilityCombatPower.ParryRiposteOutgoingSourceLabel, null, 0f, null);
 
         player.TriggerAttackAnim();
 
@@ -1550,7 +1605,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             var doubleHitAttribution = new SwingOutgoingAttribution(
                 AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel,
                 swingAttribution.bonusSource,
-                swingAttribution.bonusFraction);
+                swingAttribution.bonusFraction,
+                swingAttribution.bonusBucket);
             DamageResult doubleDealt = ApplySplitDamageToTarget(
                 targetToHit,
                 rolled,
@@ -2736,7 +2792,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (swingAttribution.AttributesEntireSwingToBonusSource)
         {
-            RecordDamageForDps(totalDealt, DpsDamageBucket.Physical, swingAttribution.bonusSource);
+            RecordDamageForDps(totalDealt, swingAttribution.bonusBucket ?? DpsDamageBucket.Physical, swingAttribution.bonusSource);
             return;
         }
 
@@ -2810,6 +2866,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     public const string OutgoingPoisonSourceLabel = "Poison";
     public const string OutgoingShockSourceLabel = "Shock";
     public const string DefaultMinionOutgoingSourceLabel = "Soulforged Weapon";
+    public const string HpRegenHealingSourceLabel = "HP Regen";
+    public const string PotionHealingSourceLabel = "Potion Healing";
+    public const string FoodHealingSourceLabel = "Food Healing";
+    public const string CrusaderStrikeHealingSourceLabel = "Crusader Strike Heal";
+    public const string LeechHealingSourceLabel = "Life Steal";
+    public const string PhoenixSoulHealingSourceLabel = "Phoenix Soul";
+    public const string AbilityHealthRefundHealingSourceLabel = "Ability Health Refund";
+    public const string GenericHealingSourceLabel = "Healing";
 
     private string ResolveOutgoingDamageSourceLabel(
         string explicitLabel,
@@ -2892,6 +2956,22 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _outgoingSourceOrder.Add(key);
     }
 
+    private void AddIncomingHealingSource(string sourceName, float amount)
+    {
+        if (amount <= 0f || string.IsNullOrWhiteSpace(sourceName))
+            return;
+
+        string key = sourceName.Trim();
+        if (_incomingHealingBySource.TryGetValue(key, out float total))
+        {
+            _incomingHealingBySource[key] = total + amount;
+            return;
+        }
+
+        _incomingHealingBySource[key] = amount;
+        _incomingHealingSourceOrder.Add(key);
+    }
+
     private void EnsureDpsSessionStarted()
     {
         if (_combatSessionStartTime < 0f)
@@ -2940,8 +3020,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _combatSessionDamageSum = 0f;
         _outgoingDamageSum = default;
         _incomingDamageSum = default;
+        _incomingHealingSum = 0f;
         _incomingDamageByDealer.Clear();
         _incomingDealerOrder.Clear();
+        _incomingHealingBySource.Clear();
+        _incomingHealingSourceOrder.Clear();
         _outgoingSourceCounters.Clear();
         _outgoingSourceOrder.Clear();
         _pausedDpsSessionDuration = 0f;

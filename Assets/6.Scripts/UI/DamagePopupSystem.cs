@@ -30,6 +30,11 @@ public class DamagePopupSystem : MonoBehaviour
     [SerializeField] private float statusPopupYOffset = 0.55f;
     [SerializeField] private float statusPopupXJitter = 3f;
 
+    [Header("Healing popup (player)")]
+    [SerializeField] private float healingPopupSideOffset = 0.32f;
+    [SerializeField] private float healingPopupYOffset = 0.18f;
+    [SerializeField] private float healingPopupXJitter = 2f;
+
     private int _popupSpawnIndex = 0;
 
     private Camera _worldProjectionCamera;
@@ -263,6 +268,51 @@ public class DamagePopupSystem : MonoBehaviour
     public void SpawnAilmentStatus(Vector3 worldPos, string message, Color color, Vector3 direction = default)
     {
         SpawnLingeringStatus(worldPos, message, color);
+    }
+
+    /// <summary>Green +healing text behind the player, slightly lower than Blocked / Parry and rising vertically.</summary>
+    public void SpawnHealingForPlayer(PlayerController player, int amount)
+    {
+        if (player == null || amount <= 0)
+            return;
+        if (!_worldProjectionCamera)
+            ResolveProjectionCameras();
+
+        EnsureDamageFxCanvas();
+
+        RectTransform rectForMath = _popupParentRect ? _popupParentRect : canvasRect;
+        if (!popupPrefab || !rectForMath || !_worldProjectionCamera)
+            return;
+
+        DamagePopupAnchor anchor = player.GetComponentInChildren<DamagePopupAnchor>(true);
+        Vector3 anchorWorld = anchor ? anchor.WorldPos : player.transform.position;
+
+        float facing = player.FacingDirectionX >= 0f ? 1f : -1f;
+        Vector3 worldPos = anchorWorld + new Vector3(-facing * healingPopupSideOffset, healingPopupYOffset, 0f);
+
+        Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(worldPos);
+
+        Canvas fxCanvas = rectForMath.GetComponent<Canvas>();
+        Camera eventCam = fxCanvas && fxCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? _rectTransformEventCamera
+            : null;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                rectForMath, screenPos, eventCam, out _))
+            return;
+
+        float xJitter = Random.Range(-healingPopupXJitter, healingPopupXJitter);
+
+        var go = Instantiate(popupPrefab, rectForMath);
+        var floater = go.GetComponent<FloatingDamageTextUI>();
+        if (!floater)
+        {
+            Destroy(go);
+            return;
+        }
+
+        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, 0f), _worldProjectionCamera, rectForMath, eventCam);
+        floater.InitHealing(amount);
     }
 
     /// <summary>Parry / Riposte on the player (incoming-damage placement), separate colour from Blocked.</summary>

@@ -15,8 +15,8 @@ MonoBehaviour:
   notes: Presentation for energy_infusion (Arcane Battery)
   displayNameOverride: Energy Infusion
   icon: {fileID: -7230066151719279964, guid: 89459f466326a834d9ad57aa671fac6f, type: 3}
-  shortDescription: Channel arcane reserves to convert Mana into Energy while the
-    infusion is active.
+  shortDescription: Toggle a mana infusion that makes melee Energy abilities pay
+    30% of their cost with Mana instead.
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 

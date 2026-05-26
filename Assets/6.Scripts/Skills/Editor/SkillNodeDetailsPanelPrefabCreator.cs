@@ -267,9 +267,10 @@ public static class SkillNodeDetailsPanelPrefabCreator
         SectionRefs effect = AddSimpleSection(middle, "EffectSection", "EFFECT", "EffectText",
             "20 Physical damage on hit");
         AddDivider(middle);
-        SectionRefs cost = AddSimpleSection(middle, "CostSection", "COST", "CostText", "40 Energy");
-        AddDivider(middle);
-        SectionRefs cooldown = AddSimpleSection(middle, "CooldownSection", "COOLDOWN", "CooldownText", "10s");
+        RectTransform costCooldownRow = CreateChild(middle, "CostCooldownRow");
+        AddHorizontalSectionRow(costCooldownRow, spacing: 8);
+        SectionRefs cost = AddSimpleSection(costCooldownRow, "CostSection", "COST", "CostText", "40 Energy");
+        SectionRefs cooldown = AddSimpleSection(costCooldownRow, "CooldownSection", "COOLDOWN", "CooldownText", "10s");
 
         return new MiddleSectionRefs
         {
@@ -538,6 +539,7 @@ public static class SkillNodeDetailsPanelPrefabCreator
         vlg.childControlWidth = true;
         vlg.childControlHeight = true;
         vlg.childForceExpandWidth = true;
+        vlg.childForceExpandHeight = false;
     }
 
     private static RectTransform CreateEqualSection(RectTransform parent, string name)
@@ -569,6 +571,19 @@ public static class SkillNodeDetailsPanelPrefabCreator
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
         return vlg;
+    }
+
+    private static HorizontalLayoutGroup AddHorizontalSectionRow(RectTransform section, float spacing)
+    {
+        var hlg = section.gameObject.AddComponent<HorizontalLayoutGroup>();
+        hlg.padding = new RectOffset(0, 0, 0, 0);
+        hlg.spacing = spacing;
+        hlg.childAlignment = TextAnchor.UpperLeft;
+        hlg.childControlWidth = true;
+        hlg.childControlHeight = true;
+        hlg.childForceExpandWidth = true;
+        hlg.childForceExpandHeight = false;
+        return hlg;
     }
 
     private static void ApplyFixedPanelSize(RectTransform rt)
