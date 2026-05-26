@@ -29,12 +29,19 @@ public class DevTestingPanelUI : MonoBehaviour
     [SerializeField] private Button devWeaponButton;
     [SerializeField] private Button skipTutorialButton;
     [SerializeField] private Button resetCooldownsButton;
+    [SerializeField] private Button refreshEnergyButton;
     [Tooltip("Optional — child TMP showing On/Off. Auto-resolved from ResetCooldownsButton if unset.")]
     [SerializeField] private TMP_Text resetCooldownsStatusText;
+    [Tooltip("Optional — child TMP showing On/Off. Auto-resolved from RefreshEnergyButton if unset.")]
+    [SerializeField] private TMP_Text refreshEnergyStatusText;
 
     [Header("Reset cooldowns toggle")]
     [SerializeField, Min(0.1f)] private float autoResetCooldownsIntervalSeconds = 2f;
     [SerializeField] private Color resetCooldownsActiveColor = new Color(0.45f, 0.95f, 0.55f, 1f);
+
+    [Header("Refresh energy toggle")]
+    [SerializeField, Min(0.1f)] private float autoRefreshEnergyIntervalSeconds = 2f;
+    [SerializeField] private Color refreshEnergyActiveColor = new Color(0.45f, 0.95f, 0.55f, 1f);
 
     [Header("Optional feedback (same as DebugGiveItems)")]
     [SerializeField] private LevelUpEffect levelUpEffect;
@@ -75,6 +82,11 @@ public class DevTestingPanelUI : MonoBehaviour
     private ColorBlock _resetCooldownsButtonDefaultColors;
     private bool _resetCooldownsButtonColorsCaptured;
     private bool _resetCooldownsCombinedStatusInOneLabel;
+    private bool _autoRefreshEnergyEnabled;
+    private float _nextAutoRefreshEnergyTime;
+    private ColorBlock _refreshEnergyButtonDefaultColors;
+    private bool _refreshEnergyButtonColorsCaptured;
+    private bool _refreshEnergyCombinedStatusInOneLabel;
 
     private void Awake()
     {
@@ -93,9 +105,13 @@ public class DevTestingPanelUI : MonoBehaviour
         Bind(devWeaponButton, DevTesting_ApplyDevWeapon);
         Bind(skipTutorialButton, OnSkipTutorialClicked);
         Bind(resetCooldownsButton, OnResetCooldownsToggleClicked);
+        Bind(refreshEnergyButton, OnRefreshEnergyToggleClicked);
         TryResolveResetCooldownsStatusText();
+        TryResolveRefreshEnergyStatusText();
         CaptureResetCooldownsButtonColors();
+        CaptureRefreshEnergyButtonColors();
         ApplyResetCooldownsButtonHighlight();
+        ApplyRefreshEnergyButtonHighlight();
     }
 
     private void OnEnable()
@@ -108,19 +124,24 @@ public class DevTestingPanelUI : MonoBehaviour
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
         _autoResetCooldownsEnabled = false;
+        _autoRefreshEnergyEnabled = false;
         ApplyResetCooldownsButtonHighlight();
+        ApplyRefreshEnergyButtonHighlight();
     }
 
     private void Update()
     {
-        if (!_autoResetCooldownsEnabled)
-            return;
+        if (_autoResetCooldownsEnabled && Time.unscaledTime >= _nextAutoResetCooldownsTime)
+        {
+            _nextAutoResetCooldownsTime = Time.unscaledTime + Mathf.Max(0.1f, autoResetCooldownsIntervalSeconds);
+            DevTesting_ClearAllCooldownsNow();
+        }
 
-        if (Time.unscaledTime < _nextAutoResetCooldownsTime)
-            return;
-
-        _nextAutoResetCooldownsTime = Time.unscaledTime + Mathf.Max(0.1f, autoResetCooldownsIntervalSeconds);
-        DevTesting_ClearAllCooldownsNow();
+        if (_autoRefreshEnergyEnabled && Time.unscaledTime >= _nextAutoRefreshEnergyTime)
+        {
+            _nextAutoRefreshEnergyTime = Time.unscaledTime + Mathf.Max(0.1f, autoRefreshEnergyIntervalSeconds);
+            DevTesting_RefreshEnergyNow();
+        }
     }
 
     private void OnSceneLoaded(Scene _, LoadSceneMode __) =>
@@ -297,6 +318,31 @@ public class DevTestingPanelUI : MonoBehaviour
         abilities.DevTesting_ClearAllAbilityCooldowns();
     }
 
+    private void OnRefreshEnergyToggleClicked()
+    {
+        _autoRefreshEnergyEnabled = !_autoRefreshEnergyEnabled;
+        ApplyRefreshEnergyButtonHighlight();
+
+        if (_autoRefreshEnergyEnabled)
+        {
+            _nextAutoRefreshEnergyTime = Time.unscaledTime;
+            DevTesting_RefreshEnergyNow();
+        }
+    }
+
+    private void DevTesting_RefreshEnergyNow()
+    {
+        CharacterStats stats = ResolveCharacterStats();
+        if (!stats)
+        {
+            Debug.LogWarning("[DevTestingPanel] No CharacterStats — cannot refresh mana/energy.");
+            return;
+        }
+
+        stats.AddEnergy(Mathf.Max(0f, stats.MaxEnergy));
+        stats.AddMana(Mathf.Max(0f, stats.MaxMana));
+    }
+
     private void CaptureResetCooldownsButtonColors()
     {
         if (!resetCooldownsButton || _resetCooldownsButtonColorsCaptured)
@@ -332,31 +378,9 @@ public class DevTestingPanelUI : MonoBehaviour
         if (resetCooldownsStatusText || !resetCooldownsButton)
             return;
 
-        TMP_Text[] texts = resetCooldownsButton.GetComponentsInChildren<TMP_Text>(true);
-        for (int i = 0; i < texts.Length; i++)
-        {
-            TMP_Text t = texts[i];
-            if (!t)
-                continue;
-
-            string trimmed = t.text != null ? t.text.Trim() : string.Empty;
-            if (trimmed.Equals("Off", StringComparison.OrdinalIgnoreCase) ||
-                trimmed.Equals("On", StringComparison.OrdinalIgnoreCase))
-            {
-                resetCooldownsStatusText = t;
-                return;
-            }
-        }
-
-        if (texts.Length == 1 && texts[0] != null)
-        {
-            resetCooldownsStatusText = texts[0];
-            _resetCooldownsCombinedStatusInOneLabel = true;
-        }
-        else if (texts.Length > 1)
-        {
-            resetCooldownsStatusText = texts[texts.Length - 1];
-        }
+        resetCooldownsStatusText = ResolveToggleStatusText(
+            resetCooldownsButton,
+            out _resetCooldownsCombinedStatusInOneLabel);
     }
 
     private void ApplyResetCooldownsStatusLabel()
@@ -373,6 +397,62 @@ public class DevTestingPanelUI : MonoBehaviour
         }
 
         resetCooldownsStatusText.text = _autoResetCooldownsEnabled ? "On" : "Off";
+    }
+
+    private void CaptureRefreshEnergyButtonColors()
+    {
+        if (!refreshEnergyButton || _refreshEnergyButtonColorsCaptured)
+            return;
+
+        _refreshEnergyButtonDefaultColors = refreshEnergyButton.colors;
+        _refreshEnergyButtonColorsCaptured = true;
+    }
+
+    private void ApplyRefreshEnergyButtonHighlight()
+    {
+        if (!refreshEnergyButton)
+            return;
+
+        CaptureRefreshEnergyButtonColors();
+
+        ColorBlock colors = _refreshEnergyButtonDefaultColors;
+        if (_autoRefreshEnergyEnabled)
+        {
+            Color on = refreshEnergyActiveColor;
+            colors.normalColor = on;
+            colors.highlightedColor = Color.Lerp(on, Color.white, 0.2f);
+            colors.selectedColor = on;
+            colors.pressedColor = Color.Lerp(on, Color.black, 0.15f);
+        }
+
+        refreshEnergyButton.colors = colors;
+        ApplyRefreshEnergyStatusLabel();
+    }
+
+    private void TryResolveRefreshEnergyStatusText()
+    {
+        if (refreshEnergyStatusText || !refreshEnergyButton)
+            return;
+
+        refreshEnergyStatusText = ResolveToggleStatusText(
+            refreshEnergyButton,
+            out _refreshEnergyCombinedStatusInOneLabel);
+    }
+
+    private void ApplyRefreshEnergyStatusLabel()
+    {
+        if (!refreshEnergyStatusText)
+            return;
+
+        if (_refreshEnergyCombinedStatusInOneLabel)
+        {
+            refreshEnergyStatusText.text = _autoRefreshEnergyEnabled
+                ? "Refresh Energy\nOn"
+                : "Refresh Energy\nOff";
+            return;
+        }
+
+        refreshEnergyStatusText.text = _autoRefreshEnergyEnabled ? "On" : "Off";
     }
 
     private void OnSkipTutorialClicked()
@@ -480,12 +560,28 @@ public class DevTestingPanelUI : MonoBehaviour
         devWeaponButton ??= FindButtonUnderRow("DevWeapon");
         skipTutorialButton ??= FindButtonUnderRow("SkipTutorial");
         resetCooldownsButton ??= FindButtonUnderRow("ResetCooldownsButton");
+        refreshEnergyButton ??= FindButtonUnderRow("RefreshEnergyButton");
         if (resetCooldownsButton)
             TryResolveResetCooldownsStatusText();
+        if (refreshEnergyButton)
+            TryResolveRefreshEnergyStatusText();
     }
 
     private static PlayerAbilityController ResolvePlayerAbilityController() =>
         FindFirstObjectByType<PlayerAbilityController>(FindObjectsInactive.Include);
+
+    private static CharacterStats ResolveCharacterStats()
+    {
+        PlayerController player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player)
+        {
+            CharacterStats playerStats = player.GetComponent<CharacterStats>();
+            if (playerStats)
+                return playerStats;
+        }
+
+        return FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Include);
+    }
 
     private Button FindButtonUnderRow(string childName)
     {
@@ -501,6 +597,53 @@ public class DevTestingPanelUI : MonoBehaviour
             if (c && string.Equals(c.name, childName, StringComparison.OrdinalIgnoreCase))
                 return c.GetComponent<Button>();
         }
+
+        return null;
+    }
+
+    private static TMP_Text ResolveToggleStatusText(Button button, out bool combinedStatusInOneLabel)
+    {
+        combinedStatusInOneLabel = false;
+        if (!button)
+            return null;
+
+        TMP_Text[] texts = button.GetComponentsInChildren<TMP_Text>(true);
+        TMP_Text preferredMainLabel = null;
+        for (int i = 0; i < texts.Length; i++)
+        {
+            TMP_Text t = texts[i];
+            if (!t)
+                continue;
+
+            string trimmed = t.text != null ? t.text.Trim() : string.Empty;
+            string objectName = t.gameObject.name ?? string.Empty;
+            if (trimmed.Equals("Off", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.Equals("On", StringComparison.OrdinalIgnoreCase))
+            {
+                return t;
+            }
+
+            if (objectName.IndexOf("Status", StringComparison.OrdinalIgnoreCase) >= 0)
+                return t;
+
+            if (objectName.IndexOf("Hotkey", StringComparison.OrdinalIgnoreCase) >= 0)
+                continue;
+
+            if (preferredMainLabel == null ||
+                objectName.IndexOf("Text", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                preferredMainLabel = t;
+            }
+        }
+
+        if (preferredMainLabel != null)
+        {
+            combinedStatusInOneLabel = true;
+            return preferredMainLabel;
+        }
+
+        if (texts.Length > 0)
+            return texts[0];
 
         return null;
     }

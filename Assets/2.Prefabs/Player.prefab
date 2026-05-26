@@ -5726,8 +5726,8 @@ MonoBehaviour:
   guardiansHammerShockwaveDuration: 0.3
   guardiansHammerShockwaveLineWidth: 0.18
   guardiansHammerShockwaveVerticalScale: 0.22
-  guardiansHammerBurnFlareDuration: 0.22
-  guardiansHammerBurnFlareRadius: 0.95
+  guardiansHammerBurnFlareDuration: 0.34
+  guardiansHammerBurnFlareRadius: 1.25
   executionersDescentAxeSprite: {fileID: -4372073212737981870, guid: ef2c48cf71e24114ca066bfc9e27e039, type: 3}
   executionersDescentMarkSprite: {fileID: 0}
   executionersDescentShockwaveSprite: {fileID: 0}

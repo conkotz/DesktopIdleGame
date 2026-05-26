@@ -820,7 +820,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>
     /// Chance to add a burn stack on fire damage hits. Player: character base + gear bonus + fire weapon <see cref="ItemDefinition.ResolveWeaponBurnApplyChance"/> (weapon magic ailment chance).
     /// </summary>
-    public float BurnApplyChance => GetBurnApplyChance();
+    public float BurnApplyChance => GetBurnApplyChanceUnconditional();
+    public float BurnApplyChancePercentForStatsPanel => GetBurnApplyChanceUnconditional() * 100f;
     public float ChillDuration => Mathf.Max(0.1f, baseChillDuration);
     public int ChillMaxStacks => Mathf.Max(1, baseChillMaxStacks);
     public float ChillSlowPerStack => Mathf.Clamp01(baseChillSlowPerStack + GetEquippedChillSlowPerStackBonus());
@@ -1827,27 +1828,29 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return 0f;
     }
 
-    private float GetBurnApplyChance()
+    private float GetBurnApplyChanceUnconditional()
     {
         ResolveOwnerEnemy();
         if (_ownerEnemy != null)
             return MagicAilmentApplyChance;
-
-        if (!GetCurrentAttackAppliesAsFireForBurn())
-            return 0f;
 
         return Mathf.Clamp01(
             baseBurnChance + GetEquippedBurnChanceBonus() + GetMainHandWeaponBurnAdditive() +
             GetActiveMeleeMinorBonuses().meleeBurnChance + GetTacticianBurnChanceBonus());
     }
 
-    /// <summary>True when the equipped main-hand weapon is a fire magic weapon (burn only rolls on fire damage dealt).</summary>
+    /// <summary>True when the current attack context can legitimately treat dealt magic damage as fire for burn rolls.</summary>
     private bool GetCurrentAttackAppliesAsFireForBurn()
     {
-        var mh = GetMainHandWeaponDef();
-        return mh != null && mh.IsWeapon
-            && mh.weaponStats.attackSkill == AttackSkill.Magic
-            && mh.weaponStats.magicAttackType == MagicAttackType.Fire;
+        AttackSkill currentSkill = GetCurrentAttackSkill();
+        if (currentSkill == AttackSkill.Magic && GetCurrentMagicAttackType() == MagicAttackType.Fire)
+            return true;
+
+        PlayerAbilityController ac = GetAbilityControllerLazy();
+        if (currentSkill == AttackSkill.Melee && ac != null && ac.IsCrusaderStrikeFireBalanceBuffActive)
+            return true;
+
+        return false;
     }
 
     private float GetEquippedBurnChanceBonus()

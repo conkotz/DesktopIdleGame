@@ -966,7 +966,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             poisonMaxStacksLineText.text = $"Poison Max Stacks: {stats.PoisonMaxStacks}";
 
         if (burnChanceLineText)
-            burnChanceLineText.text = $"Burn Chance: {stats.BurnApplyChance * 100f:0.#}%";
+            burnChanceLineText.text = $"Burn Chance: {stats.BurnApplyChancePercentForStatsPanel:0.#}%";
         if (burnMultiplierLineText)
             burnMultiplierLineText.text =
                 $"Burn Multiplier: {FormatSignedPercentPoints((stats.BurnDamageMultiplier - 1f) * 100f)}";
@@ -1007,7 +1007,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         bool bleedApplies = stats.BleedChance > 0f;
         bool poisonApplies = stats.PoisonChance > 0f;
-        bool burnApplies = stats.BurnApplyChance > 0f;
+        bool burnApplies = stats.BurnApplyChancePercentForStatsPanel > 0f;
         bool shockApplies = stats.ShockApplyChancePercentForStatsPanel > 0f;
         bool chillApplies = stats.ChillApplyChancePercentForStatsPanel > 0f;
 

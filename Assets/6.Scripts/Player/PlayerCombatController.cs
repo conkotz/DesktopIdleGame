@@ -787,9 +787,6 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (abilityController != null && abilityController.TryAutoReleaseQueuedCrescentSlashFromCadence())
             return;
 
-        if (abilityController != null && abilityController.TryAutoReleaseQueuedGuardiansHammerFromCadence())
-            return;
-
         if (Time.time < _nextAttackTime)
         {
             return;
@@ -1024,6 +1021,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 var forcedAction = forcedSlot.AssignedAction;
                 if (forcedAction == null || !forcedAction.IsAssigned || !forcedAction.IsAbility)
                     continue;
+                if (CombatStarterAttackAbility.IsCombatStarterAttackId(forcedAction.id))
+                    continue;
                 if (!string.Equals(forcedAction.id, forcedAbilityId, System.StringComparison.OrdinalIgnoreCase))
                     continue;
                 if (!forcedSlot.CanAccept(forcedAction))
@@ -1050,6 +1049,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             var slot = orderedSlots[idx];
             var action = slot.AssignedAction;
             if (action == null || !action.IsAssigned || !action.IsAbility)
+                continue;
+            if (CombatStarterAttackAbility.IsCombatStarterAttackId(action.id))
                 continue;
 
             if (!slot.CanAccept(action))

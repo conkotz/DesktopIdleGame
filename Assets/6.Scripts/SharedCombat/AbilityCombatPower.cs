@@ -164,7 +164,7 @@ public static class AbilityCombatPower
     public const float ShadowStrikeLethalCritBonusFraction = 0.8f;
     public const float ShadowStrikeExecutionMarkSeconds = 3f;
     public const float ShadowStrikeExecutionCooldownRefundSeconds = 3f;
-    public const float GuardiansHammerForwardReach = 6f;
+    public const float GuardiansHammerForwardReach = 8f;
     public const float GuardiansHammerVerticalHalfHeight = 2.4f;
     public const float GuardiansHammerImpactWidth = 2.6f;
     public const float GuardiansHammerProtectorResolveGuardFractionMaxHealth = 0.15f;

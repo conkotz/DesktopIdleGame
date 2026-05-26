@@ -137,6 +137,7 @@ public class PlayerAbilityController : MonoBehaviour
     private const int WhirlwindChoiceSourceLevel = 15;
     private const int GuardiansHammerProtectorResolveChoiceIndex = 0;
     private const int GuardiansHammerBurningVerdictChoiceIndex = 1;
+    private const string GuardiansHammerBurningVerdictOutgoingSourceLabel = "Burning Verdict";
     private const int SoulforgedWeaponChoiceSourceLevel = 35;
     private const int SoulforgedWeaponSwarmChoiceIndex = 0;
     private const int SoulforgedWeaponIndefiniteChoiceIndex = 1;
@@ -176,10 +177,8 @@ public class PlayerAbilityController : MonoBehaviour
     private bool _rendQueued;
     private bool _envenomQueued;
     private bool _crescentSlashQueued;
-    private bool _guardiansHammerQueued;
     /// <summary>True after energy is spent to prime Crescent Slash (matches Power Slash priming contract).</summary>
     private bool _crescentSlashEnergyCommitted;
-    private bool _guardiansHammerEnergyCommitted;
     private int _cleavingHitsRemaining;
     private int _cleavingAdditionalTargets;
     private float _cleavingBuffEndsAt;
@@ -448,7 +447,6 @@ public class PlayerAbilityController : MonoBehaviour
     private void Update()
     {
         TryAutoReleaseQueuedCrescentSlash();
-        TryAutoReleaseQueuedGuardiansHammer();
         TickWhirlwindChannel();
         TickGuardiansHammerProtectorResolve();
         SyncWhirlwindHudBuff();
@@ -841,6 +839,8 @@ public class PlayerAbilityController : MonoBehaviour
         _crusaderStrikeFireBalanceBuffEndsAt > Time.time &&
         GetCrusaderStrikeSelectedChoice() == CrusaderStrikeFireBalanceChoiceIndex;
 
+    public bool IsCrusaderStrikeFireBalanceBuffActive => HasCrusaderStrikeFireBalanceBuff();
+
     private void ActivateCrusaderStrikeFireBalanceBuff()
     {
         _crusaderStrikeFireBalanceBuffDuration = AbilityCombatPower.CrusaderStrikeFireBalanceBuffDurationSeconds;
@@ -1227,11 +1227,6 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return _crescentSlashUsedEnergyInfusionMana
-                ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
-                : 0f;
-
-        if (string.Equals(def.abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
-            return _guardiansHammerUsedEnergyInfusionMana
                 ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
                 : 0f;
 
@@ -1803,7 +1798,6 @@ public class PlayerAbilityController : MonoBehaviour
                || string.Equals(id, RendId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, EnvenomId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, CrescentSlashId, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(id, GuardiansHammerId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, WhirlwindId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, FinalSeveranceId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, ShadowStrikeId, StringComparison.OrdinalIgnoreCase)
@@ -2037,6 +2031,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (def == null)
             return false;
 
+        if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
+            return false;
+
         if (def.tag == AbilityTag.ToggleBuff)
             return false;
 
@@ -2228,13 +2225,13 @@ public class PlayerAbilityController : MonoBehaviour
         if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
         {
             EnemyBaseController engaged = GetPreferredCombatEngagedEnemy();
-            if (engaged != null)
+            if (engaged != null && combat != null && combat.IsEnemyWithinAttackRange(engaged))
             {
                 target = engaged;
                 return true;
             }
 
-            target = combat != null ? combat.FindClosestLivingEnemyForEngage() : null;
+            target = combat != null ? combat.FindClosestEnemyInAttackRange() : null;
             return target != null;
         }
 
@@ -2545,12 +2542,6 @@ public class PlayerAbilityController : MonoBehaviour
             if (_crescentSlashQueued)
                 return false;
         }
-        if (string.Equals(def.abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
-        {
-            if (_guardiansHammerQueued)
-                return false;
-        }
-
         bool isCrusaderStrike = string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase);
         bool isCrescentSlash = string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase);
         bool isGuardiansHammer = string.Equals(def.abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase);
@@ -2732,25 +2723,8 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (isGuardiansHammer)
         {
-            if (requireGuardiansHammerTargetInFacingZone && !CanHitAnyEnemyWithGuardiansHammer())
-                return false;
-
-            if (combat == null)
-                combat = GetComponent<PlayerCombatController>();
-
-            bool castNow = combat != null && combat.CanConsumeAttackCycleNow();
-            if (castNow && combat.TryConsumeAttackCycleForAbilityCast())
-                FireGuardiansHammerImpact(def);
-            else
-            {
-                if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
-                    return false;
-
-                _guardiansHammerQueued = true;
-                _guardiansHammerEnergyCommitted = true;
-                _guardiansHammerUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
-            }
-
+            _guardiansHammerUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
+            FireGuardiansHammerImpact(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -4626,7 +4600,7 @@ public class PlayerAbilityController : MonoBehaviour
                 out Transform source,
                 out string dealerLabelForDps,
                 out Vector3? dealerWorldPositionFallback,
-                out string outgoingDpsSourceLabel,
+                out _,
                 out bool outgoingAttributeToMinion))
             return;
 
@@ -4634,6 +4608,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         float radius = AbilityCombatPower.GuardiansHammerBurningVerdictExplosionRadius;
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        bool recordedBurningVerdictUse = false;
         for (int i = 0; i < allEnemies.Count; i++)
         {
             EnemyBaseController enemy = allEnemies[i];
@@ -4645,13 +4620,20 @@ public class PlayerAbilityController : MonoBehaviour
                 continue;
 
             AilmentController targetAilments = enemy.GetComponent<AilmentController>();
-            targetAilments?.ApplyExternalBurnDamage(
+            if (targetAilments != null && targetAilments.ApplyExternalBurnDamage(
                 damage,
                 source,
                 dealerLabelForDps,
                 dealerWorldPositionFallback,
-                outgoingDpsSourceLabel,
-                outgoingAttributeToMinion);
+                GuardiansHammerBurningVerdictOutgoingSourceLabel,
+                outgoingAttributeToMinion))
+            {
+                if (!recordedBurningVerdictUse)
+                {
+                    combat?.RecordOutgoingSourceUse(GuardiansHammerBurningVerdictOutgoingSourceLabel);
+                    recordedBurningVerdictUse = true;
+                }
+            }
         }
     }
 
@@ -4668,67 +4650,14 @@ public class PlayerAbilityController : MonoBehaviour
             Time.time + AbilityCombatPower.GuardiansHammerProtectorResolveDurationSeconds;
     }
 
-    private void TryAutoReleaseQueuedGuardiansHammer()
-    {
-        TryReleaseQueuedGuardiansHammer(requireTargetInFacingZone: false);
-    }
-
-    public bool TryAutoReleaseQueuedGuardiansHammerFromCadence()
-    {
-        return TryReleaseQueuedGuardiansHammer(requireTargetInFacingZone: false);
-    }
-
-    private bool TryReleaseQueuedGuardiansHammer(bool requireTargetInFacingZone)
-    {
-        if (!_guardiansHammerQueued)
-            return false;
-        if (requireTargetInFacingZone && !CanHitAnyEnemyWithGuardiansHammer())
-            return false;
-
-        AbilityDefinition def = GetAbilityDefinition(GuardiansHammerId);
-        if (!def)
-        {
-            ClearGuardiansHammerPrimeState();
-            return false;
-        }
-
-        if (!_guardiansHammerEnergyCommitted)
-        {
-            if (!TrySpendAbilityResourceCost(def, showInsufficientFeedback: false))
-            {
-                ClearGuardiansHammerPrimeState();
-                return false;
-            }
-
-            _guardiansHammerEnergyCommitted = true;
-            _guardiansHammerUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
-        }
-
-        if (combat == null)
-            combat = GetComponent<PlayerCombatController>();
-        if (combat == null || !combat.TryConsumeAttackCycleForAbilityCast())
-            return false;
-
-        FireGuardiansHammerImpact(def);
-        return true;
-    }
-
     private void FireGuardiansHammerImpact(AbilityDefinition def)
     {
         if (!def || player == null)
             return;
 
-        ClearGuardiansHammerPrimeState();
         TryUseGuardiansHammer(def);
         player.TriggerAttackAnim();
         StartCooldown(def);
-    }
-
-    private void ClearGuardiansHammerPrimeState()
-    {
-        _guardiansHammerQueued = false;
-        _guardiansHammerEnergyCommitted = false;
-        _guardiansHammerUsedEnergyInfusionMana = false;
     }
 
     private void TickGuardiansHammerProtectorResolve()
@@ -6941,8 +6870,6 @@ public class PlayerAbilityController : MonoBehaviour
             return _envenomQueued;
         if (string.Equals(abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return _crescentSlashQueued;
-        if (string.Equals(abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
-            return _guardiansHammerQueued;
         if (string.Equals(abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
             return IsCrusaderStrikeBusyThisAttack();
 
@@ -7764,9 +7691,16 @@ public class PlayerAbilityController : MonoBehaviour
         return true;
     }
 
-    private bool TryApplyFlameChargeBurnFromFireHit(EnemyBaseController enemy, float fireDamageDealt)
+    private bool TryApplyFlameChargeBurnFromFireHit(
+        EnemyBaseController enemy,
+        float fireDamageDealt,
+        float applyChance = -1f)
     {
-        if (!enemy || stats == null || fireDamageDealt <= 0f || stats.BurnApplyChance <= 0f)
+        if (!enemy || stats == null || fireDamageDealt <= 0f)
+            return false;
+
+        float resolvedApplyChance = applyChance >= 0f ? Mathf.Clamp01(applyChance) : stats.BurnApplyChance;
+        if (resolvedApplyChance <= 0f)
             return false;
 
         AilmentController ailments = enemy.GetComponent<AilmentController>();
@@ -7775,7 +7709,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         return ailments.TryApplyBurnFromFireHit(
             fireDamageDealt,
-            stats.BurnApplyChance,
+            resolvedApplyChance,
             stats.BurnExplosionMultiplier,
             transform,
             GetAbilityOutgoingDamageSourceLabel(FlameChargeId),
@@ -7950,7 +7884,7 @@ public class PlayerAbilityController : MonoBehaviour
             SplitDamage fireHit = new SplitDamage(0f, flatFire, 0f);
             DealtHit dealt = ApplyAbilitySplitDamageToEnemy(enemy, def, fireHit, false, 0f);
             if (dealt.Total > 0f)
-                TryApplyFlameChargeBurnFromFireHit(enemy, dealt.magic);
+                TryApplyFlameChargeBurnFromFireHit(enemy, dealt.magic, 1f);
         }
     }
 

@@ -95,8 +95,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.05f)] private float guardiansHammerShockwaveDuration = 0.3f;
     [SerializeField, Min(0.01f)] private float guardiansHammerShockwaveLineWidth = 0.18f;
     [SerializeField, Min(0.05f)] private float guardiansHammerShockwaveVerticalScale = 0.22f;
-    [SerializeField, Min(0.05f)] private float guardiansHammerBurnFlareDuration = 0.22f;
-    [SerializeField, Min(0.05f)] private float guardiansHammerBurnFlareRadius = 0.95f;
+    [SerializeField, Min(0.05f)] private float guardiansHammerBurnFlareDuration = 0.34f;
+    [SerializeField, Min(0.05f)] private float guardiansHammerBurnFlareRadius = 1.25f;
 
     [Header("Executioner's Descent (Melee Lv45) VFX")]
     [Tooltip("Assign the axe sprite in the inspector.")]
@@ -498,14 +498,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
 
     public void SpawnGuardiansHammerBurnFlare(Vector3 worldPosition)
     {
-        StartCoroutine(CoGuardiansHammerBurst(
-            "GuardiansHammerBurnFlare",
+        StartCoroutine(CoGuardiansHammerBurningVerdictBurst(
             worldPosition,
             guardiansHammerBurnFlareRadius,
             guardiansHammerBurnFlareDuration,
-            guardiansHammerBurnFlareColor,
-            verticalScale: 0.55f,
-            sortingOrderOffsetFromPlayer: 18));
+            guardiansHammerBurnFlareColor));
     }
 
     private IEnumerator CoGuardiansHammerSlam(Transform center, float reach, float sign)
@@ -519,6 +516,8 @@ public class PlayerAbilityVfxController : MonoBehaviour
             hammerGo.transform.SetParent(root.transform, false);
             hammerRenderer = hammerGo.AddComponent<SpriteRenderer>();
             hammerRenderer.sprite = guardiansHammerSprite;
+            hammerRenderer.flipY = sign < 0f;
+            hammerRenderer.flipX = false;
             hammerRenderer.color = guardiansHammerHammerTint;
             if (!TryApplyPlayerSpriteSortingToRenderer(hammerRenderer, 20))
                 hammerRenderer.sortingOrder = 30;
@@ -530,7 +529,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / swingDuration);
-            float eased = 1f - Mathf.Pow(1f - t, 3f);
+            float eased = t * t * t;
             float angleDeg = Mathf.Lerp(guardiansHammerStartAngle, guardiansHammerEndAngle, eased);
             float radians = angleDeg * Mathf.Deg2Rad;
             Vector3 pivot = (center != null ? center.position : Vector3.zero) + guardiansHammerPivotOffset;
@@ -622,45 +621,34 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
     }
 
-    private IEnumerator CoGuardiansHammerBurst(
-        string objectName,
+    private IEnumerator CoGuardiansHammerBurningVerdictBurst(
         Vector3 center,
         float maxRadius,
         float duration,
-        Color color,
-        float verticalScale,
-        int sortingOrderOffsetFromPlayer)
+        Color color)
     {
-        GameObject root = new GameObject(objectName);
-        LineRenderer ring = root.AddComponent<LineRenderer>();
-        ring.useWorldSpace = true;
-        ring.loop = true;
-        ring.positionCount = 20;
-        ring.widthMultiplier = Mathf.Max(0.05f, guardiansHammerShockwaveLineWidth * 0.8f);
-        ring.material = new Material(Shader.Find("Sprites/Default"));
-        ring.startColor = color;
-        ring.endColor = color;
-        if (!TryApplyPlayerSpriteSortingToRenderer(ring, sortingOrderOffsetFromPlayer))
-            ring.sortingOrder = 28;
+        GameObject root = new GameObject("BurningVerdictBurst");
+        root.transform.position = center;
+
+        SpriteRenderer sprite = root.AddComponent<SpriteRenderer>();
+        sprite.sprite = GetRuntimeCircleSprite();
+        if (!TryApplyPlayerSpriteSortingToRenderer(sprite, 18))
+            sprite.sortingOrder = 28;
 
         float elapsed = 0f;
         float burstDuration = Mathf.Max(0.05f, duration);
         float radiusMax = Mathf.Max(0.05f, maxRadius);
+        float startRadius = Mathf.Min(0.28f, radiusMax * 0.18f);
         while (elapsed < burstDuration)
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / burstDuration);
-            float radius = radiusMax * t;
+            float eased = 1f - Mathf.Pow(1f - t, 2.2f);
+            float radius = Mathf.Lerp(startRadius, radiusMax, eased);
             Color c = color;
-            c.a *= 1f - t;
-            ring.startColor = c;
-            ring.endColor = c;
-
-            for (int i = 0; i < ring.positionCount; i++)
-            {
-                float angle = i / (float)ring.positionCount * Mathf.PI * 2f;
-                ring.SetPosition(i, center + new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius * verticalScale, 0f));
-            }
+            c.a *= 1f - (t * t);
+            sprite.color = c;
+            root.transform.localScale = new Vector3(radius * 2f, radius * 2f, 1f);
 
             yield return null;
         }

@@ -52,9 +52,17 @@ public static class CombatStarterAttackAbility
         if (ability == null || string.IsNullOrEmpty(ability.abilityId))
             return false;
 
-        return string.Equals(ability.abilityId, MeleeAttackAbilityId, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(ability.abilityId, RangedAttackAbilityId, StringComparison.OrdinalIgnoreCase)
-               || string.Equals(ability.abilityId, MagicAttackAbilityId, StringComparison.OrdinalIgnoreCase);
+        return IsCombatStarterAttackId(ability.abilityId);
+    }
+
+    public static bool IsCombatStarterAttackId(string abilityId)
+    {
+        if (string.IsNullOrEmpty(abilityId))
+            return false;
+
+        return string.Equals(abilityId, MeleeAttackAbilityId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(abilityId, RangedAttackAbilityId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(abilityId, MagicAttackAbilityId, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool TryGetCombatStarterAttackForSkill(SkillDefinition skill, out AbilityDefinition ability)
