@@ -614,7 +614,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Energy restored per second: (max energy × base %) + flat bonuses from gear, passives, and consumables.</summary>
     public float EnergyRegenPerSecond =>
         Mathf.Max(0f, MaxEnergy * (EnergyRegenBasePercentPerSecond / 100f) + GetBonusEnergyRegenFlatPerSecond());
-    public float ManaRegenPerSecond => Mathf.Max(0f, (baseManaRegen + GetEquippedManaRegen()) * _combatManaRegenMultiplier);
+    public float ManaRegenPerSecond => Mathf.Max(0f, baseManaRegen + GetEquippedManaRegen() + _combatFlatManaRegenPerSecond);
     public float LifeSteal => Mathf.Clamp01(baseLifeSteal + GetEquippedLifeSteal() + GetActiveMeleeMinorBonuses().meleeLifeSteal);
 
     // Offensive stats
@@ -655,11 +655,11 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private float _combatAbilityPowerMultiplier = 1f;
 
-    /// <summary>Combat-only multiplier on mana regeneration (1.05 = +5% mana regen while active).</summary>
-    public float CombatManaRegenMultiplier
+    /// <summary>Combat-only flat mana regeneration per second (+5 = +5 mana/s while active).</summary>
+    public float CombatFlatManaRegenPerSecond
     {
-        get => _combatManaRegenMultiplier;
-        set => SetCombatStatMultiplier(ref _combatManaRegenMultiplier, value);
+        get => _combatFlatManaRegenPerSecond;
+        set => SetCombatStatAdditive(ref _combatFlatManaRegenPerSecond, value);
     }
 
     /// <summary>Combat-only melee (physical) damage multiplier (e.g. Battle Trance +10%).</summary>
@@ -733,7 +733,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private float _combatMeleeDamageMultiplier = 1f;
     private float _combatAttackSpeedPercentBonus;
     private float _combatMoveSpeedPercentBonus;
-    private float _combatManaRegenMultiplier = 1f;
+    private float _combatFlatManaRegenPerSecond;
     private float _abilityChannelMoveSpeedMultiplier = 1f;
     private float _combatDamageTakenMultiplier = 1f;
     private float _combatAbilityCooldownReductionFraction;

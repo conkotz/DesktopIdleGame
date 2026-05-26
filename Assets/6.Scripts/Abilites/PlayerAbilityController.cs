@@ -989,7 +989,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         _energyInfusionActive = false;
         if (stats != null)
-            stats.CombatManaRegenMultiplier = 1f;
+            stats.CombatFlatManaRegenPerSecond = 0f;
         _whirlwindUsedEnergyInfusionMana = false;
 
         abilityVfx?.DestroyEnergyInfusionGlowVfx();
@@ -1172,9 +1172,9 @@ public class PlayerAbilityController : MonoBehaviour
             return;
 
         int choice = GetEnergyInfusionSelectedChoice();
-        stats.CombatManaRegenMultiplier = choice == 0
-            ? AbilityCombatPower.EnergyInfusionEfficientConversionManaRegenMultiplier
-            : 1f;
+        stats.CombatFlatManaRegenPerSecond = choice == 0
+            ? AbilityCombatPower.EnergyInfusionEfficientConversionFlatManaRegenPerSecond
+            : 0f;
     }
 
     private void SyncEnergyInfusionHudBuff()
@@ -1337,7 +1337,7 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void LogAbilityUsed(AbilityDefinition def)
     {
-        if (def != null && !def.SpawnsMinionOnCast)
+        if (def != null && !def.SpawnsMinionOnCast && !IsGatheringAbilitySkill(def.sourceSkill))
         {
             if (combat == null)
                 combat = GetComponent<PlayerCombatController>();
@@ -1345,6 +1345,13 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         ApplyBattleEngineOnAbilityCommitEffects(def, beginHitSession: true);
+    }
+
+    private static bool IsGatheringAbilitySkill(SkillType skillType)
+    {
+        return skillType == SkillType.Woodcutting ||
+               skillType == SkillType.Mining ||
+               skillType == SkillType.Fishing;
     }
 
     private void ApplyBattleEngineOnAbilityCommitEffects(AbilityDefinition def, bool beginHitSession)
@@ -2028,6 +2035,8 @@ public class PlayerAbilityController : MonoBehaviour
     private const float NoActiveTargetPrimedLogCooldownSeconds = 3f;
     private static float _nextNoActiveTargetPrimedLogTime = -999f;
     private const string NoDamageWithCurrentWeaponLogMessage = "Ability does no damage with this weapon";
+    private const float NoDamageWithCurrentWeaponLogCooldownSeconds = 3f;
+    private static float _nextNoDamageWithCurrentWeaponLogTime = -999f;
 
     /// <summary>
     /// Pick the closest valid enemy for this ability, set combat target, or block the cast when range check applies.
@@ -2125,6 +2134,15 @@ public class PlayerAbilityController : MonoBehaviour
 
         _nextNoActiveTargetPrimedLogTime = Time.time + NoActiveTargetPrimedLogCooldownSeconds;
         GameLog.Add(NoActiveTargetPrimedLogMessage, GameLog.CannotMessageColor);
+    }
+
+    private static void LogNoDamageWithCurrentWeaponThrottled()
+    {
+        if (Time.time < _nextNoDamageWithCurrentWeaponLogTime)
+            return;
+
+        _nextNoDamageWithCurrentWeaponLogTime = Time.time + NoDamageWithCurrentWeaponLogCooldownSeconds;
+        GameLog.Add(NoDamageWithCurrentWeaponLogMessage, GameLog.CannotMessageColor);
     }
 
     private static bool IsPrimingAbility(AbilityDefinition def)
@@ -2420,7 +2438,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (WouldAbilityDealNoDamageWithCurrentWeapon(def))
         {
             if (showLockedFeedback)
-                GameLog.Add(NoDamageWithCurrentWeaponLogMessage, GameLog.CannotMessageColor);
+                LogNoDamageWithCurrentWeaponThrottled();
             return false;
         }
 

@@ -153,7 +153,7 @@ public static class AbilityCombatPower
     /// <summary>Base share of a melee energy ability's cost that is paid with mana while Energy Infusion is active.</summary>
     public const float EnergyInfusionBaseManaCostFraction = 0.30f;
     public const float EnergyInfusionEfficientConversionAdditionalManaCostFraction = 0.10f;
-    public const float EnergyInfusionEfficientConversionManaRegenMultiplier = 1.05f;
+    public const float EnergyInfusionEfficientConversionFlatManaRegenPerSecond = 5f;
     public const float EnergyInfusionOverchargedManaCostFraction = 0.20f;
     public const float EnergyInfusionOverchargedFlatAbilityPowerBonus = 30f;
 

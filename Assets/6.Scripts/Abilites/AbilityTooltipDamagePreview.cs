@@ -771,7 +771,7 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(O("If you do not have enough Mana for the converted portion, that ability uses its full Energy cost instead."));
             if (enhance == 0)
                 body.AppendLine(O(
-                    $"Efficient Conversion: use +{AbilityCombatPower.EnergyInfusionEfficientConversionAdditionalManaCostFraction * 100f:0.#}% additional Mana instead of Energy and gain +{(AbilityCombatPower.EnergyInfusionEfficientConversionManaRegenMultiplier - 1f) * 100f:0.#}% Mana regeneration while active."));
+                    $"Efficient Conversion: use +{AbilityCombatPower.EnergyInfusionEfficientConversionAdditionalManaCostFraction * 100f:0.#}% additional Mana instead of Energy and gain +{AbilityCombatPower.EnergyInfusionEfficientConversionFlatManaRegenPerSecond:0.#} Mana per second while active."));
             else if (enhance == 1)
                 body.AppendLine(O(
                     $"Overcharged: abilities use {AbilityCombatPower.EnergyInfusionOverchargedManaCostFraction * 100f:0.#}% Mana instead of {AbilityCombatPower.EnergyInfusionBaseManaCostFraction * 100f:0.#}%, and if Mana is used that ability gains +{AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus:0.#} flat ability power."));

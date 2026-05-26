@@ -610,10 +610,20 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     [SerializeField]
     private Color combatSetInactiveTextColor = new Color(1f, 1f, 1f, 0.85f);
 
+    [Tooltip("Optional explicit Set 1 button reference for LoadoutSetButtonBinder.")]
+    [SerializeField]
+    private Button combatSetOneButton;
+
+    [Tooltip("Optional explicit Set 2 button reference for LoadoutSetButtonBinder.")]
+    [SerializeField]
+    private Button combatSetTwoButton;
+
     internal Color CombatSetActiveBackgroundColor => combatSetActiveBackgroundColor;
     internal Color CombatSetInactiveBackgroundColor => combatSetInactiveBackgroundColor;
     internal Color CombatSetActiveTextColor => combatSetActiveTextColor;
     internal Color CombatSetInactiveTextColor => combatSetInactiveTextColor;
+    internal Button CombatSetOneButton => combatSetOneButton;
+    internal Button CombatSetTwoButton => combatSetTwoButton;
 
     [Header("Saved State (backing fields)")]
     private List<SavedSlotState> savedSlots = new();
@@ -1166,10 +1176,19 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                 if (abilityController == null)
                     return;
 
+                AbilityDefinition abilityDef = GetAbilityDefinition(action.id);
                 if (!abilityController.TryPrepareKeyboardModeAbilityTarget(action.id))
                     return;
 
                 bool usedAbility = abilityController.TryUseAbility(action.id);
+                if (usedAbility &&
+                    abilityDef != null &&
+                    IsGatheringSkillType(abilityDef.sourceSkill))
+                {
+                    if (_player != null)
+                        _player.ClearActionOverride();
+                    ShowGatheringBarForSkill(abilityDef.sourceSkill, GatheringBarDriveKind.AutomaticGameplay);
+                }
 
                 RefreshSlotRuntime(slot);
                 break;

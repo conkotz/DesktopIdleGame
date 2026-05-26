@@ -723,7 +723,7 @@ MonoBehaviour:
     - requiredLevel: 28
       title: Efficient Conversion
       description: Melee abilities use +10% additional Mana instead of Energy and
-        gain +5% Mana regeneration rate per second while active.
+        gain +5 flat Mana per second while active.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

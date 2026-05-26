@@ -1157,7 +1157,7 @@ public class PlayerController : MonoBehaviour
         // Let movement click logic decide where to go.
         if (AnyEnemyOnMap || InCombat)
         {
-            ShowPopup(InCombat ? "Can't gather while in combat!" : "Can't gather while enemies are on the map!");
+            ShowPopup(GetGatherBlockedMessage());
             return; // IMPORTANT: don't set targetNode/state
         }
 
@@ -1580,7 +1580,7 @@ public class PlayerController : MonoBehaviour
             {
                 if (AnyEnemyOnMap || InCombat)
                 {
-                    ShowPopup("Can't gather while enemies are on the map!");
+                    ShowPopup(GetGatherBlockedMessage());
                     MoveToPointX(world.x, fromPlayerInput: true);
                     return;
                 }
@@ -3466,6 +3466,11 @@ public class PlayerController : MonoBehaviour
                 // Keep the current gathering strip (or combat bar) while pathing to a node.
                 break;
             case PlayerAction.Fighting:
+                if (state == State.Gather)
+                {
+                    // Gather-tree abilities can briefly use combat presentation; keep the active gathering strip visible.
+                    break;
+                }
                 // Combat always returns to weapon sets on the bar; gathering layout is hidden.
                 bar.ExitGatheringBarToCombat();
                 break;
@@ -3473,6 +3478,15 @@ public class PlayerController : MonoBehaviour
                 // Idle / Fatigued / etc.: do not clear a gathering strip chosen in town — W/M/F stay until combat or Tab/set swap.
                 break;
         }
+    }
+
+    private string GetGatherBlockedMessage()
+    {
+        if (InCombat)
+            return "Can't gather while in combat!";
+        if (AnyEnemyOnMap)
+            return "Can't gather while enemies are on the map!";
+        return "Can't gather right now.";
     }
 
     private void SetAction(PlayerAction newAction, bool forceNotify = false)

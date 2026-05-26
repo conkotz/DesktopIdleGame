@@ -8,13 +8,15 @@ using UnityEngine.UI;
 public class LoadoutSetButtonBinder : MonoBehaviour
 {
     [Header("Optional Explicit Button References")]
-    [Tooltip("If assigned, these are used first and no name/text matching is required.")]
+    [Tooltip("Preferred. Assign the real Set 1 button(s) here so no scene scan is needed.")]
     [SerializeField] private List<Button> setOneButtons = new();
-    [Tooltip("If assigned, these are used first and no name/text matching is required.")]
+    [Tooltip("Preferred. Assign the real Set 2 button(s) here so no scene scan is needed.")]
     [SerializeField] private List<Button> setTwoButtons = new();
 
-    [Header("Button Names")]
+    [Header("Fallback Exact Button Names")]
+    [Tooltip("Used only when explicit refs are not assigned. Matches exact object name only.")]
     [SerializeField] private string setOneButtonName = "SetOneButton";
+    [Tooltip("Used only when explicit refs are not assigned. Matches exact object name only.")]
     [SerializeField] private string setTwoButtonName = "SetTwoButton";
 
     [Header("Visuals (fallback if no ActionBarUI)")]
@@ -86,21 +88,21 @@ public class LoadoutSetButtonBinder : MonoBehaviour
 
         CollectAssignedButtons(setOneButtons, _setOneButtons);
         CollectAssignedButtons(setTwoButtons, _setTwoButtons);
+        CollectButtonsFromActionBarRefs();
 
-        Button[] allButtons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < allButtons.Length; i++)
-        {
-            Button b = allButtons[i];
-            if (b == null)
-                continue;
-
-            if (IsSetOneButton(b))
-                AddIfMissing(_setOneButtons, b);
-            else if (IsSetTwoButton(b))
-                AddIfMissing(_setTwoButtons, b);
-        }
+        if (_setOneButtons.Count == 0 || _setTwoButtons.Count == 0)
+            CollectButtonsByExactName();
 
         WireButtonClickHandlers();
+    }
+
+    private void CollectButtonsFromActionBarRefs()
+    {
+        if (_actionBar == null)
+            return;
+
+        AddIfMissing(_setOneButtons, _actionBar.CombatSetOneButton);
+        AddIfMissing(_setTwoButtons, _actionBar.CombatSetTwoButton);
     }
 
     private static bool CollectAssignedButtons(List<Button> source, List<Button> target)
@@ -147,31 +149,44 @@ public class LoadoutSetButtonBinder : MonoBehaviour
     private void HandleSetOneClicked() => ApplySet(0);
     private void HandleSetTwoClicked() => ApplySet(1);
 
-    private bool IsSetOneButton(Button b)
+    private void CollectButtonsByExactName()
     {
-        if (b == null)
-            return false;
-        if (b.name == setOneButtonName)
-            return true;
-        string txt = GetButtonText(b);
-        return txt == "1" || txt == "Set 1" || txt == "Set1";
+        if (_actionBar != null)
+            CollectNamedButtonsFromScope(_actionBar.transform);
+
+        if (_setOneButtons.Count > 0 && _setTwoButtons.Count > 0)
+            return;
+
+        Button[] allButtons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < allButtons.Length; i++)
+            TryRegisterNamedButton(allButtons[i]);
     }
 
-    private bool IsSetTwoButton(Button b)
+    private void CollectNamedButtonsFromScope(Transform scope)
     {
-        if (b == null)
-            return false;
-        if (b.name == setTwoButtonName)
-            return true;
-        string txt = GetButtonText(b);
-        return txt == "2" || txt == "Set 2" || txt == "Set2";
+        if (scope == null)
+            return;
+
+        Button[] buttons = scope.GetComponentsInChildren<Button>(true);
+        for (int i = 0; i < buttons.Length; i++)
+            TryRegisterNamedButton(buttons[i]);
     }
 
-    private static string GetButtonText(Button b)
+    private void TryRegisterNamedButton(Button b)
     {
-        TMP_Text t = b.GetComponentInChildren<TMP_Text>(true);
-        return t != null ? (t.text ?? "").Trim() : "";
+        if (b == null)
+            return;
+
+        if (_setOneButtons.Count == 0 && IsExactNameMatch(b.name, setOneButtonName))
+            AddIfMissing(_setOneButtons, b);
+        else if (_setTwoButtons.Count == 0 && IsExactNameMatch(b.name, setTwoButtonName))
+            AddIfMissing(_setTwoButtons, b);
     }
+
+    private static bool IsExactNameMatch(string actualName, string expectedName) =>
+        !string.IsNullOrWhiteSpace(actualName) &&
+        !string.IsNullOrWhiteSpace(expectedName) &&
+        string.Equals(actualName.Trim(), expectedName.Trim(), System.StringComparison.Ordinal);
 
     private void HandleActiveSetChanged(int activeSet)
     {
