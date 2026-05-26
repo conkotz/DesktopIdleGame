@@ -496,6 +496,38 @@ MonoBehaviour:
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
+  - requiredLevel: 15
+    title: Guardian's Hammer
+    description: Summon a massive hammer that crashes down in front of you, crushing
+      enemies in a powerful area slam. Deals 180% weapon damage as Physical in a
+      large area in front of you.
+    icon: {fileID: -984826844956551946, guid: 3850084836b938e40aba34c0eabef3a4, type: 3}
+    unlockType: 1
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 11400000, guid: 4f7c9a86c2ab4a0b9d1e5f3c7a8b6d21, type: 2}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 18
+      title: Protector's Resolve
+      description: Gain guard equal to 15% of max health for 5 seconds after casting,
+        then it depletes back down to your natural guard cap.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 18
+      title: Burning Verdict
+      description: Burning enemies hit flare up, exploding in a 3 range burst for
+        3x their current burn tick damage without removing the burn.
+      icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
   - requiredLevel: 16
     title: Bloodletting I
     description: +5% Melee Bleed Chance

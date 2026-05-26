@@ -18,6 +18,7 @@ public static class AbilityCombatPower
     public const string EnvenomAbilityId = "envenom";
     public const string CleavingStrikesAbilityId = "cleaving_strikes";
     public const string CrescentSlashAbilityId = "crescent_slash";
+    public const string GuardiansHammerAbilityId = "guardians_hammer";
     public const string SoulforgedWeaponAbilityId = "soulforged_weapon";
     public const string LumberFrenzyAbilityId = "lumber_frenzy";
     public const string FishingFrenzyAbilityId = "fishing_frenzy";
@@ -138,6 +139,8 @@ public static class AbilityCombatPower
 
     /// <summary>Enhancement choices for Crusader Strike (Melee Lv5 slot 3).</summary>
     public const string CrusaderStrikeEnhancementParentSpineNodeId = "Lv5_3";
+    /// <summary>Enhancement choices for Guardian's Hammer (Melee Lv15 slot 3).</summary>
+    public const string GuardiansHammerEnhancementParentSpineNodeId = "Lv15_3";
 
     public const float FlameChargeDashDistance = 5f;
     public const float FlameChargeDashDurationSeconds = 0.35f;
@@ -161,6 +164,14 @@ public static class AbilityCombatPower
     public const float ShadowStrikeLethalCritBonusFraction = 0.8f;
     public const float ShadowStrikeExecutionMarkSeconds = 3f;
     public const float ShadowStrikeExecutionCooldownRefundSeconds = 3f;
+    public const float GuardiansHammerForwardReach = 6f;
+    public const float GuardiansHammerVerticalHalfHeight = 2.4f;
+    public const float GuardiansHammerImpactWidth = 2.6f;
+    public const float GuardiansHammerProtectorResolveGuardFractionMaxHealth = 0.15f;
+    public const float GuardiansHammerProtectorResolveDurationSeconds = 5f;
+    public const float GuardiansHammerGuardDecayPerSecondFractionOfMaxHealth = 0.06f;
+    public const float GuardiansHammerBurningVerdictExplosionRadius = 3f;
+    public const int GuardiansHammerBurningVerdictTicksWorth = 3;
 
     /// <summary>Enhancement choices for Final Severance (Melee Lv45 slot 0).</summary>
     public const string FinalSeveranceEnhancementParentSpineNodeId = "Lv45_0";
@@ -644,6 +655,26 @@ public static class AbilityCombatPower
             return dps * aoeLift;
         }
 
+        if (string.Equals(def.abilityId, GuardiansHammerAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            int selected = GetGuardiansHammerSelectedChoiceForCombatPower();
+            float avgPhysOnly =
+                (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
+            float perCastPhysical =
+                avgPhysOnly *
+                def.GetWeaponHitScalingMultiplier() *
+                def.GetEffectiveAllDamageMultiplier() *
+                stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient) *
+                critFactor;
+            float physicalOnlyDps = Mathf.Max(0f, perCastPhysical / cd);
+            float aoeLift = 1.20f; // Large frontal slam.
+            if (selected == 0)
+                aoeLift *= 1.03f; // Protector's Resolve adds a defensive cushion.
+            else if (selected == 1)
+                aoeLift *= 1.07f; // Burning Verdict gains extra burn-pop coverage.
+            return physicalOnlyDps * aoeLift;
+        }
+
         return dps;
     }
 
@@ -717,6 +748,15 @@ public static class AbilityCombatPower
             return -1;
 
         return sm.GetSkillChoiceSelection(SkillType.Melee, "Lv15_2", -1);
+    }
+
+    private static int GetGuardiansHammerSelectedChoiceForCombatPower()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return -1;
+
+        return sm.GetSkillChoiceSelection(SkillType.Melee, GuardiansHammerEnhancementParentSpineNodeId, -1);
     }
 
     private static int GetCrusaderStrikeSelectedChoiceForCombatPower()

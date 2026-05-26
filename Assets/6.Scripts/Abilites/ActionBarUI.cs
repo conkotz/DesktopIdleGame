@@ -2085,7 +2085,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             return null;
         if (abilityDatabase == null)
             abilityDatabase = AbilityDatabase.LoadDefault();
-        return abilityDatabase ? abilityDatabase.Get(id) : null;
+        AbilityDefinition def = abilityDatabase ? abilityDatabase.Get(id) : null;
+        return def ? def : AbilityDatabase.FindDefinitionById(id);
     }
 
     private ActionBarSlotUI GetSlotByIndex(int slotIndex)

@@ -787,6 +787,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (abilityController != null && abilityController.TryAutoReleaseQueuedCrescentSlashFromCadence())
             return;
 
+        if (abilityController != null && abilityController.TryAutoReleaseQueuedGuardiansHammerFromCadence())
+            return;
+
         if (Time.time < _nextAttackTime)
         {
             return;
@@ -1031,7 +1034,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                     showLockedFeedback: false,
                     allowSoulforgedRecastWhileActive: false,
                     requireCrescentSlashTargetInFacingLane: true,
-                    requireWhirlwindTargetInRadius: true);
+                    requireWhirlwindTargetInRadius: true,
+                    requireGuardiansHammerTargetInFacingZone: true);
 
                 if (forcedUsed)
                     _autoBattleAbilityRoundRobinIndex = i;
@@ -1059,7 +1063,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 showLockedFeedback: false,
                 allowSoulforgedRecastWhileActive: false,
                 requireCrescentSlashTargetInFacingLane: true,
-                requireWhirlwindTargetInRadius: true);
+                requireWhirlwindTargetInRadius: true,
+                requireGuardiansHammerTargetInFacingZone: true);
 
             _autoBattleAbilityRoundRobinIndex = idx;
 

@@ -262,6 +262,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsCrescentSlash(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.CrescentSlashAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsGuardiansHammer(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.GuardiansHammerAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsCrusaderStrike(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.CrusaderStrikeAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -1068,6 +1071,25 @@ public static class AbilityTooltipDamagePreview
                     $"+{AbilityCombatPower.WhirlwindExpansiveRangePerStage:0.#} range per stage while channeling (up to 5 stacks)."));
                 body.AppendLine(O(
                     $"+{AbilityCombatPower.WhirlwindExpansiveDamagePerSecond * 100f:0.#}% damage per second while channeling (up to 5 stacks)."));
+            }
+        }
+        else if (IsGuardiansHammer(def))
+        {
+            float hit = ComputeAveragePhysicalOnlyAbilityHit(def, stats, weaponMult, allM, liveDamageMultiplier);
+            body.AppendLine(O($"{Mathf.RoundToInt(hit)} Physical damage on hit"));
+            body.AppendLine(O($"Wide frontal slam - up to {AbilityCombatPower.GuardiansHammerForwardReach:0.#} range."));
+
+            int hammerEnhance = GetMeleeLv15BranchChoice(skillsManager, 3);
+            if (hammerEnhance == 0 && stats != null)
+            {
+                float guardAmount = stats.MaxHP * AbilityCombatPower.GuardiansHammerProtectorResolveGuardFractionMaxHealth;
+                body.AppendLine(O(
+                    $"Gain {Mathf.RoundToInt(guardAmount)} Guard ({AbilityCombatPower.GuardiansHammerProtectorResolveGuardFractionMaxHealth * 100f:0.#}% max health) for {AbilityCombatPower.GuardiansHammerProtectorResolveDurationSeconds:0.#}s."));
+            }
+            else if (hammerEnhance == 1)
+            {
+                body.AppendLine(O(
+                    $"Burning enemies hit explode in {AbilityCombatPower.GuardiansHammerBurningVerdictExplosionRadius:0.#} range for {AbilityCombatPower.GuardiansHammerBurningVerdictTicksWorth}x current burn tick damage without removing Burn."));
             }
         }
         else if (UsesCombinedTotalHitDamageTooltip(def))
@@ -1970,6 +1992,22 @@ public static class AbilityTooltipDamagePreview
 
     private static float ComputeAverageCrusaderStrikeWeaponHit(CharacterStats stats, float weaponMult)
         => ComputeAverageCrusaderStrikeWeaponHit(stats, weaponMult, 1f);
+
+    private static float ComputeAveragePhysicalOnlyAbilityHit(
+        AbilityDefinition def,
+        CharacterStats stats,
+        float weaponMult,
+        float allM,
+        float liveDamageMultiplier = 1f)
+    {
+        if (!def || !stats)
+            return 0f;
+
+        float avgPhys =
+            (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
+        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        return Mathf.Max(0f, avgPhys * Mathf.Max(0f, weaponMult) * Mathf.Max(0f, allM) * apM * Mathf.Max(0f, liveDamageMultiplier));
+    }
 
     private static float ComputeAverageCrusaderStrikeWeaponHit(CharacterStats stats, float weaponMult, float extraScale)
     {

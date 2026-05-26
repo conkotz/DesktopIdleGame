@@ -61,6 +61,7 @@ public class PlayerAbilityController : MonoBehaviour
     private const string EnvenomId = "envenom";
     private const string CleavingStrikesId = "cleaving_strikes";
     private const string CrescentSlashId = "crescent_slash";
+    private const string GuardiansHammerId = "guardians_hammer";
     private const string FinalSeveranceId = "final_severance";
     private const string ExecutionersDescentId = "executioners_descent";
     private const string BladestormId = "bladestorm";
@@ -134,6 +135,8 @@ public class PlayerAbilityController : MonoBehaviour
     private const int AvatarOfTheForestCooldownEnhancementChoiceIndex = 1;
 
     private const int WhirlwindChoiceSourceLevel = 15;
+    private const int GuardiansHammerProtectorResolveChoiceIndex = 0;
+    private const int GuardiansHammerBurningVerdictChoiceIndex = 1;
     private const int SoulforgedWeaponChoiceSourceLevel = 35;
     private const int SoulforgedWeaponSwarmChoiceIndex = 0;
     private const int SoulforgedWeaponIndefiniteChoiceIndex = 1;
@@ -173,8 +176,10 @@ public class PlayerAbilityController : MonoBehaviour
     private bool _rendQueued;
     private bool _envenomQueued;
     private bool _crescentSlashQueued;
+    private bool _guardiansHammerQueued;
     /// <summary>True after energy is spent to prime Crescent Slash (matches Power Slash priming contract).</summary>
     private bool _crescentSlashEnergyCommitted;
+    private bool _guardiansHammerEnergyCommitted;
     private int _cleavingHitsRemaining;
     private int _cleavingAdditionalTargets;
     private float _cleavingBuffEndsAt;
@@ -227,6 +232,7 @@ public class PlayerAbilityController : MonoBehaviour
     private bool _lastAbilityResourceSpendUsedEnergyInfusionMana;
     private bool _queuedPowerSlashUsedEnergyInfusionMana;
     private bool _crescentSlashUsedEnergyInfusionMana;
+    private bool _guardiansHammerUsedEnergyInfusionMana;
     private bool _whirlwindUsedEnergyInfusionMana;
 
     private bool _battleTranceActive;
@@ -234,6 +240,7 @@ public class PlayerAbilityController : MonoBehaviour
     private float _battleTranceDuration;
     private float _battleTranceMaxEndsAt;
     private float _lastSyncedBattleTranceHudEnd = float.NaN;
+    private float _guardiansHammerProtectorResolveEndsAt;
 
     private int _battleEngineCastSessionId;
     private int _battleEngineEnergyGrantedSessionId = -1;
@@ -441,7 +448,9 @@ public class PlayerAbilityController : MonoBehaviour
     private void Update()
     {
         TryAutoReleaseQueuedCrescentSlash();
+        TryAutoReleaseQueuedGuardiansHammer();
         TickWhirlwindChannel();
+        TickGuardiansHammerProtectorResolve();
         SyncWhirlwindHudBuff();
         CleanupCrusaderStrikeIfExpired();
         SyncCrusaderStrikeHudBuff();
@@ -1221,6 +1230,11 @@ public class PlayerAbilityController : MonoBehaviour
                 ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
                 : 0f;
 
+        if (string.Equals(def.abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
+            return _guardiansHammerUsedEnergyInfusionMana
+                ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
+                : 0f;
+
         if (string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
             return _whirlwindUsedEnergyInfusionMana
                 ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
@@ -1789,6 +1803,7 @@ public class PlayerAbilityController : MonoBehaviour
                || string.Equals(id, RendId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, EnvenomId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, CrescentSlashId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(id, GuardiansHammerId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, WhirlwindId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, FinalSeveranceId, StringComparison.OrdinalIgnoreCase)
                || string.Equals(id, ShadowStrikeId, StringComparison.OrdinalIgnoreCase)
@@ -2192,6 +2207,9 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(id, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return TryFindClosestEnemyInCrescentSlashArc(out target);
 
+        if (string.Equals(id, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
+            return TryFindClosestEnemyInGuardiansHammerZone(out target);
+
         if (string.Equals(id, ShadowStrikeId, StringComparison.OrdinalIgnoreCase))
             return TryFindClosestEnemyInShadowStrikeArc(out target);
 
@@ -2286,6 +2304,13 @@ public class PlayerAbilityController : MonoBehaviour
     {
         target = PickPreferredForwardArcEnemy(
             CollectCrescentSlashForwardHits(GetWhirlwindBaseRange() + 6f));
+        return target != null;
+    }
+
+    private bool TryFindClosestEnemyInGuardiansHammerZone(out EnemyBaseController target)
+    {
+        target = PickPreferredForwardArcEnemy(
+            CollectGuardiansHammerTargets(AbilityCombatPower.GuardiansHammerForwardReach));
         return target != null;
     }
 
@@ -2401,7 +2426,8 @@ public class PlayerAbilityController : MonoBehaviour
         bool showLockedFeedback = true,
         bool allowSoulforgedRecastWhileActive = true,
         bool requireCrescentSlashTargetInFacingLane = false,
-        bool requireWhirlwindTargetInRadius = false)
+        bool requireWhirlwindTargetInRadius = false,
+        bool requireGuardiansHammerTargetInFacingZone = false)
     {
         AbilityDefinition def = GetAbilityDefinition(abilityId);
         if (!def)
@@ -2519,9 +2545,15 @@ public class PlayerAbilityController : MonoBehaviour
             if (_crescentSlashQueued)
                 return false;
         }
+        if (string.Equals(def.abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_guardiansHammerQueued)
+                return false;
+        }
 
         bool isCrusaderStrike = string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase);
         bool isCrescentSlash = string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase);
+        bool isGuardiansHammer = string.Equals(def.abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase);
         bool isFinalSeverance = string.Equals(def.abilityId, FinalSeveranceId, StringComparison.OrdinalIgnoreCase);
         bool isExecutionersDescent = string.Equals(def.abilityId, ExecutionersDescentId, StringComparison.OrdinalIgnoreCase);
         bool isBladestorm = string.Equals(def.abilityId, BladestormId, StringComparison.OrdinalIgnoreCase);
@@ -2690,6 +2722,33 @@ public class PlayerAbilityController : MonoBehaviour
             {
                 _crescentSlashQueued = true;
                 _crescentSlashEnergyCommitted = true;
+            }
+
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+
+        if (isGuardiansHammer)
+        {
+            if (requireGuardiansHammerTargetInFacingZone && !CanHitAnyEnemyWithGuardiansHammer())
+                return false;
+
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+
+            bool castNow = combat != null && combat.CanConsumeAttackCycleNow();
+            if (castNow && combat.TryConsumeAttackCycleForAbilityCast())
+                FireGuardiansHammerImpact(def);
+            else
+            {
+                if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
+                    return false;
+
+                _guardiansHammerQueued = true;
+                _guardiansHammerEnergyCommitted = true;
+                _guardiansHammerUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
             }
 
             if (globalCooldownSeconds > 0f)
@@ -4320,6 +4379,13 @@ public class PlayerAbilityController : MonoBehaviour
         return forwardHits.Count > 0;
     }
 
+    private bool CanHitAnyEnemyWithGuardiansHammer()
+    {
+        List<(EnemyBaseController enemy, float dist)> forwardHits =
+            CollectGuardiansHammerTargets(AbilityCombatPower.GuardiansHammerForwardReach);
+        return forwardHits.Count > 0;
+    }
+
     /// <summary>True when at least one live enemy is within Whirlwind AoE (edge gap &lt;= hit radius).</summary>
     private bool CanHitAnyEnemyWithWhirlwind()
     {
@@ -4375,6 +4441,36 @@ public class PlayerAbilityController : MonoBehaviour
             if (forwardDist <= 0f || forwardDist > reach)
                 continue;
             if (Mathf.Abs(to.y) > laneWidth)
+                continue;
+
+            forwardHits.Add((enemy, forwardDist));
+        }
+
+        return forwardHits;
+    }
+
+    private List<(EnemyBaseController enemy, float dist)> CollectGuardiansHammerTargets(float reach)
+    {
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        List<(EnemyBaseController enemy, float dist)> forwardHits = new List<(EnemyBaseController enemy, float dist)>(allEnemies.Count);
+        float facing = GetCombatFacingSign();
+        Vector3 origin = transform.position;
+        float halfHeight = AbilityCombatPower.GuardiansHammerVerticalHalfHeight;
+        float halfWidth = AbilityCombatPower.GuardiansHammerImpactWidth * 0.5f;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            Vector3 to = enemy.transform.position - origin;
+            float forwardDist = to.x * facing;
+            if (forwardDist <= 0f || forwardDist > reach)
+                continue;
+            if (Mathf.Abs(to.y) > halfHeight)
+                continue;
+            if (Mathf.Abs(forwardDist - reach * 0.5f) > reach * 0.5f + halfWidth)
                 continue;
 
             forwardHits.Add((enemy, forwardDist));
@@ -4461,6 +4557,193 @@ public class PlayerAbilityController : MonoBehaviour
             stats.BurnExplosionMultiplier,
             transform,
             burnTickIntervalSeconds: stats.BurnTickIntervalSeconds);
+    }
+
+    private void TryUseGuardiansHammer(AbilityDefinition def)
+    {
+        if (def == null || stats == null)
+            return;
+
+        float reach = AbilityCombatPower.GuardiansHammerForwardReach;
+        float facing = GetCombatFacingSign();
+        abilityVfx?.SpawnGuardiansHammerSlam(reach, facing);
+
+        List<(EnemyBaseController enemy, float dist)> hits = CollectGuardiansHammerTargets(reach);
+        for (int i = 0; i < hits.Count; i++)
+            ApplyGuardiansHammerHit(hits[i].enemy, def);
+
+        if (GetGuardiansHammerSelectedChoice() == GuardiansHammerProtectorResolveChoiceIndex)
+            ActivateGuardiansHammerProtectorResolve();
+    }
+
+    private void ApplyGuardiansHammerHit(EnemyBaseController target, AbilityDefinition def)
+    {
+        if (target == null || target.IsDead || stats == null || def == null)
+            return;
+
+        SplitDamage hit = BuildGuardiansHammerPhysicalHit(def);
+        bool wasCrit = TryRollIndependentCrit(ref hit);
+        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, hit, wasCrit, 0f);
+        ApplyOnHitEffects(target, dealt);
+        if (player != null && dealt.Total > 0f)
+            player.ApplyLifeSteal(dealt.Total);
+
+        if (GetGuardiansHammerSelectedChoice() == GuardiansHammerBurningVerdictChoiceIndex)
+            TryTriggerGuardiansHammerBurningVerdict(target);
+    }
+
+    private SplitDamage BuildGuardiansHammerPhysicalHit(AbilityDefinition def)
+    {
+        if (stats == null || def == null)
+            return SplitDamage.Zero;
+
+        SplitDamage baseRolled = stats.RollSplitAttackDamage(out bool baseWasCrit);
+        float critMult = Mathf.Max(1f, stats.CritMultiplier);
+        if (baseWasCrit && critMult > 1f)
+            baseRolled.physical /= critMult;
+
+        float physical = Mathf.Max(0f, baseRolled.physical);
+        float hitAmount =
+            physical *
+            def.GetWeaponHitScalingMultiplier() *
+            def.GetEffectiveAllDamageMultiplier() *
+            GetAbilityPowerDamageMultiplierForAbility(def);
+        return new SplitDamage(hitAmount, 0f, 0f);
+    }
+
+    private void TryTriggerGuardiansHammerBurningVerdict(EnemyBaseController sourceEnemy)
+    {
+        if (sourceEnemy == null || sourceEnemy.IsDead)
+            return;
+
+        AilmentController sourceAilments = sourceEnemy.GetComponent<AilmentController>();
+        if (sourceAilments == null || !sourceAilments.HasBurn)
+            return;
+
+        if (!sourceAilments.TryBuildBurnFlarePayload(
+                AbilityCombatPower.GuardiansHammerBurningVerdictTicksWorth,
+                out int damage,
+                out Transform source,
+                out string dealerLabelForDps,
+                out Vector3? dealerWorldPositionFallback,
+                out string outgoingDpsSourceLabel,
+                out bool outgoingAttributeToMinion))
+            return;
+
+        abilityVfx?.SpawnGuardiansHammerBurnFlare(sourceEnemy.transform.position);
+
+        float radius = AbilityCombatPower.GuardiansHammerBurningVerdictExplosionRadius;
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+
+            Vector3 delta = enemy.transform.position - sourceEnemy.transform.position;
+            if (Mathf.Abs(delta.x) > radius || Mathf.Abs(delta.y) > radius)
+                continue;
+
+            AilmentController targetAilments = enemy.GetComponent<AilmentController>();
+            targetAilments?.ApplyExternalBurnDamage(
+                damage,
+                source,
+                dealerLabelForDps,
+                dealerWorldPositionFallback,
+                outgoingDpsSourceLabel,
+                outgoingAttributeToMinion);
+        }
+    }
+
+    private void ActivateGuardiansHammerProtectorResolve()
+    {
+        if (stats == null)
+            return;
+
+        float guardAmount = stats.MaxHP * AbilityCombatPower.GuardiansHammerProtectorResolveGuardFractionMaxHealth;
+        if (guardAmount > 0.0001f)
+            stats.AddBonusGuard(guardAmount);
+
+        _guardiansHammerProtectorResolveEndsAt =
+            Time.time + AbilityCombatPower.GuardiansHammerProtectorResolveDurationSeconds;
+    }
+
+    private void TryAutoReleaseQueuedGuardiansHammer()
+    {
+        TryReleaseQueuedGuardiansHammer(requireTargetInFacingZone: false);
+    }
+
+    public bool TryAutoReleaseQueuedGuardiansHammerFromCadence()
+    {
+        return TryReleaseQueuedGuardiansHammer(requireTargetInFacingZone: false);
+    }
+
+    private bool TryReleaseQueuedGuardiansHammer(bool requireTargetInFacingZone)
+    {
+        if (!_guardiansHammerQueued)
+            return false;
+        if (requireTargetInFacingZone && !CanHitAnyEnemyWithGuardiansHammer())
+            return false;
+
+        AbilityDefinition def = GetAbilityDefinition(GuardiansHammerId);
+        if (!def)
+        {
+            ClearGuardiansHammerPrimeState();
+            return false;
+        }
+
+        if (!_guardiansHammerEnergyCommitted)
+        {
+            if (!TrySpendAbilityResourceCost(def, showInsufficientFeedback: false))
+            {
+                ClearGuardiansHammerPrimeState();
+                return false;
+            }
+
+            _guardiansHammerEnergyCommitted = true;
+            _guardiansHammerUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
+        }
+
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null || !combat.TryConsumeAttackCycleForAbilityCast())
+            return false;
+
+        FireGuardiansHammerImpact(def);
+        return true;
+    }
+
+    private void FireGuardiansHammerImpact(AbilityDefinition def)
+    {
+        if (!def || player == null)
+            return;
+
+        ClearGuardiansHammerPrimeState();
+        TryUseGuardiansHammer(def);
+        player.TriggerAttackAnim();
+        StartCooldown(def);
+    }
+
+    private void ClearGuardiansHammerPrimeState()
+    {
+        _guardiansHammerQueued = false;
+        _guardiansHammerEnergyCommitted = false;
+        _guardiansHammerUsedEnergyInfusionMana = false;
+    }
+
+    private void TickGuardiansHammerProtectorResolve()
+    {
+        if (stats == null || _guardiansHammerProtectorResolveEndsAt <= 0f)
+            return;
+
+        if (Time.time < _guardiansHammerProtectorResolveEndsAt)
+            return;
+
+        float decayPerSecond =
+            Mathf.Max(0f, stats.MaxHP * AbilityCombatPower.GuardiansHammerGuardDecayPerSecondFractionOfMaxHealth);
+        stats.ReduceGuardAboveNaturalCap(decayPerSecond * Time.deltaTime);
+        if (stats.Guard <= stats.NaturalGuardCap + 0.0001f)
+            _guardiansHammerProtectorResolveEndsAt = 0f;
     }
 
     private bool TryStartWhirlwindChannel(
@@ -6612,6 +6895,17 @@ public class PlayerAbilityController : MonoBehaviour
         return skillsManager.GetSkillChoiceSelection(SkillType.Melee, "Lv15_2", -1);
     }
 
+    private int GetGuardiansHammerSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee, AbilityCombatPower.GuardiansHammerEnhancementParentSpineNodeId, -1);
+    }
+
     private int GetRendSelectedChoice()
     {
         if (!skillsManager)
@@ -6647,6 +6941,8 @@ public class PlayerAbilityController : MonoBehaviour
             return _envenomQueued;
         if (string.Equals(abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return _crescentSlashQueued;
+        if (string.Equals(abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
+            return _guardiansHammerQueued;
         if (string.Equals(abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
             return IsCrusaderStrikeBusyThisAttack();
 
@@ -6849,7 +7145,8 @@ public class PlayerAbilityController : MonoBehaviour
     private AbilityDefinition GetAbilityDefinition(string abilityId)
     {
         AbilityDatabase db = GetDatabaseOrDefault();
-        return db ? db.Get(abilityId) : null;
+        AbilityDefinition def = db ? db.Get(abilityId) : null;
+        return def ? def : AbilityDatabase.FindDefinitionById(abilityId);
     }
 
     private bool CanUseWithEquippedWeapon(AbilityDefinition def)
@@ -6892,6 +7189,9 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
             return !stats.CurrentMeleeWeaponHasPhysicalOrFireDamage();
+
+        if (string.Equals(def.abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
+            return stats.AveragePhysicalHit <= 0.0001f;
 
         return false;
     }

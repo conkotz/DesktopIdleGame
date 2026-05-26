@@ -60,6 +60,26 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "crescentSlashCenterOffset"
     };
 
+    private static readonly string[] GuardiansHammerFieldNames =
+    {
+        "guardiansHammerSprite",
+        "guardiansHammerHammerTint",
+        "guardiansHammerShockwaveColor",
+        "guardiansHammerBurnFlareColor",
+        "guardiansHammerPivotOffset",
+        "guardiansHammerOrbitRadius",
+        "guardiansHammerSwingDuration",
+        "guardiansHammerStartAngle",
+        "guardiansHammerEndAngle",
+        "guardiansHammerWorldScale",
+        "guardiansHammerShockwaveGroundOffset",
+        "guardiansHammerShockwaveDuration",
+        "guardiansHammerShockwaveLineWidth",
+        "guardiansHammerShockwaveVerticalScale",
+        "guardiansHammerBurnFlareDuration",
+        "guardiansHammerBurnFlareRadius"
+    };
+
     private static readonly string[] ShadowStrikeVfxFieldNames =
     {
         "shadowStrikeBurstColor",
@@ -290,6 +310,8 @@ public class PlayerAbilityVfxControllerEditor : Editor
         DrawFoldoutPropertyBlock(serializedObject, "WhirlwindVfx", "Whirlwind (Melee) VFX", WhirlwindFieldNames);
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(serializedObject, "CrescentSlashVfx", "Crescent Slash (Melee) VFX", CrescentFieldNames);
+        EditorGUILayout.Space(2f);
+        DrawFoldoutPropertyBlock(serializedObject, "GuardiansHammerVfx", "Guardian's Hammer (Melee Lv15) VFX", GuardiansHammerFieldNames);
         EditorGUILayout.Space(2f);
         DrawFoldoutPropertyBlock(
             serializedObject,

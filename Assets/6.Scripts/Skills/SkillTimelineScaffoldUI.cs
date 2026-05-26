@@ -688,7 +688,8 @@ public sealed class SkillTimelineScaffoldUI : MonoBehaviour
         {
             "Whirlwind",
             "Cleaving Strikes",
-            "Crescent Slash"
+            "Crescent Slash",
+            "Guardian's Hammer"
         });
 
         CreateUnlockCard(unlockRow, connectors, 20, "Lv 20 Unlock");

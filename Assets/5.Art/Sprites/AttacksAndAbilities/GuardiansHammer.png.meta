@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 4537476c91ff0cc41901d8ce94be50bd
+guid: 3850084836b938e40aba34c0eabef3a4
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 8368568200264094649
-    second: BigGoldenHammer_0
+      213: -984826844956551946
+    second: GuardiansHammer_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -51,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 550
+  spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -100,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: BigGoldenHammer_0
+      name: GuardiansHammer_0
       rect:
         serializedVersion: 2
-        x: 77
-        y: 96
-        width: 872
-        height: 1385
+        x: 0
+        y: 0
+        width: 1254
+        height: 1254
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 9b31f578070232470800000000000000
-      internalID: 8368568200264094649
+      spriteID: 6f4981dc3313552f0800000000000000
+      internalID: -984826844956551946
       vertices: []
       indices: 
       edges: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 12877ae8260ce3646965455002729482
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      BigGoldenHammer_0: 8368568200264094649
+      GuardiansHammer_0: -984826844956551946
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

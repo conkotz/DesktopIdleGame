@@ -80,6 +80,24 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.01f)] private float crescentSlashLineWidth = 0.12f;
     [SerializeField] private Vector3 crescentSlashCenterOffset = new Vector3(0f, 0.65f, 0f);
 
+    [Header("Guardian's Hammer (Melee Lv15) VFX")]
+    [SerializeField] private Sprite guardiansHammerSprite;
+    [SerializeField] private Color guardiansHammerHammerTint = new Color(1f, 0.9f, 0.3f, 1f);
+    [SerializeField] private Color guardiansHammerShockwaveColor = new Color(1f, 0.65f, 0.12f, 0.9f);
+    [SerializeField] private Color guardiansHammerBurnFlareColor = new Color(1f, 0.32f, 0.08f, 0.95f);
+    [SerializeField] private Vector3 guardiansHammerPivotOffset = new Vector3(0f, 0.95f, 0f);
+    [SerializeField, Min(0.1f)] private float guardiansHammerOrbitRadius = 1.55f;
+    [SerializeField, Min(0.05f)] private float guardiansHammerSwingDuration = 0.32f;
+    [SerializeField] private float guardiansHammerStartAngle = 215f;
+    [SerializeField] private float guardiansHammerEndAngle = 8f;
+    [SerializeField, Min(0.1f)] private float guardiansHammerWorldScale = 1.55f;
+    [SerializeField, Min(0f)] private float guardiansHammerShockwaveGroundOffset = 0.12f;
+    [SerializeField, Min(0.05f)] private float guardiansHammerShockwaveDuration = 0.3f;
+    [SerializeField, Min(0.01f)] private float guardiansHammerShockwaveLineWidth = 0.18f;
+    [SerializeField, Min(0.05f)] private float guardiansHammerShockwaveVerticalScale = 0.22f;
+    [SerializeField, Min(0.05f)] private float guardiansHammerBurnFlareDuration = 0.22f;
+    [SerializeField, Min(0.05f)] private float guardiansHammerBurnFlareRadius = 0.95f;
+
     [Header("Executioner's Descent (Melee Lv45) VFX")]
     [Tooltip("Assign the axe sprite in the inspector.")]
     [SerializeField] private Sprite executionersDescentAxeSprite;
@@ -466,6 +484,189 @@ public class PlayerAbilityVfxController : MonoBehaviour
         StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0f, 1f, 1f, 14));
         StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0.045f, 0.92f, 0.62f, 13));
         StartCoroutine(SpawnProjectedCrescentWaveAfterDelay(startPos, dir, reach, 0.09f, 0.84f, 0.38f, 12));
+    }
+
+    public void SpawnGuardiansHammerSlam(float reach, float combatFacingSign)
+    {
+        Transform center = player != null ? player.transform : transform;
+        if (center == null)
+            return;
+
+        float sign = Mathf.Approximately(combatFacingSign, 0f) ? 1f : Mathf.Sign(combatFacingSign);
+        StartCoroutine(CoGuardiansHammerSlam(center, Mathf.Max(0.5f, reach), sign));
+    }
+
+    public void SpawnGuardiansHammerBurnFlare(Vector3 worldPosition)
+    {
+        StartCoroutine(CoGuardiansHammerBurst(
+            "GuardiansHammerBurnFlare",
+            worldPosition,
+            guardiansHammerBurnFlareRadius,
+            guardiansHammerBurnFlareDuration,
+            guardiansHammerBurnFlareColor,
+            verticalScale: 0.55f,
+            sortingOrderOffsetFromPlayer: 18));
+    }
+
+    private IEnumerator CoGuardiansHammerSlam(Transform center, float reach, float sign)
+    {
+        GameObject root = new GameObject("GuardiansHammerVfx");
+        GameObject hammerGo = null;
+        SpriteRenderer hammerRenderer = null;
+        if (guardiansHammerSprite != null)
+        {
+            hammerGo = new GameObject("GuardiansHammerSprite");
+            hammerGo.transform.SetParent(root.transform, false);
+            hammerRenderer = hammerGo.AddComponent<SpriteRenderer>();
+            hammerRenderer.sprite = guardiansHammerSprite;
+            hammerRenderer.color = guardiansHammerHammerTint;
+            if (!TryApplyPlayerSpriteSortingToRenderer(hammerRenderer, 20))
+                hammerRenderer.sortingOrder = 30;
+        }
+
+        float swingDuration = Mathf.Max(0.05f, guardiansHammerSwingDuration);
+        float elapsed = 0f;
+        while (elapsed < swingDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / swingDuration);
+            float eased = 1f - Mathf.Pow(1f - t, 3f);
+            float angleDeg = Mathf.Lerp(guardiansHammerStartAngle, guardiansHammerEndAngle, eased);
+            float radians = angleDeg * Mathf.Deg2Rad;
+            Vector3 pivot = (center != null ? center.position : Vector3.zero) + guardiansHammerPivotOffset;
+
+            if (hammerGo != null)
+            {
+                Vector3 offset = new Vector3(
+                    Mathf.Cos(radians) * guardiansHammerOrbitRadius * sign,
+                    Mathf.Sin(radians) * guardiansHammerOrbitRadius,
+                    0f);
+                hammerGo.transform.position = pivot + offset;
+                float rotationZ = sign >= 0f
+                    ? angleDeg - 90f
+                    : 270f - angleDeg;
+                hammerGo.transform.rotation = Quaternion.Euler(0f, 0f, rotationZ);
+                hammerGo.transform.localScale = new Vector3(
+                    guardiansHammerWorldScale,
+                    guardiansHammerWorldScale,
+                    1f);
+            }
+
+            yield return null;
+        }
+
+        if (hammerGo != null)
+            Destroy(hammerGo);
+
+        Vector3 shockwaveOrigin = center != null ? center.position : Vector3.zero;
+        yield return CoGuardiansHammerShockwave(shockwaveOrigin, reach, sign);
+
+        if (root != null)
+            Destroy(root);
+    }
+
+    private IEnumerator CoGuardiansHammerShockwave(Vector3 playerWorld, float reach, float sign)
+    {
+        GameObject ringRoot = new GameObject("GuardiansHammerShockwave");
+        LineRenderer ring = ringRoot.AddComponent<LineRenderer>();
+        ring.useWorldSpace = true;
+        ring.loop = false;
+        ring.positionCount = 18;
+        ring.widthMultiplier = guardiansHammerShockwaveLineWidth;
+        ring.material = new Material(Shader.Find("Sprites/Default"));
+        ring.startColor = guardiansHammerShockwaveColor;
+        ring.endColor = guardiansHammerShockwaveColor;
+        if (!TryApplyPlayerSpriteSortingToRenderer(ring, 16))
+            ring.sortingOrder = 26;
+
+        float duration = Mathf.Max(0.05f, guardiansHammerShockwaveDuration);
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float radius = Mathf.Max(0.1f, reach) * t;
+            float alpha = guardiansHammerShockwaveColor.a * (1f - t);
+            RebuildGuardiansHammerShockwave(ring, playerWorld, radius, sign, alpha);
+            yield return null;
+        }
+
+        if (ringRoot != null)
+            Destroy(ringRoot);
+    }
+
+    private void RebuildGuardiansHammerShockwave(LineRenderer ring, Vector3 playerWorld, float radius, float sign, float alpha)
+    {
+        if (ring == null)
+            return;
+
+        Color c = guardiansHammerShockwaveColor;
+        c.a = alpha;
+        ring.startColor = c;
+        ring.endColor = c;
+
+        float arcRadius = Mathf.Max(0.05f, radius * 0.5f);
+        Vector3 center = new Vector3(
+            playerWorld.x + sign * arcRadius,
+            playerWorld.y + guardiansHammerShockwaveGroundOffset,
+            playerWorld.z);
+
+        int maxIndex = ring.positionCount - 1;
+        for (int i = 0; i <= maxIndex; i++)
+        {
+            float u = maxIndex <= 0 ? 0f : i / (float)maxIndex;
+            float angle = Mathf.Lerp(-Mathf.PI * 0.5f, Mathf.PI * 0.5f, u);
+            float x = Mathf.Cos(angle) * arcRadius * sign;
+            float y = Mathf.Sin(angle) * arcRadius * guardiansHammerShockwaveVerticalScale;
+            ring.SetPosition(i, center + new Vector3(x, y, 0f));
+        }
+    }
+
+    private IEnumerator CoGuardiansHammerBurst(
+        string objectName,
+        Vector3 center,
+        float maxRadius,
+        float duration,
+        Color color,
+        float verticalScale,
+        int sortingOrderOffsetFromPlayer)
+    {
+        GameObject root = new GameObject(objectName);
+        LineRenderer ring = root.AddComponent<LineRenderer>();
+        ring.useWorldSpace = true;
+        ring.loop = true;
+        ring.positionCount = 20;
+        ring.widthMultiplier = Mathf.Max(0.05f, guardiansHammerShockwaveLineWidth * 0.8f);
+        ring.material = new Material(Shader.Find("Sprites/Default"));
+        ring.startColor = color;
+        ring.endColor = color;
+        if (!TryApplyPlayerSpriteSortingToRenderer(ring, sortingOrderOffsetFromPlayer))
+            ring.sortingOrder = 28;
+
+        float elapsed = 0f;
+        float burstDuration = Mathf.Max(0.05f, duration);
+        float radiusMax = Mathf.Max(0.05f, maxRadius);
+        while (elapsed < burstDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / burstDuration);
+            float radius = radiusMax * t;
+            Color c = color;
+            c.a *= 1f - t;
+            ring.startColor = c;
+            ring.endColor = c;
+
+            for (int i = 0; i < ring.positionCount; i++)
+            {
+                float angle = i / (float)ring.positionCount * Mathf.PI * 2f;
+                ring.SetPosition(i, center + new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius * verticalScale, 0f));
+            }
+
+            yield return null;
+        }
+
+        if (root != null)
+            Destroy(root);
     }
 
     /// <summary>Wide yellow warning slash on button press (span matches gameplay half-reach).</summary>

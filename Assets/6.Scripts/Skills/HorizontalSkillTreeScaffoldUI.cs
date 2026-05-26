@@ -328,7 +328,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         SpawnMinorPassive(8, 0, 1);
         SpawnUnlock(8, 0, 1, "Can Catch Trout");
         SpawnChoiceGroup(10, new[] { "Ailment Attunement", "Parry", "Blade Mastery" }, SkillTimelineNodeUI.SkillTimelineNodeType.MajorPassive);
-        SpawnChoiceGroup(15, new[] { "Whirlwind", "Cleaving Strikes", "Crescent Slash" }, SkillTimelineNodeUI.SkillTimelineNodeType.Ability);
+        SpawnChoiceGroup(15, new[] { "Whirlwind", "Cleaving Strikes", "Crescent Slash", "Guardian's Hammer" }, SkillTimelineNodeUI.SkillTimelineNodeType.Ability);
 
         LogBuildHeader(null, 0, 0, 1);
 

@@ -129,6 +129,7 @@ public class AilmentController : MonoBehaviour
 
     /// <summary>Damage burn will deal each tick (burn ticks every 1s).</summary>
     public int BurnDamagePerSecond => HasBurn ? Mathf.Max(0, burnDamagePerTick) : 0;
+    public int CurrentBurnTickDamage => HasBurn ? Mathf.Max(0, burnDamagePerTick) : 0;
 
     /// <summary>Extra incoming damage % currently applied by shock (e.g. 25 means +25% damage taken).</summary>
     public float ShockDamageTakenBonusPercent => HasShock ? Mathf.Max(0f, shockDamageTakenMultiplier) * 100f : 0f;
@@ -922,6 +923,58 @@ public class AilmentController : MonoBehaviour
             _burnOutgoingDpsSourceLabel,
             _burnOutgoingAttributeToMinion);
         OnAilmentsChanged?.Invoke();
+    }
+
+    public bool TryBuildBurnFlarePayload(
+        int ticksWorth,
+        out int damage,
+        out Transform source,
+        out string dealerLabelForDps,
+        out Vector3? dealerWorldPositionFallback,
+        out string outgoingDpsSourceLabel,
+        out bool outgoingAttributeToMinion)
+    {
+        damage = 0;
+        source = null;
+        dealerLabelForDps = null;
+        dealerWorldPositionFallback = null;
+        outgoingDpsSourceLabel = null;
+        outgoingAttributeToMinion = false;
+
+        if (!HasBurn || burnDamagePerTick <= 0)
+            return false;
+
+        damage = Mathf.Max(1, burnDamagePerTick * Mathf.Max(1, ticksWorth));
+        source = burnDotSource;
+        dealerLabelForDps = _burnDotDealerLabel;
+        dealerWorldPositionFallback = _hasBurnDotDealerWorldPos ? (Vector3?)_burnDotDealerWorldPos : null;
+        outgoingDpsSourceLabel = _burnOutgoingDpsSourceLabel;
+        outgoingAttributeToMinion = _burnOutgoingAttributeToMinion;
+        return true;
+    }
+
+    public bool ApplyExternalBurnDamage(
+        int damage,
+        Transform source,
+        string dealerLabelForDps,
+        Vector3? dotDealerWorldPositionFallback = null,
+        string outgoingDpsSourceLabel = null,
+        bool outgoingAttributeToMinion = false,
+        bool wasCrit = false)
+    {
+        if (damage <= 0 || IsDead())
+            return false;
+
+        ApplyDotDamage(
+            damage,
+            FloatingDamageTextUI.PopupDamageKind.Magic,
+            source,
+            dealerLabelForDps,
+            dotDealerWorldPositionFallback,
+            outgoingDpsSourceLabel,
+            outgoingAttributeToMinion,
+            wasCrit);
+        return true;
     }
 
     private void RecordBurnApplicationSustain()

@@ -4200,6 +4200,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
         RaiseGuardChanged();
     }
 
+    public void ReduceGuardAboveNaturalCap(float amount)
+    {
+        if (_isDead || amount <= 0f)
+            return;
+
+        float cap = NaturalGuardCap;
+        if (currentGuard <= cap + 0.0001f)
+            return;
+
+        currentGuard = Mathf.Max(cap, currentGuard - amount);
+        RaiseGuardChanged();
+    }
+
     public void ClampGuardToNaturalCap()
     {
         float cap = NaturalGuardCap;
