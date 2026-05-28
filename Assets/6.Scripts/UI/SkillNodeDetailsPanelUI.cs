@@ -83,6 +83,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
 
     private readonly List<SkillNodeDetailsEnhancementCardUI> _spawnedEnhancementButtons = new();
     private SkillTimelineNodeBinding _currentBinding;
+    private AbilityIconDragAssignUI _abilityIconDragAssign;
     private int _previewEnhancementIndex = -1;
     private int _committedEnhancementIndex = -1;
     private bool _detailsInteriorExpanded;
@@ -237,6 +238,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         if (contentRoot != null)
             contentRoot.SetActive(false);
 
+        BindAbilityIconDragAssign(null, null);
+
         TMP_Text emptyLabel = emptyStateRoot != null
             ? emptyStateRoot.GetComponentInChildren<TMP_Text>(true)
             : null;
@@ -315,6 +318,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         AbilityDefinition ability = ResolveAbility(binding);
         BindRequirementsSection(ability, stats);
         BindTypeSection(ability, details.TypeLabel);
+        BindAbilityIconDragAssign(ability, skillsManager);
         BindMiddleColumn(ability, skillsManager, stats);
         PopulateEnhancementCards(binding, skillsManager);
         ApplyDetailsTypography();
@@ -796,21 +800,42 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         return null;
     }
 
+    private void BindAbilityIconDragAssign(AbilityDefinition ability, SkillsManager skillsManager)
+    {
+        if (skillIconImage == null)
+            return;
+
+        _abilityIconDragAssign ??= skillIconImage.GetComponent<AbilityIconDragAssignUI>();
+        if (_abilityIconDragAssign == null)
+            _abilityIconDragAssign = skillIconImage.gameObject.AddComponent<AbilityIconDragAssignUI>();
+
+        SkillDefinition skill = null;
+        if (ability != null)
+        {
+            SkillDatabase db = SkillDatabase.LoadDefault();
+            skill = db != null ? db.Get(ability.sourceSkill) : null;
+        }
+
+        bool canAssign = ability != null
+            && SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, ability, skillsManager);
+        _abilityIconDragAssign.Bind(ability, canAssign);
+    }
+
     private void BindRequirementsSection(AbilityDefinition ability, CharacterStats stats)
     {
-        string weaponLine = ability != null
-            ? AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(ability, stats, accentWhenOk: true)
+        string requirements = ability != null
+            ? AbilityTooltipDamagePreview.BuildAbilityRequirementsRichText(ability, stats, accentWhenOk: true)
             : string.Empty;
 
-        bool hasWeaponReq = !string.IsNullOrWhiteSpace(weaponLine);
+        bool hasRequirements = !string.IsNullOrWhiteSpace(requirements);
         if (requirementsSectionRoot != null)
-            requirementsSectionRoot.SetActive(hasWeaponReq);
+            requirementsSectionRoot.SetActive(hasRequirements);
 
         if (requirementWeaponText != null)
         {
-            requirementWeaponText.gameObject.SetActive(hasWeaponReq);
+            requirementWeaponText.gameObject.SetActive(hasRequirements);
             requirementWeaponText.richText = true;
-            requirementWeaponText.text = hasWeaponReq ? weaponLine : string.Empty;
+            requirementWeaponText.text = hasRequirements ? requirements : string.Empty;
         }
     }
 

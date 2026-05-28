@@ -176,7 +176,7 @@ public static class AbilityCombatPower
     public const float EnergyInfusionEfficientConversionAdditionalManaCostFraction = 0.10f;
     public const float EnergyInfusionEfficientConversionFlatManaRegenPerSecond = 5f;
     public const float EnergyInfusionOverchargedManaCostFraction = 0.20f;
-    public const float EnergyInfusionOverchargedFlatAbilityPowerBonus = 30f;
+    public const float EnergyInfusionOverchargedAbilityPowerPercentBonus = 10f;
 
     public const float ShadowStrikeForwardReach = 15f;
     public const float ShadowStrikeLethalCritBonusFraction = 0.8f;
@@ -516,7 +516,7 @@ public static class AbilityCombatPower
         if (string.Equals(def.abilityId, PowerSlashAbilityId, StringComparison.OrdinalIgnoreCase))
         {
             float psAllM = def.GetEffectiveAllDamageMultiplier();
-            float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+            float apM = stats.GetAbilityPowerDamageMultiplier();
             float weaponEff = weaponMult <= 0f ? 1f : weaponMult;
             float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
             float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
@@ -647,7 +647,7 @@ public static class AbilityCombatPower
         float allM = def.GetEffectiveAllDamageMultiplier();
         float elementBonusInstant = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float ailmentBonusInstant = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-        float apMInstant = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        float apMInstant = stats.GetAbilityPowerDamageMultiplier();
         float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
         float raw =
             (avgPhys * wEff + ailmentBonusInstant) * allM * apMInstant
@@ -697,21 +697,12 @@ public static class AbilityCombatPower
         if (string.Equals(def.abilityId, GuardiansHammerAbilityId, StringComparison.OrdinalIgnoreCase))
         {
             int selected = GetGuardiansHammerSelectedChoiceForCombatPower();
-            float avgPhysOnly =
-                (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
-            float perCastPhysical =
-                avgPhysOnly *
-                def.GetWeaponHitScalingMultiplier() *
-                def.GetEffectiveAllDamageMultiplier() *
-                stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient) *
-                critFactor;
-            float physicalOnlyDps = Mathf.Max(0f, perCastPhysical / cd);
             float aoeLift = 1.20f; // Large frontal slam.
             if (selected == 0)
                 aoeLift *= 1.03f; // Protector's Resolve adds a defensive cushion.
             else if (selected == 1)
                 aoeLift *= 1.07f; // Burning Verdict gains extra burn-pop coverage.
-            return physicalOnlyDps * aoeLift;
+            return dps * aoeLift;
         }
 
         return dps;
@@ -745,7 +736,7 @@ public static class AbilityCombatPower
         int selected = sm.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
         if (selected == 0)
         {
-            weaponDamageMultiplier += 0.25f; // Brutal Cut
+            weaponDamageMultiplier += 0.30f; // Brutal Cut
         }
         else if (selected == 1)
         {

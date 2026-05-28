@@ -18,7 +18,7 @@ public static class AbilityTooltipAdjustments
         {
             int selected = skillsManager.GetSkillChoiceSelection(SkillType.Melee, 5, -1);
             if (selected == 0)
-                weaponDamageMultiplier += 0.25f;
+                weaponDamageMultiplier += 0.30f;
             else if (selected == 1)
                 cooldownSeconds = Mathf.Max(0.01f, cooldownSeconds - 3f);
         }

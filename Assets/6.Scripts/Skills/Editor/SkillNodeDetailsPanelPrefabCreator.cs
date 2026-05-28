@@ -205,6 +205,11 @@ public static class SkillNodeDetailsPanelPrefabCreator
         topHlg.childForceExpandHeight = true;
 
         Image skillIcon = CreateIcon(topRow, "SkillIcon", SkillNodeDetailsPanelUI.HeaderIconSize);
+        if (skillIcon != null)
+        {
+            skillIcon.raycastTarget = true;
+            skillIcon.gameObject.AddComponent<AbilityIconDragAssignUI>();
+        }
 
         var nameBlock = CreateChild(topRow, "NameBlock");
         AddLayoutElement(nameBlock, flexibleWidth: 1, flexibleHeight: 1, minWidth: 0, minHeight: SkillNodeDetailsPanelUI.HeaderIconSize);

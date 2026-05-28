@@ -47,6 +47,12 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     [SerializeField] private SkillsAbilitySkillsListPanelUI skillsListPanel;
     [SerializeField] private SkillListEntryUI skillEntryPrefab;
 
+    [Header("Action bar")]
+    [Tooltip("Auto Assign to Bar — fills loadout slots with active abilities in list order.")]
+    [SerializeField] private Button autoAssignAbilitiesButton;
+    [Tooltip("Optional — feedback popups when auto-assign fails.")]
+    [SerializeField] private PlayerController player;
+
     public SkillListEntryUI SkillEntryPrefab => skillEntryPrefab;
 
     private SkillDefinition _selectedSkill;
@@ -59,6 +65,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private UnityEngine.Events.UnityAction _combatCategoryHandler;
     private UnityEngine.Events.UnityAction _gatheringCategoryHandler;
     private UnityEngine.Events.UnityAction _resetTreeClickHandler;
+    private UnityEngine.Events.UnityAction _autoAssignClickHandler;
+    private ActionBarUI _cachedActionBar;
     private Coroutine _deferredProgressionRefresh;
     private Coroutine _deferredOpenRefresh;
     private readonly HashSet<SkillType> _pendingEntryGlowBySkill = new();
@@ -102,6 +110,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         EnsureDetailsPanelReferences();
         WireCategoryModeButtons();
         WireResetTreeButton();
+        WireAutoAssignAbilitiesButton();
         ApplyCategoryMode(showOnly: true);
         WireSkillTabButtons();
         TrySubscribeSkillsEvents();
@@ -136,6 +145,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         SetTimelineScrollViewportVisible(true);
         UnhookTreeGlowAcknowledge();
         UnwireResetTreeButton();
+        UnwireAutoAssignAbilitiesButton();
         TryUnsubscribeSkillsEvents();
     }
 
@@ -609,6 +619,109 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             return;
 
         resetTreeButton.onClick.RemoveListener(_resetTreeClickHandler);
+    }
+
+    private void WireAutoAssignAbilitiesButton()
+    {
+        if (autoAssignAbilitiesButton == null)
+        {
+            Transform found = transform.Find(
+                "BottomPanelBar/AbilityList/ScrollView/Viewport/Content/MinorPassiveUnlocksSection/AddToBarButton");
+            if (found == null)
+                found = transform.Find("BottomPanelBar/DetailsPanel/AbilityList/ScrollView/Viewport/Content/MinorPassiveUnlocksSection/AddToBarButton");
+            if (found == null)
+                found = transform.Find("AutoAssignAbilitiesButton");
+            if (found == null)
+                autoAssignAbilitiesButton = FindChildButtonNamed("AddToBarButton");
+            else
+                autoAssignAbilitiesButton = found.GetComponent<Button>();
+        }
+
+        if (autoAssignAbilitiesButton == null)
+        {
+            Button[] buttons = GetComponentsInChildren<Button>(true);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                if (buttons[i] == null)
+                    continue;
+
+                string name = buttons[i].name;
+                if (name.IndexOf("AutoAssign", StringComparison.OrdinalIgnoreCase) >= 0
+                    || name.IndexOf("AddToBar", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    autoAssignAbilitiesButton = buttons[i];
+                    break;
+                }
+            }
+        }
+
+        if (autoAssignAbilitiesButton == null)
+            return;
+
+        if (_autoAssignClickHandler == null)
+            _autoAssignClickHandler = HandleAutoAssignAbilitiesToBarClicked;
+
+        autoAssignAbilitiesButton.onClick.RemoveListener(_autoAssignClickHandler);
+        autoAssignAbilitiesButton.onClick.AddListener(_autoAssignClickHandler);
+    }
+
+    private void UnwireAutoAssignAbilitiesButton()
+    {
+        if (autoAssignAbilitiesButton == null || _autoAssignClickHandler == null)
+            return;
+
+        autoAssignAbilitiesButton.onClick.RemoveListener(_autoAssignClickHandler);
+    }
+
+    private void HandleAutoAssignAbilitiesToBarClicked()
+    {
+        PreferRuntimeSkillsManager();
+        if (_selectedSkill == null)
+        {
+            ShowAutoAssignPopup("Select a skill first.");
+            return;
+        }
+
+        if (skillsManager == null)
+        {
+            ShowAutoAssignPopup("Skills not loaded.");
+            return;
+        }
+
+        int level = skillsManager.GetLevel(_selectedSkill.skillType);
+        List<AbilityDefinition> abilities = SkillAbilityCommitRules.CollectUnlockedAbilitiesInPanelOrder(
+            _selectedSkill, level, skillsManager);
+        if (abilities.Count == 0)
+        {
+            ShowAutoAssignPopup("No unlocked abilities to assign.");
+            return;
+        }
+
+        ActionBarUI bar = _cachedActionBar;
+        if (bar == null)
+            bar = _cachedActionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (bar == null)
+        {
+            ShowAutoAssignPopup("No action bar found.");
+            return;
+        }
+
+        if (ActionBarUI.IsGatheringSkillType(_selectedSkill.skillType))
+            bar.ShowGatheringBarForSkill(_selectedSkill.skillType, GatheringBarDriveKind.SkillsMenuSelection);
+        else
+            bar.ExitGatheringBarToCombat();
+
+        int assigned = bar.ReplaceLoadoutAbilitiesInOrder(abilities);
+        if (assigned <= 0)
+            ShowAutoAssignPopup("Could not assign abilities to the action bar.");
+    }
+
+    private void ShowAutoAssignPopup(string message)
+    {
+        if (player == null)
+            player = FindFirstObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (player != null)
+            player.ShowPopup(message);
     }
 
     private Button FindChildButtonNamed(string leafName)

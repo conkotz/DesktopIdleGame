@@ -16,6 +16,7 @@ public class HotkeySettingsRowUI : MonoBehaviour
     [SerializeField] private HotkeyBindId bindId = HotkeyBindId.ActionBar1;
     [Tooltip("Factory-reset default for this bind. KeyCode.None = use HotkeyBindingManager code default.")]
     [SerializeField] private KeyCode serializedDefaultKey = KeyCode.None;
+    [SerializeField] private HotkeyModifier serializedDefaultModifiers = HotkeyModifier.None;
     [SerializeField] private TMP_Text actionNameText;
     [SerializeField] private TMP_Text currentKeyText;
     [Tooltip("Optional: separate label for \"Press any key…\". If null, the prompt is shown on Current Key Text.")]
@@ -239,6 +240,11 @@ public class HotkeySettingsRowUI : MonoBehaviour
                 continue;
 
             KeyCode k = order[i];
+            if (k == KeyCode.LeftShift || k == KeyCode.RightShift ||
+                k == KeyCode.LeftControl || k == KeyCode.RightControl ||
+                k == KeyCode.LeftAlt || k == KeyCode.RightAlt)
+                continue;
+
             if (k == KeyCode.Escape)
             {
                 StopListening();
@@ -247,11 +253,19 @@ public class HotkeySettingsRowUI : MonoBehaviour
 
             if (k == KeyCode.Backspace || k == KeyCode.Delete)
             {
-                TryApply(KeyCode.None);
+                TryApply(HotkeyChord.FromKeyCode(KeyCode.None));
                 return;
             }
 
-            TryApply(k);
+            HotkeyModifier mods = HotkeyModifier.None;
+            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                mods |= HotkeyModifier.Shift;
+            if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl))
+                mods |= HotkeyModifier.Ctrl;
+            if (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt))
+                mods |= HotkeyModifier.Alt;
+
+            TryApply(HotkeyChord.FromKeyCode(k, mods));
             return;
         }
     }
@@ -303,7 +317,7 @@ public class HotkeySettingsRowUI : MonoBehaviour
         ScheduleFocusRebindButtonNextFrame();
     }
 
-    private void TryApply(KeyCode k)
+    private void TryApply(HotkeyChord chord)
     {
         HotkeyBindingManager mgr = HotkeyBindingManager.Instance;
         if (mgr == null)
@@ -315,12 +329,11 @@ public class HotkeySettingsRowUI : MonoBehaviour
         if (!_listening)
             return;
 
-        // Exit listen mode before TrySetBinding so OnBindingsChanged subscribers do not see stale "listening" UI state.
         _listening = false;
         if (_activeListener == this)
             _activeListener = null;
 
-        mgr.TrySetBinding(bindId, k);
+        mgr.TrySetBinding(bindId, chord);
         MarkActionBarSuppressThisFrame();
         RefreshDisplay();
         ResumeUiInputModules();
@@ -365,8 +378,8 @@ public class HotkeySettingsRowUI : MonoBehaviour
             return;
         }
 
-        KeyCode k = mgr.GetBinding(bindId);
-        string s = HotkeyBindingManager.GetDisplayString(k);
+        HotkeyChord chord = mgr.GetChord(bindId);
+        string s = HotkeyBindingManager.GetDisplayString(chord);
         currentKeyText.text = string.IsNullOrEmpty(s) ? "(unbound)" : s;
         ApplyRowVisualStyle();
     }
@@ -424,16 +437,31 @@ public class HotkeySettingsRowUI : MonoBehaviour
 
     public static bool TryGetSerializedDefaultKey(HotkeyBindId id, out KeyCode key)
     {
-        foreach (HotkeySettingsRowUI row in s_registeredRows)
+        if (TryGetSerializedDefaultChord(id, out HotkeyChord chord))
         {
-            if (row == null || row.bindId != id || row.serializedDefaultKey == KeyCode.None)
-                continue;
-
-            key = row.serializedDefaultKey;
-            return true;
+            key = chord.Key;
+            return key != KeyCode.None;
         }
 
         key = KeyCode.None;
+        return false;
+    }
+
+    public static bool TryGetSerializedDefaultChord(HotkeyBindId id, out HotkeyChord chord)
+    {
+        foreach (HotkeySettingsRowUI row in s_registeredRows)
+        {
+            if (row == null || row.bindId != id)
+                continue;
+
+            if (row.serializedDefaultKey == KeyCode.None && row.serializedDefaultModifiers == HotkeyModifier.None)
+                continue;
+
+            chord = HotkeyChord.FromKeyCode(row.serializedDefaultKey, row.serializedDefaultModifiers);
+            return !chord.IsEmpty || row.serializedDefaultKey == KeyCode.None;
+        }
+
+        chord = default;
         return false;
     }
 

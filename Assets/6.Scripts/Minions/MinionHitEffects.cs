@@ -37,10 +37,22 @@ public static class MinionHitEffects
             attributeOutgoingToMinion,
             ownerSnap.ownerTransform);
 
-        if (ownerSnap.currentAttackAppliesAsFireForBurn && magicDealt > 0f && stats.AilmentChances.burnChance > 0f)
+        float fireDealt = Mathf.Max(0f, magicDealt) * ownerSnap.weaponMagicFireFraction;
+        if (ownerSnap.currentAttackSkill == AttackSkill.Magic &&
+            ownerSnap.currentMagicAttackType == MagicAttackType.Fire &&
+            magicDealt > 0f)
+        {
+            fireDealt = Mathf.Max(fireDealt, magicDealt);
+        }
+        else if (ownerSnap.currentAttackAppliesAsFireForBurn && fireDealt <= 0f && magicDealt > 0f)
+        {
+            fireDealt = magicDealt;
+        }
+
+        if (fireDealt > 0f && stats.AilmentChances.burnChance > 0f)
         {
             ailments.TryApplyBurnFromFireHit(
-                magicDealt,
+                fireDealt,
                 stats.AilmentChances.burnChance,
                 ownerSnap.burnExplosionMultiplier,
                 src,

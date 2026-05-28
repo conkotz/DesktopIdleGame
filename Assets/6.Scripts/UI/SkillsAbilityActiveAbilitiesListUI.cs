@@ -18,6 +18,9 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
 
     private readonly List<AbilityEntryUI> _rows = new();
     private readonly List<GameObject> _placeholderRoots = new();
+    private GameObject _autoAssignBarRoot;
+    private GameObject _minorPassiveContentRoot;
+    private GameObject _autoAssignSectionRoot;
     private Transform _rowsContainer;
     private Canvas _rootCanvas;
     private HorizontalSkillTreeScaffoldUI _horizontalTimeline;
@@ -133,6 +136,8 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
 
         bool hasRows = _rows.Count > 0;
         SetPlaceholderVisible(!hasRows);
+        EnsureAutoAssignToolbarLayout();
+        EnsureToolbarAboveAbilityRows();
         ApplyAbilityNameCompactLayout();
 
         if (rowsParent is RectTransform listRt)
@@ -262,7 +267,9 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         }
 
         CachePlaceholderRoots();
+        EnsureAutoAssignToolbarLayout();
         EnsureRowsContainer();
+        EnsureToolbarAboveAbilityRows();
 
         if (summaryText == null)
             summaryText = transform.Find("AbilitiesUnlockedText")?.GetComponent<TMP_Text>();
@@ -365,7 +372,7 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         var rowsGo = new GameObject(RowsContainerName, typeof(RectTransform));
         var rowsRt = rowsGo.GetComponent<RectTransform>();
         rowsRt.SetParent(listContent, false);
-        rowsRt.SetAsFirstSibling();
+        rowsRt.SetAsLastSibling();
         rowsRt.anchorMin = new Vector2(0f, 1f);
         rowsRt.anchorMax = new Vector2(1f, 1f);
         rowsRt.pivot = new Vector2(0.5f, 1f);
@@ -400,9 +407,19 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         if (_placeholderRoots.Count > 0 || listContent == null)
             return;
 
-        Transform wrongSection = listContent.Find("MinorPassiveUnlocksSection");
-        if (wrongSection != null)
-            _placeholderRoots.Add(wrongSection.gameObject);
+        Transform minorSection = listContent.Find("MinorPassiveUnlocksSection");
+        if (minorSection != null)
+        {
+            _autoAssignSectionRoot = minorSection.gameObject;
+
+            Transform minorContent = minorSection.Find("MinorPassiveContent");
+            if (minorContent != null)
+                _minorPassiveContentRoot = minorContent.gameObject;
+
+            Transform addToBar = minorSection.Find("AddToBarButton");
+            if (addToBar != null)
+                _autoAssignBarRoot = addToBar.gameObject;
+        }
 
         TMP_Text[] texts = listContent.GetComponentsInChildren<TMP_Text>(true);
         for (int i = 0; i < texts.Length; i++)
@@ -411,12 +428,135 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
             if (text == null)
                 continue;
 
+            if (_autoAssignBarRoot != null && text.transform.IsChildOf(_autoAssignBarRoot.transform))
+                continue;
+
             if (text.text != "No unlocks yet" && text.text != "No abilities yet")
                 continue;
 
-            if (text.transform.parent != null && !_placeholderRoots.Contains(text.transform.parent.gameObject))
+            if (!_placeholderRoots.Contains(text.gameObject))
                 _placeholderRoots.Add(text.gameObject);
         }
+    }
+
+    private void EnsureAutoAssignToolbarLayout()
+    {
+        CachePlaceholderRoots();
+
+        Transform minorSection = _autoAssignSectionRoot != null
+            ? _autoAssignSectionRoot.transform
+            : listContent != null ? listContent.Find("MinorPassiveUnlocksSection") : null;
+
+        if (minorSection == null)
+            return;
+
+        _autoAssignSectionRoot = minorSection.gameObject;
+
+        Transform addToBar = _autoAssignBarRoot != null
+            ? _autoAssignBarRoot.transform
+            : minorSection.Find("AddToBarButton");
+
+        if (addToBar == null)
+        {
+            Button[] buttons = GetComponentsInChildren<Button>(true);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                Button button = buttons[i];
+                if (button == null)
+                    continue;
+
+                string name = button.name;
+                if (name.IndexOf("AddToBar", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    || name.IndexOf("AutoAssign", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    addToBar = button.transform;
+                    break;
+                }
+            }
+        }
+
+        if (addToBar == null)
+            return;
+
+        _autoAssignBarRoot = addToBar.gameObject;
+
+        // Keep the user's hierarchy: button lives in MinorPassiveUnlocksSection, not the header bar.
+        if (addToBar.parent != minorSection)
+        {
+            addToBar.SetParent(minorSection, false);
+            addToBar.SetAsFirstSibling();
+        }
+
+        if (minorSection is RectTransform sectionRt)
+        {
+            sectionRt.anchorMin = new Vector2(0f, 1f);
+            sectionRt.anchorMax = new Vector2(1f, 1f);
+            sectionRt.pivot = new Vector2(0.5f, 1f);
+            sectionRt.sizeDelta = new Vector2(0f, 0f);
+        }
+
+        LayoutElement sectionLayout = minorSection.GetComponent<LayoutElement>();
+        if (sectionLayout == null)
+            sectionLayout = minorSection.gameObject.AddComponent<LayoutElement>();
+        sectionLayout.minHeight = 25f;
+
+        LayoutElement buttonLayout = addToBar.GetComponent<LayoutElement>();
+        if (buttonLayout == null)
+            buttonLayout = addToBar.gameObject.AddComponent<LayoutElement>();
+        if (buttonLayout.preferredHeight < 1f)
+            buttonLayout.preferredHeight = 25f;
+        buttonLayout.minHeight = 25f;
+
+        if (addToBar is RectTransform buttonRt)
+        {
+            buttonRt.anchorMin = new Vector2(0f, 1f);
+            buttonRt.anchorMax = new Vector2(1f, 1f);
+            buttonRt.pivot = new Vector2(0.5f, 1f);
+            buttonRt.sizeDelta = new Vector2(0f, 25f);
+        }
+
+        TMP_Text label = addToBar.GetComponentInChildren<TMP_Text>(true);
+        if (label != null)
+        {
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.overflowMode = TextOverflowModes.Ellipsis;
+            if (label.rectTransform != null)
+            {
+                label.rectTransform.anchorMin = Vector2.zero;
+                label.rectTransform.anchorMax = Vector2.one;
+                label.rectTransform.offsetMin = new Vector2(8f, 2f);
+                label.rectTransform.offsetMax = new Vector2(-8f, -2f);
+            }
+        }
+
+        minorSection.gameObject.SetActive(true);
+        EnsureAutoAssignBarVisible();
+    }
+
+    private void EnsureToolbarAboveAbilityRows()
+    {
+        if (listContent == null)
+            return;
+
+        Transform minorSection = _autoAssignSectionRoot != null
+            ? _autoAssignSectionRoot.transform
+            : listContent.Find("MinorPassiveUnlocksSection");
+
+        if (minorSection != null)
+            minorSection.SetAsFirstSibling();
+
+        if (_rowsContainer != null)
+        {
+            int targetIndex = minorSection != null ? 1 : 0;
+            if (_rowsContainer.GetSiblingIndex() != targetIndex)
+                _rowsContainer.SetSiblingIndex(targetIndex);
+        }
+    }
+
+    private void EnsureAutoAssignBarVisible()
+    {
+        if (_autoAssignBarRoot != null)
+            _autoAssignBarRoot.SetActive(true);
     }
 
     private void SetPlaceholderVisible(bool visible)
@@ -427,6 +567,14 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
             if (_placeholderRoots[i] != null)
                 _placeholderRoots[i].SetActive(visible);
         }
+
+        if (_minorPassiveContentRoot != null)
+            _minorPassiveContentRoot.SetActive(visible);
+
+        if (_autoAssignSectionRoot != null)
+            _autoAssignSectionRoot.SetActive(true);
+
+        EnsureAutoAssignBarVisible();
     }
 
     private void ConfigureListLayout(RectTransform listRt)

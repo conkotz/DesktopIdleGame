@@ -242,4 +242,52 @@ public static class SkillAbilityCommitRules
 
         return -1;
     }
+
+    /// <summary>
+    /// Active abilities list order: starter Attack (if unlocked), then committed tier rows low to high.
+    /// </summary>
+    public static List<AbilityDefinition> CollectUnlockedAbilitiesInPanelOrder(
+        SkillDefinition skill,
+        int playerLevel,
+        SkillsManager skillsManager)
+    {
+        var result = new List<AbilityDefinition>();
+        if (skill == null || skillsManager == null)
+            return result;
+
+        if (CombatStarterAttackAbility.TryGetCombatStarterAttackForSkill(skill, out AbilityDefinition starter)
+            && starter != null
+            && playerLevel >= Mathf.Max(1, starter.unlockLevel)
+            && CombatStarterAttackAbility.IsCombatStarterAttackUnlockedForGameplay(skill, starter, skillsManager))
+        {
+            result.Add(starter);
+        }
+
+        List<int> abilityTierLevels = CollectSortedAbilityTierLevels(skill);
+        for (int i = 0; i < abilityTierLevels.Count; i++)
+        {
+            int rowLevel = abilityTierLevels[i];
+            if (playerLevel < rowLevel)
+                continue;
+
+            List<AbilityDefinition> siblings = GetAbilitySiblingsOnSkillRow(skill, rowLevel);
+            if (siblings == null || siblings.Count == 0)
+                continue;
+
+            int pick = skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1);
+            if (pick < 0 || pick >= siblings.Count)
+                continue;
+
+            AbilityDefinition def = siblings[pick];
+            if (def == null)
+                continue;
+
+            if (!IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
+                continue;
+
+            result.Add(def);
+        }
+
+        return result;
+    }
 }

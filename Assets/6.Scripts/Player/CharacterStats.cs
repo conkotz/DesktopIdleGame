@@ -671,12 +671,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float AbilityDamageBoostConsumablePercentPoints =>
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.AbilityDamageBoost) : 0f) * 100f;
 
-    /// <summary>Denominator for ability power: bonus damage = AbilityPower × (per-ability coefficient) / this value (e.g. 100 AP with standard coef 0.5 = +50% damage).</summary>
+    /// <summary>Denominator for ability power percent points (+25 AP = +25% ability damage).</summary>
     public const float AbilityPowerDamagePercentDivisor = 100f;
 
     /// <summary>
-    /// Multiplier applied to ability damage after weapon/skill multipliers: <c>1 + AbilityPower × coefficient / <see cref="AbilityPowerDamagePercentDivisor"/></c>.
-    /// With <see cref="AbilityDefinition.StandardAbilityPowerCoefficient"/>: each AP adds +0.5% damage; 100 AP adds +50% (×1.5 total).
+    /// Multiplier applied to ability damage after weapon/skill multipliers: <c>1 + AbilityPower / <see cref="AbilityPowerDamagePercentDivisor"/></c>.
+    /// Each ability-power percent point adds that much bonus ability damage (+25 AP = ×1.25).
     /// </summary>
     /// <summary>Combat-only multiplier on effective ability power from temporary combat effects.</summary>
     public float CombatAbilityPowerMultiplier
@@ -806,19 +806,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
         NotifyStatsChanged();
     }
 
-    public float GetAbilityPowerDamageMultiplier(float abilityPowerCoefficient, float flatAbilityPowerBonus = 0f)
+    public float GetAbilityPowerDamageMultiplier(float abilityPowerCoefficient = 1f, float bonusAbilityPowerPercent = 0f)
     {
-        float c = Mathf.Max(0f, abilityPowerCoefficient);
-        if (c <= 0f)
-            return 1f;
-
-        float bonusAp = Mathf.Max(0f, flatAbilityPowerBonus);
-        float visibleAp = AbilityPower + bonusAp;
-        float ap = visibleAp * _combatAbilityPowerMultiplier;
-        float mult = 1f + ap * c / AbilityPowerDamagePercentDivisor;
+        float bonusPct = Mathf.Max(0f, bonusAbilityPowerPercent);
+        float visiblePct = AbilityPower + bonusPct;
+        float effectivePct = visiblePct * _combatAbilityPowerMultiplier;
+        float mult = 1f + effectivePct / AbilityPowerDamagePercentDivisor;
 
         // Preserve the "multiplier still matters at 0 AP" behavior for combat AP multipliers.
-        if (_combatAbilityPowerMultiplier > 1.001f && visibleAp < 0.001f)
+        if (_combatAbilityPowerMultiplier > 1.001f && visiblePct < 0.001f)
             mult *= _combatAbilityPowerMultiplier;
 
         return mult;
@@ -853,7 +849,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public MagicAttackType CurrentMagicAttackType => GetCurrentMagicAttackType();
     public float MagicAilmentApplyChance => Mathf.Clamp01(baseMagicAilmentApplyChance + GetEquippedMagicAilmentApplyChance());
 
-    /// <summary>True when the current attack profile should run burn logic on fire hits (weapon fire type or active magic element Fire).</summary>
+    /// <summary>True when the current attack can deal fire damage (melee, ranged, or magic).</summary>
     public bool CurrentAttackAppliesAsFireForBurn => GetCurrentAttackAppliesAsFireForBurn();
 
     /// <summary>
@@ -1062,12 +1058,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return Mathf.Clamp01(GetMeleeAverageWeaponLightningDamagePerHit() / avgM);
     }
 
-    public float GetMeleeMagicFireFraction()
+    /// <summary>
+    /// Fraction of the magic damage lane that is fire (weapon elemental split).
+    /// Works for melee, ranged, and magic weapons.
+    /// </summary>
+    public float GetWeaponMagicFireFraction()
     {
         float avgM = AverageMagicHit;
         if (avgM <= 0f) return 0f;
-        return Mathf.Clamp01(GetMeleeAverageWeaponFireDamagePerHit() / avgM);
+        return Mathf.Clamp01(GetAverageWeaponFireDamagePerHit() / avgM);
     }
+
+    /// <summary>Alias for <see cref="GetWeaponMagicFireFraction"/>.</summary>
+    public float GetMeleeMagicFireFraction() => GetWeaponMagicFireFraction();
 
     public float GetMeleeWeaponPhysicalFraction()
     {
@@ -1078,10 +1081,131 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public bool CurrentMeleeWeaponHasPhysicalOrFireDamage() =>
         GetMeleeAverageWeaponPhysicalDamagePerHit() > 0.0001f ||
-        GetMeleeAverageWeaponFireDamagePerHit() > 0.0001f;
+        GetAverageWeaponFireDamagePerHit() > 0.0001f;
 
     public float GetMeleeAverageWeaponPhysicalOrFireDamagePerHit() =>
-        Mathf.Max(0f, GetMeleeAverageWeaponPhysicalDamagePerHit() + GetMeleeAverageWeaponFireDamagePerHit());
+        Mathf.Max(0f, GetMeleeAverageWeaponPhysicalDamagePerHit() + GetAverageWeaponFireDamagePerHit());
+
+    public float GetAverageWeaponPhysicalDamagePerHit() => GetMeleeAverageWeaponPhysicalDamagePerHit();
+
+    public float GetAverageWeaponFireDamagePerHit() => GetMeleeAverageWeaponFireDamagePerHit();
+
+    public float GetAverageWeaponIceDamagePerHit() => GetMeleeAverageWeaponIceDamagePerHit();
+
+    public float GetAverageWeaponLightningDamagePerHit() => GetMeleeAverageWeaponLightningDamagePerHit();
+
+    /// <summary>
+    /// Whether the equipped weapon(s) deal fire, ice, and/or lightning damage (weapon stats only — ignores flat gear magic).
+    /// </summary>
+    public bool TryGetWeaponElementDamageProfile(out bool hasFire, out bool hasIce, out bool hasLightning)
+    {
+        hasFire = false;
+        hasIce = false;
+        hasLightning = false;
+
+        var mh = GetMainHandWeaponDef();
+        if (!mh)
+            return false;
+        if (mh.RequiresOffhandSupport && !HasRequiredOffHandSupport())
+            return false;
+
+        hasFire = WeaponStatsHasElementalDamage(mh.weaponStats, WeaponElementKind.Fire);
+        hasIce = WeaponStatsHasElementalDamage(mh.weaponStats, WeaponElementKind.Ice);
+        hasLightning = WeaponStatsHasElementalDamage(mh.weaponStats, WeaponElementKind.Lightning);
+
+        var oh = GetOffHandWeaponDef();
+        if (oh)
+        {
+            hasFire |= WeaponStatsHasElementalDamage(oh.weaponStats, WeaponElementKind.Fire);
+            hasIce |= WeaponStatsHasElementalDamage(oh.weaponStats, WeaponElementKind.Ice);
+            hasLightning |= WeaponStatsHasElementalDamage(oh.weaponStats, WeaponElementKind.Lightning);
+        }
+
+        return hasFire || hasIce || hasLightning;
+    }
+
+    private enum WeaponElementKind
+    {
+        Fire,
+        Ice,
+        Lightning
+    }
+
+    private static bool WeaponStatsHasElementalDamage(in WeaponStats stats, WeaponElementKind kind)
+    {
+        switch (kind)
+        {
+            case WeaponElementKind.Fire:
+                return stats.minFireDamage > 0 || stats.maxFireDamage > 0;
+            case WeaponElementKind.Ice:
+                return stats.minIceDamage > 0 || stats.maxIceDamage > 0;
+            default:
+                return stats.minLightningDamage > 0 || stats.maxLightningDamage > 0;
+        }
+    }
+
+    /// <summary>
+    /// Labels the magic portion of weapon damage: Fire / Ice / Lightning, plain Magic, or Magic (mixed)
+    /// when several weapon elements are present.
+    /// </summary>
+    public string GetWeaponMagicElementTypeLabel()
+    {
+        if (TryGetWeaponElementDamageProfile(out bool hasFire, out bool hasIce, out bool hasLightning))
+        {
+            int weaponElementCount = (hasFire ? 1 : 0) + (hasIce ? 1 : 0) + (hasLightning ? 1 : 0);
+            if (weaponElementCount == 1)
+            {
+                if (hasFire) return "Fire";
+                if (hasIce) return "Ice";
+                return "Lightning";
+            }
+
+            if (weaponElementCount > 1)
+                return "Magic (mixed)";
+        }
+
+        if (CurrentAttackSkill == AttackSkill.Magic)
+        {
+            switch (CurrentMagicAttackType)
+            {
+                case MagicAttackType.Fire:
+                    return "Fire";
+                case MagicAttackType.Ice:
+                    return "Ice";
+                case MagicAttackType.Lightning:
+                    return "Lightning";
+            }
+        }
+
+        return "Magic";
+    }
+
+    /// <summary>Human-readable attack damage type for the stats panel (Physical + Fire, Fire, Magic (mixed), etc.).</summary>
+    public string BuildAttackDamageTypeLabel()
+    {
+        if (MaxDamage <= 0 && MinDamage <= 0)
+            return "-";
+
+        bool hasPhys = MaxSplitDamage.physical > 0f;
+        bool hasMag = MaxSplitDamage.magic > 0f;
+        bool hasCorruption = MaxSplitDamage.corruptionDamage > 0f;
+
+        var parts = new List<string>(3);
+        if (hasPhys)
+            parts.Add("Physical");
+        if (hasMag)
+            parts.Add(GetWeaponMagicElementTypeLabel());
+        if (hasCorruption)
+            parts.Add("Corruption");
+
+        if (parts.Count == 0)
+            return "-";
+        if (parts.Count == 1)
+            return parts[0];
+        if (parts.Count == 2)
+            return $"{parts[0]} + {parts[1]}";
+        return "Hybrid";
+    }
 
     private float GetMeleeAverageWeaponPhysicalDamagePerHit()
     {
@@ -1121,6 +1245,64 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
 
         return ((fMin + fMax) * 0.5f) * magicDamageMult;
+    }
+
+    private float GetMeleeAverageWeaponIceDamagePerHit()
+    {
+        var mh = GetMainHandWeaponDef();
+        if (!mh) return 0f;
+        if (mh.RequiresOffhandSupport && !HasRequiredOffHandSupport()) return 0f;
+
+        GetMeleeSplitDamageScalingMultipliers(GetActiveMeleeMinorBonuses(), out _, out float magicDamageMult, out _);
+
+        float iMin = Mathf.Max(0f, mh.weaponStats.minIceDamage);
+        float iMax = Mathf.Max(0f, mh.weaponStats.maxIceDamage);
+        var oh = GetOffHandWeaponDef();
+        if (oh)
+        {
+            iMin = (Mathf.Max(0f, mh.weaponStats.minIceDamage) + Mathf.Max(0f, oh.weaponStats.minIceDamage)) * 0.5f;
+            iMax = (Mathf.Max(0f, mh.weaponStats.maxIceDamage) + Mathf.Max(0f, oh.weaponStats.maxIceDamage)) * 0.5f;
+        }
+
+        return ((iMin + iMax) * 0.5f) * magicDamageMult;
+    }
+
+    /// <summary>Fire damage on a resolved hit used for burn rolls (melee, ranged, or magic).</summary>
+    public float ResolveFireDamageFromDealt(float magicDealt, float physicalDealt = 0f)
+    {
+        float fire = Mathf.Max(0f, magicDealt) * GetWeaponMagicFireFraction();
+
+        AttackSkill skill = GetCurrentAttackSkill();
+        if (skill == AttackSkill.Magic && GetCurrentMagicAttackType() == MagicAttackType.Fire && magicDealt > 0f)
+            fire = Mathf.Max(fire, magicDealt);
+
+        PlayerAbilityController ac = GetAbilityControllerLazy();
+        if (skill == AttackSkill.Melee && ac != null && ac.IsCrusaderStrikeFireBalanceBuffActive && magicDealt > 0f)
+            fire = Mathf.Max(fire, magicDealt);
+
+        return fire;
+    }
+
+    /// <summary>Rolls burn chance for the fire portion of a post-mitigation hit (basic attacks, abilities, minions).</summary>
+    public bool TryApplyBurnFromDealtHit(
+        AilmentController ailments,
+        float magicDealt,
+        float physicalDealt,
+        Transform source)
+    {
+        if (ailments == null || source == null)
+            return false;
+
+        float fireDealt = ResolveFireDamageFromDealt(magicDealt, physicalDealt);
+        if (fireDealt <= 0f || BurnApplyChance <= 0f)
+            return false;
+
+        return ailments.TryApplyBurnFromFireHit(
+            fireDealt,
+            BurnApplyChance,
+            BurnExplosionMultiplier,
+            source,
+            burnTickIntervalSeconds: BurnTickIntervalSeconds);
     }
 
     /// <summary>Average lightning from the equipped weapon(s) on a melee hit after <see cref="GetMeleeSplitDamageScalingMultipliers"/> magic mult.</summary>
@@ -1266,20 +1448,18 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private float GetExpectedBurnDps()
     {
-        if (!CurrentAttackAppliesAsFireForBurn)
-            return 0f;
-        float p = Mathf.Clamp01(BurnApplyChance);
-        if (p <= 0f || AttacksPerSecond <= 0f)
+        float fireHit = ResolveFireDamageFromDealt(ExpectedMagicHit, ExpectedPhysicalHit);
+        if (fireHit <= 0f)
             return 0f;
 
-        float hit = ExpectedPhysicalHit + ExpectedMagicHit + ExpectedCorruptionHit;
-        if (hit <= 0f)
+        float p = Mathf.Clamp01(BurnApplyChance);
+        if (p <= 0f || AttacksPerSecond <= 0f)
             return 0f;
 
         const float burnFraction = 0.15f;
         const int combustStacks = 3;
         float mult = Mathf.Max(0f, BurnExplosionMultiplier);
-        float tick = Mathf.Max(1f, Mathf.Ceil(hit * burnFraction * mult));
+        float tick = Mathf.Max(1f, Mathf.Ceil(fireHit * burnFraction * mult));
         float applyPerSec = p * AttacksPerSecond;
         float tickInterval = Mathf.Max(0.05f, BurnTickIntervalSeconds);
         float dotDps = tick * Mathf.Clamp(applyPerSec * 0.35f, 0f, 1f) / tickInterval;
@@ -1886,19 +2066,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
             GetActiveMeleeMinorBonuses().meleeBurnChance + GetTacticianBurnChanceBonus());
     }
 
-    /// <summary>True when the current attack context can legitimately treat dealt magic damage as fire for burn rolls.</summary>
-    private bool GetCurrentAttackAppliesAsFireForBurn()
-    {
-        AttackSkill currentSkill = GetCurrentAttackSkill();
-        if (currentSkill == AttackSkill.Magic && GetCurrentMagicAttackType() == MagicAttackType.Fire)
-            return true;
-
-        PlayerAbilityController ac = GetAbilityControllerLazy();
-        if (currentSkill == AttackSkill.Melee && ac != null && ac.IsCrusaderStrikeFireBalanceBuffActive)
-            return true;
-
-        return false;
-    }
+    /// <summary>True when the current attack can deal fire damage (any weapon style).</summary>
+    private bool GetCurrentAttackAppliesAsFireForBurn() =>
+        ResolveFireDamageFromDealt(AverageMagicHit, AveragePhysicalHit) > 0.0001f;
 
     private float GetEquippedBurnChanceBonus()
     {
@@ -3855,7 +4025,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             (pd * physicalDamageScale) +
             (md * magicDamageScale) +
             (cd * corruptionDamageScale);
-        float apMult = 1f + Mathf.Max(0f, ap) * Mathf.Max(0f, abilityPowerScale) / AbilityPowerDamagePercentDivisor;
+        float apMult = 1f + Mathf.Max(0f, ap) / AbilityPowerDamagePercentDivisor;
         float result = (baseDamage + weaponPart) * apMult;
 
         if (buffController)

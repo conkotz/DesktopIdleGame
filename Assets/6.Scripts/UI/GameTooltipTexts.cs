@@ -118,7 +118,7 @@ public static class GameTooltipTexts
 
             case "AbilityPowerText":
                 title = "Ability Power";
-                description = "Scales your abilities to do bonus damage (This does not apply to minions).";
+                description = "Increases ability damage by the listed percentage (+25 = +25% ability damage). Does not apply to minions.";
                 return true;
 
             case "MinionDamageText":

@@ -278,6 +278,123 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         return best;
     }
 
+    /// <summary>Farthest living enemy within current weapon attack range (edge-to-edge).</summary>
+    public EnemyBaseController FindFurthestEnemyInAttackRange()
+    {
+        if (stats == null)
+            return null;
+
+        float closeEnoughToSwing = Mathf.Max(0f, stats.Range) + rangePadding + stopSlack;
+        float myX = transform.position.x;
+        float myHalf = HalfWidthX(playerCol);
+
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        EnemyBaseController best = null;
+        float bestDist = -1f;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            Collider2D enemyCol = enemy.GetComponent<Collider2D>();
+            if (!enemyCol)
+                enemyCol = enemy.GetComponentInChildren<Collider2D>();
+
+            float enemyHalf = HalfWidthX(enemyCol);
+            float gap = EdgeGapX(myX, enemy.transform.position.x, myHalf, enemyHalf);
+            if (gap > closeEnoughToSwing)
+                continue;
+
+            float dist = Mathf.Abs(enemy.transform.position.x - myX);
+            if (dist > bestDist)
+            {
+                bestDist = dist;
+                best = enemy;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// Manual Attack hotkey: closest in-range by default; Longbow prefers a recent attacker then furthest in-range.
+    /// </summary>
+    public EnemyBaseController ResolveManualStarterAttackTarget()
+    {
+        if (ShouldIdlePickFurthestEnemyFirst())
+        {
+            EnemyBaseController recentAttacker = TryPickLongbowIdleRecentAttackerInRange();
+            if (recentAttacker != null)
+                return recentAttacker;
+
+            return FindFurthestEnemyInAttackRange();
+        }
+
+        return FindClosestEnemyInAttackRange(preferCurrentTarget: false);
+    }
+
+    /// <summary>Max edge gap for melee abilities that may walk into range before firing (Power Slash, Crusader Strike).</summary>
+    public const float MeleeAbilityApproachMaxGap = 5f;
+
+    /// <summary>True when edge-to-edge gap to <paramref name="enemy"/> is within the approach band.</summary>
+    public bool IsEnemyWithinApproachRange(EnemyBaseController enemy, float maxGap = MeleeAbilityApproachMaxGap)
+    {
+        if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy || stats == null)
+            return false;
+
+        float myX = transform.position.x;
+        float myHalf = HalfWidthX(playerCol);
+
+        Collider2D enemyCol = enemy.GetComponent<Collider2D>();
+        if (!enemyCol)
+            enemyCol = enemy.GetComponentInChildren<Collider2D>();
+
+        float enemyHalf = HalfWidthX(enemyCol);
+        float gap = EdgeGapX(myX, enemy.transform.position.x, myHalf, enemyHalf);
+        return gap <= maxGap;
+    }
+
+    /// <summary>Closest living enemy within the melee-ability approach band (may still be outside auto-attack range).</summary>
+    public EnemyBaseController FindClosestEnemyWithinApproachRange(float maxGap = MeleeAbilityApproachMaxGap)
+    {
+        if (stats == null)
+            return null;
+
+        float myX = transform.position.x;
+        float myHalf = HalfWidthX(playerCol);
+
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        EnemyBaseController best = null;
+        float bestDist = float.MaxValue;
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            Collider2D enemyCol = enemy.GetComponent<Collider2D>();
+            if (!enemyCol)
+                enemyCol = enemy.GetComponentInChildren<Collider2D>();
+
+            float enemyHalf = HalfWidthX(enemyCol);
+            float gap = EdgeGapX(myX, enemy.transform.position.x, myHalf, enemyHalf);
+            if (gap > maxGap)
+                continue;
+
+            float dist = Mathf.Abs(enemy.transform.position.x - myX);
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = enemy;
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>True when edge-to-edge gap to <paramref name="enemy"/> is within current weapon attack reach.</summary>
     public bool IsEnemyWithinAttackRange(EnemyBaseController enemy)
     {
@@ -2022,13 +2139,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (e.IsDead || !e.gameObject.activeInHierarchy)
             return null;
 
-        float maxRange = GetCurrentMaxAttackRangeUnits();
-        if (maxRange > 0.0001f)
-        {
-            float d = Mathf.Abs(e.transform.position.x - transform.position.x);
-            if (d > maxRange)
-                return null;
-        }
+        if (!IsEnemyWithinAttackRange(e))
+            return null;
 
         return e;
     }
@@ -2582,15 +2694,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         var ailments = target.GetComponent<AilmentController>();
         if (ailments == null) return;
 
-        float fireDamageDealt = dealt.magic;
-        if (stats.CurrentAttackAppliesAsFireForBurn && fireDamageDealt > 0f)
+        float fireDealt = stats.ResolveFireDamageFromDealt(dealt.magic, dealt.physical);
+        if (fireDealt > 0f)
         {
-            ailments.TryApplyBurnFromFireHit(
-                fireDamageDealt,
-                stats.BurnApplyChance,
-                stats.BurnExplosionMultiplier,
-                transform,
-                burnTickIntervalSeconds: stats.BurnTickIntervalSeconds);
+            stats.TryApplyBurnFromDealtHit(ailments, dealt.magic, dealt.physical, transform);
             return;
         }
 

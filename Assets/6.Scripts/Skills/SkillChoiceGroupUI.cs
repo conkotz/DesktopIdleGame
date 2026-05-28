@@ -50,7 +50,7 @@ public class SkillChoiceGroupUI : MonoBehaviour
     [Tooltip("Extra upward overlap so each vertical drop tucks slightly into the horizontal branch.")]
     [SerializeField] private float connectorTopOverlap = 1f;
     [Tooltip("Additional upward overlap for the selected gold connector only.")]
-    [SerializeField] private float selectedConnectorTopExtraOverlap = 2f;
+    [SerializeField] private float selectedConnectorTopExtraOverlap = 0f;
     [Tooltip("Additional downward reach for the selected gold connector so it tucks farther under the node.")]
     [SerializeField] private float selectedConnectorExtraReachIntoNode = 5f;
     [Tooltip("Extra horizontal overlap into the center junction for the selected gold branch only.")]
@@ -380,7 +380,8 @@ public class SkillChoiceGroupUI : MonoBehaviour
             bool isSelected = selectedIndex == i;
             float nodeAttachY = nodeBounds.max.y - GetNodeConnectorReachIntoNode(isSelected) - nodeConnectorEndInset;
             float dropHeight = branchY - nodeAttachY;
-            float topOverlap = connectorTopOverlap + (isSelected ? selectedConnectorTopExtraOverlap : 0f);
+            float branchHalfThickness = (isSelected ? SkillTimelineLineStyle.ProgressThickness : SkillTimelineLineStyle.LineThickness) * 0.5f;
+            float topOverlap = branchHalfThickness + connectorTopOverlap + (isSelected ? selectedConnectorTopExtraOverlap : 0f);
 
             RectTransform drop = _choiceConnectorLines[i];
             bool showDrop = dropHeight > 0.5f;

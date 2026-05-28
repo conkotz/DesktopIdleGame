@@ -155,13 +155,13 @@ public static class AbilityTooltipDamagePreview
         return $" ({n} phys)";
     }
 
-    /// <summary>Optional suffix: total % bonus from ability power at current stats (default coef = <see cref="AbilityDefinition.StandardAbilityPowerCoefficient"/>).</summary>
-    public static string FormatAbilityPowerSuffix(CharacterStats stats, float abilityPowerCoefficient = AbilityDefinition.StandardAbilityPowerCoefficient)
+    /// <summary>Optional suffix: total % bonus from ability power at current stats.</summary>
+    public static string FormatAbilityPowerSuffix(CharacterStats stats)
     {
         if (stats == null)
             return "";
 
-        float bonusPct = Mathf.Max(0f, stats.AbilityPower) * Mathf.Max(0f, abilityPowerCoefficient);
+        float bonusPct = Mathf.Max(0f, stats.AbilityPower);
         if (bonusPct <= 0f)
             return "";
 
@@ -226,6 +226,51 @@ public static class AbilityTooltipDamagePreview
         return line;
     }
 
+    /// <summary>
+    /// Weapon requirement plus ability-specific hit-type rules (Rend, Envenom, Crusader Strike).
+    /// Each line is green when met, red when not.
+    /// </summary>
+    public static string BuildAbilityRequirementsRichText(AbilityDefinition def, CharacterStats stats, bool accentWhenOk = false)
+    {
+        if (def == null)
+            return string.Empty;
+
+        var lines = new List<string>();
+
+        string weaponLine = BuildWeaponRequirementRichLine(def, stats, accentWhenOk);
+        if (!string.IsNullOrWhiteSpace(weaponLine))
+            lines.Add(weaponLine);
+
+        if (IsRend(def))
+        {
+            bool ok = stats == null || stats.GetAverageWeaponPhysicalDamagePerHit() > 0.0001f;
+            lines.Add(FormatConditionalRequirementLine("Hit MUST be physical.", ok, accentWhenOk));
+        }
+        else if (IsEnvenom(def))
+        {
+            bool ok = stats == null || stats.AverageCorruptionHit > 0.0001f;
+            lines.Add(FormatConditionalRequirementLine("Hit MUST be corruption.", ok, accentWhenOk));
+        }
+        else if (IsCrusaderStrike(def))
+        {
+            bool ok = stats == null || stats.CurrentMeleeWeaponHasPhysicalOrFireDamage();
+            lines.Add(FormatConditionalRequirementLine("Weapon must have physical or fire damage.", ok, accentWhenOk));
+        }
+
+        return lines.Count == 0 ? string.Empty : string.Join("\n", lines);
+    }
+
+    private static string FormatConditionalRequirementLine(string text, bool ok, bool accentWhenOk)
+    {
+        if (!ok)
+            return $"<color=#FF5C5C>{text}</color>";
+
+        if (accentWhenOk)
+            return $"<color=#55DD55>{text}</color>";
+
+        return text;
+    }
+
     private static bool IsPowerSlash(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.PowerSlashAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -243,7 +288,7 @@ public static class AbilityTooltipDamagePreview
             return false;
         if (IsLumberFrenzy(def) || IsFishingFrenzy(def) || IsAvatarOfTheForest(def))
             return false;
-        if (IsCleavingChop(def) || IsSpectralAxe(def))
+        if (IsCleavingChop(def) || IsSpectralAxe(def) || IsPowerSlash(def))
             return false;
 
         const float scalingEpsilon = 0.0001f;
@@ -621,7 +666,7 @@ public static class AbilityTooltipDamagePreview
 
         const float eps = 0.05f;
         float wEff = weaponMult <= 0.0001f ? 1f : weaponMult;
-        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        float apM = stats.GetAbilityPowerDamageMultiplier();
         float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
 
         float tipAvgPhys =
@@ -642,9 +687,9 @@ public static class AbilityTooltipDamagePreview
             + tipAvgCorr * wEff * allM
             + ailmentBonus * allM);
 
-        int apBonus = Mathf.RoundToInt(linearWeaponScaled * Mathf.Max(0f, apM - 1f));
-        if (apBonus > 0)
-            scaling.AppendLine(S($"+{apBonus} damage from Ability Power"));
+        int apBonusPct = Mathf.RoundToInt(Mathf.Max(0f, (apM - 1f) * 100f));
+        if (apBonusPct > 0)
+            scaling.AppendLine(S($"+{apBonusPct}% damage from Ability Power"));
 
         AppendElementBonusScalerLine(scaling, S, def, stats, allM, apM, eps);
     }
@@ -797,7 +842,7 @@ public static class AbilityTooltipDamagePreview
                     $"Efficient Conversion: use +{AbilityCombatPower.EnergyInfusionEfficientConversionAdditionalManaCostFraction * 100f:0.#}% additional Mana instead of Energy and gain +{AbilityCombatPower.EnergyInfusionEfficientConversionFlatManaRegenPerSecond:0.#} Mana per second while active."));
             else if (enhance == 1)
                 body.AppendLine(O(
-                    $"Overcharged: abilities use {AbilityCombatPower.EnergyInfusionOverchargedManaCostFraction * 100f:0.#}% Mana instead of {AbilityCombatPower.EnergyInfusionBaseManaCostFraction * 100f:0.#}%, and if Mana is used that ability gains +{AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus:0.#} flat ability power."));
+                    $"Overcharged: abilities use {AbilityCombatPower.EnergyInfusionOverchargedManaCostFraction * 100f:0.#}% Mana instead of {AbilityCombatPower.EnergyInfusionBaseManaCostFraction * 100f:0.#}%, and if Mana is used that ability gains +{AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerPercentBonus:0.#}% ability power."));
             body.AppendLine(string.Empty);
             body.AppendLine(O("Duration: Toggle"));
             body.AppendLine(string.Empty);
@@ -878,10 +923,9 @@ public static class AbilityTooltipDamagePreview
         }
         else if (IsEnvenom(def))
         {
-            int envenomSel = GetMeleeSkillRow5Choice(skillsManager);
-            body.AppendLine(O("100% poison on next hit if corruption damage is dealt."));
-            body.AppendLine(O(envenomSel == 0 ? "Apply max poison stacks (+2)" : "Apply max poison stacks"));
-            if (envenomSel == 1)
+            int stackCount = ResolveEnvenomTooltipPoisonStacks(stats, skillsManager);
+            body.AppendLine(O($"Applies {stackCount} stacks of poison"));
+            if (GetMeleeSkillRow5Choice(skillsManager) == 1)
                 body.AppendLine(O("Contagion Burst"));
         }
         else if (IsCleavingStrikes(def))
@@ -908,7 +952,7 @@ public static class AbilityTooltipDamagePreview
                 body.AppendLine(O("Converts 100% Physical to Fire and applies Burn."));
             }
 
-            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
 
             if (crescentSel == 1)
                 body.AppendLine(O("Hits all enemies."));
@@ -918,20 +962,36 @@ public static class AbilityTooltipDamagePreview
         else if (IsCrusaderStrike(def))
         {
             int crusaderChoice = GetCrusaderStrikeSelectedChoice(skillsManager);
-            float cast1 = ComputeAverageCrusaderStrikeWeaponHit(stats, AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier);
-            float cast2 = ComputeAverageCrusaderStrikeWeaponHit(stats, AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier);
-            float cast3 = ComputeAverageCrusaderStrikeWeaponHit(
+            ComputeAverageCrusaderStrikeCastSplit(
+                stats,
+                AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier,
+                1f,
+                finalStrike: false,
+                out float cast1Phys,
+                out float cast1Fire);
+            ComputeAverageCrusaderStrikeCastSplit(
+                stats,
+                AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier,
+                1f,
+                finalStrike: false,
+                out float cast2Phys,
+                out float cast2Fire);
+            ComputeAverageCrusaderStrikeCastSplit(
                 stats,
                 AbilityCombatPower.CrusaderStrikeFinalHitWeaponMultiplier,
-                GetCrusaderStrikeFinalFireTooltipScale(def, stats, crusaderChoice));
+                GetCrusaderStrikeFinalFireTooltipScale(def, stats, crusaderChoice),
+                finalStrike: true,
+                out float cast3Phys,
+                out float cast3Fire);
             float healAmount = stats != null
                 ? stats.MaxHP * GetCrusaderStrikeHealFraction(crusaderChoice)
                 : 0f;
             int healPercent = Mathf.RoundToInt(GetCrusaderStrikeHealFraction(crusaderChoice) * 100f);
 
-            body.AppendLine(O($"Cast 1 - {Mathf.RoundToInt(cast1)} Physical damage on hit"));
-            body.AppendLine(O($"Cast 2 - {Mathf.RoundToInt(cast2)} Physical damage on hit, Heal {Mathf.RoundToInt(healAmount)}Hp ({healPercent}% max health)"));
-            body.AppendLine(O($"Cast 3 - {Mathf.RoundToInt(cast3)} Fire damage on hit (100% phys converted to fire)"));
+            body.AppendLine(O($"Cast 1 - {FormatCrusaderStrikeDamageLabel(cast1Phys, cast1Fire)}"));
+            body.AppendLine(O(
+                $"Cast 2 - {FormatCrusaderStrikeDamageLabel(cast2Phys, cast2Fire)}, Heal {Mathf.RoundToInt(healAmount)}Hp ({healPercent}% max health)"));
+            body.AppendLine(O($"Cast 3 - {FormatCrusaderStrikeDamageLabel(cast3Phys, cast3Fire)} (all weapon damage as fire)"));
         }
         else if (IsFinalSeverance(def))
         {
@@ -946,7 +1006,7 @@ public static class AbilityTooltipDamagePreview
                 AppendPerHitDamageEffectLines(body, O, physHit * frac, magHit * frac, corrHit * frac, hits, dmgSuffix);
             }
             else
-                AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
+                AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
 
             body.AppendLine(O($"Channel: {AbilityCombatPower.FinalSeveranceChannelSeconds:0.#}s"));
             body.AppendLine(O(
@@ -964,7 +1024,7 @@ public static class AbilityTooltipDamagePreview
             string dmgSuffix = DamageTimingSuffix();
             int enhance = GetShadowStrikeBranchChoice(skillsManager);
             ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
-            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
 
             body.AppendLine(O(
                 $"Teleports to the closest enemy up to {AbilityCombatPower.ShadowStrikeForwardReach:0.#} units ahead in your facing arc."));
@@ -1027,7 +1087,7 @@ public static class AbilityTooltipDamagePreview
                     out float shockCorr,
                     liveDamageMultiplier);
 
-                AppendAbilityTotalHitDamageEffects(body, O, shockPhys, shockMag, shockCorr, $"{dmgSuffix} per pulse");
+                AppendAbilityTotalHitDamageEffects(body, O, shockPhys, shockMag, shockCorr, $"{dmgSuffix} per pulse", stats);
                 body.AppendLine(O(
                     $"Hits enemies within {AbilityCombatPower.ExecutionersDescentShockwaveRadius:0.#} units of the anchor"));
                 body.AppendLine(O(
@@ -1049,7 +1109,7 @@ public static class AbilityTooltipDamagePreview
                 int shockTotal = Mathf.RoundToInt(shockPhys + shockMag + shockCorr);
 
                 ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
-                AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
+                AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
 
                 body.AppendLine(O(
                     $"Shockwave: {shockTotal} damage to enemies within {AbilityCombatPower.ExecutionersDescentShockwaveRadius:0.#} units of the target"));
@@ -1070,7 +1130,7 @@ public static class AbilityTooltipDamagePreview
         {
             string dmgSuffix = DamageTimingSuffix();
             ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
-            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
             body.AppendLine(O("Holding the hotkey channels Whirlwind continuously while energy remains."));
             body.AppendLine(O(
                 $"Move speed is reduced by {AbilityCombatPower.WhirlwindBaseMoveSpeedPenaltyFraction * 100f:0.#}% while channelling."));
@@ -1095,8 +1155,8 @@ public static class AbilityTooltipDamagePreview
         }
         else if (IsGuardiansHammer(def))
         {
-            float hit = ComputeAveragePhysicalOnlyAbilityHit(def, stats, weaponMult, allM, liveDamageMultiplier);
-            body.AppendLine(O($"{Mathf.RoundToInt(hit)} Physical damage on hit"));
+            ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, DamageTimingSuffix(), stats);
             body.AppendLine(O($"Wide frontal slam - up to {AbilityCombatPower.GuardiansHammerForwardReach:0.#} range."));
 
             int hammerEnhance = GetMeleeLv15BranchChoice(skillsManager, 3);
@@ -1112,11 +1172,15 @@ public static class AbilityTooltipDamagePreview
                     $"Burning enemies hit explode in {AbilityCombatPower.GuardiansHammerBurningVerdictExplosionRadius:0.#} range for {AbilityCombatPower.GuardiansHammerBurningVerdictTicksWorth}x current burn tick damage without removing Burn."));
             }
         }
+        else if (IsPowerSlash(def))
+        {
+            AppendPowerSlashTooltipHitDamage(body, O, def, stats, weaponMult, allM, liveDamageMultiplier);
+        }
         else if (UsesCombinedTotalHitDamageTooltip(def))
         {
             string dmgSuffix = DamageTimingSuffix();
             ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
-            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix);
+            AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
         }
 
         if (IsCleavingStrikes(def))
@@ -1755,7 +1819,7 @@ public static class AbilityTooltipDamagePreview
         in WeaponScaledHitScalerPreview scalers,
         string dmgSuffix,
         bool splitApInEffects,
-        int tooltipApBonus)
+        float tooltipApBonusPercent)
     {
         const float eps = 0.05f;
         if (splitApInEffects)
@@ -1763,7 +1827,8 @@ public static class AbilityTooltipDamagePreview
             AppendDecimalScalerEffectLines(body, O, scalers.Phys, scalers.Mag, scalers.Corruption, dmgSuffix);
             if (Mathf.Abs(scalers.Phys) < eps && Mathf.Abs(scalers.Mag) < eps && Mathf.Abs(scalers.Corruption) < eps)
                 body.AppendLine(O("Base hit damage"));
-            body.AppendLine(O($"+{tooltipApBonus} damage from Ability Power{dmgSuffix}"));
+            if (tooltipApBonusPercent > eps)
+                body.AppendLine(O($"+{tooltipApBonusPercent:0.#}% damage from Ability Power{dmgSuffix}"));
             return;
         }
 
@@ -1843,33 +1908,18 @@ public static class AbilityTooltipDamagePreview
 
     private static string DamageTimingSuffix() => " on hit";
 
-    /// <summary>Pre-AP scaled hit total (Phys+Magic+Corr in preview) × AP% / 100, rounded — matches runtime AP multiplier on that base.</summary>
-    private static int ComputeTooltipApBonusDamage(
+    /// <summary>Ability-power percent bonus shown in tooltips (matches runtime AP multiplier on the scaled hit base).</summary>
+    private static float ComputeTooltipApBonusPercent(
         AbilityDefinition def,
         CharacterStats stats,
         float wEffTip,
         float allM)
     {
         if (!def || !stats)
-            return 0;
+            return 0f;
 
-        float tipAvgPhys =
-            (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
-        float tipAvgMag =
-            (Mathf.Max(0f, stats.MinSplitDamage.magic) + Mathf.Max(0f, stats.MaxSplitDamage.magic)) * 0.5f;
-        float tipAvgCorr =
-            (Mathf.Max(0f, stats.MinSplitDamage.corruptionDamage) + Mathf.Max(0f, stats.MaxSplitDamage.corruptionDamage)) *
-            0.5f;
-        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
-        float tipElemBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
-        float tipElemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
-        float linearWeaponScaled = Mathf.Max(0f,
-            tipAvgPhys * wEffTip * allM
-            + tipAvgMag * wEffTip * allM * tipElemM
-            + tipElemBonus * allM * tipElemM
-            + tipAvgCorr * wEffTip * allM);
-
-        return Mathf.RoundToInt(linearWeaponScaled * Mathf.Max(0f, apM - 1f));
+        float apM = stats.GetAbilityPowerDamageMultiplier();
+        return Mathf.Max(0f, (apM - 1f) * 100f);
     }
 
     /// <summary>Trailing green Active Enhancement line (skill-tree choice name + description).</summary>
@@ -1954,6 +2004,81 @@ public static class AbilityTooltipDamagePreview
         }
     }
 
+    private static int ResolveEnvenomTooltipPoisonStacks(CharacterStats stats, SkillsManager skillsManager)
+    {
+        int baseStacks = stats != null ? stats.PoisonMaxStacks : 3;
+        if (GetMeleeSkillRow5Choice(skillsManager) == 0)
+            return baseStacks + 2;
+        return baseStacks;
+    }
+
+    private static void AppendPowerSlashTooltipHitDamage(
+        StringBuilder body,
+        System.Func<string, string> O,
+        AbilityDefinition def,
+        CharacterStats stats,
+        float weaponMult,
+        float allM,
+        float liveDamageMultiplier)
+    {
+        string suffix = DamageTimingSuffix();
+        if (!stats)
+        {
+            body.AppendLine(O("Base hit damage"));
+            return;
+        }
+
+        ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
+        DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
+        AppendElementAwareDamageLines(body, O, physHit, fireHit, iceHit, lightningHit, untypedMagicHit, corrHit, suffix);
+    }
+
+    /// <summary>
+    /// Splits scaled magic-lane damage into weapon element portions plus any untyped magic (flat gear magic).
+    /// </summary>
+    private static void DistributeMagicLaneDamage(
+        CharacterStats stats,
+        float totalMagicHit,
+        out float fireHit,
+        out float iceHit,
+        out float lightningHit,
+        out float untypedMagicHit)
+    {
+        fireHit = 0f;
+        iceHit = 0f;
+        lightningHit = 0f;
+        untypedMagicHit = Mathf.Max(0f, totalMagicHit);
+
+        if (!stats || totalMagicHit <= 0f)
+            return;
+
+        if (stats.TryGetWeaponElementDamageProfile(out bool hasFire, out bool hasIce, out bool hasLightning))
+        {
+            int weaponElementCount = (hasFire ? 1 : 0) + (hasIce ? 1 : 0) + (hasLightning ? 1 : 0);
+            if (weaponElementCount == 1)
+            {
+                if (hasFire)
+                    fireHit = totalMagicHit;
+                else if (hasIce)
+                    iceHit = totalMagicHit;
+                else
+                    lightningHit = totalMagicHit;
+                untypedMagicHit = 0f;
+                return;
+            }
+        }
+
+        float avgMagic = stats.AverageMagicHit;
+        if (avgMagic <= 0.0001f)
+            return;
+
+        float scale = totalMagicHit / avgMagic;
+        fireHit = stats.GetAverageWeaponFireDamagePerHit() * scale;
+        iceHit = stats.GetAverageWeaponIceDamagePerHit() * scale;
+        lightningHit = stats.GetAverageWeaponLightningDamagePerHit() * scale;
+        untypedMagicHit = Mathf.Max(0f, totalMagicHit - fireHit - iceHit - lightningHit);
+    }
+
     /// <summary>Full ability hit totals (not "+ bonus" over weapon average) for standalone casts like Final Severance.</summary>
     private static void AppendAbilityTotalHitDamageEffects(
         StringBuilder body,
@@ -1961,21 +2086,74 @@ public static class AbilityTooltipDamagePreview
         float physHit,
         float magHit,
         float corrHit,
+        string suffix,
+        CharacterStats stats = null)
+    {
+        SplitHitDamageForTooltipDisplay(stats, physHit, magHit, corrHit,
+            out int phys, out int fire, out int ice, out int lightning, out int magic, out int corruption);
+
+        AppendElementAwareDamageLines(body, O, phys, fire, ice, lightning, magic, corruption, suffix);
+    }
+
+    private static void AppendElementAwareDamageLines(
+        StringBuilder body,
+        System.Func<string, string> O,
+        float physHit,
+        float fireHit,
+        float iceHit,
+        float lightningHit,
+        float magicHit,
+        float corrHit,
         string suffix)
     {
         int p = Mathf.RoundToInt(Mathf.Max(0f, physHit));
-        int m = Mathf.RoundToInt(Mathf.Max(0f, magHit));
+        int f = Mathf.RoundToInt(Mathf.Max(0f, fireHit));
+        int i = Mathf.RoundToInt(Mathf.Max(0f, iceHit));
+        int l = Mathf.RoundToInt(Mathf.Max(0f, lightningHit));
+        int m = Mathf.RoundToInt(Mathf.Max(0f, magicHit));
         int c = Mathf.RoundToInt(Mathf.Max(0f, corrHit));
 
         if (p > 0)
             body.AppendLine(O($"{p} Physical damage{suffix}"));
+        if (f > 0)
+            body.AppendLine(O($"{f} Fire damage{suffix}"));
+        if (i > 0)
+            body.AppendLine(O($"{i} Ice damage{suffix}"));
+        if (l > 0)
+            body.AppendLine(O($"{l} Lightning damage{suffix}"));
         if (m > 0)
             body.AppendLine(O($"{m} Magic damage{suffix}"));
         if (c > 0)
             body.AppendLine(O($"{c} Corruption damage{suffix}"));
 
-        if (p == 0 && m == 0 && c == 0)
+        if (p == 0 && f == 0 && i == 0 && l == 0 && m == 0 && c == 0)
             body.AppendLine(O("Base hit damage"));
+    }
+
+    private static void SplitHitDamageForTooltipDisplay(
+        CharacterStats stats,
+        float physHit,
+        float magHit,
+        float corrHit,
+        out int phys,
+        out int fire,
+        out int ice,
+        out int lightning,
+        out int magic,
+        out int corruption)
+    {
+        phys = Mathf.RoundToInt(Mathf.Max(0f, physHit));
+        corruption = Mathf.RoundToInt(Mathf.Max(0f, corrHit));
+        fire = 0;
+        ice = 0;
+        lightning = 0;
+        magic = 0;
+
+        DistributeMagicLaneDamage(stats, magHit, out float fireHit, out float iceHit, out float lightningHit, out float untypedMagicHit);
+        fire = Mathf.RoundToInt(Mathf.Max(0f, fireHit));
+        ice = Mathf.RoundToInt(Mathf.Max(0f, iceHit));
+        lightning = Mathf.RoundToInt(Mathf.Max(0f, lightningHit));
+        magic = Mathf.RoundToInt(Mathf.Max(0f, untypedMagicHit));
     }
 
     private static void ComputeAverageAbilityHitSplit(
@@ -2003,7 +2181,7 @@ public static class AbilityTooltipDamagePreview
 
         float elementBonus = AbilityElementScaling.GetElementDamageBonus(def, stats);
         float ailmentBonus = AbilityElementScaling.GetPoisonBleedBonusForInstantAbility(def, stats);
-        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        float apM = stats.GetAbilityPowerDamageMultiplier();
         float elemM = AbilityElementScaling.GetElementSkillDamageMultiplier(stats);
         float dmgMult = Mathf.Max(0f, liveDamageMultiplier);
 
@@ -2031,7 +2209,7 @@ public static class AbilityTooltipDamagePreview
 
         float avgPhys =
             (Mathf.Max(0f, stats.MinSplitDamage.physical) + Mathf.Max(0f, stats.MaxSplitDamage.physical)) * 0.5f;
-        float apM = stats.GetAbilityPowerDamageMultiplier(AbilityDefinition.StandardAbilityPowerCoefficient);
+        float apM = stats.GetAbilityPowerDamageMultiplier();
         return Mathf.Max(0f, avgPhys * Mathf.Max(0f, weaponMult) * Mathf.Max(0f, allM) * apM * Mathf.Max(0f, liveDamageMultiplier));
     }
 
@@ -2045,6 +2223,47 @@ public static class AbilityTooltipDamagePreview
 
         float avgUsableWeaponHit = stats.GetMeleeAverageWeaponPhysicalOrFireDamagePerHit();
         return Mathf.Max(0f, avgUsableWeaponHit * Mathf.Max(0f, weaponMult) * Mathf.Max(0f, extraScale));
+    }
+
+    private static void ComputeAverageCrusaderStrikeCastSplit(
+        CharacterStats stats,
+        float weaponMult,
+        float extraScale,
+        bool finalStrike,
+        out float physHit,
+        out float fireHit)
+    {
+        physHit = 0f;
+        fireHit = 0f;
+        if (!stats || !stats.CurrentMeleeWeaponHasPhysicalOrFireDamage())
+            return;
+
+        float wMult = Mathf.Max(0f, weaponMult) * Mathf.Max(0f, extraScale);
+        float avgPhys = stats.GetAverageWeaponPhysicalDamagePerHit();
+        float avgFire = stats.GetAverageWeaponFireDamagePerHit();
+
+        if (finalStrike)
+        {
+            fireHit = (avgPhys + avgFire) * wMult;
+            return;
+        }
+
+        physHit = avgPhys * wMult;
+        fireHit = avgFire * wMult;
+    }
+
+    private static string FormatCrusaderStrikeDamageLabel(float physHit, float fireHit)
+    {
+        int p = Mathf.RoundToInt(Mathf.Max(0f, physHit));
+        int f = Mathf.RoundToInt(Mathf.Max(0f, fireHit));
+
+        if (p > 0 && f > 0)
+            return $"{p} Physical + {f} Fire damage on hit";
+        if (f > 0)
+            return $"{f} Fire damage on hit";
+        if (p > 0)
+            return $"{p} Physical damage on hit";
+        return "0 damage on hit";
     }
 
     private static float GetCrusaderStrikeFinalFireTooltipScale(

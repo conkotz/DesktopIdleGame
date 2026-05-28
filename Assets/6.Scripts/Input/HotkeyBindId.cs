@@ -25,4 +25,11 @@ public enum HotkeyBindId
     MoveLeft = 17,
     MoveRight = 18,
     Interact = 19,
+
+    /// <summary>Action bar ability slots 6–10 (secondary row).</summary>
+    ActionBarAbility6 = 20,
+    ActionBarAbility7 = 21,
+    ActionBarAbility8 = 22,
+    ActionBarAbility9 = 23,
+    ActionBarAbility10 = 24,
 }

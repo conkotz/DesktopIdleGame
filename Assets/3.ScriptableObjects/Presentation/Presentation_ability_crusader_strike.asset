@@ -15,7 +15,7 @@ MonoBehaviour:
   notes: Presentation for crusader_strike
   displayNameOverride: Crusader Strike
   icon: {fileID: 6220961349511263976, guid: 9eb42a7d40bc61545943acf3ca4c9e87, type: 3}
-  shortDescription: "Primes your next attack to unleash a holy three-part combo empowered by righteous flame.\n\nWeapon must have physical or fire damage."
+  shortDescription: Primes your next attack to unleash a holy three-part combo empowered by righteous flame. Exclusive while active.
   primaryDescriptionOverride: 
   flavourText: 
   abilityEffectLines: []

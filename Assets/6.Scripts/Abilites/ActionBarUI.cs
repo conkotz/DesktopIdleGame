@@ -20,8 +20,8 @@ public enum GatheringBarDriveKind
 }
 
 /// <summary>
-/// First <see cref="HotkeyBindIds.ActionBarSlotCount"/> slots use <see cref="HotkeyBindingManager"/> (list order =
-/// ActionBar1…7). Extra slots use <see cref="SlotBinding.defaultKey"/> only.
+/// First seven slots in list order map to <see cref="HotkeyBindId.ActionBar1"/>–<see cref="HotkeyBindId.ActionBar7"/>.
+/// Ability loadout slots 6–10 use <see cref="HotkeyBindId.ActionBarAbility6"/>–<see cref="HotkeyBindId.ActionBarAbility10"/>.
 /// </summary>
 
 public class ActionBarUI : MonoBehaviour, ISaveable
@@ -32,6 +32,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         public ActionBarSlotUI slot;
         public KeyCode defaultKey = KeyCode.None;
         [HideInInspector] public KeyCode currentKey = KeyCode.None;
+        [HideInInspector] public HotkeyChord currentChord = HotkeyChord.FromKeyCode(KeyCode.None);
     }
 
     [System.Serializable]
@@ -61,7 +62,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     }
 
     /// <summary>
-    /// Shows the saved gathering-only row for Wood/Mining/Fishing (abilities 1–5). Does not change equipment or consumable slots.
+    /// Shows the saved gathering-only row for Wood/Mining/Fishing (abilities 1–10). Does not change equipment or consumable slots.
     /// </summary>
     /// <param name="skillType">Woodcutting, Mining, or Fishing.</param>
     /// <param name="driveKind">
@@ -116,12 +117,12 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (!gatheringUiActive)
         {
             CaptureSlotsToSavedState();
-            frozenCombatFiveAbilities.Clear();
-            foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+            frozenCombatLoadoutAbilities.Clear();
+            foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots())
             {
                 SavedSlotState cap = CaptureSlotState(slot);
                 if (cap != null)
-                    frozenCombatFiveAbilities.Add(CloneSavedState(cap));
+                    frozenCombatLoadoutAbilities.Add(CloneSavedState(cap));
             }
         }
 
@@ -129,6 +130,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         gatheringSkillShown = skillType;
         ApplyGatheringAbilityRowsToUi(GetGatheringListForSkill(skillType));
         ApplyGatheringStripTheme(skillType);
+        RefreshSecondaryRowExpandedFromAssignments();
         NotifyPlayerStatsCombatPowerRelevantChange();
     }
 
@@ -145,9 +147,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         RebuildGatheringListFromUi(GetGatheringListForSkill(gatheringSkillShown));
         WriteCombatSavedSlotsFromFrozenAbilitiesAndRestOfBarFromUi();
         gatheringUiActive = false;
-        frozenCombatFiveAbilities.Clear();
+        frozenCombatLoadoutAbilities.Clear();
         ApplySavedStateToSlots();
         RestoreGatheringStripCombatTheme();
+        RefreshSecondaryRowExpandedFromSavedState();
         NotifyPlayerStatsCombatPowerRelevantChange();
     }
 
@@ -221,6 +224,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     public string GetHotkeyDisplayString(KeyCode key) => HotkeyBindingManager.GetDisplayString(key);
 
+    public string GetHotkeyDisplayString(HotkeyChord chord) => HotkeyBindingManager.GetDisplayString(chord);
+
     public IEnumerable<ActionBarSlotUI> GetSlots()
     {
         for (int i = 0; i < slotBindings.Count; i++)
@@ -230,8 +235,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
     }
 
-    /// <summary>First five combat ability loadout slots (hotkeys 1–5). Excludes potion/food and extra bar slots.</summary>
-    public IEnumerable<ActionBarSlotUI> EnumerateCombatLoadoutAbilitySlots() => EnumerateFirstFiveLoadoutAbilitySlots();
+    /// <summary>First five combat ability loadout slots used for CP / DPS breakdown.</summary>
+    public IEnumerable<ActionBarSlotUI> EnumerateCombatLoadoutAbilitySlots() => EnumerateLoadoutAbilitySlots(5);
 
     /// <summary>
     /// Ability ids on the combat loadout used for CP / DPS breakdown. While the gathering strip is shown, uses the
@@ -241,9 +246,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     {
         if (gatheringUiActive)
         {
-            for (int i = 0; i < frozenCombatFiveAbilities.Count; i++)
+            for (int i = 0; i < frozenCombatLoadoutAbilities.Count; i++)
             {
-                SavedSlotState st = frozenCombatFiveAbilities[i];
+                SavedSlotState st = frozenCombatLoadoutAbilities[i];
                 if (st == null || string.IsNullOrWhiteSpace(st.id))
                     continue;
                 if (st.kind != (int)ActionBarAssignmentKind.Ability)
@@ -254,7 +259,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             yield break;
         }
 
-        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots(5))
         {
             ActionBarAssignment a = slot != null ? slot.AssignedAction : null;
             if (a == null || !a.IsAssigned || !a.IsAbility || string.IsNullOrWhiteSpace(a.id))
@@ -410,8 +415,8 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     }
 
     /// <summary>
-    /// Clears the first five ability loadout slots and assigns <paramref name="abilitiesInOrder"/> top-to-bottom (slot 1, 2, …).
-    /// Extra slots stay empty. Does not change potion/food slots.
+    /// Clears all ability loadout slots and assigns <paramref name="abilitiesInOrder"/> top-to-bottom (slot 1, 2, …).
+    /// Does not change potion/food slots.
     /// </summary>
     public int ReplaceLoadoutAbilitiesInOrder(IReadOnlyList<AbilityDefinition> abilitiesInOrder)
     {
@@ -421,7 +426,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         ResolveCoreRefs();
 
         var loadoutSlots = new List<ActionBarSlotUI>();
-        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots())
             loadoutSlots.Add(slot);
 
         if (loadoutSlots.Count == 0)
@@ -471,6 +476,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (!suppressSaveForLoadoutSwap && SaveManager.Instance != null)
             SaveManager.Instance.Save();
         NotifyPlayerStatsCombatPowerRelevantChange();
+        RefreshSecondaryRowExpandedFromAssignments();
         return assigned;
     }
 
@@ -625,6 +631,17 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     internal Button CombatSetOneButton => combatSetOneButton;
     internal Button CombatSetTwoButton => combatSetTwoButton;
 
+    [Header("Extended ability row (optional)")]
+    [Tooltip("SecondaryRow under Content — hidden until expanded or until slots 6–10 hold abilities.")]
+    [SerializeField] private GameObject secondaryRow;
+
+    [SerializeField] private Button expandButton;
+
+    [Tooltip("Child Image on ExpandButton — flipped vertically when expanded.")]
+    [SerializeField] private Image expandIcon;
+
+    private bool _secondaryRowExpanded;
+
     [Header("Saved State (backing fields)")]
     private List<SavedSlotState> savedSlots = new();
     private List<SavedSlotState> secondarySavedSlots = new();
@@ -639,7 +656,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     private readonly List<SavedSlotState> gatheringSlotsFishing = new();
     private bool gatheringUiActive;
     private SkillType gatheringSkillShown;
-    private readonly List<SavedSlotState> frozenCombatFiveAbilities = new();
+    private readonly List<SavedSlotState> frozenCombatLoadoutAbilities = new();
     private bool _manualGatheringStripLocked;
 
     private readonly Dictionary<string, bool> _abilityUnlockCache = new(StringComparer.OrdinalIgnoreCase);
@@ -665,6 +682,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
         SyncHotkeysFromManager();
         CacheGatheringStripVisualDefaults();
+        ResolveExpandUiRefs();
+        _secondaryRowExpanded = false;
+        RefreshSecondaryRowVisibility();
     }
 
     private void OnEnable()
@@ -673,6 +693,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             HotkeyBindingManager.Instance.OnBindingsChanged += SyncHotkeysFromManager;
 
         WireGatheringStripSelectionButtons();
+        WireExpandButton();
         ResolveCoreRefs();
         SubscribeSkillUnlockCacheInvalidation();
     }
@@ -680,6 +701,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
     private void OnDisable()
     {
         UnwireGatheringStripSelectionButtons();
+        UnwireExpandButton();
 
         if (HotkeyBindingManager.Instance != null)
             HotkeyBindingManager.Instance.OnBindingsChanged -= SyncHotkeysFromManager;
@@ -805,10 +827,10 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (frozenIndex < 0)
             frozenIndex = tierIndex;
 
-        if (frozenIndex < 0 || frozenIndex >= frozenCombatFiveAbilities.Count)
+        if (frozenIndex < 0 || frozenIndex >= frozenCombatLoadoutAbilities.Count)
             return false;
 
-        SavedSlotState st = frozenCombatFiveAbilities[frozenIndex];
+        SavedSlotState st = frozenCombatLoadoutAbilities[frozenIndex];
         if (st == null || string.IsNullOrWhiteSpace(st.id))
             return false;
 
@@ -853,7 +875,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             return null;
 
         int ordinal = 0;
-        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots())
         {
             if (ordinal == tierIndex)
                 return slot;
@@ -913,7 +935,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         if (skill == null)
             return null;
 
-        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots())
         {
             ActionBarAssignment action = slot?.AssignedAction;
             if (action == null || !action.IsAssigned || !action.IsAbility)
@@ -928,9 +950,9 @@ public class ActionBarUI : MonoBehaviour, ISaveable
 
     private int FindFrozenCombatSlotIndexHoldingRowSibling(SkillDefinition skill, int requiredLevel)
     {
-        for (int i = 0; i < frozenCombatFiveAbilities.Count; i++)
+        for (int i = 0; i < frozenCombatLoadoutAbilities.Count; i++)
         {
-            SavedSlotState st = frozenCombatFiveAbilities[i];
+            SavedSlotState st = frozenCombatLoadoutAbilities[i];
             if (st == null || string.IsNullOrWhiteSpace(st.id))
                 continue;
 
@@ -1051,21 +1073,21 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             if (binding == null || binding.slot == null)
                 continue;
 
-            int hotkeyOrder = ResolveHotkeyOrderIndex(i, binding.slot);
-            KeyCode k;
-            if (hotkeyOrder < HotkeyBindIds.ActionBarSlotCount)
+            HotkeyChord chord;
+            if (TryResolveHotkeyBindId(i, binding.slot, out HotkeyBindId bindId))
             {
-                k = mgr != null
-                    ? mgr.GetBinding(HotkeyBindIds.FromActionBarOrder(hotkeyOrder))
-                    : HotkeyBindingManager.GetDefaultKey(HotkeyBindIds.FromActionBarOrder(hotkeyOrder));
+                chord = mgr != null
+                    ? mgr.GetChord(bindId)
+                    : HotkeyBindingManager.GetDefaultChord(bindId);
             }
             else
             {
-                k = binding.defaultKey;
+                chord = HotkeyChord.FromKeyCode(binding.defaultKey);
             }
 
-            binding.currentKey = k;
-            binding.slot.SetHotkeyLabel(HotkeyBindingManager.GetDisplayString(k));
+            binding.currentChord = chord;
+            binding.currentKey = chord.Key;
+            binding.slot.SetHotkeyLabel(HotkeyBindingManager.GetDisplayString(chord));
         }
     }
 
@@ -1121,15 +1143,15 @@ public class ActionBarUI : MonoBehaviour, ISaveable
                                   string.Equals(action.id, AbilityCombatPower.WhirlwindAbilityId, StringComparison.OrdinalIgnoreCase);
             if (boundWhirlwind &&
                 !blockHotkeyPoll &&
-                binding.currentKey != KeyCode.None &&
-                Input.GetKey(binding.currentKey))
+                !binding.currentChord.IsEmpty &&
+                HotkeyChord.IsHeld(binding.currentChord))
             {
                 whirlwindHeld = true;
             }
 
             if (!blockHotkeyPoll &&
-                binding.currentKey != KeyCode.None &&
-                Input.GetKeyDown(binding.currentKey))
+                !binding.currentChord.IsEmpty &&
+                HotkeyChord.WasPressedThisFrame(binding.currentChord))
             {
                 binding.slot.Press();
             }
@@ -1219,6 +1241,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             SaveManager.Instance.Save();
 
         NotifyPlayerStatsCombatPowerRelevantChange();
+        RefreshSecondaryRowExpandedFromAssignments();
     }
 
     /// <summary>
@@ -1295,7 +1318,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             return;
 
         target.Clear();
-        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots())
         {
             SavedSlotState cap = CaptureSlotState(slot);
             if (cap != null)
@@ -1317,7 +1340,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             }
         }
 
-        foreach (ActionBarSlotUI slot in EnumerateFirstFiveLoadoutAbilitySlots())
+        foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots())
         {
             if (byIndex.TryGetValue(slot.SlotIndex, out SavedSlotState st))
                 ApplySavedStateToSlot(slot, st);
@@ -1333,8 +1356,11 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
     }
 
-    private IEnumerable<ActionBarSlotUI> EnumerateFirstFiveLoadoutAbilitySlots()
+    private IEnumerable<ActionBarSlotUI> EnumerateLoadoutAbilitySlots(int maxCount = -1)
     {
+        if (maxCount < 0)
+            maxCount = HotkeyBindIds.LoadoutAbilitySlotCount;
+
         int abilityOrdinal = 0;
         for (int i = 0; i < slotBindings.Count; i++)
         {
@@ -1342,7 +1368,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             if (slot == null || slot.SlotType != ActionBarSlotType.Ability)
                 continue;
 
-            if (abilityOrdinal < 5)
+            if (abilityOrdinal < maxCount)
             {
                 yield return slot;
                 abilityOrdinal++;
@@ -1350,13 +1376,160 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         }
     }
 
+    private int GetLoadoutAbilityOrdinal(ActionBarSlotUI slot)
+    {
+        if (slot == null || slot.SlotType != ActionBarSlotType.Ability)
+            return -1;
+
+        int abilityOrdinal = 0;
+        for (int i = 0; i < slotBindings.Count; i++)
+        {
+            ActionBarSlotUI candidate = slotBindings[i]?.slot;
+            if (candidate == null || candidate.SlotType != ActionBarSlotType.Ability)
+                continue;
+
+            if (candidate == slot)
+                return abilityOrdinal;
+
+            abilityOrdinal++;
+        }
+
+        return -1;
+    }
+
+    private bool TryResolveHotkeyBindId(int listIndex, ActionBarSlotUI slot, out HotkeyBindId bindId)
+    {
+        bindId = default;
+        if (slot == null)
+            return false;
+
+        int abilityOrdinal = GetLoadoutAbilityOrdinal(slot);
+        if (abilityOrdinal >= 0)
+        {
+            if (abilityOrdinal < 5)
+            {
+                bindId = HotkeyBindIds.FromActionBarOrder(abilityOrdinal);
+                return true;
+            }
+
+            return HotkeyBindIds.TryGetExtendedAbilityBindId(abilityOrdinal, out bindId);
+        }
+
+        int hotkeyOrder = ResolveHotkeyOrderIndex(listIndex, slot);
+        if (hotkeyOrder < 0 || hotkeyOrder >= HotkeyBindIds.ActionBarSlotCount)
+            return false;
+
+        bindId = HotkeyBindIds.FromActionBarOrder(hotkeyOrder);
+        return true;
+    }
+
+    private void ResolveExpandUiRefs()
+    {
+        if (secondaryRow == null)
+        {
+            Transform content = transform.Find("Content");
+            if (content != null)
+                secondaryRow = content.Find("SecondaryRow")?.gameObject;
+        }
+
+        if (expandButton == null)
+            expandButton = transform.Find("ExpandButton")?.GetComponent<Button>();
+
+        if (expandIcon == null && expandButton != null)
+            expandIcon = expandButton.transform.Find("ExpandIcon")?.GetComponent<Image>()
+                         ?? expandButton.GetComponentInChildren<Image>(true);
+    }
+
+    private void WireExpandButton()
+    {
+        ResolveExpandUiRefs();
+        WireGatheringButton(expandButton, OnExpandButtonClicked);
+    }
+
+    private void UnwireExpandButton() =>
+        UnwireGatheringButton(expandButton, OnExpandButtonClicked);
+
+    private void OnExpandButtonClicked()
+    {
+        _secondaryRowExpanded = !_secondaryRowExpanded;
+        RefreshSecondaryRowVisibility();
+    }
+
+    private void RefreshSecondaryRowExpandedFromAssignments()
+    {
+        if (HasAbilityInExtendedLoadoutSlots())
+            _secondaryRowExpanded = true;
+
+        RefreshSecondaryRowVisibility();
+    }
+
+    private void RefreshSecondaryRowExpandedFromSavedState()
+    {
+        _secondaryRowExpanded = HasAbilityInExtendedSavedSlots();
+        RefreshSecondaryRowVisibility();
+    }
+
+    private bool HasAbilityInExtendedLoadoutSlots()
+    {
+        int ordinal = 0;
+        foreach (ActionBarSlotUI slot in EnumerateLoadoutAbilitySlots())
+        {
+            if (ordinal >= 5)
+            {
+                ActionBarAssignment action = slot?.AssignedAction;
+                if (action != null && action.IsAssigned && action.IsAbility)
+                    return true;
+            }
+
+            ordinal++;
+        }
+
+        return false;
+    }
+
+    private bool HasAbilityInExtendedSavedSlots()
+    {
+        for (int i = 0; i < savedSlots.Count; i++)
+        {
+            SavedSlotState st = savedSlots[i];
+            if (st == null || string.IsNullOrWhiteSpace(st.id))
+                continue;
+            if (st.kind != (int)ActionBarAssignmentKind.Ability)
+                continue;
+
+            ActionBarSlotUI slot = GetSlotByIndex(st.slotIndex);
+            if (slot == null || slot.SlotType != ActionBarSlotType.Ability)
+                continue;
+
+            if (GetLoadoutAbilityOrdinal(slot) >= 5)
+                return true;
+        }
+
+        return false;
+    }
+
+    private void RefreshSecondaryRowVisibility()
+    {
+        ResolveExpandUiRefs();
+
+        if (secondaryRow != null)
+            secondaryRow.SetActive(_secondaryRowExpanded);
+
+        if (expandIcon != null)
+        {
+            Vector3 scale = expandIcon.rectTransform.localScale;
+            scale.y = _secondaryRowExpanded ? -1f : 1f;
+            expandIcon.rectTransform.localScale = scale;
+        }
+    }
+
     private void WriteCombatSavedSlotsFromFrozenAbilitiesAndRestOfBarFromUi()
     {
         savedSlots.Clear();
 
-        for (int i = 0; i < frozenCombatFiveAbilities.Count; i++)
+        for (int i = 0; i < frozenCombatLoadoutAbilities.Count; i++)
         {
-            SavedSlotState e = frozenCombatFiveAbilities[i];
+            SavedSlotState e = frozenCombatLoadoutAbilities[i];
             if (e != null)
                 savedSlots.Add(CloneSavedState(e));
         }
@@ -1428,7 +1601,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
             if (candidate == null || candidate.SlotType != ActionBarSlotType.Ability)
                 continue;
             if (candidate == slot)
-                return abilityOrdinal < 5;
+                return abilityOrdinal < HotkeyBindIds.LoadoutAbilitySlotCount;
             abilityOrdinal++;
         }
 
@@ -1841,7 +2014,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         gatheringSlotsMining.Clear();
         gatheringSlotsFishing.Clear();
         gatheringUiActive = false;
-        frozenCombatFiveAbilities.Clear();
+        frozenCombatLoadoutAbilities.Clear();
 
         if (data == null)
             return;
@@ -1973,6 +2146,7 @@ public class ActionBarUI : MonoBehaviour, ISaveable
         {
             pendingSavedStateApply = false;
             NotifyPlayerStatsCombatPowerRelevantChange();
+            RefreshSecondaryRowExpandedFromSavedState();
             return;
         }
 

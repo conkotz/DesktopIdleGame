@@ -177,6 +177,7 @@ public class PlayerAbilityController : MonoBehaviour
     private float _crusaderStrikeFireBalanceBuffDuration;
     private float _lastSyncedCrusaderStrikeFireBalanceHudEnd = float.NaN;
     private bool _powerSlashQueued;
+    private string _pendingMeleeApproachAbilityId;
     private bool _rendQueued;
     private bool _envenomQueued;
     private bool _crescentSlashQueued;
@@ -443,6 +444,7 @@ public class PlayerAbilityController : MonoBehaviour
         ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: false);
         ForceEndCrusaderStrikeCombo(applyCooldown: false);
         ClearCrusaderStrikeFireBalanceBuff();
+        ClearPendingMeleeApproachAbility();
         player?.SetTeleportDamageImmune(false);
         player?.SetAbilityChannelLock(false);
         if (_phoenixAshenRebirthImmunityRoutine != null)
@@ -464,6 +466,7 @@ public class PlayerAbilityController : MonoBehaviour
     private void Update()
     {
         TryAutoReleaseQueuedCrescentSlash();
+        TickPendingMeleeApproachAbility();
         TickWhirlwindChannel();
         TickGuardiansHammerProtectorResolve();
         SyncWhirlwindHudBuff();
@@ -1542,28 +1545,28 @@ public class PlayerAbilityController : MonoBehaviour
         return selected;
     }
 
-    private float GetEnergyInfusionFlatAbilityPowerBonus(AbilityDefinition def)
+    private float GetEnergyInfusionAbilityPowerPercentBonus(AbilityDefinition def)
     {
         if (def == null || GetEnergyInfusionSelectedChoice() != 1)
             return 0f;
 
         if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
             return _queuedPowerSlashUsedEnergyInfusionMana
-                ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
+                ? AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerPercentBonus
                 : 0f;
 
         if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return _crescentSlashUsedEnergyInfusionMana
-                ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
+                ? AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerPercentBonus
                 : 0f;
 
         if (string.Equals(def.abilityId, WhirlwindId, StringComparison.OrdinalIgnoreCase))
             return _whirlwindUsedEnergyInfusionMana
-                ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
+                ? AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerPercentBonus
                 : 0f;
 
         return DidLastAbilitySpendUseEnergyInfusionMana(def)
-            ? AbilityCombatPower.EnergyInfusionOverchargedFlatAbilityPowerBonus
+            ? AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerPercentBonus
             : 0f;
     }
 
@@ -1573,8 +1576,7 @@ public class PlayerAbilityController : MonoBehaviour
             return 1f;
 
         return stats.GetAbilityPowerDamageMultiplier(
-            AbilityDefinition.StandardAbilityPowerCoefficient,
-            GetEnergyInfusionFlatAbilityPowerBonus(def));
+            bonusAbilityPowerPercent: GetEnergyInfusionAbilityPowerPercentBonus(def));
     }
 
     private void ForceEndAvatarOfTheForestEarly()
@@ -2391,9 +2393,17 @@ public class PlayerAbilityController : MonoBehaviour
         {
             if (combat == null)
                 combat = GetComponent<PlayerCombatController>();
-            if (def.SetsTargetOnHit())
+            if (UsesMeleeApproachOnActivate(def))
+                combat?.EngageTargetFromPlayerInput(target);
+            else if (def.SetsTargetOnHit())
                 combat?.SetTargetIfNone(target);
             return true;
+        }
+
+        if (UsesMeleeApproachOnActivate(def))
+        {
+            LogNoTargetsInRangeThrottled();
+            return false;
         }
 
         if (IsPrimingAbility(def))
@@ -2498,6 +2508,133 @@ public class PlayerAbilityController : MonoBehaviour
                || string.Equals(id, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool UsesMeleeApproachOnActivate(AbilityDefinition def)
+    {
+        if (def == null || string.IsNullOrWhiteSpace(def.abilityId))
+            return false;
+
+        return string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public void ClearPendingMeleeApproachAbility() => _pendingMeleeApproachAbilityId = null;
+
+    private void TickPendingMeleeApproachAbility()
+    {
+        if (string.IsNullOrEmpty(_pendingMeleeApproachAbilityId))
+            return;
+
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null || player == null)
+        {
+            ClearPendingMeleeApproachAbility();
+            return;
+        }
+
+        EnemyBaseController target = combat.CurrentTarget;
+        if (target == null || target.IsDead || !target.gameObject.activeInHierarchy)
+        {
+            ClearPendingMeleeApproachAbility();
+            return;
+        }
+
+        if (player.IsPlayerMovingAwayFromCombatTarget())
+        {
+            ClearPendingMeleeApproachAbility();
+            return;
+        }
+
+        if (!combat.IsEnemyWithinApproachRange(target))
+        {
+            ClearPendingMeleeApproachAbility();
+            return;
+        }
+
+        if (!combat.IsEnemyWithinAttackRange(target))
+            return;
+
+        AbilityDefinition def = GetAbilityDefinition(_pendingMeleeApproachAbilityId);
+        ClearPendingMeleeApproachAbility();
+        if (def == null)
+            return;
+
+        ExecuteMeleeApproachAbilityNow(def, showLockedFeedback: false);
+    }
+
+    private bool TryUseMeleeApproachAbility(AbilityDefinition def, bool showLockedFeedback)
+    {
+        if (combat == null)
+            combat = GetComponent<PlayerCombatController>();
+        if (combat == null)
+            return false;
+
+        ClearPendingMeleeApproachAbility();
+
+        EnemyBaseController target = combat.FindClosestEnemyWithinApproachRange();
+        if (target == null)
+        {
+            if (showLockedFeedback)
+                LogNoTargetsInRangeThrottled();
+            return false;
+        }
+
+        combat.EngageTargetFromPlayerInput(target);
+
+        if (!combat.IsEnemyWithinAttackRange(target))
+        {
+            if (!showLockedFeedback)
+                return false;
+
+            _pendingMeleeApproachAbilityId = def.abilityId;
+            return true;
+        }
+
+        return ExecuteMeleeApproachAbilityNow(def, showLockedFeedback);
+    }
+
+    private bool ExecuteMeleeApproachAbilityNow(AbilityDefinition def, bool showLockedFeedback)
+    {
+        if (def == null)
+            return false;
+
+        if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (_powerSlashQueued)
+                return false;
+
+            if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
+                return false;
+
+            _powerSlashQueued = true;
+            float powerSlashAnyTypeBonus = GetPowerSlashAnyTypeMultiplierBonus();
+            float weaponCombo = def.weaponDamageMultiplier + powerSlashAnyTypeBonus;
+            _queuedPowerSlashWeaponMultiplier = weaponCombo <= 0f ? 1f : weaponCombo;
+            _queuedPowerSlashAllDamageMultiplier = def.GetEffectiveAllDamageMultiplier();
+            _queuedPowerSlashUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+
+        if (string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (IsCrusaderStrikeComboInProgress())
+                return false;
+
+            if (!TryUseCrusaderStrike(def))
+                return false;
+
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+
+        return false;
+    }
+
     private EnemyBaseController GetPreferredCombatEngagedEnemy()
     {
         if (combat == null)
@@ -2552,14 +2689,13 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (CombatStarterAttackAbility.IsCombatStarterAttack(def))
         {
-            EnemyBaseController engaged = GetPreferredCombatEngagedEnemy();
-            if (engaged != null && combat != null && combat.IsEnemyWithinAttackRange(engaged))
-            {
-                target = engaged;
-                return true;
-            }
+            target = combat != null ? combat.ResolveManualStarterAttackTarget() : null;
+            return target != null;
+        }
 
-            target = combat != null ? combat.FindClosestEnemyInAttackRange() : null;
+        if (UsesMeleeApproachOnActivate(def))
+        {
+            target = combat != null ? combat.FindClosestEnemyWithinApproachRange() : null;
             return target != null;
         }
 
@@ -2870,7 +3006,6 @@ public class PlayerAbilityController : MonoBehaviour
             if (_crescentSlashQueued)
                 return false;
         }
-        bool isCrusaderStrike = string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase);
         bool isCrescentSlash = string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase);
         bool isGuardiansHammer = string.Equals(def.abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase);
         bool isFinalSeverance = string.Equals(def.abilityId, FinalSeveranceId, StringComparison.OrdinalIgnoreCase);
@@ -2879,7 +3014,7 @@ public class PlayerAbilityController : MonoBehaviour
         bool isShadowStrike = string.Equals(def.abilityId, ShadowStrikeId, StringComparison.OrdinalIgnoreCase);
         bool isFlameCharge = string.Equals(def.abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase);
         if (!isWhirlwind &&
-            !isCrusaderStrike &&
+            !UsesMeleeApproachOnActivate(def) &&
             !isGuardiansHammer &&
             !AbilityDefersEnergyUntilActivated(def) &&
             !TrySpendAbilityResourceCost(def, showLockedFeedback))
@@ -2906,25 +3041,8 @@ public class PlayerAbilityController : MonoBehaviour
             return true;
         }
 
-        if (string.Equals(def.abilityId, PowerSlashId, StringComparison.OrdinalIgnoreCase))
-        {
-            if (_powerSlashQueued)
-                return false;
-
-            if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
-                return false;
-
-            _powerSlashQueued = true;
-            float powerSlashAnyTypeBonus = GetPowerSlashAnyTypeMultiplierBonus();
-            float weaponCombo = def.weaponDamageMultiplier + powerSlashAnyTypeBonus;
-            _queuedPowerSlashWeaponMultiplier = weaponCombo <= 0f ? 1f : weaponCombo;
-            _queuedPowerSlashAllDamageMultiplier = def.GetEffectiveAllDamageMultiplier();
-            _queuedPowerSlashUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
-            if (globalCooldownSeconds > 0f)
-                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
-            LogAbilityUsed(def);
-            return true;
-        }
+        if (UsesMeleeApproachOnActivate(def))
+            return TryUseMeleeApproachAbility(def, showLockedFeedback);
 
         if (string.Equals(def.abilityId, RendId, StringComparison.OrdinalIgnoreCase))
         {
@@ -2942,16 +3060,6 @@ public class PlayerAbilityController : MonoBehaviour
             if (_envenomQueued)
                 return false;
             _envenomQueued = true;
-            if (globalCooldownSeconds > 0f)
-                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
-            LogAbilityUsed(def);
-            return true;
-        }
-        if (isCrusaderStrike)
-        {
-            if (!TryUseCrusaderStrike(def))
-                return false;
-
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -3484,11 +3592,18 @@ public class PlayerAbilityController : MonoBehaviour
 
         float usablePhysical = Mathf.Max(0f, rolled.physical) * stats.GetMeleeWeaponPhysicalFraction();
         float usableFire = Mathf.Max(0f, rolled.magic) * stats.GetMeleeMagicFireFraction();
-        float totalWeaponDamage = (usablePhysical + usableFire) * Mathf.Max(0f, weaponMultiplier);
-        if (finalStrike)
-            return new SplitDamage(0f, totalWeaponDamage * GetCrusaderStrikeFinalFireScaling(def), 0f);
+        float weaponMultClamped = Mathf.Max(0f, weaponMultiplier);
 
-        return new SplitDamage(totalWeaponDamage, 0f, 0f);
+        if (finalStrike)
+        {
+            float totalWeaponDamage = (usablePhysical + usableFire) * weaponMultClamped;
+            return new SplitDamage(0f, totalWeaponDamage * GetCrusaderStrikeFinalFireScaling(def), 0f);
+        }
+
+        return new SplitDamage(
+            usablePhysical * weaponMultClamped,
+            usableFire * weaponMultClamped,
+            0f);
     }
 
     private IEnumerator CoFinalSeverance(AbilityDefinition def)
@@ -4915,34 +5030,20 @@ public class PlayerAbilityController : MonoBehaviour
         if (target == null || target.IsDead || stats == null || def == null)
             return;
 
-        SplitDamage hit = BuildGuardiansHammerPhysicalHit(def);
-        bool wasCrit = TryRollIndependentCrit(ref hit);
-        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, hit, wasCrit, 0f);
+        BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
+        float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
+        SplitDamage hit = new SplitDamage(
+            rolledNonCrit.physical * critMult,
+            rolledNonCrit.magic * critMult,
+            rolledNonCrit.corruptionDamage * critMult);
+        float lightningFrac = hit.magic > 1e-8f ? Mathf.Clamp01(lightningMagNonCrit * critMult / hit.magic) : 0f;
+        DealtHit dealt = ApplyAbilitySplitDamageToEnemy(target, def, hit, wasCrit, lightningFrac);
         ApplyOnHitEffects(target, dealt);
         if (player != null && dealt.Total > 0f)
             player.ApplyLifeSteal(dealt.Total);
 
         if (GetGuardiansHammerSelectedChoice() == GuardiansHammerBurningVerdictChoiceIndex)
             TryTriggerGuardiansHammerBurningVerdict(target);
-    }
-
-    private SplitDamage BuildGuardiansHammerPhysicalHit(AbilityDefinition def)
-    {
-        if (stats == null || def == null)
-            return SplitDamage.Zero;
-
-        SplitDamage baseRolled = stats.RollSplitAttackDamage(out bool baseWasCrit);
-        float critMult = Mathf.Max(1f, stats.CritMultiplier);
-        if (baseWasCrit && critMult > 1f)
-            baseRolled.physical /= critMult;
-
-        float physical = Mathf.Max(0f, baseRolled.physical);
-        float hitAmount =
-            physical *
-            def.GetWeaponHitScalingMultiplier() *
-            def.GetEffectiveAllDamageMultiplier() *
-            GetAbilityPowerDamageMultiplierForAbility(def);
-        return new SplitDamage(hitAmount, 0f, 0f);
     }
 
     private void TryTriggerGuardiansHammerBurningVerdict(EnemyBaseController sourceEnemy)
@@ -5516,6 +5617,8 @@ public class PlayerAbilityController : MonoBehaviour
             }
         }
 
+        stats.TryApplyBurnFromDealtHit(ailments, dealt.magic, dealt.physical, transform);
+
         if (dealt.magic > 0f &&
             dealt.meleeMagicLightningFraction > 1e-5f &&
             stats.MeleeShockChance > 0f &&
@@ -5607,10 +5710,11 @@ public class PlayerAbilityController : MonoBehaviour
             _queuedCrusaderStrikeConsumedStage = castStep;
             _queuedConsumedThisHit = QueuedHitEffect.CrusaderStrike;
             _queuedConsumedFrame = Time.frameCount;
-            _crusaderStrikeAttributionBucketPending =
-                finalStrike ? DpsDamageBucket.Magic : DpsDamageBucket.Physical;
 
             rolled = BuildCrusaderStrikeSplit(rolled, weaponMultiplier, finalStrike, def);
+            _crusaderStrikeAttributionBucketPending = finalStrike || (rolled.physical <= 0f && rolled.magic > 0f)
+                ? DpsDamageBucket.Magic
+                : DpsDamageBucket.Physical;
             return true;
         }
 
@@ -5762,7 +5866,7 @@ public class PlayerAbilityController : MonoBehaviour
                 _lastSyncedCrusaderStrikeHudStacks = int.MinValue;
                 SyncCrusaderStrikeHudBuff();
 
-                if (consumedStage == 2 && physicalDealt > 0f && player != null && stats != null)
+                if (consumedStage == 2 && (physicalDealt > 0f || magicDealtPostMitigation > 0f) && player != null && stats != null)
                     player.Heal(stats.MaxHP * GetCrusaderStrikeHealFraction(), PlayerCombatController.CrusaderStrikeHealingSourceLabel);
 
                 TryQueueNextCrusaderStrikeHit(consumedStage);
@@ -7483,7 +7587,7 @@ public class PlayerAbilityController : MonoBehaviour
             return !stats.CurrentMeleeWeaponHasPhysicalOrFireDamage();
 
         if (string.Equals(def.abilityId, GuardiansHammerId, StringComparison.OrdinalIgnoreCase))
-            return stats.AveragePhysicalHit <= 0.0001f;
+            return stats.AveragePhysicalHit + stats.AverageMagicHit + stats.AverageCorruptionHit <= 0.0001f;
 
         return false;
     }

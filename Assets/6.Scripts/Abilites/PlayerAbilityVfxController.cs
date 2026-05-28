@@ -120,7 +120,6 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField] private string executionersDescentSortingLayer = "Foreground";
     [SerializeField] private int executionersDescentSortingOrder = 200;
     [SerializeField, Min(0.05f)] private float executionersDescentShockwaveDuration = 0.45f;
-    [SerializeField, Min(0.5f)] private float executionersDescentShockwaveMaxRadius = 5.5f;
     [SerializeField, Min(0.01f)] private float executionersDescentShockwaveLineWidth = 0.22f;
     [SerializeField] private float executionersDescentShockwaveGroundOffset = 0.15f;
 

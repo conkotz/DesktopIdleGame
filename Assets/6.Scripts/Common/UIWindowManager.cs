@@ -60,10 +60,11 @@ public class UIWindowManager : MonoBehaviour
 
     private static bool WasHotkeyPressedThisFrame(HotkeyBindId id)
     {
-        KeyCode k = HotkeyBindingManager.Instance != null
-            ? HotkeyBindingManager.Instance.GetBinding(id)
-            : HotkeyBindingManager.GetDefaultKey(id);
-        return k != KeyCode.None && Input.GetKeyDown(k);
+        HotkeyBindingManager mgr = HotkeyBindingManager.Instance;
+        HotkeyChord chord = mgr != null
+            ? mgr.GetChord(id)
+            : HotkeyBindingManager.GetDefaultChord(id);
+        return HotkeyChord.WasPressedThisFrame(chord);
     }
 
     public void Register(GameObject window)

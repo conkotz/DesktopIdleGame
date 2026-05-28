@@ -1369,7 +1369,8 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         }
 
         int level = skillsManager.GetLevel(_selectedSkill.skillType);
-        List<AbilityDefinition> abilities = CollectUnlockedAbilitiesInPanelOrder(_selectedSkill, level);
+        List<AbilityDefinition> abilities = SkillAbilityCommitRules.CollectUnlockedAbilitiesInPanelOrder(
+            _selectedSkill, level, skillsManager);
         if (abilities.Count == 0)
         {
             if (player)
@@ -1395,49 +1396,6 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         int assigned = bar.ReplaceLoadoutAbilitiesInOrder(abilities);
         if (assigned <= 0 && player)
             player.ShowPopup("Could not assign abilities to the action bar.");
-    }
-
-    /// <summary>Same order as the right-panel abilities list (tier rows top to bottom).</summary>
-    private List<AbilityDefinition> CollectUnlockedAbilitiesInPanelOrder(SkillDefinition skill, int playerLevel)
-    {
-        var result = new List<AbilityDefinition>();
-        if (skill == null || skillsManager == null)
-            return result;
-
-        if (CombatStarterAttackAbility.TryGetCombatStarterAttackForSkill(skill, out AbilityDefinition starter)
-            && starter != null
-            && playerLevel >= Mathf.Max(1, starter.unlockLevel)
-            && CombatStarterAttackAbility.IsCombatStarterAttackUnlockedForGameplay(skill, starter, skillsManager))
-        {
-            result.Add(starter);
-        }
-
-        List<int> abilityTierLevels = SkillAbilityCommitRules.CollectSortedAbilityTierLevels(skill);
-        for (int i = 0; i < abilityTierLevels.Count; i++)
-        {
-            int rowLevel = abilityTierLevels[i];
-            if (playerLevel < rowLevel)
-                continue;
-
-            List<AbilityDefinition> siblings = SkillAbilityCommitRules.GetAbilitySiblingsOnSkillRow(skill, rowLevel);
-            if (siblings == null || siblings.Count == 0)
-                continue;
-
-            int pick = skillsManager.GetSkillAbilityRowPick(skill.skillType, rowLevel, -1);
-            if (pick < 0 || pick >= siblings.Count)
-                continue;
-
-            AbilityDefinition def = siblings[pick];
-            if (def == null)
-                continue;
-
-            if (!SkillAbilityCommitRules.IsAbilityFullyUnlockedForGameplay(skill, def, skillsManager))
-                continue;
-
-            result.Add(def);
-        }
-
-        return result;
     }
 
     private void HandleAbilityDoubleClickAssignToActionBar(AbilityDefinition def)

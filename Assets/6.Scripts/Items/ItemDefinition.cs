@@ -372,7 +372,7 @@ public struct BonusStats
     [Tooltip("Flat corruption damage on attacks.")]
     [FormerlySerializedAs("trueDamage")] public float corruptionDamage;
 
-    [Tooltip("Ability Power for skills that scale from it.")]
+    [Tooltip("Percent bonus to ability damage (+25 = +25% ability damage).")]
     public float abilityPower;
 
     [Tooltip("Attack speed bonus (0.1 = +10% APS).")]
@@ -1896,7 +1896,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (bonusStats.corruptionDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.corruptionDamagePercent, "Corruption")}\n";
         if (bonusStats.corruptionDamage != 0f) s += $"Corruption Damage: {FormatSignedNumber(bonusStats.corruptionDamage)}\n";
-        if (bonusStats.abilityPower != 0f) s += $"Ability Power: {FormatSignedNumber(bonusStats.abilityPower)}\n";
+        if (bonusStats.abilityPower != 0f) s += $"Ability Power %: {FormatSignedPercent100(bonusStats.abilityPower)}\n";
         if (bonusStats.lifeSteal != 0f) s += $"Life Steal: {FormatSignedPercent01(bonusStats.lifeSteal)}\n";
 
         if (bonusStats.attackSpeedPercent != 0f)

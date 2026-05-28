@@ -15,7 +15,7 @@ MonoBehaviour:
   notes: Starter magic Attack from Magic Combat unlock
   displayNameOverride: Attack
   icon: {fileID: -4546911601198716125, guid: 2964846d81ce0e840a5fff55bcea0ae2, type: 3}
-  shortDescription: 'Auto attack enemies with magic. '
+  shortDescription: 'Auto attack the closest enemy with magic. '
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 

@@ -104,7 +104,7 @@ MonoBehaviour:
     choices:
     - requiredLevel: 8
       title: Brutal Cut
-      description: +25% extra damage on Power Slash.
+      description: +30% extra damage on Power Slash.
       icon: {fileID: -809727694383032684, guid: 3fdd0875dbb17674c9abeae52e832828, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -116,8 +116,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 5
     title: Rend
-    description: Primes your next hit to apply 100% guaranteed exclusive Bleed with
-      +3s duration versus your normal bleed window. Exclusive while active.
+    description: Primes your next hit with guaranteed Bleed and extended duration on that application. Exclusive while active.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -146,8 +145,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 5
     title: Envenom
-    description: Primes your next hit. If the hit deals Corruption damage, apply
-      Poison at 100% chance at max stacks.
+    description: Primes your next hit with guaranteed Poison and apply your maximum number of poison stacks. Exclusive while active.
     icon: {fileID: -3106849600663172003, guid: eac4dfbab0ba6ba47923ad2fffa2615c, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -179,10 +177,7 @@ MonoBehaviour:
     title: Crusader Strike
     description: 'Primes your next attack to unleash a holy three-part combo empowered
       by righteous flame. Each strike grows stronger, culminating in a blazing final
-      blow.
-
-
-      Weapon must have physical or fire damage.'
+      blow.'
     icon: {fileID: 6220961349511263976, guid: 9eb42a7d40bc61545943acf3ca4c9e87, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -770,7 +765,7 @@ MonoBehaviour:
     - requiredLevel: 28
       title: Overcharged
       description: Melee abilities use 20% of their Energy cost from Mana instead
-        of 30%, and if Mana is used that ability gains 30 flat ability power.
+        of 30%, and if Mana is used that ability gains +10% ability power.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

@@ -9,11 +9,13 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     private bool _refreshQueued;
     private int _gatheringToolLiveStamp = int.MinValue;
     private int _livingInfernoLiveStamp = int.MinValue;
-    private static readonly Color BleedAilmentColor = new Color(0.996f, 0.361f, 0.361f);
-    private static readonly Color PoisonAilmentColor = new Color(0.298f, 0.686f, 0.314f);
-    private static readonly Color BurnAilmentColor = new Color(1f, 0.478f, 0.137f);
-    private static readonly Color ShockAilmentColor = new Color(0.945f, 0.831f, 0.204f);
-    private static readonly Color ChillAilmentColor = new Color(0.384f, 0.773f, 0.996f);
+    private static readonly Color BleedAilmentColor = new Color(0.78f, 0.12f, 0.12f);
+    private static readonly Color PoisonAilmentColor = new Color(0.12f, 0.58f, 0.18f);
+    private static readonly Color BurnAilmentColor = new Color(0.82f, 0.32f, 0.05f);
+    private static readonly Color ShockAilmentColor = new Color(0.75f, 0.60f, 0.08f);
+    private static readonly Color ChillAilmentColor = new Color(0.15f, 0.55f, 0.78f);
+    private static readonly Color GlobalMagicBonusColor = new Color(0.12f, 0.42f, 0.78f);
+    private static readonly Color RangedStyleBonusColor = new Color(0.14f, 0.52f, 0.18f);
     /// <summary>Dimmed ailment block when apply chance is 0% (matches prior elemental inactive styling).</summary>
     private static readonly Color AilmentInactiveGrey = new Color(0.48f, 0.52f, 0.5f);
 
@@ -359,8 +361,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 ap *= combatApMult;
             float abilityPotionPct = stats.AbilityDamageBoostConsumablePercentPoints;
             abilityPowerText.text = abilityPotionPct > 0.001f
-                ? $"Ability Power: {ap:0.##} (abilities {abilityPotionPct:+0.#;-0.#;0}%)"
-                : $"Ability Power: {ap:0.##}";
+                ? $"Ability Power: +{ap:0.#}% (potion {abilityPotionPct:+0.#;-0.#;0}%)"
+                : ap > 0.001f
+                    ? $"Ability Power: +{ap:0.#}%"
+                    : "Ability Power: 0%";
         }
         if (statsHeaderText) statsHeaderText.text = $"Stats (CP: {stats.CombatPowerRounded})";
 
@@ -389,42 +393,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             bool hasCorruption = max.corruptionDamage > 0f;
 
             bool hasAnyDamage = stats.MaxDamage > 0 || stats.MinDamage > 0;
-
-            int types =
-                (hasPhys ? 1 : 0) +
-                (hasMag ? 1 : 0) +
-                (hasCorruption ? 1 : 0);
-
-            string typeLabel;
-
-            if (!hasAnyDamage)
-            {
-                typeLabel = "-";
-            }
-            else if (types == 1)
-            {
-                if (hasPhys) typeLabel = "Physical";
-                else if (hasMag) typeLabel = "Magic";
-                else typeLabel = "Corruption";
-            }
-            else if (types == 2)
-            {
-                if (hasPhys && hasMag) typeLabel = "Physical + Magic";
-                else if (hasPhys && hasCorruption) typeLabel = "Physical + Corruption";
-                else typeLabel = "Magic + Corruption";
-            }
-            else
-            {
-                typeLabel = "Hybrid";
-            }
-
-            // If current attack skill is magic, show selected magic subtype in the type line.
-            if (hasAnyDamage && stats.CurrentAttackSkill == AttackSkill.Magic)
-            {
-                string magicTypeLabel = GetCurrentMagicTypeLabel();
-                if (!string.IsNullOrWhiteSpace(magicTypeLabel) && typeLabel.Contains("Magic"))
-                    typeLabel = typeLabel.Replace("Magic", $"Magic ({magicTypeLabel})");
-            }
+            string typeLabel = stats.BuildAttackDamageTypeLabel();
 
             string split = "";
 
@@ -444,9 +413,10 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             }
 
             string colouredTypeLabel = hasAnyDamage
-                ? BuildColouredTypeLabel(typeLabel, hasPhys, hasMag, hasCorruption)
+                ? BuildColouredTypeLabel(typeLabel)
                 : typeLabel;
 
+            damageSplitText.richText = true;
             damageSplitText.text = $"Type: {colouredTypeLabel}\nSplit: {split}";
         }
 
@@ -507,6 +477,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 $"Ranged total: {FormatSignedPercentPoints(stats.RangedTotalDamageBonusPercentPoints)}";
 
         PopulateDetailedAilmentLines();
+        ApplyOffenceBonusLineColors();
         EnsureOffenceBonusLineTooltips();
         BindAilmentLineTooltips();
         EnsureParryStatTooltips();
@@ -675,16 +646,6 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             rodStaminaEfficiencyText.richText = false;
             rodStaminaEfficiencyText.text = $"Stamina Eff: +{displayRodStam * 100f:0.#}%";
         }
-    }
-
-    private string GetCurrentMagicTypeLabel()
-    {
-        if (stats == null)
-            return "";
-        if (stats.CurrentAttackSkill != AttackSkill.Magic)
-            return "";
-
-        return stats.CurrentMagicAttackType.ToString();
     }
 
     private static string BuildDpsBreakdownLine(
@@ -1040,35 +1001,53 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         Colorize(chillStacksLineText, chillC);
     }
 
-    private static string BuildColouredTypeLabel(string plainTypeLabel, bool hasPhys, bool hasMag, bool hasCorruption)
+    private void ApplyOffenceBonusLineColors()
     {
-        const string phys = "#FF5C5C";
-        const string mag = "#4DB8FF";
-        const string corr = "#7040C0";
-
-        if (hasPhys || hasMag || hasCorruption)
+        void Colorize(TMP_Text t, Color c)
         {
-            string result = "";
-            if (hasPhys)
-                result += $"<color={phys}>Physical</color>";
-
-            if (hasMag)
-            {
-                if (!string.IsNullOrEmpty(result)) result += " + ";
-                result += $"<color={mag}>Magic</color>";
-            }
-
-            if (hasCorruption)
-            {
-                if (!string.IsNullOrEmpty(result)) result += " + ";
-                result += $"<color={corr}>Corruption</color>";
-            }
-
-            return result;
+            if (t)
+                t.color = c;
         }
 
-        // Fallback for unexpected/empty cases.
-        return plainTypeLabel;
+        Colorize(globalMagicAllText, GlobalMagicBonusColor);
+        Colorize(rangedDamageBonusText, RangedStyleBonusColor);
+
+        foreach (TMP_Text tmp in GetComponentsInChildren<TMP_Text>(true))
+        {
+            string rowName = GameTooltipTexts.NormalizeUiElementName(tmp.gameObject.name);
+            if (rowName.Equals("GlobalMagBonusText", StringComparison.OrdinalIgnoreCase) ||
+                rowName.Equals("MagBonusText", StringComparison.OrdinalIgnoreCase))
+                Colorize(tmp, GlobalMagicBonusColor);
+            else if (rowName.Equals("RangedDamageBonusText", StringComparison.OrdinalIgnoreCase) ||
+                     rowName.Equals("RangedPhysBonusText", StringComparison.OrdinalIgnoreCase) ||
+                     rowName.Equals("ConditionalRangedPhysBonusText", StringComparison.OrdinalIgnoreCase))
+                Colorize(tmp, RangedStyleBonusColor);
+        }
+    }
+
+    private static string BoldColoredTypeWord(string hex, string word) =>
+        $"<color={hex}><b>{word}</b></color>";
+
+    private static string BuildColouredTypeLabel(string plainTypeLabel)
+    {
+        if (string.IsNullOrWhiteSpace(plainTypeLabel) || plainTypeLabel == "-")
+            return plainTypeLabel;
+
+        const string phys = "#CC3333";
+        const string mag = "#2070B8";
+        const string corr = "#5020A0";
+        const string fire = "#CC4400";
+        const string ice = "#2E7BB8";
+        const string lightning = "#B88600";
+
+        return plainTypeLabel
+            .Replace("Physical", BoldColoredTypeWord(phys, "Physical"))
+            .Replace("Magic (mixed)", BoldColoredTypeWord(mag, "Magic (mixed)"))
+            .Replace("Corruption", BoldColoredTypeWord(corr, "Corruption"))
+            .Replace("Lightning", BoldColoredTypeWord(lightning, "Lightning"))
+            .Replace("Fire", BoldColoredTypeWord(fire, "Fire"))
+            .Replace("Ice", BoldColoredTypeWord(ice, "Ice"))
+            .Replace("Magic", BoldColoredTypeWord(mag, "Magic"));
     }
 
     private void EnsureToolStatLineTooltips()

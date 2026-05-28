@@ -1289,7 +1289,7 @@ public class ItemDefinitionEditor : Editor
         PropertyField(iceSkillDamagePercent, "Ice skills %");
         PropertyField(lightningSkillDamagePercent, "Lightning skills %");
         PropertyField(corruptionDamage, "Corruption damage");
-        PropertyField(abilityPower, "Ability Power");
+        PropertyField(abilityPower, "Ability power %");
         PropertyField(attackSpeedPercent, "Attack speed %");
         PropertyField(critChanceBonus, "Crit chance bonus");
         PropertyField(critMultiplierBonus, "Crit multiplier bonus");
@@ -1322,7 +1322,7 @@ public class ItemDefinitionEditor : Editor
             "Use these for Armour, Jewelry, and optionally Weapons/Tools.\n\n" +
             "Examples:\n" +
             "- Physical / Magic / Corruption Damage\n" +
-            "- Ability Power\n" +
+            "- Ability power %\n" +
             "- Crit / attack speed / range\n" +
             "- Minion damage, attack speed, crit chance, and health (max life %)\n" +
             "- Bleed or poison chance and multiplier\n" +

@@ -15,7 +15,7 @@ MonoBehaviour:
   notes: Presentation for envenom
   displayNameOverride: Envenom
   icon: {fileID: -3106849600663172003, guid: eac4dfbab0ba6ba47923ad2fffa2615c, type: 3}
-  shortDescription: Primes your next hit. If the hit deals Corruption damage, apply Poison at 100% chance at max stacks.
+  shortDescription: Primes your next hit with guaranteed Poison and apply your maximum number of poison stacks. Exclusive while active.
   primaryDescriptionOverride: 
   flavourText: 
   abilityEffectLines: []

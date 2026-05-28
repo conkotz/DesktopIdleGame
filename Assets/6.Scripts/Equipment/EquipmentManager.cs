@@ -71,7 +71,7 @@ public class EquipmentManager : MonoBehaviour, ISaveable
     private bool _suppressSaveForSetSwap;
     private bool _suppressGearSlotUiEventsForSetSwap;
 
-    public const float WeaponSetSwapCooldownSeconds = 5f;
+    public const float WeaponSetSwapCooldownSeconds = 2f;
     private float _weaponSetSwapLockedUntilUnscaled = -999f;
     private bool _weaponSetSwapCooldownBlockedLogged;
 

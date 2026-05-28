@@ -14,6 +14,7 @@ public struct MinionOwnerWeaponSnapshot
     public float chillSlowPerStack;
     public float shockDuration;
     public float shockDamageTakenMultiplier;
+    public float weaponMagicFireFraction;
     public float meleeMagicLightningFraction;
     public float bleedDuration;
     public float bleedMultiplier;
@@ -41,6 +42,7 @@ public struct MinionOwnerWeaponSnapshot
             shockDuration = owner.ShockDuration,
             shockDamageTakenMultiplier = owner.ShockDamageTakenMultiplier,
             meleeMagicLightningFraction = owner.GetMeleeMagicLightningFraction(),
+            weaponMagicFireFraction = owner.GetWeaponMagicFireFraction(),
             bleedDuration = owner.BleedDuration,
             bleedMultiplier = owner.BleedMultiplier,
             bleedBaseDuration = owner.BleedBaseDuration,

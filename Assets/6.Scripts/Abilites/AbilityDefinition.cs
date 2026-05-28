@@ -77,8 +77,8 @@ public class AbilityDefinition : ScriptableObject
     [Tooltip("Applied after weapon scaling: entire hit (all types combined) × this. 1 = no change. ≤0 treated as 1.")]
     public float allDamageMultiplier = 1f;
 
-    /// <summary>All abilities use the same AP curve: ×(1 + AP×coef/100) with this coefficient (0.5 = +0.5% damage per AP).</summary>
-    public const float StandardAbilityPowerCoefficient = 0.5f;
+    /// <summary>All abilities use the same AP curve: ×(1 + AP/100) where AP is percent points (+25 AP = +25% ability damage).</summary>
+    public const float StandardAbilityPowerCoefficient = 1f;
 
     [Tooltip("Extra scaling on magic damage when the character's magic attack type is Fire (see CharacterStats CurrentMagicAttackType). 0 = ignore.")]
     [Min(0f)] public float fireDamageMultiplier = 0f;

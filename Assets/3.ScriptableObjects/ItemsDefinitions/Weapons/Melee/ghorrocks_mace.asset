@@ -33,18 +33,18 @@ MonoBehaviour:
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   weaponStats:
-    minPhysicalDamage: 24
-    maxPhysicalDamage: 36
-    minFireDamage: 0
-    maxFireDamage: 0
+    minPhysicalDamage: 0
+    maxPhysicalDamage: 0
+    minFireDamage: 24
+    maxFireDamage: 36
     minIceDamage: 0
     maxIceDamage: 0
     minLightningDamage: 0
     maxLightningDamage: 0
     legacyMinMagicDamage: 0
     legacyMaxMagicDamage: 0
-    minCorruptionDamage: 8
-    maxCorruptionDamage: 12
+    minCorruptionDamage: 0
+    maxCorruptionDamage: 0
     attacksPerSecond: 0.5
     critChance: 0.1
     critMultiplier: 1.5
@@ -60,7 +60,7 @@ MonoBehaviour:
     canEquipInOffHand: 0
     requiresOffhandSupport: 0
     requiredSupportType: 0
-    equipmentTier: 2
+    equipmentTier: 3
   combatSupportStats:
     supportType: 0
     requiredMainHandArchetype: 0
@@ -95,6 +95,7 @@ MonoBehaviour:
     physBlockChance: 0
     bonusHealth: 0
     bonusEnergy: 0
+    energyEfficiency: 0
     flatGuard: 0
     maxGuardPercent: 0
   bonusStats:
@@ -108,6 +109,7 @@ MonoBehaviour:
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 0
+    energyEfficiency: 0
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
@@ -123,6 +125,7 @@ MonoBehaviour:
     corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
+    abilityCooldownReductionFraction: 0
     minionDamagePercent: 0
     minionAttackSpeedPercent: 0
     minionCritChance: 0
@@ -137,7 +140,7 @@ MonoBehaviour:
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
-    burnChance: 0
+    burnChance: 0.25
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
   miscEffects:

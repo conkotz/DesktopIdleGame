@@ -499,7 +499,7 @@ public class AbilityEntryUI : MonoBehaviour,
         if (!def) return "";
 
         string tagLine = AbilityTooltipDamagePreview.BuildAbilityTooltipTagLine(def, orangeMarkup: false);
-        string weaponLine = AbilityTooltipDamagePreview.BuildWeaponRequirementRichLine(def, stats, accentWhenOk: true);
+        string weaponLine = AbilityTooltipDamagePreview.BuildAbilityRequirementsRichText(def, stats, accentWhenOk: true);
         string flavorDesc = BuildAbilityDescription(def);
         string scalingSection = AbilityTooltipDamagePreview.BuildAbilityTooltipScalingSection(
             def, stats, skillsManager, orangeMarkup: false);

@@ -15,7 +15,7 @@ MonoBehaviour:
   notes: Starter melee Attack from Beginner Melee Combat unlock
   displayNameOverride: Attack
   icon: {fileID: -1830839695514289404, guid: 96096a52d1e542c458e3cc82142e0fb5, type: 3}
-  shortDescription: Auto attack enemies with melee
+  shortDescription: Auto attack the closest enemy with melee
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 

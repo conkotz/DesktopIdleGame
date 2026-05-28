@@ -491,7 +491,7 @@ MonoBehaviour:
   contentRoot: {fileID: 5623868844732885675}
   skillIconImage: {fileID: 779172283617931168}
   nameText: {fileID: 7112003245586879391}
-  levelReqText: {fileID: 0}
+  levelReqText: {fileID: 6233725478678503547}
   typeText: {fileID: 1700356339559492635}
   unlockStateText: {fileID: 1034151238693112502}
   descriptionText: {fileID: 7847246163577483976}
