@@ -27,6 +27,8 @@ public static class SaveSlotManager
         RestoreSavedWorldPositionIfAvailable = 1,
         /// <summary>Map UI teleport — per-map exit position for destination only, then spawn.</summary>
         RestoreMapExitPositionIfAvailable = 2,
+        /// <summary>Signpost / portal travel — spawn at the portal on this map whose destination is the map we left.</summary>
+        RestoreLinkedPortalSpawnIfAvailable = 3,
     }
 
     private static GameplaySpawnDisposition _pendingGameplaySpawnDisposition = GameplaySpawnDisposition.DefaultSpawnPoint;

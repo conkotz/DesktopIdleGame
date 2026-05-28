@@ -78,14 +78,6 @@ public class EnemyBaseController : MonoBehaviour
     [SerializeField] private string hurtTrigger = "Hurt";
     [SerializeField] private string dieTrigger = "Die";
 
-    [Header("Gold drop (legacy)")]
-    [Tooltip("Used only when Enemy Definition is not assigned on this prefab. Otherwise gold comes from EnemyDefinition.")]
-    [SerializeField] private bool dropGold = true;
-    [SerializeField] private int goldMin = 1;
-    [SerializeField] private int goldMax = 5;
-    [SerializeField, Range(0f, 1f)] private float goldDropChance = 1f;
-    [SerializeField] private Vector3 goldPopupWorldOffset = new Vector3(0f, 1.2f, 0f);
-
     [Header("Sprite Flip")]
     [SerializeField] private Transform visualsRoot;
     [SerializeField] private bool invertFlip = true;
@@ -1400,17 +1392,23 @@ public class EnemyBaseController : MonoBehaviour
 
     private void TryDropGold()
     {
+        const bool fallbackDropGold = true;
+        const float fallbackGoldDropChance = 1f;
+        const int fallbackGoldMin = 1;
+        const int fallbackGoldMax = 5;
+        Vector3 fallbackGoldPopupWorldOffset = new Vector3(0f, 1.2f, 0f);
+
         bool useDef = definition != null;
-        bool shouldDrop = useDef ? definition.dropGold : dropGold;
+        bool shouldDrop = useDef ? definition.dropGold : fallbackDropGold;
         if (!shouldDrop) return;
 
-        float chance = useDef ? definition.goldDropChance : goldDropChance;
+        float chance = useDef ? definition.goldDropChance : fallbackGoldDropChance;
         if (chance < 1f && UnityEngine.Random.value > chance)
             return;
 
-        int min = useDef ? definition.goldMin : goldMin;
-        int max = useDef ? definition.goldMax : goldMax;
-        Vector3 offset = useDef ? definition.goldPopupWorldOffset : goldPopupWorldOffset;
+        int min = useDef ? definition.goldMin : fallbackGoldMin;
+        int max = useDef ? definition.goldMax : fallbackGoldMax;
+        Vector3 offset = useDef ? definition.goldPopupWorldOffset : fallbackGoldPopupWorldOffset;
 
         int gmin = Mathf.Max(0, min);
         int gmax = Mathf.Max(gmin, max);

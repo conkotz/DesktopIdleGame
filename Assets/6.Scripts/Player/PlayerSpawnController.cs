@@ -227,8 +227,56 @@ public class PlayerSpawnController : MonoBehaviour
                 bool requestedSavedRestore =
                     disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable ||
                     disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreMapExitPositionIfAvailable;
+                bool requestedLinkedPortalSpawn =
+                    disposition == SaveSlotManager.GameplaySpawnDisposition.RestoreLinkedPortalSpawnIfAvailable;
 
-                if (requestedSavedRestore &&
+                if (requestedLinkedPortalSpawn)
+                {
+                    string fromMapId = MapTravelSession.ConsumePendingSourceMapNodeId();
+                    float? linkedSpawnX = null;
+                    if (!string.IsNullOrWhiteSpace(fromMapId))
+                    {
+                        const int maxPortalLookupFrames = 45;
+                        for (int attempt = 0; attempt < maxPortalLookupFrames; attempt++)
+                        {
+                            if (MapNodePortalTeleporter.TryFindLinkedEntranceSpawnX(fromMapId, out float portalX))
+                            {
+                                linkedSpawnX = portalX;
+                                break;
+                            }
+
+                            yield return null;
+                        }
+                    }
+
+                    Vector3 basePos = spawn != null ? spawn.transform.position : transform.position;
+                    transform.position = basePos;
+
+                    if (linkedSpawnX.HasValue)
+                    {
+                        float x = linkedSpawnX.Value;
+                        if (WorldBounds.Instance != null)
+                            x = Mathf.Clamp(x, WorldBounds.Instance.Left, WorldBounds.Instance.Right);
+                        transform.position = new Vector3(x, basePos.y, basePos.z);
+                        restoredFromSavedWorldPosition = true;
+
+                        if (debugSnap)
+                        {
+                            Debug.Log(
+                                $"[SpawnDebug] APPLY_LINKED_PORTAL fromMap='{fromMapId}' destMap='{ResolveDestinationMapNodeId() ?? ""}' portalX={x:F3}");
+                        }
+                    }
+                    else if (spawn != null)
+                    {
+                        transform.position = spawn.transform.position;
+                        if (debugSnap)
+                        {
+                            Debug.Log(
+                                $"[SpawnDebug] SKIP_LINKED_PORTAL fromMap='{fromMapId ?? ""}' destMap='{ResolveDestinationMapNodeId() ?? ""}' — no matching portal; using default spawn.");
+                        }
+                    }
+                }
+                else if (requestedSavedRestore &&
                     SaveManager.Instance != null &&
                     SaveManager.Instance.TryGetLastLoadedData(out SaveData saveData) &&
                     TryResolveSavedSpawnX(saveData, disposition, out float savedX))

@@ -117,6 +117,11 @@ public class MapNodePortalTeleporter : MonoBehaviour
         _pendingArrivalX = arrivalX;
         _pendingEnter = true;
 
+        PlayerCombatController combat = player.GetComponent<PlayerCombatController>();
+        combat?.ClearTarget();
+        combat?.NotifyPlayerInitiatedMovement();
+
+        // Do not use fromPlayerInput — that clears PlayerWorldInteractFocus so the target icon stays on the signpost while walking.
         player.MoveToPointX(arrivalX);
     }
 
@@ -167,7 +172,13 @@ public class MapNodePortalTeleporter : MonoBehaviour
         }
 
         _nextAllowedTime = Time.time + Mathf.Max(0f, cooldownSeconds);
-        MapTravelSession.BeginTravel(node, MapTravelSession.EntryMethod.InWorldEntrance, logPendingLevel: false);
+
+        string sourceMapNodeId = ResolveCurrentMapNodeId();
+        MapTravelSession.BeginTravel(
+            node,
+            MapTravelSession.EntryMethod.InWorldEntrance,
+            logPendingLevel: false,
+            sourceMapNodeId: sourceMapNodeId);
 
         if (string.IsNullOrWhiteSpace(gameplaySceneName))
         {
@@ -195,6 +206,77 @@ public class MapNodePortalTeleporter : MonoBehaviour
             return null;
 
         return map.FindNodeById(targetMapNodeId.Trim());
+    }
+
+    /// <summary>Resolved destination node id for this portal (asset reference or string id).</summary>
+    public bool TryGetResolvedTargetMapNodeId(out string nodeId)
+    {
+        MapNodeDefinition node = ResolveTarget();
+        if (node != null && !string.IsNullOrWhiteSpace(node.nodeId))
+        {
+            nodeId = node.nodeId.Trim();
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(targetMapNodeId))
+        {
+            nodeId = targetMapNodeId.Trim();
+            return true;
+        }
+
+        nodeId = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Finds a portal on the active map whose destination is <paramref name="fromMapNodeId"/>
+    /// (the map the player just left via signpost travel).
+    /// </summary>
+    public static bool TryFindLinkedEntranceSpawnX(string fromMapNodeId, out float spawnX)
+    {
+        spawnX = 0f;
+        if (string.IsNullOrWhiteSpace(fromMapNodeId))
+            return false;
+
+        string key = fromMapNodeId.Trim();
+        MapNodePortalTeleporter[] portals = Object.FindObjectsByType<MapNodePortalTeleporter>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        MapNodePortalTeleporter match = null;
+        for (int i = 0; i < portals.Length; i++)
+        {
+            MapNodePortalTeleporter portal = portals[i];
+            if (portal == null || !portal.TryGetResolvedTargetMapNodeId(out string targetId))
+                continue;
+            if (!string.Equals(targetId, key, System.StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            match = portal;
+            break;
+        }
+
+        if (match == null)
+            return false;
+
+        Collider2D col = match.GetComponent<Collider2D>();
+        if (col == null)
+            col = match.GetComponentInChildren<Collider2D>(true);
+
+        spawnX = col != null ? col.bounds.center.x : match.transform.position.x;
+        return true;
+    }
+
+    private static string ResolveCurrentMapNodeId()
+    {
+        MapNodeDefinition sourceMap = GameplayLevelBootstrapper.Instance != null
+            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+            : null;
+        if (sourceMap == null)
+            sourceMap = ActiveLevelContext.Current;
+        if (sourceMap == null || string.IsNullOrWhiteSpace(sourceMap.nodeId))
+            return null;
+        return sourceMap.nodeId.Trim();
     }
 
     /// <summary>

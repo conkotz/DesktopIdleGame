@@ -198,7 +198,8 @@ public class SaveManager : MonoBehaviour
                     SaveSlotManager.PeekPendingGameplaySpawnDisposition();
                 bool preserveTravelSpawn =
                     pendingSpawn == SaveSlotManager.GameplaySpawnDisposition.RestoreMapExitPositionIfAvailable ||
-                    pendingSpawn == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable;
+                    pendingSpawn == SaveSlotManager.GameplaySpawnDisposition.RestoreSavedWorldPositionIfAvailable ||
+                    pendingSpawn == SaveSlotManager.GameplaySpawnDisposition.RestoreLinkedPortalSpawnIfAvailable;
 
                 if (!preserveTravelSpawn)
                 {

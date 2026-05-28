@@ -975,7 +975,7 @@ public static class AbilityTooltipDamagePreview
                     $"Marks the target — the next critical hit deals +{AbilityCombatPower.ShadowStrikeLethalCritBonusFraction * 100f:0.#}% critical damage, then the mark expires."));
             else if (enhance == 1)
                 body.AppendLine(O(
-                    $"Marks the target for {AbilityCombatPower.ShadowStrikeExecutionMarkSeconds:0.#}s — if they die while marked, cooldown is reduced by {AbilityCombatPower.ShadowStrikeExecutionCooldownRefundSeconds:0.#}s."));
+                    $"Marks the target on hit — when they die, Shadow Strike cooldown is reduced by {AbilityCombatPower.ShadowStrikeExecutionCooldownRefundSeconds:0.#}s."));
         }
         else if (IsBladestorm(def))
         {

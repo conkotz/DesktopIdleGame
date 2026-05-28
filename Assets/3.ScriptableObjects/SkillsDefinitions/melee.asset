@@ -737,8 +737,8 @@ MonoBehaviour:
       presentation: {fileID: 0}
     - requiredLevel: 28
       title: Shadow Execution
-      description: Marks the target on hit for 3 seconds. If the enemy dies while
-        this mark is active, Shadow Strike cooldown is reduced by 3 seconds.
+      description: Marks the target on hit. When this target dies, reduce the cooldown
+        of Shadow Strike by 3 seconds.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

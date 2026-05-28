@@ -93,6 +93,7 @@ public static class WorldInteractRouter
         StorageClick storage = targetStorage;
         if (storage != null)
         {
+            ApplyCombatTargetWhenInteractingNonEnemy(player);
             storage.Open();
             return;
         }
@@ -110,8 +111,6 @@ public static class WorldInteractRouter
 
             return;
         }
-
-        ApplyCombatTargetWhenInteractingNonEnemy(player);
 
         var portal = winnerCol.GetComponentInParent<MapNodePortalTeleporter>();
         if (portal != null)
@@ -139,6 +138,8 @@ public static class WorldInteractRouter
 
         if (merchant != null || npc != null)
         {
+            ApplyCombatTargetWhenInteractingNonEnemy(player);
+
             if (merchant != null)
             {
                 if (npc != null)
@@ -155,6 +156,8 @@ public static class WorldInteractRouter
         QuestGiver questGiver = winnerCol.GetComponentInParent<QuestGiver>();
         if (questGiver != null)
         {
+            ApplyCombatTargetWhenInteractingNonEnemy(player);
+
             NPCInteractionSettings npcOnGiver = questGiver.GetComponent<NPCInteractionSettings>();
             if (npcOnGiver != null)
             {
@@ -211,6 +214,10 @@ public static class WorldInteractRouter
         QuestGiver questGiver = col.GetComponentInParent<QuestGiver>();
         if (questGiver)
             return questGiver.transform;
+
+        MapNodePortalTeleporter portal = col.GetComponentInParent<MapNodePortalTeleporter>();
+        if (portal)
+            return portal.transform;
 
         if (IsNoticeBoardCollider(col))
             return col.transform;

@@ -193,6 +193,7 @@ GameObject:
   - component: {fileID: 433244304700921957}
   - component: {fileID: 5613807137671369408}
   - component: {fileID: 8747681271539130883}
+  - component: {fileID: 7123456789012345678}
   m_Layer: 7
   m_Name: SignPost
   m_TagString: SignPost
@@ -341,3 +342,26 @@ MonoBehaviour:
   logWhenBlocked: 1
   blockedMessage: You cannot enter this area yet.
   arriveDistanceX: 0.08
+--- !u!114 &7123456789012345678
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8347273920747777605}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c03584356f4bb1448b48be6cfdb06853, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SimpleHoverHighlight2D
+  enableScale: 1
+  enableDarken: 1
+  hoverScaleMul: 1.06
+  targetedScaleMul: 1.08
+  scaleLerpSpeed: 14
+  hoverDarkenMul: 0.92
+  targetedDarkenMul: 0.85
+  colorLerpSpeed: 14
+  pulseWhenTargeted: 1
+  pulseSpeed: 5
+  pulseAmount: 0.015

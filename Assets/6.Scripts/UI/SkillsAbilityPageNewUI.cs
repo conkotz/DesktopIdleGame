@@ -808,7 +808,6 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         }
 
         SyncTimelineFromPageSelection();
-        RestoreTimelineScrollForSkill(_selectedSkill);
 
         yield return null;
         if (!isActiveAndEnabled)
@@ -819,6 +818,16 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
         RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
+
+        // Final post-layout reapply: some downstream UI rebuilds can nudge the timeline once after open.
+        yield return null;
+        if (!isActiveAndEnabled)
+        {
+            _deferredOpenRefresh = null;
+            yield break;
+        }
+        RestoreTimelineScrollForSkill(_selectedSkill);
+
         _deferredOpenRefresh = null;
     }
 
@@ -1049,9 +1058,16 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (_selectedSkill.skillType != type)
             return;
 
+        float? preservedScroll = horizontalSkillTimeline != null
+            ? horizontalSkillTimeline.TryGetTimelineScrollNormalizedPosition()
+            : null;
+
         RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
         RefreshTimelineAfterPickOrEnhancementChange();
+
+        if (preservedScroll.HasValue && horizontalSkillTimeline != null)
+            horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(preservedScroll.Value);
     }
 
     private void HandleSkillChoiceSelectionChanged(SkillType type, int _, int __)
@@ -1062,9 +1078,16 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (_selectedSkill.skillType != type)
             return;
 
+        float? preservedScroll = horizontalSkillTimeline != null
+            ? horizontalSkillTimeline.TryGetTimelineScrollNormalizedPosition()
+            : null;
+
         RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
         RefreshTimelineAfterPickOrEnhancementChange();
+
+        if (preservedScroll.HasValue && horizontalSkillTimeline != null)
+            horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(preservedScroll.Value);
     }
 
     private void RefreshTimelineAfterPickOrEnhancementChange()

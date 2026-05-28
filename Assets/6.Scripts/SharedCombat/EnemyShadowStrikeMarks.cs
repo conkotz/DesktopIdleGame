@@ -16,10 +16,8 @@ public class EnemyShadowStrikeMarks : MonoBehaviour
 
     public event Action OnMarksChanged;
 
-    private EnemyBaseController _enemy;
     private bool _lethalCritMarkActive;
     private bool _executionMarkActive;
-    private float _executionMarkExpiresAt = -1f;
     private PlayerAbilityController _executionMarkOwner;
     private AbilityDefinition _executionMarkAbilityDef;
 
@@ -29,30 +27,14 @@ public class EnemyShadowStrikeMarks : MonoBehaviour
         {
             if (_lethalCritMarkActive)
                 return MarkKind.LethalCrit;
-            if (_executionMarkActive && Time.time < _executionMarkExpiresAt)
+            if (_executionMarkActive)
                 return MarkKind.Execution;
             return MarkKind.None;
         }
     }
 
     public bool HasLethalCritMark => _lethalCritMarkActive;
-    public bool HasExecutionMark => _executionMarkActive && Time.time < _executionMarkExpiresAt;
-
-    private void Awake()
-    {
-        _enemy = GetComponent<EnemyBaseController>();
-    }
-
-    private void Update()
-    {
-        if (_executionMarkActive && Time.time >= _executionMarkExpiresAt)
-        {
-            _executionMarkActive = false;
-            _executionMarkOwner = null;
-            _executionMarkAbilityDef = null;
-            OnMarksChanged?.Invoke();
-        }
-    }
+    public bool HasExecutionMark => _executionMarkActive;
 
     public void ApplyMark(MarkKind kind, PlayerAbilityController owner, AbilityDefinition abilityDef)
     {
@@ -65,7 +47,6 @@ public class EnemyShadowStrikeMarks : MonoBehaviour
                 break;
             case MarkKind.Execution:
                 _executionMarkActive = true;
-                _executionMarkExpiresAt = Time.time + AbilityCombatPower.ShadowStrikeExecutionMarkSeconds;
                 _executionMarkOwner = owner;
                 _executionMarkAbilityDef = abilityDef;
                 break;
@@ -89,8 +70,9 @@ public class EnemyShadowStrikeMarks : MonoBehaviour
 
     public void NotifyEnemyDied()
     {
-        if (_executionMarkActive && Time.time < _executionMarkExpiresAt &&
-            _executionMarkOwner != null && _executionMarkAbilityDef != null)
+        if (_executionMarkActive &&
+            _executionMarkOwner != null &&
+            _executionMarkAbilityDef != null)
         {
             _executionMarkOwner.ReduceAbilityCooldownBySeconds(
                 _executionMarkAbilityDef,
@@ -105,7 +87,6 @@ public class EnemyShadowStrikeMarks : MonoBehaviour
         bool changed = _lethalCritMarkActive || _executionMarkActive;
         _lethalCritMarkActive = false;
         _executionMarkActive = false;
-        _executionMarkExpiresAt = -1f;
         _executionMarkOwner = null;
         _executionMarkAbilityDef = null;
 

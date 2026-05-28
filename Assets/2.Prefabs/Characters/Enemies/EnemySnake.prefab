@@ -19,7 +19,7 @@ GameObject:
   - component: {fileID: 1645354627277816554}
   - component: {fileID: 101716477094515511}
   m_Layer: 8
-  m_Name: EnemyBear
+  m_Name: EnemySnake
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -104,7 +104,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: -0.05480981, y: 0.032885432}
+  m_Offset: {x: -0.05480981, y: 0.13868724}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -114,7 +114,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1.679636, y: 1.2850099}
+  m_Size: {x: 1.679636, y: 1.0734062}
   m_EdgeRadius: 0
 --- !u!114 &3869343188094576196
 MonoBehaviour:
@@ -128,13 +128,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bddb989121bb6414f99daebc7bb5415a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyBaseController
-  displayName: Bear
+  displayName: Snake
   definition: {fileID: 0}
   stats: {fileID: 0}
   player: {fileID: 0}
   playerTag: Player
   aggroRange: 6
-  moveSpeed: 1.5
+  moveSpeed: 2
   xOnly: 1
   idleWanderEnabled: 0
   idleWanderSpeed: 0.8
@@ -154,11 +154,6 @@ MonoBehaviour:
   attackTrigger: Attack
   hurtTrigger: 
   dieTrigger: 
-  dropGold: 1
-  goldMin: 500
-  goldMax: 650
-  goldDropChance: 1
-  goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   visualsRoot: {fileID: 4000011028196368}
   invertFlip: 1
   uiRoot: {fileID: 1366391345936473447}
@@ -435,7 +430,7 @@ SpriteRenderer:
   m_SortingLayer: 4
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 6337399714680752440, guid: c8d21176f9dad476a9d6fa043beeb3ee, type: 3}
+  m_Sprite: {fileID: 7104874855621525860, guid: 779406757f94f42799c1ac8c51376591, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 1
   m_FlipY: 0
@@ -455,7 +450,7 @@ Animator:
   m_GameObject: {fileID: 3712167369949410412}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: 1683cb159835d45e1b13b063535a48cb, type: 2}
+  m_Controller: {fileID: 9100000, guid: ce4eb2526e91b4fe39deae0ea0f5881c, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0

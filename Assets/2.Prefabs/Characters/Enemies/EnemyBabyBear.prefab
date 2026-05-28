@@ -155,8 +155,8 @@ MonoBehaviour:
   hurtTrigger: 
   dieTrigger: 
   dropGold: 1
-  goldMin: 250
-  goldMax: 300
+  goldMin: 80
+  goldMax: 120
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   visualsRoot: {fileID: 4000011028196368}
@@ -195,10 +195,11 @@ MonoBehaviour:
   baseMagicResist: 0
   baseCorruptionResist: 0
   basePhysBlockChance: 0
+  basePhysBlockMitigation: 0.7
   baseMoveSpeed: 3
   baseMoveSpeedMult: 1
   baseLifeRegen: 1
-  baseEnergyRegen: 10
+  baseEnergyRegenPercentPerSecond: 10
   baseManaRegen: 1
   baseMinPhysicalDamage: 0
   baseMaxPhysicalDamage: 0
@@ -225,6 +226,7 @@ MonoBehaviour:
   baseBurnHitsToExplode: 4
   baseBurnExplosionMultiplier: 0.5
   bonusBurnDamageMultiplier: 0
+  bonusAbilityCooldownReductionFraction: 0
   baseShockDuration: 5
   baseShockDamageTakenMultiplier: 0.15
   dualWieldApsBonus: 1.15
@@ -295,6 +297,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AilmentController
   showDotPopups: 1
   debugLogs: 0
+  burnWallClockDurationSeconds: 15
   burnDurationTicks: 5
   burnDamageFractionOfHitPerTick: 0.15
   burnCombustTicksWorth: 10

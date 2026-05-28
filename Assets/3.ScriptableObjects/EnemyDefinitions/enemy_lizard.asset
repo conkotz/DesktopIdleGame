@@ -10,43 +10,43 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4de60bca8597d954ea0c7c5a377a09cf, type: 3}
-  m_Name: enemy_baby_bear
+  m_Name: enemy_lizard
   m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinition
-  enemyId: enemy_baby_bear
-  displayName: Baby Bear
+  enemyId: enemy_lizard
+  displayName: Lizard
   isBossEnemy: 0
   description: 
   icon: {fileID: 0}
-  prefab: {fileID: 1000010755293042, guid: bb8b9e3eccba9a04fb733e1dd81624ac, type: 3}
+  prefab: {fileID: 1000010755293042, guid: 9a3ae80bed6cfbd47934f907801e66b4, type: 3}
   cannotRespawn: 0
   doesNotContributeToRecommendedCombatPower: 0
-  maxHealth: 140
+  maxHealth: 120
   maxEnergy: 0
   maxMana: 0
-  armor: 10
+  armor: 0
   magicResist: 0
   corruptionResist: 0
   physBlockChance: 0
   physBlockMitigation: 0.7
-  flatGuard: 10
+  flatGuard: 0
   maxGuardPercent: 0
-  minPhysicalDamage: 4
-  maxPhysicalDamage: 7
-  minMagicDamage: 0
-  maxMagicDamage: 0
+  minPhysicalDamage: 0
+  maxPhysicalDamage: 0
+  minMagicDamage: 2
+  maxMagicDamage: 7
   minCorruptionDamage: 0
   maxCorruptionDamage: 0
-  attackSpeed: 0.2
-  moveSpeed: 2
-  attackRange: 1
-  critChance: 0.1
-  critMultiplier: 1.5
+  attackSpeed: 0.5
+  moveSpeed: 2.5
+  attackRange: 1.5
+  critChance: 0
+  critMultiplier: 1
   lifeRegenPerSecond: 0
   energyRegenPerSecond: 0
-  manaRegenPerSecond: 1
+  manaRegenPerSecond: 0
   abilityPower: 0
-  lifeSteal: 0.1
-  bleedChance: 0.5
+  lifeSteal: 0
+  bleedChance: 1
   bleedMultiplier: 0
   bleedDuration: 5
   poisonChance: 0
@@ -56,7 +56,7 @@ MonoBehaviour:
   magicAttackType: 0
   burnChance: 0
   chillChance: 0
-  shockChance: 0
+  shockChance: 0.5
   chillDuration: 5
   chillMaxStacks: 6
   chillSlowPerStack: 0.15
@@ -75,24 +75,16 @@ MonoBehaviour:
   idleWanderMoveMinSec: 1
   idleWanderMoveMaxSec: 3
   idleWanderIdleMinSec: 2
-  idleWanderIdleMaxSec: 8
+  idleWanderIdleMaxSec: 3
   idleWanderMaxDistanceFromSpawn: 10
   grantCombatXp: 1
   dropGold: 1
-  goldMin: 180
-  goldMax: 240
+  goldMin: 50
+  goldMax: 80
   goldDropChance: 1
   goldPopupWorldOffset: {x: 0, y: 1.2, z: 0}
   eliteGoldMultiplier: 2
-  loot:
-  - item: {fileID: 11400000, guid: 462df72db7793674e8880e18d7ba181c, type: 2}
-    amountMin: 1
-    amountMax: 1
-    dropChance: 0.8
-  - item: {fileID: 11400000, guid: 462df72db7793674e8880e18d7ba181c, type: 2}
-    amountMin: 2
-    amountMax: 2
-    dropChance: 0.2
+  loot: []
   lootAtMostOneDropPerTable: 1
   eliteLootHandling: 0
   eliteLootChanceMultiplier: 5

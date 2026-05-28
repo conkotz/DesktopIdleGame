@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2935ef89b192ceb418b1107ddcd0fdf3, type: 3}
-  m_Name: MapNode_hunting_grounds
+  m_Name: MapNode_hunting_grounds_2
   m_EditorClassIdentifier: Assembly-CSharp::MapNodeDefinition
-  nodeId: hunting_grounds
-  displayName: Hunting Grounds
+  nodeId: hunting_grounds_2
+  displayName: Hunting Grounds 2
   description: A green field with enemies
   nodeType: 0
   enemyAggroMode: 2
@@ -33,46 +33,17 @@ MonoBehaviour:
   requiredSkillLevels: []
   combatSkillGateMode: 2
   combatSingleSkill: 0
-  combatRequiredLevel: 5
+  combatRequiredLevel: 10
   unlockRequirementNotes: 
   connectedNodeIds: []
   nextNodeIds:
-  - bear_den
-  - hunting_grounds_2
+  - hunting_grounds
   biome: 0
   spawnGroupPlans:
   - groupId: AllSpawns
     spawns:
     - spawnPointGroupId: 
-      spawnPointName: SpawnPoint30
-      enemyDefinition: {fileID: 0}
-      prefab: {fileID: 8347273920747777605, guid: a0bba137548b65543be76ed5f1317dd0, type: 3}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 1
-      portalTargetMapNodeId: 
-    shuffleSpawnPoints: 0
-  - groupId: AllSpawns
-    spawns:
-    - spawnPointGroupId: 
-      spawnPointName: 
-      enemyDefinition: {fileID: 11400000, guid: 173c71a94c3294249993cfc7b76051c9, type: 2}
-      prefab: {fileID: 0}
-      itemDefinition: {fileID: 0}
-      itemAmount: 0
-      itemRespawnTimer: 0
-      respawnUntilSimpleWavesStart: 0
-      levelOneShotPickupKey: 
-      count: 12
-      portalTargetMapNodeId: 
-    shuffleSpawnPoints: 1
-  - groupId: AllSpawns
-    spawns:
-    - spawnPointGroupId: 
-      spawnPointName: SpawnPoint67
+      spawnPointName: SpawnPoint-27
       enemyDefinition: {fileID: 0}
       prefab: {fileID: 8347273920747777605, guid: 1d359e69b63b58e4a94ec38646014fa6, type: 3}
       itemDefinition: {fileID: 0}
@@ -81,8 +52,33 @@ MonoBehaviour:
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
-      portalTargetMapNodeId: hunting_grounds_2
+      portalTargetMapNodeId: hunting_grounds
     shuffleSpawnPoints: 0
+  - groupId: AllSpawns
+    spawns:
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: 34646b7aa97252b449cd7eabf08837e8, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 8
+      portalTargetMapNodeId: 
+    - spawnPointGroupId: 
+      spawnPointName: 
+      enemyDefinition: {fileID: 11400000, guid: d7e30a407a93fdb44807fcaa81c8b0ba, type: 2}
+      prefab: {fileID: 0}
+      itemDefinition: {fileID: 0}
+      itemAmount: 0
+      itemRespawnTimer: 0
+      respawnUntilSimpleWavesStart: 0
+      levelOneShotPickupKey: 
+      count: 6
+      portalTargetMapNodeId: 
+    shuffleSpawnPoints: 1
   requiredPreviousMapCompletions: []
   simpleCombatWaves: []
   simpleCombatWavesAutoStartOnLevelEnter: 0

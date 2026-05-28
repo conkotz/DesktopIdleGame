@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Non-combat interact target (NPC, storage, notice board, merchant walk-to).
+/// Non-combat interact target (NPC, storage, notice board, merchant walk-to, signpost / portal).
 /// Cleared when the player moves manually, like a resource node target dropping on reposition.
 /// </summary>
 [DisallowMultipleComponent]
@@ -36,8 +36,6 @@ public class PlayerWorldInteractFocus : MonoBehaviour
         if (col.GetComponentInParent<EnemyClick>())
             return;
         if (col.GetComponentInParent<ItemDrop>())
-            return;
-        if (col.GetComponentInParent<MapNodePortalTeleporter>())
             return;
         if (col.GetComponentInParent<ResourceNode>())
             return;

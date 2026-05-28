@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// Tracks how the player is entering the next GamePlay map so <see cref="PlayerSpawnController"/>
-/// can restore a saved exit position (map UI) or use <c>SpawnPoint_Player</c> (portals / caves / signposts).
+/// can restore a saved exit position (map UI) or spawn at the linked return signpost (portal travel).
 /// </summary>
 public static class MapTravelSession
 {
@@ -16,13 +16,21 @@ public static class MapTravelSession
     }
 
     private static EntryMethod _pendingEntry = EntryMethod.Unspecified;
+    private static string _pendingSourceMapNodeId;
 
-    public static void BeginTravel(MapNodeDefinition destination, EntryMethod entry, bool logPendingLevel = true)
+    public static void BeginTravel(
+        MapNodeDefinition destination,
+        EntryMethod entry,
+        bool logPendingLevel = true,
+        string sourceMapNodeId = null)
     {
         if (entry == EntryMethod.MapTeleport)
             SaveManager.Instance?.StageLeavingMapExitPosition();
 
         _pendingEntry = entry;
+        _pendingSourceMapNodeId = entry == EntryMethod.InWorldEntrance && !string.IsNullOrWhiteSpace(sourceMapNodeId)
+            ? sourceMapNodeId.Trim()
+            : null;
         ActiveLevelContext.SetPendingLevel(destination, logToConsole: logPendingLevel);
     }
 
@@ -37,9 +45,17 @@ public static class MapTravelSession
                     SaveSlotManager.GameplaySpawnDisposition.RestoreMapExitPositionIfAvailable);
                 break;
             case EntryMethod.InWorldEntrance:
-                SaveSlotManager.SetPendingGameplaySpawnDisposition(
-                    SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
-                SaveSlotManager.MarkSkipApplySavedWorldPositionFromSaveOnce();
+                if (!string.IsNullOrWhiteSpace(_pendingSourceMapNodeId))
+                {
+                    SaveSlotManager.SetPendingGameplaySpawnDisposition(
+                        SaveSlotManager.GameplaySpawnDisposition.RestoreLinkedPortalSpawnIfAvailable);
+                }
+                else
+                {
+                    SaveSlotManager.SetPendingGameplaySpawnDisposition(
+                        SaveSlotManager.GameplaySpawnDisposition.DefaultSpawnPoint);
+                    SaveSlotManager.MarkSkipApplySavedWorldPositionFromSaveOnce();
+                }
                 break;
             default:
                 break;
@@ -53,5 +69,18 @@ public static class MapTravelSession
         return m;
     }
 
-    public static void ClearPendingEntryMethod() => _pendingEntry = EntryMethod.Unspecified;
+    public static void ClearPendingEntryMethod()
+    {
+        _pendingEntry = EntryMethod.Unspecified;
+        _pendingSourceMapNodeId = null;
+    }
+
+    public static string ConsumePendingSourceMapNodeId()
+    {
+        string id = _pendingSourceMapNodeId;
+        _pendingSourceMapNodeId = null;
+        return id;
+    }
+
+    public static void ClearPendingSourceMapNodeId() => _pendingSourceMapNodeId = null;
 }
