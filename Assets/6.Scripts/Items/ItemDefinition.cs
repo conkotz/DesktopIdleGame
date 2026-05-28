@@ -285,6 +285,11 @@ public struct ArmorStats
     public int bonusHealth;
     public int bonusEnergy;
 
+    [Range(0f, 1f)]
+    [Tooltip("Reduces energy cost of Melee, Ranged, and Magic abilities that spend energy (0.1 = 10%).")]
+    [FormerlySerializedAs("staminaEfficiency")]
+    public float energyEfficiency;
+
     [Header("Guard")]
     [Tooltip("Flat bonus to natural guard cap (same stacking as bonus health).")]
     public int flatGuard;
@@ -319,6 +324,11 @@ public struct BonusStats
 
     [Tooltip("Mana per second")]
     public float manaRegen;
+
+    [Range(0f, 1f)]
+    [Tooltip("Reduces energy cost of Melee, Ranged, and Magic abilities that spend energy (0.1 = 10%).")]
+    [FormerlySerializedAs("staminaEfficiency")]
+    public float energyEfficiency;
 
     [Range(0f, 1f)]
     [Tooltip("0.05 = 5%")]
@@ -432,7 +442,7 @@ public struct BonusStats
         return bonusHealth != 0 || bonusEnergy != 0 ||
                bonusMana != 0 ||
                armor != 0 || magicResist != 0 || corruptionResist != 0 || physBlockChance > 0f ||
-               lifeRegen != 0f || energyRegen != 0f || manaRegen != 0f || lifeSteal > 0f ||
+               lifeRegen != 0f || energyRegen != 0f || manaRegen != 0f || energyEfficiency > 0f || lifeSteal > 0f ||
                moveSpeedPercent != 0f ||
                physicalDamage != 0f || physicalDamagePercent != 0f ||
                globalPhysicalDamagePercent != 0f || rangedPhysicalDamagePercent != 0f ||
@@ -1150,6 +1160,20 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public float LifeRegen => bonusStats.lifeRegen;
     public float EnergyRegen => bonusStats.energyRegen;
     public float ManaRegen => bonusStats.manaRegen;
+    public float CombatEnergyEfficiency
+    {
+        get
+        {
+            if (!IsArmor && !IsJewelry)
+                return 0f;
+
+            float total = 0f;
+            if (IsArmor)
+                total += Mathf.Max(0f, armorStats.energyEfficiency);
+            total += Mathf.Max(0f, bonusStats.energyEfficiency);
+            return total;
+        }
+    }
     public float LifeSteal => Mathf.Clamp01(bonusStats.lifeSteal);
     public float MoveSpeedPercent => bonusStats.moveSpeedPercent;
 
@@ -1686,6 +1710,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (BonusHealth != 0) s += $"Health: +{BonusHealth}\n";
             if (BonusEnergy != 0) s += $"Energy: +{BonusEnergy}\n";
             if (BonusMana != 0) s += $"Mana: +{BonusMana}\n";
+            if (CombatEnergyEfficiency > 0.0001f)
+                s += $"Energy Efficiency: +{CombatEnergyEfficiency * 100f:0.#}%\n";
             if (PhysBlockChance > 0f) s += $"Phys Block: {PhysBlockChance * 100f:0.#}%\n";
             if (ArmorFlatGuard > 0) s += $"Guard: +{ArmorFlatGuard}\n";
             if (ArmorMaxGuardPercent > 0.00001f) s += $"Max Guard: {FormatSignedPercent01(ArmorMaxGuardPercent)}\n";

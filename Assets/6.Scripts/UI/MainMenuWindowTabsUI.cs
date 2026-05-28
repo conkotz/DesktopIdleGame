@@ -38,8 +38,6 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
     [SerializeField] private Button skillsTabButton;
     [Tooltip("Assign the top Quest tab button here to wire it explicitly.")]
     [SerializeField] private Button questTabButton;
-    [Tooltip("Assign the top Levels Select tab button here to wire it explicitly.")]
-    [SerializeField] private Button levelsSelectTabButton;
     [Tooltip("Assign the top World Map tab button here to wire it explicitly.")]
     [SerializeField] private Button worldMapTabButton;
 
@@ -179,7 +177,6 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
         TryAddTabButtonVisual(MainMenuTabId.Character, characterTabButton);
         TryAddTabButtonVisual(MainMenuTabId.Skills, skillsTabButton);
         TryAddTabButtonVisual(MainMenuTabId.Quest, questTabButton);
-        TryAddTabButtonVisual(MainMenuTabId.LevelSelect, levelsSelectTabButton);
         TryAddTabButtonVisual(MainMenuTabId.WorldMap, worldMapTabButton);
     }
 
@@ -189,7 +186,6 @@ public sealed class MainMenuWindowTabsUI : MonoBehaviour
         WireExplicitButton(characterTabButton, MainMenuTabId.Character);
         WireExplicitButton(skillsTabButton, MainMenuTabId.Skills);
         WireExplicitButton(questTabButton, MainMenuTabId.Quest);
-        WireExplicitButton(levelsSelectTabButton, MainMenuTabId.LevelSelect);
         WireExplicitButton(worldMapTabButton, MainMenuTabId.WorldMap);
     }
 

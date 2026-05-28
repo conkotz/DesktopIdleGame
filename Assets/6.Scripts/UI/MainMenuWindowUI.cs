@@ -1,7 +1,7 @@
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
-using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class MainMenuWindowUI : MonoBehaviour
@@ -11,8 +11,7 @@ public class MainMenuWindowUI : MonoBehaviour
         None,
         Character,
         SkillsAbilities,
-        LevelSelect,
-        LevelSelectWorldMap,
+        WorldMap,
         Quest,
         Settings
     }
@@ -87,15 +86,9 @@ public class MainMenuWindowUI : MonoBehaviour
     [Header("Pages")]
     [SerializeField] private GameObject characterPage;
     [SerializeField] private GameObject skillsAbilitiesPage;
-    [FormerlySerializedAs("worldMapPage")]
-    [SerializeField] private GameObject levelSelectPage;
     [SerializeField] private GameObject fullMapPage;
     [SerializeField] private GameObject questPage;
     [SerializeField] private GameObject settingsPage;
-
-    [Header("Level select presentations (optional)")]
-    [Tooltip("LevelSelectListViewUI on LevelSelectPage — drives list vs FullMapPage.")]
-    [SerializeField] private LevelSelectListViewUI levelSelectListView;
 
     private GameObject currentPage;
     private Image _windowRootImage;
@@ -121,9 +114,20 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public GameObject CurrentPage => currentPage;
 
-    public GameObject LevelSelectPage => levelSelectPage;
-
     public GameObject FullMapPage => fullMapPage;
+
+    /// <summary>True when <paramref name="t"/> is under a hierarchy root named OLD_UNUSED.</summary>
+    public static bool IsUnderOldUnused(Transform t)
+    {
+        while (t != null)
+        {
+            if (string.Equals(t.name, "OLD_UNUSED", StringComparison.OrdinalIgnoreCase))
+                return true;
+            t = t.parent;
+        }
+
+        return false;
+    }
 
     /// <summary>Which main-menu tab is highlighted. <see cref="MainMenuTabId.None"/> when Settings (no tab) is open.</summary>
     public MainMenuTabId GetActiveTab()
@@ -142,8 +146,6 @@ public class MainMenuWindowUI : MonoBehaviour
             return MainMenuTabId.Quest;
         if (fullMapPage && currentPage == fullMapPage)
             return MainMenuTabId.WorldMap;
-        if (currentPage == levelSelectPage)
-            return MainMenuTabId.LevelSelect;
 
         return MainMenuTabId.None;
     }
@@ -172,9 +174,6 @@ public class MainMenuWindowUI : MonoBehaviour
             case MainMenuTabId.Quest:
                 OpenQuestShow();
                 break;
-            case MainMenuTabId.LevelSelect:
-                OpenLevelSelectListShow();
-                break;
             case MainMenuTabId.WorldMap:
                 OpenWorldMapShow();
                 break;
@@ -196,6 +195,7 @@ public class MainMenuWindowUI : MonoBehaviour
             Debug.LogWarning("[MainMenuWindowUI] Multiple MainMenuWindowUI components in loaded scenes; the last Awake wins for Resolve().", this);
 
         s_instance = this;
+        SanitizePageReferences();
         ResolveSkillsAbilitiesPageReference();
 
         if (!mainMenuWindow)
@@ -221,7 +221,6 @@ public class MainMenuWindowUI : MonoBehaviour
         }
 
         HideAllPages();
-        ResolveLevelSelectListView();
         ResolveFullMapPage();
     }
 
@@ -238,27 +237,7 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public void OpenSkillsAbilities() => SelectTab(MainMenuTabId.Skills);
 
-    public void ToggleLevelSelect() => SelectTab(MainMenuTabId.LevelSelect);
-
-    public void OpenLevelSelect() => SelectTab(MainMenuTabId.LevelSelect);
-
-    public void OpenLevelSelectShow() => SelectTab(MainMenuTabId.LevelSelect);
-
-    public void OpenLevelSelectListShow()
-    {
-        if (!levelSelectPage)
-            return;
-
-        LevelSelectSharedState.LastPresentation = LevelSelectSharedState.Presentation.List;
-        if (IsOpen && currentPage == levelSelectPage)
-        {
-            ApplyLevelSelectPresentation();
-            return;
-        }
-
-        OpenPage(levelSelectPage);
-        ApplyLevelSelectPresentation();
-    }
+    public void OpenWorldMap() => SelectTab(MainMenuTabId.WorldMap);
 
     public void OpenWorldMapShow()
     {
@@ -273,6 +252,8 @@ public class MainMenuWindowUI : MonoBehaviour
     }
 
     public void ToggleQuest() => SelectTab(MainMenuTabId.Quest);
+
+    public void ToggleWorldMap() => SelectTab(MainMenuTabId.WorldMap);
 
     public void OpenQuest() => SelectTab(MainMenuTabId.Quest);
 
@@ -423,20 +404,13 @@ public class MainMenuWindowUI : MonoBehaviour
             MainMenuTabId.Character => HelperWhitelistUiInteractTarget.CharacterToolbarWhitelistId,
             MainMenuTabId.Skills => HelperWhitelistUiInteractTarget.SkillsAbilityToolbarWhitelistId,
             MainMenuTabId.Quest => HelperWhitelistUiInteractTarget.QuestToolbarWhitelistId,
-            MainMenuTabId.LevelSelect or MainMenuTabId.WorldMap =>
+            MainMenuTabId.WorldMap =>
                 HelperWhitelistUiInteractTarget.LevelSelectToolbarWhitelistId,
             _ => null
         };
 
         return !string.IsNullOrWhiteSpace(id) &&
                HelperGameplayController.KeepMainMenuOpenWhenRepeatingToolbarTap(id);
-    }
-
-    private void ResolveLevelSelectListView()
-    {
-        if (levelSelectListView || !levelSelectPage)
-            return;
-        levelSelectListView = levelSelectPage.GetComponentInChildren<LevelSelectListViewUI>(true);
     }
 
     private void ResolveFullMapPage()
@@ -472,18 +446,6 @@ public class MainMenuWindowUI : MonoBehaviour
         }
     }
 
-    private void ApplyLevelSelectPresentation()
-    {
-        ResolveLevelSelectListView();
-        if (!levelSelectListView)
-            return;
-
-        if (LevelSelectSharedState.LastPresentation == LevelSelectSharedState.Presentation.WorldMap)
-            levelSelectListView.ShowWorldMapPresentation();
-        else
-            levelSelectListView.ShowListPresentation();
-    }
-
     private void OpenPage(GameObject targetPage)
     {
         // Rebind flow can leave InputSystemUIInputModule disabled; bottom bar stops receiving keyboard Submit.
@@ -515,7 +477,7 @@ public class MainMenuWindowUI : MonoBehaviour
         MerchantClick.ForceCloseMerchantMode();
         StorageClick.ForceCloseStorageMode();
 
-        if (targetPage == levelSelectPage || targetPage == questPage)
+        if (targetPage == questPage)
             MapNodeTravelProgress.TryMarkCurrentNodeIfConfigured();
 
         RememberOpenPage(targetPage);
@@ -548,22 +510,52 @@ public class MainMenuWindowUI : MonoBehaviour
     {
         if (characterPage) characterPage.SetActive(false);
         if (skillsAbilitiesPage) skillsAbilitiesPage.SetActive(false);
-        if (levelSelectPage) levelSelectPage.SetActive(false);
         if (fullMapPage) fullMapPage.SetActive(false);
         if (questPage) questPage.SetActive(false);
         if (settingsPage) settingsPage.SetActive(false);
-        HideLegacySkillsAbilitiesPage();
+        HideLegacyMenuPages();
     }
 
-    /// <summary>Hides the old in-menu skills page when <see cref="skillsAbilitiesPage"/> points at SkillsAbilityPageNEW.</summary>
-    private void HideLegacySkillsAbilitiesPage()
+    /// <summary>Keep archived pages under OLD_UNUSED inactive even if something still references them.</summary>
+    private void HideLegacyMenuPages()
     {
         if (!mainMenuWindow)
             return;
 
+        Transform legacyRoot = FindNamedTransformInScene("OLD_UNUSED");
+        if (legacyRoot != null)
+        {
+            legacyRoot.gameObject.SetActive(false);
+            return;
+        }
+
         Transform legacy = mainMenuWindow.transform.Find("SkillsAbilityPage");
         if (legacy != null && legacy.gameObject != skillsAbilitiesPage)
             legacy.gameObject.SetActive(false);
+    }
+
+    private static Transform FindNamedTransformInScene(string objectName)
+    {
+        if (string.IsNullOrWhiteSpace(objectName))
+            return null;
+
+        Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
+        for (int i = 0; i < all.Length; i++)
+        {
+            Transform t = all[i];
+            if (t == null || t.hideFlags != HideFlags.None || !t.gameObject.scene.IsValid())
+                continue;
+            if (string.Equals(t.name, objectName, StringComparison.OrdinalIgnoreCase))
+                return t;
+        }
+
+        return null;
+    }
+
+    private void SanitizePageReferences()
+    {
+        if (skillsAbilitiesPage != null && IsUnderOldUnused(skillsAbilitiesPage.transform))
+            skillsAbilitiesPage = null;
     }
 
     /// <summary>Later siblings draw on top — keep the tab bar above page content (e.g. SkillsAbilityPageNEW).</summary>
@@ -592,8 +584,15 @@ public class MainMenuWindowUI : MonoBehaviour
 
         SkillsAbilityPageNewUI newPageUi =
             FindFirstObjectByType<SkillsAbilityPageNewUI>(FindObjectsInactive.Include);
-        if (newPageUi != null)
+        if (newPageUi != null && !IsUnderOldUnused(newPageUi.transform))
             skillsAbilitiesPage = newPageUi.gameObject;
+        else if (mainMenuWindow != null)
+        {
+            Transform content = mainMenuWindow.transform.Find("ContentRoot");
+            Transform page = content != null ? content.Find("SkillsAbilityPageNEW") : null;
+            if (page != null)
+                skillsAbilitiesPage = page.gameObject;
+        }
     }
 
     private void RestorePersistedWindowState()
@@ -609,11 +608,7 @@ public class MainMenuWindowUI : MonoBehaviour
         if (!page)
             page = characterPage;
         if (page)
-        {
             OpenPage(page);
-            if (page == levelSelectPage)
-                ApplyLevelSelectPresentation();
-        }
     }
 
     private void RememberOpenPage(GameObject page)
@@ -628,10 +623,8 @@ public class MainMenuWindowUI : MonoBehaviour
             return PersistedPage.Character;
         if (page == skillsAbilitiesPage)
             return PersistedPage.SkillsAbilities;
-        if (page == levelSelectPage)
-            return PersistedPage.LevelSelect;
         if (fullMapPage && page == fullMapPage)
-            return PersistedPage.LevelSelectWorldMap;
+            return PersistedPage.WorldMap;
 
         if (page == questPage)
             return PersistedPage.Quest;
@@ -646,8 +639,7 @@ public class MainMenuWindowUI : MonoBehaviour
         {
             PersistedPage.Character => characterPage,
             PersistedPage.SkillsAbilities => skillsAbilitiesPage,
-            PersistedPage.LevelSelect => levelSelectPage,
-            PersistedPage.LevelSelectWorldMap => fullMapPage != null ? fullMapPage : levelSelectPage,
+            PersistedPage.WorldMap => fullMapPage,
             PersistedPage.Quest => questPage,
             PersistedPage.Settings => settingsPage,
             _ => null

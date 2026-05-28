@@ -855,9 +855,6 @@ public class WorldMapPageUI : MonoBehaviour
 
     private void OnReturnToLevelSelectClicked()
     {
-        MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
-        if (menu != null)
-            menu.SelectTab(MainMenuTabId.LevelSelect);
     }
 
     private void RebuildGraph()

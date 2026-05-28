@@ -47,7 +47,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
     [Header("Defensive (NEW)")]
     [SerializeField] private TMP_Text moveSpeedText;
     [SerializeField] private TMP_Text lifeRegenText;
-    [SerializeField] private TMP_Text energyRegenText;
+    [FormerlySerializedAs("energyRegenText")]
+    [SerializeField] private TMP_Text energyEfficiencyText;
     [SerializeField] private TMP_Text manaRegenText;
     [SerializeField] private TMP_Text abilityPowerText;
 
@@ -348,16 +349,8 @@ public class EquipmentStatsPanelUI : MonoBehaviour
 
         if (lifeRegenText) lifeRegenText.text = $"Life Regen: {stats.LifeRegenPerSecond:0.##}/s";
         if (manaRegenText) manaRegenText.text = $"Mana Regen: {stats.ManaRegenPerSecond:0.##}/s";
-        if (energyRegenText)
-        {
-            if (!abilityController && player)
-                abilityController = player.GetComponent<PlayerAbilityController>();
-            float energyRegenPerSecond = abilityController != null
-                ? abilityController.GetDisplayedEnergyRegenPerSecond()
-                : stats.EnergyRegenPerSecond;
-            float energyRegenPercent = stats.EnergyRegenBasePercentPerSecond;
-            energyRegenText.text = $"Energy Regen: {energyRegenPercent:0.#}% ({energyRegenPerSecond:0.##}/s)";
-        }
+        if (energyEfficiencyText)
+            energyEfficiencyText.text = $"Energy Efficiency: {stats.EnergyEfficiencyPercentPoints:0.#}%";
         if (abilityPowerText)
         {
             float ap = stats.AbilityPower;

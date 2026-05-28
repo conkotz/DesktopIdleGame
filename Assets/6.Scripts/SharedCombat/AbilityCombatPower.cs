@@ -180,7 +180,7 @@ public static class AbilityCombatPower
 
     public const float ShadowStrikeForwardReach = 15f;
     public const float ShadowStrikeLethalCritBonusFraction = 0.8f;
-    public const float ShadowStrikeExecutionCooldownRefundSeconds = 3f;
+    public const float ShadowStrikeExecutionCooldownRefundSeconds = 4f;
     public const float GuardiansHammerForwardReach = 8f;
     public const float GuardiansHammerVerticalHalfHeight = 2.4f;
     public const float GuardiansHammerImpactWidth = 2.6f;
@@ -215,7 +215,7 @@ public static class AbilityCombatPower
     public const float ExecutionersDescentTargetDiedRushSeconds = 0.5f;
     /// <summary>Default shockwave weapon scale (primary hit uses <see cref="AbilityDefinition.weaponDamageMultiplier"/> on the asset).</summary>
     public const float ExecutionersDescentShockwaveWeaponMultiplier = 3f;
-    public const float ExecutionersDescentShockwaveRadius = 5f;
+    public const float ExecutionersDescentShockwaveRadius = 10f;
     public const float ExecutionersDescentClaimCooldownReductionFraction = 0.5f;
     public const float ExecutionersDescentSunderingArmorMrMultiplier = 0.5f;
     public const float ExecutionersDescentSunderingDebuffSeconds = 5f;
@@ -227,8 +227,8 @@ public static class AbilityCombatPower
     /// <summary>Executioner's Continuum — axe lingers at cast position and pulses shockwaves.</summary>
     public const float ExecutionersDescentContinuumDurationSeconds = 15f;
     public const float ExecutionersDescentContinuumShockwaveIntervalSeconds = 2.5f;
-    /// <summary>Continuum shockwave hits use 70% weapon damage (base descent shockwave stays at 300%).</summary>
-    public const float ExecutionersDescentContinuumShockwaveWeaponMultiplier = 0.7f;
+    /// <summary>Continuum shockwave hits use 100% weapon damage (base descent shockwave stays at 300%).</summary>
+    public const float ExecutionersDescentContinuumShockwaveWeaponMultiplier = 1f;
 
     public static int GetExecutionersDescentContinuumShockwaveCount()
     {

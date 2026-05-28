@@ -73,6 +73,8 @@ public static class AbilityTooltipAdjustments
                 float costMult = abilityController.GetTooltipAbilityEnergyCostMultiplier();
                 resourceCost = Mathf.Max(0f, resourceCost * costMult);
             }
+            if (stats != null && resourceCost > 0f)
+                resourceCost = stats.ApplyEnergyEfficiencyToAbilityEnergyCost(def, resourceCost);
 
             return;
         }
@@ -95,6 +97,8 @@ public static class AbilityTooltipAdjustments
                     float costMult = abilityController.GetTooltipAbilityEnergyCostMultiplier();
                     resourceCost = Mathf.Max(0f, Mathf.Round(resourceCost * costMult));
                 }
+                if (stats != null && resourceCost > 0f)
+                    resourceCost = stats.ApplyEnergyEfficiencyToAbilityEnergyCost(def, resourceCost);
                 break;
         }
 

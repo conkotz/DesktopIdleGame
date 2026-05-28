@@ -133,7 +133,7 @@ MonoBehaviour:
   stats: {fileID: 0}
   player: {fileID: 0}
   playerTag: Player
-  aggroRange: 6
+  aggroRange: 12
   moveSpeed: 2
   xOnly: 1
   idleWanderEnabled: 0

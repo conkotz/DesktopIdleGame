@@ -3367,7 +3367,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         }
 
         float duration = Mathf.Max(0.05f, executionersDescentShockwaveDuration);
-        float maxRadius = executionersDescentShockwaveMaxRadius;
+        float maxRadius = AbilityCombatPower.ExecutionersDescentShockwaveRadius;
         float elapsed = 0f;
 
         while (elapsed < duration)

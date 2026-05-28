@@ -245,8 +245,8 @@ public static class GameTooltipTexts
             case "EnergyText":
                 title = "Energy";
                 description =
-                    "Resource used for gathering, movement abilities, and some actions.\n\n" +
-                    "Regenerates over time based on your Energy Regeneration.";
+                    "Resource used for non magic abilities. Regenerate 10 energy per second.\n\n" +
+                    "For gathering, this stat will act as stamina required to perform actions.";
                 return true;
 
             case "HpRegenText":
@@ -257,11 +257,10 @@ public static class GameTooltipTexts
                 return true;
 
             case "EnergyRegenText":
-                title = "Energy Regeneration";
-                description =
-                    "Base regen restores 10% of your max energy per second.\n\n" +
-                    "The stat line also shows the resulting amount per second at your current max energy. " +
-                    "Increasing max energy increases how much you recover. Gear and buffs can add flat energy per second on top.";
+            case "CombatEnergyEfficiency":
+            case "EnergyEfficiencyText":
+                title = "Energy Efficiency";
+                description = "Reduces the energy cost for using non magic abilities";
                 return true;
 
             case "GuardFlatText":

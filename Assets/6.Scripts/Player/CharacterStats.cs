@@ -175,9 +175,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float BaseMoveSpeed => baseMoveSpeed;
 
     [SerializeField] private float baseLifeRegen = 1f;
-    [Tooltip("Percent of max energy restored per second (10 = 10%/s). Gear and buffs can add flat /s on top.")]
-    [FormerlySerializedAs("baseEnergyRegen")]
-    [SerializeField] private float baseEnergyRegenPercentPerSecond = 10f;
+    [Tooltip("Flat energy restored per second before gear and buff bonuses.")]
+    [FormerlySerializedAs("baseEnergyRegenPercentPerSecond")]
+    [SerializeField] private float baseEnergyRegenFlatPerSecond = 10f;
     [SerializeField] private float baseManaRegen = 1f;
 
     [Header("Base Offense")]
@@ -603,17 +603,56 @@ public class CharacterStats : MonoBehaviour, ISaveable
         GetEquippedLifeRegen() +
         GetActiveMeleeMinorBonuses().meleeLifeRegen +
         GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceLifeRegenFlat);
-    /// <summary>Base energy regen rate as % of <see cref="MaxEnergy"/> per second (before flat bonuses).</summary>
-    public float EnergyRegenBasePercentPerSecond => Mathf.Max(0f, baseEnergyRegenPercentPerSecond);
+    /// <summary>Base flat energy regen per second (before gear/buff flat bonuses).</summary>
+    public float EnergyRegenBaseFlatPerSecond => Mathf.Max(0f, baseEnergyRegenFlatPerSecond);
 
     private float GetBonusEnergyRegenFlatPerSecond() =>
         GetEquippedEnergyRegen() +
         GetActiveMeleeMinorBonuses().meleeEnergyRegen +
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.EnergyRegen) : 0f);
 
-    /// <summary>Energy restored per second: (max energy × base %) + flat bonuses from gear, passives, and consumables.</summary>
+    /// <summary>Energy restored per second: flat base + flat bonuses from gear, passives, and consumables.</summary>
     public float EnergyRegenPerSecond =>
-        Mathf.Max(0f, MaxEnergy * (EnergyRegenBasePercentPerSecond / 100f) + GetBonusEnergyRegenFlatPerSecond());
+        Mathf.Max(0f, baseEnergyRegenFlatPerSecond + GetBonusEnergyRegenFlatPerSecond());
+
+    /// <summary>Total energy-cost reduction from armour/jewelry Energy Efficiency.</summary>
+    public float EnergyEfficiency => Mathf.Clamp01(GetEquippedCombatEnergyEfficiency());
+
+    public float EnergyEfficiencyPercentPoints => EnergyEfficiency * 100f;
+
+    public static bool AbilityQualifiesForCombatStaminaEfficiency(AbilityDefinition def)
+    {
+        if (def == null || def.GetResourceCostType() != AbilityResourceCostType.Energy)
+            return false;
+
+        return def.sourceSkill == SkillType.Melee
+               || def.sourceSkill == SkillType.Ranged
+               || def.sourceSkill == SkillType.Magic;
+    }
+
+    public int ApplyEnergyEfficiencyToAbilityEnergyCost(AbilityDefinition def, int energyCost)
+    {
+        if (energyCost <= 0 || def == null || !AbilityQualifiesForCombatStaminaEfficiency(def))
+            return energyCost;
+
+        return Mathf.Max(0, Mathf.RoundToInt(energyCost * (1f - EnergyEfficiency)));
+    }
+
+    public float ApplyEnergyEfficiencyToAbilityEnergyCost(AbilityDefinition def, float energyCost)
+    {
+        if (energyCost <= 0f || def == null || !AbilityQualifiesForCombatStaminaEfficiency(def))
+            return energyCost;
+
+        return Mathf.Max(0f, energyCost * (1f - EnergyEfficiency));
+    }
+
+    private float GetEquippedCombatEnergyEfficiency()
+    {
+        float total = 0f;
+        foreach (ItemDefinition def in EnumerateEquippedDefs())
+            total += def.CombatEnergyEfficiency;
+        return total;
+    }
     public float ManaRegenPerSecond => Mathf.Max(0f, baseManaRegen + GetEquippedManaRegen() + _combatFlatManaRegenPerSecond);
     public float LifeSteal => Mathf.Clamp01(baseLifeSteal + GetEquippedLifeSteal() + GetActiveMeleeMinorBonuses().meleeLifeSteal);
 
@@ -3967,7 +4006,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         unarmedCritMultiplier = Mathf.Max(1f, def.critMultiplier);
 
         baseLifeRegen = Mathf.Max(0f, def.lifeRegenPerSecond);
-        baseEnergyRegenPercentPerSecond = Mathf.Max(0f, def.energyRegenPerSecond);
+        baseEnergyRegenFlatPerSecond = Mathf.Max(0f, def.energyRegenPerSecond);
         baseManaRegen = Mathf.Max(0f, def.manaRegenPerSecond);
 
         baseBleedChance = Mathf.Clamp01(def.bleedChance);

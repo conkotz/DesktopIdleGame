@@ -762,14 +762,7 @@ public class PlayerAbilityController : MonoBehaviour
     public bool TryGetForcedAutoBattleAbilityId(out string abilityId)
     {
         abilityId = null;
-        bool crusaderBusy = IsCrusaderStrikeBusyThisAttack();
-        if (_crusaderStrikeComboStep <= 0 && !crusaderBusy)
-            return false;
-        if (!crusaderBusy && _crusaderStrikeComboStep >= CrusaderStrikeFinalComboStep)
-            return false;
-
-        abilityId = CrusaderStrikeId;
-        return true;
+        return false;
     }
 
     private bool IsCrusaderStrikeBusyThisAttack()
@@ -777,6 +770,14 @@ public class PlayerAbilityController : MonoBehaviour
         return _crusaderStrikeQueued ||
                _queuedConsumedThisHit == QueuedHitEffect.CrusaderStrike ||
                _queuedCrusaderStrikeConsumedStage > 0;
+    }
+
+    private bool IsCrusaderStrikeComboInProgress()
+    {
+        if (IsCrusaderStrikeBusyThisAttack())
+            return true;
+
+        return _crusaderStrikeComboStep > 0 && _crusaderStrikeComboStep < CrusaderStrikeFinalComboStep;
     }
 
     private void ForceEndCrusaderStrikeCombo(bool applyCooldown)
@@ -802,7 +803,7 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void CleanupCrusaderStrikeIfExpired()
     {
-        bool comboActive = _crusaderStrikeQueued || _crusaderStrikeComboStep > 0;
+        bool comboActive = IsCrusaderStrikeComboInProgress();
         if (!comboActive)
         {
             _crusaderStrikeComboTimeoutAt = 0f;
@@ -2194,6 +2195,7 @@ public class PlayerAbilityController : MonoBehaviour
 
                 float costMultiplier = GetBattleEngineOverloadEnergyCostMultiplier();
                 int energyCost = Mathf.Max(0, Mathf.RoundToInt(def.energyCost * costMultiplier));
+                energyCost = stats.ApplyEnergyEfficiencyToAbilityEnergyCost(def, energyCost);
                 if (energyCost <= 0)
                     return true;
 
@@ -2860,7 +2862,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
         if (string.Equals(def.abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
         {
-            if (IsCrusaderStrikeBusyThisAttack())
+            if (IsCrusaderStrikeComboInProgress())
                 return false;
         }
         if (string.Equals(def.abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
@@ -2878,6 +2880,7 @@ public class PlayerAbilityController : MonoBehaviour
         bool isFlameCharge = string.Equals(def.abilityId, FlameChargeId, StringComparison.OrdinalIgnoreCase);
         if (!isWhirlwind &&
             !isCrusaderStrike &&
+            !isGuardiansHammer &&
             !AbilityDefersEnergyUntilActivated(def) &&
             !TrySpendAbilityResourceCost(def, showLockedFeedback))
             return false;
@@ -3058,6 +3061,12 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (isGuardiansHammer)
         {
+            if (requireGuardiansHammerTargetInFacingZone && !CanHitAnyEnemyWithGuardiansHammer())
+                return false;
+
+            if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
+                return false;
+
             _guardiansHammerUsedEnergyInfusionMana = DidLastAbilitySpendUseEnergyInfusionMana(def);
             FireGuardiansHammerImpact(def);
             if (globalCooldownSeconds > 0f)
@@ -3138,9 +3147,9 @@ public class PlayerAbilityController : MonoBehaviour
             if (!TrySpendAbilityResourceCost(def, showLockedFeedback))
                 return false;
 
+            StartCooldown(def);
             ExecuteShadowStrike(def, shadowTarget);
 
-            StartCooldown(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
             LogAbilityUsed(def);
@@ -3401,14 +3410,37 @@ public class PlayerAbilityController : MonoBehaviour
         if (def == null || stats == null)
             return false;
 
-        if (IsCrusaderStrikeBusyThisAttack())
+        if (IsCrusaderStrikeComboInProgress())
             return false;
 
         if (!TrySpendAbilityResourceCost(def, showInsufficientFeedback: true))
             return false;
 
-        int castStep = Mathf.Clamp(_crusaderStrikeComboStep + 1, 1, CrusaderStrikeFinalComboStep);
-        _crusaderStrikePrimedStage = castStep;
+        _crusaderStrikeComboStep = 0;
+        _crusaderStrikePrimedStage = 1;
+        _crusaderStrikeQueued = true;
+        RefreshCrusaderStrikeComboTimeout();
+        return true;
+    }
+
+    private bool TryQueueNextCrusaderStrikeHit(int completedStage)
+    {
+        if (completedStage >= CrusaderStrikeFinalComboStep)
+            return false;
+
+        int nextStage = completedStage + 1;
+        AbilityDefinition def = GetAbilityDefinition(CrusaderStrikeId);
+        bool secondCastFree = nextStage == 2 && IsCrusaderStrikeSecondCastFree();
+
+        if (!secondCastFree &&
+            def != null &&
+            !TrySpendAbilityResourceCost(def, showInsufficientFeedback: false))
+        {
+            ForceEndCrusaderStrikeCombo(applyCooldown: false);
+            return false;
+        }
+
+        _crusaderStrikePrimedStage = nextStage;
         _crusaderStrikeQueued = true;
         RefreshCrusaderStrikeComboTimeout();
         return true;
@@ -4314,6 +4346,8 @@ public class PlayerAbilityController : MonoBehaviour
         abilityVfx?.SpawnShadowStrikeDepartSmoke(departPosition);
         abilityVfx?.SpawnShadowStrikeBurst(target.transform.position);
 
+        ApplyShadowStrikeMark(target, def);
+
         BuildWhirlwindAbilityScaledSplit(def, out SplitDamage rolledNonCrit, out bool wasCrit, out float lightningMagNonCrit);
         float critMult = wasCrit ? Mathf.Max(1f, stats.CritMultiplier) : 1f;
         SplitDamage rolled = new SplitDamage(
@@ -4327,8 +4361,6 @@ public class PlayerAbilityController : MonoBehaviour
         ApplyOnHitEffects(target, dealt);
         if (player != null && dealt.Total > 0f)
             player.ApplyLifeSteal(dealt.Total);
-
-        ApplyShadowStrikeMark(target, def);
     }
 
     private bool TryResolveShadowStrikeTarget(out EnemyBaseController target)
@@ -4457,6 +4489,7 @@ public class PlayerAbilityController : MonoBehaviour
             ? EnemyShadowStrikeMarks.MarkKind.LethalCrit
             : EnemyShadowStrikeMarks.MarkKind.Execution;
         marks.ApplyMark(kind, this, def);
+        UnitOverheadUI.RefreshShadowStrikeMarksForEnemy(target);
     }
 
     private int GetShadowStrikeSelectedChoice()
@@ -4477,15 +4510,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (!def || seconds <= 0f)
             return;
 
-        if (!_cooldownEndsById.TryGetValue(def.abilityId, out float end))
-            return;
-
-        float remaining = end - Time.time;
-        if (remaining <= 0f)
-            return;
-
-        float newRemaining = Mathf.Max(0f, remaining - seconds);
-        _cooldownEndsById[def.abilityId] = Time.time + newRemaining;
+        ReduceStoredAbilityCooldownBySeconds(def.abilityId, seconds);
     }
 
     private EnemyBaseController ResolveExecutionersDescentTarget() =>
@@ -5148,7 +5173,10 @@ public class PlayerAbilityController : MonoBehaviour
     private float GetWhirlwindChannelEnergyPerSecond(AbilityDefinition def)
     {
         float baseCost = GetWhirlwindBaseChannelEnergyPerSecond(def);
-        return Mathf.Max(0f, baseCost * GetBattleEngineOverloadEnergyCostMultiplier());
+        float scaled = Mathf.Max(0f, baseCost * GetBattleEngineOverloadEnergyCostMultiplier());
+        return stats != null
+            ? stats.ApplyEnergyEfficiencyToAbilityEnergyCost(def, scaled)
+            : scaled;
     }
 
     private float GetWhirlwindChannelElapsedSeconds()
@@ -5736,6 +5764,8 @@ public class PlayerAbilityController : MonoBehaviour
 
                 if (consumedStage == 2 && physicalDealt > 0f && player != null && stats != null)
                     player.Heal(stats.MaxHP * GetCrusaderStrikeHealFraction(), PlayerCombatController.CrusaderStrikeHealingSourceLabel);
+
+                TryQueueNextCrusaderStrikeHit(consumedStage);
             }
             else if (consumedStage >= CrusaderStrikeFinalComboStep)
             {
@@ -7206,7 +7236,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, CrescentSlashId, StringComparison.OrdinalIgnoreCase))
             return _crescentSlashQueued;
         if (string.Equals(abilityId, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase))
-            return IsCrusaderStrikeBusyThisAttack();
+            return IsCrusaderStrikeComboInProgress();
 
         return false;
     }
@@ -7296,7 +7326,7 @@ public class PlayerAbilityController : MonoBehaviour
             return;
         }
 
-        if (string.Equals(id, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase) && _crusaderStrikeComboStep > 0)
+        if (string.Equals(id, CrusaderStrikeId, StringComparison.OrdinalIgnoreCase) && IsCrusaderStrikeComboInProgress())
         {
             ForceEndCrusaderStrikeCombo(applyCooldown: false);
             return;

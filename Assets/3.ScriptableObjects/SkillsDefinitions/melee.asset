@@ -738,7 +738,7 @@ MonoBehaviour:
     - requiredLevel: 28
       title: Shadow Execution
       description: Marks the target on hit. When this target dies, reduce the cooldown
-        of Shadow Strike by 3 seconds.
+        of Shadow Strike by 4 seconds.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -1389,7 +1389,7 @@ MonoBehaviour:
       title: Executioner's Continuum
       description: The axe no longer crashes downward. It spawns at the impact point
         and releases shockwaves every 2.5 seconds for 15 seconds. Each shockwave
-        deals 70% weapon damage.
+        deals 100% weapon damage.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

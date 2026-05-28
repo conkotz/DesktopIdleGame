@@ -51,7 +51,7 @@ public class UIWindowManager : MonoBehaviour
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenSkillsAbilities))
             menu.SelectTab(MainMenuTabId.Skills);
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenLevelSelect))
-            menu.SelectTab(MainMenuTabId.LevelSelect);
+            menu.SelectTab(MainMenuTabId.WorldMap);
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.OpenQuestPage))
             menu.SelectTab(MainMenuTabId.Quest);
         else if (WasHotkeyPressedThisFrame(HotkeyBindId.ReturnToTown))

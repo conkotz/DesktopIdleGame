@@ -1212,6 +1212,7 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty lifeRegen = bonusStats.FindPropertyRelative("lifeRegen");
         SerializedProperty energyRegen = bonusStats.FindPropertyRelative("energyRegen");
         SerializedProperty manaRegen = bonusStats.FindPropertyRelative("manaRegen");
+        SerializedProperty energyEfficiency = bonusStats.FindPropertyRelative("energyEfficiency");
         SerializedProperty lifeSteal = bonusStats.FindPropertyRelative("lifeSteal");
 
         SerializedProperty moveSpeedPercent = bonusStats.FindPropertyRelative("moveSpeedPercent");
@@ -1267,6 +1268,9 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(lifeRegen);
         EditorGUILayout.PropertyField(energyRegen);
         EditorGUILayout.PropertyField(manaRegen);
+        ItemKind kind = (ItemKind)itemKind.enumValueIndex;
+        if (kind == ItemKind.Armor || kind == ItemKind.Jewelry)
+            EditorGUILayout.PropertyField(energyEfficiency, new GUIContent("Energy Efficiency"));
         EditorGUILayout.PropertyField(lifeSteal);
 
         EditorGUILayout.Space(4);

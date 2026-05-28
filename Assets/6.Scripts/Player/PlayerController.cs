@@ -123,7 +123,13 @@ public class PlayerController : MonoBehaviour
         (_moveToPointFromPlayerInput && state == State.MoveToPoint);
 
     /// <summary>True when recent horizontal motion is away from the current combat target.</summary>
-    public bool IsMovingAwayFromCombatTarget()
+    public bool IsMovingAwayFromCombatTarget() => IsPlayerMovingAwayFromCombatTarget();
+
+    /// <summary>
+    /// True while the player is actively retreating from the current combat target via input or motion.
+    /// Auto attacks should pause until this returns false (player standing still again).
+    /// </summary>
+    public bool IsPlayerMovingAwayFromCombatTarget()
     {
         if (combat == null)
             return false;
@@ -132,13 +138,34 @@ public class PlayerController : MonoBehaviour
         if (target == null || target.IsDead)
             return false;
 
-        float dx = transform.position.x - _lastX;
-        if (Mathf.Abs(dx) <= flipDeadzone)
-            return false;
-
-        float targetX = target.transform.position.x;
         float myX = transform.position.x;
-        return dx > 0f && targetX < myX || dx < 0f && targetX > myX;
+        float targetX = target.transform.position.x;
+
+        if (IsKeyboardMoveLeftHeld() || IsKeyboardMoveRightHeld())
+        {
+            float dir = 0f;
+            if (IsKeyboardMoveLeftHeld())
+                dir -= 1f;
+            if (IsKeyboardMoveRightHeld())
+                dir += 1f;
+
+            if (dir > 0f && targetX < myX || dir < 0f && targetX > myX)
+                return true;
+        }
+
+        float dx = myX - _lastX;
+        if (Mathf.Abs(dx) > flipDeadzone && (dx > 0f && targetX < myX || dx < 0f && targetX > myX))
+            return true;
+
+        if (state == State.MoveToPoint && _moveToPointFromPlayerInput)
+        {
+            float gapNow = Mathf.Abs(myX - targetX);
+            float gapAtDest = Mathf.Abs(moveTargetX - targetX);
+            if (gapAtDest > gapNow + flipDeadzone && Mathf.Abs(moveTargetX - myX) > flipDeadzone)
+                return true;
+        }
+
+        return false;
     }
 
     private Rigidbody2D _rb;

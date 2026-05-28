@@ -889,6 +889,33 @@ public class UnitOverheadUI : MonoBehaviour
         return true;
     }
 
+    public static void RefreshShadowStrikeMarksForEnemy(EnemyBaseController enemyController)
+    {
+        UnitOverheadUI match = FindOverheadForEnemy(enemyController);
+        if (match == null)
+            return;
+
+        match.EnsureShadowStrikeMarksSubscription();
+        match.RefreshDebuffIcons();
+    }
+
+    private void EnsureShadowStrikeMarksSubscription()
+    {
+        if (enemy == null)
+            return;
+
+        EnemyShadowStrikeMarks marks = enemy.GetComponent<EnemyShadowStrikeMarks>();
+        if (marks == _shadowStrikeMarks)
+            return;
+
+        if (_shadowStrikeMarks != null)
+            _shadowStrikeMarks.OnMarksChanged -= RefreshDebuffIcons;
+
+        _shadowStrikeMarks = marks;
+        if (_shadowStrikeMarks != null)
+            _shadowStrikeMarks.OnMarksChanged += RefreshDebuffIcons;
+    }
+
     private static UnitOverheadUI FindOverheadForEnemy(EnemyBaseController enemyController)
     {
         if (!enemyController)
@@ -1925,6 +1952,7 @@ public class UnitOverheadUI : MonoBehaviour
     public void RefreshDebuffIcons()
     {
         RefreshPlayerOverheadAilmentPresentation();
+        EnsureShadowStrikeMarksSubscription();
 
         ClearDebuffIcons();
 

@@ -781,6 +781,12 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return;
         }
 
+        if (player.IsPlayerMovingAwayFromCombatTarget())
+        {
+            player.ClearActionOverride();
+            return;
+        }
+
         float cooldown = 1f / Mathf.Max(0.01f, stats.AttacksPerSecond);
 
         // Prioritize queued Crescent Slash over normal auto attack cadence.

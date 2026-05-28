@@ -31,6 +31,9 @@ public static class MainMenuTabButtonAutoWire
             if (!t.GetComponentInParent<MainMenuWindowUI>(true))
                 continue;
 
+            if (MainMenuWindowUI.IsUnderOldUnused(t))
+                continue;
+
             if (!TryResolveTabId(t.name, out MainMenuTabId tabId))
                 continue;
 
@@ -84,12 +87,6 @@ public static class MainMenuTabButtonAutoWire
         if (IsName(objectName, "QuestTabButton", "UIButton_Quest"))
         {
             tabId = MainMenuTabId.Quest;
-            return true;
-        }
-
-        if (IsName(objectName, "LevelsTabButton", "LevelSelectTabButton"))
-        {
-            tabId = MainMenuTabId.LevelSelect;
             return true;
         }
 

@@ -53,7 +53,7 @@ public static class HotkeyBindIds
             case HotkeyBindId.OpenSkillsAbilities:
                 return "Open Skills & Abilities";
             case HotkeyBindId.OpenLevelSelect:
-                return "Open Level select";
+                return "Open World Map";
             case HotkeyBindId.OpenQuestPage:
                 return "Open Quests";
             case HotkeyBindId.SwapWeaponSet:
