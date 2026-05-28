@@ -61,6 +61,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private UnityEngine.Events.UnityAction _resetTreeClickHandler;
     private Coroutine _deferredProgressionRefresh;
     private Coroutine _deferredOpenRefresh;
+    private readonly HashSet<SkillType> _pendingEntryGlowBySkill = new();
+    private readonly Dictionary<SkillType, HashSet<int>> _pendingTreeGlowLevelsBySkill = new();
 
     // Per-skill tabs (Melee / Woodcutting) — brown selected style.
     private static readonly Color TabSelectedImageColor = new Color(0.36078432f, 0.26666668f, 0.12941177f, 1f);
@@ -103,9 +105,12 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         ApplyCategoryMode(showOnly: true);
         WireSkillTabButtons();
         TrySubscribeSkillsEvents();
+        HookTreeGlowAcknowledge();
         ResolveInitialSkillSelection();
         RefreshTabSelectionVisuals();
         RefreshCategoryModeButtonVisuals();
+        EnsureHorizontalTimelineReference();
+        horizontalSkillTimeline?.SetScrollViewportVisible(false);
         QueueDeferredOpenRefresh();
     }
 
@@ -128,6 +133,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         SaveTimelineScrollForSkill(_selectedSkill);
 
         SaveCategoryModeToPrefs();
+        SetTimelineScrollViewportVisible(true);
+        UnhookTreeGlowAcknowledge();
         UnwireResetTreeButton();
         TryUnsubscribeSkillsEvents();
     }
@@ -143,8 +150,19 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             SetCategoryMode(skill.category, selectDefaultSkill: false);
 
         _selectedSkill = skill;
-        RefreshView();
-        RestoreTimelineScrollForSkill(_selectedSkill);
+        SetTimelineScrollViewportVisible(false);
+        BeginTimelineScrollRestoreSession(_selectedSkill);
+        try
+        {
+            RefreshView();
+            EnsureHorizontalTimelineReference();
+            horizontalSkillTimeline?.FlushPendingTimelineLayout();
+        }
+        finally
+        {
+            EndTimelineScrollRestoreSession();
+            SetTimelineScrollViewportVisible(true);
+        }
         RefreshTabSelectionVisuals();
         RefreshSkillsListSelection();
         ApplyActionBarForSelectedSkill();
@@ -221,6 +239,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     {
         RefreshPageLabels();
         SyncTimelineFromPageSelection();
+        ApplyPendingTreeGlowForSelectedSkill();
         RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
         RefreshSkillsListLevels();
@@ -373,8 +392,10 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (skillsListPanel == null)
             return;
 
-        skillsListPanel.Configure(skillDatabase, skillsManager, SelectSkill);
+        SkillsAbilitiesColdStartLevelUpGlow.MergeInto(_pendingEntryGlowBySkill, _pendingTreeGlowLevelsBySkill);
+        skillsListPanel.Configure(skillDatabase, skillsManager, SelectSkill, HandleSkillEntryGlowAcknowledgedByHover);
         skillsListPanel.SetVisibleCategory(_categoryMode);
+        skillsListPanel.ApplyPendingEntryGlows(_pendingEntryGlowBySkill);
         RefreshSkillsListSelection();
     }
 
@@ -391,7 +412,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             return;
 
         PreferRuntimeSkillsManager();
-        skillsListPanel.Configure(skillDatabase, skillsManager, SelectSkill);
+        skillsListPanel.Configure(skillDatabase, skillsManager, SelectSkill, HandleSkillEntryGlowAcknowledgedByHover);
         skillsListPanel.RefreshAllLevels();
     }
 
@@ -791,9 +812,13 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         yield return null;
         if (!isActiveAndEnabled)
         {
+            SetTimelineScrollViewportVisible(true);
             _deferredOpenRefresh = null;
             yield break;
         }
+
+        BeginTimelineScrollRestoreSession(_selectedSkill);
+        SetTimelineScrollViewportVisible(false);
 
         WireSkillTabButtons();
         RefreshSkillsList();
@@ -803,6 +828,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         yield return null;
         if (!isActiveAndEnabled)
         {
+            EndTimelineScrollRestoreSession();
+            SetTimelineScrollViewportVisible(true);
             _deferredOpenRefresh = null;
             yield break;
         }
@@ -812,6 +839,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         yield return null;
         if (!isActiveAndEnabled)
         {
+            EndTimelineScrollRestoreSession();
+            SetTimelineScrollViewportVisible(true);
             _deferredOpenRefresh = null;
             yield break;
         }
@@ -819,15 +848,21 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
 
-        // Final post-layout reapply: some downstream UI rebuilds can nudge the timeline once after open.
-        yield return null;
+        EnsureHorizontalTimelineReference();
+        if (horizontalSkillTimeline != null)
+            yield return horizontalSkillTimeline.CoWaitForPendingTimelineLayout();
+
         if (!isActiveAndEnabled)
         {
+            EndTimelineScrollRestoreSession();
+            SetTimelineScrollViewportVisible(true);
             _deferredOpenRefresh = null;
             yield break;
         }
-        RestoreTimelineScrollForSkill(_selectedSkill);
 
+        EndTimelineScrollRestoreSession();
+        SetTimelineScrollViewportVisible(true);
+        ReplayPendingGlowForVisibleUi();
         _deferredOpenRefresh = null;
     }
 
@@ -848,6 +883,41 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             return;
 
         PlayerPrefs.SetFloat(GetTimelineScrollPrefsKey(skill.skillType), Mathf.Clamp01(normalized.Value));
+    }
+
+    private float? TryReadTimelineScrollFromPrefs(SkillDefinition skill)
+    {
+        if (skill == null)
+            return null;
+
+        string key = GetTimelineScrollPrefsKey(skill.skillType);
+        if (!PlayerPrefs.HasKey(key))
+            return null;
+
+        return Mathf.Clamp01(PlayerPrefs.GetFloat(key, 0f));
+    }
+
+    private void BeginTimelineScrollRestoreSession(SkillDefinition skill)
+    {
+        EnsureHorizontalTimelineReference();
+        if (horizontalSkillTimeline == null)
+            return;
+
+        horizontalSkillTimeline.BeginScrollRestoreSession(TryReadTimelineScrollFromPrefs(skill));
+    }
+
+    private void EndTimelineScrollRestoreSession()
+    {
+        if (horizontalSkillTimeline == null)
+            return;
+
+        horizontalSkillTimeline.EndScrollRestoreSession();
+    }
+
+    private void SetTimelineScrollViewportVisible(bool visible)
+    {
+        EnsureHorizontalTimelineReference();
+        horizontalSkillTimeline?.SetScrollViewportVisible(visible);
     }
 
     private void RestoreTimelineScrollForSkill(SkillDefinition skill)
@@ -1020,25 +1090,38 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         RefreshPageLabels();
         RefreshSkillsListLevels();
         SyncTimelineFromPageSelectionPreservingCurrentScroll();
+        ApplyPendingTreeGlowForSelectedSkill();
         RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
+        ReplayPendingGlowForVisibleUi();
     }
 
-    private void HandleSkillsLevelChanged(SkillType type, int _)
+    private void HandleSkillsLevelChanged(SkillType type, int newLevel)
     {
+        SkillsAbilitiesColdStartLevelUpGlow.ConsumeBecauseLiveUiHandled(type);
+
+        _pendingEntryGlowBySkill.Add(type);
+        if (!_pendingTreeGlowLevelsBySkill.TryGetValue(type, out HashSet<int> levels))
+        {
+            levels = new HashSet<int>();
+            _pendingTreeGlowLevelsBySkill[type] = levels;
+        }
+
+        levels.Add(newLevel);
+
         if (!isActiveAndEnabled)
             return;
 
+        if (skillsListPanel != null)
+            skillsListPanel.ShowUnlockGlowForSkill(type);
+
         if (_selectedSkill != null && _selectedSkill.skillType == type)
         {
-            RefreshPageLabels();
-            SyncTimelineFromPageSelectionPreservingCurrentScroll();
-            RefreshActiveAbilitiesList();
-            RefreshActiveBonusesPanel();
+            EnsureHorizontalTimelineReference();
+            horizontalSkillTimeline?.HighlightNewUnlocksAtLevel(newLevel);
         }
 
-        if (skillsListPanel != null)
-            skillsListPanel.RefreshLevelsForSkill(type);
+        QueueDeferredProgressionRefresh();
     }
 
     private void HandleSkillsXpGained(SkillType type, int _, string __)
@@ -1111,14 +1194,83 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             ? horizontalSkillTimeline.TryGetTimelineScrollNormalizedPosition()
             : null;
 
+        if (current.HasValue)
+            horizontalSkillTimeline?.BeginScrollRestoreSession(current);
+
         SyncTimelineFromPageSelection();
+        ApplyPendingTreeGlowForSelectedSkill();
 
         if (horizontalSkillTimeline == null)
             return;
 
+        horizontalSkillTimeline.FlushPendingTimelineLayout();
+
         if (current.HasValue)
-            horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(current.Value);
+            horizontalSkillTimeline.EndScrollRestoreSession();
         else
             RestoreTimelineScrollForSkill(_selectedSkill);
+    }
+
+    private void HookTreeGlowAcknowledge()
+    {
+        EnsureHorizontalTimelineReference();
+        if (horizontalSkillTimeline == null)
+            return;
+
+        horizontalSkillTimeline.UnlockGlowAcknowledgedByHover -= HandleTreeGlowAcknowledgedByHover;
+        horizontalSkillTimeline.UnlockGlowAcknowledgedByHover += HandleTreeGlowAcknowledgedByHover;
+    }
+
+    private void UnhookTreeGlowAcknowledge()
+    {
+        if (horizontalSkillTimeline == null)
+            return;
+
+        horizontalSkillTimeline.UnlockGlowAcknowledgedByHover -= HandleTreeGlowAcknowledgedByHover;
+    }
+
+    private void HandleSkillEntryGlowAcknowledgedByHover(SkillDefinition def)
+    {
+        if (def == null)
+            return;
+
+        _pendingEntryGlowBySkill.Remove(def.skillType);
+    }
+
+    private void HandleTreeGlowAcknowledgedByHover(int unlockLevel)
+    {
+        if (_selectedSkill == null)
+            return;
+
+        if (_pendingTreeGlowLevelsBySkill.TryGetValue(_selectedSkill.skillType, out HashSet<int> levels) && levels != null)
+            levels.Remove(unlockLevel);
+    }
+
+    private void ApplyPendingTreeGlowForSelectedSkill()
+    {
+        EnsureHorizontalTimelineReference();
+        if (horizontalSkillTimeline == null || _selectedSkill == null)
+            return;
+
+        if (_pendingTreeGlowLevelsBySkill.TryGetValue(_selectedSkill.skillType, out HashSet<int> levels)
+            && levels != null
+            && levels.Count > 0)
+        {
+            horizontalSkillTimeline.SetPendingUnlockGlowLevels(levels);
+            foreach (int lvl in levels)
+                horizontalSkillTimeline.HighlightNewUnlocksAtLevel(lvl);
+        }
+        else
+        {
+            horizontalSkillTimeline.SetPendingUnlockGlowLevels(null);
+        }
+    }
+
+    private void ReplayPendingGlowForVisibleUi()
+    {
+        if (skillsListPanel != null)
+            skillsListPanel.ApplyPendingEntryGlows(_pendingEntryGlowBySkill);
+
+        ApplyPendingTreeGlowForSelectedSkill();
     }
 }

@@ -95,6 +95,7 @@ MonoBehaviour:
     physBlockChance: 0
     bonusHealth: 10
     bonusEnergy: 20
+    energyEfficiency: 0.03
     flatGuard: 0
     maxGuardPercent: 0
   bonusStats:
@@ -108,6 +109,7 @@ MonoBehaviour:
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 0
+    energyEfficiency: 0
     lifeSteal: 0
     moveSpeedPercent: 0.03
     physicalDamage: 0
@@ -123,6 +125,7 @@ MonoBehaviour:
     corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
+    abilityCooldownReductionFraction: 0
     minionDamagePercent: 0
     minionAttackSpeedPercent: 0
     minionCritChance: 0
@@ -153,6 +156,20 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    baitTier: 0
+    fishingSpeedPercentBonus: 0
+    openRequiredAmount: 0
+    openableLoot: []
+    foodEffectDurationSeconds: 0
+    foodEnableRegen: 0
+    foodRegenTotalHeal: 0
+    foodEnableSwiftness: 0
+    foodSwiftnessPercentBonus: 0
+    foodEnableOverheal: 0
+    foodOverhealMaxAboveMaxHp: 0
+    foodOverhealInstantHeal: 0
+    foodEnableFocused: 0
+    foodFocusedDamageBonusFraction: 0
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

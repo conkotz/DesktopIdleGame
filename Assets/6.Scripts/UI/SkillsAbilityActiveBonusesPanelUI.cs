@@ -20,8 +20,8 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
     private const string MinorPassivesHeaderName = "MinorPassivesHeader";
 
     private const float MajorHeaderFontSize = 28f;
-    private const float MajorEmptyFontSize = 22f;
     private const float MinorContentFontSize = 18f;
+    private const string MinorEmptyText = "No minor passives yet";
 
     private static readonly Color LightBonusesHeaderColor = new(0.95f, 0.92f, 0.86f, 1f);
     private static readonly Color MinorBonusesBodyColor = new(0.82f, 0.78f, 0.72f, 1f);
@@ -54,7 +54,7 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
 
         if (skill == null)
         {
-            SetMinorText("No unlocks yet.");
+            SetMinorText(null);
             SetMajorEmptyVisible(true);
             SetCapstoneSectionVisible(false);
             return;
@@ -232,8 +232,13 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
 
     private void SetMinorText(string text)
     {
-        if (minorPassiveContent != null)
-            minorPassiveContent.text = string.IsNullOrEmpty(text) ? "No unlocks yet." : text;
+        if (minorPassiveContent == null)
+            return;
+
+        if (string.IsNullOrEmpty(text) || text == "No unlocks yet.")
+            minorPassiveContent.text = MinorEmptyText;
+        else
+            minorPassiveContent.text = text;
     }
 
     private void SetMajorEmptyVisible(bool showEmpty)
@@ -491,8 +496,8 @@ public sealed class SkillsAbilityActiveBonusesPanelUI : MonoBehaviour
         if (text == null)
             return;
 
-        text.fontSize = MajorEmptyFontSize;
-        text.color = LightBonusesHeaderColor;
+        text.fontSize = MinorContentFontSize;
+        text.color = MinorBonusesBodyColor;
     }
 
     private static SkillUnlockDefinition FindCapstonePassiveUnlockForSkill(SkillDefinition skill, int currentLevel)

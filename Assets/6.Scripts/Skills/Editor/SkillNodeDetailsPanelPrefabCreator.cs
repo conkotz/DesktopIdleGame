@@ -195,22 +195,26 @@ public static class SkillNodeDetailsPanelPrefabCreator
         AddVerticalSection(left, spacing: 6);
 
         var topRow = CreateChild(left, "TopRow");
-        AddLayoutElement(topRow, preferredHeight: 76);
+        AddLayoutElement(topRow, minHeight: SkillNodeDetailsPanelUI.HeaderIconSize, flexibleHeight: 0);
         var topHlg = topRow.gameObject.AddComponent<HorizontalLayoutGroup>();
-        topHlg.spacing = 8;
+        topHlg.spacing = 12;
         topHlg.childAlignment = TextAnchor.UpperLeft;
-        topHlg.childControlWidth = false;
+        topHlg.childControlWidth = true;
         topHlg.childControlHeight = true;
+        topHlg.childForceExpandWidth = false;
+        topHlg.childForceExpandHeight = true;
 
-        Image skillIcon = CreateIcon(topRow, "SkillIcon", 60);
+        Image skillIcon = CreateIcon(topRow, "SkillIcon", SkillNodeDetailsPanelUI.HeaderIconSize);
 
         var nameBlock = CreateChild(topRow, "NameBlock");
-        AddLayoutElement(nameBlock, flexibleWidth: 1);
+        AddLayoutElement(nameBlock, flexibleWidth: 1, flexibleHeight: 1, minWidth: 0, minHeight: SkillNodeDetailsPanelUI.HeaderIconSize);
         var nameVlg = nameBlock.gameObject.AddComponent<VerticalLayoutGroup>();
         nameVlg.spacing = 2;
         nameVlg.childAlignment = TextAnchor.UpperLeft;
         nameVlg.childControlWidth = true;
         nameVlg.childControlHeight = true;
+        nameVlg.childForceExpandWidth = true;
+        nameVlg.childForceExpandHeight = false;
 
         TMP_Text nameText = CreateBodyText(nameBlock, "NameText", "Power Slash Lv 5", SkillNodeDetailsPanelUI.FontNameTitle, FontStyles.Bold, TextAlignmentOptions.TopLeft, BodyText);
         TMP_Text typeText = CreateBodyText(nameBlock, "TypeText", "Ability", SkillNodeDetailsPanelUI.FontMeta, FontStyles.Normal, TextAlignmentOptions.TopLeft, MutedText);
@@ -620,7 +624,7 @@ public static class SkillNodeDetailsPanelPrefabCreator
     private static Image CreateIcon(RectTransform parent, string name, float size)
     {
         var rt = CreateChild(parent, name);
-        AddLayoutElement(rt, preferredWidth: size, preferredHeight: size);
+        AddLayoutElement(rt, preferredWidth: size, preferredHeight: size, minWidth: size, minHeight: size, flexibleWidth: 0, flexibleHeight: 0);
         var frame = rt.gameObject.AddComponent<Image>();
         frame.color = IconFrame;
         var iconChild = CreateChild(rt, "Icon");

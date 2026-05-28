@@ -20,6 +20,7 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
     private SkillDatabase _skillDatabase;
     private SkillsManager _skillsManager;
     private Action<SkillDefinition> _onSkillClicked;
+    private Action<SkillDefinition> _onHoverAcknowledge;
     private SkillCategory _visibleCategory = SkillCategory.Combat;
     private readonly Dictionary<SkillType, SkillListEntryUI> _entryBySkillType = new();
     private readonly List<SkillListEntryUI> _rows = new();
@@ -27,11 +28,13 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
     public void Configure(
         SkillDatabase database,
         SkillsManager skillsManager,
-        Action<SkillDefinition> onSkillClicked)
+        Action<SkillDefinition> onSkillClicked,
+        Action<SkillDefinition> onHoverAcknowledge = null)
     {
         _skillDatabase = database;
         _skillsManager = skillsManager;
         _onSkillClicked = onSkillClicked;
+        _onHoverAcknowledge = onHoverAcknowledge;
     }
 
     public void SetEntryPrefab(SkillListEntryUI prefab)
@@ -66,13 +69,28 @@ public sealed class SkillsAbilitySkillsListPanelUI : MonoBehaviour
             float progress01 = _skillsManager != null ? _skillsManager.GetProgress01(skill.skillType) : 0f;
             SkillListEntryUI entry = Instantiate(entryPrefab, listContent);
             entry.gameObject.SetActive(true);
-            entry.Setup(skill, level, progress01, false, HandleEntryClicked);
+            entry.Setup(skill, level, progress01, false, HandleEntryClicked, _onHoverAcknowledge);
             _entryBySkillType[skill.skillType] = entry;
             _rows.Add(entry);
         }
 
         if (listContent is RectTransform rt)
             LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+    }
+
+    public void ShowUnlockGlowForSkill(SkillType skillType)
+    {
+        if (_entryBySkillType.TryGetValue(skillType, out SkillListEntryUI entry) && entry != null)
+            entry.ShowUnlockGlow();
+    }
+
+    public void ApplyPendingEntryGlows(IEnumerable<SkillType> pendingSkillTypes)
+    {
+        if (pendingSkillTypes == null)
+            return;
+
+        foreach (SkillType skillType in pendingSkillTypes)
+            ShowUnlockGlowForSkill(skillType);
     }
 
     public void RefreshSelection(SkillDefinition selectedSkill)

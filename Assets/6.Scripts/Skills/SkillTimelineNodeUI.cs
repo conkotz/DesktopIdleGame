@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using UnityEngine.Events;
 #if UNITY_EDITOR
@@ -13,7 +14,7 @@ using UnityEditor;
 /// </summary>
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public sealed class SkillTimelineNodeUI : MonoBehaviour
+public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
 {
     public enum SkillTimelineNodeType
     {
@@ -106,6 +107,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 #endif
 
     public event Action<SkillTimelineNodeUI> Clicked;
+    public event Action<SkillTimelineNodeUI> Hovered;
 
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
     public Button RootButton => rootButton;
@@ -115,6 +117,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
     private UnityAction _clickHandler;
     private UnityAction _selectSkillHandler;
     private UnityAction _changeNodeHandler;
+    private UIPulseGlowOverlay _unlockGlow;
 
     private const float NotSelectedFadeSeconds = 0.35f;
     private const float NotSelectedHoldOpaqueSeconds = 2f;
@@ -168,6 +171,28 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
                 ? SkillTimelineNodeState.Locked
                 : SkillTimelineNodeState.Available;
         ApplyStateVisuals(state);
+    }
+
+    public void ShowUnlockGlow()
+    {
+        RectTransform rt = RectTransform;
+        if (!rt)
+            return;
+
+        _unlockGlow = UIPulseGlowOverlay.Show(rt);
+    }
+
+    public void ClearUnlockGlow()
+    {
+        if (_unlockGlow != null)
+            _unlockGlow.Clear();
+        _unlockGlow = null;
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        ClearUnlockGlow();
+        Hovered?.Invoke(this);
     }
 
     /// <summary>Pulses <see cref="notSelectedRoot"/> (same timing as <see cref="SkillTreeNodeUI"/>).</summary>
@@ -488,12 +513,29 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
             rectTransform.localScale = Vector3.one * 1.12f;
     }
 
-    /// <summary>Unlock row node: label above icon, centered on milestone X.</summary>
+    /// <summary>Unlock-only milestone row node: label above icon, centered on milestone X.</summary>
     public void ApplyUnlockTimelinePreview(
         string displayName,
         SkillTimelineNodeState state = SkillTimelineNodeState.Available)
     {
         ApplyPreview(SkillTimelineNodeType.Unlock, state, displayName, minorPassiveLayout: false, hideNameLabel: true);
+    }
+
+    /// <summary>Updates lock/available visuals in place (no destroy/instantiate).</summary>
+    public void RefreshProgressState(SkillTimelineNodeState state)
+    {
+        if (Binding != null)
+            Binding.DisplayState = state;
+
+        if (_appliedState == state)
+        {
+            ApplyNodePlateVisual(state);
+            return;
+        }
+
+        _appliedState = state;
+        ApplyStateVisuals(state);
+        ApplyNodePlateVisual(state);
     }
 
     /// <summary>Small minor icon on the timeline spine (no card chrome).</summary>
@@ -711,11 +753,17 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         Sprite typeSprite = GetTypeIconSprite(nodeType);
 
         bool useMinorIcon = UsesMinorIconPresentation(nodeType, minorPassiveLayout);
+        bool isUnlockNode = nodeType == SkillTimelineNodeType.Unlock;
 
-        if (background != null)
-            background.gameObject.SetActive(false);
+        if (background != null && !isUnlockNode)
+        {
+            bool milestonePlate = nodeType == SkillTimelineNodeType.MajorPassive
+                || nodeType == SkillTimelineNodeType.Capstone;
+            if (!milestonePlate)
+                background.gameObject.SetActive(false);
+        }
 
-        bool showTypeDiamond = !useMinorIcon && nodeType == SkillTimelineNodeType.Ability;
+        bool showTypeDiamond = !useMinorIcon && !isUnlockNode && nodeType == SkillTimelineNodeType.Ability;
         if (typeDiamond != null)
         {
             typeDiamond.gameObject.SetActive(showTypeDiamond);
@@ -727,14 +775,17 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
             }
         }
 
-        if (useMinorIcon)
+        if (isUnlockNode)
+            ApplyMinorIconVisual(minorIcon, typeSprite, accent, rotateFallbackDiamond: false);
+        else if (useMinorIcon)
             ApplyMinorIconVisual(minorIcon, typeSprite, accent, rotateFallbackDiamond: false);
         else
             SetChildActive(minorIcon, false);
 
         if (icon != null)
         {
-            bool showIcon = !useMinorIcon && !minorPassiveLayout && nodeType != SkillTimelineNodeType.MinorPassive;
+            bool showIcon = !useMinorIcon && !isUnlockNode && !minorPassiveLayout
+                && nodeType != SkillTimelineNodeType.MinorPassive;
             icon.gameObject.SetActive(showIcon);
             if (showIcon && nodeType != SkillTimelineNodeType.Ability)
                 ApplyTypeIconImage(icon, typeSprite, accent);
@@ -835,16 +886,21 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
         };
     }
 
+    private static bool ShouldHideNodePlate(SkillTimelineNodeType nodeType, bool locked) =>
+        nodeType == SkillTimelineNodeType.Unlock
+        || ((nodeType == SkillTimelineNodeType.MajorPassive || nodeType == SkillTimelineNodeType.Capstone) && locked);
+
     private void ApplyStateVisuals(SkillTimelineNodeState state)
     {
         bool locked = state == SkillTimelineNodeState.Locked;
         bool selected = state == SkillTimelineNodeState.Selected;
         bool unlocked = state == SkillTimelineNodeState.Unlocked;
+        bool hideNodePlate = ShouldHideNodePlate(_appliedType, locked);
 
         if (lockedOverlay != null)
         {
-            lockedOverlay.SetActive(locked);
-            if (lockedOverlay.TryGetComponent(out Image overlayImg))
+            lockedOverlay.SetActive(locked && !hideNodePlate);
+            if (lockedOverlay.activeSelf && lockedOverlay.TryGetComponent(out Image overlayImg))
                 overlayImg.color = lockedOverlayColor;
         }
 
@@ -855,9 +911,11 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
             checkmark.SetActive(unlocked);
 
         if (borderOutline != null)
+            borderOutline.enabled = !hideNodePlate;
+
+        if (borderOutline != null)
             borderOutline.effectColor = selected ? selectedBorderColor : availableBorderColor;
 
-        Color accent = GetTypeColor(_appliedType);
         if (icon != null && icon.gameObject.activeSelf)
             icon.color = locked ? MultiplyColor(_baseIconColor, lockedDimMultiplier) : _baseIconColor;
 
@@ -866,6 +924,31 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour
 
         if (rootButton != null)
             rootButton.interactable = true;
+
+        ApplyNodePlateVisual(state);
+    }
+
+    private void ApplyNodePlateVisual(SkillTimelineNodeState state)
+    {
+        if (background == null)
+            return;
+
+        if (_appliedType == SkillTimelineNodeType.Unlock)
+        {
+            background.gameObject.SetActive(false);
+            return;
+        }
+
+        bool milestoneType = _appliedType == SkillTimelineNodeType.MajorPassive
+            || _appliedType == SkillTimelineNodeType.Capstone;
+        if (!milestoneType)
+            return;
+
+        bool levelObtained = state != SkillTimelineNodeState.Locked;
+        bool showPlate = levelObtained && !hideHeavyBackground;
+        background.gameObject.SetActive(showPlate);
+        if (showPlate)
+            background.color = _baseBackgroundColor;
     }
 
     private void ApplyDisplayName(string displayName, bool minorPassiveLayout, bool hideNameLabel)

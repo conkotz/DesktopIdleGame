@@ -64,7 +64,13 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     private bool _isBuilding;
     private SkillTimelineNodeUI _detailsFocusedTimelineNode;
     private float? _scrollRestoreAfterLayout;
+    private float? _scrollRestoreSessionTarget;
+    private bool _scrollRestoreSessionActive;
+    private CanvasGroup _scrollViewportCanvasGroup;
     private readonly List<SkillTimelineNodeUI> _spawnedTimelineNodes = new();
+    private readonly HashSet<int> _pendingUnlockGlowLevels = new();
+
+    public event Action<int> UnlockGlowAcknowledgedByHover;
 
     /// <summary>Inspector skill used by <see cref="BuildFromSelectedSkill"/>.</summary>
     public SkillDefinition SelectedSkill => selectedSkill;
@@ -88,13 +94,9 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         EnsureDetailsPanelReference();
         CacheRowContainers();
 
-        // SkillsAbilityPageNewUI drives the first build when the page opens; avoid a duplicate full rebuild here.
+        // SkillsAbilityPageNewUI drives open refresh and scroll restore; skip connector pass here (causes scroll jiggle).
         if (GetComponentInParent<SkillsAbilityPageNewUI>(true) != null)
-        {
-            if (HasSpawnedTimelineContent())
-                QueueDeferredConnectorRefresh();
             return;
-        }
 
         if (!BuildFromSelectedSkill() && useTestTimelineFallback && !HasSpawnedTimelineContent())
             GenerateTestTimeline();
@@ -137,6 +139,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             int playerLevel = ResolvePlayerSkillLevel(skill);
             if (playerLevel == _builtAtPlayerLevel)
                 return RefreshBuiltTimeline(skill);
+            return RefreshProgressIfSameSkill(skill, playerLevel);
         }
 
         if (timelineContent == null || nodePrefab == null)
@@ -205,6 +208,29 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
     /// <summary>Refreshes row pick / enhancement chrome without rebuilding the timeline.</summary>
     public void RefreshTimelineSelectionVisuals() => RefreshRowSelectionVisuals();
 
+    /// <summary>Pulses newly-unlocked nodes for a specific unlock level (clears when hovered).</summary>
+    public void HighlightNewUnlocksAtLevel(int unlockLevel)
+    {
+        if (_spawnedTimelineNodes.Count == 0)
+            return;
+
+        _pendingUnlockGlowLevels.Add(unlockLevel);
+
+        ApplyUnlockGlowAtLevelWithoutTracking(unlockLevel);
+    }
+
+    public void ClearPendingUnlockGlowLevel(int unlockLevel) => _pendingUnlockGlowLevels.Remove(unlockLevel);
+
+    public void SetPendingUnlockGlowLevels(IEnumerable<int> unlockLevels)
+    {
+        _pendingUnlockGlowLevels.Clear();
+        if (unlockLevels == null)
+            return;
+
+        foreach (int lvl in unlockLevels)
+            _pendingUnlockGlowLevels.Add(lvl);
+    }
+
     /// <summary>Updates level/spine/selection when <paramref name="skill"/> is already built (avoids destroy/instantiate hitch).</summary>
     private bool RefreshBuiltTimeline(SkillDefinition skill)
     {
@@ -216,8 +242,93 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         RefreshSpineProgress(playerLevel);
         BringSpineMinorNodesToFront();
         RefreshRowSelectionVisuals();
-        QueueDeferredConnectorRefresh();
         return true;
+    }
+
+    /// <summary>
+    /// Updates lock/unlock visuals without destroying nodes (matches <see cref="SkillTreeViewUI.RefreshProgressIfSameSkill"/>).
+    /// </summary>
+    public bool RefreshProgressIfSameSkill(SkillDefinition skill, int currentSkillLevel)
+    {
+        if (skill == null || skill != _builtSkill || !HasSpawnedTimelineContent())
+            return false;
+
+        _builtAtPlayerLevel = currentSkillLevel;
+        RefreshSkillLevelLabel(skill, currentSkillLevel);
+        RefreshSpineProgress(currentSkillLevel);
+        BringSpineMinorNodesToFront();
+
+        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
+        {
+            SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
+            if (node?.Binding == null)
+                continue;
+
+            SkillTimelineNodeUI.SkillTimelineNodeState state =
+                ResolveDisplayState(node.Binding.Level, currentSkillLevel);
+            node.RefreshProgressState(state);
+        }
+
+        RefreshRowSelectionVisuals();
+        return true;
+    }
+
+    /// <summary>During page open, defer scroll apply until layout is stable (see <see cref="EndScrollRestoreSession"/>).</summary>
+    public void BeginScrollRestoreSession(float? normalizedHorizontal)
+    {
+        _scrollRestoreSessionTarget = normalizedHorizontal;
+        _scrollRestoreSessionActive = true;
+    }
+
+    /// <summary>Applies the session scroll target once after layout, then clears the session.</summary>
+    public void EndScrollRestoreSession()
+    {
+        _scrollRestoreSessionActive = false;
+        float? target = _scrollRestoreSessionTarget;
+        _scrollRestoreSessionTarget = null;
+        _scrollRestoreAfterLayout = null;
+
+        if (target.HasValue)
+            ApplyScrollPositionImmediate(target.Value);
+    }
+
+    public void FlushPendingTimelineLayout()
+    {
+        if (_deferredConnectorRefresh != null)
+        {
+            StopCoroutine(_deferredConnectorRefresh);
+            _deferredConnectorRefresh = null;
+        }
+
+        RunConnectorRefreshImmediate();
+        Canvas.ForceUpdateCanvases();
+    }
+
+    public IEnumerator CoWaitForPendingTimelineLayout()
+    {
+        while (_deferredConnectorRefresh != null)
+            yield return null;
+
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+    }
+
+    public void SetScrollViewportVisible(bool visible)
+    {
+        ScrollRect scroll = ResolveTimelineScrollRect();
+        if (scroll?.viewport == null)
+            return;
+
+        if (_scrollViewportCanvasGroup == null)
+        {
+            _scrollViewportCanvasGroup = scroll.viewport.GetComponent<CanvasGroup>();
+            if (_scrollViewportCanvasGroup == null)
+                _scrollViewportCanvasGroup = scroll.viewport.gameObject.AddComponent<CanvasGroup>();
+        }
+
+        _scrollViewportCanvasGroup.alpha = visible ? 1f : 0f;
+        _scrollViewportCanvasGroup.blocksRaycasts = visible;
+        _scrollViewportCanvasGroup.interactable = visible;
     }
 
     /// <summary>Clears focused node and details (e.g. after Reset Tree).</summary>
@@ -365,18 +476,30 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         if (!isActiveAndEnabled || timelineContent == null)
             yield break;
 
+        RunConnectorRefreshImmediate();
+    }
+
+    private void RunConnectorRefreshImmediate()
+    {
+        if (!isActiveAndEnabled || timelineContent == null)
+            return;
+
         if (timelineScaffold == null)
             timelineScaffold = GetComponent<SkillTimelineScaffoldUI>();
 
         CacheRowContainers();
         if (timelineScaffold == null || !HasSpawnedTimelineContent())
-            yield break;
+            return;
 
         BuildTimelineConnectors();
         BringSpineMinorNodesToFront();
         RefreshRowSelectionVisuals();
-        RestoreTimelineScrollPosition(_scrollRestoreAfterLayout);
-        _scrollRestoreAfterLayout = null;
+
+        if (!_scrollRestoreSessionActive)
+        {
+            RestoreTimelineScrollPosition(_scrollRestoreAfterLayout);
+            _scrollRestoreAfterLayout = null;
+        }
     }
 
     [ContextMenu("Clear Spawned Nodes")]
@@ -1242,6 +1365,8 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         node.Clicked -= HandleTimelineNodeClicked;
         node.Clicked += HandleTimelineNodeClicked;
+        node.Hovered -= HandleTimelineNodeHovered;
+        node.Hovered += HandleTimelineNodeHovered;
         _spawnedTimelineNodes.Add(node);
     }
 
@@ -1250,10 +1375,41 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
         {
             if (_spawnedTimelineNodes[i] != null)
+            {
                 _spawnedTimelineNodes[i].Clicked -= HandleTimelineNodeClicked;
+                _spawnedTimelineNodes[i].Hovered -= HandleTimelineNodeHovered;
+            }
         }
 
         _spawnedTimelineNodes.Clear();
+    }
+
+    private void HandleTimelineNodeHovered(SkillTimelineNodeUI node)
+    {
+        if (node?.Binding == null)
+            return;
+
+        int unlockLevel = node.Binding.Level;
+        if (_pendingUnlockGlowLevels.Remove(unlockLevel))
+            UnlockGlowAcknowledgedByHover?.Invoke(unlockLevel);
+    }
+
+    private void ApplyUnlockGlowAtLevelWithoutTracking(int unlockLevel)
+    {
+        for (int i = 0; i < _spawnedTimelineNodes.Count; i++)
+        {
+            SkillTimelineNodeUI node = _spawnedTimelineNodes[i];
+            if (node == null || node.Binding == null)
+                continue;
+            if (node.Binding.Level != unlockLevel)
+                continue;
+            if (node.Binding.DisplayState == SkillTimelineNodeUI.SkillTimelineNodeState.Locked)
+                continue;
+            if (!node.gameObject.activeInHierarchy)
+                continue;
+
+            node.ShowUnlockGlow();
+        }
     }
 
     private void HandleTimelineNodeClicked(SkillTimelineNodeUI node)
@@ -1748,18 +1904,28 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
     private void RestoreTimelineScrollPosition(float? normalized)
     {
+        if (_scrollRestoreSessionActive)
+            return;
+
         if (!normalized.HasValue)
             return;
 
+        ApplyScrollPositionImmediate(normalized.Value);
+    }
+
+    private void ApplyScrollPositionImmediate(float normalized)
+    {
         ScrollRect scroll = ResolveTimelineScrollRect();
         if (scroll == null)
             return;
 
-        scroll.horizontalNormalizedPosition = Mathf.Clamp01(normalized.Value);
+        scroll.velocity = Vector2.zero;
+        scroll.StopMovement();
+        scroll.horizontalNormalizedPosition = Mathf.Clamp01(normalized);
     }
 
     public void ApplyTimelineScrollNormalizedPosition(float normalized) =>
-        RestoreTimelineScrollPosition(normalized);
+        ApplyScrollPositionImmediate(normalized);
 
     /// <summary>Moves choice groups / standalone nodes per <see cref="choiceGroupLayout"/> (no connector destroy).</summary>
     public void ApplyChoiceGroupLayoutOffsets()

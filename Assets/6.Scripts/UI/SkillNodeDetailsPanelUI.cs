@@ -29,6 +29,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     public const float FontEnhancementButton = 13f;
     public const float EnhancementCardHeight = 102f;
     public const float EnhancementButtonsRowHeight = 104f;
+    public const float HeaderIconSize = 80f;
 
     private const float ContentHorizontalPadding = 16f;
     private const float ColumnSpacing = 0f;
@@ -410,28 +411,55 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         if (topRow == null)
             return;
 
-        HorizontalLayoutGroup topRowLayout = topRow.GetComponent<HorizontalLayoutGroup>();
-        if (topRowLayout != null)
+        if (topRow.TryGetComponent(out LayoutElement topRowElement))
         {
+            topRowElement.minHeight = HeaderIconSize;
+            topRowElement.preferredHeight = -1f;
+            topRowElement.flexibleHeight = 0f;
+        }
+
+        if (topRow.TryGetComponent(out HorizontalLayoutGroup topRowLayout))
+        {
+            topRowLayout.childAlignment = TextAnchor.UpperLeft;
+            topRowLayout.spacing = 12f;
             topRowLayout.childControlWidth = true;
+            topRowLayout.childControlHeight = true;
             topRowLayout.childForceExpandWidth = false;
             topRowLayout.childForceExpandHeight = true;
         }
 
-        Transform nameBlock = topRow.Find("NameBlock");
-        if (nameBlock is RectTransform nameRt)
+        Transform skillIcon = topRow.Find("SkillIcon");
+        if (skillIcon != null && skillIcon.TryGetComponent(out LayoutElement iconElement))
         {
-            nameRt.anchorMin = new Vector2(0f, 0f);
-            nameRt.anchorMax = new Vector2(1f, 1f);
-            nameRt.pivot = new Vector2(0f, 0.5f);
-            nameRt.anchoredPosition = Vector2.zero;
-            nameRt.sizeDelta = Vector2.zero;
+            iconElement.minWidth = HeaderIconSize;
+            iconElement.minHeight = HeaderIconSize;
+            iconElement.preferredWidth = HeaderIconSize;
+            iconElement.preferredHeight = HeaderIconSize;
+            iconElement.flexibleWidth = 0f;
+            iconElement.flexibleHeight = 0f;
+        }
 
-            LayoutElement nameLayout = nameBlock.GetComponent<LayoutElement>();
-            if (nameLayout != null)
+        if (skillIconImage != null)
+            skillIconImage.preserveAspect = true;
+
+        Transform nameBlock = topRow.Find("NameBlock");
+        if (nameBlock != null)
+        {
+            if (nameBlock.TryGetComponent(out LayoutElement nameLayout))
             {
-                nameLayout.flexibleWidth = 1f;
                 nameLayout.minWidth = 0f;
+                nameLayout.flexibleWidth = 1f;
+                nameLayout.flexibleHeight = 1f;
+                nameLayout.minHeight = HeaderIconSize;
+            }
+
+            if (nameBlock.TryGetComponent(out VerticalLayoutGroup nameVlg))
+            {
+                nameVlg.childAlignment = TextAnchor.UpperLeft;
+                nameVlg.childControlWidth = true;
+                nameVlg.childControlHeight = true;
+                nameVlg.childForceExpandWidth = true;
+                nameVlg.childForceExpandHeight = false;
             }
         }
 
