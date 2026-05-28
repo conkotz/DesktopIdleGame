@@ -250,7 +250,6 @@ public class PlayerAbilityController : MonoBehaviour
     private float _lastSyncedHammerTempestHudEnd = float.NaN;
     private readonly Dictionary<int, float> _hammerTempestLastHitTimeByEnemyId = new();
     private readonly Dictionary<int, HammerTempestMomentumState> _hammerTempestMomentumByEnemyId = new();
-    private float _guardiansHammerProtectorResolveEndsAt;
 
     private struct HammerTempestMomentumState
     {
@@ -468,7 +467,6 @@ public class PlayerAbilityController : MonoBehaviour
         TryAutoReleaseQueuedCrescentSlash();
         TickPendingMeleeApproachAbility();
         TickWhirlwindChannel();
-        TickGuardiansHammerProtectorResolve();
         SyncWhirlwindHudBuff();
         CleanupCrusaderStrikeIfExpired();
         SyncCrusaderStrikeHudBuff();
@@ -2761,10 +2759,12 @@ public class PlayerAbilityController : MonoBehaviour
         return target != null;
     }
 
+    private static float GetCrescentSlashReach() => AbilityCombatPower.CrescentSlashReach;
+
     private bool TryFindClosestEnemyInCrescentSlashArc(out EnemyBaseController target)
     {
         target = PickPreferredForwardArcEnemy(
-            CollectCrescentSlashForwardHits(GetWhirlwindBaseRange() + 6f));
+            CollectCrescentSlashForwardHits(GetCrescentSlashReach()));
         return target != null;
     }
 
@@ -3593,16 +3593,17 @@ public class PlayerAbilityController : MonoBehaviour
         float usablePhysical = Mathf.Max(0f, rolled.physical) * stats.GetMeleeWeaponPhysicalFraction();
         float usableFire = Mathf.Max(0f, rolled.magic) * stats.GetMeleeMagicFireFraction();
         float weaponMultClamped = Mathf.Max(0f, weaponMultiplier);
+        float apM = GetAbilityPowerDamageMultiplierForAbility(def);
 
         if (finalStrike)
         {
             float totalWeaponDamage = (usablePhysical + usableFire) * weaponMultClamped;
-            return new SplitDamage(0f, totalWeaponDamage * GetCrusaderStrikeFinalFireScaling(def), 0f);
+            return new SplitDamage(0f, totalWeaponDamage * GetCrusaderStrikeFinalFireScaling(def) * apM, 0f);
         }
 
         return new SplitDamage(
-            usablePhysical * weaponMultClamped,
-            usableFire * weaponMultClamped,
+            usablePhysical * weaponMultClamped * apM,
+            usableFire * weaponMultClamped * apM,
             0f);
     }
 
@@ -4804,7 +4805,7 @@ public class PlayerAbilityController : MonoBehaviour
         bool elementalCrescent = selected == 0;
         bool penetrating = selected == 1;
 
-        float reach = GetWhirlwindBaseRange() + 6f;
+        float reach = GetCrescentSlashReach();
         abilityVfx?.SpawnCrescentSlash(reach, GetCombatFacingSign());
 
         List<(EnemyBaseController enemy, float dist)> forwardHits = CollectCrescentSlashForwardHits(reach);
@@ -4823,7 +4824,7 @@ public class PlayerAbilityController : MonoBehaviour
 
     private bool CanHitAnyEnemyWithCrescentSlash()
     {
-        float reach = GetWhirlwindBaseRange() + 6f;
+        float reach = GetCrescentSlashReach();
         List<(EnemyBaseController enemy, float dist)> forwardHits = CollectCrescentSlashForwardHits(reach);
         return forwardHits.Count > 0;
     }
@@ -5018,11 +5019,19 @@ public class PlayerAbilityController : MonoBehaviour
         abilityVfx?.SpawnGuardiansHammerSlam(reach, facing);
 
         List<(EnemyBaseController enemy, float dist)> hits = CollectGuardiansHammerTargets(reach);
+        bool grantProtectorResolve =
+            GetGuardiansHammerSelectedChoice() == GuardiansHammerProtectorResolveChoiceIndex;
+        int protectorResolveHitsGranted = 0;
         for (int i = 0; i < hits.Count; i++)
+        {
             ApplyGuardiansHammerHit(hits[i].enemy, def);
-
-        if (GetGuardiansHammerSelectedChoice() == GuardiansHammerProtectorResolveChoiceIndex)
-            ActivateGuardiansHammerProtectorResolve();
+            if (grantProtectorResolve &&
+                protectorResolveHitsGranted < AbilityCombatPower.GuardiansHammerProtectorResolveMaxEnemyHits)
+            {
+                ApplyGuardiansHammerProtectorResolveGuardForHit();
+                protectorResolveHitsGranted++;
+            }
+        }
     }
 
     private void ApplyGuardiansHammerHit(EnemyBaseController target, AbilityDefinition def)
@@ -5044,6 +5053,9 @@ public class PlayerAbilityController : MonoBehaviour
 
         if (GetGuardiansHammerSelectedChoice() == GuardiansHammerBurningVerdictChoiceIndex)
             TryTriggerGuardiansHammerBurningVerdict(target);
+
+        if (GetGuardiansHammerSelectedChoice() == GuardiansHammerProtectorResolveChoiceIndex)
+            target.TryApplyStun(AbilityCombatPower.GuardiansHammerProtectorResolveStunDurationSeconds, 1f, transform);
     }
 
     private void TryTriggerGuardiansHammerBurningVerdict(EnemyBaseController sourceEnemy)
@@ -5098,17 +5110,15 @@ public class PlayerAbilityController : MonoBehaviour
         }
     }
 
-    private void ActivateGuardiansHammerProtectorResolve()
+    private void ApplyGuardiansHammerProtectorResolveGuardForHit()
     {
         if (stats == null)
             return;
 
-        float guardAmount = stats.MaxHP * AbilityCombatPower.GuardiansHammerProtectorResolveGuardFractionMaxHealth;
+        float guardAmount =
+            stats.MaxHP * AbilityCombatPower.GuardiansHammerProtectorResolveGuardPerHitFractionMaxHealth;
         if (guardAmount > 0.0001f)
             stats.AddBonusGuard(guardAmount);
-
-        _guardiansHammerProtectorResolveEndsAt =
-            Time.time + AbilityCombatPower.GuardiansHammerProtectorResolveDurationSeconds;
     }
 
     private void FireGuardiansHammerImpact(AbilityDefinition def)
@@ -5119,21 +5129,6 @@ public class PlayerAbilityController : MonoBehaviour
         TryUseGuardiansHammer(def);
         player.TriggerAttackAnim();
         StartCooldown(def);
-    }
-
-    private void TickGuardiansHammerProtectorResolve()
-    {
-        if (stats == null || _guardiansHammerProtectorResolveEndsAt <= 0f)
-            return;
-
-        if (Time.time < _guardiansHammerProtectorResolveEndsAt)
-            return;
-
-        float decayPerSecond =
-            Mathf.Max(0f, stats.MaxHP * AbilityCombatPower.GuardiansHammerGuardDecayPerSecondFractionOfMaxHealth);
-        stats.ReduceGuardAboveNaturalCap(decayPerSecond * Time.deltaTime);
-        if (stats.Guard <= stats.NaturalGuardCap + 0.0001f)
-            _guardiansHammerProtectorResolveEndsAt = 0f;
     }
 
     private bool TryStartWhirlwindChannel(
@@ -6002,30 +5997,28 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void ActivateCleavingStrikesBuff()
     {
-        const float strikesCodeBaseSeconds = 5f;
+        float strikesCodeBaseSeconds = AbilityCombatPower.CleavingStrikesBaseDurationSeconds;
         int selected = GetCleavingStrikesSelectedChoice();
         _cleavingBuffActive = true;
         float fullChoiceDurationSeconds;
         if (selected == 0)
         {
-            // Greater Cleave: primary + 2 extra targets per swing (cleave hits use reduced damage).
-            _cleavingAdditionalTargets = 2;
-            _cleavingHitsRemaining = 3;
-            fullChoiceDurationSeconds = 5f;
+            _cleavingAdditionalTargets = AbilityCombatPower.CleavingStrikesBaseExtraTargets
+                                         + AbilityCombatPower.CleavingStrikesGreaterCleaveBonusTargets;
+            _cleavingHitsRemaining = AbilityCombatPower.CleavingStrikesBaseEmpoweredHits;
+            fullChoiceDurationSeconds = AbilityCombatPower.CleavingStrikesBaseDurationSeconds;
         }
         else if (selected == 1)
         {
-            // Lasting Momentum
-            _cleavingAdditionalTargets = 1;
-            _cleavingHitsRemaining = 6;
-            fullChoiceDurationSeconds = 10f;
+            _cleavingAdditionalTargets = AbilityCombatPower.CleavingStrikesBaseExtraTargets;
+            _cleavingHitsRemaining = AbilityCombatPower.CleavingStrikesLastingMomentumEmpoweredHits;
+            fullChoiceDurationSeconds = AbilityCombatPower.CleavingStrikesLastingMomentumDurationSeconds;
         }
         else
         {
-            // Base (no Lv18 enhancement)
-            _cleavingAdditionalTargets = 1;
-            _cleavingHitsRemaining = 4;
-            fullChoiceDurationSeconds = 7f;
+            _cleavingAdditionalTargets = AbilityCombatPower.CleavingStrikesBaseExtraTargets;
+            _cleavingHitsRemaining = AbilityCombatPower.CleavingStrikesBaseEmpoweredHits;
+            fullChoiceDurationSeconds = AbilityCombatPower.CleavingStrikesBaseDurationSeconds;
         }
 
         float baseDur = strikesCodeBaseSeconds;

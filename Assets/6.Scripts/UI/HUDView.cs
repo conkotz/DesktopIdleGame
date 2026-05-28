@@ -332,15 +332,11 @@ public class HUDView : MonoBehaviour
     {
         if (guardFill)
         {
-            if (naturalCap <= 0.0001f)
-                guardFill.fillAmount = 0f;
-            else
-            {
-                float hpD = Mathf.Max(1f, maxHp);
-                float guardZone01 = Mathf.Clamp01(naturalCap / hpD);
-                float guardFill01 = Mathf.Clamp01(current / naturalCap);
-                guardFill.fillAmount = Mathf.Clamp01(guardFill01 * guardZone01);
-            }
+            bool showGuard = current > 0.0001f;
+            guardFill.gameObject.SetActive(showGuard);
+            guardFill.fillAmount = showGuard
+                ? ComputeGuardFillAmount(current, naturalCap, maxHp)
+                : 0f;
         }
 
         if (guardValueText)
@@ -353,6 +349,21 @@ public class HUDView : MonoBehaviour
                 guardValueText.text = $"{Mathf.RoundToInt(current)}";
             }
         }
+    }
+
+    private static float ComputeGuardFillAmount(float current, float naturalCap, float maxHp)
+    {
+        if (current <= 0.0001f)
+            return 0f;
+
+        float displayCap = naturalCap > 0.0001f ? naturalCap : current;
+        if (current > naturalCap)
+            displayCap = current;
+
+        float hpD = Mathf.Max(1f, maxHp);
+        float guardZone01 = Mathf.Clamp01(displayCap / hpD);
+        float guardFill01 = Mathf.Clamp01(current / displayCap);
+        return Mathf.Clamp01(guardFill01 * guardZone01);
     }
 
     public void SetEnergy(float current, float max)

@@ -15,8 +15,7 @@ MonoBehaviour:
   notes: Presentation for flame_charge
   displayNameOverride: Flame Charge
   icon: {fileID: -5602428846640492714, guid: 01eb1e4559ff65f46bd3d6625b4956a4, type: 3}
-  shortDescription: Rush forward wreathed in fire, scorching foes you pass and leaving
-    a burning trail.
+  shortDescription: Dash forward leaving a trail of fire on the ground.
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: "Active \u2022 Movement"

@@ -2964,7 +2964,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         switch (selected)
         {
             case 0:
-                total.meleePoisonChance += 0.10f;
+                total.meleeBleedDamage += 0.10f;
                 total.poisonMaxStacksBonus += 2;
                 break;
             case 1:
@@ -3194,6 +3194,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
         IsTacticianMajorPassiveActive() &&
         GetTacticianEnhancementPick() == AbilityCombatPower.TacticianEnhancementDuality &&
         IsRecentWeaponSwapForTactician();
+
+    /// <summary>Weapon-set swap window (for tooltips/UI without requiring Tactician to be the committed Lv30 pick).</summary>
+    public bool IsWithinRecentWeaponSwapWindow() =>
+        Time.time - _lastWeaponSetSwapTime <= AbilityCombatPower.TacticianDualityRecentSwapSeconds;
 
     public float GetTacticianAttackSpeedPercent() =>
         IsTacticianOneHandedBonusesActive()

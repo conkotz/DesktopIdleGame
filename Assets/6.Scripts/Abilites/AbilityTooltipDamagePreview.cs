@@ -47,7 +47,7 @@ public static class AbilityTooltipDamagePreview
     /// <summary>Effect bullets for the skill details panel (no Effects header, no cost/cooldown footer).</summary>
     public static string BuildAbilityTooltipEffectsSection(AbilityDefinition def, SkillsManager skillsManager)
     {
-        return BuildCompactEffectsBody(def, skillsManager, includeDuration: true, displayStacks: 0);
+        return BuildCompactEffectsBody(def, skillsManager, includeDuration: true, displayStacks: 0, includeEnhancementEffects: true);
     }
 
     /// <summary>Separate cost and cooldown lines for the details panel middle column.</summary>
@@ -397,11 +397,32 @@ public static class AbilityTooltipDamagePreview
     private static float GetCleavingStrikesTooltipDurationSeconds(SkillsManager skillsManager)
     {
         int c = GetMeleeLv15BranchChoice(skillsManager, 1);
-        if (c == 0)
-            return 5f;
         if (c == 1)
-            return 10f;
-        return 7f;
+            return AbilityCombatPower.CleavingStrikesLastingMomentumDurationSeconds;
+        return AbilityCombatPower.CleavingStrikesBaseDurationSeconds;
+    }
+
+    private static void AppendCleavingStrikesEffectLines(
+        StringBuilder body,
+        System.Func<string, string> O,
+        SkillsManager skillsManager,
+        bool includeEnhancementEffects = true)
+    {
+        int sel = includeEnhancementEffects ? GetMeleeLv15BranchChoice(skillsManager, 1) : -1;
+        int extraTargets = AbilityCombatPower.CleavingStrikesBaseExtraTargets;
+        int empoweredHits = AbilityCombatPower.CleavingStrikesBaseEmpoweredHits;
+        float durationSeconds = AbilityCombatPower.CleavingStrikesBaseDurationSeconds;
+        if (sel == 0)
+            extraTargets += AbilityCombatPower.CleavingStrikesGreaterCleaveBonusTargets;
+        else if (sel == 1)
+        {
+            empoweredHits = AbilityCombatPower.CleavingStrikesLastingMomentumEmpoweredHits;
+            durationSeconds = AbilityCombatPower.CleavingStrikesLastingMomentumDurationSeconds;
+        }
+
+        body.AppendLine(O($"+{extraTargets} nearby enemies per strike"));
+        body.AppendLine(O("40% reduced damage on cleaved hits."));
+        body.AppendLine(O($"Duration {durationSeconds:0.#}s or {empoweredHits} hits"));
     }
 
     private static void AppendSoulforgedWeaponDurationLine(
@@ -570,7 +591,7 @@ public static class AbilityTooltipDamagePreview
 
     private static float GetCleavingStrikesDurationBonusSeconds(SkillsManager skillsManager)
     {
-        const float strikesCodeBase = 5f;
+        float strikesCodeBase = AbilityCombatPower.CleavingStrikesBaseDurationSeconds;
         float full = GetCleavingStrikesTooltipDurationSeconds(skillsManager);
         return Mathf.Max(0f, full - strikesCodeBase);
     }
@@ -638,6 +659,12 @@ public static class AbilityTooltipDamagePreview
             scaling.AppendLine(S($"Cast 1: {AbilityCombatPower.CrusaderStrikeFirstHitWeaponMultiplier * 100f:0.#}% of your weapon physical or Fire damage"));
             scaling.AppendLine(S($"Cast 2: {AbilityCombatPower.CrusaderStrikeSecondHitWeaponMultiplier * 100f:0.#}% of your weapon physical or Fire damage"));
             scaling.AppendLine(S($"Cast 3: {AbilityCombatPower.CrusaderStrikeFinalHitWeaponMultiplier * 100f:0.#}% of your weapon physical or Fire damage"));
+            if (stats != null)
+            {
+                float apBonusPct = Mathf.Max(0f, (stats.GetAbilityPowerDamageMultiplier() - 1f) * 100f);
+                if (apBonusPct > 0.05f)
+                    scaling.AppendLine(S($"+{apBonusPct:0.#}% damage from Ability Power"));
+            }
             return scaling.ToString().TrimEnd();
         }
 
@@ -767,7 +794,8 @@ public static class AbilityTooltipDamagePreview
         AbilityDefinition def,
         CharacterStats stats,
         SkillsManager skillsManager,
-        bool orangeMarkup)
+        bool orangeMarkup,
+        bool includeEnhancementEffects = true)
     {
         if (!def)
             return "";
@@ -813,19 +841,21 @@ public static class AbilityTooltipDamagePreview
 
         if (IsFlameCharge(def))
         {
-            int enhance = GetFlameChargeBranchChoice(skillsManager);
-            int charges = enhance == 0 ? 2 : 1;
+            int enhance = includeEnhancementEffects ? GetFlameChargeBranchChoice(skillsManager) : -1;
+            body.AppendLine(O("Dash forward leaving a trail of fire on the ground."));
             body.AppendLine(O(
-                $"Charge forward {AbilityCombatPower.FlameChargeDashDistance:0.#} units (no dash damage). Leaves fire on the ground for {AbilityCombatPower.FlameChargeTrailDurationSeconds:0.#}s."));
-            body.AppendLine(O(
-                $"Trail: {AbilityCombatPower.FlameChargeTrailTotalFlatFireDamage:0.#} Fire damage over {AbilityCombatPower.FlameChargeTrailDurationSeconds:0.#}s to enemies inside (one tick per enemy)."));
-            if (enhance == 0)
-                body.AppendLine(O($"Double Ignition: {charges} charges (trail segments cannot overlap)."));
-            else if (enhance == 1)
-                body.AppendLine(O(
-                    $"Volcanic Rush: +{AbilityCombatPower.FlameChargeVolcanicExplosionFlatFireDamage:0.#} Fire explosion at dash end ({AbilityCombatPower.FlameChargeVolcanicExplosionRadius:0.#} radius, scales with Fire damage)."));
+                $"Trail: {AbilityCombatPower.FlameChargeTrailTotalFlatFireDamage:0.#} fire damage over {AbilityCombatPower.FlameChargeTrailDurationSeconds:0.#}s (trails don't overlap)."));
+            if (includeEnhancementEffects)
+            {
+                if (enhance == 0)
+                    body.AppendLine(O("2 charges."));
+                else if (enhance == 1)
+                    body.AppendLine(O(
+                        $"{AbilityCombatPower.FlameChargeVolcanicExplosionFlatFireDamage:0.#} Fire explosion at dash end ({AbilityCombatPower.FlameChargeVolcanicExplosionRadius:0.#} radius). Applies Burn."));
+            }
             body.AppendLine(string.Empty);
-            body.AppendLine(O($"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, AbilityCombatPower.FlameChargeTrailDurationSeconds, 0f):0.#}s (trail)"));
+            body.AppendLine(O(
+                $"Duration: {AbilityCombatPower.FlameChargeTrailDurationSeconds:0.#}s (trail)"));
             body.AppendLine(string.Empty);
             AppendTooltipEnergyCooldownFooter(body, O, def, skillsManager, stats, abilityController);
             return body.ToString().TrimEnd();
@@ -833,16 +863,22 @@ public static class AbilityTooltipDamagePreview
 
         if (IsEnergyInfusion(def))
         {
-            int enhance = GetEnergyInfusionBranchChoice(skillsManager);
             body.AppendLine(O(
-                $"While active, melee abilities that use Energy instead spend {AbilityCombatPower.EnergyInfusionBaseManaCostFraction * 100f:0.#}% Mana and {(1f - AbilityCombatPower.EnergyInfusionBaseManaCostFraction) * 100f:0.#}% Energy."));
-            body.AppendLine(O("If you do not have enough Mana for the converted portion, that ability uses its full Energy cost instead."));
-            if (enhance == 0)
-                body.AppendLine(O(
-                    $"Efficient Conversion: use +{AbilityCombatPower.EnergyInfusionEfficientConversionAdditionalManaCostFraction * 100f:0.#}% additional Mana instead of Energy and gain +{AbilityCombatPower.EnergyInfusionEfficientConversionFlatManaRegenPerSecond:0.#} Mana per second while active."));
-            else if (enhance == 1)
-                body.AppendLine(O(
-                    $"Overcharged: abilities use {AbilityCombatPower.EnergyInfusionOverchargedManaCostFraction * 100f:0.#}% Mana instead of {AbilityCombatPower.EnergyInfusionBaseManaCostFraction * 100f:0.#}%, and if Mana is used that ability gains +{AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerPercentBonus:0.#}% ability power."));
+                $"{AbilityCombatPower.EnergyInfusionBaseManaCostFraction * 100f:0.#}% of energy cost replaced as mana"));
+            if (includeEnhancementEffects)
+            {
+                int enhance = GetEnergyInfusionBranchChoice(skillsManager);
+                if (enhance == 0)
+                {
+                    body.AppendLine(O(
+                        $"+{AbilityCombatPower.EnergyInfusionEfficientConversionAdditionalManaCostFraction * 100f:0.#}% additional Mana instead of Energy."));
+                    body.AppendLine(O(
+                        $"+{AbilityCombatPower.EnergyInfusionEfficientConversionFlatManaRegenPerSecond:0.#} Mana per second while active."));
+                }
+                else if (enhance == 1)
+                    body.AppendLine(O(
+                        $"Uses {AbilityCombatPower.EnergyInfusionOverchargedManaCostFraction * 100f:0.#}% Mana instead of {AbilityCombatPower.EnergyInfusionBaseManaCostFraction * 100f:0.#}%, and if Mana is used that ability gains +{AbilityCombatPower.EnergyInfusionOverchargedAbilityPowerPercentBonus:0.#}% ability power."));
+            }
             body.AppendLine(string.Empty);
             body.AppendLine(O("Duration: Toggle"));
             body.AppendLine(string.Empty);
@@ -852,7 +888,10 @@ public static class AbilityTooltipDamagePreview
 
         if (IsBattleTrance(def))
         {
-            AppendBattleTranceTooltipEffects(body, O, skillsManager);
+            if (includeEnhancementEffects)
+                AppendBattleTranceTooltipEffects(body, O, skillsManager);
+            else
+                AppendBattleTranceBaseTooltipEffects(body, O);
             float dur = GetTooltipBuffMinionDisplayDurationSeconds(def, AbilityCombatPower.BattleTranceBaseDurationSeconds, 0f);
             body.AppendLine(string.Empty);
             body.AppendLine(O($"Duration: {dur:0.#}s"));
@@ -918,25 +957,32 @@ public static class AbilityTooltipDamagePreview
         {
             body.AppendLine(O("100% bleed on next hit if physical damage is dealt"));
             body.AppendLine(O("+3s duration"));
-            if (GetMeleeSkillRow5Choice(skillsManager) == 1)
-                body.AppendLine(O("Crimson Spread"));
+            int rendChoice = GetMeleeSkillRow5Choice(skillsManager);
+            if (rendChoice == 0)
+                body.AppendLine(O("Deals full damage in half duration"));
+            else if (rendChoice == 1)
+                body.AppendLine(O("Bleed spreads"));
         }
         else if (IsEnvenom(def))
         {
-            int stackCount = ResolveEnvenomTooltipPoisonStacks(stats, skillsManager);
-            body.AppendLine(O($"Applies {stackCount} stacks of poison"));
-            if (GetMeleeSkillRow5Choice(skillsManager) == 1)
-                body.AppendLine(O("Contagion Burst"));
+            body.AppendLine(O("100% poison on next hit if corruption damage is dealt"));
+            int envenomChoice = GetMeleeSkillRow5Choice(skillsManager);
+            if (envenomChoice == 0)
+            {
+                int stackCount = ResolveEnvenomTooltipPoisonStacks(stats, skillsManager);
+                body.AppendLine(O($"Applies {stackCount} stacks of poison"));
+            }
+            else if (envenomChoice == 1)
+                body.AppendLine(O("Poison spreads"));
+            else
+            {
+                int stackCount = stats != null ? stats.PoisonMaxStacks : 3;
+                body.AppendLine(O($"Applies {stackCount} stacks of poison"));
+            }
         }
         else if (IsCleavingStrikes(def))
         {
-            int cleaveSel = GetMeleeLv15BranchChoice(skillsManager, 1);
-            if (cleaveSel == 0)
-                body.AppendLine(O("+2 nearby enemies per strike (5s, 3 hits); 40% reduced damage on cleaved hits."));
-            else if (cleaveSel == 1)
-                body.AppendLine(O("+1 nearby enemy per strike (10s, 6 hits); 40% reduced damage on cleaved hits."));
-            else
-                body.AppendLine(O("+1 nearby enemy per strike (7s, 4 hits); 40% reduced damage on cleaved hits."));
+            AppendCleavingStrikesEffectLines(body, O, skillsManager, includeEnhancementEffects);
         }
         else if (IsCrescentSlash(def))
         {
@@ -958,6 +1004,7 @@ public static class AbilityTooltipDamagePreview
                 body.AppendLine(O("Hits all enemies."));
             else
                 body.AppendLine(O("Hits 3 enemies."));
+            body.AppendLine(O($"Range: {AbilityCombatPower.CrescentSlashReach:0.#}"));
         }
         else if (IsCrusaderStrike(def))
         {
@@ -1012,7 +1059,7 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(O(
                 $"Wide arc — up to {AbilityCombatPower.FinalSeveranceMaxTargets} enemies hit."));
 
-            if (fsEnhance == 0)
+            if (includeEnhancementEffects && fsEnhance == 0)
             {
                 float bonusMult = AbilityCombatPower.FinalSeveranceWorldbreakerBonusMultiplier - 1f;
                 int bonus = Mathf.RoundToInt((physHit + magHit + corrHit) * bonusMult);
@@ -1030,12 +1077,15 @@ public static class AbilityTooltipDamagePreview
                 $"Teleports to the closest enemy up to {AbilityCombatPower.ShadowStrikeForwardReach:0.#} units ahead in your facing arc."));
             body.AppendLine(O("Does not consume your auto-attack swing timer."));
 
-            if (enhance == 0)
-                body.AppendLine(O(
-                    $"Marks the target — the next critical hit deals +{AbilityCombatPower.ShadowStrikeLethalCritBonusFraction * 100f:0.#}% critical damage, then the mark expires."));
-            else if (enhance == 1)
-                body.AppendLine(O(
-                    $"Marks the target on hit — when they die, Shadow Strike cooldown is reduced by {AbilityCombatPower.ShadowStrikeExecutionCooldownRefundSeconds:0.#}s."));
+            if (includeEnhancementEffects)
+            {
+                if (enhance == 0)
+                    body.AppendLine(O(
+                        $"Marks the target — the next critical hit deals +{AbilityCombatPower.ShadowStrikeLethalCritBonusFraction * 100f:0.#}% critical damage, then the mark expires."));
+                else if (enhance == 1)
+                    body.AppendLine(O(
+                        $"Marks the target on hit — when they die, Shadow Strike cooldown is reduced by {AbilityCombatPower.ShadowStrikeExecutionCooldownRefundSeconds:0.#}s."));
+            }
         }
         else if (IsBladestorm(def))
         {
@@ -1052,29 +1102,32 @@ public static class AbilityTooltipDamagePreview
             ComputeAverageAbilityHitSplit(def, stats, normalMult, allM, out float normPhys, out float normMag, out float normCorr, liveDamageMultiplier);
             int perStrikeTotal = Mathf.RoundToInt(normPhys + normMag + normCorr);
             body.AppendLine(O(
-                $"Relentless Execution: {channelSeconds:0.#}s channel — {strikeCount} strikes at {AbilityCombatPower.BladestormAttackSpeedMultiplier * 100f:0.#}% attack speed"));
+                $"{channelSeconds:0.#}s channel — {strikeCount} strikes at {AbilityCombatPower.BladestormAttackSpeedMultiplier * 100f:0.#}% attack speed"));
             body.AppendLine(O($"Each strike: {perStrikeTotal} total damage{dmgSuffix} (50% weapon damage)"));
             body.AppendLine(O("Locks onto a single enemy in front of you for the duration."));
             body.AppendLine(O(
-                $"Take {(1f - AbilityCombatPower.BladestormChannelDamageTakenMultiplier) * 100f:0.#}% reduced damage during Relentless Execution."));
+                $"Take {(1f - AbilityCombatPower.BladestormChannelDamageTakenMultiplier) * 100f:0.#}% reduced damage while channeling."));
 
-            if (enhance == 0)
+            if (includeEnhancementEffects)
             {
-                ComputeAverageAbilityHitSplit(def, stats, finaleMult, allM, out float finPhys, out float finMag, out float finCorr, liveDamageMultiplier);
-                int finaleTotal = Mathf.RoundToInt(finPhys + finMag + finCorr);
-                body.AppendLine(O(
-                    $"Finale: additional strike after the combo — {finaleTotal} total damage{dmgSuffix} (150% weapon damage)"));
+                if (enhance == 0)
+                {
+                    ComputeAverageAbilityHitSplit(def, stats, finaleMult, allM, out float finPhys, out float finMag, out float finCorr, liveDamageMultiplier);
+                    int finaleTotal = Mathf.RoundToInt(finPhys + finMag + finCorr);
+                    body.AppendLine(O(
+                        $"Additional strike after the combo — {finaleTotal} total damage{dmgSuffix} (150% weapon damage)"));
+                }
+                else if (enhance == 1)
+                    body.AppendLine(O(
+                        "If the target dies during the combo, remaining strikes hit the nearest enemy in range (auto-paths while channeling)."));
             }
-            else if (enhance == 1)
-                body.AppendLine(O(
-                    "If the target dies during the combo, remaining strikes hit the nearest enemy in range (auto-paths while channeling)."));
         }
         else if (IsExecutionersDescent(def))
         {
             string dmgSuffix = DamageTimingSuffix();
             int enhance = GetExecutionersDescentBranchChoice(skillsManager);
 
-            if (enhance == 2)
+            if (includeEnhancementEffects && enhance == 2)
             {
                 float continuumMult = AbilityCombatPower.ExecutionersDescentContinuumShockwaveWeaponMultiplier;
                 ComputeAverageAbilityHitSplit(
@@ -1091,7 +1144,7 @@ public static class AbilityTooltipDamagePreview
                 body.AppendLine(O(
                     $"Hits enemies within {AbilityCombatPower.ExecutionersDescentShockwaveRadius:0.#} units of the anchor"));
                 body.AppendLine(O(
-                    $"Continuum: axe anchors at impact height for {AbilityCombatPower.ExecutionersDescentContinuumDurationSeconds:0.#}s — no crash descent"));
+                    $"Axe anchors at impact height for {AbilityCombatPower.ExecutionersDescentContinuumDurationSeconds:0.#}s — no crash descent"));
                 body.AppendLine(O(
                     $"Releases {AbilityCombatPower.GetExecutionersDescentContinuumShockwaveCount()} shockwaves every {AbilityCombatPower.ExecutionersDescentContinuumShockwaveIntervalSeconds:0.#}s"));
             }
@@ -1112,17 +1165,20 @@ public static class AbilityTooltipDamagePreview
                 AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
 
                 body.AppendLine(O(
-                    $"Shockwave: {shockTotal} damage to enemies within {AbilityCombatPower.ExecutionersDescentShockwaveRadius:0.#} units of the target"));
+                    $"{shockTotal} damage to enemies within {AbilityCombatPower.ExecutionersDescentShockwaveRadius:0.#} units of the target"));
                 body.AppendLine(O(
-                    $"Descent: {AbilityCombatPower.ExecutionersDescentDescentSeconds:0.#}s — locks onto a target, then impacts at their position"));
+                    $"{AbilityCombatPower.ExecutionersDescentDescentSeconds:0.#}s — locks onto a target, then impacts at their position"));
 
-                if (enhance == 0)
-                    body.AppendLine(O("If the target dies during descent or from the impact, cooldown is reduced by 50%."));
-                else if (enhance == 1)
+                if (includeEnhancementEffects)
                 {
-                    body.AppendLine(O("Main hit ignores armour and magic resist."));
-                    body.AppendLine(O(
-                        $"Shockwave victims lose 50% armour and magic resist for {AbilityCombatPower.ExecutionersDescentSunderingDebuffSeconds:0.#}s."));
+                    if (enhance == 0)
+                        body.AppendLine(O("If the target dies during descent or from the impact, cooldown is reduced by 50%."));
+                    else if (enhance == 1)
+                    {
+                        body.AppendLine(O("Main hit ignores armour and magic resist."));
+                        body.AppendLine(O(
+                            $"Shockwave victims lose 50% armour and magic resist for {AbilityCombatPower.ExecutionersDescentSunderingDebuffSeconds:0.#}s."));
+                    }
                 }
             }
         }
@@ -1131,21 +1187,14 @@ public static class AbilityTooltipDamagePreview
             string dmgSuffix = DamageTimingSuffix();
             ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
-            body.AppendLine(O("Holding the hotkey channels Whirlwind continuously while energy remains."));
-            body.AppendLine(O(
-                $"Move speed is reduced by {AbilityCombatPower.WhirlwindBaseMoveSpeedPenaltyFraction * 100f:0.#}% while channelling."));
 
-            int wwEnhance = GetMeleeLv15BranchChoice(skillsManager, 0);
+            int wwEnhance = includeEnhancementEffects ? GetMeleeLv15BranchChoice(skillsManager, 0) : -1;
+            float movePenalty = AbilityCombatPower.WhirlwindBaseMoveSpeedPenaltyFraction;
             if (wwEnhance == 0)
-            {
-                float reducedCost = Mathf.Max(
-                    0f,
-                    Mathf.Max(0f, def.energyCost) - AbilityCombatPower.WhirlwindTwinCycloneChannelCostReductionPerSecond);
-                body.AppendLine(O(
-                    $"Channel cost is reduced to {reducedCost:0.#} Energy / s."));
-                body.AppendLine(O("Move speed penalty is halved while using Whirlwind."));
-            }
-            else if (wwEnhance == 1)
+                movePenalty *= AbilityCombatPower.WhirlwindSustainedCycloneMoveSpeedPenaltyMultiplier;
+            body.AppendLine(O($"Move speed is reduced by {movePenalty * 100f:0.#}% while channelling."));
+
+            if (includeEnhancementEffects && wwEnhance == 1)
             {
                 body.AppendLine(O(
                     $"+{AbilityCombatPower.WhirlwindExpansiveRangePerStage:0.#} range per stage while channeling (up to 5 stacks)."));
@@ -1157,19 +1206,27 @@ public static class AbilityTooltipDamagePreview
         {
             ComputeAverageAbilityHitSplit(def, stats, weaponMult, allM, out float physHit, out float magHit, out float corrHit, liveDamageMultiplier);
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, DamageTimingSuffix(), stats);
-            body.AppendLine(O($"Wide frontal slam - up to {AbilityCombatPower.GuardiansHammerForwardReach:0.#} range."));
+            body.AppendLine(O($"{AbilityCombatPower.GuardiansHammerForwardReach:0.#} range."));
 
-            int hammerEnhance = GetMeleeLv15BranchChoice(skillsManager, 3);
-            if (hammerEnhance == 0 && stats != null)
+            if (includeEnhancementEffects)
             {
-                float guardAmount = stats.MaxHP * AbilityCombatPower.GuardiansHammerProtectorResolveGuardFractionMaxHealth;
-                body.AppendLine(O(
-                    $"Gain {Mathf.RoundToInt(guardAmount)} Guard ({AbilityCombatPower.GuardiansHammerProtectorResolveGuardFractionMaxHealth * 100f:0.#}% max health) for {AbilityCombatPower.GuardiansHammerProtectorResolveDurationSeconds:0.#}s."));
-            }
-            else if (hammerEnhance == 1)
-            {
-                body.AppendLine(O(
-                    $"Burning enemies hit explode in {AbilityCombatPower.GuardiansHammerBurningVerdictExplosionRadius:0.#} range for {AbilityCombatPower.GuardiansHammerBurningVerdictTicksWorth}x current burn tick damage without removing Burn."));
+                int hammerEnhance = GetMeleeLv15BranchChoice(skillsManager, 3);
+                if (hammerEnhance == 0 && stats != null)
+                {
+                    float perHitFraction =
+                        AbilityCombatPower.GuardiansHammerProtectorResolveGuardPerHitFractionMaxHealth;
+                    float perHitGuard = stats.MaxHP * perHitFraction;
+                    int maxHits = AbilityCombatPower.GuardiansHammerProtectorResolveMaxEnemyHits;
+                    body.AppendLine(O(
+                        $"Gain {Mathf.RoundToInt(perHitGuard)} Guard ({perHitFraction * 100f:0.#}% max health) per enemy hit, up to {maxHits}."));
+                    body.AppendLine(O(
+                        $"Stun enemies on hit for {AbilityCombatPower.GuardiansHammerProtectorResolveStunDurationSeconds:0.#}s."));
+                }
+                else if (hammerEnhance == 1)
+                {
+                    body.AppendLine(O(
+                        $"Hitting burning enemies causes burns to flare up, exploding in {AbilityCombatPower.GuardiansHammerBurningVerdictExplosionRadius:0.#} range for {AbilityCombatPower.GuardiansHammerBurningVerdictTicksWorth}x their current burn tick damage. This does not remove the burn."));
+                }
             }
         }
         else if (IsPowerSlash(def))
@@ -1183,13 +1240,7 @@ public static class AbilityTooltipDamagePreview
             AppendAbilityTotalHitDamageEffects(body, O, physHit, magHit, corrHit, dmgSuffix, stats);
         }
 
-        if (IsCleavingStrikes(def))
-        {
-            body.AppendLine(string.Empty);
-            body.AppendLine(O(
-                $"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, 5f, GetCleavingStrikesDurationBonusSeconds(skillsManager)):0.#}s"));
-        }
-        else if (IsHammerTempest(def))
+        if (IsHammerTempest(def))
         {
             body.AppendLine(string.Empty);
             body.AppendLine(O(
@@ -1353,13 +1404,15 @@ public static class AbilityTooltipDamagePreview
         AbilityDefinition def,
         SkillsManager skillsManager,
         bool includeDuration,
-        int displayStacks)
+        int displayStacks,
+        bool includeEnhancementEffects = true)
     {
         if (def == null)
             return string.Empty;
 
         CharacterStats stats = FindLocalPlayerStats();
-        string full = BuildAbilityTooltipStatsSection(def, stats, skillsManager, orangeMarkup: false);
+        string full = BuildAbilityTooltipStatsSection(
+            def, stats, skillsManager, orangeMarkup: false, includeEnhancementEffects);
         if (string.IsNullOrWhiteSpace(full))
             return string.Empty;
 
@@ -1487,7 +1540,6 @@ public static class AbilityTooltipDamagePreview
         float moveSpeed,
         int enhancePick)
     {
-        body.AppendLine(O("While active:"));
         body.AppendLine(O($"+{cdr * 100f:0.#}% ability cooldown reduction"));
         body.AppendLine(O($"+{atkSpeed * 100f:0.#}% attack speed"));
         body.AppendLine(O(
@@ -1504,20 +1556,14 @@ public static class AbilityTooltipDamagePreview
         }
     }
 
-    /// <summary>Skill tree spine rows: flavor line plus base combat effects (no enhancement pick).</summary>
+    /// <summary>Legacy hook — ability combat stats belong in the details panel Effect column.</summary>
     public static bool TryBuildSkillTreeAbilityEffectsAppendix(
         AbilityDefinition def,
         SkillsManager skillsManager,
         out string appendix)
     {
         appendix = null;
-        if (!IsBattleTrance(def))
-            return false;
-
-        var body = new StringBuilder();
-        AppendBattleTranceBaseTooltipEffects(body, s => s);
-        appendix = body.ToString().TrimEnd();
-        return !string.IsNullOrWhiteSpace(appendix);
+        return false;
     }
 
     private static void AppendCleavingChopTooltipEffects(
@@ -2241,15 +2287,16 @@ public static class AbilityTooltipDamagePreview
         float wMult = Mathf.Max(0f, weaponMult) * Mathf.Max(0f, extraScale);
         float avgPhys = stats.GetAverageWeaponPhysicalDamagePerHit();
         float avgFire = stats.GetAverageWeaponFireDamagePerHit();
+        float apM = stats.GetAbilityPowerDamageMultiplier();
 
         if (finalStrike)
         {
-            fireHit = (avgPhys + avgFire) * wMult;
+            fireHit = (avgPhys + avgFire) * wMult * apM;
             return;
         }
 
-        physHit = avgPhys * wMult;
-        fireHit = avgFire * wMult;
+        physHit = avgPhys * wMult * apM;
+        fireHit = avgFire * wMult * apM;
     }
 
     private static string FormatCrusaderStrikeDamageLabel(float physHit, float fireHit)

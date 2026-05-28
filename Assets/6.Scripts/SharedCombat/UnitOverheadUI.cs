@@ -300,6 +300,22 @@ public class UnitOverheadUI : MonoBehaviour
             if (!t) t = searchRoot.Find("EnergyFill");
             if (t) energyFill = t.GetComponent<Image>();
         }
+
+        if (!guardFill)
+        {
+            Transform t = searchRoot.Find("OverheadUIRoot/HPBar/GuardFill");
+            if (!t) t = searchRoot.Find("HPBar/GuardFill");
+            if (!t) t = searchRoot.Find("GuardFill");
+            if (t) guardFill = t.GetComponent<Image>();
+        }
+
+        if (!guardValueText)
+        {
+            Transform t = searchRoot.Find("OverheadUIRoot/HPBar/GuardValueText");
+            if (!t) t = searchRoot.Find("HPBar/GuardValueText");
+            if (!t) t = searchRoot.Find("GuardValueText");
+            if (t) guardValueText = t.GetComponent<TMP_Text>();
+        }
     }
 
     private bool IsPlayerOverhead() =>
@@ -1521,15 +1537,11 @@ public class UnitOverheadUI : MonoBehaviour
 
         if (guardFill != null)
         {
-            if (naturalCap <= 0.0001f)
-                guardFill.fillAmount = 0f;
-            else
-            {
-                float hpD = Mathf.Max(1f, characterStats.MaxHP);
-                float guardZone01 = Mathf.Clamp01(naturalCap / hpD);
-                float guardFill01 = Mathf.Clamp01(current / naturalCap);
-                guardFill.fillAmount = Mathf.Clamp01(guardFill01 * guardZone01);
-            }
+            bool showGuard = current > 0.0001f;
+            guardFill.gameObject.SetActive(showGuard);
+            guardFill.fillAmount = showGuard
+                ? ComputeGuardFillAmount(current, naturalCap, characterStats.MaxHP)
+                : 0f;
         }
 
         if (guardValueText)
@@ -1548,6 +1560,24 @@ public class UnitOverheadUI : MonoBehaviour
                 guardValueText.text = $"{Mathf.CeilToInt(current)}";
             }
         }
+    }
+
+    /// <summary>
+    /// Guard shares the HP bar width; zone size follows natural cap, expanding when bonus guard exceeds it.
+    /// </summary>
+    private static float ComputeGuardFillAmount(float current, float naturalCap, float maxHp)
+    {
+        if (current <= 0.0001f)
+            return 0f;
+
+        float displayCap = naturalCap > 0.0001f ? naturalCap : current;
+        if (current > naturalCap)
+            displayCap = current;
+
+        float hpD = Mathf.Max(1f, maxHp);
+        float guardZone01 = Mathf.Clamp01(displayCap / hpD);
+        float guardFill01 = Mathf.Clamp01(current / displayCap);
+        return Mathf.Clamp01(guardFill01 * guardZone01);
     }
 
     private void HandleEnemyHpChanged(int current, int max)

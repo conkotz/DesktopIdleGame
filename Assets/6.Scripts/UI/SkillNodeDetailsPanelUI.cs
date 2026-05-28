@@ -34,9 +34,10 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     private const float ContentHorizontalPadding = 16f;
     private const float ColumnSpacing = 0f;
     private const float ColumnDividerWidth = 1f;
-    private const float RowDividerHeight = 1f;
+    private const float RowDividerHeight = 2f;
     private const string DefaultEmptyMessage = "Click a node to view details";
     private static readonly Color ScalingTextColor = new(0.69f, 0.79f, 0.87f, 1f);
+    private static readonly Color SectionDividerColor = new(0.55f, 0.48f, 0.36f, 0.65f);
 
     [Header("Roots")]
     [SerializeField] private GameObject emptyStateRoot;
@@ -87,7 +88,9 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     private int _previewEnhancementIndex = -1;
     private int _committedEnhancementIndex = -1;
     private bool _detailsInteriorExpanded;
+    private bool _columnScrollViewsEnsured;
     private Coroutine _deferredColumnsLayoutCo;
+    private Coroutine _deferredDividerRefreshCo;
     private UnityEngine.Events.UnityAction _enhancementActionHandler;
     private UnityEngine.Events.UnityAction _collapseDetailsHandler;
 
@@ -104,6 +107,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         ApplyFixedThirdColumnLayout();
         ApplySectionDividerLayout();
         ApplySectionTextStackLayout();
+        EnsureColumnBodyScrollViews();
         ApplyDetailsTypography();
         EnsureEnhancementsLockedOverlay();
         WireEnhancementActionButton();
@@ -319,10 +323,14 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         BindRequirementsSection(ability, stats);
         BindTypeSection(ability, details.TypeLabel);
         BindAbilityIconDragAssign(ability, skillsManager);
-        BindMiddleColumn(ability, skillsManager, stats);
+        BindMiddleColumn(ability, skillsManager, stats, details.EffectText);
         PopulateEnhancementCards(binding, skillsManager);
         ApplyDetailsTypography();
         ApplySectionDividerLayout();
+        EnsureDetailsPanelDividerLines();
+        UpdateDetailsPanelDividerVisibility();
+        ScheduleDeferredDividerRefresh();
+        ResetColumnBodyScrollPositions();
         bool expandBottomBar = SkillsAbilityBottomPanelLayoutRules.ShouldExpandBottomBar(binding);
         NotifyBottomPanelLayout(binding);
         ApplyDetailsInteriorLayout(expandBottomBar);
@@ -672,13 +680,259 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             columnVlg.childForceExpandHeight = false;
         }
 
-        for (int i = 0; i < section.childCount; i++)
+        StyleDividersUnder(section);
+    }
+
+    private static void StyleDividersUnder(Transform root)
+    {
+        if (root == null)
+            return;
+
+        if (root.name == "Divider" && root is RectTransform dividerRt)
+            PrepareVerticalLayoutDivider(dividerRt);
+
+        for (int i = 0; i < root.childCount; i++)
+            StyleDividersUnder(root.GetChild(i));
+    }
+
+    /// <summary>
+    /// Ensures section dividers exist in scroll content and before pinned footers. Safe to call when opening a node.
+    /// </summary>
+    private void EnsureDetailsPanelDividerLines()
+    {
+        if (contentRoot == null)
+            return;
+
+        Transform columnsRoot = contentRoot.transform.Find("ColumnsRoot");
+        if (columnsRoot == null)
+            return;
+
+        Transform left = columnsRoot.Find("LeftSection");
+        Transform middle = columnsRoot.Find("MiddleSection");
+
+        Transform leftScrollContent = left != null ? left.Find("LeftBodyScroll/Viewport/Content") : null;
+        if (leftScrollContent != null)
         {
-            if (section.GetChild(i).name != "Divider")
-                continue;
-            if (section.GetChild(i) is RectTransform divider)
-                PrepareVerticalLayoutDivider(divider);
+            Transform description = leftScrollContent.Find("DescriptionSection");
+            Transform requirements = leftScrollContent.Find("RequirementsSection");
+            Transform typeSection = leftScrollContent.Find("TypeSection");
+
+            if (description != null)
+                EnsureDividerBefore(leftScrollContent, description);
+            if (requirements != null)
+            {
+                EnsureDividerBefore(leftScrollContent, requirements);
+                EnsureDividerAfter(leftScrollContent, requirements);
+            }
+            if (typeSection != null)
+                EnsureDividerBefore(leftScrollContent, typeSection);
         }
+        else if (left != null)
+        {
+            Transform description = left.Find("DescriptionSection");
+            Transform requirements = left.Find("RequirementsSection");
+            Transform typeSection = left.Find("TypeSection");
+            if (description != null)
+                EnsureDividerBefore(left, description);
+            if (requirements != null)
+            {
+                EnsureDividerBefore(left, requirements);
+                EnsureDividerAfter(left, requirements);
+            }
+            if (typeSection != null)
+                EnsureDividerBefore(left, typeSection);
+        }
+
+        Transform middleScrollContent = middle != null ? middle.Find("MiddleBodyScroll/Viewport/Content") : null;
+        if (middleScrollContent != null)
+        {
+            Transform scaling = middleScrollContent.Find("ScalingSection");
+            Transform effect = middleScrollContent.Find("EffectSection");
+            if (effect != null)
+                EnsureDividerBefore(middleScrollContent, effect);
+            else if (scaling != null)
+                EnsureDividerAfter(middleScrollContent, scaling);
+        }
+        else if (middle != null)
+        {
+            Transform effect = middle.Find("EffectSection");
+            if (effect != null)
+                EnsureDividerBefore(middle, effect);
+        }
+
+        Transform costRow = middle != null ? middle.Find("CostCooldownRow") : null;
+        if (costRow != null)
+            EnsureDividerBefore(middle, costRow);
+
+        UpdateDetailsPanelDividerVisibility();
+
+        if (left != null)
+            StyleDividersUnder(left);
+        if (middle != null)
+            StyleDividersUnder(middle);
+    }
+
+    private void UpdateDetailsPanelDividerVisibility()
+    {
+        if (contentRoot == null)
+            return;
+
+        Transform columnsRoot = contentRoot.transform.Find("ColumnsRoot");
+        if (columnsRoot == null)
+            return;
+
+        Transform left = columnsRoot.Find("LeftSection");
+        Transform middle = columnsRoot.Find("MiddleSection");
+        Transform leftContent = left != null ? left.Find("LeftBodyScroll/Viewport/Content") : null;
+        Transform middleContent = middle != null ? middle.Find("MiddleBodyScroll/Viewport/Content") : null;
+
+        bool hasRequirements = requirementsSectionRoot != null && requirementsSectionRoot.activeInHierarchy;
+        bool hasType = typeSectionRoot != null && typeSectionRoot.activeInHierarchy;
+        bool hasScaling = scalingSectionRoot != null && scalingSectionRoot.activeInHierarchy;
+        bool hasEffect = effectSectionRoot != null && effectSectionRoot.activeInHierarchy;
+
+        SetDividerBeforeSection(leftContent ?? left, "RequirementsSection", hasRequirements);
+        SetDividerBeforeSection(leftContent ?? left, "TypeSection", hasType);
+
+        Transform requirementsSection = leftContent != null
+            ? leftContent.Find("RequirementsSection")
+            : left != null ? left.Find("RequirementsSection") : null;
+        if (requirementsSection != null)
+            SetRequirementsTrailingDividerVisible(requirementsSection, hasType);
+
+        SetDividerBeforeSection(middleContent ?? middle, "EffectSection", hasScaling && hasEffect);
+        SetDividerAfterSection(middleContent != null ? middleContent.Find("ScalingSection") : middle?.Find("ScalingSection"), hasScaling && hasEffect);
+
+        Transform costRow = middle != null ? middle.Find("CostCooldownRow") : null;
+        if (costRow != null)
+        {
+            Transform costDivider = FindDividerImmediatelyBefore(costRow);
+            if (costDivider != null)
+                costDivider.gameObject.SetActive(costRow.gameObject.activeInHierarchy);
+        }
+    }
+
+    private static void SetDividerBeforeSection(Transform parent, string sectionName, bool visible)
+    {
+        if (parent == null || string.IsNullOrEmpty(sectionName))
+            return;
+
+        Transform section = parent.Find(sectionName);
+        if (section == null)
+            return;
+
+        Transform divider = FindDividerImmediatelyBefore(section);
+        if (divider != null)
+            divider.gameObject.SetActive(visible);
+    }
+
+    private static void SetRequirementsTrailingDividerVisible(Transform requirementsSection, bool visible)
+    {
+        if (requirementsSection == null)
+            return;
+
+        SetDividerAfterSection(requirementsSection, visible);
+
+        int nextIndex = requirementsSection.GetSiblingIndex() + 1;
+        if (nextIndex >= requirementsSection.parent.childCount)
+            return;
+
+        Transform next = requirementsSection.parent.GetChild(nextIndex);
+        if (next != null && next.name == "TypeSection")
+            SetDividerBeforeSection(requirementsSection.parent, "TypeSection", visible);
+    }
+
+    private static void SetDividerAfterSection(Transform section, bool visible)
+    {
+        if (section == null || section.parent == null)
+            return;
+
+        int nextIndex = section.GetSiblingIndex() + 1;
+        if (nextIndex >= section.parent.childCount)
+            return;
+
+        Transform next = section.parent.GetChild(nextIndex);
+        if (next != null && next.name == "Divider")
+            next.gameObject.SetActive(visible);
+    }
+
+    private void ScheduleDeferredDividerRefresh()
+    {
+        if (!isActiveAndEnabled)
+            return;
+
+        if (_deferredDividerRefreshCo != null)
+            StopCoroutine(_deferredDividerRefreshCo);
+
+        _deferredDividerRefreshCo = StartCoroutine(DeferredDividerRefreshRoutine());
+    }
+
+    private IEnumerator DeferredDividerRefreshRoutine()
+    {
+        yield return null;
+
+        if (requirementWeaponText != null)
+            requirementWeaponText.ForceMeshUpdate();
+
+        if (requirementsSectionRoot != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(requirementsSectionRoot.transform as RectTransform);
+
+        if (contentRoot != null)
+        {
+            Transform leftContent = contentRoot.transform.Find("ColumnsRoot/LeftSection/LeftBodyScroll/Viewport/Content");
+            if (leftContent is RectTransform leftContentRt)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(leftContentRt);
+        }
+
+        Canvas.ForceUpdateCanvases();
+        EnsureDetailsPanelDividerLines();
+        UpdateDetailsPanelDividerVisibility();
+        _deferredDividerRefreshCo = null;
+    }
+
+    private static void EnsureDividerBefore(Transform parent, Transform sibling)
+    {
+        if (parent == null || sibling == null || sibling.parent != parent)
+            return;
+
+        Transform existing = FindDividerImmediatelyBefore(sibling);
+        if (existing != null)
+        {
+            existing.gameObject.SetActive(true);
+            return;
+        }
+
+        CreateSectionDivider(parent, sibling.GetSiblingIndex());
+    }
+
+    private static void EnsureDividerAfter(Transform parent, Transform sibling)
+    {
+        if (parent == null || sibling == null || sibling.parent != parent)
+            return;
+
+        int nextIndex = sibling.GetSiblingIndex() + 1;
+        if (nextIndex < parent.childCount && parent.GetChild(nextIndex).name == "Divider")
+        {
+            parent.GetChild(nextIndex).gameObject.SetActive(true);
+            return;
+        }
+
+        CreateSectionDivider(parent, nextIndex);
+    }
+
+    private static Transform CreateSectionDivider(Transform parent, int siblingIndex)
+    {
+        var dividerGo = new GameObject("Divider", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        var dividerRt = dividerGo.GetComponent<RectTransform>();
+        dividerRt.SetParent(parent, false);
+        dividerRt.SetSiblingIndex(Mathf.Clamp(siblingIndex, 0, parent.childCount - 1));
+
+        Image img = dividerGo.GetComponent<Image>();
+        img.color = SectionDividerColor;
+        img.raycastTarget = false;
+
+        PrepareVerticalLayoutDivider(dividerRt);
+        return dividerRt;
     }
 
     private void ApplySectionTextStackLayout()
@@ -687,6 +941,29 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         ConfigureSectionTextStack(effectSectionRoot);
         ConfigureSectionTextStack(costSectionRoot);
         ConfigureSectionTextStack(cooldownSectionRoot);
+        ConfigureRequirementsTextLayout();
+    }
+
+    private void ConfigureRequirementsTextLayout()
+    {
+        ConfigureSectionTextStack(requirementsSectionRoot);
+        if (requirementWeaponText == null)
+            return;
+
+        requirementWeaponText.textWrappingMode = TextWrappingModes.Normal;
+        requirementWeaponText.overflowMode = TextOverflowModes.Overflow;
+
+        if (requirementWeaponText.GetComponent<ContentSizeFitter>() == null)
+        {
+            ContentSizeFitter fitter = requirementWeaponText.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        }
+
+        LayoutElement layout = requirementWeaponText.GetComponent<LayoutElement>();
+        if (layout == null)
+            layout = requirementWeaponText.gameObject.AddComponent<LayoutElement>();
+        layout.flexibleHeight = 0f;
     }
 
     private static void ConfigureSectionTextStack(GameObject sectionRoot)
@@ -703,6 +980,172 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         vlg.childControlHeight = true;
         vlg.childForceExpandWidth = true;
         vlg.childForceExpandHeight = false;
+    }
+
+    private void EnsureColumnBodyScrollViews()
+    {
+        if (contentRoot == null)
+            return;
+
+        Transform columnsRoot = contentRoot.transform.Find("ColumnsRoot");
+        if (columnsRoot == null)
+            return;
+
+        Transform left = columnsRoot.Find("LeftSection");
+        Transform middle = columnsRoot.Find("MiddleSection");
+
+        if (_columnScrollViewsEnsured)
+        {
+            EnsureDetailsPanelDividerLines();
+            return;
+        }
+
+        if (left != null)
+            EnsureSectionBodyScrollView(left, "LeftBodyScroll", "TopRow", insertAfterPinned: true, excludeDividerBeforePinned: false);
+        if (middle != null)
+            EnsureSectionBodyScrollView(middle, "MiddleBodyScroll", "CostCooldownRow", insertAfterPinned: false, excludeDividerBeforePinned: true);
+
+        _columnScrollViewsEnsured = true;
+        EnsureDetailsPanelDividerLines();
+    }
+
+    private static void EnsureSectionBodyScrollView(
+        Transform section,
+        string scrollName,
+        string pinnedChildName,
+        bool insertAfterPinned,
+        bool excludeDividerBeforePinned)
+    {
+        if (section == null || section.Find(scrollName) != null)
+            return;
+
+        Transform pinned = section.Find(pinnedChildName);
+        if (pinned == null)
+            return;
+
+        Transform excludedDivider = excludeDividerBeforePinned ? FindDividerImmediatelyBefore(pinned) : null;
+
+        var toMove = new List<Transform>();
+        for (int i = 0; i < section.childCount; i++)
+        {
+            Transform child = section.GetChild(i);
+            if (child == pinned || child == excludedDivider || child.name == scrollName)
+                continue;
+            toMove.Add(child);
+        }
+
+        if (toMove.Count == 0)
+            return;
+
+        int insertIndex = insertAfterPinned ? pinned.GetSiblingIndex() + 1 : pinned.GetSiblingIndex();
+        ScrollRect scroll = CreateDetailsColumnScrollRect(section, scrollName, insertIndex);
+        RectTransform content = scroll.content;
+
+        for (int i = 0; i < toMove.Count; i++)
+            toMove[i].SetParent(content, false);
+
+        LayoutElement scrollLayout = scroll.GetComponent<LayoutElement>();
+        scrollLayout.flexibleHeight = 1f;
+        scrollLayout.minHeight = 0f;
+        scrollLayout.flexibleWidth = 1f;
+        scrollLayout.minWidth = 0f;
+    }
+
+    private static Transform FindDividerImmediatelyBefore(Transform node)
+    {
+        if (node == null || node.parent == null)
+            return null;
+
+        int index = node.GetSiblingIndex();
+        if (index <= 0)
+            return null;
+
+        Transform previous = node.parent.GetChild(index - 1);
+        return previous != null && previous.name == "Divider" ? previous : null;
+    }
+
+    private static ScrollRect CreateDetailsColumnScrollRect(Transform section, string scrollName, int insertIndex)
+    {
+        var scrollGo = new GameObject(scrollName, typeof(RectTransform), typeof(ScrollRect), typeof(LayoutElement));
+        var scrollRt = scrollGo.GetComponent<RectTransform>();
+        scrollRt.SetParent(section, false);
+        scrollRt.SetSiblingIndex(Mathf.Clamp(insertIndex, 0, section.childCount - 1));
+        StretchDetailsScrollRect(scrollRt);
+
+        var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+        var viewportRt = viewportGo.GetComponent<RectTransform>();
+        viewportRt.SetParent(scrollRt, false);
+        StretchDetailsScrollRect(viewportRt);
+        Image viewportImage = viewportGo.GetComponent<Image>();
+        viewportImage.color = new Color(1f, 1f, 1f, 0.01f);
+        viewportImage.raycastTarget = true;
+        viewportGo.GetComponent<Mask>().showMaskGraphic = false;
+
+        var contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+        var contentRt = contentGo.GetComponent<RectTransform>();
+        contentRt.SetParent(viewportRt, false);
+        contentRt.anchorMin = new Vector2(0f, 1f);
+        contentRt.anchorMax = new Vector2(1f, 1f);
+        contentRt.pivot = new Vector2(0.5f, 1f);
+        contentRt.anchoredPosition = Vector2.zero;
+        contentRt.sizeDelta = Vector2.zero;
+
+        VerticalLayoutGroup contentVlg = contentGo.GetComponent<VerticalLayoutGroup>();
+        contentVlg.spacing = 6f;
+        contentVlg.childAlignment = TextAnchor.UpperLeft;
+        contentVlg.childControlWidth = true;
+        contentVlg.childControlHeight = true;
+        contentVlg.childForceExpandWidth = true;
+        contentVlg.childForceExpandHeight = false;
+
+        ContentSizeFitter fitter = contentGo.GetComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        ScrollRect scroll = scrollGo.GetComponent<ScrollRect>();
+        scroll.viewport = viewportRt;
+        scroll.content = contentRt;
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 20f;
+        scroll.verticalScrollbar = null;
+        scroll.horizontalScrollbar = null;
+        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+        scroll.horizontalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+
+        return scroll;
+    }
+
+    private static void StretchDetailsScrollRect(RectTransform rt)
+    {
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+    }
+
+    private void ResetColumnBodyScrollPositions()
+    {
+        if (contentRoot == null)
+            return;
+
+        Transform columnsRoot = contentRoot.transform.Find("ColumnsRoot");
+        if (columnsRoot == null)
+            return;
+
+        ResetScrollToTop(columnsRoot.Find("LeftSection/LeftBodyScroll"));
+        ResetScrollToTop(columnsRoot.Find("MiddleSection/MiddleBodyScroll"));
+    }
+
+    private static void ResetScrollToTop(Transform scrollTransform)
+    {
+        if (scrollTransform == null || !scrollTransform.TryGetComponent(out ScrollRect scroll))
+            return;
+
+        scroll.verticalNormalizedPosition = 1f;
+        scroll.StopMovement();
     }
 
     private void ApplyDetailsTypography()
@@ -835,7 +1278,11 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         {
             requirementWeaponText.gameObject.SetActive(hasRequirements);
             requirementWeaponText.richText = true;
+            requirementWeaponText.textWrappingMode = TextWrappingModes.Normal;
+            requirementWeaponText.overflowMode = TextOverflowModes.Overflow;
             requirementWeaponText.text = hasRequirements ? requirements : string.Empty;
+            if (hasRequirements)
+                requirementWeaponText.ForceMeshUpdate();
         }
     }
 
@@ -856,16 +1303,23 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             typeValueText.text = hasType ? $"Type: {tagLabel}" : string.Empty;
     }
 
-    private void BindMiddleColumn(AbilityDefinition ability, SkillsManager skillsManager, CharacterStats stats)
+    private void BindMiddleColumn(
+        AbilityDefinition ability,
+        SkillsManager skillsManager,
+        CharacterStats stats,
+        string majorPassiveEffectText = null)
     {
         if (ability == null)
         {
             SetSectionActive(scalingSectionRoot, false);
-            SetSectionActive(effectSectionRoot, false);
+            SetRichSection(effectSectionRoot, effectText, majorPassiveEffectText, BodyTextColor);
             SetSectionActive(costSectionRoot, false);
             SetSectionActive(cooldownSectionRoot, false);
+            SetCostCooldownRowVisible(false);
             return;
         }
+
+        SetCostCooldownRowVisible(true);
 
         string scaling = AbilityTooltipDamagePreview.BuildAbilityTooltipScalingSection(
             ability, stats, skillsManager, orangeMarkup: false);
@@ -879,6 +1333,16 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
 
         SetPlainSection(costSectionRoot, costText, hasResource ? costLine : string.Empty);
         SetPlainSection(cooldownSectionRoot, cooldownText, hasResource ? cooldownLine : string.Empty);
+    }
+
+    private void SetCostCooldownRowVisible(bool visible)
+    {
+        if (contentRoot == null)
+            return;
+
+        Transform costRow = contentRoot.transform.Find("ColumnsRoot/MiddleSection/CostCooldownRow");
+        if (costRow != null)
+            costRow.gameObject.SetActive(visible);
     }
 
     private static readonly Color BodyTextColor = new(0.93f, 0.9f, 0.84f, 1f);
@@ -897,9 +1361,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             return;
 
         label.richText = true;
+        label.color = fallbackColor;
         label.text = hasContent ? richText : string.Empty;
-        if (!hasContent)
-            label.color = fallbackColor;
     }
 
     private static void SetPlainSection(GameObject sectionRoot, TMP_Text label, string text)
@@ -1021,10 +1484,26 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         }
 
         string title = ResolveEnhancementChoiceTitle(unlock, committedIndex);
-        enhancementsSubtitleText.text = string.IsNullOrWhiteSpace(title)
-            ? "Enhancement Selected: None"
-            : $"Enhancement Selected: {title}";
+        enhancementsSubtitleText.richText = true;
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            enhancementsSubtitleText.text = "<color=#FF4D4D>Enhancement Selected: None</color>";
+        }
+        else
+        {
+            enhancementsSubtitleText.text =
+                $"<color=#33CC66>Enhancement Selected: {EscapeEnhancementSubtitleText(title)}</color>";
+        }
+
         enhancementsSubtitleText.gameObject.SetActive(true);
+    }
+
+    private static string EscapeEnhancementSubtitleText(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Replace("<", string.Empty).Replace(">", string.Empty);
     }
 
     private static string ResolveEnhancementChoiceTitle(SkillUnlockDefinition unlock, int choiceIndex)

@@ -15,7 +15,7 @@ MonoBehaviour:
   notes: Presentation for cleaving_strikes
   displayNameOverride: Cleaving Strikes
   icon: {fileID: 1970096588046012890, guid: e4f6c452a92daed479d72fb292a28d34, type: 3}
-  shortDescription: Empower your melee basic attacks causing each hit to also strike additional nearby enemies within your weapon range from you (minimum 3 range).
+  shortDescription: Empower your melee auto attacks to strike additional nearby enemies.
   primaryDescriptionOverride: 
   flavourText: 
   abilityEffectLines: []

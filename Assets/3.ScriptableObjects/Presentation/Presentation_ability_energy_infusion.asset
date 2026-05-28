@@ -15,8 +15,9 @@ MonoBehaviour:
   notes: Presentation for energy_infusion (Arcane Battery)
   displayNameOverride: Energy Infusion
   icon: {fileID: -7230066151719279964, guid: 89459f466326a834d9ad57aa671fac6f, type: 3}
-  shortDescription: Toggle a mana infusion that makes melee Energy abilities pay
-    30% of their cost with Mana instead.
+  shortDescription: Toggle an infusion buff that causes melee abilities that use
+    energy to instead pay a portion of that cost as mana. If you do not have enough
+    mana, that ability will instead use its full energy cost.
   primaryDescriptionOverride: 
   flavourText: 
   tooltipCategoryTagOverride: 

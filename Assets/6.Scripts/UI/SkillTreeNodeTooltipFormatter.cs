@@ -17,6 +17,8 @@ public static class SkillTreeNodeTooltipFormatter
         public string LevelText;
         public string StatusRichText;
         public string Description;
+        /// <summary>Major passive stat/effect lines (details panel middle column).</summary>
+        public string EffectText;
         public string ActiveEnhancement;
         public string EnhancementsTitle;
         public string EnhancementsList;
@@ -61,6 +63,8 @@ public static class SkillTreeNodeTooltipFormatter
             sb.Append('\n').Append(content.RequirementsText);
         if (!string.IsNullOrWhiteSpace(content.Description))
             sb.Append("\n\n").Append(content.Description);
+        if (!string.IsNullOrWhiteSpace(content.EffectText))
+            sb.Append("\n\n").Append(content.EffectText);
         if (!string.IsNullOrWhiteSpace(content.ActiveEnhancement))
             sb.Append('\n').Append(content.ActiveEnhancement);
         if (!string.IsNullOrWhiteSpace(content.EnhancementsTitle) || !string.IsNullOrWhiteSpace(content.EnhancementsList))
@@ -93,8 +97,12 @@ public static class SkillTreeNodeTooltipFormatter
         string desc = ResolveMainDescription(binding, visualType);
         bool useMajorPassivePresentation = visualType == SkillTreeNodeVisualType.MajorPassive
                                            || visualType == SkillTreeNodeVisualType.CapstonePassive;
+        string effectText = null;
         if (useMajorPassivePresentation)
-            desc = ApplyMajorPassiveValueLineMarkup(skill, desc);
+        {
+            effectText = desc;
+            desc = ResolveMajorPassiveFlavorDescription(skill, unlock, binding.ResolveSpineNodeId(), effectText);
+        }
 
         string typeLabel = useMajorPassivePresentation
             ? TypeLabel(SkillTreeNodeVisualType.MajorPassive)
@@ -107,6 +115,7 @@ public static class SkillTreeNodeTooltipFormatter
             LevelText = $"Lv {level}",
             StatusRichText = BuildStatusRichText(binding.DisplayState, isUnlocked),
             Description = desc,
+            EffectText = effectText,
             RequirementsText = BuildRequirementsText(level, isUnlocked, binding.DisplayState, unlock.unlockType),
             Icon = ResolveIcon(unlock, skill, binding.Choice),
             HasContent = true
@@ -333,6 +342,65 @@ public static class SkillTreeNodeTooltipFormatter
         }
 
         return fallbackDescription;
+    }
+
+    private static string ResolveMajorPassiveFlavorDescription(
+        SkillDefinition skill,
+        SkillUnlockDefinition unlock,
+        string spineId,
+        string effectBody)
+    {
+        if (skill != null
+            && !string.IsNullOrEmpty(spineId)
+            && MeleeMajorPassiveTooltipText.TryBuildFlavorDescription(spineId, out string meleeFlavor))
+        {
+            return meleeFlavor;
+        }
+
+        string assetDesc = unlock?.description?.Trim();
+        if (string.IsNullOrWhiteSpace(assetDesc))
+            return string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(effectBody)
+            && string.Equals(
+                NormalizeMajorPassiveTooltipText(assetDesc),
+                NormalizeMajorPassiveTooltipText(effectBody),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        if (LooksLikeMajorPassiveEffectLine(assetDesc))
+            return string.Empty;
+
+        return assetDesc;
+    }
+
+    private static string NormalizeMajorPassiveTooltipText(string text) =>
+        string.IsNullOrWhiteSpace(text) ? string.Empty : text.Replace("\r\n", "\n").Trim();
+
+    private static bool LooksLikeMajorPassiveEffectLine(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+
+        string trimmed = text.TrimStart();
+        if (trimmed.StartsWith("+", StringComparison.Ordinal)
+            || trimmed.StartsWith("Gain ", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Poison ", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Burning ", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("On death", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Each ability", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Using an ability", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("While using", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("When wielding", StringComparison.OrdinalIgnoreCase)
+            || trimmed.StartsWith("Parries ", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return trimmed.Contains("\n+", StringComparison.Ordinal)
+               || trimmed.Contains("\nGain ", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string BuildRequirementsText(

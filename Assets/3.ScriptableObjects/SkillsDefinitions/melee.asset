@@ -272,10 +272,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 10
     title: Ailment Attunement
-    description: '+5% Bleed, Poison, Burn Ailment Chance
-
-      +5% Melee Damage
-      to enemies affected by an ailment'
+    description: Increase your proficiency with ailments
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -291,7 +288,7 @@ MonoBehaviour:
     choices:
     - requiredLevel: 13
       title: Venom Edge
-      description: '+10% Melee Poison Chance
+      description: '+10% Melee Bleed Multiplier
 
         +2 Poison Max Stacks'
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
@@ -315,7 +312,8 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 10
     title: Parry
-    description: Gain 20% parry chance.
+    description: Increase your chance to parry enemies in melee range. When you parry,
+      mitigate a portion of the hit and deal it back to the attacker.
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -332,13 +330,13 @@ MonoBehaviour:
     - requiredLevel: 13
       title: Riposte
       description: Parries no longer reduce incoming damage. On a successful parry,
-        perform a free melee auto attack (no swing delay; ailments cannot be applied).
+        perform a free melee auto attack (no swing delay). 3 second cooldown.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 13
       title: Improved Parry
-      description: +5% additional parry chance. +15% parry mitigation.
+      description: Gain 25% parry chance and 15% parry mitigation.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -408,7 +406,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 15
     title: Whirlwind
-    description: Hold to channel a spinning cyclone, striking all enemies within
+    description: Hold to channel a spinning whirlwind, striking all enemies within
       your weapon range from you (minimum 3 range, or your weapon range if longer).
       Each hit deals 80% of your rolled Physical, Magic, and Corruption damage (before
       crit). Move speed is reduced while channelling.
@@ -426,9 +424,9 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices:
     - requiredLevel: 18
-      title: Sustained Cyclone
-      description: Reduce Whirlwind channel cost by 5 Energy per second. Move speed
-        penalty is halved while using Whirlwind.
+      title: Sustained Whirlwind
+      description: Whirlwind channel cost is reduced to 20 Energy / s. Move speed
+        is reduced by 12.5% while channelling.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -441,9 +439,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 15
     title: Cleaving Strikes
-    description: Empower your melee basics to also strike additional nearby enemies
-      within your weapon range from you (minimum 3 range, or your weapon range if
-      longer). Cleave hits deal 60% of the same rolled weapon damage.
+    description: Empower your melee auto attacks to strike additional nearby enemies.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -459,13 +455,13 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Greater Cleave
-      description: Cleaving Strikes hits 2 enemies, but only for 5 seconds or 3 hits.
+      description: Cleaving Strikes hits +1 additional enemy.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Lasting Momentum
-      description: Cleaving Strikes lasts for 10 seconds or 6 hits.
+      description: Cleaving Strikes lasts 14 seconds or 10 hits.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -519,15 +515,16 @@ MonoBehaviour:
     choices:
     - requiredLevel: 18
       title: Protector's Resolve
-      description: Gain guard equal to 15% of max health for 5 seconds after casting,
-        then it depletes back down to your natural guard cap.
+      description: Gain 4% max health Guard per enemy hit, up to 3 enemies. Stun
+        enemies on hit.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 18
       title: Burning Verdict
-      description: Burning enemies hit flare up, exploding in a 3 range burst for
-        3x their current burn tick damage without removing the burn.
+      description: Hitting burning enemies causes burns to flare up, exploding in
+        a 3 range burst for 3x their current burn tick damage. This does not remove
+        the burn.
       icon: {fileID: 9049550073910843714, guid: 0c95731d8c650294d858e152aba2e5d8, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -597,9 +594,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 20
     title: Predator's Instinct
-    description: '+5% Critical Chance
-
-      +10% Critical Damage'
+    description: Aim for the enemies weakspots
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -739,9 +734,9 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 25
     title: Energy Infusion
-    description: All melee abilities which use Energy instead use 30% of their Energy
-      cost from Mana while active. So if an ability uses 100 Energy it now uses 70
-      Energy and 30 Mana.
+    description: Toggle an infusion buff that causes melee abilities that use energy
+      to instead pay a portion of that cost as mana. If you do not have enough mana,
+      that ability will instead use its full energy cost.
     icon: {fileID: -7230066151719279964, guid: 89459f466326a834d9ad57aa671fac6f, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -771,9 +766,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 25
     title: Flame Charge
-    description: Charge rapidly forward (5f) engulfed in flames, passing through
-      enemies and leaving a burning trail for 4 seconds. Enemies in the trail take
-      Fire damage per second.
+    description: Dash forward leaving a trail of fire on the ground.
     icon: {fileID: -5602428846640492714, guid: 01eb1e4559ff65f46bd3d6625b4956a4, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -866,7 +859,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 30
     title: Battle Engine
-    description: Gain 5 Energy when abilities hit enemies.
+    description: Turn successful ability hits into combat energy
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -895,9 +888,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 30
     title: Tactician
-    description: "When wielding certain melee weapons: 1H \u2014 +5% attack speed,
-      +5% poison and burn chance, +5% crit. 2H \u2014 +5% bleed multi, armour pen,
-      stun chance, and block."
+    description: Adapt your fighting style to the weapon you wield
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -1031,19 +1022,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 35
     title: Battle Trance
-    description: 'Enter a heightened combat state for 10 seconds.
-
-      While active:
-
-      +15%
-      ability cooldown reduction
-
-      +15% attack speed
-
-      +10% melee damage
-
-      +10%
-      damage taken'
+    description: Enter a heightened combat state for 10 seconds.
     icon: {fileID: -7588507058973284862, guid: efbbcf5bf04528a47be779022ad595a7, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0

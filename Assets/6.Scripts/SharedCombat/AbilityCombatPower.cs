@@ -18,6 +18,7 @@ public static class AbilityCombatPower
     public const string EnvenomAbilityId = "envenom";
     public const string CleavingStrikesAbilityId = "cleaving_strikes";
     public const string CrescentSlashAbilityId = "crescent_slash";
+    public const float CrescentSlashReach = 8f;
     public const string GuardiansHammerAbilityId = "guardians_hammer";
     public const string SoulforgedWeaponAbilityId = "soulforged_weapon";
     public const string LumberFrenzyAbilityId = "lumber_frenzy";
@@ -108,6 +109,7 @@ public static class AbilityCombatPower
     public const float ParryImprovedParryChanceBonus = 0.05f;
     public const float ParryDamageReductionFraction = 0.25f;
     public const float ParryImprovedMitigationBonus = 0.15f;
+    public const float ParryRiposteCooldownSeconds = 3f;
     public const string ParryRiposteOutgoingSourceLabel = "Parry — Riposte";
     public const string ParryReflectOutgoingSourceLabel = "Parry";
 
@@ -184,9 +186,9 @@ public static class AbilityCombatPower
     public const float GuardiansHammerForwardReach = 8f;
     public const float GuardiansHammerVerticalHalfHeight = 2.4f;
     public const float GuardiansHammerImpactWidth = 2.6f;
-    public const float GuardiansHammerProtectorResolveGuardFractionMaxHealth = 0.15f;
-    public const float GuardiansHammerProtectorResolveDurationSeconds = 5f;
-    public const float GuardiansHammerGuardDecayPerSecondFractionOfMaxHealth = 0.06f;
+    public const float GuardiansHammerProtectorResolveGuardPerHitFractionMaxHealth = 0.04f;
+    public const int GuardiansHammerProtectorResolveMaxEnemyHits = 3;
+    public const float GuardiansHammerProtectorResolveStunDurationSeconds = 3f;
     public const float GuardiansHammerBurningVerdictExplosionRadius = 3f;
     public const int GuardiansHammerBurningVerdictTicksWorth = 3;
 
@@ -278,6 +280,14 @@ public static class AbilityCombatPower
 
     /// <summary>Cleaving Strikes secondary hits: fraction of rolled weapon split (sync with <see cref="PlayerAbilityController.BuildCleavingSecondarySplit"/>).</summary>
     public const float CleavingStrikesSecondaryHitWeaponDamageFraction = 0.6f;
+    public const float CleavingStrikesMinMeleeReach = 3f;
+    public const float CleavingStrikesCleaveRadiusFromAnchor = 3f;
+    public const int CleavingStrikesBaseExtraTargets = 2;
+    public const int CleavingStrikesBaseEmpoweredHits = 7;
+    public const float CleavingStrikesBaseDurationSeconds = 8f;
+    public const int CleavingStrikesGreaterCleaveBonusTargets = 1;
+    public const int CleavingStrikesLastingMomentumEmpoweredHits = 10;
+    public const float CleavingStrikesLastingMomentumDurationSeconds = 14f;
 
     /// <summary>Combat-power heuristic: extra enemies credited for Crimson Spread / Contagion full radial payloads.</summary>
     private const float AilmentRadialSpreadAssumedExtraTargets = 2.5f;
@@ -594,21 +604,19 @@ public static class AbilityCombatPower
         {
             float aps = stats.AttacksPerSecond;
             float procRate = aps <= 0f ? (1f / cd) : Mathf.Min(aps, 1f / cd);
-            int extraTargets = 1;
-            int empoweredHits = 4;
-            float duration = 7f;
+            int extraTargets = AbilityCombatPower.CleavingStrikesBaseExtraTargets;
+            int empoweredHits = AbilityCombatPower.CleavingStrikesBaseEmpoweredHits;
+            float duration = AbilityCombatPower.CleavingStrikesBaseDurationSeconds;
             int selected = GetCleavingStrikesSelectedChoiceForCombatPower();
             if (selected == 0)
             {
-                extraTargets = 2;
-                empoweredHits = 3;
-                duration = 5f;
+                extraTargets = AbilityCombatPower.CleavingStrikesBaseExtraTargets
+                               + AbilityCombatPower.CleavingStrikesGreaterCleaveBonusTargets;
             }
             else if (selected == 1)
             {
-                extraTargets = 1;
-                empoweredHits = 6;
-                duration = 10f;
+                empoweredHits = AbilityCombatPower.CleavingStrikesLastingMomentumEmpoweredHits;
+                duration = AbilityCombatPower.CleavingStrikesLastingMomentumDurationSeconds;
             }
 
             float activeWindow = Mathf.Min(duration, aps > 0f ? (empoweredHits / aps) : duration);

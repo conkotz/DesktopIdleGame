@@ -230,7 +230,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (stats == null)
             return null;
 
-        float myRange = Mathf.Max(0f, stats.Range) + rangePadding;
+        float myRange = GetEffectiveMeleeReach();
         float closeEnoughToSwing = myRange + stopSlack;
         float myX = transform.position.x;
         float myHalf = HalfWidthX(playerCol);
@@ -284,7 +284,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (stats == null)
             return null;
 
-        float closeEnoughToSwing = Mathf.Max(0f, stats.Range) + rangePadding + stopSlack;
+        float closeEnoughToSwing = GetEffectiveMeleeReach() + stopSlack;
         float myX = transform.position.x;
         float myHalf = HalfWidthX(playerCol);
 
@@ -401,7 +401,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (enemy == null || enemy.IsDead || !enemy.gameObject.activeInHierarchy || stats == null)
             return false;
 
-        float closeEnoughToSwing = Mathf.Max(0f, stats.Range) + rangePadding + stopSlack;
+        float closeEnoughToSwing = GetEffectiveMeleeReach() + stopSlack;
         float myX = transform.position.x;
         float myHalf = HalfWidthX(playerCol);
 
@@ -447,6 +447,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     private EnemyBaseController _lastEnemyThatDamagedPlayer;
     private float _lastEnemyThatDamagedPlayerTime = -999f;
+    private float _nextParryRiposteAt;
 
 
     public float GetAttackCooldownSeconds()
@@ -457,6 +458,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     /// <summary>Extra reach padding on melee strike / cleave checks (serialized on this component).</summary>
     public float GetMeleeRangePadding() => rangePadding;
+
+    private float GetEffectiveMeleeReach()
+    {
+        if (stats == null)
+            return rangePadding;
+
+        return Mathf.Max(AbilityCombatPower.CleavingStrikesMinMeleeReach, Mathf.Max(0f, stats.Range)) + rangePadding;
+    }
 
     public float GetAttackCycleNormalized()
     {
@@ -838,7 +847,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return;
         }
 
-        float myRange = Mathf.Max(0f, stats.Range) + rangePadding;
+        float myRange = GetEffectiveMeleeReach();
 
         float enemyX = _target.transform.position.x;
         float myX = transform.position.x;
@@ -1535,12 +1544,16 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (UnityEngine.Random.value >= stats.GetParryChanceFraction())
             return false;
 
+        if (stats.GetParryEnhancementPick() == 0 && Time.time < _nextParryRiposteAt)
+            return false;
+
         SpawnParrySlashVfx(attacker);
         ShowParryDamagePopup(attacker != null ? attacker.transform : null);
 
         if (stats.GetParryEnhancementPick() == 0)
         {
             TryPerformParryRiposteAttack(attacker);
+            _nextParryRiposteAt = Time.time + AbilityCombatPower.ParryRiposteCooldownSeconds;
             return true;
         }
 
@@ -1573,21 +1586,28 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return false;
 
         SplitDamage rolled = stats.RollSplitAttackDamage(out bool wasCrit);
+        SplitDamage preQueuedModifier = rolled;
+
+        if (abilityController != null)
+        {
+            abilityController.TryConsumeQueuedAttackModifier(ref rolled);
+            abilityController.ApplyActiveDamageConversions(ref rolled);
+        }
+
+        SwingOutgoingAttribution swingAttribution = abilityController != null
+            ? abilityController.BuildSwingOutgoingAttribution(preQueuedModifier, rolled)
+            : SwingOutgoingAttribution.AutoAttackOnly;
+
         if (rolled.IsEmpty)
             return false;
-
-        RecordOutgoingSourceUse(AbilityCombatPower.ParryRiposteOutgoingSourceLabel);
-
-        var swingAttribution = new SwingOutgoingAttribution(
-            AbilityCombatPower.ParryRiposteOutgoingSourceLabel, null, 0f, null);
 
         player.TriggerAttackAnim();
 
         float meleeDelay = Mathf.Max(0f, meleeHitImpactDelay);
         if (meleeDelay <= 0f)
-            ResolveAttackHitNow(attacker, rolled, wasCrit, swingAttribution, suppressOnHitAilments: true);
+            ResolveAttackHitNow(attacker, rolled, wasCrit, swingAttribution);
         else
-            StartCoroutine(ResolveAttackHitAfterDelay(attacker, rolled, wasCrit, meleeDelay, swingAttribution, true));
+            StartCoroutine(ResolveAttackHitAfterDelay(attacker, rolled, wasCrit, meleeDelay, swingAttribution));
 
         return true;
     }
@@ -1763,18 +1783,20 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     private void ApplyCleaveSecondaryHits(EnemyBaseController primaryTarget, int extraTargets, HashSet<EnemyBaseController> alreadyHit)
     {
-        if (extraTargets <= 0 || stats == null)
+        if (extraTargets <= 0 || stats == null || primaryTarget == null)
             return;
 
-        // Match primary melee reach: edge-to-edge X gap vs colliders (not center-to-center), with min 3 only for short weapons.
-        const float cleavingMinWeaponRange = 3f;
-        float weaponRange = Mathf.Max(0f, stats.Range);
-        float effectiveReach = Mathf.Max(cleavingMinWeaponRange, weaponRange) + rangePadding;
+        float cleaveRadius = AbilityCombatPower.CleavingStrikesCleaveRadiusFromAnchor + rangePadding;
 
         float myX = transform.position.x;
         float myY = transform.position.y;
         float myHalf = HalfWidthX(playerCol);
-        float yTol = Mathf.Max(0.85f, effectiveReach * 0.4f);
+        float primaryX = primaryTarget.transform.position.x;
+        Collider2D primaryCol = primaryTarget.GetComponent<Collider2D>();
+        if (primaryCol == null)
+            primaryCol = primaryTarget.GetComponentInChildren<Collider2D>();
+        float primaryHalf = HalfWidthX(primaryCol);
+        float yTol = Mathf.Max(0.85f, cleaveRadius * 0.4f);
 
         var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
         var nearest = new List<(EnemyBaseController enemy, float gap)>(candidates.Length);
@@ -1792,8 +1814,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (enemyCol == null)
                 enemyCol = e.GetComponentInChildren<Collider2D>();
 
-            float gap = EdgeGapX(myX, e.transform.position.x, myHalf, HalfWidthX(enemyCol));
-            if (gap > effectiveReach)
+            float enemyHalf = HalfWidthX(enemyCol);
+            float gapFromPlayer = EdgeGapX(myX, e.transform.position.x, myHalf, enemyHalf);
+            float gapFromPrimary = EdgeGapX(primaryX, e.transform.position.x, primaryHalf, enemyHalf);
+            float gap = Mathf.Min(gapFromPlayer, gapFromPrimary);
+            if (gapFromPlayer > cleaveRadius && gapFromPrimary > cleaveRadius)
                 continue;
 
             nearest.Add((e, gap));
@@ -1902,7 +1927,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (stats == null)
             return;
 
-        float reach = Mathf.Max(0.1f, stats.Range + 6f);
+        float reach = AbilityCombatPower.CrescentSlashReach;
         float forward = player != null ? Mathf.Sign(player.transform.localScale.x >= 0f ? 1f : -1f) : 1f;
         Vector3 origin = transform.position;
         var candidates = FindObjectsByType<EnemyBaseController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
