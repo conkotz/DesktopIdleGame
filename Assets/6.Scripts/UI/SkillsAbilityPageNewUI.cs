@@ -13,6 +13,7 @@ using UnityEngine.UI;
 public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 {
     private const string PrefsCategoryModeKey = "SkillsAbilityPageNEW.CategoryMode";
+    private const string PrefsTimelineScrollPerSkillPrefix = "SkillsAbilityPageNEW.TimelineScroll.";
 
     [Header("Data")]
     [SerializeField] private SkillDatabase skillDatabase;
@@ -124,6 +125,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
         if (_selectedSkill != null)
             SkillsAbilityPageSelectionHub.SaveLastSkillType(_selectedSkill.skillType);
+        SaveTimelineScrollForSkill(_selectedSkill);
 
         SaveCategoryModeToPrefs();
         UnwireResetTreeButton();
@@ -135,11 +137,14 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (skill == null)
             return;
 
+        SaveTimelineScrollForSkill(_selectedSkill);
+
         if (skill.category != _categoryMode)
             SetCategoryMode(skill.category, selectDefaultSkill: false);
 
         _selectedSkill = skill;
         RefreshView();
+        RestoreTimelineScrollForSkill(_selectedSkill);
         RefreshTabSelectionVisuals();
         RefreshSkillsListSelection();
         ApplyActionBarForSelectedSkill();
@@ -803,6 +808,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         }
 
         SyncTimelineFromPageSelection();
+        RestoreTimelineScrollForSkill(_selectedSkill);
 
         yield return null;
         if (!isActiveAndEnabled)
@@ -814,6 +820,42 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
         _deferredOpenRefresh = null;
+    }
+
+    private static string GetTimelineScrollPrefsKey(SkillType skillType) =>
+        PrefsTimelineScrollPerSkillPrefix + ((int)skillType).ToString();
+
+    private void SaveTimelineScrollForSkill(SkillDefinition skill)
+    {
+        if (skill == null)
+            return;
+
+        EnsureHorizontalTimelineReference();
+        if (horizontalSkillTimeline == null)
+            return;
+
+        float? normalized = horizontalSkillTimeline.TryGetTimelineScrollNormalizedPosition();
+        if (!normalized.HasValue)
+            return;
+
+        PlayerPrefs.SetFloat(GetTimelineScrollPrefsKey(skill.skillType), Mathf.Clamp01(normalized.Value));
+    }
+
+    private void RestoreTimelineScrollForSkill(SkillDefinition skill)
+    {
+        if (skill == null)
+            return;
+
+        EnsureHorizontalTimelineReference();
+        if (horizontalSkillTimeline == null)
+            return;
+
+        string key = GetTimelineScrollPrefsKey(skill.skillType);
+        if (!PlayerPrefs.HasKey(key))
+            return;
+
+        float normalized = Mathf.Clamp01(PlayerPrefs.GetFloat(key, 0f));
+        horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(normalized);
     }
 
     private SkillDefinition GetDefaultSkillForMode(SkillCategory mode)
@@ -968,7 +1010,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     {
         RefreshPageLabels();
         RefreshSkillsListLevels();
-        SyncTimelineFromPageSelection();
+        SyncTimelineFromPageSelectionPreservingCurrentScroll();
         RefreshActiveAbilitiesList();
         RefreshActiveBonusesPanel();
     }
@@ -981,7 +1023,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         if (_selectedSkill != null && _selectedSkill.skillType == type)
         {
             RefreshPageLabels();
-            SyncTimelineFromPageSelection();
+            SyncTimelineFromPageSelectionPreservingCurrentScroll();
             RefreshActiveAbilitiesList();
             RefreshActiveBonusesPanel();
         }
@@ -1033,5 +1075,27 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
         horizontalSkillTimeline.RefreshTimelineSelectionVisuals();
         horizontalSkillTimeline.RefreshOpenDetailsAfterDataChange();
+    }
+
+    /// <summary>
+    /// Rebuilds timeline content for the same selected skill while preserving the user's current horizontal scroll.
+    /// Falls back to saved per-skill scroll when current position is unavailable.
+    /// </summary>
+    private void SyncTimelineFromPageSelectionPreservingCurrentScroll()
+    {
+        EnsureHorizontalTimelineReference();
+        float? current = horizontalSkillTimeline != null
+            ? horizontalSkillTimeline.TryGetTimelineScrollNormalizedPosition()
+            : null;
+
+        SyncTimelineFromPageSelection();
+
+        if (horizontalSkillTimeline == null)
+            return;
+
+        if (current.HasValue)
+            horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(current.Value);
+        else
+            RestoreTimelineScrollForSkill(_selectedSkill);
     }
 }

@@ -542,7 +542,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return false;
         if (string.Equals(label, OutgoingShockSourceLabel, System.StringComparison.OrdinalIgnoreCase))
             return false;
-        if (string.Equals(label, "Burning", System.StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(label, OutgoingBurningSourceLabel, System.StringComparison.OrdinalIgnoreCase))
             return false;
         if (string.Equals(label, DefaultMinionOutgoingSourceLabel, System.StringComparison.OrdinalIgnoreCase))
             return true;
@@ -2851,7 +2851,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             return DpsDamageBucket.Bleed;
         if (string.Equals(outgoingDamageSourceLabel, OutgoingPoisonSourceLabel, System.StringComparison.OrdinalIgnoreCase))
             return DpsDamageBucket.Poison;
-        if (string.Equals(outgoingDamageSourceLabel, "Burning", System.StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(outgoingDamageSourceLabel, OutgoingBurningSourceLabel, System.StringComparison.OrdinalIgnoreCase))
             return DpsDamageBucket.Burn;
 
         return DpsDamageBucket.Physical;
@@ -2870,6 +2870,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
     public const string OutgoingBleedingSourceLabel = "Bleeding";
     public const string OutgoingPoisonSourceLabel = "Poison";
+    public const string OutgoingBurningSourceLabel = "Burning";
     public const string OutgoingShockSourceLabel = "Shock";
     public const string DefaultMinionOutgoingSourceLabel = "Soulforged Weapon";
     public const string HpRegenHealingSourceLabel = "HP Regen";
@@ -2911,7 +2912,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         {
             DpsDamageBucket.Bleed => OutgoingBleedingSourceLabel,
             DpsDamageBucket.Poison => OutgoingPoisonSourceLabel,
-            DpsDamageBucket.Burn => "Burning",
+            DpsDamageBucket.Burn => OutgoingBurningSourceLabel,
             DpsDamageBucket.Minion => DefaultMinionOutgoingSourceLabel,
             _ => null
         };

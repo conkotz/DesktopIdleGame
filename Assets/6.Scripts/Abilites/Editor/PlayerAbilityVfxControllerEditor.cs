@@ -1,15 +1,38 @@
 #if UNITY_EDITOR
+using System;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Foldout groups for <see cref="PlayerAbilityVfxController"/> (moved from Player Ability Controller).
+/// Tabbed, level-sorted foldouts for <see cref="PlayerAbilityVfxController"/>.
 /// </summary>
 [CustomEditor(typeof(PlayerAbilityVfxController))]
 [CanEditMultipleObjects]
 public class PlayerAbilityVfxControllerEditor : Editor
 {
     private const string FoldPrefsRoot = "PlayerAbilityVfxController.Foldouts.";
+    private const string TabPrefsKey = FoldPrefsRoot + "SelectedSkillTab";
+
+    private enum VfxSkillTab
+    {
+        Melee = 0,
+        Magic = 1,
+        Range = 2,
+        Woodcutting = 3,
+        Fishing = 4,
+        Mining = 5
+    }
+
+    private static readonly string[] TabLabels =
+    {
+        "Melee",
+        "Magic",
+        "Range",
+        "Woodcutting",
+        "Fishing",
+        "Mining"
+    };
 
     private static readonly string[] RefFieldNames =
     {
@@ -33,6 +56,30 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "powerSlashUseDoubleSwipe",
         "powerSlashSecondSwipeDelay",
         "powerSlashSecondSwipeAngleOffset"
+    };
+
+    private static readonly string[] CrusaderStrikeFieldNames =
+    {
+        "crusaderStrikeBeamOuterColor",
+        "crusaderStrikeBeamInnerColor",
+        "crusaderStrikeBeamFinalColor",
+        "crusaderStrikeBeamDuration",
+        "crusaderStrikeBeamSkyHeight",
+        "crusaderStrikeBeamBehindPlayerX",
+        "crusaderStrikeBeamBehindPlayerY",
+        "crusaderStrikeBeamPointSize",
+        "crusaderStrikeBeamTrailTime",
+        "crusaderStrikeBeamTrailWidth",
+        "crusaderStrikeBeamCenterOffset",
+        "crusaderStrikeBeamFinalSizeScale"
+    };
+
+    private static readonly string[] ParryFieldNames =
+    {
+        "parrySlashColor",
+        "parrySlashLineWidth",
+        "parrySlashDuration",
+        "parrySlashHeightOffset"
     };
 
     private static readonly string[] WhirlwindFieldNames =
@@ -94,6 +141,90 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "shadowStrikeDepartSmokeWispEmitSeconds"
     };
 
+    private static readonly string[] EnergyInfusionVfxFieldNames =
+    {
+        "energyInfusionGlowLocalOffset",
+        "energyInfusionGlowColor",
+        "energyInfusionGlowSphereRadius",
+        "energyInfusionGlowEmissionRate",
+        "energyInfusionParticleStartSizeMin",
+        "energyInfusionParticleStartSizeMax"
+    };
+
+    private static readonly string[] FlameChargeVfxFieldNames =
+    {
+        "flameChargePlayerGlowColor",
+        "flameChargePlayerGlowLocalOffset",
+        "flameChargePlayerGlowRadius",
+        "flameChargePlayerGlowEmissionRate",
+        "flameChargeGroundFireColor",
+        "flameChargeGroundFireRadius",
+        "flameChargeGroundFireEmissionRate",
+        "flameChargeVolcanicBurstColor",
+        "flameChargeVolcanicBurstDuration",
+        "flameChargeVolcanicBurstMaxRadius",
+        "flameChargeGroundFloorYOffset",
+        "flameChargeGroundTrailHeight",
+        "flameChargeGroundSortingLayer",
+        "flameChargeGroundSortingOrder"
+    };
+
+    private static readonly string[] SoulforgedWeaponFieldNames =
+    {
+        "soulforgedWeaponMinionPresentation"
+    };
+
+    private static readonly string[] BattleTranceVfxFieldNames =
+    {
+        "battleTranceGlowLocalOffset",
+        "battleTranceGlowColor",
+        "battleTranceGlowSphereRadius",
+        "battleTranceGlowEmissionRate",
+        "battleTranceParticleStartSizeMin",
+        "battleTranceParticleStartSizeMax"
+    };
+
+    private static readonly string[] HammerTempestVfxFieldNames =
+    {
+        "hammerTempestHammerSprite",
+        "hammerTempestHammerTint",
+        "hammerTempestCenterOffset",
+        "hammerTempestOrbitRadius",
+        "hammerTempestWorldScale",
+        "hammerTempestMainOrbitDegreesPerSecond",
+        "hammerTempestHammerSpinDegreesPerSecond",
+        "hammerTempestRingRadiusInset",
+        "hammerTempestRingColor",
+        "hammerTempestRingEdgeOpacity"
+    };
+
+    private static readonly string[] AshenRebirthVfxFieldNames =
+    {
+        "ashenRebirthPhoenixSprite",
+        "ashenRebirthPhoenixTint",
+        "ashenRebirthPhoenixWorldScale",
+        "ashenRebirthPhoenixSpawnHeightAbovePlayer",
+        "ashenRebirthPhoenixSpawnHoldSeconds",
+        "ashenRebirthPhoenixSortingLayer",
+        "ashenRebirthPhoenixSortingOrder"
+    };
+
+    private static readonly string[] FinalSeveranceVfxFieldNames =
+    {
+        "finalSeveranceWindupStartColor",
+        "finalSeveranceWindupEndColor",
+        "finalSeveranceStrikeStartColor",
+        "finalSeveranceStrikeEndColor",
+        "finalSeveranceWindupVfxDuration",
+        "finalSeveranceStrikeVfxDuration",
+        "finalSeveranceLineWidth",
+        "finalSeveranceCenterOffset",
+        "finalSeveranceDiagonalRise",
+        "finalSeveranceDiagonalDrop",
+        "finalSeveranceStrikeDiagonalRise",
+        "finalSeveranceStrikeDiagonalDrop"
+    };
+
     private static readonly string[] ExecutionersDescentVfxFieldNames =
     {
         "executionersDescentAxeSprite",
@@ -130,91 +261,21 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "bladestormFinaleSlashLengthScale"
     };
 
-    private static readonly string[] FinalSeveranceVfxFieldNames =
-    {
-        "finalSeveranceWindupStartColor",
-        "finalSeveranceWindupEndColor",
-        "finalSeveranceStrikeStartColor",
-        "finalSeveranceStrikeEndColor",
-        "finalSeveranceWindupVfxDuration",
-        "finalSeveranceStrikeVfxDuration",
-        "finalSeveranceLineWidth",
-        "finalSeveranceCenterOffset",
-        "finalSeveranceDiagonalRise",
-        "finalSeveranceDiagonalDrop",
-        "finalSeveranceStrikeDiagonalRise",
-        "finalSeveranceStrikeDiagonalDrop"
-    };
-
-    private static readonly string[] LumberFrenzyVfxFieldNames =
+    private static readonly string[] GatheringFrenzySharedFieldNames =
     {
         "lumberFrenzyOrbitVfxPrefab",
         "lumberFrenzyOrbitVfxLocalOffset",
-        "gatheringFrenzyBehindDistance",
-        "lumberFrenzyOrbitVfxColor",
+        "gatheringFrenzyBehindDistance"
+    };
+
+    private static readonly string[] LumberFrenzyFieldNames =
+    {
+        "lumberFrenzyOrbitVfxColor"
+    };
+
+    private static readonly string[] FishingFrenzyFieldNames =
+    {
         "fishingFrenzyOrbitVfxColor"
-    };
-
-    private static readonly string[] AvatarOfTheForestVfxFieldNames =
-    {
-        "avatarOfForestGlowLocalOffset",
-        "avatarOfForestGlowColor",
-        "avatarOfForestGlowSphereRadius",
-        "avatarOfForestGlowConeAngle",
-        "avatarOfForestGlowEmissionRate",
-        "avatarOfForestParticleStartSizeMin",
-        "avatarOfForestParticleStartSizeMax",
-        "avatarOfForestTrailLifetime",
-        "avatarOfForestTrailWidth"
-    };
-
-    private static readonly string[] EnergyInfusionVfxFieldNames =
-    {
-        "energyInfusionGlowLocalOffset",
-        "energyInfusionGlowColor",
-        "energyInfusionGlowSphereRadius",
-        "energyInfusionGlowEmissionRate",
-        "energyInfusionParticleStartSizeMin",
-        "energyInfusionParticleStartSizeMax"
-    };
-
-    private static readonly string[] BattleTranceVfxFieldNames =
-    {
-        "battleTranceGlowLocalOffset",
-        "battleTranceGlowColor",
-        "battleTranceGlowSphereRadius",
-        "battleTranceGlowEmissionRate",
-        "battleTranceParticleStartSizeMin",
-        "battleTranceParticleStartSizeMax"
-    };
-
-    private static readonly string[] AshenRebirthVfxFieldNames =
-    {
-        "ashenRebirthPhoenixSprite",
-        "ashenRebirthPhoenixTint",
-        "ashenRebirthPhoenixWorldScale",
-        "ashenRebirthPhoenixSpawnHeightAbovePlayer",
-        "ashenRebirthPhoenixSpawnHoldSeconds",
-        "ashenRebirthPhoenixSortingLayer",
-        "ashenRebirthPhoenixSortingOrder"
-    };
-
-    private static readonly string[] FlameChargeVfxFieldNames =
-    {
-        "flameChargePlayerGlowColor",
-        "flameChargePlayerGlowLocalOffset",
-        "flameChargePlayerGlowRadius",
-        "flameChargePlayerGlowEmissionRate",
-        "flameChargeGroundFireColor",
-        "flameChargeGroundFireRadius",
-        "flameChargeGroundFireEmissionRate",
-        "flameChargeVolcanicBurstColor",
-        "flameChargeVolcanicBurstDuration",
-        "flameChargeVolcanicBurstMaxRadius",
-        "flameChargeGroundFloorYOffset",
-        "flameChargeGroundTrailHeight",
-        "flameChargeGroundSortingLayer",
-        "flameChargeGroundSortingOrder"
     };
 
     private static readonly string[] CleavingChopFieldNames =
@@ -254,6 +315,75 @@ public class PlayerAbilityVfxControllerEditor : Editor
         "spectralAxeTrailColorEnd"
     };
 
+    private static readonly string[] AvatarOfTheForestVfxFieldNames =
+    {
+        "avatarOfForestGlowLocalOffset",
+        "avatarOfForestGlowColor",
+        "avatarOfForestGlowSphereRadius",
+        "avatarOfForestGlowConeAngle",
+        "avatarOfForestGlowEmissionRate",
+        "avatarOfForestParticleStartSizeMin",
+        "avatarOfForestParticleStartSizeMax",
+        "avatarOfForestTrailLifetime",
+        "avatarOfForestTrailWidth"
+    };
+
+    private readonly struct VfxFoldoutSection
+    {
+        public readonly VfxSkillTab Tab;
+        public readonly string FoldKey;
+        public readonly string AbilityName;
+        public readonly int Level;
+        public readonly string[] FieldNames;
+        public readonly string[] ExtraFieldNames;
+
+        public VfxFoldoutSection(
+            VfxSkillTab tab,
+            string foldKey,
+            int level,
+            string abilityName,
+            string[] fieldNames,
+            string[] extraFieldNames = null)
+        {
+            Tab = tab;
+            FoldKey = foldKey;
+            Level = level;
+            AbilityName = abilityName;
+            FieldNames = fieldNames;
+            ExtraFieldNames = extraFieldNames;
+        }
+    }
+
+    private static readonly VfxFoldoutSection[] AllSections =
+    {
+        new(VfxSkillTab.Melee, "PowerSlashVfx", 5, "Power Slash", PowerSlashFieldNames),
+        new(VfxSkillTab.Melee, "CrusaderStrikeVfx", 5, "Crusader Strike", CrusaderStrikeFieldNames),
+        new(VfxSkillTab.Melee, "ParryVfx", 10, "Parry", ParryFieldNames),
+        new(VfxSkillTab.Melee, "WhirlwindVfx", 15, "Whirlwind", WhirlwindFieldNames),
+        new(VfxSkillTab.Melee, "CrescentSlashVfx", 15, "Crescent Slash", CrescentFieldNames),
+        new(VfxSkillTab.Melee, "GuardiansHammerVfx", 15, "Guardian's Hammer", GuardiansHammerFieldNames),
+        new(VfxSkillTab.Melee, "ShadowStrikeVfx", 25, "Shadow Strike", ShadowStrikeVfxFieldNames),
+        new(VfxSkillTab.Melee, "EnergyInfusionVfx", 25, "Energy Infusion / Arcane Battery", EnergyInfusionVfxFieldNames),
+        new(VfxSkillTab.Melee, "FlameChargeVfx", 25, "Flame Charge", FlameChargeVfxFieldNames),
+        new(VfxSkillTab.Melee, "SoulforgedWeaponMinionVfx", 35, "Soulforged Weapon", SoulforgedWeaponFieldNames),
+        new(VfxSkillTab.Melee, "BattleTranceVfx", 35, "Battle Trance", BattleTranceVfxFieldNames),
+        new(VfxSkillTab.Melee, "HammerTempestVfx", 35, "Hammer Tempest", HammerTempestVfxFieldNames),
+        new(VfxSkillTab.Melee, "AshenRebirthVfx", 40, "Phoenix Soul — Ashen Rebirth", AshenRebirthVfxFieldNames),
+        new(VfxSkillTab.Melee, "FinalSeveranceVfx", 45, "Final Severance", FinalSeveranceVfxFieldNames),
+        new(VfxSkillTab.Melee, "ExecutionersDescentVfx", 45, "Executioner's Descent", ExecutionersDescentVfxFieldNames),
+        new(VfxSkillTab.Melee, "BladestormVfx", 45, "Bladestorm", BladestormVfxFieldNames),
+
+        new(VfxSkillTab.Woodcutting, "LumberFrenzyVfx", 5, "Lumber Frenzy",
+            LumberFrenzyFieldNames, GatheringFrenzySharedFieldNames),
+        new(VfxSkillTab.Woodcutting, "CleavingChopVfx", 25, "Cleaving Chop", CleavingChopFieldNames),
+        new(VfxSkillTab.Woodcutting, "SpectralAxeVfx", 25, "Spectral Axe", SpectralAxeFieldNames),
+        new(VfxSkillTab.Woodcutting, "SpectralAxeTrailVfx", 25, "Spectral Axe — Blue Trail", SpectralAxeTrailFieldNames),
+        new(VfxSkillTab.Woodcutting, "AvatarOfTheForestVfx", 45, "Avatar of the Forest", AvatarOfTheForestVfxFieldNames),
+
+        new(VfxSkillTab.Fishing, "FishingFrenzyVfx", 5, "Fishing Frenzy",
+            FishingFrenzyFieldNames, GatheringFrenzySharedFieldNames)
+    };
+
     private static bool GetFold(string key, bool defaultExpanded = true)
     {
         return EditorPrefs.GetBool(FoldPrefsRoot + key, defaultExpanded);
@@ -264,26 +394,61 @@ public class PlayerAbilityVfxControllerEditor : Editor
         EditorPrefs.SetBool(FoldPrefsRoot + key, value);
     }
 
-    private static void DrawFoldoutPropertyBlock(SerializedObject so, string foldKey, string title, string[] fieldNames)
+    private static string FormatSectionTitle(VfxFoldoutSection section) =>
+        $"Lv{section.Level} — {section.AbilityName}";
+
+    private static void DrawFoldoutPropertyBlock(SerializedObject so, VfxFoldoutSection section)
     {
-        bool open = GetFold(foldKey);
-        bool newOpen = EditorGUILayout.Foldout(open, title, true);
+        bool open = GetFold(section.FoldKey);
+        bool newOpen = EditorGUILayout.Foldout(open, FormatSectionTitle(section), true);
         if (newOpen != open)
-            SetFold(foldKey, newOpen);
+            SetFold(section.FoldKey, newOpen);
         open = newOpen;
 
         if (!open)
             return;
 
         EditorGUI.indentLevel++;
+        DrawFieldNameList(so, section.ExtraFieldNames);
+        DrawFieldNameList(so, section.FieldNames);
+        EditorGUI.indentLevel--;
+    }
+
+    private static void DrawFieldNameList(SerializedObject so, string[] fieldNames)
+    {
+        if (fieldNames == null || fieldNames.Length == 0)
+            return;
+
         foreach (string name in fieldNames)
         {
             SerializedProperty p = so.FindProperty(name);
             if (p != null)
                 EditorGUILayout.PropertyField(p, true);
         }
+    }
 
-        EditorGUI.indentLevel--;
+    private static void DrawSkillTab(SerializedObject so, VfxSkillTab tab)
+    {
+        VfxFoldoutSection[] sections = AllSections
+            .Where(s => s.Tab == tab)
+            .OrderBy(s => s.Level)
+            .ThenBy(s => s.AbilityName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (sections.Length == 0)
+        {
+            EditorGUILayout.HelpBox(
+                "No ability VFX fields for this skill yet. New VFX will appear here when added to PlayerAbilityVfxController.",
+                MessageType.Info);
+            return;
+        }
+
+        for (int i = 0; i < sections.Length; i++)
+        {
+            DrawFoldoutPropertyBlock(so, sections[i]);
+            if (i < sections.Length - 1)
+                EditorGUILayout.Space(2f);
+        }
     }
 
     public override void OnInspectorGUI()
@@ -303,89 +468,15 @@ public class PlayerAbilityVfxControllerEditor : Editor
                 EditorGUILayout.PropertyField(p);
         }
 
-        EditorGUILayout.Space(6f);
+        EditorGUILayout.Space(8f);
+        EditorGUILayout.LabelField("Ability VFX", EditorStyles.boldLabel);
 
-        DrawFoldoutPropertyBlock(serializedObject, "PowerSlashVfx", "Power Slash (Melee) VFX", PowerSlashFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "WhirlwindVfx", "Whirlwind (Melee) VFX", WhirlwindFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "CrescentSlashVfx", "Crescent Slash (Melee) VFX", CrescentFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "GuardiansHammerVfx", "Guardian's Hammer (Melee Lv15) VFX", GuardiansHammerFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(
-            serializedObject,
-            "ShadowStrikeVfx",
-            "Shadow Strike (Melee Lv25) VFX",
-            ShadowStrikeVfxFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(
-            serializedObject,
-            "EnergyInfusionVfx",
-            "Energy Infusion / Arcane Battery (Melee Lv25) VFX",
-            EnergyInfusionVfxFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(
-            serializedObject,
-            "BattleTranceVfx",
-            "Battle Trance (Melee Lv35) VFX",
-            BattleTranceVfxFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(
-            serializedObject,
-            "AshenRebirthVfx",
-            "Phoenix Soul — Ashen Rebirth (Melee Lv40) VFX",
-            AshenRebirthVfxFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(
-            serializedObject,
-            "FlameChargeVfx",
-            "Flame Charge (Melee Lv25) VFX",
-            FlameChargeVfxFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(
-            serializedObject,
-            "BladestormVfx",
-            "Bladestorm (Melee Lv45) VFX",
-            BladestormVfxFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(
-            serializedObject,
-            "ExecutionersDescentVfx",
-            "Executioner's Descent (Melee Lv45) VFX",
-            ExecutionersDescentVfxFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(
-            serializedObject,
-            "FinalSeveranceVfx",
-            "Final Severance (Melee Lv45) VFX",
-            FinalSeveranceVfxFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "LumberFrenzyVfx", "Gathering Frenzy (Lumber / Fishing Lv5) VFX", LumberFrenzyVfxFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "AvatarOfTheForestVfx", "Avatar of the Forest (Woodcutting Lv45) VFX", AvatarOfTheForestVfxFieldNames);
-        EditorGUILayout.Space(2f);
+        int tabIndex = EditorPrefs.GetInt(TabPrefsKey, 0);
+        tabIndex = GUILayout.Toolbar(tabIndex, TabLabels);
+        EditorPrefs.SetInt(TabPrefsKey, tabIndex);
 
-        bool sfOpen = GetFold("SoulforgedWeaponMinionVfx");
-        bool sfNew = EditorGUILayout.Foldout(sfOpen, "Soulforged Weapon Minion VFX", true);
-        if (sfNew != sfOpen)
-            SetFold("SoulforgedWeaponMinionVfx", sfNew);
-        sfOpen = sfNew;
-        if (sfOpen)
-        {
-            EditorGUI.indentLevel++;
-            SerializedProperty sf = serializedObject.FindProperty("soulforgedWeaponMinionPresentation");
-            if (sf != null)
-                EditorGUILayout.PropertyField(sf, true);
-            EditorGUI.indentLevel--;
-        }
-        EditorGUILayout.Space(2f);
-
-        DrawFoldoutPropertyBlock(serializedObject, "CleavingChopVfx", "Cleaving Chop (Woodcutting Lv25) VFX", CleavingChopFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "SpectralAxeVfx", "Spectral Axe (Woodcutting Lv25) VFX", SpectralAxeFieldNames);
-        EditorGUILayout.Space(2f);
-        DrawFoldoutPropertyBlock(serializedObject, "SpectralAxeTrailVfx", "Spectral Axe Blue Trail (Woodcutting Lv25)", SpectralAxeTrailFieldNames);
+        EditorGUILayout.Space(4f);
+        DrawSkillTab(serializedObject, (VfxSkillTab)Mathf.Clamp(tabIndex, 0, TabLabels.Length - 1));
 
         serializedObject.ApplyModifiedProperties();
     }

@@ -5695,6 +5695,18 @@ MonoBehaviour:
   parrySlashLineWidth: 0.1
   parrySlashDuration: 0.2
   parrySlashHeightOffset: {x: 0, y: 0.55, z: 0}
+  crusaderStrikeBeamOuterColor: {r: 1, g: 0.7, b: 0.16, a: 0.9}
+  crusaderStrikeBeamInnerColor: {r: 1, g: 0.95, b: 0.5, a: 0.95}
+  crusaderStrikeBeamFinalColor: {r: 1, g: 0.5, b: 0.08, a: 0.95}
+  crusaderStrikeBeamDuration: 0.18
+  crusaderStrikeBeamSkyHeight: 3.1
+  crusaderStrikeBeamBehindPlayerX: 1.15
+  crusaderStrikeBeamBehindPlayerY: 0.9
+  crusaderStrikeBeamPointSize: 0.2
+  crusaderStrikeBeamTrailTime: 0.12
+  crusaderStrikeBeamTrailWidth: 0.12
+  crusaderStrikeBeamCenterOffset: {x: 0, y: 0.55, z: 0}
+  crusaderStrikeBeamFinalSizeScale: 1.2
   whirlingBladeColor: {r: 0.9169811, g: 0.48521498, b: 0.08131714, a: 1}
   whirlingBladeDuration: 0.22
   whirlingBladeSpinDegrees: 720
@@ -5856,6 +5868,16 @@ MonoBehaviour:
   battleTranceGlowEmissionRate: 38
   battleTranceParticleStartSizeMin: 0.032
   battleTranceParticleStartSizeMax: 0.058
+  hammerTempestHammerSprite: {fileID: 4687727764133868624, guid: a6c8e023557d16f4c8968c13917dd559, type: 3}
+  hammerTempestHammerTint: {r: 1, g: 0.92, b: 0.35, a: 1}
+  hammerTempestCenterOffset: {x: 0, y: 0.75, z: 0}
+  hammerTempestOrbitRadius: 2.5
+  hammerTempestWorldScale: 0.85
+  hammerTempestMainOrbitDegreesPerSecond: 90
+  hammerTempestHammerSpinDegreesPerSecond: 60
+  hammerTempestRingRadiusInset: 0.5
+  hammerTempestRingColor: {r: 1, g: 0.88, b: 0.22, a: 1}
+  hammerTempestRingEdgeOpacity: 0.5
   ashenRebirthPhoenixSprite: {fileID: -4453784588268070965, guid: 33df198e24b717b43b99976e8859045e, type: 3}
   ashenRebirthPhoenixTint: {r: 1, g: 1, b: 1, a: 1}
   ashenRebirthPhoenixWorldScale: 0.5

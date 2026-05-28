@@ -154,19 +154,22 @@ public static class GameTooltipTexts
             case "PhysicalBonusText":
             case "GlobalPhysicalBonusText":
                 title = "All physical";
-                description = "Increases all Physical damage you deal.";
+                description =
+                    "Increases all Physical damage you deal. While using a weapon, this % is included in your Damage / Melee Damage range.";
                 return true;
 
             case "MagBonusText":
             case "GlobalMagBonusText":
                 title = "All magic";
-                description = "Increases all Magic damage you deal.";
+                description =
+                    "Increases all Magic damage you deal. While using a weapon, this % is included in your Damage / Melee Damage range.";
                 return true;
 
             case "CorruptionBonusText":
             case "GlobalCorruptionBonusText":
                 title = "All corruption";
-                description = "Increases all Corruption damage you deal.";
+                description =
+                    "Increases all Corruption damage you deal. While using a weapon, this % is included in your Damage / Melee Damage range.";
                 return true;
 
             case "FireBonusText":
@@ -189,8 +192,8 @@ public static class GameTooltipTexts
             case "ConditionalMeleePhysBonusText":
                 title = "Melee damage";
                 description =
-                    "Increases all damage you deal from melee attacks: Physical, Magic (elemental on the melee weapon), " +
-                    "and Corruption portions of the hit.";
+                    "Increases all damage on your melee weapon hit (Physical, Magic/elemental, and Corruption). " +
+                    "While using a melee weapon, this % is included in Melee Damage above.";
                 return true;
 
             case "RangedPhysBonusText":

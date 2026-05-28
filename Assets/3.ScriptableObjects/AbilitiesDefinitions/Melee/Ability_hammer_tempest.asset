@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72348ba875f2bef4f89214706a71a6e7, type: 3}
+  m_Name: Ability_hammer_tempest
+  m_EditorClassIdentifier: Assembly-CSharp::AbilityDefinition
+  abilityId: hammer_tempest
+  displayName: Hammer Tempest
+  tag: 1
+  tooltipBuffMinionDurationSeconds: 25
+  presentation: {fileID: 11400000, guid: 8d3e2a1b0c9f4a5e8b7c6d5e4f3a2b1c, type: 2}
+  cooldown: 30
+  energyCost: 50
+  manaCost: 0
+  healthCost: 0
+  weaponDamageMultiplier: 0.3
+  allDamageMultiplier: 1
+  fireDamageMultiplier: 0
+  iceDamageMultiplier: 0
+  lightningDamageMultiplier: 0
+  poisonDamageMultiplier: 0
+  bleedDamageMultiplier: 0
+  requiredWeaponType: 1
+  sourceSkill: 3
+  unlockLevel: 35
+  requireRangeCheckToActivate: 0
+  setsTargetOnHit: 0
+  minionSpawnDefinition: {fileID: 0}

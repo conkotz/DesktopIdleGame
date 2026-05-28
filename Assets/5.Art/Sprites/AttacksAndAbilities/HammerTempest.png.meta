@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: a6c8e023557d16f4c8968c13917dd559
+guid: 364d543f047d58046a876b325b2876bf
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 4687727764133868624
-    second: SmallGoldenHammer_0
+      213: 3752885284447718411
+    second: HammerTempest_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -51,7 +51,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 750
+  spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: SmallGoldenHammer_0
+      name: HammerTempest_0
       rect:
         serializedVersion: 2
-        x: 11
+        x: 0
         y: 0
-        width: 1502
-        height: 1024
+        width: 1254
+        height: 1254
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 0547fe890972e0140800000000000000
-      internalID: 4687727764133868624
+      spriteID: b0c0c46584de41430800000000000000
+      internalID: 3752885284447718411
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      SmallGoldenHammer_0: 4687727764133868624
+      HammerTempest_0: 3752885284447718411
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

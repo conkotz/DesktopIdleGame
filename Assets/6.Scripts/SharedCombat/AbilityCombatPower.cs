@@ -32,6 +32,21 @@ public static class AbilityCombatPower
     public const string EnergyInfusionAbilityId = "energy_infusion";
     public const string FlameChargeAbilityId = "flame_charge";
     public const string BattleTranceAbilityId = "battle_trance";
+    public const string HammerTempestAbilityId = "hammer_tempest";
+
+    public const float HammerTempestBaseDurationSeconds = 25f;
+    public const int HammerTempestBaseHammerCount = 3;
+    public const int HammerTempestSacredArsenalBonusHammerCount = 3;
+    /// <summary>Per-hit damage multiplier with Sacred Arsenal (-10%).</summary>
+    public const float HammerTempestSacredArsenalDamageMultiplier = 0.90f;
+    /// <summary>Hit interval multiplier with Sacred Arsenal (0.5 = twice as often).</summary>
+    public const float HammerTempestSacredArsenalHitIntervalMultiplier = 0.5f;
+    /// <summary>Sacred Arsenal shortens Hammer Tempest by 10 seconds.</summary>
+    public const float HammerTempestSacredArsenalDurationPenaltySeconds = 10f;
+    public const float HammerTempestCrushingMomentumDamagePerStack = 0.10f;
+    public const int HammerTempestCrushingMomentumMaxStacks = 10;
+    public const int HammerTempestSacredArsenalChoiceIndex = 0;
+    public const int HammerTempestCrushingMomentumChoiceIndex = 1;
 
     public const float BattleTranceBaseDurationSeconds = 10f;
     public const float BattleTranceBaseAttackSpeedBonus = 0.15f;
@@ -127,6 +142,9 @@ public static class AbilityCombatPower
 
     /// <summary>Enhancement choices for Battle Trance (Melee Lv35 slot 1).</summary>
     public const string BattleTranceEnhancementParentSpineNodeId = "Lv35_1";
+
+    /// <summary>Enhancement choices for Hammer Tempest (Melee Lv35 slot 2).</summary>
+    public const string HammerTempestEnhancementParentSpineNodeId = "Lv35_2";
 
     /// <summary>Enhancement choices for Shadow Strike (Melee Lv25 slot 0).</summary>
     public const string ShadowStrikeEnhancementParentSpineNodeId = "Lv25_0";
@@ -643,6 +661,28 @@ public static class AbilityCombatPower
             return perCast * aps * 1.08f; // Slight AoE coverage on top of APS-scaled per-target damage.
         }
 
+        if (string.Equals(def.abilityId, HammerTempestAbilityId, StringComparison.OrdinalIgnoreCase))
+        {
+            float interval = 1f / Mathf.Max(0.01f, stats.AttacksPerSecond);
+            int choice = GetHammerTempestSelectedChoiceForCombatPower();
+            if (choice == HammerTempestSacredArsenalChoiceIndex)
+                interval *= HammerTempestSacredArsenalHitIntervalMultiplier;
+
+            float duration = def.tooltipBuffMinionDurationSeconds > 0.01f
+                ? def.tooltipBuffMinionDurationSeconds
+                : HammerTempestBaseDurationSeconds;
+            if (choice == HammerTempestSacredArsenalChoiceIndex)
+                duration = Mathf.Max(0.1f, duration - HammerTempestSacredArsenalDurationPenaltySeconds);
+            float hitsPerTarget = duration / Mathf.Max(0.01f, interval);
+            float perHit = perCast;
+            if (choice == HammerTempestSacredArsenalChoiceIndex)
+                perHit *= HammerTempestSacredArsenalDamageMultiplier;
+            if (choice == HammerTempestCrushingMomentumChoiceIndex)
+                perHit *= 1f + HammerTempestCrushingMomentumDamagePerStack * 5f; // mid-stack estimate
+
+            return Mathf.Max(0f, perHit * hitsPerTarget * 1.12f / cd);
+        }
+
         float dps = Mathf.Max(0f, perCast / cd);
 
         if (string.Equals(def.abilityId, CrescentSlashAbilityId, StringComparison.OrdinalIgnoreCase))
@@ -757,6 +797,15 @@ public static class AbilityCombatPower
             return -1;
 
         return sm.GetSkillChoiceSelection(SkillType.Melee, GuardiansHammerEnhancementParentSpineNodeId, -1);
+    }
+
+    private static int GetHammerTempestSelectedChoiceForCombatPower()
+    {
+        SkillsManager sm = SkillsManager.Instance;
+        if (sm == null)
+            return -1;
+
+        return sm.GetSkillChoiceSelection(SkillType.Melee, HammerTempestEnhancementParentSpineNodeId, -1);
     }
 
     private static int GetCrusaderStrikeSelectedChoiceForCombatPower()

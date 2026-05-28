@@ -68,6 +68,9 @@ public class PlayerAbilityController : MonoBehaviour
     private const string ShadowStrikeId = "shadow_strike";
     private const string EnergyInfusionId = "energy_infusion";
     private const string BattleTranceId = "battle_trance";
+    private const string HammerTempestId = "hammer_tempest";
+    private const int HammerTempestSacredArsenalChoiceIndex = AbilityCombatPower.HammerTempestSacredArsenalChoiceIndex;
+    private const int HammerTempestCrushingMomentumChoiceIndex = AbilityCombatPower.HammerTempestCrushingMomentumChoiceIndex;
     private const string FlameChargeId = "flame_charge";
     private const string LumberFrenzyId = "lumber_frenzy";
     private const float LumberFrenzyDurationSeconds = 20f;
@@ -239,7 +242,19 @@ public class PlayerAbilityController : MonoBehaviour
     private float _battleTranceDuration;
     private float _battleTranceMaxEndsAt;
     private float _lastSyncedBattleTranceHudEnd = float.NaN;
+    private bool _hammerTempestActive;
+    private float _hammerTempestEndsAt;
+    private float _hammerTempestDuration;
+    private float _hammerTempestNextTickAt;
+    private float _lastSyncedHammerTempestHudEnd = float.NaN;
+    private readonly Dictionary<int, float> _hammerTempestLastHitTimeByEnemyId = new();
+    private readonly Dictionary<int, HammerTempestMomentumState> _hammerTempestMomentumByEnemyId = new();
     private float _guardiansHammerProtectorResolveEndsAt;
+
+    private struct HammerTempestMomentumState
+    {
+        public int stacks;
+    }
 
     private int _battleEngineCastSessionId;
     private int _battleEngineEnergyGrantedSessionId = -1;
@@ -424,6 +439,7 @@ public class PlayerAbilityController : MonoBehaviour
         }
 
         EndBladestormInstanceState();
+        ForceEndHammerTempestEarly(applyCooldown: false);
         ForceEndWhirlwindChannel(clearHeldState: true, applyCooldown: false);
         ForceEndCrusaderStrikeCombo(applyCooldown: false);
         ClearCrusaderStrikeFireBalanceBuff();
@@ -442,6 +458,7 @@ public class PlayerAbilityController : MonoBehaviour
         abilityVfx?.DestroyAvatarOfTheForestGlowVfx();
         abilityVfx?.DestroyEnergyInfusionGlowVfx();
         abilityVfx?.DestroyBattleTranceGlowVfx();
+        abilityVfx?.DestroyHammerTempestOrbitVfx();
     }
 
     private void Update()
@@ -473,6 +490,9 @@ public class PlayerAbilityController : MonoBehaviour
         CleanupEnergyInfusionIfNotOnActionBar();
         CleanupBattleTranceIfExpired();
         SyncBattleTranceHudBuff();
+        TickHammerTempest();
+        CleanupHammerTempestIfExpired();
+        SyncHammerTempestHudBuff();
         TickBattleEngineOverloadExpiry();
         if ((player != null && player.IsDead) || (stats != null && stats.IsDead))
             ClearBattleEngineOverloadStacksIfAny();
@@ -625,6 +645,8 @@ public class PlayerAbilityController : MonoBehaviour
             return _energyInfusionActive;
         if (string.Equals(abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase))
             return IsBattleTranceActive;
+        if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
+            return IsHammerTempestActive;
         if (string.Equals(abilityId, AbilityCombatPower.SoulforgedWeaponAbilityId, StringComparison.OrdinalIgnoreCase))
             return _activeSoulforgedWeaponMinions.Count > 0;
 
@@ -679,6 +701,12 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase))
         {
             ForceEndBattleTranceEarly(applyCooldown: true);
+            return;
+        }
+
+        if (string.Equals(abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
+        {
+            ForceEndHammerTempestEarly(applyCooldown: true);
             return;
         }
 
@@ -1162,6 +1190,304 @@ public class PlayerAbilityController : MonoBehaviour
             SkillType.Melee,
             AbilityCombatPower.BattleTranceEnhancementParentSpineNodeId,
             -1);
+    }
+
+    public bool IsHammerTempestActive =>
+        _hammerTempestActive && Time.time < _hammerTempestEndsAt;
+
+    private void ActivateHammerTempest()
+    {
+        _hammerTempestActive = true;
+        _hammerTempestDuration = AbilityCombatPower.HammerTempestBaseDurationSeconds;
+        AbilityDefinition def = GetAbilityDefinition(HammerTempestId);
+        if (def != null && def.tooltipBuffMinionDurationSeconds > 0.01f)
+            _hammerTempestDuration = def.tooltipBuffMinionDurationSeconds;
+        if (GetHammerTempestSelectedChoice() == HammerTempestSacredArsenalChoiceIndex)
+            _hammerTempestDuration = Mathf.Max(
+                0.1f,
+                _hammerTempestDuration - AbilityCombatPower.HammerTempestSacredArsenalDurationPenaltySeconds);
+
+        _hammerTempestEndsAt = Time.time + _hammerTempestDuration;
+        _hammerTempestNextTickAt = Time.time;
+        _hammerTempestLastHitTimeByEnemyId.Clear();
+        _hammerTempestMomentumByEnemyId.Clear();
+        _lastSyncedHammerTempestHudEnd = float.NaN;
+        SyncHammerTempestHudBuff();
+        abilityVfx?.SpawnHammerTempestOrbitVfx(_hammerTempestDuration, GetHammerTempestOrbitHammerCount());
+        TickHammerTempest();
+    }
+
+    private void ForceEndHammerTempestEarly(bool applyCooldown)
+    {
+        if (!_hammerTempestActive && !IsHammerTempestActive)
+            return;
+
+        _hammerTempestActive = false;
+        _hammerTempestEndsAt = 0f;
+        _hammerTempestDuration = 0f;
+        _hammerTempestNextTickAt = 0f;
+        _hammerTempestLastHitTimeByEnemyId.Clear();
+        _hammerTempestMomentumByEnemyId.Clear();
+        abilityVfx?.DestroyHammerTempestOrbitVfx();
+        _lastSyncedHammerTempestHudEnd = float.NaN;
+        SyncHammerTempestHudBuff();
+
+        if (applyCooldown)
+        {
+            AbilityDefinition def = GetAbilityDefinition(HammerTempestId);
+            if (def != null && def.cooldown > 0f)
+                StartCooldown(def);
+        }
+    }
+
+    private void CleanupHammerTempestIfExpired()
+    {
+        if (!_hammerTempestActive)
+            return;
+
+        if ((player != null && player.IsDead) || (stats != null && stats.IsDead))
+        {
+            ForceEndHammerTempestEarly(applyCooldown: false);
+            return;
+        }
+
+        if (Time.time < _hammerTempestEndsAt)
+            return;
+
+        ForceEndHammerTempestEarly(applyCooldown: false);
+    }
+
+    private void SyncHammerTempestHudBuff()
+    {
+        if (!buffController)
+            return;
+
+        if (!IsHammerTempestActive)
+        {
+            if (buffController.IsHudAbilityBuffActive(HammerTempestId))
+                buffController.ClearHudAbilityBuff(HammerTempestId);
+            _lastSyncedHammerTempestHudEnd = float.NaN;
+            return;
+        }
+
+        if (Mathf.Approximately(_lastSyncedHammerTempestHudEnd, _hammerTempestEndsAt))
+            return;
+
+        _lastSyncedHammerTempestHudEnd = _hammerTempestEndsAt;
+        buffController.SetHudAbilityBuff(HammerTempestId, 1, _hammerTempestEndsAt, _hammerTempestDuration);
+    }
+
+    private void TickHammerTempest()
+    {
+        if (!IsHammerTempestActive)
+            return;
+
+        if (player == null || stats == null || player.IsDead || stats.IsDead)
+        {
+            ForceEndHammerTempestEarly(applyCooldown: false);
+            return;
+        }
+
+        AbilityDefinition def = GetAbilityDefinition(HammerTempestId);
+        if (!def || !IsAbilityAllowedBySkillProgress(def) || !CanUseWithEquippedWeapon(def))
+        {
+            ForceEndHammerTempestEarly(applyCooldown: false);
+            return;
+        }
+
+        CleanupExpiredHammerTempestMomentum();
+
+        float interval = GetHammerTempestHitIntervalSeconds();
+        while (IsHammerTempestActive && Time.time + 0.0001f >= _hammerTempestNextTickAt)
+        {
+            float tickAt = _hammerTempestNextTickAt;
+            TryHammerTempestDamageTick(def, tickAt, interval);
+            _hammerTempestNextTickAt += interval;
+        }
+    }
+
+    private void TryHammerTempestDamageTick(AbilityDefinition def, float tickAt, float intervalSeconds)
+    {
+        if (def == null || stats == null)
+            return;
+
+        intervalSeconds = Mathf.Max(0.01f, intervalSeconds);
+        float radius = GetHammerTempestHitRadius();
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+
+            if (!IsEnemyWithinHammerTempestRange(enemy, radius))
+                continue;
+
+            int enemyId = enemy.GetInstanceID();
+            if (_hammerTempestLastHitTimeByEnemyId.TryGetValue(enemyId, out float lastHitAt) &&
+                tickAt + 0.0001f < lastHitAt + intervalSeconds)
+                continue;
+
+            ApplyHammerTempestHitToTarget(enemy, def);
+            _hammerTempestLastHitTimeByEnemyId[enemyId] = tickAt;
+        }
+    }
+
+    private void ApplyHammerTempestHitToTarget(EnemyBaseController target, AbilityDefinition def)
+    {
+        if (target == null || target.IsDead || def == null || stats == null)
+            return;
+
+        float damageMultiplier = GetHammerTempestHitDamageMultiplier(target);
+        ApplyWhirlwindHitToTarget(target, def, damageMultiplier);
+
+        if (GetHammerTempestSelectedChoice() == HammerTempestCrushingMomentumChoiceIndex)
+            AddHammerTempestMomentumStack(target);
+    }
+
+    private float GetHammerTempestHitDamageMultiplier(EnemyBaseController target)
+    {
+        float mult = 1f;
+        if (GetHammerTempestSelectedChoice() == HammerTempestSacredArsenalChoiceIndex)
+            mult *= AbilityCombatPower.HammerTempestSacredArsenalDamageMultiplier;
+
+        if (GetHammerTempestSelectedChoice() == HammerTempestCrushingMomentumChoiceIndex && target != null)
+        {
+            int stacks = GetHammerTempestMomentumStacks(target);
+            mult *= 1f + stacks * AbilityCombatPower.HammerTempestCrushingMomentumDamagePerStack;
+        }
+
+        return mult;
+    }
+
+    private float GetHammerTempestHitIntervalSeconds()
+    {
+        int hammerCount = Mathf.Max(1, GetHammerTempestOrbitHammerCount());
+        float hammerTempestDegreesPerHit = 360f / hammerCount;
+        float orbitDegPerSecond = abilityVfx != null
+            ? abilityVfx.GetHammerTempestMainOrbitDegreesPerSecond()
+            : 360f;
+        orbitDegPerSecond = Mathf.Max(1f, orbitDegPerSecond);
+        float interval = hammerTempestDegreesPerHit / orbitDegPerSecond;
+        return Mathf.Max(0.05f, interval);
+    }
+
+    private int GetHammerTempestOrbitHammerCount()
+    {
+        int count = AbilityCombatPower.HammerTempestBaseHammerCount;
+        if (GetHammerTempestSelectedChoice() == HammerTempestSacredArsenalChoiceIndex)
+            count += AbilityCombatPower.HammerTempestSacredArsenalBonusHammerCount;
+        return Mathf.Clamp(count, 1, 12);
+    }
+
+    private int GetHammerTempestSelectedChoice()
+    {
+        if (!skillsManager)
+            skillsManager = SkillsManager.Instance;
+        if (!skillsManager)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee,
+            AbilityCombatPower.HammerTempestEnhancementParentSpineNodeId,
+            -1);
+    }
+
+    private int GetHammerTempestMomentumStacks(EnemyBaseController target)
+    {
+        if (target == null)
+            return 0;
+
+        int enemyId = target.GetInstanceID();
+        if (!_hammerTempestMomentumByEnemyId.TryGetValue(enemyId, out HammerTempestMomentumState state))
+            return 0;
+
+        return Mathf.Clamp(state.stacks, 0, AbilityCombatPower.HammerTempestCrushingMomentumMaxStacks);
+    }
+
+    private void AddHammerTempestMomentumStack(EnemyBaseController target)
+    {
+        if (target == null)
+            return;
+
+        int enemyId = target.GetInstanceID();
+        int stacks = 1;
+        if (_hammerTempestMomentumByEnemyId.TryGetValue(enemyId, out HammerTempestMomentumState existing))
+        {
+            stacks = Mathf.Min(AbilityCombatPower.HammerTempestCrushingMomentumMaxStacks, existing.stacks + 1);
+        }
+
+        _hammerTempestMomentumByEnemyId[enemyId] = new HammerTempestMomentumState
+        {
+            stacks = stacks
+        };
+    }
+
+    private void CleanupExpiredHammerTempestMomentum()
+    {
+        // Crushing Momentum stacks now persist for the entire Hammer Tempest cast.
+    }
+
+    private bool CanHitAnyEnemyWithHammerTempest()
+    {
+        if (stats == null)
+            return false;
+
+        float radius = GetHammerTempestHitRadius();
+        IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            EnemyBaseController enemy = allEnemies[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+            if (IsEnemyWithinHammerTempestRange(enemy, radius))
+                return true;
+        }
+
+        return false;
+    }
+
+    private float GetHammerTempestHitRadius()
+    {
+        if (abilityVfx != null)
+            return abilityVfx.GetHammerTempestOrbitRadiusWorld();
+        return 1.35f;
+    }
+
+    private Vector3 GetHammerTempestOrbitPivotWorld()
+    {
+        Vector3 offset = abilityVfx != null
+            ? abilityVfx.GetHammerTempestCenterOffsetWorld()
+            : new Vector3(0f, 0.75f, 0f);
+        return transform.position + offset;
+    }
+
+    private static float GetEnemyColliderReach(EnemyBaseController enemy)
+    {
+        if (enemy == null)
+            return 0f;
+
+        Collider2D enemyCol = enemy.GetComponent<Collider2D>();
+        if (enemyCol == null)
+            enemyCol = enemy.GetComponentInChildren<Collider2D>();
+        if (enemyCol == null)
+            return 0f;
+
+        Vector3 ext = enemyCol.bounds.extents;
+        return Mathf.Max(ext.x, ext.y);
+    }
+
+    private bool IsEnemyWithinHammerTempestRange(EnemyBaseController enemy, float radius)
+    {
+        if (enemy == null)
+            return false;
+
+        Vector3 pivot = GetHammerTempestOrbitPivotWorld();
+        Vector2 enemyPos = enemy.transform.position;
+        float centerDist = Vector2.Distance(new Vector2(pivot.x, pivot.y), enemyPos);
+        float reach = GetEnemyColliderReach(enemy);
+        return centerDist - reach <= Mathf.Max(0f, radius);
     }
 
     private void TickEnergyInfusion(float deltaTime)
@@ -2640,6 +2966,15 @@ public class PlayerAbilityController : MonoBehaviour
         if (string.Equals(def.abilityId, BattleTranceId, StringComparison.OrdinalIgnoreCase))
         {
             ActivateBattleTranceBuff();
+            StartCooldown(def);
+            if (globalCooldownSeconds > 0f)
+                _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
+            LogAbilityUsed(def);
+            return true;
+        }
+        if (string.Equals(def.abilityId, HammerTempestId, StringComparison.OrdinalIgnoreCase))
+        {
+            ActivateHammerTempest();
             StartCooldown(def);
             if (globalCooldownSeconds > 0f)
                 _globalCooldownEndsAt = Time.time + globalCooldownSeconds;
@@ -7712,7 +8047,6 @@ public class PlayerAbilityController : MonoBehaviour
             resolvedApplyChance,
             stats.BurnExplosionMultiplier,
             transform,
-            GetAbilityOutgoingDamageSourceLabel(FlameChargeId),
             burnTickIntervalSeconds: stats.BurnTickIntervalSeconds);
     }
 

@@ -811,7 +811,7 @@ public class AilmentController : MonoBehaviour
         float applyChance,
         float burnDamageMultiplier,
         Transform source,
-        string outgoingDpsSourceLabel = null,
+        string outgoingDpsSourceLabel = null, // unused: burn ticks always credit PlayerCombatController.OutgoingBurningSourceLabel
         bool outgoingAttributeToMinion = false,
         float burnTickIntervalSeconds = DefaultBurnTickIntervalSeconds)
     {
@@ -819,7 +819,8 @@ public class AilmentController : MonoBehaviour
         if (fireDamageDealt <= 0f) return false;
 
         _burnDotDealerLabel = ResolveDotDealerLabelForDps(source);
-        _burnOutgoingDpsSourceLabel = outgoingDpsSourceLabel;
+        // Burn DoT and combust always credit the shared ailment line, not the ability that applied the stack.
+        _burnOutgoingDpsSourceLabel = PlayerCombatController.OutgoingBurningSourceLabel;
         _burnOutgoingAttributeToMinion = outgoingAttributeToMinion;
         burnDotSource = source != null ? source : transform;
 

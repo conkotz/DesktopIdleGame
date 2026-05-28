@@ -289,6 +289,9 @@ public static class AbilityTooltipDamagePreview
     private static bool IsBattleTrance(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.BattleTranceAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsHammerTempest(AbilityDefinition def) =>
+        def && string.Equals(def.abilityId, AbilityCombatPower.HammerTempestAbilityId, System.StringComparison.OrdinalIgnoreCase);
+
     private static bool IsFlameCharge(AbilityDefinition def) =>
         def && string.Equals(def.abilityId, AbilityCombatPower.FlameChargeAbilityId, System.StringComparison.OrdinalIgnoreCase);
 
@@ -445,6 +448,23 @@ public static class AbilityTooltipDamagePreview
 
         return skillsManager.GetSkillChoiceSelection(
             SkillType.Melee, AbilityCombatPower.EnergyInfusionEnhancementParentSpineNodeId, -1);
+    }
+
+    private static int GetHammerTempestBranchChoice(SkillsManager skillsManager)
+    {
+        if (skillsManager == null)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee, AbilityCombatPower.HammerTempestEnhancementParentSpineNodeId, -1);
+    }
+
+    private static float GetHammerTempestDurationBonusSeconds(SkillsManager skillsManager)
+    {
+        int choice = GetHammerTempestBranchChoice(skillsManager);
+        if (choice == AbilityCombatPower.HammerTempestSacredArsenalChoiceIndex)
+            return -AbilityCombatPower.HammerTempestSacredArsenalDurationPenaltySeconds;
+        return 0f;
     }
 
     private static int GetBattleTranceBranchChoice(SkillsManager skillsManager)
@@ -1104,6 +1124,12 @@ public static class AbilityTooltipDamagePreview
             body.AppendLine(string.Empty);
             body.AppendLine(O(
                 $"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, 5f, GetCleavingStrikesDurationBonusSeconds(skillsManager)):0.#}s"));
+        }
+        else if (IsHammerTempest(def))
+        {
+            body.AppendLine(string.Empty);
+            body.AppendLine(O(
+                $"Duration: {GetTooltipBuffMinionDisplayDurationSeconds(def, AbilityCombatPower.HammerTempestBaseDurationSeconds, GetHammerTempestDurationBonusSeconds(skillsManager)):0.#}s"));
         }
 
         body.AppendLine(string.Empty);

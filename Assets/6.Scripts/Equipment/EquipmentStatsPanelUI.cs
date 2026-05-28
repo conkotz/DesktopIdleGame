@@ -374,7 +374,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (offenceGlobalBonusesHeaderText)
             offenceGlobalBonusesHeaderText.text = "Global bonuses";
         if (offenceStyleBonusesHeaderText)
-            offenceStyleBonusesHeaderText.text = "Conditional bonuses";
+            offenceStyleBonusesHeaderText.text = "Style bonuses";
 
         // -------------------------
         // Offensive
@@ -436,18 +436,18 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             string split = "";
 
             if (hasPhys)
-                split += $"P {Mathf.RoundToInt(min.physical)}-{Mathf.RoundToInt(max.physical)}";
+                split += $"P {Mathf.FloorToInt(min.physical)}-{Mathf.CeilToInt(max.physical)}";
 
             if (hasMag)
             {
                 if (!string.IsNullOrEmpty(split)) split += " | ";
-                split += $"M {Mathf.RoundToInt(min.magic)}-{Mathf.RoundToInt(max.magic)}";
+                split += $"M {Mathf.FloorToInt(min.magic)}-{Mathf.CeilToInt(max.magic)}";
             }
 
             if (hasCorruption)
             {
                 if (!string.IsNullOrEmpty(split)) split += " | ";
-                split += $"C {Mathf.RoundToInt(min.corruptionDamage)}-{Mathf.RoundToInt(max.corruptionDamage)}";
+                split += $"C {Mathf.FloorToInt(min.corruptionDamage)}-{Mathf.CeilToInt(max.corruptionDamage)}";
             }
 
             string colouredTypeLabel = hasAnyDamage

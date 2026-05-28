@@ -1680,9 +1680,11 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         if (binding == null)
             return;
 
+        float? savedScroll = CaptureTimelineScrollPosition();
         EnsureDetailsPanelReference();
         _detailsFocusedTimelineNode = FindTimelineNodeForBinding(binding);
         detailsPanel?.Show(binding);
+        RestoreTimelineScrollPosition(savedScroll);
         RefreshRowSelectionButtons();
     }
 
@@ -1742,6 +1744,8 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         return scroll != null ? scroll.horizontalNormalizedPosition : null;
     }
 
+    public float? TryGetTimelineScrollNormalizedPosition() => CaptureTimelineScrollPosition();
+
     private void RestoreTimelineScrollPosition(float? normalized)
     {
         if (!normalized.HasValue)
@@ -1751,8 +1755,11 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         if (scroll == null)
             return;
 
-        scroll.horizontalNormalizedPosition = normalized.Value;
+        scroll.horizontalNormalizedPosition = Mathf.Clamp01(normalized.Value);
     }
+
+    public void ApplyTimelineScrollNormalizedPosition(float normalized) =>
+        RestoreTimelineScrollPosition(normalized);
 
     /// <summary>Moves choice groups / standalone nodes per <see cref="choiceGroupLayout"/> (no connector destroy).</summary>
     public void ApplyChoiceGroupLayoutOffsets()

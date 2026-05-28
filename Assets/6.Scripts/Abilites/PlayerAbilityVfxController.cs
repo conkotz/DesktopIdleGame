@@ -242,6 +242,32 @@ public class PlayerAbilityVfxController : MonoBehaviour
     [SerializeField, Min(0.001f)] private float battleTranceParticleStartSizeMin = 0.032f;
     [SerializeField, Min(0.001f)] private float battleTranceParticleStartSizeMax = 0.058f;
 
+    [Header("Hammer Tempest (Melee Lv35) VFX")]
+    [Tooltip("Sprite for each orbiting hammer (e.g. SmallGoldenHammer). Uses Guardian's Hammer sprite if empty.")]
+    [SerializeField] private Sprite hammerTempestHammerSprite;
+    [SerializeField] private Color hammerTempestHammerTint = new Color(1f, 0.92f, 0.35f, 1f);
+    [Tooltip("World offset from the player for the center of the hammer orbit ring.")]
+    [SerializeField] private Vector3 hammerTempestCenterOffset = new Vector3(0f, 0.75f, 0f);
+    [Tooltip("Distance from the orbit center to each hammer (ring radius).")]
+    [SerializeField, Min(0.1f)] private float hammerTempestOrbitRadius = 1.35f;
+    [Tooltip("Uniform scale applied to each hammer sprite in world space.")]
+    [SerializeField, Min(0.05f)] private float hammerTempestWorldScale = 0.85f;
+    [Tooltip("Main rotation: how fast the hammer ring orbits around the player (degrees per second). 360 = one full circle per second.")]
+    [SerializeField, Min(0f)]
+    [FormerlySerializedAs("hammerTempestOrbitDegreesPerSecond")]
+    [InspectorName("Main Orbit Speed (deg/s)")]
+    private float hammerTempestMainOrbitDegreesPerSecond = 360f;
+    [Tooltip("Individual hammer rotation: how fast each hammer spins on its own axis while orbiting (degrees per second).")]
+    [SerializeField, Min(0f)]
+    [FormerlySerializedAs("hammerTempestSelfSpinDegreesPerSecond")]
+    [InspectorName("Hammer Spin Speed (deg/s)")]
+    private float hammerTempestHammerSpinDegreesPerSecond = 720f;
+    [Tooltip("Golden disc inside the hammer orbit: world radius = Orbit Radius minus this value.")]
+    [SerializeField, Min(0f)] private float hammerTempestRingRadiusInset = 0.5f;
+    [SerializeField] private Color hammerTempestRingColor = new Color(1f, 0.88f, 0.22f, 1f);
+    [Tooltip("Face opacity at the outer edge of the golden ring (center fades to 0%).")]
+    [SerializeField, Range(0f, 1f)] private float hammerTempestRingEdgeOpacity = 0.5f;
+
     [Header("Phoenix Soul — Ashen Rebirth (Melee Lv40) VFX")]
     [SerializeField] private Sprite ashenRebirthPhoenixSprite;
     [SerializeField] private Color ashenRebirthPhoenixTint = Color.white;
@@ -284,6 +310,11 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private GameObject _avatarOfForestGlowRoot;
     private GameObject _energyInfusionGlowRoot;
     private GameObject _battleTranceGlowRoot;
+    private GameObject _hammerTempestOrbitRoot;
+    private Coroutine _hammerTempestOrbitRoutine;
+    private readonly List<SpriteRenderer> _hammerTempestHammerRenderers = new();
+    private GameObject _hammerTempestRingObject;
+    private SpriteRenderer _hammerTempestRingRenderer;
     private GameObject _flameChargePlayerGlowRoot;
     private Coroutine _flameChargeVolcanicBurstRoutine;
     private GameObject _ashenRebirthPhoenixRoot;
@@ -301,6 +332,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
     private const string ResourcesUrParticleMaterialPath = "Vfx/AbilityVfx_ParticlesUnlit";
     private static bool s_LoggedMissingUrParticleMaterial;
     private static Sprite s_RuntimeCircleSprite;
+    private static Sprite s_HammerTempestRadialRingSprite;
 
     public SoulforgedWeaponMinionPresentation SoulforgedWeaponMinionPresentation => soulforgedWeaponMinionPresentation;
 
@@ -343,6 +375,7 @@ public class PlayerAbilityVfxController : MonoBehaviour
         DestroyAvatarOfTheForestGlowVfx();
         DestroyEnergyInfusionGlowVfx();
         DestroyBattleTranceGlowVfx();
+        DestroyHammerTempestOrbitVfx();
         EndFlameChargePlayerGlow();
         DestroyAllFlameChargeDashTrailVfx();
         StopAshenRebirthPhoenixVfx();
@@ -1519,6 +1552,101 @@ public class PlayerAbilityVfxController : MonoBehaviour
         return s_RuntimeCircleSprite;
     }
 
+    /// <summary>Filled disc: 0 alpha at center, full alpha at outer edge (tint via <see cref="hammerTempestRingColor"/>).</summary>
+    private static Sprite GetHammerTempestRadialRingSprite()
+    {
+        if (s_HammerTempestRadialRingSprite != null)
+            return s_HammerTempestRadialRingSprite;
+
+        const int size = 64;
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp,
+            name = "HammerTempestRadialRingSprite"
+        };
+
+        Color clear = new Color(1f, 1f, 1f, 0f);
+        float radius = (size - 1) * 0.5f;
+        float radiusSq = radius * radius;
+        Vector2 center = new Vector2(radius, radius);
+        Color[] pixels = new Color[size * size];
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                Vector2 delta = new Vector2(x, y) - center;
+                float distSq = delta.sqrMagnitude;
+                if (distSq > radiusSq)
+                {
+                    pixels[y * size + x] = clear;
+                    continue;
+                }
+
+                float dist = Mathf.Sqrt(distSq);
+                float t = radius > 0.0001f ? dist / radius : 0f;
+                pixels[y * size + x] = new Color(1f, 1f, 1f, t);
+            }
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply(false, true);
+
+        s_HammerTempestRadialRingSprite = Sprite.Create(
+            texture,
+            new Rect(0f, 0f, size, size),
+            new Vector2(0.5f, 0.5f),
+            size);
+        return s_HammerTempestRadialRingSprite;
+    }
+
+    private float GetHammerTempestRingWorldRadius() =>
+        Mathf.Max(0.1f, hammerTempestOrbitRadius - hammerTempestRingRadiusInset);
+
+    /// <summary>World-space orbit radius; combat hits anything inside this disc from the orbit center.</summary>
+    public float GetHammerTempestOrbitRadiusWorld() => Mathf.Max(0.1f, hammerTempestOrbitRadius);
+
+    public Vector3 GetHammerTempestCenterOffsetWorld() => hammerTempestCenterOffset;
+    public float GetHammerTempestMainOrbitDegreesPerSecond() => Mathf.Max(0f, hammerTempestMainOrbitDegreesPerSecond);
+
+    private void CreateHammerTempestRingVisual()
+    {
+        if (_hammerTempestOrbitRoot == null)
+            return;
+
+        _hammerTempestRingObject = new GameObject("HammerTempestRing");
+        _hammerTempestRingObject.transform.SetParent(_hammerTempestOrbitRoot.transform, false);
+        _hammerTempestRingRenderer = _hammerTempestRingObject.AddComponent<SpriteRenderer>();
+        _hammerTempestRingRenderer.sprite = GetHammerTempestRadialRingSprite();
+        ApplyHammerTempestRingColor();
+        if (!TryApplyPlayerSpriteSortingToRenderer(_hammerTempestRingRenderer, 4))
+            _hammerTempestRingRenderer.sortingOrder = 18;
+    }
+
+    private void UpdateHammerTempestRingVisual(Vector3 pivot, float facingSign)
+    {
+        if (_hammerTempestRingObject == null || _hammerTempestRingRenderer == null)
+            return;
+
+        float ringRadius = GetHammerTempestRingWorldRadius();
+        float diameter = ringRadius * 2f;
+        float sign = Mathf.Sign(facingSign == 0f ? 1f : facingSign);
+        _hammerTempestRingObject.transform.position = pivot;
+        _hammerTempestRingObject.transform.localScale = new Vector3(diameter * sign, diameter, 1f);
+        ApplyHammerTempestRingColor();
+    }
+
+    private void ApplyHammerTempestRingColor()
+    {
+        if (_hammerTempestRingRenderer == null)
+            return;
+
+        Color c = hammerTempestRingColor;
+        c.a *= hammerTempestRingEdgeOpacity;
+        _hammerTempestRingRenderer.color = c;
+    }
+
     private IEnumerator CoMeleeSlashSegment(
         Vector3 start,
         Vector3 end,
@@ -2646,6 +2774,107 @@ public class PlayerAbilityVfxController : MonoBehaviour
             Destroy(_battleTranceGlowRoot);
             _battleTranceGlowRoot = null;
         }
+    }
+
+    public void SpawnHammerTempestOrbitVfx(float durationSeconds, int hammerCount)
+    {
+        DestroyHammerTempestOrbitVfx();
+
+        Transform followRoot = player != null ? player.transform : transform;
+        if (followRoot == null)
+            return;
+
+        Sprite sprite = hammerTempestHammerSprite != null ? hammerTempestHammerSprite : guardiansHammerSprite;
+        if (sprite == null)
+            return;
+
+        hammerCount = Mathf.Clamp(hammerCount, 1, 12);
+        _hammerTempestOrbitRoot = new GameObject("HammerTempestOrbit");
+        _hammerTempestOrbitRoot.transform.SetParent(followRoot, false);
+        _hammerTempestOrbitRoot.transform.localPosition = Vector3.zero;
+        _hammerTempestOrbitRoot.transform.localRotation = Quaternion.identity;
+        _hammerTempestOrbitRoot.transform.localScale = Vector3.one;
+
+        CreateHammerTempestRingVisual();
+
+        _hammerTempestHammerRenderers.Clear();
+        for (int i = 0; i < hammerCount; i++)
+        {
+            GameObject hammerGo = new GameObject($"HammerTempestHammer_{i}");
+            hammerGo.transform.SetParent(_hammerTempestOrbitRoot.transform, false);
+            SpriteRenderer sr = hammerGo.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.color = hammerTempestHammerTint;
+            if (!TryApplyPlayerSpriteSortingToRenderer(sr, 12 + i))
+                sr.sortingOrder = 22 + i;
+            _hammerTempestHammerRenderers.Add(sr);
+        }
+
+        float duration = Mathf.Max(0.05f, durationSeconds);
+        _hammerTempestOrbitRoutine = StartCoroutine(CoHammerTempestOrbit(duration, hammerCount));
+    }
+
+    public void DestroyHammerTempestOrbitVfx()
+    {
+        if (_hammerTempestOrbitRoutine != null)
+        {
+            StopCoroutine(_hammerTempestOrbitRoutine);
+            _hammerTempestOrbitRoutine = null;
+        }
+
+        _hammerTempestHammerRenderers.Clear();
+        _hammerTempestRingObject = null;
+        _hammerTempestRingRenderer = null;
+        if (_hammerTempestOrbitRoot != null)
+        {
+            Destroy(_hammerTempestOrbitRoot);
+            _hammerTempestOrbitRoot = null;
+        }
+    }
+
+    private IEnumerator CoHammerTempestOrbit(float durationSeconds, int hammerCount)
+    {
+        if (_hammerTempestOrbitRoot == null || hammerCount <= 0)
+            yield break;
+
+        Transform center = player != null ? player.transform : transform;
+        float elapsed = 0f;
+        float orbitSpeedRad = hammerTempestMainOrbitDegreesPerSecond * Mathf.Deg2Rad;
+        float facingSign = GetCombatFacingSign();
+
+        while (elapsed < durationSeconds && center != null && _hammerTempestOrbitRoot != null)
+        {
+            elapsed += Time.deltaTime;
+            float orbitAngle = elapsed * orbitSpeedRad;
+            Vector3 pivot = center.position + hammerTempestCenterOffset;
+            UpdateHammerTempestRingVisual(pivot, facingSign);
+
+            for (int i = 0; i < _hammerTempestHammerRenderers.Count; i++)
+            {
+                SpriteRenderer sr = _hammerTempestHammerRenderers[i];
+                if (sr == null)
+                    continue;
+
+                float phase = i / (float)Mathf.Max(1, hammerCount);
+                float angle = orbitAngle + phase * Mathf.PI * 2f;
+                Vector3 offset = new Vector3(
+                    Mathf.Cos(angle) * hammerTempestOrbitRadius * Mathf.Sign(facingSign == 0f ? 1f : facingSign),
+                    Mathf.Sin(angle) * hammerTempestOrbitRadius,
+                    0f);
+                Transform t = sr.transform;
+                t.position = pivot + offset;
+                float spinDeg = (angle * Mathf.Rad2Deg) + (elapsed * hammerTempestHammerSpinDegreesPerSecond);
+                t.rotation = Quaternion.Euler(0f, 0f, spinDeg - 90f);
+                t.localScale = new Vector3(
+                    hammerTempestWorldScale * Mathf.Sign(facingSign == 0f ? 1f : facingSign),
+                    hammerTempestWorldScale,
+                    1f);
+            }
+
+            yield return null;
+        }
+
+        DestroyHammerTempestOrbitVfx();
     }
 
     public void BeginFlameChargePlayerGlow()

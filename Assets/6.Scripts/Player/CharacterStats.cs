@@ -906,9 +906,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    // Offensive (display)
-    public int MinDamage => Mathf.RoundToInt(MinSplitDamage.Total);
-    public int MaxDamage => Mathf.RoundToInt(MaxSplitDamage.Total);
+    // Offensive (display) — floor min / ceil max per lane so % bonuses show on the stat sheet sooner.
+    public int MinDamage => SplitDamageToDisplayTotal(MinSplitDamage, forMinimum: true);
+    public int MaxDamage => SplitDamageToDisplayTotal(MaxSplitDamage, forMinimum: false);
+
+    public static int SplitDamageToDisplayTotal(SplitDamage split, bool forMinimum)
+    {
+        int phys = forMinimum ? Mathf.FloorToInt(split.physical) : Mathf.CeilToInt(split.physical);
+        int mag = forMinimum ? Mathf.FloorToInt(split.magic) : Mathf.CeilToInt(split.magic);
+        int corr = forMinimum ? Mathf.FloorToInt(split.corruptionDamage) : Mathf.CeilToInt(split.corruptionDamage);
+        return Mathf.Max(0, phys + mag + corr);
+    }
 
     public SplitDamage MinSplitDamage => GetMinSplitDamage();
     public SplitDamage MaxSplitDamage => GetMaxSplitDamage();
@@ -1934,13 +1942,19 @@ public class CharacterStats : MonoBehaviour, ISaveable
             melee);
 
         if (forWeaponAttackSkill == AttackSkill.Melee)
-        {
-            PlayerAbilityController ac = GetAbilityControllerLazy();
-            if (ac != null)
-                physical += ac.GetPhoenixLivingInfernoMeleeDamageBonusFraction();
-        }
+            physical += GetLivingInfernoMeleeDamagePercentFraction();
 
         return physical;
+    }
+
+    /// <summary>Phoenix Living Inferno — +2% melee per burning enemy nearby (max +10%). Melee weapons only.</summary>
+    private float GetLivingInfernoMeleeDamagePercentFraction()
+    {
+        if (GetPhoenixSoulEnhancementPick() != 1 || GetCurrentAttackSkill() != AttackSkill.Melee)
+            return 0f;
+
+        PlayerAbilityController ac = GetAbilityControllerLazy();
+        return ac != null ? ac.GetPhoenixLivingInfernoMeleeDamageBonusFraction() : 0f;
     }
 
     /// <summary>Uses <see cref="CurrentAttackSkill"/> (main-hand weapon).</summary>
@@ -1974,7 +1988,6 @@ public class CharacterStats : MonoBehaviour, ISaveable
             rangedGear,
             rangedSkill,
             meleeBonuses);
-        float physicalGearPctMult = 1f + physPct;
 
         float magicPct = GetEquippedMagicDamagePercent() + meleeBonuses.meleeMagicDamagePercent;
         if (skill == AttackSkill.Melee)
@@ -1983,13 +1996,26 @@ public class CharacterStats : MonoBehaviour, ISaveable
             magicPct += rangedTotalPct;
         if (skill == AttackSkill.Magic)
             magicPct += skillBonuses.magicDamagePercent;
-        float magicGearPctMult = 1f + Mathf.Max(0f, magicPct);
 
         float corrPct = GetEquippedCorruptionDamagePercent();
         if (skill == AttackSkill.Melee)
             corrPct += meleeBonuses.meleeDamagePercent;
         if (skill == AttackSkill.Ranged)
             corrPct += rangedTotalPct;
+
+        if (skill == AttackSkill.Melee)
+        {
+            float livingInferno = GetLivingInfernoMeleeDamagePercentFraction();
+            if (livingInferno > 0f)
+            {
+                physPct += livingInferno;
+                magicPct += livingInferno;
+                corrPct += livingInferno;
+            }
+        }
+
+        float physicalGearPctMult = 1f + physPct;
+        float magicGearPctMult = 1f + Mathf.Max(0f, magicPct);
         corruptionDamageMult = 1f + Mathf.Max(0f, corrPct);
 
         physicalDamageMult = physicalBuffMult * physicalGearPctMult;
@@ -2053,9 +2079,6 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Equipped corruption attack-split % (armor bonus + combat supports).</summary>
     public float GlobalCorruptionDamageBonusPercentPoints => GetEquippedCorruptionDamagePercent() * 100f;
 
-    /// <summary>
-    /// Melee skill-tree % bonus to all damage on your melee attack split (physical, magic, corruption). Shown for unlocked passives; applies only with a <see cref="AttackSkill.Melee"/> weapon.
-    /// </summary>
     /// <summary>Living Inferno — +2% melee per burning enemy nearby (max 10% at 5 enemies).</summary>
     public float PhoenixLivingInfernoMeleeDamageBonusPercentPoints
     {
@@ -2069,17 +2092,22 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    public float MeleePhysicalConditionalBonusPercentPoints
+    /// <summary>
+    /// Melee style % shown on the stats panel (skill tree + combat buff + Living Inferno).
+    /// Matches bonuses folded into <see cref="MinDamage"/> / <see cref="MaxDamage"/> while wielding a melee weapon.
+    /// </summary>
+    public float MeleePhysicalConditionalBonusPercentPoints => GetMeleeStyleDamageBonusPercentPoints();
+
+    public float GetMeleeStyleDamageBonusPercentPoints()
     {
-        get
-        {
-            var m = GetUnlockedMeleeMinorBonuses();
-            float pts = m.meleeDamagePercent * 100f;
-            if (GetCurrentAttackSkill() == AttackSkill.Melee && _combatMeleeDamageMultiplier > 1.001f)
-                pts += (_combatMeleeDamageMultiplier - 1f) * 100f;
-            pts += PhoenixLivingInfernoMeleeDamageBonusPercentPoints;
-            return pts;
-        }
+        var m = GetCurrentAttackSkill() == AttackSkill.Melee
+            ? GetActiveMeleeMinorBonuses()
+            : GetUnlockedMeleeMinorBonuses();
+        float pts = m.meleeDamagePercent * 100f;
+        if (GetCurrentAttackSkill() == AttackSkill.Melee && _combatMeleeDamageMultiplier > 1.001f)
+            pts += (_combatMeleeDamageMultiplier - 1f) * 100f;
+        pts += PhoenixLivingInfernoMeleeDamageBonusPercentPoints;
+        return pts;
     }
 
     /// <summary>
