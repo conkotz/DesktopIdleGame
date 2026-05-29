@@ -83,7 +83,7 @@ public static class PassiveUnlocksLineHighlight
             MeleeMinorNodeStatOption.MeleeAttackSpeedPercent3 => "Melee Attack Speed",
             MeleeMinorNodeStatOption.MeleeDamagePercent3 => "Melee Damage",
             MeleeMinorNodeStatOption.MeleeCritChancePercent2 => "Melee Crit Chance",
-            MeleeMinorNodeStatOption.MeleeDamageVsLowHpPercent10 => "Melee Damage to Low HP Enemies (<35% HP)",
+            MeleeMinorNodeStatOption.MeleeDamageVsLowHpPercent10 => $"Melee Damage to Low HP Enemies {CharacterStats.MeleeLowHpDisplaySuffix}",
             MeleeMinorNodeStatOption.MeleeBleedChancePercent5 => "Melee Bleed Chance",
             MeleeMinorNodeStatOption.MeleeBleedDamagePercent10 => "Melee Bleed Multiplier",
             MeleeMinorNodeStatOption.MeleeMoveSpeedPercent2 or MeleeMinorNodeStatOption.MeleeMoveSpeedPercent5 => "Melee Move Speed",
@@ -94,7 +94,9 @@ public static class PassiveUnlocksLineHighlight
             MeleeMinorNodeStatOption.MeleeDamageVsPoisonedPercent10 => "Melee Damage to Poisoned Enemies",
             MeleeMinorNodeStatOption.MeleeShockChancePercent5 => "Melee Shock Chance",
             MeleeMinorNodeStatOption.MeleeDamageVsShockedPercent10 => "Melee Damage to Shocked Enemies",
-            MeleeMinorNodeStatOption.MeleeLifeStealPercent1 => "Melee Lifesteal",
+            MeleeMinorNodeStatOption.MeleeBurnChancePercent5 => "Melee Burn Chance",
+            MeleeMinorNodeStatOption.MeleeDamageVsBurningPercent10 => "Melee Damage to Burning Enemies",
+            MeleeMinorNodeStatOption.MeleeLifeStealPercent1 or MeleeMinorNodeStatOption.MeleeLifeStealPercent2 => "Melee Lifesteal",
             MeleeMinorNodeStatOption.MeleeDamageVsBleedingPercent10 => "Melee Damage to Bleeding Enemies",
             _ => null
         };

@@ -1638,10 +1638,12 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
         float poisonDuration = 0f;
         float ailmentDamage = 0f;
         float shockChance = 0f;
+        float burnChance = 0f;
         float lifeSteal = 0f;
         float vsBleeding = 0f;
         float vsPoisoned = 0f;
         float vsShocked = 0f;
+        float vsBurning = 0f;
         float vsLowHp = 0f;
         float rangedDamage = 0f;
         float gatherSpeedFlat = 0f;
@@ -1706,7 +1708,10 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
                     case MeleeMinorNodeStatOption.MeleeDamageVsPoisonedPercent10: vsPoisoned += 0.10f; break;
                     case MeleeMinorNodeStatOption.MeleeShockChancePercent5: shockChance += 0.05f; break;
                     case MeleeMinorNodeStatOption.MeleeDamageVsShockedPercent10: vsShocked += 0.10f; break;
+                    case MeleeMinorNodeStatOption.MeleeBurnChancePercent5: burnChance += 0.05f; break;
+                    case MeleeMinorNodeStatOption.MeleeDamageVsBurningPercent10: vsBurning += 0.10f; break;
                     case MeleeMinorNodeStatOption.MeleeLifeStealPercent1: lifeSteal += 0.01f; break;
+                    case MeleeMinorNodeStatOption.MeleeLifeStealPercent2: lifeSteal += 0.02f; break;
                     case MeleeMinorNodeStatOption.MeleeDamageVsBleedingPercent10: vsBleeding += 0.10f; break;
                 }
             }
@@ -1849,10 +1854,12 @@ public class SkillsAbilitiesPageUI : MonoBehaviour
             Pct(poisonDuration, "Melee Poison Duration");
             Pct(ailmentDamage, "Melee Bleed, Poison, Burn Multipliers");
             Pct(shockChance, "Melee Shock Chance");
+            Pct(burnChance, "Melee Burn Chance");
             Pct(vsBleeding, "Melee Damage to Bleeding Enemies");
             Pct(vsPoisoned, "Melee Damage to Poisoned Enemies");
             Pct(vsShocked, "Melee Damage to Shocked Enemies");
-            Pct(vsLowHp, "Melee Damage to Low HP Enemies (<35% HP)");
+            Pct(vsBurning, "Melee Damage to Burning Enemies");
+            Pct(vsLowHp, $"Melee Damage to Low HP Enemies {CharacterStats.MeleeLowHpDisplaySuffix}");
             Pct(lifeSteal, "Melee Lifesteal");
         }
         else if (skill.skillType == SkillType.Ranged)

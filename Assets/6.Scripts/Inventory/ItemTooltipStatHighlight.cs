@@ -92,7 +92,7 @@ public static class ItemTooltipStatHighlight
             s.Append(FormatIntRangeLine("Corruption Damage", current.weaponStats.minCorruptionDamage, current.weaponStats.maxCorruptionDamage,
                 baseline.weaponStats.minCorruptionDamage, baseline.weaponStats.maxCorruptionDamage)).Append('\n');
 
-        s.Append(FormatFloatLine("Speed", $"{aps:0.##} atk/s", aps, baseAps)).Append('\n');
+        s.Append(FormatFloatLine("Speed", $"{aps:0.##} atk/s", aps, baseAps, $"{baseAps:0.##} atk/s")).Append('\n');
 
         if (HasSignificantPercentPoints(critChancePct) || current.IsCorruptionOnlyWeapon)
             s.Append(FormatPercentLine("Crit Chance", critChancePct, baseCritChancePct, signed: true)).Append('\n');
@@ -104,7 +104,7 @@ public static class ItemTooltipStatHighlight
         if (!string.IsNullOrWhiteSpace(ailments))
             s.Append(ailments).Append('\n');
 
-        s.Append(FormatFloatLine("Range", $"{range:0.##}", range, baseRange)).Append(dual);
+        s.Append(FormatFloatLine("Range", $"{range:0.##}", range, baseRange, $"{baseRange:0.##}")).Append(dual);
 
         AppendWeaponProcLine(s, "Phys Block", current.PhysBlockChance, baseline.PhysBlockChance, percent01: true);
         AppendWeaponProcLine(s, "Parry Chance", current.ParryChance, baseline.ParryChance, percent01: true);
@@ -194,9 +194,9 @@ public static class ItemTooltipStatHighlight
 
     private static string FormatIntRangeLine(string label, int minCur, int maxCur, int minBase, int maxBase)
     {
-        string line = $"{label}: {minCur}-{maxCur}";
+        string line = $"{label}: {minBase}-{maxBase}";
         if (minCur == minBase && maxCur == maxBase)
-            return line;
+            return $"{label}: {minCur}-{maxCur}";
 
         var notes = new List<string>(2);
         if (minCur != minBase)
@@ -207,14 +207,15 @@ public static class ItemTooltipStatHighlight
         return BoldWithNote(line, notes);
     }
 
-    private static string FormatFloatLine(string label, string display, float current, float baseline)
+    private static string FormatFloatLine(string label, string currentDisplay, float current, float baseline, string baselineDisplay = null)
     {
         if (Mathf.Approximately(current, baseline))
-            return $"{label}: {display}";
+            return $"{label}: {currentDisplay}";
 
         float delta = current - baseline;
         string sign = delta >= 0f ? "+" : "";
-        return BoldWithNote($"{label}: {display}", new[] { $"{sign}{delta:0.##}" });
+        string baseText = string.IsNullOrWhiteSpace(baselineDisplay) ? currentDisplay : baselineDisplay;
+        return BoldWithNote($"{label}: {baseText}", new[] { $"{sign}{delta:0.##}" });
     }
 
     private static string FormatPercentLine(string label, float currentPct, float baselinePct, bool signed)
@@ -224,7 +225,7 @@ public static class ItemTooltipStatHighlight
 
         float delta = currentPct - baselinePct;
         string sign = delta >= 0f ? "+" : "";
-        string display = signed ? FormatSignedPercent100WithPlus(currentPct) : $"{currentPct:0.#}%";
+        string display = signed ? FormatSignedPercent100WithPlus(baselinePct) : $"{baselinePct:0.#}%";
         return BoldWithNote($"{label}: {display}", new[] { $"{sign}{delta:0.#}%" });
     }
 
@@ -242,7 +243,7 @@ public static class ItemTooltipStatHighlight
                 return;
             }
 
-            string display = FormatSignedPercent01(current);
+            string display = FormatSignedPercent01(baseline);
             float delta = (current - baseline) * 100f;
             s.Append('\n').Append(BoldWithNote($"{label}: {display}", new[] { $"{delta:+0.#;-0.#;0}%" }));
             return;
@@ -260,7 +261,7 @@ public static class ItemTooltipStatHighlight
             return;
         }
 
-        string valueText = prefixPlus ? $"+{curInt}" : curInt.ToString();
+        string valueText = prefixPlus ? $"+{baseInt}" : baseInt.ToString();
         s.Append('\n').Append(BoldWithNote($"{label}: {valueText}", new[] { $"+{curInt - baseInt}" }));
     }
 
@@ -278,7 +279,7 @@ public static class ItemTooltipStatHighlight
             return;
         }
 
-        string valueText = prefixPlus ? $"+{current}" : current.ToString();
+        string valueText = prefixPlus ? $"+{baseline}" : baseline.ToString();
         s.Append(BoldWithNote($"{label}: {valueText}", new[] { $"+{current - baseline}" }));
     }
 
@@ -296,7 +297,7 @@ public static class ItemTooltipStatHighlight
             return;
         }
 
-        string display = signed ? FormatSignedPercent100WithPlus(current) : $"{current:0.#}{suffix}";
+        string display = signed ? FormatSignedPercent100WithPlus(baseline) : $"{baseline:0.#}{suffix}";
         float delta = current - baseline;
         string sign = delta >= 0f ? "+" : "";
         s.Append(BoldWithNote($"{label}: {display}", new[] { $"{sign}{delta:0.#}{suffix}" }));

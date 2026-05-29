@@ -284,8 +284,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
     private const float combatPowerParryMitigationContributionScale = 1.20f;
     private const float combatPowerParryMaxContribution = 1.75f;
 
-    private const float LowHealthThreshold01 = 0.35f;
+    private const float LowHealthThreshold01 = 0.30f;
     public const float PredatorsInstinctExecutionerHpThreshold01 = 0.30f;
+    public const string MeleeLowHpDisplaySuffix = "(<30% HP)";
     public const int PredatorsInstinctMajorPassiveLevel = 20;
     public const int BattleEngineMajorPassiveLevel = 30;
     public const int PhoenixSoulMajorPassiveLevel = AbilityCombatPower.PhoenixSoulMajorPassiveLevel;
@@ -327,12 +328,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
         public float damageVsBleeding;
         public float damageVsPoisoned;
         public float damageVsShocked;
+        public float damageVsBurning;
         public float damageVsAilmented;
         public float damageVsLowHp;
         public float meleeBurnChance;
         public int poisonMaxStacksBonus;
         public float burnTickIntervalReduction;
-        /// <summary>Additive crit damage vs enemies at or below <see cref="PredatorsInstinctExecutionerHpThreshold01"/> (Executioner).</summary>
+        /// <summary>Additive crit damage vs enemies below <see cref="PredatorsInstinctExecutionerHpThreshold01"/> (Executioner).</summary>
         public float critDamageVsLowHpBelow30;
         /// <summary>Minion damage % (fraction). Phase 1: wired from skill options later; gear uses <see cref="BonusStats"/>.</summary>
         public float minionDamagePercent;
@@ -908,6 +910,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             AilmentController.DefaultBurnTickIntervalSeconds -
             GetActiveMeleeMinorBonuses().burnTickIntervalReduction);
     public float MeleeDamageVsShocked => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsShocked);
+    public float MeleeDamageVsBurning => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsBurning);
     public float MeleeDamageVsLowHp => Mathf.Max(0f, GetActiveMeleeMinorBonuses().damageVsLowHp);
     public float MeleeLowHpThreshold01 => LowHealthThreshold01;
 
@@ -2817,6 +2820,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (IsAilmentAttunementMajorPassiveActive())
             ApplyLevel10AilmentAttunementBranch(meleeLevel, ref total);
         ApplyLevel20PredatorsInstinctBranch(meleeLevel, ref total);
+        ApplyLevel40PhoenixSoulBranch(meleeLevel, ref total);
         ApplyLevel40MasterOfVenomsBranch(meleeLevel, ref total);
 
         int pastCap = Mathf.Max(0, meleeLevel - SkillPostCapThresholdLevel);
@@ -2996,10 +3000,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
+    private void ApplyLevel40PhoenixSoulBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
+    {
+        if (meleeLevel < PhoenixSoulMajorPassiveLevel || !IsPhoenixSoulUnlocked())
+            return;
+
+        total.meleeBurnChance += AbilityCombatPower.PhoenixSoulBurnChanceBonus;
+    }
+
     private void ApplyLevel40MasterOfVenomsBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
     {
-        if (meleeLevel < MasterOfVenomsMajorPassiveLevel)
+        if (meleeLevel < MasterOfVenomsMajorPassiveLevel || !IsMasterOfVenomsUnlocked())
             return;
+
+        total.meleePoisonChance += AbilityCombatPower.MasterOfVenomsPoisonChanceBonus;
 
         if (GetMasterOfVenomsEnhancementPick() == 1)
             total.poisonMaxStacksBonus += AbilityCombatPower.MasterOfVenomsLethalCompoundMaxStacksBonus;
@@ -3398,7 +3412,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     /// <summary>
-    /// Scales already-crit damage when Executioner applies (adds +30% crit damage vs targets at or below 30% HP).
+    /// Scales already-crit damage when Executioner applies (adds +30% crit damage vs targets below 30% HP).
     /// </summary>
     public float GetPredatorsInstinctExecutionerCritDamageFactor(EnemyBaseController target, bool wasCrit)
     {
@@ -3414,7 +3428,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return 1f;
 
         float hp01 = targetStats.HP / Mathf.Max(1f, targetStats.MaxHP);
-        if (hp01 > PredatorsInstinctExecutionerHpThreshold01)
+        if (hp01 >= PredatorsInstinctExecutionerHpThreshold01)
             return 1f;
 
         float critMult = Mathf.Max(1f, CritMultiplier);
@@ -3497,6 +3511,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 break;
             case MeleeMinorNodeStatOption.MeleeLifeStealPercent1:
                 total.meleeLifeSteal += 0.01f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeLifeStealPercent2:
+                total.meleeLifeSteal += 0.02f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeBurnChancePercent5:
+                total.meleeBurnChance += 0.05f;
+                break;
+            case MeleeMinorNodeStatOption.MeleeDamageVsBurningPercent10:
+                total.damageVsBurning += 0.10f;
                 break;
             case MeleeMinorNodeStatOption.MeleeDamageVsBleedingPercent10:
                 total.damageVsBleeding += 0.10f;
@@ -4656,11 +4679,30 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float armorRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f)
     {
+        return TakeDamage(amount, type, out blocked, out hpDamageDealt, out _, armorRatingMultiplier, magicResistRatingMultiplier);
+    }
+
+    public float TakeDamage(
+        float amount,
+        DamageType type,
+        out bool blocked,
+        out float hpDamageDealt,
+        out DpsMitigationBreakdown mitigationReport,
+        float armorRatingMultiplier = 1f,
+        float magicResistRatingMultiplier = 1f)
+    {
         blocked = false;
         hpDamageDealt = 0f;
+        mitigationReport = default;
         if (_isDead) return 0f;
 
-        float mitigated = ApplyMitigation(amount, type, out blocked, armorRatingMultiplier, magicResistRatingMultiplier);
+        float mitigated = ApplyMitigation(
+            amount,
+            type,
+            out blocked,
+            out mitigationReport,
+            armorRatingMultiplier,
+            magicResistRatingMultiplier);
         float totalToVitals = Mathf.Max(0f, mitigated);
         float remainder = totalToVitals;
         hpDamageDealt = ApplyDamageToGuardThenHp(ref remainder);
@@ -4781,10 +4823,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float rawDamage,
         DamageType type,
         out bool blocked,
+        out DpsMitigationBreakdown mitigationReport,
         float armorRatingMultiplier = 1f,
         float magicResistRatingMultiplier = 1f)
     {
         blocked = false;
+        mitigationReport = default;
 
         rawDamage = Mathf.Max(0f, rawDamage);
         if (rawDamage <= 0f) return 0f;
@@ -4800,15 +4844,20 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 return ApplyFinalIncomingDamageMultipliers(rawDamage);
 
             case DamageType.Corruption:
-                return ApplyFinalIncomingDamageMultipliers(
-                    ApplyFlatDamageTakenReduction(
-                        ApplyMeleeDamageReduction(MitigateByRating(rawDamage, CorruptionResist * defMult)),
-                        consumableDr));
+                {
+                    float afterMelee = ApplyMeleeDamageReduction(rawDamage);
+                    float afterCorrupt = MitigateByRating(afterMelee, CorruptionResist * defMult);
+                    mitigationReport.CorruptionResist = Mathf.Max(0f, afterMelee - afterCorrupt);
+                    return ApplyFinalIncomingDamageMultipliers(
+                        ApplyFlatDamageTakenReduction(afterCorrupt, consumableDr));
+                }
 
             case DamageType.Physical:
                 {
                     float armorRating = Armor * defMult * Mathf.Max(0f, armorRatingMultiplier);
-                    float dmg = MitigateByRating(rawDamage, armorRating);
+                    float afterArmor = MitigateByRating(rawDamage, armorRating);
+                    mitigationReport.Armour = Mathf.Max(0f, rawDamage - afterArmor);
+                    float dmg = afterArmor;
 
                     bool shouldBlock = _forceNextPhysicalBlockSuccess;
                     _forceNextPhysicalBlockSuccess = false;
@@ -4819,7 +4868,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
                     if (shouldBlock)
                     {
                         blocked = true;
+                        float beforeBlock = dmg;
                         dmg *= 1f - PhysBlockMitigationFraction;
+                        mitigationReport.Blocked = Mathf.Max(0f, beforeBlock - dmg);
                     }
 
                     return ApplyFinalIncomingDamageMultipliers(
@@ -4827,12 +4878,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 }
 
             case DamageType.Magic:
-                return ApplyFinalIncomingDamageMultipliers(
-                    ApplyFlatDamageTakenReduction(
-                        ApplyMeleeDamageReduction(MitigateByRating(
-                            rawDamage,
-                            MagicResist * defMult * Mathf.Max(0f, magicResistRatingMultiplier))),
-                        consumableDr));
+                {
+                    float afterMr = MitigateByRating(
+                        rawDamage,
+                        MagicResist * defMult * Mathf.Max(0f, magicResistRatingMultiplier));
+                    mitigationReport.MagicResist = Mathf.Max(0f, rawDamage - afterMr);
+                    return ApplyFinalIncomingDamageMultipliers(
+                        ApplyFlatDamageTakenReduction(
+                            ApplyMeleeDamageReduction(afterMr),
+                            consumableDr));
+                }
 
             default:
                 return ApplyFinalIncomingDamageMultipliers(

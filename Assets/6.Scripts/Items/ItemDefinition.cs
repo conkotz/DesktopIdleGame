@@ -2006,9 +2006,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (current <= 0f)
             return string.Empty;
 
-        string total = $"Enemy respawn: -{current:0.#}s";
+        string total = $"Enemy respawn: -{baseValue:0.#}s";
         if (Mathf.Approximately(current, baseValue))
-            return total;
+            return $"Enemy respawn: -{current:0.#}s";
 
         float delta = current - baseValue;
         return ItemTooltipStatHighlight.HighlightWithAddedNote(total, $"-{delta:0.#}s");
@@ -2024,17 +2024,18 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         var sb = new System.Text.StringBuilder();
         BonusStats cur = bonusStats;
 
-        void AppendCompared(string totalLine, bool hasDelta, string deltaNote)
+        void AppendCompared(string baselineLine, string unchangedLine, bool hasDelta, string deltaNote)
         {
-            if (string.IsNullOrWhiteSpace(totalLine))
+            string line = hasDelta ? baselineLine : unchangedLine;
+            if (string.IsNullOrWhiteSpace(line))
                 return;
 
             if (sb.Length > 0)
                 sb.Append('\n');
 
             sb.Append(hasDelta
-                ? ItemTooltipStatHighlight.HighlightWithAddedNote(totalLine, deltaNote)
-                : totalLine);
+                ? ItemTooltipStatHighlight.HighlightWithAddedNote(baselineLine, deltaNote)
+                : line);
         }
 
         static bool HasFloatDelta(float current, float baseline) =>
@@ -2055,6 +2056,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             {
                 int delta = IntDelta(cur.armor, baselineStats.armor);
                 AppendCompared(
+                    $"Armour: {FormatSignedInt(baselineStats.armor)}",
                     $"Armour: {FormatSignedInt(cur.armor)}",
                     HasIntDelta(cur.armor, baselineStats.armor),
                     FormatSignedInt(delta));
@@ -2064,6 +2066,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             {
                 int delta = IntDelta(cur.magicResist, baselineStats.magicResist);
                 AppendCompared(
+                    $"Magic Res: {FormatSignedInt(baselineStats.magicResist)}",
                     $"Magic Res: {FormatSignedInt(cur.magicResist)}",
                     HasIntDelta(cur.magicResist, baselineStats.magicResist),
                     FormatSignedInt(delta));
@@ -2073,6 +2076,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             {
                 int delta = IntDelta(cur.corruptionResist, baselineStats.corruptionResist);
                 AppendCompared(
+                    $"Corruption Res: {FormatSignedInt(baselineStats.corruptionResist)}",
                     $"Corruption Res: {FormatSignedInt(cur.corruptionResist)}",
                     HasIntDelta(cur.corruptionResist, baselineStats.corruptionResist),
                     FormatSignedInt(delta));
@@ -2082,6 +2086,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             {
                 float delta = FloatDelta(cur.physBlockChance, baselineStats.physBlockChance);
                 AppendCompared(
+                    $"Phys Block: {FormatSignedPercent01(baselineStats.physBlockChance)}",
                     $"Phys Block: {FormatSignedPercent01(cur.physBlockChance)}",
                     HasFloatDelta(cur.physBlockChance, baselineStats.physBlockChance),
                     FormatSignedPercent01(delta));
@@ -2092,8 +2097,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.lifeRegen, baselineStats.lifeRegen);
             AppendCompared(
+
+                $"Life Regen: {FormatSignedNumber(baselineStats.lifeRegen)}/s",
+
                 $"Life Regen: {FormatSignedNumber(cur.lifeRegen)}/s",
+
                 HasFloatDelta(cur.lifeRegen, baselineStats.lifeRegen),
+
                 $"{FormatSignedNumber(delta)}/s");
         }
 
@@ -2101,8 +2111,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.energyRegen, baselineStats.energyRegen);
             AppendCompared(
+
+                $"Energy Regen: {FormatSignedNumber(baselineStats.energyRegen)}/s",
+
                 $"Energy Regen: {FormatSignedNumber(cur.energyRegen)}/s",
+
                 HasFloatDelta(cur.energyRegen, baselineStats.energyRegen),
+
                 $"{FormatSignedNumber(delta)}/s");
         }
 
@@ -2110,8 +2125,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.manaRegen, baselineStats.manaRegen);
             AppendCompared(
+
+                $"Mana Regen: {FormatSignedNumber(baselineStats.manaRegen)}/s",
+
                 $"Mana Regen: {FormatSignedNumber(cur.manaRegen)}/s",
+
                 HasFloatDelta(cur.manaRegen, baselineStats.manaRegen),
+
                 $"{FormatSignedNumber(delta)}/s");
         }
 
@@ -2119,8 +2139,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.moveSpeedPercent, baselineStats.moveSpeedPercent);
             AppendCompared(
+
+                $"Move Speed: {FormatSignedPercent01(baselineStats.moveSpeedPercent)}",
+
                 $"Move Speed: {FormatSignedPercent01(cur.moveSpeedPercent)}",
+
                 HasFloatDelta(cur.moveSpeedPercent, baselineStats.moveSpeedPercent),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2128,8 +2153,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.physicalDamage, baselineStats.physicalDamage);
             AppendCompared(
+
+                $"Physical Damage: {FormatSignedNumber(baselineStats.physicalDamage)}",
+
                 $"Physical Damage: {FormatSignedNumber(cur.physicalDamage)}",
+
                 HasFloatDelta(cur.physicalDamage, baselineStats.physicalDamage),
+
                 FormatSignedNumber(delta));
         }
 
@@ -2139,8 +2169,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             float baseAllPhysPct = baselineStats.physicalDamagePercent + baselineStats.globalPhysicalDamagePercent;
             float delta = FloatDelta(allPhysPct, baseAllPhysPct);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baseAllPhysPct, "All physical"),
+
                 FormatScalingCoefficientPercentLine(allPhysPct, "All physical"),
+
                 HasFloatDelta(allPhysPct, baseAllPhysPct),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2148,8 +2183,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.rangedPhysicalDamagePercent, baselineStats.rangedPhysicalDamagePercent);
             AppendCompared(
+
+                $"Ranged Dmg: {FormatSignedPercent01(baselineStats.rangedPhysicalDamagePercent)}",
+
                 $"Ranged Dmg: {FormatSignedPercent01(cur.rangedPhysicalDamagePercent)}",
+
                 HasFloatDelta(cur.rangedPhysicalDamagePercent, baselineStats.rangedPhysicalDamagePercent),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2157,8 +2197,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.magicDamage, baselineStats.magicDamage);
             AppendCompared(
+
+                $"Magic Damage: {FormatSignedNumber(baselineStats.magicDamage)}",
+
                 $"Magic Damage: {FormatSignedNumber(cur.magicDamage)}",
+
                 HasFloatDelta(cur.magicDamage, baselineStats.magicDamage),
+
                 FormatSignedNumber(delta));
         }
 
@@ -2166,8 +2211,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.magicDamagePercent, baselineStats.magicDamagePercent);
             AppendCompared(
+
+                $"Magic Dmg: {FormatSignedPercent01(baselineStats.magicDamagePercent)}",
+
                 $"Magic Dmg: {FormatSignedPercent01(cur.magicDamagePercent)}",
+
                 HasFloatDelta(cur.magicDamagePercent, baselineStats.magicDamagePercent),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2175,8 +2225,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.fireSkillDamagePercent, baselineStats.fireSkillDamagePercent);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.fireSkillDamagePercent, "Fire skills"),
+
                 FormatScalingCoefficientPercentLine(cur.fireSkillDamagePercent, "Fire skills"),
+
                 HasFloatDelta(cur.fireSkillDamagePercent, baselineStats.fireSkillDamagePercent),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2184,8 +2239,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.iceSkillDamagePercent, baselineStats.iceSkillDamagePercent);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.iceSkillDamagePercent, "Ice skills"),
+
                 FormatScalingCoefficientPercentLine(cur.iceSkillDamagePercent, "Ice skills"),
+
                 HasFloatDelta(cur.iceSkillDamagePercent, baselineStats.iceSkillDamagePercent),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2193,8 +2253,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.lightningSkillDamagePercent, baselineStats.lightningSkillDamagePercent);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.lightningSkillDamagePercent, "Lightning skills"),
+
                 FormatScalingCoefficientPercentLine(cur.lightningSkillDamagePercent, "Lightning skills"),
+
                 HasFloatDelta(cur.lightningSkillDamagePercent, baselineStats.lightningSkillDamagePercent),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2202,8 +2267,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.corruptionDamagePercent, baselineStats.corruptionDamagePercent);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.corruptionDamagePercent, "Corruption"),
+
                 FormatScalingCoefficientPercentLine(cur.corruptionDamagePercent, "Corruption"),
+
                 HasFloatDelta(cur.corruptionDamagePercent, baselineStats.corruptionDamagePercent),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2211,8 +2281,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.corruptionDamage, baselineStats.corruptionDamage);
             AppendCompared(
+
+                $"Corruption Damage: {FormatSignedNumber(baselineStats.corruptionDamage)}",
+
                 $"Corruption Damage: {FormatSignedNumber(cur.corruptionDamage)}",
+
                 HasFloatDelta(cur.corruptionDamage, baselineStats.corruptionDamage),
+
                 FormatSignedNumber(delta));
         }
 
@@ -2220,8 +2295,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.abilityPower, baselineStats.abilityPower);
             AppendCompared(
+
+                $"Ability Power: {FormatSignedPercent100(baselineStats.abilityPower)}",
+
                 $"Ability Power: {FormatSignedPercent100(cur.abilityPower)}",
+
                 HasFloatDelta(cur.abilityPower, baselineStats.abilityPower),
+
                 FormatSignedPercent100(delta));
         }
 
@@ -2229,8 +2309,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.lifeSteal, baselineStats.lifeSteal);
             AppendCompared(
+
+                $"Life Steal: {FormatSignedPercent01(baselineStats.lifeSteal)}",
+
                 $"Life Steal: {FormatSignedPercent01(cur.lifeSteal)}",
+
                 HasFloatDelta(cur.lifeSteal, baselineStats.lifeSteal),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2238,8 +2323,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.attackSpeedPercent, baselineStats.attackSpeedPercent);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.attackSpeedPercent, "Attack Speed"),
+
                 FormatScalingCoefficientPercentLine(cur.attackSpeedPercent, "Attack Speed"),
+
                 HasFloatDelta(cur.attackSpeedPercent, baselineStats.attackSpeedPercent),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2247,8 +2337,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.abilityCooldownReductionFraction, baselineStats.abilityCooldownReductionFraction);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.abilityCooldownReductionFraction, "Ability Cooldown Reduction"),
+
                 FormatScalingCoefficientPercentLine(cur.abilityCooldownReductionFraction, "Ability Cooldown Reduction"),
+
                 HasFloatDelta(cur.abilityCooldownReductionFraction, baselineStats.abilityCooldownReductionFraction),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2256,8 +2351,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.minionDamagePercent, baselineStats.minionDamagePercent);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.minionDamagePercent, "Minion Damage"),
+
                 FormatScalingCoefficientPercentLine(cur.minionDamagePercent, "Minion Damage"),
+
                 HasFloatDelta(cur.minionDamagePercent, baselineStats.minionDamagePercent),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2265,8 +2365,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.minionAttackSpeedPercent, baselineStats.minionAttackSpeedPercent);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.minionAttackSpeedPercent, "Minion Attack Speed"),
+
                 FormatScalingCoefficientPercentLine(cur.minionAttackSpeedPercent, "Minion Attack Speed"),
+
                 HasFloatDelta(cur.minionAttackSpeedPercent, baselineStats.minionAttackSpeedPercent),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2274,8 +2379,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.minionCritChance, baselineStats.minionCritChance);
             AppendCompared(
+
+                $"Minion Crit Chance: {FormatSignedPercent01(baselineStats.minionCritChance)}",
+
                 $"Minion Crit Chance: {FormatSignedPercent01(cur.minionCritChance)}",
+
                 HasFloatDelta(cur.minionCritChance, baselineStats.minionCritChance),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2283,8 +2393,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.minionMaxLifePercent, baselineStats.minionMaxLifePercent);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.minionMaxLifePercent, "Minion Health"),
+
                 FormatScalingCoefficientPercentLine(cur.minionMaxLifePercent, "Minion Health"),
+
                 HasFloatDelta(cur.minionMaxLifePercent, baselineStats.minionMaxLifePercent),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2292,8 +2407,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.critChanceBonus, baselineStats.critChanceBonus);
             AppendCompared(
+
+                $"Crit Chance: {FormatSignedPercent01(baselineStats.critChanceBonus)}",
+
                 $"Crit Chance: {FormatSignedPercent01(cur.critChanceBonus)}",
+
                 HasFloatDelta(cur.critChanceBonus, baselineStats.critChanceBonus),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2301,8 +2421,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.critMultiplierBonus, baselineStats.critMultiplierBonus);
             AppendCompared(
+
+                $"Crit Multi: {FormatSignedPercent01(baselineStats.critMultiplierBonus)}",
+
                 $"Crit Multi: {FormatSignedPercent01(cur.critMultiplierBonus)}",
+
                 HasFloatDelta(cur.critMultiplierBonus, baselineStats.critMultiplierBonus),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2310,8 +2435,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.attackRangeBonus, baselineStats.attackRangeBonus);
             AppendCompared(
+
+                $"Range: {FormatSignedNumber(baselineStats.attackRangeBonus)}",
+
                 $"Range: {FormatSignedNumber(cur.attackRangeBonus)}",
+
                 HasFloatDelta(cur.attackRangeBonus, baselineStats.attackRangeBonus),
+
                 FormatSignedNumber(delta));
         }
 
@@ -2319,8 +2449,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.bleedChance, baselineStats.bleedChance);
             AppendCompared(
+
+                $"Bleed Chance: {FormatSignedPercent01(baselineStats.bleedChance)}",
+
                 $"Bleed Chance: {FormatSignedPercent01(cur.bleedChance)}",
+
                 HasFloatDelta(cur.bleedChance, baselineStats.bleedChance),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2328,8 +2463,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.bleedMultiplier, baselineStats.bleedMultiplier);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.bleedMultiplier, "Bleed Damage"),
+
                 FormatScalingCoefficientPercentLine(cur.bleedMultiplier, "Bleed Damage"),
+
                 HasFloatDelta(cur.bleedMultiplier, baselineStats.bleedMultiplier),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2337,8 +2477,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.poisonChance, baselineStats.poisonChance);
             AppendCompared(
+
+                $"Poison Chance: {FormatSignedPercent01(baselineStats.poisonChance)}",
+
                 $"Poison Chance: {FormatSignedPercent01(cur.poisonChance)}",
+
                 HasFloatDelta(cur.poisonChance, baselineStats.poisonChance),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2346,8 +2491,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.poisonMultiplier, baselineStats.poisonMultiplier);
             AppendCompared(
+
+                FormatScalingCoefficientPercentLine(baselineStats.poisonMultiplier, "Poison Damage"),
+
                 FormatScalingCoefficientPercentLine(cur.poisonMultiplier, "Poison Damage"),
+
                 HasFloatDelta(cur.poisonMultiplier, baselineStats.poisonMultiplier),
+
                 DeltaPercentFractionNote(delta));
         }
 
@@ -2355,8 +2505,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.poisonDurationBonus, baselineStats.poisonDurationBonus);
             AppendCompared(
+
+                $"Poison Duration: {FormatSignedNumber(baselineStats.poisonDurationBonus)}s",
+
                 $"Poison Duration: {FormatSignedNumber(cur.poisonDurationBonus)}s",
+
                 HasFloatDelta(cur.poisonDurationBonus, baselineStats.poisonDurationBonus),
+
                 $"{FormatSignedNumber(delta)}s");
         }
 
@@ -2364,8 +2519,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             int delta = IntDelta(cur.poisonMaxStacksBonus, baselineStats.poisonMaxStacksBonus);
             AppendCompared(
+
+                $"Poison Max Stacks: {FormatSignedInt(baselineStats.poisonMaxStacksBonus)}",
+
                 $"Poison Max Stacks: {FormatSignedInt(cur.poisonMaxStacksBonus)}",
+
                 HasIntDelta(cur.poisonMaxStacksBonus, baselineStats.poisonMaxStacksBonus),
+
                 FormatSignedInt(delta));
         }
 
@@ -2375,6 +2535,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             {
                 float delta = FloatDelta(cur.burnChance, baselineStats.burnChance);
                 AppendCompared(
+                    $"Burn Chance: {FormatSignedPercent01(baselineStats.burnChance)}",
                     $"Burn Chance: {FormatSignedPercent01(cur.burnChance)}",
                     HasFloatDelta(cur.burnChance, baselineStats.burnChance),
                     FormatSignedPercent01(delta));
@@ -2384,6 +2545,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             {
                 float delta = FloatDelta(cur.burnExplosionMultiplierBonus, baselineStats.burnExplosionMultiplierBonus);
                 AppendCompared(
+                    FormatScalingCoefficientPercentLine(baselineStats.burnExplosionMultiplierBonus, "Burn tick mult (added to character base)"),
                     FormatScalingCoefficientPercentLine(cur.burnExplosionMultiplierBonus, "Burn tick mult (added to character base)"),
                     HasFloatDelta(cur.burnExplosionMultiplierBonus, baselineStats.burnExplosionMultiplierBonus),
                     DeltaPercentFractionNote(delta));
@@ -2394,8 +2556,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.chillSlowPerStackBonus, baselineStats.chillSlowPerStackBonus);
             AppendCompared(
+
+                $"Chill Slow/Stack Bonus: {FormatSignedPercent01(baselineStats.chillSlowPerStackBonus)}",
+
                 $"Chill Slow/Stack Bonus: {FormatSignedPercent01(cur.chillSlowPerStackBonus)}",
+
                 HasFloatDelta(cur.chillSlowPerStackBonus, baselineStats.chillSlowPerStackBonus),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2403,8 +2570,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.shockDamageTakenMultiplierBonus, baselineStats.shockDamageTakenMultiplierBonus);
             AppendCompared(
+
+                $"Shock Amp Bonus: {FormatSignedPercent01(baselineStats.shockDamageTakenMultiplierBonus)}",
+
                 $"Shock Amp Bonus: {FormatSignedPercent01(cur.shockDamageTakenMultiplierBonus)}",
+
                 HasFloatDelta(cur.shockDamageTakenMultiplierBonus, baselineStats.shockDamageTakenMultiplierBonus),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2412,8 +2584,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.parryChance, baselineStats.parryChance);
             AppendCompared(
+
+                $"Parry Chance: {FormatSignedPercent01(baselineStats.parryChance)}",
+
                 $"Parry Chance: {FormatSignedPercent01(cur.parryChance)}",
+
                 HasFloatDelta(cur.parryChance, baselineStats.parryChance),
+
                 FormatSignedPercent01(delta));
         }
 
@@ -2421,8 +2598,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         {
             float delta = FloatDelta(cur.stunChance, baselineStats.stunChance);
             AppendCompared(
+
+                $"Stun Chance: {FormatSignedPercent01(baselineStats.stunChance)}",
+
                 $"Stun Chance: {FormatSignedPercent01(cur.stunChance)}",
+
                 HasFloatDelta(cur.stunChance, baselineStats.stunChance),
+
                 FormatSignedPercent01(delta));
         }
 

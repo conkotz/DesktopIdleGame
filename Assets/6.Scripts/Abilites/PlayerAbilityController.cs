@@ -5496,6 +5496,13 @@ public class PlayerAbilityController : MonoBehaviour
         if (stats != null && result.physical > 0f)
             stats.TryApplyTacticianStunOnEnemyHit(target);
 
+        if (stats != null && result.Total > 0f && stats.CurrentAttackSkill == AttackSkill.Melee)
+        {
+            if (combat == null)
+                combat = GetComponent<PlayerCombatController>();
+            combat?.TryApplySecondarySpecialistDualWieldFollowUp(target, hit, wasCrit);
+        }
+
         return result;
     }
 
@@ -5544,6 +5551,7 @@ public class PlayerAbilityController : MonoBehaviour
             if (ailments.HasBleed) bonus += stats.MeleeDamageVsBleeding;
             if (ailments.HasPoison) bonus += stats.MeleeDamageVsPoisoned;
             if (ailments.HasShock) bonus += stats.MeleeDamageVsShocked;
+            if (ailments.HasBurn) bonus += stats.MeleeDamageVsBurning;
             if (ailments.HasBleed || ailments.HasPoison || ailments.HasBurn)
                 bonus += stats.MeleeDamageVsAilmented;
         }
@@ -5552,7 +5560,7 @@ public class PlayerAbilityController : MonoBehaviour
         if (targetStats != null && targetStats.MaxHP > 0f)
         {
             float hp01 = targetStats.HP / Mathf.Max(1f, targetStats.MaxHP);
-            if (hp01 <= stats.MeleeLowHpThreshold01)
+            if (hp01 < stats.MeleeLowHpThreshold01)
                 bonus += stats.MeleeDamageVsLowHp;
         }
 

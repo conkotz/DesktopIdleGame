@@ -3941,9 +3941,19 @@ public class PlayerController : MonoBehaviour
 
         float preMitigatedDamage = Mathf.Max(0f, amount);
         bool blocked;
-        float finalDamage = characterStats.TakeDamage(amount, type, out blocked, out float hpDamage);
-        if (combat != null && finalDamage > 0f)
-            combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type), attacker);
+        float finalDamage = characterStats.TakeDamage(
+            amount,
+            type,
+            out blocked,
+            out float hpDamage,
+            out DpsMitigationBreakdown mitigationReport);
+        if (combat != null)
+        {
+            if (mitigationReport.Total > 0f)
+                combat.RecordIncomingMitigationForDps(mitigationReport);
+            if (finalDamage > 0f)
+                combat.RecordIncomingDamageForDps(finalDamage, ToDpsBucket(type), attacker);
+        }
 
         AwardEnduranceXpFromIncomingDamage(preMitigatedDamage);
 

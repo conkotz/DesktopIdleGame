@@ -54,6 +54,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     [SerializeField] private TMP_Text incomingHeaderText;
     [SerializeField] private TMP_Text elapsedTimeText;
     [SerializeField] private TMP_Text individualDamageDealersText;
+    [SerializeField] private TMP_Text damageMitigatedSourcesText;
     [SerializeField] private TMP_Text individualOutgoingDamageSourcesText;
     [SerializeField] private TMP_Text individualIncomingHealingSourcesText;
 
@@ -68,6 +69,8 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
     private bool _loggedScrollDiagnostics;
     private float _incomingPanelBasePreferredHeight = -1f;
     private float _dealerTextBaseHeight = -1f;
+    private float _mitigationPanelBasePreferredHeight = -1f;
+    private float _mitigationSourceTextBaseHeight = -1f;
     private float _outgoingPanelBasePreferredHeight = -1f;
     private float _outgoingSourceTextBaseHeight = -1f;
     private float _healingPanelBasePreferredHeight = -1f;
@@ -243,6 +246,7 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
         RefreshElapsedTime();
         RefreshIncomingDealerDamage(combat);
+        RefreshIncomingMitigationSources(combat);
         RefreshOutgoingDamageSources(combat);
         RefreshIncomingHealingSources(combat);
 
@@ -313,6 +317,68 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
         individualDamageDealersText.text = sb.ToString();
         RefreshDealerPanelLayout();
+    }
+
+    private void RefreshIncomingMitigationSources(PlayerCombatController currentCombat)
+    {
+        if (!damageMitigatedSourcesText)
+            return;
+
+        bool dpsMode = _mode == MetricMode.Dps;
+        string emptyMessage = dpsMode ? "No damage mitigated yet" : "No damage mitigated yet";
+
+        if (!currentCombat)
+        {
+            damageMitigatedSourcesText.text = emptyMessage;
+            RefreshMitigationPanelLayout();
+            return;
+        }
+
+        DpsMitigationBreakdown totals = currentCombat.GetIncomingMitigationBreakdown();
+        if (totals.Total <= 0f)
+        {
+            damageMitigatedSourcesText.text = emptyMessage;
+            RefreshMitigationPanelLayout();
+            return;
+        }
+
+        float elapsed = Mathf.Max(0f, currentCombat.GetDamageSessionElapsedSeconds());
+        StringBuilder sb = new StringBuilder(128);
+        AppendMitigationSourceLine(sb, "Armour", totals.Armour, elapsed, dpsMode);
+        AppendMitigationSourceLine(sb, "Magic Resist", totals.MagicResist, elapsed, dpsMode);
+        AppendMitigationSourceLine(sb, "Corruption Resist", totals.CorruptionResist, elapsed, dpsMode);
+        AppendMitigationSourceLine(sb, "Blocked", totals.Blocked, elapsed, dpsMode);
+        AppendMitigationSourceLine(sb, "Parry", totals.Parry, elapsed, dpsMode);
+
+        damageMitigatedSourcesText.text = sb.Length > 0 ? sb.ToString() : emptyMessage;
+        RefreshMitigationPanelLayout();
+    }
+
+    private static void AppendMitigationSourceLine(
+        StringBuilder sb,
+        string label,
+        float amount,
+        float elapsed,
+        bool dpsMode)
+    {
+        if (amount <= 0f)
+            return;
+
+        if (sb.Length > 0)
+            sb.AppendLine();
+
+        sb.Append(label);
+        sb.Append(": ");
+        if (dpsMode)
+        {
+            float perSecond = elapsed > 0.001f ? amount / elapsed : 0f;
+            sb.Append(perSecond.ToString("0.#"));
+            sb.Append(" DPS");
+        }
+        else
+        {
+            sb.Append(Mathf.RoundToInt(amount));
+        }
     }
 
     private void RefreshOutgoingDamageSources(PlayerCombatController currentCombat)
@@ -505,12 +571,15 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
 
         if (individualDamageDealersText)
             individualDamageDealersText.raycastTarget = false;
+        if (damageMitigatedSourcesText)
+            damageMitigatedSourcesText.raycastTarget = false;
         if (individualOutgoingDamageSourcesText)
             individualOutgoingDamageSourcesText.raycastTarget = false;
         if (individualIncomingHealingSourcesText)
             individualIncomingHealingSourcesText.raycastTarget = false;
 
         RefreshDealerPanelLayout();
+        RefreshMitigationPanelLayout();
         RefreshOutgoingPanelLayout();
         RefreshHealingPanelLayout();
 
@@ -525,6 +594,14 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
             individualDamageDealersText,
             ref _incomingPanelBasePreferredHeight,
             ref _dealerTextBaseHeight);
+    }
+
+    private void RefreshMitigationPanelLayout()
+    {
+        RefreshDetailTextPanelLayout(
+            damageMitigatedSourcesText,
+            ref _mitigationPanelBasePreferredHeight,
+            ref _mitigationSourceTextBaseHeight);
     }
 
     private void RefreshOutgoingPanelLayout()
@@ -768,6 +845,16 @@ public class DpsBreakdownTrackerUI : MonoBehaviour
         {
             // Never bind the header label as the dynamic dealer-value output field.
             individualDamageDealersText = null;
+        }
+
+        if (!damageMitigatedSourcesText)
+            damageMitigatedSourcesText = FindText(texts, "Incoming", "DamageMitigatedSourcesText");
+        if (!damageMitigatedSourcesText)
+            damageMitigatedSourcesText = FindText(texts, "Incoming", "DamageMitigated", "MitigatedSourcesText");
+        if (damageMitigatedSourcesText != null &&
+            damageMitigatedSourcesText.name.IndexOf("Header", System.StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            damageMitigatedSourcesText = null;
         }
 
         if (!individualOutgoingDamageSourcesText)

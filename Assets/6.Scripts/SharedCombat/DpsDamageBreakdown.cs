@@ -70,3 +70,39 @@ public struct DpsDamageBreakdown
         };
     }
 }
+
+public struct DpsMitigationBreakdown
+{
+    public float Armour;
+    public float MagicResist;
+    public float CorruptionResist;
+    public float Blocked;
+    public float Parry;
+
+    public float Total => Armour + MagicResist + CorruptionResist + Blocked + Parry;
+
+    public void Add(in DpsMitigationBreakdown other)
+    {
+        Armour += other.Armour;
+        MagicResist += other.MagicResist;
+        CorruptionResist += other.CorruptionResist;
+        Blocked += other.Blocked;
+        Parry += other.Parry;
+    }
+
+    public DpsMitigationBreakdown PerSecond(float duration)
+    {
+        if (duration <= 0f)
+            return default;
+
+        float inv = 1f / duration;
+        return new DpsMitigationBreakdown
+        {
+            Armour = Armour * inv,
+            MagicResist = MagicResist * inv,
+            CorruptionResist = CorruptionResist * inv,
+            Blocked = Blocked * inv,
+            Parry = Parry * inv
+        };
+    }
+}

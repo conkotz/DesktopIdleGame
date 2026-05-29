@@ -39,6 +39,7 @@ public class LevelSpawnDirector : MonoBehaviour
     [SerializeField] private bool logSpawns;
 
     private bool _hasSpawnedForCurrentLevel;
+    private Coroutine _initialSpawnCoroutine;
     private readonly HashSet<Vector2Int> _reservedSpawnCells = new();
     private readonly List<PendingRespawn> _pendingRespawns = new();
     private Coroutine _respawnQueueCoroutine;
@@ -104,23 +105,53 @@ public class LevelSpawnDirector : MonoBehaviour
         if (GameplayLevelBootstrapper.Instance != null)
             GameplayLevelBootstrapper.Instance.OnLevelStarted -= OnLevelStarted;
 
+        if (_initialSpawnCoroutine != null)
+        {
+            StopCoroutine(_initialSpawnCoroutine);
+            _initialSpawnCoroutine = null;
+        }
+
         StopRespawnQueueCoroutineOnly();
     }
 
     private void Start()
     {
-        // If we enabled after the bootstrapper fired, handle it once.
+        // If we enabled after the bootstrapper fired, handle it once (deferred one frame).
         if (_hasSpawnedForCurrentLevel)
             return;
 
-        if (GameplayLevelBootstrapper.Instance != null && GameplayLevelBootstrapper.Instance.ActiveDefinition != null)
-            SpawnFor(GameplayLevelBootstrapper.Instance.ActiveDefinition);
-        else if (ActiveLevelContext.Current != null)
-            SpawnFor(ActiveLevelContext.Current);
+        MapNodeDefinition def = GameplayLevelBootstrapper.Instance != null
+            ? GameplayLevelBootstrapper.Instance.ActiveDefinition
+            : ActiveLevelContext.Current;
+        if (def != null)
+            QueueInitialSpawn(def);
     }
 
     private void OnLevelStarted(MapNodeDefinition def)
     {
+        QueueInitialSpawn(def);
+    }
+
+    private void QueueInitialSpawn(MapNodeDefinition def)
+    {
+        if (_hasSpawnedForCurrentLevel || !def)
+            return;
+
+        if (_initialSpawnCoroutine != null)
+            return;
+
+        _initialSpawnCoroutine = StartCoroutine(CoInitialSpawn(def));
+    }
+
+    private IEnumerator CoInitialSpawn(MapNodeDefinition def)
+    {
+        // Wait one frame so SpawnPointGroup lane points and bootstrapper state are fully ready.
+        yield return null;
+
+        _initialSpawnCoroutine = null;
+        if (_hasSpawnedForCurrentLevel || !def)
+            yield break;
+
         SpawnFor(def);
     }
 
@@ -155,6 +186,30 @@ public class LevelSpawnDirector : MonoBehaviour
         if (logSpawns)
             Debug.Log($"[LevelSpawnDirector] Spawning level '{def.nodeId}' ({def.displayName}): {def.spawnGroupPlans.Count} spawn plan(s).", this);
 
+        // Pass 1: fixed-point world prefabs (signposts, cave entrances, etc.) before shuffled enemies.
+        SpawnAllPlans(
+            def,
+            groups,
+            parent,
+            IsFixedPointWorldPrefabRow,
+            requireExactNamedPoint: true);
+
+        // Pass 2: enemies, items, and anything without a fixed named point.
+        SpawnAllPlans(
+            def,
+            groups,
+            parent,
+            row => !IsFixedPointWorldPrefabRow(row),
+            requireExactNamedPoint: false);
+    }
+
+    private void SpawnAllPlans(
+        MapNodeDefinition def,
+        Dictionary<string, SpawnPointGroup> groups,
+        Transform parent,
+        Func<SpawnPrefabCount, bool> rowFilter,
+        bool requireExactNamedPoint)
+    {
         for (int i = 0; i < def.spawnGroupPlans.Count; i++)
         {
             LevelSpawnGroupPlan plan = def.spawnGroupPlans[i];
@@ -176,8 +231,25 @@ public class LevelSpawnDirector : MonoBehaviour
                 levelDefForRespawn: def,
                 allowEliteSpawnRoll: false,
                 planIndexForSaveKeys: i,
-                levelDefForOneShotKeys: def);
+                levelDefForOneShotKeys: def,
+                rowFilter: rowFilter,
+                requireExactNamedPoint: requireExactNamedPoint);
         }
+    }
+
+    /// <summary>
+    /// Non-enemy, non-item prefab rows pinned to a specific spawn point (signposts, entrances, etc.).
+    /// These must spawn before shuffled enemy rows so overlap/enemy placement cannot steal their point.
+    /// </summary>
+    private static bool IsFixedPointWorldPrefabRow(SpawnPrefabCount entry)
+    {
+        if (entry == null || entry.count <= 0)
+            return false;
+        if (entry.enemyDefinition != null || entry.itemDefinition != null)
+            return false;
+        if (entry.prefab == null)
+            return false;
+        return !string.IsNullOrWhiteSpace(entry.spawnPointName);
     }
 
     private static bool SpawnPlanHasGroupSource(LevelSpawnGroupPlan plan)
@@ -362,7 +434,8 @@ public class LevelSpawnDirector : MonoBehaviour
         string gid,
         SpawnPointGroup pointGroup,
         out Transform point,
-        out bool hadToReuse)
+        out bool hadToReuse,
+        bool requireExactNamedPoint = false)
     {
         hadToReuse = false;
         point = null;
@@ -384,10 +457,18 @@ public class LevelSpawnDirector : MonoBehaviour
             {
                 if (logSpawns)
                     Debug.LogWarning(
-                        $"[LevelSpawnDirector] No spawn point named '{wantName}' in group '{gid}' — using cursor order.",
+                        $"[LevelSpawnDirector] No spawn point named '{wantName}' in group '{gid}'.",
                         pointGroup);
+                return false;
             }
-            else if (!IsSpawnPointStrictlyFree(p))
+
+            if (requireExactNamedPoint)
+            {
+                point = p;
+                return true;
+            }
+
+            if (!IsSpawnPointStrictlyFree(p))
             {
                 if (logSpawns)
                     Debug.LogWarning(
@@ -419,7 +500,9 @@ public class LevelSpawnDirector : MonoBehaviour
         MapNodeDefinition levelDefForRespawn,
         bool allowEliteSpawnRoll,
         int planIndexForSaveKeys = -1,
-        MapNodeDefinition levelDefForOneShotKeys = null)
+        MapNodeDefinition levelDefForOneShotKeys = null,
+        Func<SpawnPrefabCount, bool> rowFilter = null,
+        bool requireExactNamedPoint = false)
     {
         if (plan.spawns == null)
             return;
@@ -435,6 +518,8 @@ public class LevelSpawnDirector : MonoBehaviour
         {
             SpawnPrefabCount entry = plan.spawns[rowIdx];
             if (entry == null || entry.count <= 0)
+                continue;
+            if (rowFilter != null && !rowFilter(entry))
                 continue;
 
             if (entry.itemDefinition != null)
@@ -474,7 +559,15 @@ public class LevelSpawnDirector : MonoBehaviour
                     if (!respawnsAfterPickup && LevelItemPickupSaveStore.IsClaimed(key))
                         continue;
 
-                    if (!TryResolveOneSpawnPoint(entry, plan, cursors, itemGid, itemPointGroup, out Transform p, out bool hadToReuse))
+                    if (!TryResolveOneSpawnPoint(
+                            entry,
+                            plan,
+                            cursors,
+                            itemGid,
+                            itemPointGroup,
+                            out Transform p,
+                            out bool hadToReuse,
+                            requireExactNamedPoint))
                         continue;
 
                     DropManager dm = DropManager.Instance;
@@ -553,7 +646,15 @@ public class LevelSpawnDirector : MonoBehaviour
                         continue;
                 }
 
-                if (!TryResolveOneSpawnPoint(entry, plan, cursors, gid, pointGroup, out Transform p, out bool hadToReuse))
+                if (!TryResolveOneSpawnPoint(
+                        entry,
+                        plan,
+                        cursors,
+                        gid,
+                        pointGroup,
+                        out Transform p,
+                        out bool hadToReuse,
+                        requireExactNamedPoint))
                     continue;
 
                 GameObject inst = SpawnEnemyInstanceAt(

@@ -99,6 +99,7 @@ public static class AbilityCombatPower
     public const int TacticianEnhancementBulwark = 1;
     public const int TacticianEnhancementDuality = 2;
     public const int TacticianSecondarySpecialistDualWieldHitInterval = 5;
+    public const float TacticianSecondarySpecialistDualWieldFollowUpDamageFraction = 0.5f;
     public const string TacticianSecondarySpecialistDoubleHitSourceLabel = "Secondary Specialist";
 
     /// <summary>Melee Lv10 major passive — Parry (skill tree slot 1 at level 10).</summary>
@@ -120,6 +121,7 @@ public static class AbilityCombatPower
     public const float PhoenixSoulBurnRegenIntervalSeconds = 3f;
     public const float PhoenixSoulLifePerBurningEnemy = 1f;
     public const float PhoenixSoulEnergyPerBurningEnemy = 1f;
+    public const float PhoenixSoulBurnChanceBonus = 0.05f;
     public const float PhoenixSoulLivingInfernoMeleeDamagePerBurningEnemy = 0.02f;
     /// <summary>Cap at <see cref="PhoenixSoulMaxNearbyBurningEnemies"/> × per-enemy bonus (5 × 2% = 10%).</summary>
     public const float PhoenixSoulLivingInfernoMaxMeleeDamageBonusFraction = 0.10f;
@@ -134,6 +136,7 @@ public static class AbilityCombatPower
     /// <summary>Melee Lv40 major passive — Master of Venoms (skill tree slot 1 at level 40).</summary>
     public const string MasterOfVenomsEnhancementParentSpineNodeId = "Lv40_1";
     public const float MasterOfVenomsPoisonCritFractionOfCritDamage = 0.5f;
+    public const float MasterOfVenomsPoisonChanceBonus = 0.05f;
     public const float MasterOfVenomsNeurotoxinOutgoingDamageReduction = 0.15f;
     public const float MasterOfVenomsNeurotoxinMoveSlowPerPoisonStack = 0.03f;
     public const float MasterOfVenomsLethalCompoundDurationReductionPerStackSeconds = 0.5f;

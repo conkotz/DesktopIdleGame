@@ -1019,6 +1019,7 @@ public class EnemyBaseController : MonoBehaviour
             type,
             out bool blocked,
             out float hpDamage,
+            out _,
             armorRatingMultiplier,
             magicResistRatingMultiplier);
         int finalDamage = Mathf.RoundToInt(applied);

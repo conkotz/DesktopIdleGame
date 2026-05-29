@@ -18,7 +18,7 @@ MonoBehaviour:
   tooltipBuffMinionDurationSeconds: 25
   presentation: {fileID: 11400000, guid: 8d3e2a1b0c9f4a5e8b7c6d5e4f3a2b1c, type: 2}
   cooldown: 30
-  energyCost: 25
+  energyCost: 45
   manaCost: 0
   healthCost: 0
   weaponDamageMultiplier: 0.3

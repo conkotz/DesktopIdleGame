@@ -256,7 +256,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 9
     title: Finisher Instinct I
-    description: +10% Melee Damage to Low HP Enemies
+    description: +10% Melee Damage to Low HP Enemies (<30% HP)
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 6
@@ -943,7 +943,8 @@ MonoBehaviour:
     - requiredLevel: 33
       title: Secondary Specialist
       description: 'Shield + 1H: one-handed bonuses plus +5% block, +10 resists,
-        +10% block mitigation. Dual wield 1H off-hand: every fifth hit hits twice.'
+        +10% block mitigation. Dual wield 1H off-hand: every fifth hit hits a second
+        time for 50% damage.'
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -1123,11 +1124,11 @@ MonoBehaviour:
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 36
-    title: Storm Edge I
-    description: +5% Melee Shock Chance
+    title: Flame Edge I
+    description: +5% Melee Burn Chance
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
-    meleeMinorStatOption: 15
+    meleeMinorStatOption: 20
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
@@ -1139,11 +1140,11 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 37
-    title: Predator's Focus III
-    description: +10% Melee Damage to Shocked Enemies
+    title: Flame Edge II
+    description: +10% Melee Damage to Burning Enemies
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
-    meleeMinorStatOption: 16
+    meleeMinorStatOption: 21
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
@@ -1188,8 +1189,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 40
     title: Phoenix Soul
-    description: Burning nearby enemies restore 1 Life and 1 Energy every 3 seconds
-      (max 5 enemies).
+    description: Draw life and energy from the heat of nearby burning foes.
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -1222,7 +1222,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 40
     title: Master of Venoms
-    description: Poison can critically strike (dealing 50% of your critical damage).
+    description: Master deadly poisons that can critically strike your enemies.
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
     unlockType: 3
     meleeMinorStatOption: 0
@@ -1449,10 +1449,10 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 47
     title: Battle Sustain II
-    description: +1% Melee Lifesteal
+    description: +2% Melee Lifesteal
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
-    meleeMinorStatOption: 17
+    meleeMinorStatOption: 22
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
@@ -1481,7 +1481,7 @@ MonoBehaviour:
     choices: []
   - requiredLevel: 49
     title: Finisher Instinct II
-    description: +10% Melee Damage to Low HP Enemies
+    description: +10% Melee Damage to Low HP Enemies (<30% HP)
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 6

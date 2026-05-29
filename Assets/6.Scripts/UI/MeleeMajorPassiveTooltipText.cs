@@ -26,7 +26,7 @@ public static class MeleeMajorPassiveTooltipText
             $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianShieldBlockChanceBonus * 100f)}% block chance\n" +
             $"+{AbilityCombatPower.TacticianShieldFlatResistBonus} armour, magic resist, and corruption resist\n" +
             $"+{Mathf.RoundToInt(AbilityCombatPower.TacticianShieldBlockMitigationBonus * 100f)}% block mitigation\n" +
-            "While dual wielding (a one-handed weapon in the off-hand slot), every fifth hit hits twice.";
+            "While dual wielding (a one-handed weapon in the off-hand slot), every fifth hit hits a second time for 50% damage.";
     }
 
     public static string BuildTacticianDualityDescription() =>
@@ -40,6 +40,10 @@ public static class MeleeMajorPassiveTooltipText
     public const string PredatorsInstinctFlavorDescription = "Aim for the enemies weakspots";
     public const string BattleEngineFlavorDescription = "Turn successful ability hits into combat energy";
     public const string TacticianFlavorDescription = "Adapt your fighting style to the weapon you wield";
+    public const string PhoenixSoulFlavorDescription =
+        "Draw life and energy from the heat of nearby burning foes.";
+    public const string MasterOfVenomsFlavorDescription =
+        "Master deadly poisons that can critically strike your enemies.";
 
     /// <summary>Short flavor copy for the details panel description column.</summary>
     public static bool TryBuildFlavorDescription(string parentSpineNodeId, out string flavor)
@@ -75,6 +79,18 @@ public static class MeleeMajorPassiveTooltipText
         if (string.Equals(parentSpineNodeId, AbilityCombatPower.TacticianMajorPassiveSpineNodeId, StringComparison.Ordinal))
         {
             flavor = TacticianFlavorDescription;
+            return true;
+        }
+
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.PhoenixSoulEnhancementParentSpineNodeId, StringComparison.Ordinal))
+        {
+            flavor = PhoenixSoulFlavorDescription;
+            return true;
+        }
+
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.MasterOfVenomsEnhancementParentSpineNodeId, StringComparison.Ordinal))
+        {
+            flavor = MasterOfVenomsFlavorDescription;
             return true;
         }
 
@@ -349,7 +365,7 @@ public static class MeleeMajorPassiveTooltipText
             shieldActive);
         AppendTacticianColoredLine(
             sb,
-            "While dual wielding (a one-handed weapon in the off-hand slot), every fifth hit hits twice.",
+            "While dual wielding (a one-handed weapon in the off-hand slot), every fifth hit hits a second time for 50% damage.",
             dualWieldActive);
     }
 
@@ -409,8 +425,8 @@ public static class MeleeMajorPassiveTooltipText
             oneHandActive);
         AppendTacticianColoredLine(
             sb,
-            $"+{ScaleTacticianPercentDisplay(AbilityCombatPower.TacticianOneHandedPoisonChance, bonusMultiplier)} poison and " +
-            $"{ScaleTacticianPercentDisplay(AbilityCombatPower.TacticianOneHandedBurnChance, bonusMultiplier)} burn chance",
+            $"+{ScaleTacticianPercentDisplay(AbilityCombatPower.TacticianOneHandedPoisonChance, bonusMultiplier)}% poison and " +
+            $"+{ScaleTacticianPercentDisplay(AbilityCombatPower.TacticianOneHandedBurnChance, bonusMultiplier)}% burn chance",
             oneHandActive);
         AppendTacticianColoredLine(
             sb,
@@ -481,6 +497,9 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append("Poison can critically strike (dealing ");
         sb.Append(Mathf.RoundToInt(AbilityCombatPower.MasterOfVenomsPoisonCritFractionOfCritDamage * 100f));
         sb.AppendLine("% of your critical damage).");
+        sb.Append("+");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.MasterOfVenomsPoisonChanceBonus * 100f));
+        sb.AppendLine("% poison chance.");
         AppendEnhancementLines(sb, selectedChoice, AbilityCombatPower.MasterOfVenomsEnhancementParentSpineNodeId);
         body = sb.ToString();
         return true;

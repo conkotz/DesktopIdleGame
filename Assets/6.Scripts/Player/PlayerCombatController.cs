@@ -446,6 +446,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private float _combatSessionDamageSum;
     private DpsDamageBreakdown _outgoingDamageSum;
     private DpsDamageBreakdown _incomingDamageSum;
+    private DpsMitigationBreakdown _incomingMitigationSum;
     private float _incomingHealingSum;
     private bool _dpsTrackerPaused;
     private float _pausedDpsSessionDuration;
@@ -561,7 +562,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (_combatSessionStartTime < 0f)
             return 0f;
 
-        if (_combatSessionDamageSum <= 0f && _incomingDamageSum.Total <= 0f && _incomingHealingSum <= 0f)
+        if (_combatSessionDamageSum <= 0f &&
+            _incomingDamageSum.Total <= 0f &&
+            _incomingMitigationSum.Total <= 0f &&
+            _incomingHealingSum <= 0f)
             return 0f;
 
         if (_dpsTrackerPaused)
@@ -588,6 +592,19 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     public DpsDamageBreakdown GetIncomingTotalDamageBreakdown()
     {
         return _incomingDamageSum;
+    }
+
+    public DpsMitigationBreakdown GetIncomingMitigationBreakdown()
+    {
+        return _incomingMitigationSum;
+    }
+
+    public DpsMitigationBreakdown GetIncomingMitigationDpsBreakdown()
+    {
+        if (!TryGetDpsSessionDuration(out float duration))
+            return default;
+
+        return _incomingMitigationSum.PerSecond(duration);
     }
 
     public List<IncomingDealerDamageEntry> GetIncomingDamageByDealer()
@@ -1578,6 +1595,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         float reflectFrac = stats.GetParryMitigationFraction();
         SplitDamage reflected = BuildParryReflectDamage(original, reflectFrac);
         incomingHit = original * (1f - reflectFrac);
+        float parryMitigated = Mathf.Max(0f, original.Total - incomingHit.Total);
+        if (parryMitigated > 0f)
+            RecordIncomingMitigationForDps(new DpsMitigationBreakdown { Parry = parryMitigated });
         ApplyParryReflectDamage(attacker, reflected, incomingWasCrit);
         return true;
     }
@@ -1764,38 +1784,69 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             ApplyCrescentSlashSecondaryHits(targetToHit, crescentPenetrating, crescentAppliesElemental, alreadyHit);
         }
 
-        if (primaryHitSucceeded && stats != null && stats.TryConsumeSecondarySpecialistDualWieldDoubleHit())
-        {
-            RecordOutgoingSourceUse(AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel);
-
-            var doubleHitAttribution = new SwingOutgoingAttribution(
-                AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel,
-                swingAttribution.bonusSource,
-                swingAttribution.bonusFraction,
-                swingAttribution.bonusBucket);
-            DamageResult doubleDealt = ApplySplitDamageToTarget(
+        if (primaryHitSucceeded && stats != null)
+            TryApplySecondarySpecialistDualWieldFollowUp(
                 targetToHit,
                 rolled,
                 wasCrit,
-                AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel,
-                doubleHitAttribution);
+                swingAttribution,
+                suppressOnHitAilments,
+                suppressBleed,
+                suppressPoison,
+                suppressElementalMagicAilment);
+    }
 
-            if (doubleDealt.Total > 0f)
-                player.ApplyLifeSteal(doubleDealt.Total);
+    /// <summary>
+    /// Secondary Specialist (dual wield): every Nth successful melee hit applies a follow-up strike.
+    /// </summary>
+    public void TryApplySecondarySpecialistDualWieldFollowUp(
+        EnemyBaseController targetToHit,
+        SplitDamage rolled,
+        bool wasCrit,
+        SwingOutgoingAttribution swingAttribution = default,
+        bool suppressOnHitAilments = false,
+        bool suppressBleed = false,
+        bool suppressPoison = false,
+        bool suppressElementalMagicAilment = false)
+    {
+        if (targetToHit == null || stats == null || rolled.IsEmpty)
+            return;
 
-            if (!suppressOnHitAilments)
-            {
-                if (!suppressBleed)
-                    TryApplyBleed(targetToHit, doubleDealt);
-                if (!suppressPoison)
-                    TryApplyPoison(targetToHit, doubleDealt);
-                if (!suppressElementalMagicAilment)
-                    TryApplyElementalMagicAilment(targetToHit, doubleDealt);
-                TryApplyMeleeShock(targetToHit, doubleDealt);
-            }
+        if (!stats.TryConsumeSecondarySpecialistDualWieldDoubleHit())
+            return;
 
-            stats.TryApplyTacticianStunOnEnemyHit(targetToHit);
+        RecordOutgoingSourceUse(AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel);
+
+        float followUpFraction = AbilityCombatPower.TacticianSecondarySpecialistDualWieldFollowUpDamageFraction;
+        SplitDamage followUpHit = rolled * followUpFraction;
+
+        var doubleHitAttribution = new SwingOutgoingAttribution(
+            AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel,
+            swingAttribution.bonusSource,
+            swingAttribution.bonusFraction,
+            swingAttribution.bonusBucket);
+        DamageResult doubleDealt = ApplySplitDamageToTarget(
+            targetToHit,
+            followUpHit,
+            wasCrit,
+            AbilityCombatPower.TacticianSecondarySpecialistDoubleHitSourceLabel,
+            doubleHitAttribution);
+
+        if (doubleDealt.Total > 0f)
+            player.ApplyLifeSteal(doubleDealt.Total);
+
+        if (!suppressOnHitAilments)
+        {
+            if (!suppressBleed)
+                TryApplyBleed(targetToHit, doubleDealt);
+            if (!suppressPoison)
+                TryApplyPoison(targetToHit, doubleDealt);
+            if (!suppressElementalMagicAilment)
+                TryApplyElementalMagicAilment(targetToHit, doubleDealt);
+            TryApplyMeleeShock(targetToHit, doubleDealt);
         }
+
+        stats.TryApplyTacticianStunOnEnemyHit(targetToHit);
     }
 
     private void ApplyCleaveSecondaryHits(EnemyBaseController primaryTarget, int extraTargets, HashSet<EnemyBaseController> alreadyHit)
@@ -2629,8 +2680,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             out float bleedBonus,
             out float poisonBonus,
             out float shockBonus,
+            out float burnBonus,
             out float ailmentedBonus);
-        return bleedBonus > 0f || poisonBonus > 0f || shockBonus > 0f || ailmentedBonus > 0f;
+        return bleedBonus > 0f || poisonBonus > 0f || shockBonus > 0f || burnBonus > 0f || ailmentedBonus > 0f;
     }
 
     private float GetConditionalMeleeDamageMultiplier(EnemyBaseController target)
@@ -2641,8 +2693,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             out float bleedBonus,
             out float poisonBonus,
             out float shockBonus,
+            out float burnBonus,
             out float ailmentedBonus);
-        return 1f + Mathf.Max(0f, lowHpBonus + bleedBonus + poisonBonus + shockBonus + ailmentedBonus);
+        return 1f + Mathf.Max(0f, lowHpBonus + bleedBonus + poisonBonus + shockBonus + burnBonus + ailmentedBonus);
     }
 
     private void GetConditionalMeleeDamageMultiplierBreakdown(
@@ -2651,12 +2704,14 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         out float bleedBonus,
         out float poisonBonus,
         out float shockBonus,
+        out float burnBonus,
         out float ailmentedBonus)
     {
         lowHpBonus = 0f;
         bleedBonus = 0f;
         poisonBonus = 0f;
         shockBonus = 0f;
+        burnBonus = 0f;
         ailmentedBonus = 0f;
 
         if (stats == null || target == null)
@@ -2671,6 +2726,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
                 poisonBonus = Mathf.Max(0f, stats.MeleeDamageVsPoisoned);
             if (ailments.HasShock)
                 shockBonus = Mathf.Max(0f, stats.MeleeDamageVsShocked);
+            if (ailments.HasBurn)
+                burnBonus = Mathf.Max(0f, stats.MeleeDamageVsBurning);
             if (ailments.HasBleed || ailments.HasPoison || ailments.HasBurn)
                 ailmentedBonus = Mathf.Max(0f, stats.MeleeDamageVsAilmented);
         }
@@ -2679,7 +2736,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (targetStats != null && targetStats.MaxHP > 0f)
         {
             float hp01 = targetStats.HP / Mathf.Max(1f, targetStats.MaxHP);
-            if (hp01 <= stats.MeleeLowHpThreshold01)
+            if (hp01 < stats.MeleeLowHpThreshold01)
                 lowHpBonus = Mathf.Max(0f, stats.MeleeDamageVsLowHp);
         }
     }
@@ -2878,6 +2935,16 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         TryRememberEnemyDamageSourceForLongbowRetarget(source);
     }
 
+    public void RecordIncomingMitigationForDps(in DpsMitigationBreakdown mitigation)
+    {
+        if (mitigation.Total <= 0f || _dpsTrackerPaused)
+            return;
+
+        MarkRecentCombatActivity();
+        EnsureDpsSessionStarted();
+        _incomingMitigationSum.Add(mitigation);
+    }
+
     private void AddIncomingDealerDamageByName(string dealerName, float amount)
     {
         if (amount <= 0f || string.IsNullOrWhiteSpace(dealerName))
@@ -2981,9 +3048,10 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             out float bleedBonus,
             out float poisonBonus,
             out float shockBonus,
+            out float burnBonus,
             out float ailmentedBonus);
 
-        float totalMult = 1f + lowHpBonus + bleedBonus + poisonBonus + shockBonus + ailmentedBonus;
+        float totalMult = 1f + lowHpBonus + bleedBonus + poisonBonus + shockBonus + burnBonus + ailmentedBonus;
         if (totalMult <= 1e-6f)
             totalMult = 1f;
 
@@ -2993,7 +3061,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         float bleedAmount = bleedBonus > 0f ? afterPowerSlash * (bleedBonus / totalMult) : 0f;
         float poisonAmount = poisonBonus > 0f ? afterPowerSlash * (poisonBonus / totalMult) : 0f;
         float shockAmount = shockBonus > 0f ? afterPowerSlash * (shockBonus / totalMult) : 0f;
-        float autoAmount = afterPowerSlash - bleedAmount - poisonAmount - shockAmount;
+        float burnAmount = burnBonus > 0f ? afterPowerSlash * (burnBonus / totalMult) : 0f;
+        float autoAmount = afterPowerSlash - bleedAmount - poisonAmount - shockAmount - burnAmount;
 
         if (autoAmount > 0f)
             RecordDamageForDps(autoAmount, DpsDamageBucket.Physical, swingAttribution.primarySource);
@@ -3005,6 +3074,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             RecordDamageForDps(poisonAmount, DpsDamageBucket.Poison, OutgoingPoisonSourceLabel);
         if (shockAmount > 0f)
             RecordDamageForDps(shockAmount, DpsDamageBucket.Physical, OutgoingShockSourceLabel);
+        if (burnAmount > 0f)
+            RecordDamageForDps(burnAmount, DpsDamageBucket.Burn, OutgoingBurningSourceLabel);
     }
 
     private static DpsDamageBucket ResolveEffectiveOutgoingBucket(
@@ -3200,6 +3271,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         _combatSessionDamageSum = 0f;
         _outgoingDamageSum = default;
         _incomingDamageSum = default;
+        _incomingMitigationSum = default;
         _incomingHealingSum = 0f;
         _incomingDamageByDealer.Clear();
         _incomingDealerOrder.Clear();
