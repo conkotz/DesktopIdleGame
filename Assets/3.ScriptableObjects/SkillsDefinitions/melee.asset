@@ -271,6 +271,22 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 10
+    title: Intermediate Melee Combat
+    description: Can use tier 2 melee weapons
+    icon: {fileID: -466788390, guid: e2fcfaa90bcc47f4ca87fa460995f03d, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 10
     title: Ailment Attunement
     description: Increase your proficiency with ailments
     icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
@@ -622,7 +638,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 20
     title: Skilled Melee Combat
-    description: Can use tier 2 melee weapons
+    description: Can use tier 3 melee weapons
     icon: {fileID: -466788390, guid: e2fcfaa90bcc47f4ca87fa460995f03d, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0
@@ -847,6 +863,22 @@ MonoBehaviour:
     icon: {fileID: 3534972268811701710, guid: 7adac55ced66def4ca2ad1c0880b555c, type: 3}
     unlockType: 0
     meleeMinorStatOption: 14
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices: []
+  - requiredLevel: 30
+    title: Advanced Melee Combat
+    description: Can use tier 4 melee weapons
+    icon: {fileID: 47734959, guid: e2fcfaa90bcc47f4ca87fa460995f03d, type: 3}
+    unlockType: 2
+    meleeMinorStatOption: 0
     rangedMinorStatOption: 0
     woodcuttingMinorStatOption: 0
     miningMinorStatOption: 0
@@ -1219,7 +1251,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 40
     title: Master Melee Combat
-    description: Can use tier 3 melee weapons
+    description: Can use tier 5 melee weapons
     icon: {fileID: 47734959, guid: e2fcfaa90bcc47f4ca87fa460995f03d, type: 3}
     unlockType: 2
     meleeMinorStatOption: 0

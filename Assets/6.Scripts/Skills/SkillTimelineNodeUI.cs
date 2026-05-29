@@ -107,6 +107,7 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
 #endif
 
     public event Action<SkillTimelineNodeUI> Clicked;
+    public event Action<SkillTimelineNodeUI, PointerEventData> RightClicked;
     public event Action<SkillTimelineNodeUI> Hovered;
 
     public RectTransform RectTransform => rectTransform != null ? rectTransform : (RectTransform)transform;
@@ -193,6 +194,14 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
     {
         ClearUnlockGlow();
         Hovered?.Invoke(this);
+    }
+
+    internal void NotifyRightClicked(PointerEventData eventData)
+    {
+        if (eventData == null || eventData.button != PointerEventData.InputButton.Right)
+            return;
+
+        RightClicked?.Invoke(this, eventData);
     }
 
     /// <summary>Pulses <see cref="notSelectedRoot"/> (same timing as <see cref="SkillTreeNodeUI"/>).</summary>
@@ -327,6 +336,18 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
 
         _clickHandler = HandleRootButtonClicked;
         rootButton.onClick.AddListener(_clickHandler);
+        EnsureContextClickRelay();
+    }
+
+    private void EnsureContextClickRelay()
+    {
+        if (rootButton == null)
+            return;
+
+        var relay = rootButton.GetComponent<SkillTimelineNodeContextClickRelay>();
+        if (relay == null)
+            relay = rootButton.gameObject.AddComponent<SkillTimelineNodeContextClickRelay>();
+        relay.Bind(this);
     }
 
     private void RemoveClickHandler()
@@ -1003,4 +1024,15 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
     {
         return new Color(c.r * multiplier.r, c.g * multiplier.g, c.b * multiplier.b, c.a * multiplier.a);
     }
+}
+
+/// <summary>Forwards right-clicks from the node button to <see cref="SkillTimelineNodeUI"/>.</summary>
+[DisallowMultipleComponent]
+internal sealed class SkillTimelineNodeContextClickRelay : MonoBehaviour, IPointerClickHandler
+{
+    private SkillTimelineNodeUI _owner;
+
+    public void Bind(SkillTimelineNodeUI owner) => _owner = owner;
+
+    public void OnPointerClick(PointerEventData eventData) => _owner?.NotifyRightClicked(eventData);
 }

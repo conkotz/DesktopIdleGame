@@ -12,16 +12,11 @@ public class UISectionToggle : MonoBehaviour
 
     [SerializeField] private RectTransform arrow; // optional
 
-    [Header("Colours")]
-    [SerializeField] private Color activeColor = new Color(0.8f, 0.8f, 0.8f);
-    [SerializeField] private Color inactiveColor = Color.white;
-
     [Header("State")]
     [SerializeField] private bool startExpanded = false;
 
     private bool _expanded;
     private UISectionToggleGroup _group;
-    private Image _buttonImage;
     private CanvasGroup _sectionCanvasGroup;
 
     public bool IsExpanded => _expanded;
@@ -32,9 +27,6 @@ public class UISectionToggle : MonoBehaviour
         AutoBindContentsIfNeeded();
 
         _group = GetComponentInParent<UISectionToggleGroup>(true);
-
-        if (headerButton)
-            _buttonImage = headerButton.GetComponent<Image>();
 
         // Sibling stats sections often share the same full-rect anchors; the last sibling wins raycasts.
         // When this section is collapsed, disable raycast blocking so ScrollRects / scroll wheels on the
@@ -95,8 +87,8 @@ public class UISectionToggle : MonoBehaviour
         if (arrow)
             arrow.localRotation = Quaternion.Euler(0f, 0f, _expanded ? 0f : -90f);
 
-        if (_buttonImage)
-            _buttonImage.color = _expanded ? activeColor : inactiveColor;
+        if (headerButton)
+            UITabBarButtonVisuals.Apply(headerButton, _expanded);
     }
 
     private void AutoBindContentsIfNeeded()
@@ -111,13 +103,46 @@ public class UISectionToggle : MonoBehaviour
                 contents.RemoveAt(i);
         }
 
-        // If already configured with multiple blocks, do not override user wiring.
-        if (contents.Count >= 2)
+        // Do not override inspector wiring once any content block is assigned.
+        if (contents.Count >= 1)
             return;
 
         TryAddNamedContent("Content");
         TryAddNamedContent("ContentLeft");
         TryAddNamedContent("ContentRight");
+
+        if (contents.Count == 0)
+            TryAddSectionScrollViewByName();
+
+        if (contents.Count == 0)
+            TryAddDirectChildScrollViews();
+    }
+
+    private void TryAddSectionScrollViewByName()
+    {
+        string sectionName = gameObject.name;
+        if (!sectionName.StartsWith("Section", System.StringComparison.Ordinal))
+            return;
+
+        string scrollViewName = sectionName.Substring("Section".Length) + "ScrollView";
+        TryAddNamedContent(scrollViewName);
+    }
+
+    private void TryAddDirectChildScrollViews()
+    {
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform child = transform.GetChild(i);
+            if (!child || child == transform)
+                continue;
+
+            if (!child.TryGetComponent<ScrollRect>(out _))
+                continue;
+
+            GameObject go = child.gameObject;
+            if (!contents.Contains(go))
+                contents.Add(go);
+        }
     }
 
     private void TryAddNamedContent(string name)

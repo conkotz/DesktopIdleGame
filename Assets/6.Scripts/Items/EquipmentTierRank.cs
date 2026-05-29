@@ -1,6 +1,6 @@
 /// <summary>
 /// Weapon / armor / tool tier rank. Shown as "Tier 1" … "Tier 5"; item display names carry flavor (e.g. Splitwood).
-/// Gated by skill level on the matching skill: Tier1 = Lv1, Tier2 = Lv10, Tier3 = Lv20, Tier4 = Lv30, Tier5 = Lv50.
+/// Gated by skill level on the matching skill: Tier1 = Lv1, Tier2 = Lv10, Tier3 = Lv20, Tier4 = Lv30, Tier5 = Lv40.
 /// </summary>
 public enum EquipmentTierRank
 {
@@ -24,7 +24,7 @@ public static class EquipmentTierRules
             EquipmentTierRank.Tier2 => 10,
             EquipmentTierRank.Tier3 => 20,
             EquipmentTierRank.Tier4 => 30,
-            EquipmentTierRank.Tier5 => 50,
+            EquipmentTierRank.Tier5 => 40,
             _ => 1
         };
     }
@@ -53,7 +53,7 @@ public static class EquipmentTierRules
             case SkillType.Woodcutting:
             case SkillType.Mining:
             case SkillType.Fishing:
-                return "Equipment tiers: Tier 1 (Lv1), Tier 2 (Lv10), Tier 3 (Lv20), Tier 4 (Lv30), Tier 5 (Lv50).";
+                return "Equipment tiers: Tier 1 (Lv1), Tier 2 (Lv10), Tier 3 (Lv20), Tier 4 (Lv30), Tier 5 (Lv40).";
             default:
                 return "";
         }

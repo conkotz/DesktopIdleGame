@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Collections;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,13 +17,6 @@ public class LoadoutSetButtonBinder : MonoBehaviour
     [SerializeField] private string setOneButtonName = "SetOneButton";
     [Tooltip("Used only when explicit refs are not assigned. Matches exact object name only.")]
     [SerializeField] private string setTwoButtonName = "SetTwoButton";
-
-    [Header("Visuals (fallback if no ActionBarUI)")]
-    [Tooltip("Used only when ActionBarUI is missing. Prefer Action Bar UI → Combat loadout set buttons on ActionBarWindow.")]
-    [SerializeField] private Color activeBackgroundColor = new Color(0.97f, 0.82f, 0.34f, 1f);
-    [SerializeField] private Color inactiveBackgroundColor = new Color(1f, 1f, 1f, 0.45f);
-    [SerializeField] private Color activeTextColor = new Color(0.12f, 0.10f, 0.05f, 1f);
-    [SerializeField] private Color inactiveTextColor = new Color(1f, 1f, 1f, 0.85f);
 
     private EquipmentManager _equipment;
     private ActionBarUI _actionBar;
@@ -236,48 +228,7 @@ public class LoadoutSetButtonBinder : MonoBehaviour
         if (buttons == null)
             return;
 
-        Color bg;
-        Color txt;
-        if (_actionBar != null)
-        {
-            bg = active ? _actionBar.CombatSetActiveBackgroundColor : _actionBar.CombatSetInactiveBackgroundColor;
-            txt = active ? _actionBar.CombatSetActiveTextColor : _actionBar.CombatSetInactiveTextColor;
-        }
-        else
-        {
-            bg = active ? activeBackgroundColor : inactiveBackgroundColor;
-            txt = active ? activeTextColor : inactiveTextColor;
-        }
-
         for (int i = 0; i < buttons.Count; i++)
-        {
-            Button b = buttons[i];
-            if (b == null)
-                continue;
-
-            ColorBlock cb = b.colors;
-            cb.normalColor = bg;
-            cb.highlightedColor = active
-                ? Color.Lerp(bg, Color.white, 0.08f)
-                : Color.Lerp(bg, Color.white, 0.14f);
-            cb.pressedColor = active
-                ? Color.Lerp(bg, Color.black, 0.18f)
-                : Color.Lerp(bg, Color.black, 0.24f);
-            cb.selectedColor = cb.highlightedColor;
-            cb.disabledColor = new Color(bg.r * 0.6f, bg.g * 0.6f, bg.b * 0.6f, Mathf.Clamp01(bg.a * 0.8f));
-            b.colors = cb;
-
-            Graphic g = b.targetGraphic;
-            if (g != null)
-                g.color = bg;
-
-            Image ownImage = b.GetComponent<Image>();
-            if (ownImage != null)
-                ownImage.color = bg;
-
-            TMP_Text[] labels = b.GetComponentsInChildren<TMP_Text>(true);
-            for (int t = 0; t < labels.Length; t++)
-                labels[t].color = txt;
-        }
+            UITabBarButtonVisuals.Apply(buttons[i], active);
     }
 }

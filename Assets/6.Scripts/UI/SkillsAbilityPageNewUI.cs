@@ -72,13 +72,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private readonly HashSet<SkillType> _pendingEntryGlowBySkill = new();
     private readonly Dictionary<SkillType, HashSet<int>> _pendingTreeGlowLevelsBySkill = new();
 
-    // Per-skill tabs (Melee / Woodcutting) — brown selected style.
-    private static readonly Color TabSelectedImageColor = new Color(0.36078432f, 0.26666668f, 0.12941177f, 1f);
-    private static readonly Color TabNormalImageColor = new Color(0.18431373f, 0.16078432f, 0.13725491f, 1f);
-    private static readonly Color TabSelectedOutlineColor = new Color(0.6039216f, 0.48235294f, 0.2627451f, 0.5f);
-    private static readonly Vector2 TabSelectedOutlineDistance = new Vector2(4f, -4f);
-
-    // Combat Skills / Gathering Skills category toggle — cream selected, dark unselected (NodeToggleBar).
+    // Per-skill tabs (Melee / Woodcutting) — brown selected style (see UITabBarButtonVisuals).
     private static readonly Color CategorySelectedImageColor = new Color(0.8784314f, 0.827451f, 0.7372549f, 1f);
     private static readonly Color CategoryNormalImageColor = new Color(0.20392157f, 0.1764706f, 0.15294118f, 1f);
     private static readonly Color CategorySelectedTextColor = new Color(0.1254902f, 0.101960786f, 0.08235294f, 1f);
@@ -836,43 +830,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private void RefreshTabSelectionVisuals()
     {
         foreach (KeyValuePair<SkillType, Button> pair in _tabButtonBySkillType)
-            ApplySkillTabVisual(pair.Value, _selectedSkill != null && _selectedSkill.skillType == pair.Key);
-    }
-
-    private static void ApplySkillTabVisual(Button button, bool selected)
-    {
-        if (button == null)
-            return;
-
-        Image image = button.targetGraphic as Image;
-        if (image == null)
-            image = button.GetComponent<Image>();
-
-        if (image != null)
-            image.color = selected ? TabSelectedImageColor : TabNormalImageColor;
-
-        ColorBlock colors = button.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(0.9607843f, 0.9607843f, 0.9607843f, 1f);
-        colors.pressedColor = new Color(0.78431374f, 0.78431374f, 0.78431374f, 1f);
-        colors.selectedColor = Color.white;
-        button.colors = colors;
-
-        Outline outline = button.GetComponent<Outline>();
-        if (selected)
-        {
-            if (outline == null)
-                outline = button.gameObject.AddComponent<Outline>();
-
-            outline.effectColor = TabSelectedOutlineColor;
-            outline.effectDistance = TabSelectedOutlineDistance;
-            outline.useGraphicAlpha = true;
-            outline.enabled = true;
-        }
-        else if (outline != null)
-        {
-            outline.enabled = false;
-        }
+            UITabBarButtonVisuals.Apply(pair.Value, _selectedSkill != null && _selectedSkill.skillType == pair.Key);
     }
 
     /// <summary>Pick default tab/skill without rebuilding timeline or bottom panels (deferred on enable).</summary>

@@ -66,8 +66,6 @@ public class InventoryGridUI : MonoBehaviour
     [Tooltip("Jewelry filter button (named ResourcesFilterButton in hierarchy is fine).")]
     [SerializeField] private Button jewelryFilterButton;
     [SerializeField] private Button consumablesFilterButton;
-    [SerializeField] private Color filterButtonActiveColor = Color.white;
-    [SerializeField] private Color filterButtonInactiveColor = new Color32(180, 180, 180, 255);
 
     private InventoryViewFilter _activeFilter = InventoryViewFilter.All;
 
@@ -612,11 +610,7 @@ public class InventoryGridUI : MonoBehaviour
 
     private void SetFilterButtonVisual(Button button, bool active)
     {
-        if (!button)
-            return;
-
-        if (button.targetGraphic != null)
-            button.targetGraphic.color = active ? filterButtonActiveColor : filterButtonInactiveColor;
+        UITabBarButtonVisuals.Apply(button, active);
     }
 
     private int GetTargetSlotCount()

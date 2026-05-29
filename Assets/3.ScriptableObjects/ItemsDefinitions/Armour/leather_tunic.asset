@@ -94,7 +94,7 @@ MonoBehaviour:
     corruptionResist: 10
     physBlockChance: 0
     bonusHealth: 15
-    bonusEnergy: 25
+    bonusEnergy: 0
     energyEfficiency: 0.05
     flatGuard: 0
     maxGuardPercent: 0
@@ -143,6 +143,9 @@ MonoBehaviour:
     burnChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+    parryChance: 0
+    stunChance: 0
+  randomStatPool: []
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:

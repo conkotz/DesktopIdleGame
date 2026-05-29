@@ -227,6 +227,8 @@ public class MainMenuWindowUI : MonoBehaviour
     private void Start()
     {
         RestorePersistedWindowState();
+        if (IsOpen)
+            EnsureWindowResizeHandlesOnTop();
     }
 
     public void ToggleCharacter() => SelectTab(MainMenuTabId.Character);
@@ -504,6 +506,7 @@ public class MainMenuWindowUI : MonoBehaviour
         }
 
         BringMenuTabsBarToFront();
+        EnsureWindowResizeHandlesOnTop();
     }
 
     private void HideAllPages()
@@ -564,6 +567,23 @@ public class MainMenuWindowUI : MonoBehaviour
         ResolveMenuTabsBar();
         if (_menuTabsBar != null)
             _menuTabsBar.SetAsLastSibling();
+    }
+
+    /// <summary>
+    /// Corner resize handles are runtime-spawned on the menu shell; page/tab sibling order can bury them.
+    /// </summary>
+    private void EnsureWindowResizeHandlesOnTop()
+    {
+        RectTransform windowRect = MenuWindowRect;
+        if (windowRect == null)
+            return;
+
+        UIWindowCornerResize resizer = windowRect.GetComponent<UIWindowCornerResize>();
+        if (resizer == null)
+            resizer = UIWindowCornerResize.EnsureOn(windowRect);
+
+        resizer.BringHandlesToFront();
+        resizer.RefreshHandlesActive();
     }
 
     private void ResolveMenuTabsBar()

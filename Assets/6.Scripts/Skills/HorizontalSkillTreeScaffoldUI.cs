@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
@@ -1365,6 +1366,8 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
 
         node.Clicked -= HandleTimelineNodeClicked;
         node.Clicked += HandleTimelineNodeClicked;
+        node.RightClicked -= HandleTimelineNodeRightClicked;
+        node.RightClicked += HandleTimelineNodeRightClicked;
         node.Hovered -= HandleTimelineNodeHovered;
         node.Hovered += HandleTimelineNodeHovered;
         _spawnedTimelineNodes.Add(node);
@@ -1377,6 +1380,7 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
             if (_spawnedTimelineNodes[i] != null)
             {
                 _spawnedTimelineNodes[i].Clicked -= HandleTimelineNodeClicked;
+                _spawnedTimelineNodes[i].RightClicked -= HandleTimelineNodeRightClicked;
                 _spawnedTimelineNodes[i].Hovered -= HandleTimelineNodeHovered;
             }
         }
@@ -1423,6 +1427,26 @@ public sealed class HorizontalSkillTreeScaffoldUI : MonoBehaviour
         detailsPanel.Show(node.Binding);
         RestoreTimelineScrollPosition(savedScroll);
         RefreshRowSelectionButtons();
+    }
+
+    private void HandleTimelineNodeRightClicked(SkillTimelineNodeUI node, PointerEventData eventData)
+    {
+        if (node == null)
+            return;
+
+        var entries = SkillTreeContextMenuBuilder.BuildForTimelineNode(
+            node,
+            () => HandleTimelineNodeClicked(node),
+            () => CommitTimelineNodeSelection(node));
+
+        if (entries.Count == 0)
+            return;
+
+        string header = SkillTreeContextMenuBuilder.ResolveHeaderTitle(node.Binding);
+        ContextMenuUI.EnsureInstance().ShowAtScreen(
+            entries,
+            eventData != null ? eventData.position : (Vector2?)null,
+            header);
     }
 
     private void HandleSelectNodeClicked(SkillTimelineNodeUI node) => CommitTimelineNodeSelection(node);

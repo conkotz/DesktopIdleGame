@@ -158,6 +158,33 @@ public sealed class UIWindowCornerResize : MonoBehaviour
         ApplyScale(GetCurrentScaleMultiplier());
     }
 
+    /// <summary>Recreates missing handles and moves them above other window chrome (e.g. menu tab bar).</summary>
+    public void BringHandlesToFront()
+    {
+        if (!_rect)
+            ResolveTarget();
+
+        if (!_rect)
+            return;
+
+        EnsureHandles();
+
+        for (int i = 0; i < 4; i++)
+        {
+            var corner = (ResizeCorner)i;
+            if (corner == ResizeCorner.TopRight)
+                continue;
+            if (omitTopCornerHandles && corner == ResizeCorner.TopLeft)
+                continue;
+            if (omitBottomRightCornerHandle && corner == ResizeCorner.BottomRight)
+                continue;
+
+            Transform handle = FindResizeHandleTransform($"ResizeHandle_{corner}");
+            if (handle != null)
+                handle.SetAsLastSibling();
+        }
+    }
+
     /// <summary>Apply saved toggle to corner hit targets (also called when settings change).</summary>
     public void RefreshHandlesActive()
     {
