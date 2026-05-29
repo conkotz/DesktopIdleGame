@@ -990,7 +990,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             ? abilityController.BuildSwingOutgoingAttribution(preQueuedModifier, rolled)
             : SwingOutgoingAttribution.AutoAttackOnly;
 
-        TryPrepareWayOfTheCrusaderFireStrikeBonus(rolled, swingAttribution);
+        TryPrepareWayOfTheCrusaderExtraFireOnAutoAttack(rolled, swingAttribution);
 
         if (rolled.IsEmpty)
         {
@@ -1736,7 +1736,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (totalDealt > 0f)
             TryAddWayOfTheBerserkerStackOnAutoAttack(swingAttribution);
 
-        TryApplyPendingHolySealFireStrikeDamage(targetToHit, wasCrit);
+        TryApplyPendingWayOfTheCrusaderExtraFireDamage(targetToHit, wasCrit);
 
         if (totalDealt > 0f)
             TryConsumeOffHandSupportAmmo();

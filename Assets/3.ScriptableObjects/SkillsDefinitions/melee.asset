@@ -1537,8 +1537,7 @@ MonoBehaviour:
 
         Blocking a hit heals for 3% max HP and does not consume a seal.
 
-        When a seal is consumed, your next auto attack deals an additional 50% weapon
-        damage as extra fire.
+        Auto attacks deal 20% extra fire damage on hit.
 
         Every time a burn is applied, the enemy is also shocked.'
       icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}

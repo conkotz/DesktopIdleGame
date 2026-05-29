@@ -105,7 +105,7 @@ public static class MeleeMajorPassiveTooltipText
     public static string BuildWayOfTheCrusaderChoiceEffectBody()
     {
         int healPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheCrusaderHealMaxHpFraction * 100f);
-        int firePct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheCrusaderFireStrikeWeaponDamageFraction * 100f);
+        int firePct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheCrusaderExtraFireDamageFraction * 100f);
 
         var sb = new StringBuilder();
         sb.Append("Gain 1 holy seal per ");
@@ -122,9 +122,9 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append(healPct);
         sb.AppendLine("% max HP and does not consume a seal.");
         sb.AppendLine();
-        sb.Append("When a seal is consumed, your next auto attack deals an additional ");
+        sb.Append("Auto attacks deal ");
         sb.Append(firePct);
-        sb.AppendLine("% weapon damage as extra fire.");
+        sb.AppendLine("% extra fire damage on hit.");
         sb.AppendLine();
         sb.Append("Every time a burn is applied, the enemy is also shocked.");
         return sb.ToString();
@@ -134,7 +134,7 @@ public static class MeleeMajorPassiveTooltipText
     {
         int maxSeals = AbilityCombatPower.WayOfTheCrusaderMaxHolySeals;
         int healPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheCrusaderHealMaxHpFraction * 100f);
-        int firePct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheCrusaderFireStrikeWeaponDamageFraction * 100f);
+        int firePct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheCrusaderExtraFireDamageFraction * 100f);
 
         var sb = new StringBuilder();
         sb.Append("Holy seals: ");
@@ -150,9 +150,9 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append("Blocking heals ");
         sb.Append(healPct);
         sb.AppendLine("% max HP without consuming a seal.");
-        sb.Append("Consuming a seal primes your next auto attack for +");
+        sb.Append("Auto attacks deal +");
         sb.Append(firePct);
-        sb.Append("% extra weapon damage as fire.");
+        sb.Append("% extra fire damage on hit.");
         return sb.ToString();
     }
 

@@ -4,12 +4,11 @@ public partial class PlayerCombatController
 {
     public const string WayOfTheCrusaderHudBuffId = "way_of_the_crusader";
     public const string WayOfTheCrusaderHealingSourceLabel = "Way of the Crusader";
-    public const string HolySealFireStrikeOutgoingSourceLabel = "Way of the Crusader";
+    public const string WayOfTheCrusaderExtraFireOutgoingSourceLabel = "Way of the Crusader";
 
     private int _wayOfTheCrusaderHolySeals;
-    private bool _wayOfTheCrusaderPendingFireStrike;
     private float _wayOfTheCrusaderNextHolySealAt = -1f;
-    private float _pendingHolySealFireStrikeBonus;
+    private float _pendingWayOfTheCrusaderExtraFireDamage;
     private int _lastSyncedWayOfTheCrusaderHudSeals = int.MinValue;
 
     public int GetWayOfTheCrusaderHolySeals() =>
@@ -78,38 +77,32 @@ public partial class PlayerCombatController
             return;
 
         _wayOfTheCrusaderHolySeals--;
-        _wayOfTheCrusaderPendingFireStrike = true;
         _lastSyncedWayOfTheCrusaderHudSeals = int.MinValue;
         HealWayOfTheCrusaderFromMaxHpFraction();
     }
 
-    public void TryPrepareWayOfTheCrusaderFireStrikeBonus(SplitDamage rolled, SwingOutgoingAttribution swingAttribution)
+    public void TryPrepareWayOfTheCrusaderExtraFireOnAutoAttack(SplitDamage rolled, SwingOutgoingAttribution swingAttribution)
     {
-        _pendingHolySealFireStrikeBonus = 0f;
+        _pendingWayOfTheCrusaderExtraFireDamage = 0f;
 
-        if (!_wayOfTheCrusaderPendingFireStrike || !IsWayOfTheCrusaderCapstoneActive())
+        if (!IsWayOfTheCrusaderCapstoneActive() || !IsMeleeAutoAttackSwing(swingAttribution))
             return;
-
-        if (!IsMeleeAutoAttackSwing(swingAttribution))
-            return;
-
-        _wayOfTheCrusaderPendingFireStrike = false;
 
         float weaponTotal = rolled.physical + rolled.magic + rolled.corruptionDamage;
-        float bonusFire = weaponTotal * AbilityCombatPower.WayOfTheCrusaderFireStrikeWeaponDamageFraction;
+        float bonusFire = weaponTotal * AbilityCombatPower.WayOfTheCrusaderExtraFireDamageFraction;
         if (bonusFire <= 0f)
             return;
 
-        _pendingHolySealFireStrikeBonus = bonusFire;
+        _pendingWayOfTheCrusaderExtraFireDamage = bonusFire;
     }
 
-    public void TryApplyPendingHolySealFireStrikeDamage(EnemyBaseController target, bool wasCrit)
+    public void TryApplyPendingWayOfTheCrusaderExtraFireDamage(EnemyBaseController target, bool wasCrit)
     {
-        if (target == null || target.IsDead || _pendingHolySealFireStrikeBonus <= 0f || player == null)
+        if (target == null || target.IsDead || _pendingWayOfTheCrusaderExtraFireDamage <= 0f || player == null)
             return;
 
-        float bonus = _pendingHolySealFireStrikeBonus;
-        _pendingHolySealFireStrikeBonus = 0f;
+        float bonus = _pendingWayOfTheCrusaderExtraFireDamage;
+        _pendingWayOfTheCrusaderExtraFireDamage = 0f;
 
         float conditionalDamageMult = GetConditionalMeleeDamageMultiplier(target);
         if (wasCrit && stats != null)
@@ -121,7 +114,7 @@ public partial class PlayerCombatController
             wasCrit,
             player.transform,
             stats != null ? stats.CurrentAttackSkill : null,
-            outgoingDpsSourceLabel: HolySealFireStrikeOutgoingSourceLabel);
+            outgoingDpsSourceLabel: WayOfTheCrusaderExtraFireOutgoingSourceLabel);
 
         if (dealt <= 0)
             return;
@@ -131,17 +124,18 @@ public partial class PlayerCombatController
         if (stats == null)
             return;
 
-        var ailments = target.GetComponent<AilmentController>();
+        AilmentController ailments = target.GetComponent<AilmentController>();
         if (ailments == null)
             return;
 
-        var dealtResult = new DamageResult
-        {
-            magic = dealt,
-            physical = 0f,
-            corruptionDamage = 0f
-        };
-        TryApplyElementalMagicAilment(target, dealtResult);
+        TryApplyElementalMagicAilment(
+            target,
+            new DamageResult
+            {
+                magic = dealt,
+                physical = 0f,
+                corruptionDamage = 0f
+            });
     }
 
     private static bool IsAtFullHealthForHolySeal(CharacterStats characterStats)
@@ -198,14 +192,12 @@ public partial class PlayerCombatController
     private void ClearWayOfTheCrusaderStateIfAny()
     {
         bool hadState = _wayOfTheCrusaderHolySeals > 0
-                        || _wayOfTheCrusaderPendingFireStrike
-                        || _pendingHolySealFireStrikeBonus > 0f
+                        || _pendingWayOfTheCrusaderExtraFireDamage > 0f
                         || _wayOfTheCrusaderNextHolySealAt >= 0f
                         || _lastSyncedWayOfTheCrusaderHudSeals > 0;
 
         _wayOfTheCrusaderHolySeals = 0;
-        _wayOfTheCrusaderPendingFireStrike = false;
-        _pendingHolySealFireStrikeBonus = 0f;
+        _pendingWayOfTheCrusaderExtraFireDamage = 0f;
         _wayOfTheCrusaderNextHolySealAt = -1f;
         _lastSyncedWayOfTheCrusaderHudSeals = int.MinValue;
 

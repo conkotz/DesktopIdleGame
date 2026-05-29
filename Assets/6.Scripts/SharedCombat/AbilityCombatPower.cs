@@ -153,7 +153,7 @@ public static class AbilityCombatPower
     public const int WayOfTheCrusaderMaxHolySeals = 3;
     public const float WayOfTheCrusaderHolySealGainIntervalSeconds = 4f;
     public const float WayOfTheCrusaderHealMaxHpFraction = 0.03f;
-    public const float WayOfTheCrusaderFireStrikeWeaponDamageFraction = 0.50f;
+    public const float WayOfTheCrusaderExtraFireDamageFraction = 0.20f;
     public const int WayOfTheBerserkerMaxStacks = 15;
     public const float WayOfTheBerserkerStackDurationSeconds = 15f;
     public const float WayOfTheBerserkerAttackSpeedPerStack = 0.02f;
