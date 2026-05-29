@@ -116,7 +116,8 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 5
     title: Rend
-    description: Primes your next hit with guaranteed Bleed and extended duration on that application. Exclusive while active.
+    description: Primes your next hit with guaranteed Bleed and extended duration
+      on that application. Exclusive while active.
     icon: {fileID: 0}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -145,7 +146,8 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 5
     title: Envenom
-    description: Primes your next hit with guaranteed Poison and apply your maximum number of poison stacks. Exclusive while active.
+    description: Primes your next hit with guaranteed Poison and apply your maximum
+      number of poison stacks. Exclusive while active.
     icon: {fileID: -3106849600663172003, guid: eac4dfbab0ba6ba47923ad2fffa2615c, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -175,9 +177,9 @@ MonoBehaviour:
       presentation: {fileID: 0}
   - requiredLevel: 5
     title: Crusader Strike
-    description: 'Primes your next attack to unleash a holy three-part combo empowered
+    description: Primes your next attack to unleash a holy three-part combo empowered
       by righteous flame. Each strike grows stronger, culminating in a blazing final
-      blow.'
+      blow.
     icon: {fileID: 6220961349511263976, guid: 9eb42a7d40bc61545943acf3ca4c9e87, type: 3}
     unlockType: 1
     meleeMinorStatOption: 0
@@ -1496,8 +1498,8 @@ MonoBehaviour:
     presentation: {fileID: 0}
     choices: []
   - requiredLevel: 50
-    title: Capstone Passive
-    description: Placeholder capstone milestone.
+    title: Pure Form
+    description: Enhance into a pure form
     icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
     unlockType: 4
     meleeMinorStatOption: 0
@@ -1510,4 +1512,59 @@ MonoBehaviour:
     legacySkillMinorStatOption: 0
     ability: {fileID: 0}
     presentation: {fileID: 0}
-    choices: []
+    choices:
+    - requiredLevel: 50
+      title: Way of the Berserker
+      description: 'Gain 2% attack speed, 1% crit chance, 1% melee damage, and 1%
+        move speed per auto attack (max 15 stacks, 15 seconds).
+
+        Damage taken
+        increased by 2% per stack.
+
+        While below 30% HP, gain 25% life steal
+        for 15 seconds (120 second cooldown).
+
+        At 10+ stacks, chill and other
+        slows cannot reduce move speed below your normal move speed.'
+      icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 50
+      title: Way of the Crusader
+      description: 'Gain 1 holy seal per 4 seconds (max 3).
+
+        Upon taking damage while below full HP, consume a seal to heal for 3% max HP.
+
+        Blocking a hit heals for 3% max HP and does not consume a seal.
+
+        When a seal is consumed, your next auto attack deals an additional 50% weapon
+        damage as extra fire.
+
+        Every time a burn is applied, the enemy is also shocked.'
+      icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 11400000, guid: 7f8e9d0c1b2a39485766758493827161, type: 2}
+    - requiredLevel: 50
+      title: Pure Form III
+      description: Placeholder capstone enhancement.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 50
+      title: Pure Form IV
+      description: Placeholder capstone enhancement.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 50
+      title: Pure Form V
+      description: Placeholder capstone enhancement.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 50
+      title: Pure Form VI
+      description: Placeholder capstone enhancement.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}

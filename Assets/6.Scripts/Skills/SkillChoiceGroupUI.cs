@@ -14,7 +14,7 @@ using UnityEngine.UI;
 public class SkillChoiceGroupUI : MonoBehaviour
 {
     public const int MinChoiceCount = 2;
-    public const int MaxChoiceCount = 5;
+    public const int MaxChoiceCount = 6;
     public const float DefaultNodeSpacing = 40f;
 
     [Header("References")]

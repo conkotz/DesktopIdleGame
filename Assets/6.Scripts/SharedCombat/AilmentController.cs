@@ -863,7 +863,17 @@ public class AilmentController : MonoBehaviour
         if (burnStackCount >= BurnMaxStacks)
             CombustBurn();
 
+        TryApplyHolySealShockForPlayerCapstone(source);
+
         return true;
+    }
+
+    private void TryApplyHolySealShockForPlayerCapstone(Transform source)
+    {
+        if (IsPlayerVictim)
+            return;
+
+        CharacterStats.TryApplyHolySealShockOnEnemyBurn(this, source);
     }
 
     public bool ClearBurn()

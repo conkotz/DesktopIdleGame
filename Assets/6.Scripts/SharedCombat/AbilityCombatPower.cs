@@ -145,6 +145,27 @@ public static class AbilityCombatPower
     /// <summary>Phoenix Soul major passive spine (slot 0 at level 40).</summary>
     public const string PhoenixSoulEnhancementParentSpineNodeId = "Lv40_0";
 
+    /// <summary>Melee capstone passive spine (slot 0 at level 50).</summary>
+    public const string MeleeCapstoneSpineNodeId = "Lv50_0";
+
+    public const int MeleeCapstoneWayOfTheBerserkerChoiceIndex = 0;
+    public const int MeleeCapstoneWayOfTheCrusaderChoiceIndex = 1;
+    public const int WayOfTheCrusaderMaxHolySeals = 3;
+    public const float WayOfTheCrusaderHolySealGainIntervalSeconds = 4f;
+    public const float WayOfTheCrusaderHealMaxHpFraction = 0.03f;
+    public const float WayOfTheCrusaderFireStrikeWeaponDamageFraction = 0.50f;
+    public const int WayOfTheBerserkerMaxStacks = 15;
+    public const float WayOfTheBerserkerStackDurationSeconds = 15f;
+    public const float WayOfTheBerserkerAttackSpeedPerStack = 0.02f;
+    public const float WayOfTheBerserkerCritChancePerStack = 0.01f;
+    public const float WayOfTheBerserkerMeleeDamagePerStack = 0.01f;
+    public const float WayOfTheBerserkerMoveSpeedPerStack = 0.01f;
+    public const float WayOfTheBerserkerDamageTakenPerStack = 0.02f;
+    public const int WayOfTheBerserkerSlowImmunityMinStacks = 10;
+    public const float WayOfTheBerserkerLowHpLeechFraction = 0.25f;
+    public const float WayOfTheBerserkerLowHpLeechDurationSeconds = 15f;
+    public const float WayOfTheBerserkerLowHpLeechCooldownSeconds = 120f;
+
     /// <summary>Enhancement choices for Battle Trance (Melee Lv35 slot 1).</summary>
     public const string BattleTranceEnhancementParentSpineNodeId = "Lv35_1";
 

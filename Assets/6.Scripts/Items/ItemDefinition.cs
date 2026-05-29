@@ -1947,7 +1947,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     /// <summary>Same style as ability tooltips: <c>coefficient * 100</c>% label (0 = omit line elsewhere).</summary>
     private static string FormatScalingCoefficientPercentLine(float fraction, string label)
     {
-        return $"{fraction * 100f:+0.#;-0.#;0}% {label}";
+        return $"{label}: {fraction * 100f:+0.#;-0.#;0}%";
     }
 
     private static string FormatSignedPercent100WithPlus(float value)

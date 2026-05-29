@@ -40799,6 +40799,8 @@ GameObject:
   - component: {fileID: 316295217}
   - component: {fileID: 316295220}
   - component: {fileID: 316295219}
+  - component: {fileID: 316295221}
+  - component: {fileID: 316295222}
   m_Layer: 0
   m_Name: BuffContainer
   m_TagString: Untagged
@@ -40823,7 +40825,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 180, y: 60}
+  m_SizeDelta: {x: 0, y: 60}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &316295219
 CanvasRenderer:
@@ -40859,6 +40861,50 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &316295221
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 316295216}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.7825205, g: 0.9622642, b: 0.8956122, a: 0.36862746}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!114 &316295222
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 316295216}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
+  m_HorizontalFit: 2
+  m_VerticalFit: 0
 --- !u!1 &317585639
 GameObject:
   m_ObjectHideFlags: 0
@@ -174338,6 +174384,8 @@ GameObject:
   - component: {fileID: 1375061222}
   - component: {fileID: 1375061225}
   - component: {fileID: 1375061224}
+  - component: {fileID: 1375061226}
+  - component: {fileID: 1375061227}
   m_Layer: 0
   m_Name: DebuffContainer
   m_TagString: Untagged
@@ -174361,8 +174409,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 180, y: 0}
-  m_SizeDelta: {x: 180, y: 60}
+  m_AnchoredPosition: {x: 4, y: 0}
+  m_SizeDelta: {x: 0, y: 60}
   m_Pivot: {x: 0, y: 1}
 --- !u!222 &1375061224
 CanvasRenderer:
@@ -174393,11 +174441,55 @@ MonoBehaviour:
   m_Spacing: 4
   m_ChildForceExpandWidth: 0
   m_ChildForceExpandHeight: 0
-  m_ChildControlWidth: 1
-  m_ChildControlHeight: 1
+  m_ChildControlWidth: 0
+  m_ChildControlHeight: 0
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &1375061226
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1375061221}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.98490566, g: 0.6745674, b: 0.6745674, a: 0.3254902}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!114 &1375061227
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1375061221}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
+  m_HorizontalFit: 2
+  m_VerticalFit: 0
 --- !u!1 &1375277635
 GameObject:
   m_ObjectHideFlags: 0
@@ -250512,6 +250604,7 @@ GameObject:
   - component: {fileID: 1992643025}
   - component: {fileID: 1992643024}
   - component: {fileID: 1992643026}
+  - component: {fileID: 1992643027}
   m_Layer: 5
   m_Name: BuffDebuffPanel
   m_TagString: Untagged
@@ -250538,7 +250631,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 500, y: 60}
+  m_SizeDelta: {x: 0, y: 60}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1992643024
 MonoBehaviour:
@@ -250590,7 +250683,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8e17e6cd1a769344c8237f1481de6223, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuffsDebuffsPanel
-  debuffContainer: {fileID: 316295217}
+  debuffContainer: {fileID: 1375061222}
   debuffIconPrefab: {fileID: 505960525889548960, guid: 543870abcecc8cb4ab20b0289962d544, type: 3}
   buffContainer: {fileID: 316295217}
   buffIconPrefab: {fileID: 505960525889548960, guid: 2cf4e42f97090b049b38ed2df7aa063d, type: 3}
@@ -250609,6 +250702,9 @@ MonoBehaviour:
   battleEngineOverloadHudIcon: {fileID: 7320906411373716286, guid: a17a2ef74729dfa4d87c062ba89e97d2, type: 3}
   ashenRebirthHudIcon: {fileID: -4453784588268070965, guid: 33df198e24b717b43b99976e8859045e, type: 3}
   tacticianDualityHudIcon: {fileID: -4346618920386859694, guid: 369297b8e67607f4abb6bc089c2c266b, type: 3}
+  wayOfTheBerserkerHudIcon: {fileID: -3853039443983731986, guid: 47c5d187a49c51a40aaa4823ea2082b5, type: 3}
+  wayOfTheBerserkerLeechHudIcon: {fileID: -2416795144781827288, guid: 3a8eda94f6cdae54999f280289e2927b, type: 3}
+  crusaderStrikeFireBalanceHudIcon: {fileID: 0}
   sprintHudIcon: {fileID: -2630630534919650811, guid: c51f4c8edc8f0e849be864e67de535a9, type: 3}
   tooltipMeasureRect: {fileID: 0}
   tooltipHeightRect: {fileID: 0}
@@ -250619,6 +250715,32 @@ MonoBehaviour:
   buffs: {fileID: 0}
   inventory: {fileID: 0}
   buffTimerRefreshInterval: 0.2
+--- !u!114 &1992643027
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1992643021}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30649d3a9faa99c48a7b1166b86bf2a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.HorizontalLayoutGroup
+  m_Padding:
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
+  m_ChildAlignment: 4
+  m_Spacing: 4
+  m_ChildForceExpandWidth: 0
+  m_ChildForceExpandHeight: 0
+  m_ChildControlWidth: 0
+  m_ChildControlHeight: 0
+  m_ChildScaleWidth: 0
+  m_ChildScaleHeight: 0
+  m_ReverseArrangement: 0
 --- !u!1 &1992807457
 GameObject:
   m_ObjectHideFlags: 0

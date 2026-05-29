@@ -102,11 +102,27 @@ public static class SkillTreeNodeTooltipFormatter
         {
             effectText = desc;
             desc = ResolveMajorPassiveFlavorDescription(skill, unlock, binding.ResolveSpineNodeId(), effectText);
+
+            if (visualType == SkillTreeNodeVisualType.CapstonePassive && skill != null)
+            {
+                string spineId = binding.ResolveSpineNodeId();
+                int selectedChoice = skillsManager != null && !string.IsNullOrEmpty(spineId)
+                    ? skillsManager.GetSkillChoiceSelection(skill.skillType, spineId, -1)
+                    : -1;
+                if (selectedChoice >= 0
+                    && MeleeMajorPassiveTooltipText.TryBuildCapstoneChoiceBody(selectedChoice, out string choiceEffect)
+                    && !string.IsNullOrWhiteSpace(choiceEffect))
+                {
+                    effectText = ApplyMajorPassiveValueLineMarkup(skill, choiceEffect);
+                }
+            }
         }
 
-        string typeLabel = useMajorPassivePresentation
-            ? TypeLabel(SkillTreeNodeVisualType.MajorPassive)
-            : TypeLabel(visualType);
+        string typeLabel = visualType == SkillTreeNodeVisualType.CapstonePassive
+            ? TypeLabel(SkillTreeNodeVisualType.CapstonePassive)
+            : useMajorPassivePresentation
+                ? TypeLabel(SkillTreeNodeVisualType.MajorPassive)
+                : TypeLabel(visualType);
 
         content = new DetailsContent
         {
@@ -341,6 +357,12 @@ public static class SkillTreeNodeTooltipFormatter
                 return meleeBody;
         }
 
+        if (skill.skillType == SkillType.Melee && unlock.unlockType == SkillUnlockType.CapstonePassive)
+        {
+            if (MeleeMajorPassiveTooltipText.TryBuildCapstoneBody(out string capstoneBody))
+                return capstoneBody;
+        }
+
         return fallbackDescription;
     }
 
@@ -450,6 +472,9 @@ public static class SkillTreeNodeTooltipFormatter
 
     private static int ResolveChoiceUnlockLevel(int bindingLevel, SkillChoiceDefinition choice, SkillUnlockDefinition parentUnlock)
     {
+        if (parentUnlock?.unlockType == SkillUnlockType.CapstonePassive)
+            return parentUnlock.requiredLevel > 0 ? parentUnlock.requiredLevel : 50;
+
         if (choice != null && choice.requiredLevel > 0)
             return choice.requiredLevel;
 

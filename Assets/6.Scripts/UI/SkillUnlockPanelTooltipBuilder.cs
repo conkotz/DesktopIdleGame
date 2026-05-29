@@ -30,7 +30,17 @@ public static class SkillUnlockPanelTooltipBuilder
 
         if (unlock.unlockType == SkillUnlockType.CapstonePassive)
         {
-            body = BuildCapstoneOrFallbackBody(unlock);
+            if (choiceIndex >= 0
+                && MeleeMajorPassiveTooltipText.TryBuildCapstoneChoiceBody(choiceIndex, out string choiceBody)
+                && !string.IsNullOrWhiteSpace(choiceBody))
+            {
+                body = choiceBody;
+            }
+            else
+            {
+                body = BuildCapstoneOrFallbackBody(unlock);
+            }
+
             return FinalizeListEntryTooltipBody(ref body, unlock, choiceIndex);
         }
 

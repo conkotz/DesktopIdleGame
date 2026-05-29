@@ -34,6 +34,167 @@ public static class MeleeMajorPassiveTooltipText
 
     public static string BuildTacticianDualityHudBody() => BuildTacticianDualityDescription();
 
+    public static bool TryBuildCapstoneBody(out string body)
+    {
+        body = MeleeCapstoneEffectDescription;
+        return true;
+    }
+
+    public static bool TryBuildCapstoneChoiceBody(int choiceIndex, out string body)
+    {
+        body = null;
+        if (choiceIndex == AbilityCombatPower.MeleeCapstoneWayOfTheBerserkerChoiceIndex)
+        {
+            body = BuildWayOfTheBerserkerChoiceEffectBody();
+            return true;
+        }
+
+        if (choiceIndex == AbilityCombatPower.MeleeCapstoneWayOfTheCrusaderChoiceIndex)
+        {
+            body = BuildWayOfTheCrusaderChoiceEffectBody();
+            return true;
+        }
+
+        return false;
+    }
+
+    public static string BuildMeleeCapstoneRequirementsRichText(CharacterStats stats)
+    {
+        bool ok = stats != null && stats.HasMeleeWeaponEquippedForCapstonePassive();
+        if (!ok)
+            return $"<color=#FF5C5C>{MeleeCapstoneWeaponRequirementLine}</color>";
+
+        return $"<color=#55DD55>{MeleeCapstoneWeaponRequirementLine}</color>";
+    }
+
+    public static string BuildWayOfTheBerserkerChoiceEffectBody()
+    {
+        var sb = new StringBuilder();
+        sb.Append("Gain ");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerAttackSpeedPerStack * 100f));
+        sb.Append("% attack speed, ");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerCritChancePerStack * 100f));
+        sb.Append("% crit chance, ");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerMeleeDamagePerStack * 100f));
+        sb.Append("% melee damage, and ");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerMoveSpeedPerStack * 100f));
+        sb.Append("% move speed per auto attack (max ");
+        sb.Append(AbilityCombatPower.WayOfTheBerserkerMaxStacks);
+        sb.Append(" stacks, ");
+        sb.Append(AbilityCombatPower.WayOfTheBerserkerStackDurationSeconds.ToString("0.#"));
+        sb.AppendLine(" seconds).");
+        sb.AppendLine();
+        sb.Append("Damage taken increased by ");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerDamageTakenPerStack * 100f));
+        sb.AppendLine("% per stack.");
+        sb.AppendLine();
+        sb.Append("While below 30% HP, gain ");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerLowHpLeechFraction * 100f));
+        sb.Append("% life steal for ");
+        sb.Append(AbilityCombatPower.WayOfTheBerserkerLowHpLeechDurationSeconds.ToString("0.#"));
+        sb.Append(" seconds (");
+        sb.Append(AbilityCombatPower.WayOfTheBerserkerLowHpLeechCooldownSeconds.ToString("0.#"));
+        sb.AppendLine(" second cooldown).");
+        sb.AppendLine();
+        sb.Append("At ");
+        sb.Append(AbilityCombatPower.WayOfTheBerserkerSlowImmunityMinStacks);
+        sb.Append("+ stacks, chill and other slows cannot reduce move speed below your normal move speed.");
+        return sb.ToString();
+    }
+
+    public static string BuildWayOfTheCrusaderChoiceEffectBody()
+    {
+        int healPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheCrusaderHealMaxHpFraction * 100f);
+        int firePct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheCrusaderFireStrikeWeaponDamageFraction * 100f);
+
+        var sb = new StringBuilder();
+        sb.Append("Gain 1 holy seal per ");
+        sb.Append(AbilityCombatPower.WayOfTheCrusaderHolySealGainIntervalSeconds.ToString("0.#"));
+        sb.Append(" seconds (max ");
+        sb.Append(AbilityCombatPower.WayOfTheCrusaderMaxHolySeals);
+        sb.AppendLine(").");
+        sb.AppendLine();
+        sb.Append("Upon taking damage while below full HP, consume a seal to heal for ");
+        sb.Append(healPct);
+        sb.AppendLine("% max HP.");
+        sb.AppendLine();
+        sb.Append("Blocking a hit heals for ");
+        sb.Append(healPct);
+        sb.AppendLine("% max HP and does not consume a seal.");
+        sb.AppendLine();
+        sb.Append("When a seal is consumed, your next auto attack deals an additional ");
+        sb.Append(firePct);
+        sb.AppendLine("% weapon damage as extra fire.");
+        sb.AppendLine();
+        sb.Append("Every time a burn is applied, the enemy is also shocked.");
+        return sb.ToString();
+    }
+
+    public static string BuildWayOfTheCrusaderHudBody(int currentSeals)
+    {
+        int maxSeals = AbilityCombatPower.WayOfTheCrusaderMaxHolySeals;
+        int healPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheCrusaderHealMaxHpFraction * 100f);
+        int firePct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheCrusaderFireStrikeWeaponDamageFraction * 100f);
+
+        var sb = new StringBuilder();
+        sb.Append("Holy seals: ");
+        sb.Append(currentSeals);
+        sb.Append('/');
+        sb.AppendLine(maxSeals.ToString());
+        sb.AppendLine();
+        sb.Append("Gain 1 seal per ");
+        sb.Append(AbilityCombatPower.WayOfTheCrusaderHolySealGainIntervalSeconds.ToString("0.#"));
+        sb.Append(" seconds. While below full HP, taking damage consumes a seal to heal ");
+        sb.Append(healPct);
+        sb.AppendLine("% max HP.");
+        sb.Append("Blocking heals ");
+        sb.Append(healPct);
+        sb.AppendLine("% max HP without consuming a seal.");
+        sb.Append("Consuming a seal primes your next auto attack for +");
+        sb.Append(firePct);
+        sb.Append("% extra weapon damage as fire.");
+        return sb.ToString();
+    }
+
+    public static string BuildWayOfTheBerserkerHudBody(int currentStacks)
+    {
+        int maxStacks = AbilityCombatPower.WayOfTheBerserkerMaxStacks;
+        var sb = new StringBuilder();
+        sb.Append("Stacks: ");
+        sb.Append(currentStacks);
+        sb.Append('/');
+        sb.AppendLine(maxStacks.ToString());
+        if (currentStacks > 0)
+        {
+            sb.Append('+');
+            sb.Append(Mathf.RoundToInt(currentStacks * AbilityCombatPower.WayOfTheBerserkerAttackSpeedPerStack * 100f));
+            sb.AppendLine("% attack speed");
+            sb.Append('+');
+            sb.Append(Mathf.RoundToInt(currentStacks * AbilityCombatPower.WayOfTheBerserkerCritChancePerStack * 100f));
+            sb.AppendLine("% crit chance");
+            sb.Append('+');
+            sb.Append(Mathf.RoundToInt(currentStacks * AbilityCombatPower.WayOfTheBerserkerMeleeDamagePerStack * 100f));
+            sb.AppendLine("% melee damage");
+            sb.Append('+');
+            sb.Append(Mathf.RoundToInt(currentStacks * AbilityCombatPower.WayOfTheBerserkerMoveSpeedPerStack * 100f));
+            sb.AppendLine("% move speed");
+            sb.Append('+');
+            sb.Append(Mathf.RoundToInt(currentStacks * AbilityCombatPower.WayOfTheBerserkerDamageTakenPerStack * 100f));
+            sb.AppendLine("% damage taken");
+        }
+
+        sb.Append("Refreshes for ");
+        sb.Append(AbilityCombatPower.WayOfTheBerserkerStackDurationSeconds.ToString("0.#"));
+        sb.Append("s on melee auto attack.");
+        if (currentStacks >= AbilityCombatPower.WayOfTheBerserkerSlowImmunityMinStacks)
+            sb.AppendLine("\nSlow immunity active.");
+
+        return sb.ToString();
+    }
+
+    public static string BuildWayOfTheBerserkerLeechHudBody() =>
+        $"+{Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerLowHpLeechFraction * 100f)}% life steal while below 30% HP.";
+
     public const string AilmentAttunementFlavorDescription = "Increase your proficiency with ailments";
     public const string ParryFlavorDescription =
         "Increase your chance to parry enemies in melee range. When you parry, mitigate a portion of the hit and deal it back to the attacker.";
@@ -44,6 +205,13 @@ public static class MeleeMajorPassiveTooltipText
         "Draw life and energy from the heat of nearby burning foes.";
     public const string MasterOfVenomsFlavorDescription =
         "Master deadly poisons that can critically strike your enemies.";
+    public const string MeleeCapstoneFlavorDescription = "Enhance into a pure form";
+    public const string MeleeCapstoneEffectDescription =
+        "Select an enhancement below to evolve your capstone passive.";
+    public const string WayOfTheBerserkerTitle = "Way of the Berserker";
+    public const string WayOfTheBerserkerLeechTitle = "Berserker's Thirst";
+    public const string MeleeCapstoneWeaponRequirementLine = "Required: Melee weapon";
+    public const string WayOfTheCrusaderTitle = "Way of the Crusader";
 
     /// <summary>Short flavor copy for the details panel description column.</summary>
     public static bool TryBuildFlavorDescription(string parentSpineNodeId, out string flavor)
@@ -163,6 +331,27 @@ public static class MeleeMajorPassiveTooltipText
             return true;
         }
 
+        if (string.Equals(buffId, PlayerCombatController.WayOfTheBerserkerHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            title = WayOfTheBerserkerTitle;
+            body = BuildWayOfTheBerserkerHudBody(Mathf.Max(0, displayStacks));
+            return true;
+        }
+
+        if (string.Equals(buffId, PlayerCombatController.WayOfTheBerserkerLeechHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            title = WayOfTheBerserkerLeechTitle;
+            body = BuildWayOfTheBerserkerLeechHudBody();
+            return true;
+        }
+
+        if (string.Equals(buffId, PlayerCombatController.WayOfTheCrusaderHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            title = WayOfTheCrusaderTitle;
+            body = BuildWayOfTheCrusaderHudBody(Mathf.Max(0, displayStacks));
+            return true;
+        }
+
         return false;
     }
 
@@ -208,6 +397,9 @@ public static class MeleeMajorPassiveTooltipText
         body = null;
         if (string.IsNullOrWhiteSpace(parentSpineNodeId))
             return false;
+
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.MeleeCapstoneSpineNodeId, StringComparison.Ordinal))
+            return TryBuildCapstoneChoiceBody(choiceIndex, out body);
 
         if (string.Equals(parentSpineNodeId, AbilityCombatPower.PhoenixSoulEnhancementParentSpineNodeId, StringComparison.Ordinal))
         {
@@ -486,6 +678,9 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append(" seconds (max ");
         sb.Append(AbilityCombatPower.PhoenixSoulMaxNearbyBurningEnemies);
         sb.AppendLine(" enemies).");
+        sb.Append("+");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.PhoenixSoulBurnChanceBonus * 100f));
+        sb.AppendLine("% burn chance.");
         AppendEnhancementLines(sb, selectedChoice, AbilityCombatPower.PhoenixSoulEnhancementParentSpineNodeId);
         body = sb.ToString();
         return true;

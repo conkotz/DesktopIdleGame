@@ -3762,7 +3762,17 @@ public class PlayerController : MonoBehaviour
         // fallback so you don't brick movement if stats is missing
         if (!characterStats) return 3f;
 
-        return PlayerSprintInput.ApplySprintBonus(characterStats.FinalMoveSpeed);
+        float speed = characterStats.FinalMoveSpeed;
+        if (ailments != null)
+        {
+            float ailmentMult = ailments.GetMoveSpeedMultiplier();
+            if (combat != null && combat.IsWayOfTheBerserkerSlowImmune())
+                speed = Mathf.Max(speed, speed * ailmentMult);
+            else
+                speed *= ailmentMult;
+        }
+
+        return PlayerSprintInput.ApplySprintBonus(speed);
     }
 
     private void UpdateSpriteFlip()

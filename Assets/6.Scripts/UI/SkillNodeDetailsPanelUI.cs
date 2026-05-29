@@ -29,6 +29,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     public const float FontEnhancementButton = 13f;
     public const float EnhancementCardHeight = 102f;
     public const float EnhancementButtonsRowHeight = 104f;
+    public const int EnhancementButtonsGridColumnCount = 3;
+    public const float EnhancementButtonsGridSpacing = 8f;
     public const float HeaderIconSize = 80f;
 
     private const float ContentHorizontalPadding = 16f;
@@ -320,7 +322,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             descriptionText.text = details.Description ?? string.Empty;
 
         AbilityDefinition ability = ResolveAbility(binding);
-        BindRequirementsSection(ability, stats);
+        BindRequirementsSection(ability, stats, binding?.Unlock);
         BindTypeSection(ability, details.TypeLabel);
         BindAbilityIconDragAssign(ability, skillsManager);
         BindMiddleColumn(ability, skillsManager, stats, details.EffectText);
@@ -996,6 +998,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
 
         if (_columnScrollViewsEnsured)
         {
+            if (columnsRoot.Find("RightSection") != null)
+                EnsureRightEnhancementsBodyScrollView(columnsRoot.Find("RightSection"));
             EnsureDetailsPanelDividerLines();
             return;
         }
@@ -1004,6 +1008,8 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             EnsureSectionBodyScrollView(left, "LeftBodyScroll", "TopRow", insertAfterPinned: true, excludeDividerBeforePinned: false);
         if (middle != null)
             EnsureSectionBodyScrollView(middle, "MiddleBodyScroll", "CostCooldownRow", insertAfterPinned: false, excludeDividerBeforePinned: true);
+        if (columnsRoot.Find("RightSection") != null)
+            EnsureRightEnhancementsBodyScrollView(columnsRoot.Find("RightSection"));
 
         _columnScrollViewsEnsured = true;
         EnsureDetailsPanelDividerLines();
@@ -1117,6 +1123,48 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         return scroll;
     }
 
+    private static void EnsureRightEnhancementsBodyScrollView(Transform rightSection)
+    {
+        if (rightSection == null || rightSection.Find("RightBodyScroll") != null)
+            return;
+
+        Transform header = rightSection.Find("EnhancementsHeader");
+        Transform actionButton = rightSection.Find("ChangeEnhancementButton");
+        if (header == null || actionButton == null)
+            return;
+
+        var toMove = new List<Transform>();
+        for (int i = 0; i < rightSection.childCount; i++)
+        {
+            Transform child = rightSection.GetChild(i);
+            if (child == header
+                || child == actionButton
+                || child.name == "EnhancementsLockedOverlay"
+                || child.name == "RightBodyScroll")
+            {
+                continue;
+            }
+
+            toMove.Add(child);
+        }
+
+        if (toMove.Count == 0)
+            return;
+
+        int insertIndex = header.GetSiblingIndex() + 1;
+        ScrollRect scroll = CreateDetailsColumnScrollRect(rightSection, "RightBodyScroll", insertIndex);
+        RectTransform content = scroll.content;
+
+        for (int i = 0; i < toMove.Count; i++)
+            toMove[i].SetParent(content, false);
+
+        LayoutElement scrollLayout = scroll.GetComponent<LayoutElement>();
+        scrollLayout.flexibleHeight = 1f;
+        scrollLayout.minHeight = 0f;
+        scrollLayout.flexibleWidth = 1f;
+        scrollLayout.minWidth = 0f;
+    }
+
     private static void StretchDetailsScrollRect(RectTransform rt)
     {
         rt.anchorMin = Vector2.zero;
@@ -1137,6 +1185,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
 
         ResetScrollToTop(columnsRoot.Find("LeftSection/LeftBodyScroll"));
         ResetScrollToTop(columnsRoot.Find("MiddleSection/MiddleBodyScroll"));
+        ResetScrollToTop(columnsRoot.Find("RightSection/RightBodyScroll"));
     }
 
     private static void ResetScrollToTop(Transform scrollTransform)
@@ -1264,11 +1313,13 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         _abilityIconDragAssign.Bind(ability, canAssign);
     }
 
-    private void BindRequirementsSection(AbilityDefinition ability, CharacterStats stats)
+    private void BindRequirementsSection(AbilityDefinition ability, CharacterStats stats, SkillUnlockDefinition unlock = null)
     {
         string requirements = ability != null
             ? AbilityTooltipDamagePreview.BuildAbilityRequirementsRichText(ability, stats, accentWhenOk: true)
-            : string.Empty;
+            : unlock != null && unlock.unlockType == SkillUnlockType.CapstonePassive
+                ? MeleeMajorPassiveTooltipText.BuildMeleeCapstoneRequirementsRichText(stats)
+                : string.Empty;
 
         bool hasRequirements = !string.IsNullOrWhiteSpace(requirements);
         if (requirementsSectionRoot != null)
@@ -1421,7 +1472,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
                 continue;
 
             int assetIndex = i;
-            int level = choice.requiredLevel > 0 ? choice.requiredLevel : binding.Level;
+            int level = ResolveEnhancementChoiceDisplayLevel(unlock, choice, binding);
             string levelLabel = level > 0 ? $"Lv {level}" : string.Empty;
 
             SkillNodeDetailsEnhancementCardUI buttonUi =
@@ -1444,17 +1495,86 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             visibleCount++;
         }
 
-        if (enhancementButtonsContainer != null)
-        {
-            LayoutElement rowLayout = enhancementButtonsContainer.GetComponent<LayoutElement>();
-            if (rowLayout == null)
-                rowLayout = enhancementButtonsContainer.gameObject.AddComponent<LayoutElement>();
-            rowLayout.preferredHeight = EnhancementButtonsRowHeight;
-            rowLayout.minHeight = EnhancementButtonsRowHeight;
-        }
+        ApplyEnhancementButtonsContainerLayout(visibleCount);
 
         if (_previewEnhancementIndex >= 0)
             SelectEnhancementButton(_previewEnhancementIndex, showDetail: true);
+    }
+
+    private void ApplyEnhancementButtonsContainerLayout(int visibleCount)
+    {
+        if (enhancementButtonsContainer == null)
+            return;
+
+        int columns = EnhancementButtonsGridColumnCount;
+        int rowCount = Mathf.Max(1, Mathf.CeilToInt(visibleCount / (float)columns));
+        GridLayoutGroup gridLayout = EnsureEnhancementButtonsGridLayout();
+
+        gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        gridLayout.constraintCount = columns;
+        gridLayout.spacing = new Vector2(EnhancementButtonsGridSpacing, EnhancementButtonsGridSpacing);
+        gridLayout.startCorner = GridLayoutGroup.Corner.UpperLeft;
+        gridLayout.startAxis = GridLayoutGroup.Axis.Horizontal;
+        gridLayout.childAlignment = TextAnchor.UpperCenter;
+
+        float columnWidth = enhancementButtonsContainer.rect.width;
+        if (columnWidth <= 1f)
+            columnWidth = ComputeColumnWidth(RightColumnWidthRatio);
+
+        float cellWidth = (columnWidth - EnhancementButtonsGridSpacing * (columns - 1)) / columns;
+        gridLayout.cellSize = new Vector2(Mathf.Max(76f, cellWidth), EnhancementCardHeight);
+
+        LayoutElement rowLayout = enhancementButtonsContainer.GetComponent<LayoutElement>();
+        if (rowLayout == null)
+            rowLayout = enhancementButtonsContainer.gameObject.AddComponent<LayoutElement>();
+
+        float preferredHeight = EnhancementButtonsRowHeight * rowCount
+            + EnhancementButtonsGridSpacing * Mathf.Max(0, rowCount - 1);
+        rowLayout.preferredHeight = preferredHeight;
+        rowLayout.minHeight = preferredHeight;
+        rowLayout.flexibleHeight = 0f;
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(enhancementButtonsContainer);
+    }
+
+    private GridLayoutGroup EnsureEnhancementButtonsGridLayout()
+    {
+        if (enhancementButtonsContainer.TryGetComponent(out HorizontalLayoutGroup horizontalLayout))
+            DestroyImmediate(horizontalLayout);
+
+        GridLayoutGroup gridLayout = enhancementButtonsContainer.GetComponent<GridLayoutGroup>();
+        if (gridLayout == null)
+            gridLayout = enhancementButtonsContainer.gameObject.AddComponent<GridLayoutGroup>();
+
+        return gridLayout;
+    }
+
+    private static int ResolveEnhancementChoiceDisplayLevel(
+        SkillUnlockDefinition unlock,
+        SkillChoiceDefinition choice,
+        SkillTimelineNodeBinding binding)
+    {
+        if (unlock?.unlockType == SkillUnlockType.CapstonePassive)
+            return ResolveCapstoneEnhancementUnlockLevel(unlock, binding);
+
+        if (choice != null && choice.requiredLevel > 0)
+            return choice.requiredLevel;
+
+        if (binding != null && binding.Level > 0)
+            return binding.Level;
+
+        return unlock != null ? Mathf.Max(1, unlock.requiredLevel) : 1;
+    }
+
+    private static int ResolveCapstoneEnhancementUnlockLevel(
+        SkillUnlockDefinition unlock,
+        SkillTimelineNodeBinding binding)
+    {
+        int capstoneLevel = unlock != null ? Mathf.Max(1, unlock.requiredLevel) : 50;
+        if (binding != null && binding.Level > 0)
+            capstoneLevel = Mathf.Max(capstoneLevel, binding.Level);
+
+        return capstoneLevel;
     }
 
     private static bool IsSameEnhancementBinding(SkillTimelineNodeBinding a, SkillTimelineNodeBinding b)
@@ -1768,6 +1888,15 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         if (unlock?.choices == null || unlock.choices.Count == 0 || binding.Skill == null)
             return false;
 
+        if (unlock.unlockType == SkillUnlockType.CapstonePassive)
+        {
+            requiredLevel = ResolveCapstoneEnhancementUnlockLevel(unlock, binding);
+            int playerLevel = skillsManager != null
+                ? Mathf.Max(1, skillsManager.GetLevel(binding.Skill.skillType))
+                : 1;
+            return playerLevel < requiredLevel;
+        }
+
         int minRequired = int.MaxValue;
         for (int i = 0; i < unlock.choices.Count; i++)
         {
@@ -1775,7 +1904,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             if (choice == null)
                 continue;
 
-            int level = choice.requiredLevel > 0 ? choice.requiredLevel : binding.Level;
+            int level = ResolveEnhancementChoiceDisplayLevel(unlock, choice, binding);
             if (level > 0)
                 minRequired = Mathf.Min(minRequired, level);
         }
@@ -1785,11 +1914,11 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
 
         requiredLevel = minRequired;
 
-        int playerLevel = skillsManager != null
+        int skillLevel = skillsManager != null
             ? Mathf.Max(1, skillsManager.GetLevel(binding.Skill.skillType))
             : 1;
 
-        return playerLevel < requiredLevel;
+        return skillLevel < requiredLevel;
     }
 
     private void EnsureEnhancementsLockedOverlay()

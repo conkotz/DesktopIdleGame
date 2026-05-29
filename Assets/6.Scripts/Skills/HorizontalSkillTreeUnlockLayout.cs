@@ -155,6 +155,10 @@ public static class HorizontalSkillTreeUnlockLayout
         if (unlock?.choices == null || unlock.choices.Count == 0)
             return false;
 
+        // Capstone is one tree node; enhancements are picked in the details panel.
+        if (unlock.unlockType == SkillUnlockType.CapstonePassive)
+            return false;
+
         int milestoneLevel = unlock.requiredLevel;
         var titles = new List<string>();
         for (int i = 0; i < unlock.choices.Count; i++)
@@ -163,7 +167,7 @@ public static class HorizontalSkillTreeUnlockLayout
             if (choice == null)
                 continue;
 
-            if (choice.requiredLevel > 0 && choice.requiredLevel != milestoneLevel)
+            if (!ShouldIncludeChoiceBelowSpine(unlock, choice, milestoneLevel))
                 continue;
 
             string title = SkillsAbilityPresentationResolver.ResolveChoiceTitle(choice);
@@ -240,6 +244,10 @@ public static class HorizontalSkillTreeUnlockLayout
         if (unlock?.choices == null || unlock.choices.Count == 0)
             return false;
 
+        // Capstone is one tree node; enhancements are picked in the details panel.
+        if (unlock.unlockType == SkillUnlockType.CapstonePassive)
+            return false;
+
         int milestoneLevel = unlock.requiredLevel;
         int added = 0;
         for (int i = 0; i < unlock.choices.Count; i++)
@@ -248,7 +256,7 @@ public static class HorizontalSkillTreeUnlockLayout
             if (choice == null)
                 continue;
 
-            if (choice.requiredLevel > 0 && choice.requiredLevel != milestoneLevel)
+            if (!ShouldIncludeChoiceBelowSpine(unlock, choice, milestoneLevel))
                 continue;
 
             dest.Add(new BelowSpineSpawnEntry(unlock, choice, i));
@@ -256,6 +264,17 @@ public static class HorizontalSkillTreeUnlockLayout
         }
 
         return added >= SkillChoiceGroupUI.MinChoiceCount;
+    }
+
+    private static bool ShouldIncludeChoiceBelowSpine(
+        SkillUnlockDefinition unlock,
+        SkillChoiceDefinition choice,
+        int milestoneLevel)
+    {
+        if (choice == null)
+            return false;
+
+        return choice.requiredLevel <= 0 || choice.requiredLevel == milestoneLevel;
     }
 
     public static SkillTimelineNodeUI.SkillTimelineNodeType MapToTimelineNodeType(SkillUnlockType unlockType)

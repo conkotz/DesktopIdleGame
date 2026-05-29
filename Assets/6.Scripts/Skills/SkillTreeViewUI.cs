@@ -1334,6 +1334,10 @@ public class SkillTreeViewUI : MonoBehaviour
             if (choiceAssetIndices.Count <= 0)
                 continue;
 
+            // Capstone is one tree node; enhancements are picked in the details panel.
+            if (row.type == SkillTreeNodeVisualType.CapstonePassive)
+                continue;
+
             string parentSpineId = SpineNodeId(row);
             float parentX = layoutRowX[i];
             int[] layoutOrder = GetEnhancementChoiceLayoutOrder(choiceAssetIndices.Count);

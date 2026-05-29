@@ -137,6 +137,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public event Action<float, float> OnGuardChanged;
 
     private PlayerController _ownerPlayer;
+    private PlayerCombatController _ownerCombatController;
     private EnemyBaseController _ownerEnemy;
     private PlayerCombatState _playerCombatState;
 
@@ -291,6 +292,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public const int BattleEngineMajorPassiveLevel = 30;
     public const int PhoenixSoulMajorPassiveLevel = AbilityCombatPower.PhoenixSoulMajorPassiveLevel;
     public const int MasterOfVenomsMajorPassiveLevel = AbilityCombatPower.PhoenixSoulMajorPassiveLevel;
+    public const int MeleeCapstonePassiveLevel = 50;
     public const string BattleEngineOverloadHudBuffId = "BattleEngine_Overload";
     public const string TacticianDualityHudBuffId = "Tactician_Duality";
     public const string PhoenixSoulAshenRebirthImmunityHudBuffId = "phoenix_soul_ashen_rebirth";
@@ -575,6 +577,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float TotalMoveSpeedPercent =>
         GearMoveSpeedPercent + TemporaryMoveSpeedPercent + GetActiveMeleeMinorBonuses().meleeMoveSpeedPercent +
         GetActiveRangedMinorBonuses().rangedMoveSpeedPercent + CombatMoveSpeedPercentBonus +
+        GetWayOfTheBerserkerMoveSpeedBonusFraction() +
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.MoveSpeed) : 0f) +
         (buffController ? buffController.GetTotalMagnitude(ConsumableEffectType.FoodMoveSpeed) : 0f);
 
@@ -656,7 +659,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return total;
     }
     public float ManaRegenPerSecond => Mathf.Max(0f, baseManaRegen + GetEquippedManaRegen() + _combatFlatManaRegenPerSecond);
-    public float LifeSteal => Mathf.Clamp01(baseLifeSteal + GetEquippedLifeSteal() + GetActiveMeleeMinorBonuses().meleeLifeSteal);
+    public float LifeSteal => Mathf.Clamp01(
+        baseLifeSteal + GetEquippedLifeSteal() + GetActiveMeleeMinorBonuses().meleeLifeSteal +
+        GetWayOfTheBerserkerLeechBonusFraction());
 
     // Offensive stats
     public float BaseMinPhysicalDamage => Mathf.Max(0f, baseMinPhysicalDamage);
@@ -1318,6 +1323,29 @@ public class CharacterStats : MonoBehaviour, ISaveable
             BurnExplosionMultiplier,
             source,
             burnTickIntervalSeconds: BurnTickIntervalSeconds);
+    }
+
+    /// <summary>
+    /// When the player has Holy Seal (Pure Form capstone), every burn that lands on an enemy also shocks them.
+    /// </summary>
+    public static void TryApplyHolySealShockOnEnemyBurn(AilmentController enemyAilments, Transform source)
+    {
+        if (enemyAilments == null)
+            return;
+
+        CharacterStats playerStats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
+        if (playerStats == null || !playerStats.IsWayOfTheCrusaderCapstoneActive())
+            return;
+
+        float shockMult = playerStats.ShockDamageTakenMultiplier;
+        if (shockMult <= 0f)
+            return;
+
+        Transform shockSource = source != null ? source : playerStats.transform;
+        enemyAilments.ApplyShockFromHit(new ShockPayload(
+            duration: playerStats.ShockDuration,
+            damageTakenMultiplier: shockMult,
+            source: shockSource));
     }
 
     /// <summary>Average lightning from the equipped weapon(s) on a melee hit after <see cref="GetMeleeSplitDamageScalingMultipliers"/> magic mult.</summary>
@@ -2236,6 +2264,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 magicPct += livingInferno;
                 corrPct += livingInferno;
             }
+
+            float wotb = GetWayOfTheBerserkerMeleeDamageBonusFraction();
+            if (wotb > 0f)
+            {
+                physPct += wotb;
+                magicPct += wotb;
+                corrPct += wotb;
+            }
         }
 
         float physicalGearPctMult = 1f + physPct;
@@ -2331,6 +2367,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         if (GetCurrentAttackSkill() == AttackSkill.Melee && _combatMeleeDamageMultiplier > 1.001f)
             pts += (_combatMeleeDamageMultiplier - 1f) * 100f;
         pts += PhoenixLivingInfernoMeleeDamageBonusPercentPoints;
+        if (GetCurrentAttackSkill() == AttackSkill.Melee)
+            pts += GetWayOfTheBerserkerMeleeDamageBonusFraction() * 100f;
         return pts;
     }
 
@@ -2630,6 +2668,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         gearAtkSpeedPct += CombatAttackSpeedPercentBonus;
         gearAtkSpeedPct += GetShadowHunterAttackSpeedBonusFraction();
         gearAtkSpeedPct += GetTacticianAttackSpeedPercent();
+        gearAtkSpeedPct += GetWayOfTheBerserkerAttackSpeedBonusFraction();
 
         var support = GetActiveOffHandSupportDef();
         if (support)
@@ -2709,6 +2748,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         SkillMinorNodeBonuses skillBonuses = GetActiveSkillMinorBonusesForCurrentAttack();
         return Mathf.Clamp01(
             baseCrit + gearBonus + meleeBonuses.meleeCritChance + GetTacticianCritChanceBonus() +
+            GetWayOfTheBerserkerCritChanceBonusFraction() +
             rangedBonuses.rangedCritChance + skillBonuses.magicCritChance);
     }
 
@@ -3374,6 +3414,59 @@ public class CharacterStats : MonoBehaviour, ISaveable
             AbilityCombatPower.MasterOfVenomsLethalCompoundDurationReductionPerStackSeconds *
             stacksOnTargetIncludingNew);
     }
+
+    public int GetMeleeCapstoneEnhancementPick()
+    {
+        if (skillsManager == null || skillsManager.GetLevel(SkillType.Melee) < MeleeCapstonePassiveLevel)
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(
+            SkillType.Melee, AbilityCombatPower.MeleeCapstoneSpineNodeId, -1);
+    }
+
+    public bool IsWayOfTheBerserkerCapstoneActive() =>
+        GetMeleeCapstoneEnhancementPick() == AbilityCombatPower.MeleeCapstoneWayOfTheBerserkerChoiceIndex
+        && HasMeleeWeaponEquippedForCapstonePassive();
+
+    public bool IsWayOfTheCrusaderCapstoneActive() =>
+        GetMeleeCapstoneEnhancementPick() == AbilityCombatPower.MeleeCapstoneWayOfTheCrusaderChoiceIndex
+        && HasMeleeWeaponEquippedForCapstonePassive();
+
+    /// <summary>Capstone passives require an equipped melee weapon (not unarmed, ranged, or magic).</summary>
+    public bool HasMeleeWeaponEquippedForCapstonePassive()
+    {
+        ItemDefinition mainHand = GetEquippedMainHandWeaponOrNull();
+        return mainHand != null && mainHand.weaponStats.attackSkill == AttackSkill.Melee;
+    }
+
+    private PlayerCombatController GetOwnerCombatController()
+    {
+        if (!_ownerPlayer)
+            return null;
+
+        if (!_ownerCombatController)
+            _ownerCombatController = _ownerPlayer.GetComponent<PlayerCombatController>();
+
+        return _ownerCombatController;
+    }
+
+    public float GetWayOfTheBerserkerAttackSpeedBonusFraction() =>
+        GetOwnerCombatController()?.GetWayOfTheBerserkerAttackSpeedBonusFraction() ?? 0f;
+
+    public float GetWayOfTheBerserkerCritChanceBonusFraction() =>
+        GetOwnerCombatController()?.GetWayOfTheBerserkerCritChanceBonusFraction() ?? 0f;
+
+    public float GetWayOfTheBerserkerMeleeDamageBonusFraction() =>
+        GetOwnerCombatController()?.GetWayOfTheBerserkerMeleeDamageBonusFraction() ?? 0f;
+
+    public float GetWayOfTheBerserkerMoveSpeedBonusFraction() =>
+        GetOwnerCombatController()?.GetWayOfTheBerserkerMoveSpeedBonusFraction() ?? 0f;
+
+    public float GetWayOfTheBerserkerIncomingDamageMultiplier() =>
+        GetOwnerCombatController()?.GetWayOfTheBerserkerIncomingDamageMultiplier() ?? 1f;
+
+    public float GetWayOfTheBerserkerLeechBonusFraction() =>
+        GetOwnerCombatController()?.GetWayOfTheBerserkerLeechBonusFraction() ?? 0f;
 
     /// <summary>Resolves player stats that own a poison application (player or minion owner).</summary>
     public static CharacterStats ResolvePoisonOwnerPlayerStats(Transform source)
@@ -4652,6 +4745,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return false;
 
         return string.Equals(sourceLabel, PlayerCombatController.CrusaderStrikeHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(sourceLabel, PlayerCombatController.WayOfTheCrusaderHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(sourceLabel, PlayerCombatController.PhoenixSoulHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(sourceLabel, PlayerCombatController.PotionHealingSourceLabel, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(sourceLabel, PlayerCombatController.FoodHealingSourceLabel, StringComparison.OrdinalIgnoreCase);
@@ -4708,6 +4802,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         hpDamageDealt = ApplyDamageToGuardThenHp(ref remainder);
         OnHPChanged?.Invoke(currentHP, MaxHP);
 
+        GetOwnerCombatController()?.TryProcessWayOfTheCrusaderOnIncomingHit(blocked, totalToVitals, hpDamageDealt);
+
         if (currentHP <= 0f && !_isDead)
         {
             _isDead = true;
@@ -4746,8 +4842,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
         mitigated = ApplyFinalIncomingDamageMultipliers(mitigated);
         float totalToVitals = Mathf.Max(0f, mitigated);
         float remainder = totalToVitals;
-        ApplyDamageToGuardThenHp(ref remainder);
+        float hpDamageDealt = ApplyDamageToGuardThenHp(ref remainder);
         OnHPChanged?.Invoke(currentHP, MaxHP);
+
+        GetOwnerCombatController()?.TryProcessWayOfTheCrusaderOnIncomingHit(blocked, totalToVitals, hpDamageDealt);
 
         if (currentHP <= 0f && !_isDead)
         {
@@ -4904,6 +5002,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         AilmentController ailments = GetComponent<AilmentController>();
         if (ailments != null)
             mitigatedDamage *= ailments.GetIncomingDamageMultiplier();
+
+        mitigatedDamage *= GetWayOfTheBerserkerIncomingDamageMultiplier();
 
         return ApplyCombatDamageTakenMultiplier(mitigatedDamage);
     }

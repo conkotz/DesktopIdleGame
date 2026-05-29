@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 [DisallowMultipleComponent]
-public class PlayerCombatController : MonoBehaviour, ISaveable
+public partial class PlayerCombatController : MonoBehaviour, ISaveable
 {
     public readonly struct IncomingDealerDamageEntry
     {
@@ -807,6 +807,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     private void Update()
     {
         if (!player || !stats) return;
+        TickWayOfTheBerserkerCapstone();
+        TickWayOfTheCrusaderCapstone();
         if (_dpsTrackerPaused) return;
 
         if (IsProximityCombatEngaged())
@@ -987,6 +989,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         SwingOutgoingAttribution swingAttribution = abilityController != null
             ? abilityController.BuildSwingOutgoingAttribution(preQueuedModifier, rolled)
             : SwingOutgoingAttribution.AutoAttackOnly;
+
+        TryPrepareWayOfTheCrusaderFireStrikeBonus(rolled, swingAttribution);
 
         if (rolled.IsEmpty)
         {
@@ -1728,6 +1732,11 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (totalDealt > 0f)
             player.ApplyLifeSteal(totalDealt);
+
+        if (totalDealt > 0f)
+            TryAddWayOfTheBerserkerStackOnAutoAttack(swingAttribution);
+
+        TryApplyPendingHolySealFireStrikeDamage(targetToHit, wasCrit);
 
         if (totalDealt > 0f)
             TryConsumeOffHandSupportAmmo();

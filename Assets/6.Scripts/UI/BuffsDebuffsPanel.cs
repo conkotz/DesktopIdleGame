@@ -59,6 +59,22 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [Tooltip("Icon for Duality after swapping weapon sets (8 second window).")]
     [SerializeField] private Sprite tacticianDualityHudIcon;
 
+    [Header("Melee — Way of the Berserker (Lv50 Capstone) HUD")]
+    [Tooltip("Icon for Way of the Berserker stacking buff after melee auto attacks.")]
+    [SerializeField] private Sprite wayOfTheBerserkerHudIcon;
+
+    [Header("Melee — Berserker's Thirst (Lv50 Capstone Leech) HUD")]
+    [Tooltip("Icon for the low-HP life steal proc. Falls back to Way of the Berserker icon.")]
+    [SerializeField] private Sprite wayOfTheBerserkerLeechHudIcon;
+
+    [Header("Melee — Way of the Crusader (Lv50 Capstone) HUD")]
+    [Tooltip("Icon for holy seal stacks after hitting enemies.")]
+    [SerializeField] private Sprite wayOfTheCrusaderHudIcon;
+
+    [Header("Melee — Crusader Strike Fire Balance HUD")]
+    [Tooltip("Icon for Crusader Strike fire balance window. Falls back to the ability icon.")]
+    [SerializeField] private Sprite crusaderStrikeFireBalanceHudIcon;
+
     [Header("Movement — Sprint HUD")]
     [Tooltip("Icon while sprinting (hold sprint key while moving). Falls back to attack speed icon.")]
     [SerializeField] private Sprite sprintHudIcon;
@@ -128,6 +144,26 @@ public class BuffsDebuffsPanel : MonoBehaviour
         RectTransform selfRect = transform as RectTransform;
         if (!tooltipMeasureRect && selfRect) tooltipMeasureRect = selfRect;
         if (!tooltipHeightRect && selfRect) tooltipHeightRect = selfRect;
+
+        ResolveBuffDebuffContainerRefs();
+    }
+
+    private void ResolveBuffDebuffContainerRefs()
+    {
+        Transform buff = buffContainer != null ? buffContainer : transform.Find("BuffContainer");
+        Transform debuff = debuffContainer != null ? debuffContainer : transform.Find("DebuffContainer");
+
+        if (buff != null && (buffContainer == null || buffContainer == debuffContainer))
+            buffContainer = buff;
+
+        if (debuff != null && (debuffContainer == null || debuffContainer == buffContainer))
+            debuffContainer = debuff;
+
+        if (buffContainer != null && debuffContainer != null && buffContainer == debuffContainer)
+            Debug.LogWarning(
+                "[BuffsDebuffsPanel] buffContainer and debuffContainer reference the same Transform. " +
+                "Assign BuffContainer (green) and DebuffContainer (red) separately in the inspector.",
+                this);
     }
 
     private void OnEnable()
@@ -486,6 +522,44 @@ public class BuffsDebuffsPanel : MonoBehaviour
         }
 
         if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, PlayerCombatController.WayOfTheBerserkerHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (wayOfTheBerserkerHudIcon != null)
+                return wayOfTheBerserkerHudIcon;
+            Sprite capstoneIcon = CapstonePresentationIcons.ResolveWayOfTheBerserkerIcon();
+            if (capstoneIcon != null)
+                return capstoneIcon;
+            if (attackSpeedBuffIcon != null)
+                return attackSpeedBuffIcon;
+        }
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, PlayerCombatController.WayOfTheBerserkerLeechHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (wayOfTheBerserkerLeechHudIcon != null)
+                return wayOfTheBerserkerLeechHudIcon;
+            if (wayOfTheBerserkerHudIcon != null)
+                return wayOfTheBerserkerHudIcon;
+            Sprite capstoneIcon = CapstonePresentationIcons.ResolveWayOfTheBerserkerIcon();
+            if (capstoneIcon != null)
+                return capstoneIcon;
+            if (attackSpeedBuffIcon != null)
+                return attackSpeedBuffIcon;
+        }
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, PlayerCombatController.WayOfTheCrusaderHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (wayOfTheCrusaderHudIcon != null)
+                return wayOfTheCrusaderHudIcon;
+            Sprite holySealIcon = CapstonePresentationIcons.ResolveHolySealHudIcon();
+            if (holySealIcon != null)
+                return holySealIcon;
+            if (attackSpeedBuffIcon != null)
+                return attackSpeedBuffIcon;
+        }
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
             string.Equals(buff.id, CharacterStats.PhoenixSoulAshenRebirthImmunityHudBuffId, StringComparison.OrdinalIgnoreCase))
         {
             if (ashenRebirthHudIcon != null)
@@ -513,15 +587,19 @@ public class BuffsDebuffsPanel : MonoBehaviour
         }
 
         if (buff.type == ConsumableEffectType.HudAbilityBuff &&
-            string.Equals(buff.id, PlayerAbilityController.CrusaderStrikeFireBalanceHudBuffId, StringComparison.OrdinalIgnoreCase) &&
-            _abilityDatabase != null)
+            string.Equals(buff.id, PlayerAbilityController.CrusaderStrikeFireBalanceHudBuffId, StringComparison.OrdinalIgnoreCase))
         {
-            AbilityDefinition crusader = _abilityDatabase.Get(AbilityCombatPower.CrusaderStrikeAbilityId);
-            if (crusader != null)
+            if (crusaderStrikeFireBalanceHudIcon != null)
+                return crusaderStrikeFireBalanceHudIcon;
+            if (_abilityDatabase != null)
             {
-                Sprite spr = SkillsAbilityPresentationResolver.ResolveAbilityIcon(crusader);
-                if (spr != null)
-                    return spr;
+                AbilityDefinition crusader = _abilityDatabase.Get(AbilityCombatPower.CrusaderStrikeAbilityId);
+                if (crusader != null)
+                {
+                    Sprite spr = SkillsAbilityPresentationResolver.ResolveAbilityIcon(crusader);
+                    if (spr != null)
+                        return spr;
+                }
             }
         }
 
@@ -656,6 +734,15 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
             if (string.Equals(buff.id, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return MeleeMajorPassiveTooltipText.BattleEngineOverloadTitle;
+
+            if (string.Equals(buff.id, PlayerCombatController.WayOfTheBerserkerHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return MeleeMajorPassiveTooltipText.WayOfTheBerserkerTitle;
+
+            if (string.Equals(buff.id, PlayerCombatController.WayOfTheBerserkerLeechHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return MeleeMajorPassiveTooltipText.WayOfTheBerserkerLeechTitle;
+
+            if (string.Equals(buff.id, PlayerCombatController.WayOfTheCrusaderHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return MeleeMajorPassiveTooltipText.WayOfTheCrusaderTitle;
 
             if (string.Equals(buff.id, CharacterStats.TacticianDualityHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return MeleeMajorPassiveTooltipText.TacticianDualityHudBuffTitle;
