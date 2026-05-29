@@ -127,6 +127,33 @@ public class ItemDatabase : ScriptableObject
         return key != null && _runtimeItems.ContainsKey(key);
     }
 
+    /// <summary>
+    /// Authored item id for stock lookups. Runtime clones (<c>baseId__enh_...</c>) resolve to their base item.
+    /// </summary>
+    public string GetBaseItemId(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return itemId;
+
+        if (_map == null || _map.Count == 0)
+            Build();
+
+        string key = Normalize(itemId);
+        if (!string.IsNullOrEmpty(key) && _runtimeBaseIds.TryGetValue(key, out string baseKeyNormalized))
+        {
+            if (_map.TryGetValue(baseKeyNormalized, out ItemDefinition baseDef) && baseDef)
+                return baseDef.itemId;
+
+            return itemId.Substring(0, itemId.IndexOf(RuntimeEnhancedSeparator, System.StringComparison.Ordinal));
+        }
+
+        int markerIndex = itemId.IndexOf(RuntimeEnhancedSeparator, System.StringComparison.Ordinal);
+        if (markerIndex > 0)
+            return itemId.Substring(0, markerIndex);
+
+        return itemId;
+    }
+
     public ItemDefinition CreateRuntimeEnhancedItem(ItemDefinition baseDef, string runtimeItemId = null)
     {
         if (!baseDef || string.IsNullOrWhiteSpace(baseDef.itemId))

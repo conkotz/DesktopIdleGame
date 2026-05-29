@@ -160,17 +160,43 @@ public class PlayerWorldTargetIndicator : MonoBehaviour
         if (combat != null)
         {
             EnemyBaseController enemy = combat.GetPrimaryEngagedEnemy();
-            if (enemy != null)
+            if (enemy != null && !IsPlayerSelfFocus(enemy.transform))
                 return enemy.transform;
         }
 
         if (player != null && player.CurrentTarget != null)
-            return player.CurrentTarget.transform;
+        {
+            Transform nodeTransform = player.CurrentTarget.transform;
+            if (!IsPlayerSelfFocus(nodeTransform))
+                return nodeTransform;
+        }
 
         if (interactFocus != null && interactFocus.CurrentFocusTransform != null)
-            return interactFocus.CurrentFocusTransform;
+        {
+            Transform interactTransform = interactFocus.CurrentFocusTransform;
+            if (!IsPlayerSelfFocus(interactTransform))
+                return interactTransform;
+        }
 
         return null;
+    }
+
+    private bool IsPlayerSelfFocus(Transform focus)
+    {
+        if (!focus || !player)
+            return false;
+
+        Transform playerTransform = player.transform;
+        if (focus == playerTransform)
+            return true;
+
+        if (focus.IsChildOf(playerTransform) || playerTransform.IsChildOf(focus))
+            return true;
+
+        if (focus.GetComponentInParent<PlayerController>() == player)
+            return true;
+
+        return false;
     }
 
     private Vector3 GetIconWorldPosition(Transform focus) =>

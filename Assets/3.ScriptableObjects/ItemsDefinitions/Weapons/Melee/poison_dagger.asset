@@ -43,8 +43,8 @@ MonoBehaviour:
     maxLightningDamage: 0
     legacyMinMagicDamage: 0
     legacyMaxMagicDamage: 0
-    minCorruptionDamage: 4
-    maxCorruptionDamage: 7
+    minCorruptionDamage: 3
+    maxCorruptionDamage: 5
     attacksPerSecond: 0.9
     critChance: 0
     critMultiplier: 1
@@ -95,6 +95,7 @@ MonoBehaviour:
     physBlockChance: 0
     bonusHealth: 0
     bonusEnergy: 0
+    energyEfficiency: 0
     flatGuard: 0
     maxGuardPercent: 0
   bonusStats:
@@ -108,6 +109,7 @@ MonoBehaviour:
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 0
+    energyEfficiency: 0
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
@@ -123,6 +125,7 @@ MonoBehaviour:
     corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
+    abilityCooldownReductionFraction: 0
     minionDamagePercent: 0
     minionAttackSpeedPercent: 0
     minionCritChance: 0
@@ -132,14 +135,65 @@ MonoBehaviour:
     attackRangeBonus: 0
     bleedChance: 0
     bleedMultiplier: 0
-    poisonChance: 0.25
-    poisonMultiplier: 0.1
+    poisonChance: 0.1
+    poisonMultiplier: 0
     poisonDurationBonus: 0
     poisonMaxStacksBonus: 0
     burnExplosionMultiplierBonus: 0
     burnChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+    parryChance: 0
+    stunChance: 0
+  randomStatPool:
+  - stat: 46
+    weight: 1
+    minValue: 1
+    maxValue: 2
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 47
+    weight: 1
+    minValue: 1
+    maxValue: 2
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 36
+    weight: 1
+    minValue: 5
+    maxValue: 10
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 37
+    weight: 1
+    minValue: 5
+    maxValue: 10
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 25
+    weight: 1
+    minValue: 5
+    maxValue: 10
+    valueKind: 2
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 25
+    weight: 1
+    minValue: 5
+    maxValue: 10
+    valueKind: 2
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:
@@ -153,6 +207,20 @@ MonoBehaviour:
       magnitude: 0
       duration: 0
       effectId: 
+    baitTier: 0
+    fishingSpeedPercentBonus: 0
+    openRequiredAmount: 0
+    openableLoot: []
+    foodEffectDurationSeconds: 0
+    foodEnableRegen: 0
+    foodRegenTotalHeal: 0
+    foodEnableSwiftness: 0
+    foodSwiftnessPercentBonus: 0
+    foodEnableOverheal: 0
+    foodOverhealMaxAboveMaxHp: 0
+    foodOverhealInstantHeal: 0
+    foodEnableFocused: 0
+    foodFocusedDamageBonusFraction: 0
   enhancementScrollStats:
     successChance: 0
     targetStat: 0

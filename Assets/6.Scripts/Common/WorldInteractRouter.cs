@@ -263,7 +263,7 @@ public static class WorldInteractRouter
 
         float playerX = player.transform.position.x;
 
-        EnemyBaseController closestInInteractRange = FindClosestEnemyInInteractRange(playerX);
+        EnemyBaseController closestInInteractRange = FindClosestEnemyInInteractRange(player);
         if (closestInInteractRange != null)
         {
             combat.SetTarget(closestInInteractRange);
@@ -297,7 +297,7 @@ public static class WorldInteractRouter
             combat.IsEnemyWithinAttackRange(current))
             return;
 
-        EnemyBaseController closestInInteractRange = FindClosestEnemyInInteractRange(player.transform.position.x);
+        EnemyBaseController closestInInteractRange = FindClosestEnemyInInteractRange(player);
         if (closestInInteractRange != null)
         {
             combat.SetTarget(closestInInteractRange);
@@ -308,8 +308,12 @@ public static class WorldInteractRouter
             combat.ClearTarget();
     }
 
-    private static EnemyBaseController FindClosestEnemyInInteractRange(float playerX)
+    private static EnemyBaseController FindClosestEnemyInInteractRange(PlayerController player)
     {
+        if (!player)
+            return null;
+
+        float playerX = player.transform.position.x;
         IReadOnlyList<EnemyBaseController> allEnemies = CombatEnemyRegistry.GetLiveEnemies();
         EnemyBaseController best = null;
         float bestDx = float.MaxValue;
@@ -319,6 +323,9 @@ public static class WorldInteractRouter
         {
             EnemyBaseController enemy = allEnemies[i];
             if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            if (!PlayerCombatController.IsValidCombatTargetForPlayer(enemy, player))
                 continue;
 
             float dx = Mathf.Abs(enemy.transform.position.x - playerX);

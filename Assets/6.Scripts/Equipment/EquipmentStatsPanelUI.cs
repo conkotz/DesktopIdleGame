@@ -425,10 +425,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (critChanceText) critChanceText.text = $"Crit: {stats.StatsPanelCritChancePercent:0.#}%";
 
         if (critDamageText)
-        {
-            float critBonusPct = stats.HasCrittableDirectDamage ? (stats.CritMultiplier - 1f) * 100f : 0f;
-            critDamageText.text = $"Crit Damage: {critBonusPct:+0.#;-0.#;0}%";
-        }
+            critDamageText.text = $"Crit Damage: {stats.StatsPanelCritDamageBonusPercent:+0.#;-0.#;0}%";
 
         if (cooldownReductionText)
             cooldownReductionText.text =

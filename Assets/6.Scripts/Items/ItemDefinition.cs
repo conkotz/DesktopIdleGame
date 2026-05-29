@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -437,6 +438,15 @@ public struct BonusStats
     [Tooltip("Adds to shock damage taken multiplier. 0.05 means +5 percentage points (e.g. 15% -> 20%).")]
     public float shockDamageTakenMultiplierBonus;
 
+    [Header("Combat Procs")]
+    [Range(0f, 1f)]
+    [Tooltip("0.10 = 10% parry chance (requires Parry major passive to activate).")]
+    public float parryChance;
+
+    [Range(0f, 1f)]
+    [Tooltip("0.10 = 10% chance to stun on weapon hit.")]
+    public float stunChance;
+
     public bool HasAny()
     {
         return bonusHealth != 0 || bonusEnergy != 0 ||
@@ -462,7 +472,9 @@ public struct BonusStats
                burnExplosionMultiplierBonus != 0f ||
                burnChance > 0f ||
                chillSlowPerStackBonus != 0f ||
-               shockDamageTakenMultiplierBonus != 0f;
+               shockDamageTakenMultiplierBonus != 0f ||
+               parryChance > 0f ||
+               stunChance > 0f;
     }
 }
 
@@ -851,6 +863,15 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Header("Bonus Stats (Equippables: Armour/Jewelry/Weapons optional)")]
     public BonusStats bonusStats;
 
+    [Header("Random Stat Pool")]
+    [Tooltip(
+        "Optional affixes rolled when this item enters the player's inventory. " +
+        "Roll count follows rarity (Common/Uncommon=1, Rare=2, Epic=3, Legendary=4). " +
+        "Leave empty to keep static stats only.")]
+    [SerializeField]
+    [HideInInspector]
+    private List<RandomStatPoolEntry> randomStatPool = new();
+
     [Header("Misc (unique effects)")]
     [Tooltip("Per-item hooks not covered by bonus stats (respawn modifiers, future procs, etc.).")]
     public ItemMiscEffects miscEffects;
@@ -870,6 +891,41 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public bool IsJewelry => itemKind == ItemKind.Jewelry;
     public bool IsEnhancementScroll => itemKind == ItemKind.EnhancementScroll;
     public bool IsEquippable => IsWeapon || IsTool || IsArmor || IsJewelry || IsCombatSupport;
+
+    public IReadOnlyList<RandomStatPoolEntry> RandomStatPoolEntries => randomStatPool;
+
+    public bool HasRandomStatPool => randomStatPool != null && randomStatPool.Count > 0;
+
+    private void OnEnable()
+    {
+        randomStatPool ??= new List<RandomStatPoolEntry>();
+    }
+
+    internal void ClearRandomStatPool()
+    {
+        if (randomStatPool == null)
+            randomStatPool = new List<RandomStatPoolEntry>();
+        else
+            randomStatPool.Clear();
+    }
+
+    /// <summary>Mystery affix lines for shop previews before purchase.</summary>
+    public string BuildMaskedRandomStatTooltipAppendix()
+    {
+        if (!HasRandomStatPool)
+            return "";
+
+        int count = ItemRandomStatRoller.GetRollCountForRarity(rarity);
+        var lines = new System.Text.StringBuilder();
+        for (int i = 0; i < count; i++)
+        {
+            if (i > 0)
+                lines.Append('\n');
+            lines.Append("??");
+        }
+
+        return lines.ToString();
+    }
 
     public bool UsesEquipmentTierGating =>
         IsWeapon || IsArmor || (IsTool && toolStats.toolType != ToolType.None);
@@ -1019,6 +1075,13 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public bool HasPhysicalWeaponDamage => IsWeapon && (weaponStats.minPhysicalDamage > 0 || weaponStats.maxPhysicalDamage > 0);
     public bool HasMagicWeaponDamage => IsWeapon && (weaponStats.TotalElementalDamageMin > 0 || weaponStats.TotalElementalDamageMax > 0);
     public bool HasCorruptionWeaponDamage => IsWeapon && (weaponStats.minCorruptionDamage > 0 || weaponStats.maxCorruptionDamage > 0);
+
+    /// <summary>Weapon hits are corruption-only (direct hits cannot crit; poison may still use gear crit via Master of Venoms).</summary>
+    public bool IsCorruptionOnlyWeapon =>
+        IsWeapon &&
+        HasCorruptionWeaponDamage &&
+        !HasPhysicalWeaponDamage &&
+        !HasMagicWeaponDamage;
 
     public bool IsCombatSupport => itemKind == ItemKind.CombatSupport;
 
@@ -1214,6 +1277,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public float BonusBurnChance => Mathf.Clamp01(bonusStats.burnChance);
     public float ChillSlowPerStackBonus => bonusStats.chillSlowPerStackBonus;
     public float ShockDamageTakenMultiplierBonus => bonusStats.shockDamageTakenMultiplierBonus;
+    public float ParryChance => Mathf.Clamp01(bonusStats.parryChance);
+    public float StunChance => Mathf.Clamp01(bonusStats.stunChance);
 
     public bool IsConsumable => itemKind == ItemKind.Consumable;
 
@@ -1620,13 +1685,29 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (HasCorruptionWeaponDamage)
                 s += $"Corruption Damage: {weaponStats.minCorruptionDamage}-{weaponStats.maxCorruptionDamage}\n";
 
-            s +=
-                $"Speed: {speed}\n" +
-                $"Crit Chance: {FormatSignedPercent100WithPlus(critChancePct)}\n" +
-                $"Crit Multi: {FormatSignedPercent100WithPlus(critMultBonusPct)}\n" +
-                $"{BuildWeaponAilmentsLine()}\n" +
-                $"Range: {range}" +
-                dual;
+            s += $"Speed: {speed}\n";
+
+            bool showCritOnTooltip = IsCorruptionOnlyWeapon;
+            if (HasSignificantPercentPoints(critChancePct) || showCritOnTooltip)
+                s += $"Crit Chance: {FormatSignedPercent100WithPlus(critChancePct)}\n";
+
+            if (HasSignificantPercentPoints(critMultBonusPct) || showCritOnTooltip)
+                s += $"Crit Multi: {FormatSignedPercent100WithPlus(critMultBonusPct)}\n";
+
+            string ailments = BuildWeaponAilmentsLine();
+            if (!string.IsNullOrWhiteSpace(ailments))
+                s += ailments + "\n";
+
+            s += $"Range: {range}" + dual;
+
+            if (PhysBlockChance > 0f)
+                s += $"\nPhys Block: {FormatSignedPercent01(PhysBlockChance)}";
+            if (ParryChance > 0f)
+                s += $"\nParry Chance: {FormatSignedPercent01(ParryChance)}";
+            if (StunChance > 0f)
+                s += $"\nStun Chance: {FormatSignedPercent01(StunChance)}";
+            if (BonusHealth > 0)
+                s += $"\nHealth: +{BonusHealth}";
 
             if (weaponStats.attackSkill == AttackSkill.Magic)
                 s += $"\nMana Cost: {ManaCostPerAttack:0.##}";
@@ -1635,7 +1716,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 s += $"\nRequires: {RequiredSupportType}";
 
             if (!string.IsNullOrWhiteSpace(extras))
-                s += "\n" + extras;
+                s += "\n" + StripDuplicateWeaponProcLines(extras);
 
             string misc = BuildMiscTooltipLines();
             if (!string.IsNullOrWhiteSpace(misc))
@@ -1857,6 +1938,34 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return $"{value:+0.#;-0.#;0}%";
     }
 
+    private static bool HasSignificantPercentPoints(float percentPoints) =>
+        Mathf.Abs(percentPoints) > 0.001f;
+
+    private static string StripDuplicateWeaponProcLines(string bonusLines)
+    {
+        if (string.IsNullOrWhiteSpace(bonusLines))
+            return bonusLines;
+
+        string[] lines = bonusLines.Split('\n');
+        var kept = new System.Text.StringBuilder(bonusLines.Length);
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string line = lines[i];
+            if (line.StartsWith("Phys Block:", System.StringComparison.Ordinal) ||
+                line.StartsWith("Parry Chance:", System.StringComparison.Ordinal) ||
+                line.StartsWith("Stun Chance:", System.StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (kept.Length > 0)
+                kept.Append('\n');
+            kept.Append(line);
+        }
+
+        return kept.ToString();
+    }
+
     private string BuildBonusLines(
         bool includeDefense,
         bool omitBurnBonuses = false,
@@ -1935,6 +2044,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         }
         if (bonusStats.chillSlowPerStackBonus != 0f) s += $"Chill Slow/Stack Bonus: {FormatSignedPercent01(bonusStats.chillSlowPerStackBonus)}\n";
         if (bonusStats.shockDamageTakenMultiplierBonus != 0f) s += $"Shock Amp Bonus: {FormatSignedPercent01(bonusStats.shockDamageTakenMultiplierBonus)}\n";
+        if (bonusStats.parryChance != 0f) s += $"Parry Chance: {FormatSignedPercent01(bonusStats.parryChance)}\n";
+        if (bonusStats.stunChance != 0f) s += $"Stun Chance: {FormatSignedPercent01(bonusStats.stunChance)}\n";
 
         return s.TrimEnd('\n');
     }

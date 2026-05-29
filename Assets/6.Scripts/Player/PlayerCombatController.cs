@@ -209,9 +209,16 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
     /// <summary>Live combat target for ability aim (not gated on camera visibility).</summary>
     public EnemyBaseController GetPrimaryEngagedEnemy()
     {
-        if (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
-            return _target;
-        return null;
+        if (_target == null || _target.IsDead || !_target.gameObject.activeInHierarchy)
+            return null;
+
+        if (!IsValidCombatTarget(_target))
+        {
+            ClearTargetInternal();
+            return null;
+        }
+
+        return _target;
     }
 
     /// <summary>Closest living enemy within current weapon attack range (edge-to-edge).</summary>
@@ -236,7 +243,8 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         float myHalf = HalfWidthX(playerCol);
 
         if (preferCurrentTarget &&
-            _target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
+            _target != null && !_target.IsDead && _target.gameObject.activeInHierarchy &&
+            IsValidCombatTarget(_target))
         {
             Collider2D currentCol = _target.GetComponent<Collider2D>();
             if (!currentCol)
@@ -256,6 +264,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         {
             EnemyBaseController enemy = allEnemies[i];
             if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            if (!IsValidCombatTarget(enemy))
                 continue;
 
             Collider2D enemyCol = enemy.GetComponent<Collider2D>();
@@ -296,6 +307,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         {
             EnemyBaseController enemy = allEnemies[i];
             if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            if (!IsValidCombatTarget(enemy))
                 continue;
 
             Collider2D enemyCol = enemy.GetComponent<Collider2D>();
@@ -373,6 +387,9 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         {
             EnemyBaseController enemy = allEnemies[i];
             if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
+                continue;
+
+            if (!IsValidCombatTarget(enemy))
                 continue;
 
             Collider2D enemyCol = enemy.GetComponent<Collider2D>();
@@ -2096,9 +2113,13 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (Time.time < _nextIdleScanTime) return;
         _nextIdleScanTime = Time.time + Mathf.Max(0.05f, idleRescanInterval);
 
-        EnemyBaseController current = (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy)
+        EnemyBaseController current = (_target != null && !_target.IsDead && _target.gameObject.activeInHierarchy &&
+                                       IsValidCombatTarget(_target))
             ? _target
             : null;
+
+        if (_target != null && current == null)
+            ClearTargetInternal();
 
         EnemyBaseController picked = ResolveIdlePickedEnemy(current);
         if (picked != null)
@@ -2258,6 +2279,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (!e) continue;
             if (e.IsDead) continue;
             if (!e.gameObject.activeInHierarchy) continue;
+            if (!IsValidCombatTarget(e)) continue;
 
             float d = Mathf.Abs(e.transform.position.x - myX);
             if (d > maxRange)
@@ -2289,6 +2311,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (!e) continue;
             if (e.IsDead) continue;
             if (!e.gameObject.activeInHierarchy) continue;
+            if (!IsValidCombatTarget(e)) continue;
 
             float d = Mathf.Abs(e.transform.position.x - myX);
             if (d < bestDist)
@@ -2317,6 +2340,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
             if (!e) continue;
             if (e.IsDead) continue;
             if (!e.gameObject.activeInHierarchy) continue;
+            if (!IsValidCombatTarget(e)) continue;
 
             float d = Mathf.Abs(e.transform.position.x - myX);
             if (d > bestDist)
@@ -2421,7 +2445,7 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         ClearTarget();
     }
 
-    private static bool IsValidCombatTarget(EnemyBaseController enemy, PlayerController owner)
+    public static bool IsValidCombatTargetForPlayer(EnemyBaseController enemy, PlayerController owner)
     {
         if (!enemy || enemy.IsDead || !enemy.gameObject.activeInHierarchy)
             return false;
@@ -2429,16 +2453,27 @@ public class PlayerCombatController : MonoBehaviour, ISaveable
         if (!owner)
             return true;
 
-        if (enemy.transform == owner.transform)
+        Transform enemyTransform = enemy.transform;
+        Transform ownerTransform = owner.transform;
+
+        if (enemyTransform == ownerTransform)
+            return false;
+
+        if (ownerTransform.IsChildOf(enemyTransform) || enemyTransform.IsChildOf(ownerTransform))
             return false;
 
         if (enemy.GetComponent<PlayerController>() != null)
             return false;
 
-        if (enemy.GetComponentInParent<PlayerController>() == owner)
+        if (enemy.GetComponentInParent<PlayerController>() != null)
             return false;
 
         return true;
+    }
+
+    private static bool IsValidCombatTarget(EnemyBaseController enemy, PlayerController owner)
+    {
+        return IsValidCombatTargetForPlayer(enemy, owner);
     }
 
     private bool IsValidCombatTarget(EnemyBaseController enemy)

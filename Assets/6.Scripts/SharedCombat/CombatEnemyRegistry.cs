@@ -29,6 +29,11 @@ public static class CombatEnemyRegistry
     {
         if (!enemy || Live.Contains(enemy))
             return;
+
+        if (enemy.GetComponent<PlayerController>() != null ||
+            enemy.GetComponentInParent<PlayerController>() != null)
+            return;
+
         Live.Add(enemy);
     }
 

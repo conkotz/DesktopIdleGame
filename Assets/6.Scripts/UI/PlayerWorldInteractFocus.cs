@@ -45,8 +45,19 @@ public class PlayerWorldInteractFocus : MonoBehaviour
             return;
 
         Transform root = WorldInteractRouter.ResolveInteractFocusRoot(col);
-        if (root != null)
+        if (root != null && !IsPlayerTransform(player, root))
             focus.SetFocus(root);
+    }
+
+    private static bool IsPlayerTransform(PlayerController player, Transform focusRoot)
+    {
+        if (!player || !focusRoot)
+            return false;
+
+        Transform playerTransform = player.transform;
+        return focusRoot == playerTransform ||
+               focusRoot.IsChildOf(playerTransform) ||
+               playerTransform.IsChildOf(focusRoot);
     }
 
     public static void ClearForPlayer(PlayerController player)

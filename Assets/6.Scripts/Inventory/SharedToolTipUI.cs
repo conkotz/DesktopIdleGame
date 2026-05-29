@@ -200,7 +200,8 @@ public class SharedTooltipUI : MonoBehaviour
      int stackAmount,
      int? valueOverride = null,
      string valueLabelOverride = null,
-     string customValueOverride = null)
+     string customValueOverride = null,
+     bool maskUnrolledRandomStats = false)
     {
         if (!def || !canvasGroup || !nameText)
             return;
@@ -251,7 +252,7 @@ public class SharedTooltipUI : MonoBehaviour
             descriptionText.gameObject.SetActive(hasDesc);
         }
 
-        BindTooltipStats(def);
+        BindTooltipStats(def, maskUnrolledRandomStats);
         BindEnhancementDisplay(def);
 
         if (hasShopBlock)
@@ -791,7 +792,7 @@ public class SharedTooltipUI : MonoBehaviour
         }
     }
 
-    private void BindTooltipStats(ItemDefinition def)
+    private void BindTooltipStats(ItemDefinition def, bool maskUnrolledRandomStats = false)
     {
         if (!def)
         {
@@ -803,7 +804,7 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (mainStatsText == null)
         {
-            string combined = BuildTooltipStatsTextWithSupportRequirement(def);
+            string combined = BuildTooltipStatsTextWithSupportRequirement(def, maskUnrolledRandomStats);
             if (miscStatsText)
             {
                 miscStatsText.text = combined;
@@ -818,7 +819,7 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         string misc = def.BuildTooltipMiscStatsText() ?? "";
-        string main = BuildTooltipMainStatsTextWithSupportRequirement(def);
+        string main = BuildTooltipMainStatsTextWithSupportRequirement(def, maskUnrolledRandomStats);
 
         if (miscStatsText)
         {
@@ -928,23 +929,39 @@ public class SharedTooltipUI : MonoBehaviour
         };
     }
 
-    private string BuildTooltipStatsTextWithSupportRequirement(ItemDefinition def)
+    private string BuildTooltipStatsTextWithSupportRequirement(ItemDefinition def, bool maskUnrolledRandomStats = false)
     {
         if (!def)
             return "";
 
         string stats = def.BuildTooltipStatsText() ?? "";
-
-        return ApplyOffhandSupportRequirementColoring(stats, def);
+        stats = ApplyOffhandSupportRequirementColoring(stats, def);
+        return AppendMaskedRandomStatLines(def, stats, maskUnrolledRandomStats);
     }
 
-    private string BuildTooltipMainStatsTextWithSupportRequirement(ItemDefinition def)
+    private string BuildTooltipMainStatsTextWithSupportRequirement(ItemDefinition def, bool maskUnrolledRandomStats = false)
     {
         if (!def)
             return "";
 
         string main = def.BuildTooltipMainStatsText() ?? "";
-        return ApplyOffhandSupportRequirementColoring(main, def);
+        main = ApplyOffhandSupportRequirementColoring(main, def);
+        return AppendMaskedRandomStatLines(def, main, maskUnrolledRandomStats);
+    }
+
+    private static string AppendMaskedRandomStatLines(ItemDefinition def, string statsBlock, bool maskUnrolledRandomStats)
+    {
+        if (!maskUnrolledRandomStats || def == null || !def.HasRandomStatPool)
+            return statsBlock ?? "";
+
+        string masked = def.BuildMaskedRandomStatTooltipAppendix();
+        if (string.IsNullOrWhiteSpace(masked))
+            return statsBlock ?? "";
+
+        if (string.IsNullOrWhiteSpace(statsBlock))
+            return masked;
+
+        return statsBlock.TrimEnd('\n') + "\n" + masked;
     }
 
     private string ApplyOffhandSupportRequirementColoring(string block, ItemDefinition def)
@@ -1091,7 +1108,8 @@ public class SharedTooltipUI : MonoBehaviour
         bool compact,
         int? valueOverride = null,
         string valueLabelOverride = null,
-        string customValueOverride = null)
+        string customValueOverride = null,
+        bool maskUnrolledRandomStats = false)
     {
         if (!anchor || !def)
         {
@@ -1107,7 +1125,7 @@ public class SharedTooltipUI : MonoBehaviour
         if (compact)
             ShowForEquipment(def);
         else
-            Show(def, amount, valueOverride, valueLabelOverride, customValueOverride);
+            Show(def, amount, valueOverride, valueLabelOverride, customValueOverride, maskUnrolledRandomStats);
     }
 
     private void BringToFront()

@@ -1,3 +1,4 @@
+using System;
 using UnityEditor;
 using UnityEngine;
 
@@ -29,7 +30,13 @@ public class ItemDefinitionEditor : Editor
 
     // Bonuses
     private SerializedProperty bonusStats;
+    private SerializedProperty randomStatPool;
     private SerializedProperty miscEffects;
+
+    private int _expandedStatPickerEntryIndex = -1;
+    private string _statPickerSearch = "";
+    private Vector2 _randomStatPoolScroll;
+    private Vector2 _statPickerScroll;
 
     private void OnEnable()
     {
@@ -64,6 +71,7 @@ public class ItemDefinitionEditor : Editor
         cookableStats = serializedObject.FindProperty("cookableStats");
 
         bonusStats = serializedObject.FindProperty("bonusStats");
+        randomStatPool = serializedObject.FindProperty("randomStatPool");
         miscEffects = serializedObject.FindProperty("miscEffects");
     }
 
@@ -273,6 +281,7 @@ public class ItemDefinitionEditor : Editor
         {
             DrawWeaponStatsBlock();
             DrawBonusBlockIfPresent("Bonus Stats (optional)", show: true);
+            DrawRandomStatPoolBlock();
             DrawMiscEffectsBlockIfPresent(show: true);
         }
         else if (kind == ItemKind.CombatSupport)
@@ -292,11 +301,13 @@ public class ItemDefinitionEditor : Editor
             DrawModuleHeader("Armour Stats");
             EditorGUILayout.PropertyField(armorStats, includeChildren: true);
             DrawBonusBlockIfPresent("Bonus Stats (Armour Extras)", show: true);
+            DrawRandomStatPoolBlock();
             DrawMiscEffectsBlockIfPresent(show: true);
         }
         else if (kind == ItemKind.Jewelry)
         {
             DrawBonusBlockIfPresent("Bonus Stats (Jewelry)", show: true);
+            DrawRandomStatPoolBlock();
             DrawMiscEffectsBlockIfPresent(show: true);
         }
         else if (kind == ItemKind.Consumable)
@@ -316,6 +327,8 @@ public class ItemDefinitionEditor : Editor
             DrawCookableStatsBlock();
 
         serializedObject.ApplyModifiedProperties();
+        if (GUI.changed)
+            EditorUtility.SetDirty(target);
     }
 
     private void DrawWeaponStatsBlock()
@@ -1248,6 +1261,8 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty chillSlowPerStackBonus = bonusStats.FindPropertyRelative("chillSlowPerStackBonus");
         SerializedProperty shockDamageTakenMultiplierBonus = bonusStats.FindPropertyRelative("shockDamageTakenMultiplierBonus");
         SerializedProperty bonusBurnChance = bonusStats.FindPropertyRelative("burnChance");
+        SerializedProperty parryChance = bonusStats.FindPropertyRelative("parryChance");
+        SerializedProperty stunChance = bonusStats.FindPropertyRelative("stunChance");
 
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Vitals", EditorStyles.boldLabel);
@@ -1316,6 +1331,13 @@ public class ItemDefinitionEditor : Editor
         EditorGUILayout.PropertyField(chillSlowPerStackBonus, new GUIContent("Chill Slow/Stack Bonus"));
         EditorGUILayout.PropertyField(shockDamageTakenMultiplierBonus, new GUIContent("Shock Amp Bonus"));
 
+        EditorGUILayout.Space(4);
+        EditorGUILayout.LabelField("Combat Procs", EditorStyles.boldLabel);
+        if (parryChance != null)
+            EditorGUILayout.PropertyField(parryChance);
+        if (stunChance != null)
+            EditorGUILayout.PropertyField(stunChance);
+
         EditorGUILayout.Space(6);
         EditorGUILayout.HelpBox(
             "Bonus Stats are additive modifiers.\n" +
@@ -1338,13 +1360,166 @@ public class ItemDefinitionEditor : Editor
             return;
 
         EditorGUILayout.Space(8);
-        DrawModuleHeader("Misc (unique effects)");
         EditorGUILayout.PropertyField(miscEffects, includeChildren: true);
         EditorGUILayout.HelpBox(
             "Expand this section for effects that are not standard bonus stats (e.g. spawn / world modifiers). " +
             "Enemy respawn reduction stacks across all equipped items and subtracts from the map node's Enemy Respawn Delay (MapNodeDefinition).",
             MessageType.None
         );
+    }
+
+    private void DrawRandomStatPoolBlock()
+    {
+        if (randomStatPool == null)
+        {
+            EditorGUILayout.HelpBox("randomStatPool property not found on ItemDefinition.", MessageType.Error);
+            return;
+        }
+
+        DrawModuleHeader("Random Stat Pool");
+
+        EditorGUILayout.HelpBox(
+            "Optional affixes rolled when this item enters the player's inventory.\n" +
+            "Common/Uncommon = 1 roll, Rare = 2, Epic = 3, Legendary = 4.\n" +
+            "Rolled values add to existing base/bonus stats. Shop tooltips show ?? until purchased.\n" +
+            "Value Kind: Flat Integer (health), Flat Float (regen/APS), Fraction (0.05 = 5%), " +
+            "Percent Points (enter 5 for +5% — auto-converts for bleed/poison/speed/etc.; ability power stores 5 as +5%).",
+            MessageType.Info
+        );
+
+        if (randomStatPool.arraySize == 0)
+            EditorGUILayout.LabelField("No pool entries yet. Add one below.", EditorStyles.centeredGreyMiniLabel);
+
+        _randomStatPoolScroll = EditorGUILayout.BeginScrollView(_randomStatPoolScroll, GUILayout.MaxHeight(420f));
+
+        int removeAt = -1;
+        for (int i = 0; i < randomStatPool.arraySize; i++)
+        {
+            SerializedProperty entry = randomStatPool.GetArrayElementAtIndex(i);
+            if (entry == null)
+                continue;
+
+            SerializedProperty stat = entry.FindPropertyRelative("stat");
+            SerializedProperty weight = entry.FindPropertyRelative("weight");
+            SerializedProperty minValue = entry.FindPropertyRelative("minValue");
+            SerializedProperty maxValue = entry.FindPropertyRelative("maxValue");
+            SerializedProperty valueKind = entry.FindPropertyRelative("valueKind");
+            SerializedProperty rollSecondary = entry.FindPropertyRelative("rollSecondaryValue");
+            SerializedProperty secondaryMin = entry.FindPropertyRelative("secondaryMinValue");
+            SerializedProperty secondaryMax = entry.FindPropertyRelative("secondaryMaxValue");
+
+            EditorGUILayout.BeginVertical("box");
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField($"Pool Entry {i + 1}", EditorStyles.boldLabel);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Remove", GUILayout.Width(72)))
+                removeAt = i;
+            EditorGUILayout.EndHorizontal();
+
+            if (stat != null)
+                DrawScrollableRandomStatPicker(stat, i);
+            if (weight != null) EditorGUILayout.PropertyField(weight, new GUIContent("Weight"));
+            if (valueKind != null) EditorGUILayout.PropertyField(valueKind, new GUIContent("Value Kind"));
+            if (minValue != null) EditorGUILayout.PropertyField(minValue, new GUIContent("Min Value"));
+            if (maxValue != null) EditorGUILayout.PropertyField(maxValue, new GUIContent("Max Value"));
+
+            if (stat != null)
+            {
+                RandomItemStatType statType = (RandomItemStatType)stat.enumValueIndex;
+                if (statType == RandomItemStatType.WeaponCorruptionDamageRange)
+                {
+                    if (rollSecondary != null)
+                        EditorGUILayout.PropertyField(rollSecondary, new GUIContent("Roll Min/Max Separately"));
+                    if (rollSecondary != null && rollSecondary.boolValue)
+                    {
+                        if (secondaryMin != null)
+                            EditorGUILayout.PropertyField(secondaryMin, new GUIContent("Max Corruption Min"));
+                        if (secondaryMax != null)
+                            EditorGUILayout.PropertyField(secondaryMax, new GUIContent("Max Corruption Max"));
+                    }
+                }
+            }
+
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.Space(4);
+        }
+
+        if (removeAt >= 0)
+            randomStatPool.DeleteArrayElementAtIndex(removeAt);
+
+        EditorGUILayout.EndScrollView();
+
+        EditorGUILayout.Space(2);
+        if (GUILayout.Button("+ Add Pool Entry"))
+        {
+            int newIndex = randomStatPool.arraySize;
+            randomStatPool.InsertArrayElementAtIndex(newIndex);
+            SerializedProperty newEntry = randomStatPool.GetArrayElementAtIndex(newIndex);
+            if (newEntry != null)
+            {
+                SerializedProperty weight = newEntry.FindPropertyRelative("weight");
+                if (weight != null)
+                    weight.floatValue = 1f;
+
+                SerializedProperty valueKind = newEntry.FindPropertyRelative("valueKind");
+                SerializedProperty stat = newEntry.FindPropertyRelative("stat");
+                if (valueKind != null && stat != null)
+                {
+                    RandomItemStatType statType = (RandomItemStatType)stat.enumValueIndex;
+                    valueKind.enumValueIndex = (int)ItemRandomStatRoller.GetDefaultValueKind(statType);
+                }
+            }
+        }
+    }
+
+    private void DrawScrollableRandomStatPicker(SerializedProperty statProp, int entryIndex)
+    {
+        if (statProp == null)
+            return;
+
+        RandomItemStatType current = (RandomItemStatType)statProp.enumValueIndex;
+        string currentLabel = ObjectNames.NicifyVariableName(current.ToString());
+
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.PrefixLabel("Stat");
+        if (GUILayout.Button(currentLabel, EditorStyles.popup))
+        {
+            _expandedStatPickerEntryIndex = _expandedStatPickerEntryIndex == entryIndex ? -1 : entryIndex;
+            _statPickerSearch = "";
+        }
+        EditorGUILayout.EndHorizontal();
+
+        if (_expandedStatPickerEntryIndex != entryIndex)
+            return;
+
+        EditorGUILayout.BeginVertical("box");
+        _statPickerSearch = EditorGUILayout.TextField("Search", _statPickerSearch ?? "");
+
+        _statPickerScroll = EditorGUILayout.BeginScrollView(_statPickerScroll, GUILayout.Height(220f));
+        string search = (_statPickerSearch ?? "").Trim();
+
+        foreach (RandomItemStatType value in Enum.GetValues(typeof(RandomItemStatType)))
+        {
+            string raw = value.ToString();
+            string label = ObjectNames.NicifyVariableName(raw);
+            if (!string.IsNullOrEmpty(search) &&
+                raw.IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0 &&
+                label.IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                continue;
+            }
+
+            if (GUILayout.Button(label, EditorStyles.miniButton))
+            {
+                statProp.enumValueIndex = (int)value;
+                _expandedStatPickerEntryIndex = -1;
+                _statPickerSearch = "";
+                GUI.FocusControl(null);
+            }
+        }
+
+        EditorGUILayout.EndScrollView();
+        EditorGUILayout.EndVertical();
     }
 
     private static void DrawModuleHeader(string title)

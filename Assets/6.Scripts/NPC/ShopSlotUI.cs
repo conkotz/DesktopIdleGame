@@ -342,7 +342,8 @@ public class ShopSlotUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandl
             compact: false,
             valueOverride: null,
             valueLabelOverride: "Cost",
-            customValueOverride: customPrice
+            customValueOverride: customPrice,
+            maskUnrolledRandomStats: _def != null && _def.HasRandomStatPool
         );
     }
 }

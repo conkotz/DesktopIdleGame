@@ -347,6 +347,19 @@ public class Merchant : MonoBehaviour, ISaveable
         return itemId;
     }
 
+    private string ResolveStockItemId(string itemId)
+    {
+        if (inventory != null)
+            return inventory.ResolveStockItemId(itemId);
+
+        if (string.IsNullOrWhiteSpace(itemId))
+            return itemId;
+
+        const string separator = "__enh_";
+        int markerIndex = itemId.IndexOf(separator, StringComparison.Ordinal);
+        return markerIndex > 0 ? itemId.Substring(0, markerIndex) : itemId;
+    }
+
     public bool TryReplenishStockFromPlayerSale(string itemId, int amount, out int addedToStock)
     {
         addedToStock = 0;
@@ -354,7 +367,8 @@ public class Merchant : MonoBehaviour, ISaveable
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0 || stock == null)
             return false;
 
-        var entry = stock.GetEntry(itemId);
+        string stockItemId = ResolveStockItemId(itemId);
+        var entry = stock.GetEntry(stockItemId);
         if (entry == null)
             return false;
 
@@ -379,7 +393,8 @@ public class Merchant : MonoBehaviour, ISaveable
         if (string.IsNullOrWhiteSpace(itemId) || stock == null)
             return false;
 
-        return stock.GetEntry(itemId) != null;
+        string stockItemId = ResolveStockItemId(itemId);
+        return stock.GetEntry(stockItemId) != null;
     }
 
     public bool TryRejectUnsellableItemWithPopup(string itemId)
@@ -406,7 +421,8 @@ public class Merchant : MonoBehaviour, ISaveable
         if (string.IsNullOrWhiteSpace(itemId) || amount <= 0 || stock == null)
             return false;
 
-        var entry = stock.GetEntry(itemId);
+        string stockItemId = ResolveStockItemId(itemId);
+        var entry = stock.GetEntry(stockItemId);
         if (entry == null)
             return false;
 

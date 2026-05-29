@@ -33,8 +33,8 @@ MonoBehaviour:
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   weaponStats:
-    minPhysicalDamage: 12
-    maxPhysicalDamage: 26
+    minPhysicalDamage: 10
+    maxPhysicalDamage: 22
     minFireDamage: 0
     maxFireDamage: 0
     minIceDamage: 0
@@ -95,6 +95,7 @@ MonoBehaviour:
     physBlockChance: 0
     bonusHealth: 0
     bonusEnergy: 0
+    energyEfficiency: 0
     flatGuard: 0
     maxGuardPercent: 0
   bonusStats:
@@ -108,6 +109,7 @@ MonoBehaviour:
     lifeRegen: 0
     energyRegen: 0
     manaRegen: 0
+    energyEfficiency: 0
     lifeSteal: 0
     moveSpeedPercent: 0
     physicalDamage: 0
@@ -123,6 +125,7 @@ MonoBehaviour:
     corruptionDamage: 0
     abilityPower: 0
     attackSpeedPercent: 0
+    abilityCooldownReductionFraction: 0
     minionDamagePercent: 0
     minionAttackSpeedPercent: 0
     minionCritChance: 0
@@ -130,7 +133,7 @@ MonoBehaviour:
     critChanceBonus: 0
     critMultiplierBonus: 0
     attackRangeBonus: 0
-    bleedChance: 0.5
+    bleedChance: 0.2
     bleedMultiplier: 0
     poisonChance: 0
     poisonMultiplier: 0
@@ -140,6 +143,57 @@ MonoBehaviour:
     burnChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+    parryChance: 0
+    stunChance: 0
+  randomStatPool:
+  - stat: 34
+    weight: 1
+    minValue: 5
+    maxValue: 10
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 35
+    weight: 1
+    minValue: 10
+    maxValue: 20
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 44
+    weight: 1
+    minValue: 1
+    maxValue: 3
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 52
+    weight: 0.5
+    minValue: 1
+    maxValue: 1
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 0
+    weight: 1
+    minValue: 5
+    maxValue: 10
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 45
+    weight: 1
+    minValue: 2
+    maxValue: 4
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:

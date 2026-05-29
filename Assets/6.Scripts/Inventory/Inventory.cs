@@ -25,6 +25,10 @@ public class Inventory : MonoBehaviour, ISaveable
         if (itemDb)
             return;
 
+        itemDb = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        if (itemDb)
+            return;
+
         itemDb = Resources.Load<ItemDatabase>("ItemDatabase");
         if (itemDb)
             return;
@@ -85,6 +89,85 @@ public class Inventory : MonoBehaviour, ISaveable
     public bool IsRuntimeEnhancedItem(string itemId)
     {
         return itemDb && itemDb.IsRuntimeEnhancedItem(itemId);
+    }
+
+    /// <summary>Authored id used for merchant stock matching (rolls/enhancements map back to base).</summary>
+    public string ResolveStockItemId(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return itemId;
+
+        EnsureItemDatabaseRef();
+        return itemDb ? itemDb.GetBaseItemId(itemId) : itemId;
+    }
+
+    private bool ShouldRollRandomStatsOnAcquire(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return false;
+
+        EnsureItemDatabaseRef();
+        if (!itemDb || itemDb.IsRuntimeEnhancedItem(itemId))
+            return false;
+
+        ItemDefinition def = itemDb.Get(itemId);
+        return ItemRandomStatRoller.ShouldRollOnAcquire(def, itemDb);
+    }
+
+    private string ResolveAcquiredItemId(string itemId)
+    {
+        if (!ShouldRollRandomStatsOnAcquire(itemId))
+            return itemId;
+
+        EnsureItemDatabaseRef();
+        if (!itemDb)
+            return itemId;
+
+        ItemDefinition baseDef = itemDb.Get(itemId);
+        if (!baseDef)
+        {
+            Debug.LogWarning($"[Inventory] Could not resolve item definition for '{itemId}' when rolling random stats.");
+            return itemId;
+        }
+
+        if (!baseDef.HasRandomStatPool)
+            return itemId;
+
+        ItemDefinition rolled = ItemRandomStatRoller.CreateRolledItem(itemDb, baseDef);
+        if (rolled == null)
+        {
+            Debug.LogWarning(
+                $"[Inventory] Failed to roll random stats for '{itemId}'. " +
+                $"Pool entries={baseDef.RandomStatPoolEntries?.Count ?? 0}. Using base item.");
+            return itemId;
+        }
+
+        return rolled.itemId;
+    }
+
+    private int FindFirstEmptySlotIndex()
+    {
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            if (_slots[i].IsEmpty)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private bool TryPlaceRolledUnit(string sourceItemId, IList<int> touchedSlotIndices, out int added)
+    {
+        added = 0;
+        int slotIndex = FindFirstEmptySlotIndex();
+        if (slotIndex < 0)
+            return false;
+
+        string resolvedId = ResolveAcquiredItemId(sourceItemId);
+        _slots[slotIndex] = new Slot { itemId = resolvedId, amount = 1 };
+        touchedSlotIndices?.Add(slotIndex);
+        added = 1;
+        return true;
     }
 
     [Serializable]
@@ -241,16 +324,30 @@ public class Inventory : MonoBehaviour, ISaveable
         }
 
         // 2) Create new stacks in empty slots
-        for (int i = 0; i < _slots.Count && remaining > 0; i++)
+        if (ShouldRollRandomStatsOnAcquire(itemId))
         {
-            if (!_slots[i].IsEmpty) continue;
+            while (remaining > 0)
+            {
+                if (!TryPlaceRolledUnit(itemId, touchedSlotIndices, out int placed))
+                    break;
 
-            int add = Mathf.Min(maxStack, remaining);
-            _slots[i] = new Slot { itemId = itemId, amount = add };
-            touchedSlotIndices?.Add(i);
+                remaining -= placed;
+                addedTotal += placed;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < _slots.Count && remaining > 0; i++)
+            {
+                if (!_slots[i].IsEmpty) continue;
 
-            remaining -= add;
-            addedTotal += add;
+                int add = Mathf.Min(maxStack, remaining);
+                _slots[i] = new Slot { itemId = itemId, amount = add };
+                touchedSlotIndices?.Add(i);
+
+                remaining -= add;
+                addedTotal += add;
+            }
         }
 
         if (addedTotal > 0)
@@ -313,6 +410,7 @@ public class Inventory : MonoBehaviour, ISaveable
         //Debug.Log($"[Inventory] Gained {amount}x {itemId} | Value per item: {itemValue} | Total value: {totalValue}");
 
         int maxStack = GetMaxStack(itemId, maxStackOverride);
+        int addedTotal = 0;
 
         // 1) Fill existing stacks
         for (int i = 0; i < _slots.Count && amount > 0; i++)
@@ -327,16 +425,32 @@ public class Inventory : MonoBehaviour, ISaveable
             s.amount += add;
             _slots[i] = s;
             amount -= add;
+            addedTotal += add;
         }
 
         // 2) Create new stacks in empty slots
-        for (int i = 0; i < _slots.Count && amount > 0; i++)
+        if (ShouldRollRandomStatsOnAcquire(itemId))
         {
-            if (!_slots[i].IsEmpty) continue;
+            while (amount > 0)
+            {
+                if (!TryPlaceRolledUnit(itemId, null, out int placed))
+                    break;
 
-            int add = Mathf.Min(maxStack, amount);
-            _slots[i] = new Slot { itemId = itemId, amount = add };
-            amount -= add;
+                amount -= placed;
+                addedTotal += placed;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < _slots.Count && amount > 0; i++)
+            {
+                if (!_slots[i].IsEmpty) continue;
+
+                int add = Mathf.Min(maxStack, amount);
+                _slots[i] = new Slot { itemId = itemId, amount = add };
+                amount -= add;
+                addedTotal += add;
+            }
         }
 
         bool overflow = amount > 0;
@@ -346,9 +460,11 @@ public class Inventory : MonoBehaviour, ISaveable
         if (overflow)
             OnInventoryFull?.Invoke();
 
-        int gained = GetTotalAmount(itemId) - beforeTotal;
-        if (gained > 0 && notifyItemGainPopup)
-            ItemGainPopupNotifier.Notify(itemId, gained);
+        if (addedTotal <= 0 && !ShouldRollRandomStatsOnAcquire(itemId))
+            addedTotal = GetTotalAmount(itemId) - beforeTotal;
+
+        if (addedTotal > 0 && notifyItemGainPopup)
+            ItemGainPopupNotifier.Notify(itemId, addedTotal);
 
         return !overflow;
     }

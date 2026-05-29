@@ -1016,9 +1016,21 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public bool HasCrittableDirectDamage =>
         MaxSplitDamage.physical > 0f || MaxSplitDamage.magic > 0f;
 
-    /// <summary>Crit % for stats UI: 0 when damage is corruption-only (gear crit still applies only to crittable types).</summary>
+    /// <summary>Equipped weapon deals corruption-only direct damage (no physical/magic on the hit split).</summary>
+    public bool UsesCorruptionOnlyDirectDamage =>
+        !HasCrittableDirectDamage && MaxSplitDamage.corruptionDamage > 0f;
+
+    /// <summary>Show gear crit on stats/tooltips even when direct hits cannot crit (e.g. poison crit via Master of Venoms).</summary>
+    public bool ShouldShowGearCritStats =>
+        HasCrittableDirectDamage || UsesCorruptionOnlyDirectDamage;
+
+    /// <summary>Crit % for stats UI: hidden only when direct damage cannot crit and is not corruption-only.</summary>
     public float StatsPanelCritChancePercent =>
-        HasCrittableDirectDamage ? CritChancePercent : 0f;
+        ShouldShowGearCritStats ? CritChancePercent : 0f;
+
+    /// <summary>Crit damage bonus % for stats UI (same visibility rules as <see cref="StatsPanelCritChancePercent"/>).</summary>
+    public float StatsPanelCritDamageBonusPercent =>
+        ShouldShowGearCritStats ? (CritMultiplier - 1f) * 100f : 0f;
 
     public AttackSkill CurrentAttackSkill => GetCurrentAttackSkill();
     public DamageType CurrentDamageType => GetLegacyCurrentDamageType();
@@ -2358,11 +2370,16 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
     }
 
-    /// <summary>Tactician two-handed: chance on hit to stun enemies (matches <see cref="TryApplyTacticianStunOnEnemyHit"/>).</summary>
-    public float StunChancePercentForStatsPanel =>
-        IsTacticianTwoHandedBonusesActive()
-            ? AbilityCombatPower.TacticianTwoHandedStunChance * GetTacticianBonusMultiplier() * 100f
-            : 0f;
+    /// <summary>Tactician two-handed and gear: chance on hit to stun enemies (matches <see cref="TryApplyTacticianStunOnEnemyHit"/>).</summary>
+    public float StunChancePercentForStatsPanel => GetStunChanceFraction() * 100f;
+
+    public float GetStunChanceFraction()
+    {
+        float chance = GetEquippedStunChance();
+        if (IsTacticianTwoHandedBonusesActive())
+            chance += AbilityCombatPower.TacticianTwoHandedStunChance * GetTacticianBonusMultiplier();
+        return Mathf.Clamp01(chance);
+    }
 
     /// <summary>Fraction added to multiplier for abilities keyed to <see cref="CurrentMagicAttackType"/> (e.g. 0.2 = +20%).</summary>
     public float ElementSkillDamageScalingFractionForCurrentType() =>
@@ -2941,6 +2958,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float chance = AbilityCombatPower.ParryBaseChance;
         if (GetParryEnhancementPick() == 1)
             chance += AbilityCombatPower.ParryImprovedParryChanceBonus;
+        chance += GetEquippedParryChance();
         return Mathf.Clamp01(chance);
     }
 
@@ -3259,10 +3277,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public void TryApplyTacticianStunOnEnemyHit(EnemyBaseController enemy)
     {
-        if (!IsTacticianTwoHandedBonusesActive() || enemy == null || enemy.IsDead)
+        if (enemy == null || enemy.IsDead)
             return;
 
-        float chance = AbilityCombatPower.TacticianTwoHandedStunChance * GetTacticianBonusMultiplier();
+        float chance = GetStunChanceFraction();
+        if (chance <= 0f)
+            return;
+
         enemy.TryApplyStun(AbilityCombatPower.TacticianStunDurationSeconds, chance, transform);
     }
 
@@ -3962,6 +3983,22 @@ public class CharacterStats : MonoBehaviour, ISaveable
         float total = 0f;
         foreach (var def in EnumerateEquippedDefs())
             total += def.ShockDamageTakenMultiplierBonus;
+        return total;
+    }
+
+    private float GetEquippedParryChance()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.ParryChance;
+        return total;
+    }
+
+    private float GetEquippedStunChance()
+    {
+        float total = 0f;
+        foreach (var def in EnumerateEquippedDefs())
+            total += def.StunChance;
         return total;
     }
 

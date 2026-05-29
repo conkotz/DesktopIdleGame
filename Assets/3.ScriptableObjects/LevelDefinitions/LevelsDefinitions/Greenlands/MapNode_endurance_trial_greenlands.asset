@@ -62,6 +62,7 @@ MonoBehaviour:
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -77,6 +78,7 @@ MonoBehaviour:
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 2
@@ -92,6 +94,7 @@ MonoBehaviour:
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 3
@@ -107,6 +110,7 @@ MonoBehaviour:
       prefab: {fileID: 7067837762391281150, guid: 4a67aa975afd8144696c93f9237660ab, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 2
@@ -117,6 +121,7 @@ MonoBehaviour:
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -132,6 +137,7 @@ MonoBehaviour:
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 3
@@ -147,6 +153,7 @@ MonoBehaviour:
       prefab: {fileID: 1000010854855540, guid: a3c1faf915dc240bca8ed7566d46910c, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 2
@@ -157,6 +164,7 @@ MonoBehaviour:
       prefab: {fileID: 1000013034572668, guid: 6814905bb3c3d7440b3306c02b2b222c, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -172,6 +180,7 @@ MonoBehaviour:
       prefab: {fileID: 1000010755293042, guid: 0f5211d171330d4499be1a9b40072432, type: 3}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 1
@@ -200,6 +209,10 @@ MonoBehaviour:
       amountMin: 1
       amountMax: 3
       dropChance: 0.5
+    - item: {fileID: 11400000, guid: 866174f124f25fe47b77fbc9e4058445, type: 2}
+      amountMin: 1
+      amountMax: 1
+      dropChance: 0.3
   - tier: 2
     appendToBaseLoot: 1
     entries:
@@ -207,6 +220,10 @@ MonoBehaviour:
       amountMin: 1
       amountMax: 3
       dropChance: 0.5
+    - item: {fileID: 11400000, guid: 25e1dda91c02f6142b796a3bc3e11d49, type: 2}
+      amountMin: 1
+      amountMax: 1
+      dropChance: 0.3
   - tier: 3
     appendToBaseLoot: 1
     entries:
@@ -214,6 +231,10 @@ MonoBehaviour:
       amountMin: 1
       amountMax: 2
       dropChance: 0.5
+    - item: {fileID: 11400000, guid: 182f00c2d487db449a02d9be387c1163, type: 2}
+      amountMin: 1
+      amountMax: 1
+      dropChance: 0.4
   - tier: 4
     appendToBaseLoot: 1
     entries:
@@ -221,6 +242,10 @@ MonoBehaviour:
       amountMin: 1
       amountMax: 2
       dropChance: 0.5
+    - item: {fileID: 11400000, guid: d706b77f9eef9dc4199eebcd34500a19, type: 2}
+      amountMin: 1
+      amountMax: 1
+      dropChance: 0.4
   - tier: 5
     appendToBaseLoot: 1
     entries:
@@ -235,6 +260,10 @@ MonoBehaviour:
     - item: {fileID: 11400000, guid: 60a88e1e810c3ee46a36fb6b840a76b3, type: 2}
       amountMin: 1
       amountMax: 50
+      dropChance: 0.3
+    - item: {fileID: 11400000, guid: 9536ae07a3934b44d87ba09eaf2037d5, type: 2}
+      amountMin: 1
+      amountMax: 1
       dropChance: 0.3
   enduranceCompletionLootInterval: 0.5
   contentDesignerNotes: 
