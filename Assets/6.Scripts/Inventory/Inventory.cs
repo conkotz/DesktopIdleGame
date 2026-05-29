@@ -81,6 +81,14 @@ public class Inventory : MonoBehaviour, ISaveable
         return def;
     }
 
+    public ItemDatabase GetItemDatabase()
+    {
+        EnsureItemDatabaseRef();
+        return itemDb;
+    }
+
+    public int GetMaxStackForItem(string itemId) => GetMaxStack(itemId, null);
+
     public ItemDefinition CreateRuntimeEnhancedItem(ItemDefinition baseDef, string runtimeItemId = null)
     {
         return itemDb ? itemDb.CreateRuntimeEnhancedItem(baseDef, runtimeItemId) : null;

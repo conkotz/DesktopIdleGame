@@ -201,7 +201,8 @@ public class SharedTooltipUI : MonoBehaviour
      int? valueOverride = null,
      string valueLabelOverride = null,
      string customValueOverride = null,
-     bool maskUnrolledRandomStats = false)
+     bool maskUnrolledRandomStats = false,
+     string itemIdForHighlights = null)
     {
         if (!def || !canvasGroup || !nameText)
             return;
@@ -252,7 +253,7 @@ public class SharedTooltipUI : MonoBehaviour
             descriptionText.gameObject.SetActive(hasDesc);
         }
 
-        BindTooltipStats(def, maskUnrolledRandomStats);
+        BindTooltipStats(def, maskUnrolledRandomStats, itemIdForHighlights);
         BindEnhancementDisplay(def);
 
         if (hasShopBlock)
@@ -792,7 +793,7 @@ public class SharedTooltipUI : MonoBehaviour
         }
     }
 
-    private void BindTooltipStats(ItemDefinition def, bool maskUnrolledRandomStats = false)
+    private void BindTooltipStats(ItemDefinition def, bool maskUnrolledRandomStats = false, string itemIdForHighlights = null)
     {
         if (!def)
         {
@@ -802,9 +803,11 @@ public class SharedTooltipUI : MonoBehaviour
 
         CaptureTooltipMarginBasesOnce();
 
+        ItemDefinition highlightBaseline = ResolveHighlightBaseline(itemIdForHighlights);
+
         if (mainStatsText == null)
         {
-            string combined = BuildTooltipStatsTextWithSupportRequirement(def, maskUnrolledRandomStats);
+            string combined = BuildTooltipStatsTextWithSupportRequirement(def, maskUnrolledRandomStats, highlightBaseline);
             if (miscStatsText)
             {
                 miscStatsText.text = combined;
@@ -819,7 +822,9 @@ public class SharedTooltipUI : MonoBehaviour
         }
 
         string misc = def.BuildTooltipMiscStatsText() ?? "";
-        string main = BuildTooltipMainStatsTextWithSupportRequirement(def, maskUnrolledRandomStats);
+        string main = highlightBaseline != null
+            ? def.BuildTooltipMainStatsText(highlightBaseline)
+            : BuildTooltipMainStatsTextWithSupportRequirement(def, maskUnrolledRandomStats);
 
         if (miscStatsText)
         {
@@ -929,24 +934,58 @@ public class SharedTooltipUI : MonoBehaviour
         };
     }
 
-    private string BuildTooltipStatsTextWithSupportRequirement(ItemDefinition def, bool maskUnrolledRandomStats = false)
+    private string BuildTooltipStatsTextWithSupportRequirement(
+        ItemDefinition def,
+        bool maskUnrolledRandomStats = false,
+        ItemDefinition highlightBaseline = null)
     {
         if (!def)
             return "";
 
-        string stats = def.BuildTooltipStatsText() ?? "";
+        string stats;
+        if (highlightBaseline != null)
+        {
+            string misc = def.BuildTooltipMiscStatsText() ?? "";
+            string main = def.BuildTooltipMainStatsText(highlightBaseline);
+            if (string.IsNullOrWhiteSpace(misc))
+                stats = main ?? "";
+            else if (string.IsNullOrWhiteSpace(main))
+                stats = misc;
+            else
+                stats = misc.TrimEnd('\n') + "\n\n" + main.TrimEnd('\n');
+        }
+        else
+        {
+            stats = def.BuildTooltipStatsText() ?? "";
+        }
+
         stats = ApplyOffhandSupportRequirementColoring(stats, def);
         return AppendMaskedRandomStatLines(def, stats, maskUnrolledRandomStats);
     }
 
-    private string BuildTooltipMainStatsTextWithSupportRequirement(ItemDefinition def, bool maskUnrolledRandomStats = false)
+    private string BuildTooltipMainStatsTextWithSupportRequirement(
+        ItemDefinition def,
+        bool maskUnrolledRandomStats = false,
+        ItemDefinition highlightBaseline = null)
     {
         if (!def)
             return "";
 
-        string main = def.BuildTooltipMainStatsText() ?? "";
+        string main = highlightBaseline != null
+            ? def.BuildTooltipMainStatsText(highlightBaseline)
+            : def.BuildTooltipMainStatsText() ?? "";
         main = ApplyOffhandSupportRequirementColoring(main, def);
         return AppendMaskedRandomStatLines(def, main, maskUnrolledRandomStats);
+    }
+
+    private static ItemDefinition ResolveHighlightBaseline(string itemIdForHighlights)
+    {
+        if (string.IsNullOrWhiteSpace(itemIdForHighlights) || !ItemTooltipHighlightState.IsEnabled(itemIdForHighlights))
+            return null;
+
+        Inventory inventory = Object.FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        ItemDatabase db = inventory ? inventory.GetItemDatabase() : Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+        return ItemTooltipStatHighlight.ResolveBaseline(db, itemIdForHighlights);
     }
 
     private static string AppendMaskedRandomStatLines(ItemDefinition def, string statsBlock, bool maskUnrolledRandomStats)
@@ -1109,7 +1148,8 @@ public class SharedTooltipUI : MonoBehaviour
         int? valueOverride = null,
         string valueLabelOverride = null,
         string customValueOverride = null,
-        bool maskUnrolledRandomStats = false)
+        bool maskUnrolledRandomStats = false,
+        string itemId = null)
     {
         if (!anchor || !def)
         {
@@ -1125,7 +1165,7 @@ public class SharedTooltipUI : MonoBehaviour
         if (compact)
             ShowForEquipment(def);
         else
-            Show(def, amount, valueOverride, valueLabelOverride, customValueOverride, maskUnrolledRandomStats);
+            Show(def, amount, valueOverride, valueLabelOverride, customValueOverride, maskUnrolledRandomStats, itemId);
     }
 
     private void BringToFront()

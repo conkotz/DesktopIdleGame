@@ -1647,6 +1647,20 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     /// <summary>Damage, speeds, resistances, gather rates — shown in the main stats TMP.</summary>
     public string BuildTooltipMainStatsText()
     {
+        return BuildTooltipMainStatsText(null);
+    }
+
+    /// <summary>Main stats block with optional bold highlights for bonuses vs a baseline item.</summary>
+    public string BuildTooltipMainStatsText(ItemDefinition baselineForHighlights)
+    {
+        if (baselineForHighlights == null || ReferenceEquals(this, baselineForHighlights))
+            return BuildTooltipMainStatsTextInternal();
+
+        return ItemTooltipStatHighlight.BuildMainStatsText(this, baselineForHighlights);
+    }
+
+    private string BuildTooltipMainStatsTextInternal()
+    {
         if (IsWeapon)
         {
             float aps = weaponStats.attacksPerSecond > 0f ? weaponStats.attacksPerSecond : 1f;
@@ -1965,6 +1979,49 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         return kept.ToString();
     }
+
+    internal string BuildBonusLinesForHighlight(ItemDefinition baseline)
+    {
+        if (baseline == null)
+            return string.Empty;
+
+        string current = BuildBonusLines(
+            includeDefense: false,
+            omitBurnBonuses: true,
+            omitAilmentChanceBonuses: true,
+            omitAilmentMultiplierBonuses: true);
+        if (string.IsNullOrWhiteSpace(current))
+            return string.Empty;
+
+        string baselineText = baseline.BuildBonusLines(
+            includeDefense: false,
+            omitBurnBonuses: true,
+            omitAilmentChanceBonuses: true,
+            omitAilmentMultiplierBonuses: true);
+        if (string.Equals(current, baselineText, System.StringComparison.Ordinal))
+            return current;
+
+        string[] lines = current.Split('\n');
+        var sb = new System.Text.StringBuilder(current.Length + 16);
+        var baselineLines = new HashSet<string>(baselineText.Split('\n'));
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string line = lines[i];
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            if (sb.Length > 0)
+                sb.Append('\n');
+
+            sb.Append(baselineLines.Contains(line) ? line : $"<b>{line}</b>");
+        }
+
+        return sb.ToString();
+    }
+
+    internal string BuildWeaponAilmentsLineForTooltip() => BuildWeaponAilmentsLine();
+
+    internal string BuildMiscTooltipLinesForTooltip() => BuildMiscTooltipLines();
 
     private string BuildBonusLines(
         bool includeDefense,

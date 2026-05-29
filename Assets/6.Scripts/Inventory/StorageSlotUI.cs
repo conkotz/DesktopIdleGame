@@ -57,6 +57,18 @@ public class StorageSlotUI : MonoBehaviour,
 
     public int SlotIndex => _slotIndex;
 
+    public bool HasItemContext => _def != null && _amount > 0 && !string.IsNullOrEmpty(_itemId);
+    public ItemDefinition ContextDefinition => _def;
+    public string ContextItemId => _itemId;
+
+    public bool CanWithdrawToInventory()
+    {
+        if (_storage == null || _inventory == null || _amount <= 0)
+            return false;
+
+        return _inventory.CanAdd(_itemId, 1);
+    }
+
     private GameObject _dragIconGO;
     private RectTransform _dragIconRT;
     private Image _dragIconImage;
@@ -196,10 +208,17 @@ public class StorageSlotUI : MonoBehaviour,
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (eventData.button != PointerEventData.InputButton.Left)
+        if (InventoryDragState.HasDrag)
             return;
 
-        if (InventoryDragState.HasDrag)
+        if (eventData.button == PointerEventData.InputButton.Right)
+        {
+            OpenContextMenu();
+            eventData.Use();
+            return;
+        }
+
+        if (eventData.button != PointerEventData.InputButton.Left)
             return;
 
         float t = Time.unscaledTime;
@@ -255,7 +274,149 @@ public class StorageSlotUI : MonoBehaviour,
             }
         }
 
-        _tooltip.ShowAt(transform, _def, _amount, compact: false);
+        _tooltip.ShowAt(transform, _def, _amount, compact: false, itemId: _itemId);
+    }
+
+    public void PerformEquipAction()
+    {
+        if (!TryWithdrawOneToInventory(out int invSlot))
+            return;
+
+        InventorySlotUI invSlotUi = FindInventorySlotUi(invSlot);
+        invSlotUi?.PerformEquipAction();
+    }
+
+    public void PerformOpenAction()
+    {
+        if (!TryWithdrawOneToInventory(out int invSlot))
+            return;
+
+        InventorySlotUI invSlotUi = FindInventorySlotUi(invSlot);
+        invSlotUi?.PerformOpenAction();
+    }
+
+    public void PerformEatAction()
+    {
+        if (!TryWithdrawOneToInventory(out int invSlot))
+            return;
+
+        InventorySlotUI invSlotUi = FindInventorySlotUi(invSlot);
+        if (invSlotUi != null)
+            invSlotUi.PerformEatAction();
+    }
+
+    public void PerformDropAction()
+    {
+        if (_storage == null || _slotIndex < 0)
+            return;
+
+        var slot = _storage.GetSlot(_slotIndex);
+        if (slot.IsEmpty || string.IsNullOrWhiteSpace(slot.itemId) || slot.amount <= 0)
+            return;
+
+        int removed = _storage.RemoveAmountAtSlot(_slotIndex, slot.amount);
+        if (removed <= 0)
+            return;
+
+        Sprite iconSprite = _def ? _def.icon : null;
+        if (DropManager.Instance != null)
+            DropManager.Instance.Spawn(slot.itemId, removed, iconSprite);
+        ItemGainPopupNotifier.NotifyLost(slot.itemId, removed);
+        _tooltip?.Hide();
+    }
+
+    public void ToggleAdditionalStatsHighlight()
+    {
+        if (string.IsNullOrWhiteSpace(_itemId))
+            return;
+
+        ItemTooltipHighlightState.Toggle(_itemId);
+        RefreshTooltipIfHovered();
+    }
+
+    public void RefreshTooltipIfHovered()
+    {
+        if (!_isPointerOver || _tooltip == null || _def == null)
+            return;
+
+        var flipper = _tooltip.GetComponent<FlipInsideBounds>();
+        if (flipper)
+        {
+            flipper.SetPreferredSide(_preferredSide);
+            if (_tooltipHeightRect)
+            {
+                flipper.SetMeasureRect(_tooltipHeightRect);
+                flipper.SetHeightRect(_tooltipHeightRect);
+            }
+        }
+
+        _tooltip.ShowAt(transform, _def, _amount, compact: false, itemId: _itemId);
+    }
+
+    private void OpenContextMenu()
+    {
+        if (!HasItemContext)
+            return;
+
+        _tooltip?.Hide();
+        InventoryItemContextMenuUI menu = InventoryItemContextMenuUI.Instance;
+        if (menu == null)
+        {
+            var host = new GameObject("InventoryItemContextMenuUI", typeof(InventoryItemContextMenuUI));
+            menu = host.GetComponent<InventoryItemContextMenuUI>();
+        }
+
+        menu.Show(transform as RectTransform, InventoryItemContextMenuBuilder.BuildForStorageSlot(this));
+    }
+
+    private bool TryWithdrawOneToInventory(out int inventorySlotUsed)
+    {
+        inventorySlotUsed = -1;
+        if (_storage == null || _inventory == null || string.IsNullOrWhiteSpace(_itemId))
+            return false;
+
+        int targetSlot = FindBestInventorySlotForSingleWithdraw();
+        if (targetSlot < 0)
+            return false;
+
+        int moved = _storage.TryMoveFromStorageToInventory(_inventory, _slotIndex, targetSlot, 1);
+        if (moved != 1)
+            return false;
+
+        inventorySlotUsed = targetSlot;
+        return true;
+    }
+
+    private int FindBestInventorySlotForSingleWithdraw()
+    {
+        if (_inventory == null || string.IsNullOrWhiteSpace(_itemId))
+            return -1;
+
+        int maxStack = _inventory.GetMaxStackForItem(_itemId);
+        for (int i = 0; i < _inventory.SlotCount; i++)
+        {
+            var slot = _inventory.GetSlot(i);
+            if (slot.IsEmpty)
+                return i;
+
+            if (slot.itemId == _itemId && slot.amount < maxStack)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static InventorySlotUI FindInventorySlotUi(int inventorySlotIndex)
+    {
+        InventorySlotUI[] slots = FindObjectsByType<InventorySlotUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < slots.Length; i++)
+        {
+            InventorySlotUI slotUi = slots[i];
+            if (slotUi && slotUi.SlotIndex == inventorySlotIndex)
+                return slotUi;
+        }
+
+        return null;
     }
 
     public void OnPointerExit(PointerEventData eventData)

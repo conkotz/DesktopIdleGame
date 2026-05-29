@@ -36,7 +36,7 @@ public class PlayerConsumableController : MonoBehaviour
         if (!def || !def.IsConsumable)
             return false;
 
-        int totalCount = CountItem(itemId);
+        int totalCount = CountItemIncludingInventory(itemId);
         if (totalCount <= 0)
         {
             player.ShowPopup("Item not available.");
@@ -77,6 +77,69 @@ public class PlayerConsumableController : MonoBehaviour
             Debug.Log($"[Consumable] Used {def.displayName} (Cooldown Group: {cooldownKey})");
 
         return true;
+    }
+
+    /// <summary>Uses a consumable directly from a specific inventory slot (right-click Eat).</summary>
+    public bool TryUseFromInventorySlot(int slotIndex)
+    {
+        if (inventory == null || player == null || slotIndex < 0 || slotIndex >= inventory.SlotCount)
+            return false;
+
+        var slot = inventory.GetSlot(slotIndex);
+        if (slot.IsEmpty || string.IsNullOrWhiteSpace(slot.itemId))
+            return false;
+
+        ItemDefinition def = inventory.GetItemDef(slot.itemId);
+        if (!def || !def.IsConsumable)
+            return false;
+
+        string cooldownKey = GetCooldownKey(def);
+
+        bool onCooldown = IsOnCooldown(slot.itemId, out float remaining);
+        if (!onCooldown)
+            player.ResetConsumableUnusableActivityLogLatchFor(def);
+
+        if (onCooldown)
+        {
+            player.ShowPopup($"{GetCooldownDisplayName(def)} on cooldown ({remaining:0.#}s)");
+            return false;
+        }
+
+        ApplyConsumable(def);
+
+        if (def.ConsumeOnUse && inventory.RemoveAmountAtSlot(slotIndex, 1) != 1)
+        {
+            player.ShowPopup("Could not consume item.");
+            return false;
+        }
+
+        if (def.UseCooldown > 0f && !string.IsNullOrWhiteSpace(cooldownKey))
+            cooldownEndTimes[cooldownKey] = Time.time + def.UseCooldown;
+
+        player.ResetConsumableUnusableActivityLogLatchFor(def);
+        return true;
+    }
+
+    private int CountItemIncludingInventory(string itemId)
+    {
+        int total = 0;
+
+        if (!actionBar)
+            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
+        if (actionBar != null)
+            total += actionBar.CountSlottedItem(itemId);
+
+        if (inventory == null)
+            return total;
+
+        for (int i = 0; i < inventory.SlotCount; i++)
+        {
+            var slot = inventory.GetSlot(i);
+            if (!slot.IsEmpty && slot.itemId == itemId)
+                total += slot.amount;
+        }
+
+        return total;
     }
 
     public bool IsOnCooldown(string itemId, out float remaining)
@@ -121,30 +184,7 @@ public class PlayerConsumableController : MonoBehaviour
         return remaining / def.UseCooldown;
     }
 
-    public int CountItem(string itemId)
-    {
-        if (string.IsNullOrWhiteSpace(itemId))
-            return 0;
-
-        if (!actionBar)
-            actionBar = FindFirstObjectByType<ActionBarUI>(FindObjectsInactive.Include);
-        if (actionBar != null)
-            return actionBar.CountSlottedItem(itemId);
-
-        if (inventory == null)
-            return 0;
-
-        int total = 0;
-
-        for (int i = 0; i < inventory.SlotCount; i++)
-        {
-            var slot = inventory.GetSlot(i);
-            if (!slot.IsEmpty && slot.itemId == itemId)
-                total += slot.amount;
-        }
-
-        return total;
-    }
+    public int CountItem(string itemId) => CountItemIncludingInventory(itemId);
 
     private void ApplyConsumable(ItemDefinition def)
     {

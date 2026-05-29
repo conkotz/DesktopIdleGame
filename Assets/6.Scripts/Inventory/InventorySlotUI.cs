@@ -85,6 +85,10 @@ public class InventorySlotUI : MonoBehaviour,
 
     public int SlotIndex => _slotIndex;
 
+    public bool HasItemContext => _def != null && _amount > 0 && !string.IsNullOrEmpty(_itemId);
+    public ItemDefinition ContextDefinition => _def;
+    public string ContextItemId => _itemId;
+
     private GameObject _dragIconGO;
     private RectTransform _dragIconRT;
     private Image _dragIconImage;
@@ -261,11 +265,17 @@ public class InventorySlotUI : MonoBehaviour,
         if (_slotIndex < 0)
             return;
 
-        if (eventData.button != PointerEventData.InputButton.Left)
+        if (InventoryDragState.HasDrag)
             return;
 
-        // don't do click actions while dragging something
-        if (InventoryDragState.HasDrag)
+        if (eventData.button == PointerEventData.InputButton.Right)
+        {
+            OpenContextMenu();
+            eventData.Use();
+            return;
+        }
+
+        if (eventData.button != PointerEventData.InputButton.Left)
             return;
 
         float t = Time.unscaledTime;
@@ -652,7 +662,91 @@ public class InventorySlotUI : MonoBehaviour,
         }
 
         // Use THIS slot as the anchor, so tooltip appears beside hovered slot
-        _tooltip.ShowAt(transform, _def, _amount, compact: false);
+        _tooltip.ShowAt(transform, _def, _amount, compact: false, itemId: _itemId);
+    }
+
+    public void PerformEquipAction() => TryDoubleClickEquipFromThisSlot();
+
+    public void PerformOpenAction()
+    {
+        if (_def == null || _inventory == null)
+            return;
+
+        TryOpenItemAtSlot(_def);
+    }
+
+    public void PerformEatAction()
+    {
+        if (_inventory == null || _slotIndex < 0)
+            return;
+
+        PlayerConsumableController consumables = FindFirstObjectByType<PlayerConsumableController>(FindObjectsInactive.Include);
+        if (consumables != null)
+            consumables.TryUseFromInventorySlot(_slotIndex);
+    }
+
+    public void PerformDropAction()
+    {
+        if (_inventory == null || _slotIndex < 0)
+            return;
+
+        var slot = _inventory.GetSlot(_slotIndex);
+        if (slot.IsEmpty || string.IsNullOrWhiteSpace(slot.itemId) || slot.amount <= 0)
+            return;
+
+        int removed = _inventory.RemoveAmountAtSlot(_slotIndex, slot.amount);
+        if (removed <= 0)
+            return;
+
+        Sprite iconSprite = _def ? _def.icon : null;
+        if (DropManager.Instance != null)
+            DropManager.Instance.Spawn(slot.itemId, removed, iconSprite);
+        ItemGainPopupNotifier.NotifyLost(slot.itemId, removed);
+        _tooltip?.Hide();
+    }
+
+    public void ToggleAdditionalStatsHighlight()
+    {
+        if (string.IsNullOrWhiteSpace(_itemId))
+            return;
+
+        ItemTooltipHighlightState.Toggle(_itemId);
+        RefreshTooltipIfHovered();
+    }
+
+    public void RefreshTooltipIfHovered()
+    {
+        if (!_isPointerOver || _tooltip == null || _def == null)
+            return;
+
+        var flipper = _tooltip.GetComponent<FlipInsideBounds>();
+        if (flipper)
+        {
+            flipper.SetPreferredSide(_preferredSide);
+            if (_tooltipHeightRect)
+            {
+                flipper.SetMeasureRect(_tooltipHeightRect);
+                flipper.SetHeightRect(_tooltipHeightRect);
+            }
+        }
+
+        _tooltip.ShowAt(transform, _def, _amount, compact: false, itemId: _itemId);
+    }
+
+    private void OpenContextMenu()
+    {
+        if (!HasItemContext)
+            return;
+
+        _tooltip?.Hide();
+        InventoryItemContextMenuUI menu = InventoryItemContextMenuUI.Instance;
+        if (menu == null)
+        {
+            var host = new GameObject("InventoryItemContextMenuUI", typeof(InventoryItemContextMenuUI));
+            menu = host.GetComponent<InventoryItemContextMenuUI>();
+        }
+
+        menu.Show(transform as RectTransform, InventoryItemContextMenuBuilder.BuildForInventorySlot(this));
     }
 
 
