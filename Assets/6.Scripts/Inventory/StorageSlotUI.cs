@@ -213,7 +213,7 @@ public class StorageSlotUI : MonoBehaviour,
 
         if (eventData.button == PointerEventData.InputButton.Right)
         {
-            OpenContextMenu();
+            OpenContextMenu(eventData);
             eventData.Use();
             return;
         }
@@ -260,6 +260,14 @@ public class StorageSlotUI : MonoBehaviour,
         if (background)
             background.color = hoverColor;
 
+        if (_tooltip == null || _def == null)
+            return;
+
+        ShowItemTooltip();
+    }
+
+    private void ShowItemTooltip()
+    {
         if (_tooltip == null || _def == null)
             return;
 
@@ -331,7 +339,20 @@ public class StorageSlotUI : MonoBehaviour,
             return;
 
         ItemTooltipHighlightState.Toggle(_itemId);
-        RefreshTooltipIfHovered();
+        RefreshAdvancedStatsTooltip();
+    }
+
+    private void RefreshAdvancedStatsTooltip()
+    {
+        if (_tooltip == null || _def == null)
+            return;
+
+        if (ItemTooltipHighlightState.IsEnabled(_itemId))
+            ShowItemTooltip();
+        else if (_isPointerOver)
+            ShowItemTooltip();
+        else
+            _tooltip.Hide();
     }
 
     public void RefreshTooltipIfHovered()
@@ -339,34 +360,22 @@ public class StorageSlotUI : MonoBehaviour,
         if (!_isPointerOver || _tooltip == null || _def == null)
             return;
 
-        var flipper = _tooltip.GetComponent<FlipInsideBounds>();
-        if (flipper)
-        {
-            flipper.SetPreferredSide(_preferredSide);
-            if (_tooltipHeightRect)
-            {
-                flipper.SetMeasureRect(_tooltipHeightRect);
-                flipper.SetHeightRect(_tooltipHeightRect);
-            }
-        }
-
-        _tooltip.ShowAt(transform, _def, _amount, compact: false, itemId: _itemId);
+        ShowItemTooltip();
     }
 
-    private void OpenContextMenu()
+    private void OpenContextMenu(PointerEventData eventData)
     {
         if (!HasItemContext)
             return;
 
         _tooltip?.Hide();
-        InventoryItemContextMenuUI menu = InventoryItemContextMenuUI.Instance;
-        if (menu == null)
-        {
-            var host = new GameObject("InventoryItemContextMenuUI", typeof(InventoryItemContextMenuUI));
-            menu = host.GetComponent<InventoryItemContextMenuUI>();
-        }
-
-        menu.Show(transform as RectTransform, InventoryItemContextMenuBuilder.BuildForStorageSlot(this));
+        ContextMenuUI.EnsureInstance().Show(
+            transform as RectTransform,
+            InventoryContextMenuBuilder.BuildForStorageSlot(this),
+            _rootCanvas,
+            _storagePanelRect,
+            eventData != null ? eventData.position : (Vector2?)null,
+            ItemGainPopupNotifier.ResolveDisplayLabel(_itemId, 1));
     }
 
     private bool TryWithdrawOneToInventory(out int inventorySlotUsed)
@@ -424,7 +433,6 @@ public class StorageSlotUI : MonoBehaviour,
         _isPointerOver = false;
 
         ApplySlotBackground();
-
         _tooltip?.Hide();
     }
 

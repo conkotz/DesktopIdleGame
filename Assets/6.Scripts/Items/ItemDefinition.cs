@@ -2013,7 +2013,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (sb.Length > 0)
                 sb.Append('\n');
 
-            sb.Append(baselineLines.Contains(line) ? line : $"<b>{line}</b>");
+            sb.Append(baselineLines.Contains(line) ? line : ItemTooltipStatHighlight.WrapHighlighted(line));
         }
 
         return sb.ToString();

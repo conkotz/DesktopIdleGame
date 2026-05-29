@@ -337,14 +337,7 @@ public class Merchant : MonoBehaviour, ISaveable
         if (string.IsNullOrWhiteSpace(itemId))
             return "";
 
-        if (inventory != null)
-        {
-            ItemDefinition def = inventory.GetItemDef(itemId);
-            if (def != null && !string.IsNullOrWhiteSpace(def.displayName))
-                return def.displayName;
-        }
-
-        return itemId;
+        return ItemGainPopupNotifier.ResolveDisplayLabel(itemId, 1);
     }
 
     private string ResolveStockItemId(string itemId)

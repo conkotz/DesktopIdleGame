@@ -1622,8 +1622,41 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        InterruptWorkIfNeeded();
+        RequestWalkToScreenPosition(Input.mousePosition);
+    }
 
+    /// <summary>Walk-to-point from a screen position (context menu Walk here on empty ground).</summary>
+    public void RequestWalkToScreenPosition(Vector3 screenPosition)
+    {
+        if (movementLocked || _isDead)
+            return;
+
+        if (restrictClicksToStrip && !IsGameplayClickAllowedAtScreen(screenPosition))
+            return;
+
+        MerchantClick.ForceCloseMerchantMode();
+        MerchantClick.CancelPendingOpen();
+
+        if (IsExpandBackgroundOutsideStripClick(screenPosition))
+        {
+            if (!_stripCam)
+                RebindCameras();
+            if (!_stripCam)
+                return;
+
+            Vector3 stripWorld = _stripCam.ScreenToWorldPoint(screenPosition);
+            InterruptWorkIfNeeded();
+            MoveToPointX(stripWorld.x, fromPlayerInput: true);
+            return;
+        }
+
+        Camera clickCamera = ResolveWorldClickCamera();
+        if (!clickCamera)
+            return;
+
+        Vector3 world = clickCamera.ScreenToWorldPoint(screenPosition);
+        world.z = 0f;
+        InterruptWorkIfNeeded();
         MoveToPointX(world.x, fromPlayerInput: true);
     }
 

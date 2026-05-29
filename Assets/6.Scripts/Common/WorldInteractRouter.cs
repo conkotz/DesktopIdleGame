@@ -242,11 +242,175 @@ public static class WorldInteractRouter
         return false;
     }
 
-    private static bool IsNoticeBoardCollider(Collider2D col) =>
+    public static bool IsNoticeBoardCollider(Collider2D col) =>
         col != null &&
         col.CompareTag("NoticeBoard") &&
         (col.GetComponentInParent<NPCInteractionSettings>() != null ||
          col.GetComponentInParent<QuestGiver>() != null);
+
+    /// <summary>Prepares focus + dismisses prior interact UI before a context-menu action.</summary>
+    public static void PrepareForContextAction(Collider2D col, PlayerController player)
+    {
+        if (!col || !player)
+            return;
+
+        StorageClick targetStorage = col.GetComponentInParent<StorageClick>();
+        DismissPreviousInteractUiForNewTarget(col, targetStorage);
+        PlayerWorldInteractFocus.TrySetFocusFromCollider(player, col);
+    }
+
+    public static void RouteContextShop(Collider2D col, PlayerController player)
+    {
+        if (!col || !player)
+            return;
+
+        MerchantClick merchant = col.GetComponentInParent<MerchantClick>();
+        if (!merchant)
+            return;
+
+        PrepareForContextAction(col, player);
+        ApplyCombatTargetWhenInteractingNonEnemy(player);
+        merchant.Open();
+    }
+
+    public static void RouteContextTalk(Collider2D col, PlayerController player)
+    {
+        if (!col || !player)
+            return;
+
+        PrepareForContextAction(col, player);
+        ApplyCombatTargetWhenInteractingNonEnemy(player);
+
+        NPCInteractionSettings npc = col.GetComponentInParent<NPCInteractionSettings>();
+        if (npc != null)
+        {
+            npc.Interact();
+            return;
+        }
+
+        QuestGiver questGiver = col.GetComponentInParent<QuestGiver>();
+        if (questGiver != null && questGiver.TryClaimFirstReadyQuestReward())
+            return;
+    }
+
+    public static void RouteContextRead(Collider2D col, PlayerController player) =>
+        RouteContextTalk(col, player);
+
+    public static void RouteContextStorageOpen(Collider2D col, PlayerController player)
+    {
+        if (!col || !player)
+            return;
+
+        StorageClick storage = col.GetComponentInParent<StorageClick>();
+        if (!storage)
+            return;
+
+        PrepareForContextAction(col, player);
+        ApplyCombatTargetWhenInteractingNonEnemy(player);
+        storage.Open();
+    }
+
+    public static void RouteContextPortalEnter(Collider2D col, PlayerController player)
+    {
+        if (!col || !player)
+            return;
+
+        MapNodePortalTeleporter portal = col.GetComponentInParent<MapNodePortalTeleporter>();
+        if (!portal)
+            return;
+
+        PrepareForContextAction(col, player);
+        portal.OnClickedByPlayer(player);
+    }
+
+    public static void RouteContextAttack(Collider2D col, PlayerController player)
+    {
+        if (!col || !player)
+            return;
+
+        EnemyClick enemyClick = col.GetComponentInParent<EnemyClick>();
+        if (!enemyClick)
+            return;
+
+        EnemyBaseController enemy = enemyClick.GetEnemy();
+        if (!enemy)
+            return;
+
+        PrepareForContextAction(col, player);
+        PlayerCombatController combat = player.GetComponent<PlayerCombatController>();
+        combat?.EngageTargetFromPlayerInput(enemy);
+    }
+
+    public static void RouteContextGather(Collider2D col, PlayerController player)
+    {
+        if (!col || !player)
+            return;
+
+        ResourceNode node = col.GetComponentInParent<ResourceNode>();
+        if (!node)
+            return;
+
+        PrepareForContextAction(col, player);
+        player.SelectNode(node);
+    }
+
+    /// <summary>Moves the player toward an interactable without triggering its primary action.</summary>
+    public static void WalkPlayerToCollider(PlayerController player, Collider2D col)
+    {
+        if (!player || !col)
+            return;
+
+        MerchantClick.CancelPendingOpen();
+        NPCInteractionSettings.CancelPendingInteract();
+        MapNodePortalTeleporter.CancelPendingApproachForPlayer(player);
+
+        ResourceNode node = col.GetComponentInParent<ResourceNode>();
+        if (node)
+        {
+            node.ChooseClosestWorkSpot(player.transform.position);
+            float targetX = node.workSpot ? node.workSpot.position.x : node.transform.position.x;
+            player.MoveToPointX(targetX, fromPlayerInput: true);
+            return;
+        }
+
+        MapNodePortalTeleporter portal = col.GetComponentInParent<MapNodePortalTeleporter>();
+        if (portal)
+        {
+            Collider2D portalCol = col.GetComponent<Collider2D>() ?? col;
+            Bounds b = portalCol.bounds;
+            float arrivalX = Mathf.Clamp(player.transform.position.x, b.min.x, b.max.x);
+            player.MoveToPointX(arrivalX, fromPlayerInput: true);
+            return;
+        }
+
+        EnemyClick enemyClick = col.GetComponentInParent<EnemyClick>();
+        if (enemyClick != null)
+        {
+            EnemyBaseController enemy = enemyClick.GetEnemy();
+            float targetX = enemy ? enemy.transform.position.x : col.bounds.center.x;
+            player.MoveToPointX(targetX, fromPlayerInput: true);
+            return;
+        }
+
+        player.MoveToPointX(ComputeWalkApproachTargetX(player, col), fromPlayerInput: true);
+    }
+
+    private static float ComputeWalkApproachTargetX(PlayerController player, Collider2D col)
+    {
+        if (!player || !col)
+            return 0f;
+
+        Bounds b = col.bounds;
+        float playerX = player.transform.position.x;
+        bool approachFromLeft = playerX <= b.center.x;
+        float edgeX = approachFromLeft ? b.min.x : b.max.x;
+        float sign = approachFromLeft ? -1f : 1f;
+
+        Collider2D playerCol = player.GetComponent<Collider2D>() ??
+                               player.GetComponentInChildren<Collider2D>(true);
+        float playerHalfWidth = playerCol ? playerCol.bounds.extents.x : 0f;
+        return edgeX + sign * playerHalfWidth;
+    }
 
     /// <summary>
     /// Interact hotkey with nothing routable in range: engage closest enemy within ±<see cref="InteractHotkeyHalfRangeX"/>,

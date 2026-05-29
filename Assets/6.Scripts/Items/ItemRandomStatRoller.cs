@@ -70,7 +70,14 @@ public enum RandomItemStatType
     ArmorBonusEnergy,
     ArmorEnergyEfficiency,
     ArmorFlatGuard,
-    ArmorMaxGuardPercent
+    ArmorMaxGuardPercent,
+
+    WeaponMinFireDamage,
+    WeaponMaxFireDamage,
+    WeaponMinIceDamage,
+    WeaponMaxIceDamage,
+    WeaponMinLightningDamage,
+    WeaponMaxLightningDamage
 }
 
 public enum RandomStatValueKind
@@ -214,6 +221,12 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.ArmorBonusHealth:
             case RandomItemStatType.ArmorBonusEnergy:
             case RandomItemStatType.ArmorFlatGuard:
+            case RandomItemStatType.WeaponMinFireDamage:
+            case RandomItemStatType.WeaponMaxFireDamage:
+            case RandomItemStatType.WeaponMinIceDamage:
+            case RandomItemStatType.WeaponMaxIceDamage:
+            case RandomItemStatType.WeaponMinLightningDamage:
+            case RandomItemStatType.WeaponMaxLightningDamage:
                 return RandomStatValueKind.FlatInteger;
 
             case RandomItemStatType.AbilityPowerPercent:
@@ -470,6 +483,25 @@ public static class ItemRandomStatRoller
                 break;
             case RandomItemStatType.ArmorMaxGuardPercent:
                 item.armorStats.maxGuardPercent += primary;
+                break;
+
+            case RandomItemStatType.WeaponMinFireDamage:
+                AddWeaponInt(ref item.weaponStats.minFireDamage, primary, kind);
+                break;
+            case RandomItemStatType.WeaponMaxFireDamage:
+                AddWeaponInt(ref item.weaponStats.maxFireDamage, primary, kind);
+                break;
+            case RandomItemStatType.WeaponMinIceDamage:
+                AddWeaponInt(ref item.weaponStats.minIceDamage, primary, kind);
+                break;
+            case RandomItemStatType.WeaponMaxIceDamage:
+                AddWeaponInt(ref item.weaponStats.maxIceDamage, primary, kind);
+                break;
+            case RandomItemStatType.WeaponMinLightningDamage:
+                AddWeaponInt(ref item.weaponStats.minLightningDamage, primary, kind);
+                break;
+            case RandomItemStatType.WeaponMaxLightningDamage:
+                AddWeaponInt(ref item.weaponStats.maxLightningDamage, primary, kind);
                 break;
         }
     }

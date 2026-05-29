@@ -493,10 +493,17 @@ public class EquipmentSlotUI : MonoBehaviour,
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (eventData.button != PointerEventData.InputButton.Left)
+        if (InventoryDragState.HasDrag || EquipDragState.HasDrag)
             return;
 
-        if (InventoryDragState.HasDrag || EquipDragState.HasDrag)
+        if (eventData.button == PointerEventData.InputButton.Right)
+        {
+            OpenContextMenu(eventData);
+            eventData.Use();
+            return;
+        }
+
+        if (eventData.button != PointerEventData.InputButton.Left)
             return;
 
         float t = Time.unscaledTime;
@@ -507,6 +514,66 @@ public class EquipmentSlotUI : MonoBehaviour,
 
         DoubleClickReturnToInventory();
         eventData.Use();
+    }
+
+    public bool HasItemContext => _bound && _def != null && !string.IsNullOrWhiteSpace(_itemId);
+    public ItemDefinition ContextDefinition => _def;
+    public string ContextItemId => _itemId;
+
+    public void PerformUnequipAction() => DoubleClickReturnToInventory();
+
+    public void PerformDropAction()
+    {
+        if (!_bound || string.IsNullOrWhiteSpace(_itemId))
+            return;
+
+        string itemId = _itemId;
+        int amount = GetEquippedAmountForThisSlot();
+        if (amount <= 0)
+            return;
+
+        Sprite iconSprite = _def != null ? _def.icon : null;
+        if (iconSprite == null && inventory != null)
+        {
+            ItemDefinition def = inventory.GetItemDef(itemId);
+            if (def != null)
+                iconSprite = def.icon;
+        }
+
+        ClearThisSlot();
+        RefreshFromState();
+
+        if (DropManager.Instance != null)
+            DropManager.Instance.Spawn(itemId, amount, iconSprite);
+        ItemGainPopupNotifier.NotifyLost(itemId, amount);
+        tooltip?.Hide();
+    }
+
+    public void ToggleAdditionalStatsHighlight()
+    {
+        if (string.IsNullOrWhiteSpace(_itemId))
+            return;
+
+        ItemTooltipHighlightState.Toggle(_itemId);
+        if (_isPointerOver)
+            ShowTooltip();
+        else
+            tooltip?.Hide();
+    }
+
+    private void OpenContextMenu(PointerEventData eventData)
+    {
+        if (!HasItemContext)
+            return;
+
+        tooltip?.Hide();
+        ContextMenuUI.EnsureInstance().Show(
+            transform as RectTransform,
+            InventoryContextMenuBuilder.BuildForEquipmentSlot(this),
+            _rootCanvas,
+            equipmentWindowRect,
+            eventData != null ? eventData.position : (Vector2?)null,
+            ItemGainPopupNotifier.ResolveDisplayLabel(_itemId, 1));
     }
 
     private void DoubleClickReturnToInventory()

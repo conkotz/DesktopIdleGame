@@ -270,7 +270,7 @@ public class InventorySlotUI : MonoBehaviour,
 
         if (eventData.button == PointerEventData.InputButton.Right)
         {
-            OpenContextMenu();
+            OpenContextMenu(eventData);
             eventData.Use();
             return;
         }
@@ -303,47 +303,8 @@ public class InventorySlotUI : MonoBehaviour,
         if (!InputUtil.CtrlHeld())
             return;
 
-        if (_inventory == null || wallet == null)
-            return;
-
-        var slot = _inventory.GetSlot(_slotIndex);
-        if (slot.IsEmpty) return;
-        string soldItemName = ResolveItemDisplayName(slot.itemId);
-
-        if (MerchantClick.TryGetActiveMerchant(out var activeMerchantRef) &&
-            activeMerchantRef != null &&
-            activeMerchantRef.TryRejectUnsellableItemWithPopup(slot.itemId))
-        {
-            eventData.Use();
-            _tooltip?.Hide();
-            return;
-        }
-
-        int valuePerItem = _inventory.GetItemValue(slot.itemId);
-        if (valuePerItem <= 0) return;
-
-        int removed = _inventory.RemoveAmountAtSlot(_slotIndex, slot.amount);
-        if (removed <= 0) return;
-
-        int goldGained = valuePerItem * removed;
-        wallet.AddGold(goldGained);
-
-        Merchant saleMerchant = null;
-        int stockAdded = 0;
-        if (MerchantClick.TryGetActiveMerchant(out var activeMerchant))
-        {
-            saleMerchant = activeMerchant;
-            activeMerchant.TryReplenishStockFromPlayerSale(slot.itemId, removed, out stockAdded);
-        }
-
-        var spawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
-        if (spawner) spawner.ShowGoldGained(goldGained);
-
-        SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, saleMerchant, stockAdded);
-        GameLog.SoldItem(soldItemName, removed, goldGained);
-
+        PerformSellAction();
         eventData.Use();
-        _tooltip?.Hide();
     }
 
     private bool TryDoubleClickDepositToStorage()
@@ -648,6 +609,14 @@ public class InventorySlotUI : MonoBehaviour,
         if (_tooltip == null || _def == null)
             return;
 
+        ShowItemTooltip();
+    }
+
+    private void ShowItemTooltip()
+    {
+        if (_tooltip == null || _def == null)
+            return;
+
         var flipper = _tooltip.GetComponent<FlipInsideBounds>();
         if (flipper)
         {
@@ -666,6 +635,55 @@ public class InventorySlotUI : MonoBehaviour,
     }
 
     public void PerformEquipAction() => TryDoubleClickEquipFromThisSlot();
+
+    public void PerformStoreAction() => TryDoubleClickDepositToStorage();
+
+    public void PerformSellAction()
+    {
+        if (_inventory == null || wallet == null || _slotIndex < 0)
+            return;
+
+        var slot = _inventory.GetSlot(_slotIndex);
+        if (slot.IsEmpty)
+            return;
+
+        string soldItemName = ResolveItemDisplayName(slot.itemId);
+
+        if (MerchantClick.TryGetActiveMerchant(out var activeMerchantRef) &&
+            activeMerchantRef != null &&
+            activeMerchantRef.TryRejectUnsellableItemWithPopup(slot.itemId))
+        {
+            _tooltip?.Hide();
+            return;
+        }
+
+        int valuePerItem = _inventory.GetItemValue(slot.itemId);
+        if (valuePerItem <= 0)
+            return;
+
+        int removed = _inventory.RemoveAmountAtSlot(_slotIndex, slot.amount);
+        if (removed <= 0)
+            return;
+
+        int goldGained = valuePerItem * removed;
+        wallet.AddGold(goldGained);
+
+        Merchant saleMerchant = null;
+        int stockAdded = 0;
+        if (MerchantClick.TryGetActiveMerchant(out var activeMerchant))
+        {
+            saleMerchant = activeMerchant;
+            activeMerchant.TryReplenishStockFromPlayerSale(slot.itemId, removed, out stockAdded);
+        }
+
+        var spawner = FindFirstObjectByType<GoldPopupSpawner>(FindObjectsInactive.Include);
+        if (spawner)
+            spawner.ShowGoldGained(goldGained);
+
+        SaleUndoManager.Instance?.RecordSale(slot.itemId, removed, goldGained, saleMerchant, stockAdded);
+        GameLog.SoldItem(soldItemName, removed, goldGained);
+        _tooltip?.Hide();
+    }
 
     public void PerformOpenAction()
     {
@@ -711,7 +729,20 @@ public class InventorySlotUI : MonoBehaviour,
             return;
 
         ItemTooltipHighlightState.Toggle(_itemId);
-        RefreshTooltipIfHovered();
+        RefreshAdvancedStatsTooltip();
+    }
+
+    private void RefreshAdvancedStatsTooltip()
+    {
+        if (_tooltip == null || _def == null)
+            return;
+
+        if (ItemTooltipHighlightState.IsEnabled(_itemId))
+            ShowItemTooltip();
+        else if (_isPointerOver)
+            ShowItemTooltip();
+        else
+            _tooltip.Hide();
     }
 
     public void RefreshTooltipIfHovered()
@@ -719,34 +750,22 @@ public class InventorySlotUI : MonoBehaviour,
         if (!_isPointerOver || _tooltip == null || _def == null)
             return;
 
-        var flipper = _tooltip.GetComponent<FlipInsideBounds>();
-        if (flipper)
-        {
-            flipper.SetPreferredSide(_preferredSide);
-            if (_tooltipHeightRect)
-            {
-                flipper.SetMeasureRect(_tooltipHeightRect);
-                flipper.SetHeightRect(_tooltipHeightRect);
-            }
-        }
-
-        _tooltip.ShowAt(transform, _def, _amount, compact: false, itemId: _itemId);
+        ShowItemTooltip();
     }
 
-    private void OpenContextMenu()
+    private void OpenContextMenu(PointerEventData eventData)
     {
         if (!HasItemContext)
             return;
 
         _tooltip?.Hide();
-        InventoryItemContextMenuUI menu = InventoryItemContextMenuUI.Instance;
-        if (menu == null)
-        {
-            var host = new GameObject("InventoryItemContextMenuUI", typeof(InventoryItemContextMenuUI));
-            menu = host.GetComponent<InventoryItemContextMenuUI>();
-        }
-
-        menu.Show(transform as RectTransform, InventoryItemContextMenuBuilder.BuildForInventorySlot(this));
+        ContextMenuUI.EnsureInstance().Show(
+            transform as RectTransform,
+            InventoryContextMenuBuilder.BuildForInventorySlot(this),
+            _rootCanvas,
+            _inventoryPanelRect,
+            eventData != null ? eventData.position : (Vector2?)null,
+            ResolveItemDisplayName(_itemId));
     }
 
 
@@ -756,7 +775,6 @@ public class InventorySlotUI : MonoBehaviour,
         _isPointerOver = false;
 
         ApplySlotBackground();
-
         _tooltip?.Hide();
     }
 
@@ -1072,8 +1090,7 @@ public class InventorySlotUI : MonoBehaviour,
         if (string.IsNullOrWhiteSpace(itemId))
             return "";
 
-        ItemDefinition def = _inventory ? _inventory.GetItemDef(itemId) : null;
-        return def && !string.IsNullOrWhiteSpace(def.displayName) ? def.displayName : itemId;
+        return ItemGainPopupNotifier.ResolveDisplayLabel(itemId, 1);
     }
 
     private void ReturnOrDrop(string itemId, int amount = 1)

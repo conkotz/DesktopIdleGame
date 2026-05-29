@@ -5,6 +5,16 @@ using UnityEngine;
 /// <summary>Builds tooltip stat lines with bold markers for rolled / enhancement bonuses vs a base item.</summary>
 public static class ItemTooltipStatHighlight
 {
+    /// <summary>Bright accent for rolled / bonus stats when Show Additional Stats is active.</summary>
+    public const string HighlightColorHex = "#7AE582";
+
+    public static string WrapHighlighted(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return text;
+
+        return $"<color={HighlightColorHex}><b>{text}</b></color>";
+    }
     public static ItemDefinition ResolveBaseline(ItemDatabase db, string itemId)
     {
         if (!db || string.IsNullOrWhiteSpace(itemId))
@@ -61,7 +71,8 @@ public static class ItemTooltipStatHighlight
 
         if (current.HasPhysicalWeaponDamage)
         {
-            s.Append(FormatWeaponPhysicalDamageLine(current, baseline));
+            s.Append(FormatIntRangeLine("Damage", current.weaponStats.minPhysicalDamage, current.weaponStats.maxPhysicalDamage,
+                baseline.weaponStats.minPhysicalDamage, baseline.weaponStats.maxPhysicalDamage));
             s.Append('\n');
         }
 
@@ -181,26 +192,6 @@ public static class ItemTooltipStatHighlight
         return s.ToString().TrimEnd('\n');
     }
 
-    private static string FormatWeaponPhysicalDamageLine(ItemDefinition current, ItemDefinition baseline)
-    {
-        int minCur = current.weaponStats.minPhysicalDamage;
-        int maxCur = current.weaponStats.maxPhysicalDamage;
-        int minBase = baseline.weaponStats.minPhysicalDamage;
-        int maxBase = baseline.weaponStats.maxPhysicalDamage;
-
-        string line = $"Physical Damage: {minCur}-{maxCur}";
-        if (minCur == minBase && maxCur == maxBase)
-            return line;
-
-        var notes = new List<string>(2);
-        if (minCur != minBase)
-            notes.Add($"+{minCur - minBase} min physical");
-        if (maxCur != maxBase)
-            notes.Add($"+{maxCur - maxBase} max physical");
-
-        return BoldWithNote(line, notes);
-    }
-
     private static string FormatIntRangeLine(string label, int minCur, int maxCur, int minBase, int maxBase)
     {
         string line = $"{label}: {minCur}-{maxCur}";
@@ -314,7 +305,7 @@ public static class ItemTooltipStatHighlight
     private static string BoldWithNote(string line, IReadOnlyList<string> notes)
     {
         if (notes == null || notes.Count == 0)
-            return $"<b>{line}</b>";
+            return WrapHighlighted(line);
 
         var noteText = new StringBuilder();
         for (int i = 0; i < notes.Count; i++)
@@ -324,7 +315,7 @@ public static class ItemTooltipStatHighlight
             noteText.Append(notes[i]);
         }
 
-        return $"<b>{line} ({noteText})</b>";
+        return WrapHighlighted($"{line} ({noteText})");
     }
 
     private static bool HasSignificantPercentPoints(float percentPoints) =>

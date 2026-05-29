@@ -62,39 +62,20 @@ public class WorldInputRouter2D : MonoBehaviour
             UpdateHoverHighlight(allowHoverWinner ? winnerCol : null);
         }
 
-        if (!Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0))
+            TryHandleWorldLeftClick(gameplayLockedByHelperModal, whitelistTutorialRoutesWorld, overUI);
+
+        if (Input.GetMouseButtonDown(1))
+            TryHandleWorldRightClick(gameplayLockedByHelperModal, whitelistTutorialRoutesWorld, overUI);
+    }
+
+    private void TryHandleWorldLeftClick(
+        bool gameplayLockedByHelperModal,
+        bool whitelistTutorialRoutesWorld,
+        bool overUI)
+    {
+        if (!TryPrepareWorldClick(whitelistTutorialRoutesWorld, overUI, out Collider2D winnerCol))
             return;
-
-        bool preferWorldOverUi =
-            HelperGameplayController.UsesWorldWhitelistRouting && EventSystem.current != null;
-
-        if (!preferWorldOverUi && overUI)
-            return;
-
-        // If a fullscreen UI canvas is under the pointer but this helper needs map clicks, probe world first.
-        Collider2D worldUnderPointer = null;
-        if (preferWorldOverUi && overUI)
-            worldUnderPointer = PickWinnerUnderMouse();
-
-        // True click on real UI (menus) still blocks; whitelist only bypasses when there's a whitelisted collider.
-        if (overUI && !(worldUnderPointer != null && HelperGameplayController.IsWhitelistedWorldPick(worldUnderPointer)))
-            return;
-
-        if (!player)
-            return;
-
-        bool skipStripForWhitelist = HelperGameplayController.UsesWorldWhitelistRouting;
-
-        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground) &&
-            stripCamera &&
-            !stripCamera.pixelRect.Contains(Input.mousePosition))
-            return;
-
-        if (restrictClicksToStrip && stripCamera && !skipStripForWhitelist &&
-            !stripCamera.pixelRect.Contains(Input.mousePosition))
-            return;
-
-        winnerCol = PickWinnerUnderMouse();
 
         if (whitelistTutorialRoutesWorld && gameplayLockedByHelperModal)
         {
@@ -120,6 +101,87 @@ public class WorldInputRouter2D : MonoBehaviour
         }
 
         RouteWorldClick(winnerCol);
+    }
+
+    private void TryHandleWorldRightClick(
+        bool gameplayLockedByHelperModal,
+        bool whitelistTutorialRoutesWorld,
+        bool overUI)
+    {
+        if (!TryPrepareWorldClick(whitelistTutorialRoutesWorld, overUI, out Collider2D winnerCol))
+            return;
+
+        if (whitelistTutorialRoutesWorld && gameplayLockedByHelperModal)
+        {
+            if (!winnerCol || !HelperGameplayController.IsWhitelistedWorldPick(winnerCol))
+                return;
+        }
+
+        if (winnerCol != null &&
+            WorldInteractRouter.IsRoutableCollider(winnerCol) &&
+            (!whitelistTutorialRoutesWorld || HelperGameplayController.IsWhitelistedWorldPick(winnerCol)))
+        {
+            var entries = WorldContextMenuBuilder.Build(winnerCol, player);
+            if (entries.Count > 0)
+            {
+                string header = WorldContextMenuLabelResolver.Resolve(winnerCol);
+                ContextMenuUI.EnsureInstance().ShowAtScreen(entries, Input.mousePosition, header);
+                return;
+            }
+        }
+
+        ShowEmptyGroundWalkMenu();
+    }
+
+    private void ShowEmptyGroundWalkMenu()
+    {
+        if (!player)
+            return;
+
+        var entries = new System.Collections.Generic.List<ContextMenuEntry>(1)
+        {
+            new ContextMenuEntry("Walk here", () => player.RequestWalkToScreenPosition(Input.mousePosition))
+        };
+
+        ContextMenuUI.EnsureInstance().ShowAtScreen(entries, Input.mousePosition);
+    }
+
+    private bool TryPrepareWorldClick(
+        bool whitelistTutorialRoutesWorld,
+        bool overUI,
+        out Collider2D winnerCol)
+    {
+        winnerCol = null;
+
+        bool preferWorldOverUi =
+            HelperGameplayController.UsesWorldWhitelistRouting && EventSystem.current != null;
+
+        if (!preferWorldOverUi && overUI)
+            return false;
+
+        Collider2D worldUnderPointer = null;
+        if (preferWorldOverUi && overUI)
+            worldUnderPointer = PickWinnerUnderMouse();
+
+        if (overUI && !(worldUnderPointer != null && HelperGameplayController.IsWhitelistedWorldPick(worldUnderPointer)))
+            return false;
+
+        if (!player)
+            return false;
+
+        bool skipStripForWhitelist = HelperGameplayController.UsesWorldWhitelistRouting;
+
+        if (ToggleSettingsStore.Get(ToggleSettingId.ExpandStripBackground) &&
+            stripCamera &&
+            !stripCamera.pixelRect.Contains(Input.mousePosition))
+            return false;
+
+        if (restrictClicksToStrip && stripCamera && !skipStripForWhitelist &&
+            !stripCamera.pixelRect.Contains(Input.mousePosition))
+            return false;
+
+        winnerCol = PickWinnerUnderMouse();
+        return true;
     }
 
     private void RouteWorldClick(Collider2D winnerCol)
