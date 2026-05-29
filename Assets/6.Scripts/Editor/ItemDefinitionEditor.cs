@@ -1116,9 +1116,9 @@ public class ItemDefinitionEditor : Editor
         else if (kind == ItemKind.Tool)
             msg = "Tools should use Equip Slot: MainHand. (Toolbelt is UI-managed, not an EquipSlot.)";
         else if (kind == ItemKind.Armor)
-            msg = "Armour should use Equip Slot: Helmet / Body / Boots.";
+            msg = "Armour should use Equip Slot: Head / Body / Feet.";
         else if (kind == ItemKind.Jewelry)
-            msg = "Jewelry should use Equip Slot: Ring / Pendant / Trinket.\nRings can be equipped into Ring1 or Ring2 in UI.";
+            msg = "Jewelry should use Equip Slot: Ring / Neck / Trinket.\nRings can be equipped into Ring1 or Ring2 in UI.";
         else if (kind == ItemKind.Consumable)
             msg = "Consumables should use Equip Slot: None. They are used from inventory/action bar, not equipped.";
         else

@@ -121,7 +121,7 @@ public static class ItemTooltipStatHighlight
         if (!string.IsNullOrWhiteSpace(extras))
             s.Append('\n').Append(extras);
 
-        string misc = current.BuildMiscTooltipLinesForTooltip();
+        string misc = current.BuildMiscLinesForHighlight(baseline);
         if (!string.IsNullOrWhiteSpace(misc))
             s.Append('\n').Append(misc);
 
@@ -159,7 +159,7 @@ public static class ItemTooltipStatHighlight
             s.Append(extras);
         }
 
-        string misc = current.BuildMiscTooltipLinesForTooltip();
+        string misc = current.BuildMiscLinesForHighlight(baseline);
         if (!string.IsNullOrWhiteSpace(misc))
         {
             if (s.Length > 0)
@@ -185,7 +185,7 @@ public static class ItemTooltipStatHighlight
         if (!string.IsNullOrWhiteSpace(extras))
             s.Append('\n').Append(extras);
 
-        string misc = current.BuildMiscTooltipLinesForTooltip();
+        string misc = current.BuildMiscLinesForHighlight(baseline);
         if (!string.IsNullOrWhiteSpace(misc))
             s.Append('\n').Append(misc);
 
@@ -300,6 +300,14 @@ public static class ItemTooltipStatHighlight
         float delta = current - baseline;
         string sign = delta >= 0f ? "+" : "";
         s.Append(BoldWithNote($"{label}: {display}", new[] { $"{sign}{delta:0.#}{suffix}" }));
+    }
+
+    public static string HighlightWithAddedNote(string line, string addedNote)
+    {
+        if (string.IsNullOrWhiteSpace(addedNote))
+            return line;
+
+        return BoldWithNote(line, new[] { addedNote });
     }
 
     private static string BoldWithNote(string line, IReadOnlyList<string> notes)

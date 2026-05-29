@@ -18,7 +18,9 @@ MonoBehaviour:
   tooltipBuffMinionDurationSeconds: 0
   presentation: {fileID: 11400000, guid: daf5f69af91a4a6993cd2695b039930c, type: 2}
   cooldown: 20
-  energyCost: 45
+  energyCost: 15
+  manaCost: 0
+  healthCost: 0
   weaponDamageMultiplier: 0
   allDamageMultiplier: 0
   fireDamageMultiplier: 0
@@ -30,3 +32,5 @@ MonoBehaviour:
   sourceSkill: 3
   unlockLevel: 15
   requireRangeCheckToActivate: 0
+  setsTargetOnHit: 1
+  minionSpawnDefinition: {fileID: 0}

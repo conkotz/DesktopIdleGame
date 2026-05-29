@@ -20,12 +20,15 @@ public enum EquipSlot
     OffHand,
 
     // Armor
+    [InspectorName("Head")]
     Helmet,
     Body,
+    [InspectorName("Feet")]
     Boots,
 
     // Accessories
     Trinket,
+    [InspectorName("Neck")]
     Pendant,
     Ring,
 }
@@ -1944,7 +1947,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     /// <summary>Same style as ability tooltips: <c>coefficient * 100</c>% label (0 = omit line elsewhere).</summary>
     private static string FormatScalingCoefficientPercentLine(float fraction, string label)
     {
-        return $"{fraction * 100f:0.#}% {label}";
+        return $"{fraction * 100f:+0.#;-0.#;0}% {label}";
     }
 
     private static string FormatSignedPercent100WithPlus(float value)
@@ -1985,35 +1988,442 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (baseline == null)
             return string.Empty;
 
-        string current = BuildBonusLines(
+        return BuildBonusCompareLines(
+            baseline.bonusStats,
             includeDefense: false,
             omitBurnBonuses: true,
             omitAilmentChanceBonuses: true,
             omitAilmentMultiplierBonuses: true);
-        if (string.IsNullOrWhiteSpace(current))
+    }
+
+    internal string BuildMiscLinesForHighlight(ItemDefinition baseline)
+    {
+        if (baseline == null)
+            return BuildMiscTooltipLines();
+
+        float current = EnemyRespawnTimeReductionSeconds;
+        float baseValue = baseline.EnemyRespawnTimeReductionSeconds;
+        if (current <= 0f)
             return string.Empty;
 
-        string baselineText = baseline.BuildBonusLines(
-            includeDefense: false,
-            omitBurnBonuses: true,
-            omitAilmentChanceBonuses: true,
-            omitAilmentMultiplierBonuses: true);
-        if (string.Equals(current, baselineText, System.StringComparison.Ordinal))
-            return current;
+        string total = $"Enemy respawn: -{current:0.#}s";
+        if (Mathf.Approximately(current, baseValue))
+            return total;
 
-        string[] lines = current.Split('\n');
-        var sb = new System.Text.StringBuilder(current.Length + 16);
-        var baselineLines = new HashSet<string>(baselineText.Split('\n'));
-        for (int i = 0; i < lines.Length; i++)
+        float delta = current - baseValue;
+        return ItemTooltipStatHighlight.HighlightWithAddedNote(total, $"-{delta:0.#}s");
+    }
+
+    private string BuildBonusCompareLines(
+        BonusStats baselineStats,
+        bool includeDefense,
+        bool omitBurnBonuses,
+        bool omitAilmentChanceBonuses,
+        bool omitAilmentMultiplierBonuses)
+    {
+        var sb = new System.Text.StringBuilder();
+        BonusStats cur = bonusStats;
+
+        void AppendCompared(string totalLine, bool hasDelta, string deltaNote)
         {
-            string line = lines[i];
-            if (string.IsNullOrWhiteSpace(line))
-                continue;
+            if (string.IsNullOrWhiteSpace(totalLine))
+                return;
 
             if (sb.Length > 0)
                 sb.Append('\n');
 
-            sb.Append(baselineLines.Contains(line) ? line : ItemTooltipStatHighlight.WrapHighlighted(line));
+            sb.Append(hasDelta
+                ? ItemTooltipStatHighlight.HighlightWithAddedNote(totalLine, deltaNote)
+                : totalLine);
+        }
+
+        static bool HasFloatDelta(float current, float baseline) =>
+            !Mathf.Approximately(current, baseline);
+
+        static bool HasIntDelta(int current, int baseline) => current != baseline;
+
+        static float FloatDelta(float current, float baseline) => current - baseline;
+
+        static int IntDelta(int current, int baseline) => current - baseline;
+
+        static string DeltaPercentFractionNote(float deltaFraction) =>
+            $"{deltaFraction * 100f:+0.#;-0.#;0}%";
+
+        if (includeDefense)
+        {
+            if (cur.armor != 0)
+            {
+                int delta = IntDelta(cur.armor, baselineStats.armor);
+                AppendCompared(
+                    $"Armour: {FormatSignedInt(cur.armor)}",
+                    HasIntDelta(cur.armor, baselineStats.armor),
+                    FormatSignedInt(delta));
+            }
+
+            if (cur.magicResist != 0)
+            {
+                int delta = IntDelta(cur.magicResist, baselineStats.magicResist);
+                AppendCompared(
+                    $"Magic Res: {FormatSignedInt(cur.magicResist)}",
+                    HasIntDelta(cur.magicResist, baselineStats.magicResist),
+                    FormatSignedInt(delta));
+            }
+
+            if (cur.corruptionResist != 0)
+            {
+                int delta = IntDelta(cur.corruptionResist, baselineStats.corruptionResist);
+                AppendCompared(
+                    $"Corruption Res: {FormatSignedInt(cur.corruptionResist)}",
+                    HasIntDelta(cur.corruptionResist, baselineStats.corruptionResist),
+                    FormatSignedInt(delta));
+            }
+
+            if (cur.physBlockChance != 0f)
+            {
+                float delta = FloatDelta(cur.physBlockChance, baselineStats.physBlockChance);
+                AppendCompared(
+                    $"Phys Block: {FormatSignedPercent01(cur.physBlockChance)}",
+                    HasFloatDelta(cur.physBlockChance, baselineStats.physBlockChance),
+                    FormatSignedPercent01(delta));
+            }
+        }
+
+        if (cur.lifeRegen != 0f)
+        {
+            float delta = FloatDelta(cur.lifeRegen, baselineStats.lifeRegen);
+            AppendCompared(
+                $"Life Regen: {FormatSignedNumber(cur.lifeRegen)}/s",
+                HasFloatDelta(cur.lifeRegen, baselineStats.lifeRegen),
+                $"{FormatSignedNumber(delta)}/s");
+        }
+
+        if (cur.energyRegen != 0f)
+        {
+            float delta = FloatDelta(cur.energyRegen, baselineStats.energyRegen);
+            AppendCompared(
+                $"Energy Regen: {FormatSignedNumber(cur.energyRegen)}/s",
+                HasFloatDelta(cur.energyRegen, baselineStats.energyRegen),
+                $"{FormatSignedNumber(delta)}/s");
+        }
+
+        if (cur.manaRegen != 0f)
+        {
+            float delta = FloatDelta(cur.manaRegen, baselineStats.manaRegen);
+            AppendCompared(
+                $"Mana Regen: {FormatSignedNumber(cur.manaRegen)}/s",
+                HasFloatDelta(cur.manaRegen, baselineStats.manaRegen),
+                $"{FormatSignedNumber(delta)}/s");
+        }
+
+        if (cur.moveSpeedPercent != 0f)
+        {
+            float delta = FloatDelta(cur.moveSpeedPercent, baselineStats.moveSpeedPercent);
+            AppendCompared(
+                $"Move Speed: {FormatSignedPercent01(cur.moveSpeedPercent)}",
+                HasFloatDelta(cur.moveSpeedPercent, baselineStats.moveSpeedPercent),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.physicalDamage != 0f)
+        {
+            float delta = FloatDelta(cur.physicalDamage, baselineStats.physicalDamage);
+            AppendCompared(
+                $"Physical Damage: {FormatSignedNumber(cur.physicalDamage)}",
+                HasFloatDelta(cur.physicalDamage, baselineStats.physicalDamage),
+                FormatSignedNumber(delta));
+        }
+
+        float allPhysPct = cur.physicalDamagePercent + cur.globalPhysicalDamagePercent;
+        if (allPhysPct != 0f)
+        {
+            float baseAllPhysPct = baselineStats.physicalDamagePercent + baselineStats.globalPhysicalDamagePercent;
+            float delta = FloatDelta(allPhysPct, baseAllPhysPct);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(allPhysPct, "All physical"),
+                HasFloatDelta(allPhysPct, baseAllPhysPct),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.rangedPhysicalDamagePercent != 0f)
+        {
+            float delta = FloatDelta(cur.rangedPhysicalDamagePercent, baselineStats.rangedPhysicalDamagePercent);
+            AppendCompared(
+                $"Ranged Dmg: {FormatSignedPercent01(cur.rangedPhysicalDamagePercent)}",
+                HasFloatDelta(cur.rangedPhysicalDamagePercent, baselineStats.rangedPhysicalDamagePercent),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.magicDamage != 0f)
+        {
+            float delta = FloatDelta(cur.magicDamage, baselineStats.magicDamage);
+            AppendCompared(
+                $"Magic Damage: {FormatSignedNumber(cur.magicDamage)}",
+                HasFloatDelta(cur.magicDamage, baselineStats.magicDamage),
+                FormatSignedNumber(delta));
+        }
+
+        if (cur.magicDamagePercent != 0f)
+        {
+            float delta = FloatDelta(cur.magicDamagePercent, baselineStats.magicDamagePercent);
+            AppendCompared(
+                $"Magic Dmg: {FormatSignedPercent01(cur.magicDamagePercent)}",
+                HasFloatDelta(cur.magicDamagePercent, baselineStats.magicDamagePercent),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.fireSkillDamagePercent != 0f)
+        {
+            float delta = FloatDelta(cur.fireSkillDamagePercent, baselineStats.fireSkillDamagePercent);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.fireSkillDamagePercent, "Fire skills"),
+                HasFloatDelta(cur.fireSkillDamagePercent, baselineStats.fireSkillDamagePercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.iceSkillDamagePercent != 0f)
+        {
+            float delta = FloatDelta(cur.iceSkillDamagePercent, baselineStats.iceSkillDamagePercent);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.iceSkillDamagePercent, "Ice skills"),
+                HasFloatDelta(cur.iceSkillDamagePercent, baselineStats.iceSkillDamagePercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.lightningSkillDamagePercent != 0f)
+        {
+            float delta = FloatDelta(cur.lightningSkillDamagePercent, baselineStats.lightningSkillDamagePercent);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.lightningSkillDamagePercent, "Lightning skills"),
+                HasFloatDelta(cur.lightningSkillDamagePercent, baselineStats.lightningSkillDamagePercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.corruptionDamagePercent != 0f)
+        {
+            float delta = FloatDelta(cur.corruptionDamagePercent, baselineStats.corruptionDamagePercent);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.corruptionDamagePercent, "Corruption"),
+                HasFloatDelta(cur.corruptionDamagePercent, baselineStats.corruptionDamagePercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.corruptionDamage != 0f)
+        {
+            float delta = FloatDelta(cur.corruptionDamage, baselineStats.corruptionDamage);
+            AppendCompared(
+                $"Corruption Damage: {FormatSignedNumber(cur.corruptionDamage)}",
+                HasFloatDelta(cur.corruptionDamage, baselineStats.corruptionDamage),
+                FormatSignedNumber(delta));
+        }
+
+        if (cur.abilityPower != 0f)
+        {
+            float delta = FloatDelta(cur.abilityPower, baselineStats.abilityPower);
+            AppendCompared(
+                $"Ability Power: {FormatSignedPercent100(cur.abilityPower)}",
+                HasFloatDelta(cur.abilityPower, baselineStats.abilityPower),
+                FormatSignedPercent100(delta));
+        }
+
+        if (cur.lifeSteal != 0f)
+        {
+            float delta = FloatDelta(cur.lifeSteal, baselineStats.lifeSteal);
+            AppendCompared(
+                $"Life Steal: {FormatSignedPercent01(cur.lifeSteal)}",
+                HasFloatDelta(cur.lifeSteal, baselineStats.lifeSteal),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.attackSpeedPercent != 0f)
+        {
+            float delta = FloatDelta(cur.attackSpeedPercent, baselineStats.attackSpeedPercent);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.attackSpeedPercent, "Attack Speed"),
+                HasFloatDelta(cur.attackSpeedPercent, baselineStats.attackSpeedPercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.abilityCooldownReductionFraction != 0f)
+        {
+            float delta = FloatDelta(cur.abilityCooldownReductionFraction, baselineStats.abilityCooldownReductionFraction);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.abilityCooldownReductionFraction, "Ability Cooldown Reduction"),
+                HasFloatDelta(cur.abilityCooldownReductionFraction, baselineStats.abilityCooldownReductionFraction),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.minionDamagePercent != 0f)
+        {
+            float delta = FloatDelta(cur.minionDamagePercent, baselineStats.minionDamagePercent);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.minionDamagePercent, "Minion Damage"),
+                HasFloatDelta(cur.minionDamagePercent, baselineStats.minionDamagePercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.minionAttackSpeedPercent != 0f)
+        {
+            float delta = FloatDelta(cur.minionAttackSpeedPercent, baselineStats.minionAttackSpeedPercent);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.minionAttackSpeedPercent, "Minion Attack Speed"),
+                HasFloatDelta(cur.minionAttackSpeedPercent, baselineStats.minionAttackSpeedPercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.minionCritChance != 0f)
+        {
+            float delta = FloatDelta(cur.minionCritChance, baselineStats.minionCritChance);
+            AppendCompared(
+                $"Minion Crit Chance: {FormatSignedPercent01(cur.minionCritChance)}",
+                HasFloatDelta(cur.minionCritChance, baselineStats.minionCritChance),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.minionMaxLifePercent != 0f)
+        {
+            float delta = FloatDelta(cur.minionMaxLifePercent, baselineStats.minionMaxLifePercent);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.minionMaxLifePercent, "Minion Health"),
+                HasFloatDelta(cur.minionMaxLifePercent, baselineStats.minionMaxLifePercent),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (cur.critChanceBonus != 0f)
+        {
+            float delta = FloatDelta(cur.critChanceBonus, baselineStats.critChanceBonus);
+            AppendCompared(
+                $"Crit Chance: {FormatSignedPercent01(cur.critChanceBonus)}",
+                HasFloatDelta(cur.critChanceBonus, baselineStats.critChanceBonus),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.critMultiplierBonus != 0f)
+        {
+            float delta = FloatDelta(cur.critMultiplierBonus, baselineStats.critMultiplierBonus);
+            AppendCompared(
+                $"Crit Multi: {FormatSignedPercent01(cur.critMultiplierBonus)}",
+                HasFloatDelta(cur.critMultiplierBonus, baselineStats.critMultiplierBonus),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.attackRangeBonus != 0f)
+        {
+            float delta = FloatDelta(cur.attackRangeBonus, baselineStats.attackRangeBonus);
+            AppendCompared(
+                $"Range: {FormatSignedNumber(cur.attackRangeBonus)}",
+                HasFloatDelta(cur.attackRangeBonus, baselineStats.attackRangeBonus),
+                FormatSignedNumber(delta));
+        }
+
+        if (!omitAilmentChanceBonuses && cur.bleedChance != 0f)
+        {
+            float delta = FloatDelta(cur.bleedChance, baselineStats.bleedChance);
+            AppendCompared(
+                $"Bleed Chance: {FormatSignedPercent01(cur.bleedChance)}",
+                HasFloatDelta(cur.bleedChance, baselineStats.bleedChance),
+                FormatSignedPercent01(delta));
+        }
+
+        if (!omitAilmentMultiplierBonuses && cur.bleedMultiplier != 0f)
+        {
+            float delta = FloatDelta(cur.bleedMultiplier, baselineStats.bleedMultiplier);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.bleedMultiplier, "Bleed Damage"),
+                HasFloatDelta(cur.bleedMultiplier, baselineStats.bleedMultiplier),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (!omitAilmentChanceBonuses && cur.poisonChance != 0f)
+        {
+            float delta = FloatDelta(cur.poisonChance, baselineStats.poisonChance);
+            AppendCompared(
+                $"Poison Chance: {FormatSignedPercent01(cur.poisonChance)}",
+                HasFloatDelta(cur.poisonChance, baselineStats.poisonChance),
+                FormatSignedPercent01(delta));
+        }
+
+        if (!omitAilmentMultiplierBonuses && cur.poisonMultiplier != 0f)
+        {
+            float delta = FloatDelta(cur.poisonMultiplier, baselineStats.poisonMultiplier);
+            AppendCompared(
+                FormatScalingCoefficientPercentLine(cur.poisonMultiplier, "Poison Damage"),
+                HasFloatDelta(cur.poisonMultiplier, baselineStats.poisonMultiplier),
+                DeltaPercentFractionNote(delta));
+        }
+
+        if (!omitAilmentMultiplierBonuses && cur.poisonDurationBonus != 0f)
+        {
+            float delta = FloatDelta(cur.poisonDurationBonus, baselineStats.poisonDurationBonus);
+            AppendCompared(
+                $"Poison Duration: {FormatSignedNumber(cur.poisonDurationBonus)}s",
+                HasFloatDelta(cur.poisonDurationBonus, baselineStats.poisonDurationBonus),
+                $"{FormatSignedNumber(delta)}s");
+        }
+
+        if (!omitAilmentMultiplierBonuses && cur.poisonMaxStacksBonus != 0)
+        {
+            int delta = IntDelta(cur.poisonMaxStacksBonus, baselineStats.poisonMaxStacksBonus);
+            AppendCompared(
+                $"Poison Max Stacks: {FormatSignedInt(cur.poisonMaxStacksBonus)}",
+                HasIntDelta(cur.poisonMaxStacksBonus, baselineStats.poisonMaxStacksBonus),
+                FormatSignedInt(delta));
+        }
+
+        if (!omitBurnBonuses)
+        {
+            if (!omitAilmentChanceBonuses && cur.burnChance != 0f)
+            {
+                float delta = FloatDelta(cur.burnChance, baselineStats.burnChance);
+                AppendCompared(
+                    $"Burn Chance: {FormatSignedPercent01(cur.burnChance)}",
+                    HasFloatDelta(cur.burnChance, baselineStats.burnChance),
+                    FormatSignedPercent01(delta));
+            }
+
+            if (cur.burnExplosionMultiplierBonus != 0f)
+            {
+                float delta = FloatDelta(cur.burnExplosionMultiplierBonus, baselineStats.burnExplosionMultiplierBonus);
+                AppendCompared(
+                    FormatScalingCoefficientPercentLine(cur.burnExplosionMultiplierBonus, "Burn tick mult (added to character base)"),
+                    HasFloatDelta(cur.burnExplosionMultiplierBonus, baselineStats.burnExplosionMultiplierBonus),
+                    DeltaPercentFractionNote(delta));
+            }
+        }
+
+        if (cur.chillSlowPerStackBonus != 0f)
+        {
+            float delta = FloatDelta(cur.chillSlowPerStackBonus, baselineStats.chillSlowPerStackBonus);
+            AppendCompared(
+                $"Chill Slow/Stack Bonus: {FormatSignedPercent01(cur.chillSlowPerStackBonus)}",
+                HasFloatDelta(cur.chillSlowPerStackBonus, baselineStats.chillSlowPerStackBonus),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.shockDamageTakenMultiplierBonus != 0f)
+        {
+            float delta = FloatDelta(cur.shockDamageTakenMultiplierBonus, baselineStats.shockDamageTakenMultiplierBonus);
+            AppendCompared(
+                $"Shock Amp Bonus: {FormatSignedPercent01(cur.shockDamageTakenMultiplierBonus)}",
+                HasFloatDelta(cur.shockDamageTakenMultiplierBonus, baselineStats.shockDamageTakenMultiplierBonus),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.parryChance != 0f)
+        {
+            float delta = FloatDelta(cur.parryChance, baselineStats.parryChance);
+            AppendCompared(
+                $"Parry Chance: {FormatSignedPercent01(cur.parryChance)}",
+                HasFloatDelta(cur.parryChance, baselineStats.parryChance),
+                FormatSignedPercent01(delta));
+        }
+
+        if (cur.stunChance != 0f)
+        {
+            float delta = FloatDelta(cur.stunChance, baselineStats.stunChance);
+            AppendCompared(
+                $"Stun Chance: {FormatSignedPercent01(cur.stunChance)}",
+                HasFloatDelta(cur.stunChance, baselineStats.stunChance),
+                FormatSignedPercent01(delta));
         }
 
         return sb.ToString();
@@ -2062,7 +2472,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (bonusStats.corruptionDamagePercent != 0f)
             s += $"{FormatScalingCoefficientPercentLine(bonusStats.corruptionDamagePercent, "Corruption")}\n";
         if (bonusStats.corruptionDamage != 0f) s += $"Corruption Damage: {FormatSignedNumber(bonusStats.corruptionDamage)}\n";
-        if (bonusStats.abilityPower != 0f) s += $"Ability Power %: {FormatSignedPercent100(bonusStats.abilityPower)}\n";
+        if (bonusStats.abilityPower != 0f) s += $"Ability Power: {FormatSignedPercent100(bonusStats.abilityPower)}\n";
         if (bonusStats.lifeSteal != 0f) s += $"Life Steal: {FormatSignedPercent01(bonusStats.lifeSteal)}\n";
 
         if (bonusStats.attackSpeedPercent != 0f)

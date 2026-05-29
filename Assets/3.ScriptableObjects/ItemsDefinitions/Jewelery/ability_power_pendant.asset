@@ -15,7 +15,7 @@ MonoBehaviour:
   itemKind: 4
   maxStack: 1
   itemId: ability_power_pendant
-  displayName: Pendant of Enhanced Ability
+  displayName: Pendant of Ability Power
   displayNameSingular: 
   icon: {fileID: -7650717663049643274, guid: 81a21ba160b98c74c9b3f31ebc80a22f, type: 3}
   heldSprite: {fileID: 0}
@@ -99,7 +99,7 @@ MonoBehaviour:
     flatGuard: 0
     maxGuardPercent: 0
   bonusStats:
-    bonusHealth: 0
+    bonusHealth: 5
     bonusEnergy: 0
     bonusMana: 0
     armor: 0
@@ -123,7 +123,7 @@ MonoBehaviour:
     lightningSkillDamagePercent: 0
     corruptionDamagePercent: 0
     corruptionDamage: 0
-    abilityPower: 10
+    abilityPower: 5
     attackSpeedPercent: 0
     abilityCooldownReductionFraction: 0
     minionDamagePercent: 0
@@ -143,6 +143,25 @@ MonoBehaviour:
     burnChance: 0
     chillSlowPerStackBonus: 0
     shockDamageTakenMultiplierBonus: 0
+    parryChance: 0
+    stunChance: 0
+  randomStatPool:
+  - stat: 24
+    weight: 1
+    minValue: 3
+    maxValue: 7
+    valueKind: 3
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
+  - stat: 0
+    weight: 1
+    minValue: 5
+    maxValue: 15
+    valueKind: 0
+    rollSecondaryValue: 0
+    secondaryMinValue: 0
+    secondaryMaxValue: 0
   miscEffects:
     enemyRespawnTimeReductionSeconds: 0
   consumableStats:

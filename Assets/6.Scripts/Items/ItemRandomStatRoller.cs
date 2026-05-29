@@ -77,7 +77,10 @@ public enum RandomItemStatType
     WeaponMinIceDamage,
     WeaponMaxIceDamage,
     WeaponMinLightningDamage,
-    WeaponMaxLightningDamage
+    WeaponMaxLightningDamage,
+
+    /// <summary>Seconds subtracted from map enemy respawn delay while equipped (misc effect).</summary>
+    EnemyRespawnTimeReductionSeconds,
 }
 
 public enum RandomStatValueKind
@@ -239,6 +242,7 @@ public static class ItemRandomStatRoller
             case RandomItemStatType.WeaponAttacksPerSecond:
             case RandomItemStatType.WeaponAttackRange:
             case RandomItemStatType.WeaponCritMultiplier:
+            case RandomItemStatType.EnemyRespawnTimeReductionSeconds:
                 return RandomStatValueKind.FlatFloat;
 
             default:
@@ -502,6 +506,11 @@ public static class ItemRandomStatRoller
                 break;
             case RandomItemStatType.WeaponMaxLightningDamage:
                 AddWeaponInt(ref item.weaponStats.maxLightningDamage, primary, kind);
+                break;
+            case RandomItemStatType.EnemyRespawnTimeReductionSeconds:
+                item.miscEffects.enemyRespawnTimeReductionSeconds = Mathf.Max(
+                    0f,
+                    item.miscEffects.enemyRespawnTimeReductionSeconds + primary);
                 break;
         }
     }

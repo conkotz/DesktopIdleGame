@@ -400,26 +400,7 @@ public class EquipmentSlotUI : MonoBehaviour,
         };
     }
 
-    private string GetTitle()
-    {
-        return slotType switch
-        {
-            EquipmentUISlotType.MainHand => "Main Hand",
-            EquipmentUISlotType.OffHand => "Off Hand",
-            EquipmentUISlotType.Helmet => "Helm",
-            EquipmentUISlotType.Body => "Body",
-            EquipmentUISlotType.Boots => "Boots",
-            EquipmentUISlotType.Trinket => "Trinket",
-            EquipmentUISlotType.Pendant => "Pendant",
-            EquipmentUISlotType.Ring1 => "Ring 1",
-            EquipmentUISlotType.Ring2 => "Ring 2",
-            EquipmentUISlotType.Toolbelt0 => "Tool 1",
-            EquipmentUISlotType.Toolbelt1 => "Tool 2",
-            EquipmentUISlotType.Toolbelt2 => "Tool 3",
-            EquipmentUISlotType.Toolbelt3 => "Tool 4",
-            _ => "Slot"
-        };
-    }
+    private string GetTitle() => EquipSlotDisplayNames.GetDisplayName(slotType);
 
     private string GetDisplayLabel()
     {
