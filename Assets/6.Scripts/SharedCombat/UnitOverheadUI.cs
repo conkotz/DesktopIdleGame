@@ -1941,7 +1941,7 @@ public class UnitOverheadUI : MonoBehaviour
                 return DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerWorld);
         }
 
-        return anchorPos + Vector3.up * 0.85f;
+        return anchorPos + Vector3.up * 0.12f;
     }
 
     private void TryPlayPlayerAilmentStatusAcquisition(

@@ -1252,6 +1252,35 @@ MonoBehaviour:
       ability: {fileID: 0}
       presentation: {fileID: 0}
   - requiredLevel: 40
+    title: Bloodbath
+    description: The scent of blood drives you into a relentless frenzy. Each wound inflicted
+      fuels your thirst for battle, empowering your attacks as your enemies bleed.
+    icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+    unlockType: 3
+    meleeMinorStatOption: 0
+    rangedMinorStatOption: 0
+    woodcuttingMinorStatOption: 0
+    miningMinorStatOption: 0
+    fishingMinorStatOption: 0
+    enduranceMinorStatOption: 0
+    magicMinorStatOption: 0
+    legacySkillMinorStatOption: 0
+    ability: {fileID: 0}
+    presentation: {fileID: 0}
+    choices:
+    - requiredLevel: 43
+      title: Carnage
+      description: Bloodbath also grants 2% bleed multiplier per stack.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+    - requiredLevel: 43
+      title: Butchery
+      description: Bloodbath also grants 3% bleed chance per stack.
+      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      ability: {fileID: 0}
+      presentation: {fileID: 0}
+  - requiredLevel: 40
     title: Master Melee Combat
     description: Can use tier 5 melee weapons
     icon: {fileID: 47734959, guid: e2fcfaa90bcc47f4ca87fa460995f03d, type: 3}
@@ -1566,14 +1595,25 @@ MonoBehaviour:
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 50
-      title: Pure Form V
-      description: Placeholder capstone enhancement.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      title: Way of the Slayer
+      description: 'Convert all bleed chance into bonus physical damage. You cannot
+        apply ailments on hit.
+
+        Execute enemies below 10% health.
+
+        Cannot be stunned or frozen.'
+      icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 50
-      title: Pure Form VI
-      description: Placeholder capstone enhancement.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      title: Way of the Blade Dancer
+      description: 'While dual wielding two of the same one-handed weapons:
+
+        Every third melee auto attack hits twice.
+
+        When fighting, dash to your nearest enemy.
+
+        After killing an enemy, gain 20% critical strike chance for 5 seconds.'
+      icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}

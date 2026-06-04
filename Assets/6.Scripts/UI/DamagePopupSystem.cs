@@ -28,7 +28,10 @@ public class DamagePopupSystem : MonoBehaviour
 
     public const float LingeringStatusLifetimeSeconds = 1.5f;
     [SerializeField] private float statusPopupSideOffset = 0.35f;
-    [SerializeField] private float statusPopupYOffset = 0.55f;
+    [Tooltip("World-space Y added at the victim anchor before projecting to screen.")]
+    [SerializeField] private float statusPopupYOffset = 0.12f;
+    [Tooltip("Extra screen-space Y (pixels) for status labels (Poisoned, Stunned, Blocked, etc.). Negative moves down, below overhead debuff icons.")]
+    [SerializeField] private float statusPopupScreenYOffset = -36f;
     [SerializeField] private float statusPopupXJitter = 3f;
     [Tooltip("Vertical screen offset between simultaneous status labels on the same unit (Burnt / Shocked, etc.).")]
     [SerializeField] private float statusPopupStackYOffsetStep = 18f;
@@ -170,7 +173,7 @@ public class DamagePopupSystem : MonoBehaviour
         if (float.IsNaN(sideOffset))
             sideOffset = sys != null ? sys.statusPopupSideOffset : 0.35f;
         if (float.IsNaN(yOffset))
-            yOffset = sys != null ? sys.statusPopupYOffset : 0.55f;
+            yOffset = sys != null ? sys.statusPopupYOffset : 0.12f;
 
         float awayFromDealerX = Mathf.Sign(victimAnchor.x - dealerWorld.x);
         if (Mathf.Approximately(awayFromDealerX, 0f))
@@ -216,7 +219,7 @@ public class DamagePopupSystem : MonoBehaviour
             ? Random.Range(-statusPopupXJitter, statusPopupXJitter)
             : Random.Range(-popupXJitter, popupXJitter);
         float yOffset = isLingeringStatus
-            ? 0f
+            ? statusPopupScreenYOffset
             : (_popupSpawnIndex % Mathf.Max(1, popupYOffsetCycle)) * popupYOffsetStep;
         if (!isLingeringStatus)
             _popupSpawnIndex++;
@@ -263,7 +266,7 @@ public class DamagePopupSystem : MonoBehaviour
             return;
 
         float xJitter = Random.Range(-statusPopupXJitter, statusPopupXJitter);
-        float yStackOffset = ResolveStatusPopupStackYOffset(stackAnchor);
+        float yStackOffset = GetStatusLabelScreenYOffset(stackAnchor);
 
         var go = Instantiate(popupPrefab, rectForMath);
         var floater = go.GetComponent<FloatingDamageTextUI>();
@@ -276,6 +279,9 @@ public class DamagePopupSystem : MonoBehaviour
         floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, yStackOffset), _worldProjectionCamera, rectForMath, eventCam);
         floater.InitLingeringStatus(message, color);
     }
+
+    private float GetStatusLabelScreenYOffset(Transform stackAnchor = null) =>
+        statusPopupScreenYOffset + ResolveStatusPopupStackYOffset(stackAnchor);
 
     private float ResolveStatusPopupStackYOffset(Transform stackAnchor)
     {
@@ -381,7 +387,12 @@ public class DamagePopupSystem : MonoBehaviour
             return;
         }
 
-        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, 0f), _worldProjectionCamera, rectForMath, eventCam);
+        floater.BeginWorldAnchorFollow(
+            worldPos,
+            new Vector2(xJitter, statusPopupScreenYOffset),
+            _worldProjectionCamera,
+            rectForMath,
+            eventCam);
         floater.InitParry(direction, riposteLabel ? "Riposte" : "Parry");
     }
 

@@ -79,6 +79,9 @@ public class FloatingDamageTextUI : MonoBehaviour
     [SerializeField] private Color stunPresentationColor = new Color32(38, 22, 12, 255);
     [SerializeField] private Color stunPresentationOutlineColor = new Color32(255, 232, 200, 255);
     [SerializeField, Range(0f, 0.5f)] private float stunPresentationOutlineWidth = 0.28f;
+    [SerializeField] private Color executePresentationColor = new Color32(140, 18, 28, 255);
+    [SerializeField] private Color executePresentationOutlineColor = new Color32(255, 220, 200, 255);
+    [SerializeField, Range(0f, 0.5f)] private float executePresentationOutlineWidth = 0.28f;
 
     private float _baseFontSize;
     private Coroutine _run;
@@ -98,6 +101,7 @@ public class FloatingDamageTextUI : MonoBehaviour
     public Color ShockPresentationColor => shockPresentationColor;
     public Color ChillPresentationColor => chillPresentationColor;
     public Color StunPresentationColor => stunPresentationColor;
+    public Color ExecutePresentationColor => executePresentationColor;
 
     private void Awake()
     {
@@ -207,6 +211,17 @@ public class FloatingDamageTextUI : MonoBehaviour
         {
             text.outlineWidth = stunPresentationOutlineWidth;
             text.outlineColor = stunPresentationOutlineColor;
+            return;
+        }
+
+        bool isExecute = string.Equals(
+            message,
+            AbilityCombatPower.WayOfTheSlayerExecuteStatusPopupLabel,
+            System.StringComparison.OrdinalIgnoreCase);
+        if (isExecute)
+        {
+            text.outlineWidth = executePresentationOutlineWidth;
+            text.outlineColor = executePresentationOutlineColor;
             return;
         }
 

@@ -435,7 +435,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private float GetShadowHunterAttackSpeedBonusFraction()
     {
-        if (_shadowHunterAttackSpeedEndsAt <= 0f || Time.time >= _shadowHunterAttackSpeedEndsAt)
+        if (!AreMeleeMajorPassiveEffectsEnabled()
+            || _shadowHunterAttackSpeedEndsAt <= 0f
+            || Time.time >= _shadowHunterAttackSpeedEndsAt)
             return 0f;
 
         return ShadowHunterAttackSpeedBonus;
@@ -829,11 +831,13 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     // Ailments
     public float BleedChance => Mathf.Clamp01(
-        baseBleedChance + GetEquippedBleedChance() + GetActiveMeleeMinorBonuses().meleeBleedChance);
+        baseBleedChance + GetEquippedBleedChance() + GetActiveMeleeMinorBonuses().meleeBleedChance +
+        GetBloodbathBleedChanceBonus());
     public float BleedMultiplier => Mathf.Max(
         0f,
         baseBleedMultiplier + GetEquippedBleedMultiplier() + GetActiveMeleeMinorBonuses().meleeBleedDamage +
-        GetActiveMeleeMinorBonuses().meleeAilmentDamage + GetTacticianBleedMultiplierBonus());
+        GetActiveMeleeMinorBonuses().meleeAilmentDamage + GetTacticianBleedMultiplierBonus() +
+        GetBloodbathBleedMultiplierBonus());
 
     public float BleedBaseDuration => Mathf.Max(1f, baseBleedDuration);
     public float BleedDuration => Mathf.Max(1f, baseBleedDuration + GetEquippedBleedDurationBonus() + GetActiveMeleeMinorBonuses().meleeBleedDuration);
@@ -852,6 +856,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         + GetWayOfTheAssassinPoisonMaxStacksBonus());
 
     public float BleedChancePercent => BleedChance * 100f;
+
+    /// <summary>Bleed proc chance shown on the equipment stats panel (0 while Way of the Slayer converts bleed to damage).</summary>
+    public float BleedChancePercentForStatsPanel => GetEffectiveBleedChanceForProcs() * 100f;
     public float PoisonChancePercent => PoisonChance * 100f;
 
     /// <summary>Fraction of corruption dealt on a hit stored in one poison stack's pool (before <see cref="PoisonMultiplier"/>).</summary>
@@ -1429,11 +1436,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
     {
         get
         {
-            if (BleedChance <= 0f || AttacksPerSecond <= 0f || BleedDuration <= 0f)
+            float bleedProcChance = GetEffectiveBleedChanceForProcs();
+            if (bleedProcChance <= 0f || AttacksPerSecond <= 0f || BleedDuration <= 0f)
                 return 0f;
 
             float attemptsInWindow = AttacksPerSecond * BleedDuration;
-            float uptime = 1f - Mathf.Pow(1f - BleedChance, attemptsInWindow);
+            float uptime = 1f - Mathf.Pow(1f - bleedProcChance, attemptsInWindow);
             return Mathf.Clamp01(uptime);
         }
     }
@@ -2295,6 +2303,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
                 magicPct += wotb;
                 corrPct += wotb;
             }
+
         }
 
         float physicalGearPctMult = 1f + physPct;
@@ -2779,6 +2788,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return Mathf.Clamp01(
             baseCrit + gearBonus + meleeBonuses.meleeCritChance + GetTacticianCritChanceBonus() +
             GetWayOfTheBerserkerCritChanceBonusFraction() +
+            GetWayOfTheBladeDancerKillCritBonusFraction() +
             rangedBonuses.rangedCritChance + skillBonuses.magicCritChance);
     }
 
@@ -2998,10 +3008,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     public bool IsAilmentAttunementMajorPassiveActive() =>
-        GetMeleeLevel10MajorPassiveRowPick() == 0;
+        GetMeleeLevel10MajorPassiveRowPick() == 0 && AreMeleeMajorPassiveEffectsEnabled();
 
     public bool IsParryMajorPassiveActive() =>
-        GetMeleeLevel10MajorPassiveRowPick() == 1;
+        GetMeleeLevel10MajorPassiveRowPick() == 1 && AreMeleeMajorPassiveEffectsEnabled();
 
     public int GetParryEnhancementPick()
     {
@@ -3072,7 +3082,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private void ApplyLevel40PhoenixSoulBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
     {
-        if (meleeLevel < PhoenixSoulMajorPassiveLevel || !IsPhoenixSoulUnlocked())
+        if (meleeLevel < PhoenixSoulMajorPassiveLevel || !IsPhoenixSoulUnlocked() || !AreMeleeMajorPassiveEffectsEnabled())
             return;
 
         total.meleeBurnChance += AbilityCombatPower.PhoenixSoulBurnChanceBonus;
@@ -3080,7 +3090,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private void ApplyLevel40MasterOfVenomsBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
     {
-        if (meleeLevel < MasterOfVenomsMajorPassiveLevel || !IsMasterOfVenomsUnlocked())
+        if (meleeLevel < MasterOfVenomsMajorPassiveLevel || !IsMasterOfVenomsUnlocked() || !AreMeleeMajorPassiveEffectsEnabled())
             return;
 
         total.meleePoisonChance += AbilityCombatPower.MasterOfVenomsPoisonChanceBonus;
@@ -3091,7 +3101,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private void ApplyLevel20PredatorsInstinctBranch(int meleeLevel, ref MeleeMinorNodeBonuses total)
     {
-        if (meleeLevel < PredatorsInstinctMajorPassiveLevel)
+        if (meleeLevel < PredatorsInstinctMajorPassiveLevel || !AreMeleeMajorPassiveEffectsEnabled())
             return;
 
         total.meleeCritChance += 0.05f;
@@ -3131,10 +3141,10 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     public bool IsBattleEngineMajorPassiveActive() =>
-        GetMeleeLevel30MajorPassiveRowPick() == 0;
+        GetMeleeLevel30MajorPassiveRowPick() == 0 && AreMeleeMajorPassiveEffectsEnabled();
 
     public bool IsTacticianMajorPassiveActive() =>
-        GetMeleeLevel30MajorPassiveRowPick() == 1;
+        GetMeleeLevel30MajorPassiveRowPick() == 1 && AreMeleeMajorPassiveEffectsEnabled();
 
     public bool IsBattleEngineUnlocked() =>
         skillsManager != null &&
@@ -3377,7 +3387,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
             return -1;
 
         return SkillTreeRowPickRules.GetCommittedRowPick(
-            skillsManager, SkillType.Melee, PhoenixSoulMajorPassiveLevel, -1, maxOrdinalInclusive: 1);
+            skillsManager, SkillType.Melee, PhoenixSoulMajorPassiveLevel, -1, maxOrdinalInclusive: 2);
     }
 
     public bool IsPhoenixSoulUnlocked() => GetMeleeLevel40MajorPassiveRowPick() == 0;
@@ -3395,6 +3405,31 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public bool IsMasterOfVenomsUnlocked() => GetMeleeLevel40MajorPassiveRowPick() == 1;
 
+    public bool IsBloodbathUnlocked() => GetMeleeLevel40MajorPassiveRowPick() == 2;
+
+    public int GetBloodbathEnhancementPick()
+    {
+        if (!IsBloodbathUnlocked())
+            return -1;
+
+        return skillsManager != null
+            ? skillsManager.GetSkillChoiceSelection(
+                SkillType.Melee, AbilityCombatPower.BloodbathEnhancementParentSpineNodeId, -1)
+            : -1;
+    }
+
+    public void NotifyBloodbathStackFromBleedApplication() =>
+        GetOwnerCombatController()?.NotifyBloodbathStackFromBleedApplication();
+
+    public float GetBloodbathPhysicalDamagePercent() =>
+        GetOwnerCombatController()?.GetBloodbathPhysicalDamagePercent() ?? 0f;
+
+    public float GetBloodbathBleedMultiplierBonus() =>
+        GetOwnerCombatController()?.GetBloodbathBleedMultiplierBonus() ?? 0f;
+
+    public float GetBloodbathBleedChanceBonus() =>
+        GetOwnerCombatController()?.GetBloodbathBleedChanceBonus() ?? 0f;
+
     public int GetMasterOfVenomsEnhancementPick()
     {
         if (!IsMasterOfVenomsUnlocked())
@@ -3406,7 +3441,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
             : -1;
     }
 
-    public bool MasterOfVenomsPoisonCanCriticallyStrike() => IsMasterOfVenomsUnlocked();
+    public bool MasterOfVenomsPoisonCanCriticallyStrike() =>
+        IsMasterOfVenomsUnlocked() && AreMeleeMajorPassiveEffectsEnabled();
 
     /// <summary>Poison crit multiplier: 1 + (CritMultiplier − 1) × 50%.</summary>
     public float GetMasterOfVenomsPoisonCritDamageMultiplier()
@@ -3471,6 +3507,65 @@ public class CharacterStats : MonoBehaviour, ISaveable
         GetMeleeCapstoneEnhancementPick() == AbilityCombatPower.MeleeCapstoneWayOfTheGladiatorChoiceIndex
         && HasMeleeWeaponEquippedForCapstonePassive();
 
+    public bool IsWayOfTheSlayerCapstoneActive() =>
+        GetMeleeCapstoneEnhancementPick() == AbilityCombatPower.MeleeCapstoneWayOfTheSlayerChoiceIndex
+        && HasMeleeWeaponEquippedForCapstonePassive();
+
+    public bool IsWayOfTheBladeDancerCapstoneActive() =>
+        GetMeleeCapstoneEnhancementPick() == AbilityCombatPower.MeleeCapstoneWayOfTheBladeDancerChoiceIndex
+        && HasMeleeWeaponEquippedForCapstonePassive();
+
+    /// <summary>Way of the Slayer converts bleed chance into global physical damage instead of procs.</summary>
+    public float GetWayOfTheSlayerBleedChancePhysicalConversionFraction() =>
+        IsWayOfTheSlayerCapstoneActive() ? BleedChance : 0f;
+
+    public float GetEffectiveBleedChanceForProcs() =>
+        IsWayOfTheSlayerCapstoneActive() ? 0f : BleedChance;
+
+    public bool CanApplyOutgoingAilmentsOnHit() => !IsWayOfTheSlayerCapstoneActive();
+
+    public bool IsWayOfTheSlayerCrowdControlImmune() => IsWayOfTheSlayerCapstoneActive();
+
+    /// <summary>Dual wielding two of the same one-handed base item (stats panel / Blade Dancer requirement).</summary>
+    public bool HasMatchingDualWieldOneHandedWeaponsForBladeDancer()
+    {
+        if (!IsDualWieldingOneHandedWeapons())
+            return false;
+
+        if (!equipment)
+            equipment = GetComponent<EquipmentManager>();
+        if (!inventory)
+            inventory = GetComponent<Inventory>();
+        if (!equipment || !inventory || string.IsNullOrWhiteSpace(equipment.MainHandItemId) ||
+            string.IsNullOrWhiteSpace(equipment.OffHandItemId))
+            return false;
+
+        ItemDatabase db = inventory.GetItemDatabase();
+        if (!db)
+            return false;
+
+        string mainBase = db.GetBaseItemId(equipment.MainHandItemId);
+        string offBase = db.GetBaseItemId(equipment.OffHandItemId);
+        return !string.IsNullOrWhiteSpace(mainBase) &&
+               mainBase.Equals(offBase, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    public bool IsBladeDancerDualWieldingMatchingWeapons() =>
+        IsWayOfTheBladeDancerCapstoneActive() && HasMatchingDualWieldOneHandedWeaponsForBladeDancer();
+
+    private int _bladeDancerMeleeHitCounter;
+
+    public bool TryConsumeBladeDancerTripleHitFollowUp()
+    {
+        if (!IsBladeDancerDualWieldingMatchingWeapons())
+            return false;
+
+        _bladeDancerMeleeHitCounter++;
+        return _bladeDancerMeleeHitCounter % AbilityCombatPower.WayOfTheBladeDancerTripleHitInterval == 0;
+    }
+
+    public void ResetBladeDancerTripleHitCounter() => _bladeDancerMeleeHitCounter = 0;
+
     public int GetWayOfTheAssassinPoisonMaxStacksBonus() =>
         IsWayOfTheAssassinCapstoneActive() ? AbilityCombatPower.WayOfTheAssassinPoisonMaxStacksBonus : 0;
 
@@ -3526,6 +3621,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
         return mainHand != null && mainHand.weaponStats.attackSkill == AttackSkill.Melee;
     }
 
+    /// <summary>All melee major passive combat/stat effects require an equipped melee weapon.</summary>
+    public bool AreMeleeMajorPassiveEffectsEnabled() => HasMeleeWeaponEquippedForCapstonePassive();
+
     private PlayerCombatController GetOwnerCombatController()
     {
         if (!_ownerPlayer)
@@ -3542,6 +3640,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public float GetWayOfTheBerserkerCritChanceBonusFraction() =>
         GetOwnerCombatController()?.GetWayOfTheBerserkerCritChanceBonusFraction() ?? 0f;
+
+    public float GetWayOfTheBladeDancerKillCritBonusFraction() =>
+        GetOwnerCombatController()?.GetWayOfTheBladeDancerKillCritBonusFraction() ?? 0f;
 
     public float GetWayOfTheBerserkerMeleeDamageBonusFraction() =>
         GetOwnerCombatController()?.GetWayOfTheBerserkerMeleeDamageBonusFraction() ?? 0f;
@@ -3649,7 +3750,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     public void OnPlayerCritLanded()
     {
-        if (GetPredatorsInstinctEnhancementPick() != 1)
+        if (!AreMeleeMajorPassiveEffectsEnabled() || GetPredatorsInstinctEnhancementPick() != 1)
             return;
 
         if (!buffController)
@@ -4040,6 +4141,9 @@ public class CharacterStats : MonoBehaviour, ISaveable
             total += def.PhysicalDamagePercent;
             total += def.SupportPhysicalDamagePercent;
         }
+
+        total += GetBloodbathPhysicalDamagePercent();
+        total += GetWayOfTheSlayerBleedChancePhysicalConversionFraction();
         return Mathf.Max(0f, total);
     }
 
@@ -4932,6 +5036,28 @@ public class CharacterStats : MonoBehaviour, ISaveable
         }
 
         return totalToVitals;
+    }
+
+    /// <summary>
+    /// Kills the unit by consuming all guard and HP without armor, resist, or block mitigation.
+    /// Used by Way of the Slayer execute.
+    /// </summary>
+    /// <returns>Total vitals removed (guard + HP) for damage popups and combat totals.</returns>
+    public float ApplyExecuteDamage(out float hpDamageDealt)
+    {
+        hpDamageDealt = 0f;
+        if (_isDead)
+            return 0f;
+
+        hpDamageDealt = Mathf.Max(0f, currentHP);
+        float totalRemoved = Mathf.Max(0f, currentGuard) + hpDamageDealt;
+        currentGuard = 0f;
+        currentHP = 0f;
+        _isDead = true;
+        RaiseGuardChanged();
+        OnHPChanged?.Invoke(currentHP, MaxHP);
+        OnDied?.Invoke();
+        return totalRemoved;
     }
 
     public bool TryReserveNextIncomingPhysicalBlock()

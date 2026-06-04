@@ -809,6 +809,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (!player || !stats) return;
         TickWayOfTheBerserkerCapstone();
         TickWayOfTheCrusaderCapstone();
+        TickWayOfTheBladeDancerCapstone();
+        TickBloodbathStacks();
         if (_dpsTrackerPaused) return;
 
         if (IsProximityCombatEngaged())
@@ -825,7 +827,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             TickIdleAutoPickup();
         }
 
-        if (_target == null) return;
+        if (_target == null)
+            return;
 
         if (clearTargetIfDead && _target.IsDead)
         {
@@ -915,7 +918,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             _isClosingDistanceForAttack = true;
 
             player.ClearActionOverride();
-            if (!player.IsPlayerSteeringMovement)
+            bool bladeDancerDashed = idleCombatEnabled && !inAttackRange
+                && TryBladeDancerDashDuringIdleAutoBattlePathing(_target);
+
+            if (!player.IsPlayerSteeringMovement && !bladeDancerDashed)
                 player.MoveToPointX_Combat(desiredX);
             else if (player.IsManualKeyboardSteering)
                 player.StopMoveOnly();
@@ -1768,7 +1774,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             crescentPenetrating = queued.crescentPenetrating;
         }
 
-        if (!suppressOnHitAilments)
+        if (!suppressOnHitAilments && stats != null && stats.CanApplyOutgoingAilmentsOnHit())
         {
             if (!suppressBleed)
                 TryApplyBleed(targetToHit, dealt);
@@ -1794,6 +1800,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         }
 
         if (primaryHitSucceeded && stats != null)
+        {
             TryApplySecondarySpecialistDualWieldFollowUp(
                 targetToHit,
                 rolled,
@@ -1803,6 +1810,16 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
                 suppressBleed,
                 suppressPoison,
                 suppressElementalMagicAilment);
+            TryApplyBladeDancerTripleHitFollowUp(
+                targetToHit,
+                rolled,
+                wasCrit,
+                swingAttribution,
+                suppressOnHitAilments,
+                suppressBleed,
+                suppressPoison,
+                suppressElementalMagicAilment);
+        }
     }
 
     /// <summary>
@@ -1844,7 +1861,7 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (doubleDealt.Total > 0f)
             player.ApplyLifeSteal(doubleDealt.Total);
 
-        if (!suppressOnHitAilments)
+        if (!suppressOnHitAilments && stats != null && stats.CanApplyOutgoingAilmentsOnHit())
         {
             if (!suppressBleed)
                 TryApplyBleed(targetToHit, doubleDealt);
@@ -2091,10 +2108,13 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             return;
 
         player.ApplyLifeSteal(dealt.Total);
-        TryApplyBleed(target, dealt);
-        TryApplyPoison(target, dealt);
-        TryApplyElementalMagicAilment(target, dealt, forceElementalAilment);
-        TryApplyMeleeShock(target, dealt);
+        if (stats != null && stats.CanApplyOutgoingAilmentsOnHit())
+        {
+            TryApplyBleed(target, dealt);
+            TryApplyPoison(target, dealt);
+            TryApplyElementalMagicAilment(target, dealt, forceElementalAilment);
+            TryApplyMeleeShock(target, dealt);
+        }
     }
 
     public void ToggleIdleCombat()
@@ -2631,6 +2651,13 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         DamageResult result = default;
         if (target == null || target.IsDead) return result;
 
+        if (TryWayOfTheSlayerExecute(target, out DamageResult executeResult))
+        {
+            if (target.IsDead)
+                NotifyBladeDancerKillCritBuff();
+            return executeResult;
+        }
+
         float conditionalDamageMult = GetConditionalMeleeDamageMultiplier(target);
         if (wasCrit && stats != null)
         {
@@ -2695,6 +2722,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
         if (deferSwingOutgoing)
             RecordWeaponSwingOutgoingDamage(result.Total, target, swingAttribution);
+
+        if (target.IsDead)
+            NotifyBladeDancerKillCritBuff();
 
         if (stats != null && result.physical > 0f)
             stats.TryApplyTacticianStunOnEnemyHit(target);
@@ -2778,9 +2808,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     {
         if (target == null) return;
         if (dealt.physical <= 0f) return;
-        if (stats.BleedChance <= 0f) return;
+        if (stats.GetEffectiveBleedChanceForProcs() <= 0f) return;
 
-        if (Random.value > stats.BleedChance)
+        if (Random.value > stats.GetEffectiveBleedChanceForProcs())
             return;
 
         float duration = Mathf.Max(1f, stats.BleedDuration);

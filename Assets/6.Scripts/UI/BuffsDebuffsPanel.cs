@@ -75,6 +75,14 @@ public class BuffsDebuffsPanel : MonoBehaviour
     [Tooltip("Icon for Crusader Strike fire balance window. Falls back to the ability icon.")]
     [SerializeField] private Sprite crusaderStrikeFireBalanceHudIcon;
 
+    [Header("Melee — Bloodbath (Lv40 Major) HUD")]
+    [Tooltip("Icon for Bloodbath stacks after applying bleed.")]
+    [SerializeField] private Sprite bloodbathHudIcon;
+
+    [Header("Melee — Way of the Blade Dancer (Lv50 Capstone) HUD")]
+    [Tooltip("Icon for +crit after kill (Blade Dancer's Focus). Not an inventory item — assign here.")]
+    [SerializeField] private Sprite wayOfTheBladeDancerKillCritHudIcon;
+
     [Header("Movement — Sprint HUD")]
     [Tooltip("Icon while sprinting (hold sprint key while moving). Falls back to attack speed icon.")]
     [SerializeField] private Sprite sprintHudIcon;
@@ -603,6 +611,27 @@ public class BuffsDebuffsPanel : MonoBehaviour
             }
         }
 
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, AbilityCombatPower.BloodbathHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (bloodbathHudIcon != null)
+                return bloodbathHudIcon;
+            if (physicalDamageBuffIcon != null)
+                return physicalDamageBuffIcon;
+        }
+
+        if (buff.type == ConsumableEffectType.HudAbilityBuff &&
+            string.Equals(buff.id, AbilityCombatPower.WayOfTheBladeDancerKillCritHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (wayOfTheBladeDancerKillCritHudIcon != null)
+                return wayOfTheBladeDancerKillCritHudIcon;
+            Sprite capstoneIcon = CapstonePresentationIcons.ResolveWayOfTheBladeDancerIcon();
+            if (capstoneIcon != null)
+                return capstoneIcon;
+            if (attackSpeedBuffIcon != null)
+                return attackSpeedBuffIcon;
+        }
+
         if (buff.type == ConsumableEffectType.HudAbilityBuff && _abilityDatabase != null &&
             !string.IsNullOrWhiteSpace(buff.id))
         {
@@ -615,7 +644,10 @@ public class BuffsDebuffsPanel : MonoBehaviour
             }
         }
 
-        if (inventory != null && !string.IsNullOrWhiteSpace(buff.id))
+        // HUD ability buff ids are not inventory items (e.g. capstone kill-crit windows).
+        if (buff.type != ConsumableEffectType.HudAbilityBuff &&
+            inventory != null &&
+            !string.IsNullOrWhiteSpace(buff.id))
         {
             ItemDefinition def = inventory.GetItemDef(buff.id);
             if (def != null && def.icon != null)
@@ -669,6 +701,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (string.Equals(buff.id, CharacterStats.BattleEngineOverloadHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return MeleeMajorPassiveTooltipText.FormatOverloadValueLabel(buff.displayStacks);
 
+            if (string.Equals(buff.id, AbilityCombatPower.BloodbathHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return MeleeMajorPassiveTooltipText.FormatBloodbathValueLabel(buff.displayStacks);
+
             if (string.Equals(buff.id, CharacterStats.TacticianDualityHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "×3";
 
@@ -681,6 +716,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
             if (string.Equals(buff.id, PlayerAbilityController.CrusaderStrikeFireBalanceHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "+30%";
+
+            if (string.Equals(buff.id, AbilityCombatPower.WayOfTheBladeDancerKillCritHudBuffId, StringComparison.OrdinalIgnoreCase))
+                return $"+{Mathf.RoundToInt(AbilityCombatPower.WayOfTheBladeDancerKillCritChanceBonus * 100f)}%";
 
             return "";
         }
@@ -749,6 +787,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
 
             if (string.Equals(buff.id, PlayerSprintInput.SprintHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "Sprint";
+
+            if (MeleeMajorPassiveTooltipText.TryGetHudBuffTooltip(buff.id, buff.displayStacks, out string meleeHudTitle, out _))
+                return meleeHudTitle;
 
             if (AbilityTooltipDamagePreview.TryBuildHudBuffTooltip(
                     buff.id, buff.displayStacks, SkillsManager.Instance, _abilityDatabase, out string hudTitle, out _))

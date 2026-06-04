@@ -67,16 +67,46 @@ public static class MeleeMajorPassiveTooltipText
             return true;
         }
 
+        if (choiceIndex == AbilityCombatPower.MeleeCapstoneWayOfTheSlayerChoiceIndex)
+        {
+            body = BuildWayOfTheSlayerChoiceEffectBody();
+            return true;
+        }
+
+        if (choiceIndex == AbilityCombatPower.MeleeCapstoneWayOfTheBladeDancerChoiceIndex)
+        {
+            body = BuildWayOfTheBladeDancerChoiceEffectBody();
+            return true;
+        }
+
         return false;
     }
 
-    public static string BuildMeleeCapstoneRequirementsRichText(CharacterStats stats)
-    {
-        bool ok = stats != null && stats.HasMeleeWeaponEquippedForCapstonePassive();
-        if (!ok)
-            return $"<color=#FF5C5C>{MeleeCapstoneWeaponRequirementLine}</color>";
+    public static string BuildMeleeMajorPassiveRequirementsRichText(CharacterStats stats) =>
+        BuildMeleeWeaponRequirementRichLine(stats);
 
-        return $"<color=#55DD55>{MeleeCapstoneWeaponRequirementLine}</color>";
+    public static string BuildMeleeCapstoneRequirementsRichText(CharacterStats stats, int displayedCapstoneChoiceIndex = -1)
+    {
+        var sb = new StringBuilder();
+        sb.Append(BuildMeleeWeaponRequirementRichLine(stats));
+
+        if (displayedCapstoneChoiceIndex == AbilityCombatPower.MeleeCapstoneWayOfTheBladeDancerChoiceIndex)
+        {
+            bool weaponsMatch = stats != null && stats.HasMatchingDualWieldOneHandedWeaponsForBladeDancer();
+            sb.Append(weaponsMatch
+                ? $"\n<color=#55DD55>{MeleeCapstoneMatchingWeaponsRequirementLine}</color>"
+                : $"\n<color=#FF5C5C>{MeleeCapstoneMatchingWeaponsRequirementLine}</color>");
+        }
+
+        return sb.ToString();
+    }
+
+    private static string BuildMeleeWeaponRequirementRichLine(CharacterStats stats)
+    {
+        bool meleeOk = stats != null && stats.HasMeleeWeaponEquippedForCapstonePassive();
+        return meleeOk
+            ? $"<color=#55DD55>{MeleeCapstoneWeaponRequirementLine}</color>"
+            : $"<color=#FF5C5C>{MeleeCapstoneWeaponRequirementLine}</color>";
     }
 
     public static string BuildWayOfTheBerserkerChoiceEffectBody()
@@ -139,6 +169,45 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append("Enemy resist ratings cannot be reduced below 0.");
         return sb.ToString();
     }
+
+    public static string BuildWayOfTheSlayerChoiceEffectBody()
+    {
+        int executePct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheSlayerExecuteHpThreshold01 * 100f);
+        var sb = new StringBuilder();
+        sb.AppendLine("Convert all bleed chance into bonus physical damage.");
+        sb.Append("You cannot apply ailments on hit.");
+        sb.AppendLine();
+        sb.AppendLine();
+        sb.Append("Execute enemies below ");
+        sb.Append(executePct);
+        sb.AppendLine("% health.");
+        sb.AppendLine();
+        sb.AppendLine("Cannot be stunned or frozen (immune to enemy chill and ailments).");
+        return sb.ToString();
+    }
+
+    public static string BuildWayOfTheBladeDancerChoiceEffectBody()
+    {
+        int critPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheBladeDancerKillCritChanceBonus * 100f);
+        var sb = new StringBuilder();
+        sb.AppendLine("While dual wielding two of the same one-handed weapons:");
+        sb.AppendLine();
+        sb.Append("Every ");
+        sb.Append(AbilityCombatPower.WayOfTheBladeDancerTripleHitInterval);
+        sb.AppendLine("rd melee auto attack hits twice.");
+        sb.AppendLine();
+        sb.AppendLine("When fighting, dash to your nearest enemy.");
+        sb.AppendLine();
+        sb.Append("After killing an enemy, gain ");
+        sb.Append(critPct);
+        sb.Append("% critical strike chance for ");
+        sb.Append(AbilityCombatPower.WayOfTheBladeDancerKillCritDurationSeconds.ToString("0.#"));
+        sb.AppendLine(" seconds.");
+        return sb.ToString();
+    }
+
+    public static string BuildWayOfTheBladeDancerKillCritHudBody() =>
+        $"+{Mathf.RoundToInt(AbilityCombatPower.WayOfTheBladeDancerKillCritChanceBonus * 100f)}% crit chance after a kill.";
 
     public static string BuildWayOfTheGladiatorChoiceEffectBody()
     {
@@ -265,15 +334,22 @@ public static class MeleeMajorPassiveTooltipText
         "Draw life and energy from the heat of nearby burning foes.";
     public const string MasterOfVenomsFlavorDescription =
         "Master deadly poisons that can critically strike your enemies.";
+    public const string BloodbathFlavorDescription =
+        "The scent of blood drives you into a relentless frenzy. Each wound inflicted fuels your thirst for battle, empowering your attacks as your enemies bleed.";
+    public const string BloodbathTitle = "Bloodbath";
     public const string MeleeCapstoneFlavorDescription = "Enhance into a pure form";
     public const string MeleeCapstoneEffectDescription =
         "Select an enhancement below to evolve your capstone passive.";
     public const string WayOfTheBerserkerTitle = "Way of the Berserker";
     public const string WayOfTheBerserkerLeechTitle = "Berserker's Thirst";
     public const string MeleeCapstoneWeaponRequirementLine = "Required: Melee weapon";
+    public const string MeleeCapstoneMatchingWeaponsRequirementLine = "Required: Weapons must match";
     public const string WayOfTheCrusaderTitle = "Way of the Crusader";
     public const string WayOfTheAssassinTitle = "Way of the Assassin";
     public const string WayOfTheGladiatorTitle = "Way of the Gladiator";
+    public const string WayOfTheSlayerTitle = "Way of the Slayer";
+    public const string WayOfTheBladeDancerTitle = "Way of the Blade Dancer";
+    public const string WayOfTheBladeDancerKillCritTitle = "Blade Dancer's Focus";
 
     /// <summary>Short flavor copy for the details panel description column.</summary>
     public static bool TryBuildFlavorDescription(string parentSpineNodeId, out string flavor)
@@ -324,6 +400,12 @@ public static class MeleeMajorPassiveTooltipText
             return true;
         }
 
+        if (string.Equals(parentSpineNodeId, AbilityCombatPower.BloodbathEnhancementParentSpineNodeId, StringComparison.Ordinal))
+        {
+            flavor = BloodbathFlavorDescription;
+            return true;
+        }
+
         return false;
     }
 
@@ -357,6 +439,8 @@ public static class MeleeMajorPassiveTooltipText
                 return TryBuildPhoenixSoulBody(selectedChoice, out body);
             case AbilityCombatPower.MasterOfVenomsEnhancementParentSpineNodeId:
                 return TryBuildMasterOfVenomsBody(selectedChoice, out body);
+            case AbilityCombatPower.BloodbathEnhancementParentSpineNodeId:
+                return TryBuildBloodbathBody(selectedChoice, out body);
             default:
                 return false;
         }
@@ -390,6 +474,20 @@ public static class MeleeMajorPassiveTooltipText
         {
             title = TacticianDualityHudBuffTitle;
             body = BuildTacticianDualityHudBody();
+            return true;
+        }
+
+        if (string.Equals(buffId, AbilityCombatPower.WayOfTheBladeDancerKillCritHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            title = WayOfTheBladeDancerKillCritTitle;
+            body = BuildWayOfTheBladeDancerKillCritHudBody();
+            return true;
+        }
+
+        if (string.Equals(buffId, AbilityCombatPower.BloodbathHudBuffId, StringComparison.OrdinalIgnoreCase))
+        {
+            title = BloodbathTitle;
+            body = BuildBloodbathHudBody(Mathf.Max(0, displayStacks));
             return true;
         }
 
@@ -762,6 +860,57 @@ public static class MeleeMajorPassiveTooltipText
         return true;
     }
 
+    private static bool TryBuildBloodbathBody(int selectedChoice, out string body)
+    {
+        int physPct = Mathf.RoundToInt(AbilityCombatPower.BloodbathPhysicalDamagePerStack * 100f);
+        var sb = new StringBuilder();
+        sb.AppendLine("Applying bleed grants a stack of Bloodbath.");
+        sb.AppendLine();
+        sb.AppendLine("Each stack grants:");
+        sb.Append("+");
+        sb.Append(physPct);
+        sb.AppendLine("% physical damage.");
+        sb.AppendLine();
+        sb.Append("Maximum ");
+        sb.Append(AbilityCombatPower.BloodbathMaxStacks);
+        sb.AppendLine(" stacks.");
+        AppendEnhancementLines(sb, selectedChoice, AbilityCombatPower.BloodbathEnhancementParentSpineNodeId);
+        body = sb.ToString();
+        return true;
+    }
+
+    public static string BuildBloodbathHudBody(int currentStacks)
+    {
+        int physPct = Mathf.RoundToInt(currentStacks * AbilityCombatPower.BloodbathPhysicalDamagePerStack * 100f);
+        var sb = new StringBuilder();
+        if (currentStacks > 0)
+        {
+            sb.Append("Bloodbath stacks: ");
+            sb.Append(currentStacks);
+            sb.Append(" / ");
+            sb.Append(AbilityCombatPower.BloodbathMaxStacks);
+            sb.AppendLine(".");
+            sb.Append("+");
+            sb.Append(physPct);
+            sb.AppendLine("% physical damage.");
+        }
+
+        sb.Append("Each stack: +");
+        sb.Append(Mathf.RoundToInt(AbilityCombatPower.BloodbathPhysicalDamagePerStack * 100f));
+        sb.Append("% physical damage (");
+        sb.Append(AbilityCombatPower.BloodbathStackDurationSeconds.ToString("0.#"));
+        sb.AppendLine("s, refreshed when you apply bleed).");
+        return sb.ToString();
+    }
+
+    public static string FormatBloodbathValueLabel(int stacks)
+    {
+        if (stacks <= 0)
+            return "";
+
+        return $"+{Mathf.RoundToInt(stacks * AbilityCombatPower.BloodbathPhysicalDamagePerStack * 100f)}%";
+    }
+
     private static void AppendEnhancementLines(StringBuilder sb, int selectedChoice, string parentSpineNodeId)
     {
         if (sb == null || selectedChoice < 0 || string.IsNullOrWhiteSpace(parentSpineNodeId))
@@ -843,6 +992,21 @@ public static class MeleeMajorPassiveTooltipText
                     sb.Append("s less duration, +");
                     sb.Append(AbilityCombatPower.MasterOfVenomsLethalCompoundMaxStacksBonus);
                     sb.AppendLine(" max poison stacks.");
+                }
+                break;
+
+            case AbilityCombatPower.BloodbathEnhancementParentSpineNodeId:
+                if (selectedChoice == 0)
+                {
+                    sb.Append("Bloodbath also grants ");
+                    sb.Append(Mathf.RoundToInt(AbilityCombatPower.BloodbathCarnageBleedMultiplierPerStack * 100f));
+                    sb.AppendLine("% bleed multiplier per stack.");
+                }
+                else if (selectedChoice == 1)
+                {
+                    sb.Append("Bloodbath also grants ");
+                    sb.Append(Mathf.RoundToInt(AbilityCombatPower.BloodbathButcheryBleedChancePerStack * 100f));
+                    sb.AppendLine("% bleed chance per stack.");
                 }
                 break;
         }

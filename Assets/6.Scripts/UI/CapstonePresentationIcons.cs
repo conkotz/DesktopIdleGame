@@ -5,6 +5,7 @@ public static class CapstonePresentationIcons
 {
     private static Sprite _wayOfTheBerserker;
     private static Sprite _holySealHudIcon;
+    private static Sprite _wayOfTheBladeDancer;
 
     public static Sprite ResolveWayOfTheBerserkerIcon()
     {
@@ -61,6 +62,36 @@ public static class CapstonePresentationIcons
                 unlock.choices[AbilityCombatPower.MeleeCapstoneWayOfTheCrusaderChoiceIndex];
             _holySealHudIcon = choice?.presentation != null ? choice.presentation.Icon : null;
             return _holySealHudIcon;
+        }
+
+        return null;
+    }
+
+    public static Sprite ResolveWayOfTheBladeDancerIcon()
+    {
+        if (_wayOfTheBladeDancer != null)
+            return _wayOfTheBladeDancer;
+
+        SkillDefinition melee = SkillDatabase.LoadDefault()?.Get(SkillType.Melee);
+        if (melee?.unlocks == null)
+            return null;
+
+        for (int i = 0; i < melee.unlocks.Count; i++)
+        {
+            SkillUnlockDefinition unlock = melee.unlocks[i];
+            if (unlock == null || unlock.unlockType != SkillUnlockType.CapstonePassive)
+                continue;
+
+            if (unlock.choices == null
+                || unlock.choices.Count <= AbilityCombatPower.MeleeCapstoneWayOfTheBladeDancerChoiceIndex)
+            {
+                return null;
+            }
+
+            SkillChoiceDefinition choice =
+                unlock.choices[AbilityCombatPower.MeleeCapstoneWayOfTheBladeDancerChoiceIndex];
+            _wayOfTheBladeDancer = choice?.icon;
+            return _wayOfTheBladeDancer;
         }
 
         return null;

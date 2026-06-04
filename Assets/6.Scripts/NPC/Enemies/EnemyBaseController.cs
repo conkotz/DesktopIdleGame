@@ -765,6 +765,74 @@ public class EnemyBaseController : MonoBehaviour
         DamagePopupSystem.Instance.SpawnLingeringStatus(pos, "Stunned", color, transform);
     }
 
+    private void TrySpawnExecuteStatusPopup(Transform source)
+    {
+        if (DamagePopupSystem.Instance == null)
+            return;
+
+        DamagePopupAnchor anchor = GetComponentInChildren<DamagePopupAnchor>(true);
+        Vector3 anchorPos = anchor != null ? anchor.WorldPos : transform.position;
+        Vector3 dealerPos = source != null ? source.position : transform.position;
+        Vector3 pos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
+
+        Color color = new Color32(140, 18, 28, 255);
+        FloatingDamageTextUI prefab = DamagePopupSystem.Instance.PopupPrefab;
+        if (prefab != null)
+            color = prefab.ExecutePresentationColor;
+
+        DamagePopupSystem.Instance.SpawnLingeringStatus(
+            pos,
+            AbilityCombatPower.WayOfTheSlayerExecuteStatusPopupLabel,
+            color,
+            transform);
+    }
+
+    /// <summary>Way of the Slayer — bypasses mitigation and removes all remaining guard/HP.</summary>
+    public int TakeExecuteDamage(
+        Transform attacker,
+        AttackSkill? attackSkillSource = null,
+        string outgoingDpsSourceLabel = null)
+    {
+        if (state == EnemyState.Dead || stats == null)
+            return 0;
+
+        TryTriggerMapWideAggroFromAttacker(attacker);
+        _provoked = true;
+
+        if (IsImmuneToIncomingHit(attackSkillSource))
+        {
+            ShowImmunePopup(attacker);
+            return 0;
+        }
+
+        float applied = stats.ApplyExecuteDamage(out _);
+        int finalDamage = Mathf.Max(0, Mathf.RoundToInt(applied));
+        if (finalDamage <= 0)
+            return 0;
+
+        AwardCombatXpToSource(attacker, finalDamage, DpsDamageBucket.Physical, outgoingDpsSourceLabel);
+        OnDamaged?.Invoke(finalDamage, false);
+
+        if (DamagePopupSystem.Instance != null)
+        {
+            GetDamagePopupSpawnForDealer(attacker, null, out Vector3 pos, out Vector3 dir);
+            DamagePopupSystem.Instance.Spawn(
+                pos,
+                finalDamage,
+                FloatingDamageTextUI.PopupDamageKind.Physical,
+                false,
+                false,
+                dir,
+                false);
+            TrySpawnExecuteStatusPopup(attacker);
+        }
+
+        if (stats.IsDead && state != EnemyState.Dead)
+            Die();
+
+        return finalDamage;
+    }
+
     private void TryStartEnemyAttack()
     {
         if (IsStunned)
@@ -848,6 +916,12 @@ public class EnemyBaseController : MonoBehaviour
     private void ApplyAilmentsToPlayer(SplitDamage hit)
     {
         if (player == null || stats == null)
+            return;
+
+        CharacterStats playerStatsEarly = _playerController != null
+            ? _playerController.GetComponent<CharacterStats>()
+            : null;
+        if (playerStatsEarly != null && playerStatsEarly.IsWayOfTheSlayerCrowdControlImmune())
             return;
 
         AilmentController targetAilments = player.GetComponent<AilmentController>();

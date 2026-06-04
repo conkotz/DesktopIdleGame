@@ -324,11 +324,15 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             descriptionText.text = details.Description ?? string.Empty;
 
         AbilityDefinition ability = ResolveAbility(binding);
-        BindRequirementsSection(ability, stats, binding?.Unlock);
         BindTypeSection(ability, details.TypeLabel);
         BindAbilityIconDragAssign(ability, skillsManager);
         BindMiddleColumn(ability, skillsManager, stats, binding, details.EffectText);
         PopulateEnhancementCards(binding, skillsManager);
+        BindRequirementsSection(
+            ability,
+            stats,
+            binding?.Unlock,
+            ResolveDisplayedCapstoneChoiceIndex(binding, skillsManager));
         ApplyDetailsTypography();
         ApplySectionDividerLayout();
         EnsureDetailsPanelDividerLines();
@@ -1328,13 +1332,21 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         _abilityIconDragAssign.Bind(ability, canAssign);
     }
 
-    private void BindRequirementsSection(AbilityDefinition ability, CharacterStats stats, SkillUnlockDefinition unlock = null)
+    private void BindRequirementsSection(
+        AbilityDefinition ability,
+        CharacterStats stats,
+        SkillUnlockDefinition unlock = null,
+        int displayedCapstoneChoiceIndex = -1)
     {
         string requirements = ability != null
             ? AbilityTooltipDamagePreview.BuildAbilityRequirementsRichText(ability, stats, accentWhenOk: true)
             : unlock != null && unlock.unlockType == SkillUnlockType.CapstonePassive
-                ? MeleeMajorPassiveTooltipText.BuildMeleeCapstoneRequirementsRichText(stats)
-                : string.Empty;
+                ? MeleeMajorPassiveTooltipText.BuildMeleeCapstoneRequirementsRichText(stats, displayedCapstoneChoiceIndex)
+                : unlock != null
+                  && unlock.unlockType == SkillUnlockType.MajorPassive
+                  && _currentBinding?.Skill?.skillType == SkillType.Melee
+                    ? MeleeMajorPassiveTooltipText.BuildMeleeMajorPassiveRequirementsRichText(stats)
+                    : string.Empty;
 
         bool hasRequirements = !string.IsNullOrWhiteSpace(requirements);
         if (requirementsSectionRoot != null)
@@ -1522,6 +1534,35 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             return -1;
 
         return skillsManager.GetSkillChoiceSelection(binding.Skill.skillType, spineId, -1);
+    }
+
+    private int ResolveDisplayedCapstoneChoiceIndex(SkillTimelineNodeBinding binding, SkillsManager skillsManager)
+    {
+        if (_previewEnhancementIndex >= 0)
+            return _previewEnhancementIndex;
+
+        return ResolveCommittedEnhancementChoiceIndex(binding, skillsManager);
+    }
+
+    private void RefreshCapstoneRequirementsDisplay()
+    {
+        if (_currentBinding?.Unlock == null)
+            return;
+
+        SkillUnlockType unlockType = _currentBinding.Unlock.unlockType;
+        if (unlockType == SkillUnlockType.CapstonePassive)
+        {
+            CharacterStats stats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
+            BindRequirementsSection(null, stats, _currentBinding.Unlock, _previewEnhancementIndex);
+            return;
+        }
+
+        if (unlockType == SkillUnlockType.MajorPassive
+            && _currentBinding.Skill?.skillType == SkillType.Melee)
+        {
+            CharacterStats stats = AbilityTooltipDamagePreview.FindLocalPlayerStats();
+            BindRequirementsSection(null, stats, _currentBinding.Unlock);
+        }
     }
 
     private void BindCapstoneEnhancementNameSection(SkillUnlockDefinition unlock, int choiceIndex)
@@ -1916,6 +1957,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
     private void SelectEnhancementButton(int choiceIndex, bool showDetail)
     {
         _previewEnhancementIndex = choiceIndex;
+        RefreshCapstoneRequirementsDisplay();
 
         for (int i = 0; i < _spawnedEnhancementButtons.Count; i++)
         {

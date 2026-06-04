@@ -1887,7 +1887,9 @@ public class PlayerAbilityController : MonoBehaviour
 
     public float GetPhoenixLivingInfernoMeleeDamageBonusFraction()
     {
-        if (stats == null || stats.GetPhoenixSoulEnhancementPick() != 1)
+        if (stats == null
+            || !stats.AreMeleeMajorPassiveEffectsEnabled()
+            || stats.GetPhoenixSoulEnhancementPick() != 1)
             return 0f;
 
         int burningCount = CountBurningEnemiesNearPlayer();
@@ -1898,7 +1900,10 @@ public class PlayerAbilityController : MonoBehaviour
     /// <summary>Phoenix Soul — Ashen Rebirth: intercept death before <see cref="PlayerController"/> runs full death flow.</summary>
     public bool TryTriggerPhoenixAshenRebirth()
     {
-        if (stats == null || player == null || stats.GetPhoenixSoulEnhancementPick() != 0)
+        if (stats == null
+            || player == null
+            || !stats.AreMeleeMajorPassiveEffectsEnabled()
+            || stats.GetPhoenixSoulEnhancementPick() != 0)
             return false;
 
         if (Time.time < _phoenixAshenRebirthCooldownEndsAt)
@@ -2001,7 +2006,7 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void TickPhoenixSoulBurnRegen(float deltaSeconds)
     {
-        if (stats == null || player == null || !stats.IsPhoenixSoulUnlocked())
+        if (stats == null || player == null || !stats.IsPhoenixSoulUnlocked() || !stats.AreMeleeMajorPassiveEffectsEnabled())
             return;
 
         if (player.IsDead || stats.IsDead)
@@ -5586,14 +5591,15 @@ public class PlayerAbilityController : MonoBehaviour
 
     private void ApplyOnHitEffects(EnemyBaseController target, DealtHit dealt)
     {
-        if (target == null || stats == null)
+        if (target == null || stats == null || !stats.CanApplyOutgoingAilmentsOnHit())
             return;
 
         AilmentController ailments = target.GetComponent<AilmentController>();
         if (ailments == null)
             return;
 
-        if (dealt.physical > 0f && stats.BleedChance > 0f && UnityEngine.Random.value <= stats.BleedChance)
+        float bleedProcChance = stats.GetEffectiveBleedChanceForProcs();
+        if (dealt.physical > 0f && bleedProcChance > 0f && UnityEngine.Random.value <= bleedProcChance)
         {
             float duration = Mathf.Max(1f, stats.BleedDuration);
             int ticks = Mathf.Max(1, Mathf.RoundToInt(duration));

@@ -145,6 +145,15 @@ public static class AbilityCombatPower
     /// <summary>Phoenix Soul major passive spine (slot 0 at level 40).</summary>
     public const string PhoenixSoulEnhancementParentSpineNodeId = "Lv40_0";
 
+    /// <summary>Melee Lv40 major passive — Bloodbath (skill tree slot 2 at level 40).</summary>
+    public const string BloodbathEnhancementParentSpineNodeId = "Lv40_2";
+    public const int BloodbathMaxStacks = 5;
+    public const float BloodbathPhysicalDamagePerStack = 0.03f;
+    public const float BloodbathStackDurationSeconds = 12f;
+    public const float BloodbathCarnageBleedMultiplierPerStack = 0.02f;
+    public const float BloodbathButcheryBleedChancePerStack = 0.03f;
+    public const string BloodbathHudBuffId = "bloodbath";
+
     /// <summary>Melee capstone passive spine (slot 0 at level 50).</summary>
     public const string MeleeCapstoneSpineNodeId = "Lv50_0";
 
@@ -152,6 +161,22 @@ public static class AbilityCombatPower
     public const int MeleeCapstoneWayOfTheCrusaderChoiceIndex = 1;
     public const int MeleeCapstoneWayOfTheAssassinChoiceIndex = 2;
     public const int MeleeCapstoneWayOfTheGladiatorChoiceIndex = 3;
+    public const int MeleeCapstoneWayOfTheSlayerChoiceIndex = 4;
+    public const int MeleeCapstoneWayOfTheBladeDancerChoiceIndex = 5;
+
+    public const float WayOfTheSlayerExecuteHpThreshold01 = 0.10f;
+    public const string WayOfTheSlayerExecuteOutgoingSourceLabel = "Way of the Slayer";
+    public const string WayOfTheSlayerExecuteStatusPopupLabel = "EXECUTED";
+
+    public const int WayOfTheBladeDancerTripleHitInterval = 3;
+    public const float WayOfTheBladeDancerTripleHitDamageFraction = 1f;
+    public const float WayOfTheBladeDancerKillCritChanceBonus = 0.20f;
+    public const float WayOfTheBladeDancerKillCritDurationSeconds = 5f;
+    public const float WayOfTheBladeDancerDashMaxDistance = 6f;
+    public const float WayOfTheBladeDancerDashCooldownSeconds = 1.25f;
+    public const string WayOfTheBladeDancerTripleHitSourceLabel = "Way of the Blade Dancer";
+    public const string WayOfTheBladeDancerKillCritHudBuffId = "way_of_the_blade_dancer_kill_crit";
+
     public const int WayOfTheAssassinPoisonMaxStacksBonus = 5;
     public const float WayOfTheAssassinLowHpPoisonMultiplierBonus = 0.50f;
     public const float WayOfTheAssassinPoisonDurationBonusSeconds = 2f;

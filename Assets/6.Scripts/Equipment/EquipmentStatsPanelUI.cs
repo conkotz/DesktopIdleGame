@@ -910,7 +910,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
             return;
 
         if (bleedChanceLineText)
-            bleedChanceLineText.text = $"Bleed Chance: {stats.BleedChancePercent:0.#}%";
+            bleedChanceLineText.text = $"Bleed Chance: {stats.BleedChancePercentForStatsPanel:0.#}%";
         if (bleedMultiplierLineText)
             bleedMultiplierLineText.text = $"Bleed Multiplier: {FormatSignedPercentPoints(stats.BleedMultiplier * 100f)}";
         if (bleedDurationLineText)
@@ -967,7 +967,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
                 t.color = c;
         }
 
-        bool bleedApplies = stats.BleedChance > 0f;
+        bool bleedApplies = stats.GetEffectiveBleedChanceForProcs() > 0f;
         bool poisonApplies = stats.PoisonChance > 0f;
         bool burnApplies = stats.BurnApplyChancePercentForStatsPanel > 0f;
         bool shockApplies = stats.ShockApplyChancePercentForStatsPanel > 0f;

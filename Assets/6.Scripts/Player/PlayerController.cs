@@ -3766,7 +3766,9 @@ public class PlayerController : MonoBehaviour
         if (ailments != null)
         {
             float ailmentMult = ailments.GetMoveSpeedMultiplier();
-            if (combat != null && combat.IsWayOfTheBerserkerSlowImmune())
+            if (characterStats != null && characterStats.IsWayOfTheSlayerCrowdControlImmune())
+                speed = Mathf.Max(speed, speed * ailmentMult);
+            else if (combat != null && combat.IsWayOfTheBerserkerSlowImmune())
                 speed = Mathf.Max(speed, speed * ailmentMult);
             else
                 speed *= ailmentMult;

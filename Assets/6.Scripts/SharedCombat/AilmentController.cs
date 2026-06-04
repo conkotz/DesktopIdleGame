@@ -451,6 +451,8 @@ public class AilmentController : MonoBehaviour
             TrySpawnEnemyAilmentActivationPopup("Bleeding", c, payload.source);
         }
 
+        _bleedOwnerPlayerStats?.NotifyBloodbathStackFromBleedApplication();
+
         OnAilmentsChanged?.Invoke();
     }
 
@@ -485,6 +487,8 @@ public class AilmentController : MonoBehaviour
 
         if (exclusiveBleedTickSchedule.Count > 0 && exclusiveBleedRoutine == null)
             exclusiveBleedRoutine = StartCoroutine(ExclusiveBleedRoutine(payload.source));
+
+        _bleedOwnerPlayerStats?.NotifyBloodbathStackFromBleedApplication();
 
         OnAilmentsChanged?.Invoke();
     }
@@ -914,6 +918,9 @@ public class AilmentController : MonoBehaviour
     public void ApplyChillFromHit(ChillPayload payload)
     {
         if (IsDead()) return;
+
+        if (IsPlayerVictim && characterStats != null && characterStats.IsWayOfTheSlayerCrowdControlImmune())
+            return;
 
         CacheAilmentStatusDealerWorld(payload.source, ref _chillDotDealerWorldPos, ref _hasChillDotDealerWorldPos);
 
