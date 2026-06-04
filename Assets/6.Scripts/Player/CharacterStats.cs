@@ -552,8 +552,8 @@ public class CharacterStats : MonoBehaviour, ISaveable
         GetTacticianFlatMagicResistBonus() +
         Mathf.RoundToInt(GetUnlockedSkillMinorBonuses(SkillType.Endurance).enduranceMagicResistFlat) +
         (buffController ? Mathf.RoundToInt(buffController.GetTotalMagnitude(ConsumableEffectType.MagicResistBoost)) : 0);
-    public int CorruptionResist =>
-        baseCorruptionResist + GetEquippedCorruptionResist() + GetTacticianFlatCorruptionResistBonus();
+    public int CorruptionResist => CombatResistRules.ClampRating(
+        baseCorruptionResist + GetEquippedCorruptionResist() + GetTacticianFlatCorruptionResistBonus());
 
     public float PhysBlockChance => Mathf.Clamp01(
         basePhysBlockChance + GetEquippedPhysBlockChance() + GetTacticianPhysBlockChanceBonus());
@@ -842,10 +842,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
         basePoisonChance + GetEquippedPoisonChance() + GetActiveMeleeMinorBonuses().meleePoisonChance +
         GetTacticianPoisonChanceBonus());
     public float PoisonMultiplier => Mathf.Max(0f, basePoisonMultiplier + GetEquippedPoisonMultiplier() + GetActiveMeleeMinorBonuses().meleeAilmentDamage);
-    public float PoisonDuration => Mathf.Max(0.1f, basePoisonDuration + GetEquippedPoisonDurationBonus() + GetActiveMeleeMinorBonuses().meleePoisonDuration);
+    public float PoisonDuration => Mathf.Max(
+        0.1f,
+        basePoisonDuration + GetEquippedPoisonDurationBonus() + GetActiveMeleeMinorBonuses().meleePoisonDuration
+        + GetWayOfTheAssassinPoisonDurationBonusSeconds());
     public int PoisonMaxStacks => Mathf.Max(
         1,
-        basePoisonMaxStacks + GetEquippedPoisonMaxStacksBonus() + GetActiveMeleeMinorBonuses().poisonMaxStacksBonus);
+        basePoisonMaxStacks + GetEquippedPoisonMaxStacksBonus() + GetActiveMeleeMinorBonuses().poisonMaxStacksBonus
+        + GetWayOfTheAssassinPoisonMaxStacksBonus());
 
     public float BleedChancePercent => BleedChance * 100f;
     public float PoisonChancePercent => PoisonChance * 100f;
@@ -2402,8 +2406,15 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <inheritdoc cref="RangedTotalDamageBonusPercentPoints"/>
     public float RangedPhysicalDamageBonusPercentPoints => RangedTotalDamageBonusPercentPoints;
 
-    /// <summary>Bleed is a single-stack DoT in the current combat model.</summary>
-    public int BleedMaxStacks => 1;
+    public bool IsPlayerCharacterStats => _ownerPlayer != null;
+
+    /// <summary>Max bleed stacks this unit can apply (Way of the Gladiator +1 when selected).</summary>
+    public int BleedMaxStacks => GetBleedMaxStacksForApplications();
+
+    public int GetBleedMaxStacksForApplications() =>
+        1 + (GetMeleeCapstoneEnhancementPick() == AbilityCombatPower.MeleeCapstoneWayOfTheGladiatorChoiceIndex
+            ? AbilityCombatPower.WayOfTheGladiatorBleedMaxStacksBonus
+            : 0);
 
     /// <summary>Burn DoT duration shown in UI (fixed wall-clock window; tick rate does not shorten it).</summary>
     public float BurnDotDurationSeconds => AilmentController.DefaultBurnWallClockDurationSeconds;
@@ -3423,16 +3434,17 @@ public class CharacterStats : MonoBehaviour, ISaveable
             ? AbilityCombatPower.MasterOfVenomsLethalCompoundMaxStacksBonus
             : 0;
 
-    /// <summary>Reduces poison stack duration (ticks) when Lethal Compound is active.</summary>
-    public int GetMasterOfVenomsLethalCompoundTickReduction(int stacksOnTargetIncludingNew)
+    /// <summary>Poison duration applied to stacks when Lethal Compound is active (−0.5s flat).</summary>
+    public float GetEffectivePoisonDurationSeconds()
     {
-        if (GetMasterOfVenomsEnhancementPick() != 1 || stacksOnTargetIncludingNew <= 0)
-            return 0;
-
-        return Mathf.FloorToInt(
-            AbilityCombatPower.MasterOfVenomsLethalCompoundDurationReductionPerStackSeconds *
-            stacksOnTargetIncludingNew);
+        float seconds = PoisonDuration;
+        if (GetMasterOfVenomsEnhancementPick() == 1)
+            seconds -= AbilityCombatPower.MasterOfVenomsLethalCompoundDurationReductionSeconds;
+        return Mathf.Max(0.1f, seconds);
     }
+
+    public bool IsMasterOfVenomsLethalCompoundSelected() =>
+        GetMasterOfVenomsEnhancementPick() == 1;
 
     public int GetMeleeCapstoneEnhancementPick()
     {
@@ -3450,6 +3462,62 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public bool IsWayOfTheCrusaderCapstoneActive() =>
         GetMeleeCapstoneEnhancementPick() == AbilityCombatPower.MeleeCapstoneWayOfTheCrusaderChoiceIndex
         && HasMeleeWeaponEquippedForCapstonePassive();
+
+    public bool IsWayOfTheAssassinCapstoneActive() =>
+        GetMeleeCapstoneEnhancementPick() == AbilityCombatPower.MeleeCapstoneWayOfTheAssassinChoiceIndex
+        && HasMeleeWeaponEquippedForCapstonePassive();
+
+    public bool IsWayOfTheGladiatorCapstoneActive() =>
+        GetMeleeCapstoneEnhancementPick() == AbilityCombatPower.MeleeCapstoneWayOfTheGladiatorChoiceIndex
+        && HasMeleeWeaponEquippedForCapstonePassive();
+
+    public int GetWayOfTheAssassinPoisonMaxStacksBonus() =>
+        IsWayOfTheAssassinCapstoneActive() ? AbilityCombatPower.WayOfTheAssassinPoisonMaxStacksBonus : 0;
+
+    public float GetWayOfTheAssassinPoisonDurationBonusSeconds() =>
+        IsWayOfTheAssassinCapstoneActive() ? AbilityCombatPower.WayOfTheAssassinPoisonDurationBonusSeconds : 0f;
+
+    /// <summary>Poison multiplier used when applying poison from this unit, including Assassin low-HP bonus vs the victim.</summary>
+    public float GetPoisonMultiplierAgainst(CharacterStats victimStats)
+    {
+        float mult = PoisonMultiplier;
+        if (!IsWayOfTheAssassinCapstoneActive() || victimStats == null)
+            return mult;
+
+        float hp01 = victimStats.HP / Mathf.Max(1f, victimStats.MaxHP);
+        if (hp01 < MeleeLowHpThreshold01)
+            mult += AbilityCombatPower.WayOfTheAssassinLowHpPoisonMultiplierBonus;
+
+        return mult;
+    }
+
+    /// <summary>Reduces this unit's corruption resist rating (enemy debuff). Clamped globally to a minimum of zero.</summary>
+    public void ApplyCorruptionResistPoisonTickReduction(float reductionFraction01)
+    {
+        if (reductionFraction01 <= 0f)
+            return;
+
+        baseCorruptionResist = CombatResistRules.ApplyRatingPercentReduction(
+            baseCorruptionResist,
+            reductionFraction01);
+        NotifyStatsChanged();
+    }
+
+    /// <summary>Reduces this unit's armor rating (enemy debuff). Clamped globally to a minimum of zero.</summary>
+    public void ApplyArmorBleedTickReduction(float reductionFraction01)
+    {
+        if (reductionFraction01 <= 0f)
+            return;
+
+        baseArmor = CombatResistRules.ApplyRatingPercentReduction(baseArmor, reductionFraction01);
+        NotifyStatsChanged();
+    }
+
+    /// <summary>Enemy bleed proc chance vs this player (Way of the Gladiator).</summary>
+    public float GetIncomingBleedChanceFromEnemies(float enemyBleedChance) =>
+        IsWayOfTheGladiatorCapstoneActive()
+            ? Mathf.Max(0f, enemyBleedChance * (1f - AbilityCombatPower.WayOfTheGladiatorIncomingBleedChanceReduction))
+            : enemyBleedChance;
 
     /// <summary>Capstone passives require an equipped melee weapon (not unarmed, ranged, or magic).</summary>
     public bool HasMeleeWeaponEquippedForCapstonePassive()
@@ -3487,6 +3555,32 @@ public class CharacterStats : MonoBehaviour, ISaveable
     public float GetWayOfTheBerserkerLeechBonusFraction() =>
         GetOwnerCombatController()?.GetWayOfTheBerserkerLeechBonusFraction() ?? 0f;
 
+    public void NotifyWayOfTheAssassinPoisonTick(EnemyBaseController originEnemy)
+    {
+        if (!IsWayOfTheAssassinCapstoneActive() || originEnemy == null || originEnemy.IsDead)
+            return;
+
+        CharacterStats victimStats = originEnemy.Stats;
+        if (victimStats == null)
+            return;
+
+        victimStats.ApplyCorruptionResistPoisonTickReduction(
+            AbilityCombatPower.WayOfTheAssassinCorruptionResistReductionPerPoisonTick);
+    }
+
+    public void NotifyWayOfTheGladiatorBleedTick(EnemyBaseController originEnemy)
+    {
+        if (!IsWayOfTheGladiatorCapstoneActive() || originEnemy == null || originEnemy.IsDead)
+            return;
+
+        CharacterStats victimStats = originEnemy.Stats;
+        if (victimStats == null)
+            return;
+
+        victimStats.ApplyArmorBleedTickReduction(
+            AbilityCombatPower.WayOfTheGladiatorArmorReductionPerBleedTick);
+    }
+
     /// <summary>Resolves player stats that own a poison application (player or minion owner).</summary>
     public static CharacterStats ResolvePoisonOwnerPlayerStats(Transform source)
     {
@@ -3502,6 +3596,12 @@ public class CharacterStats : MonoBehaviour, ISaveable
             if (ownerStats)
                 return ownerStats;
         }
+
+        CharacterStats statsOnSource = source.GetComponent<CharacterStats>();
+        if (statsOnSource == null)
+            statsOnSource = source.GetComponentInParent<CharacterStats>();
+        if (statsOnSource != null && statsOnSource.IsPlayerCharacterStats)
+            return statsOnSource;
 
         return null;
     }
@@ -4338,7 +4438,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         baseMaxMagicDamage = Mathf.Max(baseMinMagicDamage, def.maxMagicDamage);
         baseMinCorruptionDamage = Mathf.Max(0f, def.minCorruptionDamage);
         baseMaxCorruptionDamage = Mathf.Max(baseMinCorruptionDamage, def.maxCorruptionDamage);
-        baseCorruptionResist = Mathf.Max(0, def.corruptionResist);
+        baseCorruptionResist = CombatResistRules.ClampRating(def.corruptionResist);
 
         baseAbilityPower = Mathf.Max(0f, def.abilityPower);
         baseLifeSteal = Mathf.Clamp01(def.lifeSteal);
@@ -4444,7 +4544,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
         baseMaxHP = Mathf.Max(1, Mathf.RoundToInt(baseMaxHP * healthMult));
         baseArmor = Mathf.Max(0, Mathf.RoundToInt(baseArmor * armorMrMult));
         baseMagicResist = Mathf.Max(0, Mathf.RoundToInt(baseMagicResist * armorMrMult));
-        baseCorruptionResist = Mathf.Max(0, Mathf.RoundToInt(baseCorruptionResist * armorMrMult));
+        baseCorruptionResist = CombatResistRules.ClampRating(Mathf.RoundToInt(baseCorruptionResist * armorMrMult));
 
         unarmedMinPhysicalDamage = Mathf.Max(0, Mathf.RoundToInt(unarmedMinPhysicalDamage * outgoingDamageMult));
         unarmedMaxPhysicalDamage = Mathf.Max(
@@ -5056,7 +5156,7 @@ public class CharacterStats : MonoBehaviour, ISaveable
 
     private static float MitigateByRating(float damage, float rating)
     {
-        rating = Mathf.Max(0f, rating);
+        rating = CombatResistRules.ClampRating(rating);
         float multiplier = 100f / (100f + rating);
         return damage * multiplier;
     }

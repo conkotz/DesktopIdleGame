@@ -136,6 +136,7 @@ public class EnemyBaseController : MonoBehaviour
 
     public bool IsDead => state == EnemyState.Dead;
     public bool IsStunned => Time.time < _stunnedUntil;
+    public CharacterStats Stats => stats;
     public int HP => stats ? Mathf.RoundToInt(stats.HP) : 0;
     public int MaxHP => stats ? stats.MaxHP : 0;
 
@@ -857,9 +858,16 @@ public class EnemyBaseController : MonoBehaviour
             return;
 
         // Bleed
-        if (stats.BleedChance > 0f && stats.BleedBaseTotalDamage > 0f)
+        CharacterStats playerStats = _playerController != null
+            ? _playerController.GetComponent<CharacterStats>()
+            : null;
+        float bleedChance = playerStats != null
+            ? playerStats.GetIncomingBleedChanceFromEnemies(stats.BleedChance)
+            : stats.BleedChance;
+
+        if (bleedChance > 0f && stats.BleedBaseTotalDamage > 0f)
         {
-            if (UnityEngine.Random.value < stats.BleedChance)
+            if (UnityEngine.Random.value < bleedChance)
             {
                 BleedPayload bleed = new BleedPayload
                 {

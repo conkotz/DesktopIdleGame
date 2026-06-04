@@ -3,6 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [Serializable]
+public class EnhancementScrollHistoryEntry
+{
+    public string scrollName;
+    public bool success;
+    public string effectSummary;
+}
+
+[Serializable]
 public class SaveData
 {
     [Header("Meta")]
@@ -90,6 +98,7 @@ public class SaveData
         public string displayName;
         public int usedUpgradeSlots;
         public int successfulEnhancements;
+        public List<EnhancementScrollHistoryEntry> enhancementScrollHistory = new();
         public WeaponStats weaponStats;
         public ArmorStats armorStats;
         public BonusStats bonusStats;

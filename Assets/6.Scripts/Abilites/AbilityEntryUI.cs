@@ -46,8 +46,15 @@ public class AbilityEntryUI : MonoBehaviour,
     private Outline _committedListRowOutline;
     private Button _rowButton;
     private float _defaultNameFontSize = -1f;
+    private float _defaultRowPreferredHeight = -1f;
+    private float _defaultNamePreferredHeight = -1f;
+    private TextWrappingModes _defaultNameWrapMode;
+    private HorizontalLayoutGroup _rowGroupLayout;
+    private LayoutElement _rowLayoutElement;
+    private LayoutElement _nameLayoutElement;
 
     [SerializeField] private float compactNameFontSize = 16f;
+    [SerializeField] private float rowExpandedVerticalPadding = 10f;
 
     private const float NotSelectedFadeSeconds = 0.35f;
     private const float NotSelectedHoldOpaqueSeconds = 2f;
@@ -351,8 +358,37 @@ public class AbilityEntryUI : MonoBehaviour,
         if (nameText == null)
             return;
 
+        EnsureRowLayoutRefs();
         CaptureDefaultNameFontSize();
+        CaptureDefaultRowLayout();
+
         nameText.fontSize = compact ? compactNameFontSize : _defaultNameFontSize;
+        nameText.textWrappingMode = compact ? TextWrappingModes.Normal : _defaultNameWrapMode;
+        nameText.overflowMode = TextOverflowModes.Overflow;
+
+        if (_rowGroupLayout != null)
+            _rowGroupLayout.childControlHeight = compact;
+
+        if (_nameLayoutElement != null)
+            _nameLayoutElement.preferredHeight = compact ? -1f : _defaultNamePreferredHeight;
+
+        ApplyRowHeight(compact);
+    }
+
+    private void EnsureRowLayoutRefs()
+    {
+        if (_rowLayoutElement == null)
+            TryGetComponent(out _rowLayoutElement);
+
+        if (_nameLayoutElement == null && nameText != null)
+            nameText.TryGetComponent(out _nameLayoutElement);
+
+        if (_rowGroupLayout != null)
+            return;
+
+        Transform rowGroup = transform.Find("RowGroup");
+        if (rowGroup != null)
+            rowGroup.TryGetComponent(out _rowGroupLayout);
     }
 
     private void CaptureDefaultNameFontSize()
@@ -361,6 +397,82 @@ public class AbilityEntryUI : MonoBehaviour,
             return;
 
         _defaultNameFontSize = nameText.fontSize;
+        _defaultNameWrapMode = nameText.textWrappingMode;
+    }
+
+    private void CaptureDefaultRowLayout()
+    {
+        if (_defaultRowPreferredHeight >= 0f)
+            return;
+
+        if (_rowLayoutElement != null && _rowLayoutElement.preferredHeight > 0f)
+            _defaultRowPreferredHeight = _rowLayoutElement.preferredHeight;
+        else if (transform is RectTransform rt && rt.sizeDelta.y > 0f)
+            _defaultRowPreferredHeight = rt.sizeDelta.y;
+        else
+            _defaultRowPreferredHeight = 60f;
+
+        if (_nameLayoutElement != null && _nameLayoutElement.preferredHeight > 0f)
+            _defaultNamePreferredHeight = _nameLayoutElement.preferredHeight;
+        else
+            _defaultNamePreferredHeight = 50f;
+    }
+
+    private void ApplyRowHeight(bool expandedNarrowColumn)
+    {
+        float height = _defaultRowPreferredHeight;
+
+        if (expandedNarrowColumn)
+        {
+            float nameWidth = ResolveNameTextLayoutWidth();
+            RectTransform nameRt = nameText.rectTransform;
+            if (nameRt != null && nameWidth > 1f)
+                nameRt.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, nameWidth);
+
+            nameText.ForceMeshUpdate();
+            float textHeight = nameText.preferredHeight;
+            float iconHeight = 0f;
+            if (icon != null && icon.transform is RectTransform iconRt)
+                iconHeight = iconRt.rect.height > 1f ? iconRt.rect.height : iconRt.sizeDelta.y;
+
+            height = Mathf.Max(_defaultRowPreferredHeight, Mathf.Max(textHeight, iconHeight) + rowExpandedVerticalPadding);
+        }
+
+        if (_rowLayoutElement != null)
+        {
+            _rowLayoutElement.preferredHeight = height;
+            _rowLayoutElement.minHeight = expandedNarrowColumn ? _defaultRowPreferredHeight : -1f;
+        }
+
+        if (transform is RectTransform rowRt)
+            rowRt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+
+        Transform rowGroup = transform.Find("RowGroup");
+        if (rowGroup is RectTransform rowGroupRt)
+            rowGroupRt.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+    }
+
+    private float ResolveNameTextLayoutWidth()
+    {
+        if (nameText == null)
+            return 0f;
+
+        RectTransform nameRt = nameText.rectTransform;
+        if (nameRt != null)
+        {
+            float layoutWidth = LayoutUtility.GetPreferredWidth(nameRt);
+            if (layoutWidth > 1f)
+                return layoutWidth;
+
+            float rectWidth = nameRt.rect.width;
+            if (rectWidth > 1f)
+                return rectWidth;
+        }
+
+        if (_nameLayoutElement != null && _nameLayoutElement.preferredWidth > 0f)
+            return _nameLayoutElement.preferredWidth;
+
+        return 131f;
     }
 
     public void SetTooltipDocking(RectTransform tooltipBoundsRect, FlipInsideBounds.PreferredSide preferredSide)

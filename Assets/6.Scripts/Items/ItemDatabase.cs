@@ -206,6 +206,7 @@ public class ItemDatabase : ScriptableObject
                 displayName = def.displayName,
                 usedUpgradeSlots = def.usedUpgradeSlots,
                 successfulEnhancements = def.successfulEnhancements,
+                enhancementScrollHistory = CopyEnhancementScrollHistory(def.enhancementScrollHistory),
                 weaponStats = def.weaponStats,
                 armorStats = def.armorStats,
                 bonusStats = def.bonusStats,
@@ -240,6 +241,7 @@ public class ItemDatabase : ScriptableObject
             clone.displayName = string.IsNullOrWhiteSpace(saved.displayName) ? baseDef.displayName : saved.displayName;
             clone.usedUpgradeSlots = Mathf.Max(0, saved.usedUpgradeSlots);
             clone.successfulEnhancements = Mathf.Max(0, saved.successfulEnhancements);
+            clone.enhancementScrollHistory = CopyEnhancementScrollHistory(saved.enhancementScrollHistory);
             clone.weaponStats = saved.weaponStats;
             clone.armorStats = saved.armorStats;
             clone.bonusStats = saved.bonusStats;
@@ -265,5 +267,29 @@ public class ItemDatabase : ScriptableObject
 
         ItemDefinition clone = CreateRuntimeEnhancedItem(baseDef, runtimeItemId);
         return clone;
+    }
+
+    private static List<EnhancementScrollHistoryEntry> CopyEnhancementScrollHistory(
+        List<EnhancementScrollHistoryEntry> source)
+    {
+        if (source == null || source.Count == 0)
+            return new List<EnhancementScrollHistoryEntry>();
+
+        var copy = new List<EnhancementScrollHistoryEntry>(source.Count);
+        for (int i = 0; i < source.Count; i++)
+        {
+            EnhancementScrollHistoryEntry entry = source[i];
+            if (entry == null)
+                continue;
+
+            copy.Add(new EnhancementScrollHistoryEntry
+            {
+                scrollName = entry.scrollName,
+                success = entry.success,
+                effectSummary = entry.effectSummary
+            });
+        }
+
+        return copy;
     }
 }

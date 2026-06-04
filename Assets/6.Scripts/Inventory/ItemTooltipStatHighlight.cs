@@ -100,15 +100,17 @@ public static class ItemTooltipStatHighlight
         if (HasSignificantPercentPoints(critMultBonusPct) || current.IsCorruptionOnlyWeapon)
             s.Append(FormatPercentLine("Crit Multi", critMultBonusPct, baseCritMultBonusPct, signed: true)).Append('\n');
 
-        string ailments = current.BuildWeaponAilmentsLineForTooltip();
-        if (!string.IsNullOrWhiteSpace(ailments))
-            s.Append(ailments).Append('\n');
+        string matchingAilments = current.BuildWeaponAilmentsLineForTooltip(baseline);
+        if (!string.IsNullOrWhiteSpace(matchingAilments))
+            s.Append(matchingAilments).Append('\n');
 
         s.Append(FormatFloatLine("Range", $"{range:0.##}", range, baseRange, $"{baseRange:0.##}")).Append(dual);
 
         AppendWeaponProcLine(s, "Phys Block", current.PhysBlockChance, baseline.PhysBlockChance, percent01: true);
-        AppendWeaponProcLine(s, "Parry Chance", current.ParryChance, baseline.ParryChance, percent01: true);
-        AppendWeaponProcLine(s, "Stun Chance", current.StunChance, baseline.StunChance, percent01: true);
+        if (current.ParryChance > 0f && Mathf.Approximately(current.ParryChance, baseline.ParryChance))
+            AppendWeaponProcLine(s, "Parry Chance", current.ParryChance, baseline.ParryChance, percent01: true);
+        if (current.StunChance > 0f && Mathf.Approximately(current.StunChance, baseline.StunChance))
+            AppendWeaponProcLine(s, "Stun Chance", current.StunChance, baseline.StunChance, percent01: true);
         AppendWeaponProcLine(s, "Health", current.BonusHealth, baseline.BonusHealth, percent01: false, prefixPlus: true);
 
         if (current.weaponStats.attackSkill == AttackSkill.Magic)
@@ -117,15 +119,19 @@ public static class ItemTooltipStatHighlight
         if (current.RequiresOffhandSupport)
             s.Append($"\nRequires: {current.RequiredSupportType}");
 
+        string ailmentBonuses = current.BuildWeaponAilmentBonusLinesForTooltip(baseline);
+        if (!string.IsNullOrWhiteSpace(ailmentBonuses))
+            s.Append('\n').Append(ailmentBonuses);
+
         string extras = current.BuildBonusLinesForHighlight(baseline);
         if (!string.IsNullOrWhiteSpace(extras))
-            s.Append('\n').Append(extras);
+            s.Append('\n').Append(ItemDefinition.StripDuplicateTooltipStatLines(extras));
 
         string misc = current.BuildMiscLinesForHighlight(baseline);
         if (!string.IsNullOrWhiteSpace(misc))
             s.Append('\n').Append(misc);
 
-        return s.ToString().TrimEnd('\n');
+        return ItemDefinition.StripDuplicateTooltipStatLines(s.ToString().TrimEnd('\n'));
     }
 
     private static string BuildArmorJewelryMainStats(ItemDefinition current, ItemDefinition baseline)

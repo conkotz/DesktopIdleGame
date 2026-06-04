@@ -19,6 +19,7 @@ public struct MinionOwnerWeaponSnapshot
     public float bleedDuration;
     public float bleedMultiplier;
     public float bleedBaseDuration;
+    public int bleedMaxStacks;
     public float poisonMultiplier;
     public float poisonPoolFractionOfCorruptionDamage;
     public float poisonDuration;
@@ -46,6 +47,7 @@ public struct MinionOwnerWeaponSnapshot
             bleedDuration = owner.BleedDuration,
             bleedMultiplier = owner.BleedMultiplier,
             bleedBaseDuration = owner.BleedBaseDuration,
+            bleedMaxStacks = owner.GetBleedMaxStacksForApplications(),
             poisonMultiplier = owner.PoisonMultiplier,
             poisonPoolFractionOfCorruptionDamage = owner.PoisonPoolFractionOfCorruptionDamage,
             poisonDuration = owner.PoisonDuration,

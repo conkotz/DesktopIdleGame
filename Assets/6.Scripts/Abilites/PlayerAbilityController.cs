@@ -5602,14 +5602,20 @@ public class PlayerAbilityController : MonoBehaviour
             if (bleedTickDamage > 0f)
             {
                 float totalBleedDamage = bleedTickDamage * ticks;
-                ailments.ApplyBleedFromHit(new BleedPayload(totalBleedDamage, duration, ticks, transform));
+                ailments.ApplyBleedFromHit(new BleedPayload(
+                    totalBleedDamage,
+                    duration,
+                    ticks,
+                    transform,
+                    maxStacks: stats.BleedMaxStacks));
             }
         }
 
         if (dealt.corruptionDamage > 0f && stats.PoisonChance > 0f && stats.PoisonMultiplier >= 0f && UnityEngine.Random.value <= stats.PoisonChance)
         {
             float totalPoisonDamage =
-                dealt.corruptionDamage * stats.PoisonPoolFractionOfCorruptionDamage * (1f + stats.PoisonMultiplier);
+                dealt.corruptionDamage * stats.PoisonPoolFractionOfCorruptionDamage *
+                (1f + stats.GetPoisonMultiplierAgainst(target != null ? target.Stats : null));
             if (totalPoisonDamage > 0f)
             {
                 float duration = Mathf.Max(0.1f, stats.PoisonDuration);
@@ -5962,7 +5968,7 @@ public class PlayerAbilityController : MonoBehaviour
 
         float perStackTotal =
             corruptionDealtPostMitigation * stats.PoisonPoolFractionOfCorruptionDamage *
-            (1f + Mathf.Max(0f, stats.PoisonMultiplier));
+            (1f + stats.GetPoisonMultiplierAgainst(target.Stats));
         if (perStackTotal <= 0f)
             return;
 
@@ -5987,11 +5993,18 @@ public class PlayerAbilityController : MonoBehaviour
         if (selected == 0)
             ailments.GrantTemporaryPoisonMaxStacksBonus(2, 6f);
 
-        stacksToApply = ailments.GetEffectivePoisonMaxStacks(baseMaxStacks);
+        int effectiveMaxStacks = ailments.GetEffectivePoisonMaxStacks(baseMaxStacks);
+        stacksToApply = effectiveMaxStacks;
         var payload = new PoisonPayload(
-            perStackTotal, duration, ticks, baseMaxStacks, transform, poisonMasteryOwner: transform);
-        for (int i = 0; i < stacksToApply; i++)
-            ailments.ApplyPoisonFromHit(payload);
+            perStackTotal,
+            duration,
+            ticks,
+            effectiveMaxStacks,
+            transform,
+            poisonMasteryOwner: transform,
+            splitTotalDamageAcrossStacks: true,
+            replaceExistingPoisonStacks: true);
+        ailments.ApplyPoisonStacksFromHit(payload, stacksToApply);
 
         if (selected == 1)
         {

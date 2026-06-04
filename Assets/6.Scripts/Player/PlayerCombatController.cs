@@ -1987,6 +1987,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
     /// <summary>Envenom Contagion Burst: full poison stack packet to every other enemy in radial range of the source (victim may be dead).</summary>
     public void ApplyPoisonContagionSpread(EnemyBaseController originEnemy, PoisonPayload payload)
     {
+        int stackCount = Mathf.Max(1, payload.maxStacks);
+        PoisonPayload spreadPayload = BuildFullDurationPoisonSpreadPayload(payload);
+
         CollectEnemiesInAilmentSpreadRadius(originEnemy, _ailmentSpreadScratch);
         for (int i = 0; i < _ailmentSpreadScratch.Count; i++)
         {
@@ -1994,9 +1997,30 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             if (ac == null)
                 continue;
 
-            for (int s = 0; s < payload.maxStacks; s++)
-                ac.ApplyPoisonFromHit(payload);
+            ac.ApplyPoisonStacksFromHit(spreadPayload, stackCount);
         }
+    }
+
+    private PoisonPayload BuildFullDurationPoisonSpreadPayload(PoisonPayload source)
+    {
+        if (stats == null)
+            return source;
+
+        float duration = Mathf.Max(0.1f, stats.PoisonDuration);
+        int ticks = Mathf.Max(1, Mathf.RoundToInt(duration));
+        int sourceTicks = Mathf.Max(1, source.ticks);
+        int tickDamagePerStack = Mathf.Max(1, Mathf.CeilToInt(source.totalDamage / sourceTicks));
+        float totalPerStack = tickDamagePerStack * ticks;
+
+        return new PoisonPayload(
+            totalPerStack,
+            duration,
+            ticks,
+            source.maxStacks,
+            source.source,
+            source.outgoingDpsSourceLabel,
+            source.outgoingAttributeToMinion,
+            source.poisonMasteryOwner);
     }
 
     private void ApplyCrescentSlashSecondaryHits(EnemyBaseController primaryTarget, bool penetrating, bool applyElemental, HashSet<EnemyBaseController> alreadyHit)
@@ -2772,8 +2796,8 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
             totalBleedDamage,
             duration,
             ticks,
-            transform
-        );
+            transform,
+            maxStacks: stats.BleedMaxStacks);
 
         var ailments = target.GetComponent<AilmentController>();
         if (ailments != null)
@@ -2792,8 +2816,10 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (Random.value > stats.PoisonChance)
             return;
 
+        CharacterStats victimStats = target.Stats;
+        float poisonMult = stats.GetPoisonMultiplierAgainst(victimStats);
         float totalPoisonDamage =
-            poisonSourceDamage * stats.PoisonPoolFractionOfCorruptionDamage * (1f + stats.PoisonMultiplier);
+            poisonSourceDamage * stats.PoisonPoolFractionOfCorruptionDamage * (1f + poisonMult);
         if (totalPoisonDamage <= 0f) return;
 
         float duration = Mathf.Max(0.1f, stats.PoisonDuration);

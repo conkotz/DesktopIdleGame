@@ -139,7 +139,7 @@ public static class AbilityCombatPower
     public const float MasterOfVenomsPoisonChanceBonus = 0.05f;
     public const float MasterOfVenomsNeurotoxinOutgoingDamageReduction = 0.15f;
     public const float MasterOfVenomsNeurotoxinMoveSlowPerPoisonStack = 0.03f;
-    public const float MasterOfVenomsLethalCompoundDurationReductionPerStackSeconds = 0.5f;
+    public const float MasterOfVenomsLethalCompoundDurationReductionSeconds = 0.5f;
     public const int MasterOfVenomsLethalCompoundMaxStacksBonus = 3;
 
     /// <summary>Phoenix Soul major passive spine (slot 0 at level 40).</summary>
@@ -150,6 +150,15 @@ public static class AbilityCombatPower
 
     public const int MeleeCapstoneWayOfTheBerserkerChoiceIndex = 0;
     public const int MeleeCapstoneWayOfTheCrusaderChoiceIndex = 1;
+    public const int MeleeCapstoneWayOfTheAssassinChoiceIndex = 2;
+    public const int MeleeCapstoneWayOfTheGladiatorChoiceIndex = 3;
+    public const int WayOfTheAssassinPoisonMaxStacksBonus = 5;
+    public const float WayOfTheAssassinLowHpPoisonMultiplierBonus = 0.50f;
+    public const float WayOfTheAssassinPoisonDurationBonusSeconds = 2f;
+    public const float WayOfTheAssassinCorruptionResistReductionPerPoisonTick = 0.05f;
+    public const int WayOfTheGladiatorBleedMaxStacksBonus = 1;
+    public const float WayOfTheGladiatorArmorReductionPerBleedTick = 0.05f;
+    public const float WayOfTheGladiatorIncomingBleedChanceReduction = 0.30f;
     public const int WayOfTheCrusaderMaxHolySeals = 3;
     public const float WayOfTheCrusaderHolySealGainIntervalSeconds = 4f;
     public const float WayOfTheCrusaderHealMaxHpFraction = 0.03f;
@@ -610,14 +619,15 @@ public static class AbilityCombatPower
             float poisonPerStackTotal =
                 poisonSourceCorruption * stats.PoisonPoolFractionOfCorruptionDamage *
                 (1f + Mathf.Max(0f, stats.PoisonMultiplier));
-            float totalPoisonDamage = poisonPerStackTotal * stackCount;
+            // Runtime Envenom splits one hit's poison pool across all stacks (stack count does not multiply tick DPS).
+            float totalPoisonDamage = poisonPerStackTotal;
 
             float marginalPoisonProc = 1f - Mathf.Clamp01(stats.PoisonChance);
             float reliabilityWeight = Mathf.Lerp(0.28f, 1f, marginalPoisonProc);
             totalPoisonDamage *= reliabilityWeight;
 
             if (selected == 0)
-                totalPoisonDamage *= 1.12f; // Extra emphasis on stack-cap path beyond raw stackCount.
+                totalPoisonDamage *= 1.12f; // Potent Venom emphasis (extra cap stacks, same total pool).
             else if (selected == 1)
                 totalPoisonDamage *= 1f + 0.12f * AilmentRadialSpreadAssumedExtraTargets; // Contagion: all in radius on death.
 

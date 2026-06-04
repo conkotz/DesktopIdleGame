@@ -119,13 +119,15 @@ public static class MinionHitEffects
         if (bleedTickDamage <= 0f) return;
 
         float totalBleedDamage = bleedTickDamage * ticks;
+        int maxStacks = Mathf.Max(1, ownerSnap.bleedMaxStacks);
         ailments.ApplyBleedFromHit(new BleedPayload(
             totalBleedDamage,
             duration,
             ticks,
             src,
             outgoingDpsSourceLabel,
-            attributeOutgoingToMinion));
+            attributeOutgoingToMinion,
+            maxStacks));
     }
 
     private static void TryPoison(
@@ -145,13 +147,26 @@ public static class MinionHitEffects
         if (Random.value > stats.AilmentChances.poisonChance)
             return;
 
+        float poisonMult = ownerSnap.poisonMultiplier;
+        CharacterStats ownerStats = poisonMasteryOwner != null
+            ? poisonMasteryOwner.GetComponent<CharacterStats>()
+            : null;
+        if (ownerStats == null && ownerSnap.ownerTransform != null)
+            ownerStats = ownerSnap.ownerTransform.GetComponent<CharacterStats>();
+
+        EnemyBaseController victimEnemy = ailments != null ? ailments.GetComponent<EnemyBaseController>() : null;
+        if (ownerStats != null)
+            poisonMult = ownerStats.GetPoisonMultiplierAgainst(victimEnemy != null ? victimEnemy.Stats : null);
+
         float totalPoisonDamage =
-            corruptionDealt * ownerSnap.poisonPoolFractionOfCorruptionDamage * (1f + ownerSnap.poisonMultiplier);
+            corruptionDealt * ownerSnap.poisonPoolFractionOfCorruptionDamage * (1f + poisonMult);
         if (totalPoisonDamage <= 0f) return;
 
         float duration = Mathf.Max(0.1f, ownerSnap.poisonDuration);
         int ticks = Mathf.Max(1, Mathf.RoundToInt(duration));
-        int maxStacks = Mathf.Max(1, ownerSnap.poisonMaxStacks);
+        int maxStacks = ownerStats != null
+            ? Mathf.Max(1, ownerStats.PoisonMaxStacks)
+            : Mathf.Max(1, ownerSnap.poisonMaxStacks);
 
         ailments.ApplyPoisonFromHit(new PoisonPayload(
             totalPoisonDamage,

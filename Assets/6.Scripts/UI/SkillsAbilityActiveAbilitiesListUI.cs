@@ -44,6 +44,7 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         EnsureReferences();
         SubscribeBottomPanelLayout();
         ApplyAbilityNameCompactLayout();
+        RebuildAbilityListLayout();
     }
 
     private void OnDisable() => UnsubscribeBottomPanelLayout();
@@ -139,14 +140,7 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
         EnsureAutoAssignToolbarLayout();
         EnsureToolbarAboveAbilityRows();
         ApplyAbilityNameCompactLayout();
-
-        if (rowsParent is RectTransform listRt)
-        {
-            Canvas.ForceUpdateCanvases();
-            LayoutRebuilder.ForceRebuildLayoutImmediate(listRt);
-            if (listContent is RectTransform contentRt)
-                LayoutRebuilder.ForceRebuildLayoutImmediate(contentRt);
-        }
+        RebuildAbilityListLayout();
     }
 
     private void SpawnCommittedAbilityRow(
@@ -329,6 +323,7 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
     private void OnBottomPanelExpandedChanged(bool expanded)
     {
         ApplyAbilityNameCompactLayout();
+        RebuildAbilityListLayout();
     }
 
     private void ApplyAbilityNameCompactLayout()
@@ -339,6 +334,24 @@ public sealed class SkillsAbilityActiveAbilitiesListUI : MonoBehaviour
             if (_rows[i] != null)
                 _rows[i].SetNameLayoutCompact(compact);
         }
+    }
+
+    private void RebuildAbilityListLayout()
+    {
+        Transform rowsParent = _rowsContainer != null ? _rowsContainer : listContent;
+        if (rowsParent is not RectTransform listRt)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(listRt);
+
+        // Row heights depend on the name column width assigned by the horizontal layout group.
+        if (_bottomPanelLayout != null && _bottomPanelLayout.IsExpanded)
+            ApplyAbilityNameCompactLayout();
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(listRt);
+        if (listContent is RectTransform contentRt && contentRt != listRt)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(contentRt);
     }
 
     private SkillsAbilityBottomPanelLayoutUI ResolveBottomPanelLayout()

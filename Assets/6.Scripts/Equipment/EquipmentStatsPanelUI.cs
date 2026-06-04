@@ -272,6 +272,17 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         return $"{percentPoints:+0.#;-0.#;0}%";
     }
 
+    private static string FormatPoisonDurationLine(CharacterStats characterStats)
+    {
+        if (characterStats == null)
+            return "Poison Duration: —";
+
+        float seconds = characterStats.IsMasterOfVenomsLethalCompoundSelected()
+            ? characterStats.GetEffectivePoisonDurationSeconds()
+            : characterStats.PoisonDuration;
+        return $"Poison Duration: {seconds:0.#}s";
+    }
+
     private static string BuildMoveSpeedLine(CharacterStats characterStats)
     {
         if (characterStats == null)
@@ -912,7 +923,7 @@ public class EquipmentStatsPanelUI : MonoBehaviour
         if (poisonMultiplierLineText)
             poisonMultiplierLineText.text = $"Poison Multiplier: {FormatSignedPercentPoints(stats.PoisonMultiplier * 100f)}";
         if (poisonDurationLineText)
-            poisonDurationLineText.text = $"Poison Duration: {stats.PoisonDuration:0.#}s";
+            poisonDurationLineText.text = FormatPoisonDurationLine(stats);
         if (poisonMaxStacksLineText)
             poisonMaxStacksLineText.text = $"Poison Max Stacks: {stats.PoisonMaxStacks}";
 

@@ -33,7 +33,7 @@ MonoBehaviour:
   usedUpgradeSlots: 0
   successfulEnhancements: 0
   weaponStats:
-    minPhysicalDamage: 10
+    minPhysicalDamage: 12
     maxPhysicalDamage: 22
     minFireDamage: 0
     maxFireDamage: 0

@@ -807,7 +807,11 @@ public class SharedTooltipUI : MonoBehaviour
 
         if (mainStatsText == null)
         {
-            string combined = BuildTooltipStatsTextWithSupportRequirement(def, maskUnrolledRandomStats, highlightBaseline);
+            string combined = BuildTooltipStatsTextWithSupportRequirement(
+                def,
+                maskUnrolledRandomStats,
+                highlightBaseline,
+                itemIdForHighlights);
             if (miscStatsText)
             {
                 miscStatsText.text = combined;
@@ -821,7 +825,8 @@ public class SharedTooltipUI : MonoBehaviour
             return;
         }
 
-        string misc = def.BuildTooltipMiscStatsText() ?? "";
+        bool showAdvancedDetails = IsAdvancedDetailsEnabled(itemIdForHighlights);
+        string misc = def.BuildTooltipMiscStatsText(showAdvancedDetails) ?? "";
         string main = highlightBaseline != null
             ? def.BuildTooltipMainStatsText(highlightBaseline)
             : BuildTooltipMainStatsTextWithSupportRequirement(def, maskUnrolledRandomStats);
@@ -937,15 +942,17 @@ public class SharedTooltipUI : MonoBehaviour
     private string BuildTooltipStatsTextWithSupportRequirement(
         ItemDefinition def,
         bool maskUnrolledRandomStats = false,
-        ItemDefinition highlightBaseline = null)
+        ItemDefinition highlightBaseline = null,
+        string itemIdForHighlights = null)
     {
         if (!def)
             return "";
 
+        bool showAdvancedDetails = IsAdvancedDetailsEnabled(itemIdForHighlights);
         string stats;
         if (highlightBaseline != null)
         {
-            string misc = def.BuildTooltipMiscStatsText() ?? "";
+            string misc = def.BuildTooltipMiscStatsText(showAdvancedDetails) ?? "";
             string main = def.BuildTooltipMainStatsText(highlightBaseline);
             if (string.IsNullOrWhiteSpace(misc))
                 stats = main ?? "";
@@ -978,9 +985,12 @@ public class SharedTooltipUI : MonoBehaviour
         return AppendMaskedRandomStatLines(def, main, maskUnrolledRandomStats);
     }
 
+    private static bool IsAdvancedDetailsEnabled(string itemIdForHighlights) =>
+        !string.IsNullOrWhiteSpace(itemIdForHighlights) && ItemTooltipHighlightState.IsEnabled(itemIdForHighlights);
+
     private static ItemDefinition ResolveHighlightBaseline(string itemIdForHighlights)
     {
-        if (string.IsNullOrWhiteSpace(itemIdForHighlights) || !ItemTooltipHighlightState.IsEnabled(itemIdForHighlights))
+        if (!IsAdvancedDetailsEnabled(itemIdForHighlights))
             return null;
 
         Inventory inventory = Object.FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);

@@ -4554,8 +4554,7 @@ public class PlayerController : MonoBehaviour
 
     private static float MitigateByRating(float damage, float rating)
     {
-        // Clamp so negatives don't *increase* damage unless you want that design.
-        rating = Mathf.Max(0f, rating);
+        rating = CombatResistRules.ClampRating(rating);
 
         // 100/(100+rating) diminishing returns
         float multiplier = 100f / (100f + rating);

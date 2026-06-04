@@ -143,8 +143,10 @@ MonoBehaviour:
   canvasGroup: {fileID: 0}
   selectAbilityRoot: {fileID: 8280570690608171578}
   selectButton: {fileID: 7264301473393614019}
+  notSelectedRoot: {fileID: 0}
   dragIconSize: {x: 48, y: 48}
   compactNameFontSize: 16
+  rowExpandedVerticalPadding: 10
 --- !u!114 &3787355963791828003
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -439,8 +441,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 127.5, y: -30}
-  m_SizeDelta: {x: 131, y: 0}
+  m_AnchoredPosition: {x: 152, y: -30}
+  m_SizeDelta: {x: 180, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7604502168156625139
 CanvasRenderer:
@@ -556,7 +558,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
-  m_HorizontalFit: 0
+  m_HorizontalFit: 2
   m_VerticalFit: 2
 --- !u!114 &6052111568920243552
 MonoBehaviour:
@@ -573,7 +575,7 @@ MonoBehaviour:
   m_IgnoreLayout: 0
   m_MinWidth: -1
   m_MinHeight: -1
-  m_PreferredWidth: 131
+  m_PreferredWidth: 180
   m_PreferredHeight: 50
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1

@@ -159,7 +159,7 @@ public class EquipmentAilmentLineTooltip : MonoBehaviour, IPointerEnterHandler, 
 
             case LineId.PoisonDuration:
                 title = "Poison duration";
-                body = "How long each poison stack lasts before it falls off.";
+                body = "How long each poison stack lasts before it falls off (1 second per tick).";
                 return true;
 
             case LineId.PoisonMaxStacks:

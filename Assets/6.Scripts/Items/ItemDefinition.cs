@@ -789,6 +789,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 {
     private const string TooltipMetaColor = "#E8E0D0";
     private const string TooltipMetaSize = "90%";
+    private const string TooltipEnhancementHistorySuccessColor = "#7AE582";
+    private const string TooltipEnhancementHistoryFailColor = "#D66A6A";
 
     [Header("Classification")]
     public ItemKind itemKind = ItemKind.Resource;
@@ -849,6 +851,9 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     [Min(0)] public int usedUpgradeSlots;
     [Tooltip("Number of successful enhancements on this item instance. Used for +1/+2 display names.")]
     [Min(0)] public int successfulEnhancements;
+
+    [Tooltip("Per-scroll attempt log for enhanced item instances (tooltip Advanced Details).")]
+    public List<EnhancementScrollHistoryEntry> enhancementScrollHistory = new();
 
     [Header("Weapon Stats (Only if ItemKind = Weapon)")]
     public WeaponStats weaponStats;
@@ -1158,6 +1163,198 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (!HasUpgradeSlots)
             return "";
         return $"Upgrade Slots: {GetUpgradeSlotsTooltipValue()}";
+    }
+
+    private string FormatUpgradeSlotsMetaBlock(bool includeEnhancementHistory)
+    {
+        if (!HasUpgradeSlots)
+            return "";
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append(FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()));
+        if (includeEnhancementHistory)
+        {
+            string history = BuildEnhancementScrollHistoryTooltipLines();
+            if (!string.IsNullOrWhiteSpace(history))
+                sb.Append('\n').Append(history);
+        }
+
+        return sb.ToString();
+    }
+
+    public string BuildEnhancementScrollHistoryTooltipLines()
+    {
+        if (enhancementScrollHistory == null || enhancementScrollHistory.Count == 0)
+            return "";
+
+        var grouped = new List<(EnhancementScrollHistoryEntry entry, int count)>();
+        var groupIndex = new Dictionary<string, int>();
+
+        for (int i = 0; i < enhancementScrollHistory.Count; i++)
+        {
+            EnhancementScrollHistoryEntry entry = enhancementScrollHistory[i];
+            if (entry == null)
+                continue;
+
+            string key = BuildEnhancementHistoryGroupKey(entry);
+            if (groupIndex.TryGetValue(key, out int index))
+            {
+                var existing = grouped[index];
+                grouped[index] = (existing.entry, existing.count + 1);
+            }
+            else
+            {
+                groupIndex[key] = grouped.Count;
+                grouped.Add((entry, 1));
+            }
+        }
+
+        var sb = new System.Text.StringBuilder();
+        for (int g = 0; g < grouped.Count; g++)
+        {
+            if (sb.Length > 0)
+                sb.Append('\n');
+            sb.Append(FormatEnhancementScrollHistoryEntry(grouped[g].entry, grouped[g].count));
+        }
+
+        return sb.ToString();
+    }
+
+    private static string BuildEnhancementHistoryGroupKey(EnhancementScrollHistoryEntry entry)
+    {
+        string scrollName = string.IsNullOrWhiteSpace(entry.scrollName) ? "Scroll" : entry.scrollName.Trim();
+        string effect = entry.effectSummary?.Trim() ?? "";
+        return $"{scrollName.ToLowerInvariant()}|{entry.success}|{effect}";
+    }
+
+    private static string FormatEnhancementScrollHistoryEntry(EnhancementScrollHistoryEntry entry, int count = 1)
+    {
+        string scrollName = string.IsNullOrWhiteSpace(entry.scrollName) ? "Scroll" : entry.scrollName.Trim();
+        string countPrefix = count > 1 ? $"x{count} " : "";
+
+        if (entry.success)
+        {
+            string line = string.IsNullOrWhiteSpace(entry.effectSummary)
+                ? $"{countPrefix}{scrollName} success"
+                : $"{countPrefix}{scrollName} success: {entry.effectSummary.Trim()}";
+            return FormatTooltipMetaHistoryLine(line, TooltipEnhancementHistorySuccessColor);
+        }
+
+        return FormatTooltipMetaHistoryLine($"{countPrefix}{scrollName} failed", TooltipEnhancementHistoryFailColor);
+    }
+
+    private static string FormatTooltipMetaHistoryLine(string text, string colorHex = TooltipMetaColor) =>
+        $"<size={TooltipMetaSize}><color={colorHex}>- {text}</color></size>";
+
+    public void RecordEnhancementScrollAttempt(ItemDefinition scrollDef, bool success)
+    {
+        if (!scrollDef || scrollDef.itemKind != ItemKind.EnhancementScroll)
+            return;
+
+        enhancementScrollHistory ??= new List<EnhancementScrollHistoryEntry>();
+        string scrollName = string.IsNullOrWhiteSpace(scrollDef.displayName)
+            ? "Scroll"
+            : scrollDef.displayName.Trim();
+
+        enhancementScrollHistory.Add(new EnhancementScrollHistoryEntry
+        {
+            scrollName = scrollName,
+            success = success,
+            effectSummary = success ? FormatScrollSuccessEffectSummary(scrollDef, this) : ""
+        });
+    }
+
+    public static string FormatScrollSuccessEffectSummary(ItemDefinition scrollDef, ItemDefinition target)
+    {
+        if (!scrollDef || scrollDef.itemKind != ItemKind.EnhancementScroll || !target)
+            return "";
+
+        EnhancementScrollStats scroll = scrollDef.enhancementScrollStats;
+        float value = scroll.modifierValue;
+        bool percent = scroll.modifierKind == EnhancementScrollModifierKind.Percent;
+        bool displayAsPercent = percent || IsPercentDisplayedScrollStat(scroll.targetStat);
+
+        switch (scroll.targetStat)
+        {
+            case EnhancementScrollTargetStat.UpgradeSlotReduction:
+            {
+                int slots = Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(value)));
+                return slots == 1 ? "-1 used upgrade slot" : $"-{slots} used upgrade slots";
+            }
+
+            case EnhancementScrollTargetStat.PhysicalDamage:
+                if (target.IsWeapon)
+                    return FormatWeaponMinMaxScrollBonus(value, percent);
+                return FormatFlatOrPercentStatBonus(value, percent, displayAsPercent, "physical damage");
+
+            case EnhancementScrollTargetStat.MagicDamage:
+                if (target.IsWeapon)
+                    return FormatWeaponMinMaxScrollBonus(value, percent, "fire");
+                return FormatFlatOrPercentStatBonus(value, percent, displayAsPercent, "magic damage");
+
+            case EnhancementScrollTargetStat.CorruptionDamage:
+                if (target.IsWeapon)
+                    return FormatWeaponMinMaxScrollBonus(value, percent, "corruption");
+                return FormatFlatOrPercentStatBonus(value, percent, displayAsPercent, "corruption damage");
+
+            case EnhancementScrollTargetStat.CritChance:
+            case EnhancementScrollTargetStat.CritMultiplier:
+            case EnhancementScrollTargetStat.AttackSpeed:
+            case EnhancementScrollTargetStat.LifeSteal:
+            case EnhancementScrollTargetStat.MoveSpeed:
+            case EnhancementScrollTargetStat.PoisonChance:
+            case EnhancementScrollTargetStat.PoisonMultiplier:
+            case EnhancementScrollTargetStat.GatherSpeed:
+            case EnhancementScrollTargetStat.GatheringGrit:
+            case EnhancementScrollTargetStat.StaminaEfficiency:
+                return FormatFlatOrPercentStatBonus(
+                    value,
+                    percent,
+                    displayAsPercent,
+                    GetEnhancementScrollTargetStatDisplayName(scroll.targetStat));
+
+            case EnhancementScrollTargetStat.Health:
+            case EnhancementScrollTargetStat.Energy:
+            case EnhancementScrollTargetStat.Mana:
+            case EnhancementScrollTargetStat.Armor:
+            case EnhancementScrollTargetStat.MagicResist:
+            case EnhancementScrollTargetStat.CorruptionResist:
+                return FormatFlatOrPercentStatBonus(
+                    value,
+                    percent,
+                    displayAsPercent,
+                    GetEnhancementScrollTargetStatDisplayName(scroll.targetStat));
+
+            default:
+                return FormatFlatOrPercentStatBonus(
+                    value,
+                    percent,
+                    displayAsPercent,
+                    GetEnhancementScrollTargetStatDisplayName(scroll.targetStat));
+        }
+    }
+
+    private static string FormatWeaponMinMaxScrollBonus(float value, bool percent, string damageLabel = null)
+    {
+        string labelPrefix = string.IsNullOrWhiteSpace(damageLabel) ? "" : $"{damageLabel.Trim()} ";
+
+        if (percent)
+        {
+            string pct = $"{Mathf.Abs(value) * 100f:0.#}%";
+            return $"+{pct} {labelPrefix}min, +{pct} {labelPrefix}max";
+        }
+
+        int amount = Mathf.RoundToInt(Mathf.Abs(value));
+        return $"+{amount} {labelPrefix}min, +{amount} {labelPrefix}max";
+    }
+
+    private static string FormatFlatOrPercentStatBonus(float value, bool percent, bool displayAsPercent, string statLabel)
+    {
+        if (displayAsPercent)
+            return $"{FormatSignedPercent01(value)} {statLabel}";
+
+        int amount = Mathf.RoundToInt(Mathf.Abs(value));
+        return $"+{amount} {statLabel}";
     }
 
     public void NormalizeEnhancementState()
@@ -1599,7 +1796,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
     public string GetRarityLabel() => rarity.ToString();
 
     /// <summary>Tier, requirements, tool/weapon type labels — shown in the misc stats TMP.</summary>
-    public string BuildTooltipMiscStatsText()
+    public string BuildTooltipMiscStatsText(bool includeEnhancementHistory = false)
     {
         if (IsWeapon)
         {
@@ -1608,7 +1805,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 ? $"{weaponStats.attackSkill} ({weaponStats.magicAttackType})"
                 : weaponStats.attackSkill.ToString();
             return FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                   FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
+                   FormatUpgradeSlotsMetaBlock(includeEnhancementHistory) + "\n" +
                    FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n" +
                    FormatTooltipMetaLine("Type", type) + "\n" +
                    FormatTooltipMetaLine("Hands", hands);
@@ -1624,11 +1821,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (UsesEquipmentTierGating)
             {
                 s += FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                     FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
+                     FormatUpgradeSlotsMetaBlock(includeEnhancementHistory) + "\n" +
                      FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}") + "\n";
             }
             else if (HasUpgradeSlots)
-                s += FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n";
+                s += FormatUpgradeSlotsMetaBlock(includeEnhancementHistory) + "\n";
 
             s += FormatTooltipMetaLine("Tool", type);
             return s;
@@ -1637,12 +1834,15 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (IsArmor)
         {
             return FormatTooltipMetaLine("Tier", GetEquipmentTierNumberLabel()) + "\n" +
-                   FormatTooltipMetaLine("Upgrade Slots", GetUpgradeSlotsTooltipValue()) + "\n" +
+                   FormatUpgradeSlotsMetaBlock(includeEnhancementHistory) + "\n" +
                    FormatTooltipMetaLine("Level Req", $"{GetEquipmentTierGateSkill()} lv {EquipmentTierRules.GetRequiredSkillLevel(GetEquipmentTierRank())}");
         }
 
         if (IsJewelry && HasUpgradeSlots)
-            return GetUpgradeSlotsTooltipLine();
+        {
+            string slots = FormatUpgradeSlotsMetaBlock(includeEnhancementHistory);
+            return string.IsNullOrWhiteSpace(slots) ? "" : slots;
+        }
 
         return string.Empty;
     }
@@ -1719,10 +1919,6 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
             if (PhysBlockChance > 0f)
                 s += $"\nPhys Block: {FormatSignedPercent01(PhysBlockChance)}";
-            if (ParryChance > 0f)
-                s += $"\nParry Chance: {FormatSignedPercent01(ParryChance)}";
-            if (StunChance > 0f)
-                s += $"\nStun Chance: {FormatSignedPercent01(StunChance)}";
             if (BonusHealth > 0)
                 s += $"\nHealth: +{BonusHealth}";
 
@@ -1955,32 +2151,88 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return $"{value:+0.#;-0.#;0}%";
     }
 
+    private static string FormatAilmentMultiplierLine(float multiplierFraction, string label) =>
+        $"{label}: {FormatSignedPercent100WithPlus(multiplierFraction * 100f)}";
+
+    private static string DeltaPercentFractionNote(float deltaFraction) =>
+        $"{deltaFraction * 100f:+0.#;-0.#;0}%";
+
     private static bool HasSignificantPercentPoints(float percentPoints) =>
         Mathf.Abs(percentPoints) > 0.001f;
 
-    private static string StripDuplicateWeaponProcLines(string bonusLines)
+    internal static string StripDuplicateWeaponProcLines(string bonusLines)
     {
-        if (string.IsNullOrWhiteSpace(bonusLines))
-            return bonusLines;
+        return StripDuplicateTooltipStatLines(bonusLines);
+    }
 
-        string[] lines = bonusLines.Split('\n');
-        var kept = new System.Text.StringBuilder(bonusLines.Length);
+    /// <summary>Removes duplicate stat lines (case-insensitive label) and proc lines already shown above.</summary>
+    internal static string StripDuplicateTooltipStatLines(string block)
+    {
+        if (string.IsNullOrWhiteSpace(block))
+            return block;
+
+        string[] lines = block.Split('\n');
+        var keptLines = new List<string>();
+        var labelIndex = new Dictionary<string, int>(System.StringComparer.OrdinalIgnoreCase);
+
         for (int i = 0; i < lines.Length; i++)
         {
-            string line = lines[i];
-            if (line.StartsWith("Phys Block:", System.StringComparison.Ordinal) ||
-                line.StartsWith("Parry Chance:", System.StringComparison.Ordinal) ||
-                line.StartsWith("Stun Chance:", System.StringComparison.Ordinal))
+            string rawLine = lines[i];
+            string line = StripRichTextForCompare(rawLine);
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            if (line.StartsWith("Phys Block:", System.StringComparison.OrdinalIgnoreCase) ||
+                line.StartsWith("Parry Chance:", System.StringComparison.OrdinalIgnoreCase) ||
+                line.StartsWith("Stun Chance:", System.StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            if (kept.Length > 0)
-                kept.Append('\n');
-            kept.Append(line);
+            string labelKey = GetTooltipLineLabelKey(line);
+            if (!string.IsNullOrEmpty(labelKey) && labelIndex.TryGetValue(labelKey, out int existingIndex))
+            {
+                // Prefer the green advanced/bonus line over a plain duplicate from the main block.
+                if (IsHighlightedTooltipLine(rawLine) && !IsHighlightedTooltipLine(keptLines[existingIndex]))
+                    keptLines[existingIndex] = rawLine;
+
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(labelKey))
+                labelIndex[labelKey] = keptLines.Count;
+
+            keptLines.Add(rawLine);
         }
 
-        return kept.ToString();
+        return string.Join("\n", keptLines);
+    }
+
+    private static bool IsHighlightedTooltipLine(string line) =>
+        !string.IsNullOrWhiteSpace(line) &&
+        line.IndexOf(ItemTooltipStatHighlight.HighlightColorHex, System.StringComparison.OrdinalIgnoreCase) >= 0;
+
+    private static string StripRichTextForCompare(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return line;
+
+        return System.Text.RegularExpressions.Regex.Replace(line, "<[^>]*>", string.Empty).Trim();
+    }
+
+    private static string GetTooltipLineLabelKey(string plainLine)
+    {
+        int colon = plainLine.IndexOf(':');
+        if (colon <= 0)
+            return plainLine;
+
+        string label = plainLine.Substring(0, colon).Trim();
+        if (label.Equals("Bleed Damage", System.StringComparison.OrdinalIgnoreCase))
+            return "Bleed Multi";
+        if (label.Equals("Poison Damage", System.StringComparison.OrdinalIgnoreCase))
+            return "Poison Multi";
+
+        return label;
     }
 
     internal string BuildBonusLinesForHighlight(ItemDefinition baseline)
@@ -2019,7 +2271,8 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         bool includeDefense,
         bool omitBurnBonuses,
         bool omitAilmentChanceBonuses,
-        bool omitAilmentMultiplierBonuses)
+        bool omitAilmentMultiplierBonuses,
+        bool highlightAllLines = false)
     {
         var sb = new System.Text.StringBuilder();
         BonusStats cur = bonusStats;
@@ -2033,9 +2286,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
             if (sb.Length > 0)
                 sb.Append('\n');
 
-            sb.Append(hasDelta
-                ? ItemTooltipStatHighlight.HighlightWithAddedNote(baselineLine, deltaNote)
-                : line);
+            if (hasDelta)
+                sb.Append(ItemTooltipStatHighlight.HighlightWithAddedNote(baselineLine, deltaNote));
+            else if (highlightAllLines)
+                sb.Append(ItemTooltipStatHighlight.WrapHighlighted(line));
+            else
+                sb.Append(line);
         }
 
         static bool HasFloatDelta(float current, float baseline) =>
@@ -2047,8 +2303,18 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
         static int IntDelta(int current, int baseline) => current - baseline;
 
-        static string DeltaPercentFractionNote(float deltaFraction) =>
-            $"{deltaFraction * 100f:+0.#;-0.#;0}%";
+        void AppendAilmentCompareLineIfDelta(
+            float current,
+            float baselineValue,
+            string baselineLine,
+            string currentLine,
+            string deltaNote)
+        {
+            if (!HasFloatDelta(current, baselineValue))
+                return;
+
+            AppendCompared(baselineLine, currentLine, true, deltaNote);
+        }
 
         if (includeDefense)
         {
@@ -2445,100 +2711,81 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 FormatSignedNumber(delta));
         }
 
-        if (!omitAilmentChanceBonuses && cur.bleedChance != 0f)
+        if (!omitAilmentChanceBonuses)
         {
-            float delta = FloatDelta(cur.bleedChance, baselineStats.bleedChance);
-            AppendCompared(
-
+            float bleedDelta = FloatDelta(cur.bleedChance, baselineStats.bleedChance);
+            AppendAilmentCompareLineIfDelta(
+                cur.bleedChance,
+                baselineStats.bleedChance,
                 $"Bleed Chance: {FormatSignedPercent01(baselineStats.bleedChance)}",
-
                 $"Bleed Chance: {FormatSignedPercent01(cur.bleedChance)}",
-
-                HasFloatDelta(cur.bleedChance, baselineStats.bleedChance),
-
-                FormatSignedPercent01(delta));
+                FormatSignedPercent01(bleedDelta));
         }
 
-        if (!omitAilmentMultiplierBonuses && cur.bleedMultiplier != 0f)
+        if (!omitAilmentMultiplierBonuses)
         {
-            float delta = FloatDelta(cur.bleedMultiplier, baselineStats.bleedMultiplier);
-            AppendCompared(
-
-                FormatScalingCoefficientPercentLine(baselineStats.bleedMultiplier, "Bleed Damage"),
-
-                FormatScalingCoefficientPercentLine(cur.bleedMultiplier, "Bleed Damage"),
-
-                HasFloatDelta(cur.bleedMultiplier, baselineStats.bleedMultiplier),
-
-                DeltaPercentFractionNote(delta));
+            float bleedMultDelta = FloatDelta(cur.bleedMultiplier, baselineStats.bleedMultiplier);
+            AppendAilmentCompareLineIfDelta(
+                cur.bleedMultiplier,
+                baselineStats.bleedMultiplier,
+                FormatAilmentMultiplierLine(baselineStats.bleedMultiplier, "Bleed Multi"),
+                FormatAilmentMultiplierLine(cur.bleedMultiplier, "Bleed Multi"),
+                DeltaPercentFractionNote(bleedMultDelta));
         }
 
-        if (!omitAilmentChanceBonuses && cur.poisonChance != 0f)
+        if (!omitAilmentChanceBonuses)
         {
-            float delta = FloatDelta(cur.poisonChance, baselineStats.poisonChance);
-            AppendCompared(
-
+            float poisonDelta = FloatDelta(cur.poisonChance, baselineStats.poisonChance);
+            AppendAilmentCompareLineIfDelta(
+                cur.poisonChance,
+                baselineStats.poisonChance,
                 $"Poison Chance: {FormatSignedPercent01(baselineStats.poisonChance)}",
-
                 $"Poison Chance: {FormatSignedPercent01(cur.poisonChance)}",
-
-                HasFloatDelta(cur.poisonChance, baselineStats.poisonChance),
-
-                FormatSignedPercent01(delta));
+                FormatSignedPercent01(poisonDelta));
         }
 
-        if (!omitAilmentMultiplierBonuses && cur.poisonMultiplier != 0f)
+        if (!omitAilmentMultiplierBonuses)
         {
-            float delta = FloatDelta(cur.poisonMultiplier, baselineStats.poisonMultiplier);
-            AppendCompared(
-
-                FormatScalingCoefficientPercentLine(baselineStats.poisonMultiplier, "Poison Damage"),
-
-                FormatScalingCoefficientPercentLine(cur.poisonMultiplier, "Poison Damage"),
-
-                HasFloatDelta(cur.poisonMultiplier, baselineStats.poisonMultiplier),
-
-                DeltaPercentFractionNote(delta));
+            float poisonMultDelta = FloatDelta(cur.poisonMultiplier, baselineStats.poisonMultiplier);
+            AppendAilmentCompareLineIfDelta(
+                cur.poisonMultiplier,
+                baselineStats.poisonMultiplier,
+                FormatAilmentMultiplierLine(baselineStats.poisonMultiplier, "Poison Multi"),
+                FormatAilmentMultiplierLine(cur.poisonMultiplier, "Poison Multi"),
+                DeltaPercentFractionNote(poisonMultDelta));
         }
 
-        if (!omitAilmentMultiplierBonuses && cur.poisonDurationBonus != 0f)
+        if (!omitAilmentMultiplierBonuses && HasFloatDelta(cur.poisonDurationBonus, baselineStats.poisonDurationBonus))
         {
             float delta = FloatDelta(cur.poisonDurationBonus, baselineStats.poisonDurationBonus);
             AppendCompared(
-
                 $"Poison Duration: {FormatSignedNumber(baselineStats.poisonDurationBonus)}s",
-
                 $"Poison Duration: {FormatSignedNumber(cur.poisonDurationBonus)}s",
-
-                HasFloatDelta(cur.poisonDurationBonus, baselineStats.poisonDurationBonus),
-
+                true,
                 $"{FormatSignedNumber(delta)}s");
         }
 
-        if (!omitAilmentMultiplierBonuses && cur.poisonMaxStacksBonus != 0)
+        if (!omitAilmentMultiplierBonuses && HasIntDelta(cur.poisonMaxStacksBonus, baselineStats.poisonMaxStacksBonus))
         {
             int delta = IntDelta(cur.poisonMaxStacksBonus, baselineStats.poisonMaxStacksBonus);
             AppendCompared(
-
                 $"Poison Max Stacks: {FormatSignedInt(baselineStats.poisonMaxStacksBonus)}",
-
                 $"Poison Max Stacks: {FormatSignedInt(cur.poisonMaxStacksBonus)}",
-
-                HasIntDelta(cur.poisonMaxStacksBonus, baselineStats.poisonMaxStacksBonus),
-
+                true,
                 FormatSignedInt(delta));
         }
 
         if (!omitBurnBonuses)
         {
-            if (!omitAilmentChanceBonuses && cur.burnChance != 0f)
+            if (!omitAilmentChanceBonuses)
             {
-                float delta = FloatDelta(cur.burnChance, baselineStats.burnChance);
-                AppendCompared(
+                float burnDelta = FloatDelta(cur.burnChance, baselineStats.burnChance);
+                AppendAilmentCompareLineIfDelta(
+                    cur.burnChance,
+                    baselineStats.burnChance,
                     $"Burn Chance: {FormatSignedPercent01(baselineStats.burnChance)}",
                     $"Burn Chance: {FormatSignedPercent01(cur.burnChance)}",
-                    HasFloatDelta(cur.burnChance, baselineStats.burnChance),
-                    FormatSignedPercent01(delta));
+                    FormatSignedPercent01(burnDelta));
             }
 
             if (cur.burnExplosionMultiplierBonus != 0f)
@@ -2580,38 +2827,34 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
                 FormatSignedPercent01(delta));
         }
 
-        if (cur.parryChance != 0f)
         {
-            float delta = FloatDelta(cur.parryChance, baselineStats.parryChance);
-            AppendCompared(
-
+            float parryDelta = FloatDelta(cur.parryChance, baselineStats.parryChance);
+            AppendAilmentCompareLineIfDelta(
+                cur.parryChance,
+                baselineStats.parryChance,
                 $"Parry Chance: {FormatSignedPercent01(baselineStats.parryChance)}",
-
                 $"Parry Chance: {FormatSignedPercent01(cur.parryChance)}",
-
-                HasFloatDelta(cur.parryChance, baselineStats.parryChance),
-
-                FormatSignedPercent01(delta));
+                FormatSignedPercent01(parryDelta));
         }
 
-        if (cur.stunChance != 0f)
         {
-            float delta = FloatDelta(cur.stunChance, baselineStats.stunChance);
-            AppendCompared(
-
+            float stunDelta = FloatDelta(cur.stunChance, baselineStats.stunChance);
+            AppendAilmentCompareLineIfDelta(
+                cur.stunChance,
+                baselineStats.stunChance,
                 $"Stun Chance: {FormatSignedPercent01(baselineStats.stunChance)}",
-
                 $"Stun Chance: {FormatSignedPercent01(cur.stunChance)}",
-
-                HasFloatDelta(cur.stunChance, baselineStats.stunChance),
-
-                FormatSignedPercent01(delta));
+                FormatSignedPercent01(stunDelta));
         }
 
         return sb.ToString();
     }
 
-    internal string BuildWeaponAilmentsLineForTooltip() => BuildWeaponAilmentsLine();
+    internal string BuildWeaponAilmentsLineForTooltip(ItemDefinition baseline) =>
+        baseline != null ? BuildUnifiedWeaponAilmentLines(baseline).matchingLines : BuildWeaponAilmentsLine(null);
+
+    internal string BuildWeaponAilmentBonusLinesForTooltip(ItemDefinition baseline) =>
+        baseline != null ? BuildUnifiedWeaponAilmentLines(baseline).bonusLines : string.Empty;
 
     internal string BuildMiscTooltipLinesForTooltip() => BuildMiscTooltipLines();
 
@@ -2676,12 +2919,12 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (!omitAilmentChanceBonuses && bonusStats.bleedChance != 0f)
             s += $"Bleed Chance: {FormatSignedPercent01(bonusStats.bleedChance)}\n";
         if (!omitAilmentMultiplierBonuses && bonusStats.bleedMultiplier != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.bleedMultiplier, "Bleed Damage")}\n";
+            s += $"{FormatAilmentMultiplierLine(bonusStats.bleedMultiplier, "Bleed Multi")}\n";
 
         if (!omitAilmentChanceBonuses && bonusStats.poisonChance != 0f)
             s += $"Poison Chance: {FormatSignedPercent01(bonusStats.poisonChance)}\n";
         if (!omitAilmentMultiplierBonuses && bonusStats.poisonMultiplier != 0f)
-            s += $"{FormatScalingCoefficientPercentLine(bonusStats.poisonMultiplier, "Poison Damage")}\n";
+            s += $"{FormatAilmentMultiplierLine(bonusStats.poisonMultiplier, "Poison Multi")}\n";
         if (!omitAilmentMultiplierBonuses && bonusStats.poisonDurationBonus != 0f) s += $"Poison Duration: {FormatSignedNumber(bonusStats.poisonDurationBonus)}s\n";
         if (!omitAilmentMultiplierBonuses && bonusStats.poisonMaxStacksBonus != 0) s += $"Poison Max Stacks: {FormatSignedInt(bonusStats.poisonMaxStacksBonus)}\n";
         if (!omitBurnBonuses)
@@ -2709,36 +2952,178 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         return handedness == Handedness.TwoHanded ? "Two-Handed" : "One-Handed";
     }
 
-    private string BuildWeaponAilmentsLine()
+    private string BuildWeaponAilmentsLine(ItemDefinition baseline = null)
     {
-        // Weapon tooltips want explicit "Chance" / "Multi" wording and no "Ailments:" prefix.
-        // Keep this block directly under crit lines (see BuildTooltipMainStatsText weapon path).
+        // Base (orange) block: ailment stats that match the unenhanced item template.
+        // Rolled / bonus deltas are shown only in BuildBonusCompareLines (green).
         string block = "";
 
-        // Elemental ailment apply chance for magic weapons (Burn/Chill/Shock based on magic type).
         if (weaponStats.attackSkill == AttackSkill.Magic && MagicAilmentApplyChance > 0f)
-            block += $"{GetMagicAilmentName()} Chance: {MagicAilmentApplyChance * 100f:0.#}%\n";
+        {
+            float baseMagic = baseline != null ? baseline.MagicAilmentApplyChance : MagicAilmentApplyChance;
+            if (baseline == null || Mathf.Approximately(MagicAilmentApplyChance, baseMagic))
+                block += $"{GetMagicAilmentName()} Chance: {MagicAilmentApplyChance * 100f:0.#}%\n";
+        }
 
-        // Physical/corruption ailment chances (bonuses).
-        if (bonusStats.bleedChance != 0f)
-            block += $"Bleed Chance: {FormatSignedPercent01(bonusStats.bleedChance)}\n";
-        if (bonusStats.poisonChance != 0f)
-            block += $"Poison Chance: {FormatSignedPercent01(bonusStats.poisonChance)}\n";
-        if (bonusStats.burnChance != 0f)
-            block += $"Burn Chance: {FormatSignedPercent01(bonusStats.burnChance)}\n";
-
-        // Multipliers / scaling for weapons.
-        if (bonusStats.bleedMultiplier != 0f)
-            block += $"Bleed Multi: {FormatSignedPercent100WithPlus(bonusStats.bleedMultiplier * 100f)}\n";
-        if (bonusStats.poisonMultiplier != 0f)
-            block += $"Poison Multi: {FormatSignedPercent100WithPlus(bonusStats.poisonMultiplier * 100f)}\n";
+        AppendAilmentLineIfBaselineMatch(
+            ref block,
+            bonusStats.bleedChance,
+            baseline?.bonusStats.bleedChance ?? 0f,
+            baseline,
+            $"Bleed Chance: {FormatSignedPercent01(bonusStats.bleedChance)}");
+        AppendAilmentLineIfBaselineMatch(
+            ref block,
+            bonusStats.poisonChance,
+            baseline?.bonusStats.poisonChance ?? 0f,
+            baseline,
+            $"Poison Chance: {FormatSignedPercent01(bonusStats.poisonChance)}");
+        AppendAilmentLineIfBaselineMatch(
+            ref block,
+            bonusStats.burnChance,
+            baseline?.bonusStats.burnChance ?? 0f,
+            baseline,
+            $"Burn Chance: {FormatSignedPercent01(bonusStats.burnChance)}");
+        AppendAilmentLineIfBaselineMatch(
+            ref block,
+            bonusStats.bleedMultiplier,
+            baseline?.bonusStats.bleedMultiplier ?? 0f,
+            baseline,
+            FormatAilmentMultiplierLine(bonusStats.bleedMultiplier, "Bleed Multi"));
+        AppendAilmentLineIfBaselineMatch(
+            ref block,
+            bonusStats.poisonMultiplier,
+            baseline?.bonusStats.poisonMultiplier ?? 0f,
+            baseline,
+            FormatAilmentMultiplierLine(bonusStats.poisonMultiplier, "Poison Multi"));
 
         if (bonusStats.poisonDurationBonus != 0f)
-            block += $"Poison Duration: {FormatSignedNumber(bonusStats.poisonDurationBonus)}s\n";
+        {
+            float baseDur = baseline?.bonusStats.poisonDurationBonus ?? 0f;
+            if (baseline == null || Mathf.Approximately(bonusStats.poisonDurationBonus, baseDur))
+                block += $"Poison Duration: {FormatSignedNumber(bonusStats.poisonDurationBonus)}s\n";
+        }
+
         if (bonusStats.poisonMaxStacksBonus != 0)
-            block += $"Poison Max Stacks: {FormatSignedInt(bonusStats.poisonMaxStacksBonus)}\n";
+        {
+            int baseStacks = baseline?.bonusStats.poisonMaxStacksBonus ?? 0;
+            if (baseline == null || bonusStats.poisonMaxStacksBonus == baseStacks)
+                block += $"Poison Max Stacks: {FormatSignedInt(bonusStats.poisonMaxStacksBonus)}\n";
+        }
 
         return block.TrimEnd('\n');
+    }
+
+    private (string matchingLines, string bonusLines) BuildUnifiedWeaponAilmentLines(ItemDefinition baseline)
+    {
+        var matching = new System.Text.StringBuilder();
+        var bonus = new System.Text.StringBuilder();
+
+        if (weaponStats.attackSkill == AttackSkill.Magic && MagicAilmentApplyChance > 0f)
+        {
+            AppendUnifiedWeaponAilmentStatLine(
+                matching,
+                bonus,
+                MagicAilmentApplyChance,
+                baseline.MagicAilmentApplyChance,
+                v => $"{GetMagicAilmentName()} Chance: {v * 100f:0.#}%",
+                d => $"{d * 100f:+0.#;-0.#;0}%");
+        }
+
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
+            bonusStats.bleedChance,
+            baseline.bonusStats.bleedChance,
+            v => $"Bleed Chance: {FormatSignedPercent01(v)}",
+            FormatSignedPercent01);
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
+            bonusStats.poisonChance,
+            baseline.bonusStats.poisonChance,
+            v => $"Poison Chance: {FormatSignedPercent01(v)}",
+            FormatSignedPercent01);
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
+            bonusStats.burnChance,
+            baseline.bonusStats.burnChance,
+            v => $"Burn Chance: {FormatSignedPercent01(v)}",
+            FormatSignedPercent01);
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
+            bonusStats.bleedMultiplier,
+            baseline.bonusStats.bleedMultiplier,
+            v => FormatAilmentMultiplierLine(v, "Bleed Multi"),
+            DeltaPercentFractionNote);
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
+            bonusStats.poisonMultiplier,
+            baseline.bonusStats.poisonMultiplier,
+            v => FormatAilmentMultiplierLine(v, "Poison Multi"),
+            DeltaPercentFractionNote);
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
+            bonusStats.poisonDurationBonus,
+            baseline.bonusStats.poisonDurationBonus,
+            v => $"Poison Duration: {FormatSignedNumber(v)}s",
+            d => $"{FormatSignedNumber(d)}s");
+        AppendUnifiedWeaponAilmentStatLine(
+            matching,
+            bonus,
+            bonusStats.poisonMaxStacksBonus,
+            baseline.bonusStats.poisonMaxStacksBonus,
+            v => $"Poison Max Stacks: {FormatSignedInt(Mathf.RoundToInt(v))}",
+            d => FormatSignedInt(Mathf.RoundToInt(d)));
+
+        return (matching.ToString(), bonus.ToString());
+    }
+
+    private static void AppendUnifiedWeaponAilmentStatLine(
+        System.Text.StringBuilder matching,
+        System.Text.StringBuilder bonus,
+        float current,
+        float baselineValue,
+        System.Func<float, string> formatLineAtValue,
+        System.Func<float, string> formatDelta)
+    {
+        if (current == 0f && baselineValue == 0f)
+            return;
+
+        if (Mathf.Approximately(current, baselineValue))
+        {
+            if (matching.Length > 0)
+                matching.Append('\n');
+            matching.Append(formatLineAtValue(current));
+            return;
+        }
+
+        if (bonus.Length > 0)
+            bonus.Append('\n');
+        bonus.Append(ItemTooltipStatHighlight.HighlightWithAddedNote(
+            formatLineAtValue(baselineValue),
+            formatDelta(current - baselineValue)));
+    }
+
+    private static void AppendAilmentLineIfBaselineMatch(
+        ref string block,
+        float current,
+        float baselineValue,
+        ItemDefinition baseline,
+        string line)
+    {
+        if (current == 0f && baselineValue == 0f)
+            return;
+
+        if (baseline != null && !Mathf.Approximately(current, baselineValue))
+            return;
+
+        if (!string.IsNullOrEmpty(block))
+            block += "\n";
+        block += line;
     }
 
     private string GetMagicAilmentName()

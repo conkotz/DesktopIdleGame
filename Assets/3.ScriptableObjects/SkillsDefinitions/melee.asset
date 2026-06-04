@@ -1247,7 +1247,7 @@ MonoBehaviour:
       presentation: {fileID: 0}
     - requiredLevel: 43
       title: Lethal Compound
-      description: Poisons have 0.5s less duration per stack, +3 max poison stacks.
+      description: Poisons have 0.5s less duration, +3 max poison stacks.
       icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
@@ -1544,15 +1544,25 @@ MonoBehaviour:
       ability: {fileID: 0}
       presentation: {fileID: 11400000, guid: 7f8e9d0c1b2a39485766758493827161, type: 2}
     - requiredLevel: 50
-      title: Pure Form III
-      description: Placeholder capstone enhancement.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      title: Way of the Assassin
+      description: 'Poison max stacks +5.
+
+        When enemies drop below 30% health, gain 50% poison multiplier.
+
+        Poison duration +2 seconds.
+
+        Each poison damage tick lowers enemy corruption resistance by 5% (once per tick). Enemy resist cannot fall below 0.'
+      icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 50
-      title: Pure Form IV
-      description: Placeholder capstone enhancement.
-      icon: {fileID: 7940577473758156257, guid: d4b4e65185d715544a6aa618c0842b18, type: 3}
+      title: Way of the Gladiator
+      description: 'Bleed max stacks +1 (apply a second bleed stack to enemies).
+
+        Each bleed damage tick lowers enemy armour by 5% (once per tick). Enemy armour cannot fall below 0.
+
+        Enemies have 30% reduced chance to apply bleeding to you.'
+      icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}
       ability: {fileID: 0}
       presentation: {fileID: 0}
     - requiredLevel: 50

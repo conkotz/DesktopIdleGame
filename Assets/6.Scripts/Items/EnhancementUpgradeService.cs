@@ -153,6 +153,7 @@ public static class EnhancementUpgradeService
             ApplyFailureOutcome(destroyTarget, scrollDef.enhancementScrollStats);
         }
 
+        enhancedTarget.RecordEnhancementScrollAttempt(scrollDef, success);
         return true;
     }
 

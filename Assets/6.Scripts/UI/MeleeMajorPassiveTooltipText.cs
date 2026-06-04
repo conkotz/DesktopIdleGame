@@ -55,6 +55,18 @@ public static class MeleeMajorPassiveTooltipText
             return true;
         }
 
+        if (choiceIndex == AbilityCombatPower.MeleeCapstoneWayOfTheAssassinChoiceIndex)
+        {
+            body = BuildWayOfTheAssassinChoiceEffectBody();
+            return true;
+        }
+
+        if (choiceIndex == AbilityCombatPower.MeleeCapstoneWayOfTheGladiatorChoiceIndex)
+        {
+            body = BuildWayOfTheGladiatorChoiceEffectBody();
+            return true;
+        }
+
         return false;
     }
 
@@ -99,6 +111,54 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append("At ");
         sb.Append(AbilityCombatPower.WayOfTheBerserkerSlowImmunityMinStacks);
         sb.Append("+ stacks, chill and other slows cannot reduce move speed below your normal move speed.");
+        return sb.ToString();
+    }
+
+    public static string BuildWayOfTheAssassinChoiceEffectBody()
+    {
+        int lowHpPoisonPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheAssassinLowHpPoisonMultiplierBonus * 100f);
+        int durationBonus = Mathf.RoundToInt(AbilityCombatPower.WayOfTheAssassinPoisonDurationBonusSeconds);
+        int corrPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheAssassinCorruptionResistReductionPerPoisonTick * 100f);
+
+        var sb = new StringBuilder();
+        sb.Append("Poison max stacks +");
+        sb.Append(AbilityCombatPower.WayOfTheAssassinPoisonMaxStacksBonus);
+        sb.AppendLine(".");
+        sb.AppendLine();
+        sb.Append("Poison duration +");
+        sb.Append(durationBonus);
+        sb.AppendLine(" seconds.");
+        sb.AppendLine();
+        sb.Append("When enemies drop below 30% HP, gain ");
+        sb.Append(lowHpPoisonPct);
+        sb.AppendLine("% poison multiplier.");
+        sb.AppendLine();
+        sb.Append("Each poison damage tick lowers enemy corruption resistance by ");
+        sb.Append(corrPct);
+        sb.AppendLine("% (once per tick, not per stack).");
+        sb.Append("Enemy resist ratings cannot be reduced below 0.");
+        return sb.ToString();
+    }
+
+    public static string BuildWayOfTheGladiatorChoiceEffectBody()
+    {
+        int armorPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheGladiatorArmorReductionPerBleedTick * 100f);
+        int resistPct = Mathf.RoundToInt(AbilityCombatPower.WayOfTheGladiatorIncomingBleedChanceReduction * 100f);
+
+        var sb = new StringBuilder();
+        sb.Append("Bleed max stacks +");
+        sb.Append(AbilityCombatPower.WayOfTheGladiatorBleedMaxStacksBonus);
+        sb.AppendLine(" (second bleed stack on enemies).");
+        sb.AppendLine();
+        sb.Append("Each bleed damage tick lowers enemy armour by ");
+        sb.Append(armorPct);
+        sb.AppendLine("% (once per tick).");
+        sb.Append("Enemy armour cannot be reduced below 0.");
+        sb.AppendLine();
+        sb.AppendLine();
+        sb.Append("Enemies have ");
+        sb.Append(resistPct);
+        sb.AppendLine("% reduced chance to apply bleeding to you.");
         return sb.ToString();
     }
 
@@ -212,6 +272,8 @@ public static class MeleeMajorPassiveTooltipText
     public const string WayOfTheBerserkerLeechTitle = "Berserker's Thirst";
     public const string MeleeCapstoneWeaponRequirementLine = "Required: Melee weapon";
     public const string WayOfTheCrusaderTitle = "Way of the Crusader";
+    public const string WayOfTheAssassinTitle = "Way of the Assassin";
+    public const string WayOfTheGladiatorTitle = "Way of the Gladiator";
 
     /// <summary>Short flavor copy for the details panel description column.</summary>
     public static bool TryBuildFlavorDescription(string parentSpineNodeId, out string flavor)
@@ -777,8 +839,8 @@ public static class MeleeMajorPassiveTooltipText
                 else if (selectedChoice == 1)
                 {
                     sb.Append("Poisons have ");
-                    sb.Append(AbilityCombatPower.MasterOfVenomsLethalCompoundDurationReductionPerStackSeconds.ToString("0.#"));
-                    sb.Append("s less duration per stack, +");
+                    sb.Append(AbilityCombatPower.MasterOfVenomsLethalCompoundDurationReductionSeconds.ToString("0.#"));
+                    sb.Append("s less duration, +");
                     sb.Append(AbilityCombatPower.MasterOfVenomsLethalCompoundMaxStacksBonus);
                     sb.AppendLine(" max poison stacks.");
                 }

@@ -1993,7 +1993,7 @@ public class UnitOverheadUI : MonoBehaviour
             return;
 
         if (ailments.HasBleed)
-            SpawnDebuffIcon(bleedIcon, "Bleed", 1);
+            SpawnDebuffIcon(bleedIcon, "Bleed", Mathf.Max(1, ailments.BleedStacks));
 
         if (ailments.HasPoison)
             SpawnDebuffIcon(poisonIcon, "Poison", ailments.PoisonStacks);

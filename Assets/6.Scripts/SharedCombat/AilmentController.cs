@@ -36,7 +36,7 @@ public class AilmentController : MonoBehaviour
     private Coroutine chillRoutine;
     private Coroutine shockRoutine;
 
-    private readonly List<int> bleedTickSchedule = new();
+    private readonly List<BleedStack> bleedStacks = new();
     private readonly List<int> exclusiveBleedTickSchedule = new();
     private readonly List<PoisonStack> poisonStacks = new();
     // Learned from the latest poison payload source (typically player stats PoisonMaxStacks).
@@ -54,6 +54,8 @@ public class AilmentController : MonoBehaviour
     private string _bleedDotDealerLabel = "";
     private string _exclusiveBleedDotDealerLabel = "";
     private CharacterStats _poisonOwnerPlayerStats;
+    private CharacterStats _bleedOwnerPlayerStats;
+    private int _bleedMaxStacksCap = 1;
     private bool _poisonNeurotoxinActive;
     private string _poisonDotDealerLabel = "";
     private string _burnDotDealerLabel = "";
@@ -85,10 +87,11 @@ public class AilmentController : MonoBehaviour
 
     public event System.Action OnAilmentsChanged;
 
-    public bool HasBleed => bleedTickSchedule.Count > 0 || bleedRoutine != null || exclusiveBleedTickSchedule.Count > 0 || exclusiveBleedRoutine != null;
+    public bool HasBleed => bleedStacks.Count > 0 || bleedRoutine != null || exclusiveBleedTickSchedule.Count > 0 || exclusiveBleedRoutine != null;
     public bool HasPoison => poisonStacks.Count > 0 || poisonRoutine != null;
 
-    public int BleedStacks => HasBleed ? 1 : 0;
+    public int BleedStacks => bleedStacks.Count +
+                              (exclusiveBleedTickSchedule.Count > 0 || exclusiveBleedRoutine != null ? 1 : 0);
     public int PoisonStacks => poisonStacks.Count;
 
     public bool HasBurn => burnStackCount > 0;
@@ -105,8 +108,15 @@ public class AilmentController : MonoBehaviour
         get
         {
             int dps = 0;
-            if (bleedTickSchedule.Count > 0) dps += Mathf.Max(0, bleedTickSchedule[0]);
-            if (exclusiveBleedTickSchedule.Count > 0) dps += Mathf.Max(0, exclusiveBleedTickSchedule[0]);
+            for (int i = 0; i < bleedStacks.Count; i++)
+            {
+                BleedStack stack = bleedStacks[i];
+                if (stack != null && stack.ticksRemaining > 0)
+                    dps += Mathf.Max(1, stack.tickDamage);
+            }
+
+            if (exclusiveBleedTickSchedule.Count > 0)
+                dps += Mathf.Max(0, exclusiveBleedTickSchedule[0]);
             return dps;
         }
     }
@@ -141,6 +151,19 @@ public class AilmentController : MonoBehaviour
         public int ticksRemaining;
 
         public PoisonStack(int tickDamage, int ticksRemaining)
+        {
+            this.tickDamage = tickDamage;
+            this.ticksRemaining = ticksRemaining;
+        }
+    }
+
+    [System.Serializable]
+    private class BleedStack
+    {
+        public int tickDamage;
+        public int ticksRemaining;
+
+        public BleedStack(int tickDamage, int ticksRemaining)
         {
             this.tickDamage = tickDamage;
             this.ticksRemaining = ticksRemaining;
@@ -274,7 +297,7 @@ public class AilmentController : MonoBehaviour
         shockRoutine = null;
         burnTickRoutine = null;
 
-        bleedTickSchedule.Clear();
+        bleedStacks.Clear();
         poisonStacks.Clear();
         poisonBaseMaxStacks = 1;
         _poisonOwnerPlayerStats = null;
@@ -308,8 +331,9 @@ public class AilmentController : MonoBehaviour
 
         bleedRoutine = null;
         exclusiveBleedRoutine = null;
-        bleedTickSchedule.Clear();
+        bleedStacks.Clear();
         exclusiveBleedTickSchedule.Clear();
+        _bleedMaxStacksCap = 1;
         _bleedDotDealerLabel = "";
         _exclusiveBleedDotDealerLabel = "";
         _hasBleedDotDealerWorldPos = false;
@@ -376,9 +400,27 @@ public class AilmentController : MonoBehaviour
             return;
         }
 
-        // While exclusive bleed is active, block normal bleed applications.
-        if (exclusiveBleedTickSchedule.Count > 0 || exclusiveBleedRoutine != null)
+        _bleedOwnerPlayerStats = CharacterStats.ResolvePoisonOwnerPlayerStats(payload.source);
+        bool gladiatorSelected = _bleedOwnerPlayerStats != null &&
+                                 _bleedOwnerPlayerStats.GetMeleeCapstoneEnhancementPick() ==
+                                 AbilityCombatPower.MeleeCapstoneWayOfTheGladiatorChoiceIndex;
+        bool exclusiveActive = exclusiveBleedTickSchedule.Count > 0 || exclusiveBleedRoutine != null;
+
+        // Rend exclusive bleed blocks further normal bleeds unless Way of the Gladiator is selected.
+        if (exclusiveActive && !gladiatorSelected)
             return;
+
+        int maxStacks = payload.maxStacks > 0
+            ? payload.maxStacks
+            : _bleedOwnerPlayerStats != null
+                ? _bleedOwnerPlayerStats.GetBleedMaxStacksForApplications()
+                : _bleedMaxStacksCap;
+        maxStacks = Mathf.Max(1, maxStacks);
+        _bleedMaxStacksCap = maxStacks;
+
+        // Reserve one normal stack slot when Rend exclusive bleed is also active (2 total with Gladiator).
+        if (exclusiveActive && gladiatorSelected && maxStacks > 1)
+            maxStacks = Mathf.Max(1, maxStacks - 1);
 
         int tickCount = Mathf.Max(1, payload.ticks);
         int newBleedTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
@@ -392,14 +434,17 @@ public class AilmentController : MonoBehaviour
             _hasBleedDotDealerWorldPos = true;
         }
 
-        bool firstBleed = bleedTickSchedule.Count == 0 && exclusiveBleedTickSchedule.Count == 0;
+        bool firstBleed = bleedStacks.Count == 0 && exclusiveBleedTickSchedule.Count == 0;
 
-        RefreshBleedSchedule(newBleedTick, tickCount);
+        while (bleedStacks.Count >= maxStacks)
+            bleedStacks.RemoveAt(0);
 
-        if (bleedTickSchedule.Count > 0 && bleedRoutine == null)
+        bleedStacks.Add(new BleedStack(newBleedTick, tickCount));
+
+        if (bleedStacks.Count > 0 && bleedRoutine == null)
             bleedRoutine = StartCoroutine(BleedRoutine(payload.source));
 
-        if (firstBleed && bleedTickSchedule.Count > 0)
+        if (firstBleed && (bleedStacks.Count > 0 || exclusiveBleedTickSchedule.Count > 0))
         {
             FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
             Color c = ResolveAilmentStatusColor(fx, f => f.BleedDamageColor, new Color32(170, 35, 35, 255));
@@ -422,6 +467,8 @@ public class AilmentController : MonoBehaviour
         if (playerBuffs != null && playerBuffs.IsBleedImmune)
             return;
 
+        _bleedOwnerPlayerStats = CharacterStats.ResolvePoisonOwnerPlayerStats(payload.source);
+
         int tickCount = Mathf.Max(1, payload.ticks);
         int newTick = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / tickCount));
 
@@ -440,18 +487,6 @@ public class AilmentController : MonoBehaviour
             exclusiveBleedRoutine = StartCoroutine(ExclusiveBleedRoutine(payload.source));
 
         OnAilmentsChanged?.Invoke();
-    }
-
-    private void RefreshBleedSchedule(int newTickDamage, int tickCount)
-    {
-        while (bleedTickSchedule.Count > tickCount)
-            bleedTickSchedule.RemoveAt(bleedTickSchedule.Count - 1);
-
-        while (bleedTickSchedule.Count < tickCount)
-            bleedTickSchedule.Add(0);
-
-        for (int i = 0; i < tickCount; i++)
-            bleedTickSchedule[i] = Mathf.Max(bleedTickSchedule[i], newTickDamage);
     }
 
     private void RefreshExclusiveBleedSchedule(int newTickDamage, int tickCount)
@@ -478,7 +513,7 @@ public class AilmentController : MonoBehaviour
     {
         while (!IsDead())
         {
-            if (bleedTickSchedule.Count == 0)
+            if (bleedStacks.Count == 0)
                 break;
 
             yield return new WaitForSeconds(1f);
@@ -486,19 +521,43 @@ public class AilmentController : MonoBehaviour
             if (IsDead())
                 yield break;
 
-            if (bleedTickSchedule.Count == 0)
+            if (bleedStacks.Count == 0)
                 continue;
 
-            int tickDamage = bleedTickSchedule[0];
-            bleedTickSchedule.RemoveAt(0);
-
-            if (source != null)
+            int totalDamage = 0;
+            for (int i = bleedStacks.Count - 1; i >= 0; i--)
             {
-                _bleedDotDealerWorldPos = source.position;
-                _hasBleedDotDealerWorldPos = true;
+                BleedStack stack = bleedStacks[i];
+                if (stack == null)
+                {
+                    bleedStacks.RemoveAt(i);
+                    continue;
+                }
+
+                totalDamage += Mathf.Max(1, stack.tickDamage);
+                stack.ticksRemaining--;
+
+                if (stack.ticksRemaining <= 0)
+                    bleedStacks.RemoveAt(i);
             }
 
-            ApplyBleedTick(tickDamage, source, _bleedDotDealerLabel, exclusiveChannel: false, _bleedOutgoingDpsSourceLabel, _bleedOutgoingAttributeToMinion);
+            if (totalDamage > 0)
+            {
+                if (source != null)
+                {
+                    _bleedDotDealerWorldPos = source.position;
+                    _hasBleedDotDealerWorldPos = true;
+                }
+
+                ApplyBleedTick(
+                    totalDamage,
+                    source,
+                    _bleedDotDealerLabel,
+                    exclusiveChannel: false,
+                    _bleedOutgoingDpsSourceLabel,
+                    _bleedOutgoingAttributeToMinion);
+            }
+
             OnAilmentsChanged?.Invoke();
         }
 
@@ -559,8 +618,21 @@ public class AilmentController : MonoBehaviour
             outgoingDpsSourceLabel,
             outgoingAttributeToMinion);
 
+        TryProcessWayOfTheGladiatorBleedTickAfterDamage();
+
         if (debugLogs)
             Debug.Log($"[Ailments] Bleed tick: {damage}", this);
+    }
+
+    private void TryProcessWayOfTheGladiatorBleedTickAfterDamage()
+    {
+        if (_bleedOwnerPlayerStats == null || !_bleedOwnerPlayerStats.IsWayOfTheGladiatorCapstoneActive())
+            return;
+
+        if (IsPlayerVictim || enemy == null)
+            return;
+
+        _bleedOwnerPlayerStats.NotifyWayOfTheGladiatorBleedTick(enemy);
     }
 
     public void ApplyPoisonFromHit(PoisonPayload payload)
@@ -584,13 +656,8 @@ public class AilmentController : MonoBehaviour
         _poisonNeurotoxinActive = _poisonOwnerPlayerStats != null &&
                                   _poisonOwnerPlayerStats.GetMasterOfVenomsEnhancementPick() == 0;
 
-        int stacksAfterApply = Mathf.Min(maxStacks, poisonStacks.Count + 1);
-        if (_poisonOwnerPlayerStats != null)
-        {
-            int tickReduction = _poisonOwnerPlayerStats.GetMasterOfVenomsLethalCompoundTickReduction(stacksAfterApply);
-            ticks = Mathf.Max(1, ticks - tickReduction);
-            tickDamage = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / ticks));
-        }
+        ticks = GetPoisonTicksAfterLethalCompound(payload, ticks, _poisonOwnerPlayerStats);
+        tickDamage = Mathf.Max(1, Mathf.CeilToInt(payload.totalDamage / ticks));
 
         _poisonDotDealerLabel = ResolveDotDealerLabelForDps(payload.source);
         _poisonOutgoingDpsSourceLabel = payload.outgoingDpsSourceLabel;
@@ -619,6 +686,100 @@ public class AilmentController : MonoBehaviour
         }
 
         OnAilmentsChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Applies multiple poison stacks at once; each stack uses the same full duration (Envenom, spread, etc.).
+    /// </summary>
+    public void ApplyPoisonStacksFromHit(PoisonPayload perStackPayload, int stackCount)
+    {
+        if (stackCount <= 1)
+        {
+            ApplyPoisonFromHit(perStackPayload);
+            return;
+        }
+
+        if (IsDead() || perStackPayload.totalDamage <= 0f)
+            return;
+
+        if (playerBuffs != null && playerBuffs.IsPoisonImmune)
+        {
+            if (debugLogs)
+                Debug.Log("[Ailments] Poison prevented by immunity.", this);
+            return;
+        }
+
+        int ticks = Mathf.Max(1, perStackPayload.ticks);
+        float perStackPoolTotal = perStackPayload.totalDamage;
+        if (perStackPayload.splitTotalDamageAcrossStacks && stackCount > 1)
+            perStackPoolTotal = perStackPayload.totalDamage / stackCount;
+
+        int tickDamage = Mathf.Max(1, Mathf.CeilToInt(perStackPoolTotal / ticks));
+        poisonBaseMaxStacks = Mathf.Max(1, perStackPayload.maxStacks);
+        int maxStacks = GetEffectivePoisonMaxStacks(poisonBaseMaxStacks);
+
+        _poisonOwnerPlayerStats = CharacterStats.ResolvePoisonOwnerPlayerStats(perStackPayload.poisonMasteryOwner);
+        _poisonNeurotoxinActive = _poisonOwnerPlayerStats != null &&
+                                  _poisonOwnerPlayerStats.GetMasterOfVenomsEnhancementPick() == 0;
+
+        int stacksToApply = Mathf.Min(stackCount, maxStacks);
+
+        if (perStackPayload.replaceExistingPoisonStacks)
+        {
+            if (poisonRoutine != null)
+            {
+                StopCoroutine(poisonRoutine);
+                poisonRoutine = null;
+            }
+
+            poisonStacks.Clear();
+        }
+        else
+            stacksToApply = Mathf.Min(stacksToApply, Mathf.Max(0, maxStacks - poisonStacks.Count));
+
+        if (stacksToApply <= 0)
+            return;
+
+        ticks = GetPoisonTicksAfterLethalCompound(perStackPayload, ticks, _poisonOwnerPlayerStats);
+        tickDamage = Mathf.Max(1, Mathf.CeilToInt(perStackPoolTotal / ticks));
+
+        _poisonDotDealerLabel = ResolveDotDealerLabelForDps(perStackPayload.source);
+        _poisonOutgoingDpsSourceLabel = perStackPayload.outgoingDpsSourceLabel;
+        _poisonOutgoingAttributeToMinion = perStackPayload.outgoingAttributeToMinion;
+
+        if (perStackPayload.source != null)
+        {
+            _poisonDotDealerWorldPos = perStackPayload.source.position;
+            _hasPoisonDotDealerWorldPos = true;
+        }
+
+        bool firstPoison = poisonStacks.Count == 0;
+        for (int i = 0; i < stacksToApply; i++)
+            poisonStacks.Add(new PoisonStack(tickDamage, ticks));
+
+        if (poisonRoutine == null)
+            poisonRoutine = StartCoroutine(PoisonRoutine(perStackPayload.source));
+
+        if (firstPoison)
+        {
+            FloatingDamageTextUI fx = DamagePopupSystem.Instance != null ? DamagePopupSystem.Instance.PopupPrefab : null;
+            Color c = ResolveAilmentStatusColor(fx, f => f.PoisonDamageColor, new Color32(85, 200, 90, 255));
+            TrySpawnEnemyAilmentActivationPopup("Poisoned", c, perStackPayload.source);
+        }
+
+        OnAilmentsChanged?.Invoke();
+    }
+
+    private static int GetPoisonTicksAfterLethalCompound(PoisonPayload payload, int ticks, CharacterStats owner)
+    {
+        if (owner == null || owner.GetMasterOfVenomsEnhancementPick() != 1)
+            return ticks;
+
+        float durationSec = payload.duration > 0f ? payload.duration : ticks;
+        durationSec = Mathf.Max(
+            0.1f,
+            durationSec - AbilityCombatPower.MasterOfVenomsLethalCompoundDurationReductionSeconds);
+        return Mathf.Max(1, Mathf.RoundToInt(durationSec));
     }
 
     private IEnumerator PoisonRoutine(Transform source)
@@ -663,6 +824,7 @@ public class AilmentController : MonoBehaviour
                 }
 
                 ApplyPoisonTick(totalDamage, source);
+                TryProcessWayOfTheAssassinPoisonTickAfterDamage();
             }
 
             OnAilmentsChanged?.Invoke();
@@ -736,6 +898,17 @@ public class AilmentController : MonoBehaviour
 
         if (debugLogs)
             Debug.Log($"[Ailments] Poison tick: {finalDamage} crit={wasCrit}", this);
+    }
+
+    private void TryProcessWayOfTheAssassinPoisonTickAfterDamage()
+    {
+        if (_poisonOwnerPlayerStats == null || !_poisonOwnerPlayerStats.IsWayOfTheAssassinCapstoneActive())
+            return;
+
+        if (IsPlayerVictim || enemy == null)
+            return;
+
+        _poisonOwnerPlayerStats.NotifyWayOfTheAssassinPoisonTick(enemy);
     }
 
     public void ApplyChillFromHit(ChillPayload payload)

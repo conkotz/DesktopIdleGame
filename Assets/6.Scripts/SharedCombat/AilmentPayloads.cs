@@ -6,6 +6,7 @@ public struct BleedPayload
     public float totalDamage;
     public float duration;
     public int ticks;
+    public int maxStacks;
     public Transform source;
     public string outgoingDpsSourceLabel;
     public bool outgoingAttributeToMinion;
@@ -16,11 +17,13 @@ public struct BleedPayload
         int ticks,
         Transform source,
         string outgoingDpsSourceLabel = null,
-        bool outgoingAttributeToMinion = false)
+        bool outgoingAttributeToMinion = false,
+        int maxStacks = 0)
     {
         this.totalDamage = totalDamage;
         this.duration = duration;
         this.ticks = ticks;
+        this.maxStacks = maxStacks;
         this.source = source;
         this.outgoingDpsSourceLabel = outgoingDpsSourceLabel;
         this.outgoingAttributeToMinion = outgoingAttributeToMinion;
@@ -39,6 +42,13 @@ public struct PoisonPayload
     public Transform poisonMasteryOwner;
     public string outgoingDpsSourceLabel;
     public bool outgoingAttributeToMinion;
+    /// <summary>
+    /// When true, <see cref="totalDamage"/> is one hit's full poison pool split evenly across all stacks in a batch (Envenom).
+    /// When false, each stack in a batch carries the full <see cref="totalDamage"/> pool (spread/copy effects).
+    /// </summary>
+    public bool splitTotalDamageAcrossStacks;
+    /// <summary>When true, clears existing poison on the target and applies exactly the batch count (up to cap). Used by Envenom.</summary>
+    public bool replaceExistingPoisonStacks;
 
     public PoisonPayload(
         float totalDamage,
@@ -48,7 +58,9 @@ public struct PoisonPayload
         Transform source,
         string outgoingDpsSourceLabel = null,
         bool outgoingAttributeToMinion = false,
-        Transform poisonMasteryOwner = null)
+        Transform poisonMasteryOwner = null,
+        bool splitTotalDamageAcrossStacks = false,
+        bool replaceExistingPoisonStacks = false)
     {
         this.totalDamage = totalDamage;
         this.duration = duration;
@@ -58,6 +70,8 @@ public struct PoisonPayload
         this.poisonMasteryOwner = poisonMasteryOwner ? poisonMasteryOwner : source;
         this.outgoingDpsSourceLabel = outgoingDpsSourceLabel;
         this.outgoingAttributeToMinion = outgoingAttributeToMinion;
+        this.splitTotalDamageAcrossStacks = splitTotalDamageAcrossStacks;
+        this.replaceExistingPoisonStacks = replaceExistingPoisonStacks;
     }
 }
 
