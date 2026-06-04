@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Presentation_capstone_holy_seal
   m_EditorClassIdentifier: Assembly-CSharp::SkillsAndAbilityPresentationDefinition
   notes: Holy seal HUD icon for Way of the Crusader capstone
-  displayNameOverride: Holy Seal
+  displayNameOverride: Way of the Crusader
   icon: {fileID: 8525482865751613445, guid: 557d5eb67b27f7340bb787ca44b29539, type: 3}
   shortDescription: 
   primaryDescriptionOverride: 

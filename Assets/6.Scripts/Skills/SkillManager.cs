@@ -44,6 +44,24 @@ public class SkillsManager : MonoBehaviour, ISaveable
     private readonly Dictionary<string, int> _skillChoiceSelections = new();
     private readonly Dictionary<string, int> _skillAbilityRowPicks = new();
 
+    public const int AbilityPresetSlotCount = 2;
+    public const int AbilityPresetMaxDisplayNameLength = 12;
+
+    private readonly Dictionary<SkillType, SkillAbilityPresetSave[]> _abilityPresetsBySkill = new();
+
+    /// <summary>Last loaded preset slot per skill; highlight only while the live tree still matches that snapshot.</summary>
+    private readonly Dictionary<SkillType, int> _activeAbilityPresetSlotBySkill = new();
+
+    private readonly SkillAbilityPresetWeaponSetLinkSave[] _weaponSetPresetLinks =
+    {
+        new SkillAbilityPresetWeaponSetLinkSave(),
+        new SkillAbilityPresetWeaponSetLinkSave()
+    };
+
+    public const int WeaponSetPresetLinkCount = 2;
+
+    public event Action OnAbilityPresetWeaponSetLinksChanged;
+
     // ✅ Active XP display (drives XP bar label + color)
     public event Action<SkillType, string> OnActiveXpDisplayChanged;
     public SkillType ActiveSkill { get; private set; } = SkillType.Mining;
@@ -72,6 +90,9 @@ public class SkillsManager : MonoBehaviour, ISaveable
         DontDestroyOnLoad(transform.root.gameObject);
 
         BuildDefaultsIfEmpty();
+
+        if (GetComponent<AbilityPresetWeaponSetLabelUI>() == null)
+            gameObject.AddComponent<AbilityPresetWeaponSetLabelUI>();
     }
 
     private void BuildDefaultsIfEmpty()
@@ -600,6 +621,416 @@ public class SkillsManager : MonoBehaviour, ISaveable
     }
 
     // -------------------------
+    // Ability presets (skills page)
+    // -------------------------
+
+    public static string GetAbilityPresetDefaultDisplayName(int slotIndex) =>
+        $"Preset {Mathf.Clamp(slotIndex + 1, 1, AbilityPresetSlotCount)}";
+
+    public string GetAbilityPresetResolvedDisplayName(SkillType skillType, int slotIndex)
+    {
+        SkillAbilityPresetSave preset = GetAbilityPresetSlot(skillType, slotIndex);
+        if (!string.IsNullOrWhiteSpace(preset.displayName))
+            return SanitizeAbilityPresetDisplayName(preset.displayName);
+        return GetAbilityPresetDefaultDisplayName(slotIndex);
+    }
+
+    public bool AbilityPresetHasSnapshot(SkillType skillType, int slotIndex) =>
+        GetAbilityPresetSlot(skillType, slotIndex).hasSnapshot;
+
+    public SkillAbilityPresetSave GetAbilityPresetSlotSnapshot(SkillType skillType, int slotIndex) =>
+        GetAbilityPresetSlot(skillType, slotIndex);
+
+    public void SaveCurrentSkillTreeToAbilityPreset(SkillType skillType, int slotIndex)
+    {
+        SkillAbilityPresetSave preset = GetAbilityPresetSlot(skillType, slotIndex);
+        preset.hasSnapshot = true;
+        CopySkillFilteredDictionaryToLists(_skillChoiceSelections, skillType, preset.choiceKeys, preset.choiceValues, abilityRowsOnly: false);
+        CopySkillFilteredDictionaryToLists(_skillAbilityRowPicks, skillType, preset.abilityRowKeys, preset.abilityRowValues, abilityRowsOnly: true);
+        _activeAbilityPresetSlotBySkill[skillType] = Mathf.Clamp(slotIndex, 0, AbilityPresetSlotCount - 1);
+    }
+
+    public bool TryLoadAbilityPreset(SkillType skillType, int slotIndex)
+    {
+        SkillAbilityPresetSave preset = GetAbilityPresetSlot(skillType, slotIndex);
+        if (!preset.hasSnapshot)
+            return false;
+
+        ApplyAbilityPresetSnapshotForSkill(skillType, preset);
+        _activeAbilityPresetSlotBySkill[skillType] = Mathf.Clamp(slotIndex, 0, AbilityPresetSlotCount - 1);
+        return true;
+    }
+
+    public bool IsAbilityPresetActiveAndMatching(SkillType skillType, int slotIndex)
+    {
+        if (!_activeAbilityPresetSlotBySkill.TryGetValue(skillType, out int activeSlot))
+            return false;
+        if (activeSlot != Mathf.Clamp(slotIndex, 0, AbilityPresetSlotCount - 1))
+            return false;
+
+        return DoesCurrentSkillTreeMatchPreset(skillType, slotIndex);
+    }
+
+    public bool DoesCurrentSkillTreeMatchPreset(SkillType skillType, int slotIndex)
+    {
+        SkillAbilityPresetSave saved = GetAbilityPresetSlot(skillType, slotIndex);
+        if (!saved.hasSnapshot)
+            return false;
+
+        var current = new SkillAbilityPresetSave();
+        CopySkillFilteredDictionaryToLists(_skillChoiceSelections, skillType, current.choiceKeys, current.choiceValues, abilityRowsOnly: false);
+        CopySkillFilteredDictionaryToLists(_skillAbilityRowPicks, skillType, current.abilityRowKeys, current.abilityRowValues, abilityRowsOnly: true);
+
+        return PresetSelectionListsEqual(saved.choiceKeys, saved.choiceValues, current.choiceKeys, current.choiceValues)
+            && PresetSelectionListsEqual(saved.abilityRowKeys, saved.abilityRowValues, current.abilityRowKeys, current.abilityRowValues);
+    }
+
+    public void ClearActiveAbilityPresetForSkill(SkillType skillType)
+    {
+        _activeAbilityPresetSlotBySkill.Remove(skillType);
+    }
+
+    public void ResetAbilityPreset(SkillType skillType, int slotIndex)
+    {
+        SkillAbilityPresetSave preset = GetAbilityPresetSlot(skillType, slotIndex);
+        preset.hasSnapshot = false;
+        preset.displayName = string.Empty;
+        preset.choiceKeys.Clear();
+        preset.choiceValues.Clear();
+        preset.abilityRowKeys.Clear();
+        preset.abilityRowValues.Clear();
+        ClearWeaponSetLinksForPreset(skillType, slotIndex);
+        if (_activeAbilityPresetSlotBySkill.TryGetValue(skillType, out int activeSlot) && activeSlot == slotIndex)
+            _activeAbilityPresetSlotBySkill.Remove(skillType);
+        NotifyWeaponSetPresetLinksChanged();
+    }
+
+    public void SetAbilityPresetDisplayName(SkillType skillType, int slotIndex, string displayName)
+    {
+        SkillAbilityPresetSave preset = GetAbilityPresetSlot(skillType, slotIndex);
+        preset.displayName = SanitizeAbilityPresetDisplayName(displayName);
+    }
+
+    public static bool IsCombatSkillType(SkillType skillType) =>
+        skillType == SkillType.Melee
+        || skillType == SkillType.Ranged
+        || skillType == SkillType.Magic
+        || skillType == SkillType.Endurance;
+
+    public SkillAbilityPresetWeaponSetLinkSave GetWeaponSetPresetLink(int weaponSetIndex) =>
+        _weaponSetPresetLinks[ClampWeaponSetIndex(weaponSetIndex)];
+
+    public bool TryGetWeaponSetIndexForPreset(SkillType skillType, int presetSlotIndex, out int weaponSetIndex)
+    {
+        for (int i = 0; i < WeaponSetPresetLinkCount; i++)
+        {
+            SkillAbilityPresetWeaponSetLinkSave link = _weaponSetPresetLinks[i];
+            if (!link.enabled)
+                continue;
+            if (link.skillType == skillType && link.presetSlotIndex == presetSlotIndex)
+            {
+                weaponSetIndex = i;
+                return true;
+            }
+        }
+
+        weaponSetIndex = -1;
+        return false;
+    }
+
+    public void GetAbilityPresetWeaponSetAssignment(
+        SkillType skillType,
+        int presetSlotIndex,
+        out bool enabled,
+        out int weaponSetIndex)
+    {
+        if (TryGetWeaponSetIndexForPreset(skillType, presetSlotIndex, out int setIndex))
+        {
+            enabled = true;
+            weaponSetIndex = setIndex;
+            return;
+        }
+
+        enabled = false;
+        weaponSetIndex = 0;
+    }
+
+    public void SetAbilityPresetWeaponSetAssignment(
+        SkillType skillType,
+        int presetSlotIndex,
+        bool enabled,
+        int weaponSetIndex)
+    {
+        if (!IsCombatSkillType(skillType))
+            return;
+
+        ClearWeaponSetLinksForPreset(skillType, presetSlotIndex);
+
+        if (!enabled)
+        {
+            NotifyWeaponSetPresetLinksChanged();
+            return;
+        }
+
+        int setIndex = ClampWeaponSetIndex(weaponSetIndex);
+        ClearWeaponSetLinkAtIndex(setIndex);
+
+        SkillAbilityPresetWeaponSetLinkSave link = _weaponSetPresetLinks[setIndex];
+        link.enabled = true;
+        link.skillType = skillType;
+        link.presetSlotIndex = Mathf.Clamp(presetSlotIndex, 0, AbilityPresetSlotCount - 1);
+
+        NotifyWeaponSetPresetLinksChanged();
+    }
+
+    public string GetWeaponSetPresetDisplayLabel(int weaponSetIndex)
+    {
+        SkillAbilityPresetWeaponSetLinkSave link = GetWeaponSetPresetLink(weaponSetIndex);
+        if (!link.enabled)
+            return "None Assigned";
+
+        return GetAbilityPresetResolvedDisplayName(link.skillType, link.presetSlotIndex);
+    }
+
+    /// <summary>True when assigning the given preset to this weapon set would replace a different preset.</summary>
+    public bool WillAssigningPresetOverwriteWeaponSet(
+        int weaponSetIndex,
+        SkillType skillType,
+        int presetSlotIndex,
+        out string existingPresetDisplayName)
+    {
+        SkillAbilityPresetWeaponSetLinkSave link = GetWeaponSetPresetLink(weaponSetIndex);
+        if (!link.enabled)
+        {
+            existingPresetDisplayName = null;
+            return false;
+        }
+
+        if (link.skillType == skillType && link.presetSlotIndex == presetSlotIndex)
+        {
+            existingPresetDisplayName = null;
+            return false;
+        }
+
+        existingPresetDisplayName = GetAbilityPresetResolvedDisplayName(link.skillType, link.presetSlotIndex);
+        return true;
+    }
+
+    public void TryApplyLinkedPresetForWeaponSet(int weaponSetIndex)
+    {
+        SkillAbilityPresetWeaponSetLinkSave link = GetWeaponSetPresetLink(weaponSetIndex);
+        if (!link.enabled || !IsCombatSkillType(link.skillType))
+            return;
+
+        TryLoadAbilityPreset(link.skillType, link.presetSlotIndex);
+    }
+
+    private void ClearWeaponSetLinksForPreset(SkillType skillType, int presetSlotIndex)
+    {
+        for (int i = 0; i < WeaponSetPresetLinkCount; i++)
+        {
+            SkillAbilityPresetWeaponSetLinkSave link = _weaponSetPresetLinks[i];
+            if (!link.enabled)
+                continue;
+            if (link.skillType == skillType && link.presetSlotIndex == presetSlotIndex)
+                ClearWeaponSetLinkAtIndex(i);
+        }
+    }
+
+    private void ClearWeaponSetLinkAtIndex(int weaponSetIndex)
+    {
+        SkillAbilityPresetWeaponSetLinkSave link = _weaponSetPresetLinks[ClampWeaponSetIndex(weaponSetIndex)];
+        link.enabled = false;
+        link.skillType = default;
+        link.presetSlotIndex = 0;
+    }
+
+    private static int ClampWeaponSetIndex(int weaponSetIndex) =>
+        Mathf.Clamp(weaponSetIndex, 0, WeaponSetPresetLinkCount - 1);
+
+    private void NotifyWeaponSetPresetLinksChanged()
+    {
+        OnAbilityPresetWeaponSetLinksChanged?.Invoke();
+        AbilityPresetWeaponSetLabelUI.RefreshAll();
+    }
+
+    private SkillAbilityPresetSave[] EnsurePresetSlotsForSkill(SkillType skillType)
+    {
+        if (!_abilityPresetsBySkill.TryGetValue(skillType, out SkillAbilityPresetSave[] slots))
+        {
+            slots = new SkillAbilityPresetSave[AbilityPresetSlotCount];
+            for (int i = 0; i < AbilityPresetSlotCount; i++)
+                slots[i] = new SkillAbilityPresetSave();
+            _abilityPresetsBySkill[skillType] = slots;
+        }
+
+        return slots;
+    }
+
+    private SkillAbilityPresetSave GetAbilityPresetSlot(SkillType skillType, int slotIndex)
+    {
+        SkillAbilityPresetSave[] slots = EnsurePresetSlotsForSkill(skillType);
+        return slots[Mathf.Clamp(slotIndex, 0, AbilityPresetSlotCount - 1)];
+    }
+
+    private static string BuildSkillSelectionKeyPrefix(SkillType skillType) => $"{skillType}:";
+
+    private static void CopySkillFilteredDictionaryToLists(
+        Dictionary<string, int> source,
+        SkillType skillType,
+        List<string> keys,
+        List<int> values,
+        bool abilityRowsOnly)
+    {
+        keys.Clear();
+        values.Clear();
+        if (source == null || source.Count == 0)
+            return;
+
+        string prefix = BuildSkillSelectionKeyPrefix(skillType);
+        const string abilityRowMarker = ":abilityRow:";
+
+        foreach (KeyValuePair<string, int> kv in source)
+        {
+            if (!kv.Key.StartsWith(prefix, StringComparison.Ordinal))
+                continue;
+
+            bool isAbilityRow = kv.Key.IndexOf(abilityRowMarker, StringComparison.Ordinal) >= 0;
+            if (abilityRowsOnly != isAbilityRow)
+                continue;
+
+            keys.Add(kv.Key);
+            values.Add(kv.Value);
+        }
+    }
+
+    private static void RemoveSkillKeysFromDictionary(Dictionary<string, int> dict, SkillType skillType)
+    {
+        if (dict == null || dict.Count == 0)
+            return;
+
+        string prefix = BuildSkillSelectionKeyPrefix(skillType);
+        var toRemove = new List<string>();
+        foreach (KeyValuePair<string, int> kv in dict)
+        {
+            if (kv.Key.StartsWith(prefix, StringComparison.Ordinal))
+                toRemove.Add(kv.Key);
+        }
+
+        for (int i = 0; i < toRemove.Count; i++)
+            dict.Remove(toRemove[i]);
+    }
+
+    private static void ApplyParallelListsToDictionary(
+        List<string> keys,
+        List<int> values,
+        Dictionary<string, int> destination)
+    {
+        if (destination == null || keys == null || values == null)
+            return;
+
+        int count = Mathf.Min(keys.Count, values.Count);
+        for (int i = 0; i < count; i++)
+        {
+            string key = keys[i];
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+            destination[key] = values[i];
+        }
+    }
+
+    private static string SanitizeAbilityPresetDisplayName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        string trimmed = value.Trim();
+        if (trimmed.Length > AbilityPresetMaxDisplayNameLength)
+            trimmed = trimmed.Substring(0, AbilityPresetMaxDisplayNameLength);
+
+        return trimmed.Replace("<", string.Empty).Replace(">", string.Empty);
+    }
+
+    private void ApplyAbilityPresetSnapshotForSkill(SkillType skillType, SkillAbilityPresetSave preset)
+    {
+        RemoveSkillKeysFromDictionary(_skillChoiceSelections, skillType);
+        RemoveSkillKeysFromDictionary(_skillAbilityRowPicks, skillType);
+
+        ApplyParallelListsToDictionary(preset.choiceKeys, preset.choiceValues, _skillChoiceSelections);
+        ApplyParallelListsToDictionary(preset.abilityRowKeys, preset.abilityRowValues, _skillAbilityRowPicks);
+
+        OnSkillProgressionLoaded?.Invoke();
+
+        CharacterStats stats = FindFirstObjectByType<CharacterStats>(FindObjectsInactive.Exclude);
+        stats?.NotifyStatsChanged();
+    }
+
+    private static void CopyPresetToSaveSlot(SkillAbilityPresetSave source, SkillAbilityPresetSave dest)
+    {
+        if (source == null || dest == null)
+            return;
+
+        dest.hasSnapshot = source.hasSnapshot;
+        dest.displayName = source.displayName ?? string.Empty;
+        CopyList(source.choiceKeys, dest.choiceKeys);
+        CopyList(source.choiceValues, dest.choiceValues);
+        CopyList(source.abilityRowKeys, dest.abilityRowKeys);
+        CopyList(source.abilityRowValues, dest.abilityRowValues);
+    }
+
+    private static void CopyList<T>(List<T> source, List<T> dest)
+    {
+        dest.Clear();
+        if (source == null || source.Count == 0)
+            return;
+        dest.AddRange(source);
+    }
+
+    private static bool PresetSelectionListsEqual(
+        List<string> keysA,
+        List<int> valuesA,
+        List<string> keysB,
+        List<int> valuesB)
+    {
+        int countA = Mathf.Min(keysA?.Count ?? 0, valuesA?.Count ?? 0);
+        int countB = Mathf.Min(keysB?.Count ?? 0, valuesB?.Count ?? 0);
+        if (countA != countB)
+            return false;
+
+        var lookupB = new Dictionary<string, int>();
+        for (int i = 0; i < countB; i++)
+        {
+            string key = keysB[i];
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+            lookupB[key] = valuesB[i];
+        }
+
+        for (int i = 0; i < countA; i++)
+        {
+            string key = keysA[i];
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+            if (!lookupB.TryGetValue(key, out int valueB) || valueB != valuesA[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    private static void EnsurePresetGroupSlots(SkillAbilityPresetGroupSave group)
+    {
+        if (group == null)
+            return;
+
+        group.slots ??= new List<SkillAbilityPresetSave>();
+        while (group.slots.Count < AbilityPresetSlotCount)
+            group.slots.Add(new SkillAbilityPresetSave());
+        while (group.slots.Count > AbilityPresetSlotCount)
+            group.slots.RemoveAt(group.slots.Count - 1);
+    }
+
+    // -------------------------
     // Save / Load
     // -------------------------
 
@@ -642,6 +1073,34 @@ public class SkillsManager : MonoBehaviour, ISaveable
         {
             data.skillAbilityRowPickKeys.Add(kv.Key);
             data.skillAbilityRowPickValues.Add(kv.Value);
+        }
+
+        data.skillAbilityPresetGroups ??= new List<SkillAbilityPresetGroupSave>();
+        data.skillAbilityPresetGroups.Clear();
+        foreach (KeyValuePair<SkillType, SkillAbilityPresetSave[]> kv in _abilityPresetsBySkill)
+        {
+            var group = new SkillAbilityPresetGroupSave { skillType = kv.Key };
+            for (int i = 0; i < AbilityPresetSlotCount; i++)
+            {
+                var slot = new SkillAbilityPresetSave();
+                CopyPresetToSaveSlot(kv.Value[i], slot);
+                group.slots.Add(slot);
+            }
+
+            data.skillAbilityPresetGroups.Add(group);
+        }
+
+        data.skillAbilityPresetWeaponSetLinks ??= new List<SkillAbilityPresetWeaponSetLinkSave>();
+        data.skillAbilityPresetWeaponSetLinks.Clear();
+        for (int i = 0; i < WeaponSetPresetLinkCount; i++)
+        {
+            SkillAbilityPresetWeaponSetLinkSave link = _weaponSetPresetLinks[i];
+            data.skillAbilityPresetWeaponSetLinks.Add(new SkillAbilityPresetWeaponSetLinkSave
+            {
+                enabled = link.enabled,
+                skillType = link.skillType,
+                presetSlotIndex = link.presetSlotIndex
+            });
         }
     }
 
@@ -697,7 +1156,43 @@ public class SkillsManager : MonoBehaviour, ISaveable
             }
         }
 
+        _abilityPresetsBySkill.Clear();
+        if (data.skillAbilityPresetGroups != null && data.skillAbilityPresetGroups.Count > 0)
+        {
+            for (int g = 0; g < data.skillAbilityPresetGroups.Count; g++)
+            {
+                SkillAbilityPresetGroupSave group = data.skillAbilityPresetGroups[g];
+                if (group == null)
+                    continue;
+
+                EnsurePresetGroupSlots(group);
+                SkillAbilityPresetSave[] slots = EnsurePresetSlotsForSkill(group.skillType);
+                for (int i = 0; i < AbilityPresetSlotCount; i++)
+                    CopyPresetToSaveSlot(group.slots[i], slots[i]);
+            }
+        }
+
+        for (int i = 0; i < WeaponSetPresetLinkCount; i++)
+            ClearWeaponSetLinkAtIndex(i);
+
+        if (data.skillAbilityPresetWeaponSetLinks != null)
+        {
+            int count = Mathf.Min(data.skillAbilityPresetWeaponSetLinks.Count, WeaponSetPresetLinkCount);
+            for (int i = 0; i < count; i++)
+            {
+                SkillAbilityPresetWeaponSetLinkSave loaded = data.skillAbilityPresetWeaponSetLinks[i];
+                if (loaded == null || !loaded.enabled || !IsCombatSkillType(loaded.skillType))
+                    continue;
+
+                SkillAbilityPresetWeaponSetLinkSave link = _weaponSetPresetLinks[i];
+                link.enabled = true;
+                link.skillType = loaded.skillType;
+                link.presetSlotIndex = Mathf.Clamp(loaded.presetSlotIndex, 0, AbilityPresetSlotCount - 1);
+            }
+        }
+
         OnActiveXpDisplayChanged?.Invoke(ActiveSkill, ActiveSource);
         OnSkillProgressionLoaded?.Invoke();
+        NotifyWeaponSetPresetLinksChanged();
     }
 }

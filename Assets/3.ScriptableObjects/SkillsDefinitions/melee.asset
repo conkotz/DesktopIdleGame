@@ -1521,7 +1521,7 @@ MonoBehaviour:
         Damage taken
         increased by 2% per stack.
 
-        While below 30% HP, gain 25% life steal
+        When dropping below 30% HP, gain 25% life steal
         for 15 seconds (120 second cooldown).
 
         At 10+ stacks, chill and other
@@ -1537,7 +1537,7 @@ MonoBehaviour:
 
         Blocking a hit heals for 3% max HP and does not consume a seal.
 
-        Auto attacks deal 20% extra fire damage on hit.
+        Auto attacks deal an extra 20% of physical or fire damage as extra fire damage on hit.
 
         Every time a burn is applied, the enemy is also shocked.'
       icon: {fileID: -544860567222892467, guid: c93c365b922a69b49abb82c02c316757, type: 3}

@@ -88,12 +88,25 @@ public partial class PlayerCombatController
         if (!IsWayOfTheCrusaderCapstoneActive() || !IsMeleeAutoAttackSwing(swingAttribution))
             return;
 
-        float weaponTotal = rolled.physical + rolled.magic + rolled.corruptionDamage;
-        float bonusFire = weaponTotal * AbilityCombatPower.WayOfTheCrusaderExtraFireDamageFraction;
+        float physOrFireBase = GetWayOfTheCrusaderExtraFireBaseFromRolledSwing(rolled);
+        float bonusFire = physOrFireBase * AbilityCombatPower.WayOfTheCrusaderExtraFireDamageFraction;
         if (bonusFire <= 0f)
             return;
 
         _pendingWayOfTheCrusaderExtraFireDamage = bonusFire;
+    }
+
+    private float GetWayOfTheCrusaderExtraFireBaseFromRolledSwing(SplitDamage rolled)
+    {
+        float baseAmount = Mathf.Max(0f, rolled.physical);
+        if (stats == null)
+            return baseAmount;
+
+        float fireFromMagic = Mathf.Max(0f, rolled.magic) * stats.GetWeaponMagicFireFraction();
+        if (abilityController != null && abilityController.IsCrusaderStrikeFireBalanceBuffActive)
+            fireFromMagic = Mathf.Max(fireFromMagic, Mathf.Max(0f, rolled.magic));
+
+        return baseAmount + fireFromMagic;
     }
 
     public void TryApplyPendingWayOfTheCrusaderExtraFireDamage(EnemyBaseController target, bool wasCrit)

@@ -1966,7 +1966,7 @@ public class UnitOverheadUI : MonoBehaviour
                     ailments,
                     message);
 
-                DamagePopupSystem.Instance.SpawnAilmentStatus(pos, message, color);
+                DamagePopupSystem.Instance.SpawnAilmentStatus(pos, message, color, victim);
             }
 
             wasActive = activeNow;

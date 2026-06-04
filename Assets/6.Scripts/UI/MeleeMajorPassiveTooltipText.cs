@@ -88,7 +88,7 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append(Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerDamageTakenPerStack * 100f));
         sb.AppendLine("% per stack.");
         sb.AppendLine();
-        sb.Append("While below 30% HP, gain ");
+        sb.Append("When dropping below 30% HP, gain ");
         sb.Append(Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerLowHpLeechFraction * 100f));
         sb.Append("% life steal for ");
         sb.Append(AbilityCombatPower.WayOfTheBerserkerLowHpLeechDurationSeconds.ToString("0.#"));
@@ -122,9 +122,9 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append(healPct);
         sb.AppendLine("% max HP and does not consume a seal.");
         sb.AppendLine();
-        sb.Append("Auto attacks deal ");
+        sb.Append("Auto attacks deal an extra ");
         sb.Append(firePct);
-        sb.AppendLine("% extra fire damage on hit.");
+        sb.AppendLine("% of physical or fire damage as extra fire damage on hit.");
         sb.AppendLine();
         sb.Append("Every time a burn is applied, the enemy is also shocked.");
         return sb.ToString();
@@ -150,9 +150,9 @@ public static class MeleeMajorPassiveTooltipText
         sb.Append("Blocking heals ");
         sb.Append(healPct);
         sb.AppendLine("% max HP without consuming a seal.");
-        sb.Append("Auto attacks deal +");
+        sb.Append("Auto attacks deal an extra ");
         sb.Append(firePct);
-        sb.Append("% extra fire damage on hit.");
+        sb.Append("% of physical or fire damage as fire damage on hit.");
         return sb.ToString();
     }
 
@@ -193,7 +193,7 @@ public static class MeleeMajorPassiveTooltipText
     }
 
     public static string BuildWayOfTheBerserkerLeechHudBody() =>
-        $"+{Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerLowHpLeechFraction * 100f)}% life steal while below 30% HP.";
+        $"+{Mathf.RoundToInt(AbilityCombatPower.WayOfTheBerserkerLowHpLeechFraction * 100f)}% life steal after dropping below 30% HP.";
 
     public const string AilmentAttunementFlavorDescription = "Increase your proficiency with ailments";
     public const string ParryFlavorDescription =

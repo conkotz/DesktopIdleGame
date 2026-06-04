@@ -320,6 +320,25 @@ public sealed class SkillTimelineNodeUI : MonoBehaviour, IPointerEnterHandler
     {
         _binding = binding;
         ApplyAbilityContentIconFromBinding(binding);
+        RefreshAbilityDragFromBinding(binding);
+    }
+
+    private SkillTimelineNodeAbilityDragUI _abilityDrag;
+
+    private void RefreshAbilityDragFromBinding(SkillTimelineNodeBinding binding)
+    {
+        if (!Application.isPlaying)
+            return;
+
+        EnsureReferences();
+        if (rootButton == null)
+            return;
+
+        _abilityDrag ??= rootButton.GetComponent<SkillTimelineNodeAbilityDragUI>();
+        if (_abilityDrag == null)
+            _abilityDrag = rootButton.gameObject.AddComponent<SkillTimelineNodeAbilityDragUI>();
+
+        _abilityDrag.Bind(this);
     }
 
     private void EnsureClickHandler()

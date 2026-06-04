@@ -761,7 +761,7 @@ public class EnemyBaseController : MonoBehaviour
         if (prefab != null)
             color = prefab.StunPresentationColor;
 
-        DamagePopupSystem.Instance.SpawnLingeringStatus(pos, "Stunned", color);
+        DamagePopupSystem.Instance.SpawnLingeringStatus(pos, "Stunned", color, transform);
     }
 
     private void TryStartEnemyAttack()

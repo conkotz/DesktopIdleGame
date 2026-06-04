@@ -143,6 +143,15 @@ public class SaveData
 
     public List<int> skillAbilityRowPickValues = new();
 
+    [Tooltip("Legacy global presets (v4); superseded by skillAbilityPresetGroups.")]
+    public List<SkillAbilityPresetSave> skillAbilityPresets = new();
+
+    [Tooltip("Per-skill Ability Preset slots (two presets each for Melee, Ranged, etc.).")]
+    public List<SkillAbilityPresetGroupSave> skillAbilityPresetGroups = new();
+
+    [Tooltip("Combat preset auto-applied when weapon set 1 or 2 is active (index 0 = set 1, 1 = set 2).")]
+    public List<SkillAbilityPresetWeaponSetLinkSave> skillAbilityPresetWeaponSetLinks = new();
+
     [Serializable]
     public struct SkillSave
     {
@@ -266,4 +275,33 @@ public class NpcOneWayDialogueChainProgressRow
 {
     public string saveId;
     public int highestIndex;
+}
+
+/// <summary>Two preset slots for one <see cref="SkillType"/>.</summary>
+[Serializable]
+public class SkillAbilityPresetGroupSave
+{
+    public SkillType skillType;
+    public List<SkillAbilityPresetSave> slots = new();
+}
+
+/// <summary>One Ability Preset slot (enhancement choices + ability row picks for a single skill).</summary>
+[Serializable]
+public class SkillAbilityPresetSave
+{
+    public bool hasSnapshot;
+    public string displayName = "";
+    public List<string> choiceKeys = new();
+    public List<int> choiceValues = new();
+    public List<string> abilityRowKeys = new();
+    public List<int> abilityRowValues = new();
+}
+
+/// <summary>Links one combat ability preset to weapon set 1 or 2 for auto-apply on set swap.</summary>
+[Serializable]
+public class SkillAbilityPresetWeaponSetLinkSave
+{
+    public bool enabled;
+    public SkillType skillType;
+    public int presetSlotIndex;
 }

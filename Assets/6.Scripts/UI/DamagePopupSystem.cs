@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class DamagePopupSystem : MonoBehaviour
@@ -29,6 +30,9 @@ public class DamagePopupSystem : MonoBehaviour
     [SerializeField] private float statusPopupSideOffset = 0.35f;
     [SerializeField] private float statusPopupYOffset = 0.55f;
     [SerializeField] private float statusPopupXJitter = 3f;
+    [Tooltip("Vertical screen offset between simultaneous status labels on the same unit (Burnt / Shocked, etc.).")]
+    [SerializeField] private float statusPopupStackYOffsetStep = 18f;
+    [SerializeField] private float statusPopupStackBatchSeconds = 0.2f;
 
     [Header("Healing popup (player)")]
     [SerializeField] private float healingPopupSideOffset = 0.32f;
@@ -36,6 +40,14 @@ public class DamagePopupSystem : MonoBehaviour
     [SerializeField] private float healingPopupXJitter = 2f;
 
     private int _popupSpawnIndex = 0;
+
+    private readonly Dictionary<int, StatusPopupStackState> _statusPopupStackByAnchorId = new();
+
+    private struct StatusPopupStackState
+    {
+        public int Count;
+        public float LastSpawnTime;
+    }
 
     private Camera _worldProjectionCamera;
     private Camera _rectTransformEventCamera;
@@ -228,7 +240,7 @@ public class DamagePopupSystem : MonoBehaviour
     }
 
     /// <summary>Lingering status text (ailments, Blocked, Parry) — pinned in place, no travel arc.</summary>
-    public void SpawnLingeringStatus(Vector3 worldPos, string message, Color color)
+    public void SpawnLingeringStatus(Vector3 worldPos, string message, Color color, Transform stackAnchor = null)
     {
         if (!_worldProjectionCamera)
             ResolveProjectionCameras();
@@ -251,6 +263,7 @@ public class DamagePopupSystem : MonoBehaviour
             return;
 
         float xJitter = Random.Range(-statusPopupXJitter, statusPopupXJitter);
+        float yStackOffset = ResolveStatusPopupStackYOffset(stackAnchor);
 
         var go = Instantiate(popupPrefab, rectForMath);
         var floater = go.GetComponent<FloatingDamageTextUI>();
@@ -260,14 +273,34 @@ public class DamagePopupSystem : MonoBehaviour
             return;
         }
 
-        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, 0f), _worldProjectionCamera, rectForMath, eventCam);
+        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, yStackOffset), _worldProjectionCamera, rectForMath, eventCam);
         floater.InitLingeringStatus(message, color);
     }
 
-    /// <summary>Floating status text (e.g. "Poisoned") using the same overlay canvas as damage numbers.</summary>
-    public void SpawnAilmentStatus(Vector3 worldPos, string message, Color color, Vector3 direction = default)
+    private float ResolveStatusPopupStackYOffset(Transform stackAnchor)
     {
-        SpawnLingeringStatus(worldPos, message, color);
+        if (!stackAnchor)
+            return 0f;
+
+        int anchorId = stackAnchor.GetInstanceID();
+        float now = Time.time;
+        if (!_statusPopupStackByAnchorId.TryGetValue(anchorId, out StatusPopupStackState state)
+            || now - state.LastSpawnTime > statusPopupStackBatchSeconds)
+        {
+            state = new StatusPopupStackState { Count = 0, LastSpawnTime = now };
+        }
+
+        float yOffset = state.Count * statusPopupStackYOffsetStep;
+        state.Count++;
+        state.LastSpawnTime = now;
+        _statusPopupStackByAnchorId[anchorId] = state;
+        return yOffset;
+    }
+
+    /// <summary>Floating status text (e.g. "Poisoned") using the same overlay canvas as damage numbers.</summary>
+    public void SpawnAilmentStatus(Vector3 worldPos, string message, Color color, Transform stackAnchor = null, Vector3 direction = default)
+    {
+        SpawnLingeringStatus(worldPos, message, color, stackAnchor);
     }
 
     /// <summary>Green +healing text behind the player, slightly lower than Blocked / Parry and rising vertically.</summary>

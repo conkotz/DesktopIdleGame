@@ -5,7 +5,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Sprint key: tap or hold start performs a short dash (cooldown), hold while moving adds flat move speed,
+/// Sprint key: tap or hold start performs a short dash (cooldown), hold while moving adds 30% move speed,
 /// costs 20% max stamina on dash start, then drains 15% max stamina/s while sprinting, and blocks passive
 /// stamina regen during sprint drain. Depleting stamina enters exhaustion until energy recovers to
 /// <see cref="SprintExhaustionRecoveryMaxEnergyFraction"/> of max (sprint key can stay held).
@@ -16,7 +16,7 @@ public class PlayerSprintInput : MonoBehaviour
 {
     public const string SprintHudBuffId = "player_sprint";
 
-    public const float SprintSpeedBonusFlat = 1.5f;
+    public const float SprintSpeedBonusPercent = 0.30f;
     public const float SprintDashInitialCostMaxEnergyFraction = 0.20f;
     public const float SprintDrainMaxEnergyFractionPerSecond = 0.15f;
     public const float MinMoveSpeedForSprint = 0.1f;
@@ -295,15 +295,15 @@ public class PlayerSprintInput : MonoBehaviour
     {
         if (!ShouldApplyMoveSpeedBonus())
             return baseMoveSpeed;
-        return baseMoveSpeed + SprintSpeedBonusFlat;
+        return baseMoveSpeed * (1f + SprintSpeedBonusPercent);
     }
 
-    /// <summary>Percent increase from the flat sprint bonus relative to <paramref name="baseMoveSpeed"/>.</summary>
+    /// <summary>Percent increase from sprint relative to <paramref name="baseMoveSpeed"/>.</summary>
     public static float GetSprintBonusPercentOfBase(float baseMoveSpeed)
     {
-        if (!ShouldApplyMoveSpeedBonus() || baseMoveSpeed <= 0.01f)
+        if (!ShouldApplyMoveSpeedBonus())
             return 0f;
-        return (SprintSpeedBonusFlat / baseMoveSpeed) * 100f;
+        return SprintSpeedBonusPercent * 100f;
     }
 
     private static CharacterStats ResolveCharacterStats()

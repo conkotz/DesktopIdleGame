@@ -19,7 +19,9 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
 
     public const float FontSectionHeader = 13f;
     public const float FontBody = 14f;
+    public const float EffectBodyParagraphSpacing = 14f;
     public const float FontNameTitle = 19f;
+    public const float FontCapstoneEnhancementName = 18f;
     public const float FontMeta = 14f;
     public const float FontEnhancementHeader = 14f;
     public const float FontEnhancementSubtitle = 13f;
@@ -325,7 +327,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         BindRequirementsSection(ability, stats, binding?.Unlock);
         BindTypeSection(ability, details.TypeLabel);
         BindAbilityIconDragAssign(ability, skillsManager);
-        BindMiddleColumn(ability, skillsManager, stats, details.EffectText);
+        BindMiddleColumn(ability, skillsManager, stats, binding, details.EffectText);
         PopulateEnhancementCards(binding, skillsManager);
         ApplyDetailsTypography();
         ApplySectionDividerLayout();
@@ -943,6 +945,7 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         ConfigureSectionTextStack(effectSectionRoot);
         ConfigureSectionTextStack(costSectionRoot);
         ConfigureSectionTextStack(cooldownSectionRoot);
+        ConfigureSectionTextStack(enhancementDetailRoot);
         ConfigureRequirementsTextLayout();
     }
 
@@ -1206,13 +1209,25 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         SetFontSize(descriptionText, FontBody);
         SetFontSize(requirementWeaponText, FontBody);
         SetFontSize(typeValueText, FontBody);
-        SetFontSize(scalingText, FontBody);
+        if (IsCapstoneEnhancementNameInScalingSection())
+        {
+            SetFontSize(scalingText, FontCapstoneEnhancementName);
+            if (scalingText != null)
+            {
+                scalingText.fontStyle = FontStyles.Bold;
+                scalingText.color = BodyTextColor;
+            }
+        }
+        else
+            SetFontSize(scalingText, FontBody);
+
         SetFontSize(effectText, FontBody);
         SetFontSize(costText, FontBody);
         SetFontSize(cooldownText, FontBody);
         SetFontSize(enhancementsTitleText, FontEnhancementHeader);
         SetFontSize(enhancementsSubtitleText, FontEnhancementSubtitle);
-        SetFontSize(enhancementDetailText, FontEnhancementDetail);
+        if (enhancementDetailText != null)
+            ApplyEffectBodyTextStyle(enhancementDetailText);
 
         if (contentRoot == null)
             return;
@@ -1358,11 +1373,22 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         AbilityDefinition ability,
         SkillsManager skillsManager,
         CharacterStats stats,
+        SkillTimelineNodeBinding binding,
         string majorPassiveEffectText = null)
     {
         if (ability == null)
         {
-            SetSectionActive(scalingSectionRoot, false);
+            bool isCapstone = binding?.Unlock?.unlockType == SkillUnlockType.CapstonePassive;
+            if (isCapstone)
+            {
+                int choiceIndex = ResolveCommittedEnhancementChoiceIndex(binding, skillsManager);
+                BindCapstoneEnhancementNameSection(binding.Unlock, choiceIndex);
+            }
+            else
+            {
+                SetSectionActive(scalingSectionRoot, false);
+            }
+
             SetRichSection(effectSectionRoot, effectText, majorPassiveEffectText, BodyTextColor);
             SetSectionActive(costSectionRoot, false);
             SetSectionActive(cooldownSectionRoot, false);
@@ -1371,6 +1397,9 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         }
 
         SetCostCooldownRowVisible(true);
+        SetScalingSectionHeaderVisible(true);
+        if (scalingText != null)
+            SetFontSize(scalingText, FontBody);
 
         string scaling = AbilityTooltipDamagePreview.BuildAbilityTooltipScalingSection(
             ability, stats, skillsManager, orangeMarkup: false);
@@ -1411,9 +1440,35 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         if (label == null)
             return;
 
-        label.richText = true;
-        label.color = fallbackColor;
+        ApplyEffectBodyTextStyle(label);
         label.text = hasContent ? richText : string.Empty;
+    }
+
+    private static void ApplyEffectBodyTextStyle(TMP_Text label)
+    {
+        if (label == null)
+            return;
+
+        label.richText = true;
+        label.color = BodyTextColor;
+        label.fontSize = FontBody;
+        label.textWrappingMode = TextWrappingModes.Normal;
+        label.overflowMode = TextOverflowModes.Overflow;
+        label.fontStyle = FontStyles.Normal;
+        label.lineSpacing = 0f;
+        label.paragraphSpacing = EffectBodyParagraphSpacing;
+
+        if (label.GetComponent<ContentSizeFitter>() == null)
+        {
+            ContentSizeFitter fitter = label.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        }
+
+        LayoutElement layout = label.GetComponent<LayoutElement>();
+        if (layout == null)
+            layout = label.gameObject.AddComponent<LayoutElement>();
+        layout.flexibleHeight = 0f;
     }
 
     private static void SetPlainSection(GameObject sectionRoot, TMP_Text label, string text)
@@ -1426,6 +1481,76 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
         label.richText = false;
         label.text = hasContent ? text : string.Empty;
         label.color = BodyTextColor;
+    }
+
+    private string ResolveEnhancementDetailEffectText(int choiceIndex, string fallbackDescription)
+    {
+        SkillTimelineNodeBinding binding = _currentBinding;
+        SkillUnlockDefinition unlock = binding?.Unlock;
+        if (binding?.Skill != null && unlock != null)
+        {
+            if (unlock.unlockType == SkillUnlockType.CapstonePassive
+                && MeleeMajorPassiveTooltipText.TryBuildCapstoneChoiceBody(choiceIndex, out string capstoneBody)
+                && !string.IsNullOrWhiteSpace(capstoneBody))
+                return capstoneBody;
+
+            string spineId = binding.ResolveSpineNodeId();
+            if (!string.IsNullOrWhiteSpace(spineId)
+                && MeleeMajorPassiveTooltipText.TryBuildChoiceTooltipBody(spineId, choiceIndex, out string meleeBody)
+                && !string.IsNullOrWhiteSpace(meleeBody))
+                return meleeBody;
+        }
+
+        return fallbackDescription ?? string.Empty;
+    }
+
+    private bool IsCapstoneEnhancementNameInScalingSection() =>
+        ResolveAbility(_currentBinding) == null
+        && _currentBinding?.Unlock?.unlockType == SkillUnlockType.CapstonePassive
+        && scalingSectionRoot != null
+        && scalingSectionRoot.activeInHierarchy;
+
+    private static int ResolveCommittedEnhancementChoiceIndex(
+        SkillTimelineNodeBinding binding,
+        SkillsManager skillsManager)
+    {
+        if (binding?.Unlock?.choices == null || binding.Skill == null || skillsManager == null)
+            return -1;
+
+        string spineId = binding.ResolveSpineNodeId();
+        if (string.IsNullOrEmpty(spineId))
+            return -1;
+
+        return skillsManager.GetSkillChoiceSelection(binding.Skill.skillType, spineId, -1);
+    }
+
+    private void BindCapstoneEnhancementNameSection(SkillUnlockDefinition unlock, int choiceIndex)
+    {
+        string title = ResolveEnhancementChoiceTitle(unlock, choiceIndex);
+        bool hasTitle = !string.IsNullOrWhiteSpace(title);
+
+        SetScalingSectionHeaderVisible(false);
+        SetSectionActive(scalingSectionRoot, hasTitle);
+
+        if (scalingText == null)
+            return;
+
+        scalingText.richText = false;
+        scalingText.color = BodyTextColor;
+        scalingText.fontStyle = FontStyles.Bold;
+        scalingText.textWrappingMode = TextWrappingModes.Normal;
+        scalingText.text = hasTitle ? title : string.Empty;
+        SetFontSize(scalingText, FontCapstoneEnhancementName);
+    }
+
+    private void SetScalingSectionHeaderVisible(bool visible)
+    {
+        if (scalingSectionRoot == null)
+            return;
+
+        Transform header = scalingSectionRoot.transform.Find("SectionTitle");
+        if (header != null)
+            header.gameObject.SetActive(visible);
     }
 
     private void PopulateEnhancementCards(SkillTimelineNodeBinding binding, SkillsManager skillsManager)
@@ -1815,9 +1940,14 @@ public sealed class SkillNodeDetailsPanelUI : MonoBehaviour
             if (btn == null || btn.ChoiceIndex != choiceIndex)
                 continue;
 
+            string detail = ResolveEnhancementDetailEffectText(choiceIndex, btn.Description);
             if (enhancementDetailText != null)
-                enhancementDetailText.text = btn.Description;
-            SetEnhancementDetailVisible(!string.IsNullOrWhiteSpace(btn.Description));
+            {
+                ApplyEffectBodyTextStyle(enhancementDetailText);
+                enhancementDetailText.text = detail ?? string.Empty;
+            }
+
+            SetEnhancementDetailVisible(!string.IsNullOrWhiteSpace(detail));
             return;
         }
 

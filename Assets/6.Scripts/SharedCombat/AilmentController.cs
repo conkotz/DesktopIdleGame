@@ -173,7 +173,7 @@ public class AilmentController : MonoBehaviour
         Vector3 anchorPos = anchor != null ? anchor.WorldPos : transform.position;
         Vector3 dealerPos = source != null ? source.position : transform.position;
         Vector3 pos = DamagePopupSystem.GetWorldPosBehindVictim(anchorPos, dealerPos);
-        DamagePopupSystem.Instance.SpawnLingeringStatus(pos, message, color);
+        DamagePopupSystem.Instance.SpawnLingeringStatus(pos, message, color, transform);
     }
 
     private static Color ResolveAilmentStatusColor(FloatingDamageTextUI prefab, System.Func<FloatingDamageTextUI, Color> pick, Color fallback)

@@ -805,7 +805,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
                 float baseSpeed = playerStats != null ? playerStats.FinalMoveSpeed : 0f;
                 float sprintSpeed = PlayerSprintInput.ApplySprintBonus(baseSpeed);
                 return
-                    $"Adds +{PlayerSprintInput.SprintSpeedBonusFlat:0.#} move speed while moving ({baseSpeed:0.#} → {sprintSpeed:0.#}). " +
+                    $"Adds +{PlayerSprintInput.SprintSpeedBonusPercent * 100f:0.#}% move speed while moving ({baseSpeed:0.#} → {sprintSpeed:0.#}). " +
                     "Costs 20% max energy per second and pauses energy regen.";
             }
 

@@ -32,6 +32,10 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     [Tooltip("TopBar ResetTreeButton — clears all tree picks for the active skill tab.")]
     [SerializeField] private Button resetTreeButton;
 
+    [Header("Ability presets")]
+    [SerializeField] private Button abilityPresetButton1;
+    [SerializeField] private Button abilityPresetButton2;
+
     [Header("Optional labels")]
     [SerializeField] private TMP_Text selectedSkillTitleText;
 
@@ -66,6 +70,11 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
     private UnityEngine.Events.UnityAction _gatheringCategoryHandler;
     private UnityEngine.Events.UnityAction _resetTreeClickHandler;
     private UnityEngine.Events.UnityAction _autoAssignClickHandler;
+    private readonly UnityEngine.Events.UnityAction[] _abilityPresetLeftClickHandlers =
+        new UnityEngine.Events.UnityAction[SkillsManager.AbilityPresetSlotCount];
+    private readonly AbilityPresetButtonUI[] _abilityPresetButtonUis =
+        new AbilityPresetButtonUI[SkillsManager.AbilityPresetSlotCount];
+    private bool _pendingAbilityPresetLabelRefresh;
     private ActionBarUI _cachedActionBar;
     private Coroutine _deferredProgressionRefresh;
     private Coroutine _deferredOpenRefresh;
@@ -104,12 +113,14 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         EnsureDetailsPanelReferences();
         WireCategoryModeButtons();
         WireResetTreeButton();
+        WireAbilityPresetButtons();
         WireAutoAssignAbilitiesButton();
         ApplyCategoryMode(showOnly: true);
         WireSkillTabButtons();
         TrySubscribeSkillsEvents();
         HookTreeGlowAcknowledge();
         ResolveInitialSkillSelection();
+        RefreshAbilityPresetButtonLabels();
         RefreshTabSelectionVisuals();
         RefreshCategoryModeButtonVisuals();
         EnsureHorizontalTimelineReference();
@@ -139,6 +150,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         SetTimelineScrollViewportVisible(true);
         UnhookTreeGlowAcknowledge();
         UnwireResetTreeButton();
+        UnwireAbilityPresetButtons();
         UnwireAutoAssignAbilitiesButton();
         TryUnsubscribeSkillsEvents();
     }
@@ -170,6 +182,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         RefreshTabSelectionVisuals();
         RefreshSkillsListSelection();
         ApplyActionBarForSelectedSkill();
+
+        RefreshAbilityPresetButtonLabels();
 
         if (!_skipSelectionHubNotify)
             SkillsAbilityPageSelectionHub.NotifySelection(skill, this);
@@ -568,6 +582,7 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         else if (_selectedSkill != null)
         {
             skillsManager.ResetSkillTreeSelectionsForSkill(_selectedSkill.skillType);
+            skillsManager.ClearActiveAbilityPresetForSkill(_selectedSkill.skillType);
             clearedAny = true;
             SaveManager.Instance?.Save();
         }
@@ -613,6 +628,266 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
             return;
 
         resetTreeButton.onClick.RemoveListener(_resetTreeClickHandler);
+    }
+
+    private void WireAbilityPresetButtons()
+    {
+        EnsureAbilityPresetButtonReferences();
+
+        WireSingleAbilityPresetButton(0, abilityPresetButton1);
+        WireSingleAbilityPresetButton(1, abilityPresetButton2);
+    }
+
+    private void UnwireAbilityPresetButtons()
+    {
+        for (int i = 0; i < SkillsManager.AbilityPresetSlotCount; i++)
+        {
+            Button button = GetAbilityPresetButton(i);
+            if (button != null && _abilityPresetLeftClickHandlers[i] != null)
+                button.onClick.RemoveListener(_abilityPresetLeftClickHandlers[i]);
+
+            if (_abilityPresetButtonUis[i] != null)
+                _abilityPresetButtonUis[i].RightClicked -= HandleAbilityPresetRightClicked;
+        }
+    }
+
+    private void EnsureAbilityPresetButtonReferences()
+    {
+        if (abilityPresetButton1 == null)
+        {
+            Transform topBar = transform.Find("TopBar");
+            if (topBar != null)
+                abilityPresetButton1 = topBar.Find("AbilityPresetButton1")?.GetComponent<Button>();
+        }
+
+        if (abilityPresetButton2 == null)
+        {
+            Transform topBar = transform.Find("TopBar");
+            if (topBar != null)
+                abilityPresetButton2 = topBar.Find("AbilityPresetButton2")?.GetComponent<Button>();
+        }
+
+        if (abilityPresetButton1 == null)
+            abilityPresetButton1 = FindChildButtonNamed("AbilityPresetButton1");
+        if (abilityPresetButton2 == null)
+            abilityPresetButton2 = FindChildButtonNamed("AbilityPresetButton2");
+    }
+
+    private Button GetAbilityPresetButton(int slotIndex) =>
+        slotIndex == 0 ? abilityPresetButton1 : abilityPresetButton2;
+
+    private void WireSingleAbilityPresetButton(int slotIndex, Button button)
+    {
+        if (button == null)
+            return;
+
+        if (_abilityPresetLeftClickHandlers[slotIndex] == null)
+        {
+            int captured = slotIndex;
+            _abilityPresetLeftClickHandlers[slotIndex] = () => OnAbilityPresetLeftClicked(captured);
+        }
+
+        button.onClick.RemoveListener(_abilityPresetLeftClickHandlers[slotIndex]);
+        button.onClick.AddListener(_abilityPresetLeftClickHandlers[slotIndex]);
+
+        AbilityPresetButtonUI relay = button.GetComponent<AbilityPresetButtonUI>();
+        if (relay == null)
+            relay = button.gameObject.AddComponent<AbilityPresetButtonUI>();
+
+        if (_abilityPresetButtonUis[slotIndex] != null)
+            _abilityPresetButtonUis[slotIndex].RightClicked -= HandleAbilityPresetRightClicked;
+
+        relay.Configure(slotIndex);
+        relay.RightClicked += HandleAbilityPresetRightClicked;
+        _abilityPresetButtonUis[slotIndex] = relay;
+    }
+
+    private bool TryResolvePresetSkillType(out SkillType skillType)
+    {
+        if (_selectedSkill != null)
+        {
+            skillType = _selectedSkill.skillType;
+            return true;
+        }
+
+        SkillDefinition hubSkill = SkillsAbilityPageSelectionHub.Current;
+        if (hubSkill != null)
+        {
+            skillType = hubSkill.skillType;
+            return true;
+        }
+
+        if (SkillsAbilityPageSelectionHub.TryGetLastSkillType(out skillType))
+            return true;
+
+        skillType = default;
+        return false;
+    }
+
+    private void RefreshAbilityPresetButtonLabels()
+    {
+        PreferRuntimeSkillsManager();
+        if (!TryResolvePresetSkillType(out SkillType skillType))
+            return;
+
+        for (int i = 0; i < SkillsManager.AbilityPresetSlotCount; i++)
+        {
+            Button button = GetAbilityPresetButton(i);
+            if (button == null)
+                continue;
+
+            string label = skillsManager != null
+                ? skillsManager.GetAbilityPresetResolvedDisplayName(skillType, i)
+                : SkillsManager.GetAbilityPresetDefaultDisplayName(i);
+
+            SetAbilityPresetButtonLabel(button, label);
+
+            bool highlight = skillsManager != null
+                && skillsManager.IsAbilityPresetActiveAndMatching(skillType, i);
+            UITabBarButtonVisuals.Apply(button, highlight);
+        }
+    }
+
+    private static void SetAbilityPresetButtonLabel(Button button, string label)
+    {
+        if (button == null || string.IsNullOrEmpty(label))
+            return;
+
+        TMP_Text tmp = button.GetComponent<TMP_Text>();
+        if (tmp == null)
+        {
+            Transform textChild = button.transform.Find("Text");
+            if (textChild != null)
+                tmp = textChild.GetComponent<TMP_Text>();
+        }
+
+        if (tmp == null)
+        {
+            TMP_Text[] tmps = button.GetComponentsInChildren<TMP_Text>(true);
+            for (int i = tmps.Length - 1; i >= 0; i--)
+            {
+                if (tmps[i] != null && tmps[i].transform.IsChildOf(button.transform))
+                {
+                    tmp = tmps[i];
+                    break;
+                }
+            }
+        }
+
+        if (tmp != null)
+        {
+            tmp.text = label;
+            return;
+        }
+
+        Text legacy = button.GetComponentInChildren<Text>(true);
+        if (legacy != null)
+            legacy.text = label;
+    }
+
+    private void OnAbilityPresetLeftClicked(int slotIndex)
+    {
+        PreferRuntimeSkillsManager();
+        if (skillsManager == null || !TryResolvePresetSkillType(out SkillType skillType))
+            return;
+
+        if (!skillsManager.TryLoadAbilityPreset(skillType, slotIndex))
+        {
+            GameLog.Add("Empty preset");
+            return;
+        }
+
+        SaveManager.Instance?.Save();
+        EnsureHorizontalTimelineReference();
+        horizontalSkillTimeline?.DismissOpenDetails();
+        RefreshAbilityPresetButtonLabels();
+        ApplyProgressionRefreshToPage();
+    }
+
+    private void HandleAbilityPresetRightClicked(int slotIndex, Vector2 screenPosition)
+    {
+        PreferRuntimeSkillsManager();
+        if (skillsManager == null || !TryResolvePresetSkillType(out SkillType skillType))
+            return;
+
+        string presetName = skillsManager.GetAbilityPresetResolvedDisplayName(skillType, slotIndex);
+        var entries = new List<ContextMenuEntry>
+        {
+            new ContextMenuEntry("Select", () => OnAbilityPresetLeftClicked(slotIndex)),
+            new ContextMenuEntry($"Save to: {presetName}", () => SaveAbilityPreset(slotIndex)),
+            new ContextMenuEntry("Edit", () => OpenAbilityPresetEditPopup(slotIndex)),
+            new ContextMenuEntry("Reset", () => ResetAbilityPreset(slotIndex))
+        };
+
+        ContextMenuUI.EnsureInstance().ShowAtScreen(entries, screenPosition, presetName);
+    }
+
+    private void SaveAbilityPreset(int slotIndex)
+    {
+        PreferRuntimeSkillsManager();
+        if (skillsManager == null || !TryResolvePresetSkillType(out SkillType skillType))
+            return;
+
+        skillsManager.SaveCurrentSkillTreeToAbilityPreset(skillType, slotIndex);
+        SaveManager.Instance?.Save();
+        RefreshAbilityPresetButtonLabels();
+    }
+
+    private void ResetAbilityPreset(int slotIndex)
+    {
+        PreferRuntimeSkillsManager();
+        if (skillsManager == null || !TryResolvePresetSkillType(out SkillType skillType))
+            return;
+
+        skillsManager.ResetAbilityPreset(skillType, slotIndex);
+        SaveManager.Instance?.Save();
+        RefreshAbilityPresetButtonLabels();
+    }
+
+    private void OpenAbilityPresetEditPopup(int slotIndex)
+    {
+        PreferRuntimeSkillsManager();
+        if (skillsManager == null || _selectedSkill == null || !TryResolvePresetSkillType(out SkillType skillType))
+            return;
+
+        string current = skillsManager.GetAbilityPresetResolvedDisplayName(skillType, slotIndex);
+        SkillAbilityPresetSave snapshot = skillsManager.GetAbilityPresetSlotSnapshot(skillType, slotIndex);
+        string summary = SkillAbilityPresetSummaryBuilder.Build(_selectedSkill, snapshot, skillsManager);
+
+        bool showWeaponSet = SkillsManager.IsCombatSkillType(skillType);
+        skillsManager.GetAbilityPresetWeaponSetAssignment(
+            skillType,
+            slotIndex,
+            out bool applyToSet,
+            out int weaponSetIndex);
+
+        AbilityPresetRenamePopupUI.Show(
+            current,
+            summary,
+            showWeaponSet,
+            applyToSet,
+            weaponSetIndex,
+            skillType,
+            slotIndex,
+            result =>
+            {
+                if (skillsManager == null || result == null)
+                    return;
+
+                skillsManager.SetAbilityPresetDisplayName(skillType, slotIndex, result.displayName);
+                if (showWeaponSet)
+                {
+                    skillsManager.SetAbilityPresetWeaponSetAssignment(
+                        skillType,
+                        slotIndex,
+                        result.applyToWeaponSet,
+                        result.weaponSetIndex);
+                }
+
+                SaveManager.Instance?.Save();
+                RefreshAbilityPresetButtonLabels();
+                AbilityPresetWeaponSetLabelUI.RefreshAll();
+            });
     }
 
     private void WireAutoAssignAbilitiesButton()
@@ -934,6 +1209,11 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
         EndTimelineScrollRestoreSession();
         SetTimelineScrollViewportVisible(true);
         ReplayPendingGlowForVisibleUi();
+
+        if (_pendingAbilityPresetLabelRefresh)
+            _pendingAbilityPresetLabelRefresh = false;
+        RefreshAbilityPresetButtonLabels();
+
         _deferredOpenRefresh = null;
     }
 
@@ -1131,10 +1411,17 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
     private void HandleSkillProgressionLoaded()
     {
-        if (!isActiveAndEnabled)
-            return;
+        _pendingAbilityPresetLabelRefresh = true;
 
-        ApplyProgressionRefreshToPage();
+        if (isActiveAndEnabled)
+        {
+            _pendingAbilityPresetLabelRefresh = false;
+            RefreshAbilityPresetButtonLabels();
+            ApplyProgressionRefreshToPage();
+            return;
+        }
+
+        AbilityPresetWeaponSetLabelUI.RefreshAll();
     }
 
     private void QueueDeferredProgressionRefresh()
@@ -1222,6 +1509,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
         if (preservedScroll.HasValue && horizontalSkillTimeline != null)
             horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(preservedScroll.Value);
+
+        RefreshAbilityPresetButtonLabels();
     }
 
     private void HandleSkillChoiceSelectionChanged(SkillType type, int _, int __)
@@ -1242,6 +1531,8 @@ public sealed class SkillsAbilityPageNewUI : MonoBehaviour
 
         if (preservedScroll.HasValue && horizontalSkillTimeline != null)
             horizontalSkillTimeline.ApplyTimelineScrollNormalizedPosition(preservedScroll.Value);
+
+        RefreshAbilityPresetButtonLabels();
     }
 
     private void RefreshTimelineAfterPickOrEnhancementChange()

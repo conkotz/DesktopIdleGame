@@ -1092,6 +1092,14 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Alias for <see cref="GetWeaponMagicFireFraction"/>.</summary>
     public float GetMeleeMagicFireFraction() => GetWeaponMagicFireFraction();
 
+    /// <summary>Fraction of the magic damage lane that is ice (weapon elemental split).</summary>
+    public float GetWeaponMagicIceFraction()
+    {
+        float avgM = AverageMagicHit;
+        if (avgM <= 0f) return 0f;
+        return Mathf.Clamp01(GetAverageWeaponIceDamagePerHit() / avgM);
+    }
+
     public float GetMeleeWeaponPhysicalFraction()
     {
         float avgP = AveragePhysicalHit;
@@ -1290,15 +1298,26 @@ public class CharacterStats : MonoBehaviour, ISaveable
     /// <summary>Fire damage on a resolved hit used for burn rolls (melee, ranged, or magic).</summary>
     public float ResolveFireDamageFromDealt(float magicDealt, float physicalDealt = 0f)
     {
-        float fire = Mathf.Max(0f, magicDealt) * GetWeaponMagicFireFraction();
+        float m = Mathf.Max(0f, magicDealt);
+        float fire = m * GetWeaponMagicFireFraction();
 
         AttackSkill skill = GetCurrentAttackSkill();
-        if (skill == AttackSkill.Magic && GetCurrentMagicAttackType() == MagicAttackType.Fire && magicDealt > 0f)
-            fire = Mathf.Max(fire, magicDealt);
+        if (skill == AttackSkill.Magic && GetCurrentMagicAttackType() == MagicAttackType.Fire && m > 0f)
+            fire = Mathf.Max(fire, m);
 
         PlayerAbilityController ac = GetAbilityControllerLazy();
-        if (skill == AttackSkill.Melee && ac != null && ac.IsCrusaderStrikeFireBalanceBuffActive && magicDealt > 0f)
-            fire = Mathf.Max(fire, magicDealt);
+        if (skill == AttackSkill.Melee && ac != null && ac.IsCrusaderStrikeFireBalanceBuffActive && m > 0f)
+            fire = Mathf.Max(fire, m);
+
+        // Added/conversion fire (capstones, buffs, flat procs) not in the weapon elemental split still rolls burn.
+        if (m > 0f && BurnApplyChance > 0f)
+        {
+            float accounted = m * Mathf.Clamp01(
+                GetWeaponMagicFireFraction()
+                + GetWeaponMagicIceFraction()
+                + GetMeleeMagicLightningFraction());
+            fire = Mathf.Max(fire, m - accounted);
+        }
 
         return fire;
     }
