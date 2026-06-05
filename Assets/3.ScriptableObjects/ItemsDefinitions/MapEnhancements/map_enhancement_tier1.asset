@@ -166,25 +166,25 @@ MonoBehaviour:
     mapEnhancementTier: 1
     mapEnhancementModRolls:
     - modType: 0
-      rollWeight: 1
+      rollWeight: 5
       minValue: 1
-      maxValue: 5
+      maxValue: 2
     - modType: 1
-      rollWeight: 1
+      rollWeight: 5
       minValue: 1
-      maxValue: 5
+      maxValue: 2
     - modType: 2
       rollWeight: 10
       minValue: 0.1
-      maxValue: 0.3
+      maxValue: 0.15
     - modType: 3
       rollWeight: 10
-      minValue: 0.05
-      maxValue: 0.2
+      minValue: 0.03
+      maxValue: 0.06
     - modType: 4
       rollWeight: 10
-      minValue: 0.1
-      maxValue: 0.3
+      minValue: 0.05
+      maxValue: 0.1
     openRequiredAmount: 1
     openableLoot: []
     foodEffectDurationSeconds: 0

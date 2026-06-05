@@ -17,7 +17,7 @@ MonoBehaviour:
   itemId: map_enhancement_tier2
   displayName: Map Enhancement (Tier 2)
   displayNameSingular: 
-  icon: {fileID: -7960374328785821192, guid: 7b8edf4b950d0f14eb552bc35e8bcf14, type: 3}
+  icon: {fileID: 3371457373186736841, guid: 2b09982f116d35f4885f7ca6df1f6d7b, type: 3}
   heldSprite: {fileID: 0}
   equippedSprite: {fileID: 0}
   useCustomEquippedPose: 0
@@ -166,25 +166,25 @@ MonoBehaviour:
     mapEnhancementTier: 2
     mapEnhancementModRolls:
     - modType: 0
-      rollWeight: 1
+      rollWeight: 3
       minValue: 1
-      maxValue: 5
+      maxValue: 3
     - modType: 1
-      rollWeight: 1
+      rollWeight: 3
       minValue: 1
-      maxValue: 5
+      maxValue: 3
     - modType: 2
       rollWeight: 10
       minValue: 0.1
-      maxValue: 0.3
+      maxValue: 0.2
     - modType: 3
       rollWeight: 10
-      minValue: 0.05
-      maxValue: 0.2
+      minValue: 0.03
+      maxValue: 0.06
     - modType: 4
       rollWeight: 10
-      minValue: 0.1
-      maxValue: 0.3
+      minValue: 0.05
+      maxValue: 0.1
     openRequiredAmount: 1
     openableLoot: []
     foodEffectDurationSeconds: 0
