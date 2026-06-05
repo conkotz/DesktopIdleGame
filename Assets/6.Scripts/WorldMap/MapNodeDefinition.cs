@@ -412,6 +412,13 @@ public class MapNodeDefinition : ScriptableObject
     [Tooltip("When true, death respawns the player back onto this same map instead of the region town fallback.")]
     public bool respawnHereIfDied;
 
+    [Header("Combat — map scaling")]
+    [Tooltip("Combat maps only. When enabled, kills on this map unlock scaling tiers that boost enemy HP, XP, loot, and gold from base values.")]
+    public bool mapCombatScalingEnabled;
+
+    [Tooltip("Optional special loot per scaling level (2–7). Fixed drop chances — not scaled. Cumulative: at level N, drops from levels 2…N can roll from any enemy in this zone.")]
+    public List<MapScalingLevelSpecialDrops> mapCombatScalingSpecialDropsByLevel = new();
+
     [Header("Enemy respawn (spawn group plans)")]
     [Tooltip("When true, enemies spawned from spawn group plans can respawn after death. Delay is Enemy Respawn Delay Seconds below. Ignored for endurance waves.")]
     public bool enemyRespawnEnabled;
@@ -732,6 +739,37 @@ public class MapNodeDefinition : ScriptableObject
     public bool CanEnterFromLevelMenu(WorldMapProgressManager progress, SkillsManager skills)
     {
         return CanEnter(progress, skills) && !entranceOnlyAccess;
+    }
+
+    public bool IsMapCombatScalingEnabled() =>
+        nodeType == MapNodeType.Combat && mapCombatScalingEnabled;
+
+    public int GetCombatScalingLevel(WorldMapProgressManager progress) =>
+        MapCombatScaling.ResolveActiveScalingLevel(this, progress);
+
+    /// <summary>Cumulative special drops for scaling levels 2 … <paramref name="scalingLevel"/>.</summary>
+    public void CollectCombatScalingSpecialDropsUpToLevel(int scalingLevel, List<MapScalingSpecialLootEntry> results)
+    {
+        if (results == null || mapCombatScalingSpecialDropsByLevel == null || mapCombatScalingSpecialDropsByLevel.Count == 0)
+            return;
+
+        int cap = Mathf.Clamp(scalingLevel, MapCombatScaling.MinLevel, MapCombatScaling.MaxLevel);
+        if (cap < 2)
+            return;
+
+        for (int i = 0; i < mapCombatScalingSpecialDropsByLevel.Count; i++)
+        {
+            MapScalingLevelSpecialDrops tier = mapCombatScalingSpecialDropsByLevel[i];
+            if (tier == null || tier.scalingLevel < 2 || tier.scalingLevel > cap || tier.drops == null)
+                continue;
+
+            for (int j = 0; j < tier.drops.Count; j++)
+            {
+                MapScalingSpecialLootEntry entry = tier.drops[j];
+                if (entry?.item != null)
+                    results.Add(entry);
+            }
+        }
     }
 
     public const string EnterConditionTeleportAvailable = "Teleport to map available";

@@ -450,7 +450,8 @@ public static class MeleeMajorPassiveTooltipText
         string buffId,
         int displayStacks,
         out string title,
-        out string body)
+        out string body,
+        CharacterStats stats = null)
     {
         title = null;
         body = null;
@@ -486,8 +487,9 @@ public static class MeleeMajorPassiveTooltipText
 
         if (string.Equals(buffId, AbilityCombatPower.BloodbathHudBuffId, StringComparison.OrdinalIgnoreCase))
         {
+            int enhancementPick = stats != null ? stats.GetBloodbathEnhancementPick() : -1;
             title = BloodbathTitle;
-            body = BuildBloodbathHudBody(Mathf.Max(0, displayStacks));
+            body = BuildBloodbathHudBody(Mathf.Max(0, displayStacks), enhancementPick);
             return true;
         }
 
@@ -879,28 +881,46 @@ public static class MeleeMajorPassiveTooltipText
         return true;
     }
 
-    public static string BuildBloodbathHudBody(int currentStacks)
+    public static string BuildBloodbathHudBody(int currentStacks, int enhancementPick = -1)
     {
         int physPct = Mathf.RoundToInt(currentStacks * AbilityCombatPower.BloodbathPhysicalDamagePerStack * 100f);
         var sb = new StringBuilder();
-        if (currentStacks > 0)
-        {
-            sb.Append("Bloodbath stacks: ");
-            sb.Append(currentStacks);
-            sb.Append(" / ");
-            sb.Append(AbilityCombatPower.BloodbathMaxStacks);
-            sb.AppendLine(".");
-            sb.Append("+");
-            sb.Append(physPct);
-            sb.AppendLine("% physical damage.");
-        }
+        if (currentStacks <= 0)
+            return sb.ToString();
 
-        sb.Append("Each stack: +");
-        sb.Append(Mathf.RoundToInt(AbilityCombatPower.BloodbathPhysicalDamagePerStack * 100f));
-        sb.Append("% physical damage (");
-        sb.Append(AbilityCombatPower.BloodbathStackDurationSeconds.ToString("0.#"));
-        sb.AppendLine("s, refreshed when you apply bleed).");
+        sb.Append("Bloodbath stacks: ");
+        sb.Append(currentStacks);
+        sb.Append(" / ");
+        sb.Append(AbilityCombatPower.BloodbathMaxStacks);
+        sb.AppendLine(".");
+        sb.Append("+");
+        sb.Append(physPct);
+        sb.AppendLine("% physical damage.");
+        AppendBloodbathEnhancementTotals(sb, currentStacks, enhancementPick);
         return sb.ToString();
+    }
+
+    private static void AppendBloodbathEnhancementTotals(StringBuilder sb, int currentStacks, int enhancementPick)
+    {
+        if (sb == null || currentStacks <= 0 || enhancementPick < 0)
+            return;
+
+        if (enhancementPick == 0)
+        {
+            int bleedMultPct = Mathf.RoundToInt(
+                currentStacks * AbilityCombatPower.BloodbathCarnageBleedMultiplierPerStack * 100f);
+            sb.Append("+");
+            sb.Append(bleedMultPct);
+            sb.AppendLine("% bleed multiplier.");
+        }
+        else if (enhancementPick == 1)
+        {
+            int bleedChancePct = Mathf.RoundToInt(
+                currentStacks * AbilityCombatPower.BloodbathButcheryBleedChancePerStack * 100f);
+            sb.Append("+");
+            sb.Append(bleedChancePct);
+            sb.AppendLine("% bleed chance.");
+        }
     }
 
     public static string FormatBloodbathValueLabel(int stacks)

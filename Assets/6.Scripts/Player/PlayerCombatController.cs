@@ -2959,6 +2959,16 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
 
     public void AwardCombatXp(float damageDealt, DpsDamageBucket? bucket, bool grantXp, string outgoingDamageSourceLabel)
     {
+        AwardCombatXp(damageDealt, bucket, grantXp, outgoingDamageSourceLabel, 1f);
+    }
+
+    public void AwardCombatXp(
+        float damageDealt,
+        DpsDamageBucket? bucket,
+        bool grantXp,
+        string outgoingDamageSourceLabel,
+        float mapScalingXpRateMultiplier)
+    {
         if (damageDealt <= 0f)
             return;
 
@@ -2971,8 +2981,9 @@ public partial class PlayerCombatController : MonoBehaviour, ISaveable
         if (sm == null)
             return;
 
+        float xpRate = xpPerDamage * Mathf.Max(1f, mapScalingXpRateMultiplier);
         SkillType skill = sm.GetCombatSkillFromCurrentWeapon(player, stats);
-        sm.AddXpFloat(skill, damageDealt * xpPerDamage, combatXpSource);
+        sm.AddXpFloat(skill, damageDealt * xpRate, combatXpSource);
     }
 
     public const string IncomingDotDamageDealerFallback = "Ailment/World";

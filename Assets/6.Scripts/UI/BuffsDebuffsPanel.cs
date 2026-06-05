@@ -788,7 +788,9 @@ public class BuffsDebuffsPanel : MonoBehaviour
             if (string.Equals(buff.id, PlayerSprintInput.SprintHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "Sprint";
 
-            if (MeleeMajorPassiveTooltipText.TryGetHudBuffTooltip(buff.id, buff.displayStacks, out string meleeHudTitle, out _))
+            CharacterStats playerStats = GetPlayerStats();
+            if (MeleeMajorPassiveTooltipText.TryGetHudBuffTooltip(
+                    buff.id, buff.displayStacks, out string meleeHudTitle, out _, playerStats))
                 return meleeHudTitle;
 
             if (AbilityTooltipDamagePreview.TryBuildHudBuffTooltip(
@@ -837,12 +839,13 @@ public class BuffsDebuffsPanel : MonoBehaviour
     {
         if (buff.type == ConsumableEffectType.HudAbilityBuff)
         {
+            CharacterStats playerStats = GetPlayerStats();
+
             if (string.Equals(buff.id, CharacterStats.ShadowHunterHudBuffId, StringComparison.OrdinalIgnoreCase))
                 return "+10% Attack Speed for 7 seconds. Refreshes when you land a critical hit.";
 
             if (string.Equals(buff.id, PlayerSprintInput.SprintHudBuffId, StringComparison.OrdinalIgnoreCase))
             {
-                CharacterStats playerStats = player != null ? player.GetComponent<CharacterStats>() : null;
                 float baseSpeed = playerStats != null ? playerStats.FinalMoveSpeed : 0f;
                 float sprintSpeed = PlayerSprintInput.ApplySprintBonus(baseSpeed);
                 return
@@ -850,7 +853,8 @@ public class BuffsDebuffsPanel : MonoBehaviour
                     "Costs 20% max energy per second and pauses energy regen.";
             }
 
-            if (MeleeMajorPassiveTooltipText.TryGetHudBuffTooltip(buff.id, buff.displayStacks, out _, out string overloadBody))
+            if (MeleeMajorPassiveTooltipText.TryGetHudBuffTooltip(
+                    buff.id, buff.displayStacks, out _, out string overloadBody, playerStats))
                 return overloadBody;
 
             if (AbilityTooltipDamagePreview.TryBuildHudBuffTooltip(
@@ -927,4 +931,7 @@ public class BuffsDebuffsPanel : MonoBehaviour
             _ => "Temporary buff"
         };
     }
+
+    private CharacterStats GetPlayerStats() =>
+        player != null ? player.GetComponent<CharacterStats>() : null;
 }

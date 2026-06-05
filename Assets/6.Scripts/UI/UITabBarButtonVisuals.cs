@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Shared selected/unselected styling for compact tab bars (SkillsAbilityPageNEW skill tabs, inventory filters, gear sets, stats tabs).
+/// Shared selected/unselected styling for compact tab bars (SkillsAbilityPageNEW skill tabs, world map node filters, inventory filters, gear sets, stats tabs).
 /// </summary>
 public static class UITabBarButtonVisuals
 {

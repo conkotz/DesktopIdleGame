@@ -1,0 +1,525 @@
+using System;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>World-map popup for selecting combat map scaling tier (0–7).</summary>
+[DisallowMultipleComponent]
+public sealed class MapCombatScalingPopupUI : MonoBehaviour
+{
+    private const int CanvasSortOrder = 10100;
+    private const int UiVersion = 3;
+    private const int SliderStepCount = MapCombatScaling.SliderMax - MapCombatScaling.SliderMin + 1;
+
+    private static MapCombatScalingPopupUI _instance;
+
+    private static readonly Color SliderFillColor = new(0.95f, 0.82f, 0.18f, 1f);
+    private static readonly Color SliderTrackColor = new(0.18f, 0.16f, 0.14f, 1f);
+    private static readonly Color SliderLockedTrackColor = new(0.12f, 0.11f, 0.1f, 0.85f);
+    private static readonly Color TickAvailableColor = new(0.75f, 0.62f, 0.28f, 1f);
+    private static readonly Color TickLockedColor = new(0.38f, 0.35f, 0.32f, 1f);
+    private static readonly Color TickSelectedColor = new(0.98f, 0.88f, 0.35f, 1f);
+
+    private RectTransform _panelRoot;
+    private Slider _slider;
+    private RectTransform _customFillBar;
+    private RectTransform _lockedTrackOverlay;
+    private Image[] _tickMarks;
+    private TMP_Text[] _tickLabels;
+    private TMP_Text _scaleValueText;
+    private TMP_Text _detailsText;
+    private MapNodeDefinition _node;
+    private WorldMapProgressManager _progress;
+    private Action _onClosed;
+    private int _maxSelectableSlider;
+    private int _currentSliderValue;
+    private int _builtUiVersion;
+
+    public static void Show(MapNodeDefinition node, WorldMapProgressManager progress, Action onClosed = null)
+    {
+        if (node == null || !node.IsMapCombatScalingEnabled())
+            return;
+
+        MapCombatScalingPopupUI popup = EnsureInstance();
+        popup.Open(node, progress, onClosed);
+    }
+
+    public static MapCombatScalingPopupUI EnsureInstance()
+    {
+        if (_instance != null)
+            return _instance;
+
+        _instance = FindFirstObjectByType<MapCombatScalingPopupUI>(FindObjectsInactive.Include);
+        if (_instance != null)
+            return _instance;
+
+        var host = new GameObject(nameof(MapCombatScalingPopupUI), typeof(MapCombatScalingPopupUI));
+        DontDestroyOnLoad(host);
+        _instance = host.GetComponent<MapCombatScalingPopupUI>();
+        _instance.BuildUi();
+        return _instance;
+    }
+
+    private void Awake()
+    {
+        if (_instance != null && _instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        _instance = this;
+        if (_panelRoot == null)
+            BuildUi();
+        HideImmediate();
+    }
+
+    private void OnDestroy()
+    {
+        if (_instance == this)
+            _instance = null;
+    }
+
+    private void Update()
+    {
+        if (_panelRoot == null || !_panelRoot.gameObject.activeSelf)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+            HideImmediate();
+    }
+
+    private void Open(MapNodeDefinition node, WorldMapProgressManager progress, Action onClosed)
+    {
+        EnsureUiBuilt();
+
+        _node = node;
+        _progress = progress;
+        _onClosed = onClosed;
+
+        int kills = progress != null ? progress.GetEnemyKillsOnNode(node.nodeId) : 0;
+        int unlocked = MapCombatScaling.GetUnlockedLevel(kills);
+        _maxSelectableSlider = MapCombatScaling.GetMaxSelectableSliderValue(unlocked);
+
+        int selected = progress != null
+            ? progress.GetCombatMapScalingSelectedTier(node.nodeId)
+            : MapCombatScaling.SliderMin;
+        selected = Mathf.Clamp(selected, MapCombatScaling.SliderMin, _maxSelectableSlider);
+
+        if (_slider != null)
+        {
+            _slider.minValue = MapCombatScaling.SliderMin;
+            _slider.maxValue = MapCombatScaling.SliderMax;
+            _slider.wholeNumbers = true;
+            _slider.SetValueWithoutNotify(selected);
+            _slider.onValueChanged.RemoveListener(HandleSliderChanged);
+            _slider.onValueChanged.AddListener(HandleSliderChanged);
+        }
+
+        _currentSliderValue = selected;
+        RefreshSliderVisuals();
+        RefreshDetails(selected);
+        if (_panelRoot != null)
+            _panelRoot.gameObject.SetActive(true);
+    }
+
+    private void HandleSliderChanged(float value)
+    {
+        int sliderValue = Mathf.Clamp(Mathf.RoundToInt(value), MapCombatScaling.SliderMin, _maxSelectableSlider);
+        if (_slider != null && Mathf.Abs(_slider.value - sliderValue) > 0.01f)
+            _slider.SetValueWithoutNotify(sliderValue);
+
+        _currentSliderValue = sliderValue;
+        RefreshSliderVisuals();
+        RefreshDetails(sliderValue);
+    }
+
+    private void RefreshSliderVisuals()
+    {
+        if (_customFillBar != null)
+        {
+            float fillEnd = (float)(_currentSliderValue + 0.5f) / SliderStepCount;
+            _customFillBar.anchorMin = new Vector2(0f, 0f);
+            _customFillBar.anchorMax = new Vector2(fillEnd, 1f);
+            _customFillBar.offsetMin = Vector2.zero;
+            _customFillBar.offsetMax = Vector2.zero;
+        }
+
+        if (_lockedTrackOverlay != null)
+        {
+            float lockedStart = (float)(_maxSelectableSlider + 1) / SliderStepCount;
+            _lockedTrackOverlay.anchorMin = new Vector2(lockedStart, 0f);
+            _lockedTrackOverlay.anchorMax = new Vector2(1f, 1f);
+            _lockedTrackOverlay.offsetMin = Vector2.zero;
+            _lockedTrackOverlay.offsetMax = Vector2.zero;
+            _lockedTrackOverlay.gameObject.SetActive(_maxSelectableSlider < MapCombatScaling.SliderMax);
+        }
+
+        if (_tickMarks == null || _tickLabels == null)
+            return;
+
+        for (int i = 0; i < _tickMarks.Length; i++)
+        {
+            bool available = i <= _maxSelectableSlider;
+            bool selected = i == _currentSliderValue;
+            Color tickColor = selected ? TickSelectedColor : available ? TickAvailableColor : TickLockedColor;
+            if (_tickMarks[i] != null)
+                _tickMarks[i].color = tickColor;
+
+            if (_tickLabels[i] != null)
+                _tickLabels[i].color = selected
+                    ? TickSelectedColor
+                    : available
+                        ? new Color(0.9f, 0.86f, 0.78f, 1f)
+                        : new Color(0.45f, 0.42f, 0.38f, 1f);
+        }
+    }
+
+    private void RefreshDetails(int sliderValue)
+    {
+        sliderValue = Mathf.Clamp(sliderValue, MapCombatScaling.SliderMin, _maxSelectableSlider);
+        if (_scaleValueText != null)
+            _scaleValueText.text = $"Map Scaling: {sliderValue}";
+
+        if (_detailsText == null || _node == null)
+            return;
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine(MapCombatScaling.BuildUnlockTiersText(_node, _progress));
+        sb.AppendLine();
+        sb.AppendLine(MapCombatScaling.BuildBonusesText(sliderValue));
+        sb.AppendLine();
+        sb.AppendLine(MapCombatScaling.BuildSpecialLootText(_node, sliderValue));
+
+        _detailsText.text = sb.ToString().TrimEnd();
+    }
+
+    private void Confirm()
+    {
+        if (_node != null && _progress != null && _slider != null)
+        {
+            int value = Mathf.Clamp(Mathf.RoundToInt(_slider.value), MapCombatScaling.SliderMin, _maxSelectableSlider);
+            _progress.SetCombatMapScalingSelectedTier(_node.nodeId, value);
+        }
+
+        Action cb = _onClosed;
+        HideImmediate();
+        cb?.Invoke();
+    }
+
+    private void HideImmediate()
+    {
+        if (_slider != null)
+            _slider.onValueChanged.RemoveListener(HandleSliderChanged);
+
+        _node = null;
+        _progress = null;
+        _onClosed = null;
+        if (_panelRoot != null)
+            _panelRoot.gameObject.SetActive(false);
+    }
+
+    private void EnsureUiBuilt()
+    {
+        if (_panelRoot != null && _tickMarks != null && _customFillBar != null && _builtUiVersion == UiVersion)
+            return;
+
+        if (transform.childCount > 0)
+        {
+            for (int i = transform.childCount - 1; i >= 0; i--)
+                Destroy(transform.GetChild(i).gameObject);
+        }
+
+        _panelRoot = null;
+        _slider = null;
+        _customFillBar = null;
+        _lockedTrackOverlay = null;
+        _tickMarks = null;
+        _tickLabels = null;
+        _scaleValueText = null;
+        _detailsText = null;
+        _builtUiVersion = 0;
+        BuildUi();
+    }
+
+    private void BuildUi()
+    {
+        var canvasGo = new GameObject("MapCombatScalingCanvas", typeof(RectTransform), typeof(Canvas), typeof(GraphicRaycaster));
+        canvasGo.transform.SetParent(transform, false);
+        var canvas = canvasGo.GetComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = CanvasSortOrder;
+
+        RectTransform canvasRt = canvasGo.GetComponent<RectTransform>();
+        Stretch(canvasRt, 0f, 0f, 1f, 1f);
+
+        _panelRoot = CreateChild(canvasRt, "Panel");
+        Stretch(_panelRoot, 0.3f, 0.22f, 0.7f, 0.78f);
+
+        Image panelBg = _panelRoot.gameObject.AddComponent<Image>();
+        panelBg.color = new Color(0.24f, 0.2f, 0.16f, 0.98f);
+
+        Outline outline = _panelRoot.gameObject.AddComponent<Outline>();
+        outline.effectColor = new Color(0.75f, 0.6f, 0.32f, 0.85f);
+        outline.effectDistance = new Vector2(2f, -2f);
+        outline.useGraphicAlpha = true;
+
+        VerticalLayoutGroup vlg = _panelRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+        vlg.padding = new RectOffset(16, 16, 16, 16);
+        vlg.spacing = 10;
+        vlg.childAlignment = TextAnchor.UpperLeft;
+        vlg.childControlWidth = true;
+        vlg.childControlHeight = true;
+        vlg.childForceExpandWidth = true;
+        vlg.childForceExpandHeight = false;
+
+        CreateLabel(_panelRoot, "Map scaling", 16, FontStyles.Bold);
+        _scaleValueText = CreateLabel(_panelRoot, "Map Scaling: 0", 14, FontStyles.Normal);
+
+        RectTransform sliderColumn = CreateChild(_panelRoot, "SliderColumn");
+        LayoutElement sliderColumnLe = sliderColumn.gameObject.AddComponent<LayoutElement>();
+        sliderColumnLe.minHeight = 58f;
+
+        VerticalLayoutGroup sliderColumnVlg = sliderColumn.gameObject.AddComponent<VerticalLayoutGroup>();
+        sliderColumnVlg.spacing = 6;
+        sliderColumnVlg.childAlignment = TextAnchor.UpperCenter;
+        sliderColumnVlg.childControlWidth = true;
+        sliderColumnVlg.childControlHeight = true;
+        sliderColumnVlg.childForceExpandWidth = true;
+        sliderColumnVlg.childForceExpandHeight = false;
+
+        RectTransform sliderRt = CreateChild(sliderColumn, "Slider");
+        LayoutElement sliderLe = sliderRt.gameObject.AddComponent<LayoutElement>();
+        sliderLe.minHeight = 24f;
+
+        Image sliderBg = sliderRt.gameObject.AddComponent<Image>();
+        sliderBg.color = SliderTrackColor;
+
+        _customFillBar = CreateChild(sliderRt, "CustomFill");
+        _customFillBar.anchorMin = new Vector2(0f, 0f);
+        _customFillBar.anchorMax = new Vector2(0f, 1f);
+        _customFillBar.pivot = new Vector2(0f, 0.5f);
+        _customFillBar.offsetMin = Vector2.zero;
+        _customFillBar.offsetMax = Vector2.zero;
+        Image customFillImg = _customFillBar.gameObject.AddComponent<Image>();
+        customFillImg.color = SliderFillColor;
+        customFillImg.raycastTarget = false;
+
+        _lockedTrackOverlay = CreateChild(sliderRt, "LockedOverlay");
+        Stretch(_lockedTrackOverlay, 0f, 0f, 1f, 1f);
+        Image lockedOverlayImg = _lockedTrackOverlay.gameObject.AddComponent<Image>();
+        lockedOverlayImg.color = SliderLockedTrackColor;
+        lockedOverlayImg.raycastTarget = false;
+
+        RectTransform handleArea = CreateChild(sliderRt, "Handle Slide Area");
+        ApplySliderStepInsets(handleArea);
+        RectTransform handle = CreateChild(handleArea, "Handle");
+        handle.sizeDelta = new Vector2(14f, 24f);
+        Image handleImg = handle.gameObject.AddComponent<Image>();
+        handleImg.color = new Color(0.98f, 0.9f, 0.45f, 1f);
+
+        _slider = sliderRt.gameObject.AddComponent<Slider>();
+        _slider.direction = Slider.Direction.LeftToRight;
+        _slider.fillRect = null;
+        _slider.handleRect = handle;
+        _slider.targetGraphic = handleImg;
+
+        BuildSliderTicks(sliderColumn);
+
+        _detailsText = CreateSummaryArea(_panelRoot);
+
+        RectTransform buttonRow = CreateChild(_panelRoot, "Buttons");
+        HorizontalLayoutGroup row = buttonRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        row.spacing = 8;
+        row.childAlignment = TextAnchor.MiddleCenter;
+        row.childControlWidth = true;
+        row.childControlHeight = true;
+        row.childForceExpandWidth = true;
+        row.childForceExpandHeight = false;
+
+        CreateButton(buttonRow, "Cancel", HideImmediate);
+        CreateButton(buttonRow, "OK", Confirm);
+        _builtUiVersion = UiVersion;
+    }
+
+    private static void ApplySliderStepInsets(RectTransform rt)
+    {
+        float inset = 0.5f / SliderStepCount;
+        rt.anchorMin = new Vector2(inset, 0f);
+        rt.anchorMax = new Vector2(1f - inset, 1f);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+    }
+
+    private static RectTransform CreateChild(RectTransform parent, string name)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        var rt = go.GetComponent<RectTransform>();
+        rt.SetParent(parent, false);
+        return rt;
+    }
+
+    private static void Stretch(RectTransform rt, float minX, float minY, float maxX, float maxY)
+    {
+        rt.anchorMin = new Vector2(minX, minY);
+        rt.anchorMax = new Vector2(maxX, maxY);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+    }
+
+    private static TMP_Text CreateLabel(RectTransform parent, string text, int size, FontStyles style)
+    {
+        RectTransform rt = CreateChild(parent, "Label");
+        LayoutElement le = rt.gameObject.AddComponent<LayoutElement>();
+        le.minHeight = size + 8f;
+        TMP_Text label = rt.gameObject.AddComponent<TextMeshProUGUI>();
+        label.text = text;
+        label.fontSize = size;
+        label.fontStyle = style;
+        label.color = new Color(0.92f, 0.88f, 0.8f, 1f);
+        label.alignment = TextAlignmentOptions.TopLeft;
+        label.textWrappingMode = TextWrappingModes.Normal;
+        return label;
+    }
+
+    private static TMP_Text CreateSummaryArea(RectTransform parent)
+    {
+        RectTransform scrollRoot = CreateChild(parent, "DetailsScroll");
+        LayoutElement scrollLe = scrollRoot.gameObject.AddComponent<LayoutElement>();
+        scrollLe.minHeight = 180f;
+        scrollLe.flexibleHeight = 1f;
+
+        Image scrollBg = scrollRoot.gameObject.AddComponent<Image>();
+        scrollBg.color = new Color(0.16f, 0.14f, 0.12f, 0.98f);
+
+        ScrollRect scroll = scrollRoot.gameObject.AddComponent<ScrollRect>();
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 18f;
+
+        RectTransform viewport = CreateChild(scrollRoot, "Viewport");
+        Stretch(viewport, 0f, 0f, 1f, 1f);
+        viewport.gameObject.AddComponent<RectMask2D>();
+        scroll.viewport = viewport;
+
+        RectTransform content = CreateChild(viewport, "Content");
+        content.anchorMin = new Vector2(0f, 1f);
+        content.anchorMax = new Vector2(1f, 1f);
+        content.pivot = new Vector2(0.5f, 1f);
+        content.anchoredPosition = Vector2.zero;
+        content.sizeDelta = Vector2.zero;
+
+        ContentSizeFitter fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        VerticalLayoutGroup contentLayout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+        contentLayout.padding = new RectOffset(12, 12, 10, 10);
+        contentLayout.childAlignment = TextAnchor.UpperLeft;
+        contentLayout.childControlWidth = true;
+        contentLayout.childControlHeight = true;
+        contentLayout.childForceExpandWidth = true;
+        contentLayout.childForceExpandHeight = false;
+        scroll.content = content;
+
+        RectTransform textRow = CreateChild(content, "DetailsTextRow");
+        LayoutElement textRowLe = textRow.gameObject.AddComponent<LayoutElement>();
+        textRowLe.flexibleWidth = 1f;
+
+        var textGo = new GameObject("Text", typeof(RectTransform));
+        textGo.transform.SetParent(textRow, false);
+        RectTransform textRt = textGo.GetComponent<RectTransform>();
+        Stretch(textRt, 0f, 0f, 1f, 1f);
+
+        TMP_Text text = textGo.AddComponent<TextMeshProUGUI>();
+        text.fontSize = 12f;
+        text.color = new Color(0.88f, 0.84f, 0.76f, 1f);
+        text.alignment = TextAlignmentOptions.TopLeft;
+        text.textWrappingMode = TextWrappingModes.Normal;
+        text.overflowMode = TextOverflowModes.Overflow;
+        text.richText = true;
+        text.lineSpacing = 4f;
+        text.paragraphSpacing = 6f;
+        return text;
+    }
+
+    private void BuildSliderTicks(RectTransform parent)
+    {
+        RectTransform tickRow = CreateChild(parent, "TickRow");
+        LayoutElement tickRowLe = tickRow.gameObject.AddComponent<LayoutElement>();
+        tickRowLe.minHeight = 22f;
+
+        HorizontalLayoutGroup tickHlg = tickRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        tickHlg.spacing = 0;
+        tickHlg.childAlignment = TextAnchor.MiddleCenter;
+        tickHlg.childControlWidth = true;
+        tickHlg.childControlHeight = true;
+        tickHlg.childForceExpandWidth = true;
+        tickHlg.childForceExpandHeight = false;
+
+        int tickCount = MapCombatScaling.SliderMax - MapCombatScaling.SliderMin + 1;
+        _tickMarks = new Image[tickCount];
+        _tickLabels = new TMP_Text[tickCount];
+
+        for (int i = MapCombatScaling.SliderMin; i <= MapCombatScaling.SliderMax; i++)
+        {
+            RectTransform tickCell = CreateChild(tickRow, $"Tick{i}");
+            LayoutElement cellLe = tickCell.gameObject.AddComponent<LayoutElement>();
+            cellLe.flexibleWidth = 1f;
+            cellLe.minHeight = 22f;
+
+            VerticalLayoutGroup cellVlg = tickCell.gameObject.AddComponent<VerticalLayoutGroup>();
+            cellVlg.spacing = 2;
+            cellVlg.childAlignment = TextAnchor.MiddleCenter;
+            cellVlg.childControlWidth = true;
+            cellVlg.childControlHeight = true;
+            cellVlg.childForceExpandWidth = true;
+            cellVlg.childForceExpandHeight = false;
+
+            RectTransform tickMarkRt = CreateChild(tickCell, "Mark");
+            LayoutElement markLe = tickMarkRt.gameObject.AddComponent<LayoutElement>();
+            markLe.minWidth = 4f;
+            markLe.minHeight = 8f;
+            Image tickImg = tickMarkRt.gameObject.AddComponent<Image>();
+            tickImg.color = TickAvailableColor;
+
+            RectTransform labelRt = CreateChild(tickCell, "Label");
+            LayoutElement labelLe = labelRt.gameObject.AddComponent<LayoutElement>();
+            labelLe.minHeight = 12f;
+            TMP_Text label = labelRt.gameObject.AddComponent<TextMeshProUGUI>();
+            label.text = i.ToString();
+            label.fontSize = 10f;
+            label.alignment = TextAlignmentOptions.Center;
+            label.color = new Color(0.9f, 0.86f, 0.78f, 1f);
+
+            int index = i - MapCombatScaling.SliderMin;
+            _tickMarks[index] = tickImg;
+            _tickLabels[index] = label;
+        }
+    }
+
+    private static void CreateButton(RectTransform parent, string label, Action onClick)
+    {
+        RectTransform rt = CreateChild(parent, label + "Button");
+        LayoutElement le = rt.gameObject.AddComponent<LayoutElement>();
+        le.minHeight = 32f;
+        Image bg = rt.gameObject.AddComponent<Image>();
+        bg.color = new Color(0.34f, 0.28f, 0.2f, 1f);
+        Button button = rt.gameObject.AddComponent<Button>();
+        button.targetGraphic = bg;
+
+        RectTransform textRt = CreateChild(rt, "Text");
+        Stretch(textRt, 0f, 0f, 1f, 1f);
+        TMP_Text text = textRt.gameObject.AddComponent<TextMeshProUGUI>();
+        text.text = label;
+        text.fontSize = 14f;
+        text.alignment = TextAlignmentOptions.Center;
+        text.color = new Color(0.92f, 0.88f, 0.8f, 1f);
+
+        button.onClick.AddListener(() => onClick?.Invoke());
+    }
+}

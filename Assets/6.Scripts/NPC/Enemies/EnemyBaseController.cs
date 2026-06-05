@@ -121,6 +121,9 @@ public class EnemyBaseController : MonoBehaviour
     private bool _engaged;
     private bool _isChasingForRange;
     private bool _isElite;
+    private float _mapScalingLootChanceMultiplier = 1f;
+    private float _mapScalingGoldMultiplier = 1f;
+    private float _mapScalingXpRateMultiplier = 1f;
     private float _nextDeadlyCloseRangePulseTime;
     /// <summary>Display name without the Elite prefix; used for overhead rich text (red "Elite" + name).</summary>
     private string _nameCoreForUi = "";
@@ -226,6 +229,7 @@ public class EnemyBaseController : MonoBehaviour
         }
 
         stats.ApplyEnemyDefinition(def);
+        ApplyActiveMapCombatScaling();
         if (spawnAsElite)
             stats.ApplyEliteEnemyScaling();
 
@@ -254,6 +258,31 @@ public class EnemyBaseController : MonoBehaviour
 
         stats.RefreshVitalsFromStats(fillIfEmpty: true);
         OnHealthChanged?.Invoke(HP, MaxHP);
+    }
+
+    private void ApplyActiveMapCombatScaling()
+    {
+        _mapScalingLootChanceMultiplier = 1f;
+        _mapScalingGoldMultiplier = 1f;
+        _mapScalingXpRateMultiplier = 1f;
+
+        if (!stats)
+            return;
+
+        MapNodeDefinition node = MapCombatScaling.ResolveActiveCombatMapNode();
+        if (node == null || !node.IsMapCombatScalingEnabled())
+            return;
+
+        WorldMapProgressManager progress = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        int scalingLevel = node.GetCombatScalingLevel(progress);
+
+        float hpMult = MapCombatScaling.GetHpMultiplier(scalingLevel);
+        stats.ApplyMapCombatScalingHealth(hpMult);
+
+        _mapScalingLootChanceMultiplier = MapCombatScaling.GetLootChanceMultiplier(scalingLevel);
+        _mapScalingGoldMultiplier = MapCombatScaling.GetGoldMultiplier(scalingLevel);
+        _mapScalingXpRateMultiplier = MapCombatScaling.GetXpRateMultiplier(scalingLevel);
     }
 
     /// <summary>After <see cref="InitializeFromDefinition"/>, applies Tier II–V scaling from <see cref="EnduranceTrialTier"/>.</summary>
@@ -1264,6 +1293,7 @@ public class EnemyBaseController : MonoBehaviour
 
         TryDropGold();
         TryDropLoot();
+        TryDropMapCombatScalingSpecialLoot();
 
         if (_rb) _rb.simulated = false;
 
@@ -1497,6 +1527,9 @@ public class EnemyBaseController : MonoBehaviour
         int gmax = Mathf.Max(gmin, max);
         int amount = UnityEngine.Random.Range(gmin, gmax + 1);
 
+        if (_mapScalingGoldMultiplier > 1.0001f)
+            amount = Mathf.Max(0, Mathf.RoundToInt(amount * _mapScalingGoldMultiplier));
+
         if (_isElite)
         {
             if (useDef)
@@ -1522,7 +1555,8 @@ public class EnemyBaseController : MonoBehaviour
         if (definition == null)
             return;
 
-        float eliteChanceMul = _isElite ? Mathf.Max(0f, definition.eliteLootChanceMultiplier) : 1f;
+        float mapLootMul = Mathf.Max(1f, _mapScalingLootChanceMultiplier);
+        float eliteChanceMul = (_isElite ? Mathf.Max(0f, definition.eliteLootChanceMultiplier) : 1f) * mapLootMul;
 
         bool singlePick = definition.lootAtMostOneDropPerTable;
 
@@ -1531,18 +1565,18 @@ public class EnemyBaseController : MonoBehaviour
             case EnemyEliteLootHandling.ScaleBaseLootChances:
                 RollEnemyLootTable(definition.loot, eliteChanceMul, singlePick);
                 if (_isElite)
-                    RollEnemyLootTable(definition.eliteLoot, 1f, singlePick);
+                    RollEnemyLootTable(definition.eliteLoot, mapLootMul, singlePick);
                 break;
             case EnemyEliteLootHandling.EliteLootTableOnly:
                 if (_isElite)
-                    RollEnemyLootTable(definition.eliteLoot, 1f, singlePick);
+                    RollEnemyLootTable(definition.eliteLoot, mapLootMul, singlePick);
                 else
-                    RollEnemyLootTable(definition.loot, 1f, singlePick);
+                    RollEnemyLootTable(definition.loot, mapLootMul, singlePick);
                 break;
             case EnemyEliteLootHandling.ScaledBasePlusExtraEliteEntries:
                 RollEnemyLootTable(definition.loot, eliteChanceMul, singlePick);
                 if (_isElite)
-                    RollEnemyLootTable(definition.eliteLoot, 1f, singlePick);
+                    RollEnemyLootTable(definition.eliteLoot, mapLootMul, singlePick);
                 break;
         }
     }
@@ -1668,7 +1702,59 @@ public class EnemyBaseController : MonoBehaviour
 
         bool grantXp = definition == null || definition.grantCombatXp;
         if (combat != null)
-            combat.AwardCombatXp(damageDealt * (_isElite ? 2f : 1f), bucket, grantXp, outgoingDpsSourceLabel);
+        {
+            float xpDamage = damageDealt * (_isElite ? 2f : 1f);
+            combat.AwardCombatXp(xpDamage, bucket, grantXp, outgoingDpsSourceLabel, _mapScalingXpRateMultiplier);
+        }
+    }
+
+    private void TryDropMapCombatScalingSpecialLoot()
+    {
+        MapNodeDefinition node = MapCombatScaling.ResolveActiveCombatMapNode();
+        if (node == null || !node.IsMapCombatScalingEnabled())
+            return;
+
+        WorldMapProgressManager progress = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        int scalingLevel = node.GetCombatScalingLevel(progress);
+        if (scalingLevel < 2)
+            return;
+
+        var entries = new List<MapScalingSpecialLootEntry>();
+        node.CollectCombatScalingSpecialDropsUpToLevel(scalingLevel, entries);
+        if (entries.Count == 0)
+            return;
+
+        DropManager dm = DropManager.Instance != null
+            ? DropManager.Instance
+            : FindFirstObjectByType<DropManager>(FindObjectsInactive.Include);
+        if (dm == null)
+            return;
+
+        Transform anchor = ResolveDropLootAnchor();
+        Vector3 spawnBase = anchor ? anchor.position : transform.position;
+        string sourceName = ResolveLootSourceName();
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            MapScalingSpecialLootEntry entry = entries[i];
+            if (entry?.item == null || string.IsNullOrWhiteSpace(entry.item.itemId))
+                continue;
+
+            float p = Mathf.Clamp01(entry.dropChance);
+            if (p <= 0f)
+                continue;
+            if (p < 1f && UnityEngine.Random.value > p)
+                continue;
+
+            int amtMin = Mathf.Max(1, entry.amountMin);
+            int amtMax = Mathf.Max(amtMin, entry.amountMax);
+            int stack = UnityEngine.Random.Range(amtMin, amtMax + 1);
+            if (stack <= 0)
+                continue;
+
+            dm.SpawnAtWorldPosition(entry.item.itemId.Trim(), stack, entry.item.icon, spawnBase, alignToGround: true, sourceName: sourceName);
+        }
     }
 
     private static DpsDamageBucket ToDpsBucket(DamageType type)

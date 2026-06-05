@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>Circular world-map node; connector geometry matches <see cref="SkillTreeConnectorUI"/>.</summary>
@@ -17,6 +19,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
     [SerializeField] private CanvasGroup rootCanvasGroup;
     [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text cpHintText;
+    [Tooltip("Shown when MapNodeDefinition has combat map scaling enabled.")]
+    [SerializeField] private TMP_Text mapScalingText;
     [Tooltip("Optional icon shown when player is currently in this map node.")]
     [SerializeField] private GameObject currentLocationIcon;
     [Range(0.1f, 1f)]
@@ -50,8 +54,32 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
             if (t)
                 clearedOverlay = t.gameObject;
         }
+        if (!mapScalingText)
+            mapScalingText = transform.Find("MapScalingText")?.GetComponent<TMP_Text>();
         if (button)
             button.onClick.AddListener(OnClick);
+
+        EnsureRightClickRelay();
+    }
+
+    private void EnsureRightClickRelay()
+    {
+        if (!button)
+            return;
+
+        if (!button.TryGetComponent(out WorldMapGraphNodeRightClickUI relay))
+            relay = button.gameObject.AddComponent<WorldMapGraphNodeRightClickUI>();
+
+        relay.RightClicked -= HandleRightClicked;
+        relay.RightClicked += HandleRightClicked;
+    }
+
+    private void HandleRightClicked(MapNodeDefinition node, Vector2 screenPosition)
+    {
+        WorldMapPageUI page = GetComponentInParent<WorldMapPageUI>(true);
+        if (!page)
+            page = FindFirstObjectByType<WorldMapPageUI>(FindObjectsInactive.Include);
+        WorldMapGraphNodeContextMenu.Show(node, screenPosition, page);
     }
 
     private void OnDestroy()
@@ -126,6 +154,8 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
             }
         }
 
+        RefreshMapScalingLabel(node);
+
         if (currentLocationIcon)
             currentLocationIcon.SetActive(playerAtThisMap);
 
@@ -154,6 +184,28 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
     public void SetSelected(bool selected)
     {
         RefreshVisuals(selected);
+    }
+
+    private void RefreshMapScalingLabel(MapNodeDefinition node)
+    {
+        if (!mapScalingText)
+            return;
+
+        if (node == null || !node.IsMapCombatScalingEnabled())
+        {
+            mapScalingText.text = "";
+            mapScalingText.gameObject.SetActive(false);
+            return;
+        }
+
+        WorldMapProgressManager progress = WorldMapProgressManager.Instance ??
+            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        int selectedTier = progress != null
+            ? progress.GetCombatMapScalingSelectedTier(node.nodeId)
+            : MapCombatScaling.SliderMin;
+
+        mapScalingText.gameObject.SetActive(true);
+        mapScalingText.text = $"Map Scaling: {selectedTier}";
     }
 
     private void RefreshVisuals(bool selected)
@@ -200,5 +252,84 @@ public class WorldMapGraphNodeUI : MonoBehaviour, ITreeConnectorEndpoint
             MapNodeType.Boss => new Color32(118, 60, 90, 255),
             _ => new Color32(74, 81, 95, 255)
         };
+    }
+}
+
+/// <summary>Forwards right-clicks on world-map graph nodes to the context menu.</summary>
+[DisallowMultipleComponent]
+public sealed class WorldMapGraphNodeRightClickUI : MonoBehaviour, IPointerClickHandler
+{
+    public event Action<MapNodeDefinition, Vector2> RightClicked;
+
+    private WorldMapGraphNodeUI _owner;
+
+    private void Awake()
+    {
+        _owner = GetComponent<WorldMapGraphNodeUI>();
+        if (!_owner)
+            _owner = GetComponentInParent<WorldMapGraphNodeUI>();
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData == null || eventData.button != PointerEventData.InputButton.Right)
+            return;
+
+        if (_owner == null || _owner.Node == null)
+            return;
+
+        eventData.Use();
+        RightClicked?.Invoke(_owner.Node, eventData.position);
+    }
+}
+
+/// <summary>Right-click context menu for world-map graph nodes.</summary>
+public static class WorldMapGraphNodeContextMenu
+{
+    public static void Show(MapNodeDefinition node, Vector2 screenPosition, WorldMapPageUI page)
+    {
+        if (node == null)
+            return;
+
+        WorldMapProgressManager progress = WorldMapProgressManager.Instance ??
+            UnityEngine.Object.FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        SkillsManager skills = FindSkillsManager();
+        bool canTeleport = node.CanEnterFromLevelMenu(progress, skills);
+        string header = !string.IsNullOrWhiteSpace(node.displayName) ? node.displayName.Trim() : node.nodeId;
+
+        var entries = new List<ContextMenuEntry>
+        {
+            new ContextMenuEntry(
+                canTeleport ? "Enter map" : "Can't Teleport",
+                canTeleport ? () => TryEnterMap(node, progress, skills) : static () => { })
+        };
+
+        if (node.IsMapCombatScalingEnabled())
+        {
+            entries.Add(new ContextMenuEntry("Scaling", () =>
+            {
+                MapCombatScalingPopupUI.Show(node, progress, () => page?.NotifyGraphPresentationChanged());
+            }));
+        }
+
+        entries.Add(new ContextMenuEntry("Enhance Map", static () => { }));
+
+        ContextMenuUI.EnsureInstance().ShowAtScreen(entries, screenPosition, header);
+    }
+
+    private static void TryEnterMap(MapNodeDefinition node, WorldMapProgressManager progress, SkillsManager skills)
+    {
+        if (node == null || !node.CanEnterFromLevelMenu(progress, skills))
+            return;
+
+        MapTravelSession.BeginTravel(node, MapTravelSession.EntryMethod.MapTeleport);
+        PlayerLevelTransition.LoadSceneWithEffectOrImmediate("GamePlay");
+    }
+
+    private static SkillsManager FindSkillsManager()
+    {
+        if (SkillsManager.Instance != null)
+            return SkillsManager.Instance;
+        return UnityEngine.Object.FindFirstObjectByType<SkillsManager>(FindObjectsInactive.Include);
     }
 }

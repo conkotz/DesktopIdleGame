@@ -484,27 +484,10 @@ public class WorldMapPageUI : MonoBehaviour
 
     private void RefreshFilterButtonVisuals()
     {
-        ApplyFilterSelected(filterAllButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.All);
-        ApplyFilterSelected(filterCombatButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Combat);
-        ApplyFilterSelected(filterGatheringButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Gathering);
-        ApplyFilterSelected(filterOtherButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Other);
-    }
-
-    private static void ApplyFilterSelected(Button b, bool selected)
-    {
-        if (!b)
-            return;
-
-        ColorBlock cb = b.colors;
-        Color normal = selected ? new Color32(216, 206, 176, 255) : new Color32(238, 238, 238, 255);
-        cb.normalColor = normal;
-        cb.highlightedColor = normal;
-        cb.selectedColor = normal;
-        cb.pressedColor = normal;
-        cb.colorMultiplier = 1f;
-        b.colors = cb;
-        if (b.targetGraphic)
-            b.targetGraphic.color = normal;
+        UITabBarButtonVisuals.Apply(filterAllButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.All);
+        UITabBarButtonVisuals.Apply(filterCombatButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Combat);
+        UITabBarButtonVisuals.Apply(filterGatheringButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Gathering);
+        UITabBarButtonVisuals.Apply(filterOtherButton, LevelSelectSharedState.Filter == LevelSelectSharedState.NodeListFilter.Other);
     }
 
     private void OnNodeSelected(MapNodeDefinition node)
@@ -1227,6 +1210,14 @@ public class WorldMapPageUI : MonoBehaviour
         ApplyAnchorRegionVisibility();
         EnsureSelectedNodeMatchesFilter();
         RefreshFilterButtonVisuals();
+        RefreshDetails();
+        RebuildGraph();
+    }
+
+    public void NotifyGraphPresentationChanged()
+    {
+        if (!isActiveAndEnabled)
+            return;
         RefreshDetails();
         RebuildGraph();
     }

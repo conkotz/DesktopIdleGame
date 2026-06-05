@@ -29,6 +29,9 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
     /// <summary>Highest endurance trial tier (1–5) selectable for this node; Tier I always implied. Unlocks when the player clears all waves at the current max tier.</summary>
     private readonly Dictionary<string, int> _enduranceMaxSelectableTier = new(StringComparer.Ordinal);
 
+    /// <summary>World-map slider selection (0–7) per combat map with scaling enabled.</summary>
+    private readonly Dictionary<string, int> _combatMapScalingSelectedTier = new(StringComparer.Ordinal);
+
     public WorldMapDefinition WorldMap => worldMap;
 
     public event Action ProgressChanged;
@@ -67,6 +70,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         _entered.Clear();
         _enemyKillsByNode.Clear();
         _enduranceMaxSelectableTier.Clear();
+        _combatMapScalingSelectedTier.Clear();
         _progressUnlockAnnounced.Clear();
 
         if (worldMap && !string.IsNullOrEmpty(worldMap.startingNodeId))
@@ -257,6 +261,31 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         Debug.Log($"[WorldMapProgress] Marked completed: {nodeId}");
     }
 
+    public int GetCombatMapScalingSelectedTier(string nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId))
+            return MapCombatScaling.SliderMin;
+
+        if (_combatMapScalingSelectedTier.TryGetValue(nodeId.Trim(), out int tier))
+            return Mathf.Clamp(tier, MapCombatScaling.SliderMin, MapCombatScaling.SliderMax);
+
+        return MapCombatScaling.SliderMin;
+    }
+
+    public void SetCombatMapScalingSelectedTier(string nodeId, int sliderValue)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId))
+            return;
+
+        int clamped = Mathf.Clamp(sliderValue, MapCombatScaling.SliderMin, MapCombatScaling.SliderMax);
+        string id = nodeId.Trim();
+        if (_combatMapScalingSelectedTier.TryGetValue(id, out int current) && current == clamped)
+            return;
+
+        _combatMapScalingSelectedTier[id] = clamped;
+        ProgressChanged?.Invoke();
+    }
+
     /// <summary>Highest tier (1–5) the player may select for this endurance node. Defaults to 1 (Tier I only).</summary>
     public int GetEnduranceMaxSelectableTier(string nodeId)
     {
@@ -352,6 +381,22 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
             data.enduranceTrialNodeIds.Add(kv.Key);
             data.enduranceTrialMaxSelectableTier.Add(Mathf.Clamp(kv.Value, EnduranceTrialTier.MinTier, EnduranceTrialTier.MaxTier));
         }
+
+        if (data.combatMapScalingNodeIds == null)
+            data.combatMapScalingNodeIds = new List<string>();
+        if (data.combatMapScalingSelectedTier == null)
+            data.combatMapScalingSelectedTier = new List<int>();
+
+        data.combatMapScalingNodeIds.Clear();
+        data.combatMapScalingSelectedTier.Clear();
+
+        foreach (var kv in _combatMapScalingSelectedTier)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key))
+                continue;
+            data.combatMapScalingNodeIds.Add(kv.Key);
+            data.combatMapScalingSelectedTier.Add(Mathf.Clamp(kv.Value, MapCombatScaling.SliderMin, MapCombatScaling.SliderMax));
+        }
     }
 
     public void LoadFrom(SaveData data)
@@ -363,6 +408,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         _entered.Clear();
         _enemyKillsByNode.Clear();
         _enduranceMaxSelectableTier.Clear();
+        _combatMapScalingSelectedTier.Clear();
 
         if (worldMap && !string.IsNullOrEmpty(worldMap.startingNodeId))
             _unlocked.Add(worldMap.startingNodeId.Trim());
@@ -430,6 +476,19 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
                         continue;
                     int tier = Mathf.Clamp(data.enduranceTrialMaxSelectableTier[i], EnduranceTrialTier.MinTier, EnduranceTrialTier.MaxTier);
                     _enduranceMaxSelectableTier[id] = tier;
+                }
+            }
+
+            if (data.combatMapScalingNodeIds != null && data.combatMapScalingSelectedTier != null)
+            {
+                int n = Mathf.Min(data.combatMapScalingNodeIds.Count, data.combatMapScalingSelectedTier.Count);
+                for (int i = 0; i < n; i++)
+                {
+                    string id = data.combatMapScalingNodeIds[i];
+                    if (string.IsNullOrWhiteSpace(id))
+                        continue;
+                    _combatMapScalingSelectedTier[id.Trim()] =
+                        Mathf.Clamp(data.combatMapScalingSelectedTier[i], MapCombatScaling.SliderMin, MapCombatScaling.SliderMax);
                 }
             }
         }

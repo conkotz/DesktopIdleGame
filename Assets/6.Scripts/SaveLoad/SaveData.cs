@@ -43,6 +43,11 @@ public class SaveData
 
     public List<int> enduranceTrialMaxSelectableTier = new();
 
+    [Tooltip("Parallel lists: MapNodeDefinition.nodeId → selected combat map scaling slider value (0–7).")]
+    public List<string> combatMapScalingNodeIds = new();
+
+    public List<int> combatMapScalingSelectedTier = new();
+
     [Header("Player")]
     [Tooltip("Auto-retaliate when struck (PlayerCombatController).")]
     public bool retaliationEnabled;

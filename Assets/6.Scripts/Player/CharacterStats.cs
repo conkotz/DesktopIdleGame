@@ -4590,6 +4590,24 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     /// <summary>
+    /// After <see cref="ApplyEnemyDefinition"/>, scales enemy HP for combat map scaling (base HP × multiplier).
+    /// </summary>
+    public void ApplyMapCombatScalingHealth(float hpMultiplier)
+    {
+        if (!GetComponent<EnemyBaseController>())
+            return;
+
+        hpMultiplier = Mathf.Max(1f, hpMultiplier);
+        if (hpMultiplier <= 1.0001f)
+            return;
+
+        baseMaxHP = Mathf.Max(1, Mathf.RoundToInt(baseMaxHP * hpMultiplier));
+        currentHP = MaxHP;
+        RefreshVitalsFromStats(fillIfEmpty: false);
+        OnStatsChanged?.Invoke();
+    }
+
+    /// <summary>
     /// After <see cref="ApplyEnemyDefinition"/>, scales this enemy for Elite: +100% HP, +25% outgoing damage (enemies only).
     /// </summary>
     public void ApplyEliteEnemyScaling()

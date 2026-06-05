@@ -19,6 +19,8 @@ MonoBehaviour:
   enemyAggroMode: 1
   ignoreAggroRange: 0
   respawnHereIfDied: 0
+  mapCombatScalingEnabled: 1
+  mapCombatScalingSpecialDropsByLevel: []
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 15
   eliteSpawnChance: 0.05
@@ -48,6 +50,7 @@ MonoBehaviour:
       prefab: {fileID: 0}
       itemDefinition: {fileID: 0}
       itemAmount: 0
+      itemRespawnTimer: 0
       respawnUntilSimpleWavesStart: 0
       levelOneShotPickupKey: 
       count: 20
