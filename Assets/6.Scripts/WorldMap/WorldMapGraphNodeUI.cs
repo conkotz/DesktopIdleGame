@@ -301,7 +301,8 @@ public static class WorldMapGraphNodeContextMenu
         {
             new ContextMenuEntry(
                 canTeleport ? "Enter map" : "Can't Teleport",
-                canTeleport ? () => TryEnterMap(node, progress, skills) : static () => { })
+                canTeleport ? () => TryEnterMap(node, progress, skills) : static () => { },
+                disabled: !canTeleport)
         };
 
         if (node.IsMapCombatScalingEnabled())
@@ -311,8 +312,6 @@ public static class WorldMapGraphNodeContextMenu
                 MapCombatScalingPopupUI.Show(node, progress, () => page?.NotifyGraphPresentationChanged());
             }));
         }
-
-        entries.Add(new ContextMenuEntry("Enhance Map", static () => { }));
 
         ContextMenuUI.EnsureInstance().ShowAtScreen(entries, screenPosition, header);
     }

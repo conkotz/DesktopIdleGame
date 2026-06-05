@@ -4608,6 +4608,35 @@ public class CharacterStats : MonoBehaviour, ISaveable
     }
 
     /// <summary>
+    /// Reduces enemy outgoing damage from equipped map enhancements (additive from base values).
+    /// </summary>
+    public void ApplyMapEnhancementDamageReduction(float reductionFraction)
+    {
+        ResolveOwnerEnemy();
+        if (!_ownerEnemy)
+            return;
+
+        float mult = Mathf.Clamp(1f - Mathf.Max(0f, reductionFraction), 0.01f, 1f);
+        if (mult >= 0.9999f)
+            return;
+
+        unarmedMinPhysicalDamage = Mathf.Max(0, Mathf.RoundToInt(unarmedMinPhysicalDamage * mult));
+        unarmedMaxPhysicalDamage = Mathf.Max(
+            unarmedMinPhysicalDamage,
+            Mathf.RoundToInt(unarmedMaxPhysicalDamage * mult));
+
+        baseMinPhysicalDamage *= mult;
+        baseMaxPhysicalDamage = Mathf.Max(baseMinPhysicalDamage, baseMaxPhysicalDamage * mult);
+
+        baseMinMagicDamage *= mult;
+        baseMaxMagicDamage = Mathf.Max(baseMinMagicDamage, baseMaxMagicDamage * mult);
+        baseMinCorruptionDamage *= mult;
+        baseMaxCorruptionDamage = Mathf.Max(baseMinCorruptionDamage, baseMaxCorruptionDamage * mult);
+
+        baseAbilityPower *= mult;
+    }
+
+    /// <summary>
     /// After <see cref="ApplyEnemyDefinition"/>, scales this enemy for Elite: +100% HP, +25% outgoing damage (enemies only).
     /// </summary>
     public void ApplyEliteEnemyScaling()

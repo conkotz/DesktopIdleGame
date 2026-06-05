@@ -334,6 +334,13 @@ public class InventorySlotUI : MonoBehaviour,
         var def = _inventory.GetItemDef(slot.itemId);
         if (!def) return;
 
+        if (MapEnhancementService.IsRolledMapEnhancement(slot.itemId))
+        {
+            if (MapEnhancementService.TryEquipFromInventorySlotAuto(_inventory, _slotIndex))
+                MapCombatScalingPopupUI.RefreshEnhancementSlotsIfOpen();
+            return;
+        }
+
         // MAIN HAND ITEMS (weapon or tool)
         if (def.equipSlot == EquipSlot.MainHand)
         {
@@ -635,6 +642,15 @@ public class InventorySlotUI : MonoBehaviour,
     }
 
     public void PerformEquipAction() => TryDoubleClickEquipFromThisSlot();
+
+    public void PerformEquipOnMapAction()
+    {
+        if (_inventory == null)
+            return;
+
+        if (MapEnhancementService.TryEquipFromInventorySlotAuto(_inventory, _slotIndex))
+            MapCombatScalingPopupUI.RefreshEnhancementSlotsIfOpen();
+    }
 
     public void PerformStoreAction() => TryDoubleClickDepositToStorage();
 

@@ -1692,14 +1692,20 @@ public class PlayerController : MonoBehaviour
         MerchantClick.CancelPendingOpen();
     }
 
-    /// <summary>Stops auto-movement when the player starts a sprint dash.</summary>
+    /// <summary>Interrupts gather/pickup paths when the player starts a sprint dash; click-to-move keeps its destination.</summary>
     public void InterruptForSprintDash()
     {
+        if (state == State.Gather || state == State.MoveToTarget || state == State.MoveToPickup)
+        {
+            NotifyPlayerInitiatedMovement();
+            InterruptWorkIfNeeded();
+            return;
+        }
+
         NotifyPlayerInitiatedMovement();
-        CancelAutoMovementFromKeyboardSteering();
     }
 
-    /// <summary>Keyboard left/right if held, otherwise current facing.</summary>
+    /// <summary>Keyboard left/right if held, otherwise walk target or current facing.</summary>
     public float ResolveSprintDashDirectionSign()
     {
         bool left = IsKeyboardMoveLeftHeld();
@@ -1708,6 +1714,14 @@ public class PlayerController : MonoBehaviour
             return -1f;
         if (right && !left)
             return 1f;
+
+        if (state == State.MoveToPoint)
+        {
+            float dx = moveTargetX - transform.position.x;
+            if (Mathf.Abs(dx) > 0.01f)
+                return dx > 0f ? 1f : -1f;
+        }
+
         return FacingDirectionX >= 0f ? 1f : -1f;
     }
 
@@ -1845,6 +1859,9 @@ public class PlayerController : MonoBehaviour
 
     private void TickMoveToPoint()
     {
+        if (PlayerSprintInput.IsSprintDashing)
+            return;
+
         if (_keyboardManualMoveThisFrame)
             return;
 

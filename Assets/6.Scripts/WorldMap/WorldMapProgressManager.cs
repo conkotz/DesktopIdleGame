@@ -32,6 +32,9 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
     /// <summary>World-map slider selection (0–7) per combat map with scaling enabled.</summary>
     private readonly Dictionary<string, int> _combatMapScalingSelectedTier = new(StringComparer.Ordinal);
 
+    /// <summary>Up to 3 permanent map enhancement item ids equipped per node.</summary>
+    private readonly Dictionary<string, string[]> _mapEnhancementSlotsByNode = new(StringComparer.Ordinal);
+
     public WorldMapDefinition WorldMap => worldMap;
 
     public event Action ProgressChanged;
@@ -71,6 +74,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         _enemyKillsByNode.Clear();
         _enduranceMaxSelectableTier.Clear();
         _combatMapScalingSelectedTier.Clear();
+        _mapEnhancementSlotsByNode.Clear();
         _progressUnlockAnnounced.Clear();
 
         if (worldMap && !string.IsNullOrEmpty(worldMap.startingNodeId))
@@ -286,6 +290,105 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         ProgressChanged?.Invoke();
     }
 
+    public IReadOnlyList<string> GetMapEnhancementSlots(string nodeId)
+    {
+        EnsureMapEnhancementSlots(nodeId, out string[] slots);
+        return slots;
+    }
+
+    public int FindMapEnhancementSlot(string nodeId, string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId) || string.IsNullOrWhiteSpace(itemId))
+            return -1;
+
+        EnsureMapEnhancementSlots(nodeId, out string[] slots);
+        string target = itemId.Trim();
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(slots[i]) &&
+                string.Equals(slots[i].Trim(), target, StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+
+        return -1;
+    }
+
+    public int GetFirstEmptyMapEnhancementSlot(string nodeId)
+    {
+        EnsureMapEnhancementSlots(nodeId, out string[] slots);
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (string.IsNullOrWhiteSpace(slots[i]))
+                return i;
+        }
+
+        return -1;
+    }
+
+    public bool TryEquipMapEnhancement(string nodeId, string itemId, out int slotIndex)
+    {
+        slotIndex = -1;
+        if (string.IsNullOrWhiteSpace(nodeId) || string.IsNullOrWhiteSpace(itemId))
+            return false;
+
+        string id = nodeId.Trim();
+        string enhancementId = itemId.Trim();
+        if (FindMapEnhancementSlot(id, enhancementId) >= 0)
+            return false;
+
+        int empty = GetFirstEmptyMapEnhancementSlot(id);
+        if (empty < 0)
+            return false;
+
+        EnsureMapEnhancementSlots(id, out string[] slots);
+        slots[empty] = enhancementId;
+        _mapEnhancementSlotsByNode[id] = slots;
+        slotIndex = empty;
+        ProgressChanged?.Invoke();
+        return true;
+    }
+
+    public bool TryRemoveMapEnhancement(string nodeId, int slotIndex, out string removedItemId)
+    {
+        removedItemId = null;
+        if (string.IsNullOrWhiteSpace(nodeId) || slotIndex < 0 || slotIndex >= MapEnhancementService.SlotCount)
+            return false;
+
+        string id = nodeId.Trim();
+        EnsureMapEnhancementSlots(id, out string[] slots);
+        if (string.IsNullOrWhiteSpace(slots[slotIndex]))
+            return false;
+
+        removedItemId = slots[slotIndex];
+        slots[slotIndex] = null;
+        _mapEnhancementSlotsByNode[id] = slots;
+        ProgressChanged?.Invoke();
+        return true;
+    }
+
+    public void NotifyProgressChangedAndSave()
+    {
+        ProgressChanged?.Invoke();
+        if (SaveManager.Instance != null)
+            SaveManager.Instance.Save();
+    }
+
+    private void EnsureMapEnhancementSlots(string nodeId, out string[] slots)
+    {
+        string id = nodeId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(id))
+        {
+            slots = new string[MapEnhancementService.SlotCount];
+            return;
+        }
+
+        if (!_mapEnhancementSlotsByNode.TryGetValue(id, out slots) || slots == null || slots.Length != MapEnhancementService.SlotCount)
+        {
+            slots = new string[MapEnhancementService.SlotCount];
+            _mapEnhancementSlotsByNode[id] = slots;
+        }
+    }
+
     /// <summary>Highest tier (1–5) the player may select for this endurance node. Defaults to 1 (Tier I only).</summary>
     public int GetEnduranceMaxSelectableTier(string nodeId)
     {
@@ -397,6 +500,44 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
             data.combatMapScalingNodeIds.Add(kv.Key);
             data.combatMapScalingSelectedTier.Add(Mathf.Clamp(kv.Value, MapCombatScaling.SliderMin, MapCombatScaling.SliderMax));
         }
+
+        if (data.mapEnhancementNodeIds == null)
+            data.mapEnhancementNodeIds = new List<string>();
+        if (data.mapEnhancementSlot0 == null)
+            data.mapEnhancementSlot0 = new List<string>();
+        if (data.mapEnhancementSlot1 == null)
+            data.mapEnhancementSlot1 = new List<string>();
+        if (data.mapEnhancementSlot2 == null)
+            data.mapEnhancementSlot2 = new List<string>();
+
+        data.mapEnhancementNodeIds.Clear();
+        data.mapEnhancementSlot0.Clear();
+        data.mapEnhancementSlot1.Clear();
+        data.mapEnhancementSlot2.Clear();
+
+        foreach (var kv in _mapEnhancementSlotsByNode)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key) || kv.Value == null)
+                continue;
+
+            bool hasAny = false;
+            for (int i = 0; i < kv.Value.Length; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(kv.Value[i]))
+                {
+                    hasAny = true;
+                    break;
+                }
+            }
+
+            if (!hasAny)
+                continue;
+
+            data.mapEnhancementNodeIds.Add(kv.Key);
+            data.mapEnhancementSlot0.Add(kv.Value.Length > 0 ? kv.Value[0] : null);
+            data.mapEnhancementSlot1.Add(kv.Value.Length > 1 ? kv.Value[1] : null);
+            data.mapEnhancementSlot2.Add(kv.Value.Length > 2 ? kv.Value[2] : null);
+        }
     }
 
     public void LoadFrom(SaveData data)
@@ -409,6 +550,7 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
         _enemyKillsByNode.Clear();
         _enduranceMaxSelectableTier.Clear();
         _combatMapScalingSelectedTier.Clear();
+        _mapEnhancementSlotsByNode.Clear();
 
         if (worldMap && !string.IsNullOrEmpty(worldMap.startingNodeId))
             _unlocked.Add(worldMap.startingNodeId.Trim());
@@ -489,6 +631,23 @@ public class WorldMapProgressManager : MonoBehaviour, ISaveable
                         continue;
                     _combatMapScalingSelectedTier[id.Trim()] =
                         Mathf.Clamp(data.combatMapScalingSelectedTier[i], MapCombatScaling.SliderMin, MapCombatScaling.SliderMax);
+                }
+            }
+
+            if (data.mapEnhancementNodeIds != null)
+            {
+                int n = data.mapEnhancementNodeIds.Count;
+                for (int i = 0; i < n; i++)
+                {
+                    string id = data.mapEnhancementNodeIds[i];
+                    if (string.IsNullOrWhiteSpace(id))
+                        continue;
+
+                    var slots = new string[MapEnhancementService.SlotCount];
+                    slots[0] = i < data.mapEnhancementSlot0?.Count ? data.mapEnhancementSlot0[i] : null;
+                    slots[1] = i < data.mapEnhancementSlot1?.Count ? data.mapEnhancementSlot1[i] : null;
+                    slots[2] = i < data.mapEnhancementSlot2?.Count ? data.mapEnhancementSlot2[i] : null;
+                    _mapEnhancementSlotsByNode[id.Trim()] = slots;
                 }
             }
         }

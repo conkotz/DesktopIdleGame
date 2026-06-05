@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>World-map popup for selecting combat map scaling tier (0–7).</summary>
@@ -8,7 +10,8 @@ using UnityEngine.UI;
 public sealed class MapCombatScalingPopupUI : MonoBehaviour
 {
     private const int CanvasSortOrder = 10100;
-    private const int UiVersion = 3;
+    private const int TooltipSortOrder = CanvasSortOrder + 100;
+    private const int UiVersion = 6;
     private const int SliderStepCount = MapCombatScaling.SliderMax - MapCombatScaling.SliderMin + 1;
 
     private static MapCombatScalingPopupUI _instance;
@@ -28,6 +31,10 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
     private TMP_Text[] _tickLabels;
     private TMP_Text _scaleValueText;
     private TMP_Text _detailsText;
+    private readonly Image[] _enhancementSlotIcons = new Image[MapEnhancementService.SlotCount];
+    private MapEnhancementScalingSlotUI[] _enhancementSlots;
+    private TMP_Text _appliedEffectsText;
+    private SharedTooltipUI _sharedTooltip;
     private MapNodeDefinition _node;
     private WorldMapProgressManager _progress;
     private Action _onClosed;
@@ -42,6 +49,12 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
 
         MapCombatScalingPopupUI popup = EnsureInstance();
         popup.Open(node, progress, onClosed);
+    }
+
+    public static void RefreshEnhancementSlotsIfOpen()
+    {
+        if (_instance != null && _instance._panelRoot != null && _instance._panelRoot.gameObject.activeSelf)
+            _instance.RefreshEnhancementSlots();
     }
 
     public static MapCombatScalingPopupUI EnsureInstance()
@@ -96,6 +109,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         _node = node;
         _progress = progress;
         _onClosed = onClosed;
+        _sharedTooltip ??= FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
 
         int kills = progress != null ? progress.GetEnemyKillsOnNode(node.nodeId) : 0;
         int unlocked = MapCombatScaling.GetUnlockedLevel(kills);
@@ -119,6 +133,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         _currentSliderValue = selected;
         RefreshSliderVisuals();
         RefreshDetails(selected);
+        RefreshEnhancementSlots();
         if (_panelRoot != null)
             _panelRoot.gameObject.SetActive(true);
     }
@@ -212,6 +227,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         if (_slider != null)
             _slider.onValueChanged.RemoveListener(HandleSliderChanged);
 
+        _sharedTooltip?.Hide();
         _node = null;
         _progress = null;
         _onClosed = null;
@@ -238,6 +254,8 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         _tickLabels = null;
         _scaleValueText = null;
         _detailsText = null;
+        _appliedEffectsText = null;
+        _enhancementSlots = null;
         _builtUiVersion = 0;
         BuildUi();
     }
@@ -328,6 +346,7 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         BuildSliderTicks(sliderColumn);
 
         _detailsText = CreateSummaryArea(_panelRoot);
+        BuildMapEnhancementsSection(_panelRoot);
 
         RectTransform buttonRow = CreateChild(_panelRoot, "Buttons");
         HorizontalLayoutGroup row = buttonRow.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -341,6 +360,217 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         CreateButton(buttonRow, "Cancel", HideImmediate);
         CreateButton(buttonRow, "OK", Confirm);
         _builtUiVersion = UiVersion;
+    }
+
+    private void BuildMapEnhancementsSection(RectTransform parent)
+    {
+        const float slotSize = 64f;
+
+        RectTransform section = CreateChild(parent, "MapEnhancementsSection");
+        LayoutElement sectionLe = section.gameObject.AddComponent<LayoutElement>();
+        sectionLe.minHeight = 132f;
+
+        VerticalLayoutGroup sectionVlg = section.gameObject.AddComponent<VerticalLayoutGroup>();
+        sectionVlg.spacing = 8;
+        sectionVlg.childAlignment = TextAnchor.UpperLeft;
+        sectionVlg.childControlWidth = true;
+        sectionVlg.childControlHeight = true;
+        sectionVlg.childForceExpandWidth = true;
+        sectionVlg.childForceExpandHeight = false;
+
+        CreateLabel(section, "Map Enhancements", 13, FontStyles.Bold);
+
+        RectTransform contentRow = CreateChild(section, "EnhancementContentRow");
+        LayoutElement contentLe = contentRow.gameObject.AddComponent<LayoutElement>();
+        contentLe.minHeight = slotSize + 24f;
+
+        HorizontalLayoutGroup contentHlg = contentRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        contentHlg.spacing = 16;
+        contentHlg.childAlignment = TextAnchor.UpperLeft;
+        contentHlg.childControlWidth = true;
+        contentHlg.childControlHeight = true;
+        contentHlg.childForceExpandWidth = false;
+        contentHlg.childForceExpandHeight = false;
+
+        RectTransform slotsColumn = CreateChild(contentRow, "EnhancementSlotsColumn");
+        LayoutElement slotsColumnLe = slotsColumn.gameObject.AddComponent<LayoutElement>();
+        slotsColumnLe.minWidth = slotSize * MapEnhancementService.SlotCount + 16f;
+
+        VerticalLayoutGroup slotsColumnVlg = slotsColumn.gameObject.AddComponent<VerticalLayoutGroup>();
+        slotsColumnVlg.spacing = 6;
+        slotsColumnVlg.childAlignment = TextAnchor.UpperLeft;
+        slotsColumnVlg.childControlWidth = true;
+        slotsColumnVlg.childControlHeight = true;
+        slotsColumnVlg.childForceExpandWidth = true;
+        slotsColumnVlg.childForceExpandHeight = false;
+
+        RectTransform slotsRow = CreateChild(slotsColumn, "EnhancementSlots");
+        LayoutElement slotsLe = slotsRow.gameObject.AddComponent<LayoutElement>();
+        slotsLe.minHeight = slotSize;
+
+        HorizontalLayoutGroup slotsHlg = slotsRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+        slotsHlg.spacing = 10;
+        slotsHlg.childAlignment = TextAnchor.MiddleLeft;
+        slotsHlg.childControlWidth = true;
+        slotsHlg.childControlHeight = true;
+        slotsHlg.childForceExpandWidth = false;
+        slotsHlg.childForceExpandHeight = false;
+
+        _enhancementSlots = new MapEnhancementScalingSlotUI[MapEnhancementService.SlotCount];
+        for (int i = 0; i < MapEnhancementService.SlotCount; i++)
+            _enhancementSlots[i] = BuildEnhancementSlot(slotsRow, i, slotSize);
+
+        RectTransform helpRt = CreateChild(slotsColumn, "EnhancementHelp");
+        TMP_Text helpText = helpRt.gameObject.AddComponent<TextMeshProUGUI>();
+        helpText.text = "Equip map enhancements from inventory. Right-click a slot to remove.";
+        helpText.fontSize = 11f;
+        helpText.fontStyle = FontStyles.Italic;
+        helpText.color = new Color(0.82f, 0.78f, 0.72f, 1f);
+        helpText.alignment = TextAlignmentOptions.TopLeft;
+        helpText.textWrappingMode = TextWrappingModes.Normal;
+
+        RectTransform appliedColumn = CreateChild(contentRow, "AppliedEffectsColumn");
+        LayoutElement appliedColumnLe = appliedColumn.gameObject.AddComponent<LayoutElement>();
+        appliedColumnLe.flexibleWidth = 1f;
+        appliedColumnLe.minWidth = 180f;
+        appliedColumnLe.minHeight = slotSize + 24f;
+
+        VerticalLayoutGroup appliedVlg = appliedColumn.gameObject.AddComponent<VerticalLayoutGroup>();
+        appliedVlg.spacing = 4;
+        appliedVlg.childAlignment = TextAnchor.UpperLeft;
+        appliedVlg.childControlWidth = true;
+        appliedVlg.childControlHeight = true;
+        appliedVlg.childForceExpandWidth = true;
+        appliedVlg.childForceExpandHeight = false;
+
+        CreateLabel(appliedColumn, "Applied Effects", 12, FontStyles.Bold);
+
+        RectTransform appliedTextRt = CreateChild(appliedColumn, "AppliedEffectsText");
+        _appliedEffectsText = appliedTextRt.gameObject.AddComponent<TextMeshProUGUI>();
+        _appliedEffectsText.text = "None";
+        _appliedEffectsText.fontSize = 11f;
+        _appliedEffectsText.color = new Color(0.88f, 0.84f, 0.78f, 1f);
+        _appliedEffectsText.alignment = TextAlignmentOptions.TopLeft;
+        _appliedEffectsText.textWrappingMode = TextWrappingModes.Normal;
+        _appliedEffectsText.lineSpacing = 2f;
+    }
+
+    private MapEnhancementScalingSlotUI BuildEnhancementSlot(RectTransform parent, int slotIndex, float slotSize)
+    {
+        RectTransform slotRt = CreateChild(parent, $"EnhancementSlot{slotIndex}");
+        LayoutElement le = slotRt.gameObject.AddComponent<LayoutElement>();
+        le.minWidth = slotSize;
+        le.minHeight = slotSize;
+        le.preferredWidth = slotSize;
+        le.preferredHeight = slotSize;
+
+        Image bg = slotRt.gameObject.AddComponent<Image>();
+        bg.color = new Color(0.14f, 0.12f, 0.1f, 1f);
+
+        RectTransform iconRt = CreateChild(slotRt, "Icon");
+        Stretch(iconRt, 0.12f, 0.12f, 0.88f, 0.88f);
+        Image icon = iconRt.gameObject.AddComponent<Image>();
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
+        _enhancementSlotIcons[slotIndex] = icon;
+
+        var slotUi = slotRt.gameObject.AddComponent<MapEnhancementScalingSlotUI>();
+        slotUi.Initialize(this, slotIndex);
+        return slotUi;
+    }
+
+    private void RefreshEnhancementSlots()
+    {
+        if (_node == null)
+            return;
+
+        Inventory inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        IReadOnlyList<string> slots = _progress != null
+            ? _progress.GetMapEnhancementSlots(_node.nodeId)
+            : Array.Empty<string>();
+
+        for (int i = 0; i < MapEnhancementService.SlotCount; i++)
+        {
+            string itemId = i < slots.Count ? slots[i] : null;
+            ItemDefinition def = null;
+            if (!string.IsNullOrWhiteSpace(itemId) && inventory != null)
+                def = inventory.GetItemDef(itemId);
+
+            if (_enhancementSlotIcons[i] == null)
+                continue;
+
+            bool has = def != null && def.icon != null;
+            _enhancementSlotIcons[i].sprite = has ? def.icon : null;
+            _enhancementSlotIcons[i].color = has ? Color.white : new Color(1f, 1f, 1f, 0.15f);
+            _enhancementSlotIcons[i].enabled = true;
+        }
+
+        if (_appliedEffectsText != null)
+            _appliedEffectsText.text = MapEnhancementService.BuildAggregateEffectsText(_node.nodeId);
+    }
+
+    internal void ShowEnhancementSlotTooltip(int slotIndex, Transform anchor)
+    {
+        if (_node == null || anchor == null)
+            return;
+
+        IReadOnlyList<string> slots = _progress != null
+            ? _progress.GetMapEnhancementSlots(_node.nodeId)
+            : Array.Empty<string>();
+        if (slotIndex < 0 || slotIndex >= slots.Count)
+            return;
+
+        string itemId = slots[slotIndex];
+        if (string.IsNullOrWhiteSpace(itemId))
+            return;
+
+        string body = MapEnhancementService.BuildSlotTooltipBody(itemId);
+        if (string.IsNullOrWhiteSpace(body))
+            return;
+
+        _sharedTooltip ??= FindFirstObjectByType<SharedTooltipUI>(FindObjectsInactive.Include);
+        if (_sharedTooltip == null)
+            return;
+
+        var anchorRect = anchor as RectTransform;
+        if (anchorRect != null && _panelRoot != null)
+        {
+            _sharedTooltip.ConfigureDocking(
+                anchorRect,
+                _panelRoot,
+                FlipInsideBounds.PreferredSide.Right,
+                _panelRoot);
+        }
+
+        _sharedTooltip.PushOverlaySortOrder(TooltipSortOrder);
+        _sharedTooltip.ShowTextAt(
+            anchor,
+            string.Empty,
+            body,
+            measureRect: anchorRect,
+            heightRect: _panelRoot,
+            preferredSide: FlipInsideBounds.PreferredSide.Right,
+            useHudTooltipScale: false);
+    }
+
+    internal void HideEnhancementSlotTooltip()
+    {
+        _sharedTooltip?.Hide();
+    }
+
+    internal void TryRemoveEnhancementSlot(int slotIndex)
+    {
+        if (_node == null)
+            return;
+
+        Inventory inventory = FindFirstObjectByType<Inventory>(FindObjectsInactive.Include);
+        if (inventory == null)
+            return;
+
+        if (!MapEnhancementService.TryRemoveToInventory(_node.nodeId, slotIndex, inventory))
+            return;
+
+        RefreshEnhancementSlots();
     }
 
     private static void ApplySliderStepInsets(RectTransform rt)
@@ -521,5 +751,43 @@ public sealed class MapCombatScalingPopupUI : MonoBehaviour
         text.color = new Color(0.92f, 0.88f, 0.8f, 1f);
 
         button.onClick.AddListener(() => onClick?.Invoke());
+    }
+}
+
+[DisallowMultipleComponent]
+internal sealed class MapEnhancementScalingSlotUI : MonoBehaviour,
+    IPointerEnterHandler,
+    IPointerExitHandler,
+    IPointerClickHandler
+{
+    private MapCombatScalingPopupUI _owner;
+    private int _slotIndex;
+
+    public void Initialize(MapCombatScalingPopupUI owner, int slotIndex)
+    {
+        _owner = owner;
+        _slotIndex = slotIndex;
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (eventData == null)
+            return;
+
+        _owner?.ShowEnhancementSlotTooltip(_slotIndex, transform);
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        _owner?.HideEnhancementSlotTooltip();
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData == null || eventData.button != PointerEventData.InputButton.Right)
+            return;
+
+        eventData.Use();
+        _owner?.TryRemoveEnhancementSlot(_slotIndex);
     }
 }

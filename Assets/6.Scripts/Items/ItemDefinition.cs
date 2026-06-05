@@ -510,7 +510,12 @@ public enum ConsumableType
     /// <see cref="ConsumableStats.openableLoot"/> independently and grants the resulting items.
     /// Always consumes 1 of the source item on use (regardless of <see cref="ConsumableStats.consumeOnUse"/>).
     /// </summary>
-    Openable
+    Openable,
+
+    /// <summary>
+    /// Permanent map enhancement consumable. Template assets define tier; rolled instances are created when dropped on a map.
+    /// </summary>
+    MapEnhancement
 }
 
 public enum FishingBaitTier
@@ -625,6 +630,13 @@ public struct ConsumableStats
     [Min(0f)]
     [Tooltip("Fishing speed bonus in percent while this bait is active for the swing (e.g. 2 = +2%).")]
     public float fishingSpeedPercentBonus;
+
+    [Header("Map Enhancement (Consumable Type = MapEnhancement)")]
+    [Tooltip("Tier 1 rolls 1 modifier; Tier 2 rolls 2 modifiers.")]
+    public MapEnhancementTier mapEnhancementTier;
+
+    [Tooltip("Roll ranges and weights for each modifier type when this template drops on a map.")]
+    public MapEnhancementModRollConfig[] mapEnhancementModRolls;
 
     [Header("Openable Loot Table (Consumable Type = Openable)")]
     [Min(1)]
@@ -1494,6 +1506,24 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
 
     public bool IsFishingBait =>
         IsConsumable && consumableStats.consumableType == ConsumableType.FishingBait;
+
+    public bool IsMapEnhancement =>
+        IsConsumable && consumableStats.consumableType == ConsumableType.MapEnhancement;
+
+    public MapEnhancementTier MapEnhancementTier =>
+        IsMapEnhancement ? consumableStats.mapEnhancementTier : MapEnhancementTier.Tier1;
+
+    public int MapEnhancementModCount =>
+        MapEnhancementTier == MapEnhancementTier.Tier2 ? 2 : 1;
+
+    public MapEnhancementModRollConfig[] GetMapEnhancementModRollConfigs()
+    {
+        MapEnhancementModRollConfig[] rolls = consumableStats.mapEnhancementModRolls;
+        if (rolls != null && rolls.Length > 0)
+            return rolls;
+
+        return MapEnhancementRollDefaults.CreateDefaultRollConfigs();
+    }
 
     public FishingBaitTier FishingBaitTier =>
         IsFishingBait ? consumableStats.baitTier : global::FishingBaitTier.Basic;

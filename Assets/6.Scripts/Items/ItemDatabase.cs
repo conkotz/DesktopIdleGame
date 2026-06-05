@@ -113,6 +113,11 @@ public class ItemDatabase : ScriptableObject
             runtimeDef.NormalizeEnhancementState();
             return runtimeDef;
         }
+
+        ItemDefinition mapEnh = MapEnhancementRegistry.TryGetRuntimeDefinition(itemId);
+        if (mapEnh != null)
+            return mapEnh;
+
         if (key != null && _map.TryGetValue(key, out var def))
             return def;
 
@@ -150,6 +155,13 @@ public class ItemDatabase : ScriptableObject
         int markerIndex = itemId.IndexOf(RuntimeEnhancedSeparator, System.StringComparison.Ordinal);
         if (markerIndex > 0)
             return itemId.Substring(0, markerIndex);
+
+        if (MapEnhancementRegistry.IsRuntimeItem(itemId))
+        {
+            int mapEnhIndex = itemId.IndexOf(MapEnhancementRegistry.RuntimeSeparator, System.StringComparison.Ordinal);
+            if (mapEnhIndex > 0)
+                return itemId.Substring(0, mapEnhIndex);
+        }
 
         return itemId;
     }

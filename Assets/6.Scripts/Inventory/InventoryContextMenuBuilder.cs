@@ -23,6 +23,9 @@ public static class InventoryContextMenuBuilder
         if (CanEquipFromInventory(slot, def))
             entries.Add(new ContextMenuEntry("Equip", slot.PerformEquipAction));
 
+        if (MapEnhancementService.TryGetSourceMapNodeId(slot.ContextItemId, out _))
+            entries.Add(new ContextMenuEntry("Equip on map", slot.PerformEquipOnMapAction));
+
         if (def.IsOpenable)
             entries.Add(new ContextMenuEntry("Open", slot.PerformOpenAction));
 

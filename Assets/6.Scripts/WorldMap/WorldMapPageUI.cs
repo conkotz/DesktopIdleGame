@@ -1214,6 +1214,24 @@ public class WorldMapPageUI : MonoBehaviour
         RebuildGraph();
     }
 
+    public WorldMapGraphNodeUI FindGraphNodeUi(string nodeId)
+    {
+        if (string.IsNullOrWhiteSpace(nodeId))
+            return null;
+
+        for (int i = 0; i < _spawnedNodes.Count; i++)
+        {
+            WorldMapGraphNodeUI nodeUi = _spawnedNodes[i];
+            if (!nodeUi || nodeUi.Node == null)
+                continue;
+
+            if (string.Equals(nodeUi.Node.nodeId?.Trim(), nodeId.Trim(), StringComparison.OrdinalIgnoreCase))
+                return nodeUi;
+        }
+
+        return null;
+    }
+
     public void NotifyGraphPresentationChanged()
     {
         if (!isActiveAndEnabled)

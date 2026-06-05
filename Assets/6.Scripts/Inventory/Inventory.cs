@@ -630,7 +630,10 @@ public class Inventory : MonoBehaviour, ISaveable
         if (data == null) return;
 
         if (itemDb)
+        {
             itemDb.SaveRuntimeEnhancedItemsInto(data);
+            MapEnhancementRegistry.SaveInto(data);
+        }
 
         data.inventorySlotCount = _slots.Count;
 
@@ -656,7 +659,10 @@ public class Inventory : MonoBehaviour, ISaveable
 
         EnsureItemDatabaseRef();
         if (itemDb)
+        {
             itemDb.LoadRuntimeEnhancedItemsFrom(data);
+            MapEnhancementRegistry.LoadFrom(data, itemDb);
+        }
 
         // Make sure we have the right slot count first
         int count = Mathf.Max(1, data.inventorySlotCount > 0 ? data.inventorySlotCount : 32);

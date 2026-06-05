@@ -9,11 +9,13 @@ public readonly struct ContextMenuEntry
 {
     public readonly string Label;
     public readonly Action Callback;
+    public readonly bool Disabled;
 
-    public ContextMenuEntry(string label, Action callback)
+    public ContextMenuEntry(string label, Action callback, bool disabled = false)
     {
         Label = label;
         Callback = callback;
+        Disabled = disabled;
     }
 }
 
@@ -36,6 +38,10 @@ public class ContextMenuUI : MonoBehaviour
     [SerializeField] private Button buttonTemplate;
 
     private const int DefaultTopSortingOrder = short.MaxValue - 100;
+    private static readonly Color MenuButtonTextColor = new Color32(235, 228, 210, 255);
+    private static readonly Color MenuButtonDisabledTextColor = new Color32(235, 228, 210, 90);
+    private static readonly Color MenuButtonBgColor = new Color32(34, 34, 40, 255);
+    private static readonly Color MenuButtonDisabledBgColor = new Color32(24, 24, 28, 180);
 
     [Header("Layout")]
     [SerializeField] private Vector2 screenOffset = new Vector2(8f, -8f);
@@ -465,14 +471,25 @@ public class ContextMenuUI : MonoBehaviour
 
             TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
             if (label)
-                label.text = entry.Label;
-
-            button.onClick.RemoveAllListeners();
-            button.onClick.AddListener(() =>
             {
-                Hide();
-                entry.Callback.Invoke();
-            });
+                label.text = entry.Label;
+                label.color = entry.Disabled ? MenuButtonDisabledTextColor : MenuButtonTextColor;
+            }
+
+            Image buttonBg = button.GetComponent<Image>();
+            if (buttonBg)
+                buttonBg.color = entry.Disabled ? MenuButtonDisabledBgColor : MenuButtonBgColor;
+
+            button.interactable = !entry.Disabled;
+            button.onClick.RemoveAllListeners();
+            if (!entry.Disabled)
+            {
+                button.onClick.AddListener(() =>
+                {
+                    Hide();
+                    entry.Callback.Invoke();
+                });
+            }
 
             _spawnedButtons.Add(button);
         }

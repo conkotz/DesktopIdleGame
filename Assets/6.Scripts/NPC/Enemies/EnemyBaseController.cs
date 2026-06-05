@@ -124,6 +124,8 @@ public class EnemyBaseController : MonoBehaviour
     private float _mapScalingLootChanceMultiplier = 1f;
     private float _mapScalingGoldMultiplier = 1f;
     private float _mapScalingXpRateMultiplier = 1f;
+    private float _mapEnhancementLootBonusFraction;
+    private float _mapEnhancementGoldBonusFraction;
     private float _nextDeadlyCloseRangePulseTime;
     /// <summary>Display name without the Elite prefix; used for overhead rich text (red "Elite" + name).</summary>
     private string _nameCoreForUi = "";
@@ -230,6 +232,7 @@ public class EnemyBaseController : MonoBehaviour
 
         stats.ApplyEnemyDefinition(def);
         ApplyActiveMapCombatScaling();
+        ApplyActiveMapEnhancementModifiers();
         if (spawnAsElite)
             stats.ApplyEliteEnemyScaling();
 
@@ -283,6 +286,29 @@ public class EnemyBaseController : MonoBehaviour
         _mapScalingLootChanceMultiplier = MapCombatScaling.GetLootChanceMultiplier(scalingLevel);
         _mapScalingGoldMultiplier = MapCombatScaling.GetGoldMultiplier(scalingLevel);
         _mapScalingXpRateMultiplier = MapCombatScaling.GetXpRateMultiplier(scalingLevel);
+    }
+
+    private void ApplyActiveMapEnhancementModifiers()
+    {
+        _mapEnhancementLootBonusFraction = 0f;
+        _mapEnhancementGoldBonusFraction = 0f;
+
+        if (!stats)
+            return;
+
+        MapNodeDefinition node = MapCombatScaling.ResolveActiveCombatMapNode();
+        if (node == null)
+            return;
+
+        MapEnhancementAggregate aggregate = MapEnhancementService.BuildAggregate(node);
+        if (aggregate == null || !aggregate.HasAnyEffect)
+            return;
+
+        _mapEnhancementLootBonusFraction = Mathf.Max(0f, aggregate.lootBonusFraction);
+        _mapEnhancementGoldBonusFraction = Mathf.Max(0f, aggregate.goldBonusFraction);
+
+        if (aggregate.enemyDamageReductionFraction > 0.001f)
+            stats.ApplyMapEnhancementDamageReduction(aggregate.enemyDamageReductionFraction);
     }
 
     /// <summary>After <see cref="InitializeFromDefinition"/>, applies Tier II–V scaling from <see cref="EnduranceTrialTier"/>.</summary>
@@ -1525,10 +1551,14 @@ public class EnemyBaseController : MonoBehaviour
 
         int gmin = Mathf.Max(0, min);
         int gmax = Mathf.Max(gmin, max);
-        int amount = UnityEngine.Random.Range(gmin, gmax + 1);
+        int baseAmount = UnityEngine.Random.Range(gmin, gmax + 1);
+        int amount = baseAmount;
 
         if (_mapScalingGoldMultiplier > 1.0001f)
-            amount = Mathf.Max(0, Mathf.RoundToInt(amount * _mapScalingGoldMultiplier));
+            amount = Mathf.Max(0, Mathf.RoundToInt(baseAmount * _mapScalingGoldMultiplier));
+
+        if (_mapEnhancementGoldBonusFraction > 0.001f)
+            amount = Mathf.Max(0, amount + Mathf.RoundToInt(baseAmount * _mapEnhancementGoldBonusFraction));
 
         if (_isElite)
         {
@@ -1609,7 +1639,7 @@ public class EnemyBaseController : MonoBehaviour
                 if (e?.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
                     continue;
 
-                float p = Mathf.Clamp01(e.dropChance * dropChanceMultiplier);
+                float p = ComputeEffectiveLootDropChance(e.dropChance, dropChanceMultiplier);
                 if (p <= 0f)
                     continue;
                 if (p < 1f && UnityEngine.Random.value > p)
@@ -1641,7 +1671,7 @@ public class EnemyBaseController : MonoBehaviour
             if (e?.item == null || string.IsNullOrWhiteSpace(e.item.itemId))
                 continue;
 
-            float p = Mathf.Clamp01(e.dropChance * dropChanceMultiplier);
+            float p = ComputeEffectiveLootDropChance(e.dropChance, dropChanceMultiplier);
             if (p <= 0f)
                 continue;
             if (p < 1f && UnityEngine.Random.value > p)
@@ -1656,6 +1686,13 @@ public class EnemyBaseController : MonoBehaviour
             // Match player-drop behavior: align to ground so loot doesn't hover if the anchor is above the floor.
             dm.SpawnAtWorldPosition(e.item.itemId.Trim(), stack, e.item.icon, spawnBase, alignToGround: true, sourceName: ResolveLootSourceName());
         }
+    }
+
+    private float ComputeEffectiveLootDropChance(float baseChance, float dropChanceMultiplier)
+    {
+        float scaled = baseChance * dropChanceMultiplier;
+        float enhanced = baseChance * _mapEnhancementLootBonusFraction;
+        return Mathf.Clamp01(scaled + enhanced);
     }
 
     private string ResolveLootSourceName()
@@ -1731,6 +1768,8 @@ public class EnemyBaseController : MonoBehaviour
         if (dm == null)
             return;
 
+        ItemDatabase itemDb = Resources.Load<ItemDatabase>("Databases/ItemDatabase");
+
         Transform anchor = ResolveDropLootAnchor();
         Vector3 spawnBase = anchor ? anchor.position : transform.position;
         string sourceName = ResolveLootSourceName();
@@ -1753,7 +1792,11 @@ public class EnemyBaseController : MonoBehaviour
             if (stack <= 0)
                 continue;
 
-            dm.SpawnAtWorldPosition(entry.item.itemId.Trim(), stack, entry.item.icon, spawnBase, alignToGround: true, sourceName: sourceName);
+            string dropItemId = MapEnhancementService.ResolveLootDropItemId(entry.item.itemId.Trim(), node, itemDb);
+            ItemDefinition dropDef = itemDb != null ? itemDb.Get(dropItemId) : entry.item;
+            Sprite dropIcon = dropDef != null && dropDef.icon != null ? dropDef.icon : entry.item.icon;
+
+            dm.SpawnAtWorldPosition(dropItemId, stack, dropIcon, spawnBase, alignToGround: true, sourceName: sourceName);
         }
     }
 

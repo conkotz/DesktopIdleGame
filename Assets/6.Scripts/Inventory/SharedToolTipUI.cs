@@ -105,6 +105,8 @@ public class SharedTooltipUI : MonoBehaviour
     private Color _storedBackdropColorForChrome;
     private bool _capturedBackdropColorForChrome;
 
+    private bool _overlaySortActive;
+
     private void Awake()
     {
         _rt = transform as RectTransform;
@@ -403,9 +405,10 @@ public class SharedTooltipUI : MonoBehaviour
 
             HideStatsOnlyNameHeader();
 
-            nameText.text = title ?? "";
+            bool hasTitle = !string.IsNullOrWhiteSpace(title);
+            nameText.text = hasTitle ? title : "";
             nameText.color = titleColor ?? defaultNameColor;
-            nameText.gameObject.SetActive(true);
+            nameText.gameObject.SetActive(hasTitle);
         }
 
         if (rarityText)
@@ -568,8 +571,32 @@ public class SharedTooltipUI : MonoBehaviour
         tooltipLayoutRoot.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, targetWidth);
     }
 
+    /// <summary>
+    /// Raises draw order via a nested overlay canvas while keeping the tooltip parented to its hover anchor.
+    /// </summary>
+    public void PushOverlaySortOrder(int sortingOrder)
+    {
+        GameplayScreenOverlayLayout.EnsureNestedOverlayCanvas(gameObject, sortingOrder);
+        _overlaySortActive = true;
+    }
+
+    public void PopOverlaySortOrder()
+    {
+        if (!_overlaySortActive)
+            return;
+
+        if (TryGetComponent(out Canvas canvas))
+        {
+            canvas.overrideSorting = false;
+            canvas.sortingOrder = 0;
+        }
+
+        _overlaySortActive = false;
+    }
+
     public void Hide()
     {
+        PopOverlaySortOrder();
         RestoreSkillTreeChromeIfNeeded();
         ResetTooltipSectionMargins();
 
@@ -1186,13 +1213,16 @@ public class SharedTooltipUI : MonoBehaviour
     public void ConfigureDocking(
         RectTransform anchor,
         RectTransform heightRect = null,
-        FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Right)
+        FlipInsideBounds.PreferredSide preferredSide = FlipInsideBounds.PreferredSide.Right,
+        RectTransform boundsRect = null)
     {
         if (!flipInsideBounds) return;
 
         flipInsideBounds.SetMeasureRect(anchor);
         flipInsideBounds.SetHeightRect(heightRect ? heightRect : anchor);
         flipInsideBounds.SetPreferredSide(preferredSide);
+        if (boundsRect)
+            flipInsideBounds.SetBoundsRect(boundsRect);
     }
 
     public void ShowTextAt(

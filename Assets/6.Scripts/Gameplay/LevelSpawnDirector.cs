@@ -81,6 +81,14 @@ public class LevelSpawnDirector : MonoBehaviour
         CharacterStats stats = GetPlayerCharacterStats();
         if (stats != null)
             reduction = stats.GetTotalEquippedEnemyRespawnTimeReductionSeconds();
+
+        if (node != null)
+        {
+            MapEnhancementAggregate mapEnh = MapEnhancementService.BuildAggregate(node);
+            if (mapEnh != null)
+                reduction += Mathf.Max(0f, mapEnh.respawnTimeReductionSeconds);
+        }
+
         return Mathf.Max(0.01f, baseDelay - reduction);
     }
 
@@ -201,6 +209,111 @@ public class LevelSpawnDirector : MonoBehaviour
             parent,
             row => !IsFixedPointWorldPrefabRow(row),
             requireExactNamedPoint: false);
+
+        SpawnMapEnhancementExtras(def, groups, parent);
+    }
+
+    private void SpawnMapEnhancementExtras(
+        MapNodeDefinition def,
+        Dictionary<string, SpawnPointGroup> groups,
+        Transform parent)
+    {
+        if (!def)
+            return;
+
+        MapEnhancementAggregate aggregate = MapEnhancementService.BuildAggregate(def);
+        if (aggregate == null || aggregate.extraSpawnsByEnemyId.Count == 0)
+            return;
+
+        EnemyDatabase enemyDb = Resources.Load<EnemyDatabase>("Databases/EnemyDatabase");
+        if (enemyDb == null)
+            return;
+
+        foreach (KeyValuePair<string, int> pair in aggregate.extraSpawnsByEnemyId)
+        {
+            if (pair.Value <= 0 || string.IsNullOrWhiteSpace(pair.Key))
+                continue;
+
+            EnemyDefinition enemyDef = enemyDb.Get(pair.Key);
+            if (enemyDef == null)
+                continue;
+
+            GameObject prefabAsset = enemyDef.ResolveSpawnPrefab();
+            if (!prefabAsset)
+                continue;
+
+            if (!TryFindSpawnGroupForEnemy(def, pair.Key, out string groupId, out bool shuffle))
+                continue;
+
+            if (!groups.TryGetValue(groupId, out SpawnPointGroup pointGroup) || pointGroup == null)
+                continue;
+
+            for (int i = 0; i < pair.Value; i++)
+            {
+                Transform spawnPoint = PickSpawnPointForRespawn(pointGroup, shuffle, spawnPointName: null);
+                if (!spawnPoint)
+                    break;
+
+                GameObject inst = SpawnEnemyInstanceAt(
+                    spawnPoint,
+                    prefabAsset,
+                    enemyDef,
+                    parent,
+                    allowEliteRoll: false,
+                    nodeForEliteChance: null);
+                if (!inst)
+                    continue;
+
+                if (alignSpawnPointToColliderBottom)
+                    AlignBottomOfColliderToPoint(inst.transform, spawnPoint.position);
+
+                if (preventOverlappingSpawns)
+                    ReservePoint(spawnPoint.position);
+
+                if (logSpawns)
+                {
+                    Debug.Log(
+                        $"[LevelSpawnDirector] Map enhancement extra spawn: '{enemyDef.enemyId}' at '{spawnPoint.name}'.",
+                        inst);
+                }
+            }
+        }
+    }
+
+    private static bool TryFindSpawnGroupForEnemy(
+        MapNodeDefinition def,
+        string enemyId,
+        out string groupId,
+        out bool shuffleSpawnPoints)
+    {
+        groupId = null;
+        shuffleSpawnPoints = false;
+        if (!def || string.IsNullOrWhiteSpace(enemyId) || def.spawnGroupPlans == null)
+            return false;
+
+        string target = enemyId.Trim();
+        for (int p = 0; p < def.spawnGroupPlans.Count; p++)
+        {
+            LevelSpawnGroupPlan plan = def.spawnGroupPlans[p];
+            if (plan?.spawns == null)
+                continue;
+
+            for (int s = 0; s < plan.spawns.Count; s++)
+            {
+                SpawnPrefabCount row = plan.spawns[s];
+                if (row?.enemyDefinition == null || string.IsNullOrWhiteSpace(row.enemyDefinition.enemyId))
+                    continue;
+
+                if (!string.Equals(row.enemyDefinition.enemyId.Trim(), target, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                groupId = ResolveSpawnGroupId(plan, row);
+                shuffleSpawnPoints = plan.shuffleSpawnPoints;
+                return !string.IsNullOrWhiteSpace(groupId);
+            }
+        }
+
+        return false;
     }
 
     private void SpawnAllPlans(

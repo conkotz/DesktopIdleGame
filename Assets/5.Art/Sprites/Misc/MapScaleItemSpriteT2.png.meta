@@ -1,28 +1,10 @@
 fileFormatVersion: 2
-guid: 7b8edf4b950d0f14eb552bc35e8bcf14
+guid: 2b09982f116d35f4885f7ca6df1f6d7b
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 124160289801088503
-    second: MapScaleItemSprite_0
-  - first:
-      213: -7960374328785821192
-    second: MapScaleItemSprite_1
-  - first:
-      213: 3584186557692436620
-    second: MapScaleItemSprite_2
-  - first:
-      213: -1017014195262354930
-    second: MapScaleItemSprite_3
-  - first:
-      213: -9215392904226761753
-    second: MapScaleItemSprite_4
-  - first:
-      213: 1450003431652434400
-    second: MapScaleItemSprite_5
-  - first:
-      213: 2147493172362722288
-    second: MapScaleItemSprite_6
+      213: 3371457373186736841
+    second: MapScaleItemSpriteT2_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -118,23 +100,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: MapScaleItemSprite_1
+      name: MapScaleItemSpriteT2_0
       rect:
         serializedVersion: 2
-        x: 56
-        y: 88
-        width: 913
-        height: 824
+        x: 31
+        y: 55
+        width: 978
+        height: 922
       alignment: 0
-      pivot: {x: 0.5, y: 0.5}
+      pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 8f1259d49b1178190800000000000000
-      internalID: -7960374328785821192
+      spriteID: 9c2ca204e92d9ce20800000000000000
+      internalID: 3371457373186736841
       vertices: []
       indices: 
       edges: []
@@ -143,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 9d3135ace82083e40a91f9b86a1cf5fe
+    spriteID: 
     internalID: 0
     vertices: []
     indices: 
@@ -153,13 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      MapScaleItemSprite_0: 124160289801088503
-      MapScaleItemSprite_1: -7960374328785821192
-      MapScaleItemSprite_2: 3584186557692436620
-      MapScaleItemSprite_3: -1017014195262354930
-      MapScaleItemSprite_4: -9215392904226761753
-      MapScaleItemSprite_5: 1450003431652434400
-      MapScaleItemSprite_6: 2147493172362722288
+      MapScaleItemSpriteT2_0: 3371457373186736841
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -20,7 +20,13 @@ MonoBehaviour:
   ignoreAggroRange: 0
   respawnHereIfDied: 0
   mapCombatScalingEnabled: 1
-  mapCombatScalingSpecialDropsByLevel: []
+  mapCombatScalingSpecialDropsByLevel:
+  - scalingLevel: 3
+    drops:
+    - item: {fileID: 11400000, guid: d1e2f3a4b5c647d8901a2b3c4d5e6f71, type: 2}
+      dropChance: 1
+      amountMin: 1
+      amountMax: 1
   enemyRespawnEnabled: 1
   enemyRespawnDelaySeconds: 15
   eliteSpawnChance: 0.05

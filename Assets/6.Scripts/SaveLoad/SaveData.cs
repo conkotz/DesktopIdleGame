@@ -48,6 +48,16 @@ public class SaveData
 
     public List<int> combatMapScalingSelectedTier = new();
 
+    [Header("Map enhancements")]
+    [Tooltip("Rolled map enhancement item instances (runtime item ids with modifiers).")]
+    public List<MapEnhancementItemData> mapEnhancementItems = new();
+
+    [Tooltip("Parallel lists: map node id with up to 3 equipped enhancement item ids.")]
+    public List<string> mapEnhancementNodeIds = new();
+    public List<string> mapEnhancementSlot0 = new();
+    public List<string> mapEnhancementSlot1 = new();
+    public List<string> mapEnhancementSlot2 = new();
+
     [Header("Player")]
     [Tooltip("Auto-retaliate when struck (PlayerCombatController).")]
     public bool retaliationEnabled;
@@ -93,6 +103,19 @@ public class SaveData
     {
         public string itemId;
         public int amount;
+    }
+
+    [Serializable]
+    public class MapEnhancementItemData
+    {
+        public string itemId;
+        public string baseItemId;
+        public string displayName;
+        public string sourceMapNodeId;
+        public int tier;
+        public List<int> modTypes = new();
+        public List<float> modValues = new();
+        public List<string> modExtraSpawnEnemyIds = new();
     }
 
     [Serializable]

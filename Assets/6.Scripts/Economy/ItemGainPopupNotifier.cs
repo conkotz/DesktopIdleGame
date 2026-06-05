@@ -49,6 +49,19 @@ public static class ItemGainPopupNotifier
             amount = 1;
 
         itemId = itemId.Trim();
+
+        if (MapEnhancementRegistry.IsRuntimeItem(itemId))
+        {
+            ItemDatabase mapEnhDb = ResolveItemDatabase();
+            ItemDefinition rolledDef = mapEnhDb != null ? mapEnhDb.Get(itemId) : null;
+            if (rolledDef != null && !string.IsNullOrWhiteSpace(rolledDef.displayName))
+                return rolledDef.displayName.Trim();
+
+            if (MapEnhancementRegistry.TryGetInstance(itemId, out MapEnhancementInstanceData mapData)
+                && !string.IsNullOrWhiteSpace(mapData.displayName))
+                return mapData.displayName.Trim();
+        }
+
         ItemDatabase db = ResolveItemDatabase();
 
         ItemDefinition instanceDef = db != null ? db.Get(itemId) : null;

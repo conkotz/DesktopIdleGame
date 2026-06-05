@@ -44,6 +44,7 @@ public class FlipInsideBounds : MonoBehaviour
     public void SetPreferredSide(PreferredSide side) => preferredSide = side;
     public void SetMeasureRect(RectTransform r) => measureRect = r;
     public void SetHeightRect(RectTransform r) => heightRect = r;
+    public void SetBoundsRect(RectTransform r) => boundsRect = r;
 
     private void Reset()
     {

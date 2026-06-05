@@ -646,6 +646,8 @@ public class ItemDefinitionEditor : Editor
         SerializedProperty openRequiredAmount = consumableStats.FindPropertyRelative("openRequiredAmount");
         SerializedProperty baitTier = consumableStats.FindPropertyRelative("baitTier");
         SerializedProperty fishingSpeedPercentBonus = consumableStats.FindPropertyRelative("fishingSpeedPercentBonus");
+        SerializedProperty mapEnhancementTier = consumableStats.FindPropertyRelative("mapEnhancementTier");
+        SerializedProperty mapEnhancementModRolls = consumableStats.FindPropertyRelative("mapEnhancementModRolls");
 
         EditorGUILayout.PropertyField(consumableType);
         EditorGUILayout.Space(4);
@@ -656,6 +658,7 @@ public class ItemDefinitionEditor : Editor
 
         bool isOpenable = selectedType == ConsumableType.Openable;
         bool isFishingBait = selectedType == ConsumableType.FishingBait;
+        bool isMapEnhancement = selectedType == ConsumableType.MapEnhancement;
 
         // Heal / Energy / Granted Effect only matter for Food / Potion. Hiding them on Openable keeps the
         // inspector focused on the loot table for that mode.
@@ -668,6 +671,21 @@ public class ItemDefinitionEditor : Editor
                 new GUIContent("Fishing Speed Bonus %", "Applied as +X% fishing speed while this bait is consumed for a swing."));
             if (fishingSpeedPercentBonus != null && fishingSpeedPercentBonus.floatValue < 0f)
                 fishingSpeedPercentBonus.floatValue = 0f;
+        }
+        else if (isMapEnhancement)
+        {
+            EditorGUILayout.LabelField("Map Enhancement", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(
+                mapEnhancementTier,
+                new GUIContent(
+                    "Tier",
+                    "Tier 1 rolls 1 permanent modifier when dropped on a map. Tier 2 rolls 2 modifiers."));
+            EditorGUILayout.Space(4);
+            DrawMapEnhancementModRolls(mapEnhancementModRolls);
+            EditorGUILayout.HelpBox(
+                "Template item only. When dropped as special loot on a combat map, a rolled instance is created " +
+                "with the map name appended (e.g. \"Spider Lair Map Enhancement\") and random modifiers.",
+                MessageType.Info);
         }
         else if (!isOpenable)
         {
@@ -780,10 +798,165 @@ public class ItemDefinitionEditor : Editor
             "Food: instant heal/energy (above) plus optional timed buffs (Regen, Swiftness, Overheal, Focused) when Effect Duration > 0.\n" +
             "Potion: can heal, restore energy, and/or apply a temporary effect.\n" +
             "Fishing Bait: consumed automatically while fishing; higher bait tier is prioritized first.\n" +
+            "Map Enhancement: permanent map modifier consumable. Rolled when dropped; equip on matching map node.\n" +
             "Openable: double-click the item to open it. Each loot row rolls independently using its own % chance. " +
             "Required Amount To Open controls how many copies are consumed per open (e.g. 5 shards → 1 open).",
             MessageType.None
         );
+    }
+
+    private static void DrawMapEnhancementModRolls(SerializedProperty modRolls)
+    {
+        EditorGUILayout.LabelField("Modifier Rolls", EditorStyles.boldLabel);
+
+        if (modRolls == null)
+        {
+            EditorGUILayout.HelpBox("mapEnhancementModRolls property not found.", MessageType.Error);
+            return;
+        }
+
+        if (modRolls.arraySize == 0)
+        {
+            EditorGUILayout.HelpBox(
+                "No modifier rows configured. Use Reset to Defaults or add entries below.",
+                MessageType.Warning);
+        }
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Reset Modifier Defaults", GUILayout.Height(22f)))
+        {
+            MapEnhancementModRollConfig[] defaults = MapEnhancementRollDefaults.CreateDefaultRollConfigs();
+            modRolls.arraySize = defaults.Length;
+            for (int i = 0; i < defaults.Length; i++)
+            {
+                SerializedProperty element = modRolls.GetArrayElementAtIndex(i);
+                element.FindPropertyRelative("modType").enumValueIndex = (int)defaults[i].modType;
+                element.FindPropertyRelative("rollWeight").floatValue = defaults[i].rollWeight;
+                element.FindPropertyRelative("minValue").floatValue = defaults[i].minValue;
+                element.FindPropertyRelative("maxValue").floatValue = defaults[i].maxValue;
+            }
+        }
+
+        if (GUILayout.Button("Add Missing Mod Types", GUILayout.Height(22f)))
+            EnsureAllMapEnhancementModTypesPresent(modRolls);
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space(4);
+
+        for (int i = 0; i < modRolls.arraySize; i++)
+            DrawMapEnhancementModRollRow(modRolls.GetArrayElementAtIndex(i), i);
+
+        EditorGUILayout.Space(2);
+        EditorGUILayout.HelpBox(
+            "Roll Weight controls how often each modifier is picked (relative to others). " +
+            "Set weight to 0 to disable a modifier. " +
+            "Respawn uses seconds; extra spawns uses count; loot/gold/damage use fraction (0.10 = 10% from base).",
+            MessageType.None);
+    }
+
+    private static void EnsureAllMapEnhancementModTypesPresent(SerializedProperty modRolls)
+    {
+        MapEnhancementModType[] allTypes = MapEnhancementRollDefaults.AllModTypes;
+        for (int t = 0; t < allTypes.Length; t++)
+        {
+            MapEnhancementModType type = allTypes[t];
+            bool found = false;
+            for (int i = 0; i < modRolls.arraySize; i++)
+            {
+                SerializedProperty element = modRolls.GetArrayElementAtIndex(i);
+                if ((MapEnhancementModType)element.FindPropertyRelative("modType").enumValueIndex == type)
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found)
+                continue;
+
+            int index = modRolls.arraySize;
+            modRolls.InsertArrayElementAtIndex(index);
+            SerializedProperty row = modRolls.GetArrayElementAtIndex(index);
+            MapEnhancementModRollConfig[] defaults = MapEnhancementRollDefaults.CreateDefaultRollConfigs();
+            for (int d = 0; d < defaults.Length; d++)
+            {
+                if (defaults[d].modType != type)
+                    continue;
+
+                row.FindPropertyRelative("modType").enumValueIndex = (int)defaults[d].modType;
+                row.FindPropertyRelative("rollWeight").floatValue = defaults[d].rollWeight;
+                row.FindPropertyRelative("minValue").floatValue = defaults[d].minValue;
+                row.FindPropertyRelative("maxValue").floatValue = defaults[d].maxValue;
+                break;
+            }
+        }
+    }
+
+    private static void DrawMapEnhancementModRollRow(SerializedProperty row, int index)
+    {
+        if (row == null)
+            return;
+
+        SerializedProperty modType = row.FindPropertyRelative("modType");
+        SerializedProperty rollWeight = row.FindPropertyRelative("rollWeight");
+        SerializedProperty minValue = row.FindPropertyRelative("minValue");
+        SerializedProperty maxValue = row.FindPropertyRelative("maxValue");
+
+        MapEnhancementModType type = modType != null
+            ? (MapEnhancementModType)modType.enumValueIndex
+            : MapEnhancementModType.LootBonus;
+
+        string title = GetMapEnhancementModLabel(type);
+        EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+
+        EditorGUI.indentLevel++;
+        EditorGUILayout.PropertyField(rollWeight, new GUIContent("Roll Weight"));
+
+        switch (type)
+        {
+            case MapEnhancementModType.RespawnTimeReduction:
+                EditorGUILayout.PropertyField(minValue, new GUIContent("Min Seconds"));
+                EditorGUILayout.PropertyField(maxValue, new GUIContent("Max Seconds"));
+                break;
+            case MapEnhancementModType.ExtraEnemySpawns:
+                EditorGUILayout.PropertyField(minValue, new GUIContent("Min Extra Spawns"));
+                EditorGUILayout.PropertyField(maxValue, new GUIContent("Max Extra Spawns"));
+                break;
+            case MapEnhancementModType.LootBonus:
+                EditorGUILayout.PropertyField(minValue, new GUIContent("Min Loot Bonus (fraction)"));
+                EditorGUILayout.PropertyField(maxValue, new GUIContent("Max Loot Bonus (fraction)"));
+                break;
+            case MapEnhancementModType.EnemyDamageReduction:
+                EditorGUILayout.PropertyField(minValue, new GUIContent("Min Damage Reduction (fraction)"));
+                EditorGUILayout.PropertyField(maxValue, new GUIContent("Max Damage Reduction (fraction)"));
+                break;
+            case MapEnhancementModType.GoldBonus:
+                EditorGUILayout.PropertyField(minValue, new GUIContent("Min Gold Bonus (fraction)"));
+                EditorGUILayout.PropertyField(maxValue, new GUIContent("Max Gold Bonus (fraction)"));
+                break;
+        }
+
+        if (rollWeight != null && rollWeight.floatValue < 0f)
+            rollWeight.floatValue = 0f;
+
+        if (minValue != null && maxValue != null && maxValue.floatValue < minValue.floatValue)
+            maxValue.floatValue = minValue.floatValue;
+
+        EditorGUI.indentLevel--;
+        EditorGUILayout.Space(6);
+    }
+
+    private static string GetMapEnhancementModLabel(MapEnhancementModType type)
+    {
+        return type switch
+        {
+            MapEnhancementModType.RespawnTimeReduction => "Respawn Time Reduction",
+            MapEnhancementModType.ExtraEnemySpawns => "Extra Enemy Spawns",
+            MapEnhancementModType.LootBonus => "Loot Bonus",
+            MapEnhancementModType.EnemyDamageReduction => "Enemy Damage Reduction",
+            MapEnhancementModType.GoldBonus => "Gold Bonus",
+            _ => type.ToString()
+        };
     }
 
     private static void DrawOpenableLootTable(SerializedProperty openableLoot, SerializedProperty openRequiredAmount)
