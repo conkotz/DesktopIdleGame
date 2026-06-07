@@ -42,20 +42,80 @@ public static class EnhancementUpgradeService
             inventory.ReplaceSlot(targetSlotIndex, targetSlot);
         }
 
-        bool attempted = TryApplyScroll(
+        if (inventory.RemoveAmountAtSlot(scrollSlotIndex, 1) != 1)
+            return false;
+
+        bool attempted = TryApplyEnhancementStats(
             inventory,
-            scrollSlotIndex,
-            scrollDef,
+            scrollDef.enhancementScrollStats,
             enhancedTarget,
             targetDef,
             () => inventory.RemoveStackAtSlot(targetSlotIndex),
+            scrollDef,
             out success);
 
         if (!attempted)
             return false;
 
-        // Notify UI and save systems after mutating the runtime definition.
         inventory.ReplaceSlot(targetSlotIndex, inventory.GetSlot(targetSlotIndex));
+        return true;
+    }
+
+    public static bool TryApplyOptionOnInventorySlot(
+        Inventory inventory,
+        int gearSlotIndex,
+        EnhancementOptionEntry option,
+        EnhancementOptionPayment payment,
+        out bool success)
+    {
+        success = false;
+
+        if (inventory == null || gearSlotIndex < 0 || option == null)
+            return false;
+
+        if (payment.Kind == EnhancementPaymentKind.None)
+            return false;
+
+        Inventory.Slot targetSlot = inventory.GetSlot(gearSlotIndex);
+        if (targetSlot.IsEmpty || targetSlot.amount != 1)
+            return false;
+
+        ItemDefinition targetDef = inventory.GetItemDef(targetSlot.itemId);
+        if (!option.CanApplyToGear(targetDef, SkillsManager.Instance))
+            return false;
+
+        ItemDefinition enhancedTarget = targetDef;
+        if (!inventory.IsRuntimeEnhancedItem(targetSlot.itemId))
+        {
+            enhancedTarget = inventory.CreateRuntimeEnhancedItem(targetDef);
+            if (!enhancedTarget)
+                return false;
+
+            targetSlot.itemId = enhancedTarget.itemId;
+            targetSlot.amount = 1;
+            inventory.ReplaceSlot(gearSlotIndex, targetSlot);
+        }
+
+        if (!TryConsumePayment(inventory, payment))
+            return false;
+
+        ItemDefinition historyScroll = !string.IsNullOrWhiteSpace(option.linkedScrollItemId)
+            ? inventory.GetItemDef(option.linkedScrollItemId)
+            : null;
+
+        bool attempted = TryApplyEnhancementStats(
+            inventory,
+            option.ToScrollStats(),
+            enhancedTarget,
+            targetDef,
+            () => inventory.RemoveStackAtSlot(gearSlotIndex),
+            historyScroll,
+            out success);
+
+        if (!attempted)
+            return false;
+
+        inventory.ReplaceSlot(gearSlotIndex, inventory.GetSlot(gearSlotIndex));
         return true;
     }
 
@@ -94,33 +154,49 @@ public static class EnhancementUpgradeService
             replaceTargetItemId(enhancedTarget.itemId);
         }
 
-        return TryApplyScroll(
-            inventory,
-            scrollSlotIndex,
-            scrollDef,
-            enhancedTarget,
-            targetDef,
-            clearTargetItem,
-            out success);
-    }
-
-    private static bool TryApplyScroll(
-        Inventory inventory,
-        int scrollSlotIndex,
-        ItemDefinition scrollDef,
-        ItemDefinition enhancedTarget,
-        ItemDefinition previousTargetDef,
-        Action destroyTarget,
-        out bool success)
-    {
-        success = false;
-        bool slotReductionScroll = IsSlotReductionScroll(scrollDef);
-        int usedSlotsBefore = enhancedTarget.UsedUpgradeSlots;
-
         if (inventory.RemoveAmountAtSlot(scrollSlotIndex, 1) != 1)
             return false;
 
-        if (scrollDef.enhancementScrollStats.consumeSlotOnFailure)
+        return TryApplyEnhancementStats(
+            inventory,
+            scrollDef.enhancementScrollStats,
+            enhancedTarget,
+            targetDef,
+            clearTargetItem,
+            scrollDef,
+            out success);
+    }
+
+    private static bool TryConsumePayment(Inventory inventory, EnhancementOptionPayment payment)
+    {
+        if (inventory == null)
+            return false;
+
+        switch (payment.Kind)
+        {
+            case EnhancementPaymentKind.Scroll:
+                return inventory.RemoveAmountAtSlot(payment.ScrollSlotIndex, 1) == 1;
+            case EnhancementPaymentKind.Materials:
+                return inventory.TryConsumeItem(payment.MaterialItemId, payment.MaterialAmount);
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryApplyEnhancementStats(
+        Inventory inventory,
+        EnhancementScrollStats stats,
+        ItemDefinition enhancedTarget,
+        ItemDefinition previousTargetDef,
+        Action destroyTarget,
+        ItemDefinition historyScrollDef,
+        out bool success)
+    {
+        success = false;
+        bool slotReductionScroll = stats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction;
+        int usedSlotsBefore = enhancedTarget.UsedUpgradeSlots;
+
+        if (stats.consumeSlotOnFailure)
         {
             enhancedTarget.usedUpgradeSlots = Mathf.Clamp(
                 enhancedTarget.usedUpgradeSlots + 1,
@@ -128,11 +204,11 @@ public static class EnhancementUpgradeService
                 Mathf.Max(0, enhancedTarget.MaxUpgradeSlots));
         }
 
-        success = UnityEngine.Random.value <= scrollDef.EnhancementScrollSuccessChance;
+        success = UnityEngine.Random.value <= Mathf.Clamp01(stats.successChance);
         int enhancementBefore = enhancedTarget.successfulEnhancements;
         if (success)
         {
-            ApplyModifier(enhancedTarget, scrollDef.enhancementScrollStats);
+            ApplyModifier(enhancedTarget, stats);
             int usedSlotsAfter = enhancedTarget.UsedUpgradeSlots;
 
             if (!slotReductionScroll)
@@ -150,10 +226,12 @@ public static class EnhancementUpgradeService
         else
         {
             LogResult(enhancedTarget, false, slotReductionScroll, usedSlotsBefore, usedSlotsBefore, enhancementBefore, enhancementBefore);
-            ApplyFailureOutcome(destroyTarget, scrollDef.enhancementScrollStats);
+            ApplyFailureOutcome(destroyTarget, stats);
         }
 
-        enhancedTarget.RecordEnhancementScrollAttempt(scrollDef, success);
+        if (historyScrollDef != null)
+            enhancedTarget.RecordEnhancementScrollAttempt(historyScrollDef, success);
+
         return true;
     }
 

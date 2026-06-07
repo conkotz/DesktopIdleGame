@@ -1,0 +1,574 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e1b9630e605db24299deb530df84a6a, type: 3}
+  m_Name: EnhancementOptionDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::EnhancementOptionDatabase
+  options:
+  - optionId: armour_basic
+    displayName: Armour Basic
+    track: 0
+    tier: 0
+    targetStat: 6
+    modifierKind: 0
+    modifierValue: 5
+    allowedGearTypes: 2
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_armour_scroll
+  - optionId: armour_intermediate
+    displayName: Armour Intermediate
+    track: 0
+    tier: 1
+    targetStat: 6
+    modifierKind: 0
+    modifierValue: 10
+    allowedGearTypes: 2
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: armour_advanced
+    displayName: Armour Advanced
+    track: 0
+    tier: 2
+    targetStat: 6
+    modifierKind: 0
+    modifierValue: 15
+    allowedGearTypes: 2
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: health_basic
+    displayName: Health Basic
+    track: 0
+    tier: 0
+    targetStat: 3
+    modifierKind: 0
+    modifierValue: 5
+    allowedGearTypes: 2
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_health_scroll
+  - optionId: health_intermediate
+    displayName: Health Intermediate
+    track: 0
+    tier: 1
+    targetStat: 3
+    modifierKind: 0
+    modifierValue: 10
+    allowedGearTypes: 2
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: health_advanced
+    displayName: Health Advanced
+    track: 0
+    tier: 2
+    targetStat: 3
+    modifierKind: 0
+    modifierValue: 15
+    allowedGearTypes: 2
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: move_speed_basic
+    displayName: Move Speed Basic
+    track: 0
+    tier: 0
+    targetStat: 13
+    modifierKind: 1
+    modifierValue: 0.07
+    allowedGearTypes: 2
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_movespeed_scroll
+  - optionId: move_speed_intermediate
+    displayName: Move Speed Intermediate
+    track: 0
+    tier: 1
+    targetStat: 13
+    modifierKind: 1
+    modifierValue: 0.14
+    allowedGearTypes: 2
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: move_speed_advanced
+    displayName: Move Speed Advanced
+    track: 0
+    tier: 2
+    targetStat: 13
+    modifierKind: 1
+    modifierValue: 0.21000001
+    allowedGearTypes: 2
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: physical_basic
+    displayName: Physical Damage Basic
+    track: 0
+    tier: 0
+    targetStat: 0
+    modifierKind: 0
+    modifierValue: 2
+    allowedGearTypes: 96
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_physical_scroll
+  - optionId: physical_intermediate
+    displayName: Physical Damage Intermediate
+    track: 0
+    tier: 1
+    targetStat: 0
+    modifierKind: 0
+    modifierValue: 4
+    allowedGearTypes: 96
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: physical_advanced
+    displayName: Physical Damage Advanced
+    track: 0
+    tier: 2
+    targetStat: 0
+    modifierKind: 0
+    modifierValue: 6
+    allowedGearTypes: 96
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: magic_basic
+    displayName: Magic Damage Basic
+    track: 0
+    tier: 0
+    targetStat: 1
+    modifierKind: 0
+    modifierValue: 2
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_magic_scroll
+  - optionId: magic_intermediate
+    displayName: Magic Damage Intermediate
+    track: 0
+    tier: 1
+    targetStat: 1
+    modifierKind: 0
+    modifierValue: 4
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: magic_advanced
+    displayName: Magic Damage Advanced
+    track: 0
+    tier: 2
+    targetStat: 1
+    modifierKind: 0
+    modifierValue: 6
+    allowedGearTypes: 128
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: corruption_basic
+    displayName: Corruption Damage Basic
+    track: 0
+    tier: 0
+    targetStat: 2
+    modifierKind: 0
+    modifierValue: 2
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_corruption_scroll
+  - optionId: corruption_intermediate
+    displayName: Corruption Damage Intermediate
+    track: 0
+    tier: 1
+    targetStat: 2
+    modifierKind: 0
+    modifierValue: 4
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: corruption_advanced
+    displayName: Corruption Damage Advanced
+    track: 0
+    tier: 2
+    targetStat: 2
+    modifierKind: 0
+    modifierValue: 6
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: crit_chance_basic
+    displayName: Crit Chance Basic
+    track: 0
+    tier: 0
+    targetStat: 9
+    modifierKind: 1
+    modifierValue: 0.03
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_crit_chance_scroll
+  - optionId: crit_chance_intermediate
+    displayName: Crit Chance Intermediate
+    track: 0
+    tier: 1
+    targetStat: 9
+    modifierKind: 1
+    modifierValue: 0.06
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: crit_chance_advanced
+    displayName: Crit Chance Advanced
+    track: 0
+    tier: 2
+    targetStat: 9
+    modifierKind: 1
+    modifierValue: 0.089999996
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: crit_multi_basic
+    displayName: Crit Multi Basic
+    track: 0
+    tier: 0
+    targetStat: 10
+    modifierKind: 1
+    modifierValue: 0.05
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_crit_multi_scroll
+  - optionId: crit_multi_intermediate
+    displayName: Crit Multi Intermediate
+    track: 0
+    tier: 1
+    targetStat: 10
+    modifierKind: 1
+    modifierValue: 0.1
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: crit_multi_advanced
+    displayName: Crit Multi Advanced
+    track: 0
+    tier: 2
+    targetStat: 10
+    modifierKind: 1
+    modifierValue: 0.15
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: poison_chance_basic
+    displayName: Poison Chance Basic
+    track: 0
+    tier: 0
+    targetStat: 17
+    modifierKind: 1
+    modifierValue: 0.03
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_poison_chance_scroll
+  - optionId: poison_chance_intermediate
+    displayName: Poison Chance Intermediate
+    track: 0
+    tier: 1
+    targetStat: 17
+    modifierKind: 1
+    modifierValue: 0.06
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: poison_chance_advanced
+    displayName: Poison Chance Advanced
+    track: 0
+    tier: 2
+    targetStat: 17
+    modifierKind: 1
+    modifierValue: 0.089999996
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: poison_multi_basic
+    displayName: Poison Multi Basic
+    track: 0
+    tier: 0
+    targetStat: 18
+    modifierKind: 1
+    modifierValue: 0.05
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_weapon_poison_multi_scroll
+  - optionId: poison_multi_intermediate
+    displayName: Poison Multi Intermediate
+    track: 0
+    tier: 1
+    targetStat: 18
+    modifierKind: 1
+    modifierValue: 0.1
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: poison_multi_advanced
+    displayName: Poison Multi Advanced
+    track: 0
+    tier: 2
+    targetStat: 18
+    modifierKind: 1
+    modifierValue: 0.15
+    allowedGearTypes: 1
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: gather_speed_basic
+    displayName: Gather Speed Basic
+    track: 0
+    tier: 0
+    targetStat: 15
+    modifierKind: 1
+    modifierValue: 0.15
+    allowedGearTypes: 16
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_tool_gather_speed_scroll
+  - optionId: gather_speed_intermediate
+    displayName: Gather Speed Intermediate
+    track: 0
+    tier: 1
+    targetStat: 15
+    modifierKind: 1
+    modifierValue: 0.3
+    allowedGearTypes: 16
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: gather_speed_advanced
+    displayName: Gather Speed Advanced
+    track: 0
+    tier: 2
+    targetStat: 15
+    modifierKind: 1
+    modifierValue: 0.45000002
+    allowedGearTypes: 16
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: gathering_grit_basic
+    displayName: Gathering Grit Basic
+    track: 0
+    tier: 0
+    targetStat: 16
+    modifierKind: 1
+    modifierValue: 0.05
+    allowedGearTypes: 16
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_tool_grit_scroll
+  - optionId: gathering_grit_intermediate
+    displayName: Gathering Grit Intermediate
+    track: 0
+    tier: 1
+    targetStat: 16
+    modifierKind: 1
+    modifierValue: 0.1
+    allowedGearTypes: 16
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: gathering_grit_advanced
+    displayName: Gathering Grit Advanced
+    track: 0
+    tier: 2
+    targetStat: 16
+    modifierKind: 1
+    modifierValue: 0.15
+    allowedGearTypes: 16
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: stamina_efficiency_basic
+    displayName: Stamina Efficiency Basic
+    track: 0
+    tier: 0
+    targetStat: 19
+    modifierKind: 1
+    modifierValue: 0.06
+    allowedGearTypes: 16
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: basic_tool_stamina_efficiency_scroll
+  - optionId: stamina_efficiency_intermediate
+    displayName: Stamina Efficiency Intermediate
+    track: 0
+    tier: 1
+    targetStat: 19
+    modifierKind: 1
+    modifierValue: 0.12
+    allowedGearTypes: 16
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: stamina_efficiency_advanced
+    displayName: Stamina Efficiency Advanced
+    track: 0
+    tier: 2
+    targetStat: 19
+    modifierKind: 1
+    modifierValue: 0.17999999
+    allowedGearTypes: 16
+    successChance: 0.5
+    consumeSlotOnFailure: 1
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: 
+  - optionId: corruption_physical_gamble
+    displayName: Corruption Physical Gamble
+    track: 1
+    tier: 1
+    targetStat: 0
+    modifierKind: 0
+    modifierValue: 6
+    allowedGearTypes: 1
+    successChance: 0.35
+    consumeSlotOnFailure: 1
+    failureOutcome: 1
+    destroyChanceOnFailure: 0.5
+    linkedScrollItemId: chaos_weapon_physical_scroll
+  - optionId: corruption_magic_gamble
+    displayName: Corruption Magic Gamble
+    track: 1
+    tier: 1
+    targetStat: 1
+    modifierKind: 0
+    modifierValue: 6
+    allowedGearTypes: 128
+    successChance: 0.35
+    consumeSlotOnFailure: 1
+    failureOutcome: 1
+    destroyChanceOnFailure: 0.5
+    linkedScrollItemId: chaos_weapon_magic_scroll
+  - optionId: corruption_damage_gamble
+    displayName: Corruption Damage Gamble
+    track: 1
+    tier: 1
+    targetStat: 2
+    modifierKind: 0
+    modifierValue: 6
+    allowedGearTypes: 1
+    successChance: 0.35
+    consumeSlotOnFailure: 1
+    failureOutcome: 1
+    destroyChanceOnFailure: 0.5
+    linkedScrollItemId: chaos_weapon_corruption_scroll
+  - optionId: corruption_health_gamble
+    displayName: Corruption Health Gamble
+    track: 1
+    tier: 1
+    targetStat: 3
+    modifierKind: 0
+    modifierValue: 15
+    allowedGearTypes: 2
+    successChance: 0.35
+    consumeSlotOnFailure: 1
+    failureOutcome: 1
+    destroyChanceOnFailure: 0.5
+    linkedScrollItemId: chaos_health_scroll

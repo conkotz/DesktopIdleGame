@@ -83,6 +83,16 @@ public class InventorySlotUI : MonoBehaviour,
     private string _itemId;
     private int _amount;
 
+    private System.Action<int> _upgradeViewSelectCallback;
+    private bool _upgradeViewActive;
+    private bool _upgradeViewCanSelect;
+    private bool _upgradeDragging;
+    private RectTransform _upgradeDropTarget;
+    private CanvasGroup _upgradeCanvasGroup;
+    private bool _upgradeSelected;
+
+    private static readonly Color UpgradeDimIconColor = new(0.45f, 0.45f, 0.45f, 0.55f);
+
     public int SlotIndex => _slotIndex;
 
     public bool HasItemContext => _def != null && _amount > 0 && !string.IsNullOrEmpty(_itemId);
@@ -203,6 +213,8 @@ public class InventorySlotUI : MonoBehaviour,
             icon.preserveAspect = true;
         }
 
+        ApplyUpgradeDimVisual();
+
         if (countText)
             countText.text = (def != null && amount > 0) ? amount.ToString() : "";
 
@@ -249,7 +261,9 @@ public class InventorySlotUI : MonoBehaviour,
     {
         if (!background) return;
 
-        if (_isPointerOver)
+        if (_upgradeSelected)
+            background.color = pressedColor;
+        else if (_isPointerOver)
             background.color = hoverColor;
         else if (AutoBattleLootHighlight.IsInventorySlotMarked(_slotIndex))
             background.color = autoBattleNewLootColor;
@@ -260,6 +274,61 @@ public class InventorySlotUI : MonoBehaviour,
     /// <summary>Updates the idle / new-loot tint without re-binding slot data.</summary>
     public void RefreshLootHighlightVisual() => ApplySlotBackground();
 
+    public void ConfigureUpgradeView(
+        bool active,
+        bool canSelectGear,
+        System.Action<int> onSelect,
+        RectTransform dropTarget = null)
+    {
+        _upgradeViewActive = active;
+        _upgradeViewCanSelect = canSelectGear;
+        _upgradeViewSelectCallback = canSelectGear ? onSelect : null;
+        _upgradeDropTarget = dropTarget;
+        ApplyUpgradeDimVisual();
+        ApplySlotBackground();
+    }
+
+    public void ClearUpgradeView()
+    {
+        _upgradeViewActive = false;
+        _upgradeViewCanSelect = false;
+        _upgradeViewSelectCallback = null;
+        _upgradeDropTarget = null;
+        _upgradeDragging = false;
+        _upgradeSelected = false;
+        ApplyUpgradeDimVisual();
+        ApplySlotBackground();
+    }
+
+    public void SetUpgradeSelected(bool selected)
+    {
+        _upgradeSelected = selected;
+        ApplySlotBackground();
+    }
+
+    private void EnsureUpgradeCanvasGroup()
+    {
+        if (_upgradeCanvasGroup)
+            return;
+
+        _upgradeCanvasGroup = GetComponent<CanvasGroup>();
+        if (!_upgradeCanvasGroup)
+            _upgradeCanvasGroup = gameObject.AddComponent<CanvasGroup>();
+    }
+
+    private void ApplyUpgradeDimVisual()
+    {
+        EnsureUpgradeCanvasGroup();
+
+        bool dimItem = _upgradeViewActive && HasItemContext && !_upgradeViewCanSelect;
+        _upgradeCanvasGroup.alpha = dimItem ? 0.42f : 1f;
+        _upgradeCanvasGroup.interactable = true;
+        _upgradeCanvasGroup.blocksRaycasts = true;
+
+        if (icon)
+            icon.color = dimItem ? UpgradeDimIconColor : Color.white;
+    }
+
     public void OnPointerClick(PointerEventData eventData)
     {
         if (_slotIndex < 0)
@@ -267,6 +336,23 @@ public class InventorySlotUI : MonoBehaviour,
 
         if (InventoryDragState.HasDrag)
             return;
+
+        if (_upgradeViewActive)
+        {
+            if (eventData.button == PointerEventData.InputButton.Left &&
+                _upgradeViewCanSelect &&
+                HasItemContext)
+            {
+                float clickTime = Time.unscaledTime;
+                bool isUpgradeDoubleClick = (clickTime - _lastClickTime) <= doubleClickSeconds;
+                _lastClickTime = clickTime;
+                if (isUpgradeDoubleClick)
+                    _upgradeViewSelectCallback?.Invoke(_slotIndex);
+            }
+
+            eventData.Use();
+            return;
+        }
 
         if (eventData.button == PointerEventData.InputButton.Right)
         {
@@ -643,6 +729,23 @@ public class InventorySlotUI : MonoBehaviour,
 
     public void PerformEquipAction() => TryDoubleClickEquipFromThisSlot();
 
+    public void PerformUpgradeAction()
+    {
+        if (_slotIndex < 0 || !HasItemContext)
+            return;
+
+        int slotIndex = _slotIndex;
+        MainMenuWindowUI menu = MainMenuWindowUI.Resolve();
+        if (menu != null)
+            menu.OpenUpgrade();
+
+        UpgradePageUI upgradePage = FindFirstObjectByType<UpgradePageUI>(FindObjectsInactive.Include);
+        if (upgradePage != null)
+            upgradePage.SelectGearFromSlot(slotIndex);
+
+        _tooltip?.Hide();
+    }
+
     public void PerformEquipOnMapAction()
     {
         if (_inventory == null)
@@ -799,6 +902,19 @@ public class InventorySlotUI : MonoBehaviour,
         if (_slotIndex < 0)
             return;
 
+        if (_upgradeViewActive)
+        {
+            if (!_upgradeViewCanSelect || !HasItemContext)
+                return;
+
+            _upgradeDragging = true;
+            if (background)
+                background.color = pressedColor;
+            CreateDragIcon();
+            UpdateDragIconPosition(eventData);
+            return;
+        }
+
         // Ctrl+click is used for sell (merchant) and stash (storage); don't start a drag.
         if (InputUtil.CtrlHeld() &&
             (MerchantClick.MerchantModeOpen || StorageUI.IsOpen))
@@ -834,6 +950,27 @@ public class InventorySlotUI : MonoBehaviour,
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        if (_upgradeDragging)
+        {
+            _upgradeDragging = false;
+            InventoryDragIconPool.Hide();
+            _dragIconGO = null;
+            _dragIconRT = null;
+            _dragIconImage = null;
+
+            if (_upgradeDropTarget != null &&
+                RectTransformUtility.RectangleContainsScreenPoint(
+                    _upgradeDropTarget,
+                    eventData.position,
+                    eventData.pressEventCamera))
+            {
+                _upgradeViewSelectCallback?.Invoke(_slotIndex);
+            }
+
+            ApplySlotBackground();
+            return;
+        }
+
         InventoryDragIconPool.Hide();
         _dragIconGO = null;
         _dragIconRT = null;
@@ -899,6 +1036,9 @@ public class InventorySlotUI : MonoBehaviour,
     public void OnDrop(PointerEventData eventData)
     {
         if (_slotIndex < 0)
+            return;
+
+        if (_upgradeViewActive)
             return;
 
         // Storage chest slot -> inventory slot

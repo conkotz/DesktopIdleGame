@@ -96,6 +96,12 @@ public static class MainMenuTabButtonAutoWire
             return true;
         }
 
+        if (IsName(objectName, "UpgradeButton", "UpgradeTabButton", "UIButton_Upgrade"))
+        {
+            tabId = MainMenuTabId.Upgrade;
+            return true;
+        }
+
         return false;
     }
 

@@ -13,6 +13,7 @@ public class MainMenuWindowUI : MonoBehaviour
         SkillsAbilities,
         WorldMap,
         Quest,
+        Upgrade,
         Settings
     }
 
@@ -88,6 +89,7 @@ public class MainMenuWindowUI : MonoBehaviour
     [SerializeField] private GameObject skillsAbilitiesPage;
     [SerializeField] private GameObject fullMapPage;
     [SerializeField] private GameObject questPage;
+    [SerializeField] private GameObject upgradePage;
     [SerializeField] private GameObject settingsPage;
 
     private GameObject currentPage;
@@ -144,6 +146,8 @@ public class MainMenuWindowUI : MonoBehaviour
             return MainMenuTabId.Skills;
         if (currentPage == questPage)
             return MainMenuTabId.Quest;
+        if (upgradePage && currentPage == upgradePage)
+            return MainMenuTabId.Upgrade;
         if (fullMapPage && currentPage == fullMapPage)
             return MainMenuTabId.WorldMap;
 
@@ -174,6 +178,9 @@ public class MainMenuWindowUI : MonoBehaviour
             case MainMenuTabId.Quest:
                 OpenQuestShow();
                 break;
+            case MainMenuTabId.Upgrade:
+                OpenUpgradeShow();
+                break;
             case MainMenuTabId.WorldMap:
                 OpenWorldMapShow();
                 break;
@@ -197,6 +204,7 @@ public class MainMenuWindowUI : MonoBehaviour
         s_instance = this;
         SanitizePageReferences();
         ResolveSkillsAbilitiesPageReference();
+        ResolveUpgradePageReference();
 
         if (!mainMenuWindow)
             return;
@@ -255,9 +263,13 @@ public class MainMenuWindowUI : MonoBehaviour
 
     public void ToggleQuest() => SelectTab(MainMenuTabId.Quest);
 
+    public void ToggleUpgrade() => SelectTab(MainMenuTabId.Upgrade);
+
     public void ToggleWorldMap() => SelectTab(MainMenuTabId.WorldMap);
 
     public void OpenQuest() => SelectTab(MainMenuTabId.Quest);
+
+    public void OpenUpgrade() => SelectTab(MainMenuTabId.Upgrade);
 
     public void OpenQuestShow()
     {
@@ -266,6 +278,16 @@ public class MainMenuWindowUI : MonoBehaviour
         if (IsOpen && currentPage == questPage)
             return;
         OpenPage(questPage);
+    }
+
+    public void OpenUpgradeShow()
+    {
+        ResolveUpgradePageReference();
+        if (!upgradePage)
+            return;
+        if (IsOpen && currentPage == upgradePage)
+            return;
+        OpenPage(upgradePage);
     }
 
     public void OpenCharacterShow()
@@ -515,6 +537,7 @@ public class MainMenuWindowUI : MonoBehaviour
         if (skillsAbilitiesPage) skillsAbilitiesPage.SetActive(false);
         if (fullMapPage) fullMapPage.SetActive(false);
         if (questPage) questPage.SetActive(false);
+        if (upgradePage) upgradePage.SetActive(false);
         if (settingsPage) settingsPage.SetActive(false);
         HideLegacyMenuPages();
     }
@@ -648,6 +671,8 @@ public class MainMenuWindowUI : MonoBehaviour
 
         if (page == questPage)
             return PersistedPage.Quest;
+        if (upgradePage && page == upgradePage)
+            return PersistedPage.Upgrade;
         if (page == settingsPage)
             return PersistedPage.Settings;
         return PersistedPage.None;
@@ -661,9 +686,31 @@ public class MainMenuWindowUI : MonoBehaviour
             PersistedPage.SkillsAbilities => skillsAbilitiesPage,
             PersistedPage.WorldMap => fullMapPage,
             PersistedPage.Quest => questPage,
+            PersistedPage.Upgrade => upgradePage,
             PersistedPage.Settings => settingsPage,
             _ => null
         };
+    }
+
+    private void ResolveUpgradePageReference()
+    {
+        if (upgradePage != null)
+            return;
+
+        UpgradePageUI pageUi = FindFirstObjectByType<UpgradePageUI>(FindObjectsInactive.Include);
+        if (pageUi != null && !IsUnderOldUnused(pageUi.transform))
+        {
+            upgradePage = pageUi.gameObject;
+            return;
+        }
+
+        if (mainMenuWindow != null)
+        {
+            Transform page = mainMenuWindow.transform.Find("UpgradePage");
+            if (page != null)
+                upgradePage = page.gameObject;
+        }
+
     }
 
     private static void RestoreAnyLoadedMenu()

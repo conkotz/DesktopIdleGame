@@ -23,6 +23,9 @@ public static class InventoryContextMenuBuilder
         if (CanEquipFromInventory(slot, def))
             entries.Add(new ContextMenuEntry("Equip", slot.PerformEquipAction));
 
+        if (CanUpgradeFromInventory(def))
+            entries.Add(new ContextMenuEntry("Upgrade", slot.PerformUpgradeAction));
+
         if (MapEnhancementService.TryGetSourceMapNodeId(slot.ContextItemId, out _))
             entries.Add(new ContextMenuEntry("Equip on map", slot.PerformEquipOnMapAction));
 
@@ -107,6 +110,14 @@ public static class InventoryContextMenuBuilder
 
     private static bool CanEat(ItemDefinition def) =>
         def.IsConsumable && (def.IsFood || def.IsPotion) && def.ConsumeOnUse;
+
+    private static bool CanUpgradeFromInventory(ItemDefinition def)
+    {
+        if (!def || !def.HasUpgradeSlots)
+            return false;
+
+        return def.IsWeapon || def.IsArmor || def.IsTool;
+    }
 
     private static bool CanShowAdditionalStats(string itemId)
     {

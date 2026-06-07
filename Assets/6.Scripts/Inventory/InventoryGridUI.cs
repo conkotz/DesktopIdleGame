@@ -201,6 +201,32 @@ public class InventoryGridUI : MonoBehaviour
         StartCoroutine(DeferredRefresh());
     }
 
+    /// <summary>Shares serialized grid bindings with <see cref="UpgradeInventoryGridUI"/> on the same GameObject.</summary>
+    public bool TryGetUpgradeGridBindings(
+        out Inventory boundInventory,
+        out ItemDatabase boundItemDb,
+        out RectTransform boundSlotsGrid,
+        out InventorySlotUI boundSlotPrefab,
+        out SharedTooltipUI boundTooltip,
+        out RectTransform boundPanelRect,
+        out RectTransform boundTooltipAnchor,
+        out RectTransform boundTooltipHeightRect,
+        out int boundColumns,
+        out int boundMinVisibleRows)
+    {
+        boundInventory = inventory;
+        boundItemDb = itemDb;
+        boundSlotsGrid = slotsGrid;
+        boundSlotPrefab = slotPrefab;
+        boundTooltip = tooltip;
+        boundPanelRect = inventoryPanelRect;
+        boundTooltipAnchor = tooltipAnchor;
+        boundTooltipHeightRect = tooltipHeightRect;
+        boundColumns = columns;
+        boundMinVisibleRows = minVisibleRows;
+        return boundSlotsGrid != null && boundSlotPrefab != null;
+    }
+
     private IEnumerator DeferredRefresh()
     {
         EnsurePoolSize(TotalSlots);

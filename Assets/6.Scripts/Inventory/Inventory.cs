@@ -571,6 +571,51 @@ public class Inventory : MonoBehaviour, ISaveable
         return removed;
     }
 
+    public int CountItem(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            return 0;
+
+        string target = itemId.Trim();
+        int total = 0;
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            Slot slot = _slots[i];
+            if (slot.IsEmpty)
+                continue;
+
+            if (string.Equals(slot.itemId, target, System.StringComparison.OrdinalIgnoreCase))
+                total += slot.amount;
+        }
+
+        return total;
+    }
+
+    public bool TryConsumeItem(string itemId, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+            return false;
+
+        if (CountItem(itemId) < amount)
+            return false;
+
+        int remaining = amount;
+        for (int i = 0; i < _slots.Count && remaining > 0; i++)
+        {
+            Slot slot = _slots[i];
+            if (slot.IsEmpty)
+                continue;
+
+            if (!string.Equals(slot.itemId, itemId.Trim(), System.StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            int removed = RemoveAmountAtSlot(i, remaining);
+            remaining -= removed;
+        }
+
+        return remaining <= 0;
+    }
+
 
     public int MoveAmount(int fromSlot, int toSlot, int amount, int? maxStackOverride = null)
     {
