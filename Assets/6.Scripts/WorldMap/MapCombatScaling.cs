@@ -157,9 +157,8 @@ public static class MapCombatScaling
             return sb.ToString().TrimEnd();
         }
 
-        int playLevel = GetPlayLevelFromSliderValue(sliderValue);
         var entries = new List<MapScalingSpecialLootEntry>();
-        node.CollectCombatScalingSpecialDropsUpToLevel(playLevel, entries);
+        node.CollectCombatScalingSpecialDropsUpToSlider(sliderValue, entries);
 
         if (entries.Count == 0)
         {
@@ -176,11 +175,20 @@ public static class MapCombatScaling
             string name = !string.IsNullOrWhiteSpace(entry.item.displayName)
                 ? entry.item.displayName.Trim()
                 : entry.item.name;
-            int pct = Mathf.RoundToInt(entry.dropChance * 100f);
-            sb.AppendLine($"• {name} — {pct}%");
+            sb.AppendLine($"• {name} — {FormatSpecialDropChancePercent(entry.dropChance)}");
         }
 
         return sb.ToString().TrimEnd();
+    }
+
+    public static string FormatSpecialDropChancePercent(float dropChance)
+    {
+        float pct = Mathf.Max(0f, dropChance) * 100f;
+        if (pct >= 1f)
+            return $"{Mathf.RoundToInt(pct)}%";
+        if (pct >= 0.1f)
+            return $"{pct:0.#}%";
+        return $"{pct:0.##}%";
     }
 
     public static MapNodeDefinition ResolveActiveCombatMapNode()
@@ -189,6 +197,23 @@ public static class MapCombatScaling
             return GameplayLevelBootstrapper.Instance.ActiveDefinition;
 
         return ActiveLevelContext.Current;
+    }
+
+    public static string BuildLocationDisplayName(MapNodeDefinition node, WorldMapProgressManager progress = null)
+    {
+        if (node == null)
+            return string.Empty;
+
+        string name = !string.IsNullOrWhiteSpace(node.displayName) ? node.displayName.Trim() : node.nodeId?.Trim() ?? string.Empty;
+        if (!node.IsMapCombatScalingEnabled())
+            return name;
+
+        progress ??= WorldMapProgressManager.Instance;
+        int slider = progress != null ? progress.GetCombatMapScalingSelectedTier(node.nodeId) : SliderMin;
+        if (slider <= SliderMin)
+            return name;
+
+        return $"{name} - Scale {slider}";
     }
 }
 
@@ -213,9 +238,9 @@ public class MapScalingSpecialLootEntry
 [Serializable]
 public class MapScalingLevelSpecialDrops
 {
-    [UnityEngine.Range(2, MapCombatScaling.MaxLevel)]
-    [UnityEngine.Tooltip("Scaling level when these drops become available (cumulative with lower tiers).")]
-    public int scalingLevel = 2;
+    [UnityEngine.Range(1, MapCombatScaling.SliderMax)]
+    [UnityEngine.Tooltip("Map scaling slider value when these drops unlock (cumulative with lower slider tiers).")]
+    public int scalingLevel = 3;
 
     public List<MapScalingSpecialLootEntry> drops = new();
 }

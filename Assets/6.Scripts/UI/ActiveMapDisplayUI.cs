@@ -63,7 +63,10 @@ public class ActiveMapDisplayUI : MonoBehaviour
                 def = ActiveLevelContext.Current;
         }
 
-        string name = def ? def.displayName : fallbackWhenUnknown;
+        WorldMapProgressManager progress = WorldMapProgressManager.Instance;
+        string name = def
+            ? MapCombatScaling.BuildLocationDisplayName(def, progress)
+            : fallbackWhenUnknown;
         string text = string.Format(format, name);
         if (text == _lastText)
             return;

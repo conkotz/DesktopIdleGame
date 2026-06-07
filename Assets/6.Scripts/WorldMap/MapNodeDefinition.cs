@@ -747,20 +747,20 @@ public class MapNodeDefinition : ScriptableObject
     public int GetCombatScalingLevel(WorldMapProgressManager progress) =>
         MapCombatScaling.ResolveActiveScalingLevel(this, progress);
 
-    /// <summary>Cumulative special drops for scaling levels 2 … <paramref name="scalingLevel"/>.</summary>
-    public void CollectCombatScalingSpecialDropsUpToLevel(int scalingLevel, List<MapScalingSpecialLootEntry> results)
+    /// <summary>Cumulative special drops unlocked up to map scaling slider <paramref name="sliderValue"/> (0–7).</summary>
+    public void CollectCombatScalingSpecialDropsUpToSlider(int sliderValue, List<MapScalingSpecialLootEntry> results)
     {
         if (results == null || mapCombatScalingSpecialDropsByLevel == null || mapCombatScalingSpecialDropsByLevel.Count == 0)
             return;
 
-        int cap = Mathf.Clamp(scalingLevel, MapCombatScaling.MinLevel, MapCombatScaling.MaxLevel);
-        if (cap < 2)
+        int cap = Mathf.Clamp(sliderValue, MapCombatScaling.SliderMin, MapCombatScaling.SliderMax);
+        if (cap <= 0)
             return;
 
         for (int i = 0; i < mapCombatScalingSpecialDropsByLevel.Count; i++)
         {
             MapScalingLevelSpecialDrops tier = mapCombatScalingSpecialDropsByLevel[i];
-            if (tier == null || tier.scalingLevel < 2 || tier.scalingLevel > cap || tier.drops == null)
+            if (tier == null || tier.scalingLevel <= 0 || tier.scalingLevel > cap || tier.drops == null)
                 continue;
 
             for (int j = 0; j < tier.drops.Count; j++)

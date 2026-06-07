@@ -1296,19 +1296,11 @@ public class EnemyBaseController : MonoBehaviour
         OnDeath?.Invoke();
 
         string eid = EnemyId;
-        if (QuestProgressManager.Instance != null)
-            QuestProgressManager.Instance.NotifyEnemyKilledForActiveMap(eid);
-        else
-        {
-            QuestProgressManager mgr = FindFirstObjectByType<QuestProgressManager>(FindObjectsInactive.Include);
-            if (mgr)
-                mgr.NotifyEnemyKilledForActiveMap(eid);
-        }
+        QuestProgressManager.Instance?.NotifyEnemyKilledForActiveMap(eid);
 
         PlayerAbilityController.NotifyBattleTranceKillFromEnemyDeath();
 
-        WorldMapProgressManager wmp = WorldMapProgressManager.Instance ??
-            FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
+        WorldMapProgressManager wmp = WorldMapProgressManager.Instance;
         if (wmp != null)
         {
             string activeNodeId = ActiveLevelContext.Current != null ? ActiveLevelContext.Current.nodeId : "";
@@ -1753,12 +1745,15 @@ public class EnemyBaseController : MonoBehaviour
 
         WorldMapProgressManager progress = WorldMapProgressManager.Instance ??
             FindFirstObjectByType<WorldMapProgressManager>(FindObjectsInactive.Include);
-        int scalingLevel = node.GetCombatScalingLevel(progress);
-        if (scalingLevel < 2)
+        string nodeId = node.nodeId;
+        int sliderTier = !string.IsNullOrWhiteSpace(nodeId) && progress != null
+            ? progress.GetCombatMapScalingSelectedTier(nodeId)
+            : 0;
+        if (sliderTier <= 0)
             return;
 
         var entries = new List<MapScalingSpecialLootEntry>();
-        node.CollectCombatScalingSpecialDropsUpToLevel(scalingLevel, entries);
+        node.CollectCombatScalingSpecialDropsUpToSlider(sliderTier, entries);
         if (entries.Count == 0)
             return;
 

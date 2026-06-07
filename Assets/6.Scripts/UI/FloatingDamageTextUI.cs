@@ -92,6 +92,8 @@ public class FloatingDamageTextUI : MonoBehaviour
     private Camera _worldCam;
     private RectTransform _parentRect;
     private Camera _overlayEventCam;
+    private Vector2 _cachedAnchorLocal;
+    private bool _hasCachedAnchorLocal;
 
     private bool HasWorldFollow => _parentRect != null && _worldCam != null;
 
@@ -125,6 +127,36 @@ public class FloatingDamageTextUI : MonoBehaviour
         _worldCam = worldCam;
         _parentRect = parentRect;
         _overlayEventCam = overlayEventCam;
+        _hasCachedAnchorLocal = false;
+    }
+
+    internal void SetCachedAnchorLocal(Vector2 local)
+    {
+        _cachedAnchorLocal = local;
+        _hasCachedAnchorLocal = true;
+    }
+
+    internal void PrepareForPool()
+    {
+        if (_run != null)
+        {
+            StopCoroutine(_run);
+            _run = null;
+        }
+
+        if (text)
+        {
+            text.text = string.Empty;
+            text.outlineWidth = 0f;
+        }
+
+        if (group)
+            group.alpha = 0f;
+
+        _worldCam = null;
+        _parentRect = null;
+        _overlayEventCam = null;
+        _hasCachedAnchorLocal = false;
     }
 
     public void Init(int amount, PopupDamageKind kind, bool isCrit, bool isDot, Vector3 worldDirection)
@@ -349,7 +381,7 @@ public class FloatingDamageTextUI : MonoBehaviour
             yield return null;
         }
 
-        Destroy(gameObject);
+        ReleasePopup();
     }
 
     private IEnumerator RunLingering(float lifeTime)
@@ -392,7 +424,7 @@ public class FloatingDamageTextUI : MonoBehaviour
             yield return null;
         }
 
-        Destroy(gameObject);
+        ReleasePopup();
     }
 
     private IEnumerator RunVertical(float riseDistance, float lifeTime)
@@ -436,11 +468,25 @@ public class FloatingDamageTextUI : MonoBehaviour
             yield return null;
         }
 
-        Destroy(gameObject);
+        ReleasePopup();
+    }
+
+    private void ReleasePopup()
+    {
+        if (DamagePopupSystem.Instance != null)
+            DamagePopupSystem.Instance.Release(this);
+        else
+            Destroy(gameObject);
     }
 
     private Vector2 GetAnchorLocal()
     {
+        if (_hasCachedAnchorLocal)
+            return _cachedAnchorLocal;
+
+        if (!HasWorldFollow)
+            return rect.anchoredPosition - _spawnJitter;
+
         Vector3 screen = _worldCam.WorldToScreenPoint(_worldAnchor);
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 _parentRect, screen, _overlayEventCam, out Vector2 local))

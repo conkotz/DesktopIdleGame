@@ -51,7 +51,10 @@ public class GameplayLevelBootstrapper : MonoBehaviour
     private void OnDestroy()
     {
         if (Instance == this)
+        {
+            MapCombatScalingSessionState.ClearSession();
             Instance = null;
+        }
     }
 
     private void Start()
@@ -80,6 +83,11 @@ public class GameplayLevelBootstrapper : MonoBehaviour
             wmp.MarkNodeEntered(node.nodeId.Trim());
         ActiveLevelWasFirstVisit = markedNodeEntered;
 
+        int appliedSliderTier = node.IsMapCombatScalingEnabled() && wmp != null
+            ? wmp.GetCombatMapScalingSelectedTier(node.nodeId)
+            : MapCombatScaling.SliderMin;
+        MapCombatScalingSessionState.BeginSession(node.nodeId, appliedSliderTier);
+
         // Suppress startup spam logs during normal gameplay.
 
         // Spawn/enabled listeners run here — merchants often exist only after this event.
@@ -103,10 +111,11 @@ public class GameplayLevelBootstrapper : MonoBehaviour
     private static string ResolveMapDisplayName(MapNodeDefinition node)
     {
         if (node == null)
-            return "";
-        if (!string.IsNullOrWhiteSpace(node.displayName))
-            return node.displayName;
-        return node.nodeId;
+            return string.Empty;
+
+        WorldMapProgressManager progress = WorldMapProgressManager.Instance;
+        string display = MapCombatScaling.BuildLocationDisplayName(node, progress);
+        return string.IsNullOrEmpty(display) ? node.nodeId : display;
     }
 
     private static IEnumerator CoSaveAfterGameplaySaveablesStart()

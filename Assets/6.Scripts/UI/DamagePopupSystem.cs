@@ -42,9 +42,22 @@ public class DamagePopupSystem : MonoBehaviour
     [SerializeField] private float healingPopupYOffset = 0.18f;
     [SerializeField] private float healingPopupXJitter = 2f;
 
+    [Header("Pooling")]
+    [SerializeField, Min(0)] private int popupPoolPrewarmCount = 20;
+    [SerializeField, Min(8)] private int maxActivePopups = 48;
+
     private int _popupSpawnIndex = 0;
 
+    private readonly Stack<FloatingDamageTextUI> _pool = new();
+    private readonly List<FloatingDamageTextUI> _active = new();
+    private readonly Dictionary<FloatingDamageTextUI, PopupFollowData> _followers = new();
     private readonly Dictionary<int, StatusPopupStackState> _statusPopupStackByAnchorId = new();
+
+    private struct PopupFollowData
+    {
+        public Vector3 WorldAnchor;
+        public Vector2 SpawnJitter;
+    }
 
     private struct StatusPopupStackState
     {
@@ -66,6 +79,159 @@ public class DamagePopupSystem : MonoBehaviour
 
         ResolveProjectionCameras();
         EnsureDamageFxCanvas();
+        PrewarmPopupPool();
+    }
+
+    private void LateUpdate()
+    {
+        RefreshFollowerPositions();
+    }
+
+    internal void Release(FloatingDamageTextUI floater)
+    {
+        if (!floater)
+            return;
+
+        floater.PrepareForPool();
+        _followers.Remove(floater);
+        _active.Remove(floater);
+        floater.gameObject.SetActive(false);
+        _pool.Push(floater);
+    }
+
+    private void PrewarmPopupPool()
+    {
+        if (!popupPrefab || popupPoolPrewarmCount <= 0)
+            return;
+
+        RectTransform parent = _popupParentRect ? _popupParentRect : canvasRect;
+        if (!parent)
+            return;
+
+        for (int i = 0; i < popupPoolPrewarmCount; i++)
+        {
+            FloatingDamageTextUI floater = Instantiate(popupPrefab, parent);
+            if (!floater)
+                continue;
+
+            floater.gameObject.SetActive(false);
+            _pool.Push(floater);
+        }
+    }
+
+    private FloatingDamageTextUI RentPopup(RectTransform parent)
+    {
+        FloatingDamageTextUI floater = null;
+        while (_pool.Count > 0)
+        {
+            floater = _pool.Pop();
+            if (floater)
+                break;
+        }
+
+        if (!floater)
+        {
+            floater = Instantiate(popupPrefab, parent);
+            if (!floater)
+                return null;
+        }
+        else
+        {
+            floater.transform.SetParent(parent, false);
+        }
+
+        if (_active.Count >= maxActivePopups)
+            ReleaseOldestActive();
+
+        floater.gameObject.SetActive(true);
+        _active.Add(floater);
+        return floater;
+    }
+
+    private void ReleaseOldestActive()
+    {
+        if (_active.Count == 0)
+            return;
+
+        Release(_active[0]);
+    }
+
+    private void RegisterFollower(FloatingDamageTextUI floater, Vector3 worldAnchor, Vector2 spawnJitter)
+    {
+        if (!floater)
+            return;
+
+        _followers[floater] = new PopupFollowData
+        {
+            WorldAnchor = worldAnchor,
+            SpawnJitter = spawnJitter
+        };
+    }
+
+    private void RefreshFollowerPositions()
+    {
+        if (_followers.Count == 0)
+            return;
+
+        if (!_worldProjectionCamera)
+            ResolveProjectionCameras();
+
+        RectTransform rectForMath = _popupParentRect ? _popupParentRect : canvasRect;
+        if (!rectForMath || !_worldProjectionCamera)
+            return;
+
+        Canvas fxCanvas = rectForMath.GetComponent<Canvas>();
+        Camera eventCam = fxCanvas && fxCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? _rectTransformEventCamera
+            : null;
+
+        for (int i = 0; i < _active.Count; i++)
+        {
+            FloatingDamageTextUI floater = _active[i];
+            if (!floater || !_followers.TryGetValue(floater, out PopupFollowData data))
+                continue;
+
+            Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(data.WorldAnchor);
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    rectForMath, screenPos, eventCam, out Vector2 local))
+            {
+                floater.SetCachedAnchorLocal(local);
+            }
+        }
+    }
+
+    private bool TryRentFloater(Vector3 worldPos, Vector2 spawnJitter, out FloatingDamageTextUI floater)
+    {
+        floater = null;
+
+        if (!_worldProjectionCamera)
+            ResolveProjectionCameras();
+
+        EnsureDamageFxCanvas();
+
+        RectTransform rectForMath = _popupParentRect ? _popupParentRect : canvasRect;
+        if (!popupPrefab || !rectForMath || !_worldProjectionCamera)
+            return false;
+
+        Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(worldPos);
+
+        Canvas fxCanvas = rectForMath.GetComponent<Canvas>();
+        Camera eventCam = fxCanvas && fxCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? _rectTransformEventCamera
+            : null;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                rectForMath, screenPos, eventCam, out _))
+            return false;
+
+        floater = RentPopup(rectForMath);
+        if (!floater)
+            return false;
+
+        floater.BeginWorldAnchorFollow(worldPos, spawnJitter, _worldProjectionCamera, rectForMath, eventCam);
+        RegisterFollower(floater, worldPos, spawnJitter);
+        RefreshFollowerPositions();
+        return true;
     }
 
     private void EnsureDamageFxCanvas()
@@ -191,25 +357,6 @@ public class DamagePopupSystem : MonoBehaviour
         Vector3 direction,
         bool blocked = false)
     {
-        if (!_worldProjectionCamera)
-            ResolveProjectionCameras();
-
-        EnsureDamageFxCanvas();
-
-        RectTransform rectForMath = _popupParentRect ? _popupParentRect : canvasRect;
-        if (!popupPrefab || !rectForMath || !_worldProjectionCamera) return;
-
-        Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(worldPos);
-
-        Canvas fxCanvas = rectForMath.GetComponent<Canvas>();
-        Camera eventCam = fxCanvas && fxCanvas.renderMode != RenderMode.ScreenSpaceOverlay
-            ? _rectTransformEventCamera
-            : null;
-
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                rectForMath, screenPos, eventCam, out _))
-            return;
-
         bool isLingeringStatus =
             blocked ||
             kind == FloatingDamageTextUI.PopupDamageKind.Blocked ||
@@ -224,15 +371,8 @@ public class DamagePopupSystem : MonoBehaviour
         if (!isLingeringStatus)
             _popupSpawnIndex++;
 
-        var go = Instantiate(popupPrefab, rectForMath);
-        var floater = go.GetComponent<FloatingDamageTextUI>();
-        if (!floater)
-        {
-            Destroy(go);
+        if (!TryRentFloater(worldPos, new Vector2(xJitter, yOffset), out FloatingDamageTextUI floater))
             return;
-        }
-
-        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, yOffset), _worldProjectionCamera, rectForMath, eventCam);
 
         if (kind == FloatingDamageTextUI.PopupDamageKind.Immune)
             floater.InitImmune(direction);
@@ -245,38 +385,12 @@ public class DamagePopupSystem : MonoBehaviour
     /// <summary>Lingering status text (ailments, Blocked, Parry) — pinned in place, no travel arc.</summary>
     public void SpawnLingeringStatus(Vector3 worldPos, string message, Color color, Transform stackAnchor = null)
     {
-        if (!_worldProjectionCamera)
-            ResolveProjectionCameras();
-
-        EnsureDamageFxCanvas();
-
-        RectTransform rectForMath = _popupParentRect ? _popupParentRect : canvasRect;
-        if (!popupPrefab || !rectForMath || !_worldProjectionCamera)
-            return;
-
-        Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(worldPos);
-
-        Canvas fxCanvas = rectForMath.GetComponent<Canvas>();
-        Camera eventCam = fxCanvas && fxCanvas.renderMode != RenderMode.ScreenSpaceOverlay
-            ? _rectTransformEventCamera
-            : null;
-
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                rectForMath, screenPos, eventCam, out _))
-            return;
-
         float xJitter = Random.Range(-statusPopupXJitter, statusPopupXJitter);
         float yStackOffset = GetStatusLabelScreenYOffset(stackAnchor);
 
-        var go = Instantiate(popupPrefab, rectForMath);
-        var floater = go.GetComponent<FloatingDamageTextUI>();
-        if (!floater)
-        {
-            Destroy(go);
+        if (!TryRentFloater(worldPos, new Vector2(xJitter, yStackOffset), out FloatingDamageTextUI floater))
             return;
-        }
 
-        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, yStackOffset), _worldProjectionCamera, rectForMath, eventCam);
         floater.InitLingeringStatus(message, color);
     }
 
@@ -314,85 +428,28 @@ public class DamagePopupSystem : MonoBehaviour
     {
         if (player == null || amount <= 0)
             return;
-        if (!_worldProjectionCamera)
-            ResolveProjectionCameras();
-
-        EnsureDamageFxCanvas();
-
-        RectTransform rectForMath = _popupParentRect ? _popupParentRect : canvasRect;
-        if (!popupPrefab || !rectForMath || !_worldProjectionCamera)
-            return;
 
         DamagePopupAnchor anchor = player.GetComponentInChildren<DamagePopupAnchor>(true);
         Vector3 anchorWorld = anchor ? anchor.WorldPos : player.transform.position;
 
         float facing = player.FacingDirectionX >= 0f ? 1f : -1f;
         Vector3 worldPos = anchorWorld + new Vector3(-facing * healingPopupSideOffset, healingPopupYOffset, 0f);
-
-        Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(worldPos);
-
-        Canvas fxCanvas = rectForMath.GetComponent<Canvas>();
-        Camera eventCam = fxCanvas && fxCanvas.renderMode != RenderMode.ScreenSpaceOverlay
-            ? _rectTransformEventCamera
-            : null;
-
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                rectForMath, screenPos, eventCam, out _))
-            return;
-
         float xJitter = Random.Range(-healingPopupXJitter, healingPopupXJitter);
 
-        var go = Instantiate(popupPrefab, rectForMath);
-        var floater = go.GetComponent<FloatingDamageTextUI>();
-        if (!floater)
-        {
-            Destroy(go);
+        if (!TryRentFloater(worldPos, new Vector2(xJitter, 0f), out FloatingDamageTextUI floater))
             return;
-        }
 
-        floater.BeginWorldAnchorFollow(worldPos, new Vector2(xJitter, 0f), _worldProjectionCamera, rectForMath, eventCam);
         floater.InitHealing(amount);
     }
 
     /// <summary>Parry / Riposte on the player (incoming-damage placement), separate colour from Blocked.</summary>
     public void SpawnParry(Vector3 worldPos, Vector3 direction = default, bool riposteLabel = false)
     {
-        if (!_worldProjectionCamera)
-            ResolveProjectionCameras();
-
-        EnsureDamageFxCanvas();
-
-        RectTransform rectForMath = _popupParentRect ? _popupParentRect : canvasRect;
-        if (!popupPrefab || !rectForMath || !_worldProjectionCamera)
-            return;
-
-        Vector2 screenPos = _worldProjectionCamera.WorldToScreenPoint(worldPos);
-
-        Canvas fxCanvas = rectForMath.GetComponent<Canvas>();
-        Camera eventCam = fxCanvas && fxCanvas.renderMode != RenderMode.ScreenSpaceOverlay
-            ? _rectTransformEventCamera
-            : null;
-
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                rectForMath, screenPos, eventCam, out _))
-            return;
-
         float xJitter = Random.Range(-statusPopupXJitter, statusPopupXJitter);
 
-        var go = Instantiate(popupPrefab, rectForMath);
-        var floater = go.GetComponent<FloatingDamageTextUI>();
-        if (!floater)
-        {
-            Destroy(go);
+        if (!TryRentFloater(worldPos, new Vector2(xJitter, statusPopupScreenYOffset), out FloatingDamageTextUI floater))
             return;
-        }
 
-        floater.BeginWorldAnchorFollow(
-            worldPos,
-            new Vector2(xJitter, statusPopupScreenYOffset),
-            _worldProjectionCamera,
-            rectForMath,
-            eventCam);
         floater.InitParry(direction, riposteLabel ? "Riposte" : "Parry");
     }
 
