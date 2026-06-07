@@ -9,6 +9,7 @@ public enum EnhancementTrack
 {
     Standard = 0,
     Corruption = 1,
+    Special = 2,
 }
 
 public enum EnhancementPaymentKind

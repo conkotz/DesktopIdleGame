@@ -49,12 +49,7 @@ public sealed class EnhancementOptionEntry
         if (gear == null)
             return false;
 
-        EnhancementScrollGearMask mask = allowedGearTypes;
-        if (mask == EnhancementScrollGearMask.None)
-            return false;
-
-        EnhancementScrollGearMask gearType = GetGearMask(gear);
-        return gearType != EnhancementScrollGearMask.None && (mask & gearType) != 0;
+        return EnhancementScrollGearRules.MaskAllowsGear(allowedGearTypes, gear);
     }
 
     public SkillType ResolveGateSkill(ItemDefinition gear)
@@ -62,7 +57,7 @@ public sealed class EnhancementOptionEntry
         if (gear != null)
             return gear.GetEquipmentTierGateSkill();
 
-        if ((allowedGearTypes & EnhancementScrollGearMask.Armor) != 0)
+        if (EnhancementScrollGearRules.MaskTargetsArmorSlots(allowedGearTypes))
             return SkillType.Endurance;
 
         if ((allowedGearTypes & EnhancementScrollGearMask.MagicWeapon) != 0)
@@ -101,7 +96,22 @@ public sealed class EnhancementOptionEntry
         if (!TargetsGear(gear))
             return true;
 
-        return !EnhancementTierRules.GearAllowsEnhancementTier(gear.GetEquipmentTierRank(), tier);
+        if (!EnhancementTierRules.GearAllowsEnhancementTier(gear.GetEquipmentTierRank(), tier))
+            return true;
+
+        return !GearMeetsRequiredStat(gear);
+    }
+
+    public bool GearMeetsRequiredStat(ItemDefinition gear)
+    {
+        if (gear == null)
+            return true;
+
+        EnhancementScrollStats stats = ToScrollStats();
+        if (stats.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction)
+            return gear.UsedUpgradeSlots > 0;
+
+        return gear.HasBaseStatForEnhancementScroll(stats.targetStat);
     }
 
     public bool CanApplyToGear(ItemDefinition gear, SkillsManager skills = null)
@@ -128,29 +138,4 @@ public sealed class EnhancementOptionEntry
         return gear.HasAvailableUpgradeSlot;
     }
 
-    private static EnhancementScrollGearMask GetGearMask(ItemDefinition gear)
-    {
-        if (gear == null)
-            return EnhancementScrollGearMask.None;
-
-        if (gear.itemKind == ItemKind.Weapon)
-        {
-            EnhancementScrollGearMask weaponMask = EnhancementScrollGearMask.Weapon;
-            weaponMask |= gear.weaponStats.attackSkill switch
-            {
-                AttackSkill.Melee => EnhancementScrollGearMask.MeleeWeapon,
-                AttackSkill.Ranged => EnhancementScrollGearMask.RangedWeapon,
-                AttackSkill.Magic => EnhancementScrollGearMask.MagicWeapon,
-                _ => EnhancementScrollGearMask.None
-            };
-            return weaponMask;
-        }
-
-        return gear.itemKind switch
-        {
-            ItemKind.Armor => EnhancementScrollGearMask.Armor,
-            ItemKind.Tool => EnhancementScrollGearMask.Tool,
-            _ => EnhancementScrollGearMask.None
-        };
-    }
 }

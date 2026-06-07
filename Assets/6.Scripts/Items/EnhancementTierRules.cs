@@ -61,4 +61,26 @@ public static class EnhancementTierRules
             _ => tier.ToString(),
         };
     }
+
+    public static string FormatAllowedGearTierUsage(EnhancementTier optionTier)
+    {
+        return optionTier switch
+        {
+            EnhancementTier.Basic => "Can be used on tier 1 and tier 2 items",
+            EnhancementTier.Intermediate => "Can be used on tier 3 and tier 4 items",
+            EnhancementTier.Advanced => "Can be used on tier 5 items",
+            _ => string.Empty,
+        };
+    }
+
+    public static int GetMinimumGearTierDisplayNumber(EnhancementTier optionTier)
+    {
+        return optionTier switch
+        {
+            EnhancementTier.Basic => 1,
+            EnhancementTier.Intermediate => 3,
+            EnhancementTier.Advanced => 5,
+            _ => 1,
+        };
+    }
 }

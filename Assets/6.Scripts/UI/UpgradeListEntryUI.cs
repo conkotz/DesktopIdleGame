@@ -83,9 +83,9 @@ public sealed class UpgradeListEntryUI : MonoBehaviour
         if (!button)
             return;
 
-        button.interactable = !dimRow;
+        button.interactable = true;
         button.onClick.RemoveAllListeners();
-        if (option != null && onClicked != null && !dimRow)
+        if (option != null && onClicked != null)
             button.onClick.AddListener(() => onClicked(option));
     }
 
@@ -130,9 +130,9 @@ public sealed class UpgradeListEntryUI : MonoBehaviour
         if (!button)
             return;
 
-        button.interactable = !dimRow;
+        button.interactable = true;
         button.onClick.RemoveAllListeners();
-        if (scroll != null && onClicked != null && !dimRow)
+        if (scroll != null && onClicked != null)
             button.onClick.AddListener(() => onClicked(scroll));
     }
 

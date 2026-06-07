@@ -237,6 +237,12 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
+        if (_upgradeViewActive && HasItemContext && !_upgradeViewCanSelect)
+        {
+            rarityOutline.enabled = false;
+            return;
+        }
+
         if (def == null)
         {
             rarityOutline.enabled = false;
@@ -327,6 +333,8 @@ public class InventorySlotUI : MonoBehaviour,
 
         if (icon)
             icon.color = dimItem ? UpgradeDimIconColor : Color.white;
+
+        RefreshRarityBorder(_def);
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -698,6 +706,9 @@ public class InventorySlotUI : MonoBehaviour,
 
         if (background)
             background.color = hoverColor;
+
+        if (_upgradeViewActive && HasItemContext && !_upgradeViewCanSelect)
+            return;
 
         if (_tooltip == null || _def == null)
             return;

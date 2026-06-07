@@ -20,7 +20,7 @@ MonoBehaviour:
     targetStat: 6
     modifierKind: 0
     modifierValue: 5
-    allowedGearTypes: 2
+    allowedGearTypes: 1792
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -33,7 +33,7 @@ MonoBehaviour:
     targetStat: 6
     modifierKind: 0
     modifierValue: 10
-    allowedGearTypes: 2
+    allowedGearTypes: 1792
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -46,7 +46,7 @@ MonoBehaviour:
     targetStat: 6
     modifierKind: 0
     modifierValue: 15
-    allowedGearTypes: 2
+    allowedGearTypes: 1792
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -59,7 +59,7 @@ MonoBehaviour:
     targetStat: 3
     modifierKind: 0
     modifierValue: 5
-    allowedGearTypes: 2
+    allowedGearTypes: 1792
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -72,7 +72,7 @@ MonoBehaviour:
     targetStat: 3
     modifierKind: 0
     modifierValue: 10
-    allowedGearTypes: 2
+    allowedGearTypes: 1792
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -85,7 +85,7 @@ MonoBehaviour:
     targetStat: 3
     modifierKind: 0
     modifierValue: 15
-    allowedGearTypes: 2
+    allowedGearTypes: 1792
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -98,7 +98,7 @@ MonoBehaviour:
     targetStat: 13
     modifierKind: 1
     modifierValue: 0.07
-    allowedGearTypes: 2
+    allowedGearTypes: 1024
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -111,7 +111,7 @@ MonoBehaviour:
     targetStat: 13
     modifierKind: 1
     modifierValue: 0.14
-    allowedGearTypes: 2
+    allowedGearTypes: 1024
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -124,7 +124,7 @@ MonoBehaviour:
     targetStat: 13
     modifierKind: 1
     modifierValue: 0.21000001
-    allowedGearTypes: 2
+    allowedGearTypes: 1024
     successChance: 0.5
     consumeSlotOnFailure: 1
     failureOutcome: 0
@@ -523,7 +523,7 @@ MonoBehaviour:
   - optionId: corruption_physical_gamble
     displayName: Corruption Physical Gamble
     track: 1
-    tier: 1
+    tier: 0
     targetStat: 0
     modifierKind: 0
     modifierValue: 6
@@ -536,7 +536,7 @@ MonoBehaviour:
   - optionId: corruption_magic_gamble
     displayName: Corruption Magic Gamble
     track: 1
-    tier: 1
+    tier: 0
     targetStat: 1
     modifierKind: 0
     modifierValue: 6
@@ -549,7 +549,7 @@ MonoBehaviour:
   - optionId: corruption_damage_gamble
     displayName: Corruption Damage Gamble
     track: 1
-    tier: 1
+    tier: 0
     targetStat: 2
     modifierKind: 0
     modifierValue: 6
@@ -562,13 +562,26 @@ MonoBehaviour:
   - optionId: corruption_health_gamble
     displayName: Corruption Health Gamble
     track: 1
-    tier: 1
+    tier: 0
     targetStat: 3
     modifierKind: 0
     modifierValue: 15
-    allowedGearTypes: 2
+    allowedGearTypes: 1792
     successChance: 0.35
     consumeSlotOnFailure: 1
     failureOutcome: 1
     destroyChanceOnFailure: 0.5
     linkedScrollItemId: chaos_health_scroll
+  - optionId: slot_reduction
+    displayName: Slot Reduction
+    track: 2
+    tier: 0
+    targetStat: 14
+    modifierKind: 0
+    modifierValue: 1
+    allowedGearTypes: 1809
+    successChance: 0.5
+    consumeSlotOnFailure: 0
+    failureOutcome: 0
+    destroyChanceOnFailure: 0
+    linkedScrollItemId: slot_reduction_scroll

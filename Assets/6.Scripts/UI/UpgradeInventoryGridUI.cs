@@ -86,6 +86,12 @@ public sealed class UpgradeInventoryGridUI : MonoBehaviour
 
     public int SelectedSourceSlot => _selectedSourceSlot;
 
+    public SharedTooltipUI Tooltip => tooltip;
+
+    public RectTransform TooltipHeightRect => tooltipHeightRect;
+
+    public FlipInsideBounds.PreferredSide TooltipPreferredSide => preferredSide;
+
     private Inventory _subscribedInventory;
 
     private void TrySubscribeInventory()

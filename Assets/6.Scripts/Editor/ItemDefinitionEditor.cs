@@ -1181,7 +1181,10 @@ public class ItemDefinitionEditor : Editor
         bool melee = (current & EnhancementScrollGearMask.MeleeWeapon) != 0;
         bool ranged = (current & EnhancementScrollGearMask.RangedWeapon) != 0;
         bool magic = (current & EnhancementScrollGearMask.MagicWeapon) != 0;
-        bool armor = (current & EnhancementScrollGearMask.Armor) != 0;
+        EnhancementScrollGearMask normalized = EnhancementScrollGearRules.NormalizeMask(current);
+        bool head = (normalized & EnhancementScrollGearMask.Helmet) != 0;
+        bool body = (normalized & EnhancementScrollGearMask.Body) != 0;
+        bool feet = (normalized & EnhancementScrollGearMask.Boots) != 0;
         bool tool = (current & EnhancementScrollGearMask.Tool) != 0;
 
         anyWeapon = EditorGUILayout.Toggle(new GUIContent("Any Weapon"), anyWeapon);
@@ -1192,7 +1195,9 @@ public class ItemDefinitionEditor : Editor
             magic = EditorGUILayout.Toggle(new GUIContent("Magic Weapon"), magic);
         }
 
-        armor = EditorGUILayout.Toggle(new GUIContent("Armor"), armor);
+        head = EditorGUILayout.Toggle(new GUIContent("Head"), head);
+        body = EditorGUILayout.Toggle(new GUIContent("Body"), body);
+        feet = EditorGUILayout.Toggle(new GUIContent("Feet"), feet);
         tool = EditorGUILayout.Toggle(new GUIContent("Tool"), tool);
 
         EnhancementScrollGearMask next = EnhancementScrollGearMask.None;
@@ -1205,7 +1210,9 @@ public class ItemDefinitionEditor : Editor
             if (magic) next |= EnhancementScrollGearMask.MagicWeapon;
         }
 
-        if (armor) next |= EnhancementScrollGearMask.Armor;
+        if (head) next |= EnhancementScrollGearMask.Helmet;
+        if (body) next |= EnhancementScrollGearMask.Body;
+        if (feet) next |= EnhancementScrollGearMask.Boots;
         if (tool) next |= EnhancementScrollGearMask.Tool;
 
         allowedGearTypes.intValue = (int)next;

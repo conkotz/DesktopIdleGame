@@ -25,8 +25,8 @@ MonoBehaviour:
   equippedLocalRotationZ: 0
   equippedFlipX: 0
   equippedFlipY: 0
-  description: A volatile chaos scroll that grants a high health bonus, but destroys
-    the item on failed enhancement.
+  description: A volatile chaos scroll that grants a high health bonus, but has a
+    50% chance to destroy the item on failed enhancement.
   rarity: 2
   value: 100
   equipSlot: 0
@@ -155,7 +155,7 @@ MonoBehaviour:
       duration: 0
       effectId: 
   enhancementScrollStats:
-    successChance: 0.3
+    successChance: 0.35
     targetStat: 3
     modifierKind: 0
     modifierValue: 15
@@ -163,7 +163,7 @@ MonoBehaviour:
     failureOutcome: 1
     destroyChanceOnFailure: 0.5
     cursed: 1
-    allowedGearTypes: 2
+    allowedGearTypes: 1792
   cookableStats:
     isCookable: 0
     cookedResultItemId: 

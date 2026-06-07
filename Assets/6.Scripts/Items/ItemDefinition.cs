@@ -730,6 +730,7 @@ public enum EnhancementScrollGearMask
     None = 0,
     [InspectorName("Any Weapon")]
     Weapon = 1 << 0,
+    [Tooltip("Legacy alias for Head, Body, and Feet combined.")]
     Armor = 1 << 1,
     Jewelry = 1 << 2,
     CombatSupport = 1 << 3,
@@ -742,7 +743,13 @@ public enum EnhancementScrollGearMask
     MagicWeapon = 1 << 7,
     [InspectorName("Ranged or Melee Weapon")]
     MeleeOrRangedWeapon = MeleeWeapon | RangedWeapon,
-    AllGear = Weapon | Armor | Tool
+    [InspectorName("Head")]
+    Helmet = 1 << 8,
+    Body = 1 << 9,
+    [InspectorName("Feet")]
+    Boots = 1 << 10,
+    AllArmorSlots = Helmet | Body | Boots,
+    AllGear = Weapon | AllArmorSlots | Tool
 }
 
 [System.Serializable]
@@ -1588,40 +1595,7 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         if (!IsEnhancementScroll || gear == null || !gear.HasUpgradeSlots)
             return false;
 
-        EnhancementScrollGearMask mask = enhancementScrollStats.allowedGearTypes;
-        if (mask == EnhancementScrollGearMask.None)
-            return false;
-
-        EnhancementScrollGearMask gearType = GetEnhancementGearMaskFor(gear);
-
-        return gearType != EnhancementScrollGearMask.None && (mask & gearType) != 0;
-    }
-
-    private static EnhancementScrollGearMask GetEnhancementGearMaskFor(ItemDefinition gear)
-    {
-        if (gear == null)
-            return EnhancementScrollGearMask.None;
-
-        if (gear.itemKind == ItemKind.Weapon)
-        {
-            EnhancementScrollGearMask weaponMask = EnhancementScrollGearMask.Weapon;
-            weaponMask |= gear.weaponStats.attackSkill switch
-            {
-                AttackSkill.Melee => EnhancementScrollGearMask.MeleeWeapon,
-                AttackSkill.Ranged => EnhancementScrollGearMask.RangedWeapon,
-                AttackSkill.Magic => EnhancementScrollGearMask.MagicWeapon,
-                _ => EnhancementScrollGearMask.None
-            };
-
-            return weaponMask;
-        }
-
-        return gear.itemKind switch
-        {
-            ItemKind.Armor => EnhancementScrollGearMask.Armor,
-            ItemKind.Tool => EnhancementScrollGearMask.Tool,
-            _ => EnhancementScrollGearMask.None
-        };
+        return EnhancementScrollGearRules.MaskAllowsGear(enhancementScrollStats.allowedGearTypes, gear);
     }
 
     public bool CanUseEnhancementScrollOn(ItemDefinition gear)
@@ -3351,7 +3325,11 @@ public class ItemDefinition : ScriptableObject, ISerializationCallbackReceiver
         }
 
         AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.MagicWeapon, "Magic Weapon");
-        AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Armor, "Armour");
+
+        EnhancementScrollGearMask normalized = EnhancementScrollGearRules.NormalizeMask(mask);
+        AppendMaskLabel(ref s, normalized, EnhancementScrollGearMask.Helmet, "Head");
+        AppendMaskLabel(ref s, normalized, EnhancementScrollGearMask.Body, "Body");
+        AppendMaskLabel(ref s, normalized, EnhancementScrollGearMask.Boots, "Feet");
         AppendMaskLabel(ref s, mask, EnhancementScrollGearMask.Tool, "Tool");
         return s;
     }

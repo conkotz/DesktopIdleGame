@@ -21,21 +21,25 @@ public readonly struct EnhancementOptionPayment
 
     public static EnhancementOptionPayment None => new(EnhancementPaymentKind.None);
 
+    /// <summary>
+    /// Picks what will be consumed on apply. An owned applicable scroll always beats materials.
+    /// </summary>
+    public static bool RequiresScrollOnlyPayment(EnhancementOptionEntry option) =>
+        option != null && option.targetStat == EnhancementScrollTargetStat.UpgradeSlotReduction;
+
     public static EnhancementOptionPayment Resolve(
         Inventory inventory,
         EnhancementOptionEntry option,
-        ItemDefinition gear,
-        bool preferScroll)
+        ItemDefinition gear)
     {
-        if (inventory == null || option == null || gear == null)
+        if (inventory == null || option == null)
             return None;
 
-        if (preferScroll && !string.IsNullOrWhiteSpace(option.linkedScrollItemId))
-        {
-            int scrollSlot = FindItemSlot(inventory, option.linkedScrollItemId);
-            if (scrollSlot >= 0)
-                return new EnhancementOptionPayment(EnhancementPaymentKind.Scroll, scrollSlot);
-        }
+        if (HasScrollPayment(inventory, option))
+            return new EnhancementOptionPayment(EnhancementPaymentKind.Scroll, FindItemSlot(inventory, option.linkedScrollItemId));
+
+        if (RequiresScrollOnlyPayment(option) || gear == null)
+            return None;
 
         string materialId = GearUpgradeMaterialResolver.ResolveMaterialItemId(gear);
         int materialCost = EnhancementTierRules.GetMaterialCost(option.tier);
@@ -48,20 +52,31 @@ public readonly struct EnhancementOptionPayment
                 materialAmount: materialCost);
         }
 
-        if (!preferScroll && !string.IsNullOrWhiteSpace(option.linkedScrollItemId))
-        {
-            int scrollSlot = FindItemSlot(inventory, option.linkedScrollItemId);
-            if (scrollSlot >= 0)
-                return new EnhancementOptionPayment(EnhancementPaymentKind.Scroll, scrollSlot);
-        }
-
         return None;
+    }
+
+    public static bool HasScrollPayment(Inventory inventory, EnhancementOptionEntry option)
+    {
+        if (inventory == null || option == null || string.IsNullOrWhiteSpace(option.linkedScrollItemId))
+            return false;
+
+        return FindItemSlot(inventory, option.linkedScrollItemId) >= 0;
+    }
+
+    public static bool HasMaterialPayment(Inventory inventory, EnhancementOptionEntry option, ItemDefinition gear)
+    {
+        if (inventory == null || option == null || gear == null || RequiresScrollOnlyPayment(option))
+            return false;
+
+        string materialId = GearUpgradeMaterialResolver.ResolveMaterialItemId(gear);
+        int materialCost = EnhancementTierRules.GetMaterialCost(option.tier);
+        return !string.IsNullOrWhiteSpace(materialId) &&
+               inventory.CountItem(materialId) >= materialCost;
     }
 
     public static bool HasAnyPayment(Inventory inventory, EnhancementOptionEntry option, ItemDefinition gear)
     {
-        return Resolve(inventory, option, gear, preferScroll: true).Kind != EnhancementPaymentKind.None ||
-               Resolve(inventory, option, gear, preferScroll: false).Kind != EnhancementPaymentKind.None;
+        return HasScrollPayment(inventory, option) || HasMaterialPayment(inventory, option, gear);
     }
 
     public static string FormatCostLabel(EnhancementOptionPayment payment, ItemDatabase db)

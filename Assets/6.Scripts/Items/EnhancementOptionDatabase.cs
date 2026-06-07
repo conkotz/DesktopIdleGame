@@ -38,11 +38,11 @@ public sealed class EnhancementOptionDatabase : ScriptableObject
 
     public void EnsureDefaults()
     {
-        if (options != null && options.Count > 0)
-            return;
-
         options ??= new List<EnhancementOptionEntry>(96);
-        PopulateDefaultOptions();
+        if (options.Count == 0)
+            PopulateDefaultOptions();
+        else
+            EnsureSpecialOptionsPresent();
     }
 
 #if UNITY_EDITOR
@@ -59,11 +59,11 @@ public sealed class EnhancementOptionDatabase : ScriptableObject
     private void PopulateDefaultOptions()
     {
         AddFlatTierLine("armour", "Armour", EnhancementScrollTargetStat.Armor, 5f,
-            EnhancementScrollGearMask.Armor, "basic_armour_scroll");
+            EnhancementScrollGearMask.AllArmorSlots, "basic_armour_scroll");
         AddFlatTierLine("health", "Health", EnhancementScrollTargetStat.Health, 5f,
-            EnhancementScrollGearMask.Armor, "basic_health_scroll");
+            EnhancementScrollGearMask.AllArmorSlots, "basic_health_scroll");
         AddPercentTierLine("move_speed", "Move Speed", EnhancementScrollTargetStat.MoveSpeed, 0.07f,
-            EnhancementScrollGearMask.Armor, "basic_movespeed_scroll");
+            EnhancementScrollGearMask.Boots, "basic_movespeed_scroll");
 
         AddFlatTierLine("physical", "Physical Damage", EnhancementScrollTargetStat.PhysicalDamage, 2f,
             EnhancementScrollGearMask.MeleeOrRangedWeapon, "basic_weapon_physical_scroll");
@@ -98,8 +98,37 @@ public sealed class EnhancementOptionDatabase : ScriptableObject
             EnhancementScrollTargetStat.CorruptionDamage, 6f, EnhancementScrollGearMask.Weapon,
             "chaos_weapon_corruption_scroll");
         AddCorruptionGamble("corruption_health_gamble", "Corruption Health Gamble",
-            EnhancementScrollTargetStat.Health, 15f, EnhancementScrollGearMask.Armor,
+            EnhancementScrollTargetStat.Health, 15f, EnhancementScrollGearMask.AllArmorSlots,
             "chaos_health_scroll");
+
+        EnsureSpecialOptionsPresent();
+    }
+
+    private void EnsureSpecialOptionsPresent()
+    {
+        if (GetById("slot_reduction") != null)
+            return;
+
+        options.Add(CreateSlotReductionOption());
+    }
+
+    private static EnhancementOptionEntry CreateSlotReductionOption()
+    {
+        return new EnhancementOptionEntry
+        {
+            optionId = "slot_reduction",
+            displayName = "Slot Reduction",
+            track = EnhancementTrack.Special,
+            tier = EnhancementTier.Basic,
+            targetStat = EnhancementScrollTargetStat.UpgradeSlotReduction,
+            modifierKind = EnhancementScrollModifierKind.Flat,
+            modifierValue = 1f,
+            allowedGearTypes = EnhancementScrollGearMask.AllGear,
+            successChance = 0.5f,
+            consumeSlotOnFailure = false,
+            failureOutcome = EnhancementScrollFailureOutcome.Nothing,
+            linkedScrollItemId = "slot_reduction_scroll",
+        };
     }
 
     private void AddFlatTierLine(

@@ -24,7 +24,7 @@ public static class InventoryContextMenuBuilder
             entries.Add(new ContextMenuEntry("Equip", slot.PerformEquipAction));
 
         if (CanUpgradeFromInventory(def))
-            entries.Add(new ContextMenuEntry("Upgrade", slot.PerformUpgradeAction));
+            entries.Add(new ContextMenuEntry("Enhance", slot.PerformUpgradeAction));
 
         if (MapEnhancementService.TryGetSourceMapNodeId(slot.ContextItemId, out _))
             entries.Add(new ContextMenuEntry("Equip on map", slot.PerformEquipOnMapAction));

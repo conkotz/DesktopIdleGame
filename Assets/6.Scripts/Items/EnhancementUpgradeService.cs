@@ -502,8 +502,10 @@ public static class EnhancementUpgradeService
         if (scroll.failureOutcome != EnhancementScrollFailureOutcome.DestroyItem)
             return;
 
-        bool destroy = scroll.destroyChanceOnFailure <= 0f || UnityEngine.Random.value <= scroll.destroyChanceOnFailure;
-        if (!destroy)
+        if (scroll.destroyChanceOnFailure <= 0f)
+            return;
+
+        if (UnityEngine.Random.value > scroll.destroyChanceOnFailure)
             return;
 
         destroyTarget?.Invoke();

@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public sealed class UpgradeListHeaderUI : MonoBehaviour
 {
     public const int ListRightPadding = 20;
+    public const float MaterialsColumnWidth = 96f;
 
     private static readonly Color HeaderTextColor = new(0.22745098f, 0.19607843f, 0.16470589f, 1f);
 
@@ -17,18 +18,68 @@ public sealed class UpgradeListHeaderUI : MonoBehaviour
     public void BuildIfNeeded()
     {
         if (transform.childCount > 0)
+        {
+            UpdateColumnLabel("ScrollHeader", "Has Materials");
+            UpdateColumnLabel("HasscrollHeader", "Has Materials");
+            UpdateColumnLabel("HasMaterialsHeader", "Has Materials");
+            ApplyMaterialsColumnWidth();
             return;
+        }
 
         RectTransform rowGroup = CreateRowGroup(transform);
         CreateHeaderCell(rowGroup, "Type", TextAlignmentOptions.Left, flexibleWidth: 1);
         CreateHeaderCell(rowGroup, "Value", TextAlignmentOptions.Left, preferredWidth: 150);
-        CreateHeaderCell(rowGroup, "Has scroll", TextAlignmentOptions.Center, preferredWidth: 28);
+        CreateHeaderCell(rowGroup, "Has Materials", TextAlignmentOptions.Center, preferredWidth: MaterialsColumnWidth);
 
         LayoutElement layout = gameObject.GetComponent<LayoutElement>();
         if (!layout)
             layout = gameObject.AddComponent<LayoutElement>();
         layout.preferredHeight = 30f;
         layout.flexibleWidth = 1f;
+    }
+
+    public static UpgradeListHeaderUI Create(RectTransform parent)
+    {
+        GameObject headerGo = new GameObject("UpgradeListColumnHeader", typeof(RectTransform), typeof(UpgradeListHeaderUI));
+        headerGo.transform.SetParent(parent, false);
+
+        RectTransform headerRect = headerGo.GetComponent<RectTransform>();
+        headerRect.anchorMin = new Vector2(0f, 1f);
+        headerRect.anchorMax = new Vector2(1f, 1f);
+        headerRect.pivot = new Vector2(0.5f, 1f);
+        headerRect.sizeDelta = new Vector2(0f, 30f);
+
+        UpgradeListHeaderUI header = headerGo.GetComponent<UpgradeListHeaderUI>();
+        header.BuildIfNeeded();
+        return header;
+    }
+
+    private void ApplyMaterialsColumnWidth()
+    {
+        if (transform.childCount == 0)
+            return;
+
+        Transform rowGroup = transform.GetChild(0);
+        ApplyMaterialsColumnWidth(rowGroup.Find("ScrollHeader"));
+        ApplyMaterialsColumnWidth(rowGroup.Find("HasscrollHeader"));
+        ApplyMaterialsColumnWidth(rowGroup.Find("HasMaterialsHeader"));
+    }
+
+    private static void ApplyMaterialsColumnWidth(Transform cell)
+    {
+        if (!cell)
+            return;
+
+        LayoutElement layoutElement = cell.GetComponent<LayoutElement>();
+        if (layoutElement != null)
+            layoutElement.preferredWidth = MaterialsColumnWidth;
+
+        TextMeshProUGUI text = cell.GetComponent<TextMeshProUGUI>();
+        if (text != null)
+        {
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.overflowMode = TextOverflowModes.Overflow;
+        }
     }
 
     private static RectTransform CreateRowGroup(Transform parent)
@@ -52,6 +103,20 @@ public sealed class UpgradeListHeaderUI : MonoBehaviour
         layout.childControlHeight = true;
 
         return rowRect;
+    }
+
+    private void UpdateColumnLabel(string childName, string label)
+    {
+        Transform cell = null;
+        if (transform.childCount > 0)
+            cell = transform.GetChild(0).Find(childName);
+
+        if (!cell)
+            return;
+
+        TextMeshProUGUI text = cell.GetComponent<TextMeshProUGUI>();
+        if (text != null)
+            text.text = label;
     }
 
     private static void CreateHeaderCell(
@@ -79,5 +144,11 @@ public sealed class UpgradeListHeaderUI : MonoBehaviour
         text.alignment = alignment;
         text.raycastTarget = false;
         text.margin = Vector4.zero;
+
+        if (string.Equals(label, "Has Materials", System.StringComparison.Ordinal))
+        {
+            text.textWrappingMode = TextWrappingModes.NoWrap;
+            text.overflowMode = TextOverflowModes.Overflow;
+        }
     }
 }
